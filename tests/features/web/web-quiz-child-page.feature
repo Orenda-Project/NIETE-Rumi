@@ -450,6 +450,7 @@ Feature: Web child quiz page on the portal
     Then the results screen shows the score the phone worked out ("You got 3 out of 5") with its stars
     And it says "Your results will reach your teacher when you are back online." («انٹرنیٹ واپس آتے ہی آپ کا نتیجہ استاد تک پہنچ جائے گا۔»)
     And no "No internet right now" error screen is shown
+    And Jugnu is on that screen celebrating, though the phone is offline (the picture was fetched while question 1 was on screen)
 
   @T371
   Scenario: The result is sent by itself when the connection comes back
