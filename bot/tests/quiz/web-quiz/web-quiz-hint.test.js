@@ -92,6 +92,30 @@ describe('leaks(): a hint may point the way, never give the answer', () => {
     expect(Hint.leaks('Look up on a sunny day: what is blue above you?', blank)).toEqual([]);
     expect(Hint.leaks('It is the word sky.', blank)).toContain('figure_word');
   });
+  test('a clue to the FORM of the answer is a leak: its sound, its first letter, a name it resembles', () => {
+    const lang = { type: 'single', stem: 'بلوچستان کے لوگ کون سی زبان بولتے ہیں؟', key: 'C',
+      options: [{ slot: 'A', text: 'پنجابی' }, { slot: 'B', text: 'سندھی' }, { slot: 'C', text: 'بلوچی' }] };
+    expect(Hint.leaks('بلوچستان کے نام سے ملتی جلتی زبان کا نام یاد کریں۔', lang)).toContain('form_clue');
+    expect(Hint.leaks('It sounds like the name of the province.', item)).toContain('form_clue');
+    expect(Hint.leaks('The word starts with the letter m.', item)).toContain('form_clue');
+    expect(Hint.leaks('یاد کریں کہ کلاس میں صوبوں کے بارے میں کیا بات ہوئی تھی۔', lang)).toEqual([]);
+  });
+  test('real hints from a model run (10 lessons): what must pass and what must not', () => {
+    const sub = { type: 'single', stem: 'Bunty has 20 toys. He picks 7 up. How many remain?', key: 'A',
+      options: [{ slot: 'A', text: '13' }, { slot: 'B', text: '27' }, { slot: 'C', text: '12' }] };
+    expect(Hint.leaks('Start with 20 and count back 7 numbers.', sub)).toEqual([]);
+    const den = { type: 'single', stem: 'What does the denominator tell us in a fraction?', key: 'B',
+      options: [{ slot: 'A', text: 'The total number of wholes' }, { slot: 'B', text: 'How many equal parts the whole is cut into' }, { slot: 'C', text: 'How many parts we take' }] };
+    // "number" is a word only a WRONG option has: a generic word, not a give-away.
+    expect(Hint.leaks("Recall what the teacher said about the 'bottom number' of a fraction.", den)).toEqual([]);
+    const back = { type: 'single', stem: 'What is the bigger number?', key: 'B',
+      options: [{ slot: 'A', text: 'The number that is left' }, { slot: 'B', text: 'The number you start with' }, { slot: 'C', text: 'The number you take away' }] };
+    // "start" is a word only the KEY has.
+    expect(Hint.leaks('Think about where you start when you count back.', back)).toContain('names_option');
+    const core = { type: 'single', stem: "Which two layers are part of the Earth's core?", key: 'A',
+      options: [{ slot: 'A', text: 'outer core and inner core' }, { slot: 'B', text: 'mantle and outer core' }, { slot: 'C', text: 'crust and mantle' }] };
+    expect(Hint.leaks("Think about the names of the layers that include the word 'core'.", core)).toContain('form_clue');
+  });
   test('saying "the answer is" is a leak whatever follows', () => {
     expect(Hint.leaks('The answer is the one that flows.', item)).toContain('says_answer');
     expect(Hint.leaks('صحیح جواب وہ ہے جو بہتا ہے۔', item)).toContain('says_answer');
@@ -142,6 +166,11 @@ describe('the prompt asks for a hint only when the gates are on', () => {
     const p = W.buildPrompt([row()], ctx());
     expect(p).toMatch(/"hint"/);
     expect(p).toMatch(/NEVER/);
+  });
+  test('on: the reply template itself carries a "hint" field (a model copies the template\'s fields)', () => {
+    const p = W.buildPrompt([row()], ctx());
+    const tpl = p.slice(p.lastIndexOf('Return ONLY this JSON object'));
+    expect((tpl.match(/"hint": ""/g) || []).length).toBeGreaterThanOrEqual(3);
   });
   test('off: the prompt is as before', () => {
     expect(W.buildPrompt([row()], ctx({ authorGates: false }))).not.toMatch(/"hint"/);
