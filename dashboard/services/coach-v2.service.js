@@ -54,13 +54,17 @@ const SQL = {
   `,
 
   // Every HITL visit of these teachers, by any coach; failed/cancelled never count.
+  // bd-o15qnr.9: id, observer (and name), debrief status and audio key too, for
+  // the Visit page's Last visit row ("HITL · You", "Report sent", opens or not).
   TEACHER_FACTS: `
-    SELECT user_id, created_at, status,
-           jsonb_build_object('scores', analysis_data->'scores') AS analysis_data
-    FROM coaching_sessions
-    WHERE user_id = ANY($1::uuid[])
-      AND observation_type = 'leader_observation'
-      AND status NOT IN ('failed', 'cancelled')
+    SELECT c.id, c.user_id, c.created_at, c.status, c.debrief_status, c.audio_url,
+           c.observer_user_id, ou.name AS observer_name,
+           jsonb_build_object('scores', c.analysis_data->'scores') AS analysis_data
+    FROM coaching_sessions c
+    LEFT JOIN users ou ON ou.id = c.observer_user_id
+    WHERE c.user_id = ANY($1::uuid[])
+      AND c.observation_type = 'leader_observation'
+      AND c.status NOT IN ('failed', 'cancelled')
   `,
 
   TEACHER_TRAINING: `
@@ -291,16 +295,33 @@ async function loadTeachers(query, leaderUserId, today) {
       daysSinceTraining: lastTrainingAt ? daysSince(lastTrainingAt, today) : null,
       trainingModules: p.trainingModules,
       scores: mine.map(scoreOf).filter((s) => s != null),
+      latest,
     };
   });
   return teachers;
 }
 
-/** Strip the internal `scores` list before a teacher leaves the service. */
+/** Strip the internal `scores` list and `latest` row before a teacher leaves the service. */
 function publicTeacher(t) {
   if (!t) return t;
-  const { scores, ...rest } = t;
+  const { scores, latest, ...rest } = t;
   return rest;
+}
+
+/** bd-o15qnr.9 — her latest HITL visit, as the Visit page's Last visit row shows it. */
+function lastVisitOf(teacher, leaderUserId) {
+  const r = teacher && teacher.latest;
+  if (!r) return null;
+  const audio = r.audio_url ? String(r.audio_url).split('?')[0] : '';
+  return {
+    id: r.id || null,
+    date: isoStamp(r.created_at),
+    score: scoreOf(r),
+    step: stepOf(r),
+    byMe: !!r.observer_user_id && r.observer_user_id === leaderUserId,
+    observerName: r.observer_name || null,
+    portal: PORTAL_KEY_RX.test(audio),
+  };
 }
 
 // ── report classification ───────────────────────────────────────────────────
@@ -491,7 +512,7 @@ async function getCoachVisit(query, leaderUserId, scheduleId, opts = {}) {
   return {
     visit: shapeVisit(row, today),
     teacher: publicTeacher(teacher),
-    lastVisit: teacher && teacher.lastVisitAt ? { date: teacher.lastVisitAt, score: teacher.lastVisitScore } : null,
+    lastVisit: lastVisitOf(teacher, leaderUserId),
   };
 }
 

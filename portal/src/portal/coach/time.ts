@@ -75,3 +75,12 @@ export function splitSlot(slot: string | null | undefined): { time: string; meri
 export function localDay(d: Date = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+
+/** Whole hours from now until today's "HH:MM" slot (negative once it has passed); null for no time. */
+export function hoursUntil(slot: string | null | undefined, now: Date = new Date()): number | null {
+  const m = /^(\d{2}):(\d{2})$/.exec(String(slot || ""));
+  if (!m) return null;
+  const at = new Date(now);
+  at.setHours(Number(m[1]), Number(m[2]), 0, 0);
+  return Math.round((at.getTime() - now.getTime()) / 3600000);
+}
