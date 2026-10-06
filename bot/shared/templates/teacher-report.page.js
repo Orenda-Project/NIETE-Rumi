@@ -157,7 +157,7 @@ const CHROME = {
   ur: {
     title: 'کوئز رپورٹ',
     week: (d, m) => `${d}/${m + 1}`,
-    // An Urdu date (Urdu digits, Urdu month) reads right to left: no LTR isolate.
+    // An Urdu date (Urdu month between the numbers) reads right to left: no LTR isolate.
     dateClass: 'dt',
     switchTo: 'English', switchLang: 'en',
     fromLp: 'سبق کے منصوبے سے', fromCoaching: 'کوچنگ سے', fromVideo: 'ویڈیو سے',
@@ -173,7 +173,7 @@ const CHROME = {
     copy: 'پیغام کاپی کریں',
     copyHint: 'پیغام کو دبا کر رکھیں، سب منتخب کریں، پھر کاپی کریں۔',
     reminderPrint: 'کلاس گروپ کے لیے پیغام',
-    ambiguousTitle: 'یہ quiz کس کلاس کے لیے تھا؟',
+    ambiguousTitle: 'یہ کوئز کس کلاس کے لیے تھا؟',
     ambiguousBody: 'جن بچوں نے کھیلا وہ نیچے ہیں۔ کلاس چنیں تاکہ پتا چلے کس نے ابھی نہیں کھیلا۔',
     noneTitle: 'دیکھیں کس نے ابھی نہیں کھیلا',
     noneBody: `WhatsApp پر ${CMD('/roster')} بھیج کر کلاس کی فہرست بنائیں، پھر یہ رپورٹ دوبارہ کھولیں۔`,
@@ -185,7 +185,7 @@ const CHROME = {
     noticeFailed: 'محفوظ نہیں ہو سکا۔ دوبارہ کوشش کریں۔',
     noticeNotReady: 'ابھی محفوظ نہیں ہو سکتا: کلاس چننے کی سہولت اگلی اپ ڈیٹ کے ساتھ شروع ہوگی۔ آپ کی رپورٹ پر کوئی اثر نہیں۔',
     noticeClosed: 'اس کوئز کا لنک بند ہو چکا ہے، اس لیے اب اس کی کلاس نہیں بدلی جا سکتی۔',
-    noPlayers: 'ابھی کسی نے نہیں کھیلا۔ quiz کا لنک کلاس کو بھیجیں۔',
+    noPlayers: 'ابھی کسی نے نہیں کھیلا۔ کوئز کا لنک کلاس کو بھیجیں۔',
     questions: 'ہر سوال کا حال',
     qRight: (n, p) => `سوال <span class="num">${n}</span> · <span class="num">${p}%</span> درست`,
     qNone: (n) => `سوال <span class="num">${n}</span> · ابھی کسی نے جواب نہیں دیا`,
@@ -197,19 +197,19 @@ const CHROME = {
       secure: 'بچوں کو یہ پکا آ گیا', stretch: 'کل انہیں ایک قدم آگے کیسے لے جائیں',
     },
     schoolLine: (r, m, p) => `اس ہفتے اسکول کا نمبر: <b class="num">${r}</b>${m > 0 ? ` (<span class="num">${m}</span> درجے اوپر)` : ''}${p != null ? ` · <b class="num">${p}</b> بچوں نے کھیلا` : ''}`,
-    exportPdf: 'PDF ڈاؤن لوڈ', allClasses: 'میری سب کلاسیں', backToQuiz: 'اس quiz پر واپس',
+    exportPdf: 'PDF ڈاؤن لوڈ', allClasses: 'میری سب کلاسیں', backToQuiz: 'اس کوئز پر واپس',
     updated: (t) => `تازہ ترین: <span class="num">${t}</span> · دوبارہ کھولنے پر نئی معلومات`,
-    classTitle: 'میری سب کلاسیں', classSub: 'پچھلے <span class="num">60</span> دن کے quiz',
-    cellLine: (q, p) => `<b class="num">${q}</b> quiz · <b class="num">${p}</b> نے کھیلا`,
+    classTitle: 'میری سب کلاسیں', classSub: 'پچھلے <span class="num">60</span> دن کے کوئز',
+    cellLine: (q, p) => `<b class="num">${q}</b> کوئز · <b class="num">${p}</b> نے کھیلا`,
     avgShort: 'اوسط', noClass: 'کلاس معلوم نہیں',
     trend: 'ہر ہفتے کتنے بچوں نے کھیلا',
-    yourQuizzes: 'آپ کے quiz',
+    yourQuizzes: 'آپ کے کوئز',
     quizLine: (p) => `<b class="num">${p}</b> نے کھیلا`,
-    emptyClass: `پچھلے 60 دن میں کوئی quiz نہیں بھیجا گیا۔ نیا بنانے کے لیے WhatsApp پر ${CMD('/quiz')} بھیجیں۔`,
+    emptyClass: `پچھلے 60 دن میں کوئی کوئز نہیں بھیجا گیا۔ نیا بنانے کے لیے WhatsApp پر ${CMD('/quiz')} بھیجیں۔`,
     expiredTitle: 'اس لنک کی مدت ختم ہو گئی ہے',
     expiredBody: `نئے لنک کے لیے WhatsApp پر ${CMD('/quiz')} بھیجیں۔`,
     missingTitle: 'یہ رپورٹ نہیں ملی',
-    missingBody: `اپنی quiz رپورٹس دیکھنے کے لیے WhatsApp پر ${CMD('/quiz')} بھیجیں۔`,
+    missingBody: `اپنی کوئز رپورٹس دیکھنے کے لیے WhatsApp پر ${CMD('/quiz')} بھیجیں۔`,
     errorTitle: 'رپورٹ ابھی نہیں کھل سکی',
     errorBody: 'تھوڑی دیر بعد دوبارہ کوشش کریں۔',
   },
@@ -219,8 +219,6 @@ const MONTHS_UR = ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی
 const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const PKT_MS = 5 * 3600 * 1000;
 
-const urduDigits = (str) => String(str).replace(/[0-9]/g, (c) => String.fromCharCode(0x06F0 + Number(c)));
-
 function pkt(iso) {
   const t = new Date(iso).getTime();
   return Number.isFinite(t) ? new Date(t + PKT_MS) : null;
@@ -228,9 +226,9 @@ function pkt(iso) {
 function dateLabel(iso, lang, { year = false } = {}) {
   const d = pkt(iso);
   if (!d) return '';
-  // Urdu prose takes Urdu digits (language-protocol §9.4), and a date set in them reads
-  // right to left like the words around it: never put it in a left-to-right isolate.
-  if (lang === 'ur') return urduDigits(`${d.getUTCDate()} ${MONTHS_UR[d.getUTCMonth()]}${year ? ` ${d.getUTCFullYear()}` : ''}`);
+  // Latin digits like every other number on the page (and the PDF); the date reads right
+  // to left like the words around it, so it is never put in a left-to-right isolate.
+  if (lang === 'ur') return `${d.getUTCDate()} ${MONTHS_UR[d.getUTCMonth()]}${year ? ` ${d.getUTCFullYear()}` : ''}`;
   return `${d.getUTCDate()} ${MONTHS_EN[d.getUTCMonth()]}${year ? ` ${d.getUTCFullYear()}` : ''}`;
 }
 /** A week's column label: "28 Sep"; in Urdu the month name is too wide for eight columns, so "28/9". */
