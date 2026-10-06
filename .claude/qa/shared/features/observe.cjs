@@ -2,35 +2,41 @@
 /* observe.feature — mock-lane driver.
  *
  * observe is a COACH/leader feature, capability-gated on OBSERVE_MEWAKA_FLOW_ID and driven through the
- * OBSERVE_VISIT_FLOW_ID data_exchange Flow (both real ids live in keys/niete-local.env and are mirrored
- * as fallbacks in local-stack.sh; they match the committed flow fixtures, so the emulator opens them).
+ * OBSERVE_VISIT_FLOW_ID data_exchange Flow. The mock stack runs the visit Flow with the SANDBOX bot's
+ * observe flags (local-stack.sh: OBSERVE_SCHEDULING_UI, _STAGE_SCREENS, _OBS_ACTION, _FRAMEWORK=fico,
+ * _CAPTURE_GATES_ENABLED, _TEACHER_NOTIFY_ENABLED) — the committed Flow fixture IS that scheduling Flow.
  *
- * DRIVEN on the mock lane:
- *  · role gate (text): OBS20 teacher DENIED · OBS02 coach onboarding · OBS01 coach entry · OBS32 menu row
- *  · visit Flow (emulator): OBS03 the visit picker OPENS to school selection
- *  · audio (fixture upload): OBS06 recording captured without a Yes/No · OBS35 asked whose it is
- *    · OBS25 a leader's long audio goes to OBSERVE capture, never teacher coaching
+ * THE ROSTER (2026-10-06). The visit picker used to open on an EMPTY school dropdown, blocking 30 ids.
+ * Two causes, both in the harness: (1) without OBSERVE_SCHEDULING_UI the handler answered INIT with the
+ * legacy NavigationList's data.items while the fixture's SELECT_SCHOOL is a Dropdown fed by data.options
+ * (observe-visit-flow.handler.js:39, :735); (2) api.setRoster wrote `E2E-OBS-<driver>` + leader_teachers,
+ * but the product finds the school by the EMIS after the last ':' of school_ext_id and the teachers as
+ * USERS at that school (patch-resolver.service.js:245, :250). The seed now writes `niete:E2EOBS<driver>`
+ * and two persistent fixture teacher users (Ayesha: Urdu, Bilal: English); api.resetObserve() clears the
+ * coach's earlier test observations + visits so the same fixture audio is analysed afresh each run.
  *
- * BLOCKED, each with a VERIFIED reason (confirmed by exploratory drive / code, not assumed):
- *  ROSTER — the visit picker opens, but school→teacher→brief cannot ADVANCE: the driver-coach has no
- *           leader_schools assignment / roster in the sandbox DB, so the school dropdown + teacher picker
- *           are empty and Continue/"Pick the teacher" are no-ops. There is no seed helper, and the mock
- *           API only PATCHes the users row (not leader_schools), so this state can't be created here.
- *  ANALYSIS — needs a COMPLETED audio analysis (pick a teacher → analyse → FICO form). Unreachable
- *           because the teacher pick is empty (see ROSTER); the FICO form / debrief / report all sit
- *           downstream of it.
- *  FAULT  — needs an injected DB-write / report-send failure; the harness has no fault injection.
- *  NOACCT — needs a WhatsApp number with no NIETE account; the driver is a registered user.
- *  OFF    — needs the capability gate OFF; the mock baseline runs it ON. Override OBSERVE_MEWAKA_FLOW_ID= .
+ * DRIVEN:
+ *  · role gate: OBS20 · OBS02 · OBS01 · OBS32 · OBS21 (gate OFF via stack-control.restart)
+ *  · scheduling: OBS03 school → teacher → brief · OBS05 save + chat ack · OBS62/63 the teacher's notice
+ *    templates (read from her own mock outbox) · OBS19 · OBS04 menu counts
+ *  · the chain on Bilal: recording → capture gates (answered No) → FICO form OBS07 → edit + submit OBS08
+ *    → Later + /observe OBS14 → Debrief now OBS09, twice OBS15 → too-short OBS27 → respectful debrief
+ *    OBS10 → Send report OBS11 / OBS18 / OBS12 (OBS31 when the total is readable) → same audio again
+ *    OBS37 / OBS38 (coach Urdu)
+ *  · the cancel chain on Ayesha: cancel → old buttons OBS29 → same audio again OBS39 → form → debrief:
+ *    the already-coached debrief OBS40 / OBS41, the too-short one re-sent OBS42, the harmful one OBS23
+ *  · unbound captures: OBS06 · OBS35 · OBS25 · OBS36 · OBS34 · OBS33
+ * The debrief recordings are SYNTHETIC (fixtures/…/media/debrief, text-to-speech of a written script,
+ * make-debrief-fixtures.cjs); the bot transcribes and judges them like any recording.
+ *
+ * BLOCKED, each with its evidence in the row: OBS13 (no refresh_on_back in the FICO Flow), OBS16, OBS17,
+ * OBS22 (an unknown number gets an account before the gate), OBS24, OBS26/28 (no fault injection), OBS30,
+ * OBS64's second half.
  *
  * Copy grounded in observe-strings.js (en) + observe-command.handler.js; screens confirmed by live probe. */
 const V = (c, ev) => [c ? 'PASS' : 'FAIL', ev];
 const B = (reason) => ['BLOCKED', { reason }];
-const ROSTER   = B('the visit picker OPENS but cannot advance to school→teacher→brief. api.setRoster() DOES seed a dedicated E2E school + teachers + leader_schools row (verified queryable by the driver uid, and torn down by the harness — no pollution), but the visit Flow still renders an EMPTY school dropdown: listSchools returns nothing for the flow_token userId, so the seed does not surface in-Flow (a flow_token / lazy schools-data_exchange nuance, not yet root-caused). Until that is fixed the walk cannot proceed.');
-const ANALYSIS = B('needs a completed audio analysis (pick teacher → analyse → FICO); the teacher pick is gated by the same in-Flow empty-roster issue as ROSTER. The FICO form / debrief / report sit downstream of it.');
-const FAULT    = B('needs an injected DB-write / report-send failure; the harness provides no fault injection.');
-const NOACCT   = B('needs a WhatsApp number with no NIETE account; the mock driver is a registered user.');
-const OFF      = B('needs the capability gate OFF; the mock baseline sets OBSERVE_MEWAKA_FLOW_ID ON to exercise the coach path. Drive the OFF fall-through with: OBSERVE_MEWAKA_FLOW_ID= bash commit-e2e.sh …');
+const FAULT    = B('needs an injected DB-write / report-send failure; the mock Graph API refuses only an unreachable media link and the cassette faults script vendor answers, so neither a failed session insert nor a refused delivery can be caused here.');
 
 const DENIED = /school leaders|field officers|I'm here for you/i;                                 // S.role_denied
 const ENTRY  = /plan your visit|Plan my visit|Welcome to \/observe|how it works|record the lesson|Ready!|send me the recording/i;
@@ -131,27 +137,29 @@ exports.run = async ({ api, rec, want = () => true }) => {
     'OBS37', 'OBS38', 'OBS40', 'OBS41', 'OBS42'];
   const CANCEL = ['OBS23', 'OBS29', 'OBS30', 'OBS39'];
   const isFlow = (m) => !!(m && m.raw && m.raw.interactive && m.raw.interactive.type === 'flow');
+  const isForm = (m) => isFlow(m) && /FICO/i.test(m.txt || '');
   const brief = (m) => ({ txt: (m.txt || '').slice(0, 500), btns: m.btns, img: m.img || undefined, doc: m.doc || undefined,
     flow: isFlow(m) || undefined, template: m.template || undefined, list: m.list ? m.list.rows.map((r) => r.title) : undefined });
   const UR = /[؀-ۿ]/;
   // Poll the chat until `stop(msg)` or the deadline. Photo / lesson-plan prompts of the capture gates
   // are answered "No" on the way when `answer` is set, so an analysis runs without fixture photos.
   const collect = async (ms, stop, answer = false) => {
-    const seen = []; const t0 = Date.now();
+    const seen = []; const t0 = Date.now(); let hit = null;
     while (Date.now() - t0 < ms) {
       for (const m of await api.fresh()) {
         seen.push(m);
-        if (stop && stop(m)) return { hit: m, seen };
+        if (stop && !hit && stop(m)) hit = m;
         if (answer && (m.btns || []).includes('No') && /photo|lesson plan/i.test(m.txt || '')) { await api.freshReset(); await api.tapAndWait('No', 60000); }
       }
+      if (hit) return { hit, seen };
       await new Promise((r) => setTimeout(r, 2500));
     }
-    return { hit: null, seen };
+    return { hit, seen };
   };
   const visitMenu = async () => {
     api.closeFlow(); await api.resetFlow(); await api.freshReset();
     await api.sendWait('/observe', 120000);
-    const op = await api.openFlow('Plan my visit|plan your visit|Observe|Open');
+    const op = await api.openFlow('.');
     return { op, p: op && op.ok ? await api.flowProbe() : { text: '', items: [] } };
   };
   const toBrief = async (schoolName, teacher) => {
@@ -176,7 +184,7 @@ exports.run = async ({ api, rec, want = () => true }) => {
     const armed = await api.flowComplete(60000);
     const up = await api.upload(MEDIA + '/' + audio, 'Audio', 180000);
     await api.freshReset();
-    const got = /already been analy/i.test(up.txt || '') ? { hit: null, seen: [] } : await collect(600000, isFlow, true);
+    const got = /already been analy/i.test(up.txt || '') ? { hit: null, seen: [] } : await collect(600000, isForm, true);
     return { armed: (armed.txt || '').slice(0, 200), upload: { txt: (up.txt || '').slice(0, 300), btns: up.btns, raw: up },
       form: got.hit, seen: got.seen.map(brief) };
   };
@@ -244,8 +252,10 @@ exports.run = async ({ api, rec, want = () => true }) => {
           await api.flowClick('Save schedule', { settleMs: 3000 });
           const conf = await api.flowProbe();
           await api.freshReset();
+          await api.flowClick("I'm done for now", { settleMs: 2500 });
           await api.flowPick("I'm done for now", { exact: true }); await api.flowClick('Continue', { settleMs: 3000 });
-          const ack = await collect(30000, (x) => /Observation scheduled/i.test(x.txt || ''));
+          const fc = await api.flowComplete(30000);
+          const ack = /Observation scheduled/i.test(fc.txt || '') ? { hit: fc } : await collect(20000, (x) => /Observation scheduled/i.test(x.txt || ''));
           rr('OBS05', /Ayesha Khan.*08:30.*E2E Observe School/s.test(conf.text || '')
               && !!ack.hit && /Observation scheduled for \*?Ayesha Khan.*08:30.*\/observe/s.test(ack.hit.txt || ''),
             { flowConfirm: (conf.text || '').slice(0, 200), chat: ack.hit && ack.hit.txt, date: ymd }, Date.now() - s);
@@ -257,7 +267,16 @@ exports.run = async ({ api, rec, want = () => true }) => {
               && !!P[3] && !!P[4] && UR.test(P[3] + P[4]),
             { template: t62 && t62.template, coachSawTemplate: !!n1.hit, note: 'teacher Urdu, coach English: the notice follows the teacher' });
 
-          // ── OBS64 · re-saving the same visit unchanged sends nothing ──
+          // ── OBS64 (path 1) · the picker again: same teacher, same date, same slot → saveSchedule ──
+          await tA.fresh();
+          await visitMenu();
+          const bA = await toBrief(seed.schoolName, 'Ayesha Khan');
+          await api.flowClick('Pick date & time', { settleMs: 2500 });
+          await api.flowType(ymd, { field: 'Observation date' }); await api.flowPick('08:30', { exact: true });
+          const sv1 = await api.flowClick('Save schedule', { settleMs: 3000 });
+          await new Promise((r) => setTimeout(r, 4000));
+          const viaPicker = (await tA.fresh()).filter((x) => x.template).map((x) => x.template.name);
+          // ── OBS64 (path 2) · My schedule → the visit → Change the date or time → same values ──
           const mv = await visitMenu();
           await api.flowClick('My schedule', { settleMs: 2500 });
           await api.flowPick('Ayesha Khan'); await api.flowClick('Continue', { settleMs: 2500 });
@@ -277,9 +296,11 @@ exports.run = async ({ api, rec, want = () => true }) => {
             await new Promise((r) => setTimeout(r, 4000));
             const tA2 = (await tA.fresh()).filter((x) => x.template);
             resave = { editScreen: ed.screen, save: sv.ok ? 'ok' : sv.err, after: (after.text || '').slice(0, 160), teacherMsgs: tA2.map((x) => x.template.name) };
-            rb('OBS64', 'half driven: an unchanged re-save sent the teacher ' + (tA2.length ? tA2.length + ' message(s)' : 'nothing')
-              + '. The second half needs a teacher with no WhatsApp number, and the coach patch is derived from users rows (patch-resolver.service.js:250), which always carry a phone — no number-less teacher can be booked here.',
-              { resave });
+            rr('OBS64', viaPicker.length === 0 && tA2.length === 0,
+              { viaPicker: { errs: bA.errs, save: sv1 && sv1.ok ? 'ok' : sv1 && sv1.err, teacherGot: viaPicker },
+                viaChangeDateOrTime: resave,
+                finding: tA2.length ? 'the "Change the date or time" path (observe-schedule.service.js rescheduleById, :209-226) sends observation_visit_rescheduled even when the date and slot are unchanged; saveSchedule guards this (:105-107) and rescheduleById does not' : undefined,
+                notDriven: 'the second half (a hand-added teacher with no WhatsApp number) needs a number-less teacher, and the coach patch is derived from users rows, which always carry a phone (patch-resolver.service.js:250)' });
             // ── OBS63 · move it, then cancel it: the teacher hears both ──
             api.closeFlow(); await visitMenu();
             await api.flowClick('My schedule', { settleMs: 2500 }); await api.flowPick('Ayesha Khan'); await api.flowClick('Continue', { settleMs: 2500 });
@@ -332,9 +353,16 @@ exports.run = async ({ api, rec, want = () => true }) => {
             const ob = await api.sendWait('/observe', 120000);
             const obMore = await collect(8000, null);
             const first = [ob, ...obMore.seen].filter((x) => x && (x.txt || x.list));
-            const offer = first.find((x) => /debrief/i.test((x.txt || '') + JSON.stringify(x.list || '')));
-            rr('OBS14', !!offer && first.indexOf(offer) === 0,
-              { later: (later.txt || '').slice(0, 200), replies: first.map(brief) });
+            const visitCard = first.find(isFlow);
+            let firstRow = null; let menuText = '';
+            if (visitCard) {
+              const fo = await api.openFlow('.', { from: visitCard });
+              if (fo.ok) { const pm = await api.flowProbe(); menuText = pm.text || ''; firstRow = ((pm.items || []).find((x) => x.kind === 'nav') || {}).text || null; }
+              api.closeFlow(); await api.resetFlow();
+            }
+            rr('OBS14', /Complete debriefs/i.test(firstRow || '') && /Complete debriefs\n\d+ pending/.test(menuText),
+              { later: (later.txt || '').slice(0, 200), replies: first.map(brief), firstRow, menu: menuText.slice(0, 300),
+                note: 'with OBSERVE_SCHEDULING_UI on, /observe opens the visit Flow and the pending debrief is its FIRST menu row (stage rows, bd-tju8f), ahead of scheduling a new observation' });
             // ── OBS04 · the menu counts: a pending debrief and the upcoming visit ──
             if (want('OBS04')) {
               const mm = await visitMenu();
@@ -347,16 +375,17 @@ exports.run = async ({ api, rec, want = () => true }) => {
             await api.freshReset();
             const g1 = await api.tapAndWait('Debrief now', 120000);
             const g1more = await collect(15000, null);
-            const guide1 = [g1, ...g1more.seen].map((x) => x.txt || '').filter(Boolean).join('\n---\n');
-            const steps = (guide1.match(/^\s*(?:\*?\d[.)]|[1-6]️⃣)/gm) || []).length;
-            const lastPara = (g1.txt || '').trim().split(/\n\s*\n/).pop() || '';
-            rr('OBS09', !!g1.ok && steps >= 6 && /record/i.test(lastPara) && g1more.seen.filter((x) => x.txt).length === 0
+            const g1msgs = g1more.seen.filter((x) => x.txt);   // includes the tap's own reply
+            const paras = (g1.txt || '').trim().split(/\n\s*\n/);
+            const steps = paras.filter((x) => /^(🌱|💪|📋|❓|🔒)/u.test(x.trim())).length;
+            const lastPara = paras.slice(-2).join(' ');
+            rr('OBS09', !!g1.ok && steps >= 6 && /record your whole conversation|voice recorder/i.test(lastPara) && g1msgs.length <= 1
                 && !/\b\d{1,3}\s*\/\s*(?:148|104|4)\b|\b\d{1,3}\s*%/.test(g1.txt || ''),
-              { messages: 1 + g1more.seen.filter((x) => x.txt).length, steps, lastParagraph: lastPara.slice(0, 200), guide: (g1.txt || '').slice(0, 600) });
+              { messages: Math.max(1, g1msgs.length), steps, lastParagraph: lastPara.slice(0, 200), guide: (g1.txt || '').slice(0, 600) });
             await api.freshReset();
             const g2 = await api.tapAndWait('Debrief now', 120000);
             const g2more = await collect(15000, null);
-            rr('OBS15', !!g2.ok && (g2.txt || '') === (g1.txt || '') && g2more.seen.filter((x) => x.txt).length === 0,
+            rr('OBS15', !!g2.ok && (g2.txt || '') === (g1.txt || '') && g2more.seen.filter((x) => x.txt).length <= 1,
               { sameGuide: (g2.txt || '') === (g1.txt || ''), extraMessages: g2more.seen.map(brief),
                 note: 'no new LLM call is proven by replay-strict: a second guide generation would need its own cassette' });
 
@@ -423,7 +452,7 @@ exports.run = async ({ api, rec, want = () => true }) => {
             const d1 = await observeAndAnalyse(seed.schoolName, 'Bilal Ahmed', 'hameeda_16min.m4a');
             const dupTxt = (d1.upload && d1.upload.txt) || '';
             await new Promise((r) => setTimeout(r, 8000));
-            const noForm = !(await api.fresh()).some(isFlow);
+            const noForm = !(await api.fresh()).some(isForm);
             rr('OBS38', /اس کلاس روم ریکارڈنگ کا تجزیہ پہلے ہی کیا جا چکا ہے/.test(dupTxt),
               { reply: dupTxt, coach: 'ur', teacher: 'en (Bilal)' });
             await api.setUser({ preferred_language: 'en', language_locked: true });
@@ -431,7 +460,7 @@ exports.run = async ({ api, rec, want = () => true }) => {
             const d2 = await observeAndAnalyse(seed.schoolName, 'Bilal Ahmed', 'hameeda_16min.m4a');
             const dup2 = (d2.upload && d2.upload.txt) || '';
             await new Promise((r) => setTimeout(r, 8000));
-            rr('OBS37', /This classroom recording has already been analyzed\. Please submit a new recording\./.test(dup2) && noForm && !(await api.fresh()).some(isFlow),
+            rr('OBS37', /This classroom recording has already been analyzed\. Please submit a new recording\./.test(dup2) && noForm && !(await api.fresh()).some(isForm),
               { reply: dup2, noNewForm: noForm });
           }
         }
@@ -457,9 +486,12 @@ exports.run = async ({ api, rec, want = () => true }) => {
           }
           const cancelBtn = (up.btns || []).find((x) => /cancel/i.test(x));
           await api.freshReset();
-          const cx = cancelBtn ? await api.tapAndWait(cancelBtn, 60000) : { ok: false, txt: '' };
+          const cx0 = cancelBtn ? await api.tapAndWait(cancelBtn, 60000) : { ok: false, txt: '', btns: [] };
+          const yes = (cx0.btns || []).find((x) => /yes/i.test(x));
+          await api.freshReset();
+          const cx = yes ? await api.tapAndWait(yes, 60000) : { ok: false, txt: '' };
           const cxMore = await collect(15000, null);
-          const cxTxt = [cx.txt, ...cxMore.seen.map((x) => x.txt)].filter(Boolean).join('\n');
+          const cxTxt = [cx0.txt, cx.txt, ...cxMore.seen.map((x) => x.txt)].filter(Boolean).join('\n');
           // ── OBS29 · every old button after the cancel says it was cancelled, and advances nothing ──
           const taps = [];
           for (const bt of oldBtns.filter((x) => !/cancel|okay/i.test(x.title))) {
@@ -467,7 +499,7 @@ exports.run = async ({ api, rec, want = () => true }) => {
             const r = await collect(20000, (x) => !!x.txt);
             taps.push({ tapped: bt.title, reply: r.hit ? (r.hit.txt || '').slice(0, 200) : null });
           }
-          const flowAfter = (await collect(20000, isFlow)).hit;
+          const flowAfter = (await collect(20000, isForm)).hit;
           rr('OBS29', taps.length > 0 && taps.every((t) => t.reply && /cancel/i.test(t.reply)) && !flowAfter,
             { cancel: cxTxt.slice(0, 300), taps, formAfterCancel: !!flowAfter });
           rb('OBS30', 'needs a FICO form that was SENT before the cancel; the cancel here lands while the gate prompts are open, before any form exists. A form-then-cancel needs the cancel button on a message after the form, which the flow does not offer (the only cancel is on the capture ack).',
