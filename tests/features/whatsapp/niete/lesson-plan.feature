@@ -498,6 +498,9 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And I have opened the LP Flow
     When I pick a grade that has no lesson plans yet
     Then the bot replies that no lesson plans are available for that grade yet
+    # The picker only offers grades with content, so a tap cannot reach this; a stale client can. The
+    # mock lane forges that client's data_exchange ({step: grade, grade: 0}) and reads the Flow error:
+    # "No lesson plans available for Grade 0 yet. Try another class or check back soon."
 
   @e2e @flow @negative @P3 @L07
   Scenario: A subject with no chapters for that grade is refused politely
@@ -505,6 +508,8 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And I have opened the LP Flow and picked a grade
     When I pick a subject that has no lesson plans for that grade
     Then the bot replies that no lesson plans exist for that subject and grade yet
+    # Driven the same way: {step: subject, grade: 1, subject: Astronomy} → "No Astronomy lesson plans
+    # for Grade 1 yet." (pakistan-lp-endpoint.js selectSubject).
 
   @e2e @edge @negative @P3 @L08
   Scenario: "/lesson plan" is not a recognised keyword and falls through to natural language

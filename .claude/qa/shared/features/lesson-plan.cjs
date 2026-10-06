@@ -228,11 +228,33 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
                waitedMs: voice.waitedMs }), t() - s);
   }
 
-  // L06 / L07 — unreachable by construction
-  rec('L06', 'A grade with no lesson plans shows a friendly message', 'BLOCKED',
-      { reason: 'the grade picker is content-driven — every offered grade has content, so no empty grade is selectable' }, 0);
-  rec('L07', 'A subject with no chapters is refused politely', 'BLOCKED',
-      { reason: 'same — the subject picker only lists subjects that have chapters for that grade' }, 0);
+  // L06 / L07 — the pickers only offer what has content, so no tap can reach an empty grade or subject.
+  // A stale client can: forge the data_exchange it would post (api.flowRaw) and read the endpoint's
+  // answer. A Flow error carries the message the teacher sees in the Flow.
+  if (want('L06', 'L07')) {
+    s = t();
+    await api.resetFlow();
+    await api.sendWait('/lp');
+    const op6 = await openLP();
+    const errOf = (r) => (r && r.ok && r.res && r.res.data && r.res.data.error && r.res.data.error.message) || '';
+    if (!op6.ok || !api.flowRaw) {
+      const why = !op6.ok ? 'the Pick-Class Flow did not open: ' + op6.err : 'this lane cannot forge a Flow exchange';
+      rec('L06', 'A grade with no lesson plans shows a friendly message', 'BLOCKED', { reason: why }, t() - s);
+      rec('L07', 'A subject with no chapters is refused politely', 'BLOCKED', { reason: why }, 0);
+    } else {
+      const r6 = await api.flowRaw({ step: 'grade', grade: '0' });
+      const m6 = errOf(r6);
+      rec('L06', 'A grade with no lesson plans shows a friendly message',
+          ...V(/No lesson plans available for .+ yet/i.test(m6) && !/error|undefined|null/i.test(m6), { forged: { step: 'grade', grade: '0' }, message: m6 || r6 }), t() - s);
+      s = t();
+      const r7 = await api.flowRaw({ step: 'subject', grade: '1', subject: 'Astronomy' });
+      const m7 = errOf(r7);
+      rec('L07', 'A subject with no chapters is refused politely',
+          ...V(/No Astronomy lesson plans for .+ yet/i.test(m7), { forged: { step: 'subject', grade: '1', subject: 'Astronomy' }, message: m7 || r7 }), t() - s);
+      api.closeFlow();
+    }
+    await api.resetFlow();
+  }
 
   // bd-onxyu — app redirect. Recorded with the reason, not left absent.
   rec('L11', 'With Lesson Plans moved to the app, asking for a lesson plan sends me to the Play Store instead', 'BLOCKED',

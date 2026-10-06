@@ -267,6 +267,9 @@ function makeMockApi(opts) {
     // id/name/hay/value ride along: a NavigationList row's id (lp_<quizId>), a Dropdown option's field name,
     // and the row's full text are what drivers key on; the CDP lane has them too (bd-w3cb9).
     async flowProbe() { if (!flow || !flow.isOpen()) return { text: '', items: [] }; const p = flow.probe(); return { screen: p.screen, text: p.text, items: p.items.map((i) => ({ text: i.text, disabled: i.disabled, kind: i.kind, id: i.id, name: i.name, hay: i.hay, value: i.value })) }; },
+    /** Forge one data_exchange on the open Flow (a stale client's payload); the reply is returned, the
+     *  Flow does not move. Mirrors injectList for list replies. */
+    async flowRaw(payload) { if (!flow || !flow.isOpen()) return noFlow(); return flow.raw(payload); },
     async flowClick(text, o2) { if (!flow || !flow.isOpen()) return noFlow(); const r = await flow.click(text, o2 || {}); if (!flow.isOpen()) flow = null; return r; },
     async flowPick(want, o2) {
       if (!flow || !flow.isOpen()) return noFlow();
