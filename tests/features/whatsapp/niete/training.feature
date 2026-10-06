@@ -1582,6 +1582,7 @@ Feature: NIETE (ICT) Teacher Training
     When a child opens a web quiz link
     Then the page wears the Rumi mark, navy and coral, and the Rumi link preview
     And no screen, preview or page title says NIETE or Islamabad
+    And no help text names a button by its colour (the colour is the brand's)
     And a brand the configuration does not know is ignored and the default brand is used
     # web-quiz-brand.js brandKey (setting, then ORG_NAME, then default; 5-minute cache of the app_settings row).
     # Unit: bot/tests/quiz/web-quiz/web-quiz-brand.test.js, bot/tests/quiz/web-quiz/web-quiz.service.test.js (E2 brand). @wip.
