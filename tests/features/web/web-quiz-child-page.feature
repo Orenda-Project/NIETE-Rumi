@@ -374,6 +374,14 @@ Feature: Web child quiz page on the portal
     And a question that needs the picture is left out, and the quiz still has at least three questions
     And a question that asks which letter fills the gap keeps its picture
 
+  @T445
+  Scenario: A practice round that beats the child's best says so
+    Given a child finished a quiz with 3 of 5 and later practised it with 4 of 5
+    When the child practises again and gets 5 of 5
+    Then the scorecard still says the first score 3/5 is the one that counts
+    And it adds "New best! 5/5 · was 4/5 ⭐" («نیا ریکارڈ! 5/5 · پہلے 4/5 ⭐»)
+    And a practice round equal to or below the best adds nothing
+
   @T370
   Scenario: A child who loses the internet at the end still sees their score
     Given a child answered every question and the phone then lost its connection
