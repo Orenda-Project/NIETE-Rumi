@@ -296,3 +296,18 @@ Feature: Web child quiz page on the portal
     When the child taps "Play as" that child on a quiz of this class
     Then the phone forgets that child and shows "who is playing?" (the roll-number pad when the class has a list)
     And no "Something went wrong" message is shown
+
+  @T248
+  Scenario: A friend who plays a challenge learns who won
+    Given a child finished the class quiz with 3 of 4 and sent a friend their challenge link
+    When the friend opens the link, plays and finishes with 4 of 4
+    Then the friend's scorecard says "You beat the challenge!" («آپ نے چیلنج جیت لیا!») with "You 4/4 · <challenger> 3/4"
+    And a friend with the same share of right answers sees "It's a tie!" («مقابلہ برابر رہا!»), a lower one "So close! Play again?"
+    And when the challenger opens "My scores", the friend's row says "beat you!" («آپ سے آگے!»), or "you won" when the challenger did better
+
+  @T249
+  Scenario: A challenge link carries no child's name
+    Given a child finished a quiz
+    When the child taps "Challenge a friend"
+    Then the shared link is the child's challenge code alone ("/q/<code>"), with no name in it
+    And the friend's landing still names the challenger, read from the code on the server

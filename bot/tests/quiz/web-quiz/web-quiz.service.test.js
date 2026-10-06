@@ -398,7 +398,7 @@ describe('E7 POST me', () => {
       status: 'completed', correct_answers: 2, total_questions_answered: 4, completed_at: ago(1), created_at: ago(1.1), invited_by_student_id: KID_A });
     const out = await WQ.me({ code: 'AB12CD', chips: [chipOf(KID_A)] });
     expect(out.history).toEqual([{ chip: chipOf(KID_A), topic: 'Parts of a plant', date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), correct: 3, total: 4, pct: 75 }]);
-    expect(out.friends_finished).toEqual([{ chip: chipOf(KID_A), first: 'Rida', topic: 'Parts of a plant', correct: 2, total: 4 }]);
+    expect(out.friends_finished).toEqual([{ chip: chipOf(KID_A), first: 'Rida', topic: 'Parts of a plant', correct: 2, total: 4, outcome: 'lose' }]);
     expect(await WQ.me({ code: 'AB12CD', chips: ['0000000000000000'] })).toEqual({ history: [], friends_finished: [] });
   });
 });
