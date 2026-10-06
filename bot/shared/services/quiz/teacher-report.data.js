@@ -126,6 +126,18 @@ function countedSessions(rows, teacherId) {
   return out.filter((s) => s.status === 'completed');
 }
 
+/** One counted session per child across a quiz's codes: the earliest finish. Rows without a student pass through. */
+function onePerChildAcrossCodes(sessions) {
+  const seen = new Set();
+  return sessions.slice().sort((a, b) => String(a.completed_at || '').localeCompare(String(b.completed_at || '')))
+    .filter((s) => {
+      if (!s.student_id) return true;
+      if (seen.has(s.student_id)) return false;
+      seen.add(s.student_id);
+      return true;
+    });
+}
+
 async function classCodes(teacherId, quizIds) {
   if (!quizIds.length) return [];
   const { data, error } = await supabase.from('quiz_share_codes')
@@ -283,7 +295,10 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   const meta = quiz.meta || {};
 
   const codes = await classCodes(teacherId, [quiz.id]);
-  const counted = countedSessions(await sessionsFor(codes.map((c) => c.id)), teacherId);
+  // Per class code first (the class report's rule), then ONE row per child across the
+  // quiz's codes: this page is one quiz, so a child who played on two hand-outs is
+  // one child — the earlier finish counts.
+  const counted = onePerChildAcrossCodes(countedSessions(await sessionsFor(codes.map((c) => c.id)), teacherId));
 
   const lang = clampLanguage(quiz.language);
   const primary = codes.find((c) => c.id === meta.share_code_id) || codes[0] || null;
@@ -324,7 +339,17 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   const hardest = questions.filter((q) => q.answered > 1 && q.correctPct < 100)
     .sort((a, b) => a.correctPct - b.correctPct || a.n - b.n)[0];
   const code = (codes.find((c) => c.id === meta.share_code_id) || codes[0] || {}).code || null;
-  const link = ((meta.student_message || '').match(LINK_RX) || [null])[0];
+  // The children's link: the one the hand-out forwarded; else (a hand-out whose message
+  // carries none) the quiz's own class code on the web page, when the web quiz is on.
+  let link = ((meta.student_message || '').match(LINK_RX) || [null])[0];
+  if (!link && code) {
+    try {
+      const WQL = require('./web-quiz-link');
+      if (await WQL.webQuizOn(teacherId)) link = `${WQL.webBaseUrl()}/q/${code}`;
+    } catch (err) {
+      logToFile('⚠️ teacher report: no fallback quiz link', { quizId, error: err.message });
+    }
+  }
 
   return {
     quiz: {
