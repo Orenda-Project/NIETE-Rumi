@@ -29,7 +29,7 @@ const {
 } = require('./transcript-quiz-validator');
 const { peopleSpellings, spellText, logRedactor } = require('./transcript-quiz-people');
 const { duplicateQuestionErrors, confirmsSameFact, solverDuplicateComplaint } = require('./transcript-quiz-duplicates');
-const { answerLeakErrors, finalLeakRepair, settleLeakFaults } = require('./transcript-quiz-answer-leaks');
+const { answerLeakErrors, findLeaks, finalLeakRepair, settleLeakFaults } = require('./transcript-quiz-answer-leaks');
 const {
   teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel, canonicalSubject,
 } = require('./transcript-quiz-language');
@@ -732,7 +732,7 @@ async function renderFor(api, { questions, rows, language, teacherId, quizId }) 
  */
 async function replaceFromSource(api, {
   questions, indices, why, after, digest, language, gradeBand, quizId, lessonSummary, planned = false, knownNames = null,
-  sourceText = '', recheck, attempts,
+  sourceText = '', recheck, attempts, ask = null,
 }) {
   const out = {
     questions, replaced: [], left: [...indices], costUsd: 0, softFaults: null, rejected: {},
@@ -746,6 +746,7 @@ async function replaceFromSource(api, {
   const moments = sourceText ? SFm.freshMoments(sourceText, used, indices.length * 3) : [];
   const errors = indices.map((i, k) => {
     const mine = moments.filter((_, j) => j % indices.length === k);
+    if (ask) return ask(i, mine);
     return `q${i}: REPLACE_FROM_SOURCE — ${why}; write a different question for this slot from another moment of the lesson`
       + (mine.length ? `, and copy that moment word for word as its "source_quote" — these moments are not used yet: ${mine.map((m) => `«${m}»`).join(' / ')}` : '');
   });
@@ -807,6 +808,134 @@ async function replaceFromSource(api, {
     quizId, after, asked: indices.length, replaced: out.replaced.length, left: out.left.length, costUsd: out.costUsd, rejected: out.rejected,
   });
   return out;
+}
+
+/**
+ * THE TOP-UP (quiz_author_gates_v2 only).
+ *
+ * Every stage after the author that may drop a question takes a few, and
+ * nothing refilled the quiz: on ten real lessons the mean slid from 7.8
+ * questions (gates off) to about 6.5, most quizzes at the floor of six. After
+ * every gates-on stage, a quiz under TOP_UP_TARGET gets ONE call that writes the
+ * missing questions (replaceFromSource, on placeholder slots appended to the
+ * set) from lesson lines no question uses yet — freshMoments, which also leaves
+ * out lines that are themselves questions — and names the questions already in
+ * the quiz. A new question is kept only when it passes everything a replacement
+ * passes (the validator, the source check, the blind solve, and for a lesson
+ * plan the key check) and then neither repeats nor gives away, nor is given
+ * away by, any question in the quiz. One that fails is simply not added: never
+ * a second call, never fewer questions than there were, never a question that
+ * was there changed. Never throws.
+ *
+ * @returns {Promise<{record:object|null, questions:object[], changed:boolean, figureUrls?:object, cardUrls?:object, draftedRows?:object[]}>}
+ */
+const TOP_UP_TARGET = 7;
+
+async function runTopUp(api, {
+  questions, digest, language, gradeBand, grade, quizId, teacherId, lessonSummary, planned = false, knownNames = null,
+  sourceText = '', slideScript = null, attempts,
+}) {
+  const n = questions.length;
+  if (!sourceText || !n || n >= TOP_UP_TARGET) return { record: null, questions, changed: false };
+  const startedAt = Date.now();
+  const wanted = TOP_UP_TARGET - n;
+  const record = { wanted, added: 0, failed_reasons: {}, cost_usd: 0 };
+  const fail = (code, k = 1) => { record.failed_reasons[code] = (record.failed_reasons[code] || 0) + k; };
+  const finish = (out) => {
+    record.cost_usd = Math.round(record.cost_usd * 1e6) / 1e6;
+    record.latency_ms = Date.now() - startedAt;
+    logEvent('transcript_quiz.top_up', { quizId, ...record });
+    return { record, questions, changed: false, ...out };
+  };
+  const SFm = require('./transcript-quiz-source-fidelity');
+  const used = questions.map((q) => q && q.source_quote).filter(Boolean);
+  if (!SFm.freshMoments(sourceText, used, wanted * 3).length) {
+    fail('NO_UNUSED_LINES', wanted);
+    return finish({});
+  }
+  const slots = Array.from({ length: wanted }, (_, k) => n + k);
+  // each new slot starts as a copy of a question in the quiz, for the call to replace
+  const padded = [...questions, ...slots.map((_, k) => questions[(n - 1 - (k % n))])];
+  const stemOf = (q) => String((q && (q.question || q.question_text)) || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  const inQuiz = questions.map((q, i) => `q${i} «${stemOf(q)}»`).join(' / ');
+  const ask = (i, mine) => `q${i}: TOP_UP — the quiz needs ${wanted} more question${wanted > 1 ? 's' : ''}, and q${i} is only a placeholder copy: write a NEW question for this slot`
+    + (mine.length ? `; quote one of THESE lines verbatim as its "source_quote" and ask about what that line says: ${mine.map((m) => `«${m}»`).join(' / ')}` : '')
+    + '. Ask the child about what the lesson teaches, never about the teacher, the class or what someone said, and with no picture or diagram'
+    + `. It must not repeat, give away the answer of, or be answered by any question already in the quiz: ${inQuiz}`;
+  const KeyVerify = require('./transcript-quiz-key-verify.service');
+  const recheck = async (qs, idx) => {
+    try {
+      const bad = new Set();
+      if (planned && slideScript) {
+        const kc = await api.checkKeys({ questions: qs, slideScript, language, quizId, indices: idx });
+        record.cost_usd += Number(kc.costUsd) || 0;
+        kc.verdicts.filter((x) => x.verdict === 'contradicts').forEach((x) => bad.add(x.index));
+      }
+      const ask2 = idx.filter((i) => !bad.has(i));
+      for (const withLesson of [true, false]) {
+        if (!ask2.length) break;
+        // eslint-disable-next-line no-await-in-loop
+        const kv = await api.verifyKeys({
+          questions: qs, indices: ask2, language, grade, subject: digest.subject, digest, lessonSummary, quizId, withLesson,
+        });
+        record.cost_usd += Number(kv.costUsd) || 0;
+        kv.verdicts.filter((v) => KeyVerify.FLAGGED.has(v.verdict)).forEach((v) => bad.add(v.index));
+      }
+      return bad;
+    } catch (err) {
+      // nothing is lost by not adding: a check that cannot run keeps the quiz as it was
+      fail('RECHECK_ERROR', idx.length);
+      return new Set(idx);
+    }
+  };
+  const r = await replaceFromSource(api, {
+    questions: padded, indices: slots, why: 'top-up', after: 'top_up', digest, language, gradeBand, quizId, lessonSummary,
+    planned, knownNames, sourceText, recheck, attempts, ask,
+  });
+  record.cost_usd += r.costUsd;
+  Object.entries(r.rejected || {}).forEach(([code, k]) => { if (code !== 'RECHECK' || !record.failed_reasons.RECHECK_ERROR) fail(code, k); });
+  if (r.error) fail('CALL_FAILED', wanted - r.replaced.length);
+  // what ships: every question that was there, untouched, then each new one that passes the set checks
+  let added = [...r.replaced].sort((a, b) => a - b);
+  const setOf = (ids) => [...questions, ...ids.map((s) => r.questions[s])];
+  for (;;) {
+    const set = setOf(added);
+    const bad = new Map();
+    findLeaks(set).forEach((l) => {
+      const j = l.to >= n ? l.to : (l.from >= n ? l.from : -1);
+      if (j >= n && !bad.has(j)) bad.set(j, 'ANSWER_LEAK');
+    });
+    duplicateQuestionErrors(set).forEach((e) => {
+      const j = Number((/^q(\d+)/.exec(String(e)) || [])[1]);
+      if (j >= n && !bad.has(j)) bad.set(j, 'DUPLICATE_QUESTION');
+    });
+    if (!bad.size) break;
+    bad.forEach((code) => fail(code));
+    added = added.filter((_, k) => !bad.has(n + k));
+  }
+  if (!added.length) return finish({});
+  const ctx = { language, subject: digest.subject, digest, lessonSummary, quizId };
+  const v = validate(setOf(added), { ...ctx, nExpected: n + added.length });
+  const before = new Set(validate(questions, { ...ctx, nExpected: n }).errors.filter((e) => !isSoft(e)).map(String));
+  const hardNew = v.errors.filter((e) => !isSoft(e) && !before.has(String(e)));
+  if (hardNew.length) {
+    fail('SET_FAULT', added.length);
+    return finish({});
+  }
+  const final = v.questions;
+  try {
+    const rows = toRows(quizId, final);
+    const { figureUrls, cardUrls } = await renderFor(api, {
+      questions: final, rows, language, teacherId, quizId,
+    });
+    record.added = added.length;
+    return finish({
+      questions: final, changed: true, figureUrls, cardUrls, draftedRows: rows,
+    });
+  } catch (err) {
+    fail('RENDER_FAILED', added.length);
+    return finish({});
+  }
 }
 
 /**
@@ -2913,6 +3042,28 @@ async function processQuiz(quizId, payload, flight) {
         if (!meta.soft_faults.length) delete meta.soft_faults;
       }
     }
+    // ── THE TOP-UP (gates v2) ────────────────────────────────────────────────
+    // After every stage that can drop a question: a quiz under seven gets ONE
+    // call for the missing questions from unused lesson lines, each checked like
+    // any other; one that fails is not added (runTopUp). Off, nothing runs.
+    if (authorGates) {
+      const tu = await runTopUp(api, {
+        questions, digest, language, gradeBand: digest.grade_band || meta.grade,
+        grade: quiz.grade || meta.grade || digest.grade_band || null, quizId, teacherId: quiz.teacher_id,
+        lessonSummary: readyLessonSummary, planned: isLp, knownNames: nameSpellings, sourceText: lessonSourceText,
+        slideScript: isLp ? slideScript : null, attempts,
+      });
+      if (tu.record) {
+        meta.top_up = tu.record;
+        meta.cost_usd = (meta.cost_usd || 0) + (tu.record.cost_usd || 0);
+      }
+      if (tu.changed) {
+        questions = tu.questions;
+        figureUrls = tu.figureUrls;
+        cardUrls = tu.cardUrls;
+        draftedRows = tu.draftedRows;
+      }
+    }
     // ── A NAME STILL IN ENGLISH LETTERS WHEN THE QUIZ SHIPS (recorded) ──────
     // Repaired in place while authoring (NAME_FAULT); this records whatever the
     // repair left, or a later step brought, once per question and name — read
@@ -3047,6 +3198,8 @@ async function processQuiz(quizId, payload, flight) {
 
 module.exports = {
   withLessonMoments,
+  runTopUp,
+  TOP_UP_TARGET,
   salvageWithoutBadFigures,
   failureCopyKey, tellTeacherFailed,
   rewriteRejected: (args) => require('./transcript-quiz-rewrite').rewriteRejected(args),
