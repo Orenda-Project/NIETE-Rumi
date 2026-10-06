@@ -114,9 +114,14 @@ async function bootApp() {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
     });
     expect(res.status).toBe(200);
+    // The route acks first and works after: wait for the work it registered, then for the
+    // reply itself (bounded), never a fixed tick — under a loaded machine one tick is not enough.
     await Promise.allSettled(works);
-    await new Promise((r) => setImmediate(r));
-    await Promise.allSettled(works);
+    const deadline = Date.now() + 10000;
+    while (!sent.length && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 20));
+      await Promise.allSettled(works);
+    }
   }
 
   return {

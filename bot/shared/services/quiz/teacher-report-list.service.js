@@ -156,15 +156,17 @@ async function handleReportsPick(listId, phone, user) {
   }
   const quizId = listId.slice(ROW_PREFIX.length);
   // Only the teacher's own quiz; anything else is "not found" (never whose it is).
-  const { data: quiz } = await supabase.from('quizzes').select('id, topic, status')
+  const { data: quiz } = await supabase.from('quizzes').select(QUIZ_COLS)
     .eq('id', quizId).eq('teacher_id', user.id).maybeSingle();
   if (!quiz) {
     await WhatsAppService.sendMessage(phone, resolveUx('tqNotYours', { language: lang }));
     return true;
   }
+  // The row's own counts ride on the link message (the same reads as the row: five, once).
+  const stats = await statsFor(user.id, [quiz]);
   const Link = require('./teacher-report-link');
   await Link.sendTeacherReportLink({
-    teacher: user, phone, quizId: quiz.id, topic: normaliseTopic(quiz.topic || ''), language: lang,
+    teacher: user, phone, quizId: quiz.id, topic: normaliseTopic(quiz.topic || ''), counts: stats.get(quiz.id) || null, language: lang,
   });
   return true;
 }
