@@ -13,7 +13,7 @@
 const assert = require('assert');
 const path = require('path');
 
-const { dbCreds } = require(path.join(__dirname, 'db-target.cjs'));
+const { dbCreds, canFlipGlobal } = require(path.join(__dirname, 'db-target.cjs'));
 const SBX = { NIETE_SANDBOX_SUPABASE_URL: 'https://olvritwoqujtjvwfulbh.supabase.co', NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY: 'sk' };
 const LOC = { NIETE_LOCAL_SUPABASE_URL: 'http://127.0.0.1:54321', NIETE_LOCAL_SUPABASE_SERVICE_ROLE_KEY: 'lk' };
 let n = 0;
@@ -38,5 +38,11 @@ t('E2E_ENV=local refuses a non-localhost URL', () => {
 });
 t('a trailing slash is trimmed', () => {
   assert.strictEqual(dbCreds({ ...LOC, NIETE_LOCAL_SUPABASE_URL: 'http://localhost:54321/', E2E_ENV: 'local' }).url, 'http://localhost:54321');
+});
+t('a GLOBAL switch (app_settings) may be flipped only on the run\'s own local database', () => {
+  assert.strictEqual(canFlipGlobal({ ...SBX, ...LOC, E2E_ENV: 'local' }), true);
+  assert.strictEqual(canFlipGlobal({ ...SBX, E2E_ENV: 'sandbox' }), false);
+  assert.strictEqual(canFlipGlobal({ ...SBX }), false);
+  assert.strictEqual(canFlipGlobal({ ...SBX, E2E_ENV: 'local' }), false);   // local asked for, but no local creds
 });
 console.log(`\ndb-target: ${n} passed`);

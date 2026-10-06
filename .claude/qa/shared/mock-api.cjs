@@ -18,7 +18,7 @@
 const path = require('path');
 const fs = require('fs');
 const { execFileSync } = require('child_process');
-const { dbCreds } = require('./db-target.cjs');
+const { dbCreds, canFlipGlobal } = require('./db-target.cjs');
 
 /** Endpoint path for a Flow: the registry (flow-configs.js) first; else the env var's stem when the
  *  bot's flow-endpoint.routes.js mounts router.post('/<stem>') — hand-published Flows like Teacher
@@ -33,6 +33,7 @@ function endpointPathFor(envVar, registry, routesSource) {
 function makeMockApi(opts) {
   const base = String(opts.baseUrl || process.env.E2E_MOCK_URL || 'http://127.0.0.1:4010').replace(/\/+$/, '');
   const driver = opts.driver || process.env.E2E_DRIVER;
+  const touchedSettings = new Map();   // app_settings keys setAppSetting changed → original value
   const env = opts.env || process.env.E2E_ENV || 'sandbox';
   const repo = opts.repo || path.resolve(__dirname, '..', '..', '..');
   const pollMs = opts.pollMs || 500;
@@ -355,6 +356,48 @@ function makeMockApi(opts) {
       } catch (e) { return { ok: false, err: String(e.message).slice(0, 120) }; }
     },
     async setRole(role) { return this.setUser({ role }); },
+    /** Flip a GLOBAL switch — an app_settings row every user reads (app_redirect_*, …) — for this run.
+     *  Refused unless the run is on its OWN local database (E2E_LOCAL_DB=1): on the shared sandbox it would
+     *  reach every tester. The first value seen is remembered and put back by restoreAppSettings(), which the
+     *  harness calls in its finally. The bot caches these switches for 30 s (app-redirect.service FLAG_TTL_MS),
+     *  so the call waits that out before returning — the next message sees the new value. */
+    async setAppSetting(key, value, { settleMs = 31000 } = {}) {
+      trace('setAppSetting ' + key);
+      if (!canFlipGlobal()) return { ok: false, err: 'GLOBAL_SWITCH: app_settings is global — flipped only on the run\'s own local database (E2E_LOCAL_DB=1)' };
+      const { url, key: k } = dbCreds();
+      const H = { apikey: k, Authorization: `Bearer ${k}`, 'Content-Type': 'application/json' };
+      try {
+        if (!touchedSettings.has(key)) {
+          const r = await fetch(`${url}/rest/v1/app_settings?select=value&key=eq.${encodeURIComponent(key)}`, { headers: H });
+          const rows = await r.json().catch(() => []);
+          touchedSettings.set(key, Array.isArray(rows) && rows[0] ? rows[0].value : undefined);   // undefined = the row did not exist
+        }
+        const res = await fetch(`${url}/rest/v1/app_settings?on_conflict=key`, { method: 'POST',
+          headers: { ...H, Prefer: 'resolution=merge-duplicates,return=minimal' },
+          body: JSON.stringify({ key, value, updated_at: new Date().toISOString() }) });
+        if (!res.ok) return { ok: false, status: res.status, err: (await res.text()).slice(0, 200) };
+        if (settleMs) await new Promise((r) => setTimeout(r, settleMs));
+        return { ok: true };
+      } catch (e) { return { ok: false, err: String(e.message).slice(0, 160) }; }
+    },
+    /** Put back every switch setAppSetting changed (delete the rows it created). Idempotent. */
+    async restoreAppSettings({ settleMs = 31000 } = {}) {
+      if (!touchedSettings.size) return { ok: true, restored: 0 };
+      const { url, key: k } = dbCreds();
+      const H = { apikey: k, Authorization: `Bearer ${k}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' };
+      let n = 0;
+      for (const [key, orig] of touchedSettings) {
+        trace('restoreAppSetting ' + key);
+        try {
+          if (orig === undefined) await fetch(`${url}/rest/v1/app_settings?key=eq.${encodeURIComponent(key)}`, { method: 'DELETE', headers: H });
+          else await fetch(`${url}/rest/v1/app_settings?on_conflict=key`, { method: 'POST', headers: H, body: JSON.stringify({ key, value: orig, updated_at: new Date().toISOString() }) });
+          n++;
+        } catch (_) { /* best effort — the run's database is dropped at down anyway */ }
+      }
+      touchedSettings.clear();
+      if (settleMs) await new Promise((r) => setTimeout(r, settleMs));
+      return { ok: true, restored: n };
+    },
     /** Seed a DEDICATED observe roster for THIS driver so the visit picker can advance: one school, two
      *  teachers at it, and the coach→school assignment. Shaped the way the product READS a roster
      *  (patch-resolver.service.js listPatchViaSupabase): the coach's leader_schools row names the school by

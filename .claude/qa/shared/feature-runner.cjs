@@ -670,6 +670,7 @@ function makeApi(c) {
   } finally {
     await restoreIdentity(_identSnap);   // put the shared driver's role/language back, whatever the feature did
     await clearRoster();                 // remove any seeded E2E observe roster from the shared sandbox DB
+    if (api.restoreAppSettings) await api.restoreAppSettings({ settleMs: 0 });   // global switches a local run flipped
     try { api.closeFlow(); } catch (_) {}
     // waitStats is a CDP evaluate with no timeout of its own, and a catch cannot catch a
     // HANG. On 2026-09-01 registration finished every scenario and then sat here for 66

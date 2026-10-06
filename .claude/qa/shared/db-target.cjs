@@ -19,4 +19,11 @@ function dbCreds(env = process.env) {
   return { url: env.NIETE_SANDBOX_SUPABASE_URL || null, key: env.NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY || null, kind: 'sandbox' };
 }
 
-module.exports = { dbCreds };
+/** May the harness flip a GLOBAL switch (an app_settings row every user reads)? Only on the run's own
+ *  local database: there it reaches nobody else. On the shared sandbox it would redirect every tester. */
+function canFlipGlobal(env = process.env) {
+  const c = dbCreds(env);
+  return c.kind === 'local' && !!c.url && !!c.key;
+}
+
+module.exports = { dbCreds, canFlipGlobal };

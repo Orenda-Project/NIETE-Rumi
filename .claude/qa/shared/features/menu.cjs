@@ -204,7 +204,22 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
       ['M19', "The role-refusal is in the tapping user's own language (Urdu)"]]) roleBlocked(id, name);
   }
 
-  // bd-onxyu — app redirect. Recorded with the reason, not left absent.
-  rec('M20', 'A menu row whose feature moved to the app sends me to the Play Store instead', 'BLOCKED',
-      { reason: 'needs an app_redirect_* switch turned ON in the target database, and the switch is global: it would redirect every teacher on that environment for the length of the run. Covered by tests/app-redirect/ (the real text handler and menu router, red-first).' }, 0);
+  // bd-onxyu — app redirect. The switch is GLOBAL (one app_settings row every teacher reads), so it is only
+  // flipped where it reaches nobody else: the run's own local database (E2E_LOCAL_DB=1, bd-z3ze4). There
+  // api.setAppSetting turns it on, waits out the bot's 30 s switch cache, and the harness puts it back.
+  const M20 = 'A menu row whose feature moved to the app sends me to the Play Store instead';
+  const flip = api.setAppSetting ? await api.setAppSetting('app_redirect_lesson_plan', true) : { ok: false, err: 'GLOBAL_SWITCH' };
+  if (flip.ok) {
+    const t0 = Date.now();
+    const r20 = await api.injectList('menu_lesson_plan', 'Lesson Plans');
+    const txt = r20.txt || '';
+    const storeLink = /play\.google\.com\/store\/apps/i.test(txt);
+    const flowStarted = /Pick (your )?class|جماعت چنیں/i.test(txt) || (r20.btns || []).length > 0;
+    await api.restoreAppSettings();   // off again before anything else runs on this database
+    rec('M20', M20, storeLink && !flowStarted ? 'PASS' : 'FAIL',
+        { storeLink, flowStarted, reply: txt.slice(0, 160) }, Date.now() - t0);
+  } else {
+    rec('M20', M20, 'BLOCKED',
+        { reason: 'needs an app_redirect_* switch turned ON, and the switch is global: on a shared database it would redirect every teacher for the length of the run. Runs on the local lane (E2E_LOCAL_DB=1), where the database is the run\'s own. Covered by tests/app-redirect/ (red-first).', setAppSetting: flip.err }, 0);
+  }
 };
