@@ -183,8 +183,19 @@ describe('class phone: a phone that remembers 4 or more children', () => {
     expect(e).toBeTruthy();
     expect(typeof e.p.ms).toBe('number');
   });
-  test('no undo when the phone has fewer than 4 children, or the child typed their name', async () => {
-    const p = page({ kids: four.slice(0, 2) });
+  test('siblings on one phone (2 remembered children): the "Not Ayesha?" undo floats over the first question too', async () => {
+    const p = page({ kids: four.slice(0, 2), replies: [{ status: 200, ok: true, body: { st: 's', child: { chip: 'c0', first: 'Ayesha', animal: 'owl' } } }] });
+    p.ctx.landing();
+    p.tap('wq-kid-0');
+    await flush();
+    expect(p.last().name).toBe('Q');
+    expect(p.doc.nodes).toHaveLength(1);
+    expect(p.doc.nodes[0].textContent).toBe('Not Ayesha?');
+    p.doc.nodes[0].listeners.click();
+    expect(p.last().name).toBe('M4-name');
+  });
+  test('no undo when the phone has only one child, or the child typed their name', async () => {
+    const p = page({ kids: four.slice(0, 1) });
     p.ctx.landing();
     p.tap('wq-kid-0');
     await flush();
