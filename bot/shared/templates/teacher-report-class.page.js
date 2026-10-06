@@ -36,6 +36,8 @@ function esc(s) {
 }
 // Text content keeps its quotes (an escaped apostrophe would cut a Latin run in
 // two, see video-quiz-report.template.js esc); an attribute value escapes them.
+// TODO: take REPORT_PATH from the teacher report route once it lands; '/r' is its value.
+const REPORT_PATH = '/r';
 const attr = (s) => esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 /** A number, a percentage or a date: always an isolated LTR atom. */
@@ -166,7 +168,7 @@ function renderClassTab(data, { language = 'en', tokens = {}, base = '', days = 
         <div class="trc-q-main">${dbText(q.topic, 'trc-q-topic')}<div class="trc-q-meta">${meta}</div></div>
         <div class="trc-q-score">${score}</div>`;
     return token
-      ? `<li><a class="trc-q" href="${attr(`${base}/t/${encodeURIComponent(token)}`)}" aria-label="${attr(`${C.open}: ${q.topic || ''}`)}">${inner}<span class="trc-go" aria-hidden="true">${rtl ? '‹' : '›'}</span></a></li>`
+      ? `<li><a class="trc-q" href="${attr(`${base}${REPORT_PATH}/${encodeURIComponent(token)}`)}" aria-label="${attr(`${C.open}: ${q.topic || ''}`)}">${inner}<span class="trc-go" aria-hidden="true">${rtl ? '‹' : '›'}</span></a></li>`
       : `<li><div class="trc-q">${inner}</div></li>`;
   }).join('');
 

@@ -2,8 +2,8 @@
 /**
  * The post-completion PDF names who has NOT played yet — greyed first names with
  * list numbers (the child's place on the teacher's list, never called a roll), from the class list — when the quiz's one class is known, and
- * carries two links: "Remind the class" (/t/<token>/remind) and "See the live
- * report" (/t/<token>). The caption gains the live-report line. All of it only
+ * carries two links: "Remind the class" (/r/<token>/remind) and "See the live
+ * report" (/r/<token>). The caption gains the live-report line. All of it only
  * for a teacher on app_settings.teacher_report_teachers; absent, the PDF is
  * exactly today's.
  *
@@ -100,10 +100,10 @@ test('class known: the children still to play, greyed, name first then the list 
 
   const links = hrefs(html);
   const remind = links.find((h) => h.endsWith('/remind'));
-  const live = links.find((h) => /\/t\/[^/]+$/.test(h));
+  const live = links.find((h) => /\/r\/[^/]+$/.test(h));
   expect(remind).toBe(`${live}/remind`);
-  expect(live.startsWith(`${BASE}/t/`)).toBe(true);
-  expect(Token.verifyTeacherReport(live.slice(`${BASE}/t/`.length))).toEqual({ teacherId: TEACHER, quizId: QUIZ });
+  expect(live.startsWith(`${BASE}/r/`)).toBe(true);
+  expect(Token.verifyTeacherReport(live.slice(`${BASE}/r/`.length))).toEqual({ teacherId: TEACHER, quizId: QUIZ });
 
   expect(caption()).toContain(live);
 });
@@ -122,21 +122,21 @@ test('no class list: no not-played section, the live-report links still ride', a
   await report.generate(SC, { reason: 'scheduled' });
   const html = pdfHtml();
   expect(html).not.toContain('Not played yet');
-  expect(hrefs(html).some((h) => h.startsWith(`${BASE}/t/`))).toBe(true);
+  expect(hrefs(html).some((h) => h.startsWith(`${BASE}/r/`))).toBe(true);
 });
 
 test('teacher not on the list (or no setting): the PDF and caption are today\'s', async () => {
   seed({ gate: null });
   await report.generate(SC, { reason: 'scheduled' });
   expect(pdfHtml()).not.toContain('Not played yet');
-  expect(pdfHtml()).not.toContain(`${BASE}/t/`);
-  expect(caption()).not.toContain(`${BASE}/t/`);
+  expect(pdfHtml()).not.toContain(`${BASE}/r/`);
+  expect(caption()).not.toContain(`${BASE}/r/`);
 
   jest.clearAllMocks();
   Gate._resetCache();
   seed({ gate: ['someone-else'] });
   await report.generate(SC, { reason: 'scheduled' });
-  expect(pdfHtml()).not.toContain(`${BASE}/t/`);
+  expect(pdfHtml()).not.toContain(`${BASE}/r/`);
 });
 
 test('an Urdu quiz: the section in Urdu; the caption line in the teacher\'s own language', async () => {
@@ -155,5 +155,42 @@ test('no portal base URL: no section and no links (a link to nowhere is worse th
   seed();
   await report.generate(SC, { reason: 'scheduled' });
   expect(pdfHtml()).not.toContain('Not played yet');
-  expect(pdfHtml()).not.toMatch(/href="[^"]*\/t\//);
+  expect(pdfHtml()).not.toMatch(/href="[^"]*\/r\//);
+});
+
+describe('the caption carries the count and the reminder (M3 decision 5)', () => {
+  const remindOf = (html) => hrefs(html).find((h) => h.endsWith('/remind'));
+
+  test('class known: "2 of 4 have not played yet · tap to remind the class: <remind link>"', async () => {
+    seed();
+    await report.generate(SC, { reason: 'scheduled' });
+    const remind = remindOf(pdfHtml());
+    expect(remind.startsWith(`${BASE}/r/`)).toBe(true);
+    expect(caption()).toContain(`2 of 4 have not played yet · tap to remind the class: ${remind}`);
+  });
+
+  test('an Urdu teacher: the same line in Urdu, the numbers isolated (U+2066…U+2069)', async () => {
+    seed({ teacherLang: 'ur' });
+    await report.generate(SC, { reason: 'scheduled' });
+    const cap = caption();
+    expect(cap).toContain('⁦4⁩');
+    expect(cap).toContain('⁦2⁩');
+    expect(cap).toContain('ابھی نہیں کھیلا');
+    expect(cap).toContain(remindOf(pdfHtml()));
+    expect(cap).not.toContain('have not played yet');
+  });
+
+  test('no class list: no count (it would be a guess) — today\'s caption with the live link', async () => {
+    seed({ lists: false });
+    await report.generate(SC, { reason: 'scheduled' });
+    expect(caption()).not.toMatch(/have not played yet/);
+    expect(caption()).toMatch(new RegExp(`${BASE}/r/[^/\\s]+(\\s|$)`));
+  });
+
+  test('everyone on the list played: no reminder line', async () => {
+    const fake = seed();
+    fake.db.quiz_sessions.push(session('s3', 3, 3), session('s4', 4, 1));
+    await report.generate(SC, { reason: 'scheduled' });
+    expect(caption()).not.toMatch(/have not played yet|\/remind/);
+  });
 });
