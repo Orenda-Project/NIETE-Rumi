@@ -75,3 +75,27 @@ describe('a label item plays only when its hotspots sit on its drawing', () => {
     expect(WQI.kind(q([]))).toBe('single');
   });
 });
+
+describe('WQI.TEX_SUPPORTED: the one list of TeX commands the page typesets (the author gate reads it)', () => {
+  const sample = (c) => {
+    if (c === 'frac') return '$\\frac{1}{2}$';
+    if (c === 'sqrt' || c === 'xrightarrow') return `$\\${c}{4}$`;
+    if (/^(text|textrm|mathrm)$/.test(c)) return `$\\${c}{cm}$`;
+    if (c === 'begin') return '$\\begin{array}{r} 1 \\\\ 2 \\end{array}$';
+    if (c === 'end' || c === 'hline' || c === '\\') return '$\\begin{array}{r} 1 \\\\ \\hline 2 \\end{array}$';
+    return `$1 \\${c} 2$`;
+  };
+  test('it is exported and covers the commands prod rows carry', () => {
+    expect(Array.isArray(WQI.TEX_SUPPORTED)).toBe(true);
+    ['frac', 'times', 'div', 'text', 'Omega', 'dots', 'neq', 'rightleftharpoons', 'xrightarrow', 'begin', 'end', 'hline', 'circ', 'cdot']
+      .forEach((c) => expect(WQI.TEX_SUPPORTED).toContain(c));
+  });
+  test('every command on the list is typeset, never spelled out', () => {
+    const bad = WQI.TEX_SUPPORTED.filter((c) => letters(WQI.tex(sample(c))).length);
+    expect(bad).toEqual([]);
+  });
+  test('a command NOT on the list is spelled out: the list is the boundary the gate needs', () => {
+    expect(WQI.TEX_SUPPORTED).not.toContain('overline');
+    expect(letters(WQI.tex('$\\overline{AB}$'))).toEqual(['overline']);
+  });
+});

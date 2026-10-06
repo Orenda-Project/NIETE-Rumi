@@ -57,6 +57,9 @@ var WQI = (function () {
     neq: '≠', leq: '≤', geq: '≥', dots: '…', ldots: '…', cdots: '⋯', infty: '∞', leftarrow: '←', Rightarrow: '⇒', longrightarrow: '⟶', rightleftharpoons: '⇌' };
   // Greek letters seen in prod questions (\Omega in a circuit): upright, as a unit is written.
   var GREEK = { alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', Delta: 'Δ', theta: 'θ', lambda: 'λ', mu: 'μ', rho: 'ρ', sigma: 'σ', omega: 'ω', Omega: 'Ω' };
+  // Every TeX command the page typesets. Anything else is spelled out in letters, so the author gate reads this
+  // list (quiz-math texFaults) and rewrites an item that uses a command outside it.
+  var TEX_SUPPORTED = Object.keys(SYM).concat(Object.keys(GREEK), ['frac', 'sqrt', 'text', 'textrm', 'mathrm', 'xrightarrow', 'begin', 'end', 'hline', ',', ';', ' ', '\\']);
   function texTokens(s) {
     var out = [], i = 0;
     while (i < s.length) {
@@ -454,7 +457,7 @@ var WQI = (function () {
     });
   }
   return { kind: kind, grade: grade, tex: tex, say: say, cleanSvg: cleanSvg, figureHtml: figureHtml, itemHtml: itemHtml, readParts: readParts,
-    rightText: rightText, joinSay: joinSay, letters: letters, imageUrls: imageUrls, wire: wire, mark: mark, wireZoom: wireZoom, speakable: speakable, SHAPES: SHAPES };
+    rightText: rightText, joinSay: joinSay, letters: letters, imageUrls: imageUrls, wire: wire, mark: mark, wireZoom: wireZoom, speakable: speakable, SHAPES: SHAPES, TEX_SUPPORTED: TEX_SUPPORTED };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
