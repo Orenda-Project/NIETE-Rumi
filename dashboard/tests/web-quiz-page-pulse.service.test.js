@@ -111,6 +111,42 @@ describe('M17 peer pulse on the page', () => {
     expect(urf.pulses()).toEqual(['ایک دوست نے سوال 4 ٹھیک کیا ✓']);
   });
 
+  test('a pulse that would cover content is held, then shown 3 s into the NEXT question', async () => {
+    const p = onQuestion();
+    // The page is scrolled (feedback scrolls "Next" into view on a tall question): the bar is off screen.
+    p.root.querySelector('.wq-bar').getBoundingClientRect = () => ({ top: -240, bottom: -192, height: 48 });
+    p.advance(4000); p.answer(); await flush(); await flush();
+    expect(p.pulses()).toEqual([]); // skipped, never drawn over the options
+    // Next question: back at the top.
+    p.root.querySelector('.wq-bar').getBoundingClientRect = () => ({ top: 12, bottom: 60, height: 48 });
+    p.wq.question(0);
+    p.advance(1000);
+    expect(p.pulses()).toEqual([]); // never in the first 3 s
+    p.advance(2100);
+    expect(p.pulses()).toEqual(['Sara got Q4 right ✓']);
+  });
+
+  test('a held pulse older than 60 s is dropped', async () => {
+    const p = onQuestion();
+    p.root.querySelector('.wq-bar').getBoundingClientRect = () => ({ top: -240, bottom: -192, height: 48 });
+    p.advance(4000); p.answer(); await flush(); await flush();
+    p.root.querySelector('.wq-bar').getBoundingClientRect = () => ({ top: 12, bottom: 60, height: 48 });
+    p.advance(61000); // the child sat on the feedback for a minute
+    p.wq.question(0);
+    p.advance(3100);
+    expect(p.pulses()).toEqual([]);
+  });
+
+  test('a drawn strip hides on the first scroll (it is fixed, so it would slide over the stem)', async () => {
+    const p = onQuestion();
+    p.advance(4000); p.answer(); await flush(); await flush();
+    const [strip] = p.pulseEls();
+    expect(strip).toBeDefined();
+    expect(strip.hidden).toBeFalsy();
+    (p.winListeners.scroll || []).forEach((fn) => fn({}));
+    expect(strip.hidden).toBe(true);
+  });
+
   test('the strip never takes a tap, is fixed (no layout shift) and at most 28 px tall', () => {
     const css = rule('.wq-pulse');
     expect(css).toMatch(/pointer-events:none/);
