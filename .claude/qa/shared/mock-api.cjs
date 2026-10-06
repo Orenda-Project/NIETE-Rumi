@@ -301,7 +301,7 @@ function makeMockApi(opts) {
     db(action, extra) {
       trace('db ' + action);
       const COACHING_DB = /^(session-get|age-sessions|seed-nudge|nudge-rows|purge-nudges|user-get|first-use-rows|lesson-plans|purge-first-use|cancel-stuck|reset-history|reset-first-use)$/.test(action);
-      const script = COACHING_DB ? path.join(repo, '.claude/qa/shared/niete_coaching_db.py') : /^(lookup|answer-key|module-answer-key|module-media|level-modules|seed-module-pass|seed-level-complete|seed-isaps-exams|seed-lp-quiz|seed-class-quiz|quiz-rows|revert-level|activate-program|seed-lp-download|seed-coaching-session|seed-lp612-delivery|purge-run-quizzes|quizzes-for-lesson|driver-user)$/.test(action)
+      const script = COACHING_DB ? path.join(repo, '.claude/qa/shared/niete_coaching_db.py') : /^(lookup|answer-key|module-answer-key|module-media|level-modules|seed-module-pass|seed-training-inflight|clear-training-inflight|seed-level-complete|seed-isaps-exams|seed-lp-quiz|seed-class-quiz|quiz-rows|revert-level|activate-program|seed-lp-download|seed-coaching-session|seed-lp612-delivery|purge-run-quizzes|quizzes-for-lesson|driver-user)$/.test(action)
         ? path.join(repo, '.claude/qa/shared/niete_training_db.py')
         : path.join(repo, '.claude/qa/shared/niete_registration_db.py');
       const args = [script, action, '--env', env, '--phone', driver];

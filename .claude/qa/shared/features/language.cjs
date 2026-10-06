@@ -110,13 +110,18 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   }
 
   if (want('LANG14')) {
-    // LANG14 — /menu on an Urdu account (@known-issue: renders English)
+    // LANG14 — /menu on an Urdu account renders Urdu. Inverted 2026-10-06: this was a @known-issue
+    // that asserted the English leak, and failed once 6dc2cad6 ("menu: the front door speaks her
+    // language") fixed it. Card text, opener and every row must now be Urdu.
     s = t();
     r = await api.sendWait('/menu');
     const menuList = r.btns.length ? await api.openList(r.btns.find(b => /See what I do|فہرست دیکھیں/.test(b)) || r.btns[0]) : { rows: [], all: '' };
-    const menuEnglish = latinOnly(r.txt) && latinOnly(menuList.all);
-    rec('LANG14', '/menu renders English on an Urdu account (@known-issue — PASS here means the leak persists)',
-        ...V(menuEnglish, { card: r.txt.slice(0, 80), opener: r.btns, rows: menuList.rows, allEnglish: menuEnglish }), t() - s);
+    const rows14 = (menuList.rows || []).map((x) => x.trim()).filter(Boolean);
+    const englishRows = rows14.filter((x) => !UR.test(x));
+    const menuUrdu = r.ok && UR.test(r.txt) && r.btns.length > 0 && r.btns.every((b) => UR.test(b))
+      && rows14.length > 0 && englishRows.length === 0;
+    rec('LANG14', '/menu renders in Urdu on an Urdu account',
+        ...V(menuUrdu, { card: r.txt.slice(0, 80), opener: r.btns, rows: rows14, englishRows }), t() - s);
     await api.closeDialog(); await sleep(800);
   }
 

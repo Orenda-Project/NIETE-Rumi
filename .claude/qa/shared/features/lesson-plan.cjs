@@ -162,9 +162,20 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
     await api.sendWait('/lp');
     const op3 = await openLP();
     let pk = null;
+    const trail = [];
     if (op3.ok) {
-      for (const pick of ['Grade 6', 'Computer Science', 'ICT Fundamentals', 'Fundamentals of ICT']) {
-        const c3 = await api.flowClick(pick, { settleMs: 3000 });
+      // Grade and subject are fixed; the chapter and lesson are whatever the catalogue lists FIRST.
+      // A hard-coded lesson title ('Fundamentals of ICT') matched nothing on SELECT_LESSON, the walk
+      // stopped silently, and the 150s wait below timed out on a plan that was never requested
+      // (the L03 known finding, 2026-09-16 → 2026-10-06). `trail` records every screen and pick.
+      const CHROME = /^(Back|Close|Powered by|Tap to open|Lesson Plans|📘)/i;
+      for (const fixed of ['Grade 6', 'Computer Science', null, null, null]) {
+        const pr = await api.flowProbe();
+        if (!pr.screen && !pr.text) break;                         // the Flow closed: the walk is done
+        const pickable = (pr.items || []).filter((i) => i.text && !i.disabled && !CHROME.test(i.text.trim()));
+        const label = fixed || (pickable[0] && pickable[0].text.split('\n')[0].trim());
+        const c3 = label ? await api.flowClick(label, { settleMs: 3000 }) : { ok: false, err: 'NOTHING_TO_PICK' };
+        trail.push({ screen: pr.screen, offered: pickable.slice(0, 4).map((i) => i.text.split('\n')[0]), picked: label, ok: !!c3.ok });
         if (!c3.ok) break;
       }
       api.closeFlow();
@@ -181,10 +192,10 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
       if (w3.ok) {
         const fn = fnameOf(w3.hit); const t3 = (w3.hit.txt || '');
         pk = (/oxbridge/i.test(fn) || /oxbridge/i.test(t3))
-          ? { ok: false, oxbridge: true, waitedMs: w3.waitedMs, file: fn.slice(0, 130), txt: t3.slice(0, 130) }
-          : { ok: true, oxbridge: false, waitedMs: w3.waitedMs, file: fn.slice(0, 130) };
+          ? { ok: false, oxbridge: true, waitedMs: w3.waitedMs, file: fn.slice(0, 130), txt: t3.slice(0, 130), trail }
+          : { ok: true, oxbridge: false, waitedMs: w3.waitedMs, file: fn.slice(0, 130), trail };
       } else {
-        pk = { ok: false, oxbridge: false, waitedMs: w3.waitedMs, last: w3.last };
+        pk = { ok: false, oxbridge: false, waitedMs: w3.waitedMs, last: w3.last, trail };
       }
     }
     rec('L03', 'A secondary grade delivers a Pakistan lesson plan, not an Oxbridge one',

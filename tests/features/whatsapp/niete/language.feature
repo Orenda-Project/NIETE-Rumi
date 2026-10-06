@@ -270,16 +270,15 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
 
   # ── E2. Still leaks English on an Urdu account (@known-issue) ──
 
-  @e2e @language @known-issue @P1 @LANG14
-  Scenario: /menu renders English on an Urdu account
+  @e2e @language @P1 @LANG14
+  Scenario: /menu renders in Urdu on an Urdu account
     Given the NIETE bot chat is open
     And my language is set to Urdu
     When I send "/menu"
-    Then the "View Features" list (header, body, button, rows) renders English (BUG)
-    # The interactive list is built by sendFeatureMenuCarousel(to)/sendFeatureMenuListFallback(to) —
-    # NO language param; menu.service.js:45 drops `language`. Copy hardcoded English
-    # (whatsapp.service.js:1892 header, :1895 body, :1901 button, :1904-1932 rows). A localized
-    # text-menu fallback exists (menu.service.js:185-195) but only fires if the list send FAILS.
+    Then the menu card, its button and every row are in Urdu
+    # Was @known-issue "renders English (BUG)" until 6dc2cad6 ("menu: the front door speaks her
+    # language"): MenuService.sendMenu resolves the teacher's language itself (menu.service.js:75-89)
+    # and the list copy is localized. Inverted 2026-10-06 when the old assertion started failing.
 
   @e2e @language @P1 @LANG15
   Scenario: /status answers in Urdu on an Urdu account

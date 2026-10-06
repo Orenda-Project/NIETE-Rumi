@@ -84,7 +84,7 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
     # started. Both store questions ("is she busy?" / "what is running?") now read ONE
     # glance list so they cannot drift apart again.
 
-  @e2e @P2 @draft @STA08
+  @e2e @P2 @STA08
   Scenario: An in-flight item is named in plain words, never as an internal identifier
     Given the NIETE bot chat is open as a principal
     And I am part-way through marking an attendance register
@@ -95,8 +95,8 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
     # mid-register read "Continue: attendance_marking", the exact thing the resume
     # header forbids. The fallback is now a plain de-snaked title; proper bilingual
     # names come with the decision on whether those flows should be resumable at all.
-    # @draft: code-grounded, not yet driven — needs the principal persona mid-attendance
-    # (attendance.feature is itself @wip).
+    # Driven on the mock lane (2026-10-06): the driver becomes a principal linked to a seeded E2E
+    # school and sends /attendance, which parks on `attendance_method` — not in TASK_LABEL, so de-snaked.
 
   # ═══════════════════════════════ NEGATIVE ═════════════════════════════════════
 
