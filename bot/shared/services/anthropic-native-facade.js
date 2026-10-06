@@ -118,6 +118,22 @@ const acceptsTemperature = (model) => /^claude-(haiku-4-5|3)/.test(String(model 
 /** Haiku 4.5 rejects the effort parameter ("this model does not support the effort parameter"). */
 const acceptsEffort = (model) => !/^claude-(haiku|3)/.test(String(model || ''));
 
+/**
+ * Thinking, per model, because the rules differ and a wrong guess is a 400 on every call
+ * (bd-gr4fy.6). Matched on the WHOLE id (an optional date suffix aside): `claude-opus-5-5` is not
+ * `claude-opus-5`, and treating it as one sent it a request it rejects.
+ *
+ *   thinks by default   Sonnet 5, Opus 5, Opus 5.5, Fable 5 / 5.1: omitting `thinking` runs it
+ *   can be switched off Haiku 4.5 (off unless asked), Sonnet 5, Opus 5 at effort high or below.
+ *                       NOT Fable 5 / 5.1 or Opus 5.5: `thinking:{type:'disabled'}` is a 400 there,
+ *                       and effort is the only lever.
+ */
+const bareModel = (model) => String(model || '').replace(/^.*\//, '').replace(/-\d{8}$/, '');
+const thinksByDefault = (model) => /^claude-(sonnet-5|opus-5|opus-5-5|fable-5|fable-5-1)$/.test(bareModel(model));
+const alwaysThinks = (model) => /^claude-(opus-5-5|fable-5|fable-5-1)$/.test(bareModel(model));
+/** Opus 5 accepts thinking off only at effort high or below. */
+const EFFORT_ABOVE_HIGH = new Set(['xhigh', 'max']);
+
 /** OpenAI's `minimal` has no native level; `low` is the nearest. */
 const EFFORT_MAP = Object.freeze({
   minimal: 'low', low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'max',
@@ -130,8 +146,14 @@ const JSON_INSTRUCTION =
 /** The image types `/v1/messages` accepts. */
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
+/** OpenAI content parts with no `/v1/messages` equivalent: refused here, by name. */
+const UNTRANSLATABLE_PARTS = new Set(['input_audio', 'file']);
+
 /** One OpenAI content part -> its native block. Text passes through; images are translated. */
 function toNativePart(part) {
+  if (part && UNTRANSLATABLE_PARTS.has(part.type)) {
+    throw new Error(`anthropic-native-facade: a ${part.type} content part has no /v1/messages equivalent`);
+  }
   if (!part || part.type !== 'image_url') return part;
   const url = String((part.image_url && part.image_url.url) || part.image_url || '');
   const m = /^data:([^;,]+);base64,(.*)$/s.exec(url);
@@ -165,23 +187,78 @@ function wantsJson(params) {
 }
 
 /**
- * The JSON inside an answer, or null. Fences first, then the outermost object or array, so a
- * model that wraps its answer in markdown or a sentence still hands the caller something
- * `JSON.parse` accepts. Nothing is invented: if no substring parses, the caller gets null.
+ * The top-level JSON shape a request asked for: 'object', 'array', 'any', or null for no JSON.
+ * `json_object` means an object, by definition; a schema says what it wants at its root.
  */
-function extractJson(text) {
+function jsonShapeFor(params) {
+  const rf = params && params.response_format;
+  if (!rf) return null;
+  if (rf.type === 'json_object') return 'object';
+  if (rf.type === 'json_schema') {
+    const root = rf.json_schema && rf.json_schema.schema && rf.json_schema.schema.type;
+    return root === 'array' ? 'array' : (root === 'object' ? 'object' : 'any');
+  }
+  return null;
+}
+
+/** Whether a parsed value has the shape asked for. A bare string, number or null never does. */
+function hasShape(value, shape) {
+  const isObject = value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (shape === 'object') return isObject;
+  if (shape === 'array') return Array.isArray(value);
+  return isObject || Array.isArray(value);
+}
+
+/**
+ * The text from `start` (an opening bracket) to its own closing bracket, strings respected, or
+ * null when the text ends first: an unclosed structure is a cut-off answer, not a short one.
+ */
+function balancedFrom(s, start) {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (c === '\\') escaped = true;
+      else if (c === '"') inString = false;
+    } else if (c === '"') inString = true;
+    else if (c === '{' || c === '[') depth++;
+    else if (c === '}' || c === ']') {
+      depth--;
+      if (depth === 0) return s.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+/**
+ * The JSON inside an answer, or null. Fences first, then the first complete object or array of
+ * the shape asked for, so a model that wraps its answer in markdown or a sentence still hands the
+ * caller something `JSON.parse` accepts. Nothing is invented: if no such value is there, null.
+ *
+ * Each candidate is scanned to its OWN closing bracket (bd-gr4fy.6). The old first-brace-to-
+ * last-brace slice failed on an object followed by a note with braces in it, then fell through to
+ * an inner array; and a cut-off object came back as one of its inner arrays. So an unclosed
+ * structure ends the search (everything after its opening bracket is inside it), and a value of
+ * the wrong shape is skipped whole, never searched inside.
+ */
+function extractJson(text, shape = 'any') {
   const t = String(text || '').trim();
-  const tryParse = (s) => { try { JSON.parse(s); return s; } catch (_) { return null; } };
+  const parse = (s) => { try { return { ok: true, value: JSON.parse(s) }; } catch (_) { return { ok: false }; } };
   const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(t);
   const body = fenced ? fenced[1].trim() : t;
-  if (tryParse(body)) return body;
-  for (const [open, close] of [['{', '}'], ['[', ']']]) {
-    const a = body.indexOf(open);
-    const b = body.lastIndexOf(close);
-    if (a !== -1 && b > a) {
-      const hit = tryParse(body.slice(a, b + 1));
-      if (hit) return hit;
-    }
+  const whole = parse(body);
+  if (whole.ok && hasShape(whole.value, shape)) return body;
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i];
+    if (c !== '{' && c !== '[') continue;
+    const candidate = balancedFrom(body, i);
+    if (candidate === null) return null;
+    const got = parse(candidate);
+    if (got.ok && hasShape(got.value, shape)) return candidate;
+    i += candidate.length - 1;
   }
   return null;
 }
@@ -247,7 +324,15 @@ function toNativeRequest(params) {
   // `reasoning:{enabled:false}` is the OPENROUTER spelling and is rejected by name on the native
   // surface. `thinking:{type:'disabled'}` is the native equivalent and is what the author means:
   // reasoning bills as output tokens and truncates the JSON before it closes.
-  if (p.reasoning && p.reasoning.enabled === false) out.thinking = { type: 'disabled' };
+  //
+  // Except where the model refuses it (bd-gr4fy.6): Fable 5 / 5.1 and Opus 5.5 reject it at every
+  // effort, and Opus 5 above `high`. There the parameter is LEFT OUT, which is what the API says
+  // to do; the request then runs the model's own default rather than failing outright.
+  const askedEffort = (p.reasoning && p.reasoning.effort) || p.reasoning_effort
+    || (p.output_config && p.output_config.effort);
+  const disableRefused = alwaysThinks(p.model)
+    || (bareModel(p.model) === 'claude-opus-5' && EFFORT_ABOVE_HIGH.has(EFFORT_MAP[askedEffort]));
+  if (p.reasoning && p.reasoning.enabled === false && !disableRefused) out.thinking = { type: 'disabled' };
   if (p.thinking) out.thinking = p.thinking;
 
   if (p.stop_sequences) out.stop_sequences = p.stop_sequences;
@@ -333,7 +418,10 @@ function fromNativeResponse(msg, opts = {}) {
     .join('');
   // JSON was asked for (bd-gr4fy.2): hand back the JSON itself, without the fences or the
   // sentence around it. Text that holds no JSON is returned as written, for the caller to judge.
-  const text = opts.json ? (extractJson(raw) || raw) : raw;
+  // A reply cut off at the limit is NEVER mined (bd-gr4fy.6): whatever complete piece sits inside
+  // a cut-off object is not the answer, and `finish_reason: 'length'` says so to whoever checks.
+  const shape = opts.json === true ? 'any' : opts.json;
+  const text = opts.json && m.stop_reason !== 'max_tokens' ? (extractJson(raw, shape) || raw) : raw;
 
   const u = m.usage || {};
   const cachedTokens = u.cache_read_input_tokens || 0;
@@ -410,7 +498,12 @@ module.exports = {
   UNTRANSLATABLE_PARAMS,
   fromNativeResponse,
   wantsJson,
+  jsonShapeFor,
+  hasShape,
   extractJson,
+  thinksByDefault,
+  alwaysThinks,
+  acceptsEffort,
   priceUsd,
   isCreditClassError,
   mapFinishReason,

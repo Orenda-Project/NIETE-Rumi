@@ -23,9 +23,14 @@
  */
 
 /**
- * job -> { env, default, note }
+ * job -> { env, default, note, settingsAtSite }
  *   env      the variable that already overrides this job, kept for compatibility
  *   default  what it falls back to today, read out of the shipping code
+ *   settingsAtSite  the call site resolves its model through `resolveModelForJob` WITH the
+ *            settings, so the whole chain (per job, per language, rollout, kill switch) has been
+ *            applied by the time the request reaches llm-client. The per-job override there must
+ *            not apply the row a second time, over a finer choice; it only stands the job's own
+ *            model behind whatever the site chose (bd-gr4fy.6).
  *
  * Verified against develop on 9 Sep 2026, file and line in `site`.
  */
@@ -47,6 +52,7 @@ const JOBS = {
   'vision.analyse': {
     env: 'VISION_MODEL', default: 'gpt-4.1-mini',
     site: 'shared/services/vision.service.js',
+    settingsAtSite: true,
   },
   'roster.extract': {
     env: 'ROSTER_VISION_MODEL', default: 'google/gemini-3.1-flash-lite-preview',
@@ -81,6 +87,7 @@ const JOBS = {
     env: 'ASSESSMENT_GEN_MODEL', default: 'google/gemini-3.1-pro-preview',
     site: 'shared/services/assessment/assessment-generation.service.js:29',
     familyEnv: { eng: 'ASSESSMENT_GEN_MODEL_ENG', urdu: 'ASSESSMENT_GEN_MODEL_URDU' },
+    settingsAtSite: true,
   },
   'hcp.feedback': {
     // falls through to the platform default today, which is why it has no literal of its own
@@ -230,6 +237,30 @@ const TELEMETRY_ONLY_JOBS = Object.freeze([
   'attendance.voiceExtract',
 ]);
 
+/**
+ * Jobs whose caller parses JSON out of the reply WITHOUT asking for JSON mode. bd-gr4fy.6.
+ *
+ * The prompt asks for JSON and the code parses it, but the request sets no `response_format`, so
+ * nothing on the wire says JSON is wanted. llm-client reads this when a job is moved to another
+ * model: an answer with no complete value of this shape is a failure, and the job's own model
+ * answers instead. Without it, several of these substitute a default on a parse failure and say
+ * nothing: a capstone answer scores 0, a voice register finds "no names", a pedagogy reply that
+ * is not an object scores 0%.
+ *
+ * Found by reading every moved job's call site (6 Oct 2026), with the parse named per job. A job
+ * that sets `response_format` is NOT listed: the request already says so.
+ */
+const JSON_REPLY_JOBS = Object.freeze({
+  'coaching.pedagogy': 'object',          // gpt5-mini.service.js _safeJsonParse; an array scores 0%
+  'coaching.fidelityFallback': 'object',  // gpt5-mini.service.js: {..} span, then _safeJsonParse
+  'lp.editIntent': 'object',              // lp612-edit-intent.service.js parseKind: {..} span
+  'lp.extractText': 'object',             // workers/lesson-plan-extraction.worker.js: {..} span
+  'attendance.voiceExtract': 'object',    // voice-attendance.service.js parseExtraction: {..} span
+  'roster.extract': 'object',             // roster-extraction.service.js parseModelJson
+  'quiz.videoReport': 'object',           // quiz/video-quiz-report.service.js parseGuidanceJson
+  'training.capstoneScore': 'object',     // training/capstone-delivery.service.js: JSON.parse
+});
+
 /** The model this job is known to work with, or null when it has nothing behind it. */
 function fallbackForJob(job) {
   if (!JOBS[job]) throw new Error(`unknown job: ${job}`);
@@ -326,4 +357,6 @@ function resolveModelForJob(job, ctx = {}) {
   return { job, model, source, env: JOBS[job].env, site: JOBS[job].site };
 }
 
-module.exports = { JOBS, FALLBACK, TELEMETRY_ONLY_JOBS, fallbackForJob, resolveModelForJob, todaysModel, bucketOf, isModel };
+module.exports = {
+  JOBS, FALLBACK, TELEMETRY_ONLY_JOBS, JSON_REPLY_JOBS, fallbackForJob, resolveModelForJob, todaysModel, bucketOf, isModel,
+};

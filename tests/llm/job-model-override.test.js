@@ -68,7 +68,12 @@ function load(env = {}) {
   return require('../../bot/shared/services/llm-client');
 }
 
-/** Load with app_settings rows already read, as a running process has them after its first minute. */
+/**
+ * Load with app_settings rows already read, as a running process has them after its first second.
+ * Every case that moves a job uses this: an override waits until the settings (and so the kill
+ * switch) have been read once (bd-gr4fy.6), and that wait has its own case in
+ * job-override-hardening.test.js.
+ */
 async function loadWithSettings(env, rows) {
   mockState.rows = rows;
   const mod = load(env);
@@ -90,7 +95,7 @@ afterEach(() => { process.env = { ...OLD_ENV }; });
 
 describe('with nothing written, nothing changes', () => {
   test('the call goes out exactly as the call site wrote it, once', async () => {
-    const { getClient } = load();
+    const { getClient } = await loadWithSettings();
     await getClient().chat.completions.create(ask());
     expect(mockState.or).toHaveLength(1);
     expect(mockState.or[0]).toEqual({
@@ -110,7 +115,7 @@ describe('with nothing written, nothing changes', () => {
   });
 
   test('a value that is not a model id is ignored, never sent', async () => {
-    const { getClient } = load({ LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': 'Not A Model!' }) });
+    const { getClient } = await loadWithSettings({ LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': 'Not A Model!' }) });
     await getClient().chat.completions.create(ask());
     expect(mockState.or.map((p) => p.model)).toEqual(['openai/gpt-4.1-mini']);
   });
@@ -118,7 +123,7 @@ describe('with nothing written, nothing changes', () => {
 
 describe('one place moves a job', () => {
   test('the env var moves a labelled job, and the spend is recorded under that job', async () => {
-    const { getClient } = load({ LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': 'anthropic/claude-haiku-4-5' }) });
+    const { getClient } = await loadWithSettings({ LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': 'anthropic/claude-haiku-4-5' }) });
     await getClient().chat.completions.create(ask());
     expect(mockState.or).toHaveLength(1);
     expect(mockState.or[0].model).toBe('anthropic/claude-haiku-4-5');
@@ -136,7 +141,7 @@ describe('one place moves a job', () => {
   });
 
   test('a job moved onto the direct lane is billed to Anthropic, not sent to OpenRouter', async () => {
-    const { getClient } = load({
+    const { getClient } = await loadWithSettings({
       ANTHROPIC_API_KEY: 'grant-key',
       LLM_JOB_MODELS: JSON.stringify({ 'lang.detect': 'anthropic-direct/claude-haiku-4-5' }),
     });
@@ -149,7 +154,7 @@ describe('one place moves a job', () => {
   });
 
   test('an unlabelled call is never moved', async () => {
-    const { getClient } = load({ LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': 'anthropic/claude-haiku-4-5' }) });
+    const { getClient } = await loadWithSettings({ LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': 'anthropic/claude-haiku-4-5' }) });
     await getClient().chat.completions.create({ model: 'openai/gpt-4.1-mini', messages: [] });
     expect(mockState.or.map((p) => p.model)).toEqual(['openai/gpt-4.1-mini']);
   });
@@ -157,7 +162,7 @@ describe('one place moves a job', () => {
 
 describe("the job's own model stays behind the new one", () => {
   test('an error from the new model falls back to the call-site model, and says so', async () => {
-    const { getClient } = load({ LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': 'anthropic/claude-haiku-4-5' }) });
+    const { getClient } = await loadWithSettings({ LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': 'anthropic/claude-haiku-4-5' }) });
     mockState.orImpl = (p) => {
       if (p.model.includes('claude')) { const e = new Error('upstream exploded'); e.status = 500; throw e; }
       return { choices: [{ message: { content: 'lesson_plan' }, finish_reason: 'stop' }], usage: {} };
@@ -171,7 +176,7 @@ describe("the job's own model stays behind the new one", () => {
   });
 
   test('an empty answer counts as a failure', async () => {
-    const { getClient } = load({ LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': 'anthropic/claude-haiku-4-5' }) });
+    const { getClient } = await loadWithSettings({ LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': 'anthropic/claude-haiku-4-5' }) });
     mockState.orImpl = (p) => ({
       choices: [{ message: { content: p.model.includes('claude') ? '   ' : 'chat' }, finish_reason: 'stop' }], usage: {},
     });
@@ -181,7 +186,7 @@ describe("the job's own model stays behind the new one", () => {
   });
 
   test('when JSON was asked for, an answer that is not JSON counts as a failure', async () => {
-    const { getClient } = load({ LLM_JOB_MODELS: JSON.stringify({ 'coaching.inferTopic': 'anthropic/claude-haiku-4-5' }) });
+    const { getClient } = await loadWithSettings({ LLM_JOB_MODELS: JSON.stringify({ 'coaching.inferTopic': 'anthropic/claude-haiku-4-5' }) });
     mockState.orImpl = (p) => ({
       choices: [{ message: { content: p.model.includes('claude') ? 'Sure! {"topic": ' : '{"topic":"fractions"}' }, finish_reason: 'stop' }], usage: {},
     });
@@ -191,14 +196,14 @@ describe("the job's own model stays behind the new one", () => {
   });
 
   test('valid JSON from the new model is kept', async () => {
-    const { getClient } = load({ LLM_JOB_MODELS: JSON.stringify({ 'coaching.inferTopic': 'anthropic/claude-haiku-4-5' }) });
+    const { getClient } = await loadWithSettings({ LLM_JOB_MODELS: JSON.stringify({ 'coaching.inferTopic': 'anthropic/claude-haiku-4-5' }) });
     mockState.orImpl = () => ({ choices: [{ message: { content: '{"topic":"fractions"}' }, finish_reason: 'stop' }], usage: {} });
     await getClient().chat.completions.create(ask({ job: 'coaching.inferTopic', response_format: { type: 'json_object' } }));
     expect(mockState.or).toHaveLength(1);
   });
 
   test('without the Anthropic key, a direct-lane override leaves the job on its own model', async () => {
-    const { getClient } = load({ LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': 'anthropic-direct/claude-haiku-4-5' }) });
+    const { getClient } = await loadWithSettings({ LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': 'anthropic-direct/claude-haiku-4-5' }) });
     const res = await getClient().chat.completions.create(ask());
     expect(mockState.an).toHaveLength(0);
     expect(mockState.or.map((p) => p.model)).toEqual(['openai/gpt-4.1-mini']);
@@ -207,7 +212,7 @@ describe("the job's own model stays behind the new one", () => {
   });
 
   test("the direct lane's own credit fallback keeps the job's name and does not loop back", async () => {
-    const { getClient } = load({
+    const { getClient } = await loadWithSettings({
       ANTHROPIC_API_KEY: 'grant-key',
       LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': 'anthropic-direct/claude-haiku-4-5' }),
     });
@@ -222,7 +227,7 @@ describe("the job's own model stays behind the new one", () => {
 
 describe('a thinking model under a tiny output limit', () => {
   test('on the direct lane, thinking is turned off so the limit holds an answer', async () => {
-    const { getClient } = load({
+    const { getClient } = await loadWithSettings({
       ANTHROPIC_API_KEY: 'grant-key',
       LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': 'anthropic-direct/claude-sonnet-5' }),
     });
@@ -231,13 +236,13 @@ describe('a thinking model under a tiny output limit', () => {
   });
 
   test("through OpenRouter, the same thing in OpenRouter's spelling", async () => {
-    const { getClient } = load({ LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': 'anthropic/claude-sonnet-5' }) });
+    const { getClient } = await loadWithSettings({ LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': 'anthropic/claude-sonnet-5' }) });
     await getClient().chat.completions.create(ask({ max_tokens: 10 }));
     expect(mockState.or[0].reasoning).toEqual({ enabled: false });
   });
 
   test('Haiku does not think unless asked, so nothing is added', async () => {
-    const { getClient } = load({
+    const { getClient } = await loadWithSettings({
       ANTHROPIC_API_KEY: 'grant-key',
       LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': 'anthropic-direct/claude-haiku-4-5' }),
     });
@@ -248,14 +253,14 @@ describe('a thinking model under a tiny output limit', () => {
 
 describe('a routed job whose settings already resolved to the direct lane', () => {
   test('reaches Anthropic even through the plain client', async () => {
-    const { getClient } = load({ ANTHROPIC_API_KEY: 'grant-key' });
+    const { getClient } = await loadWithSettings({ ANTHROPIC_API_KEY: 'grant-key' });
     await getClient().chat.completions.create(ask({ job: 'assessment.generate', model: 'anthropic-direct/claude-sonnet-5', max_tokens: 8000 }));
     expect(mockState.or).toHaveLength(0);
     expect(mockState.an[0].model).toBe('claude-sonnet-5');
   });
 
   test('and falls back to the model that job already works with', async () => {
-    const { getClient } = load({ ANTHROPIC_API_KEY: 'grant-key' });
+    const { getClient } = await loadWithSettings({ ANTHROPIC_API_KEY: 'grant-key' });
     mockState.anImpl = () => { const e = new Error('overloaded'); e.status = 529; throw e; };
     await getClient().chat.completions.create(ask({ job: 'assessment.generate', model: 'anthropic-direct/claude-sonnet-5', max_tokens: 8000 }));
     expect(mockState.or.map((p) => p.model)).toEqual(['google/gemini-3.1-pro-preview']);
@@ -268,21 +273,29 @@ describe('services with their own raw client', () => {
   });
 
   test('honour the same override', async () => {
-    const { withSpendRecording } = load({
+    const { withSpendRecording } = await loadWithSettings({
       ANTHROPIC_API_KEY: 'grant-key',
       LLM_JOB_MODELS: JSON.stringify({ 'quiz.videoReport': 'anthropic-direct/claude-haiku-4-5' }),
+    });
+    // quiz.videoReport's caller parses a JSON object out of the reply (JSON_REPLY_JOBS), so the
+    // answer it is given here is one.
+    mockState.anImpl = (req) => ({
+      id: 'msg_1', model: req.model, stop_reason: 'end_turn',
+      content: [{ type: 'text', text: '{"tomorrow":"from claude"}' }], usage: { input_tokens: 5, output_tokens: 3 },
     });
     const raw = [];
     const client = withSpendRecording(rawClient(raw), { lane: 'openai-direct' });
     const res = await client.chat.completions.create({ model: 'gpt-5.4-mini', job: 'quiz.videoReport', max_completion_tokens: 600, messages: [{ role: 'user', content: 'x' }] });
     expect(raw).toHaveLength(0);
     expect(mockState.an).toHaveLength(1);
-    expect(mockState.an[0].max_tokens).toBe(600);
-    expect(res.choices[0].message.content).toBe('from claude');
+    // Twice the call site's 600: a moved job's limit is measured in Claude's tokens (bd-gr4fy.6,
+    // job-override-hardening.test.js).
+    expect(mockState.an[0].max_tokens).toBe(1200);
+    expect(res.choices[0].message.content).toBe('{"tomorrow":"from claude"}');
   });
 
   test('and fall back to their own client when the new model fails', async () => {
-    const { withSpendRecording } = load({
+    const { withSpendRecording } = await loadWithSettings({
       ANTHROPIC_API_KEY: 'grant-key',
       LLM_JOB_MODELS: JSON.stringify({ 'quiz.videoReport': 'anthropic-direct/claude-haiku-4-5' }),
     });
