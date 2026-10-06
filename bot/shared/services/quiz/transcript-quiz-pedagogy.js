@@ -256,7 +256,7 @@ function genderedTeacherForms(text, language, { authorGates } = {}) {
     // quiz_author_gates_v2: a pronoun whose sentence names a person before it is that
     // character's ("Ahmed was writing his letter"), not the teacher's.
     const own = (re, group = 0) => [...s.matchAll(re)]
-      .filter((m) => !namedAntecedent(s, m.index + m[0].length - m[group].length))
+      .filter((m) => !namedAntecedent(s, m.index + m[0].length - m[group].length, { lookback: 1 }))
       .map((m) => m[group]);
     push(own(EN_PRONOUNS));
     push(own(EN_HE_LOWER));
