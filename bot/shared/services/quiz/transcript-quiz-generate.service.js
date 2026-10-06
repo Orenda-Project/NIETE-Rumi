@@ -47,6 +47,8 @@ const DailyCap = require('./quiz-daily-cap');
 const AuthorGates = require('./quiz-author-gates');
 const Lp612Source = require('./lp612-quiz-source');
 const GatesV2 = require('./quiz-author-gates-v2');
+const ChildReasons = require('./transcript-quiz-child-reasons');
+const { completeJson } = require('./transcript-quiz-llm');
 
 /** The teacher of an lp_v8 quiz — the same fields SESSION_SELECT joins for a transcript quiz. */
 const LP_USER_SELECT = 'name, id, phone_number, preferred_language, grades_taught, subjects_taught';
@@ -2906,6 +2908,48 @@ async function processQuiz(quizId, payload, flight) {
         quizId, stage: 'shipped', quiz_source: quizSource, questions: shippedRepeats.length,
         indices: shippedRepeats.map((e) => Number(/^q(\d+)/.exec(e)[1])),
       });
+    }
+    // ── REASONS A CHILD CAN FOLLOW (gates v2, grades 1-5) ────────────────────
+    // On the set that ships: an explanation or feedback line over its grade's
+    // cap gets ONE small call that rewrites only those texts
+    // (transcript-quiz-child-reasons); the stem, options and key never move.
+    // Never costs a question; a failed call ships the reasons as authored.
+    if (authorGates) {
+      // A grade 1-2 stem over eight words is rewritten to fit (never cut); a changed
+      // stem redraws its card. Shipped whole, counted, when it cannot fit.
+      const sf = await ChildReasons.fitStems({
+        questions, gradeBand: digest.grade_band || meta.grade, language, complete: completeJson,
+      });
+      if (sf.record) {
+        if (sf.changed) {
+          try {
+            const rows = toRows(quizId, sf.questions);
+            ({ figureUrls, cardUrls } = await renderFor(api, {
+              questions: sf.questions, rows, language, teacherId: quiz.teacher_id, quizId,
+            }));
+            draftedRows = rows;
+            questions = sf.questions;
+          } catch (err) {
+            sf.record.status = 'render_failed';
+            sf.record.kept_long = sf.record.targets;
+          }
+        }
+        meta.stem_fit = sf.record;
+        meta.cost_usd = (meta.cost_usd || 0) + (sf.record.cost_usd || 0);
+        logEvent('transcript_quiz.stem_fit', { quizId, quiz_source: quizSource, ...sf.record });
+      }
+      const cr = await ChildReasons.shortenReasons({
+        questions, gradeBand: digest.grade_band || meta.grade, language, complete: completeJson,
+      });
+      if (cr.record) {
+        meta.child_reasons = cr.record;
+        meta.cost_usd = (meta.cost_usd || 0) + (cr.record.cost_usd || 0);
+        logEvent('transcript_quiz.child_reasons', { quizId, quiz_source: quizSource, ...cr.record });
+      }
+      if (cr.changed) {
+        questions = cr.questions;
+        if (draftedRows) draftedRows = toRows(quizId, questions);
+      }
     }
     const drafted = applyMedia(draftedRows || toRows(quizId, questions), questions, { figureUrls, cardUrls, language });
     // SCHEMA_v2 — the web arm's items ride BESIDE the rows (media.web), written by one
