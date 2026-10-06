@@ -28,6 +28,7 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
+const Steps = require('./web-quiz-steps');
 const WebItems = require('./web-quiz-items');
 const Figure = require('./web-quiz-figure');
 const PictureZoom = require('./web-quiz-picture-zoom');
@@ -415,13 +416,20 @@ async function liveCounts(ctx) {
 
 // ─── E2 the quiz ────────────────────────────────────────────────────────────
 
-async function getQuiz(code, { p } = {}) {
+/** E2, timed: one web_quiz.getquiz_timing line per call (steps, total). */
+function getQuiz(code, opts = {}) {
+  return Steps.run('getquiz', {}, (mark) => getQuizTimed(code, opts, mark));
+}
+
+async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   requireOn();
   const ctx = await resolveCode(code);
+  mark('resolve', { shareCodeId: ctx.shareCodeId });
   const [questions, { data: quizRow }] = await Promise.all([
     loadQuestions(ctx.quizId, { log: true }),
     supabase.from('quizzes').select('id, topic, grade, subject, language, meta, video_id, list_id').eq('id', ctx.quizId).maybeSingle(),
   ]);
+  mark('questions');
   if (!questions.length) fail(404, 'no_questions');
   const helpers = mediaHelpers();
   let audio = {};
@@ -441,6 +449,7 @@ async function getQuiz(code, { p } = {}) {
   } catch { /* the page reads aloud */ }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
   try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
+  mark('media');
   // Identity v2: the child types their name and the server matches inside the hand-out's class.
   const idn = await identityV2(ctx);
   // A teacher with a class list: the child gives a roll number, so no classmates' names ship.
@@ -450,6 +459,7 @@ async function getQuiz(code, { p } = {}) {
   // A quiz whose class the server cannot tell (two lists, no grade match): the page asks the class first.
   const pick = roster ? Roster.pickList(roster, { listId: quizRow && quizRow.list_id, grade: quizRow && quizRow.grade }, (id) => classKey(ctx, id)) : null;
   const preview = Boolean(p) && isPreviewFor(p, ctx);
+  mark('roster');
   // The class and the teacher are named exactly as the teacher's own texts
   // name them: the forwarded WhatsApp message's "Teacher <name>", and the
   // report's class heading for this code (null until a child has finished).
@@ -460,6 +470,7 @@ async function getQuiz(code, { p } = {}) {
     label = (cls && cls.className) || null;
   } catch { label = null; }
   const zooms = await Promise.all(questions.map((q) => PictureZoom.zoomFor(q).catch(() => null)));
+  mark('label');
   const out = {
     quiz: {
       id: ctx.quizId, code: ctx.code,
@@ -482,6 +493,7 @@ async function getQuiz(code, { p } = {}) {
     // Which brand the page wears: a key only; the edge owns the brand's look.
     brand: await WebQuizBrand.resolveBrandKey({ db: supabase, orgName, botName }),
   };
+  mark('live');
   if (ctx.invitedByStudentId) out.challenge = await challengeOf(ctx);
   return out;
 }
@@ -748,9 +760,16 @@ async function countJoin(shareCodeId) {
   }
 }
 
-async function startSession(body = {}) {
+/** E3, timed: one web_quiz.session_timing line per call (path, steps, total). */
+function startSession(body = {}) {
+  const path = body.p ? 'preview' : body.roll != null ? 'roll' : body.chip ? 'chip' : body.from_st ? 'from_st' : body.new ? 'new' : 'other';
+  return Steps.run('session', { path, ...(body.resume_st ? { resume: 1 } : {}) }, (mark) => startSessionTimed(body, mark));
+}
+
+async function startSessionTimed(body = {}, mark = () => {}) {
   requireOn();
   const ctx = await resolveCode(body.code);
+  mark('resolve', { shareCodeId: ctx.shareCodeId });
   const deviceRef = T.cleanDeviceRef(body.device_ref) || T.newDeviceRef();
 
   // A returning page resumes its own open session instead of starting another.
@@ -871,6 +890,7 @@ async function startSession(body = {}) {
   } else {
     fail(400, 'bad_request', { why: 'who' });
   }
+  mark('identity');
 
   // A hub/library link carries the child's chip in its URL (?k=), and a link can be forwarded:
   // it plays straight through only on a phone that has played as that child before; anywhere
@@ -906,6 +926,7 @@ async function startSession(body = {}) {
     logToFile('❌ web-quiz: could not create session', { quizId: ctx.quizId, error: sErr && sErr.message }, 'error');
     fail(502, 'db_unavailable');
   }
+  mark('insert');
 
   await countJoin(ctx.shareCodeId);
   let quizSource = null;
