@@ -112,7 +112,7 @@ router.get('/page/:token', handle(async (req, res) => {
   });
   noStore(res);
   res.status(200).type('html').send(renderPage(b.data, {
-    lang: b.lang, tab: b.tab, scope: v.quizId ? 'quiz' : 'all', tokens: b.tokens, notice: req.query.e === '1' ? 'failed' : null,
+    lang: b.lang, tab: b.tab, scope: v.quizId ? 'quiz' : 'all', tokens: b.tokens, notice: NOTICES[req.query.e] || null,
   }));
 }));
 
@@ -177,10 +177,17 @@ async function postedQuiz(req, res, v) {
   return { quizId, code: report.quiz.code };
 }
 
+// Why a save failed, as the notice the page shows (Rule 24d: the copy names the state).
+// e=2 the class column is not migrated on this environment (or no identity v2), e=3 the
+// hand-out has closed, e=1 anything else ("did not save, try again").
+const NOTICE_OF = { not_ready: '2', expired: '3' };
+const NOTICES = { 1: 'failed', 2: 'notReady', 3: 'closed' };
+
 /** Back to the report the form was on. */
-function back(req, res, ok) {
+function back(req, res, out) {
   noStore(res);
-  res.redirect(303, `${REPORT_PATH}/${encodeURIComponent(req.params.token)}${ok ? '' : '?e=1'}`);
+  const e = out.ok ? '' : `?e=${NOTICE_OF[out.reason] || '1'}`;
+  res.redirect(303, `${REPORT_PATH}/${encodeURIComponent(req.params.token)}${e}`);
 }
 
 /** Calls an identity v2 writer on web-quiz.service, which may not be deployed yet. */
@@ -207,7 +214,7 @@ router.post('/class/:token', handle(async (req, res) => {
   const key = text(req.body.key, 200);
   const out = key ? await identityWrite('whoClass', { code: q.code, tr: req.params.token, key }) : { ok: false, reason: 'bad_request' };
   logEvent('teacher_report.class_bound', { teacherId: v.teacherId, quizId: q.quizId, ok: out.ok, ...(out.ok ? {} : { reason: out.reason }) });
-  back(req, res, out.ok);
+  back(req, res, out);
 }));
 
 router.post('/fix/:token', handle(async (req, res) => {
@@ -223,7 +230,7 @@ router.post('/fix/:token', handle(async (req, res) => {
     out = await identityWrite('fixWho', add ? { code: q.code, tr: req.params.token, ref, add: true } : { code: q.code, tr: req.params.token, ref, studentId });
   }
   logEvent('teacher_report.fixed', { teacherId: v.teacherId, quizId: q.quizId, how: add ? 'add' : 'student', ok: out.ok, ...(out.ok ? {} : { reason: out.reason }) });
-  back(req, res, out.ok);
+  back(req, res, out);
 }));
 
 module.exports = router;

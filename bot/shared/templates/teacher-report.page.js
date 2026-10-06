@@ -124,6 +124,8 @@ const CHROME = {
     provisionalBody: 'These children typed their own name. Add each one to the class, or say who it really is.',
     addTo: (c) => `Add to ${c}`, thisIs: 'This is…', save: 'Save',
     noticeFailed: 'That did not save. Please try again.',
+    noticeNotReady: 'This cannot be saved yet: choosing a class switches on with the next update. Your report is not affected.',
+    noticeClosed: 'This quiz link has closed, so its class can no longer be changed.',
     noPlayers: 'No one has played yet. Share the quiz link with your class.',
     questions: 'Question by question',
     qRight: (n, p) => `Q${n} · ${p}% right`,
@@ -181,6 +183,8 @@ const CHROME = {
     provisionalBody: 'ان بچوں نے اپنا نام خود لکھا۔ ہر ایک کو کلاس میں شامل کریں، یا بتائیں کہ یہ اصل میں کون ہے۔',
     addTo: (c) => `${c} میں شامل کریں`, thisIs: 'یہ دراصل…', save: 'محفوظ کریں',
     noticeFailed: 'محفوظ نہیں ہو سکا۔ دوبارہ کوشش کریں۔',
+    noticeNotReady: 'ابھی محفوظ نہیں ہو سکتا: کلاس چننے کی سہولت اگلی اپ ڈیٹ کے ساتھ شروع ہوگی۔ آپ کی رپورٹ پر کوئی اثر نہیں۔',
+    noticeClosed: 'اس کوئز کا لنک بند ہو چکا ہے، اس لیے اب اس کی کلاس نہیں بدلی جا سکتی۔',
     noPlayers: 'ابھی کسی نے نہیں کھیلا۔ quiz کا لنک کلاس کو بھیجیں۔',
     questions: 'ہر سوال کا حال',
     qRight: (n, p) => `سوال <span class="num">${n}</span> · <span class="num">${p}%</span> درست`,
@@ -455,7 +459,8 @@ ${K(quiz.topic || C.title, 'h1')}
 ${srcLabel ? `<span class="chip-src">${L(esc(srcLabel))}</span>` : ''}
 </div></header>`;
 
-  const notice = noticeKind === 'failed' && !print ? `<div class="notice" role="status">${L(C.noticeFailed)}</div>` : '';
+  const NOTICE_KEYS = { failed: 'noticeFailed', notReady: 'noticeNotReady', closed: 'noticeClosed' };
+  const notice = NOTICE_KEYS[noticeKind] && !print ? `<div class="notice" role="status">${L(C[NOTICE_KEYS[noticeKind]])}</div>` : '';
 
   // 2. tiles
   const ringP = of ? Math.min(100, Math.round((100 * playedN) / of)) : 0;
