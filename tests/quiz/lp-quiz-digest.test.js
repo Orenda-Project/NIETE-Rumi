@@ -292,3 +292,19 @@ describe('lessonExcerpts — what the AUTHOR pass reads in place of the transcri
     expect(() => LpDigest.lessonExcerpts({})).not.toThrow();
   });
 });
+
+describe('the Urdu page title (quiz_author_gates_v2)', () => {
+  const withTitle = (title) => completeJson.mockResolvedValue({ json: { ...MODEL_JSON, title_ur: title }, model: 'm', costUsd: 0.001, latencyMs: 1 });
+  test('an Urdu quiz with the gates on keeps the digest\'s Urdu title, once', async () => {
+    withTitle('جمع کرنا سیکھیں');
+    const { digest } = await LpDigest.run({ slideScript: SLIDE_SCRIPT, language: 'ur', grade: 2, subject: 'math', authorGates: true });
+    expect(digest.title_ur).toBe('جمع کرنا سیکھیں');
+  });
+  test('Roman Urdu is not an Urdu title; gates off or an English quiz store none', async () => {
+    withTitle('Jama Karna');
+    expect((await LpDigest.run({ slideScript: SLIDE_SCRIPT, language: 'ur', grade: 2, subject: 'math', authorGates: true })).digest.title_ur).toBeUndefined();
+    withTitle('جمع کرنا سیکھیں');
+    expect((await LpDigest.run({ slideScript: SLIDE_SCRIPT, language: 'ur', grade: 2, subject: 'math', authorGates: false })).digest.title_ur).toBeUndefined();
+    expect((await LpDigest.run({ slideScript: SLIDE_SCRIPT, language: 'en', grade: 2, subject: 'math', authorGates: true })).digest.title_ur).toBeUndefined();
+  });
+});

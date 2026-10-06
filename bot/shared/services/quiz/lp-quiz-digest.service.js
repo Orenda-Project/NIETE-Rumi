@@ -33,6 +33,7 @@
  */
 
 const { completeJson } = require('./transcript-quiz-llm');
+const { cleanUrduTitle } = require('./quiz-child-title');
 const { normaliseDigest } = require('./transcript-quiz-digest.service');
 const { peopleDigestRule } = require('./transcript-quiz-people');
 const { canonicalSubject, LANG_NAME } = require('./transcript-quiz-language');
@@ -508,8 +509,18 @@ function lessonDrewFor(slideScript, { authorGates = false } = {}) {
   return [drew, lessonDiagramsBlock(slideScript)].filter(Boolean).join('\n\n');
 }
 
+/**
+ * The title a child reads on an Urdu quiz's first screen (quiz_author_gates_v2).
+ * The label stored for the lesson is its catalog name, verbatim — English or
+ * Roman Urdu ("Understanding Dialogue", "Bhaloo Aur Billi") — so an Urdu
+ * page opened on an English title. Written once, with the quiz.
+ */
+const URDU_TITLE_RULE = '- "title_ur" = the lesson\'s topic as a short title for the child\'s quiz page, at most 5 words, in Urdu script — never Roman Urdu, never English words in Urdu letters (an English technical term stays in English letters). A child of this grade must understand it: «مکالمہ سمجھنا», «پودے کے حصے».';
+
 function buildLpDigestPrompt({ slideScript, language, grade, subject, authorGates = false }) {
   const c = carry(slideScript, { authorGates });
+  // An Urdu quiz's page shows its title in Urdu (gates v2): the catalog name is English or Roman.
+  const urTitle = authorGates && language === 'ur';
   return `You are reading the LESSON PLAN a teacher in a Pakistani government school was given and taught from today. Your job is to write a faithful DIGEST of what that lesson set out to teach — nothing more, nothing less. This digest will be used to write a short quiz for the children who sat in that lesson, so anything you invent will be tested on children who never met it.
 
 WHAT YOU KNOW ABOUT THIS LESSON:
@@ -522,7 +533,7 @@ RULES
 - "slos" = the specific learning objectives THIS lesson set out to teach, 2-6 of them, each with a short verbatim quote from the plan as its evidence and the level the plan pitched it at: "recall" (name/repeat/identify), "understand" (explain/compare/give own example), "apply" (solve/use in a new case). The plan's own level is "${c.bloom || 'understand'}" — no objective may be tagged ABOVE it.
 - Every SLO carries "statement_en" (the objective in English) and "statement_ur" (the same objective in Urdu script, English technical terms in English letters). The teacher may ask for the quiz in either language and the document must read in one language only.
 - "topic_as_taught" = the topic label as the plan names it. ENGLISH TECHNICAL TERMS ARE WRITTEN IN ENGLISH LETTERS, never transliterated into Urdu script: write "column method", "numerator", "photosynthesis" — not "کالم میتھڈ". "topic" = a clean short label in English.
-- "subject" must be one of: urdu | english | maths | science | sst | genk | islamiat | other.
+${urTitle ? `${URDU_TITLE_RULE}\n` : ''}- "subject" must be one of: urdu | english | maths | science | sst | genk | islamiat | other.
 - "grade_band": "1-2" | "3-5" | "6-8" | "9-10".
 - "key_terms": up to 8 terms the lesson teaches; "term" is the canonical form, "as_spoken" is how the plan words it for the class.
 - "examples_used": the concrete examples, numbers, objects and stories THIS plan uses — the worked example and the practice work. These are the material of the quiz: a child should recognise their own lesson in it.
@@ -534,7 +545,7 @@ ${peopleDigestRule('the plan')}
 
 Return ONLY this JSON object:
 {
-  "topic": "", "topic_as_taught": "", "subject": "urdu|english|maths|science|sst|genk|islamiat|other", "subject_conflict": false,
+  "topic": "", "topic_as_taught": "",${urTitle ? ' "title_ur": "",' : ''} "subject": "urdu|english|maths|science|sst|genk|islamiat|other", "subject_conflict": false,
   "grade_band": "", "language_of_instruction": "", "confidence": 0.0,
   "slos": [ { "id": "S1", "statement": "", "statement_en": "", "statement_ur": "", "evidence_quote": "", "taught_level": "recall|understand|apply" } ],
   "key_terms": [ { "term": "", "as_spoken": "" } ],
@@ -588,6 +599,11 @@ async function run({
   } = await completeJson({ prompt, label: 'lp_quiz.digest' });
 
   const digest = normaliseDigest(json, { storedSubject: subject });
+  // The Urdu page's own title (gates v2, Urdu quiz): kept only when it is Urdu (quiz-child-title).
+  if (authorGates && language === 'ur') {
+    const titleUr = cleanUrduTitle(json && json.title_ur);
+    if (titleUr) digest.title_ur = titleUr;
+  }
   const bloomLevel = levelFromBloom(slideScript && slideScript.bloom);
 
   // The plan's Bloom level is the ceiling, and it is a FACT about the lesson —
