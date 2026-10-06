@@ -72,12 +72,13 @@ async function statsFor(teacherId, quizzes) {
     // "played" is the children ON the list: a typed child is never set against the
     // class size ("7 of 10" when 4 of the 10 played).
     const mine = Data.onePerChildAcrossCodes(byQuiz.get(q.id) || []);
-    const scores = mine.map((x) => pct(x.correct_answers || 0, x.total_questions_answered || 0));
     const { roster: r, one } = Data.classOf(roster, q, null);
     const known = r.state === 'known' && one;
     const ids = known ? new Set(one.kids.map((k) => k.id)) : null;
-    const played = ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)).length : mine.length;
-    out.set(q.id, { played, of: known ? r.of : null, avg: mean(scores) });
+    // The count and the average are over the SAME children: the class list's when known.
+    const counted = ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)) : mine;
+    const scores = counted.map((x) => pct(x.correct_answers || 0, x.total_questions_answered || 0));
+    out.set(q.id, { played: counted.length, of: known ? r.of : null, avg: mean(scores) });
   });
   return out;
 }
