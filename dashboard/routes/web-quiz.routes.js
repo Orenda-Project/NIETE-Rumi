@@ -63,7 +63,7 @@ function bootJson(obj) {
 
 function assetVersion() {
   const h = crypto.createHash('sha256');
-  for (const f of ['wq.js', 'wq.css']) {
+  for (const f of ['wq.js', 'wq.css', 'wq-identity.js']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   return h.digest('hex').slice(0, 10);
@@ -132,6 +132,12 @@ function head({ lang, dir, title, desc, origin, url, assetV, brand }) {
 <style id="wq-brand">${WebQuizBrand.cssVars(brand)}</style>`;
 }
 
+// Identity v2 (name first) lives in its own script, sent only to quizzes the server switched to it.
+function identityV2(payload) {
+  const id = payload && payload.cls && payload.cls.identity;
+  return Boolean(id && id.mode === 'v2');
+}
+
 function renderQuizPage({ payload, code, view, origin, assetV, url }) {
   const q = (payload && payload.quiz) || {};
   const lang = q.lang === 'ur' ? 'ur' : 'en';
@@ -144,7 +150,7 @@ function renderQuizPage({ payload, code, view, origin, assetV, url }) {
 <body>
 <main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(BOOT_COPY[lang])}</p></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
-<script src="/wq/wq.js?v=${assetV}" defer></script>
+${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq.js?v=${assetV}" defer></script>
 </body>
 </html>`;
 }

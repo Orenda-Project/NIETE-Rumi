@@ -986,6 +986,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var ch = B.challenge;
     var chLine = ch ? T.challenged(ch.first, ch.correct, ch.total) : (params.from ? T.challengedBy(String(params.from).slice(0, 20)) : '');
     if (B.preview && params.p) return teacherLanding();
+    if (ID && !B.preview) return ID.landing(chLine);
     var h = bar() +
       (B.preview ? '<div class="wq-banner">' + esc(T.selfT) + '</div>' : '') +
       jug('hello', last ? T.helloN(last.first) : T.hello, true, true) +
@@ -1044,7 +1045,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       sumOf: function (p, of) { return p + ' of ' + of + ' played'; }, sumN: function (p) { return p + ' played'; },
       avg: 'Average', hard: function (n, m) { return 'Q' + n + ' was the hardest (' + m + ' missed it)'; },
       notYet: function (n) { return 'Not played yet (' + n + ')'; }, allPlayed: 'Everyone on your class list has played.',
-      playedT: function (n) { return 'Played (' + n + ')'; }, setRollLink: 'Set roll'
+      playedT: function (n) { return 'Played (' + n + ')'; }, setRollLink: 'Set roll',
+      // identity v2 (wq-identity.js): name first, a collision asked, never shown
+      someone: 'Someone else', nameT: 'What is your name?', nameSay: 'Type the name you are called by in class.',
+      nameFull: 'Type your full name.', namePriv: 'Only your name. No phone number.',
+      moreFull: function (f, c) { return 'There is more than one ' + f + (c ? ' in ' + c : ' here') + '. What is your full name?'; },
+      fatherT: "What is your father's name?", numT: 'What number does your teacher call you by?', numSay: 'The number on the class list.',
+      dontKnow: "I don't know",
+      nfT: function (t, c) { return "I can't find " + t + (c ? ' in ' + c : '') + '. Is that how your name is written?'; },
+      nfYes: "Yes, that's my name", nfFix: 'Let me fix it'
     },
     ur: {
       rollT: 'آپ کا رول نمبر کیا ہے؟', rollSay: 'اپنا رول نمبر دبائیں، پھر آگے دبائیں۔', go: 'آگے', del: 'مٹائیں',
@@ -1062,7 +1071,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       sumOf: function (p, of) { return of + ' میں سے ' + p + ' نے کھیلا'; }, sumN: function (p) { return p + ' نے کھیلا'; },
       avg: 'اوسط', hard: function (n, m) { return 'سوال ' + n + ' سب سے مشکل رہا (' + m + ' نے غلط کیا)'; },
       notYet: function (n) { return 'ابھی نہیں کھیلا (' + n + ')'; }, allPlayed: 'آپ کی کلاس لسٹ کے سب بچوں نے کھیل لیا۔',
-      playedT: function (n) { return 'کھیل لیا (' + n + ')'; }, setRollLink: 'رول نمبر دیں'
+      playedT: function (n) { return 'کھیل لیا (' + n + ')'; }, setRollLink: 'رول نمبر دیں',
+      someone: 'کوئی اور', nameT: 'آپ کا نام کیا ہے؟', nameSay: 'وہ نام لکھیں جس سے آپ کو کلاس میں پکارا جاتا ہے۔',
+      nameFull: 'اپنا پورا نام لکھیں۔', namePriv: 'صرف نام۔ فون نمبر نہیں۔',
+      moreFull: function (f, c) { return (c ? c + ' میں' : 'یہاں') + ' ایک سے زیادہ ' + f + ' ہیں۔ آپ کا پورا نام کیا ہے؟'; },
+      fatherT: 'آپ کے والد کا نام کیا ہے؟', numT: 'کلاس لسٹ میں آپ کا نمبر کیا ہے؟', numSay: 'جو نمبر کلاس میں پکارا جاتا ہے۔',
+      dontKnow: 'مجھے نہیں پتا',
+      nfT: function (t, c) { return (c ? c + ' میں ' : '') + t + ' نہیں ملا۔ کیا آپ کا نام ایسے ہی لکھا جاتا ہے؟'; },
+      nfYes: 'جی ہاں، یہی میرا نام ہے', nfFix: 'دوبارہ لکھیں'
     }
   })[LANG === 'ur' ? 'ur' : 'en'];
   // One digit rule for the whole page, Urdu included: 0-9. The roll number is matched to the
@@ -1088,7 +1104,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // The one class this quiz plays against, when the server could not tell (two lists, no grade match):
   // the child taps their class first; 'none' = "my class is not here" (a new child, no list).
   var CLS_PICK = null;
+  // Identity v2 (name first; dashboard/public/wq/wq-identity.js) when the server turns it on for this quiz.
+  var ID = CLS.identity && CLS.identity.mode === 'v2' && typeof WQID === 'function' ? WQID({
+    T: T, TW: TW, CLS: CLS, Q: Q, N: N, LIVE: LIVE, params: params, esc: esc, ani: ani, bar: bar, jug: jug, render: render, wireBar: wireBar,
+    on: on, $: $, kids: kids, ev: ev, startSession: startSession, rollPad: rollPad, landing: landing,
+    pick: function () { return CLS_PICK; }, setPick: function (v) { CLS_PICK = v; }
+  }) : null;
   function who() {
+    if (ID) return ID.who();
     if (CLS.roster && CLS.roster.classes && CLS.roster.classes.length && !CLS_PICK) return whichClass(CLS.roster.classes);
     if (CLS_PICK === 'none') return newKid();
     if (CLS.roster) return rollPad('', '');
@@ -1129,7 +1152,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   /* The roll-number pad: numbers only, so a child who cannot read yet can still say who they are. */
   function rollPad(cur, note, opts) {
     opts = opts || {};
-    var here = opts.teacher ? [] : kids();
+    var here = opts.teacher || opts.noKids ? [] : kids();
     var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'del', '0', 'go'];
     var h = bar('', opts.teacher) + (opts.teacher ? '<p class="wq-sub">' + esc(opts.say) + '</p>' : jug('idle', note || opts.say || TW.rollSay)) + (opts.teacher && note ? '<p class="wq-small">' + esc(note) + '</p>' : '') + '<h2>' + esc(opts.title || TW.rollT) + '</h2>' +
       '<div class="wq-roll" aria-live="polite">' + (cur ? esc(digitsFor(cur)) : '<span class="wq-roll-ph">–</span>') + '</div>' +
@@ -1139,7 +1162,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         return '<button class="wq-key" data-k="' + k + '">' + esc(digitsFor(k)) + '</button>';
       }).join('') + '</div>' +
       (here.length ? '<p class="wq-sub">' + esc(TW.onPhoneOr) + '</p><div class="wq-chips">' + here.map(function (k) { return kidBtn(k, 'phone'); }).join('') + '</div>' : '') +
-      (opts.teacher ? '' : '<button class="wq-btn wq-soft" id="wq-noroll">' + esc(TW.noRoll) + '</button>') +
+      (opts.teacher ? '' : '<button class="wq-btn wq-soft" id="wq-noroll">' + esc(opts.dontKnow || TW.noRoll) + '</button>') +
       '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
     render(h, opts.screen || 'M4-roll');
     wireBar();
@@ -1156,7 +1179,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         rollPad(padNext(cur, k), '', opts);
       });
     });
-    on('#wq-noroll', function () { ev('identity_pick', { src: 'no_roll' }); newKid(); });
+    on('#wq-noroll', opts.onDontKnow || function () { ev('identity_pick', { src: 'no_roll' }); newKid(); });
     on('#wq-back', opts.back || (CLS_PICK ? function () { CLS_PICK = null; who(); } : landing));
   }
 
@@ -1297,6 +1320,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (CLS_PICK && (pick.roll != null || pick.new)) body.list = CLS_PICK;
     api('POST', 'session', body).then(function (r) {
       busy = false;
+      if (ID && ID.reply(r.status, r.body || {}, pick)) return;
       if (r.status === 409 && r.body.error === 'which_class') { CLS_PICK = null; ev('identity_pick', { src: 'which_class' }); return whichClass(r.body.classes || []); }
       if (r.status === 409 && r.body.error === 'maybe_you') return isThisYou(r.body.candidates || [], typed || '');
       if (r.status === 409 && r.body.error === 'is_this_you') return isThisYou(r.body.candidates || [], '', roll);
@@ -1860,6 +1884,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var PLAYING = { M5: 1, M6: 1, M7: 1, 'M9-fix': 1, 'M9-tricky': 1 };
   function afterResult() { if (S.result) card(); else landing(); }
   function backTo(m) {
+    if (ID && ID.backTo(m)) return ID.backTo(m);
     if (m === 'M4') return landing;
     if (m === 'M4-new' || m === 'M4-isyou') return who;
     if (m === 'M12-fallback') return NAV.shareBack || afterResult;
