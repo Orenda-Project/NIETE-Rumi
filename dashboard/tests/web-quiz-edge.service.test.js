@@ -244,6 +244,8 @@ describe('web quiz edge: GET /q/:code server-side render', () => {
     const res = await req(srv, 'GET', '/q/AB12CD/schools');
     const boot = JSON.parse(res.body.match(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/)[1]);
     expect(boot.view).toBe('schools');
+    // the preview links to the league itself, not to the quiz
+    expect(res.body).toMatch(/<meta property="og:url" content="[^"]*\/q\/AB12CD\/schools"/);
     expect(res.body).toMatch(/<meta property="og:title" content="School league this week"/);
     expect(res.body).toMatch(/<meta property="og:description" content="10 points for playing, up to 10 for your score\. Play and push your school up!"/);
   });
