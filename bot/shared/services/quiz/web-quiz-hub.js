@@ -266,7 +266,8 @@ async function hub(token, { kid } = {}) {
   }
   // The library: M4b's page when it is on; else the child's newest open quiz (its scorecard lists more videos).
   const newest = history.find((e) => e.active && e.code);
-  if (f.library) out.lib = { href: `/lib/${token}?kid=${out.kid}` };
+  // The library page opens in the child's language (?l=), the same one this hub is in.
+  if (f.library) out.lib = { href: `/lib/${token}?kid=${out.kid}&l=${out.lang}` };
   else if (newest) out.lib = { href: `/q/${newest.code}?k=${T.chipId(newest.shareCodeId, chosen.id)}` };
   logEvent('web_quiz.hub_open', {
     kids: kidsRows.length, has_teacher: Boolean(out.teacher), teacher_src: out.teacher ? out.teacher.src : null,
