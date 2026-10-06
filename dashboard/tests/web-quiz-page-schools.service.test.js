@@ -169,6 +169,12 @@ describe('the hook and the filters', () => {
     expect(p.html()).toContain('North One');
   });
 
+  test('nobody ranked yet: no sector chips (nothing to filter)', async () => {
+    const p = await open('en', { rows: [], mine: { ...GHOST.mine, sector: 'Sector One' }, ranked_n: 0, zero_n: 11 });
+    expect(p.html()).not.toContain('id="wq-sector"');
+    expect(p.html()).toContain('Be the first!');
+  });
+
   test('no sector known: no sector chip', async () => {
     const p = await open('en', GHOST);
     expect(p.html()).not.toContain('id="wq-sector"');

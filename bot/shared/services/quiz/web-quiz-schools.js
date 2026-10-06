@@ -274,25 +274,29 @@ function snapshot(now) {
 }
 
 /**
- * The points one finished session added to its school: present only when the
- * session counted (a first finish, under both caps). A session that finished
- * after the minute's load is read on its own and placed after the loaded plays.
+ * The points one finished session added to its school (`added`, present only
+ * when it counted: a first finish, under both caps), and the plays to score
+ * this response with. A session that finished after the minute's load is read
+ * on its own and added for THIS response only, so the child who just finished
+ * sees their own finish at once (never "no one has played yet"); the shared
+ * snapshot is untouched and picks it up at the next load.
  */
 async function addedBy(st, data, week, now) {
+  const none = { added: undefined, plays: data.plays };
   const tok = T.verify(st, 's');
-  if (!tok || !tok.sid) return undefined;
+  if (!tok || !tok.sid) return none;
   let plays = data.plays;
   let mine = plays.find((p) => p.sessionId === tok.sid);
   if (!mine) {
     const { data: s } = await supabase.from('quiz_sessions').select(`${SESSION_COLS}, status, user_id`).eq('id', tok.sid).maybeSingle();
-    if (!s || s.status !== 'completed' || s.user_id || !s.completed_at || String(s.completed_at) < week) return undefined;
+    if (!s || s.status !== 'completed' || s.user_id || !s.completed_at || String(s.completed_at) < week) return none;
     const map = await schoolsOfCodes([s.share_code_id], now);
     mine = playOf(s, map.get(s.share_code_id));
-    if (!mine) return undefined;
+    if (!mine) return none;
     plays = [...plays, mine];
   }
   const counted = countedPlays(plays).find((p) => p.sessionId === tok.sid);
-  return counted ? pointsFor(counted.pct) : undefined;
+  return counted ? { added: pointsFor(counted.pct), plays } : none;
 }
 
 /** GET /schools/:code — the board the page shows, the viewer's school from the quiz code. */
@@ -309,10 +313,10 @@ async function board(code, { now = Date.now(), st } = {}) {
       mySchoolId = (u && !u.is_test_user && u.school_id) || null;
     }
   }
-  const out = scoreSchools({ plays: data.plays, schools: data.schools, mySchoolId, splitAt: dayStartIso(now) });
+  const fresh = st ? await addedBy(st, data, weekStartIso(now), now) : { added: undefined, plays: data.plays };
+  const out = scoreSchools({ plays: fresh.plays, schools: data.schools, mySchoolId, splitAt: dayStartIso(now) });
   const week = new Date(Date.parse(weekStartIso(now)) + PKT_OFFSET_MS).toISOString().slice(0, 10);
-  const added = st ? await addedBy(st, data, weekStartIso(now), now) : undefined;
-  return { week_start: week, ...out, ...(added ? { added } : {}) };
+  return { week_start: week, ...out, ...(fresh.added ? { added: fresh.added } : {}) };
 }
 
 module.exports = { board, scoreSchools, countedPlays, neighbours, pointsFor, weekStartIso, dayStartIso, CACHE_MS, _reset };
