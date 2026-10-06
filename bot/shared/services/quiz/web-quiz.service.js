@@ -757,7 +757,12 @@ async function startSession(body = {}) {
     const tok = T.verify(body.resume_st, 's');
     if (tok && tok.sc === ctx.shareCodeId) {
       const { data: s } = await supabase.from('quiz_sessions').select(SESSION_COLS).eq('id', tok.sid).maybeSingle();
-      if (s && s.status === 'in_progress' && (!s.expires_at || new Date(s.expires_at) > new Date())) {
+      // A token resumes only ITS child: a body that names someone else (a typed name, a roll number, another
+      // child's chip) starts that child's own session, never continues this one with their answers.
+      const other = body.new || body.roll != null
+        || (body.chip && !(s && s.student_id && String(body.chip) === T.chipId(ctx.shareCodeId, s.student_id)));
+      if (other && s) logEvent('web_quiz.resume_skipped', { shareCodeId: ctx.shareCodeId, sessionId: s.id });
+      if (s && !other && s.status === 'in_progress' && (!s.expires_at || new Date(s.expires_at) > new Date())) {
         const answered = await answeredIds(s.id);
         const prior = await priorFinish(ctx.shareCodeId, s.student_id, s.id);
         const nameOf = await shownNames(ctx.lang, [s.student_id]);
