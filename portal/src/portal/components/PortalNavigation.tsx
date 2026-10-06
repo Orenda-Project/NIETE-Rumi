@@ -101,14 +101,15 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
   // row: seven cells for teachers, each ~52px wide on a 360px screen, so the
   // labels cropped. Keep the four the operator named as primary and put the
   // rest behind a tray. Desktop is unaffected — it has the width.
-  const MOBILE_PRIMARY = coachV2
-    ? ['Home', 'Schedule', 'Observe', 'Schools']
-    : ['Dashboard', 'Curriculum', 'Training', 'Coaching'];
-  const primaryNav = navItems.filter((i) => MOBILE_PRIMARY.includes(i.title));
+  const MOBILE_PRIMARY = ['Dashboard', 'Curriculum', 'Training', 'Coaching'];
+  // bd-o15qnr — the v2 coach's four on the bar.
+  const COACH_PRIMARY = ['Home', 'Schedule', 'Observe', 'Schools'];
+  const primaryTitles = coachV2 ? COACH_PRIMARY : MOBILE_PRIMARY;
+  const primaryNav = navItems.filter((i) => primaryTitles.includes(i.title));
   // Anything not named primary overflows — including leader nav, whose titles
   // don't appear in the list above, so it degrades to "all in the tray" rather
   // than silently dropping items.
-  const overflowNav = navItems.filter((i) => !MOBILE_PRIMARY.includes(i.title));
+  const overflowNav = navItems.filter((i) => !primaryTitles.includes(i.title));
   // Fall back to the first four when nothing matched, so a future rename can
   // never leave the bar empty.
   const mobileNav = primaryNav.length > 0 ? primaryNav : navItems.slice(0, 4);
