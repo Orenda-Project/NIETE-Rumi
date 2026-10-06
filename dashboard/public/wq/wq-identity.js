@@ -17,6 +17,12 @@ var WQID = function (P) {
   var VIA = 'name';      // the step that produced the last answer (logged by the server)
   var CLASSES = (ID.class && ID.class.ask) || [];
   var hubDone = false;
+  // A phone that remembers this many children is passed around (a teacher's or an older sibling's): "Someone else"
+  // comes first, and a card tapped gets a "Not X?" undo over the first question, logged as wrong_card.
+  var CLASS_PHONE = 4;
+  var UNDO_MS = 20000;
+  var pending = null;    // the card just tapped on a class phone, until its session starts
+  var undoEl = null;
 
   // An invited friend, or a teacher with no class: a name only, never a class or a roster question.
   function nameOnly() { return Boolean(ID.invited) || ID.roster === false; }
@@ -46,6 +52,8 @@ var WQID = function (P) {
   function landing(chLine) {
     var here = P.kids();
     var Q = P.Q, CLS = P.CLS, LIVE = P.LIVE || {};
+    var classPhone = here.length >= CLASS_PHONE;
+    var someone = '<button class="wq-btn wq-navy" id="wq-someone">' + esc(TW.someone) + '</button>';
     var h = P.bar() +
       P.jug('hello', here.length ? T.whoSay : T.hello, true, true) +
       '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1>' +
@@ -53,17 +61,21 @@ var WQID = function (P) {
       '<p class="wq-small">' + esc(T.meta(P.N)) + '</p></div>' +
       (chLine ? '<div class="wq-banner">' + esc(chLine) + '</div>' : '') +
       (here.length
-        ? '<h2>' + esc(T.whoT) + '</h2><div class="wq-kids-big">' + here.map(function (k, i) {
-          return '<button class="wq-kid wq-kid-big" id="wq-kid-' + i + '">' + P.ani(k.animal) + nm(k.first) + '</button>';
-        }).join('') + '</div>' +
-          '<button class="wq-btn wq-navy" id="wq-someone">' + esc(TW.someone) + '</button>'
+        ? '<h2>' + esc(T.whoT) + '</h2>' + (classPhone ? someone : '') +
+          '<div class="wq-kids-big' + (classPhone ? ' wq-kids-small' : '') + '">' + here.map(function (k, i) {
+            return '<button class="wq-kid wq-kid-big" id="wq-kid-' + i + '">' + P.ani(k.animal) + nm(k.first) + '</button>';
+          }).join('') + '</div>' + (classPhone ? '' : someone)
         : '<button class="wq-btn wq-go" id="wq-play">' + esc(T.play) + '</button>') +
       (LIVE.ict_today_floor ? '<p class="wq-proof">🌟 ' + esc(T.proof(LIVE.ict_today_floor)) + '</p>' : '') +
       (LIVE.class_today ? '<p class="wq-small">' + esc(T.classToday(LIVE.class_today)) + '</p>' : '');
     P.render(h, 'M4-who-v2');
     P.wireBar();
     here.forEach(function (k, i) {
-      on('#wq-kid-' + i, function () { P.ev('identity_pick', { src: 'remembered' }); P.startSession({ chip: k.chip, via: 'remembered' }, k); });
+      on('#wq-kid-' + i, function () {
+        P.ev('identity_pick', { src: 'remembered' });
+        pending = classPhone ? { first: k.first, t: Date.now() } : null;
+        P.startSession({ chip: k.chip, via: 'remembered' }, k);
+      });
     });
     on('#wq-someone', function () { P.ev('identity_pick', { src: 'someone_else' }); who(); });
     on('#wq-play', who);
@@ -79,6 +91,8 @@ var WQID = function (P) {
   }
 
   function who() {
+    pending = null;
+    dropUndo();
     if (!nameOnly() && ID.class && ID.class.state === 'ambiguous' && !P.pick()) return classPick(ID.class.ask || []);
     name();
   }
@@ -193,6 +207,32 @@ var WQID = function (P) {
     on('#wq-fix', function () { name(null, typed); });
   }
 
+  // Called by startSession once a session has started.
+  function started(child) {
+    var p = pending;
+    pending = null;
+    dropUndo();
+    if (p) showUndo((child && child.first) || p.first, p.t);
+  }
+  function showUndo(first, t) {
+    var d = P.doc;
+    if (!d || !d.body) return;
+    var el = d.createElement('button');
+    el.className = 'wq-btn wq-undo';
+    el.textContent = T.notMe(first);
+    el.addEventListener('click', function () {
+      P.ev('identity_pick', { src: 'wrong_card', ms: Date.now() - t });
+      who();
+    });
+    d.body.appendChild(el);
+    undoEl = el;
+    setTimeout(function () { if (undoEl === el) dropUndo(); }, UNDO_MS);
+  }
+  function dropUndo() {
+    if (undoEl && undoEl.parentNode) undoEl.parentNode.removeChild(undoEl);
+    undoEl = null;
+  }
+
   // The server's answer to POST /session; true when it was one of the v2 identity steps.
   function reply(status, b, pick) {
     if (status === 409 && b.error === 'which_class') { P.setPick(null); classPick(b.classes || []); return true; }
@@ -214,5 +254,5 @@ var WQID = function (P) {
     return null;
   }
 
-  return { landing: landing, who: who, reply: reply, backTo: backTo };
+  return { landing: landing, who: who, reply: reply, backTo: backTo, started: started };
 };

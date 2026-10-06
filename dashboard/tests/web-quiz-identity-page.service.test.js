@@ -33,6 +33,7 @@ function page({ lang = 'en', cls = V2(), kids = [], replies = [], params = {} } 
   let byId = {};
   const pads = {};
   const inputs = {};
+  const doc = { nodes: [] };
   const ctx = {
     LANG: lang, CLS: cls, CLASS_LABEL: '4-A', Q: { grade: '4', topic: 'Fractions' }, QS: [], N: 5, B: {}, LIVE: {}, params, CODE: 'AB12CD',
     S: { answers: {}, queue: [] },
@@ -60,12 +61,17 @@ function page({ lang = 'en', cls = V2(), kids = [], replies = [], params = {} } 
     video: () => {}, nextQuestion: () => screens.push({ name: 'Q', h: '' }), whoPlayed: () => {}, flushQueue: () => {},
     api: (m, p, body) => { calls.push({ p, body: JSON.parse(JSON.stringify(body)) }); return Promise.resolve(replies.shift() || { status: 200, ok: true, body: { st: 's', child: { chip: 'c', first: 'Ali', animal: 'lion' } } }); },
     location: { search: '' }, history: { replaceState() {} },
+    document: {
+      body: { appendChild: (el) => { doc.nodes.push(el); el.parentNode = { removeChild: (x) => { doc.nodes = doc.nodes.filter((n) => n !== x); } }; } },
+      createElement: () => { const el = { className: '', textContent: '', listeners: {}, addEventListener(n, fn) { el.listeners[n] = fn; }, setAttribute() {} }; return el; },
+    },
+    setTimeout: () => 0,
   };
   vm.createContext(ctx);
   vm.runInContext(`${ID_SRC}\n${SRC.slice(START, END)}\nthis.who = who; this.landing = landing; this.startSession = startSession; this.whichClass = whichClass;`, ctx);
   const last = () => screens[screens.length - 1];
   return {
-    ctx, screens, calls, events, toasts, stored, last,
+    ctx, screens, calls, events, toasts, stored, last, doc,
     tap: (id) => { const fn = byId[`#${id}`]; if (!fn) throw new Error(`no #${id} on ${last().name}: ${Object.keys(byId).join(' ')}`); fn(); },
     type: (id, v) => { ctx.$(`#${id}`).value = v; },
     has: (id) => Boolean(byId[`#${id}`]),
@@ -124,6 +130,55 @@ describe('S0 landing', () => {
     expect(p.last().h).toContain('آپ کا نام کیا ہے؟');
     expect(p.last().h).toContain('وہ نام لکھیں جس سے آپ کو کلاس میں پکارا جاتا ہے۔');
     expect(p.last().h).not.toContain('لیتی');
+  });
+});
+
+describe('class phone: a phone that remembers 4 or more children', () => {
+  const four = ['Ayesha', 'Bilal', 'Hina', 'Omar'].map((f, i) => ({ chip: `c${i}`, first: f, animal: 'owl' }));
+  test('"Someone else" comes first and the cards are the smaller kind', () => {
+    const p = page({ kids: four });
+    p.ctx.landing();
+    const h = p.last().h;
+    expect(h.indexOf('id="wq-someone"')).toBeGreaterThan(-1);
+    expect(h.indexOf('id="wq-someone"')).toBeLessThan(h.indexOf('id="wq-kid-0"'));
+    expect(h).toContain('wq-kids-small');
+  });
+  test('with fewer children the cards come first (unchanged)', () => {
+    const p = page({ kids: four.slice(0, 2) });
+    p.ctx.landing();
+    const h = p.last().h;
+    expect(h.indexOf('id="wq-kid-0"')).toBeLessThan(h.indexOf('id="wq-someone"'));
+    expect(h).not.toContain('wq-kids-small');
+  });
+  test('a card tapped on a class phone: a "Not Hina?" undo floats over the first question; tapping it logs wrong_card and asks the name', async () => {
+    const p = page({ kids: four, replies: [{ status: 200, ok: true, body: { st: 's', child: { chip: 'c2', first: 'Hina', animal: 'owl' } } }] });
+    p.ctx.landing();
+    p.tap('wq-kid-2');
+    await flush();
+    expect(p.last().name).toBe('Q');
+    expect(p.doc.nodes).toHaveLength(1);
+    expect(p.doc.nodes[0].textContent).toBe('Not Hina?');
+    p.doc.nodes[0].listeners.click();
+    expect(p.doc.nodes).toHaveLength(0);
+    expect(p.last().name).toBe('M4-name');
+    const e = p.events.find((x) => x.p && x.p.src === 'wrong_card');
+    expect(e).toBeTruthy();
+    expect(typeof e.p.ms).toBe('number');
+  });
+  test('no undo when the phone has fewer than 4 children, or the child typed their name', async () => {
+    const p = page({ kids: four.slice(0, 2) });
+    p.ctx.landing();
+    p.tap('wq-kid-0');
+    await flush();
+    expect(p.doc.nodes).toHaveLength(0);
+    const q = page({ kids: four, replies: [{ status: 409, ok: false, body: { error: 'is_this_you', candidates: [{ chip: 'x', first: 'Zara', animal: 'cat' }] } }] });
+    q.ctx.who();
+    q.type('wq-name', 'Zara');
+    q.tap('wq-start');
+    await flush();
+    q.tap('wq-yes');
+    await flush();
+    expect(q.doc.nodes).toHaveLength(0);
   });
 });
 
