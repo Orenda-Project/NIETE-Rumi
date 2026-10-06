@@ -940,3 +940,46 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     When the failure is recorded
     Then the observation shows as stopped in the portal
     And the coach receives no failure message on WhatsApp
+
+  # ── Edit a teacher from the PORTAL (coach v2, bd-o15qnr.13) ─────────────────
+  # Dark behind app_settings.portal_coach_v2. Name, teaching level, role and
+  # phone save through main's /observe "Edit a teacher" path, ported to sandbox
+  # (teacher-edit.service.js planners + teacher-edit-commit.service.js writes),
+  # reached by the portal through POST /api/internal/observe/teacher-edit, run
+  # as the coach. School and Remove stay on commitAdd / commitRemovals.
+
+  @e2e @config-gated @P1
+  Scenario: A coach renames a teacher, sets her teaching levels and her role from the portal
+    Given a coach is in the portal_coach_v2 pilot and the teacher is in her patch
+    When the coach changes the teacher's name, ticks Primary and Middle, picks Principal and saves
+    Then the teacher's name, teaching levels and role are saved as WhatsApp /observe's Edit a teacher saves them
+    And each change is written to the roster audit with the coach as actor
+    And the screen says a principal can observe teachers before she saves
+
+  @e2e @config-gated @negative @P2
+  Scenario: Teaching level is Primary, Middle or High, and cannot change twice within 48 hours
+    Given a coach is editing a teacher in her patch from the portal
+    Then the teaching levels offered are Primary, Middle and High, and Early years is not offered
+    When the coach saves a teaching level less than 48 hours after the last change
+    Then the change is refused and the screen shows the hours left
+
+  @e2e @config-gated @P1
+  Scenario: A teacher's new number is checked before it is changed
+    Given a coach is editing a teacher in her patch from the portal
+    When the coach enters a new number and checks it
+    Then the screen says whether the number is free or belongs to an account with no history, and nothing is changed yet
+    When the coach confirms the change
+    Then the teacher's number is changed, her booked visits follow it, and an account with no history on that number is retired, not deleted
+
+  @e2e @config-gated @negative @P1
+  Scenario: A number that belongs to a teacher with history is refused
+    Given a coach is editing a teacher in her patch from the portal
+    When the coach checks a number whose account has certificates, attempts, training progress or coaching sessions
+    Then the screen shows "Please wait while we fix your data" and no change can be confirmed
+    And the refusal is written to the roster audit as edit_phone_escalated
+
+  @e2e @config-gated @negative @P1
+  Scenario: A teacher outside the coach's patch cannot be edited
+    Given a coach is in the portal_coach_v2 pilot
+    When the coach tries to edit a teacher who is not in her patch, or at a school that is not hers
+    Then the edit is refused and nothing is saved
