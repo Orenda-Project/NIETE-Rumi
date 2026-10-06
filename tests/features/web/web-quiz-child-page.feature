@@ -631,3 +631,17 @@ Feature: Web child quiz page on the portal
     Given the render check over every question shape the engine can emit, in English and Urdu
     When it plays each one on a 360 by 740 phone
     Then it checks the screen after a wrong pick and after the right pick, and fails on a maths command spelled out in letters
+
+  @T442
+  Scenario: An invited friend never sees the class through the peer line
+    Given a friend plays through a child's challenge link while the class is playing
+    When classmates answer questions right
+    Then the friend's page shows no classmate's name, its idle check returns nothing, and its landing has no "classmates playing now" line
+    And the class still sees the friend's right answers as "A friend got Q2 right ✓"
+
+  @T443
+  Scenario: No peer line in the early years
+    Given a quiz graded NURSERY, KG, PG, 1, 2 or a band starting with 1 or 2
+    When a classmate answers right
+    Then no peer line shows and the page never asks for one
+    And a quiz graded 3 or above, or with no grade at all, shows it

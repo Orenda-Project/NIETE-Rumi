@@ -87,6 +87,26 @@ describe('M17 peer pulse on the page', () => {
     expect(p.intervals).toHaveLength(0);
   });
 
+  test.each([['KG'], ['NURSERY'], ['PG'], ['1-2'], ['2']])('early years (grade %s): no pulse and no poll', async (grade) => {
+    const p = onQuestion({ grade });
+    p.advance(4000); p.answer(); await flush(); await flush(); p.advance(30000); p.tick(); await flush();
+    expect(p.pulses()).toEqual([]);
+    expect(p.intervals).toHaveLength(0);
+  });
+
+  test.each([['3'], ['Grade 4'], ['3-5']])('grade %s: on', async (grade) => {
+    const p = onQuestion({ grade });
+    p.advance(4000); p.answer(); await flush(); await flush(); p.advance(100);
+    expect(p.pulses()).toEqual(['Sara got Q4 right ✓']);
+  });
+
+  test("an invited friend's page never polls and never shows classmates", async () => {
+    const p = onQuestion({ challenge: { first: 'Ali', correct: 4, total: 5 } });
+    p.advance(4000); p.answer(); await flush(); await flush(); p.advance(30000); p.tick(); await flush();
+    expect(p.pulses()).toEqual([]);
+    expect(p.intervals).toHaveLength(0);
+  });
+
   test('teacher preview and a quiet page (🔕) show no pulse; unknown grade does', async () => {
     const pv = onQuestion({ preview: true });
     pv.advance(4000); pv.answer(); await flush(); await flush(); pv.advance(4000);

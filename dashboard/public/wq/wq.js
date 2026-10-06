@@ -721,9 +721,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
      Off for grades 1-2 (they follow the voice and the pictures; a moving name competes with it), in the
      teacher's preview, and when the page is quiet (🔕). An invited friend is "A friend", never a name. */
   var PULSE = { since: 0, shown: 0, qid: null, qAt: 0, pend: null, held: null, wt: 0, poll: 0, polls: 0 };
+  // Early years are off: a grade that does not carry a number of at least 3 (NURSERY, KG, PG, 1, 2, a band
+  // starting 1 or 2). Only a grade that is missing altogether counts as unknown, and that is on. An invited
+  // friend is not in the class: never on.
   function pulseOn() {
-    var g = parseInt(Q.grade, 10);
-    return !B.preview && SOUND && g !== 1 && g !== 2;
+    var raw = Q.grade == null ? '' : String(Q.grade).trim();
+    var m = /(\d+)/.exec(raw);
+    var grown = !raw || (m && parseInt(m[1], 10) >= 3);
+    var friend = Boolean(B.challenge || (CLS.identity && CLS.identity.invited));
+    return !B.preview && SOUND && grown && !friend;
   }
   function pulseFeed(list) {
     if (!list || !list.length) return;

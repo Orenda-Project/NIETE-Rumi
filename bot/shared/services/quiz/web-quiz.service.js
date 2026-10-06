@@ -474,8 +474,9 @@ async function getQuiz(code, { p } = {}) {
       ...(roster ? { roster: { lists: roster.lists.length, ...(pick.ask ? { classes: pick.ask } : {}) } } : {}),
       ...(idn ? { identity: await identityBoot(ctx, idn) } : {}),
     },
-    // now: classmates with a right answer in the last 2 minutes (peer pulse ring), sent only when there are some.
-    live: { ...(await liveCounts(ctx)), ...(Pulse.liveNow(ctx.shareCodeId) ? { now: Pulse.liveNow(ctx.shareCodeId) } : {}) },
+    // now: classmates with a right answer in the last 2 minutes (peer pulse ring), sent only when there are some,
+    // and never on a friend's challenge code (the friend is not in the class).
+    live: { ...(await liveCounts(ctx)), ...(!ctx.invitedByStudentId && Pulse.liveNow(ctx.shareCodeId) ? { now: Pulse.liveNow(ctx.shareCodeId) } : {}) },
     video,
     preview,
     // Which brand the page wears: a key only; the edge owns the brand's look.
@@ -1280,7 +1281,8 @@ async function withPulse(s, body, out, rows, questions) {
       qn: questions.findIndex((q) => q.id === r.question_id) + 1, invited: Boolean(s.invited_by_student_id),
     }));
   }
-  const pulse = Pulse.since({ shareCodeId: s.share_code_id, sessionId: s.id, sinceMs: body.since });
+  // An invited friend is not in the class: they never see classmates (their own right answers still reach the class as "a friend").
+  const pulse = s.invited_by_student_id ? [] : Pulse.since({ shareCodeId: s.share_code_id, sessionId: s.id, sinceMs: body.since });
   return pulse.length ? { ...out, pulse } : out;
 }
 
