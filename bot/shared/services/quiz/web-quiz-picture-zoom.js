@@ -14,7 +14,7 @@
 const sharp = require('sharp');
 
 const N = 96; // the grid the pictures are compared on
-const STRONG = Number(process.env.WQZ_STRONG || 200); // |dR|+|dG|+|dB| above this is a real difference, not shading or JPEG noise
+const STRONG = 200; // |dR|+|dG|+|dB| above this is a real difference, not shading or JPEG noise
 // Near-identical: the pictures share most of their drawing and differ in one region. Measured
 // against the drawing (not the whole frame, which may be mostly background).
 const MAX_DIFF_OF_INK = 0.35; // above: the pictures differ as wholes (a tall man, a short man)
