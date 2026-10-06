@@ -233,6 +233,22 @@ describe('the board (loaded through Supabase)', () => {
     expect((await S.board('ALPHA1', { now: NOW + 3000, st: 'forged.token' })).added).toBeUndefined();
   });
 
+  test("the child who just finished sees their own finish on the league at once, not a minute later", async () => {
+    process.env.INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'route-key';
+    const T = require('../../../shared/services/quiz/web-quiz-token');
+    await S.board('CHARL1', { now: NOW }); // the minute's snapshot: Charlie has nothing
+    fake.db.quiz_sessions.push(sess('s30', 'c3', 'kc30', 80, '2026-10-07T05:00:10Z'));
+    const st = T.signSession({ sessionId: 's30', deviceRef: 'd', shareCodeId: 'c3' });
+    const b = await S.board('CHARL1', { now: NOW + 20000, st });
+    expect(b.added).toBe(18);
+    expect(b.mine).toEqual(expect.objectContaining({ points: 18, kids: 1 }));
+    expect(b.mine.ghost).toBeUndefined();
+    expect(b.rows.find((r) => r.name === 'School Charlie')).toEqual(expect.objectContaining({ points: 18, mine: true }));
+    // another viewer in the same minute is not shown a different board because of it
+    const other = await S.board('ALPHA1', { now: NOW + 21000 });
+    expect(other.rows.find((r) => r.name === 'School Charlie')).toBeUndefined();
+  });
+
   test('a school with nothing yet sees its own ghost row', async () => {
     const b = await S.board('CHARL1', { now: NOW });
     expect(b.mine).toEqual(expect.objectContaining({ ghost: true, name: 'School Charlie', points: 0 }));
