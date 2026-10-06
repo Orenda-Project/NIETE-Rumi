@@ -112,7 +112,12 @@ html[lang=ur] .wq-key-go{font-family:var(--fu);line-height:1.6}
 .wq-who-row b{font-size:18px;color:var(--navy)}
 .wq-who .wq-tag{display:inline-block;background:var(--navy);color:#fff;border-radius:999px;padding:1px 8px;font-size:12px;font-weight:800}
 .wq-who .wq-tag-off{background:var(--notyet-bg);color:var(--notyet)}
-.wq-who-fix{width:100%;min-height:44px;font-size:15px}
+.wq-who-row .wq-grow{flex:1}
+.wq-who-score{font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums}
+.wq-who-h{margin:14px 0 6px;font-size:17px;color:var(--navy)}
+.wq-who-sum h2{margin:0}
+.wq-who-np{padding:6px 0}
+.wq-linkbtn{background:none;border:0;padding:6px 4px;min-height:32px;font:inherit;font-size:14px;font-weight:700;color:var(--brand-d,#23794D);text-decoration:underline;cursor:pointer}
 .wq-banner{background:var(--notyet-bg);color:var(--notyet);border-radius:14px;padding:10px 12px;font-weight:800;font-size:14px}
 .wq-dots{display:flex;gap:6px;flex:1}
 .wq-dot{flex:1;height:12px;border-radius:999px;background:var(--star-off)}

@@ -109,3 +109,55 @@ describe('move a row to the right child', () => {
     await expect(WQ.fixWho({ code: 'AB12CD', p: P, ref: 's2', chip: 'nope' })).rejects.toMatchObject({ status: 404 });
   });
 });
+
+describe("the teacher's summary: how many played, the average, the hardest question, and who has not played yet", () => {
+  const qid = (n) => `9999999${n}-9999-4999-8999-999999999999`;
+  const ans = (sid, n, ok) => ({ id: `${sid}-${n}`, session_id: sid, question_id: qid(n), selected_option: ok ? 'B' : 'A', is_correct: ok });
+  beforeEach(() => {
+    fake.db.quiz_questions = [1, 2, 3, 4, 5].map((n) => ({
+      id: qid(n), quiz_id: QUIZ, external_id: `tq:${n}`, sort_order: n, question_text: `Question ${n}`,
+      option_a: 'Root', option_b: 'Leaf', option_c: 'Stem', option_d: null, correct_option: 'B', media: {},
+    }));
+    fake.db.quiz_answers.push(
+      ...[1, 2, 3, 4, 5].map((n) => ans('s1', n, n !== 3)),
+      ...[1, 2, 3, 4, 5].map((n) => ans('s2', n, n !== 3 && n !== 4)),
+      // Ayesha's second (practice) run never counts, here or in the report.
+      ...[1, 2, 3, 4, 5].map((n) => ans('s3', n, n !== 1)),
+    );
+  });
+
+  test('2 of 2 on the list played? No: 1 of 2 on the list, the class average, Q3 the hardest', async () => {
+    const out = await WQ.whoPlayed({ code: 'AB12CD', p: P });
+    expect(out.summary).toEqual({ played: 2, on_list: 1, of: 2, avg: 3.5, total: 5, hardest: { n: 3, missed: 2 } });
+  });
+
+  test('not played yet: the children of this quiz\'s class list who have no counted finish, first name + roll only, by roll', async () => {
+    fake.db.students.push({ id: kid(7), list_id: LIST, roll_number: 7, student_name: 'Hamza Testwala', father_name: 'Secret', is_active: true });
+    const out = await WQ.whoPlayed({ code: 'AB12CD', p: P });
+    expect(out.not_played).toEqual([{ first: 'Hamza', roll: 7 }, { first: 'Danish', roll: 12 }]);
+    expect(JSON.stringify(out)).not.toMatch(/Testwala|Secret/);
+  });
+
+  test('no question is "hardest" when nobody missed one, or fewer than two children finished', async () => {
+    fake.db.quiz_answers.forEach((a) => { a.is_correct = true; });
+    expect((await WQ.whoPlayed({ code: 'AB12CD', p: P })).summary.hardest).toBeNull();
+    fake.db.quiz_sessions = fake.db.quiz_sessions.filter((s) => s.id !== 's2');
+    fake.db.quiz_answers.forEach((a) => { a.is_correct = false; });
+    expect((await WQ.whoPlayed({ code: 'AB12CD', p: P })).summary.hardest).toBeNull();
+  });
+
+  test('two class lists and the quiz does not pick one: no "not played" list (we cannot say whose class it is)', async () => {
+    fake.db.student_lists.push({ id: 'a0000000-0000-4000-8000-00000000005a', user_id: TEACHER, class_name: '5', section: 'A', is_active: true });
+    fake.db.quizzes[0].grade = '2';
+    const out = await WQ.whoPlayed({ code: 'AB12CD', p: P });
+    expect(out.not_played).toBeNull();
+    expect(out.summary).toMatchObject({ played: 2, of: null });
+  });
+
+  test('no class list: a summary without "of", and no "not played" list', async () => {
+    fake.db.student_lists.length = 0;
+    const out = await WQ.whoPlayed({ code: 'AB12CD', p: P });
+    expect(out.summary).toMatchObject({ played: 2, of: null, avg: 3.5 });
+    expect(out.not_played).toBeNull();
+  });
+});
