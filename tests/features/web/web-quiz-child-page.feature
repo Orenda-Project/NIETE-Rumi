@@ -235,6 +235,7 @@ Feature: Web child quiz page on the portal
     Then the page says "Not yet. The answer is" with the right option, then "You mixed up X. Z."
     And no option letter, no "the correct answer is", no praise or cheering is shown or spoken, in English or in Urdu
     And an Urdu sentence that addresses the child with a gendered verb is left out
+    And a short cheer after the reason ("Try the next one!", «آگے بڑھو!») is left out, while a short sentence with content stays
 
   Scenario: A wrong true/false answer says which the sentence is
     Given a true/false question whose sentence is true
