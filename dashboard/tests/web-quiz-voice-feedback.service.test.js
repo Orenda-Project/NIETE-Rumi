@@ -209,6 +209,12 @@ describe('the feedback voice library', () => {
     }
   });
 
+  test('no Urdu line that cannot fit the results bubble at 360 px (measured by the Urdu lane)', () => {
+    expect(((MANIFEST.ur || {}).done || [])).not.toContain('کوئز ختم! آئیں ستارے دیکھیں۔');
+    const p = page({ lang: 'ur' });
+    expect(JSON.parse(JSON.stringify(p.wq.VOICE.ur.done))).not.toContain('کوئز ختم! آئیں ستارے دیکھیں۔');
+  });
+
   test('Urdu lines address the child without gendered verb stems, and no not-yet line praises', () => {
     const ur = MANIFEST.ur || {};
     Object.values(ur).flat().forEach((t) => expect(t).not.toMatch(/سکتے|سکتی|گئیں|آپ نے|کرتے ہو|کرتی ہو/));

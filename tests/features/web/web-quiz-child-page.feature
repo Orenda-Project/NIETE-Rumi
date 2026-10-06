@@ -246,6 +246,7 @@ Feature: Web child quiz page on the portal
     And the screen shows exactly the words the voice says
     And a wrong answer whose right option is only a picture says "Not yet. Look, this one is right." with no empty quotes
     And Urdu lines speak to the child only with imperatives or noun phrases, and no not-yet line praises
+    And every Urdu line fits the results bubble beside the big mascot at 360 px without lines touching
 
   Scenario: A quiz gets its own read-aloud clips the first time its page is opened
     Given a quiz with no read-aloud clips, or with clips of an older voice version
