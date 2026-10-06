@@ -25,7 +25,7 @@ const { resolveUx } = require('../../config/ux-strings');
 const Digest = require('./transcript-quiz-digest.service');
 const Author = require('./transcript-quiz-author.service');
 const {
-  validate, MIN_QUESTIONS, figureDensity, latinNames, nameLexicon,
+  validate, MIN_QUESTIONS, MAX_QUESTIONS, figureDensity, latinNames, nameLexicon,
 } = require('./transcript-quiz-validator');
 const { peopleSpellings, spellText, logRedactor } = require('./transcript-quiz-people');
 const { duplicateQuestionErrors, confirmsSameFact, solverDuplicateComplaint } = require('./transcript-quiz-duplicates');
@@ -820,7 +820,10 @@ async function replaceFromSource(api, {
  * missing questions (replaceFromSource, on placeholder slots appended to the
  * set) from lesson lines no question uses yet — freshMoments, which also leaves
  * out lines that are themselves questions — and names the questions already in
- * the quiz. A new question is kept only when it passes everything a replacement
+ * the quiz. The call writes TWO candidates per missing question (as many as
+ * MAX_QUESTIONS allows); they are tried in order and at most the missing count
+ * is kept, so one that fails leaves room for the next (one in three single
+ * candidates was added on ten real lessons). A new question is kept only when it passes everything a replacement
  * passes (the validator, the source check, the blind solve, and for a lesson
  * plan the key check) and then neither repeats nor gives away, nor is given
  * away by, any question in the quiz. One that fails is simply not added: never
@@ -839,7 +842,10 @@ async function runTopUp(api, {
   if (!sourceText || !n || n >= TOP_UP_TARGET) return { record: null, questions, changed: false };
   const startedAt = Date.now();
   const wanted = TOP_UP_TARGET - n;
-  const record = { wanted, added: 0, failed_reasons: {}, cost_usd: 0 };
+  const candidates = Math.max(wanted, Math.min(2 * wanted, MAX_QUESTIONS - n));
+  const record = {
+    wanted, candidates, added: 0, failed_reasons: {}, cost_usd: 0,
+  };
   const fail = (code, k = 1) => { record.failed_reasons[code] = (record.failed_reasons[code] || 0) + k; };
   const finish = (out) => {
     record.cost_usd = Math.round(record.cost_usd * 1e6) / 1e6;
@@ -849,16 +855,16 @@ async function runTopUp(api, {
   };
   const SFm = require('./transcript-quiz-source-fidelity');
   const used = questions.map((q) => q && q.source_quote).filter(Boolean);
-  if (!SFm.freshMoments(sourceText, used, wanted * 3).length) {
+  if (!SFm.freshMoments(sourceText, used, candidates * 3).length) {
     fail('NO_UNUSED_LINES', wanted);
     return finish({});
   }
-  const slots = Array.from({ length: wanted }, (_, k) => n + k);
+  const slots = Array.from({ length: candidates }, (_, k) => n + k);
   // each new slot starts as a copy of a question in the quiz, for the call to replace
   const padded = [...questions, ...slots.map((_, k) => questions[(n - 1 - (k % n))])];
   const stemOf = (q) => String((q && (q.question || q.question_text)) || '').replace(/\s+/g, ' ').trim().slice(0, 60);
   const inQuiz = questions.map((q, i) => `q${i} «${stemOf(q)}»`).join(' / ');
-  const ask = (i, mine) => `q${i}: TOP_UP — the quiz needs ${wanted} more question${wanted > 1 ? 's' : ''}, and q${i} is only a placeholder copy: write a NEW question for this slot`
+  const ask = (i, mine) => `q${i}: TOP_UP — the quiz needs ${wanted} more question${wanted > 1 ? 's' : ''} (${candidates} candidates are asked for, each on a different line), and q${i} is only a placeholder copy: write a NEW question for this slot`
     + (mine.length ? `; quote one of THESE lines verbatim as its "source_quote" and ask about what that line says: ${mine.map((m) => `«${m}»`).join(' / ')}` : '')
     + '. Ask the child about what the lesson teaches, never about the teacher, the class or what someone said, and with no picture or diagram'
     + `. It must not repeat, give away the answer of, or be answered by any question already in the quiz: ${inQuiz}`;
@@ -894,24 +900,23 @@ async function runTopUp(api, {
   });
   record.cost_usd += r.costUsd;
   Object.entries(r.rejected || {}).forEach(([code, k]) => { if (code !== 'RECHECK' || !record.failed_reasons.RECHECK_ERROR) fail(code, k); });
-  if (r.error) fail('CALL_FAILED', wanted - r.replaced.length);
-  // what ships: every question that was there, untouched, then each new one that passes the set checks
-  let added = [...r.replaced].sort((a, b) => a - b);
+  if (r.error) fail('CALL_FAILED', candidates - r.replaced.length);
+  // what ships: every question that was there, untouched, then candidates in slot order while
+  // each one neither repeats nor gives away, nor is given away by, anything already in the set
   const setOf = (ids) => [...questions, ...ids.map((s) => r.questions[s])];
-  for (;;) {
-    const set = setOf(added);
-    const bad = new Map();
-    findLeaks(set).forEach((l) => {
-      const j = l.to >= n ? l.to : (l.from >= n ? l.from : -1);
-      if (j >= n && !bad.has(j)) bad.set(j, 'ANSWER_LEAK');
+  const added = [];
+  for (const s of [...r.replaced].sort((a, b) => a - b)) {
+    if (added.length >= wanted) break;
+    const set = setOf([...added, s]);
+    const j = set.length - 1;
+    const leak = findLeaks(set).some((l) => l.to === j || l.from === j);
+    const repeat = duplicateQuestionErrors(set).some((e) => {
+      const m = String(e).match(/q(\d+)/g) || [];
+      return m.map((x) => Number(x.slice(1))).includes(j);
     });
-    duplicateQuestionErrors(set).forEach((e) => {
-      const j = Number((/^q(\d+)/.exec(String(e)) || [])[1]);
-      if (j >= n && !bad.has(j)) bad.set(j, 'DUPLICATE_QUESTION');
-    });
-    if (!bad.size) break;
-    bad.forEach((code) => fail(code));
-    added = added.filter((_, k) => !bad.has(n + k));
+    if (leak) fail('ANSWER_LEAK');
+    else if (repeat) fail('DUPLICATE_QUESTION');
+    else added.push(s);
   }
   if (!added.length) return finish({});
   const ctx = { language, subject: digest.subject, digest, lessonSummary, quizId };
