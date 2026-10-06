@@ -293,7 +293,8 @@ function wrapChatCompletions(client) {
     // each of those calls started missing in replay-strict the moment its site was labelled.
     // Only the KEY drops them. The vendor path still receives the full params, because the inner
     // wrapper needs the job to attribute spend.
-    const { job, fallbackModel, ...asked } = params; // eslint-disable-line no-unused-vars
+    // `skipJobOverride` likewise (bd-gr4fy.6): llm-client marks a call it has already routed.
+    const { job, fallbackModel, skipJobOverride, ...asked } = params; // eslint-disable-line no-unused-vars
     return wrap('llm', normaliseForKey(asked), () => original(params, options));
   };
   return client;
