@@ -6662,5 +6662,36 @@ COMMENT ON COLUMN niete_lp_opens.lang IS
 COMMENT ON COLUMN niete_lp_opens.source IS
   'Internal. viewer = the portal''s own PDF viewer; external = handed to another app by a presigned link.';
 
+-- ─── web quiz Challenge runs (bot/database/migrations/web_quiz_challenge.sql) ──
+-- One row per finished self-run Challenge exercise (bigger, read, …) a child played on the web quiz.
+-- Numbers only: a child's read-aloud recording is scored and deleted; no key to it is ever stored.
+
+CREATE TABLE IF NOT EXISTS web_quiz_challenge_runs (
+  id            uuid PRIMARY KEY,
+  student_id    uuid NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  exercise      text NOT NULL CHECK (exercise IN ('listen', 'sounds', 'read', 'numbers', 'bigger', 'missing', 'sums')),
+  grade         smallint CHECK (grade BETWEEN 1 AND 12),
+  lang          text CHECK (lang IN ('en', 'ur')),
+  status        text NOT NULL CHECK (status IN ('scoring', 'scored', 'failed')),
+  score         jsonb,
+  wcpm          numeric,
+  meta          jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  scored_at     timestamptz
+);
+CREATE INDEX IF NOT EXISTS web_quiz_challenge_runs_student_idx
+  ON web_quiz_challenge_runs (student_id, exercise, created_at DESC);
+ALTER TABLE web_quiz_challenge_runs ENABLE ROW LEVEL SECURITY;
+COMMENT ON TABLE web_quiz_challenge_runs IS
+  'Internal. Web quiz Challenge: one row per finished self-run exercise of a child (bigger, read aloud). Numbers only — the read-aloud recording is deleted after scoring and never referenced. Written only by the bot. Owner: Digital Coach team.';
+COMMENT ON COLUMN web_quiz_challenge_runs.score IS
+  'Internal. bigger: {correct, n, stopped}; read: {correct, attempted, stopped, finished_early, time_left}.';
+COMMENT ON COLUMN web_quiz_challenge_runs.wcpm IS
+  'Internal. Read aloud: words correct per minute (EGRA Toolkit 10.3); 0 when stopped on the first line.';
+
+-- Columns live on every deployment that the consolidated snapshot above had lost (read by the Challenge's grade lookup).
+ALTER TABLE students ADD COLUMN IF NOT EXISTS self_reported_class text;
+ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS student_class text;
+
 
 NOTIFY pgrst, 'reload schema';

@@ -3786,6 +3786,21 @@ const UX_STRINGS = {
     en: 'For today\'s reading and maths check, please send these children from {cls} to the coach one at a time, in this order:\n{children}\nWhen one comes back, send the next.',
     ur: 'آج کے پڑھائی اور حساب کے جائزے کے لیے {cls} کے یہ بچے ایک ایک کر کے اسی ترتیب سے کوچ کے پاس بھیجیں:\n{children}\nایک بچہ واپس آئے تو اگلا بھیجیں۔',
   },
+  // M4c challenge — the kid's Challenge on the web quiz (web-quiz-challenge.js): exercise names and the mascot's
+  // spoken lines (each also recorded once as a clip). Gender-neutral: imperatives, no first-person verbs.
+  wqChBiggerName: { en: 'Which is bigger?', ur: 'کون سا بڑا ہے؟' },
+  wqChReadName: { en: 'Read aloud', ur: 'اونچی آواز میں پڑھیں' },
+  wqChBiggerIntro: { en: 'Two numbers will pop up. Tap the bigger one!', ur: 'دو نمبر آئیں گے۔ بڑے نمبر کو چھوئیں!' },
+  wqChBiggerStart: { en: 'Ready? Go!', ur: 'تیار؟ شروع کریں!' },
+  wqChBiggerStop: { en: 'All done!', ur: 'بس، ہو گیا!' },
+  wqChBiggerDone: { en: 'Well done! You did it!', ur: 'شاباش! بہت خوب!' },
+  wqChReadIntro: {
+    en: 'Here is a short story. Read it out loud, as well as you can. If a word is hard, go on to the next one.',
+    ur: 'یہ ایک چھوٹی سی کہانی ہے۔ اسے اونچی آواز میں پڑھیں۔ کوئی لفظ مشکل لگے تو اگلا لفظ پڑھیں۔',
+  },
+  wqChReadStart: { en: 'Ready? Begin.', ur: 'تیار ہو جائیں۔ شروع کریں!' },
+  wqChReadStop: { en: 'Stop. Thank you!', ur: 'رک جائیں۔ شکریہ!' },
+  wqChReadDone: { en: 'Great reading! Well done.', ur: 'بہت اچھا پڑھا! شاباش!' },
 };
 
 /**

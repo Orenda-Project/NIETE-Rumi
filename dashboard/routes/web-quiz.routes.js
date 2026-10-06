@@ -46,6 +46,13 @@ const API_ROUTES = [
   { method: 'get', path: '/api/wq/videos/:code', limiter: 'read' },
   { method: 'post', path: '/api/wq/videos/start', limiter: 'session' },
   { method: 'post', path: '/api/wq/e', limiter: 'events' },
+  // M4c challenge (audio goes browser → R2 by presigned PUT, never through this body cap)
+  // (limits per challenge token, so one carrier IP's classroom is not throttled as one child; a loose IP ceiling too)
+  { method: 'get', path: '/api/wq/ch/result/:ct', limiter: 'read', token: true },
+  { method: 'post', path: '/api/wq/ch/upload', limiter: ['challenge', 'challengeIp'] },
+  { method: 'post', path: '/api/wq/ch/result', limiter: ['challenge', 'challengeIp'] },
+  { method: 'get', path: '/api/wq/ch/:token', limiter: 'read', token: true },
+  { method: 'get', path: '/api/wq/ch/:token/:exercise', limiter: 'read', token: true },
 ];
 
 // The shell's line under Jugnu, shown until wq.js boots (seconds on slow 4G), so the page never reads as stuck.
@@ -231,6 +238,48 @@ function createBotClient({ botUrl, apiKey, fetchImpl }) {
   };
 }
 
+// ── M4c challenge: the page shell ────────────────────────────────────────────────────────────────────
+const TOKEN_RX = /^[A-Za-z0-9_-]{8,900}\.[A-Za-z0-9_-]{22}$/;
+const CH_COPY = {
+  en: { boot: 'Opening the challenge…', title: (m) => `${m}'s Challenge`, not_eligible: 'This challenge is for classes 2 to 5.', pick_kid: 'Open the challenge from your quiz page.' },
+  ur: { boot: 'چیلنج کھل رہا ہے…', title: (m) => `${m} کا چیلنج`, not_eligible: 'یہ چیلنج جماعت ۲ سے ۵ کے لیے ہے۔', pick_kid: 'چیلنج اپنے کوئز کے صفحے سے کھولیں۔' },
+};
+
+function challengeVersion() {
+  try { return crypto.createHash('sha256').update(fs.readFileSync(path.join(PUBLIC_DIR, 'wq-challenge.js'))).digest('hex').slice(0, 10); } catch (_) { return '0'; }
+}
+
+function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }) {
+  const lang = menu.lang === 'ur' ? 'ur' : 'en';
+  const brand = brandOf(brandKey);
+  const title = CH_COPY[lang].title(brand.mascot[lang]);
+  const boot = { token, kid: kid || null, menu, brand, mascot: brand.mascot[lang] };
+  return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title, desc: title, origin, url: `${origin}/c/`, assetV, brand })}
+</head>
+<body>
+<main id="wq" class="wq-app wqc" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(CH_COPY[lang].boot)}</p></div></main>
+<script id="boot" type="application/json">${bootJson(boot)}</script>
+<script src="/wq/wq-challenge.js?v=${chV}" defer></script>
+</body>
+</html>`;
+}
+
+function renderChallengeNote({ lang, why, origin, assetV, brandKey }) {
+  const l = lang === 'ur' ? 'ur' : 'en';
+  const brand = brandOf(brandKey);
+  const title = CH_COPY[l].title(brand.mascot[l]);
+  return `${head({ lang: l, dir: l === 'ur' ? 'rtl' : 'ltr', title, desc: title, origin, url: origin, assetV, brand })}
+</head>
+<body>
+<main id="wq" class="wq-app"><div class="wq-bar wq-topbar">${lockupHtml(brand, l)}</div><section class="wq-screen wq-closed">
+<img class="wq-jugnu" src="/wq/jugnu/hello.webp" alt="" width="160" height="160">
+<h1>${esc(title)}</h1>
+<p class="wq-sub">${esc(CH_COPY[l][why] || '')}</p>
+</section></main>
+</body>
+</html>`;
+}
+
 function createWebQuizRouter(opts = {}) {
   const botUrl = String(opts.botUrl != null ? opts.botUrl : (process.env.MAIN_BOT_URL || '')).replace(/\/$/, '');
   const apiKey = opts.apiKey != null ? opts.apiKey : (process.env.INTERNAL_API_KEY || '');
@@ -254,6 +303,8 @@ function createWebQuizRouter(opts = {}) {
     answers: rateLimit({ ...common, max: 120, keyGenerator: stKey }),
     finish: rateLimit({ ...common, max: 10, keyGenerator: stKey }),
     events: rateLimit({ ...common, max: 120, keyGenerator: (req) => `ip:${clientIp(req)}` }),
+    challenge: rateLimit({ ...common, max: 20, keyGenerator: (req) => `ct:${(req.body && typeof req.body.ct === 'string' && req.body.ct.slice(0, 200)) || clientIp(req)}` }),
+    challengeIp: rateLimit({ ...common, max: 600, keyGenerator: (req) => `chip:${clientIp(req)}` }),
   };
   // Code enumeration: only answers that came back 404 count toward this one.
   const unknownCode = rateLimit({ ...common, max: 20, keyGenerator: (req) => `u:${clientIp(req)}`,
@@ -271,9 +322,10 @@ function createWebQuizRouter(opts = {}) {
     const chain = [noStore, configured];
     if (r.unknownCode) chain.push(unknownCode);
     if (r.method === 'post') chain.push(jsonBody);
-    chain.push(limiters[r.limiter]);
+    [].concat(r.limiter).forEach((l) => chain.push(limiters[l]));
     router[r.method](r.path, ...chain, async (req, res) => {
       if (req.params.code && !CODE_RX.test(req.params.code)) return res.status(404).json({ error: 'not_found' });
+      if (r.token && [req.params.token, req.params.ct].some((v) => v != null && !TOKEN_RX.test(v))) return res.status(404).json({ error: 'not_found' });
       const qs = req.originalUrl.indexOf('?') >= 0 ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
       const pathname = req.path.replace(/^\/api\/wq\//, '/api/internal/wq/') + qs;
       try {
@@ -333,6 +385,38 @@ function createWebQuizRouter(opts = {}) {
   router.get('/q/:code/class', limiters.read, unknownCode, (req, res) => page(req, res, 'class'));
   router.get('/q/:code/schools', limiters.read, unknownCode, (req, res) => page(req, res, 'schools'));
 
+  // M4c challenge: the kid's Challenge page, opened from the hub (or a quiz session token while testing).
+  router.get('/c/:token', limiters.read, (req, res) => challengePage(req, res));
+
+  async function challengePage(req, res) {
+    pageHeaders(res);
+    const origin = originOf(req);
+    const token = String(req.params.token || '');
+    const brandKey = lastBrand || WebQuizBrand.brandKey({ orgName: process.env.ORG_NAME, botName: process.env.BOT_NAME });
+    const lang0 = req.query.lang === 'ur' ? 'ur' : (req.query.lang === 'en' ? 'en' : null);
+    if (!TOKEN_RX.test(token)) return res.status(404).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind: 'closed', origin, assetV: version(), brandKey }));
+    if (!botUrl || !apiKey) return res.status(503).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind: 'off', origin, assetV: version(), brandKey }));
+    const q = new URLSearchParams();
+    if (typeof req.query.kid === 'string' && /^[0-9a-f]{16}$/.test(req.query.kid)) q.set('kid', req.query.kid);
+    if (lang0) q.set('lang', lang0);
+    const qs = q.toString() ? `?${q}` : '';
+    let out;
+    try {
+      out = await callBot('GET', `/api/internal/wq/ch/${encodeURIComponent(token)}${qs}`, req);
+    } catch (_) {
+      return res.status(502).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind: 'off', origin, assetV: version(), brandKey }));
+    }
+    if (out.status === 200 && out.body && Array.isArray(out.body.exercises)) {
+      return res.status(200).type('html').send(renderChallengePage({ menu: out.body, token, kid: q.get('kid'), origin, assetV: version(), chV: challengeVersion(), brandKey }));
+    }
+    const err = out.body && out.body.error;
+    if (err === 'not_eligible' || err === 'pick_kid') {
+      return res.status(out.status).type('html').send(renderChallengeNote({ lang: lang0 || 'en', why: err, origin, assetV: version(), brandKey }));
+    }
+    const kind = out.status === 401 ? 'closed' : 'off';
+    return res.status(out.status === 401 ? 410 : 503).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind, origin, assetV: version(), brandKey }));
+  }
+
   router.get('/wq-probe', (req, res) => {
     pageHeaders(res);
     res.type('html').sendFile(PROBE_FILE);
@@ -343,4 +427,5 @@ function createWebQuizRouter(opts = {}) {
   return router;
 }
 
-module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderClosedPage, bootJson };
+
+module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderClosedPage, renderChallengePage, bootJson };
