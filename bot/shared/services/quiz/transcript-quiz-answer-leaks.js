@@ -126,7 +126,17 @@ function sentencesOf(q) {
   const fb = (q.option_feedback && typeof q.option_feedback === 'object') ? q.option_feedback : {};
   if (typeof fb.correct === 'string') add('right line', ['option_feedback', 'correct'], fb.correct);
   const wrong = (fb.wrong && typeof fb.wrong === 'object') ? fb.wrong : {};
-  Object.entries(wrong).forEach(([k, t]) => { if (typeof t === 'string') add('wrong-option feedback', ['option_feedback', 'wrong', k], t); });
+  Object.entries(wrong).forEach(([k, t]) => {
+    if (typeof t !== 'string') return;
+    add('wrong-option feedback', ['option_feedback', 'wrong', k], t);
+    // and the option WITH its feedback: «This is a behavioural adaptation, as the fox DOES it» is about
+    // the option it answers ("A desert fox hunting at night"), and only the two together say so
+    const opt = optionsOf(q)[Number(k)];
+    if (opt && opt.trim()) {
+      const unit = `${opt.trim()} — ${t.trim()}`;
+      out.push({ where: 'wrong-option feedback', field: null, text: unit, words: content(unit), raw: new Set(tokens(unit)), nums: numbers(unit), fb: content(t) });
+    }
+  });
   if (typeof q.misconception_feedback === 'string') add('wrong-option feedback', ['misconception_feedback'], q.misconception_feedback);
   return out;
 }
@@ -158,7 +168,9 @@ function targetOf(q) {
       wrongNums: wrong.map(numbers).filter((n) => n.length && !n.flatMap((x) => x.split('/')).every((x) => stemNums.has(x))),
     };
   }
-  const want = content(raw);
+  // a gloss in brackets is the same answer twice («ٹرف (trough)»): either half states it
+  const unglossed = raw.replace(/\s*[(（][^)）]*[)）]\s*/g, ' ').trim();
+  const want = content(unglossed) .size ? content(unglossed) : content(raw);
   if (!want.size) return null;
   if ([...want].every((w) => stemWords.has(w))) return null;   // the stem offers it
   return {
@@ -184,6 +196,11 @@ function rawShare(sentence, raw) {
 }
 
 function states(sentence, t) {
+  // an option read with its feedback counts only when the FEEDBACK says something about the later
+  // question — the option alone is offered, never asserted
+  if (sentence.fb) {
+    if (t.kind !== 'words' || ![...sentence.fb].some((w) => t.want.has(w) || t.topic.has(w))) return false;
+  }
   if (t.kind === 'number') {
     const has = new Set(sentence.nums);
     const parts = withParts(sentence.nums);

@@ -94,6 +94,29 @@ describe('the detector: leaks the first check let through', () => {
     expect(answerLeakErrors(qs)).toEqual([expect.stringMatching(/^q1: ANSWER_LEAK — q1 asks word for word what q0 already asks/)]);
   });
 
+  test('a wrong option is read WITH its feedback: «This is a behavioural adaptation» is about the fox it answers', () => {
+    const qs = [
+      mcq('Which of these is an example of a structural adaptation?', ['A cactus storing water in its thick stem', 'A desert fox hunting at night', 'Birds migrating to Pakistan in winter'], {
+        wrong: {
+          1: "This is a behavioural adaptation, as it's something the fox DOES. Remember, a structural adaptation is a physical body part.",
+          2: "This is a behavioural adaptation, as it's something the bird DOES. Remember, a structural adaptation is a physical body part.",
+        },
+      }),
+      mcq('Which of these is a behavioural adaptation?', ['A desert fox hunting only at night', 'A desert fox having large ears', 'A bird having wings']),
+    ];
+    expect(answerLeakErrors(qs)).toEqual([expect.stringMatching(/^q1: ANSWER_LEAK — q0 gives away q1's answer «A desert fox hunting only at night»: q0's wrong-option feedback/)]);
+  });
+
+  test('a key with its English gloss in brackets is stated by either half («ٹرف (trough)»)', () => {
+    const qs = [
+      mcq('عرضی لہر (transverse wave) میں سب سے اونچے پوائنٹ کو کیا کہتے ہیں؟', ['کرسٹ (crest)', 'ٹرف (trough)', 'مین پوائنٹ (mean point)'], {
+        wrong: { 1: 'ٹرف لہر کا سب سے نچلا حصہ ہوتا ہے، سب سے اونچا نہیں۔ سب سے اونچا پوائنٹ کرسٹ کہلاتا ہے۔' },
+      }),
+      mcq('عرضی لہر کے مین پوائنٹ سے سب سے نچلے پوائنٹ کو کیا کہتے ہیں؟', ['ٹرف (trough)', 'پیک پوائنٹ (peak point)', 'کرسٹ (crest)']),
+    ];
+    expect(answerLeakErrors(qs)).toEqual([expect.stringMatching(/^q1: ANSWER_LEAK — q0 gives away q1's answer «ٹرف \(trough\)»/)]);
+  });
+
   test('a stem that names the later answer in passing order ("between the crust and the outer core") gives it away', () => {
     const qs = [
       mcq('Which layer lies between the crust and the outer core?', ['mantle', 'inner core', 'crust']),
