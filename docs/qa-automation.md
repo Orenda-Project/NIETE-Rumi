@@ -162,6 +162,45 @@ Nothing server-side enforces either verdict.
 
 Tests for all of it: `npm run qa:test`.
 
+## The mock run drives the commit's scenarios, not whole features
+
+`commit-e2e.sh` narrows twice. `select_e2e.py` picks the **features** a commit touched;
+`select_scenarios.py` then picks the **scenarios** inside each one:
+
+| A changed path is… | The feature drives… |
+|---|---|
+| the feature's own `.feature` file | the scenarios whose lines the diff added or edited (a deleted scenario drives nothing) |
+| pinned under `scenarios:` in `feature-map.yaml` | exactly the pinned ids |
+| named in a scenario's text (`coaching-inflight-guard.js`, its stem, or a distinctive core name) | the scenarios that name it |
+| none of the above | **the whole feature**, and the run says which path forced it — pin that path to narrow it next time |
+
+A scenario phase 1 adds or edits always runs too, even though phase 1 writes it after the code commit and
+it may name none of the changed files: `commit-e2e.sh` compares each selected feature's spec between the
+code commit's parent and the working tree (`--spec-base`), so it counts whether the spec edit is committed or not.
+
+```
+│ scenarios: training     5 of 98 — T46, T47, T29, T83, T84
+│ scenarios: coaching     ALL — bot/shared/services/llm-client.js: no coaching scenario names it — pin it under scenarios: to narrow
+```
+
+The run reports only the selected ids, and every mock-lane driver skips the blocks whose scenarios were not
+selected, keeping any block whose state a selected one reads: menu's M08 still runs M07 (it opens Ask
+Anything), language's LANG10 still switches the account to Urdu (LANG03), status's STA06 still reads the
+idle answer (STA05), lesson-plan's L10 still opens the Flow that L01 completes. Shared setup always runs.
+A driver gates a block with `want('ID', …)`, which `feature-runner.cjs` passes in; a new driver block
+should do the same, listing every id that reads its state.
+
+Selection needs id tags. A spec whose scenarios carry no `@ID` tag gives the selector nothing to map
+to, so its feature always runs whole. Every spec with a mock driver is now tagged, which also enrols it
+in `check-scenario-coverage.py`. A selected scenario a
+driver did not reach is recorded `BLOCKED` with that reason, never silently missing. The ledger row
+carries `scenario_scope.only`, so the PR's "E2E run recorded" column still fills for the feature.
+That column also says why a run has its status, from the row's own counts (`status_reason`): a run is
+CRITICAL whenever any scenario is BLOCKED, so "❌ CRITICAL — 4 of 9 blocked (not drivable on this lane)"
+with no failure is the usual case, not a break. Real breaks show on the line below it as a NEW REGRESSION.
+Two or more features still run side by side (`--parallel`). By hand: `run-suite.sh <feature> --only
+'<feature>=ID,ID'`. Off: `E2E_SCENARIO_SELECT=0` (whole features, as before).
+
 ## Switches
 
 | Env var | Effect |
@@ -172,6 +211,8 @@ Tests for all of it: `npm run qa:test`.
 | `E2E_AUTORUN_OFF=1` (exported) | Claude Code hooks silent |
 | `E2E_SPEC_SYNC_OFF=1` (exported) | phase 1 (Gherkin sync) skipped, E2E half unchanged |
 | `E2E_AUTORUN_ALL=1` (exported) | arm `/niete-e2e all` instead of the targeted selection (hours) |
+| `E2E_SCENARIO_SELECT=0` (exported) | the mock run drives whole features instead of the commit's scenarios |
+| `E2E_PARALLEL=0` (exported) | features of one commit run one after another instead of side by side |
 
 ## Phase 1 is a gate (2026-09-09, bd-zqtgs)
 

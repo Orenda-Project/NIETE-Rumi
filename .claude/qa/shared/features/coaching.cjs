@@ -77,7 +77,7 @@ const PIPELINE_BUDGET_MS = 20 * 60 * 1000;
 
 const V = (c, ev) => [c ? 'PASS' : 'FAIL', ev];
 
-exports.run = async ({ api, rec, sleep }) => {
+exports.run = async ({ api, rec, sleep, want = () => true }) => {
   const t = () => Date.now();
   let s;
   await api.resetFlow();
@@ -97,7 +97,7 @@ exports.run = async ({ api, rec, sleep }) => {
   // itself consume the one-shot first-use intro (menu.service.js →
   // sendFirstUseIntroIfNeeded). Gated on FIRSTUSE=1, which pairs with run-suite's
   // reset-first-use so the intro offer + "Just tell me" button are guaranteed present.
-  if (FIRSTUSE) {
+  if (FIRSTUSE && want('COA02')) {
     const AUDIO_ASK = /send me an audio recording of your class|audio recording of your class/i;
     const CONTAMINATED = /Step \d\/5|Analyzing your teaching|Generating your comprehensive|Transcribing/i;
     api.resetConversation();   // clean history → the intro-reply prompt is deterministic → cassette replays
@@ -194,6 +194,7 @@ exports.run = async ({ api, rec, sleep }) => {
     return JSON.stringify(out); })()`).then(x => JSON.parse(x || '[]'));
 
   // ══ COA01 — the menu row asks for a classroom recording ═══════════════════
+  if (want('COA01')) {
   s = t();
   await api.sendWait('/menu');
   await api.openList('See what I do');
@@ -204,9 +205,10 @@ exports.run = async ({ api, rec, sleep }) => {
            { asksForRecording: EXPECT.menuAsksRecording.test(rowTxt),
              states20to45Minutes: EXPECT.menuLengthAsk.test(rowTxt),
              reply: rowTxt.slice(0, 220) }), t() - s);
+  }
 
   // ══ COA11 — a clip under the 15-minute gate must NOT start the pipeline ═══
-  if (DEEP) {
+  if (DEEP && want('COA11')) {
     s = t();
     const short = await api.upload(FIXTURE.tooShort, 'Document', 120000);
     const shortTxt = short.txt || '';
@@ -242,12 +244,14 @@ exports.run = async ({ api, rec, sleep }) => {
   };
 
   // ══ COA03 — a >=15-min recording is detected, confirmation offered ════════
+  let offers = false;
+  if (want('COA03', 'COA12')) {
   s = t();
   await fresh();   // drain BEFORE the upload: awaitOffer must only see cards that arrive after it (run 20260930-0649 tapped the previous, cancelled card)
   const up = await awaitOffer(await api.upload(FIXTURE.classroom, 'Document', 180000));
   const upTxt = up.txt || '';
   const detectedM = EXPECT.detected.exec(upTxt);
-  const offers = (up.btns || []).some(b => EXPECT.yesAnalyze.test(b)) || EXPECT.yesAnalyze.test(upTxt);
+  offers = (up.btns || []).some(b => EXPECT.yesAnalyze.test(b)) || EXPECT.yesAnalyze.test(upTxt);
   rec('COA03', 'Uploading a classroom recording is detected and confirmed for analysis',
       ...V(!!detectedM && offers,
            { detectedMinutes: detectedM ? Number(detectedM[1]) : null, offersYesAnalyze: offers,
@@ -268,11 +272,15 @@ exports.run = async ({ api, rec, sleep }) => {
               Object.assign({}, declined, { note: 'staging never says the word "cancel" — asserting '
                 + 'acknowledged AND does not proceed to Step 1/5' }))
           : ['BLOCKED', { reason: 'no Yes/No choice was offered — see COA03' }]), t() - s);
+  }
 
   // ══ COA04 — confirming walks the 5-step pipeline ═════════════════════════
   s = t();
-  await fresh();
-  const up2 = await awaitOffer(await api.upload(FIXTURE.classroom, 'Document', 180000));
+  // The first pipeline feeds the COA04 family and the extension's run-1 checks (COA58/26/31/32 read its rows).
+  const PIPE = want('COA04', 'COA05', 'COA06', 'COA07', 'COA08', 'COA09', 'COA10', 'COA13', 'COA15', 'COA57',
+                    'COA58', 'COA26', 'COA31', 'COA32');
+  if (PIPE) await fresh();
+  const up2 = PIPE ? await awaitOffer(await api.upload(FIXTURE.classroom, 'Document', 180000)) : { txt: '', btns: [] };
   const offers2 = (up2.btns || []).some(b => EXPECT.yesAnalyze.test(b)) || EXPECT.yesAnalyze.test(up2.txt || '');
   let confirmed = false;
   // Drain the fresh-inbound BEFORE confirming, never after: the reply to "Yes, Analyze" is "Step 1/5"
@@ -584,8 +592,8 @@ exports.run = async ({ api, rec, sleep }) => {
   // ══ COA16–COA55 — coaching-ext.cjs: six more pipeline runs + the coaching-ask family (2026-09-30) ══
   // Recorded here with literal ids so check-scenario-coverage.py binds every spec scenario to a driver line.
   let ext = new Map(); let extErr = null;
-  if (DEEP) {
-    try { ext = await require('../coaching-ext.cjs').run({ api, rec, sleep, fresh, r1: { rows: obs.rows, sessionId: obs.sessionId } }); }
+  if (DEEP && want(require('../coaching-ext.cjs').IDS)) {
+    try { ext = await require('../coaching-ext.cjs').run({ api, rec, sleep, want, fresh, r1: { rows: obs.rows, sessionId: obs.sessionId } }); }
     catch (e) { extErr = e; }
   }
   const E = (id, name) => { const r = ext.get(id);

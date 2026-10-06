@@ -60,7 +60,7 @@ const keyProblems = (qs) => (qs || []).map((q) => {
 const figuresOf = (qs) => (qs || []).map((q) => ({ q: q.sort_order, type: q.media && q.media.figure && q.media.figure.type, image: !!(q.media && q.media.question_image), card: !!(q.media && q.media.question_card), spec: q.media && q.media.figure, counter: !!(q.media && q.media.question_image_paints_counter) }));
 
 exports.run = async (ctx) => {
-  const { api, R, seenIds, sleep, t, dbJson, child, childJoin, childAnswer, openLesson, chooseAction, clickFooter, waitOn, isEnd, pdfText, CHILD_PREFIX } = ctx;
+  const { api, R, seenIds, want = () => true, sleep, t, dbJson, child, childJoin, childAnswer, openLesson, chooseAction, clickFooter, waitOn, isEnd, pdfText, CHILD_PREFIX } = ctx;
   const OFFER_BTN = /Invite a friend|دوست کو بھیجیں|کلاس کو بھیجیں|Share with class|Yes, start|جی، شروع کریں|Not now|ابھی نہیں|Start$|شروع کریں|Resend|Open$/;
   const isChildQ = (x) => !!((x.list && (x.list.rows || []).length) || ((x.btns || []).length >= 2 && !(x.btns || []).some((b) => OFFER_BTN.test(b))) || (x.btns || []).some((b) => /^Choose answer$|^جواب چنیں$/.test(b)));
   const runStartIso = new Date(Date.now() - 60000).toISOString();
@@ -189,7 +189,7 @@ exports.run = async (ctx) => {
   const seeds = { lpDownload: false, coaching: false, lp612: false, lp612Docs: [], lpQuiz: false, classQuiz: false, capKey: null, role: null, lang: null };
   try {
     // ════ T61 — the quiet-quiz reminder: two Urdu titles whole and bold, or the single form ══════
-    try {
+    if (want('T61')) try {
       s = t();
       try { api.db('seed-class-quiz', ['--restore', '--child-prefix', CHILD_PREFIX]); api.db('seed-lp-quiz', ['--restore']); } catch (_) {}
       const a = dbJson('seed-class-quiz', ['--language', 'ur', '--topic', 'کسریں اور اعشاریہ']); seeds.classQuiz = true;
@@ -214,7 +214,7 @@ exports.run = async (ctx) => {
     finally { try { api.db('seed-class-quiz', ['--restore', '--child-prefix', CHILD_PREFIX]); } catch (_) {} }
 
     // ════ T68 — a child mid-quiz who types "quiz" stays in the quiz ═══════════════════════════
-    try {
+    if (want('T68')) try {
       s = t();
       const enq = dbJson('seed-class-quiz', ['--language', 'en']); seeds.classQuiz = true;
       if (!enq || !enq.code) throw new Error('SEED_EN:' + JSON.stringify(enq));
@@ -234,7 +234,7 @@ exports.run = async (ctx) => {
     finally { try { api.db('seed-class-quiz', ['--restore', '--child-prefix', CHILD_PREFIX]); } catch (_) {} }
 
     // ════ T69 — a coach who types "quiz" gets the coach menu ═════════════════════════════════
-    try {
+    if (want('T47', 'T69', 'T79', 'T80', 'T81', 'T82', 'T83')) try {
       s = t();
       seeds.role = 'coach';
       await api.setRole('coach'); await api.freshReset();
@@ -253,7 +253,7 @@ exports.run = async (ctx) => {
     let cs = dbJson('seed-coaching-session', ['--transcript-file', TF, '--language', 'en', '--topic', 'Fractions', '--subject', 'maths']); seeds.coaching = true;
     // ════ T63 — however I type "quiz", the menu opens (with a lesson plan taken today to list) ═══
     const dlA = dbJson('seed-lp-download', ['--lesson-id', 'grade_1_maths_ch2_seg3']); seeds.lpDownload = true;
-    try {
+    if (want('T63')) try {
       s = t();
       if (!dlA || !dlA.id) throw new Error('SEED_DL:' + JSON.stringify(dlA));
       const texts = ['quiz', 'Quiz?', 'quiz/', '/ quiz', 'quize', 'my quizzes', 'send me quiz', 'mera quiz', 'کوئز', 'کویز'];
@@ -272,7 +272,7 @@ exports.run = async (ctx) => {
     // ════ T64 T65 T74 — the lesson plan taken today → one quiz, made on the tap ═══════════════
     // then T29 T49 T51 T54 on its rows, a child, and T25 T77 T78 on its report
     let g1 = null;
-    try {
+    if (want('T25', 'T29', 'T49', 'T64', 'T65', 'T74', 'T77', 'T78')) try {
       s = t();
       const LP_ROW = 'tq_pick_lsn_lp_v8_' + dlA.id;
       const l1 = await quizList();
@@ -375,7 +375,7 @@ exports.run = async (ctx) => {
     } else { for (const id of ['T25', 'T77', 'T78']) if (!seenIds.has(id)) blocked(id, 'no generated lesson-plan quiz for the class to take'); }
 
     // ════ T67 — past today's limit: told plainly, no quiz ═══════════════════════════════════
-    try {
+    if (want('T51', 'T54', 'T67')) try {
       s = t();
       const dlB = dbJson('seed-lp-download', ['--lesson-id', 'grade_1_maths_ch1_seg2']);
       if (!dlB || !dlB.id) throw new Error('SEED_DL_B:' + JSON.stringify(dlB));
@@ -391,7 +391,7 @@ exports.run = async (ctx) => {
     } catch (e) { errors.push('T67:' + e.message); lastStack = short(e && e.stack, 400); blocked('T67', 'threw: ' + short(e.message, 200)); }
     finally { if (seeds.capKey) { await SC.redis(['DEL', seeds.capKey]); seeds.capKey = null; } }
     // the counting lesson the cap refused is made now (Make it again) — T51 / T54 read ITS pictures
-    try {
+    if (want('T51', 'T54', 'T67')) try {
       s = t();
       const capQ = lessonQuizzes('grade_1_maths_ch1_seg2').quizzes[0];
       const madeC = capQ ? await makeVia((i) => String(i.id || '') === 'lp_' + capQ.id, /remake|Make it again|دوبارہ/i, { timeoutMs: 540000 }) : { ok: false, ev: { err: 'no cap-failed quiz row' } };
@@ -404,7 +404,7 @@ exports.run = async (ctx) => {
     } catch (e) { errors.push('T51:' + e.message); lastStack = short(e && e.stack, 400); for (const id of ['T51', 'T54']) if (!seenIds.has(id)) blocked(id, 'the counting-lesson leg threw: ' + short(e.message, 200)); }
 
     // ════ T70 — a failed lesson-plan quiz is made again from its LIST row; an unusable plan says why ═══
-    try {
+    if (want('T70')) try {
       s = t();
       const f1 = dbJson('seed-lp-quiz', ['--state', 'failed', '--lesson-id', 'grade_1_maths_ch1_seg3', '--topic', 'Counting to 9']); seeds.lpQuiz = true;   // a short title: the 72-code-point row drops its STATUS first (transcript-quiz-rows), and this scenario reads the status
       if (!f1 || !f1.id) throw new Error('SEED_F1:' + JSON.stringify(f1));
@@ -431,7 +431,7 @@ exports.run = async (ctx) => {
 
     // ════ T66 + T28 — a lesson another teacher already made: a cached copy, then the fractions card ═══
     let g66 = null;
-    try {
+    if (want('T28', 'T66')) try {
       s = t();
       const dlC = dbJson('seed-lp-download', ['--lesson-id', 'grade_4_math_ch5_seg3', '--donor-version']);
       if (!dlC || !dlC.id) throw new Error('SEED_DL_C:' + JSON.stringify(dlC));
@@ -471,7 +471,7 @@ exports.run = async (ctx) => {
 
     // ════ the URDU generation (dash-titled maths lesson) — T52 T53 T62 T75 T76 T83 T84 T48 ═════
     let gU = null;
-    try {
+    if (want('T47', 'T48', 'T52', 'T53', 'T62', 'T75', 'T76', 'T79', 'T80', 'T81', 'T82', 'T83', 'T84')) try {
       s = t();
       const dlD = dbJson('seed-lp-download', ['--lesson-id', 'grade_5_math_ch6_seg14']);
       if (!dlD || !dlD.id) throw new Error('SEED_DL_D:' + JSON.stringify(dlD));
@@ -543,7 +543,7 @@ exports.run = async (ctx) => {
     } catch (e) { errors.push('TU:' + e.message); lastStack = short(e && e.stack, 400); for (const id of ['T52', 'T53', 'T62', 'T75', 'T48', 'T76', 'T84']) if (!seenIds.has(id)) blocked(id, 'the Urdu generation leg threw: ' + short(e.message, 200)); }
 
     // ════ T50 — four-digit place value (grade 3) · T55 — column subtraction (grade 3) ══════════
-    for (const [id, lesson, check] of [
+    if (want('T50', 'T55')) for (const [id, lesson, check] of [
       ['T50', 'grade_3_math_ch1_seg1', (qs, figs) => { const b = figs.filter((f) => f.type === 'base_ten' && f.spec && Number(f.spec.thousands) >= 1); return { ok: b.length > 0 && b.every((f) => !/\d/.test(JSON.stringify(f.spec.labels || {}))), thousandsPictures: b.map((f) => f.spec), baseTen: figs.filter((f) => f.type === 'base_ten').map((f) => f.spec) }; }],
       ['T55', 'grade_3_math_ch2_seg5', (qs, figs) => { const col = qs.filter((q) => /\\begin\{array\}|\\\\|\\hline|−|-/.test(q.question_text || '') && q.media && q.media.question_card); return { ok: col.length > 0, columnCards: col.map((q) => ({ q: q.sort_order, stem: short(q.question_text, 80) })), cards: figs.filter((f) => f.card).map((f) => f.q) }; }],
     ]) {
@@ -567,7 +567,7 @@ exports.run = async (ctx) => {
     }
 
     // ════ T46 — the model gives no usable reply for a lesson-plan quiz ═══════════════════════
-    try {
+    if (want('T46')) try {
       s = t();
       const dlE = dbJson('seed-lp-download', ['--lesson-id', 'grade_1_maths_ch1_seg1']);
       if (!dlE || !dlE.id) throw new Error('SEED_DL_E:' + JSON.stringify(dlE));
@@ -585,7 +585,7 @@ exports.run = async (ctx) => {
     finally { SC.clearFaults(); }
 
     // ════ T47 T79 T80 T81 T82 T83 — a quiz from a coaching RECORDING ═══════════════════════════
-    try {
+    if (want('T47', 'T79', 'T80', 'T81', 'T82', 'T83')) try {
       if (!cs || !cs.id) { cs = dbJson('seed-coaching-session', ['--transcript-file', TF, '--language', 'en', '--topic', 'Fractions', '--subject', 'maths']); seeds.coaching = true; }
       if (!cs || !cs.id) throw new Error('SEED_CS:' + JSON.stringify(cs));
       // a recording's row carries the coaching SESSION id whether its quiz exists or not (transcript-quiz-list lessonItems)
@@ -644,7 +644,7 @@ exports.run = async (ctx) => {
 
     // ════ T71 T72 T73 — quizzes from Grades 6-12 lesson plans, and the switch ══════════════════
     let q612 = null;
-    try {
+    if (want('T71', 'T72', 'T73')) try {
       s = t();
       const d1 = dbJson('seed-lp612-delivery', ['--segment-like', 'grade_8_mathematics*', '--template-version', 'qa-v1']); seeds.lp612 = true;
       if (!d1 || !d1.id) throw new Error('SEED_612:' + JSON.stringify(d1));
@@ -708,7 +708,7 @@ exports.run = async (ctx) => {
     finally { try { await SC.restart('bot', {}); await SC.restart('worker', {}); } catch (_) {} }
 
     // ════ T59 T60 — a video quiz in Urdu: offer taps, the solo run, the class message ═════════
-    try {
+    if (want('T59', 'T60')) try {
       s = t();
       seeds.lang = 'ur';
       await api.setUser({ preferred_language: 'ur' });
