@@ -6,8 +6,8 @@
  * not move by a byte. Rendered through the real template from a fixed synthetic
  * fixture in both languages, and compared with the output of the base template.
  *
- * If this fails on purpose (a deliberate redesign of the hand-off PDF), re-run
- * with PRINT_PRESEND_HASH=1 and paste the new hashes — and say so in the PR.
+ * If this fails on purpose (a deliberate redesign of the hand-off PDF), paste the
+ * "Received" hash from the failure into HASHES — and say so in the PR.
  */
 jest.mock('../../../shared/config/supabase', () => ({ from: jest.fn() }));
 jest.mock('../../../shared/services/whatsapp.service', () => ({}));
@@ -32,6 +32,5 @@ function render(language) {
 
 test.each(['en', 'ur'])('the hand-off PDF (%s) renders byte-identical to the base template', (language) => {
   const sha = crypto.createHash('sha256').update(render(language)).digest('hex');
-  if (process.env.PRINT_PRESEND_HASH) console.log(language, sha);
   expect(sha).toBe(HASHES[language]);
 });
