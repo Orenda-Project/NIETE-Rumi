@@ -424,6 +424,36 @@ describe('teacher report page — a long "not on your list" block folds', () => 
   });
 });
 
+describe('teacher report page — after a fix, and typed children on paper (Q2 FAIL 9b/10)', () => {
+  const withAli = () => quizData({ played: [...quizData().played, { first: 'Ali', roll: 11, correct: 2, total: 4, pct: 50, onList: true }] });
+  test('?ok=added with a list number: "<name> added to 5-A as list no. 11", the name looked up on the page, never sent in the URL', () => {
+    const t = text(page(withAli(), { ok: { kind: 'added', no: 11 } }));
+    expect(t).toMatch(/Ali added to 5-A as list no\. 11/);
+  });
+  test('?ok=moved: "Saved — that score is now Ali\'s"; without a match a plain "Saved"', () => {
+    expect(text(page(withAli(), { ok: { kind: 'moved', no: 11 } }))).toMatch(/Saved — that score is now Ali’s/);
+    expect(text(page(withAli(), { ok: { kind: 'moved', no: 99 } }))).toMatch(/Saved\./);
+    expect(text(page(withAli(), { ok: { kind: 'added', no: null } }))).toMatch(/Added to 5-A\./);
+  });
+  test('UR success lines, and a name stays escaped', () => {
+    const d = quizData({ played: [{ first: '<b>Zed</b>', roll: 4, correct: 1, total: 4, pct: 25, onList: true }] });
+    const html = page(d, { lang: 'ur', ok: { kind: 'added', no: 4 } });
+    expect(text(html)).toMatch(/شامل کر دیا گیا/);
+    expect(html).not.toContain('<b>Zed</b>');
+  });
+  test('print: typed children by first name only, with "Open the live report to add them to 5-A." and no tap instruction', () => {
+    const d = quizData({ provisional: [{ sessionId: 's1', typed: 'Nimra Testwala', correct: 4, total: 5 }, { sessionId: 's2', typed: 'Ali Raza Testwala', correct: 3, total: 5 }] });
+    const pdf = page(d, { print: true });
+    const sec = text(pdf.slice(pdf.indexOf('id="provisional"'), pdf.indexOf('id="scores"')));
+    expect(sec).toMatch(/Nimra/);
+    expect(sec).not.toMatch(/Testwala|Raza/);
+    expect(sec).toMatch(/Open the live report to add them to 5-A\./);
+    expect(sec).not.toMatch(/say who it really is/);
+    // the screen keeps the full typed name: the teacher needs it to match a child
+    expect(text(page(d))).toMatch(/Nimra Testwala/);
+  });
+});
+
 describe('message pages', () => {
   test('expired: EN and UR copy telling the teacher to send /quiz', () => {
     expect(renderMessagePage({ kind: 'expired', lang: 'en' })).toMatch(/This link has expired/);
