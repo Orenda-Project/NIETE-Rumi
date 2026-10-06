@@ -9,8 +9,8 @@ import { useCoachV2, isCoachV2For } from '../coach/useCoachV2';
 import PortalNavigation from './PortalNavigation';
 import RecordingBar from './RecordingBar';
 import {
-  isLinkSession, isTrainingLinkUser, isTrainingPath, rememberLinkSession, LINK_EXPIRED_PAGE, TRAINING_HOME,
-} from '../lib/trainingLinkSession';
+  areaHome, isAreaPath, isLinkSession, linkArea, rememberLinkSession, LINK_EXPIRED_PAGE,
+} from '../lib/linkSession';
 
 interface PortalLayoutProps {
   children: ReactNode;
@@ -45,19 +45,24 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
   const coachV2 = isCoachV2For(user, useCoachV2(user?.phoneNumber || null, !loading && !!user));
   const newUi = useNewUi(user?.phoneNumber || null, !loading && !!user) === true && !coachV2;
 
-  // A session from the training link (WhatsApp's own browser) can read training only:
-  // no navigation, every other page goes to training, and once it runs out she goes
-  // back to the link page rather than a password login (lib/trainingLinkSession.ts).
-  const linkOnly = isTrainingLinkUser(user);
-  const offTraining = linkOnly && !isTrainingPath(pathname);
+  // A session from a template's link (WhatsApp's own browser) can read its own area only
+  // (training, lesson plans): no navigation, every other page goes to the area's home, and
+  // once it runs out she goes back to the link page rather than a password login
+  // (lib/linkSession.ts). An area this app does not know shows nothing.
+  const area = linkArea(user);
+  const linkOnly = !!area;
+  const home = area ? areaHome(area) : null;
+  const offArea = !!area && !isAreaPath(area, pathname);
 
   useEffect(() => {
     if (!loading && user) rememberLinkSession(linkOnly);
   }, [user, loading, linkOnly]);
 
   useEffect(() => {
-    if (offTraining) navigate(TRAINING_HOME, { replace: true });
-  }, [offTraining, navigate]);
+    if (!offArea) return;
+    if (home) navigate(home, { replace: true });
+    else window.location.replace(LINK_EXPIRED_PAGE);
+  }, [offArea, home, navigate]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -88,7 +93,7 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
     );
   }
 
-  if (!user || offTraining) return null;
+  if (!user || offArea) return null;
 
   // `bare` (bd-5rz1v): no navigation at all, for a screen where one stray tap
   // must not take her away — a lesson being sent.

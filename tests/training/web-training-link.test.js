@@ -37,7 +37,7 @@ const Entry = require('../../bot/shared/services/training/training-entry.service
 // (and the Flow-vs-template assertions still fail for their own reason) before
 // they exist.
 const webLink = () => require('../../bot/shared/services/training/training-web-link');
-const token = () => require('../../bot/shared/services/training/training-link-token');
+const token = () => require('../../bot/shared/services/portal-link-token');
 
 const TEACHER = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' };
 const OTHER = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -81,7 +81,7 @@ describe('opening Training with the web switch on', () => {
     expect(WA.sendFlow).not.toHaveBeenCalled();
     const [to, name, lang] = WA.sendTemplate.mock.calls[0] || [];
     expect([to, name, lang]).toEqual([PHONE, 'training_open_v1', 'ur']);
-    const payload = token().verifyTrainingLink(sentToken());
+    const payload = token().verifyPortalLink(sentToken());
     expect(payload).toMatchObject({ k: 't', u: TEACHER.id });
   });
 
@@ -155,29 +155,46 @@ describe('every other case is today\'s Flow', () => {
   });
 });
 
+describe('the web link can never break the door', () => {
+  test('a settings read that throws, with a logger that throws too, still sends the Flow', async () => {
+    const logger = require('../../bot/shared/utils/logger');
+    logger.logWarn.mockImplementation(() => { throw new Error('logger down'); });
+    supabase.from.mockImplementation(() => { throw new Error('db down'); });
+    try {
+      const sent = await Entry.openTrainingFlow(TEACHER, PHONE, 'en');
+
+      expect(sent).toBe(true);
+      expect(WA.sendTemplate).not.toHaveBeenCalled();
+      expect(WA.sendFlow).toHaveBeenCalledTimes(1);
+    } finally {
+      logger.logWarn.mockReset();
+    }
+  });
+});
+
 describe('the training link token', () => {
   test('is genuine only unaltered, unexpired and of the training kind', () => {
     const T = token();
-    const good = T.signTrainingLink(TEACHER.id);
-    expect(T.verifyTrainingLink(good)).toMatchObject({ k: 't', u: TEACHER.id });
+    const good = T.signPortalLink(TEACHER.id);
+    expect(T.verifyPortalLink(good)).toMatchObject({ k: 't', u: TEACHER.id });
 
     const [body, sig] = good.split('.');
     const forged = Buffer.from(JSON.stringify({ k: 't', u: OTHER, exp: 9999999999 })).toString('base64url');
-    expect(T.verifyTrainingLink(`${forged}.${sig}`)).toBeNull();
-    expect(T.verifyTrainingLink(`${body}.${sig.slice(0, -1)}x`)).toBeNull();
-    expect(T.verifyTrainingLink('')).toBeNull();
-    expect(T.verifyTrainingLink(null)).toBeNull();
+    expect(T.verifyPortalLink(`${forged}.${sig}`)).toBeNull();
+    expect(T.verifyPortalLink(`${body}.${sig.slice(0, -1)}x`)).toBeNull();
+    expect(T.verifyPortalLink('')).toBeNull();
+    expect(T.verifyPortalLink(null)).toBeNull();
   });
 
   test('lasts 24 hours', () => {
     const T = token();
     const now = Date.now();
     const spy = jest.spyOn(Date, 'now').mockReturnValue(now);
-    const good = T.signTrainingLink(TEACHER.id);
+    const good = T.signPortalLink(TEACHER.id);
     spy.mockReturnValue(now + 24 * 60 * 60 * 1000 - 1000);
-    expect(T.verifyTrainingLink(good)).not.toBeNull();
+    expect(T.verifyPortalLink(good)).not.toBeNull();
     spy.mockReturnValue(now + 24 * 60 * 60 * 1000 + 1000);
-    expect(T.verifyTrainingLink(good)).toBeNull();
+    expect(T.verifyPortalLink(good)).toBeNull();
     spy.mockRestore();
   });
 
@@ -186,16 +203,16 @@ describe('the training link token', () => {
     const QuizToken = require('../../bot/shared/services/quiz/web-quiz-token');
     const quiz = QuizToken.signPreview({ shareCodeId: OTHER, teacherUserId: TEACHER.id });
     expect(quiz).toBeTruthy();
-    expect(T.verifyTrainingLink(quiz)).toBeNull();
+    expect(T.verifyPortalLink(quiz)).toBeNull();
 
-    const good = T.signTrainingLink(TEACHER.id);
+    const good = T.signPortalLink(TEACHER.id);
     process.env.INTERNAL_API_KEY = 'rotated';
-    expect(T.verifyTrainingLink(good)).toBeNull();
+    expect(T.verifyPortalLink(good)).toBeNull();
   });
 
   test('signs nothing without a secret', () => {
     delete process.env.INTERNAL_API_KEY;
-    expect(token().signTrainingLink(TEACHER.id)).toBeNull();
-    expect(token().signTrainingLink(null)).toBeNull();
+    expect(token().signPortalLink(TEACHER.id)).toBeNull();
+    expect(token().signPortalLink(null)).toBeNull();
   });
 });

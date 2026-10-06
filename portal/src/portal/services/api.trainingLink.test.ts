@@ -27,7 +27,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("a 401", () => {
   it("from a training-link session goes to the link page", async () => {
-    const { rememberLinkSession } = await import("../lib/trainingLinkSession");
+    const { rememberLinkSession } = await import("../lib/linkSession");
     rememberLinkSession(true);
     await expect(onError!(unauthorized())).rejects.toBeTruthy();
     expect(loc.replace).toHaveBeenCalledWith("/t");

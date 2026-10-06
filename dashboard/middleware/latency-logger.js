@@ -29,7 +29,7 @@ const telemetry = require('../services/telemetry.service');
 
 /** Emit a semantic event. Instrumentation must never break a response. */
 // A path that IS a credential is logged by its shape, never its value: the link on the
-// training template (/t/<token>) logs a teacher in for 24 hours (routes/training-link.routes.js).
+// template (/t/<token>) logs a teacher into a portal area for 24 hours (routes/portal-link.routes.js).
 const CREDENTIAL_PATHS = [/^\/t\/[^/]+$/];
 function loggedPath(path) {
   const p = String(path || '');

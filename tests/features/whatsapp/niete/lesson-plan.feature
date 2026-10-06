@@ -872,3 +872,30 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the mat is drawn without its column names
     When a question about tashdeed shows a word with a missing letter
     Then the shadda is drawn on the empty box, or the question is written again when the word has no shadda
+
+  # ─────────────── Lesson plans on the web, opened from WhatsApp (app_settings web_lessons_*) ───────────────
+  # A template's link button is what WhatsApp opens in its own browser, so with the switch on, every
+  # lesson-plan door sends the lesson_plans_open_v1 template whose button logs THIS teacher into the
+  # portal's lesson plans only. The catalogue Flow is the kill switch: anything else is today's Flow.
+
+  @web @config-gated @wip @draft @P1 @T251
+  Scenario: With web lesson plans on for me, asking for a lesson plan opens the portal's lesson plans inside WhatsApp
+    Given app_settings "web_lessons_enabled" is true and "web_lessons_teachers" lists me or is "all"
+    When I ask for a lesson plan from the menu, with "lp", or by typing or saying what I want
+    Then I get the "lesson_plans_open_v1" template in my language, with an "Open lesson plans" button, instead of the Flow
+    And when I typed or said a topic, the line about lesson plans coming from my textbook arrives first, on its own
+    When I tap "Open lesson plans"
+    Then the portal's lesson plans open signed in as me, with no navigation to any other part of the portal
+    And I can pick my class, subject and chapter and open the day's plan on the page
+    And any other portal page I reach, training included, sends me back to lesson plans
+    # lp-browse-entry.service -> lesson-plans-web-link -> portal-web-link (app_settings switch, template send)
+    # + portal-link-token (area 'lessons', 24 h). Portal: dashboard/routes/portal-link.routes.js AREAS.lessons;
+    # portal lib/linkSession.ts. Unit: tests/lp-v8/web-lessons-link.test.js, tests/lp-v8/web-lessons-portal-link.test.js,
+    # portal PortalLayout.lessonsLink.test.tsx. Log: web_link.sent / web_link.open (area lessons). @wip.
+
+  @web @config-gated @negative @wip @draft @P1 @T252
+  Scenario: With web lesson plans off, not listed, or the template failing, lesson plans are the Flow as before
+    Given "web_lessons_enabled" is false or absent, or "web_lessons_teachers" does not include me, or the template send fails
+    When I ask for a lesson plan
+    Then I get the lesson-plan catalogue Flow exactly as before, and no template
+    And when the template failed after the textbook line was sent, the line is not repeated in the Flow

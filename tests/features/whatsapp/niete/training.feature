@@ -2009,10 +2009,10 @@ Feature: NIETE (ICT) Teacher Training
     Then the portal's training page opens signed in as me, with no navigation to any other part of the portal
     And any other portal page I reach sends me back to training
     And the link works for 24 hours, and only as a way into training: my coaching, lesson plans, classes and school stay closed to it
-    # training-entry.service -> training-web-link (app_settings switch, template send) + training-link-token (24 h, own key).
-    # Portal: dashboard/routes/training-link.routes.js (/t/:token, trainingLinkScope); PortalLayout link-only mode.
+    # training-entry.service -> training-web-link -> portal-web-link (app_settings switch, template send) + portal-link-token (24 h, own key).
+    # Portal: dashboard/routes/portal-link.routes.js (/t/:token, portalLinkScope); PortalLayout link-only mode.
     # Unit: tests/training/web-training-link.test.js, tests/training/web-training-portal-link.test.js,
-    # portal PortalLayout.trainingLink.test.tsx. Log: training.web_link_open (ua, x-requested-with, iab). @wip.
+    # portal PortalLayout.trainingLink.test.tsx. Log: web_link.open (area, ua, x-requested-with, iab). @wip.
 
   @web @config-gated @negative @wip @draft @P1 @T249
   Scenario: With web training off, not listed, or the template failing, Training is the Flow as before
