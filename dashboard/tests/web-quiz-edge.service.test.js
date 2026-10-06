@@ -88,6 +88,11 @@ describe('web quiz edge: forwarding /api/wq/* -> bot /api/internal/wq/*', () => 
     expect(calls.map((c) => c.url)).toEqual([`${BOT}/api/internal/wq/who`, `${BOT}/api/internal/wq/who/fix`]);
   });
 
+  it("forwards the teacher's class binding of a hand-out (identity v2)", async () => {
+    await req(srv, 'POST', '/api/wq/who/class', { code: 'AB12CD', p: 'tok', key: 'k1' });
+    expect(calls.map((c) => c.url)).toEqual([`${BOT}/api/internal/wq/who/class`]);
+  });
+
   it('forwards GET with its query string', async () => {
     await req(srv, 'GET', '/api/wq/board/AB12CD?st=abc');
     expect(calls[0].url).toBe(`${BOT}/api/internal/wq/board/AB12CD?st=abc`);

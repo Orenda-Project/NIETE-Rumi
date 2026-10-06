@@ -6020,6 +6020,17 @@ ALTER TABLE quiz_sessions ADD CONSTRAINT quiz_sessions_source_check
 ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS device_ref TEXT;
 ALTER TABLE quiz_sessions ALTER COLUMN parent_phone DROP NOT NULL;
 
+-- ── quiz_share_codes.class_id — from bot/database/migrations/web_quiz_v2_identity.sql.
+-- The class a web-quiz hand-out was for (NULL = resolved at read time). quiz_share_codes is
+-- created by the video-quiz migrations, not by this file, so the mirror waits for the table. ──
+DO $$
+BEGIN
+  IF to_regclass('public.quiz_share_codes') IS NOT NULL THEN
+    ALTER TABLE public.quiz_share_codes ADD COLUMN IF NOT EXISTS class_id uuid REFERENCES public.classes(id);
+    CREATE INDEX IF NOT EXISTS idx_quiz_share_codes_class ON public.quiz_share_codes (class_id) WHERE class_id IS NOT NULL;
+  END IF;
+END $$;
+
 -- =============================================================================
 -- Tables and columns that migrations create and this file had not declared. A clone is
 -- bootstrapped from this file alone, so each is mirrored from its migration here;
