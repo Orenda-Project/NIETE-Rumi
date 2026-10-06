@@ -33,4 +33,8 @@ const moveTeacher = ({ leaderUserId, teacherPhone, schoolExtId }) =>
 const removeTeacher = ({ leaderUserId, userId, schoolExtId }) =>
   post('teacher-remove', { leaderUserId, userId, schoolExtId });
 
-module.exports = { moveTeacher, removeTeacher };
+/** bd-o15qnr.13 — name / level / role / phone_check / phone: main's /observe edit path, ported. */
+const editTeacher = ({ leaderUserId, schoolExtId, userId, edit, value }) =>
+  post('teacher-edit', { leaderUserId, schoolExtId, userId, edit, value });
+
+module.exports = { moveTeacher, removeTeacher, editTeacher };

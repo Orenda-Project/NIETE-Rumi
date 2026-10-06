@@ -2071,6 +2071,59 @@ router.post('/observe/teacher-remove', requireInternalKey, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/internal/observe/teacher-edit — bd-o15qnr.13
+ * Body   { leaderUserId, schoolExtId, userId, edit, value }
+ *        edit: 'name' | 'level' (value = bands[]) | 'role' | 'phone_check' | 'phone'
+ *
+ * main's WhatsApp /observe "Edit a teacher" writes, ported as
+ * teacher-edit-commit.service (same _editPerson authorisation, same planners,
+ * same audit actions). Run as the coach, as main's handler is, so the history
+ * trigger names a person rather than the connection role.
+ *
+ * Ok     200 { success: true, outcome, ... }
+ * Errors 400 (unknown edit / missing field / name_required / invalid_role /
+ *        empty_selection / invalid_phone), 401 (bad key), 404 not_found (not in
+ *        her roster at that school), 409 cooldown | taken (with main's message)
+ */
+const TEACHER_EDIT_HTTP = {
+  not_found: 404, name_required: 400, invalid_role: 400, empty_selection: 400,
+  invalid_phone: 400, cooldown: 409, taken: 409, failed: 500,
+};
+router.post('/observe/teacher-edit', requireInternalKey, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const leaderUserId = String(body.leaderUserId || '').trim();
+    const schoolExtId = String(body.schoolExtId || '').trim();
+    const userId = String(body.userId || '').trim();
+    const edit = String(body.edit || '').trim();
+    if (!leaderUserId || !schoolExtId || !userId) return res.status(400).json({ success: false, reason: 'missing_field' });
+
+    const C = require('../services/observe/teacher-edit-commit.service');
+    const base = { actorLeaderUserId: leaderUserId, schoolExtId, userId };
+    const run = {
+      name: () => C.editName({ ...base, name: body.value }),
+      level: () => C.editLevel({ ...base, bands: body.value }),
+      role: () => C.editRole({ ...base, role: body.value }),
+      phone_check: () => C.checkPhone({ ...base, phone: body.value }),
+      phone: () => C.commitPhone({ ...base, phone: body.value }),
+    }[edit];
+    if (!run) return res.status(400).json({ success: false, reason: 'unknown_edit' });
+
+    const { runAsActor } = require('../utils/actor-context');
+    const out = await runAsActor(leaderUserId, run);
+    if (!out || !out.ok) {
+      const { ok, ...rest } = out || { reason: 'failed' };
+      return res.status(TEACHER_EDIT_HTTP[rest.reason] || 500).json({ success: false, ...rest });
+    }
+    const { ok, ...rest } = out;
+    return res.json({ success: true, ...rest });
+  } catch (error) {
+    logToFile('❌ Internal observe teacher-edit failed', { error: error?.message }, 'error');
+    return res.status(500).json({ success: false, reason: 'failed' });
+  }
+});
+
 /* ------------------------------------------------------------------------- *
  * bd-lfzoz — a teacher's classroom recording, uploaded from the PORTAL.
  *
