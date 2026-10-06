@@ -28,6 +28,7 @@ html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-famil
 html[lang=ur] body{font-family:var(--fu);word-spacing:.2em}
 html[lang=ur] button{word-spacing:inherit}
 html[lang=ur] .wq-lat,html[lang=ur] .wq-input[lang=en]{font-family:var(--f);word-spacing:normal}
+html[lang=ur] .wq-lat{direction:ltr;unicode-bidi:isolate}
 html[lang=ur] .wq-icon,html[lang=ur] .wq-spk,html[lang=ur] .wq-emoji,html[lang=ur] .wq-tfi,html[lang=ur] .wq-let,html[lang=ur] .wq-place b{font-family:var(--f);line-height:1;word-spacing:normal}
 /* Urdu labels the figure engine writes inside a figure carry an inline Noto stack Android does not have. */
 .wq-svg [lang=ur]{font-family:var(--fu)!important;word-spacing:normal}
@@ -292,7 +293,7 @@ img.wq-ld{min-height:60px;background:var(--paper-2);border-radius:12px;animation
 .wq-vtext b{font-size:17px;line-height:1.3;color:var(--navy);overflow-wrap:anywhere}
 .wq-vtext small{font-size:14px;color:var(--muted);font-weight:700}
 .wq-vdone{flex:0 0 auto;font-size:13px;font-weight:900;color:var(--right);background:var(--right-bg);border-radius:999px;padding:4px 8px}
-html[lang=ur] .wq-vtext b{font-size:16px;line-height:1.9}
+html[lang=ur] .wq-vtext b{font-size:16px;line-height:2.3}
 html[lang=ur] .wq-vtext small{line-height:1.8}
 
 /* The share preview's link: its own left-to-right line, small, breaking anywhere (never wraps backwards in Urdu). */
