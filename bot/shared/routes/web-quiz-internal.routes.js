@@ -20,6 +20,7 @@
  *   GET  /pulse/:code           E13 peer pulse: classmates' right answers, from memory
  *   GET  /ch/...  POST /ch/...  the kid's Challenge (web-quiz-challenge.js); GET /challenge/results?list=
  *   GET  /art/:id               E14 a share picture (JPEG): card, invite, class, school (web-quiz-art.js)
+ *   GET  /hub/:token            the kid hub (web-quiz-hub.js): teacher card, play again, recs
  */
 const express = require('express');
 const { requireInternalKey } = require('../middleware/require-internal-key');
@@ -89,5 +90,7 @@ router.get('/art/:id', async (req, res) => {
     return res.status(500).json({ error: 'server_error' });
   }
 });
+// M4a hub — the kid hub's boot JSON (a WhatsApp /quiz link names this phone's own children)
+router.get('/hub/:token', handle((req) => require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: req.query.kid })));
 
 module.exports = router;

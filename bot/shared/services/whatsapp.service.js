@@ -1368,6 +1368,46 @@ class WhatsAppService {
   }
 
   /**
+   * One link button (interactive cta_url): the body, and a button that opens `url`.
+   * The button label is cut to 20 CODE POINTS (Meta's cap); the body to 1024.
+   * @param {string} to
+   * @param {{body: string, buttonText: string, url: string}} options
+   * @returns {Promise<boolean>}
+   */
+  static async sendCtaUrl(to, options, opts = {}) {
+    try {
+      const { body, buttonText, url } = options || {};
+      if (!body || !buttonText || !/^https:\/\//.test(String(url || ''))) {
+        logToFile('⚠️ cta_url message refused: body, button and an https url are required', {}, 'error');
+        return false;
+      }
+      const response = await axios.post(
+        `${GRAPH_API_BASE}/${PHONE_NUMBER_ID}/messages`,
+        {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to,
+          type: 'interactive',
+          interactive: {
+            type: 'cta_url',
+            body: { text: [...body].slice(0, 1024).join('') },
+            action: {
+              name: 'cta_url',
+              parameters: { display_text: [...buttonText].slice(0, MAX_BUTTON_TITLE).join(''), url },
+            },
+          },
+        },
+        { headers: { 'Authorization': `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } },
+      );
+      WhatsAppService._reportMessageId(opts, response.data);
+      return true;
+    } catch (error) {
+      logToFile('❌ Error sending cta_url message', { error: error.message, errorDetails: error.response?.data }, 'error');
+      return false;
+    }
+  }
+
+  /**
    * FEAT-102 — send an image directly from an in-memory Buffer (no R2 round-trip).
    * Used by the /observe coach-card + FICO hero-report delivery (observe-send /
    * observe-coach-card / observe-teacher-report). Uploads the bytes to the Media
