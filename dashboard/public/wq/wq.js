@@ -770,7 +770,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       }
       if (skip || !/[A-Za-z]/.test(part)) return part;
       return part.replace(LAT_RUN, function (run) {
-        var mark = /[A-Za-z]/.test(run) && (/[ \u00A0]/.test(run) || /[0-9]/.test(run));
+        // A link is already its own left-to-right line (.wq-url), never part of a sentence.
+        var mark = /[A-Za-z]/.test(run) && (/[ \u00A0]/.test(run) || /[0-9]/.test(run)) && run.indexOf('://') < 0;
         return mark ? '<span class="wq-lat" lang="en">' + run + '</span>' : run;
       });
     }).join('');
