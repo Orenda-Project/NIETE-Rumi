@@ -211,6 +211,12 @@ const SOFT_FAULT = new RegExp('^('
   // (quiz_author_gates_v2 only — off, the validator never writes these codes):
   // repaired in place (IN_PLACE_FAULT, below), never a reason to send nothing.
   + '|q\\d+: URDU_(TRANSLITERATED|ROMAN)\\b'
+  // One question giving away another's answer (ANSWER_LEAK, quiz_author_gates_v2
+  // only): the later one is re-asked in place like a repeat, and ships if not.
+  + '|q\\d+: ANSWER_LEAK\\b'
+  // "The lesson mentioned…" (META_STEM, quiz_author_gates_v2 only): the framing
+  // is repaired in place; the question ships whatever the repair leaves.
+  + '|q\\d+: META_STEM\\b'
   + ')');
 
 /**
@@ -258,8 +264,12 @@ const NAME_FAULT = /^q\d+: URDU_NAME_LATIN\b/;
  * targeted rewrite, shipped whatever that leaves, counted in meta.soft_faults.
  */
 const TERM_SCRIPT_FAULT = /^q\d+: URDU_(TRANSLITERATED|ROMAN)\b/;
+/** A later question whose answer an earlier one states (quiz_author_gates_v2): re-asked like a repeat, shipped if not. */
+const LEAK_FAULT = /^q\d+: ANSWER_LEAK\b/;
+/** "The lesson mentioned…" (quiz_author_gates_v2): the framing changed in place, shipped if not. */
+const META_FAULT = /^q\d+: META_STEM\b/;
 /** A fault that is repaired IN PLACE and then shipped — never re-rolled, never dropped, never fatal. */
-const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${DUPLICATE_FAULT.source}|${NAME_FAULT.source}|${TERM_SCRIPT_FAULT.source}`);
+const IN_PLACE_FAULT = new RegExp(`${ADDRESS_FAULT.source}|${ADJACENT_FAULT.source}|${DUPLICATE_FAULT.source}|${NAME_FAULT.source}|${TERM_SCRIPT_FAULT.source}|${LEAK_FAULT.source}|${META_FAULT.source}`);
 /**
  * SOFT WITH THE GATES ON. "SLOs uncovered" is a property of the SET: six sound
  * questions covering four of five objectives beat sending nothing (the 7 Sep
@@ -2164,6 +2174,11 @@ async function processQuiz(quizId, payload, flight) {
     }
   }
 
+  // app_settings quiz_author_gates_v2, read ONCE per quiz (fail-closed) — here,
+  // before the digest, so a lesson plan's named characters keep their pronouns
+  // in the digest's examples too (lp-quiz-digest carry). Off, nothing changes.
+  const authorGates = await api.authorGatesOn();
+
   // ── digest (already there when the offer path claimed the row; /quiz path lands here without one)
   if (!meta.digest) {
     // The lp_v8 quiz's language is settled from the catalog subject BEFORE
@@ -2190,6 +2205,7 @@ async function processQuiz(quizId, payload, flight) {
           // A 6-12 lesson is named by its own heading (the K-5 catalog cannot know it).
           lessonName: quizSource === LP612 ? (served.title || quiz.topic || null) : null,
           quizSource,
+          ...(authorGates ? { authorGates: true } : {}),
         })
         : await Digest.run({ session, user });
     } catch (err) {
@@ -2250,10 +2266,9 @@ async function processQuiz(quizId, payload, flight) {
     let authorReplies = 0;
     // WHAT THE LESSON DREW — an lp_v8 lesson's own manipulatives (the slide
     // script's counters, bundles and tiles), so a picture draws what the class saw.
-    // app_settings quiz_author_gates_v2, read ONCE per quiz (fail-closed). On, the
-    // author and every targeted rewrite return each question's source_quote, and
+    // quiz_author_gates_v2 (read above, before the digest). On, the author and
+    // every targeted rewrite return each question's source_quote, and
     // runSourceFidelity holds the set to its source below. Off, nothing changes.
-    const authorGates = await api.authorGatesOn();
     // The same one read drives the code gates in validate(), the blind solve and the web items.
     GatesV2.setEnabled(authorGates);
     if (authorGates) {
@@ -2273,7 +2288,7 @@ async function processQuiz(quizId, payload, flight) {
           // An lp_v8 quiz has no transcript: the author reads the planned
           // lesson — the same picker the digest used, so the exit MCQ and the
           // plan's gendered prose are absent here too.
-          ...(isLp ? { lessonPlan: LpDigest.lessonExcerpts(slideScript), lessonDrew } : {}),
+          ...(isLp ? { lessonPlan: LpDigest.lessonExcerpts(slideScript, { authorGates }), lessonDrew } : {}),
           ...(authorGates ? { authorGates: true } : {}),
         });
       } catch (err) {
@@ -2691,7 +2706,7 @@ async function processQuiz(quizId, payload, flight) {
     // The lesson's text, for the source check and — gates on — the replacement
     // questions the key checks may ask for (replaceFromSource). Off: unused.
     const lessonSourceText = !authorGates ? ''
-      : (isLp ? (slideScript ? LpDigest.lessonExcerpts(slideScript) : '') : (session && session.transcript_text) || '');
+      : (isLp ? (slideScript ? LpDigest.lessonExcerpts(slideScript, { authorGates }) : '') : (session && session.transcript_text) || '');
     if (authorGates) {
       const sf = await runSourceFidelity(api, {
         questions, digest, language, quizId, teacherId: quiz.teacher_id, lessonSummary: readyLessonSummary,

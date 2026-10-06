@@ -30,6 +30,8 @@ const { mathToText, texFaults } = require('./quiz-math');
 const { questionAddressForms } = require('./transcript-quiz-address');
 const { lessonLexicon, questionAdjacentTerms } = require('./transcript-quiz-adjacent-terms');
 const { duplicateQuestionErrors } = require('./transcript-quiz-duplicates');
+const { answerLeakErrors } = require('./transcript-quiz-answer-leaks');
+const { metaStemError } = require('./transcript-quiz-meta-stem');
 const { keyByAuthorityError } = require('./transcript-quiz-key-authority');
 const GatesV2 = require('./quiz-author-gates-v2');
 
@@ -687,6 +689,9 @@ function validate(rawQuestions, ctx = {}) {
       errs.push(...GatesV2.questionErrors({ ...p, figure: q.figure, media: q.media }, i, {
         legacyPictureComplaint: q.figure == null && STEM_PROMISES_PICTURE.test(stem),
       }));
+      // "The lesson mentioned…": a question about the lesson, not its idea (repaired in place, soft).
+      const meta = metaStemError(q, i);
+      if (meta) errs.push(meta);
     }
 
     // ── the figure, if this question carries one ────────────────────────────
@@ -855,6 +860,10 @@ function validate(rawQuestions, ctx = {}) {
   // stem). Only the quiz as a whole can show it, and the complaint names the
   // LATER copy, so the targeted rewrite replaces that one question.
   errs.push(...duplicateQuestionErrors(qs));
+  // quiz_author_gates_v2: a later question whose answer an earlier one already
+  // states (transcript-quiz-answer-leaks). Named on the LATER question, so the
+  // targeted rewrite gives that slot another fact; soft — never fatal.
+  if (GatesV2.enabled(ctx.authorGates)) errs.push(...answerLeakErrors(qs));
 
   if (figured / qs.length > FIGURE_MAX_SHARE) {
     errs.push(`FIGURE_SHARE — ${figured}/${qs.length} questions carry a picture; at most half may`);
@@ -915,7 +924,7 @@ function validate(rawQuestions, ctx = {}) {
   // it is quiz-level, so it is checked here beside the questions rather than in
   // a second pass a caller could forget.
   pedagogyDefects(qs.map(plainView), {
-    language, digest, quizId, ...(checkD4 ? { lessonSummary } : {}),
+    language, digest, quizId, ...(checkD4 ? { lessonSummary } : {}), authorGates: GatesV2.enabled(ctx.authorGates),
   }).forEach((d) => errs.push(d.message));
 
   return { ok: errs.length === 0, errors: errs, questions: qs };
