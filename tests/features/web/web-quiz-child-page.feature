@@ -249,6 +249,16 @@ Feature: Web child quiz page on the portal
     When the child taps "Yes, that's my name"
     Then the quiz starts as a new child the teacher can add to the class later
 
+  @T490
+  Scenario: "Not <first>?" on a phone holding one child's open quiz never continues it as another child
+    Given identity v2 is on and a phone remembers "Tooba" and "Yusra" of class "4-A"
+    And Tooba's quiz is open on this phone with 2 questions answered
+    When Yusra taps "Not Tooba?", types "Yusra" and taps "Yes" on "Are you Yusra?"
+    Then a new quiz starts for Yusra at question 1
+    And Tooba's quiz stays open with Tooba's 2 answers, and none of Yusra's answers are saved on it
+    When Tooba later taps their own card on this phone
+    Then Tooba's quiz continues from question 3
+
   @T363
   Scenario: A link from the child's quiz hub plays as that child with no picking
     Given identity v2 is on and the hub opens "/q/<code>?k=<chip>" for a child of this class

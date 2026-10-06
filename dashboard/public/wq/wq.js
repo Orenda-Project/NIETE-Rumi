@@ -1500,7 +1500,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var dref = sget('wq_d', null);
     if (dref) body.device_ref = dref;
     if (params.p) body.p = params.p;
-    if (S.st) body.resume_st = S.st;
+    // The stored session resumes only its own child: another card, a typed name or a roll number never carries it.
+    var other = pick.new || pick.roll != null || (pick.chip && !(S.child && S.child.chip === pick.chip));
+    if (S.st && !other) body.resume_st = S.st;
     if (CLS_PICK && (pick.roll != null || pick.new)) body.list = CLS_PICK;
     api('POST', 'session', body).then(function (r) {
       busy = false;
