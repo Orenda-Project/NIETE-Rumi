@@ -443,6 +443,7 @@ Feature: Web child quiz page on the portal
     When the child opens the school league after finishing
     Then a card on top says "<school> is #<place> this week", the move since yesterday, and "+<n> points for <school>!"
     And the school's row in the list is highlighted and stays pinned to the top or bottom of the screen when scrolled away
+    And on Monday and Tuesday the card also says "Last week: #<place> of <n>" when the school was ranked last week, and nothing when it was not
 
   @T252
   Scenario: A school with no points yet is invited, never ranked last

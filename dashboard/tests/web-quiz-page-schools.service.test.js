@@ -209,3 +209,20 @@ describe('a cold recipient of the league link', () => {
     expect(played.html()).not.toContain('id="wq-play-s"');
   });
 });
+
+describe("last week's place", () => {
+  test('on my card when the board has it, in English and in Urdu; also on the ghost card', async () => {
+    const mine = { ...BOARD.mine, last_week: { place: 4, of: 133 } };
+    const p = await open('en', { ...BOARD, mine });
+    expect(p.html()).toMatch(/id="wq-mycard">[^]*Last week: #4 of 133/);
+    const g = await open('en', { ...GHOST, mine: { ...GHOST.mine, last_week: { place: 9, of: 120 } } });
+    expect(g.html()).toMatch(/id="wq-mine">[^]*Last week: #9 of 120[^]*Be the first!/);
+    const u = await open('ur', { ...BOARD, mine });
+    expect(u.html()).toContain('پچھلے ہفتے: 133 میں سے نمبر 4');
+  });
+
+  test('absent: no line', async () => {
+    const p = await open('en', BOARD);
+    expect(p.html()).not.toContain('Last week');
+  });
+});

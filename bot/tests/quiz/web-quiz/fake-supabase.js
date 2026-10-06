@@ -1,7 +1,7 @@
 'use strict';
 /**
  * An in-memory stand-in for the Supabase client — the network boundary — that
- * APPLIES the filters it is given (eq/is/not/in/gte/order/limit), so a test
+ * APPLIES the filters it is given (eq/is/not/in/gte/lt/order/limit), so a test
  * fails when a query forgets one. Tables are plain arrays in `db`.
  */
 const crypto = require('crypto');
@@ -21,6 +21,7 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
       not(c, op, v) { if (op === 'is' && v === null) st.filters.push((r) => r[c] != null); return b; },
       in(c, vs) { st.filters.push((r) => vs.includes(r[c])); return b; },
       gte(c, v) { st.filters.push((r) => r[c] != null && String(r[c]) >= String(v)); return b; },
+      lt(c, v) { st.filters.push((r) => r[c] != null && String(r[c]) < String(v)); return b; },
       order(c, o = {}) { st.order.push([c, o.ascending !== false]); return b; },
       limit(n) { st.limit = n; return b; },
       insert(row) { st.op = 'insert'; st.payload = Array.isArray(row) ? row : [row]; return b; },
