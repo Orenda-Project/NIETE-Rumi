@@ -193,36 +193,6 @@
   },
   {
     "file": "bot/shared/routes/internal-api.routes.js",
-    "line": 148,
-    "snippet": "logToFile('❌ Internal training API failed', { route: name, error: error?.message });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/routes/internal-api.routes.js",
-    "line": 281,
-    "snippet": "logToFile('❌ Internal training API failed', { route: 'module-quiz-verdict', error: error?.message })",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/routes/internal-api.routes.js",
-    "line": 308,
-    "snippet": "logToFile('❌ Internal training API failed', { route: 'exam-verdict', error: error?.message });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/routes/internal-api.routes.js",
-    "line": 606,
-    "snippet": "logToFile('❌ Internal training API failed', { route: 'mark-paper', error: error?.message });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/routes/internal-api.routes.js",
-    "line": 651,
-    "snippet": "logToFile('❌ Internal training API failed', { route: 'serve-paper', error: error?.message });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/routes/internal-api.routes.js",
     "line": 706,
     "snippet": "logToFile('❌ Internal certificates list failed', { userId, error: error?.message });",
     "occurrence": 0

@@ -30,12 +30,12 @@ const { seededShuffle } = require('../../utils/seeded-random');
 /**
  * Is this question answered in free text rather than by picking an option?
  *
- * The marker is the one the capstone import already used: empty
- * options AND an empty correct_option. Both halves matter — an image-option
- * question has synthesised option text but a REAL key, and must not
- * be mistaken for open-ended.
+ * The marker is: nothing to pick from (no options, no option images). The key
+ * is NOT part of the rule — a stray key on an option-less row cannot make it a
+ * pick question. An image-option question has synthesised option text, so it is
+ * still an MCQ.
  *
- * @param {{options?: any, correct_option?: any}|null} q
+ * @param {{options?: any, option_images?: any}|null} q
  * @returns {boolean}
  */
 function isOpenEndedQuestion(q) {
@@ -46,16 +46,19 @@ function isOpenEndedQuestion(q) {
   // rows as CRQs: the paper collapsed to one question and the exam resolved
   // the module instantly. The row simply does not say — so do not guess.
   const knowsOptions = Object.prototype.hasOwnProperty.call(q, 'options');
-  const knowsKey = Object.prototype.hasOwnProperty.call(q, 'correct_option');
-  if (!knowsOptions && !knowsKey) return false;
+  if (!knowsOptions) return false;
   const opts = q.options;
   const hasOptions = Array.isArray(opts)
     ? opts.length > 0
     : Boolean(opts && String(opts).trim() && String(opts).trim() !== '[]');
-  const hasKey = Boolean(q.correct_option !== null
-    && q.correct_option !== undefined
-    && String(q.correct_option).trim());
-  return !hasOptions && !hasKey;
+  // Image-option MCQs keep their choices in option_images, not options.
+  const hasImages = Array.isArray(q.option_images) && q.option_images.length > 0;
+  // NOTHING TO PICK FROM = a written question, whatever the key says. A row with
+  // options [] but a stray key ('C') used to count as an MCQ: the server served
+  // no choices, the page drew a text box, and the typed words were stored as the
+  // picked option (varchar(32)), failing every save and submit of that paper.
+  // The key cannot make an unanswerable-by-pick question a pick question.
+  return !hasOptions && !hasImages;
 }
 
 /**
