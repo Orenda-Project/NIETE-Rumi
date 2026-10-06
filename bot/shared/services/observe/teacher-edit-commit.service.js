@@ -23,13 +23,10 @@
  * short words). The refusal copy for a TAKEN number is main's, unchanged —
  * deliberately vague so it never reveals that the number reaches someone else.
  *
- * ONE ADAPTATION — the level column. main renamed users.training_bands to
- * users.teacher_level (bd-60095). Sandbox's code has not taken that rename: its
- * one writer, applyBandSelection, still writes training_bands and stamps
- * training_bands_updated_at, and patch-resolver reads training_bands. (The
- * sandbox DB carries both columns, unsynced.) So the planner reads sandbox's
- * live columns, mapped onto the names it expects — see levelRow(). When sandbox
- * takes bd-60095 that mapping becomes the identity and can go.
+ * THE LEVEL COLUMN. main and staging keep a teacher's levels in
+ * users.teacher_level (bd-60095), written by applyBandSelection and read by
+ * patch-resolver, and this file reads teacher_level directly. (The sandbox
+ * copy adapts to sandbox's older column name; that adaptation is sandbox-only.)
  */
 
 const E = require('./teacher-edit.service');
@@ -92,18 +89,18 @@ async function editPerson(leaderUserId, schoolExtId, pickedUserId) {
   const p = people.find((x) => x.userId === pickedUserId);
   if (!p) return null;
   const { data: row } = await supabase.from('users')
-    .select('id, name, phone_number, role, training_bands, training_bands_updated_at')
+    .select('id, name, phone_number, role, teacher_level, teacher_level_updated_at')
     .eq('id', pickedUserId).maybeSingle();
   return { ...p, row: row || null };
 }
 
-/** Sandbox's live level columns, under the names the ported planner reads. */
+/**
+ * Her level columns, under the names the ported planner reads. On staging and
+ * main the live column already IS users.teacher_level (bd-60095), so this is a
+ * pass-through; it stays a function so the planner's call sites match sandbox's.
+ */
 function levelRow(row) {
-  return {
-    ...(row || {}),
-    teacher_level: (row && row.training_bands) || null,
-    teacher_level_updated_at: (row && row.training_bands_updated_at) || null,
-  };
+  return { ...(row || {}) };
 }
 
 /**
