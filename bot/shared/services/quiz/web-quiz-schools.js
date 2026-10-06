@@ -16,7 +16,8 @@
  * WHO COUNTS. Finished sessions on a teacher's code, attributed to the school
  * of that code's teacher (a friend's challenge code carries the same teacher,
  * so an invited friend counts for the inviter's school). Teacher self-tests
- * (user_id set), closed schools and probable test schools are left out. A
+ * (user_id set), test teachers and closed schools are left out; a probable
+ * test school is seen only by its own viewers (never on anyone else's board). A
  * school with no points is not ranked: the viewer's own school appears as a
  * ghost row ("no one has played yet"), the rest are a count.
  *
@@ -99,11 +100,11 @@ function countedPlays(plays) {
   return out;
 }
 
-/** Ranked rows from counted plays. Pure. */
-function rankFrom(counted, schoolById) {
+/** Ranked rows from counted plays, of the schools `shown` lets through. Pure. */
+function rankFrom(counted, schoolById, shown) {
   const agg = new Map();
   for (const p of counted) {
-    if (!eligible(schoolById.get(p.schoolId))) continue;
+    if (!shown(schoolById.get(p.schoolId))) continue;
     const a = agg.get(p.schoolId) || { points: 0, kids: new Set(), plays: 0, pctSum: 0 };
     a.points += pointsFor(p.pct);
     a.kids.add(p.kid);
@@ -131,11 +132,13 @@ function rankFrom(counted, schoolById) {
  */
 function scoreSchools({ plays, schools, mySchoolId, splitAt }) {
   const schoolById = new Map((schools || []).map((s) => [s.id, s]));
+  // A probable test school is seen only by itself (a tester sees their own school ranked; nobody else does).
+  const shown = (x) => eligible(x) || Boolean(x && mySchoolId && x.id === mySchoolId && x.is_active !== false);
   const counted = countedPlays(plays);
-  const now = rankFrom(counted, schoolById);
+  const now = rankFrom(counted, schoolById, shown);
   // The caps keep the earliest plays, so yesterday's board is the counted plays before midnight.
   const before = counted.filter((p) => String(p.at) < String(splitAt));
-  const prevPlace = before.length ? new Map(rankFrom(before, schoolById).map((r) => [r.id, r.place])) : null;
+  const prevPlace = before.length ? new Map(rankFrom(before, schoolById, shown).map((r) => [r.id, r.place])) : null;
   const moveOf = (id, place) => {
     if (!prevPlace) return null;
     return prevPlace.has(id) ? prevPlace.get(id) - place : 'new';
@@ -150,11 +153,11 @@ function scoreSchools({ plays, schools, mySchoolId, splitAt }) {
     return row;
   });
   const me = mySchoolId && schoolById.get(mySchoolId);
-  if (!mine && eligible(me)) {
+  if (!mine && shown(me)) {
     mine = { place: null, name: me.name || '', sector: me.region || null, points: 0, kids: 0, move: null, ghost: true };
   }
   const ranked = new Set(now.map((r) => r.id));
-  const zero = (schools || []).filter((x) => eligible(x) && !ranked.has(x.id));
+  const zero = (schools || []).filter((x) => shown(x) && !ranked.has(x.id));
   const zeroNames = zero.filter((x) => x.id !== mySchoolId).map((x) => x.name || '').filter(Boolean).sort((a, b) => a.localeCompare(b));
   return { rows, mine, ranked_n: rows.length, zero_n: zero.length, zero_names: zeroNames };
 }

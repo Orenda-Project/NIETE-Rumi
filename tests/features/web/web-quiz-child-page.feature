@@ -303,7 +303,8 @@ Feature: Web child quiz page on the portal
     When a child opens "School league" from the card, the class table or "today"
     Then each school that played shows its place, its points and how many children played
     And a school earns 10 points for each child's first finish of a quiz plus up to 10 for that score
-    And a practice re-attempt, a teacher's own test and a test school add nothing
+    And a practice re-attempt, a teacher's own test and a test teacher's quiz add nothing
+    And a school marked as a test school appears only on its own children's league, never on anyone else's
     And no teacher, class or child is named on the league
 
   @T251
