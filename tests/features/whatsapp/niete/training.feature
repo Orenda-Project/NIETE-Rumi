@@ -1785,12 +1785,15 @@ Feature: NIETE (ICT) Teacher Training
     And once every step has written its questions, a give-away that is an aside in the earlier question's explanation or feedback is taken out, keeping both questions
     And a give-away still left gets one more rewrite, else the later question is left out while the quiz keeps at least six
     And at six questions it is still sent, with the give-away counted; the quiz is never refused for it
+    And a give-away only a reader can see — by elimination, or in one step — is found by one model pass over the quiz, rewritten, and never a reason to leave a question out; what the rewrite leaves is sent and counted
     And a wrong option, a word for a kind of thing named in passing ("a structural adaptation"), or a line that lists every option is not treated as a give-away
     And with the setting absent or false, the quiz is made exactly as before
     # transcript-quiz-answer-leaks answerLeakErrors (ANSWER_LEAK), wired in transcript-quiz-validator validate();
     # generate LEAK_FAULT (soft, re-asked in place) and finalLeakRepair (trimLeakAsides first) after the last repair (meta.answer_leaks);
     # LEAK_REPAIR in transcript-quiz-rewrite.
-    # Unit: tests/quiz/quiz-author-gates-answer-leak.test.js, tests/quiz/quiz-author-gates-cross-item-leaks.test.js. @wip.
+    # modelLeakErrors (one call; a flag kept only when its quote names the answer or every other option).
+    # Unit: tests/quiz/quiz-author-gates-answer-leak.test.js, tests/quiz/quiz-author-gates-cross-item-leaks.test.js,
+    # tests/quiz/quiz-author-gates-leak-model.test.js. @wip.
 
   @api @quiz @wip @draft @config-gated @P2 @T223 @no-mock-driver
   Scenario: With the author gates on, a question asks about the idea, not about what the lesson said

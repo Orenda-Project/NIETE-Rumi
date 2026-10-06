@@ -314,6 +314,104 @@ function trimLeakAsides(questions) {
 const qIndex = (e) => Number(/^q(\d+)/.exec(String(e))[1]);
 
 /**
+ * THE LEAKS WORDS CANNOT SEE: one model pass. Measured on a blind counter over
+ * 30 quizzes (56 leaked questions) the word check above names a third of them;
+ * the rest are given away by ELIMINATION (an earlier question settles which
+ * province the ajrak and the kurta belong to, so the later question's other
+ * options fall away) or by ONE STEP of reasoning ("the whole group is the
+ * bigger number" before "the whole group in 18 − 7"). One call over the
+ * numbered quiz finds them; a flag is kept only when the words it quotes name
+ * the later question's answer, or name every one of its other options. Kept so,
+ * on that counter: precision 0.85, recall 0.84 (the word check: 0.91 / 0.36).
+ *
+ * Its flags are REWRITTEN only (finalLeakRepair), never a reason to drop a
+ * question; a failed or unusable call returns nothing. Never throws.
+ *
+ * @param {object[]} questions the quiz in the order it is played
+ * @param {{complete?:Function, skip?:Set<number>}} [opts] the LLM call (default: transcript-quiz-llm
+ *   completeJson); later questions the word check already named
+ * @returns {Promise<{errors:string[], flagged:number, kept:number, cost_usd:number, latency_ms:number, error?:string}>}
+ */
+const LETTERS = 'ABCD';
+function leakPrompt(qs) {
+  const quiz = qs.map((q, n) => {
+    const opts = optionsOf(q);
+    const keys = correctList(q);
+    const fb = (q.option_feedback && typeof q.option_feedback === 'object') ? q.option_feedback : {};
+    const wrong = (fb.wrong && typeof fb.wrong === 'object') ? fb.wrong : {};
+    return [
+      `Q${n + 1}. ${q.question || ''}`,
+      ...opts.map((o, k) => `   ${LETTERS[k] || k}${keys.includes(k) ? ' (correct)' : ''}: ${o}`),
+      `   explanation: ${q.explanation || ''}`,
+      `   right line: ${typeof fb.correct === 'string' ? fb.correct : ''}`,
+      ...Object.entries(wrong).map(([k, t]) => `   feedback if ${LETTERS[Number(k)] || k} chosen: ${t}`),
+    ].join('\n');
+  }).join('\n\n');
+  return `LEAK CHECK. A child plays this quiz in order, Q1 first. After each question the child sees its explanation, its "right line" if they were right, or the feedback for the option they chose.
+
+Find every LATER question Qj whose correct answer a child could get from what an EARLIER question Qi showed them (its question, its correct option, its explanation, its right line, or any of its option feedback) — stated outright, or left as the only possibility (for example Qi says which province the ajrak belongs to, and Qj's other options are then ruled out), or following in one obvious step — without knowing the lesson. Also list Qj when it asks the same thing as an earlier Qi in other words. Do NOT list a Qj just because both are on the same topic, or because a general fact a child already knows answers it.
+
+Return JSON only: {"leaks":[{"later":j,"earlier":i,"quote":"the words of Qi that give it away"}]}. Use [] if none.
+
+QUIZ:
+${quiz}`;
+}
+async function modelLeakErrors(questions, { complete = null, skip = new Set() } = {}) {
+  const qs = Array.isArray(questions) ? questions : [];
+  const t0 = Date.now();
+  const out = { errors: [], flagged: 0, kept: 0, cost_usd: 0, latency_ms: 0 };
+  if (qs.length < 2) return out;
+  // eslint-disable-next-line global-require
+  const call = complete || require('./transcript-quiz-llm').completeJson;
+  let json;
+  try {
+    const res = await call({ prompt: leakPrompt(qs), label: 'transcript_quiz.leak_check', maxTokens: 4000 });
+    json = res && res.json;
+    out.cost_usd = Number(res && res.costUsd) || 0;
+  } catch (err) {
+    out.error = String((err && err.message) || err).slice(0, 160);
+    out.latency_ms = Date.now() - t0;
+    return out;
+  }
+  const leaks = Array.isArray(json && json.leaks) ? json.leaks : [];
+  out.flagged = leaks.length;
+  const named = new Set(skip);
+  leaks.forEach((l) => {
+    const j = Number(l && l.later) - 1;
+    const i = Number(l && l.earlier) - 1;
+    const quote = String((l && l.quote) || '').trim();
+    if (!Number.isInteger(i) || !Number.isInteger(j) || i < 0 || j <= i || j >= qs.length || !quote || named.has(j)) return;
+    const qj = qs[j];
+    const keys = correctList(qj);
+    const opts = optionsOf(qj);
+    const key = opts[keys[0]] || '';
+    const said = content(quote);
+    const unglossed = (t) => content(String(t).replace(/\s*[(（][^)）]*[)）]\s*/g, ' '));
+    const namesKey = [...unglossed(key)].some((w) => said.has(w));
+    const others = opts.filter((o, k) => !keys.includes(k) && o.trim()).map(unglossed).filter((w) => w.size);
+    const rulesOut = others.length > 0 && others.every((w) => [...w].some((x) => said.has(x)));
+    if (!namesKey && !rulesOut) return;
+    named.add(j);
+    out.errors.push(`q${j}: ANSWER_LEAK — q${i} gives away q${j}'s answer «${clip(key, 60)}»: q${i} says «${clip(quote)}», and the child reads it before q${j}; replace q${j} with a question on a different fact of the lesson, one no other question, option or explanation states`);
+  });
+  out.kept = out.errors.length;
+  out.latency_ms = Date.now() - t0;
+  return out;
+}
+
+/** Complaint lines renumbered to a set with `dropped` taken out; a dropped question's lines go. */
+function renumber(lines, dropped) {
+  const gone = new Set(dropped || []);
+  return (lines || []).flatMap((e) => {
+    const m = /^q(\d+)(:.*)$/s.exec(String(e));
+    if (!m) return [e];
+    const i = Number(m[1]);
+    if (gone.has(i)) return [];
+    return [`q${i - [...gone].filter((d) => d < i).length}${m[2]}`];
+  });
+}
+
+/**
  * THE LAST WORD ON LEAKS, on what is about to ship (generate calls this after
  * every step that can write a question, gates on). Repair, never kill a quiz:
  *   0. an aside in an earlier question that gives the answer away is taken out
@@ -336,12 +434,28 @@ const qIndex = (e) => Number(/^q(\d+)/.exec(String(e))[1]);
  * @param {number} p.floor the fewest questions a quiz may have
  * @returns {Promise<{record:object|null, changed?:boolean, questions?:object[], dropped?:number[], faults?:string[]}>}
  */
-async function finalLeakRepair({ questions, rewrite, check, isSoft, floor }) {
+async function finalLeakRepair({ questions, rewrite, check, isSoft, floor, propose = null }) {
   const leaks = answerLeakErrors(questions);
-  if (!leaks.length) return { record: null };
   const t0 = Date.now();
+  let model = null;
+  if (propose) {
+    try { model = await propose(questions, new Set(leaks.map(qIndex))); } catch (err) { model = null; }
+  }
+  const modelErrs = (model && model.errors) || [];
+  const modelStats = model ? {
+    flagged: model.flagged || 0, kept: modelErrs.length, rewritten: 0, remaining: modelErrs.length,
+    cost_usd: model.cost_usd || 0, latency_ms: model.latency_ms || 0, ...(model.error ? { error: model.error } : {}),
+  } : null;
+  if (!leaks.length && !modelErrs.length) {
+    if (!modelStats) return { record: null };
+    return {
+      record: { found: 0, trimmed: 0, fixed: 0, dropped: [], remaining: 0, cost_usd: modelStats.cost_usd, latency_ms: Date.now() - t0, model: modelStats },
+      changed: false, questions, dropped: [], faults: [],
+    };
+  }
   const record = {
-    found: leaks.length, asked: [...new Set(leaks.map(qIndex))], fixed: 0, dropped: [], remaining: 0, cost_usd: 0,
+    found: leaks.length, asked: [...new Set(leaks.map(qIndex))], fixed: 0, dropped: [], remaining: 0,
+    cost_usd: modelStats ? modelStats.cost_usd : 0, ...(modelStats ? { model: modelStats } : {}),
   };
   const shippable = (v) => v.errors.every((e) => isSoft(e));
   let current = questions;
@@ -357,21 +471,33 @@ async function finalLeakRepair({ questions, rewrite, check, isSoft, floor }) {
       record.trimmed = trim.trimmed.length;
     }
   }
-  if (!leaksNow.length) {
+  // the model's flags on questions the word check does not name: rewritten, never dropped
+  const wordAt = new Set(leaksNow.map(qIndex));
+  let modelLeft = modelErrs.filter((e) => !wordAt.has(qIndex(e)));
+  if (!leaksNow.length && !modelLeft.length) {
+    if (modelStats) modelStats.remaining = 0;
     record.latency_ms = Date.now() - t0;
-    return { record, changed: true, questions: current, dropped: [], faults: [] };
+    return { record, changed: current !== questions, questions: current, dropped: [], faults: [] };
   }
   try {
-    const rw = await rewrite(current, leaksNow);
-    record.cost_usd = Number(rw && rw.costUsd) || 0;
+    const rw = await rewrite(current, [...leaksNow, ...modelLeft]);
+    record.cost_usd += Number(rw && rw.costUsd) || 0;
     const replaced = (rw && Array.isArray(rw.replaced)) ? rw.replaced : [];
     if (rw && Array.isArray(rw.merged) && replaced.length) {
       const candidate = current.map((q, i) => (replaced.includes(i) && rw.merged[i] ? rw.merged[i] : q));
       const v = check(candidate);
       const left = answerLeakErrors(v.questions);
-      if (shippable(v) && left.length < leaksNow.length) {
+      // a flagged question counts as rewritten only when its words changed — a rewrite that hands it back is no
+      // repair. Both sides as the validator writes them: the stored set was normalised by it too.
+      const before = check(current).questions;
+      const words = (q) => (q ? `${tokens(q.question).join(' ')}|${optionsOf(q).map((o) => tokens(o).join(' ')).sort().join('|')}` : '');
+      const modelFixed = modelLeft.filter((e) => replaced.includes(qIndex(e)) && v.questions[qIndex(e)]
+        && words(v.questions[qIndex(e)]) !== words(before[qIndex(e)]));
+      if (shippable(v) && left.length <= leaksNow.length && (left.length < leaksNow.length || modelFixed.length)) {
         current = v.questions;
         record.fixed = leaksNow.length - left.length;
+        if (modelStats) modelStats.rewritten = modelFixed.length;
+        modelLeft = modelLeft.filter((e) => !modelFixed.includes(e));
       } else record.rewrite = shippable(v) ? 'nothing_fixed' : 'merged_set_invalid';
     } else record.rewrite = (rw && rw.error) ? 'rewrite_failed' : 'nothing_usable';
   } catch (err) {
@@ -388,10 +514,13 @@ async function finalLeakRepair({ questions, rewrite, check, isSoft, floor }) {
       left = answerLeakErrors(current);
     } else record.drop = 'what_survived_did_not_validate';
   }
+  // what the model flagged and no rewrite replaced ships, counted — renumbered past any drop
+  const modelShipped = renumber(modelLeft, record.dropped);
+  if (modelStats) modelStats.remaining = modelShipped.length;
   record.remaining = left.length;
   record.latency_ms = Date.now() - t0;
   return {
-    record, changed: current !== questions, questions: current, dropped: record.dropped, faults: left,
+    record, changed: current !== questions, questions: current, dropped: record.dropped, faults: [...left, ...modelShipped],
   };
 }
 
@@ -414,4 +543,6 @@ function settleLeakFaults(faults, dropped, leaks) {
   return [...kept, ...(leaks || [])];
 }
 
-module.exports = { answerLeakErrors, findLeaks, trimLeakAsides, finalLeakRepair, settleLeakFaults };
+module.exports = {
+  answerLeakErrors, findLeaks, trimLeakAsides, modelLeakErrors, finalLeakRepair, settleLeakFaults,
+};
