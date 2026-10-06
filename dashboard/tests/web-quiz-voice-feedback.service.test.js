@@ -211,6 +211,9 @@ describe('the feedback voice library', () => {
     Object.values(ur).flat().forEach((t) => expect(t).not.toMatch(/سکتے|سکتی|گئیں|آپ نے|کرتے ہو|کرتی ہو/));
     [...(ur.notyet || []), ...(ur.notyetpic || [])].forEach((t) => expect(t).not.toMatch(/شاباش|بہت خوب|زبردست|کمال/));
     [...((MANIFEST.en || {}).notyet || []), ...((MANIFEST.en || {}).notyetpic || [])].forEach((t) => expect(t).not.toMatch(/well done|great|brilliant|good job/i));
+    // Encouragement is also played after a WRONG answer (at halfway), so it never praises.
+    ((MANIFEST.ur || {}).cheer || []).forEach((t) => expect(t).not.toMatch(/شاباش|بہت خوب|زبردست|کمال|بہت اچھے/));
+    ((MANIFEST.en || {}).cheer || []).forEach((t) => expect(t).not.toMatch(/well done|great|brilliant|good job|you're doing it|you’re doing it/i));
   });
 
   describe.each(['en', 'ur'])('%s', (lang) => {
