@@ -150,3 +150,16 @@ describe('E7 me tells the challenger how each friend did against them', () => {
     expect(out.friends_finished.map((f) => [f.first, f.outcome])).toEqual([['Rida', 'win'], ['Ayan', 'lose']]);
   });
 });
+
+describe('a child who opens their own challenge link is never their own challenger', () => {
+  test('a session whose child IS the inviter gets no vs', async () => {
+    addChallengeCode();
+    const s = await WQ.startSession({ code: 'CH12AB', new: { name: 'Omar Testwala', force: true } });
+    const sid = T.verify(s.st, 's').sid;
+    // The identity layer resolved this run to the challenger themselves (their own card on their own phone).
+    fake.db.quiz_sessions.find((r) => r.id === sid).student_id = KID_A;
+    await WQ.recordAnswers({ st: s.st, a: [1, 2, 3, 4].map((n) => ({ qid: qid(n), slot: 'B' })) });
+    const out = await WQ.finishSession({ st: s.st });
+    expect(out.vs).toBeUndefined();
+  });
+});
