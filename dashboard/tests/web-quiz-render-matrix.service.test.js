@@ -50,8 +50,8 @@ describe('render matrix: every item shape the engine can emit renders at 360x740
     expect(Array.isArray(results)).toBe(true);
     expect(results).toHaveLength(manifest.length);
     const failing = results
-      .filter((r) => r.question.length || r.feedback.length || (r.feedback_wrong || []).length || r.fatal || r.errors.length)
-      .map((r) => `${r.id}: Q=${r.question.join(',')} FBW=${(r.feedback_wrong || []).join(',')} FB=${r.feedback.join(',')}${r.fatal ? ` FATAL=${r.fatal}` : ''}${r.errors.length ? ` JS=${r.errors[0]}` : ''}`);
+      .filter((r) => r.question.length || r.feedback.length || (r.feedback_wrong || []).length || (r.hint || []).length || r.fatal || r.errors.length)
+      .map((r) => `${r.id}: Q=${r.question.join(',')} FBW=${(r.feedback_wrong || []).join(',')} FB=${r.feedback.join(',')} HINT=${(r.hint || []).join(',')}${r.fatal ? ` FATAL=${r.fatal}` : ''}${r.errors.length ? ` JS=${r.errors[0]}` : ''}`);
     expect(failing).toEqual([]);
     fs.rmSync(out, { recursive: true, force: true });
   });

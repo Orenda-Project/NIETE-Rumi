@@ -163,6 +163,10 @@ function shapes(lang) {
   add('hint', row(lang, {
     media: { language: lang, web: webItem({ type: 'single', stem: w.stem, wa: { from: 'same' }, key: 'A', why: w.why, options: w.opts.slice(0, 3).map((t, i) => ({ slot: 'ABC'[i], text: t, name: t })), hint: { text: lang === 'ur' ? 'سوچیں، درخت پر کیا اگتا ہے؟' : 'Think about what grows on a tree.' } }) },
   }), 'web item with a hint (PR #1732 shows it)');
+  add('hint-maths', row(lang, {
+    question_text: M.stem, option_a: M.opts[0], option_b: M.opts[1], option_c: M.opts[2], option_d: M.opts[3], explanation: M.why,
+    media: { language: lang, web: webItem({ type: 'single', stem: M.stem, wa: { from: 'same' }, key: 'A', why: M.why, options: M.opts.map((t, i) => ({ slot: 'ABCD'[i], text: t, name: t })), hint: { text: lang === 'ur' ? 'پہلے $\\frac{3}{4}$ اور $\\frac{1}{4}$ کے اوپر والے عدد جمع کریں؛ $4 \\neq 8$۔' : 'Add the tops of $\\frac{3}{4}$ and $\\frac{1}{4}$ first; $4 \\neq 8$.' } }) },
+  }), 'hint carrying maths');
   add('multi', row(lang, { option_d: w.opts[3], correct_option: 'A,C' }));
   add('empty-why', row(lang, { explanation: '' }));
   add('emoji-options', row(lang, { option_a: '🍎', option_b: '🪑', option_c: '✏️', option_d: '👟' }));
