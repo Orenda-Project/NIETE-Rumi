@@ -17,6 +17,7 @@
  */
 
 const GPT5MiniService = require('../../gpt5-mini.service');
+const { modelFor } = require('../../../config/model-registry');
 const { logToFile } = require('../../../utils/logger');
 const { generatePrioritizedAction } = require('./prioritized-action.service');
 const { simplifyPedagogyJargon } = require('../pedagogy-jargon');
@@ -137,7 +138,6 @@ function normaliseSpec(raw, bar, action) {
   };
 }
 
-const MODEL = 'gpt-5-mini-2025-08-07';
 
 const LANG_NAME = { sw: 'Kiswahili', ur: 'Urdu', en: 'English', ar: 'Arabic' };
 
@@ -254,7 +254,7 @@ async function localisePair(commitment, action, lang) {
     const genderRule = GENDER_RULE[lang] || '';
     const prompt = `Translate the following two teacher-coaching messages into ${langName}, warm and natural. Keep pedagogical/technical terms in ENGLISH (Latin letters) inline (e.g. "open-ended questions", "wait time", "scaffolding"). ${genderRule}\n\n${codeSwitch}\n\nReturn STRICT JSON: {"commitment":"...","action":"..."}.\n\nMESSAGES:\ncommitment: ${commitment}\naction: ${action}`;
     const r = await GPT5MiniService.openai.chat.completions.create({
-      model: MODEL,
+      model: modelFor('coaching.cardLocalise'),
       job: 'coaching.cardLocalise',
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
@@ -368,7 +368,7 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
     : null;
   const ask = async (prompt) => {
     const r = await GPT5MiniService.openai.chat.completions.create({
-      model: MODEL,
+      model: modelFor('coaching.commitmentCard'),
       job: 'coaching.commitmentCard',
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },

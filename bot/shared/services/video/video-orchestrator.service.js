@@ -368,7 +368,6 @@ class VideoOrchestrator {
     const langName = languageNames[language] || 'English';
 
     const response = await OpenAIService.createChatCompletion({
-      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -634,7 +633,6 @@ class VideoOrchestrator {
   static async extractTopicFromMessage(message, language) {
     try {
       const response = await OpenAIService.createChatCompletion({
-        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',

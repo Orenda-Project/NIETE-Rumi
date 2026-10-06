@@ -36,7 +36,9 @@ try { _jsonrepair = require('jsonrepair').jsonrepair; } catch (_) { /* fall back
 
 // gpt-5.6-luna: cheaper than the live gpt-4o on both axes, keeps per-session cost flat (D8).
 // llm-client auto-prefixes 'openai/' when there is no '/'; the full slug is explicit here.
-const FIDELITY_MODEL = process.env.LP_FIDELITY_MODEL || 'openai/gpt-5.6-luna';
+const { modelFor } = require('../../../config/model-registry');
+// bd-gr4fy.8: the registry holds this job's model (LP_FIDELITY_MODEL, else its default).
+const FIDELITY_MODEL = modelFor('lp.fidelity');
 const DEFAULT_MAX_TOKENS = 4000;
 const MAX_TOKENS_CEILING = 32000;
 const EFFORTS = new Set(['minimal', 'low', 'medium', 'high']);
@@ -112,7 +114,7 @@ function readVerdicts(parsed, moves, finishReason) {
  * @returns {Promise<{verdicts, narrative, language_note, moderators, usage, model, reasoning_effort, missing_verdicts}>}
  */
 async function analyzeFidelity(moves, transcript, meta = {}, opts = {}) {
-  const model = opts.model || FIDELITY_MODEL;
+  const model = opts.model || modelFor('lp.fidelity');
   const maxTok = opts.maxTokens || maxTokens();
   const client = opts.client || require('../../llm-client').getClient();
   const effort = EFFORTS.has(opts.reasoningEffort) ? opts.reasoningEffort : reasoningEffort();

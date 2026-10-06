@@ -13,6 +13,7 @@
  */
 
 const supabase = require('../../config/supabase');
+const { modelFor } = require('../../config/model-registry');
 const { logToFile } = require('../../utils/logger');
 const GPT5MiniService = require('../gpt5-mini.service');
 const WhatsAppService = require('../whatsapp.service');
@@ -422,7 +423,7 @@ class ReflectiveConversationService {
               langName: ACK_LANG_NAME[String(languageCode || 'en').slice(0, 2)] || 'English',
               generator: async (prompt) => {
                 const r = await GPT5MiniService.openai.chat.completions.create({
-                  model: 'gpt-5-mini-2025-08-07',
+                  model: modelFor('coaching.acknowledgement'),
                   job: 'coaching.acknowledgement',
                   messages: [{ role: 'user', content: prompt }],
                 });
