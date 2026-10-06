@@ -2,7 +2,7 @@
 /**
  * The teacher's report link token — kind `tr`.
  *
- * A teacher opens their quiz report at `/t/<token>`: from the /quiz menu, from
+ * A teacher opens their quiz report at `/r/<token>`: from the /quiz menu, from
  * the post-completion PDF, from a template button. The token says WHOSE report
  * and WHICH quiz (`q`, or '*' for every class), and nothing else; every read
  * behind it filters on that teacher. It is signed with the web quiz's own key

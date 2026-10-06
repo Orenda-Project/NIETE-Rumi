@@ -313,6 +313,31 @@ describe('teacher report page — reserved lines', () => {
   });
 });
 
+describe('teacher report page — review follow-ups', () => {
+  test('Urdu dates use Urdu digits and are never wrapped in a left-to-right isolate', () => {
+    const html = page(quizData(), { lang: 'ur' });
+    expect(html).toMatch(/۵ اکتوبر ۲۰۲۶/);
+    expect(html).not.toMatch(/class="num">[^<]*اکتوبر/);
+    const cls = renderPage({ class: { cells: [], weeks: [], quizzes: [{ id: 'q-9', date: '2026-10-05T09:00:00Z', topic: 'Magnets', played: 5, avg: 80 }] } },
+      { lang: 'ur', tab: 'class', tokens: { self: TOKEN, quiz: { 'q-9': 'T9.x' } } });
+    expect(cls).toMatch(/۵ اکتوبر/);
+    expect(cls).not.toMatch(/class="num">[^<]*اکتوبر/);
+  });
+
+  test('the Urdu eyebrow says «کوئز رپورٹ»', () => {
+    expect(page(quizData(), { lang: 'ur' })).toMatch(/کوئز رپورٹ/);
+  });
+
+  test('a child marked "not on list" shows no list number (that number is another list\'s)', () => {
+    const html = page(quizData());
+    const row = html.slice(html.indexOf('Bilal'), html.indexOf('Bilal') + 400);
+    expect(row).toMatch(/not on list/);
+    expect(row).not.toMatch(/list no\./);
+    const ayesha = html.slice(html.indexOf('id="scores"')).slice(0, 2000);
+    expect(text(ayesha)).toMatch(/Ayesha\s*list no\. 2/);
+  });
+});
+
 describe('message pages', () => {
   test('expired: EN and UR copy telling the teacher to send /quiz', () => {
     expect(renderMessagePage({ kind: 'expired', lang: 'en' })).toMatch(/This link has expired/);

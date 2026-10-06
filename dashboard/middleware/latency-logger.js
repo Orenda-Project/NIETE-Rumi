@@ -37,6 +37,8 @@ const CREDENTIAL_PATHS = [
   [/^\/r\/[^/]+$/, '/r/:token'],
   [/^\/r\/[^/]+\/pdf$/, '/r/:token/pdf'],
   [/^\/r\/[^/]+\/remind$/, '/r/:token/remind'],
+  [/^\/r\/[^/]+\/class$/, '/r/:token/class'],
+  [/^\/r\/[^/]+\/fix$/, '/r/:token/fix'],
 ];
 function loggedPath(path) {
   const p = String(path || '');

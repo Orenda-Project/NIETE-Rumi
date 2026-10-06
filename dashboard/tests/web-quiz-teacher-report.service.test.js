@@ -130,6 +130,8 @@ test('the latency log never records a report token: /r/<token> paths are logged 
   expect(loggedPath(`/r/${TOK}`)).toBe('/r/:token');
   expect(loggedPath(`/r/${TOK}/pdf`)).toBe('/r/:token/pdf');
   expect(loggedPath(`/r/${TOK}/remind`)).toBe('/r/:token/remind');
+  expect(loggedPath(`/r/${TOK}/class`)).toBe('/r/:token/class');
+  expect(loggedPath(`/r/${TOK}/fix`)).toBe('/r/:token/fix');
   expect(loggedPath('/t/abc.def')).toBe('/t/:token');
   expect(loggedPath('/q/AB12CD')).toBe('/q/AB12CD');
 });
