@@ -566,7 +566,7 @@ Feature: Web child quiz page on the portal
   Scenario: The landing says when classmates are playing right now
     Given at least two children of this class got a question right in the last 2 minutes
     When a child opens the class link
-    Then the landing says "3 classmates are playing right now — join them!" («ابھی 3 ہم جماعت کھیل رہے ہیں — شامل ہوں!»), a number and never a name
+    Then the landing says "3 classmates are playing right now — join them!" («ابھی 3 ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!»), a number and never a name
     And with one or none it says nothing, and a friend's challenge link never shows it
 
   @T441

@@ -551,7 +551,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
       friends: 'دوست جنہوں نے مکمل کیا', home: 'پہلا صفحہ', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں',
       pulse: function (f, n) { return (f ? f : 'ایک دوست') + ' نے سوال ' + n + ' ٹھیک کیا ✓'; },
-      liveNow: function (n) { return 'ابھی ' + n + ' ہم جماعت کھیل رہے ہیں — شامل ہوں!'; },
+      liveNow: function (n) { return 'ابھی ' + n + ' ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!'; },
       nth: function (n) {
         if (n === 1) return 'آج آپ کی کلاس میں سب سے پہلے آپ نے مکمل کیا!';
         return ['آج آپ کی کلاس میں مکمل کرنے والوں میں آپ کا نمبر ', '<bdi>' + n + '</bdi>', ' ہے'];
