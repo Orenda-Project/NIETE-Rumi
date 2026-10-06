@@ -631,3 +631,58 @@ Feature: Web child quiz page on the portal
     Given the render check over every question shape the engine can emit, in English and Urdu
     When it plays each one on a 360 by 740 phone
     Then it checks the screen after a wrong pick and after the right pick, and fails on a maths command spelled out in letters
+
+  # ── Jugnu's Challenge (/c/<hub token>): "Which is bigger?" and "Read aloud" ──
+  @T385
+  Scenario: The Challenge menu shows only the exercises that are built
+    Given app setting "web_quiz_challenge" is on and a grade 3 child opens the Challenge from the hub
+    Then the page is titled "Jugnu's Challenge" («جگنو کا چیلنج») and shows two tiles: "Which is bigger?" and "Read aloud"
+    And no "coming soon" tile, and never the words EGRA, EGMA, test or assessment
+    And a finished exercise shows its last result on its tile ("✓ 7 / 10", "✓ 42 words a minute")
+
+  @T386
+  Scenario: A child outside grades 2 to 5 is not offered the Challenge
+    Given the child's class list is grade 7
+    When the Challenge link is opened
+    Then the page says "This challenge is for classes 2 to 5." and no exercise starts
+
+  @T387
+  Scenario: "Which is bigger?" is scored again on the server with the 4-in-a-row stop
+    Given a child plays the 2 practice pairs (with "Yes! 8 is bigger." feedback) and then the 10 pairs of the grade form
+    When the child misses 4 pairs in a row (a wrong tap, or no tap within 10 seconds)
+    Then the phone shows no more pairs and sends its taps
+    And the server re-applies the stop rule, ignores any tap after it, and answers the score
+    And the result says "You got 2 out of 10!" («۱۰ میں سے ۲ صحیح!») with "More challenges" and "Try again"
+
+  @T388
+  Scenario: Read aloud records 60 seconds and shows words per minute
+    Given the phone's browser allows the microphone
+    When the child taps "I'm ready", hears "Ready? Begin." and reads the story shown large
+    Then a 60-second countdown runs with a "Done" button that stays on screen
+    And the recording goes straight to storage by a presigned upload, never through the portal
+    And the result says "You read 42 words in a minute!" («آپ نے ایک منٹ میں ۴۲ لفظ پڑھے!»)
+
+  @T389
+  Scenario: Words per minute count only the time used when the child finishes the story early
+    Given a child reads all 60 words in 30 seconds
+    Then words per minute = 60 / (60 − 30) × 60 = 120
+    And a child who taps "Done" before the end of the story is counted over the full minute (EGRA)
+
+  @T390
+  Scenario: A child with nothing right in line 1 is stopped and encouraged, never shown 0
+    Given the scorer finds no word of the story's first line read correctly
+    Then the run is stored with 0 words per minute and "stopped"
+    And the page says "Good try! Reading gets easier every day you practise." with no number
+
+  @T391
+  Scenario: WhatsApp's browser cannot give the microphone
+    Given the microphone is refused, or the browser has no getUserMedia or MediaRecorder
+    When the child taps "I'm ready"
+    Then the page says "Your WhatsApp browser can't use the microphone." («آپ کا واٹس ایپ براؤزر مائیک استعمال نہیں کر سکتا۔»)
+    And offers "Open in Chrome" (Android) and "Skip this one", and logs web_quiz.ch_mic with ok false and the error name
+
+  @T392
+  Scenario: A child's recording is scored and forgotten; slow scoring is polled
+    Given scoring a reading takes more than 5 seconds
+    Then the result call answers "pending" and the page asks again every 3 seconds, up to 60 seconds
+    And the recording is deleted from storage after scoring, and only the numbers are kept

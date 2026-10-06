@@ -12,6 +12,9 @@
  *   p   preview token  {k:'p', sc, t, exp}         30 days, like the share code; the
  *                                                  teacher's own run (recorded as a
  *                                                  self-test, never a child)
+ *   ct  challenge token {k:'c', sid, ex, r, exp}  2 h: one run of one Challenge
+ *                                                  exercise (sid = the student, r = the
+ *                                                  run id; web-quiz-challenge.js)
  *   chip               HMAC(secret, shareCodeId|studentId)[:16] — a child's name
  *                      button; not reversible, recomputed over the class
  *
@@ -34,6 +37,7 @@ const SIG_LEN = 22;
 const SESSION_TTL_S = 24 * 60 * 60;
 const SYNC_TTL_S = 7 * 24 * 60 * 60;
 const PREVIEW_TTL_S = 30 * 24 * 60 * 60;
+const CHALLENGE_TTL_S = 2 * 60 * 60;
 const DEVICE_REF_RX = /^[A-Za-z0-9_-]{22}$/;
 
 // Stable per child (hash of the student id), so the same animal shows on every
@@ -94,6 +98,11 @@ function signPreview({ shareCodeId, teacherUserId }) {
   return sign({ k: 'p', sc: shareCodeId, t: teacherUserId, exp: nowS() + PREVIEW_TTL_S });
 }
 
+function signChallenge({ studentId, ex, runId }) {
+  if (!studentId || !ex || !runId) return null;
+  return sign({ k: 'c', sid: studentId, ex, r: runId, exp: nowS() + CHALLENGE_TTL_S });
+}
+
 function chipId(shareCodeId, studentId) {
   const key = secret();
   if (!key || !shareCodeId || !studentId) return null;
@@ -115,7 +124,7 @@ function animalFor(studentId) {
 }
 
 module.exports = {
-  secret, sign, verify, signSession, signPreview, chipId,
+  secret, sign, verify, signSession, signPreview, signChallenge, chipId,
   newDeviceRef, cleanDeviceRef, animalFor, ANIMALS,
-  SESSION_TTL_S, SYNC_TTL_S, PREVIEW_TTL_S,
+  SESSION_TTL_S, SYNC_TTL_S, PREVIEW_TTL_S, CHALLENGE_TTL_S,
 };

@@ -18,6 +18,7 @@
  *   GET  /videos/:code          E11 "watch another video": lessons of the quiz's grade
  *   POST /videos/start          E12 the code for one of them (minted once per class code)
  *   GET  /pulse/:code           E13 peer pulse: classmates' right answers, from memory
+ *   GET  /ch/...  POST /ch/...  the kid's Challenge (web-quiz-challenge.js); GET /challenge/results?list=
  */
 const express = require('express');
 const { requireInternalKey } = require('../middleware/require-internal-key');
@@ -26,6 +27,7 @@ const WebQuiz = require('../services/quiz/web-quiz.service');
 const WebQuizVideos = require('../services/quiz/web-quiz-videos');
 const WebQuizSchools = require('../services/quiz/web-quiz-schools');
 const WebQuizPulse = require('../services/quiz/web-quiz-pulse');
+const WebQuizChallenge = require('../services/quiz/web-quiz-challenge');
 
 const router = express.Router();
 router.use(requireInternalKey);
@@ -65,5 +67,12 @@ router.get('/media/:code/:qid', handle((req) => WebQuiz.media(req.params.code, r
 router.get('/videos/:code', handle((req) => WebQuizVideos.list(req.params.code, { st: req.query.st })));
 router.post('/videos/start', handle((req) => WebQuizVideos.start(req.body || {})));
 router.get('/pulse/:code', handle((req) => WebQuizPulse.poll(req.params.code, { st: req.query.st, since: req.query.since }, WebQuiz)));
+// M4c challenge
+router.get('/ch/result/:ct', handle((req) => WebQuizChallenge.poll(req.params.ct)));
+router.post('/ch/upload', handle((req) => WebQuizChallenge.presignUpload(req.body || {})));
+router.post('/ch/result', handle((req) => WebQuizChallenge.submit(req.body || {})));
+router.get('/ch/:token', handle((req) => WebQuizChallenge.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang })));
+router.get('/ch/:token/:exercise', handle((req) => WebQuizChallenge.exercise(req.params.token, req.params.exercise, { kid: req.query.kid, lang: req.query.lang })));
+router.get('/challenge/results', handle((req) => WebQuizChallenge.listResults({ cls: req.query.class, list: req.query.list })));
 
 module.exports = router;
