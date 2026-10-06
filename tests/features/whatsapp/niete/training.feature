@@ -2083,7 +2083,7 @@ Feature: NIETE (ICT) Teacher Training
     And a quiz nobody has played yet says "no one yet"
     And with more than nine quizzes the last row is "Older quizzes…", which shows the next ones
     When I tap a quiz
-    Then I get a link to that quiz's report on the portal, in my language
+    Then I get a link to that quiz's report on the portal, in my language, saying how many played ("12 of 31 played · 19 still to play" when the class is known)
     And the link opens inside WhatsApp when the approved template "teacher_report_template" is set, otherwise in my browser
     # teacher-report-list showReports/handleReportsPick (tqr_<quizId>, tqr_page_<n>; counts by teacher-report.data);
     # teacher-report-link sendTeacherReportLink (template body {{1}} topic, URL button = token; text fallback).
