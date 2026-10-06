@@ -155,6 +155,23 @@ describe('every other case is today\'s Flow', () => {
   });
 });
 
+describe('the web link can never break the door', () => {
+  test('a settings read that throws, with a logger that throws too, still sends the Flow', async () => {
+    const logger = require('../../bot/shared/utils/logger');
+    logger.logWarn.mockImplementation(() => { throw new Error('logger down'); });
+    supabase.from.mockImplementation(() => { throw new Error('db down'); });
+    try {
+      const sent = await Entry.openTrainingFlow(TEACHER, PHONE, 'en');
+
+      expect(sent).toBe(true);
+      expect(WA.sendTemplate).not.toHaveBeenCalled();
+      expect(WA.sendFlow).toHaveBeenCalledTimes(1);
+    } finally {
+      logger.logWarn.mockReset();
+    }
+  });
+});
+
 describe('the training link token', () => {
   test('is genuine only unaltered, unexpired and of the training kind', () => {
     const T = token();

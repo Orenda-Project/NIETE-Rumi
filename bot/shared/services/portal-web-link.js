@@ -44,6 +44,11 @@ function isTrue(value) {
   return typeof v === 'string' && v.trim().toLowerCase() === 'true';
 }
 
+/** Logging never decides what the teacher gets: a logger that throws must not break the door. */
+function warn(message, data) {
+  try { logWarn(message, data); } catch (_) { /* the Flow still goes */ }
+}
+
 function teacherAllowed(teachers, userId) {
   if (typeof teachers === 'string') return teachers.trim().toLowerCase() === 'all';
   if (Array.isArray(teachers)) return Boolean(userId) && teachers.map(String).includes(String(userId));
@@ -72,7 +77,7 @@ function createWebLink({ area, enabledKey, teachersKey, defaultTemplate, templat
       return cache;
     } catch (err) {
       // Fail closed, and do not cache the failure. A warning: teachers silently lose the web link.
-      logWarn(`web link (${area}): settings lookup failed — sending the Flow`, { error: err.message });
+      warn(`web link (${area}): settings lookup failed — sending the Flow`, { error: err.message });
       return { enabled: false, teachers: null };
     }
   }
@@ -91,7 +96,7 @@ function createWebLink({ area, enabledKey, teachersKey, defaultTemplate, templat
     const userId = user && user.id;
     const token = signPortalLink(userId, area);
     if (!token) {
-      logWarn(`web link (${area}): no signing secret on this deployment — sending the Flow`, { userId });
+      warn(`web link (${area}): no signing secret on this deployment — sending the Flow`, { userId });
       return false;
     }
     const lang = TEMPLATE_LANGUAGES.includes(language) ? language : 'en';
@@ -100,9 +105,9 @@ function createWebLink({ area, enabledKey, teachersKey, defaultTemplate, templat
       { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: token }] },
     ];
     const sent = (await WhatsAppService.sendTemplate(from, name, lang, components)) === true;
-    logEvent(sent ? 'web_link.sent' : 'web_link.failed', { area, userId, template: name, lang });
+    try { logEvent(sent ? 'web_link.sent' : 'web_link.failed', { area, userId, template: name, lang }); } catch (_) { /* logging never decides */ }
     // sendTemplate logs Meta's answer; this says what it cost: she got the Flow, not the link.
-    if (!sent) logWarn(`web link (${area}): template send failed — sending the Flow`, { userId, template: name, lang });
+    if (!sent) warn(`web link (${area}): template send failed — sending the Flow`, { userId, template: name, lang });
     return sent;
   }
 

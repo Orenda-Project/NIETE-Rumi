@@ -49,12 +49,17 @@ async function openTrainingFlow(user, from, language = 'en') {
 
   // Training on the web: a template whose button opens the portal's training
   // pages in WhatsApp's own browser. Off, not listed, or a failed send — the Flow.
-  const WebLink = require('./training-web-link');
-  if (await WebLink.webTrainingOn(user?.id)) {
-    if (await WebLink.sendTrainingLink(user, from, language)) {
-      logToFile('🎓 Sent teacher-training web link', { userId: user.id });
-      return true;
+  // Whatever goes wrong in here, the Flow below still goes: the web link can never break the door.
+  try {
+    const WebLink = require('./training-web-link');
+    if (await WebLink.webTrainingOn(user?.id)) {
+      if (await WebLink.sendTrainingLink(user, from, language)) {
+        logToFile('🎓 Sent teacher-training web link', { userId: user.id });
+        return true;
+      }
     }
+  } catch (webErr) {
+    logToFile('🎓 Training web link step failed, sending the Flow', { userId: user?.id, error: webErr && webErr.message }, 'warn');
   }
 
   const flowId = process.env.TEACHER_TRAINING_FLOW_ID || '';

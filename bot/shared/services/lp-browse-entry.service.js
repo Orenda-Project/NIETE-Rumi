@@ -54,20 +54,25 @@ async function openLpBrowseFlow({ from, userId, language, reason = 'unspecified'
   // Lesson plans on the web: a template whose button opens the portal's lesson plans in
   // WhatsApp's own browser. A template's body is fixed, so a topic door's line goes first,
   // on its own; if the template then fails, the Flow below follows WITHOUT the line.
-  const WebLink = require('./lesson-plans-web-link');
-  if (await WebLink.webLessonsOn(userId)) {
-    if (bodyPrefix) {
-      try {
-        await WhatsAppService.sendMessage(from, bodyPrefix);
-      } catch (lineErr) {
-        logToFile('LP browse: prefix line failed to send (non-fatal)', { userId, reason, error: lineErr.message });
+  // Whatever goes wrong in here, the Flow below still goes: the web link can never break the door.
+  try {
+    const WebLink = require('./lesson-plans-web-link');
+    if (await WebLink.webLessonsOn(userId)) {
+      if (bodyPrefix) {
+        try {
+          await WhatsAppService.sendMessage(from, bodyPrefix);
+        } catch (lineErr) {
+          logToFile('LP browse: prefix line failed to send (non-fatal)', { userId, reason, error: lineErr.message });
+        }
+        bodyPrefix = null;
       }
-      bodyPrefix = null;
+      if (await WebLink.sendLessonsLink({ id: userId }, from, language)) {
+        logToFile('📘 LP web link sent', { userId, reason });
+        return true;
+      }
     }
-    if (await WebLink.sendLessonsLink({ id: userId }, from, language)) {
-      logToFile('📘 LP web link sent', { userId, reason });
-      return true;
-    }
+  } catch (webErr) {
+    logToFile('LP browse: web link step failed, sending the Flow', { userId, reason, error: webErr && webErr.message }, 'warn');
   }
 
   const flowId = process.env.PAKISTAN_LP_FLOW_ID || '';

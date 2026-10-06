@@ -152,6 +152,28 @@ describe('everything else is today\'s Flow', () => {
   });
 });
 
+describe('the web link can never break the door', () => {
+  test('a settings read that throws, with a logger that throws too, still sends the Flow', async () => {
+    const logger = require('../../bot/shared/utils/logger');
+    logger.logWarn.mockImplementation(() => { throw new Error('logger down'); });
+    const realFrom = mockDb.from.getMockImplementation();
+    mockDb.from.mockImplementation((table) => {
+      if (table === 'app_settings') throw new Error('db down');
+      return realFrom(table);
+    });
+    try {
+      const sent = await openLpBrowseFlow({ from: PHONE, userId: TEACHER, language: 'en', reason: 'menu' });
+
+      expect(sent).toBe(true);
+      expect(templates()).toEqual([]);
+      expect(flows()).toHaveLength(1);
+    } finally {
+      mockDb.from.mockImplementation(realFrom);
+      logger.logWarn.mockReset();
+    }
+  });
+});
+
 describe('one link format for every area', () => {
   test('a training link keeps its old shape, so links already sent still open training', () => {
     const T = token();
