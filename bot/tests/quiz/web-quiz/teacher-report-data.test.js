@@ -305,22 +305,22 @@ describe('teacher report token (kind tr)', () => {
     const [body, sig] = t.split('.');
     const forged = Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(body, 'base64url')), t: OTHER })).toString('base64url');
     expect(Token.verifyTeacherReport(`${forged}.${sig}`)).toBeNull();
-    const old = Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ, now: Date.now() - 31 * 86400000 });
+    const old = Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ, now: Date.now() - 8 * 86400000 });
     expect(Token.verifyTeacherReport(old)).toBeNull();
     expect(Token.explain(old)).toBe('expired');
     expect(Token.explain('garbage')).toBe('bad');
   });
 
-  test('a short-lived token for links printed in a PDF: 48 h, and never longer than 30 days', () => {
+  test('a report token lives 7 days (COS privacy ruling), and a caller can never ask for longer', () => {
     const now = Date.now();
-    const short = Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ, ttlS: 48 * 3600, now: now - 49 * 3600 * 1000 });
-    expect(Token.verifyTeacherReport(short)).toBeNull();
-    expect(Token.explain(short)).toBe('expired');
-    const fresh = Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ, ttlS: 48 * 3600, now: now - 47 * 3600 * 1000 });
-    expect(Token.verifyTeacherReport(fresh)).toMatchObject({ teacherId: TEACHER, quizId: QUIZ });
-    const greedy = Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ, ttlS: 365 * 86400, now: now - 31 * 86400 * 1000 });
+    const day = 86400 * 1000;
+    expect(Token.verifyTeacherReport(Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ, now: now - 6 * day }))).toMatchObject({ teacherId: TEACHER });
+    const old = Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ, now: now - 8 * day });
+    expect(Token.verifyTeacherReport(old)).toBeNull();
+    expect(Token.explain(old)).toBe('expired');
+    const greedy = Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ, ttlS: 365 * 86400, now: now - 8 * day });
     expect(Token.verifyTeacherReport(greedy)).toBeNull();
-    expect(Token.PDF_TTL_S).toBe(48 * 3600);
+    expect(Token.TTL_S).toBe(7 * 86400);
   });
 
   test('no secret: nothing is signed (fails closed)', () => {
