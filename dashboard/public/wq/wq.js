@@ -25,12 +25,23 @@ var WQI = (function () {
   };
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function opts(q) { return q.options || []; }
+  function hotsFit(q) {
+    var f = q.figure, hs = f && f.hotspots;
+    if (!hs || !hs.length) return false;
+    var vb = f.svg ? viewBox(f.svg) : null;
+    if (f.w && f.h) vb = { x: vb ? vb.x : 0, y: vb ? vb.y : 0, w: +f.w, h: +f.h };
+    if (!vb || !(vb.w > 0) || !(vb.h > 0)) return false;
+    return hs.every(function (h) { return +h.x >= vb.x && +h.x <= vb.x + vb.w && +h.y >= vb.y && +h.y <= vb.y + vb.h; });
+  }
+  function allPics(o) { return o.length > 0 && o.every(function (x) { return x.img || (x.pic && (x.pic.svg || x.pic.glyph || x.pic.kind === 'glyph')); }); }
   function kind(q) {
     var k = KINDS[String(q.type || '').toLowerCase()];
+    // A label item plays only when every hotspot sits on its drawing; one outside the picture's box was drawn
+    // off the picture (render matrix). Then the parts are offered as words.
+    if (k === 'label' && q.figure && !hotsFit(q)) return 'single';
     if (k) return k;
     if (q.multi) return 'multi';
-    var o = opts(q);
-    if (o.length && o.every(function (x) { return x.img || (x.pic && (x.pic.svg || x.pic.glyph || x.pic.kind === 'glyph')); })) return 'picture';
+    if (allPics(opts(q))) return 'picture';
     return 'single';
   }
   function slots(v) { return String(v || '').toUpperCase().split(',').map(function (s) { return s.trim(); }).filter(Boolean); }
@@ -42,14 +53,22 @@ var WQI = (function () {
   }
 
   /* ---- maths: $...$ with a small TeX subset -> MathML (native in Chrome/WebView 109+) ---- */
-  var SYM = { times: '×', div: '÷', cdot: '·', pm: '±', le: '≤', ge: '≥', ne: '≠', pi: 'π', degree: '°', circ: '°', approx: '≈', to: '→', rightarrow: '→' };
+  var SYM = { times: '×', div: '÷', cdot: '·', pm: '±', le: '≤', ge: '≥', ne: '≠', pi: 'π', degree: '°', circ: '°', approx: '≈', to: '→', rightarrow: '→',
+    neq: '≠', leq: '≤', geq: '≥', dots: '…', ldots: '…', cdots: '⋯', infty: '∞', leftarrow: '←', Rightarrow: '⇒', longrightarrow: '⟶', rightleftharpoons: '⇌' };
+  // Greek letters seen in prod questions (\Omega in a circuit): upright, as a unit is written.
+  var GREEK = { alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', Delta: 'Δ', theta: 'θ', lambda: 'λ', mu: 'μ', rho: 'ρ', sigma: 'σ', omega: 'ω', Omega: 'Ω' };
+  // Every TeX command the page typesets. Anything else is spelled out in letters, so the author gate reads this
+  // list (quiz-math texFaults) and rewrites an item that uses a command outside it.
+  var TEX_SUPPORTED = Object.keys(SYM).concat(Object.keys(GREEK), ['frac', 'sqrt', 'text', 'textrm', 'mathrm', 'xrightarrow', 'begin', 'end', 'hline', ',', ';', ' ', '\\']);
   function texTokens(s) {
     var out = [], i = 0;
     while (i < s.length) {
       var c = s[i];
       if (c === '\\') {
         var m = /^\\([a-zA-Z]+|.)/.exec(s.slice(i));
-        out.push({ cmd: m[1] }); i += m[0].length;
+        i += m[0].length;
+        var raw = /^(text|textrm|mathrm)$/.test(m[1]) ? /^\s*\{([^}]*)\}/.exec(s.slice(i)) : null;
+        if (raw) { out.push({ cmd: 'text', raw: raw[1] }); i += raw[0].length; } else out.push({ cmd: m[1] });
       } else if (c === '{' || c === '}' || c === '^' || c === '_') { out.push({ p: c }); i++; }
       else if (/\s/.test(c)) { i++; }
       else if (/[0-9.]/.test(c)) { var n = /^[0-9]+(\.[0-9]+)?/.exec(s.slice(i)) || [c]; out.push({ n: n[0] }); i += n[0].length; }
@@ -74,6 +93,27 @@ var WQI = (function () {
       }
       return t;
     }
+    // \begin{array}{rr} … \end{array} (a column sum): a table, its cells typeset, \hline a rule over the next row.
+    function table() {
+      textArg();
+      var spec = textArg().replace(/[^lcr]/g, '');
+      var rows = [[[]]], ruled = [false];
+      while (st.i < tk.length && !(tk[st.i].cmd === 'end')) {
+        var x = tk[st.i++], row = rows[rows.length - 1];
+        if (x.cmd === '\\') { rows.push([[]]); ruled.push(false); } else if (x.o === '&') row.push([]);
+        else if (x.cmd === 'hline') ruled[rows.length - 1] = true;
+        else row[row.length - 1].push(x);
+      }
+      st.i++; textArg();
+      var al = { l: 'left', c: 'center', r: 'right' };
+      return '<mtable>' + rows.map(function (cells, r) {
+        if (!ruled[r] && cells.length === 1 && !cells[0].length) return '';
+        return '<mtr>' + cells.map(function (cell, k) {
+          var css = 'text-align:' + (al[spec.charAt(k)] || 'right') + (ruled[r] ? ';border-top:2px solid currentColor' : '');
+          return '<mtd style="' + css + '">' + texParse(cell, { i: 0 }) + '</mtd>';
+        }).join('') + '</mtr>';
+      }).join('') + '</mtable>';
+    }
     function atom() {
       var t = tk[st.i++];
       if (!t) return '';
@@ -83,7 +123,11 @@ var WQI = (function () {
       if (t.cmd) {
         if (t.cmd === 'frac') { var a = group(), b = group(); return '<mfrac>' + wrapRow(a) + wrapRow(b) + '</mfrac>'; }
         if (t.cmd === 'sqrt') return '<msqrt>' + group() + '</msqrt>';
+        if (t.raw != null) return '<mtext>' + esc(t.raw.replace(/ /g, '\u00a0')) + '</mtext>';
         if (t.cmd === 'text' || t.cmd === 'mathrm') return '<mtext>' + esc(textArg()) + '</mtext>';
+        if (t.cmd === 'xrightarrow') return '<mover><mo>→</mo>' + wrapRow(group()) + '</mover>';
+        if (t.cmd === 'begin') return table();
+        if (GREEK[t.cmd]) return '<mi mathvariant="normal">' + GREEK[t.cmd] + '</mi>';
         if (t.cmd === ',' || t.cmd === ';' || t.cmd === ' ') return '<mspace width="0.2em"/>';
         if (SYM[t.cmd]) return '<mo>' + SYM[t.cmd] + '</mo>';
         return '<mi>' + esc(t.cmd) + '</mi>';
@@ -105,7 +149,7 @@ var WQI = (function () {
   function tex(s) {
     return String(s == null ? '' : s).split(/(\$[^$]*\$)/).map(function (seg) {
       if (seg.length > 1 && seg[0] === '$' && seg[seg.length - 1] === '$') {
-        return '<math class="wq-m" dir="ltr">' + texParse(texTokens(seg.slice(1, -1)), { i: 0 }) + '</math>';
+        return '<span class="wq-mx"><math class="wq-m" dir="ltr">' + texParse(texTokens(seg.slice(1, -1)), { i: 0 }) + '</math></span>';
       }
       return esc(seg);
     }).join('');
@@ -150,6 +194,8 @@ var WQI = (function () {
   function pct(n) { return Math.round(n * 1000) / 10 + '%'; }
   // A picture file shows a soft pulse until it arrives (slow data), then clears itself.
   var LOADING = ' class="wq-ld" onload="this.className=\'\'" onerror="this.className=\'\'"';
+  // A figure file that never arrives (a missing object) hides its figure: never a broken-picture icon and its alt text.
+  var FIG_LOADING = ' class="wq-ld" onload="this.className=\'\'" onerror="var f=this.closest(\'figure\');if(f)f.style.display=\'none\'"';
   // Every picture file a question needs, so the page can fetch the next question's while the child answers.
   function imageUrls(q) {
     var out = [], f = figureOf(q);
@@ -180,7 +226,7 @@ var WQI = (function () {
     var box = vb ? ' style="aspect-ratio:' + vb.w + '/' + vb.h + ';max-width:calc(46vh * ' + vb.w + ' / ' + vb.h + ')"' : '';
     var draw = f.svg
       ? '<div class="wq-svg" role="img" aria-label="' + esc(f.alt || '') + '"' + (f.dir ? ' dir="' + esc(f.dir) + '"' : '') + '>' + cleanSvg(f.svg) + '</div>'
-      : '<img src="' + esc(f.url) + '" alt="' + esc(f.alt || '') + '"' + LOADING + '>';
+      : '<img src="' + esc(f.url) + '" alt="' + esc(f.alt || '') + '"' + FIG_LOADING + '>';
     return '<figure class="wq-fig' + (hot ? ' wq-labelfig' : '') + (f.type ? ' wq-f-' + esc(String(f.type).replace(/[^a-z0-9_-]/gi, '')) : '') + '"><div class="wq-figbox"' + box + '>' + draw + hot + '</div>' +
       '<button class="wq-zoom" aria-label="' + esc(T.zoom || 'Zoom') + '">' + ZOOM_ICON + '</button></figure>';
   }
@@ -260,7 +306,10 @@ var WQI = (function () {
       : '<div class="wq-qcard"><p class="wq-qtext">' + tex(q.text) + '</p><button class="wq-spk" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">🔊</button></div>' + stim;
     var body = '';
     var pics = o.length && o.every(function (x) { return x.img || (x.pic && (x.pic.svg || x.pic.glyph || x.pic.kind === 'glyph')); });
-    if (k === 'picture' || (k === 'listen' && pics)) {
+    // A picture grid needs every option to be a picture (or an emoji, drawn big): one the bot could not
+    // draw stays a word, and a word in a picture tile was painted twice (render matrix). Then: a list.
+    var grid = o.length && o.every(function (x) { return x.img || (x.pic && (x.pic.svg || x.pic.glyph || x.pic.kind === 'glyph')) || !speakable(x.text); });
+    if ((k === 'picture' && grid) || (k === 'listen' && pics)) {
       var quiet = k === 'listen';
       body = '<div class="wq-pgrid" role="group">' + o.map(function (x, i) {
         var nm = x.name || (x.pic && x.pic.name) || x.text || '';
@@ -408,7 +457,7 @@ var WQI = (function () {
     });
   }
   return { kind: kind, grade: grade, tex: tex, say: say, cleanSvg: cleanSvg, figureHtml: figureHtml, itemHtml: itemHtml, readParts: readParts,
-    rightText: rightText, joinSay: joinSay, letters: letters, imageUrls: imageUrls, wire: wire, mark: mark, wireZoom: wireZoom, speakable: speakable, SHAPES: SHAPES };
+    rightText: rightText, joinSay: joinSay, letters: letters, imageUrls: imageUrls, wire: wire, mark: mark, wireZoom: wireZoom, speakable: speakable, SHAPES: SHAPES, TEX_SUPPORTED: TEX_SUPPORTED };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
@@ -488,7 +537,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       vs: { win: 'You beat the challenge!', tie: "It's a tie!", lose: 'So close! Play again?' }, vsYou: 'You', frOut: { win: 'beat you!', tie: 'tie', lose: 'you won' },
       offWait: 'Your results will reach your teacher when you are back online.', offDone: 'All done! Your answers are saved on this phone.', tryNow: 'Send now',
       offline: 'No internet right now. Your answers are saved on this phone.', tooFew: 'Answer a few more questions first.', oops: 'Something went wrong. Please try again.',
-      friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child'
+      friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child',
+      pulse: function (f, n) { return (f || 'A friend') + ' got Q' + n + ' right ✓'; },
+      liveNow: function (n) { return n + ' classmates are playing right now — join them!'; },
+      nth: function (n) {
+        if (n === 1) return "You're the first in your class to finish today!";
+        var t = n % 100, u = n % 10, sfx = t >= 11 && t <= 13 ? 'th' : u === 1 ? 'st' : u === 2 ? 'nd' : u === 3 ? 'rd' : 'th';
+        return ["You're the ", '<bdi>' + n + sfx + '</bdi>', ' in your class to finish today'];
+      }
     },
     ur: {
       quiz: 'کوئز', from: function (t, c) { return [t ? t + ' کی طرف سے' : '', c ? String(c).replace(/ /g, '\u00A0') : ''].filter(Boolean).join(' · '); },
@@ -542,7 +598,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑی سی کمی رہ گئی! دوبارہ کھیلیں؟' }, vsYou: 'آپ', frOut: { win: 'آپ سے آگے!', tie: 'برابر', lose: 'آپ کی جیت' },
       offWait: 'انٹرنیٹ واپس آتے ہی آپ کا نتیجہ استاد تک پہنچ جائے گا۔', offDone: 'سب ہو گیا! آپ کے جواب اس فون پر محفوظ ہیں۔', tryNow: 'ابھی بھیجیں',
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
-      friends: 'دوست جنہوں نے مکمل کیا', home: 'پہلا صفحہ', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں'
+      friends: 'دوست جنہوں نے مکمل کیا', home: 'پہلا صفحہ', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں',
+      pulse: function (f, n) { return (f ? f : 'ایک دوست') + ' نے سوال ' + n + ' ٹھیک کیا ✓'; },
+      liveNow: function (n) { return 'ابھی ' + n + ' ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!'; },
+      nth: function (n) {
+        if (n === 1) return 'آج آپ کی کلاس میں سب سے پہلے آپ نے مکمل کیا!';
+        return ['آج آپ کی کلاس میں مکمل کرنے والوں میں آپ کا نمبر ', '<bdi>' + n + '</bdi>', ' ہے'];
+      }
     }
   }[LANG];
 
@@ -631,8 +693,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (!S.st || !S.queue.length) return Promise.resolve();
     var batch = S.queue.slice(0, 20);
     var progressed = false;
-    flushP = api('POST', 'answers', { st: S.st, a: batch }).then(function (r) {
+    flushP = api('POST', 'answers', { st: S.st, a: batch, since: PULSE.since }).then(function (r) {
       if (r.ok) {
+        pulseFeed(r.body.pulse);
         var done = {};
         (r.body.recorded || []).concat(r.body.dup || [], r.body.unknown || []).forEach(function (q) { done[q] = 1; });
         var before = S.queue.length;
@@ -649,6 +712,83 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     return flushP;
   }
   window.addEventListener('online', function () { flushQueue(); });
+
+  /* ---------------- M17 peer pulse: "Sara got Q4 right ✓" ----------------
+     Classmates' right answers on this class code (bot web-quiz-pulse.js), fed by the /answers response
+     and, while a child sits on one question, a light poll (every 15 s after 15 s, at most 8 per question,
+     only while the tab is visible). One quiet line under the progress bar: never over the options or the
+     listen button, never in the first 3 s of a question, at most one per 20 s, gone after 2.5 s, no sound.
+     Off for grades 1-2 (they follow the voice and the pictures; a moving name competes with it), in the
+     teacher's preview, and when the page is quiet (🔕). An invited friend is "A friend", never a name. */
+  var PULSE = { since: 0, shown: 0, qid: null, qAt: 0, pend: null, held: null, wt: 0, poll: 0, polls: 0 };
+  function pulseOn() {
+    var g = parseInt(Q.grade, 10);
+    return !B.preview && SOUND && g !== 1 && g !== 2;
+  }
+  function pulseFeed(list) {
+    if (!list || !list.length) return;
+    list.forEach(function (e) { if (e && e.at > PULSE.since) PULSE.since = e.at; });
+    if (!pulseOn()) return;
+    PULSE.pend = { e: list[0], n: list.length, got: Date.now() };
+    pulseTry();
+  }
+  function pulseTry() {
+    var p = PULSE.pend;
+    if (!p) return;
+    var now = Date.now();
+    if (!PULSE.qid || !/^M[67]$/.test(ROOT.getAttribute('data-m') || '') || now - p.got > 30000 || !pulseOn()) { PULSE.pend = null; return; }
+    var wait = Math.max(PULSE.qAt + 3000, PULSE.shown ? PULSE.shown + 20000 : 0) - now;
+    if (wait > 0) { if (PULSE.wt) clearTimeout(PULSE.wt); PULSE.wt = setTimeout(pulseTry, wait); return; }
+    PULSE.pend = null;
+    // The count travels as `i`: ev() keeps `n` for the event's own name.
+    if (pulseShow(p.e)) { PULSE.shown = now; ev('pulse_shown', { i: p.n }); }
+    // It would have covered content (a tall question scrolled to "Next"): keep it for the top of the next question.
+    else PULSE.held = p;
+  }
+  // Under the bar's "Question n of N" line; when the page is scrolled so that the strip would touch an
+  // option or the listen button, it is skipped rather than drawn over them.
+  function pulseShow(e) {
+    var top = null;
+    try {
+      var bar = $('.wq-bar').getBoundingClientRect();
+      if (bar.bottom < 0) return false;
+      top = Math.max(0, Math.round(bar.bottom) + 2);
+      var hit = ['.wq-opt', '#wq-spk', '.wq-item'].some(function (sel) {
+        var el = $(sel); if (!el || !el.getBoundingClientRect) return false;
+        var r = el.getBoundingClientRect();
+        return r.height > 0 && r.top < top + 28 && r.bottom > top;
+      });
+      if (hit) return false;
+    } catch (x) {}
+    var t = document.createElement('div');
+    t.className = 'wq-pulse';
+    t.setAttribute('aria-hidden', 'true');
+    t.textContent = T.pulse(e.invited ? null : e.first, e.qn);
+    if (top != null) t.style.top = top + 'px';
+    ROOT.appendChild(t);
+    // Fixed, so a scroll would slide it over the stem or the options: it goes at the first scroll.
+    function gone() { t.hidden = true; if (t.parentNode) t.parentNode.removeChild(t); try { window.removeEventListener('scroll', gone); } catch (x) {} }
+    try { window.addEventListener('scroll', gone, { passive: true }); } catch (x) {}
+    setTimeout(gone, 2500);
+    return true;
+  }
+  function pulseStop() { if (PULSE.poll) clearInterval(PULSE.poll); PULSE.poll = 0; }
+  function pulseQuestion(q, at) {
+    PULSE.qid = q.qid; PULSE.qAt = at; PULSE.polls = 0;
+    pulseStop();
+    if (!pulseOn()) return;
+    // A pulse held back because it would have covered the last question: shown 3 s into this one (if under 60 s old).
+    var h = PULSE.held; PULSE.held = null;
+    if (h && at - h.got <= 60000 && !PULSE.pend) { PULSE.pend = { e: h.e, n: h.n, got: at }; pulseTry(); }
+    PULSE.poll = setInterval(function () {
+      if (PULSE.qid !== q.qid || S.answers[q.qid] || ROOT.getAttribute('data-m') !== 'M6' || PULSE.polls >= 8 || !S.st) { pulseStop(); return; }
+      if (document.visibilityState !== 'visible') return;
+      PULSE.polls += 1;
+      api('GET', 'pulse/' + CODE + '?st=' + encodeURIComponent(S.st) + '&since=' + PULSE.since)
+        .then(function (r) { if (r.ok) pulseFeed(r.body.pulse); }, function () {});
+    }, 15000);
+  }
+  /* ---------------- end peer pulse ---------------- */
 
   /* ---------------- the shared feedback voice ----------------
      Lines recorded ONCE for every quiz (public/wq/voice/<lang>/<set>-<i>.mp3, manifest.json beside them,
@@ -1038,7 +1178,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       last ? '<button class="wq-btn wq-go" id="wq-play-as">' + esc(T.playAs(last.first)) + '</button><button class="wq-btn wq-ghost" id="wq-notme">' + esc(T.notMe(last.first)) + '</button>'
         : '<button class="wq-btn wq-go" id="wq-play">' + esc(T.play) + '</button>') +
       (LIVE.ict_today_floor ? '<p class="wq-proof">🌟 ' + esc(T.proof(LIVE.ict_today_floor)) + '</p>' : '') +
-      (LIVE.class_today ? '<p class="wq-small">' + esc(T.classToday(LIVE.class_today)) + '</p>' : '');
+      (LIVE.class_today ? '<p class="wq-small">' + esc(T.classToday(LIVE.class_today)) + '</p>' : '') +
+      // Classmates with a right answer in the last 2 minutes (a count from the bot's memory); never on a friend's challenge.
+      (LIVE.now >= 2 && !ch ? '<p class="wq-proof">🟢 ' + esc(T.liveNow(LIVE.now)) + '</p>' : '');
     render(h, 'M3');
     wireBar();
     on('#wq-play', who);
@@ -1358,7 +1500,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var dref = sget('wq_d', null);
     if (dref) body.device_ref = dref;
     if (params.p) body.p = params.p;
-    if (S.st) body.resume_st = S.st;
+    // The stored session resumes only its own child: another card, a typed name or a roll number never carries it.
+    var other = pick.new || pick.roll != null || (pick.chip && !(S.child && S.child.chip === pick.chip));
+    if (S.st && !other) body.resume_st = S.st;
     if (CLS_PICK && (pick.roll != null || pick.new)) body.list = CLS_PICK;
     api('POST', 'session', body).then(function (r) {
       busy = false;
@@ -1459,6 +1603,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
   function ahead(i) {
     warmPics(QS[i + 1]); warmPics(QS[i + 2]);
+    // The results screen's Jugnu too: a child who finishes offline still sees them celebrate.
+    if (i === 0) { try { new Image().src = JUG_DIR + 'celebrate.webp'; } catch (e) {} }
     setTimeout(function () {
       warmClips(QS[i + 1]); warmClips(QS[i + 2]);
       var c = navigator.connection || {};
@@ -1537,6 +1683,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     WQI.wireZoom(ROOT, T);
     if (!retry) ahead(i);
     ev(retry ? 'retry_view' : 'question_view', { qid: q.qid, i: i + 1 });
+    if (!retry) pulseQuestion(q, shown); else PULSE.qid = null;
 
     // Jugnu's hint (q.hint, written with the lesson in mind and checked in code never to give the
     // answer): a tap shows it beside a thinking Jugnu and plays its own clip. A question with no hint
@@ -1806,6 +1953,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
 
   /* ---------------- M10 scorecard ---------------- */
+  // "You're the 6th in your class to finish today": the copy's text escaped, the number isolated (<bdi>).
+  function nthHtml(n) {
+    var t = T.nth(Number(n));
+    return typeof t === 'string' ? esc(t) : esc(t[0]) + t[1] + esc(t[2]);
+  }
   function card() {
     var res = S.result || {};
     var c = res.card || {};
@@ -1822,6 +1974,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
       (kept ? '<div class="wq-banner">' + esc(TW.practice(digitsFor(kept.correct), digitsFor(shareT))) + '</div>' : '') +
       vsStrip(res.vs, c, total) + newBest(c, total) +
+      (c.nth ? '<p class="wq-proof wq-nth"><span>' + nthHtml(c.nth) + '</span></p>' : '') +
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
       '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>' +
       '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' +
@@ -2036,7 +2189,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       ? '<div class="wq-chips wq-schips"><button class="wq-chip' + (SCH.sector ? '' : ' wq-on') + '" id="wq-all">' + esc(T.allSchools) + '</button>' +
         '<button class="wq-chip' + (SCH.sector ? ' wq-on' : '') + '" id="wq-sector">' + esc(T.mySector) + ' · <bdi>' + esc(mine.sector) + '</bdi></button></div>' : '';
     var zn = b.zero_names || [];
-    var zero = b.zero_n && (b.rows || []).length && !SCH.sector
+    var zero = b.zero_n && !SCH.sector
       ? '<details class="wq-zero-list"><summary>' + esc(T.zeroN(b.zero_n)) + '</summary>' +
         (zn.length ? '<ul>' + zn.map(function (n) { return '<li><bdi>' + esc(n) + '</bdi></li>'; }).join('') + '</ul>' : '') + '</details>' : '';
     var h = bar() + '<h2>' + esc(T.schoolsT) + '</h2><p class="wq-sub">' + esc(T.schoolsRule) + '</p>' + top + chips +

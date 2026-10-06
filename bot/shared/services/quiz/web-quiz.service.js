@@ -45,6 +45,7 @@ const { teacherLabel } = require('./quiz-teacher-label');
 const Roster = require('./web-quiz-roster');
 const Identity = require('./web-quiz-identity');
 const IdRoster = require('./web-quiz-identity-roster');
+const Pulse = require('./web-quiz-pulse');
 const WebQuizBrand = require('../../config/web-quiz-brand');
 const { orgName, botName } = require('../../config/branding');
 
@@ -473,7 +474,8 @@ async function getQuiz(code, { p } = {}) {
       ...(roster ? { roster: { lists: roster.lists.length, ...(pick.ask ? { classes: pick.ask } : {}) } } : {}),
       ...(idn ? { identity: await identityBoot(ctx, idn) } : {}),
     },
-    live: await liveCounts(ctx),
+    // now: classmates with a right answer in the last 2 minutes (peer pulse ring), sent only when there are some.
+    live: { ...(await liveCounts(ctx)), ...(Pulse.liveNow(ctx.shareCodeId) ? { now: Pulse.liveNow(ctx.shareCodeId) } : {}) },
     video,
     preview,
     // Which brand the page wears: a key only; the edge owns the brand's look.
@@ -755,7 +757,12 @@ async function startSession(body = {}) {
     const tok = T.verify(body.resume_st, 's');
     if (tok && tok.sc === ctx.shareCodeId) {
       const { data: s } = await supabase.from('quiz_sessions').select(SESSION_COLS).eq('id', tok.sid).maybeSingle();
-      if (s && s.status === 'in_progress' && (!s.expires_at || new Date(s.expires_at) > new Date())) {
+      // A token resumes only ITS child: a body that names someone else (a typed name, a roll number, another
+      // child's chip) starts that child's own session, never continues this one with their answers.
+      const other = body.new || body.roll != null
+        || (body.chip && !(s && s.student_id && String(body.chip) === T.chipId(ctx.shareCodeId, s.student_id)));
+      if (other && s) logEvent('web_quiz.resume_skipped', { shareCodeId: ctx.shareCodeId, sessionId: s.id });
+      if (s && !other && s.status === 'in_progress' && (!s.expires_at || new Date(s.expires_at) > new Date())) {
         const answered = await answeredIds(s.id);
         const prior = await priorFinish(ctx.shareCodeId, s.student_id, s.id);
         const nameOf = await shownNames(ctx.lang, [s.student_id]);
@@ -1156,10 +1163,9 @@ async function fixWhoV2(ctx, body) {
 
 /**
  * The teacher's report token (`tr`) for this code: same teacher, and a token for this quiz or
- * for all of the teacher's quizzes. Until the report token's module is wired here, `tr` grants
- * nothing (the preview link `p` is the way in).
+ * for all of the teacher's quizzes (signed kind 'tr'; a child's or preview token is refused).
  */
-const verifyTeacherReport = () => null; // the report token's verifier replaces this
+const { verifyTeacherReport } = require('./teacher-report-token');
 function teacherReportOk(tr, ctx) {
   const tok = verifyTeacherReport(tr);
   return Boolean(tok && tok.teacherId === ctx.teacherUserId && (tok.quizId == null || tok.quizId === ctx.quizId));
@@ -1195,6 +1201,14 @@ async function whoClass(body = {}) {
 
 // ─── E4 answers ─────────────────────────────────────────────────────────────
 
+/** The name the page shows for this child (an Urdu quiz: the class list's Urdu spelling), looked up once per session. */
+async function pulseName(s) {
+  const known = Pulse.knownName(s.id);
+  if (known !== undefined) return known;
+  const nameOf = await shownNames(await codeLanguage(s.share_code_id), [s.student_id]);
+  return Pulse.rememberName(s.id, nameOf(s.student_id, s.student_name));
+}
+
 async function recordAnswers(body = {}) {
   requireOn();
   const { s } = await sessionFromToken(body.st);
@@ -1223,12 +1237,12 @@ async function recordAnswers(body = {}) {
       response_time_seconds: Number.isFinite(ms) && ms >= 0 ? Math.min(3600, Math.round(ms / 1000)) : null,
     });
   }
-  if (!fresh.length) return out;
+  if (!fresh.length) return withPulse(s, body, out, fresh, questions);
   // A phone back from offline sends its whole queue at once: one insert, not one per answer.
   const { error } = await supabase.from('quiz_answers').insert(fresh.length === 1 ? fresh[0] : fresh);
   if (!error) {
     fresh.forEach((r) => out.recorded.push(r.question_id));
-    return out;
+    return withPulse(s, body, out, fresh, questions);
   }
   if (error.code !== '23505') {
     logToFile('❌ web-quiz: answer insert failed', { sessionId: s.id, error: error.message }, 'error');
@@ -1248,7 +1262,26 @@ async function recordAnswers(body = {}) {
     }
     out.recorded.push(r.question_id);
   }
-  return out;
+  return withPulse(s, body, out, fresh, questions);
+}
+
+/**
+ * Peer pulse (web-quiz-pulse.js): this child's newly recorded RIGHT answers go into the class's ring
+ * (never the teacher's preview), with the number the child saw; the response carries classmates'
+ * right answers since the page's `since`, only when there are some.
+ */
+async function withPulse(s, body, out, rows, questions) {
+  const right = s.user_id ? [] : rows.filter((r) => r.is_correct && out.recorded.includes(r.question_id));
+  if (right.length) {
+    // The name the page shows (an Urdu quiz: the class list's Urdu spelling), once per session; a friend has none.
+    const first = s.invited_by_student_id ? null : await pulseName(s);
+    right.forEach((r) => Pulse.push({
+      shareCodeId: s.share_code_id, sessionId: s.id, first,
+      qn: questions.findIndex((q) => q.id === r.question_id) + 1, invited: Boolean(s.invited_by_student_id),
+    }));
+  }
+  const pulse = Pulse.since({ shareCodeId: s.share_code_id, sessionId: s.id, sinceMs: body.since });
+  return pulse.length ? { ...out, pulse } : out;
 }
 
 // ─── E5 finish ──────────────────────────────────────────────────────────────
@@ -1332,6 +1365,7 @@ async function finishSession(body = {}) {
       ...(earlier && !s.user_id ? { practice: true, kept: { correct: earlier.correct_answers || 0, total: earlier.total_questions_answered || 0 } } : {}),
       // A practice round's goal: the best earlier score on this code, so the card can say "New best!".
       ...(earlier && !s.user_id ? await bestField(s) : {}),
+      ...(counted.counted && !s.user_id && !s.invited_by_student_id ? placeToday(await classFinishersToday(s.share_code_id), s.id) : {}),
     },
     challenge_code: await challengeCodeFor(s),
     // A friend's challenge: who won against the score the landing showed them.
@@ -1353,6 +1387,24 @@ async function versus(s, mine) {
     logToFile('⚠️ web-quiz: challenge outcome unavailable', { sessionId: s.id, error: e.message });
     return {};
   }
+}
+
+/** Today's (PKT) counted class finishers of one class code: first finish per child, no teacher, no invited friend. */
+async function classFinishersToday(shareCodeId) {
+  try {
+    const { data } = await supabase.from('quiz_sessions').select('id, student_id, user_id, status, completed_at, created_at')
+      .eq('share_code_id', shareCodeId).is('invited_by_student_id', null).eq('status', 'completed').gte('completed_at', pktMidnightIso());
+    return oneAttemptPerChild((data || []).filter((r) => !r.user_id), { rule: 'first_completed' });
+  } catch (e) {
+    logToFile('⚠️ web-quiz: class finishers unavailable', { error: e.message });
+    return [];
+  }
+}
+
+/** "You're the 6th in your class to finish today": this session's place among them ({} when it is not one). Pure. */
+function placeToday(rows, sessionId) {
+  const mine = rows.find((r) => r.id === sessionId);
+  return mine ? { nth: rows.filter((r) => String(r.completed_at) <= String(mine.completed_at)).length } : {};
 }
 
 // ─── E6 the class league table ─────────────────────────────────────────────
@@ -1555,5 +1607,7 @@ module.exports = {
   getQuiz, startSession, recordAnswers, finishSession, board, me, events, media,
   // exported for tests and the router
   WqError, rankRows, cleanEvent, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, whoClass, challengeOutcome,
+  // the render matrix (scripts/qa/render-matrix) turns synthetic rows into page items with it
+  questionPayload,
   BOARD_TOP, QUESTIONS_MAX,
 };

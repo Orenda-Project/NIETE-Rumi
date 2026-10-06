@@ -46,7 +46,13 @@ const PKT_OFFSET_MS = 5 * 3600 * 1000;
 
 const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
 const gradeNum = (v) => (String(v == null ? '' : v).match(/\d+/) || [''])[0];
-const listLabel = (l) => [String(l.class_name || '').trim(), String(l.section || '').trim()].filter(Boolean).join('-');
+// A mirrored list is already named "Grade 4 - A" with section 'A' (82% of prod lists): never "Grade 4 - A-A".
+const listLabel = (l) => {
+  const name = String(l.class_name || '').trim();
+  const section = String(l.section || '').trim();
+  if (!section || new RegExp(`(^|[\\s\\-–])${section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i').test(name)) return name;
+  return [name, section].filter(Boolean).join('-');
+};
 const pct = (correct, total) => (total > 0 ? Math.round((100 * correct) / total) : 0);
 const mean = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
 const LINK_RX = /https?:\/\/\S+/;
@@ -120,6 +126,18 @@ function countedSessions(rows, teacherId) {
   return out.filter((s) => s.status === 'completed');
 }
 
+/** One counted session per child across a quiz's codes: the earliest finish. Rows without a student pass through. */
+function onePerChildAcrossCodes(sessions) {
+  const seen = new Set();
+  return sessions.slice().sort((a, b) => String(a.completed_at || '').localeCompare(String(b.completed_at || '')))
+    .filter((s) => {
+      if (!s.student_id) return true;
+      if (seen.has(s.student_id)) return false;
+      seen.add(s.student_id);
+      return true;
+    });
+}
+
 async function classCodes(teacherId, quizIds) {
   if (!quizIds.length) return [];
   const { data, error } = await supabase.from('quiz_share_codes')
@@ -140,9 +158,14 @@ async function sessionsFor(codeIds) {
  * The message the teacher forwards into the class group: the quiz is still
  * open, here is the link. It names no child. Gender-neutral in both languages.
  */
-function reminderText({ topic, link, language }) {
+function reminderText({ topic, link, language, played = null, of = null, className = null }) {
   const t = String(topic || '').trim();
-  return resolveUx(t ? 'trReminder' : 'trReminderNoTopic', { language: clampLanguage(language), params: { topic: t, link } });
+  const lang = clampLanguage(language);
+  // Social proof when the class is known: "12 of 31 in 5-A have played" — a count, never a name.
+  if (t && className && Number.isFinite(of) && of > 0 && Number.isFinite(played)) {
+    return resolveUx('trReminderCount', { language: lang, params: { topic: t, link, played, of, cls: className } });
+  }
+  return resolveUx(t ? 'trReminder' : 'trReminderNoTopic', { language: lang, params: { topic: t, link } });
 }
 
 /** Every question with how many counted children got it right, and the most-chosen wrong answer. */
@@ -181,6 +204,83 @@ async function questionStats(quizId, counted) {
 }
 
 /**
+ * WHO is in this quiz's class, from identity v2 (web-quiz-identity-roster
+ * nonAttempters): the hand-out's bound class, its deduplicated roster with list
+ * numbers, typed children who are not on it (provisional), and the opaque class
+ * keys /who/class takes. Null when v2 cannot answer (no class tables, no class
+ * for this teacher, a read error) — the teacher's class lists answer instead.
+ */
+async function fromIdentity(code, quizId) {
+  if (!code) return null;
+  let na = null;
+  try {
+    na = await require('./web-quiz-identity-roster').nonAttempters({ shareCodeId: code.id });
+  } catch (err) {
+    logToFile('⚠️ teacher report: identity v2 unavailable — class lists instead', { quizId, error: err.message });
+    return null;
+  }
+  if (!na || !na.class || na.class.state === 'none') return null;
+  const known = na.class.state === 'known';
+  const bySession = new Map((na.played || []).filter((p) => p.onList).map((p) => [p.sessionId, p]));
+  const byStudent = new Map((na.played || []).filter((p) => p.onList).map((p) => [p.studentId, p]));
+  return {
+    roster: {
+      state: known ? 'known' : 'ambiguous',
+      className: known ? na.class.label || null : null,
+      of: known ? na.class.of : null,
+      lists: (na.class.classes || []).map((c) => ({ key: c.key, label: c.label })),
+    },
+    listed: (s) => bySession.get(s.id) || (s.student_id ? byStudent.get(s.student_id) : null) || null,
+    notPlayed: known && na.notPlayed
+      ? na.notPlayed.map((k) => ({ studentId: k.studentId, first: k.first, roll: k.number != null ? Number(k.number) : null }))
+      : null,
+    provisional: known ? groupProvisional(na.provisional || []) : [],
+  };
+}
+
+/** A typed name's grouping key: identity v2's canonical form (case, spaces, script folded). */
+function typedKey(name) {
+  try { return require('./web-quiz-identity').canon(name || '') || ''; } catch { return String(name || '').trim().toLowerCase(); }
+}
+
+/** Provisional rows of one typed name collapse to the FIRST finish, with how many times it was typed. */
+function groupProvisional(rows) {
+  const byName = new Map();
+  rows.slice().sort((a, b) => String(a.finishedAt || '').localeCompare(String(b.finishedAt || ''))).forEach((r) => {
+    const k = typedKey(r.typed) || r.sessionId;
+    const first = byName.get(k);
+    if (first) first.repeats += 1;
+    else byName.set(k, { ...r, repeats: 1 });
+  });
+  return [...byName.values()];
+}
+
+/** The same answer from the teacher's legacy class lists (student_lists), for a teacher identity v2 cannot place. */
+async function fromLists(teacherId, quiz, listId, counted, lang) {
+  let roster = null;
+  try { roster = await readRoster(teacherId); } catch (err) {
+    logToFile('⚠️ teacher report: class list read failed — no not-played list', { quizId: quiz.id, error: err.message });
+  }
+  const { roster: view, one } = classOf(roster, quiz, listId);
+  const kidOf = new Map(((roster && roster.kids) || []).map((k) => [k.id, k]));
+  const inClass = (k) => Boolean(one && one.kids.some((x) => x.id === k.id));
+  const done = new Set(counted.map((s) => s.student_id).filter(Boolean));
+  return {
+    roster: view,
+    listed: (s) => {
+      const k = s.student_id ? kidOf.get(s.student_id) : null;
+      return k && inClass(k) ? { first: firstName(Roster.displayName(k, lang)), number: k.roll_number } : null;
+    },
+    notPlayed: one
+      ? one.kids.filter((k) => !done.has(k.id))
+        .map((k) => ({ studentId: k.id, first: firstName(Roster.displayName(k, lang)), roll: k.roll_number != null ? Number(k.roll_number) : null }))
+        .sort((a, b) => ((a.roll || 999) - (b.roll || 999)) || a.first.localeCompare(b.first))
+      : null,
+    provisional: [],
+  };
+}
+
+/**
  * @param {string} teacherId  from the verified token, never from the request
  * @param {string} quizId
  * @param {{listId?: string|null}} [opts] the class the teacher picked on the page
@@ -195,40 +295,61 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   const meta = quiz.meta || {};
 
   const codes = await classCodes(teacherId, [quiz.id]);
-  const counted = countedSessions(await sessionsFor(codes.map((c) => c.id)), teacherId);
+  // Per class code first (the class report's rule), then ONE row per child across the
+  // quiz's codes: this page is one quiz, so a child who played on two hand-outs is
+  // one child — the earlier finish counts.
+  const counted = onePerChildAcrossCodes(countedSessions(await sessionsFor(codes.map((c) => c.id)), teacherId));
 
-  let roster = null;
-  try { roster = await readRoster(teacherId); } catch (err) {
-    logToFile('⚠️ teacher report: class list read failed — no not-played list', { quizId, error: err.message });
-  }
-  const { roster: rosterView, one } = classOf(roster, quiz, listId);
-  const rollOf = new Map(((roster && roster.kids) || []).map((k) => [k.id, k]));
   const lang = clampLanguage(quiz.language);
+  const primary = codes.find((c) => c.id === meta.share_code_id) || codes[0] || null;
+  // Identity v2 answers first. A legacy class list the teacher picked on the page,
+  // or the quiz's own list_id, still decides when v2 does not KNOW the class
+  // (a list with no class behind it: legacy-only teachers).
+  let who = await fromIdentity(primary, quizId);
+  if (!who || (who.roster.state !== 'known' && (listId || quiz.list_id))) {
+    who = await fromLists(teacherId, quiz, listId, counted, lang);
+  }
 
-  const played = counted.map((s) => {
-    const listed = s.student_id ? rollOf.get(s.student_id) : null;
+  // A child not on the list who typed the same name on this quiz more than once (a fresh
+  // phone, "I don't know" twice) is ONE child: the first finish counts, like any child.
+  const sameTyped = new Map();
+  const counting = counted.slice().sort((a, b) => String(a.completed_at || '').localeCompare(String(b.completed_at || '')))
+    .filter((s) => {
+      if (who.listed(s)) return true;
+      const k = typedKey(s.student_name);
+      if (!k) return true;
+      if (sameTyped.has(k)) return false;
+      sameTyped.set(k, s.id);
+      return true;
+    });
+  const played = counting.map((s) => {
+    const listed = who.listed(s);
     const correct = s.correct_answers || 0;
     const total = s.total_questions_answered || 0;
     return {
-      first: firstName(listed ? Roster.displayName(listed, lang) : s.student_name),
-      roll: listed && listed.roll_number != null ? Number(listed.roll_number) : null,
-      onList: Boolean(listed && one && one.kids.some((k) => k.id === listed.id)),
+      first: listed ? listed.first : firstName(s.student_name),
+      roll: listed && listed.number != null ? Number(listed.number) : null,
+      onList: Boolean(listed),
       correct, total, pct: pct(correct, total),
     };
   }).sort((a, b) => (b.pct - a.pct) || ((a.roll || 999) - (b.roll || 999)) || a.first.localeCompare(b.first));
+  const { roster: rosterView, notPlayed, provisional } = who;
 
-  const done = new Set(counted.map((s) => s.student_id).filter(Boolean));
-  const notPlayed = one
-    ? one.kids.filter((k) => !done.has(k.id))
-      .map((k) => ({ first: firstName(Roster.displayName(k, lang)), roll: k.roll_number != null ? Number(k.roll_number) : null }))
-      .sort((a, b) => ((a.roll || 999) - (b.roll || 999)) || a.first.localeCompare(b.first))
-    : null;
-
-  const questions = await questionStats(quiz.id, counted);
+  const questions = await questionStats(quiz.id, counting);
   const hardest = questions.filter((q) => q.answered > 1 && q.correctPct < 100)
     .sort((a, b) => a.correctPct - b.correctPct || a.n - b.n)[0];
   const code = (codes.find((c) => c.id === meta.share_code_id) || codes[0] || {}).code || null;
-  const link = ((meta.student_message || '').match(LINK_RX) || [null])[0];
+  // The children's link: the one the hand-out forwarded; else (a hand-out whose message
+  // carries none) the quiz's own class code on the web page, when the web quiz is on.
+  let link = ((meta.student_message || '').match(LINK_RX) || [null])[0];
+  if (!link && code) {
+    try {
+      const WQL = require('./web-quiz-link');
+      if (await WQL.webQuizOn(teacherId)) link = `${WQL.webBaseUrl()}/q/${code}`;
+    } catch (err) {
+      logToFile('⚠️ teacher report: no fallback quiz link', { quizId, error: err.message });
+    }
+  }
 
   return {
     quiz: {
@@ -238,6 +359,9 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     roster: rosterView,
     summary: {
       played: played.length,
+      // The class tile pairs the children ON the class list with the class size; typed
+      // children who are not on it are counted apart (never "76 of 10 played").
+      onList: rosterView.state === 'known' ? played.filter((p) => p.onList).length : null,
       of: rosterView.of,
       avg: mean(played.map((p) => p.pct)),
       total: questions.length || Math.max(0, ...played.map((p) => p.total)),
@@ -245,9 +369,16 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     },
     played,
     notPlayed,
+    provisional,
     questions,
     guidance: meta.report_guidance && typeof meta.report_guidance === 'object' ? meta.report_guidance : null,
-    reminder: link ? { language: lang, text: reminderText({ topic: quiz.topic, link, language: lang }) } : null,
+    reminder: link ? {
+      language: lang,
+      text: reminderText({
+        topic: quiz.topic, link, language: lang,
+        ...(rosterView.state === 'known' ? { played: played.filter((p) => p.onList).length, of: rosterView.of, className: rosterView.className } : {}),
+      }),
+    } : null,
   };
 }
 
@@ -274,11 +405,11 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
   const codes = await classCodes(teacherId, qs.map((q) => q.id));
   const quizOfCode = new Map(codes.map((c) => [c.id, c.quiz_id]));
   const counted = countedSessions(await sessionsFor(codes.map((c) => c.id)), teacherId);
-  const byQuiz = new Map();
+  const sessionsOf = new Map();
   counted.forEach((s) => {
     const q = quizOfCode.get(s.share_code_id);
-    if (!byQuiz.has(q)) byQuiz.set(q, []);
-    byQuiz.get(q).push(pct(s.correct_answers || 0, s.total_questions_answered || 0));
+    if (!sessionsOf.has(q)) sessionsOf.set(q, []);
+    sessionsOf.get(q).push(s);
   });
 
   let roster = null;
@@ -286,9 +417,15 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
     logToFile('⚠️ teacher report: class list read failed — no class sizes', { error: err.message });
   }
   const rows = qs.map((q) => {
-    const scores = byQuiz.get(q.id) || [];
+    // One child per quiz across its codes (as the quiz page), and "N of M" counts the
+    // class list only: a typed child who is not on it is never set against the class size.
+    const mine = onePerChildAcrossCodes(sessionsOf.get(q.id) || []);
+    const scores = mine.map((x) => pct(x.correct_answers || 0, x.total_questions_answered || 0));
+    const { roster: view, one } = classOf(roster, q, null);
+    const ids = one ? new Set(one.kids.map((k) => k.id)) : null;
     return {
-      of: classOf(roster, q, null).roster.of,
+      of: view.of,
+      onList: ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)).length : null,
       id: q.id, date: (q.meta && q.meta.lesson_date) || q.created_at, topic: q.topic || '', grade: gradeNum(q.grade) || null,
       subject: q.subject || null, source: q.quiz_source, played: scores.length, avg: mean(scores), scores,
     };
@@ -316,7 +453,7 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
 }
 
 module.exports = {
-  quizReport, classReport, reminderText, weekStart, gradesOf,
+  quizReport, classReport, reminderText, weekStart, gradesOf, listLabel,
   // The counting pieces, for /quiz "My quiz reports" (teacher-report-list): its rows must
   // show the numbers the report page shows, so they count with this module, not a copy.
   readRoster, classOf, countedSessions, classCodes, sessionsFor,

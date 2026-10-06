@@ -40,6 +40,7 @@ const WhatsApp = require('../../../shared/services/whatsapp.service');
 const { logEvent } = require('../../../shared/utils/structured-logger');
 const T = require('../../../shared/services/quiz/web-quiz-token');
 const WQ = require('../../../shared/services/quiz/web-quiz.service');
+const Pulse = require('../../../shared/services/quiz/web-quiz-pulse');
 
 const TEACHER = '11111111-1111-4111-8111-111111111111';
 const QUIZ = '22222222-2222-4222-8222-222222222222';
@@ -95,6 +96,7 @@ beforeEach(() => {
   delete process.env.WEB_QUIZ_TOKEN_SECRET;
   redis.__keys.clear();
   jest.clearAllMocks();
+  Pulse._reset(); // the peer-pulse ring is per process: one test's players are not the next test's peers
   seed();
 });
 afterAll(() => { process.env = SAVED; });
@@ -307,7 +309,8 @@ describe('E4 POST answers + E5 POST finish', () => {
     const { s } = await play('Sana Example', ['B', 'B', 'A', 'B']);
     const out = await WQ.finishSession({ st: s.st });
     expect(out.score).toEqual({ correct: 3, total: 4, pct: 75, level: 'developing' });
-    expect(out.card).toEqual({ first: 'Sana', animal: expect.any(String), correct: 3, total: 4, stars: 3 });
+    // nth: Zara finished earlier today, so Sana is the class's 2nd finisher today.
+    expect(out.card).toEqual({ first: 'Sana', animal: expect.any(String), correct: 3, total: 4, stars: 3, nth: 2 });
     expect(out.counted).toBe(true);
     expect(out.review[2]).toMatchObject({ qid: qid(3), picked: 'A', correct_slot: 'B', ok: false, why: 'Because 3' });
     expect(out.challenge_code).toMatch(/^[A-Z0-9]{6}$/);

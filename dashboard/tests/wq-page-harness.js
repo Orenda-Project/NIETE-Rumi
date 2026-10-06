@@ -47,6 +47,7 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   const ls = new Map(Object.entries(store).map(([k, v]) => [k, JSON.stringify(v)]));
   const fetches = [];
   const timers = [];
+  const images = []; // every new Image().src the page sets (prefetch)
   // window/document listeners and a fake history, so a test can press the Android back button.
   const wl = {};
   const created = [];
@@ -83,6 +84,7 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
       return Promise.resolve({ status: 200, ok: true, text: () => Promise.resolve(JSON.stringify(body)) });
     },
     URLSearchParams,
+    Image: function Image() { const im = {}; images.push(im); return im; },
     // Timers are recorded, never run by themselves: a test runs them with runTimers().
     setInterval: () => 0, setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimeout(id) { if (timers[id - 1]) timers[id - 1].fn = null; },
     scrollTo() {}, addEventListener(n, fn) { (wl[n] = wl[n] || []).push(fn); },
@@ -97,7 +99,9 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   const fireDoc = (n) => (dl[n] || []).forEach((fn) => fn({}));
   const runTimers = (maxMs = Infinity) => { const due = timers.filter((t) => t.fn && t.ms <= maxMs); due.forEach((t) => { const f = t.fn; t.fn = null; f(); }); return due.length; };
   const fire = (n) => (wl[n] || []).forEach((fn) => fn({}));
-  return { ctx, root, els, fetches, wq: ctx.__wq, html: () => root.innerHTML, hist, tap, back, moment, toasts, fireDoc, timers, runTimers, fire, ls };
+  const pulses = () => created.filter((e) => e.className === 'wq-pulse').map((e) => e.textContent);
+  const pulseEls = () => created.filter((e) => e.className === 'wq-pulse');
+  return { ctx, root, els, fetches, wq: ctx.__wq, html: () => root.innerHTML, hist, tap, back, moment, toasts, fireDoc, timers, runTimers, fire, ls, pulses, pulseEls, winListeners: wl, images };
 }
 const flush = () => new Promise((r) => setImmediate(r));
 module.exports = { page, rule, flush, SRC, CSS, TAIL };

@@ -175,6 +175,14 @@ describe('the hook and the filters', () => {
     expect(p.html()).toContain('Be the first!');
   });
 
+  test('nobody ranked yet (every Monday morning): the schools still to start are still shown, folded', async () => {
+    const p = await open('en', { rows: [], mine: { ...GHOST.mine }, ranked_n: 0, zero_n: 11, zero_names: ['Quiet One', 'Quiet Two'] });
+    expect(p.html()).toMatch(/<details class="wq-zero-list"><summary>11 schools still to start<\/summary><ul><li><bdi>Quiet One<\/bdi>/);
+    const q = await open('en', { rows: [], mine: null, ranked_n: 0, zero_n: 465 });
+    expect(q.html()).toContain('No school has played yet this week. Yours can be first!');
+    expect(q.html()).toContain('465 schools still to start');
+  });
+
   test('no sector known: no sector chip', async () => {
     const p = await open('en', GHOST);
     expect(p.html()).not.toContain('id="wq-sector"');

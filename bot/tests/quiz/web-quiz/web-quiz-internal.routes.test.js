@@ -64,3 +64,14 @@ test('"watch another video": list and start are mounted behind the key, service 
   const bad = await fetch(`${base}/videos/start`, { method: 'POST', headers: KEY, body: JSON.stringify({ code: 'NOPE99', st: 'x', vid: 'y' }) });
   expect(bad.status).toBe(404);
 });
+
+test('peer pulse: GET /pulse/:code is mounted behind the key and refuses a forged token', async () => {
+  expect((await fetch(`${base}/pulse/EXPD01?st=x`)).status).toBe(401);
+  const forged = await fetch(`${base}/pulse/EXPD01?st=forged&since=0`, { headers: KEY });
+  expect(forged.status).toBe(401);
+  expect(await forged.json()).toEqual({ error: 'bad_token' });
+  const T = require('../../../shared/services/quiz/web-quiz-token');
+  const st = T.signSession({ sessionId: 's-1', deviceRef: 'd', shareCodeId: 'sc-x' });
+  // A genuine token reaches the code lookup: this code is closed, so 410 like every other endpoint.
+  expect((await fetch(`${base}/pulse/EXPD01?st=${encodeURIComponent(st)}&since=0`, { headers: KEY })).status).toBe(410);
+});

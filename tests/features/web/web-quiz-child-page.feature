@@ -249,6 +249,16 @@ Feature: Web child quiz page on the portal
     When the child taps "Yes, that's my name"
     Then the quiz starts as a new child the teacher can add to the class later
 
+  @T490
+  Scenario: "Not <first>?" on a phone holding one child's open quiz never continues it as another child
+    Given identity v2 is on and a phone remembers "Tooba" and "Yusra" of class "4-A"
+    And Tooba's quiz is open on this phone with 2 questions answered
+    When Yusra taps "Not Tooba?", types "Yusra" and taps "Yes" on "Are you Yusra?"
+    Then a new quiz starts for Yusra at question 1
+    And Tooba's quiz stays open with Tooba's 2 answers, and none of Yusra's answers are saved on it
+    When Tooba later taps their own card on this phone
+    Then Tooba's quiz continues from question 3
+
   @T363
   Scenario: A link from the child's quiz hub plays as that child with no picking
     Given identity v2 is on and the hub opens "/q/<code>?k=<chip>" for a child of this class
@@ -489,6 +499,7 @@ Feature: Web child quiz page on the portal
     Then the results screen shows the score the phone worked out ("You got 3 out of 5") with its stars
     And it says "Your results will reach your teacher when you are back online." («انٹرنیٹ واپس آتے ہی آپ کا نتیجہ استاد تک پہنچ جائے گا۔»)
     And no "No internet right now" error screen is shown
+    And Jugnu is on that screen celebrating, though the phone is offline (the picture was fetched while question 1 was on screen)
 
   @T371
   Scenario: The result is sent by itself when the connection comes back
@@ -524,3 +535,100 @@ Feature: Web child quiz page on the portal
     Then the scorecard still says the first score 3/5 is the one that counts
     And it adds "New best! 5/5 · was 4/5 ⭐" («نیا ریکارڈ! 5/5 · پہلے 4/5 ⭐»)
     And a practice round equal to or below the best adds nothing
+
+  @T265
+  Scenario: A classmate's right answer shows as one quiet line while a child plays
+    Given two children of a grade-3 class are playing the same class link
+    When one child, Sara, answers question 4 right
+    Then the other child's page shows "Sara got Q4 right ✓" («سارہ نے سوال 4 ٹھیک کیا ✓») under the progress bar for 2.5 seconds
+    And the line never covers an option or the listen button, never takes a tap, moves nothing on the screen and makes no sound
+    And it never shows in the first 3 seconds of a question, and at most once every 20 seconds
+
+  @T266
+  Scenario: Only right answers, only first names, and a friend stays nameless
+    Given a class-link child, an invited friend and the teacher's own preview are playing the same quiz
+    When each of them answers questions right and wrong
+    Then a wrong answer never shows on anyone's page, and a child never sees their own answers
+    And the invited friend shows as "A friend got Q2 right ✓" («ایک دوست نے سوال 2 ٹھیک کیا ✓»), never by name
+    And the teacher's preview answers never show, and no surname ever shows
+
+  @T267
+  Scenario: A child thinking on one question still sees classmates play
+    Given a child has had question 3 on screen for more than 15 seconds without answering, with the page in front
+    When a classmate answers a question right
+    Then the line appears within about 15 seconds
+    And the page asks at most 8 times for that question, and stops asking once the child answers or leaves the page
+
+  @T268
+  Scenario: No peer line for grades 1 and 2, in the teacher's preview or on a quiet page
+    Given a grade-1 quiz, or the teacher's own preview link, or a page with sounds turned off (🔕)
+    When a classmate answers right
+    Then no peer line shows and the page never asks for one
+    And a quiz with no grade shows the line as for grade 3
+
+  @T269
+  Scenario: The peer line costs no extra database reads
+    Given 30 children of one class are playing at the same time
+    When they answer questions
+    Then their classmates' lines come back inside the answers they already send
+    And a child's idle check is answered from the bot's memory, with no database read for the session
+
+  @T440
+  Scenario: The landing says when classmates are playing right now
+    Given at least two children of this class got a question right in the last 2 minutes
+    When a child opens the class link
+    Then the landing says "3 classmates are playing right now — join them!" («ابھی 3 ہم جماعت کھیل میں شامل ہیں — آپ بھی آئیں!»), a number and never a name
+    And with one or none it says nothing, and a friend's challenge link never shows it
+
+  @T441
+  Scenario: The card says the child's place among today's class finishers
+    Given two classmates finished this quiz earlier today
+    When a child finishes it for the first time
+    Then the card says "You're the 3rd in your class to finish today" («آج آپ کی کلاس میں مکمل کرنے والوں میں آپ کا نمبر 3 ہے»), and the first says "You're the first in your class to finish today!"
+    And a practice round, an invited friend and the teacher's preview get no such line
+  @T420
+  Scenario: A picture question whose picture cannot be drawn for one option plays as words
+    Given a picture question where one option's picture does not exist
+    When a child opens the question on a phone, in English or in Urdu
+    Then the options show as a list of words, each word shown once
+    And no word is painted over another
+
+  @T421
+  Scenario: Every item shape the quiz engine can write renders on a phone
+    Given every question shape the engine can write (every picture kind, every question type, two to four options, long questions and options, maths, glyph and picture tiles, a picture that cannot be drawn), in English and in Urdu
+    When each is opened on a 360 by 740 phone screen and then answered
+    Then nothing scrolls sideways or runs off the screen, no text is cut off or covers other text, and every option shows a word or a picture
+    And maths shows as typeset maths, never as "$" or a backslash command
+    And Urdu text is set in the Nastaliq face, and every picture is drawn or left out as documented
+
+  @T293
+  Scenario: Maths from real questions is typeset, never spelled out
+    Given a question whose stem, options or reason carry "$60\ \Omega$", "$67, 62, 57, \dots$", "$9 \div 3 \neq 3 \div 9$", "$A \rightleftharpoons B$", "$14 \xrightarrow{\div 2} 7$" or "$\text{Rs } 40$"
+    When a child opens it, in English or in Urdu
+    Then the child sees "60 Ω", "67, 62, 57, …", "9 ÷ 3 ≠ 3 ÷ 9", "A ⇌ B", an arrow with "÷ 2" over it and "Rs 40"
+    And never the words "Omega", "dots", "neq" or "rightleftharpoons"
+    And a long maths line scrolls inside its own box, starting at its beginning, instead of running off the screen
+
+  @T294
+  Scenario: A column sum option is shown as a column sum
+    Given an option written as a column subtraction of 460 from 712 with a rule under it
+    When a child opens the question
+    Then the option shows 712 above "- 460" and a line under them, right-aligned
+
+  @T295
+  Scenario: A picture file that does not arrive never shows a broken picture
+    Given a question whose picture file does not arrive
+    When a child opens it
+    Then the picture box disappears and the question plays on its words, with no broken-picture icon or picture caption
+
+  @T296
+  Scenario: A label question whose answer rings fall outside its picture offers its parts as words
+    Given a label question one of whose answer rings lies outside its drawing, or that has no rings
+    When a child opens it
+    Then the parts are offered as ordinary answer buttons and no ring is drawn off the picture
+
+  @T297
+  Scenario: The render check sees both answers and every real kind of maths
+    Given the render check over every question shape the engine can emit, in English and Urdu
+    When it plays each one on a 360 by 740 phone
+    Then it checks the screen after a wrong pick and after the right pick, and fails on a maths command spelled out in letters

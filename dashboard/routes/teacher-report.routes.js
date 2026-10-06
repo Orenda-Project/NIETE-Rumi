@@ -74,7 +74,7 @@ function createTeacherReportRouter(opts = {}) {
       const lang = req.query.lang === 'ur' || req.query.lang === 'en' ? req.query.lang : null;
       const fail = (status, k) => res.status(status).type('html').send(renderMessagePage({ kind: k, lang }));
       const token = String(req.params.token || '');
-      if (!TOKEN_RX.test(token)) return fail(404, 'missing');
+      if (!TOKEN_RX.test(token)) return fail(404, 'incomplete');
       if (!botUrl || !apiKey) return fail(503, 'error');
       let out;
       try {
@@ -102,7 +102,7 @@ function createTeacherReportRouter(opts = {}) {
     return async (req, res) => {
       const fail = (status, k) => res.status(status).type('html').send(renderMessagePage({ kind: k }));
       const token = String(req.params.token || '');
-      if (!TOKEN_RX.test(token)) return fail(404, 'missing');
+      if (!TOKEN_RX.test(token)) return fail(404, 'incomplete');
       if (!botUrl || !apiKey) return fail(503, 'error');
       let out;
       try {

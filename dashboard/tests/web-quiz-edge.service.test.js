@@ -106,6 +106,12 @@ describe('web quiz edge: forwarding /api/wq/* -> bot /api/internal/wq/*', () => 
     expect(calls[0].opts.method).toBe('GET');
   });
 
+  it('forwards the peer pulse poll (GET, session token + since) to the bot', async () => {
+    await req(srv, 'GET', '/api/wq/pulse/AB12CD?st=abc&since=1700000000000');
+    expect(calls[0].url).toBe(`${BOT}/api/internal/wq/pulse/AB12CD?st=abc&since=1700000000000`);
+    expect(calls[0].opts.method).toBe('GET');
+  });
+
   it('forwards "watch another video": the list (GET, with the session token) and the start (POST)', async () => {
     await req(srv, 'GET', '/api/wq/videos/AB12CD?st=abc');
     expect(calls[0].url).toBe(`${BOT}/api/internal/wq/videos/AB12CD?st=abc`);
@@ -238,6 +244,8 @@ describe('web quiz edge: GET /q/:code server-side render', () => {
     const res = await req(srv, 'GET', '/q/AB12CD/schools');
     const boot = JSON.parse(res.body.match(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/)[1]);
     expect(boot.view).toBe('schools');
+    // the preview links to the league itself, not to the quiz
+    expect(res.body).toMatch(/<meta property="og:url" content="[^"]*\/q\/AB12CD\/schools"/);
     expect(res.body).toMatch(/<meta property="og:title" content="School league this week"/);
     expect(res.body).toMatch(/<meta property="og:description" content="10 points for playing, up to 10 for your score\. Play and push your school up!"/);
   });
