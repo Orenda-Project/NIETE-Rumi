@@ -15,7 +15,7 @@ const VF = (op, c, ev) => op.ok ? V(c, ev) : ['BLOCKED', { harness: op.err, clic
 const CARD = /Teacher Training/i;
 const CTA  = 'کھولیں|Open';
 
-exports.run = async ({ api, rec: rec0, sleep }) => {
+exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
   const seenIds = new Set();
   const rec = (id, ...rest) => { seenIds.add(id); return rec0(id, ...rest); };
   const t = () => Date.now();
@@ -48,6 +48,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   await api.resetFlow();
 
   // ── T02 — every entry point converges on the same card ──────────────────────
+  if (want('T02')) {
   s = t();
   await api.sendWait('/menu');                    // settle before the first measured send
   const entries = ['/training', '/trainings', 'show me training', 'open training', 'training'];
@@ -58,23 +59,29 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   }
   rec('T02', 'Teacher Training opens from any of its entry points',
       ...V(hits.every(h => h.card && h.cta), { hits, note: 'the /menu row is covered by menu.cjs' }), t() - s);
+  }
 
   // ── T15 — "/teacher training" (two words) is NOT a trigger ──────────────────
+  if (want('T15')) {
   s = t();
   const two = await api.sendWait('/teacher training');
   rec('T15', '"/teacher training" (two words) is not a training command',
       ...V(!CARD.test(two.txt) || !(two.btns || []).some(b => new RegExp(CTA).test(b)),
            { reply: (two.txt || '').slice(0, 140) }), t() - s);
+  }
 
   // ── T18 — /training is stateless: it works mid-way through something else ───
+  if (want('T18')) {
   s = t();
   await api.sendWait('/lp');                      // start another feature, then interrupt it
   const mid = await api.sendWait('/training');
   rec('T18', '/training works even in the middle of something else',
       ...V(CARD.test(mid.txt) && (mid.btns || []).some(b => new RegExp(CTA).test(b)),
            { reply: (mid.txt || '').slice(0, 140), interruptedFeature: 'lesson plans' }), t() - s);
+  }
 
   // ── T03 / T13 / T14 — the certificates surface ──────────────────────────────
+  if (want('T03')) {
   s = t();
   const certs = await api.sendWait('/certificates');
   const noCerts = /don't have any|no .*certification|کوئی .*سرٹیفکیٹ/i.test(certs.txt || '');
@@ -83,19 +90,24 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
       ...V(noCerts ? /\/training/.test(certs.txt || '') : hasList,
            { mode: noCerts ? 'no-certificates nudge' : hasList ? 'certificates list' : 'neither',
              pointsToTraining: /\/training/.test(certs.txt || ''), reply: (certs.txt || '').slice(0, 160) }), t() - s);
+  }
 
+  if (want('T13')) {
   s = t();
   const notMine = await api.sendWait('/certificate NIETE-L0-20260101-ZZZZ');
   rec('T13', "Asking for a certificate that isn't mine says it can't be found",
       ...V(/could not find|not find a certificate|نہیں مل/i.test(notMine.txt || ''),
            { reply: (notMine.txt || '').slice(0, 160) }), t() - s);
+  }
 
+  if (want('T14')) {
   s = t();
   const junk = await api.sendWait('/certificate not-a-code');
   rec('T14', 'A /certificate with a junk code just shows my certificates list',
       ...V(/don't have any|no .*certification|کوئی .*سرٹیفکیٹ/i.test(junk.txt || '') ||
            /NIETE-\d{8}-[A-Z0-9]+/.test(junk.txt || ''),
            { fellThroughToList: true, reply: (junk.txt || '').slice(0, 160) }), t() - s);
+  }
 
   // ── Flow ladder — one open, then discover what this account's state allows ──
   s = t();
@@ -466,7 +478,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   };
 
 
-  if (!nextUpTitle) {
+  if (want('T01', 'T10', 'T12', 'T19', 'T20', 'T22')) if (!nextUpTitle) {
     for (const [id, name] of moduleScenarios) rec(id, name, 'BLOCKED', noNextUp, 0);
   } else {
     const key = answerKey(nextUpTitle);
@@ -548,7 +560,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
 
   // T11 — the locked-exam link explains what to finish first (only while modules remain)
   s = t();
-  {
+  if (want('T11')) {
     await api.resetFlow(); await api.freshReset();
     await api.sendWait('/training');
     const o = await openTraining();
@@ -583,7 +595,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   // single 7-module course — exactly the shape seed-module-pass was written for and never wired to.
   // Seed every module but the last, drive the last one LIVE so the real grading path runs, and the
   // level must certify with no exam anywhere in the journey. Reverted at the end (bd-2ug2s).
-  {
+  if (want('T06', 'T08')) {
     s = t();
     let crashed = null;
     const OX_LEVEL = 17;
@@ -678,7 +690,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   // enters Module 1 (I-SAPS lists modules, and picking one re-enters the level screen scoped to it),
   // sits its exam live, answers the CRQ with a fixed text so the LLM marking replays from cassette,
   // and reads the certificate PDF's text off the mock's media store for the watermark (bd-w3cb9.3).
-  {
+  if (want('T26', 'T27')) {
     s = t();
     const ISAPS_LEVEL = 26, LIVE_COURSE = 58;
     const CRQ_ANSWER = 'My philosophy of teaching rests on the belief that every child can learn when the classroom is '
@@ -767,7 +779,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   // (TRANSCRIPT_QUIZ_ENABLED, now defaulted on in local-stack.sh) and, with TRANSCRIPT_QUIZ_FLOW_ID
   // set, answers with ONE Flow whose LESSONS list keys lesson-plan quizzes as lp_<quizId> and coaching
   // lessons by session id \u2014 that key is the one reliable way to tell them apart (bd-w3cb9.4).
-  {
+  if (want('T24')) {
     s = t(); let seeded24 = null; const ev = {};
     try {
       seeded24 = dbJson('seed-lp-quiz', []);
@@ -807,7 +819,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   // friend) on the same mock stack. Lesson-plan states (offered / failed) are seeded with the
   // lesson references of a REAL lesson-plan quiz, so "Make it" can genuinely generate (worker +
   // LLM via cassette replay-on-miss). What still cannot be reached is said so, per scenario.
-  {
+  if (want('T25', 'T28', 'T29', 'T35', 'T36', 'T37', 'T38', 'T39', 'T40', 'T41', 'T42', 'T43', 'T44', 'T45', 'T46', 'T47', 'T48', 'T49', 'T50', 'T51', 'T52', 'T53', 'T54', 'T55', 'T56', 'T57', 'T58', 'T59', 'T60', 'T61', 'T62', 'T63', 'T64', 'T65', 'T66', 'T67', 'T68', 'T69', 'T70', 'T71', 'T72', 'T73', 'T74', 'T75', 'T76', 'T77', 'T78', 'T79', 'T80', 'T81', 'T82', 'T83', 'T84')) {
     const N = (tid, title) => (verdict, ev, ms) => rec(tid, title, ...(Array.isArray(verdict) ? verdict : [verdict, ev]), ms);
     const T = {
       T35: 'A lesson-plan quiz still waiting for its language is asked again from /quiz, never "still being made"',
@@ -962,7 +974,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
 
     // ── the EN class quiz: T37 (before) → T38 T39 T40 → T37 (after) → T43 T44 ───────────────
     let enq = null, urq = null, brk = null;
-    try {
+    if (want('T37', 'T38', 'T39', 'T40', 'T43', 'T44')) try {
       enq = dbJson('seed-class-quiz', ['--language', 'en']);
       if (!enq || !enq.code) throw new Error('SEED_EN:' + JSON.stringify(enq));
       // T37 (first half): nobody finished → Resend link + Done, no Generate report
@@ -1051,7 +1063,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
     } catch (e) { for (const id of ['T37', 'T38', 'T39', 'T40', 'T43', 'T44']) if (!seenIds.has(id)) R(id)('BLOCKED', { reason: 'the EN class-quiz drive threw: ' + String((e && e.message) || e).slice(0, 200) }, 0); }
 
     // ── the UR class quiz: T56 T57 T58 T45 ───────────────────────────────────────────────
-    try {
+    if (want('T45', 'T56', 'T57', 'T58')) try {
       urq = dbJson('seed-class-quiz', ['--language', 'ur']);
       if (!urq || !urq.code) throw new Error('SEED_UR:' + JSON.stringify(urq));
       s = t();
@@ -1125,7 +1137,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
     } catch (e) { for (const id of ['T56', 'T57', 'T58', 'T45']) if (!seenIds.has(id)) R(id)('BLOCKED', { reason: 'the UR class-quiz drive threw: ' + String((e && e.message) || e).slice(0, 200) }, 0); }
 
     // ── T42: a question whose card cannot be fetched is skipped ─────────────────────────
-    try {
+    if (want('T42')) try {
       s = t();
       brk = dbJson('seed-class-quiz', ['--language', 'en', '--broken-q']);
       if (!brk || !brk.code) throw new Error('SEED_BRK:' + JSON.stringify(brk));
@@ -1169,16 +1181,16 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
       } catch (e) { R(tid)('BLOCKED', { reason: 'threw: ' + String((e && e.message) || e).slice(0, 200) }, t() - s); }
       finally { try { api.db('seed-lp-quiz', ['--restore']); } catch (e) {} }
     };
-    await lpState('T35', 'offered', /make_en|English|انگریزی|Make/i, /./);
-    await lpState('T36', 'failed', /Make it again|remake|دوبارہ/i, /went wrong on my side[^\n]*not your lesson plan|The problem was not your lesson plan/i);
-    await lpState('T41', 'queue_failed', /Make it again|remake|دوبارہ/i, /could not be started on my side[^\n]*not your lesson plan/i);
+    if (want('T35')) await lpState('T35', 'offered', /make_en|English|انگریزی|Make/i, /./);
+    if (want('T36')) await lpState('T36', 'failed', /Make it again|remake|دوبارہ/i, /went wrong on my side[^\n]*not your lesson plan|The problem was not your lesson plan/i);
+    if (want('T41')) await lpState('T41', 'queue_failed', /Make it again|remake|دوبارہ/i, /could not be started on my side[^\n]*not your lesson plan/i);
 
     // ── the GENERATION cluster — T25 T28 T29 · T46–T55 T59–T62 · T63–T84 ──────────────────────
     // Every quiz the worker writes (or refuses) from a real lesson, transcript or 6-12 plan on this
     // stack, with the mock lane's levers (stack-control.cjs). Owns its ids; fallbacks below.
     let genErr = null;
-    try {
-      await require('../training-quiz-gen.cjs').run({ api, R, seenIds, sleep, t, dbJson, waitFresh, child, childJoin, childAnswer, openLesson, chooseAction, clickFooter, waitOn, isChildQ, isEnd, pdfText, CHILD_PREFIX });
+    if (want('T25', 'T28', 'T29', 'T46', 'T47', 'T48', 'T49', 'T50', 'T51', 'T52', 'T53', 'T54', 'T55', 'T59', 'T60', 'T61', 'T62', 'T63', 'T64', 'T65', 'T66', 'T67', 'T68', 'T69', 'T70', 'T71', 'T72', 'T73', 'T74', 'T75', 'T76', 'T77', 'T78', 'T79', 'T80', 'T81', 'T82', 'T83', 'T84')) try {
+      await require('../training-quiz-gen.cjs').run({ api, R, seenIds, want, sleep, t, dbJson, waitFresh, child, childJoin, childAnswer, openLesson, chooseAction, clickFooter, waitOn, isChildQ, isEnd, pdfText, CHILD_PREFIX });
     } catch (e) { genErr = String((e && e.message) || e).slice(0, 200); }
     if (!seenIds.has('T46')) R('T46')('BLOCKED', { reason: 'the generation cluster did not reach it' + (genErr ? ' — it threw: ' + genErr : '') }, 0);
     if (!seenIds.has('T47')) R('T47')('BLOCKED', { reason: 'the generation cluster did not reach it' + (genErr ? ' — it threw: ' + genErr : '') }, 0);
@@ -1204,7 +1216,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   // source is v7.3 with SEEN_COUNT and COUNTS; the fixture is now that file (bd-w3cb9.7). A refusal
   // comes back as an endpoint error on Continue — the emulator surfaces it as ENDPOINT_ERROR:<reason>
   // and the screen does not advance, which is exactly "I stay on that screen and see the reason".
-  {
+  if (want('T30', 'T31', 'T32', 'T33', 'T34')) {
     const SOURCE = { seen: 'Seen (from the book)', unseen: 'Unseen (outside the book)', both: 'Both Seen and Unseen' };
     const errOf = (r) => (r && !r.ok && /^ENDPOINT_ERROR:/.test(String(r.err || ''))) ? String(r.err).replace(/^ENDPOINT_ERROR:/, '') : null;
     const inputsOf = (pr) => ((pr && pr.items) || []).filter(i => i.kind === 'input' && i.visible !== false && String(i.text || '').trim());
@@ -1351,7 +1363,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   // T16 first (answer everything wrong → ❌ Not this time + 24h cooldown → a second start is refused),
   // then revert-level clears the failed attempt and T05 passes for the certificate. Reverted in the
   // finally so the module-check cluster starts from a fresh level next run (bd-w3cb9.2).
-  {
+  if (want('T05', 'T16')) {
     const L1 = 1;
     const raw = dbJson('answer-key', ['--level', String(L1)]) || [];
     const gqKey = { questions: raw.map(r => ({ q: r.q, correct: [r.correct].filter(Boolean), correct_index: [r.correct_index].filter(Boolean), multi: false })) };
@@ -1419,7 +1431,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   // Answer ONE question of the next-up NIETE module, re-open the module from the Flow, tap its
   // button again, and the first question served must be Q2, not Q1. The check is then finished so
   // the account is left in a clean state (bd-w3cb9.2).
-  {
+  if (want('T21')) {
     s = t();
     const ev = {};
     const pk = await openBandPicker();
@@ -1453,7 +1465,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   }
 
   let t23run = null;
-  {
+  if (want('T04')) {
     s = t();
     // Beacon House / COMPUTER SCIENCE is the one band on this account whose FIRST module
     // ("What is AI") is PDF media — every other band opens on a video. That matters because the
@@ -1527,7 +1539,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   // and the bot asks "✍️ Question i of N … Reply with your answer in a few sentences". Seed every
   // Computer Science module (the band T04 just used), open the level, tap the exam, read Q1, cancel.
   // The seed — and T04/T23's progress on this band — is reverted in the finally (bd-w3cb9.1).
-  {
+  if (want('T07')) {
     s = t();
     const CS_LEVEL = 21;
     let seeded7 = [], lv = null, examRow = null, offer = null, q1 = null, crashed7 = null;
@@ -1578,7 +1590,7 @@ exports.run = async ({ api, rec: rec0, sleep }) => {
   // sendQuestion moves it into the message BODY as a lettered line and the row keeps just its
   // letter. The failure this guards is the option being silently cut off with an ellipsis and the
   // teacher choosing blind. Asserted on what the bot actually rendered, so it needs no DB lookup.
-  {
+  if (want('T23')) {
     s = t();
     // A long option is not truncated in its row: quiz-delivery moves it into the message body as a
     // lettered line and leaves the row carrying the letter. So the check is: for every rendered

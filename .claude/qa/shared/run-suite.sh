@@ -7,6 +7,7 @@
 #   bash .claude/qa/shared/run-suite.sh lesson-plan,status --driver 923…   # named features (every scenario in them)
 #   bash .claude/qa/shared/run-suite.sh coaching,training --method mock --parallel   # mock lane: every feature AT ONCE, one slot each
 #   bash .claude/qa/shared/run-suite.sh training --method mock --slot 2             # a second run beside another (own ports + driver)
+#   bash .claude/qa/shared/run-suite.sh coaching --method mock --only 'coaching=COA09,COA20'   # just those scenarios
 #   options: --env sandbox|staging|prod  (default sandbox — the landing branch's env since 2026-09-09)  --target <digits>  --port 9223  --run-id <id>  --no-seed  --reflect slash
 #
 # Preconditions it CHECKS (and stops on): Chrome CDP on the port, a live web.whatsapp.com target, the
@@ -36,6 +37,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --driver) DRIVER="$2"; shift 2;; --env) ENV="$2"; shift 2;; --target) TARGET="$2"; shift 2;;
   --port) PORT="$2"; shift 2;; --run-id) RUN_ID="$2"; shift 2;; --no-seed) SEED=0; shift;; --reflect) REFLECT="$2"; shift 2;;
   --slot) SLOT="$2"; shift 2;; --parallel) PARALLEL=1; shift;;
+  --only) export E2E_ONLY_MAP="$2"; shift 2;;   # "coaching=COA09,COA20;training=T42" — select_scenarios.py output
   --method) METHOD="$2"; shift 2;; --commit) COMMIT="$2"; shift 2;;
   --spec-sync) SPEC_SYNC="$2"; shift 2;; --validator-exit) VALIDATOR_EXIT="$2"; shift 2;;
   --print-driver) PRINT_DRIVER=1; shift;;   # resolve the driver exactly as a run would, print it, exit — touches nothing

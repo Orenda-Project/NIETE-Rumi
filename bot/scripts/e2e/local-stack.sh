@@ -138,6 +138,25 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     # NOT on this var). Override MEWAKA to empty to exercise the dark-safe OFF fall-through.
     echo "OBSERVE_MEWAKA_FLOW_ID=${OBSERVE_MEWAKA_FLOW_ID:-4360063587540938}"
     echo "OBSERVE_VISIT_FLOW_ID=${OBSERVE_VISIT_FLOW_ID:-2385271438550199}"
+    # The visit Flow's behaviour flags, mirrored from the sandbox bot (railway variables, 2026-10-06). The
+    # committed fixture IS the scheduling-UI Flow: its SELECT_SCHOOL is a Dropdown fed by data.options. With
+    # OBSERVE_SCHEDULING_UI unset the handler took the legacy path (observe-visit-flow.handler.js:39, :735)
+    # and answered INIT with the v1 NavigationList's data.items, so the dropdown rendered EMPTY and no
+    # school→teacher→brief walk could start — the "seeded school does not surface" blocker. Overridable.
+    echo "OBSERVE_SCHEDULING_UI=${OBSERVE_SCHEDULING_UI:-true}"
+    echo "OBSERVE_STAGE_SCREENS=${OBSERVE_STAGE_SCREENS:-true}"
+    echo "OBSERVE_OBS_ACTION=${OBSERVE_OBS_ACTION:-true}"
+    echo "OBSERVE_FRAMEWORK=${OBSERVE_FRAMEWORK:-fico}"
+    echo "OBSERVE_FICO_FLOW_HAS_FIDELITY=${OBSERVE_FICO_FLOW_HAS_FIDELITY:-editable}"
+    echo "OBSERVE_CAPTURE_GATES_ENABLED=${OBSERVE_CAPTURE_GATES_ENABLED:-true}"
+    # The teacher's visit notice (observe-teacher-notice.service.js). Its templates go to the MOCK Graph API
+    # here, into the fixture teacher's own outbox, so nothing reaches a real phone.
+    echo "OBSERVE_TEACHER_NOTIFY_ENABLED=${OBSERVE_TEACHER_NOTIFY_ENABLED:-true}"
+    # The teacher-invite template for a report sent outside the 24h window. Unset, the code defaults to the
+    # Tanzanian observation_report_sw in Swahili (observe-send.service.js reportTemplateConfig) — the sandbox
+    # bot sets NIETE's own (railway variables, 2026-10-06), so mirror it or OBS11/OBS18 judge the wrong market.
+    echo "OBSERVE_REPORT_TEMPLATE=${OBSERVE_REPORT_TEMPLATE:-observation_report_niete_v2}"
+    echo "OBSERVE_REPORT_TEMPLATE_LANG=${OBSERVE_REPORT_TEMPLATE_LANG:-en}"
     # The NIETE deployment scores on FICO (NIETE-Rumi/.env: DEFAULT_OBSERVATION_FRAMEWORK=fico); without it the
     # framework-selector falls to oecd and a coaching run here renders the PDFKit report with no fidelity
     # section and no photo reading — coaching COA05/07/19/27/28/29 could never be judged (run 20260930-0649).

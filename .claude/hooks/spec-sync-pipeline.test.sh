@@ -200,11 +200,12 @@ say "8. and it nudges only once"          "$(stop_hook | head -c 1 | wc -c | tr 
 stage "D · deletion is PROPOSED, never performed"
 
 python3 - "$SPECS/menu.feature" <<'PY'
-import sys
+import re, sys
 p = sys.argv[1]
 s = open(p, encoding="utf-8").read()
-s = s.replace("  @e2e @menu @edge @P3\n  Scenario: /menu is case-insensitive",
-              "  @e2e @menu @edge @P3 @obsolete\n  Scenario: /menu is case-insensitive")
+# the tag line may end in the scenario's id tag (@M02) — keep it, append @obsolete
+s = re.sub(r"(  @e2e @menu @edge @P3(?: @M\d+)?)\n(  Scenario: /menu is case-insensitive)",
+           r"\1 @obsolete\n\2", s, count=1)
 open(p, "w", encoding="utf-8").write(s)
 PY
 say "1. @obsolete with no reason is refused" "$(validate --only menu >/dev/null 2>&1; echo $?)" 1

@@ -227,6 +227,15 @@ function createEmulator(flowJson, opts) {
       return probe();
     },
     isOpen: () => st.open,
+    /** A RAW data_exchange from the current screen with a payload no rendered control would send — what a
+     *  stale or tampered client could post (a grade the picker no longer offers). Returns the endpoint's
+     *  reply as-is and never moves the Flow; the screen-driving methods above stay the normal path. */
+    async raw(payload) {
+      if (!o.transport || !o.endpointUrl) return { ok: false, err: 'NO_ENDPOINT' };
+      const req = { version: '3.0', action: 'data_exchange', flow_token: o.flowToken, screen: st.screen, data: payload || {} };
+      try { return { ok: true, res: await o.transport.exchange(o.endpointUrl, req) }; }
+      catch (e) { return { ok: false, err: 'ENDPOINT_FAILED:' + e.message.slice(0, 160) }; }
+    },
     probe,
     /** Click a footer / link / nav item by (substring, case-insensitive) text — like flow-lib.clickText. */
     async click(text, opts = {}) {

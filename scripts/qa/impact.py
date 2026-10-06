@@ -116,6 +116,24 @@ def ledger_rows_added(repo, rng):
     return out
 
 
+def ledger_reasons(repo, rng):
+    """{feature: why its latest added row has that status}. Rows written before ledger_row stamped
+    `status_reason` get it derived from their own counts, so old rows read the same way."""
+    import ledger
+    r = _git(repo, "diff", rng, "--", LEDGER)
+    out = {}
+    for line in r.stdout.splitlines():
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        try:
+            row = json.loads(line[1:])
+        except ValueError:
+            continue
+        if isinstance(row, dict) and row.get("feature"):
+            out[row["feature"]] = row.get("status_reason") or ledger.status_reason(row)
+    return out
+
+
 def ledger_misses(repo, rng):
     """{feature: misses} for the MOST RECENT runs.jsonl row of each feature in the range whose latest
     run still has missing cassettes. A mock-lane run that could not replay a vendor answer records the
@@ -198,6 +216,7 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
     tr = trailers(repo, rng, pr_body)
     proof = ledger_rows_added(repo, rng)
     regr = ledger_regression(repo, rng)
+    why = ledger_reasons(repo, rng)
 
     res = _empty(base, head)
     res.update({"range": rng, "paths": paths, "features": seld["features"], "commands": seld["commands"],
@@ -220,6 +239,7 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
             "scenario_count": f["scenario_count"], "spec_status": status, "spec_reason": reason,
             "changed_files": [c["path"] for c in f["changed_files"]],
             "e2e_proof": proof.get(name, "missing"),
+            "e2e_reason": why.get(name, "") if name in proof else "",
             "regression": regr.get(name),
         }
     pf = res["per_feature"]
@@ -371,6 +391,8 @@ def render_markdown(res, freshness="warn", proof="warn"):
             spec += " — `%s.feature` unchanged" % name
         # E2E-run cell answers only "did the mock run for this commit" (+ any regression note).
         proof_cell = "%s %s" % (_icon(f["e2e_proof"]), f["e2e_proof"])
+        if f.get("e2e_reason"):
+            proof_cell += " — %s" % f["e2e_reason"]
         note = _regression_note(f.get("regression"))
         if note:
             proof_cell += "<br>%s" % note
@@ -434,7 +456,8 @@ def render_text(res, freshness="warn", proof="warn"):
         cm = (res.get("cassette_misses") or {}).get(name)
         if cm:
             extra += " 📼%d missing" % cm
-        L.append("│   %-13s spec: %-12s e2e: %s%s" % (name, f["spec_status"], f["e2e_proof"], extra))
+        why = " (%s)" % f["e2e_reason"] if f.get("e2e_reason") else ""
+        L.append("│   %-13s spec: %-12s e2e: %s%s%s" % (name, f["spec_status"], f["e2e_proof"], why, extra))
     if v["spec_freshness"] == "stale":
         stale = [n for n, f in res["per_feature"].items() if f["spec_status"] == "stale"]
         L.append("│ specs STALE for %s → in Claude Code: /sync-specs %s" % (", ".join(stale), " ".join(stale)))

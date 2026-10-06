@@ -764,6 +764,37 @@ def cmd_seed_module_pass(creds, a):
     print("SEEDED module %s PASSED (%d/%d) for user %s (level %s). Certifiable once every module clears 70%%." % (
         a.module, total, total, uid, level_id))
 
+def cmd_seed_training_inflight(creds, a):
+    """Insert ONE in-progress training module attempt (question 3 of N, active now), so /status has a
+    durable second kind of work to list beside a coaching analysis (status.feature STA04). Training is
+    listed from this table (teacher-state.service listActiveResources), never from the conversation
+    store. Reversible via clear-training-inflight."""
+    uid = _uid(creds, a.phone)
+    prog = _get(creds, "training_programs", "key=eq.%s&select=id" % a.program_key)
+    if not prog: sys.exit("no program with key %s" % a.program_key)
+    level_id, qcount = _module_level_and_count(creds, a.module)
+    total = qcount or 10
+    if not a.yes_write:
+        print("DRY-RUN: would INSERT an in_progress training_module attempt (module %s, question 3 of %d) for user %s."
+              % (a.module, total, uid))
+        return
+    now = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    _req("POST", "/rest/v1/training_assessment_attempts", creds, body=[{
+        "id": str(uuid.uuid4()), "user_id": uid, "program_id": prog[0]["id"], "quiz_kind": "training_module",
+        "training_module_id": a.module, "level_id": level_id, "current_question_index": 2,
+        "total_questions": total, "total_score": total, "status": "in_progress", "last_activity_at": now,
+    }], prefer="return=minimal")
+    print("SEEDED an in_progress training attempt (module %s, question 3 of %d) for user %s." % (a.module, total, uid))
+
+def cmd_clear_training_inflight(creds, a):
+    """Delete this driver's in_progress training attempts (what seed-training-inflight leaves)."""
+    uid = _uid(creds, a.phone)
+    if not a.yes_write:
+        print("DRY-RUN: would DELETE in_progress training attempts for user %s." % uid); return
+    _req("DELETE", "/rest/v1/training_assessment_attempts?user_id=eq.%s&status=eq.in_progress&completed_at=is.null" % uid,
+         creds, prefer="return=minimal")
+    print("CLEARED in_progress training attempts for user %s." % uid)
+
 def cmd_activate_program(creds, a):
     uid = _uid(creds, a.phone)
     prog = _get(creds, "training_programs", "key=eq.%s&select=id" % a.program_key)
@@ -836,11 +867,14 @@ def main():
     mm.add_argument("--phone")   # api.db always passes it; module-media does not use it
     apg = sub.add_parser("activate-program", parents=[common]); apg.add_argument("--phone", required=True); apg.add_argument("--program-key", required=True, dest="program_key"); apg.add_argument("--yes-write", action="store_true"); apg.add_argument("--deactivate", action="store_true")
     smp = sub.add_parser("seed-module-pass", parents=[common]); smp.add_argument("--phone", required=True); smp.add_argument("--module", type=int, required=True); smp.add_argument("--program-key", default="niete_standard", dest="program_key"); smp.add_argument("--yes-write", action="store_true")
+    sti = sub.add_parser("seed-training-inflight", parents=[common]); sti.add_argument("--phone", required=True); sti.add_argument("--module", type=int, default=1); sti.add_argument("--program-key", default="niete_standard", dest="program_key"); sti.add_argument("--yes-write", action="store_true")
+    cti = sub.add_parser("clear-training-inflight", parents=[common]); cti.add_argument("--phone", required=True); cti.add_argument("--yes-write", action="store_true")
     a = p.parse_args()
     creds = _creds(getattr(a, "env", None))
     {"lookup": cmd_lookup, "answer-key": cmd_answer_key, "seed-level-complete": cmd_seed_level_complete,
      "revert-level": cmd_revert_level, "activate-program": cmd_activate_program,
-     "seed-module-pass": cmd_seed_module_pass, "module-answer-key": cmd_module_answer_key,
+     "seed-module-pass": cmd_seed_module_pass, "seed-training-inflight": cmd_seed_training_inflight,
+     "clear-training-inflight": cmd_clear_training_inflight, "module-answer-key": cmd_module_answer_key,
      "module-media": cmd_module_media, "level-modules": cmd_level_modules,
      "seed-isaps-exams": cmd_seed_isaps_exams,
      "seed-lp-quiz": cmd_seed_lp_quiz,

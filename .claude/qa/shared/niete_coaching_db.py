@@ -61,7 +61,16 @@ def _clear_history_cache(base_url, uid):
         print("WARN: in-memory history-cache clear failed (%s): %s" % (url, e))
 
 
-def reset_conversations(creds, uid, yes_write=False, clear_cache_url=None):
+def _redis_del(port, key):
+    """DEL one key on the run's private redis-server (local-stack: --save "" — per run, per slot)."""
+    import subprocess
+    try:
+        subprocess.run(["redis-cli", "-p", str(port), "DEL", key], capture_output=True, timeout=10)
+    except Exception:
+        pass
+
+
+def reset_conversations(creds, uid, yes_write=False, clear_cache_url=None, clear_lp_context=False, redis_port=None):
     """Reset the driver's conversation history so the conversational voice/text reply LLM prompt starts
     from a fixed baseline. Two independent stores must be cleared (they are written by separate paths):
     the `conversations` DB rows (openai.service loads the last 10 as `existingHistory`) AND the bot's
@@ -78,6 +87,14 @@ def reset_conversations(creds, uid, yes_write=False, clear_cache_url=None):
     print("deleted; conversation rows now: %d" % len(left))
     if clear_cache_url:
         _clear_history_cache(clear_cache_url, uid)
+    if clear_lp_context:
+        # Her recent lessons ride in the open-chat prompt too (lp-context.service: the Redis shelf, else
+        # niete_lp_downloads over 7 days). They follow whatever this driver was sent on EARLIER runs and
+        # age out after a week, so the prompt — and its cassette key — drifted per driver and per week.
+        _req("DELETE", "/rest/v1/niete_lp_downloads?user_id=eq.%s" % uid, creds, prefer="return=minimal")
+        if redis_port:
+            _redis_del(redis_port, "lp_shelf:%s" % uid)
+        print("cleared recent-lesson context (niete_lp_downloads%s)" % (" + lp_shelf" if redis_port else ""))
     if left: sys.exit(1)
 
 
@@ -203,7 +220,10 @@ def main():
     for c in ("list", "cancel-stuck", "reset-history", "reset-first-use", "reset-conversations") + tuple(EXT_CMDS):
         p = sub.add_parser(c); p.add_argument("--env"); p.add_argument("--phone", required=True)
         if c in ("cancel-stuck", "reset-history", "reset-first-use", "reset-conversations") or c in EXT_WRITES: p.add_argument("--yes-write", action="store_true")
-        if c == "reset-conversations": p.add_argument("--clear-cache-url", help="bot base URL; also POSTs /clear-history/<uid> to clear the in-process history Map")
+        if c == "reset-conversations":
+            p.add_argument("--clear-cache-url", help="bot base URL; also POSTs /clear-history/<uid> to clear the in-process history Map")
+            p.add_argument("--clear-lp-context", action="store_true", help="also delete her niete_lp_downloads rows (+ the lp_shelf key with --redis-port)")
+            p.add_argument("--redis-port", type=int, help="the run's private redis-server port (E2E_REDIS_PORT)")
         if c == "session-get": p.add_argument("--session-id", default="latest"); p.add_argument("--status")
         if c == "age-sessions": p.add_argument("--hours", default="26")
         if c == "seed-nudge":
@@ -246,7 +266,8 @@ def main():
         return
 
     if a.cmd == "reset-conversations":
-        reset_conversations(creds, uid, a.yes_write, getattr(a, "clear_cache_url", None)); return
+        reset_conversations(creds, uid, a.yes_write, getattr(a, "clear_cache_url", None),
+                            getattr(a, "clear_lp_context", False), getattr(a, "redis_port", None)); return
 
     if not stuck: print("nothing in flight for %s" % a.phone); return
     for r in stuck: print("would cancel" if not a.yes_write else "cancelling", r["id"][:8], r.get("status"), r["created_at"][:19])
