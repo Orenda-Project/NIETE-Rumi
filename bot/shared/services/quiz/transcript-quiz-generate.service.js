@@ -95,6 +95,28 @@ async function resolveLessonSource(quiz) {
   }
 }
 
+/**
+ * WHICH source a lesson-plan quiz could not be written from — so `source_missing`
+ * names its state instead of one reason for three. A K-5 version stamped `v8…` is
+ * written from a slide script; any other K-5 stamp is a v9 render, written from its
+ * ingested HTML (lp-v9-html-source, stored under the same exact-version key); a
+ * Grades 6-12 lesson from its stored document. Ids only — never lesson text.
+ */
+function sourceMissing(quiz) {
+  const lesson = ((quiz.meta && quiz.meta.lessons) || [])[0] || {};
+  if (quiz.quiz_source === LP612) {
+    return { segmentId: lesson.segment_id || null, reason: lesson.segment_id ? 'lp612_doc_missing' : 'no_lesson' };
+  }
+  if (!lesson.lesson_id) return { lessonId: null, reason: 'no_lesson' };
+  const stamp = String(lesson.version_stamp || '');
+  return {
+    lessonId: lesson.lesson_id,
+    versionStamp: lesson.version_stamp || null,
+    contentHash: lesson.content_hash || null,
+    reason: /^v8/i.test(stamp) ? 'v8_script_missing' : 'v9_html_missing',
+  };
+}
+
 const N_QUESTIONS = 8;
 /**
  * Full authoring attempts per quiz. Three, not two, since the first real morning
@@ -2273,7 +2295,11 @@ async function processQuiz(quizId, payload, flight) {
   if (isLp && !(quiz.status === 'ready' && meta.step === 'ready')) {
     slideScript = await resolveLessonSource(quiz);
     if (!slideScript) {
-      await updateQuiz(quizId, { status: 'failed', meta: { ...meta, step: 'failed', error: 'source_missing' } });
+      const missing = sourceMissing(quiz);
+      logEvent('lp_quiz.source_missing', { quizId, ...missing });
+      await updateQuiz(quizId, {
+        status: 'failed', meta: { ...meta, step: 'failed', error: 'source_missing', source_reason: missing.reason },
+      });
       await tellTeacherFailed(phone, teacherLang, quizId, 'source_missing', quizSource);
       return { failed: true, reason: 'source_missing' };
     }
