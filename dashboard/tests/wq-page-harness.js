@@ -29,7 +29,7 @@ function fakeEl(sel) {
   };
 }
 
-function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view, questions = null, connection } = {}) {
+function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view, questions = null, connection, challenge } = {}) {
   const els = {};
   const root = fakeEl('#wq');
   root.innerHTML = '';
@@ -40,7 +40,7 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   root.querySelectorAll = () => [];
   const boot = {
     textContent: JSON.stringify({
-      code: 'TEST', cls, live, video, brand, preview, view,
+      code: 'TEST', cls, live, video, brand, preview, ...(challenge ? { challenge } : {}), view,
       quiz: { code: 'TEST', lang, topic, grade, questions: questions || [{ qid: 'q1', text: 'a?', options: [{ slot: 'A', text: 'x' }], correct_slot: 'A' }] },
     }),
   };

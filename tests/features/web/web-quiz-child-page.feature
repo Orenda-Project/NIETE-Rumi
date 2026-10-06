@@ -524,3 +524,10 @@ Feature: Web child quiz page on the portal
     Then the scorecard still says the first score 3/5 is the one that counts
     And it adds "New best! 5/5 · was 4/5 ⭐" («نیا ریکارڈ! 5/5 · پہلے 4/5 ⭐»)
     And a practice round equal to or below the best adds nothing
+
+  @T446
+  Scenario: A challenger who scored nothing is not a score to beat
+    Given a child finished a quiz with 0 right answers and sent a friend their challenge link
+    When the friend opens the link
+    Then the landing says "<challenger> challenged you. Can you beat their score?" («… نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!»)
+    And it never says "0/5 stars. Can you beat it?"
