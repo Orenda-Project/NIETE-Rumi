@@ -15,6 +15,9 @@
  *   ct  challenge token {k:'c', sid, ex, r, exp}  2 h: one run of one Challenge
  *                                                  exercise (sid = the student, r = the
  *                                                  run id; web-quiz-challenge.js)
+ *   h   hub token      {k:'h', ids, exp}           7 days; the WhatsApp /quiz link to a
+ *                                                  phone's own children (≤4 student ids,
+ *                                                  never a name, never the phone)
  *   chip               HMAC(secret, shareCodeId|studentId)[:16] — a child's name
  *                      button; not reversible, recomputed over the class
  *
@@ -38,6 +41,8 @@ const SESSION_TTL_S = 24 * 60 * 60;
 const SYNC_TTL_S = 7 * 24 * 60 * 60;
 const PREVIEW_TTL_S = 30 * 24 * 60 * 60;
 const CHALLENGE_TTL_S = 2 * 60 * 60;
+const HUB_TTL_S = 7 * 24 * 60 * 60;
+const HUB_MAX_KIDS = 4;
 const DEVICE_REF_RX = /^[A-Za-z0-9_-]{22}$/;
 
 // Stable per child (hash of the student id), so the same animal shows on every
@@ -103,6 +108,13 @@ function signChallenge({ studentId, ex, runId }) {
   return sign({ k: 'c', sid: studentId, ex, r: runId, exp: nowS() + CHALLENGE_TTL_S });
 }
 
+/** The kid hub's link token: this phone's children (≤4 ids). Null with none or no secret. */
+function signHub(studentIds) {
+  const ids = [...new Set((Array.isArray(studentIds) ? studentIds : []).map(String).filter(Boolean))].slice(0, HUB_MAX_KIDS);
+  if (!ids.length) return null;
+  return sign({ k: 'h', ids, exp: nowS() + HUB_TTL_S });
+}
+
 function chipId(shareCodeId, studentId) {
   const key = secret();
   if (!key || !shareCodeId || !studentId) return null;
@@ -124,7 +136,7 @@ function animalFor(studentId) {
 }
 
 module.exports = {
-  secret, sign, verify, signSession, signPreview, signChallenge, chipId,
+  secret, sign, verify, signSession, signPreview, signChallenge, signHub, chipId,
   newDeviceRef, cleanDeviceRef, animalFor, ANIMALS,
-  SESSION_TTL_S, SYNC_TTL_S, PREVIEW_TTL_S, CHALLENGE_TTL_S,
+  SESSION_TTL_S, SYNC_TTL_S, PREVIEW_TTL_S, CHALLENGE_TTL_S, HUB_TTL_S, HUB_MAX_KIDS,
 };

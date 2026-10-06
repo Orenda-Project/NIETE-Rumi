@@ -25,11 +25,8 @@ const StudentVideoFeedbackService = require('../services/student-video-feedback.
 const ChildFlowToken = require('../services/quiz/child-flow-token');
 const { SYNC_BUDGET } = require('../services/whatsapp-send-pacer');
 
-const GRADE_ORDER = ['NURSERY', 'KG', '1', '2', '3', '4', '5', '6'];
-const gradeRank = (g) => {
-  const i = GRADE_ORDER.indexOf(String(g));
-  return i === -1 ? 99 : i;
-};
+// The bank's order (grades, subjects, chapters, titles) is shared with the web library.
+const { gradeRank, compareSubjects, compareVideos } = require('../services/quiz/video-bank-order');
 const gradeTitle = (g) => {
   const s = String(g);
   if (s === 'NURSERY') return 'Nursery';
@@ -117,7 +114,7 @@ async function selectGrade(screenData) {
   if (!grade) return { data: { error: { message: 'Please select a class.' } } };
   const rows = await fetchDone({ grade });
   const subjects = distinct(rows, 'subject')
-    .sort()
+    .sort(compareSubjects)
     .map((s) => ({ id: s, title: s }));
   if (subjects.length === 0) {
     return { data: { error: { message: `No videos available for ${gradeTitle(grade)} yet.` } } };
@@ -147,14 +144,7 @@ async function selectSubject(screenData) {
   }
 
   // Sort by (chapter, title) so grouped videos cluster visually.
-  rows.sort((a, b) => {
-    const ac = (a.clean_chapter || '').toLowerCase();
-    const bc = (b.clean_chapter || '').toLowerCase();
-    if (ac !== bc) return ac < bc ? -1 : 1;
-    const at = (a.clean_title || '').toLowerCase();
-    const bt = (b.clean_title || '').toLowerCase();
-    return at < bt ? -1 : at > bt ? 1 : 0;
-  });
+  rows.sort(compareVideos);
 
   const videos = rows.map((r) => {
     const title = r.clean_title || 'Untitled';
