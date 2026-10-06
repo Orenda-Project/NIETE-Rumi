@@ -124,10 +124,12 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     Given a teacher's class is part-way through a 20-child paste saved from another device
     When the teacher saves a second paste of 5 children in the class manager (/class)
     Then all 5 children are enrolled with roll numbers no other child holds
+    And no list number is left empty between them
     And no inactive students rows are left behind by the clash retries
     # class.service.js addParsedStudents: a roll clash re-tries the ENROLMENT only (one students
-    # row per child) and jumps past the other writer (max roll + 2, + 4, + 8 ...), instead of
-    # re-trying max roll + 1, which is the roll the other writer takes next.
+    # row per child): a 50-300 ms jitter, a re-read, max roll + 1 again, up to 20 tries per child
+    # and 3 s of waiting per paste (Flow data_exchange times out at ~10 s). Only past that does a
+    # child leap (max + 2, + 4 ...), so contention alone never fails a paste. Nothing is renumbered.
     # Mock: tests/classes/add-students-long-race.test.js. Flow screens are emulated on the mock lane.
 
   @e2e @wip @flow @P1

@@ -1078,22 +1078,40 @@ async function readRoster({ classId, teacherUserId }) {
   };
 }
 
-/** How many times one child may re-pick a roll after another writer took it. */
-const ROLL_RETRIES = 5;
+/**
+ * Roll clashes. A roll (list no.) is the child's register position: identity asks children for
+ * it, and a gap reads as a missing child. So a clash is retried GAP-FREE first: wait a short
+ * random jitter, re-read the class, and take max + 1 again. The writer we clashed with is usually
+ * still going (a longer paste on another replica), and the jitter lets it get ahead or finish.
+ * Only after JITTER_RETRIES for a child, or once the paste has waited JITTER_BUDGET_MS in total,
+ * does a child jump past it (max + 2, + 4, + 8 ...), so a paste never fails on contention alone.
+ * The unique index (class_id, roll) is the arbiter throughout; nothing is ever renumbered.
+ *
+ * The total cap exists because /class adds run inside a WhatsApp Flow data_exchange, which Meta
+ * times out at about 10 s: 20 x 300 ms (6 s) of waiting would not fit beside the writes.
+ * Worst case added wait for a whole paste: JITTER_BUDGET_MS = 3 s.
+ */
+const JITTER_RETRIES = 20;
+const JITTER_BUDGET_MS = 3000;
+const LEAP_RETRIES = 5;
+const JITTER_MIN_MS = 50;
+const JITTER_MAX_MS = 300;
+
+/** How far past the class's highest roll a child jumps on its `n`-th last-resort retry: 2, 4, 8 ... */
+function rollLeap(n) {
+  return 2 ** n;
+}
 
 /**
- * How far past the class's highest roll a child jumps after its `clashes`-th clash: 2, 4, 8, ...
- *
- * The writer we clashed with is usually still going (a longer paste on another replica), and the
- * roll it takes next is exactly max + 1. Re-trying at max + 1 lands on that same roll every time:
- * on the live sandbox a 5-child paste lost six straight clashes to a 20-child paste and gave up
- * with none enrolled. Jumping past the rows it is still adding wins on the first retry against a
- * writer one row ahead, and the doubling outruns a faster one. Rolls stay distinct because the
- * unique index (class_id, roll) is still the arbiter; the price is the occasional skipped number,
- * which the other writer usually fills.
+ * Time seam, so tests can run the jittered path without waiting. Production never touches it.
+ * Tests replace `sleep` (and may replace `random`) on the exported `_timing` object.
  */
-function rollLeap(clashes) {
-  return 2 ** clashes;
+const timing = {
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  random: () => Math.random(),
+};
+function jitterMs() {
+  return Math.round(JITTER_MIN_MS + timing.random() * (JITTER_MAX_MS - JITTER_MIN_MS));
 }
 
 async function addParsedStudents({ classId, teacherUserId, parsed }) {
@@ -1123,6 +1141,7 @@ async function addParsedStudents({ classId, teacherUserId, parsed }) {
   // after every clash, so a child another writer has since added is skipped, not added twice.
   let taken = roster.seen;
   let skippedHere = 0;   // duplicates found while adding, so the not-added count excludes them
+  let sleptMs = 0;       // jitter waited by this whole paste, capped at JITTER_BUDGET_MS
   const students = [];
   for (const row of toAdd) {
     const key = String(row.studentName).trim().toLowerCase();
@@ -1137,19 +1156,33 @@ async function addParsedStudents({ classId, teacherUserId, parsed }) {
     });
     let enrolled = student ? null : { error: 'insert_failed' };
     let skipped = false;
-    for (let clashes = 0; student; ) {
+    for (let jitters = 0, leaps = 0; student; ) {
       // eslint-disable-next-line no-await-in-loop
       enrolled = await enrollStudent({ classId, studentId: student.id, rollNumber: nextRoll, enrolledOn });
-      if (!enrolled.error || !enrolled.rollClash || clashes >= ROLL_RETRIES) break;
-      clashes += 1;
+      if (!enrolled.error || !enrolled.rollClash || leaps >= LEAP_RETRIES) break;
       // Another writer (a second submit, another replica) took this roll. The unique index is the
-      // arbiter. Re-read the class: the child may be there now (skip, it is theirs), else jump
-      // past what that writer is still adding and go again.
+      // arbiter. Gap-free while the budgets last: wait a little, re-read, take max + 1. After that,
+      // leap. Either way the child may be on the class now (skip, it is theirs).
+      const gapFree = jitters < JITTER_RETRIES && sleptMs < JITTER_BUDGET_MS;
+      if (gapFree) {
+        jitters += 1;
+        const ms = Math.min(jitterMs(), JITTER_BUDGET_MS - sleptMs);
+        sleptMs += ms;
+        // eslint-disable-next-line no-await-in-loop
+        await timing.sleep(ms);
+      } else {
+        leaps += 1;
+        if (leaps === 1) {
+          logToFile('⚠️ ClassService.addStudents: jittered roll retries exhausted, leaping', {
+            classId, jitters, sleptMs,
+          });
+        }
+      }
       // eslint-disable-next-line no-await-in-loop
       const fresh = await readRoster({ classId, teacherUserId });
       taken = fresh.seen;
       if (fresh.seen.has(key)) { skipped = true; break; }
-      nextRoll = Math.max(nextRoll, fresh.maxRoll) + rollLeap(clashes);
+      nextRoll = gapFree ? fresh.maxRoll + 1 : Math.max(nextRoll, fresh.maxRoll) + rollLeap(leaps);
     }
 
     if (student && (skipped || enrolled.error)) {
@@ -1510,6 +1543,7 @@ async function changeClassDetails({
 }
 
 module.exports = {
+  _timing: timing,
   createClass,
   importRoster,
   applyRosterEdits,
