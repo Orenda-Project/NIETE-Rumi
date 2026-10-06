@@ -2661,8 +2661,15 @@ const UX_STRINGS = {
   // any script, first-strong isolated (U+2068…U+2069); «نے کھیل لیا» is the
   // ergative, no person's gender.
   vqReportClassPlayed: {
-    en: '{played} of {of} in {cls} played · {left} still to play — tap to remind: {url}',
-    ur: '\u200F\u2068{cls}\u2069 کے \u2066{of}\u2069 میں سے \u2066{played}\u2069 نے کھیل لیا · \u2066{left}\u2069 ابھی باقی — یاد دلانے کے لیے دبائیں:\n{url}',
+    en: '{played} of {of} in {cls} played · {left} still to play',
+    ur: '\u200F\u2068{cls}\u2069 کے \u2066{of}\u2069 میں سے \u2066{played}\u2069 نے کھیل لیا · \u2066{left}\u2069 ابھی باقی',
+  },
+  // The report's links, sent as a SEPARATE text right after the PDF: a
+  // forwarded document carries its caption, so a /r/<token> there would reach
+  // the class group (COS 18:29Z). Each URL alone on its line. It names no child.
+  vqReportLinks: {
+    en: '📣 Remind the class (the message names no child):\n{remind}\n\n📈 Live report (it updates as more children play):\n{live}',
+    ur: '\u200F📣 کلاس کو یاد دلائیں (پیغام میں کسی بچے کا نام نہیں):\n{remind}\n\n\u200F📈 تازہ رپورٹ، جو مزید بچوں کے کھیلنے پر بدلتی رہتی ہے:\n{live}',
   },
   vqReportClassAllPlayed: {
     en: '{of} of {of} in {cls} played',
