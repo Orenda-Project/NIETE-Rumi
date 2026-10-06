@@ -1738,6 +1738,16 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-generate salvageWithoutBadFigures (isSoft skip, v2); transcript-quiz-named-pronouns lookback in
     # transcript-quiz-pedagogy. Unit: tests/quiz/quiz-author-gates-fail-soft.test.js, quiz-author-gates-named-pronouns.test.js. @wip.
 
+  @api @quiz @wip @draft @config-gated @P2 @T243 @no-mock-driver
+  Scenario: With the author gates on, my Urdu quiz page shows its title in Urdu
+    Given app_settings "quiz_author_gates_v2" is true
+    And I ask for my class quiz in Urdu from a lesson plan
+    When a child opens the quiz link
+    Then the first screen shows the lesson title in Urdu script, not the English or Roman catalog name
+    And a quiz made before this, an English quiz, and my own messages keep the title they had
+    # lp-quiz-digest title_ur (quiz-child-title cleanUrduTitle); web-quiz.service getQuiz pageTopic.
+    # Unit: bot/tests/quiz/web-quiz/web-quiz-urdu-title.test.js, tests/quiz/lp-quiz-digest.test.js. @wip.
+
   @api @quiz @wip @draft @config-gated @P2 @T242 @no-mock-driver
   Scenario: With the author gates on, a question never points at a picture my class cannot see
     Given app_settings "quiz_author_gates_v2" is true
