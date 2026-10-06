@@ -1430,6 +1430,35 @@ function textOnlyRepair(orig, repl, fields, { namesOnly = false } = {}) {
   return out;
 }
 
+
+/**
+ * A leak rewrite is shown the lesson (quiz_author_gates_v2). An ANSWER_LEAK
+ * complaint names the two questions and the words that give the answer away,
+ * but no line of the lesson; the rewrite wrote "a different fact" from the
+ * digest and quoted a summary ("Transport means moving people or goods…"),
+ * which the source check then dropped — 5 of 14 of its drops on one 10-source
+ * run. Each such complaint now carries a few of the lesson's own lines no
+ * question quotes yet, as REPLACE_FROM_SOURCE already does. Once per complaint.
+ */
+function withLessonMoments(errors, questions, sourceText) {
+  if (!Array.isArray(errors) || !sourceText) return errors;
+  const leaks = errors.filter((e) => /^q\d+: ANSWER_LEAK\b/.test(String(e)) && !/not used yet:/.test(String(e)));
+  if (!leaks.length) return errors;
+  const SFm = require('./transcript-quiz-source-fidelity');
+  const used = (questions || []).map((q) => q && q.source_quote).filter(Boolean);
+  const moments = SFm.freshMoments(sourceText, used, leaks.length * 3);
+  if (!moments.length) return errors;
+  let k = -1;
+  return errors.map((e) => {
+    if (!leaks.includes(e)) return e;
+    k += 1;
+    const mine = moments.filter((_, j) => j % leaks.length === k);
+    return mine.length
+      ? `${e}; write the new question from a moment of the lesson and copy it word for word as its "source_quote" — these moments are not used yet: ${mine.map((m) => `«${m}»`).join(' / ')}`
+      : e;
+  });
+}
+
 async function runFinalSoftRepair(api, {
   questions, settled, digest, language, quizId, teacherId, lessonSummary, gradeBand, planned, attempts, knownNames = null,
 }) {
@@ -2284,7 +2313,16 @@ async function processQuiz(quizId, payload, flight) {
     GatesV2.setEnabled(authorGates);
     if (authorGates) {
       const base = module.exports;
-      api = { ...base, rewriteRejected: (args) => base.rewriteRejected({ ...args, authorGates: true }) };
+      // A leak rewrite is shown the lesson: the ANSWER_LEAK complaint names two questions
+      // and no lesson text, so its replacement quoted a summary that source fidelity then
+      // dropped (withLessonMoments). Every rewrite call goes through here.
+      const leakSource = isLp ? (slideScript ? LpDigest.lessonExcerpts(slideScript, { authorGates: true }) : '') : ((session && session.transcript_text) || '');
+      api = {
+        ...base,
+        rewriteRejected: (args) => base.rewriteRejected({
+          ...args, errors: withLessonMoments(args.errors, args.questions, leakSource), authorGates: true,
+        }),
+      };
     }
     // quiz_author_gates_v2 adds a 6-12 lesson's own diagram specs (lessonDrewFor).
     const lessonDrew = !isLp ? ''
@@ -2964,6 +3002,7 @@ async function processQuiz(quizId, payload, flight) {
 }
 
 module.exports = {
+  withLessonMoments,
   salvageWithoutBadFigures,
   failureCopyKey, tellTeacherFailed,
   rewriteRejected: (args) => require('./transcript-quiz-rewrite').rewriteRejected(args),
