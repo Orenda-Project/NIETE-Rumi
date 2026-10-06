@@ -184,3 +184,14 @@ test('a POST redirect anywhere but back to a report is refused', async () => {
   const res = await postForm(srv, `/r/${TOK}/class`, { quiz: Q, key: 'k' });
   expect(res.status).toBe(502);
 });
+
+
+test('the notice keys reach the bot: ?e=1|2|3 and ?ok=added|moved&no=<n> are forwarded, anything else is not', async () => {
+  await boot(() => botRes(200, { body: '<html>ok</html>' }));
+  await get(srv, `/r/${TOK}?ok=added&no=11`);
+  expect(calls[0].url).toBe(`${BOT}/api/internal/tr/page/${TOK}?ok=added&no=11`);
+  await get(srv, `/r/${TOK}?e=2&lang=ur`);
+  expect(calls[1].url).toBe(`${BOT}/api/internal/tr/page/${TOK}?lang=ur&e=2`);
+  await get(srv, `/r/${TOK}?ok=hacked&no=1e9&e=9`);
+  expect(calls[2].url).toBe(`${BOT}/api/internal/tr/page/${TOK}`);
+});
