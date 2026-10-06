@@ -33,6 +33,8 @@ const PAGE = 1000;
 const QUIZ_CONCURRENCY = 2;
 const DEFAULT_MAX_USD = 15;
 const DEFAULT_DAYS = 14;
+// Publishes of one quiz in a run: publish records at most 120 clips a call; 54 bank quizzes have more (up to 169).
+const MAX_PASSES = 3;
 
 function parseArgs(argv) {
   const args = { apply: false, limit: 0, expectRef: null, concurrency: QUIZ_CONCURRENCY, maxUsd: DEFAULT_MAX_USD, days: DEFAULT_DAYS };
@@ -131,6 +133,25 @@ async function planQuiz(db, Publish, b) {
   return { language: Publish.quizLanguage({ language: b.language }, questions), questions: (questions || []).length, clips: parts.length, chars };
 }
 
+/**
+ * One quiz, through publishQuizAudio. A quiz with more clips than one publish records (its per-run
+ * clip cap) is published again — the clips already stored are reused, the rest recorded — up to
+ * MAX_PASSES times, so it ends current in this run instead of on a child's first open.
+ */
+async function recordQuiz(Publish, db, quizId) {
+  const total = { synthesized: 0, skipped: 0, chars: 0, estimatedCostUsd: 0 };
+  let out = {};
+  for (let pass = 0; pass < MAX_PASSES; pass += 1) {
+    out = (await Publish.publishQuizAudio(quizId, { db })) || {};
+    total.synthesized += out.synthesized || 0;
+    total.chars += out.chars || 0;
+    total.estimatedCostUsd += out.estimatedCostUsd || 0;
+    if (pass === 0) total.skipped = out.skipped || 0;
+    if (!(out.ok && out.capped && !out.failed && out.synthesized)) break;
+  }
+  return { ...out, ...total };
+}
+
 const usd = (n) => (Math.round(n * 1e4) / 1e4).toFixed(4);
 
 async function main(argv, deps = {}) {
@@ -174,12 +195,13 @@ async function main(argv, deps = {}) {
       while (next < todo.length && !sum.stopped) {
         if (sum.usd >= args.maxUsd) { sum.stopped = 'max_usd'; return; }
         const b = todo[next++];
-        const out = (await Publish.publishQuizAudio(b.id, { db })) || {};
-        sum.chars += out.chars || 0;
-        sum.usd += out.estimatedCostUsd || 0;
+        const out = await recordQuiz(Publish, db, b.id);
+        sum.chars += out.chars;
+        sum.usd += out.estimatedCostUsd;
         const ok = out.ok && !out.failed && !out.capped;
         if (ok) sum.done += 1; else sum.failed += 1;
-        print(`recorded\t${b.rank}\t${b.id}\t${ok ? 'ok' : `failed:${out.reason || `clips_failed_${out.failed || 0}`}`}\tsynthesized=${out.synthesized || 0}\treused=${out.skipped || 0}\tusd=${usd(out.estimatedCostUsd || 0)}`);
+        const why = out.reason || (out.failed ? `clips_failed_${out.failed}` : 'clip_cap');
+        print(`recorded\t${b.rank}\t${b.id}\t${ok ? 'ok' : `failed:${why}`}\tsynthesized=${out.synthesized}\treused=${out.skipped}\tusd=${usd(out.estimatedCostUsd)}`);
         if (out.reason === 'disabled' || out.reason === 'capped') sum.stopped = out.reason;
       }
     };

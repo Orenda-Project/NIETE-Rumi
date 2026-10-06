@@ -180,3 +180,34 @@ describe('refuses a database it was not pointed at', () => {
     expect(lines.join('\n')).not.toMatch(new RegExp(`${REF}|someotherref`));
   });
 });
+
+describe('a quiz with more clips than one publish records (its per-run clip cap)', () => {
+  // 31 questions x 4 clips (q, a, b, why) = 124 > publish's 120 a run.
+  function bigWorld() {
+    const w = world();
+    w.quiz_questions = w.quiz_questions.filter((q) => q.quiz_id !== 'q-g3sci-2')
+      .concat(Array.from({ length: 31 }, (_, i) => question('q-g3sci-2', i + 1, `Question number ${i + 1} about plants?`)));
+    return w;
+  }
+  test('is finished in the same run: publish is called again, the rest is recorded, the quiz ends current', async () => {
+    const stored = new Set(); // R2 as it is: a stored clip is found by the next publish's HEAD
+    r2.uploadBuffer.mockImplementation(async (_b, key) => { stored.add(key); return true; });
+    r2.headObject.mockImplementation(async (key) => ({ exists: stored.has(key) }));
+    const db = fakeDb(bigWorld());
+    const { r, lines } = await run(['--expect-ref', REF, '--limit', '1', '--apply'], { db });
+    r2.uploadBuffer.mockImplementation(async () => true);
+    r2.headObject.mockImplementation(async () => ({ exists: false }));
+    expect(r2.uploadBuffer).toHaveBeenCalledTimes(124);
+    expect(r).toMatchObject({ done: 1, failed: 0 });
+    const stamped = db.writes.filter((x) => x.id === 'q-g3sci-2').pop().v.meta.web;
+    expect(Publish.isCurrent(stamped)).toBe(true);
+    expect(lines.find((l) => l.startsWith('recorded'))).toMatch(/\tok\tsynthesized=124\t/);
+  });
+  test('a quiz still capped after its passes is reported as clip_cap, not as failed clips', async () => {
+    const big = { ...Publish, publishQuizAudio: jest.fn(async () => ({ ok: true, synthesized: 120, skipped: 0, failed: 0, capped: true, chars: 10, estimatedCostUsd: 0.01 })) };
+    const lines = [];
+    const r = await Backfill.main(['--expect-ref', REF, '--limit', '1', '--apply'], { db: fakeDb(world()), env: ENV, now: NOW, print: (l) => lines.push(l), publish: big });
+    expect(r.failed).toBe(1);
+    expect(lines.find((l) => l.startsWith('recorded'))).toMatch(/\tfailed:clip_cap\t/);
+  });
+});
