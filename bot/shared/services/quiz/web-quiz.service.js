@@ -1027,6 +1027,26 @@ async function chipInClass(ctx, idn, want, list) {
   return null;
 }
 
+/**
+ * A provisional child (no class list) this phone already played as on this code under the same name
+ * (Identity.canon: case, spaces and spelling variants folded), or null. One read of the code's sessions on
+ * this device, one of their students; ids and names never leave the server.
+ */
+async function provisionalOnDevice(shareCodeId, deviceRef, name) {
+  if (!deviceRef || !shareCodeId) return null;
+  const want = Identity.canon(name);
+  if (!want) return null;
+  try {
+    const { data: rows } = await supabase.from('quiz_sessions').select('student_id, student_name')
+      .eq('share_code_id', shareCodeId).eq('device_ref', deviceRef).is('user_id', null).limit(50);
+    const ids = [...new Set((rows || []).filter((r) => r.student_id && Identity.canon(r.student_name) === want).map((r) => r.student_id))];
+    if (!ids.length) return null;
+    const { data: kids } = await supabase.from('students').select('id, student_name, self_reported_class, list_id').in('id', ids);
+    const kid = (kids || []).find((k) => !k.list_id && Identity.canon(k.student_name) === want);
+    return kid ? { id: kid.id, student_name: kid.student_name, self_reported_class: kid.self_reported_class || null } : null;
+  } catch { return null; }
+}
+
 /** Has this phone (device_ref) ever played as this child (any of their ids, any code)? */
 async function deviceKnows(studentIds, deviceRef) {
   if (!deviceRef || !studentIds || !studentIds.length) return false;
@@ -1074,6 +1094,13 @@ async function newChildV2(ctx, body, idn) {
   const answers = tiebreakers(n);
   const step = (s, hits) => logEvent('web_quiz.identity_step', { shareCodeId: ctx.shareCodeId, step: s, hits });
   const provisional = async (label, bound) => {
+    // The same phone confirming the same name again on this code is the same child (a replay, never a new
+    // child: the school league counts children, so a fresh row per replay would let one phone farm it).
+    const again = await provisionalOnDevice(ctx.shareCodeId, T.cleanDeviceRef(body.device_ref), name);
+    if (again) {
+      step('provisional_reused', 1);
+      return { student: again, resolved: { via: 'new', classBound: bound, provisional: true } };
+    }
     step('provisional', 0);
     const { data: created, error } = await supabase.from('students').insert({
       student_name: name, self_reported_class: label || null, enrolled_by_user_id: ctx.teacherUserId || null, phone: null, list_id: null,

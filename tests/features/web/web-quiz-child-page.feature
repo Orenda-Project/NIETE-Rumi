@@ -267,6 +267,13 @@ Feature: Web child quiz page on the portal
     Then the quiz starts as that child
     But when the server does not know that chip, the phone forgets it and asks "What is your name?"
 
+  @T493
+  Scenario: Replaying under the same typed name on the same phone is the same child, not a new one
+    Given identity v2 is on and a child typed "Usman Testwala", which the class list does not have, and confirmed "Yes"
+    When the same phone plays this quiz again and confirms "Usman Testwala" again
+    Then it plays as the same child, as practice, and the school league gets no new points
+    But a different phone, or a different name on this phone, is a different child
+
   @T364
   Scenario: An invited friend only types a name
     Given identity v2 is on and a friend opens a challenge link from a child of class "4-A"
