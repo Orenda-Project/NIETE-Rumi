@@ -86,7 +86,7 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
              { confirm: r.txt.slice(0, 80), db: { preferred_language: field(dbEn.user, 'preferred_language'), locked: field(dbEn.user, 'language_locked') }, helloReply: hiEn.txt.slice(0, 80), helloLatinOnly: latinOnly(hiEn.txt) }), t() - s);
   }
 
-  if (want('LANG03', 'LANG10', 'LANG14', 'LANG15', 'LANG09', 'LANG16', 'LANG12', 'LANG13')) {
+  if (want('LANG03', 'LANG10', 'LANG14', 'LANG15', 'LANG09', 'LANG16', 'LANG17', 'LANG06', 'LANG18', 'LANG12', 'LANG13')) {
     // LANG14/15 on ENGLISH first is pointless — the known-issues are about an URDU account. Switch to Urdu.
     // LANG03 — select Urdu → confirm in Urdu, DB ur/locked, "hello" → Urdu
     s = t();
@@ -152,6 +152,111 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
     rec('LANG16', 'Lesson Plans via the Pick-Class Flow renders English on an Urdu account (@known-issue)',
         op.ok ? V(latinOnly(fp.text), { card: r.txt.slice(0, 80), cardUrdu: UR.test(r.txt), flowScreen: fp.text.slice(0, 120), flowEnglish: latinOnly(fp.text) })[0] : 'BLOCKED',
         op.ok ? { card: r.txt.slice(0, 80), cardUrdu: UR.test(r.txt), flowScreen: fp.text.slice(0, 120), flowEnglish: latinOnly(fp.text) } : { harness: op.err, card: r.txt.slice(0, 80), cardUrdu: UR.test(r.txt) }, t() - s);
+    await api.resetFlow();
+  }
+
+  if (want('LANG17')) {
+    // LANG17 — Grade 1-5 content language: the delivered PDF is the Urdu one when that row HAS an Urdu
+    // file, else the English one. Judged against the row itself, so it stays right when Urdu PDFs land.
+    s = t();
+    await api.resetFlow(); await api.freshReset();
+    await api.sendWait('/lp');
+    const op17 = await api.openFlow('جماعت چنیں|Pick Class|شروع کریں|Browse');
+    let doc17 = null;
+    if (op17.ok) {
+      for (const pick of ['Grade 1', 'English', 'Ch 1', 'Day 1']) {
+        const c = await api.flowClick(pick, { settleMs: 2000 });
+        if (!c.ok) break;
+      }
+      api.closeFlow();
+      const t0 = Date.now();
+      while (!doc17 && Date.now() - t0 < 120000) {
+        doc17 = (await api.fresh()).find((m) => (m.pdf || m.doc) && m.media && m.media.filename) || null;
+        if (!doc17) await sleep(1500);
+      }
+    }
+    const file17 = (doc17 && doc17.media.filename) || '';
+    // Grades 1-5 are served from the v8 corpus: one PDF per lesson, in its BOOK's language, whatever
+    // the teacher's preference (lp-v8-delivery.service.js — preferred_language only labels the survey).
+    // The old "Urdu PDF if pdf_r2_key_ur, else English" rule now applies only on the legacy fallback,
+    // reached when a grade has no v8 assets. So an Urdu teacher picking Grade 1 English gets that
+    // lesson's English plan, named after it.
+    rec('LANG17', 'A Grade 1-5 lesson plan is the lesson\'s own PDF, in its book\'s language',
+        ...(!op17.ok ? ['BLOCKED', { reason: 'the Pick-Class Flow did not open: ' + op17.err }]
+            : V(/^Grade 1 English — Ch1 Day 1\b/.test(file17), { file: file17 || null })), t() - s);
+    await api.resetFlow();
+  }
+
+  if (want('LANG06', 'LANG18')) {
+    // LANG06 + LANG18 — one real coaching upload on the Urdu-locked account. The audio-hash cache would
+    // answer a recording this account already had analysed with the old report and transcribe nothing,
+    // so archive the driver's own sessions first (cancel-stuck + reset-history, as coaching-ext does).
+    s = t();
+    try { api.db('cancel-stuck'); api.db('reset-history'); } catch (_) {}
+    await api.resetFlow(); await api.freshReset();
+    const MEDIA = require('path').resolve(__dirname, '..', '..', 'fixtures', 'whatsapp', 'niete', 'media');
+    const up = await api.upload(require('path').join(MEDIA, 'hameeda_16min.m4a'), 'Audio', 180000);
+    // The bot may speak first (a voice note) — wait for the detection card itself, the one with buttons.
+    const seen = [{ txt: up.txt || '', btns: up.btns || [] }];
+    let detect = (up.btns || []).length ? seen[0] : null;
+    for (let w = 0; !detect && w < 60000; w += 1500) {
+      for (const m of await api.fresh()) { seen.push({ txt: m.txt || '', btns: m.btns || [], audio: !!(m.audio || m.voice) }); }
+      detect = seen.find((m) => (m.btns || []).length) || null;
+      if (!detect) await sleep(1500);
+    }
+    const confirm = detect && detect.btns.find((b) => /Yes|ہاں|جی|تجزیہ/i.test(b));
+    if (confirm) {
+      const y = await api.tapAndWait(confirm, 120000);
+      seen.push({ txt: y.txt || '', btns: y.btns || [] });
+    }
+    // Collect everything the pipeline sends until the photo prompt (transcription is done by then),
+    // answer it "No", then keep reading until the reflective voice note or 6 minutes.
+    const PHOTO = /📸/;
+    const t0 = Date.now(); let declined = false, lpAnswered = false, voice = null;
+    while (Date.now() - t0 < 480000 && !voice && !seen.some((m) => m.doc || m.img)) {
+      for (const m of await api.fresh()) {
+        seen.push({ txt: m.txt || '', btns: m.btns || [], audio: !!(m.audio || m.voice), doc: !!(m.doc || m.pdf), img: !!m.img });
+        if ((m.audio || m.voice) && declined) voice = m;
+      }
+      const ph = seen.find((m) => PHOTO.test(m.txt));
+      if (ph && !declined) {
+        const no = (ph.btns || []).find((b) => /^(No|نہیں)/i.test(b));
+        if (no) { const r2 = await api.tapAndWait(no, 120000); seen.push({ txt: r2.txt || '', btns: r2.btns || [] }); }
+        declined = true;
+      }
+      // Then "do you have a lesson plan for this class?" — answer No so the analysis runs on the recording alone.
+      const lpAsk = declined && !lpAnswered && seen.find((m) => /سبق کا منصوبہ|lesson plan/i.test(m.txt) && (m.btns || []).some((x) => /^(No|نہیں)$/.test(x)));
+      if (lpAsk) {
+        lpAnswered = true;
+        const r3 = await api.tapAndWait(lpAsk.btns.find((x) => /^(No|نہیں)$/.test(x)), 120000);
+        seen.push({ txt: r3.txt || '', btns: r3.btns || [] });
+      }
+      if (!voice) await sleep(2000);
+    }
+    const after = api.db('lookup');
+    const transcribed = seen.some((m) => PHOTO.test(m.txt) || /Step [2-5]\/5/.test(m.txt));
+    rec('LANG06', 'coaching transcription cannot re-language a locked account',
+        ...(transcribed
+            ? V(field(after.user, 'preferred_language') === 'ur' && field(after.user, 'language_locked') === 'true',
+                { preferred_language: field(after.user, 'preferred_language'), locked: field(after.user, 'language_locked') })
+            : ['BLOCKED', { reason: 'the coaching upload never reached transcription (no photo prompt or Step 2+)', seen: seen.slice(0, 6).map((m) => m.txt.slice(0, 80)) }]),
+        t() - s);
+    // LANG18 inverted 2026-10-06: it was a @known-issue asserting the detection card and the Step N/5
+    // progress lines leak English on an Urdu account. They are Urdu now (مرحلہ 3/5), so the scenario
+    // asserts the whole journey: every text the pipeline sends an Urdu teacher is Urdu, a progress step
+    // is among them, and the reflective step arrives as a voice note.
+    const texts = seen.filter((m) => (m.txt || '').trim());
+    const englishTexts = texts.filter((m) => !UR.test(m.txt)).map((m) => m.txt.slice(0, 70));
+    const step = texts.find((m) => /مرحلہ|Step \d/.test(m.txt));
+    const photo = seen.find((m) => PHOTO.test(m.txt));
+    rec('LANG18', 'The coaching journey renders in Urdu on an Urdu account',
+        ...(photo
+            ? V(englishTexts.length === 0 && !!step && UR.test(step.txt) && !!voice,
+                { englishTexts, step: step && step.txt.slice(0, 60), reflectiveVoiceNote: !!voice,
+                  journey: seen.map((m) => (m.audio ? '[voice] ' : m.doc ? '[doc] ' : m.img ? '[image] ' : '') + m.txt.slice(0, 60)) })
+            : ['BLOCKED', { reason: 'the pipeline never reached the photo prompt', seen: seen.slice(0, 6).map((m) => m.txt.slice(0, 80)) }]),
+        t() - s);
+    try { api.db('cancel-stuck'); } catch (_) {}
     await api.resetFlow();
   }
 
@@ -225,10 +330,7 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   // One call per id, not a loop over an array: check-scenario-coverage reads `fn('ID'` call sites,
   // and an id hidden inside an array literal looks unrecorded to it.
   const blocked = (id, name, why) => rec(id, name, 'BLOCKED', { reason: why }, 0);
-  blocked('LANG06', 'coaching transcription cannot re-language a locked account', '@slow — needs the full coaching pipeline driven on a locked-Urdu account; the coaching feature drives that pipeline, this suite does not repeat it');
   blocked('LANG11', '/observe renders content in Urdu', '@config-gated @seeded @persona:coach — needs a leader-role driver with a seeded school + roster; the lane\'s driver is a teacher');
-  blocked('LANG17', 'Grade 1-5 Urdu PDF only if it exists', '@content-driven — covered by the lesson-plan runner delivering the English PDF (0/304 Urdu keys)');
-  blocked('LANG18', 'coaching progress steps English on Urdu account', '@slow — needs the coaching pipeline on an Urdu account; covered as a language check inside the coaching feature\'s DEEP run');
   blocked('LANG20', 'LP keeps enqueue language across a mid-generation switch', '@wip @draft — needs a generation job long enough to switch language mid-flight; not deterministic on any lane');
   blocked('LANG21', 'off-market language clamped and logged', '@defensive — the off-market code arrives from transcription language detection, which has no client-side path to forge');
 };

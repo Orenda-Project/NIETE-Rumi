@@ -323,7 +323,9 @@ function makeMockApi(opts) {
       trace('resetConversation');
       const botUrl = (opts.flows && opts.flows.botUrl) || process.env.E2E_BOT_URL || ('http://127.0.0.1:' + (process.env.E2E_BOT_PORT || 3100));
       const args = [path.join(repo, '.claude/qa/shared/niete_coaching_db.py'), 'reset-conversations',
-        '--env', env, '--phone', driver, '--yes-write', '--clear-cache-url', botUrl];
+        '--env', env, '--phone', driver, '--yes-write', '--clear-cache-url', botUrl,
+        // and her recent lessons, which ride in the same prompt (bd-oo8ka's identity line was only part of it)
+        '--clear-lp-context', '--redis-port', String(process.env.E2E_REDIS_PORT || 6390)];   // local-stack's default port on slot 0
       try {
         const out = execFileSync('python3', args, { cwd: repo, encoding: 'utf8', timeout: 60000 });
         return { ok: true, out: out.trim().split('\n').slice(-2).join(' | ') };

@@ -460,7 +460,9 @@ function makeApi(c) {
       trace('resetConversation');
       const botUrl = process.env.E2E_BOT_URL || `http://127.0.0.1:${process.env.E2E_BOT_PORT || 3100}`;
       const args = [path.join(REPO, '.claude/qa/shared/niete_coaching_db.py'), 'reset-conversations',
-        '--env', ENV, '--phone', process.env.E2E_DRIVER || '923028931858', '--yes-write', '--clear-cache-url', botUrl];
+        '--env', ENV, '--phone', process.env.E2E_DRIVER || '923028931858', '--yes-write', '--clear-cache-url', botUrl,
+        // and her recent lessons, which ride in the same prompt (bd-oo8ka's identity line was only part of it)
+        '--clear-lp-context', ...(process.env.E2E_REDIS_PORT ? ['--redis-port', String(process.env.E2E_REDIS_PORT)] : [])];
       try { const out = execFileSync('python3', args, { cwd: REPO, encoding: 'utf8', timeout: 60000 }); return { ok: true, out: out.trim().split('\n').slice(-2).join(' | ') }; }
       catch (e) { return { ok: false, err: String(e.message).slice(0, 200) }; }
     },
