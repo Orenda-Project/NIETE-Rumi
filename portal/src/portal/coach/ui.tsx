@@ -19,7 +19,7 @@ export const HUE = {
   observe: { fg: "#c8331f", bg: "#fee4e2" },
   schools: { fg: "#1d6fd8", bg: "#e3eefc" },
   training: { fg: "#6e52e0", bg: "#eeeafd" },
-  green: { fg: "#2f8f5a", bg: "#eaf6ef" },
+  green: { fg: "#48b078", bg: "#eaf6ef" }, // bd-o15qnr.12: the canvas's live accent
   amber: { fg: "#b45309", bg: "#fef3c7" },
   neutral: { fg: "#33374a", bg: "#f3f4f6" },
 } as const;
@@ -66,7 +66,7 @@ export function CoachPage({
   return (
     <CoachGate>
       <PortalLayout bare={bare}>
-        <div className="mx-auto flex w-full max-w-xl flex-col font-sans text-[#1d2025]">
+        <div className="mx-auto flex w-full max-w-xl flex-col text-[#1d2025]">
           {backTo || onBack ? (
             <header className="flex items-center gap-1 pb-2 pt-2">
               {onBack
@@ -108,11 +108,19 @@ export function PageChip({ children }: { children: ReactNode }) {
  * operator: "It should be next to Today's visits so we know that is the
  * count"); `right` is for anything that is NOT a count and goes to the far side.
  */
-export function SectionLabel({ children, count, countTone = "info", right }: { children: ReactNode; count?: ReactNode; countTone?: ChipTone; right?: ReactNode }) {
+export function SectionLabel({ children, count, countTone = "info", countStyle = "chip", right }: {
+  children: ReactNode; count?: ReactNode; countTone?: ChipTone;
+  /** bd-o15qnr.12: "count" is the Reports canvas's pill (white, grey edge, bold); "chip" is Home's. */
+  countStyle?: "chip" | "count";
+  right?: ReactNode;
+}) {
+  const pill = countStyle === "count"
+    ? <span className={`inline-flex h-6 items-center rounded-full border px-[9px] text-xs font-bold ${countTone === "warn" ? "border-[#fef3c7] bg-[#fef3c7] text-[#b45309]" : "border-[#e5e7eb] bg-white text-[#4b5563]"}`}>{count}</span>
+    : <Chip tone={countTone}>{count}</Chip>;
   return (
     <h2 className="mx-1 mt-3 flex items-center gap-2 text-xl font-light">
       <span>{children}</span>
-      {count != null && <span data-testid="section-count" className="flex"><Chip tone={countTone}>{count}</Chip></span>}
+      {count != null && <span data-testid="section-count" className="flex">{pill}</span>}
       {right != null && <span className="ms-auto">{right}</span>}
     </h2>
   );
@@ -151,6 +159,15 @@ export function IconCircle({ hue = "green", size = 44, children }: { hue?: Hue; 
   );
 }
 
+/** bd-o15qnr.12 — the canvas's school tile (.sic): a 12px-rounded square, not a circle. */
+export function IconTile({ hue = "schools", size = 44, children, testId }: { hue?: Hue; size?: number; children: ReactNode; testId?: string }) {
+  return (
+    <span data-testid={testId} className="flex shrink-0 items-center justify-center rounded-xl" style={{ width: size, height: size, background: HUE[hue].bg, color: HUE[hue].fg }} aria-hidden="true">
+      {children}
+    </span>
+  );
+}
+
 export function Chevron() {
   return <ChevronRight className="h-5 w-5 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />;
 }
@@ -184,9 +201,17 @@ export function Initials({ name, size = 48 }: { name: string | null | undefined;
 
 /** A tappable row card (a link with ›). */
 export function TapRow({ to, children, emphasis = false, muted = false, testId }: { to: string; children: ReactNode; emphasis?: boolean; muted?: boolean; testId?: string }) {
+  // bd-o15qnr.12: one set of edge/fill/shadow per state. Adding the state's
+  // classes on top of TAP left two border colours (and two fills) in the class
+  // list, and Tailwind's own order — not ours — picked TAP's grey.
+  const look = emphasis
+    ? "rounded-2xl border-2 border-[#33374a] bg-white shadow-[0_4px_14px_rgba(51,55,74,0.14)] transition-colors hover:bg-[#f9fafb]"
+    : muted
+      ? "rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] shadow-none [&_[data-testid=name]]:text-[#6b7280]"
+      : TAP;
   return (
     <Link to={to} data-testid={testId}
-      className={`${TAP} flex min-h-[84px] items-center gap-3.5 p-3 pe-3.5 ${emphasis ? "border-2 border-[#33374a] shadow-[0_4px_14px_rgba(51,55,74,0.14)]" : ""} ${muted ? "bg-[#f9fafb] shadow-none" : ""}`}>
+      className={`${look} flex min-h-[84px] items-center gap-3.5 p-3 pe-3.5`}>
       {children}
       <Chevron />
     </Link>
@@ -206,7 +231,7 @@ export function RowText({ name, sub }: { name: ReactNode; sub?: ReactNode }) {
 /** A big sub-feature tile on a feature page (Scheduling, Observe). */
 export function HubTile({ to, icon, hue, title, chips }: { to: string; icon: ReactNode; hue: Hue; title: string; chips?: ReactNode }) {
   return (
-    <Link to={to} className={`${TAP} flex min-h-[112px] items-center gap-4 p-4`}>
+    <Link to={to} className="flex min-h-[112px] items-center gap-4 rounded-[18px] border border-[#e5e7eb] bg-white p-4 shadow-[0_1px_3px_rgba(16,24,40,0.08)] transition-colors hover:bg-[#f9fafb]">
       <IconCircle hue={hue} size={64}>{icon}</IconCircle>
       <span className="flex min-w-0 flex-1 flex-col items-start gap-2">
         <b className="text-xl font-semibold leading-tight">{title}</b>
@@ -263,7 +288,7 @@ export function ChoiceChips<T extends string>({ label, value, onChange, options 
   label: string; value: T; onChange: (v: T) => void; options: { value: T; label: string }[];
 }) {
   return (
-    <div className="-me-4 flex items-center gap-2 overflow-x-auto pe-4" role="radiogroup" aria-label={label}>
+    <div className="-me-4 flex items-center gap-2 overflow-x-auto pe-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="radiogroup" aria-label={label}>
       <span className="shrink-0 text-[13px] font-semibold text-[#6b7280]">{label}</span>
       {options.map((o) => (
         <button key={o.value} type="button" role="radio" aria-checked={value === o.value} onClick={() => onChange(o.value)}

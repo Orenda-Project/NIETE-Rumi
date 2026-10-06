@@ -122,15 +122,15 @@ const CoachReports = () => {
       {first && (
         <>
           <div className="flex flex-col gap-2.5" data-testid="reports-waiting">
-            <SectionLabel count={first.waiting.length} countTone={first.waiting.length ? "warn" : "info"}>{C.waitingForYou}</SectionLabel>
+            <SectionLabel countStyle="count" count={first.waiting.length} countTone={first.waiting.length ? "warn" : "info"}>{C.waitingForYou}</SectionLabel>
             {first.waiting.map((r) => <ReportCard key={r.id} r={r} waiting />)}
           </div>
           <div className="flex flex-col gap-2.5" data-testid="reports-in-progress">
-            <SectionLabel count={first.inProgress.length}>{C.inProgress}</SectionLabel>
+            <SectionLabel countStyle="count" count={first.inProgress.length}>{C.inProgress}</SectionLabel>
             {first.inProgress.map((r) => <ReportCard key={r.id} r={r} />)}
           </div>
           <div className="flex flex-col gap-2.5" data-testid="reports-all">
-            <SectionLabel count={total}>{C.allObservations}</SectionLabel>
+            <SectionLabel countStyle="count" count={total}>{C.allObservations}</SectionLabel>
             <SearchBox value={q} onChange={search} placeholder={C.searchPlaceholder} />
             {days.map(([day, list]) => (
               <div key={day} className="flex flex-col gap-1.5" data-testid="report-day" data-day={day}>
