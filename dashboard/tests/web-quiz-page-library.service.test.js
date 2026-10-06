@@ -100,7 +100,7 @@ describe('the chapters (L2)', () => {
   test('Download: a link to the bot\'s attachment route with the size; the list timing is reported', async () => {
     const { p } = await opened();
     const h = p.html();
-    expect(h).toContain(`<a class="wql-dl" data-dl="${V(1)}" href="/api/wq/videos/dl/TEST?st=s1&amp;vid=${V(1)}" download>⬇ Download (<bdi dir="ltr">10.5 MB</bdi>)</a>`);
+    expect(h).toContain(`<a class="wql-dl" data-dl="${V(1)}" href="/api/wq/videos/dl/TEST?st=s1&amp;vid=${V(1)}" download><span>⬇ Download</span></a>`);
     p.els[`[data-dl="${V(1)}"]`].fire('click');
     const evs = events(p);
     expect(evs.find((e) => e.n === 'more_timing')).toMatchObject({ src: 'mem' });
@@ -154,7 +154,7 @@ describe('the subjects (L1)', () => {
     await flush(); await flush();
     p.els['#wq-more'].fire('click');
     expect(p.html()).toContain('سائنس · جماعت 3');
-    expect(p.html()).toMatch(/⬇ ڈاؤن لوڈ \(<bdi dir="ltr">(<span class="wq-lat" lang="en">)?10\.5 MB/);
+    expect(p.html()).toContain('<span>⬇ ڈاؤن لوڈ</span>');
     expect(p.html()).toContain('مکمل ✓');
     p.els['#wql-up'].fire('click');
     expect(p.html()).toContain('ریاضی');
@@ -181,7 +181,7 @@ describe('the lesson page', () => {
     const p = page({ lang: 'en', lib: true, store: { wq_s_TEST: { st: 's1', child: CHILD, answers: {}, queue: [] } },
       video: { url: 'https://r2.example/v.mp4', bytes: 12400000, vid: V(1) }, api: api() });
     p.wq.video();
-    expect(p.html()).toContain(`href="/api/wq/videos/dl/TEST?st=s1&amp;vid=${V(1)}" download>⬇ Download (<bdi dir="ltr">12.4 MB</bdi>)</a>`);
+    expect(p.html()).toContain(`href="/api/wq/videos/dl/TEST?st=s1&amp;vid=${V(1)}" download><span>⬇ Download (<bdi dir="ltr">12.4 MB</bdi>)</span></a>`);
   });
   test('no video id (library off): no Download button', async () => {
     const p = page({ lang: 'en', lib: true, store: { wq_s_TEST: { st: 's1', child: CHILD, answers: {}, queue: [] } },

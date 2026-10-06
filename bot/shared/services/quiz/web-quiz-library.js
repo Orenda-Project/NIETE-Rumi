@@ -32,7 +32,7 @@ const PAGE = 1000;
 
 // The library's pictures (dashboard/public/wq/art, one-year cache: a new picture gets a new number).
 const ART_V = 1;
-const ART_EXT = 'svg';
+const ART_EXT = 'webp';
 const SUBJECT_SLUG = {
   English: 'english', Maths: 'maths', Urdu: 'urdu', Science: 'science', Geography: 'geography',
   'General Knowledge': 'gk', History: 'history', 'Islamic Studies': 'islamic',
