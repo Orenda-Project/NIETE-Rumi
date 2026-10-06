@@ -16,6 +16,11 @@
  *   ABOUT_TEACHER      the question asks about the teacher, not the lesson
  *   THROWAWAY_OPTION   a digit or a Latin letter among Urdu letter options
  *   READ_LETTER_PREFIX "A: …" in the text the voice reads (web items)
+ *   WORD_BLANK_NOT_A_WORD a word_blank holding a sentence (50 of 392 prod items):
+ *                      a row of tiles too small to read on a phone
+ *   WORD_BLANK_NOT_ASKED a word_blank picture hides a letter, and the key is not
+ *                      that letter: the picture is not the question asked (a
+ *                      syllable count over «ک _ ا ب»; 316 of 392 prod items)
  *
  * Whether the key is fully correct as a STATEMENT (not just the best of the
  * options: "drunk" when "drank" is missing) is a judgement code cannot make;
@@ -27,6 +32,7 @@
  */
 
 const { logToFile } = require('../../utils/logger');
+const { hiddenLetters } = require('./quiz-figure-child-view');
 
 const TTL_MS = 60 * 1000;
 let cache = null;
@@ -403,8 +409,23 @@ function questionErrors(q, i, ctx = {}) {
       errs.push(`q${i}: THROWAWAY_OPTION — "${odd.join('", "')}" cannot be a letter answer; every wrong option must be a letter a child could confuse with "${key}"`);
     }
   }
+  // 9. a word_blank is ONE word (a sentence draws as a row of unreadable tiles), and hides
+  //    a letter the question must ask for
+  const wbWord = q.figure && String(q.figure.type || '').toLowerCase() === 'word_blank' ? String(q.figure.word || '').trim() : '';
+  if (/\s/.test(wbWord)) {
+    errs.push(`q${i}: WORD_BLANK_NOT_A_WORD — the word_blank picture holds "${wbWord}", more than one word; a word_blank is one word with a letter hidden: use one word, or remove the figure`);
+  }
+  const blank = hiddenLetters(q.figure, { stem, language: ctx.language });
+  if (blank && key && !blank.forms.some((f) => sameLetters(f, key))) {
+    errs.push(`q${i}: WORD_BLANK_NOT_ASKED — the picture hides «${blank.hidden}» in «${String(q.figure.word)}», but the key is "${key}"; a word_blank asks which letter fills the blank: make the options letters and the key «${blank.hidden}», or remove the figure and ask without it`);
+  }
   return errs;
 }
+
+/** Two spellings of one letter answer: case, marks, quotes and spacing aside. */
+const KEY_MARKS = /[\u064B-\u065F\u0670\u06D6-\u06ED\u0610-\u061A\u200C-\u200F]/g;
+const bareLetters = (t) => plain(t).normalize('NFC').toLowerCase().replace(KEY_MARKS, '').replace(/[^\p{L}\p{N}]/gu, '');
+const sameLetters = (a, b) => bareLetters(a) !== '' && bareLetters(a) === bareLetters(b);
 
 /** Faults in the text the voice reads for a web item: a letter prefix ("A: …"). */
 function readTextFaults(read) {

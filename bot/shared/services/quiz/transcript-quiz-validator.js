@@ -717,6 +717,7 @@ function validate(rawQuestions, ctx = {}) {
     // a q-named complaint, so the targeted rewrite repairs it.
     if (GatesV2.enabled(ctx.authorGates)) {
       errs.push(...GatesV2.questionErrors({ ...p, figure: q.figure, media: q.media }, i, {
+        language: ctx.language,
         legacyPictureComplaint: q.figure == null && STEM_PROMISES_PICTURE.test(stem),
       }));
       // "The lesson mentioned…": a question about the lesson, not its idea (repaired in place, soft).

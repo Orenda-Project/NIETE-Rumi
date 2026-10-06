@@ -439,3 +439,10 @@ Feature: Web child quiz page on the portal
     When someone opens /q/<CODE>/schools
     Then the page opens straight on the league with the preview title "School league this week" («اس ہفتے اسکولوں کی لیگ»)
     And "My sector" filters the list to the child's sector and "All" brings every school back
+  @T422
+  Scenario: A word picture that hides a letter the question does not ask about is not shown
+    Given a sent quiz has a question whose picture hides a letter of a word, but the question asks something else (how many syllables the word has)
+    When a child opens the quiz on the page
+    Then a question that makes sense without the picture plays as text, with no picture
+    And a question that needs the picture is left out, and the quiz still has at least three questions
+    And a question that asks which letter fills the gap keeps its picture
