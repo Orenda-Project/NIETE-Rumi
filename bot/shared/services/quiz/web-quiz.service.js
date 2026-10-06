@@ -34,7 +34,9 @@ const PictureZoom = require('./web-quiz-picture-zoom');
 const Pictures = require('./pictures');
 const { pointsAtPicture } = require('./quiz-picture-words');
 const { pageTopic } = require('./quiz-child-title');
-const { presupposesPicture } = require('./quiz-author-gates-v2');
+const GatesV2 = require('./quiz-author-gates-v2');
+
+const { presupposesPicture } = GatesV2;
 const Funnel = require('./quiz-funnel');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
@@ -149,6 +151,48 @@ function playable(q) {
   return !(pointsAtPicture(stem) || presupposesPicture(stem)) || hasPicture(q);
 }
 
+/**
+ * A word_blank that is not the question asked (quiz-author-gates-v2 WORD_BLANK_NOT_ASKED /
+ * WORD_BLANK_NOT_A_WORD): 318 of 392 production items hide a letter of a word the question treats
+ * as whole, or hold a sentence. Gates v2, web only: the picture goes; a stem that stands on its own
+ * then plays as text, one that needs the picture is left out by playable(). Never below
+ * WORD_BLANK_FLOOR playable items — then the quiz plays as today, logged.
+ */
+const WORD_BLANK_FLOOR = 3;
+function wrongWordBlank(row) {
+  const fig = row && row.media && row.media.figure;
+  if (!fig || String(fig.type || '').toLowerCase() !== 'word_blank') return false;
+  const options = [row.option_a, row.option_b, row.option_c, row.option_d].filter((o) => o != null && String(o).trim() !== '');
+  const correct = 'ABCD'.indexOf(String(row.correct_option || '').trim().toUpperCase().charAt(0));
+  const q = { question: row.question_text || '', options, correct_index: correct >= 0 ? correct : null, figure: fig };
+  return GatesV2.questionErrors(q, 0, { language: (row.media && row.media.language) || undefined })
+    .some((e) => /WORD_BLANK_NOT_(ASKED|A_WORD)/.test(e));
+}
+function withoutFigure(row) {
+  const media = { ...row.media };
+  delete media.figure;
+  delete media.question_image;
+  if (media.web && typeof media.web === 'object' && media.web.figure) { media.web = { ...media.web }; delete media.web.figure; }
+  return { ...row, media };
+}
+async function withoutWrongWordBlanks(quizId, served, out, { log = false } = {}) {
+  if (!served.some(wrongWordBlank)) return out;
+  if (!(await GatesV2.refreshFlag())) return out;
+  const wrong = new Set(served.filter(wrongWordBlank).map((q) => q.id));
+  const fixed = served.map((q) => (wrong.has(q.id) ? withoutFigure(q) : q)).filter(playable);
+  if (fixed.length < WORD_BLANK_FLOOR) {
+    if (log) logEvent('web_quiz.word_blank_kept', { quizId, n: wrong.size, served: out.length });
+    return out;
+  }
+  if (log) {
+    const kept = new Set(fixed.map((q) => q.id));
+    logEvent('web_quiz.word_blank_hidden', {
+      quizId, hidden: [...wrong].filter((id) => !kept.has(id)), text_only: [...wrong].filter((id) => kept.has(id)),
+    });
+  }
+  return fixed;
+}
+
 /** The quiz's questions in the order a WhatsApp child gets them, capped like a session; only playable ones. */
 async function loadQuestions(quizId, { log = false } = {}) {
   const { data, error } = await supabase.from('quiz_questions').select(Q_COLS)
@@ -159,7 +203,8 @@ async function loadQuestions(quizId, { log = false } = {}) {
   // bank legacy-first) — the WhatsApp engine's own function.
   const { orderForSession } = require('./video-quiz.service');
   const served = orderForSession(rows).slice(0, QUESTIONS_MAX);
-  const out = served.filter(playable);
+  let out = served.filter(playable);
+  out = await withoutWrongWordBlanks(quizId, served, out, { log });
   if (log && out.length < served.length) {
     const qids = served.filter((q) => !playable(q)).map((q) => q.id);
     logEvent('web_quiz.unplayable_skipped', { quizId, n: qids.length, qids, served: out.length });

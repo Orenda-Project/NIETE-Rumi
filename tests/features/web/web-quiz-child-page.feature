@@ -296,3 +296,11 @@ Feature: Web child quiz page on the portal
     When the child taps "Play as" that child on a quiz of this class
     Then the phone forgets that child and shows "who is playing?" (the roll-number pad when the class has a list)
     And no "Something went wrong" message is shown
+
+  @T422
+  Scenario: A word picture that hides a letter the question does not ask about is not shown
+    Given a sent quiz has a question whose picture hides a letter of a word, but the question asks something else (how many syllables the word has)
+    When a child opens the quiz on the page
+    Then a question that makes sense without the picture plays as text, with no picture
+    And a question that needs the picture is left out, and the quiz still has at least three questions
+    And a question that asks which letter fills the gap keeps its picture
