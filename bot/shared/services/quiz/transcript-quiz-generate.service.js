@@ -667,6 +667,10 @@ function salvageWithoutBadFigures(questions, errors, ctx) {
     // English terms side by side are a sound question in the wrong order: it
     // is shipped with the fault recorded, never dropped (see IN_PLACE_FAULT).
     if (IN_PLACE_FAULT.test(e)) return;
+    // quiz_author_gates_v2: a SOFT complaint on a question ships with it, recorded — it never
+    // costs a drop. Counted as drops, four soft "He"/"She" complaints beside one hard fault took
+    // a grade 1 quiz under its floor and the teacher got nothing (sandbox, 5 Oct).
+    if (GatesV2.enabled() && isSoft(e)) return;
     const m = perQuestion.exec(e);
     if (m) bad.add(Number(m[1]));
     else if (!setLevelSoft.test(e) && !isSoft(e)) other = true;

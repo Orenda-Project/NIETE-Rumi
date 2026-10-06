@@ -350,3 +350,31 @@ describe('the key check (a lesson-plan quiz), flag on', () => {
     expect(prompts.rewrite.filter((p) => /REPLACE_FROM_SOURCE/.test(p))).toHaveLength(0);
   });
 });
+
+// ── 4. the last-chance salvage never drops a question for a SOFT fault ───────
+
+describe('the salvage, flag on: a soft complaint on a question is shipped, never a drop', () => {
+  // Live (5 Oct, a grade 1 maths plan, gates on): the last attempt left q6 PICTURE_MISSING (hard) and
+  // PEDAGOGY_GENDERED_TEACHER on q1, q2, q3, q7 (soft — "He"/"She" for the story's Bilal and Bunty).
+  // The salvage counted all five as drops, 8 - 5 = 3 is under the floor, and the teacher got NO quiz.
+  const errs = [
+    'q6: PICTURE_MISSING — the stem points at a picture (Look at the number line) but the question has none',
+    ...[1, 2, 3, 7].map((i) => `q${i}: PEDAGOGY_GENDERED_TEACHER — question refers to the teacher with a gendered word ("He").`),
+  ];
+  const ctx = { language: 'en', subject: 'maths', digest: DIGEST, quizId: QID, lessonSummary: 'You taught adding with carrying, ones first.' };
+  afterEach(() => GatesV2.setEnabled(false));
+
+  test('flag on: only the hard fault is dropped; seven ship, the soft faults recorded', () => {
+    GatesV2.setEnabled(true);
+    const s = Gen.salvageWithoutBadFigures(EIGHT, errs, ctx);
+    expect(s.refused).toBeUndefined();
+    expect(s.dropped).toEqual([6]);
+    expect(s.questions).toHaveLength(7);
+  });
+
+  test('flag off: today’s salvage (every named question counts as a drop) — refused under the floor', () => {
+    GatesV2.setEnabled(false);
+    const s = Gen.salvageWithoutBadFigures(EIGHT, errs, ctx);
+    expect(s.refused).toMatch(/under the floor of 6/);
+  });
+});
