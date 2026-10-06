@@ -1151,5 +1151,7 @@ module.exports = {
   getQuiz, startSession, recordAnswers, finishSession, board, me, events, media,
   // exported for tests and the router
   WqError, rankRows, cleanEvent, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho,
+  // the render matrix (scripts/qa/render-matrix) turns synthetic rows into page items with it
+  questionPayload,
   BOARD_TOP, QUESTIONS_MAX,
 };

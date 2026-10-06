@@ -296,3 +296,18 @@ Feature: Web child quiz page on the portal
     When the child taps "Play as" that child on a quiz of this class
     Then the phone forgets that child and shows "who is playing?" (the roll-number pad when the class has a list)
     And no "Something went wrong" message is shown
+
+  @T248
+  Scenario: A picture question whose picture cannot be drawn for one option plays as words
+    Given a picture question where one option's picture does not exist
+    When a child opens the question on a phone, in English or in Urdu
+    Then the options show as a list of words, each word shown once
+    And no word is painted over another
+
+  @T249
+  Scenario: Every item shape the quiz engine can write renders on a phone
+    Given every question shape the engine can write (every picture kind, every question type, two to four options, long questions and options, maths, glyph and picture tiles, a picture that cannot be drawn), in English and in Urdu
+    When each is opened on a 360 by 740 phone screen and then answered
+    Then nothing scrolls sideways or runs off the screen, no text is cut off or covers other text, and every option shows a word or a picture
+    And maths shows as typeset maths, never as "$" or a backslash command
+    And Urdu text is set in the Nastaliq face, and every picture is drawn or left out as documented
