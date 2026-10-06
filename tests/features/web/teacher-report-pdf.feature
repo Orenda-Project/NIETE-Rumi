@@ -17,11 +17,13 @@ Feature: Teacher quiz report in the class report PDF and the "All my classes" ta
     And only the caption, the teacher's own message, carries the live report link and the "/r/<token>/remind" reminder
 
   @T358
-  Scenario: The caption counts who has not played and links the reminder
+  Scenario: With the class known, the caption counts the class in one line and links the reminder
     When the scheduled class report is sent
-    Then the caption reads "9 of 15 have not played yet · tap to remind the class: <link>" with the "/r/<token>/remind" link
-    And for an Urdu-speaking teacher the same line is Urdu with the numbers isolated
-    And with no class list, or when everyone on it has played, the caption has no count line
+    Then the caption reads "6 of 15 in 3-B played · 9 still to play — tap to remind: <link>" with the "/r/<token>/remind" link
+    And it no longer says how many sessions finished
+    And for an Urdu-speaking teacher the same line is Urdu with the numbers and the class name isolated
+    And when everyone on the list has played it reads "15 of 15 in 3-B played" with no reminder
+    And with no class list the caption keeps "<finished> of <started> finished"
 
   @T351
   Scenario: A child who started but did not finish is listed once

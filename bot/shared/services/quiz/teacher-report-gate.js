@@ -20,8 +20,8 @@ const { logToFile } = require('../../utils/logger');
 const { webBaseUrl } = require('./web-quiz-link');
 const { signTeacherReport } = require('./teacher-report-token');
 
-// TODO: take REPORT_PATH from the teacher report route once it lands; '/r' is its value.
-const REPORT_PATH = '/r';
+// The report page's own path ('/r'), so a link minted here and the route that serves it cannot drift.
+const { REPORT_PATH } = require('../../templates/teacher-report.page');
 const KEY = 'teacher_report_teachers';
 // The approved WhatsApp template (URL button) the report link rides on; absent = the link goes as text.
 const TEMPLATE_KEY = 'teacher_report_template';

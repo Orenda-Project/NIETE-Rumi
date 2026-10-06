@@ -36,8 +36,7 @@ function esc(s) {
 }
 // Text content keeps its quotes (an escaped apostrophe would cut a Latin run in
 // two, see video-quiz-report.template.js esc); an attribute value escapes them.
-// TODO: take REPORT_PATH from the teacher report route once it lands; '/r' is its value.
-const REPORT_PATH = '/r';
+const { REPORT_PATH } = require('./teacher-report.page');
 const attr = (s) => esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 /** A number, a percentage or a date: always an isolated LTR atom. */
