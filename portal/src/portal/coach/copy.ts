@@ -193,6 +193,11 @@ export const COACH_COPY = {
   modulesDone: "Modules done",
   lastTraining: "Last training",
   history: "History",
+  // bd-o15qnr.10 — one HITL report, opened from a teacher's History
+  observation: "Observation",
+  observedBy: "Observed by",
+  reportSent: "Sent",
+  summary: "Summary",
   nextVisitOn: (when: string) => `Next visit: ${when}`,
   searchPlaceholder: "Name or phone",
   schoolSearchPlaceholder: "School name",

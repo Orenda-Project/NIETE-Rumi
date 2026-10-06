@@ -1854,6 +1854,26 @@ router.get('/coach/teacher/:teacherExtId', ...coachV2, async (req, res) => {
   } catch (error) { return coachFail(res, 'teacher', error); }
 });
 
+/**
+ * GET /api/portal/coach/observation/:id — bd-o15qnr.10: one HITL report from a
+ * teacher's History, read-only. Served only while that teacher is in the
+ * coach's patch and the report is out; the report image is the one the
+ * teacher received (teacher_delivery.report_key), signed here the same way the
+ * teacher's own session page signs it.
+ */
+router.get('/coach/observation/:id', ...coachV2, async (req, res) => {
+  if (!UUID_RX.test(String(req.params.id || ''))) return res.status(404).json({ success: false, error: 'Not found' });
+  try {
+    const out = await CoachV2.getCoachObservation(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req) });
+    if (!out) return res.status(404).json({ success: false, error: 'Not found' });
+    const { reportKey, ...rest } = out;
+    const imageUrl = reportKey && process.env.R2_ENDPOINT && process.env.R2_BUCKET_NAME
+      ? await _resolveMediaUrl(`${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${reportKey}`)
+      : null;
+    return res.json({ success: true, ...rest, imageUrl });
+  } catch (error) { return coachFail(res, 'observation', error); }
+});
+
 /** GET /api/portal/coach/visit/:id — one of her schedule entries, with the teacher's numbers. */
 router.get('/coach/visit/:id', ...coachV2, async (req, res) => {
   if (!UUID_RX.test(String(req.params.id || ''))) return res.status(404).json({ success: false, error: 'Not found' });
