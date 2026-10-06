@@ -852,3 +852,10 @@ Feature: Web child quiz page on the portal
     When it is opened
     Then the page says "This link has expired" and "Send /quiz on WhatsApp to get a new one." in the child's language
     And no child's name or quiz is shown
+  @T446
+  Scenario: A challenger who scored nothing is not a score to beat
+    Given a child finished a quiz with 0 right answers and sent a friend their challenge link
+    When the friend opens the link
+    Then the landing says "<challenger> challenged you. Can you beat their score?" («… نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!»)
+    And it never says "0/5 stars. Can you beat it?"
+    And the friend's landing never says how many of the class played today (the friend is not in that class)
