@@ -193,21 +193,43 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
     # attendance-detector.service.js:92 high-confidence: attendance, roll call,
     # /attendance, حاضری, hazri/haazri/haziri/hajri (substring, case-insensitive).
 
-  @e2e @wip @new @role-fork @edge @P1
-  Scenario: A principal who also owns classes is asked teachers-or-students
-    Given the NIETE bot chat is open on a PRINCIPAL account that ALSO owns student classes
-    When I send "attendance"
-    Then the bot asks whether I mean teachers or students ("1. Teachers / 2. Students")
-    # resolveAttendanceActor → ASK (ambiguous) → sets Redis attendance:actor-choice
-    # + prompt (text-message.handler.js:2097). TTL 300s.
+  # RESYNCED 2026-10-02 — the three scenarios below are the CURRENT shape. The
+  # "teachers or students?" question described here used to be the FIRST thing a
+  # principal was asked (Redis attendance:actor-choice, numbered "1. Teachers /
+  # 2. Students"); bd-43520 removed it entirely and sent every principal to the
+  # staff register. It is back, for principals who OWN an active class only, as
+  # the SECOND of two reply-button questions — because /roster can now name a
+  # principal the class teacher of a class, and the old fork made its "the class
+  # teacher can see them in their attendance now" a false promise.
+  #
+  # Order is load-bearing: tap-or-voice is asked FIRST because it is the question
+  # people answer by typing ("voice"), and the register answer travels in the
+  # second question's own button ids (att_register_<staff|class>_<tap|voice>).
 
-  @e2e @wip @new @role-fork @edge @P2
-  Scenario: The teachers-or-students answer routes to the right channel
-    Given a principal was asked teachers-or-students
-    When I reply "1"
-    Then the bot starts the teacher-marking channel
-    # text-message.handler.js:1791 actor-choice intercept: 1/teacher/اساتذہ →
-    # teacher channel; 2/student/بچ → student setup/flow; unrecognised → re-ask.
+  @e2e @wip @new @role-fork @edge @P1
+  Scenario: A principal who also owns a class is asked tap-or-voice WITHOUT a register named
+    Given the NIETE bot chat is open on a PRINCIPAL account that ALSO owns an active class
+    When I send "attendance"
+    Then the bot asks how I want to mark — by tapping or by voice note — and does NOT call it teacher attendance
+    # attendance-router.service.js route() → loadClasses() non-empty →
+    # askMethod('either') → ASK_METHOD, copy key attendanceAskMethodEither.
+    # A principal who owns NO class still gets attendanceAskMethodTeacher.
+
+  @e2e @wip @new @role-fork @edge @P1
+  Scenario: Answering tap-or-voice then asks WHICH register
+    Given a principal who owns a class was asked how to mark
+    When I tap "Mark by tapping"
+    Then the bot asks whose register it is, offering "My teachers" and "My class"
+    # resolveMethodChoice → loadClasses() non-empty → askRegister('tap') →
+    # ASK_REGISTER with att_register_staff_tap / att_register_class_tap.
+
+  @e2e @wip @new @role-fork @edge @P1
+  Scenario: Choosing "My class" opens the student register for the principal
+    Given a principal who owns a class was asked whose register it is
+    When I tap "My class"
+    Then the bot opens the attendance marking Flow on the class picker, exactly as a teacher gets it
+    # resolveRegisterChoice → OPEN_REGISTER, flowToken "<userId>:student".
+    # "My teachers" is unchanged: MARK_TEACHERS, "<userId>:teacher:<schoolId>".
 
   @e2e @wip @new @role-fork @edge @P3
   Scenario: The role fork tolerates casing and whitespace
@@ -315,7 +337,15 @@ Feature: NIETE (ICT) WhatsApp bot — Attendance (teacher student-marking + prin
   Scenario: A principal is never silently marked into the student flow
     Given the NIETE bot chat is open on a PRINCIPAL account
     When I send "attendance"
-    Then I am routed to teacher-marking or asked teachers-or-students — never straight into student marking
+    Then I am routed to teacher-marking or asked whose register it is — never straight into student marking
     # attendance-router.service.js safety invariant (exhaustively unit-tested):
-    # a principal maps to PRINCIPAL_MARKS_TEACHERS or ASK, never
-    # TEACHER_MARKS_STUDENTS. This is the load-bearing guarantee of the new channel.
+    # a principal reaches MARK_TEACHERS / AWAIT_VOICE(teacher), or ASK_REGISTER
+    # when they own a class. Never OPEN_REGISTER without having said "My class".
+
+  @e2e @wip @new @role-fork @negative @P2
+  Scenario: A class-register button tapped after the class is gone falls back to staff
+    Given a principal was offered "My class" and the class has since been handed to someone else
+    When I tap "My class"
+    Then the bot opens the staff register rather than a class register that is no longer mine
+    # resolveRegisterChoice re-reads the user AND the classes: a reply button is a
+    # durable artifact on a handset, so the id is never trusted on its own.

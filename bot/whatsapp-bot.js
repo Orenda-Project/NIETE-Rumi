@@ -219,6 +219,10 @@ async function handleAttendanceTap(interactiveId, from, user) {
     // Answered by tapping, so stop listening for a typed answer — otherwise the next
     // message containing "voice" would be read as choosing it all over again.
     if (decision.action !== 'ASK_METHOD') await AttendanceRouter.closeMethodQuestion(user.id);
+  } else if (interactiveId.startsWith('att_register_')) {
+    // bd-37lyd — "whose register?", for a principal who is also a class teacher.
+    // The method is in the id, so nothing has to be remembered between the two taps.
+    decision = await AttendanceRouter.resolveRegisterChoice(user.id, interactiveId);
   } else if (interactiveId.startsWith('att_voice_')) {
     // Which class the voice note is for. Only the voice branch asks this — the tap
     // branch picks its class on a Flow screen.
@@ -259,7 +263,9 @@ async function handleAttendanceTap(interactiveId, from, user) {
   }
 
   // Re-ask rather than assume, when a method id comes back that we do not know.
-  if (decision.action === 'ASK_METHOD') {
+  // ASK_REGISTER is the second question a principal who owns a class is asked —
+  // "your teachers, or your own class?" — and renders identically. (bd-37lyd)
+  if (decision.action === 'ASK_METHOD' || decision.action === 'ASK_REGISTER') {
     await WhatsAppService.sendInteractiveButtons(from, {
       body: decision.message,
       buttons: decision.buttons,
@@ -852,8 +858,8 @@ app.post('/webhook', async (req, res) => {
       if (buttonId.startsWith('coaching_confirm_')) {
         const sessionId = buttonId.replace('coaching_confirm_', '');
         await CoachingService.handleConfirmation(sessionId, from, true);
-      } else if (buttonId.startsWith('att_method_') || buttonId.startsWith('att_voice_')
-                 || buttonId.startsWith('att_class_')) {
+      } else if (buttonId.startsWith('att_method_') || buttonId.startsWith('att_register_')
+                 || buttonId.startsWith('att_voice_') || buttonId.startsWith('att_class_')) {
         if (user?.id) { await handleAttendanceTap(buttonId, from, user); }
         else { await WhatsAppService.sendMessage(from, 'Please say "register" first.'); }
 } else if (buttonId.startsWith('coaching_cancel_')) {
@@ -1935,7 +1941,7 @@ app.post('/webhook', async (req, res) => {
       // for a 20-char button. Same `vq_` ids as the button path — routed
       // here too, or a four-option question would accept no answer at all.
       if (listId.startsWith('att_class_') || listId.startsWith('att_method_')
-          || listId.startsWith('att_voice_')) {
+          || listId.startsWith('att_register_') || listId.startsWith('att_voice_')) {
         if (user?.id && await handleAttendanceTap(listId, from, user)) return;
       }
 
