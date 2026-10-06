@@ -227,6 +227,10 @@ def build_row(a):
         # from a rendered screen. Named so nobody reads them as a rendering pass.
         row["flows"] = {"via": "flow-emulator", "opened": int(fe.get("opened") or 0), "completed": int(fe.get("completed") or 0),
                         "refused": int(fe.get("refused") or 0), "flows": sorted(set(fe.get("flows") or []))}
+    sel = d.get("selection")
+    if isinstance(sel, dict) and sel.get("only"):
+        # a commit-scoped run: only these scenarios were in scope (select_scenarios.py) — a full run has no key
+        row["scenario_scope"] = {"only": list(sel["only"]), "not_selected_but_recorded": int(sel.get("notSelectedButRecorded") or 0)}
     brief = a.spec_sync if a.spec_sync and a.spec_sync != "none" else None
     row["spec_sync"] = {"brief": brief,
                         "validator_exit": int(a.validator_exit) if a.validator_exit not in (None, "") else None}

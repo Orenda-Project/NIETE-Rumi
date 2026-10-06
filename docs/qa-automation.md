@@ -162,6 +162,30 @@ Nothing server-side enforces either verdict.
 
 Tests for all of it: `npm run qa:test`.
 
+## The mock run drives the commit's scenarios, not whole features
+
+`commit-e2e.sh` narrows twice. `select_e2e.py` picks the **features** a commit touched;
+`select_scenarios.py` then picks the **scenarios** inside each one:
+
+| A changed path is… | The feature drives… |
+|---|---|
+| the feature's own `.feature` file | the scenarios whose lines the diff added or edited (a deleted scenario drives nothing) |
+| pinned under `scenarios:` in `feature-map.yaml` | exactly the pinned ids |
+| named in a scenario's text (`coaching-inflight-guard.js`, its stem, or a distinctive core name) | the scenarios that name it |
+| none of the above | **the whole feature**, and the run says which path forced it — pin that path to narrow it next time |
+
+```
+│ scenarios: training     5 of 98 — T46, T47, T29, T83, T84
+│ scenarios: coaching     ALL — bot/shared/services/llm-client.js: no coaching scenario names it — pin it under scenarios: to narrow
+```
+
+The run reports only the selected ids, and the long drivers (coaching, training) skip the blocks whose
+scenarios were not selected, keeping any block whose state a selected one reads. A selected scenario a
+driver did not reach is recorded `BLOCKED` with that reason, never silently missing. The ledger row
+carries `scenario_scope.only`, so the PR's "E2E run recorded" column still fills for the feature.
+Two or more features still run side by side (`--parallel`). By hand: `run-suite.sh <feature> --only
+'<feature>=ID,ID'`. Off: `E2E_SCENARIO_SELECT=0` (whole features, as before).
+
 ## Switches
 
 | Env var | Effect |
@@ -172,6 +196,8 @@ Tests for all of it: `npm run qa:test`.
 | `E2E_AUTORUN_OFF=1` (exported) | Claude Code hooks silent |
 | `E2E_SPEC_SYNC_OFF=1` (exported) | phase 1 (Gherkin sync) skipped, E2E half unchanged |
 | `E2E_AUTORUN_ALL=1` (exported) | arm `/niete-e2e all` instead of the targeted selection (hours) |
+| `E2E_SCENARIO_SELECT=0` (exported) | the mock run drives whole features instead of the commit's scenarios |
+| `E2E_PARALLEL=0` (exported) | features of one commit run one after another instead of side by side |
 
 ## Phase 1 is a gate (2026-09-09, bd-zqtgs)
 
