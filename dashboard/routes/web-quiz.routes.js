@@ -126,7 +126,10 @@ function ogText(payload, view, brand) {
     const ch = payload.challenge;
     const score = `${ch.correct}/${ch.total}`;
     return {
-      title: ur ? `کیا آپ ${ch.first} کے ${score} سے آگے جا سکتے ہیں؟ · ${q.topic || ''}` : `Can you beat ${ch.first}'s ${score}? · ${q.topic || ''}`,
+      // Urdu: the imperative, never «آپ … سکتے ہیں» (masculine). A 0/N challenger is never a score to beat.
+      title: !(Number(ch.correct) > 0)
+        ? (ur ? `${ch.first} نے آپ کو چیلنج کیا ہے · ${q.topic || ''}` : `${ch.first} challenged you · ${q.topic || ''}`)
+        : (ur ? `${ch.first} کے ${score} سے آگے نکلیں! · ${q.topic || ''}` : `Can you beat ${ch.first}'s ${score}? · ${q.topic || ''}`),
       desc: ur ? 'وہی کوئز کھیلیں اور دیکھیں!' : 'Play the same quiz and see!',
     };
   }

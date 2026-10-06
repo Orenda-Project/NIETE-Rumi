@@ -43,6 +43,7 @@ const COPY = {
     playSame: 'Play the same quiz',
     chal: 'A challenge for you',
     beat: (n, score) => `Can you beat ${n}'s ${score}?`,
+    dared: (n) => `${n} challenged you!`,
     scored: (n, s, t) => `${n} scored ${s} on ${t}`,
     tapPlay: 'Tap the link to play',
     played: 'played',
@@ -62,7 +63,9 @@ const COPY = {
     my: 'میرا اسکور',
     playSame: 'یہی کوئز کھیلیں',
     chal: 'آپ کے لیے چیلنج',
-    beat: (n, score) => `کیا آپ ${n} کے ${score} سے آگے جا سکتے ہیں؟`,
+    // Imperative, never «آپ … سکتے ہیں» (masculine): the friend's gender is not ours to guess.
+    beat: (n, score) => `${n} کے ${score} سے آگے نکلیں!`,
+    dared: (n) => `${n} نے آپ کو چیلنج کیا ہے!`,
     scored: (n, s, t) => `${n} نے ${t} میں ${s} لیے`,
     tapPlay: 'لنک پر ٹیپ کریں اور کھیلیں',
     played: 'بچوں نے کھیلا',
@@ -153,11 +156,13 @@ function body(kind, d, C, pics, size) {
   }
   if (kind === 'invite') {
     const score = `${d.correct}/${d.total}`;
+    // A challenger who scored nothing is never a score to beat, and a zero is never shown off.
+    const zero = !(Number(d.correct) > 0);
     return {
       pic: pic('hello'),
       main: `<p class="kick">${esc(C.chal)}</p>`
-        + `<h1 class="head">${C.beat(own(d.first), num(score))}</h1>`
-        + `<p class="sub">${C.scored(own(d.first), num(score), own(d.topic))}</p>${starsHtml(d.correct, d.total)}`,
+        + `<h1 class="head">${zero ? C.dared(own(d.first)) : C.beat(own(d.first), num(score))}</h1>`
+        + (zero ? `<p class="sub">${own(d.topic)}</p>` : `<p class="sub">${C.scored(own(d.first), num(score), own(d.topic))}</p>${starsHtml(d.correct, d.total)}`),
       cta: C.tapPlay,
     };
   }
