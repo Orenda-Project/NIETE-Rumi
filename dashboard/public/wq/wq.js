@@ -489,7 +489,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       quiz: 'QUIZ', from: function (t, c) { return [t ? 'From ' + t : '', c].filter(Boolean).join(' · '); },
       meta: function (n) { var m = Math.max(1, Math.round(n * 0.6)); return n + (n === 1 ? ' question' : ' questions') + ' · about ' + m + (m === 1 ? ' minute' : ' minutes'); },
       hello: 'Assalam o Alaikum! Let\'s play the quiz together.', helloN: function (n) { return 'Welcome back, ' + n + '!'; },
-      play: 'Play', playAs: function (n) { return 'Play as ' + n; }, notMe: function (n) { return 'Not ' + n + '?'; },
+      play: 'Play', playAs: function (n) { return 'Play as ' + n; }, notMe: function (n) { return 'Not ' + n + '?'; }, nextTurn: "Someone else's turn",
       proof: function (n) { return n.toLocaleString('en') + (PLACE ? ' children in ' + PLACE.en + ' played today' : ' children played today'); },
       classToday: function (n) { return n + ' in your class played today'; },
       whoT: 'Whose turn is it?', whoSay: 'Tap your name.', onPhone: 'On this phone', inClass: function (c) { return 'Find your name in ' + c; },
@@ -550,7 +550,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       quiz: 'کوئز', from: function (t, c) { return [t ? t + ' کی طرف سے' : '', c ? String(c).replace(/ /g, '\u00A0') : ''].filter(Boolean).join(' · '); },
       meta: function (n) { return n + ' سوال · تقریباً ' + Math.max(1, Math.round(n * 0.6)) + ' منٹ'; },
       hello: 'السلام علیکم! آئیں، کوئز کھیلیں۔', helloN: function (n) { return n + '، خوش آمدید!'; },
-      play: 'کھیلیں', playAs: function (n) { return n + '، شروع کریں'; }, notMe: function (n) { return n + ' نہیں؟'; },
+      play: 'کھیلیں', playAs: function (n) { return n + '، شروع کریں'; }, notMe: function (n) { return n + ' نہیں؟'; }, nextTurn: 'کسی اور کی باری',
       proof: function (n) { return 'آج ' + (PLACE ? PLACE.ur + ' میں ' : '') + n.toLocaleString('en') + ' بچوں نے کھیلا'; },
       classToday: function (n) { return 'آج آپ کی کلاس میں ' + n + ' نے کھیلا'; },
       whoT: 'آج کس کی باری ہے؟', whoSay: 'اپنے نام پر ٹیپ کریں۔', onPhone: 'اس فون پر', inClass: function (c) { return c + ' میں اپنا نام ڈھونڈیں'; },
@@ -1975,7 +1975,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>' +
       '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' +
       '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>' +
-      '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>' + moreBtn();
+      '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>' + moreBtn() +
+      // One phone, many children: the next child starts from the landing. Not while answers wait to be sent.
+      (S.queue && S.queue.length ? '' : '<button class="wq-btn wq-ghost" id="wq-turn">' + esc(T.nextTurn) + '</button>');
     render(h, 'M10');
     wireBar();
     ev('card_view', {});
@@ -1993,6 +1995,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-class', board);
     on('#wq-schools', function () { schools(card); });
     on('#wq-more', moreVideos);
+    on('#wq-turn', nextTurn);
+  }
+  // Forgets the finished child's session on THIS page only (their result stays theirs on the server).
+  function nextTurn() {
+    ev('identity_pick', { src: 'next_turn' });
+    S.st = null; S.child = null; S.result = null; S.pending = null; S.fixed = 0;
+    S.answers = {}; S.seq = 0; S.wrong = []; S.vt = 0; S.vdone = 0;
+    save();
+    landing();
   }
 
   // A practice round that beats the child's best earlier score on this code (finish's card.best).
