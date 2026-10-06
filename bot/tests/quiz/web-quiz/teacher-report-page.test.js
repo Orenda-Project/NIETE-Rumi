@@ -42,7 +42,9 @@ const page = (data, opts = {}) => renderPage({ quiz: data }, { lang: 'en', tab: 
 describe('teacher report page — roster states', () => {
   test('known: tiles, greyed not-played chips sorted by roll, Remind the class link, Copy message without JS', () => {
     const html = page(quizData());
-    expect(text(html)).toMatch(/2 of 4 played/);
+    // Bilal is not on 5-A's list: 1 of 4 on the list played, Bilal named apart
+    expect(text(html)).toMatch(/1 of 4 played/);
+    expect(text(html)).toMatch(/\+1 not on the list/);
     expect(html).toMatch(/Average/);
     expect(html).toMatch(/63%/);
     expect(html).toMatch(/Hardest/);
@@ -346,6 +348,22 @@ describe('teacher report page — review follow-ups', () => {
     expect(row).not.toMatch(/list no\./);
     const ayesha = html.slice(html.indexOf('id="scores"')).slice(0, 2000);
     expect(text(ayesha)).toMatch(/Ayesha\s*list no\. 2/);
+  });
+});
+
+describe('teacher report page — the played tile counts the class list only', () => {
+  test('a known class: "N of M played" counts on-list children only, the others are named as such', () => {
+    const played = [
+      { first: 'A', roll: 1, correct: 3, total: 4, pct: 75, onList: true },
+      { first: 'B', roll: 2, correct: 3, total: 4, pct: 75, onList: true },
+      ...Array.from({ length: 7 }, (_, i) => ({ first: `X${i}`, roll: null, correct: 1, total: 4, pct: 25, onList: false })),
+    ];
+    const html = page(quizData({ played, summary: { played: 9, of: 4, avg: 40, total: 4, hardestN: 3 } }));
+    const tile = text(html.slice(html.indexOf('class="tiles"'), html.indexOf('class="tiles"') + 900));
+    expect(tile).toMatch(/2 of 4 played/);
+    expect(tile).toMatch(/\+7 not on the list/);
+    expect(html).toMatch(/--p:50/);
+    expect(tile).not.toMatch(/9 of 4/);
   });
 });
 
