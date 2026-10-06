@@ -38,6 +38,10 @@ describe('canon + smartFirst: one spelling for a name typed in either script', (
     expect(Id.canon('مصطفیٰ')).toBe('mustafa');
     expect(Id.tokens('ماہ نور')).toEqual(['mahnoor']);
   });
+  test('digits are part of a name token (test fixtures "Kid1 Testwala"/"Kid2 Testwala" are two children, not one)', () => {
+    expect(Id.canon('Kid1 Testwala')).not.toBe(Id.canon('Kid2 Testwala'));
+    expect(Id.dedupe([kid(1, { student_name: 'Kid1 Testwala' }), kid(2, { student_name: 'Kid2 Testwala' })])).toHaveLength(2);
+  });
   test('an Urdu name the map does not know stays Urdu (never a wrong Latin guess)', () => {
     expect(Id.canon('زڑقمپ')).toBe('زڑقمپ');
   });
@@ -176,6 +180,14 @@ describe('gradeBand + pickClass: which class is this quiz for', () => {
     const secs = [C('a', 4, 'A'), C('b', 4, 'B'), C('c', 5, 'A')];
     expect(Id.pickClass(secs, { grade: '4' }).classes.map((c) => c.id)).toEqual(['a', 'b']);
   });
+  test('a SOFT grade (a coaching digest\'s guess) never excludes a one-class teacher: known; with 2+ classes it narrows but never to none', () => {
+    const one = [C('a', 3, 'B')];
+    expect(Id.pickClass(one, { grade: '5', gradeSoft: true })).toMatchObject({ state: 'known', class: { id: 'a' }, bound: 'single', gradeSoft: true });
+    expect(Id.pickClass(one, { grade: '5', gradeSoft: false })).toMatchObject({ state: 'ambiguous' });
+    const two = [C('a', 3, 'A'), C('b', 5, 'A')];
+    expect(Id.pickClass(two, { grade: '5', gradeSoft: true })).toMatchObject({ state: 'known', class: { id: 'b' } });
+    expect(Id.pickClass(two, { grade: '1', gradeSoft: true }).classes.map((c) => c.id)).toEqual(['a', 'b']);
+  });
   test('labels: grade-section, grade alone, and the shift only when both shifts of one class exist', () => {
     expect(Id.labelOf({ grade: 4, section: 'A', shift: 'morning' }, [])).toBe('4-A');
     expect(Id.labelOf({ grade: 4, section: null, shift: 'morning' }, [])).toBe('4');
@@ -224,6 +236,12 @@ describe('resolveQuizClass: the DB-backed order (share code → quiz list → te
     seed({ quizList: LIST_B });
     const r = await Id.resolveQuizClass({ teacherUserId: T, quizId: QUIZ, shareCodeId: SC });
     expect(r).toMatchObject({ state: 'known', class: { id: CLS_B }, bound: 'quiz' });
+  });
+  test('a one-class teacher and a coaching quiz whose grade came from the DIGEST (meta.grade_source) → known: the class beats the guess', async () => {
+    seed({ classes: 'one', grade: '5' });
+    await fake.from('quizzes').update({ meta: { grade_source: 'digest' } }).eq('id', QUIZ);
+    const r = await Id.resolveQuizClass({ teacherUserId: T, quizId: QUIZ, shareCodeId: SC });
+    expect(r).toMatchObject({ state: 'known', class: { id: CLS_A }, bound: 'single', gradeSoft: true });
   });
   test('a one-class teacher and a quiz of another grade → ambiguous (asks), not a silent bind', async () => {
     seed({ classes: 'one', grade: '5' });
