@@ -74,3 +74,17 @@ test('the report links live under /r/: the live report and its /remind share', (
     .toEqual({ teacherId: TEACHER, quizId: QUIZ });
   expect(urls.live).not.toContain('/t/');
 });
+
+test('the links follow the report page\'s own REPORT_PATH (the route that serves them), never a copy', () => {
+  jest.isolateModules(() => {
+    jest.doMock('../../../shared/templates/teacher-report.page', () => ({ REPORT_PATH: '/report-moved' }));
+    const G = require('../../../shared/services/quiz/teacher-report-gate');
+    const urls = G.reportUrls({ teacherId: TEACHER, quizId: QUIZ });
+    expect(urls.live.startsWith(`${BASE}/report-moved/`)).toBe(true);
+    const { renderClassTab } = require('../../../shared/templates/teacher-report-class.page');
+    const html = renderClassTab({ cells: [], weeks: [], quizzes: [{ id: QUIZ, date: '2026-10-05T09:00:00Z', topic: 'T', grade: '3', subject: 'science', played: 1, of: null, avg: 50 }] },
+      { language: 'en', tokens: { [QUIZ]: 'TOK' } });
+    expect(html).toContain('href="/report-moved/TOK"');
+  });
+  jest.dontMock('../../../shared/templates/teacher-report.page');
+});

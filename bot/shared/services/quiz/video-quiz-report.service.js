@@ -664,12 +664,15 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   // document's content language — the teacher may not read the quiz's language
   // at all, and the caption is the one part of this send they must understand.
   const CAPTION = RTL_LANGS.has(chromeLang) ? {
-    caption: (t, d, a, n) => `📊 کلاس کے نتائج — *${t}*\n\n`
-      + `${a} میں سے ${d} نے مکمل کیا${n ? ` · دوبارہ پڑھانے کے قابل ${n} سوال — اندر` : ''}`,
+    title: (t) => `📊 کلاس کے نتائج — *${t}*`,
+    finished: (d, a) => `${a} میں سے ${d} نے مکمل کیا`,
+    reteach: (n) => `دوبارہ پڑھانے کے قابل ${n} سوال — اندر`,
   } : {
-    caption: (t, d, a, n) => `📊 Class results — *${t}*\n\n`
-      + `${d} of ${a} finished${n ? ` · ${n} question${n > 1 ? 's' : ''} worth reteaching — inside` : ''}`,
+    title: (t) => `📊 Class results — *${t}*`,
+    finished: (d, a) => `${d} of ${a} finished`,
+    reteach: (n) => `${n} question${n > 1 ? 's' : ''} worth reteaching — inside`,
   };
+  CAPTION.caption = (t, d, a, n) => `${CAPTION.title(t)}\n\n${CAPTION.finished(d, a)}${n ? ` · ${CAPTION.reteach(n)}` : ''}`;
 
   const lines = [
     TX.results(sc.topic),
@@ -736,20 +739,19 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
   // never disagree about who played. Off, or on any failure, this is null and
   // the report is exactly what it was.
   const live = done.length ? await liveReportExtras(sc) : null;
-  // "9 of 31 have not played yet · tap to remind the class: <link>" — only
-  // with the class list known and someone still to play; otherwise the count
-  // would be a guess and the caption stays today's (plus the live link).
-  const liveLines = (language) => {
-    if (!live || !live.links) return [];
-    const out = [];
-    if (live.notPlayed && live.notPlayed.length && live.of) {
-      out.push(resolveUx('vqReportNotPlayedRemind', {
-        language, params: { n: live.notPlayed.length, of: live.of, url: live.links.remind },
-      }));
-    }
-    out.push(resolveUx('vqReportLiveLink', { language, params: { url: live.links.live } }));
-    return out;
+  // With the quiz's one class list known, ONE class line: "8 of 10 in 3-B
+  // played · 2 still to play — tap to remind: <link>" (or "10 of 10 in 3-B
+  // played"). Without it the sessions are all we have, and the caption keeps
+  // today's "68 of 87 finished"; children not on the list are the PDF's
+  // business, never the caption's.
+  const classLine = (language) => {
+    if (!live || !live.links || !Array.isArray(live.notPlayed) || !live.of || !live.className) return null;
+    const left = live.notPlayed.length;
+    const params = { cls: live.className, of: live.of, played: live.of - left, left, url: live.links.remind };
+    return resolveUx(left ? 'vqReportClassPlayed' : 'vqReportClassAllPlayed', { language, params });
   };
+  const liveLink = (language) => resolveUx('vqReportLiveLink', { language, params: { url: live.links.live } });
+  const liveLines = (language) => (live && live.links ? [classLine(language), liveLink(language)].filter(Boolean) : []);
   liveLines(contentLang).forEach((l) => lines.push('', l));
 
   // Plain text, laid out on the phone line by line from each line's first
@@ -775,7 +777,12 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     language: contentLang, contentLanguage: contentLang,
     // The caption is the teacher's (chromeLang); the count and live-report lines join it.
     caption: live && live.links
-      ? (...a) => [CAPTION.caption(...a), ...liveLines(chromeLang)].join('\n\n')
+      ? (t, d, a, n) => {
+        const cls = classLine(chromeLang);
+        // The class line ends with its link, so the reteach pointer goes on the line above it.
+        const counts = cls ? [CAPTION.title(t), n ? `${CAPTION.reteach(n)}\n${cls}` : cls] : [CAPTION.caption(t, d, a, n)];
+        return [...counts, liveLink(chromeLang)].join('\n\n');
+      }
       : CAPTION.caption,
     classes,
     // The report is read BY the teacher, so it names them from their own
@@ -832,7 +839,7 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
  * teacher is not on app_settings.teacher_report_teachers, when the quiz is not
  * this teacher's own (a video-bank quiz has no teacher report), or on any
  * error — never a reason for the report itself to fail.
- * @returns {Promise<{notPlayed: Array<{first,roll}>|null, of: number|null,
+ * @returns {Promise<{notPlayed: Array<{first,roll}>|null, of: number|null, className: string|null,
  *   links: {live: string, remind: string}|null}|null>}
  */
 async function liveReportExtras(sc) {
@@ -847,7 +854,10 @@ async function liveReportExtras(sc) {
       shareCodeId: sc.id, quizId: sc.quiz_id, roster: r.roster.state,
       notPlayed: notPlayed ? notPlayed.length : null, links: Boolean(urls),
     });
-    return { notPlayed, of: r.roster.of, links: urls ? { live: urls.live, remind: urls.remind } : null };
+    return {
+      notPlayed, of: r.roster.of, className: r.roster.className || null,
+      links: urls ? { live: urls.live, remind: urls.remind } : null,
+    };
   } catch (err) {
     logToFile('⚠️ video-quiz report: live-report section skipped (report still sends)', {
       shareCodeId: sc.id, error: err.message,

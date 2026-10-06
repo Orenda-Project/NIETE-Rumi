@@ -167,40 +167,72 @@ test('no portal base URL: no section and no links (a link to nowhere is worse th
   expect(pdfHtml()).not.toMatch(/href="[^"]*\/r\//);
 });
 
-describe('the caption carries the count and the reminder (M3 decision 5)', () => {
+describe('the caption: with the class known, ONE class line replaces both counts (M3 173525)', () => {
+  // The reminder lives in the caption only: the PDF carries no report link.
   const remindOf = () => (caption().match(new RegExp(`${BASE}/r/[^/\\s]+/remind`)) || [])[0];
+  const withHardQuestion = (fake) => {
+    fake.db.quiz_questions.push({ id: 'q1', question_text: 'Which part takes in water?', option_a: 'Root', option_b: 'Leaf',
+      option_c: 'Stem', option_d: 'Seed', correct_option: 'a' });
+    fake.db.quiz_answers.push({ id: 'a1', session_id: 's1', question_id: 'q1', is_correct: true, selected_option: 'a' },
+      { id: 'a2', session_id: 's2', question_id: 'q1', is_correct: false, selected_option: 'b' });
+  };
 
-  test('class known: "2 of 4 have not played yet · tap to remind the class: <remind link>"', async () => {
+  test('class known: "2 of 4 in 3-B played · 2 still to play — tap to remind: <remind link>", no session count', async () => {
     seed();
     await report.generate(SC, { reason: 'scheduled' });
+    const cap = caption();
     const remind = remindOf();
     expect(remind.startsWith(`${BASE}/r/`)).toBe(true);
-    expect(caption()).toContain(`2 of 4 have not played yet · tap to remind the class: ${remind}`);
+    expect(cap).toContain(`2 of 4 in 3-B played · 2 still to play — tap to remind: ${remind}`);
+    expect(cap).not.toMatch(/finished|have not played yet/);
+    expect(cap.startsWith('📊 Class results — *Plants*')).toBe(true);
+    expect(cap).toMatch(new RegExp(`${BASE}/r/[^/\\s]+(\\s|$)`));   // the live report still rides
   });
 
-  test('an Urdu teacher: the same line in Urdu, the numbers isolated (U+2066…U+2069)', async () => {
+  test('the reteach pointer survives, on its own line ahead of the class line (the link ends its line)', async () => {
+    withHardQuestion(seed());
+    await report.generate(SC, { reason: 'scheduled' });
+    const cap = caption();
+    expect(cap).toContain('1 question worth reteaching — inside');
+    expect(cap.indexOf('worth reteaching')).toBeLessThan(cap.indexOf('in 3-B played'));
+    expect(cap).not.toMatch(/\/remind ·/);
+  });
+
+  test('an Urdu teacher: the class line in Urdu, numbers and the class name isolated', async () => {
     seed({ teacherLang: 'ur' });
     await report.generate(SC, { reason: 'scheduled' });
     const cap = caption();
-    expect(cap).toContain('⁦4⁩');
     expect(cap).toContain('⁦2⁩');
-    expect(cap).toContain('ابھی نہیں کھیلا');
+    expect(cap).toContain('⁦4⁩');
+    expect(cap).toContain('⁨3-B⁩');
+    expect(cap).toContain('ابھی باقی');
     expect(cap).toContain(remindOf());
-    expect(cap).not.toContain('have not played yet');
+    expect(cap).not.toContain('مکمل کیا');
+    expect(cap).not.toMatch(/played|finished/);
   });
 
-  test('no class list: no count (it would be a guess) — today\'s caption with the live link', async () => {
-    seed({ lists: false });
-    await report.generate(SC, { reason: 'scheduled' });
-    expect(caption()).not.toMatch(/have not played yet/);
-    expect(caption()).toMatch(new RegExp(`${BASE}/r/[^/\\s]+(\\s|$)`));
-  });
-
-  test('everyone on the list played: no reminder line', async () => {
+  test('everyone on the list played: "4 of 4 in 3-B played", no reminder', async () => {
     const fake = seed();
     fake.db.quiz_sessions.push(session('s3', 3, 3), session('s4', 4, 1));
     await report.generate(SC, { reason: 'scheduled' });
-    expect(caption()).not.toMatch(/have not played yet|\/remind/);
+    const cap = caption();
+    expect(cap).toContain('4 of 4 in 3-B played');
+    expect(cap).not.toMatch(/still to play|\/remind|finished/);
+  });
+
+  test('no class list: the sessions are all we have — today\'s "2 of 2 finished" + the live link', async () => {
+    seed({ lists: false });
+    await report.generate(SC, { reason: 'scheduled' });
+    const cap = caption();
+    expect(cap).toContain('2 of 2 finished');
+    expect(cap).not.toMatch(/ in 3-B|still to play/);
+    expect(cap).toMatch(new RegExp(`${BASE}/r/[^/\\s]+(\\s|$)`));
+  });
+
+  test('teacher not on the list: the caption is exactly today\'s', async () => {
+    seed({ gate: null });
+    await report.generate(SC, { reason: 'scheduled' });
+    expect(caption()).toBe('📊 Class results — *Plants*\n\n2 of 2 finished');
   });
 });
 
