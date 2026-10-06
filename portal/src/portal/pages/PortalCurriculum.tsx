@@ -25,7 +25,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { BookOpen, ExternalLink, Loader2 } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
@@ -33,12 +33,8 @@ import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import api, { portal } from '../services/api';
-import AssessmentGeneratorPanel from '../components/AssessmentGeneratorPanel';
-import AssessmentGeneratorComingSoon from '../components/AssessmentGeneratorComingSoon';
-import AssessmentPapersPanel from '../components/AssessmentPapersPanel';
+import api from '../services/api';
 import MyLesson612Panel from '../components/MyLesson612Panel';
 import LessonPlanViewer from '../components/LessonPlanViewer';
 import { useRecordingSession } from '../lib/recordingSession';
@@ -103,11 +99,6 @@ const NOT_PUBLISHED = {
 const ClassicCurriculum = () => {
   const { toast } = useToast();
   const location = useLocation();
-  // bd-5rz1v.12 — the new UI's menu has its own Assessment item; until
-  // Assessment is a page of its own it opens this page with ?tab=assessment.
-  // Keyed below, so tapping it while already on Lesson Plans switches the tab.
-  // No parameter (every existing link): Lesson Plans, as before.
-  const openTab = new URLSearchParams(location.search).get('tab') === 'assessment' ? 'assessment' : 'library';
   const navigate = useNavigate();
   const recording = !!useRecordingSession()?.active;
   const inApp = shouldOpenInApp(recording);
@@ -115,13 +106,6 @@ const ClassicCurriculum = () => {
   // bd-5rz1v.10 — the lesson plan open in the viewer, if any (this history entry's state).
   const viewing = (location.state as { lessonPlan?: LessonPlanView } | null)?.lessonPlan ?? null;
 
-  // bd-2460 — null while loading, so the tab never flashes a form that is off.
-  const [assessmentEnabled, setAssessmentEnabled] = useState<boolean | null>(null);
-  const [assessmentEditing, setAssessmentEditing] = useState(false);
-  const [assessmentMessage, setAssessmentMessage] = useState<string | null>(null);
-  // Bumped when a paper finishes so My papers refetches — she should not have
-  // to reload the page to see the thing she just made.
-  const [papersRefreshKey, setPapersRefreshKey] = useState(0);
   const [grades, setGrades] = useState<Grade[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -156,17 +140,6 @@ const ClassicCurriculum = () => {
   const lane: Lane = grades.find((g) => String(g.grade) === selectedGrade)?.lane ?? 'k5';
 
   // ─── Fetch grades on mount ────────────────────────────────────────────
-  useEffect(() => {
-    let cancelled = false;
-    portal.getConfig().then((cfg) => {
-      if (cancelled) return;
-      setAssessmentEnabled(!!cfg?.features?.assessmentGenerator);
-      setAssessmentEditing(!!cfg?.features?.assessmentEditing);
-      setAssessmentMessage(cfg?.features?.assessmentGeneratorMessage ?? null);
-    });
-    return () => { cancelled = true; };
-  }, []);
-
   useEffect(() => {
     (async () => {
       try {
@@ -423,20 +396,13 @@ const ClassicCurriculum = () => {
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <BookOpen className="w-8 h-8 text-primary" />
-            <h1 className="text-3xl sm:text-4xl font-light">Curriculum Library</h1>
+            <h1 className="text-3xl sm:text-4xl font-light">Lesson Plans</h1>
           </div>
           <p className="text-muted-foreground">
-            Browse ready-made lesson plans, or generate a curriculum-based assessment.
+            Browse ready-made lesson plans.
           </p>
         </div>
 
-        <Tabs key={openTab} defaultValue={openTab} className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="library">Lesson Plans</TabsTrigger>
-            <TabsTrigger value="assessment">Assessment Generator</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="library">
         {/* Cascading picker */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {/* Grade */}
@@ -612,40 +578,6 @@ const ClassicCurriculum = () => {
         {/* The landing place for a three-minute wait. Hidden entirely until she has asked for
             a 6-12 lesson, so a teacher who only ever uses grades 1-5 never sees it. */}
         <MyLesson612Panel refreshKey={lessons612RefreshKey} />
-          </TabsContent>
-
-          <TabsContent value="assessment">
-            {/* bd-2460 — the tab stays visible on purpose: a teacher who has heard
-                about the feature and cannot find it just asks support. The
-                message matches what the bot says, and the API refuses too. */}
-            {assessmentEnabled === null
-              ? null
-              : assessmentEnabled
-                ? (
-                  <div className="space-y-10">
-                    <AssessmentGeneratorPanel
-                      onPaperReady={() => setPapersRefreshKey((k) => k + 1)}
-                    />
-
-                    {/* My papers lives INSIDE this tab, under the generator,
-                        rather than as a third tab beside it. Making a paper and
-                        fetching one you already made are the same job — the
-                        Curriculum page's tabs are for different KINDS of thing
-                        (lesson plans vs assessments), not for steps within one.
-                        A top-level tab also implied papers exist independently
-                        of the generator, which they do not. */}
-                    <section className="border-t pt-8">
-                      <h3 className="mb-1 text-lg font-medium">My papers</h3>
-                      <p className="mb-4 text-sm text-muted-foreground">
-                        Everything you have made. Download it again any time.
-                      </p>
-                      <AssessmentPapersPanel refreshKey={papersRefreshKey} editing={assessmentEditing} />
-                    </section>
-                  </div>
-                )
-                : <AssessmentGeneratorComingSoon message={assessmentMessage} />}
-          </TabsContent>
-        </Tabs>
       </div>
     </PortalLayout>
   );
@@ -653,9 +585,9 @@ const ClassicCurriculum = () => {
 
 /**
  * bd-5rz1v.14 — with `portal_new_ui` on, a teacher's Lessons is the new Lesson Plans
- * (newui/lessons/NewLessonPlans): one flow for grades 1–12. The Assessment tab
- * (?tab=assessment, the new menu's Assessment until it is a page of its own) stays this
- * page, as does a leader's visit. Off, loading or unreadable: the page above, unchanged
+ * (newui/lessons/NewLessonPlans): one flow for grades 1–12. A leader's visit stays the page
+ * above. bd-4n7p4: ?tab=assessment (the old Assessment tab, now its own page) redirects to
+ * /portal/assessment for BOTH pages, here, before either renders. Off, loading or unreadable: the page above, unchanged
  * (PortalCurriculum.flagOff.test.tsx pins its markup).
  *
  * The user read here is PROVIDED to everything below, so the page and its layout share one
@@ -667,9 +599,10 @@ const PortalCurriculum = () => {
   const { search } = useLocation();
   const assessmentTab = new URLSearchParams(search).get('tab') === 'assessment';
   const newUi = useNewUi(user?.phoneNumber || null, !loading && !!user);
+  if (assessmentTab) return <Navigate to="/portal/assessment" replace />;
   return (
     <AuthContext.Provider value={auth}>
-      {newUi === true && user && !isLeader(user) && !assessmentTab ? <NewLessonPlans /> : <ClassicCurriculum />}
+      {newUi === true && user && !isLeader(user) ? <NewLessonPlans /> : <ClassicCurriculum />}
     </AuthContext.Provider>
   );
 };
