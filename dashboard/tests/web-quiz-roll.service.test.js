@@ -62,7 +62,7 @@ function page({ lang = 'en', cls = { roster: { lists: 1 }, chips: [] }, kids = [
     api: (m, route, body) => { calls.push(body); return Promise.resolve(replies.shift()); },
   };
   vm.createContext(ctx);
-  vm.runInContext(`${SRC.slice(START, END)}\nthis.who = who;`, ctx);
+  vm.runInContext(`${SRC.slice(START, END)}\nthis.who = who; this.startSession = startSession;`, ctx);
   const last = () => screens[screens.length - 1];
   const tap = (pred) => {
     const n = nodes().find(pred);
@@ -139,15 +139,67 @@ test('the pad takes at most 3 digits, never a leading 0, and Delete removes one'
   expect(p.last().h).toContain('>12<');
 });
 
-test('two classes: each card carries its class label; the way out says "None of these is me"', async () => {
-  const p = page({ replies: [{ status: 409, ok: false, body: { error: 'is_this_you', candidates: [
-    { chip: 'a', first: 'Ayesha', animal: 'owl', cls: '3-B' }, { chip: 'b', first: 'Faizan', animal: 'cat', cls: '4-A' }] } }] });
+test('never two green Yes buttons: several candidates are asked about ONE at a time, "No" moves to the next', async () => {
+  const p = page({ replies: [{ status: 409, ok: false, body: { error: 'maybe_you', candidates: [
+    { chip: 'a', first: 'Ali', animal: 'owl' }, { chip: 'b', first: 'Aly', animal: 'cat' }] } }] });
+  p.ctx.who();
+  p.byId['#wq-noroll']();
+  p.ctx.startSession({ new: { name: 'Ali', cls: '3', force: false } }, null, 'Ali');
+  await flush();
+  expect(p.last().name).toBe('M4-isyou');
+  expect((p.last().h.match(/wq-go/g) || []).length).toBe(1);
+  expect(p.last().h).toContain('Are you Ali?');
+  expect(p.last().h).not.toContain('Aly');
+  expect(p.last().h).toContain('>No<');
+  p.byId['#wq-diff']();
+  expect(p.last().h).toContain('Are you Aly?');
+  expect((p.last().h.match(/wq-go/g) || []).length).toBe(1);
+});
+
+test('after the last "No" on a typed name, the child plays as a new child (force)', async () => {
+  const p = page({ replies: [{ status: 409, ok: false, body: { error: 'maybe_you', candidates: [{ chip: 'a', first: 'Ali', animal: 'owl' }] } },
+    { status: 200, ok: true, body: { st: 's', counted: true, child: { first: 'Ali' } } }] });
+  p.ctx.who();
+  p.ctx.startSession({ new: { name: 'Ali', cls: '3', force: false } }, null, 'Ali');
+  await flush();
+  p.byId['#wq-diff']();
+  await flush();
+  expect(p.calls[1]).toMatchObject({ new: { name: 'Ali', force: true } });
+});
+
+test('a quiz whose class the server cannot tell: "Which class are you in?" first, then the pad sends that class', async () => {
+  const cls = { roster: { lists: 2, classes: [{ key: 'k3b', label: '3-B' }, { key: 'k5a', label: '5-A' }] }, chips: [] };
+  const p = page({ cls, replies: [{ status: 404, ok: false, body: { error: 'roll_unknown' } }] });
+  p.ctx.who();
+  expect(p.last().name).toBe('M4-class');
+  expect(p.last().h).toContain('Which class are you in?');
+  expect(p.last().h).toContain('3-B');
+  expect(p.last().h).not.toMatch(/wq-go/);
+  p.tap((n) => n.a['data-cls'] === 'k5a');
+  expect(p.last().name).toBe('M4-roll');
+  p.key('7'); p.key('go');
+  await flush();
+  expect(p.calls[0]).toMatchObject({ roll: '7', list: 'k5a' });
+});
+
+test('"My class is not here": the name box, and the name goes as a child not on any list', async () => {
+  const cls = { roster: { lists: 2, classes: [{ key: 'k3b', label: '3-B' }, { key: 'k5a', label: '5-A' }] }, chips: [] };
+  const p = page({ cls, replies: [{ status: 200, ok: true, body: { st: 's', counted: true, child: { first: 'Moiz' } } }] });
+  p.ctx.who();
+  p.byId['#wq-notmine']();
+  expect(p.last().name).toBe('M4-new');
+  p.ctx.startSession({ new: { name: 'Moiz', cls: '3', force: false } }, null, 'Moiz');
+  await flush();
+  expect(p.calls[0]).toMatchObject({ list: 'none' });
+});
+
+test('the server asks which class (which_class): the class screen, from its list', async () => {
+  const p = page({ replies: [{ status: 409, ok: false, body: { error: 'which_class', classes: [{ key: 'x', label: '3-B' }, { key: 'y', label: '4-A' }] } }] });
   p.ctx.who();
   p.key('1'); p.key('go');
   await flush();
-  expect(p.last().h).toContain('3-B');
+  expect(p.last().name).toBe('M4-class');
   expect(p.last().h).toContain('4-A');
-  expect(p.last().h).toContain('None of these is me');
 });
 
 test("I don't know my number: the name box", () => {
@@ -167,12 +219,9 @@ test('Urdu: Urdu digits on the keys and in the "no one has number" line', async 
   expect(p.last().h).toContain('نمبر ۳۱ کسی کا نہیں');
 });
 
-test('Urdu: a class label like 3-B is an LTR isolate, so it never paints as B-3', async () => {
-  const p = page({ lang: 'ur', replies: [{ status: 409, ok: false, body: { error: 'is_this_you', candidates: [
-    { chip: 'a', first: 'x', animal: 'owl', cls: '3-B' }, { chip: 'b', first: 'y', animal: 'cat', cls: '4-A' }] } }] });
+test('Urdu: a class label like 3-B is an LTR isolate, so it never paints as B-3', () => {
+  const p = page({ lang: 'ur', cls: { roster: { lists: 2, classes: [{ key: 'a', label: '3-B' }, { key: 'b', label: '4-A' }] }, chips: [] } });
   p.ctx.who();
-  p.key('1'); p.key('go');
-  await flush();
   expect(p.last().h).toContain('<bdi dir="ltr">3-B</bdi>');
 });
 

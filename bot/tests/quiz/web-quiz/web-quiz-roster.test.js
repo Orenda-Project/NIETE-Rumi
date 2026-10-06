@@ -176,22 +176,100 @@ describe('E3 by roll number', () => {
       .rejects.toMatchObject({ status: 409, body: { candidates: [{ chip: chipOf(kid(1)), first: 'Ayesha' }] } });
   });
 
-  test('two classes and the grade does not decide: one card per class, each with its class label', async () => {
+  test('two classes and the grade does not decide: the child is asked for the class first, never offered two classes', async () => {
     seed({ lists: 'two' });
     fake.db.quizzes[0].grade = null;
     let err;
     try { await WQ.startSession({ code: 'AB12CD', roll: 1 }); } catch (e) { err = e; }
-    expect(err.body.candidates).toEqual([
-      { chip: chipOf(kid(1)), first: 'Ayesha', animal: T.animalFor(kid(1)), cls: '3-B' },
-      { chip: chipOf(kid(21)), first: 'Faizan', animal: T.animalFor(kid(21)), cls: '4-A' },
-    ]);
+    expect(err).toMatchObject({ status: 409, body: { error: 'which_class' } });
+    expect(err.body.classes.map((c) => c.label)).toEqual(['3-B', '4-A']);
+    expect(err.body.candidates).toBeUndefined();
+    const key4A = err.body.classes.find((c) => c.label === '4-A').key;
+    await expect(WQ.startSession({ code: 'AB12CD', roll: 1, list: key4A }))
+      .rejects.toMatchObject({ status: 409, body: { error: 'is_this_you', candidates: [{ chip: chipOf(kid(21)), first: 'Faizan' }] } });
   });
 
-  test("the grade's list lacks that number: the other class still answers", async () => {
+  test("the grade's list lacks that number: unknown — a roll number never resolves in another class", async () => {
     seed({ lists: 'two' });
     fake.db.students.find((s) => s.id === kid(21)).roll_number = 40;
-    await expect(WQ.startSession({ code: 'AB12CD', roll: 40 }))
-      .rejects.toMatchObject({ status: 409, body: { candidates: [{ chip: chipOf(kid(21)), first: 'Faizan', cls: '4-A' }] } });
+    await expect(WQ.startSession({ code: 'AB12CD', roll: 40 })).rejects.toMatchObject({ status: 404, body: { error: 'roll_unknown' } });
+  });
+});
+
+describe("one class per quiz: candidates come only from the class list linked to THIS quiz", () => {
+  const classesOf = async () => { try { await WQ.startSession({ code: 'AB12CD', roll: 1 }); } catch (e) { return e.body.classes; } return null; };
+
+  test('a grade-2 quiz, the teacher keeps 3-B and 4-A: the page is told to ask the class (labels only, no names)', async () => {
+    seed({ lists: 'two' });
+    fake.db.quizzes[0].grade = '2';
+    const out = await WQ.getQuiz('AB12CD');
+    expect(out.cls.roster.lists).toBe(2);
+    expect(out.cls.roster.classes.map((c) => c.label)).toEqual(['3-B', '4-A']);
+    expect(out.cls.roster.classes.every((c) => /^[0-9a-f]{16}$/.test(c.key))).toBe(true);
+    expect(JSON.stringify(out)).not.toMatch(/Ayesha|Faizan|Testwala/);
+  });
+
+  test('the grade picks one list: no class question', async () => {
+    seed({ lists: 'two' });
+    const out = await WQ.getQuiz('AB12CD');
+    expect(out.cls.roster).toEqual({ lists: 2 });
+  });
+
+  test("a typed name that only another class has is a NEW child, never that class's child", async () => {
+    seed({ lists: 'two' });
+    const n = fake.db.students.length;
+    const out = await WQ.startSession({ code: 'AB12CD', new: { name: 'Faizan' } });
+    expect(out.child.first).toBe('Faizan');
+    expect(fake.db.students.length).toBe(n + 1);
+    const row = fake.db.quiz_sessions.find((s) => s.id === T.verify(out.st, 's').sid);
+    expect(row.student_id).not.toBe(kid(21));
+  });
+
+  test('the class the child chose bounds a typed name too; candidates never carry a class label', async () => {
+    seed({ lists: 'two' });
+    fake.db.quizzes[0].grade = '2';
+    const classes = await classesOf();
+    const key3B = classes.find((c) => c.label === '3-B').key;
+    let err;
+    try { await WQ.startSession({ code: 'AB12CD', new: { name: 'Aysha' }, list: key3B }); } catch (e) { err = e; }
+    expect(err.body).toEqual({ error: 'maybe_you', candidates: [{ chip: chipOf(kid(1)), first: 'Ayesha', animal: T.animalFor(kid(1)) }] });
+    const out = await WQ.startSession({ code: 'AB12CD', new: { name: 'Faizan' }, list: key3B });
+    expect(out.child.first).toBe('Faizan');
+  });
+
+  test('a typed name with no class chosen on an ambiguous quiz asks the class first', async () => {
+    seed({ lists: 'two' });
+    fake.db.quizzes[0].grade = '2';
+    await expect(WQ.startSession({ code: 'AB12CD', new: { name: 'Faizan' } })).rejects.toMatchObject({ status: 409, body: { error: 'which_class' } });
+  });
+
+  test('"my class is not here" (list: none): no list child is offered, the typed name is a new child', async () => {
+    seed({ lists: 'two' });
+    fake.db.quizzes[0].grade = '2';
+    const n = fake.db.students.length;
+    const out = await WQ.startSession({ code: 'AB12CD', new: { name: 'Ayesha' }, list: 'none' });
+    expect(out.child.first).toBe('Ayesha');
+    expect(fake.db.students.length).toBe(n + 1);
+    await expect(WQ.startSession({ code: 'AB12CD', roll: 1, list: 'none' })).rejects.toMatchObject({ status: 404, body: { error: 'roll_unknown' } });
+  });
+
+  test("the quiz's own list_id wins over its grade", async () => {
+    seed({ lists: 'two' });
+    fake.db.quizzes[0].list_id = LIST_4A;
+    await expect(WQ.startSession({ code: 'AB12CD', roll: 1 }))
+      .rejects.toMatchObject({ status: 409, body: { candidates: [{ chip: chipOf(kid(21)), first: 'Faizan' }] } });
+  });
+
+  test('a teacher with ONE list: that list, whatever the grade', async () => {
+    fake.db.quizzes[0].grade = '2';
+    await expect(WQ.startSession({ code: 'AB12CD', roll: 12 }))
+      .rejects.toMatchObject({ status: 409, body: { error: 'is_this_you', candidates: [{ chip: chipOf(kid(3)) }] } });
+  });
+
+  test('a forged class key is refused', async () => {
+    seed({ lists: 'two' });
+    fake.db.quizzes[0].grade = '2';
+    await expect(WQ.startSession({ code: 'AB12CD', roll: 1, list: 'ffffffffffffffff' })).rejects.toMatchObject({ status: 409, body: { error: 'which_class' } });
   });
 });
 
