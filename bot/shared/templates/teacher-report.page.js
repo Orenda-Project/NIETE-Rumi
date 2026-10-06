@@ -133,6 +133,9 @@ const CHROME = {
     addTo: (c) => `Add to ${c}`, thisIs: 'This is…', save: 'Save',
     showAll: (n) => `Show all <span class="num">${n}</span>`,
     noticeFailed: 'That did not save. Please try again.',
+    okAdded: (name, cls, no) => (name ? `${name} added to ${cls} as list no. <span class="num">${no}</span>.` : `Added to ${cls}.`),
+    okMoved: (name) => (name ? `Saved — that score is now ${name}’s.` : 'Saved.'),
+    printProvisional: (cls) => `Open the live report to add them to ${cls}.`,
     noticeNotReady: 'This cannot be saved yet: choosing a class switches on with the next update. Your report is not affected.',
     noticeClosed: 'This quiz link has closed, so its class can no longer be changed.',
     noPlayers: 'No one has played yet. Share the quiz link with your class.',
@@ -197,6 +200,9 @@ const CHROME = {
     addTo: (c) => `${c} میں شامل کریں`, thisIs: 'یہ دراصل…', save: 'محفوظ کریں',
     showAll: (n) => `سب <span class="num">${n}</span> دیکھیں`,
     noticeFailed: 'محفوظ نہیں ہو سکا۔ دوبارہ کوشش کریں۔',
+    okAdded: (name, cls, no) => (name ? `${name} کو ${cls} میں لسٹ نمبر <span class="num">${no}</span> پر شامل کر دیا گیا۔` : `${cls} میں شامل کر دیا گیا۔`),
+    okMoved: (name) => (name ? `محفوظ ہو گیا — اب یہ اسکور ${name} کا ہے۔` : 'محفوظ ہو گیا۔'),
+    printProvisional: (cls) => `انہیں ${cls} میں شامل کرنے کے لیے لائیو رپورٹ کھولیں۔`,
     noticeNotReady: 'ابھی محفوظ نہیں ہو سکتا: کلاس چننے کی سہولت اگلی اپ ڈیٹ کے ساتھ شروع ہوگی۔ آپ کی رپورٹ پر کوئی اثر نہیں۔',
     noticeClosed: 'اس کوئز کا لنک بند ہو چکا ہے، اس لیے اب اس کی کلاس نہیں بدلی جا سکتی۔',
     noPlayers: 'ابھی کسی نے نہیں کھیلا۔ کوئز کا لنک کلاس کو بھیجیں۔',
@@ -396,7 +402,8 @@ details textarea{width:100%;min-height:120px;margin-top:8px;border:1px solid var
 .pv-a button,.pv-a select{font:inherit;font-size:.85rem;border-radius:10px;border:1.5px solid var(--line);background:var(--card);padding:6px 12px;line-height:var(--lead-ui);color:var(--ink)}
 .pv-more summary{margin-top:10px}
 .pv-a .pv-add{border-color:var(--green);color:var(--green-deep);font-weight:700}
-.notice{margin:12px 0 0;background:#FDECEA;color:#8A1F1B;border-radius:12px;padding:10px 14px;line-height:var(--lead-ui)}
+.notice-ok{background:var(--wash)!important;color:var(--green-deep)!important}
+.notice{margin:12px 0 14px;background:#FDECEA;color:#8A1F1B;border-radius:12px;padding:10px 14px;line-height:var(--lead-ui)}
 .reminder-print{white-space:pre-wrap;background:var(--paper);border-radius:10px;padding:10px 12px;font-size:.9rem}
 @media (min-width:700px){.tiles{gap:14px}.cells{grid-template-columns:repeat(3,1fr)}}
 @media print{.act{display:none!important}section.card,.tile{box-shadow:none;border:1px solid var(--line)}.sc li,.qs li,.g,.tiles,h2{break-inside:avoid}h2{break-after:avoid}}
@@ -452,7 +459,7 @@ function topBar({ C, L, langHref, print }) {
   return `<div class="brand">${diamondSvg({ size: 10, fill: PALETTE.green, stroke: PALETTE.green })}<span>${L(C.title)}</span><span class="sp"></span>${print ? '' : `<a class="act" href="${langHref}" lang="${C.switchLang}">${esc(C.switchTo)}</a>`}</div>`;
 }
 
-function quizSections(r, { lang, print, tokens, slots = {}, notice: noticeKind = null }) {
+function quizSections(r, { lang, print, tokens, slots = {}, notice: noticeKind = null, ok = null }) {
   const { rtl, C, T, L, K, M } = kit(lang);
   const self = encodeURIComponent(tokens.self || '');
   const base = `${REPORT_PATH}/${self}`;
@@ -480,7 +487,15 @@ ${srcLabel ? `<span class="chip-src">${L(esc(srcLabel))}</span>` : ''}
 </div></header>`;
 
   const NOTICE_KEYS = { failed: 'noticeFailed', notReady: 'noticeNotReady', closed: 'noticeClosed' };
-  const notice = NOTICE_KEYS[noticeKind] && !print ? `<div class="notice" role="status">${L(C[NOTICE_KEYS[noticeKind]])}</div>` : '';
+  let notice = NOTICE_KEYS[noticeKind] && !print ? `<div class="notice" role="status">${L(C[NOTICE_KEYS[noticeKind]])}</div>` : '';
+  // A saved fix (?ok=…): the name comes from this page's own rows, by list number.
+  if (!notice && ok && !print) {
+    const kid = ok.no != null ? (Array.isArray(r.played) ? r.played : []).find((p) => p.onList && num(listNumber(p)) === ok.no) : null;
+    const name = kid ? esc(kid.first) : null;
+    const cls = esc((r.roster && r.roster.className) || '');
+    const line = ok.kind === 'added' ? C.okAdded(name, cls, ok.no) : C.okMoved(name);
+    notice = `<div class="notice notice-ok" role="status">${L(line)}</div>`;
+  }
 
   // 2. tiles. With a known class, "N of M" counts the children ON the list only:
   // typed children and other classes' children are named separately, never out of M.
@@ -535,7 +550,9 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
     const rows = prov.map((pv) => {
       const who = pv.typed || pv.first || '';
       const score = `<span class="s num">${num(pv.correct) || 0}/${num(pv.total) || 0}</span>`;
-      if (print) return `<li><div class="pv-h">${K(who)}${score}</div></li>`;
+      // On paper a typed name is cut to its first word, like every other row: the PDF
+      // is what gets forwarded, and the child typed a surname into it, not the teacher.
+      if (print) return `<li><div class="pv-h">${K(String(who).trim().split(/\s+/)[0] || '')}${score}</div></li>`;
       const hidden = `<input type="hidden" name="quiz" value="${esc(quiz.id)}"><input type="hidden" name="ref" value="${esc(pv.sessionId)}">`;
       const add = label ? `<form method="post" action="${base}/fix">${hidden}<button type="submit" class="pv-add" name="add" value="1">${L(C.addTo(esc(label)))}</button></form>` : '';
       const pick = choices.length
@@ -547,7 +564,7 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
     const head = print ? rows : rows.slice(0, PV_SHOWN);
     const rest = print ? [] : rows.slice(PV_SHOWN);
     const more = rest.length ? `<details class="pv-more act"><summary>${L(C.showAll(prov.length))}</summary><ul class="pv">${rest.join('')}</ul></details>` : '';
-    provisional = `<section class="card" id="provisional"><h2>${L(C.provisionalTitle)} <span class="num muted">(${prov.length})</span></h2><p class="small muted">${L(C.provisionalBody)}</p><ul class="pv">${head.join('')}</ul>${more}</section>`;
+    provisional = `<section class="card" id="provisional"><h2>${L(C.provisionalTitle)} <span class="num muted">(${prov.length})</span></h2><p class="small muted">${L(print ? C.printProvisional(esc(label)) : C.provisionalBody)}</p><ul class="pv">${head.join('')}</ul>${more}</section>`;
   }
 
   // 4. scores
@@ -644,7 +661,7 @@ function renderPage(data, opts = {}) {
   const base = `${REPORT_PATH}/${encodeURIComponent(tokens.self || '')}`;
   const extraCss = '';
   const parts = tab === 'quiz'
-    ? quizSections(data.quiz, { lang, print, tokens, slots: data, notice: opts.notice })
+    ? quizSections(data.quiz, { lang, print, tokens, slots: data, notice: opts.notice, ok: opts.ok })
     : classSections((data && data.class) || {}, { lang, print, tokens });
   const foot = print ? '' : `<div class="foot act">
 <div class="row2"><a class="btn btn-ghost" href="${base}/pdf${qs(tab === 'class' ? [['tab', 'class'], ['lang', lang]] : [['lang', lang]])}">${L(C.exportPdf)}</a>${
