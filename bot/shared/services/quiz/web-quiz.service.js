@@ -1163,6 +1163,33 @@ async function whoPlayedV2(ctx) {
   };
 }
 
+/**
+ * "This is <child>": the typed (provisional) students row the finish was on is the chosen
+ * child, so it is closed the way a merged duplicate is — status 'merged', merged_into the
+ * survivor, not active — and no list or roster reads it as a child again. Only a typed row:
+ * one with no class list and no active enrolment anywhere (a listed child is a real child,
+ * never merged by this action). Best effort: the finish has already moved. → merged or not.
+ */
+async function mergeTypedInto(typedId, targetId) {
+  if (!typedId || !targetId || typedId === targetId) return false;
+  try {
+    const { data: enr, error: eErr } = await supabase.from('class_enrollments').select('id').eq('student_id', typedId).eq('is_active', true);
+    if (eErr || (enr && enr.length)) return false;
+    const { data, error } = await supabase.from('students')
+      .update({ status: 'merged', merged_into: targetId, is_active: false, updated_at: new Date().toISOString() })
+      .eq('id', typedId).is('list_id', null).eq('status', 'active')
+      .select('id');
+    if (error) {
+      logToFile('⚠️ web-quiz: typed child not marked merged', { studentId: typedId, error: error.message });
+      return false;
+    }
+    return Boolean(data && data.length);
+  } catch (err) {
+    logToFile('⚠️ web-quiz: typed child not marked merged', { studentId: typedId, error: err.message });
+    return false;
+  }
+}
+
 /** The teacher's reconcile under v2: { ref, studentId } moves a finish onto a class child; { ref, add } enrols the typed child. */
 async function fixWhoV2(ctx, body) {
   const r = await Identity.resolveQuizClass({ teacherUserId: ctx.teacherUserId, quizId: ctx.quizId, shareCodeId: ctx.shareCodeId });
@@ -1181,7 +1208,9 @@ async function fixWhoV2(ctx, body) {
     const patch = { student_id: target.id, student_name: target.student_name, student_class: label };
     const { error } = await supabase.from('quiz_sessions').update(patch).eq('id', s.id).eq('share_code_id', ctx.shareCodeId);
     if (error) fail(502, 'db_unavailable');
-    logEvent('web_quiz.identity_fixed', { sessionId: s.id, shareCodeId: ctx.shareCodeId, fromListed: Boolean(IdRoster.findKid(kids, s.student_id)) });
+    const fromListed = Boolean(IdRoster.findKid(kids, s.student_id));
+    const merged = fromListed ? false : await mergeTypedInto(s.student_id, target.id);
+    logEvent('web_quiz.identity_fixed', { sessionId: s.id, shareCodeId: ctx.shareCodeId, fromListed, merged });
     return { ok: true, row: row(patch, target) };
   }
   // { add: true }: the typed child joins the class list (ClassService, the same enrolment /roster makes).
