@@ -99,6 +99,7 @@ const CHROME = {
   en: {
     title: 'Quiz report',
     week: (d, m) => `${d} ${MONTHS_EN[m]}`,
+    dateClass: 'num',
     switchTo: 'اردو', switchLang: 'ur',
     fromLp: 'From lesson plan', fromCoaching: 'From coaching', fromVideo: 'From video',
     className: (c) => `Class ${c}`,
@@ -152,8 +153,10 @@ const CHROME = {
     errorBody: 'Please try again in a little while.',
   },
   ur: {
-    title: 'Quiz رپورٹ',
+    title: 'کوئز رپورٹ',
     week: (d, m) => `${d}/${m + 1}`,
+    // An Urdu date (Urdu digits, Urdu month) reads right to left: no LTR isolate.
+    dateClass: 'dt',
     switchTo: 'English', switchLang: 'en',
     fromLp: 'سبق کے منصوبے سے', fromCoaching: 'کوچنگ سے', fromVideo: 'ویڈیو سے',
     className: (c) => `جماعت <span class="num">${c}</span>`,
@@ -212,6 +215,8 @@ const MONTHS_UR = ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی
 const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const PKT_MS = 5 * 3600 * 1000;
 
+const urduDigits = (str) => String(str).replace(/[0-9]/g, (c) => String.fromCharCode(0x06F0 + Number(c)));
+
 function pkt(iso) {
   const t = new Date(iso).getTime();
   return Number.isFinite(t) ? new Date(t + PKT_MS) : null;
@@ -219,7 +224,9 @@ function pkt(iso) {
 function dateLabel(iso, lang, { year = false } = {}) {
   const d = pkt(iso);
   if (!d) return '';
-  if (lang === 'ur') return `${d.getUTCDate()} ${MONTHS_UR[d.getUTCMonth()]}${year ? ` ${d.getUTCFullYear()}` : ''}`;
+  // Urdu prose takes Urdu digits (language-protocol §9.4), and a date set in them reads
+  // right to left like the words around it: never put it in a left-to-right isolate.
+  if (lang === 'ur') return urduDigits(`${d.getUTCDate()} ${MONTHS_UR[d.getUTCMonth()]}${year ? ` ${d.getUTCFullYear()}` : ''}`);
   return `${d.getUTCDate()} ${MONTHS_EN[d.getUTCMonth()]}${year ? ` ${d.getUTCFullYear()}` : ''}`;
 }
 /** A week's column label: "28 Sep"; in Urdu the month name is too wide for eight columns, so "28/9". */
@@ -512,9 +519,11 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
 
   // 4. scores
   const known = roster.state === 'known';
+  // A child off this class list may carry another list's number: show the tag, not the number.
+  const offList = (p) => known && p.onList === false;
   const rows = played.map((p) => {
     const pc = num(p.pct) || 0;
-    return `<li class="band-${band(pc)}"><span class="nm">${K(p.first)}${num(listNumber(p)) != null ? `<span class="roll">${L(C.listNo(num(listNumber(p))))}</span>` : ''}${known && p.onList === false ? `<span class="tag">${L(C.notOnList)}</span>` : ''}</span><span class="bar"><i style="width:${Math.max(2, pc)}%"></i></span><span class="s num">${num(p.correct) || 0}/${num(p.total) || 0}</span></li>`;
+    return `<li class="band-${band(pc)}"><span class="nm">${K(p.first)}${offList(p) ? `<span class="tag">${L(C.notOnList)}</span>` : (num(listNumber(p)) != null ? `<span class="roll">${L(C.listNo(num(listNumber(p))))}</span>` : '')}</span><span class="bar"><i style="width:${Math.max(2, pc)}%"></i></span><span class="s num">${num(p.correct) || 0}/${num(p.total) || 0}</span></li>`;
   }).join('');
   const scores = `<section class="card" id="scores"><h2>${L(C.scores)}</h2>${played.length ? `<ul class="sc">${rows}</ul>` : `<p class="muted">${L(C.noPlayers)}</p>`}</section>`;
 
@@ -570,7 +579,7 @@ ${topBar({ C, L, langHref: `${base}${qs([['tab', 'class'], ['lang', C.switchLang
   const ql = quizzes.map((q) => {
     const tok = qmap[q.id];
     const a = num(q.avg);
-    const inner = `<span class="tp">${K(q.topic || '—')}</span><span class="m"><span class="num">${esc(dateLabel(q.date, lang))}</span> · ${L(C.quizLine(num(q.played) || 0))}${a != null ? ` · <span class="num">${a}%</span>` : ''}</span>`;
+    const inner = `<span class="tp">${K(q.topic || '—')}</span><span class="m"><span class="${C.dateClass}">${esc(dateLabel(q.date, lang))}</span> · ${L(C.quizLine(num(q.played) || 0))}${a != null ? ` · <span class="num">${a}%</span>` : ''}</span>`;
     return `<li>${tok && !print ? `<a href="${REPORT_PATH}/${encodeURIComponent(tok)}${qs([['lang', lang]])}">${inner}</a>` : `<a>${inner}</a>`}</li>`;
   }).join('');
   const main = `<section class="card" style="margin-top:16px"><div class="cells">${cellHtml}</div></section>
