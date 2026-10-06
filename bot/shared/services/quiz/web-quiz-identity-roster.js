@@ -8,6 +8,7 @@
  *
  *   identityMode()          app_settings `web_quiz_identity` ('v2' | null), 30 s cache, fails closed
  *   loadClassRoster(id)     class_enrollments(active) ⋈ students(active, not merged), deduped, 30 s cache
+ *   canonicalStudentIds(ids)  the one id each child is known by (aliases folded), for the hub
  *   loadLegacyList(id)      a legacy student_lists roster (a teacher with lists and no class), deduped
  *   rosterOf(cls)           whichever of the two the resolved class stands on
  *   nonAttempters({shareCodeId})  played / not played / provisional for the teacher's report (M3)
@@ -82,8 +83,12 @@ function cached(key, now) {
 
 /**
  * The children of one class: its active enrolments whose student is active and
- * not merged, duplicates (the same child pasted twice) collapsed to one. Null
- * when the read fails (the caller treats the child as new, never as another child).
+ * not merged, duplicates collapsed to one (the same child imported twice with
+ * the same father; a stray un-enrolled row of the class's mirror list folded
+ * into the enrolled child of that name, so a session on the stray row is that
+ * child's). A stray row with no enrolled namesake is NOT a child of the class.
+ * Null when the read fails (the caller treats the child as new, never as
+ * another child).
  */
 async function loadClassRoster(classId, now = Date.now()) {
   if (!classId) return null;
@@ -91,26 +96,69 @@ async function loadClassRoster(classId, now = Date.now()) {
   const hit = cached(key, now);
   if (hit) return hit;
   try {
-    const { data: enr, error } = await supabase.from('class_enrollments')
-      .select('student_id, roll_number').eq('class_id', classId).eq('is_active', true);
-    if (error) throw new Error(error.message);
+    const [{ data: enr, error }, { data: lists, error: lErr }] = await Promise.all([
+      supabase.from('class_enrollments').select('student_id, roll_number').eq('class_id', classId).eq('is_active', true),
+      supabase.from('student_lists').select('id').eq('class_id', classId).eq('is_active', true),
+    ]);
+    if (error || lErr) throw new Error((error || lErr).message);
     const ids = [...new Set((enr || []).map((e) => e.student_id).filter(Boolean))];
+    const listIds = (lists || []).map((l) => l.id);
     let kids = [];
     if (ids.length) {
-      const { data: st, error: sErr } = await supabase.from('students').select(STUDENT_COLS)
-        .in('id', ids).eq('is_active', true);
-      if (sErr) throw new Error(sErr.message);
+      const [{ data: st, error: sErr }, { data: strays, error: xErr }] = await Promise.all([
+        supabase.from('students').select(STUDENT_COLS).in('id', ids).eq('is_active', true),
+        listIds.length ? supabase.from('students').select(STUDENT_COLS).in('list_id', listIds).eq('is_active', true) : { data: [] },
+      ]);
+      if (sErr || xErr) throw new Error((sErr || xErr).message);
       const rollOf = new Map((enr || []).map((e) => [e.student_id, e.roll_number]));
-      kids = (st || []).filter((s) => s.status !== 'merged')
-        .map((s) => rosterRow(s, rollOf.get(s.id) != null ? rollOf.get(s.id) : s.roll_number, true));
+      const live = (r) => r.status !== 'merged';
+      kids = (st || []).filter(live).map((s) => rosterRow(s, rollOf.get(s.id) != null ? rollOf.get(s.id) : s.roll_number, true));
+      const enrolled = new Set(ids);
+      (strays || []).filter((s) => live(s) && !enrolled.has(s.id)).forEach((s) => kids.push(rosterRow(s, s.roll_number, false)));
     }
-    const out = withFields(Identity.dedupe(kids));
+    const out = withFields(Identity.dedupe(kids).filter((k) => k.enrolled !== false));
     rosters.set(key, { at: now, kids: out });
     return out;
   } catch (err) {
     logToFile('⚠️ web quiz identity: class roster read failed', { classId, error: err.message });
     return null;
   }
+}
+
+/**
+ * The one id each child is known by (the canonical roster child), for callers
+ * that hold student ids from sessions — the hub's "from your teacher" links,
+ * chips. A child of no class, or an id we cannot place, maps to itself.
+ * → Map(id → canonical id)
+ */
+async function canonicalStudentIds(studentIds) {
+  const ids = [...new Set((studentIds || []).filter(Boolean).map(String))];
+  const out = new Map(ids.map((id) => [id, id]));
+  if (!ids.length) return out;
+  try {
+    const [{ data: enr }, { data: st }] = await Promise.all([
+      supabase.from('class_enrollments').select('student_id, class_id').in('student_id', ids).eq('is_active', true),
+      supabase.from('students').select('id, list_id').in('id', ids),
+    ]);
+    const listIds = [...new Set((st || []).map((s) => s.list_id).filter(Boolean))];
+    const { data: lists } = listIds.length
+      ? await supabase.from('student_lists').select('id, class_id').in('id', listIds)
+      : { data: [] };
+    const classIds = new Set((enr || []).map((e) => e.class_id).filter(Boolean));
+    (lists || []).forEach((l) => { if (l.class_id) classIds.add(l.class_id); });
+    for (const classId of classIds) {
+      const kids = (await loadClassRoster(classId)) || [];
+      kids.forEach((k) => k.ids.forEach((id) => { if (out.has(id)) out.set(id, k.id); }));
+    }
+  } catch (err) {
+    logToFile('⚠️ web quiz identity: canonical id lookup failed — ids kept as given', { error: err.message });
+  }
+  return out;
+}
+
+/** canonicalStudentIds for one id. */
+async function canonicalStudentId(studentId) {
+  return (await canonicalStudentIds([studentId])).get(String(studentId)) || studentId;
 }
 
 /** A legacy class list's children (a teacher who keeps lists without a class), deduped. */
@@ -218,6 +266,7 @@ async function nonAttempters({ shareCodeId } = {}) {
 module.exports = {
   FLAG_KEY,
   identityMode, loadClassRoster, loadLegacyList, rosterOf, findKid, classKeyV2, nonAttempters,
+  canonicalStudentIds, canonicalStudentId,
   /** A class whose roster just changed (a teacher enrolled a child) is read fresh next time. */
   _forgetClass: (classId) => { rosters.delete(`class:${classId}`); },
   _resetCache: () => { flag = null; rosters.clear(); },

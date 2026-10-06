@@ -207,6 +207,20 @@ describe('E3 an invited friend never meets the roster', () => {
   });
 });
 
+describe('E3 a child opening their OWN challenge link plays for the class', () => {
+  test('the challenger\'s remembered card on their challenge code: a class run (no invited stamp); anyone else stays invited', async () => {
+    await WQ.startSession({ code: 'FR13ND', chip: chipOf(kid(1)) }).catch(() => null);
+    // the challenger only resolves by chip once they have played a code of this teacher
+    fake.db.quiz_sessions.push(F.done('s-own', kid(1), 'Ayesha Testwala', 4, 3));
+    const own = await WQ.startSession({ code: 'FR13ND', chip: chipOf(kid(1)) });
+    expect(own.child.first).toBe('Ayesha');
+    const s = fake.db.quiz_sessions[fake.db.quiz_sessions.length - 1];
+    expect(s).toMatchObject({ student_id: kid(1), share_code_id: F.SC, invited_by_student_id: null });
+    await WQ.startSession({ code: 'FR13ND', new: { name: 'Faraz' } });
+    expect(fake.db.quiz_sessions[fake.db.quiz_sessions.length - 1].invited_by_student_id).toBe(kid(1));
+  });
+});
+
 describe('logs: ids and counts only', () => {
   test('every identity step is logged without a name or a typed string', async () => {
     await answer({ new: { name: 'Ali' } });
