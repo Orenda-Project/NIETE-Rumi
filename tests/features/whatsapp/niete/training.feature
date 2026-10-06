@@ -2038,7 +2038,7 @@ Feature: NIETE (ICT) Teacher Training
     When I send the quiz to my class
     Then after the class messages I get a list "Choose class" with 4-A, 4-B, 5-A and "All / not sure"
     When I choose "All / not sure"
-    Then nothing else is sent, and the children are asked their class on the quiz page
+    Then I get one line "Okay — the report will show everyone who plays.", and the children are asked their class on the quiz page
     # Meta caps reply buttons at 3 (two classes + Any) and list rows at 10 (nine classes + Any).
 
   @e2e @quiz @wip @draft @P2 @T403

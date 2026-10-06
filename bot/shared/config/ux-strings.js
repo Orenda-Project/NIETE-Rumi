@@ -2499,6 +2499,19 @@ const UX_STRINGS = {
   vqWhichClass: { en: 'Which class is this quiz for?', ur: 'یہ کوئز کس کلاس کے لیے ہے؟' },
   vqWhichClassAny: { en: 'All / not sure', ur: 'سب / پتا نہیں' },
   vqWhichClassPick: { en: 'Choose class', ur: 'کلاس چنیں' },
+  // A tap on the class question is always answered (Rule 24d: name the state, never silence).
+  vqWhichClassAnyDone: {
+    en: 'Okay — the report will show everyone who plays.',
+    ur: 'ٹھیک ہے — جو بھی کھیلے، اس کا نتیجہ رپورٹ میں آئے گا۔',
+  },
+  vqWhichClassClosed: {
+    en: 'This question has closed. Your quiz link still works.',
+    ur: 'یہ سوال بند ہو چکا ہے۔ آپ کا کوئز لنک اب بھی چلتا ہے۔',
+  },
+  vqWhichClassNotSaved: {
+    en: 'That could not be saved. Your quiz link still works.',
+    ur: 'یہ محفوظ نہیں ہو سکا۔ آپ کا کوئز لنک اب بھی چلتا ہے۔',
+  },
   vqWhichClassBound: {
     en: 'Got it — this quiz is for ⁨{cls}⁩.',
     ur: 'ٹھیک ہے — یہ کوئز ⁨{cls}⁩ کے لیے ہے۔',

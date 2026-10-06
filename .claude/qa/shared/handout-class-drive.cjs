@@ -141,6 +141,7 @@ const order = () => S.sends.map((s) => s.m);
 const ANY = resolveUx('vqWhichClassAny', { language: 'en' });
 const ASK = resolveUx('vqWhichClass', { language: 'en' });
 const BOUND = (cls) => resolveUx('vqWhichClassBound', { language: 'en', params: { cls } });
+const ANY_DONE = resolveUx('vqWhichClassAnyDone', { language: 'en' });
 const isClassMsg = (t) => /QUIZ-|https?:\/\//.test(t);
 
 const out = {};
@@ -178,7 +179,7 @@ const scenario = async (id, fn) => {
       && claimed && JSON.stringify(texts()) === JSON.stringify([BOUND('4-B')]) && ev.boundTo === K['4-B'] && ev.codesMinted === 1, ev];
   });
 
-  // T402 — three matching classes (grades 3-5): a list; "All / not sure" leaves it unbound, says nothing
+  // T402 — three matching classes (grades 3-5): a list; "All / not sure" leaves it unbound and answers the tap in one line
   await scenario('T402', async () => {
     world({ teaches: ['4-A', '4-B', '5-A'], grade: '3-5' });
     await share.deliverClassLink(ctx(), PHONE);
@@ -186,10 +187,10 @@ const scenario = async (id, fn) => {
     const anyId = a && a.ids[a.options.indexOf(ANY)];
     S.sends = [];
     const claimed = anyId ? await HandoutClass.handleTap(anyId, PHONE) : false;
-    const ev = { ask: a, tappedAny: anyId, claimed, sentAfterTap: S.sends.length, classId: codes()[0] && codes()[0].class_id,
+    const ev = { ask: a, tappedAny: anyId, claimed, sentAfterTap: S.sends.length, reply: texts(), classId: codes()[0] && codes()[0].class_id,
       binds: S.updates.filter((u) => u.table === 'quiz_share_codes').length, questionKept: S.store.size };
     return [a && a.kind === 'list' && a.body === ASK && JSON.stringify(a.options) === JSON.stringify(['4-A', '4-B', '5-A', ANY])
-      && claimed && ev.sentAfterTap === 0 && !ev.classId && ev.binds === 0, ev];
+      && claimed && ev.sentAfterTap === 1 && JSON.stringify(ev.reply) === JSON.stringify([ANY_DONE]) && !ev.classId && ev.binds === 0, ev];
   });
 
   // T403 — the only class (3-B) is outside the quiz grade (5): asked, not bound
