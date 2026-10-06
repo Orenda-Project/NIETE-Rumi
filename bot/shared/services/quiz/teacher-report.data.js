@@ -126,6 +126,18 @@ function countedSessions(rows, teacherId) {
   return out.filter((s) => s.status === 'completed');
 }
 
+/** One counted session per child across a quiz's codes: the earliest finish. Rows without a student pass through. */
+function onePerChildAcrossCodes(sessions) {
+  const seen = new Set();
+  return sessions.slice().sort((a, b) => String(a.completed_at || '').localeCompare(String(b.completed_at || '')))
+    .filter((s) => {
+      if (!s.student_id) return true;
+      if (seen.has(s.student_id)) return false;
+      seen.add(s.student_id);
+      return true;
+    });
+}
+
 async function classCodes(teacherId, quizIds) {
   if (!quizIds.length) return [];
   const { data, error } = await supabase.from('quiz_share_codes')
@@ -283,7 +295,10 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   const meta = quiz.meta || {};
 
   const codes = await classCodes(teacherId, [quiz.id]);
-  const counted = countedSessions(await sessionsFor(codes.map((c) => c.id)), teacherId);
+  // Per class code first (the class report's rule), then ONE row per child across the
+  // quiz's codes: this page is one quiz, so a child who played on two hand-outs is
+  // one child — the earlier finish counts.
+  const counted = onePerChildAcrossCodes(countedSessions(await sessionsFor(codes.map((c) => c.id)), teacherId));
 
   const lang = clampLanguage(quiz.language);
   const primary = codes.find((c) => c.id === meta.share_code_id) || codes[0] || null;
@@ -324,7 +339,17 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   const hardest = questions.filter((q) => q.answered > 1 && q.correctPct < 100)
     .sort((a, b) => a.correctPct - b.correctPct || a.n - b.n)[0];
   const code = (codes.find((c) => c.id === meta.share_code_id) || codes[0] || {}).code || null;
-  const link = ((meta.student_message || '').match(LINK_RX) || [null])[0];
+  // The children's link: the one the hand-out forwarded; else (a hand-out whose message
+  // carries none) the quiz's own class code on the web page, when the web quiz is on.
+  let link = ((meta.student_message || '').match(LINK_RX) || [null])[0];
+  if (!link && code) {
+    try {
+      const WQL = require('./web-quiz-link');
+      if (await WQL.webQuizOn(teacherId)) link = `${WQL.webBaseUrl()}/q/${code}`;
+    } catch (err) {
+      logToFile('⚠️ teacher report: no fallback quiz link', { quizId, error: err.message });
+    }
+  }
 
   return {
     quiz: {
@@ -334,6 +359,9 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     roster: rosterView,
     summary: {
       played: played.length,
+      // The class tile pairs the children ON the class list with the class size; typed
+      // children who are not on it are counted apart (never "76 of 10 played").
+      onList: rosterView.state === 'known' ? played.filter((p) => p.onList).length : null,
       of: rosterView.of,
       avg: mean(played.map((p) => p.pct)),
       total: questions.length || Math.max(0, ...played.map((p) => p.total)),
@@ -377,11 +405,11 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
   const codes = await classCodes(teacherId, qs.map((q) => q.id));
   const quizOfCode = new Map(codes.map((c) => [c.id, c.quiz_id]));
   const counted = countedSessions(await sessionsFor(codes.map((c) => c.id)), teacherId);
-  const byQuiz = new Map();
+  const sessionsOf = new Map();
   counted.forEach((s) => {
     const q = quizOfCode.get(s.share_code_id);
-    if (!byQuiz.has(q)) byQuiz.set(q, []);
-    byQuiz.get(q).push(pct(s.correct_answers || 0, s.total_questions_answered || 0));
+    if (!sessionsOf.has(q)) sessionsOf.set(q, []);
+    sessionsOf.get(q).push(s);
   });
 
   let roster = null;
@@ -389,9 +417,15 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
     logToFile('⚠️ teacher report: class list read failed — no class sizes', { error: err.message });
   }
   const rows = qs.map((q) => {
-    const scores = byQuiz.get(q.id) || [];
+    // One child per quiz across its codes (as the quiz page), and "N of M" counts the
+    // class list only: a typed child who is not on it is never set against the class size.
+    const mine = onePerChildAcrossCodes(sessionsOf.get(q.id) || []);
+    const scores = mine.map((x) => pct(x.correct_answers || 0, x.total_questions_answered || 0));
+    const { roster: view, one } = classOf(roster, q, null);
+    const ids = one ? new Set(one.kids.map((k) => k.id)) : null;
     return {
-      of: classOf(roster, q, null).roster.of,
+      of: view.of,
+      onList: ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)).length : null,
       id: q.id, date: (q.meta && q.meta.lesson_date) || q.created_at, topic: q.topic || '', grade: gradeNum(q.grade) || null,
       subject: q.subject || null, source: q.quiz_source, played: scores.length, avg: mean(scores), scores,
     };

@@ -115,7 +115,7 @@ describe('quizReport', () => {
     expect(r.roster).toMatchObject({ state: 'known', className: '3-B', of: 4 });
     expect(r.roster.lists).toEqual([expect.objectContaining({ label: '3-B' })]);
     expect(r.played.map((p) => [p.first, p.roll, p.correct])).toEqual([['Amna', 1, 4], ['Bilal', 2, 1]]);
-    expect(r.summary).toMatchObject({ played: 2, of: 4, avg: 63, total: 4 });
+    expect(r.summary).toMatchObject({ played: 2, onList: 2, of: 4, avg: 63, total: 4 });
     // kid 3 started but did not finish; kid 4 never opened it — both still to play
     expect(r.notPlayed).toEqual([
       { studentId: kid(3), first: 'Chand', roll: 3 }, { studentId: kid(4), first: 'Dua', roll: 4 },
@@ -232,6 +232,35 @@ describe('quizReport', () => {
   });
 });
 
+describe('one quiz, two class codes', () => {
+  test('a child who played on both codes is ONE row: the first finish', async () => {
+    const fake = seed();
+    const SC3 = '33333333-3333-4333-8333-333333333335';
+    fake.db.quiz_share_codes.push({ id: SC3, code: 'ZZ99ZZ', quiz_id: QUIZ, teacher_user_id: TEACHER, invited_by_student_id: null, created_at: ago(5) });
+    fake.db.quiz_sessions.push({ ...session('s9', kid(1), 'Amna Testwala', 1, 3), share_code_id: SC3 });
+    const r = await Data.quizReport(TEACHER, QUIZ);
+    const amna = r.played.filter((p) => p.first === 'Amna');
+    expect(amna).toHaveLength(1);
+    expect(amna[0].correct).toBe(4);
+    expect(r.summary.played).toBe(2);
+  });
+});
+
+describe('the reminder link when the hand-out message carries none', () => {
+  test('falls back to the quiz\'s own class code on the web page', async () => {
+    const fake = seed({ quizExtra: { meta: { share_code_id: SC } } });
+    fake.db.app_settings = [{ key: 'web_quiz_enabled', value: true }, { key: 'web_quiz_teachers', value: 'all' }];
+    process.env.WEB_QUIZ_BASE_URL = 'https://portal.example.test';
+    try {
+      const r = await Data.quizReport(TEACHER, QUIZ);
+      expect(r.quiz.link).toBe('https://portal.example.test/q/AB12CD');
+      expect(r.reminder.text).toContain('https://portal.example.test/q/AB12CD');
+    } finally {
+      delete process.env.WEB_QUIZ_BASE_URL;
+    }
+  });
+});
+
 describe('classReport', () => {
   test('the teacher\'s quizzes by grade × subject and by week, nobody else\'s', async () => {
     seed();
@@ -247,6 +276,15 @@ describe('classReport', () => {
     expect(r.quizzes[1].of).toBeNull();
     expect(r.weeks.length).toBeGreaterThanOrEqual(1);
     expect(r.weeks.reduce((n, w) => n + w.quizzes, 0)).toBe(2);
+  });
+});
+
+describe('classReport rows count the class list for "N of M"', () => {
+  test('a child not on the list played: of stays the class size, onList counts only the class', async () => {
+    const fake = seed();
+    fake.db.quiz_sessions.push(session('s7', 'b0000000-0000-4000-8000-0000000000ee', 'Typed Testwala', 3, 6));
+    const r = await Data.classReport(TEACHER, { days: 60 });
+    expect(r.quizzes[0]).toMatchObject({ played: 3, onList: 2, of: 4 });
   });
 });
 
@@ -267,10 +305,22 @@ describe('teacher report token (kind tr)', () => {
     const [body, sig] = t.split('.');
     const forged = Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(body, 'base64url')), t: OTHER })).toString('base64url');
     expect(Token.verifyTeacherReport(`${forged}.${sig}`)).toBeNull();
-    const old = Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ, now: Date.now() - 31 * 86400000 });
+    const old = Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ, now: Date.now() - 8 * 86400000 });
     expect(Token.verifyTeacherReport(old)).toBeNull();
     expect(Token.explain(old)).toBe('expired');
     expect(Token.explain('garbage')).toBe('bad');
+  });
+
+  test('a report token lives 7 days (COS privacy ruling), and a caller can never ask for longer', () => {
+    const now = Date.now();
+    const day = 86400 * 1000;
+    expect(Token.verifyTeacherReport(Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ, now: now - 6 * day }))).toMatchObject({ teacherId: TEACHER });
+    const old = Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ, now: now - 8 * day });
+    expect(Token.verifyTeacherReport(old)).toBeNull();
+    expect(Token.explain(old)).toBe('expired');
+    const greedy = Token.signTeacherReport({ teacherId: TEACHER, quizId: QUIZ, ttlS: 365 * 86400, now: now - 8 * day });
+    expect(Token.verifyTeacherReport(greedy)).toBeNull();
+    expect(Token.TTL_S).toBe(7 * 86400);
   });
 
   test('no secret: nothing is signed (fails closed)', () => {
