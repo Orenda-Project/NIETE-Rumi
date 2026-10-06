@@ -314,14 +314,25 @@ describe('teacher report page — reserved lines', () => {
 });
 
 describe('teacher report page — review follow-ups', () => {
-  test('Urdu dates use Urdu digits and are never wrapped in a left-to-right isolate', () => {
+  test('Urdu dates use Latin digits like every other number on the page, and are never wrapped in a left-to-right isolate', () => {
     const html = page(quizData(), { lang: 'ur' });
-    expect(html).toMatch(/۵ اکتوبر ۲۰۲۶/);
+    expect(html).toMatch(/5 اکتوبر 2026/);
+    expect(text(html)).not.toMatch(/[۰-۹]/);
     expect(html).not.toMatch(/class="num">[^<]*اکتوبر/);
     const cls = renderPage({ class: { cells: [], weeks: [], quizzes: [{ id: 'q-9', date: '2026-10-05T09:00:00Z', topic: 'Magnets', played: 5, avg: 80 }] } },
       { lang: 'ur', tab: 'class', tokens: { self: TOKEN, quiz: { 'q-9': 'T9.x' } } });
-    expect(cls).toMatch(/۵ اکتوبر/);
+    expect(cls).toMatch(/5 اکتوبر/);
     expect(cls).not.toMatch(/class="num">[^<]*اکتوبر/);
+  });
+
+  test('Urdu chrome says «کوئز», never the Latin word (the /quiz command aside)', () => {
+    const pages = [
+      page(quizData({ roster: { state: 'ambiguous', className: null, of: null, lists: [{ id: 'a', label: '5-A' }] }, notPlayed: null, played: [], reminder: null }), { lang: 'ur' }),
+      renderPage({ class: { cells: [{ grade: '3', subject: 'maths', quizzes: 2, played: 4, avg: 50 }], weeks: [], quizzes: [{ id: 'q', date: '2026-10-05', topic: 'x', played: 1, avg: 1 }] } }, { lang: 'ur', tab: 'class', scope: 'quiz', tokens: { self: TOKEN } }),
+      renderPage({ class: { cells: [], weeks: [], quizzes: [] } }, { lang: 'ur', tab: 'class', tokens: { self: TOKEN } }),
+      renderMessagePage({ kind: 'missing', lang: 'ur' }),
+    ];
+    for (const h of pages) expect(text(h).replace(/\/quiz/g, '')).not.toMatch(/\bquiz\b/i);
   });
 
   test('the Urdu eyebrow says «کوئز رپورٹ»', () => {
