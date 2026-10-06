@@ -1417,6 +1417,22 @@ Feature: NIETE (ICT) Teacher Training
     When instead I choose "Add to 4-A"
     Then the child joins my class 4-A and my list, and next time they are found by name
 
+  @api @quiz @web @config-gated @wip @draft @P1 @T497 @no-mock-driver
+  Scenario: A typed child I add to my class gets the next number on my list
+    Given my class 4-A has 10 children numbered 1 to 10 and a child typed a name my list does not have
+    When I choose "Add to 4-A" on my report
+    Then the child joins 4-A as number 11, on the class list and on the child's own record
+    And on the next quiz, when the child is asked the number on my list, 11 finds them
+    But if another child took number 11 a moment before, this child gets the next free number instead, never the same one and never none
+
+  @api @quiz @web @config-gated @wip @draft @P1 @T498 @no-mock-driver
+  Scenario: The typed name I say is a child of my list is closed, not left as a second child
+    Given a child typed a name my list does not have and finished the quiz
+    When I choose "This is <name>" on my report
+    Then their finish moves onto that child of my list
+    And the typed record is marked as merged into that child and is no longer active
+    But a child of my list, or a child enrolled in any class, is never merged this way
+
   @api @quiz @web @config-gated @wip @draft @P1 @T413 @no-mock-driver
   Scenario: My report knows who in my class has not played yet
     Given my class code is for 4-A and some of my children have finished
