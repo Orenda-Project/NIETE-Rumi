@@ -474,7 +474,8 @@ async function getQuiz(code, { p } = {}) {
       ...(roster ? { roster: { lists: roster.lists.length, ...(pick.ask ? { classes: pick.ask } : {}) } } : {}),
       ...(idn ? { identity: await identityBoot(ctx, idn) } : {}),
     },
-    live: await liveCounts(ctx),
+    // now: classmates with a right answer in the last 2 minutes (peer pulse ring), sent only when there are some.
+    live: { ...(await liveCounts(ctx)), ...(Pulse.liveNow(ctx.shareCodeId) ? { now: Pulse.liveNow(ctx.shareCodeId) } : {}) },
     video,
     preview,
     // Which brand the page wears: a key only; the edge owns the brand's look.
@@ -1360,6 +1361,7 @@ async function finishSession(body = {}) {
       ...(earlier && !s.user_id ? { practice: true, kept: { correct: earlier.correct_answers || 0, total: earlier.total_questions_answered || 0 } } : {}),
       // A practice round's goal: the best earlier score on this code, so the card can say "New best!".
       ...(earlier && !s.user_id ? await bestField(s) : {}),
+      ...(counted.counted && !s.user_id && !s.invited_by_student_id ? placeToday(await classFinishersToday(s.share_code_id), s.id) : {}),
     },
     challenge_code: await challengeCodeFor(s),
     // A friend's challenge: who won against the score the landing showed them.
@@ -1381,6 +1383,24 @@ async function versus(s, mine) {
     logToFile('⚠️ web-quiz: challenge outcome unavailable', { sessionId: s.id, error: e.message });
     return {};
   }
+}
+
+/** Today's (PKT) counted class finishers of one class code: first finish per child, no teacher, no invited friend. */
+async function classFinishersToday(shareCodeId) {
+  try {
+    const { data } = await supabase.from('quiz_sessions').select('id, student_id, user_id, status, completed_at, created_at')
+      .eq('share_code_id', shareCodeId).is('invited_by_student_id', null).eq('status', 'completed').gte('completed_at', pktMidnightIso());
+    return oneAttemptPerChild((data || []).filter((r) => !r.user_id), { rule: 'first_completed' });
+  } catch (e) {
+    logToFile('⚠️ web-quiz: class finishers unavailable', { error: e.message });
+    return [];
+  }
+}
+
+/** "You're the 6th in your class to finish today": this session's place among them ({} when it is not one). Pure. */
+function placeToday(rows, sessionId) {
+  const mine = rows.find((r) => r.id === sessionId);
+  return mine ? { nth: rows.filter((r) => String(r.completed_at) <= String(mine.completed_at)).length } : {};
 }
 
 // ─── E6 the class league table ─────────────────────────────────────────────

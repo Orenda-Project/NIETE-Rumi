@@ -561,3 +561,17 @@ Feature: Web child quiz page on the portal
     When they answer questions
     Then their classmates' lines come back inside the answers they already send
     And a child's idle check is answered from the bot's memory, with no database read for the session
+
+  @T440
+  Scenario: The landing says when classmates are playing right now
+    Given at least two children of this class got a question right in the last 2 minutes
+    When a child opens the class link
+    Then the landing says "3 classmates are playing right now — join them!" («ابھی 3 ہم جماعت کھیل رہے ہیں — شامل ہوں!»), a number and never a name
+    And with one or none it says nothing, and a friend's challenge link never shows it
+
+  @T441
+  Scenario: The card says the child's place among today's class finishers
+    Given two classmates finished this quiz earlier today
+    When a child finishes it for the first time
+    Then the card says "You're the 3rd in your class to finish today" («آج آپ کی کلاس میں مکمل کرنے والوں میں آپ کا نمبر 3 ہے»), and the first says "You're the first in your class to finish today!"
+    And a practice round, an invited friend and the teacher's preview get no such line
