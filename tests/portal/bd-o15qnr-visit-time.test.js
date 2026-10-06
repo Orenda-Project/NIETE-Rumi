@@ -12,6 +12,16 @@ const { isAllowedSlot, LEGACY_SLOTS } = require('../../dashboard/lib/visit-time'
 const { createSchedule } = require('../../dashboard/services/leader-schedule-write.service');
 const { editSchedule } = require('../../dashboard/services/leader-assignment.service');
 
+// The value a column was inserted with, read from the INSERT's own column list,
+// so the test holds whatever other columns the branch's INSERT carries
+// (staging's has school_name; sandbox's did not).
+const insertedValue = (call, column) => {
+  const cols = call.sql.match(/\(([^)]*)\)\s*VALUES/)[1].split(',').map((s) => s.trim());
+  const i = cols.indexOf(column);
+  if (i < 0) throw new Error(`INSERT has no ${column} column`);
+  return call.params[i];
+};
+
 const TODAY = '2026-10-06';
 
 describe('isAllowedSlot', () => {
@@ -49,7 +59,7 @@ describe('createSchedule — any half hour in the window', () => {
       { teacherExtId: '923001112222', date: '2026-10-08', slot: '14:30' }, { today: TODAY });
     expect(out).toMatchObject({ id: 'new-1', updated: false });
     const insert = calls.find((c) => /INSERT INTO observation_schedules/.test(c.sql));
-    expect(insert.params[6]).toBe('14:30');
+    expect(insertedValue(insert, 'scheduled_slot')).toBe('14:30');
   });
 
   test('an old slot still books', async () => {
