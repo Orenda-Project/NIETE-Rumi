@@ -29,6 +29,11 @@ const QUERY = {
   tab: (v) => v === 'class',
   class: (v) => UUID_RX.test(v),
   quiz: (v) => UUID_RX.test(v),
+  // The report's own notices after a POST (the bot's 303 adds them): a failure code,
+  // or what a saved fix did and the child's list number. Dropping them here hid both.
+  e: (v) => /^[123]$/.test(v),
+  ok: (v) => v === 'added' || v === 'moved',
+  no: (v) => /^\d{1,4}$/.test(v),
 };
 
 function forwardQuery(q) {
