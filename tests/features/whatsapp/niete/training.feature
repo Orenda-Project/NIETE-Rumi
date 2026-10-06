@@ -1939,3 +1939,13 @@ Feature: NIETE (ICT) Teacher Training
     And no quiz is written from a different version of that lesson
     # transcript-quiz-generate sourceMissing → logEvent lp_quiz.source_missing (ids only) + meta.source_reason.
     # Unit: tests/quiz/lp-quiz-generate-v9-source.test.js. @wip.
+
+  @web @api @negative @P1 @T262
+  Scenario: A portal module-exam question with nothing to pick from is answered in writing and saves
+    Given a module exam question has no options (and no option images), even if it still carries an answer key
+    When I open that exam in the portal and type a sentence longer than 32 characters
+    Then the page shows a text box and my sentence autosaves and submits as my written answer, not as a picked option
+    And the question is not marked against the stray key, and the paper submits without a "value too long" error
+    # Server: isOpenEndedQuestion (nothing to pick from = written); submitModuleExamPaper / saveModuleExamDraft store answer_text.
+    # Portal: TrainingModuleExam isWritten(). Unit: tests/training/portal-exam-no-options-is-written.test.js,
+    # portal TrainingModuleExam.test.tsx.
