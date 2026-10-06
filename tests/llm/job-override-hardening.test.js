@@ -132,21 +132,18 @@ describe('a model always stands behind the override', () => {
     expect(mockState.or[0].model).toBe('anthropic/claude-haiku-4-5');
   });
 
-  test('assessment, moved by the settings row, falls back to the model it runs today when the answer is not JSON', async () => {
-    const { getClient } = await loadWithSettings({}, [{ key: 'llm_per_job', value: { 'assessment.generate': 'anthropic/claude-sonnet-5' } }]);
-    mockState.orImpl = (p) => answer(p.model.includes('claude') ? 'Here are your questions: 1. What is a fraction?' : '{"questions":[]}');
+  test('assessment, moved by the settings row, falls back to the model it runs today when the answer is not JSON (through the real call site)', async () => {
+    await loadWithSettings({}, [{ key: 'llm_per_job', value: { 'assessment.generate': 'anthropic/claude-sonnet-5' } }]);
+    const paper = JSON.stringify({ unseen: { objective: { MCQs: [{ question: 'q', marks: 1 }] } } });
+    mockState.orImpl = (p) => answer(p.model.includes('claude') ? 'Here are your questions: 1. What is a fraction?' : paper);
     // eslint-disable-next-line global-require
-    const { resolveModelForJob } = require('../../bot/shared/config/model-registry');
-    // eslint-disable-next-line global-require
-    const { configForRequest } = require('../../bot/shared/config/model-settings');
-    // The call site's own expression (assessment-generation.service.js modelFor).
-    const model = resolveModelForJob('assessment.generate', { cfg: configForRequest(), family: 'eng' }).model;
-    const res = await getClient().chat.completions.create({
-      model, job: 'assessment.generate', temperature: 0.7, response_format: { type: 'json_object' },
-      messages: [{ role: 'user', content: 'Write two questions as JSON.' }],
+    const Gen = require('../../bot/shared/services/assessment/assessment-generation.service');
+    const out = await Gen.generateExam({
+      grade: 1, subject: 'Eng', pageContent: '=== Page 4 ===\nHello', pageReference: '4-14',
+      contentSource: 'unseen', questionTypes: [{ id: 'MCQs', count: 5, category: 'objective' }],
     });
     expect(mockState.or.map((p) => p.model)).toEqual(['anthropic/claude-sonnet-5', 'google/gemini-3.1-pro-preview']);
-    expect(JSON.parse(res.choices[0].message.content)).toEqual({ questions: [] });
+    expect(out.questionCount).toBe(1);
   });
 
   test("a call site on the direct lane keeps its own model behind an override, even with no frozen fallback", async () => {

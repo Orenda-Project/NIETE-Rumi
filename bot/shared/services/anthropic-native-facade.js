@@ -233,16 +233,24 @@ function balancedFrom(s, start) {
   return null;
 }
 
+/** A candidate that reads like JSON (a quoted key and a colon) even though it does not parse. */
+const looksLikeJson = (s) => /"[^"\n]*"\s*:/.test(s);
+
 /**
- * The JSON inside an answer, or null. Fences first, then the first complete object or array of
- * the shape asked for, so a model that wraps its answer in markdown or a sentence still hands the
+ * The JSON inside an answer, or null. Fences first, then the one complete object or array of the
+ * shape asked for, so a model that wraps its answer in markdown or a sentence still hands the
  * caller something `JSON.parse` accepts. Nothing is invented: if no such value is there, null.
  *
- * Each candidate is scanned to its OWN closing bracket (bd-gr4fy.6). The old first-brace-to-
- * last-brace slice failed on an object followed by a note with braces in it, then fell through to
- * an inner array; and a cut-off object came back as one of its inner arrays. So an unclosed
- * structure ends the search (everything after its opening bracket is inside it), and a value of
- * the wrong shape is skipped whole, never searched inside.
+ * Each candidate is scanned to its OWN closing bracket (bd-gr4fy.6). An unclosed structure ends
+ * the search: everything after its opening bracket is inside it, so a cut-off object never comes
+ * back as one of its inner arrays.
+ *
+ * AND ONLY WHEN THERE IS NO DOUBT WHICH VALUE IS MEANT (bd-gr4fy.7). Taking the first value that
+ * parsed handed a caller `{}` from "Filling the {} template: {...}", and handed it `{"score":0}`
+ * from a malformed answer followed by a scale reminder, and the caller recorded 0. So: exactly one
+ * candidate of the right shape, and no other candidate that reads like JSON but does not parse
+ * (that one may be the real answer). Braces in plain prose ("{your rubric}") do not count. Anything
+ * else is null, and the job's own model answers.
  */
 function extractJson(text, shape = 'any') {
   const t = String(text || '').trim();
@@ -251,16 +259,19 @@ function extractJson(text, shape = 'any') {
   const body = fenced ? fenced[1].trim() : t;
   const whole = parse(body);
   if (whole.ok && hasShape(whole.value, shape)) return body;
+  const fits = [];
+  let brokenJson = 0;
   for (let i = 0; i < body.length; i++) {
     const c = body[i];
     if (c !== '{' && c !== '[') continue;
     const candidate = balancedFrom(body, i);
     if (candidate === null) return null;
     const got = parse(candidate);
-    if (got.ok && hasShape(got.value, shape)) return candidate;
+    if (got.ok && hasShape(got.value, shape)) fits.push(candidate);
+    else if (!got.ok && looksLikeJson(candidate)) brokenJson += 1;
     i += candidate.length - 1;
   }
-  return null;
+  return fits.length === 1 && brokenJson === 0 ? fits[0] : null;
 }
 
 /**
