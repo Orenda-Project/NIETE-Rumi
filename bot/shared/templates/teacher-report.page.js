@@ -231,6 +231,8 @@ const MONTHS_UR = ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی
 const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const PKT_MS = 5 * 3600 * 1000;
 
+const urduDigits = (str) => String(str).replace(/[0-9]/g, (c) => String.fromCharCode(0x06F0 + Number(c)));
+
 function pkt(iso) {
   const t = new Date(iso).getTime();
   return Number.isFinite(t) ? new Date(t + PKT_MS) : null;
@@ -238,9 +240,10 @@ function pkt(iso) {
 function dateLabel(iso, lang, { year = false } = {}) {
   const d = pkt(iso);
   if (!d) return '';
-  // Latin digits like every other number on the page (and the PDF); the date reads right
-  // to left like the words around it, so it is never put in a left-to-right isolate.
-  if (lang === 'ur') return `${d.getUTCDate()} ${MONTHS_UR[d.getUTCMonth()]}${year ? ` ${d.getUTCFullYear()}` : ''}`;
+  // A date is Urdu prose: Urdu digits (language-protocol §9.4; counts, % and scores stay
+  // ASCII inside their isolates), and it reads right to left with its month, so it is
+  // never put in a left-to-right isolate.
+  if (lang === 'ur') return urduDigits(`${d.getUTCDate()} ${MONTHS_UR[d.getUTCMonth()]}${year ? ` ${d.getUTCFullYear()}` : ''}`);
   return `${d.getUTCDate()} ${MONTHS_EN[d.getUTCMonth()]}${year ? ` ${d.getUTCFullYear()}` : ''}`;
 }
 /** A week's column label: "28 Sep"; in Urdu the month name is too wide for eight columns, so "28/9". */
