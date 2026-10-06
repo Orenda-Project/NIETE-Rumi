@@ -36,7 +36,7 @@ const EDIT_INTENT_KINDS = ['edit', 'question', 'out_of_scope', 'gratitude'];
  * sentence, and it runs on every post-delivery reply. Nothing here may hardcode a model id in a
  * way an operator cannot change without a deploy.
  */
-const DEFAULT_MODEL = 'openai/gpt-4.1-mini';
+const { modelFor } = require('../config/model-registry');
 const MAX_TOKENS = 64;
 
 /**
@@ -145,7 +145,8 @@ async function classifyEditIntent({ text, language, correlationId, model } = {})
     return { kind: 'gratitude', reason: 'fast_path' };
   }
 
-  const chosen = model || process.env.LP612_EDIT_INTENT_MODEL || DEFAULT_MODEL;
+  // bd-gr4fy.8: the registry holds this job's model (LP612_EDIT_INTENT_MODEL, else its default).
+  const chosen = model || modelFor('lp.editIntent');
 
   let res;
   try {

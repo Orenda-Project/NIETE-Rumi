@@ -16,6 +16,17 @@
  * new settings written nothing changes: there is a test per job asserting the resolved model
  * equals today's expression exactly.
  *
+ * HOW TO CHANGE A MODEL (bd-gr4fy.8). Every job in the Anthropic swap's scope is in JOBS below, and
+ * its call site asks for `modelFor(job)` instead of writing a model of its own, so:
+ *
+ *   for good, in code     edit the job's `default` here, one line; its call site follows
+ *   now, with no deploy   app_settings `llm_per_job` = {"<job>": "<model id>"}: tried first, with
+ *                         this table's model behind it on any failure (llm-client.js)
+ *   every job back        app_settings `llm_kill_switch` = true, within about a minute, no restart
+ *   no settings table     env LLM_JOB_MODELS = '{"<job>": "<model id>"}', same behaviour
+ *
+ * A job's own env var, where it already had one, still sits between its default and the settings.
+ *
  * WHAT IS ALREADY TRUE AND WORTH SAYING OUT LOUD. This deployment is already multi-vendor.
  * Lesson-plan authoring defaults to `anthropic/claude-sonnet-5`; vision, roster extraction
  * and transcript quizzes default to Google models; fidelity to an OpenAI one. The first
@@ -94,6 +105,70 @@ const JOBS = {
     env: 'HCP_FEEDBACK_MODEL', default: null,
     site: 'dashboard/routes/hcp.routes.js',
   },
+
+  // ---- bd-gr4fy.8: every other job in the Anthropic swap's scope, promoted from TELEMETRY_ONLY_JOBS.
+  // Each default is EXACTLY what its call site sent before (pinned in tests/llm/single-source-guard),
+  // and the call site now asks for it with modelFor(job), so this table is the one place a job's own
+  // model is written. `env: null` = the job never had a variable of its own, and none is invented:
+  // the `llm_per_job` settings row (or LLM_JOB_MODELS) moves it with no deploy, with this model
+  // behind it, and `llm_kill_switch` puts it back.
+  'chat.respond': { env: null, default: 'gpt-4.1-mini', site: 'shared/services/openai.service.js' },
+  'chat.intent': { env: null, default: 'gpt-4.1-mini', site: 'shared/services/openai.service.js' },
+  'chat.topic': { env: null, default: 'gpt-4.1-mini', site: 'shared/services/openai.service.js' },
+  // createChatCompletion's default: video slides and the two video topic prompts.
+  'chat.completion': { env: null, default: 'gpt-4o-mini', site: 'shared/services/openai.service.js' },
+  'lang.detect': { env: null, default: 'gpt-4o-mini', site: 'shared/services/language-detector.service.js' },
+  'lp.editIntent': {
+    env: 'LP612_EDIT_INTENT_MODEL', default: 'openai/gpt-4.1-mini',
+    site: 'shared/services/lp612-edit-intent.service.js',
+  },
+  'lp.extractText': { env: null, default: 'gpt-4o-mini', site: 'workers/lesson-plan-extraction.worker.js' },
+  // These two ran getDefaultModel(), i.e. the platform default: `default: null` keeps exactly that.
+  'attendance.voiceExtract': { env: null, default: null, site: 'shared/services/voice-attendance.service.js' },
+  'training.capstoneScore': { env: null, default: null, site: 'shared/services/training/capstone-delivery.service.js' },
+  'helper.capabilityDetect': { env: null, default: 'gpt-4o-mini', site: 'shared/services/helper-agent.service.js' },
+  'helper.capabilityGuidance': { env: null, default: 'gpt-4o-mini', site: 'shared/services/helper-agent.service.js' },
+  'helper.capabilityDefault': { env: null, default: 'gpt-4o-mini', site: 'shared/services/helper-agent.service.js' },
+  'helper.guidance': { env: null, default: 'gpt-4o', site: 'shared/services/helper-agent.service.js' },
+  'helper.stuckRecovery': { env: null, default: 'gpt-4o-mini', site: 'shared/services/helper-agent.service.js' },
+  'coaching.pedagogy': { env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/gpt5-mini.service.js' },
+  'coaching.completeJson': { env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/gpt5-mini.service.js' },
+  'coaching.fidelityFallback': { env: null, default: 'gpt-4o-mini', site: 'shared/services/gpt5-mini.service.js' },
+  'coaching.enhance': { env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/gpt5-mini.service.js' },
+  'coaching.reflectiveQuestion': { env: null, default: 'gpt-4o', site: 'shared/services/gpt5-mini.service.js' },
+  'coaching.inferTopic': { env: null, default: 'gpt-4o-mini', site: 'shared/services/gpt5-mini.service.js' },
+  'coaching.inferSubject': { env: null, default: 'gpt-4o-mini', site: 'shared/services/gpt5-mini.service.js' },
+  'coaching.priorFeedback': { env: null, default: 'gpt-4o-mini', site: 'shared/services/gpt5-mini.service.js' },
+  'coaching.voiceDebrief': { env: null, default: 'gpt-4o', site: 'shared/services/gpt5-mini.service.js' },
+  'coaching.acknowledgement': {
+    env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/coaching/reflective-conversation.service.js',
+  },
+  'coaching.narrative': {
+    env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/coaching/report-v2/narrative.service.js',
+  },
+  'coaching.commitmentCard': {
+    env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/coaching/coaching-card/commitment-card.service.js',
+  },
+  'coaching.cardLocalise': {
+    env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/coaching/coaching-card/commitment-card.service.js',
+  },
+  // Its own OpenRouter client and ladder: this model twice, then FALLBACK['coaching.questionRouter'].
+  'coaching.questionRouter': {
+    env: null, default: 'deepseek/deepseek-v3.2', site: 'shared/services/coaching/reflective-questions/llm-router.service.js',
+  },
+  // Shares lp.fidelity's variable, exactly as the extractor always did.
+  'lp.extractUpload': {
+    env: 'LP_FIDELITY_MODEL', default: 'openai/gpt-5.6-luna', site: 'shared/services/coaching/fidelity/lp-upload-extractor.js',
+  },
+  // These four call api.openai.com directly on their own client, so their model must be one it serves:
+  // a bare OpenAI id and no env var. Only the per-job override (which routes it) moves them elsewhere.
+  'quiz.generate': { env: null, default: 'gpt-4o', lane: 'openai-direct', site: 'shared/services/quiz/quiz-generation.service.js' },
+  'quiz.insight': { env: null, default: 'gpt-4o-mini', lane: 'openai-direct', site: 'shared/services/quiz/quiz-report.service.js' },
+  'quiz.session': { env: null, default: 'gpt-4o-mini', lane: 'openai-direct', site: 'shared/services/quiz/quiz-session.service.js' },
+  'quiz.videoReport': {
+    env: null, default: 'gpt-5.4-mini', lane: 'openai-direct', site: 'shared/services/quiz/video-quiz-report.service.js',
+  },
+
   'platform.default': {
     env: 'LLM_MODEL', default: 'openai/gpt-4o',
     site: 'shared/services/llm-client.js:34',
@@ -139,6 +214,8 @@ const FALLBACK = {
   'assessment.generate': 'google/gemini-3.1-pro-preview',  // what it already runs
   'hcp.feedback':     null,  // falls through to the platform default, which is the floor
   'platform.default': null,  // the floor
+  // bd-gr4fy.8: the question router's own ladder already retried on this model; it now reads it here.
+  'coaching.questionRouter': 'openai/gpt-5.4',
 };
 
 /**
@@ -162,48 +239,12 @@ const FALLBACK = {
  * names, which is correct: an unrouted job has no fallback to arm.
  */
 const TELEMETRY_ONLY_JOBS = Object.freeze([
-  // GPT5MiniService statics -- the gpt-5-mini/gpt-4o cluster
-  'coaching.pedagogy',           // analyzePedagogy, incl. the photo-less retry
-  'coaching.completeJson',       // generic JSON helper: observe debrief/feedback, remark narrative
-  'coaching.fidelityFallback',   // _generateFidelityAssessment
-  'coaching.enhance',            // enhanceAnalysisWithReflections
-  'coaching.reflectiveQuestion',
-  'coaching.inferTopic',
-  'coaching.inferSubject',
-  'coaching.priorFeedback',
-  'coaching.voiceDebrief',
-  // services sharing GPT5MiniService's client
-  'coaching.acknowledgement',    // reflective-conversation
-  'coaching.narrative',          // report-v2/narrative
-  'coaching.commitmentCard',     // commitment-card
-  'coaching.cardLocalise',       // commitment-card, translation pass
-  // the ninth call site, found from spend rather than from reading the code
-  'lp.extractUpload',            // coaching/fidelity/lp-upload-extractor
-
-  // ---- phase 2 (bd-8xmp9): the rest of the LIVE call sites --------------------------------
-  // Scoped by reachability from the three Procfile entry points. Four other files hold model
-  // calls and are deliberately NOT here: transcript-enhancer, name-extractor, and both
-  // pic-to-lp extractors are required by nothing in NIETE. See bd-8xmp9.
-  'chat.respond',                // openai.service getResponseWithFormat -- the main reply
-  'chat.intent',                 // openai.service detectIntent
-  'chat.topic',                  // openai.service extractTopic
-  'chat.completion',             // openai.service createChatCompletion -- a DEFAULT, callers override
-  'helper.guidance',
-  'helper.stuckRecovery',
-  'helper.capabilityDetect',
-  'helper.capabilityGuidance',
-  'helper.capabilityDefault',
+  // bd-gr4fy.8 promoted every job in the Anthropic swap's scope out of this list and into JOBS
+  // (the coaching cluster, chat, helper, the quiz services, the router, language detection, LP
+  // extraction and edit intent, attendance, capstone scoring). What is left was outside that scope:
+  // no NIETE production traffic in the week before (6 Oct 2026), and each call site still writes
+  // its own model. Promote one the same way when it needs to move.
   'exam.grade',                  // exam-checker/grading
-  // The five raw-SDK services (bd-wgso2). They keep their OWN client -- api.openai.com direct for
-  // the four quiz ones, their own OpenRouter client for the router -- and wrap it with llm-client's
-  // withSpendRecording, which strips the label and records the spend. They were unlabelled until
-  // then because a label on an unwrapped raw client is SENT to the vendor (bd-3kv02), and
-  // job-label-reaches-no-vendor.test.js still refuses a label on a raw client that is not wrapped.
-  'quiz.generate',               // quiz/quiz-generation      (lane: openai-direct, costUnpriced)
-  'quiz.insight',                // quiz/quiz-report          (lane: openai-direct, costUnpriced)
-  'quiz.session',                // quiz/quiz-session         (lane: openai-direct, costUnpriced)
-  'quiz.videoReport',            // quiz/video-quiz-report    (lane: openai-direct, costUnpriced)
-  'coaching.questionRouter',     // reflective-questions/llm-router (OpenRouter: real usage.cost)
   'reading.analyse',
   'reading.diagnosticSummary',
   'reading.report',
@@ -230,11 +271,6 @@ const TELEMETRY_ONLY_JOBS = Object.freeze([
   'reading.assessGrade',
   'reading.assessAudio',
   'reading.wordGrid',            // utils/word-grid-generator
-  'lp.editIntent',               // lp612-edit-intent
-  'lp.extractText',              // workers/lesson-plan-extraction
-  'lang.detect',                 // language-detector
-  'training.capstoneScore',
-  'attendance.voiceExtract',
 ]);
 
 /**
@@ -321,7 +357,7 @@ function todaysModel(job, ctx = {}) {
     const pilot = (process.env[spec.familyEnv[ctx.family]] || '').trim();
     if (pilot) return pilot;
   }
-  const own = (process.env[spec.env] || '').trim();
+  const own = spec.env ? (process.env[spec.env] || '').trim() : '';
   if (own) return own;
   if (spec.default) return spec.default;
   // hcp.feedback and anything else with no literal fall through to the platform default
@@ -378,7 +414,18 @@ function resolveModelForJob(job, ctx = {}) {
   return { job, model, source, env: JOBS[job].env, site: JOBS[job].site };
 }
 
+/**
+ * The model a call site sends for its job (bd-gr4fy.8): the job's own env var where it has one,
+ * else its default here. What a call site asks INSTEAD of writing a model of its own, so this
+ * table is the one place a job's model is written. The per-job override (llm-client) and the kill
+ * switch act on top of it, on the wire, with this model behind any override.
+ */
+function modelFor(job, ctx = {}) {
+  return todaysModel(job, ctx);
+}
+
 module.exports = {
+  modelFor,
   JOBS, FALLBACK, TELEMETRY_ONLY_JOBS, JSON_REPLY_JOBS, JSON_REPAIRED_BY_CALLER,
   fallbackForJob, resolveModelForJob, todaysModel, bucketOf, isModel,
 };
