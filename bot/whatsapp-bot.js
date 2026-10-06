@@ -1359,6 +1359,14 @@ app.post('/webhook', async (req, res) => {
           logToFile('⚠️ unrouted lpquiz_ button', { buttonId, from });
         }
       }
+      // The teacher's /quiz home (tqh_make / tqh_reports / tqh_class). Its own
+      // branch: `tqh_` does not start with `tq_`, so the one below never sees it.
+      else if (buttonId.startsWith('tqh_')) {
+        const TeacherQuizHome = require('./shared/services/quiz/teacher-quiz-home.service');
+        if (!(await TeacherQuizHome.handleHomeButton(buttonId, from, user))) {
+          logToFile('⚠️ unrouted tqh_ button', { buttonId, from });
+        }
+      }
       // Transcript quiz: the post-coaching offer (tq_yes_/tq_no_) and the
       // /quiz actions (tq_link_/tq_report_). Its own prefix on purpose —
       // never `quiz_` (parent quiz) or `vq_` (video quiz).
@@ -1986,6 +1994,16 @@ app.post('/webhook', async (req, res) => {
       if (listId.startsWith('tq_pick_') || listId.startsWith('tq_page_')) {
         const TranscriptQuizList = require('./shared/services/quiz/transcript-quiz-list.service');
         await TranscriptQuizList.handleListPick(listId, from, user);
+        ack();
+        return;
+      }
+
+      // /quiz "My quiz reports": a sent quiz tapped (tqr_<quizId>) or the next page (tqr_page_<n>).
+      if (listId.startsWith('tqr_')) {
+        const TeacherReportList = require('./shared/services/quiz/teacher-report-list.service');
+        if (!(await TeacherReportList.handleReportsPick(listId, from, user))) {
+          logToFile('⚠️ unrouted tqr_ list row', { listId, from });
+        }
         ack();
         return;
       }
