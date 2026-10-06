@@ -206,6 +206,8 @@ html[lang=ur] .wq-big:not(.wq-jug){font-family:var(--f)}
 /* ---- item types (WQI): picture grid, true/false, order, match, label, listen; figures; maths ---- */
 .wq-item{display:grid;gap:12px}
 .wq-m{font-size:1.1em;direction:ltr;unicode-bidi:isolate}
+/* A long maths line scrolls inside its own box instead of running past the bubble or the screen. */
+.wq-mx{display:inline-block;max-width:100%;overflow-x:auto;overflow-y:hidden;vertical-align:middle;direction:ltr;unicode-bidi:isolate}
 .wq-m mfrac{padding:0 .1em}
 .wq-fig{position:relative;margin:0;display:flex;flex-direction:column;background:#fff;border-radius:16px;box-shadow:0 3px 0 var(--line);padding:8px}
 .wq-figbox{position:relative;line-height:0;margin:0 auto;width:100%}

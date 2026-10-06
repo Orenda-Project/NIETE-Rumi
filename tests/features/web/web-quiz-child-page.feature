@@ -296,3 +296,34 @@ Feature: Web child quiz page on the portal
     When the child taps "Play as" that child on a quiz of this class
     Then the phone forgets that child and shows "who is playing?" (the roll-number pad when the class has a list)
     And no "Something went wrong" message is shown
+
+  @T293
+  Scenario: Every question shape the engine can emit renders on a small phone, in English and Urdu
+    Given every question shape the quiz engine can hand the page (text, multi, emoji and picture options, option and question pictures, every figure kind, a WhatsApp match figure, a listen item with a sound, glyph tiles, order, match, true/false, label)
+    And each with long stems, long options, maths, an empty reason, a missing picture, Latin inside Urdu and an Urdu option with a number
+    When each is opened on a 360 by 740 phone, before an answer, after a wrong pick and after the right pick
+    Then nothing scrolls sideways or sits off the screen, no text or answer overlaps another, and every answer shows a word or a picture
+    And Urdu text is set in the page's Nastaliq
+
+  @T294
+  Scenario: Maths from real questions is typeset, never spelled out
+    Given a question whose stem, options or reason carry "$60\ \Omega$", "$67, 62, 57, \dots$", "$9 \div 3 \neq 3 \div 9$", "$A \rightleftharpoons B$", "$14 \xrightarrow{\div 2} 7$" or "$\text{Rs } 40$"
+    When a child opens it
+    Then the child sees "60 Ω", "67, 62, 57, …", "9 ÷ 3 ≠ 3 ÷ 9", "A ⇌ B", an arrow with "÷ 2" over it and "Rs 40"
+    And never the words "Omega", "dots", "neq" or "rightleftharpoons"
+    And a long maths line scrolls inside its own box instead of running off the screen
+
+  @T295
+  Scenario: A column sum option is shown as a column sum
+    Given an option written as a column subtraction of 460 from 712 with a rule under it
+    When a child opens the question
+    Then the option shows 712 above "- 460" and a line under them, right-aligned
+
+  @T296
+  Scenario: A picture that cannot be shown never breaks the question
+    Given a picture question whose drawing for one option could not be made
+    When a child opens it
+    Then every option is shown as a word button (with its picture where there is one), never a word set at picture size
+    Given a question whose picture file does not arrive
+    When a child opens it
+    Then the picture box disappears and the question plays on its words, with no broken-picture icon
