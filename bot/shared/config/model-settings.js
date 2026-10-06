@@ -61,6 +61,20 @@ let cache = null;
  */
 let inFlight = null;
 
+/**
+ * True once the table has been read at least once, or when there is no database to read. Until
+ * then the kill switch is UNKNOWN, not off, and nothing that the kill switch governs may act on
+ * an assumption that it is off (bd-gr4fy.6). The last good read stays good through a later failure.
+ */
+let readOnce = false;
+
+/**
+ * What the last read had to drop, and why: a value that was not JSON, not a map, or not a model
+ * id. Kept beside the config rather than inside it, so `cfg` keeps exactly the shape every reader
+ * already relies on. Reported by llm-client's `llm.job_override_config` event.
+ */
+let lastRejected = [];
+
 /** Rows arrive as JSON or as a JSON string depending on who wrote them. Neither may throw. */
 function parseValue(raw) {
   if (typeof raw !== 'string') return raw;
@@ -68,10 +82,16 @@ function parseValue(raw) {
 }
 
 /** A map of `<something> -> model id`. Entries that are not model ids are dropped, not kept. */
-function cleanModelMap(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+function cleanModelMap(value, key, rejected = []) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    rejected.push({ key, why: 'not a map of name -> model id' });
+    return undefined;
+  }
   const out = {};
-  for (const [k, v] of Object.entries(value)) if (isModel(v)) out[k] = v;
+  for (const [k, v] of Object.entries(value)) {
+    if (isModel(v)) out[k] = v;
+    else rejected.push({ key, entry: k, value: String(v).slice(0, 80), why: 'not a model id' });
+  }
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -88,13 +108,13 @@ function cleanRollout(value) {
   return { model: value.model, pct: Math.min(100, Math.max(0, pct)) };
 }
 
-function buildConfig(rows) {
+function buildConfig(rows, rejected = []) {
   const cfg = {};
   for (const row of rows || []) {
     const field = KEY_MAP[row?.key];
     if (!field) continue;
     const value = parseValue(row.value);
-    if (value === undefined) continue;
+    if (value === undefined) { rejected.push({ key: row.key, why: 'not JSON' }); continue; }
 
     if (field === 'killSwitch') {
       const on = value === true || (typeof value === 'string' && value.trim().toLowerCase() === 'true');
@@ -102,8 +122,9 @@ function buildConfig(rows) {
     } else if (field === 'rollout') {
       const ro = cleanRollout(value);
       if (ro) cfg.rollout = ro;
+      else rejected.push({ key: row.key, why: 'not {model, pct}' });
     } else {
-      const map = cleanModelMap(value);
+      const map = cleanModelMap(value, row.key, rejected);
       if (map) cfg[field] = map;
     }
   }
@@ -137,10 +158,13 @@ function stamp(cfg) { cache = { at: Date.now(), cfg }; }
 async function readIntoCache() {
   try {
     const supabase = client();
-    if (!supabase) { stamp(currentConfig()); return currentConfig(); }
+    if (!supabase) { readOnce = true; stamp(currentConfig()); return currentConfig(); }
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', KEYS);
     if (error) throw new Error(error.message || 'settings lookup failed');
-    stamp(buildConfig(data));
+    const rejected = [];
+    stamp(buildConfig(data, rejected));
+    lastRejected = rejected;
+    readOnce = true;
   } catch (err) {
     // Read BEFORE stamping: stamp() always sets the cache, so asking afterwards would report
     // "we had one" every time and the log line would say nothing.
@@ -171,7 +195,20 @@ function configForRequest() {
   return currentConfig();
 }
 
-/** Tests only. */
-function _reset() { cache = null; }
+/**
+ * Whether the settings are known: read at least once, or there is no database to read (no
+ * database means no kill switch can be set, so there is nothing to wait for). Synchronous.
+ */
+function hasRead() {
+  return readOnce || !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY;
+}
 
-module.exports = { refresh, currentConfig, configForRequest, isStale, KEYS, KEY_MAP, TTL_MS, _reset };
+/** What the last successful read dropped, and why. */
+function rejectedEntries() { return lastRejected; }
+
+/** Tests only. */
+function _reset() { cache = null; readOnce = false; lastRejected = []; }
+
+module.exports = {
+  refresh, currentConfig, configForRequest, isStale, hasRead, rejectedEntries, KEYS, KEY_MAP, TTL_MS, _reset,
+};
