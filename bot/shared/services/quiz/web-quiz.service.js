@@ -34,6 +34,7 @@ const PictureZoom = require('./web-quiz-picture-zoom');
 const Pictures = require('./pictures');
 const { pointsAtPicture } = require('./quiz-picture-words');
 const { pageTopic } = require('./quiz-child-title');
+const { presupposesPicture } = require('./quiz-author-gates-v2');
 const Funnel = require('./quiz-funnel');
 const { oneAttemptPerChild } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
@@ -142,7 +143,10 @@ function hasPicture(q) {
 function playable(q) {
   const web = WebItems.webPayload(q);
   const stem = (web && web.text) || (q && q.question_text) || '';
-  return !pointsAtPicture(stem) || hasPicture(q);
+  // A stem that points at a picture ("look at the picture") or supposes one ("if a diagram
+  // shows…", the authoring gate's own rule) is not played without that picture: quizzes written
+  // before the gate still carry such stems.
+  return !(pointsAtPicture(stem) || presupposesPicture(stem)) || hasPicture(q);
 }
 
 /** The quiz's questions in the order a WhatsApp child gets them, capped like a session; only playable ones. */
