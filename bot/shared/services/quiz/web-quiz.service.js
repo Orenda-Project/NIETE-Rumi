@@ -331,9 +331,12 @@ async function classChips(ctx) {
 const publicChip = (c) => ({ chip: c.chip, first: c.first, animal: c.animal });
 
 /** A roster child as a public chip: first name and animal, the class label only when it tells two classes apart. */
-function rosterChip(ctx, { kid, label }) {
+function rosterChip(ctx, { kid, label }, one = null) {
   const c = { chip: T.chipId(ctx.shareCodeId, kid.id), first: firstName(Roster.displayName(kid, ctx.lang)), animal: T.animalFor(kid.id) };
   if (label) c.cls = label;
+  // Two children of the class share this first name: the roll number tells the child which card is theirs.
+  const twin = one && one.kids.some((k) => k.id !== kid.id && norm(firstName(Roster.displayName(k, ctx.lang))) === norm(c.first));
+  if (twin && kid.roll_number != null) c.roll = Number(kid.roll_number);
   return c;
 }
 
@@ -707,7 +710,7 @@ async function startSession(body = {}) {
         // With a class list, a typo still finds the child ("Aysha" -> Ayesha) — but only in this
         // quiz's class: a name that class does not have is a new child, never another class's child.
         if (ask) fail(409, 'which_class', { classes: ask });
-        candidates = Roster.byName(one, firstName(name), quizGrade).map((f) => rosterChip(ctx, f));
+        candidates = Roster.byName(one, firstName(name), quizGrade).map((f) => rosterChip(ctx, f, one));
       } else {
         const chips = await classChips(ctx);
         candidates = chips.filter((c) => norm(c.first) === mine).map(publicChip);
