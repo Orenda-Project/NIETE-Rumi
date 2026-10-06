@@ -485,6 +485,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       selfT: 'This is your own test run. It will not show in your class report.',
       challenged: function (n, s, t) { return n + ' got ' + s + '/' + t + ' stars. Can you beat it?'; }, challengedBy: function (n) { return n + ' challenged you. Can you beat their score?'; },
       vs: { win: 'You beat the challenge!', tie: "It's a tie!", lose: 'So close! Play again?' }, vsYou: 'You', frOut: { win: 'beat you!', tie: 'tie', lose: 'you won' },
+      offWait: 'Your results will reach your teacher when you are back online.', offDone: 'All done! Your answers are saved on this phone.', tryNow: 'Send now',
       offline: 'No internet right now. Your answers are saved on this phone.', tooFew: 'Answer a few more questions first.', oops: 'Something went wrong. Please try again.',
       friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child'
     },
@@ -538,6 +539,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       selfT: 'یہ آپ کا اپنا ٹیسٹ رن ہے۔ یہ کلاس رپورٹ میں شامل نہیں ہوگا۔',
       challenged: function (n, s, t) { return n + ' نے ' + t + ' میں سے ' + s + ' ستارے لیے۔ اب آپ کی باری!'; }, challengedBy: function (n) { return n + ' نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!'; },
       vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑی سی کمی رہ گئی! دوبارہ کھیلیں؟' }, vsYou: 'آپ', frOut: { win: 'آپ سے آگے!', tie: 'برابر', lose: 'آپ کی جیت' },
+      offWait: 'انٹرنیٹ واپس آتے ہی آپ کا نتیجہ استاد تک پہنچ جائے گا۔', offDone: 'سب ہو گیا! آپ کے جواب اس فون پر محفوظ ہیں۔', tryNow: 'ابھی بھیجیں',
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
       friends: 'دوست جنہوں نے مکمل کیا', home: 'پہلا صفحہ', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں'
     }
@@ -1422,6 +1424,30 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       return '<span class="wq-dot' + (S.answers[q.qid] ? ' wq-done' : '') + (i === cur ? ' wq-now' : '') + '"></span>';
     }).join('') + '</div>';
   }
+  /* Lookahead: the next two questions' pictures now, their recorded clips a moment later (this
+     question's own voice gets the line first), so a dropped connection mid-quiz keeps the pictures
+     and the voice. On 4G without data saver the rest of the quiz is warmed in idle time after Q1.
+     no-cors requests fill the HTTP cache that <audio> and <img> then read; no URL is ever stored. */
+  var warmed = {};
+  function clipUrls(q) {
+    var au = q.audio || {}, out = [];
+    [au.q, au.stim, au.why, au.hint].concat(au.opts || [], au.fbs || []).forEach(function (u) { if (u && typeof u === 'string') out.push(u); });
+    return out;
+  }
+  function warmPics(q) { if (q) WQI.imageUrls(q).forEach(function (u) { try { new Image().src = u; } catch (e) {} }); }
+  function warmClips(q) {
+    if (!q || warmed[q.qid] || !SOUND) return;
+    warmed[q.qid] = 1;
+    clipUrls(q).forEach(function (u) { try { fetch(u, { mode: 'no-cors', credentials: 'omit' }).catch(function () {}); } catch (e) {} });
+  }
+  function ahead(i) {
+    warmPics(QS[i + 1]); warmPics(QS[i + 2]);
+    setTimeout(function () {
+      warmClips(QS[i + 1]); warmClips(QS[i + 2]);
+      var c = navigator.connection || {};
+      if (i === 0 && c.effectiveType === '4g' && !c.saveData) QS.forEach(function (q) { warmPics(q); warmClips(q); });
+    }, 1500);
+  }
   function nextQuestion() {
     for (var i = 0; i < N; i++) if (!S.answers[QS[i].qid]) return question(i, false);
     finishFirstPass();
@@ -1492,8 +1518,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     render(h, retry ? 'M9-fix' : 'M6');
     wireBar();
     WQI.wireZoom(ROOT, T);
-    // Fetch the next question's pictures now, so they are already here on slow data.
-    if (!retry && QS[i + 1]) WQI.imageUrls(QS[i + 1]).forEach(function (u) { try { new Image().src = u; } catch (e) {} });
+    if (!retry) ahead(i);
     ev(retry ? 'retry_view' : 'question_view', { qid: q.qid, i: i + 1 });
 
     // Jugnu's hint (q.hint, written with the lesson in mind and checked in code never to give the
@@ -1619,6 +1644,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       return api('POST', 'finish', { st: S.st });
     }).then(function (r) {
       if (!r.ok) { finishing = null; var e = new Error('finish_' + r.status); e.r = r; throw e; }
+      if (S.pending) { ev('offline_sync', { lag_s: Math.round((Date.now() - (S.pendingAt || Date.now())) / 1000), i: answeredCount() }); S.pending = 0; }
       S.result = r.body; save();
       ev('quiz_complete', { pct: r.body.score && r.body.score.pct, ok: r.body.counted === false ? 0 : 1 });
       return r.body;
@@ -1674,6 +1700,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       on('#wq-more', moreVideos);
     }, function (e) {
       var tooFew = e && e.r && e.r.status === 409;
+      if (!tooFew && offlineLike(e) && answeredCount() >= Math.ceil(N / 2)) return pendingResults(fixed);
       var h = bar() + jug('notyet', tooFew ? T.tooFew : T.offline) +
         '<button class="wq-btn wq-go" id="wq-retry">' + esc(tooFew ? T.next : T.next) + '</button>';
       render(h, 'M9-error');
@@ -1682,6 +1709,48 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       on('#wq-retry', function () { if (tooFew) { S.answers = {}; save(); nextQuestion(); } else results(fixed); });
     });
   }
+
+  /* ---------------- finished with no internet (M9-pending) ----------------
+     The phone grades every answer itself (WQI.grade), so a child who loses the connection at the end
+     still sees their score. The result is marked pending (it survives a closed tab) and is sent by
+     itself: on 'online', when the page comes back into view, on a backing-off timer, or on the next
+     open of this code. The server's result then replaces the phone's. */
+  var syncT = null, syncWait = 15000;
+  function offlineLike(e) { return !(e && e.r) || !e.r.status || e.r.status >= 500; }
+  function localScore() {
+    var c = 0, t = 0;
+    QS.forEach(function (q) { var a = S.answers[q.qid]; if (a) { t++; if (a.ok) c++; } });
+    return { correct: c, total: t };
+  }
+  function pendingResults(fixed) {
+    if (!S.pending) { S.pending = 1; S.pendingAt = Date.now(); ev('offline_finish', { i: answeredCount() }); }
+    S.fixed = fixed; save();
+    var sc = localScore();
+    var h = bar() + jug('celebrate', T.offDone, true) +
+      '<div class="wq-card wq-stack wq-center"><p class="wq-qof">' + esc(T.done) + '</p>' +
+      '<h1>' + esc(T.got(sc.correct, sc.total)) + '</h1>' + stars(sc.correct, sc.total) + '</div>' +
+      '<div class="wq-banner">' + esc(T.offWait) + '</div>' +
+      '<button class="wq-btn wq-go" id="wq-sync">' + esc(T.tryNow) + '</button>';
+    render(h, 'M9-pending');
+    wireBar();
+    on('#wq-sync', function () { syncNow(true); });
+    syncLater();
+  }
+  function syncLater() {
+    clearTimeout(syncT);
+    syncT = setTimeout(function () { syncNow(false); }, syncWait);
+    syncWait = Math.min(60000, syncWait * 2);
+  }
+  function syncNow(tapped) {
+    if (!S.pending || ROOT.getAttribute('data-m') !== 'M9-pending') return;
+    clearTimeout(syncT);
+    finish().then(function () { syncWait = 15000; results(S.fixed || 0); }, function (e) {
+      if (tapped) toast(T.offline);
+      if (offlineLike(e)) syncLater(); else results(S.fixed || 0);
+    });
+  }
+  window.addEventListener('online', function () { syncNow(false); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') syncNow(false); });
 
   /* ---------------- share: navigator.share -> wa.me -> copy ---------------- */
   function share(text, url, what) {
@@ -2077,6 +2146,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   else if (B.view === 'class') board();
   else if (FROM) { ev('more_arrive', {}); startSession({ from_st: FROM.st }, null, ''); }
   else if (S.result && S.st) card();
+  else if (S.pending && S.st) results(S.fixed || 0);
   else if (S.st && S.child && (answeredCount() > 0 || (S.vt > 0 && wantsVideo()))) resume();
   else landing();
 })();
