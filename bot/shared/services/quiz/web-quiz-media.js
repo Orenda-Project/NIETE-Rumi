@@ -32,13 +32,15 @@ async function presignAudio(meta, { expiresIn = DEFAULT_EXPIRES } = {}) {
   const out = {};
   await Promise.all(Object.entries(audio).map(async ([qid, entry]) => {
     if (!entry || typeof entry !== 'object') return;
-    const [q, why, opts, fbs] = await Promise.all([
+    const [q, why, opts, fbs, hint] = await Promise.all([
       sign(entry.q, expiresIn),
       sign(entry.why, expiresIn),
       Promise.all((Array.isArray(entry.opts) ? entry.opts : []).map((k) => sign(k, expiresIn))),
       Promise.all((Array.isArray(entry.fbs) ? entry.fbs : []).map((k) => sign(k, expiresIn))),
+      sign(entry.hint, expiresIn),
     ]);
     out[qid] = fbs.some(Boolean) ? { q, opts, why, fbs } : { q, opts, why };
+    if (hint) out[qid].hint = hint;
   }));
   return out;
 }
