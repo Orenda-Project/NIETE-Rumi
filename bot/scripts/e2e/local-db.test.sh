@@ -90,6 +90,8 @@ t "AC7 seed-pull from the source exits 0" "$rc" "0"
 t "AC7 manifest lists only the seed tables, with row counts" \
   "$(python3 -c 'import json,sys; m=json.load(open(sys.argv[1])); print(",".join("%s=%s"%(k,v) for k,v in sorted(m["rows"].items())))' "$LOCAL_DB_HOME/seed/manifest.json" 2>/dev/null)" "catalog=2"
 t "AC9 seed-status after a pull is ok" "$(bash "$LDB" seed-status 2>/dev/null)" "ok"
+out=$(bash "$LDB" doctor 2>&1); rc=$?
+t "doctor: a machine with the tools and a fresh seed lacks nothing" "$rc:$out" "0:"
 bash "$LDB" down "$r1" >/dev/null 2>&1
 t "down exits 0" "$?" "0"
 
@@ -111,6 +113,8 @@ got=$(client "$r3/db.env" "$JS_NOTES");   t "AC8 per-teacher rows were never pul
 bash "$LDB" down "$r3" >/dev/null 2>&1
 printf 'catalog\nprivate_notes\n' > "$LOCAL_DB_SEED_TABLES"
 t "AC9 seed-status after the table list changes is stale" "$(bash "$LDB" seed-status 2>/dev/null)" "stale"
+out=$(bash "$LDB" doctor 2>&1); rc=$?
+t "doctor names the stale seed" "$rc:$out" "1:seed stale (local-db.sh seed-pull)"
 
 # ---- AC3: baseline refuses a non-sandbox ref before it connects
 out=$(LOCAL_DB_BASELINE_URL="postgresql://postgres.ihzciabopbttygxxgrkm:x@127.0.0.1:1/postgres" bash "$LDB" baseline "$tmp/never.sql" 2>&1); rc=$?

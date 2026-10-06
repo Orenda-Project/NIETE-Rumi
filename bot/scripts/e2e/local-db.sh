@@ -6,6 +6,7 @@
 #   bash bot/scripts/e2e/local-db.sh baseline [out.sql]    # re-dump the sandbox schema (schema only, no rows)
 #   bash bot/scripts/e2e/local-db.sh seed-pull             # pull the REFERENCE tables' rows from the sandbox
 #   bash bot/scripts/e2e/local-db.sh seed-status           # missing | stale | ok  (the readiness check reads it)
+#   bash bot/scripts/e2e/local-db.sh doctor                # one line per thing this machine lacks; exit 0 iff none
 #   bash bot/scripts/e2e/local-db.sh status | stop          # the machine's cluster
 #
 # Three tiers, the same split the lane already uses for redis and node_modules:
@@ -268,6 +269,15 @@ MANIFEST
   log "seed: $(du -h "$SEED_DIR/seed.dump" | cut -f1) in $((SECONDS - t0))s → $SEED_DIR (the next up rebuilds the golden)"
 }
 
+doctor() {   # what this machine lacks for `up`, one line each — e2e_mock_lane_ready / autofix read it
+  local rc=0 s
+  if [ -z "$PGBIN" ]; then echo "postgres17 missing (brew install postgresql@17)"; rc=1
+  elif [ ! -f "$("$PGBIN/pg_config" --sharedir)/extension/vector.control" ]; then echo "pgvector missing (brew install pgvector)"; rc=1; fi
+  command -v postgrest >/dev/null 2>&1 || { echo "postgrest missing (brew install postgrest)"; rc=1; }
+  s=$(seed_status); [ "$s" = ok ] || { echo "seed $s (local-db.sh seed-pull)"; rc=1; }
+  return $rc
+}
+
 seed_status() {   # missing | stale | ok
   { [ -f "$SEED_DIR/manifest.json" ] && [ -f "$SEED_DIR/seed.dump" ]; } || { echo missing; return 0; }
   local have; have=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("tables_sha",""))' "$SEED_DIR/manifest.json" 2>/dev/null)
@@ -302,6 +312,6 @@ stop() { [ -n "$PGBIN" ] && "$PGBIN/pg_ctl" -D "$PGDATA" stop -m fast >/dev/null
 CMD="${1:-}"; shift || true
 case "$CMD" in
   up) up "$@";; down) down "$@";; baseline) baseline "$@";; status) status;; stop) stop;;
-  seed-pull) seed_pull;; seed-status) seed_status;;
+  seed-pull) seed_pull;; seed-status) seed_status;; doctor) doctor;;
   *) sed -n '2,7p' "$0" >&2; exit 2;;
 esac
