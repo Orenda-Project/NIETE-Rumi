@@ -603,8 +603,11 @@ async function hardestQuestion(quizId, sessionIds) {
 async function fixWho(body = {}) {
   requireOn();
   const ctx = await resolveCode(body.code);
+  if ((body.studentId || body.add === true) && (await IdRoster.identityMode()) === 'v2') {
+    requireTeacherOf(body, ctx);
+    return fixWhoV2(ctx, body);
+  }
   requireTeacher(body, ctx);
-  if ((body.studentId || body.add === true) && (await IdRoster.identityMode()) === 'v2') return fixWhoV2(ctx, body);
   const quizGrade = await gradeOf(ctx.quizId);
   const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: quizGrade });
   if (!roster) fail(400, 'bad_request', { why: 'no_class_list' });
@@ -1081,7 +1084,7 @@ async function newChildV2(ctx, body, idn) {
 /** whoPlayed under v2: today's rows / not_played / summary, from the hand-out's class, plus provisional. */
 async function whoPlayedV2(ctx) {
   const na = await IdRoster.nonAttempters({ shareCodeId: ctx.shareCodeId });
-  const provisional = na.provisional.map((p) => ({ ref: p.sessionId, first: firstName(p.typed), correct: p.correct, total: p.total }));
+  const provisional = na.provisional.map((p) => ({ ref: p.sessionId, first: firstName(p.typed), correct: p.correct, total: p.total, ...(p.suggest ? { suggest: p.suggest } : {}) }));
   const rows = [
     ...provisional.map((p) => ({ ref: p.ref, first: p.first, roll: null, on_list: false, correct: p.correct, total: p.total })),
     ...na.played.map((p) => ({ ref: p.sessionId, first: p.first, roll: p.number, on_list: p.onList, correct: p.correct, total: p.total })),
@@ -1135,11 +1138,21 @@ async function fixWhoV2(ctx, body) {
   return { ok: true, row: { ...row({}, null), on_list: true } };
 }
 
-/** The teacher (preview `p`, or the report token `tr` once M3's verifier lands) of this code. */
+/**
+ * The teacher's report token (`tr`) for this code: same teacher, and a token for this quiz or
+ * for all of the teacher's quizzes. Until the report token's module is wired here, `tr` grants
+ * nothing (the preview link `p` is the way in).
+ */
+const verifyTeacherReport = () => null; // the report token's verifier replaces this
+function teacherReportOk(tr, ctx) {
+  const tok = verifyTeacherReport(tr);
+  return Boolean(tok && tok.teacherId === ctx.teacherUserId && (tok.quizId == null || tok.quizId === ctx.quizId));
+}
+
+/** The teacher of this code: their preview link (`p`) or their report token (`tr`). */
 function requireTeacherOf(body, ctx) {
   if (body.p && isPreviewFor(body.p, ctx)) return;
-  const tr = body.tr ? T.verify(body.tr, 'tr') : null; // M3's teacher-report token: same teacher, any of their codes
-  if (tr && tr.t === ctx.teacherUserId) return;
+  if (body.tr && teacherReportOk(body.tr, ctx)) return;
   fail(401, 'bad_token');
 }
 
