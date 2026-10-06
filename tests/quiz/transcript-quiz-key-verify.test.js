@@ -341,6 +341,21 @@ describe('a quiz whose keys a blind solver agrees with', () => {
   });
 });
 
+describe('the record says what the solver answered for EVERY item, not only the flagged ones', () => {
+  // Sandbox a9658d04: an item with two true options shipped, both solves "agreed", and nothing
+  // recorded which option the solver had listed — so a sampled miss could not be told from a
+  // mapping fault. Indices only: what the solver listed, in authored positions, per pass.
+  test('meta.key_verify.solved.lesson and .bare.solved hold each item\'s blind list', async () => {
+    const agree = truthFrom(F.AUTHORED);
+    llm({ verify: solverFor(agree), bare: solverFor(agree) });
+    wireTranscript();
+    await Gen.process(QID, {});
+    const kv = readyUpdate().meta.key_verify;
+    expect(kv.solved).toEqual({ lesson: F.AUTHORED.map(() => [0]) });
+    expect(kv.bare.solved).toEqual(F.AUTHORED.map(() => [0]));
+  });
+});
+
 describe('a solver that fails does not cost the teacher the quiz (fail-open)', () => {
   test.each([
     ['throws', () => { throw new Error('transcript_quiz.key_verify: timeout'); }],

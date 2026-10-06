@@ -1864,6 +1864,8 @@ async function runKeyVerify(api, {
       if (stats) {
         stats.status = 'ok';
         stats.checked += idx.length;
+        // What the bare solve listed per item (authored indices; null = not solved here, or unsure).
+        stats.solved = qs.map((_, i) => { const b = byIndex.get(i); return b && b.blind ? b.blind : null; });
         bare.verdicts.forEach((v) => {
           if (counts(v)) stats.flagged += 1;
           else if (v.verdict === 'agree') stats.agreed += 1;
@@ -1904,6 +1906,9 @@ async function runKeyVerify(api, {
   record.model = first.model || null;
   record.cost_usd += Number(first.costUsd) || 0;
   first.verdicts.forEach((v) => { if (v.missing) record.missing += 1; });
+  // What the solver listed for EVERY item, not only a flagged one (authored indices; null = unsure):
+  // an agreed item that later proves to have two true options can then be told from a mapping fault.
+  record.solved = { lesson: questions.map((_, i) => { const v = first.verdicts.find((x) => x.index === i); return v && v.blind ? v.blind : null; }) };
   // ── 1b. the same items, without the lesson ────────────────────────────────
   const second = await withoutLesson(questions, first.verdicts, record.bare);
   record.cost_usd += second.costUsd;
