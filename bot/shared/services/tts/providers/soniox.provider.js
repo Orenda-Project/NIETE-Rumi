@@ -287,10 +287,11 @@ function createSonioxProvider({ http = realAxios, env = process.env, sleep, limi
     throw lastError;
   }
 
-  async function synthesize({ text, language, useCase, site, correlationId } = {}) {
+  // `voice` names the voice for this call (a caller that pins one); else the configured voice.
+  async function synthesize({ text, language, useCase, site, correlationId, voice: asked } = {}) {
     if (!apiKey()) throw new SonioxTtsError('not_configured', 'SONIOX_API_KEY is not set');
     const lang = baseLanguage(language);
-    const voice = voiceFor(lang);
+    const voice = asked || voiceFor(lang);
     if (!voice) throw new SonioxTtsError('unsupported_language', `No Soniox voice configured for "${language}"`);
 
     const { text: prepared, dropped } = prepareForSoniox(text, lang);

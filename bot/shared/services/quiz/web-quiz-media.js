@@ -8,6 +8,7 @@
  */
 
 const r2 = require('../../storage/r2');
+const { bucketForKey } = require('./web-quiz-audio-store');
 const { logWarn } = require('../../utils/logger');
 
 const DEFAULT_EXPIRES = 6 * 60 * 60; // 6 h, the life of the quiz payload
@@ -22,9 +23,21 @@ async function sign(key, expiresIn) {
   }
 }
 
+// A read-aloud clip, signed for the bucket it was recorded in (the quiz says which; legacy keys
+// live in the default bucket), by key — so a quiz recorded into another bucket still plays.
+async function signClip(key, meta, expiresIn) {
+  if (!key) return null;
+  try {
+    const url = await r2.presignKey(key, expiresIn, { bucket: bucketForKey(key, meta) });
+    return url && url.includes('X-Amz-Signature') ? url : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /**
  * @param {object} meta  quizzes.meta
- * @returns {Promise<Object<string, {q: string|null, opts: Array<string|null>, why: string|null, fbs?: Array<string|null>}>>}
+ * @returns {Promise<Object<string, {q: string|null, opts: Array<string|null>, why: string|null, fbs?: Array<string|null>, hint?: string|null}>>}
  */
 async function presignAudio(meta, { expiresIn = DEFAULT_EXPIRES } = {}) {
   const audio = meta && meta.web && meta.web.audio;
@@ -33,14 +46,14 @@ async function presignAudio(meta, { expiresIn = DEFAULT_EXPIRES } = {}) {
   await Promise.all(Object.entries(audio).map(async ([qid, entry]) => {
     if (!entry || typeof entry !== 'object') return;
     const [q, why, opts, fbs, hint] = await Promise.all([
-      sign(entry.q, expiresIn),
-      sign(entry.why, expiresIn),
-      Promise.all((Array.isArray(entry.opts) ? entry.opts : []).map((k) => sign(k, expiresIn))),
-      Promise.all((Array.isArray(entry.fbs) ? entry.fbs : []).map((k) => sign(k, expiresIn))),
-      sign(entry.hint, expiresIn),
+      signClip(entry.q, meta, expiresIn),
+      signClip(entry.why, meta, expiresIn),
+      Promise.all((Array.isArray(entry.opts) ? entry.opts : []).map((k) => signClip(k, meta, expiresIn))),
+      Promise.all((Array.isArray(entry.fbs) ? entry.fbs : []).map((k) => signClip(k, meta, expiresIn))),
+      signClip(entry.hint, meta, expiresIn),
     ]);
-    out[qid] = fbs.some(Boolean) ? { q, opts, why, fbs } : { q, opts, why };
-    if (hint) out[qid].hint = hint;
+    const one = fbs.some(Boolean) ? { q, opts, why, fbs } : { q, opts, why };
+    out[qid] = hint ? { ...one, hint } : one;
   }));
   return out;
 }

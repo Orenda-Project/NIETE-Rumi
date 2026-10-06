@@ -16,6 +16,7 @@ process.env.R2_ACCESS_KEY_ID = 'test-only';
 process.env.R2_SECRET_ACCESS_KEY = 'test-only';
 process.env.R2_BUCKET_NAME = 'test-bucket';
 process.env.ELEVENLABS_API_KEY = 'test-only';
+process.env.SONIOX_API_KEY = 'test-only'; // the quiz's one voice (web-quiz-voice.js) is Soniox in both languages
 delete process.env.TTS_PROVIDER;
 delete process.env.E2E_CASSETTE;
 
@@ -131,7 +132,7 @@ describe('publishQuizAudio', () => {
       audioKey(QUIZ_ID, Q1, 'why', 'Roots drink water from the soil.', 'en'),
       audioKey(QUIZ_ID, Q2, 'why', 'Leaves make food from sunlight.', 'en'),
     ]));
-    putKeys().forEach((k) => expect(k).toMatch(new RegExp(`^web-quiz/audio/${QUIZ_ID}/[0-9a-f-]+/(q|a|b|c|d|why)-[0-9a-f]{12}\\.ogg$`)));
+    putKeys().forEach((k) => expect(k).toMatch(new RegExp(`^quiz-audio/[a-z0-9-]+/${QUIZ_ID}/en/[0-9a-f-]+/(q|a|b|c|d|why)-sx-grace-[0-9a-f]{8}\\.ogg$`)));
     // the why line is spoken without the stored letter (the page shuffles options)
     const spoken = axios.post.mock.calls.map((c) => c[1].text);
     expect(spoken).toContain('Roots drink water from the soil.');
@@ -146,7 +147,7 @@ describe('publishQuizAudio', () => {
       fbs: [null, null, null, null],
     });
     expect(mockLogEvent).toHaveBeenCalledWith('web_quiz.publish_audio', expect.objectContaining({
-      quizId: QUIZ_ID, synthesized: 9, skipped: 0, failed: 0, providers: { elevenlabs: 9 },
+      quizId: QUIZ_ID, synthesized: 9, skipped: 0, failed: 0, providers: { soniox: 9 },
     }));
     expect(out.estimatedCostUsd).toBeGreaterThan(0);
   });
@@ -227,7 +228,8 @@ describe('publishQuizAudio: what the voice says (SCHEMA_v2 read text, never TeX)
     }];
     const out = await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
     expect(out.ok).toBe(true);
-    expect(said()).toEqual(expect.arrayContaining(['What is three quarters of eight?', 'six', 'two', 'four']));
+    // (the Soniox text step ends a bare option with a full stop, so it is said as a phrase)
+    expect(said()).toEqual(expect.arrayContaining(['What is three quarters of eight?', 'six.', 'two.', 'four.']));
     said().forEach((t) => { expect(t).not.toMatch(/[$\\]|frac/); });
     const a = rows.quiz.meta.web.audio[Q1];
     expect(a.q).toBe(audioKey(QUIZ_ID, Q1, 'q', 'What is three quarters of eight?', 'en'));
@@ -244,7 +246,7 @@ describe('publishQuizAudio: what the voice says (SCHEMA_v2 read text, never TeX)
         read: { stem: 'Put the steps in order.', opts: ['roast the beans', 'harvest the beans', 'temper the chocolate'] } } },
     }];
     await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
-    expect(said()).toEqual(expect.arrayContaining(['Put the steps in order.', 'roast the beans', 'harvest the beans', 'temper the chocolate']));
+    expect(said()).toEqual(expect.arrayContaining(['Put the steps in order.', 'roast the beans.', 'harvest the beans.', 'temper the chocolate.']));
     expect(said()).not.toContain('Stones'); // the row's own option is not on this page
     expect(rows.quiz.meta.web.audio[Q2].opts[2]).toBe(audioKey(QUIZ_ID, Q2, 'c', 'temper the chocolate', 'en'));
   });
@@ -255,7 +257,7 @@ describe('publishQuizAudio: what the voice says (SCHEMA_v2 read text, never TeX)
     rows.questions = [{ ...rows.questions[0], question_text: 'What is $\\frac{1}{2}$ of 8?', option_a: '$4$', option_b: '$\\frac{1}{4}$', option_c: '2',
       option_feedback: { correct: 'Half of $8$ is $4$.' } }];
     await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
-    expect(said()).toEqual(expect.arrayContaining(['What is 1/2 of 8?', '4', '1/4', 'Half of 8 is 4.']));
+    expect(said()).toEqual(expect.arrayContaining(['What is 1/2 of 8?', '4.', '1/4.', 'Half of 8 is 4.']));
     said().forEach((t) => { expect(t).not.toMatch(/[$\\]|frac/); });
   });
 
@@ -363,7 +365,7 @@ describe('publishQuizAudio: the feedback for each wrong option is recorded too (
     mockS3Send.mockImplementation(missing);
     const rows = quizRows();
     await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
-    expect(rows.quiz.meta.web.audio_v).toBe(3);
+    expect(rows.quiz.meta.web.audio_v).toBe(Publish.AUDIO_VERSION);
     const rows2 = quizRows();
     axios.post.mockReset(); axios.post.mockRejectedValue(new Error('vendor down'));
     await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows2) });
@@ -410,7 +412,9 @@ describe('publishQuizAudio: clips are stored small (a child pays for every byte)
     }
     expect(out.bytes).toBe(puts.reduce((n, p) => n + Buffer.from(p.Body).length, 0));
     // The format is part of the key, so quizzes recorded before this change get new, small clips.
-    expect(audioKey(QUIZ_ID, Q2, 'q', 'x', 'en').match(/-([0-9a-f]{12})\.ogg$/)[1]).not.toBe(require('crypto').createHash('sha1').update('en\nx').digest('hex').slice(0, 12));
+    const k = Publish.clipKey({ env: 'e', quizId: QUIZ_ID, lang: 'en', qid: Q2, part: 'q', voice: 'sx-grace', text: 'x' });
+    expect(k).toBe(audioKey(QUIZ_ID, Q2, 'q', 'x', 'en', { env: 'e' }));
+    expect(k).not.toBe(require('../../shared/services/quiz/web-quiz-audio-store').clipKey({ env: 'e', quizId: QUIZ_ID, lang: 'en', qid: Q2, part: 'q', voice: 'sx-grace', text: 'x' }));
   });
 });
 
