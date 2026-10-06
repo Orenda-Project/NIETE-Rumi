@@ -1378,6 +1378,69 @@ Feature: NIETE (ICT) Teacher Training
     But when that key is missing from this deployment's bucket, or the row names a host that is not ours, there is no video and the quiz starts at question 1
     # ADDED 2026-10-05: web-quiz-media presignVideo -> videoKey (path after the bucket segment, HEAD in our bucket). @wip.
 
+  # Identity v2 (app_settings web_quiz_identity = "v2"): a child says the name they are called by and is
+  # matched inside the ONE class my hand-out was for. Server: web-quiz.service startSession / getQuiz /
+  # whoPlayed / fixWho / whoClass, web-quiz-identity (matcher + class resolver), web-quiz-identity-roster
+  # (roster read + nonAttempters). Unit: tests/quiz/web-quiz/web-quiz-identity-session.test.js,
+  # web-quiz-non-attempters.test.js, web-quiz-identity.test.js; tests/setup/web-quiz-v2-identity-migration.test.js.
+
+  @api @quiz @web @config-gated @wip @draft @P1 @T410 @no-mock-driver
+  Scenario: A child of my class finds themselves by name and is never offered another child
+    Given identity v2 is on and my class code is for my class 4-A
+    When a child types the name they are called by
+    Then the page asks "Are you <first name>?" with exactly one card: the first name as my list spells it and their animal
+    And never a surname, a father's name, a list number or a second child
+    When the child taps "Yes, it's me"
+    Then they play as that child of my list, and the session carries the class 4-A
+    And a child of my other class, or a child merged away from my list, is never a match on a 4-A code
+
+  @api @quiz @web @config-gated @wip @draft @P1 @T411 @no-mock-driver
+  Scenario: Two children of my class share a name, so the child is asked about themselves, never shown the other
+    Given my class has two Alis with different full names, two Sanas with different fathers, and two Hinas with nothing else on file
+    When a child types "Ali"
+    Then they are asked their full name, and the answer leads to one card
+    When a child types "Sana"
+    Then they are asked their father's name, then, if they do not know it, the number on my class list
+    When a child types "Hina" and does not know the number
+    Then the page asks whether that is how their name is written, and the child can still play
+    And a child imported twice into my class with the same father is one child, with one card
+
+  @api @quiz @web @config-gated @wip @draft @P1 @T412 @no-mock-driver
+  Scenario: A child my list does not have plays as a new child of this quiz, and I can add them or say who they are
+    Given a child types a name my class 4-A does not have and says "Yes, that's my name"
+    Then they play at once as a new child of this quiz, labelled 4-A
+    When I open "Who played?" on my preview link
+    Then that child is listed as not on my list, beside my class's children who have not played yet
+    When I choose "This is <name>" from my class's names
+    Then their finish moves onto that child of my list
+    When instead I choose "Add to 4-A"
+    Then the child joins my class 4-A and my list, and next time they are found by name
+
+  @api @quiz @web @config-gated @wip @draft @P1 @T413 @no-mock-driver
+  Scenario: My report knows who in my class has not played yet
+    Given my class code is for 4-A and some of my children have finished
+    When my report asks who has not played
+    Then it lists the children of 4-A with no finish, by first name and list number, and how many the class has
+    And it counts each child's first finish only, and leaves out my own preview runs and friends my children invited
+    And it reads the class, the sessions and the children once each
+    But when the code's class is not known, it lists every finish as off-list and offers my classes to choose from
+
+  @api @quiz @web @config-gated @wip @draft @P1 @T414 @no-mock-driver
+  Scenario: A quiz I teach to two sections asks the child the class, until I say which class it was for
+    Given I teach 4-A and 4-B and my code was sent without a class
+    When a child opens it
+    Then the page asks "Which class are you in?" with 4-A and 4-B, and "My class is not here"
+    And a child who chooses 4-B is matched inside 4-B only, and their card names the class they chose
+    When I say which class the code was for
+    Then the code is bound to that class, and the next child is not asked the class
+
+  @api @quiz @web @config-gated @negative @wip @draft @P1 @T415 @no-mock-driver
+  Scenario: Identity v2 off, an invited friend, or a database without the new column changes nothing that works today
+    Given identity v2 is not switched on
+    Then a child joins my class code exactly as before
+    And a friend my child invited only types a name and plays as a new child, never meeting my class list, even when identity v2 is on
+    And on a database where the code's class column is not added yet, the class comes from my quiz, my only class or the quiz's grade
+
   @api @quiz @web @wip @draft @P1 @T195 @no-mock-driver
   Scenario: The things a child counts or matches on my web quiz are colour pictures
     Given my quiz asks "How many apples are in the picture?" with a drawing of 12 apples
