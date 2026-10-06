@@ -1939,3 +1939,13 @@ Feature: NIETE (ICT) Teacher Training
     And with the setting absent or false, or in grade 6 and above, the reasons are as before
     # transcript-quiz-child-reasons shortenReasons, called in transcript-quiz-generate before the rows are stored.
     # Unit: tests/quiz/quiz-author-gates-child-reasons.test.js. @wip.
+  @api @quiz @wip @draft @config-gated @P2 @T244 @no-mock-driver
+  Scenario: With the author gates on, a question re-asked because another gave its answer away is built on a line of my lesson
+    Given app_settings "quiz_author_gates_v2" is true
+    And one question of my quiz gives away the answer of a later one
+    When the later question is written again
+    Then it is shown lines of my lesson that no question uses yet, and quotes one of them
+    So the source check keeps it instead of dropping it, and my class keeps more of its questions
+    And with the setting absent or false, the quiz is made exactly as before
+    # transcript-quiz-generate withLessonMoments, applied to every rewrite call with the gates on.
+    # Unit: tests/quiz/quiz-author-gates-leak-moments.test.js. @wip.
