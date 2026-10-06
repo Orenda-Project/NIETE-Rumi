@@ -8,6 +8,9 @@ import { useNewUi } from '../lib/useNewUi';
 import { useCoachV2, isCoachV2For } from '../coach/useCoachV2';
 import PortalNavigation from './PortalNavigation';
 import RecordingBar from './RecordingBar';
+import {
+  isLinkSession, isTrainingLinkUser, isTrainingPath, rememberLinkSession, LINK_EXPIRED_PAGE, TRAINING_HOME,
+} from '../lib/trainingLinkSession';
 
 interface PortalLayoutProps {
   children: ReactNode;
@@ -42,9 +45,24 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
   const coachV2 = isCoachV2For(user, useCoachV2(user?.phoneNumber || null, !loading && !!user));
   const newUi = useNewUi(user?.phoneNumber || null, !loading && !!user) === true && !coachV2;
 
+  // A session from the training link (WhatsApp's own browser) can read training only:
+  // no navigation, every other page goes to training, and once it runs out she goes
+  // back to the link page rather than a password login (lib/trainingLinkSession.ts).
+  const linkOnly = isTrainingLinkUser(user);
+  const offTraining = linkOnly && !isTrainingPath(pathname);
+
+  useEffect(() => {
+    if (!loading && user) rememberLinkSession(linkOnly);
+  }, [user, loading, linkOnly]);
+
+  useEffect(() => {
+    if (offTraining) navigate(TRAINING_HOME, { replace: true });
+  }, [offTraining, navigate]);
+
   useEffect(() => {
     if (!loading && !user) {
-      navigate('/portal/login');
+      if (isLinkSession()) window.location.replace(LINK_EXPIRED_PAGE);
+      else navigate('/portal/login');
     }
   }, [user, loading, navigate]);
 
@@ -70,7 +88,7 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
     );
   }
 
-  if (!user) return null;
+  if (!user || offTraining) return null;
 
   // `bare` (bd-5rz1v): no navigation at all, for a screen where one stray tap
   // must not take her away — a lesson being sent.
@@ -80,7 +98,8 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
   // thing on the page reachable. On a desktop the old menu's bar floats in a
   // corner; the new menu's docks in an 81px strip on the bottom edge
   // (bd-5rz1v.26.4), and md:pb-24 (96px) keeps the page's end above it.
-  const pad = bare
+  const noNav = bare || linkOnly;
+  const pad = noNav
     ? (showBar ? 'pb-24 md:pb-24' : 'pb-8')
     : newUi
       ? (showBar ? 'pb-[calc(176px+env(safe-area-inset-bottom))] md:pb-24' : 'pb-[calc(96px+env(safe-area-inset-bottom))] md:pb-8')
@@ -89,15 +108,15 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
     // The loaded user, to everything inside: the navigation never starts from "no user".
     <AuthContext.Provider value={auth}>
     <div className={ownHeading ? 'min-h-screen bg-nu-surface' : 'min-h-screen bg-secondary'}>
-      {!bare && <PortalNavigation hideStrip={ownHeading} />}
+      {!noNav && <PortalNavigation hideStrip={ownHeading} />}
       {/* Issue #22: Added consistent padding for content */}
       <main className={ownHeading ? pad : `px-4 md:px-6 lg:px-8 pt-4 ${pad}`}>
         {/* bd-5rz1v.14 — a new-UI page's bottom action stands above the bar while it shows. */}
-        <RecordingBarShownContext.Provider value={showBar && !bare}>
+        <RecordingBarShownContext.Provider value={showBar && !noNav}>
           {children}
         </RecordingBarShownContext.Provider>
       </main>
-      {showBar && session && <RecordingBar session={session} aboveMenu={!bare} newMenu={newUi} />}
+      {showBar && session && <RecordingBar session={session} aboveMenu={!noNav} newMenu={newUi} />}
     </div>
     </AuthContext.Provider>
   );

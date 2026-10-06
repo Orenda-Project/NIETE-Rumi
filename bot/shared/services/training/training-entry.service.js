@@ -32,12 +32,12 @@ const COPY = {
 };
 
 /**
- * Send the Teacher Training Flow.
+ * Open Teacher Training: the web link when it is on for this teacher, else the Flow.
  *
  * @param {object} user     the resolved user row; `user.id` becomes the flow token
  * @param {string} from     WhatsApp number to send to
  * @param {string} language resolved response language
- * @returns {Promise<boolean>} true if the Flow was sent, false if it fell back
+ * @returns {Promise<boolean>} true if the web link or the Flow was sent, false if it fell back
  */
 async function openTrainingFlow(user, from, language = 'en') {
   // bd-onxyu — every training door passes through here, so the app-redirect
@@ -45,6 +45,16 @@ async function openTrainingFlow(user, from, language = 'en') {
   const { redirectIfFlagged } = require('../app-redirect.service');
   if (await redirectIfFlagged('teacher_training', { userId: user?.id, from, language, reason: 'training_door' })) {
     return false;
+  }
+
+  // Training on the web: a template whose button opens the portal's training
+  // pages in WhatsApp's own browser. Off, not listed, or a failed send — the Flow.
+  const WebLink = require('./training-web-link');
+  if (await WebLink.webTrainingOn(user?.id)) {
+    if (await WebLink.sendTrainingLink(user, from, language)) {
+      logToFile('🎓 Sent teacher-training web link', { userId: user.id });
+      return true;
+    }
   }
 
   const flowId = process.env.TEACHER_TRAINING_FLOW_ID || '';
