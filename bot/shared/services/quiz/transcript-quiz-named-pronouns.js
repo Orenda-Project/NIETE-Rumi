@@ -32,11 +32,22 @@ const NOT_A_NAME = new Set([
 ]);
 const SENTENCE_END = /[.!?\n]/;
 
-/** Is the pronoun at `index` in `text` preceded, in its own sentence, by a person's name? */
-function namedAntecedent(text, index) {
+/**
+ * Is the pronoun at `index` in `text` preceded by a person's name — in its own sentence, or
+ * (`lookback: 1`) in the sentence before it, as a word problem goes: "Bunty has 20 toys. He lifts
+ * 7 onto the shelf." The plan text keeps the default (same sentence): there, "Ask Ali to read. She
+ * praises him." is the teacher.
+ */
+function namedAntecedent(text, index, { lookback = 0 } = {}) {
   const s = String(text ?? '');
   let start = 0;
-  for (let k = index - 1; k >= 0; k -= 1) { if (SENTENCE_END.test(s[k])) { start = k + 1; break; } }
+  let ends = 0;
+  for (let k = index - 1; k >= 0; k -= 1) {
+    if (SENTENCE_END.test(s[k])) {
+      if (ends === lookback) { start = k + 1; break; }
+      ends += 1;
+    }
+  }
   const before = s.slice(start, index);
   const caps = before.match(/\b[A-Z][a-z]{2,}\b/g) || [];
   return caps.some((w) => !NOT_A_NAME.has(w.toLowerCase()));

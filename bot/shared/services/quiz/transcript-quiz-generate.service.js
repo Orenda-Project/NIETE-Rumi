@@ -667,6 +667,10 @@ function salvageWithoutBadFigures(questions, errors, ctx) {
     // English terms side by side are a sound question in the wrong order: it
     // is shipped with the fault recorded, never dropped (see IN_PLACE_FAULT).
     if (IN_PLACE_FAULT.test(e)) return;
+    // quiz_author_gates_v2: a SOFT complaint on a question ships with it, recorded — it never
+    // costs a drop. Counted as drops, four soft "He"/"She" complaints beside one hard fault took
+    // a grade 1 quiz under its floor and the teacher got nothing (sandbox, 5 Oct).
+    if (GatesV2.enabled() && isSoft(e)) return;
     const m = perQuestion.exec(e);
     if (m) bad.add(Number(m[1]));
     else if (!setLevelSoft.test(e) && !isSoft(e)) other = true;
@@ -1014,8 +1018,14 @@ async function runSourceFidelity(api, {
   let softFaults = null;
   // Five per call (rewriteTargets); what the first call left is the second batch.
   let prefer = [];
+  // quiz_author_gates_v2: a grade 1-2 stem is never sent to be CUT. Measured 5 Oct: the shortening
+  // rewrite turned "Bunty lifts 7 onto the shelf. How many stay on the floor?" into "Bunty has 20
+  // toys. Picks 7 up. How many?" — two defensible answers. The web reads a stem aloud, so a long
+  // stem ships whole (kept_soft, below); the rewrite only fixes what is actually wrong.
+  const v2Gates = GatesV2.enabled();
+  const notToCut = (e) => v2Gates && String(e).includes(`: ${SF.CODES.STEM_LONG}`);
   for (let batch = 0; batch < 2; batch += 1) {
-    const { errors } = SF.sourceFaults(current, sourceText, { gradeBand });
+    const errors = SF.sourceFaults(current, sourceText, { gradeBand }).errors.filter((e) => !notToCut(e));
     if (!errors.length) break;
     // eslint-disable-next-line no-await-in-loop
     // What the set already carried before this call (accepted by the loop) is not the replacement's fault.
