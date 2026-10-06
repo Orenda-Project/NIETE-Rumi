@@ -99,11 +99,12 @@ describe('the reports list rows', () => {
       quizzes: [quiz('qA', 3)],
       codes: [{ id: 'cA', code: 'AAAAAA', quiz_id: 'qA', teacher_user_id: T.id, invited_by_student_id: null }],
       sessions: [session('s1', 'cA', 'k1', 8, 8), session('s2', 'cA', 'k2', 4, 8),
-        session('s4', 'cA', 'typed-1', 6, 8), session('s5', 'cA', 'typed-2', 6, 8)],
+        session('s4', 'cA', 'typed-1', 2, 8), session('s5', 'cA', 'typed-2', 2, 8)],
       lists, kids,
     });
     await ReportList.showReports(T, FROM, 'en', 1);
-    expect(rowsOf()[0].description).toMatch(/· 2\/4 played ·/);
+    // 8/8 and 4/8 on the list → avg 75; the typed 2/8s (all four would be 50) are not in it
+    expect(rowsOf()[0].description).toMatch(/· 2\/4 played · avg 75%/);
     mockSent.length = 0;
     await ReportList.handleReportsPick('tqr_qA', FROM, T);
     const sent = mockSent.find((m) => m.kind === 'text' || m.kind === 'template');

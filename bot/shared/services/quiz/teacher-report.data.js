@@ -363,7 +363,9 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
       // children who are not on it are counted apart (never "76 of 10 played").
       onList: rosterView.state === 'known' ? played.filter((p) => p.onList).length : null,
       of: rosterView.of,
-      avg: mean(played.map((p) => p.pct)),
+      // The average is over the SAME children as the count: the class list's when it is
+      // known (typed children join both once the teacher adds them), else everyone's.
+      avg: mean((rosterView.state === 'known' ? played.filter((p) => p.onList) : played).map((p) => p.pct)),
       total: questions.length || Math.max(0, ...played.map((p) => p.total)),
       hardestN: hardest ? hardest.n : null,
     },
@@ -420,14 +422,16 @@ async function classReport(teacherId, { days = 60, now = Date.now() } = {}) {
     // One child per quiz across its codes (as the quiz page), and "N of M" counts the
     // class list only: a typed child who is not on it is never set against the class size.
     const mine = onePerChildAcrossCodes(sessionsOf.get(q.id) || []);
-    const scores = mine.map((x) => pct(x.correct_answers || 0, x.total_questions_answered || 0));
     const { roster: view, one } = classOf(roster, q, null);
     const ids = one ? new Set(one.kids.map((k) => k.id)) : null;
+    // the same children for the average as for "N of M"
+    const scores = (ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)) : mine)
+      .map((x) => pct(x.correct_answers || 0, x.total_questions_answered || 0));
     return {
       of: view.of,
       onList: ids ? mine.filter((x) => x.student_id && ids.has(x.student_id)).length : null,
       id: q.id, date: (q.meta && q.meta.lesson_date) || q.created_at, topic: q.topic || '', grade: gradeNum(q.grade) || null,
-      subject: q.subject || null, source: q.quiz_source, played: scores.length, avg: mean(scores), scores,
+      subject: q.subject || null, source: q.quiz_source, played: mine.length, avg: mean(scores), scores,
     };
   });
 

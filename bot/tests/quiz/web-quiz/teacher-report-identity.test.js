@@ -99,3 +99,10 @@ test('the same typed name finishing three times on one code is ONE provisional r
   expect(r.summary.played).toBe(3);
   expect(r.played.filter((p) => p.first === 'Dansh')).toHaveLength(1);
 });
+
+test('with the class known, the average is over the same children as the count (a typed finisher moves neither)', async () => {
+  wire({ sessions: SESSIONS });
+  const r = await Data.quizReport(F.TEACHER, F.QUIZ);
+  // on the list: Ayesha 4/5 (80) and Bilal 3/5 (60); typed Dansh 5/5 is apart
+  expect(r.summary).toMatchObject({ onList: 2, avg: 70 });
+});
