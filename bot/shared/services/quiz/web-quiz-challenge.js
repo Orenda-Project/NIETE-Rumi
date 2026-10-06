@@ -361,14 +361,17 @@ function scoreBigger(items, taps, { stopAfter = 4 } = {}) {
   return { correct: rows.filter((r) => r.verdict === 'correct').length, n: items.length, stopped: !!stop.stopped };
 }
 
-async function scoreRead(run, key, ext) {
+async function scoreRead(run, key, ext, ms) {
   const media = require('../child-test/scoring/media');
   const { scoreTask } = require('../child-test/scoring/tasks');
   let file = null;
   try {
     file = media.tmpFile(ext);
     require('fs').writeFileSync(file, await r2.downloadFromR2(key, { bucket: childVoiceBucket() }));
-    const durationSec = await media.probeDuration(file);
+    // Chrome's MediaRecorder webm has no duration header (ffmpeg reads "Duration: N/A"): the page's own
+    // recorded length stands in, so the STT cost and the stored duration are not lost.
+    const pageSec = Number(ms) > 0 ? Math.min(READ_SECS + 1, Number(ms) / 1000) : null;
+    const durationSec = (await media.probeDuration(file)) || pageSec;
     const spec = Bank.getTaskSpec({ grade: Number(run.form), set: 'A', task: run.task });
     // The comprehension questions are not part of the Challenge: the kid only reads.
     const m = await scoreTask({ task: run.task, spec: { ...spec, questions: [] }, media: { file, durationSec, beginAtS: 0 }, lang: run.lang, grade: Number(run.form) });
@@ -497,7 +500,7 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   const stored = await insertRun({ ...base, status: 'scoring', meta: { ms: Number(body.ms) || null } });
   if (stored === 'duplicate') await refuse(409, 'already_done');
   const ext = key.split('.').pop();
-  const promise = scoreRead(run, key, ext).then(async (r) => {
+  const promise = scoreRead(run, key, ext, body.ms).then(async (r) => {
     const result = r.failed ? { failed: true, reason: r.reason } : { score: r.score, wcpm: r.wcpm, previous };
     RUNS.set(c.r, { ...run, status: 'done', result });
     await updateRun(c.r, r.failed

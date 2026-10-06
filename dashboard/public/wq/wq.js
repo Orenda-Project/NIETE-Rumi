@@ -564,7 +564,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       notyet: function (lead, r) { return lead + ' ' + String(r).replace(/[.!۔]+\s*$/, ''); }, next: 'اگلا', again: 'یہ سوال آخر میں دوبارہ آئے گا، مل کر ٹھیک کرنے کے لیے۔',
       half: 'آدھا راستہ طے!',
       tricky: function (n) { return n + ' مشکل سوال'; }, trickySay: 'جشن سے پہلے، آئیں اسے مل کر ٹھیک کریں۔', fixGo: MASC.ur + ' کے ساتھ ٹھیک کریں', later: 'بعد میں',
-      second: 'دوسری کوشش · ' + MASC.ur + ' کے ساتھ', tryAgain: 'دوبارہ دیکھیں۔ آپ کر سکتے ہیں۔',
+      second: 'دوسری کوشش · ' + MASC.ur + ' کے ساتھ', tryAgain: 'دوبارہ کوشش کریں!',
       got: function (s, n) { return 'آپ نے ' + n + ' میں سے ' + s + (s === 1 ? ' درست کیا' : ' درست کیے'); }, fixedLine: function (k) { return MASC.ur + ' کے ساتھ ' + k + ' مشکل سوال ٹھیک کیے'; },
       scoreNote: 'اسکور پہلی کوشش کا ہے۔', praise: function (s, n) { return s === n ? 'زبردست!' : s >= n * 0.8 ? 'بہت خوب!' : 'اچھی کوشش!'; },
       done: 'کوئز مکمل', seeCard: 'میرا کارڈ دیکھیں', classBtn: 'اپنی کلاس دیکھیں',
@@ -811,6 +811,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // rows in one language, and an English quiz opened from an Urdu class page must not say "not yet"
   // in the Urdu voice and the answer in the English one. The page's own copy stays in LANG.
   var VLANG = (function () {
+    // The server names the language the quiz's clips are recorded in (quiz.voice_lang); an English
+    // quiz that quotes an Urdu word stays English. The script guess below is only for a page served
+    // by a bot that does not send it yet.
+    var v = Q && Q.voice_lang;
+    if (v === 'en' || v === 'ur') return v;
     var t = (QS || []).map(function (q) { return (q.text || '') + ' ' + ((q.options || [])[0] || {}).text; }).join(' ');
     if (!t.replace(/\s|undefined/g, '')) return LANG;
     return /[\u0600-\u06FF]/.test(t) ? 'ur' : 'en';
@@ -1189,7 +1194,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var last = here.filter(function (k) { return classChips[k.chip]; })[0] || here[0];
     var ch = B.challenge;
     // The challenger comes from the server (the challenge code), never from a name in the URL.
-    var chLine = ch ? T.challenged(ch.first, ch.correct, ch.total) : '';
+    // A challenger who scored 0 is never a score to beat (the card shares a zero as "played"): the friend is just challenged.
+    var chLine = ch ? (ch.correct > 0 ? T.challenged(ch.first, ch.correct, ch.total) : T.challengedBy(ch.first)) : '';
     if (B.preview && params.p) return teacherLanding();
     if (ID && !B.preview) { ID.landing(chLine, chPic(chLine)); wireChPic(); return; }
     var h = bar() +
@@ -1204,7 +1210,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       last ? '<button class="wq-btn wq-go" id="wq-play-as">' + esc(T.playAs(last.first)) + '</button><button class="wq-btn wq-ghost" id="wq-notme">' + esc(T.notMe(last.first)) + '</button>'
         : '<button class="wq-btn wq-go" id="wq-play">' + esc(T.play) + '</button>') +
       (LIVE.ict_today_floor ? '<p class="wq-proof">🌟 ' + esc(T.proof(LIVE.ict_today_floor)) + '</p>' : '') +
-      (LIVE.class_today ? '<p class="wq-small">' + esc(T.classToday(LIVE.class_today)) + '</p>' : '') +
+      (LIVE.class_today && !B.challenge ? '<p class="wq-small">' + esc(T.classToday(LIVE.class_today)) + '</p>' : '') +
       // Classmates with a right answer in the last 2 minutes (a count from the bot's memory); never on a friend's challenge.
       (LIVE.now >= 2 && !ch ? '<p class="wq-proof">🟢 ' + esc(T.liveNow(LIVE.now)) + '</p>' : '');
     render(h, 'M3');
@@ -1885,7 +1891,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<p class="wq-small">' + esc(T.scoreNote) + '</p></div>' +
         (res.counted === false ? '<div class="wq-banner">' + esc(T.prac) + '</div>' : '') +
         '<button class="wq-btn wq-go" id="wq-card">' + esc(T.seeCard) + '</button>' +
-        '<button class="wq-btn wq-navy" id="wq-class">' + esc(T.classBtn) + '</button>' + moreBtn();
+        (friendRun() ? '' : '<button class="wq-btn wq-navy" id="wq-class">' + esc(T.classBtn) + '</button>') + moreBtn();
       render(h, 'M9');
       wireBar();
       sfx('done');
@@ -2034,9 +2040,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // next video of this chapter (finish's `next`), when it names one, between the score and the shares.
     var isVideo = Boolean(B.video && B.video.url);
     var nx = res.next && res.next.vid && res.next.title ? res.next : null;
-    var shares = '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>' +
+    // A friend who played a challenge is not in the challenger's class: no class table, no class group.
+    var friend = friendRun();
+    var shares = (friend ? '' : '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>') +
       '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' +
-      '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>' +
+      (friend ? '' : '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>') +
       '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>';
     var h = bar() +
       '<div class="wq-scorecard"><header>' + markHtml() + dotJoin(BR ? BR.name : '', CLS.label) + '</header><div class="wq-in">' +
@@ -2094,6 +2102,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     save();
     landing();
   }
+
+  // This page is a friend's challenge (the server says so; a challenge banner implies it).
+  function friendRun() { return Boolean(B.invited || B.challenge || (CLS.identity && CLS.identity.invited)); }
 
   // A practice round that beats the child's best earlier score on this code (finish's card.best).
   function newBest(c, total) {
@@ -2427,6 +2438,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var conn = navigator.connection || {};
   ev('page_open', { ua: String(navigator.userAgent || '').slice(0, 300), iab: IAB, store: STORE_OK ? 1 : 0, net: conn.effectiveType || '', src: B.view || 'quiz', reason: B.challenge ? 'challenge' : undefined });
   if (S.queue.length) flushQueue();
+  // M4a hub: "Play again" (?again=1) starts a fresh attempt on this phone: a finished one only, never unsent
+  // answers. (?k=<chip> is the identity code's: it confirms the child before playing.)
+  if (params.again === '1' && S.result && !S.queue.length && !S.pending) { S = { st: null, child: null, answers: {}, queue: [], seq: 0, wrong: [], result: null }; save(); ev('again', {}); }
+  if (params.again) { try { var u = new URLSearchParams(location.search); u.delete('again'); window.history.replaceState(window.history.state, '', location.pathname + (String(u) ? '?' + u : '')); } catch (e) {} }
   var FROM = B.view === 'class' || B.view === 'schools' || S.st ? null : handover();
   if (B.view === 'schools') schools(afterResult);
   else if (B.view === 'class') board();

@@ -313,6 +313,8 @@ describe('read aloud: scored by the child-test story scorer', () => {
     if (!fs.existsSync(f)) execFileSync(FF, ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'anullsrc=r=16000:cl=mono', '-t', String(secs), '-c:a', 'libopus', f]);
     return fs.readFileSync(f);
   };
+  // A real Chromium MediaRecorder recording (3 s of the fake device's tone, no voice): ffmpeg reads "Duration: N/A".
+  const mediaRecorderClip = () => fs.readFileSync(path.join(__dirname, '..', '..', 'fixtures', 'web-quiz', 'mediarecorder-tone-3s.webm'));
   const enTokens = () => Bank.getTaskSpec({ grade: 3, set: 'A', task: 'en.story' }).story.tokens;
   // Soniox heard the first `n` words, one every `gap` seconds.
   const heard = (n, gap) => ({ text: '', tokens: enTokens().slice(0, n).map((w, k) => ({ text: ` ${w}`, start_ms: Math.round(k * gap * 1000), end_ms: Math.round((k * gap + gap * 0.8) * 1000), speaker: 1 })) });
@@ -360,6 +362,18 @@ describe('read aloud: scored by the child-test story scorer', () => {
     const b2 = await Ch.exercise(hub(), 'bigger');
     const r = await Ch.submit({ ct: b2.ct, taps: [], ms: 1 });
     expect(r.previous).toMatchObject({ correct: 10, n: 10 });
+  });
+
+  test('a recording with no duration header (MediaRecorder webm) takes its length from the page, and the STT cost is counted', async () => {
+    const { ct, key } = await start();
+    r2.downloadFromR2.mockResolvedValue(mediaRecorderClip());
+    AudioService.transcribe.mockResolvedValue(heard(4, 0.6));
+    llm.__create.mockResolvedValue(marks(enTokens().map((_, k) => (k < 4 ? 'correct' : 'skipped'))));
+    const r = await Ch.submit({ ct, key, ms: 3000 }, { waitMs: 60000 });
+    expect(r.wcpm).toBe(4);
+    const row = db.web_quiz_challenge_runs[0];
+    expect(row.meta.duration_s).toBe(3);
+    expect(row.meta.cost_usd).toBeGreaterThan(0.0021);
   });
 
   test('the whole story read in 30 s ⇒ the early finish counts only the 30 s used', async () => {

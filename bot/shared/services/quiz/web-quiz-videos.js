@@ -30,7 +30,7 @@ const CODE_DAYS = 30;
 const META_TTL_MS = 6 * 60 * 60 * 1000;
 const HEAD_BYTES = 65535;
 const VID_RX = /^[0-9a-f-]{36}$/i;
-const GRADE_ORDER = ['NURSERY', 'KG', '1', '2', '3', '4', '5', '6'];
+const { GRADE_ORDER } = require('./video-bank-order');
 
 // The quiz row's subject (lesson quizzes write lower-case short names) -> the video bank's.
 const SUBJECTS = {

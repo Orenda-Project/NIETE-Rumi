@@ -20,6 +20,7 @@
  *   GET  /pulse/:code           E13 peer pulse: classmates' right answers, from memory
  *   GET  /ch/...  POST /ch/...  the kid's Challenge (web-quiz-challenge.js); GET /challenge/results?list=
  *   GET  /art/:id               E14 a share picture (JPEG): card, invite, class, school (web-quiz-art.js)
+ *   GET  /hub/:token            the kid hub (web-quiz-hub.js): teacher card, play again, recs
  */
 const express = require('express');
 const { requireInternalKey } = require('../middleware/require-internal-key');
@@ -30,11 +31,15 @@ const WebQuizSchools = require('../services/quiz/web-quiz-schools');
 const WebQuizPulse = require('../services/quiz/web-quiz-pulse');
 const WebQuizChallenge = require('../services/quiz/web-quiz-challenge');
 const WebQuizArt = require('../services/quiz/web-quiz-art');
+const Timing = require('../services/quiz/web-quiz-timing');
 
 const router = express.Router();
 router.use(requireInternalKey);
+// Every route logs its time and database round trips (web_quiz.timing; slow always, fast sampled).
+Timing.patch(require('../config/supabase'));
 
-const handle = (fn) => async (req, res) => {
+const handle = (fn) => (req, res) => Timing.run(() => (req.route && req.route.path) || 'other', () => serve(fn, req, res), () => res.statusCode);
+const serve = async (fn, req, res) => {
   try {
     const out = await fn(req, res);
     if (res.headersSent) return undefined;
@@ -89,5 +94,7 @@ router.get('/art/:id', async (req, res) => {
     return res.status(500).json({ error: 'server_error' });
   }
 });
+// M4a hub — the kid hub's boot JSON (a WhatsApp /quiz link names this phone's own children)
+router.get('/hub/:token', handle((req) => require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: req.query.kid })));
 
 module.exports = router;

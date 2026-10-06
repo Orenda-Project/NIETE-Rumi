@@ -67,6 +67,17 @@ function listed(teachers, teacherId) {
   return false;
 }
 
+/**
+ * True only when the pilot list NAMES this user by id ("all" does not count). The
+ * /quiz door uses it to give a named non-teacher (the operator, a coach on
+ * production) the teacher home; every other coach keeps their own menu. Never throws.
+ */
+async function namedInPilot(teacherId) {
+  if (!teacherId || !webBaseUrl()) return false;
+  const teachers = await readTeachers();
+  return Array.isArray(teachers) && teachers.map(String).includes(String(teacherId));
+}
+
 /** True when this teacher gets the web report. Never throws. */
 async function teacherReportOn(teacherId) {
   if (!teacherId || !webBaseUrl()) return false;
@@ -92,4 +103,4 @@ function reportUrls({ teacherId, quizId = null } = {}) {
   }
 }
 
-module.exports = { teacherReportOn, reportUrls, reportTemplate, REPORT_PATH, KEY, TEMPLATE_KEY, _resetCache: () => { cache = null; } };
+module.exports = { teacherReportOn, namedInPilot, reportUrls, reportTemplate, REPORT_PATH, KEY, TEMPLATE_KEY, _resetCache: () => { cache = null; } };

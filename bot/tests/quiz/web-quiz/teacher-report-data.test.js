@@ -261,6 +261,17 @@ describe('the reminder link when the hand-out message carries none', () => {
   });
 });
 
+describe('the reminder at zero', () => {
+  test('nobody on the list has played yet: the plain reminder, never "0 of 6 have played"', () => {
+    const t = Data.reminderText({ topic: 'Plants', link: LINK, language: 'en', played: 0, of: 6, className: '4-A' });
+    expect(t).not.toMatch(/\b0 of 6\b/);
+    expect(t).toContain('still open');
+    const ur = Data.reminderText({ topic: 'کسر', link: LINK, language: 'ur', played: 0, of: 6, className: '4-A' });
+    expect(ur).not.toContain('\u20660\u2069');
+    expect(Data.reminderText({ topic: 'Plants', link: LINK, language: 'en', played: 2, of: 6, className: '4-A' })).toContain('2 of 6');
+  });
+});
+
 describe('classReport', () => {
   test('the teacher\'s quizzes by grade × subject and by week, nobody else\'s', async () => {
     seed();

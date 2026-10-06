@@ -479,6 +479,9 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
       id: ctx.quizId, code: ctx.code,
       topic: pageTopic({ lang: ctx.lang, meta: quizRow && quizRow.meta, fallback: ctx.parent.topic || (quizRow && quizRow.topic) }),
       lang: ctx.lang, dir: ctx.lang === 'ur' ? 'rtl' : 'ltr',
+      // The language the quiz's clips are recorded in (the row's, else its questions' script): the page's
+      // shared feedback lines follow it, so one quiz is never two voices (an English quiz quoting an Urdu word).
+      voice_lang: clampLanguage(require('./web-quiz-publish.service').quizLanguage(quizRow, questions)),
       grade: (quizRow && quizRow.grade) || null, subject: (quizRow && quizRow.subject) || null,
       n: questions.length,
       questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio, zooms[i])),
@@ -499,7 +502,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     brand: await WebQuizBrand.resolveBrandKey({ db: supabase, orgName, botName }),
   };
   mark('live');
-  if (ctx.invitedByStudentId) out.challenge = await challengeOf(ctx);
+  // A friend's challenge: the page keeps the friend away from the challenger's class (its table, its group).
+  if (ctx.invitedByStudentId) { out.invited = true; out.challenge = await challengeOf(ctx); }
   // The pictures this link previews as (web-quiz-art.js): the class one, and the invite on a challenge code.
   out.art = {
     class: Art.artId('l', ctx.parent.code || ctx.code), schools: Art.artId('s', ctx.parent.code || ctx.code),
@@ -1250,7 +1254,8 @@ async function fixWhoV2(ctx, body) {
   await supabase.from('quiz_sessions').update({ student_class: label }).eq('id', s.id).eq('share_code_id', ctx.shareCodeId);
   IdRoster._forgetClass(r.class.id);
   logEvent('web_quiz.identity_enrolled', { sessionId: s.id, shareCodeId: ctx.shareCodeId });
-  return { ok: true, row: { ...row({}, null), on_list: true } };
+  // The list number the child was given, so the report's notice can name it.
+  return { ok: true, row: { ...row({}, null), on_list: true, roll: out.rollNumber != null ? Number(out.rollNumber) : null } };
 }
 
 /**
@@ -1521,6 +1526,8 @@ function rankRows(rows) {
 async function board(code, { st } = {}) {
   requireOn();
   const ctx = await resolveCode(code);
+  // A friend's challenge code is not the class: its table (classmates' first names) is not theirs to see.
+  if (ctx.invitedByStudentId) fail(404, 'not_found');
   const report = require('./video-quiz-report.service');
   // The teacher report's own loader: self-tests and invited friends out, one
   // attempt per child (first finished for a web-arm quiz).

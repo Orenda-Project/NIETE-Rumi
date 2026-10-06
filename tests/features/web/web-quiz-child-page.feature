@@ -801,3 +801,82 @@ Feature: Web child quiz page on the portal
     When the page opens
     Then the same picture sits above the challenge line, its alt text the same words
     And if the picture cannot load it is removed, never shown broken
+
+
+  @T300
+  Scenario: A child typing /quiz on WhatsApp gets one Open button to their hub when the hub is on
+    Given app_settings web_quiz_hub is on and a phone with one registered child who has played a quiz
+    When the child sends /quiz
+    Then exactly one WhatsApp message arrives: "Your quizzes, videos and challenges are here." with one "Open" button («کھولیں»)
+    And the button opens <portal>/h/<token>, a link that names only this phone's own children and lasts 7 days
+    And with web_quiz_hub off the same /quiz gets today's Flow or two buttons, unchanged
+
+  @T301
+  Scenario: A phone with siblings asks "Who is playing?" with only its own children
+    Given a phone with two registered children
+    When the hub link is opened
+    Then the first screen is "Who is playing?" («کس کی باری ہے؟», gender-neutral) with the two children's first names and animals
+    And no classmate or other child is ever offered
+    And tapping a name opens that child's hub, with "Switch player" to go back
+
+  @T302
+  Scenario: The hub shows the newest quiz from the child's teacher, or a warm empty state
+    Given a child whose teacher sent a quiz for their grade in the last 7 days that they have not finished
+    When the child opens their hub
+    Then the top card says "From your teacher" with the topic, the subject and when it was sent, and a Play button
+    And Play opens that quiz already as this child, with no "Whose turn?"
+    And with no such quiz the card says "No new quiz from your teacher right now. Watch a video and try its quiz!" with the video library button
+    And a quiz with no grade, or another grade, is never shown as the teacher's
+
+  @T303
+  Scenario: Play again shows the child's best score and keeps the first score for the teacher
+    Given a child who finished a quiz twice, scoring 4/10 and then 8/10
+    When the child opens their hub
+    Then "Play again" lists that quiz with "Best 8/10 · 2 tries", newest quizzes first, at most 6, closed quizzes left out
+    And a note says the first score is the one the teacher sees
+    And tapping it opens the quiz on its start screen as a fresh attempt for this child, never the old scorecard
+    And answers still waiting to be sent from an earlier attempt are never cleared
+
+  @T304
+  Scenario: Three recommended video quizzes follow the child's last topic
+    Given a child whose last finished quiz was a grade 3 Maths video in the chapter "Fractions"
+    When the child opens their hub
+    Then "Try these next" shows 3 video quizzes the child has not finished: the same chapter first, then the next chapters in the video menu's order, then the rest of Maths
+    And when Maths runs out, the list is filled from grade 3's other subjects in the menu's order
+    And a child with no finished quiz sees the first video of each subject of their grade
+    And each card shows the video's poster (or the subject's tile), title, subject and chapter
+
+  @T305
+  Scenario: An expired or tampered hub link shows a closed page that tells the child what to do
+    Given a hub link older than 7 days, or one whose signature does not match
+    When it is opened
+    Then the page says "This link has expired" and "Send /quiz on WhatsApp to get a new one." in the child's language
+    And no child's name or quiz is shown
+  @T446
+  Scenario: A challenger who scored nothing is not a score to beat
+    Given a child finished a quiz with 0 right answers and sent a friend their challenge link
+    When the friend opens the link
+    Then the landing says "<challenger> challenged you. Can you beat their score?" («… نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!»)
+    And it never says "0/5 stars. Can you beat it?"
+    And the friend's landing never says how many of the class played today (the friend is not in that class)
+  @T449
+  Scenario: A friend who played a challenge never reaches the challenger's class table
+    Given a friend finished a quiz through a classmate's challenge link
+    Then the friend's scorecard offers "Challenge a friend" and "School league" but not "See my class" or "Share to class group"
+    And the "Quiz complete" screen offers no "See my class"
+    And the class table of a challenge code answers "not found", both as /q/<challenge code>/class and through the page's API
+  @T445b
+  Scenario: The invite picture and its link title never guess the friend's gender, and never dare a zero
+    Given a child sent a challenge link
+    When the link previews in Urdu
+    Then it reads «<name> کے 4/6 سے آگے نکلیں!» (an imperative), never «کیا آپ … سکتے ہیں؟»
+    And when the challenger scored 0 the picture and the title say "<name> challenged you!" («<name> نے آپ کو چیلنج کیا ہے!») with no score
+
+
+
+  @T395
+  Scenario: An English quiz that quotes an Urdu word keeps one voice
+    Given an English quiz whose questions quote the teacher's Urdu glosses (for example «سرکل»)
+    When a child answers a question and when the quiz ends
+    Then the feedback lines ("Yes! That's right!", "Quiz complete!") are English, in the same voice as the question clips
+    And an Urdu quiz keeps its Urdu feedback lines even when its page is opened from an English class
