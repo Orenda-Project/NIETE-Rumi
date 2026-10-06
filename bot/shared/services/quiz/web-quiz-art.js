@@ -60,7 +60,7 @@ async function cardFacts(sessionId) {
   if (!UUID_RX.test(sessionId) && !/^[A-Za-z0-9-]{1,40}$/.test(sessionId)) notFound();
   const WebQuiz = require('./web-quiz.service');
   const { data: s } = await supabase.from('quiz_sessions')
-    .select('id, student_id, student_name, share_code_id, status, user_id, correct_answers, total_questions_answered, completed_at')
+    .select('id, student_id, student_name, share_code_id, status, user_id, invited_by_student_id, correct_answers, total_questions_answered, completed_at')
     .eq('id', sessionId).maybeSingle();
   if (!s || s.status !== 'completed' || !s.share_code_id || s.user_id) notFound();
   const { data: sc } = await supabase.from('quiz_share_codes').select('id, code, quiz_id, topic, language').eq('id', s.share_code_id).maybeSingle();
@@ -76,8 +76,10 @@ async function cardFacts(sessionId) {
   }
   const lang = clampLanguage(sc.language);
   const nameOf = await WebQuiz.shownNames(lang, [s.student_id]);
-  const cls = await require('./video-quiz-report.service').loadClassRows(sc.id).catch(() => null);
-  const school = await schoolLine(sc.code, s);
+  // An invited friend is not in the challenger's class: their card names neither that class nor its school.
+  const friend = Boolean(s.invited_by_student_id);
+  const cls = friend ? null : await require('./video-quiz-report.service').loadClassRows(sc.id).catch(() => null);
+  const school = friend ? {} : await schoolLine(sc.code, s);
   return {
     lang,
     d: {

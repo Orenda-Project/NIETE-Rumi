@@ -325,6 +325,12 @@ describe('E4 POST answers + E5 POST finish', () => {
     fake.db.quiz_share_codes.find((c) => c.code === fin.challenge_code).active = true; // the column's default in the real table
     const viaFriend = await WQ.getQuiz(fin.challenge_code);
     expect(Art.parseArtId(viaFriend.art.invite)).toEqual({ kind: 'i', ref: fin.challenge_code });
+    // the friend plays it: their finish offers no class picture (they are not in that class)
+    const f = await WQ.startSession({ code: fin.challenge_code, new: { name: 'Rafi Example', force: true } });
+    for (const [i, slot] of ['B', 'B', 'A', 'B'].entries()) await WQ.recordAnswers({ st: f.st, a: [{ qid: qid(i + 1), slot }] });
+    const ff = await WQ.finishSession({ st: f.st });
+    expect(ff.art.class).toBeNull();
+    expect(Art.parseArtId(ff.art.card)).toEqual({ kind: 'c', ref: T.verify(f.st, 's').sid });
     expect(Art.parseArtId(viaFriend.art.class)).toEqual({ kind: 'l', ref: 'AB12CD' });
   });
 

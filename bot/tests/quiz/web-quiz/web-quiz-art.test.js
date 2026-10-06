@@ -190,6 +190,17 @@ describe('render + cache', () => {
     expect(html).toMatch(/<li class="row you">[\s\S]*School Alpha/);
   });
 
+  test("an invited friend's card names neither the challenger's class nor their school", async () => {
+    const FRIEND = '2b3c4d5e-0000-4000-8000-00000000f00d';
+    fake.db.students.push({ id: 'st-f', student_name: 'Rafi Testwala' });
+    fake.db.quiz_sessions.push({ id: FRIEND, quiz_id: 'qz-1', student_id: 'st-f', student_name: 'Rafi Testwala', share_code_id: 'sc-1', invited_by_student_id: 'st-1', status: 'completed', correct_answers: 6, total_questions_answered: 8, mastery_percentage: 75, completed_at: new Date().toISOString(), created_at: new Date().toISOString() });
+    await Art.artImage(Art.artId('c', FRIEND), { size: 'og' });
+    const html = htmlToImage.mock.calls[0][0];
+    expect(html).toContain('>Rafi<');
+    expect(html).not.toContain('School Alpha');
+    expect(html).not.toMatch(/My score<span class="dot">/);
+  });
+
   test("a practice round's card shows the kept first-try score, the one the league shows", async () => {
     fake.db.quiz_sessions.push({ id: '1a2b3c4d-0000-4000-8000-000000003333', quiz_id: 'qz-1', student_id: 'st-1', student_name: 'Amal Testwala', share_code_id: 'sc-1', status: 'completed', correct_answers: 8, total_questions_answered: 8, completed_at: new Date().toISOString(), created_at: new Date().toISOString() });
     await Art.artImage(Art.artId('c', '1a2b3c4d-0000-4000-8000-000000003333'), { size: 'sq' });
