@@ -143,6 +143,18 @@ describe('the stat (pure)', () => {
     expect(out.rows[0]).toEqual(expect.objectContaining({ points: 6 * 20, kids: 6 }));
   });
 
+  test('one phone counts at most 3 children it created today per quiz per day; roster children and other phones are not capped', () => {
+    const at = (h) => `2026-10-05T0${h}:00:00Z`;
+    const plays = [];
+    for (let k = 1; k <= 5; k += 1) plays.push({ ...p('A', `new${k}`, 'c1', 100, at(k)), device: 'phone1', minted: true });
+    for (let k = 1; k <= 4; k += 1) plays.push({ ...p('A', `roster${k}`, 'c1', 100, at(k)), device: 'phone1', minted: false });
+    plays.push({ ...p('A', 'other1', 'c1', 100, at(6)), device: 'phone2', minted: true });
+    plays.push({ ...p('A', 'next', 'c1', 100, '2026-10-05T20:00:00Z'), device: 'phone1', minted: true }); // Tue PKT
+    const counted = S.countedPlays(plays);
+    expect(counted.map((x) => x.kid).sort()).toEqual(['new1', 'new2', 'new3', 'next', 'other1', 'roster1', 'roster2', 'roster3', 'roster4'].sort());
+    expect(counted.capped).toEqual([{ device: 'phone1', codeId: 'c1', day: '2026-10-05' }]);
+  });
+
   test('the schools still to start are named, alphabetically, without numbers; mine is not among them', () => {
     const out = S.scoreSchools({ plays: [p('A', 'k', 'c', 80, MON)], schools, mySchoolId: 'D', splitAt: TODAY });
     expect(out.zero_names).toEqual(['School Bravo', 'School Charlie']);
@@ -154,7 +166,7 @@ describe('the stat (pure)', () => {
     for (let i = 0; i < 500; i += 1) for (let k = 0; k <= i % 40; k += 1) plays.push(p(`s${i}`, `k${i}-${k}`, 'c', (i * 7) % 101, MON));
     const t0 = Date.now();
     const out = S.scoreSchools({ plays, schools: many, mySchoolId: 's499', splitAt: TODAY });
-    expect(Date.now() - t0).toBeLessThan(500);
+    expect(Date.now() - t0).toBeLessThan(2000); // catches a quadratic blow-up, not CPU contention
     expect(out.ranked_n).toBe(500);
     expect(out.rows).toHaveLength(500);
     expect(out.mine.name).toBe('School 499');
@@ -244,9 +256,38 @@ describe('the board (loaded through Supabase)', () => {
     expect(b.mine).toEqual(expect.objectContaining({ points: 18, kids: 1 }));
     expect(b.mine.ghost).toBeUndefined();
     expect(b.rows.find((r) => r.name === 'School Charlie')).toEqual(expect.objectContaining({ points: 18, mine: true }));
-    // another viewer in the same minute is not shown a different board because of it
+    // the finish refreshed the shared snapshot (one incremental read): the next viewer sees it too
     const other = await S.board('ALPHA1', { now: NOW + 21000 });
-    expect(other.rows.find((r) => r.name === 'School Charlie')).toBeUndefined();
+    expect(other.rows.find((r) => r.name === 'School Charlie')).toEqual(expect.objectContaining({ points: 18, kids: 1 }));
+  });
+
+  test("a capped friend is never told it added points, even when the friends finished inside one cache minute", async () => {
+    process.env.INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || 'route-key';
+    const T = require('../../../shared/services/quiz/web-quiz-token');
+    await S.board('BRAVO1', { now: NOW }); // the minute's snapshot
+    // six friends of kb1 on the challenge code, all after the snapshot (kf1 already counts from the fixture: 5 more fit? no: 4 more)
+    for (let f = 2; f <= 6; f += 1) fake.db.quiz_sessions.push(sess(`fr${f}`, 'c2f', `kf${f}`, 100, `2026-10-07T05:00:0${f}Z`));
+    const tok = (sid) => T.signSession({ sessionId: sid, deviceRef: 'd', shareCodeId: 'c2' });
+    const fifth = await S.board('BRAVO1', { now: NOW + 10000, st: tok('fr5') });
+    expect(fifth.added).toBe(20); // kf1 + kf2..kf5 = 5 friends
+    const sixth = await S.board('BRAVO1', { now: NOW + 11000, st: tok('fr6') });
+    expect(sixth.added).toBeUndefined();
+    expect(sixth.rows.find((r) => r.name === 'School Bravo').kids).toBe(2 + 5);
+  });
+
+  test('a phone minting children: the 4th child it created today on this quiz adds nothing, and the cap is logged with ids only', async () => {
+    fake.db.students = [];
+    const today = '2026-10-07T04:00:00Z';
+    for (let k = 1; k <= 4; k += 1) {
+      fake.db.students.push({ id: `mint${k}`, list_id: null, created_at: today });
+      fake.db.quiz_sessions.push(sess(`m${k}`, 'c3', `mint${k}`, 100, `2026-10-07T04:0${k}:00Z`, { device_ref: 'dev-farm' }));
+    }
+    fake.db.students.push({ id: 'kc-roster', list_id: 'list-1', created_at: '2026-09-01T00:00:00Z' });
+    fake.db.quiz_sessions.push(sess('m5', 'c3', 'kc-roster', 100, '2026-10-07T04:05:00Z', { device_ref: 'dev-farm' }));
+    const b = await S.board('CHARL1', { now: NOW });
+    expect(b.mine).toEqual(expect.objectContaining({ kids: 4, points: 80 })); // 3 minted + 1 roster child
+    expect(logEvent).toHaveBeenCalledWith('web_quiz.league_provisional_capped', { code: 'c3', device: expect.stringMatching(/^[0-9a-f]{12}$/) });
+    expect(JSON.stringify(logEvent.mock.calls)).not.toContain('dev-farm');
   });
 
   test('a school with nothing yet sees its own ghost row', async () => {

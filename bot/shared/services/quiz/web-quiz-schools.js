@@ -7,7 +7,9 @@
  * Each child's FIRST finish of each quiz is worth 10 points for taking part plus
  * a tenth of its score (0-10), so 10 to 20 points a quiz. A practice re-attempt
  * adds nothing; a child counts at most 5 quizzes a Pakistan day, and a
- * challenger's invited friends at most 5 per quiz (countedPlays). Taking part leads on purpose: scores sit close together (most
+ * challenger's invited friends at most 5 per quiz, and one phone at most 3
+ * children it created that day (typed names not on the list) per quiz
+ * (countedPlays). Taking part leads on purpose: scores sit close together (most
  * finishes are 80% or more) while the number of children playing differs a
  * hundredfold between schools, and the board exists to pull in the schools
  * that are not playing yet. Ranked by points, then more children, then the
@@ -30,6 +32,7 @@
  * finishes since the last one, plus codes and teachers not seen before; the
  * schools list every 10 minutes. No migration.
  */
+const crypto = require('crypto');
 const supabase = require('../../config/supabase');
 const { logEvent } = require('../../utils/structured-logger');
 const WebQuiz = require('./web-quiz.service');
@@ -42,10 +45,13 @@ const MAP_TTL_MS = 60 * 60 * 1000;
 const SCHOOLS_TTL_MS = 10 * 60 * 1000;
 const OVERLAP_MS = 2 * 60 * 1000;
 const PAGE = 1000;
-const SESSION_COLS = 'id, share_code_id, student_id, invited_by_student_id, mastery_percentage, completed_at';
+const SESSION_COLS = 'id, share_code_id, student_id, invited_by_student_id, mastery_percentage, completed_at, device_ref';
 const IN_CHUNK = 200;
 const DAY_CAP = 5;
 const FRIEND_CAP = 5;
+// One phone counts at most 3 children it created today per quiz per day (siblings still fit). On
+// production WhatsApp, 99.9% of (phone, quiz, day) carry one child and none more than two.
+const DEVICE_NEW_CAP = 3;
 
 /** Monday 00:00 in Pakistan (UTC+5, no DST) of the week holding `now`, as an ISO string. Pure. */
 function weekStartIso(now = Date.now()) {
@@ -82,13 +88,25 @@ function countedPlays(plays) {
   const firsts = new Set();
   const perDay = new Map();
   const perInviter = new Map();
+  const perDevice = new Map(); // device|quiz|day -> the children it minted that count
   const out = [];
+  out.capped = [];
   for (const p of sorted) {
     const first = `${p.kid}|${p.codeId}`;
     if (firsts.has(first)) continue;
     firsts.add(first);
     const day = `${p.kid}|${pktDay(p.at)}`;
     if ((perDay.get(day) || 0) >= DAY_CAP) continue;
+    if (p.minted && p.device) {
+      const dk = `${p.device}|${p.codeId}|${pktDay(p.at)}`;
+      const kids = perDevice.get(dk) || new Set();
+      if (!kids.has(p.kid) && kids.size >= DEVICE_NEW_CAP) {
+        if (!out.capped.some((c) => `${c.device}|${c.codeId}|${c.day}` === dk)) out.capped.push({ device: p.device, codeId: p.codeId, day: pktDay(p.at) });
+        continue;
+      }
+      kids.add(p.kid);
+      perDevice.set(dk, kids);
+    }
     if (p.inviter) {
       const inv = `${p.inviter}|${p.codeId}`;
       if ((perInviter.get(inv) || 0) >= FRIEND_CAP) continue;
@@ -182,7 +200,7 @@ let codeSchool = new Map();
 let teacherSchool = new Map();
 let mapsAt = 0;
 
-function _reset() { snap = null; codeSchool = new Map(); teacherSchool = new Map(); mapsAt = 0; weekRows = null; schoolsCache = null; }
+function _reset() { studentInfo = new Map(); cappedLogged = new Set(); snap = null; codeSchool = new Map(); teacherSchool = new Map(); mapsAt = 0; weekRows = null; schoolsCache = null; }
 
 /** Finished sessions from `since` on, appended to `acc` (ids in `seen` are skipped); returns the new cursor. */
 async function finishedSince(since, acc, seen) {
@@ -230,12 +248,36 @@ async function schoolsOfCodes(codeIds, now) {
   return codeSchool;
 }
 
-function playOf(s, code) {
+function playOf(s, code, student) {
   if (!code || !code.schoolId) return null;
+  // A child "minted" by this finish: a student row with no class list, created the same Pakistan day.
+  const minted = Boolean(student && !student.list_id && student.created_at && pktDay(student.created_at) === pktDay(s.completed_at));
   return {
     sessionId: s.id, schoolId: code.schoolId, kid: s.student_id || `s:${s.id}`, codeId: code.root,
     inviter: s.invited_by_student_id || code.inviter || null, pct: s.mastery_percentage, at: s.completed_at,
+    device: s.device_ref || null, minted,
   };
+}
+
+// student id -> { list_id, created_at }, looked up once per student.
+let studentInfo = new Map();
+async function studentsOf(ids) {
+  const want = [...new Set(ids.filter((id) => id && !studentInfo.has(id)))];
+  if (want.length) {
+    for (const r of await inChunks('students', 'id, list_id, created_at', want)) studentInfo.set(r.id, r);
+    for (const id of want) if (!studentInfo.has(id)) studentInfo.set(id, null);
+  }
+  return studentInfo;
+}
+
+let cappedLogged = new Set();
+function logCapped(capped) {
+  for (const c of capped || []) {
+    const key = `${c.device}|${c.codeId}|${c.day}`;
+    if (cappedLogged.has(key)) continue;
+    cappedLogged.add(key);
+    logEvent('web_quiz.league_provisional_capped', { code: c.codeId, device: crypto.createHash('sha256').update(String(c.device)).digest('hex').slice(0, 12) });
+  }
 }
 
 // The week so far, kept between loads: each load reads only the finishes since the last one.
@@ -257,18 +299,21 @@ async function load(week, now) {
     schoolsCache = { at: now, rows: data || [] };
   }
   const schools = schoolsCache.rows;
-  const plays = sessions.map((s) => playOf(s, map.get(s.share_code_id))).filter(Boolean);
+  const info = await studentsOf(sessions.map((s) => s.student_id));
+  const plays = sessions.map((s) => playOf(s, map.get(s.share_code_id), info.get(s.student_id))).filter(Boolean);
+  logCapped(countedPlays(plays).capped);
   const placed = new Set(plays.map((p) => p.schoolId));
   logEvent('web_quiz.school_board_loaded', { sessions: sessions.length, fresh: sessions.length - before, plays: plays.length, schools: placed.size, ms: Date.now() - t0 });
   return { plays, schools };
 }
 
-function snapshot(now) {
+function snapshot(now, { force = false } = {}) {
   const week = weekStartIso(now);
-  if (!snap || snap.week !== week || now - snap.at >= CACHE_MS) {
+  if (!snap || snap.week !== week || now - snap.at >= CACHE_MS || (force && snap.done)) {
     const promise = load(week, now);
-    snap = { at: now, week, promise };
-    promise.catch(() => { if (snap && snap.promise === promise) snap = null; });
+    const entry = { at: now, week, promise, done: false };
+    snap = entry;
+    promise.then(() => { entry.done = true; }, () => { if (snap === entry) snap = null; });
   }
   return snap.promise;
 }
@@ -286,17 +331,15 @@ async function addedBy(st, data, week, now) {
   const tok = T.verify(st, 's');
   if (!tok || !tok.sid) return none;
   let plays = data.plays;
-  let mine = plays.find((p) => p.sessionId === tok.sid);
-  if (!mine) {
-    const { data: s } = await supabase.from('quiz_sessions').select(`${SESSION_COLS}, status, user_id`).eq('id', tok.sid).maybeSingle();
+  if (!plays.some((p) => p.sessionId === tok.sid)) {
+    // Newer than the minute's snapshot: read everything since it (incremental), so the caps see every
+    // finish that came before this one — a friend inside one cache minute is capped like any other.
+    const { data: s } = await supabase.from('quiz_sessions').select('id, status, user_id, completed_at').eq('id', tok.sid).maybeSingle();
     if (!s || s.status !== 'completed' || s.user_id || !s.completed_at || String(s.completed_at) < week) return none;
-    const map = await schoolsOfCodes([s.share_code_id], now);
-    mine = playOf(s, map.get(s.share_code_id));
-    if (!mine) return none;
-    plays = [...plays, mine];
+    plays = (await snapshot(now, { force: true })).plays;
   }
   const counted = countedPlays(plays).find((p) => p.sessionId === tok.sid);
-  return counted ? { added: pointsFor(counted.pct), plays } : none;
+  return counted ? { added: pointsFor(counted.pct), plays } : { added: undefined, plays };
 }
 
 /** GET /schools/:code — the board the page shows, the viewer's school from the quiz code. */

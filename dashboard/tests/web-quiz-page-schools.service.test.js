@@ -193,3 +193,19 @@ describe('the hook and the filters', () => {
     expect(p.html()).toMatch(/<details class="wq-zero-list"><summary>312 schools still to start<\/summary><ul><li><bdi>Quiet &lt;One&gt;<\/bdi><\/li><li><bdi>Quiet Two<\/bdi><\/li><\/ul><\/details>/);
   });
 });
+
+describe('a cold recipient of the league link', () => {
+  test('who never played gets "Play and add points for <school>", which opens the quiz; a child who played does not', async () => {
+    const p = page({ lang: 'en', store: {}, view: 'schools', api: { '/schools/TEST': BOARD } });
+    await flush();
+    expect(p.moment()).toBe('M16');
+    expect(p.html()).toMatch(/id="wq-play-s">Play and add points for <bdi>School Alpha<\/bdi><\/button>/);
+    p.els['#wq-play-s'].fire('click');
+    expect(p.moment()).toBe('M3');
+    const u = page({ lang: 'ur', store: {}, view: 'schools', api: { '/schools/TEST': BOARD } });
+    await flush();
+    expect(u.html()).toContain('کھیلیں اور <bdi><span class="wq-lat" lang="en">School Alpha</span></bdi> کے پوائنٹس بڑھائیں');
+    const played = await open('en', BOARD);
+    expect(played.html()).not.toContain('id="wq-play-s"');
+  });
+});
