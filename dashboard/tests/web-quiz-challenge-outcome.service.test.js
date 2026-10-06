@@ -63,3 +63,12 @@ describe('a challenger who scored 0 is never offered as a score to beat', () => 
     expect(p.html()).toContain('Ali got 3/5 stars. Can you beat it?');
   });
 });
+
+describe('an invited friend is not told how many of the class played (they are not in it)', () => {
+  test('W35 landing: no class count on a challenge link, the count stays on the class link', () => {
+    let p = page({ lang: 'en', live: { class_today: 7 }, challenge: { first: 'Ali', correct: 3, total: 5 } });
+    expect(p.html()).not.toContain('7 in your class played today');
+    p = page({ lang: 'en', live: { class_today: 7 } });
+    expect(p.html()).toContain('7 in your class played today');
+  });
+});
