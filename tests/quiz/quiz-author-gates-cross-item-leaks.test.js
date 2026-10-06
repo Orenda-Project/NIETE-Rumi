@@ -244,7 +244,9 @@ function grammar() {
 /** q0's explanation states q2's answer (Father → Mother). */
 const leaky = () => { const qs = grammar(); qs[0] = { ...qs[0], explanation: 'ہر masculine noun کا ایک feminine noun ہوتا ہے، جیسے Father کا جوڑا Mother ہے۔' }; return qs; };
 const FIXED_Q2 = gq({ question: 'Grandfather کا feminine noun کیا ہے؟', options: ['Grandmother', 'Granddaughter', 'Aunt'] });
-const TRANSCRIPT = [...grammar(), FIXED_Q2].map((q) => `استاد: ${moment(q.options[0])}۔`).join('\n').repeat(4);
+/** A lesson line no question quotes: what the last leak rewrite should be offered to copy. */
+const UNUSED_LINE = 'آج ہم نے Nephew اور Niece کے جوڑے پر بھی بات کی۔';
+const TRANSCRIPT = `${[...grammar(), FIXED_Q2].map((q) => `استاد: ${moment(q.options[0])}۔`).join('\n')}\nاستاد: ${UNUSED_LINE}\n`.repeat(4);
 
 function reply(obj) { return { choices: [{ message: { content: JSON.stringify(obj) }, finish_reason: 'stop' }], usage: { cost: 0.01 } }; }
 const promptOf = (call) => call[0].messages[0].content;
@@ -302,6 +304,21 @@ describe('on the generate path, flag on: repair, else drop within the floor, nev
     const rw = mockCreate.mock.calls.map(promptOf).filter((p) => /REWRITE THESE QUESTIONS/.test(p));
     expect(rw[rw.length - 1]).toMatch(/q0 gives away q2's answer/);
     expect(logEvent.mock.calls.map((c) => c[0])).toContain('transcript_quiz.answer_leaks');
+  });
+
+  test('the last leak rewrite is shown lesson lines no question uses yet, so its new question can quote the lesson', async () => {
+    const bad = leaky();
+    mockCreate.mockImplementation((call) => (isRewrite(call)
+      ? Promise.resolve(reply({ questions: [{ index: 2, ...bad[2] }] }))
+      : Promise.resolve(reply({ lesson_summary: EN_SUMMARY, questions: bad }))));
+    wire({ gates: true });
+    await Gen.process(QID, {});
+    const rw = mockCreate.mock.calls.map(promptOf).filter((p) => /REWRITE THESE QUESTIONS/.test(p));
+    const last = rw[rw.length - 1];
+    expect(last).toMatch(/q0 gives away q2's answer/);
+    // the transcript line no question quotes yet, offered to copy word for word
+    expect(last).toContain('these moments are not used yet:');
+    expect(last).toContain(UNUSED_LINE);
   });
 
   test('an aside in an earlier explanation is taken out: all eight questions kept, no extra rewrite', async () => {

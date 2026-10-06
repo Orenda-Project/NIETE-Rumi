@@ -399,6 +399,28 @@ async function modelLeakErrors(questions, { complete = null, skip = new Set() } 
   return out;
 }
 
+/**
+ * Leak complaints with the lesson's own unused lines appended, a few per question, so the
+ * rewrite that replaces a give-away can copy a real moment as its "source_quote" (the rewrite
+ * is shown the digest, not the lesson). The same shape REPLACE_FROM_SOURCE uses in generate.
+ * Without a lesson text, the complaints come back as they were.
+ */
+function withLessonMoments(errors, questions, sourceText) {
+  const list = Array.isArray(errors) ? errors : [];
+  if (!sourceText || !list.length) return list;
+  // eslint-disable-next-line global-require
+  const SFm = require('./transcript-quiz-source-fidelity');
+  const used = (questions || []).map((q) => q && q.source_quote).filter(Boolean);
+  const moments = SFm.freshMoments(sourceText, used, list.length * 3);
+  if (!moments.length) return list;
+  return list.map((e, k) => {
+    const mine = moments.filter((_, j) => j % list.length === k);
+    return mine.length
+      ? `${e}; copy one of the lesson's moments word for word as its "source_quote" — these moments are not used yet: ${mine.map((m) => `«${m}»`).join(' / ')}`
+      : e;
+  });
+}
+
 /** Complaint lines renumbered to a set with `dropped` taken out; a dropped question's lines go. */
 function renumber(lines, dropped) {
   const gone = new Set(dropped || []);
@@ -544,5 +566,5 @@ function settleLeakFaults(faults, dropped, leaks) {
 }
 
 module.exports = {
-  answerLeakErrors, findLeaks, trimLeakAsides, modelLeakErrors, finalLeakRepair, settleLeakFaults,
+  answerLeakErrors, findLeaks, trimLeakAsides, modelLeakErrors, finalLeakRepair, settleLeakFaults, withLessonMoments,
 };
