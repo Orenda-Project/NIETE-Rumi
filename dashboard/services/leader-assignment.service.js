@@ -251,7 +251,8 @@ async function editSchedule(query, leaderUserId, scheduleId, input = {}, opts = 
   const today = opts.today || new Date().toISOString().slice(0, 10);
   const { date, slot } = input;
   if (!validDate(date)) throw new Error('Invalid date — expected YYYY-MM-DD');
-  if (date < today) throw new Error('That date is in the past');
+  // bd-o15qnr.8 — a visit may be moved to a past day (same rule as booking).
+  const past = date < today;
   if (slot && !isAllowedSlot(slot)) throw new Error('Unknown time slot');
 
   const { rows } = await query(OWNED_SCHEDULE_SQL, [scheduleId]);
@@ -267,7 +268,7 @@ async function editSchedule(query, leaderUserId, scheduleId, input = {}, opts = 
   const prevDate = row.scheduled_for instanceof Date
     ? row.scheduled_for.toISOString().slice(0, 10) : String(row.scheduled_for || '').slice(0, 10);
   const changed = prevDate !== date || (row.scheduled_slot || null) !== (slot || null);
-  return { id: done[0].id, date, slot: slot || null, updated: true, changed };
+  return { id: done[0].id, date, slot: slot || null, updated: true, changed, past };
 }
 
 // ── R38 · own your school list ─────────────────────────────────────────

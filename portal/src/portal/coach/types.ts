@@ -46,6 +46,8 @@ export type CoachSchool = {
 
 export type CoachHomeData = {
   today: CoachVisit[];
+  /** bd-o15qnr.8 — her next upcoming visit on or after today, whatever its date. */
+  next?: CoachVisit | null;
   counts: { week: number; overdue: number; waiting: number; inProgress: number; teachers: number; schools: number };
 };
 

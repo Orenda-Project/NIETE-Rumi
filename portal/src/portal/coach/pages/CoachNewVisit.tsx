@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { CalendarDays, Check, ChevronDown, ChevronUp, Plus, School, User } from "lucide-react";
+import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus, School, User } from "lucide-react";
 import { coach, leader } from "../../services/api";
 import { COACH_COPY as C } from "../copy";
 import {
   CoachPage, Card, SectionLabel, Chip, IconCircle, Initials, RowText, Stats, SearchBox, StepBar, BottomButton,
-  BottomLink, Loading, Failed, useLoad, personMatches, Chevron,
+  BottomLink, Loading, Failed, useLoad, personMatches, Chevron, formatPhone,
 } from "../ui";
 import { DEFAULT_TIME, formatSlot, fromSlot, isAllowedSlot, localDay, pickHour, stepHour, toSlot, type VisitTime } from "../time";
 import type { CoachSchool, CoachTeacher } from "../types";
@@ -18,6 +18,10 @@ import type { CoachSchool, CoachTeacher } from "../types";
  * an hour picks its default AM/PM (7–11 AM, 12–6 PM) and she can still flip it.
  * Reschedule opens step 3 for one visit (?visit=…&slot=…) and edits it instead
  * of booking a new one. The server re-checks the teacher and the time.
+ *
+ * bd-o15qnr.8 (operator feedback): step 2 shows each teacher's phone; the day
+ * strip pages a week back or forward, so a visit can be booked on a past day;
+ * no AM/PM warning — whatever the toggles make can be booked.
  */
 
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -30,15 +34,27 @@ function bySince<T extends { daysSinceVisit: number | null }>(a: T, b: T) {
   return b.daysSinceVisit - a.daysSinceVisit;
 }
 
-function nextDays(n: number) {
+/** Seven days from today + `offset` days. */
+function weekFrom(offset: number) {
   const out: string[] = [];
   const d = new Date();
-  for (let i = 0; i < n; i += 1) {
+  d.setDate(d.getDate() + offset);
+  for (let i = 0; i < 7; i += 1) {
     out.push(localDay(d));
     d.setDate(d.getDate() + 1);
   }
   return out;
 }
+
+function shiftDay(day: string, by: number) {
+  const d = new Date(`${day}T00:00:00`);
+  d.setDate(d.getDate() + by);
+  return localDay(d);
+}
+
+const short = (day: string) => new Date(`${day}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+const WEEKS_BACK = 4;
+const WEEKS_AHEAD = 8;
 
 function SchoolStep({ schools, onPick }: { schools: CoachSchool[]; onPick: (s: CoachSchool) => string }) {
   return (
@@ -76,7 +92,7 @@ function TeacherStep({ school, teachers, linkFor }: { school: CoachSchool | unde
           <Link to={linkFor(t)} className="flex flex-col hover:bg-[#f9fafb]">
             <span className="flex min-h-[76px] items-center gap-3 p-3 pe-3">
               <Initials name={t.name} />
-              <RowText name={t.name} sub={C.lastVisitDays(t.daysSinceVisit)} />
+              <RowText name={t.name} sub={[formatPhone(t.phone || t.teacherExtId), C.lastVisitDays(t.daysSinceVisit)].filter(Boolean).join(" · ")} />
               <Chevron />
             </span>
             <Stats items={[
@@ -103,7 +119,6 @@ function TimePicker({ value, onChange }: { value: VisitTime; onChange: (t: Visit
       <div className="flex items-baseline justify-center gap-2 text-[44px] font-light leading-none tabular-nums" data-testid="time-readout" aria-live="polite">
         {formatSlot(slot)}
       </div>
-      {!isAllowedSlot(slot) && <div className="flex justify-center"><Chip tone="warn">7:00 AM – 6:30 PM</Chip></div>}
       <div className="grid grid-cols-3 gap-2.5">
         <div className="flex flex-col gap-1.5" role="group" aria-label={C.hour}>
           <span className="text-center text-xs font-semibold text-[#6b7280]">{C.hour}</span>
@@ -136,8 +151,12 @@ function TimeStep({ teacher, schoolName, visitId, initialSlot, onDone }: {
   teacher: CoachTeacher | undefined; schoolName: string | null; visitId: string | null; initialSlot: string | null;
   onDone: (when: { date: string; slot: string }) => void;
 }) {
-  const days = nextDays(7);
-  const [date, setDate] = useState(days[0]);
+  const today = localDay();
+  const [week, setWeek] = useState(0);
+  const [date, setDate] = useState(today);
+  const days = weekFrom(week * 7);
+  // Paging keeps the same weekday picked, so a day is always chosen on screen.
+  const page = (dir: 1 | -1) => { setWeek((w) => w + dir); setDate((d) => shiftDay(d, dir * 7)); };
   const [time, setTime] = useState<VisitTime>(() => (initialSlot ? fromSlot(initialSlot) : { ...DEFAULT_TIME }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -169,14 +188,22 @@ function TimeStep({ teacher, schoolName, visitId, initialSlot, onDone }: {
         {!visitId && <Link to={`/portal/coach/new-visit?school=${encodeURIComponent(teacher?.schoolExtId || "")}`}
           className="flex min-h-[48px] min-w-[88px] items-center justify-center rounded-xl bg-[#f3f4f6] px-3.5 text-sm font-semibold text-[#33374a]">{C.change}</Link>}
       </Card>
-      <SectionLabel>{C.day}</SectionLabel>
+      <SectionLabel right={(
+        <span className="flex items-center gap-1.5">
+          <span className="text-[13px] font-semibold text-[#6b7280]">{`${short(days[0])} – ${short(days[6])}`}</span>
+          <button type="button" aria-label={C.earlierDays} disabled={week <= -WEEKS_BACK} onClick={() => page(-1)}
+            className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#e5e7eb] bg-white text-[#33374a] disabled:opacity-40"><ChevronLeft className="h-5 w-5 rtl:rotate-180" aria-hidden="true" /></button>
+          <button type="button" aria-label={C.laterDays} disabled={week >= WEEKS_AHEAD} onClick={() => page(1)}
+            className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#e5e7eb] bg-white text-[#33374a] disabled:opacity-40"><ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" /></button>
+        </span>
+      )}>{C.day}</SectionLabel>
       <Card className="grid grid-cols-7 gap-1 p-2">
         {days.map((d) => {
           const dt = new Date(`${d}T00:00:00`);
           const on = d === date;
           return (
             <button key={d} type="button" aria-pressed={on} aria-label={`${WEEKDAY[dt.getDay()]} ${dt.getDate()}`} onClick={() => setDate(d)}
-              className={`flex min-h-[68px] flex-col items-center justify-center gap-0.5 rounded-xl ${on ? "bg-[#33374a] text-white" : d === days[0] ? "shadow-[inset_0_0_0_1.5px_#c7cad6]" : ""} ${[0, 6].includes(dt.getDay()) && !on ? "opacity-50" : ""}`}>
+              className={`flex min-h-[68px] flex-col items-center justify-center gap-0.5 rounded-xl ${on ? "bg-[#33374a] text-white" : d === today ? "shadow-[inset_0_0_0_1.5px_#c7cad6]" : ""} ${[0, 6].includes(dt.getDay()) && !on ? "opacity-50" : ""}`}>
               <small className={`text-[11px] font-semibold uppercase ${on ? "text-[#c7cad6]" : "text-[#6b7280]"}`}>{WEEKDAY[dt.getDay()]}</small>
               <b className="text-lg font-bold tabular-nums">{dt.getDate()}</b>
             </button>
