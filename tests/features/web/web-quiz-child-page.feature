@@ -871,3 +871,12 @@ Feature: Web child quiz page on the portal
     When the link previews in Urdu
     Then it reads «<name> کے 4/6 سے آگے نکلیں!» (an imperative), never «کیا آپ … سکتے ہیں؟»
     And when the challenger scored 0 the picture and the title say "<name> challenged you!" («<name> نے آپ کو چیلنج کیا ہے!») with no score
+
+
+
+  @T395
+  Scenario: An English quiz that quotes an Urdu word keeps one voice
+    Given an English quiz whose questions quote the teacher's Urdu glosses (for example «سرکل»)
+    When a child answers a question and when the quiz ends
+    Then the feedback lines ("Yes! That's right!", "Quiz complete!") are English, in the same voice as the question clips
+    And an Urdu quiz keeps its Urdu feedback lines even when its page is opened from an English class
