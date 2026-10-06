@@ -42,11 +42,19 @@ function byHex() {
  * symbol ('=', '<'), a word, or a row of emoji ('🏠 🏠 🏠', a counting
  * option) is not a picture option.
  */
+/**
+ * Emoji that stand in for a noun WhatsApp has no emoji for. A quiz written for WhatsApp uses the
+ * chestnut 🌰 for "seed" (plant parts: 🌸 🍃 🌰 🥕); drawn as a chestnut, a child reads it as a
+ * chestnut or an onion. Both it and 🫘 are drawn as the seed: beans.
+ */
+const STANDS_FOR = { '1F330': 'seed', '1FAD8': 'seed' };
+
 function emojiNoun(text) {
   const t = String(text == null ? '' : text).trim().replace(/️/g, '');
   const cps = [...t];
   if (cps.length !== 1 || !/\p{Extended_Pictographic}/u.test(t)) return null;
-  return byHex()[cps[0].codePointAt(0).toString(16).toUpperCase()] || null;
+  const hex = cps[0].codePointAt(0).toString(16).toUpperCase();
+  return STANDS_FOR[hex] || byHex()[hex] || null;
 }
 
 module.exports = { colorInner, emojiNoun };
