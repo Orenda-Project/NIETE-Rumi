@@ -55,7 +55,7 @@ function page({ lang = 'en', store = {}, noVoice = false, stallClips = false } =
   const boot = {
     textContent: JSON.stringify({
       code: 'TEST', cls: { label: 'Class 3', teacher: 'Teacher Testwala', chips: [] }, live: {}, video: null,
-      quiz: { code: 'TEST', lang, topic: 'Plants', grade: 3, questions: [{ qid: 'q1', text: 'a?', options: [{ slot: 'A', text: 'x' }], correct_slot: 'A' }] },
+      quiz: { code: 'TEST', lang, topic: 'Plants', grade: 3, questions: [{ qid: 'q1', text: lang === 'ur' ? 'کیا؟' : 'a?', options: [{ slot: 'A', text: lang === 'ur' ? 'ہاں' : 'x' }], correct_slot: 'A' }] },
     }),
   };
   const actx = { state: 'running', suspended: 0, suspend() { this.suspended += 1; this.state = 'suspended'; return Promise.resolve(); }, resume() { this.state = 'running'; return Promise.resolve(); } };
