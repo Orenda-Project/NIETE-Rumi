@@ -160,6 +160,16 @@ Feature: Web child quiz page on the portal
     When the page is hidden, frozen or closed (the in-app browser is closed, the child switches app or locks the phone)
     Then the recorded clip, the phone's voice, the sound effects and any playing video stop at once
     And when the child comes back nothing starts again until the child taps
+
+  Scenario: The sound button silences every sound, and a missing clip never means silence without words
+    Given a phone that has never changed the sound setting
+    Then the voice and the tap tones are on
+    When the child taps the sound button while a line is playing
+    Then everything stops at once, the button shows sound off, and this phone remembers it
+    And with sound off no answer plays a clip or the phone's voice
+    But when a line has no recorded clip, the page logs "audio_missing" with the question and the part
+    And on a phone with no voice for the quiz language, the question's words are shown big
+    And the not-yet line never ends with a doubled full stop
   # Who is playing, by roll number (app_settings web_quiz_roster_id; off = the name chips above, unchanged)
   Scenario: A teacher with a class list: the child gives a roll number, not a name from a list
     Given the roster switch is on and the teacher keeps a class list with roll numbers

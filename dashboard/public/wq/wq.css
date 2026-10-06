@@ -283,3 +283,6 @@ html[lang=ur] .wq-vtext small{line-height:1.8}
 
 /* The share preview's link: its own left-to-right line, small, breaking anywhere (never wraps backwards in Urdu). */
 .wq-url{font-family:var(--f);font-size:14px;line-height:1.4;color:var(--muted);text-align:left;word-break:break-all;margin:6px 0 0}
+
+/* No recorded clip and no phone voice for this language (Android's in-app browser has none): the words are the voice, so show them big. */
+.wq-novoice .wq-qtext,.wq-novoice .wq-qtext.wq-qsmall{font-size:24px;line-height:1.55;color:var(--ink,inherit)}
