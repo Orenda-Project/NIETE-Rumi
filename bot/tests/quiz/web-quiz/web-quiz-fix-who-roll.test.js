@@ -81,6 +81,8 @@ describe('"Add to 4-A" gives the typed child the next free list number', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].roll_number).toBe(11);
     expect(studentRow(F.TYPED).roll_number).toBe(11);
+    // the report's 303 names the number it assigned (?ok=added&no=11): the row carries it
+    expect(out.row).toMatchObject({ on_list: true, roll: 11 });
   });
 
   test('the next quiz finds the child by list number: the class roster carries 11 and the "list number" question picks them', async () => {

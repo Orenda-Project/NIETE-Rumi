@@ -1250,7 +1250,8 @@ async function fixWhoV2(ctx, body) {
   await supabase.from('quiz_sessions').update({ student_class: label }).eq('id', s.id).eq('share_code_id', ctx.shareCodeId);
   IdRoster._forgetClass(r.class.id);
   logEvent('web_quiz.identity_enrolled', { sessionId: s.id, shareCodeId: ctx.shareCodeId });
-  return { ok: true, row: { ...row({}, null), on_list: true } };
+  // The list number the enrolment assigned, so the report can say "… added as list no. 11".
+  return { ok: true, row: { ...row({}, null), on_list: true, roll: Number.isInteger(out.rollNumber) ? out.rollNumber : null } };
 }
 
 /**
