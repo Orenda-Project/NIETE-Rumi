@@ -29,7 +29,9 @@ const {
 } = require('./transcript-quiz-validator');
 const { peopleSpellings, spellText, logRedactor } = require('./transcript-quiz-people');
 const { duplicateQuestionErrors, confirmsSameFact, solverDuplicateComplaint } = require('./transcript-quiz-duplicates');
-const { answerLeakErrors, finalLeakRepair, settleLeakFaults } = require('./transcript-quiz-answer-leaks');
+const {
+  answerLeakErrors, finalLeakRepair, settleLeakFaults, modelLeakErrors, withLessonMoments,
+} = require('./transcript-quiz-answer-leaks');
 const {
   teacherLanguageFor, quizLanguageFor, formatLessonDate, topicFor, lessonLabel, canonicalSubject,
 } = require('./transcript-quiz-language');
@@ -2834,8 +2836,9 @@ async function processQuiz(quizId, payload, flight) {
     if (authorGates) {
       const lk = await finalLeakRepair({
         questions,
+        // the lesson's unused lines ride on each complaint, so a replacement quotes the lesson, not a summary of it
         rewrite: (qs, errors) => api.rewriteRejected({
-          questions: qs, errors, digest, language, gradeBand: digest.grade_band || meta.grade, quizId,
+          questions: qs, errors: withLessonMoments(errors, qs, lessonSourceText), digest, language, gradeBand: digest.grade_band || meta.grade, quizId,
           lessonSummary: readyLessonSummary, planned: isLp, partial: true, knownNames: nameSpellings,
         }),
         check: (qs) => validate(qs, {
@@ -2843,6 +2846,8 @@ async function processQuiz(quizId, payload, flight) {
         }),
         isSoft,
         floor: MIN_QUESTIONS,
+        // the leaks word matching cannot see (elimination, one step of reasoning): rewritten, never dropped
+        propose: (qs, skip) => modelLeakErrors(qs, { skip }),
       });
       if (lk.record) {
         let { dropped, faults } = lk;

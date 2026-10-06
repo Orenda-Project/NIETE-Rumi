@@ -94,6 +94,29 @@ describe('the detector: leaks the first check let through', () => {
     expect(answerLeakErrors(qs)).toEqual([expect.stringMatching(/^q1: ANSWER_LEAK — q1 asks word for word what q0 already asks/)]);
   });
 
+  test('a wrong option is read WITH its feedback: «This is a behavioural adaptation» is about the fox it answers', () => {
+    const qs = [
+      mcq('Which of these is an example of a structural adaptation?', ['A cactus storing water in its thick stem', 'A desert fox hunting at night', 'Birds migrating to Pakistan in winter'], {
+        wrong: {
+          1: "This is a behavioural adaptation, as it's something the fox DOES. Remember, a structural adaptation is a physical body part.",
+          2: "This is a behavioural adaptation, as it's something the bird DOES. Remember, a structural adaptation is a physical body part.",
+        },
+      }),
+      mcq('Which of these is a behavioural adaptation?', ['A desert fox hunting only at night', 'A desert fox having large ears', 'A bird having wings']),
+    ];
+    expect(answerLeakErrors(qs)).toEqual([expect.stringMatching(/^q1: ANSWER_LEAK — q0 gives away q1's answer «A desert fox hunting only at night»: q0's wrong-option feedback/)]);
+  });
+
+  test('a key with its English gloss in brackets is stated by either half («ٹرف (trough)»)', () => {
+    const qs = [
+      mcq('عرضی لہر (transverse wave) میں سب سے اونچے پوائنٹ کو کیا کہتے ہیں؟', ['کرسٹ (crest)', 'ٹرف (trough)', 'مین پوائنٹ (mean point)'], {
+        wrong: { 1: 'ٹرف لہر کا سب سے نچلا حصہ ہوتا ہے، سب سے اونچا نہیں۔ سب سے اونچا پوائنٹ کرسٹ کہلاتا ہے۔' },
+      }),
+      mcq('عرضی لہر کے مین پوائنٹ سے سب سے نچلے پوائنٹ کو کیا کہتے ہیں؟', ['ٹرف (trough)', 'پیک پوائنٹ (peak point)', 'کرسٹ (crest)']),
+    ];
+    expect(answerLeakErrors(qs)).toEqual([expect.stringMatching(/^q1: ANSWER_LEAK — q0 gives away q1's answer «ٹرف \(trough\)»/)]);
+  });
+
   test('a stem that names the later answer in passing order ("between the crust and the outer core") gives it away', () => {
     const qs = [
       mcq('Which layer lies between the crust and the outer core?', ['mantle', 'inner core', 'crust']),
@@ -221,7 +244,9 @@ function grammar() {
 /** q0's explanation states q2's answer (Father → Mother). */
 const leaky = () => { const qs = grammar(); qs[0] = { ...qs[0], explanation: 'ہر masculine noun کا ایک feminine noun ہوتا ہے، جیسے Father کا جوڑا Mother ہے۔' }; return qs; };
 const FIXED_Q2 = gq({ question: 'Grandfather کا feminine noun کیا ہے؟', options: ['Grandmother', 'Granddaughter', 'Aunt'] });
-const TRANSCRIPT = [...grammar(), FIXED_Q2].map((q) => `استاد: ${moment(q.options[0])}۔`).join('\n').repeat(4);
+/** A lesson line no question quotes: what the last leak rewrite should be offered to copy. */
+const UNUSED_LINE = 'آج ہم نے Nephew اور Niece کے جوڑے پر بھی بات کی۔';
+const TRANSCRIPT = `${[...grammar(), FIXED_Q2].map((q) => `استاد: ${moment(q.options[0])}۔`).join('\n')}\nاستاد: ${UNUSED_LINE}\n`.repeat(4);
 
 function reply(obj) { return { choices: [{ message: { content: JSON.stringify(obj) }, finish_reason: 'stop' }], usage: { cost: 0.01 } }; }
 const promptOf = (call) => call[0].messages[0].content;
@@ -279,6 +304,21 @@ describe('on the generate path, flag on: repair, else drop within the floor, nev
     const rw = mockCreate.mock.calls.map(promptOf).filter((p) => /REWRITE THESE QUESTIONS/.test(p));
     expect(rw[rw.length - 1]).toMatch(/q0 gives away q2's answer/);
     expect(logEvent.mock.calls.map((c) => c[0])).toContain('transcript_quiz.answer_leaks');
+  });
+
+  test('the last leak rewrite is shown lesson lines no question uses yet, so its new question can quote the lesson', async () => {
+    const bad = leaky();
+    mockCreate.mockImplementation((call) => (isRewrite(call)
+      ? Promise.resolve(reply({ questions: [{ index: 2, ...bad[2] }] }))
+      : Promise.resolve(reply({ lesson_summary: EN_SUMMARY, questions: bad }))));
+    wire({ gates: true });
+    await Gen.process(QID, {});
+    const rw = mockCreate.mock.calls.map(promptOf).filter((p) => /REWRITE THESE QUESTIONS/.test(p));
+    const last = rw[rw.length - 1];
+    expect(last).toMatch(/q0 gives away q2's answer/);
+    // the transcript line no question quotes yet, offered to copy word for word
+    expect(last).toContain('these moments are not used yet:');
+    expect(last).toContain(UNUSED_LINE);
   });
 
   test('an aside in an earlier explanation is taken out: all eight questions kept, no extra rewrite', async () => {
