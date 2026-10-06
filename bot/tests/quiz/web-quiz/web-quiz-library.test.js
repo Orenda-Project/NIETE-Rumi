@@ -10,6 +10,8 @@ process.env.R2_SECRET_ACCESS_KEY = 'test-only';
 process.env.R2_BUCKET_NAME = 'test-bucket';
 
 jest.mock('../../../shared/config/supabase', () => ({}));
+const mockKidFromHub = jest.fn();
+jest.mock('../../../shared/services/quiz/web-quiz-hub', () => ({ kidFromHub: (...a) => mockKidFromHub(...a) }), { virtual: true });
 jest.mock('../../../shared/services/queue/sqs-queue.service', () => ({ queueJob: jest.fn().mockResolvedValue({ MessageId: 'm1' }) }));
 jest.mock('../../../shared/services/cache/railway-redis.service', () => ({
   setNX: jest.fn(async () => true), get: jest.fn(async () => null), set: jest.fn(async () => true), delete: jest.fn(async () => true),
@@ -304,5 +306,24 @@ describe('review fixes', () => {
       await Lib.lib('AB12CD', { st: st(), s: 'Science' });
       expect(log).not.toHaveBeenCalled();
     } finally { log.mockRestore(); }
+  });
+});
+
+describe('lib from the hub', () => {
+  test('the child named by the hub: their grade, their done marks, the class code and k (their chip on that code)', async () => {
+    mockKidFromHub.mockResolvedValue({ studentId: KID_A, grade: '3', rootId: SC });
+    const out = await Lib.libHub('hubtoken', { kid: 'chip-1', s: 'Science' });
+    expect(mockKidFromHub).toHaveBeenCalledWith('hubtoken', 'chip-1');
+    const [leaves, flower] = out.chapters[1].videos;
+    expect(leaves.done).toBe(true);
+    expect(flower).toMatchObject({ code: 'VID001', k: T.chipId('sc-v1', KID_A) });
+    expect((await Lib.libHub('hubtoken', { kid: 'chip-1' })).subjects.map((x) => x.key)).toEqual(['English', 'Maths', 'Science']);
+  });
+  test('a bad hub token: 401; no class code yet: lessons without codes (the page asks start())', async () => {
+    mockKidFromHub.mockResolvedValue(null);
+    await expect(Lib.libHub('x', { kid: 'y' })).rejects.toMatchObject({ status: 401 });
+    mockKidFromHub.mockResolvedValue({ studentId: KID_A, grade: '3', rootId: null });
+    const out = await Lib.libHub('x', { kid: 'y', s: 'Science' });
+    expect(out.chapters[1].videos.every((v) => !v.code && !v.k)).toBe(true);
   });
 });
