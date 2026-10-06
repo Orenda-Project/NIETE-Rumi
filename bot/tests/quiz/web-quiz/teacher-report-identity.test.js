@@ -50,6 +50,8 @@ test('a bound class: its deduplicated roster, list numbers, and the typed child 
   expect(r.provisional).toEqual([expect.objectContaining({ sessionId: 's3', typed: 'Dansh', correct: 5, total: 5 })]);
   // scores are the report's own counting: three children finished
   expect(r.summary.played).toBe(3);
+  // the class tile pairs the children ON the list with the class size: Ayesha + Bilal of 8
+  expect(r.summary).toMatchObject({ onList: 2, of: 8 });
   const ayesha = r.played.find((p) => p.first === 'Ayesha');
   expect(ayesha).toMatchObject({ roll: 1, onList: true, correct: 4 });
   expect(r.played.find((p) => p.first === 'Dansh')).toMatchObject({ onList: false, roll: null });

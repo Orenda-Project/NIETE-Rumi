@@ -115,7 +115,7 @@ describe('quizReport', () => {
     expect(r.roster).toMatchObject({ state: 'known', className: '3-B', of: 4 });
     expect(r.roster.lists).toEqual([expect.objectContaining({ label: '3-B' })]);
     expect(r.played.map((p) => [p.first, p.roll, p.correct])).toEqual([['Amna', 1, 4], ['Bilal', 2, 1]]);
-    expect(r.summary).toMatchObject({ played: 2, of: 4, avg: 63, total: 4 });
+    expect(r.summary).toMatchObject({ played: 2, onList: 2, of: 4, avg: 63, total: 4 });
     // kid 3 started but did not finish; kid 4 never opened it — both still to play
     expect(r.notPlayed).toEqual([
       { studentId: kid(3), first: 'Chand', roll: 3 }, { studentId: kid(4), first: 'Dua', roll: 4 },
