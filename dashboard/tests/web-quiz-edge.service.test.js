@@ -106,6 +106,12 @@ describe('web quiz edge: forwarding /api/wq/* -> bot /api/internal/wq/*', () => 
     expect(calls[0].opts.method).toBe('GET');
   });
 
+  it('forwards the peer pulse poll (GET, session token + since) to the bot', async () => {
+    await req(srv, 'GET', '/api/wq/pulse/AB12CD?st=abc&since=1700000000000');
+    expect(calls[0].url).toBe(`${BOT}/api/internal/wq/pulse/AB12CD?st=abc&since=1700000000000`);
+    expect(calls[0].opts.method).toBe('GET');
+  });
+
   it('forwards "watch another video": the list (GET, with the session token) and the start (POST)', async () => {
     await req(srv, 'GET', '/api/wq/videos/AB12CD?st=abc');
     expect(calls[0].url).toBe(`${BOT}/api/internal/wq/videos/AB12CD?st=abc`);

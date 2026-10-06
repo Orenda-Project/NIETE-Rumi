@@ -488,7 +488,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       vs: { win: 'You beat the challenge!', tie: "It's a tie!", lose: 'So close! Play again?' }, vsYou: 'You', frOut: { win: 'beat you!', tie: 'tie', lose: 'you won' },
       offWait: 'Your results will reach your teacher when you are back online.', offDone: 'All done! Your answers are saved on this phone.', tryNow: 'Send now',
       offline: 'No internet right now. Your answers are saved on this phone.', tooFew: 'Answer a few more questions first.', oops: 'Something went wrong. Please try again.',
-      friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child'
+      friends: 'Friends who finished', home: 'Home', yourClass: 'Your class', check: 'Check', pickAll: 'Tap every right answer, then Check.', previewPlay: 'Try it as a child',
+      pulse: function (f, n) { return (f || 'A friend') + ' got Q' + n + ' right ✓'; }
     },
     ur: {
       quiz: 'کوئز', from: function (t, c) { return [t ? t + ' کی طرف سے' : '', c ? String(c).replace(/ /g, '\u00A0') : ''].filter(Boolean).join(' · '); },
@@ -542,7 +543,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑی سی کمی رہ گئی! دوبارہ کھیلیں؟' }, vsYou: 'آپ', frOut: { win: 'آپ سے آگے!', tie: 'برابر', lose: 'آپ کی جیت' },
       offWait: 'انٹرنیٹ واپس آتے ہی آپ کا نتیجہ استاد تک پہنچ جائے گا۔', offDone: 'سب ہو گیا! آپ کے جواب اس فون پر محفوظ ہیں۔', tryNow: 'ابھی بھیجیں',
       offline: 'ابھی انٹرنیٹ نہیں ہے۔ آپ کے جواب اس فون پر محفوظ ہیں۔', tooFew: 'پہلے کچھ اور سوالوں کے جواب دیں۔', oops: 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔',
-      friends: 'دوست جنہوں نے مکمل کیا', home: 'پہلا صفحہ', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں'
+      friends: 'دوست جنہوں نے مکمل کیا', home: 'پہلا صفحہ', yourClass: 'آپ کی کلاس', check: 'جانچیں', pickAll: 'ہر درست جواب پر ٹیپ کریں، پھر جانچیں۔', previewPlay: 'بچے کی طرح آزمائیں',
+      pulse: function (f, n) { return (f ? f : 'ایک دوست') + ' نے سوال ' + n + ' ٹھیک کیا ✓'; }
     }
   }[LANG];
 
@@ -631,8 +633,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (!S.st || !S.queue.length) return Promise.resolve();
     var batch = S.queue.slice(0, 20);
     var progressed = false;
-    flushP = api('POST', 'answers', { st: S.st, a: batch }).then(function (r) {
+    flushP = api('POST', 'answers', { st: S.st, a: batch, since: PULSE.since }).then(function (r) {
       if (r.ok) {
+        pulseFeed(r.body.pulse);
         var done = {};
         (r.body.recorded || []).concat(r.body.dup || [], r.body.unknown || []).forEach(function (q) { done[q] = 1; });
         var before = S.queue.length;
@@ -649,6 +652,83 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     return flushP;
   }
   window.addEventListener('online', function () { flushQueue(); });
+
+  /* ---------------- M17 peer pulse: "Sara got Q4 right ✓" ----------------
+     Classmates' right answers on this class code (bot web-quiz-pulse.js), fed by the /answers response
+     and, while a child sits on one question, a light poll (every 15 s after 15 s, at most 8 per question,
+     only while the tab is visible). One quiet line under the progress bar: never over the options or the
+     listen button, never in the first 3 s of a question, at most one per 20 s, gone after 2.5 s, no sound.
+     Off for grades 1-2 (they follow the voice and the pictures; a moving name competes with it), in the
+     teacher's preview, and when the page is quiet (🔕). An invited friend is "A friend", never a name. */
+  var PULSE = { since: 0, shown: 0, qid: null, qAt: 0, pend: null, held: null, wt: 0, poll: 0, polls: 0 };
+  function pulseOn() {
+    var g = parseInt(Q.grade, 10);
+    return !B.preview && SOUND && g !== 1 && g !== 2;
+  }
+  function pulseFeed(list) {
+    if (!list || !list.length) return;
+    list.forEach(function (e) { if (e && e.at > PULSE.since) PULSE.since = e.at; });
+    if (!pulseOn()) return;
+    PULSE.pend = { e: list[0], n: list.length, got: Date.now() };
+    pulseTry();
+  }
+  function pulseTry() {
+    var p = PULSE.pend;
+    if (!p) return;
+    var now = Date.now();
+    if (!PULSE.qid || !/^M[67]$/.test(ROOT.getAttribute('data-m') || '') || now - p.got > 30000 || !pulseOn()) { PULSE.pend = null; return; }
+    var wait = Math.max(PULSE.qAt + 3000, PULSE.shown ? PULSE.shown + 20000 : 0) - now;
+    if (wait > 0) { if (PULSE.wt) clearTimeout(PULSE.wt); PULSE.wt = setTimeout(pulseTry, wait); return; }
+    PULSE.pend = null;
+    // The count travels as `i`: ev() keeps `n` for the event's own name.
+    if (pulseShow(p.e)) { PULSE.shown = now; ev('pulse_shown', { i: p.n }); }
+    // It would have covered content (a tall question scrolled to "Next"): keep it for the top of the next question.
+    else PULSE.held = p;
+  }
+  // Under the bar's "Question n of N" line; when the page is scrolled so that the strip would touch an
+  // option or the listen button, it is skipped rather than drawn over them.
+  function pulseShow(e) {
+    var top = null;
+    try {
+      var bar = $('.wq-bar').getBoundingClientRect();
+      if (bar.bottom < 0) return false;
+      top = Math.max(0, Math.round(bar.bottom) + 2);
+      var hit = ['.wq-opt', '#wq-spk', '.wq-item'].some(function (sel) {
+        var el = $(sel); if (!el || !el.getBoundingClientRect) return false;
+        var r = el.getBoundingClientRect();
+        return r.height > 0 && r.top < top + 28 && r.bottom > top;
+      });
+      if (hit) return false;
+    } catch (x) {}
+    var t = document.createElement('div');
+    t.className = 'wq-pulse';
+    t.setAttribute('aria-hidden', 'true');
+    t.textContent = T.pulse(e.invited ? null : e.first, e.qn);
+    if (top != null) t.style.top = top + 'px';
+    ROOT.appendChild(t);
+    // Fixed, so a scroll would slide it over the stem or the options: it goes at the first scroll.
+    function gone() { t.hidden = true; if (t.parentNode) t.parentNode.removeChild(t); try { window.removeEventListener('scroll', gone); } catch (x) {} }
+    try { window.addEventListener('scroll', gone, { passive: true }); } catch (x) {}
+    setTimeout(gone, 2500);
+    return true;
+  }
+  function pulseStop() { if (PULSE.poll) clearInterval(PULSE.poll); PULSE.poll = 0; }
+  function pulseQuestion(q, at) {
+    PULSE.qid = q.qid; PULSE.qAt = at; PULSE.polls = 0;
+    pulseStop();
+    if (!pulseOn()) return;
+    // A pulse held back because it would have covered the last question: shown 3 s into this one (if under 60 s old).
+    var h = PULSE.held; PULSE.held = null;
+    if (h && at - h.got <= 60000 && !PULSE.pend) { PULSE.pend = { e: h.e, n: h.n, got: at }; pulseTry(); }
+    PULSE.poll = setInterval(function () {
+      if (PULSE.qid !== q.qid || S.answers[q.qid] || ROOT.getAttribute('data-m') !== 'M6' || PULSE.polls >= 8 || !S.st) { pulseStop(); return; }
+      if (document.visibilityState !== 'visible') return;
+      PULSE.polls += 1;
+      api('GET', 'pulse/' + CODE + '?st=' + encodeURIComponent(S.st) + '&since=' + PULSE.since)
+        .then(function (r) { if (r.ok) pulseFeed(r.body.pulse); }, function () {});
+    }, 15000);
+  }
+  /* ---------------- end peer pulse ---------------- */
 
   /* ---------------- the shared feedback voice ----------------
      Lines recorded ONCE for every quiz (public/wq/voice/<lang>/<set>-<i>.mp3, manifest.json beside them,
@@ -1537,6 +1617,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     WQI.wireZoom(ROOT, T);
     if (!retry) ahead(i);
     ev(retry ? 'retry_view' : 'question_view', { qid: q.qid, i: i + 1 });
+    if (!retry) pulseQuestion(q, shown); else PULSE.qid = null;
 
     // Jugnu's hint (q.hint, written with the lesson in mind and checked in code never to give the
     // answer): a tap shows it beside a thinking Jugnu and plays its own clip. A question with no hint

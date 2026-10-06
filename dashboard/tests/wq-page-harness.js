@@ -97,7 +97,9 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   const fireDoc = (n) => (dl[n] || []).forEach((fn) => fn({}));
   const runTimers = (maxMs = Infinity) => { const due = timers.filter((t) => t.fn && t.ms <= maxMs); due.forEach((t) => { const f = t.fn; t.fn = null; f(); }); return due.length; };
   const fire = (n) => (wl[n] || []).forEach((fn) => fn({}));
-  return { ctx, root, els, fetches, wq: ctx.__wq, html: () => root.innerHTML, hist, tap, back, moment, toasts, fireDoc, timers, runTimers, fire, ls };
+  const pulses = () => created.filter((e) => e.className === 'wq-pulse').map((e) => e.textContent);
+  const pulseEls = () => created.filter((e) => e.className === 'wq-pulse');
+  return { ctx, root, els, fetches, wq: ctx.__wq, html: () => root.innerHTML, hist, tap, back, moment, toasts, fireDoc, timers, runTimers, fire, ls, pulses, pulseEls, winListeners: wl };
 }
 const flush = () => new Promise((r) => setImmediate(r));
 module.exports = { page, rule, flush, SRC, CSS, TAIL };

@@ -45,6 +45,7 @@ const { teacherLabel } = require('./quiz-teacher-label');
 const Roster = require('./web-quiz-roster');
 const Identity = require('./web-quiz-identity');
 const IdRoster = require('./web-quiz-identity-roster');
+const Pulse = require('./web-quiz-pulse');
 const WebQuizBrand = require('../../config/web-quiz-brand');
 const { orgName, botName } = require('../../config/branding');
 
@@ -1195,6 +1196,14 @@ async function whoClass(body = {}) {
 
 // ─── E4 answers ─────────────────────────────────────────────────────────────
 
+/** The name the page shows for this child (an Urdu quiz: the class list's Urdu spelling), looked up once per session. */
+async function pulseName(s) {
+  const known = Pulse.knownName(s.id);
+  if (known !== undefined) return known;
+  const nameOf = await shownNames(await codeLanguage(s.share_code_id), [s.student_id]);
+  return Pulse.rememberName(s.id, nameOf(s.student_id, s.student_name));
+}
+
 async function recordAnswers(body = {}) {
   requireOn();
   const { s } = await sessionFromToken(body.st);
@@ -1223,12 +1232,12 @@ async function recordAnswers(body = {}) {
       response_time_seconds: Number.isFinite(ms) && ms >= 0 ? Math.min(3600, Math.round(ms / 1000)) : null,
     });
   }
-  if (!fresh.length) return out;
+  if (!fresh.length) return withPulse(s, body, out, fresh, questions);
   // A phone back from offline sends its whole queue at once: one insert, not one per answer.
   const { error } = await supabase.from('quiz_answers').insert(fresh.length === 1 ? fresh[0] : fresh);
   if (!error) {
     fresh.forEach((r) => out.recorded.push(r.question_id));
-    return out;
+    return withPulse(s, body, out, fresh, questions);
   }
   if (error.code !== '23505') {
     logToFile('❌ web-quiz: answer insert failed', { sessionId: s.id, error: error.message }, 'error');
@@ -1248,7 +1257,26 @@ async function recordAnswers(body = {}) {
     }
     out.recorded.push(r.question_id);
   }
-  return out;
+  return withPulse(s, body, out, fresh, questions);
+}
+
+/**
+ * Peer pulse (web-quiz-pulse.js): this child's newly recorded RIGHT answers go into the class's ring
+ * (never the teacher's preview), with the number the child saw; the response carries classmates'
+ * right answers since the page's `since`, only when there are some.
+ */
+async function withPulse(s, body, out, rows, questions) {
+  const right = s.user_id ? [] : rows.filter((r) => r.is_correct && out.recorded.includes(r.question_id));
+  if (right.length) {
+    // The name the page shows (an Urdu quiz: the class list's Urdu spelling), once per session; a friend has none.
+    const first = s.invited_by_student_id ? null : await pulseName(s);
+    right.forEach((r) => Pulse.push({
+      shareCodeId: s.share_code_id, sessionId: s.id, first,
+      qn: questions.findIndex((q) => q.id === r.question_id) + 1, invited: Boolean(s.invited_by_student_id),
+    }));
+  }
+  const pulse = Pulse.since({ shareCodeId: s.share_code_id, sessionId: s.id, sinceMs: body.since });
+  return pulse.length ? { ...out, pulse } : out;
 }
 
 // ─── E5 finish ──────────────────────────────────────────────────────────────
