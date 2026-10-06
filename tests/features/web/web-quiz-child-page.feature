@@ -724,3 +724,9 @@ Feature: Web child quiz page on the portal
     When a classmate answers right
     Then no peer line shows and the page never asks for one
     And a quiz graded 3 or above, or with no grade at all, shows it
+  @T447
+  Scenario: A friend opening a challenge sees the challenger, never the challenger's class
+    Given a child of "Class 3" sent a friend their challenge link
+    When the friend opens it on their own phone
+    Then the page names only the challenger and their score
+    And it shows no teacher name, no class label, no class names to pick from and no "N in your class played today"
