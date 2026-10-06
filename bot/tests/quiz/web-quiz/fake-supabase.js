@@ -37,11 +37,12 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
     const rows = table(st.t);
     if (st.op === 'insert') {
       const out = [];
+      // One INSERT is atomic, as in Postgres: a duplicate anywhere in the batch writes nothing.
+      const keys = uniques[st.t];
+      const clash = (r, i) => keys && (rows.some((x) => keys.every((k) => x[k] === r[k]))
+        || st.payload.slice(0, i).some((x) => keys.every((k) => x[k] === r[k])));
+      if (st.payload.some(clash)) return { data: null, error: { code: '23505', message: 'duplicate key' } };
       for (const r of st.payload) {
-        const keys = uniques[st.t];
-        if (keys && rows.some((x) => keys.every((k) => x[k] === r[k]))) {
-          return { data: null, error: { code: '23505', message: 'duplicate key' } };
-        }
         const row = { id: r.id || crypto.randomUUID(), created_at: new Date().toISOString(), ...r };
         rows.push(row);
         out.push(row);

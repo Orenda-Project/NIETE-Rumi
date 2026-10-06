@@ -263,6 +263,46 @@ describe('E4 POST answers + E5 POST finish', () => {
     await expect(WQ.recordAnswers({ st: 'forged', a: [] })).rejects.toMatchObject({ status: 401 });
   });
 
+  test('a catch-up batch (the phone was offline) is written in ONE insert, not one per answer', async () => {
+    const s = await WQ.startSession({ code: 'AB12CD', new: { name: 'Bilal Example', force: true } });
+    const before = fake.calls.filter((c) => c.table === 'quiz_answers' && c.op === 'insert').length;
+    const rec = await WQ.recordAnswers({ st: s.st, a: ['B', 'A', 'B', 'B'].map((slot, i) => ({ qid: qid(i + 1), slot, ms: 2000 })) });
+    expect(rec.recorded).toEqual([qid(1), qid(2), qid(3), qid(4)]);
+    expect(fake.calls.filter((c) => c.table === 'quiz_answers' && c.op === 'insert').length - before).toBe(1);
+  });
+
+  test('a batch that races another flush (unique violation) falls back row by row and loses nothing', async () => {
+    const s = await WQ.startSession({ code: 'AB12CD', new: { name: 'Nida Example', force: true } });
+    const sid = T.verify(s.st, 's').sid;
+    // The other flush lands q2 between our read of what is answered and our insert.
+    const realFrom = supabase.from;
+    let raced = false;
+    supabase.from = (t) => {
+      const b = realFrom(t);
+      if (t !== 'quiz_answers' || raced) return b;
+      const ins = b.insert.bind(b);
+      b.insert = (rows) => {
+        if (Array.isArray(rows) && rows.length > 1) {
+          raced = true;
+          fake.db.quiz_answers.push({ id: 'race', session_id: sid, question_id: qid(2), selected_option: 'C', is_correct: false });
+        }
+        return ins(rows);
+      };
+      return b;
+    };
+    try {
+      const rec = await WQ.recordAnswers({ st: s.st, a: ['B', 'A', 'B'].map((slot, i) => ({ qid: qid(i + 1), slot, ms: 1000 })) });
+      expect(raced).toBe(true);
+      expect([...rec.recorded].sort()).toEqual([qid(1), qid(3)]);
+      expect(rec.dup).toEqual([qid(2)]);
+      const mine = fake.db.quiz_answers.filter((r) => r.session_id === sid);
+      expect(mine.map((r) => r.question_id).sort()).toEqual([qid(1), qid(2), qid(3)]);
+      expect(mine.find((r) => r.question_id === qid(2)).selected_option).toBe('C');
+    } finally {
+      supabase.from = realFrom;
+    }
+  });
+
   test('finish scores from the answers table, returns card with one star per right answer, review, challenge code', async () => {
     const { s } = await play('Sana Example', ['B', 'B', 'A', 'B']);
     const out = await WQ.finishSession({ st: s.st });

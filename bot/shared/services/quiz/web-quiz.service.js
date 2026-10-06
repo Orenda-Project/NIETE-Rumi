@@ -908,27 +908,44 @@ async function recordAnswers(body = {}) {
   const questions = await loadQuestions(s.quiz_id);
   const byId = new Map(questions.map((q) => [q.id, q]));
   const already = new Set((await answeredIds(s.id)).map((r) => r.question_id));
+  const fresh = [];
   for (const a of list) {
     const qid = a && typeof a.qid === 'string' ? a.qid : null;
     const q = qid ? byId.get(qid) : null;
     const slot = a && typeof a.slot === 'string' ? a.slot.toUpperCase() : '';
     if (!q || !SLOT_RX.test(slot)) { out.unknown.push(String(qid)); continue; }
-    if (already.has(qid)) { out.dup.push(qid); continue; }
+    if (already.has(qid) || fresh.some((r) => r.question_id === qid)) { out.dup.push(qid); continue; }
     const ms = Number(a.ms);
-    const { error } = await supabase.from('quiz_answers').insert({
+    fresh.push({
       session_id: s.id, question_id: qid, selected_option: slot,
       is_correct: WebItems.isCorrect(q, slot),
       response_time_seconds: Number.isFinite(ms) && ms >= 0 ? Math.min(3600, Math.round(ms / 1000)) : null,
     });
-    // The unique (session, question) index makes a retried flush a duplicate,
-    // and a duplicate is an answer already recorded — the first one is the score.
-    if (error && error.code === '23505') { out.dup.push(qid); already.add(qid); continue; }
-    if (error) {
-      logToFile('❌ web-quiz: answer insert failed', { sessionId: s.id, error: error.message }, 'error');
+  }
+  if (!fresh.length) return out;
+  // A phone back from offline sends its whole queue at once: one insert, not one per answer.
+  const { error } = await supabase.from('quiz_answers').insert(fresh.length === 1 ? fresh[0] : fresh);
+  if (!error) {
+    fresh.forEach((r) => out.recorded.push(r.question_id));
+    return out;
+  }
+  if (error.code !== '23505') {
+    logToFile('❌ web-quiz: answer insert failed', { sessionId: s.id, error: error.message }, 'error');
+    fail(502, 'db_unavailable');
+  }
+  // The unique (session, question) index refused the batch: another flush landed some of it
+  // first (a duplicate is an answer already recorded — the first one is the score). Re-read
+  // and write the rest one row at a time.
+  const landed = new Set((await answeredIds(s.id)).map((r) => r.question_id));
+  for (const r of fresh) {
+    if (landed.has(r.question_id)) { out.dup.push(r.question_id); continue; }
+    const { error: e1 } = await supabase.from('quiz_answers').insert(r);
+    if (e1 && e1.code === '23505') { out.dup.push(r.question_id); continue; }
+    if (e1) {
+      logToFile('❌ web-quiz: answer insert failed', { sessionId: s.id, error: e1.message }, 'error');
       fail(502, 'db_unavailable');
     }
-    already.add(qid);
-    out.recorded.push(qid);
+    out.recorded.push(r.question_id);
   }
   return out;
 }

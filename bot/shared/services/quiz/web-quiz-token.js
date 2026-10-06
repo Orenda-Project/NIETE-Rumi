@@ -5,7 +5,10 @@
  * The child's web page holds three things the server later trusts, and each is
  * signed here:
  *
- *   st  session token  {k:'s', sid, d, sc, exp}   24 h, like quiz_sessions.expires_at
+ *   st  session token  {k:'s', sid, d, sc, exp}   7 days (SYNC_TTL_S): a child who finishes
+ *                                                  offline still lands the result days later;
+ *                                                  the resume window is quiz_sessions.expires_at
+ *                                                  (SESSION_TTL_S, 24 h), not this
  *   p   preview token  {k:'p', sc, t, exp}         30 days, like the share code; the
  *                                                  teacher's own run (recorded as a
  *                                                  self-test, never a child)
@@ -29,6 +32,7 @@ const crypto = require('crypto');
 const DERIVE_LABEL = 'web-quiz-token-v1';
 const SIG_LEN = 22;
 const SESSION_TTL_S = 24 * 60 * 60;
+const SYNC_TTL_S = 7 * 24 * 60 * 60;
 const PREVIEW_TTL_S = 30 * 24 * 60 * 60;
 const DEVICE_REF_RX = /^[A-Za-z0-9_-]{22}$/;
 
@@ -82,7 +86,7 @@ function verify(token, kind) {
 const nowS = () => Math.floor(Date.now() / 1000);
 
 function signSession({ sessionId, deviceRef, shareCodeId }) {
-  return sign({ k: 's', sid: sessionId, d: deviceRef, sc: shareCodeId, exp: nowS() + SESSION_TTL_S });
+  return sign({ k: 's', sid: sessionId, d: deviceRef, sc: shareCodeId, exp: nowS() + SYNC_TTL_S });
 }
 
 function signPreview({ shareCodeId, teacherUserId }) {
@@ -113,5 +117,5 @@ function animalFor(studentId) {
 module.exports = {
   secret, sign, verify, signSession, signPreview, chipId,
   newDeviceRef, cleanDeviceRef, animalFor, ANIMALS,
-  SESSION_TTL_S, PREVIEW_TTL_S,
+  SESSION_TTL_S, SYNC_TTL_S, PREVIEW_TTL_S,
 };
