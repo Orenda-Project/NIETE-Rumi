@@ -856,6 +856,40 @@ async function listStudents({ classId, teacherUserId } = {}) {
     });
 }
 
+/** The teacher's legacy list for this class (the mirror attendance reads), or null. */
+async function mirrorListId(classId, teacherUserId) {
+  const { data: mirrors } = await supabase
+    .from('student_lists')
+    .select('id, user_id, class_id, is_active')
+    .eq('class_id', classId)
+    .eq('user_id', teacherUserId)
+    .eq('is_active', true);
+  return (mirrors || [])[0] ? mirrors[0].id : null;
+}
+
+/**
+ * Enrol a child who ALREADY has a `students` row (a child who typed their name on a
+ * web quiz the class list did not have) — addStudent without the insert: the
+ * enrolment, then the attachment to the teacher's legacy list when the row has none.
+ * No list number is given (the teacher's paste order is hers to extend).
+ *
+ * @returns {Promise<{enrollment?, created?, listId?, error?}>}
+ */
+async function enrollExistingStudent({ classId, teacherUserId, studentId } = {}) {
+  if (!classId) return { error: 'missing_class' };
+  if (!teacherUserId) return { error: 'missing_teacher' };
+  if (!studentId) return { error: 'missing_student' };
+  if (!(await findAssignment(classId, teacherUserId))) return { error: 'not_assigned' };
+  const enrolled = await enrollStudent({ classId, studentId, enrolledOn: new Date().toISOString().slice(0, 10) });
+  if (enrolled.error) return { error: enrolled.error };
+  const listId = await mirrorListId(classId, teacherUserId);
+  if (listId) {
+    const { error } = await supabase.from('students').update({ list_id: listId }).eq('id', studentId).is('list_id', null);
+    if (error) logToFile('⚠️ ClassService.enrollExistingStudent: list attach failed', { studentId, error: error.message });
+  }
+  return { enrollment: enrolled.enrollment, created: enrolled.created, listId };
+}
+
 /**
  * Add a child to a class: one `students` row, one enrollment, and an attachment to
  * the adding teacher's legacy list (see the limit noted above).
@@ -874,13 +908,7 @@ async function addStudent({
   if (!(await findAssignment(classId, teacherUserId))) return { error: 'not_assigned' };
 
   // Her legacy list for this class, so attendance keeps working for her.
-  const { data: mirrors } = await supabase
-    .from('student_lists')
-    .select('id, user_id, class_id, is_active')
-    .eq('class_id', classId)
-    .eq('user_id', teacherUserId)
-    .eq('is_active', true);
-  const listId = (mirrors || [])[0] ? mirrors[0].id : null;
+  const listId = await mirrorListId(classId, teacherUserId);
 
   const { data: student, error: insErr } = await supabase
     .from('students')
@@ -1437,6 +1465,7 @@ module.exports = {
   deactivateClass,
   listClassesForTeacher,
   enrollStudent,
+  enrollExistingStudent,
   listStudents,
   addStudent,
   addStudents,
