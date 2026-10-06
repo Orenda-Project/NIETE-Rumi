@@ -499,7 +499,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     brand: await WebQuizBrand.resolveBrandKey({ db: supabase, orgName, botName }),
   };
   mark('live');
-  if (ctx.invitedByStudentId) out.challenge = await challengeOf(ctx);
+  // A friend's challenge: the page keeps the friend away from the challenger's class (its table, its group).
+  if (ctx.invitedByStudentId) { out.invited = true; out.challenge = await challengeOf(ctx); }
   // The pictures this link previews as (web-quiz-art.js): the class one, and the invite on a challenge code.
   out.art = {
     class: Art.artId('l', ctx.parent.code || ctx.code), schools: Art.artId('s', ctx.parent.code || ctx.code),
@@ -1521,6 +1522,8 @@ function rankRows(rows) {
 async function board(code, { st } = {}) {
   requireOn();
   const ctx = await resolveCode(code);
+  // A friend's challenge code is not the class: its table (classmates' first names) is not theirs to see.
+  if (ctx.invitedByStudentId) fail(404, 'not_found');
   const report = require('./video-quiz-report.service');
   // The teacher report's own loader: self-tests and invited friends out, one
   // attempt per child (first finished for a web-arm quiz).

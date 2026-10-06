@@ -426,6 +426,10 @@ function createWebQuizRouter(opts = {}) {
     } catch (_) {
       return res.status(502).type('html').send(renderClosedPage({ lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand }));
     }
+    // A friend's challenge code has no class page: the class table is the challenger's classmates'.
+    if (view === 'class' && out.status === 200 && out.body && out.body.invited) {
+      return res.status(404).type('html').send(renderClosedPage({ lang: out.body.quiz && out.body.quiz.lang === 'ur' ? 'ur' : 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand }));
+    }
     if (out.status === 200 && out.body && out.body.quiz) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       const url = `${origin}/q/${upper}${view === 'class' ? '/class' : view === 'schools' ? '/schools' : ''}`;

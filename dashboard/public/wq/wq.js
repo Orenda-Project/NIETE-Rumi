@@ -1886,7 +1886,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<p class="wq-small">' + esc(T.scoreNote) + '</p></div>' +
         (res.counted === false ? '<div class="wq-banner">' + esc(T.prac) + '</div>' : '') +
         '<button class="wq-btn wq-go" id="wq-card">' + esc(T.seeCard) + '</button>' +
-        '<button class="wq-btn wq-navy" id="wq-class">' + esc(T.classBtn) + '</button>' + moreBtn();
+        (friendRun() ? '' : '<button class="wq-btn wq-navy" id="wq-class">' + esc(T.classBtn) + '</button>') + moreBtn();
       render(h, 'M9');
       wireBar();
       sfx('done');
@@ -2035,9 +2035,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // next video of this chapter (finish's `next`), when it names one, between the score and the shares.
     var isVideo = Boolean(B.video && B.video.url);
     var nx = res.next && res.next.vid && res.next.title ? res.next : null;
-    var shares = '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>' +
+    // A friend who played a challenge is not in the challenger's class: no class table, no class group.
+    var friend = friendRun();
+    var shares = (friend ? '' : '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>') +
       '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' +
-      '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>' +
+      (friend ? '' : '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>') +
       '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>';
     var h = bar() +
       '<div class="wq-scorecard"><header>' + markHtml() + dotJoin(BR ? BR.name : '', CLS.label) + '</header><div class="wq-in">' +
@@ -2095,6 +2097,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     save();
     landing();
   }
+
+  // This page is a friend's challenge (the server says so; a challenge banner implies it).
+  function friendRun() { return Boolean(B.invited || B.challenge || (CLS.identity && CLS.identity.invited)); }
 
   // A practice round that beats the child's best earlier score on this code (finish's card.best).
   function newBest(c, total) {
