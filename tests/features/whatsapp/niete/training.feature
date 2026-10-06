@@ -2194,3 +2194,53 @@ Feature: NIETE (ICT) Teacher Training
     Then the class link is minted and sent as before, unbound
     And "web_quiz.class_bind_unavailable" is logged once
     # mintCode retries the insert without class_id on 42703 / PGRST204; a 23503 (not a classes row) too.
+
+
+  # ─────────────── The teacher's /quiz home and "My quiz reports" (W37 M3a; app_settings teacher_report_*) ───────────────
+  # /quiz for a teacher that `teacher_report_teachers` covers ("all" or a list of ids) opens a home of three
+  # reply buttons. Absent or not covering the teacher, /quiz is exactly the Flow-or-list it was.
+  # The report link is the portal's /r/<token> (the training login link owns /t/).
+
+  @quiz @config-gated @wip @draft @P1 @T330
+  Scenario: With the teacher report on for me, /quiz opens a home with three choices
+    Given app_settings "teacher_report_teachers" is "all" or lists me
+    When I send "/quiz"
+    Then I get one message in my language with three buttons: "Make a quiz", "My quiz reports" and "Class progress"
+    When I tap "Make a quiz"
+    Then I get the /quiz Flow of my lessons, the same one /quiz sent before the home existed
+    # quiz-menu-entry openQuizMenu → teacher-quiz-home sendHome (tqh_make/tqh_reports/tqh_class);
+    # whatsapp-bot.js tqh_ branch → handleHomeButton → openMakeQuiz. Events quiz_menu.home_shown, quiz_menu.choice.
+    # Unit: bot/tests/quiz/teacher-quiz-menu/teacher-quiz-home.test.js, teacher-quiz-routing.test.js. @wip.
+
+  @quiz @config-gated @negative @wip @draft @P1 @T331
+  Scenario: With the teacher report off or not listing me, /quiz is exactly what it was
+    Given "teacher_report_teachers" is absent, unreadable, or does not include me
+    When I send "/quiz"
+    Then I get the /quiz Flow of my lessons, or the lessons list when the Flow is off, and no home buttons
+
+  @quiz @config-gated @wip @draft @P1 @T332
+  Scenario: "My quiz reports" lists my sent quizzes with who played, and a tap sends that quiz's live report
+    Given the teacher report is on for me and I have sent quizzes to my class
+    When I tap "My quiz reports"
+    Then I get a list of my sent quizzes, newest first, each titled with its date and subject
+    And each row says the topic, how many children played (out of my class when the quiz's class is known) and their average
+    And a quiz nobody has played yet says "no one yet"
+    And with more than nine quizzes the last row is "Older quizzes…", which shows the next ones
+    When I tap a quiz
+    Then I get a link to that quiz's report on the portal, in my language
+    And the link opens inside WhatsApp when the approved template "teacher_report_template" is set, otherwise in my browser
+    # teacher-report-list showReports/handleReportsPick (tqr_<quizId>, tqr_page_<n>; counts by teacher-report.data);
+    # teacher-report-link sendTeacherReportLink (template body {{1}} topic, URL button = token; text fallback).
+    # Event teacher_report.link_sent {userId, quizId, scope, how}. Unit: teacher-report-list.test.js. @wip.
+
+  @quiz @config-gated @wip @draft @P2 @T333
+  Scenario: "Class progress" sends the link to the report of all my classes
+    Given the teacher report is on for me
+    When I tap "Class progress"
+    Then I get a link to the report of all my classes, by class and subject, in my language
+
+  @quiz @negative @wip @draft @P2 @T334
+  Scenario: A report row for a quiz that is not mine sends no link
+    Given a "My quiz reports" row id naming another teacher's quiz
+    When it reaches the bot from my phone
+    Then I am told the quiz could not be found, and no report link is sent
