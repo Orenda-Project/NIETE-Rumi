@@ -46,19 +46,29 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[]): { data: T |
 
 /** A v2 page: the gate, the live layout, a heading, the content, an optional bottom action. */
 export function CoachPage({
-  title, crumb, backTo, chips, dock, children,
-}: { title: ReactNode; crumb?: string; backTo?: string; chips?: ReactNode; dock?: ReactNode; children: ReactNode }) {
+  title, crumb, backTo, onBack, bare = false, chips, dock, children,
+}: {
+  title: ReactNode; crumb?: ReactNode; backTo?: string;
+  /** bd-o15qnr.9: the back arrow runs this instead of leaving (Record live asks first). */
+  onBack?: () => void;
+  /** bd-o15qnr.9: no menu — a screen where one stray tap must not leave (Record live). */
+  bare?: boolean;
+  chips?: ReactNode; dock?: ReactNode; children: ReactNode;
+}) {
+  const circle = (
+    <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#33374a]">
+      <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+    </span>
+  );
   return (
     <CoachGate>
-      <PortalLayout>
+      <PortalLayout bare={bare}>
         <div className="mx-auto flex w-full max-w-xl flex-col font-sans text-[#1d2025]">
-          {backTo ? (
+          {backTo || onBack ? (
             <header className="flex items-center gap-1 pb-2 pt-2">
-              <Link to={backTo} aria-label={C.back} className="flex h-14 w-14 shrink-0 items-center justify-center">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#33374a]">
-                  <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-                </span>
-              </Link>
+              {onBack
+                ? <button type="button" onClick={onBack} aria-label={C.back} className="flex h-14 w-14 shrink-0 items-center justify-center">{circle}</button>
+                : <Link to={backTo as string} aria-label={C.back} className="flex h-14 w-14 shrink-0 items-center justify-center">{circle}</Link>}
               <div className="min-w-0 flex-1">
                 {crumb && <div className="truncate text-[13px] font-medium text-[#6b7280]">{crumb}</div>}
                 <h1 className="truncate text-[26px] font-light leading-tight tracking-[-0.01em]">{title}</h1>
@@ -70,7 +80,7 @@ export function CoachPage({
               {chips && <div className="flex flex-wrap gap-2">{chips}</div>}
             </header>
           )}
-          {backTo && chips && <div className="flex flex-wrap gap-2 px-1 pb-2">{chips}</div>}
+          {(backTo || onBack) && chips && <div className="flex flex-wrap gap-2 px-1 pb-2">{chips}</div>}
           <div className="flex flex-col gap-3 pb-4">{children}</div>
           {dock && (
             <div className="sticky bottom-20 z-10 -mx-4 flex gap-2.5 bg-[#f3f4f6]/95 px-4 pb-2 pt-3 md:bottom-4 md:mx-0 md:px-0">{dock}</div>

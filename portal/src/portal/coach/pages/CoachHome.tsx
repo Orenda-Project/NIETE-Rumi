@@ -3,6 +3,7 @@ import { CalendarDays, Check, Eye, GraduationCap, School } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { coach } from "../../services/api";
 import { COACH_COPY as C } from "../copy";
+import { hoursUntil } from "../time";
 import { CoachPage, PageChip, SectionLabel, Chip, IconCircle, TimeTile, RowText, TapRow, Chevron, Loading, Failed, useLoad } from "../ui";
 import type { CoachVisit } from "../types";
 
@@ -14,15 +15,6 @@ import type { CoachVisit } from "../types";
 
 function todayChip() {
   return new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-}
-
-function hoursUntil(slot: string | null): number | null {
-  const m = /^(\d{2}):(\d{2})$/.exec(String(slot || ""));
-  if (!m) return null;
-  const now = new Date();
-  const at = new Date(now);
-  at.setHours(Number(m[1]), Number(m[2]), 0, 0);
-  return Math.round((at.getTime() - now.getTime()) / 3600000);
 }
 
 function CurrentVisit({ v }: { v: CoachVisit }) {

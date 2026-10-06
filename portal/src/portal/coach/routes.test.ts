@@ -18,6 +18,9 @@ describe("coach v2 routes", () => {
     ["/portal/coach/observe", "CoachObserve"],
     ["/portal/coach/observe/pick", "CoachObservePick"],
     ["/portal/coach/visit/:id", "CoachVisit"],
+    ["/portal/coach/visit/:id/record", "CoachRecord"],
+    ["/portal/coach/visit/:id/attach", "CoachAttach"],
+    ["/portal/coach/visit/:id/check", "CoachCheckSend"],
     ["/portal/coach/reports", "CoachReports"],
     ["/portal/coach/people", "CoachPeople"],
     ["/portal/coach/school/:emis", "CoachSchool"],
@@ -29,6 +32,6 @@ describe("coach v2 routes", () => {
 
   it("every v2 page gates itself through CoachPage", () => {
     const ui = readFileSync(resolve(__dirname, "ui.tsx"), "utf8");
-    expect(ui).toMatch(/<CoachGate>\s*<PortalLayout>/);
+    expect(ui).toMatch(/<CoachGate>\s*<PortalLayout[ >]/);
   });
 });

@@ -101,4 +101,15 @@ export type TeacherData = {
   history: { id: string; date: string | null; kind: "HITL" | "DC"; score: number | null }[];
   nextVisit: CoachVisit | null;
 };
-export type VisitData = { visit: CoachVisit; teacher: CoachTeacher | null; lastVisit: { date: string | null; score: number | null } | null };
+/** bd-o15qnr.9 — her latest HITL visit, for the Visit page's Last visit row. */
+export type LastVisit = {
+  id?: string | null;
+  date: string | null;
+  score: number | null;
+  step?: ReportStep;
+  byMe?: boolean;
+  observerName?: string | null;
+  /** Started in the portal, so it opens in the portal's observation view. */
+  portal?: boolean;
+};
+export type VisitData = { visit: CoachVisit; teacher: CoachTeacher | null; lastVisit: LastVisit | null };
