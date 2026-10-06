@@ -181,6 +181,16 @@ const CHROME = {
     guidanceCheck: 'Ask this at the end',
     guidanceSecure: 'What they have secure',
     guidanceStretch: 'How to stretch them tomorrow',
+    // The teacher web report's half of the PDF (only when the teacher has it).
+    notPlayedYet: 'Not played yet',
+    notPlayedCount: (n, of) => (of ? `${n} of the ${of} children on the class list` : `${n} children`),
+    // The small number is the child's place on the teacher's own list (the order
+    // it was pasted in), not a register roll: it is named for what it is.
+    listNoKey: 'small number = list no.',
+    allPlayed: 'Everyone on the class list has played.',
+    // No link in a PDF: it is forwarded to class groups, and a report link in
+    // it would open every child's score to whoever gets the file.
+    livePointer: 'To remind the class or see the live report: send /quiz, then tap “My quiz reports”.',
   },
   ur: {
     // quiz stays in LATIN. `کوئز` is a transliteration of an English word, not
@@ -210,6 +220,16 @@ const CHROME = {
     guidanceCheck: 'آخر میں یہ پوچھیں',
     guidanceSecure: 'بچوں کو یہ پکا آ گیا',
     guidanceStretch: 'کل انہیں ایک قدم آگے کیسے لے جائیں',
+    // «کھیلا» with نے is the ergative and «کھلے گا» agrees with پیغام: no
+    // verb here is gendered by a person (gender-neutral rule).
+    notPlayedYet: 'ابھی نہیں کھیلا',
+    notPlayedCount: (n, of) => (of ? `کلاس کی فہرست کے ${of} بچوں میں سے ${n}` : `${n} بچے`),
+    listNoKey: 'چھوٹا نمبر = لسٹ نمبر',
+    allPlayed: 'کلاس کی فہرست کے سب بچوں نے کھیل لیا ہے۔',
+    // «میری کوئز رپورٹس» is the /quiz menu button's own label (tqhReports).
+    // /quiz is an LTR atom, isolated (U+2066…U+2069): bare, the slash lands
+    // on the wrong side and it reads "quiz/".
+    livePointer: 'کلاس کو یاد دلانے یا تازہ رپورٹ دیکھنے کے لیے \u2066/quiz\u2069 بھیجیں، پھر «میری کوئز رپورٹس» دبائیں۔',
   },
 };
 
@@ -272,6 +292,10 @@ function renderVideoQuizReportHtml(d) {
     started = 0, finished = 0, average = 0,
     students = [], hardest = [], guidance = null, unfinished = [],
     generatedAt = '', language = 'en',
+    // From teacher-report.data.js via the service, only for a teacher with the
+    // web report: `notPlayed` is null unless the quiz's ONE class is known.
+    // `livePointer` prints where the live report lives (/quiz), never a link.
+    notPlayed = null, rosterOf = null, livePointer = false,
   } = d || {};
   // The reader's language and the quiz's language are two independent facts.
   // Defaults to the chrome language so a single-language caller is unchanged.
@@ -378,6 +402,28 @@ function renderVideoQuizReportHtml(d) {
   // OUTSIDE the spans, in plain (unescaped, chrome-neutral) punctuation.
   const notFinished = unfinished.length ? `
     <div class="unfin"><b>${L(C.notFinishedYet)}</b> ${unfinished.map(nameCell).join(CRTL ? '، ' : ', ')}</div>` : '';
+
+  // NOT PLAYED YET — the class list's children with no counted finish, greyed,
+  // by roll number, first names only (the teacher's own document). Then a
+  // pointer (not a link) to the live report in /quiz.
+  const knownClass = Array.isArray(notPlayed);
+  // The name first; the list no. after it, small and grey — a sort key the
+  // teacher recognises, never an identity.
+  const npChips = knownClass ? notPlayed.map((k) => `<span class="np-chip">${nameCell(k.first)}${
+    k.roll != null ? `<span class="np-roll">${esc(k.roll)}</span>` : ''}</span>`).join('') : '';
+  const hasListNo = knownClass && notPlayed.some((k) => k.roll != null);
+  const npBlock = knownClass ? `
+    <div class="np">
+      <div class="label">${L(C.notPlayedYet)}</div>
+      ${notPlayed.length
+    ? `<div class="np-note">${L(C.notPlayedCount(notPlayed.length, rosterOf))}${hasListNo ? ` &middot; ${L(C.listNoKey)}` : ''}</div><div class="np-grid">${npChips}</div>`
+    : `<div class="np-note">${L(C.allPlayed)}</div>`}
+    </div>` : '';
+  // Where the live report and the class reminder live — the teacher's /quiz
+  // menu. Words only: a report link printed here would travel with every
+  // forwarded copy of this PDF.
+  const linksBlock = livePointer ? `
+    <div class="rl"><div class="rl-hint">${L(C.livePointer)}</div></div>` : '';
 
   // guidance is one of: a legacy plain string (one unlabelled paragraph), an
   // object shaped either {muddled,board,check} or {secure,stretch} (three/two
@@ -510,6 +556,17 @@ ${RTL ? '.roster>.label{padding-top:10px}' : ''}
 .unfin{font-family:${bodyFam};margin-top:16px;background:#f5f6f8;border:1px dashed #d9dde4;border-radius:10px;padding:14px 18px;font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;color:${PALETTE.muted};line-height:${RTL ? `${leadingAt(1.9)}` : 'normal'}}
 .unfin b{color:${PALETTE.slate}}
 
+/* The still-to-play list is greyed on purpose: a follow-up list, not a ranking. */
+.np{margin-top:22px}
+${RTL ? '.np>.label{padding-top:10px}' : ''}
+.np-note{font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;color:${PALETTE.muted};margin:-6px 0 12px${RTL ? `;line-height:${UR_UI_LEADING}` : ''}}
+.np-grid{display:flex;flex-wrap:wrap;gap:8px}
+.np-chip{display:inline-flex;align-items:center;gap:8px;background:#f1f2f5;border:1px solid #e3e6ec;border-radius:10px;padding:5px 12px;color:#7a839c;font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;break-inside:avoid;page-break-inside:avoid}
+.np-chip .content[dir="rtl"]{line-height:${leadingAt(1.5)}}
+.np-roll{font-family:${FONTS.bodyLatin};font-weight:400;font-size:${TYPE_FLOOR.small}px;color:#A7AEBB;direction:ltr;unicode-bidi:isolate}
+.rl{margin-top:16px;break-inside:avoid;page-break-inside:avoid}
+.rl-hint{flex-basis:100%;font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;color:${PALETTE.muted}${RTL ? `;line-height:${UR_UI_LEADING}` : ''}}
+
 /* The gap above the guidance box is PADDING on a wrapper, not a margin on
    the box: a top margin is dropped at a page break, so when the box moves
    to its own page it lands flush against the paper edge. */
@@ -600,6 +657,8 @@ ${RTL ? '.roster>.label{padding-top:10px}' : ''}
     </div>` : ''}
 
     ${notFinished}
+    ${npBlock}
+    ${linksBlock}
   </div>
 
   ${guidanceBlock ? `<div class="trywrap">${guidanceBlock}</div>` : ''}

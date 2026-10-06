@@ -115,13 +115,16 @@ test('an lp_v8 quiz’s report carries the digest-driven objectives, the same as
 test('markReportSent flips an lp_v8 quiz to report_sent, so /quiz stops saying "sent"', async () => {
   stub({ id: 'q1', quiz_source: 'lp_v8', language: 'en', subject: 'maths', grade: '2', meta: { digest: DIGEST } });
   await report.generate('sc-1', { reason: 'scheduled' });
-  expect(quizWrites).toContainEqual({ status: 'report_sent' });
+  // The same update also stores the PDF's reteach guidance (teacher web report).
+  expect(quizWrites).toContainEqual(expect.objectContaining({
+    status: 'report_sent', meta: expect.objectContaining({ report_guidance: expect.any(Object) }),
+  }));
 });
 
 test('a transcript quiz still flips — and a video quiz still does not', async () => {
   stub({ id: 'q1', quiz_source: 'transcript', language: 'en', subject: 'maths', grade: '2', meta: { digest: DIGEST } });
   await report.generate('sc-1', { reason: 'scheduled' });
-  expect(quizWrites).toContainEqual({ status: 'report_sent' });
+  expect(quizWrites).toContainEqual(expect.objectContaining({ status: 'report_sent' }));
 
   htmlToPdf.mockClear();
   stub({ id: 'q1', quiz_source: 'video', language: 'en', subject: 'maths', grade: '2', meta: { digest: DIGEST } });
