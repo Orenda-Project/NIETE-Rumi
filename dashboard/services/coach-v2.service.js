@@ -131,7 +131,7 @@ const SQL = {
   `,
 
   TEACHER_HISTORY: `
-    SELECT id, created_at, status, observation_type,
+    SELECT id, created_at, status, debrief_status, observation_type, observer_user_id, audio_url,
            jsonb_build_object('scores', analysis_data->'scores') AS analysis_data
     FROM coaching_sessions
     WHERE user_id = $1::uuid AND status NOT IN ('failed', 'cancelled')
@@ -169,6 +169,22 @@ const SQL = {
 
   COACHES: `
     SELECT id, name FROM users WHERE role = 'coach' ORDER BY name ASC NULLS LAST
+  `,
+
+  // bd-o15qnr.10 — one HITL observation, for its read-only report. The caller
+  // re-checks that its teacher is in the coach's patch before serving it.
+  OBSERVATION_BY_ID: `
+    SELECT id, created_at, status, debrief_status, observation_type, user_id, observer_user_id,
+           analysis_data->'scores'                AS scores,
+           analysis_data->>'executive_summary'    AS summary,
+           analysis_data->'teacher_delivery'      AS delivery
+    FROM coaching_sessions
+    WHERE id = $1::uuid AND observation_type = 'leader_observation'
+    LIMIT 1
+  `,
+
+  USER_NAME: `
+    SELECT name FROM users WHERE id = $1::uuid LIMIT 1
   `,
 };
 
@@ -419,18 +435,79 @@ async function getCoachTeacher(query, leaderUserId, teacherExtId, opts = {}) {
     teacher.rumiUserId ? query(SQL.TEACHER_HISTORY, [teacher.rumiUserId]) : Promise.resolve({ rows: [] }),
     query(SQL.MY_SCHEDULES, [leaderUserId, today, addDays(today, 120), today]),
   ]);
-  const history = (historyRes.rows || []).map((r) => ({
-    id: r.id,
-    date: isoStamp(r.created_at),
-    kind: r.observation_type === 'leader_observation' ? 'HITL' : 'DC',
-    score: scoreOf(r),
-  }));
+  const history = (historyRes.rows || []).map((r) => historyRow(r, leaderUserId));
   const next = (schedRes.rows || []).find((r) => r.status === 'upcoming' && r.teacher_ext_id === teacherExtId
     && isoDay(r.scheduled_for) >= today);
   return {
     teacher: publicTeacher(teacher),
     history,
     nextVisit: next ? shapeVisit(next, today) : null,
+  };
+}
+
+/**
+ * bd-o15qnr.10 — one History row and what it opens.
+ *
+ *   'observe' — her own portal-started observation: its existing page, which
+ *               shows the step it is at (portal-observe.service `loadOwn`
+ *               opens only these);
+ *   'report'  — any other HITL whose report is out: the v2 read-only report;
+ *   null      — a HITL still at draft/talk on WhatsApp, and every DC session
+ *               (a DC report is the teacher's own: /coaching-session/:id).
+ */
+function historyRow(r, leaderUserId) {
+  const hitl = r.observation_type === 'leader_observation';
+  const step = hitl ? stepOf(r) : null;
+  const audio = r.audio_url ? String(r.audio_url).split('?')[0] : '';
+  const ownPortal = hitl && r.observer_user_id === leaderUserId && PORTAL_KEY_RX.test(audio);
+  let open = null;
+  if (ownPortal) open = 'observe';
+  else if (hitl && step === 'sent') open = 'report';
+  return {
+    id: r.id,
+    date: isoStamp(r.created_at),
+    kind: hitl ? 'HITL' : 'DC',
+    score: scoreOf(r),
+    step,
+    open,
+  };
+}
+
+/**
+ * bd-o15qnr.10 — one sent HITL report, read-only: when it was, its score and
+ * summary, who observed, and the stored key of the report image the teacher
+ * received (the route signs it). Null unless the observation's teacher is in
+ * this coach's patch AND its report is out — the same patch guard as
+ * getCoachTeacher.
+ */
+async function getCoachObservation(query, leaderUserId, sessionId, opts = {}) {
+  const today = opts.today || new Date().toISOString().slice(0, 10);
+  const res = await query(SQL.OBSERVATION_BY_ID, [sessionId]);
+  const row = (res.rows || [])[0];
+  if (!row || !row.user_id) return null;
+  if (stepOf(row) !== 'sent') return null;
+
+  const teachers = await loadTeachers(query, leaderUserId, today);
+  const teacher = teachers.find((t) => t.rumiUserId && t.rumiUserId === row.user_id);
+  if (!teacher) return null;
+
+  const self = !!row.observer_user_id && row.observer_user_id === leaderUserId;
+  let observerName = null;
+  if (row.observer_user_id) {
+    const n = await query(SQL.USER_NAME, [row.observer_user_id]);
+    observerName = ((n.rows || [])[0] || {}).name || null;
+  }
+  const delivery = row.delivery || {};
+  return {
+    id: row.id,
+    date: isoStamp(row.created_at),
+    score: scoreOf({ status: row.status, analysis_data: { scores: row.scores } }),
+    summary: row.summary || null,
+    teacher: { name: teacher.name, teacherExtId: teacher.teacherExtId, schoolName: teacher.schoolName },
+    observer: { self, name: observerName },
+    sentAt: delivery.sent_at || delivery.send_requested_at || null,
+    caption: delivery.caption || null,
+    reportKey: delivery.report_key || null,
   };
 }
 
@@ -623,6 +700,7 @@ module.exports = {
   getCoachPeople,
   getCoachSchool,
   getCoachTeacher,
+  getCoachObservation,
   getCoachSchedule,
   getCoachHome,
   getCoachVisit,

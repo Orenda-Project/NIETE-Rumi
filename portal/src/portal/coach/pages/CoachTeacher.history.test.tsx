@@ -1,0 +1,90 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, within, fireEvent } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+
+vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
+vi.mock("../CoachGate", () => ({ default: ({ children }: any) => <>{children}</> }));
+vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Hataf", role: "coach", phoneNumber: "923001234567" }, loading: false }) }));
+vi.mock("../../services/api", () => ({ coach: { getTeacher: vi.fn(), getObservation: vi.fn() } }));
+import { coach } from "../../services/api";
+import CoachTeacher from "./CoachTeacher";
+import CoachObservation from "./CoachObservation";
+
+/**
+ * bd-o15qnr.10 — a teacher's History opens her HITL reports. Her own portal
+ * observation opens its existing page; any other HITL with its report out
+ * opens the v2 report; a DC session (and a HITL still on WhatsApp) is
+ * information only — no link, no chevron.
+ */
+const C = coach as any;
+const TEACHER = {
+  success: true,
+  teacher: {
+    teacherExtId: "923001110001", name: "Ayesha Bibi", phone: "923001110001", schoolName: "IMSG I-10/1",
+    schoolExtId: "niete:110", emis: "110", hitl: 3, dc: 7, avgHitl: 61, daysSinceVisit: 22, daysSinceTraining: 12, trainingModules: 4,
+  },
+  history: [
+    { id: "h-portal", date: "2026-10-05T09:00:00Z", kind: "HITL", score: 66, step: "talk", open: "observe" },
+    { id: "h-wa-sent", date: "2026-09-14T09:00:00Z", kind: "HITL", score: 61, step: "sent", open: "report" },
+    { id: "h-wa-draft", date: "2026-08-20T09:00:00Z", kind: "HITL", score: null, step: "draft", open: null },
+    { id: "h-dc", date: "2026-08-10T09:00:00Z", kind: "DC", score: 55, step: null, open: null },
+  ],
+  nextVisit: null,
+};
+const REPORT = {
+  success: true,
+  id: "h-wa-sent", date: "2026-09-14T09:00:00Z", score: 61, summary: "Clear modelling; more checks for understanding.",
+  teacher: { name: "Ayesha Bibi", teacherExtId: "923001110001", schoolName: "IMSG I-10/1" },
+  observer: { self: true, name: "Hataf Atif" }, sentAt: "2026-09-14T12:00:00Z",
+  imageUrl: "https://signed.example/report.png", caption: null,
+};
+
+function renderAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path="/portal/coach/teacher/:ext" element={<CoachTeacher />} />
+        <Route path="/portal/coach/observation/:id" element={<CoachObservation />} />
+        <Route path="/portal/leader/observe/:id" element={<div>EXISTING OBSERVE PAGE</div>} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  C.getTeacher.mockResolvedValue(TEACHER);
+  C.getObservation.mockResolvedValue(REPORT);
+});
+
+describe("Teacher History opens reports", () => {
+  it("tapping a HITL row with its report out opens that report", async () => {
+    renderAt("/portal/coach/teacher/923001110001");
+    const history = await screen.findByTestId("history");
+    const row = within(history).getByTestId("history-h-wa-sent");
+    expect(row.tagName).toBe("A");
+    fireEvent.click(row);
+    expect(await screen.findByTestId("observation-report")).toBeInTheDocument();
+    expect(C.getObservation).toHaveBeenCalledWith("h-wa-sent");
+    expect(screen.getByTestId("observation-report")).toHaveTextContent("61%");
+    expect(screen.getByRole("img")).toHaveAttribute("src", "https://signed.example/report.png");
+  });
+
+  it("her own portal observation opens its existing page, at whatever step it is", async () => {
+    renderAt("/portal/coach/teacher/923001110001");
+    const row = within(await screen.findByTestId("history")).getByTestId("history-h-portal");
+    expect(row).toHaveAttribute("href", "/portal/leader/observe/h-portal");
+    fireEvent.click(row);
+    expect(await screen.findByText("EXISTING OBSERVE PAGE")).toBeInTheDocument();
+  });
+
+  it("a DC session and a HITL still on WhatsApp are information only: no link", async () => {
+    renderAt("/portal/coach/teacher/923001110001");
+    const history = await screen.findByTestId("history");
+    for (const id of ["h-dc", "h-wa-draft"]) {
+      const row = within(history).getByTestId(`history-${id}`);
+      expect(row.tagName).not.toBe("A");
+      expect(row.querySelector("[data-chevron]")).toBeNull();
+    }
+  });
+});
