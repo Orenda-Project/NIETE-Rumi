@@ -77,13 +77,18 @@ function buildPrompt(targets, { cap, language, questions }) {
     const key = Array.isArray(q.options) ? q.options[Number(q.correct_index)] : '';
     const opt = t.field.startsWith('wrong.') && Array.isArray(q.options) ? q.options[Number(t.field.slice(6))] : null;
     return JSON.stringify({
-      id: n, question: q.question, right_answer: key, ...(opt != null ? { feedback_for_wrong_option: opt } : {}), kind: t.field.split('.')[0], text: t.text,
+      id: n, question: q.question, right_answer: key, ...(opt != null ? { feedback_for_wrong_option: opt } : {}), kind: t.field.split('.')[0], text: t.text, words_now: wordCount(t.text), max_words: words,
     });
   }).join('\n');
+  const shape = cap.sentences === 1
+    ? 'ONE sentence: a single full stop, at the end'
+    : 'ONE or TWO short sentences';
   return [
     `You rewrite short texts that are READ ALOUD to a child in grade ${cap.band} after they answer a quiz question.`,
-    `RULE: each text becomes ${cap.sentences === 1 ? 'ONE sentence' : 'at most TWO short sentences'} of at most ${words} words, in ${lang}. Everyday words a child of that age uses at home. No clause inside a clause, no "which"/"that is"/"whereas" chains, no passive voice. Speak to the child directly when you speak to them, with no gender ("you").`,
-    'KEEP THE MEANING EXACTLY: the same reason, the same right answer, every number and name it gave. A text for a wrong option still says why that option is not right (never praise it). Do not add a new fact. Do not mention the teacher or "the lesson".',
+    `HARD LIMIT: each text becomes ${shape}, of AT MOST ${words} words (count them: "max_words" below). Over the limit is wrong. Write in ${lang}. Keep only the ONE idea that tells the child why; cut everything else (no "as we saw", no "remember that", no restating the question).`,
+    'Everyday words a child of that age uses at home. No clause inside a clause, no "which"/"that is"/"whereas" chains, no passive voice. Speak to the child directly when you speak to them, with no gender ("you").',
+    'KEEP THE MEANING EXACTLY: the same reason, the same right answer, every number it gave. A text for a wrong option still says why that option is not right (never praise it). Do not add a new fact. Do not mention the teacher or "the lesson". Simpler must still be TRUE: never trade accuracy for brevity ("was cleaning" is the past, never "happening now").',
+    'Example (grade 1-2, max 12): "In a subtraction problem, the bigger number is the one you start with before taking anything away." → "You start with the bigger number."',
     'Return JSON only: { "texts": [ { "id": 0, "text": "" } ] } — one entry per id below, in any order.',
     '',
     lines,
@@ -124,32 +129,41 @@ async function shortenReasons({
     band: cap.band, cap_words: capFor(cap, language), targets: targets.length,
     words_before: mean(targets.map((t) => t.words)), rewritten: 0, still_long: targets.length, cost_usd: 0, status: 'unchanged',
   };
-  let json;
-  try {
-    const out = await complete({ prompt: buildPrompt(targets, { cap, language, questions }), maxTokens: 4000, label: 'transcript_quiz.child_reasons' });
-    json = out && out.json;
-    record.cost_usd = Number(out && out.costUsd) || 0;
-    record.latency_ms = (out && out.latencyMs) || null;
-    record.model = (out && out.model) || null;
-  } catch (err) {
-    record.status = 'error';
-    record.error = String((err && err.message) || err).slice(0, 160);
-    return { questions, changed: false, record };
-  }
-  const byId = new Map(((json && json.texts) || []).filter((x) => x && Number.isInteger(Number(x.id))).map((x) => [Number(x.id), x.text]));
+  // ONE call, and ONE more for what it left over the cap (shorter is kept either way).
   let next = questions;
-  const after = [];
-  targets.forEach((t, n) => {
-    const text = byId.get(n);
-    if (acceptable(t.text, text)) {
-      next = next.map((q, i) => (i === t.q ? writeBack(q, t.field, String(text).trim()) : q));
-      record.rewritten += 1;
-      after.push(wordCount(text));
-    } else {
-      after.push(t.words);
+  const now = new Map(targets.map((t) => [`${t.q}|${t.field}`, t.words]));
+  const rewritten = new Set();
+  for (let pass = 1; pass <= 2; pass += 1) {
+    const ask = pass === 1 ? targets : longReasons(next, { gradeBand, language });
+    if (!ask.length) break;
+    let json;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const out = await complete({ prompt: buildPrompt(ask, { cap, language, questions: next }), maxTokens: 4000, label: 'transcript_quiz.child_reasons' });
+      json = out && out.json;
+      record.cost_usd += Number(out && out.costUsd) || 0;
+      record.latency_ms = (record.latency_ms || 0) + ((out && out.latencyMs) || 0);
+      record.model = (out && out.model) || null;
+      record.calls = pass;
+    } catch (err) {
+      if (pass === 1) {
+        record.status = 'error';
+        record.error = String((err && err.message) || err).slice(0, 160);
+        return { questions, changed: false, record };
+      }
+      break;
     }
-  });
-  record.words_after = mean(after);
+    const byId = new Map(((json && json.texts) || []).filter((x) => x && Number.isInteger(Number(x.id))).map((x) => [Number(x.id), x.text]));
+    ask.forEach((t, n) => {
+      const text = byId.get(n);
+      if (!acceptable(t.text, text)) return;
+      next = next.map((q, i) => (i === t.q ? writeBack(q, t.field, String(text).trim()) : q));
+      rewritten.add(`${t.q}|${t.field}`);
+      now.set(`${t.q}|${t.field}`, wordCount(text));
+    });
+  }
+  record.rewritten = rewritten.size;
+  record.words_after = mean([...now.values()]);
   record.still_long = longReasons(next, { gradeBand, language }).length;
   record.status = record.rewritten ? 'shortened' : 'unchanged';
   return { questions: next, changed: record.rewritten > 0, record };
