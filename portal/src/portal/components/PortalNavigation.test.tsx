@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 // bd-2434 (NIETE port of bd-2389/2390): the nav is role-gated. A leader gets
 // the leader nav (My Patch / Teachers) and the SAME NIETE logo/branding; a
-// teacher gets Dashboard / Curriculum / Training / My Classes / Coaching /
-// Analytics. Leader-family only — teachers never see the leader nav.
+// teacher gets Dashboard / Lesson Plans / Assessment Generator / Training /
+// My Classes / Coaching / Analytics (bd-4n7p4). Leader-family only — teachers never see the leader nav.
 //
 // bd-60078: "My Plans" is GONE from both. It listed a teacher's own
 // Gamma-generated lesson plans and presentations, and custom generation is
@@ -32,12 +32,14 @@ describe("PortalNavigation role gating", () => {
     expect(screen.queryAllByText("Teachers").length).toBeGreaterThan(0);
     expect(screen.queryByText("Coaching")).toBeNull();
     expect(screen.queryByText("Curriculum")).toBeNull();
+    expect(screen.queryByText("Lesson Plans")).toBeNull();
+    expect(screen.queryByText("Assessment Generator")).toBeNull();
   });
 
   it("a teacher sees the teacher nav, not the leader nav", () => {
     renderNav({ firstName: "Ayesha", role: "teacher" });
     expect(screen.queryAllByText("Dashboard").length).toBeGreaterThan(0);
-    expect(screen.queryAllByText("Curriculum").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("Lesson Plans").length).toBeGreaterThan(0);
     expect(screen.queryAllByText("Coaching").length).toBeGreaterThan(0);
     expect(screen.queryByText("My Patch")).toBeNull();
   });
@@ -79,6 +81,49 @@ describe("PortalNavigation role gating", () => {
 //
 // These assert on the rendered element rather than a screenshot, because the
 // defect is structural — what classes the name carries relative to its sibling.
+// bd-4n7p4 — "Curriculum" is renamed "Lesson Plans" and the Assessment Generator is its own
+// menu item, right after it. On a phone the bottom bar keeps its four and the new item is in Other.
+describe("PortalNavigation — Lesson Plans and Assessment Generator (bd-4n7p4)", () => {
+  const TEACHER = { firstName: "Ayesha", role: "teacher" };
+
+  it("lists Lesson Plans then Assessment Generator on desktop, with their paths", () => {
+    renderNav(TEACHER);
+    const desktop = document.querySelector("nav.hidden") as HTMLElement;
+    const links = Array.from(desktop.querySelectorAll("a")).map((a) => [a.textContent?.trim(), a.getAttribute("href")]);
+    const titles = links.map(([t]) => t);
+    expect(titles.indexOf("Lesson Plans")).toBe(titles.indexOf("Dashboard") + 1);
+    expect(titles.indexOf("Assessment Generator")).toBe(titles.indexOf("Lesson Plans") + 1);
+    expect(links).toContainEqual(["Lesson Plans", "/portal/curriculum"]);
+    expect(links).toContainEqual(["Assessment Generator", "/portal/assessment"]);
+    expect(titles).not.toContain("Curriculum");
+    expect(screen.queryByText("Curriculum")).toBeNull();
+  });
+
+  it("the phone bar is Dashboard, Lesson Plans, Training, Coaching; Assessment Generator is under Other", () => {
+    renderNav(TEACHER);
+    const mobile = document.querySelector("nav.md\\:hidden") as HTMLElement;
+    const bar = Array.from(mobile.querySelectorAll(":scope > div > a")).map((a) => a.textContent?.trim());
+    expect(bar).toEqual(["Dashboard", "Lesson Plans", "Training", "Coaching"]);
+    // The tray's links are only mounted while it is open.
+    expect(within(mobile).queryByText("Assessment Generator")).toBeNull();
+  });
+
+  it("the tray lists Assessment Generator once it is opened", async () => {
+    renderNav(TEACHER);
+    fireEvent.click(screen.getByTestId("mobile-nav-more"));
+    const tray = await screen.findByRole("dialog");
+    expect(within(tray).getByRole("link", { name: "Assessment Generator" })).toHaveAttribute("href", "/portal/assessment");
+  });
+
+  it("/portal/assessment lights Assessment Generator and not Lesson Plans", () => {
+    vi.mocked(useAuth).mockReturnValue({ user: TEACHER, logout: vi.fn() } as never);
+    render(<MemoryRouter initialEntries={["/portal/assessment"]}><PortalNavigation /></MemoryRouter>);
+    const desktop = document.querySelector("nav.hidden") as HTMLElement;
+    expect(within(desktop).getByRole("link", { name: "Assessment Generator" }).className).toMatch(/bg-white\/20/);
+    expect(within(desktop).getByRole("link", { name: "Lesson Plans" }).className).not.toMatch(/bg-white\/20/);
+  });
+});
+
 // bd-2563: the mobile tab bar's overflow tab is labelled "Other", not "More".
 // The label appears in three places that must agree — the visible tab text, the
 // button's aria-label (what a screen reader announces), and the title of the
