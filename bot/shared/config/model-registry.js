@@ -261,6 +261,27 @@ const JSON_REPLY_JOBS = Object.freeze({
   'training.capstoneScore': 'object',     // training/capstone-delivery.service.js: JSON.parse
 });
 
+/**
+ * Jobs whose caller REPAIRS the JSON it parses (jsonrepair), and what it repairs. bd-gr4fy.7.
+ *
+ * Such a caller reads an answer a strict parse would refuse (a trailing comma, a raw newline in a
+ * string), so a moved job's answer is checked the way its caller parses it: an answer the caller
+ * would turn into an object is accepted, untouched; one it would turn into anything else (prose
+ * becomes a string, two objects an array) still puts the job back on its own model.
+ *
+ *   whole  JSON.parse(reply), then jsonrepair(reply)
+ *   span   the first `{` to the last `}` of the reply, then the same
+ */
+const JSON_REPAIRED_BY_CALLER = Object.freeze({
+  'coaching.pedagogy': 'whole',          // gpt5-mini.service.js _safeJsonParse(rawContent)
+  'coaching.completeJson': 'whole',      // gpt5-mini.service.js _safeJsonParse(content)
+  'coaching.questionRouter': 'whole',    // gpt5-mini.service.js _safeJsonParse(content), both callers
+  'lp.extractUpload': 'whole',           // coaching/fidelity/lp-upload-extractor.js safeJsonParse
+  'lp.fidelity': 'whole',                // coaching/fidelity/fidelity-analyzer.js safeJsonParse
+  'coaching.fidelityFallback': 'span',   // gpt5-mini.service.js: /\{[\s\S]*\}/, then _safeJsonParse
+  'lp.extractText': 'span',              // workers/lesson-plan-extraction.worker.js: same span, then repair
+});
+
 /** The model this job is known to work with, or null when it has nothing behind it. */
 function fallbackForJob(job) {
   if (!JOBS[job]) throw new Error(`unknown job: ${job}`);
@@ -358,5 +379,6 @@ function resolveModelForJob(job, ctx = {}) {
 }
 
 module.exports = {
-  JOBS, FALLBACK, TELEMETRY_ONLY_JOBS, JSON_REPLY_JOBS, fallbackForJob, resolveModelForJob, todaysModel, bucketOf, isModel,
+  JOBS, FALLBACK, TELEMETRY_ONLY_JOBS, JSON_REPLY_JOBS, JSON_REPAIRED_BY_CALLER,
+  fallbackForJob, resolveModelForJob, todaysModel, bucketOf, isModel,
 };

@@ -56,4 +56,17 @@ describe('settingsAtSite matches the code', () => {
     const stale = Object.keys(JOBS).filter((job) => JOBS[job].settingsAtSite && !sites[job]);
     expect(stale).toEqual([]);
   });
+
+  test('every such call site names its own model when the settings moved it (bd-gr4fy.7)', () => {
+    // llm-client cannot work out a settings-moved call site's own model (an Urdu paper and an
+    // English one run different models), so the call site passes it as `fallbackModel`.
+    const silent = [];
+    for (const [job, files] of Object.entries(sites)) {
+      for (const f of files) {
+        const src = fs.readFileSync(path.join(BOT, f), 'utf8');
+        if (!/fallbackModel\s*:\s*own/.test(src)) silent.push(`${job} (${f})`);
+      }
+    }
+    expect(silent).toEqual([]);
+  });
 });
