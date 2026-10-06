@@ -1732,6 +1732,140 @@ router.get('/leader/teachers/search', requirePortalAuth, requireLeaderRole, asyn
   }
 });
 
+/* ---------------------------------------------------------------------------
+ * bd-o15qnr — the coach app v2 (the v18 coach design), read side.
+ *
+ * Dark behind app_settings.portal_coach_v2: off for this user → 404, the same as
+ * a route that does not exist. The portal shows v2 only to role=coach; these
+ * routes need the leader role plus the flag. Every number comes from existing
+ * tables (services/coach-v2.service.js). Writes reuse the existing routes:
+ * POST /leader/schedules (book), /leader/schedules/:id/edit (Reschedule),
+ * /leader/schedules/:id/cancel, and the /leader/observe pipeline.
+ *
+ * IDENTITY: the coach is ALWAYS req.session.portalUserId. Inputs are checked
+ * before any query, so a malformed uuid never reaches pg as a cast error.
+ * ------------------------------------------------------------------------- */
+const CoachV2 = require('../services/coach-v2.service');
+
+async function requireCoachV2(req, res, next) {
+  const on = await isFlagEnabledForUser(supabase, PORTAL_COACH_V2_KEY, req.session && req.session.portalUserId);
+  if (!on) return res.status(404).json({ success: false, error: 'Not found' });
+  return next();
+}
+const coachV2 = [requirePortalAuth, requireLeaderRole, requireCoachV2];
+const pgQuery = (sql, params) => pool.query(sql, params);
+const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isDay(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+}
+
+/**
+ * "Today" for the coach. The server's day is UTC; Pakistan is UTC+5, so before
+ * 05:00 PKT the two differ. The page sends its own day (?today=); it is used
+ * only when it is a real date within one day of the server's.
+ */
+function coachToday(req) {
+  const server = new Date().toISOString().slice(0, 10);
+  const asked = req.query && req.query.today;
+  if (!isDay(asked)) return server;
+  const gap = Math.abs(Date.parse(`${asked}T00:00:00Z`) - Date.parse(`${server}T00:00:00Z`));
+  return gap <= 86400000 ? asked : server;
+}
+
+function coachFail(res, where, error) {
+  console.error(`coach/${where} error:`, error && error.message);
+  return res.status(500).json({ success: false, error: 'Could not load this page.' });
+}
+
+/** GET /api/portal/coach/home — today's visits (the current one marked) and the tile numbers. */
+router.get('/coach/home', ...coachV2, async (req, res) => {
+  try {
+    const home = await CoachV2.getCoachHome(pgQuery, req.session.portalUserId, { today: coachToday(req) });
+    return res.json({ success: true, home });
+  } catch (error) { return coachFail(res, 'home', error); }
+});
+
+/** GET /api/portal/coach/schedule?from=&to= — her visits in the range (default this week) and the overdue ones. */
+router.get('/coach/schedule', ...coachV2, async (req, res) => {
+  const { from, to } = req.query || {};
+  if ((from != null && !isDay(from)) || (to != null && !isDay(to))) {
+    return res.status(400).json({ success: false, error: 'Invalid date — expected YYYY-MM-DD' });
+  }
+  try {
+    const out = await CoachV2.getCoachSchedule(pgQuery, req.session.portalUserId, { today: coachToday(req), from, to });
+    return res.json({ success: true, ...out });
+  } catch (error) { return coachFail(res, 'schedule', error); }
+});
+
+/** GET /api/portal/coach/team?date=&coach= — every coach (or one): totals, the week, the day by time. */
+router.get('/coach/team', ...coachV2, async (req, res) => {
+  const { date, coach } = req.query || {};
+  if (date != null && !isDay(date)) return res.status(400).json({ success: false, error: 'Invalid date — expected YYYY-MM-DD' });
+  if (coach != null && coach !== '' && !UUID_RX.test(String(coach))) {
+    return res.status(400).json({ success: false, error: 'Unknown coach' });
+  }
+  try {
+    const out = await CoachV2.getTeamSchedule(pgQuery, {
+      today: coachToday(req), date: date || undefined, coachId: coach || null, me: req.session.portalUserId,
+    });
+    return res.json({ success: true, ...out });
+  } catch (error) { return coachFail(res, 'team', error); }
+});
+
+/** GET /api/portal/coach/people — the Teachers and Schools tabs. */
+router.get('/coach/people', ...coachV2, async (req, res) => {
+  try {
+    const out = await CoachV2.getCoachPeople(pgQuery, req.session.portalUserId, { today: coachToday(req) });
+    return res.json({ success: true, ...out });
+  } catch (error) { return coachFail(res, 'people', error); }
+});
+
+/** GET /api/portal/coach/school/:emis — one of her schools and its teachers. */
+router.get('/coach/school/:emis', ...coachV2, async (req, res) => {
+  const emis = String(req.params.emis || '');
+  if (!/^[A-Za-z0-9-]{1,32}$/.test(emis)) return res.status(404).json({ success: false, error: 'Not found' });
+  try {
+    const out = await CoachV2.getCoachSchool(pgQuery, req.session.portalUserId, emis, { today: coachToday(req) });
+    if (!out) return res.status(404).json({ success: false, error: 'Not found' });
+    return res.json({ success: true, ...out });
+  } catch (error) { return coachFail(res, 'school', error); }
+});
+
+/** GET /api/portal/coach/teacher/:teacherExtId — one teacher in her patch: numbers, history, next visit. */
+router.get('/coach/teacher/:teacherExtId', ...coachV2, async (req, res) => {
+  const ext = String(req.params.teacherExtId || '');
+  if (!/^\d{6,15}$/.test(ext)) return res.status(404).json({ success: false, error: 'Not found' });
+  try {
+    const out = await CoachV2.getCoachTeacher(pgQuery, req.session.portalUserId, ext, { today: coachToday(req) });
+    if (!out) return res.status(404).json({ success: false, error: 'Not found' });
+    return res.json({ success: true, ...out });
+  } catch (error) { return coachFail(res, 'teacher', error); }
+});
+
+/** GET /api/portal/coach/visit/:id — one of her schedule entries, with the teacher's numbers. */
+router.get('/coach/visit/:id', ...coachV2, async (req, res) => {
+  if (!UUID_RX.test(String(req.params.id || ''))) return res.status(404).json({ success: false, error: 'Not found' });
+  try {
+    const out = await CoachV2.getCoachVisit(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req) });
+    if (!out) return res.status(404).json({ success: false, error: 'Not found' });
+    return res.json({ success: true, ...out });
+  } catch (error) { return coachFail(res, 'visit', error); }
+});
+
+/** GET /api/portal/coach/reports?page=&q= — waiting for her, in progress, then every observation. */
+router.get('/coach/reports', ...coachV2, async (req, res) => {
+  const { page, q } = req.query || {};
+  try {
+    const out = await CoachV2.getCoachReports(pgQuery, req.session.portalUserId, {
+      page, q: typeof q === 'string' ? q.slice(0, 64) : undefined,
+    });
+    return res.json({ success: true, ...out });
+  } catch (error) { return coachFail(res, 'reports', error); }
+});
+
 /**
  * GET /api/portal/lesson-plans
  * Get all lesson plans for authenticated user
