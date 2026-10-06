@@ -74,4 +74,4 @@ function verifyTrainingLink(token) {
   }
 }
 
-module.exports = { signTrainingLink, verifyTrainingLink, LINK_TTL_S };
+module.exports = { signTrainingLink, verifyTrainingLink };

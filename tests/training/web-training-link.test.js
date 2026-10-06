@@ -25,7 +25,7 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
 jest.mock('../../bot/shared/services/app-redirect.service', () => ({
   redirectIfFlagged: jest.fn().mockResolvedValue(false),
 }));
-jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn() }));
+jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logWarn: jest.fn() }));
 jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 
 const supabase = require('../../bot/shared/config/supabase');
@@ -114,7 +114,7 @@ describe('opening Training with the web switch on', () => {
     expect(WA.sendMessage).not.toHaveBeenCalled();
   });
 
-  test('a template that fails to send falls back to the Flow', async () => {
+  test('a template that fails to send falls back to the Flow, and says so at warning level', async () => {
     WA.sendTemplate.mockResolvedValueOnce(false);
     installFrom(supabase.from, { app_settings: settings({ enabled: true, teachers: 'all' }) });
 
@@ -122,6 +122,8 @@ describe('opening Training with the web switch on', () => {
 
     expect(sent).toBe(true);
     expect(WA.sendFlow).toHaveBeenCalledTimes(1);
+    expect(require('../../bot/shared/utils/logger').logWarn)
+      .toHaveBeenCalledWith(expect.stringMatching(/template send failed/), expect.objectContaining({ userId: TEACHER.id }));
   });
 });
 

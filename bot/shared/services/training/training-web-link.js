@@ -22,7 +22,7 @@
 
 const supabase = require('../../config/supabase');
 const WhatsAppService = require('../whatsapp.service');
-const { logToFile } = require('../../utils/logger');
+const { logWarn } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const { signTrainingLink } = require('./training-link-token');
 
@@ -56,8 +56,8 @@ async function readSettings(now = Date.now()) {
     cache = { at: now, enabled: isTrue(byKey[ENABLED_KEY]), teachers: parse(byKey[TEACHERS_KEY]) };
     return cache;
   } catch (err) {
-    // Fail closed, and do not cache the failure.
-    logToFile('⚠️ web training: settings lookup failed — sending the Flow', { error: err.message });
+    // Fail closed, and do not cache the failure. A warning: teachers silently lose the web link.
+    logWarn('web training: settings lookup failed — sending the Flow', { error: err.message });
     return { enabled: false, teachers: null };
   }
 }
@@ -85,7 +85,7 @@ function templateName() {
 async function sendTrainingLink(user, from, language = 'en') {
   const token = signTrainingLink(user && user.id);
   if (!token) {
-    logToFile('⚠️ web training: no signing secret — sending the Flow', { userId: user && user.id });
+    logWarn('web training: no signing secret on this deployment — sending the Flow', { userId: user && user.id });
     return false;
   }
   const lang = TEMPLATE_LANGUAGES.includes(language) ? language : 'en';
@@ -93,16 +93,15 @@ async function sendTrainingLink(user, from, language = 'en') {
   const components = [
     { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: token }] },
   ];
-  const sent = await WhatsAppService.sendTemplate(from, name, lang, components);
+  const sent = (await WhatsAppService.sendTemplate(from, name, lang, components)) === true;
   logEvent(sent ? 'training.web_link_sent' : 'training.web_link_failed', { userId: user.id, template: name, lang });
-  return sent === true;
+  // sendTemplate logs Meta's answer; this says what it cost: she got the Flow, not the link.
+  if (!sent) logWarn('web training: template send failed — sending the Flow', { userId: user.id, template: name, lang });
+  return sent;
 }
 
 module.exports = {
   webTrainingOn,
   sendTrainingLink,
-  ENABLED_KEY,
-  TEACHERS_KEY,
-  DEFAULT_TEMPLATE,
   _resetCache: () => { cache = null; },
 };

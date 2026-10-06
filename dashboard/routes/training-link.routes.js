@@ -99,6 +99,10 @@ function browserFacts(req) {
 function log(event, props) {
   try {
     require('../../bot/shared/utils/structured-logger').logEvent(event, props);
+    // A failed lookup or session write is a real failure, not a stale link: warn, so it is seen.
+    if (props && props.outcome === 'error') {
+      require('../../bot/shared/utils/logger').logWarn('training link: could not open a session', props);
+    }
   } catch (_) { /* logging never decides the response */ }
 }
 
@@ -152,10 +156,4 @@ function createTrainingLinkRouter({ findUser = defaultFindUser, verify = verifyT
   return router;
 }
 
-module.exports = {
-  createTrainingLinkRouter,
-  trainingLinkScope,
-  renderExpiredPage,
-  inScope,
-  SCOPE,
-};
+module.exports = { createTrainingLinkRouter, trainingLinkScope };
