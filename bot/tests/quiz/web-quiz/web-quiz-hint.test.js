@@ -15,6 +15,7 @@ jest.mock('../../../shared/storage/r2', () => ({
   headObject: jest.fn(async () => ({ exists: false })),
   uploadBuffer: jest.fn(async () => true),
   getPresignedUrl: jest.fn(async (u) => `${u}?X-Amz-Signature=x`),
+  presignKey: jest.fn(async (k) => `r2:${k}?X-Amz-Signature=x`), // quiz clips are signed by key, per bucket
   buildR2PublicUrl: jest.fn((k) => `r2:${k}`),
 }));
 jest.mock('../../../shared/services/tts', () => ({
@@ -225,7 +226,7 @@ describe('the hint is recorded as its own clip and signed for the page', () => {
     const said = tts.synthesize.mock.calls.map((c) => c[0].text);
     expect(said).toContain('Think about what happens when you pour it into a glass.');
     const saved = db.updates[0].v.meta.web.audio[q.id];
-    expect(saved.hint).toMatch(/\/hint-[0-9a-f]+\.ogg$/);
+    expect(saved.hint).toMatch(/\/hint-sx-grace-[0-9a-f]{8}\.ogg$/); // in the quiz's one voice
   });
   test('presignAudio signs audio.hint', async () => {
     const out = await Media.presignAudio({ web: { audio: { q1: { q: 'k/q.ogg', opts: [], why: null, hint: 'k/hint-ab.ogg' } } } });
