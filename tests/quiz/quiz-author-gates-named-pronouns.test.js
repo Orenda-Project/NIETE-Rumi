@@ -132,3 +132,23 @@ describe('on the generate path (a lesson-plan quiz), flag on', () => {
     expect(digestPrompts[0]).toContain('Zainab CLEANED her room');
   });
 });
+
+describe('the gendered-teacher check, a word problem over two sentences (flag on)', () => {
+  // Live (5 Oct): "Bunty has 20 toys. He lifts 7 onto the shelf." was read as the teacher.
+  const q2 = (question) => ({
+    slo_id: 'S1', level: 'apply', question, options: ['13', '7', '20'], correct_index: 0,
+    explanation: '20 take away 7 is 13.', selected_because: 'counting back',
+    distractor_misconceptions: { 1: 'the ones moved', 2: 'all of them' },
+    option_feedback: { correct: 'Yes.', wrong: { 1: 'Those are the ones lifted.', 2: 'Some were lifted.' } },
+  });
+  const gendered = (q, authorGates) => validate([q], { language: 'en', subject: 'maths', authorGates }).errors.filter((e) => /GENDERED_TEACHER/.test(e));
+  test('flag on: the story’s Bunty owns the "He" of the next sentence', () => {
+    expect(gendered(q2('Bunty has 20 toys. He lifts 7 onto the shelf. How many stay on the floor?'), true)).toEqual([]);
+  });
+  test('flag on: "The teacher draws 20 dots. She rubs out 7." is still the teacher', () => {
+    expect(gendered(q2('The teacher draws 20 dots. She rubs out 7. How many are left?'), true)).toEqual([expect.stringMatching(/^q0: PEDAGOGY_GENDERED_TEACHER/)]);
+  });
+  test('flag off: today’s check flags it', () => {
+    expect(gendered(q2('Bunty has 20 toys. He lifts 7 onto the shelf. How many stay on the floor?'), false)).toHaveLength(1);
+  });
+});

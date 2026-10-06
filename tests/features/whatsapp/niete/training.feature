@@ -1720,6 +1720,17 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-validator equalValueOption (q-named "duplicate options" -> the distinct-options rewrite).
     # Unit: tests/quiz/quiz-author-gates-equal-options.test.js. @wip.
 
+  @api @quiz @wip @draft @config-gated @P1 @T227 @no-mock-driver
+  Scenario: With the author gates on, my class never loses the quiz because of faults that ship anyway
+    Given app_settings "quiz_author_gates_v2" is true
+    And the last attempt left one question with a real fault and four questions with only a soft fault, such as "He" in a word problem about a child in the story
+    When my class quiz is made from my lesson
+    Then only the question with the real fault is left out, and the other seven are sent with their soft faults counted
+    And "Bunty has 20 toys. He lifts 7 onto the shelf." is not read as being about me, the teacher
+    And with the setting absent or false, the quiz is made exactly as before
+    # transcript-quiz-generate salvageWithoutBadFigures (isSoft skip, v2); transcript-quiz-named-pronouns lookback in
+    # transcript-quiz-pedagogy. Unit: tests/quiz/quiz-author-gates-fail-soft.test.js, quiz-author-gates-named-pronouns.test.js. @wip.
+
   @api @quiz @web @wip @draft @P1 @T110 @no-mock-driver
   Scenario: A question that sends the child to a picture it does not have is left out of my web quiz
     Given my web quiz has four questions
