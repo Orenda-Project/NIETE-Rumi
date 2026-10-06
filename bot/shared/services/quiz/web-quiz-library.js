@@ -186,6 +186,21 @@ async function view(ix, { grade, g, s, studentId, rootId, fetchImpl }) {
   return chaptersView(ix, { grade: want, subject: String(s).slice(0, 60), studentId, rootId, fetchImpl });
 }
 
+/** A grade band's quiz ("3-5", 38% of quizzes): the child's own grade when it is inside the band. */
+async function childGradeIn(band, st, shareCodeId) {
+  const tok = st ? T.verify(st, 's') : null;
+  if (!tok || !tok.sid || tok.sc !== shareCodeId) return null;
+  const pick = (v) => {
+    const m = /\d+/.exec(String(v || ''));
+    return m && band.includes(String(Number(m[0]))) ? String(Number(m[0])) : null;
+  };
+  const { data: sess } = await supabase.from('quiz_sessions').select('student_class, student_id').eq('id', tok.sid).maybeSingle();
+  const own = sess && pick(sess.student_class);
+  if (own || !sess || !sess.student_id) return own || null;
+  const { data: kid } = await supabase.from('students').select('self_reported_class').eq('id', sess.student_id).maybeSingle();
+  return (kid && pick(kid.self_reported_class)) || null;
+}
+
 async function guard() {
   const WebQuiz = require('./web-quiz.service');
   if (!T.secret()) throw new WebQuiz.WqError(503, { error: 'web_quiz_off' });
@@ -202,7 +217,8 @@ async function lib(code, { st, g, s, fetchImpl } = {}) {
     supabase.from('quizzes').select('id, grade, subject').eq('id', ctx.quizId).maybeSingle(),
     s ? studentFromSt(st, ctx.shareCodeId) : Promise.resolve(null),
   ]);
-  const grade = Videos.gradesFor(quiz && quiz.grade)[0] || null;
+  const band = Videos.gradesFor(quiz && quiz.grade);
+  const grade = (band.length > 1 && !g ? await childGradeIn(band, st, ctx.shareCodeId) : null) || band[0] || null;
   const out = await view(ix, { grade, g, s, studentId, rootId: Videos.classRootId(ctx), fetchImpl });
   if (!s) {
     // The quiz's own subject, when the bank has it for this grade: "Watch another video" opens it.

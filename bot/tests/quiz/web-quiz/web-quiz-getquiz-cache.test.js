@@ -144,3 +144,11 @@ test('new clips in the quiz (the audio backfill) are signed at once, not served 
   expect(JSON.stringify(second.quiz.questions)).toContain('q1-v2.mp3');
   expect(JSON.stringify(first.quiz.questions)).not.toContain('q1-v2.mp3');
 });
+
+test('a re-recorded quiz in another bucket (meta.web beyond audio) is signed at once', async () => {
+  await WQ.getQuiz('VID001');
+  const signed = presign.mock.calls.length;
+  fake.db.quizzes[0].meta = { web: { ...fake.db.quizzes[0].meta.web, audio_bucket: 'quiz-audio-niete' } };
+  await WQ.getQuiz('VID001');
+  expect(presign.mock.calls.length).toBeGreaterThan(signed);
+});

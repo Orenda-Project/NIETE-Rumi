@@ -444,7 +444,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // everything the links are made from, so new clips or edited questions are signed at once.
   const mediaKey = require('crypto').createHash('sha1').update(JSON.stringify([
     ctx.code, ctx.quizId, ctx.parent.video_id || (quizRow && quizRow.video_id) || null,
-    (quizRow && quizRow.meta && quizRow.meta.web && quizRow.meta.web.audio) || null,
+    (quizRow && quizRow.meta && quizRow.meta.web) || null,
     questions.map((q) => [q.id, q.question_text, q.media || null]),
   ])).digest('base64');
   const cached = quizMediaCache.get(mediaKey);

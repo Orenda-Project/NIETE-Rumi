@@ -77,11 +77,14 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
       fetches.push({ url, init });
       const hit = Object.keys(api).find((k) => url.indexOf(k) >= 0);
       if (hit) {
-        const r = typeof api[hit] === 'function' ? api[hit](url, init) : api[hit];
-        // { __offline: true } is a dropped connection: fetch itself rejects, as a phone with no signal does.
-        if (r && r.__offline) return Promise.reject(new TypeError('Failed to fetch'));
-        const status = r && r.__status ? r.__status : 200;
-        return Promise.resolve({ status, ok: status < 300, text: () => Promise.resolve(JSON.stringify(r)) });
+        const r0 = typeof api[hit] === 'function' ? api[hit](url, init) : api[hit];
+        // An api function may answer later (a promise): a slow network the test controls.
+        return Promise.resolve(r0).then((r) => {
+          // { __offline: true } is a dropped connection: fetch itself rejects, as a phone with no signal does.
+          if (r && r.__offline) throw new TypeError('Failed to fetch');
+          const status = r && r.__status ? r.__status : 200;
+          return { status, ok: status < 300, text: () => Promise.resolve(JSON.stringify(r)) };
+        });
       }
       const body = (url.indexOf('/board/') >= 0 && board) || (url.endsWith('/me') && me) || {};
       if (url.indexOf('/art/') >= 0) return Promise.resolve({ status: 200, ok: true, blob: () => Promise.resolve({ size: 9, type: 'image/jpeg' }), text: () => Promise.resolve('') });

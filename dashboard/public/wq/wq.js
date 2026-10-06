@@ -2433,7 +2433,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (m === 'M4-new' || m === 'M4-isyou') return who;
     if (m === 'M12-fallback') return NAV.shareBack || afterResult;
     if (/^M16/.test(m)) return NAV.schoolsBack || afterResult;
-    if (m === 'M15-ch' && typeof WQL !== 'undefined') return WQL.up;
+    if (/^M15/.test(m) && typeof WQL !== 'undefined' && WQL.active()) return WQL.up;
     if (m === 'M11' || m === 'M13' || m === 'M14' || /^M15/.test(m)) return afterResult;
     return null;
   }
