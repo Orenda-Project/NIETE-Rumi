@@ -660,7 +660,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
      listen button, never in the first 3 s of a question, at most one per 20 s, gone after 2.5 s, no sound.
      Off for grades 1-2 (they follow the voice and the pictures; a moving name competes with it), in the
      teacher's preview, and when the page is quiet (🔕). An invited friend is "A friend", never a name. */
-  var PULSE = { since: 0, shown: 0, qid: null, qAt: 0, pend: null, wt: 0, poll: 0, polls: 0 };
+  var PULSE = { since: 0, shown: 0, qid: null, qAt: 0, pend: null, held: null, wt: 0, poll: 0, polls: 0 };
   function pulseOn() {
     var g = parseInt(Q.grade, 10);
     return !B.preview && SOUND && g !== 1 && g !== 2;
@@ -682,28 +682,34 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     PULSE.pend = null;
     // The count travels as `i`: ev() keeps `n` for the event's own name.
     if (pulseShow(p.e)) { PULSE.shown = now; ev('pulse_shown', { i: p.n }); }
+    // It would have covered content (a tall question scrolled to "Next"): keep it for the top of the next question.
+    else PULSE.held = p;
   }
   // Under the bar's "Question n of N" line; when the page is scrolled so that the strip would touch an
   // option or the listen button, it is skipped rather than drawn over them.
   function pulseShow(e) {
-    var t = document.createElement('div');
-    t.className = 'wq-pulse';
-    t.setAttribute('aria-hidden', 'true');
-    t.textContent = T.pulse(e.invited ? null : e.first, e.qn);
+    var top = null;
     try {
       var bar = $('.wq-bar').getBoundingClientRect();
-      var top = Math.max(0, Math.round(bar.bottom) + 2);
       if (bar.bottom < 0) return false;
+      top = Math.max(0, Math.round(bar.bottom) + 2);
       var hit = ['.wq-opt', '#wq-spk', '.wq-item'].some(function (sel) {
         var el = $(sel); if (!el || !el.getBoundingClientRect) return false;
         var r = el.getBoundingClientRect();
         return r.height > 0 && r.top < top + 28 && r.bottom > top;
       });
       if (hit) return false;
-      t.style.top = top + 'px';
     } catch (x) {}
+    var t = document.createElement('div');
+    t.className = 'wq-pulse';
+    t.setAttribute('aria-hidden', 'true');
+    t.textContent = T.pulse(e.invited ? null : e.first, e.qn);
+    if (top != null) t.style.top = top + 'px';
     ROOT.appendChild(t);
-    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 2500);
+    // Fixed, so a scroll would slide it over the stem or the options: it goes at the first scroll.
+    function gone() { t.hidden = true; if (t.parentNode) t.parentNode.removeChild(t); try { window.removeEventListener('scroll', gone); } catch (x) {} }
+    try { window.addEventListener('scroll', gone, { passive: true }); } catch (x) {}
+    setTimeout(gone, 2500);
     return true;
   }
   function pulseStop() { if (PULSE.poll) clearInterval(PULSE.poll); PULSE.poll = 0; }
@@ -711,6 +717,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     PULSE.qid = q.qid; PULSE.qAt = at; PULSE.polls = 0;
     pulseStop();
     if (!pulseOn()) return;
+    // A pulse held back because it would have covered the last question: shown 3 s into this one (if under 60 s old).
+    var h = PULSE.held; PULSE.held = null;
+    if (h && at - h.got <= 60000 && !PULSE.pend) { PULSE.pend = { e: h.e, n: h.n, got: at }; pulseTry(); }
     PULSE.poll = setInterval(function () {
       if (PULSE.qid !== q.qid || S.answers[q.qid] || ROOT.getAttribute('data-m') !== 'M6' || PULSE.polls >= 8 || !S.st) { pulseStop(); return; }
       if (document.visibilityState !== 'visible') return;
