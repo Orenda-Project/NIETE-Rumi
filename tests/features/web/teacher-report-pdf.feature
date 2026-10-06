@@ -13,8 +13,8 @@ Feature: Teacher quiz report in the class report PDF and the "All my classes" ta
   Scenario: The class report PDF lists who has not played yet, greyed, with their list no.
     When the scheduled class report is sent
     Then the PDF has a "Not played yet" section with the 9 children still to play, first names with their list no., in list order
-    And it has a "Remind the class" link to "/r/<token>/remind" and a "See the live report" link to "/r/<token>"
-    And the caption carries the live report link in the teacher's own language
+    And the PDF carries NO report link (it is forwarded to class groups) — it says "send /quiz, then tap “My quiz reports”"
+    And only the caption, the teacher's own message, carries the live report link and the "/r/<token>/remind" reminder
 
   @T358
   Scenario: The caption counts who has not played and links the reminder
@@ -34,7 +34,7 @@ Feature: Teacher quiz report in the class report PDF and the "All my classes" ta
     Given the teacher keeps no class list
     When the scheduled class report is sent
     Then the PDF has no "Not played yet" section
-    And it still links to the live report
+    And it still points to the live report in /quiz, without a link
 
   @T353
   Scenario: A teacher not on the teacher report list gets today's report
@@ -46,7 +46,7 @@ Feature: Teacher quiz report in the class report PDF and the "All my classes" ta
   Scenario: An Urdu quiz's PDF section is Urdu; the caption follows the teacher
     Given the quiz language is Urdu and the teacher's language is English
     When the scheduled class report is sent
-    Then the section reads "ابھی نہیں کھیلا" with "کلاس کو یاد دلائیں"
+    Then the section reads "ابھی نہیں کھیلا" and points to «میری کوئز رپورٹس» in /quiz
     And the caption's live report line is in English
 
   @T355

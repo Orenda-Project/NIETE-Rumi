@@ -145,9 +145,6 @@ function esc(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/** An attribute value (a link): esc() plus the quotes it deliberately leaves. */
-const attr = (s) => esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-
 /** RTL (Perso-Arabic-script) quiz languages this report ships for. NIETE is
  *  flat en/ur — no pa-PK/sd-PK concept here. */
 const RTL_LANGS = new Set(['ur']);
@@ -191,9 +188,9 @@ const CHROME = {
     // it was pasted in), not a register roll: it is named for what it is.
     listNoKey: 'small number = list no.',
     allPlayed: 'Everyone on the class list has played.',
-    remindClass: 'Remind the class',
-    remindHint: 'Opens WhatsApp with a message for the class group. It names no child.',
-    seeLive: 'See the live report',
+    // No link in a PDF: it is forwarded to class groups, and a report link in
+    // it would open every child's score to whoever gets the file.
+    livePointer: 'To remind the class or see the live report: send /quiz, then tap “My quiz reports”.',
   },
   ur: {
     // quiz stays in LATIN. `کوئز` is a transliteration of an English word, not
@@ -229,9 +226,10 @@ const CHROME = {
     notPlayedCount: (n, of) => (of ? `کلاس کی فہرست کے ${of} بچوں میں سے ${n}` : `${n} بچے`),
     listNoKey: 'چھوٹا نمبر = لسٹ نمبر',
     allPlayed: 'کلاس کی فہرست کے سب بچوں نے کھیل لیا ہے۔',
-    remindClass: 'کلاس کو یاد دلائیں',
-    remindHint: 'WhatsApp میں کلاس گروپ کے لیے پیغام کھلے گا۔ اس میں کسی بچے کا نام نہیں۔',
-    seeLive: 'تازہ رپورٹ دیکھیں',
+    // «میری کوئز رپورٹس» is the /quiz menu button's own label (tqhReports).
+    // /quiz is an LTR atom, isolated (U+2066…U+2069): bare, the slash lands
+    // on the wrong side and it reads "quiz/".
+    livePointer: 'کلاس کو یاد دلانے یا تازہ رپورٹ دیکھنے کے لیے \u2066/quiz\u2069 بھیجیں، پھر «میری کوئز رپورٹس» دبائیں۔',
   },
 };
 
@@ -296,7 +294,8 @@ function renderVideoQuizReportHtml(d) {
     generatedAt = '', language = 'en',
     // From teacher-report.data.js via the service, only for a teacher with the
     // web report: `notPlayed` is null unless the quiz's ONE class is known.
-    notPlayed = null, rosterOf = null, reportLinks = null,
+    // `livePointer` prints where the live report lives (/quiz), never a link.
+    notPlayed = null, rosterOf = null, livePointer = false,
   } = d || {};
   // The reader's language and the quiz's language are two independent facts.
   // Defaults to the chrome language so a single-language caller is unchanged.
@@ -405,8 +404,8 @@ function renderVideoQuizReportHtml(d) {
     <div class="unfin"><b>${L(C.notFinishedYet)}</b> ${unfinished.map(nameCell).join(CRTL ? '، ' : ', ')}</div>` : '';
 
   // NOT PLAYED YET — the class list's children with no counted finish, greyed,
-  // by roll number, first names only (the teacher's own document). Then the two
-  // links: the reminder share (it names nobody) and the live web report.
+  // by roll number, first names only (the teacher's own document). Then a
+  // pointer (not a link) to the live report in /quiz.
   const knownClass = Array.isArray(notPlayed);
   // The name first; the list no. after it, small and grey — a sort key the
   // teacher recognises, never an identity.
@@ -420,14 +419,11 @@ function renderVideoQuizReportHtml(d) {
     ? `<div class="np-note">${L(C.notPlayedCount(notPlayed.length, rosterOf))}${hasListNo ? ` &middot; ${L(C.listNoKey)}` : ''}</div><div class="np-grid">${npChips}</div>`
     : `<div class="np-note">${L(C.allPlayed)}</div>`}
     </div>` : '';
-  const showRemind = reportLinks && !(knownClass && !notPlayed.length);
-  const linksBlock = reportLinks ? `
-    <div class="rl">
-      ${showRemind ? `<a class="rl-btn rl-primary" href="${attr(reportLinks.remind)}">${L(C.remindClass)}</a>` : ''}
-      <a class="rl-btn" href="${attr(reportLinks.live)}">${L(C.seeLive)}</a>
-      ${showRemind ? `<div class="rl-hint">${L(C.remindHint)}</div>` : ''}
-      <div class="rl-url" dir="ltr">${esc(reportLinks.live)}</div>
-    </div>` : '';
+  // Where the live report and the class reminder live — the teacher's /quiz
+  // menu. Words only: a report link printed here would travel with every
+  // forwarded copy of this PDF.
+  const linksBlock = livePointer ? `
+    <div class="rl"><div class="rl-hint">${L(C.livePointer)}</div></div>` : '';
 
   // guidance is one of: a legacy plain string (one unlabelled paragraph), an
   // object shaped either {muddled,board,check} or {secure,stretch} (three/two
@@ -568,11 +564,8 @@ ${RTL ? '.np>.label{padding-top:10px}' : ''}
 .np-chip{display:inline-flex;align-items:center;gap:8px;background:#f1f2f5;border:1px solid #e3e6ec;border-radius:10px;padding:5px 12px;color:#7a839c;font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;break-inside:avoid;page-break-inside:avoid}
 .np-chip .content[dir="rtl"]{line-height:${leadingAt(1.5)}}
 .np-roll{font-family:${FONTS.bodyLatin};font-weight:400;font-size:${TYPE_FLOOR.small}px;color:#A7AEBB;direction:ltr;unicode-bidi:isolate}
-.rl{margin-top:20px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;break-inside:avoid;page-break-inside:avoid}
-.rl-btn{font-family:${bodyFam};display:inline-block;text-decoration:none;font-weight:700;font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;border-radius:12px;padding:10px 18px;border:2px solid ${PALETTE.slate};color:${PALETTE.slate}${RTL ? `;line-height:${UR_UI_LEADING}` : ''}}
-.rl-primary{background:${PALETTE.green};border-color:${PALETTE.green};color:#fff}
+.rl{margin-top:16px;break-inside:avoid;page-break-inside:avoid}
 .rl-hint{flex-basis:100%;font-family:${bodyFam};font-size:${RTL ? TYPE_FLOOR_UR.small : TYPE_FLOOR.small}px;color:${PALETTE.muted}${RTL ? `;line-height:${UR_UI_LEADING}` : ''}}
-.rl-url{flex-basis:100%;font-family:${FONTS.bodyLatin};font-size:${TYPE_FLOOR.small}px;color:#9AA2B1;word-break:break-all;direction:ltr;unicode-bidi:isolate;text-align:left}
 
 /* The gap above the guidance box is PADDING on a wrapper, not a margin on
    the box: a top margin is dropped at a page break, so when the box moves

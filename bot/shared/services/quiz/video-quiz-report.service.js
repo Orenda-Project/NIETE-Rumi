@@ -770,7 +770,8 @@ async function buildAndSend(shareCodeId, sc, teacher, { reason, isFollowUp, stam
     unfinished: live && live.notPlayed ? [] : unfinished.map((s) => s.student_name || 'Unnamed'),
     notPlayed: live ? live.notPlayed : null,
     rosterOf: live ? live.of : null,
-    reportLinks: live ? live.links : null,
+    // Never the links themselves: the PDF gets forwarded (COS ruling 18:09Z).
+    livePointer: Boolean(live && live.links),
     language: contentLang, contentLanguage: contentLang,
     // The caption is the teacher's (chromeLang); the count and live-report lines join it.
     caption: live && live.links
@@ -1060,7 +1061,7 @@ async function renderReportPdf(data) {
  */
 async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
                            started, finished, average, unfinished, classes,
-                           notPlayed = null, rosterOf = null, reportLinks = null,
+                           notPlayed = null, rosterOf = null, livePointer = false,
                            language, contentLanguage, caption: captionFor, teacherName = '' }) {
   const fs = require('fs');
   const os = require('os');
@@ -1072,7 +1073,7 @@ async function sendAsPdf({ phone, shareCode, students, hardest, guidance,
       teacherName,
       started, finished, average,
       students, hardest, guidance, unfinished, classes, language, contentLanguage,
-      notPlayed, rosterOf, reportLinks,
+      notPlayed, rosterOf, livePointer,
       // D1 — the footer stamp is part of the DOCUMENT, so it is written in the
       // document's language. `toLocaleDateString('en-GB')` printed "5 Sep 2026"
       // into an otherwise all-Urdu report; formatLessonDate is the same helper
