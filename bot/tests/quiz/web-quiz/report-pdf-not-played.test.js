@@ -1,7 +1,7 @@
 'use strict';
 /**
  * The post-completion PDF names who has NOT played yet — greyed first names with
- * roll numbers, from the class list — when the quiz's one class is known, and
+ * list numbers (the child's place on the teacher's list, never called a roll), from the class list — when the quiz's one class is known, and
  * carries two links: "Remind the class" (/t/<token>/remind) and "See the live
  * report" (/t/<token>). The caption gains the live-report line. All of it only
  * for a teacher on app_settings.teacher_report_teachers; absent, the PDF is
@@ -85,14 +85,17 @@ const pdfHtml = () => htmlToPdf.mock.calls[0][0];
 const caption = () => WhatsAppService.sendDocument.mock.calls[0][3];
 const hrefs = (html) => [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
 
-test('class known: the children still to play, greyed with their roll numbers, and the two links', async () => {
+test('class known: the children still to play, greyed, name first then the list no., and the two links', async () => {
   seed();
   expect(await report.generate(SC, { reason: 'scheduled' })).toBe(true);
   const html = pdfHtml();
   expect(html).toContain('Not played yet');
   const np = html.slice(html.indexOf('class="np"'));
   expect(np).toMatch(/Kid3[\s\S]*Kid4/);
-  expect(np).toMatch(/>3<[\s\S]*>4</);
+  expect(np).toMatch(/Kid3<\/span><span class="np-roll">3<\/span>/);   // the name, then its list no.
+  expect(np).toContain('list no.');
+  const visible = html.replace(/<style[\s\S]*?<\/style>/, '').replace(/<[^>]+>/g, ' ');
+  expect(visible).not.toMatch(/\broll\b/i);   // never called a roll
   expect(np).not.toMatch(/Kid1|Kid2|Testwala/);   // first names only, and only who has not played
 
   const links = hrefs(html);
