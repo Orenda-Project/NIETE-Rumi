@@ -33,7 +33,7 @@ const { clampLanguage } = require('../../config/ux-strings');
 const { artId, parseArtId, UUID_RX } = require('./web-quiz-art-id');
 const Schools = require('./web-quiz-schools');
 
-const ART_V = 1;               // bump when the template's look changes: every picture is drawn afresh
+const ART_V = 2;               // bump when the template's look or words change: every picture is drawn afresh (2: neutral Urdu invite, 0/N challenger)
 const MEM_MAX = 64;
 const CODE_RX = /^[A-Z0-9]{4,12}$/;
 const KIND_OF = { c: 'card', i: 'invite', l: 'class', s: 'school' };

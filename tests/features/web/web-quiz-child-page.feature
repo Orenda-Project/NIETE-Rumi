@@ -865,3 +865,9 @@ Feature: Web child quiz page on the portal
     Then the friend's scorecard offers "Challenge a friend" and "School league" but not "See my class" or "Share to class group"
     And the "Quiz complete" screen offers no "See my class"
     And the class table of a challenge code answers "not found", both as /q/<challenge code>/class and through the page's API
+  @T445b
+  Scenario: The invite picture and its link title never guess the friend's gender, and never dare a zero
+    Given a child sent a challenge link
+    When the link previews in Urdu
+    Then it reads «<name> کے 4/6 سے آگے نکلیں!» (an imperative), never «کیا آپ … سکتے ہیں؟»
+    And when the challenger scored 0 the picture and the title say "<name> challenged you!" («<name> نے آپ کو چیلنج کیا ہے!») with no score
