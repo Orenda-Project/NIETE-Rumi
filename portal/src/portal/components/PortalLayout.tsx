@@ -5,6 +5,7 @@ import { AuthContext } from '../hooks/authContext';
 import { useRecordingSession } from '../lib/recordingSession';
 import { RecordingBarShownContext } from '../lib/recordingBarShown';
 import { useNewUi } from '../lib/useNewUi';
+import { useCoachV2, isCoachV2For } from '../coach/useCoachV2';
 import PortalNavigation from './PortalNavigation';
 import RecordingBar from './RecordingBar';
 
@@ -37,7 +38,9 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
   const showBar = !!session?.active && session.returnTo !== pathname;
   // bd-5rz1v.12 — the new UI's indigo bar is taller than the old one; only then
   // does the page (and the recording bar) need more room. Off: as before.
-  const newUi = useNewUi(user?.phoneNumber || null, !loading && !!user) === true;
+  // bd-o15qnr — a coach on v2 keeps the live look even with the new UI on (v2 wins).
+  const coachV2 = isCoachV2For(user, useCoachV2(user?.phoneNumber || null, !loading && !!user));
+  const newUi = useNewUi(user?.phoneNumber || null, !loading && !!user) === true && !coachV2;
 
   useEffect(() => {
     if (!loading && !user) {
