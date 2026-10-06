@@ -1,4 +1,4 @@
-Feature: Teacher quiz report in the class report PDF and the "All my classes" tab
+Feature: Teacher quiz report in the class report PDF
   The post-completion class report PDF (and its caption) shows who on the class list
   has not played yet and links to the teacher's live web report (teacher-report.feature)
   and its "Remind the class" share; the reteach guidance it prints is stored for that page.
@@ -62,12 +62,3 @@ Feature: Teacher quiz report in the class report PDF and the "All my classes" ta
   Scenario: The pre-send PDF does not change
     When the hand-off PDF is rendered for a quiz in English and in Urdu
     Then it is byte-identical to the base template's output
-
-  @T357
-  Scenario: "All my classes" shows the teacher's quizzes by class, by week and quiz by quiz
-    Given the teacher sent 4 quizzes to classes 3 and 5 in the last 60 days
-    When the teacher opens "All my classes" on the report page at 360 px
-    Then there is one card per class and subject with its average and how many played
-    And an 8-week bar trend of children who played, with each week's average on top
-    And each quiz row opens that quiz's own report "/r/<token>"
-    And in Urdu every number and date reads in order inside the Urdu text
