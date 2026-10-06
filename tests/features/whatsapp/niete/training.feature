@@ -1326,6 +1326,7 @@ Feature: NIETE (ICT) Teacher Training
     Then they play at once as a new child of this quiz, labelled 4-A
     When I open "Who played?" on my preview link
     Then that child is listed as not on my list, beside my class's children who have not played yet
+    And when the typed name is near exactly one child who has not played, that child is suggested
     When I choose "This is <name>" from my class's names
     Then their finish moves onto that child of my list
     When instead I choose "Add to 4-A"
@@ -1336,7 +1337,7 @@ Feature: NIETE (ICT) Teacher Training
     Given my class code is for 4-A and some of my children have finished
     When my report asks who has not played
     Then it lists the children of 4-A with no finish, by first name and list number, and how many the class has
-    And it counts each child's first finish only, and leaves out my own preview runs and friends my children invited
+    And it counts each child once by my report's own rule (the first finish on a web code, the latest on a WhatsApp code), and leaves out my own preview runs and friends my children invited
     And it reads the class, the sessions and the children once each
     But when the code's class is not known, it lists every finish as off-list and offers my classes to choose from
 

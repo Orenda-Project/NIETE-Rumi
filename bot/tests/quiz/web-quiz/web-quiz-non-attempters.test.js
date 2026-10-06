@@ -75,6 +75,22 @@ describe('nonAttempters — a hand-out bound to 4-A', () => {
   });
 });
 
+describe('nonAttempters — the code\'s own counting rule, and a suggested reconcile', () => {
+  test('a WhatsApp code (no device_ref on its sessions) counts each child\'s LATEST finish, as the class report PDF does', async () => {
+    seed({ sessions: SESSIONS().map((x) => ({ ...x, device_ref: null })) });
+    const out = await IdRoster.nonAttempters({ shareCodeId: F.SC });
+    expect(out.played.find((p) => p.first === 'Ayesha')).toMatchObject({ correct: 5, sessionId: 's1b' });
+  });
+
+  test('a typed child who is near exactly ONE not-played child of the class carries suggest (the teacher may see names)', async () => {
+    fake.db.students.push({ id: '44444444-4444-4444-8444-444444444445', student_name: 'Ali Hamza', list_id: null, is_active: true, status: 'active' });
+    fake.db.quiz_sessions.push(done('sT2', '44444444-4444-4444-8444-444444444445', 'Ali Hamza', 2, 1));
+    const out = await IdRoster.nonAttempters({ shareCodeId: F.SC });
+    expect(out.provisional.find((p) => p.sessionId === 'sT2').suggest).toEqual({ studentId: kid(3), first: 'Ali', number: 3 });
+    expect(out.provisional.find((p) => p.sessionId === 'sT')).not.toHaveProperty('suggest');
+  });
+});
+
 describe('canonicalStudentIds — the one id a child is known by (for the hub)', () => {
   test('an enrolled child is itself; a stray un-enrolled row of the same child maps to the enrolled one; an unknown id is itself', async () => {
     fake.db.students.push({ id: 'b0000000-0000-4000-8000-0000000000aa', student_name: 'Ayesha Testwala', father_name: null, roll_number: null,

@@ -22,7 +22,7 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const Identity = require('./web-quiz-identity');
 const T = require('./web-quiz-token');
-const { oneAttemptPerChild } = require('./one-attempt-per-child');
+const { oneAttemptPerChild, attemptRuleFor } = require('./one-attempt-per-child');
 const { excludeSelfTests } = require('./teacher-self-test');
 
 const FLAG_KEY = 'web_quiz_identity';
@@ -219,10 +219,13 @@ async function nonAttempters({ shareCodeId } = {}) {
   const [resolved, { data: sessions }] = await Promise.all([
     Identity.resolveQuizClass({ teacherUserId: sc.teacher_user_id, quizId: sc.quiz_id, shareCodeId: sc.id }),
     supabase.from('quiz_sessions')
-      .select('id, student_id, student_name, user_id, status, correct_answers, total_questions_answered, completed_at, created_at')
+      .select('id, student_id, student_name, user_id, status, device_ref, correct_answers, total_questions_answered, completed_at, created_at')
       .eq('share_code_id', sc.id).is('invited_by_student_id', null).eq('status', 'completed'),
   ]);
-  const counted = oneAttemptPerChild(excludeSelfTests(sessions || [], sc.teacher_user_id), { rule: 'first_completed' })
+  // The code's own rule, as the class report counts it: a web code keeps each child's first
+  // finish, a WhatsApp code the latest (attemptRuleFor).
+  const rule = attemptRuleFor(sessions || []);
+  const counted = oneAttemptPerChild(excludeSelfTests(sessions || [], sc.teacher_user_id), { rule })
     .filter((s) => s.student_id);
   const finish = (s) => ({ correct: s.correct_answers || 0, total: s.total_questions_answered || 0, finishedAt: s.completed_at || null });
   const state = resolved ? resolved.state : 'none';
@@ -252,14 +255,20 @@ async function nonAttempters({ shareCodeId } = {}) {
     if (k) onList.push({ s: { ...s, student_id: k.id }, k });
     else provisional.push({ sessionId: s.id, studentId: s.student_id, typed: String(s.student_name || ''), ...finish(s) });
   }
-  const firsts = oneAttemptPerChild(onList.map((x) => x.s), { rule: 'first_completed' });
+  const firsts = oneAttemptPerChild(onList.map((x) => x.s), { rule });
   const played = firsts.map((s) => {
     const k = kids.find((x) => x.id === s.student_id);
     return { sessionId: s.id, studentId: k.id, first: k.first, number: k.number, onList: true, ...finish(s) };
   }).sort(byNumberThenFirst);
   const done = new Set(played.map((p) => p.studentId));
-  const notPlayed = kids.filter((k) => !done.has(k.id)).map((k) => ({ studentId: k.id, first: k.first, number: k.number }))
-    .sort(byNumberThenFirst);
+  const waiting = kids.filter((k) => !done.has(k.id));
+  const notPlayed = waiting.map((k) => ({ studentId: k.id, first: k.first, number: k.number })).sort(byNumberThenFirst);
+  // A typed child near exactly ONE child of the class who has not played: the teacher's likely
+  // "This is …" (the teacher may see names; the page never gets this).
+  provisional.forEach((p) => {
+    const m = Identity.match(waiting, p.typed);
+    if (m.outcome === 'one') p.suggest = { studentId: m.kid.id, first: m.kid.first, number: m.kid.number };
+  });
   return { class: cls, played, notPlayed, provisional: provisional.sort((a, b) => String(a.finishedAt).localeCompare(String(b.finishedAt))) };
 }
 
