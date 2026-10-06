@@ -70,7 +70,7 @@ const API_ROUTES = [
   // M4a hub — the kid hub's JSON (a hub token, not a code: checked by HUB_TOKEN_RX)
   { method: 'get', path: '/api/wq/hub/:token', limiter: 'read' },
   // M4b library
-  { method: 'get', path: '/api/wq/lib/h/:token', limiter: 'read' },
+  { method: 'get', path: '/api/wq/lib/h/:token', limiter: 'read', token: true },
   { method: 'get', path: '/api/wq/lib/:code', limiter: 'read' },
   { method: 'get', path: '/api/wq/videos/dl/:code', limiter: 'read' },
 ];
