@@ -2773,6 +2773,21 @@ const UX_STRINGS = {
     en: 'Keep at least one question on the paper.',
     ur: 'پرچے پر کم از کم ایک سوال رکھیں۔',
   },
+  // M4c challenge — the kid's Challenge on the web quiz (web-quiz-challenge.js): exercise names and the mascot's
+  // spoken lines (each also recorded once as a clip). Gender-neutral: imperatives, no first-person verbs.
+  wqChBiggerName: { en: 'Which is bigger?', ur: 'کون سا بڑا ہے؟' },
+  wqChReadName: { en: 'Read aloud', ur: 'اونچی آواز میں پڑھیں' },
+  wqChBiggerIntro: { en: 'Two numbers will pop up. Tap the bigger one!', ur: 'دو نمبر آئیں گے۔ بڑے نمبر کو چھوئیں!' },
+  wqChBiggerStart: { en: 'Ready? Go!', ur: 'تیار؟ شروع کریں!' },
+  wqChBiggerStop: { en: 'All done!', ur: 'بس، ہو گیا!' },
+  wqChBiggerDone: { en: 'Well done! You did it!', ur: 'شاباش! بہت خوب!' },
+  wqChReadIntro: {
+    en: 'Here is a short story. Read it out loud, as well as you can. If a word is hard, go on to the next one.',
+    ur: 'یہ ایک چھوٹی سی کہانی ہے۔ اسے اونچی آواز میں پڑھیں۔ کوئی لفظ مشکل لگے تو اگلا لفظ پڑھیں۔',
+  },
+  wqChReadStart: { en: 'Ready? Begin.', ur: 'تیار ہو جائیں۔ شروع کریں!' },
+  wqChReadStop: { en: 'Stop. Thank you!', ur: 'رک جائیں۔ شکریہ!' },
+  wqChReadDone: { en: 'Great reading! Well done.', ur: 'بہت اچھا پڑھا! شاباش!' },
 };
 
 /**

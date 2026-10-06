@@ -451,10 +451,10 @@ async function uploadFeatureVideo(filePath, featureName) {
  * @param {string} key - R2 object key (e.g., "reports/userId/sessionId_report.pdf")
  * @returns {Promise<Buffer>} File buffer
  */
-async function downloadFromR2(key) {
+async function downloadFromR2(key, { bucket } = {}) {
   try {
     const command = new GetObjectCommand({
-      Bucket: BUCKET_NAME,
+      Bucket: bucket || BUCKET_NAME,
       Key: key,
     });
 
@@ -972,9 +972,28 @@ async function uploadBuffer(buffer, key, contentType = 'application/octet-stream
  * @param {number} expiresIn    seconds
  * @returns {Promise<string>} presigned PUT url
  */
-async function getPresignedUploadUrl(key, contentType, expiresIn = 900) {
-  const command = new PutObjectCommand({ Bucket: BUCKET_NAME, Key: key, ContentType: contentType });
+async function getPresignedUploadUrl(key, contentType, expiresIn = 900, { bucket } = {}) {
+  const command = new PutObjectCommand({ Bucket: bucket || BUCKET_NAME, Key: key, ContentType: contentType });
   return getSignedUrl(getR2Client(), command, { expiresIn });
+}
+
+/**
+ * Delete one object by its key, in a named bucket (default R2_BUCKET_NAME). Never throws: true when the
+ * delete was accepted, false otherwise (deleteAudio's URL parsing knows only the default bucket).
+ *
+ * @param {string} key
+ * @param {{bucket?: string}} [opts]
+ * @returns {Promise<boolean>}
+ */
+async function deleteKey(key, { bucket } = {}) {
+  if (!key) return false;
+  try {
+    await getR2Client().send(new DeleteObjectCommand({ Bucket: bucket || BUCKET_NAME, Key: key }));
+    return true;
+  } catch (error) {
+    console.error('❌ Error deleting from R2:', error && error.message);
+    return false;
+  }
 }
 
 /**
@@ -1009,6 +1028,7 @@ async function presignKey(key, expiresIn = 3600, { bucket } = {}) {
 
 module.exports = {
   getPresignedUploadUrl,
+  deleteKey,
   presignKey,
   headObject,
   uploadAudio,
