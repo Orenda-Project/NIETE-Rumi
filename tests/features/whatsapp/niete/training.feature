@@ -1949,3 +1949,12 @@ Feature: NIETE (ICT) Teacher Training
     And with the setting absent or false, the quiz is made exactly as before
     # transcript-quiz-generate withLessonMoments, applied to every rewrite call with the gates on.
     # Unit: tests/quiz/quiz-author-gates-leak-moments.test.js. @wip.
+
+  @api @quiz @web @wip @draft @P2 @T245 @no-mock-driver
+  Scenario: An old question that supposes a missing picture is left out of my web quiz
+    Given my quiz was made before the picture rule and has "If a diagram shows four concentric circles…, which circle is the mantle?" with no diagram
+    When a child plays it on the web page
+    Then that question is not asked, and the rest of the quiz plays
+    And the same question with its picture, or a question that names no picture, is asked as before
+    And the WhatsApp quiz is unchanged
+    # web-quiz.service playable() uses quiz-author-gates-v2 presupposesPicture. Unit: bot/tests/quiz/web-quiz/web-quiz-picture-supposed.test.js. @wip.
