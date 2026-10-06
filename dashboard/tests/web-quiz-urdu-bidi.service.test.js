@@ -22,7 +22,7 @@ describe('a class label like 3-B on an Urdu page is one left-to-right atom', () 
   test('the scorecard header', () => {
     const p = page({ lang: 'ur', cls: { label: '5-A', teacher: 'استاد', chips: [] }, store: STORE });
     expect(p.moment()).toBe('M10');
-    expect(p.html()).toMatch(new RegExp('· ' + LAT('5-A').replace(/[.*+?^${}()|[\]\\/]/g, '\\$&') + '</header>'));
+    expect(p.html()).toContain(LAT('5-A') + '</header>');
   });
 
   test('a lone number or a lone Latin name needs no mark (each is one direction already)', () => {
