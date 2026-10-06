@@ -118,10 +118,10 @@ const LeaderObservations = () => {
           <h1 className="text-3xl sm:text-4xl font-light">Observations</h1>
           <p className="text-muted-foreground mt-2">
             {coachObserve
-              // bd-5rz1v.6.6: a lesson recorded from here is finished here; only what was
-              // recorded on WhatsApp is still debriefed there.
-              ? "Record a teacher's lesson, check the draft, talk with the teacher and send the report — all here. Observations you record on WhatsApp with /observe are debriefed on WhatsApp."
-              : "Your schedule, debriefs waiting, and completed observations. To schedule or debrief, send /observe to NIETE on WhatsApp."}
+              // bd-5rz1v.6.6: a lesson recorded from here is finished here.
+              // bd-4yswt: one short line — it is an app; the record button below explains itself.
+              ? "Record a lesson, then send the report."
+              : "Schedule and debrief with /observe on WhatsApp."}
           </p>
         </header>
 
