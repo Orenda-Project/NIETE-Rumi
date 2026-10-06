@@ -1140,10 +1140,9 @@ async function fixWhoV2(ctx, body) {
 
 /**
  * The teacher's report token (`tr`) for this code: same teacher, and a token for this quiz or
- * for all of the teacher's quizzes. Until the report token's module is wired here, `tr` grants
- * nothing (the preview link `p` is the way in).
+ * for all of the teacher's quizzes (signed kind 'tr'; a child's or preview token is refused).
  */
-const verifyTeacherReport = () => null; // the report token's verifier replaces this
+const { verifyTeacherReport } = require('./teacher-report-token');
 function teacherReportOk(tr, ctx) {
   const tok = verifyTeacherReport(tr);
   return Boolean(tok && tok.teacherId === ctx.teacherUserId && (tok.quizId == null || tok.quizId === ctx.quizId));

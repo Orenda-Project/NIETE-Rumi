@@ -180,6 +180,31 @@ describe('quizReport', () => {
     expect(Data.gradesOf(null)).toEqual([]);
   });
 
+  test('a mirrored list already named "Grade 3 - B" is not labelled "Grade 3 - B-B"', async () => {
+    seed({ lists: [{ id: LIST3B, class_name: 'Grade 3 - B', section: 'B' }] });
+    // identity v2 labels it from the class (3-B); the legacy path (a list the teacher picked) must not double it
+    expect((await Data.quizReport(TEACHER, QUIZ)).roster.className).not.toMatch(/B-B$/);
+    // the legacy fallback's own label (used when identity v2 cannot answer)
+    expect(Data.listLabel({ class_name: 'Grade 3 - B', section: 'B' })).toBe('Grade 3 - B');
+    expect(Data.listLabel({ class_name: '3', section: 'B' })).toBe('3-B');
+    expect(Data.listLabel({ class_name: 'Grade 3', section: null })).toBe('Grade 3');
+  });
+
+  test('the reminder carries the class count as social proof when the class is known, naming nobody', async () => {
+    seed();
+    const r = await Data.quizReport(TEACHER, QUIZ);
+    expect(r.reminder.text).toContain('2');
+    expect(r.reminder.text).toContain('4');
+    expect(r.reminder.text).toContain('3-B');
+    expect(r.reminder.text).toContain(LINK);
+    ['Amna', 'Bilal', 'Chand', 'Dua'].forEach((n) => expect(r.reminder.text).not.toContain(n));
+    const ur = Data.reminderText({ topic: 'کسر', link: LINK, language: 'ur', played: 12, of: 31, className: '5-A' });
+    expect(ur).toContain('\u206612\u2069');
+    expect(ur).toContain('\u206631\u2069');
+    // no class known: today's text, no count
+    expect(Data.reminderText({ topic: 'Plants', link: LINK, language: 'en' })).not.toMatch(/ of /);
+  });
+
   test('no class list: state none, played still shown', async () => {
     seed({ lists: [] });
     const r = await Data.quizReport(TEACHER, QUIZ);

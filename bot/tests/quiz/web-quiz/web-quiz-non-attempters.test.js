@@ -171,6 +171,21 @@ describe('/who/fix under v2', () => {
 });
 
 describe('POST /who/class — the teacher binds an unbound hand-out', () => {
+  test('the teacher\'s REPORT token (tr) binds too; another teacher\'s or another quiz\'s token does not', async () => {
+    seed({ codeClass: null });
+    const TR = require('../../../shared/services/quiz/teacher-report-token');
+    const { class: c } = await IdRoster.nonAttempters({ shareCodeId: F.SC });
+    const key = c.classes.find((x) => x.label === '4-B').key;
+    const other = TR.signTeacherReport({ teacherId: '99999999-9999-4999-8999-999999999999', quizId: F.QUIZ });
+    await expect(WQ.whoClass({ code: 'AB12CD', tr: other, key })).rejects.toMatchObject({ status: 401 });
+    const wrongQuiz = TR.signTeacherReport({ teacherId: F.TEACHER, quizId: '22222222-2222-4222-8222-2222222222ee' });
+    await expect(WQ.whoClass({ code: 'AB12CD', tr: wrongQuiz, key })).rejects.toMatchObject({ status: 401 });
+    const mine = TR.signTeacherReport({ teacherId: F.TEACHER, quizId: F.QUIZ });
+    expect(await WQ.whoClass({ code: 'AB12CD', tr: mine, key })).toEqual({ ok: true, class: { label: '4-B' } });
+    const all = TR.signTeacherReport({ teacherId: F.TEACHER });
+    expect(await WQ.whoClass({ code: 'AB12CD', tr: all, key })).toEqual({ ok: true, class: { label: '4-B' } });
+  });
+
   test('the key of 4-B writes quiz_share_codes.class_id; the children\'s page is then bound too', async () => {
     seed({ codeClass: null });
     const { class: c } = await IdRoster.nonAttempters({ shareCodeId: F.SC });
