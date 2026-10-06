@@ -128,3 +128,64 @@ test('no class list linked: the list still shows, with no fix buttons, and says 
   expect(p.last().h).not.toContain('data-ref=');
   expect(p.last().h).toContain('class list');
 });
+
+describe("a teacher's page, not a wall of buttons", () => {
+  const rows = Array.from({ length: 12 }, (_, i) => ({ ref: `s${i}`, first: `Kid${i}`, roll: i < 8 ? i + 1 : null, on_list: i < 8, correct: i % 5, total: 5 }));
+  const body = { roster: true, rows, summary: { played: 12, on_list: 8, of: 30, avg: 3.4, total: 5, hardest: { n: 4, missed: 7 } },
+    not_played: [{ first: 'Danish', roll: 12 }, { first: 'Hamza', roll: 14 }] };
+
+  test('a summary line first: how many of the class played, the average, the hardest question', async () => {
+    const p = page({ replies: [ok(body)] });
+    p.ctx.params.p = 'tok';
+    p.ctx.whoPlayed();
+    await flush();
+    const h = p.last().h;
+    expect(h).toContain('12 of 30 played');
+    expect(h.replace(/<[^>]+>/g, '')).toContain('Average 3.4/5');
+    expect(h).toContain('Q4 was the hardest (7 missed it)');
+    expect(h.indexOf('12 of 30 played')).toBeLessThan(h.indexOf('Kid0'));
+  });
+
+  test('"Not played yet" from the class list: first names and roll numbers only', async () => {
+    const p = page({ replies: [ok(body)] });
+    p.ctx.params.p = 'tok';
+    p.ctx.whoPlayed();
+    await flush();
+    const h = p.last().h;
+    expect(h).toContain('Not played yet (2)');
+    expect(h).toMatch(/Danish[^<]*<\/b>\s*<span[^>]*>Roll 12/);
+  });
+
+  test('compact rows: one line each, a small "Set roll" link (never a full-width button) on off-list rows only', async () => {
+    const p = page({ replies: [ok(body)] });
+    p.ctx.params.p = 'tok';
+    p.ctx.whoPlayed();
+    await flush();
+    const h = p.last().h;
+    expect((h.match(/class="wq-who-row"/g) || []).length).toBe(12);
+    const fixes = h.match(/<button[^>]*data-ref=[^>]*>/g) || [];
+    expect(fixes).toHaveLength(4);
+    fixes.forEach((b) => { expect(b).toContain('wq-linkbtn'); expect(b).not.toMatch(/\bwq-btn\b/); });
+  });
+
+  test('Urdu: the summary in Urdu, the score an LTR isolate', async () => {
+    const p = page({ lang: 'ur', replies: [ok(body)] });
+    p.ctx.params.p = 'tok';
+    p.ctx.whoPlayed();
+    await flush();
+    const h = p.last().h;
+    expect(h).toContain('میں سے');
+    expect(h).toContain('ابھی نہیں کھیلا');
+    expect(h).toMatch(/<bdi dir="ltr">[^<]*3[.٫]4\/5|<bdi dir="ltr">[^<]*۳[.٫]۴\/۵/);
+  });
+
+  test('no class list: no "of", no not-played list', async () => {
+    const p = page({ cls: { chips: [] }, replies: [ok({ roster: false, rows: rows.slice(0, 2), summary: { played: 2, on_list: 0, of: null, avg: 2, total: 5, hardest: null }, not_played: null })] });
+    p.ctx.params.p = 'tok';
+    p.ctx.whoPlayed();
+    await flush();
+    const h = p.last().h;
+    expect(h).toContain('2 played');
+    expect(h).not.toContain('Not played yet');
+  });
+});

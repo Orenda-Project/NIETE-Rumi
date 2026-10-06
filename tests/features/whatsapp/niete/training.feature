@@ -1758,6 +1758,15 @@ Feature: NIETE (ICT) Teacher Training
     But nobody without my preview link can see or change the list
     # ADDED 2026-10-05: web-quiz.service whoPlayed / fixWho (E11, signed p token), routes /api/internal/wq/who + /who/fix. Unit: tests/quiz/web-quiz/web-quiz-who-played.test.js. @wip.
 
+  @api @quiz @web @wip @draft @P2 @T213 @no-mock-driver
+  Scenario: My "Who played?" tells me first how my class did and who has not played
+    Given app_settings "web_quiz_roster_id" is true and the quiz is for my class list of 30
+    When 12 children have finished and I open "Who played?" on my preview link
+    Then I see "12 of 30 played", the class average, and the question most children missed
+    And I see who on my list has not played yet, by first name and roll number only
+    And my preview link's pages say "FOR TEACHERS" and do not greet me like a child
+    # ADDED 2026-10-06: web-quiz.service whoPlayed summary / not_played / hardestQuestion; wq.js teacherLanding + whoPlayed; web-quiz-brand subTeacher. Unit: tests/quiz/web-quiz/web-quiz-who-played.test.js, dashboard/tests/web-quiz-who-played-page.service.test.js, dashboard/tests/web-quiz-teacher-landing.service.test.js. @wip.
+
   @api @quiz @web @wip @draft @P2 @T211 @no-mock-driver
   Scenario: A child's practice round never shows a score the class league does not keep
     Given a child already finished my quiz once
