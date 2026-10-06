@@ -18,7 +18,7 @@
  * things to download is not where that belongs.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { FileText, Download, KeyRound, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -43,14 +43,31 @@ function madeOn(iso: string | null): string {
 }
 
 type Props = {
-  /** Bumped by the generator when a paper finishes, so the list refetches. */
+  /** Bumped by the page when a paper becomes ready (bd-t5tow), so the list refetches. */
   refreshKey?: number;
   /** Server flag features.assessmentEditing — shows Edit and Versions. */
   editing?: boolean;
+  /**
+   * bd-t5tow — papers that arrived while she was elsewhere. They wear a New
+   * chip for this visit to My papers, so the one she just made is easy to spot.
+   */
+  highlightIds?: string[];
+  /** bd-t5tow — the list's total after each load, for the My papers tab badge. */
+  onTotal?: (total: number) => void;
+  /**
+   * bd-t5tow — the generator is in the other tab now, so the empty list offers
+   * a way there instead of pointing "above".
+   */
+  onCreate?: () => void;
 };
 
-const AssessmentPapersPanel = ({ refreshKey = 0, editing = false }: Props) => {
+const AssessmentPapersPanel = ({
+  refreshKey = 0, editing = false, highlightIds = [], onTotal, onCreate,
+}: Props) => {
   const { toast } = useToast();
+  // A ref, so a parent passing a fresh callback each render does not refetch the list.
+  const onTotalRef = useRef(onTotal);
+  onTotalRef.current = onTotal;
   const [versionsFor, setVersionsFor] = useState<string | null>(null);
   // Read by the editor (Task 8/9); set here from Edit and from the dialog.
   const [editFor, setEditFor] = useState<string | null>(null);
@@ -95,6 +112,7 @@ const AssessmentPapersPanel = ({ refreshKey = 0, editing = false }: Props) => {
       });
       setPapers(res.papers || []);
       setTotal(res.total || 0);
+      onTotalRef.current?.(res.total || 0);
     } catch {
       toast({
         title: 'Could not load your papers',
@@ -187,14 +205,23 @@ const AssessmentPapersPanel = ({ refreshKey = 0, editing = false }: Props) => {
           <FileText className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">
             {gradeFilter === ALL && subjectFilter === ALL
-              ? 'No papers yet. Make one above.'
+              ? 'No papers yet.'
               : 'No papers match these filters.'}
           </p>
+          {onCreate && gradeFilter === ALL && subjectFilter === ALL && (
+            <Button size="sm" onClick={onCreate}>Create paper</Button>
+          )}
         </div>
       ) : (
         <ul className="divide-y rounded-lg border">
-          {papers.map((p) => (
-            <li key={p.paper_id} className="flex flex-wrap items-center gap-3 p-3">
+          {papers.map((p) => {
+            const isNew = highlightIds.includes(p.paper_id);
+            return (
+            <li
+              key={p.paper_id}
+              data-new={isNew || undefined}
+              className={`flex flex-wrap items-center gap-3 p-3 ${isNew ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''}`}
+            >
               <FileText className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">
@@ -203,6 +230,11 @@ const AssessmentPapersPanel = ({ refreshKey = 0, editing = false }: Props) => {
                   {/* One entry per paper, showing its latest version; a paper
                       she never edited is simply the paper. */}
                   {p.version != null && p.version > 1 ? ` · Version ${p.version}` : ''}
+                  {isNew && (
+                    <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100">
+                      New
+                    </span>
+                  )}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {[
@@ -234,7 +266,8 @@ const AssessmentPapersPanel = ({ refreshKey = 0, editing = false }: Props) => {
                 )}
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
 

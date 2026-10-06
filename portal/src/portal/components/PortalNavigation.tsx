@@ -140,13 +140,16 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
                   key={item.path}
                   to={item.path}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-md transition-colors",
+                    // One line per label: seven items (Lesson Plans, Assessment Generator)
+                    // wrapped below 1366px at px-4. Tighter padding until 2xl, and the
+                    // icons only from xl, keep the bar inside the screen on laptops.
+                    "flex items-center gap-2 whitespace-nowrap px-2 2xl:px-4 py-2 text-sm xl:text-base rounded-md transition-colors",
                     isActive(item.path)
                       ? "bg-white/20 text-white"
                       : "text-white/70 hover:text-white hover:bg-white/10"
                   )}
                 >
-                  <item.icon className="w-4 h-4" />
+                  <item.icon className="hidden xl:block w-4 h-4 shrink-0" aria-hidden="true" />
                   <span>{item.title}</span>
                 </Link>
               ))}
