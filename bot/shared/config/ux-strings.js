@@ -4006,6 +4006,19 @@ const CLASS_FLOW_STRINGS = {
     en: '{dropped} over the limit were not added.',
     ur: 'حد سے زیادہ {dropped} شامل نہیں ہوئے۔',
   },
+  // A paste that did not (fully) land. Never "nothing changed": the screen names what is missing.
+  classStudentsNotAddedHeading: {
+    en: 'Not everything was saved',
+    ur: 'سب کچھ محفوظ نہیں ہوا',
+  },
+  classStudentsNotAdded: {
+    en: '{notAdded} could not be added to {class}. Please paste them again.',
+    ur: '{notAdded} کو {class} میں شامل نہیں کیا جا سکا۔ براہِ کرم انہیں دوبارہ پیسٹ کریں۔',
+  },
+  classStudentsAddFailed: {
+    en: 'Your list could not be added to {class}. Please paste it again.',
+    ur: 'آپ کی فہرست {class} میں شامل نہیں ہو سکی۔ براہِ کرم اسے دوبارہ پیسٹ کریں۔',
+  },
   classStudentsRemoved: {
     en: '{removed} removed from {class}.',
     ur: '{class} سے {removed} کو نکال دیا گیا۔',

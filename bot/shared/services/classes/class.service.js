@@ -910,6 +910,29 @@ async function addStudent({
   // Her legacy list for this class, so attendance keeps working for her.
   const listId = await mirrorListId(classId, teacherUserId);
 
+  const student = await writeStudentRow({ name, fatherName, rollNumber, listId });
+  if (!student) return { error: 'insert_failed' };
+
+  const enrolled = await enrollStudent({
+    classId,
+    studentId: student.id,
+    rollNumber,
+    enrolledOn: new Date().toISOString().slice(0, 10),
+  });
+
+  if (enrolled.error) {
+    logToFile('⚠️ ClassService.addStudent: enrolled failed after the student row was written', {
+      studentId: student.id, error: enrolled.error,
+    }, 'error');
+    await takeBackStudentRow(student.id);
+    return { error: enrolled.error, rollClash: Boolean(enrolled.rollClash) };
+  }
+
+  return { student, enrollment: enrolled.enrollment };
+}
+
+/** One new `students` row, or null (logged). */
+async function writeStudentRow({ name, fatherName = null, rollNumber = null, listId = null }) {
   const { data: student, error: insErr } = await supabase
     .from('students')
     .insert({
@@ -924,35 +947,26 @@ async function addStudent({
 
   if (insErr || !student) {
     logToFile('⚠️ ClassService.addStudent: insert failed', { error: insErr && insErr.message }, 'error');
-    return { error: 'insert_failed' };
+    return null;
   }
+  return student;
+}
 
-  const enrolled = await enrollStudent({
-    classId,
-    studentId: student.id,
-    rollNumber,
-    enrolledOn: new Date().toISOString().slice(0, 10),
-  });
-
-  if (enrolled.error) {
-    logToFile('⚠️ ClassService.addStudent: enrolled failed after the student row was written', {
-      studentId: student.id, error: enrolled.error,
+/**
+ * Take a students row that never got its enrolment back out of service. An ACTIVE student with
+ * no enrolment is a same-name twin on the teacher's legacy list. Soft-deactivate (never DELETE:
+ * row history hangs off students).
+ */
+async function takeBackStudentRow(studentId) {
+  const { error: undoErr } = await supabase
+    .from('students')
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq('id', studentId);
+  if (undoErr) {
+    logToFile('⚠️ ClassService.addStudent: could not take back the student row', {
+      studentId, error: undoErr.message,
     }, 'error');
-    // Do not leave the row behind: an ACTIVE student with no enrolment is a same-name twin on the
-    // teacher's legacy list. Soft-deactivate (never DELETE: row history hangs off students).
-    const { error: undoErr } = await supabase
-      .from('students')
-      .update({ is_active: false, updated_at: new Date().toISOString() })
-      .eq('id', student.id);
-    if (undoErr) {
-      logToFile('⚠️ ClassService.addStudent: could not take back the student row', {
-        studentId: student.id, error: undoErr.message,
-      }, 'error');
-    }
-    return { error: enrolled.error, rollClash: Boolean(enrolled.rollClash) };
   }
-
-  return { student, enrollment: enrolled.enrollment };
 }
 
 /**
@@ -1025,7 +1039,8 @@ const MAX_PASTE = 300;
  * are applied here; attendance's parser has them but drops father names. Reusing one
  * parser and carrying the other's guards beats writing a third.
  *
- * @returns {Promise<{added, duplicates, dropped, students?, error?}>}
+ * @returns {Promise<{added, duplicates, dropped, students?, error?, notAdded?}>}
+ *   `notAdded` (with `error`) is how many of the paste did not land, for the teacher's screen.
  */
 async function addStudents({ classId, teacherUserId, rawText } = {}) {
   if (!classId) return { error: 'missing_class' };
@@ -1066,6 +1081,21 @@ async function readRoster({ classId, teacherUserId }) {
 /** How many times one child may re-pick a roll after another writer took it. */
 const ROLL_RETRIES = 5;
 
+/**
+ * How far past the class's highest roll a child jumps after its `clashes`-th clash: 2, 4, 8, ...
+ *
+ * The writer we clashed with is usually still going (a longer paste on another replica), and the
+ * roll it takes next is exactly max + 1. Re-trying at max + 1 lands on that same roll every time:
+ * on the live sandbox a 5-child paste lost six straight clashes to a 20-child paste and gave up
+ * with none enrolled. Jumping past the rows it is still adding wins on the first retry against a
+ * writer one row ahead, and the doubling outruns a faster one. Rolls stay distinct because the
+ * unique index (class_id, roll) is still the arbiter; the price is the occasional skipped number,
+ * which the other writer usually fills.
+ */
+function rollLeap(clashes) {
+  return 2 ** clashes;
+}
+
 async function addParsedStudents({ classId, teacherUserId, parsed }) {
   // Who is already on the roster, so a re-paste is not a duplicate.
   const roster = await readRoster({ classId, teacherUserId });
@@ -1085,45 +1115,71 @@ async function addParsedStudents({ classId, teacherUserId, parsed }) {
   const dropped = Math.max(0, wanted.length - MAX_PASTE);
   const toAdd = wanted.slice(0, MAX_PASTE);
 
+  // Her legacy list for this class, so attendance keeps working for her.
+  const listId = await mirrorListId(classId, teacherUserId);
+  const enrolledOn = new Date().toISOString().slice(0, 10);
+
   // Names on the class as of the LAST read. It starts as the roster we began with and is replaced
   // after every clash, so a child another writer has since added is skipped, not added twice.
   let taken = roster.seen;
+  let skippedHere = 0;   // duplicates found while adding, so the not-added count excludes them
   const students = [];
   for (const row of toAdd) {
     const key = String(row.studentName).trim().toLowerCase();
-    if (taken.has(key)) { duplicates += 1; continue; }
-    let res = null;
+    if (taken.has(key)) { duplicates += 1; skippedHere += 1; continue; }
+
+    nextRoll += 1;
+    // ONE students row per child, whatever happens to its roll. A clash re-tries only the
+    // enrolment, so a lost race no longer leaves a taken-back row behind per attempt.
+    // eslint-disable-next-line no-await-in-loop
+    const student = await writeStudentRow({
+      name: String(row.studentName).trim(), fatherName: row.fatherName || null, rollNumber: nextRoll, listId,
+    });
+    let enrolled = student ? null : { error: 'insert_failed' };
     let skipped = false;
-    for (let attempt = 0; attempt <= ROLL_RETRIES; attempt += 1) {
-      nextRoll += 1;
+    for (let clashes = 0; student; ) {
       // eslint-disable-next-line no-await-in-loop
-      res = await addStudent({
-        classId,
-        teacherUserId,
-        studentName: row.studentName,
-        fatherName: row.fatherName || null,
-        rollNumber: nextRoll,
-      });
-      if (!res.error || !res.rollClash) break;
+      enrolled = await enrollStudent({ classId, studentId: student.id, rollNumber: nextRoll, enrolledOn });
+      if (!enrolled.error || !enrolled.rollClash || clashes >= ROLL_RETRIES) break;
+      clashes += 1;
       // Another writer (a second submit, another replica) took this roll. The unique index is the
-      // arbiter. Re-read the class: the child may be there now (skip, it is theirs), else take
-      // the next free roll and go again.
+      // arbiter. Re-read the class: the child may be there now (skip, it is theirs), else jump
+      // past what that writer is still adding and go again.
       // eslint-disable-next-line no-await-in-loop
       const fresh = await readRoster({ classId, teacherUserId });
-      nextRoll = Math.max(nextRoll, fresh.maxRoll);
       taken = fresh.seen;
-      if (fresh.seen.has(key)) { duplicates += 1; skipped = true; break; }
+      if (fresh.seen.has(key)) { skipped = true; break; }
+      nextRoll = Math.max(nextRoll, fresh.maxRoll) + rollLeap(clashes);
     }
-    if (skipped) continue;
-    if (res.error) {
+
+    if (student && (skipped || enrolled.error)) {
+      // eslint-disable-next-line no-await-in-loop
+      await takeBackStudentRow(student.id);
+    }
+    if (skipped) { duplicates += 1; skippedHere += 1; continue; }
+    if (enrolled.error) {
+      const notAdded = toAdd.length - students.length - skippedHere;
       logToFile('⚠️ ClassService.addStudents: stopped part-way', {
-        classId, added: students.length, error: res.error, rollClash: Boolean(res.rollClash),
+        classId, added: students.length, notAdded, error: enrolled.error, rollClash: Boolean(enrolled.rollClash),
       }, 'error');
-      // Report what DID land rather than pretending none of it did — the teacher
-      // needs to know what to re-paste.
-      return { error: res.error, added: students.length, duplicates, dropped, students };
+      // Report what DID land and what did not, rather than pretending none of it did — the
+      // teacher needs to know what to re-paste.
+      return { error: enrolled.error, added: students.length, notAdded, duplicates, dropped, students };
     }
-    students.push(res.student);
+    if (student.roll_number !== nextRoll) {
+      // The enrolment holds the roll it won; keep the students row's copy in step.
+      // eslint-disable-next-line no-await-in-loop
+      const { error: rollErr } = await supabase
+        .from('students')
+        .update({ roll_number: nextRoll, updated_at: new Date().toISOString() })
+        .eq('id', student.id);
+      if (rollErr) {
+        logToFile('⚠️ ClassService.addStudents: roll copy not updated', { studentId: student.id, error: rollErr.message });
+      } else {
+        student.roll_number = nextRoll;
+      }
+    }
+    students.push(student);
   }
 
   return { added: students.length, duplicates, dropped, students };
