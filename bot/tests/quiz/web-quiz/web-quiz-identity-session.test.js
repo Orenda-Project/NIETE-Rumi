@@ -242,6 +242,27 @@ describe('E3 a hub link (?k=<chip>) plays straight through only on a phone that 
   });
 });
 
+describe('a phone holding one child\'s open session, then "Not X?" and another child', () => {
+  test('a resume token never carries a session to ANOTHER child: a different chip or a typed name starts that child\'s own session', async () => {
+    const a = await answer({ chip: chipOf(kid(1)), via: 'remembered' });
+    expect(a.status).toBe(200);
+    // the same phone, the first child's st still stored, now a different child's card is confirmed
+    const b = await answer({ chip: chipOf(kid(2)), via: 'is_this_you', resume_st: a.body.st });
+    expect(b.status).toBe(200);
+    expect(b.body.st).not.toBe(a.body.st);
+    expect(b.body.child.chip).toBe(chipOf(kid(2)));
+    // a typed name with the old st goes to the name match, never resumes the first child
+    const c = await answer({ new: { name: 'Ali' }, resume_st: a.body.st });
+    expect(c.body).toMatchObject({ error: 'ask_more' });
+  });
+  test('the same child\'s card with its own resume token still resumes', async () => {
+    const a = await answer({ chip: chipOf(kid(1)), via: 'remembered' });
+    const again = await answer({ chip: chipOf(kid(1)), via: 'remembered', resume_st: a.body.st });
+    expect(again.body.st).toBe(a.body.st);
+    expect(again.body.resume).toEqual({ answered: [] });
+  });
+});
+
 describe('logs: ids and counts only', () => {
   test('every identity step is logged without a name or a typed string', async () => {
     await answer({ new: { name: 'Ali' } });

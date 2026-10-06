@@ -365,3 +365,36 @@ describe('the shell loads wq-identity.js only for a v2 quiz', () => {
     expect(html({ label: 'Class 3', chips: [] })).not.toContain('wq-identity.js');
   });
 });
+
+describe('a phone holding one child\'s open session (resume_st), then another child', () => {
+  const tooba = { chip: 't1', first: 'Tooba', animal: 'turtle' };
+  test('"Not Tooba?" → a new name → Yes: the session request carries no resume_st, so Tooba\'s session is never continued', async () => {
+    const p = page({ kids: [tooba], replies: [{ status: 409, ok: false, body: { error: 'is_this_you', candidates: [{ chip: 'y1', first: 'Yusra', animal: 'bee' }] } }] });
+    Object.assign(p.ctx.S, { st: 'ST-TOOBA', child: tooba, answers: { q1: { slot: 'A', ok: true }, q2: { slot: 'B', ok: false } } });
+    p.ctx.who();
+    p.type('wq-name', 'Yusra');
+    p.tap('wq-start');
+    await flush();
+    expect(p.calls[0].body.resume_st).toBeUndefined();
+    p.tap('wq-yes');
+    await flush();
+    expect(p.calls[1].body).toMatchObject({ chip: 'y1' });
+    expect(p.calls[1].body.resume_st).toBeUndefined();
+  });
+  test('another remembered card tapped: no resume_st; the same child\'s own card keeps it', async () => {
+    const yusra = { chip: 'y1', first: 'Yusra', animal: 'bee' };
+    const p = page({ kids: [tooba, yusra] });
+    Object.assign(p.ctx.S, { st: 'ST-TOOBA', child: tooba });
+    p.ctx.landing();
+    p.tap('wq-kid-1');
+    await flush();
+    expect(p.calls[0].body).toMatchObject({ chip: 'y1' });
+    expect(p.calls[0].body.resume_st).toBeUndefined();
+    const q = page({ kids: [tooba, yusra] });
+    Object.assign(q.ctx.S, { st: 'ST-TOOBA', child: tooba });
+    q.ctx.landing();
+    q.tap('wq-kid-0');
+    await flush();
+    expect(q.calls[0].body).toMatchObject({ chip: 't1', resume_st: 'ST-TOOBA' });
+  });
+});
