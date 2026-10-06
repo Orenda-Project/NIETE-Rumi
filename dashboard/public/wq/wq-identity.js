@@ -8,7 +8,8 @@
  *   S2 name      "What is your name?"
  *   S3 askMore   the server's 409 ask_more: full_name | father | number, each with "I don't know"
  *   S4 isThisYou the server's 409 is_this_you: one card
- *   S5 notFound  the server's 409 not_found: "Yes, that's my name" (new.force) or fix it */
+ *   S5 notFound  the server's 409 not_found: "Yes, that's my name" (new.force) or fix it; with `same` (2+
+ *                children share the name, the answers could not tell which) it says so and offers Yes or Back */
 var WQID = function (P) {
   'use strict';
   var T = P.T, TW = P.TW, esc = P.esc, on = P.on;
@@ -27,7 +28,10 @@ var WQID = function (P) {
   // An invited friend, or a teacher with no class: a name only, never a class or a roster question.
   function nameOnly() { return Boolean(ID.invited) || ID.roster === false; }
   function nm(s) { return '<bdi>' + esc(s) + '</bdi>'; }
-  function lbl(s) { return s ? '<bdi dir="ltr">' + esc(s) + '</bdi>' : ''; }
+  function lbl(s) { return s ? '<bdi dir="ltr" class="wq-nw">' + esc(s) + '</bdi>' : ''; }
+  // The same label inside plain text (the mascot's bubble): an LTR isolate with a no-break hyphen, so "4-A"
+  // never reads "A-4" in Urdu nor breaks as "4-" / "A".
+  function lblText(s) { return s ? '\u2066' + String(s).replace(/-/g, '\u2011') + '\u2069' : ''; }
   // The class label is shown only when the child chose it on S1.
   function chosenLabel() {
     var k = P.pick();
@@ -152,7 +156,7 @@ var WQID = function (P) {
     }
     var full = need === 'full_name';
     var nmFirst = first || NEW.name || '';
-    var say = full ? TW.moreFull(nmFirst, cls || '') : TW.fatherT;
+    var say = full ? TW.moreFull(nmFirst, lblText(cls)) : TW.fatherT;
     var title = full ? TW.moreFull(nm(nmFirst), lbl(cls)) : esc(TW.fatherT);
     var h = P.bar() + P.jug('thinking', say) + '<h2>' + title + '</h2>' +
       '<input class="wq-input" id="wq-more" maxlength="60" autocomplete="off" autocapitalize="words" enterkeyhint="go" aria-label="' + esc(say) + '">' +
@@ -195,9 +199,10 @@ var WQID = function (P) {
   }
 
   /* S5: nothing matched. The child confirms the spelling and starts as a new child of this hand-out. */
-  function notFound(typed, cls) {
+  function notFound(typed, cls, same) {
     if (!NEW.name) NEW = { name: typed };
-    var h = P.bar() + P.jug('thinking', TW.nfT(typed, cls || '')) +
+    if (same > 1) return notSure(typed, cls, same);
+    var h = P.bar() + P.jug('thinking', TW.nfT(typed, lblText(cls))) +
       '<h2>' + TW.nfT(nm(typed), lbl(cls)) + '</h2>' +
       '<button class="wq-btn wq-go" id="wq-force">' + esc(TW.nfYes) + '</button>' +
       '<button class="wq-btn wq-soft" id="wq-fix">' + esc(TW.nfFix) + '</button>';
@@ -205,6 +210,19 @@ var WQID = function (P) {
     P.wireBar();
     on('#wq-force', function () { NEW.force = true; VIA = 'new'; P.ev('identity_pick', { src: 'new_force' }); send(); });
     on('#wq-fix', function () { name(null, typed); });
+  }
+
+  // The name WAS found, more than once, and the child could not say which: no "fix the spelling".
+  function notSure(typed, cls, same) {
+    var h = P.bar() + P.jug('thinking', TW.nsT(typed, lblText(cls), same) + ' ' + TW.nsSay) +
+      '<h2>' + TW.nsT(nm(typed), lbl(cls), same) + '</h2>' +
+      '<p class="wq-sub">' + esc(TW.nsSay) + '</p>' +
+      '<button class="wq-btn wq-go" id="wq-force">' + esc(TW.yes) + '</button>' +
+      '<button class="wq-btn wq-ghost" id="wq-back">' + esc(T.back) + '</button>';
+    P.render(h, 'M4-notfound');
+    P.wireBar();
+    on('#wq-force', function () { NEW.force = true; VIA = 'new'; P.ev('identity_pick', { src: 'new_force' }); send(); });
+    on('#wq-back', function () { name(null, typed); });
   }
 
   // Called by startSession once a session has started.
@@ -242,7 +260,7 @@ var WQID = function (P) {
       if (c) isThisYou(c); else name(TW.nameFull);
       return true;
     }
-    if (status === 409 && b.error === 'not_found') { notFound(b.typed || NEW.name || '', b.cls); return true; }
+    if (status === 409 && b.error === 'not_found') { notFound(b.typed || NEW.name || '', b.cls, Number(b.same) || 0); return true; }
     if (status === 400 && pick && pick.new) { name(null, NEW.name); return true; }
     return false;
   }

@@ -1093,6 +1093,10 @@ async function newChildV2(ctx, body, idn) {
     step(m.need, m.hits.length);
     fail(409, 'ask_more', { need: m.need, first: shownFirstV2(ctx, m.hits[0], name), ...clsLine });
   }
+  if (m.same) {
+    step('not_sure', m.same);
+    return fail(409, 'not_found', { typed: name, ...clsLine, same: m.same });
+  }
   step('name', 0);
   return fail(409, 'not_found', { typed: name, ...clsLine });
 }
