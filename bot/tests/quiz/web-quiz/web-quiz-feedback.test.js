@@ -43,8 +43,24 @@ describe('cleanWrongFeedback', () => {
     ['You stopped at 6. There are 8 candies. Keep going to the end!', 'You stopped at 6. There are 8 candies.'],
     ['شاباش کوشش پر! آپ نے اسے صفت جیسا سمجھا۔ حروفِ عطف دو اسماء یا دو جملے جوڑتے ہیں۔ جاری رکھیں!',
       'آپ نے اسے صفت جیسا سمجھا۔ حروفِ عطف دو اسماء یا دو جملے جوڑتے ہیں۔'],
+    ['A) اچھا سوچا، آپ نے جال کو بھالو کا کام سمجھ لیا۔ درست جواب B) ہے، کیونکہ بھالو نے بلی کو جانے دیا۔',
+      'آپ نے جال کو بھالو کا کام سمجھ لیا۔ بھالو نے بلی کو جانے دیا۔'],
   ])('%s', (raw, want) => {
     expect(cleanWrongFeedback(raw)).toBe(want);
+  });
+
+  test.each([
+    'Try the next one!', 'آگے چلیں!', 'آگے بڑھو!', 'اچھا سوچا!', 'You’ve got this!', 'خوب کوشش!', 'پیاری کوشش!', 'You’re learning!',
+    'Nice attempt!', 'آگے چلو!', 'پیارا جواب!', 'Keep counting!', 'لگے رہیں!', 'کوشش جاری رکھو!', 'Keep thinking!', 'You are learning!',
+    'Kind try!', 'Nice attempt.', 'پھر کوشش کریں!', 'Good attempt!', 'You’re improving!', 'You’re getting there!', 'Not quite.', 'You’re close!',
+    'چلتے رہیں!', 'یاد رکھیں!', 'اگلا سوال کریں!', 'Go on!', 'Stay focused!', 'You’re doing well!', 'Careful!', 'خیر ہے!', 'Move ahead!',
+  ])('a short cheer after the reason is left out: "%s"', (cheer) => {
+    expect(cleanWrongFeedback(`Incubation comes before hatching. ${cheer}`)).toBe('Incubation comes before hatching.');
+  });
+
+  test('a short sentence that carries content is kept, even with "!"', () => {
+    expect(cleanWrongFeedback('Hatching comes after incubation. Eggs come first!')).toBe('Hatching comes after incubation. Eggs come first!');
+    expect(cleanWrongFeedback('بیج پہلے آتا ہے۔ پھر پودا!')).toBe('بیج پہلے آتا ہے۔ پھر پودا!');
   });
 
   test('plain feedback with nothing to strip is kept as it is', () => {
