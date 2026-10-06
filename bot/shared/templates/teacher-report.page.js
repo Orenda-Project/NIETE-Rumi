@@ -112,6 +112,7 @@ const CHROME = {
     playedOf: (p, of) => `<b class="num">${p}</b> of <b class="num">${of}</b> played`,
     playedN: (p) => `<b class="num">${p}</b> played`,
     playedLabel: 'played',
+    noOne: 'No one has played yet',
     offList: (n) => `<span class="num">+${n}</span> not on the list`,
     average: 'Average', hardest: 'Hardest', none: '—',
     notPlayed: 'Not played yet',
@@ -174,6 +175,7 @@ const CHROME = {
     playedOf: (p, of) => `<b class="num">${of}</b> میں سے <b class="num">${p}</b> نے کھیلا`,
     playedN: (p) => `<b class="num">${p}</b> نے کھیلا`,
     playedLabel: 'بچوں نے کھیلا',
+    noOne: 'ابھی کسی نے نہیں کھیلا',
     offList: (n) => `<span class="num">+${n}</span> فہرست سے باہر`,
     average: 'اوسط', hardest: 'سب سے مشکل', none: '—',
     notPlayed: 'ابھی نہیں کھیلا',
@@ -588,7 +590,8 @@ ${topBar({ C, L, langHref: `${base}${qs([['tab', 'class'], ['lang', C.switchLang
   const cellHtml = cells.map((c) => {
     const a = num(c.avg);
     const h = [c.grade ? C.className(esc(c.grade)) : esc(C.noClass), c.subject ? esc(subjectLabel(c.subject, lang)) : ''].filter(Boolean).join(' · ');
-    return `<div class="cell"><div class="h">${L(h)}</div><div class="a num">${a != null ? `${a}%` : esc(C.none)}</div><div class="l">${L(C.cellLine(num(c.quizzes) || 0, num(c.played) || 0))}</div></div>`;
+    const avgOrNone = num(c.played) ? `<div class="a num">${a != null ? `${a}%` : esc(C.none)}</div>` : `<div class="l">${L(C.noOne)}</div>`;
+    return `<div class="cell"><div class="h">${L(h)}</div>${avgOrNone}<div class="l">${L(C.cellLine(num(c.quizzes) || 0, num(c.played) || 0))}</div></div>`;
   }).join('');
   const max = Math.max(1, ...weeks.map((w) => num(w.played) || 0));
   const wk = weeks.map((w) => {
@@ -597,10 +600,17 @@ ${topBar({ C, L, langHref: `${base}${qs([['tab', 'class'], ['lang', C.switchLang
     return `<div class="wk-col"><span class="n">${p}</span><span class="wk-bar" style="height:${Math.max(3, Math.round((90 * p) / max))}px"></span><span class="d num">${esc(weekLabel(w.weekStart, lang))}</span><span class="d">${a != null ? `${a}%` : ''}</span></div>`;
   }).join('');
   const qmap = tokens.quiz || {};
+  // "12 of 31 played" when the row knows its class size, "4 played" when not, and
+  // a plain sentence when nobody has played (M3c's class tab, folded in).
+  const playedText = (q) => {
+    const p = num(q.played) || 0;
+    if (!p) return L(C.noOne);
+    return num(q.of) ? L(C.playedOf(p, num(q.of))) : L(C.quizLine(p));
+  };
   const ql = quizzes.map((q) => {
     const tok = qmap[q.id];
     const a = num(q.avg);
-    const inner = `<span class="tp">${K(q.topic || '—')}</span><span class="m"><span class="${C.dateClass}">${esc(dateLabel(q.date, lang))}</span> · ${L(C.quizLine(num(q.played) || 0))}${a != null ? ` · <span class="num">${a}%</span>` : ''}</span>`;
+    const inner = `<span class="tp">${K(q.topic || '—')}</span><span class="m"><span class="${C.dateClass}">${esc(dateLabel(q.date, lang))}</span> · ${playedText(q)}${a != null && num(q.played) ? ` · <span class="num">${a}%</span>` : ''}</span>`;
     return `<li>${tok && !print ? `<a href="${REPORT_PATH}/${encodeURIComponent(tok)}${qs([['lang', lang]])}">${inner}</a>` : `<a>${inner}</a>`}</li>`;
   }).join('');
   const main = `<section class="card" style="margin-top:16px"><div class="cells">${cellHtml}</div></section>

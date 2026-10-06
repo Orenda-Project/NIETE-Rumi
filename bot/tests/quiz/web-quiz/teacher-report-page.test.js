@@ -382,6 +382,30 @@ describe('teacher report page — QA follow-ups', () => {
   });
 });
 
+describe('teacher report page — all my classes, M3c\'s content gains', () => {
+  const data = {
+    cells: [{ grade: '3', subject: 'science', quizzes: 2, played: 12, avg: 70 }, { grade: '5', subject: 'maths', quizzes: 1, played: 0, avg: null }],
+    weeks: [],
+    quizzes: [
+      { id: 'q1', date: '2026-10-05T09:00:00Z', topic: 'Plants', played: 12, of: 31, avg: 70 },
+      { id: 'q2', date: '2026-10-04T09:00:00Z', topic: 'Magnets', played: 4, of: null, avg: 60 },
+      { id: 'q3', date: '2026-10-03T09:00:00Z', topic: 'Fractions', played: 0, of: 30, avg: null },
+    ],
+  };
+  test('a quiz row with its class size reads "12 of 31 played"; without one "4 played"; none yet says so', () => {
+    for (const [lang, rx] of [['en', [/Plants[\s\S]*12 of 31 played/, /Magnets[\s\S]*4 played/, /Fractions[\s\S]*No one has played yet/]],
+      ['ur', [/31 میں سے 12 نے کھیلا/, /ابھی کسی نے نہیں کھیلا/]]]) {
+      const t = text(renderPage({ class: data }, { lang, tab: 'class', tokens: { self: TOKEN } }));
+      rx.forEach((r) => expect(t).toMatch(r));
+    }
+  });
+  test('a class card nobody has played says "No one has played yet", not a dash', () => {
+    const html = renderPage({ class: data }, { lang: 'en', tab: 'class', tokens: { self: TOKEN } });
+    const cells = text(html.slice(html.indexOf('class="cells"'), html.indexOf('class="cells"') + 1500));
+    expect(cells).toMatch(/Class 5 · Maths[\s\S]*No one has played yet/);
+  });
+});
+
 describe('message pages', () => {
   test('expired: EN and UR copy telling the teacher to send /quiz', () => {
     expect(renderMessagePage({ kind: 'expired', lang: 'en' })).toMatch(/This link has expired/);
