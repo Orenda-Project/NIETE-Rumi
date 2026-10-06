@@ -1223,7 +1223,8 @@ async function fixWhoV2(ctx, body) {
   await supabase.from('quiz_sessions').update({ student_class: label }).eq('id', s.id).eq('share_code_id', ctx.shareCodeId);
   IdRoster._forgetClass(r.class.id);
   logEvent('web_quiz.identity_enrolled', { sessionId: s.id, shareCodeId: ctx.shareCodeId });
-  return { ok: true, row: { ...row({}, null), on_list: true } };
+  // The list number the child was given, so the report's notice can name it.
+  return { ok: true, row: { ...row({}, null), on_list: true, roll: out.rollNumber != null ? Number(out.rollNumber) : null } };
 }
 
 /**
