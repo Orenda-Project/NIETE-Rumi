@@ -48,6 +48,7 @@ const IdRoster = require('./web-quiz-identity-roster');
 const Pulse = require('./web-quiz-pulse');
 const WebQuizBrand = require('../../config/web-quiz-brand');
 const { orgName, botName } = require('../../config/branding');
+const Art = require('./web-quiz-art-id');
 
 const QUESTIONS_MAX = 15;          // = video-quiz.service QUESTIONS_PER_SESSION
 const CHIPS_MAX = 40;
@@ -487,6 +488,11 @@ async function getQuiz(code, { p } = {}) {
     brand: await WebQuizBrand.resolveBrandKey({ db: supabase, orgName, botName }),
   };
   if (ctx.invitedByStudentId) out.challenge = await challengeOf(ctx);
+  // The pictures this link previews as (web-quiz-art.js): the class one, and the invite on a challenge code.
+  out.art = {
+    class: Art.artId('l', ctx.parent.code || ctx.code), schools: Art.artId('s', ctx.parent.code || ctx.code),
+    invite: ctx.invitedByStudentId ? Art.artId('i', ctx.code) : null,
+  };
   return out;
 }
 
@@ -1418,6 +1424,9 @@ async function finishSession(body = {}) {
   const counted = countedFor(earlier, tok.d, Boolean(s.user_id));
   const nameOf = await shownNames(s.student_id ? await codeLanguage(s.share_code_id) : null, [s.student_id]);
   const first = nameOf(s.student_id, s.student_name);
+  const challengeCode = await challengeCodeFor(s);
+  const { data: scRow } = await supabase.from('quiz_share_codes').select('code').eq('id', s.share_code_id).maybeSingle();
+  const classCode = (scRow && scRow.code) || null;
   return {
     score: { correct, total, pct, level },
     ...counted,
@@ -1433,10 +1442,12 @@ async function finishSession(body = {}) {
       ...(earlier && !s.user_id ? await bestField(s) : {}),
       ...(counted.counted && !s.user_id && !s.invited_by_student_id ? placeToday(await classFinishersToday(s.share_code_id), s.id) : {}),
     },
-    challenge_code: await challengeCodeFor(s),
+    challenge_code: challengeCode,
     // A friend's challenge: who won against the score the landing showed them.
     // (Never against themselves: a child who opens their own challenge link is not their own challenger.)
     ...(s.invited_by_student_id && s.invited_by_student_id !== s.student_id ? await versus(s, { correct, total }) : {}),
+    // The signed ids of the pictures this child can share (web-quiz-art.js).
+    art: { card: Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classCode ? Art.artId('l', s.id) : null },
   };
 }
 
@@ -1570,7 +1581,7 @@ const EVENT_PROPS = Object.freeze({
 });
 const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't'];
 const EVENT_BOOLS = ['ok'];
-const SHARE_PATHS = ['native', 'wa', 'copy'];
+const SHARE_PATHS = ['native', 'wa', 'copy', 'file', 'save'];
 const UA_MAX = 300;
 const PROBE_MAX = 4096;
 
@@ -1675,5 +1686,7 @@ module.exports = {
   WqError, rankRows, cleanEvent, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, whoClass, challengeOutcome,
   // the render matrix (scripts/qa/render-matrix) turns synthetic rows into page items with it
   questionPayload,
+  // the share pictures (web-quiz-art.js) name the child and the challenger exactly as the page does
+  shownNames, challengeOf,
   BOARD_TOP, QUESTIONS_MAX,
 };

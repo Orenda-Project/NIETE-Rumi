@@ -19,6 +19,7 @@
  *   POST /videos/start          E12 the code for one of them (minted once per class code)
  *   GET  /pulse/:code           E13 peer pulse: classmates' right answers, from memory
  *   GET  /ch/...  POST /ch/...  the kid's Challenge (web-quiz-challenge.js); GET /challenge/results?list=
+ *   GET  /art/:id               E14 a share picture (JPEG): card, invite, class, school (web-quiz-art.js)
  */
 const express = require('express');
 const { requireInternalKey } = require('../middleware/require-internal-key');
@@ -28,6 +29,7 @@ const WebQuizVideos = require('../services/quiz/web-quiz-videos');
 const WebQuizSchools = require('../services/quiz/web-quiz-schools');
 const WebQuizPulse = require('../services/quiz/web-quiz-pulse');
 const WebQuizChallenge = require('../services/quiz/web-quiz-challenge');
+const WebQuizArt = require('../services/quiz/web-quiz-art');
 
 const router = express.Router();
 router.use(requireInternalKey);
@@ -74,5 +76,18 @@ router.post('/ch/result', handle((req) => WebQuizChallenge.submit(req.body || {}
 router.get('/ch/:token', handle((req) => WebQuizChallenge.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang })));
 router.get('/ch/:token/:exercise', handle((req) => WebQuizChallenge.exercise(req.params.token, req.params.exercise, { kid: req.query.kid, lang: req.query.lang })));
 router.get('/challenge/results', handle((req) => WebQuizChallenge.listResults({ cls: req.query.class, list: req.query.list })));
+// A link preview fetches this with no session: the signed id is the permission, so anyone may cache it.
+router.get('/art/:id', async (req, res) => {
+  try {
+    const out = await WebQuizArt.artImage(req.params.id, { size: req.query.f === 'sq' ? 'sq' : 'og' });
+    res.set('Content-Type', out.contentType);
+    res.set('Cache-Control', 'public, max-age=600');
+    return res.send(out.bytes);
+  } catch (err) {
+    if (err instanceof WebQuizArt.ArtError) return res.status(err.status).json(err.body);
+    logToFile('❌ web-quiz art failed', { error: err.message }, 'error');
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
 
 module.exports = router;
