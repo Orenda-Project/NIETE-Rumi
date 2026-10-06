@@ -74,6 +74,8 @@ app.use('/api/flows', flowEndpointRoutes);
 // The web child quiz (portal -> bot), behind the same x-api-key check. Mounted
 // first so its paths never fall into the general internal router.
 app.use('/api/internal/wq', require('./shared/routes/web-quiz-internal.routes'));
+// The teacher's web quiz report (portal /t/<token> -> bot), same x-api-key check.
+app.use('/api/internal/tr', require('./shared/routes/teacher-report-internal.routes'));
 const internalApiRoutes = require('./shared/routes/internal-api.routes');
 const { clampLanguage } = require('./shared/config/ux-strings');
 app.use('/api/internal', internalApiRoutes);
