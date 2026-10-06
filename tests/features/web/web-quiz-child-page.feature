@@ -222,7 +222,7 @@ Feature: Web child quiz page on the portal
     Then the page asks "Are you Ayesha?" before starting
 
   # Who is playing, name first (app_settings web_quiz_identity = "v2"; off = the roll-number screens above, unchanged)
-  @T270
+  @T360
   Scenario: Name first: the child types the name they are called by and confirms ONE card
     Given identity v2 is on and the quiz's class "4-A" has one child called "Hina Testwala"
     When the child taps "Play"
@@ -232,7 +232,7 @@ Feature: Web child quiz page on the portal
     When the child taps "Yes, it's me"
     Then the quiz starts as the class-list child
 
-  @T271
+  @T361
   Scenario: Two children share the typed name: the page asks, it never shows them
     Given identity v2 is on and class "4-A" has "Ali Testwala" and "Ali Raza Testwala"
     When the child types "Ali"
@@ -241,7 +241,7 @@ Feature: Web child quiz page on the portal
     When the child types the full name
     Then exactly one "Are you Ali?" card is shown
 
-  @T272
+  @T362
   Scenario: A child who does not know the answers still plays, as a new child of this class
     Given identity v2 is on and two children of the class share the typed name and a father's name
     When the child taps "I don't know" for the father's name and for the class-list number
@@ -249,21 +249,21 @@ Feature: Web child quiz page on the portal
     When the child taps "Yes, that's my name"
     Then the quiz starts as a new child the teacher can add to the class later
 
-  @T273
+  @T363
   Scenario: A link from the child's quiz hub plays as that child with no picking
     Given identity v2 is on and the hub opens "/q/<code>?k=<chip>" for a child of this class
     When the page opens
     Then the quiz starts as that child
     But when the server does not know that chip, the phone forgets it and asks "What is your name?"
 
-  @T274
+  @T364
   Scenario: An invited friend only types a name
     Given identity v2 is on and a friend opens a challenge link from a child of class "4-A"
     When the friend taps "Play"
     Then the page asks only "What is your name?": no class question, no class names, no number pad
     And the friend plays as a new child who never counts in the class report
 
-  @T275
+  @T365
   Scenario: The class is asked only when the hand-out could not tell
     Given identity v2 is on and the teacher has classes "4-A" and "4-B" and did not say which one the quiz is for
     When the child taps "Play"
@@ -272,7 +272,7 @@ Feature: Web child quiz page on the portal
     Then only "4-B" is searched, and the "Are you …?" card shows "4-B"
     But when the hand-out has one class, the page goes straight to "What is your name?"
 
-  @T276
+  @T366
   Scenario: Remembered children are big cards on this phone, with "Someone else"
     Given identity v2 is on and this phone remembers "Hina Testwala" and "Omar Testwala"
     When the quiz link is opened
