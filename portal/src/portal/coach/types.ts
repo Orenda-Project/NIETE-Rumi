@@ -28,6 +28,8 @@ export type CoachTeacher = {
   avgHitl: number | null;
   lastVisitAt?: string | null;
   daysSinceVisit: number | null;
+  /** bd-o15qnr.11 — shown on Edit teacher */
+  isPrincipal?: boolean;
   lastVisitScore?: number | null;
   lastTrainingAt?: string | null;
   daysSinceTraining: number | null;

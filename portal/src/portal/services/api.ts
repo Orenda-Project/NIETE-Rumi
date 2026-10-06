@@ -831,6 +831,16 @@ export const coach = {
     const response = await api.get(`/coach/observation/${encodeURIComponent(id)}`, { params: { today: coachDay() } });
     return response.data;
   },
+  /** bd-o15qnr.11 — Edit teacher: saved by the /observe teacher admin (commitAdd moves her). */
+  moveTeacher: async (teacherExtId: string, schoolExtId: string): Promise<{ success: boolean; outcome?: string; reason?: string }> => {
+    const response = await api.post(`/coach/teacher/${encodeURIComponent(teacherExtId)}/move`, { schoolExtId });
+    return response.data;
+  },
+  /** bd-o15qnr.11 — Remove from school: the /observe teacher admin's commitRemovals. */
+  removeTeacher: async (teacherExtId: string): Promise<{ success: boolean; reason?: string }> => {
+    const response = await api.post(`/coach/teacher/${encodeURIComponent(teacherExtId)}/remove`, {});
+    return response.data;
+  },
   getVisit: async (id: string): Promise<{ success: boolean } & VisitData> => {
     const response = await api.get(`/coach/visit/${encodeURIComponent(id)}`, { params: { today: coachDay() } });
     return response.data;
