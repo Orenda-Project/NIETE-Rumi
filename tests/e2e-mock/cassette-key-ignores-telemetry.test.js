@@ -82,6 +82,18 @@ describe('the cassette key ignores telemetry labels (bd-t3u9t)', () => {
     expect(missed).toEqual([]);
     expect(calls).toHaveLength(0); // a hit never reaches the vendor
   });
+
+  test("llm-client's routed-call marker does not change the key either (bd-gr4fy.6)", async () => {
+    // llm-client adds `skipJobOverride: true` to a call it has already routed: the direct lane's
+    // credit fallback, and an override's attempt on OpenRouter. Same request, same cassette.
+    const c = fresh({ E2E_CASSETTE: 'replay-strict', E2E_CASSETTE_DIR: SEALED, SUPABASE_URL: SANDBOX });
+    const [rec] = reproducible(c);
+    const { client, calls } = vendor();
+    c.wrapChatCompletions(client);
+    const got = await client.chat.completions.create({ ...rec.request, job: 'chat.intent', skipJobOverride: true });
+    expect(got).toEqual(rec.value);
+    expect(calls).toHaveLength(0);
+  });
 });
 
 describe('only the KEY ignores them (bd-t3u9t)', () => {
