@@ -159,7 +159,10 @@ describe('GET /remind/:token', () => {
     const loc = new URL(res.headers.get('location'));
     expect(loc.origin).toBe('https://wa.me');
     const text = loc.searchParams.get('text');
-    expect(text).toMatch(/still open/);
+    // The wording is the data core's (reminderText); the route's job is to hand it over intact.
+    const Data = require('../../../shared/services/quiz/teacher-report.data');
+    expect(text).toBe((await Data.quizReport(TEACHER, QUIZ)).reminder.text);
+    expect(text).toContain('Plants');
     expect(text).toContain(LINK);
     expect(text).not.toMatch(/Kid\d/);
     expect(events('teacher_report.reminder')).toEqual([{ teacherId: TEACHER, quizId: QUIZ, notPlayed: 2 }]);
