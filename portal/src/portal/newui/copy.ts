@@ -535,6 +535,11 @@ export const TRAINING_COPY = {
   answers: 'Answers',
   questionOf: (n?: number, total?: number) => `Question ${n ?? 0}/${total ?? 0}`,
   pickAll: 'Pick all',
+  /** bd-klecr.6 — each answer is checked as she gives it. */
+  check: 'Check',
+  correct: 'Correct',
+  notCorrect: 'Not correct',
+  questionN: (n?: number) => `Question ${n ?? 0}`,
   submit: 'Submit',
   sending: 'Sending…',
   notSent: 'Not sent',
