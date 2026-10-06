@@ -1380,6 +1380,20 @@ phone box; stacked they draw ~9 px (the mat is then bound by the page's 46% heig
 stacked column's minimum width is one piece, not two. Absent (the lesson-plan lane, the
 WhatsApp PNG) the output is byte-identical.
 
+### 3.33 A Quranic-marks fallback behind Nastaliq — `lib/fonts.js`, `lib/template.js`, `diagrams/lib/tokens.js`, `fonts/ScheherazadeNew-*` (2026-10-06)
+
+NotoNastaliqUrdu.ttf has no glyph for the Quranic annotation marks U+06D6-06DC, 06DF, 06E2-06E8
+and 06EA-06ED (pause marks, small high/low letters, small waw/yeh). An ayah quoted in mushaf
+orthography printed a box. The clearest case was the U+06E4 small high madda in «يٰۤ», on a G11
+Islamiat plan. Railway's Chromium has no system fonts to fall back to. Urdu pages now also embed
+Scheherazade New (SIL, OFL, `fonts/ScheherazadeNew-OFL.txt`), named directly BEHIND Nastaliq in
+every stack: the RTL body, the LTR `urduScript` tail and the diagram `urdu` token. Chrome falls
+back per grapheme cluster, so only a cluster Nastaliq cannot draw moves to Naskh, and ordinary
+Urdu stays Nastaliq. The text itself is never altered: stripping or normalising the marks would be
+editing an ayah. Cost: about 0.4 MB more base64 on a page that carries Urdu, and nothing on one that does not. The face is opt-in (`fontCss({urdu, quranic:true})`, passed only by `template.js`), so the quiz card and quiz figure, which also call `fontCss({urdu:true})`, stay byte-identical.
+Test: `tests/lp612/quranic-annotation-marks.test.js` (cmap coverage plus a real-Chromium
+`getPlatformFontsForNode` check). Upstream embeds Nastaliq alone, so keep this at the next re-sync.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of
