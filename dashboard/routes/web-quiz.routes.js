@@ -33,6 +33,8 @@ const API_ROUTES = [
   { method: 'get', path: '/api/wq/quiz/:code', limiter: 'read', unknownCode: true },
   { method: 'get', path: '/api/wq/board/:code', limiter: 'read' },
   { method: 'get', path: '/api/wq/schools/:code', limiter: 'read' },
+  // Peer pulse ("Sara got Q4 right"): the bot answers from memory; the page polls at most 8 times a question.
+  { method: 'get', path: '/api/wq/pulse/:code', limiter: 'read' },
   { method: 'get', path: '/api/wq/media/:code/:qid', limiter: 'read' },
   { method: 'post', path: '/api/wq/session', limiter: 'session' },
   { method: 'post', path: '/api/wq/answers', limiter: 'answers' },

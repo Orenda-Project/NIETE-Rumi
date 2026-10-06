@@ -524,3 +524,40 @@ Feature: Web child quiz page on the portal
     Then the scorecard still says the first score 3/5 is the one that counts
     And it adds "New best! 5/5 · was 4/5 ⭐" («نیا ریکارڈ! 5/5 · پہلے 4/5 ⭐»)
     And a practice round equal to or below the best adds nothing
+
+  @T265
+  Scenario: A classmate's right answer shows as one quiet line while a child plays
+    Given two children of a grade-3 class are playing the same class link
+    When one child, Sara, answers question 4 right
+    Then the other child's page shows "Sara got Q4 right ✓" («سارہ نے سوال 4 ٹھیک کیا ✓») under the progress bar for 2.5 seconds
+    And the line never covers an option or the listen button, never takes a tap, moves nothing on the screen and makes no sound
+    And it never shows in the first 3 seconds of a question, and at most once every 20 seconds
+
+  @T266
+  Scenario: Only right answers, only first names, and a friend stays nameless
+    Given a class-link child, an invited friend and the teacher's own preview are playing the same quiz
+    When each of them answers questions right and wrong
+    Then a wrong answer never shows on anyone's page, and a child never sees their own answers
+    And the invited friend shows as "A friend got Q2 right ✓" («ایک دوست نے سوال 2 ٹھیک کیا ✓»), never by name
+    And the teacher's preview answers never show, and no surname ever shows
+
+  @T267
+  Scenario: A child thinking on one question still sees classmates play
+    Given a child has had question 3 on screen for more than 15 seconds without answering, with the page in front
+    When a classmate answers a question right
+    Then the line appears within about 15 seconds
+    And the page asks at most 8 times for that question, and stops asking once the child answers or leaves the page
+
+  @T268
+  Scenario: No peer line for grades 1 and 2, in the teacher's preview or on a quiet page
+    Given a grade-1 quiz, or the teacher's own preview link, or a page with sounds turned off (🔕)
+    When a classmate answers right
+    Then no peer line shows and the page never asks for one
+    And a quiz with no grade shows the line as for grade 3
+
+  @T269
+  Scenario: The peer line costs no extra database reads
+    Given 30 children of one class are playing at the same time
+    When they answer questions
+    Then their classmates' lines come back inside the answers they already send
+    And a child's idle check is answered from the bot's memory, with no database read for the session
