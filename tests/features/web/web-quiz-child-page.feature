@@ -289,3 +289,10 @@ Feature: Web child quiz page on the portal
     When the child opens the link again
     Then the resume button says "Go on: question 2 of 5" («جاری رکھیں: سوال 2 از 5»), never a score-shaped "2/5"
     And "Your scores" shows each day as "6 Oct" («6 اکتوبر»), never "2026-10-06"
+
+  @T247
+  Scenario: A child remembered on this phone whom the quiz's class list does not know is asked again, never shown an error
+    Given this phone remembers a child who played a quiz of another class (or whom the teacher removed from the list)
+    When the child taps "Play as" that child on a quiz of this class
+    Then the phone forgets that child and shows "who is playing?" (the roll-number pad when the class has a list)
+    And no "Something went wrong" message is shown

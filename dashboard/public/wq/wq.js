@@ -1285,23 +1285,31 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
   /* ---------------- E3 session ---------------- */
   var busy = false;
-  function startSession(who, kid, typed, roll) {
+  function startSession(pick, kid, typed, roll) {
     if (busy) return;
     busy = true;
     var body = { code: CODE };
-    for (var k in who) body[k] = who[k];
+    for (var k in pick) body[k] = pick[k];
     var dref = sget('wq_d', null);
     if (dref) body.device_ref = dref;
     if (params.p) body.p = params.p;
     if (S.st) body.resume_st = S.st;
-    if (CLS_PICK && (who.roll != null || who.new)) body.list = CLS_PICK;
+    if (CLS_PICK && (pick.roll != null || pick.new)) body.list = CLS_PICK;
     api('POST', 'session', body).then(function (r) {
       busy = false;
       if (r.status === 409 && r.body.error === 'which_class') { CLS_PICK = null; ev('identity_pick', { src: 'which_class' }); return whichClass(r.body.classes || []); }
       if (r.status === 409 && r.body.error === 'maybe_you') return isThisYou(r.body.candidates || [], typed || '');
       if (r.status === 409 && r.body.error === 'is_this_you') return isThisYou(r.body.candidates || [], '', roll);
       if (r.status === 404 && r.body.error === 'roll_unknown') { ev('identity_pick', { src: 'roll_unknown' }); return rollPad('', TW.unknown(digitsFor(roll))); }
-      if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (who.from_st) landing(); return; }
+      // A child remembered on this phone whom this quiz's class list does not know (they played another class's quiz
+      // here, or the teacher removed them): forget them on this phone and ask who is playing. Never a dead end.
+      if (r.status === 404 && pick.chip && (r.body.error === 'chip_unknown' || r.body.error === 'not_found')) {
+        sset('wq_kids', kids().filter(function (k) { return k.chip !== pick.chip; }));
+        if (S.child && S.child.chip === pick.chip) { S.child = null; save(); }
+        ev('identity_pick', { src: 'remembered_gone' });
+        return who();
+      }
+      if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st) landing(); return; }
       var b = r.body;
       if (b.device_ref) sset('wq_d', b.device_ref);
       var child = b.child || kid || { first: typed || '' };
@@ -1313,7 +1321,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       rememberKid(child);
       ev('quiz_start', { reason: b.reason || undefined, ok: b.counted === false ? 0 : 1 });
       if (wantsVideo()) video(); else nextQuestion();
-    }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (who.from_st) landing(); });
+    }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st) landing(); });
   }
 
   function answeredCount() { var n = 0; QS.forEach(function (q) { if (S.answers[q.qid]) n++; }); return n; }
