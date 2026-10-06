@@ -2256,6 +2256,44 @@ const UX_STRINGS = {
   // The lookup itself failed (not an unknown teacher): retry copy, both ≤ 60 code points.
   tqFlowErrLookup: { en: 'Could not load your lessons just now. Please tap again.', ur: 'ابھی آپ کے اسباق نہیں کھل سکے۔ دوبارہ tap کریں۔' },
 
+  // ─── the teacher's /quiz HOME, quiz reports and class ask (W37 M3a) ──────
+  // tqh* = the home's three reply buttons (20 cp each) and its body; tqr* =
+  // "My quiz reports" (list rows: title 24 cp, description 72 cp) and the
+  // report link; tqc* = "Which class is this quiz for?". A teacher is "آپ"
+  // with plural verbs and imperatives — never a gendered stem.
+  tqhBody: {
+    en: '📝 *Quizzes*\n\nWhat would you like to do?\n\n*Make a quiz*: from your recent lesson plans and coaching lessons.\n*My quiz reports*: who played, scores and what to reteach, quiz by quiz.\n*Class progress*: all your quizzes by class and subject.',
+    ur: '‏📝 *کوئز*\n\nآپ کیا کرنا چاہیں گے؟\n\n*کوئز بنائیں*: اپنے حالیہ سبق کے منصوبوں اور کوچنگ کے اسباق سے۔\n*میری کوئز رپورٹس*: کس نے کھیلا، اسکور اور کیا دوبارہ پڑھانا ہے، ہر کوئز کا الگ۔\n*کلاس کی پیش رفت*: آپ کے تمام کوئز، کلاس اور مضمون کے لحاظ سے۔',
+  },
+  tqhMake: { en: 'Make a quiz', ur: 'کوئز بنائیں' },
+  tqhReports: { en: 'My quiz reports', ur: 'میری کوئز رپورٹس' },
+  tqhClass: { en: 'Class progress', ur: 'کلاس کی پیش رفت' },
+  tqrListHeader: { en: 'Quiz reports {from}–{to}', ur: 'کوئز رپورٹس {from}–{to}' },
+  tqrListBody: {
+    en: 'Tap a quiz to open its report: who played, each child\'s score and what to reteach.',
+    ur: 'کسی کوئز پر ٹیپ کریں اور اس کی رپورٹ کھولیں: کس نے کھیلا، ہر بچے کا اسکور اور کیا دوبارہ پڑھانا ہے۔',
+  },
+  tqrListButton: { en: 'Choose quiz', ur: 'کوئز منتخب کریں' },
+  tqrListSection: { en: 'Sent quizzes', ur: 'بھیجے گئے کوئز' },
+  tqrRowPlayedOf: { en: '{played}/{of} played · avg {avg}%', ur: '{played}/{of} نے کھیلا · اوسط \u2066{avg}%\u2069' },
+  tqrRowPlayed: { en: '{played} played · avg {avg}%', ur: '{played} نے کھیلا · اوسط \u2066{avg}%\u2069' },
+  tqrRowNoOne: { en: 'no one yet', ur: 'ابھی کسی نے نہیں کھیلا' },
+  tqrRowOlder: { en: 'Older quizzes…', ur: 'پرانے کوئز…' },
+  tqrRowOlderDesc: { en: 'See the quizzes sent before these', ur: 'ان سے پہلے بھیجے گئے کوئز دیکھیں' },
+  tqrListEmpty: {
+    en: 'No quiz has been sent to a class yet. Send /quiz and tap *Make a quiz* to make one.',
+    ur: 'ابھی تک کسی کلاس کو کوئز نہیں بھیجا گیا۔ \u2066/quiz\u2069 بھیجیں اور *کوئز بنائیں* پر ٹیپ کریں۔',
+  },
+  tqrAllClasses: { en: 'all your classes', ur: 'آپ کی تمام کلاسز' },
+  tqrLinkText: {
+    en: 'Your report for *{topic}*: {url}\nIt opens in your browser.',
+    ur: '*{topic}* کی رپورٹ: {url}\nیہ آپ کے براؤزر میں کھلے گی۔',
+  },
+  tqrLinkFailed: {
+    en: 'I could not make the report link just now. Please try again in a minute.',
+    ur: 'ابھی رپورٹ کا لنک نہیں بن سکا۔ ایک منٹ بعد دوبارہ کوشش کریں۔',
+  },
+
   // ─── quiz chrome read by CHILDREN, in the quiz language ─────────────────
   // The share-link chain was English-only; a child taking an Urdu quiz now
   // reads Urdu around the questions too. A child is "آپ" with respectful

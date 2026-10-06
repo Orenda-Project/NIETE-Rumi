@@ -15,9 +15,11 @@
  *  3. A ROLE WITH NO QUIZ OF ITS OWN (coach, school leader, AEO, supervisor —
  *     `canSelfCoach` false) → that role's own menu. Their menu layout has no
  *     quiz row; "record a lesson for coaching first" was never true for them.
- *  4. EVERYONE ELSE → the teacher's /quiz menu: the Flow when
- *     TRANSCRIPT_QUIZ_FLOW_ID is set and there is something to list, the
- *     interactive list message otherwise (the rollback lever, unchanged).
+ *  4. EVERYONE ELSE → the teacher's /quiz menu: the home's three buttons for a
+ *     teacher `teacher_report_teachers` covers; otherwise (and on "Make a
+ *     quiz") the Flow when TRANSCRIPT_QUIZ_FLOW_ID is set and there is
+ *     something to list, the interactive list message otherwise (the rollback
+ *     lever, unchanged).
  *
  * Every answer logs `quiz_menu.requested {userId, route}` — ids only.
  */
@@ -87,6 +89,28 @@ async function openQuizMenu({ user, from, language = null, sessionId = null, tri
     return ROUTES.ROLE_MENU;
   }
 
+  // The teacher's /quiz home (Make a quiz / My quiz reports / Class progress),
+  // for the teachers app_settings `teacher_report_teachers` covers. Everyone
+  // else gets Make a quiz straight away, exactly as before.
+  const Home = require('./teacher-quiz-home.service');
+  if (await Home.homeOn(userId)) {
+    await Home.sendHome(user, from, language);
+    log(ROUTES.TEACHER_MENU, { how: 'home' });
+    return ROUTES.TEACHER_MENU;
+  }
+  const how = await openMakeQuiz({ user, from, language });
+  log(ROUTES.TEACHER_MENU, { how });
+  return ROUTES.TEACHER_MENU;
+}
+
+/**
+ * Make a quiz: the Flow when TRANSCRIPT_QUIZ_FLOW_ID is set and there is
+ * something to list, the interactive list message otherwise. What /quiz has
+ * always sent a teacher, and what the home's "Make a quiz" sends.
+ * @returns {Promise<'flow'|'list'>}
+ */
+async function openMakeQuiz({ user, from, language = null }) {
+  const userId = (user && user.id) || null;
   const List = require('./transcript-quiz-list.service');
   const teacher = { ...user, preferred_language: language || (user && user.preferred_language) };
   const flowId = process.env.TRANSCRIPT_QUIZ_FLOW_ID || '';
@@ -102,12 +126,10 @@ async function openQuizMenu({ user, from, language = null, sessionId = null, tri
       flowToken: `${userId}:transcript-quiz:${Date.now()}`,
     });
     logToFile('📝 sent transcript quiz flow (/quiz)', { userId });
-    log(ROUTES.TEACHER_MENU, { how: 'flow' });
-    return ROUTES.TEACHER_MENU;
+    return 'flow';
   }
   await List.showList(teacher, from, language);
-  log(ROUTES.TEACHER_MENU, { how: 'list' });
-  return ROUTES.TEACHER_MENU;
+  return 'list';
 }
 
-module.exports = { openQuizMenu };
+module.exports = { openQuizMenu, openMakeQuiz };
