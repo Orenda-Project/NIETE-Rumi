@@ -106,6 +106,7 @@ const CHROME = {
     playedOf: (p, of) => `<b class="num">${p}</b> of <b class="num">${of}</b> played`,
     playedN: (p) => `<b class="num">${p}</b> played`,
     playedLabel: 'played',
+    offList: (n) => `<span class="num">+${n}</span> not on the list`,
     average: 'Average', hardest: 'Hardest', none: '—',
     notPlayed: 'Not played yet',
     allPlayed: 'Everyone on your class list has played.',
@@ -165,6 +166,7 @@ const CHROME = {
     playedOf: (p, of) => `<b class="num">${of}</b> میں سے <b class="num">${p}</b> نے کھیلا`,
     playedN: (p) => `<b class="num">${p}</b> نے کھیلا`,
     playedLabel: 'بچوں نے کھیلا',
+    offList: (n) => `<span class="num">+${n}</span> فہرست سے باہر`,
     average: 'اوسط', hardest: 'سب سے مشکل', none: '—',
     notPlayed: 'ابھی نہیں کھیلا',
     allPlayed: 'کلاس کی فہرست میں سب بچوں نے کھیل لیا ہے۔',
@@ -460,10 +462,13 @@ ${srcLabel ? `<span class="chip-src">${L(esc(srcLabel))}</span>` : ''}
   const NOTICE_KEYS = { failed: 'noticeFailed', notReady: 'noticeNotReady', closed: 'noticeClosed' };
   const notice = NOTICE_KEYS[noticeKind] && !print ? `<div class="notice" role="status">${L(C[NOTICE_KEYS[noticeKind]])}</div>` : '';
 
-  // 2. tiles
-  const ringP = of ? Math.min(100, Math.round((100 * playedN) / of)) : 0;
+  // 2. tiles. With a known class, "N of M" counts the children ON the list only:
+  // typed children and other classes' children are named separately, never out of M.
+  const onListN = played.filter((p) => p.onList).length;
+  const offListN = played.length - onListN;
+  const ringP = of ? Math.min(100, Math.round((100 * onListN) / of)) : 0;
   const tiles = `<div class="tiles">
-<div class="tile">${of ? `<div class="ring" style="--p:${ringP}"><i class="num">${ringP}%</i></div><div class="t">${L(C.playedOf(playedN, of))}</div>` : `<div class="v num">${playedN}</div><div class="k">${L(C.playedLabel)}</div>`}</div>
+<div class="tile">${of ? `<div class="ring" style="--p:${ringP}"><i class="num">${ringP}%</i></div><div class="t">${L(C.playedOf(onListN, of))}</div>${offListN ? `<div class="t muted">${L(C.offList(offListN))}</div>` : ''}` : `<div class="v num">${playedN}</div><div class="k">${L(C.playedLabel)}</div>`}</div>
 <div class="tile"><div class="k">${L(C.average)}</div><div class="v num">${avg != null ? `${avg}%` : esc(C.none)}</div></div>
 <div class="tile"><div class="k">${L(C.hardest)}</div><div class="v num">${summary.hardestN ? `Q${num(summary.hardestN)}` : esc(C.none)}</div></div>
 </div>`;
