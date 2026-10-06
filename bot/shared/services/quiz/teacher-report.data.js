@@ -222,8 +222,25 @@ async function fromIdentity(code, quizId) {
     notPlayed: known && na.notPlayed
       ? na.notPlayed.map((k) => ({ studentId: k.studentId, first: k.first, roll: k.number != null ? Number(k.number) : null }))
       : null,
-    provisional: known ? (na.provisional || []) : [],
+    provisional: known ? groupProvisional(na.provisional || []) : [],
   };
+}
+
+/** A typed name's grouping key: identity v2's canonical form (case, spaces, script folded). */
+function typedKey(name) {
+  try { return require('./web-quiz-identity').canon(name || '') || ''; } catch { return String(name || '').trim().toLowerCase(); }
+}
+
+/** Provisional rows of one typed name collapse to the FIRST finish, with how many times it was typed. */
+function groupProvisional(rows) {
+  const byName = new Map();
+  rows.slice().sort((a, b) => String(a.finishedAt || '').localeCompare(String(b.finishedAt || ''))).forEach((r) => {
+    const k = typedKey(r.typed) || r.sessionId;
+    const first = byName.get(k);
+    if (first) first.repeats += 1;
+    else byName.set(k, { ...r, repeats: 1 });
+  });
+  return [...byName.values()];
 }
 
 /** The same answer from the teacher's legacy class lists (student_lists), for a teacher identity v2 cannot place. */
@@ -278,7 +295,19 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
     who = await fromLists(teacherId, quiz, listId, counted, lang);
   }
 
-  const played = counted.map((s) => {
+  // A child not on the list who typed the same name on this quiz more than once (a fresh
+  // phone, "I don't know" twice) is ONE child: the first finish counts, like any child.
+  const sameTyped = new Map();
+  const counting = counted.slice().sort((a, b) => String(a.completed_at || '').localeCompare(String(b.completed_at || '')))
+    .filter((s) => {
+      if (who.listed(s)) return true;
+      const k = typedKey(s.student_name);
+      if (!k) return true;
+      if (sameTyped.has(k)) return false;
+      sameTyped.set(k, s.id);
+      return true;
+    });
+  const played = counting.map((s) => {
     const listed = who.listed(s);
     const correct = s.correct_answers || 0;
     const total = s.total_questions_answered || 0;
@@ -291,7 +320,7 @@ async function quizReport(teacherId, quizId, { listId = null } = {}) {
   }).sort((a, b) => (b.pct - a.pct) || ((a.roll || 999) - (b.roll || 999)) || a.first.localeCompare(b.first));
   const { roster: rosterView, notPlayed, provisional } = who;
 
-  const questions = await questionStats(quiz.id, counted);
+  const questions = await questionStats(quiz.id, counting);
   const hardest = questions.filter((q) => q.answered > 1 && q.correctPct < 100)
     .sort((a, b) => a.correctPct - b.correctPct || a.n - b.n)[0];
   const code = (codes.find((c) => c.id === meta.share_code_id) || codes[0] || {}).code || null;

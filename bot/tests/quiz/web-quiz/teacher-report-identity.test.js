@@ -77,3 +77,23 @@ test('identity v2 unavailable (its read fails): the teacher\'s class lists answe
   expect(r.summary.played).toBe(3);
   expect(r.provisional).toEqual([]);
 });
+
+test('the same typed name finishing three times on one code is ONE provisional row (the first finish), not three', async () => {
+  const typed2 = '44444444-4444-4444-8444-444444444445';
+  const typed3 = '44444444-4444-4444-8444-444444444446';
+  const fake = wire({ sessions: [
+    ...SESSIONS,
+    { ...done('s4', typed2, 'dansh', 2, 10) },
+    { ...done('s5', typed3, 'Dansh ', 1, 5) },
+  ] });
+  fake.db.students.push(
+    { id: typed2, student_name: 'dansh', self_reported_class: '4-A', list_id: null, is_active: true, status: 'active', created_at: '2026-10-02T00:00:00Z' },
+    { id: typed3, student_name: 'Dansh ', self_reported_class: '4-A', list_id: null, is_active: true, status: 'active', created_at: '2026-10-03T00:00:00Z' },
+  );
+  const r = await Data.quizReport(F.TEACHER, F.QUIZ);
+  expect(r.provisional).toHaveLength(1);
+  expect(r.provisional[0]).toMatchObject({ sessionId: 's3', correct: 5, repeats: 3 });
+  // and counted once among the players: Ayesha, Bilal, Dansh
+  expect(r.summary.played).toBe(3);
+  expect(r.played.filter((p) => p.first === 'Dansh')).toHaveLength(1);
+});
