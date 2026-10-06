@@ -223,10 +223,12 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
       .eq('quiz_id', quizId).order('sort_order', { ascending: true });
     if (qsErr) throw qsErr;
 
-    const language = quiz.language || undefined;
+    const language = quizLanguage(quiz, questions);
     const allowed = await Store.recordingAllowed({ db: client, quizId, logEvent, logError });
     if (!allowed.ok) return done({ ok: false, reason: allowed.reason });
     const voice = Voice.quizVoice(language);
+    // Never a clip in no quiz voice: it would be a second voice beside the shared lines.
+    if (!voice) return done({ ok: false, reason: 'no_voice', language: language || null });
     const voiceTag = Voice.voiceTag(language);
     const bucket = Store.quizAudioBucket();
     const env = Store.deployEnv();
@@ -324,9 +326,24 @@ const RETRY_AFTER_MS = 15 * 60 * 1000;
  * @param {object} [opts.meta]     quizzes.meta as the caller already read it
  * @param {Function} [opts.publish] publishQuizAudio (tests pass a fake)
  */
+/**
+ * The quiz's language for its voice: the row's, else the questions' own script (a video-bank
+ * quiz has none — every bank quiz's language is NULL — and recorded as voice "default").
+ */
+function quizLanguage(quiz, questions) {
+  if (quiz && quiz.language) return quiz.language;
+  const text = (questions || []).map((q) => `${q.question_text || ''} ${q.option_a || ''}`).join(' ');
+  return /[\u0600-\u06FF]/.test(text) ? 'ur' : 'en';
+}
+
+/** Recorded at this version, in a real quiz voice (a "default" voice is a quiz to record again). */
+function isCurrent(web) {
+  return Number(web && web.audio_v) >= AUDIO_VERSION && (web.audio_voice || '') !== 'default';
+}
+
 function ensureQuizAudio(quizId, { meta, db, publish = module.exports.publishQuizAudio } = {}) {
   const web = (meta && meta.web) || {};
-  if (!quizId || Number(web.audio_v) >= AUDIO_VERSION) return Promise.resolve({ skipped: 'current' });
+  if (!quizId || isCurrent(web)) return Promise.resolve({ skipped: 'current' });
   if (inflight.has(quizId)) return inflight.get(quizId);
   const failedAt = lastFail.get(quizId);
   if (failedAt && Date.now() - failedAt < RETRY_AFTER_MS) return Promise.resolve({ skipped: 'cooldown' });
@@ -357,7 +374,7 @@ const REQUEST_AGAIN_MS = 10 * 60 * 1000;
  */
 async function requestQuizAudio(quizId, { meta, queue, publish, db } = {}) {
   const web = (meta && meta.web) || {};
-  if (!quizId || Number(web.audio_v) >= AUDIO_VERSION) return { skipped: 'current' };
+  if (!quizId || isCurrent(web)) return { skipped: 'current' };
   const at = requested.get(quizId);
   if (at && Date.now() - at < REQUEST_AGAIN_MS) return { skipped: 'requested' };
   requested.set(quizId, Date.now());
@@ -384,11 +401,11 @@ async function runQuizAudioJob(payload, { db, publish = module.exports.publishQu
   const client = db || require('../../config/supabase');
   const { data } = await client.from('quizzes').select('meta').eq('id', quizId).maybeSingle();
   const web = (data && data.meta && data.meta.web) || {};
-  if (Number(web.audio_v) >= AUDIO_VERSION) return { skipped: 'current' };
+  if (isCurrent(web)) return { skipped: 'current' };
   const out = (await publish(quizId, { db: client })) || {};
   if (out.ok && !out.failed) return out;
   // Switched off or over today's cap: a retry would only be refused again (the next page open asks anew).
-  if (out.reason === 'disabled' || out.reason === 'capped') return out;
+  if (out.reason === 'disabled' || out.reason === 'capped' || out.reason === 'no_voice') return out;
   if (attempt >= RETRY_DELAYS_S.length) {
     logError('web_quiz.publish_audio.gave_up', { event: 'web_quiz.publish_audio.gave_up', quizId, attempt, failed: out.failed, reason: out.reason });
     return out;
@@ -401,5 +418,5 @@ async function runQuizAudioJob(payload, { db, publish = module.exports.publishQu
 }
 
 module.exports = {
-  publishQuizAudio, ensureQuizAudio, requestQuizAudio, runQuizAudioJob, audioKey, clipKey, partsFor, spoken, whyText, withoutPraise, AUDIO_VERSION,
+  quizLanguage, isCurrent, publishQuizAudio, ensureQuizAudio, requestQuizAudio, runQuizAudioJob, audioKey, clipKey, partsFor, spoken, whyText, withoutPraise, AUDIO_VERSION,
 };
