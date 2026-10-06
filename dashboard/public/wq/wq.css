@@ -160,6 +160,17 @@ html[lang=ur] .wq-fb{line-height:2.3}
 html[lang=ur] .wq-why{line-height:2.3}
 .wq-hint{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:16px;padding:8px 10px;box-shadow:0 2px 0 var(--line);font-weight:800;color:var(--navy)}
 .wq-hint img{width:48px;height:48px}
+/* Jugnu's hint: a small thinking Jugnu under the options; a tap shows the hint beside him. */
+.wq-jhelp{display:flex;align-items:center;gap:8px;min-height:var(--tap);margin-top:10px;padding:4px 14px 4px 6px;border:0;border-radius:999px;background:var(--card);box-shadow:0 2px 0 var(--line);font:inherit;font-weight:800;font-size:16px;color:var(--navy);cursor:pointer;max-width:100%}
+.wq-jhelp img{width:44px;height:44px;flex:0 0 auto}
+.wq-jhelp span{min-width:0;text-align:start}
+.wq-jhelp.wq-nudge{animation:wq-nudge 1.2s ease-in-out 2}
+@keyframes wq-nudge{0%,100%{transform:rotate(0)}20%{transform:rotate(-4deg)}40%{transform:rotate(4deg)}60%{transform:rotate(-2deg)}}
+@media (prefers-reduced-motion:reduce){.wq-jhelp.wq-nudge{animation:none}}
+html[lang=ur] .wq-jhelp{font-weight:600;line-height:1.9}
+#wq-hintbox .wq-hintjug{margin-top:10px}
+#wq-hintbox .wq-jimg{width:72px;height:72px}
+#wq-hintbox .wq-say{margin-bottom:12px;font-size:17px}
 .wq-stars{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
 .wq-star{width:40px;height:40px}
 .wq-star path{fill:var(--star-off)}

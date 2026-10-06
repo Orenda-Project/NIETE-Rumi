@@ -447,7 +447,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       isYou: function (n) { return 'Are you ' + n + '?'; }, isYouSub: 'Tap Yes only if this is your own name.', yesMe: "Yes, it's me", diff: function (n) { return "I'm a different " + n; },
       vT: 'Watch the lesson (optional)', vSay: 'Watch first, or go straight in.', skip: 'Go to the questions', watched: 'Done watching',
       how: [['🔊', 'Listen to each question'], ['👆', 'Tap a colour or a picture'], ['🙋', 'Stuck? Help comes']],
-      qof: function (i, n) { return 'Question ' + i + ' of ' + n; }, listen: 'Listen again', helpAgain: 'Shall we listen again?',
+      qof: function (i, n) { return 'Question ' + i + ' of ' + n; }, listen: 'Listen again', helpAgain: 'Shall we listen again?', hintAsk: 'Need a hint?', hintNudge: 'Stuck? Tap me for a hint.',
       orderHelp: 'Tap the steps in the right order.', matchHelp: 'Tap one, then tap its partner.', labelHelp: 'Tap the right part of the picture.',
       zoom: 'Make the picture bigger', close: 'Close', playSound: 'Play the sound', yes: 'True', no: 'False',
       notyet: function (lead, r) { return lead + ' "' + String(r).replace(/[.!۔]+\s*$/, '') + '".'; }, next: 'Next', again: 'This one comes back at the end, to fix together.',
@@ -490,7 +490,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       isYou: function (n) { return 'کیا آپ ' + n + ' ہیں؟'; }, isYouSub: 'ہاں صرف تب دبائیں جب یہ آپ کا اپنا نام ہو۔', yesMe: 'جی ہاں، یہ میں ہوں', diff: function (n) { return 'میں کوئی اور ' + n + ' ہوں'; },
       vT: 'سبق دیکھیں (اختیاری)', vSay: 'پہلے دیکھیں، یا سیدھا سوالوں پر چلیں۔', skip: 'سوالوں پر چلیں', watched: 'دیکھ لیا',
       how: [['🔊', 'ہر سوال سنیں'], ['👆', 'رنگ یا تصویر پر ٹیپ کریں'], ['🙋', 'مشکل ہو تو مدد ملے گی']],
-      qof: function (i, n) { return 'سوال ' + i + ' از ' + n; }, listen: 'دوبارہ سنیں', helpAgain: 'کیا دوبارہ سنیں؟',
+      qof: function (i, n) { return 'سوال ' + i + ' از ' + n; }, listen: 'دوبارہ سنیں', helpAgain: 'کیا دوبارہ سنیں؟', hintAsk: 'اشارہ چاہیے؟', hintNudge: 'مشکل لگ رہا ہے؟ اشارے کے لیے مجھے دبائیں۔',
       orderHelp: 'قدموں کو صحیح ترتیب سے ٹیپ کریں۔', matchHelp: 'ایک پر ٹیپ کریں، پھر اس کے جوڑے پر۔', labelHelp: 'تصویر میں صحیح حصے پر ٹیپ کریں۔',
       zoom: 'تصویر بڑی کریں', close: 'بند کریں', playSound: 'آواز سنیں', yes: 'درست', no: 'غلط',
       notyet: function (lead, r) { return lead + ' ' + String(r).replace(/[.!۔]+\s*$/, ''); }, next: 'اگلا', again: 'یہ سوال آخر میں دوبارہ آئے گا، مل کر ٹھیک کرنے کے لیے۔',
@@ -1429,13 +1429,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   document.addEventListener('freeze', stopAll);
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') stopAll(); });
 
+  // How long a child sits with a question, after the voice, before Jugnu offers help.
+  var HELP_AFTER_MS = 20000;
+  function hintOf(q) { var h = q && q.hint; return h && typeof h.text === 'string' && h.text.trim() ? h.text.trim() : ''; }
+  function hintBtn(q) {
+    if (!hintOf(q)) return '';
+    return '<button class="wq-jhelp" id="wq-jhelp" aria-label="' + esc(T.hintAsk) + '"><img src="' + IMG + 'thinking.webp" alt="">' +
+      '<span id="wq-jhelp-t">' + esc(T.hintAsk) + '</span></button>';
+  }
   function question(i, retry) {
     var q = QS[i];
     var shown = Date.now();
     var h = bar(retry ? '<span class="wq-grow wq-qof">' + esc(T.second) + '</span>' : dots(i)) +
       (retry ? '' : '<p class="wq-qof">' + esc(T.qof(i + 1, N)) + '</p>') +
       '<div class="wq-item" data-kind="' + WQI.kind(q) + '">' + WQI.itemHtml(q, T, LANG) + '</div>' +
-      '<div id="wq-help"></div><div id="wq-fb"></div>';
+      '<div id="wq-help">' + hintBtn(q) + '</div><div id="wq-hintbox"></div><div id="wq-fb"></div>';
     render(h, retry ? 'M9-fix' : 'M6');
     wireBar();
     WQI.wireZoom(ROOT, T);
@@ -1443,15 +1451,41 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (!retry && QS[i + 1]) WQI.imageUrls(QS[i + 1]).forEach(function (u) { try { new Image().src = u; } catch (e) {} });
     ev(retry ? 'retry_view' : 'question_view', { qid: q.qid, i: i + 1 });
 
+    // Jugnu's hint (q.hint, written with the lesson in mind and checked in code never to give the
+    // answer): a tap shows it beside a thinking Jugnu and plays its own clip. A question with no hint
+    // keeps the "listen again" help.
+    var hint = hintOf(q);
+    var hintUsed = false;
+    on('#wq-jhelp', function () {
+      hintUsed = true;
+      clearTimers();
+      var b = $('#wq-jhelp'); if (b) b.className = 'wq-jhelp';
+      var bt = $('#wq-jhelp-t'); if (bt) bt.textContent = T.hintAsk;
+      var sp = $('#wq-spk'); if (sp) sp.classList.remove('wq-speaking');
+      var box = $('#wq-hintbox');
+      if (box) {
+        box.innerHTML = '<div class="wq-jug wq-hintjug">' + jugImg('thinking', true) + '<div class="wq-say" dir="auto">' + WQI.tex(hint) + '</div></div>';
+        try { box.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+      }
+      ev('hint_used', { qid: q.qid, i: i + 1, src: retry ? 'retry' : 'first' });
+      speak(WQI.say(hint, LANG), (q.audio && q.audio.hint) || null, null, { qid: q.qid, part: 'hint' });
+    });
     function armHelp() {
       clearTimers();
       helpTimer = setTimeout(function () {
         var el = $('#wq-help');
         if (!el || el.getAttribute('data-done')) return;
+        if (hint) {
+          if (hintUsed) return;
+          var b = $('#wq-jhelp'); if (b) b.className = 'wq-jhelp wq-nudge';
+          var t = $('#wq-jhelp-t'); if (t) t.textContent = T.hintNudge;
+          ev('help_shown', { qid: q.qid, src: 'hint' });
+          return;
+        }
         el.innerHTML = '<div class="wq-hint"><img src="' + IMG + 'thinking.webp" alt="">' + esc(T.helpAgain) + '<button class="wq-spk" id="wq-help-spk" aria-label="' + esc(T.listen) + '">🔊</button></div>';
         ev('help_shown', { qid: q.qid });
         on('#wq-help-spk', function () { ev('help_used', { qid: q.qid }); read(); });
-      }, 12000);
+      }, HELP_AFTER_MS);
     }
     // Help waits until the voice has finished, then gives the child time of their own.
     function read() {
@@ -1469,6 +1503,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         var ms = Date.now() - shown;
         clearTimers(); stopVoice();
         var help = $('#wq-help'); if (help) { help.setAttribute('data-done', '1'); help.innerHTML = ''; }
+        var hbox = $('#wq-hintbox'); if (hbox) hbox.innerHTML = '';
         WQI.mark(ROOT, q, slot);
         if (retry) {
           lastRetryOk = ok;
