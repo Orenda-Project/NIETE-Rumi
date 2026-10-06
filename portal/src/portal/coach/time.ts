@@ -3,9 +3,10 @@
  *
  * Picked with three toggles: hour (7–6), minutes (:00 / :30), AM/PM. Hours
  * 7–11 default to AM and 12–6 to PM, so tapping an hour never makes an
- * out-of-hours visit by accident; she can still flip AM/PM. Default 9:00 AM.
+ * out-of-hours visit by accident; she can still flip AM/PM, and whatever the
+ * toggles make can be booked (bd-o15qnr.8: no warning). Default 9:00 AM.
  * The server stores 24-hour "HH:MM" (dashboard/lib/visit-time.js holds the same
- * window: 07:00–18:30 on the half hour, plus the three old slots).
+ * rule: any half hour, plus the three old slots).
  */
 
 export type Meridiem = "AM" | "PM";
@@ -51,9 +52,7 @@ export function isAllowedSlot(slot: string | null | undefined): boolean {
   if (!slot) return false;
   if (LEGACY_SLOTS.includes(slot)) return true;
   const m = /^(\d{2}):(00|30)$/.exec(slot);
-  if (!m) return false;
-  const minutes = Number(m[1]) * 60 + Number(m[2]);
-  return minutes >= 7 * 60 && minutes <= 18 * 60 + 30;
+  return !!m && Number(m[1]) <= 23;
 }
 
 /** "14:00" → "2:00 PM". A legacy word ("morning") is shown capitalised; nothing → "—". */

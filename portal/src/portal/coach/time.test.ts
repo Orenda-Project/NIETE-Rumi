@@ -52,14 +52,17 @@ describe("coach visit time", () => {
     expect(fromSlot("morning")).toEqual(DEFAULT_TIME);
   });
 
-  it("allows 7:00 AM to 6:30 PM on the half hour, plus the old slots", () => {
+  // bd-o15qnr.8: "AM and PM warning can be removed" — every time the toggles can make is bookable.
+  it("allows any half hour of the day, plus the old slots", () => {
     expect(isAllowedSlot("07:00")).toBe(true);
     expect(isAllowedSlot("18:30")).toBe(true);
     expect(isAllowedSlot("11:30")).toBe(true);
-    expect(isAllowedSlot("19:00")).toBe(false);
-    expect(isAllowedSlot("06:30")).toBe(false);
+    expect(isAllowedSlot("19:00")).toBe(true);
+    expect(isAllowedSlot("06:30")).toBe(true);
+    expect(isAllowedSlot("00:30")).toBe(true);
+    expect(isAllowedSlot("23:30")).toBe(true);
     expect(isAllowedSlot("09:15")).toBe(false);
-    expect(isAllowedSlot("00:30")).toBe(false);
+    expect(isAllowedSlot("24:00")).toBe(false);
     expect(isAllowedSlot("")).toBe(false);
   });
 

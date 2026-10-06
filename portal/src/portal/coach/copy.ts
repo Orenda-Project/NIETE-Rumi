@@ -22,7 +22,7 @@ export const COACH_COPY = {
   takeObservation: "Take observation",
 
   // Features
-  scheduling: "Scheduling",
+  scheduling: "Schedule",
   observe: "Observe",
   schoolsAndTeachers: "Schools & teachers",
   training: "Training",
@@ -41,6 +41,9 @@ export const COACH_COPY = {
   overdue: "Overdue",
   today: "Today",
   daysLate: (n: number) => `${n} days late`,
+  earlier: "Earlier",
+  earlierDays: "Earlier days",
+  laterDays: "Later days",
 
   // Team
   totals: { today: "Today", week: "This week", month: "This month" },

@@ -57,10 +57,14 @@ describe('createSchedule', () => {
     }
   });
 
-  it('refuses a date in the past', async () => {
-    await expect(createSchedule(makeQuery(), LEADER, {
+  // bd-o15qnr.8 — operator: "allow coaches to schedule one in the past as well".
+  it('books a date in the past, and says so', async () => {
+    const writes = [];
+    const out = await createSchedule(makeQuery({ writes }), LEADER, {
       schoolExtId: 'niete:509', teacherExtId: 'p1', date: '2026-08-01', slot: '09:00',
-    }, { today: TODAY })).rejects.toThrow(/past/i);
+    }, { today: TODAY });
+    expect(writes.length).toBe(1);
+    expect(out.past).toBe(true);
   });
 
   it('allows today', async () => {

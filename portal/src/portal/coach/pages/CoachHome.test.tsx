@@ -54,8 +54,10 @@ describe("CoachHome", () => {
   it("a big tile per feature, each with one number", async () => {
     renderHome();
     const tiles = within(await screen.findByTestId("feature-tiles"));
-    expect(tiles.getByRole("link", { name: /Scheduling/ })).toHaveAttribute("href", "/portal/coach/scheduling");
-    expect(tiles.getByRole("link", { name: /Scheduling/ })).toHaveTextContent("6 this week");
+    // bd-o15qnr.8 (15) — operator: "not scheduling but Schedule", as on the navbar.
+    expect(tiles.getByRole("link", { name: /^Schedule\b/ })).toHaveAttribute("href", "/portal/coach/scheduling");
+    expect(tiles.getByRole("link", { name: /^Schedule\b/ })).toHaveTextContent("6 this week");
+    expect(screen.queryByText("Scheduling")).toBeNull();
     expect(tiles.getByRole("link", { name: /Observe/ })).toHaveAttribute("href", "/portal/coach/observe");
     expect(tiles.getByRole("link", { name: /Observe/ })).toHaveTextContent("1 waiting");
     expect(tiles.getByRole("link", { name: /Schools & teachers/ })).toHaveAttribute("href", "/portal/coach/people");
