@@ -43,6 +43,8 @@ describe('cleanWrongFeedback', () => {
     ['You stopped at 6. There are 8 candies. Keep going to the end!', 'You stopped at 6. There are 8 candies.'],
     ['شاباش کوشش پر! آپ نے اسے صفت جیسا سمجھا۔ حروفِ عطف دو اسماء یا دو جملے جوڑتے ہیں۔ جاری رکھیں!',
       'آپ نے اسے صفت جیسا سمجھا۔ حروفِ عطف دو اسماء یا دو جملے جوڑتے ہیں۔'],
+    ['A) اچھا سوچا، آپ نے جال کو بھالو کا کام سمجھ لیا۔ درست جواب B) ہے، کیونکہ بھالو نے بلی کو جانے دیا۔',
+      'آپ نے جال کو بھالو کا کام سمجھ لیا۔ بھالو نے بلی کو جانے دیا۔'],
   ])('%s', (raw, want) => {
     expect(cleanWrongFeedback(raw)).toBe(want);
   });
