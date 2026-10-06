@@ -28,6 +28,8 @@ const OGG = fs.readFileSync(path.join(__dirname, '..', '..', '..', '..', 'tests'
 const MANIFEST = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', '..', '..', 'dashboard', 'public', 'wq', 'voice', 'manifest.json'), 'utf8'));
 
 jest.mock('axios');
+// The service module reads the real Supabase config at load; the tests pass their own fake `db`.
+jest.mock('../../../shared/config/supabase', () => ({}));
 const mockLogError = jest.fn();
 jest.mock('../../../shared/utils/logger', () => ({
   logToFile: jest.fn(), logError: (...a) => mockLogError(...a), logWarn: jest.fn(), logInfo: jest.fn(),
