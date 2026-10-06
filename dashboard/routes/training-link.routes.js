@@ -96,14 +96,17 @@ function browserFacts(req) {
   return { ua, xrw, iab };
 }
 
+// The portal's OWN sink. Never the bot's loggers: they need pino, which this service
+// does not install, so a require of them throws and the event is silently lost
+// (services/telemetry.service.js has the history).
+const telemetry = require('../services/telemetry.service');
+
 function log(event, props) {
   try {
-    require('../../bot/shared/utils/structured-logger').logEvent(event, props);
-    // A failed lookup or session write is a real failure, not a stale link: warn, so it is seen.
-    if (props && props.outcome === 'error') {
-      require('../../bot/shared/utils/logger').logWarn('training link: could not open a session', props);
-    }
+    telemetry.logEvent(event, props);
   } catch (_) { /* logging never decides the response */ }
+  // A failed lookup or session write is a real failure, not a stale link: the error console, so it is seen.
+  if (props && props.outcome === 'error') console.error('training link: could not open a session', props);
 }
 
 async function defaultFindUser(id) {

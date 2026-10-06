@@ -21,8 +21,9 @@
 const http = require('http');
 const express = require('express');
 
-jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
-const { logEvent } = require('../../bot/shared/utils/structured-logger');
+// The portal's own telemetry sink (the bot's loggers cannot load in the portal process).
+jest.mock('../../dashboard/services/telemetry.service', () => ({ logEvent: jest.fn(), flush: jest.fn(), isEnabled: () => true }));
+const { logEvent } = require('../../dashboard/services/telemetry.service');
 const Token = require('../../bot/shared/services/training/training-link-token');
 
 const TEACHER = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Ayesha' };

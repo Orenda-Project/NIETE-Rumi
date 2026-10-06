@@ -28,6 +28,14 @@
 const telemetry = require('../services/telemetry.service');
 
 /** Emit a semantic event. Instrumentation must never break a response. */
+// A path that IS a credential is logged by its shape, never its value: the link on the
+// training template (/t/<token>) logs a teacher in for 24 hours (routes/training-link.routes.js).
+const CREDENTIAL_PATHS = [/^\/t\/[^/]+$/];
+function loggedPath(path) {
+  const p = String(path || '');
+  return CREDENTIAL_PATHS.some((rx) => rx.test(p)) ? '/t/:token' : p;
+}
+
 function emit(event, data) {
   try {
     telemetry.logEvent(event, data);
@@ -90,6 +98,7 @@ function createLatencyLogger(options = {}) {
       const preciseMs = (seconds * 1000 + nanoseconds / 1000000).toFixed(2);
 
       const isStatic = isStaticFile(req.path);
+      const path = loggedPath(req.path);
 
       // Skip static file logging if disabled
       if (isStatic && !config.logStaticFiles) {
@@ -99,7 +108,7 @@ function createLatencyLogger(options = {}) {
       // Build log data
       const logData = {
         event: 'http.request.completed',
-        path: req.path,
+        path,
         method: req.method,
         statusCode: res.statusCode,
         durationMs: parseFloat(preciseMs),
@@ -112,10 +121,10 @@ function createLatencyLogger(options = {}) {
       if (isStatic) {
         // Only log slow static files
         if (durationMs > 1000) {
-          console.log(`[LATENCY] ${req.method} ${req.path} - ${preciseMs}ms (slow static)`);
+          console.log(`[LATENCY] ${req.method} ${path} - ${preciseMs}ms (slow static)`);
         }
       } else {
-        console.log(`[LATENCY] ${req.method} ${req.path} - ${preciseMs}ms - ${res.statusCode}`);
+        console.log(`[LATENCY] ${req.method} ${path} - ${preciseMs}ms - ${res.statusCode}`);
       }
 
       // Ship the request record to the structured logger (Axiom).
@@ -123,11 +132,11 @@ function createLatencyLogger(options = {}) {
 
       // Alert on slow requests
       if (durationMs > config.slowThreshold) {
-        console.warn(`[SLOW REQUEST] ${req.method} ${req.path} took ${preciseMs}ms (threshold: ${config.slowThreshold}ms)`);
+        console.warn(`[SLOW REQUEST] ${req.method} ${path} took ${preciseMs}ms (threshold: ${config.slowThreshold}ms)`);
 
         const slowLogData = {
           event: 'http.request.slow',
-          path: req.path,
+          path,
           method: req.method,
           statusCode: res.statusCode,
           durationMs: parseFloat(preciseMs),
