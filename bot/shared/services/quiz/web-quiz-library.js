@@ -25,8 +25,6 @@ const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const Order = require('./video-bank-order');
 
-const FLAG_KEY = 'web_quiz_library';
-const FLAG_TTL_MS = 60 * 1000;
 const INDEX_TTL_MS = 10 * 60 * 1000;
 const PAGE = 1000;
 
@@ -42,21 +40,7 @@ const gradeArt = (g) => (Order.GRADE_ORDER.includes(String(g)) ? `/wq/art/grade-
 
 // ─── flag ────────────────────────────────────────────────────────────────────
 
-let flag = null;
-async function libraryOn() {
-  if (flag && Date.now() - flag.at < FLAG_TTL_MS) return flag.on;
-  try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [FLAG_KEY]);
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    const row = (data || []).find((r) => r.key === FLAG_KEY);
-    const v = row && row.value;
-    flag = { at: Date.now(), on: v === true || v === 'true' || (v && v.enabled === true) };
-  } catch (e) {
-    logToFile('⚠️ web-quiz library: settings lookup failed — library off', { error: e.message });
-    flag = { at: Date.now(), on: false };
-  }
-  return flag.on;
-}
+const { libraryOn, FLAG_KEY } = require('./web-quiz-library-flag');
 
 // ─── the bank index ──────────────────────────────────────────────────────────
 
@@ -236,8 +220,10 @@ async function lib(code, { st, g, s, fetchImpl } = {}) {
  */
 async function libHub(token, { kid, g, s, fetchImpl } = {}) {
   const WebQuiz = await guard();
+  // The hub module is M4a's and optional here: loaded by path so a deployment without it answers
+  // hub_off instead of failing to boot.
   let Hub;
-  try { Hub = require('./web-quiz-hub'); } catch (_) { Hub = null; }
+  try { Hub = require(require('path').join(__dirname, 'web-quiz-hub')); } catch (_) { Hub = null; }
   if (!Hub || typeof Hub.kidFromHub !== 'function') throw new WebQuiz.WqError(503, { error: 'hub_off' });
   const who = await Hub.kidFromHub(token, kid);
   if (!who) throw new WebQuiz.WqError(401, { error: 'bad_token' });
@@ -279,6 +265,6 @@ async function download(code, { st, vid } = {}) {
 
 module.exports = {
   lib, libHub, download, fileName, libraryOn, subjectArt, gradeArt, FLAG_KEY,
-  _reset: () => { index = null; loading = null; flag = null; studentOfSession.clear(); },
+  _reset: () => { index = null; loading = null; require('./web-quiz-library-flag')._reset(); studentOfSession.clear(); },
   _idle: async () => { while (background.size) await Promise.all([...background]); },
 };

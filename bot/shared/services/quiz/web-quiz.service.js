@@ -461,7 +461,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // The library's Download button needs the bank video's id (only with the library on).
   if (video && video.url) {
     const videoId = ctx.parent.video_id || (quizRow && quizRow.video_id) || null;
-    if (videoId && await require('./web-quiz-library').libraryOn()) video = { ...video, vid: videoId };
+    if (videoId && await require('./web-quiz-library-flag').libraryOn()) video = { ...video, vid: videoId };
   }
   // A quiz without its read-aloud clips (or with clips of an older voice version) gets them now,
   // recorded by the worker: the backfill for quizzes authored before clips were made at authoring.
