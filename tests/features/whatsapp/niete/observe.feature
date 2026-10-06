@@ -283,11 +283,11 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   Scenario: A pending debrief is offered the next time the leader opens /observe
     Given a leader has a submitted observation whose debrief is still pending
     When I send "/observe"
-    Then the bot first offers the pending debrief(s) before starting a new capture
-    # observe-command.handler.js capture branch intercepts on listPendingDebriefs
-    # (debrief_status pending, status observer_review_complete) before the picker.
-    # Pending-list rows observe_debrief_<id> + an observe_new sentinel
-    # (whatsapp-bot.js:1651-1677). Row times in Asia/Karachi (bd-2216).
+    Then the visit Flow's menu offers "Complete debriefs" with the pending count, above "Schedule new observation"
+    # Updated 2026-10-06: with the scheduling UI on (OBSERVE_SCHEDULING_UI, live in sandbox) an assigned coach's
+    # /observe opens the visit Flow and its MENU carries the pending debriefs as a stage row (bd-2444, bd-tju8f;
+    # observe-command.handler.js capture branch). The chat list it replaced (listPendingDebriefs →
+    # observe_debrief_<id> rows) still serves a coach with no picker.
 
   @e2e @wip @debrief @edge @config-gated @P3 @OBS15
   Scenario: Tapping "Debrief now" twice re-sends the same guide, no new analysis
@@ -324,15 +324,14 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # window-closed → UTILITY template (observe_report_* payload);
     # OBSERVE_REVIEW_MODE=operator reroutes to a review number first.
 
-  @e2e @flow @scheduling @edge @known-issue @config-gated @P3 @OBS19
-  Scenario: A scheduled visit cannot be cancelled from the WhatsApp Flow
+  @e2e @flow @scheduling @edge @config-gated @P3 @OBS19
+  Scenario: A scheduled visit can be moved or cancelled from the WhatsApp Flow
     Given a LEADER account with one upcoming scheduled visit
-    When I open the visit Flow and drill into "My schedule" → the scheduled visit → "See the brief"
-    Then the only forward action is "Start observation" — there is NO cancel/reschedule/delete affordance
-    # Verified live on PROD (2026-08-04): "My schedule" → Scheduled-visit dropdown →
-    # See-the-brief → only "Start observation". The Flow "⋮ more options" offers no
-    # cancel. So an upcoming schedule can only be retired by starting the observation
-    # (markDone) — there is no user-facing way to cancel it from WhatsApp. UX gap.
+    When I open the visit Flow and drill into "My schedule" → the scheduled visit
+    Then the visit's action screen offers "Run the observation", "Change the date or time" and "Cancel this visit"
+    # Was @known-issue "cannot be cancelled" (verified on PROD 2026-08-04: only "Start observation"). bd-88krt
+    # added the VISIT_ACTION screen behind OBSERVE_OBS_ACTION (on in sandbox); driven on the mock lane 2026-10-06.
+    # Moving and cancelling notify the teacher: OBS63.
 
   # ═════════════════════════════════ NEGATIVE ══════════════════════════════════
 

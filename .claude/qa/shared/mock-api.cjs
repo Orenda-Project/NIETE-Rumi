@@ -425,8 +425,19 @@ function makeMockApi(opts) {
       const kids = [me.id, ...(await get(`users?select=id&phone_number=in.(${phones.join(',')})`)).map((u) => u.id)];
       const visits = await patch(`observation_schedules?leader_user_id=eq.${me.id}&school_ext_id=eq.${encodeURIComponent('niete:E2EOBS' + driver)}&status=eq.upcoming`, { status: 'cancelled' });
       const sessions = kids.length ? await patch(`coaching_sessions?observer_user_id=eq.${me.id}&observation_type=eq.leader_observation&user_id=in.(${kids.join(',')})&status=not.in.(cancelled,abandoned,failed)`, { status: 'abandoned' }) : 0;
+      // The DEBRIEF duplicate guard (audio-hash-cache findPriorAnalysedDebrief) ignores status: any of this coach's
+      // sessions whose analysis_data.observer_debrief has an audio_hash and feedback counts. Abandoning the sessions
+      // therefore did not clear it, and a rerun's first debrief was refused "already analysed" (run 20261006-2130,
+      // OBS10). Archive the hash on this coach's own abandoned sessions: rename the key, keep everything else.
+      const withDebrief = await get(`coaching_sessions?select=id,analysis_data&observer_user_id=eq.${me.id}&observation_type=eq.leader_observation&status=eq.abandoned&analysis_data->observer_debrief->>audio_hash=not.is.null`);
+      let debriefs = 0;
+      for (const row of withDebrief) {
+        const ad = row.analysis_data || {}; const od = { ...(ad.observer_debrief || {}) };
+        od.audio_hash_archived = od.audio_hash; delete od.audio_hash;
+        if ((await patch(`coaching_sessions?id=eq.${row.id}`, { analysis_data: { ...ad, observer_debrief: od } })) >= 0) debriefs++;
+      }
       await new Promise((r) => setTimeout(r, 300));
-      return { ok: visits >= 0 && sessions >= 0, visits, sessions, kids };
+      return { ok: visits >= 0 && sessions >= 0, visits, sessions, debriefs, kids };
     },
     /** Remove this driver's roster ASSIGNMENT (idempotent); the school and teacher users stay as fixtures.
      *  Also clears the pre-2026-10-06 seed's rows (E2E-OBS-<driver>), which nothing reads any more. */

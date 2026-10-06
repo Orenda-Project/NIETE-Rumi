@@ -152,6 +152,11 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     # The teacher's visit notice (observe-teacher-notice.service.js). Its templates go to the MOCK Graph API
     # here, into the fixture teacher's own outbox, so nothing reaches a real phone.
     echo "OBSERVE_TEACHER_NOTIFY_ENABLED=${OBSERVE_TEACHER_NOTIFY_ENABLED:-true}"
+    # The teacher-invite template for a report sent outside the 24h window. Unset, the code defaults to the
+    # Tanzanian observation_report_sw in Swahili (observe-send.service.js reportTemplateConfig) — the sandbox
+    # bot sets NIETE's own (railway variables, 2026-10-06), so mirror it or OBS11/OBS18 judge the wrong market.
+    echo "OBSERVE_REPORT_TEMPLATE=${OBSERVE_REPORT_TEMPLATE:-observation_report_niete_v2}"
+    echo "OBSERVE_REPORT_TEMPLATE_LANG=${OBSERVE_REPORT_TEMPLATE_LANG:-en}"
     # The NIETE deployment scores on FICO (NIETE-Rumi/.env: DEFAULT_OBSERVATION_FRAMEWORK=fico); without it the
     # framework-selector falls to oecd and a coaching run here renders the PDFKit report with no fidelity
     # section and no photo reading — coaching COA05/07/19/27/28/29 could never be judged (run 20260930-0649).

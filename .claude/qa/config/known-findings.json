@@ -3,5 +3,8 @@
   "language": {
     "LANG07": "dead export (bd-ztx5n) — a language code path exports a symbol nothing imports"
   },
-  "lesson-plan": {}
+  "lesson-plan": {},
+  "observe": {
+    "OBS64": "product defect, found 2026-10-06 on the mock lane: re-saving a visit UNCHANGED through \"Change the date or time\" sends the teacher observation_visit_rescheduled. observe-schedule.service.js rescheduleById (:209-227) notifies unconditionally; saveSchedule (:105-107) guards on a real date/slot change and rescheduleById does not"
+  }
 }

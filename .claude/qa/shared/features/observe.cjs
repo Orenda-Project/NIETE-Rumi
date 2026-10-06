@@ -44,6 +44,29 @@ const CAPTURED = /Got your recording|Whose observation is this|Pick the teacher/
 const COACHING = /analyze your teaching|Step \d\/5|Transcribing your classroom|feedback on your OWN/i; // the WRONG lane
 const MEDIA = require('path').resolve(__dirname, '..', '..', 'fixtures', 'whatsapp', 'niete', 'media');
 
+// Switch the coach's language through /language — the one writer, which also refreshes the bot's language
+// cache. A direct users.preferred_language write left the bot answering from its cache: OBS38 switched to
+// Urdu, the switch back to English never reached the bot, and every later scenario read Urdu replies
+// against English patterns (run 20261006-1946: OBS06/25/35/36 and the runner's "Classroom Coaching" tap).
+// Retried: a late message from the previous step can arrive as the /language reply, and then the picker has
+// no rows to tap (run 20261006-2205: RUNNER "no list row titled اردو (rows=null)").
+const setLang = async (api, row) => {
+  let last = null;
+  for (let i = 0; i < 3; i++) {
+    try {
+      await api.resetFlow(); await api.freshReset();
+      const r = await api.sendWait('/language');
+      const opener = (r.btns || []).find((b) => /Languages|زبانیں/.test(b));
+      if (!opener) throw new Error('no language picker in the /language reply: ' + String(r.txt || '').slice(0, 80));
+      await api.openList(opener);
+      await api.pickRowAndWait(row);
+      await api.resetFlow();
+      return true;
+    } catch (e) { last = e; await new Promise((res) => setTimeout(res, 3000)); }
+  }
+  throw last;
+};
+
 exports.run = async ({ api, rec, want = () => true }) => {
   await api.resetFlow();
   let s;
@@ -111,7 +134,7 @@ exports.run = async ({ api, rec, want = () => true }) => {
     OBS16: "A leader with no saved roster is asked for the teacher's name and number",
     OBS17: 'The teacher picker paginates when a school has many teachers',
     OBS18: 'A report send outside the 24h window goes via an approved template',
-    OBS19: 'A scheduled visit cannot be cancelled from the WhatsApp Flow',
+    OBS19: 'A scheduled visit can be moved or cancelled from the WhatsApp Flow',
     OBS23: 'A harmful debrief is gated — a concern, never praise, no card',
     OBS24: "The FICO form refuses a session that is not the observer's own",
     OBS27: 'A too-short debrief recording is refused and stays pending',
@@ -184,9 +207,12 @@ exports.run = async ({ api, rec, want = () => true }) => {
     const armed = await api.flowComplete(60000);
     const up = await api.upload(MEDIA + '/' + audio, 'Audio', 180000);
     await api.freshReset();
-    const got = /already been analy/i.test(up.txt || '') ? { hit: null, seen: [] } : await collect(600000, isForm, true);
+    // The refusal for a re-sent recording comes AFTER the "got the recording" ack, and in the coach's language:
+    // stop on it in either language rather than waiting the full ten minutes for a form (run 20261006-2011, OBS38).
+    const REFUSED = /already been analy|پہلے ہی کیا جا چکا/;
+    const got = REFUSED.test(up.txt || '') ? { hit: null, seen: [] } : await collect(600000, (x) => isForm(x) || REFUSED.test(x.txt || ''), true);
     return { armed: (armed.txt || '').slice(0, 200), upload: { txt: (up.txt || '').slice(0, 300), btns: up.btns, raw: up },
-      form: got.hit, seen: got.seen.map(brief) };
+      form: got.hit && isForm(got.hit) ? got.hit : null, seen: got.seen.map(brief) };
   };
   // Open the FICO form card, optionally edit the first rating + evidence on the first scored screen,
   // and submit. Returns the screens seen, whether evidence was pre-filled, and the bot's answer.
@@ -282,7 +308,9 @@ exports.run = async ({ api, rec, want = () => true }) => {
           await api.flowPick('Ayesha Khan'); await api.flowClick('Continue', { settleMs: 2500 });
           const act = await api.flowProbe();
           // ── OBS19 · the spec says a scheduled visit has NO cancel; with OBSERVE_OBS_ACTION on (sandbox) it does ──
-          rr('OBS19', act.screen && !/Cancel this visit/i.test(act.text || ''),
+          // Inverted 2026-10-06: the spec recorded a UX gap (no cancel, verified on PROD 2026-08-04). bd-88krt's
+          // VISIT_ACTION screen (OBSERVE_OBS_ACTION, on in sandbox) closed it: run / change the date or time / cancel.
+          rr('OBS19', act.screen === 'VISIT_ACTION' && /Cancel this visit/i.test(act.text || '') && /Change the date or time/i.test(act.text || ''),
             { screen: act.screen, offered: (act.items || []).filter((x) => x.kind === 'option').map((x) => x.text),
               note: 'the spec (verified on PROD 2026-08-04) predates bd-88krt: with OBSERVE_OBS_ACTION=true, as on the sandbox bot, VISIT_ACTION offers run / change / cancel. A FAIL here means the spec is stale, not the product broken.' });
           let resave = null;
@@ -360,7 +388,10 @@ exports.run = async ({ api, rec, want = () => true }) => {
               if (fo.ok) { const pm = await api.flowProbe(); menuText = pm.text || ''; firstRow = ((pm.items || []).find((x) => x.kind === 'nav') || {}).text || null; }
               api.closeFlow(); await api.resetFlow();
             }
-            rr('OBS14', /Complete debriefs/i.test(firstRow || '') && /Complete debriefs\n\d+ pending/.test(menuText),
+            // Offered BEFORE a new observation: the stage rows (Complete the form, Complete debriefs) sit above
+            // "Schedule new observation"; "Complete the form" may come first when unfinished forms exist.
+            const iDeb = menuText.search(/Complete debriefs\n\d+ pending/), iNew = menuText.search(/Schedule new observation/);
+            rr('OBS14', iDeb >= 0 && (iNew < 0 || iDeb < iNew),
               { later: (later.txt || '').slice(0, 200), replies: first.map(brief), firstRow, menu: menuText.slice(0, 300),
                 note: 'with OBSERVE_SCHEDULING_UI on, /observe opens the visit Flow and the pending debrief is its FIRST menu row (stage rows, bd-tju8f), ahead of scheduling a new observation' });
             // ── OBS04 · the menu counts: a pending debrief and the upcoming visit ──
@@ -417,9 +448,12 @@ exports.run = async ({ api, rec, want = () => true }) => {
               const s1 = await api.tapAndWait(sendBtn, 120000);
               const s1more = await collect(120000, (x) => (x.btns || []).some((b) => /send now/i.test(b)) || !!(x.list && x.list.rows.length));
               let preview = s1more.hit;
+              // The report arrives as an image message FOLLOWED by the "Above is the exact report…" text that
+              // carries Send now; judge the image on the batch, not on the button message (run 20261006-1946).
+              let previewBatch = s1more.seen;
               if (preview && preview.list && !(preview.btns || []).some((b) => /send now/i.test(b))) {
                 const row = preview.list.rows.find((r) => /Bilal/.test(r.title));
-                if (row) { await api.freshReset(); await api.pickRowAndWait(row.title, 120000); preview = (await collect(180000, (x) => (x.btns || []).some((b) => /send now/i.test(b)))).hit; }
+                if (row) { await api.freshReset(); await api.pickRowAndWait(row.title, 120000); const c2 = await collect(180000, (x) => (x.btns || []).some((b) => /send now/i.test(b))); preview = c2.hit; previewBatch = c2.seen; }
               }
               let delivered = null; let outcome = null;
               if (preview) {
@@ -433,7 +467,7 @@ exports.run = async ({ api, rec, want = () => true }) => {
               const tmpl = (delivered || []).find((x) => x.template);
               const img = (delivered || []).find((x) => x.img);
               rr('OBS18', !!tmpl, { teacherGot: sent.teacherGot, note: 'the fixture teacher never messaged the bot, so her 24h window is closed: the report must go as an approved template' });
-              rr('OBS11', !!preview && !!preview.img && !!(delivered && delivered.length) && !!outcome && outcome.seen.some((x) => /sent|deliver/i.test(x.txt || '')),
+              rr('OBS11', !!preview && (previewBatch || []).some((x) => x.img) && !!(delivered && delivered.length) && !!outcome && outcome.seen.some((x) => /sent|deliver/i.test(x.txt || '')),
                 { ...sent, note: 'the teacher copy is checked in the teacher outbox; outside the 24h window it is a template (OBS18), so "one image" is asserted on the coach preview' });
               const teacherText = (delivered || []).map((x) => (x.txt || '') + ' ' + ((x.template && x.template.params) || []).join(' ')).join('\n');
               rr('OBS12', !!(delivered && delivered.length) && !/\b\d{1,3}\s*\/\s*(?:148|104)\b|\bscore\b|\b\d{1,3}\s*%/i.test(teacherText)
@@ -447,18 +481,18 @@ exports.run = async ({ api, rec, want = () => true }) => {
             notReached(['OBS11', 'OBS12', 'OBS18', 'OBS31'], 'no "Send report" button after the debrief feedback: ' + JSON.stringify(after10.map(brief)).slice(0, 300));
 
             // ── OBS37 + OBS38 · the same classroom audio again: refused, in the COACH's language ──
-            await api.setUser({ preferred_language: 'ur', language_locked: true });
+            await setLang(api, 'اردو');
             await api.freshReset();
             const d1 = await observeAndAnalyse(seed.schoolName, 'Bilal Ahmed', 'hameeda_16min.m4a');
-            const dupTxt = (d1.upload && d1.upload.txt) || '';
+            const dupTxt = [(d1.upload && d1.upload.txt) || '', ...((d1.seen || []).map((x) => (x && x.txt) || ''))].join('\n');
             await new Promise((r) => setTimeout(r, 8000));
             const noForm = !(await api.fresh()).some(isForm);
             rr('OBS38', /اس کلاس روم ریکارڈنگ کا تجزیہ پہلے ہی کیا جا چکا ہے/.test(dupTxt),
               { reply: dupTxt, coach: 'ur', teacher: 'en (Bilal)' });
-            await api.setUser({ preferred_language: 'en', language_locked: true });
+            await setLang(api, 'English');
             await api.freshReset();
             const d2 = await observeAndAnalyse(seed.schoolName, 'Bilal Ahmed', 'hameeda_16min.m4a');
-            const dup2 = (d2.upload && d2.upload.txt) || '';
+            const dup2 = [(d2.upload && d2.upload.txt) || '', ...((d2.seen || []).map((x) => (x && x.txt) || ''))].join('\n');
             await new Promise((r) => setTimeout(r, 8000));
             rr('OBS37', /This classroom recording has already been analyzed\. Please submit a new recording\./.test(dup2) && noForm && !(await api.fresh()).some(isForm),
               { reply: dup2, noNewForm: noForm });
@@ -517,13 +551,13 @@ exports.run = async ({ api, rec, want = () => true }) => {
             else {
               await api.freshReset(); await api.tapAndWait('Debrief now', 120000);
               // ── OBS41 + OBS40 · the already-coached respectful debrief, sent for THIS observation ──
-              await api.setUser({ preferred_language: 'ur', language_locked: true });
+              await setLang(api, 'اردو');
               await api.freshReset();
               const dd = await api.upload(MEDIA + '/debrief/debrief_respectful.ogg', 'Audio', 120000);
               const ddMore = await collect(30000, null);
               const ddTxt = [dd.txt, ...ddMore.seen.map((x) => x.txt)].filter(Boolean).join('\n');
               rr('OBS41', /اس ڈی بریف ریکارڈنگ کا تجزیہ پہلے ہی کیا جا چکا ہے/.test(ddTxt), { reply: ddTxt.slice(0, 300) });
-              await api.setUser({ preferred_language: 'en', language_locked: true });
+              await setLang(api, 'English');
               await api.freshReset();
               const dd2 = await api.upload(MEDIA + '/debrief/debrief_respectful.ogg', 'Audio', 120000);
               const dd2More = await collect(30000, null);
@@ -621,6 +655,10 @@ exports.run = async ({ api, rec, want = () => true }) => {
     // A principal's OWN lesson via /menu → Classroom Coaching: Digital Coach, never the binding list.
     s = Date.now();
     await api.setRole('principal'); await api.resetObserve(); await api.resetFlow(); await api.freshReset();
+    // OBS34 just left an analysis in flight, and the in-flight guard also counts the principal's OWN coaching
+    // sessions, which resetObserve does not touch: the upload drew "I'm still analysing your previous recording"
+    // (run 20261006-2306). Clear them the way coaching-ext does.
+    try { api.db('cancel-stuck'); api.db('reset-history'); } catch (_) {}
     await api.sendWait('/menu');
     await api.openList('See what I do');
     const dc = await api.pickRowAndWait('Classroom Coaching');
