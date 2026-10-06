@@ -1328,6 +1328,15 @@ Feature: NIETE (ICT) Teacher Training
     And the button that makes a picture bigger is a small icon at the side of the picture, never covering it
     # web-quiz-figure forPage (fraction_bar barHeight); wq.js figureHtml zoom icon, wq.css .wq-pgrid odd tile. Unit: web-quiz-pictures.test.js, dashboard/tests/web-quiz-page-pictures.service.test.js. @wip.
 
+  @api @quiz @web @wip @draft @P1 @T228 @no-mock-driver
+  Scenario: Picture options that look almost the same are shown close up on my web quiz
+    Given my video quiz asks "Which picture goes with this one?" with three pictures of the same grey bin
+    And the bins differ only in what is piled on top: glass, food scraps, plastic bags
+    When a child plays it on a phone 360 pixels wide
+    Then each picture option shows only the part where the pictures differ, filling its tile
+    And pictures that differ as wholes, and a question about size or how many, are shown whole
+    # web-quiz-picture-zoom differenceBox/zoomFor/crop; web-quiz.service questionPayload (&z=1) + media(z); wq.js picHtml img.wq-z. Unit: bot/tests/quiz/web-quiz/web-quiz-picture-zoom.test.js, dashboard/tests/web-quiz-page-pictures.service.test.js. @wip.
+
   @api @quiz @web @wip @draft @P1 @T200 @no-mock-driver
   Scenario: A child on the web quiz never sees a question picture that contradicts or ignores the answer
     Given a quiz question whose picture was reviewed against its question and answer and judged to contradict it or to show nothing the question asks about
