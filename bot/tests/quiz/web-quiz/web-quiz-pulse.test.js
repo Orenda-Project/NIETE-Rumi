@@ -156,6 +156,29 @@ describe('two children on one class code', () => {
     await expect(Pulse.poll('OTHER1', { st: b.st, since: 0 }, WQ)).rejects.toMatchObject({ status: 401 });
   });
 
+  test('an Urdu code shows the name the page shows: the class list\'s Urdu spelling, looked up once per session', async () => {
+    fake.db.quiz_share_codes[0].language = 'ur';
+    const a = await play('Sara Testwala');
+    const b = await play('Ali Testwala');
+    fake.db.students.find((k) => k.student_name === 'Sara Testwala').student_name_urdu = 'سارہ ٹیسٹ والا';
+    await WQ.recordAnswers({ st: a.st, a: [{ qid: qid(1), slot: 'B' }] });
+    const reads = () => fake.calls.filter((c) => c.table === 'students' && c.op === 'select').length;
+    const before = reads();
+    await WQ.recordAnswers({ st: a.st, a: [{ qid: qid(2), slot: 'B' }] });
+    expect(reads()).toBe(before); // the second right answer reuses the name
+    const recB = await WQ.recordAnswers({ st: b.st, a: [{ qid: qid(1), slot: 'A' }], since: 0 });
+    expect(recB.pulse.map((e) => e.first)).toEqual(['سارہ', 'سارہ']);
+  });
+
+  test('an English code keeps the Latin first name, with no extra read', async () => {
+    const a = await play('Sara Testwala');
+    const b = await play('Ali Testwala');
+    fake.db.students.find((k) => k.student_name === 'Sara Testwala').student_name_urdu = 'سارہ ٹیسٹ والا';
+    await WQ.recordAnswers({ st: a.st, a: [{ qid: qid(1), slot: 'B' }] });
+    const recB = await WQ.recordAnswers({ st: b.st, a: [{ qid: qid(1), slot: 'A' }], since: 0 });
+    expect(recB.pulse).toEqual([{ first: 'Sara', qn: 1, at: expect.any(Number) }]);
+  });
+
   test('an invited friend shows as "a friend" (no name); the teacher preview is never a peer', async () => {
     const a = await play('Sara Testwala');
     const fin = await (async () => {

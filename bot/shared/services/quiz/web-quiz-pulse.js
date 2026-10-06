@@ -9,8 +9,9 @@
  *
  *   - Only right answers, never wrong ones. Never the caller's own answers
  *     (compared by a short hash of the session id, so the ring holds no ids).
- *   - Class-code children show their first name (the class already sees it on
- *     the league table); an invited friend carries NO name — the page says
+ *   - Class-code children show their first name as the page shows it (on an
+ *     Urdu quiz the class list's Urdu spelling, resolved once per session by
+ *     the service); an invited friend carries NO name — the page says
  *     "A friend". No surname, ever.
  *   - Bounded: the last 30 events per code, each lives 120 s, at most 2,000
  *     codes (the least recently active code is dropped first).
@@ -28,8 +29,10 @@ const CODE_TTL_MS = 10 * 60 * 1000;
 const CODE_RX = /^[A-Z0-9]{4,12}$/;
 const FIRST_MAX = 24;
 
+const NAMES_MAX = 5000;
 const rings = new Map();   // shareCodeId -> [{h, first, invited, qn, at}], Map order = least recently active first
 const codeIds = new Map(); // code -> {id, until}: the idle poll's one lookup per code per process
+const names = new Map();   // sha8(session id) -> the first name the page shows for that child (once per session)
 let clock = null;
 const now = () => (clock ? clock() : Date.now());
 
@@ -53,6 +56,20 @@ function push({ shareCodeId, sessionId, first, qn, invited = false } = {}) {
   rings.set(shareCodeId, list.length > RING_MAX ? list.slice(-RING_MAX) : list);
   while (rings.size > CODES_MAX) rings.delete(rings.keys().next().value);
   return true;
+}
+
+/** The name already resolved for this session (undefined when not yet looked up). */
+function knownName(sessionId) {
+  return names.get(hashOf(sessionId));
+}
+
+/** Remember the shown name of a session (bounded; the oldest is forgotten first). Returns the name. */
+function rememberName(sessionId, name) {
+  const h = hashOf(sessionId);
+  names.delete(h);
+  names.set(h, name);
+  while (names.size > NAMES_MAX) names.delete(names.keys().next().value);
+  return name;
 }
 
 /** Other children's right answers after `sinceMs` (server ms), newest first, at most `max`. */
@@ -101,10 +118,10 @@ async function poll(rawCode, { st, since: sinceMs } = {}, WQ) {
 }
 
 module.exports = {
-  push, since, poll,
+  push, since, poll, knownName, rememberName,
   RING_MAX, TTL_MS, CODES_MAX,
   // tests
-  _reset: () => { rings.clear(); codeIds.clear(); },
+  _reset: () => { rings.clear(); codeIds.clear(); names.clear(); },
   _setClock: (fn) => { clock = fn || null; },
   _size: () => rings.size,
 };
