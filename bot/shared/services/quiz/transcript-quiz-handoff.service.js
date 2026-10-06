@@ -93,6 +93,7 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
   let link;
   let forwardable;
   let reused = false;
+  let resolved = null;   // which class this hand-out is for — only resolved on a first mint
   if (meta.share_code_id && meta.student_message) {
     code = meta.share_code;
     shareCodeId = meta.share_code_id;
@@ -112,7 +113,13 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
     logEvent('transcript_quiz.resend_without_code', { quizId });
     return { ok: false, reason: 'no_code_to_reuse' };
   } else {
-    const minted = await share.mintCode({ quizId, userId: quiz.teacher_id, videoId: null, language });
+    // Bound at mint when the class is KNOWN; when it is ambiguous the hand-out
+    // goes out unbound and the class question follows the link (below).
+    const HandoutClass = require('./handout-class.service');
+    resolved = await HandoutClass.resolveClass({ teacherUserId: quiz.teacher_id, quizId });
+    const minted = await share.mintCode({
+      quizId, userId: quiz.teacher_id, videoId: null, language, classId: HandoutClass.classIdToMint(resolved),
+    });
     if (!minted) {
       await updateQuiz(quizId, { meta: { ...meta, step: 'ready', handoff_error: 'mint_failed' } });
       await WhatsAppService.sendMessage(phone, resolveUx('tqCouldNotSend', { language: teacherLang }));
@@ -208,6 +215,14 @@ async function sendHandoff(quizId, phone, { firstSend = false, prepared = null }
   if (firstSend) {
     await api.sleep(GAP_MS);
     await WhatsAppService.sendMessage(phone, resolveUx('tqReportPromise', { language: teacherLang }));
+  }
+  // "Which class is this quiz for?" — only after the hand-out is out, so it can
+  // never hold the quiz back; a tap binds this code late.
+  if (resolved && resolved.state === 'ambiguous') {
+    await api.sleep(GAP_MS);
+    await require('./handout-class.service').askAfterHandout(phone, {
+      shareCodeId, quizId, userId: quiz.teacher_id, language: teacherLang,
+    }, resolved.classes);
   }
 
   // ── bookkeeping — only the first send owns status/sent_at/the nudge ────────

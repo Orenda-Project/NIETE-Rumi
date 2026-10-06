@@ -2487,6 +2487,16 @@ const UX_STRINGS = {
     en: 'Sorry — I couldn\'t create the class link just now. Try again in a moment.',
     ur: 'معذرت — ابھی کلاس کا link نہیں بن سکا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
   },
+  // The teacher's one question before a hand-out whose class is not certain
+  // (handout-class.service.js). Buttons are the class labels ("4-A") plus Any;
+  // three or more classes go in a list opened by vqWhichClassPick.
+  vqWhichClass: { en: 'Which class is this quiz for?', ur: 'یہ کوئز کس کلاس کے لیے ہے؟' },
+  vqWhichClassAny: { en: 'All / not sure', ur: 'سب / پتا نہیں' },
+  vqWhichClassPick: { en: 'Choose class', ur: 'کلاس چنیں' },
+  vqWhichClassBound: {
+    en: 'Got it — this quiz is for ⁨{cls}⁩.',
+    ur: 'ٹھیک ہے — یہ کوئز ⁨{cls}⁩ کے لیے ہے۔',
+  },
   vqShareForwardThis: {
     en: 'Here is your class message — forward THIS one to your class group:',
     ur: 'یہ رہا کلاس کا پیغام — یہی پیغام class group میں forward کریں:',

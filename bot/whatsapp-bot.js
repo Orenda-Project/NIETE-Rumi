@@ -1323,10 +1323,13 @@ app.post('/webhook', async (req, res) => {
         // after a declined invite. Same LAST-before-handleAnswer placement,
         // same reason.
         const VideoQuizBinge = require('./shared/services/quiz/video-quiz-binge.service');
+        const HandoutClass = require('./shared/services/quiz/handout-class.service');
         const handled = await VideoQuizService.handleOfferButton(buttonId, from)
           || await VideoQuizShare.handleShareButton(buttonId, from)
           || await VideoQuizInvite.handleInviteButton(buttonId, from)
           || await VideoQuizBinge.handleMoreButton(buttonId, from)
+          // "Which class is this quiz for?" (vq_wc_) — before handleAnswer, like every offer.
+          || await HandoutClass.handleTap(buttonId, from)
           || await VideoQuizService.handleAnswer(from, buttonId);
         if (!handled) {
           logToFile('⚠️ unrouted vq_ button', { buttonId, from });
@@ -1955,6 +1958,12 @@ app.post('/webhook', async (req, res) => {
         await TranscriptQuizList.handleListPick(listId, from, user);
         ack();
         return;
+      }
+
+      // The teacher's class pick from a 3+-class "Which class is this quiz for?" list.
+      if (listId.startsWith('vq_wc_')) {
+        const HandoutClass = require('./shared/services/quiz/handout-class.service');
+        if (await HandoutClass.handleTap(listId, from)) return;
       }
 
       if (listId.startsWith('vq_')) {
