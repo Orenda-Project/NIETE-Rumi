@@ -209,14 +209,20 @@ test("I don't know my number: the name box", () => {
   expect(p.last().name).toBe('M4-new');
 });
 
-test('Urdu: Urdu digits on the keys and in the "no one has number" line', async () => {
+// One digit rule for the whole page: 0-9, Urdu pages included. The roll number is matched to the
+// teacher's register, which (like every other surface) prints it 0-9.
+test('Urdu: 0-9 on the keys, on the roll display and in the "no one has number" line', async () => {
   const p = page({ lang: 'ur', replies: [{ status: 404, ok: false, body: { error: 'roll_unknown' } }] });
   p.ctx.who();
   expect(p.last().h).toContain('آپ کا رول نمبر کیا ہے؟');
-  expect(p.last().h).toContain('>۷<');
-  p.key('3'); p.key('1'); p.key('go');
+  expect(p.last().h).toContain('>7<');
+  expect(p.last().h).not.toMatch(/[۰-۹]/);
+  p.key('2'); p.key('8');
+  expect(p.last().h).toContain('aria-live="polite">28<');
+  p.key('del'); p.key('del'); p.key('3'); p.key('1'); p.key('go');
   await flush();
-  expect(p.last().h).toContain('نمبر ۳۱ کسی کا نہیں');
+  expect(p.last().h).toContain('نمبر 31 کسی کا نہیں');
+  expect(p.last().h).not.toMatch(/[۰-۹]/);
 });
 
 test('Urdu: a class label like 3-B is an LTR isolate, so it never paints as B-3', () => {

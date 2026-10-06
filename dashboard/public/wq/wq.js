@@ -749,10 +749,35 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     clearTimers();
     stopVoice();
     try { ROOT.classList.remove('wq-novoice'); } catch (e) {}
-    ROOT.innerHTML = '<section class="wq-screen" data-m="' + moment + '">' + html + '</section>';
+    ROOT.innerHTML = '<section class="wq-screen" data-m="' + moment + '">' + (LANG === 'ur' ? latinRuns(html) : html) + '</section>';
     ROOT.setAttribute('data-m', moment);
     try { window.scrollTo(0, 0); } catch (e) {}
   }
+  // Urdu: the page widens word gaps for Nastaliq. A run of two or more Latin words inside it (an
+  // English video title, a teacher's Latin name, "3.2 MB") is marked lang="en" so wq.css draws it
+  // with the sans face at normal spacing. Text only: tags, attributes, SVG and MathML are left alone.
+  var LAT_RUN = /[A-Za-z0-9&("'“‘][^\s<>؀-ۿ]*(?:[  ]+[A-Za-z0-9&("'“‘][^\s<>؀-ۿ]*)+/g;
+  var LAT_SKIP = /^<(\/?)(svg|math|script|style|textarea)\b/i;
+  function latinRuns(html) {
+    var skip = 0;
+    return String(html).split(/(<[^>]*>)/).map(function (part) {
+      if (part.charAt(0) === '<') {
+        var m = LAT_SKIP.exec(part);
+        if (m && !/\/>$/.test(part)) skip = Math.max(0, skip + (m[1] ? -1 : 1));
+        return part;
+      }
+      if (skip || !/[A-Za-z]/.test(part)) return part;
+      return part.replace(LAT_RUN, function (run) { return /[A-Za-z]/.test(run) ? '<span class="wq-lat" lang="en">' + run + '</span>' : run; });
+    }).join('');
+  }
+  // The same for a name typed in Latin letters into the Urdu name box.
+  function latinBox(e) {
+    var t = e && e.target;
+    if (!t || !/(^|\s)wq-input(\s|$)/.test(t.className || '')) return;
+    var v = String(t.value || '');
+    if (/[A-Za-z]/.test(v) && !/[؀-ۿ]/.test(v)) t.setAttribute('lang', 'en'); else t.removeAttribute('lang');
+  }
+  if (LANG === 'ur' && ROOT) ROOT.addEventListener('input', latinBox);
   // The brand mark (trusted inline SVG from the server's brand table) on its tile, or bare when it is a wide mark.
   function markHtml() {
     return BR ? '<span class="wq-mark ' + (BR.mark.tile ? 'wq-tile' : 'wq-bare') + '" aria-hidden="true">' + BR.mark.svg + '</span>' : '';
@@ -1034,8 +1059,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       playedT: function (n) { return 'کھیل لیا (' + n + ')'; }, setRollLink: 'رول نمبر دیں'
     }
   })[LANG === 'ur' ? 'ur' : 'en'];
-  var UDIG = '۰۱۲۳۴۵۶۷۸۹';
-  function digitsFor(n) { return LANG === 'ur' ? String(n).replace(/[0-9]/g, function (d) { return UDIG[+d]; }) : String(n); }
+  // One digit rule for the whole page, Urdu included: 0-9. The roll number is matched to the
+  // teacher's register, which prints it 0-9 like every other surface (scores, counters, maths).
+  function digitsFor(n) { return String(n); }
   function padNext(cur, key) {
     if (key === 'del') return cur.slice(0, -1);
     if (!/^[0-9]$/.test(key) || cur.length >= 3 || (cur === '' && key === '0')) return cur;
