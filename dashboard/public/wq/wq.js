@@ -531,7 +531,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       todaySub: 'children played today', myScores: 'My scores',
       sharePlayed: function (w, t) { return w + ' played ' + t + '. Your turn!'; },
       moreBtn: 'Watch another video', moreT: 'More videos for you', moreSay: 'Pick a video. Its quiz comes right after.',
-      moreNone: 'No more videos for your class yet.', moreWait: 'Opening the video…', mins: function (n) { return n + ' min'; }, doneTag: 'Done ✓',
+      moreNone: 'No more videos for your class yet.', vchip: 'Video quiz', nextT: 'Next in this chapter', moreWait: 'Opening the video…', mins: function (n) { return n + ' min'; }, doneTag: 'Done ✓',
       selfT: 'This is your own test run. It will not show in your class report.',
       challenged: function (n, s, t) { return n + ' got ' + s + '/' + t + ' stars. Can you beat it?'; }, challengedBy: function (n) { return n + ' challenged you. Can you beat their score?'; },
       vs: { win: 'You beat the challenge!', tie: "It's a tie!", lose: 'So close! Play again?' }, vsYou: 'You', frOut: { win: 'beat you!', tie: 'tie', lose: 'you won' },
@@ -592,7 +592,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       todaySub: 'بچوں نے کھیلا', myScores: 'میرے اسکور',
       sharePlayed: function (w, t) { return w + ' نے ' + t + ' کھیلا۔ اب آپ کی باری!'; },
       moreBtn: 'ایک اور ویڈیو دیکھیں', moreT: 'آپ کے لیے مزید ویڈیوز', moreSay: 'ایک ویڈیو چنیں۔ اس کے بعد اس کا کوئز آئے گا۔',
-      moreNone: 'ابھی آپ کی کلاس کے لیے اور ویڈیوز نہیں ہیں۔', moreWait: 'ویڈیو کھل رہی ہے…', mins: function (n) { return n + ' منٹ'; }, doneTag: 'مکمل ✓',
+      moreNone: 'ابھی آپ کی کلاس کے لیے اور ویڈیوز نہیں ہیں۔', vchip: 'ویڈیو کوئز', nextT: 'اسی باب کی اگلی ویڈیو', moreWait: 'ویڈیو کھل رہی ہے…', mins: function (n) { return n + ' منٹ'; }, doneTag: 'مکمل ✓',
       selfT: 'یہ آپ کا اپنا ٹیسٹ رن ہے۔ یہ کلاس رپورٹ میں شامل نہیں ہوگا۔',
       challenged: function (n, s, t) { return n + ' نے ' + t + ' میں سے ' + s + ' ستارے لیے۔ اب آپ کی باری!'; }, challengedBy: function (n) { return n + ' نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!'; },
       vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑی سی کمی رہ گئی! دوبارہ کھیلیں؟' }, vsYou: 'آپ', frOut: { win: 'آپ سے آگے!', tie: 'برابر', lose: 'آپ کی جیت' },
@@ -2017,9 +2017,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // A practice round: say so, and share the kept first-try score the class league shows.
     var kept = c.practice && c.kept ? c.kept : null;
     var shareC = kept ? kept.correct : c.correct, shareT = kept ? (kept.total || total) : total;
+    // A video quiz (item 18a): the same card, said to be one, with "Watch more" first; and the bot's
+    // next video of this chapter (finish's `next`), when it names one, between the score and the shares.
+    var isVideo = Boolean(B.video && B.video.url);
+    var nx = res.next && res.next.vid && res.next.title ? res.next : null;
+    var shares = '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>' +
+      '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' +
+      '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>' +
+      '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>';
     var h = bar() +
       '<div class="wq-scorecard"><header>' + markHtml() + dotJoin(BR ? BR.name : '', CLS.label) + '</header><div class="wq-in">' +
       '<img src="' + IMG + 'celebrate.webp" alt="">' +
+      (isVideo ? '<span class="wq-vchip">' + esc(T.vchip) + '</span>' : '') +
       '<div class="wq-name">' + ani(c.animal) + ' ' + esc(c.first || (S.child && S.child.first) || '') + '</div>' +
       '<p class="wq-sub">' + esc(Q.topic) + '</p>' +
       '<div class="wq-big">' + esc(c.correct) + '/' + esc(total) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
@@ -2027,11 +2036,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       (kept ? '<div class="wq-banner">' + esc(TW.practice(digitsFor(kept.correct), digitsFor(shareT))) + '</div>' : '') +
       vsStrip(res.vs, c, total) + newBest(c, total) +
       (c.nth ? '<p class="wq-proof wq-nth"><span>' + nthHtml(c.nth) + '</span></p>' : '') +
+      (nx ? '<button class="wq-vitem wq-nextv" id="wq-next-v">' +
+        (nx.poster ? '<img class="wq-vtile" src="' + esc(nx.poster) + '" alt="" loading="lazy">' : '<span class="wq-vtile wq-vt1" aria-hidden="true">▶</span>') +
+        '<span class="wq-vtext"><small>' + esc(T.nextT) + '</small><b dir="auto">' + esc(nx.title) + '</b></span></button>' : '') +
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
-      '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>' +
-      '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' +
-      '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>' +
-      '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>' + moreBtn() +
+      (isVideo ? moreBtn() + shares : shares + moreBtn()) +
       // One phone, many children: the next child starts from the landing. Not while answers wait to be sent.
       (S.queue && S.queue.length ? '' : '<button class="wq-btn wq-ghost" id="wq-turn">' + esc(T.nextTurn) + '</button>');
     render(h, 'M10');
@@ -2056,6 +2065,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-schools', function () { schools(card); });
     on('#wq-more', moreVideos);
     on('#wq-turn', nextTurn);
+    on('#wq-next-v', function () {
+      ev('next_pick', { src: nx.code ? 'code' : 'start' });
+      if (!nx.code) { pickVideo({ vid: nx.vid, title: nx.title }, 0); return; }
+      sset('wq_from', { code: nx.code, st: S.st, at: Date.now() });
+      flushEv(true);
+      location.assign('/q/' + encodeURIComponent(nx.code));
+    });
   }
   // Forgets the finished child's session on THIS page only (their result stays theirs on the server).
   function nextTurn() {

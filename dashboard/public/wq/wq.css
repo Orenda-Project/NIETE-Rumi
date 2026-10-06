@@ -363,3 +363,8 @@ html[lang=ur] .wq-srow .wq-tag{display:table;font-family:var(--fu);line-height:1
 .wq-tap .wq-spk{animation:wq-tap-pulse 1.2s ease-in-out infinite}
 @keyframes wq-tap-pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,0,0,.18)}50%{box-shadow:0 0 0 10px rgba(0,0,0,0)}}
 @media (prefers-reduced-motion:reduce){.wq-tap .wq-spk{animation:none;outline:3px solid var(--green-d,currentColor)}}
+
+/* The video-quiz scorecard (18a): a small chip over the name, and the next video of the chapter as one list row. */
+.wq-vchip{display:inline-block;margin:6px auto 0;padding:2px 10px;border-radius:999px;background:var(--brand-l);color:var(--brand-d);font-size:13px;font-weight:700}
+.wq-nextv{width:100%;margin:10px 0 4px}
+.wq-nextv .wq-vtext small{display:block;color:var(--muted);font-size:12px}
