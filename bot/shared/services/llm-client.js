@@ -28,6 +28,8 @@ const {
   toNativeRequest,
   fromNativeResponse,
   isCreditClassError,
+  wantsJson,
+  extractJson,
 } = require('./anthropic-native-facade');
 // bd-8t362: one place to record what a call cost. No rate table: OpenRouter reports what it
 // actually charged, and the facade prices the direct lane. We record what the vendor says.
@@ -281,17 +283,27 @@ function createLLMClient() {
     // The job rides in beside the fallback: spend without it is one undifferentiated total,
     // and "which feature" is the only question worth asking about cost per child. bd-9b58p.
     //
-    // BOTH are stripped on KEY PRESENCE, never on truthiness. A job whose frozen fallback is
-    // null (lp.author, lp.fidelity, hcp.feedback) arrives carrying `fallbackModel: null`, and
+    // ALL THREE are stripped on KEY PRESENCE, never on truthiness. A job whose frozen fallback
+    // is null (lp.author, lp.fidelity, hcp.feedback) arrives carrying `fallbackModel: null`, and
     // a falsy check leaves that on the request -- which would put an unknown field on every
     // lesson-plan authoring call, the largest spender here. NOTHING is added to the request.
+    // `skipJobOverride` marks a call this module makes after it has already resolved the job's
+    // model (bd-gr4fy.1), so the override is never applied twice.
     const fallbackModel = params.fallbackModel || null;
     const job = params.job || null;
-    if ('fallbackModel' in params || 'job' in params) {
+    const skipJobOverride = params.skipJobOverride === true;
+    if ('fallbackModel' in params || 'job' in params || 'skipJobOverride' in params) {
       params = { ...params };
       delete params.fallbackModel;
       delete params.job;
+      delete params.skipJobOverride;
     }
+    const callSite = (p) => sendOnOpenRouter(p, options, fallbackModel, job);
+    if (job && !skipJobOverride) return runWithJobOverride(job, params, options, callSite);
+    return callSite(params);
+  };
+
+  async function sendOnOpenRouter(params, options, fallbackModel, job) {
     if (params.model && !params.model.includes('/')) {
       params = { ...params, model: `openai/${params.model}` };
     }
@@ -347,9 +359,174 @@ function createLLMClient() {
     }
     recordModelCost(params.model, response, startedAt, { job });
     return response;
-  };
+  }
 
   return client;
+}
+
+/**
+ * WHICH MODEL A LABELLED JOB RUNS, DECIDED IN ONE PLACE. bd-gr4fy.1.
+ *
+ * Every live model call in the bot carries a `job` label, but most call sites still write their
+ * model as a literal, so moving one job meant a code change and a deploy. This is the one place:
+ *
+ *   kill switch (`llm_kill_switch`)  >  settings row `llm_per_job`  >  env `LLM_JOB_MODELS`
+ *
+ * and nothing set means the call site decides, exactly as before. The settings row moves a job
+ * within a minute with no restart; the env var is a JSON map of job -> model for environments
+ * with no settings table to write to. Only a well-formed model id is ever used: this is the one
+ * value from settings that is sent to a third party.
+ */
+let _envMapRaw = null;
+let _envMap = {};
+function envJobModels() {
+  const raw = process.env.LLM_JOB_MODELS || '';
+  if (raw !== _envMapRaw) {
+    _envMapRaw = raw;
+    try {
+      const parsed = raw.trim() ? JSON.parse(raw) : {};
+      _envMap = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch (_) {
+      _envMap = {};
+    }
+  }
+  return _envMap;
+}
+
+function overrideForJob(job) {
+  // Required at call time: llm-client is required by almost everything, and the settings module
+  // reaches the database client. A settings failure means no override, never no answer.
+  // eslint-disable-next-line global-require
+  const { isModel } = require('../config/model-registry');
+  let cfg = {};
+  try {
+    // eslint-disable-next-line global-require
+    cfg = require('../config/model-settings').configForRequest() || {};
+  } catch (_) {
+    cfg = {};
+  }
+  if (cfg.killSwitch) return null;
+  const fromRow = cfg.perJob && cfg.perJob[job];
+  if (isModel(fromRow)) return { model: fromRow, source: 'settings' };
+  const fromEnv = envJobModels()[job];
+  if (isModel(fromEnv)) return { model: fromEnv, source: 'env' };
+  return null;
+}
+
+const isDirectModel = (m) => String(m || '').startsWith(ANTHROPIC_DIRECT_PREFIX);
+const withVendor = (m) => (String(m || '').includes('/') ? String(m) : `openai/${m}`);
+const sameModel = (a, b) => withVendor(a) === withVendor(b);
+
+/**
+ * Claude models that think by default (Sonnet 5, Opus 5). Under a limit sized for a model that
+ * does not think, the thinking spends the whole budget and the answer comes back empty: Opus
+ * returned nothing on 30 of 44 language-detection calls at 15 tokens. Haiku does not think unless
+ * asked, and Fable cannot be told not to, so neither is touched.
+ */
+const THINKS_BY_DEFAULT = /(^|\/)claude-(sonnet-5|opus-5)/;
+const SMALL_OUTPUT_LIMIT = 2048;
+
+/** The request as the new model should receive it. The call site's own request is never edited. */
+function adaptForTarget(model, params) {
+  const p = { ...params };
+  const limit = p.max_tokens != null ? p.max_tokens : p.max_completion_tokens;
+  if (THINKS_BY_DEFAULT.test(model) && limit != null && limit < SMALL_OUTPUT_LIMIT
+      && p.reasoning === undefined && p.thinking === undefined) {
+    p.reasoning = { enabled: false };
+  }
+  // OpenRouter reads `max_tokens` for non-OpenAI models; the facade reads either.
+  if (!String(model).startsWith('openai/') && p.max_tokens == null && p.max_completion_tokens != null) {
+    p.max_tokens = p.max_completion_tokens;
+    delete p.max_completion_tokens;
+  }
+  return p;
+}
+
+/** Send one call to the overriding model: the direct lane for `anthropic-direct/`, else OpenRouter. */
+async function callOverrideModel(model, params, options, job) {
+  const p = adaptForTarget(model, params);
+  if (isDirectModel(model)) {
+    // Throws on a missing key or an unusable credit fallback, before a token is spent; the
+    // caller treats that like any other failure and puts the job back on its own model.
+    const { client } = getClientForModel(model, { job });
+    return client.chat.completions.create(p);
+  }
+  return getClient().chat.completions.create({ ...p, model, job, skipJobOverride: true }, options);
+}
+
+/**
+ * Why an answer cannot be handed to the caller, or null. An empty answer is what a thinking model
+ * returns under a small limit; an answer that is not JSON breaks a caller that asked for JSON on
+ * its very next line. A JSON answer wrapped in fences or a sentence is unwrapped first.
+ */
+function unusableAnswer(res, params) {
+  const choice = res && Array.isArray(res.choices) ? res.choices[0] : null;
+  const content = choice && choice.message ? choice.message.content : null;
+  if (typeof content !== 'string' || !content.trim()) return 'empty answer';
+  if (wantsJson(params)) {
+    try {
+      JSON.parse(content);
+    } catch (_) {
+      const json = extractJson(content);
+      if (!json) return 'not JSON, though JSON was asked for';
+      choice.message.content = json;
+    }
+  }
+  return null;
+}
+
+/**
+ * Run one labelled call with the job's override, if it has one.
+ *
+ * THE JOB'S OWN MODEL STAYS BEHIND THE NEW ONE, ON ANY FAILURE. Not only the outages a second
+ * supplier can answer (that is `isSupplierUnusableError`, for the frozen fallbacks), because
+ * here the call site's model is the one this job has always run on: an error, an empty answer,
+ * or not-JSON when JSON was asked for all put the call back on it, and say so on
+ * `llm.job_override_fallback` and in `usage.job_override_fallback`. A move can therefore cost a
+ * teacher a few seconds, never an answer.
+ *
+ * A routed job whose settings already resolved to the direct lane can reach this through the
+ * plain client with an `anthropic-direct/` model. That prefix is our routing token and OpenRouter
+ * would refuse it, so it is routed here, with the model that job already works with behind it.
+ */
+async function runWithJobOverride(job, params, options, callSite) {
+  let target = overrideForJob(job);
+  let siteParams = params;
+  if (isDirectModel(params.model)) {
+    if (!target) target = { model: params.model, source: 'call-site' };
+    const safe = resolveJobFallback(job);
+    if (!safe || isDirectModel(safe)) return callOverrideModel(target.model, params, options, job);
+    siteParams = { ...params, model: safe };
+  }
+  if (!target || sameModel(target.model, siteParams.model)) return callSite(siteParams);
+
+  let reason;
+  let status = null;
+  try {
+    const res = await callOverrideModel(target.model, siteParams, options, job);
+    reason = unusableAnswer(res, siteParams);
+    if (!reason) {
+      res.usage = { ...(res.usage || {}), job_override: { from: siteParams.model, to: target.model, source: target.source } };
+      return res;
+    }
+  } catch (err) {
+    status = err && (err.status != null ? err.status : err.statusCode);
+    reason = String((err && err.message) || 'unknown').slice(0, 300);
+  }
+
+  // eslint-disable-next-line global-require
+  const { logEvent } = require('../utils/structured-logger');
+  // eslint-disable-next-line global-require
+  const { logToFile } = require('../utils/logger');
+  const event = { job, from: target.model, to: siteParams.model, source: target.source, status: status == null ? null : status, reason };
+  logEvent('llm.job_override_fallback', event);
+  logToFile(`llm-client: ${job} could not use ${target.model}, answering on ${siteParams.model}`, event, 'warn');
+
+  const res = await callSite(siteParams);
+  if (res && typeof res === 'object') {
+    res.usage = { ...(res.usage || {}), job_override_fallback: { from: target.model, to: siteParams.model, reason } };
+  }
+  return res;
 }
 
 /**
@@ -441,7 +618,7 @@ function buildDirectLaneClient(directModel, ctx) {
     try {
       const startedAt = Date.now();
       const msg = await getAnthropicDirectClient().messages.create(toNativeRequest(payload));
-      const mapped = fromNativeResponse(msg);
+      const mapped = fromNativeResponse(msg, { json: wantsJson(params) });
       // bd-8t362: this lane never touched the OpenRouter wrapper, so lesson-plan authoring,
       // the job with the largest spend here, recorded nothing while its own fallback did.
       // The facade has already worked out a real price, cache multipliers and all.
@@ -480,7 +657,11 @@ function buildDirectLaneClient(directModel, ctx) {
 
       let res;
       try {
-        res = await getClient().chat.completions.create({ ...params, model: to });
+        // The retry keeps the job's name, so its spend is not recorded anonymously, and is marked
+        // as already resolved, so the job's override cannot send it back here (bd-gr4fy.1).
+        res = await getClient().chat.completions.create({
+          ...params, model: to, ...(context.job ? { job: context.job } : {}), skipJobOverride: true,
+        });
       } catch (fallbackErr) {
         // BOTH PROVIDERS FAILED. Whoever reads this needs the FIRST failure as much as the
         // second: "OpenRouter returned 502" on its own sends the next engineer at OpenRouter,
@@ -608,15 +789,22 @@ function withSpendRecording(client, { lane } = {}) {
   const create = client.chat.completions.create.bind(client.chat.completions);
   client.chat.completions.create = async (params, options) => {
     const job = (params && params.job) || null;
-    if (params && ('job' in params || 'fallbackModel' in params)) {
+    const skipJobOverride = !!(params && params.skipJobOverride === true);
+    if (params && ('job' in params || 'fallbackModel' in params || 'skipJobOverride' in params)) {
       params = { ...params };
       delete params.job;
       delete params.fallbackModel;
+      delete params.skipJobOverride;
     }
-    const startedAt = Date.now();
-    const response = await create(params, options);
-    recordModelCost(params && params.model, response, startedAt, lane ? { lane, job } : { job });
-    return response;
+    const callSite = async (p) => {
+      const startedAt = Date.now();
+      const response = await create(p, options);
+      recordModelCost(p && p.model, response, startedAt, lane ? { lane, job } : { job });
+      return response;
+    };
+    // bd-gr4fy.3: the job's override applies here too, with this service's own client behind it.
+    if (job && !skipJobOverride) return runWithJobOverride(job, params, options, callSite);
+    return callSite(params);
   };
   return client;
 }
