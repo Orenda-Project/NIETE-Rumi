@@ -19,7 +19,8 @@ describe('isAllowedSlot', () => {
     expect(isAllowedSlot(s)).toBe(true);
   });
 
-  test.each(['06:30', '19:00', '09:15', '9:00', '24:00', '00:30', 'morning', '', null, undefined, 930])('%p is refused', (s) => {
+  // bd-o15qnr.8: any half hour of the day (the AM/PM flip can make 9:00 PM).
+  test.each(['09:15', '9:00', '24:00', '07:45', 'morning', '', null, undefined, 930])('%p is refused', (s) => {
     expect(isAllowedSlot(s)).toBe(false);
   });
 
@@ -57,7 +58,7 @@ describe('createSchedule — any half hour in the window', () => {
     expect(out.id).toBe('new-1');
   });
 
-  test.each(['19:00', '06:30', '09:15'])('%s is refused before any write', async (slot) => {
+  test.each(['09:15', '24:00', 'morning'])('%s is refused before any write', async (slot) => {
     const calls = [];
     await expect(createSchedule(createQuery(calls), 'coach-1',
       { teacherExtId: '923001112222', date: '2026-10-08', slot }, { today: TODAY })).rejects.toThrow('Unknown time slot');
@@ -84,9 +85,9 @@ describe('editSchedule (Reschedule) — same rule', () => {
     expect(out).toMatchObject({ id: 'v1', slot: '16:00', changed: true });
   });
 
-  test('7:00 PM is refused before any write', async () => {
+  test('7:15 PM (off the half hour) is refused before any write', async () => {
     const calls = [];
-    await expect(editSchedule(editQuery(calls), 'coach-1', 'v1', { date: '2026-10-09', slot: '19:00' }, { today: TODAY }))
+    await expect(editSchedule(editQuery(calls), 'coach-1', 'v1', { date: '2026-10-09', slot: '19:15' }, { today: TODAY }))
       .rejects.toThrow('Unknown time slot');
     expect(calls).toHaveLength(0);
   });

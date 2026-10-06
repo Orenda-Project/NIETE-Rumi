@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Clock } from "lucide-react";
 import { coach } from "../../services/api";
 import { COACH_COPY as C } from "../copy";
-import { CoachPage, SectionLabel, Chip, Initials, SearchBox, Loading, Failed, Chevron } from "../ui";
+import { CoachPage, SectionLabel, Chip, Initials, SearchBox, Loading, Failed, Chevron, DayLabel } from "../ui";
 import { localDay } from "../time";
 import type { CoachReport, ReportsData } from "../types";
 
@@ -122,22 +122,21 @@ const CoachReports = () => {
       {first && (
         <>
           <div className="flex flex-col gap-2.5" data-testid="reports-waiting">
-            <SectionLabel right={<Chip tone={first.waiting.length ? "warn" : "info"}>{first.waiting.length}</Chip>}>{C.waitingForYou}</SectionLabel>
+            <SectionLabel count={first.waiting.length} countTone={first.waiting.length ? "warn" : "info"}>{C.waitingForYou}</SectionLabel>
             {first.waiting.map((r) => <ReportCard key={r.id} r={r} waiting />)}
           </div>
           <div className="flex flex-col gap-2.5" data-testid="reports-in-progress">
-            <SectionLabel right={<Chip>{first.inProgress.length}</Chip>}>{C.inProgress}</SectionLabel>
+            <SectionLabel count={first.inProgress.length}>{C.inProgress}</SectionLabel>
             {first.inProgress.map((r) => <ReportCard key={r.id} r={r} />)}
           </div>
           <div className="flex flex-col gap-2.5" data-testid="reports-all">
-            <SectionLabel right={<Chip>{total}</Chip>}>{C.allObservations}</SectionLabel>
+            <SectionLabel count={total}>{C.allObservations}</SectionLabel>
             <SearchBox value={q} onChange={search} placeholder={C.searchPlaceholder} />
             {days.map(([day, list]) => (
               <div key={day} className="flex flex-col gap-1.5" data-testid="report-day" data-day={day}>
-                <h3 className="mx-1 mt-1.5 flex justify-between text-xs font-bold uppercase tracking-wider text-[#6b7280]">
-                  <span>{day === today ? C.today : new Date(`${day}T00:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}</span>
-                  <span>{list.length}</span>
-                </h3>
+                <DayLabel count={list.length}>
+                  {day === today ? C.today : new Date(`${day}T00:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
+                </DayLabel>
                 <div className="overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white">
                   {list.map((r) => <Row key={r.id} r={r} />)}
                 </div>

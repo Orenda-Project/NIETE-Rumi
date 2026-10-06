@@ -107,6 +107,17 @@ const SQL = {
     ORDER BY scheduled_for ASC, scheduled_slot ASC NULLS LAST, created_at ASC
   `,
 
+  // bd-o15qnr.8 — her next upcoming visit on or after today, whatever its date
+  // (the Observe hub's "Next: …" chip). Overdue ones (before today) are not "next".
+  NEXT_VISIT: `
+    SELECT id, leader_user_id, teacher_name, school_name, school_ext_id, teacher_ext_id,
+           scheduled_for::text AS scheduled_for, scheduled_slot, status, session_id
+    FROM observation_schedules
+    WHERE leader_user_id = $1 AND status = 'upcoming' AND scheduled_for >= $2::date
+    ORDER BY scheduled_for ASC, scheduled_slot ASC NULLS LAST, created_at ASC
+    LIMIT 1
+  `,
+
   SCHEDULE_BY_ID: `
     SELECT id, leader_user_id, teacher_name, school_name, school_ext_id, teacher_ext_id,
            scheduled_for::text AS scheduled_for, scheduled_slot, status, session_id
@@ -441,20 +452,23 @@ async function getCoachSchedule(query, leaderUserId, opts = {}) {
   };
 }
 
-/** Home: today's visits (the next upcoming one is `current`) and the tile numbers. */
+/** Home: today's visits (the next upcoming one is `current`), her next visit on any day, and the tile numbers. */
 async function getCoachHome(query, leaderUserId, opts = {}) {
   const today = opts.today || new Date().toISOString().slice(0, 10);
-  const [schedule, sessionsRes, patch, schoolsRes] = await Promise.all([
+  const [schedule, sessionsRes, patch, schoolsRes, nextRes] = await Promise.all([
     getCoachSchedule(query, leaderUserId, { today }),
     query(SQL.COACH_SESSIONS, [leaderUserId]),
     getPatchTeachers(query, leaderUserId, { role: 'coach' }),
     query(SQL.LEADER_SCHOOLS, [leaderUserId]),
+    query(SQL.NEXT_VISIT, [leaderUserId, today]),
   ]);
+  const nextRow = nextRes && nextRes.rows && nextRes.rows[0];
   const todays = schedule.visits.filter((v) => v.scheduledFor === today);
   const currentId = (todays.find((v) => v.status === 'upcoming') || {}).id;
   const steps = (sessionsRes.rows || []).filter((r) => !DEAD_STATUSES.includes(r.status)).map(stepOf);
   return {
     today: todays.map((v) => ({ ...v, current: v.id === currentId })),
+    next: nextRow ? shapeVisit(nextRow, today) : null,
     counts: {
       week: schedule.visits.length,
       overdue: schedule.overdue.length,

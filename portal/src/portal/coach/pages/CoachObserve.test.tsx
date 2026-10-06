@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, within, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
@@ -39,6 +39,9 @@ function renderAt(path: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // bd-o15qnr.8: the visits below are dated; pin the clock to their day.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-06T10:00:00+05:00"));
   C.getHome.mockResolvedValue({ success: true, home: { today: [{ id: VISIT_ID, teacherName: "Ayesha Bibi", scheduledSlot: "11:30", status: "upcoming", current: true }], counts: { week: 6, overdue: 1, waiting: 1, inProgress: 1, teachers: 24, schools: 12 } } });
   C.getSchedule.mockResolvedValue({
     success: true, from: "2026-10-06", to: "2026-10-06",
@@ -57,6 +60,10 @@ beforeEach(() => {
   L.cancelSchedule.mockResolvedValue({ success: true, cancelled: true });
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("Observe hub", () => {
   it("two tiles: Take observation and Reports", async () => {
     renderAt("/portal/coach/observe");
@@ -68,9 +75,10 @@ describe("Observe hub", () => {
 });
 
 describe("Pick the teacher", () => {
-  it("today's visits and the overdue ones; a done one cannot be picked", async () => {
+  it("today's visits and, under Earlier, the overdue ones; a done one cannot be picked", async () => {
     renderAt("/portal/coach/observe/pick");
     expect((await screen.findByText("Ayesha Bibi")).closest("a")).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}`);
+    fireEvent.click(screen.getByRole("button", { name: /Earlier/ }));
     expect(screen.getByText("Sadia Noor").closest("a")).toHaveAttribute("href", "/portal/coach/visit/o1");
     expect(screen.getByText("Mehwish Khan").closest("a")).toBeNull();
   });
