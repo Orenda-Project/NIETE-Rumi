@@ -148,7 +148,7 @@ function trainingRoute(name, handler) {
       const Training = require('./teacher-training-endpoint');
       return await handler(Training, req, res);
     } catch (error) {
-      logToFile('❌ Internal training API failed', { route: name, error: error?.message });
+      logError('Internal training API failed', { route: name, error: error?.message });
       return res.status(500).json({ success: false, error: 'Training lookup failed' });
     }
   };
@@ -281,7 +281,7 @@ router.post('/training/module-quiz-verdict', requireInternalKey, async (req, res
     return res.json({ success: true, ...verdict });
   } catch (error) {
     // Fail CLOSED: never let a lookup failure read as a pass.
-    logToFile('❌ Internal training API failed', { route: 'module-quiz-verdict', error: error?.message });
+    logError('Internal training API failed', { route: 'module-quiz-verdict', error: error?.message });
     return res.status(500).json({ success: false, error: 'Grading lookup failed' });
   }
 });
@@ -308,7 +308,7 @@ router.post('/training/exam-verdict', requireInternalKey, async (req, res) => {
     return res.json({ success: true, ...verdict });
   } catch (error) {
     // Fail CLOSED: never let a lookup failure read as a pass.
-    logToFile('❌ Internal training API failed', { route: 'exam-verdict', error: error?.message }, 'error');
+    logError('Internal training API failed', { route: 'exam-verdict', error: error?.message });
     return res.status(500).json({ success: false, error: 'Grading lookup failed' });
   }
 });
@@ -655,7 +655,7 @@ router.post('/training/mark-paper', requireInternalKey, async (req, res) => {
     return res.json({ success: true, ...markPaper({ questions, answers }) });
   } catch (error) {
     // Fail CLOSED: an unmarked paper must never read as a scored one.
-    logToFile('❌ Internal training API failed', { route: 'mark-paper', error: error?.message }, 'error');
+    logError('Internal training API failed', { route: 'mark-paper', error: error?.message });
     return res.status(500).json({ success: false, error: 'Marking failed' });
   }
 });
@@ -700,7 +700,7 @@ router.post('/training/serve-paper', requireInternalKey, async (req, res) => {
     }));
     return res.json({ success: true, questions: out, total_served: out.length });
   } catch (error) {
-    logToFile('❌ Internal training API failed', { route: 'serve-paper', error: error?.message }, 'error');
+    logError('Internal training API failed', { route: 'serve-paper', error: error?.message });
     return res.status(500).json({ success: false, error: 'Serving failed' });
   }
 });
