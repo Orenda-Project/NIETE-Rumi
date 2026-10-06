@@ -83,11 +83,20 @@ describe('the stat (pure)', () => {
     expect(out.mine).toEqual({ place: null, name: 'School Delta', sector: null, points: 0, kids: 0, move: null, ghost: true });
   });
 
-  test('a test or closed school never appears, even with plays, and is never "mine"', () => {
-    const out = S.scoreSchools({ plays: [p('T', 'k', 'c', 80, MON), p('X', 'k2', 'c', 80, MON)], schools, mySchoolId: 'T', splitAt: TODAY });
-    expect(out.rows).toEqual([]);
-    expect(out.mine).toBeNull();
-    expect(out.zero_n).toBe(4);
+  test('a test school is seen only by itself: ranked in its own view, never in anyone else\'s; a closed school never', () => {
+    const plays = [p('T', 'k', 'c', 80, MON), p('X', 'k2', 'c', 80, MON), p('A', 'k3', 'c', 100, MON)];
+    const other = S.scoreSchools({ plays, schools, mySchoolId: 'A', splitAt: TODAY });
+    expect(other.rows.map((r) => r.name)).toEqual(['School Alpha']);
+    expect(other.zero_names).not.toContain('Test School');
+    const own = S.scoreSchools({ plays, schools, mySchoolId: 'T', splitAt: TODAY });
+    expect(own.rows.map((r) => [r.place, r.name, !!r.mine])).toEqual([[1, 'School Alpha', false], [2, 'Test School', true]]);
+    expect(own.mine).toEqual(expect.objectContaining({ place: 2, points: 18 }));
+    expect(own.zero_n).toBe(3); // Bravo, Charlie, Delta: the test school is counted only as itself
+    const ownEmpty = S.scoreSchools({ plays: [], schools, mySchoolId: 'T', splitAt: TODAY });
+    expect(ownEmpty.mine).toEqual(expect.objectContaining({ ghost: true, name: 'Test School' }));
+    const closed = S.scoreSchools({ plays, schools, mySchoolId: 'X', splitAt: TODAY });
+    expect(closed.mine).toBeNull();
+    expect(closed.rows.map((r) => r.name)).toEqual(['School Alpha']);
   });
 
   test('rank movement against the end of yesterday: up, down, new; none on the first day of the week', () => {
