@@ -84,6 +84,18 @@ async function openQuizMenu({ user, from, language = null, sessionId = null, tri
     return ROUTES.CHILD_QUIZZES;
   }
 
+  // A non-teacher the pilot list NAMES (the operator, a coach on production) walks the
+  // teacher path: the /quiz home. "all" never lifts the role gate below.
+  if (routing && user && !canSelfCoach(user)) {
+    const Gate = require('./teacher-report-gate');
+    if (await Gate.namedInPilot(userId)) {
+      const Home = require('./teacher-quiz-home.service');
+      await Home.sendHome(user, from, language);
+      log(ROUTES.TEACHER_MENU, { how: 'home_named' });
+      return ROUTES.TEACHER_MENU;
+    }
+  }
+
   if (routing && user && !canSelfCoach(user)) {
     const MenuService = require('../menu.service');
     await MenuService.sendMenu(from, user.id, sessionId, clampLanguage(language || user.preferred_language), user);
