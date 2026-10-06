@@ -30,6 +30,8 @@ const { logEvent } = require('../../utils/structured-logger');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const { canSelfCoach } = require('../../config/role-features');
 const QuizMenuFlags = require('./quiz-menu-flags');
+// Make a quiz lives in its own module so the /quiz home can call it without a require cycle.
+const { openMakeQuiz } = require('./teacher-quiz-make.service');
 
 const ROUTES = Object.freeze({
   STILL_IN_QUIZ: 'still_in_quiz',
@@ -101,35 +103,6 @@ async function openQuizMenu({ user, from, language = null, sessionId = null, tri
   const how = await openMakeQuiz({ user, from, language });
   log(ROUTES.TEACHER_MENU, { how });
   return ROUTES.TEACHER_MENU;
-}
-
-/**
- * Make a quiz: the Flow when TRANSCRIPT_QUIZ_FLOW_ID is set and there is
- * something to list, the interactive list message otherwise. What /quiz has
- * always sent a teacher, and what the home's "Make a quiz" sends.
- * @returns {Promise<'flow'|'list'>}
- */
-async function openMakeQuiz({ user, from, language = null }) {
-  const userId = (user && user.id) || null;
-  const List = require('./transcript-quiz-list.service');
-  const teacher = { ...user, preferred_language: language || (user && user.preferred_language) };
-  const flowId = process.env.TRANSCRIPT_QUIZ_FLOW_ID || '';
-  // A NavigationList needs at least one item, so a teacher with nothing to
-  // list is answered in chat by the list path ("no lessons yet").
-  if (flowId && await List.hasEligibleLessons(userId)) {
-    const uxLanguage = teacher.preferred_language;
-    await WhatsAppService.sendFlow(from, {
-      flowId,
-      header: resolveUx('tqFlowChatHeader', { language: uxLanguage }),
-      body: resolveUx('tqFlowChatBody', { language: uxLanguage }),
-      buttonText: resolveUx('tqFlowChatCta', { language: uxLanguage }),
-      flowToken: `${userId}:transcript-quiz:${Date.now()}`,
-    });
-    logToFile('📝 sent transcript quiz flow (/quiz)', { userId });
-    return 'flow';
-  }
-  await List.showList(teacher, from, language);
-  return 'list';
 }
 
 module.exports = { openQuizMenu, openMakeQuiz };

@@ -2597,7 +2597,7 @@ const UX_STRINGS = {
   // with plural verbs and imperatives — never a gendered stem.
   tqhBody: {
     en: '📝 *Quizzes*\n\nWhat would you like to do?\n\n*Make a quiz*: from your recent lesson plans and coaching lessons.\n*My quiz reports*: who played, scores and what to reteach, quiz by quiz.\n*Class progress*: all your quizzes by class and subject.',
-    ur: '‏📝 *کوئز*\n\nآپ کیا کرنا چاہیں گے؟\n\n*کوئز بنائیں*: اپنے حالیہ سبق کے منصوبوں اور کوچنگ کے اسباق سے۔\n*میری کوئز رپورٹس*: کس نے کھیلا، اسکور اور کیا دوبارہ پڑھانا ہے، ہر کوئز کا الگ۔\n*کلاس کی پیش رفت*: آپ کے تمام کوئز، کلاس اور مضمون کے لحاظ سے۔',
+    ur: '‏📝 *کوئز*\n\nایک چنیں:\n\n*کوئز بنائیں*: اپنے حالیہ سبق کے منصوبوں اور کوچنگ کے اسباق سے۔\n*میری کوئز رپورٹس*: کس نے کھیلا، اسکور اور کیا دوبارہ پڑھانا ہے، ہر کوئز کا الگ۔\n*کلاس کی پیش رفت*: آپ کے تمام کوئز، کلاس اور مضمون کے لحاظ سے۔',
   },
   tqhMake: { en: 'Make a quiz', ur: 'کوئز بنائیں' },
   tqhReports: { en: 'My quiz reports', ur: 'میری کوئز رپورٹس' },
