@@ -25,7 +25,7 @@ const { logToFile } = require('../../utils/logger');
 // combining mark such as U+0670 in یحییٰ would otherwise never be hit), and its values to a-z.
 const NAME_MAP = Object.freeze(Object.entries(require('./first-name-map.json')).reduce((m, [k, v]) => {
   if (k.startsWith('_')) return m;
-  const key = k.split(/\s+/).map((t) => t.normalize('NFKC').toLowerCase().replace(/[^\p{L}]/gu, '')).filter(Boolean).join(' ');
+  const key = k.split(/\s+/).map((t) => t.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')).filter(Boolean).join(' ');
   if (key) m[key] = String(v).toLowerCase().replace(/[^a-z]/g, '');
   return m;
 }, {}));
@@ -36,9 +36,10 @@ const ARABIC = /[؀-ۿ]/;
 
 // ─── names ──────────────────────────────────────────────────────────────────
 
-/** Letters only, NFKC, lower-case; an Urdu token the map knows becomes its Latin spelling. */
+/** Letters and digits only, NFKC, lower-case; an Urdu token the map knows becomes its Latin spelling. (Digits stay so
+ * two fixture children "Kid1"/"Kid2" are two children; real names carry none.) */
 function canonToken(tok) {
-  const s = String(tok == null ? '' : tok).normalize('NFKC').toLowerCase().replace(/[^\p{L}]/gu, '');
+  const s = String(tok == null ? '' : tok).normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
   if (!s) return '';
   if (ARABIC.test(s)) {
     const hit = NAME_MAP[s];
@@ -54,7 +55,7 @@ function tokens(name) {
   const parts = raw.split(SEP).filter(Boolean);
   const out = [];
   for (let i = 0; i < parts.length; i += 1) {
-    const strip = (t) => t.normalize('NFKC').toLowerCase().replace(/[^\p{L}]/gu, '');
+    const strip = (t) => t.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
     const pair = i + 1 < parts.length ? `${strip(parts[i])} ${strip(parts[i + 1])}` : null;
     if (pair && ARABIC.test(pair) && NAME_MAP[pair]) { out.push(NAME_MAP[pair]); i += 1; continue; }
     const t = canonToken(parts[i]);

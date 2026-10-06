@@ -38,6 +38,10 @@ describe('canon + smartFirst: one spelling for a name typed in either script', (
     expect(Id.canon('مصطفیٰ')).toBe('mustafa');
     expect(Id.tokens('ماہ نور')).toEqual(['mahnoor']);
   });
+  test('digits are part of a name token (test fixtures "Kid1 Testwala"/"Kid2 Testwala" are two children, not one)', () => {
+    expect(Id.canon('Kid1 Testwala')).not.toBe(Id.canon('Kid2 Testwala'));
+    expect(Id.dedupe([kid(1, { student_name: 'Kid1 Testwala' }), kid(2, { student_name: 'Kid2 Testwala' })])).toHaveLength(2);
+  });
   test('an Urdu name the map does not know stays Urdu (never a wrong Latin guess)', () => {
     expect(Id.canon('زڑقمپ')).toBe('زڑقمپ');
   });
