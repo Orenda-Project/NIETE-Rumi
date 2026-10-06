@@ -999,7 +999,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       rollT: 'What is your roll number?', rollSay: 'Tap your roll number, then Go.', go: 'Go', del: 'Delete',
       noRoll: "I don't know my number", onPhoneOr: 'Or tap your name',
       unknown: function (n) { return 'No one in this class has number ' + n + '. Try again!'; },
-      isYouSub: 'Is this you?', tryAgain: 'No, try again', none: 'None of these is me', no: 'No',
+      isYouSub: 'Is this you?', tryAgain: 'No, try again', none: 'None of these is me', no: 'No', notMe: "No, I'm someone else",
       classT: 'Which class are you in?', classSay: 'Tap your class.', notHere: 'My class is not here',
       whoBtn: 'Who played?', whoT: 'Who played', whoSub: 'Children not on your class list come first. Tap one to give their roll number.',
       whoNone: 'No child has finished yet.', offList: 'Not on your class list', roll: function (n) { return 'Roll ' + n; },
@@ -1017,7 +1017,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       rollT: 'آپ کا رول نمبر کیا ہے؟', rollSay: 'اپنا رول نمبر دبائیں، پھر آگے دبائیں۔', go: 'آگے', del: 'مٹائیں',
       noRoll: 'مجھے اپنا نمبر نہیں پتا', onPhoneOr: 'یا اپنے نام پر ٹیپ کریں',
       unknown: function (n) { return 'اس کلاس میں نمبر ' + n + ' کسی کا نہیں۔ دوبارہ کوشش کریں!'; },
-      isYouSub: 'کیا یہ آپ ہیں؟', tryAgain: 'نہیں، دوبارہ', none: 'ان میں سے کوئی نہیں', no: 'نہیں',
+      isYouSub: 'کیا یہ آپ ہیں؟', tryAgain: 'نہیں، دوبارہ', none: 'ان میں سے کوئی نہیں', no: 'نہیں', notMe: 'نہیں، میں کوئی اور ہوں',
       classT: 'آپ کس کلاس میں ہیں؟', classSay: 'اپنی کلاس پر ٹیپ کریں۔', notHere: 'میری کلاس یہاں نہیں',
       whoBtn: 'کس نے کھیلا؟', whoT: 'کس نے کھیلا', whoSub: 'جو بچے آپ کی کلاس لسٹ میں نہیں، وہ اوپر ہیں۔ رول نمبر دینے کے لیے نام پر ٹیپ کریں۔',
       whoNone: 'ابھی کسی بچے نے کوئز مکمل نہیں کیا۔', offList: 'کلاس لسٹ میں نہیں', roll: function (n) { return 'رول نمبر ' + n; },
@@ -1233,7 +1233,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       (c.cls ? '<p class="wq-sub"><bdi dir="ltr">' + esc(c.cls) + '</bdi></p>' : '') +
       (c.roll != null ? '<p class="wq-sub">' + esc(TW.roll(digitsFor(c.roll))) + '</p>' : '') +
       '<button class="wq-btn wq-go" data-chip="' + esc(c.chip) + '">' + esc(T.yesMe) + '</button></div>' +
-      '<button class="wq-btn wq-soft" id="wq-diff">' + esc(roll && last ? TW.tryAgain : TW.no) + '</button>';
+      '<button class="wq-btn wq-soft" id="wq-diff">' + esc(roll && last ? TW.tryAgain : TW.notMe) + '</button>';
     render(h, 'M4-isyou');
     wireBar();
     Array.prototype.forEach.call(ROOT.querySelectorAll('[data-chip]'), function (b) {
