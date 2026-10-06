@@ -187,7 +187,10 @@ describe('routing and worker wiring', () => {
     // The menu itself (Flow or list, per role and quiz state) is opened by one
     // service — tests/quiz/quiz-bare-text-routing.test.js executes it end to end.
     expect(s).toMatch(/QuizMenuEntry\.openQuizMenu\(/);
-    expect(src('shared/services/quiz/quiz-menu-entry.service.js')).toMatch(/List\.showList\(/);
+    // The door hands "Make a quiz" to its own module (shared with the /quiz home's
+    // button), which opens the Flow or the lesson list.
+    expect(src('shared/services/quiz/quiz-menu-entry.service.js')).toMatch(/require\('\.\/teacher-quiz-make\.service'\)/);
+    expect(src('shared/services/quiz/teacher-quiz-make.service.js')).toMatch(/List\.showList\(/);
     expect(s).toMatch(/QuizOrchestrator\.initiateQuizRequest\(/);
   });
 
