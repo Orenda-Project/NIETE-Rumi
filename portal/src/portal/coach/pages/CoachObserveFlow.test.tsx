@@ -112,7 +112,8 @@ describe("10 + 12 — the Visit page, in the canvas order", () => {
     const c = within(card);
     expect(c.getByText("AB")).toBeInTheDocument();
     expect(c.getByText("Ayesha Bibi")).toBeInTheDocument();
-    expect(c.getByText("+923001110001")).toBeInTheDocument();
+    expect(c.getByText("0300 1110001")).toBeInTheDocument();
+    expect(card).not.toHaveTextContent("+92");
     expect(c.getByText("IMSG I-10/1")).toBeInTheDocument();
     expect(c.getByText(/11:30 AM · Today/)).toBeInTheDocument();
     expect(c.getByText("In 2 h")).toBeInTheDocument();
@@ -129,7 +130,7 @@ describe("10 + 12 — the Visit page, in the canvas order", () => {
     C.getVisit.mockResolvedValue({ ...VISIT, visit: { ...VISIT.visit, teacherExtId: "sadaf-khan" }, teacher: { ...VISIT.teacher, teacherExtId: "sadaf-khan", phone: null } });
     renderAt(`/portal/coach/visit/${VISIT_ID}`);
     const card = await screen.findByTestId("teacher-card");
-    expect(card).not.toHaveTextContent("+92");
+    expect(card).not.toHaveTextContent(/\+92|03\d\d /);
     expect(within(card).queryByTestId("teacher-phone")).toBeNull();
   });
 
