@@ -526,6 +526,15 @@ Feature: Web child quiz page on the portal
     When it plays each one on a 360 by 740 phone
     Then it checks the screen after a wrong pick and after the right pick, and fails on a maths command spelled out in letters
 
+  @T491
+  Scenario: A shared phone reopened on a finished child's card lets the next child play
+    Given a phone where "Tooba" finished this quiz and the page reopens on Tooba's card
+    Then the card offers "Someone else's turn" («کسی اور کی باری»)
+    When the next child taps it
+    Then the page shows "Who is playing?" with the remembered cards and "Someone else"
+    And Tooba's finished result is unchanged on the server
+    But while answers are still waiting to be sent the card does not offer it
+
   # ── Jugnu's Challenge (/c/<hub token>): "Which is bigger?" and "Read aloud" ──
   @T385
   Scenario: The Challenge menu shows only the exercises that are built
