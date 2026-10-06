@@ -51,6 +51,25 @@ async function openLpBrowseFlow({ from, userId, language, reason = 'unspecified'
   const { redirectIfFlagged } = require('./app-redirect.service');
   if (await redirectIfFlagged('lesson_plan', { userId, from, language, reason })) return true;
 
+  // Lesson plans on the web: a template whose button opens the portal's lesson plans in
+  // WhatsApp's own browser. A template's body is fixed, so a topic door's line goes first,
+  // on its own; if the template then fails, the Flow below follows WITHOUT the line.
+  const WebLink = require('./lesson-plans-web-link');
+  if (await WebLink.webLessonsOn(userId)) {
+    if (bodyPrefix) {
+      try {
+        await WhatsAppService.sendMessage(from, bodyPrefix);
+      } catch (lineErr) {
+        logToFile('LP browse: prefix line failed to send (non-fatal)', { userId, reason, error: lineErr.message });
+      }
+      bodyPrefix = null;
+    }
+    if (await WebLink.sendLessonsLink({ id: userId }, from, language)) {
+      logToFile('📘 LP web link sent', { userId, reason });
+      return true;
+    }
+  }
+
   const flowId = process.env.PAKISTAN_LP_FLOW_ID || '';
   if (!flowId) {
     logToFile('LP browse: no PAKISTAN_LP_FLOW_ID provisioned, caller falls back', { userId, reason });

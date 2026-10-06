@@ -8,7 +8,7 @@
  *                    Anything else starts no session and shows the en/ur
  *                    "this link has expired" page.
  *
- *   trainingLinkScope, in front of every /api/portal router: a session that came
+ *   portalLinkScope, in front of every /api/portal router: a session that came
  *   from a link reaches training (and the few calls the portal's frame needs) and
  *   nothing else — a forwarded link must not open her coaching recordings,
  *   lesson plans or school. A password session is untouched.
@@ -24,13 +24,13 @@ const express = require('express');
 // The portal's own telemetry sink (the bot's loggers cannot load in the portal process).
 jest.mock('../../dashboard/services/telemetry.service', () => ({ logEvent: jest.fn(), flush: jest.fn(), isEnabled: () => true }));
 const { logEvent } = require('../../dashboard/services/telemetry.service');
-const Token = require('../../bot/shared/services/training/training-link-token');
+const Token = require('../../bot/shared/services/portal-link-token');
 
 const TEACHER = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Ayesha' };
 const OTHER = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
 // Required inside the tests so the file runs before the route module exists.
-const linkRoutes = () => require('../../dashboard/routes/training-link.routes');
+const linkRoutes = () => require('../../dashboard/routes/portal-link.routes');
 
 function start(app) {
   return new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); });
@@ -78,7 +78,7 @@ async function linkApp({ findUser = async (id) => (id === TEACHER.id ? TEACHER :
   const issued = [];
   const app = express();
   app.use(sessionStandIn(session, issued));
-  app.use(linkRoutes().createTrainingLinkRouter({ findUser }));
+  app.use(linkRoutes().createPortalLinkRouter({ findUser }));
   app.use((_req, res) => res.status(418).send('fell through'));
   const srv = await start(app);
   servers.push(srv);
@@ -89,7 +89,7 @@ describe('GET /t/<token>', () => {
   test('a genuine link starts a training-only session for that teacher and opens training', async () => {
     const { srv, issued } = await linkApp({ session: { portalUserId: OTHER, isPortalAuth: true } });
 
-    const res = await get(srv, `/t/${Token.signTrainingLink(TEACHER.id)}`, {
+    const res = await get(srv, `/t/${Token.signPortalLink(TEACHER.id)}`, {
       'user-agent': 'Mozilla/5.0 (Linux; Android 11; SM-A105F; wv) WhatsApp/2.24',
       'x-requested-with': 'com.whatsapp',
     });
@@ -101,21 +101,21 @@ describe('GET /t/<token>', () => {
     expect(issued).toHaveLength(1);
     expect(issued[0]).toMatchObject({ portalUserId: TEACHER.id, isPortalAuth: true, portalUserName: 'Ayesha', portalScope: 'training' });
     // Which browser opened it is what tells us the template opened WhatsApp's own.
-    expect(logEvent).toHaveBeenCalledWith('training.web_link_open', expect.objectContaining({
+    expect(logEvent).toHaveBeenCalledWith('web_link.open', expect.objectContaining({
       outcome: 'ok', userId: TEACHER.id, xrw: 'com.whatsapp', iab: 1,
     }));
   });
 
   test.each([
-    ['a forged link', () => `${Token.signTrainingLink(TEACHER.id).split('.')[0]}.AAAAAAAAAAAAAAAAAAAAAA`, 'invalid'],
+    ['a forged link', () => `${Token.signPortalLink(TEACHER.id).split('.')[0]}.AAAAAAAAAAAAAAAAAAAAAA`, 'invalid'],
     ['an expired link', () => {
       const now = Date.now();
       const spy = jest.spyOn(Date, 'now').mockReturnValue(now - 25 * 60 * 60 * 1000);
-      const t = Token.signTrainingLink(TEACHER.id);
+      const t = Token.signPortalLink(TEACHER.id);
       spy.mockRestore();
       return t;
     }, 'invalid'],
-    ['a teacher who no longer exists', () => Token.signTrainingLink(OTHER), 'unknown_user'],
+    ['a teacher who no longer exists', () => Token.signPortalLink(OTHER), 'unknown_user'],
     ['the portal app sending her here after her session ran out', () => 'expired', 'invalid'],
   ])('%s: no session, and the en/ur expired page', async (_label, make, outcome) => {
     const { srv, issued } = await linkApp();
@@ -129,13 +129,13 @@ describe('GET /t/<token>', () => {
     expect(res.body).toContain('This link has expired');
     expect(res.body).toContain('یہ لنک ختم ہو چکا ہے');
     expect(res.body).toContain('lang="ur"');
-    expect(logEvent).toHaveBeenCalledWith('training.web_link_open', expect.objectContaining({ outcome }));
+    expect(logEvent).toHaveBeenCalledWith('web_link.open', expect.objectContaining({ outcome }));
   });
 
   test('a lookup that throws is the expired page, not a crash', async () => {
     const { srv, issued } = await linkApp({ findUser: async () => { throw new Error('db down'); } });
 
-    const res = await get(srv, `/t/${Token.signTrainingLink(TEACHER.id)}`);
+    const res = await get(srv, `/t/${Token.signPortalLink(TEACHER.id)}`);
 
     expect(res.status).toBe(200);
     expect(issued).toHaveLength(0);
@@ -147,7 +147,7 @@ describe('a training-only session reaches training and nothing else', () => {
   async function apiApp(session) {
     const app = express();
     app.use(sessionStandIn(session, []));
-    app.use('/api/portal', linkRoutes().trainingLinkScope, (req, res) => res.json({ reached: req.path }));
+    app.use('/api/portal', linkRoutes().portalLinkScope, (req, res) => res.json({ reached: req.path }));
     const srv = await start(app);
     servers.push(srv);
     return srv;
@@ -181,7 +181,7 @@ describe('a training-only session reaches training and nothing else', () => {
     const srv = await apiApp(LINK);
     const res = await get(srv, `/api/portal${path}`);
     expect(res.status).toBe(403);
-    expect(JSON.parse(res.body)).toMatchObject({ success: false, error: 'training_link_only' });
+    expect(JSON.parse(res.body)).toMatchObject({ success: false, error: 'link_area_only' });
   });
 
   test('a password session is untouched', async () => {

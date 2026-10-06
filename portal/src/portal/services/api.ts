@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { getApiBaseUrl } from '@/lib/runtime';
-import { isLinkSession, LINK_EXPIRED_PAGE } from '../lib/trainingLinkSession';
+import { isLinkSession, LINK_EXPIRED_PAGE } from '../lib/linkSession';
 import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, CoachingAnalytics, Pagination, VideoRequest, VideoDetail, LeaderOverview, LeaderPatchTeacher, LeaderTeacherDetail, LeaderObservationsData, SchoolAnalyticsResponse,
   AttendanceResponse } from '../types/portal';
 import type { ChildTestVisit, ChildTestList, ChildTestCard, ChildTestSession, ChildTestBlockName } from '../types/childTest';
@@ -29,8 +29,8 @@ api.interceptors.response.use(
   (error) => {
     // Session expired - redirect to login
     if (error.response?.status === 401) {
-      // A session from the training link goes back to the link page, not a password
-      // login she may never have set (lib/trainingLinkSession.ts).
+      // A session from a template's link goes back to the link page, not a password
+      // login she may never have set (lib/linkSession.ts).
       if (isLinkSession()) {
         window.location.replace(LINK_EXPIRED_PAGE);
         return Promise.reject(error);

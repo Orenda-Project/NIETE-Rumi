@@ -130,7 +130,7 @@ const wordCloudRoutes = require('./routes/wordcloud');
 
 // Teacher Portal Routes
 const portalRoutes = require('./routes/portal.routes');
-const trainingLinkRoutes = require('./routes/training-link.routes');
+const portalLinkRoutes = require('./routes/portal-link.routes');
 const hcpRoutes = require('./routes/hcp.routes');
 const attendanceRoutes = require('./routes/attendance.routes');
 const childTestRoutes = require('./routes/portal-child-test.routes');
@@ -2787,12 +2787,12 @@ app.get('/observability/ama-chats/:conversationId/messages', requireAuth, async 
 // Funnel Tracking routes (PUBLIC - no auth required, with CORS and rate limiting)
 app.use('/api/track', cors(trackingCorsOptions), trackingLimiter, funnelTrackingRoutes);
 
-// Training on the web: /t/:token turns the link on the training template's button into a
-// portal session scoped to training. The scope guard sits in front of EVERY /api/portal
-// router below (portal, hcp, attendance, child test), so a session from a link reaches
-// training and nothing else; password sessions pass straight through.
-app.use(trainingLinkRoutes.createTrainingLinkRouter());
-app.use('/api/portal', trainingLinkRoutes.trainingLinkScope);
+// A portal area on the web (training, lesson plans): /t/:token turns the link on a template's
+// button into a portal session scoped to the area the token names. The scope guard sits in
+// front of EVERY /api/portal router below (portal, hcp, attendance, child test), so a session
+// from a link reaches its area and nothing else; password sessions pass straight through.
+app.use(portalLinkRoutes.createPortalLinkRouter());
+app.use('/api/portal', portalLinkRoutes.portalLinkScope);
 
 // Teacher Portal API routes (with CORS, rate limiting, NO auth middleware - routes handle auth internally)
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, portalRoutes);

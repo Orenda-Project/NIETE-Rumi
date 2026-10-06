@@ -9,7 +9,7 @@
  *      /t/<token> — a 24-hour way into a teacher's training for anyone who can
  *      read the logs. It is now /t/:token.
  *
- *   2. training.web_link_open never reached Axiom. The route logged through the
+ *   2. the link-open event never reached Axiom. The route logged through the
  *      BOT's structured logger, which needs `pino`; the portal service installs
  *      only the dashboard's dependencies, so the require threw inside a
  *      try/catch and nothing was logged (dashboard/services/telemetry.service.js
@@ -83,15 +83,15 @@ describe('the request log never carries a training link token', () => {
 
 describe('opening a link is recorded through the portal\'s own sink', () => {
   async function open(path, findUser = async () => ({ id: 'aaaa', name: 'Ayesha' })) {
-    const Token = require('../../bot/shared/services/training/training-link-token');
-    const { createTrainingLinkRouter } = require('../../dashboard/routes/training-link.routes');
+    const Token = require('../../bot/shared/services/portal-link-token');
+    const { createPortalLinkRouter } = require('../../dashboard/routes/portal-link.routes');
     const app = express();
     app.use((req, _res, next) => {
       const make = (d) => Object.assign({ regenerate(cb) { req.session = make({}); cb(null); }, save(cb) { cb(null); } }, d);
       req.session = make({});
       next();
     });
-    app.use(createTrainingLinkRouter({ findUser }));
+    app.use(createPortalLinkRouter({ findUser }));
     const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
     const target = typeof path === 'function' ? path(Token) : path;
     const status = await new Promise((resolve, reject) => {
@@ -105,25 +105,25 @@ describe('opening a link is recorded through the portal\'s own sink', () => {
   }
 
   test('a genuine link: training.web_link_open, outcome ok, with the browser facts', async () => {
-    const status = await open((T) => `/t/${T.signTrainingLink('aaaa')}`);
+    const status = await open((T) => `/t/${T.signPortalLink('aaaa')}`);
 
     expect(status).toBe(303);
-    expect(emitted).toContainEqual({ event: 'training.web_link_open', data: expect.objectContaining({ outcome: 'ok', userId: 'aaaa', xrw: 'com.whatsapp', iab: 1 }) });
+    expect(emitted).toContainEqual({ event: 'web_link.open', data: expect.objectContaining({ outcome: 'ok', userId: 'aaaa', xrw: 'com.whatsapp', iab: 1 }) });
   });
 
   test('an expired link: training.web_link_open, outcome invalid', async () => {
     const status = await open('/t/expired');
 
     expect(status).toBe(200);
-    expect(emitted).toContainEqual({ event: 'training.web_link_open', data: expect.objectContaining({ outcome: 'invalid' }) });
+    expect(emitted).toContainEqual({ event: 'web_link.open', data: expect.objectContaining({ outcome: 'invalid' }) });
   });
 
   test('a lookup that fails is recorded AND written to the error console', async () => {
-    const status = await open((T) => `/t/${T.signTrainingLink('aaaa')}`, async () => { throw new Error('db down'); });
+    const status = await open((T) => `/t/${T.signPortalLink('aaaa')}`, async () => { throw new Error('db down'); });
 
     expect(status).toBe(200);
-    expect(emitted).toContainEqual({ event: 'training.web_link_open', data: expect.objectContaining({ outcome: 'error' }) });
+    expect(emitted).toContainEqual({ event: 'web_link.open', data: expect.objectContaining({ outcome: 'error' }) });
     expect(console.error).toHaveBeenCalled();
-    expect(consoleLines.join('\n')).toMatch(/training link/);
+    expect(consoleLines.join('\n')).toMatch(/portal link/);
   });
 });

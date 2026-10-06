@@ -963,8 +963,9 @@ router.get('/dashboard', requirePortalAuth, async (req, res) => {
     res.json({
       success: true,
       // bd-2434: includes `role` (+ contact fields) via the shared shaper.
-      // sessionScope 'training': she came in by the link on the training template, and the
-      // app shows training only (routes/training-link.routes.js). Null for a password login.
+      // sessionScope: the area she came in by, from the link on a template ('training',
+      // 'lessons'), and the app shows that area only (routes/portal-link.routes.js). Null for a
+      // password login.
       user: {
         ...publicUserPayload(user, { includeContact: true }),
         schoolName: await schoolNamePromise,

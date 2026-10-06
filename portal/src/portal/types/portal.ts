@@ -19,9 +19,9 @@ export interface User {
    */
   schoolName?: string | null;
   /**
-   * 'training' when she came in by the link on the training template (WhatsApp's
-   * own browser): the session reads training only (lib/trainingLinkSession.ts).
-   * Null for a password login; absent in older API responses.
+   * The area she came in by, from the link on a template (WhatsApp's own
+   * browser): 'training' or 'lessons'. The session reads that area only
+   * (lib/linkSession.ts). Null for a password login; absent in older API responses.
    */
   sessionScope?: string | null;
 }
