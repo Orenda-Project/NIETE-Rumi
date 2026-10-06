@@ -871,23 +871,61 @@ async function mirrorListId(classId, teacherUserId) {
  * Enrol a child who ALREADY has a `students` row (a child who typed their name on a
  * web quiz the class list did not have) — addStudent without the insert: the
  * enrolment, then the attachment to the teacher's legacy list when the row has none.
- * No list number is given (the teacher's paste order is hers to extend).
  *
- * @returns {Promise<{enrollment?, created?, listId?, error?}>}
+ * The child gets the class's next free list number (highest + 1), on the enrolment and
+ * on the students row when it has none: a child with no number cannot answer the next
+ * quiz's "list number" question and shows on the register with a blank. Picking the
+ * number is a read-then-insert, so it takes the same per-class lock and the same
+ * roll-clash retry as a pasted list (enrolAtNextRoll). A child already on the class
+ * keeps the enrolment and number they have.
+ *
+ * @returns {Promise<{enrollment?, created?, listId?, rollNumber?, error?}>}
  */
 async function enrollExistingStudent({ classId, teacherUserId, studentId } = {}) {
   if (!classId) return { error: 'missing_class' };
   if (!teacherUserId) return { error: 'missing_teacher' };
   if (!studentId) return { error: 'missing_student' };
   if (!(await findAssignment(classId, teacherUserId))) return { error: 'not_assigned' };
-  const enrolled = await enrollStudent({ classId, studentId, enrolledOn: new Date().toISOString().slice(0, 10) });
-  if (enrolled.error) return { error: enrolled.error };
+  const enrolled = await withClassLock(classId, () => enrolAtNextRoll({
+    classId, teacherUserId, studentId, enrolledOn: new Date().toISOString().slice(0, 10),
+  }));
+  if (enrolled.error) return { error: enrolled.error, rollClash: Boolean(enrolled.rollClash) };
+  const rollNumber = enrolled.enrollment && enrolled.enrollment.roll_number != null ? enrolled.enrollment.roll_number : null;
+  if (enrolled.created && rollNumber != null) {
+    // The students row's own number, which the legacy list and older readers use. Only a row
+    // without one: a number the child already carries elsewhere is not overwritten.
+    const { error } = await supabase.from('students').update({ roll_number: rollNumber }).eq('id', studentId).is('roll_number', null);
+    if (error) logToFile('⚠️ ClassService.enrollExistingStudent: list number not copied to the student row', { studentId, error: error.message });
+  }
   const listId = await mirrorListId(classId, teacherUserId);
   if (listId) {
     const { error } = await supabase.from('students').update({ list_id: listId }).eq('id', studentId).is('list_id', null);
     if (error) logToFile('⚠️ ClassService.enrollExistingStudent: list attach failed', { studentId, error: error.message });
   }
-  return { enrollment: enrolled.enrollment, created: enrolled.created, listId };
+  return { enrollment: enrolled.enrollment, created: enrolled.created, listId, rollNumber };
+}
+
+// "Add to class" (one child): its own retry budget, so it never depends on the paste path's constants.
+const ENROL_RETRIES = 5;
+
+/**
+ * enrollStudent at the class's next free list number: highest in use + 1, and on a roll clash
+ * (another writer took it — the partial unique index is the arbiter) a re-read and the next
+ * number, up to ENROL_RETRIES times. A child already enrolled comes back as they are.
+ */
+async function enrolAtNextRoll({ classId, teacherUserId, studentId, enrolledOn }) {
+  let nextRoll = (await readRoster({ classId, teacherUserId })).maxRoll;
+  let res = null;
+  for (let attempt = 0; attempt <= ENROL_RETRIES; attempt += 1) {
+    nextRoll += 1;
+    // eslint-disable-next-line no-await-in-loop
+    res = await enrollStudent({ classId, studentId, rollNumber: nextRoll, enrolledOn });
+    if (!res.error || !res.rollClash) break;
+    // eslint-disable-next-line no-await-in-loop
+    const fresh = await readRoster({ classId, teacherUserId });
+    nextRoll = Math.max(nextRoll, fresh.maxRoll);
+  }
+  return res;
 }
 
 /**
