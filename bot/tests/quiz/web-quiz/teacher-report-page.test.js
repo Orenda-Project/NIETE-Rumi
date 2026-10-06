@@ -454,6 +454,20 @@ describe('teacher report page — after a fix, and typed children on paper (Q2 F
   });
 });
 
+describe('teacher report page — the Urdu played tile does not overlap (Q2 FAIL 11)', () => {
+  test('UR: the count and «نے کھیلا» are two block lines, and tile text has Nastaliq leading', () => {
+    const html = page(quizData(), { lang: 'ur' });
+    const tile = html.slice(html.indexOf('class="tiles"'), html.indexOf('class="tiles"') + 800);
+    const lines = [...tile.matchAll(/<span class="tl">([\s\S]*?)<\/span>(?=<span class="tl">|<\/div>)/g)].map((m) => text(m[1]).trim());
+    expect(lines).toEqual(['4 میں سے 1', 'نے کھیلا']);
+    expect(html).toMatch(/\.tile \.t\{[^}]*line-height:1\.9/);
+    expect(html).toMatch(/\.tl\{display:block/);
+  });
+  test('EN keeps its one-line label', () => {
+    expect(text(page(quizData()))).toMatch(/1 of 4 played/);
+  });
+});
+
 describe('message pages', () => {
   test('expired: EN and UR copy telling the teacher to send /quiz', () => {
     expect(renderMessagePage({ kind: 'expired', lang: 'en' })).toMatch(/This link has expired/);

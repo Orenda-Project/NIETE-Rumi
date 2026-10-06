@@ -110,6 +110,7 @@ const CHROME = {
     fromLp: 'From lesson plan', fromCoaching: 'From coaching', fromVideo: 'From video',
     className: (c) => `Class ${c}`,
     playedOf: (p, of) => `<b class="num">${p}</b> of <b class="num">${of}</b> played`,
+    tilePlayedOf: (p, of) => `<b class="num">${p}</b> of <b class="num">${of}</b> played`,
     playedN: (p) => `<b class="num">${p}</b> played`,
     playedLabel: 'played',
     noOne: 'No one has played yet',
@@ -177,6 +178,8 @@ const CHROME = {
     fromLp: 'سبق کے منصوبے سے', fromCoaching: 'کوچنگ سے', fromVideo: 'ویڈیو سے',
     className: (c) => `جماعت <span class="num">${c}</span>`,
     playedOf: (p, of) => `<b class="num">${of}</b> میں سے <b class="num">${p}</b> نے کھیلا`,
+    // In the tile, two lines: Nastaliq's stacked letters collide when it wraps mid-phrase.
+    tilePlayedOf: (p, of) => `<span class="tl"><b class="num">${of}</b> میں سے <b class="num">${p}</b></span><span class="tl">نے کھیلا</span>`,
     playedN: (p) => `<b class="num">${p}</b> نے کھیلا`,
     playedLabel: 'بچوں نے کھیلا',
     noOne: 'ابھی کسی نے نہیں کھیلا',
@@ -332,7 +335,8 @@ h1{font-size:1.5rem;line-height:${rtl ? leadUr : 1.25};margin:0 0 6px;font-weigh
 .tile .v{font-size:1.35rem;font-weight:700;line-height:1.2;margin-top:4px}
 .ring{width:58px;height:58px;border-radius:50%;margin:0 auto 4px;display:grid;place-items:center;background:conic-gradient(var(--green) calc(var(--p)*1%),var(--grey-bg) 0)}
 .ring i{width:44px;height:44px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-style:normal;font-weight:700;font-size:.85rem}
-.tile .t{font-size:.78rem;line-height:var(--lead-ui)}
+.tile .t{font-size:.78rem;line-height:${rtl ? (print ? 2.3 : 1.9) : 'var(--lead-ui)'}}
+.tl{display:block}
 .tile .t b{font-size:.95rem}
 section.card{background:var(--card);border-radius:14px;padding:16px;margin:0 0 14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 h2{font-size:1.05rem;margin:0 0 10px;line-height:var(--lead-ui)}
@@ -503,7 +507,7 @@ ${srcLabel ? `<span class="chip-src">${L(esc(srcLabel))}</span>` : ''}
   const offListN = played.length - onListN;
   const ringP = of ? Math.min(100, Math.round((100 * onListN) / of)) : 0;
   const tiles = `<div class="tiles">
-<div class="tile">${of ? `<div class="ring" style="--p:${ringP}"><i class="num">${ringP}%</i></div><div class="t">${L(C.playedOf(onListN, of))}</div>${offListN ? `<div class="t muted">${L(C.offList(offListN))}</div>` : ''}` : `<div class="v num">${playedN}</div><div class="k">${L(C.playedLabel)}</div>`}</div>
+<div class="tile">${of ? `<div class="ring" style="--p:${ringP}"><i class="num">${ringP}%</i></div><div class="t">${L(C.tilePlayedOf(onListN, of))}</div>${offListN ? `<div class="t muted">${L(C.offList(offListN))}</div>` : ''}` : `<div class="v num">${playedN}</div><div class="k">${L(C.playedLabel)}</div>`}</div>
 <div class="tile"><div class="k">${L(C.average)}</div><div class="v num">${avg != null ? `${avg}%` : esc(C.none)}</div></div>
 <div class="tile"><div class="k">${L(C.hardest)}</div><div class="v num">${summary.hardestN ? `Q${num(summary.hardestN)}` : esc(C.none)}</div></div>
 </div>`;
