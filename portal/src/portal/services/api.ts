@@ -925,6 +925,15 @@ export const coach = {
     const response = await api.post(`/coach/teacher/${encodeURIComponent(teacherExtId)}/move`, { schoolExtId });
     return response.data;
   },
+  /**
+   * bd-o15qnr.13 — name | level (bands[]) | role | phone_check | phone, saved by
+   * main's /observe edit path (ported). A refusal arrives as an HTTP error whose
+   * body carries `reason` (and, for a taken number, main's heading/message).
+   */
+  editTeacher: async (teacherExtId: string, edit: "name" | "level" | "role" | "phone_check" | "phone", value: unknown): Promise<{ success: boolean; outcome?: string; phone?: string; reason?: string; heading?: string; message?: string; hoursRemaining?: number }> => {
+    const response = await api.post(`/coach/teacher/${encodeURIComponent(teacherExtId)}/edit`, { edit, value });
+    return response.data;
+  },
   /** bd-o15qnr.11 — Remove from school: the /observe teacher admin's commitRemovals. */
   removeTeacher: async (teacherExtId: string): Promise<{ success: boolean; reason?: string }> => {
     const response = await api.post(`/coach/teacher/${encodeURIComponent(teacherExtId)}/remove`, {});

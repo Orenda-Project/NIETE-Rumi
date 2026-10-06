@@ -10,9 +10,8 @@
  * names who is changed. The bot then applies its own `myschool` check to the
  * school.
  *
- * Name, role and teaching level are NOT here: the /observe teacher admin has no
- * writer for them (its Flow offers only Add — which moves — and Remove), and a
- * second writer is exactly what the operator ruled out.
+ * Name, role, teaching level and phone go through main's /observe edit path,
+ * ported to the bot (bd-o15qnr.13) — see editTeacher below.
  *
  * Every answer is { status, data } — the HTTP status and body the route returns.
  */
@@ -42,4 +41,19 @@ async function removeTeacher(query, client, leaderUserId, teacherExtId) {
   return client.removeTeacher({ leaderUserId, userId: t.rumiUserId, schoolExtId: `niete:${t.emis}` });
 }
 
-module.exports = { moveTeacher, removeTeacher, findPatchTeacher };
+/**
+ * bd-o15qnr.13 — name, teaching level, role and phone, saved by main's
+ * /observe edit path (ported to the bot as teacher-edit-commit.service). Same
+ * guard: she must be in this coach's patch; her account and school come from
+ * the patch. The bot then re-checks her roster at that school (_editPerson).
+ */
+const EDITS = Object.freeze(['name', 'level', 'role', 'phone_check', 'phone']);
+
+async function editTeacher(query, client, leaderUserId, teacherExtId, edit, value) {
+  if (!EDITS.includes(edit)) return { status: 400, data: { success: false, reason: 'unknown_edit' } };
+  const t = await findPatchTeacher(query, leaderUserId, teacherExtId);
+  if (!t || !t.rumiUserId || !t.emis) return notFound();
+  return client.editTeacher({ leaderUserId, schoolExtId: `niete:${t.emis}`, userId: t.rumiUserId, edit, value });
+}
+
+module.exports = { moveTeacher, removeTeacher, editTeacher, findPatchTeacher, EDITS };
