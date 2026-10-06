@@ -392,6 +392,80 @@ Feature: Web child quiz page on the portal
     Then the phone forgets that child and shows "who is playing?" (the roll-number pad when the class has a list)
     And no "Something went wrong" message is shown
 
+  @T248
+  Scenario: A friend who plays a challenge learns who won
+    Given a child finished the class quiz with 3 of 4 and sent a friend their challenge link
+    When the friend opens the link, plays and finishes with 4 of 4
+    Then the friend's scorecard says "You beat the challenge!" («آپ نے چیلنج جیت لیا!») with "You 4/4 · <challenger> 3/4"
+    And a friend with the same share of right answers sees "It's a tie!" («مقابلہ برابر رہا!»), a lower one "So close! Play again?"
+    And when the challenger opens "My scores", the friend's row says "beat you!" («آپ سے آگے!»), or "you won" when the challenger did better
+
+  @T249
+  Scenario: A challenge link carries no child's name
+    Given a child finished a quiz
+    When the child taps "Challenge a friend"
+    Then the shared link is the child's challenge code alone ("/q/<code>"), with no name in it
+    And the friend's landing still names the challenger, read from the code on the server
+  @T290
+  Scenario: Jugnu gives a hint on a tap, never the answer
+    Given a question whose web item carries a hint written from the lesson ("Think about what you can pour into a glass.")
+    When the child taps the small thinking Jugnu ("Need a hint?" / «اشارہ چاہیے؟») under the options
+    Then the hint shows beside a thinking Jugnu and is spoken in the quiz's one voice from its own recorded clip
+    And the hint never says any option, the number that is the answer, the thing a picture option shows, or the word a missing-letter picture spells
+    And using the hint does not change the child's score
+
+  @T291
+  Scenario: A child who sits stuck is nudged once
+    Given a question with a hint that the child has not asked for
+    When twenty seconds pass after the voice has finished reading the question
+    Then Jugnu wiggles once and says "Stuck? Tap me for a hint." («مشکل لگ رہا ہے؟ اشارے کے لیے مجھے دبائیں۔»)
+    And a question with no hint offers "Shall we listen again?" as before
+
+  @T292
+  Scenario: A hint that would give the answer away is thrown out and the question still plays
+    Given the author writes a hint that names the right option (or a wrong one, or says "the answer is")
+    When the quiz is made
+    Then that question keeps its web item with no hint, and on the page Jugnu offers no hint for it
+    And the quiz's log line counts the hints kept and the hints dropped by reason
+  @T250
+  Scenario: The school league ranks every school that played this week by points that reward taking part
+    Given children of several schools finished quizzes this week (Monday to now, Pakistan time)
+    When a child opens "School league" from the card, the class table or "today"
+    Then each school that played shows its place, its points and how many children played
+    And a school earns 10 points for each child's first finish of a quiz plus up to 10 for that score
+    And a practice re-attempt, a teacher's own test and a test teacher's quiz add nothing
+    And a school marked as a test school appears only on its own children's league, never on anyone else's
+    And no teacher, class or child is named on the league
+
+  @T251
+  Scenario: A child's own school is always in view, with its move since yesterday and what this finish added
+    Given the child's quiz was sent by a teacher of a school that has points this week
+    When the child opens the school league after finishing
+    Then a card on top says "<school> is #<place> this week", the move since yesterday, and "+<n> points for <school>!"
+    And the school's row in the list is highlighted and stays pinned to the top or bottom of the screen when scrolled away
+
+  @T252
+  Scenario: A school with no points yet is invited, never ranked last
+    Given no child of the child's school has finished a quiz this week
+    When the child opens the school league
+    Then the card on top says "No one from <school> has played yet this week. Be the first!" with no place number
+    And the share button says "Invite my school to play"
+    And the other schools still to start are one folded line "N schools still to start" that opens to their names, without numbers
+
+  @T253
+  Scenario: Caps keep the league fair
+    Given a child finishes seven quizzes in one Pakistan day, and seven friends take one child's challenge on one quiz
+    When the league is counted
+    Then only the child's first five quizzes that day add points, and only the first five friends of that challenge add points
+    And the sixth quiz and the sixth friend still play and see their score
+    And one phone adds points for at most three children it created that day on one quiz (names typed that are not on the class list); a fourth still plays and is never told it added points
+
+  @T254
+  Scenario: The school league has its own link, in English and in Urdu
+    Given a child shares the school league to the class group
+    When someone opens /q/<CODE>/schools
+    Then the page opens straight on the league with the preview title "School league this week" («اس ہفتے اسکولوں کی لیگ»)
+    And "My sector" filters the list to the child's sector and "All" brings every school back
     And someone who has never played this quiz on that phone is offered "Play and add points for <school>", which opens the quiz
   @T422
   Scenario: A word picture that hides a letter the question does not ask about is not shown
@@ -400,6 +474,77 @@ Feature: Web child quiz page on the portal
     Then a question that makes sense without the picture plays as text, with no picture
     And a question that needs the picture is left out, and the quiz still has at least three questions
     And a question that asks which letter fills the gap keeps its picture
+  @T280
+  Scenario: Every line a child hears in a quiz is in one voice per language
+    Given a teacher's quiz in English (or in Urdu) whose clips were recorded after this change
+    When a child answers a question wrongly
+    Then the recorded "Not yet. The answer is" line, the right option's clip and the reason are all in the same voice (Soniox Grace in English, Soniox Ishita in Urdu)
+    And the shared feedback library names that same voice for its language
+
+  @T281
+  Scenario: A clip the voice could not record is never recorded in another voice
+    Given the quiz voice is unavailable while a quiz's clips are being recorded
+    When the recording job runs
+    Then no clip is recorded by another voice provider
+    And the quiz is left unstamped so the job tries again later, and the page shows the words big meanwhile
+
+  @T282
+  Scenario: A slow clip is waited for, not swapped for the phone's voice
+    Given a child on a slow connection opens a question whose clip takes more than 2 seconds to start
+    Then the words are shown big while the clip keeps loading, and the phone's own voice does not speak
+    And a clip that has not started after 8 seconds is let go quietly and logged as stalled
+    And a clip the browser refuses to start before a tap makes the speaker button pulse, and a tap plays it
+
+  @T283
+  Scenario: Quiz audio is stored in the configured bucket under a name that says what it is
+    Given WEB_QUIZ_AUDIO_BUCKET names a bucket on the bot and the worker
+    When a new quiz's clips are recorded
+    Then each clip is stored in that bucket as quiz-audio/<env>/<quiz>/<lang>/<question>/<part>-<voice>-<hash>.ogg
+    And the quiz remembers the bucket, so its clips keep playing after the variable changes
+    And a quiz recorded before this change keeps playing from the bucket it was recorded in
+
+  @T284
+  Scenario: Recording quiz audio can be switched off and is capped per day
+    Given app_settings web_quiz_audio_enabled is false, or today's recorded quizzes have reached web_quiz_audio_daily_cap
+    When a quiz's page is opened
+    Then no clip is recorded and the job does not retry, and the page reads with the words big
+    And reaching the cap is logged as web_quiz_audio.capped
+
+  @T370
+  Scenario: A child who loses the internet at the end still sees their score
+    Given a child answered every question and the phone then lost its connection
+    When the quiz ends
+    Then the results screen shows the score the phone worked out ("You got 3 out of 5") with its stars
+    And it says "Your results will reach your teacher when you are back online." («انٹرنیٹ واپس آتے ہی آپ کا نتیجہ استاد تک پہنچ جائے گا۔»)
+    And no "No internet right now" error screen is shown
+    And Jugnu is on that screen celebrating, though the phone is offline (the picture was fetched while question 1 was on screen)
+
+  @T371
+  Scenario: The result is sent by itself when the connection comes back
+    Given a child finished the quiz offline and the results screen says the result will reach the teacher
+    When the phone is back online (or the child taps "Send now", or a minute passes)
+    Then the result is sent without the child doing anything else
+    And the screen changes to the real results with "See my card" and "See my class"
+
+  @T372
+  Scenario: A tab closed before the result was sent sends it on the next open
+    Given a child finished the quiz offline and closed WhatsApp before the connection came back
+    When the child opens the same quiz link again with internet
+    Then the page sends the result and opens the results, never "Go on: question 5 of 5"
+
+  @T373
+  Scenario: A flapping or very slow connection loses no answer and records none twice
+    Given the connection drops and returns every few seconds, or each request takes over a second
+    When a child plays the whole quiz
+    Then every answer is recorded exactly once and the results arrive
+    And a result sent up to a week later is still accepted
+
+  @T374
+  Scenario: The next questions' pictures and voice are fetched ahead of time
+    Given a child is on question 1 of a quiz with pictures and recorded voice
+    When the question has been on screen for a moment
+    Then the pictures and recorded clips of questions 2 and 3 are already being fetched
+    And question 1's own voice is never kept waiting for them
 
   @T445
   Scenario: A practice round that beats the child's best says so
@@ -459,42 +604,6 @@ Feature: Web child quiz page on the portal
     When a child finishes it for the first time
     Then the card says "You're the 3rd in your class to finish today" («آج آپ کی کلاس میں مکمل کرنے والوں میں آپ کا نمبر 3 ہے»), and the first says "You're the first in your class to finish today!"
     And a practice round, an invited friend and the teacher's preview get no such line
-
-  @T370
-  Scenario: A child who loses the internet at the end still sees their score
-    Given a child answered every question and the phone then lost its connection
-    When the quiz ends
-    Then the results screen shows the score the phone worked out ("You got 3 out of 5") with its stars
-    And it says "Your results will reach your teacher when you are back online." («انٹرنیٹ واپس آتے ہی آپ کا نتیجہ استاد تک پہنچ جائے گا۔»)
-    And no "No internet right now" error screen is shown
-    And Jugnu is on that screen celebrating, though the phone is offline (the picture was fetched while question 1 was on screen)
-
-  @T371
-  Scenario: The result is sent by itself when the connection comes back
-    Given a child finished the quiz offline and the results screen says the result will reach the teacher
-    When the phone is back online (or the child taps "Send now", or a minute passes)
-    Then the result is sent without the child doing anything else
-    And the screen changes to the real results with "See my card" and "See my class"
-
-  @T372
-  Scenario: A tab closed before the result was sent sends it on the next open
-    Given a child finished the quiz offline and closed WhatsApp before the connection came back
-    When the child opens the same quiz link again with internet
-    Then the page sends the result and opens the results, never "Go on: question 5 of 5"
-
-  @T373
-  Scenario: A flapping or very slow connection loses no answer and records none twice
-    Given the connection drops and returns every few seconds, or each request takes over a second
-    When a child plays the whole quiz
-    Then every answer is recorded exactly once and the results arrive
-    And a result sent up to a week later is still accepted
-
-  @T374
-  Scenario: The next questions' pictures and voice are fetched ahead of time
-    Given a child is on question 1 of a quiz with pictures and recorded voice
-    When the question has been on screen for a moment
-    Then the pictures and recorded clips of questions 2 and 3 are already being fetched
-    And question 1's own voice is never kept waiting for them
   @T420
   Scenario: A picture question whose picture cannot be drawn for one option plays as words
     Given a picture question where one option's picture does not exist
@@ -542,6 +651,68 @@ Feature: Web child quiz page on the portal
     When it plays each one on a 360 by 740 phone
     Then it checks the screen after a wrong pick and after the right pick, and fails on a maths command spelled out in letters
 
+  # ── Jugnu's Challenge (/c/<hub token>): "Which is bigger?" and "Read aloud" ──
+  @T385
+  Scenario: The Challenge menu shows only the exercises that are built
+    Given app setting "web_quiz_challenge" is on and a grade 3 child opens the Challenge from the hub
+    Then the page is titled "Jugnu's Challenge" («جگنو کا چیلنج») and shows two tiles: "Which is bigger?" and "Read aloud"
+    And no "coming soon" tile, and never the words EGRA, EGMA, test or assessment
+    And a finished exercise shows its last result on its tile ("✓ 7 / 10", "✓ 42 words a minute")
+
+  @T386
+  Scenario: A child outside grades 2 to 5 is not offered the Challenge
+    Given the child's class list is grade 7
+    When the Challenge link is opened
+    Then the page says "This challenge is for classes 2 to 5." and no exercise starts
+
+  @T387
+  Scenario: "Which is bigger?" is scored again on the server with the 4-in-a-row stop
+    Given a child plays the 2 practice pairs (with "Yes! 8 is bigger." feedback) and then the 10 pairs of the grade form
+    When the child misses 4 pairs in a row (a wrong tap, or no tap within 10 seconds)
+    Then the phone shows no more pairs and sends its taps
+    And the server re-applies the stop rule, ignores any tap after it, and answers the score
+    And the result says "You got 2 out of 10!" («۱۰ میں سے ۲ صحیح!») with "More challenges" and "Try again"
+
+  @T388
+  Scenario: Read aloud records 60 seconds and shows words per minute
+    Given the phone's browser allows the microphone
+    When the child taps "I'm ready", hears "Ready? Begin." and reads the story shown large
+    Then a 60-second countdown runs with a "Done" button that stays on screen
+    And the recording goes straight to storage by a presigned upload, never through the portal
+    And the result says "You read 42 words in a minute!" («آپ نے ایک منٹ میں ۴۲ لفظ پڑھے!»)
+
+  @T389
+  Scenario: Words per minute count only the time used when the child finishes the story early
+    Given a child reads all 60 words in 30 seconds
+    Then words per minute = 60 / (60 − 30) × 60 = 120
+    And a child who taps "Done" before the end of the story is counted over the full minute (EGRA)
+
+  @T390
+  Scenario: A child with nothing right in line 1 is stopped and encouraged, never shown 0
+    Given the scorer finds no word of the story's first line read correctly
+    Then the run is stored with 0 words per minute and "stopped"
+    And the page says "Good try! Reading gets easier every day you practise." with no number
+
+  @T391
+  Scenario: WhatsApp's browser cannot give the microphone
+    Given the microphone is refused, or the browser has no getUserMedia or MediaRecorder
+    When the child taps "I'm ready"
+    Then the page says "Your WhatsApp browser can't use the microphone." («آپ کا واٹس ایپ براؤزر مائیک استعمال نہیں کر سکتا۔»)
+    And offers "Open in Chrome" (Android) and "Skip this one", and logs web_quiz.ch_mic with ok false and the error name
+
+  @T392
+  Scenario: A child's recording is scored and forgotten; slow scoring is polled
+    Given scoring a reading takes more than 5 seconds
+    Then the result call answers "pending" and the page asks again every 3 seconds, up to 60 seconds
+    And the recording is deleted from storage after scoring, and only the numbers are kept
+  @T491
+  Scenario: A shared phone reopened on a finished child's card lets the next child play
+    Given a phone where "Tooba" finished this quiz and the page reopens on Tooba's card
+    Then the card offers "Someone else's turn" («کسی اور کی باری»)
+    When the next child taps it
+    Then the page shows "Who is playing?" with the remembered cards and "Someone else"
+    And Tooba's finished result is unchanged on the server
+    But while answers are still waiting to be sent the card does not offer it
   @T442
   Scenario: An invited friend never sees the class through the peer line
     Given a friend plays through a child's challenge link while the class is playing
@@ -555,6 +726,12 @@ Feature: Web child quiz page on the portal
     When a classmate answers right
     Then no peer line shows and the page never asks for one
     And a quiz graded 3 or above, or with no grade at all, shows it
+  @T447
+  Scenario: A friend opening a challenge sees the challenger, never the challenger's class
+    Given a child of "Class 3" sent a friend their challenge link
+    When the friend opens it on their own phone
+    Then the page names only the challenger and their score
+    And it shows no teacher name, no class label, no class names to pick from and no "N in your class played today"
 
   @T255
   Scenario: A child's shared card arrives in the group as a picture, even from WhatsApp's own browser
@@ -624,185 +801,3 @@ Feature: Web child quiz page on the portal
     When the page opens
     Then the same picture sits above the challenge line, its alt text the same words
     And if the picture cannot load it is removed, never shown broken
-  @T447
-  Scenario: A friend opening a challenge sees the challenger, never the challenger's class
-    Given a child of "Class 3" sent a friend their challenge link
-    When the friend opens it on their own phone
-    Then the page names only the challenger and their score
-    And it shows no teacher name, no class label, no class names to pick from and no "N in your class played today"
-
-  @T491
-  Scenario: A shared phone reopened on a finished child's card lets the next child play
-    Given a phone where "Tooba" finished this quiz and the page reopens on Tooba's card
-    Then the card offers "Someone else's turn" («کسی اور کی باری»)
-    When the next child taps it
-    Then the page shows "Who is playing?" with the remembered cards and "Someone else"
-    And Tooba's finished result is unchanged on the server
-    But while answers are still waiting to be sent the card does not offer it
-
-  # ── Jugnu's Challenge (/c/<hub token>): "Which is bigger?" and "Read aloud" ──
-  @T385
-  Scenario: The Challenge menu shows only the exercises that are built
-    Given app setting "web_quiz_challenge" is on and a grade 3 child opens the Challenge from the hub
-    Then the page is titled "Jugnu's Challenge" («جگنو کا چیلنج») and shows two tiles: "Which is bigger?" and "Read aloud"
-    And no "coming soon" tile, and never the words EGRA, EGMA, test or assessment
-    And a finished exercise shows its last result on its tile ("✓ 7 / 10", "✓ 42 words a minute")
-
-  @T386
-  Scenario: A child outside grades 2 to 5 is not offered the Challenge
-    Given the child's class list is grade 7
-    When the Challenge link is opened
-    Then the page says "This challenge is for classes 2 to 5." and no exercise starts
-
-  @T387
-  Scenario: "Which is bigger?" is scored again on the server with the 4-in-a-row stop
-    Given a child plays the 2 practice pairs (with "Yes! 8 is bigger." feedback) and then the 10 pairs of the grade form
-    When the child misses 4 pairs in a row (a wrong tap, or no tap within 10 seconds)
-    Then the phone shows no more pairs and sends its taps
-    And the server re-applies the stop rule, ignores any tap after it, and answers the score
-    And the result says "You got 2 out of 10!" («۱۰ میں سے ۲ صحیح!») with "More challenges" and "Try again"
-
-  @T388
-  Scenario: Read aloud records 60 seconds and shows words per minute
-    Given the phone's browser allows the microphone
-    When the child taps "I'm ready", hears "Ready? Begin." and reads the story shown large
-    Then a 60-second countdown runs with a "Done" button that stays on screen
-    And the recording goes straight to storage by a presigned upload, never through the portal
-    And the result says "You read 42 words in a minute!" («آپ نے ایک منٹ میں ۴۲ لفظ پڑھے!»)
-
-  @T389
-  Scenario: Words per minute count only the time used when the child finishes the story early
-    Given a child reads all 60 words in 30 seconds
-    Then words per minute = 60 / (60 − 30) × 60 = 120
-    And a child who taps "Done" before the end of the story is counted over the full minute (EGRA)
-
-  @T390
-  Scenario: A child with nothing right in line 1 is stopped and encouraged, never shown 0
-    Given the scorer finds no word of the story's first line read correctly
-    Then the run is stored with 0 words per minute and "stopped"
-    And the page says "Good try! Reading gets easier every day you practise." with no number
-
-  @T391
-  Scenario: WhatsApp's browser cannot give the microphone
-    Given the microphone is refused, or the browser has no getUserMedia or MediaRecorder
-    When the child taps "I'm ready"
-    Then the page says "Your WhatsApp browser can't use the microphone." («آپ کا واٹس ایپ براؤزر مائیک استعمال نہیں کر سکتا۔»)
-    And offers "Open in Chrome" (Android) and "Skip this one", and logs web_quiz.ch_mic with ok false and the error name
-
-  @T392
-  Scenario: A child's recording is scored and forgotten; slow scoring is polled
-    Given scoring a reading takes more than 5 seconds
-    Then the result call answers "pending" and the page asks again every 3 seconds, up to 60 seconds
-    And the recording is deleted from storage after scoring, and only the numbers are kept
-  @T280
-  Scenario: Every line a child hears in a quiz is in one voice per language
-    Given a teacher's quiz in English (or in Urdu) whose clips were recorded after this change
-    When a child answers a question wrongly
-    Then the recorded "Not yet. The answer is" line, the right option's clip and the reason are all in the same voice (Soniox Grace in English, Soniox Ishita in Urdu)
-    And the shared feedback library names that same voice for its language
-
-  @T281
-  Scenario: A clip the voice could not record is never recorded in another voice
-    Given the quiz voice is unavailable while a quiz's clips are being recorded
-    When the recording job runs
-    Then no clip is recorded by another voice provider
-    And the quiz is left unstamped so the job tries again later, and the page shows the words big meanwhile
-
-  @T282
-  Scenario: A slow clip is waited for, not swapped for the phone's voice
-    Given a child on a slow connection opens a question whose clip takes more than 2 seconds to start
-    Then the words are shown big while the clip keeps loading, and the phone's own voice does not speak
-    And a clip that has not started after 8 seconds is let go quietly and logged as stalled
-    And a clip the browser refuses to start before a tap makes the speaker button pulse, and a tap plays it
-
-  @T283
-  Scenario: Quiz audio is stored in the configured bucket under a name that says what it is
-    Given WEB_QUIZ_AUDIO_BUCKET names a bucket on the bot and the worker
-    When a new quiz's clips are recorded
-    Then each clip is stored in that bucket as quiz-audio/<env>/<quiz>/<lang>/<question>/<part>-<voice>-<hash>.ogg
-    And the quiz remembers the bucket, so its clips keep playing after the variable changes
-    And a quiz recorded before this change keeps playing from the bucket it was recorded in
-
-  @T284
-  Scenario: Recording quiz audio can be switched off and is capped per day
-    Given app_settings web_quiz_audio_enabled is false, or today's recorded quizzes have reached web_quiz_audio_daily_cap
-    When a quiz's page is opened
-    Then no clip is recorded and the job does not retry, and the page reads with the words big
-    And reaching the cap is logged as web_quiz_audio.capped
-
-  @T250
-  Scenario: The school league ranks every school that played this week by points that reward taking part
-    Given children of several schools finished quizzes this week (Monday to now, Pakistan time)
-    When a child opens "School league" from the card, the class table or "today"
-    Then each school that played shows its place, its points and how many children played
-    And a school earns 10 points for each child's first finish of a quiz plus up to 10 for that score
-    And a practice re-attempt, a teacher's own test and a test teacher's quiz add nothing
-    And a school marked as a test school appears only on its own children's league, never on anyone else's
-    And no teacher, class or child is named on the league
-
-  @T251
-  Scenario: A child's own school is always in view, with its move since yesterday and what this finish added
-    Given the child's quiz was sent by a teacher of a school that has points this week
-    When the child opens the school league after finishing
-    Then a card on top says "<school> is #<place> this week", the move since yesterday, and "+<n> points for <school>!"
-    And the school's row in the list is highlighted and stays pinned to the top or bottom of the screen when scrolled away
-
-  @T252
-  Scenario: A school with no points yet is invited, never ranked last
-    Given no child of the child's school has finished a quiz this week
-    When the child opens the school league
-    Then the card on top says "No one from <school> has played yet this week. Be the first!" with no place number
-    And the share button says "Invite my school to play"
-    And the other schools still to start are one folded line "N schools still to start" that opens to their names, without numbers
-
-  @T253
-  Scenario: Caps keep the league fair
-    Given a child finishes seven quizzes in one Pakistan day, and seven friends take one child's challenge on one quiz
-    When the league is counted
-    Then only the child's first five quizzes that day add points, and only the first five friends of that challenge add points
-    And the sixth quiz and the sixth friend still play and see their score
-    And one phone adds points for at most three children it created that day on one quiz (names typed that are not on the class list); a fourth still plays and is never told it added points
-
-  @T254
-  Scenario: The school league has its own link, in English and in Urdu
-    Given a child shares the school league to the class group
-    When someone opens /q/<CODE>/schools
-    Then the page opens straight on the league with the preview title "School league this week" («اس ہفتے اسکولوں کی لیگ»)
-    And "My sector" filters the list to the child's sector and "All" brings every school back
-
-  @T290
-  Scenario: Jugnu gives a hint on a tap, never the answer
-    Given a question whose web item carries a hint written from the lesson ("Think about what you can pour into a glass.")
-    When the child taps the small thinking Jugnu ("Need a hint?" / «اشارہ چاہیے؟») under the options
-    Then the hint shows beside a thinking Jugnu and is spoken in the quiz's one voice from its own recorded clip
-    And the hint never says any option, the number that is the answer, the thing a picture option shows, or the word a missing-letter picture spells
-    And using the hint does not change the child's score
-
-  @T291
-  Scenario: A child who sits stuck is nudged once
-    Given a question with a hint that the child has not asked for
-    When twenty seconds pass after the voice has finished reading the question
-    Then Jugnu wiggles once and says "Stuck? Tap me for a hint." («مشکل لگ رہا ہے؟ اشارے کے لیے مجھے دبائیں۔»)
-    And a question with no hint offers "Shall we listen again?" as before
-
-  @T292
-  Scenario: A hint that would give the answer away is thrown out and the question still plays
-    Given the author writes a hint that names the right option (or a wrong one, or says "the answer is")
-    When the quiz is made
-    Then that question keeps its web item with no hint, and on the page Jugnu offers no hint for it
-    And the quiz's log line counts the hints kept and the hints dropped by reason
-
-  @T248
-  Scenario: A friend who plays a challenge learns who won
-    Given a child finished the class quiz with 3 of 4 and sent a friend their challenge link
-    When the friend opens the link, plays and finishes with 4 of 4
-    Then the friend's scorecard says "You beat the challenge!" («آپ نے چیلنج جیت لیا!») with "You 4/4 · <challenger> 3/4"
-    And a friend with the same share of right answers sees "It's a tie!" («مقابلہ برابر رہا!»), a lower one "So close! Play again?"
-    And when the challenger opens "My scores", the friend's row says "beat you!" («آپ سے آگے!»), or "you won" when the challenger did better
-
-  @T249
-  Scenario: A challenge link carries no child's name
-    Given a child finished a quiz
-    When the child taps "Challenge a friend"
-    Then the shared link is the child's challenge code alone ("/q/<code>"), with no name in it
-    And the friend's landing still names the challenger, read from the code on the server
