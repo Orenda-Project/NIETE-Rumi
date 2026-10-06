@@ -196,6 +196,12 @@ function createWebQuizRouter(opts = {}) {
         init.body = JSON.stringify(body || {});
       }
       const res = await fetchImpl(`${botUrl}${pathname}`, init);
+      // A picture the bot answers as bytes (a cropped option, an inline option picture) is passed
+      // through as that picture: parsing it as JSON turned every one into "{}" (a blank tile).
+      const type = (res.headers && res.headers.get && res.headers.get('content-type')) || '';
+      if (res.status >= 200 && res.status < 300 && /^image\//i.test(type) && res.arrayBuffer) {
+        return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), contentType: type, location: null };
+      }
       const text = await res.text();
       let json = null;
       try { json = text ? JSON.parse(text) : null; } catch (_) { json = null; }
@@ -246,6 +252,7 @@ function createWebQuizRouter(opts = {}) {
         const out = await callBot(r.method.toUpperCase(), pathname, req, req.body);
         if (out.status >= 300 && out.status < 400 && out.location) return res.redirect(out.status, out.location);
         if (out.status === 204) return res.status(204).end();
+        if (out.bytes) return res.status(out.status).type(out.contentType).send(out.bytes);
         if (out.status >= 500 && out.status !== 503) return res.status(502).json({ error: 'upstream_error' });
         return res.status(out.status).json(out.body == null ? {} : out.body);
       } catch (err) {
