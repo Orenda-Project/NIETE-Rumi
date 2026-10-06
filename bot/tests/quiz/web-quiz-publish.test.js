@@ -414,6 +414,59 @@ describe('publishQuizAudio: clips are stored small (a child pays for every byte)
   });
 });
 
+describe('requestQuizAudio / runQuizAudioJob: the clips are recorded on the worker, not in the page\'s process', () => {
+  test('asks the quiz queue for a quiz_web_audio job, once per quiz and voice version', async () => {
+    const queue = { queueJob: jest.fn().mockResolvedValue({ MessageId: 'm1' }) };
+    await Publish.requestQuizAudio('quiz-r1', { meta: {}, queue });
+    await Publish.requestQuizAudio('quiz-r1', { meta: {}, queue });
+    expect(queue.queueJob).toHaveBeenCalledTimes(1);
+    expect(queue.queueJob).toHaveBeenCalledWith('quiz-r1', 'quiz_web_audio', { quizId: 'quiz-r1' },
+      expect.objectContaining({ deduplicationId: `quiz-r1-quiz_web_audio-v${Publish.AUDIO_VERSION}` }));
+  });
+
+  test('a quiz already at this voice version is not queued', async () => {
+    const queue = { queueJob: jest.fn() };
+    await Publish.requestQuizAudio('quiz-r2', { meta: { web: { audio_v: Publish.AUDIO_VERSION } }, queue });
+    expect(queue.queueJob).not.toHaveBeenCalled();
+  });
+
+  test('if the queue cannot take it, the clips are made here instead (never silence), and it never throws', async () => {
+    const queue = { queueJob: jest.fn().mockRejectedValue(new Error('no queue')) };
+    const publish = jest.fn().mockResolvedValue({ ok: true });
+    await expect(Publish.requestQuizAudio('quiz-r3', { meta: {}, queue, publish })).resolves.toBeDefined();
+    expect(publish).toHaveBeenCalledWith('quiz-r3', expect.any(Object));
+  });
+
+  test('the job publishes a stale quiz and skips a current one', async () => {
+    const missing = async (cmd) => {
+      if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+      return {};
+    };
+    mockS3Send.mockImplementation(missing);
+    const rows = quizRows();
+    const out = await Publish.runQuizAudioJob({ quizId: QUIZ_ID }, { db: fakeDb(rows) });
+    expect(out.ok).toBe(true);
+    expect(rows.quiz.meta.web.audio_v).toBe(Publish.AUDIO_VERSION);
+    axios.post.mockClear();
+    const again = await Publish.runQuizAudioJob({ quizId: QUIZ_ID }, { db: fakeDb(rows) });
+    expect(again.skipped).toBe('current');
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  test('a quiz\'s clips are recorded several at a time, not one after another', async () => {
+    let inFlight = 0; let most = 0;
+    axios.post.mockReset();
+    axios.post.mockImplementation(async () => { inFlight += 1; most = Math.max(most, inFlight); await new Promise((r) => setTimeout(r, 15)); inFlight -= 1; return { data: OGG }; });
+    mockS3Send.mockImplementation(async (cmd) => {
+      if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+      return {};
+    });
+    const out = await publishQuizAudio(QUIZ_ID, { db: fakeDb(quizRows()) });
+    expect(out.synthesized).toBe(9);
+    expect(most).toBeGreaterThan(1);
+  });
+});
+
 describe('ensureQuizAudio: a quiz gets its clips the first time its page is opened, once', () => {
   test('publishes a quiz whose clips are missing or older than this voice version, once even when asked twice at once', async () => {
     const publish = jest.fn().mockResolvedValue({ ok: true });

@@ -382,10 +382,10 @@ async function getQuiz(code, { p } = {}) {
     }
   }
   // A quiz without its read-aloud clips (or with clips of an older voice version) gets them now,
-  // in the background: this child may hear the phone's voice, the next ones hear the clips.
+  // recorded by the worker: the backfill for quizzes authored before clips were made at authoring.
   try {
     const Publish = require('./web-quiz-publish.service');
-    Publish.ensureQuizAudio(ctx.quizId, { meta: (quizRow && quizRow.meta) || {} }).catch(() => {});
+    Publish.requestQuizAudio(ctx.quizId, { meta: (quizRow && quizRow.meta) || {} }).catch(() => {});
   } catch { /* the page reads aloud */ }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
   try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
