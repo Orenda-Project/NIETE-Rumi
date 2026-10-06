@@ -21,6 +21,7 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
       not(c, op, v) { if (op === 'is' && v === null) st.filters.push((r) => r[c] != null); return b; },
       in(c, vs) { st.filters.push((r) => vs.includes(r[c])); return b; },
       gte(c, v) { st.filters.push((r) => r[c] != null && String(r[c]) >= String(v)); return b; },
+      gt(c, v) { st.filters.push((r) => r[c] != null && String(r[c]) > String(v)); return b; },
       order(c, o = {}) { st.order.push([c, o.ascending !== false]); return b; },
       limit(n) { st.limit = n; return b; },
       insert(row) { st.op = 'insert'; st.payload = Array.isArray(row) ? row : [row]; return b; },

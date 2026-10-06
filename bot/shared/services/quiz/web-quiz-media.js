@@ -124,4 +124,47 @@ async function presignVideo(quiz, { db, expiresIn = DEFAULT_EXPIRES } = {}) {
   }
 }
 
-module.exports = { presignAudio, presignVideo, DEFAULT_EXPIRES };
+// Poster links, signed once and reused for half their life: signing is local work, but the
+// library asks for the same posters over and over.
+const posterCache = new Map();
+const POSTER_CACHE_MAX = 3000;
+
+/**
+ * A signed link to a video's poster (<key>_poster.jpg beside the video), WITHOUT asking R2 whether
+ * it exists: signing is local computation, and the page falls back to the subject's tile when the
+ * picture does not load. Null when the row's URL is not ours to sign.
+ * @param {string} r2Url  student_videos.r2_url
+ */
+async function signPoster(r2Url, { expiresIn = DEFAULT_EXPIRES } = {}) {
+  if (!r2Url) return null;
+  let key;
+  try { key = videoKey(r2Url).key.replace(/\.[a-z0-9]+$/i, '_poster.jpg'); } catch (_) { return null; }
+  const hit = posterCache.get(key);
+  if (hit && Date.now() - hit.at < (expiresIn * 1000) / 2) return hit.url;
+  const url = await sign(key, expiresIn);
+  if (url) {
+    if (posterCache.size >= POSTER_CACHE_MAX) posterCache.clear();
+    posterCache.set(key, { at: Date.now(), url });
+  }
+  return url;
+}
+
+/**
+ * A link that SAVES a bank video (Content-Disposition: attachment) under `filename`: the light web
+ * copy when one exists beside the original, else the original. Null when neither is ours.
+ * @param {string} r2Url  student_videos.r2_url
+ */
+async function presignDownload(r2Url, filename, { expiresIn = 3600 } = {}) {
+  try {
+    const { key, foreign } = videoKey(r2Url);
+    const webKey = key.replace(/\.[a-z0-9]+$/i, '_web.mp4');
+    const web = webKey !== key ? await head(webKey) : { exists: false };
+    if (!web.exists && foreign && !(await head(key)).exists) return null;
+    const url = await r2.getPresignedUrl(r2.buildR2PublicUrl(web.exists ? webKey : key), expiresIn, { disposition: 'attachment', filename });
+    return url && url.includes('X-Amz-Signature') ? url : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+module.exports = { presignAudio, presignVideo, signPoster, presignDownload, videoKey, DEFAULT_EXPIRES, _posterCache: posterCache };

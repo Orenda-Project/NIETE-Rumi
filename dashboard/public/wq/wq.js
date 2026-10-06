@@ -1584,6 +1584,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (now || !(S.vt > 0) || Math.abs(t - S.vt) >= 3) { S.vt = t; save(); }
   }
   window.addEventListener('pagehide', function () { if (ROOT.getAttribute('data-m') === 'M5') keepVideoAt($('video'), true); });
+  // M4b library: Download (the bot names the video only when the library is on).
+  function dlOpts() { return { code: CODE, st: S.st, lang: LANG, iab: IAB, on: on, ev: ev }; }
+  function vDownload(v) {
+    if (!v.vid || typeof WQL === 'undefined') return '';
+    return WQL.dlHtml(dlOpts(), { vid: v.vid, mb: v.bytes ? Math.round(v.bytes / 100000) / 10 : null }, true) + WQL.helpHtml(dlOpts());
+  }
   function video() {
     var v = B.video;
     // A reload mid-video picks up where it was (#t= is a media fragment; the server never sees it).
@@ -1595,12 +1601,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<button class="wq-vcover' + (v.poster ? ' wq-vposter' : '') + '" type="button" aria-label="' + esc(T.vT) + '">' +
       (v.poster ? '' : '<img src="' + IMG + 'hello.webp" alt="" class="wq-vjug">') + '<span class="wq-vplay" aria-hidden="true">▶</span></button></div>' +
       '<ul class="wq-how">' + T.how.map(function (x) { return '<li><span>' + x[0] + '</span>' + esc(x[1]) + '</li>'; }).join('') + '</ul>' +
-      '<button class="wq-btn wq-go" id="wq-skip">' + esc(T.skip) + '</button>';
+      '<button class="wq-btn wq-go" id="wq-skip">' + esc(T.skip) + '</button>' + vDownload(v);
     render(h, 'M5');
     wireBar();
+    if (v.vid && typeof WQL !== 'undefined') WQL.wireDl(dlOpts(), [{ vid: v.vid }]);
     var vid = $('video');
     var cover = $('.wq-vcover');
     if (vid) vid.addEventListener('play', function () { if (cover) cover.hidden = true; ev('video_play', at ? { t: at } : {}); });
+    if (vid && FROM && FROM.t) {
+      var ff = function () { vid.removeEventListener('loadeddata', ff); ev('more_timing', { ff_ms: Date.now() - FROM.t }); FROM.t = 0; };
+      vid.addEventListener('loadeddata', ff);
+    }
     if (vid) vid.addEventListener('timeupdate', function () { keepVideoAt(vid, false); });
     if (vid) vid.addEventListener('pause', function () { keepVideoAt(vid, true); });
     if (vid) vid.addEventListener('ended', function () { S.vdone = 1; S.vt = 0; save(); ev('video_end', {}); });
@@ -1893,6 +1904,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<button class="wq-btn wq-go" id="wq-card">' + esc(T.seeCard) + '</button>' +
         (friendRun() ? '' : '<button class="wq-btn wq-navy" id="wq-class">' + esc(T.classBtn) + '</button>') + moreBtn();
       render(h, 'M9');
+      libPrefetch();
       wireBar();
       sfx('done');
       speak(done.text, done.url, null);
@@ -2065,6 +2077,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // One phone, many children: the next child starts from the landing. Not while answers wait to be sent.
       (S.queue && S.queue.length ? '' : '<button class="wq-btn wq-ghost" id="wq-turn">' + esc(T.nextTurn) + '</button>');
     render(h, 'M10');
+    libPrefetch();
     wireBar();
     ev('card_view', {});
     if (res.vs && T.vs[res.vs.outcome]) ev('challenge_result', { reason: res.vs.outcome });
@@ -2139,7 +2152,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<span class="wq-vtext"><b dir="auto">' + esc(v.title) + '</b><small>' + meta + '</small></span>' +
       (v.done ? '<span class="wq-vdone">' + esc(T.doneTag) + '</span>' : '') + '</button></li>';
   }
+  // M4b library: subjects -> chapters (wq-lib.js) when the bot has it on; else today's list below.
   function moreVideos() {
+    if (typeof WQL !== 'undefined' && !WQL.off()) {
+      WQL.open({ code: CODE, st: S.st, lang: LANG, iab: IAB, on: on, ev: ev, onPick: pickVideo, onBack: afterResult, fallback: moreList,
+        paint: function (h, m) { render(bar() + h, m); wireBar(); } });
+      return;
+    }
+    moreList();
+  }
+  function libPrefetch() { if (typeof WQL !== 'undefined' && Q.grade) WQL.prefetch({ code: CODE, st: S.st }); }
+  function moreList() {
     var from = ROOT.getAttribute('data-m') || '';
     render(bar() + '<div class="wq-boot"><img src="' + IMG + 'thinking.webp" alt="" width="96"></div>', 'M15-wait');
     wireBar();
@@ -2157,7 +2180,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       render(bar() + jug('notyet', T.offline) + '<button class="wq-btn wq-go" id="wq-retry">' + esc(T.next) + '</button>', 'M15-error');
       wireBar();
       ev('error', { err: 'more_net' });
-      on('#wq-retry', moreVideos);
+      on('#wq-retry', moreList);
     });
   }
   var picking = false;
@@ -2168,9 +2191,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     render(bar() + jug('thinking', T.moreWait, true, true) + '<p class="wq-sub wq-center" dir="auto">' + esc(v.title) + '</p>', 'M15-go');
     wireBar();
     ev('more_pick', { i: i, ok: !v.done });
-    api('POST', 'videos/start', { code: CODE, st: S.st, vid: v.vid }).then(function (r) {
+    var tapAt = Date.now();
+    // The class already has this lesson's code (the library says so): no round trip before the page.
+    var got = v.code ? Promise.resolve({ ok: true, body: { code: v.code } }) : api('POST', 'videos/start', { code: CODE, st: S.st, vid: v.vid });
+    got.then(function (r) {
       if (!r.ok || !r.body || !r.body.code) throw new Error('more_start_' + r.status);
-      sset('wq_from', { code: r.body.code, st: S.st, at: Date.now() });
+      sset('wq_from', { code: r.body.code, st: S.st, at: Date.now(), t: tapAt });
       flushEv(true);
       location.assign('/q/' + encodeURIComponent(r.body.code));
     }).catch(function (e) {
@@ -2373,6 +2399,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       (more ? moreBtn() : '') + '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>' +
       '<button class="wq-btn wq-soft" id="wq-home">' + esc(T.home) + '</button>';
     render(h, 'M14');
+    libPrefetch();
     wireBar();
     on('#wq-schools', function () { schools(today); });
     on('#wq-home', function () { if (S.result) card(); else landing(); });
@@ -2406,6 +2433,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (m === 'M4-new' || m === 'M4-isyou') return who;
     if (m === 'M12-fallback') return NAV.shareBack || afterResult;
     if (/^M16/.test(m)) return NAV.schoolsBack || afterResult;
+    if (m === 'M15-ch' && typeof WQL !== 'undefined') return WQL.up;
     if (m === 'M11' || m === 'M13' || m === 'M14' || /^M15/.test(m)) return afterResult;
     return null;
   }
@@ -2445,7 +2473,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var FROM = B.view === 'class' || B.view === 'schools' || S.st ? null : handover();
   if (B.view === 'schools') schools(afterResult);
   else if (B.view === 'class') board();
-  else if (FROM) { ev('more_arrive', {}); startSession({ from_st: FROM.st }, null, ''); }
+  else if (FROM) { ev('more_arrive', {}); if (FROM.t) ev('more_timing', { nav_ms: Date.now() - FROM.t }); startSession({ from_st: FROM.st }, null, ''); }
   else if (S.result && S.st) card();
   else if (S.pending && S.st) results(S.fixed || 0);
   else if (S.st && S.child && (answeredCount() > 0 || (S.vt > 0 && wantsVideo()))) resume();

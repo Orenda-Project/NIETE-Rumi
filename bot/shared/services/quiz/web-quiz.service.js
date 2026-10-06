@@ -417,6 +417,10 @@ async function liveCounts(ctx) {
 
 // ─── E2 the quiz ────────────────────────────────────────────────────────────
 
+const QUIZ_MEDIA_CACHE_MS = 5 * 60 * 1000;
+const QUIZ_MEDIA_CACHE_MAX = 500;
+const quizMediaCache = new Map();
+
 /** E2, timed: one web_quiz.getquiz_timing line per call (steps, total). */
 function getQuiz(code, opts = {}) {
   return Steps.run('getquiz', {}, (mark) => getQuizTimed(code, opts, mark));
@@ -435,12 +439,29 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   const helpers = mediaHelpers();
   let audio = {};
   let video = null;
-  if (helpers) {
+  // The signed media of a code are reused for 5 minutes (they live 6 h): the library's prefetch and
+  // the tap that follows it, or a class opening the same link together, sign them once. The key is
+  // everything the links are made from, so new clips or edited questions are signed at once.
+  const mediaKey = require('crypto').createHash('sha1').update(JSON.stringify([
+    ctx.code, ctx.quizId, ctx.parent.video_id || (quizRow && quizRow.video_id) || null,
+    (quizRow && quizRow.meta && quizRow.meta.web && quizRow.meta.web.audio) || null,
+    questions.map((q) => [q.id, q.question_text, q.media || null]),
+  ])).digest('base64');
+  const cached = quizMediaCache.get(mediaKey);
+  const hit = Boolean(cached && Date.now() - cached.at < QUIZ_MEDIA_CACHE_MS);
+  if (hit) {
+    ({ audio, video } = cached);
+  } else if (helpers) {
     try { audio = (await helpers.presignAudio((quizRow && quizRow.meta) || {}, { expiresIn: MEDIA_TTL_S })) || {}; } catch { audio = {}; }
     const videoId = ctx.parent.video_id || (quizRow && quizRow.video_id) || null;
     if (videoId) {
       try { video = (await helpers.presignVideo({ video_id: videoId }, { db: supabase, expiresIn: MEDIA_TTL_S })) || null; } catch { video = null; }
     }
+  }
+  // The library's Download button needs the bank video's id (only with the library on).
+  if (video && video.url) {
+    const videoId = ctx.parent.video_id || (quizRow && quizRow.video_id) || null;
+    if (videoId && await require('./web-quiz-library').libraryOn()) video = { ...video, vid: videoId };
   }
   // A quiz without its read-aloud clips (or with clips of an older voice version) gets them now,
   // recorded by the worker: the backfill for quizzes authored before clips were made at authoring.
@@ -449,7 +470,13 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     Publish.requestQuizAudio(ctx.quizId, { meta: (quizRow && quizRow.meta) || {} }).catch(() => {});
   } catch { /* the page reads aloud */ }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
-  try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
+  if (!hit) {
+    try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
+    if (helpers) {
+      if (quizMediaCache.size >= QUIZ_MEDIA_CACHE_MAX) quizMediaCache.clear();
+      quizMediaCache.set(mediaKey, { at: Date.now(), audio, video });
+    }
+  }
   mark('media');
   // Identity v2: the child types their name and the server matches inside the hand-out's class.
   const idn = await identityV2(ctx);
@@ -1606,8 +1633,10 @@ const EVENT_PROPS = Object.freeze({
   code: /^[A-Z0-9]{4,12}$/i, qid: /^[0-9a-f-]{8,64}$/i, slot: /^[A-D]$/i, step: /^[a-z0-9_]{1,32}$/,
   src: /^[a-z0-9_]{1,32}$/, reason: /^[a-z0-9_]{1,40}$/, lang: /^(en|ur)$/, net: /^[a-z0-9_]{1,16}$/, err: /^[a-z0-9_]{1,40}$/,
   part: /^[a-z]{1,4}$/, // which spoken part had no clip (audio_missing): q, opt, stim, fig, left, why, fb, hint
+  // M4b library: a bank video's id, a grade, a bank subject name
+  vid: /^[0-9a-f-]{36}$/i, g: /^(NURSERY|KG|[1-6])$/, s: /^(English|Maths|Urdu|Science|Geography|General Knowledge|History|Islamic Studies)$/,
 });
-const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't'];
+const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't', 'list_ms', 'nav_ms', 'ff_ms', 'ch_i'];
 const EVENT_BOOLS = ['ok'];
 const SHARE_PATHS = ['native', 'wa', 'copy', 'file', 'save'];
 const UA_MAX = 300;
@@ -1740,7 +1769,7 @@ async function media(code, qid, { k, z } = {}) {
 }
 
 module.exports = {
-  getQuiz, startSession, recordAnswers, finishSession, board, me, events, media,
+  getQuiz, startSession, recordAnswers, finishSession, board, me, events, media, _resetQuizCache: () => quizMediaCache.clear(),
   // exported for tests and the router
   WqError, rankRows, cleanEvent, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, whoClass, challengeOutcome,
   // the render matrix (scripts/qa/render-matrix) turns synthetic rows into page items with it
