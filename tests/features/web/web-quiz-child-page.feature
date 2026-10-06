@@ -531,3 +531,4 @@ Feature: Web child quiz page on the portal
     When the friend opens the link
     Then the landing says "<challenger> challenged you. Can you beat their score?" («… نے آپ کو چیلنج کیا ہے۔ اب آپ کی باری!»)
     And it never says "0/5 stars. Can you beat it?"
+    And the friend's landing never says how many of the class played today (the friend is not in that class)

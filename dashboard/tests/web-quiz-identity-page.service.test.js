@@ -365,3 +365,18 @@ describe('the shell loads wq-identity.js only for a v2 quiz', () => {
     expect(html({ label: 'Class 3', chips: [] })).not.toContain('wq-identity.js');
   });
 });
+
+describe('v2 landing on a challenge link', () => {
+  test('an invited friend sees no class count; a classmate on the class link does', () => {
+    const p = page();
+    p.ctx.T.classToday = (n) => `${n} in your class played today`;
+    p.ctx.LIVE.class_today = 7; // the page hands this same object to the identity module
+    p.ctx.landing();
+    expect(p.last().h).toContain('7 in your class played today');
+    p.ctx.B.challenge = { first: 'Ali', correct: 3, total: 5 };
+    p.ctx.T.challenged = (n, c, t) => `${n} got ${c}/${t}`;
+    p.ctx.landing();
+    expect(p.last().h).not.toContain('7 in your class played today');
+  });
+});
+
