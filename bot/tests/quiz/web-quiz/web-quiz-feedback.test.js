@@ -47,6 +47,20 @@ describe('cleanWrongFeedback', () => {
     expect(cleanWrongFeedback(raw)).toBe(want);
   });
 
+  test.each([
+    'Try the next one!', 'آگے چلیں!', 'آگے بڑھو!', 'اچھا سوچا!', 'You’ve got this!', 'خوب کوشش!', 'پیاری کوشش!', 'You’re learning!',
+    'Nice attempt!', 'آگے چلو!', 'پیارا جواب!', 'Keep counting!', 'لگے رہیں!', 'کوشش جاری رکھو!', 'Keep thinking!', 'You are learning!',
+    'Kind try!', 'Nice attempt.', 'پھر کوشش کریں!', 'Good attempt!', 'You’re improving!', 'You’re getting there!', 'Not quite.', 'You’re close!',
+    'چلتے رہیں!', 'یاد رکھیں!', 'اگلا سوال کریں!', 'Go on!', 'Stay focused!', 'You’re doing well!', 'Careful!', 'خیر ہے!', 'Move ahead!',
+  ])('a short cheer after the reason is left out: "%s"', (cheer) => {
+    expect(cleanWrongFeedback(`Incubation comes before hatching. ${cheer}`)).toBe('Incubation comes before hatching.');
+  });
+
+  test('a short sentence that carries content is kept, even with "!"', () => {
+    expect(cleanWrongFeedback('Hatching comes after incubation. Eggs come first!')).toBe('Hatching comes after incubation. Eggs come first!');
+    expect(cleanWrongFeedback('بیج پہلے آتا ہے۔ پھر پودا!')).toBe('بیج پہلے آتا ہے۔ پھر پودا!');
+  });
+
   test('plain feedback with nothing to strip is kept as it is', () => {
     expect(cleanWrongFeedback('Leaves make food from sunlight; they do not take water from the soil.'))
       .toBe('Leaves make food from sunlight; they do not take water from the soil.');

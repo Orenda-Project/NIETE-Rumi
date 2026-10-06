@@ -29,6 +29,14 @@ const NAMES_ANSWER = /(?:the\s+)?(?:correct|right)\s+answer|درست جواب|ص
 const BECAUSE = /\b(?:because|since)\b\s*|کیونکہ\s*|اس لیے کہ\s*/i;
 // An Urdu sentence that speaks to the child with a gendered verb ("تم … سمجھ رہے ہو").
 const GENDERED = /رہے ہو|رہی ہو|سکتے ہو|سکتی ہو|گئے ہو|گئی ہو|آئے ہو|آئی ہو|کرتے ہو|کرتی ہو|(^|\s)تم(\s|$)/;
+// A short cheer after the reason ("Try the next one!", «آگے بڑھو!», «اچھا سوچا!»): at most four words, a cheer
+// word, and an exclamation (or a plain "Nice attempt." / "Not quite."). A short sentence with content stays.
+const SHORT_CHEER_WORD = /\b(?:try|attempt|learning|got this|keep|improving|getting there|close|next|not quite|go on|stay focused|doing well|careful|move ahead)\b|کوشش|آگے|چلیں|چلو|چلتے|بڑھو|بڑھیں|لگے|جاری|اچھا|اچھی|خوب|پیار|ہمت|بہتر|شاباش|سوچا|اگلا|سیکھ|یاد رکھیں|خیر ہے/i;
+const PLAIN_CHEER = /^(?:(?:nice|good|kind) attempt|not quite)\b/i;
+function isShortCheer(t) {
+  const words = t.split(/\s+/).filter(Boolean).length;
+  return words <= 4 && SHORT_CHEER_WORD.test(t) && (/!\s*$/.test(t) || PLAIN_CHEER.test(t));
+}
 // «آپ … رہے ہیں» is the masculine honorific: dropped when the sentence is about «آپ».
 const GENDERED_AAP = /رہے ہیں|رہی ہیں|سکتے ہیں|سکتی ہیں|گئے ہیں|گئی ہیں|چکے ہیں|چکی ہیں/;
 // Stored option letters: "A)", "(B)", "C:" at the start, and "A)" / "B ہے" references inside.
@@ -74,6 +82,7 @@ function cleanSentence(s) {
   }
   if (GENDERED.test(t) || (/(^|\s)آپ(\s|$)/.test(t) && GENDERED_AAP.test(t))) return '';
   t = t.replace(LETTER_REF, '').replace(/\s+/g, ' ').trim();
+  if (isShortCheer(t)) return '';
   return /[\p{L}\p{N}]/u.test(t) ? t : '';
 }
 
