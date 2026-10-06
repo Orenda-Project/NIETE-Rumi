@@ -224,6 +224,8 @@ html[lang=ur] .wq-big:not(.wq-jug){font-family:var(--f)}
 .wq-how{display:grid;gap:8px;list-style:none;padding:0;margin:0}
 .wq-how li{display:flex;gap:10px;align-items:center;font-weight:800;background:var(--card);border-radius:14px;padding:10px 12px}
 .wq-proof{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--green-d);font-size:15px}
+/* The card's "You're the 6th in your class to finish today": one centred line (a single flex item, so the isolated number keeps its spaces). */
+.wq-nth{justify-content:center;text-align:center}
 .wq-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 /* ---- item types (WQI): picture grid, true/false, order, match, label, listen; figures; maths ---- */
