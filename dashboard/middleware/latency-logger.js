@@ -30,10 +30,18 @@ const telemetry = require('../services/telemetry.service');
 /** Emit a semantic event. Instrumentation must never break a response. */
 // A path that IS a credential is logged by its shape, never its value: the link on the
 // template (/t/<token>) logs a teacher into a portal area for 24 hours (routes/portal-link.routes.js).
-const CREDENTIAL_PATHS = [/^\/t\/[^/]+$/];
+// The teacher's quiz report (/r/<token>, routes/teacher-report.routes.js) is the same kind of
+// credential: it opens a page with children's names.
+const CREDENTIAL_PATHS = [
+  [/^\/t\/[^/]+$/, '/t/:token'],
+  [/^\/r\/[^/]+$/, '/r/:token'],
+  [/^\/r\/[^/]+\/pdf$/, '/r/:token/pdf'],
+  [/^\/r\/[^/]+\/remind$/, '/r/:token/remind'],
+];
 function loggedPath(path) {
   const p = String(path || '');
-  return CREDENTIAL_PATHS.some((rx) => rx.test(p)) ? '/t/:token' : p;
+  const hit = CREDENTIAL_PATHS.find(([rx]) => rx.test(p));
+  return hit ? hit[1] : p;
 }
 
 function emit(event, data) {
@@ -159,6 +167,7 @@ function createLatencyLogger(options = {}) {
 const latencyLogger = createLatencyLogger();
 
 module.exports = {
+  loggedPath,
   latencyLogger,
   createLatencyLogger,
   SLOW_REQUEST_THRESHOLD
