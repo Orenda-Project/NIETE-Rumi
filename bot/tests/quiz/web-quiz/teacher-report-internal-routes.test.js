@@ -26,8 +26,9 @@ const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
 const LINK = 'https://portal.example.test/q/AB12CD';
 const WA_UA = 'Mozilla/5.0 (Linux; Android 13; wv) AppleWebKit/537.36 Chrome/129.0 Mobile Safari/537.36 WhatsApp/2.24';
 
+let DB;
 function seed() {
-  const fake = makeFake({
+  DB = {
     users: [{ id: TEACHER, preferred_language: 'en' }, { id: OTHER, preferred_language: 'en' }],
     quizzes: [
       { id: QUIZ, teacher_id: TEACHER, topic: 'Plants', subject: 'science', grade: '3', language: 'en', quiz_source: 'transcript', status: 'report_sent',
@@ -37,7 +38,7 @@ function seed() {
       { id: QUIZ_OTHER, teacher_id: OTHER, topic: 'Secret', subject: 'english', grade: '3', language: 'en', quiz_source: 'transcript', status: 'sent',
         created_at: ago(5), meta: { student_message: 'x https://portal.example.test/q/ZZZZZZ' } },
     ],
-    quiz_share_codes: [{ id: SC, code: 'AB12CD', quiz_id: QUIZ, teacher_user_id: TEACHER, invited_by_student_id: null, created_at: ago(30) }],
+    quiz_share_codes: [{ id: SC, code: 'AB12CD', quiz_id: QUIZ, teacher_user_id: TEACHER, invited_by_student_id: null, active: true, expires_at: null, language: 'en', created_at: ago(30) }],
     student_lists: [{ id: LIST, class_name: '3', section: 'B', user_id: TEACHER, is_active: true }],
     students: [1, 2, 3].map((r) => ({ id: kid(r), list_id: LIST, roll_number: r, student_name: `Kid${r} Testwala`, student_name_urdu: null, is_active: true })),
     quiz_sessions: [{
@@ -46,7 +47,8 @@ function seed() {
     }],
     quiz_questions: [],
     quiz_answers: [],
-  });
+  };
+  const fake = makeFake(DB);
   Object.assign(require('../../../shared/config/supabase'), { from: fake.from, rpc: fake.rpc });
   return fake;
 }
@@ -92,10 +94,12 @@ describe('auth', () => {
     expect(events('teacher_report.denied')).toEqual([expect.objectContaining({ reason: 'expired' })]);
   });
 
-  test('a forged token: 401 and the same page, reason bad', async () => {
+  test('a forged or cut-off token: 401 and a page that says the link is not complete, reason bad', async () => {
     const res = await get(`/page/${quizTok().slice(0, -3)}xyz`);
     expect(res.status).toBe(401);
-    expect(await res.text()).toMatch(/This link has expired/);
+    const html = await res.text();
+    expect(html).toMatch(/This link is not complete/);
+    expect(html).not.toMatch(/has expired/);
     expect(events('teacher_report.denied')).toEqual([expect.objectContaining({ reason: 'bad' })]);
   });
 
@@ -157,7 +161,10 @@ describe('GET /remind/:token', () => {
     const loc = new URL(res.headers.get('location'));
     expect(loc.origin).toBe('https://wa.me');
     const text = loc.searchParams.get('text');
-    expect(text).toMatch(/still open/);
+    // The wording is the data core's (reminderText); the route's job is to hand it over intact.
+    const Data = require('../../../shared/services/quiz/teacher-report.data');
+    expect(text).toBe((await Data.quizReport(TEACHER, QUIZ)).reminder.text);
+    expect(text).toContain('Plants');
     expect(text).toContain(LINK);
     expect(text).not.toMatch(/Kid\d/);
     expect(events('teacher_report.reminder')).toEqual([{ teacherId: TEACHER, quizId: QUIZ, notPlayed: 2 }]);
@@ -202,18 +209,50 @@ describe('GET /data/:token', () => {
 
 /*
  * The class pick and the provisional-child fixes are identity v2's writers
- * (web-quiz.service whoClass / fixWho, the M1 lane). Until that lane is on this
- * branch the two functions are absent, so the tests install them on the service
- * module — the cross-lane contract {code, tr, key} / {code, tr, ref, add|studentId}
- * is what is under test here, not identity v2 itself.
+ * (web-quiz.service whoClass / fixWho). The first test runs the REAL whoClass over
+ * the faked Supabase; the others replace one writer for one test (restored after)
+ * to pin how each of its answers comes back to the teacher.
  */
 describe('POST /class/:token and /fix/:token (identity v2 writers)', () => {
   const post = (path, body) => fetch(`${base}${path}`, {
     method: 'POST', headers: { 'x-api-key': 'test-key', 'content-type': 'application/json' }, body: JSON.stringify(body), redirect: 'manual',
   });
   let WebQuiz;
-  beforeEach(() => { WebQuiz = require('../../../shared/services/quiz/web-quiz.service'); });
-  afterEach(() => { delete WebQuiz.whoClass; delete WebQuiz.fixWho; });
+  let real;
+  beforeEach(() => {
+    WebQuiz = require('../../../shared/services/quiz/web-quiz.service');
+    real = { whoClass: WebQuiz.whoClass, fixWho: WebQuiz.fixWho };
+  });
+  afterEach(() => { WebQuiz.whoClass = real.whoClass; WebQuiz.fixWho = real.fixWho; });
+
+  test('class: the real whoClass on a closed hand-out → back with a notice that says it closed, reason logged', async () => {
+    const tok = quizTok();
+    DB.quiz_share_codes[0].active = false;
+    const res = await post(`/class/${tok}`, { quiz: QUIZ, key: 'k-3b' });
+    expect(res.status).toBe(303);
+    expect(res.headers.get('location')).toBe(`/r/${tok}?e=3`);
+    expect(events('teacher_report.class_bound')).toEqual([{ teacherId: TEACHER, quizId: QUIZ, ok: false, reason: 'expired' }]);
+    const html = await (await get(`/page/${tok}?e=3`)).text();
+    expect(html).toMatch(/link has closed/);
+  });
+
+  test('class: any other refusal → the plain "did not save" notice', async () => {
+    const tok = quizTok();
+    WebQuiz.whoClass = jest.fn(async () => { throw new WebQuiz.WqError(404, { error: 'class_unknown' }); });
+    const res = await post(`/class/${tok}`, { quiz: QUIZ, key: 'nope' });
+    expect(res.headers.get('location')).toBe(`/r/${tok}?e=1`);
+  });
+
+  test('class: the class column not migrated yet (whoClass not_ready) → its own notice, not "try again"', async () => {
+    const tok = quizTok();
+    WebQuiz.whoClass = jest.fn(async () => { throw new WebQuiz.WqError(503, { error: 'not_ready' }); });
+    const res = await post(`/class/${tok}`, { quiz: QUIZ, key: 'k-3b' });
+    expect(res.headers.get('location')).toBe(`/r/${tok}?e=2`);
+    expect(events('teacher_report.class_bound')).toEqual([{ teacherId: TEACHER, quizId: QUIZ, ok: false, reason: 'not_ready' }]);
+    const html = await (await get(`/page/${tok}?e=2`)).text();
+    expect(html).toMatch(/cannot be saved yet/);
+    expect(html).not.toMatch(/try again/i);
+  });
 
   test('class: hands the quiz\'s code, the report token and the key to whoClass, then 303 back to the report', async () => {
     const tok = quizTok();
@@ -235,11 +274,12 @@ describe('POST /class/:token and /fix/:token (identity v2 writers)', () => {
     expect(events('teacher_report.class_bound')).toEqual([{ teacherId: TEACHER, quizId: QUIZ, ok: false, reason: 'class_unknown' }]);
   });
 
-  test('class: identity v2 not deployed yet → back with a notice, nothing written', async () => {
+  test('class: a deployment without identity v2 (no whoClass) → back with the not-ready notice, nothing written', async () => {
     const tok = quizTok();
+    WebQuiz.whoClass = undefined;
     const res = await post(`/class/${tok}`, { quiz: QUIZ, key: 'k-3b' });
     expect(res.status).toBe(303);
-    expect(res.headers.get('location')).toBe(`/r/${tok}?e=1`);
+    expect(res.headers.get('location')).toBe(`/r/${tok}?e=2`);
     expect(events('teacher_report.class_bound')).toEqual([{ teacherId: TEACHER, quizId: QUIZ, ok: false, reason: 'not_ready' }]);
   });
 

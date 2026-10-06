@@ -8,7 +8,7 @@
  *            (greyed, when the quiz's one class is known), scores, every
  *            question's difficulty, the stored reteach guidance, the reminder
  *     class  teacher-report.data classReport(): grade × subject, 8 weeks, quizzes
- *   renderMessagePage({ kind: 'expired'|'missing'|'error', lang })
+ *   renderMessagePage({ kind: 'expired'|'incomplete'|'missing'|'error', lang })
  *
  * NO JAVASCRIPT. Every action is a link the server answers: Export PDF, Remind
  * the class (logged, then a 302 to wa.me with the reminder), each tab, the
@@ -86,6 +86,12 @@ const SUBJECTS = {
   'general knowledge': { en: 'General Knowledge', ur: 'معلومات عامہ' },
   general_knowledge: { en: 'General Knowledge', ur: 'معلومات عامہ' },
   computer: { en: 'Computer', ur: 'کمپیوٹر' },
+  // Short codes the quiz rows carry (sst, gk) and other spellings of the same subjects.
+  sst: { en: 'Social Studies', ur: 'معاشرتی علوم' },
+  gk: { en: 'General Knowledge', ur: 'معلومات عامہ' },
+  islamiyat: { en: 'Islamiat', ur: 'اسلامیات' },
+  'general science': { en: 'General Science', ur: 'جنرل سائنس' },
+  general_science: { en: 'General Science', ur: 'جنرل سائنس' },
 };
 
 // A slash command is one left-to-right atom: in Urdu prose a bare "/" would
@@ -106,6 +112,7 @@ const CHROME = {
     playedOf: (p, of) => `<b class="num">${p}</b> of <b class="num">${of}</b> played`,
     playedN: (p) => `<b class="num">${p}</b> played`,
     playedLabel: 'played',
+    offList: (n) => `<span class="num">+${n}</span> not on the list`,
     average: 'Average', hardest: 'Hardest', none: '—',
     notPlayed: 'Not played yet',
     allPlayed: 'Everyone on your class list has played.',
@@ -124,6 +131,8 @@ const CHROME = {
     provisionalBody: 'These children typed their own name. Add each one to the class, or say who it really is.',
     addTo: (c) => `Add to ${c}`, thisIs: 'This is…', save: 'Save',
     noticeFailed: 'That did not save. Please try again.',
+    noticeNotReady: 'This cannot be saved yet: choosing a class switches on with the next update. Your report is not affected.',
+    noticeClosed: 'This quiz link has closed, so its class can no longer be changed.',
     noPlayers: 'No one has played yet. Share the quiz link with your class.',
     questions: 'Question by question',
     qRight: (n, p) => `Q${n} · ${p}% right`,
@@ -147,6 +156,8 @@ const CHROME = {
     emptyClass: 'No quizzes sent in the last 60 days. Send /quiz on WhatsApp to make one.',
     expiredTitle: 'This link has expired',
     expiredBody: 'Send /quiz on WhatsApp for a fresh one.',
+    incompleteTitle: 'This link is not complete',
+    incompleteBody: 'Open it again from WhatsApp, or send /quiz for a fresh one.',
     missingTitle: 'We could not find this report',
     missingBody: 'Send /quiz on WhatsApp to see your quiz reports.',
     errorTitle: 'The report could not open right now',
@@ -155,7 +166,7 @@ const CHROME = {
   ur: {
     title: 'کوئز رپورٹ',
     week: (d, m) => `${d}/${m + 1}`,
-    // An Urdu date (Urdu digits, Urdu month) reads right to left: no LTR isolate.
+    // An Urdu date (Urdu month between the numbers) reads right to left: no LTR isolate.
     dateClass: 'dt',
     switchTo: 'English', switchLang: 'en',
     fromLp: 'سبق کے منصوبے سے', fromCoaching: 'کوچنگ سے', fromVideo: 'ویڈیو سے',
@@ -163,6 +174,7 @@ const CHROME = {
     playedOf: (p, of) => `<b class="num">${of}</b> میں سے <b class="num">${p}</b> نے کھیلا`,
     playedN: (p) => `<b class="num">${p}</b> نے کھیلا`,
     playedLabel: 'بچوں نے کھیلا',
+    offList: (n) => `<span class="num">+${n}</span> فہرست سے باہر`,
     average: 'اوسط', hardest: 'سب سے مشکل', none: '—',
     notPlayed: 'ابھی نہیں کھیلا',
     allPlayed: 'کلاس کی فہرست میں سب بچوں نے کھیل لیا ہے۔',
@@ -171,7 +183,7 @@ const CHROME = {
     copy: 'پیغام کاپی کریں',
     copyHint: 'پیغام کو دبا کر رکھیں، سب منتخب کریں، پھر کاپی کریں۔',
     reminderPrint: 'کلاس گروپ کے لیے پیغام',
-    ambiguousTitle: 'یہ quiz کس کلاس کے لیے تھا؟',
+    ambiguousTitle: 'یہ کوئز کس کلاس کے لیے تھا؟',
     ambiguousBody: 'جن بچوں نے کھیلا وہ نیچے ہیں۔ کلاس چنیں تاکہ پتا چلے کس نے ابھی نہیں کھیلا۔',
     noneTitle: 'دیکھیں کس نے ابھی نہیں کھیلا',
     noneBody: `WhatsApp پر ${CMD('/roster')} بھیج کر کلاس کی فہرست بنائیں، پھر یہ رپورٹ دوبارہ کھولیں۔`,
@@ -181,7 +193,9 @@ const CHROME = {
     provisionalBody: 'ان بچوں نے اپنا نام خود لکھا۔ ہر ایک کو کلاس میں شامل کریں، یا بتائیں کہ یہ اصل میں کون ہے۔',
     addTo: (c) => `${c} میں شامل کریں`, thisIs: 'یہ دراصل…', save: 'محفوظ کریں',
     noticeFailed: 'محفوظ نہیں ہو سکا۔ دوبارہ کوشش کریں۔',
-    noPlayers: 'ابھی کسی نے نہیں کھیلا۔ quiz کا لنک کلاس کو بھیجیں۔',
+    noticeNotReady: 'ابھی محفوظ نہیں ہو سکتا: کلاس چننے کی سہولت اگلی اپ ڈیٹ کے ساتھ شروع ہوگی۔ آپ کی رپورٹ پر کوئی اثر نہیں۔',
+    noticeClosed: 'اس کوئز کا لنک بند ہو چکا ہے، اس لیے اب اس کی کلاس نہیں بدلی جا سکتی۔',
+    noPlayers: 'ابھی کسی نے نہیں کھیلا۔ کوئز کا لنک کلاس کو بھیجیں۔',
     questions: 'ہر سوال کا حال',
     qRight: (n, p) => `سوال <span class="num">${n}</span> · <span class="num">${p}%</span> درست`,
     qNone: (n) => `سوال <span class="num">${n}</span> · ابھی کسی نے جواب نہیں دیا`,
@@ -193,19 +207,21 @@ const CHROME = {
       secure: 'بچوں کو یہ پکا آ گیا', stretch: 'کل انہیں ایک قدم آگے کیسے لے جائیں',
     },
     schoolLine: (r, m, p) => `اس ہفتے اسکول کا نمبر: <b class="num">${r}</b>${m > 0 ? ` (<span class="num">${m}</span> درجے اوپر)` : ''}${p != null ? ` · <b class="num">${p}</b> بچوں نے کھیلا` : ''}`,
-    exportPdf: 'PDF ڈاؤن لوڈ', allClasses: 'میری سب کلاسیں', backToQuiz: 'اس quiz پر واپس',
+    exportPdf: 'PDF ڈاؤن لوڈ', allClasses: 'میری سب کلاسیں', backToQuiz: 'اس کوئز پر واپس',
     updated: (t) => `تازہ ترین: <span class="num">${t}</span> · دوبارہ کھولنے پر نئی معلومات`,
-    classTitle: 'میری سب کلاسیں', classSub: 'پچھلے <span class="num">60</span> دن کے quiz',
-    cellLine: (q, p) => `<b class="num">${q}</b> quiz · <b class="num">${p}</b> نے کھیلا`,
+    classTitle: 'میری سب کلاسیں', classSub: 'پچھلے <span class="num">60</span> دن کے کوئز',
+    cellLine: (q, p) => `<b class="num">${q}</b> کوئز · <b class="num">${p}</b> نے کھیلا`,
     avgShort: 'اوسط', noClass: 'کلاس معلوم نہیں',
     trend: 'ہر ہفتے کتنے بچوں نے کھیلا',
-    yourQuizzes: 'آپ کے quiz',
+    yourQuizzes: 'آپ کے کوئز',
     quizLine: (p) => `<b class="num">${p}</b> نے کھیلا`,
-    emptyClass: `پچھلے 60 دن میں کوئی quiz نہیں بھیجا گیا۔ نیا بنانے کے لیے WhatsApp پر ${CMD('/quiz')} بھیجیں۔`,
+    emptyClass: `پچھلے 60 دن میں کوئی کوئز نہیں بھیجا گیا۔ نیا بنانے کے لیے WhatsApp پر ${CMD('/quiz')} بھیجیں۔`,
     expiredTitle: 'اس لنک کی مدت ختم ہو گئی ہے',
     expiredBody: `نئے لنک کے لیے WhatsApp پر ${CMD('/quiz')} بھیجیں۔`,
+    incompleteTitle: 'یہ لنک مکمل نہیں',
+    incompleteBody: `اسے WhatsApp سے دوبارہ کھولیں، یا نئے لنک کے لیے ${CMD('/quiz')} بھیجیں۔`,
     missingTitle: 'یہ رپورٹ نہیں ملی',
-    missingBody: `اپنی quiz رپورٹس دیکھنے کے لیے WhatsApp پر ${CMD('/quiz')} بھیجیں۔`,
+    missingBody: `اپنی کوئز رپورٹس دیکھنے کے لیے WhatsApp پر ${CMD('/quiz')} بھیجیں۔`,
     errorTitle: 'رپورٹ ابھی نہیں کھل سکی',
     errorBody: 'تھوڑی دیر بعد دوبارہ کوشش کریں۔',
   },
@@ -224,8 +240,9 @@ function pkt(iso) {
 function dateLabel(iso, lang, { year = false } = {}) {
   const d = pkt(iso);
   if (!d) return '';
-  // Urdu prose takes Urdu digits (language-protocol §9.4), and a date set in them reads
-  // right to left like the words around it: never put it in a left-to-right isolate.
+  // A date is Urdu prose: Urdu digits (language-protocol §9.4; counts, % and scores stay
+  // ASCII inside their isolates), and it reads right to left with its month, so it is
+  // never put in a left-to-right isolate.
   if (lang === 'ur') return urduDigits(`${d.getUTCDate()} ${MONTHS_UR[d.getUTCMonth()]}${year ? ` ${d.getUTCFullYear()}` : ''}`);
   return `${d.getUTCDate()} ${MONTHS_EN[d.getUTCMonth()]}${year ? ` ${d.getUTCFullYear()}` : ''}`;
 }
@@ -455,12 +472,16 @@ ${K(quiz.topic || C.title, 'h1')}
 ${srcLabel ? `<span class="chip-src">${L(esc(srcLabel))}</span>` : ''}
 </div></header>`;
 
-  const notice = noticeKind === 'failed' && !print ? `<div class="notice" role="status">${L(C.noticeFailed)}</div>` : '';
+  const NOTICE_KEYS = { failed: 'noticeFailed', notReady: 'noticeNotReady', closed: 'noticeClosed' };
+  const notice = NOTICE_KEYS[noticeKind] && !print ? `<div class="notice" role="status">${L(C[NOTICE_KEYS[noticeKind]])}</div>` : '';
 
-  // 2. tiles
-  const ringP = of ? Math.min(100, Math.round((100 * playedN) / of)) : 0;
+  // 2. tiles. With a known class, "N of M" counts the children ON the list only:
+  // typed children and other classes' children are named separately, never out of M.
+  const onListN = played.filter((p) => p.onList).length;
+  const offListN = played.length - onListN;
+  const ringP = of ? Math.min(100, Math.round((100 * onListN) / of)) : 0;
   const tiles = `<div class="tiles">
-<div class="tile">${of ? `<div class="ring" style="--p:${ringP}"><i class="num">${ringP}%</i></div><div class="t">${L(C.playedOf(playedN, of))}</div>` : `<div class="v num">${playedN}</div><div class="k">${L(C.playedLabel)}</div>`}</div>
+<div class="tile">${of ? `<div class="ring" style="--p:${ringP}"><i class="num">${ringP}%</i></div><div class="t">${L(C.playedOf(onListN, of))}</div>${offListN ? `<div class="t muted">${L(C.offList(offListN))}</div>` : ''}` : `<div class="v num">${playedN}</div><div class="k">${L(C.playedLabel)}</div>`}</div>
 <div class="tile"><div class="k">${L(C.average)}</div><div class="v num">${avg != null ? `${avg}%` : esc(C.none)}</div></div>
 <div class="tile"><div class="k">${L(C.hardest)}</div><div class="v num">${summary.hardestN ? `Q${num(summary.hardestN)}` : esc(C.none)}</div></div>
 </div>`;
@@ -623,7 +644,7 @@ function renderPage(data, opts = {}) {
  * about the teacher) it says it in both languages.
  */
 function renderMessagePage({ kind = 'missing', lang = null } = {}) {
-  const k = ['expired', 'missing', 'error'].includes(kind) ? kind : 'missing';
+  const k = ['expired', 'incomplete', 'missing', 'error'].includes(kind) ? kind : 'missing';
   const langs = lang === 'ur' || lang === 'en' ? [lang] : ['en', 'ur'];
   const blocks = langs.map((l) => {
     const C = CHROME[l];

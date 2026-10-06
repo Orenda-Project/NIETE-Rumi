@@ -42,7 +42,9 @@ const page = (data, opts = {}) => renderPage({ quiz: data }, { lang: 'en', tab: 
 describe('teacher report page — roster states', () => {
   test('known: tiles, greyed not-played chips sorted by roll, Remind the class link, Copy message without JS', () => {
     const html = page(quizData());
-    expect(text(html)).toMatch(/2 of 4 played/);
+    // Bilal is not on 5-A's list: 1 of 4 on the list played, Bilal named apart
+    expect(text(html)).toMatch(/1 of 4 played/);
+    expect(text(html)).toMatch(/\+1 not on the list/);
     expect(html).toMatch(/Average/);
     expect(html).toMatch(/63%/);
     expect(html).toMatch(/Hardest/);
@@ -314,14 +316,26 @@ describe('teacher report page — reserved lines', () => {
 });
 
 describe('teacher report page — review follow-ups', () => {
-  test('Urdu dates use Urdu digits and are never wrapped in a left-to-right isolate', () => {
+  test('an Urdu date is Urdu prose: Urdu digits (counts stay ASCII), never in a left-to-right isolate', () => {
     const html = page(quizData(), { lang: 'ur' });
     expect(html).toMatch(/۵ اکتوبر ۲۰۲۶/);
+    expect(html).not.toMatch(/[0-9] اکتوبر|اکتوبر [0-9]/);
+    expect(text(html)).toMatch(/63%/);
     expect(html).not.toMatch(/class="num">[^<]*اکتوبر/);
     const cls = renderPage({ class: { cells: [], weeks: [], quizzes: [{ id: 'q-9', date: '2026-10-05T09:00:00Z', topic: 'Magnets', played: 5, avg: 80 }] } },
       { lang: 'ur', tab: 'class', tokens: { self: TOKEN, quiz: { 'q-9': 'T9.x' } } });
     expect(cls).toMatch(/۵ اکتوبر/);
     expect(cls).not.toMatch(/class="num">[^<]*اکتوبر/);
+  });
+
+  test('Urdu chrome says «کوئز», never the Latin word (the /quiz command aside)', () => {
+    const pages = [
+      page(quizData({ roster: { state: 'ambiguous', className: null, of: null, lists: [{ id: 'a', label: '5-A' }] }, notPlayed: null, played: [], reminder: null }), { lang: 'ur' }),
+      renderPage({ class: { cells: [{ grade: '3', subject: 'maths', quizzes: 2, played: 4, avg: 50 }], weeks: [], quizzes: [{ id: 'q', date: '2026-10-05', topic: 'x', played: 1, avg: 1 }] } }, { lang: 'ur', tab: 'class', scope: 'quiz', tokens: { self: TOKEN } }),
+      renderPage({ class: { cells: [], weeks: [], quizzes: [] } }, { lang: 'ur', tab: 'class', tokens: { self: TOKEN } }),
+      renderMessagePage({ kind: 'missing', lang: 'ur' }),
+    ];
+    for (const h of pages) expect(text(h).replace(/\/quiz/g, '')).not.toMatch(/\bquiz\b/i);
   });
 
   test('the Urdu eyebrow says «کوئز رپورٹ»', () => {
@@ -338,6 +352,36 @@ describe('teacher report page — review follow-ups', () => {
   });
 });
 
+describe('teacher report page — the played tile counts the class list only', () => {
+  test('a known class: "N of M played" counts on-list children only, the others are named as such', () => {
+    const played = [
+      { first: 'A', roll: 1, correct: 3, total: 4, pct: 75, onList: true },
+      { first: 'B', roll: 2, correct: 3, total: 4, pct: 75, onList: true },
+      ...Array.from({ length: 7 }, (_, i) => ({ first: `X${i}`, roll: null, correct: 1, total: 4, pct: 25, onList: false })),
+    ];
+    const html = page(quizData({ played, summary: { played: 9, of: 4, avg: 40, total: 4, hardestN: 3 } }));
+    const tile = text(html.slice(html.indexOf('class="tiles"'), html.indexOf('class="tiles"') + 900));
+    expect(tile).toMatch(/2 of 4 played/);
+    expect(tile).toMatch(/\+7 not on the list/);
+    expect(html).toMatch(/--p:50/);
+    expect(tile).not.toMatch(/9 of 4/);
+  });
+});
+
+describe('teacher report page — QA follow-ups', () => {
+  test('short subject codes read as names: sst, gk, islamiyat, general science', () => {
+    const cells = ['sst', 'gk', 'islamiyat', 'general_science'].map((subject) => ({ grade: '3', subject, quizzes: 1, played: 1, avg: 50 }));
+    const en = text(renderPage({ class: { cells, weeks: [], quizzes: [] } }, { lang: 'en', tab: 'class', tokens: { self: TOKEN } }));
+    expect(en).toMatch(/Social Studies/);
+    expect(en).toMatch(/General Knowledge/);
+    expect(en).toMatch(/Islamiat/);
+    expect(en).toMatch(/General Science/);
+    expect(en).not.toMatch(/\bSst\b|\bGk\b/);
+    const ur = text(renderPage({ class: { cells, weeks: [], quizzes: [] } }, { lang: 'ur', tab: 'class', tokens: { self: TOKEN } }));
+    expect(ur).toMatch(/معاشرتی علوم/);
+  });
+});
+
 describe('message pages', () => {
   test('expired: EN and UR copy telling the teacher to send /quiz', () => {
     expect(renderMessagePage({ kind: 'expired', lang: 'en' })).toMatch(/This link has expired/);
@@ -348,6 +392,13 @@ describe('message pages', () => {
     expect(ur).toMatch(/<span class="ltr">\/(<span class="ltr">)?quiz/);
     expect(ur).not.toMatch(/<script/i);
   });
+  test('incomplete: a cut-off or tampered link says so, not "expired"', () => {
+    const en = text(renderMessagePage({ kind: 'incomplete', lang: 'en' }));
+    expect(en).toMatch(/This link is not complete/);
+    expect(en).not.toMatch(/expired/);
+    expect(text(renderMessagePage({ kind: 'incomplete', lang: 'ur' }))).toMatch(/مکمل نہیں/);
+  });
+
   test('missing: a not-found page that says nothing about whose quiz it is', () => {
     expect(renderMessagePage({ kind: 'missing', lang: 'en' })).toMatch(/could not find this report/i);
   });
