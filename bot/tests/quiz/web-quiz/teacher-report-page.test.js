@@ -177,6 +177,31 @@ describe('teacher report page — sections', () => {
   });
 });
 
+describe('teacher report page — maths', () => {
+  const mathsQuiz = () => quizData({
+    questions: [
+      { n: 1, text: 'A resistor is $60\\,\\Omega$. What is the current?', answered: 2, correctPct: 50, wrongTop: { option: 'B', text: '$\\frac{1}{2}$ A', pct: 100 } },
+    ],
+  });
+  test('stems and wrong answers are typeset (KaTeX), never raw $…$ or spelled-out commands', () => {
+    for (const opts of [{}, { print: true }, { lang: 'ur' }]) {
+      const html = page(mathsQuiz(), opts);
+      const body = html.slice(html.indexOf('id="questions"'));
+      expect(body).toMatch(/class="katex/);
+      expect(text(body)).not.toMatch(/\$/);
+      expect(text(body)).not.toMatch(/Omega|frac/);
+      expect(html).toMatch(/\.qm,\.qm \.katex/);
+    }
+  });
+  test('a page with no maths carries no KaTeX stylesheet', () => {
+    expect(page(quizData())).not.toMatch(/\.qm,\.qm \.katex/);
+  });
+  test('maths does not open a hole for markup in the prose around it', () => {
+    const html = page(quizData({ questions: [{ n: 1, text: '<i>x</i> is $2+2$', answered: 1, correctPct: 100, wrongTop: null }] }));
+    expect(html).toContain('&lt;i&gt;x&lt;/i&gt;');
+  });
+});
+
 describe('teacher report page — safety', () => {
   test('no JavaScript anywhere: no <script>, no on*= handlers, no javascript: URLs', () => {
     for (const html of [page(quizData()), page(quizData(), { lang: 'ur' }), page(quizData(), { print: true })]) {
