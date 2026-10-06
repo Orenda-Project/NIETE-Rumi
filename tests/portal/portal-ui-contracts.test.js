@@ -71,7 +71,7 @@ describe('bd-2466 — the mobile bar carries four items plus a tray', () => {
   const nav = () => read('portal/src/portal/components/PortalNavigation.tsx');
 
   it('names the four primary destinations', () => {
-    expect(nav()).toMatch(/MOBILE_PRIMARY\s*=\s*\[[^\]]*'Dashboard'[^\]]*'Curriculum'[^\]]*'Training'[^\]]*'Coaching'[^\]]*\]/s);
+    expect(nav()).toMatch(/MOBILE_PRIMARY\s*=\s*\[[^\]]*'Dashboard'[^\]]*'Lesson Plans'[^\]]*'Training'[^\]]*'Coaching'[^\]]*\]/s);
   });
 
   it('renders the overflow in a Sheet, not inline in the bar', () => {
