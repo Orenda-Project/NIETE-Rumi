@@ -35,6 +35,8 @@ const fs = require('fs');
 const path = require('path');
 const { wrapLatinRuns } = require('./latin-runs');
 const { PALETTE, FONTS, TYPE_FLOOR, scriptOf, dirOf, diamondSvg } = require('./niete-brand');
+// Maths in a stem or an option is inline TeX ($…$): typeset server-side, never shown raw.
+const { mathHtml, mathCss, usesMath } = require('../services/quiz/quiz-math');
 
 const RTL_LANGS = new Set(['ur']);
 // The portal path of the report. Not /t: that is the training-template login link.
@@ -382,7 +384,12 @@ function kit(lang) {
     const crtl = scriptOf(s) === 'ur';
     return `<${tag} class="${crtl ? 'c-rtl' : 'c-ltr'}${cls ? ` ${cls}` : ''}" dir="${crtl ? 'rtl' : 'ltr'}">${wrapLatin(esc(s), crtl)}</${tag}>`;
   };
-  return { rtl, C, T, L, K };
+  // The same, for question text: maths typeset by KaTeX, the prose around it escaped.
+  const M = (s, tag = 'span', cls = '') => {
+    const crtl = scriptOf(s) === 'ur';
+    return `<${tag} class="${crtl ? 'c-rtl' : 'c-ltr'}${cls ? ` ${cls}` : ''}" dir="${crtl ? 'rtl' : 'ltr'}">${mathHtml(s, { prose: (p) => wrapLatin(esc(p), crtl) })}</${tag}>`;
+  };
+  return { rtl, C, T, L, K, M };
 }
 
 function subjectLabel(s, lang) {
@@ -415,7 +422,7 @@ function topBar({ C, L, langHref, print }) {
 }
 
 function quizSections(r, { lang, print, tokens, slots = {}, notice: noticeKind = null }) {
-  const { rtl, C, T, L, K } = kit(lang);
+  const { rtl, C, T, L, K, M } = kit(lang);
   const self = encodeURIComponent(tokens.self || '');
   const base = `${REPORT_PATH}/${self}`;
   const quiz = r.quiz || {};
@@ -516,8 +523,8 @@ ${print ? '' : `<form method="post" action="${base}/class" class="classes act"><
     const p = q.correctPct == null ? null : num(q.correctPct);
     const head = p == null ? C.qNone(num(q.n)) : C.qRight(num(q.n), p);
     const w = q.wrongTop && num(q.wrongTop.pct) >= 25 && p !== 100
-      ? `<div class="wrong">${L(C.mostChose(`<span class="num">${esc(q.wrongTop.option)}</span>`))} ${K(q.wrongTop.text)}</div>` : '';
-    return `<li class="band-${band(p)}"><div class="qh"><span class="pc">${L(head)}</span></div><div class="bar"><i style="width:${p == null ? 0 : Math.max(2, p)}%"></i></div>${K(q.text, 'div', 'stem')}${w}</li>`;
+      ? `<div class="wrong">${L(C.mostChose(`<span class="num">${esc(q.wrongTop.option)}</span>`))} ${M(q.wrongTop.text)}</div>` : '';
+    return `<li class="band-${band(p)}"><div class="qh"><span class="pc">${L(head)}</span></div><div class="bar"><i style="width:${p == null ? 0 : Math.max(2, p)}%"></i></div>${M(q.text, 'div', 'stem')}${w}</li>`;
   }).join('');
   const questions = qrows ? `<section class="card" id="questions"><h2>${L(C.questions)}</h2><ul class="qs">${qrows}</ul></section>` : '';
 
@@ -598,7 +605,8 @@ function renderPage(data, opts = {}) {
   const upd = `<div class="upd">${L(C.updated(esc(timeLabel(opts.now || Date.now()))))}</div>`;
   const needUrdu = rtl || scriptOf(JSON.stringify(data || {})) === 'ur';
   const title = tab === 'quiz' ? `${(data.quiz.quiz && data.quiz.quiz.topic) || C.title} · ${C.title}` : C.classTitle;
-  return shell({ lang, rtl, print, needUrdu, extraCss, title, body: `${parts.header}<main class="wrap">${parts.main}${foot}${upd}</main>` });
+  const css = usesMath(parts.main) ? `${extraCss}\n${mathCss()}` : extraCss;
+  return shell({ lang, rtl, print, needUrdu, extraCss: css, title, body: `${parts.header}<main class="wrap">${parts.main}${foot}${upd}</main>` });
 }
 
 /**
