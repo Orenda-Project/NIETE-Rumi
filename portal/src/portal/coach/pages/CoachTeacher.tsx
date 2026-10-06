@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { Clock, Eye, GraduationCap, MapPin, Mic, Plus } from "lucide-react";
+import { Clock, Eye, GraduationCap, MapPin, Mic, Pencil, Plus } from "lucide-react";
 import { coach } from "../../services/api";
 import { COACH_COPY as C } from "../copy";
 import { CoachPage, Card, SectionLabel, IconCircle, PageChip, BottomLink, Loading, Failed, useLoad, Chevron, Chip } from "../ui";
@@ -47,6 +47,12 @@ const CoachTeacher = () => {
   return (
     <CoachPage title={t?.name || C.dash} crumb={t?.schoolName ? `${C.schoolsAndTeachers} · ${t.schoolName}` : C.schoolsAndTeachers}
       backTo={t?.emis ? `/portal/coach/school/${t.emis}` : "/portal/coach/people"}
+      action={t?.teacherExtId ? (
+        <Link to={`/portal/coach/teacher/${t.teacherExtId}/edit`}
+          className="flex min-h-[48px] min-w-[56px] shrink-0 items-center gap-1.5 rounded-xl border border-[#e5e7eb] bg-white px-3.5 text-sm font-semibold text-[#33374a]">
+          <Pencil className="h-4 w-4" aria-hidden="true" />{C.edit}
+        </Link>
+      ) : undefined}
       chips={t ? (
         <>
           {t.schoolName && <PageChip><MapPin className="h-3.5 w-3.5" aria-hidden="true" />{t.schoolName}</PageChip>}

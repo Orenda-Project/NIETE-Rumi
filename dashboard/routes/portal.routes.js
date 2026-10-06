@@ -110,6 +110,9 @@ const { getLeaderObservations } = require('../services/leader-observations.servi
 // bd-2676 — the portal's WRITE side for scheduled visits (create + cancel).
 const { createSchedule, cancelSchedule } = require('../services/leader-schedule-write.service');
 const ObserveNotice = require('../services/observe-notice.service');
+// bd-o15qnr.11 — Edit teacher: the patch guard here, the /observe teacher admin in the bot.
+const CoachTeacherAdmin = require('../services/coach-teacher-admin.service');
+const ObserveTeacherAdmin = require('../services/observe-teacher-admin.client');
 // bd-88krt — coach self-service: edit a visit, own the school list, search by name.
 const {
   editSchedule, searchSchools, addSchool, removeSchool, searchTeachers,
@@ -1865,6 +1868,32 @@ router.get('/coach/observation/:id', ...coachV2, async (req, res) => {
       : null;
     return res.json({ success: true, ...rest, imageUrl });
   } catch (error) { return coachFail(res, 'observation', error); }
+});
+
+/**
+ * POST /api/portal/coach/teacher/:teacherExtId/move    Body { schoolExtId }
+ * POST /api/portal/coach/teacher/:teacherExtId/remove
+ * bd-o15qnr.11 — Edit teacher. Saved by the bot's WhatsApp /observe teacher
+ * admin (commitAdd moves her, commitRemovals takes her off her school) after this
+ * side has checked she is in the coach's patch. The patch, never the body, names
+ * who changes; the bot refuses a school the coach does not hold (403).
+ */
+router.post('/coach/teacher/:teacherExtId/move', ...coachV2, async (req, res) => {
+  const ext = String(req.params.teacherExtId || '');
+  if (!/^\d{6,15}$/.test(ext)) return res.status(404).json({ success: false, reason: 'not_found' });
+  try {
+    const out = await CoachTeacherAdmin.moveTeacher(pgQuery, ObserveTeacherAdmin, req.session.portalUserId, ext, (req.body || {}).schoolExtId);
+    return res.status(out.status).json(out.data);
+  } catch (error) { return coachFail(res, 'teacher-move', error); }
+});
+
+router.post('/coach/teacher/:teacherExtId/remove', ...coachV2, async (req, res) => {
+  const ext = String(req.params.teacherExtId || '');
+  if (!/^\d{6,15}$/.test(ext)) return res.status(404).json({ success: false, reason: 'not_found' });
+  try {
+    const out = await CoachTeacherAdmin.removeTeacher(pgQuery, ObserveTeacherAdmin, req.session.portalUserId, ext);
+    return res.status(out.status).json(out.data);
+  } catch (error) { return coachFail(res, 'teacher-remove', error); }
 });
 
 /** GET /api/portal/coach/visit/:id — one of her schedule entries, with the teacher's numbers. */

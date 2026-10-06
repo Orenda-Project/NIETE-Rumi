@@ -1986,6 +1986,84 @@ router.post('/observe/notify-teacher', requireInternalKey, async (req, res) => {
 });
 
 /* ------------------------------------------------------------------------- *
+ * bd-o15qnr.11 — the coach app's Edit teacher, saved through the WhatsApp
+ * /observe teacher admin and nothing else (operator: "The backend of these are
+ * already present if you follow what /observe does, so check the moving
+ * operation from there"). No logic here: the same commitAdd / commitRemovals the
+ * observe Flow calls (observe-visit-flow.handler.js teacher_add_commit /
+ * teacher_remove_commit), with their own `myschool` authorisation and their own
+ * leader_roster_audit rows. The portal re-checks the patch before it asks, and
+ * sends only what its patch says about her.
+ * ------------------------------------------------------------------------- */
+
+const TEACHER_ADMIN_HTTP = { not_my_school: 403, invalid_phone: 400, is_coach: 400, not_found: 404, failed: 500 };
+
+/**
+ * POST /api/internal/observe/teacher-move
+ * Body   { leaderUserId, teacherPhone, schoolExtId }
+ * A teacher already on record is MOVED to `schoolExtId` (commitAdd's 'move').
+ * Ok     200 { success: true, outcome: 'move'|'already_here' }
+ * Errors 400 (missing field / invalid phone / a coach), 401 (bad key),
+ *        403 not_my_school, 404 (number not on record — this screen never creates a teacher)
+ */
+router.post('/observe/teacher-move', requireInternalKey, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const leaderUserId = String(body.leaderUserId || '').trim();
+    const teacherPhone = String(body.teacherPhone || '').trim();
+    const schoolExtId = String(body.schoolExtId || '').trim();
+    if (!leaderUserId || !teacherPhone || !schoolExtId) {
+      return res.status(400).json({ success: false, reason: 'missing_field' });
+    }
+    const T = require('../services/observe/observe-teacher-admin.service');
+    const plan = await T.planAdd({ actorLeaderUserId: leaderUserId, schoolExtId, rawPhone: teacherPhone });
+    if (plan.outcome === 'new') return res.status(404).json({ success: false, reason: 'not_found' });
+    if (TEACHER_ADMIN_HTTP[plan.outcome]) {
+      return res.status(TEACHER_ADMIN_HTTP[plan.outcome]).json({ success: false, reason: plan.outcome });
+    }
+    const out = await T.commitAdd({ actorLeaderUserId: leaderUserId, schoolExtId, rawPhone: teacherPhone });
+    if (TEACHER_ADMIN_HTTP[out.outcome]) {
+      return res.status(TEACHER_ADMIN_HTTP[out.outcome]).json({ success: false, reason: out.outcome });
+    }
+    return res.json({ success: true, outcome: out.outcome, toSchoolName: out.toSchoolName || null });
+  } catch (error) {
+    logToFile('❌ Internal observe teacher-move failed', { error: error?.message }, 'error');
+    return res.status(500).json({ success: false, reason: 'failed' });
+  }
+});
+
+/**
+ * POST /api/internal/observe/teacher-remove
+ * Body   { leaderUserId, userId, schoolExtId }
+ * commitRemovals for one person: her school is cleared, her upcoming visits at
+ * that school are cancelled, one 'remove' audit row.
+ * Ok     200 { success: true, schoolName, visitsCancelled }
+ * Errors 400 (missing field), 401 (bad key), 403 not_my_school, 404 not_found (not at that school)
+ */
+router.post('/observe/teacher-remove', requireInternalKey, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const leaderUserId = String(body.leaderUserId || '').trim();
+    const userId = String(body.userId || '').trim();
+    const schoolExtId = String(body.schoolExtId || '').trim();
+    if (!leaderUserId || !userId || !schoolExtId) {
+      return res.status(400).json({ success: false, reason: 'missing_field' });
+    }
+    const T = require('../services/observe/observe-teacher-admin.service');
+    const out = await T.commitRemovals({
+      actorLeaderUserId: leaderUserId, schoolExtId, userIds: [userId], reason: 'portal_edit_teacher',
+    });
+    if (!out.ok) {
+      return res.status(TEACHER_ADMIN_HTTP[out.reason] || 500).json({ success: false, reason: out.reason || 'failed' });
+    }
+    return res.json({ success: true, schoolName: out.schoolName || null, visitsCancelled: out.visitsCancelled || 0 });
+  } catch (error) {
+    logToFile('❌ Internal observe teacher-remove failed', { error: error?.message }, 'error');
+    return res.status(500).json({ success: false, reason: 'failed' });
+  }
+});
+
+/* ------------------------------------------------------------------------- *
  * bd-lfzoz — a teacher's classroom recording, uploaded from the PORTAL.
  *
  * Same reason as the LP enqueue above: the portal cannot run the coaching
