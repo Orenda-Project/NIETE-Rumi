@@ -232,6 +232,35 @@ describe('quizReport', () => {
   });
 });
 
+describe('one quiz, two class codes', () => {
+  test('a child who played on both codes is ONE row: the first finish', async () => {
+    const fake = seed();
+    const SC3 = '33333333-3333-4333-8333-333333333335';
+    fake.db.quiz_share_codes.push({ id: SC3, code: 'ZZ99ZZ', quiz_id: QUIZ, teacher_user_id: TEACHER, invited_by_student_id: null, created_at: ago(5) });
+    fake.db.quiz_sessions.push({ ...session('s9', kid(1), 'Amna Testwala', 1, 3), share_code_id: SC3 });
+    const r = await Data.quizReport(TEACHER, QUIZ);
+    const amna = r.played.filter((p) => p.first === 'Amna');
+    expect(amna).toHaveLength(1);
+    expect(amna[0].correct).toBe(4);
+    expect(r.summary.played).toBe(2);
+  });
+});
+
+describe('the reminder link when the hand-out message carries none', () => {
+  test('falls back to the quiz\'s own class code on the web page', async () => {
+    const fake = seed({ quizExtra: { meta: { share_code_id: SC } } });
+    fake.db.app_settings = [{ key: 'web_quiz_enabled', value: true }, { key: 'web_quiz_teachers', value: 'all' }];
+    process.env.WEB_QUIZ_BASE_URL = 'https://portal.example.test';
+    try {
+      const r = await Data.quizReport(TEACHER, QUIZ);
+      expect(r.quiz.link).toBe('https://portal.example.test/q/AB12CD');
+      expect(r.reminder.text).toContain('https://portal.example.test/q/AB12CD');
+    } finally {
+      delete process.env.WEB_QUIZ_BASE_URL;
+    }
+  });
+});
+
 describe('classReport', () => {
   test('the teacher\'s quizzes by grade × subject and by week, nobody else\'s', async () => {
     seed();
