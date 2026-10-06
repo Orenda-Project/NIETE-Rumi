@@ -187,6 +187,9 @@ const CHROME = {
     // The teacher web report's half of the PDF (only when the teacher has it).
     notPlayedYet: 'Not played yet',
     notPlayedCount: (n, of) => (of ? `${n} of the ${of} children on the class list` : `${n} children`),
+    // The small number is the child's place on the teacher's own list (the order
+    // it was pasted in), not a register roll: it is named for what it is.
+    listNoKey: 'small number = list no.',
     allPlayed: 'Everyone on the class list has played.',
     remindClass: 'Remind the class',
     remindHint: 'Opens WhatsApp with a message for the class group. It names no child.',
@@ -224,6 +227,7 @@ const CHROME = {
     // verb here is gendered by a person (gender-neutral rule).
     notPlayedYet: 'ابھی نہیں کھیلا',
     notPlayedCount: (n, of) => (of ? `کلاس کی فہرست کے ${of} بچوں میں سے ${n}` : `${n} بچے`),
+    listNoKey: 'چھوٹا نمبر = لسٹ نمبر',
     allPlayed: 'کلاس کی فہرست کے سب بچوں نے کھیل لیا ہے۔',
     remindClass: 'کلاس کو یاد دلائیں',
     remindHint: 'WhatsApp میں کلاس گروپ کے لیے پیغام کھلے گا۔ اس میں کسی بچے کا نام نہیں۔',
@@ -404,13 +408,16 @@ function renderVideoQuizReportHtml(d) {
   // by roll number, first names only (the teacher's own document). Then the two
   // links: the reminder share (it names nobody) and the live web report.
   const knownClass = Array.isArray(notPlayed);
-  const npChips = knownClass ? notPlayed.map((k) => `<span class="np-chip">${
-    k.roll != null ? `<span class="np-roll">${esc(k.roll)}</span>` : ''}${nameCell(k.first)}</span>`).join('') : '';
+  // The name first; the list no. after it, small and grey — a sort key the
+  // teacher recognises, never an identity.
+  const npChips = knownClass ? notPlayed.map((k) => `<span class="np-chip">${nameCell(k.first)}${
+    k.roll != null ? `<span class="np-roll">${esc(k.roll)}</span>` : ''}</span>`).join('') : '';
+  const hasListNo = knownClass && notPlayed.some((k) => k.roll != null);
   const npBlock = knownClass ? `
     <div class="np">
       <div class="label">${L(C.notPlayedYet)}</div>
       ${notPlayed.length
-    ? `<div class="np-note">${L(C.notPlayedCount(notPlayed.length, rosterOf))}</div><div class="np-grid">${npChips}</div>`
+    ? `<div class="np-note">${L(C.notPlayedCount(notPlayed.length, rosterOf))}${hasListNo ? ` &middot; ${L(C.listNoKey)}` : ''}</div><div class="np-grid">${npChips}</div>`
     : `<div class="np-note">${L(C.allPlayed)}</div>`}
     </div>` : '';
   const showRemind = reportLinks && !(knownClass && !notPlayed.length);
@@ -560,7 +567,7 @@ ${RTL ? '.np>.label{padding-top:10px}' : ''}
 .np-grid{display:flex;flex-wrap:wrap;gap:8px}
 .np-chip{display:inline-flex;align-items:center;gap:8px;background:#f1f2f5;border:1px solid #e3e6ec;border-radius:10px;padding:5px 12px;color:#7a839c;font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;break-inside:avoid;page-break-inside:avoid}
 .np-chip .content[dir="rtl"]{line-height:${leadingAt(1.5)}}
-.np-roll{font-family:${FONTS.bodyLatin};font-weight:700;font-size:${TYPE_FLOOR.small}px;color:#9AA2B1;direction:ltr;unicode-bidi:isolate}
+.np-roll{font-family:${FONTS.bodyLatin};font-weight:400;font-size:${TYPE_FLOOR.small}px;color:#A7AEBB;direction:ltr;unicode-bidi:isolate}
 .rl{margin-top:20px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;break-inside:avoid;page-break-inside:avoid}
 .rl-btn{font-family:${bodyFam};display:inline-block;text-decoration:none;font-weight:700;font-size:${RTL ? TYPE_FLOOR_UR.body : TYPE_FLOOR.body}px;border-radius:12px;padding:10px 18px;border:2px solid ${PALETTE.slate};color:${PALETTE.slate}${RTL ? `;line-height:${UR_UI_LEADING}` : ''}}
 .rl-primary{background:${PALETTE.green};border-color:${PALETTE.green};color:#fff}

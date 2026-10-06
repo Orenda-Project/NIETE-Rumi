@@ -11,52 +11,52 @@ Feature: Teacher quiz report on the web and in the class report PDF
     Given a teacher on the teacher report list with one class list "3-B" of 15 children
     And a quiz on "Parts of a plant" for class 3 that 6 children of 3-B finished
 
-  @TR301
-  Scenario: The class report PDF lists who has not played yet, greyed, with roll numbers
+  @T350
+  Scenario: The class report PDF lists who has not played yet, greyed, with their list no.
     When the scheduled class report is sent
-    Then the PDF has a "Not played yet" section with the 9 children still to play, by roll number, first names only
+    Then the PDF has a "Not played yet" section with the 9 children still to play, first names with their list no., in list order
     And it has a "Remind the class" link to "/t/<token>/remind" and a "See the live report" link to "/t/<token>"
     And the caption carries the live report link in the teacher's own language
 
-  @TR302
+  @T351
   Scenario: A child who started but did not finish is listed once
     Given one child of 3-B started the quiz and did not finish
     When the scheduled class report is sent
     Then that child appears under "Not played yet" and nowhere else in the PDF
 
-  @TR303
+  @T352
   Scenario: A teacher with no class list still gets the live report links
     Given the teacher keeps no class list
     When the scheduled class report is sent
     Then the PDF has no "Not played yet" section
     And it still links to the live report
 
-  @TR304
+  @T353
   Scenario: A teacher not on the teacher report list gets today's report
     Given the teacher is not on app_settings.teacher_report_teachers
     When the scheduled class report is sent
     Then the PDF and its caption carry no "/t/" link and no "Not played yet" section
 
-  @TR305
+  @T354
   Scenario: An Urdu quiz's PDF section is Urdu; the caption follows the teacher
     Given the quiz language is Urdu and the teacher's language is English
     When the scheduled class report is sent
     Then the section reads "ابھی نہیں کھیلا" with "کلاس کو یاد دلائیں"
     And the caption's live report line is in English
 
-  @TR306
+  @T355
   Scenario: The reteach guidance in the PDF is the guidance the web report shows
     When the scheduled class report is sent with reteach guidance
     Then quizzes.meta.report_guidance holds exactly the guidance printed in the PDF
     And it was written in the same update that marked the quiz reported
     And a class-card send afterwards does not erase it
 
-  @TR307
+  @T356
   Scenario: The pre-send PDF does not change
     When the hand-off PDF is rendered for a quiz in English and in Urdu
     Then it is byte-identical to the base template's output
 
-  @TR308
+  @T357
   Scenario: "All my classes" shows the teacher's quizzes by class, by week and quiz by quiz
     Given the teacher sent 4 quizzes to classes 3 and 5 in the last 60 days
     When the teacher opens "All my classes" on the report page at 360 px
