@@ -68,10 +68,24 @@ describe('nonAttempters — a hand-out bound to 4-A', () => {
     expect(JSON.stringify(out)).not.toMatch(/Example Teacher|Zara|Testwala/);
   });
 
-  test('one batched read: one sessions read, one enrolment read, one students read', async () => {
+  test('batched reads: one sessions read; the roster in one enrolment read and two students reads (enrolled + the list\'s strays)', async () => {
     await IdRoster.nonAttempters({ shareCodeId: F.SC });
     const n = (t) => fake.calls.filter((c) => c.table === t).length;
-    expect([n('quiz_sessions'), n('class_enrollments'), n('students')]).toEqual([1, 1, 1]);
+    expect([n('quiz_sessions'), n('class_enrollments'), n('students')]).toEqual([1, 1, 2]);
+  });
+});
+
+describe('canonicalStudentIds — the one id a child is known by (for the hub)', () => {
+  test('an enrolled child is itself; a stray un-enrolled row of the same child maps to the enrolled one; an unknown id is itself', async () => {
+    fake.db.students.push({ id: 'b0000000-0000-4000-8000-0000000000aa', student_name: 'Ayesha Testwala', father_name: null, roll_number: null,
+      list_id: F.LIST_A, is_active: true, status: 'active', created_at: '2026-09-05T00:00:00Z' });
+    const m = await IdRoster.canonicalStudentIds([kid(1), 'b0000000-0000-4000-8000-0000000000aa', kid(9), F.TYPED, 'nope']);
+    expect(m.get(kid(1))).toBe(kid(1));
+    expect(m.get('b0000000-0000-4000-8000-0000000000aa')).toBe(kid(1));
+    expect(m.get(kid(9))).toBe(kid(8));
+    expect(m.get(F.TYPED)).toBe(F.TYPED);
+    expect(m.get('nope')).toBe('nope');
+    expect(await IdRoster.canonicalStudentId(kid(9))).toBe(kid(8));
   });
 });
 

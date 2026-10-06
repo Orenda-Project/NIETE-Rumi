@@ -855,7 +855,8 @@ async function startSession(body = {}) {
     quiz_id: ctx.quizId,
     user_id: userId,
     student_id: student ? student.id : null,
-    invited_by_student_id: ctx.invitedByStudentId,
+    // A child opening their OWN challenge link (v2) plays for their class, not as their own guest.
+    invited_by_student_id: idn && student && student.id === ctx.invitedByStudentId ? null : ctx.invitedByStudentId,
     student_name: takerName,
     student_class: takerClass,
     share_code_id: ctx.shareCodeId,
