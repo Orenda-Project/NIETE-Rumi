@@ -89,12 +89,28 @@ export function PageChip({ children }: { children: ReactNode }) {
   );
 }
 
-export function SectionLabel({ children, right }: { children: ReactNode; right?: ReactNode }) {
+/**
+ * A section heading. `count` sits straight after the text, 8px on (bd-o15qnr.8,
+ * operator: "It should be next to Today's visits so we know that is the
+ * count"); `right` is for anything that is NOT a count and goes to the far side.
+ */
+export function SectionLabel({ children, count, countTone = "info", right }: { children: ReactNode; count?: ReactNode; countTone?: ChipTone; right?: ReactNode }) {
   return (
     <h2 className="mx-1 mt-3 flex items-center gap-2 text-xl font-light">
-      <span className="flex-1">{children}</span>
-      {right}
+      <span>{children}</span>
+      {count != null && <span data-testid="section-count" className="flex"><Chip tone={countTone}>{count}</Chip></span>}
+      {right != null && <span className="ms-auto">{right}</span>}
     </h2>
+  );
+}
+
+/** A small day heading inside a list ("MON 5 OCT  3"), its count beside it. */
+export function DayLabel({ children, count }: { children: ReactNode; count?: ReactNode }) {
+  return (
+    <h3 className="mx-1 mt-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#6b7280]">
+      <span>{children}</span>
+      {count != null && <span data-testid="section-count" className="tabular-nums text-[#9ca3af]">{count}</span>}
+    </h3>
   );
 }
 
@@ -249,7 +265,7 @@ export function Tabs({ items }: { items: { to: string; label: string; count?: nu
   return (
     <nav className="flex gap-1 rounded-2xl border border-[#e5e7eb] bg-white p-1" aria-label={C.schoolsAndTeachers}>
       {items.map((t) => (
-        <Link key={t.to} to={t.to} aria-current={t.active ? "page" : undefined}
+        <Link key={t.to} to={t.to} aria-current={t.active ? "page" : undefined} data-testid="tab"
           className={`flex min-h-[56px] flex-1 items-center justify-center gap-2 rounded-xl text-base font-semibold ${t.active ? "bg-[#33374a] text-white" : "text-[#4b5563]"}`}>
           {t.label}
           {t.count != null && <b className={`text-[13px] font-bold ${t.active ? "text-[#c7cad6]" : "text-[#6b7280]"}`}>{t.count}</b>}
@@ -301,6 +317,16 @@ export function Failed({ onRetry }: { onRetry: () => void }) {
       <button type="button" onClick={onRetry} className="min-h-[48px] rounded-xl bg-[#f3f4f6] px-4 text-sm font-semibold text-[#33374a]">{C.retry}</button>
     </Card>
   );
+}
+
+/**
+ * bd-o15qnr.8 — a teacher's phone as the portal already shows it
+ * (LeaderObservation: "+92…"). teacher_ext_id is the phone for a teacher on
+ * Rumi and a name slug for one who is not; a slug has no number to show.
+ */
+export function formatPhone(value: string | null | undefined): string | null {
+  const s = String(value == null ? "" : value).replace(/[\s-]/g, "");
+  return /^\+?\d{10,15}$/.test(s) ? `+${s.replace(/^\+/, "")}` : null;
 }
 
 /** Digits of a phone in any local form, as the users table holds them (92…). */

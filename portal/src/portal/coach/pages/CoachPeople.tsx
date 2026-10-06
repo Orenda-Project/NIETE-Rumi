@@ -7,7 +7,7 @@ import { CoachPage, Tabs, SearchBox, SelectBox, ChoiceChips, Initials, IconCircl
 import type { CoachSchool, CoachTeacher } from "../types";
 
 /**
- * bd-o15qnr — Schools & teachers: one page, Teachers | Schools tabs. Numbers
+ * bd-o15qnr — Schools & teachers: one page, Schools | Teachers tabs (Schools first, bd-o15qnr.8). Numbers
  * only — days since the last visit, HITL and DC counts, average HITL, days
  * since training; for a school its visits (last 3 months), days since a
  * visit, teachers and average. No "Due" / "Done" labels (operator, v18).
@@ -71,7 +71,9 @@ type SchoolSort = "least" | "most" | "days";
 
 const CoachPeople = () => {
   const [params] = useSearchParams();
-  const tab = params.get("tab") === "schools" ? "schools" : "teachers";
+  // bd-o15qnr.8 — operator: "the first tab should be Schools, and should be the
+  // one that opens by default". Teachers is ?tab=teachers.
+  const tab = params.get("tab") === "teachers" ? "teachers" : "schools";
   const { data, failed, reload } = useLoad(() => coach.getPeople(), []);
   const [q, setQ] = useState("");
   const [school, setSchool] = useState("");
@@ -94,8 +96,8 @@ const CoachPeople = () => {
   return (
     <CoachPage title={C.schoolsAndTeachers} crumb={C.home} backTo="/portal/coach">
       <Tabs items={[
-        { to: "/portal/coach/people", label: C.teachersTab, count: data?.teachers.length, active: tab === "teachers" },
-        { to: "/portal/coach/people?tab=schools", label: C.schoolsTab, count: data?.schools.length, active: tab === "schools" },
+        { to: "/portal/coach/people", label: C.schoolsTab, count: data?.schools.length, active: tab === "schools" },
+        { to: "/portal/coach/people?tab=teachers", label: C.teachersTab, count: data?.teachers.length, active: tab === "teachers" },
       ]} />
       {failed && <Failed onRetry={reload} />}
       {!data && !failed && <Loading />}

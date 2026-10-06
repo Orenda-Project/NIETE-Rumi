@@ -59,15 +59,17 @@ describe('editSchedule', () => {
     expect(w.params).toContain('11:30');
   });
 
-  it('refuses a date in the past, and a malformed one', async () => {
+  // bd-o15qnr.8 — a visit can be moved to a past day; a malformed date is still refused.
+  it('moves a visit to a past day, and refuses a malformed date', async () => {
     const q = makeQuery({ 'select .* observation_schedules': owned });
-    await expect(editSchedule(q, LEADER, 's1', { date: '2026-01-01' }, { today: TODAY })).rejects.toThrow(/past/i);
+    const out = await editSchedule(q, LEADER, 's1', { date: '2026-01-01' }, { today: TODAY });
+    expect(out.past).toBe(true);
     await expect(editSchedule(q, LEADER, 's1', { date: '25-08-2026' }, { today: TODAY })).rejects.toThrow(/date/i);
   });
 
   it('refuses an unknown slot', async () => {
     const q = makeQuery({ 'select .* observation_schedules': owned });
-    await expect(editSchedule(q, LEADER, 's1', { date: '2026-08-25', slot: '23:00' }, { today: TODAY }))
+    await expect(editSchedule(q, LEADER, 's1', { date: '2026-08-25', slot: '23:15' }, { today: TODAY }))
       .rejects.toThrow(/slot/i);
   });
 

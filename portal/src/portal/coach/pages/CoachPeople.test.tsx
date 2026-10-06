@@ -53,7 +53,7 @@ beforeEach(() => {
 
 describe("Teachers tab", () => {
   it("never-visited first, then most days since a visit; five numbers each, no labels", async () => {
-    renderAt("/portal/coach/people");
+    renderAt("/portal/coach/people?tab=teachers");
     const names = (await screen.findAllByTestId("teacher-card")).map((c) => within(c).getByTestId("name").textContent);
     expect(names).toEqual(["Farah Naz", "Sadia Noor", "Ayesha Bibi"]);
     const sadia = screen.getAllByTestId("teacher-card")[1];
@@ -63,7 +63,7 @@ describe("Teachers tab", () => {
   });
 
   it("sort by average score, search by phone, filter by school", async () => {
-    renderAt("/portal/coach/people");
+    renderAt("/portal/coach/people?tab=teachers");
     await screen.findAllByTestId("teacher-card");
     fireEvent.click(screen.getByRole("radio", { name: "Avg score" }));
     expect(within(screen.getAllByTestId("teacher-card")[0]).getByTestId("name")).toHaveTextContent("Sadia Noor");
@@ -87,7 +87,7 @@ describe("Schools tab", () => {
   });
 
   it("the tabs switch between the two lists", async () => {
-    renderAt("/portal/coach/people");
+    renderAt("/portal/coach/people?tab=teachers");
     await screen.findAllByTestId("teacher-card");
     fireEvent.click(screen.getByRole("link", { name: /Schools/ }));
     expect(await screen.findAllByTestId("school-card")).toHaveLength(3);

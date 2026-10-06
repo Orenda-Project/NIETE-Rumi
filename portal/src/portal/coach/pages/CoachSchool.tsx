@@ -17,7 +17,7 @@ const CoachSchool = () => {
     </div>
   );
   return (
-    <CoachPage title={s?.name || C.dash} crumb={C.schoolsAndTeachers} backTo="/portal/coach/people?tab=schools"
+    <CoachPage title={s?.name || C.dash} crumb={C.schoolsAndTeachers} backTo="/portal/coach/people"
       dock={s ? <BottomLink to={`/portal/coach/new-visit?${new URLSearchParams({ school: s.schoolExtId }).toString()}`}><Plus className="h-5 w-5" aria-hidden="true" />{C.scheduleVisitHere}</BottomLink> : undefined}>
       {failed && <Failed onRetry={reload} />}
       {!data && !failed && <Loading />}

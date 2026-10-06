@@ -89,6 +89,12 @@ function fakeQuery(overrides = {}) {
     if (sql === S.COACH_SESSIONS) return { rows: COACH_SESSIONS };
     if (sql === S.MY_SCHEDULES) return { rows: MY_SCHEDULES };
     if (sql === S.SCHEDULE_BY_ID) return { rows: MY_SCHEDULES.filter((r) => r.id === params[0]) };
+    // bd-o15qnr.8 — the next upcoming visit on or after today (any date)
+    if (sql === S.NEXT_VISIT) {
+      const up = MY_SCHEDULES.filter((r) => r.status === 'upcoming' && r.scheduled_for >= params[1])
+        .sort((a, b) => (a.scheduled_for + (a.scheduled_slot || '~')).localeCompare(b.scheduled_for + (b.scheduled_slot || '~')));
+      return { rows: up.slice(0, 1) };
+    }
     if (sql === S.TEACHER_HISTORY) return { rows: overrides.history || [] };
     if (sql === S.TEAM_TOTALS) return { rows: [{ today: 46, week: 212, month: 840 }] };
     if (sql === S.TEAM_DAYS) return { rows: [{ day: '2026-10-05', n: 41 }, { day: '2026-10-06', n: 46 }] };
@@ -206,6 +212,7 @@ describe('getCoachHome — today\'s visits and the tile numbers', () => {
   test('today in time order, the next upcoming one marked current', async () => {
     const out = await SVC.getCoachHome(fakeQuery(), ME, { today: TODAY });
     expect(out.today.map((v) => [v.id, v.current])).toEqual([['v-done', false], ['v-next', true], ['v-late', false]]);
+    expect(out.next && out.next.id).toBe('v-next');
   });
 
   test('tile numbers', async () => {

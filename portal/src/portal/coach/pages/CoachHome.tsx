@@ -66,7 +66,7 @@ const CoachHome = () => {
 
   return (
     <CoachPage title={C.greeting(user?.firstName)} chips={<><PageChip><CalendarDays className="h-4 w-4" aria-hidden="true" />{todayChip()}</PageChip><PageChip>{C.coachChip}</PageChip></>}>
-      <SectionLabel right={<span data-testid="todays-visits"><Chip>{home ? home.today.length : 0}</Chip></span>}>{C.todaysVisits}</SectionLabel>
+      <SectionLabel count={<span data-testid="todays-visits">{home ? home.today.length : 0}</span>}>{C.todaysVisits}</SectionLabel>
       {failed && <Failed onRetry={reload} />}
       {!home && !failed && <Loading />}
       {home && (

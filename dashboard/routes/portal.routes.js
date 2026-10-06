@@ -1624,8 +1624,9 @@ router.post('/leader/schedules', requirePortalAuth, requireLeaderRole, async (re
     );
     res.json({ success: true, ...result });
     // bd-xorfy — tell the teacher on WhatsApp. Not awaited: the booking is
-    // saved and answered already; the client never throws.
-    if (result && result.id && result.changed !== false) {
+    // saved and answered already; the client never throws. bd-o15qnr.8: a
+    // past-dated booking records a visit that already happened — no notice.
+    if (result && result.id && result.changed !== false && !result.past) {
       ObserveNotice.notifyTeacher({
         scheduleId: result.id,
         leaderUserId: req.session.portalUserId,
@@ -1633,7 +1634,7 @@ router.post('/leader/schedules', requirePortalAuth, requireLeaderRole, async (re
       });
     }
   } catch (error) {
-    // These are user-facing validation messages ("that date is in the past"),
+    // These are user-facing validation messages ("Unknown time slot"),
     // so they are returned as 400s with the reason rather than a blank 500.
     console.error('leader/schedules create error:', error.message);
     res.status(400).json({ success: false, error: error.message });
@@ -1676,7 +1677,8 @@ router.post('/leader/schedules/:id/edit', requirePortalAuth, requireLeaderRole, 
       (sql, params) => pool.query(sql, params), req.session.portalUserId, req.params.id, { date, slot });
     res.json({ success: true, ...result });
     // bd-xorfy — a real move is news to the teacher. Not awaited; never throws.
-    if (result && result.changed) {
+    // bd-o15qnr.8: a move into the past is not news to her.
+    if (result && result.changed && !result.past) {
       ObserveNotice.notifyTeacher({
         scheduleId: req.params.id,
         leaderUserId: req.session.portalUserId,

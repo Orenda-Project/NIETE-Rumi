@@ -101,7 +101,11 @@ async function createSchedule(query, leaderUserId, input = {}, opts = {}) {
   const { teacherExtId, date, slot } = input;
 
   if (!validDate(date)) throw new Error('Invalid date — expected YYYY-MM-DD');
-  if (date < today) throw new Error('That date is in the past');
+  // bd-o15qnr.8 — a past day is allowed (operator: "allow coaches to schedule
+  // one in the past as well"): it records a visit that already happened, and
+  // shows as overdue until it is observed. `past` tells the route not to send
+  // the teacher a notice about a day that has gone.
+  const past = date < today;
   if (slot && !isAllowedSlot(slot)) throw new Error('Unknown time slot');
 
   // The teacher must be in THIS coach's patch. This is the authorisation check:
@@ -124,7 +128,7 @@ async function createSchedule(query, leaderUserId, input = {}, opts = {}) {
     const prevDate = prev.scheduled_for instanceof Date
       ? prev.scheduled_for.toISOString().slice(0, 10) : String(prev.scheduled_for || '').slice(0, 10);
     const changed = prevDate !== date || (prev.scheduled_slot || null) !== (slot || null);
-    return { id: (rows && rows[0] && rows[0].id) || active[0].id, updated: true, changed };
+    return { id: (rows && rows[0] && rows[0].id) || active[0].id, updated: true, changed, past };
   }
   const { rows } = await query(INSERT_SQL, [
     leaderUserId, schoolExtId, teacherExtId,
@@ -134,7 +138,7 @@ async function createSchedule(query, leaderUserId, input = {}, opts = {}) {
     teacher.teacher_user_id || null,
     teacher.teacher_name || null, teacher.school_name || null, date, slot || null,
   ]);
-  return { id: rows && rows[0] && rows[0].id, updated: false, changed: true };
+  return { id: rows && rows[0] && rows[0].id, updated: false, changed: true, past };
 }
 
 /**
