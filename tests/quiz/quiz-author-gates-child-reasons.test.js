@@ -194,3 +194,55 @@ describe('on the generate path', () => {
     expect(mockCreate.mock.calls.filter((c) => isReasons(c[0]))).toHaveLength(0);
   });
 });
+
+// ── a grade 1-2 stem in eight words ──────────────────────────────────────────
+describe('a grade 1-2 stem over eight words is rewritten to fit, never cut', () => {
+  test('a rewrite must fit, keep every number and keep what is asked ("left")', () => {
+    const long = 'Bunty has 20 toys and picks up 7 of them. How many toys are left?';
+    expect(Reasons.stemAcceptable(long, '20 toys, 7 picked up. How many left?')).toBe(true);
+    expect(Reasons.stemAcceptable(long, 'Bunty has 20 toys. She picks 7 up. How many?')).toBe(false); // the cut: two answers
+    expect(Reasons.stemAcceptable(long, 'Bunty picks up 7 toys. How many are left?')).toBe(false);   // 20 lost
+    expect(Reasons.stemAcceptable(long, 'Bunty has 20 toys and picks up 7. How many toys are left now?')).toBe(false); // too long
+  });
+
+  const LONG_STEM = 'The class looked at a bean plant today. Which part takes in water?';
+  const FIT = 'Which plant part takes in water?';
+  const isStemFit = (call) => /reads at most 8 words/.test(call.messages[0].content);
+  const withLongStem = () => { const qs = quiz(); qs[0] = { ...qs[0], question: LONG_STEM }; return qs; };
+
+  test('flag on: the long stem ships rewritten, its options and key unchanged; recorded', async () => {
+    mockCreate.mockImplementation((call) => {
+      if (isStemFit(call)) return Promise.resolve(reply({ stems: [{ id: 0, question: FIT }] }));
+      if (isReasons(call)) return Promise.resolve(shortReply(call));
+      return Promise.resolve(reply({ lesson_summary: SUMMARY, questions: withLongStem() }));
+    });
+    wire({ gates: true });
+    const r = await Gen.process(QID, {});
+    expect(r.ok).toBe(true);
+    const row = storedRows().find((x) => x.question_text === FIT);
+    expect(row).toBeTruthy();
+    expect(row['option_' + row.correct_option.toLowerCase()]).toBe('roots');
+    expect(storedRows().some((x) => x.question_text === LONG_STEM)).toBe(false);
+    expect(lastMeta().stem_fit).toEqual(expect.objectContaining({ targets: 1, fitted: 1, kept_long: 0, status: 'fitted' }));
+  });
+
+  test('flag on, a rewrite that loses the question: the stem ships whole, counted', async () => {
+    mockCreate.mockImplementation((call) => {
+      if (isStemFit(call)) return Promise.resolve(reply({ stems: [{ id: 0, question: 'The class looked at a bean plant today and talked.' }] }));
+      if (isReasons(call)) return Promise.resolve(shortReply(call));
+      return Promise.resolve(reply({ lesson_summary: SUMMARY, questions: withLongStem() }));
+    });
+    wire({ gates: true });
+    await Gen.process(QID, {});
+    expect(storedRows().some((x) => x.question_text === LONG_STEM)).toBe(true);
+    expect(lastMeta().stem_fit).toEqual(expect.objectContaining({ fitted: 0, kept_long: 1 }));
+  });
+
+  test('flag off: no stem call, the stem is as authored', async () => {
+    mockCreate.mockImplementation(() => Promise.resolve(reply({ lesson_summary: SUMMARY, questions: withLongStem() })));
+    wire({ gates: undefined });
+    await Gen.process(QID, {});
+    expect(lastMeta().stem_fit).toBeUndefined();
+    expect(mockCreate.mock.calls.filter((c) => isStemFit(c[0]))).toHaveLength(0);
+  });
+});

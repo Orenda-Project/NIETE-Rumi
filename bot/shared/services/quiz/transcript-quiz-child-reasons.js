@@ -169,6 +169,94 @@ async function shortenReasons({
   return { questions: next, changed: record.rewritten > 0, record };
 }
 
+
+// ─── A GRADE 1-2 STEM IN EIGHT WORDS (the same pass, gates v2) ──────────────
+// The source check names a grade 1-2 stem over eight words (STEM_TOO_LONG_G12).
+// It used to be CUT, and the cut made "Bunty has 20 toys. She picks 7 up. How
+// many?" — two right answers. Since the cut stopped, the stem ships whole: 7 of
+// 8 blocking items in a blind score were grade 1-2 stems of 9-18 words. Here it
+// is REWRITTEN to fit, and code keeps the rewrite only when it fits, says every
+// number the stem said, and keeps the words that make the question ONE question
+// ("left", "remain", "altogether", «باقی»…). Else it ships whole, counted.
+const StemRule = require('./transcript-quiz-source-fidelity');
+
+/** Words that decide WHAT is asked: a rewrite must keep each group the stem had. */
+const CUE_GROUPS = [
+  /\b(left|remain(s|ing)?)\b/i, /\b(altogether|in all|total)\b/i, /\bmore\b/i, /\b(fewer|less)\b/i,
+  /\b(not|never|no)\b/i, /\bhow many\b/i, /\bhow much\b/i, /\b(first|last|next|before|after)\b/i,
+  /باقی/, /(کل|ملا کر)/, /زیادہ/, /کم/, /نہیں/, /(کتنے|کتنی|کتنا)/, /(پہلے|بعد)/,
+];
+const cues = (t) => CUE_GROUPS.filter((rx) => rx.test(String(t || '')));
+
+function stemAcceptable(orig, next) {
+  const t = String(next || '').trim();
+  if (!t || StemRule.stemWords(t) > StemRule.G12_MAX_WORDS) return false;
+  const have = new Set(numbersIn(t));
+  if (!numbersIn(orig).every((n) => have.has(n))) return false;
+  return cues(orig).every((rx) => rx.test(t));
+}
+
+function stemPrompt(targets, { language }) {
+  const lang = language === 'ur' ? 'Urdu (Urdu script; an English technical term may stay in English letters)' : 'English';
+  const lines = targets.map(({ q, i }, n) => JSON.stringify({
+    id: n, question: q.question, options: q.options, right_answer: (q.options || [])[Number(q.correct_index)], words_now: StemRule.stemWords(q.question), max_words: StemRule.G12_MAX_WORDS,
+  })).join('\n');
+  return [
+    'You shorten quiz questions for a child in grade 1 or 2, who reads at most 8 words. Each question is READ ALOUD too.',
+    `HARD LIMIT: AT MOST ${StemRule.G12_MAX_WORDS} words, in ${lang}. A sum written as $…$ counts as one word.`,
+    'IT MUST STAY THE SAME QUESTION, with exactly ONE right answer among the SAME options: keep every number, keep the words that say what is asked ("left", "remain", "altogether", "more", "fewer", "not", «باقی», «کل», «زیادہ», «کم», «نہیں»), and keep who or what it is about. Never end on a bare "How many?" — say how many WHAT ("How many toys are left?"). Drop the story words, not the question.',
+    'Example: "Bunty has 20 toys and she picks up 7 of them. How many toys are left on the floor?" → "Bunty has 20 toys. 7 are picked up. How many are left?" is too long (11) → "20 toys, 7 picked up. How many left?"',
+    'If it cannot be done in that many words without changing the question, return the question unchanged.',
+    'Return JSON only: { "stems": [ { "id": 0, "question": "" } ] }',
+    '',
+    lines,
+  ].join('\n');
+}
+
+/**
+ * Fit every grade 1-2 stem over eight words. Never throws, never drops a question.
+ * @returns {Promise<{questions:object[], changed:boolean, record:object|null}>}
+ */
+async function fitStems({
+  questions, gradeBand, language, complete,
+}) {
+  if (!StemRule.isGradeOneTwo(gradeBand) || !Array.isArray(questions)) return { questions, changed: false, record: null };
+  const targets = questions.map((q, i) => ({ q, i })).filter(({ q }) => StemRule.stemWords(q && q.question) > StemRule.G12_MAX_WORDS);
+  if (!targets.length) return { questions, changed: false, record: null };
+  const record = {
+    targets: targets.length, words_before: mean(targets.map(({ q }) => StemRule.stemWords(q.question))), fitted: 0, kept_long: targets.length, cost_usd: 0, status: 'unchanged',
+  };
+  let json;
+  try {
+    const out = await complete({ prompt: stemPrompt(targets, { language }), maxTokens: 2000, label: 'transcript_quiz.stem_fit' });
+    json = out && out.json;
+    record.cost_usd = Number(out && out.costUsd) || 0;
+    record.latency_ms = (out && out.latencyMs) || null;
+  } catch (err) {
+    record.status = 'error';
+    record.error = String((err && err.message) || err).slice(0, 160);
+    return { questions, changed: false, record };
+  }
+  const byId = new Map(((json && json.stems) || []).filter((x) => x && Number.isInteger(Number(x.id))).map((x) => [Number(x.id), x.question]));
+  let next = questions;
+  const after = [];
+  targets.forEach(({ q, i }, n) => {
+    const text = byId.get(n);
+    if (stemAcceptable(q.question, text)) {
+      next = next.map((x, k) => (k === i ? { ...x, question: String(text).trim() } : x));
+      record.fitted += 1;
+      after.push(StemRule.stemWords(text));
+    } else {
+      after.push(StemRule.stemWords(q.question));
+    }
+  });
+  record.words_after = mean(after);
+  record.kept_long = targets.length - record.fitted;
+  record.status = record.fitted ? 'fitted' : 'unchanged';
+  return { questions: next, changed: record.fitted > 0, record };
+}
+
 module.exports = {
   reasonCap, longReasons, shortenReasons, wordCount, sentenceCount, acceptable, buildPrompt,
+  fitStems, stemAcceptable,
 };
