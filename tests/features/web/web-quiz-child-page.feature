@@ -297,6 +297,44 @@ Feature: Web child quiz page on the portal
     Then the phone forgets that child and shows "who is playing?" (the roll-number pad when the class has a list)
     And no "Something went wrong" message is shown
 
+  @T250
+  Scenario: The school league ranks every school that played this week by points that reward taking part
+    Given children of several schools finished quizzes this week (Monday to now, Pakistan time)
+    When a child opens "School league" from the card, the class table or "today"
+    Then each school that played shows its place, its points and how many children played
+    And a school earns 10 points for each child's first finish of a quiz plus up to 10 for that score
+    And a practice re-attempt, a teacher's own test and a test school add nothing
+    And no teacher, class or child is named on the league
+
+  @T251
+  Scenario: A child's own school is always in view, with its move since yesterday and what this finish added
+    Given the child's quiz was sent by a teacher of a school that has points this week
+    When the child opens the school league after finishing
+    Then a card on top says "<school> is #<place> this week", the move since yesterday, and "+<n> points for <school>!"
+    And the school's row in the list is highlighted and stays pinned to the top or bottom of the screen when scrolled away
+
+  @T252
+  Scenario: A school with no points yet is invited, never ranked last
+    Given no child of the child's school has finished a quiz this week
+    When the child opens the school league
+    Then the card on top says "No one from <school> has played yet this week. Be the first!" with no place number
+    And the share button says "Invite my school to play"
+    And the other schools still to start are one folded line "N schools still to start" that opens to their names, without numbers
+
+  @T253
+  Scenario: Caps keep the league fair
+    Given a child finishes seven quizzes in one Pakistan day, and seven friends take one child's challenge on one quiz
+    When the league is counted
+    Then only the child's first five quizzes that day add points, and only the first five friends of that challenge add points
+    And the sixth quiz and the sixth friend still play and see their score
+
+  @T254
+  Scenario: The school league has its own link, in English and in Urdu
+    Given a child shares the school league to the class group
+    When someone opens /q/<CODE>/schools
+    Then the page opens straight on the league with the preview title "School league this week" («اس ہفتے اسکولوں کی لیگ»)
+    And "My sector" filters the list to the child's sector and "All" brings every school back
+
   @T290
   Scenario: Jugnu gives a hint on a tap, never the answer
     Given a question whose web item carries a hint written from the lesson ("Think about what you can pour into a glass.")

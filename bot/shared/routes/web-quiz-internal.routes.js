@@ -10,6 +10,7 @@
  *   POST /answers               E4 record 1..20 answers, idempotent
  *   POST /finish                E5 score, review, scorecard, challenge code
  *   GET  /board/:code           E6 the class league table
+ *   GET  /schools/:code         E6b every school's points this week, the viewer's school marked
  *   POST /me                    E7 a phone's children: past scores, friends finished
  *   POST /e                     E8 page events -> logs (allow-listed, no PII)
  *   GET  /media/:code/:qid      E10 302 to a presigned picture (or the bytes)
@@ -21,6 +22,7 @@ const { requireInternalKey } = require('../middleware/require-internal-key');
 const { logToFile } = require('../utils/logger');
 const WebQuiz = require('../services/quiz/web-quiz.service');
 const WebQuizVideos = require('../services/quiz/web-quiz-videos');
+const WebQuizSchools = require('../services/quiz/web-quiz-schools');
 
 const router = express.Router();
 router.use(requireInternalKey);
@@ -48,6 +50,7 @@ router.post('/session', handle((req) => WebQuiz.startSession(req.body || {})));
 router.post('/answers', handle((req) => WebQuiz.recordAnswers(req.body || {})));
 router.post('/finish', handle((req) => WebQuiz.finishSession(req.body || {})));
 router.get('/board/:code', handle((req) => WebQuiz.board(req.params.code, { st: req.query.st })));
+router.get('/schools/:code', handle((req) => WebQuizSchools.board(req.params.code, { st: req.query.st })));
 router.post('/me', handle((req) => WebQuiz.me(req.body || {})));
 // The teacher's "Who played?" on their own preview link (signed p token).
 router.post('/who', handle((req) => WebQuiz.whoPlayed(req.body || {})));
