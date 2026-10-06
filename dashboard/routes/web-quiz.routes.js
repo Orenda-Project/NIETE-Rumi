@@ -26,6 +26,8 @@ const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
 const CODE_RX = /^[A-Za-z0-9]{4,12}$/;
+// A signed hub token (bot web-quiz-token.js): base64url payload "." 22-char signature.
+const HUB_TOKEN_RX = /^[A-Za-z0-9_-]{16,600}\.[A-Za-z0-9_-]{22}$/;
 const BODY_LIMIT = '16kb';
 const BOT_TIMEOUT_MS = 10000;
 const YEAR_S = 31536000;
@@ -64,14 +66,18 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/ch/result', limiter: ['challenge', 'challengeIp'] },
   { method: 'get', path: '/api/wq/ch/:token', limiter: 'read', token: true },
   { method: 'get', path: '/api/wq/ch/:token/:exercise', limiter: 'read', token: true },
+  // M4a hub — the kid hub's JSON (a hub token, not a code: checked by HUB_TOKEN_RX)
+  { method: 'get', path: '/api/wq/hub/:token', limiter: 'read' },
 ];
 
 // The shell's line under Jugnu, shown until wq.js boots (seconds on slow 4G), so the page never reads as stuck.
 const BOOT_COPY = { en: 'Opening the quiz…', ur: 'کوئز کھل رہا ہے…' };
 
 const CLOSED_COPY = {
-  en: { title: 'This quiz has closed', say: 'Ask your teacher for a new link.', off: 'The quiz is not open right now', offSay: 'Please try again in a little while.' },
-  ur: { title: 'یہ کوئز بند ہو چکا ہے', say: 'اپنے استاد سے نیا لنک لیں۔', off: 'کوئز ابھی کھلا نہیں ہے', offSay: 'تھوڑی دیر بعد دوبارہ کوشش کریں۔' },
+  en: { title: 'This quiz has closed', say: 'Ask your teacher for a new link.', off: 'The quiz is not open right now', offSay: 'Please try again in a little while.',
+    hub: 'This link has expired', hubSay: 'Send /quiz on WhatsApp to get a new one.' },
+  ur: { title: 'یہ کوئز بند ہو چکا ہے', say: 'اپنے استاد سے نیا لنک لیں۔', off: 'کوئز ابھی کھلا نہیں ہے', offSay: 'تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+    hub: 'یہ لنک پرانا ہو چکا ہے', hubSay: 'نیا لنک لینے کے لیے واٹس ایپ پر ⁦/quiz⁩ بھیجیں۔' },
 };
 
 function esc(s) {
@@ -86,7 +92,7 @@ function bootJson(obj) {
 
 function assetVersion() {
   const h = crypto.createHash('sha256');
-  for (const f of ['wq.js', 'wq.css', 'wq-identity.js']) {
+  for (const f of ['wq.js', 'wq.css', 'wq-identity.js', 'hub.js']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   return h.digest('hex').slice(0, 10);
@@ -208,12 +214,30 @@ ${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></sc
 </html>`;
 }
 
+// M4a hub — the kid hub page: the same head and brand as the quiz page, its own script.
+const HUB_TITLE = { en: 'Your quizzes and videos', ur: 'آپ کے کوئز اور ویڈیوز' };
+const HUB_BOOT = { en: 'Opening…', ur: 'کھل رہا ہے…' };
+
+function renderHubPage({ payload, token, origin, assetV }) {
+  const lang = payload && payload.lang === 'ur' ? 'ur' : 'en';
+  const brand = brandOf(payload && payload.brand);
+  const boot = { ...payload, token, view: 'hub', brand };
+  return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: HUB_TITLE[lang], desc: HUB_TITLE[lang], origin, url: origin, assetV, brand })}
+</head>
+<body>
+<main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>
+<script id="boot" type="application/json">${bootJson(boot)}</script>
+<script src="/wq/hub.js?v=${assetV}" defer></script>
+</body>
+</html>`;
+}
+
 function renderClosedPage({ lang, kind, origin, assetV, brandKey }) {
   const l = lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(brandKey || WebQuizBrand.brandKey({ orgName: process.env.ORG_NAME, botName: process.env.BOT_NAME }));
   const c = CLOSED_COPY[l];
-  const title = kind === 'off' ? c.off : c.title;
-  const say = kind === 'off' ? c.offSay : c.say;
+  const title = kind === 'off' ? c.off : kind === 'hub' ? c.hub : c.title;
+  const say = kind === 'off' ? c.offSay : kind === 'hub' ? c.hubSay : c.say;
   return `${head({ lang: l, dir: l === 'ur' ? 'rtl' : 'ltr', title, desc: say, origin, url: origin, assetV, brand })}
 </head>
 <body>
@@ -361,6 +385,7 @@ function createWebQuizRouter(opts = {}) {
     router[r.method](r.path, ...chain, async (req, res) => {
       if (req.params.code && !CODE_RX.test(req.params.code)) return res.status(404).json({ error: 'not_found' });
       if (r.token && [req.params.token, req.params.ct].some((v) => v != null && !TOKEN_RX.test(v))) return res.status(404).json({ error: 'not_found' });
+      if (r.path === '/api/wq/hub/:token' && !HUB_TOKEN_RX.test(req.params.token || '')) return res.status(401).json({ error: 'bad_token' });
       const qs = req.originalUrl.indexOf('?') >= 0 ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
       const pathname = req.path.replace(/^\/api\/wq\//, '/api/internal/wq/') + qs;
       try {
@@ -417,6 +442,28 @@ function createWebQuizRouter(opts = {}) {
   }
 
   router.get('/q/:code', limiters.read, unknownCode, (req, res) => page(req, res, 'quiz'));
+  // M4a hub — GET /h/:token, the kid hub (WhatsApp /quiz link), server-rendered like /q/:code.
+  router.get('/h/:token', limiters.read, async (req, res) => {
+    pageHeaders(res);
+    const origin = originOf(req);
+    const token = String(req.params.token || '');
+    const closed = (status, kind, lang = 'en') => res.status(status).type('html').send(renderClosedPage({ lang, kind, origin, assetV: version(), brandKey: lastBrand }));
+    if (!HUB_TOKEN_RX.test(token)) return closed(401, 'hub');
+    if (!botUrl || !apiKey) return closed(503, 'off');
+    const kid = typeof req.query.kid === 'string' && /^[0-9a-f]{16}$/.test(req.query.kid) ? `?kid=${req.query.kid}` : '';
+    let out;
+    try {
+      out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}`, req);
+    } catch (_) {
+      return closed(502, 'off');
+    }
+    if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
+      if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
+      return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
+    }
+    if (out.status === 401) return closed(401, 'hub');
+    return closed(out.status === 503 ? 503 : 502, 'off');
+  });
   router.get('/q/:code/class', limiters.read, unknownCode, (req, res) => page(req, res, 'class'));
   router.get('/q/:code/schools', limiters.read, unknownCode, (req, res) => page(req, res, 'schools'));
 
@@ -481,4 +528,4 @@ function createWebQuizRouter(opts = {}) {
 }
 
 
-module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderClosedPage, renderChallengePage, bootJson };
+module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderClosedPage, renderChallengePage, bootJson, renderHubPage };
