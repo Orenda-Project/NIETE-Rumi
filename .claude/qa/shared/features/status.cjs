@@ -100,6 +100,10 @@ exports.run = async ({ api, rec, want = () => true }) => {
   if (want('STA03')) {
     // STA03 — a bare "status" must NOT open the status surface (shape, never wording)
     s = t();
+    // A bare "status" falls through to open chat, whose prompt carries the conversation history.
+    // Clear it first, as menu and language do, or the cassette key follows whatever came before
+    // (7 history messages on one run, 10 on the next, same driver: a replay miss every time).
+    api.resetConversation();
     const bare = await api.sendWait('status');
     const bareSurface = surfaceOf(bare.txt || '');
     rec('STA03', 'A bare "status" (no slash) does not open the status surface',
