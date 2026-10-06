@@ -55,6 +55,7 @@ const EXPECT = {
 // path — the previous absolute path only existed on one laptop, so the coaching
 // runner could not find its audio anywhere else (2026-09-07).
 const MEDIA = require('path').resolve(__dirname, '..', '..', 'fixtures', 'whatsapp', 'niete', 'media');
+const { withRedirect, isStoreNotice, REDIRECT_BLOCKED } = require('../app-redirect-case.cjs');
 const FIXTURE = {
   classroom : MEDIA + '/hameeda_16min.m4a',      // 4 MB · 16 min — clears the 900s gate
   tooShort  : MEDIA + '/hameeda_short.m4a',      // 444 KB — under the gate
@@ -662,8 +663,15 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
 
   // bd-onxyu — app redirect. Recorded with the reason, not left absent.
   const APP_REDIRECT_WHY = 'needs an app_redirect_* switch turned ON in the target database, and the switch is global: it would redirect every teacher on that environment for the length of the run. Covered by tests/app-redirect/ (the real text handler and menu router, red-first).';
-  rec('COA62', 'With coaching moved to the app, /coaching sends me to the Play Store instead of asking for a recording', 'BLOCKED',
-      { reason: APP_REDIRECT_WHY }, 0);
+  const COA62 = 'With coaching moved to the app, /coaching sends me to the Play Store instead of asking for a recording';
+  const r62 = await withRedirect(api, 'app_redirect_ai_coaching', async () => {
+    await api.setRole('teacher');   // the harness puts the driver's role back after the feature
+    const t0 = Date.now(), r = await api.sendWait('/coaching', 90000), txt = r.txt || '';
+    return { storeLink: isStoreNotice(txt), messages: r.freshIds, asksRecording: /record|ریکارڈ/i.test(txt) && !isStoreNotice(txt),
+             reply: txt.slice(0, 160), ms: Date.now() - t0 };
+  });
+  if (r62.ran) rec('COA62', COA62, r62.value.storeLink && r62.value.messages === 1 && !r62.value.asksRecording ? 'PASS' : 'FAIL', r62.value, r62.value.ms);
+  else rec('COA62', COA62, 'BLOCKED', { reason: APP_REDIRECT_WHY, setAppSetting: r62.reason }, 0);
 
 
   // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature

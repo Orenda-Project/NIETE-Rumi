@@ -380,6 +380,22 @@ function makeMockApi(opts) {
         return { ok: true };
       } catch (e) { return { ok: false, err: String(e.message).slice(0, 160) }; }
     },
+    /** Clear this driver's app-redirect quiet hour (user_feature_first_use, feature app_redirect_notice): the
+     *  notice goes once per teacher per hour across EVERY switch, so a second redirect scenario on the same
+     *  driver would otherwise get silence. Local lane only, like the switches themselves. */
+    async resetRedirectNotice() {
+      if (!canFlipGlobal()) return { ok: false, err: 'GLOBAL_SWITCH' };
+      const { url, key: k } = dbCreds();
+      const H = { apikey: k, Authorization: `Bearer ${k}`, Prefer: 'return=minimal' };
+      try {
+        const u = await fetch(`${url}/rest/v1/users?select=id&phone_number=eq.${driver}`, { headers: H });
+        const uid = ((await u.json().catch(() => [])) || [])[0]?.id;
+        if (!uid) return { ok: false, err: 'driver user not found' };
+        const r = await fetch(`${url}/rest/v1/user_feature_first_use?user_id=eq.${uid}&feature=eq.app_redirect_notice`, { method: 'DELETE', headers: H });
+        trace('resetRedirectNotice');
+        return { ok: r.ok };
+      } catch (e) { return { ok: false, err: String(e.message).slice(0, 120) }; }
+    },
     /** Put back every switch setAppSetting changed (delete the rows it created). Idempotent. */
     async restoreAppSettings({ settleMs = 31000 } = {}) {
       if (!touchedSettings.size) return { ok: true, restored: 0 };
