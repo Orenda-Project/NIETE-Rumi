@@ -52,6 +52,9 @@ import CoachReports from "./portal/coach/pages/CoachReports";
 import CoachPeople from "./portal/coach/pages/CoachPeople";
 import CoachSchool from "./portal/coach/pages/CoachSchool";
 import CoachTeacher from "./portal/coach/pages/CoachTeacher";
+import CoachRecord from "./portal/coach/pages/CoachRecord";
+import CoachAttach from "./portal/coach/pages/CoachAttach";
+import CoachCheckSend from "./portal/coach/pages/CoachCheckSend";
 // bd-60117 — a principal's school-level Analytics tab.
 import SchoolAnalytics from "./portal/pages/SchoolAnalytics";
 import LegacyAttendanceRedirect from "./portal/components/LegacyAttendanceRedirect";
@@ -199,6 +202,10 @@ const App = () => {
             <Route path="/portal/coach/observe" element={<CoachObserve />} />
             <Route path="/portal/coach/observe/pick" element={<CoachObservePick />} />
             <Route path="/portal/coach/visit/:id" element={<CoachVisit />} />
+            {/* bd-o15qnr.9 — taking the observation, in v2: Record live, Upload recording, Check and send. */}
+            <Route path="/portal/coach/visit/:id/record" element={<CoachRecord />} />
+            <Route path="/portal/coach/visit/:id/attach" element={<CoachAttach />} />
+            <Route path="/portal/coach/visit/:id/check" element={<CoachCheckSend />} />
             <Route path="/portal/coach/reports" element={<CoachReports />} />
             <Route path="/portal/coach/people" element={<CoachPeople />} />
             <Route path="/portal/coach/school/:emis" element={<CoachSchool />} />

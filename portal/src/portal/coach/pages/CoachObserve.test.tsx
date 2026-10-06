@@ -17,8 +17,8 @@ import CoachVisit from "./CoachVisit";
 /**
  * bd-o15qnr — Observe is always against a scheduled visit:
  * Take observation → pick the teacher (today + overdue; search by name or
- * phone, filter by school) → the Visit page asks Record live or Attach.
- * Record/Attach/Check-and-send are the existing pipeline pages.
+ * phone, filter by school) → the Visit page asks Record live or Upload recording,
+ * then the v2 Record / Upload / Check-and-send steps (bd-o15qnr.9).
  */
 const C = coach as any;
 const L = leader as any;
@@ -101,18 +101,16 @@ describe("Pick the teacher", () => {
   });
 });
 
-describe("Visit — Record live or Attach", () => {
+describe("Visit — Record live or Upload recording", () => {
   it("the teacher's numbers, then the two ways, both tied to this visit", async () => {
     renderAt(`/portal/coach/visit/${VISIT_ID}`);
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Ayesha Bibi");
     const stats = within(screen.getByTestId("visit-stats"));
     expect(stats.getByText("61%")).toBeInTheDocument();
     expect(stats.getByText("12d")).toBeInTheDocument();
-    const ret = encodeURIComponent(`/portal/coach/visit/${VISIT_ID}`);
-    expect(screen.getByRole("link", { name: /Record live/ })).toHaveAttribute("href",
-      `/portal/leader/observe/new?teacher=923001110001&school=niete%3A110&way=record&return=${ret}`);
-    expect(screen.getByRole("link", { name: /Attach recording/ })).toHaveAttribute("href",
-      `/portal/leader/observe/new?teacher=923001110001&school=niete%3A110&way=upload&return=${ret}`);
+    // bd-o15qnr.9 — the visit's own v2 steps, never the old page and its second Record/Upload sheet.
+    expect(screen.getByRole("link", { name: /Record live/ })).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}/record`);
+    expect(screen.getByRole("link", { name: /Upload recording/ })).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}/attach`);
     expect(screen.getByRole("link", { name: /Teacher profile/ })).toHaveAttribute("href", "/portal/coach/teacher/923001110001");
   });
 
