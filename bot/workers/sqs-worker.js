@@ -50,6 +50,9 @@ const os = require('os');
 const REPLICA_ID = process.env.RAILWAY_REPLICA_ID || 'local';
 const WORKER_ID = `sqs-worker-${os.hostname()}-${process.pid}-${REPLICA_ID}`;
 const CONCURRENCY_PER_WORKER = parseInt(process.env.SQS_WORKER_CONCURRENCY || '3');
+// Web quiz read-aloud clip jobs that may run at once on one replica: the rest of the quiz slots stay
+// free for teachers' quiz generation (a clip job holds a slot ~70 s).
+const WEB_AUDIO_SLOTS = 2;
 const POLL_INTERVAL_MS = parseInt(process.env.SQS_POLL_INTERVAL || '100'); // Short poll between batches
 const GRACEFUL_SHUTDOWN_TIMEOUT_MS = parseInt(process.env.GRACEFUL_SHUTDOWN_TIMEOUT || '30000');
 
@@ -655,9 +658,19 @@ class SQSCoachingWorker {
       // when the teacher is handed the web link and when the page is opened. Re-reads the quiz
       // and skips one already recorded, so a redelivery is harmless.
       case 'quiz_web_audio': {
+        const jobPayload = (body && body.payload) ? body.payload : (payload || {});
+        // A teacher's quiz generation shares these quiz slots: at most WEB_AUDIO_SLOTS clip jobs
+        // run at once on a replica; one more comes back in a minute instead of taking a slot.
+        let others = 0;
+        for (const [rh, m] of this.activeJobs) if (rh !== receiptHandle && m && m.jobType === 'quiz_web_audio') others += 1;
+        if (others >= WEB_AUDIO_SLOTS) {
+          await SQSQueueService.queueJob(jobPayload.quizId || sessionId, 'quiz_web_audio', jobPayload, {
+            delaySeconds: 60, deduplicationId: `${jobPayload.quizId || sessionId}-quiz_web_audio-later-${Date.now()}`,
+          });
+          break;
+        }
         if (sourceQueue === 'quiz') await SQSQueueService.extendQuizJobTimeout(receiptHandle, 600);
         else await SQSQueueService.extendJobTimeout(receiptHandle, 600);
-        const jobPayload = (body && body.payload) ? body.payload : (payload || {});
         await require('../shared/services/quiz/web-quiz-publish.service').runQuizAudioJob(jobPayload);
         break;
       }

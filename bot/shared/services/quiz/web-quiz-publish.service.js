@@ -343,15 +343,31 @@ async function requestQuizAudio(quizId, { meta, queue, publish, db } = {}) {
   }
 }
 
+// A job whose clips failed (the vendor rate-limits, or every voice in the chain failed) comes
+// back later with a growing wait; after the last try the quiz stays unstamped, so its page keeps
+// asking for it (and shows the words big where there is no voice).
+const RETRY_DELAYS_S = [120, 240, 480, 900];
+
 /** The worker's job: record the quiz's clips unless they are already current. */
-async function runQuizAudioJob(payload, { db, publish = module.exports.publishQuizAudio } = {}) {
+async function runQuizAudioJob(payload, { db, publish = module.exports.publishQuizAudio, queue } = {}) {
   const quizId = payload && payload.quizId;
   if (!quizId) return { ok: false, reason: 'no_quiz' };
+  const attempt = Number(payload.attempt) || 0;
   const client = db || require('../../config/supabase');
   const { data } = await client.from('quizzes').select('meta').eq('id', quizId).maybeSingle();
   const web = (data && data.meta && data.meta.web) || {};
   if (Number(web.audio_v) >= AUDIO_VERSION) return { skipped: 'current' };
-  return publish(quizId, { db: client });
+  const out = (await publish(quizId, { db: client })) || {};
+  if (out.ok && !out.failed) return out;
+  if (attempt >= RETRY_DELAYS_S.length) {
+    logError('web_quiz.publish_audio.gave_up', { event: 'web_quiz.publish_audio.gave_up', quizId, attempt, failed: out.failed, reason: out.reason });
+    return out;
+  }
+  const q = queue || require('../queue');
+  await q.queueJob(quizId, JOB, { quizId, attempt: attempt + 1 }, {
+    delaySeconds: RETRY_DELAYS_S[attempt], deduplicationId: `${quizId}-${JOB}-retry-${attempt + 1}-${Date.now()}`,
+  });
+  return { ...out, retry: attempt + 1 };
 }
 
 module.exports = {
