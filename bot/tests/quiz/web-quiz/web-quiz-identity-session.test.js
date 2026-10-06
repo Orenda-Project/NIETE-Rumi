@@ -221,6 +221,27 @@ describe('E3 a child opening their OWN challenge link plays for the class', () =
   });
 });
 
+describe('E3 a hub link (?k=<chip>) plays straight through only on a phone that knows the child', () => {
+  test('a forwarded link (no session of that child on this device) gets the ONE card first, nothing started', async () => {
+    const n = fake.db.quiz_sessions.length;
+    const r = await answer({ chip: chipOf(kid(1)), via: 'hub', device_ref: 'dev-stranger-000000001' });
+    expect(r).toEqual({ status: 409, body: { error: 'is_this_you', candidates: [{ chip: chipOf(kid(1)), first: 'Ayesha', animal: T.animalFor(kid(1)) }] } });
+    expect(fake.db.quiz_sessions).toHaveLength(n);
+    expect(ev('web_quiz.identity_step')).toEqual([{ shareCodeId: F.SC, step: 'hub_confirm', hits: 1 }]);
+  });
+
+  test('the child\'s own phone (a prior session on this device_ref, any of the teacher\'s codes) plays straight through', async () => {
+    fake.db.quiz_sessions.push(F.done('s-before', kid(1), 'Ayesha Testwala', 4, 30, { device_ref: 'dev-ayesha-phone-00001' }));
+    const r = await answer({ chip: chipOf(kid(1)), via: 'hub', device_ref: 'dev-ayesha-phone-00001' });
+    expect(r.status).toBe(200);
+  });
+
+  test('"Yes, it\'s me" on that card (confirm) plays; a remembered card (this phone\'s own storage) plays', async () => {
+    expect((await answer({ chip: chipOf(kid(1)), via: 'hub', confirm: true })).status).toBe(200);
+    expect((await answer({ chip: chipOf(kid(2)), via: 'remembered' })).status).toBe(200);
+  });
+});
+
 describe('logs: ids and counts only', () => {
   test('every identity step is logged without a name or a typed string', async () => {
     await answer({ new: { name: 'Ali' } });
