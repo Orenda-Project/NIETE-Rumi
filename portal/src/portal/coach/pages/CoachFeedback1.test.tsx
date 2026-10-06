@@ -84,26 +84,35 @@ afterEach(() => {
 });
 
 describe("1 — the teacher's phone on both pickers", () => {
-  it("formatPhone: the +92… form LeaderObservation shows; nothing for a name slug", () => {
-    expect(formatPhone("923001110005")).toBe("+923001110005");
-    expect(formatPhone("+923001110005")).toBe("+923001110005");
+  // bd-o15qnr.14 — operator: phone numbers read as 03xx, "0399 0000123" as on
+  // the canvas. Display only: the users table keeps E.164 (923…).
+  it("formatPhone: a Pakistani mobile in the local 03xx form; nothing for a name slug", () => {
+    expect(formatPhone("923001110005")).toBe("0300 1110005");
+    expect(formatPhone("+923001110005")).toBe("0300 1110005");
+    expect(formatPhone("+92 300 1110005")).toBe("0300 1110005");
+    expect(formatPhone("03001110005")).toBe("0300 1110005");
+    expect(formatPhone("923990000123")).toBe("0399 0000123");
+    expect(formatPhone("255677095937")).toBe("+255677095937");
     expect(formatPhone("sadaf-khan")).toBeNull();
     expect(formatPhone(null)).toBeNull();
+    expect(formatPhone("")).toBeNull();
   });
 
   it("New visit step 2 shows each teacher's phone; an off-Rumi teacher shows none", async () => {
     renderAt("/portal/coach/new-visit?school=niete%3A494");
     const sadia = await screen.findByTestId("teacher-923001110005");
-    expect(sadia).toHaveTextContent("+923001110005");
+    expect(sadia).toHaveTextContent("0300 1110005");
+    expect(sadia).not.toHaveTextContent("+92");
     const sadaf = screen.getByTestId("teacher-sadaf-khan");
-    expect(sadaf).not.toHaveTextContent("+92");
+    expect(sadaf).not.toHaveTextContent(/\+92|03\d\d /);
   });
 
   it("Pick the teacher shows each visit's phone", async () => {
     C.getSchedule.mockResolvedValue({ success: true, from: "x", to: "y", overdue: [], visits: [visit("t1", "Ayesha Bibi", "923001110001", "2026-10-06", "11:30")] });
     renderAt("/portal/coach/observe/pick");
     const row = (await screen.findByText("Ayesha Bibi")).closest("a")!;
-    expect(row).toHaveTextContent("+923001110001");
+    expect(row).toHaveTextContent("0300 1110001");
+    expect(row).not.toHaveTextContent("+92");
   });
 });
 

@@ -119,6 +119,19 @@ describe("Edit teacher", () => {
     await waitFor(() => expect(C.editTeacher).toHaveBeenCalledWith("923001110001", "phone", "923004445556"));
   });
 
+  it("her number shows as 03xx; 03xx, +92 or 92 are each sent as typed for the bot to normalise", async () => {
+    C.editTeacher.mockResolvedValue({ success: true, outcome: "free", phone: "923004445556" });
+    renderAt(EDIT);
+    const phone = await screen.findByRole("textbox", { name: /phone/i });
+    expect(phone).toHaveAttribute("placeholder", "0300 1110001");
+    for (const typed of ["0300 4445556", "+92 300 4445556", "923004445556"]) {
+      fireEvent.change(phone, { target: { value: typed } });
+      fireEvent.click(screen.getByRole("button", { name: /check number/i }));
+      await waitFor(() => expect(C.editTeacher).toHaveBeenLastCalledWith("923001110001", "phone_check", typed));
+      await screen.findByTestId("phone-result");
+    }
+  });
+
   it("phone check refused (a real teacher's number): main's reason is shown and nothing can be confirmed", async () => {
     C.editTeacher.mockImplementation(() => rejectWith(409, {
       success: false, reason: "taken", heading: "Please wait while we fix your data", message: "This change will take some time, please check back later.",

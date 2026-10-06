@@ -359,13 +359,18 @@ export function Failed({ onRetry }: { onRetry: () => void }) {
 }
 
 /**
- * bd-o15qnr.8 — a teacher's phone as the portal already shows it
- * (LeaderObservation: "+92…"). teacher_ext_id is the phone for a teacher on
- * Rumi and a name slug for one who is not; a slug has no number to show.
+ * bd-o15qnr.8 + .14 — a teacher's phone as a coach reads it: the local 03xx
+ * form, "0399 0000123" as on the canvas (operator decision). Display only — the
+ * users table keeps E.164 (923…). teacher_ext_id is the phone for a teacher on
+ * Rumi and a name slug for one who is not; a slug has no number to show. A
+ * number outside Pakistan keeps its +<country> form.
  */
 export function formatPhone(value: string | null | undefined): string | null {
   const s = String(value == null ? "" : value).replace(/[\s-]/g, "");
-  return /^\+?\d{10,15}$/.test(s) ? `+${s.replace(/^\+/, "")}` : null;
+  if (!/^\+?\d{10,15}$/.test(s)) return null;
+  const d = s.replace(/^\+/, "");
+  const local = /^923\d{9}$/.test(d) ? `0${d.slice(2)}` : /^03\d{9}$/.test(d) ? d : null;
+  return local ? `${local.slice(0, 4)} ${local.slice(4)}` : `+${d}`;
 }
 
 /** Digits of a phone in any local form, as the users table holds them (92…). */
