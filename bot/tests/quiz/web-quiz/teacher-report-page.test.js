@@ -316,14 +316,15 @@ describe('teacher report page — reserved lines', () => {
 });
 
 describe('teacher report page — review follow-ups', () => {
-  test('Urdu dates use Latin digits like every other number on the page, and are never wrapped in a left-to-right isolate', () => {
+  test('an Urdu date is Urdu prose: Urdu digits (counts stay ASCII), never in a left-to-right isolate', () => {
     const html = page(quizData(), { lang: 'ur' });
-    expect(html).toMatch(/5 اکتوبر 2026/);
-    expect(text(html)).not.toMatch(/[۰-۹]/);
+    expect(html).toMatch(/۵ اکتوبر ۲۰۲۶/);
+    expect(html).not.toMatch(/[0-9] اکتوبر|اکتوبر [0-9]/);
+    expect(text(html)).toMatch(/63%/);
     expect(html).not.toMatch(/class="num">[^<]*اکتوبر/);
     const cls = renderPage({ class: { cells: [], weeks: [], quizzes: [{ id: 'q-9', date: '2026-10-05T09:00:00Z', topic: 'Magnets', played: 5, avg: 80 }] } },
       { lang: 'ur', tab: 'class', tokens: { self: TOKEN, quiz: { 'q-9': 'T9.x' } } });
-    expect(cls).toMatch(/5 اکتوبر/);
+    expect(cls).toMatch(/۵ اکتوبر/);
     expect(cls).not.toMatch(/class="num">[^<]*اکتوبر/);
   });
 
