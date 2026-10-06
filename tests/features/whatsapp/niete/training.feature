@@ -1876,3 +1876,15 @@ Feature: NIETE (ICT) Teacher Training
     And with the setting absent or false, the quiz is made exactly as before
     # transcript-quiz-generate salvageWithoutBadFigures (isSoft skip, v2); transcript-quiz-named-pronouns lookback in
     # transcript-quiz-pedagogy. Unit: tests/quiz/quiz-author-gates-fail-soft.test.js, quiz-author-gates-named-pronouns.test.js. @wip.
+
+  @api @quiz @wip @draft @config-gated @P2 @T241 @no-mock-driver
+  Scenario: With the author gates on, a young child hears reasons short enough to follow
+    Given app_settings "quiz_author_gates_v2" is true
+    And my class is in grade 1 to 5
+    When my class quiz is made from my lesson
+    Then each explanation and wrong-answer reason my class hears is short: one sentence of at most 12 words in grades 1-2, at most two sentences and 18 words in grades 3-5
+    And the questions, the options and the right answers are exactly as they were written
+    And if a reason cannot be made shorter the quiz is still sent, with the long reason counted
+    And with the setting absent or false, or in grade 6 and above, the reasons are as before
+    # transcript-quiz-child-reasons shortenReasons, called in transcript-quiz-generate before the rows are stored.
+    # Unit: tests/quiz/quiz-author-gates-child-reasons.test.js. @wip.
