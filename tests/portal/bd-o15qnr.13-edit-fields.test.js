@@ -23,9 +23,16 @@ const query = async (sql, params) => {
   const S = CoachV2.SQL;
   if (sql === S.TEACHER_FACTS || sql === S.TEACHER_TRAINING || sql === S.TEACHER_HISTORY || sql === S.MY_SCHEDULES) return { rows: [] };
   if (sql === S.LEADER_SCHOOLS) return { rows: [] };
-  if (sql === S.TEACHER_LEVELS) return { rows: params[0] === 'u-ayesha' ? [{ training_bands: ['MIDDLE', 'EARLY_YEARS', 'primary'] }] : [] };
+  if (sql === S.TEACHER_LEVELS) return { rows: params[0] === 'u-ayesha' ? [{ teacher_level: ['MIDDLE', 'EARLY_YEARS', 'primary'] }] : [] };
   throw new Error(`unexpected SQL: ${sql.slice(0, 60)}`);
 };
+
+// Staging and main keep the levels in users.teacher_level (bd-60095); there is no
+// training_bands column there, so the read must name teacher_level.
+test('TEACHER_LEVELS reads users.teacher_level, the column staging and main have', () => {
+  expect(CoachV2.SQL.TEACHER_LEVELS).toMatch(/\bteacher_level\b/);
+  expect(CoachV2.SQL.TEACHER_LEVELS).not.toMatch(/training_bands/);
+});
 
 const client = () => ({ editTeacher: jest.fn().mockResolvedValue({ status: 200, data: { success: true, outcome: 'saved' } }) });
 

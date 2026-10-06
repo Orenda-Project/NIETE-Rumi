@@ -66,8 +66,8 @@ beforeEach(() => {
       { id: 'sch-999', name: 'Not Hers', emis: '999' },
     ],
     users: [
-      { id: 'u-ayesha', phone_number: '923001110001', name: 'Ayesha Bibi', role: 'teacher', school_id: 'sch-110', training_bands: ['PRIMARY'], training_bands_updated_at: null },
-      { id: 'u-other', phone_number: '923001110009', name: 'Other School', role: 'teacher', school_id: 'sch-999', training_bands: ['HIGH'], training_bands_updated_at: null },
+      { id: 'u-ayesha', phone_number: '923001110001', name: 'Ayesha Bibi', role: 'teacher', school_id: 'sch-110', teacher_level: ['PRIMARY'], teacher_level_updated_at: null },
+      { id: 'u-other', phone_number: '923001110009', name: 'Other School', role: 'teacher', school_id: 'sch-999', teacher_level: ['HIGH'], teacher_level_updated_at: null },
       { id: 'u-shell', phone_number: '923002220002', name: 'Shell Account', role: 'teacher', school_id: null },
       { id: 'u-real', phone_number: '923003330003', name: 'Real Teacher', role: 'teacher', school_id: null },
     ],
@@ -133,7 +133,7 @@ describe('teaching level — teacher_edit_level_commit (multi-select; written by
   });
 
   test('changed in the last 48 hours: refused with the hours left, and the writer is never asked', async () => {
-    user('u-ayesha').training_bands_updated_at = new Date(Date.now() - 2 * HOUR).toISOString();
+    user('u-ayesha').teacher_level_updated_at = new Date(Date.now() - 2 * HOUR).toISOString();
     const out = await svc().editLevel({ ...base, bands: ['HIGH'] });
     expect(out).toMatchObject({ ok: false, reason: 'cooldown' });
     expect(out.hoursRemaining).toBeGreaterThan(40);

@@ -185,10 +185,10 @@ const SQL = {
     LIMIT 1
   `,
 
-  // bd-o15qnr.13 — her teaching levels for Edit teacher's multi-select. Sandbox's
-  // code keeps them in training_bands (main renamed it teacher_level, bd-60095).
+  // bd-o15qnr.13 — her teaching levels for Edit teacher's multi-select, from
+  // users.teacher_level (bd-60095), the column staging and main carry.
   TEACHER_LEVELS: `
-    SELECT training_bands FROM users WHERE id = $1::uuid LIMIT 1
+    SELECT teacher_level FROM users WHERE id = $1::uuid LIMIT 1
   `,
 
   USER_NAME: `
@@ -452,7 +452,7 @@ async function getCoachTeacher(query, leaderUserId, teacherExtId, opts = {}) {
   let levels = [];
   if (teacher.rumiUserId) {
     const lv = await query(SQL.TEACHER_LEVELS, [teacher.rumiUserId]);
-    const raw = ((lv.rows || [])[0] || {}).training_bands;
+    const raw = ((lv.rows || [])[0] || {}).teacher_level;
     const have = new Set((Array.isArray(raw) ? raw : []).map((b) => String(b || '').trim().toUpperCase()));
     levels = TEACHING_LEVELS.filter((b) => have.has(b));
   }
