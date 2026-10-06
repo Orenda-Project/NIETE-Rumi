@@ -1770,7 +1770,7 @@ Feature: NIETE (ICT) Teacher Training
     # transcript-quiz-generate withLessonMoments, applied to every rewrite call with the gates on.
     # Unit: tests/quiz/quiz-author-gates-leak-moments.test.js. @wip.
 
-  @api @quiz @web @wip @draft @P2 @T244 @no-mock-driver
+  @api @quiz @web @wip @draft @P2 @T245 @no-mock-driver
   Scenario: An old question that supposes a missing picture is left out of my web quiz
     Given my quiz was made before the picture rule and has "If a diagram shows four concentric circles…, which circle is the mantle?" with no diagram
     When a child plays it on the web page
