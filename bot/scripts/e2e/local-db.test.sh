@@ -38,6 +38,8 @@ SQL
 echo "insert into public.items(label) values ('seeded');" > "$LOCAL_DB_SEED"
 export LOCAL_DB_SEED_TABLES="$tmp/seed-tables.txt"
 export LOCAL_DB_SEED_OVERRIDES="$tmp/seed-overrides.sql"; : > "$LOCAL_DB_SEED_OVERRIDES"   # hermetic: never the repo's file
+# The fixture runs below run BEFORE any seed pull, on purpose; a real run without one is refused (AC11).
+export LOCAL_DB_ALLOW_NO_SEED=1
 printf '# reference tables only\ncatalog\n' > "$LOCAL_DB_SEED_TABLES"
 PSQL17="$(ls -d /opt/homebrew/opt/postgresql@17/bin /usr/local/opt/postgresql@17/bin /usr/lib/postgresql/17/bin 2>/dev/null | head -1)/psql"
 
@@ -54,6 +56,15 @@ client() {   # $1 = env file from `up`; $2 = js body using `sb`; prints the resu
       (async () => { $2 })().catch(e => { console.log('ERR ' + (e.message || e)); });
     " 2>&1 )
 }
+
+# ---- AC11: no seed snapshot on this machine → `up` REFUSES rather than run every scenario on an empty
+# database (training scored 21 pass there vs 59 seeded — silently). It names the fix and the opt-out.
+out=$(LOCAL_DB_ALLOW_NO_SEED= bash "$LDB" up "$tmp/run0" 2>&1); rc=$?
+t "AC11 up without a seed snapshot is refused (exit 9)" "$rc" "9"
+case "$out" in *seed-pull*E2E_LOCAL_DB=0*|*E2E_LOCAL_DB=0*seed-pull*) n11=yes;; *) n11="no: $(printf '%s' "$out" | tail -1)";; esac
+t "AC11 …naming seed-pull and the sandbox opt-out" "$n11" "yes"
+t "AC11 …and no run database or env file was made" "$([ -e "$tmp/run0/db.env" ] && echo made || echo none)" "none"
+bash "$LDB" down "$tmp/run0" >/dev/null 2>&1   # only matters if the refusal regressed: free the ports for run 1
 
 # ---- run 1
 r1="$tmp/run1"

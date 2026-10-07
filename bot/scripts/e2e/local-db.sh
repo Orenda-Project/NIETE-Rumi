@@ -27,7 +27,8 @@
 # one before it connects (the same ENV_REFS the DB tooling asserts).
 #
 # Exit codes: 2 usage · 3 baseline/seed source is not the sandbox, or the pull failed · 4 no Postgres 17 / pgvector / postgrest ·
-# 5 cluster failed to start · 6 golden build failed · 7 run database clone failed · 8 PostgREST/proxy not healthy.
+# 5 cluster failed to start · 6 golden build failed · 7 run database clone failed · 8 PostgREST/proxy not healthy ·
+# 9 no seed snapshot on this machine (refused — a run on an empty database passes far less, silently).
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
@@ -170,6 +171,16 @@ up() {
   need_tools
   mkdir -p "$run_dir"; run_dir="$(cd "$run_dir" && pwd)"
   local t0=$SECONDS
+  # No seed snapshot = every scenario would run on an EMPTY database (training: 21 pass instead of 59) and look
+  # like a regression. Refuse and say how to fix it; the readiness check / run-suite.sh pull it automatically.
+  case "$(seed_status)" in
+    missing) [ "${LOCAL_DB_ALLOW_NO_SEED:-}" = 1 ] || {
+      log "no seed snapshot on this machine — refusing to run on an empty database."
+      log "  fix: bash bot/scripts/e2e/local-db.sh seed-pull   (needs \`railway login\`; run-suite.sh / commit-e2e.sh do it for you)"
+      log "  or run this once on the shared sandbox instead: E2E_LOCAL_DB=0"
+      exit 9; } ;;
+    stale) log "warning: the seed snapshot predates the committed table list — run: bash bot/scripts/e2e/local-db.sh seed-pull" ;;
+  esac
   # Parallel slots share ONE cluster: starting it and building the golden happen under one lock, so two
   # slots never both initdb, both pg_ctl start, or both build golden_<hash> (run-suite.sh --parallel).
   setup_lock

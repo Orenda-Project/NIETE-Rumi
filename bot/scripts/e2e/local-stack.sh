@@ -11,7 +11,7 @@
 #      installed set is symlinked when its lockfile is byte-identical; otherwise the lane provisions a
 #      private tree keyed to that lockfile (provision-local-modules.sh, bd-vaee9). It never asks for
 #      `npm ci` in the shared clone, which every other worktree and session is mid-flight on.
-#   3. The bot's .env is composed from keys/niete-local.env (sandbox DB + placeholders, never a real
+#   3. The bot's .env is composed from keys/niete-local.env (placeholders, never a real
 #      WhatsApp token) plus the run's own values: WHATSAPP_API_BASE → the mock, E2E_COMMIT_SHA=<sha>,
 #      E2E_CASSETTE=replay-strict (a vendor miss FAILS, never goes live).
 #   4. Four processes: a private redis-server (no persistence), mock-graph-api, the bot, and the
@@ -23,12 +23,14 @@
 # 19 a port this stack would bind is already in use (another run) — nothing was started ·
 # 17 worker not healthy · 18 local database (E2E_LOCAL_DB=1) did not come up.
 #
-# E2E_LOCAL_DB=1 (bd-z3ze4): the bot runs on a clean per-run local database (local-db.sh) instead of the
-# shared sandbox Supabase; the keys file's SUPABASE_URL/SERVICE_ROLE_KEY are replaced by the run's own.
+# THE LOCAL LANE IS THE DEFAULT (bd-z3ze4.2): the bot runs on a clean per-run local database (local-db.sh)
+# instead of the shared sandbox Supabase; the keys file's SUPABASE_URL/SERVICE_ROLE_KEY are replaced by the
+# run's own. E2E_LOCAL_DB=0 opts out: the bot runs on the sandbox database and staging's R2, as before.
 # It also gets a per-run FILE store (local-r2.js, bd-z3ze4.1) instead of the staging R2 bucket: every upload
 # lands in <run_dir>/r2; a file the run did not write is read through from staging, read-only. The staging
 # R2 keys go to local-r2.js only; the bot gets dummy local ones.
 set -uo pipefail
+local_db_on() { [ "${E2E_LOCAL_DB:-1}" != 0 ]; }   # default ON; only an explicit 0 means the sandbox
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
 CMD="${1:-}"; shift || true
@@ -59,7 +61,7 @@ up() {
   # here, before run_dir/ports exists, means down can never touch processes this run did not start.
   local p busy=""
   for p in "${MOCK_PORT:-4010}" "${E2E_BOT_PORT:-3100}" "${E2E_REDIS_PORT:-6390}" "${E2E_WORKER_HEALTH_PORT:-3201}" \
-           $([ "${E2E_LOCAL_DB:-0}" = 1 ] && echo "${LOCAL_R2_PORT:-54600}" "${E2E_SUPABASE_PORT:-54321}" "${LOCAL_DB_REST_PORT:-54330}"); do
+           $(local_db_on && echo "${LOCAL_R2_PORT:-54600}" "${E2E_SUPABASE_PORT:-54321}" "${LOCAL_DB_REST_PORT:-54330}"); do
     lsof -ti tcp:"$p" -sTCP:LISTEN >/dev/null 2>&1 && busy="$busy $p"
   done
   if [ -n "$busy" ]; then
@@ -124,7 +126,7 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
   # The database: the sandbox lines from the keys file, or (E2E_LOCAL_DB=1) this run's own local database.
   # dotenv keeps the FIRST value, so the keys file's SUPABASE_* must be REMOVED, not overridden below it.
   local db_kind=sandbox db_lines r2_port=""
-  if [ "${E2E_LOCAL_DB:-0}" = 1 ]; then
+  if local_db_on; then
     bash "$HERE/local-db.sh" up "$run_dir/db" >&2 || { log "local database did not come up — see $run_dir/db/"; exit 18; }
     db_lines=$(grep -E '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' "$run_dir/db/db.env")
     db_kind=local

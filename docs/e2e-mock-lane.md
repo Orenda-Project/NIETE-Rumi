@@ -37,10 +37,46 @@ Every existing chrome invocation is unchanged; `--method` defaults from `whatsap
 | The running bot is that commit | `/health` returns `commit` (`E2E_COMMIT_SHA`, or `RAILWAY_GIT_COMMIT_SHA` on Railway); `local-stack.sh` refuses to drive a mismatch (exit 13) |
 | Installed deps match the commit's lockfiles | root and bot `package-lock.json` blobs at the sha must equal the installed trees' (exit 10) |
 | No live vendor call | `E2E_CASSETTE=replay-strict`: a hit replays, a miss **throws** `E2E_CASSETTE_MISS`, is logged to `cassette-misses.jsonl`, and makes the ledger row `CRITICAL` naming the scenarios it hit |
-| No production or staging data | the bot runs on the **sandbox** Supabase (`keys/niete-local.env`); the cassette and the DB tooling both refuse any other project ref |
-| One driver row per machine | the synthetic driver is derived from `hostname\|user` (`mock_driver.py`, `92300XXXXXXX`; `E2E_MOCK_DRIVER` pins it) and `ensure`d on first use, so two machines never seed or read the same rows on the shared sandbox DB; the run lock (`driver_lock.py`) is per machine and guards same-machine parallel runs |
+| No shared data at all (the default) | every run gets its **own local database** (Postgres 17 + PostgREST, copied in ~1.4 s from a golden built from the committed sandbox schema + a per-machine reference-data snapshot) and its **own file store** (`local-r2.js`: writes stay in the run, unwritten keys read through from staging, read-only). Both are dropped after the run. See *The local lane* below |
+| No production or staging writes | the DB tooling (Python `--env local`, Node `db-target.cjs`) only accepts 127.0.0.1 on a local run; with `E2E_LOCAL_DB=0` the bot runs on the **sandbox** Supabase (`keys/niete-local.env`), and the cassette and the DB tooling refuse any other project ref |
+| One driver row per machine | the synthetic driver is derived from `hostname\|user` (`mock_driver.py`, `92300XXXXXXX`; `E2E_MOCK_DRIVER` pins it) and `ensure`d on first use; on the sandbox (`E2E_LOCAL_DB=0`) that is what keeps two machines off each other's rows. The run lock (`driver_lock.py`) guards same-machine runs, and a `--slot` whose ports are busy is refused (bd-d2zge) |
 | Flows are emulated, never rendered | the `flow*` primitives play Meta's client from the stored FLOW_JSON (phase 4); every result carries `via: flow-emulator`, `caps.render` stays `false`, and a component the emulator does not model (PhotoPicker) is refused, not faked |
 | Meta's field caps are enforced | the mock rejects header/footer > 60, button > 20, row title > 24, > 3 buttons, > 10 rows — counted in **code points**, like Meta |
+
+## The local lane — the default (bd-z3ze4)
+
+Every mock-lane run uses its own throwaway database and file store; nothing is shared with the sandbox or with
+another run. `E2E_LOCAL_DB=0` opts a run out to the shared sandbox database and staging's R2, as before.
+
+**A new machine sets itself up** the first time `run-suite.sh` or `commit-e2e.sh` runs (both call
+`e2e_mock_lane_autofix --with-redis`; never from inside `git commit`, so a commit is never held up):
+
+| Step | Who | When |
+|---|---|---|
+| `railway login` (access to "NIETE-Rumi Staging") | **you** — the one manual fact, same as for the keys | once |
+| `brew install postgresql@17 pgvector postgrest` | automatic | first run |
+| reference-data snapshot: `local-db.sh seed-pull` (~3.5 min, ~180 MB) into `~/.cache/niete-e2e-db/seed` | automatic | first run, and again when `supabase/baseline/seed-tables.txt` changes |
+| golden database (schema + snapshot + `seed-overrides.sql`, ~12 s) | automatic | first run after a schema/snapshot change |
+| a fresh copy per run (~1.4 s), dropped at `down` | automatic | every run |
+
+What is committed vs per machine:
+
+| Committed | Per machine, never committed |
+|---|---|
+| `supabase/baseline/schema.sql` — the sandbox schema, no rows (regenerate: `local-db.sh baseline`) | the reference-data snapshot (part of it is the restricted ICT corpus) |
+| `supabase/baseline/seed-tables.txt` — which reference tables are pulled (never a per-teacher table) | the Postgres cluster (`~/.cache/niete-e2e-db/pg17`) |
+| `supabase/baseline/seed-overrides.sql` — the lane's own state for global switches (`app_redirect_*` off) | |
+
+Check a machine: `bash bot/scripts/e2e/local-db.sh doctor` (prints what is missing; silent when ready).
+Without a snapshot, `local-db.sh up` **refuses** (exit 9) rather than run every scenario on an empty database.
+
+Parallel: `run-suite.sh … --parallel` gives each feature a slot with its own database, PostgREST, proxy and file
+store ports (`slot_ports`); the shared cluster and golden build are serialised by a lock. All nine mock-capable
+features run in ~35 min (sequential ~100 min).
+
+What the private database makes possible: scenarios that need a GLOBAL switch (`app_redirect_*`: M20, L11,
+COA62, T92, T93) flip it for their own run via `api.setAppSetting` (`app-redirect-case.cjs`) and put it back;
+on the sandbox they stay BLOCKED, since the switch would reach every tester.
 
 ## Setup (automatic — no manual step)
 

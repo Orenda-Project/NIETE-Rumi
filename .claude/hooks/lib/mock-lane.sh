@@ -123,7 +123,7 @@ e2e_local_db_script() {
 }
 
 # e2e_mock_lane_ready "<main>" → one missing precondition per line on stdout; returns 0 iff none.
-# Exactly the things local-stack.sh refuses without (exit 14, 16, and with E2E_LOCAL_DB=1 exit 18 —
+# Exactly the things local-stack.sh refuses without (exit 14, 16, and on the local lane exit 18 —
 # local-db.sh doctor names those); nothing speculative.
 e2e_mock_lane_ready() {
   local main="$1" kd missing=0 ldb
@@ -136,7 +136,7 @@ e2e_mock_lane_ready() {
     printf 'redis-server not on PATH\n'
     missing=1
   fi
-  if [ "${E2E_LOCAL_DB:-0}" = 1 ] && ldb=$(e2e_local_db_script "$main"); then
+  if [ "${E2E_LOCAL_DB:-1}" != 0 ] && ldb=$(e2e_local_db_script "$main"); then   # local is the default (bd-z3ze4.2)
     bash "$ldb" doctor 2>/dev/null || missing=1
   fi
   return $missing
@@ -193,10 +193,10 @@ e2e_mock_lane_autofix() {
       echo "redis-server not on PATH (no brew or apt-get to auto-install it)"; rc=1
     fi
   fi
-  # E2E_LOCAL_DB=1, about to run (--with-redis): Postgres 17 + pgvector + postgrest, then the seed snapshot.
+  # Local lane (the default; E2E_LOCAL_DB=0 opts out), about to run (--with-redis): Postgres 17 + pgvector + postgrest, then the seed snapshot.
   # Never from the commit hook itself — a 3-minute pull must not hold a developer's terminal after `git commit`.
   local ldb
-  if [ -n "$with_redis" ] && [ "${E2E_LOCAL_DB:-0}" = 1 ] && ldb=$(e2e_local_db_script "$main"); then
+  if [ -n "$with_redis" ] && [ "${E2E_LOCAL_DB:-1}" != 0 ] && ldb=$(e2e_local_db_script "$main"); then
     if bash "$ldb" doctor 2>/dev/null | grep -qE '^(postgres17|pgvector|postgrest) '; then
       if command -v brew >/dev/null 2>&1 && brew install postgresql@17 pgvector postgrest >/dev/null 2>&1 \
          && ! bash "$ldb" doctor 2>/dev/null | grep -qE '^(postgres17|pgvector|postgrest) '; then
@@ -228,7 +228,7 @@ e2e_mock_not_ready_block() {
     echo "    railway login        # an account with access to the \"NIETE-Rumi Staging\" project; the keys file is then provisioned automatically on the next commit / session" ;;
   esac
   case "$why" in *postgres17*|*pgvector*|*postgrest*)
-    echo "    brew install postgresql@17 pgvector postgrest   # E2E_LOCAL_DB=1: commit-e2e.sh installs them automatically when brew is present" ;;
+    echo "    brew install postgresql@17 pgvector postgrest   # run-suite.sh / commit-e2e.sh install them automatically when brew is present (or E2E_LOCAL_DB=0 for the sandbox)" ;;
   esac
   case "$why" in *redis-server*)
     if command -v brew >/dev/null 2>&1 || ! command -v apt-get >/dev/null 2>&1; then

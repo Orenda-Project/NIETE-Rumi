@@ -16,6 +16,9 @@ say() { [ "$2" = "$3" ] && ok "$1" || bad "$1 (got '$2', want '$3')"; }
 has() { case "$2" in *"$3"*) got=yes ;; *) got=no ;; esac; say "$1" "$got" "$4"; }
 
 . "$ROOT/.claude/hooks/lib/mock-lane.sh"
+# The sections up to the local-database one test the SANDBOX lane (keys, redis, autofix): opt out
+# explicitly, since the local lane is the default (bd-z3ze4.2).
+export E2E_LOCAL_DB=0
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/mocklane.XXXXXX"); trap 'rm -rf "$TMP"' EXIT
 
 echo "mock-lane — keys dir resolution (mirrors local-stack.sh)"
@@ -147,7 +150,8 @@ has "…and the one remaining manual fact" "$out" "railway login" yes
 has "…and never reached the stack (no run id printed)" "$out" "driving:" no
 [ -d "$R/.claude/qa/results" ] && bad "a results dir was created although the run was refused" || ok "no results dir created"
 
-echo "mock-lane — E2E_LOCAL_DB=1: the per-run local database sets ITSELF up on a new machine (bd-z3ze4)"
+echo "mock-lane — the local database is the DEFAULT and sets ITSELF up on a new machine (bd-z3ze4, .2)"
+unset E2E_LOCAL_DB
 # A fake local-db.sh answers `doctor` / `seed-status` / `seed-pull` from marker files, so this pins the
 # READINESS logic, not Postgres. Real behaviour of those commands: bot/scripts/e2e/local-db.test.sh.
 mk_ldb() {   # $1 = main checkout; markers live in $1/.ldb/{tools,seed}
@@ -174,30 +178,40 @@ case "\$*" in *install*postgresql@17*pgvector*postgrest*) touch "\$LDB_MARK/tool
 BR
 chmod +x "$TMP/lbin/railway" "$TMP/lbin/redis-server" "$TMP/lbin/brew"
 L="$TMP/local/main"; mk_ldb "$L"; mkdir -p "$L/keys"; : > "$L/keys/niete-local.env"
+out=$(E2E_LOCAL_DB=0 PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_ready "$L"); rc=$?
+say "opt-out (E2E_LOCAL_DB=0, the sandbox lane): the local DB is not a precondition" "$rc:$out" "0:"
 out=$(PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_ready "$L"); rc=$?
-say "default lane (no E2E_LOCAL_DB): the local DB is not a precondition" "$rc:$out" "0:"
-out=$(E2E_LOCAL_DB=1 PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_ready "$L"); rc=$?
-say "E2E_LOCAL_DB=1 on a bare machine → not ready" "$rc" "1"
+say "DEFAULT (E2E_LOCAL_DB unset) on a bare machine → not ready" "$rc" "1"
 has "…naming Postgres 17" "$out" "postgres17" yes
 has "…and the missing seed snapshot" "$out" "seed missing" yes
-out=$(LDB_MARK="$L/.ldb" E2E_LOCAL_DB=1 PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$L" 2>&1); rc=$?
+out=$(LDB_MARK="$L/.ldb" PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$L" 2>&1); rc=$?
 has "without --with-redis (the commit hook) nothing heavy runs: no install" "$out" "auto-installed postgres" no
 has "…and no 3-minute seed pull inside a commit" "$out" "auto-pulled" no
-out=$(LDB_MARK="$L/.ldb" E2E_LOCAL_DB=1 PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$L" --with-redis 2>&1); rc=$?
+out=$(LDB_MARK="$L/.ldb" PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$L" --with-redis 2>&1); rc=$?
 has "--with-redis (about to run): brew installs Postgres 17 + pgvector + postgrest" "$out" "auto-installed postgresql@17" yes
 has "…and pulls the seed snapshot" "$out" "auto-pulled the seed snapshot" yes
 say "…and the machine is ready afterwards" "$rc" "0"
-out=$(E2E_LOCAL_DB=1 PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_ready "$L"); rc=$?
+out=$(PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_ready "$L"); rc=$?
 say "ready check now passes with zero manual steps" "$rc:$out" "0:"
 echo stale > "$L/.ldb/seed"
-out=$(LDB_MARK="$L/.ldb" E2E_LOCAL_DB=1 PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$L" --with-redis 2>&1); rc=$?
+out=$(LDB_MARK="$L/.ldb" PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$L" --with-redis 2>&1); rc=$?
 has "a STALE snapshot (the committed table list changed) is re-pulled" "$out" "auto-pulled the seed snapshot" yes
 L2="$TMP/local2/main"; mk_ldb "$L2"; mkdir -p "$L2/keys"; : > "$L2/keys/niete-local.env"; touch "$L2/.ldb/tools"
-out=$(FAKE_RAILWAY_FAIL=1 LDB_MARK="$L2/.ldb" E2E_LOCAL_DB=1 PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$L2" --with-redis 2>&1); rc=$?
+out=$(FAKE_RAILWAY_FAIL=1 LDB_MARK="$L2/.ldb" PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$L2" --with-redis 2>&1); rc=$?
 say "railway not logged in → the seed pull fails, autofix fails" "$rc" "1"
 blk=$(e2e_mock_not_ready_block "$out")
 has "…and the fix text names railway login" "$blk" "railway login" yes
 blk=$(e2e_mock_not_ready_block "postgres17 missing")
 has "missing Postgres → the fix text names the brew install" "$blk" "brew install postgresql@17 pgvector postgrest" yes
+
+echo "mock-lane — run-suite.sh (not only commit-e2e.sh) sets an unready machine up itself (bd-z3ze4.2)"
+R3="$TMP/clone suite"; mkdir -p "$R3/bot/shared/services" "$R3/bot/scripts/e2e" "$R3/.claude/hooks" "$R3/tests/features/whatsapp"
+cp -R "$ROOT/.claude/qa" "$R3/.claude/qa"; cp -R "$ROOT/.claude/hooks/lib" "$R3/.claude/hooks/lib"; cp "$ROOT/bot/scripts/e2e/provision-local-keys.sh" "$R3/bot/scripts/e2e/"
+cp -R "$ROOT/tests/features/whatsapp/niete" "$R3/tests/features/whatsapp/niete"; rm -rf "$R3/.claude/qa/results" "$R3/.claude/.e2e-pending"
+printf 'module.exports = { ROWS: [] };\n' > "$R3/bot/shared/services/menu.service.js"
+git -C "$R3" init -q -b sandbox; git -C "$R3" config user.email t@l; git -C "$R3" config user.name t; git -C "$R3" add -A >/dev/null; git -C "$R3" commit -qm baseline
+out=$(cd "$R3" && PATH="$TMP/abin:/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin" E2E_LOCAL_DB=0 E2E_LEDGER_COMMIT_OFF=1 bash .claude/qa/shared/run-suite.sh menu --method mock --commit HEAD --run-id rs-autofix 2>&1); rc=$?
+has "run-suite.sh auto-provisioned the keys (it no longer depends on commit-e2e.sh having run first)" "$out" "auto-provisioned" yes
+[ -f "$R3/keys/niete-local.env" ] && ok "…keys file exists afterwards" || bad "run-suite did not provision keys"
 
 echo; [ "$FAILED" -eq 0 ] && { echo "mock-lane-ready: all passed"; exit 0; } || { echo "mock-lane-ready: $FAILED failed"; exit 1; }

@@ -150,6 +150,19 @@ T0=$(date +%s)
 say "=== /niete-e2e $MODE · $(date -u +%FT%TZ) · tenant NIETE env=$ENV target=$TARGET driver=$DRIVER method=$METHOD${COMMIT:+ commit=${COMMIT:0:12}} run=$RUN_ID"
 
 # ── 0. preconditions ─────────────────────────────────────────────────────────────────────────
+# The mock lane sets its machine up ITSELF — keys from Railway, redis, and on the local lane (the default)
+# Postgres 17 + pgvector + postgrest and the seed snapshot — exactly as commit-e2e.sh does, so a direct
+# run-suite.sh call on a new machine works too (bd-z3ze4.2). Only `railway login` is ever manual.
+if [ "$METHOD" = mock ] && . "$ROOT/.claude/hooks/lib/mock-lane.sh" 2>/dev/null && type e2e_mock_lane_autofix >/dev/null 2>&1; then
+  _MAIN=$(e2e_main_checkout "$ROOT")
+  _FIX=$(e2e_mock_lane_autofix "$_MAIN" --with-redis); _FIX_RC=$?
+  printf '%s\n' "$_FIX" | grep -E '^auto-' | while IFS= read -r l; do say "machine: $l"; done
+  if [ "$_FIX_RC" -ne 0 ]; then
+    say "BLOCKED: this machine cannot run the mock lane yet:"
+    e2e_mock_not_ready_block "$(e2e_mock_lane_ready "$_MAIN"; printf '%s\n' "$_FIX" | grep -E 'failed|unavailable|missing' || true)" | tee -a "$LOG"
+    exit 3
+  fi
+fi
 python3 "$QA/driver_lock.py" acquire --driver "$DRIVER" --run-id "$RUN_ID" >>"$LOG" 2>&1 || { say "BLOCKED: driver lock held (see $LOG) — another run is driving $DRIVER"; exit 3; }
 STACK_DOWN=""
 cleanup() { python3 "$QA/driver_lock.py" release --driver "$DRIVER" >/dev/null 2>&1; [ -n "$STACK_DOWN" ] && bash "$ROOT/bot/scripts/e2e/local-stack.sh" down "$RUN_DIR" >>"$LOG" 2>&1; }
