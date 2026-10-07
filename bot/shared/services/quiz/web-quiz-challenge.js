@@ -43,6 +43,12 @@ const Budget = require('./web-quiz-challenge-budget');
 
 const FLAG_KEY = 'web_quiz_challenge';
 const LIVE_FLAG_KEY = 'web_quiz_challenge_realtime';
+const QA_FLAG_KEY = 'web_quiz_challenge_questions';
+const QA_MAX = 3;
+// Never shown to a child as an option (the page's no-test-words rule, Urdu and English).
+// "I don't know" is never offered as an option (it is in some rubrics' reject lists as a non-answer).
+const NOT_AN_ANSWER = /معلوم نہیں|نہیں معلوم|پتا نہیں|پتہ نہیں|\bdon'?t know\b|\bnot sure\b/i;
+const NO_TEST_WORDS = /\b(test|tests|testing|egra|egma|assessment|exam)\b|ٹیسٹ|امتحان|جائزہ|اسیسمنٹ/i;
 const TABLE = 'web_quiz_challenge_runs';
 const FLAG_TTL_MS = 30 * 1000;
 const PER_ITEM_S = 10;
@@ -103,12 +109,13 @@ const isMissingTable = (e) => !!e && (e.code === '42P01' || /does not exist|sche
 // ── state kept in this process: the flag cache, runs being scored, runs stored nowhere else ──────────────
 let flagCache = null;
 let liveCache = null;
+let qaCache = null;
 const RUNS = new Map();          // runId → { status, result, promise }
 const clipKnown = new Map();     // key → true (exists) | number (missing, checked at)
 const clipRecording = new Set();
 let clipsRecorded = 0;
 
-function __reset() { flagCache = null; liveCache = null; Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; }
+function __reset() { flagCache = null; liveCache = null; qaCache = null; Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; }
 
 function isTrue(v) {
   let x = v;
@@ -141,6 +148,20 @@ async function liveOn(now = Date.now()) {
     liveCache = { at: now, on: false };
   }
   return liveCache.on;
+}
+
+/** Questions after Read aloud: only `true` turns them on; anything else, or a failed read, is off. */
+async function questionsOn(now = Date.now()) {
+  if (qaCache && now - qaCache.at < FLAG_TTL_MS) return qaCache.on;
+  try {
+    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', QA_FLAG_KEY);
+    if (error) throw new Error(error.message || 'app_settings read failed');
+    qaCache = { at: now, on: !!(data && data[0]) && isTrue(data[0].value) };
+  } catch (e) {
+    logToFile('⚠️ web quiz challenge: questions flag lookup failed — off', { error: e.message });
+    qaCache = { at: now, on: false };
+  }
+  return qaCache.on;
 }
 
 /** The chip a hub page sends for one of the phone's children (not reversible): the hub's own, T.chipId('h', id). */
@@ -272,7 +293,7 @@ async function updateRun(id, patch) {
 }
 
 async function storedRun(id) {
-  const { data, error } = await supabase.from('web_quiz_challenge_runs').select('id, exercise, status, score, wcpm, meta').eq('id', id).maybeSingle();
+  const { data, error } = await supabase.from('web_quiz_challenge_runs').select('id, exercise, lang, status, score, wcpm, meta').eq('id', id).maybeSingle();
   return error ? null : data;
 }
 
@@ -379,7 +400,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   const live = await liveOn();
   // live: the bar marks the child's last checked words a minute ("last time"), null the first time
   const previousWcpm = live ? ((await previousRun(w.studentId, 'read', w.lang)) || {}).wcpm : undefined;
-  return { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: spec.direction } };
+  return { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), questions_on: await questionsOn(), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: spec.direction } };
 }
 
 // ── scoring ───────────────────────────────────────────────────────────────────────────────────────────
@@ -651,10 +672,14 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   const ext = key.split('.').pop();
   const promise = scoreRead(run, key, ext, body.ms, CT).then(async (r) => {
     const result = r.failed ? { failed: true, reason: r.reason } : { score: r.score, wcpm: r.wcpm, previous };
-    RUNS.set(c.r, { ...run, status: 'done', result });
+    const before = RUNS.get(c.r) || {};
+    RUNS.set(c.r, { ...run, ...(before.comp ? { comp: before.comp } : {}), status: 'done', result });
+    // answers to the questions may have been given while this reading was scored: keep them (meta.comp)
+    const cur = await storedRun(c.r);
+    const comp = cur && cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {};
     await updateRun(c.r, r.failed
-      ? { status: 'failed', meta: { ...r.meta, reason: r.reason }, scored_at: nowIso() }
-      : { status: 'scored', score: r.score, wcpm: r.wcpm, meta: { ...r.meta, ...(live ? { live } : {}) }, scored_at: nowIso() });
+      ? { status: 'failed', meta: { ...r.meta, ...comp, reason: r.reason }, scored_at: nowIso() }
+      : { status: 'scored', score: r.score, wcpm: r.wcpm, meta: { ...r.meta, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() });
     if (r.failed) logError('web_quiz.ch_read_failed', { runId: c.r, reason: r.reason });
     else logEvent('web_quiz.ch_done', { step: 'read', count: r.score.correct, wcpm: r.wcpm, stopped: r.score.stopped, costUsd: r.meta.cost_usd });
     return result;
@@ -665,6 +690,120 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   const out = await Promise.race([promise, later]);
   clearTimeout(timer);
   return out;
+}
+
+// ── questions after Read aloud ──────────────────────────────────────────────────────────────────────
+
+const scriptOf = (lang) => (lang === 'ur' ? (x) => /[\u0600-\u06FF]/.test(x) : (x) => !/[\u0600-\u06FF]/.test(x));
+
+/**
+ * The bank questions a person has read as TAP questions (options built below, checked one by one in the story's
+ * language), each with the listed wrong answers it must NOT offer: exactly one option is right, no wrong option is
+ * something the story also supports, and no two wrong options mean the same. Anything not listed — a new bank
+ * version, the listening questions — is never offered until it has been read the same way. Left out:
+ *   ur.story.q3 «بلال نے کیا حرکت کرتے دیکھا؟»  the water and the wind also move in the story
+ *   ur.story.q5                                  fewer than two fair wrong answers
+ *   ur.story.q6 «بلال خوش کیوں تھا؟»             the story never says why: the right answer is only an inference
+ */
+const TAP_REVIEWED = new Map([
+  ['en.story.q1', { skip: ['to plant trees'] }],          // "Today his class was planting trees." supports it
+  ['en.story.q2', { skip: [] }],
+  ['en.story.q3', { skip: [] }],
+  ['en.story.q4', { skip: [] }],
+  ['en.story.q5', { skip: [] }],
+  ['en.story.q6', { skip: [] }],
+  ['ur.story.q1', { skip: ['والدہ کے ساتھ'] }],           // the same as «امی کے ساتھ» (with mother)
+  ['ur.story.q2', { skip: [] }],
+  ['ur.story.q4', { skip: [] }],
+]);
+
+/** One bank question as a tap question: its first accept + two of its rejects, in the passage's script; null if short. */
+function tapOptions(q, lang, runId) {
+  const reviewed = q && TAP_REVIEWED.get(q.id);
+  if (!reviewed) return null;
+  const same = scriptOf(lang);
+  const right = (q.accept || []).find((a) => same(a) && !NO_TEST_WORDS.test(a));
+  // no two options may say the same thing: a wrong one inside another option ("books" / "his books") is skipped
+  const norm = (x) => String(x).toLowerCase().replace(/[^\p{L}\p{N} ]/gu, '').replace(/\s+/g, ' ').trim();
+  const clash = (a, b) => { const x = norm(a); const y = norm(b); return !x || !y || x.includes(y) || y.includes(x); };
+  // A wrong answer the rubric itself discusses is a near-miss ("Water alone is wrong: water went in after the plant"):
+  // fine to mark wrong when said, unfair as a tap option the story supports. A "don't know" is not an answer at all.
+  const rubric = norm(q.rubric || '');
+  const nearMiss = (a) => { const x = norm(a); return !!x && (` ${rubric} `).includes(` ${x} `); };
+  const wrong = [];
+  for (const a of q.reject || []) {
+    if (wrong.length >= 2) break;
+    if (!same(a) || NO_TEST_WORDS.test(a) || NOT_AN_ANSWER.test(a) || nearMiss(a) || reviewed.skip.includes(a)) continue;
+    if (![right, ...wrong].some((b) => clash(a, b))) wrong.push(a);
+  }
+  if (!right || wrong.length < 2) return null;
+  // the order is fixed per run and question (a refresh does not reshuffle), never the bank's order
+  const seed = crypto.createHash('sha256').update(`${runId}|${q.id}`).digest();
+  const opts = [right, ...wrong];
+  for (let i = opts.length - 1; i > 0; i -= 1) { const j = seed[i] % (i + 1); [opts[i], opts[j]] = [opts[j], opts[i]]; }
+  return { options: opts, right };
+}
+
+// The reading this run belongs to: its form, language and passage (from this process, else the table).
+async function readingOf(c, lang) {
+  if (c.ex !== 'read') fail(400, 'bad_request');
+  if (!(await questionsOn())) fail(503, 'questions_off');
+  const mem = RUNS.get(c.r) || {};
+  const row = await storedRun(c.r);
+  const run = await runFor(c, mem.task ? mem : {}, (row && row.lang) || mem.lang || lang);
+  const { Bank } = childTest();
+  const spec = Bank.getTaskSpec({ grade: Number(run.form), set: 'A', task: run.task });
+  return { run, row, mem, spec };
+}
+
+/**
+ * The questions the child reached (EGRA: only about text read; a stopped reader gets none), at most 3, in bank order.
+ * Words attempted: the checked score, else the live count stored with the result, else the page's own count (bounded).
+ */
+async function questions({ ct, attempted, lang } = {}) {
+  const c = runOf(ct);
+  const { run, row, mem, spec } = await readingOf(c, lang);
+  const n = ((spec.story || {}).tokens || []).length;
+  const checked = (row && row.status === 'scored' && row.score) || (mem.result && mem.result.score) || null;
+  if (checked && checked.stopped) return { questions: [] };
+  const live = row && row.meta && row.meta.live;
+  let words = checked ? checked.attempted : (live ? live.attempted : (Number.isInteger(Number(attempted)) ? Number(attempted) : null));
+  if (words == null) return { questions: [] };
+  words = Math.max(0, Math.min(n, words));
+  const { reachedQuestions } = require('../child-test/scoring/reach');
+  const reached = reachedQuestions(spec, { story: { words_attempted: words, finished_early: (checked && checked.finished_early) || words >= n } });
+  const out = [];
+  for (const q of spec.questions || []) {
+    if (out.length >= QA_MAX || !reached.has(q.id)) continue;
+    const t = tapOptions(q, run.lang, c.r);
+    if (!t) continue;
+    const k = q.id.split('.').pop();
+    out.push({ id: q.id, prompt: q.prompt, options: t.options, clip: { url: await clipUrl(clipKey('read', k, run.lang, q.prompt), q.prompt, run.lang) } });
+  }
+  logEvent('web_quiz.ch_qs', { lang: run.lang, n: out.length });
+  return { questions: out };
+}
+
+/** One tap: { ok, answer } (the right option's text). A question counts once; at most 3 per reading. */
+async function answer({ ct, q, pick, lang } = {}) {
+  const c = runOf(ct);
+  const { run, row, mem, spec } = await readingOf(c, lang);
+  const bq = (spec.questions || []).find((x) => x.id === q);
+  const p = Number(pick);
+  if (!bq || !Number.isInteger(p) || p < 0 || p > 2) fail(400, 'bad_request');
+  const t = tapOptions(bq, run.lang, c.r);
+  if (!t) fail(400, 'bad_request');
+  const comp = (mem.comp && mem.comp.ans) ? mem.comp : { ans: {} };
+  if (comp.ans[q] !== undefined) return { ok: comp.ans[q], answer: t.right };
+  if (Object.keys(comp.ans).length >= QA_MAX) fail(400, 'bad_request');
+  const ok = t.options[p] === t.right;
+  comp.ans[q] = ok;
+  RUNS.set(c.r, { ...(RUNS.get(c.r) || run), comp });
+  const vals = Object.values(comp.ans);
+  const numbers = { asked: vals.length, correct: vals.filter(Boolean).length, v: 1 };
+  if (row) await updateRun(c.r, { meta: { ...(row.meta || {}), comp: numbers } });
+  logEvent('web_quiz.ch_qa', { lang: run.lang, ok });
+  return { ok, answer: t.right };
 }
 
 async function poll(ct) {
@@ -723,7 +862,7 @@ async function listResults({ cls, list } = {}) {
 }
 
 module.exports = {
-  menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn,
+  menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, tapOptions,
   scoreBigger, wcpm, formFor, gradeOf, kidChip, challengeOn, clipKey, childVoiceBucket,
   EXERCISES, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, TABLE, MAX_BYTES,
   __reset,

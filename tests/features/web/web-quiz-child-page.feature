@@ -769,6 +769,28 @@ Feature: Web child quiz page on the portal
     Then no live key is minted ("enough for today")
     And a second key for the same run is refused, and the run's one result is accepted once
     And with app_settings web_quiz_challenge_realtime absent or not true, the page asks for no key at all
+
+  @T584
+  Scenario: Questions after Read aloud, only about the part the child read
+    Given app_settings web_quiz_challenge_questions is true and a child's reading was praised
+    When the child taps "Answer questions about the story" («کہانی کے بارے میں سوال»)
+    Then up to 3 of the story's own questions are asked, only those about lines the child reached
+    And each question is read aloud by the mascot and has 3 options: the story's accepted answer and two of its listed wrong answers, in the story's language
+    And a child stopped by the first-line rule, or a reading not heard, is offered no questions
+
+  @T585
+  Scenario: Each tap is checked by the server and the total is shown
+    Given a child is answering the questions after Read aloud
+    When the child taps an option
+    Then the page asks the server, which never sends the answers in advance
+    And a right tap shows "Yes!" («جی ہاں!») and a wrong one shows "The answer was: …" («جواب تھا: …») with the right option marked
+    And after the last question the page says "You got 2 of 3 right!" («آپ نے ۳ میں سے ۲ کے صحیح جواب دیے!»)
+    And only the numbers asked and correct are kept with the reading; a question counts once
+
+  @T586
+  Scenario: Questions are off unless switched on
+    Given app_settings web_quiz_challenge_questions is absent or not true
+    Then the Read aloud result offers no questions, and the question calls answer "questions_off"
   @T491
   Scenario: A shared phone reopened on a finished child's card lets the next child play
     Given a phone where "Tooba" finished this quiz and the page reopens on Tooba's card
