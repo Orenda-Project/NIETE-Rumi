@@ -92,8 +92,9 @@ const challenge = (fn) => handle((req) => {
 router.get('/ch/result/:ct', challenge((C, req) => C.poll(req.params.ct)));
 router.post('/ch/upload', challenge((C, req) => C.presignUpload(req.body || {})));
 router.post('/ch/result', challenge((C, req) => C.submit(req.body || {})));
-router.get('/ch/:token', challenge((C, req) => C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang })));
-router.get('/ch/:token/:exercise', challenge((C, req) => C.exercise(req.params.token, req.params.exercise, { kid: req.query.kid, lang: req.query.lang })));
+// x-wq-device: the phone's device_ref, forwarded by the edge from the wq_dv cookie (a hub token opens nothing on another phone).
+router.get('/ch/:token', challenge((C, req) => C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device') })));
+router.get('/ch/:token/:exercise', challenge((C, req) => C.exercise(req.params.token, req.params.exercise, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device') })));
 router.get('/challenge/results', challenge((C, req) => C.listResults({ cls: req.query.class, list: req.query.list })));
 // A link preview fetches this with no session: the signed id is the permission, so anyone may cache it.
 router.get('/art/:id', async (req, res) => {
@@ -109,7 +110,7 @@ router.get('/art/:id', async (req, res) => {
   }
 });
 // M4a hub — the kid hub's boot JSON (a WhatsApp /quiz link names this phone's own children)
-router.get('/hub/:token', handle((req) => require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: req.query.kid })));
+router.get('/hub/:token', handle((req) => require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: req.query.kid, device: req.get('x-wq-device') })));
 // M4b library
 const q1 = (v) => (typeof v === 'string' ? v.slice(0, 400) : undefined);
 router.get('/lib/h/:token', handle((req) => WebQuizLibrary.libHub(req.params.token, { kid: q1(req.query.kid), g: q1(req.query.g), s: q1(req.query.s) })));

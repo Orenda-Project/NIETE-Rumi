@@ -861,6 +861,7 @@ Feature: Web child quiz page on the portal
     And no child's name, animal, teacher quiz, past quiz or recommendation is shown, and nothing can be played as them
     And "Someone else / new player" («کوئی اور / نیا کھلاڑی») says to ask the teacher for a quiz link or send /quiz on WhatsApp from the family's phone
     And the family's own phone, and any phone a child of that family has already played on, still sees the hub unchanged
+    And the hub's Challenge link (/c/<link>?kid=…) opened on that second phone shows the same neutral note, with no past result and nothing to play as the child
   @T446
   Scenario: A challenger who scored nothing is not a score to beat
     Given a child finished a quiz with 0 right answers and sent a friend their challenge link

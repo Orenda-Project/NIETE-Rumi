@@ -112,17 +112,25 @@
   }
   // This phone's device_ref: the same key the quiz page keeps it under (wq.js sget 'wq_d', JSON), so a
   // phone that opens the hub and then plays is one phone to the server. Minted here when there is none.
+  // The same ref goes into the wq_dv cookie, so the pages a hub link opens next (the challenge, the library)
+  // reach the server as this phone too: their server render and API calls carry it as x-wq-device.
+  function keepCookie(d) {
+    try {
+      document.cookie = 'wq_dv=' + d + '; path=/; max-age=2592000; samesite=lax' + (location.protocol === 'https:' ? '; secure' : '');
+    } catch (e) {}
+    return d;
+  }
   function deviceRef() {
     var d = null;
     try { d = JSON.parse(localStorage.getItem('wq_d') || 'null'); } catch (e) { d = null; }
-    if (typeof d === 'string' && /^[A-Za-z0-9_-]{22}$/.test(d)) return d;
+    if (typeof d === 'string' && /^[A-Za-z0-9_-]{22}$/.test(d)) return keepCookie(d);
     var ABC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
     var bytes = [];
     try { var a = new Uint8Array(22); window.crypto.getRandomValues(a); bytes = Array.prototype.slice.call(a); } catch (e) { bytes = []; }
     d = '';
     for (var i = 0; i < 22; i++) d += ABC.charAt((bytes.length ? bytes[i] : Math.floor(Math.random() * 256)) & 63);
     try { localStorage.setItem('wq_d', JSON.stringify(d)); } catch (e) {}
-    return d;
+    return keepCookie(d);
   }
   // The hub JSON for this phone: the device_ref rides in the body, never the URL.
   function hubFor(kid) {
