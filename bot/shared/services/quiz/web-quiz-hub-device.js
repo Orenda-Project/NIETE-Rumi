@@ -10,6 +10,7 @@
  *
  *   deviceTrusted(token, device)       {ok, why}
  *   deviceMayName(studentIds, device)  boolean
+ *   deviceKids(device)                 the student ids this phone was trusted with (newest hubs), [] if none
  */
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
@@ -21,6 +22,11 @@ const bindKey = (token) => BIND_PREFIX + crypto.createHash('sha256').update(Stri
 // so the hub's /q/<code>?k=<chip> links name the child on THAT phone only (web-quiz.service startSession).
 const KID_PREFIX = 'wq:hub:kid:';
 const kidKey = (studentId, d) => KID_PREFIX + crypto.createHash('sha256').update(`${studentId}|${d}`).digest('hex').slice(0, 32);
+// The children a trusted phone may play as, so a hub ?k= chip resolves on THAT phone however long ago the child
+// last played (the quiz page's own chip lookup only sees a teacher's 40 most recent players).
+const DEVKIDS_PREFIX = 'wq:hub:devkids:';
+const DEVKIDS_MAX = 8;
+const devKidsKey = (d) => DEVKIDS_PREFIX + crypto.createHash('sha256').update(String(d)).digest('hex').slice(0, 32);
 
 /** Has this phone (device_ref) ever played as one of these children (any code)? */
 async function deviceKnows(studentIds, deviceRef) {
@@ -64,7 +70,12 @@ async function deviceTrusted(token, device) {
     }
   }
   if (store) {
-    try { await Promise.all(ids.map((id) => redis.set(kidKey(id, d), '1', ttl))); } catch (_) { /* naming falls back to deviceKnows */ }
+    try {
+      await Promise.all(ids.map((id) => redis.set(kidKey(id, d), '1', ttl)));
+      const had = await redis.get(devKidsKey(d));
+      const kids = [...new Set([...ids, ...(Array.isArray(had) ? had.map(String) : [])])].slice(0, DEVKIDS_MAX);
+      await redis.set(devKidsKey(d), kids, ttl);
+    } catch (_) { /* naming falls back to deviceKnows */ }
   }
   return out;
 }
@@ -86,4 +97,18 @@ async function deviceMayName(studentIds, device) {
 }
 
 
-module.exports = { deviceTrusted, deviceMayName };
+/** The student ids a hub trusted this phone with ([] when none, no device, or Redis is down). */
+async function deviceKids(device) {
+  const d = T.cleanDeviceRef(device);
+  if (!d) return [];
+  try {
+    const redis = require('../cache/railway-redis.service');
+    if (!redis || typeof redis.isAvailable !== 'function' || !redis.isAvailable()) return [];
+    const v = await redis.get(devKidsKey(d));
+    return Array.isArray(v) ? v.map(String).slice(0, DEVKIDS_MAX) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+module.exports = { deviceTrusted, deviceMayName, deviceKids };

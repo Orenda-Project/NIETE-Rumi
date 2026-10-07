@@ -915,6 +915,14 @@ Feature: Web child quiz page on the portal
     And the child is recognised without picking their name again
     And the teacher's report link and the quiz's data calls are never moved
 
+  @T545
+  Scenario: A hub quiz link plays as the child on the family phone even for a teacher with many players
+    Given a teacher whose quizzes more than 40 children have played since this child last played
+    And the family phone opened the child's /quiz hub link
+    When the child taps "Play again" or the teacher's quiz on the hub
+    Then the quiz starts as that child, with no "Which class are you in?" and no name to pick
+    And the same quiz link opened on another phone names nobody and asks who is playing
+
   @T561
   Scenario: A library link from the hub opened on another phone says whose link it is
     Given a child's hub link is bound to the child's phone
