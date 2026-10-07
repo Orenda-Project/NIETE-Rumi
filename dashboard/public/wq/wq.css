@@ -381,6 +381,7 @@ html[lang=ur] .wq-hnonesay{font-weight:600;font-size:17px;line-height:2}
 .wq-htile{display:flex;flex-direction:column;gap:4px;min-height:112px;padding:12px;border-radius:18px;border:2px solid var(--line);background:var(--card);color:var(--navy);text-decoration:none;box-shadow:0 3px 0 var(--line)}
 .wq-htile:only-child{grid-column:1/-1}
 .wq-htic{font-family:var(--f);font-size:30px;line-height:1}
+.wq-htimg{width:64px;height:64px;border-radius:14px;object-fit:cover}
 .wq-htile b{font-size:17px;line-height:1.25}
 .wq-htile small{font-size:13px;color:var(--muted);font-weight:700;line-height:1.3}
 html[lang=ur] .wq-htile b{font-weight:700;line-height:1.9}
