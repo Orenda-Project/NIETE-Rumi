@@ -6,6 +6,15 @@
  */
 const crypto = require('crypto');
 
+// PostgREST compares a jsonb column with eq.<json literal> as jsonb (key order does not matter); a plain value with ===.
+const canon = (v) => (v && typeof v === 'object' ? (Array.isArray(v) ? v.map(canon) : Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])]))) : v);
+const same = (cell, v) => {
+  if (cell && typeof cell === 'object' && typeof v === 'string') {
+    try { return JSON.stringify(canon(cell)) === JSON.stringify(canon(JSON.parse(v))); } catch (e) { return false; }
+  }
+  return cell === v;
+};
+
 function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_id'], quiz_share_codes: ['code'] } } = {}) {
   const calls = [];
   const rpcs = [];
@@ -15,7 +24,7 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
     const st = { t, filters: [], order: [], limit: null, op: 'select', count: false, head: false, payload: null, single: null };
     const b = {
       select(cols, opts) { if (st.op === 'select') st.op = 'select'; st.returning = true; if (opts && opts.count) { st.count = true; st.head = !!opts.head; } return b; },
-      eq(c, v) { st.filters.push((r) => r[c] === v); return b; },
+      eq(c, v) { st.filters.push((r) => same(r[c], v)); return b; },
       neq(c, v) { st.filters.push((r) => r[c] !== v); return b; },
       is(c, v) { st.filters.push((r) => (v === null ? r[c] == null : r[c] === v)); return b; },
       not(c, op, v) { if (op === 'is' && v === null) st.filters.push((r) => r[c] != null); return b; },

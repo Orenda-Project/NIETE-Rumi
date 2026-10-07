@@ -314,6 +314,30 @@ async function storedRun(id) {
   return error ? null : data;
 }
 
+/**
+ * A run's meta has more than one writer (the checked score, each tap's meta.comp), on any replica. Each write is
+ * built from a fresh read and lands only if meta is still what was read (jsonb equality), else it is rebuilt from
+ * a new read, so neither writer puts back a stale copy of the other's keys. `build(row)` returns the patch.
+ * Returns the row as written, or null (no row, a store error, or still contended after the retries).
+ */
+const META_TRIES = 5;
+async function updateRunMeta(id, build) {
+  for (let i = 0; i < META_TRIES; i += 1) {
+    const cur = await storedRun(id);
+    if (!cur) return null;
+    const patch = build(cur);
+    const q = supabase.from('web_quiz_challenge_runs').update(patch).eq('id', id);
+    const { data, error } = await (cur.meta == null ? q.is('meta', null) : q.eq('meta', JSON.stringify(cur.meta))).select('id');
+    if (error) {
+      if (!isMissingTable(error)) storeFailed(id, error);
+      return null;
+    }
+    if (data && data.length) return { ...cur, ...patch };
+  }
+  logError('web_quiz.challenge_meta_contended', { runId: id, tries: META_TRIES });
+  return null;
+}
+
 // ── clips: the mascot's lines, recorded once per env in the quiz voice ───────────────────────────────
 
 // quiz-audio/<env>/challenge/<lang>/<exercise>/<part>-<voiceTag>-<hash8>.ogg — the quiz clips' own scheme and bucket.
@@ -700,8 +724,7 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}) };
   if (isLive) {
     // the child may already be answering the questions (the live result shows before this call): keep their answers
-    const cur = await storedRun(c.r);
-    await updateRun(c.r, { status: 'scoring', meta: { ...metaIn, ...(cur && cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {}) } });
+    await updateRunMeta(c.r, (cur) => ({ status: 'scoring', meta: { ...metaIn, ...(cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {}) } }));
   }
   else {
     const stored = await insertRun({ ...base, status: 'scoring', meta: metaIn });
@@ -713,11 +736,12 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
     const before = RUNS.get(c.r) || {};
     RUNS.set(c.r, { ...run, ...(before.comp ? { comp: before.comp } : {}), status: 'done', result });
     // answers to the questions may have been given while this reading was scored: keep them (meta.comp)
-    const cur = await storedRun(c.r);
-    const comp = cur && cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {};
-    await updateRun(c.r, r.failed
-      ? { status: 'failed', meta: { ...r.meta, ...comp, reason: r.reason }, scored_at: nowIso() }
-      : { status: 'scored', score: r.score, wcpm: r.wcpm, meta: { ...r.meta, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() });
+    await updateRunMeta(c.r, (cur) => {
+      const comp = cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {};
+      return r.failed
+        ? { status: 'failed', meta: { ...r.meta, ...comp, reason: r.reason }, scored_at: nowIso() }
+        : { status: 'scored', score: r.score, wcpm: r.wcpm, meta: { ...r.meta, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() };
+    });
     if (r.failed) logError('web_quiz.ch_read_failed', { runId: c.r, reason: r.reason });
     else logEvent('web_quiz.ch_done', { step: 'read', count: r.score.correct, wcpm: r.wcpm, stopped: r.score.stopped, costUsd: r.meta.cost_usd });
     return result;
@@ -872,9 +896,16 @@ async function answer({ ct, q, pick, lang } = {}) {
   const ok = t.options[p] === t.right;
   ans[key] = ok ? 1 : 0;
   RUNS.set(c.r, { ...(RUNS.get(c.r) || run), comp: { a: ans } });
-  const vals = Object.values(ans);
-  const numbers = { asked: vals.length, correct: vals.filter((x) => x === 1).length, v: 1, a: ans };
-  if (row) await updateRun(c.r, { meta: { ...(row.meta || {}), comp: numbers } });
+  const tally = (a) => { const vals = Object.values(a); return { asked: vals.length, correct: vals.filter((x) => x === 1).length, v: 1, a }; };
+  let numbers = tally(ans);
+  if (row) {
+    // merged into the row as it is now (another tap or the checked score may have written since it was read)
+    const written = await updateRunMeta(c.r, (cur) => {
+      const a = { ...((cur.meta && cur.meta.comp && cur.meta.comp.a) || {}), ...ans };
+      return { meta: { ...(cur.meta || {}), comp: tally(a) } };
+    });
+    if (written) numbers = written.meta.comp;
+  }
   // listening: the last answer scores the run ({correct, n}, as "Which is bigger?")
   const n = row && row.meta && Number(row.meta.n);
   if (c.ex === 'listen' && row && n && numbers.asked >= n) {
