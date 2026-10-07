@@ -143,6 +143,8 @@ test('another phone (still locked): NO name, the neutral "ask the child" screen,
   await flush(); await flush();
   expect(p.moment()).toBe('H-lock');
   expect(p.html()).toContain('Ask the child this link was sent to to open it');
+  // the family's own other phone / browser is never stuck for 7 days: a fresh /quiz mints a fresh link
+  expect(p.html()).toContain('Is this your link? Send /quiz on WhatsApp again for a new one.');
   expect(p.html()).not.toMatch(/ثنا|بلال|data-chip|\/q\//);
   p.els['#wq-h-new'].fire('click');
   expect(p.moment()).toBe('H-new');
@@ -154,6 +156,7 @@ test('Urdu lock screen: gender-neutral (no «رہا/رہی», no «بیٹا/بی
   const p = page(LOCKED({ lang: 'ur' }), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': LOCKED({ lang: 'ur' }) } });
   await flush(); await flush();
   expect(p.moment()).toBe('H-lock');
+  expect(p.html()).toContain('نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ');
   expect(p.html()).not.toMatch(/رہا|رہی|بیٹا|بیٹی/);
   p.els['#wq-h-new'].fire('click');
   expect(p.html()).not.toMatch(/رہا|رہی|بیٹا|بیٹی/);

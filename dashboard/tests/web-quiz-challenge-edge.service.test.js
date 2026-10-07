@@ -122,6 +122,7 @@ test('another phone (bot 403 other_device): a neutral note naming nobody, in the
     const en = await reqCookie(srv, `/c/${TOKEN}?kid=0123456789abcdef&lang=en`);
     expect(en.status).toBe(403);
     expect(en.body).toContain('Ask the child this link was sent to to open it.');
+    expect(en.body).toContain('Send /quiz on WhatsApp again for a new one.');
     const ur = await reqCookie(srv, `/c/${TOKEN}?kid=0123456789abcdef&lang=ur`);
     expect(ur.body).toContain('جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔');
     expect(ur.body).not.toMatch(/رہا|رہی/);

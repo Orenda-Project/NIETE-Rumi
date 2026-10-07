@@ -75,6 +75,10 @@ function kidOf(token, kid) {
 
 const BIND_PREFIX = 'wq:hub:dev:';
 const bindKey = (token) => BIND_PREFIX + crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32);
+// "This phone may name this child": written for every child of a hub token once the phone is trusted,
+// so the hub's /q/<code>?k=<chip> links name the child on THAT phone only (web-quiz.service startSession).
+const KID_PREFIX = 'wq:hub:kid:';
+const kidKey = (studentId, d) => KID_PREFIX + crypto.createHash('sha256').update(`${studentId}|${d}`).digest('hex').slice(0, 32);
 
 /** Has this phone (device_ref) ever played as one of these children (any code)? */
 async function deviceKnows(studentIds, deviceRef) {
@@ -96,18 +100,46 @@ async function deviceTrusted(token, device) {
   if (!tok || !Array.isArray(tok.ids) || !tok.ids.length) return { ok: false, why: 'bad_token' };
   const d = T.cleanDeviceRef(device);
   if (!d) return { ok: false, why: 'no_device' };
-  if (await deviceKnows(tok.ids.map(String), d)) return { ok: true, why: 'played' };
+  const ids = tok.ids.map(String);
   const redis = require('../cache/railway-redis.service');
-  if (!redis || typeof redis.isAvailable !== 'function' || !redis.isAvailable()) return { ok: false, why: 'no_store' };
-  const key = bindKey(token);
+  const store = Boolean(redis && typeof redis.isAvailable === 'function' && redis.isAvailable());
   const ttl = Math.max(60, tok.exp - Math.floor(Date.now() / 1000));
-  try {
-    await redis.setNX(key, d, ttl);
-    // Read back: setNX answers "claimed" when Redis errors, so only the stored value decides.
-    const bound = await redis.get(key);
-    return bound === d ? { ok: true, why: 'bound' } : { ok: false, why: bound ? 'other_device' : 'no_store' };
-  } catch (_) {
+  let out;
+  if (await deviceKnows(ids, d)) {
+    out = { ok: true, why: 'played' };
+  } else if (!store) {
     return { ok: false, why: 'no_store' };
+  } else {
+    const key = bindKey(token);
+    try {
+      await redis.setNX(key, d, ttl);
+      // Read back: setNX answers "claimed" when Redis errors, so only the stored value decides.
+      const bound = await redis.get(key);
+      if (bound !== d) return { ok: false, why: bound ? 'other_device' : 'no_store' };
+      out = { ok: true, why: 'bound' };
+    } catch (_) {
+      return { ok: false, why: 'no_store' };
+    }
+  }
+  if (store) {
+    try { await Promise.all(ids.map((id) => redis.set(kidKey(id, d), '1', ttl))); } catch (_) { /* naming falls back to deviceKnows */ }
+  }
+  return out;
+}
+
+/** May this phone see these children's names on a hub ?k= link? A phone they played on, or one a hub of theirs was opened on. */
+async function deviceMayName(studentIds, device) {
+  const d = T.cleanDeviceRef(device);
+  const ids = (studentIds || []).map(String).filter(Boolean);
+  if (!d || !ids.length) return false;
+  if (await deviceKnows(ids, d)) return true;
+  try {
+    const redis = require('../cache/railway-redis.service');
+    if (!redis || typeof redis.isAvailable !== 'function' || !redis.isAvailable()) return false;
+    const hits = await Promise.all(ids.map((id) => redis.get(kidKey(id, d))));
+    return hits.some((v) => v === 1 || v === '1');
+  } catch (_) {
+    return false;
   }
 }
 
@@ -343,7 +375,7 @@ async function hub(token, { kid, device } = {}) {
 }
 
 module.exports = {
-  hub, kidOf, kidFromHub, deviceTrusted, recOrder, firstOfEach, AGAIN_MAX, RECS_MAX,
+  hub, kidOf, kidFromHub, deviceTrusted, deviceMayName, recOrder, firstOfEach, AGAIN_MAX, RECS_MAX,
   // the switches live in web-quiz-hub-flags.js (student-quiz reads them without loading this module)
   hubLink: Flags.hubLink, flags: Flags.flags, HUB_KEY: Flags.HUB_KEY, CHALLENGE_KEY: Flags.CHALLENGE_KEY, LIBRARY_KEY: Flags.LIBRARY_KEY,
   _resetCache: Flags._resetCache,
