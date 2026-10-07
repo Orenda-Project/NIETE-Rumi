@@ -66,3 +66,38 @@ describe('a tap opens this child\'s hub', () => {
     expect(p.hist.assigned).toEqual([]);
   });
 });
+
+describe('the first screen of a class child\'s card is score, the name notice, "Share to class group", the door', () => {
+  const NOTES = { ...DOOR, card: { ...RESULT.card, nth: 3, practice: true, kept: { correct: 2, total: 5 } } };
+  const at = (h, x) => h.indexOf(x);
+  const PRIV = 'Only your first name goes on the card.';
+  test('the name notice sits directly above Share; the door is next; the place-in-class note comes after the door', () => {
+    const h = page({ lang: 'en', store: store(NOTES) }).html();
+    const door = at(h, 'id="wq-hubdoor"');
+    expect(at(h, 'wq-scorecard')).toBeLessThan(at(h, PRIV));
+    expect(at(h, PRIV)).toBeLessThan(at(h, 'id="wq-share"'));
+    expect(h.slice(at(h, PRIV), at(h, 'id="wq-share"'))).not.toMatch(/<(p|div|button)\b[^>]*>/);
+    expect(at(h, 'id="wq-share"')).toBeLessThan(door);
+    expect(door).toBeLessThan(at(h, 'wq-nth'));
+    expect(at(h, 'wq-nth')).toBeLessThan(at(h, 'id="wq-chal"'));
+  });
+  test('Urdu: the same order', () => {
+    const h = page({ lang: 'ur', store: store(NOTES) }).html();
+    expect(at(h, 'کارڈ پر صرف آپ کا پہلا نام')).toBeLessThan(at(h, 'id="wq-share"'));
+    expect(at(h, 'id="wq-share"')).toBeLessThan(at(h, 'id="wq-hubdoor"'));
+    expect(at(h, 'id="wq-hubdoor"')).toBeLessThan(at(h, 'wq-nth'));
+  });
+  test('the card\'s topic carries the one-line hook for short phones', () => {
+    expect(page({ lang: 'en', store: store(NOTES) }).html()).toMatch(/<p class="wq-sub wq-ctopic">Plants<\/p>/);
+  });
+  test('no door (switch off): the card keeps today\'s order (notes, then the actions)', () => {
+    const h = page({ lang: 'en', store: store({ ...NOTES, hub_door: undefined }) }).html();
+    expect(at(h, 'wq-nth')).toBeLessThan(at(h, 'id="wq-share"'));
+    expect(at(h, PRIV)).toBeLessThan(at(h, 'id="wq-share"'));
+  });
+  test('a video quiz card is unchanged: Watch more first, the notes above the actions', () => {
+    const h = page({ lang: 'en', store: store(NOTES), video: { url: 'https://r2.test/v.mp4' } }).html();
+    expect(at(h, 'wq-nth')).toBeLessThan(at(h, 'id="wq-more"'));
+    expect(at(h, 'id="wq-more"')).toBeLessThan(at(h, 'id="wq-share"'));
+  });
+});
