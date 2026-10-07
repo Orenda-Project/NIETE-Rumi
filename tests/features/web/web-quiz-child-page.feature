@@ -737,6 +737,38 @@ Feature: Web child quiz page on the portal
     Then the Challenge menu shows only "Which is bigger?"
     And a reading already open is answered "enough for today", and its uploaded recording is deleted
     And web_quiz.ch_read_capped is logged once that day
+
+  @T580
+  Scenario: Read aloud live: the words light up as the child reads and the words-a-minute bar moves
+    Given app_settings web_quiz_challenge_realtime is true and the microphone is allowed
+    When the child taps "I'm ready" and starts to read
+    Then the page streams the microphone to speech-to-text with a one-run key the bot minted, sent in the stream's first message and never in a URL
+    And each word read turns green as it is heard, and a word passed over is marked "not caught" in soft amber, never red
+    And a bar at the top shows the words a minute («ایک منٹ میں لفظ») as the child reads, with last time's mark when there is one
+    And no word on the page is "test", "exam" or "assessment"
+
+  @T581
+  Scenario: Read aloud live: the result shows the moment the reading ends, and the checked count follows
+    Given a child reading live reaches the last word, or the minute ends, or taps "Done"
+    Then "You read N words in a minute!" shows at once, with the coloured story and its key
+    And the recording still goes up by presigned upload and is scored the usual way, with the live numbers kept beside the score
+    And when the checked count differs by 3 or more the line becomes "Jugnu listened again: M words a minute!" («جگنو نے دوبارہ سنا: ایک منٹ میں M لفظ!»)
+    And "more words than last time" compares checked counts only
+    But a checked "nothing heard" replaces the praise with "We couldn't hear that clearly. Try again?"
+
+  @T582
+  Scenario: Read aloud live falls back to today's reading whenever the live stream cannot run
+    Given the live switch is on
+    When the key cannot be minted, the stream is refused (for example the stream limit), or it drops during the reading
+    Then the child keeps reading without a break and the result comes from the upload, as before the live switch
+    And web_quiz.ch_live is logged with ok false and the reason
+
+  @T583
+  Scenario: A live key is one per run and counts toward today's readings
+    Given a child has read aloud 10 times in the last 24 hours, or today's read-aloud cap is reached
+    Then no live key is minted ("enough for today")
+    And a second key for the same run is refused, and the run's one result is accepted once
+    And with app_settings web_quiz_challenge_realtime absent or not true, the page asks for no key at all
   @T491
   Scenario: A shared phone reopened on a finished child's card lets the next child play
     Given a phone where "Tooba" finished this quiz and the page reopens on Tooba's card
