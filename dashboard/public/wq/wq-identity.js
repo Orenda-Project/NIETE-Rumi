@@ -58,6 +58,19 @@ var WQID = function (P) {
   /* S0 */
   // pic: the invited friend's picture (wq.js chPic), shown above the challenge line.
   function landing(chLine, pic) {
+    // A link from the child's hub or the library carries the child (?k=<chip>): play as them, exactly like a card
+    // tapped, and never ask "Who is playing?" meanwhile (the question would be gone, unanswered, when the session
+    // starts). Used once; a chip the server does not know is forgotten by startSession, which asks who() next; a
+    // session that cannot start comes back here and asks.
+    var k = P.params.k;
+    if (k && !hubDone) {
+      hubDone = true;
+      dropHubParam();
+      opening();
+      P.ev('identity_pick', { src: 'hub' });
+      P.startSession({ chip: String(k).slice(0, 64), via: 'hub' }, null, '');
+      return;
+    }
     var here = P.kids();
     var Q = P.Q, CLS = P.CLS, LIVE = P.LIVE || {};
     var classPhone = here.length >= CLASS_PHONE;
@@ -89,15 +102,14 @@ var WQID = function (P) {
     });
     on('#wq-someone', function () { P.ev('identity_pick', { src: 'someone_else' }); who(); });
     on('#wq-play', who);
-    // A link from the child's hub carries the child: play as them, exactly like a card tapped.
-    // Used once; a chip the server does not know is forgotten by startSession, which asks who() next.
-    var k = P.params.k;
-    if (k && !hubDone) {
-      hubDone = true;
-      dropHubParam();
-      P.ev('identity_pick', { src: 'hub' });
-      P.startSession({ chip: String(k).slice(0, 64), via: 'hub' }, null, '');
-    }
+  }
+  // While a hub link's session starts: the quiz and Jugnu, no question and nothing to tap.
+  function opening() {
+    var Q = P.Q, CLS = P.CLS;
+    P.render(P.bar() + P.jug('thinking', TW.opening) +
+      '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1>' +
+      '<p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p></div>', 'M4-opening');
+    P.wireBar();
   }
 
   function who() {
