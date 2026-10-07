@@ -252,6 +252,10 @@ describe('a reading with nothing to praise is never praised', () => {
     expect(p.html()).toContain("We couldn't hear that clearly. Try again?");
     expect(p.html()).toContain('id="wqc-again"');
     expect(p.html()).not.toContain('Great reading! Well done.');
+    // A child who was not heard is steered to read again: "Try again" is the primary (green) button, first.
+    expect(p.html()).toMatch(/class="wq-btn wq-go" id="wqc-again"/);
+    expect(p.html()).toMatch(/class="wq-btn wq-soft" id="wqc-menu"/);
+    expect(p.html().indexOf('wqc-again')).toBeLessThan(p.html().indexOf('wqc-menu'));
   });
 
   test('Urdu: the same two branches, never «بہت اچھا پڑھا»', () => {
