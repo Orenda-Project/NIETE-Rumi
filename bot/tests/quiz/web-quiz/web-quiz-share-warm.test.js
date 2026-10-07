@@ -122,6 +122,16 @@ beforeEach(() => {
   redis.__keys.clear();
   jest.clearAllMocks();
   seed();
+  // The fake has no column defaults: quiz_share_codes.active defaults to true in the database.
+  const from0 = supabase.from;
+  supabase.from = (t) => {
+    const q = from0(t);
+    if (t !== 'quiz_share_codes' || typeof q.insert !== 'function') return q;
+    const insert = q.insert.bind(q);
+    const withDefault = (r) => ({ active: true, ...r });
+    q.insert = (rows) => insert(Array.isArray(rows) ? rows.map(withDefault) : withDefault(rows));
+    return q;
+  };
   Og._reset();
   Art._resetCache();
   // The renderer is held until the test lets it go: the finish must not wait for it.
@@ -145,10 +155,8 @@ test('the finish answers at once, then the card and invite pictures are drawn an
   expect(out.art.card).toMatch(/^c\./);
   expect(out.art.invite).toMatch(/^i\./);
   expect(out.challenge_code).toMatch(/^[A-Z0-9]{4,12}$/);
-  // The fake has no column defaults: quiz_share_codes.active defaults to true in the database.
-  fake.db.quiz_share_codes.forEach((c) => { if (c.active === undefined) c.active = true; });
-  // answered while the renderer was still held: at most the first draw has started, none has finished
-  expect(htmlToImage.mock.calls.length).toBeLessThanOrEqual(1);
+  // answered while the renderer was still held: at most the two allowed draws have started, none has finished
+  expect(htmlToImage.mock.calls.length).toBeLessThanOrEqual(2);
   release();
   expect(await until(() => htmlToImage.mock.calls.length >= 2)).toBe(true);
   expect(await until(() => Boolean(Og.get(out.challenge_code)))).toBe(true);
@@ -173,4 +181,15 @@ test('a picture that cannot be drawn never fails the finish', async () => {
   const r = await fetch(`${base}/finish`, { method: 'POST', headers: KEY, body: JSON.stringify({ st: s.st }) });
   expect(r.status).toBe(200);
   await new Promise((x) => setTimeout(x, 50));
+});
+
+test("the challenge code's preview facts are learned while the pictures are still being drawn, not after", async () => {
+  const s = await play();
+  const r = await fetch(`${base}/finish`, { method: 'POST', headers: KEY, body: JSON.stringify({ st: s.st }) });
+  const out = await r.json();
+  // the renderer is still held: no picture has been drawn yet
+  expect(await until(() => Boolean(Og.get(out.challenge_code)), 2000)).toBe(true);
+  expect(htmlToImage.mock.calls.length).toBeLessThanOrEqual(2);
+  release();
+  expect(await until(() => htmlToImage.mock.calls.length >= 2)).toBe(true);
 });

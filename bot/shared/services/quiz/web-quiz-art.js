@@ -79,29 +79,35 @@ async function cardFacts(sessionId) {
   if (!s || s.status !== 'completed' || !s.share_code_id || s.user_id) notFound();
   const { data: sc } = await supabase.from('quiz_share_codes').select('id, code, quiz_id, topic, language').eq('id', s.share_code_id).maybeSingle();
   if (!sc) notFound();
-  // The kept score: this child's FIRST finish on the class code, the one the league counts.
-  let kept = s;
-  if (s.student_id) {
-    const { data: done } = await supabase.from('quiz_sessions')
-      .select('id, correct_answers, total_questions_answered, completed_at')
-      .eq('share_code_id', s.share_code_id).eq('student_id', s.student_id).eq('status', 'completed')
-      .order('completed_at', { ascending: true }).limit(1);
-    if (done && done[0]) kept = done[0];
-  }
   const lang = clampLanguage(sc.language);
-  const nameOf = await WebQuiz.shownNames(lang, [s.student_id]);
   // An invited friend is not in the challenger's class: their card names neither that class nor its school.
   const friend = Boolean(s.invited_by_student_id);
-  const cls = friend ? null : await require('./video-quiz-report.service').loadClassRows(sc.id).catch(() => null);
-  const school = friend ? {} : await schoolLine(sc.code, s);
+  // Independent lookups, together: the finish draws this card straight away, and one after another they took ~3.5 s.
+  const [kept, nameOf, cls, school, topic] = await Promise.all([
+    keptScore(s),
+    WebQuiz.shownNames(lang, [s.student_id]),
+    friend ? null : require('./video-quiz-report.service').loadClassRows(sc.id).catch(() => null),
+    friend ? {} : schoolLine(sc.code, s),
+    topicOf(sc),
+  ]);
   return {
     lang,
     d: {
       first: nameOf(s.student_id, s.student_name), animal: T.animalFor(s.student_id || s.id),
-      correct: kept.correct_answers || 0, total: kept.total_questions_answered || 0, topic: await topicOf(sc), cls: (cls && cls.className) || '',
+      correct: kept.correct_answers || 0, total: kept.total_questions_answered || 0, topic, cls: (cls && cls.className) || '',
       ...school,
     },
   };
+}
+
+/** The kept score: this child's FIRST finish on the class code, the one the league counts. */
+async function keptScore(s) {
+  if (!s.student_id) return s;
+  const { data: done } = await supabase.from('quiz_sessions')
+    .select('id, correct_answers, total_questions_answered, completed_at')
+    .eq('share_code_id', s.share_code_id).eq('student_id', s.student_id).eq('status', 'completed')
+    .order('completed_at', { ascending: true }).limit(1);
+  return (done && done[0]) || s;
 }
 
 /** A session token for this child, minted here only to ask the page's own boards "where do I stand". */
@@ -249,8 +255,8 @@ async function artImageNow(id, { size = 'og' } = {}) {
     served({ kind: KIND_OF[p.kind], size: sz }, t0, 'mem');
     return { bytes: mem.get(seen.key), contentType: 'image/jpeg', key: seen.key };
   }
-  const f = await facts(p.kind, p.ref);
-  const input = { kind: KIND_OF[p.kind], size: sz, brand: await brandKey(), lang: f.lang, d: f.d };
+  const [f, brand] = await Promise.all([facts(p.kind, p.ref), brandKey()]);
+  const input = { kind: KIND_OF[p.kind], size: sz, brand, lang: f.lang, d: f.d };
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
   if (mem.has(key)) {
     byId.set(`${id}|${sz}`, { key, until: Date.now() + BY_ID_MS[p.kind] });
