@@ -94,3 +94,32 @@ test('Back from the subjects goes to the hub', async () => {
   p.els['#wql-back'].fire('click');
   expect(p.assigned).toEqual(['/h/HUBTOK?kid=c1']);
 });
+
+describe('a library link opened on another phone (the hub link is bound to the child\'s phone)', () => {
+  const LOCK = { '/api/wq/lib/h/HUBTOK': { __status: 401, error: 'bad_token' } };
+  test.each([
+    ['en', 'This link was sent to another player', 'Ask the child this link was sent to to open it.', 'Is this your link? Send /quiz on WhatsApp again for a new one.'],
+    ['ur', 'یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا', 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔', 'کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ \u2066/quiz\u2069 بھیجیں۔'],
+  ])('%s: says whose link it is and how to get your own, offers no retry (a retry can never work there) and goes back to the hub', async (lang, title, say, mine) => {
+    const p = libPage({ lang, api: LOCK });
+    await flush(); await flush();
+    expect(p.moment()).toBe('M15-lock');
+    expect(p.html()).toContain(title);
+    expect(p.html()).toContain(say);
+    expect(p.html()).toContain(mine);
+    expect(p.html()).not.toContain('wql-retry');
+    p.els['#wql-back'].fire('click');
+    expect(p.assigned).toEqual(['/h/HUBTOK?kid=c1']);
+    // an expected lock is counted as itself, never as a page error
+    const sent = p.fetches.filter((f) => f.url === '/api/wq/e').map((f) => JSON.parse(f.init.body).events).flat();
+    expect(sent.map((e) => e.n)).toContain('lib_locked');
+    expect(sent.map((e) => e.n)).not.toContain('error');
+  });
+
+  test('any other failure still offers Try again', async () => {
+    const p = libPage({ api: { '/api/wq/lib/h/HUBTOK': { __status: 502, error: 'bad_gateway' } } });
+    await flush(); await flush();
+    expect(p.moment()).toBe('M15-error');
+    expect(p.html()).toContain('wql-retry');
+  });
+});

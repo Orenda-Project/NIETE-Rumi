@@ -30,6 +30,8 @@
       dl: 'Download', dlHelp: 'Download not starting?', chrome: 'Open in Chrome', none: 'No videos here yet.',
       oops: 'The videos did not load.', retry: 'Try again', wait: 'Opening the library…',
       noClass: 'Play a quiz from your teacher first, then this video opens here.', opening: 'Opening the video…',
+      lockT: 'This link was sent to another player', lockSay: 'Ask the child this link was sent to to open it.',
+      mine: 'Is this your link? Send /quiz on WhatsApp again for a new one.',
     },
     ur: {
       libT: 'ویڈیو لائبریری', pick: 'ایک مضمون چنیں', vids: function (n) { return n + ' ویڈیوز'; },
@@ -38,6 +40,8 @@
       dl: 'ڈاؤن لوڈ', dlHelp: 'ڈاؤن لوڈ شروع نہیں ہوا؟', chrome: 'Chrome میں کھولیں', none: 'یہاں ابھی کوئی ویڈیو نہیں۔',
       oops: 'ویڈیوز نہیں کھلیں۔', retry: 'دوبارہ کوشش کریں', wait: 'لائبریری کھل رہی ہے…',
       noClass: 'پہلے اپنے استاد کا کوئی کوئز کھیلیں، پھر یہ ویڈیو یہاں کھلے گی۔', opening: 'ویڈیو کھل رہی ہے…',
+      lockT: 'یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا', lockSay: 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔',
+      mine: 'کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ ⁦/quiz⁩ بھیجیں۔',
     },
   };
 
@@ -96,6 +100,8 @@
       return r.text().then(function (t) {
         var j = null; try { j = t ? JSON.parse(t) : null; } catch (e) {}
         if (r.status === 404 && j && j.error === 'library_off') { OFF = true; return { off: true }; }
+        // The hub link is bound to the child's phone: on any other phone the bot answers 401.
+        if (r.status === 401 && o.hub) { var e = new Error('lib_locked'); e.locked = true; throw e; }
         if (!r.ok || !j) throw new Error('lib_' + r.status);
         put(k, j);
         return j;
@@ -243,6 +249,14 @@
     o.on('#wql-back', function () { leave(o); });
     if (o.ev) o.ev('error', { err: 'lib_net' });
   }
+  // A hub library link opened on another phone: say whose link it is. No retry: it can never work here.
+  function lockedOut(o) {
+    var t = T[o.lang] || T.en;
+    o.paint('<h2 dir="auto">' + esc(t.lockT) + '</h2><p class="wq-sub">' + esc(t.lockSay) + '</p><p class="wq-sub">' + esc(t.mine) + '</p>' +
+      '<button class="wq-btn wq-ghost" id="wql-back">' + esc(t.back) + '</button>', 'M15-lock');
+    o.on('#wql-back', function () { leave(o); });
+    if (o.ev) o.ev('lib_locked', {});   // expected on a forwarded link: not an error
+  }
   // Paint from the cache when it has the list (0 round trips), else wait for the bot; refetch quietly after.
   function show(o, g, s, draw) {
     var my = ++seq;
@@ -258,7 +272,11 @@
       if (my !== seq) return;               // the child has moved on (Back, another grade)
       if (d.off) return o.fallback();
       draw(d, 'net');
-    }, function () { if (my === seq) failed(o, function () { show(o, g, s, draw); }); });
+    }, function (e) {
+      if (my !== seq) return;
+      if (e && e.locked) return lockedOut(o);
+      failed(o, function () { show(o, g, s, draw); });
+    });
   }
 
   function subjects(o, g) {
