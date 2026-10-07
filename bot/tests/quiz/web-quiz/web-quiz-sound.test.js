@@ -72,13 +72,13 @@ describe('E2 carries the sound item\'s own clips', () => {
     expect(q.audio).toEqual(expect.objectContaining({ q: 'https://r2/q1.ogg' }));
   });
 
-  test('a generated read-aloud clip wins over the recorded one; the sound still comes through', async () => {
+  test('the recorded question clip wins over a generated one (the bank\'s own voice first); the sound still comes through', async () => {
     seed([row(1, 'یہ کس کی آواز ہے؟', CLIPS)], {});
     const helpers = require('../../../shared/services/quiz/web-quiz-media');
     const spy = jest.spyOn(helpers, 'presignAudio').mockResolvedValue({ [qid(1)]: { q: 'https://r2/gen-q.mp3', opts: [], why: null } });
     const q = (await WQ.getQuiz('AB12CD')).quiz.questions[0];
     spy.mockRestore();
-    expect(q.audio).toEqual(expect.objectContaining({ q: 'https://r2/gen-q.mp3', stim: 'https://r2/stim1.ogg', why: 'https://r2/why1.ogg' }));
+    expect(q.audio).toEqual(expect.objectContaining({ q: 'https://r2/q1.ogg', stim: 'https://r2/stim1.ogg', why: 'https://r2/why1.ogg' }));
   });
 
   test.each([
