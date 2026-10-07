@@ -22,7 +22,7 @@ function page(result, lang = 'en') {
       shareLine: (f, c, t) => `${f} got ${c}/${t}`, sharePlayed: (f) => `${f} played` },
     esc: (s) => String(s == null ? '' : s), ani: (a) => `[${a}]`, bar: () => '', markHtml: () => '', BR: null, dotJoin: (a, b) => `${a} · ${b}`,
     stars: (n, t) => `<stars ${n}/${t}>`, render: (h, n) => out.screens.push({ h, n }), wireBar: () => {}, ev: () => {},
-    on: (sel, fn) => { out[sel] = fn; }, share: (line) => out.shared.push(line), link: (p) => p, board: () => {}, warmArt: () => {}, B: {}, pickVideo: () => {}, sset: () => {}, flushEv: () => {},
+    on: (sel, fn) => { out[sel] = fn; }, share: (line) => out.shared.push(line), link: (p) => p, board: () => {}, warmArt: () => {}, warmLink: () => {}, B: {}, pickVideo: () => {}, sset: () => {}, flushEv: () => {},
   };
   vm.createContext(ctx);
   vm.runInContext(`${M4}\n${SRC.slice(START, END)}\nthis.card = card;`, ctx);

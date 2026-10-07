@@ -1039,3 +1039,18 @@ Feature: Web child quiz page on the portal
     Then it lists only the sibling who played there, never the other one
     And the other sibling's hub, library and challenge do not open on that phone
 
+
+  @T590
+  Scenario: A shared card or challenge link shows its picture in the WhatsApp message before the child taps send
+    Given a child finished a quiz in WhatsApp's own browser and the scorecard is open
+    When the child taps "Share to class group" or "Challenge a friend" and then "Send on WhatsApp"
+    Then within about a second the WhatsApp composer shows the link preview with the card picture (or the invite picture for a challenge)
+    And the message arrives in the chat with that picture, its title and the link, in English and in Urdu
+
+  @T591
+  Scenario: A link-preview fetch is answered fast and a child's browser still gets the live quiz
+    Given a quiz link the edge has served or warmed in the last hour
+    When WhatsApp's link-preview fetcher (a HEAD, or the user agent "WhatsApp/2.x A") asks for it
+    Then the edge answers with the page head and its og tags without asking the bot for the quiz
+    And the share picture is answered from the edge once the scorecard has warmed it
+    And a child opening the same link in any browser gets the full live quiz page
