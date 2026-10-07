@@ -167,6 +167,9 @@ case "$1" in
   seed-status) cat "$M/seed" 2>/dev/null || echo missing ;;
   seed-pull) [ -n "${FAKE_RAILWAY_FAIL:-}" ] && { echo "[local-db] no seed source: log in to railway" >&2; exit 3; }
     echo ok > "$M/seed"; echo "[local-db] seed: 176M in 207s" >&2 ;;
+  drift) [ -f "$M/drift" ] || exit 0
+    echo "schema drift — the live sandbox differs from the committed baseline (+ only on the sandbox, - only in the baseline):"
+    echo "+ quiz_sessions.device_ref:text"; echo "fix: bash bot/scripts/e2e/local-db.sh baseline"; exit 10 ;;
 esac
 LDB
   chmod +x "$1/bot/scripts/e2e/local-db.sh"
@@ -196,6 +199,15 @@ say "ready check now passes with zero manual steps" "$rc:$out" "0:"
 echo stale > "$L/.ldb/seed"
 out=$(LDB_MARK="$L/.ldb" PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$L" --with-redis 2>&1); rc=$?
 has "a STALE snapshot (the committed table list changed) is re-pulled" "$out" "auto-pulled the seed snapshot" yes
+touch "$L/.ldb/drift"
+out=$(LDB_MARK="$L/.ldb" PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$L" --with-redis 2>&1); rc=$?
+has "schema drift on the sandbox is SAID before a run (bd-z3ze4.3)" "$out" "schema drift" yes
+has "…naming what differs" "$out" "device_ref" yes
+has "…and the fix" "$out" "local-db.sh baseline" yes
+say "…but never blocks the run (a warning, not a refusal)" "$rc" "0"
+rm -f "$L/.ldb/drift"
+out=$(LDB_MARK="$L/.ldb" PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$L" --with-redis 2>&1)
+has "no drift → nothing said about it" "$out" "schema drift" no
 L2="$TMP/local2/main"; mk_ldb "$L2"; mkdir -p "$L2/keys"; : > "$L2/keys/niete-local.env"; touch "$L2/.ldb/tools"
 out=$(FAKE_RAILWAY_FAIL=1 LDB_MARK="$L2/.ldb" PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$L2" --with-redis 2>&1); rc=$?
 say "railway not logged in → the seed pull fails, autofix fails" "$rc" "1"

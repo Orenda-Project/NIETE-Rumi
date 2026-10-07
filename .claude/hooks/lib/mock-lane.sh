@@ -212,6 +212,12 @@ e2e_mock_lane_autofix() {
         echo "seed snapshot missing (pull failed: $(printf '%s' "$out" | tail -1 | sed 's/^\[local-db\] //' | cut -c1-200))"; rc=1
       fi
     fi
+    # Schema drift (bd-z3ze4.3): the committed baseline vs the live sandbox, one query, ~4 s. A WARNING, never a
+    # refusal — the run still works, but a scenario touching a newer table/column/function will fail, and this
+    # says which and how to fix it. Unreachable sandbox (no railway, offline) = silent.
+    local dout drc
+    dout=$(bash "$ldb" drift 2>/dev/null); drc=$?
+    [ "$drc" = 10 ] && printf '%s\n' "$dout" | sed 's/^/auto-check: /'
   fi
   e2e_mock_lane_ready "$main" >/dev/null || rc=1
   return $rc

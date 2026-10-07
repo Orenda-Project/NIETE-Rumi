@@ -7,6 +7,7 @@
 #   bash bot/scripts/e2e/local-db.sh seed-pull             # pull the REFERENCE tables' rows from the sandbox
 #   bash bot/scripts/e2e/local-db.sh seed-status           # missing | stale | ok  (the readiness check reads it)
 #   bash bot/scripts/e2e/local-db.sh doctor                # one line per thing this machine lacks; exit 0 iff none
+#   bash bot/scripts/e2e/local-db.sh drift [objects.txt]   # does the live sandbox still match schema.sql? exit 10 if not
 #   bash bot/scripts/e2e/local-db.sh status | stop          # the machine's cluster
 #
 # Three tiers, the same split the lane already uses for redis and node_modules:
@@ -269,6 +270,31 @@ sandbox_source() {
   printf '%s' "$url" | sed -E 's#(pooler\.supabase\.com):6543#\1:5432#'   # session pooler: pg_dump needs a session
 }
 
+# Every column and function in public, one sorted line each — what drift compares. Extension-owned functions
+# (btree_gist in public) are excluded: they come from CREATE EXTENSION, not from the app's schema.
+OBJECTS_SQL="select c.table_name||'.'||c.column_name||':'||c.data_type from information_schema.columns c
+  join information_schema.tables t on t.table_schema=c.table_schema and t.table_name=c.table_name
+  where c.table_schema='public' and t.table_type in ('BASE TABLE','VIEW')
+union all
+select 'fn:'||p.proname||'('||pg_get_function_identity_arguments(p.oid)||')' from pg_proc p
+  join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and not exists (select 1 from pg_depend d where d.objid=p.oid and d.deptype='e')
+order by 1"
+schema_objects() { "$(dump_bin)/psql" "$1" -X -At -c "$OBJECTS_SQL"; }
+
+drift() {
+  local objs="${1:-$(dirname "$SCHEMA")/schema.objects.txt}"
+  [ -f "$objs" ] || { log "no $objs — run: bash bot/scripts/e2e/local-db.sh baseline"; exit 2; }
+  local url; url=$(sandbox_source "${LOCAL_DB_BASELINE_URL:-}" drift) || exit 3
+  local live; live=$(schema_objects "$url") || { log "could not read the live schema"; exit 3; }
+  local diffs; diffs=$(diff <(grep -v '^#' "$objs") <(printf '%s\n' "$live") | sed -nE 's/^> /+ /p; s/^< /- /p')
+  if [ -z "$diffs" ]; then log "no drift: the live sandbox matches $(basename "$objs")"; return 0; fi
+  echo "schema drift — the live sandbox differs from the committed baseline (+ only on the sandbox, - only in the baseline):"
+  printf '%s\n' "$diffs"
+  echo "fix: bash bot/scripts/e2e/local-db.sh baseline   (then commit supabase/baseline/schema.sql + schema.objects.txt)"
+  return 10
+}
+
 seed_tables() { grep -vE '^[[:space:]]*(#|$)' "$SEED_TABLES" 2>/dev/null | tr -d ' \t\r' | sort -u; }
 seed_tables_sha() { seed_tables | shasum -a 256 | cut -c1-16; }
 
@@ -337,7 +363,10 @@ baseline() {
       | grep -vE '^CREATE SCHEMA public;$|^COMMENT ON SCHEMA public '
   } > "$tmp" || { rm -f "$tmp"; log "pg_dump failed"; exit 3; }
   mv "$tmp" "$out"
-  log "baseline: $(grep -c '^CREATE TABLE' "$out") tables, $(grep -c '^CREATE FUNCTION' "$out") functions → $out"
+  local objs; objs="$(dirname "$out")/schema.objects.txt"
+  { echo "# every public column + function in the sandbox schema, from local-db.sh baseline — what local-db.sh drift compares"
+    schema_objects "$url"; } > "$objs.tmp.$$" && mv "$objs.tmp.$$" "$objs"
+  log "baseline: $(grep -c '^CREATE TABLE' "$out") tables, $(grep -c '^CREATE FUNCTION' "$out") functions → $out (+ $(basename "$objs"))"
 }
 
 status() {
@@ -350,6 +379,6 @@ stop() { [ -n "$PGBIN" ] && "$PGBIN/pg_ctl" -D "$PGDATA" stop -m fast >/dev/null
 CMD="${1:-}"; shift || true
 case "$CMD" in
   up) up "$@";; down) down "$@";; baseline) baseline "$@";; status) status;; stop) stop;;
-  seed-pull) seed_pull;; seed-status) seed_status;; doctor) doctor;;
+  seed-pull) seed_pull;; seed-status) seed_status;; doctor) doctor;; drift) drift "$@";;
   *) sed -n '2,7p' "$0" >&2; exit 2;;
 esac

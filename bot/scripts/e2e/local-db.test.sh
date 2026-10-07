@@ -102,6 +102,25 @@ t "AC7 seed-pull from the source exits 0" "$rc" "0"
 t "AC7 manifest lists only the seed tables, with row counts" \
   "$(python3 -c 'import json,sys; m=json.load(open(sys.argv[1])); print(",".join("%s=%s"%(k,v) for k,v in sorted(m["rows"].items())))' "$LOCAL_DB_HOME/seed/manifest.json" 2>/dev/null)" "catalog=2"
 t "AC9 seed-status after a pull is ok" "$(bash "$LDB" seed-status 2>/dev/null)" "ok"
+
+# ---- AC12 (bd-z3ze4.3): schema drift. Run 1's database plays the sandbox again.
+SRC="postgresql://postgres@127.0.0.1:$LOCAL_DB_PG_PORT/$db1"
+LOCAL_DB_BASELINE_URL="$SRC" LOCAL_DB_TEST_LOCAL_SOURCE=1 bash "$LDB" baseline "$tmp/base/schema.sql" >/dev/null 2>&1
+t "AC12 baseline also writes the object list" "$(grep -c '^catalog.title:text$' "$tmp/base/schema.objects.txt" 2>/dev/null)" "1"
+t "AC12 …functions are listed with their arguments" "$(grep -c '^fn:count_items()$' "$tmp/base/schema.objects.txt" 2>/dev/null)" "1"
+t "AC12 …extension-owned functions are not (vector's are noise)" "$(grep -c '^fn:vector_' "$tmp/base/schema.objects.txt" 2>/dev/null)" "0"
+out=$(LOCAL_DB_BASELINE_URL="$SRC" LOCAL_DB_TEST_LOCAL_SOURCE=1 bash "$LDB" drift "$tmp/base/schema.objects.txt" 2>&1); rc=$?
+t "AC12 drift: an unchanged source is no drift (exit 0)" "$rc" "0"
+"$PSQL17" -X -q -h 127.0.0.1 -p "$LOCAL_DB_PG_PORT" -U postgres -d "$db1" -c "alter table public.catalog add column extra int" \
+  -c "create function public.newer_fn(n int) returns int language sql as \$\$ select n \$\$"
+out=$(LOCAL_DB_BASELINE_URL="$SRC" LOCAL_DB_TEST_LOCAL_SOURCE=1 bash "$LDB" drift "$tmp/base/schema.objects.txt" 2>&1); rc=$?
+t "AC12 drift: a new column/function on the source is drift (exit 10)" "$rc" "10"
+case "$out" in *"+ catalog.extra:integer"*) d1=yes;; *) d1="no: $(printf '%s' "$out" | tr '\n' ' ' | cut -c1-120)";; esac
+t "AC12 …naming the added column" "$d1" "yes"
+case "$out" in *"+ fn:newer_fn(n integer)"*) d2=yes;; *) d2=no;; esac
+t "AC12 …and the added function" "$d2" "yes"
+case "$out" in *"local-db.sh baseline"*) d3=yes;; *) d3=no;; esac
+t "AC12 …and the fix" "$d3" "yes"
 out=$(bash "$LDB" doctor 2>&1); rc=$?
 t "doctor: a machine with the tools and a fresh seed lacks nothing" "$rc:$out" "0:"
 bash "$LDB" down "$r1" >/dev/null 2>&1

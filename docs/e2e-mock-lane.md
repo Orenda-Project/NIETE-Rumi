@@ -68,6 +68,10 @@ What is committed vs per machine:
 | `supabase/baseline/seed-overrides.sql` — the lane's own state for global switches (`app_redirect_*` off) | |
 
 Check a machine: `bash bot/scripts/e2e/local-db.sh doctor` (prints what is missing; silent when ready).
+Schema drift: `bash bot/scripts/e2e/local-db.sh drift` compares `supabase/baseline/schema.objects.txt` (every
+public column + function, written by `baseline`) with the live sandbox in ~4 s and names what differs. Every run
+checks it and prints `auto-check: schema drift …` as a warning — it never blocks. Fix: `local-db.sh baseline`,
+then commit `schema.sql` + `schema.objects.txt`.
 Without a snapshot, `local-db.sh up` **refuses** (exit 9) rather than run every scenario on an empty database.
 
 Parallel: `run-suite.sh … --parallel` gives each feature a slot with its own database, PostgREST, proxy and file
