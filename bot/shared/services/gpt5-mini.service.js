@@ -713,10 +713,11 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
     const { maxTokens = 4000, label = 'completeJson' } = options;
     try {
       const response = await this.openai.chat.completions.create({
-        model: modelFor('coaching.completeJson'),
-        // One job for every consumer of this helper today (observe debrief/feedback, remark
-        // narrative). `options.job` is the seam for splitting them apart later WITHOUT
-        // touching this method again -- the existing `label` is for logs, not for spend.
+        // The job a caller names decides the model as well as the label: the coach's debrief guide
+        // and feedback card pass coaching.observeDebrief (bd-gr4fy.15); every other consumer
+        // (debrief notes, observe2 moments, remark narrative) runs as coaching.completeJson. The
+        // existing `label` is for logs, not for spend.
+        model: modelFor(options.job || 'coaching.completeJson'),
         job: options.job || 'coaching.completeJson',
         messages: [{ role: 'user', content: prompt }],
         max_completion_tokens: maxTokens,
