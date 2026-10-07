@@ -945,3 +945,11 @@ Feature: Web child quiz page on the portal
     Then the result names the next lesson of the same grade and subject in the WhatsApp Flow's order that the child has not finished
     And the rest of the same chapter comes first, then the next chapters
     And nothing is named when every lesson of that subject and grade is finished, or for a lesson quiz
+  @T520
+  Scenario: A child's link on the platform's default domain opens on the quiz's own address, so the phone still remembers the child
+    Given the web quiz's address is set for this deployment
+    And a child once opened a quiz link on that address and picked their own name
+    When the same child opens an older link that points at the platform's default domain
+    Then the page moves to the same quiz, hub, challenge or library page on the quiz's own address, keeping everything after the path
+    And the child is recognised without picking their name again
+    And the teacher's report link and the quiz's data calls are never moved
