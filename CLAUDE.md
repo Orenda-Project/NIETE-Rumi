@@ -47,6 +47,7 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
 | Set up a clone from scratch | [SETUP.md](SETUP.md) · `npm run doctor` (preflight) |
 | Customize branding / swap a framework / add a feature | [docs/agent-customization.md](docs/agent-customization.md) |
 | Architecture, cost, monitoring | [docs/architecture.md](docs/architecture.md) · [docs/cost-guide.md](docs/cost-guide.md) · [docs/monitoring.md](docs/monitoring.md) |
+| Which model runs each job; switch, revert or kill one | [docs/model-switching.md](docs/model-switching.md) · `npm run models` |
 | Classes, grades, subjects, sessions — and the promotion plan | [docs/classes-model.md](docs/classes-model.md) |
 | **Active work: regional fork migration** (Taleemabad → new region) | [docs/migration/README.md](docs/migration/README.md) |
 | **QA automation** — how a commit becomes a synced Gherkin spec + a driven E2E, from any machine | [docs/qa-automation.md](docs/qa-automation.md) · `/niete-e2e` · `/sync-specs` |
@@ -60,6 +61,9 @@ CLAUDE.md (this file)  →  <folder>/CLAUDE.md (router)  →  .claude/skills/<sk
    pipeline on Redis with no AWS). Producers/consumers require `bot/shared/services/queue/` (the index),
    never a specific driver. See [bot/CLAUDE.md](bot/CLAUDE.md).
 3. **All LLM calls go through** `bot/shared/services/llm-client.js` (OpenRouter — one API, many models).
+   Each call names a job, and the job's model comes from one table, `bot/shared/config/model-registry.js`;
+   a settings row moves any job without a deploy, and a kill switch puts them all back. `npm run models`,
+   guide: [docs/model-switching.md](docs/model-switching.md).
 4. **Region behaviour is config-driven** (`region_features` table, fail-open) — never hardcode a country,
    phone-number-id, or region name.
 5. **No credentials in code.** Everything comes from `.env` (copy `.env.template`). The repo is public —

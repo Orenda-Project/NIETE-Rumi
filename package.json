@@ -26,7 +26,8 @@
     "doctor": "node bot/scripts/setup/doctor.js",
     "setup:flows": "node bot/scripts/setup/run-full-setup.js",
     "simulate": "node bot/scripts/simulate.js",
-    "setup": "node bot/scripts/setup/doctor.js"
+    "setup": "node bot/scripts/setup/doctor.js",
+    "models": "node scripts/llm/models.js"
   },
   "keywords": [
     "whatsapp",
