@@ -881,6 +881,15 @@ Feature: Web child quiz page on the portal
     Then the feedback lines ("Yes! That's right!", "Quiz complete!") are English, in the same voice as the question clips
     And an Urdu quiz keeps its Urdu feedback lines even when its page is opened from an English class
 
+  @T520
+  Scenario: A child's link on the platform's default domain opens on the quiz's own address, so the phone still remembers the child
+    Given the web quiz's address is set for this deployment
+    And a child once opened a quiz link on that address and picked their own name
+    When the same child opens an older link that points at the platform's default domain
+    Then the page moves to the same quiz, hub, challenge or library page on the quiz's own address, keeping everything after the path
+    And the child is recognised without picking their name again
+    And the teacher's report link and the quiz's data calls are never moved
+
 
   @T375
   Scenario: "Watch another video" opens the quiz's own subject as chapters, at once
