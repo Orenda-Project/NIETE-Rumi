@@ -865,6 +865,11 @@ async function startSessionTimed(body = {}, mark = () => {}) {
     // v2: "Yes, it's me" on the one card, or a remembered child of the hand-out's class.
     student = { id: found.kid.id, student_name: found.kid.student_name, self_reported_class: found.cls.label || null };
     resolved = { via: viaOf(body.via, 'remembered'), classBound: found.bound, provisional: false };
+  } else if (body.chip && body.via === 'hub' && (found = await hubChipKid(ctx, String(body.chip), body.device_ref))) {
+    // A hub link on the phone the hub trusted: the child is one of that phone's own, however long ago they
+    // last played (the teacher's recent-player chips below only reach the 40 newest players).
+    student = found;
+    found = null;
   } else if (body.chip) {
     const want = String(body.chip);
     const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
@@ -1058,6 +1063,15 @@ async function identityBoot(ctx, idn) {
     roster,
     invited: Boolean(idn.invited),
   };
+}
+
+/** A hub ?k= chip on a phone a hub trusted: the one of that phone's children whose chip on this code it is, or null. */
+async function hubChipKid(ctx, want, deviceRef) {
+  const ids = await require('./web-quiz-hub-device').deviceKids(deviceRef);
+  const id = ids.find((x) => T.chipId(ctx.shareCodeId, x) === want);
+  if (!id) return null;
+  const { data: st } = await supabase.from('students').select('id, student_name, self_reported_class, is_active').eq('id', id).maybeSingle();
+  return st && st.is_active !== false ? { id: st.id, student_name: st.student_name, self_reported_class: st.self_reported_class || null } : null;
 }
 
 /** The class a v2 start plays against: the resolved one, or the one the child chose (S1). Throws which_class. */

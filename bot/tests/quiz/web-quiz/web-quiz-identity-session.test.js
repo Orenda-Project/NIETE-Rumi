@@ -252,6 +252,23 @@ describe('E3 a hub link (?k=<chip>) plays straight through only on a phone that 
     expect((await answer({ chip: chipOf(kid(1)), via: 'hub', device_ref: 'dev-stranger-000000001' })).status).toBe(404);
   });
 
+  test('a busy teacher (more than 40 recent players): the family phone still plays the hub\'s ?k= link for a child who played long ago', async () => {
+    // the child played this code before 45 classmates did, so the teacher's recent-player chips no longer list them
+    fake.db.quiz_sessions.push(F.done('s-dansh', F.TYPED, 'Dansh', 3, 200));
+    for (let i = 0; i < 45; i += 1) {
+      const id = `c0000000-0000-4000-8000-0000000001${String(i).padStart(2, '0')}`;
+      fake.db.students.push({ id, student_name: `Kid${i} Testwala`, list_id: null, is_active: true, status: 'active', created_at: '2026-10-01T00:00:00Z' });
+      fake.db.quiz_sessions.push(F.done(`s-busy-${i}`, id, `Kid${i} Testwala`, 3, 10 + i / 10));
+    }
+    const Hub = require('../../../shared/services/quiz/web-quiz-hub');
+    expect((await Hub.deviceTrusted(T.signHub([F.TYPED]), 'dev-family-phone-00002')).ok).toBe(true);
+    const r = await answer({ chip: chipOf(F.TYPED), via: 'hub', device_ref: 'dev-family-phone-00002' });
+    expect(r.status).toBe(200);
+    expect(fake.db.quiz_sessions[fake.db.quiz_sessions.length - 1]).toMatchObject({ student_id: F.TYPED, share_code_id: F.SC });
+    // the same link on a phone the hub never trusted still names nobody
+    expect(await answer({ chip: chipOf(F.TYPED), via: 'hub', device_ref: 'dev-stranger-000000002' })).toEqual({ status: 404, body: { error: 'chip_unknown' } });
+  });
+
   test('the child\'s own phone (a prior session on this device_ref, any of the teacher\'s codes) plays straight through', async () => {
     fake.db.quiz_sessions.push(F.done('s-before', kid(1), 'Ayesha Testwala', 4, 30, { device_ref: 'dev-ayesha-phone-00001' }));
     const r = await answer({ chip: chipOf(kid(1)), via: 'hub', device_ref: 'dev-ayesha-phone-00001' });
