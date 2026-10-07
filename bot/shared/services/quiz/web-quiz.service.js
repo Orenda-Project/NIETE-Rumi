@@ -1613,12 +1613,43 @@ const SHARE_PATHS = ['native', 'wa', 'copy', 'file', 'save'];
 const UA_MAX = 300;
 const PROBE_MAX = 4096;
 
+const ERR_MAX = 80;
+
+/**
+ * An error event's reason, safe to log: lower-cased, cut before any URL, at the
+ * first character outside [a-z0-9_ .:-] and before any token-like word, at most
+ * 80 characters. A browser's own message ("Cannot read properties of null
+ * (reading 'x')") is the only clue to a page that broke on a real phone, so it is
+ * kept as its safe prefix instead of being dropped whole. Pure.
+ */
+function safeErr(v) {
+  if (typeof v !== 'string') return null;
+  let s = v.toLowerCase();
+  const url = s.search(/[a-z][a-z0-9+.-]*:\/\//);
+  if (url >= 0) s = s.slice(0, url);
+  const bad = s.search(/[^a-z0-9_ .:-]/);
+  if (bad >= 0) s = s.slice(0, bad);
+  // A long word with digits in it is a token or an id, never a reason.
+  const tok = s.search(/(^|[ .:-])(?=[a-z0-9_]*[0-9])[a-z0-9_]{20,}/);
+  if (tok >= 0) s = s.slice(0, tok);
+  if (s.length > ERR_MAX) {
+    const cut = s.slice(0, ERR_MAX + 1).lastIndexOf(' ');
+    s = s.slice(0, cut > 0 ? cut : ERR_MAX);
+  }
+  s = s.replace(/[ .:-]+$/, '');
+  return s || null;
+}
+
 /** Keep only allow-listed props of the right shape: no names, no free text, no phone. Pure. */
 function cleanEvent(e) {
   if (!e || typeof e !== 'object' || !EVENT_NAME_RX.test(String(e.n || ''))) return null;
   const props = {};
   for (const [k, rx] of Object.entries(EVENT_PROPS)) {
     if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
+  }
+  if (e.n === 'error') {
+    const err = safeErr(e.err);
+    if (err) props.err = err;
   }
   for (const k of EVENT_NUMS) {
     const v = Number(e[k]);
