@@ -436,6 +436,17 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   ]);
   mark('questions');
   if (!questions.length) fail(404, 'no_questions');
+  // The language the quiz's clips are recorded in (the row's, else its questions' script).
+  const voiceLang = clampLanguage(require('./web-quiz-publish.service').quizLanguage(quizRow, questions));
+  // A library lesson's page speaks the lesson's language, never its class code's: a lesson code minted in
+  // the class's language before videos/start took the lesson's is corrected here (the library hands its
+  // known codes straight to the page, so this is the one place every such code passes through).
+  if (ctx.moreVideosOf && voiceLang !== ctx.lang) {
+    logEvent('web_quiz.lesson_code_relabeled', { shareCodeId: ctx.shareCodeId, quizId: ctx.quizId, from: ctx.lang, to: voiceLang });
+    ctx.lang = voiceLang;
+    supabase.from('quiz_share_codes').update({ language: voiceLang }).eq('id', ctx.row.id)
+      .then(({ error }) => { if (error) logToFile('⚠️ web-quiz: could not correct a lesson code\'s language', { error: error.message }); }, () => {});
+  }
   const helpers = mediaHelpers();
   let audio = {};
   let video = null;
@@ -511,7 +522,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
       lang: ctx.lang, dir: ctx.lang === 'ur' ? 'rtl' : 'ltr',
       // The language the quiz's clips are recorded in (the row's, else its questions' script): the page's
       // shared feedback lines follow it, so one quiz is never two voices (an English quiz quoting an Urdu word).
-      voice_lang: clampLanguage(require('./web-quiz-publish.service').quizLanguage(quizRow, questions)),
+      voice_lang: voiceLang,
       ...(audioPending ? { audio_pending: true } : {}),
       grade: (quizRow && quizRow.grade) || null, subject: (quizRow && quizRow.subject) || null,
       n: questions.length,
