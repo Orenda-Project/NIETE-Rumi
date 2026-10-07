@@ -1054,3 +1054,11 @@ Feature: Web child quiz page on the portal
     Then the edge answers with the page head and its og tags without asking the bot for the quiz
     And the share picture is answered from the edge once the scorecard has warmed it
     And a child opening the same link in any browser gets the full live quiz page
+
+  @T565
+  Scenario: The results card opens the child's own quizzes, videos and challenges
+    Given the hub door is switched on and a child of the class finished the teacher's quiz on their phone
+    When the child taps "My quizzes, videos and challenges" on their card
+    Then their own hub opens on that phone, with the video library and the challenge
+    And the same link opened on another phone shows no child's name and starts nothing
+    But a friend who played from a challenge link sees no such button
