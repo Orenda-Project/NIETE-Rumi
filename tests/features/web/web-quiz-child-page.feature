@@ -843,7 +843,7 @@ Feature: Web child quiz page on the portal
     And with no such quiz the card says "No new quiz from your teacher right now. Watch a video and try its quiz!" with the video library button
     And a quiz with no grade, or another grade, is never shown as the teacher's
 
-  @T531
+  @T540
   Scenario: The hub's teacher card puts the quiz handed to the child's own class first
     Given a teacher handed a grade 3-5 quiz to class 3-A and later sent another grade 3-5 quiz to no class in particular
     When a child enrolled in 3-A opens their hub
