@@ -986,3 +986,12 @@ Feature: Web child quiz page on the portal
     When the child taps "Play again" or the teacher's quiz on the hub
     Then the quiz starts as that child, with no "Which class are you in?" and no name to pick
     And the same quiz link opened on another phone names nobody and asks who is playing
+
+  @T546
+  Scenario: A shared phone that one sibling played on sees only that sibling from the family's hub link
+    Given a family's /quiz hub link for two siblings was opened first on the family's phone
+    And one of the siblings once played a quiz on a class phone
+    When the family's link is opened on that class phone
+    Then it lists only the sibling who played there, never the other one
+    And the other sibling's hub, library and challenge do not open on that phone
+
