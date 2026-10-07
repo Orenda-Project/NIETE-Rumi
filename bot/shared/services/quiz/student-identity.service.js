@@ -28,6 +28,7 @@
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
+const DoorVerdict = require('../student-ingress-cache');
 
 const NAME_MAX = 60;
 const CLASS_MAX = 40;
@@ -81,13 +82,11 @@ async function findByPhone(phone) {
 /**
  * The door (student-ingress) caches "who holds this handset" for minutes. A
  * child we have just remembered must not wait that out as an "unknown" — their
- * /quiz would be routed as a teacher's. Required lazily: the door requires the
- * quiz modules. Never throws.
+ * /quiz would be routed as a teacher's. Never throws.
  */
 async function forgetDoorVerdict(...phones) {
   try {
-    const { forget } = require('../student-ingress');
-    await Promise.all([...new Set(phones.filter(Boolean).map(String))].map((p) => forget(p)));
+    await Promise.all([...new Set(phones.filter(Boolean).map(String))].map((p) => DoorVerdict.forget(p)));
   } catch (_) { /* a stale verdict expires on its own */ }
 }
 
