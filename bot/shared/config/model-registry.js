@@ -164,6 +164,11 @@ const JOBS = {
   'helper.stuckRecovery': { env: null, default: 'gpt-4o-mini', site: 'shared/services/helper-agent.service.js' },
   'coaching.pedagogy': { env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/gpt5-mini.service.js' },
   'coaching.completeJson': { env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/gpt5-mini.service.js' },
+  // bd-gr4fy.15: the coach's /observe debrief guide and feedback card (and its repair), through completeJson's
+  // `job` option under their own name, so they and its other consumers can run on different models.
+  'coaching.observeDebrief': {
+    env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/observe/observe-debrief.service.js',
+  },
   'coaching.fidelityFallback': { env: null, default: 'gpt-4o-mini', site: 'shared/services/gpt5-mini.service.js' },
   'coaching.enhance': { env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/gpt5-mini.service.js' },
   'coaching.reflectiveQuestion': { env: null, default: 'gpt-4o', site: 'shared/services/gpt5-mini.service.js' },
@@ -357,6 +362,7 @@ const JSON_REPLY_JOBS = Object.freeze({
 const JSON_REPAIRED_BY_CALLER = Object.freeze({
   'coaching.pedagogy': 'whole',          // gpt5-mini.service.js _safeJsonParse(rawContent)
   'coaching.completeJson': 'whole',      // gpt5-mini.service.js _safeJsonParse(content)
+  'coaching.observeDebrief': 'whole',    // gpt5-mini.service.js completeJson: _safeJsonParse(content)
   'coaching.questionRouter': 'whole',    // gpt5-mini.service.js _generateReflectiveQuestionV12: _safeJsonParse(content)
   'coaching.reflectiveCorpus': 'whole',  // gpt5-mini.service.js extractReflectiveCorpus: _safeJsonParse(content)
   'lp.extractUpload': 'whole',           // coaching/fidelity/lp-upload-extractor.js safeJsonParse

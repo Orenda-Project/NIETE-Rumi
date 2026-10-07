@@ -31,7 +31,8 @@ const EXPECTED = {
     sites: 10,
     jobs: [
       'coaching.pedagogy',          // analyzePedagogy: scoring call + the photo-less retry (2 sites)
-      'coaching.completeJson',      // generic JSON helper: observe debrief/feedback, remark narrative
+      'coaching.completeJson',      // generic JSON helper: debrief notes, observe2 moments, remark narrative; the
+                                    // debrief guide and feedback card name coaching.observeDebrief (bd-gr4fy.15)
       'coaching.fidelityFallback',  // _generateFidelityAssessment
       'coaching.enhance',           // enhanceAnalysisWithReflections
       'coaching.reflectiveQuestion',
