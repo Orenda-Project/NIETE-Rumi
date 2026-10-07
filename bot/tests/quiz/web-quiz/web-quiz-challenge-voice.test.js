@@ -19,6 +19,12 @@ jest.mock('../../../shared/storage/r2', () => ({
   listKeys: jest.fn(async () => []),
   downloadFromR2: jest.fn(async () => Buffer.from('not audio')),
 }));
+// Redis is a boundary: an in-memory SET NX / GET, so the hub's first-device binding runs for real.
+jest.mock('../../../shared/services/cache/railway-redis.service', () => {
+  const store = new Map();
+  return { _store: store, isAvailable: () => true, get: async (k) => (store.has(k) ? store.get(k) : null),
+    setNX: async (k, v) => { if (store.has(k)) return false; store.set(k, v); return true; } };
+});
 jest.mock('../../../shared/services/tts', () => ({ synthesize: jest.fn(async () => ({ audio: Buffer.from('OggS'), provider: 'soniox', voice: 'Grace', durationSec: 2 })) }));
 jest.mock('../../../shared/services/audio.service', () => ({ transcribe: jest.fn(async () => { throw new Error('no stt in tests'); }) }));
 jest.mock('../../../shared/services/llm-client', () => ({ getClient: () => ({ chat: { completions: { create: jest.fn(async () => { throw new Error('no llm in tests'); }) } } }) }));
@@ -46,7 +52,7 @@ beforeEach(() => {
 });
 afterEach(() => { jest.useRealTimers(); });
 
-const open = async () => Ch.exercise(T.signHub([KID]), 'read');
+const open = async () => Ch.exercise(T.signHub([KID]), 'read', { device: 'VoiceTestPhoneRef_0001' });
 
 test('scored (here: scoring failed): every key under the run prefix is deleted, then again after the URL expires', async () => {
   const ex = await open();

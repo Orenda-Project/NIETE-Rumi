@@ -424,7 +424,7 @@ describe('read aloud: scored by the child-test story scorer', () => {
     expect(row).toMatchObject({ exercise: 'read', status: 'failed' });
     expect(row.meta.reason).toBe('unheard');
     expect(row.wcpm == null).toBe(true);
-    const m = await Ch.menu(hub());
+    const m = await Ch.menu(hub(), D);
     expect(m.exercises.find((e) => e.id === 'read')).toMatchObject({ done: false, last: null });
     expect(await Ch.listResults({ list: LIST })).toEqual([]);
     expect(r2.deleteKey).toHaveBeenCalledWith(key, { bucket: 'r2-default' });

@@ -19,6 +19,12 @@ jest.mock('../../../shared/storage/r2', () => ({
   listKeys: jest.fn(async () => []),
   downloadFromR2: jest.fn(async () => Buffer.from('x')),
 }));
+// Redis is a boundary: an in-memory SET NX / GET, so the hub's first-device binding runs for real.
+jest.mock('../../../shared/services/cache/railway-redis.service', () => {
+  const store = new Map();
+  return { _store: store, isAvailable: () => true, get: async (k) => (store.has(k) ? store.get(k) : null),
+    setNX: async (k, v) => { if (store.has(k)) return false; store.set(k, v); return true; } };
+});
 jest.mock('../../../shared/services/tts', () => ({ synthesize: jest.fn(async () => ({ audio: Buffer.from('OggS'), provider: 'soniox', voice: 'Grace', durationSec: 2 })) }));
 
 const { makeFake } = require('./fake-supabase');
@@ -50,7 +56,8 @@ function seed(runs, setting) {
   jest.clearAllMocks();
 }
 const hub = () => T.signHub([KID]);
-const ids = async () => (await Ch.menu(hub())).exercises.map((e) => e.id);
+const D = { device: 'BudgetTestPhoneRef_001' };
+const ids = async () => (await Ch.menu(hub(), D)).exercises.map((e) => e.id);
 const capped = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.ch_read_capped');
 
 beforeAll(() => { process.env.INTERNAL_API_KEY = 'test-internal-key'; process.env.CHILD_TEST_R2_ENV = 'sandbox'; });
@@ -87,15 +94,15 @@ test('at the cap: logged once however often asked; read refused with "enough for
   seed(reads(3), 3);
   expect(await ids()).toEqual(['bigger']);
   expect(await ids()).toEqual(['bigger']);
-  await expect(Ch.exercise(hub(), 'read')).rejects.toMatchObject({ status: 429, body: { error: 'enough_for_today' } });
-  await expect(Ch.exercise(hub(), 'bigger')).resolves.toMatchObject({ ex: 'bigger' });
+  await expect(Ch.exercise(hub(), 'read', D)).rejects.toMatchObject({ status: 429, body: { error: 'enough_for_today' } });
+  await expect(Ch.exercise(hub(), 'bigger', D)).resolves.toMatchObject({ ex: 'bigger' });
   expect(capped()).toHaveLength(1);
   expect(capped()[0][1]).toMatchObject({ cap: 3, readsToday: 3 });
 });
 
 test('the cap reached while a reading is open: no upload URL, and an uploaded recording is refused AND deleted', async () => {
   seed(reads(1), 2);
-  const ex = await Ch.exercise(hub(), 'read');
+  const ex = await Ch.exercise(hub(), 'read', D);
   const up = await Ch.presignUpload({ ct: ex.ct, type: 'audio/webm', size: 1000 });
   await supabase.from('web_quiz_challenge_runs').insert(reads(1)[0]);
   Ch.__reset();
