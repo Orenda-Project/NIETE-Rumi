@@ -472,8 +472,8 @@ function makeMockApi(opts) {
      *  (audio-hash-cache.js NOT_ANALYSED_STATUSES), so the same fixture audio is analysed afresh each run.
      *  Scoped to the driver as observer AND the fixture teachers only; never touches other users' rows. */
     async resetObserve() {
-      const url = process.env.NIETE_SANDBOX_SUPABASE_URL, key = process.env.NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY;
-      if (!url || !key) return { ok: false, err: 'no sandbox creds (NIETE_SANDBOX_SUPABASE_*)' };
+      const { url, key } = dbCreds();   // sandbox, or this run's local DB (db-target.cjs)
+      if (!url || !key) return { ok: false, err: 'no DB creds (NIETE_SANDBOX_SUPABASE_* / NIETE_LOCAL_SUPABASE_*)' };
       const H = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=representation' };
       const get = async (path) => { const r = await fetch(`${url}/rest/v1/${path}`, { headers: H }); return r.ok ? r.json() : []; };
       const patch = async (path, body) => { const r = await fetch(`${url}/rest/v1/${path}`, { method: 'PATCH', headers: H, body: JSON.stringify(body) }); return r.ok ? (await r.json().catch(() => [])).length : -r.status; };
