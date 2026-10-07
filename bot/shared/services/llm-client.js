@@ -433,6 +433,26 @@ function readSettings() {
  * used to be dropped without a word, so a typo looked exactly like "nothing configured".
  */
 let _lastConfigKey = null;
+
+/**
+ * Which process this is (bd-gr4fy.9): Railway's own service, environment, deployment and replica
+ * where they exist, and the host and pid everywhere. On sandbox two workers once reported an empty
+ * override map while every other process reported the full one, and nothing in the logs said which
+ * machine they ran on. Only values that exist are named; nothing secret is.
+ */
+function processIdentity() {
+  const out = {};
+  const fromEnv = {
+    service: 'RAILWAY_SERVICE_NAME', environment: 'RAILWAY_ENVIRONMENT_NAME',
+    deployment: 'RAILWAY_DEPLOYMENT_ID', replica: 'RAILWAY_REPLICA_ID',
+  };
+  for (const [field, name] of Object.entries(fromEnv)) if (process.env[name]) out[field] = process.env[name];
+  // eslint-disable-next-line global-require
+  try { out.host = require('os').hostname(); } catch (_) { /* no host is not a reason to drop the event */ }
+  out.pid = process.pid;
+  return out;
+}
+
 function reportConfig(s) {
   if (!s.known && !s.error) return;
   const env = envJobModels();
@@ -458,6 +478,7 @@ function reportConfig(s) {
   const { logEvent } = require('../utils/structured-logger');
   logEvent('llm.job_override_config', {
     killSwitch: !!s.cfg.killSwitch, active, rejected, unknownJobs, ...(s.error ? { settingsError: s.error } : {}),
+    process: processIdentity(),
   });
   if (rejected.length || unknownJobs.length || s.error) {
     // eslint-disable-next-line global-require
