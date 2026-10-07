@@ -126,8 +126,13 @@
       var next = 0;
       for (i = 0; i < ref.length; i += 1) if (marks[i] !== 'none') next = i + 1;
       var lastOk = ref.length > 0 && marks[ref.length - 1] === 'ok';
+      // heard = confirmed + not yet confirmed: Soniox confirms words seconds after they are said, so the bar and
+      // the "keep going" nudge follow what is heard; the stored count is confirmed words only.
+      var heardOk = 0;
+      for (i = 0; i < ref.length; i += 1) if (marks[i] === 'ok' || marks[i] === 'okp') heardOk += 1;
+      var lastHeard = ref.length > 0 && (marks[ref.length - 1] === 'ok' || marks[ref.length - 1] === 'okp');
       var endMs = lastOk ? endMsAt(hw[a.hypIdx[ref.length - 1]].end) : null;
-      return { marks: marks, correct: correct, attempted: reachedFinal, next: next < ref.length ? next : -1, finished: lastOk, endMs: endMs, heard: hyp.length };
+      return { marks: marks, correct: correct, heardOk: heardOk, attempted: reachedFinal, next: next < ref.length ? next : -1, finished: lastOk, lastHeard: lastHeard, endMs: endMs, heard: hyp.length };
     }
     return {
       words: raw,
