@@ -2657,6 +2657,19 @@ const UX_STRINGS = {
     en: 'This is your own test run — it won’t show up in your class report. Here goes!',
     ur: '\u200Fیہ آپ کا اپنا test run ہے — یہ آپ کی کلاس رپورٹ میں شامل نہیں ہوگا۔ چلیں شروع کریں!',
   },
+  // An OLD wa.me quiz link (handed out before the web quiz) answered with one
+  // link button to the web page (web-quiz-old-link.js). Read by CHILDREN in the
+  // quiz language; the button is capped at 20 code points. Urdu: imperatives
+  // only (دبائیں), the verb agrees with the quiz (کھلے گا) — never with the child.
+  vqOldLinkBody: {
+    en: '👋 Assalam o Alaikum!\n\n*{teacher}* has sent you a quiz on *{topic}*.\n\nTap the button to start — it opens right here in WhatsApp.',
+    ur: '\u200F👋 السلام علیکم!\n\n*{teacher}* نے آپ کو *{topic}* پر quiz بھیجا ہے۔\n\nشروع کرنے کے لیے بٹن دبائیں — یہ WhatsApp میں ہی کھلے گا۔',
+  },
+  vqOldLinkSelfTestBody: {
+    en: 'This is your own test run — it won’t show up in your class report. Tap the button to open it.',
+    ur: '\u200Fیہ آپ کا اپنا test run ہے — یہ آپ کی کلاس رپورٹ میں شامل نہیں ہوگا۔ کھولنے کے لیے بٹن دبائیں۔',
+  },
+  vqOldLinkBtn: { en: 'Start quiz', ur: 'کوئز شروع کریں' },
   vqWelcomeBack: {
     en: 'Good to see you again, {name} — let’s begin!',
     ur: '\u200F{name}، آپ کو دوبارہ دیکھ کر خوشی ہوئی — چلیں شروع کریں!',
