@@ -698,19 +698,29 @@ const scriptOf = (lang) => (lang === 'ur' ? (x) => /[\u0600-\u06FF]/.test(x) : (
 
 /**
  * The bank questions a person has read as TAP questions (options built below, checked one by one in the story's
- * language): exactly one option is right and no wrong option is something the story also supports. Anything not
- * listed — a new bank version, the listening questions — is never offered until it has been read the same way.
- * Left out: ur.story.q3 «بلال نے کیا حرکت کرتے دیکھا؟» (the water and the wind also move in the story);
- * ur.story.q5 (fewer than two fair wrong answers).
+ * language), each with the listed wrong answers it must NOT offer: exactly one option is right, no wrong option is
+ * something the story also supports, and no two wrong options mean the same. Anything not listed — a new bank
+ * version, the listening questions — is never offered until it has been read the same way. Left out:
+ *   ur.story.q3 «بلال نے کیا حرکت کرتے دیکھا؟»  the water and the wind also move in the story
+ *   ur.story.q5                                  fewer than two fair wrong answers
+ *   ur.story.q6 «بلال خوش کیوں تھا؟»             the story never says why: the right answer is only an inference
  */
-const TAP_REVIEWED = new Set([
-  'en.story.q1', 'en.story.q2', 'en.story.q3', 'en.story.q4', 'en.story.q5', 'en.story.q6',
-  'ur.story.q1', 'ur.story.q2', 'ur.story.q4', 'ur.story.q6',
+const TAP_REVIEWED = new Map([
+  ['en.story.q1', { skip: ['to plant trees'] }],          // "Today his class was planting trees." supports it
+  ['en.story.q2', { skip: [] }],
+  ['en.story.q3', { skip: [] }],
+  ['en.story.q4', { skip: [] }],
+  ['en.story.q5', { skip: [] }],
+  ['en.story.q6', { skip: [] }],
+  ['ur.story.q1', { skip: ['والدہ کے ساتھ'] }],           // the same as «امی کے ساتھ» (with mother)
+  ['ur.story.q2', { skip: [] }],
+  ['ur.story.q4', { skip: [] }],
 ]);
 
 /** One bank question as a tap question: its first accept + two of its rejects, in the passage's script; null if short. */
 function tapOptions(q, lang, runId) {
-  if (!q || !TAP_REVIEWED.has(q.id)) return null;
+  const reviewed = q && TAP_REVIEWED.get(q.id);
+  if (!reviewed) return null;
   const same = scriptOf(lang);
   const right = (q.accept || []).find((a) => same(a) && !NO_TEST_WORDS.test(a));
   // no two options may say the same thing: a wrong one inside another option ("books" / "his books") is skipped
@@ -723,7 +733,7 @@ function tapOptions(q, lang, runId) {
   const wrong = [];
   for (const a of q.reject || []) {
     if (wrong.length >= 2) break;
-    if (!same(a) || NO_TEST_WORDS.test(a) || NOT_AN_ANSWER.test(a) || nearMiss(a)) continue;
+    if (!same(a) || NO_TEST_WORDS.test(a) || NOT_AN_ANSWER.test(a) || nearMiss(a) || reviewed.skip.includes(a)) continue;
     if (![right, ...wrong].some((b) => clash(a, b))) wrong.push(a);
   }
   if (!right || wrong.length < 2) return null;

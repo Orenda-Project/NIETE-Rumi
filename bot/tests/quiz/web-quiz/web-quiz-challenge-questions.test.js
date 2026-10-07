@@ -149,6 +149,15 @@ describe('which questions, and their options', () => {
     expect(Ch.tapOptions(unreviewed, 'en', 'run-x')).toBeNull();
   });
 
+  test('content review: no wrong option the story supports, no two wrong options that mean the same, no inference-only question', () => {
+    const en1 = Ch.tapOptions(enStory().questions.find((q) => q.id === 'en.story.q1'), 'en', 'run-x');
+    expect(en1.right).toBe('for school');
+    expect(en1.options).not.toContain('to plant trees');   // "Today his class was planting trees."
+    const ur1 = Ch.tapOptions(urStory().questions.find((q) => q.id === 'ur.story.q1'), 'ur', 'run-x');
+    expect(ur1.options.filter((o) => o === 'امی کے ساتھ' || o === 'والدہ کے ساتھ')).toHaveLength(1);   // both mean "with mother"
+    expect(Ch.tapOptions(urStory().questions.find((q) => q.id === 'ur.story.q6'), 'ur', 'run-x')).toBeNull();   // the story never says why
+  });
+
   test('a near-miss the rubric itself discusses ("Water alone is wrong") is never offered as a wrong option, nor is "don\'t know"', () => {
     const bank = enStory().questions.find((q) => q.id === 'en.story.q4');
     const t = Ch.tapOptions(bank, 'en', 'run-x');
