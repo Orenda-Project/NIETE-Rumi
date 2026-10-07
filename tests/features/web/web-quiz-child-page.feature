@@ -737,6 +737,80 @@ Feature: Web child quiz page on the portal
     Then the Challenge menu shows only "Which is bigger?"
     And a reading already open is answered "enough for today", and its uploaded recording is deleted
     And web_quiz.ch_read_capped is logged once that day
+
+  @T580
+  Scenario: Read aloud live: the words light up as the child reads and the words-a-minute bar moves
+    Given app_settings web_quiz_challenge_realtime is true and the microphone is allowed
+    When the child taps "I'm ready" and starts to read
+    Then the page streams the microphone to speech-to-text with a one-run key the bot minted, sent in the stream's first message and never in a URL
+    And each word read turns green as it is heard, and a word passed over is marked "not caught" in soft amber, never red
+    And a bar at the top shows the words a minute («ایک منٹ میں لفظ») as the child reads, with last time's mark when there is one
+    And no word on the page is "test", "exam" or "assessment"
+
+  @T581
+  Scenario: Read aloud live: the result shows the moment the reading ends, and the checked count follows
+    Given a child reading live reaches the last word, or the minute ends, or taps "Done"
+    Then "You read N words in a minute!" shows at once, with the coloured story and its key
+    And the recording still goes up by presigned upload and is scored the usual way, with the live numbers kept beside the score
+    And when the checked count differs by 3 or more the line becomes "Jugnu listened again: M words a minute!" («جگنو نے دوبارہ سنا: ایک منٹ میں M لفظ!»)
+    And "more words than last time" and the bar's "last time" compare checked counts of readings in the same language only
+    But a checked "nothing heard" replaces the praise with "We couldn't hear that clearly. Try again?"
+
+  @T582
+  Scenario: Read aloud live falls back to today's reading whenever the live stream cannot run
+    Given the live switch is on
+    When the key cannot be minted, the stream is refused (for example the stream limit), or it drops during the reading
+    Then the child keeps reading without a break and the result comes from the upload, as before the live switch
+    And web_quiz.ch_live is logged with ok false and the reason
+
+  @T583
+  Scenario: A live key is one per run and counts toward today's readings
+    Given a child has read aloud 10 times in the last 24 hours, or today's read-aloud cap is reached
+    Then no live key is minted ("enough for today")
+    And a second key for the same run is refused, and the run's one result is accepted once
+    And with app_settings web_quiz_challenge_realtime absent or not true, the page asks for no key at all
+
+  @T584
+  Scenario: Questions after Read aloud, only about the part the child read
+    Given app_settings web_quiz_challenge_questions is true and a child's reading was praised
+    When the child taps "Answer questions about the story" («کہانی کے بارے میں سوال»)
+    Then up to 3 of the story's own questions are asked, only those about lines the child reached
+    And each question is read aloud by the mascot and has 3 options: the story's accepted answer and two of its listed wrong answers, in the story's language
+    And a child stopped by the first-line rule, or a reading not heard, is offered no questions
+
+  @T585
+  Scenario: Each tap is checked by the server and the total is shown
+    Given a child is answering the questions after Read aloud
+    When the child taps an option
+    Then the page asks the server, which never sends the answers in advance
+    And a right tap shows "Yes!" («جی ہاں!») and a wrong one shows "The answer was: …" («جواب تھا: …») with the right option marked
+    And after the last question the page says "You got 2 of 3 right!" («آپ نے ۳ میں سے ۲ کے صحیح جواب دیے!»)
+    And only the numbers asked and correct are kept with the reading; a question counts once
+
+  @T586
+  Scenario: Questions are off unless switched on
+    Given app_settings web_quiz_challenge_questions is absent or not true
+    Then the Read aloud result offers no questions, and the question calls answer "questions_off"
+
+  @T587
+  Scenario: Listen and answer plays the story twice and never shows its text
+    Given app_settings web_quiz_challenge_listen is true and the listening story's clip is recorded
+    When the child opens "Listen and answer" («سنیں اور جواب دیں») and taps "Listen" («سنیں»)
+    Then the story is played twice in the quiz voice, and its text is never sent to the page
+    And then up to 3 of its own questions are asked as taps, each checked by the server
+    And the total says "You got 2 of 3 right!" and the run is stored as listen with its numbers only
+
+  @T588
+  Scenario: Listen and answer is offered only when the story can be heard
+    Given app_settings web_quiz_challenge_listen is absent or not true, or the story's clip is not recorded yet
+    Then the Challenge menu has no "Listen and answer" tile, and a missing clip starts recording for the next time
+    And a story that will not play says "The story won't play right now. Try another challenge." with More challenges
+
+  @T589
+  Scenario: Only listening questions a person has reviewed as taps are asked
+    Given the listening questions in the item bank
+    Then a question whose accepted answer is circular, or whose wrong answers the story also supports, is never asked
+    And for "What did Ayesha clean?" («عائشہ نے کیا صاف کیا؟») the whole class («کلاس») is never a wrong option
   @T491
   Scenario: A shared phone reopened on a finished child's card lets the next child play
     Given a phone where "Tooba" finished this quiz and the page reopens on Tooba's card

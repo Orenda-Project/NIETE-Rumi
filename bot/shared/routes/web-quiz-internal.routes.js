@@ -18,7 +18,7 @@
  *   GET  /videos/:code          E11 "watch another video": lessons of the quiz's grade
  *   POST /videos/start          E12 the code for one of them (minted once per class code)
  *   GET  /pulse/:code           E13 peer pulse: classmates' right answers, from memory
- *   GET  /ch/...  POST /ch/...  the kid's Challenge (web-quiz-challenge.js); GET /challenge/results?list=
+ *   GET  /ch/...  POST /ch/...  the kid's Challenge (POST /ch/live: a temporary key for a live read-aloud) (web-quiz-challenge.js); GET /challenge/results?list=
  *   GET  /art/:id               E14 a share picture (JPEG): card, invite, class, school (web-quiz-art.js)
  *   GET  /hub/:token            the kid hub (web-quiz-hub.js): teacher card, play again, recs
  *   GET  /lib/:code             the video library from a quiz: subjects (grade strip), then chapters
@@ -106,6 +106,11 @@ const challenge = (fn) => handle((req) => {
 });
 router.get('/ch/result/:ct', challenge((C, req) => C.poll(req.params.ct)));
 router.post('/ch/upload', challenge((C, req) => C.presignUpload(req.body || {})));
+// Read aloud, live: a temporary Soniox key for one run (web-quiz-soniox-live.js); the server key never leaves the bot.
+router.post('/ch/live', challenge((C, req) => C.liveKey(req.body || {})));
+// Questions after Read aloud: the reached questions with their 3 options (no key), then one answer per tap.
+router.post('/ch/qs', challenge((C, req) => C.questions(req.body || {})));
+router.post('/ch/qa', challenge((C, req) => C.answer(req.body || {})));
 router.post('/ch/result', challenge((C, req) => C.submit(req.body || {})));
 // x-wq-device: the phone's device_ref, forwarded by the edge from the wq_dv cookie (a hub token opens nothing on another phone).
 router.get('/ch/:token', challenge((C, req) => C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device') })));
