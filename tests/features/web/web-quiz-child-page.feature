@@ -834,6 +834,15 @@ Feature: Web child quiz page on the portal
     And no classmate or other child is ever offered
     And tapping a name opens that child's hub, with "Switch player" to go back
 
+  @T562
+  Scenario: Siblings who play in different languages each get their hub in their own language
+    Given a phone with two registered children, one who played in English and one who played in Urdu
+    And the hub link opens in the other child's language
+    When "Who is playing?" is answered with one child's name
+    Then that child's hub is in that child's language: the greeting, the cards, "Switch player" and the challenge tile
+    And the page direction follows it (right to left for Urdu, left to right for English)
+    And the library and challenge open in that child's language
+
   @T302
   Scenario: The hub shows the newest quiz from the child's teacher, or a warm empty state
     Given a child whose teacher sent a quiz for their grade in the last 7 days that they have not finished
