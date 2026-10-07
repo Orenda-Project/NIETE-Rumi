@@ -921,6 +921,7 @@ Feature: Web child quiz page on the portal
     When the hub's library link (/lib/<token>) is opened on another phone
     Then no subjects, lessons or name are shown
     And it reads "This link was sent to another player" and "Ask the child this link was sent to to open it." (in Urdu «یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا»)
+    And it adds "Is this your link? Send /quiz on WhatsApp again for a new one." so a family locked out on its own phone can get a new link
     And there is no "Try again", only "Back" to the hub
 
 
