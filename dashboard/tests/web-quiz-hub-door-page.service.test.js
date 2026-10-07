@@ -27,6 +27,19 @@ describe('the card offers the hub', () => {
   });
 });
 
+describe('above the fold: directly under the share row', () => {
+  const order = (h) => (h.match(/id="wq-(share|chal|hubdoor|class|schools|more|turn)"/g) || []).map((x) => x.slice(7, -1));
+  test('a teacher quiz: share, then the door (the second action), then the rest', () => {
+    expect(order(page({ lang: 'en', store: store(DOOR) }).html())).toEqual(['share', 'hubdoor', 'chal', 'class', 'schools', 'more', 'turn']);
+  });
+  test('a video quiz keeps "Watch more" first; the door still comes right after "Share to class group"', () => {
+    const h = page({ lang: 'en', store: store(DOOR), video: { url: 'https://r2.test/v.mp4' } }).html();
+    expect(order(h)).toEqual(['more', 'share', 'hubdoor', 'chal', 'class', 'schools', 'turn']);
+  });
+});
+
+const evs = (p) => p.fetches.filter((f) => f.url === '/api/wq/e').flatMap((f) => JSON.parse(f.init.body).events);
+
 describe('a tap opens this child\'s hub', () => {
   test('asks the server with the session token only, then opens the link it returns', async () => {
     const p = page({ lang: 'en', store: store(DOOR), api: { hubdoor: { href: '/h/tok.abc' } } });
@@ -34,7 +47,8 @@ describe('a tap opens this child\'s hub', () => {
     await flush(); await flush();
     const call = p.fetches.find((f) => f.url.indexOf('hubdoor') >= 0);
     expect(JSON.parse(call.init.body)).toEqual({ st: 's1' });
-    expect(p.hist.assigned).toEqual(['/h/tok.abc']);
+    expect(p.hist.assigned).toEqual(['/h/tok.abc?from=door']);
+    expect(evs(p)).toContainEqual(expect.objectContaining({ n: 'hub_door_tap', ok: true }));
   });
   test('the server says no (door switched off meanwhile): no navigation, a toast, and the card stops offering it', async () => {
     const p = page({ lang: 'en', store: store(DOOR), api: { hubdoor: { __status: 404, error: 'no_door' } } });
@@ -43,6 +57,7 @@ describe('a tap opens this child\'s hub', () => {
     expect(p.hist.assigned).toEqual([]);
     expect(p.toasts().length).toBe(1);
     expect(JSON.parse(p.ls.get('wq_s_TEST')).result.hub_door).toBe(false);
+    expect(evs(p)).toContainEqual(expect.objectContaining({ n: 'hub_door_tap', ok: false }));
   });
   test('never a link that is not a hub page', async () => {
     const p = page({ lang: 'en', store: store(DOOR), api: { hubdoor: { href: 'https://evil.example/x' } } });

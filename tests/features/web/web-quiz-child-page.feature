@@ -1082,6 +1082,8 @@ Feature: Web child quiz page on the portal
     When the scorecard appears and the child taps "Share to class group" or "Challenge a friend" straight away
     Then the card and invite pictures were already drawn when the quiz finished, so the link preview shows the picture
     And the finish itself is never slower for it, and a picture that cannot be drawn never stops the scorecard
+
+  @T595
   Scenario: The hub door is on the first screen of the card, and a forwarded door link says how to get your own
     Given the hub door is switched on and a class child has just finished a quiz on a 360x740 phone
     Then "My quizzes, videos and challenges" is the second action, right under "Share to class group", with no scrolling, in English and in Urdu
