@@ -1238,3 +1238,16 @@ Feature: Web child quiz page on the portal
     When its stem is a listen item ("Listen and tap.", "the word with the following sound:", "sounds like:", «یہ کس حرف کی آواز ہے؟», «یہ لفظ کیسے لکھتے ہیں؟»)
     Then "Play the sound" plays that clip before the child answers
     But for an ordinary question that only says "following" or talks about sound ("Which of the following is a noun?", "Musical sounds are:") no clip plays before the answer
+  @T630
+  Scenario: A sound item shows sound tiles: the tile plays the sound, "This one" answers
+    Given a listen-and-identify library item whose options each have their own recorded sound, or an audio-only item ("Sound 1", "Sound 2")
+    When a child opens it on a 360x740 phone, in English or Urdu
+    Then each option is a big tile that plays that option's own sound and never answers
+    And a separate "This one" button under each tile is the answer
+    But an item with an option that has no sound keeps its ordinary option buttons
+  @T631
+  Scenario: A library question can reopen its lesson video without losing the question
+    Given a library quiz that starts with its lesson video, and a child on one of its questions
+    When the child taps "Watch the lesson again"
+    Then the lesson plays over the question, and Close returns to the same question with nothing answered
+    But a quiz with no video shows no such button
