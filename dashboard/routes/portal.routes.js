@@ -1627,14 +1627,19 @@ router.post('/leader/schedules', requirePortalAuth, requireLeaderRole, async (re
       { teacherExtId, date, slot }
     );
     res.json({ success: true, ...result });
-    // bd-xorfy — tell the teacher on WhatsApp. Not awaited: the booking is
-    // saved and answered already; the client never throws. bd-o15qnr.8: a
-    // past-dated booking records a visit that already happened — no notice.
-    if (result && result.id && result.changed !== false && !result.past) {
+    // bd-xorfy + bd-o15qnr.17 — the bot announces it the way a WhatsApp booking
+    // is announced: the coach's calendar invite and the teacher's WhatsApp
+    // notice (observe-schedule.service announce). Not awaited: the booking is
+    // saved and answered already; the client never throws. A same-slot re-book
+    // re-times the invite but is not news to the teacher (moved:false).
+    // bd-o15qnr.8: a past-dated booking records a visit that already happened —
+    // nothing is sent.
+    if (result && result.id && !result.past) {
       ObserveNotice.notifyTeacher({
         scheduleId: result.id,
         leaderUserId: req.session.portalUserId,
         kind: result.updated ? 'rescheduled' : 'scheduled',
+        moved: result.changed !== false,
       });
     }
   } catch (error) {
@@ -1680,13 +1685,15 @@ router.post('/leader/schedules/:id/edit', requirePortalAuth, requireLeaderRole, 
     const result = await editSchedule(
       (sql, params) => pool.query(sql, params), req.session.portalUserId, req.params.id, { date, slot });
     res.json({ success: true, ...result });
-    // bd-xorfy — a real move is news to the teacher. Not awaited; never throws.
-    // bd-o15qnr.8: a move into the past is not news to her.
-    if (result && result.changed && !result.past) {
+    // bd-xorfy + bd-o15qnr.17 — announced as WhatsApp's move is: the invite is
+    // re-timed, and only a real move (result.changed) is news to the teacher.
+    // Not awaited; never throws. bd-o15qnr.8: a move into the past sends nothing.
+    if (result && !result.past) {
       ObserveNotice.notifyTeacher({
         scheduleId: req.params.id,
         leaderUserId: req.session.portalUserId,
         kind: 'rescheduled',
+        moved: !!result.changed,
       });
     }
   } catch (error) {
