@@ -156,6 +156,11 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     # sandbox DB is seeded; without this the bot falls to the Oxbridge fallback and lesson-plan/L03
     # fails. Overridable for a dev testing the flag-off path: LP_612_ENABLED=false bash commit-e2e.sh …
     echo "LP_612_ENABLED=${LP_612_ENABLED:-true}"
+    # The region the bot runs as. Every NIETE deployment sets DEFAULT_REGION on Railway (sandbox:
+    # niete-sandbox, staging: niete-staging); without it the lane's bot ran as region `default`, so every
+    # region-gated feature (child-test /egra: ICT only, CHILD_TEST_REGIONS) was off and the lane did not test
+    # the bot as deployed. Mirrors the sandbox; E2E_DEFAULT_REGION overrides it.
+    echo "DEFAULT_REGION=${E2E_DEFAULT_REGION:-niete-sandbox}"
     # The lesson/quiz list behind /quiz (transcript-quiz-list + the TRANSCRIPT_QUIZ Flow) is flag-gated
     # at call time; with it unset /quiz falls to the old QuizOrchestrator and training T24 cannot list
     # a lesson-plan quiz. On by default here, like LP_612_ENABLED; no other mock driver sends /quiz.

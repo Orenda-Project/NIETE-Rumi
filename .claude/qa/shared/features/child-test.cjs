@@ -183,6 +183,24 @@ exports.SCENARIOS = SCENARIOS;
 exports.LANE_FILES = LANE_FILES;
 exports.lanesPresent = lanesPresent;
 
+/** Run scripts/child-test/seed-sandbox.js against the run's LOCAL database (idempotent; the seeder refuses
+ *  production refs itself). Uses the run checkout's own copy and node_modules, so it seeds what the commit
+ *  under test expects. */
+function seedSimSchoolLocally(runDir, url, key) {
+  const path = require('path'), fs = require('fs'), { execFileSync } = require('child_process');
+  const src = path.join(runDir, 'src');
+  const script = [path.join(src, 'scripts/child-test/seed-sandbox.js'), path.resolve(__dirname, '../../../../scripts/child-test/seed-sandbox.js')].find((f) => fs.existsSync(f));
+  if (!script) return { ok: false, err: 'scripts/child-test/seed-sandbox.js not found' };
+  try {
+    execFileSync(process.execPath, [script, '--yes-write'], {
+      cwd: src, timeout: 120000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, SUPABASE_URL: url, SUPABASE_SERVICE_ROLE_KEY: key, DATABASE_URL: '',
+             NODE_PATH: [path.join(src, 'bot/node_modules'), path.join(src, 'node_modules')].join(path.delimiter) },
+    });
+    return { ok: true };
+  } catch (e) { return { ok: false, err: String((e.stderr || e.message || '')).trim().split('\n').slice(-1)[0].slice(0, 200) }; }
+}
+
 exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, want = () => true }) => {
   const env = envArg || process.env;
   const repo = path.resolve(__dirname, '..', '..', '..');
@@ -213,7 +231,14 @@ exports.run = async ({ api, rec, stack: stackArg, root: rootArg, env: envArg, wa
 
   const [me] = await get(`users?select=id,region,preferred_language&phone_number=eq.${driver}`);
   if (!me) return blockRest('driver user not found in sandbox');
-  const [sim] = await get(`schools?select=id,name,emis&is_probable_test=eq.true&name=like.SIM*&limit=1`);
+  let [sim] = await get(`schools?select=id,name,emis&is_probable_test=eq.true&name=like.SIM*&limit=1`);
+  // On the local lane the database is this run's own, so the run seeds the SIM school itself with the same
+  // seeder the sandbox was seeded with (bd-z3ze4.2). On the shared sandbox it stays an operator step.
+  if (!sim && require('../db-target.cjs').dbCreds(env).kind === 'local') {
+    const seeded = seedSimSchoolLocally(stack.runDir(), sbUrl, sbKey);
+    if (!seeded.ok) return blockRest('could not seed the SIM school on the local database: ' + seeded.err);
+    [sim] = await get(`schools?select=id,name,emis&is_probable_test=eq.true&name=like.SIM*&limit=1`);
+  }
   if (!sim) return blockRest('no SIM school in sandbox — run scripts/child-test/seed-sandbox.js (L3) first');
   const simExt = 'E2E-CT-' + driver;
   const assignSim = () => write('POST', 'leader_schools', { leader_user_id: me.id, school_ext_id: simExt, school_id: sim.id, school_name: sim.name, emis: sim.emis, source: 'niete_ict' });

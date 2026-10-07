@@ -30,3 +30,9 @@ lesson_plan_catalog
 # settings
 app_settings
 region_features
+
+# school-structure lookups (foreign-key targets of classes: grade, session, section, shift codes)
+academic_sessions
+grade_levels
+sections
+shifts
