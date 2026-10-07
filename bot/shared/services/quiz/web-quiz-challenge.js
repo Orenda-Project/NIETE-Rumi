@@ -32,6 +32,7 @@ const T = require('./web-quiz-token');
 const { WqError } = require('./web-quiz.service');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const { LANGUAGE_OFFER } = require('../../config/languages');
+const Budget = require('./web-quiz-challenge-budget');
 
 const FLAG_KEY = 'web_quiz_challenge';
 const TABLE = 'web_quiz_challenge_runs';
@@ -98,7 +99,7 @@ const clipKnown = new Map();     // key → true (exists) | number (missing, che
 const clipRecording = new Set();
 let clipsRecorded = 0;
 
-function __reset() { flagCache = null; RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; }
+function __reset() { flagCache = null; Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; }
 
 function isTrue(v) {
   let x = v;
@@ -315,10 +316,12 @@ async function menu(token, { kid, lang, device } = {}) {
   const w = await who(token, { kid, lang, device });
   const runs = (await storedRuns(w.studentId)).filter((r) => r.status === 'scored');
   logEvent('web_quiz.ch_open', { via: w.via, grade: w.grade });
+  // Today's read-aloud cap reached (web-quiz-challenge-budget.js): "Which is bigger?" only until Pakistan midnight.
+  const readOk = await Budget.readOpen();
   return {
     form: `G${w.form}`,
     lang: w.lang,
-    exercises: EXERCISES.map((e) => {
+    exercises: EXERCISES.filter((e) => e.id !== 'read' || readOk).map((e) => {
       const last = runs.find((r) => r.exercise === e.id) || null;
       return { id: e.id, name: nameOf(e.id, w.lang), mins: e.mins, done: !!last, last: lastOf(last) };
     }),
@@ -331,6 +334,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   const def = byId(ex);
   if (!def) fail(404, 'not_found');
   const w = await who(token, { kid, lang, device });
+  if (ex === 'read' && !(await Budget.readOpen())) fail(429, 'enough_for_today');
   const { Bank } = childTest();
   const task = def.task(w.lang);
   const spec = Bank.getTaskSpec({ grade: Number(w.form), set: 'A', task });
@@ -463,6 +467,7 @@ async function presignUpload({ ct, type, size } = {}) {
   // One recording per run: a run already scoring or done (here, or stored by another process) gets no new URL.
   const mem = RUNS.get(c.r);
   if ((mem && mem.status && mem.status !== 'open') || (!(mem && mem.status) && await storedRun(c.r))) fail(409, 'already_done');
+  if (!(await Budget.readOpen())) fail(429, 'enough_for_today');
   const key = `${uploadPrefix(c)}${Date.now()}.${ext}`;
   const putUrl = await r2.getPresignedUploadUrl(key, base, PUT_TTL_S, { bucket: childVoiceBucket(), signContentType: true });
   return { put_url: putUrl, key, content_type: base, max_bytes: MAX_BYTES, expires_in: PUT_TTL_S };
@@ -538,7 +543,8 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   try { head = await r2.headObject(key, { bucket: childVoiceBucket() }); } catch (_) { fail(502, 'storage_unavailable'); }
   if (!head || !head.exists) fail(404, 'no_upload');
   if (Number(head.sizeBytes) > MAX_BYTES) await refuse(413, 'too_large');
-  if (await readsToday(c.sid) >= READS_PER_DAY) await refuse(429, 'enough_for_today');
+  if (await readsToday(c.sid) >= READS_PER_DAY || !(await Budget.readOpen())) await refuse(429, 'enough_for_today');
+  Budget.noteStarted();
 
   RUNS.set(c.r, { ...run, status: 'scoring' });
   const previous = await previousRun(c.sid, 'read');
