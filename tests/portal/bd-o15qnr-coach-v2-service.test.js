@@ -89,6 +89,8 @@ function fakeQuery(overrides = {}) {
     if (sql === S.COACH_SESSIONS) return { rows: COACH_SESSIONS };
     if (sql === S.MY_SCHEDULES) return { rows: MY_SCHEDULES };
     if (sql === S.SCHEDULE_BY_ID) return { rows: MY_SCHEDULES.filter((r) => r.id === params[0]) };
+    // bd-o15qnr.20 — lesson plans opened, one teacher at a time
+    if (sql === S.LP_OPENED) return { rows: [{ n: 0 }] };
     // bd-o15qnr.8 — the next upcoming visit on or after today (any date)
     if (sql === S.NEXT_VISIT) {
       const up = MY_SCHEDULES.filter((r) => r.status === 'upcoming' && r.scheduled_for >= params[1])

@@ -36,6 +36,10 @@ export type CoachTeacher = {
   lastTrainingAt?: string | null;
   daysSinceTraining: number | null;
   trainingModules?: number;
+  /** bd-o15qnr.20 — ready assessment papers (the patch's exams_generated) */
+  examsGenerated?: number;
+  /** bd-o15qnr.20 — distinct lesson plans she used (lp-activity); null when not on Rumi. Teacher + Visit only. */
+  lpOpened?: number | null;
 };
 
 export type CoachSchool = {
