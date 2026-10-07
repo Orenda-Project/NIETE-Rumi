@@ -73,6 +73,9 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/ch/result', limiter: ['challenge', 'challengeIp'] },
   // read aloud, live: a one-run speech-to-text key (the bot mints it; counted by the same per-run limiter)
   { method: 'post', path: '/api/wq/ch/live', limiter: ['challenge', 'challengeIp'] },
+  // questions after Read aloud: the reached questions (no key), then one answer per tap (counted per run)
+  { method: 'post', path: '/api/wq/ch/qs', limiter: ['challenge', 'challengeIp'] },
+  { method: 'post', path: '/api/wq/ch/qa', limiter: ['challenge', 'challengeIp'] },
   { method: 'get', path: '/api/wq/ch/:token', limiter: 'read', token: true },
   { method: 'get', path: '/api/wq/ch/:token/:exercise', limiter: 'read', token: true },
   // M4a hub — the kid hub's JSON (a hub token, not a code: checked by HUB_TOKEN_RX)

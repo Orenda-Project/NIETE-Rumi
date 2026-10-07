@@ -70,6 +70,10 @@
       notCaught: function (m) { return 'Words ' + m + " didn't catch"; },
       slowNet: 'Slow internet. Keep reading, your voice is being recorded.',
       checked: function (m, w) { return m + ' listened again: ' + w + ' words a minute!'; },
+      qaStart: 'Answer questions about the story',
+      qaRight: 'Yes!',
+      qaWas: function (a) { return 'The answer was: ' + a; },
+      qaDone: function (c, n) { return 'You got ' + c + ' of ' + n + ' right!'; },
     },
     ur: {
       title: function (m) { return m + ' کا چیلنج'; },
@@ -117,6 +121,10 @@
       notCaught: function (m) { return 'جو لفظ ' + m + ' کو سنائی نہیں دیے'; },
       slowNet: 'انٹرنیٹ آہستہ ہے۔ پڑھتے رہیں، آپ کی آواز ریکارڈ ہو رہی ہے۔',
       checked: function (m, w) { return m + ' نے دوبارہ سنا: ایک منٹ میں ' + ud(w) + ' لفظ!'; },
+      qaStart: 'کہانی کے بارے میں سوال',
+      qaRight: 'جی ہاں!',
+      qaWas: function (a) { return 'جواب تھا: ' + a; },
+      qaDone: function (c, n) { return 'آپ نے ' + ud(n) + ' میں سے ' + ud(c) + ' کے صحیح جواب دیے!'; },
     },
   };
   var t = T[L];
@@ -184,6 +192,11 @@
         '.wqc-live,.wqc[data-screen=read-live],.wqc[data-screen=read-result]{padding-bottom:96px}',
         '.wqc-key{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:13px;font-weight:700;color:var(--muted);margin:6px 0 0}',
         '.wqc-key i{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-1px;margin-inline-end:5px}',
+        '.wqc-opts{display:grid;gap:12px}',
+        '.wqc-opt{min-height:64px;border-radius:18px;border:3px solid transparent;background:var(--card);box-shadow:0 4px 0 var(--line);font-size:20px;font-weight:800;color:var(--navy);cursor:pointer;font-family:inherit;padding:10px 14px;text-align:start}',
+        'html[lang=ur] .wqc-opt{font-weight:700;line-height:1.9}',
+        '.wqc-opt.wqc-ok{border-color:var(--right);background:var(--right-bg)}',
+        '.wqc-opt.wqc-no{border-color:var(--notyet);background:var(--notyet-bg)}',
         '.wqc-sticky{position:fixed;left:0;right:0;bottom:0;z-index:5;padding:14px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(rgba(255,255,255,0),var(--paper) 30%)}',
       ].join('\n');
       document.head.appendChild(s);
@@ -678,10 +691,62 @@
       + '<p class="wq-sub" id="wqc-growth"></p>'
       + '<div class="wqc-story" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live.v.marks) + '</div>'
       + '<p class="wqc-key"><span><i style="background:var(--right-bg)"></i>' + esc(t.readGreen) + '</span><span><i style="background:#FFF1D6"></i>' + esc(t.notCaught(MASCOT)) + '</span></p>'
-      + '<div class="wqc-sticky"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(t.more) + '</button></div>');
+      + '<div class="wqc-sticky">' + (good && d.questions_on ? '<div class="wq-stack">' + qaButtons() + '</div>' : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(t.more) + '</button>') + '</div>');
     if (good) say(d.clips.done);
+    qa.attempted = live.v.attempted;
     on('wqc-menu', refreshMenu);
+    on('wqc-qa', qa.open);
   }
+
+  // ── questions after Read aloud: up to 3 taps about the part the child read; the server holds the answers ──
+  function qaButtons() {
+    return '<button class="wq-btn wq-go" id="wqc-qa" type="button">' + esc(t.qaStart) + '</button>'
+      + '<button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(t.more) + '</button>';
+  }
+  var qa = {
+    list: [], k: 0, right: 0, attempted: null,
+    open: function () {
+      var d = S.data;
+      api('ch/qs', { ct: d.ct, attempted: qa.attempted, lang: L }).then(function (out) {
+        qa.list = (out && out.questions) || [];
+        qa.k = 0; qa.right = 0;
+        if (!qa.list.length) { refreshMenu(); return; }
+        qa.show(0);
+      }).catch(function (e) { errorScreen(e, qa.open); });
+    },
+    show: function (k) {
+      var x = qa.list[k];
+      if (!x) { qa.done(); return; }
+      qa.k = k;
+      var opts = x.options.map(function (o, i) { return '<button class="wqc-opt" type="button" id="wqc-o' + i + '">' + esc(o) + '</button>'; }).join('');
+      show('qa', '<p class="wq-small">' + esc(t.of(k + 1, qa.list.length)) + '</p>' + jug('thinking', x.prompt) + hearBtn(x.clip)
+        + '<div class="wqc-opts">' + opts + '</div>');
+      bindHear(x.clip);
+      say(x.clip);
+      var picked = false;
+      x.options.forEach(function (o, i) {
+        on('wqc-o' + i, function () {
+          if (picked) return;
+          picked = true;
+          api('ch/qa', { ct: S.data.ct, q: x.id, pick: i, lang: L }).then(function (r) {
+            var el = q('wqc-o' + i);
+            if (el) el.className += r.ok ? ' wqc-ok' : ' wqc-no';
+            if (r.ok) qa.right += 1;
+            else x.options.forEach(function (oo, j) { if (oo === r.answer) { var g = q('wqc-o' + j); if (g) g.className += ' wqc-ok'; } });
+            var sy = q('wqc-say');
+            if (sy) sy.textContent = r.ok ? t.qaRight : t.qaWas(r.answer);
+            setTimeout(function () { qa.show(k + 1); }, 1600);
+          }).catch(function (e) { picked = false; errorScreen(e, function () { qa.show(k); }); });
+        });
+      });
+    },
+    done: function () {
+      var good = qa.right > 0;
+      show('qa-done', jug(good ? 'celebrate' : 'hello', t.qaDone(qa.right, qa.list.length), true)
+        + '<div class="wq-stack"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(t.more) + '</button></div>');
+      on('wqc-menu', refreshMenu);
+    },
+  };
 
   // The checked count (the number of record) arrived: "nothing heard" or a first-line stop replaces the live result;
   // a count 3 or more away replaces the number; the growth line always uses the checked count.
@@ -776,14 +841,16 @@
       // Not heard: steer the child to read again — "Try again" is the primary button, "More challenges" the second.
       + '<div class="wq-stack">' + (r.failed
         ? '<button class="wq-btn wq-go" id="wqc-again" type="button">' + esc(t.again) + '</button><button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(t.more) + '</button>'
-        : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(t.more) + '</button>') + '</div>');
+        : (score && d.questions_on ? qaButtons() : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(t.more) + '</button>')) + '</div>');
     if (score) say(d.clips.done);
+    if (score) qa.attempted = r.score && r.score.attempted;
     on('wqc-menu', refreshMenu);
     on('wqc-again', function () { open('read'); });
+    on('wqc-qa', qa.open);
   }
 
   // The test harness reaches the screens through this handle; nothing on the page uses it.
-  window.__wqc = { live: function () { return live; }, S: S, menu: menu, open: open, intro: intro, bigger: bigger, micStart: micStart, noMic: noMic, record: record, stopRec: stopRec, readResult: readResult, upload: upload, pollResult: pollResult, rec: rec, T: T };
+  window.__wqc = { qa: qa, live: function () { return live; }, S: S, menu: menu, open: open, intro: intro, bigger: bigger, micStart: micStart, noMic: noMic, record: record, stopRec: stopRec, readResult: readResult, upload: upload, pollResult: pollResult, rec: rec, T: T };
   ev('ch_open', {});
   menu();
 })();
