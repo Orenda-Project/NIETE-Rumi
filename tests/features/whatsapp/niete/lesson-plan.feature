@@ -135,6 +135,24 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # internal routing note is not teacher-facing.
 
   @e2e @content-driven @P1
+  Scenario: An Islamiat plan names and classifies its surahs correctly, even where the textbook page does not
+    Given the NIETE bot chat is open
+    And I have opened the LP Flow
+    When I complete it for the Grade 11 Islamiat chapter 2 segment on pages 10-12, whose page 11 lists
+      سورۃ الانعام and سورۃ الاعراف as Madani surahs
+    Then a lesson-plan PDF is delivered to the chat
+    And no surah in the plan is named by its opening letters, such as «سورۃ طٰسٓمٓ»
+    And no Makki surah is given as a Madani example, and no Madani surah as a Makki one
+    And the inheritance rulings are credited to سورۃ النساء, never to سورۃ المائدہ
+    # bd-nnd27p. Amena ruled all three errors on the production plan for this segment (2026-10-07).
+    # The third came straight off the page: the textbook itself prints Al-An'am and Al-A'raf, both
+    # Makki, as Madani examples. RELIGIOUS_MARKS now checks every surah citation against a
+    # 114-surah table and refuses the draft, so the ladder re-authors instead of delivering. The
+    # teacher still gets a plan, a corrected one. Surahs whose classification is disputed, negations
+    # («مدنی نہیں»), exceptions («کے علاوہ») and «مدنی معاشرہ» (Madinan society) are never judged.
+    # A sweep of the 954 Islamiat page truths flagged only the book's two real errors.
+
+  @e2e @content-driven @P1
   Scenario: A plan naming an ordinary person called محمد is delivered, because a reviewer cleared it
     Given the NIETE bot chat is open
     And I have opened the LP Flow
@@ -172,8 +190,9 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # even though the one-word "Muhammad" sitting inside it is marked as the Prophet — which is the
     # only reason the reviewer could mark that bare token PROPHET to fail safe without re-refusing
     # every ordinary person on her list. The segment must carry religious content or the gate is
-    # never reached: RELIGIOUS_MARKS runs only inside a religious-scope document, so an English
-    # maths lesson naming nobody religious would pass this proving nothing.
+    # never reached: the honorific checks in RELIGIOUS_MARKS run only inside a religious-scope
+    # document, so an English maths lesson naming nobody religious would pass this proving nothing.
+    # (The bd-nnd27p surah-fact check is the one part of the gate that runs on every plan.)
 
   @e2e @content-driven @P1
   Scenario: A chained Latin name the book saluted at the end of the chain is delivered
