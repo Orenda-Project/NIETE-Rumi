@@ -167,7 +167,7 @@ describe('E2 GET quiz', () => {
     expect(out.video).toBeNull();
     expect(out.preview).toBe(false);
     // The teacher is named as the forwarded WhatsApp text names them; the parent's phone never leaves.
-    expect(out.cls.teacher).toBe('Teacher Ms Example Teacher');
+    expect(out.cls.teacher).toBe('Teacher Example Teacher');
     expect(JSON.stringify(out)).not.toMatch(/0000/);
   });
 
