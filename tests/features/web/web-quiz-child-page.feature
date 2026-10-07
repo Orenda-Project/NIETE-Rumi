@@ -705,6 +705,21 @@ Feature: Web child quiz page on the portal
     Given scoring a reading takes more than 5 seconds
     Then the result call answers "pending" and the page asks again every 3 seconds, up to 60 seconds
     And the recording is deleted from storage after scoring, and only the numbers are kept
+
+  @T531
+  Scenario: A reading where nothing was heard is never praised
+    Given the scorer hears no word of the story attempted
+    Then the run is stored as failed "unheard", with no words-per-minute and no tick on the Read aloud tile
+    And the page says "We couldn't hear that clearly. Try again?" («آواز صاف سنائی نہیں دی۔ دوبارہ کوشش کریں؟») with "Try again"
+    And Jugnu does not celebrate, and the teacher's class results do not list it
+    But a reading with words heard and none right says "Good try! Reading gets easier every day you practise." with no number
+
+  @T532
+  Scenario: Today's read-aloud cap leaves "Which is bigger?" only
+    Given app_settings web_quiz_challenge_daily_reads is 500 (or absent) and 500 read-alouds have been scored since Pakistan midnight
+    Then the Challenge menu shows only "Which is bigger?"
+    And a reading already open is answered "enough for today", and its uploaded recording is deleted
+    And web_quiz.ch_read_capped is logged once that day
   @T491
   Scenario: A shared phone reopened on a finished child's card lets the next child play
     Given a phone where "Tooba" finished this quiz and the page reopens on Tooba's card
@@ -828,6 +843,15 @@ Feature: Web child quiz page on the portal
     And with no such quiz the card says "No new quiz from your teacher right now. Watch a video and try its quiz!" with the video library button
     And a quiz with no grade, or another grade, is never shown as the teacher's
 
+  @T540
+  Scenario: The hub's teacher card puts the quiz handed to the child's own class first
+    Given a teacher handed a grade 3-5 quiz to class 3-A and later sent another grade 3-5 quiz to no class in particular
+    When a child enrolled in 3-A opens their hub
+    Then "From your teacher" shows the quiz handed to 3-A, even though the other one is newer
+    And a child of 3-B never sees the quiz handed to 3-A
+    And the same lesson the child already finished in the other language is never shown as new
+    And of two quizzes for the class, the one in the child's language comes first
+
   @T303
   Scenario: Play again shows the child's best score and keeps the first score for the teacher
     Given a child who finished a quiz twice, scoring 4/10 and then 8/10
@@ -852,6 +876,16 @@ Feature: Web child quiz page on the portal
     When it is opened
     Then the page says "This link has expired" and "Send /quiz on WhatsApp to get a new one." in the child's language
     And no child's name or quiz is shown
+
+  @T530
+  Scenario: A forwarded hub link shows no child's name on another phone
+    Given a family's phone opened its /quiz hub link first and saw its children
+    When the same link is opened on a second phone that has never played as one of them
+    Then the page says "This link was sent to another player" and "Ask the child this link was sent to to open it." («جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔»)
+    And no child's name, animal, teacher quiz, past quiz or recommendation is shown, and nothing can be played as them
+    And "Someone else / new player" («کوئی اور / نیا کھلاڑی») says to ask the teacher for a quiz link or send /quiz on WhatsApp from the family's phone
+    And the family's own phone, and any phone a child of that family has already played on, still sees the hub unchanged
+    And the hub's Challenge link (/c/<link>?kid=…) opened on that second phone shows the same neutral note, with no past result and nothing to play as the child
   @T446
   Scenario: A challenger who scored nothing is not a score to beat
     Given a child finished a quiz with 0 right answers and sent a friend their challenge link
@@ -880,3 +914,101 @@ Feature: Web child quiz page on the portal
     When a child answers a question and when the quiz ends
     Then the feedback lines ("Yes! That's right!", "Quiz complete!") are English, in the same voice as the question clips
     And an Urdu quiz keeps its Urdu feedback lines even when its page is opened from an English class
+
+
+  @T375
+  Scenario: "Watch another video" opens the quiz's own subject as chapters, at once
+    Given the video library is on and a child is looking at their result or scorecard
+    When the child taps "Watch another video"
+    Then the chapters of the quiz's own subject and grade are shown at once, in the WhatsApp Flow's order
+    And each lesson shows its poster (or the subject's picture until it loads), its title, minutes and MB, and "Done ✓" when finished
+
+  @T376
+  Scenario: Subjects with pictures and a grade strip
+    Given the library is showing a subject's chapters
+    When the child taps "Subjects"
+    Then the subjects of the child's grade are shown as picture tiles, two to a row, each with its number of videos
+    And a strip of grades with pictures sits above them, the child's grade selected and in view
+    When the child taps another grade
+    Then that grade's subjects are shown
+
+  @T377
+  Scenario: A lesson the class already has opens without waiting
+    Given the class already has a code for a lesson in the library
+    When the child taps that lesson
+    Then the lesson's page opens straight away and starts as the same child, with no name to pick
+
+  @T378
+  Scenario: A class's first play of a lesson still gets its own code
+    Given no child of the class has played a lesson yet
+    When a child taps it in the library
+    Then one code is made for that class and lesson, and the lesson's page opens as the same child
+
+  @T379
+  Scenario: A child downloads a lesson's video
+    Given the library is on
+    When a child taps "⬇ Download (12.4 MB)" on the video screen, or "⬇ Download" on a lesson in the library
+    Then the phone saves the video under a clean file name
+    And in WhatsApp's browser the child is also offered "Open in Chrome" in case the download does not start
+
+  @T380
+  Scenario: The library is off
+    Given the video library is off
+    When a child taps "Watch another video"
+    Then today's list of up to 8 lessons is shown, exactly as before, and no Download button appears
+
+  @T381
+  Scenario: The library in Urdu
+    Given an Urdu quiz
+    When the child opens the library
+    Then subject and grade names, counts, "Done" and "Download" are in Urdu, and sizes read left to right
+
+  @T382
+  Scenario: The library from the kid's hub
+    Given a child opened their hub from WhatsApp and the video library is on
+    When the child taps the Library tile
+    Then the subjects of the child's grade are shown, with no names of other children anywhere
+    When the child taps a lesson the class already has a code for
+    Then that lesson's page opens and starts as the same child, with no picking
+    And a lesson the class has never played gets its code first, from the newest quiz the child played from their teacher
+    And a child who has not played any quiz from their teacher yet is told to play one first, and stays in the library
+
+  @T383
+  Scenario: The scorecard of a video quiz names the next lesson
+    Given the video library is on and a child finishes a video quiz
+    Then the result names the next lesson of the same grade and subject in the WhatsApp Flow's order that the child has not finished
+    And the rest of the same chapter comes first, then the next chapters
+    And nothing is named when every lesson of that subject and grade is finished, or for a lesson quiz
+  @T520
+  Scenario: A child's link on the platform's default domain opens on the quiz's own address, so the phone still remembers the child
+    Given the web quiz's address is set for this deployment
+    And a child once opened a quiz link on that address and picked their own name
+    When the same child opens an older link that points at the platform's default domain
+    Then the page moves to the same quiz, hub, challenge or library page on the quiz's own address, keeping everything after the path
+    And the child is recognised without picking their name again
+    And the teacher's report link and the quiz's data calls are never moved
+
+  @T561
+  Scenario: A library link from the hub opened on another phone says whose link it is
+    Given a child's hub link is bound to the child's phone
+    When the hub's library link (/lib/<token>) is opened on another phone
+    Then no subjects, lessons or name are shown
+    And it reads "This link was sent to another player" and "Ask the child this link was sent to to open it." (in Urdu «یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا»)
+    And it adds "Is this your link? Send /quiz on WhatsApp again for a new one." so a family locked out on its own phone can get a new link
+    And there is no "Try again", only "Back" to the hub
+  @T545
+  Scenario: A hub quiz link plays as the child on the family phone even for a teacher with many players
+    Given a teacher whose quizzes more than 40 children have played since this child last played
+    And the family phone opened the child's /quiz hub link
+    When the child taps "Play again" or the teacher's quiz on the hub
+    Then the quiz starts as that child, with no "Which class are you in?" and no name to pick
+    And the same quiz link opened on another phone names nobody and asks who is playing
+
+  @T546
+  Scenario: A shared phone that one sibling played on sees only that sibling from the family's hub link
+    Given a family's /quiz hub link for two siblings was opened first on the family's phone
+    And one of the siblings once played a quiz on a class phone
+    When the family's link is opened on that class phone
+    Then it lists only the sibling who played there, never the other one
+    And the other sibling's hub, library and challenge do not open on that phone
+

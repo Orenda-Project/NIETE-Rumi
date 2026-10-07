@@ -136,12 +136,12 @@ async function uploadExamBuffer({ buffer, userId, examId, filename }) {
  * paper-version backfill to find the PDF a paper was first delivered as, which
  * nothing in its row names any more.
  */
-async function listKeys(prefix) {
+async function listKeys(prefix, { bucket } = {}) {
   if (!prefix || typeof prefix !== 'string') throw new Error('listKeys needs a non-empty prefix');
   const keys = [];
   let token;
   do {
-    const input = { Bucket: BUCKET_NAME, Prefix: prefix };
+    const input = { Bucket: bucket || BUCKET_NAME, Prefix: prefix };
     if (token) input.ContinuationToken = token;
     const page = await getR2Client().send(new ListObjectsV2Command(input));
     for (const o of page?.Contents || []) if (o && o.Key) keys.push(o.Key);
@@ -972,9 +972,21 @@ async function uploadBuffer(buffer, key, contentType = 'application/octet-stream
  * @param {number} expiresIn    seconds
  * @returns {Promise<string>} presigned PUT url
  */
-async function getPresignedUploadUrl(key, contentType, expiresIn = 900, { bucket } = {}) {
+/**
+ * A presigned GET for a bare key, signed locally and quietly (no log lines): for pages that sign
+ * many small objects at once (the web quiz library's posters). getPresignedUrl stays the general path.
+ * @param {string} key  R2 object key
+ * @param {number} expiresIn  seconds
+ * @returns {Promise<string>} presigned GET url
+ */
+async function getPresignedGetUrl(key, expiresIn = 3600) {
+  return getSignedUrl(getR2Client(), new GetObjectCommand({ Bucket: BUCKET_NAME, Key: key }), { expiresIn });
+}
+
+async function getPresignedUploadUrl(key, contentType, expiresIn = 900, { bucket, signContentType = false } = {}) {
   const command = new PutObjectCommand({ Bucket: bucket || BUCKET_NAME, Key: key, ContentType: contentType });
-  return getSignedUrl(getR2Client(), command, { expiresIn });
+  // signContentType: content-type becomes a SIGNED header, so a PUT with any other type is refused by R2.
+  return getSignedUrl(getR2Client(), command, signContentType ? { expiresIn, signableHeaders: new Set(['content-type']) } : { expiresIn });
 }
 
 /**
@@ -1030,6 +1042,7 @@ module.exports = {
   getPresignedUploadUrl,
   deleteKey,
   presignKey,
+  getPresignedGetUrl, // quiet GET presign for a bare key (web quiz library posters)
   headObject,
   uploadAudio,
   deleteAudio,

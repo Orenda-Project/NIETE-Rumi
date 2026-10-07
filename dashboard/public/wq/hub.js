@@ -9,6 +9,7 @@
   var B = {};
   try { B = JSON.parse(document.getElementById('boot').textContent) || {}; } catch (e) { B = {}; }
   var LANG = B.lang === 'ur' ? 'ur' : 'en';
+  var LOCKED_BOOT = Boolean(B.locked);
   var TOKEN = String(B.token || '');
   var BR = B.brand || null;
   var MASC = (BR && BR.mascot) || { en: 'Jugnu', ur: 'جگنو' };
@@ -32,6 +33,9 @@
       libT: 'Video library', libSub: 'Pick a subject and a chapter',
       recT: 'Try these next', chT: function (m) { return m + '\'s Challenge'; }, chSub: 'Short games for reading and numbers',
       switchKid: 'Switch player', oops: 'Something went wrong. Try again.', offline: 'No internet. Try again when you are online.',
+      lockT: 'This link was sent to another player', lockSay: 'Ask the child this link was sent to to open it.',
+      someone: 'Someone else / new player', newT: 'New here?', mine: 'Is this your link? Send /quiz on WhatsApp again for a new one.',
+      newSay: 'Ask your teacher for a quiz link, or send /quiz on WhatsApp from your family\'s phone.',
       wait: 'Opening…', noClass: 'Play a quiz from your teacher first.', gone: 'No quizzes here yet. Ask your teacher for a quiz link.', mins: function (m) { return m + ' min'; },
     },
     ur: {
@@ -44,6 +48,9 @@
       libT: 'ویڈیو لائبریری', libSub: 'مضمون اور باب چنیں',
       recT: 'یہ بھی کریں', chT: function (m) { return m + ' کا چیلنج'; }, chSub: 'پڑھنے اور گنتی کے چھوٹے کھیل',
       switchKid: 'کھلاڑی بدلیں', oops: 'کچھ گڑبڑ ہو گئی۔ دوبارہ کوشش کریں۔', offline: 'انٹرنیٹ نہیں ہے۔ انٹرنیٹ آنے پر دوبارہ کوشش کریں۔',
+      lockT: 'یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا', lockSay: 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔',
+      someone: 'کوئی اور / نیا کھلاڑی', newT: 'پہلی بار؟', mine: 'کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ ⁦/quiz⁩ بھیجیں۔',
+      newSay: 'اپنے استاد سے کوئز کا لنک لیں، یا گھر کے فون سے واٹس ایپ پر ⁦/quiz⁩ بھیجیں۔',
       wait: 'کھل رہا ہے…', noClass: 'پہلے استاد کا کوئی کوئز کھیلیں۔', gone: 'ابھی یہاں کوئی کوئز نہیں۔ استاد سے کوئز کا لنک لیں۔', mins: function (m) { return m + ' منٹ'; },
     },
   }[LANG];
@@ -103,6 +110,35 @@
       return r.text().then(function (t) { var j = null; try { j = t ? JSON.parse(t) : null; } catch (e) {} return { status: r.status, ok: r.ok, body: j || {} }; });
     });
   }
+  // This phone's device_ref: the same key the quiz page keeps it under (wq.js sget 'wq_d', JSON), so a
+  // phone that opens the hub and then plays is one phone to the server. Minted here when there is none.
+  // The same ref goes into the wq_dv cookie, so the pages a hub link opens next (the challenge, the library)
+  // reach the server as this phone too: their server render and API calls carry it as x-wq-device.
+  function keepCookie(d) {
+    try {
+      document.cookie = 'wq_dv=' + d + '; path=/; max-age=2592000; samesite=lax' + (location.protocol === 'https:' ? '; secure' : '');
+    } catch (e) {}
+    return d;
+  }
+  function deviceRef() {
+    var d = null;
+    try { d = JSON.parse(localStorage.getItem('wq_d') || 'null'); } catch (e) { d = null; }
+    if (typeof d === 'string' && /^[A-Za-z0-9_-]{22}$/.test(d)) return keepCookie(d);
+    var ABC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    var bytes = [];
+    try { var a = new Uint8Array(22); window.crypto.getRandomValues(a); bytes = Array.prototype.slice.call(a); } catch (e) { bytes = []; }
+    d = '';
+    for (var i = 0; i < 22; i++) d += ABC.charAt((bytes.length ? bytes[i] : Math.floor(Math.random() * 256)) & 63);
+    try { localStorage.setItem('wq_d', JSON.stringify(d)); } catch (e) {}
+    return keepCookie(d);
+  }
+  // The hub JSON for this phone: the device_ref rides in the body, never the URL.
+  function hubFor(kid) {
+    var body = {};
+    if (kid) body.kid = kid;
+    body.device_ref = deviceRef();
+    return api('POST', 'hub/' + encodeURIComponent(TOKEN), body);
+  }
   // Events: ids and counts only (the server allow-lists every prop); hub_pick's "what" rides in `src`.
   function ev(n, props) {
     var e = { t: Date.now(), lang: LANG };
@@ -128,15 +164,40 @@
   }
   function pick(chip) {
     render(bar() + '<div class="wq-boot"><img src="' + JUG_DIR + 'thinking.webp" alt="" width="96"><p class="wq-bootsay">' + esc(T.wait) + '</p></div>', 'H1-wait');
-    api('GET', 'hub/' + encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(chip)).then(function (r) {
+    hubFor(chip).then(function (r) {
       // An expired or forged link: the server's closed page says what to do (never "No internet").
       if (r.status === 401) { location.reload(); return; }
+      if (r.ok && r.body && r.body.locked) { locked(); return; }
       if (!r.ok || !r.body || !r.body.kid) throw new Error('hub_' + r.status);
       var kids = B.kids;
       B = r.body; B.token = TOKEN; B.brand = BR; B.kids = B.kids && B.kids.length ? B.kids : kids;
       try { history.replaceState(null, '', '/h/' + TOKEN + '?kid=' + encodeURIComponent(chip)); } catch (e) {}
       hub();
     }).catch(function (e) { toast(e && /^hub_/.test(e.message) ? T.oops : T.offline); picker(); });
+  }
+
+  /* ---------------- H-lock: a forwarded link (another phone) — never a name, never a play ---------------- */
+  function locked() {
+    B = { lang: LANG, token: TOKEN, brand: BR, locked: true, kids: [] };
+    render(bar() + jug('thinking', T.lockSay) + '<h2>' + esc(T.lockT) + '</h2>' +
+      '<p class="wq-sub">' + esc(T.mine) + '</p>' +
+      '<button class="wq-btn wq-ghost" id="wq-h-new">' + esc(T.someone) + '</button>', 'H-lock');
+    on('#wq-h-new', function () { newPlayer(); });
+  }
+  function newPlayer() {
+    ev('hub_pick', { src: 'new' });
+    render(bar() + jug('hello', T.newSay) + '<h2>' + esc(T.newT) + '</h2>', 'H-new');
+  }
+  // The server render has no device: ask again as this phone, then show what the bot allows.
+  function unlock() {
+    render(bar() + '<div class="wq-boot"><img src="' + JUG_DIR + 'hello.webp" alt="" width="96"><p class="wq-bootsay">' + esc(T.wait) + '</p></div>', 'H0-wait');
+    hubFor(null).then(function (r) {
+      if (r.status === 401) { location.reload(); return; }
+      if (!r.ok || !r.body) throw new Error('hub_' + r.status);
+      if (r.body.locked) { locked(); return; }
+      B = r.body; B.token = TOKEN; B.brand = BR;
+      boot();
+    }).catch(function (e) { toast(e && /^hub_/.test(e.message) ? T.oops : T.offline); locked(); });
   }
 
   /* ---------------- H2 the hub ---------------- */
@@ -149,18 +210,22 @@
       '<h2 dir="auto">' + esc(t.topic) + '</h2><p class="wq-sub">' + [esc(subjectName(t.subject)), T.sent(daysSince(t.sent_at))].filter(Boolean).join(' · ') + '</p>' +
       '<a class="wq-btn wq-go" id="wq-h-teacher" href="' + esc(quizHref(t.code, { k: t.k })) + '">▶ ' + esc(T.play) + '</a></div>';
   }
-  function tile(subject, i) { return '<span class="wq-vtile wq-vt' + (i % 4 + 1) + '" aria-hidden="true">' + (SUBJECT_TILE[subjectKey(subject)] || '▶') + '</span>'; }
+  // The subject's picture when the server names one (the library's art), else the emoji tile.
+  function tile(subject, i, art) {
+    if (art) return '<img class="wq-vtile" src="' + esc(art) + '" alt="" loading="lazy" width="96" height="60" onerror="this.style.visibility=\'hidden\'">';
+    return '<span class="wq-vtile wq-vt' + (i % 4 + 1) + '" aria-hidden="true">' + (SUBJECT_TILE[subjectKey(subject)] || '▶') + '</span>';
+  }
   function againList(list) {
     if (!list.length) return '';
     return '<p class="wq-hlabel">' + esc(T.againT) + '</p><ul class="wq-vlist">' + list.map(function (a, i) {
-      return '<li><a class="wq-vitem" data-again="' + i + '" href="' + esc(quizHref(a.code, { again: '1', k: a.k })) + '">' + tile(a.subject, i) +
+      return '<li><a class="wq-vitem" data-again="' + i + '" href="' + esc(quizHref(a.code, { again: '1', k: a.k })) + '">' + tile(a.subject, i, a.art) +
         '<span class="wq-vtext"><b dir="auto">' + esc(a.topic) + '</b><small>' + T.againRow(a.best && a.best.t ? '<bdi dir="ltr">' + esc(a.best.c + '/' + a.best.t) + '</bdi>' : '–', Number(a.tries) || 1) + '</small></span></a></li>';
     }).join('') + '</ul><p class="wq-small">' + esc(T.practice) + '</p>';
   }
   function recList(list) {
     if (!list.length) return '';
     return '<p class="wq-hlabel">' + esc(T.recT) + '</p><ul class="wq-vlist">' + list.map(function (v, i) {
-      var pic = v.poster ? '<img class="wq-vtile" src="' + esc(v.poster) + '" alt="" loading="lazy" width="96" height="60" onerror="this.style.visibility=\'hidden\'">' : tile(v.subject, i);
+      var pic = v.poster ? '<img class="wq-vtile" src="' + esc(v.poster) + '" alt="" loading="lazy" width="96" height="60" onerror="this.style.visibility=\'hidden\'">' : tile(v.subject, i, v.art);
       // Each atom isolated, so a Latin chapter or "3 min" keeps its order inside an Urdu line.
       var meta = [subjectName(v.subject), v.chapter, v.secs ? T.mins(Math.max(1, Math.round(v.secs / 60))) : ''].filter(Boolean)
         .map(function (x) { return '<bdi>' + esc(x) + '</bdi>'; }).join(' · ');
@@ -170,7 +235,7 @@
   function hub() {
     var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     // With no teacher quiz the empty card already holds the library button: no second library tile.
-    var tiles = (B.lib && B.teacher ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(B.lib.href) + '"><span class="wq-htic" aria-hidden="true">📚</span><b>' + esc(T.libT) + '</b><small>' + esc(T.libSub) + '</small></a>' : '') +
+    var tiles = (B.lib && B.teacher ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(B.lib.href) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">📚</span>') + '<b>' + esc(T.libT) + '</b><small>' + esc(T.libSub) + '</small></a>' : '') +
       (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid) + '&lang=' + LANG) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
     render(bar() + jug('hello', T.hi(me.first || '')) + teacherCard(B.teacher) +
       (tiles ? '<div class="wq-htiles">' + tiles + '</div>' : '') +
@@ -205,12 +270,15 @@
   window.addEventListener('pageshow', function (e) {
     if (!e || !e.persisted) return;
     starting = false;
-    if (B.kid) hub(); else if ((B.kids || []).length) picker();
+    if (B.locked) locked(); else if (B.kid) hub(); else if ((B.kids || []).length) picker();
   });
 
   /* ---------------- boot ---------------- */
-  ev('hub_view', { src: B.kid ? 'hub' : 'who', i: (B.kids || []).length });
-  if (!(B.kids || []).length) render(bar() + jug('sleep', T.gone), 'H0');
-  else if (!B.kid) picker();
-  else hub();
+  function boot() {
+    ev('hub_view', { src: B.kid ? 'hub' : 'who', i: (B.kids || []).length });
+    if (!(B.kids || []).length) render(bar() + jug('sleep', T.gone), 'H0');
+    else if (!B.kid) picker();
+    else hub();
+  }
+  if (LOCKED_BOOT) unlock(); else boot();
 })();

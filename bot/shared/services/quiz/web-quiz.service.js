@@ -417,6 +417,10 @@ async function liveCounts(ctx) {
 
 // ─── E2 the quiz ────────────────────────────────────────────────────────────
 
+const QUIZ_MEDIA_CACHE_MS = 5 * 60 * 1000;
+const QUIZ_MEDIA_CACHE_MAX = 500;
+const quizMediaCache = new Map();
+
 /** E2, timed: one web_quiz.getquiz_timing line per call (steps, total). */
 function getQuiz(code, opts = {}) {
   return Steps.run('getquiz', {}, (mark) => getQuizTimed(code, opts, mark));
@@ -435,12 +439,29 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   const helpers = mediaHelpers();
   let audio = {};
   let video = null;
-  if (helpers) {
+  // The signed media of a code are reused for 5 minutes (they live 6 h): the library's prefetch and
+  // the tap that follows it, or a class opening the same link together, sign them once. The key is
+  // everything the links are made from, so new clips or edited questions are signed at once.
+  const mediaKey = require('crypto').createHash('sha1').update(JSON.stringify([
+    ctx.code, ctx.quizId, ctx.parent.video_id || (quizRow && quizRow.video_id) || null,
+    (quizRow && quizRow.meta && quizRow.meta.web) || null,
+    questions.map((q) => [q.id, q.question_text, q.media || null]),
+  ])).digest('base64');
+  const cached = quizMediaCache.get(mediaKey);
+  const hit = Boolean(cached && Date.now() - cached.at < QUIZ_MEDIA_CACHE_MS);
+  if (hit) {
+    ({ audio, video } = cached);
+  } else if (helpers) {
     try { audio = (await helpers.presignAudio((quizRow && quizRow.meta) || {}, { expiresIn: MEDIA_TTL_S })) || {}; } catch { audio = {}; }
     const videoId = ctx.parent.video_id || (quizRow && quizRow.video_id) || null;
     if (videoId) {
       try { video = (await helpers.presignVideo({ video_id: videoId }, { db: supabase, expiresIn: MEDIA_TTL_S })) || null; } catch { video = null; }
     }
+  }
+  // The library's Download button needs the bank video's id (only with the library on).
+  if (video && video.url) {
+    const videoId = ctx.parent.video_id || (quizRow && quizRow.video_id) || null;
+    if (videoId && await require('./web-quiz-library-flag').libraryOn()) video = { ...video, vid: videoId };
   }
   // A quiz without its read-aloud clips (or with clips of an older voice version) gets them now,
   // recorded by the worker: the backfill for quizzes authored before clips were made at authoring.
@@ -449,7 +470,13 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     Publish.requestQuizAudio(ctx.quizId, { meta: (quizRow && quizRow.meta) || {} }).catch(() => {});
   } catch { /* the page reads aloud */ }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
-  try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
+  if (!hit) {
+    try { audio = await require('./web-quiz-sound').withRecordedClips(questions, audio, { expiresIn: MEDIA_TTL_S }); } catch { /* the page reads aloud */ }
+    if (helpers) {
+      if (quizMediaCache.size >= QUIZ_MEDIA_CACHE_MAX) quizMediaCache.clear();
+      quizMediaCache.set(mediaKey, { at: Date.now(), audio, video });
+    }
+  }
   mark('media');
   // Identity v2: the child types their name and the server matches inside the hand-out's class.
   const idn = await identityV2(ctx);
@@ -838,6 +865,11 @@ async function startSessionTimed(body = {}, mark = () => {}) {
     // v2: "Yes, it's me" on the one card, or a remembered child of the hand-out's class.
     student = { id: found.kid.id, student_name: found.kid.student_name, self_reported_class: found.cls.label || null };
     resolved = { via: viaOf(body.via, 'remembered'), classBound: found.bound, provisional: false };
+  } else if (body.chip && body.via === 'hub' && (found = await hubChipKid(ctx, String(body.chip), body.device_ref))) {
+    // A hub link on the phone the hub trusted: the child is one of that phone's own, however long ago they
+    // last played (the teacher's recent-player chips below only reach the 40 newest players).
+    student = found;
+    found = null;
   } else if (body.chip) {
     const want = String(body.chip);
     const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
@@ -907,13 +939,13 @@ async function startSessionTimed(body = {}, mark = () => {}) {
   mark('identity');
 
   // A hub/library link carries the child's chip in its URL (?k=), and a link can be forwarded:
-  // it plays straight through only on a phone that has played as that child before; anywhere
-  // else the child sees the ONE "Are you <first>?" card first (confirm:true is the "Yes").
+  // it plays straight through only on a phone that played as that child or opened their hub
+  // (web-quiz-hub deviceMayName). Anywhere else it names NOBODY: chip_unknown, so the page
+  // forgets the chip and asks who is playing, as for any new phone.
   if (student && body.chip && body.via === 'hub' && body.confirm !== true
-    && !(await deviceKnows(found ? found.kid.ids : [student.id], T.cleanDeviceRef(body.device_ref)))) {
-    logEvent('web_quiz.identity_step', { shareCodeId: ctx.shareCodeId, step: 'hub_confirm', hits: 1 });
-    const nameOf = await shownNames(ctx.lang, [student.id]);
-    fail(409, 'is_this_you', { candidates: [{ chip: String(body.chip), first: nameOf(student.id, student.student_name), animal: T.animalFor(student.id) }] });
+    && !(await require('./web-quiz-hub-device').deviceMayName(found ? found.kid.ids : [student.id], body.device_ref))) {
+    logEvent('web_quiz.identity_step', { shareCodeId: ctx.shareCodeId, step: 'hub_other_device', hits: 0 });
+    fail(404, 'chip_unknown');
   }
   if (student) {
     takerName = student.student_name;
@@ -1033,6 +1065,15 @@ async function identityBoot(ctx, idn) {
   };
 }
 
+/** A hub ?k= chip on a phone a hub trusted: the one of that phone's children whose chip on this code it is, or null. */
+async function hubChipKid(ctx, want, deviceRef) {
+  const ids = await require('./web-quiz-hub-device').deviceKids(deviceRef);
+  const id = ids.find((x) => T.chipId(ctx.shareCodeId, x) === want);
+  if (!id) return null;
+  const { data: st } = await supabase.from('students').select('id, student_name, self_reported_class, is_active').eq('id', id).maybeSingle();
+  return st && st.is_active !== false ? { id: st.id, student_name: st.student_name, self_reported_class: st.self_reported_class || null } : null;
+}
+
 /** The class a v2 start plays against: the resolved one, or the one the child chose (S1). Throws which_class. */
 function classForStart(ctx, idn, list, { ask = true } = {}) {
   const r = idn.resolved;
@@ -1080,16 +1121,6 @@ async function provisionalOnDevice(shareCodeId, deviceRef, name) {
     const kid = (kids || []).find((k) => !k.list_id && Identity.canon(k.student_name) === want);
     return kid ? { id: kid.id, student_name: kid.student_name, self_reported_class: kid.self_reported_class || null } : null;
   } catch { return null; }
-}
-
-/** Has this phone (device_ref) ever played as this child (any of their ids, any code)? */
-async function deviceKnows(studentIds, deviceRef) {
-  if (!deviceRef || !studentIds || !studentIds.length) return false;
-  try {
-    const { data } = await supabase.from('quiz_sessions').select('id')
-      .in('student_id', studentIds).eq('device_ref', deviceRef).limit(1);
-    return Boolean(data && data.length);
-  } catch { return false; }
 }
 
 /** The first name a card or a question shows: as the child typed it in Urdu script, else as the list spells it. */
@@ -1474,12 +1505,21 @@ async function finishSession(body = {}) {
     ...(s.invited_by_student_id && s.invited_by_student_id !== s.student_id ? await versus(s, { correct, total }) : {}),
     // The signed ids of the pictures this child can share (web-quiz-art.js).
     art: { card: Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classCode && !s.invited_by_student_id ? Art.artId('l', s.id) : null },
+    // M4b library: a video quiz's scorecard offers the next lesson ("Next in this chapter").
+    ...(await nextLesson(s)),
   };
 }
 
 async function bestField(s) {
   const best = await bestBefore(s.share_code_id, s.student_id, s.id);
   return best ? { best } : {};
+}
+
+/** {next} for a video quiz with the library on, else nothing (the payload stays today's). */
+async function nextLesson(s) {
+  if (!(await require('./web-quiz-library-flag').libraryOn())) return {};
+  const next = await require('./web-quiz-bank').nextInChapter({ quizId: s.quiz_id, studentId: s.student_id, shareCodeId: s.share_code_id });
+  return next ? { next } : {};
 }
 
 async function versus(s, mine) {
@@ -1606,12 +1646,41 @@ const EVENT_PROPS = Object.freeze({
   code: /^[A-Z0-9]{4,12}$/i, qid: /^[0-9a-f-]{8,64}$/i, slot: /^[A-D]$/i, step: /^[a-z0-9_]{1,32}$/,
   src: /^[a-z0-9_]{1,32}$/, reason: /^[a-z0-9_]{1,40}$/, lang: /^(en|ur)$/, net: /^[a-z0-9_]{1,16}$/, err: /^[a-z0-9_]{1,40}$/,
   part: /^[a-z]{1,4}$/, // which spoken part had no clip (audio_missing): q, opt, stim, fig, left, why, fb, hint
+  // M4b library: a bank video's id, a grade, a bank subject name
+  vid: /^[0-9a-f-]{36}$/i, g: /^(NURSERY|KG|[1-6])$/, s: /^(English|Maths|Urdu|Science|Geography|General Knowledge|History|Islamic Studies)$/,
 });
-const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't'];
+const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't', 'list_ms', 'nav_ms', 'ff_ms', 'ch_i'];
 const EVENT_BOOLS = ['ok'];
 const SHARE_PATHS = ['native', 'wa', 'copy', 'file', 'save'];
 const UA_MAX = 300;
 const PROBE_MAX = 4096;
+
+const ERR_MAX = 80;
+
+/**
+ * An error event's reason, safe to log: lower-cased, cut before any URL, at the
+ * first character outside [a-z0-9_ .:-] and before any token-like word, at most
+ * 80 characters. A browser's own message ("Cannot read properties of null
+ * (reading 'x')") is the only clue to a page that broke on a real phone, so it is
+ * kept as its safe prefix instead of being dropped whole. Pure.
+ */
+function safeErr(v) {
+  if (typeof v !== 'string') return null;
+  let s = v.toLowerCase();
+  const url = s.search(/[a-z][a-z0-9+.-]*:\/\//);
+  if (url >= 0) s = s.slice(0, url);
+  const bad = s.search(/[^a-z0-9_ .:-]/);
+  if (bad >= 0) s = s.slice(0, bad);
+  // A long word with digits in it is a token or an id, never a reason.
+  const tok = s.search(/(^|[ .:-])(?=[a-z0-9_]*[0-9])[a-z0-9_]{20,}/);
+  if (tok >= 0) s = s.slice(0, tok);
+  if (s.length > ERR_MAX) {
+    const cut = s.slice(0, ERR_MAX + 1).lastIndexOf(' ');
+    s = s.slice(0, cut > 0 ? cut : ERR_MAX);
+  }
+  s = s.replace(/[ .:-]+$/, '');
+  return s || null;
+}
 
 /** Keep only allow-listed props of the right shape: no names, no free text, no phone. Pure. */
 function cleanEvent(e) {
@@ -1619,6 +1688,10 @@ function cleanEvent(e) {
   const props = {};
   for (const [k, rx] of Object.entries(EVENT_PROPS)) {
     if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
+  }
+  if (e.n === 'error') {
+    const err = safeErr(e.err);
+    if (err) props.err = err;
   }
   for (const k of EVENT_NUMS) {
     const v = Number(e[k]);
@@ -1709,7 +1782,7 @@ async function media(code, qid, { k, z } = {}) {
 }
 
 module.exports = {
-  getQuiz, startSession, recordAnswers, finishSession, board, me, events, media,
+  getQuiz, startSession, recordAnswers, finishSession, board, me, events, media, _resetQuizCache: () => quizMediaCache.clear(),
   // exported for tests and the router
   WqError, rankRows, cleanEvent, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, whoClass, challengeOutcome,
   // the render matrix (scripts/qa/render-matrix) turns synthetic rows into page items with it

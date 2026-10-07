@@ -11,7 +11,7 @@ const vm = require('vm');
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'hub.js'), 'utf8');
 const flush = () => new Promise((r) => setImmediate(r));
 
-function page(boot, { api = {} } = {}) {
+function page(boot, { api = {}, store = {} } = {}) {
   const els = {};
   const winL = {};
   const assigned = [];
@@ -42,8 +42,10 @@ function page(boot, { api = {} } = {}) {
   };
   const toasts = [];
   const fetches = [];
+  const cookies = [];
   const ctx = {
-    document: { getElementById: (id) => (id === 'wq' ? root : { textContent: JSON.stringify(boot) }), createElement: () => ({ setAttribute() {}, textContent: '' }) },
+    document: { getElementById: (id) => (id === 'wq' ? root : { textContent: JSON.stringify(boot) }), createElement: () => ({ setAttribute() {}, textContent: '' }),
+      set cookie(v) { cookies.push(v); }, get cookie() { return cookies.join('; '); } },
     window: { scrollTo() {}, addEventListener(n, fn) { (winL[n] = winL[n] || []).push(fn); } },
     navigator: { sendBeacon: () => true },
     history: { replaceState() {} },
@@ -56,11 +58,12 @@ function page(boot, { api = {} } = {}) {
       const status = (r && r.__status) || 200;
       return Promise.resolve({ status, ok: status < 300, text: () => Promise.resolve(JSON.stringify(r)) });
     },
+    localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } },
     setTimeout: () => 0, Date, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent,
   };
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx);
-  return { root, els, toasts, fetches, assigned, html: () => root._h, moment: () => root.attrs['data-m'], win: winL, reloads: () => reloaded };
+  return { cookies, store, root, els, toasts, fetches, assigned, html: () => root._h, moment: () => root.attrs['data-m'], win: winL, reloads: () => reloaded };
 }
 
 const KIDS = [{ chip: '0000000000000001', first: 'ثنا', animal: 'owl', grade: '3' }, { chip: '0000000000000002', first: 'بلال', animal: 'lion', grade: '5' }];
@@ -110,4 +113,85 @@ test('Urdu: the "sent N days ago" count is isolated, so the number keeps its pla
   const p = page(boot({ kids: [KIDS[0]], kid: KIDS[0].chip,
     teacher: { code: 'NEWQ01', topic: 'اشکال', subject: 'maths', sent_at: new Date(Date.now() - 3 * 86400000).toISOString(), k: 'k' } }));
   expect(p.html()).toMatch(/<bdi>3<\/bdi> دن پہلے بھیجا گیا/);
+});
+
+/* ---------------- a forwarded hub link names nobody (the server binds the link to the first phone) ---------------- */
+const LOCKED = (extra = {}) => ({ lang: 'en', token: TOKEN, brand: BR, locked: true, kids: [], kid: null, teacher: null, again: [], recs: [], challenge: null, lib: null, ...extra });
+const DEV = 'DevRefDevRefDevRef_-01';
+
+test('server render (no device): the page asks the bot again WITH this phone\'s device_ref (body, not URL), then shows its children', async () => {
+  const p = page(LOCKED(), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': { lang: 'en', kids: [KIDS[0]], kid: KIDS[0].chip, teacher: null, again: [], recs: [] } } });
+  await flush(); await flush();
+  const call = p.fetches.find((f) => f.url.indexOf('/api/wq/hub/') === 0);
+  expect(call.init.method).toBe('POST');
+  expect(call.url).not.toContain(DEV);
+  expect(JSON.parse(call.init.body)).toMatchObject({ device_ref: DEV });
+  expect(p.moment()).toBe('H2');
+  expect(p.html()).toContain('ثنا');
+});
+
+test('a phone with no device_ref yet mints one (22 url-safe chars), keeps it where the quiz page reads it, and sends it', async () => {
+  const p = page(LOCKED(), { api: { '/api/wq/hub/': LOCKED() } });
+  await flush(); await flush();
+  const sent = JSON.parse(p.fetches.find((f) => f.url.indexOf('/api/wq/hub/') === 0).init.body).device_ref;
+  expect(sent).toMatch(/^[A-Za-z0-9_-]{22}$/);
+  expect(JSON.parse(p.store.wq_d)).toBe(sent);
+});
+
+test('another phone (still locked): NO name, the neutral "ask the child" screen, and a "someone else / new player" path', async () => {
+  const p = page(LOCKED(), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': LOCKED() } });
+  await flush(); await flush();
+  expect(p.moment()).toBe('H-lock');
+  expect(p.html()).toContain('Ask the child this link was sent to to open it');
+  // the family's own other phone / browser is never stuck for 7 days: a fresh /quiz mints a fresh link
+  expect(p.html()).toContain('Is this your link? Send /quiz on WhatsApp again for a new one.');
+  expect(p.html()).not.toMatch(/ثنا|بلال|data-chip|\/q\//);
+  p.els['#wq-h-new'].fire('click');
+  expect(p.moment()).toBe('H-new');
+  expect(p.html()).toContain('/quiz');
+  expect(p.assigned).toEqual([]);
+});
+
+test('Urdu lock screen: gender-neutral (no «رہا/رہی», no «بیٹا/بیٹی»), the same two moments', async () => {
+  const p = page(LOCKED({ lang: 'ur' }), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': LOCKED({ lang: 'ur' }) } });
+  await flush(); await flush();
+  expect(p.moment()).toBe('H-lock');
+  expect(p.html()).toContain('نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ');
+  expect(p.html()).not.toMatch(/رہا|رہی|بیٹا|بیٹی/);
+  p.els['#wq-h-new'].fire('click');
+  expect(p.html()).not.toMatch(/رہا|رہی|بیٹا|بیٹی/);
+});
+
+test('a sibling pick also carries the device_ref, in the body', async () => {
+  const p = page(boot(), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': { lang: 'ur', kids: KIDS, kid: KIDS[1].chip } } });
+  p.els['[data-chip="0000000000000002"]'].fire('click');
+  await flush(); await flush();
+  const call = p.fetches.find((f) => f.url.indexOf('/api/wq/hub/') === 0);
+  expect(call.init.method).toBe('POST');
+  expect(JSON.parse(call.init.body)).toEqual({ kid: KIDS[1].chip, device_ref: DEV });
+  expect(p.moment()).toBe('H2');
+});
+
+test('the phone\'s device_ref is also written to the wq_dv cookie (path /, 30 days, Lax), so the challenge and library pages carry it', async () => {
+  const p = page(LOCKED(), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': LOCKED() } });
+  await flush();
+  const c = p.cookies.find((x) => x.indexOf('wq_dv=') === 0);
+  expect(c).toBeDefined();
+  expect(c).toContain('wq_dv=' + DEV);
+  expect(c).toMatch(/path=\//);
+  expect(c).toMatch(/max-age=2592000/);
+  expect(c).toMatch(/samesite=lax/i);
+});
+
+test('subject art: a play-again row, a recommendation without a poster and the library tile show the picture, not the emoji', () => {
+  const p = page(boot({ lang: 'en', kids: [KIDS[0]], kid: KIDS[0].chip,
+    teacher: { code: 'NEWQ01', topic: 'Shapes', subject: 'maths', sent_at: new Date().toISOString(), k: 'k' },
+    lib: { href: '/lib/t?kid=c&l=en', art: '/wq/art/grade-3-1.webp' },
+    again: [{ code: 'MATH01', topic: 'Fractions', subject: 'Maths', tries: 1, best: { c: 1, t: 2 }, k: 'k', art: '/wq/art/subject-maths-1.webp' }],
+    recs: [{ vid: 'v1', title: 'Leaves', chapter: 'Plants', subject: 'Science', grade: '3', art: '/wq/art/subject-science-1.webp' }] }));
+  const h = p.html();
+  expect(h).toContain('<img class="wq-vtile" src="/wq/art/subject-maths-1.webp"');
+  expect(h).toContain('<img class="wq-vtile" src="/wq/art/subject-science-1.webp"');
+  expect(h).toContain('<img class="wq-htimg" src="/wq/art/grade-3-1.webp"');
+  expect(h).not.toContain('➗');
 });

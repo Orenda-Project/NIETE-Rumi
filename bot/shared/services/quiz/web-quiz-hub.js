@@ -15,11 +15,21 @@
  *   hub(token, {kid})      the page's boot JSON (contract: W37 M4 SPEC §1.3)
  *   hubLink(studentIds)    `<portal>/h/<token>` when the hub is on, else null
  *   kidOf(token, kid)      the student id a hub chip names
- *   kidFromHub(token, kid) {studentId, grade, rootId} for the library / challenge routes
+ *   kidFromHub(token, kid, device) {studentId, grade, rootId} for the library route (null on an untrusted phone)
+ *   deviceTrusted(token, device)  which of the children may this phone (device_ref) see? {ok, why, ids}
+ *
+ * A FORWARDED LINK NAMES NOBODY. The hub token is bound to the first phone (device_ref)
+ * that opens it — Redis SET NX for the token's life — and a phone that has already played
+ * as one of its children is trusted too. Any other phone, a request with no device (the
+ * server render) or Redis down gets `locked: true` with no names, no history and no chips:
+ * the page asks for the child the link was sent to. Fail closed, never a silent play.
  *
  * Teacher card: (a) a teacher-sent code this child opened and has not finished,
- * still open; else (b) an open code from the last 7 days, of the child's grade,
- * from the child's teachers (the class list's, and those whose links they played). Play again: finished, still-open codes, newest
+ * still open; else (b) an open code from the last 7 days from the child's teachers
+ * (the class list's, and those whose links they played): a code bound to the
+ * child's class (quiz_share_codes.class_id, or resolveQuizClass) first, then one of
+ * the child's grade; never another class's, never the twin of a lesson they finished,
+ * and the child's language before the other. Play again: finished, still-open codes, newest
  * first, with the best score and the number of tries (the FIRST finish is the
  * one the teacher sees; every later one is practice — web-quiz.service countedFor).
  * Recommended: the last finished quiz's subject and grade, same chapter first,
@@ -38,12 +48,25 @@ const { clampLanguage } = require('../../config/ux-strings');
 const AGAIN_MAX = 6;
 const RECS_MAX = 3;
 const TEACHER_DAYS = 7;
+const RESOLVE_MAX = 5;
 const CHALLENGE_GRADES = ['2', '3', '4', '5'];
 
 // The web quiz's own error type, so the internal router answers it as every other wq route does.
 const fail = (status, error) => { const { WqError } = require('./web-quiz.service'); throw new WqError(status, { error }); };
 
 // ─── helpers (pure) ─────────────────────────────────────────────────────────
+
+// The library's pictures (web-quiz-library.js), required on use so the hub never depends on the library to boot.
+function artOf(kind, v) {
+  try {
+    const Lib = require('./web-quiz-library');
+    const fn = kind === 'grade' ? Lib.gradeArt : Lib.subjectArt;
+    return (typeof fn === 'function' && fn(v)) || null;
+  } catch (_) {
+    return null;
+  }
+}
+const subjectArtOf = (subject) => artOf('subject', Videos.subjectFor(subject) || subject);
 
 const kidChip = (studentId) => T.chipId('h', studentId);
 const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
@@ -64,6 +87,9 @@ function kidOf(token, kid) {
   if (!tok || !Array.isArray(tok.ids) || !kid) return null;
   return tok.ids.map(String).find((id) => kidChip(id) === String(kid)) || null;
 }
+
+// Which phone may see a hub's children: web-quiz-hub-device.js (a leaf module, so web-quiz.service can ask it too).
+const { deviceTrusted, deviceMayName } = require('./web-quiz-hub-device');
 
 /**
  * Recommendation order (pure). `rows` = playable bank rows of grade G the child has not
@@ -90,30 +116,82 @@ function firstOfEach(rows, max = RECS_MAX) {
 
 // ─── reads ──────────────────────────────────────────────────────────────────
 
+/** The child's classes: active enrolments, plus the classes of the teacher codes they played (a loose prod child has only these). */
+async function kidClasses(studentId, history) {
+  const ids = new Set();
+  try {
+    const { data } = await supabase.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true);
+    (data || []).forEach((r) => r.class_id && ids.add(r.class_id));
+  } catch (_) { /* no roster: the played codes only */ }
+  const played = history.filter((e) => e.teacherSent && e.shareCodeId).map((e) => e.shareCodeId);
+  if (played.length) {
+    const { data, error } = await supabase.from('quiz_share_codes').select('id, class_id').in('id', played.slice(0, 50));
+    if (!error) (data || []).forEach((r) => r.class_id && ids.add(r.class_id));
+  }
+  return ids;
+}
+
+/** Open teacher-sent codes of these teachers from the last 7 days, newest first; class_id when the column exists. */
+async function recentCodes(teachers) {
+  const q = (cols) => supabase.from('quiz_share_codes').select(cols)
+    .in('teacher_user_id', teachers.slice(0, 5)).eq('active', true)
+    .is('parent_share_code_id', null).is('invited_by_student_id', null)
+    .gte('created_at', daysAgoIso(TEACHER_DAYS)).order('created_at', { ascending: false }).limit(30);
+  const base = 'id, code, quiz_id, topic, active, expires_at, created_at, teacher_user_id';
+  const withClass = await q(`${base}, class_id`);
+  if (!withClass.error) return withClass.data || [];
+  const plain = await q(base);
+  return plain.data || [];
+}
+
+const lessonRefs = (q) => [q && q.lesson_plan_id && `lp:${q.lesson_plan_id}`, q && q.coaching_session_id && `cs:${q.coaching_session_id}`].filter(Boolean);
+
 async function teacherCard(kidRow, list, history, grade) {
   // (a) a teacher-sent code this child opened and has not finished, still open.
   const opened = history.find((e) => e.teacherSent && e.active && !e.latest);
   if (opened) return { code: opened.code, topic: opened.topic, subject: opened.subject, sent_at: opened.sentAt, k: T.chipId(opened.shareCodeId, kidRow.id), src: 'opened' };
-  // (b) an open code from the last 7 days, for the child's grade (band-aware), from the child's
-  // teachers: the class list's teacher, and the teachers whose links this child has played
-  // (every quiz child on prod is a loose students row with no list, so the second is the one that finds them).
+  // (b) an open code from the last 7 days from the child's teachers: the class list's teacher, and the teachers
+  // whose links this child has played (every quiz child on prod is a loose students row with no list).
   const teachers = [...new Set([list && list.user_id, ...history.filter((e) => e.teacherSent).map((e) => e.teacherUserId)].filter(Boolean))];
-  if (!teachers.length || !grade) return null;
-  const { data: codes } = await supabase.from('quiz_share_codes')
-    .select('id, code, quiz_id, topic, active, expires_at, created_at')
-    .in('teacher_user_id', teachers.slice(0, 5)).eq('active', true)
-    .is('parent_share_code_id', null).is('invited_by_student_id', null)
-    .gte('created_at', daysAgoIso(TEACHER_DAYS)).order('created_at', { ascending: false }).limit(30);
+  if (!teachers.length) return null;
   const seen = new Set(history.map((e) => e.shareCodeId));
-  const open = (codes || []).filter((c) => isOpen(c) && !seen.has(c.id));
+  // Independent reads in parallel: the codes and the child's classes.
+  const [codes, myClasses] = await Promise.all([recentCodes(teachers), kidClasses(kidRow.id, history)]);
+  const open = codes.filter((c) => isOpen(c) && !seen.has(c.id));
   if (!open.length) return null;
-  const { data: quizzes } = await supabase.from('quizzes').select('id, topic, subject, grade').in('id', [...new Set(open.map((c) => c.quiz_id))]);
+  const quizIds = [...new Set([...open.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
+  const { data: quizzes } = await supabase.from('quizzes').select('id, topic, subject, grade, language, lesson_plan_id, coaching_session_id').in('id', quizIds);
   const quizById = new Map((quizzes || []).map((q) => [q.id, q]));
-  // A quiz with no grade, or another grade, is never shown: it may be another class's.
-  const hit = open.find((c) => quizById.get(c.quiz_id) && Videos.gradesFor(quizById.get(c.quiz_id).grade).includes(grade));
+  // The same lesson the child already finished (its twin in the other language) is not "new from your teacher".
+  const doneLessons = new Set(history.filter((e) => e.latest).flatMap((e) => lessonRefs(quizById.get(e.quizId))));
+  const lang = clampLanguage(history[0] && history[0].language);
+  const fresh = open.filter((c) => quizById.get(c.quiz_id) && !lessonRefs(quizById.get(c.quiz_id)).some((r) => doneLessons.has(r)));
+  const ranked = [];
+  const push = (c, rank) => { const q = quizById.get(c.quiz_id); ranked.push({ c, q, rank, langMiss: clampLanguage(q.language) === lang ? 0 : 1 }); };
+  // A hand-out bound to the child's class is theirs: no class resolution needed (the hub boot stays fast).
+  fresh.filter((c) => c.class_id && myClasses.has(c.class_id)).forEach((c) => push(c, 0));
+  if (!ranked.length) {
+    // Unbound codes only (a code bound to another class is never this child's), the newest 5, resolved in parallel.
+    const { resolveQuizClass } = require('./web-quiz-identity');
+    const loose = fresh.filter((c) => !c.class_id).slice(0, RESOLVE_MAX);
+    const placed = await Promise.all(loose.map((c) => (myClasses.size
+      ? resolveQuizClass({ teacherUserId: c.teacher_user_id, quizId: c.quiz_id, shareCodeId: c.id }).catch(() => null)
+      : Promise.resolve(null))));
+    loose.forEach((c, i) => {
+      const r = placed[i];
+      const known = r && r.state === 'known' && r.class && r.class.id ? r.class.id : null;
+      if (known && myClasses.size) {
+        if (myClasses.has(known)) push(c, 0);
+        return;
+      }
+      // No class to compare: the child's grade (band-aware); a quiz with no grade, or another grade, may be another class's.
+      if (grade && Videos.gradesFor(quizById.get(c.quiz_id).grade).includes(grade)) push(c, 1);
+    });
+  }
+  ranked.sort((a, b) => (a.rank - b.rank) || (a.langMiss - b.langMiss) || String(b.c.created_at).localeCompare(String(a.c.created_at)));
+  const hit = ranked[0];
   if (!hit) return null;
-  const q = quizById.get(hit.quiz_id);
-  return { code: hit.code, topic: q.topic || hit.topic || '', subject: q.subject || '', sent_at: hit.created_at, k: T.chipId(hit.id, kidRow.id), src: 'teacher' };
+  return { code: hit.c.code, topic: hit.q.topic || hit.c.topic || '', subject: hit.q.subject || '', sent_at: hit.c.created_at, k: T.chipId(hit.c.id, kidRow.id), src: hit.rank === 0 ? 'class' : 'teacher' };
 }
 
 function againOf(history, kidId, teacherCode) {
@@ -121,11 +199,16 @@ function againOf(history, kidId, teacherCode) {
     .filter((e) => e.code && e.active && e.latest && e.code !== teacherCode)
     .sort((a, b) => String(b.lastAt || '').localeCompare(String(a.lastAt || '')))
     .slice(0, AGAIN_MAX)
-    .map((e) => ({
-      code: e.code, topic: e.topic, subject: e.subject,
-      best: { c: (e.best && e.best.correct_answers) || 0, t: (e.best && e.best.total_questions_answered) || 0 },
-      tries: e.attempts, last_at: e.lastAt, k: T.chipId(e.shareCodeId, kidId),
-    }));
+    .map((e) => {
+      const row = {
+        code: e.code, topic: e.topic, subject: e.subject,
+        best: { c: (e.best && e.best.correct_answers) || 0, t: (e.best && e.best.total_questions_answered) || 0 },
+        tries: e.attempts, last_at: e.lastAt, k: T.chipId(e.shareCodeId, kidId),
+      };
+      const art = subjectArtOf(e.subject);
+      if (art) row.art = art;
+      return row;
+    });
 }
 
 /** The video's poster without a network call: a presigned key (signPoster) or the meta cache. */
@@ -175,6 +258,8 @@ async function recsFor(kidId, history, grade) {
   return chosen.map((r, i) => {
     const out = { vid: r.id, title: r.clean_title || '', chapter: r.clean_chapter || '', subject: r.subject, grade: String(r.grade) };
     if (metas[i].poster) out.poster = metas[i].poster;
+    const art = subjectArtOf(r.subject);
+    if (art) out.art = art;
     if (metas[i].secs) out.secs = metas[i].secs;
     return out;
   });
@@ -185,9 +270,12 @@ async function recsFor(kidId, history, grade) {
  * their class root code (the newest teacher-sent code they played; "watch more" codes hang
  * off it). Null when the token or the chip is not genuine.
  */
-async function kidFromHub(token, chip) {
+async function kidFromHub(token, chip, device) {
   const studentId = kidOf(token, chip);
   if (!studentId) return null;
+  // A forwarded link opens nothing as the child on another phone.
+  const trust = await deviceTrusted(token, device);
+  if (!trust.ok || !trust.ids.includes(studentId)) return null;
   const ctx = await kidContext(studentId);
   if (!ctx) return null;
   const root = ctx.history.find((e) => e.teacherSent) || null;
@@ -219,17 +307,37 @@ async function brandKey() {
   }
 }
 
+/** A phone that may not see the children: their language only, never a name, a chip or a quiz. */
+async function lockedHub(ids, why) {
+  let lang = 'en';
+  try {
+    const { data: rows } = await supabase.from('students').select('id, is_active').in('id', ids);
+    const live = (rows || []).filter((r) => r.is_active !== false);
+    if (live.length) {
+      const StudentQuiz = require('./student-quiz.service');
+      const history = await StudentQuiz.quizzesForStudents(live);
+      lang = clampLanguage(history[0] && history[0].language);
+    }
+  } catch (_) { /* English */ }
+  logEvent('web_quiz.hub_locked', { kids: ids.length, why });
+  return { lang, locked: true, kids: [], kid: null, teacher: null, again: [], recs: [], challenge: null, lib: null, brand: await brandKey() };
+}
+
 // ─── the hub ────────────────────────────────────────────────────────────────
 
-async function hub(token, { kid } = {}) {
+async function hub(token, { kid, device } = {}) {
   if (!T.secret()) fail(503, 'web_quiz_off');
   const ids = idsOf(token);
   const f = await Flags.flags();
   if (!f.hub) fail(503, 'web_quiz_off');
+  const trust = await deviceTrusted(token, device);
+  if (!trust.ok) return lockedHub(ids, trust.why);
+  // Only the children this phone is trusted for: all of them on the bound phone, else the ones it played as.
+  const mine = ids.filter((id) => trust.ids.includes(id));
 
   const { data: rows } = await supabase.from('students')
-    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', ids);
-  const kidsRows = ids.map((id) => (rows || []).find((r) => r.id === id)).filter((r) => r && r.is_active !== false);
+    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', mine);
+  const kidsRows = mine.map((id) => (rows || []).find((r) => r.id === id)).filter((r) => r && r.is_active !== false);
   const { data: lists } = kidsRows.some((r) => r.list_id)
     ? await supabase.from('student_lists').select('id, user_id, class_name, section').in('id', kidsRows.map((r) => r.list_id).filter(Boolean))
     : { data: [] };
@@ -266,8 +374,11 @@ async function hub(token, { kid } = {}) {
   }
   // The library: M4b's page when it is on; else the child's newest open quiz (its scorecard lists more videos).
   const newest = history.find((e) => e.active && e.code);
-  if (f.library) out.lib = { href: `/lib/${token}?kid=${out.kid}` };
+  // The library page opens in the child's language (?l=), the same one this hub is in.
+  if (f.library) out.lib = { href: `/lib/${token}?kid=${out.kid}&l=${out.lang}` };
   else if (newest) out.lib = { href: `/q/${newest.code}?k=${T.chipId(newest.shareCodeId, chosen.id)}` };
+  // The Library tile wears the child's grade picture (the library opens on that grade).
+  if (out.lib && grade && artOf('grade', grade)) out.lib.art = artOf('grade', grade);
   logEvent('web_quiz.hub_open', {
     kids: kidsRows.length, has_teacher: Boolean(out.teacher), teacher_src: out.teacher ? out.teacher.src : null,
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
@@ -276,7 +387,7 @@ async function hub(token, { kid } = {}) {
 }
 
 module.exports = {
-  hub, kidOf, kidFromHub, recOrder, firstOfEach, AGAIN_MAX, RECS_MAX,
+  hub, kidOf, kidFromHub, deviceTrusted, deviceMayName, recOrder, firstOfEach, AGAIN_MAX, RECS_MAX,
   // the switches live in web-quiz-hub-flags.js (student-quiz reads them without loading this module)
   hubLink: Flags.hubLink, flags: Flags.flags, HUB_KEY: Flags.HUB_KEY, CHALLENGE_KEY: Flags.CHALLENGE_KEY, LIBRARY_KEY: Flags.LIBRARY_KEY,
   _resetCache: Flags._resetCache,

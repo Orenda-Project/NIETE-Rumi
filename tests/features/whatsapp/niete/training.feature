@@ -385,6 +385,15 @@ Feature: NIETE (ICT) Teacher Training
     And no lesson list or menu is sent over the question, and the waiting question can still be answered
     # quiz-menu-entry: the video-quiz state (currentQuestionId) is checked before the role. vqStillInQuiz. @wip.
 
+  @e2e @quiz @wip @draft @P2 @T499
+  Scenario: A child who has just joined from a class quiz link gets the child's /quiz, not the teacher's
+    Given a phone the bot has never seen opens a class quiz from its link, sends a first message, and gives a name and a class
+    And the child finishes the quiz
+    When the child sends "/quiz" within the next ten minutes
+    Then the child's own quiz menu opens (their quizzes and videos), never the teacher's list of lessons
+    # student-identity remember() drops the door's cached verdict (student-ingress forget) once the students
+    # row is written; the door no longer waits out a 10-minute "unknown". @wip: needs a fresh phone live.
+
   @e2e @quiz @wip @draft @P3 @T69
   Scenario: A coach who types "quiz" gets the coach menu
     Given the NIETE bot chat is open on a coach's number

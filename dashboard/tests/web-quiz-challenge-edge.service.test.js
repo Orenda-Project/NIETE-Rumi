@@ -93,3 +93,38 @@ test('a malformed token on the challenge API never reaches the bot', async () =>
     expect(calls).toHaveLength(0);
   } finally { srv.close(); }
 });
+
+// A forwarded hub link: the phone's device_ref rides in the wq_dv cookie (written by the hub page) and reaches
+// the bot as x-wq-device; the bot refuses another phone with 403 other_device.
+function reqCookie(srv, path, cookie) {
+  return new Promise((resolve, reject) => {
+    http.get({ host: '127.0.0.1', port: srv.address().port, path, headers: cookie ? { cookie } : {} }, (res) => {
+      let out = ''; res.on('data', (c) => { out += c; }); res.on('end', () => resolve({ status: res.statusCode, body: out }));
+    }).on('error', reject);
+  });
+}
+
+test('the wq_dv cookie reaches the bot as x-wq-device on the page and on the API; a malformed one is dropped', async () => {
+  const { srv, calls } = await server(() => jsonRes(200, MENU));
+  try {
+    await reqCookie(srv, `/c/${TOKEN}?kid=0123456789abcdef`, 'a=1; wq_dv=FamilyPhoneDeviceRef_1');
+    expect(calls[0].init.headers['x-wq-device']).toBe('FamilyPhoneDeviceRef_1');
+    await reqCookie(srv, `/api/wq/ch/${TOKEN}/bigger?kid=0123456789abcdef`, 'wq_dv=FamilyPhoneDeviceRef_1');
+    expect(calls[1].init.headers['x-wq-device']).toBe('FamilyPhoneDeviceRef_1');
+    await reqCookie(srv, `/c/${TOKEN}`, 'wq_dv=not-a-ref');
+    expect(calls[2].init.headers['x-wq-device']).toBeUndefined();
+  } finally { srv.close(); }
+});
+
+test('another phone (bot 403 other_device): a neutral note naming nobody, in the page language', async () => {
+  const { srv } = await server(() => jsonRes(403, { error: 'other_device' }));
+  try {
+    const en = await reqCookie(srv, `/c/${TOKEN}?kid=0123456789abcdef&lang=en`);
+    expect(en.status).toBe(403);
+    expect(en.body).toContain('Ask the child this link was sent to to open it.');
+    expect(en.body).toContain('Send /quiz on WhatsApp again for a new one.');
+    const ur = await reqCookie(srv, `/c/${TOKEN}?kid=0123456789abcdef&lang=ur`);
+    expect(ur.body).toContain('جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔');
+    expect(ur.body).not.toMatch(/رہا|رہی/);
+  } finally { srv.close(); }
+});
