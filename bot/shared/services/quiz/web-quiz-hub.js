@@ -25,8 +25,11 @@
  * the page asks for the child the link was sent to. Fail closed, never a silent play.
  *
  * Teacher card: (a) a teacher-sent code this child opened and has not finished,
- * still open; else (b) an open code from the last 7 days, of the child's grade,
- * from the child's teachers (the class list's, and those whose links they played). Play again: finished, still-open codes, newest
+ * still open; else (b) an open code from the last 7 days from the child's teachers
+ * (the class list's, and those whose links they played): a code bound to the
+ * child's class (quiz_share_codes.class_id, or resolveQuizClass) first, then one of
+ * the child's grade; never another class's, never the twin of a lesson they finished,
+ * and the child's language before the other. Play again: finished, still-open codes, newest
  * first, with the best score and the number of tries (the FIRST finish is the
  * one the teacher sees; every later one is practice — web-quiz.service countedFor).
  * Recommended: the last finished quiz's subject and grade, same chapter first,
@@ -100,30 +103,78 @@ function firstOfEach(rows, max = RECS_MAX) {
 
 // ─── reads ──────────────────────────────────────────────────────────────────
 
+/** The child's classes: active enrolments, plus the classes of the teacher codes they played (a loose prod child has only these). */
+async function kidClasses(studentId, history) {
+  const ids = new Set();
+  try {
+    const { data } = await supabase.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true);
+    (data || []).forEach((r) => r.class_id && ids.add(r.class_id));
+  } catch (_) { /* no roster: the played codes only */ }
+  const played = history.filter((e) => e.teacherSent && e.shareCodeId).map((e) => e.shareCodeId);
+  if (played.length) {
+    const { data, error } = await supabase.from('quiz_share_codes').select('id, class_id').in('id', played.slice(0, 50));
+    if (!error) (data || []).forEach((r) => r.class_id && ids.add(r.class_id));
+  }
+  return ids;
+}
+
+/** Open teacher-sent codes of these teachers from the last 7 days, newest first; class_id when the column exists. */
+async function recentCodes(teachers) {
+  const q = (cols) => supabase.from('quiz_share_codes').select(cols)
+    .in('teacher_user_id', teachers.slice(0, 5)).eq('active', true)
+    .is('parent_share_code_id', null).is('invited_by_student_id', null)
+    .gte('created_at', daysAgoIso(TEACHER_DAYS)).order('created_at', { ascending: false }).limit(30);
+  const base = 'id, code, quiz_id, topic, active, expires_at, created_at, teacher_user_id';
+  const withClass = await q(`${base}, class_id`);
+  if (!withClass.error) return withClass.data || [];
+  const plain = await q(base);
+  return plain.data || [];
+}
+
+const lessonRefs = (q) => [q && q.lesson_plan_id && `lp:${q.lesson_plan_id}`, q && q.coaching_session_id && `cs:${q.coaching_session_id}`].filter(Boolean);
+
 async function teacherCard(kidRow, list, history, grade) {
   // (a) a teacher-sent code this child opened and has not finished, still open.
   const opened = history.find((e) => e.teacherSent && e.active && !e.latest);
   if (opened) return { code: opened.code, topic: opened.topic, subject: opened.subject, sent_at: opened.sentAt, k: T.chipId(opened.shareCodeId, kidRow.id), src: 'opened' };
-  // (b) an open code from the last 7 days, for the child's grade (band-aware), from the child's
-  // teachers: the class list's teacher, and the teachers whose links this child has played
-  // (every quiz child on prod is a loose students row with no list, so the second is the one that finds them).
+  // (b) an open code from the last 7 days from the child's teachers: the class list's teacher, and the teachers
+  // whose links this child has played (every quiz child on prod is a loose students row with no list).
   const teachers = [...new Set([list && list.user_id, ...history.filter((e) => e.teacherSent).map((e) => e.teacherUserId)].filter(Boolean))];
-  if (!teachers.length || !grade) return null;
-  const { data: codes } = await supabase.from('quiz_share_codes')
-    .select('id, code, quiz_id, topic, active, expires_at, created_at')
-    .in('teacher_user_id', teachers.slice(0, 5)).eq('active', true)
-    .is('parent_share_code_id', null).is('invited_by_student_id', null)
-    .gte('created_at', daysAgoIso(TEACHER_DAYS)).order('created_at', { ascending: false }).limit(30);
+  if (!teachers.length) return null;
   const seen = new Set(history.map((e) => e.shareCodeId));
-  const open = (codes || []).filter((c) => isOpen(c) && !seen.has(c.id));
+  const open = (await recentCodes(teachers)).filter((c) => isOpen(c) && !seen.has(c.id));
   if (!open.length) return null;
-  const { data: quizzes } = await supabase.from('quizzes').select('id, topic, subject, grade').in('id', [...new Set(open.map((c) => c.quiz_id))]);
+  const quizIds = [...new Set([...open.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
+  const { data: quizzes } = await supabase.from('quizzes').select('id, topic, subject, grade, language, lesson_plan_id, coaching_session_id').in('id', quizIds);
   const quizById = new Map((quizzes || []).map((q) => [q.id, q]));
-  // A quiz with no grade, or another grade, is never shown: it may be another class's.
-  const hit = open.find((c) => quizById.get(c.quiz_id) && Videos.gradesFor(quizById.get(c.quiz_id).grade).includes(grade));
+  // The same lesson the child already finished (its twin in the other language) is not "new from your teacher".
+  const doneLessons = new Set(history.filter((e) => e.latest).flatMap((e) => lessonRefs(quizById.get(e.quizId))));
+  const myClasses = await kidClasses(kidRow.id, history);
+  const lang = clampLanguage(history[0] && history[0].language);
+  const { resolveQuizClass } = require('./web-quiz-identity');
+  const ranked = [];
+  for (const c of open.slice(0, 10)) {
+    const q = quizById.get(c.quiz_id);
+    if (!q || lessonRefs(q).some((r) => doneLessons.has(r))) continue;
+    let rank = null;
+    if (c.class_id) {
+      // A hand-out bound to a class is that class's: this child's first, never another class's child.
+      if (myClasses.has(c.class_id)) rank = 0;
+    } else {
+      let r = null;
+      try { r = await resolveQuizClass({ teacherUserId: c.teacher_user_id, quizId: c.quiz_id, shareCodeId: c.id }); } catch (_) { r = null; }
+      const known = r && r.state === 'known' && r.class && r.class.id ? r.class.id : null;
+      if (known && myClasses.size) rank = myClasses.has(known) ? 0 : null;
+      // No class to compare: the child's grade (band-aware); a quiz with no grade, or another grade, may be another class's.
+      else if (grade && Videos.gradesFor(q.grade).includes(grade)) rank = 1;
+    }
+    if (rank == null) continue;
+    ranked.push({ c, q, rank, langMiss: clampLanguage(q.language) === lang ? 0 : 1 });
+  }
+  ranked.sort((a, b) => (a.rank - b.rank) || (a.langMiss - b.langMiss) || String(b.c.created_at).localeCompare(String(a.c.created_at)));
+  const hit = ranked[0];
   if (!hit) return null;
-  const q = quizById.get(hit.quiz_id);
-  return { code: hit.code, topic: q.topic || hit.topic || '', subject: q.subject || '', sent_at: hit.created_at, k: T.chipId(hit.id, kidRow.id), src: 'teacher' };
+  return { code: hit.c.code, topic: hit.q.topic || hit.c.topic || '', subject: hit.q.subject || '', sent_at: hit.c.created_at, k: T.chipId(hit.c.id, kidRow.id), src: hit.rank === 0 ? 'class' : 'teacher' };
 }
 
 function againOf(history, kidId, teacherCode) {
