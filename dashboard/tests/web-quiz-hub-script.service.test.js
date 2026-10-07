@@ -181,6 +181,8 @@ test('the phone\'s device_ref is also written to the wq_dv cookie (path /, 30 da
   expect(c).toMatch(/path=\//);
   expect(c).toMatch(/max-age=2592000/);
   expect(c).toMatch(/samesite=lax/i);
+});
+
 test('subject art: a play-again row, a recommendation without a poster and the library tile show the picture, not the emoji', () => {
   const p = page(boot({ lang: 'en', kids: [KIDS[0]], kid: KIDS[0].chip,
     teacher: { code: 'NEWQ01', topic: 'Shapes', subject: 'maths', sent_at: new Date().toISOString(), k: 'k' },
