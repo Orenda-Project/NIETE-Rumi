@@ -38,6 +38,9 @@ const SITES = {
   'helper.stuckRecovery': ['shared/services/helper-agent.service.js'],
   'coaching.pedagogy': ['shared/services/gpt5-mini.service.js'],
   'coaching.completeJson': ['shared/services/gpt5-mini.service.js'],
+  // bd-gr4fy.15: named by observe-debrief.service.js through completeJson's `job` option; the helper asks the
+  // registry for it, so the helper is the file that must write no model of its own.
+  'coaching.observeDebrief': ['shared/services/gpt5-mini.service.js'],
   'coaching.fidelityFallback': ['shared/services/gpt5-mini.service.js'],
   'coaching.enhance': ['shared/services/gpt5-mini.service.js'],
   'coaching.reflectiveQuestion': ['shared/services/gpt5-mini.service.js'],
@@ -141,6 +144,8 @@ const TODAY = {
   'helper.stuckRecovery': () => 'gpt-4o-mini',
   'coaching.pedagogy': () => 'gpt-5-mini-2025-08-07',
   'coaching.completeJson': () => 'gpt-5-mini-2025-08-07',
+  // bd-gr4fy.15: split out of completeJson's one label; until then it ran exactly completeJson's model.
+  'coaching.observeDebrief': () => 'gpt-5-mini-2025-08-07',
   'coaching.fidelityFallback': () => 'gpt-4o-mini',
   'coaching.enhance': () => 'gpt-5-mini-2025-08-07',
   'coaching.reflectiveQuestion': () => 'gpt-4o',
