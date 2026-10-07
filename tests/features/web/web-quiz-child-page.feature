@@ -1157,3 +1157,10 @@ Feature: Web child quiz page on the portal
     And the stars of a 7-question score stay on one row
     When the same hub link is opened on another phone
     Then the lock screen says to finish your own quiz and tap "My quizzes, videos and challenges", and also how to get a new link with /quiz
+
+  @T571
+  Scenario: A teacher whose stored name already carries a title is named once, without the title
+    Given a teacher stored as "Mr Kamran" (or «استانی رفعت», or «کامران صاحب»)
+    When a child opens the teacher's quiz page or reads the forwarded quiz message
+    Then the teacher is named "Teacher Kamran" («استاد رفعت», «استاد کامران»), never "Teacher Mr Kamran"
+    And a name that only begins with the same letters, like "Mrinal", is left as it is
