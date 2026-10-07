@@ -1989,6 +1989,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     }).catch(function () {});
   }
 
+  // The sender's WhatsApp builds the link preview before the message goes: a HEAD now teaches the edge each
+  // link the card offers (a challenge code is new at finish), so that preview never waits for the whole quiz.
+  var WARMED = {};
+  function warmLink(url) {
+    if (!url || WARMED[url]) return;
+    WARMED[url] = 1;
+    try { fetch(url, { method: 'HEAD', credentials: 'omit' }).catch(function () {}); } catch (e) { /* the preview asks itself */ }
+  }
+
   /* ---------------- share: the picture as a file -> navigator.share -> wa.me -> copy ---------------- */
   function share(text, url, what, art) {
     var full = text + ' ' + url;
@@ -2090,6 +2099,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var classUrl = link('/q/' + CODE + (art.card ? '?a=' + encodeURIComponent(art.card) : ''));
     warmArt('card', art.card);
     warmArt('invite', art.invite);
+    warmLink(classUrl);
+    warmLink(chalUrl);
     // A zero is shared as "played", never as a score for the group to beat.
     // A practice round shares the kept first-try score (shareC/shareT), the one the league shows.
     var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
