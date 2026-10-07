@@ -1940,16 +1940,19 @@ router.post('/me/language', requireInternalKey, async (req, res) => {
 });
 
 /**
- * POST /api/internal/observe/notify-teacher — bd-xorfy
+ * POST /api/internal/observe/notify-teacher — bd-xorfy, bd-o15qnr.17
  *
- * A visit booked, moved or cancelled on the portal is announced to the teacher
- * by the bot, through the SAME notice service the WhatsApp flow uses. The portal
- * cannot send it itself (it cannot require bot modules; see dashboard/services/training-bands.service.js).
+ * A visit booked, moved or cancelled on the portal is announced by the bot
+ * through the SAME function the WhatsApp flow uses (observe-schedule.service
+ * `announce`): the coach's calendar invite and the teacher's WhatsApp notice.
+ * The portal cannot send either itself (it cannot require bot modules; see
+ * dashboard/services/training-bands.service.js).
  *
  * The row is re-read by id AND leader: the body carries only ids and a kind, so
  * a hand-posted teacher, phone or date can never reach anybody's WhatsApp.
  *
- * Body   { scheduleId, leaderUserId, kind: 'scheduled'|'rescheduled'|'cancelled' }
+ * Body   { scheduleId, leaderUserId, kind: 'scheduled'|'rescheduled'|'cancelled', moved? }
+ *        moved:false = the same day and time saved again (invite re-timed, teacher not told)
  * Errors 400 (bad kind / missing id), 401 (bad key), 404 (not her schedule)
  * Ok     200 { success: true, sent }  — sent:false is a skip (flag off, no phone), not an error
  */
@@ -1959,7 +1962,7 @@ router.post('/observe/notify-teacher', requireInternalKey, async (req, res) => {
     const scheduleId = String(body.scheduleId || '').trim();
     const leaderUserId = String(body.leaderUserId || '').trim();
     const kind = String(body.kind || '').trim();
-    const Notice = require('../services/observe/observe-teacher-notice.service');
+    const ObserveSchedule = require('../services/observe/observe-schedule.service');
     if (!scheduleId || !leaderUserId || !['scheduled', 'rescheduled', 'cancelled'].includes(kind)) {
       return res.status(400).json({ success: false, error: 'scheduleId, leaderUserId and a valid kind are required' });
     }
@@ -1967,14 +1970,14 @@ router.post('/observe/notify-teacher', requireInternalKey, async (req, res) => {
     const supabase = require('../config/supabase');
     const { data: row, error } = await supabase
       .from('observation_schedules')
-      .select('id, leader_user_id, teacher_ext_id, teacher_name, school_name, scheduled_for, scheduled_slot, status')
+      .select('id, leader_user_id, school_ext_id, teacher_ext_id, teacher_name, school_name, scheduled_for, scheduled_slot, status, calendar_event_id')
       .eq('id', scheduleId)
       .eq('leader_user_id', leaderUserId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!row) return res.status(404).json({ success: false, error: 'Schedule not found' });
 
-    const sent = await Notice.notifyTeacher(kind, row);
+    const sent = await ObserveSchedule.announce(kind, row, { moved: body.moved !== false });
     return res.json({ success: true, sent: sent === true });
   } catch (error) {
     logToFile('❌ Internal observe notify-teacher failed', { error: error?.message }, 'error');
