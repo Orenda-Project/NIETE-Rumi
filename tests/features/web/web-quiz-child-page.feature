@@ -1150,13 +1150,15 @@ Feature: Web child quiz page on the portal
     Then that worker answers the page head from the bot's remembered link facts, never a whole quiz load
     And the share picture is answered from the bot's memory once the scorecard has fetched it
 
-  @T593
+  @T595
   Scenario: The hub door is on the first screen of the card, and a forwarded door link says how to get your own
     Given the hub door is switched on and a class child has just finished a quiz on a 360x740 phone
     Then "My quizzes, videos and challenges" is the second action, right under "Share to class group", with no scrolling, in English and in Urdu
     And the stars of a 7-question score stay on one row
     When the same hub link is opened on another phone
     Then the lock screen says to finish your own quiz and tap "My quizzes, videos and challenges", and also how to get a new link with /quiz
+
+  @T593
   Scenario: A child who taps Share the moment the scorecard appears still sends the picture
     Given a child has just finished a quiz on a slow connection
     When the scorecard appears and the child taps "Share to class group" or "Challenge a friend" straight away
