@@ -1,6 +1,8 @@
 /**
  * bd-xorfy — ask the bot to tell a teacher about a visit booked, moved or
- * cancelled on the portal.
+ * cancelled on the portal. bd-o15qnr.17: the bot announces it exactly as a
+ * WhatsApp booking is announced — the coach's calendar invite AND the teacher's
+ * WhatsApp notice, through the one function both paths share.
  *
  * Over HTTP, not a require: the portal cannot load bot modules (see
  * training-bands.service.js for the full story). The bot re-reads the schedule
@@ -14,14 +16,15 @@ const axios = require('axios');
 
 const TIMEOUT_MS = 10_000;
 
-async function notifyTeacher({ scheduleId, leaderUserId, kind }) {
+/** moved:false — the same day and time saved again: the invite is re-timed, the teacher is not told. */
+async function notifyTeacher({ scheduleId, leaderUserId, kind, moved }) {
   const baseUrl = (process.env.MAIN_BOT_URL || '').replace(/\/$/, '');
   const apiKey = process.env.INTERNAL_API_KEY || '';
   if (!baseUrl || !apiKey || !scheduleId || !leaderUserId) return false;
   try {
     const res = await axios.post(
       `${baseUrl}/api/internal/observe/notify-teacher`,
-      { scheduleId, leaderUserId, kind },
+      { scheduleId, leaderUserId, kind, ...(moved === undefined ? {} : { moved }) },
       { headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' }, timeout: TIMEOUT_MS }
     );
     return !!(res && res.data && res.data.sent === true);
