@@ -50,6 +50,7 @@ const SITES = {
   'coaching.commitmentCard': ['shared/services/coaching/coaching-card/commitment-card.service.js'],
   'coaching.cardLocalise': ['shared/services/coaching/coaching-card/commitment-card.service.js'],
   'coaching.questionRouter': ['shared/services/coaching/reflective-questions/llm-router.service.js'],
+  'coaching.reflectiveCorpus': ['shared/services/coaching/reflective-questions/llm-router.service.js'],
   'lp.extractUpload': ['shared/services/coaching/fidelity/lp-upload-extractor.js'],
   'lp.fidelity': ['shared/services/coaching/fidelity/fidelity-analyzer.js'],
   'lp.extractVision': ['shared/services/lp-vision-ocr.service.js'],
@@ -152,6 +153,8 @@ const TODAY = {
   'coaching.commitmentCard': () => 'gpt-5-mini-2025-08-07',
   'coaching.cardLocalise': () => 'gpt-5-mini-2025-08-07',
   'coaching.questionRouter': () => 'deepseek/deepseek-v3.2',
+  // bd-gr4fy.12: split out of the router's one label; until then it ran exactly the router's model.
+  'coaching.reflectiveCorpus': () => 'deepseek/deepseek-v3.2',
   'lp.extractUpload': () => process.env.LP_FIDELITY_MODEL || 'openai/gpt-5.6-luna',
   'lp.fidelity': () => process.env.LP_FIDELITY_MODEL || 'openai/gpt-5.6-luna',
   'lp.extractVision': () => process.env.LP_EXTRACTION_VISION_MODEL || 'google/gemini-2.5-flash',
@@ -197,5 +200,11 @@ describe('with nothing set, every in-scope job runs exactly what its call site s
     // eslint-disable-next-line global-require
     const { fallbackForJob } = require('../../bot/shared/config/model-registry');
     expect(fallbackForJob('coaching.questionRouter')).toBe(ROUTER_RETRY);
+  });
+
+  test('and so is the corpus step\'s, which shares that ladder (bd-gr4fy.12)', () => {
+    // eslint-disable-next-line global-require
+    const { fallbackForJob } = require('../../bot/shared/config/model-registry');
+    expect(fallbackForJob('coaching.reflectiveCorpus')).toBe(ROUTER_RETRY);
   });
 });
