@@ -80,7 +80,7 @@ test('a first request draws the picture and says so; the next one says it came f
   expect(typeof ev[0].ms).toBe('number');
 });
 
-test('the event carries no id, code or name — only kind, size, ms and where it came from', async () => {
+test('the event carries no id, code or name — only kind, size, ms, where it came from and where the time went', async () => {
   S3.__send.mockImplementation(async (c) => {
     if (c.type === 'head') throw notFound('NotFound');
     if (c.type === 'get') throw notFound('NoSuchKey');
@@ -88,7 +88,8 @@ test('the event carries no id, code or name — only kind, size, ms and where it
   });
   await Art.artImage(Art.artId('c', SID), { size: 'sq' });
   const [ev] = served();
-  expect(Object.keys(ev).sort()).toEqual(['from', 'kind', 'ms', 'size']);
+  // plus where the time went (facts, R2, draw): numbers only
+  expect(Object.keys(ev).sort()).toEqual(['draw_ms', 'facts_ms', 'from', 'kind', 'ms', 'r2_ms', 'size']);
   expect(JSON.stringify(ev)).not.toMatch(/Amal|CLS001|0f8e2c1a/);
 });
 

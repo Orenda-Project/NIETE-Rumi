@@ -35,6 +35,8 @@ const WebQuizVideos = require('../services/quiz/web-quiz-videos');
 const WebQuizSchools = require('../services/quiz/web-quiz-schools');
 const WebQuizPulse = require('../services/quiz/web-quiz-pulse');
 const WebQuizArt = require('../services/quiz/web-quiz-art');
+// Loaded with the routes: it listens for finished sessions and draws their card picture straight away.
+const ShareWarm = require('../services/quiz/web-quiz-share-warm');
 const WebQuizOg = require('../services/quiz/web-quiz-og');
 const Timing = require('../services/quiz/web-quiz-timing');
 const WebQuizLibrary = require('../services/quiz/web-quiz-library');
@@ -76,7 +78,7 @@ router.post('/answers', handle((req) => WebQuiz.recordAnswers(req.body || {})));
 router.post('/finish', handle(async (req) => {
   const out = await WebQuiz.finishSession(req.body || {});
   // The share pictures are drawn now, after the answer, so a child who taps Share at once sends a ready picture.
-  require('../services/quiz/web-quiz-share-warm').afterFinish(out);
+  ShareWarm.afterFinish(out);
   return out;
 }));
 router.get('/board/:code', handle((req) => WebQuiz.board(req.params.code, { st: req.query.st })));
