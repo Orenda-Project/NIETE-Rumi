@@ -23,6 +23,9 @@
 const { getOverall } = require('./coaching-frameworks.service');
 const { getPatchTeachers } = require('./leader-patch.service');
 const { ACTIVITY_CTE } = require('./lp-activity.service');
+// bd-o15qnr.23: "today" is the day in Pakistan, not the UTC date — overdue, Home's
+// today, the week and the team schedule all count from it.
+const { karachiToday } = require('../lib/visit-time');
 
 const TERMINAL_STATUSES = ['completed', 'observer_review_complete'];
 /** The teaching levels a coach may set, in canonical order (bot: utils/teacher-level VALID_LEVELS). */
@@ -401,7 +404,7 @@ function shapeReport(r, leaderUserId, teacherByUser) {
 
 /** The Teachers and Schools tabs. */
 async function getCoachPeople(query, leaderUserId, opts = {}) {
-  const today = opts.today || new Date().toISOString().slice(0, 10);
+  const today = opts.today || karachiToday();
   const [teachers, schoolsRes, sessionsRes] = await Promise.all([
     loadTeachers(query, leaderUserId, today),
     query(SQL.LEADER_SCHOOLS, [leaderUserId]),
@@ -453,7 +456,7 @@ async function getCoachSchool(query, leaderUserId, emis, opts = {}) {
 
 /** One teacher in her patch: numbers, history (HITL + DC), next visit; null otherwise. */
 async function getCoachTeacher(query, leaderUserId, teacherExtId, opts = {}) {
-  const today = opts.today || new Date().toISOString().slice(0, 10);
+  const today = opts.today || karachiToday();
   const teachers = await loadTeachers(query, leaderUserId, today);
   const teacher = teachers.find((t) => t.teacherExtId === teacherExtId);
   if (!teacher) return null;
@@ -520,7 +523,7 @@ function historyRow(r, leaderUserId) {
  * getCoachTeacher. Before bd-o15qnr.19 only sent reports were served.
  */
 async function getCoachObservation(query, leaderUserId, sessionId, opts = {}) {
-  const today = opts.today || new Date().toISOString().slice(0, 10);
+  const today = opts.today || karachiToday();
   const res = await query(SQL.OBSERVATION_BY_ID, [sessionId]);
   const row = (res.rows || [])[0];
   if (!row || !row.user_id) return null;
@@ -583,7 +586,7 @@ function byWhen(a, b) {
 
 /** My schedule: visits in [from, to] and the overdue ones. */
 async function getCoachSchedule(query, leaderUserId, opts = {}) {
-  const today = opts.today || new Date().toISOString().slice(0, 10);
+  const today = opts.today || karachiToday();
   const week = weekBounds(today);
   const from = opts.from || week.from;
   const to = opts.to || week.to;
@@ -599,7 +602,7 @@ async function getCoachSchedule(query, leaderUserId, opts = {}) {
 
 /** Home: today's visits (the next upcoming one is `current`), her next visit on any day, and the tile numbers. */
 async function getCoachHome(query, leaderUserId, opts = {}) {
-  const today = opts.today || new Date().toISOString().slice(0, 10);
+  const today = opts.today || karachiToday();
   const [schedule, sessionsRes, patch, schoolsRes, nextRes] = await Promise.all([
     getCoachSchedule(query, leaderUserId, { today }),
     query(SQL.COACH_SESSIONS, [leaderUserId]),
@@ -642,7 +645,7 @@ async function getCoachPending(query, leaderUserId) {
 
 /** One schedule entry of hers, with the teacher's numbers; null for anyone else's. */
 async function getCoachVisit(query, leaderUserId, scheduleId, opts = {}) {
-  const today = opts.today || new Date().toISOString().slice(0, 10);
+  const today = opts.today || karachiToday();
   const { rows } = await query(SQL.SCHEDULE_BY_ID, [scheduleId]);
   const row = rows && rows[0];
   if (!row || row.leader_user_id !== leaderUserId) return null;
@@ -658,7 +661,7 @@ async function getCoachVisit(query, leaderUserId, scheduleId, opts = {}) {
 
 /** The team: totals, a count per day of the week, the day's visits grouped by time. */
 async function getTeamSchedule(query, opts = {}) {
-  const today = opts.today || new Date().toISOString().slice(0, 10);
+  const today = opts.today || karachiToday();
   const date = opts.date || today;
   const coachId = opts.coachId || null;
   const week = weekBounds(today);

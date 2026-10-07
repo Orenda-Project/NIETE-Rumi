@@ -18,7 +18,7 @@
  */
 
 // bd-o15qnr.2: any half hour 07:00–18:30 plus these three (dashboard/lib/visit-time).
-const { isAllowedSlot, LEGACY_SLOTS: SLOTS, visitMoved } = require('../lib/visit-time');
+const { isAllowedSlot, LEGACY_SLOTS: SLOTS, visitMoved, karachiToday } = require('../lib/visit-time');
 
 // teacher_ext_id is the phone — 980 of 992 live observation_schedules rows
 // already key on it — so a booking still resolves by the same value it always
@@ -97,7 +97,7 @@ function validDate(value) {
  * @param {{schoolExtId:string, teacherExtId:string, date:string, slot?:string}} input
  */
 async function createSchedule(query, leaderUserId, input = {}, opts = {}) {
-  const today = opts.today || new Date().toISOString().slice(0, 10);
+  const today = opts.today || karachiToday(); // bd-o15qnr.23: the day in Pakistan, not UTC
   const { teacherExtId, date, slot } = input;
 
   if (!validDate(date)) throw new Error('Invalid date — expected YYYY-MM-DD');
