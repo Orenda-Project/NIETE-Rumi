@@ -22,6 +22,13 @@
  * still scored and answered (kept in this process), and the miss is logged.
  *
  * Behind app_settings `web_quiz_challenge` (fails closed). Grades 2-3 play the G3 form, 4-5 the G5 form.
+ *
+ * Read aloud, live (app_settings `web_quiz_challenge_realtime`, off unless true): the page streams the microphone to
+ * Soniox real-time with a temporary key minted here for that one run (liveKey; web-quiz-soniox-live.js), so the words
+ * light up as the child reads and the words-a-minute show the moment the reading ends. The same recording still comes
+ * up the usual way and the story scorer's count stays the number of record; the page's live count is kept beside it
+ * (meta.live, four numbers). The mint is the reading's start: it inserts the run (status 'scoring', meta.phase 'live':
+ * the table's CHECK allows only scoring/scored/failed), counted by both caps.
  */
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
@@ -35,6 +42,7 @@ const { LANGUAGE_OFFER } = require('../../config/languages');
 const Budget = require('./web-quiz-challenge-budget');
 
 const FLAG_KEY = 'web_quiz_challenge';
+const LIVE_FLAG_KEY = 'web_quiz_challenge_realtime';
 const TABLE = 'web_quiz_challenge_runs';
 const FLAG_TTL_MS = 30 * 1000;
 const PER_ITEM_S = 10;
@@ -94,12 +102,13 @@ const isMissingTable = (e) => !!e && (e.code === '42P01' || /does not exist|sche
 
 // ── state kept in this process: the flag cache, runs being scored, runs stored nowhere else ──────────────
 let flagCache = null;
+let liveCache = null;
 const RUNS = new Map();          // runId → { status, result, promise }
 const clipKnown = new Map();     // key → true (exists) | number (missing, checked at)
 const clipRecording = new Set();
 let clipsRecorded = 0;
 
-function __reset() { flagCache = null; Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; }
+function __reset() { flagCache = null; liveCache = null; Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; }
 
 function isTrue(v) {
   let x = v;
@@ -118,6 +127,20 @@ async function challengeOn(now = Date.now()) {
     flagCache = { at: now, on: false };
   }
   return flagCache.on;
+}
+
+/** The live read-aloud's switch: only `true` turns it on; anything else, or a failed read, is today's upload path. */
+async function liveOn(now = Date.now()) {
+  if (liveCache && now - liveCache.at < FLAG_TTL_MS) return liveCache.on;
+  try {
+    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', LIVE_FLAG_KEY);
+    if (error) throw new Error(error.message || 'app_settings read failed');
+    liveCache = { at: now, on: !!(data && data[0]) && isTrue(data[0].value) };
+  } catch (e) {
+    logToFile('⚠️ web quiz challenge: live flag lookup failed — off', { error: e.message });
+    liveCache = { at: now, on: false };
+  }
+  return liveCache.on;
 }
 
 /** The chip a hub page sends for one of the phone's children (not reversible): the hub's own, T.chipId('h', id). */
@@ -353,7 +376,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
     };
   }
   const st = spec.story || {};
-  return { ...base, secs: READ_SECS, story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: spec.direction } };
+  return { ...base, secs: READ_SECS, live: await liveOn(), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: spec.direction } };
 }
 
 // ── scoring ───────────────────────────────────────────────────────────────────────────────────────────
@@ -469,11 +492,21 @@ async function presignUpload({ ct, type, size } = {}) {
   if (!(n > 0) || n > MAX_BYTES) fail(413, 'too_large');
   // One recording per run: a run already scoring or done (here, or stored by another process) gets no new URL.
   const mem = RUNS.get(c.r);
-  if ((mem && mem.status && mem.status !== 'open') || (!(mem && mem.status) && await storedRun(c.r))) fail(409, 'already_done');
+  if (!(await uploadable(c, mem))) fail(409, 'already_done');
   if (!(await Budget.readOpen())) fail(429, 'enough_for_today');
   const key = `${uploadPrefix(c)}${Date.now()}.${ext}`;
   const putUrl = await r2.getPresignedUploadUrl(key, base, PUT_TTL_S, { bucket: childVoiceBucket(), signContentType: true });
   return { put_url: putUrl, key, content_type: base, max_bytes: MAX_BYTES, expires_in: PUT_TTL_S };
+}
+
+// A live run's row, written at its mint and not yet given its result (no 'live' status: the CHECK has none).
+const isLiveRow = (row) => !!row && row.status === 'scoring' && !!row.meta && row.meta.phase === 'live';
+
+// A run takes its one recording while it is open, or live (minted, not yet scored) — here or in the table.
+async function uploadable(c, mem) {
+  if (mem && mem.status) return mem.status === 'open' || mem.status === 'live';
+  const row = await storedRun(c.r);
+  return !row || isLiveRow(row);
 }
 
 /** The run's state from what this process knows, else from the table. */
@@ -482,7 +515,7 @@ async function runState(c) {
   if (mem && mem.result) return mem.result;
   if (mem && mem.status === 'scoring') return { pending: true };
   const row = await storedRun(c.r);
-  if (!row) return null;
+  if (!row || isLiveRow(row)) return null;
   if (row.status === 'scoring') return { pending: true };
   if (row.status === 'failed') return { failed: true, reason: (row.meta && row.meta.reason) || 'failed' };
   return row.exercise === 'read' ? { score: row.score, wcpm: row.wcpm } : { score: row.score };
@@ -498,10 +531,61 @@ async function previousRun(studentId, exercise) {
   return exercise === 'read' ? { wcpm: r.wcpm, correct: s.correct, at: r.created_at } : { correct: s.correct, n: s.n, at: r.created_at };
 }
 
-async function readsToday(studentId) {
+// The child's readings in the last 24 h, not counting `except` (a live run's own row, made at its mint).
+async function readsToday(studentId, except = null) {
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const { data, error } = await supabase.from('web_quiz_challenge_runs').select('id').eq('student_id', studentId).eq('exercise', 'read').gte('created_at', since);
-  return error ? 0 : (data || []).length;
+  return error ? 0 : (data || []).filter((r) => r.id !== except).length;
+}
+
+// The run, from this process or rebuilt from the student (a token minted by another process: a restart, a replica).
+async function runFor(c, mem, lang) {
+  if (mem && mem.task) return mem;
+  const grade = await gradeOf({ studentId: c.sid });
+  const form = formFor(grade);
+  if (!form) fail(403, 'not_eligible');
+  const l = clampLanguage(lang);
+  return { grade, form, lang: l, task: byId(c.ex).task(l) };
+}
+
+/**
+ * A temporary Soniox key for this run's live reading (the page opens the stream with it). Same gates as the upload:
+ * the switch, one per run, the child's 10 a day and the day's cap — checked BEFORE anything is spent. Soniox down or
+ * refusing ⇒ 502 live_unavailable (logged with its status), no run row: the page reads with the upload path.
+ */
+async function liveKey({ ct, lang } = {}) {
+  const c = runOf(ct);
+  if (c.ex !== 'read') fail(400, 'no_audio');
+  if (!(await liveOn())) fail(503, 'live_off');
+  const Live = require('./web-quiz-soniox-live');
+  if (!Live.configured()) fail(503, 'live_unavailable');
+  const mem = RUNS.get(c.r) || {};
+  if ((mem.status && mem.status !== 'open') || (!mem.status && await storedRun(c.r))) fail(409, 'already_done');
+  if (await readsToday(c.sid) >= READS_PER_DAY || !(await Budget.readOpen())) fail(429, 'enough_for_today');
+  const run = await runFor(c, mem, lang);
+  RUNS.set(c.r, { ...run, status: 'minting' });
+  const k = await Live.mintTempKey(c.r);
+  if (!k.ok) {
+    RUNS.set(c.r, { ...run, status: 'open' });
+    logError('web_quiz.ch_live_key_failed', { runId: c.r, status: k.status, reason: k.reason });
+    fail(502, 'live_unavailable');
+  }
+  RUNS.set(c.r, { ...run, status: 'live' });
+  Budget.noteStarted();
+  const stored = await insertRun({ id: c.r, student_id: c.sid, exercise: 'read', grade: run.grade, lang: run.lang, status: 'scoring', created_at: nowIso(), meta: { phase: 'live' } });
+  if (stored === 'duplicate') fail(409, 'already_done');
+  logEvent('web_quiz.ch_live_key', { grade: run.grade, lang: run.lang });
+  return { api_key: k.api_key, expires_at: k.expires_at, ws: Live.WS_URL, model: Live.MODEL, lang: run.lang };
+}
+
+// The page's live count, kept only when every number is one a 60-s reading of this passage can produce.
+function liveCount(v, passageLen) {
+  if (!v || typeof v !== 'object') return null;
+  const n = (x) => (Number.isInteger(x) && x >= 0 ? x : null);
+  const correct = n(v.correct); const attempted = n(v.attempted); const secs = n(v.secs);
+  if (correct == null || attempted == null || secs == null) return null;
+  if (correct > attempted || attempted > passageLen || secs > READ_SECS + 1) return null;
+  return { correct, attempted, secs, v: 1 };
 }
 
 async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
@@ -514,15 +598,11 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   }
   const { Bank } = CT;
   const mem = RUNS.get(c.r) || {};
-  if ((mem.status && mem.status !== 'open') || (!mem.status && await storedRun(c.r))) fail(409, 'already_done');
-  // A token minted by another process (a restart, a second replica): rebuild the run from the student.
-  const run = mem.task ? mem : await (async () => {
-    const grade = await gradeOf({ studentId: c.sid });
-    const form = formFor(grade);
-    if (!form) fail(403, 'not_eligible');
-    const lang = clampLanguage(body.lang);
-    return { grade, form, lang, task: byId(c.ex).task(lang) };
-  })();
+  // A live run (its row made at the mint) takes its one result; any other stored or finished run is done.
+  const storedRow = mem.status ? null : await storedRun(c.r);
+  const isLive = mem.status === 'live' || (c.ex === 'read' && isLiveRow(storedRow));
+  if ((mem.status && mem.status !== 'open' && !isLive) || (storedRow && !isLive)) fail(409, 'already_done');
+  const run = await runFor(c, mem, body.lang);
   const base = { id: c.r, student_id: c.sid, exercise: c.ex, grade: run.grade, lang: run.lang, created_at: nowIso() };
 
   if (c.ex === 'bigger') {
@@ -546,20 +626,27 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   try { head = await r2.headObject(key, { bucket: childVoiceBucket() }); } catch (_) { fail(502, 'storage_unavailable'); }
   if (!head || !head.exists) fail(404, 'no_upload');
   if (Number(head.sizeBytes) > MAX_BYTES) await refuse(413, 'too_large');
-  if (await readsToday(c.sid) >= READS_PER_DAY || !(await Budget.readOpen())) await refuse(429, 'enough_for_today');
-  Budget.noteStarted();
+  // A live run was counted (both caps) at its mint; its own row is not "another reading today".
+  if (!isLive && (await readsToday(c.sid) >= READS_PER_DAY || !(await Budget.readOpen()))) await refuse(429, 'enough_for_today');
+  if (!isLive) Budget.noteStarted();
 
   RUNS.set(c.r, { ...run, status: 'scoring' });
   const previous = await previousRun(c.sid, 'read');
-  const stored = await insertRun({ ...base, status: 'scoring', meta: { ms: Number(body.ms) || null } });
-  if (stored === 'duplicate') await refuse(409, 'already_done');
+  const story = (Bank.getTaskSpec({ grade: Number(run.form), set: 'A', task: run.task }).story || {});
+  const live = isLive ? liveCount(body.live, (story.tokens && story.tokens.length) || String(story.text || '').split(/\s+/).filter(Boolean).length) : null;
+  const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}) };
+  if (isLive) await updateRun(c.r, { status: 'scoring', meta: metaIn });
+  else {
+    const stored = await insertRun({ ...base, status: 'scoring', meta: metaIn });
+    if (stored === 'duplicate') await refuse(409, 'already_done');
+  }
   const ext = key.split('.').pop();
   const promise = scoreRead(run, key, ext, body.ms, CT).then(async (r) => {
     const result = r.failed ? { failed: true, reason: r.reason } : { score: r.score, wcpm: r.wcpm, previous };
     RUNS.set(c.r, { ...run, status: 'done', result });
     await updateRun(c.r, r.failed
       ? { status: 'failed', meta: { ...r.meta, reason: r.reason }, scored_at: nowIso() }
-      : { status: 'scored', score: r.score, wcpm: r.wcpm, meta: r.meta, scored_at: nowIso() });
+      : { status: 'scored', score: r.score, wcpm: r.wcpm, meta: { ...r.meta, ...(live ? { live } : {}) }, scored_at: nowIso() });
     if (r.failed) logError('web_quiz.ch_read_failed', { runId: c.r, reason: r.reason });
     else logEvent('web_quiz.ch_done', { step: 'read', count: r.score.correct, wcpm: r.wcpm, stopped: r.score.stopped, costUsd: r.meta.cost_usd });
     return result;
@@ -628,8 +715,8 @@ async function listResults({ cls, list } = {}) {
 }
 
 module.exports = {
-  menu, exercise, presignUpload, submit, poll, listResults,
+  menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn,
   scoreBigger, wcpm, formFor, gradeOf, kidChip, challengeOn, clipKey, childVoiceBucket,
-  EXERCISES, nameOf, lineOf, FLAG_KEY, TABLE, MAX_BYTES,
+  EXERCISES, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, TABLE, MAX_BYTES,
   __reset,
 };

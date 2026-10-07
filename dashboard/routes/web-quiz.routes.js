@@ -66,6 +66,8 @@ const API_ROUTES = [
   { method: 'get', path: '/api/wq/ch/result/:ct', limiter: 'read', token: true },
   { method: 'post', path: '/api/wq/ch/upload', limiter: ['challenge', 'challengeIp'] },
   { method: 'post', path: '/api/wq/ch/result', limiter: ['challenge', 'challengeIp'] },
+  // read aloud, live: a one-run speech-to-text key (the bot mints it; counted by the same per-run limiter)
+  { method: 'post', path: '/api/wq/ch/live', limiter: ['challenge', 'challengeIp'] },
   { method: 'get', path: '/api/wq/ch/:token', limiter: 'read', token: true },
   { method: 'get', path: '/api/wq/ch/:token/:exercise', limiter: 'read', token: true },
   // M4a hub — the kid hub's JSON (a hub token, not a code: checked by HUB_TOKEN_RX)
@@ -341,8 +343,8 @@ const CH_COPY = {
   ur: { boot: 'چیلنج کھل رہا ہے…', title: (m) => `${m} کا چیلنج`, not_eligible: 'یہ چیلنج جماعت ۲ سے ۵ کے لیے ہے۔', pick_kid: 'چیلنج اپنے کوئز کے صفحے سے کھولیں۔', other_device: 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔ کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ ⁦/quiz⁩ بھیجیں۔' },
 };
 
-function challengeVersion() {
-  try { return crypto.createHash('sha256').update(fs.readFileSync(path.join(PUBLIC_DIR, 'wq-challenge.js'))).digest('hex').slice(0, 10); } catch (_) { return '0'; }
+function challengeVersion(file = 'wq-challenge.js') {
+  try { return crypto.createHash('sha256').update(fs.readFileSync(path.join(PUBLIC_DIR, file))).digest('hex').slice(0, 10); } catch (_) { return '0'; }
 }
 
 function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }) {
@@ -355,6 +357,7 @@ function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }
 <body>
 <main id="wq" class="wq-app wqc" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(CH_COPY[lang].boot)}</p></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
+<script src="/wq/wq-read-live.js?v=${challengeVersion('wq-read-live.js')}" defer></script>
 <script src="/wq/wq-challenge.js?v=${chV}" defer></script>
 </body>
 </html>`;
