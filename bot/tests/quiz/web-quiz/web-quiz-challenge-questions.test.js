@@ -215,7 +215,9 @@ describe('answering: the key stays on the server', () => {
     // a second tap on an answered question changes nothing
     expect(await Ch.answer({ ct, q: qs[1].id, pick: right(1) })).toEqual({ ok: false, answer: qs[1].options[right(1)] });
     const row = db.web_quiz_challenge_runs.find((r) => r.id === runIdOf(ct));
-    expect(row.meta.comp).toEqual({ asked: 2, correct: 1, v: 1 });
+    expect(row.meta.comp).toMatchObject({ asked: 2, correct: 1, v: 1 });
+    // the per-question record is question numbers and 0/1 only
+    expect(Object.values(row.meta.comp.a || {}).every((x) => x === 0 || x === 1)).toBe(true);
     qs.forEach((q) => q.options.forEach((o) => expect(JSON.stringify(row.meta)).not.toContain(o)));
   });
 
