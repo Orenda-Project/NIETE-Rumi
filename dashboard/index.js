@@ -169,6 +169,11 @@ app.use(createWebQuizRouter());
 // Not /t: that is the training link, mounted further down.
 const { createTeacherReportRouter } = require('./routes/teacher-report.routes');
 app.use(createTeacherReportRouter());
+// The phone test page for WhatsApp's in-app browser (/iab/:token, /api/iab-probe/*): camera,
+// gallery, file picker and microphone, each file confirmed by the server and thrown away. Before
+// the body parsers, so it reads every upload as bytes under its own size cap.
+const { createIabProbeRouter } = require('./routes/iab-probe.routes');
+app.use(createIabProbeRouter());
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));

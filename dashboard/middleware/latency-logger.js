@@ -34,6 +34,8 @@ const telemetry = require('../services/telemetry.service');
 // credential: it opens a page with children's names.
 const CREDENTIAL_PATHS = [
   [/^\/t\/[^/]+$/, '/t/:token'],
+  // The phone test page (routes/iab-probe.routes.js): the token opens it and accepts uploads.
+  [/^\/iab\/[^/]+$/, '/iab/:token'],
   [/^\/r\/[^/]+$/, '/r/:token'],
   [/^\/r\/[^/]+\/pdf$/, '/r/:token/pdf'],
   [/^\/r\/[^/]+\/remind$/, '/r/:token/remind'],
