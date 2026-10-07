@@ -1093,3 +1093,11 @@ Feature: Web child quiz page on the portal
     Then the page asks again for the quiz a few times over the next two minutes
     And every question the child reaches after the clips land is read in the quiz's recorded voice, in Urdu as in English
     And a quiz whose clips are already recorded never asks again
+
+  @T565
+  Scenario: The results card opens the child's own quizzes, videos and challenges
+    Given the hub door is switched on and a child of the class finished the teacher's quiz on their phone
+    When the child taps "My quizzes, videos and challenges" on their card
+    Then their own hub opens on that phone, with the video library and the challenge
+    And the same link opened on another phone shows no child's name and starts nothing
+    But a friend who played from a challenge link sees no such button

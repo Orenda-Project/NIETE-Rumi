@@ -82,6 +82,8 @@ const API_ROUTES = [
   { method: 'get', path: '/api/wq/lib/:code', limiter: 'read' },
   { method: 'get', path: '/api/wq/videos/dl/:code', limiter: 'read' },
   { method: 'post', path: '/api/wq/hub/:token', limiter: 'read' },
+  // the results card's door to the child's hub (a session token in the body)
+  { method: 'post', path: '/api/wq/hubdoor', limiter: 'session' },
 ];
 
 // The shell's line under Jugnu, shown until wq.js boots (seconds on slow 4G), so the page never reads as stuck.

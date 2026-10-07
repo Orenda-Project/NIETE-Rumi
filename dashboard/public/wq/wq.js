@@ -509,6 +509,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       done: 'QUIZ COMPLETE', seeCard: 'See my card', classBtn: 'See my class',
       prac: 'This name already finished on another phone. This round is practice; your first finished score stays.',
       shareBtn: 'Share to class group', challenge: 'Challenge a friend', cardPriv: 'Only your first name goes on the card.',
+      hubDoor: 'My quizzes, videos and challenges',
       shareLine: function (w, s, n, t) { return w + ' got ' + s + '/' + n + ' stars on ' + t + '. Can you beat it?'; },
       tableLine: function (t, c) { return c + ' league table for ' + t + '. Not played yet? Same link, still open:'; },
       leagueT: function (c) { return c + ' league table'; }, you: 'YOU', moreN: function (n) { return n + ' more in the class'; },
@@ -570,6 +571,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       done: 'کوئز مکمل', seeCard: 'میرا کارڈ دیکھیں', classBtn: 'اپنی کلاس دیکھیں',
       prac: 'یہ نام کسی اور فون پر مکمل ہو چکا ہے۔ یہ باری مشق ہے؛ پہلا مکمل اسکور ہی رہے گا۔',
       shareBtn: 'کلاس گروپ میں بھیجیں', challenge: 'دوست کو چیلنج کریں', cardPriv: 'کارڈ پر صرف آپ کا پہلا نام جاتا ہے۔',
+      hubDoor: 'میرے کوئز، ویڈیوز اور چیلنج',
       shareLine: function (w, s, n, t) { return w + ' نے ' + t + ' میں ' + n + ' میں سے ' + s + ' ستارے لیے۔ کیا اس سے زیادہ ستارے ملیں گے؟'; },
       tableLine: function (t, c) { return t + ': ' + c + ' کی لیگ ٹیبل۔ ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے:'; },
       leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, you: 'آپ', moreN: function (n) { return 'کلاس میں ' + n + ' اور'; },
@@ -2117,6 +2119,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<span class="wq-vtext"><small>' + esc(T.nextT) + '</small><b dir="auto">' + esc(nx.title) + '</b></span></button>' : '') +
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
       (isVideo ? moreBtn() + shares : shares + moreBtn()) +
+      // The door to this child's own hub (their quizzes, the video library, the challenge): when finish offered it.
+      (res.hub_door && !friend && !(S.queue && S.queue.length) ? '<button class="wq-btn wq-soft" id="wq-hubdoor">' + esc(T.hubDoor) + '</button>' : '') +
       // One phone, many children: the next child starts from the landing. Not while answers wait to be sent.
       (S.queue && S.queue.length ? '' : '<button class="wq-btn wq-ghost" id="wq-turn">' + esc(T.nextTurn) + '</button>');
     render(h, 'M10');
@@ -2144,6 +2148,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-schools', function () { schools(card); });
     on('#wq-more', moreVideos);
     on('#wq-turn', nextTurn);
+    on('#wq-hubdoor', hubDoor);
     on('#wq-next-v', function () {
       ev('next_pick', { src: nx.code ? 'code' : 'start' });
       if (!nx.code) { pickVideo({ vid: nx.vid, title: nx.title }, 0); return; }
@@ -2258,6 +2263,23 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     sset('wq_from', null);
     try { localStorage.removeItem('wq_from'); } catch (e) {}
     return f.code === CODE && f.st && Date.now() - (f.at || 0) < HANDOVER_MS ? f : null;
+  }
+
+  // The card's door: the server mints this child's hub link for this phone (never a name in it) and the page opens it.
+  var hubGoing = false;
+  function hubDoor() {
+    if (hubGoing) return;
+    hubGoing = true;
+    ev('hub_door_tap', {});
+    api('POST', 'hubdoor', { st: S.st }).then(function (r) {
+      var href = r.ok && r.body && typeof r.body.href === 'string' ? r.body.href : '';
+      if (/^\/h\/[A-Za-z0-9._-]+$/.test(href)) { flushEv(true); location.assign(href); return; }
+      hubGoing = false;
+      if (S.result) { S.result.hub_door = false; save(); }
+      var b = $('#wq-hubdoor');
+      if (b && b.parentNode) b.parentNode.removeChild(b);
+      toast(T.oops);
+    }, function () { hubGoing = false; toast(T.offline); });
   }
 
   /* ---------------- M11 league table ---------------- */

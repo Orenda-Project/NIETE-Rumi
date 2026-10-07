@@ -1511,6 +1511,8 @@ async function finishSession(body = {}) {
     art: { card: Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classCode && !s.invited_by_student_id ? Art.artId('l', s.id) : null },
     // M4b library: a video quiz's scorecard offers the next lesson ("Next in this chapter").
     ...(await nextLesson(s)),
+    // The card's door to this child's hub (web-quiz-hub-door.js), with the hub and the door switched on.
+    ...(await require('./web-quiz-hub-door').field(s)),
   };
 }
 
