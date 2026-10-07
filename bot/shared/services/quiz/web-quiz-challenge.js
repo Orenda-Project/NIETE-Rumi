@@ -398,6 +398,9 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }) {
     const t = m.timed || {};
     const stopped = !!m.stopped_by_rule;
     const score = { correct: t.correct || 0, attempted: t.attempted || 0, stopped, finished_early: (t.time_remaining || 0) > 0, time_left: t.time_remaining || 0 };
+    // Not one word of the story was heard: that is not a reading of 0 words — no score, no ✓, no growth baseline,
+    // nothing in the class results; the child is asked to try again.
+    if (!stopped && score.attempted === 0) return { failed: true, reason: 'unheard', meta: { cost_usd: (m.meta && m.meta.cost_usd) || 0, duration_s: Math.round(durationSec * 10) / 10 } };
     return { score, wcpm: stopped ? 0 : wcpm(score.correct, score.time_left), meta: { cost_usd: (m.meta && m.meta.cost_usd) || 0, seconds: m.meta && m.meta.seconds, duration_s: Math.round(durationSec * 10) / 10, flags: m.flags || [] } };
   } catch (e) {
     return { failed: true, reason: 'internal_error', meta: { error: String(e && e.message || e).slice(0, 120) } };

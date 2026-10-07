@@ -413,6 +413,23 @@ describe('read aloud: scored by the child-test story scorer', () => {
     expect(r.wcpm).toBe(Ch.wcpm(60, r.score.time_left));
   });
 
+  test('nothing heard (the scorer counts no word attempted) ⇒ a failed run "unheard": no score, no ✓, no baseline, not in class results', async () => {
+    const { ct, key } = await start();
+    r2.downloadFromR2.mockResolvedValue(clip(60));
+    AudioService.transcribe.mockResolvedValue(heard(10, 2));
+    llm.__create.mockResolvedValue(marks(enTokens().map(() => 'skipped')));
+    const r = await Ch.submit({ ct, key, ms: 60000 }, { waitMs: 60000 });
+    expect(r).toEqual({ failed: true, reason: 'unheard' });
+    const row = db.web_quiz_challenge_runs[0];
+    expect(row).toMatchObject({ exercise: 'read', status: 'failed' });
+    expect(row.meta.reason).toBe('unheard');
+    expect(row.wcpm == null).toBe(true);
+    const m = await Ch.menu(hub());
+    expect(m.exercises.find((e) => e.id === 'read')).toMatchObject({ done: false, last: null });
+    expect(await Ch.listResults({ list: LIST })).toEqual([]);
+    expect(r2.deleteKey).toHaveBeenCalledWith(key, { bucket: 'r2-default' });
+  });
+
   test('nothing right in line 1 ⇒ auto-stopped, wcpm 0', async () => {
     const { ct, key } = await start();
     r2.downloadFromR2.mockResolvedValue(clip(20));
