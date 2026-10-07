@@ -1039,7 +1039,6 @@ Feature: Web child quiz page on the portal
     Then it lists only the sibling who played there, never the other one
     And the other sibling's hub, library and challenge do not open on that phone
 
-
   @T565
   Scenario: The results card opens the child's own quizzes, videos and challenges
     Given the hub door is switched on and a child of the class finished the teacher's quiz on their phone
