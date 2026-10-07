@@ -196,7 +196,8 @@
         '.wqc-live,.wqc[data-screen=read-live],.wqc[data-screen=read-result]{padding-bottom:96px}',
         '.wqc-key{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:13px;font-weight:700;color:var(--muted);margin:6px 0 0}',
         '.wqc-key i{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-1px;margin-inline-end:5px}',
-        '.wqc-opts{display:grid;gap:12px}',
+        '.wqc-ear{font-size:96px;text-align:center;margin:48px 0 0;animation:wqc-pulse 1.4s ease-in-out infinite}',
+                '.wqc-opts{display:grid;gap:12px}',
         '.wqc-opt{min-height:64px;border-radius:18px;border:3px solid transparent;background:var(--card);box-shadow:0 4px 0 var(--line);font-size:20px;font-weight:800;color:var(--navy);cursor:pointer;font-family:inherit;padding:10px 14px;text-align:start}',
         'html[lang=ur] .wqc-opt{font-weight:700;line-height:1.9}',
         '.wqc-opt.wqc-ok{border-color:var(--right);background:var(--right-bg)}',
@@ -330,7 +331,7 @@
     start: function () {
       var d = S.data;
       if (player) { try { player.pause(); } catch (e) {} player = null; }
-      show('listen-play', jug('thinking', d.clips.start.text, true) + '<p class="wqc-score" aria-hidden="true">🔊</p>');
+      show('listen-play', jug('thinking', d.clips.start.text, true) + '<p class="wqc-ear" aria-hidden="true">🔊</p>');
       var left = Math.max(1, d.read_times || 2);
       var a = null;
       var over = false;
