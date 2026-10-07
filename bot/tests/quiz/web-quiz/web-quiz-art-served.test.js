@@ -191,3 +191,29 @@ describe('one picture drawn once, and never more than two draws at a time', () =
     await expect(Art.artImage(id, { size: 'og' })).resolves.toMatchObject({ contentType: 'image/jpeg' });
   });
 });
+
+describe("a card's facts are fetched together, not one after another", () => {
+  // The finish draws the card straight away, and the card's facts (score, name, class, school standing, topic, brand)
+  // were queried one by one: about 3.5 s on the sandbox database before the 0.9 s draw could start.
+  test('the independent lookups overlap', async () => {
+    S3.__send.mockImplementation(async (c) => {
+      if (c.type === 'head') throw notFound('NotFound');
+      if (c.type === 'get') throw notFound('NoSuchKey');
+      return {};
+    });
+    let live = 0; let peak = 0;
+    const from0 = supabase.from;
+    supabase.from = (t) => {
+      const q = from0(t);
+      const then0 = q.then.bind(q);
+      q.then = (res, rej) => {
+        live += 1; peak = Math.max(peak, live);
+        return new Promise((r) => setTimeout(r, 20)).then(() => { live -= 1; return then0(res, rej); });
+      };
+      return q;
+    };
+    await Art.artImage(Art.artId('c', SID), { size: 'og' });
+    supabase.from = from0;
+    expect(peak).toBeGreaterThanOrEqual(3);
+  });
+});
