@@ -84,3 +84,16 @@ export function hoursUntil(slot: string | null | undefined, now: Date = new Date
   at.setHours(Number(m[1]), Number(m[2]), 0, 0);
   return Math.round((at.getTime() - now.getTime()) / 3600000);
 }
+
+/**
+ * bd-o15qnr.18 — the Home subheading: "Wednesday, 7th October", for the day it
+ * is in Pakistan (the coach's day), whatever the phone's own time zone.
+ */
+export function fullDate(d: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", weekday: "long", day: "numeric", month: "long" }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value || "";
+  const day = Number(get("day"));
+  const teen = day % 100 >= 11 && day % 100 <= 13;
+  const suffix = teen ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[day % 10] || "th";
+  return `${get("weekday")}, ${day}${suffix} ${get("month")}`;
+}

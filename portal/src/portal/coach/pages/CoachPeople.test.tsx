@@ -65,7 +65,7 @@ describe("Teachers tab", () => {
   it("sort by average score, search by phone, filter by school", async () => {
     renderAt("/portal/coach/people?tab=teachers");
     await screen.findAllByTestId("teacher-card");
-    fireEvent.click(screen.getByRole("radio", { name: "Avg score" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Avg. HITL Score" }));
     expect(within(screen.getAllByTestId("teacher-card")[0]).getByTestId("name")).toHaveTextContent("Sadia Noor");
     fireEvent.change(screen.getByPlaceholderText("Name or phone"), { target: { value: "923001110001" } });
     expect(screen.getAllByTestId("teacher-card")).toHaveLength(1);

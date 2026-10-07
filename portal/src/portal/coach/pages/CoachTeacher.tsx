@@ -2,7 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { Clock, Eye, GraduationCap, MapPin, Mic, Pencil, Plus } from "lucide-react";
 import { coach } from "../../services/api";
 import { COACH_COPY as C } from "../copy";
-import { CoachPage, Card, SectionLabel, IconCircle, PageChip, BottomLink, Loading, Failed, useLoad, Chevron, Chip } from "../ui";
+import { CoachPage, Card, SectionLabel, DayLabel, IconCircle, PageChip, BottomLink, Loading, Failed, useLoad, Chevron, Chip } from "../ui";
 import { formatSlot } from "../time";
 
 /**
@@ -28,6 +28,21 @@ function Sparkline({ points }: { points: { kind: "HITL" | "DC"; score: number; l
       {points.map((p, i) => <text key={`t${i}`} x={x(i)} y={106} fontSize={10} fill="#6b7280" textAnchor="middle">{p.label}</text>)}
     </svg>
   );
+}
+
+/**
+ * bd-o15qnr.18 — History by month, newest first ("October 2026 · 3"), the way
+ * Reports groups by day. The service already sends the rows newest first.
+ */
+function byMonth<T extends { date: string | null }>(rows: T[]): [string, T[]][] {
+  const out: [string, T[]][] = [];
+  for (const r of rows) {
+    const key = r.date ? r.date.slice(0, 7) : "";
+    const last = out[out.length - 1];
+    if (last && last[0] === key) last[1].push(r);
+    else out.push([key, [r]]);
+  }
+  return out;
 }
 
 const CoachTeacher = () => {
@@ -83,9 +98,13 @@ const CoachTeacher = () => {
           </Card>
           {data.history.length > 0 && (
             <>
-              <SectionLabel>{C.history}</SectionLabel>
-              <Card className="overflow-hidden" data-testid="history">
-                {data.history.map((h, i) => {
+              <SectionLabel count={data.history.length} countStyle="count">{C.history}</SectionLabel>
+              <div className="flex flex-col gap-1.5" data-testid="history">
+              {byMonth(data.history).map(([month, rows]) => (
+              <section key={month} data-testid="history-month" data-month={month} className="flex flex-col gap-1.5">
+              <DayLabel count={rows.length}>{rows[0].date ? C.monthOf(rows[0].date) : C.dash}</DayLabel>
+              <Card className="overflow-hidden">
+                {rows.map((h, i) => {
                   // bd-o15qnr.10 — what this row opens: her own portal observation's
                   // existing page (at its step), the v2 report, or nothing.
                   const to = h.open === "observe" ? `/portal/leader/observe/${h.id}`
@@ -105,6 +124,9 @@ const CoachTeacher = () => {
                     : <div key={h.id} className={cls} data-testid={`history-${h.id}`}>{inner}</div>;
                 })}
               </Card>
+              </section>
+              ))}
+              </div>
             </>
           )}
         </>
