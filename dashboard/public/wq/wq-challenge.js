@@ -128,7 +128,8 @@
       listenWrong: 'کہانی ابھی نہیں چل رہی۔ کوئی اور چیلنج کریں۔',
       qaRight: 'جی ہاں!',
       qaWas: function (a) { return 'جواب تھا: ' + a; },
-      qaDone: function (c, n) { return 'آپ نے ' + ud(n) + ' میں سے ' + ud(c) + ' کے صحیح جواب دیے!'; },
+      // the verb agrees with the count: ۱ کا … دیا, otherwise کے … دیے
+      qaDone: function (c, n) { return 'آپ نے ' + ud(n) + ' میں سے ' + ud(c) + (c === 1 ? ' کا صحیح جواب دیا!' : ' کے صحیح جواب دیے!'); },
     },
   };
   var t = T[L];
