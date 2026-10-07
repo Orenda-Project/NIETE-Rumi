@@ -38,7 +38,8 @@ function page({ lang = 'en', menu = MENU, routes = {}, chunk = 4000, wsMode = 'o
     if (url === '/api/wq/e') { events.push(...JSON.parse(init.body).events); return Promise.resolve({ ok: true, status: 204, text: () => Promise.resolve('') }); }
     let r = { status: 200, body: {} };
     for (const [rx, fn] of Object.entries(routes)) if (new RegExp(rx).test(url)) { r = fn(url, init); break; }
-    return Promise.resolve({ ok: r.status < 300, status: r.status, text: () => Promise.resolve(JSON.stringify(r.body)) });
+    // a route may answer later (a Promise): the network held open
+    return Promise.resolve(r).then((x) => ({ ok: x.status < 300, status: x.status, text: () => Promise.resolve(JSON.stringify(x.body)) }));
   };
   class MediaRecorder {
     constructor(stream, opts) { this.mimeType = (opts && opts.mimeType) || 'audio/webm'; this.state = 'inactive'; recs.push(this); }
@@ -278,6 +279,29 @@ describe('live on', () => {
     s.msg({ tokens: [], finished: true });
     await p.flush();
     expect(p.html()).toContain("We couldn't hear that clearly. Try again?");
+  });
+
+  test('the questions wait for the reading\'s own result call: a child who opens them at once never answers before it', async () => {
+    let release;
+    const held = new Promise((res) => { release = res; });
+    const p = page({ routes: routesFor(EN, {
+      'ch/HUB.TOKEN/read': ok({ ...READ(EN), questions_on: true }),
+      'ch/result$': () => held,
+      'ch/qs': ok({ questions: [{ id: 'en.story.q1', prompt: 'Why did Imran wake up early?', options: ['to play', 'for school', 'he was hungry'], clip: { url: null } }] }),
+    }) });
+    await go(p);
+    const s = p.sockets[0]; s.open();
+    s.msg({ tokens: toks(EN.tokens, { gap: 0.5 }) });
+    s.msg({ tokens: [], finished: true });
+    await p.flush();
+    expect(p.screen()).toBe('read-result');
+    await p.click('wqc-qa');
+    expect(p.fetches.some((f) => f.url === '/api/wq/ch/qs')).toBe(false);
+    release({ status: 200, body: { pending: true } });
+    await p.flush();
+    expect(p.fetches.some((f) => f.url === '/api/wq/ch/qs')).toBe(true);
+    expect(p.fetches.findIndex((f) => f.url === '/api/wq/ch/result')).toBeLessThan(p.fetches.findIndex((f) => f.url === '/api/wq/ch/qs'));
+    expect(p.screen()).toBe('qa');
   });
 
   test('the key cannot be had (Soniox down, 502) ⇒ today\'s path, and the page says so in an event', async () => {
