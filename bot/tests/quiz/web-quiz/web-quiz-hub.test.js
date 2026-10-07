@@ -321,6 +321,21 @@ describe('hub(): from your teacher — the child\'s own class first (quiz_share_
     expect((await Hub.hub(T.signHub([KID]))).teacher).toMatchObject({ code: 'BOUND1', src: 'class' });
   });
 
+  test('latency: with a code bound to the child\'s class, resolveQuizClass is never called; unbound codes resolve at most 5', async () => {
+    twoHandouts();
+    const Identity = require('../../../shared/services/quiz/web-quiz-identity');
+    const spy = jest.spyOn(Identity, 'resolveQuizClass');
+    try {
+      expect((await Hub.hub(T.signHub([KID]))).teacher).toMatchObject({ code: 'BOUND1' });
+      expect(spy).not.toHaveBeenCalled();
+      db.quiz_share_codes.find((c) => c.id === 'sc-bound').active = false;
+      for (let i = 0; i < 8; i += 1) db.quiz_share_codes.push(code(`sc-u${i}`, `UNB00${i}`, 'q-loose', { created_at: ago(2 + i) }));
+      spy.mockClear();
+      await Hub.hub(T.signHub([KID]));
+      expect(spy.mock.calls.length).toBeLessThanOrEqual(5);
+    } finally { spy.mockRestore(); }
+  });
+
   test('a code bound to ANOTHER class is never this child\'s teacher card (the unbound grade code is)', async () => {
     twoHandouts();
     db.quiz_share_codes.find((c) => c.id === 'sc-bound').class_id = CLASS_B;

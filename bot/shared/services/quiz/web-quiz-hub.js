@@ -48,6 +48,7 @@ const { clampLanguage } = require('../../config/ux-strings');
 const AGAIN_MAX = 6;
 const RECS_MAX = 3;
 const TEACHER_DAYS = 7;
+const RESOLVE_MAX = 5;
 const CHALLENGE_GRADES = ['2', '3', '4', '5'];
 
 // The web quiz's own error type, so the internal router answers it as every other wq route does.
@@ -154,34 +155,38 @@ async function teacherCard(kidRow, list, history, grade) {
   const teachers = [...new Set([list && list.user_id, ...history.filter((e) => e.teacherSent).map((e) => e.teacherUserId)].filter(Boolean))];
   if (!teachers.length) return null;
   const seen = new Set(history.map((e) => e.shareCodeId));
-  const open = (await recentCodes(teachers)).filter((c) => isOpen(c) && !seen.has(c.id));
+  // Independent reads in parallel: the codes and the child's classes.
+  const [codes, myClasses] = await Promise.all([recentCodes(teachers), kidClasses(kidRow.id, history)]);
+  const open = codes.filter((c) => isOpen(c) && !seen.has(c.id));
   if (!open.length) return null;
   const quizIds = [...new Set([...open.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
   const { data: quizzes } = await supabase.from('quizzes').select('id, topic, subject, grade, language, lesson_plan_id, coaching_session_id').in('id', quizIds);
   const quizById = new Map((quizzes || []).map((q) => [q.id, q]));
   // The same lesson the child already finished (its twin in the other language) is not "new from your teacher".
   const doneLessons = new Set(history.filter((e) => e.latest).flatMap((e) => lessonRefs(quizById.get(e.quizId))));
-  const myClasses = await kidClasses(kidRow.id, history);
   const lang = clampLanguage(history[0] && history[0].language);
-  const { resolveQuizClass } = require('./web-quiz-identity');
+  const fresh = open.filter((c) => quizById.get(c.quiz_id) && !lessonRefs(quizById.get(c.quiz_id)).some((r) => doneLessons.has(r)));
   const ranked = [];
-  for (const c of open.slice(0, 10)) {
-    const q = quizById.get(c.quiz_id);
-    if (!q || lessonRefs(q).some((r) => doneLessons.has(r))) continue;
-    let rank = null;
-    if (c.class_id) {
-      // A hand-out bound to a class is that class's: this child's first, never another class's child.
-      if (myClasses.has(c.class_id)) rank = 0;
-    } else {
-      let r = null;
-      try { r = await resolveQuizClass({ teacherUserId: c.teacher_user_id, quizId: c.quiz_id, shareCodeId: c.id }); } catch (_) { r = null; }
+  const push = (c, rank) => { const q = quizById.get(c.quiz_id); ranked.push({ c, q, rank, langMiss: clampLanguage(q.language) === lang ? 0 : 1 }); };
+  // A hand-out bound to the child's class is theirs: no class resolution needed (the hub boot stays fast).
+  fresh.filter((c) => c.class_id && myClasses.has(c.class_id)).forEach((c) => push(c, 0));
+  if (!ranked.length) {
+    // Unbound codes only (a code bound to another class is never this child's), the newest 5, resolved in parallel.
+    const { resolveQuizClass } = require('./web-quiz-identity');
+    const loose = fresh.filter((c) => !c.class_id).slice(0, RESOLVE_MAX);
+    const placed = await Promise.all(loose.map((c) => (myClasses.size
+      ? resolveQuizClass({ teacherUserId: c.teacher_user_id, quizId: c.quiz_id, shareCodeId: c.id }).catch(() => null)
+      : Promise.resolve(null))));
+    loose.forEach((c, i) => {
+      const r = placed[i];
       const known = r && r.state === 'known' && r.class && r.class.id ? r.class.id : null;
-      if (known && myClasses.size) rank = myClasses.has(known) ? 0 : null;
+      if (known && myClasses.size) {
+        if (myClasses.has(known)) push(c, 0);
+        return;
+      }
       // No class to compare: the child's grade (band-aware); a quiz with no grade, or another grade, may be another class's.
-      else if (grade && Videos.gradesFor(q.grade).includes(grade)) rank = 1;
-    }
-    if (rank == null) continue;
-    ranked.push({ c, q, rank, langMiss: clampLanguage(q.language) === lang ? 0 : 1 });
+      if (grade && Videos.gradesFor(quizById.get(c.quiz_id).grade).includes(grade)) push(c, 1);
+    });
   }
   ranked.sort((a, b) => (a.rank - b.rank) || (a.langMiss - b.langMiss) || String(b.c.created_at).localeCompare(String(a.c.created_at)));
   const hit = ranked[0];
