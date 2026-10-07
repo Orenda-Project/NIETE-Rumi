@@ -753,7 +753,7 @@ Feature: Web child quiz page on the portal
     Then "You read N words in a minute!" shows at once, with the coloured story and its key
     And the recording still goes up by presigned upload and is scored the usual way, with the live numbers kept beside the score
     And when the checked count differs by 3 or more the line becomes "Jugnu listened again: M words a minute!" («جگنو نے دوبارہ سنا: ایک منٹ میں M لفظ!»)
-    And "more words than last time" compares checked counts only
+    And "more words than last time" and the bar's "last time" compare checked counts of readings in the same language only
     But a checked "nothing heard" replaces the praise with "We couldn't hear that clearly. Try again?"
 
   @T582
