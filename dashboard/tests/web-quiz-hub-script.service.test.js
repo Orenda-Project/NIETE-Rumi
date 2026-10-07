@@ -234,3 +234,14 @@ test('server render in one language, the phone\'s own hub in the other: the unlo
   expect(p.html()).toContain('السلام علیکم ثنا! آج کیا کریں؟');
   expect(p.doc).toEqual({ lang: 'ur', dir: 'rtl' });
 });
+
+test('server render in Urdu for a family, unlocked with no child picked yet: "Who is playing?" stays in the family\'s language', async () => {
+  // The bot names no child yet, so its lang is only a default; the server render's lang came from the children.
+  const p = page(LOCKED({ lang: 'ur' }), { store: { wq_d: JSON.stringify(DEV) },
+    api: { '/api/wq/hub/': { lang: 'en', kids: KIDS, kid: null, teacher: null, again: [], recs: [] } } });
+  await flush(); await flush();
+  expect(p.moment()).toBe('H1');
+  expect(p.html()).toContain('کس کی باری ہے؟');
+  expect(p.html()).not.toContain('Who is playing?');
+  expect(p.doc).toEqual({ lang: 'ur', dir: 'rtl' });
+});
