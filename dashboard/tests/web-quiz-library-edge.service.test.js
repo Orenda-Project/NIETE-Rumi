@@ -105,3 +105,33 @@ describe('web quiz edge: the library', () => {
     expect(wq).toBeGreaterThan(lib);
   });
 });
+
+describe('web quiz edge: the library page from the hub (/lib/:token)', () => {
+  let srv; let calls;
+  beforeEach(async () => {
+    calls = [];
+    srv = await start(build(async (url) => { calls.push(url); return jsonRes(200, {}); }));
+  });
+  afterEach(() => new Promise((r) => srv.close(r)));
+
+  it('renders the library shell with the hub token, the kid and the language as boot data, without calling the bot', async () => {
+    const res = await req(srv, 'GET', '/lib/eyJrIjoiaCJ9.abcdefghij_KLMNOPQR-12?kid=c1&l=ur');
+    expect(res.status).toBe(200);
+    expect(calls).toHaveLength(0);
+    const boot = JSON.parse(res.body.match(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+    expect(boot).toMatchObject({ view: 'lib', hub: 'eyJrIjoiaCJ9.abcdefghij_KLMNOPQR-12', kid: 'c1', lang: 'ur' });
+    expect(res.body).toMatch(/<html lang="ur" dir="rtl">/);
+    expect(res.body).toContain('<script src="/wq/wq-lib.js?v=');
+    expect(res.body).not.toContain('/wq/wq.js?v=');
+    expect(res.headers['cache-control']).toBe('no-cache');
+  });
+
+  it('a malformed token or kid is the closed page, never echoed', async () => {
+    const res = await req(srv, 'GET', '/lib/%3Cscript%3E?kid=c1');
+    expect(res.status).toBe(404);
+    const bad = await req(srv, 'GET', '/lib/eyJrIjoiaCJ9.abcdefghij_KLMNOPQR-12?kid=%3Cb%3E');
+    const boot = JSON.parse(bad.body.match(/<script id="boot" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+    expect(boot.kid).toBe(null);
+    expect(boot.lang).toBe('en');
+  });
+});

@@ -20,13 +20,10 @@
  * today's 8-item list (web-quiz-videos.list).
  */
 const supabase = require('../../config/supabase');
-const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const Order = require('./video-bank-order');
 
-const INDEX_TTL_MS = 10 * 60 * 1000;
-const PAGE = 1000;
 
 // The library's pictures (dashboard/public/wq/art, one-year cache: a new picture gets a new number).
 const ART_V = 1;
@@ -42,93 +39,9 @@ const gradeArt = (g) => (Order.GRADE_ORDER.includes(String(g)) ? `/wq/art/grade-
 
 const { libraryOn, FLAG_KEY } = require('./web-quiz-library-flag');
 
-// ─── the bank index ──────────────────────────────────────────────────────────
+// ─── the bank, the child, the class's codes (web-quiz-bank.js) ───────────────
 
-let index = null;     // { at, rows: [...], quizOf: Map(video_id -> quiz_id) }
-let loading = null;   // the one refresh in flight
-const background = new Set();
-function track(p) { background.add(p); p.finally(() => background.delete(p)); return p; }
-
-async function pages(build) {
-  const out = [];
-  let after = null;
-  for (let i = 0; i < 20; i += 1) {
-    let q = build();
-    if (after) q = q.gt('id', after);
-    const { data, error } = await q.order('id', { ascending: true }).limit(PAGE);
-    if (error) throw new Error(error.message || 'bank read failed');
-    out.push(...(data || []));
-    if (!data || data.length < PAGE) break;
-    after = data[data.length - 1].id;
-  }
-  return out;
-}
-
-async function loadIndex() {
-  const [rows, quizzes] = await Promise.all([
-    pages(() => supabase.from('student_videos').select('id, grade, subject, clean_chapter, clean_title, r2_url')
-      .eq('migration_status', 'done').is('superseded_by', null)),
-    pages(() => supabase.from('quizzes').select('id, video_id').eq('quiz_source', 'video').eq('status', 'ready')
-      .not('video_id', 'is', null)),
-  ]);
-  const quizOf = new Map();
-  for (const q of quizzes) if (!quizOf.has(q.video_id)) quizOf.set(q.video_id, q.id);
-  const live = rows.filter((r) => quizOf.has(r.id) && r.r2_url);
-  return { at: Date.now(), rows: live, quizOf };
-}
-
-function refresh() {
-  if (!loading) {
-    loading = loadIndex().then((ix) => { index = ix; return ix; }).finally(() => { loading = null; });
-    track(loading.catch((e) => logToFile('⚠️ web-quiz library: bank unavailable', { error: e.message })));
-  }
-  return loading;
-}
-
-/** The index: fresh, or stale while a refresh runs; the first caller of a cold process waits. */
-async function bank() {
-  if (index && Date.now() - index.at < INDEX_TTL_MS) return index;
-  if (index) { refresh(); return index; }
-  return refresh();
-}
-
-// ─── the child ───────────────────────────────────────────────────────────────
-
-const studentOfSession = new Map();
-async function studentFromSt(st, shareCodeId) {
-  const tok = st ? T.verify(st, 's') : null;
-  if (!tok || !tok.sid || tok.sc !== shareCodeId) return null;
-  if (studentOfSession.has(tok.sid)) return studentOfSession.get(tok.sid);
-  const { data } = await supabase.from('quiz_sessions').select('student_id').eq('id', tok.sid).maybeSingle();
-  const sid = (data && data.student_id) || null;
-  if (sid) {
-    if (studentOfSession.size > 5000) studentOfSession.clear();
-    studentOfSession.set(tok.sid, sid);
-  }
-  return sid;
-}
-
-async function doneQuizzes(studentId, quizIds) {
-  if (!studentId || !quizIds.length) return new Set();
-  const { data } = await supabase.from('quiz_sessions').select('quiz_id')
-    .eq('student_id', studentId).eq('status', 'completed').in('quiz_id', quizIds);
-  return new Set((data || []).map((r) => r.quiz_id));
-}
-
-/** The class's live code for each quiz: ONE query over every quiz shown. */
-async function classCodes(rootId, quizIds) {
-  if (!rootId || !quizIds.length) return new Map();
-  const { data } = await supabase.from('quiz_share_codes').select('code, quiz_id, active, expires_at, created_at')
-    .eq('parent_share_code_id', rootId).in('quiz_id', quizIds).is('invited_by_student_id', null);
-  const now = new Date();
-  const out = new Map();
-  for (const c of (data || [])) {
-    if (c.active === false || (c.expires_at && new Date(c.expires_at) <= now)) continue;
-    const had = out.get(c.quiz_id);
-    if (!had || String(c.created_at || '') > String(had.created_at || '')) out.set(c.quiz_id, c);
-  }
-  return new Map([...out].map(([k, v]) => [k, v.code]));
-}
+const { bank, track, studentFromSt, doneQuizzes, classCodes } = require('./web-quiz-bank');
 
 // ─── the views ───────────────────────────────────────────────────────────────
 
@@ -147,7 +60,7 @@ function subjectsView(ix, grade) {
   return { grade, grades, subjects };
 }
 
-async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl }) {
+async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl, hubKid }) {
   const Videos = require('./web-quiz-videos');
   const Media = require('./web-quiz-media');
   const rows = ix.rows.filter((r) => String(r.grade) === grade && r.subject === subject).sort(Order.compareVideos);
@@ -168,7 +81,11 @@ async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl }
     if (m && m.bytes) v.mb = Math.round(m.bytes / 100000) / 10;
     if (posters[i]) v.poster = posters[i];
     if (done.has(qid)) v.done = true;
-    if (codes.has(qid)) v.code = codes.get(qid);
+    if (codes.has(qid)) {
+      v.code = codes.get(qid).code;
+      // From the hub: the child's chip on that code, so /q/<code>?k=<k> starts as them.
+      if (hubKid && studentId) v.k = T.chipId(codes.get(qid).id, studentId);
+    }
     const name = r.clean_chapter || '';
     const last = chapters[chapters.length - 1];
     if (last && last.name.toLowerCase() === name.toLowerCase()) last.videos.push(v);
@@ -179,11 +96,11 @@ async function chaptersView(ix, { grade, subject, studentId, rootId, fetchImpl }
   return { grade, subject, art: subjectArt(subject), chapters };
 }
 
-async function view(ix, { grade, g, s, studentId, rootId, fetchImpl }) {
+async function view(ix, { grade, g, s, studentId, rootId, fetchImpl, hubKid }) {
   const want = Order.GRADE_ORDER.includes(String(g || '').toUpperCase()) ? String(g).toUpperCase() : grade;
   if (!want) return { grade: null, grades: subjectsView(ix, '').grades, subjects: [] };
   if (!s) return subjectsView(ix, want);
-  return chaptersView(ix, { grade: want, subject: String(s).slice(0, 60), studentId, rootId, fetchImpl });
+  return chaptersView(ix, { grade: want, subject: String(s).slice(0, 60), studentId, rootId, fetchImpl, hubKid });
 }
 
 /** A grade band's quiz ("3-5", 38% of quizzes): the child's own grade when it is inside the band. */
@@ -246,7 +163,7 @@ async function libHub(token, { kid, g, s, fetchImpl } = {}) {
   const Videos = require('./web-quiz-videos');
   const ix = await bank();
   const grade = Videos.gradesFor(who.grade)[0] || null;
-  const out = await view(ix, { grade, g, s, studentId: who.studentId || null, rootId: who.rootId || null, fetchImpl });
+  const out = await view(ix, { grade, g, s, studentId: who.studentId || null, rootId: who.rootId || null, fetchImpl, hubKid: true });
   logEvent('web_quiz.lib_view', { hub: 1, g: out.grade, s: out.subject || undefined });
   return out;
 }
@@ -281,6 +198,6 @@ async function download(code, { st, vid } = {}) {
 
 module.exports = {
   lib, libHub, download, fileName, libraryOn, subjectArt, gradeArt, FLAG_KEY,
-  _reset: () => { index = null; loading = null; require('./web-quiz-library-flag')._reset(); studentOfSession.clear(); },
-  _idle: async () => { while (background.size) await Promise.all([...background]); },
+  _reset: () => { require('./web-quiz-bank')._reset(); require('./web-quiz-library-flag')._reset(); },
+  _idle: () => require('./web-quiz-bank')._idle(),
 };

@@ -273,7 +273,18 @@ describe('hub(): challenge and library', () => {
     const token = T.signHub([KID]);
     const out = await Hub.hub(token);
     expect(out.challenge).toMatchObject({ on: true });
-    expect(out.lib.href).toBe(`/lib/${token}?kid=${chipH(KID)}`);
+    expect(out.lib.href).toBe(`/lib/${token}?kid=${chipH(KID)}&l=en`);
+  });
+
+  test('the library link carries the child\'s language, so an Urdu child gets the Urdu library', async () => {
+    seed({ app_settings: [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_library', value: 'true' }] });
+    db.quiz_share_codes.forEach((c) => { c.language = 'ur'; });
+    db.quizzes.forEach((q) => { q.language = 'ur'; });
+    Hub._resetCache();
+    const token = T.signHub([KID]);
+    const out = await Hub.hub(token);
+    expect(out.lang).toBe('ur');
+    expect(out.lib.href).toBe(`/lib/${token}?kid=${chipH(KID)}&l=ur`);
   });
 
   test('library off: the child\'s newest open quiz, under that code\'s chip', async () => {

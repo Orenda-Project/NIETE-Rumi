@@ -241,6 +241,23 @@ function renderHubPage({ payload, token, origin, assetV }) {
 </html>`;
 }
 
+// M4b library: the video library opened from the kid's hub (/lib/<hub token>?kid=<chip>&l=<lang>).
+// A shell only: wq-lib.js asks the bot for the library with the hub token, so the edge calls nothing.
+const LIB_TITLE = { en: 'Video library', ur: 'ویڈیو لائبریری' };
+function renderLibPage({ hub, kid, lang, origin, assetV, brandKey }) {
+  const l = lang === 'ur' ? 'ur' : 'en';
+  const brand = brandOf(brandKey || WebQuizBrand.brandKey({ orgName: process.env.ORG_NAME, botName: process.env.BOT_NAME }));
+  const boot = { view: 'lib', hub, kid, lang: l, brand: Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, brandKey) ? brandKey : null };
+  return `${head({ lang: l, dir: l === 'ur' ? 'rtl' : 'ltr', title: LIB_TITLE[l], desc: LIB_TITLE[l], origin, url: origin, assetV, brand })}
+</head>
+<body>
+<main id="wq" class="wq-app"><div class="wq-bar wq-topbar">${lockupHtml(brand, l)}</div><div id="wql-root" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"></div></div></main>
+<script id="boot" type="application/json">${bootJson(boot)}</script>
+<script src="/wq/wq-lib.js?v=${assetV}" defer></script>
+</body>
+</html>`;
+}
+
 function renderClosedPage({ lang, kind, origin, assetV, brandKey }) {
   const l = lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(brandKey || WebQuizBrand.brandKey({ orgName: process.env.ORG_NAME, botName: process.env.BOT_NAME }));
@@ -533,6 +550,17 @@ function createWebQuizRouter(opts = {}) {
     }
   });
 
+  // M4b library
+  router.get('/lib/:token', limiters.read, (req, res) => {
+    pageHeaders(res);
+    const origin = originOf(req);
+    const token = String(req.params.token || '');
+    if (!TOKEN_RX.test(token)) return res.status(404).type('html').send(renderClosedPage({ lang: 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand }));
+    const kid = typeof req.query.kid === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(req.query.kid) ? req.query.kid : null;
+    const lang = req.query.l === 'ur' || req.query.lang === 'ur' ? 'ur' : 'en';
+    return res.status(200).type('html').send(renderLibPage({ hub: token, kid, lang, origin, assetV: version(), brandKey: lastBrand }));
+  });
+
   router.get('/wq-probe', (req, res) => {
     pageHeaders(res);
     res.type('html').sendFile(PROBE_FILE);
@@ -544,4 +572,4 @@ function createWebQuizRouter(opts = {}) {
 }
 
 
-module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderClosedPage, renderChallengePage, bootJson, renderHubPage };
+module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderClosedPage, renderChallengePage, renderLibPage, bootJson, renderHubPage };
