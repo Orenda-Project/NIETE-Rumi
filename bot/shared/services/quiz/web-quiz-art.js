@@ -15,7 +15,7 @@
  *
  * Drawn once per content: the facts (not the HTML, which carries megabytes of
  * fonts) are hashed with the template version into the R2 key
- * wq-art/<hash>.jpg. A cache miss draws, uploads and serves; R2 failing never
+ * wq-art/<hash>.jpg. A cache miss draws and serves, and uploads in the background; R2 failing never
  * stops the picture, it is only drawn again next time. A small in-process map
  * answers repeat fetches (a group's previews arrive together) without R2.
  */
@@ -277,7 +277,11 @@ async function artImageNow(id, { size = 'og' } = {}) {
     from = 'drawn';
     bytes = await draw(input);
     logToFile('web-quiz art drawn', { kind: input.kind, size: sz, ms: Date.now() - d0, kb: Math.round(bytes.length / 1024) });
-    try { await r2.uploadBuffer(bytes, key, 'image/jpeg'); } catch (e) { logToFile('⚠️ web-quiz art: R2 upload failed', { error: e.message }); }
+    // R2 is the next process's cache: it fills in the background, so the picture (and a link preview waiting on
+    // it) never waits for the upload (~1 s on sandbox).
+    const up = bytes;
+    Promise.resolve().then(() => r2.uploadBuffer(up, key, 'image/jpeg'))
+      .catch((e) => logToFile('⚠️ web-quiz art: R2 upload failed', { error: (e && e.message) || 'error' }));
   }
   remember(key, bytes);
   byId.set(`${id}|${sz}`, { key, until: Date.now() + BY_ID_MS[p.kind] });
