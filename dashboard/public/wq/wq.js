@@ -2053,6 +2053,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     }).catch(function () {});
   }
 
+  // A picture only a link preview shows (never shared as a file): fetched once so it is drawn before WhatsApp asks.
+  function warmPreviewArt(kind, id) {
+    if (!id || ART[id]) return;
+    ART[id] = { kind: kind, file: null };
+    try { fetch(artUrl(id)).catch(function () {}); } catch (e) { /* the preview draws on first ask */ }
+  }
+
   // The sender's WhatsApp builds the link preview before the message goes: a HEAD now teaches the edge each
   // link the card offers (a challenge code is new at finish), so that preview never waits for the whole quiz.
   var WARMED = {};
@@ -2368,6 +2375,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // ?v=<finishers>: WhatsApp caches a preview per URL, so a group that shared the table earlier would see an old one.
       var tArt = (S.result && S.result.art && S.result.art.class) || (B.art && B.art.class) || null;
       warmArt('class', tArt);
+      // The shared /class link previews the CLASS picture (nobody named), not the child's own: drawn now too, so the
+      // sender's WhatsApp finds it ready instead of waiting for a draw.
+      warmPreviewArt('class', B.art && B.art.class);
       on('#wq-share-t', function () { share(T.tableLine(Q.topic, CLASS_LABEL), link('/q/' + CODE + '/class' + (b.finishers_n ? '?v=' + b.finishers_n : '')), 'table', tArt); });
       on('#wq-schools', function () { schools(board); });
       on('#wq-next', history);

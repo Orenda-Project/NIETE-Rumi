@@ -1211,3 +1211,10 @@ Feature: Web child quiz page on the portal
     When its read-aloud clips are recorded
     Then no clip is recorded for a question or option the bank already voices, and options are all recorded or all generated within a question
     And a lone letter is read by its name ("letter s", «عین»), and a fill-in blank is a pause, never "underscore" or "dash"
+
+  @T625
+  Scenario: The class table's shared link previews with its picture already drawn
+    Given a child who has finished opens the class table, in English or Urdu
+    When the child taps "Share the table" and sends the link from WhatsApp
+    Then the link preview's class picture (places, animals, scores, nobody named) was drawn when the table opened
+    And WhatsApp's fetch of that picture is answered without waiting for a draw, while the child's own "(me)" picture is still the one shared as a file
