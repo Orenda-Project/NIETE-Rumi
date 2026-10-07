@@ -1217,3 +1217,10 @@ Feature: Web child quiz page on the portal
     Given a question whose stem holds a long run with no spaces, like "quantity,quality,shape,color,size", or options with long words and their own speaker
     When a child opens it on a 360x740 phone, in English or Urdu
     Then the words break inside the card, the page never scrolls sideways, and the question's speaker stays on the screen
+
+  @T625
+  Scenario: The class table's shared link previews with its picture already drawn
+    Given a child who has finished opens the class table, in English or Urdu
+    When the child taps "Share the table" and sends the link from WhatsApp
+    Then the link preview's class picture (places, animals, scores, nobody named) was drawn when the table opened
+    And WhatsApp's fetch of that picture is answered without waiting for a draw, while the child's own "(me)" picture is still the one shared as a file
