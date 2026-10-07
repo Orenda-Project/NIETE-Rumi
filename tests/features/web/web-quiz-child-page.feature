@@ -1157,3 +1157,8 @@ Feature: Web child quiz page on the portal
     And the stars of a 7-question score stay on one row
     When the same hub link is opened on another phone
     Then the lock screen says to finish your own quiz and tap "My quizzes, videos and challenges", and also how to get a new link with /quiz
+  Scenario: A child who taps Share the moment the scorecard appears still sends the picture
+    Given a child has just finished a quiz on a slow connection
+    When the scorecard appears and the child taps "Share to class group" or "Challenge a friend" straight away
+    Then the card and invite pictures were already drawn when the quiz finished, so the link preview shows the picture
+    And the finish itself is never slower for it, and a picture that cannot be drawn never stops the scorecard

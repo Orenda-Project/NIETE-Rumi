@@ -185,7 +185,26 @@ async function facts(kind, ref) {
 
 // ─── draw + cache ───────────────────────────────────────────────────────────
 
+// Every draw is a headless-browser render in the one bot process that also serves WhatsApp: at most DRAW_MAX at
+// once (a class finishing together asks for many pictures), the rest wait their turn.
+const DRAW_MAX = 2;
+let drawing = 0;
+const turns = [];
+async function drawTurn(fn) {
+  if (drawing >= DRAW_MAX) await new Promise((r) => turns.push(r));
+  drawing += 1;
+  try { return await fn(); } finally {
+    drawing -= 1;
+    const next = turns.shift();
+    if (next) next();
+  }
+}
+
 async function draw(input) {
+  return drawTurn(() => drawNow(input));
+}
+
+async function drawNow(input) {
   const sharp = getSharp();
   const { htmlToImage } = require('../../utils/html-to-pdf');
   const [w, h] = SIZES[input.size];
@@ -208,7 +227,19 @@ function served(input, t0, from) {
   logEvent('web_quiz.art_served', { kind: input.kind, size: input.size, ms: Date.now() - t0, from });
 }
 
-async function artImage(id, { size = 'og' } = {}) {
+// A picture being drawn right now: a second caller (the scorecard, a moment after the finish asked) waits for the
+// same draw instead of starting another.
+const inflight = new Map();
+
+function artImage(id, { size = 'og' } = {}) {
+  const k = `${id}|${SIZES[size] ? size : 'og'}`;
+  if (inflight.has(k)) return inflight.get(k);
+  const p = artImageNow(id, { size }).finally(() => inflight.delete(k));
+  inflight.set(k, p);
+  return p;
+}
+
+async function artImageNow(id, { size = 'og' } = {}) {
   const t0 = Date.now();
   const p = parseArtId(id);
   if (!p) notFound();
