@@ -181,8 +181,8 @@ html[lang=ur] .wq-jhelp{font-weight:600;line-height:1.9}
 .wq-stars{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
 .wq-star{width:40px;height:40px}
 /* On the score card the stars keep ONE row (a 7- or 10-question quiz wrapped to two and pushed the card's actions below a phone's first screen): each shrinks from 40px to fit. */
-.wq-scorecard .wq-stars{flex-wrap:nowrap}
-.wq-scorecard .wq-star{flex:0 1 40px;min-width:0;height:auto;aspect-ratio:1}
+.wq-scorecard .wq-stars{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,40px);justify-content:center;gap:6px}
+.wq-scorecard .wq-star{width:100%;height:auto;aspect-ratio:1}
 .wq-star path{fill:var(--star-off)}
 .wq-star.wq-on path{fill:var(--star);stroke:var(--star-d);stroke-width:1}
 /* a league / my-scores row: the score, then its stars small enough for 10 on a 360 px row */
