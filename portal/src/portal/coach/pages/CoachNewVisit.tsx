@@ -6,7 +6,7 @@ import { COACH_COPY as C } from "../copy";
 import {
   CoachPage, Card, SectionLabel, Chip, Initials, RowText, Stats, SearchBox, StepBar, BottomButton, BottomLink, Loading, Failed, useLoad, personMatches, Chevron, formatPhone, IconTile,
 } from "../ui";
-import { DEFAULT_TIME, formatSlot, fromSlot, isAllowedSlot, localDay, pickHour, stepHour, toSlot, type VisitTime } from "../time";
+import { DEFAULT_TIME, formatSlot, fromSlot, isAllowedSlot, karachiDay, localDay, pickHour, stepHour, toSlot, type VisitTime } from "../time";
 import type { CoachSchool, CoachTeacher } from "../types";
 
 /**
@@ -33,16 +33,10 @@ function bySince<T extends { daysSinceVisit: number | null }>(a: T, b: T) {
   return b.daysSinceVisit - a.daysSinceVisit;
 }
 
-/** Seven days from today + `offset` days. */
+/** Seven days from today (in Pakistan, bd-o15qnr.23) + `offset` days. */
 function weekFrom(offset: number) {
-  const out: string[] = [];
-  const d = new Date();
-  d.setDate(d.getDate() + offset);
-  for (let i = 0; i < 7; i += 1) {
-    out.push(localDay(d));
-    d.setDate(d.getDate() + 1);
-  }
-  return out;
+  const start = karachiDay();
+  return Array.from({ length: 7 }, (_, i) => shiftDay(start, offset + i));
 }
 
 function shiftDay(day: string, by: number) {
@@ -150,7 +144,7 @@ function TimeStep({ teacher, schoolName, visitId, initialSlot, onDone }: {
   teacher: CoachTeacher | undefined; schoolName: string | null; visitId: string | null; initialSlot: string | null;
   onDone: (when: { date: string; slot: string }) => void;
 }) {
-  const today = localDay();
+  const today = karachiDay(); // bd-o15qnr.23: the day in Pakistan
   const [week, setWeek] = useState(0);
   const [date, setDate] = useState(today);
   const days = weekFrom(week * 7);

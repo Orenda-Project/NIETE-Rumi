@@ -4,7 +4,7 @@ import { CalendarDays, Clock, MapPin, Phone, User, X } from "lucide-react";
 import { coach, leader } from "../../services/api";
 import { COACH_COPY as C } from "../copy";
 import { CoachPage, Card, SectionLabel, Chip, Initials, Loading, Failed, useLoad, Chevron, formatPhone } from "../ui";
-import { formatSlot, hoursUntil, localDay } from "../time";
+import { formatSlot, hoursUntil, karachiDay } from "../time";
 import type { LastVisit } from "../types";
 
 /**
@@ -89,7 +89,7 @@ const CoachVisit = () => {
   const [cancelling, setCancelling] = useState(false);
   const visit = data?.visit;
   const teacher = data?.teacher;
-  const today = localDay();
+  const today = karachiDay(); // bd-o15qnr.23: the day in Pakistan
 
   const rescheduleLink = () => {
     const qs = new URLSearchParams({

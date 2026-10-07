@@ -76,13 +76,30 @@ export function localDay(d: Date = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** Whole hours from now until today's "HH:MM" slot (negative once it has passed); null for no time. */
+const PK_DAY = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", year: "numeric", month: "2-digit", day: "2-digit" });
+
+/**
+ * bd-o15qnr.23 — today as a coach in Pakistan counts it: YYYY-MM-DD in
+ * Asia/Karachi, whatever the phone's own zone. The one rule for "past",
+ * "overdue" and "today" on a visit; the server's lib/visit-time karachiToday is
+ * its twin. (localDay stays for plain day arithmetic.)
+ */
+export function karachiDay(now: Date = new Date()): string {
+  const parts = PK_DAY.formatToParts(now);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value || "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+/**
+ * Whole hours from now until today's "HH:MM" slot (negative once it has passed); null for no time.
+ * The slot is Pakistan's wall clock (UTC+5 all year, no daylight saving), on Pakistan's today.
+ */
 export function hoursUntil(slot: string | null | undefined, now: Date = new Date()): number | null {
   const m = /^(\d{2}):(\d{2})$/.exec(String(slot || ""));
   if (!m) return null;
-  const at = new Date(now);
-  at.setHours(Number(m[1]), Number(m[2]), 0, 0);
-  return Math.round((at.getTime() - now.getTime()) / 3600000);
+  const [y, mo, d] = karachiDay(now).split("-").map(Number);
+  const at = Date.UTC(y, mo - 1, d, Number(m[1]) - 5, Number(m[2]));
+  return Math.round((at - now.getTime()) / 3600000);
 }
 
 /**

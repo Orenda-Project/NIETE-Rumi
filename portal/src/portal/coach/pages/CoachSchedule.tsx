@@ -3,7 +3,7 @@ import { Check, Clock, Plus } from "lucide-react";
 import { coach } from "../../services/api";
 import { COACH_COPY as C } from "../copy";
 import { CoachPage, Card, SectionLabel, Chip, TimeTile, RowText, TapRow, BottomLink, Loading, Failed, useLoad } from "../ui";
-import { localDay } from "../time";
+import { karachiDay } from "../time";
 import type { CoachVisit } from "../types";
 
 /**
@@ -39,7 +39,7 @@ function VisitRow({ v, today }: { v: CoachVisit; today: string }) {
 }
 
 const CoachSchedule = () => {
-  const today = localDay();
+  const today = karachiDay(); // bd-o15qnr.23: the day in Pakistan
   const { data, failed, reload } = useLoad(() => coach.getSchedule(), []);
   const [picked, setPicked] = useState<string | null>(null);
 
