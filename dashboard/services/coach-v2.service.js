@@ -625,6 +625,21 @@ async function getCoachHome(query, leaderUserId, opts = {}) {
   };
 }
 
+/**
+ * bd-o15qnr.21 — what waits on HER (the pending banner on every v2 page): the
+ * observations at the Feedback Form (draft) or Debrief (talk) step — Home's own
+ * waiting rule — newest first, with their ids. The existing COACH_SESSIONS
+ * query only; nothing new is read.
+ */
+async function getCoachPending(query, leaderUserId) {
+  const { rows } = await query(SQL.COACH_SESSIONS, [leaderUserId]);
+  const ids = (rows || [])
+    .filter((r) => !DEAD_STATUSES.includes(r.status))
+    .filter((r) => { const st = stepOf(r); return st === 'draft' || st === 'talk'; })
+    .map((r) => r.id);
+  return { waiting: ids.length, ids };
+}
+
 /** One schedule entry of hers, with the teacher's numbers; null for anyone else's. */
 async function getCoachVisit(query, leaderUserId, scheduleId, opts = {}) {
   const today = opts.today || new Date().toISOString().slice(0, 10);
@@ -749,6 +764,7 @@ module.exports = {
   getCoachSchool,
   getCoachTeacher,
   getCoachObservation,
+  getCoachPending,
   getCoachSchedule,
   getCoachHome,
   getCoachVisit,
