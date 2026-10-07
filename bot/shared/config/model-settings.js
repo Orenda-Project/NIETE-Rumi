@@ -219,12 +219,42 @@ function isCurrent() {
   return readOnce && !isTooOld();
 }
 
+/** The in-flight read a call has already waited the full bound for (bd-gr4fy.14). */
+let waitedOut = null;
+
+/**
+ * Read the table now when the cache is stale AND not current, waiting at most LLM_SETTINGS_FRESH_WAIT_MS
+ * (default 1500 ms), for an async caller about to act on the settings (bd-gr4fy.14). Without it the call that
+ * finds the answer too old (a quiet process, one busy on a call longer than two minutes, a fresh process)
+ * runs on its own model even with an override in force. A read that does not land in time changes nothing
+ * for this call. An outage costs one bounded wait per read, never one per call: a read that fails stamps the
+ * cache (bd-dsr9l), and a read that hangs is waited out once, after which the calls behind it go straight on
+ * until it settles. Never throws (refresh() never rejects).
+ */
+async function ensureCurrent() {
+  if (isCurrent() || !isStale()) return;
+  refresh(); // starts the read, or joins the one in flight; never rejects
+  // The shared read itself: refresh() is async, so each call hands back a new promise around it.
+  const read = inFlight;
+  if (!read || read === waitedOut) return;
+  const waitMs = Number(process.env.LLM_SETTINGS_FRESH_WAIT_MS) || 1500;
+  let timer;
+  const bound = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(true), waitMs);
+    if (timer.unref) timer.unref();
+  });
+  const timedOut = await Promise.race([read.then(() => false), bound]);
+  clearTimeout(timer);
+  if (timedOut) waitedOut = read;
+}
+
 /** What the last successful read dropped, and why. */
 function rejectedEntries() { return lastRejected; }
 
 /** Tests only. */
-function _reset() { cache = null; readOnce = false; lastRejected = []; }
+function _reset() { cache = null; readOnce = false; lastRejected = []; waitedOut = null; }
 
 module.exports = {
-  refresh, currentConfig, configForRequest, isStale, isCurrent, rejectedEntries, KEYS, KEY_MAP, TTL_MS, _reset,
+  refresh, currentConfig, configForRequest, isStale, isCurrent, ensureCurrent, rejectedEntries, KEYS, KEY_MAP,
+  TTL_MS, _reset,
 };

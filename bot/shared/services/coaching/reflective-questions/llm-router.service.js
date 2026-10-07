@@ -83,14 +83,31 @@ const getOpenRouter = () => {
 
 // bd-gr4fy.8: both models live in the registry: the job's model, and its frozen fallback, which
 // this ladder fails over to. Read per call, so a changed default needs no restart of this module.
+//
+// bd-gr4fy.12: two jobs run on this ladder, each with its own registry entry, so each can move to the
+// model that serves it best without dragging the other: the reflective QUESTION, and the CORPUS of
+// moments it is built from. Measured on real lessons they want different models.
 const { modelFor, fallbackForJob } = require('../../../config/model-registry');
-const primaryModel = () => modelFor('coaching.questionRouter');
-const retryModel = () => fallbackForJob('coaching.questionRouter');
+const STEPS = {
+  question: {
+    job: 'coaching.questionRouter',
+    primary: () => modelFor('coaching.questionRouter'),
+    retry: () => fallbackForJob('coaching.questionRouter'),
+  },
+  corpus: {
+    job: 'coaching.reflectiveCorpus',
+    primary: () => modelFor('coaching.reflectiveCorpus'),
+    retry: () => fallbackForJob('coaching.reflectiveCorpus'),
+  },
+};
 
+// When the per-job override answered, the seam says which model it was (usage.job_override.to); name that
+// one, not the ladder's own model (bd-gr4fy.13). When the override fell back, the ladder's model answered.
+const answeredBy = (r) => (r && r.usage && r.usage.job_override && r.usage.job_override.to) || null;
 const tag = (r, model_used) => ({
   content: r.choices[0].message.content,
   usage: r.usage,
-  model_used,
+  model_used: answeredBy(r) || model_used,
 });
 
 // True only when OUR per-attempt deadline fired (provider too slow / stalled) — NOT for a
@@ -100,15 +117,18 @@ const isOurTimeout = (e) =>
 
 /**
  * @param {Array} messages  OpenAI-style chat messages.
- * @param {object} opts      { maxTokens=2000, temperature=0.7, timeoutMs=150000 }
+ * @param {object} opts      { maxTokens=2000, temperature=0.7, timeoutMs=150000, step='question' }
+ *                           step: 'question' (coaching.questionRouter) | 'corpus' (coaching.reflectiveCorpus)
  * @returns {Promise<{content:string, usage:object, model_used:string}>}
  */
-async function callReflective(messages, { maxTokens = 2000, temperature = 0.7, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+async function callReflective(messages, { maxTokens = 2000, temperature = 0.7, timeoutMs = DEFAULT_TIMEOUT_MS, step = 'question' } = {}) {
+  const ladder = STEPS[step];
+  if (!ladder) throw new Error(`callReflective: unknown step "${step}"`);
   const attempt = (model, extra = {}) =>
     getOpenRouter().chat.completions.create(
       {
         model,
-        job: 'coaching.questionRouter',
+        job: ladder.job,
         messages,
         response_format: { type: 'json_object' },
         max_tokens: maxTokens,
@@ -118,32 +138,35 @@ async function callReflective(messages, { maxTokens = 2000, temperature = 0.7, t
       { timeout: timeoutMs },
     );
 
-  // 1) Primary: DeepSeek V3.2
+  // 1) Primary: DeepSeek V3.2. A per-job override, if one is in force, applies HERE only, with this step's
+  //    model behind it (the seam's own fallback). The retries below skip it (bd-gr4fy.13): trying the override
+  //    on every rung turned one failing override into six calls at the full timeout.
   try {
-    return tag(await attempt(primaryModel(), { temperature }), primaryModel());
+    return tag(await attempt(ladder.primary(), { temperature }), ladder.primary());
   } catch (e1) {
     // Our deadline fired → the routed provider is too slow; retrying V3.2 risks another
     // slow provider, so go straight to the (fast) GPT-5.4 failover.
     if (isOurTimeout(e1)) {
-      logToFile('[refl-q] V3.2 timed out → straight to GPT-5.4 (skip V3.2 retry)', { err: e1.message, timeoutMs });
-      return tag(await attempt(retryModel()), 'gpt-5.4-fallback');
+      logToFile('[refl-q] V3.2 timed out → straight to GPT-5.4 (skip V3.2 retry)', { err: e1.message, timeoutMs, step });
+      return tag(await attempt(ladder.retry(), { skipJobOverride: true }), 'gpt-5.4-fallback');
     }
-    logToFile('[refl-q] V3.2 error, retrying once', { err: e1.message });
+    logToFile('[refl-q] V3.2 error, retrying once', { err: e1.message, step });
     // 2) One transient retry on V3.2 (rate-limit / 5xx / socket blip)
     try {
-      return tag(await attempt(primaryModel(), { temperature }), `${primaryModel()}-retry`);
+      return tag(await attempt(ladder.primary(), { temperature, skipJobOverride: true }), `${ladder.primary()}-retry`);
     } catch (e2) {
-      logToFile('[refl-q] V3.2 failed twice → failover GPT-5.4', { err: e2.message });
+      logToFile('[refl-q] V3.2 failed twice → failover GPT-5.4', { err: e2.message, step });
       // 3) Failover: GPT-5.4 (omit temperature — gpt-5.x rejects it)
-      return tag(await attempt(retryModel()), 'gpt-5.4-fallback');
+      return tag(await attempt(ladder.retry(), { skipJobOverride: true }), 'gpt-5.4-fallback');
     }
   }
 }
 
 module.exports = {
   callReflective,
-  get PRIMARY_MODEL() { return primaryModel(); },
-  get FALLBACK_MODEL() { return retryModel(); },
+  // The question step's models, as before the split.
+  get PRIMARY_MODEL() { return STEPS.question.primary(); },
+  get FALLBACK_MODEL() { return STEPS.question.retry(); },
   DEFAULT_TIMEOUT_MS,
   PROVIDER_ROUTING,
 };
