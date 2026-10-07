@@ -422,7 +422,8 @@ function readSettings() {
     // eslint-disable-next-line global-require
     const settings = require('../config/model-settings');
     const cfg = settings.configForRequest() || {};
-    return { cfg, known: settings.hasRead(), rejected: settings.rejectedEntries(), error: null };
+    // `isCurrent`: read, and not too old to move a job on (bd-gr4fy.11).
+    return { cfg, known: settings.isCurrent(), rejected: settings.rejectedEntries(), error: null };
   } catch (err) {
     return { cfg: {}, known: false, rejected: [], error: String((err && err.message) || err).slice(0, 200) };
   }
