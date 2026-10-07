@@ -82,3 +82,13 @@ test('the kid hub route is mounted behind the key; a forged hub token is 401', a
   expect(r.status).toBe(401);
   expect(await r.json()).toEqual({ error: 'bad_token' });
 });
+
+test('POST /hub/:token hands the body\'s kid and device_ref to the hub (the page\'s own call; never the URL)', async () => {
+  const Hub = require('../../../shared/services/quiz/web-quiz-hub');
+  const spy = jest.spyOn(Hub, 'hub').mockResolvedValue({ locked: true, kids: [] });
+  try {
+    const r = await fetch(`${base}/hub/abc.def`, { method: 'POST', headers: KEY, body: JSON.stringify({ kid: '0123456789abcdef', device_ref: 'DevRefDevRefDevRef_-01' }) });
+    expect(r.status).toBe(200);
+    expect(spy).toHaveBeenCalledWith('abc.def', { kid: '0123456789abcdef', device: 'DevRefDevRefDevRef_-01' });
+  } finally { spy.mockRestore(); }
+});

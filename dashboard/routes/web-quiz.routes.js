@@ -74,6 +74,7 @@ const API_ROUTES = [
   { method: 'get', path: '/api/wq/lib/h/:token', limiter: 'read', token: true },
   { method: 'get', path: '/api/wq/lib/:code', limiter: 'read' },
   { method: 'get', path: '/api/wq/videos/dl/:code', limiter: 'read' },
+  { method: 'post', path: '/api/wq/hub/:token', limiter: 'read' },
 ];
 
 // The shell's line under Jugnu, shown until wq.js boots (seconds on slow 4G), so the page never reads as stuck.

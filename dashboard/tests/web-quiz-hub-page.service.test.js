@@ -95,3 +95,17 @@ test('an expired link on an Urdu phone (Accept-Language ur): the closed page in 
   const en = await req(srv, `/h/${TOKEN}`, { 'accept-language': 'en-GB,en;q=0.9' });
   expect(en.body).toContain('This link has expired');
 });
+
+test('POST /api/wq/hub/:token (the page, with this phone\'s device_ref in the body) is forwarded to the bot, body intact', async () => {
+  const body = JSON.stringify({ kid: '0123456789abcdef', device_ref: 'DevRefDevRefDevRef_-01' });
+  const r = await new Promise((resolve, reject) => {
+    const q = http.request({ host: '127.0.0.1', port: srv.address().port, path: `/api/wq/hub/${TOKEN}`, method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) } }, (res) => {
+      let out = ''; res.on('data', (c) => { out += c; }); res.on('end', () => resolve({ status: res.statusCode, body: out }));
+    });
+    q.on('error', reject); q.end(body);
+  });
+  expect(r.status).toBe(200);
+  expect(calls[0].url).toBe(`${BOT}/api/internal/wq/hub/${TOKEN}`);
+  expect(calls[0].opts.method).toBe('POST');
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ kid: '0123456789abcdef', device_ref: 'DevRefDevRefDevRef_-01' });
+});

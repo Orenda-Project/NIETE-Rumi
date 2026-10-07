@@ -16,6 +16,13 @@
  *   hubLink(studentIds)    `<portal>/h/<token>` when the hub is on, else null
  *   kidOf(token, kid)      the student id a hub chip names
  *   kidFromHub(token, kid) {studentId, grade, rootId} for the library / challenge routes
+ *   deviceTrusted(token, device)  may this phone (device_ref) see the children's names?
+ *
+ * A FORWARDED LINK NAMES NOBODY. The hub token is bound to the first phone (device_ref)
+ * that opens it — Redis SET NX for the token's life — and a phone that has already played
+ * as one of its children is trusted too. Any other phone, a request with no device (the
+ * server render) or Redis down gets `locked: true` with no names, no history and no chips:
+ * the page asks for the child the link was sent to. Fail closed, never a silent play.
  *
  * Teacher card: (a) a teacher-sent code this child opened and has not finished,
  * still open; else (b) an open code from the last 7 days, of the child's grade,
@@ -33,6 +40,7 @@ const T = require('./web-quiz-token');
 const Videos = require('./web-quiz-videos');
 const Order = require('./video-bank-order');
 const Flags = require('./web-quiz-hub-flags');
+const crypto = require('crypto');
 const { clampLanguage } = require('../../config/ux-strings');
 
 const AGAIN_MAX = 6;
@@ -63,6 +71,44 @@ function kidOf(token, kid) {
   const tok = T.verify(token, 'h');
   if (!tok || !Array.isArray(tok.ids) || !kid) return null;
   return tok.ids.map(String).find((id) => kidChip(id) === String(kid)) || null;
+}
+
+const BIND_PREFIX = 'wq:hub:dev:';
+const bindKey = (token) => BIND_PREFIX + crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32);
+
+/** Has this phone (device_ref) ever played as one of these children (any code)? */
+async function deviceKnows(studentIds, deviceRef) {
+  try {
+    const { data } = await supabase.from('quiz_sessions').select('id').in('student_id', studentIds).eq('device_ref', deviceRef).limit(1);
+    return Boolean(data && data.length);
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * May this phone see the hub's children? {ok, why}. A phone the children played on, or the
+ * first phone that opens this link (bound for the token's life). No device, a foreign one,
+ * or Redis down for an unknown one: not trusted.
+ */
+async function deviceTrusted(token, device) {
+  const tok = T.verify(token, 'h');
+  if (!tok || !Array.isArray(tok.ids) || !tok.ids.length) return { ok: false, why: 'bad_token' };
+  const d = T.cleanDeviceRef(device);
+  if (!d) return { ok: false, why: 'no_device' };
+  if (await deviceKnows(tok.ids.map(String), d)) return { ok: true, why: 'played' };
+  const redis = require('../cache/railway-redis.service');
+  if (!redis || typeof redis.isAvailable !== 'function' || !redis.isAvailable()) return { ok: false, why: 'no_store' };
+  const key = bindKey(token);
+  const ttl = Math.max(60, tok.exp - Math.floor(Date.now() / 1000));
+  try {
+    await redis.setNX(key, d, ttl);
+    // Read back: setNX answers "claimed" when Redis errors, so only the stored value decides.
+    const bound = await redis.get(key);
+    return bound === d ? { ok: true, why: 'bound' } : { ok: false, why: bound ? 'other_device' : 'no_store' };
+  } catch (_) {
+    return { ok: false, why: 'no_store' };
+  }
 }
 
 /**
@@ -219,13 +265,31 @@ async function brandKey() {
   }
 }
 
+/** A phone that may not see the children: their language only, never a name, a chip or a quiz. */
+async function lockedHub(ids, why) {
+  let lang = 'en';
+  try {
+    const { data: rows } = await supabase.from('students').select('id, is_active').in('id', ids);
+    const live = (rows || []).filter((r) => r.is_active !== false);
+    if (live.length) {
+      const StudentQuiz = require('./student-quiz.service');
+      const history = await StudentQuiz.quizzesForStudents(live);
+      lang = clampLanguage(history[0] && history[0].language);
+    }
+  } catch (_) { /* English */ }
+  logEvent('web_quiz.hub_locked', { kids: ids.length, why });
+  return { lang, locked: true, kids: [], kid: null, teacher: null, again: [], recs: [], challenge: null, lib: null, brand: await brandKey() };
+}
+
 // ─── the hub ────────────────────────────────────────────────────────────────
 
-async function hub(token, { kid } = {}) {
+async function hub(token, { kid, device } = {}) {
   if (!T.secret()) fail(503, 'web_quiz_off');
   const ids = idsOf(token);
   const f = await Flags.flags();
   if (!f.hub) fail(503, 'web_quiz_off');
+  const trust = await deviceTrusted(token, device);
+  if (!trust.ok) return lockedHub(ids, trust.why);
 
   const { data: rows } = await supabase.from('students')
     .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', ids);
@@ -277,7 +341,7 @@ async function hub(token, { kid } = {}) {
 }
 
 module.exports = {
-  hub, kidOf, kidFromHub, recOrder, firstOfEach, AGAIN_MAX, RECS_MAX,
+  hub, kidOf, kidFromHub, deviceTrusted, recOrder, firstOfEach, AGAIN_MAX, RECS_MAX,
   // the switches live in web-quiz-hub-flags.js (student-quiz reads them without loading this module)
   hubLink: Flags.hubLink, flags: Flags.flags, HUB_KEY: Flags.HUB_KEY, CHALLENGE_KEY: Flags.CHALLENGE_KEY, LIBRARY_KEY: Flags.LIBRARY_KEY,
   _resetCache: Flags._resetCache,
