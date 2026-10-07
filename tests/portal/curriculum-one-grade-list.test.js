@@ -17,6 +17,11 @@
  *   | lesson     | lesson_id                   | segment_id                   |
  *   | the action | open a PDF                  | maybe author it, ~3 min      |
  *
+ * bd-k23p38 (operator, 7 Oct 2026: "All the LPs work the same way, no distinction on 6-12 1-5"):
+ * the action reads the same for both lanes — "Open lesson plan" — and a 6-12 lesson that has to be
+ * written says so AFTER the tap, as Preparing. Where a wait lands is Recent lesson plans (any
+ * grade), which replaced the 6-12-only "My lesson plans".
+ *
  * A grade that routes to the wrong lane does not throw — it sends 'Mathematics' where 'math'
  * was expected and renders an empty dropdown, which reads as "there are no lesson plans for
  * grade 9". That is the failure this guards.
@@ -124,14 +129,21 @@ describe('each lane is addressed the way its own service expects', () => {
   });
 });
 
-describe('the action tells the truth about what it will do', () => {
-  test('K-5 opens a PDF; 6-12 may have to write one first', () => {
+describe('every lesson plan opens the same way, grades 1 to 12 (bd-k23p38)', () => {
+  test('K-5 and 6-12 both say "Open lesson plan"; nothing warns about writing before the tap', () => {
     expect(code).toContain("lane === 'k5'");
     expect(code).toContain("lane === 'g612'");
-    expect(code).toContain('Write this lesson plan');
-    // The cost is stated BEFORE she commits, not discovered after.
-    expect(code).toContain('takes about 3 minutes');
-    expect(code).toContain('takes ~3 min');
+    const g612 = code.slice(code.indexOf("lane === 'g612' && ("));
+    expect(g612).toContain('Open lesson plan');
+    expect(code).not.toContain('Write this lesson plan');
+    expect(code).not.toContain('takes about 3 minutes');
+    expect(code).not.toContain('takes ~3 min');
+    expect(code).not.toContain('ready now');
+  });
+
+  test('a 6-12 lesson being written says Preparing after the tap, and where it waits', () => {
+    expect(code).toContain('Preparing…');
+    expect(code).toMatch(/If you leave, it waits in Recent\s+lesson plans/);
   });
 
   test('the answer-key button stays on the K-5 side only', () => {
@@ -141,10 +153,15 @@ describe('the action tells the truth about what it will do', () => {
     expect(g612).not.toContain('answer_key');
   });
 
-  test('a three-minute wait has somewhere to land', () => {
-    // The render finishes on a worker whether or not she stays on the page. Without this list
-    // a lesson we already paid for is lost to her.
-    expect(code).toContain('MyLesson612Panel');
-    expect(code).toContain('lessons612RefreshKey');
+  test('a three-minute wait has somewhere to land: Recent lesson plans, any grade', () => {
+    // The render finishes on a worker whether or not she stays on the page. Without a list that
+    // includes what she asked for, a lesson we already paid for is lost to her.
+    expect(code).not.toContain('MyLesson612Panel');
+    expect(code).toContain('<RecentLessonPlans refreshKey={recentRefreshKey} />');
+    const lib = fs.readFileSync(path.join(
+      __dirname, '..', '..', 'portal', 'src', 'portal', 'lib', 'recentLessonPlans.ts',
+    ), 'utf8');
+    expect(lib).toContain("api.get('/lp612/mine')");
+    expect(lib).toContain("api.get('/lesson-plans/recent', { params: { limit: RECENT_LIMIT } })");
   });
 });
