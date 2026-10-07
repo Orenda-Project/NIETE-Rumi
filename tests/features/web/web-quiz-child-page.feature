@@ -1129,3 +1129,10 @@ Feature: Web child quiz page on the portal
     When WhatsApp's link-preview fetch for the child's card or challenge link reaches any other worker
     Then that worker answers the page head from the bot's remembered link facts, never a whole quiz load
     And the share picture is answered from the bot's memory once the scorecard has fetched it
+
+  @T593
+  Scenario: A child who taps Share the moment the scorecard appears still sends the picture
+    Given a child has just finished a quiz on a slow connection
+    When the scorecard appears and the child taps "Share to class group" or "Challenge a friend" straight away
+    Then the card and invite pictures were already drawn when the quiz finished, so the link preview shows the picture
+    And the finish itself is never slower for it, and a picture that cannot be drawn never stops the scorecard

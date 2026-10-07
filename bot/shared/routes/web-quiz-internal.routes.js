@@ -73,7 +73,12 @@ router.get('/quiz/:code', handle(async (req) => {
 router.get('/og/:code', handle((req) => WebQuizOg.forCode(req.params.code, (c) => WebQuiz.getQuiz(c))));
 router.post('/session', handle((req) => WebQuiz.startSession(req.body || {})));
 router.post('/answers', handle((req) => WebQuiz.recordAnswers(req.body || {})));
-router.post('/finish', handle((req) => WebQuiz.finishSession(req.body || {})));
+router.post('/finish', handle(async (req) => {
+  const out = await WebQuiz.finishSession(req.body || {});
+  // The share pictures are drawn now, after the answer, so a child who taps Share at once sends a ready picture.
+  require('../services/quiz/web-quiz-share-warm').afterFinish(out);
+  return out;
+}));
 router.get('/board/:code', handle((req) => WebQuiz.board(req.params.code, { st: req.query.st })));
 router.get('/schools/:code', handle((req) => WebQuizSchools.board(req.params.code, { st: req.query.st })));
 router.post('/me', handle((req) => WebQuiz.me(req.body || {})));
