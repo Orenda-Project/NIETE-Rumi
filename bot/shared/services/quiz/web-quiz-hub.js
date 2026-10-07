@@ -257,7 +257,8 @@ async function hub(token, { kid } = {}) {
   out.teacher = await teacherCard(chosen, ctx.list, history, grade);
   out.again = againOf(history, chosen.id, out.teacher && out.teacher.code);
   try {
-    out.recs = await recsFor(chosen.id, history, grade);
+    // A recommendation starts through the library's video start: none while the library is off.
+    if (f.library) out.recs = await recsFor(chosen.id, history, grade);
   } catch (err) {
     logToFile('⚠️ web quiz hub: recommendations unavailable', { error: err.message });
   }

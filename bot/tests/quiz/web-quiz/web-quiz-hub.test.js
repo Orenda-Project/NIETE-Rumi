@@ -220,6 +220,16 @@ describe('hub(): play again', () => {
 });
 
 describe('hub(): recommended for you', () => {
+  // A recommendation starts through the library's {hub, kid, vid} video start: with the library off there is
+  // nothing to start, so the hub shows no "Try these next" (never a dead button).
+  beforeEach(() => { db.app_settings.push({ key: 'web_quiz_library', value: 'true' }); Hub._resetCache(); });
+
+  test('library off: no recommendations at all', async () => {
+    db.app_settings = [{ key: 'web_quiz_hub', value: 'true' }];
+    Hub._resetCache();
+    expect((await Hub.hub(T.signHub([KID]))).recs).toEqual([]);
+  });
+
   test('the last finished quiz\'s chapter first, then the next chapters, then the rest; finished videos never', async () => {
     // Last finished = the Maths video quiz (V2, chapter Fractions). V2's quiz is finished.
     const out = await Hub.hub(T.signHub([KID]));
@@ -236,7 +246,8 @@ describe('hub(): recommended for you', () => {
   });
 
   test('no history: the first chapter of each subject of the child\'s grade', async () => {
-    seed({ quiz_sessions: [] });
+    seed({ quiz_sessions: [], app_settings: [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_library', value: 'true' }] });
+    Hub._resetCache();
     const out = await Hub.hub(T.signHub([KID]));
     expect(out.recs.map((r) => r.vid)).toEqual([V(5), V(1), V(7)]); // English, Maths, Science
   });
