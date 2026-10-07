@@ -24,6 +24,7 @@ const express = require('express');
 // Dependency-free: the brand table both services read (the bot names the key, the edge dresses the page).
 const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
 const { createCanonicalRedirect } = require('./web-quiz-canonical');
+const Preview = require('./web-quiz-preview');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
@@ -38,6 +39,10 @@ const ART_ID_RX = /^([cils])\.[A-Za-z0-9_-]{4,24}\.[A-Za-z0-9_-]{12}$/;
 const ART_KIND = { card: 'c', invite: 'i', class: 'l', schools: 's' };
 // A card or an invite never changes once drawn; a class or school picture moves as children play.
 const ART_MAX_AGE = { card: 86400, invite: 86400, class: 600, schools: 600 };
+// How long the edge itself keeps a drawn picture (ms): the preview fetch finds the one the card opening warmed.
+const ART_KEEP_MS = { card: 86400000, invite: 86400000, class: 120000, schools: 120000 };
+// How long the edge remembers a code's og facts for a link-preview fetch (ms).
+const OG_KEEP_MS = 3600000;
 function artId(v, kind) {
   const m = typeof v === 'string' ? ART_ID_RX.exec(v) : null;
   return m && m[1] === ART_KIND[kind] ? v : null;
@@ -227,6 +232,21 @@ ${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></sc
 </html>`;
 }
 
+/**
+ * A link-preview fetch's answer: the quiz page's own head (og tags, lang, dir) from the facts the edge
+ * remembered, and an empty body. A crawler reads only the head; no quiz payload travels in it.
+ */
+function renderPreviewPage({ facts, code, view, origin, assetV, url, a, v }) {
+  const lang = facts.quiz.lang === 'ur' ? 'ur' : 'en';
+  const brand = brandOf(facts.brand);
+  const og = ogText(facts, view, brand);
+  const image = ogImageFor({ payload: facts, code, view, origin, a, v });
+  return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: og.title, desc: og.desc, origin, url, assetV, brand, image })}
+</head>
+<body></body>
+</html>`;
+}
+
 // M4a hub — the kid hub page: the same head and brand as the quiz page, its own script.
 const HUB_TITLE = { en: 'Your quizzes and videos', ur: 'آپ کے کوئز اور ویڈیوز' };
 const HUB_BOOT = { en: 'Opening…', ur: 'کھل رہا ہے…' };
@@ -390,6 +410,10 @@ function createWebQuizRouter(opts = {}) {
   let lastBrand = null;
 
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl });
+  // Link previews (web-quiz-preview.js): what the edge last learned about each code, and the drawn pictures.
+  const now = opts.now || Date.now;
+  const ogKnown = Preview.ttlCache({ max: 2000, now });
+  const artKept = Preview.ttlCache({ max: 200, now });
 
   // A child page on any host but the canonical one goes there first (one origin = one remembered child).
   router.use(createCanonicalRedirect(opts.canonicalBase != null ? opts.canonicalBase : process.env.WEB_QUIZ_BASE_URL));
@@ -463,6 +487,14 @@ function createWebQuizRouter(opts = {}) {
     if (!botUrl || !apiKey) return res.status(503).type('html').send(renderClosedPage({ lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand }));
     const upper = code.toUpperCase();
     const p = typeof req.query.p === 'string' ? `?p=${encodeURIComponent(req.query.p.slice(0, 400))}` : '';
+    const url = `${origin}/q/${upper}${view === 'class' ? '/class' : view === 'schools' ? '/schools' : ''}`;
+    // A link-preview fetch (the sender's WhatsApp, before the message goes) is answered from what the edge
+    // already knows about this code: the child's own page load, or the card's warm-up, taught it.
+    const preview = !p && Preview.isPreviewFetch(req);
+    const known = preview ? ogKnown.get(upper) : null;
+    if (known && !(view === 'class' && known.invited)) {
+      return res.status(200).type('html').send(renderPreviewPage({ facts: known, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v }));
+    }
     let out;
     try {
       out = await callBot('GET', `/api/internal/wq/quiz/${upper}${p}`, req);
@@ -475,7 +507,10 @@ function createWebQuizRouter(opts = {}) {
     }
     if (out.status === 200 && out.body && out.body.quiz) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
-      const url = `${origin}/q/${upper}${view === 'class' ? '/class' : view === 'schools' ? '/schools' : ''}`;
+      if (!p) ogKnown.set(upper, Preview.ogFacts(out.body), OG_KEEP_MS);
+      if (preview) {
+        return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v }));
+      }
       return res.status(200).type('html').send(renderQuizPage({ payload: out.body, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v }));
     }
     const lang = out.body && out.body.lang === 'ur' ? 'ur' : 'en';
@@ -555,9 +590,16 @@ function createWebQuizRouter(opts = {}) {
     const id = Object.prototype.hasOwnProperty.call(ART_KIND, kind) ? artId(req.query.a, kind) : null;
     if (!id || !CODE_RX.test(String(req.params.code || ''))) return res.status(404).set('Cache-Control', 'no-store').json({ error: 'not_found' });
     if (!botUrl || !apiKey) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'web_quiz_off' });
+    const sq = req.query.f === 'sq';
+    const send = (pic) => res.status(200).set({ 'Cache-Control': `public, max-age=${ART_MAX_AGE[kind]}`, 'X-Robots-Tag': 'noindex' }).type(pic.contentType).send(pic.bytes);
+    // Kept at the edge: the card opening fetched it, so the sender's preview fetch never waits for a draw.
+    const keyArt = `${kind}|${id}|${sq ? 'sq' : 'og'}`;
+    const kept = artKept.get(keyArt);
+    if (kept) return send(kept);
     try {
-      const out = await callBot('GET', `/api/internal/wq/art/${id}${req.query.f === 'sq' ? '?f=sq' : ''}`, req);
+      const out = await callBot('GET', `/api/internal/wq/art/${id}${sq ? '?f=sq' : ''}`, req);
       if (out.bytes) {
+        artKept.set(keyArt, { bytes: out.bytes, contentType: out.contentType }, ART_KEEP_MS[kind]);
         return res.status(200).set({ 'Cache-Control': `public, max-age=${ART_MAX_AGE[kind]}`, 'X-Robots-Tag': 'noindex' }).type(out.contentType).send(out.bytes);
       }
       return res.status(out.status === 404 ? 404 : 502).set('Cache-Control', 'no-store').json({ error: out.status === 404 ? 'not_found' : 'upstream_error' });
@@ -595,4 +637,4 @@ function createWebQuizRouter(opts = {}) {
 }
 
 
-module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderClosedPage, renderChallengePage, renderLibPage, bootJson, renderHubPage };
+module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderPreviewPage, renderClosedPage, renderChallengePage, renderLibPage, bootJson, renderHubPage };

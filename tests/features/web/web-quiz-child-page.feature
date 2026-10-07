@@ -357,7 +357,6 @@ Feature: Web child quiz page on the portal
     When the child plays it again and finishes
     Then the card says "Practice round" with the first score, and sharing it shares the first score
 
-
   Scenario: Feedback is spoken by recorded voices that every quiz shares
     Given the feedback lines are recorded once per language (right, not yet, fixed on a second try, quiz complete, encouragement)
     When a child answers right, answers wrong, fixes a tricky one, passes halfway or finishes the quiz
@@ -834,7 +833,6 @@ Feature: Web child quiz page on the portal
     Then the same picture sits above the challenge line, its alt text the same words
     And if the picture cannot load it is removed, never shown broken
 
-
   @T300
   Scenario: A child typing /quiz on WhatsApp gets one Open button to their hub when the hub is on
     Given app_settings web_quiz_hub is on and a phone with one registered child who has played a quiz
@@ -933,15 +931,12 @@ Feature: Web child quiz page on the portal
     Then it reads «<name> کے 4/6 سے آگے نکلیں!» (an imperative), never «کیا آپ … سکتے ہیں؟»
     And when the challenger scored 0 the picture and the title say "<name> challenged you!" («<name> نے آپ کو چیلنج کیا ہے!») with no score
 
-
-
   @T395
   Scenario: An English quiz that quotes an Urdu word keeps one voice
     Given an English quiz whose questions quote the teacher's Urdu glosses (for example «سرکل»)
     When a child answers a question and when the quiz ends
     Then the feedback lines ("Yes! That's right!", "Quiz complete!") are English, in the same voice as the question clips
     And an Urdu quiz keeps its Urdu feedback lines even when its page is opened from an English class
-
 
   @T375
   Scenario: "Watch another video" opens the quiz's own subject as chapters, at once
@@ -1068,3 +1063,4 @@ Feature: Web child quiz page on the portal
     Then the page asks again for the quiz a few times over the next two minutes
     And every question the child reaches after the clips land is read in the quiz's recorded voice, in Urdu as in English
     And a quiz whose clips are already recorded never asks again
+
