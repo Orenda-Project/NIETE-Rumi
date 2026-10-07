@@ -978,3 +978,11 @@ Feature: Web child quiz page on the portal
     Then the page moves to the same quiz, hub, challenge or library page on the quiz's own address, keeping everything after the path
     And the child is recognised without picking their name again
     And the teacher's report link and the quiz's data calls are never moved
+
+  @T561
+  Scenario: A library link from the hub opened on another phone says whose link it is
+    Given a child's hub link is bound to the child's phone
+    When the hub's library link (/lib/<token>) is opened on another phone
+    Then no subjects, lessons or name are shown
+    And it reads "This link was sent to another player" and "Ask the child this link was sent to to open it." (in Urdu «یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا»)
+    And there is no "Try again", only "Back" to the hub
