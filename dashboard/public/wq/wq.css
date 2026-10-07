@@ -198,7 +198,7 @@ html[lang=ur] .wq-big:not(.wq-jug){font-family:var(--f)}
 .wq-scorecard .wq-in{padding:14px;display:flex;flex-direction:column;gap:8px;align-items:center}
 .wq-scorecard img{width:110px;height:110px}
 /* A short phone (a 360x740 Android): a smaller Jugnu, so the card's first actions (share, the hub door) are on the first screen, Urdu included. */
-@media (max-height:800px){.wq-scorecard img{width:72px;height:72px}}
+@media (max-height:800px){.wq-scorecard img{width:72px;height:72px}.wq-scorecard .wq-ctopic{align-self:stretch;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
 .wq-name{font-size:26px;font-weight:900;color:var(--navy)}
 .wq-praise{font-size:22px;font-weight:900;color:var(--right)}
 .wq-table{width:100%;border-collapse:separate;border-spacing:0 6px}
