@@ -430,3 +430,8 @@ a.wq-vitem{color:inherit;text-decoration:none}
 .wql-dlbig{margin-top:2px}
 .wql-dlhelp{font-size:14px;color:var(--muted);text-align:center;margin:0}
 .wql-dlhelp a{color:var(--green-d);font-weight:800}
+/* An option's own recorded voice: tap to hear just that option (never an answer). */
+.wq-opt .wq-ohear{flex:0 0 auto;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--green-l);color:var(--green-d);font-size:20px;line-height:1;cursor:pointer;box-shadow:inset 0 0 0 2px rgba(0,0,0,.04)}
+.wq-opt .wq-ohear:active{transform:scale(.92)}
+.wq-opt .wq-ohear:focus-visible{outline:3px solid var(--green-d)}
+.wq-locked .wq-ohear{opacity:.45}
