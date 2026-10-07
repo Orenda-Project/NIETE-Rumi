@@ -703,6 +703,20 @@ function jsonReplyShape(job) {
 }
 
 /**
+ * Settings too stale to trust are read once, briefly, before a job is planned (bd-gr4fy.14): the settings
+ * module's ensureCurrent() waits for one bounded read when its answer is stale and not current, so the override
+ * or the kill switch applies on the very call that finds it old. Never throws.
+ */
+async function settingsCurrentEnough() {
+  let settings;
+  try {
+    // eslint-disable-next-line global-require
+    settings = require('../config/model-settings');
+  } catch (_) { return; }
+  if (typeof settings.ensureCurrent === 'function') await settings.ensureCurrent();
+}
+
+/**
  * Run one labelled call with the job's override, if it has one.
  *
  * THE JOB'S OWN MODEL STAYS BEHIND THE NEW ONE, ON ANY FAILURE. Not only the outages a second
@@ -717,6 +731,7 @@ function jsonReplyShape(job) {
  * waited twice the 180 s budget before the fallback even started.
  */
 async function runWithJobOverride(job, params, options, callSite, declared = null) {
+  await settingsCurrentEnough();
   const plan = planForJob(job, params.model, declared);
   if (!plan.first) return callSite(params);
   const { first, behind } = plan;
