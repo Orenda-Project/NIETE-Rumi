@@ -51,6 +51,8 @@ const { wordCount, chemPlusDefects, fixChemPlus } = require("./lib/rich");
 const { buildHtml } = require("./lib/template");
 const { textNodes } = require("./lib/domtext");
 const { allQuestions, questionIndex, duplicateRefs } = require("./lib/questions");
+// VENDOR DIVERGENCE (SYNC.md §3.34, bd-nnd27p): surah naming / Makki-Madani / inheritance checks.
+const { religiousFactDefects } = require("./lib/religious_facts");
 const { check: visualContract } = require("./visual_check");
 
 // Brands that must never appear as CONTENT in a document that is not theirs (render-law 13,
@@ -1866,10 +1868,15 @@ function religiousMarks(doc, ctx) {
     !at.startsWith("/revisions") && !at.startsWith("/notes") && !at.startsWith("/provenance"));
   const isReligious = detected.some(({ s }) => PROPHET_RE.test(s) || /ﷺ|رضی\s*اللہ|علیہ\s*السلام|سیرت|حدیث|قرآن/.test(s));
   PROPHET_RE.lastIndex = 0;
-  if (!isReligious) return;
 
   const NOT_TEACHER_FACING = /^\/human_review_reason|^\/slo\/text_verbatim|^\/sections\/[^/]+\/video\//;
   const strings = detected.filter(({ at }) => !NOT_TEACHER_FACING.test(at));
+
+  // 0 — VENDOR DIVERGENCE (SYNC.md §3.34, bd-nnd27p): how the plan names and classifies surahs.
+  //     Runs BEFORE the detection gate: a plan that cites a surah is religious content whether or
+  //     not it also carries one of the markers above.
+  for (const { msg } of religiousFactDefects(strings)) fail("RELIGIOUS_MARKS", `${msg} ${HOLD}`);
+  if (!isReligious) return;
 
   // 1 — the honorific after every mention of the Prophet. Mechanical, and blocking.
   for (const { at, s } of strings) {
