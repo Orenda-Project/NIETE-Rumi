@@ -212,14 +212,15 @@
   // ── menu ────────────────────────────────────────────────────────────────────────────────────────────
   function lastLine(x) {
     if (!x.last) return '';
-    if (x.id === 'read') return x.last.wcpm != null && !x.last.stopped ? t.lastRead(x.last.wcpm) : t.done;
+    // A read is ticked only for a real result: words per minute above 0 (a stopped or empty reading is not praise).
+    if (x.id === 'read') return x.last.wcpm > 0 && !x.last.stopped ? t.lastRead(x.last.wcpm) : '';
     return x.last.n ? t.lastBigger(x.last.correct, x.last.n) : t.done;
   }
   function menu() {
     var tiles = (menuData.exercises || []).map(function (x) {
       return '<button class="wqc-tile" type="button" id="wqc-ex-' + esc(x.id) + '"><span class="wqc-ico" aria-hidden="true">' + (ICON[x.id] || '⭐') + '</span>'
         + '<span><b>' + esc(x.name) + '</b><small>' + esc(t.mins(x.mins)) + '</small>'
-        + (x.done ? '<span class="wqc-badge">✓ ' + esc(lastLine(x)) + '</span>' : '') + '</span></button>';
+        + (x.done && (x.id !== 'read' || lastLine(x)) ? '<span class="wqc-badge">✓ ' + esc(lastLine(x)) + '</span>' : '') + '</span></button>';
     }).join('');
     show('menu', jug('hello', t.title(MASCOT), true) + '<p class="wq-sub">' + esc(t.pick) + '</p><div class="wqc-tiles">' + tiles + '</div>');
     (menuData.exercises || []).forEach(function (x) { on('wqc-ex-' + x.id, function () { open(x.id); }); });
@@ -526,8 +527,10 @@
     var d = S.data;
     var line; var pose = 'celebrate'; var score = ''; var growth = '';
     if (r.later) { line = t.later; pose = 'hello'; }
-    else if (r.failed) { line = t.unheard; pose = 'notyet'; }
-    else if (r.score && r.score.stopped) { line = t.readStopped; pose = 'notyet'; }
+    // Nothing heard (attempted 0) is "try again", whatever the server called it; heard but nothing right is
+    // encouragement. Only a reading with words per minute above 0 is praised.
+    else if (r.failed || (r.score && !r.score.stopped && r.score.attempted === 0)) { r = { failed: true }; line = t.unheard; pose = 'notyet'; }
+    else if ((r.score && r.score.stopped) || !(r.wcpm > 0)) { line = t.readStopped; pose = 'notyet'; }
     else {
       line = d.clips.done.text; score = t.wcpm(r.wcpm);
       var prev = r.previous && r.previous.wcpm;
@@ -536,8 +539,10 @@
     }
     show('read-result', jug(pose, line, true) + (score ? '<p class="wqc-score" id="wqc-score">' + esc(score) + '</p>' : '')
       + (growth ? '<p class="wq-sub" id="wqc-growth">' + esc(growth) + '</p>' : '')
-      + '<div class="wq-stack"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(t.more) + '</button>'
-      + (r.failed ? '<button class="wq-btn wq-soft" id="wqc-again" type="button">' + esc(t.again) + '</button>' : '') + '</div>');
+      // Not heard: steer the child to read again — "Try again" is the primary button, "More challenges" the second.
+      + '<div class="wq-stack">' + (r.failed
+        ? '<button class="wq-btn wq-go" id="wqc-again" type="button">' + esc(t.again) + '</button><button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(t.more) + '</button>'
+        : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(t.more) + '</button>') + '</div>');
     if (score) say(d.clips.done);
     on('wqc-menu', refreshMenu);
     on('wqc-again', function () { open('read'); });

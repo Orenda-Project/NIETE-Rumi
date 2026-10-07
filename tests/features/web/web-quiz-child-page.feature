@@ -705,6 +705,21 @@ Feature: Web child quiz page on the portal
     Given scoring a reading takes more than 5 seconds
     Then the result call answers "pending" and the page asks again every 3 seconds, up to 60 seconds
     And the recording is deleted from storage after scoring, and only the numbers are kept
+
+  @T531
+  Scenario: A reading where nothing was heard is never praised
+    Given the scorer hears no word of the story attempted
+    Then the run is stored as failed "unheard", with no words-per-minute and no tick on the Read aloud tile
+    And the page says "We couldn't hear that clearly. Try again?" («آواز صاف سنائی نہیں دی۔ دوبارہ کوشش کریں؟») with "Try again"
+    And Jugnu does not celebrate, and the teacher's class results do not list it
+    But a reading with words heard and none right says "Good try! Reading gets easier every day you practise." with no number
+
+  @T532
+  Scenario: Today's read-aloud cap leaves "Which is bigger?" only
+    Given app_settings web_quiz_challenge_daily_reads is 500 (or absent) and 500 read-alouds have been scored since Pakistan midnight
+    Then the Challenge menu shows only "Which is bigger?"
+    And a reading already open is answered "enough for today", and its uploaded recording is deleted
+    And web_quiz.ch_read_capped is logged once that day
   @T491
   Scenario: A shared phone reopened on a finished child's card lets the next child play
     Given a phone where "Tooba" finished this quiz and the page reopens on Tooba's card
