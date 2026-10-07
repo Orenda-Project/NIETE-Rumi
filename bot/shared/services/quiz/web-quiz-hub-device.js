@@ -8,7 +8,7 @@
  * trusted too. Any other phone, no device, or Redis down for an unknown phone: not trusted.
  * Once trusted, the phone may name each of the token's children on a hub ?k= quiz link.
  *
- *   deviceTrusted(token, device)       {ok, why}
+ *   deviceTrusted(token, device)       {ok, why, ids}: ids = the children this phone may see
  *   deviceMayName(studentIds, device)  boolean
  *   deviceKids(device)                 the student ids this phone was trusted with (newest hubs), [] if none
  */
@@ -30,50 +30,56 @@ const devKidsKey = (d) => DEVKIDS_PREFIX + crypto.createHash('sha256').update(St
 
 /** Has this phone (device_ref) ever played as one of these children (any code)? */
 async function deviceKnows(studentIds, deviceRef) {
+  return (await playedOn(studentIds, deviceRef)).length > 0;
+}
+
+/** Which of these children has this phone played as (any code)? [] on a read error. */
+async function playedOn(studentIds, deviceRef) {
   try {
-    const { data } = await supabase.from('quiz_sessions').select('id').in('student_id', studentIds).eq('device_ref', deviceRef).limit(1);
-    return Boolean(data && data.length);
+    const { data } = await supabase.from('quiz_sessions').select('student_id').in('student_id', studentIds).eq('device_ref', deviceRef).limit(50);
+    const seen = new Set((data || []).map((r) => String(r.student_id)));
+    return studentIds.filter((id) => seen.has(String(id)));
   } catch (_) {
-    return false;
+    return [];
   }
 }
 
 /**
- * May this phone see the hub's children? {ok, why}. A phone the children played on, or the
- * first phone that opens this link (bound for the token's life). No device, a foreign one,
- * or Redis down for an unknown one: not trusted.
+ * May this phone see the hub's children, and WHICH? {ok, why, ids}. The first phone to open this link
+ * (bound for the token's life) is trusted for every child the token names; any other phone only for the
+ * children it has itself played as (a shared or class phone that one sibling used never sees the others).
+ * No device, a foreign phone that played as none of them, or Redis down for an unplayed phone: not trusted.
  */
 async function deviceTrusted(token, device) {
   const tok = T.verify(token, 'h');
-  if (!tok || !Array.isArray(tok.ids) || !tok.ids.length) return { ok: false, why: 'bad_token' };
+  if (!tok || !Array.isArray(tok.ids) || !tok.ids.length) return { ok: false, why: 'bad_token', ids: [] };
   const d = T.cleanDeviceRef(device);
-  if (!d) return { ok: false, why: 'no_device' };
+  if (!d) return { ok: false, why: 'no_device', ids: [] };
   const ids = tok.ids.map(String);
   const redis = require('../cache/railway-redis.service');
   const store = Boolean(redis && typeof redis.isAvailable === 'function' && redis.isAvailable());
   const ttl = Math.max(60, tok.exp - Math.floor(Date.now() / 1000));
-  let out;
-  if (await deviceKnows(ids, d)) {
-    out = { ok: true, why: 'played' };
-  } else if (!store) {
-    return { ok: false, why: 'no_store' };
-  } else {
+  let out = null;
+  let boundTo = null;
+  if (store) {
     const key = bindKey(token);
     try {
       await redis.setNX(key, d, ttl);
       // Read back: setNX answers "claimed" when Redis errors, so only the stored value decides.
-      const bound = await redis.get(key);
-      if (bound !== d) return { ok: false, why: bound ? 'other_device' : 'no_store' };
-      out = { ok: true, why: 'bound' };
-    } catch (_) {
-      return { ok: false, why: 'no_store' };
-    }
+      boundTo = await redis.get(key);
+    } catch (_) { boundTo = null; }
+    if (boundTo === d) out = { ok: true, why: 'bound', ids };
+  }
+  if (!out) {
+    const played = await playedOn(ids, d);
+    if (played.length) out = { ok: true, why: 'played', ids: played };
+    else return { ok: false, why: !store || !boundTo ? 'no_store' : 'other_device', ids: [] };
   }
   if (store) {
     try {
-      await Promise.all(ids.map((id) => redis.set(kidKey(id, d), '1', ttl)));
+      await Promise.all(out.ids.map((id) => redis.set(kidKey(id, d), '1', ttl)));
       const had = await redis.get(devKidsKey(d));
-      const kids = [...new Set([...ids, ...(Array.isArray(had) ? had.map(String) : [])])].slice(0, DEVKIDS_MAX);
+      const kids = [...new Set([...out.ids, ...(Array.isArray(had) ? had.map(String) : [])])].slice(0, DEVKIDS_MAX);
       await redis.set(devKidsKey(d), kids, ttl);
     } catch (_) { /* naming falls back to deviceKnows */ }
   }
