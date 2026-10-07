@@ -14,7 +14,7 @@
  */
 const MINT_URL = 'https://api.soniox.com/v1/auth/temporary-api-key';
 const WS_URL = 'wss://stt-rt.soniox.com/transcribe-websocket';
-const MODEL = process.env.SONIOX_RT_MODEL || 'stt-rt-v5';
+const MODEL = 'stt-rt-v5';
 const CONNECT_S = 30;
 const SESSION_S = 90;
 const TIMEOUT_MS = 3000;
