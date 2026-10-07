@@ -1808,6 +1808,14 @@ router.get('/coach/home', ...coachV2, async (req, res) => {
   } catch (error) { return coachFail(res, 'home', error); }
 });
 
+/** GET /api/portal/coach/pending — bd-o15qnr.21: { waiting, ids } — what waits on her (Feedback Form, Debrief), for the banner. */
+router.get('/coach/pending', ...coachV2, async (req, res) => {
+  try {
+    const out = await CoachV2.getCoachPending(pgQuery, req.session.portalUserId);
+    return res.json({ success: true, ...out });
+  } catch (error) { return coachFail(res, 'pending', error); }
+});
+
 /** GET /api/portal/coach/schedule?from=&to= — her visits in the range (default this week) and the overdue ones. */
 router.get('/coach/schedule', ...coachV2, async (req, res) => {
   const { from, to } = req.query || {};

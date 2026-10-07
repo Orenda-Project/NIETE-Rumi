@@ -54,7 +54,7 @@ const CoachAttach = () => {
   const time = formatSlot(visit?.scheduledSlot);
 
   return (
-    <CoachPage title={visit?.teacherName || C.dash} backTo={`/portal/coach/visit/${id}`}
+    <CoachPage banner={false} title={visit?.teacherName || C.dash} backTo={`/portal/coach/visit/${id}`}
       crumb={`${C.takeObservation} · ${visit?.scheduledFor ? new Date(`${visit.scheduledFor}T00:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : ""}`}>
       {failed && <Failed onRetry={reload} />}
       {!data && !failed && <Loading />}
