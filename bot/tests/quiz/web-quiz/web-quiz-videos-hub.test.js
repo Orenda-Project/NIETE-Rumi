@@ -13,7 +13,7 @@ process.env.R2_BUCKET_NAME = 'test-bucket';
 
 jest.mock('../../../shared/config/supabase', () => ({}));
 const mockKidFromHub = jest.fn();
-jest.mock('../../../shared/services/quiz/web-quiz-hub', () => ({ kidFromHub: (...a) => mockKidFromHub(...a) }), { virtual: true });
+jest.mock('../../../shared/services/quiz/web-quiz-hub', () => ({ kidFromHub: (...a) => mockKidFromHub(...a) }));
 jest.mock('../../../shared/services/queue/sqs-queue.service', () => ({ queueJob: jest.fn().mockResolvedValue({ MessageId: 'm1' }) }));
 jest.mock('../../../shared/services/cache/railway-redis.service', () => {
   const keys = new Map();
@@ -150,7 +150,7 @@ describe('start from the hub', () => {
   test('the class code is the newest teacher-sent code the child played; the code is minted once; k is the chip for that code', async () => {
     mockKidFromHub.mockResolvedValue({ studentId: KID_A, grade: '3', rootId: SC });
     const a = await Videos.start({ hub: 'hubtoken', kid: 'chip-1', vid: V(1) });
-    expect(mockKidFromHub).toHaveBeenCalledWith('hubtoken', 'chip-1');
+    expect(mockKidFromHub).toHaveBeenCalledWith('hubtoken', 'chip-1', undefined);
     const row = fake.db.quiz_share_codes.find((r) => r.code === a.code);
     expect(row).toMatchObject({ quiz_id: VQ(1), parent_share_code_id: SC, teacher_user_id: TEACHER, invited_by_student_id: null });
     expect(a.k).toBe(T.chipId(row.id, KID_A));

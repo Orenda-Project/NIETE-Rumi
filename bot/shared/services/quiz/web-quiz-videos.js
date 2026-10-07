@@ -270,7 +270,8 @@ async function start(body = {}) {
   if (body.hub) {
     const Hub = hubModule();
     if (!Hub || typeof Hub.kidFromHub !== 'function') fail(503, 'hub_off');
-    const who = await Hub.kidFromHub(String(body.hub), body.kid == null ? null : String(body.kid));
+    // body.device: this phone's device_ref (the route sets it from x-wq-device) — a forwarded hub link starts nothing as the child.
+    const who = await Hub.kidFromHub(String(body.hub), body.kid == null ? null : String(body.kid), body.device == null ? undefined : String(body.device));
     if (!who || !who.studentId) fail(401, 'bad_token');
     if (!who.rootId) fail(409, 'no_class');
     if (!VID_RX.test(vid)) fail(400, 'bad_request');
