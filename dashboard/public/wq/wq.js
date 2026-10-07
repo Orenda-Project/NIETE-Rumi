@@ -1632,7 +1632,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         return who();
       }
       // A hub link's session that cannot start: the landing asks who is playing (it never asked while starting).
-      if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st || pick.via === 'hub') landing(); return; }
+      if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st || pick.via === 'hub' || pick.via === 'handset') landing(); return; }
       var b = r.body;
       if (b.device_ref) sset('wq_d', b.device_ref);
       var child = b.child || kid || { first: typed || '' };
@@ -1645,7 +1645,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (ID) ID.started(child);
       ev('quiz_start', { reason: b.reason || undefined, ok: b.counted === false ? 0 : 1 });
       if (wantsVideo()) video(); else nextQuestion();
-    }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st || pick.via === 'hub') landing(); });
+    }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st || pick.via === 'hub' || pick.via === 'handset') landing(); });
   }
 
   function answeredCount() { var n = 0; QS.forEach(function (q) { if (S.answers[q.qid]) n++; }); return n; }
@@ -2644,11 +2644,44 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   if (params.again === '1' && S.result && !S.queue.length && !S.pending) { S = { st: null, child: null, answers: {}, queue: [], seq: 0, wrong: [], result: null }; save(); ev('again', {}); }
   if (params.again) { try { var u = new URLSearchParams(location.search); u.delete('again'); window.history.replaceState(window.history.state, '', location.pathname + (String(u) ? '?' + u : '')); } catch (e) {} }
   var FROM = B.view === 'class' || B.view === 'schools' || S.st ? null : handover();
+  // The one-shot handset link (#x=, from the bot's button to a known phone): the fragment is kept in
+  // sessionStorage and dropped from the address bar first; the server spends it once with this device and
+  // answers this phone's own children. One child opens straight in; several are the "Who is playing?" cards;
+  // anything else (used, expired, off, offline) is today's landing. The fragment never reaches a server.
+  function handsetX() {
+    var x = '';
+    try { var m = /(^|[#&])x=([^&]+)/.exec(String(location.hash || '')); if (m) x = m[2]; } catch (e) {}
+    try { if (x) sessionStorage.setItem('wq_x', x); else x = sessionStorage.getItem('wq_x') || ''; } catch (e) {}
+    try { if (location.hash) window.history.replaceState(window.history.state, '', location.pathname + location.search); } catch (e) {}
+    return x;
+  }
+  function handsetBind(x) {
+    var done = function () { try { sessionStorage.removeItem('wq_x'); } catch (e) {} };
+    // While the server answers: the quiz and Jugnu, no question and nothing to tap (as a hub link's start).
+    render(bar() + jug('thinking', TW.opening) + '<div class="wq-card wq-stack"><h1>' + esc(Q.topic) + '</h1><p class="wq-sub">' + esc(T.from(CLS.teacher, CLS.label)) + '</p></div>', 'M4-opening');
+    wireBar();
+    var body = { code: CODE, x: x };
+    var dref = sget('wq_d', null);
+    if (dref) body.device_ref = dref;
+    ev('identity_pick', { src: 'handset' });
+    api('POST', 'bind', body).then(function (r) {
+      done();
+      var b = r.body || {};
+      if (!r.ok) { ev('handset_page', { ok: 0, status: r.status }); return landing(); }
+      if (b.device_ref) sset('wq_d', b.device_ref);
+      (b.kids || []).forEach(rememberKid);
+      ev('handset_page', { ok: 1, kids: (b.kids || []).length, one: b.one ? 1 : 0 });
+      if (b.one) return startSession({ chip: b.one, via: 'handset' }, (b.kids || [])[0] || null, '');
+      landing();
+    }, function () { done(); ev('handset_page', { ok: 0, status: 'net' }); landing(); });
+  }
+  var HX = B.view === 'class' || B.view === 'schools' || B.preview ? '' : handsetX();
   if (B.view === 'schools') schools(afterResult);
   else if (B.view === 'class') board();
   else if (FROM) { ev('more_arrive', {}); if (FROM.t) ev('more_timing', { nav_ms: Date.now() - FROM.t }); startSession({ from_st: FROM.st }, null, ''); }
   else if (S.result && S.st) card();
   else if (S.pending && S.st) results(S.fixed || 0);
   else if (S.st && S.child && (answeredCount() > 0 || (S.vt > 0 && wantsVideo()))) resume();
+  else if (HX) handsetBind(HX);
   else landing();
 })();

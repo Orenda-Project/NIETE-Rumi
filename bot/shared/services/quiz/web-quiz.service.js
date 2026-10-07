@@ -880,9 +880,10 @@ async function startSessionTimed(body = {}, mark = () => {}) {
     // v2: "Yes, it's me" on the one card, or a remembered child of the hand-out's class.
     student = { id: found.kid.id, student_name: found.kid.student_name, self_reported_class: found.cls.label || null };
     resolved = { via: viaOf(body.via, 'remembered'), classBound: found.bound, provisional: false };
-  } else if (body.chip && body.via === 'hub' && (found = await hubChipKid(ctx, String(body.chip), body.device_ref))) {
-    // A hub link on the phone the hub trusted: the child is one of that phone's own, however long ago they
-    // last played (the teacher's recent-player chips below only reach the 40 newest players).
+  } else if (body.chip && (body.via === 'hub' || body.via === 'handset') && (found = await hubChipKid(ctx, String(body.chip), body.device_ref))) {
+    // A hub link on the phone the hub trusted — or a chip the one-shot handset link offered (web-quiz-handset.js
+    // trusts the device the same way): the child is one of that phone's own, however long ago they last played
+    // (the teacher's recent-player chips below only reach the 40 newest players).
     student = found;
     found = null;
   } else if (body.chip) {
@@ -917,6 +918,11 @@ async function startSessionTimed(body = {}, mark = () => {}) {
     const roster = await Roster.loadRoster(ctx.teacherUserId, { grade: await gradeOf(ctx.quizId) });
     const listed = roster ? roster.kids.find((k) => k.id === st.id) : null;
     if (listed) student = { ...student, self_reported_class: Roster.classOf(roster, listed) };
+  } else if (body.new && typeof body.new === 'object' && !body.new.force && (found = await handsetCard(ctx, body))) {
+    // A name typed on a phone the handset link (or the hub) trusted that is one of THAT phone's children: the one
+    // card to confirm, never a second row for the same child. "Yes, that's my name" (force) still makes a new child.
+    logEvent('web_quiz.identity_step', { shareCodeId: ctx.shareCodeId, step: 'handset_confirm', hits: 1 });
+    fail(409, 'is_this_you', { candidates: [found] });
   } else if (body.new && typeof body.new === 'object' && idn) {
     ({ student, resolved } = await newChildV2(ctx, body, idn));
   } else if (body.new && typeof body.new === 'object') {
@@ -957,7 +963,7 @@ async function startSessionTimed(body = {}, mark = () => {}) {
   // it plays straight through only on a phone that played as that child or opened their hub
   // (web-quiz-hub deviceMayName). Anywhere else it names NOBODY: chip_unknown, so the page
   // forgets the chip and asks who is playing, as for any new phone.
-  if (student && body.chip && body.via === 'hub' && body.confirm !== true
+  if (student && body.chip && (body.via === 'hub' || body.via === 'handset') && body.confirm !== true
     && !(await require('./web-quiz-hub-device').deviceMayName(found ? found.kid.ids : [student.id], body.device_ref))) {
     logEvent('web_quiz.identity_step', { shareCodeId: ctx.shareCodeId, step: 'hub_other_device', hits: 0 });
     fail(404, 'chip_unknown');
@@ -1078,6 +1084,30 @@ async function identityBoot(ctx, idn) {
     roster,
     invited: Boolean(idn.invited),
   };
+}
+
+/**
+ * A typed name on a phone the handset link / hub trusted that is exactly ONE of that phone's children
+ * (Identity.canon equal): that child's card for THIS code, or null (no trust, no match, two matches).
+ */
+async function handsetCard(ctx, body) {
+  try {
+    const d = T.cleanDeviceRef(body.device_ref);
+    const name = cleanName(body.new && body.new.name);
+    if (!d || !name) return null;
+    const ids = await require('./web-quiz-hub-device').deviceKids(d);
+    if (!ids.length) return null;
+    const want = Identity.canon(name);
+    if (!want) return null;
+    const { data: rows } = await supabase.from('students').select('id, student_name, student_name_urdu, is_active, status').in('id', ids);
+    const hits = (rows || []).filter((r) => r.is_active !== false && r.status !== 'merged' && Identity.canon(r.student_name) === want);
+    if (hits.length !== 1) return null;
+    const k = hits[0];
+    const shown = ctx.lang === 'ur' && k.student_name_urdu && String(k.student_name_urdu).trim() ? k.student_name_urdu : k.student_name;
+    return { chip: T.chipId(ctx.shareCodeId, k.id), first: firstName(shown), animal: T.animalFor(k.id) };
+  } catch (_) {
+    return null;
+  }
 }
 
 /** A hub ?k= chip on a phone a hub trusted: the one of that phone's children whose chip on this code it is, or null. */

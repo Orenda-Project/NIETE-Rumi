@@ -386,6 +386,8 @@ async function beginFromCode(phone, code) {
   if (await require('./web-quiz-old-link').tryRedirect(phone, code, sc, {
     isChatQuizRunning: () => require('./video-quiz.service').getActiveState(phone),
     clearJoin: () => redisService.delete(JOIN_KEY(phone)),
+    // This phone's known children (the same lookup the join below makes), for the one-shot handset link.
+    knownIds: async () => (await StudentIdentity.findByPhone(phone)).map((s) => s.id),
   })) return true;
 
   const ctx = {

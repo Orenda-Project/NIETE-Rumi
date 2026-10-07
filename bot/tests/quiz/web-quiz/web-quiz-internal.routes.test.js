@@ -41,6 +41,11 @@ test('service errors keep their status and body', async () => {
   expect(bad.status).toBe(401);
 });
 
+test('POST /bind is mounted and keeps the service\'s refusals (the flag off = 503 web_quiz_off)', async () => {
+  const r = await fetch(`${base}/bind`, { method: 'POST', headers: KEY, body: JSON.stringify({ code: 'EXPD01', x: 'nope', device_ref: 'dddddddddddddddddddddd' }) });
+  expect(r.status).toBe(503);
+  expect(await r.json()).toEqual({ error: 'web_quiz_off' });
+});
 test('events: 204 and logged', async () => {
   const r = await fetch(`${base}/e`, { method: 'POST', headers: KEY, body: JSON.stringify({ events: [{ n: 'm3_view', lang: 'en' }] }) });
   expect(r.status).toBe(204);

@@ -46,6 +46,7 @@ jest.mock('../../shared/services/cache/railway-redis.service', () => ({
     set: jest.fn().mockResolvedValue('OK'),
     del: jest.fn().mockResolvedValue(1),
   },
+  isAvailable: jest.fn(() => true),
   get: jest.fn().mockResolvedValue(null),
   set: jest.fn().mockResolvedValue('OK'),
 }));
@@ -159,9 +160,10 @@ const shareCode = (over = {}) => ({
 });
 
 /** Table-driven Supabase: the share code, the app_settings flags, the teacher row for the self-test. */
-function stub({ sc = shareCode(), settings = {}, teacherPhone = TEACHER_PHONE } = {}) {
+function stub({ sc = shareCode(), settings = {}, teacherPhone = TEACHER_PHONE, students = [] } = {}) {
   const rows = (table) => {
     if (table === 'app_settings') return Object.entries(settings).map(([key, value]) => ({ key, value }));
+    if (table === 'students') return students;
     return [];
   };
   supabase.from.mockImplementation((table) => {
@@ -194,6 +196,7 @@ beforeEach(() => {
   WhatsAppService.sendCtaUrl.mockResolvedValue(true);
   WebQuizLink._resetCache();
   if (OldLink && OldLink._resetCache) OldLink._resetCache();
+  try { require('../../shared/services/quiz/web-quiz-handset')._resetCache(); } catch (_) { /* not built yet */ }
 });
 
 describe('an old wa.me quiz link, with the redirect on', () => {
@@ -257,6 +260,37 @@ describe('an old wa.me quiz link, with the redirect on', () => {
 
     expect(WhatsAppService.sendCtaUrl).toHaveBeenCalledTimes(1);
     expect(WhatsAppService.sendCtaUrl.mock.calls[0][1].url).toBe(`https://portal.test/q/${CODE}`);
+  });
+
+  test("with web_quiz_handset_link on and a known child on this phone, the button's URL carries #x= — a one-hour nonce the server keeps the child's id under; never the phone, never the id; the body still has no URL", async () => {
+    const KID = '44444444-4444-4444-8444-000000000001';
+    stub({ settings: { ...ON, web_quiz_handset_link: 'true' }, students: [{ id: KID, student_name: 'Ayesha', self_reported_class: '3', created_at: '2026-09-10T00:00:00Z' }] });
+    const T = require('../../shared/services/quiz/web-quiz-token');
+    await handleTextMessage(MESSAGE, CHILD, `QUIZ-${CODE}`, null);
+    await settle();
+    expect(WhatsAppService.sendCtaUrl).toHaveBeenCalledTimes(1);
+    const { url, body } = WhatsAppService.sendCtaUrl.mock.calls[0][1];
+    expect(url.startsWith(`https://portal.test/q/${CODE}#x=`)).toBe(true);
+    const tok = T.verify(url.split('#x=')[1], 'x');
+    expect(tok).toBeTruthy();
+    expect(tok.sc).toBe('sc-1');
+    expect(url).not.toContain(CHILD);
+    expect(url).not.toContain(KID);
+    expect(body).not.toMatch(/https?:/);
+    // the ids live in Redis under the nonce, for an hour
+    const entry = redisService.set.mock.calls.find((c) => /^wq:x:/.test(String(c[0])));
+    expect(entry).toBeTruthy();
+    expect(entry[1]).toEqual(expect.objectContaining({ ids: [KID], sc: 'sc-1' }));
+    expect(entry[2]).toBe(T.HANDSET_TTL_S);
+    expect(logEvent).toHaveBeenCalledWith('web_quiz.handset_minted', expect.objectContaining({ shareCodeId: 'sc-1', kids: 1 }));
+  });
+
+  test('with the link on but NOBODY known on this phone: the bare page URL (there is nobody to carry)', async () => {
+    stub({ settings: { ...ON, web_quiz_handset_link: 'true' } });
+    await handleTextMessage(MESSAGE, CHILD, `QUIZ-${CODE}`, null);
+    await settle();
+    expect(WhatsAppService.sendCtaUrl.mock.calls[0][1].url).toBe(`https://portal.test/q/${CODE}`);
+    expect(redisService.set.mock.calls.some((c) => /^wq:x:/.test(String(c[0])))).toBe(false);
   });
 
   test('an expired code is still told so in chat, not redirected', async () => {

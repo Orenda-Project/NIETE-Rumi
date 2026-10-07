@@ -86,6 +86,29 @@ async function deviceTrusted(token, device) {
   return out;
 }
 
+/**
+ * Trust this phone for these children from now (web-quiz-handset.js, after a bot-sent link's token is
+ * redeemed on it): the same two Redis keys deviceTrusted writes, so hubChipKid and deviceMayName accept
+ * the children's chips on this phone. Best effort; false when Redis is down.
+ */
+async function rememberKids(studentIds, device, ttlS = T.HUB_TTL_S) {
+  const d = T.cleanDeviceRef(device);
+  const ids = [...new Set((studentIds || []).map(String).filter(Boolean))];
+  if (!d || !ids.length) return false;
+  try {
+    const redis = require('../cache/railway-redis.service');
+    if (!redis || typeof redis.isAvailable !== 'function' || !redis.isAvailable()) return false;
+    const ttl = Math.max(60, Number(ttlS) || T.HUB_TTL_S);
+    const wrote = await Promise.all(ids.map((id) => redis.set(kidKey(id, d), '1', ttl)));
+    if (wrote.some((w) => w === false)) return false;
+    const had = await redis.get(devKidsKey(d));
+    const kids = [...new Set([...ids, ...(Array.isArray(had) ? had.map(String) : [])])].slice(0, DEVKIDS_MAX);
+    return (await redis.set(devKidsKey(d), kids, ttl)) !== false;
+  } catch (_) {
+    return false;
+  }
+}
+
 /** May this phone see these children's names on a hub ?k= link? A phone they played on, or one a hub of theirs was opened on. */
 async function deviceMayName(studentIds, device) {
   const d = T.cleanDeviceRef(device);
@@ -117,4 +140,4 @@ async function deviceKids(device) {
   }
 }
 
-module.exports = { deviceTrusted, deviceMayName, deviceKids };
+module.exports = { deviceTrusted, deviceMayName, deviceKids, rememberKids };

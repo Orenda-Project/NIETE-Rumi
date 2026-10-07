@@ -76,18 +76,20 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
     return { data: hit.map((r) => ({ ...r })), error: null };
   }
 
-  return {
+  const fake = {
     db, calls, rpcs,
     from: (t) => builder(t),
-    rpc: async (name, args) => {
+    async rpc(name, args) {
       rpcs.push({ name, args });
       if (name === 'increment_share_code_uses') {
         const sc = table('quiz_share_codes').find((r) => r.id === args.code_id);
         if (sc) sc.uses_count = (sc.uses_count || 0) + 1;
       }
-      return { data: null, error: null };
+      // A test may script the rpc answer (fake.rpcResult = { data, error }, or on the object it was assigned onto); default: nothing.
+      return (this && this.rpcResult) || fake.rpcResult || { data: null, error: null };
     },
   };
+  return fake;
 }
 
 module.exports = { makeFake };

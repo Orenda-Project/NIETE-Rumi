@@ -70,6 +70,16 @@ describe('web quiz edge: forwarding /api/wq/* -> bot /api/internal/wq/*', () => 
   });
   afterEach(() => new Promise((r) => srv.close(r)));
 
+  it('POST /api/wq/bind (the one-shot handset link) is forwarded to the bot like a session start', async () => {
+    const body = { code: 'AB12CD', x: 'eyJrIjoieCJ9.sig', device_ref: 'dddddddddddddddddddddd' };
+    const res = await req(srv, 'POST', '/api/wq/bind', body);
+    expect(res.status).toBe(200);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe(`${BOT}/api/internal/wq/bind`);
+    expect(calls[0].opts.method).toBe('POST');
+    expect(JSON.parse(calls[0].opts.body)).toEqual(body);
+  });
+
   it('adds the internal key and the client ip, maps the path, forwards the body unchanged', async () => {
     const body = { code: 'AB12CD', chip: '0123456789abcdef' };
     const res = await req(srv, 'POST', '/api/wq/session', body, { 'x-forwarded-for': '203.0.113.9' });
