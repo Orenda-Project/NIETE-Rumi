@@ -33,6 +33,7 @@ function getSharp() {
 const supabase = require('../../config/supabase');
 const r2 = require('../../storage/r2');
 const { logToFile } = require('../../utils/logger');
+const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const WebQuizBrand = require('../../config/web-quiz-brand');
 const { orgName, botName } = require('../../config/branding');
@@ -197,15 +198,23 @@ function remember(key, bytes) {
  * The picture for a signed id: { bytes, contentType: 'image/jpeg', key }.
  * Throws ArtError(404) for an id we did not issue or a thing that is not there.
  */
+// One event per picture served (kind, size, ms, from: drawn | r2 | mem): a link preview fetches the picture with no
+// session, so this is how the logs show a phone fetched one. No id, code or name.
+function served(input, t0, from) {
+  logEvent('web_quiz.art_served', { kind: input.kind, size: input.size, ms: Date.now() - t0, from });
+}
+
 async function artImage(id, { size = 'og' } = {}) {
+  const t0 = Date.now();
   const p = parseArtId(id);
   if (!p) notFound();
   const sz = SIZES[size] ? size : 'og';
   const f = await facts(p.kind, p.ref);
   const input = { kind: KIND_OF[p.kind], size: sz, brand: await brandKey(), lang: f.lang, d: f.d };
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
-  if (mem.has(key)) return { bytes: mem.get(key), contentType: 'image/jpeg', key };
+  if (mem.has(key)) { served(input, t0, 'mem'); return { bytes: mem.get(key), contentType: 'image/jpeg', key }; }
   let bytes = null;
+  let from = 'r2';
   // Ask first: a picture not drawn yet is a cache miss, and downloadFromR2 logs every failure as an error.
   try {
     if ((await r2.headObject(key)).exists) bytes = await r2.downloadFromR2(key);
@@ -214,12 +223,14 @@ async function artImage(id, { size = 'og' } = {}) {
     logToFile('⚠️ web-quiz art: R2 read failed, drawing instead', { key, error: (e && e.name) || 'error' }, 'warn');
   }
   if (!bytes || !bytes.length) {
-    const t0 = Date.now();
+    const d0 = Date.now();
+    from = 'drawn';
     bytes = await draw(input);
-    logToFile('web-quiz art drawn', { kind: input.kind, size: sz, ms: Date.now() - t0, kb: Math.round(bytes.length / 1024) });
+    logToFile('web-quiz art drawn', { kind: input.kind, size: sz, ms: Date.now() - d0, kb: Math.round(bytes.length / 1024) });
     try { await r2.uploadBuffer(bytes, key, 'image/jpeg'); } catch (e) { logToFile('⚠️ web-quiz art: R2 upload failed', { error: e.message }); }
   }
   remember(key, bytes);
+  served(input, t0, from);
   return { bytes, contentType: 'image/jpeg', key };
 }
 
