@@ -11,9 +11,11 @@
  * flow, a tenth of a millisecond later, logged the new table. The kill switch is read the same
  * way, so it would have been missed the same way, once per quiet process, at any later time.
  *
- * Pinned here: past two refresh periods the call is treated as at boot, before the first read.
- * Nothing moves, the refresh starts, and the next call sees the table as it is now. A process
- * that calls at least once a refresh period is unaffected.
+ * Pinned here: past two refresh periods the settings module's answer moves nothing (configForRequest
+ * returns {}) and the refresh starts. Since bd-gr4fy.14 a labelled llm-client call that finds the settings
+ * stale and not current waits for that read (bounded) and plans with the table as it is now, so the override
+ * or the kill switch applies on that very call (tests/llm/settings-fresh-read.test.js). A process that calls
+ * at least once a refresh period is unaffected.
  */
 const mockState = { rows: [], queryError: null, reads: 0, sent: [], events: [] };
 
@@ -180,14 +182,14 @@ describe('llm-client, end to end: a quiet process never applies a table it has n
     expect(await ask()).toBe(SITE_MODEL);
   });
 
-  test('a job moved while the process was quiet moves from the call after the refresh', async () => {
+  test('a job moved while the process was quiet moves on its FIRST call after the silence (bd-gr4fy.14)', async () => {
     await settings.refresh();
     expect(await ask()).toBe(SITE_MODEL);
 
     now += 3 * settings.TTL_MS;
     mockState.rows = [perJob({ 'chat.intent': MOVED_TO })];
-    expect(await ask()).toBe(SITE_MODEL);
-    await settle();
+    // Before bd-gr4fy.14 this call ran on its own model and only the next one moved: llm-client now reads
+    // the stale table (bounded) before planning, so the move applies at once. tests/llm/settings-fresh-read.test.js.
     expect(await ask()).toBe(MOVED_TO);
   });
 
