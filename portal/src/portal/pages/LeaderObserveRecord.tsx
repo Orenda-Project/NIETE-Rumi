@@ -186,7 +186,8 @@ const LeaderObserveRecord = () => {
   useEffect(() => {
     let live = true;
     Promise.resolve().then(() => portal.getConfig())
-      .then((cfg) => { if (live) setEnabled(cfg?.features?.coachObservation === true); })
+      // bd-o15qnr: coach v2's Take observation runs here too (the server gate is either flag).
+      .then((cfg) => { if (live) setEnabled(cfg?.features?.coachObservation === true || cfg?.features?.coachV2 === true); })
       .catch(() => { if (live) setEnabled(false); });
     canRecordHere().then((ok) => { if (live) setCanRecord(ok); }).catch(() => {});
     leader.getTeachers().then((d) => { if (live) setTeachers(d.teachers || []); }).catch(() => {});
@@ -229,7 +230,9 @@ const LeaderObserveRecord = () => {
     preselected.current = true;
     const school = params.get('school');
     setTeacher({ ...hit, schoolExtId: school || hit.schoolExtId });
-    setWaysSheet(true);
+    // bd-o15qnr: from the coach v2 Visit page she already chose "Record live".
+    if (params.get('way') === 'record') setStage('recording');
+    else setWaysSheet(true);
   }, [params, todays, all]);
 
   const pickTeacher = (t: Teacher) => { setTeacher(t); setWaysSheet(true); };
@@ -355,6 +358,10 @@ const LeaderObserveRecord = () => {
       return;
     }
     if (stage === 'check' || stage === 'micBlocked' || stage === 'failed') { setStage('who'); return; }
+    // bd-o15qnr: opened from coach v2, Back goes to the v2 page it came from —
+    // only a /portal/coach path, never anything else a link could carry.
+    const ret = params.get('return');
+    if (ret && (ret === '/portal/coach' || ret.startsWith('/portal/coach/'))) { navigate(ret); return; }
     navigate('/portal/leader/observations');
   };
 

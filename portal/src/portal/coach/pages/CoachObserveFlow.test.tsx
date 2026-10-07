@@ -1,0 +1,347 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, within, fireEvent, waitFor, act } from "@testing-library/react";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { readFileSync } from "fs";
+import { resolve } from "path";
+
+vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
+vi.mock("../CoachGate", () => ({ default: ({ children }: any) => <>{children}</> }));
+vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Hataf", role: "coach", phoneNumber: "923001234567" }, loading: false }) }));
+vi.mock("../../services/api", () => ({
+  coach: { getVisit: vi.fn() },
+  leader: { cancelSchedule: vi.fn(), getObserveRecentPlans: vi.fn() },
+  portal: {},
+}));
+const rec = vi.hoisted(() => ({
+  state: { recording: true, paused: false, elapsed: 1122000, level: 0.4, screenWentOff: false, micBlocked: false },
+  togglePause: vi.fn(),
+  finish: vi.fn(),
+}));
+vi.mock("../../lib/useCoachRecording", () => ({
+  useCoachRecording: (opts: { onStarted?: (id: string) => void }) => {
+    opts.onStarted?.("rec-1");
+    return { ...rec.state, togglePause: rec.togglePause, finish: rec.finish, elapsedNow: () => rec.state.elapsed };
+  },
+}));
+vi.mock("../../lib/coachObserve", async (orig) => ({ ...(await orig<typeof import("../../lib/coachObserve")>()), sendObservation: vi.fn() }));
+vi.mock("../../lib/recordingStore", () => ({ deleteRecording: vi.fn(async () => {}), latestUnsent: vi.fn(async () => null) }));
+
+import { coach, leader } from "../../services/api";
+import { sendObservation } from "../../lib/coachObserve";
+import CoachVisit from "./CoachVisit";
+import CoachRecord from "./CoachRecord";
+import CoachAttach from "./CoachAttach";
+import CoachCheckSend from "./CoachCheckSend";
+import { setDraft, getDraft, clearDraft } from "../observeDraft";
+
+/**
+ * bd-o15qnr.9 — taking an observation in coach v2, built from the canvas
+ * (v21 Visit, v18 Recording / Attach / CheckSend):
+ *  6  "i clicked on Record Live and it asked me in a bottom up tray again to Record or Upload" — no second choice.
+ *  8  two square buttons, centred icon over label; Record live pulses, Upload nudges; still under reduced motion.
+ * 10  the Observation box first (no visible title), Reschedule/Cancel inside it; then Teacher.
+ * 12  the teacher card opens with initials, name and phone.
+ * The clock is Tuesday 6 Oct 2026, 09:30 in Pakistan.
+ */
+const C = coach as any;
+const L = leader as any;
+const send = sendObservation as any;
+const VISIT_ID = "0d8a6d1c-1111-4c1c-9a1a-000000000002";
+
+const VISIT = {
+  success: true,
+  visit: { id: VISIT_ID, teacherName: "Ayesha Bibi", teacherExtId: "923001110001", schoolName: "IMSG I-10/1", schoolExtId: "niete:110", scheduledFor: "2026-10-06", scheduledSlot: "11:30", status: "upcoming", overdue: false },
+  teacher: { teacherExtId: "923001110001", name: "Ayesha Bibi", phone: "923001110001", hitl: 3, dc: 7, avgHitl: 61, daysSinceTraining: 12 },
+  lastVisit: { id: "s-sent", date: "2026-09-14T09:00:00Z", score: 61, step: "sent", byMe: true, observerName: "Hataf Atif", portal: true },
+};
+
+function Where() {
+  const l = useLocation();
+  return <div data-testid="where">{l.pathname}</div>;
+}
+
+function renderAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path="/portal/coach/visit/:id" element={<CoachVisit />} />
+        <Route path="/portal/coach/visit/:id/record" element={<CoachRecord />} />
+        <Route path="/portal/coach/visit/:id/attach" element={<CoachAttach />} />
+        <Route path="/portal/coach/visit/:id/check" element={<CoachCheckSend />} />
+        <Route path="/portal/coach/reports" element={<div>reports page</div>} />
+        <Route path="*" element={<Where />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-06T09:30:00+05:00"));
+  clearDraft(VISIT_ID);
+  rec.state = { recording: true, paused: false, elapsed: 1122000, level: 0.4, screenWentOff: false, micBlocked: false };
+  C.getVisit.mockResolvedValue(VISIT);
+  L.getObserveRecentPlans.mockResolvedValue({ plans: [{ assetId: "a1", topic: "Fractions", grade: 4, subject: "Maths", chapterNumber: 3, dayLabel: "Day 2" }] });
+  send.mockResolvedValue({ coachingSessionId: "cs-1" });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("10 + 12 — the Visit page, in the canvas order", () => {
+  it("the Observation box comes first, holds the two ways and Reschedule/Cancel, and shows no heading", async () => {
+    renderAt(`/portal/coach/visit/${VISIT_ID}`);
+    const box = await screen.findByRole("region", { name: "Observation" });
+    const b = within(box);
+    expect(b.getByRole("link", { name: "Record live" })).toBeInTheDocument();
+    expect(b.getByRole("link", { name: "Upload recording" })).toBeInTheDocument();
+    expect(b.getByRole("link", { name: /Reschedule/ })).toBeInTheDocument();
+    expect(b.getByRole("button", { name: /^Cancel$/ })).toBeInTheDocument();
+    expect(b.queryByRole("heading")).toBeNull();
+    expect(screen.queryByText("Take observation", { selector: "h2" })).toBeNull();
+    const teacherHeading = screen.getByRole("heading", { name: "Teacher" });
+    // the box, then the Teacher heading, in document order
+    expect(box.compareDocumentPosition(teacherHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("the teacher card opens with initials, name and phone, then school, time, numbers, last visit and profile", async () => {
+    renderAt(`/portal/coach/visit/${VISIT_ID}`);
+    const card = await screen.findByTestId("teacher-card");
+    const c = within(card);
+    expect(c.getByText("AB")).toBeInTheDocument();
+    expect(c.getByText("Ayesha Bibi")).toBeInTheDocument();
+    expect(c.getByText("0300 1110001")).toBeInTheDocument();
+    expect(card).not.toHaveTextContent("+92");
+    expect(c.getByText("IMSG I-10/1")).toBeInTheDocument();
+    expect(c.getByText(/11:30 AM · Today/)).toBeInTheDocument();
+    expect(c.getByText("In 2 h")).toBeInTheDocument();
+    expect(c.getByText("Avg. HITL Score")).toBeInTheDocument(); // bd-o15qnr.18
+    const last = c.getByRole("link", { name: /Last visit · 14 Sep/ });
+    expect(last).toHaveTextContent("HITL · You");
+    expect(last).toHaveTextContent("Report sent");
+    expect(last).toHaveAttribute("href", "/portal/leader/observe/s-sent");
+    expect(c.getByRole("link", { name: /Teacher profile/ })).toHaveAttribute("href", "/portal/coach/teacher/923001110001");
+    expect(screen.queryByText("Last visit", { selector: "h2" })).toBeNull();
+  });
+
+  it("no phone, no phone line (and no dash)", async () => {
+    C.getVisit.mockResolvedValue({ ...VISIT, visit: { ...VISIT.visit, teacherExtId: "sadaf-khan" }, teacher: { ...VISIT.teacher, teacherExtId: "sadaf-khan", phone: null } });
+    renderAt(`/portal/coach/visit/${VISIT_ID}`);
+    const card = await screen.findByTestId("teacher-card");
+    expect(card).not.toHaveTextContent(/\+92|03\d\d /);
+    expect(within(card).queryByTestId("teacher-phone")).toBeNull();
+  });
+
+  it("someone else's WhatsApp observation: their name, its step, and nothing to tap", async () => {
+    C.getVisit.mockResolvedValue({ ...VISIT, lastVisit: { id: "s-wa", date: "2026-09-30T09:00:00Z", score: null, step: "draft", byMe: false, observerName: "Imran S", portal: false } });
+    renderAt(`/portal/coach/visit/${VISIT_ID}`);
+    const row = await screen.findByTestId("last-visit");
+    expect(row.tagName).not.toBe("A");
+    expect(row).toHaveTextContent("HITL · Imran S");
+    expect(row).toHaveTextContent("Check draft");
+  });
+
+  it("a done visit has no Observation box", async () => {
+    C.getVisit.mockResolvedValue({ ...VISIT, visit: { ...VISIT.visit, status: "done" } });
+    renderAt(`/portal/coach/visit/${VISIT_ID}`);
+    await screen.findByTestId("teacher-card");
+    expect(screen.queryByRole("region", { name: "Observation" })).toBeNull();
+  });
+});
+
+describe("8 — the two square buttons", () => {
+  it("Record live: indigo square, centred icon over label, the pulse only when motion is allowed", async () => {
+    renderAt(`/portal/coach/visit/${VISIT_ID}`);
+    const record = await screen.findByRole("link", { name: "Record live" });
+    expect(record.className).toMatch(/bg-\[#33374a\]/);
+    expect(record.className).toMatch(/flex-col/);
+    expect(record.className).toMatch(/items-center/);
+    expect(record.className).toMatch(/min-h-\[176px\]/);
+    const core = within(record).getByTestId("rec-core");
+    expect(core.className).toMatch(/motion-safe:animate-coach-rec-beat/);
+    const rings = within(record).getAllByTestId("rec-ring");
+    expect(rings).toHaveLength(2);
+    for (const r of rings) {
+      expect(r.className).toMatch(/motion-safe:animate-coach-rec-ring/);
+      expect(r.className).toMatch(/motion-reduce:opacity-0/);
+    }
+    expect(rings[1].className).toMatch(/\[animation-delay:0\.9s\]/);
+    expect(record.className).not.toMatch(/(^|\s)animate-/);
+  });
+
+  it("Upload recording: white square, the arrow nudges only when motion is allowed", async () => {
+    renderAt(`/portal/coach/visit/${VISIT_ID}`);
+    const upload = await screen.findByRole("link", { name: "Upload recording" });
+    expect(upload.className).toMatch(/bg-white/);
+    expect(upload.className).toMatch(/min-h-\[176px\]/);
+    expect(within(upload).getByTestId("up-arrow").getAttribute("class")).toMatch(/motion-safe:animate-coach-up-nudge/);
+  });
+
+  it("the keyframes are the canvas's, exactly", () => {
+    const tw = readFileSync(resolve(__dirname, "../../../../tailwind.config.ts"), "utf8");
+    expect(tw).toMatch(/"coach-rec-ring": \{\s*"0%": \{ transform: "scale\(\.55\)", opacity: "\.9" \},\s*"100%": \{ transform: "scale\(1\.35\)", opacity: "0" \},\s*\}/);
+    expect(tw).toMatch(/"coach-rec-beat": \{\s*"0%, 100%": \{ transform: "scale\(1\)" \},\s*"50%": \{ transform: "scale\(\.86\)" \},\s*\}/);
+    expect(tw).toMatch(/"coach-up-nudge": \{\s*"0%, 70%, 100%": \{ transform: "translateY\(0\)" \},\s*"35%": \{ transform: "translateY\(-3px\)" \},\s*\}/);
+    expect(tw).toContain('"coach-rec-ring": "coach-rec-ring 1.8s ease-out infinite"');
+    expect(tw).toContain('"coach-rec-beat": "coach-rec-beat 1.6s ease-in-out infinite"');
+    expect(tw).toContain('"coach-up-nudge": "coach-up-nudge 2.4s ease-in-out infinite"');
+  });
+});
+
+describe("6 — one choice, then straight on", () => {
+  it("tapping Record live opens the record screen; no sheet with a second Record/Upload choice", async () => {
+    renderAt(`/portal/coach/visit/${VISIT_ID}`);
+    fireEvent.click(await screen.findByRole("link", { name: "Record live" }));
+    await screen.findByRole("timer");
+    expect(screen.getByRole("heading", { level: 1, name: "Record live" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByText(/Record Live Lecture/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /Upload Recording/i })).toBeNull();
+  });
+
+  it("tapping Upload recording opens the upload step for this visit; no second Record/Upload choice", async () => {
+    renderAt(`/portal/coach/visit/${VISIT_ID}`);
+    fireEvent.click(await screen.findByRole("link", { name: "Upload recording" }));
+    const sheet = await screen.findByRole("dialog", { name: "Upload recording" });
+    expect(within(sheet).getByText("Choose file")).toBeInTheDocument();
+    expect(within(sheet).queryByText(/Record/)).toBeNull();
+  });
+});
+
+describe("Record live (v18 Recording)", () => {
+  it("the timer ring with Recording, the meter, and the visit it is linked to", async () => {
+    renderAt(`/portal/coach/visit/${VISIT_ID}/record`);
+    expect(await screen.findByRole("timer")).toHaveTextContent("18:42");
+    expect(screen.getByRole("timer")).toHaveTextContent("Recording");
+    expect(screen.getByTestId("level-meter")).toBeInTheDocument();
+    const card = screen.getByTestId("linked-visit");
+    expect(card).toHaveTextContent("Ayesha Bibi");
+    expect(card).toHaveTextContent("IMSG I-10/1");
+    expect(card).toHaveTextContent("Visit · 11:30 AM");
+    expect(card).toHaveTextContent("Linked");
+  });
+
+  it("Pause pauses; Stop asks once, then Check and send has the recording", async () => {
+    const blob = new Blob(["x"], { type: "audio/webm" });
+    rec.finish.mockResolvedValue({ id: "rec-1", blob, durationMs: 1122000, type: { ext: ".webm", mime: "audio/webm" } });
+    renderAt(`/portal/coach/visit/${VISIT_ID}/record`);
+    fireEvent.click(await screen.findByRole("button", { name: /Pause/ }));
+    expect(rec.togglePause).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /Stop/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Yes, stop/ }));
+    await screen.findByText("Ayesha Bibi’s lesson");
+    expect(screen.getByRole("heading", { level: 1, name: "Check and send" })).toBeInTheDocument();
+    expect(getDraft(VISIT_ID)?.recordingId).toBe("rec-1");
+  });
+
+  it("a refused microphone: Try again, or Upload recording instead", async () => {
+    rec.state = { ...rec.state, recording: false, micBlocked: true };
+    renderAt(`/portal/coach/visit/${VISIT_ID}/record`);
+    expect(await screen.findByRole("link", { name: /Upload recording/ })).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}/attach`);
+    expect(screen.getByRole("button", { name: /Try again/ })).toBeInTheDocument();
+  });
+});
+
+describe("Upload recording (v18 Attach)", () => {
+  it("a file that is not a recording is refused", async () => {
+    renderAt(`/portal/coach/visit/${VISIT_ID}/attach`);
+    await screen.findByRole("dialog", { name: "Upload recording" });
+    const input = screen.getByTestId("audio-input");
+    await act(async () => { fireEvent.change(input, { target: { files: [new File(["x"], "notes.pdf", { type: "application/pdf" })] } }); });
+    expect(screen.getByRole("alert")).toHaveTextContent(/not a recording/);
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+  });
+
+  it("a recording shows its row with a full bar; Next goes to Check and send", async () => {
+    renderAt(`/portal/coach/visit/${VISIT_ID}/attach`);
+    await screen.findByRole("dialog", { name: "Upload recording" });
+    await act(async () => { fireEvent.change(screen.getByTestId("audio-input"), { target: { files: [new File(["abc"], "lesson-0610.m4a", { type: "audio/mp4" })] } }); });
+    expect(await screen.findByText("lesson-0610.m4a")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByRole("button", { name: /Redo/ });
+    expect(screen.getByRole("heading", { level: 1, name: "Check and send" })).toBeInTheDocument();
+    expect(getDraft(VISIT_ID)?.filename).toBe("lesson-0610.m4a");
+  });
+});
+
+describe("Check and send (v18 CheckSend)", () => {
+  const draft = () => setDraft(VISIT_ID, {
+    blob: new Blob(["x"], { type: "audio/webm" }), filename: "Observation 6 Oct 11.30.webm", durationMs: 2520000,
+    recordingId: "rec-1", label: "Ayesha Bibi’s lesson", sub: "42 minutes · recorded just now",
+  });
+
+  it("the recording, the plan options, board photos, and Send to Reports — tied to the visit's teacher and school", async () => {
+    draft();
+    renderAt(`/portal/coach/visit/${VISIT_ID}/check`);
+    expect(await screen.findByText("Ayesha Bibi’s lesson")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Redo/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Lesson plan/ })).toHaveTextContent("Optional");
+    for (const t of ["Their recent plans", "Library", "Photo of plan"]) expect(screen.getByRole("button", { name: t })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Board photos/ })).toHaveTextContent("Up to 3");
+    fireEvent.click(screen.getByRole("button", { name: /^Send$/ }));
+    await waitFor(() => expect(send).toHaveBeenCalled());
+    const args = send.mock.calls[0][0];
+    expect(args).toMatchObject({ teacherExtId: "923001110001", schoolExtId: "niete:110", plan: null, photos: [] });
+    expect(args.audio.filename).toBe("Observation 6 Oct 11.30.webm");
+    expect(await screen.findByText("reports page")).toBeInTheDocument();
+    expect(getDraft(VISIT_ID)).toBeNull();
+  });
+
+  it("their recent plan can be picked and is sent with the lesson", async () => {
+    draft();
+    renderAt(`/portal/coach/visit/${VISIT_ID}/check`);
+    fireEvent.click(await screen.findByRole("button", { name: "Their recent plans" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Fractions/ }));
+    expect(L.getObserveRecentPlans).toHaveBeenCalledWith("923001110001", "niete:110");
+    expect(screen.getByTestId("chosen-plan")).toHaveTextContent("Fractions");
+    fireEvent.click(screen.getByRole("button", { name: /^Send$/ }));
+    await waitFor(() => expect(send).toHaveBeenCalled());
+    expect(send.mock.calls[0][0].plan).toEqual({ kind: "library", pick: { assetId: "a1" } });
+  });
+
+  it("board photos: up to three, each removable; a fourth is refused", async () => {
+    draft();
+    renderAt(`/portal/coach/visit/${VISIT_ID}/check`);
+    await screen.findByText("Ayesha Bibi’s lesson");
+    const input = screen.getByTestId("photos-input");
+    const jpg = (n: string) => new File(["p"], n, { type: "image/jpeg" });
+    fireEvent.change(input, { target: { files: [jpg("a.jpg"), jpg("b.jpg"), jpg("c.jpg")] } });
+    expect(screen.getAllByTestId("board-photo")).toHaveLength(3);
+    expect(screen.queryByRole("button", { name: /Add photo/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Remove b.jpg" }));
+    expect(screen.getAllByTestId("board-photo")).toHaveLength(2);
+    fireEvent.change(input, { target: { files: [jpg("d.jpg"), jpg("e.jpg")] } });
+    expect(screen.getByRole("alert")).toHaveTextContent(/up to 3/);
+  });
+
+  it("a network failure keeps the lesson and offers Try again", async () => {
+    const { SendError } = await import("../../lib/coachingSend");
+    send.mockRejectedValueOnce(new SendError("network"));
+    draft();
+    renderAt(`/portal/coach/visit/${VISIT_ID}/check`);
+    fireEvent.click(await screen.findByRole("button", { name: /^Send$/ }));
+    expect(await screen.findByText(/internet stopped/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Try again/ }));
+    expect(await screen.findByText("reports page")).toBeInTheDocument();
+  });
+
+  it("opened with no recording: back to the two ways", async () => {
+    renderAt(`/portal/coach/visit/${VISIT_ID}/check`);
+    expect(await screen.findByRole("link", { name: "Record live" })).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}/record`);
+    expect(screen.getByRole("link", { name: "Upload recording" })).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}/attach`);
+    expect(send).not.toHaveBeenCalled();
+  });
+});
+
+describe("routes", () => {
+  it("the three steps have v2 routes; the old page's route is still there", () => {
+    const app = readFileSync(resolve(__dirname, "../../../App.tsx"), "utf8");
+    expect(app).toContain('<Route path="/portal/coach/visit/:id/record" element={<CoachRecord />} />');
+    expect(app).toContain('<Route path="/portal/coach/visit/:id/attach" element={<CoachAttach />} />');
+    expect(app).toContain('<Route path="/portal/coach/visit/:id/check" element={<CoachCheckSend />} />');
+    expect(app).toMatch(/\/portal\/leader\/observe\/new/);
+  });
+});
