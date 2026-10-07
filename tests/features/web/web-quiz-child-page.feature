@@ -1093,3 +1093,10 @@ Feature: Web child quiz page on the portal
     Then the page asks again for the quiz a few times over the next two minutes
     And every question the child reaches after the clips land is read in the quiz's recorded voice, in Urdu as in English
     And a quiz whose clips are already recorded never asks again
+
+  @T592
+  Scenario: Every portal worker answers a link preview fast, whichever one the phone reaches
+    Given the portal runs several worker processes and only one of them served the child's quiz page
+    When WhatsApp's link-preview fetch for the child's card or challenge link reaches any other worker
+    Then that worker answers the page head from the bot's remembered link facts, never a whole quiz load
+    And the share picture is answered from the bot's memory once the scorecard has fetched it

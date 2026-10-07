@@ -34,6 +34,7 @@ const WebQuizVideos = require('../services/quiz/web-quiz-videos');
 const WebQuizSchools = require('../services/quiz/web-quiz-schools');
 const WebQuizPulse = require('../services/quiz/web-quiz-pulse');
 const WebQuizArt = require('../services/quiz/web-quiz-art');
+const WebQuizOg = require('../services/quiz/web-quiz-og');
 const Timing = require('../services/quiz/web-quiz-timing');
 const WebQuizLibrary = require('../services/quiz/web-quiz-library');
 
@@ -61,7 +62,14 @@ const serve = async (fn, req, res) => {
   }
 };
 
-router.get('/quiz/:code', handle((req) => WebQuiz.getQuiz(req.params.code, { p: req.query.p })));
+router.get('/quiz/:code', handle(async (req) => {
+  const out = await WebQuiz.getQuiz(req.params.code, { p: req.query.p });
+  // Every child's page load teaches the preview facts (not a teacher's ?p= preview, which answers differently).
+  if (!req.query.p) WebQuizOg.remember(req.params.code, out);
+  return out;
+}));
+// A shared link's preview facts (web-quiz-og.js): from memory, so a portal worker answers a link preview fast.
+router.get('/og/:code', handle((req) => WebQuizOg.forCode(req.params.code, (c) => WebQuiz.getQuiz(c))));
 router.post('/session', handle((req) => WebQuiz.startSession(req.body || {})));
 router.post('/answers', handle((req) => WebQuiz.recordAnswers(req.body || {})));
 router.post('/finish', handle((req) => WebQuiz.finishSession(req.body || {})));
