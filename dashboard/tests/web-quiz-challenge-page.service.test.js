@@ -234,6 +234,54 @@ describe('read aloud: the microphone', () => {
   });
 });
 
+describe('a reading with nothing to praise is never praised', () => {
+  test('heard but no word right (wcpm 0, not stopped): encouragement, no celebration, no "0 words"', () => {
+    const p = page();
+    p.w.S.data = READ;
+    p.w.readResult({ score: { correct: 0, attempted: 3, stopped: false }, wcpm: 0 });
+    expect(p.html()).toContain('Good try! Reading gets easier every day you practise.');
+    expect(p.html()).not.toContain('Great reading! Well done.');
+    expect(p.html()).not.toMatch(/\b0 words/);
+    expect(p.html()).not.toContain('celebrate');
+  });
+
+  test('nothing attempted (an old server answer): "we couldn\'t hear" + Try again, never praise', () => {
+    const p = page();
+    p.w.S.data = READ;
+    p.w.readResult({ score: { correct: 0, attempted: 0, stopped: false }, wcpm: 0 });
+    expect(p.html()).toContain("We couldn't hear that clearly. Try again?");
+    expect(p.html()).toContain('id="wqc-again"');
+    expect(p.html()).not.toContain('Great reading! Well done.');
+    // A child who was not heard is steered to read again: "Try again" is the primary (green) button, first.
+    expect(p.html()).toMatch(/class="wq-btn wq-go" id="wqc-again"/);
+    expect(p.html()).toMatch(/class="wq-btn wq-soft" id="wqc-menu"/);
+    expect(p.html().indexOf('wqc-again')).toBeLessThan(p.html().indexOf('wqc-menu'));
+  });
+
+  test('Urdu: the same two branches, never «بہت اچھا پڑھا»', () => {
+    const p = page({ lang: 'ur', menu: { ...MENU, lang: 'ur' } });
+    p.w.S.data = { ...READ, clips: { ...CLIPS, done: { text: 'بہت اچھا پڑھا! شاباش!', url: null } } };
+    p.w.readResult({ score: { correct: 0, attempted: 0, stopped: false }, wcpm: 0 });
+    expect(p.html()).toContain('آواز صاف سنائی نہیں دی۔ دوبارہ کوشش کریں؟');
+    p.w.readResult({ score: { correct: 0, attempted: 4, stopped: false }, wcpm: 0 });
+    expect(p.html()).toContain('اچھی کوشش! روز مشق سے پڑھنا آسان ہو جاتا ہے۔');
+    expect(p.html()).not.toContain('بہت اچھا پڑھا');
+  });
+
+  test('the menu ticks a read only for a real result (words per minute above 0)', () => {
+    const p = page({ menu: { lang: 'en', form: 'G3', exercises: [
+      { id: 'bigger', name: 'Which is bigger?', mins: 2, done: true, last: { correct: 7, n: 10 } },
+      { id: 'read', name: 'Read aloud', mins: 2, done: true, last: { correct: 0, wcpm: 0, stopped: false } },
+    ] } });
+    expect(p.html()).toContain('✓');                    // the bigger tile
+    expect((p.html().match(/✓/g) || []).length).toBe(1); // not the read tile
+    const q = page({ menu: { lang: 'en', form: 'G3', exercises: [
+      { id: 'read', name: 'Read aloud', mins: 2, done: true, last: { correct: 41, wcpm: 41, stopped: false } },
+    ] } });
+    expect(q.html()).toMatch(/✓[^<]*41/);
+  });
+});
+
 describe('which is bigger', () => {
   test('practice with feedback, then the scored pairs; the taps go to the server, the server\'s score is shown', async () => {
     const p = page({ routes: { 'ch/HUB.TOKEN/bigger': ok(BIGGER), 'ch/result$': ok({ score: { correct: 4, n: 5, stopped: false } }) } });

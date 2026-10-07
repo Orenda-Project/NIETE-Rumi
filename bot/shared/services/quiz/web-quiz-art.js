@@ -206,7 +206,13 @@ async function artImage(id, { size = 'og' } = {}) {
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
   if (mem.has(key)) return { bytes: mem.get(key), contentType: 'image/jpeg', key };
   let bytes = null;
-  try { bytes = await r2.downloadFromR2(key); } catch { bytes = null; }
+  // Ask first: a picture not drawn yet is a cache miss, and downloadFromR2 logs every failure as an error.
+  try {
+    if ((await r2.headObject(key)).exists) bytes = await r2.downloadFromR2(key);
+  } catch (e) {
+    bytes = null;
+    logToFile('⚠️ web-quiz art: R2 read failed, drawing instead', { key, error: (e && e.name) || 'error' }, 'warn');
+  }
   if (!bytes || !bytes.length) {
     const t0 = Date.now();
     bytes = await draw(input);

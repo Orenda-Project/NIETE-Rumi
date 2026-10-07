@@ -381,8 +381,47 @@ html[lang=ur] .wq-hnonesay{font-weight:600;font-size:17px;line-height:2}
 .wq-htile{display:flex;flex-direction:column;gap:4px;min-height:112px;padding:12px;border-radius:18px;border:2px solid var(--line);background:var(--card);color:var(--navy);text-decoration:none;box-shadow:0 3px 0 var(--line)}
 .wq-htile:only-child{grid-column:1/-1}
 .wq-htic{font-family:var(--f);font-size:30px;line-height:1}
+.wq-htimg{width:64px;height:64px;border-radius:14px;object-fit:cover}
 .wq-htile b{font-size:17px;line-height:1.25}
 .wq-htile small{font-size:13px;color:var(--muted);font-weight:700;line-height:1.3}
 html[lang=ur] .wq-htile b{font-weight:700;line-height:1.9}
 html[lang=ur] .wq-htile small{line-height:1.8}
 a.wq-vitem{color:inherit;text-decoration:none}
+
+/* M4b library (wq-lib.js): subject tiles + grade strip, then chapters */
+.wql-grades{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;margin:0 -2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.wql-grades::-webkit-scrollbar{display:none}
+.wql-g{flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:48px;padding:4px 12px 4px 6px;border-radius:999px;border:2px solid var(--line);background:var(--card);color:var(--navy);font-weight:800;font-size:15px;cursor:pointer;font-family:inherit}
+.wql-g img{width:36px;height:36px;border-radius:50%;flex:0 0 auto}
+.wql-g.wql-on{border-color:var(--green);background:var(--green-l);color:var(--green-d)}
+.wql-subs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.wql-sub{display:flex;flex-direction:column;align-items:stretch;gap:2px;padding:8px 8px 10px;border-radius:18px;border:2px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;text-align:start;font-family:inherit;box-shadow:0 3px 0 var(--line)}
+.wql-sub img,.wql-noart{width:100%;height:auto;aspect-ratio:4/3;border-radius:12px;display:block;background:var(--green-l)}
+.wql-noart{display:grid;place-items:center;font-size:34px}
+.wql-sub b{font-size:17px;line-height:1.3;margin-top:6px}
+.wql-sub small{color:var(--muted);font-size:14px;font-weight:700}
+.wql-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.wql-head h2{flex:1 1 auto;margin:0}
+.wql-up{min-height:44px;padding:4px 14px;border-radius:999px;border:2px solid var(--line);background:var(--card);color:var(--navy);font-weight:800;font-size:15px;cursor:pointer;font-family:inherit}
+.wql-up::before{content:"← "}
+[dir=rtl] .wql-up::before{content:"→ "}
+.wql-chap{display:flex;flex-direction:column;gap:6px}
+.wql-ch{font-size:16px;margin:4px 0 0;color:var(--navy)}
+.wql-strip{display:flex;gap:10px;overflow-x:auto;padding:0 2px 6px;margin:0 -2px;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.wql-strip::-webkit-scrollbar{display:none}
+.wql-card{flex:0 0 168px;display:flex;flex-direction:column;gap:4px;scroll-snap-align:start;background:var(--card);border:2px solid var(--line);border-radius:16px;padding:4px 4px 6px}
+.wql-pick{display:flex;flex-direction:column;gap:6px;width:100%;padding:0;border:0;background:none;color:var(--ink);cursor:pointer;text-align:start;font-family:inherit}
+.wql-thumb{position:relative;display:block;width:100%;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:var(--green-l) center/cover no-repeat}
+.wql-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.wql-done{position:absolute;inset-inline-start:6px;top:6px;padding:2px 8px;border-radius:999px;background:var(--right);color:#fff;font-size:12px;font-weight:900}
+.wql-txt{display:flex;flex-direction:column;gap:2px;padding:0 4px}
+.wql-txt b{font-size:15px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.wql-txt small{color:var(--muted);font-size:13px;font-weight:700}
+.wql-row{flex-basis:auto}
+.wql-row .wql-pick{flex-direction:row;align-items:center}
+.wql-row .wql-thumb{flex:0 0 120px;width:120px}
+.wql-dl{align-self:flex-start;display:block;white-space:nowrap;line-height:36px;min-height:36px;padding:0 6px;color:var(--green-d);font-size:13px;font-weight:800;text-decoration:none}
+.wql-dlbig{white-space:nowrap}
+.wql-dlbig{margin-top:2px}
+.wql-dlhelp{font-size:14px;color:var(--muted);text-align:center;margin:0}
+.wql-dlhelp a{color:var(--green-d);font-weight:800}

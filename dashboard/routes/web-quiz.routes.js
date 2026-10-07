@@ -23,6 +23,7 @@ const express = require('express');
 // loads where the dashboard's dependencies are not installed (the root CI run).
 // Dependency-free: the brand table both services read (the bot names the key, the edge dresses the page).
 const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
+const { createCanonicalRedirect } = require('./web-quiz-canonical');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
@@ -69,6 +70,11 @@ const API_ROUTES = [
   { method: 'get', path: '/api/wq/ch/:token/:exercise', limiter: 'read', token: true },
   // M4a hub — the kid hub's JSON (a hub token, not a code: checked by HUB_TOKEN_RX)
   { method: 'get', path: '/api/wq/hub/:token', limiter: 'read' },
+  // M4b library
+  { method: 'get', path: '/api/wq/lib/h/:token', limiter: 'read', token: true },
+  { method: 'get', path: '/api/wq/lib/:code', limiter: 'read' },
+  { method: 'get', path: '/api/wq/videos/dl/:code', limiter: 'read' },
+  { method: 'post', path: '/api/wq/hub/:token', limiter: 'read' },
 ];
 
 // The shell's line under Jugnu, shown until wq.js boots (seconds on slow 4G), so the page never reads as stuck.
@@ -93,7 +99,7 @@ function bootJson(obj) {
 
 function assetVersion() {
   const h = crypto.createHash('sha256');
-  for (const f of ['wq.js', 'wq.css', 'wq-identity.js', 'hub.js']) {
+  for (const f of ['wq.js', 'wq.css', 'wq-identity.js', 'hub.js', 'wq-lib.js']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   return h.digest('hex').slice(0, 10);
@@ -213,7 +219,8 @@ function renderQuizPage({ payload, code, view, origin, assetV, url, a, v }) {
 <body>
 <main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(BOOT_COPY[lang])}</p></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
-${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq.js?v=${assetV}" defer></script>
+${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq-lib.js?v=${assetV}" defer></script>
+<script src="/wq/wq.js?v=${assetV}" defer></script>
 </body>
 </html>`;
 }
@@ -232,6 +239,23 @@ function renderHubPage({ payload, token, origin, assetV }) {
 <main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/hub.js?v=${assetV}" defer></script>
+</body>
+</html>`;
+}
+
+// M4b library: the video library opened from the kid's hub (/lib/<hub token>?kid=<chip>&l=<lang>).
+// A shell only: wq-lib.js asks the bot for the library with the hub token, so the edge calls nothing.
+const LIB_TITLE = { en: 'Video library', ur: 'ویڈیو لائبریری' };
+function renderLibPage({ hub, kid, lang, origin, assetV, brandKey }) {
+  const l = lang === 'ur' ? 'ur' : 'en';
+  const brand = brandOf(brandKey || WebQuizBrand.brandKey({ orgName: process.env.ORG_NAME, botName: process.env.BOT_NAME }));
+  const boot = { view: 'lib', hub, kid, lang: l, brand: Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, brandKey) ? brandKey : null };
+  return `${head({ lang: l, dir: l === 'ur' ? 'rtl' : 'ltr', title: LIB_TITLE[l], desc: LIB_TITLE[l], origin, url: origin, assetV, brand })}
+</head>
+<body>
+<main id="wq" class="wq-app"><div class="wq-bar wq-topbar">${lockupHtml(brand, l)}</div><div id="wql-root" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"></div></div></main>
+<script id="boot" type="application/json">${bootJson(boot)}</script>
+<script src="/wq/wq-lib.js?v=${assetV}" defer></script>
 </body>
 </html>`;
 }
@@ -265,6 +289,12 @@ function clientIp(req) {
  * location } for a 2xx picture — or for ANY answer when `raw` is set (an HTML page, a
  * PDF). Throws { unreachable: true } when the bot cannot be reached.
  */
+const DEVICE_COOKIE_RX = /(?:^|;\s*)wq_dv=([A-Za-z0-9_-]{22})(?:;|$)/;
+function deviceCookie(req) {
+  const m = DEVICE_COOKIE_RX.exec(String((req.get && req.get('cookie')) || ''));
+  return m ? m[1] : null;
+}
+
 function createBotClient({ botUrl, apiKey, fetchImpl }) {
   return async function callBot(method, pathname, req, body, { raw = false } = {}) {
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -273,6 +303,9 @@ function createBotClient({ botUrl, apiKey, fetchImpl }) {
       const headers = { 'x-api-key': apiKey, 'x-forwarded-for': clientIp(req), accept: raw ? '*/*' : 'application/json' };
       const ua = req.get('user-agent');
       if (ua) headers['user-agent'] = ua.slice(0, 300);
+      // This phone's device_ref (the wq_dv cookie the hub page writes): a hub link opens nothing as a child on another phone.
+      const dv = deviceCookie(req);
+      if (dv) headers['x-wq-device'] = dv;
       const init = { method, headers, redirect: 'manual' };
       if (controller) init.signal = controller.signal;
       if (method !== 'GET') {
@@ -304,8 +337,8 @@ function createBotClient({ botUrl, apiKey, fetchImpl }) {
 // ── M4c challenge: the page shell ────────────────────────────────────────────────────────────────────
 const TOKEN_RX = /^[A-Za-z0-9_-]{8,900}\.[A-Za-z0-9_-]{22}$/;
 const CH_COPY = {
-  en: { boot: 'Opening the challenge…', title: (m) => `${m}'s Challenge`, not_eligible: 'This challenge is for classes 2 to 5.', pick_kid: 'Open the challenge from your quiz page.' },
-  ur: { boot: 'چیلنج کھل رہا ہے…', title: (m) => `${m} کا چیلنج`, not_eligible: 'یہ چیلنج جماعت ۲ سے ۵ کے لیے ہے۔', pick_kid: 'چیلنج اپنے کوئز کے صفحے سے کھولیں۔' },
+  en: { boot: 'Opening the challenge…', title: (m) => `${m}'s Challenge`, not_eligible: 'This challenge is for classes 2 to 5.', pick_kid: 'Open the challenge from your quiz page.', other_device: 'Ask the child this link was sent to to open it. Is this your link? Send /quiz on WhatsApp again for a new one.' },
+  ur: { boot: 'چیلنج کھل رہا ہے…', title: (m) => `${m} کا چیلنج`, not_eligible: 'یہ چیلنج جماعت ۲ سے ۵ کے لیے ہے۔', pick_kid: 'چیلنج اپنے کوئز کے صفحے سے کھولیں۔', other_device: 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔ کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ ⁦/quiz⁩ بھیجیں۔' },
 };
 
 function challengeVersion() {
@@ -355,6 +388,9 @@ function createWebQuizRouter(opts = {}) {
   let lastBrand = null;
 
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl });
+
+  // A child page on any host but the canonical one goes there first (one origin = one remembered child).
+  router.use(createCanonicalRedirect(opts.canonicalBase != null ? opts.canonicalBase : process.env.WEB_QUIZ_BASE_URL));
 
   // ---- rate limits (BUILD_SPEC 3.3). Carriers put many phones behind one IP, so
   // the per-IP ceilings are generous and the tight ones are keyed on the token.
@@ -503,7 +539,7 @@ function createWebQuizRouter(opts = {}) {
       return res.status(200).type('html').send(renderChallengePage({ menu: out.body, token, kid: q.get('kid'), origin, assetV: version(), chV: challengeVersion(), brandKey }));
     }
     const err = out.body && out.body.error;
-    if (err === 'not_eligible' || err === 'pick_kid') {
+    if (err === 'not_eligible' || err === 'pick_kid' || err === 'other_device') {
       return res.status(out.status).type('html').send(renderChallengeNote({ lang: lang0 || 'en', why: err, origin, assetV: version(), brandKey }));
     }
     const kind = out.status === 401 ? 'closed' : 'off';
@@ -528,15 +564,33 @@ function createWebQuizRouter(opts = {}) {
     }
   });
 
+  // M4b library
+  router.get('/lib/:token', limiters.read, (req, res) => {
+    pageHeaders(res);
+    const origin = originOf(req);
+    const token = String(req.params.token || '');
+    if (!TOKEN_RX.test(token)) return res.status(404).type('html').send(renderClosedPage({ lang: 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand }));
+    const kid = typeof req.query.kid === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(req.query.kid) ? req.query.kid : null;
+    const lang = req.query.l === 'ur' || req.query.lang === 'ur' ? 'ur' : 'en';
+    return res.status(200).type('html').send(renderLibPage({ hub: token, kid, lang, origin, assetV: version(), brandKey: lastBrand }));
+  });
+
   router.get('/wq-probe', (req, res) => {
     pageHeaders(res);
     res.type('html').sendFile(PROBE_FILE);
   });
 
   router.use('/wq', express.static(PUBLIC_DIR, { maxAge: YEAR_S * 1000, immutable: true, index: false, fallthrough: false }));
+  // A missing file (a page cached before a deploy asking for a renamed one) is the static server's own 404 or 400,
+  // answered here: the portal's last-resort handler would call it a 500 and the error monitors would count it.
+  router.use('/wq', (err, req, res, next) => {
+    const status = Number(err && (err.status || err.statusCode));
+    if (status >= 400 && status < 500) return res.status(status).set('Cache-Control', 'no-store').type('text').send('not found');
+    return next(err);
+  });
 
   return router;
 }
 
 
-module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderClosedPage, renderChallengePage, bootJson, renderHubPage };
+module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderClosedPage, renderChallengePage, renderLibPage, bootJson, renderHubPage };

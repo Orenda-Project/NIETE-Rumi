@@ -29,11 +29,10 @@ const { logToFile, logError } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const r2 = require('../../storage/r2');
 const T = require('./web-quiz-token');
-const Bank = require('../child-test/item-bank');
-const { applyConsecutiveStop, rate } = require('../child-test/scoring/tasks/common');
 const { WqError } = require('./web-quiz.service');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const { LANGUAGE_OFFER } = require('../../config/languages');
+const Budget = require('./web-quiz-challenge-budget');
 
 const FLAG_KEY = 'web_quiz_challenge';
 const TABLE = 'web_quiz_challenge_runs';
@@ -41,7 +40,8 @@ const FLAG_TTL_MS = 30 * 1000;
 const PER_ITEM_S = 10;
 const READ_SECS = 60;
 const MAX_BYTES = 3 * 1024 * 1024;
-const PUT_TTL_S = 15 * 60;
+// The upload URL lives for the longest take (60 s) plus slack: it is minted when the recording stops.
+const PUT_TTL_S = 3 * 60;
 const CLIP_TTL_S = 6 * 60 * 60;
 const WAIT_MS = 5000;
 const READS_PER_DAY = 10;
@@ -49,6 +49,20 @@ const MAX_CLIP_RECORDINGS = 64;  // per process: 2 exercises × 4 lines × 2 lan
 const AUDIO_TYPES = { 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a' };
 
 const fail = (status, error, extra = {}) => { throw new WqError(status, { error, ...extra }); };
+
+// The child-test battery (item bank + scorer) is required on use, never at load: the web quiz boots without it,
+// and a deployment that did not carry it answers a named 503 'unavailable' here instead of failing to start.
+function childTest({ scorer = false } = {}) {
+  try {
+    const out = { Bank: require('../child-test/item-bank'), Common: require('../child-test/scoring/tasks/common') };
+    // The story scorer (STT + listening call) only when a recording is scored.
+    if (scorer) Object.assign(out, { media: require('../child-test/scoring/media'), scoreTask: require('../child-test/scoring/tasks').scoreTask });
+    return out;
+  } catch (e) {
+    logError('web_quiz.ch_unavailable', { error: String(e && e.message || e).slice(0, 120) });
+    return fail(503, 'unavailable');
+  }
+}
 
 // The exercises built so far, in menu order. The other five of the battery are added here as they ship.
 const EXERCISES = Object.freeze([
@@ -85,7 +99,7 @@ const clipKnown = new Map();     // key → true (exists) | number (missing, che
 const clipRecording = new Set();
 let clipsRecorded = 0;
 
-function __reset() { flagCache = null; RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; }
+function __reset() { flagCache = null; Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; }
 
 function isTrue(v) {
   let x = v;
@@ -113,19 +127,22 @@ function kidChip(studentId) {
 
 // ── who is playing ─────────────────────────────────────────────────────────────────────────────────────
 
-async function entryOf(token, kid) {
+async function entryOf(token, kid, device) {
   if (!T.secret()) fail(503, 'web_quiz_off');
   const h = T.verify(token, 'h');
   if (h) {
     const ids = (Array.isArray(h.ids) ? h.ids : []).filter((x) => typeof x === 'string').slice(0, 4);
     if (!ids.length) fail(401, 'bad_token');
+    let hit = ids[0];
     if (kid) {
-      const hit = ids.find((id) => kidChip(id) === kid);
+      hit = ids.find((id) => kidChip(id) === kid);
       if (!hit) fail(401, 'bad_token');
-      return { studentId: hit, via: 'hub' };
-    }
-    if (ids.length > 1) fail(400, 'pick_kid');
-    return { studentId: ids[0], via: 'hub' };
+    } else if (ids.length > 1) fail(400, 'pick_kid');
+    // A forwarded hub link opens nothing as the child: only the phone the link is bound to
+    // (or one THIS child played on) gets their results or a run (web-quiz-hub-device deviceTrusted).
+    const trust = await require('./web-quiz-hub-device').deviceTrusted(token, device);
+    if (!trust.ok || !trust.ids.includes(String(hit))) fail(403, 'other_device');
+    return { studentId: hit, via: 'hub' };
   }
   const s = T.verify(token, 's');
   if (s && s.sid) {
@@ -193,9 +210,9 @@ async function languageOf(entry, asked) {
   return clampLanguage(null);
 }
 
-async function who(token, { kid, lang } = {}) {
+async function who(token, { kid, lang, device } = {}) {
   if (!(await challengeOn())) fail(503, 'challenge_off');
-  const entry = await entryOf(token, kid);
+  const entry = await entryOf(token, kid, device);
   const grade = await gradeOf(entry);
   const form = formFor(grade);
   if (!form) fail(403, 'not_eligible');
@@ -295,14 +312,16 @@ function lastOf(run) {
   return run.exercise === 'read' ? { correct: s.correct, wcpm: run.wcpm, stopped: !!s.stopped } : { correct: s.correct, n: s.n };
 }
 
-async function menu(token, { kid, lang } = {}) {
-  const w = await who(token, { kid, lang });
+async function menu(token, { kid, lang, device } = {}) {
+  const w = await who(token, { kid, lang, device });
   const runs = (await storedRuns(w.studentId)).filter((r) => r.status === 'scored');
   logEvent('web_quiz.ch_open', { via: w.via, grade: w.grade });
+  // Today's read-aloud cap reached (web-quiz-challenge-budget.js): "Which is bigger?" only until Pakistan midnight.
+  const readOk = await Budget.readOpen();
   return {
     form: `G${w.form}`,
     lang: w.lang,
-    exercises: EXERCISES.map((e) => {
+    exercises: EXERCISES.filter((e) => e.id !== 'read' || readOk).map((e) => {
       const last = runs.find((r) => r.exercise === e.id) || null;
       return { id: e.id, name: nameOf(e.id, w.lang), mins: e.mins, done: !!last, last: lastOf(last) };
     }),
@@ -311,10 +330,12 @@ async function menu(token, { kid, lang } = {}) {
 
 // ── E: one exercise ───────────────────────────────────────────────────────────────────────────────────
 
-async function exercise(token, ex, { kid, lang } = {}) {
+async function exercise(token, ex, { kid, lang, device } = {}) {
   const def = byId(ex);
   if (!def) fail(404, 'not_found');
-  const w = await who(token, { kid, lang });
+  const w = await who(token, { kid, lang, device });
+  if (ex === 'read' && !(await Budget.readOpen())) fail(429, 'enough_for_today');
+  const { Bank } = childTest();
   const task = def.task(w.lang);
   const spec = Bank.getTaskSpec({ grade: Number(w.form), set: 'A', task });
   const runId = crypto.randomUUID();
@@ -339,7 +360,7 @@ async function exercise(token, ex, { kid, lang } = {}) {
 
 /** EGRA Toolkit §10.3 words (items) correct per minute, whole number for the kid. */
 function wcpm(correct, timeLeft = 0) {
-  return Math.round(rate(correct, timeLeft));
+  return Math.round(childTest().Common.rate(correct, timeLeft));
 }
 
 /**
@@ -357,13 +378,11 @@ function scoreBigger(items, taps, { stopAfter = 4 } = {}) {
     const ok = t && Number(t.pick) === it.answer && Number(t.ms) >= 0 && Number(t.ms) <= PER_ITEM_S * 1000;
     return { i: i + 1, verdict: ok ? 'correct' : (t ? 'wrong' : 'none') };
   });
-  const stop = applyConsecutiveStop(rows, stopAfter);
+  const stop = childTest().Common.applyConsecutiveStop(rows, stopAfter);
   return { correct: rows.filter((r) => r.verdict === 'correct').length, n: items.length, stopped: !!stop.stopped };
 }
 
-async function scoreRead(run, key, ext, ms) {
-  const media = require('../child-test/scoring/media');
-  const { scoreTask } = require('../child-test/scoring/tasks');
+async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }) {
   let file = null;
   try {
     file = media.tmpFile(ext);
@@ -379,12 +398,15 @@ async function scoreRead(run, key, ext, ms) {
     const t = m.timed || {};
     const stopped = !!m.stopped_by_rule;
     const score = { correct: t.correct || 0, attempted: t.attempted || 0, stopped, finished_early: (t.time_remaining || 0) > 0, time_left: t.time_remaining || 0 };
+    // Not one word of the story was heard: that is not a reading of 0 words — no score, no ✓, no growth baseline,
+    // nothing in the class results; the child is asked to try again.
+    if (!stopped && score.attempted === 0) return { failed: true, reason: 'unheard', meta: { cost_usd: (m.meta && m.meta.cost_usd) || 0, duration_s: Math.round(durationSec * 10) / 10 } };
     return { score, wcpm: stopped ? 0 : wcpm(score.correct, score.time_left), meta: { cost_usd: (m.meta && m.meta.cost_usd) || 0, seconds: m.meta && m.meta.seconds, duration_s: Math.round(durationSec * 10) / 10, flags: m.flags || [] } };
   } catch (e) {
     return { failed: true, reason: 'internal_error', meta: { error: String(e && e.message || e).slice(0, 120) } };
   } finally {
     if (file) media.cleanup(file);
-    await forget(key);
+    await forgetRun(key.slice(0, key.lastIndexOf('/') + 1), key);
   }
 }
 
@@ -417,6 +439,26 @@ async function forget(key) {
   }
 }
 
+/**
+ * Forget a run's whole private prefix: the key we know, then every key listed under the prefix (a reused upload
+ * URL can have put more than one), and once more just after the upload URL has expired — so a PUT made after
+ * scoring cannot leave an orphan (there is no lifecycle rule to catch one). Never throws.
+ */
+async function forgetRun(prefix, key, { again = true } = {}) {
+  if (!/^child-voice\/[^/]+\/[^/]+\/$/.test(String(prefix || ''))) return;
+  if (key) await forget(key);
+  try {
+    const keys = await r2.listKeys(prefix, { bucket: childVoiceBucket() });
+    for (const k of keys || []) if (k !== key && k.startsWith(prefix)) await forget(k);
+  } catch (e) {
+    logError('web_quiz.ch_voice_list_failed', { reason: String(e && e.message || e).slice(0, 80) });
+  }
+  if (again) {
+    const t = setTimeout(() => { forgetRun(prefix, null, { again: false }).catch(() => {}); }, (PUT_TTL_S + 1) * 1000);
+    if (t && typeof t.unref === 'function') t.unref();
+  }
+}
+
 async function presignUpload({ ct, type, size } = {}) {
   const c = runOf(ct);
   if (c.ex !== 'read') fail(400, 'no_audio');
@@ -425,8 +467,12 @@ async function presignUpload({ ct, type, size } = {}) {
   if (!ext) fail(400, 'wrong_type');
   const n = Number(size);
   if (!(n > 0) || n > MAX_BYTES) fail(413, 'too_large');
+  // One recording per run: a run already scoring or done (here, or stored by another process) gets no new URL.
+  const mem = RUNS.get(c.r);
+  if ((mem && mem.status && mem.status !== 'open') || (!(mem && mem.status) && await storedRun(c.r))) fail(409, 'already_done');
+  if (!(await Budget.readOpen())) fail(429, 'enough_for_today');
   const key = `${uploadPrefix(c)}${Date.now()}.${ext}`;
-  const putUrl = await r2.getPresignedUploadUrl(key, base, PUT_TTL_S, { bucket: childVoiceBucket() });
+  const putUrl = await r2.getPresignedUploadUrl(key, base, PUT_TTL_S, { bucket: childVoiceBucket(), signContentType: true });
   return { put_url: putUrl, key, content_type: base, max_bytes: MAX_BYTES, expires_in: PUT_TTL_S };
 }
 
@@ -460,6 +506,13 @@ async function readsToday(studentId) {
 
 async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   const c = runOf(body.ct);
+  let CT;
+  try { CT = childTest({ scorer: c.ex === 'read' }); } catch (e) {
+    // Not scorable here: an uploaded recording is still forgotten (only this run's own prefix).
+    if (c.ex === 'read' && typeof body.key === 'string') await forgetRun(runPrefix(c), body.key.startsWith(runPrefix(c)) ? body.key : null);
+    throw e;
+  }
+  const { Bank } = CT;
   const mem = RUNS.get(c.r) || {};
   if ((mem.status && mem.status !== 'open') || (!mem.status && await storedRun(c.r))) fail(409, 'already_done');
   // A token minted by another process (a restart, a second replica): rebuild the run from the student.
@@ -487,20 +540,21 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   const key = typeof body.key === 'string' ? body.key : '';
   if (!key) fail(400, 'no_audio');
   // A refused upload is deleted too: a presigned PUT cannot cap what was put there. Only this run's own prefix.
-  const refuse = async (status, error) => { if (key.startsWith(runPrefix(c))) await forget(key); fail(status, error); };
+  const refuse = async (status, error) => { await forgetRun(runPrefix(c), key.startsWith(runPrefix(c)) ? key : null); fail(status, error); };
   if (!key.startsWith(uploadPrefix(c)) || !/^\d{13}\.(webm|ogg|m4a)$/.test(key.slice(uploadPrefix(c).length))) await refuse(403, 'not_your_upload');
   let head;
   try { head = await r2.headObject(key, { bucket: childVoiceBucket() }); } catch (_) { fail(502, 'storage_unavailable'); }
   if (!head || !head.exists) fail(404, 'no_upload');
   if (Number(head.sizeBytes) > MAX_BYTES) await refuse(413, 'too_large');
-  if (await readsToday(c.sid) >= READS_PER_DAY) await refuse(429, 'enough_for_today');
+  if (await readsToday(c.sid) >= READS_PER_DAY || !(await Budget.readOpen())) await refuse(429, 'enough_for_today');
+  Budget.noteStarted();
 
   RUNS.set(c.r, { ...run, status: 'scoring' });
   const previous = await previousRun(c.sid, 'read');
   const stored = await insertRun({ ...base, status: 'scoring', meta: { ms: Number(body.ms) || null } });
   if (stored === 'duplicate') await refuse(409, 'already_done');
   const ext = key.split('.').pop();
-  const promise = scoreRead(run, key, ext, body.ms).then(async (r) => {
+  const promise = scoreRead(run, key, ext, body.ms, CT).then(async (r) => {
     const result = r.failed ? { failed: true, reason: r.reason } : { score: r.score, wcpm: r.wcpm, previous };
     RUNS.set(c.r, { ...run, status: 'done', result });
     await updateRun(c.r, r.failed

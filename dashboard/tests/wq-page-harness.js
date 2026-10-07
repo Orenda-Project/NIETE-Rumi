@@ -12,6 +12,7 @@ const vm = require('vm');
 const WQ = path.join(__dirname, '..', 'public', 'wq');
 const SRC = fs.readFileSync(path.join(WQ, 'wq.js'), 'utf8');
 const CSS = fs.readFileSync(path.join(WQ, 'wq.css'), 'utf8');
+const LIB = fs.readFileSync(path.join(WQ, 'wq-lib.js'), 'utf8');
 const TAIL = '  else landing();\n})();';
 
 function fakeEl(sel) {
@@ -29,7 +30,7 @@ function fakeEl(sel) {
   };
 }
 
-function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view, questions = null, voiceLang, connection, challenge = null, nav = {}, art = null } = {}) {
+function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view, questions = null, voiceLang, connection, challenge = null, nav = {}, art = null, lib = false, ua = 'test' } = {}) {
   const els = {};
   const root = fakeEl('#wq');
   root.innerHTML = '';
@@ -68,7 +69,7 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
     },
     history,
     location: { search, origin: 'https://example.test', pathname: '/q/TEST', assign(u) { hist.assigned.push(u); }, replace(u) { hist.assigned.push(u); } },
-    navigator: { userAgent: 'test', connection, ...nav },
+    navigator: { userAgent: ua, connection, ...nav },
     // Web Share Level 2 needs File; a picture fetch answers a blob.
     File: function File(parts, name, o) { this.parts = parts; this.name = name; this.type = (o && o.type) || ''; },
     localStorage: { setItem: (k, v) => ls.set(k, String(v)), getItem: (k) => (ls.has(k) ? ls.get(k) : null), removeItem: (k) => ls.delete(k) },
@@ -76,11 +77,14 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
       fetches.push({ url, init });
       const hit = Object.keys(api).find((k) => url.indexOf(k) >= 0);
       if (hit) {
-        const r = typeof api[hit] === 'function' ? api[hit](url, init) : api[hit];
-        // { __offline: true } is a dropped connection: fetch itself rejects, as a phone with no signal does.
-        if (r && r.__offline) return Promise.reject(new TypeError('Failed to fetch'));
-        const status = r && r.__status ? r.__status : 200;
-        return Promise.resolve({ status, ok: status < 300, text: () => Promise.resolve(JSON.stringify(r)) });
+        const r0 = typeof api[hit] === 'function' ? api[hit](url, init) : api[hit];
+        // An api function may answer later (a promise): a slow network the test controls.
+        return Promise.resolve(r0).then((r) => {
+          // { __offline: true } is a dropped connection: fetch itself rejects, as a phone with no signal does.
+          if (r && r.__offline) throw new TypeError('Failed to fetch');
+          const status = r && r.__status ? r.__status : 200;
+          return { status, ok: status < 300, text: () => Promise.resolve(JSON.stringify(r)) };
+        });
       }
       const body = (url.indexOf('/board/') >= 0 && board) || (url.endsWith('/me') && me) || {};
       if (url.indexOf('/art/') >= 0) return Promise.resolve({ status: 200, ok: true, blob: () => Promise.resolve({ size: 9, type: 'image/jpeg' }), text: () => Promise.resolve('') });
@@ -93,7 +97,17 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
     scrollTo() {}, addEventListener(n, fn) { (wl[n] = wl[n] || []).push(fn); },
   };
   ctx.window = ctx;
+  // The library page (wq-lib.js), loaded before wq.js as the edge's template does: idle time runs at once.
+  const sess = new Map();
+  const head = [];
+  if (lib) {
+    ctx.sessionStorage = { setItem: (k, v) => sess.set(k, String(v)), getItem: (k) => (sess.has(k) ? sess.get(k) : null), removeItem: (k) => sess.delete(k) };
+    ctx.requestIdleCallback = (fn) => fn();
+    ctx.document.head = { appendChild: (e) => head.push(e) };
+    ctx.location.host = 'example.test';
+  }
   vm.createContext(ctx);
+  if (lib) vm.runInContext(LIB, ctx);
   vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { who: who, card: card, board: board, video: video, isThisYou: isThisYou, history: history, landing: landing, today: today, results: results, question: question, S: S, finishFirstPass: finishFirstPass };\n})();'), ctx);
   const tap = () => (dl.click || []).forEach((fn) => fn({}));
   const back = () => { if (hist.i > 0) hist.i -= 1; (wl.popstate || []).forEach((fn) => fn({ state: hist.stack[hist.i].state })); };
@@ -101,13 +115,14 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   const toasts = () => created.filter((e) => e.className === 'wq-toast').map((e) => e.textContent);
   const fireDoc = (n) => (dl[n] || []).forEach((fn) => fn({}));
   const runTimers = (maxMs = Infinity) => { const due = timers.filter((t) => t.fn && t.ms <= maxMs); due.forEach((t) => { const f = t.fn; t.fn = null; f(); }); return due.length; };
+  const fireWin = (n) => (wl[n] || []).forEach((fn) => fn({}));
   const fire = (n) => (wl[n] || []).forEach((fn) => fn({}));
   const pulses = () => created.filter((e) => e.className === 'wq-pulse').map((e) => e.textContent);
   const pulseEls = () => created.filter((e) => e.className === 'wq-pulse');
-  return { ctx, root, els, fetches, wq: ctx.__wq, html: () => root.innerHTML, hist, tap, back, moment, toasts, fireDoc, timers, runTimers, fire, ls, pulses, pulseEls, winListeners: wl, images };
+  return { ctx, root, els, fetches, wq: ctx.__wq, sess, head, fireWin, html: () => root.innerHTML, hist, tap, back, moment, toasts, fireDoc, timers, runTimers, fire, ls, pulses, pulseEls, winListeners: wl, images };
 }
 const flush = () => new Promise((r) => setImmediate(r));
-module.exports = { page, rule, flush, SRC, CSS, TAIL };
+module.exports = { page, rule, flush, SRC, CSS, TAIL, LIB };
 
 function rule(selector) {
   const i = CSS.indexOf(`\n${selector}{`);

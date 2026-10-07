@@ -82,3 +82,30 @@ test('the kid hub route is mounted behind the key; a forged hub token is 401', a
   expect(r.status).toBe(401);
   expect(await r.json()).toEqual({ error: 'bad_token' });
 });
+
+test('POST /hub/:token hands the body\'s kid and device_ref to the hub (the page\'s own call; never the URL)', async () => {
+  const Hub = require('../../../shared/services/quiz/web-quiz-hub');
+  const spy = jest.spyOn(Hub, 'hub').mockResolvedValue({ locked: true, kids: [] });
+  try {
+    const r = await fetch(`${base}/hub/abc.def`, { method: 'POST', headers: KEY, body: JSON.stringify({ kid: '0123456789abcdef', device_ref: 'DevRefDevRefDevRef_-01' }) });
+    expect(r.status).toBe(200);
+    expect(spy).toHaveBeenCalledWith('abc.def', { kid: '0123456789abcdef', device: 'DevRefDevRefDevRef_-01' });
+  } finally { spy.mockRestore(); }
+});
+
+test('the library from the hub and a hub video start take the device from x-wq-device, never from the body', async () => {
+  const Lib = require('../../../shared/services/quiz/web-quiz-library');
+  const Videos = require('../../../shared/services/quiz/web-quiz-videos');
+  const lib = jest.spyOn(Lib, 'libHub').mockResolvedValue({ subjects: [] });
+  const start = jest.spyOn(Videos, 'start').mockResolvedValue({ code: 'ABC123', k: 'k' });
+  try {
+    const H = { ...KEY, 'x-wq-device': 'DevRefDevRefDevRef_-01' };
+    expect((await fetch(`${base}/lib/h/abc.def?kid=0123456789abcdef`, { headers: H })).status).toBe(200);
+    expect(lib).toHaveBeenCalledWith('abc.def', expect.objectContaining({ kid: '0123456789abcdef', device: 'DevRefDevRefDevRef_-01' }));
+    const body = JSON.stringify({ hub: 'abc.def', kid: '0123456789abcdef', vid: 'v', device: 'BodyRefBodyRefBodyRef_' });
+    expect((await fetch(`${base}/videos/start`, { method: 'POST', headers: H, body })).status).toBe(200);
+    expect(start.mock.calls[0][0]).toMatchObject({ hub: 'abc.def', device: 'DevRefDevRefDevRef_-01' });
+    await fetch(`${base}/videos/start`, { method: 'POST', headers: KEY, body });
+    expect(start.mock.calls[1][0].device).toBeUndefined();
+  } finally { lib.mockRestore(); start.mockRestore(); }
+});

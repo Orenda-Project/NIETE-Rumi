@@ -2759,6 +2759,8 @@ app.post('/api/internal/send-password-reset', async (req, res) => {
  * Express `app` without its listener) does NOT bind to a port.
  */
 function startServer() {
+  // web_quiz.config: the buckets, link host and token-secret source this bot runs with (names only).
+  require('./shared/services/quiz/web-quiz-config-line').logWebQuizConfig();
   return app.listen(constants.PORT, () => {
   // Read version from VERSION file
   const path = require('path');
