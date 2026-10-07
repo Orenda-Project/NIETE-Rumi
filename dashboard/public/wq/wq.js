@@ -946,6 +946,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var helpTimer = null;
   function clearTimers() { if (helpTimer) { clearTimeout(helpTimer); helpTimer = null; } }
   function render(html, moment) {
+    lateHook = null;
     clearTimers();
     stopVoice();
     try { ROOT.classList.remove('wq-novoice'); ROOT.classList.remove('wq-phonevoice'); ROOT.classList.remove('wq-tap'); } catch (e) {}
@@ -1668,6 +1669,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
      voice, never a silent Urdu quiz (Android has no Urdu phone voice). */
   var LATE_MS = [15000, 25000, 40000, 60000];
   var lateTry = 0;
+  var lateHook = null; // the question on screen: re-read in the recorded voice if it was read without it
   function lateClips() {
     if (!Q.audio_pending || lateTry >= LATE_MS.length) return;
     setTimeout(function () {
@@ -1680,6 +1682,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
             QS.forEach(function (q) { if (q.qid === f.qid) { q.audio = f.audio; delete warmed[q.qid]; } });
           });
           if (!fresh.audio_pending) Q.audio_pending = false;
+          if (lateHook) lateHook();
         }
         lateClips();
       }, function () { lateClips(); });
@@ -1797,13 +1800,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       }, HELP_AFTER_MS);
     }
     // Help waits until the voice has finished, then gives the child time of their own.
+    var readBare = false; // the last reading had no recorded clip (the phone's voice, or silence in Urdu)
     function read() {
+      readBare = !(q.audio && q.audio.q);
       var b = $('#wq-spk'); if (b) b.classList.add('wq-speaking');
       speakSeq(readParts(q), function () { var b2 = $('#wq-spk'); if (b2) b2.classList.remove('wq-speaking'); armHelp(); }, q.qid);
     }
     on('#wq-spk', function () { ev('listen', { qid: q.qid }); read(); });
     on('#wq-stim', function () { ev('listen', { qid: q.qid, stim: 1 }); var au = q.audio || {}; if (au.stim) speak('', au.stim, null); });
     read();
+    // Its clips landed while it is still on screen and unanswered: read it again, once, in the quiz's voice.
+    if (!retry) lateHook = function () {
+      if (readBare && !hintUsed && !S.answers[q.qid] && q.audio && q.audio.q) { lateHook = null; read(); }
+    };
 
     WQI.wire(ROOT, q, answer);
     function answer(slot) {
