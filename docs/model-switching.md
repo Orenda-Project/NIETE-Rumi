@@ -11,7 +11,7 @@ it: `npm run models`.
 npm run models -- list                          # every job: its model, its env var, its call site (no database)
 
 set -a; . ./.env; set +a                        # the env file of the environment you mean
-npm run models -- status                        # what each job runs NOW in that environment
+npm run models -- status                        # what each job runs NOW (the rows + that env's LLM_JOB_MODELS)
 npm run models -- apply moves.json              # dry run: + / ~ / - against the live per-job row
 npm run models -- apply moves.json --confirm    # write it (the row becomes exactly this map), read back
 npm run models -- kill --confirm                # every job back on its own model within about a minute
@@ -39,7 +39,8 @@ the target environment deploys (`origin/main` for production): a job that code d
 | Registry default | `JOBS[job].default` in `model-registry.js` | that job's own model, for good | on deploy |
 
 A job's **own model** is its env var if the service sets one, else its registry default. It is what runs when
-nothing moves the job, and what stands behind a move. The settings rows live in the `app_settings` table; each
+nothing moves the job, and what stands behind a move. `status` reads the env vars and the env map from the environment you
+loaded, so load the env file of the service you mean: a deployed service decides with its own. The settings rows live in the `app_settings` table; each
 process caches them for a minute.
 
 Two jobs read their settings at the call site (`vision.analyse`, `assessment.generate`), and there the rows
@@ -64,8 +65,10 @@ Anything that is not a well-formed model id is refused by the tool, and ignored 
 - **Twice the output limit** for a moved job (bounded), because Claude counts the same text in more tokens.
 - **Nothing moves until the settings have been read once** in a process, so the kill switch is always known. A
   process whose copy is older than two minutes reads the table (bounded wait) before its next labelled call.
-- **Two call sites go straight to the Anthropic API** (`lp.author`, `quiz.keyVerify`): the row does not reach
-  them, and the bot says so once (`llm.job_override_ignored`). Change those with their env var or their default.
+- **Two call sites can go straight to the Anthropic API** (`lp.author`, `quiz.keyVerify`). When their own model is
+  an `anthropic-direct/…` id, as it is in production, the row does not reach them, and the bot says so once
+  (`llm.job_override_ignored`): change them with their env var or their default. On any other id they go through
+  the client like every other job, and the row moves them.
 - **Labels that are recorded but not routed** (`TELEMETRY_ONLY_JOBS`: reading assessment, exam grading) cannot be
   moved; a row naming them is ignored.
 
