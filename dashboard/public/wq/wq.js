@@ -255,6 +255,9 @@ var WQI = (function () {
     if (au && au.stim) parts.push({ text: '', url: au.stim, stim: true, p: 'stim' });
     if (kind(q) === 'match') (q.left || []).forEach(function (l) { if (speakable(l.text)) parts.push({ text: say(l.text, lang), url: null, p: 'left' }); });
     if (kind(q) === 'label') return parts;
+    // The sound to identify is the question: its options are heard one by one, on their own 🔊, never as a block before the
+    // child answers (hearing every option in order and then being asked "which was it" assesses nothing).
+    if (au && au.stim) return parts;
     opts(q).forEach(function (o, k) {
       var si = 'ABCD'.indexOf(String(o.slot || '').charAt(0));
       var url = au && au.opts && si >= 0 ? au.opts[si] || null : null;
@@ -293,13 +296,42 @@ var WQI = (function () {
     return String(t == null ? '' : t).replace(/(\b(?:answer is|answer|option|choice)\s+|\(|جواب\s+|آپشن\s+)([A-D])(?![A-Za-z])/gi, function (m, pre, l) { return pre + (map[l.toUpperCase()] || l); });
   }
   var LETTERS = true; // off while a figure is on screen: its own A/B/C labels would mean something else
+  // The clip of ONE option, by its stored slot (its content), never by where the shuffle put it.
+  function optClip(q, slot) {
+    var au = q && q.audio, si = 'ABCD'.indexOf(String(slot || '').charAt(0));
+    return au && au.opts && si >= 0 ? au.opts[si] || null : null;
+  }
+  var HEAR = null; // { q, label } while a single/multi item renders: an option with a clip gets its own 🔊
+  function hearHtml(o) {
+    if (!HEAR || !optClip(HEAR.q, o.slot)) return '';
+    return '<span class="wq-ohear" role="button" tabindex="0" data-hear="' + esc(o.slot) + '" aria-label="' + esc(HEAR.label) + '">🔊</span>';
+  }
+  // Sound tiles: an item whose options are SOUNDS (a listen-and-identify item, or the bank's audio-only "Sound 1/2"), with a
+  // clip on every option. Each tile plays its option's clip; a separate "This one" under it is the answer.
+  var AUDIO_ONLY = /^Sound (\d+)$/;
+  function soundTiles(q) {
+    var o = opts(q);
+    if (o.length < 2 || !o.every(function (x) { return optClip(q, x.slot); })) return false;
+    var au = q.audio || {};
+    return Boolean(au.stim) || o.every(function (x) { return AUDIO_ONLY.test(String(x.text || '').trim()); });
+  }
+  function tilesHtml(q, T) {
+    return '<div class="wq-stiles" role="group">' + opts(q).map(function (x, i) {
+      var m = AUDIO_ONLY.exec(String(x.text || '').trim());
+      var lab = m ? m[1] : (x.text || x.name || '');
+      return '<div class="wq-stile wq-st' + (i % 4 + 1) + '"><button class="wq-shear" type="button" data-hear="' + esc(x.slot) + '" aria-label="' + esc(T.hearOption || T.listen || '') + '">' +
+        '<span class="wq-shp" aria-hidden="true">' + SHAPES[i % 4] + '</span><span aria-hidden="true">🔊</span><b class="wq-stxt">' + tex(lab) + '</b></button>' +
+        '<button class="wq-opt wq-sthis" data-slot="' + esc(x.slot) + '">' + esc(T.thisOne || '') + '</button></div>';
+    }).join('') + '</div>';
+  }
   function optBtn(o, k, extra) {
-    return '<button class="wq-opt wq-s' + (k % 4 + 1) + '" data-slot="' + esc(o.slot) + '"' + (extra || '') + '><span class="wq-shp">' + SHAPES[k % 4] + (LETTERS ? '<b class="wq-let">' + 'ABCD'.charAt(k) + '</b>' : '') + '</span>' +
-      picHtml(o, o.name) + '<span class="wq-lab">' + tex(o.text || o.name || '') + '</span></button>';
+    return '<button class="wq-opt wq-s' + (k % 4 + 1) + '" data-slot="' + esc(o.slot) + '"' + (typeof extra === 'string' ? extra : '') + '><span class="wq-shp">' + SHAPES[k % 4] + (LETTERS ? '<b class="wq-let">' + 'ABCD'.charAt(k) + '</b>' : '') + '</span>' +
+      picHtml(o, o.name) + '<span class="wq-lab">' + tex(o.text || o.name || '') + '</span>' + hearHtml(o) + '</button>';
   }
   function itemHtml(q, T, lang) {
     var k = kind(q), o = opts(q);
     LETTERS = !figureOf(q);
+    HEAR = k === 'single' || k === 'multi' ? { q: q, label: T.hearOption || T.listen || '' } : null;
     var stim = q.audio && q.audio.stim ? '<button class="wq-btn wq-soft" id="wq-stim"><span aria-hidden="true">🔔</span> ' + esc(T.playSound || '') + '</button>' : '';
     var stem = k === 'listen'
       ? '<div class="wq-qcard wq-listen"><button class="wq-spk wq-spk-big" id="wq-spk" aria-label="' + esc(T.listen || T.listenBig) + '">🔊</button><p class="wq-qtext wq-qsmall">' + tex(q.text) + '</p>' + stim + '</div>'
@@ -339,6 +371,8 @@ var WQI = (function () {
     } else if (k === 'multi') {
       body = '<div class="wq-opts" role="group">' + o.map(function (x, i) { return optBtn(x, i, ' aria-pressed="false"'); }).join('') + '</div>' +
         '<p class="wq-small">' + esc(T.pickAll) + '</p><button class="wq-btn wq-navy" id="wq-check" disabled>' + esc(T.check) + '</button>';
+    } else if (soundTiles(q)) {
+      body = tilesHtml(q, T);
     } else {
       body = '<div class="wq-opts" role="group">' + o.map(function (x, i) { return optBtn(x, i); }).join('') + '</div>';
     }
@@ -347,9 +381,21 @@ var WQI = (function () {
 
   /* ---- taps: wire(root, q, done) calls done(answerString) once ---- */
   function each(root, sel, fn) { Array.prototype.forEach.call(root.querySelectorAll(sel), fn); }
-  function wire(root, q, done) {
+  function wire(root, q, done, hear) {
     var k = kind(q), sent = false;
     function fire(a) { if (!sent) { sent = true; done(a); } }
+    // An option's own 🔊 plays that option's clip and is never an answer.
+    function hearable(h) {
+      function play(e) {
+        if (e) { e.stopPropagation(); if (e.preventDefault) e.preventDefault(); }
+        var slot = h.getAttribute('data-hear'), url = optClip(q, slot);
+        if (url && hear) hear(url, slot);
+      }
+      h.addEventListener('click', play);
+      h.addEventListener('keydown', function (e) { if (e && (e.key === 'Enter' || e.key === ' ')) play(e); });
+    }
+    each(root, '.wq-ohear', hearable);
+    each(root, '.wq-shear', hearable);
     var chk = root.querySelector('#wq-check');
     if (k === 'single' || k === 'picture' || k === 'tf' || k === 'listen') {
       each(root, '.wq-opt', function (b) { b.addEventListener('click', function () { fire(b.getAttribute('data-slot')); }); });
@@ -438,6 +484,32 @@ var WQI = (function () {
       else b.classList.add('wq-dim');
     });
   }
+  // "Watch the lesson again": a library question can reopen its lesson video over the question (no answer changes).
+  function rewatchHtml(v, T) {
+    if (!v || !v.url) return '';
+    return '<button class="wq-btn wq-soft wq-again" id="wq-again" type="button"><span aria-hidden="true">▶</span> ' + esc(T.vAgain || '') + '</button>';
+  }
+  function openRewatch(doc, v, T, onClose) {
+    var ov = doc.createElement('div');
+    ov.className = 'wq-zoomed wq-vagain'; ov.setAttribute('role', 'dialog');
+    var vid = doc.createElement('video');
+    vid.setAttribute('controls', ''); vid.setAttribute('playsinline', ''); vid.setAttribute('src', v.url);
+    if (v.poster) vid.setAttribute('poster', v.poster);
+    var x = doc.createElement('button');
+    x.className = 'wq-icon wq-zclose'; x.setAttribute('aria-label', T.close || 'Close'); x.innerHTML = '✕';
+    var done = false;
+    x.addEventListener('click', function (e) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      if (done) return; done = true;
+      try { vid.pause(); } catch (err) {}
+      if (ov.parentNode) ov.parentNode.removeChild(ov);
+      if (onClose) onClose();
+    });
+    ov.appendChild(vid); ov.appendChild(x);
+    doc.body.appendChild(ov);
+    try { var pr = vid.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (err) {}
+    return ov;
+  }
   // Tap a figure to see it full screen; tap again (or Close) to go back.
   function wireZoom(root, T) {
     each(root, '.wq-fig:not(.wq-labelfig) .wq-figbox', function (fb) {
@@ -457,7 +529,7 @@ var WQI = (function () {
     });
   }
   return { kind: kind, grade: grade, tex: tex, say: say, cleanSvg: cleanSvg, figureHtml: figureHtml, itemHtml: itemHtml, readParts: readParts,
-    rightText: rightText, joinSay: joinSay, letters: letters, imageUrls: imageUrls, wire: wire, mark: mark, wireZoom: wireZoom, speakable: speakable, SHAPES: SHAPES, TEX_SUPPORTED: TEX_SUPPORTED };
+    rightText: rightText, joinSay: joinSay, letters: letters, imageUrls: imageUrls, wire: wire, optClip: optClip, rewatchHtml: rewatchHtml, openRewatch: openRewatch, mark: mark, wireZoom: wireZoom, speakable: speakable, SHAPES: SHAPES, TEX_SUPPORTED: TEX_SUPPORTED };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
@@ -499,7 +571,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       how: [['🔊', 'Listen to each question'], ['👆', 'Tap a colour or a picture'], ['🙋', 'Stuck? Help comes']],
       qof: function (i, n) { return 'Question ' + i + ' of ' + n; }, listen: 'Listen again', helpAgain: 'Shall we listen again?', hintAsk: 'Need a hint?', hintNudge: 'Stuck? Tap me for a hint.',
       orderHelp: 'Tap the steps in the right order.', matchHelp: 'Tap one, then tap its partner.', labelHelp: 'Tap the right part of the picture.',
-      zoom: 'Make the picture bigger', close: 'Close', playSound: 'Play the sound', yes: 'True', no: 'False',
+      zoom: 'Make the picture bigger', close: 'Close', vAgain: 'Watch the lesson again', playSound: 'Play the sound', hearOption: 'Hear this one', thisOne: 'This one', yes: 'True', no: 'False',
       notyet: function (lead, r) { return lead + ' "' + String(r).replace(/[.!۔]+\s*$/, '') + '".'; }, next: 'Next', again: 'This one comes back at the end, to fix together.',
       half: 'Halfway there!',
       tricky: function (n) { return n === 1 ? '1 tricky one' : n + ' tricky ones'; }, trickySay: "Before we celebrate, let's fix it together.", fixGo: 'Fix it with ' + MASC.en, later: 'Maybe later',
@@ -561,7 +633,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       how: [['🔊', 'ہر سوال سنیں'], ['👆', 'رنگ یا تصویر پر ٹیپ کریں'], ['🙋', 'مشکل ہو تو مدد ملے گی']],
       qof: function (i, n) { return 'سوال ' + i + ' از ' + n; }, listen: 'دوبارہ سنیں', helpAgain: 'کیا دوبارہ سنیں؟', hintAsk: 'اشارہ چاہیے؟', hintNudge: 'مشکل لگ رہا ہے؟ اشارے کے لیے مجھے دبائیں۔',
       orderHelp: 'قدموں کو صحیح ترتیب سے ٹیپ کریں۔', matchHelp: 'ایک پر ٹیپ کریں، پھر اس کے جوڑے پر۔', labelHelp: 'تصویر میں صحیح حصے پر ٹیپ کریں۔',
-      zoom: 'تصویر بڑی کریں', close: 'بند کریں', playSound: 'آواز سنیں', yes: 'درست', no: 'غلط',
+      zoom: 'تصویر بڑی کریں', close: 'بند کریں', vAgain: 'سبق کی ویڈیو دوبارہ دیکھیں', playSound: 'آواز سنیں', hearOption: 'یہ سنیں', thisOne: 'یہ والا', yes: 'درست', no: 'غلط',
       notyet: function (lead, r) { return lead + ' ' + String(r).replace(/[.!۔]+\s*$/, ''); }, next: 'اگلا', again: 'یہ سوال آخر میں دوبارہ آئے گا، مل کر ٹھیک کرنے کے لیے۔',
       half: 'آدھا راستہ طے!',
       tricky: function (n) { return n + ' مشکل سوال'; }, trickySay: 'جشن سے پہلے، آئیں اسے مل کر ٹھیک کریں۔', fixGo: MASC.ur + ' کے ساتھ ٹھیک کریں', later: 'بعد میں',
@@ -1755,7 +1827,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var h = bar(retry ? '<span class="wq-grow wq-qof">' + esc(T.second) + '</span>' : dots(i)) +
       (retry ? '' : '<p class="wq-qof">' + esc(T.qof(i + 1, N)) + '</p>') +
       '<div class="wq-item" data-kind="' + WQI.kind(q) + '">' + WQI.itemHtml(q, T, LANG) + '</div>' +
-      '<div id="wq-help">' + hintBtn(q) + '</div><div id="wq-hintbox"></div><div id="wq-fb"></div>';
+      '<div id="wq-help">' + hintBtn(q) + '</div><div id="wq-hintbox"></div><div id="wq-fb"></div>' + WQI.rewatchHtml(B.video, T);
     render(h, retry ? 'M9-fix' : 'M6');
     wireBar();
     WQI.wireZoom(ROOT, T);
@@ -1807,6 +1879,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       speakSeq(readParts(q), function () { var b2 = $('#wq-spk'); if (b2) b2.classList.remove('wq-speaking'); armHelp(); }, q.qid);
     }
     on('#wq-spk', function () { ev('listen', { qid: q.qid }); read(); });
+    on('#wq-again', function () {
+      stopVoice(); clearTimers();
+      ev('video_again', { qid: q.qid });
+      WQI.openRewatch(document, B.video, T, function () { ev('video_again_close', { qid: q.qid }); });
+    });
     on('#wq-stim', function () { ev('listen', { qid: q.qid, stim: 1 }); var au = q.audio || {}; if (au.stim) speak('', au.stim, null); });
     read();
     // Its clips landed while it is still on screen and unanswered: read it again, once, in the quiz's voice.
@@ -1814,7 +1891,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (readBare && !hintUsed && !S.answers[q.qid] && q.audio && q.audio.q) { lateHook = null; read(); }
     };
 
-    WQI.wire(ROOT, q, answer);
+    WQI.wire(ROOT, q, answer, function (url, slot) {
+      ev('listen', { qid: q.qid, slot: slot, part: 'opt' });
+      var o = (q.options || []).filter(function (x) { return x.slot === slot; })[0];
+      speak(o ? WQI.say(o.name || o.text || '', LANG) : '', url, null, { qid: q.qid, part: 'opt' });
+    });
     function answer(slot) {
       (function () {
         var ok = WQI.grade(q, slot);
@@ -2023,6 +2104,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       var f = new File([b], kind + '.jpg', { type: 'image/jpeg' });
       try { if (navigator.canShare({ files: [f] })) ART[id].file = f; } catch (e) { /* text share */ }
     }).catch(function () {});
+  }
+
+  // A picture only a link preview shows (never shared as a file): fetched once so it is drawn before WhatsApp asks.
+  function warmPreviewArt(kind, id) {
+    if (!id || ART[id]) return;
+    ART[id] = { kind: kind, file: null };
+    try { fetch(artUrl(id)).catch(function () {}); } catch (e) { /* the preview draws on first ask */ }
   }
 
   // The sender's WhatsApp builds the link preview before the message goes: a HEAD now teaches the edge each
@@ -2340,6 +2428,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // ?v=<finishers>: WhatsApp caches a preview per URL, so a group that shared the table earlier would see an old one.
       var tArt = (S.result && S.result.art && S.result.art.class) || (B.art && B.art.class) || null;
       warmArt('class', tArt);
+      // The shared /class link previews the CLASS picture (nobody named), not the child's own: drawn now too, so the
+      // sender's WhatsApp finds it ready instead of waiting for a draw.
+      warmPreviewArt('class', B.art && B.art.class);
       on('#wq-share-t', function () { share(T.tableLine(Q.topic, CLASS_LABEL), link('/q/' + CODE + '/class' + (b.finishers_n ? '?v=' + b.finishers_n : '')), 'table', tArt); });
       on('#wq-schools', function () { schools(board); });
       on('#wq-next', history);

@@ -787,6 +787,14 @@ Feature: Web child quiz page on the portal
     And after the last question the page says "You got 2 of 3 right!" («آپ نے ۳ میں سے ۲ کے صحیح جواب دیے!»)
     And only the numbers asked and correct are kept with the reading; a question counts once
 
+  @T626
+  Scenario: Every tap is kept even when the checked score lands between two taps
+    Given a child is answering the questions after Read aloud while the reading's checked score is still being worked out
+    When the checked score is stored between two of the child's taps, on any server
+    Then the stored reading keeps every answer the child gave and the number asked equals the taps shown on the page
+    And a tap stored while the checked score is written never removes the score's own details (the live count, the cost)
+    And the checked score itself is always stored, even when the reading keeps changing under it
+
   @T586
   Scenario: Questions are off unless switched on
     Given app_settings web_quiz_challenge_questions is absent or not true
@@ -1178,3 +1186,68 @@ Feature: Web child quiz page on the portal
     Then the first screen shows the score card, "Only your first name goes on the card", "Share to class group", then "My quizzes, videos and challenges"
     And the practice note and the place-in-class note come right after the door, and a long topic shows on one line on the card
     But a video quiz card keeps "Next in this chapter" and "Watch another video" first, and with the door switched off the card is unchanged
+
+  @T596
+  Scenario: The card picture is drawn straight after the finish answers, without slowing the finish
+    Given a class child answers the last question of a quiz, in English or Urdu
+    When the quiz finishes
+    Then the scorecard's answer comes first, never waiting on the picture, and the card picture is drawn straight after it without looking in storage first
+    And a WhatsApp link preview of "Share to class group" a few seconds after the finish gets the picture without waiting for a draw
+    And the picture is a 1200x630 JPEG of about 30 KB, and the page head names its type (image/jpeg), its https address and its alt text
+
+  @T597
+  Scenario: Every share picture a phone fetches leaves a trace in the logs
+    Given a child shares the card, a challenge, the class table or the school league
+    When the WhatsApp composer (Android or iOS) or a browser fetches the picture
+    Then the portal logs web_quiz.art_edge with the picture kind, whether the portal already held it, the time taken and which kind of fetcher asked
+    And the log carries no quiz code, picture id or child name
+  @T621
+  Scenario: A library question plays the bank's own recorded voice, and each option has its own tap-to-hear
+    Given a library question whose bank recording has a clip for the question and one for every option
+    When a child opens it on a 360x740 phone, in English or Urdu
+    Then the question is read in its recorded clip, and every option shows its own speaker that plays that option's clip only
+    And the clip heard is always the one for the option tapped, whatever order the options are shown in
+    And tapping an option's speaker never answers the question
+  @T622
+  Scenario: A listen-and-identify item never plays its options before the child answers
+    Given a library item "Listen and tap." whose sound to identify is played before the answer
+    When the question appears
+    Then the instruction and the sound are read, the options are not read as a block
+    And the child can still hear each option on its own speaker
+  @T623
+  Scenario: Only what the bank does not already voice is recorded, and a voice never misreads a letter or a blank
+    Given a library quiz with recorded clips for some questions and options
+    When its read-aloud clips are recorded
+    Then no clip is recorded for a question or option the bank already voices, and options are all recorded or all generated within a question
+    And a lone letter is read by its name ("letter s", «عین»), and a fill-in blank is a pause, never "underscore" or "dash"
+  @T624
+  Scenario: A question or option with a word too long for the phone wraps inside the screen
+    Given a question whose stem holds a long run with no spaces, like "quantity,quality,shape,color,size", or options with long words and their own speaker
+    When a child opens it on a 360x740 phone, in English or Urdu
+    Then the words break inside the card, the page never scrolls sideways, and the question's speaker stays on the screen
+
+  @T625
+  Scenario: The class table's shared link previews with its picture already drawn
+    Given a child who has finished opens the class table, in English or Urdu
+    When the child taps "Share the table" and sends the link from WhatsApp
+    Then the link preview's class picture (places, animals, scores, nobody named) was drawn when the table opened
+    And WhatsApp's fetch of that picture is answered without waiting for a draw, while the child's own "(me)" picture is still the one shared as a file
+  @T632
+  Scenario: The bank's "answer" clip plays before the answer only when the question is about that sound
+    Given a library question that holds a clip in the bank's stimulus slot
+    When its stem is a listen item ("Listen and tap.", "the word with the following sound:", "sounds like:", «یہ کس حرف کی آواز ہے؟», «یہ لفظ کیسے لکھتے ہیں؟»)
+    Then "Play the sound" plays that clip before the child answers
+    But for an ordinary question that only says "following" or talks about sound ("Which of the following is a noun?", "Musical sounds are:") no clip plays before the answer
+  @T630
+  Scenario: A sound item shows sound tiles: the tile plays the sound, "This one" answers
+    Given a listen-and-identify library item whose options each have their own recorded sound, or an audio-only item ("Sound 1", "Sound 2")
+    When a child opens it on a 360x740 phone, in English or Urdu
+    Then each option is a big tile that plays that option's own sound and never answers
+    And a separate "This one" button under each tile is the answer
+    But an item with an option that has no sound keeps its ordinary option buttons
+  @T631
+  Scenario: A library question can reopen its lesson video without losing the question
+    Given a library quiz that starts with its lesson video, and a child on one of its questions
+    When the child taps "Watch the lesson again"
+    Then the lesson plays over the question, and Close returns to the same question with nothing answered
+    But a quiz with no video shows no such button

@@ -175,7 +175,9 @@ function ogText(payload, view, brand) {
 // The file name carries a version because /wq is served with a one-year immutable cache.
 const URDU_FONT = '/wq/fonts/wq-nastaliq-1.woff2';
 
+// Every share picture and brand picture is a 1200x630 JPEG: the head says so, so the phone knows what it fetches.
 function head({ lang, dir, title, desc, origin, url, assetV, brand, image }) {
+  const img = image || `${origin}${brand.og.image}`;
   return `<!doctype html>
 <html lang="${lang}" dir="${dir}">
 <head>
@@ -188,9 +190,11 @@ function head({ lang, dir, title, desc, origin, url, assetV, brand, image }) {
 <meta property="og:site_name" content="${esc(brand.og.site)}">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(desc)}">
-<meta property="og:image" content="${esc(image || `${origin}${brand.og.image}`)}">
+<meta property="og:image" content="${esc(img)}">${/^https:/.test(img) ? `\n<meta property="og:image:secure_url" content="${esc(img)}">` : ''}
+<meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="${esc(title)}">
 <meta property="og:url" content="${esc(url)}">
 <link rel="icon" href="${esc(WebQuizBrand.faviconHref(brand))}">${lang === 'ur' ? `\n<link rel="preload" href="${URDU_FONT}" as="font" type="font/woff2" crossorigin>` : ''}
 <link rel="stylesheet" href="/wq/wq.css?v=${assetV}">
@@ -409,6 +413,8 @@ function createWebQuizRouter(opts = {}) {
   const botUrl = String(opts.botUrl != null ? opts.botUrl : (process.env.MAIN_BOT_URL || '')).replace(/\/$/, '');
   const apiKey = opts.apiKey != null ? opts.apiKey : (process.env.INTERNAL_API_KEY || '');
   const fetchImpl = opts.fetchImpl || ((...a) => fetch(...a));
+  // The portal's event sink (Axiom): the share pictures it hands out are logged here.
+  const logEvent = opts.logEvent || ((e, p) => { try { require('../services/telemetry.service').logEvent(e, p); } catch (_) { /* never decides a response */ } });
   const router = express.Router();
   let assetV = null;
   const version = () => (assetV || (assetV = assetVersion()));
@@ -605,19 +611,28 @@ function createWebQuizRouter(opts = {}) {
     if (!id || !CODE_RX.test(String(req.params.code || ''))) return res.status(404).set('Cache-Control', 'no-store').json({ error: 'not_found' });
     if (!botUrl || !apiKey) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'web_quiz_off' });
     const sq = req.query.f === 'sq';
+    // One event per picture handed out: which kind, kept here or asked of the bot, how long, and who fetched it
+    // (WhatsApp Android/iOS, a browser…). A phone's preview fetch left no trace when the edge already held the picture.
+    const t0 = Date.now();
+    const seen = (from, extra = {}) => logEvent('web_quiz.art_edge', {
+      kind, size: sq ? 'sq' : 'og', from, ms: Date.now() - t0, ua: Preview.fetcherOf(req), head: req.method === 'HEAD', ...extra,
+    });
     const send = (pic) => res.status(200).set({ 'Cache-Control': `public, max-age=${ART_MAX_AGE[kind]}`, 'X-Robots-Tag': 'noindex' }).type(pic.contentType).send(pic.bytes);
     // Kept at the edge: the card opening fetched it, so the sender's preview fetch never waits for a draw.
     const keyArt = `${kind}|${id}|${sq ? 'sq' : 'og'}`;
     const kept = artKept.get(keyArt);
-    if (kept) return send(kept);
+    if (kept) { seen('edge'); return send(kept); }
     try {
       const out = await callBot('GET', `/api/internal/wq/art/${id}${sq ? '?f=sq' : ''}`, req);
       if (out.bytes) {
         artKept.set(keyArt, { bytes: out.bytes, contentType: out.contentType }, ART_KEEP_MS[kind]);
+        seen('bot');
         return res.status(200).set({ 'Cache-Control': `public, max-age=${ART_MAX_AGE[kind]}`, 'X-Robots-Tag': 'noindex' }).type(out.contentType).send(out.bytes);
       }
+      seen('none', { status: out.status });
       return res.status(out.status === 404 ? 404 : 502).set('Cache-Control', 'no-store').json({ error: out.status === 404 ? 'not_found' : 'upstream_error' });
     } catch (_) {
+      seen('none', { status: 0 });
       return res.status(502).set('Cache-Control', 'no-store').json({ error: 'bot_unreachable' });
     }
   });

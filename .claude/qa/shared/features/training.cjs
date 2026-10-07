@@ -1769,3 +1769,12 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
   rec('T499', 'A child who has just joined from a class quiz link gets the child\'s /quiz, not the teacher\'s', 'BLOCKED',
       { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
 
+  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
+  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T596', 'An old quiz link, with the redirect on, opens the web quiz with one button and starts nothing in chat', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T597', 'An old quiz link with the redirect off, or for a teacher whose web quiz is off, starts the chat quiz as before', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);

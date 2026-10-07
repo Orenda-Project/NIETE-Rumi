@@ -23,9 +23,11 @@ async function warm(out) {
     jobs.push(require('./web-quiz-og').forCode(out.challenge_code, (c) => WebQuiz.getQuiz(c)).catch(() => {}));
   }
   // Both pictures are asked for at once; web-quiz-art keeps the renders to two at a time.
-  for (const id of [out.art.card, out.art.invite]) {
+  // After the answer, never inside it: started during the finish, the draw's own reads slowed the answer by 0.2-0.5 s.
+  // A card is new at its finish, so R2 cannot hold its picture yet and is not asked (fresh); an invite may exist.
+  for (const [id, fresh] of [[out.art.card, true], [out.art.invite, false]]) {
     if (!id) continue;
-    jobs.push(WebQuizArt.artImage(id, { size: 'og' }).catch((e) => {
+    jobs.push(WebQuizArt.artImage(id, { size: 'og', fresh }).catch((e) => {
       logToFile('⚠️ web-quiz: share picture not drawn at finish', { kind: id.slice(0, 1), error: (e && e.message) || 'error' }, 'warn');
     }));
   }
