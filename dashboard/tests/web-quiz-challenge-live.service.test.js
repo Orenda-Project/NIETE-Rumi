@@ -205,6 +205,35 @@ describe('live on', () => {
     expect(p.story()).toContain('wqc-w wqc-miss');
   });
 
+  test('the bar counts words heard before Soniox confirms them (final words trail the voice by seconds); the passage keeps its punctuation', async () => {
+    const p = page({ routes: routesFor(EN) });
+    await go(p);
+    const s = p.sockets[0]; s.open();
+    // 6 final + 6 not yet final, by 11.8 s of audio ⇒ 12 heard ⇒ 61 a minute on the bar
+    s.msg({ tokens: [...toks(EN.tokens.slice(0, 6), { gap: 1 }), ...toks(EN.tokens.slice(6, 12), { from: 6, gap: 1, final: false })] });
+    expect(p.els['wqc-wpm-n'].textContent).toBe('61');
+    expect(p.story()).toContain('school.</span>');
+  });
+
+  test('the last word heard (even before it is final) ends the reading: finalize is sent at once', async () => {
+    const p = page({ routes: routesFor(EN, { 'ch/result$': () => ({ status: 200, body: { pending: true } }) }) });
+    await go(p);
+    const s = p.sockets[0]; s.open();
+    s.msg({ tokens: [...toks(EN.tokens.slice(0, 50), { gap: 0.5 }), ...toks(EN.tokens.slice(50), { from: 50, gap: 0.5, final: false })] });
+    expect(s.sent).toContain('{"type":"finalize"}');
+    expect(p.recs[0].state).toBe('inactive');
+  });
+
+  test('the result keeps "More challenges" on screen however long the story is', async () => {
+    const p = page({ routes: routesFor(EN, { 'ch/result$': () => ({ status: 200, body: { pending: true } }) }) });
+    await go(p);
+    const s = p.sockets[0]; s.open();
+    s.msg({ tokens: toks(EN.tokens, { gap: 0.5 }) });
+    s.msg({ tokens: [], finished: true });
+    await p.flush();
+    expect(p.html()).toMatch(/<div class="wqc-sticky"><button class="wq-btn wq-go" id="wqc-menu"/);
+  });
+
   test('the reading ends at the last word: the result is on screen AT ONCE from the live count; the recording still goes up with the live numbers', async () => {
     let resolveResult;
     const held = new Promise((r) => { resolveResult = r; });

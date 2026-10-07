@@ -176,6 +176,7 @@
         '.wqc-w.wqc-okp{background:rgba(23,160,90,.10)}',
         '.wqc-w.wqc-miss{background:#FFF1D6;color:#8A5A00}',
         '.wqc-w.wqc-next{box-shadow:inset 0 -3px 0 var(--navy)}',
+        '.wqc-live,.wqc[data-screen=read-live],.wqc[data-screen=read-result]{padding-bottom:96px}',
         '.wqc-key{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:13px;font-weight:700;color:var(--muted);margin:6px 0 0}',
         '.wqc-key i{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-1px;margin-inline-end:5px}',
         '.wqc-sticky{position:fixed;left:0;right:0;bottom:0;z-index:5;padding:14px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(rgba(255,255,255,0),var(--paper) 30%)}',
@@ -468,6 +469,12 @@
     var tk = (st.tokens && st.tokens.length) ? st.tokens : String(st.text || '').split(/\s+/);
     return tk.filter(function (w) { return String(w).trim(); });
   }
+  // What the child sees: the printed words with their punctuation, when they line up one-to-one with the tokens.
+  function shownWords(st) {
+    var tk = liveWords(st);
+    var printed = String(st.text || '').split(/\s+/).filter(function (w) { return w.trim(); });
+    return printed.length === tk.length ? printed : tk;
+  }
   function liveFail(err) {
     if (!live || live.failed) return;
     live.failed = true;
@@ -495,13 +502,14 @@
     });
   }
   function liveOk() { return !!(live && !live.failed); }
+  // The bar: words heard so far (confirmed or not) over the time read; shown from 5 s.
   function liveWpm(v) {
     var secs = v.finished && v.endMs ? v.endMs / 1000 : Math.max((Date.now() - live.started) / 1000, live.audioMs / 1000);
-    return { secs: Math.min(60, Math.round(secs)), wpm: secs >= 5 ? Math.round(v.correct / Math.min(60, secs) * 60) : null };
+    return { secs: Math.min(60, Math.round(secs)), wpm: secs >= 5 ? Math.round((v.heardOk || 0) / Math.min(60, secs) * 60) : null };
   }
   function liveStoryHtml(marks) {
     var d = S.data;
-    var ws = liveWords(d.story);
+    var ws = shownWords(d.story);
     var spans = ws.map(function (w, i) {
       var m = (marks && marks[i]) || 'none';
       var next = live && live.v && live.v.next === i ? ' wqc-next' : '';
@@ -526,11 +534,12 @@
   function liveTokens(tokens) {
     if (!live) return;
     tokens.forEach(function (tk) { if (tk && tk.end_ms > live.audioMs) live.audioMs = tk.end_ms; });
-    var before = live.v ? live.v.correct : 0;
+    var before = live.v ? live.v.heardOk : 0;
     live.v = live.tr.push(tokens);
-    if (live.v.correct > before) live.lastWordAt = Date.now();
+    if (live.v.heardOk > before) live.lastWordAt = Date.now();
     livePaint();
-    if (live.v.finished && S.screen === 'read-live') stopRec();
+    // the last word heard ends the reading; finalize then makes Soniox confirm what it has at once
+    if ((live.v.finished || live.v.lastHeard) && S.screen === 'read-live') stopRec();
   }
 
   function readStart() {
@@ -664,7 +673,7 @@
       + '<p class="wq-sub" id="wqc-growth"></p>'
       + '<div class="wqc-story" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live.v.marks) + '</div>'
       + '<p class="wqc-key"><span><i style="background:var(--right-bg)"></i>' + esc(t.readGreen) + '</span><span><i style="background:#FFF1D6"></i>' + esc(t.notCaught(MASCOT)) + '</span></p>'
-      + '<div class="wq-stack"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(t.more) + '</button></div>');
+      + '<div class="wqc-sticky"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(t.more) + '</button></div>');
     if (good) say(d.clips.done);
     on('wqc-menu', refreshMenu);
   }
