@@ -3,9 +3,9 @@
  * The card picture is ready before the first link preview asks for it, and is smaller on the wire.
  *
  * WhatsApp builds a shared link's preview on the sender's phone: the text first, then it fetches the picture. Measured on
- * sandbox 3 s after a finish, the card picture's first request waited 1.5-2.8 s because its draw only began after the
- * whole finish answer was built, then re-read its facts and asked R2 for a key a new card cannot have. Now the draw
- * begins the moment the session is marked completed (inside the finish), skips the R2 read, and the JPEG is lighter.
+ * sandbox 3 s after a finish, the card picture's first request waited 1.5-2.8 s: after the finish answer, its draw
+ * re-read its facts and asked R2 for a key a new card cannot have. The draw now skips that R2 read and the JPEG is
+ * lighter. It still starts AFTER the answer: started inside the finish, its reads slowed the answer by 0.2-0.5 s.
  *
  * Supabase, SQS, Redis, WhatsApp, R2 and the headless-browser renderer are the boundaries and are faked; the
  * routes, the quiz service, the picture service and the og memory run for real.
@@ -149,34 +149,34 @@ const until = async (ok, ms = 4000) => { const t = Date.now(); while (!ok() && D
 const { logEvent } = require('../../../shared/utils/structured-logger');
 const r2 = require('../../../shared/storage/r2');
 
-test('the card picture starts drawing while the finish is still being answered, not after', async () => {
+test('the finish itself never draws: the card picture is drawn after the answer, so the answer never waits on it', async () => {
   const s = await play();
-  // the service alone (no route, so no after-the-answer warm-up): the card's draw has already begun when it returns
+  // the service alone (no route): nothing is drawn while the finish is being answered (the draw's own reads
+  // slowed the answer by 0.2-0.5 s when it ran alongside)
   const out = await WQ.finishSession({ st: s.st });
   expect(out.art.card).toMatch(/^c\./);
-  expect(await until(() => htmlToImage.mock.calls.length >= 1, 1000)).toBe(true);
-  release();
-  // and the scorecard's fetch of the same card joins that draw: one draw for the card in all
-  await Art.artImage(out.art.card, { size: 'og' });
-  expect(htmlToImage).toHaveBeenCalledTimes(1);
+  await new Promise((r) => setTimeout(r, 50));
+  expect(htmlToImage).not.toHaveBeenCalled();
 });
 
-test("a finish-time card is not looked up in R2 (a new card's picture cannot be there yet)", async () => {
+test("after the answer, the card is drawn without asking R2 (a new card's picture cannot be there yet)", async () => {
   const s = await play();
   release();
-  const out = await WQ.finishSession({ st: s.st });
-  await Art.artImage(out.art.card, { size: 'og' });
-  const served = logEvent.mock.calls.filter(([e, p]) => e === 'web_quiz.art_served' && p.kind === 'card');
-  expect(served.length).toBeGreaterThanOrEqual(1);
-  expect(served[0][1].from).toBe('drawn');
-  // the only R2 lookups were not for this card: none happened before its draw
-  expect(r2.headObject).not.toHaveBeenCalled();
+  const r = await fetch(`${base}/finish`, { method: 'POST', headers: KEY, body: JSON.stringify({ st: s.st }) });
+  expect(r.status).toBe(200);
+  const card = () => logEvent.mock.calls.find(([e, p]) => e === 'web_quiz.art_served' && p.kind === 'card');
+  expect(await until(() => Boolean(card()), 2000)).toBe(true);
+  expect(card()[1]).toEqual(expect.objectContaining({ from: 'drawn', r2_ms: expect.any(Number) }));
+  // R2 was asked only for the invite (a challenge code's picture may already exist), never for the card
+  const cardKey = (await Art.artImage((await r.json()).art.card, { size: 'og' })).key;
+  expect(r2.headObject.mock.calls.map(([k]) => k)).not.toContain(cardKey);
 });
 
 test('art_served says where the time went: facts, R2 and the draw', async () => {
   const s = await play();
   release();
   const out = await WQ.finishSession({ st: s.st });
+  await Art.artImage(out.art.card, { size: 'og' });
   await until(() => logEvent.mock.calls.some(([e, p]) => e === 'web_quiz.art_served' && p.kind === 'card'), 2000);
   const p = logEvent.mock.calls.find(([e, x]) => e === 'web_quiz.art_served' && x.kind === 'card')[1];
   expect(p).toEqual(expect.objectContaining({ from: 'drawn', facts_ms: expect.any(Number), r2_ms: expect.any(Number), draw_ms: expect.any(Number) }));

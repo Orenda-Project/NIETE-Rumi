@@ -1188,11 +1188,11 @@ Feature: Web child quiz page on the portal
     But a video quiz card keeps "Next in this chapter" and "Watch another video" first, and with the door switched off the card is unchanged
 
   @T596
-  Scenario: The card picture is drawn while the finish is still answering, so a quick share's preview has it
+  Scenario: The card picture is drawn straight after the finish answers, without slowing the finish
     Given a class child answers the last question of a quiz, in English or Urdu
     When the quiz finishes
-    Then the card picture starts drawing the moment the session is marked finished, before the scorecard appears
-    And a WhatsApp link preview of "Share to class group" 3 seconds after the finish gets the picture without waiting for a draw
+    Then the scorecard's answer comes first, never waiting on the picture, and the card picture is drawn straight after it without looking in storage first
+    And a WhatsApp link preview of "Share to class group" a few seconds after the finish gets the picture without waiting for a draw
     And the picture is a 1200x630 JPEG of about 30 KB, and the page head names its type (image/jpeg), its https address and its alt text
 
   @T597
@@ -1225,3 +1225,10 @@ Feature: Web child quiz page on the portal
     Given a question whose stem holds a long run with no spaces, like "quantity,quality,shape,color,size", or options with long words and their own speaker
     When a child opens it on a 360x740 phone, in English or Urdu
     Then the words break inside the card, the page never scrolls sideways, and the question's speaker stays on the screen
+
+  @T625
+  Scenario: The class table's shared link previews with its picture already drawn
+    Given a child who has finished opens the class table, in English or Urdu
+    When the child taps "Share the table" and sends the link from WhatsApp
+    Then the link preview's class picture (places, animals, scores, nobody named) was drawn when the table opened
+    And WhatsApp's fetch of that picture is answered without waiting for a draw, while the child's own "(me)" picture is still the one shared as a file

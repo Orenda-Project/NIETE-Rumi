@@ -9,21 +9,6 @@
  */
 const { logToFile } = require('../../utils/logger');
 
-/**
- * The card picture, started the moment its session is marked completed (from inside the finish, before the finish's
- * own answer is built: ~1.5-3 s earlier than afterFinish). A new card cannot be in R2, so R2 is not asked. afterFinish's
- * later ask for the same picture joins this draw (web-quiz-art keeps one draw per picture).
- */
-function cardAtFinish(cardId) {
-  if (!cardId) return;
-  // Asked synchronously (not awaited): the draw is registered before anything else can ask for the same picture.
-  try {
-    require('./web-quiz-art').artImage(cardId, { size: 'og', fresh: true }).catch((e) => {
-      logToFile('⚠️ web-quiz: share picture not drawn at finish', { kind: 'c', error: (e && e.message) || 'error' }, 'warn');
-    });
-  } catch (e) { /* the picture never decides the finish */ }
-}
-
 function afterFinish(out) {
   if (!out || !out.art) return;
   setImmediate(() => { warm(out).catch(() => {}); });
@@ -38,16 +23,15 @@ async function warm(out) {
     jobs.push(require('./web-quiz-og').forCode(out.challenge_code, (c) => WebQuiz.getQuiz(c)).catch(() => {}));
   }
   // Both pictures are asked for at once; web-quiz-art keeps the renders to two at a time.
-  for (const id of [out.art.card, out.art.invite]) {
+  // After the answer, never inside it: started during the finish, the draw's own reads slowed the answer by 0.2-0.5 s.
+  // A card is new at its finish, so R2 cannot hold its picture yet and is not asked (fresh); an invite may exist.
+  for (const [id, fresh] of [[out.art.card, true], [out.art.invite, false]]) {
     if (!id) continue;
-    jobs.push(WebQuizArt.artImage(id, { size: 'og' }).catch((e) => {
+    jobs.push(WebQuizArt.artImage(id, { size: 'og', fresh }).catch((e) => {
       logToFile('⚠️ web-quiz: share picture not drawn at finish', { kind: id.slice(0, 1), error: (e && e.message) || 'error' }, 'warn');
     }));
   }
   await Promise.all(jobs);
 }
 
-// The quiz service announces a finish through the hooks leaf, so it never requires this module (no require cycle).
-require('./web-quiz-hooks').on('session_completed', (p) => cardAtFinish(p && p.cardId));
-
-module.exports = { afterFinish, cardAtFinish, _warm: warm };
+module.exports = { afterFinish, _warm: warm };
