@@ -932,6 +932,11 @@ export const coach = {
     const response = await api.get(`/coach/visit/${encodeURIComponent(id)}`, { params: { today: coachDay() } });
     return response.data;
   },
+  /** bd-o15qnr.21 — what waits on her (Feedback Form, Debrief): the pending banner. */
+  getPending: async (): Promise<{ success: boolean; waiting: number; ids: string[] }> => {
+    const response = await api.get('/coach/pending');
+    return response.data;
+  },
   getReports: async (args: { page?: number; q?: string } = {}): Promise<{ success: boolean } & ReportsData> => {
     const params: Record<string, string> = {};
     if (args.page) params.page = String(args.page);

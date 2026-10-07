@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { Clock, Eye, GraduationCap, MapPin, Mic, Pencil, Plus } from "lucide-react";
+import { BookOpen, Clock, Eye, FileCheck2, GraduationCap, MapPin, Mic, Pencil, Plus } from "lucide-react";
 import { coach } from "../../services/api";
 import { COACH_COPY as C } from "../copy";
 import { CoachPage, Card, SectionLabel, DayLabel, IconCircle, PageChip, BottomLink, Loading, Failed, useLoad, Chevron, Chip } from "../ui";
@@ -53,7 +53,7 @@ const CoachTeacher = () => {
   const scored = (data?.history || []).filter((h) => h.score != null).slice(0, 6).reverse()
     .map((h) => ({ kind: h.kind, score: h.score as number, label: h.date ? new Date(h.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "" }));
   const cell = (icon: React.ReactNode, value: React.ReactNode, label: string, extra = "") => (
-    <div className={`flex items-center gap-3 p-3.5 ${extra}`}>
+    <div data-stat className={`flex items-center gap-3 p-3.5 ${extra}`}>
       <IconCircle hue="green" size={40}>{icon}</IconCircle>
       <span><b className="block text-xl font-bold tabular-nums">{value}</b><span className="text-xs text-[#6b7280]">{label}</span></span>
     </div>
@@ -90,11 +90,14 @@ const CoachTeacher = () => {
               </span>
             )}
           </Card>
-          <Card className="grid grid-cols-2 overflow-hidden">
+          <Card className="grid grid-cols-2 overflow-hidden" data-testid="teacher-stats">
             {cell(<Eye className="h-5 w-5" />, t.hitl, C.hitlVisits)}
             {cell(<Mic className="h-5 w-5" />, t.dc, C.dcSessions, "border-s border-[#e5e7eb]")}
             {cell(<GraduationCap className="h-5 w-5" />, t.trainingModules ?? C.dash, C.modulesDone, "border-t border-[#e5e7eb]")}
             {cell(<Clock className="h-5 w-5" />, C.daysShort(t.daysSinceTraining), C.lastTraining, "border-s border-t border-[#e5e7eb]")}
+            {/* bd-o15qnr.20 — lesson plan engagement, live on sandbox */}
+            {cell(<FileCheck2 className="h-5 w-5" />, t.examsGenerated ?? C.dash, C.examsGenerated, "border-t border-[#e5e7eb]")}
+            {cell(<BookOpen className="h-5 w-5" />, t.lpOpened ?? C.dash, C.lpOpened, "border-s border-t border-[#e5e7eb]")}
           </Card>
           {data.history.length > 0 && (
             <>
@@ -105,10 +108,10 @@ const CoachTeacher = () => {
               <DayLabel count={rows.length}>{rows[0].date ? C.monthOf(rows[0].date) : C.dash}</DayLabel>
               <Card className="overflow-hidden">
                 {rows.map((h, i) => {
-                  // bd-o15qnr.10 — what this row opens: her own portal observation's
-                  // existing page (at its step), the v2 report, or nothing.
-                  const to = h.open === "observe" ? `/portal/leader/observe/${h.id}`
-                    : h.open === "report" ? `/portal/coach/observation/${h.id}` : null;
+                  // bd-o15qnr.19 — every HITL row opens the one v2 observation page
+                  // (its steps, and its reports once done); a DC session is the
+                  // teacher's own, information only.
+                  const to = h.kind === "HITL" ? `/portal/coach/observation/${h.id}` : null;
                   const cls = `flex min-h-[72px] items-center gap-3.5 px-3.5 py-2.5 ${i > 0 ? "border-t border-[#e5e7eb]" : ""} ${to ? "transition-colors hover:bg-[#f9fafb]" : ""}`;
                   const inner = (
                     <>

@@ -611,6 +611,34 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the teacher receives no new message
     And the coach's booking of a hand-added teacher with no WhatsApp number is saved without any message
 
+  # ── The coach's calendar invite, from WhatsApp AND the portal (bd-dk6hy, bd-o15qnr.17)
+  # observe-calendar.service: a Google Calendar event with the coach as the only
+  # attendee (sendUpdates=all, so Google emails her), gated by
+  # OBSERVE_CALENDAR_ENABLED and her coach_directory work_email. A portal booking,
+  # move or cancel is announced through the same observe-schedule.service
+  # announce as a WhatsApp one, via POST /api/internal/observe/notify-teacher.
+
+  @e2e @config-gated @P1
+  Scenario: A visit booked on the portal sends the coach the same invite and the teacher the same message as one booked in WhatsApp
+    Given OBSERVE_CALENDAR_ENABLED covers the coach, she has a work email in the coach directory, and the teacher notice is on
+    When the coach books a visit for a teacher in her patch on the portal for a future date
+    Then the coach receives one calendar invite for that date and time, and no one else is invited
+    And the teacher receives one WhatsApp message naming the coach, her school, the date and the time
+
+  @e2e @config-gated @P1
+  Scenario: Moving or cancelling a portal visit updates the invite and tells the teacher, as WhatsApp does
+    Given a coach has a future visit booked on the portal and holds its calendar invite
+    When the coach moves the visit to a new date or time on the portal
+    Then the invite moves to the new date and time and the teacher receives the new date and time
+    When the coach cancels the visit on the portal
+    Then the invite is removed from the coach's calendar and the teacher receives a message that the visit is cancelled
+
+  @e2e @config-gated @negative @P2
+  Scenario: A portal visit booked or moved into the past sends nothing
+    Given a coach is booking on the portal
+    When the coach books a visit for a day that has passed, or moves a visit to a day that has passed
+    Then the visit is saved, no calendar invite is sent or changed, and the teacher receives no message
+
   # ── An observation the coach runs from the PORTAL (bd-5rz1v.6) ─────────────
   # Dark behind app_settings.portal_coach_observation. The coach picks the
   # teacher, records or uploads the lesson, attaches HER lesson plan, then checks

@@ -21,6 +21,7 @@
  */
 
 const { getOverall } = require('./coaching-frameworks.service');
+const { karachiToday, storedDay } = require('../lib/visit-time');
 
 const UPCOMING_SQL = `
   SELECT id, teacher_name, school_name, school_ext_id, teacher_ext_id,
@@ -66,14 +67,9 @@ function emisOf(schoolExtId) {
   return code.trim() || null;
 }
 
-function isoDay(value) {
-  if (!value) return null;
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
-  return String(value).slice(0, 10);
-}
-
 function shapeSchedule(r, today) {
-  const scheduledFor = isoDay(r.scheduled_for);
+  // bd-o15qnr.22/.23: the stored day (a pg DATE is local midnight), never its UTC date.
+  const scheduledFor = r.scheduled_for ? storedDay(r.scheduled_for) || null : null;
   return {
     id: r.id,
     teacherName: r.teacher_name || null,
@@ -130,11 +126,11 @@ function isCompleted(r) {
 /**
  * @param {(sql: string, params: any[]) => Promise<{rows: object[]}>} query
  * @param {string} leaderUserId portal session user id
- * @param {{today?: string}} opts today as YYYY-MM-DD (defaults to now, UTC)
+ * @param {{today?: string}} opts today as YYYY-MM-DD (defaults to today in Asia/Karachi)
  * @returns {Promise<{upcoming: object[], pendingDebriefs: object[], completed: object[]}>}
  */
 async function getLeaderObservations(query, leaderUserId, opts = {}) {
-  const today = opts.today || new Date().toISOString().slice(0, 10);
+  const today = opts.today || karachiToday(); // bd-o15qnr.23: the day in Pakistan, not UTC
   try {
     const [schedules, sessions] = await Promise.all([
       query(UPCOMING_SQL, [leaderUserId]),

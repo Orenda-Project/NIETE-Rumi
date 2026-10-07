@@ -37,14 +37,34 @@ async function _calendar(hook, row) {
 // never allowed to change what the store returns.
 async function _notice(kind, row) {
   try {
-    if (!row) return;
+    if (!row) return false;
     const Notice = require('./observe-teacher-notice.service');
-    await Notice.notifyTeacher(kind, row);
+    return (await Notice.notifyTeacher(kind, row)) === true;
   } catch (err) {
     logToFile('❌ observe-schedule: teacher notice failed (non-blocking)', {
       kind, scheduleId: row && row.id, error: err.message,
     }, 'error');
+    return false;
   }
+}
+
+const CALENDAR_HOOK = { scheduled: 'onScheduled', rescheduled: 'onRescheduled', cancelled: 'onCancelled' };
+
+/**
+ * bd-o15qnr.17 — what a booking, a move or a cancel tells people: the coach's
+ * calendar invite and the teacher's WhatsApp notice. The ONE place both are
+ * sent from — WhatsApp's writers below and the portal (through
+ * POST /api/internal/observe/notify-teacher) — so the two cannot drift.
+ *
+ * A move always re-times the invite, but is news to the teacher only when the
+ * date or time really changed (`moved`).
+ * @returns {Promise<boolean>} true only when Meta accepted the teacher's notice
+ */
+async function announce(kind, row, { moved = true } = {}) {
+  if (!row || !CALENDAR_HOOK[kind]) return false;
+  await _calendar(CALENDAR_HOOK[kind], row);
+  if (kind === 'rescheduled' && !moved) return false;
+  return _notice(kind, row);
 }
 
 // School-hour half-hour slots (no native time picker in Meta Flows — the
@@ -100,12 +120,11 @@ async function saveSchedule(leaderUserId, { school_ext_id, teacher_ext_id, teach
     if (error) throw new Error(`observe-schedule: update failed: ${error.message}`);
     const moved = { ...existing, ...patch };
     // The picker re-uses saveSchedule to CHANGE a date. Creating here would
-    // leave the coach holding two invites for one visit.
-    await _calendar('onRescheduled', moved);
-    // Only a real move is news to the teacher; re-saving the same slot is not.
-    if (existing.scheduled_for !== date || (existing.scheduled_slot || null) !== (slot || null)) {
-      await _notice('rescheduled', moved);
-    }
+    // leave the coach holding two invites for one visit. Only a real move is
+    // news to the teacher; re-saving the same slot is not.
+    await announce('rescheduled', moved, {
+      moved: existing.scheduled_for !== date || (existing.scheduled_slot || null) !== (slot || null),
+    });
     return moved;
   }
   const { data, error } = await supabase
@@ -123,8 +142,7 @@ async function saveSchedule(leaderUserId, { school_ext_id, teacher_ext_id, teach
     .select()
     .single();
   if (error) throw new Error(`observe-schedule: insert failed: ${error.message}`);
-  await _calendar('onScheduled', data);
-  await _notice('scheduled', data);
+  await announce('scheduled', data);
   return data;
 }
 
@@ -198,10 +216,7 @@ async function cancelById(leaderUserId, scheduleId) {
   const cancelled = Array.isArray(data) && data.length > 0;
   // Only a row that actually matched — the guards that protect the record of who
   // was observed must also stop us deleting somebody else's invite.
-  if (cancelled) {
-    await _calendar('onCancelled', data[0]);
-    await _notice('cancelled', data[0]);
-  }
+  if (cancelled) await announce('cancelled', data[0]);
   return cancelled;
 }
 
@@ -220,14 +235,11 @@ async function rescheduleById(leaderUserId, scheduleId, date, slot) {
     return false;
   }
   const moved = Array.isArray(data) && data.length > 0;
-  if (moved) {
-    await _calendar('onRescheduled', data[0]);
-    await _notice('rescheduled', data[0]);
-  }
+  if (moved) await announce('rescheduled', data[0]);
   return moved;
 }
 
 module.exports = {
   saveSchedule, listUpcoming, countUpcoming, markDone, SLOTS,
-  cancelById, rescheduleById,
+  cancelById, rescheduleById, announce,
 };

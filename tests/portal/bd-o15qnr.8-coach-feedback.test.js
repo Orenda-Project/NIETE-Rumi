@@ -44,7 +44,7 @@ function createQuery(calls) {
 function editQuery(calls) {
   return async (sql, params) => {
     calls.push({ sql, params });
-    if (/SELECT id, status, leader_user_id, scheduled_for, scheduled_slot FROM observation_schedules/.test(sql)) {
+    if (/SELECT id, status, leader_user_id, scheduled_for(::text AS scheduled_for)?, scheduled_slot FROM observation_schedules/.test(sql)) {
       return { rows: [{ id: 'v1', status: 'upcoming', leader_user_id: 'coach-1', scheduled_for: '2026-10-07', scheduled_slot: '09:00' }] };
     }
     if (/UPDATE observation_schedules/.test(sql)) return { rows: [{ id: 'v1' }] };

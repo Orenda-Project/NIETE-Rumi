@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ChevronLeft, Loader2, MicOff, Smartphone, Upload, WifiOff } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import PortalLayout from '../components/PortalLayout';
@@ -13,7 +13,7 @@ import { canRecordHere } from '../lib/recordingSupport';
 import { deleteRecording } from '../lib/recordingStore';
 import { SendError } from '../lib/coachingSend';
 import type { FinishedRecording } from '../lib/lessonRecorder';
-import { firstName, sendTalk } from '../lib/coachObserve';
+import { V2_STEP, firstName, observationHome, openedFromCoach, sendTalk } from '../lib/coachObserve';
 
 /**
  * bd-5rz1v.6 — "Talk with the teacher": the debrief, in the portal.
@@ -88,6 +88,10 @@ export const Guide = ({ guide }: { guide: TalkGuide }) => (
 
 const LeaderObserveTalk = () => {
   const { id } = useParams<{ id: string }>();
+  // bd-o15qnr.19 — opened from coach v2: "Debrief", and back to the v2 observation page.
+  const [search] = useSearchParams();
+  const fromCoach = openedFromCoach(search);
+  const home = observationHome(id, fromCoach);
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [guide, setGuide] = useState<TalkGuide | null>(null);
@@ -127,7 +131,7 @@ const LeaderObserveTalk = () => {
     try {
       await sendTalk(id, { blob: audio.blob, filename: audio.filename }, leader, undefined, setProgress);
       if (audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* gone */ } }
-      navigate(`/portal/leader/observe/${id}`);
+      navigate(home);
     } catch (err) {
       setFailure(err instanceof SendError ? err : new SendError('network'));
       setStage('failed');
@@ -154,12 +158,12 @@ const LeaderObserveTalk = () => {
       <div className="mx-auto flex w-full max-w-md flex-col gap-3 pb-8">
         <div className="flex h-12 items-center gap-1">
           {stage !== 'recording' && stage !== 'sending' && (
-            <button type="button" onClick={() => navigate(`/portal/leader/observe/${id}`)} aria-label="Back"
+            <button type="button" onClick={() => navigate(home)} aria-label="Back"
               className="flex h-11 w-11 items-center justify-center rounded-lg text-primary">
               <ChevronLeft className="h-6 w-6" />
             </button>
           )}
-          <h1 className="text-lg font-bold text-primary" dir="auto">{COPY.title(first)}</h1>
+          <h1 className="text-lg font-bold text-primary" dir="auto">{fromCoach ? V2_STEP.talk : COPY.title(first)}</h1>
         </div>
 
         {stage === 'guide' && (
@@ -251,7 +255,7 @@ const LeaderObserveTalk = () => {
             ) : (
               <>
                 <p className="text-[17px] leading-relaxed text-[#3a3f4b]">{COPY.refused}</p>
-                <button type="button" onClick={() => navigate(`/portal/leader/observe/${id}`)} className="mt-2 h-[60px] w-full rounded-[14px] bg-primary text-[19px] font-bold text-white">{COPY.tryAgain}</button>
+                <button type="button" onClick={() => navigate(home)} className="mt-2 h-[60px] w-full rounded-[14px] bg-primary text-[19px] font-bold text-white">{COPY.tryAgain}</button>
               </>
             )}
           </div>

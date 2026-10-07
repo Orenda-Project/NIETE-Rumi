@@ -171,7 +171,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
 
   if (stage === "library") {
     return (
-      <CoachPage title={C.library} crumb={crumb}
+      <CoachPage banner={false} title={C.library} crumb={crumb}
         onBack={() => (libraryLevel > 0 ? setLibraryBack((n) => n + 1) : setStage("check"))}>
         <LibraryPicker onPick={onLibraryPick} onStepChange={setLibraryLevel} backSignal={libraryBack}
           loadRecent={loadTheirRecent} recentTitle={C.theirRecentPlans} showUsed={false} />
@@ -181,7 +181,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
 
   if (stage === "sending") {
     return (
-      <CoachPage bare title={C.checkAndSend} crumb={crumb}>
+      <CoachPage banner={false} bare title={C.checkAndSend} crumb={crumb}>
         <Card className="flex flex-col items-center gap-4 p-6 text-center">
           <span className="flex h-20 w-20 items-center justify-center rounded-full bg-[#eaf6ef] text-[#48b078]"><Upload className="h-9 w-9" aria-hidden="true" /></span>
           <h2 className="text-xl font-semibold">{C.sending(teacherName)}</h2>
@@ -199,7 +199,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
     const planIssue = failure.kind === "plan_not_ready" || failure.kind === "plan_not_found";
     const notMine = failure.message === "not_your_teacher";
     return (
-      <CoachPage title={C.checkAndSend} crumb={crumb} onBack={() => setStage("check")}>
+      <CoachPage banner={false} title={C.checkAndSend} crumb={crumb} onBack={() => setStage("check")}>
         <Card className="flex flex-col items-center gap-4 p-6 text-center">
           <span className="flex h-20 w-20 items-center justify-center rounded-full bg-[#fef3c7] text-[#b45309]">
             {failure.kind === "network" ? <WifiOff className="h-9 w-9" aria-hidden="true" /> : <AlertTriangle className="h-9 w-9" aria-hidden="true" />}
@@ -230,7 +230,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   }
 
   return (
-    <CoachPage title={C.checkAndSend} crumb={crumb} backTo={`/portal/coach/visit/${visit.id}`}
+    <CoachPage banner={false} title={C.checkAndSend} crumb={crumb} backTo={`/portal/coach/visit/${visit.id}`}
       dock={(
         <button type="button" onClick={send}
           className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#33374a] text-base font-semibold text-white">
@@ -370,7 +370,7 @@ const CoachCheckSend = () => {
   if (visit && audio) return <CheckSend visit={visit} audio={audio} />;
 
   return (
-    <CoachPage title={C.checkAndSend} backTo={`/portal/coach/visit/${id}`}
+    <CoachPage banner={false} title={C.checkAndSend} backTo={`/portal/coach/visit/${id}`}
       crumb={visit ? `${visit.teacherName || C.dash} · ${formatSlot(visit.scheduledSlot)}` : undefined}>
       {failed && <Failed onRetry={reload} />}
       {(!data || !looked) && !failed && <Loading />}

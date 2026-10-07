@@ -23,6 +23,7 @@ const query = async (sql, params) => {
   const S = CoachV2.SQL;
   if (sql === S.TEACHER_FACTS || sql === S.TEACHER_TRAINING || sql === S.TEACHER_HISTORY || sql === S.MY_SCHEDULES) return { rows: [] };
   if (sql === S.LEADER_SCHOOLS) return { rows: [] };
+  if (sql === S.LP_OPENED) return { rows: [{ n: 0 }] }; // bd-o15qnr.20
   if (sql === S.TEACHER_LEVELS) return { rows: params[0] === 'u-ayesha' ? [{ teacher_level: ['MIDDLE', 'EARLY_YEARS', 'primary'] }] : [] };
   throw new Error(`unexpected SQL: ${sql.slice(0, 60)}`);
 };
