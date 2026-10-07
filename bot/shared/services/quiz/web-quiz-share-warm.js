@@ -5,7 +5,7 @@
  * WhatsApp builds a shared link's preview on the child's phone before the message goes; a picture not drawn yet
  * (a first draw takes 1-5 s) is a link sent without it. The scorecard used to warm its pictures only once it was
  * on screen. After a finish answers, this asks for the card and invite pictures and the challenge code's preview
- * facts all at once (web-quiz-art caps the renders). It never holds or fails the finish.
+ * facts all at once (web-quiz-art caps the renders), then the class table's picture. It never holds or fails the finish.
  */
 const { logToFile } = require('../../utils/logger');
 
@@ -32,6 +32,14 @@ async function warm(out) {
     }));
   }
   await Promise.all(jobs);
+  // Then the class table's picture (nobody named), the one its shared link previews as: after the card, so the card
+  // never queues behind it. A class picture is kept two minutes (web-quiz-art), so a class finishing together
+  // draws it about once, not once per child.
+  if (out.art.table) {
+    await WebQuizArt.artImage(out.art.table, { size: 'og' }).catch((e) => {
+      logToFile('⚠️ web-quiz: share picture not drawn at finish', { kind: 'l', error: (e && e.message) || 'error' }, 'warn');
+    });
+  }
 }
 
 module.exports = { afterFinish, _warm: warm };
