@@ -23,6 +23,7 @@ const express = require('express');
 // loads where the dashboard's dependencies are not installed (the root CI run).
 // Dependency-free: the brand table both services read (the bot names the key, the edge dresses the page).
 const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
+const { createCanonicalRedirect } = require('./web-quiz-canonical');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
@@ -377,6 +378,9 @@ function createWebQuizRouter(opts = {}) {
   let lastBrand = null;
 
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl });
+
+  // A child page on any host but the canonical one goes there first (one origin = one remembered child).
+  router.use(createCanonicalRedirect(opts.canonicalBase != null ? opts.canonicalBase : process.env.WEB_QUIZ_BASE_URL));
 
   // ---- rate limits (BUILD_SPEC 3.3). Carriers put many phones behind one IP, so
   // the per-IP ceilings are generous and the tight ones are keyed on the token.
