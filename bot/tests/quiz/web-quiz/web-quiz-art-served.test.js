@@ -136,3 +136,58 @@ describe('a repeat of the same picture id', () => {
     spy.mockRestore();
   });
 });
+
+describe('one picture drawn once, and never more than two draws at a time', () => {
+  // The finish draws the pictures and the scorecard asks for them a moment later; a class finishing together asks
+  // for many at once. Every draw is a headless-browser render in the one bot process that also serves WhatsApp.
+  const missEverywhere = async (c) => {
+    if (c.type === 'head') throw notFound('NotFound');
+    if (c.type === 'get') throw notFound('NoSuchKey');
+    return {};
+  };
+  let live; let peak; let gate; let open;
+  beforeEach(() => {
+    S3.__send.mockImplementation(missEverywhere);
+    live = 0; peak = 0;
+    gate = new Promise((r) => { open = r; });
+    htmlToImage.mockReset().mockImplementation(async (html, o) => {
+      live += 1; peak = Math.max(peak, live);
+      await gate;
+      live -= 1;
+      return sharp({ create: { width: o.width, height: o.height || o.width, channels: 3, background: '#333748' } }).png().toBuffer();
+    });
+  });
+
+  test('two callers asking for the same picture while it is being drawn share one draw', async () => {
+    const id = Art.artId('c', SID);
+    const a = Art.artImage(id, { size: 'og' });
+    const b = Art.artImage(id, { size: 'og' });
+    await new Promise((r) => setTimeout(r, 30));
+    open();
+    const [x, y] = await Promise.all([a, b]);
+    expect(htmlToImage).toHaveBeenCalledTimes(1);
+    expect(Buffer.compare(x.bytes, y.bytes)).toBe(0);
+  });
+
+  test('different pictures asked for together are drawn at most two at a time, and all arrive', async () => {
+    const ids = [Art.artId('c', SID), Art.artId('l', 'CLS001'), Art.artId('c', SID), Art.artId('s', 'CLS001')];
+    const sizes = ['og', 'og', 'sq', 'og'];
+    const all = Promise.all(ids.map((id, i) => Art.artImage(id, { size: sizes[i] }).catch((e) => e)));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(peak).toBeLessThanOrEqual(2);
+    open();
+    const out = await all;
+    expect(peak).toBeLessThanOrEqual(2);
+    expect(out.filter((o) => o && o.bytes).length).toBeGreaterThanOrEqual(3);
+  });
+
+  test('a draw that fails releases its place and its waiters see the failure', async () => {
+    htmlToImage.mockReset().mockImplementation(async () => { throw new Error('renderer down'); });
+    const id = Art.artId('c', SID);
+    const r = await Promise.allSettled([Art.artImage(id, { size: 'og' }), Art.artImage(id, { size: 'og' })]);
+    expect(r.every((x) => x.status === 'rejected')).toBe(true);
+    expect(htmlToImage).toHaveBeenCalledTimes(1);
+    htmlToImage.mockReset().mockImplementation(async (html, o) => sharp({ create: { width: o.width, height: o.height || o.width, channels: 3, background: '#333748' } }).png().toBuffer());
+    await expect(Art.artImage(id, { size: 'og' })).resolves.toMatchObject({ contentType: 'image/jpeg' });
+  });
+});
