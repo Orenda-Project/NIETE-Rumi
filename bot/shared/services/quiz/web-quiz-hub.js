@@ -15,7 +15,7 @@
  *   hub(token, {kid})      the page's boot JSON (contract: W37 M4 SPEC §1.3)
  *   hubLink(studentIds)    `<portal>/h/<token>` when the hub is on, else null
  *   kidOf(token, kid)      the student id a hub chip names
- *   kidFromHub(token, kid) {studentId, grade, rootId} for the library / challenge routes
+ *   kidFromHub(token, kid, device) {studentId, grade, rootId} for the library route (null on an untrusted phone)
  *   deviceTrusted(token, device)  may this phone (device_ref) see the children's names?
  *
  * A FORWARDED LINK NAMES NOBODY. The hub token is bound to the first phone (device_ref)
@@ -231,9 +231,11 @@ async function recsFor(kidId, history, grade) {
  * their class root code (the newest teacher-sent code they played; "watch more" codes hang
  * off it). Null when the token or the chip is not genuine.
  */
-async function kidFromHub(token, chip) {
+async function kidFromHub(token, chip, device) {
   const studentId = kidOf(token, chip);
   if (!studentId) return null;
+  // A forwarded link opens nothing as the child on another phone.
+  if (!(await deviceTrusted(token, device)).ok) return null;
   const ctx = await kidContext(studentId);
   if (!ctx) return null;
   const root = ctx.history.find((e) => e.teacherSent) || null;

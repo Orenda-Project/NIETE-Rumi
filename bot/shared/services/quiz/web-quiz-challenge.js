@@ -125,19 +125,22 @@ function kidChip(studentId) {
 
 // ── who is playing ─────────────────────────────────────────────────────────────────────────────────────
 
-async function entryOf(token, kid) {
+async function entryOf(token, kid, device) {
   if (!T.secret()) fail(503, 'web_quiz_off');
   const h = T.verify(token, 'h');
   if (h) {
     const ids = (Array.isArray(h.ids) ? h.ids : []).filter((x) => typeof x === 'string').slice(0, 4);
     if (!ids.length) fail(401, 'bad_token');
+    let hit = ids[0];
     if (kid) {
-      const hit = ids.find((id) => kidChip(id) === kid);
+      hit = ids.find((id) => kidChip(id) === kid);
       if (!hit) fail(401, 'bad_token');
-      return { studentId: hit, via: 'hub' };
-    }
-    if (ids.length > 1) fail(400, 'pick_kid');
-    return { studentId: ids[0], via: 'hub' };
+    } else if (ids.length > 1) fail(400, 'pick_kid');
+    // A forwarded hub link opens nothing as the child: only the phone the link is bound to
+    // (or one the child played on) gets their results or a run (web-quiz-hub deviceTrusted).
+    const trust = await require('./web-quiz-hub').deviceTrusted(token, device);
+    if (!trust.ok) fail(403, 'other_device');
+    return { studentId: hit, via: 'hub' };
   }
   const s = T.verify(token, 's');
   if (s && s.sid) {
@@ -205,9 +208,9 @@ async function languageOf(entry, asked) {
   return clampLanguage(null);
 }
 
-async function who(token, { kid, lang } = {}) {
+async function who(token, { kid, lang, device } = {}) {
   if (!(await challengeOn())) fail(503, 'challenge_off');
-  const entry = await entryOf(token, kid);
+  const entry = await entryOf(token, kid, device);
   const grade = await gradeOf(entry);
   const form = formFor(grade);
   if (!form) fail(403, 'not_eligible');
@@ -307,8 +310,8 @@ function lastOf(run) {
   return run.exercise === 'read' ? { correct: s.correct, wcpm: run.wcpm, stopped: !!s.stopped } : { correct: s.correct, n: s.n };
 }
 
-async function menu(token, { kid, lang } = {}) {
-  const w = await who(token, { kid, lang });
+async function menu(token, { kid, lang, device } = {}) {
+  const w = await who(token, { kid, lang, device });
   const runs = (await storedRuns(w.studentId)).filter((r) => r.status === 'scored');
   logEvent('web_quiz.ch_open', { via: w.via, grade: w.grade });
   return {
@@ -323,10 +326,10 @@ async function menu(token, { kid, lang } = {}) {
 
 // ── E: one exercise ───────────────────────────────────────────────────────────────────────────────────
 
-async function exercise(token, ex, { kid, lang } = {}) {
+async function exercise(token, ex, { kid, lang, device } = {}) {
   const def = byId(ex);
   if (!def) fail(404, 'not_found');
-  const w = await who(token, { kid, lang });
+  const w = await who(token, { kid, lang, device });
   const { Bank } = childTest();
   const task = def.task(w.lang);
   const spec = Bank.getTaskSpec({ grade: Number(w.form), set: 'A', task });

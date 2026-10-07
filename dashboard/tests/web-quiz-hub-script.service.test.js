@@ -42,8 +42,10 @@ function page(boot, { api = {}, store = {} } = {}) {
   };
   const toasts = [];
   const fetches = [];
+  const cookies = [];
   const ctx = {
-    document: { getElementById: (id) => (id === 'wq' ? root : { textContent: JSON.stringify(boot) }), createElement: () => ({ setAttribute() {}, textContent: '' }) },
+    document: { getElementById: (id) => (id === 'wq' ? root : { textContent: JSON.stringify(boot) }), createElement: () => ({ setAttribute() {}, textContent: '' }),
+      set cookie(v) { cookies.push(v); }, get cookie() { return cookies.join('; '); } },
     window: { scrollTo() {}, addEventListener(n, fn) { (winL[n] = winL[n] || []).push(fn); } },
     navigator: { sendBeacon: () => true },
     history: { replaceState() {} },
@@ -61,7 +63,7 @@ function page(boot, { api = {}, store = {} } = {}) {
   };
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx);
-  return { store, root, els, toasts, fetches, assigned, html: () => root._h, moment: () => root.attrs['data-m'], win: winL, reloads: () => reloaded };
+  return { cookies, store, root, els, toasts, fetches, assigned, html: () => root._h, moment: () => root.attrs['data-m'], win: winL, reloads: () => reloaded };
 }
 
 const KIDS = [{ chip: '0000000000000001', first: 'ثنا', animal: 'owl', grade: '3' }, { chip: '0000000000000002', first: 'بلال', animal: 'lion', grade: '5' }];
@@ -165,4 +167,15 @@ test('a sibling pick also carries the device_ref, in the body', async () => {
   expect(call.init.method).toBe('POST');
   expect(JSON.parse(call.init.body)).toEqual({ kid: KIDS[1].chip, device_ref: DEV });
   expect(p.moment()).toBe('H2');
+});
+
+test('the phone\'s device_ref is also written to the wq_dv cookie (path /, 30 days, Lax), so the challenge and library pages carry it', async () => {
+  const p = page(LOCKED(), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': LOCKED() } });
+  await flush();
+  const c = p.cookies.find((x) => x.indexOf('wq_dv=') === 0);
+  expect(c).toBeDefined();
+  expect(c).toContain('wq_dv=' + DEV);
+  expect(c).toMatch(/path=\//);
+  expect(c).toMatch(/max-age=2592000/);
+  expect(c).toMatch(/samesite=lax/i);
 });

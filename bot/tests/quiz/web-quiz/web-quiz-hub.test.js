@@ -333,10 +333,17 @@ describe('hub(): recommended for you', () => {
 describe('kidFromHub (the library and challenge routes)', () => {
   test('the chip\'s child, their grade and their class root code; a foreign chip or forged token is null', async () => {
     const token = T.signHub([KID, SIB]);
-    expect(await Hub.kidFromHub(token, chipH(KID))).toEqual({ studentId: KID, grade: '3', rootId: 'sc-maths' });
-    expect(await Hub.kidFromHub(token, chipH(OTHER))).toBeNull();
-    expect(await Hub.kidFromHub('abc.def', chipH(KID))).toBeNull();
-    expect(await Hub.kidFromHub(token, chipH(SIB))).toEqual({ studentId: SIB, grade: '5', rootId: null });
+    expect(await Hub.kidFromHub(token, chipH(KID), DEV_A)).toEqual({ studentId: KID, grade: '3', rootId: 'sc-maths' });
+    expect(await Hub.kidFromHub(token, chipH(OTHER), DEV_A)).toBeNull();
+    expect(await Hub.kidFromHub('abc.def', chipH(KID), DEV_A)).toBeNull();
+    expect(await Hub.kidFromHub(token, chipH(SIB), DEV_A)).toEqual({ studentId: SIB, grade: '5', rootId: null });
+  });
+
+  test('a forwarded link opens no library as the child: another phone, or no device, is null', async () => {
+    const token = T.signHub([KID]);
+    expect(await Hub.kidFromHub(token, chipH(KID), DEV_A)).toMatchObject({ studentId: KID });
+    expect(await Hub.kidFromHub(token, chipH(KID), DEV_B)).toBeNull();
+    expect(await Hub.kidFromHub(token, chipH(KID))).toBeNull();
   });
 });
 
