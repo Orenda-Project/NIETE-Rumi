@@ -378,7 +378,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   const st = spec.story || {};
   const live = await liveOn();
   // live: the bar marks the child's last checked words a minute ("last time"), null the first time
-  const previousWcpm = live ? ((await previousRun(w.studentId, 'read')) || {}).wcpm : undefined;
+  const previousWcpm = live ? ((await previousRun(w.studentId, 'read', w.lang)) || {}).wcpm : undefined;
   return { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: spec.direction } };
 }
 
@@ -524,10 +524,15 @@ async function runState(c) {
   return row.exercise === 'read' ? { score: row.score, wcpm: row.wcpm } : { score: row.score };
 }
 
-/** The child's last scored run of this exercise, for "7 more words than last time!" (null the first time). */
-async function previousRun(studentId, exercise) {
-  const { data, error } = await supabase.from('web_quiz_challenge_runs').select('id, exercise, status, score, wcpm, created_at')
-    .eq('student_id', studentId).eq('exercise', exercise).eq('status', 'scored').order('created_at', { ascending: false }).limit(1);
+/**
+ * The child's last scored run of this exercise, for "7 more words than last time!" (null the first time). A reading
+ * compares only with readings in the same language: the Urdu and English stories are different passages.
+ */
+async function previousRun(studentId, exercise, lang = null) {
+  let qb = supabase.from('web_quiz_challenge_runs').select('id, exercise, status, score, wcpm, created_at')
+    .eq('student_id', studentId).eq('exercise', exercise).eq('status', 'scored');
+  if (exercise === 'read' && lang) qb = qb.eq('lang', lang);
+  const { data, error } = await qb.order('created_at', { ascending: false }).limit(1);
   const r = !error && data && data[0];
   if (!r) return null;
   const s = r.score || {};
@@ -634,7 +639,7 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   if (!isLive) Budget.noteStarted();
 
   RUNS.set(c.r, { ...run, status: 'scoring' });
-  const previous = await previousRun(c.sid, 'read');
+  const previous = await previousRun(c.sid, 'read', run.lang);
   const story = (Bank.getTaskSpec({ grade: Number(run.form), set: 'A', task: run.task }).story || {});
   const live = isLive ? liveCount(body.live, (story.tokens && story.tokens.length) || String(story.text || '').split(/\s+/).filter(Boolean).length) : null;
   const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}) };
