@@ -1,5 +1,5 @@
 -- NIETE sandbox schema baseline (project olvritwoqujtjvwfulbh), schema only — no rows.
--- Regenerate: bash bot/scripts/e2e/local-db.sh baseline · dumped 2026-10-03T19:51Z
+-- Regenerate: bash bot/scripts/e2e/local-db.sh baseline · dumped 2026-10-07T06:20Z
 --
 -- PostgreSQL database dump
 --
@@ -1087,6 +1087,21 @@ BEGIN
   UPDATE broadcast_logs
   SET replied_count = replied_count + 1
   WHERE id = p_broadcast_id;
+END;
+$$;
+
+
+--
+-- Name: increment_share_code_uses(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.increment_share_code_uses(code_id uuid) RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  UPDATE public.quiz_share_codes
+     SET uses_count = COALESCE(uses_count, 0) + 1
+   WHERE id = code_id;
 END;
 $$;
 
@@ -3076,7 +3091,7 @@ CREATE TABLE public.child_test_blocks (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT child_test_blocks_ai_status_check CHECK ((ai_status = ANY (ARRAY['pending'::text, 'scoring'::text, 'scored'::text, 'partial'::text, 'failed'::text]))),
-    CONSTRAINT child_test_blocks_block_check CHECK ((block = ANY (ARRAY['urdu'::text, 'english'::text, 'maths'::text]))),
+    CONSTRAINT child_test_blocks_block_check CHECK ((block = ANY (ARRAY['urdu'::text, 'english'::text, 'maths'::text, 'ur.listening'::text, 'ur.letters'::text, 'ur.nonwords'::text, 'ur.words'::text, 'ur.story'::text, 'en.listening'::text, 'en.letters'::text, 'en.nonwords'::text, 'en.words'::text, 'en.story'::text, 'ma.number_id'::text, 'ma.discrimination'::text, 'ma.missing'::text, 'ma.add1'::text, 'ma.sub1'::text, 'ma.add2'::text, 'ma.sub2'::text, 'ma.word_problems'::text]))),
     CONSTRAINT child_test_blocks_check CHECK (((ai_marks IS NULL) OR (ai_status = ANY (ARRAY['scored'::text, 'partial'::text]))))
 );
 
@@ -5335,7 +5350,7 @@ CREATE TABLE public.quiz_sessions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     quiz_id uuid NOT NULL,
     student_id uuid,
-    parent_phone text NOT NULL,
+    parent_phone text,
     status text DEFAULT 'invited'::text NOT NULL,
     current_difficulty integer DEFAULT 3,
     total_questions_answered integer DEFAULT 0,
@@ -5352,6 +5367,7 @@ CREATE TABLE public.quiz_sessions (
     share_code_id uuid,
     source text DEFAULT 'roster'::text NOT NULL,
     invited_by_student_id uuid,
+    device_ref text,
     CONSTRAINT quiz_sessions_current_difficulty_check CHECK (((current_difficulty >= 1) AND (current_difficulty <= 5))),
     CONSTRAINT quiz_sessions_has_identity CHECK (((student_id IS NOT NULL) OR (user_id IS NOT NULL) OR (student_name IS NOT NULL))),
     CONSTRAINT quiz_sessions_mastery_level_check CHECK ((mastery_level = ANY (ARRAY['mastered'::text, 'developing'::text, 'needs_practice'::text]))),
@@ -5379,7 +5395,8 @@ CREATE TABLE public.quiz_share_codes (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     report_sent_at timestamp with time zone,
     invited_by_student_id uuid,
-    parent_share_code_id uuid
+    parent_share_code_id uuid,
+    class_id uuid
 );
 
 
@@ -6345,6 +6362,29 @@ CREATE TABLE public.wcpm_percentiles (
     percentile integer NOT NULL,
     wcpm_threshold integer NOT NULL,
     created_at timestamp with time zone DEFAULT now()
+);
+
+
+--
+-- Name: web_quiz_challenge_runs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.web_quiz_challenge_runs (
+    id uuid NOT NULL,
+    student_id uuid NOT NULL,
+    exercise text NOT NULL,
+    grade smallint,
+    lang text,
+    status text NOT NULL,
+    score jsonb,
+    wcpm numeric,
+    meta jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    scored_at timestamp with time zone,
+    CONSTRAINT web_quiz_challenge_runs_exercise_check CHECK ((exercise = ANY (ARRAY['listen'::text, 'sounds'::text, 'read'::text, 'numbers'::text, 'bigger'::text, 'missing'::text, 'sums'::text]))),
+    CONSTRAINT web_quiz_challenge_runs_grade_check CHECK (((grade >= 1) AND (grade <= 12))),
+    CONSTRAINT web_quiz_challenge_runs_lang_check CHECK ((lang = ANY (ARRAY['en'::text, 'ur'::text]))),
+    CONSTRAINT web_quiz_challenge_runs_status_check CHECK ((status = ANY (ARRAY['scoring'::text, 'scored'::text, 'failed'::text])))
 );
 
 
@@ -8051,6 +8091,14 @@ ALTER TABLE ONLY public.wcpm_percentiles
 
 
 --
+-- Name: web_quiz_challenge_runs web_quiz_challenge_runs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.web_quiz_challenge_runs
+    ADD CONSTRAINT web_quiz_challenge_runs_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: website_visits website_visits_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9719,6 +9767,13 @@ CREATE INDEX idx_quiz_sessions_user_id ON public.quiz_sessions USING btree (user
 
 
 --
+-- Name: idx_quiz_share_codes_class; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_quiz_share_codes_class ON public.quiz_share_codes USING btree (class_id) WHERE (class_id IS NOT NULL);
+
+
+--
 -- Name: idx_quiz_share_codes_quiz; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -10731,6 +10786,13 @@ CREATE UNIQUE INDEX ux_tta_user_program_active ON public.teacher_training_assign
 --
 
 CREATE UNIQUE INDEX ux_users_teacher_uuid ON public.users USING btree (teacher_uuid) WHERE (teacher_uuid IS NOT NULL);
+
+
+--
+-- Name: web_quiz_challenge_runs_student_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX web_quiz_challenge_runs_student_idx ON public.web_quiz_challenge_runs USING btree (student_id, exercise, created_at DESC);
 
 
 --
@@ -12243,6 +12305,14 @@ ALTER TABLE ONLY public.quiz_sessions
 
 
 --
+-- Name: quiz_share_codes quiz_share_codes_class_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.quiz_share_codes
+    ADD CONSTRAINT quiz_share_codes_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id);
+
+
+--
 -- Name: quiz_share_codes quiz_share_codes_invited_by_student_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12808,6 +12878,14 @@ ALTER TABLE ONLY public.video_requests
 
 ALTER TABLE ONLY public.video_tasks
     ADD CONSTRAINT video_tasks_video_request_id_fkey FOREIGN KEY (video_request_id) REFERENCES public.video_requests(id);
+
+
+--
+-- Name: web_quiz_challenge_runs web_quiz_challenge_runs_student_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.web_quiz_challenge_runs
+    ADD CONSTRAINT web_quiz_challenge_runs_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id) ON DELETE CASCADE;
 
 
 --
@@ -13777,6 +13855,12 @@ ALTER TABLE public.videos ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.wcpm_percentiles ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: web_quiz_challenge_runs; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.web_quiz_challenge_runs ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: website_visits; Type: ROW SECURITY; Schema: public; Owner: -
@@ -15618,6 +15702,13 @@ GRANT SELECT,USAGE ON SEQUENCE public.wcpm_percentiles_id_seq TO authenticated;
 GRANT ALL ON TABLE public.wcpm_percentiles TO service_role;
 GRANT SELECT ON TABLE public.wcpm_percentiles TO anon;
 GRANT SELECT ON TABLE public.wcpm_percentiles TO authenticated;
+
+
+--
+-- Name: TABLE web_quiz_challenge_runs; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON TABLE public.web_quiz_challenge_runs TO service_role;
 
 
 --
