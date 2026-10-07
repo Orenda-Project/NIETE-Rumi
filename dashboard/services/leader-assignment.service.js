@@ -64,7 +64,7 @@
  */
 
 // bd-o15qnr.2: any half hour 07:00–18:30 plus these three (dashboard/lib/visit-time).
-const { isAllowedSlot, LEGACY_SLOTS: SLOTS, visitMoved } = require('../lib/visit-time');
+const { isAllowedSlot, LEGACY_SLOTS: SLOTS, visitMoved, karachiToday } = require('../lib/visit-time');
 
 // Both tables carry CHECK (source = 'niete_ict') — verified against the live
 // schema, and the reason a 'coach_self_assign' value fails with a 23514 CHECK
@@ -248,7 +248,7 @@ function requireTerm(term) {
  * rows ARE the record of who was observed, so editing one would rewrite history.
  */
 async function editSchedule(query, leaderUserId, scheduleId, input = {}, opts = {}) {
-  const today = opts.today || new Date().toISOString().slice(0, 10);
+  const today = opts.today || karachiToday(); // bd-o15qnr.23: the day in Pakistan, not UTC
   const { date, slot } = input;
   if (!validDate(date)) throw new Error('Invalid date — expected YYYY-MM-DD');
   // bd-o15qnr.8 — a visit may be moved to a past day (same rule as booking).

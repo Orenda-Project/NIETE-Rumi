@@ -52,4 +52,21 @@ function visitMoved(prev, date, slot) {
     || ((prev && prev.scheduled_slot) || null) !== (slot || null);
 }
 
-module.exports = { isAllowedSlot, LEGACY_SLOTS, storedDay, visitMoved };
+/**
+ * bd-o15qnr.23 — today, as a coach in Pakistan counts it: the calendar day in
+ * Asia/Karachi, whatever the server's own zone. The UTC date (toISOString) is
+ * still yesterday from 00:00 to 05:00 PKT, which made a booking for yesterday
+ * "not past" (the teacher was told) and yesterday's visit "not yet overdue".
+ * The one rule for "past" and "overdue"; the coach app's time.ts karachiDay is
+ * its twin.
+ */
+const PK_DAY = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit',
+});
+function karachiToday(now = new Date()) {
+  const parts = PK_DAY.formatToParts(now);
+  const get = (t) => parts.find((p) => p.type === t).value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+module.exports = { isAllowedSlot, LEGACY_SLOTS, storedDay, visitMoved, karachiToday };
