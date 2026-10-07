@@ -509,6 +509,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       done: 'QUIZ COMPLETE', seeCard: 'See my card', classBtn: 'See my class',
       prac: 'This name already finished on another phone. This round is practice; your first finished score stays.',
       shareBtn: 'Share to class group', challenge: 'Challenge a friend', cardPriv: 'Only your first name goes on the card.',
+      hubDoor: 'My quizzes, videos and challenges',
       shareLine: function (w, s, n, t) { return w + ' got ' + s + '/' + n + ' stars on ' + t + '. Can you beat it?'; },
       tableLine: function (t, c) { return c + ' league table for ' + t + '. Not played yet? Same link, still open:'; },
       leagueT: function (c) { return c + ' league table'; }, you: 'YOU', moreN: function (n) { return n + ' more in the class'; },
@@ -570,6 +571,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       done: 'کوئز مکمل', seeCard: 'میرا کارڈ دیکھیں', classBtn: 'اپنی کلاس دیکھیں',
       prac: 'یہ نام کسی اور فون پر مکمل ہو چکا ہے۔ یہ باری مشق ہے؛ پہلا مکمل اسکور ہی رہے گا۔',
       shareBtn: 'کلاس گروپ میں بھیجیں', challenge: 'دوست کو چیلنج کریں', cardPriv: 'کارڈ پر صرف آپ کا پہلا نام جاتا ہے۔',
+      hubDoor: 'میرے کوئز، ویڈیوز اور چیلنج',
       shareLine: function (w, s, n, t) { return w + ' نے ' + t + ' میں ' + n + ' میں سے ' + s + ' ستارے لیے۔ کیا اس سے زیادہ ستارے ملیں گے؟'; },
       tableLine: function (t, c) { return t + ': ' + c + ' کی لیگ ٹیبل۔ ابھی نہیں کھیلا؟ وہی لنک ابھی کھلا ہے:'; },
       leagueT: function (c) { return c + ' کی لیگ ٹیبل'; }, you: 'آپ', moreN: function (n) { return 'کلاس میں ' + n + ' اور'; },
@@ -944,6 +946,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var helpTimer = null;
   function clearTimers() { if (helpTimer) { clearTimeout(helpTimer); helpTimer = null; } }
   function render(html, moment) {
+    lateHook = null;
     clearTimers();
     stopVoice();
     try { ROOT.classList.remove('wq-novoice'); ROOT.classList.remove('wq-phonevoice'); ROOT.classList.remove('wq-tap'); } catch (e) {}
@@ -1263,7 +1266,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       notYet: function (n) { return 'Not played yet (' + n + ')'; }, allPlayed: 'Everyone on your class list has played.',
       playedT: function (n) { return 'Played (' + n + ')'; }, setRollLink: 'Set roll',
       // identity v2 (wq-identity.js): name first, a collision asked, never shown
-      someone: 'Someone else', nameT: 'What is your name?', nameSay: 'Type the name you are called by in class.',
+      someone: 'Someone else', opening: 'Opening your quiz…', nameT: 'What is your name?', nameSay: 'Type the name you are called by in class.',
       nameFull: 'Type your full name.', namePriv: 'Only your name. No phone number.',
       moreFull: function (f, c) { return 'There is more than one ' + f + (c ? ' in ' + c : ' here') + '. What is your full name?'; },
       fatherT: "What is your father's name?", numT: 'What number does your teacher call you by?', numSay: 'The number on the class list.',
@@ -1291,7 +1294,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       avg: 'اوسط', hard: function (n, m) { return 'سوال ' + n + ' سب سے مشکل رہا (' + m + ' نے غلط کیا)'; },
       notYet: function (n) { return 'ابھی نہیں کھیلا (' + n + ')'; }, allPlayed: 'آپ کی کلاس لسٹ کے سب بچوں نے کھیل لیا۔',
       playedT: function (n) { return 'کھیل لیا (' + n + ')'; }, setRollLink: 'رول نمبر دیں',
-      someone: 'کوئی اور', nameT: 'آپ کا نام کیا ہے؟', nameSay: 'وہ نام لکھیں جس سے آپ کو کلاس میں پکارا جاتا ہے۔',
+      someone: 'کوئی اور', opening: 'آپ کا کوئز کھل رہا ہے…', nameT: 'آپ کا نام کیا ہے؟', nameSay: 'وہ نام لکھیں جس سے آپ کو کلاس میں پکارا جاتا ہے۔',
       nameFull: 'اپنا پورا نام لکھیں۔', namePriv: 'صرف نام۔ فون نمبر نہیں۔',
       moreFull: function (f, c) { return (c ? c + ' میں' : 'یہاں') + ' ایک سے زیادہ ' + f + ' ہیں۔ آپ کا پورا نام کیا ہے؟'; },
       fatherT: 'آپ کے والد کا نام کیا ہے؟', numT: 'کلاس لسٹ میں آپ کا نمبر کیا ہے؟', numSay: 'جو نمبر کلاس میں پکارا جاتا ہے۔',
@@ -1556,7 +1559,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         ev('identity_pick', { src: 'remembered_gone' });
         return who();
       }
-      if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st) landing(); return; }
+      // A hub link's session that cannot start: the landing asks who is playing (it never asked while starting).
+      if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st || pick.via === 'hub') landing(); return; }
       var b = r.body;
       if (b.device_ref) sset('wq_d', b.device_ref);
       var child = b.child || kid || { first: typed || '' };
@@ -1569,7 +1573,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (ID) ID.started(child);
       ev('quiz_start', { reason: b.reason || undefined, ok: b.counted === false ? 0 : 1 });
       if (wantsVideo()) video(); else nextQuestion();
-    }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st) landing(); });
+    }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st || pick.via === 'hub') landing(); });
   }
 
   function answeredCount() { var n = 0; QS.forEach(function (q) { if (S.answers[q.qid]) n++; }); return n; }
@@ -1659,6 +1663,32 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (i === 0 && c.effectiveType === '4g' && !c.saveData) QS.forEach(function (q) { warmPics(q); warmClips(q); });
     }, 1500);
   }
+  /* Late clips: a quiz's clips are recorded the first time its page is opened (about a minute), so
+     that first page booted without them (the server says audio_pending). It asks for the quiz again a
+     few times and each question takes its clips as they arrive: the next line spoken is the recorded
+     voice, never a silent Urdu quiz (Android has no Urdu phone voice). */
+  var LATE_MS = [15000, 25000, 40000, 60000];
+  var lateTry = 0;
+  var lateHook = null; // the question on screen: re-read in the recorded voice if it was read without it
+  function lateClips() {
+    if (!Q.audio_pending || lateTry >= LATE_MS.length) return;
+    setTimeout(function () {
+      lateTry += 1;
+      api('GET', 'quiz/' + encodeURIComponent(CODE)).then(function (r) {
+        var fresh = (r && r.ok && r.body && r.body.quiz) || null;
+        if (fresh) {
+          (fresh.questions || []).forEach(function (f) {
+            if (!f || !f.audio) return;
+            QS.forEach(function (q) { if (q.qid === f.qid) { q.audio = f.audio; delete warmed[q.qid]; } });
+          });
+          if (!fresh.audio_pending) Q.audio_pending = false;
+          if (lateHook) lateHook();
+        }
+        lateClips();
+      }, function () { lateClips(); });
+    }, LATE_MS[lateTry]);
+  }
+  lateClips();
   function nextQuestion() {
     for (var i = 0; i < N; i++) if (!S.answers[QS[i].qid]) return question(i, false);
     finishFirstPass();
@@ -1770,13 +1800,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       }, HELP_AFTER_MS);
     }
     // Help waits until the voice has finished, then gives the child time of their own.
+    var readBare = false; // the last reading had no recorded clip (the phone's voice, or silence in Urdu)
     function read() {
+      readBare = !(q.audio && q.audio.q);
       var b = $('#wq-spk'); if (b) b.classList.add('wq-speaking');
       speakSeq(readParts(q), function () { var b2 = $('#wq-spk'); if (b2) b2.classList.remove('wq-speaking'); armHelp(); }, q.qid);
     }
     on('#wq-spk', function () { ev('listen', { qid: q.qid }); read(); });
     on('#wq-stim', function () { ev('listen', { qid: q.qid, stim: 1 }); var au = q.audio || {}; if (au.stim) speak('', au.stim, null); });
     read();
+    // Its clips landed while it is still on screen and unanswered: read it again, once, in the quiz's voice.
+    if (!retry) lateHook = function () {
+      if (readBare && !hintUsed && !S.answers[q.qid] && q.audio && q.audio.q) { lateHook = null; read(); }
+    };
 
     WQI.wire(ROOT, q, answer);
     function answer(slot) {
@@ -1989,6 +2025,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     }).catch(function () {});
   }
 
+  // The sender's WhatsApp builds the link preview before the message goes: a HEAD now teaches the edge each
+  // link the card offers (a challenge code is new at finish), so that preview never waits for the whole quiz.
+  var WARMED = {};
+  function warmLink(url) {
+    if (!url || WARMED[url]) return;
+    WARMED[url] = 1;
+    try { fetch(url, { method: 'HEAD', credentials: 'omit' }).catch(function () {}); } catch (e) { /* the preview asks itself */ }
+  }
+
   /* ---------------- share: the picture as a file -> navigator.share -> wa.me -> copy ---------------- */
   function share(text, url, what, art) {
     var full = text + ' ' + url;
@@ -2054,25 +2099,39 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var nx = res.next && res.next.vid && res.next.title ? res.next : null;
     // A friend who played a challenge is not in the challenger's class: no class table, no class group.
     var friend = friendRun();
-    var shares = (friend ? '' : '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>') +
+    var shareBtn = friend ? '' : '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>';
+    // The door to this child's own hub (their quizzes, the video library, the challenge), when finish offered it:
+    // the second action, right under "Share to class group".
+    var doorBtn = res.hub_door && !friend && !(S.queue && S.queue.length) ? '<button class="wq-btn wq-soft" id="wq-hubdoor">' + esc(T.hubDoor) + '</button>' : '';
+    // With the door, a class child's first screen is the score, "Share to class group" and the door (a 360x740 phone,
+    // Urdu included): the practice note and the two-line place-in-class note come after them. A video quiz card keeps its own order
+    // ("Next in this chapter", "Watch more" first).
+    var firstTwo = Boolean(doorBtn) && !isVideo;
+    var shares = (firstTwo ? '' : shareBtn + doorBtn) +
       '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' +
       (friend ? '' : '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>') +
       '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>';
+    var place = c.nth ? '<p class="wq-proof wq-nth"><span>' + nthHtml(c.nth) + '</span></p>' : '';
+    // The practice note is framing, not a control: on a door card it goes under the door with the place note.
+    var practice = (kept ? '<div class="wq-banner">' + esc(TW.practice(digitsFor(kept.correct), digitsFor(shareT))) + '</div>' : '');
+    var notes = (firstTwo ? '' : practice) +
+      vsStrip(res.vs, c, total) + newBest(c, total) +
+      (firstTwo ? '' : place) +
+      (nx ? '<button class="wq-vitem wq-nextv" id="wq-next-v">' +
+        (nx.poster ? '<img class="wq-vtile" src="' + esc(nx.poster) + '" alt="" loading="lazy">' : '<span class="wq-vtile wq-vt1" aria-hidden="true">▶</span>') +
+        '<span class="wq-vtext"><small>' + esc(T.nextT) + '</small><b dir="auto">' + esc(nx.title) + '</b></span></button>' : '') +
+      // The name notice is for the share it sits on: always directly above "Share to class group".
+      '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>';
     var h = bar() +
       '<div class="wq-scorecard"><header>' + markHtml() + dotJoin(BR ? BR.name : '', CLS.label) + '</header><div class="wq-in">' +
       '<img src="' + IMG + 'celebrate.webp" alt="">' +
       (isVideo ? '<span class="wq-vchip">' + esc(T.vchip) + '</span>' : '') +
       '<div class="wq-name">' + ani(c.animal) + ' ' + esc(c.first || (S.child && S.child.first) || '') + '</div>' +
-      '<p class="wq-sub">' + esc(Q.topic) + '</p>' +
+      // the topic: one line on a short phone (wq.css), the whole topic is on the quiz itself
+      '<p class="wq-sub wq-ctopic">' + esc(Q.topic) + '</p>' +
       '<div class="wq-big">' + esc(c.correct) + '/' + esc(total) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
       '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
-      (kept ? '<div class="wq-banner">' + esc(TW.practice(digitsFor(kept.correct), digitsFor(shareT))) + '</div>' : '') +
-      vsStrip(res.vs, c, total) + newBest(c, total) +
-      (c.nth ? '<p class="wq-proof wq-nth"><span>' + nthHtml(c.nth) + '</span></p>' : '') +
-      (nx ? '<button class="wq-vitem wq-nextv" id="wq-next-v">' +
-        (nx.poster ? '<img class="wq-vtile" src="' + esc(nx.poster) + '" alt="" loading="lazy">' : '<span class="wq-vtile wq-vt1" aria-hidden="true">▶</span>') +
-        '<span class="wq-vtext"><small>' + esc(T.nextT) + '</small><b dir="auto">' + esc(nx.title) + '</b></span></button>' : '') +
-      '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
+      notes + (firstTwo ? shareBtn + doorBtn + practice + place : '') +
       (isVideo ? moreBtn() + shares : shares + moreBtn()) +
       // One phone, many children: the next child starts from the landing. Not while answers wait to be sent.
       (S.queue && S.queue.length ? '' : '<button class="wq-btn wq-ghost" id="wq-turn">' + esc(T.nextTurn) + '</button>');
@@ -2090,6 +2149,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var classUrl = link('/q/' + CODE + (art.card ? '?a=' + encodeURIComponent(art.card) : ''));
     warmArt('card', art.card);
     warmArt('invite', art.invite);
+    warmLink(classUrl);
+    warmLink(chalUrl);
     // A zero is shared as "played", never as a score for the group to beat.
     // A practice round shares the kept first-try score (shareC/shareT), the one the league shows.
     var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
@@ -2099,6 +2160,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     on('#wq-schools', function () { schools(card); });
     on('#wq-more', moreVideos);
     on('#wq-turn', nextTurn);
+    on('#wq-hubdoor', hubDoor);
     on('#wq-next-v', function () {
       ev('next_pick', { src: nx.code ? 'code' : 'start' });
       if (!nx.code) { pickVideo({ vid: nx.vid, title: nx.title }, 0); return; }
@@ -2213,6 +2275,26 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     sset('wq_from', null);
     try { localStorage.removeItem('wq_from'); } catch (e) {}
     return f.code === CODE && f.st && Date.now() - (f.at || 0) < HANDOVER_MS ? f : null;
+  }
+
+  // The card's door: the server mints this child's hub link for this phone (never a name in it) and the page opens it.
+  var hubGoing = false;
+  function hubDoor() {
+    if (hubGoing) return;
+    hubGoing = true;
+    api('POST', 'hubdoor', { st: S.st }).then(function (r) {
+      var href = r.ok && r.body && typeof r.body.href === 'string' ? r.body.href : '';
+      var ok = /^\/h\/[A-Za-z0-9._-]+$/.test(href);
+      // One event per tap, with whether a hub opened (the hub counts its own view as src=door).
+      ev('hub_door_tap', { ok: ok });
+      flushEv(true);
+      if (ok) { location.assign(href + '?from=door'); return; }
+      hubGoing = false;
+      if (S.result) { S.result.hub_door = false; save(); }
+      var b = $('#wq-hubdoor');
+      if (b && b.parentNode) b.parentNode.removeChild(b);
+      toast(T.oops);
+    }, function () { hubGoing = false; ev('hub_door_tap', { ok: false, err: 'net' }); toast(T.offline); });
   }
 
   /* ---------------- M11 league table ---------------- */

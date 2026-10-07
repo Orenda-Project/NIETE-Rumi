@@ -126,6 +126,18 @@ describe('E2 GET quiz', () => {
     expect((await WQ.getQuiz('AB12CD')).quiz.voice_lang).toBe('ur');
   });
 
+  // The first open of a quiz with no clips yet asks the worker to record them (about a minute): the page
+  // is told, so it asks again and the questions it has not reached yet speak in the recorded voice.
+  test('audio_pending: a quiz whose clips are not recorded yet says so; a recorded quiz does not', async () => {
+    const { AUDIO_VERSION } = jest.requireActual('../../../shared/services/quiz/web-quiz-publish.service');
+    fake.db.quizzes[0].language = 'ur';
+    fake.db.quizzes[0].meta = { web_arm: 'web' };
+    expect((await WQ.getQuiz('AB12CD')).quiz.audio_pending).toBe(true);
+    WQ._resetQuizCache();
+    fake.db.quizzes[0].meta = { web_arm: 'web', web: { audio_v: AUDIO_VERSION, audio_voice: 'sx-ishita', audio: {} } };
+    expect((await WQ.getQuiz('AB12CD')).quiz.audio_pending).toBeUndefined();
+  });
+
   test('a wrong option\'s stored WhatsApp feedback reaches the page cleaned: no letters, no "correct answer", no praise', async () => {
     fake.db.quiz_questions[1].option_feedback = { wrong: { 0: 'A) Good try! Roots hold the plant. The correct answer is B) Leaf, because leaves make food. Keep going!' } };
     const out = await WQ.getQuiz('AB12CD');
@@ -155,7 +167,7 @@ describe('E2 GET quiz', () => {
     expect(out.video).toBeNull();
     expect(out.preview).toBe(false);
     // The teacher is named as the forwarded WhatsApp text names them; the parent's phone never leaves.
-    expect(out.cls.teacher).toBe('Teacher Ms Example Teacher');
+    expect(out.cls.teacher).toBe('Teacher Example Teacher');
     expect(JSON.stringify(out)).not.toMatch(/0000/);
   });
 

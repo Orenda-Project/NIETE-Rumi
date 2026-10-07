@@ -4,7 +4,7 @@ import { CalendarDays, Clock, MapPin, Phone, User, X } from "lucide-react";
 import { coach, leader } from "../../services/api";
 import { COACH_COPY as C } from "../copy";
 import { CoachPage, Card, SectionLabel, Chip, Initials, Loading, Failed, useLoad, Chevron, formatPhone } from "../ui";
-import { formatSlot, hoursUntil, localDay } from "../time";
+import { formatSlot, hoursUntil, karachiDay } from "../time";
 import type { LastVisit } from "../types";
 
 /**
@@ -62,7 +62,8 @@ function LastVisitRow({ last }: { last: LastVisit }) {
   const date = last.date ? new Date(last.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : C.dash;
   const who = last.byMe ? C.you : (last.observerName || C.dash);
   const step = last.step ? C.reportStep[last.step] : null;
-  const to = last.portal && last.id ? `/portal/leader/observe/${last.id}` : null;
+  // bd-o15qnr.19 — the one v2 observation page, portal or WhatsApp.
+  const to = last.id ? `/portal/coach/observation/${last.id}` : null;
   const inner = (
     <>
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#f3f4f6] text-[13px] font-bold text-[#33374a]">{C.pct(last.score)}</span>
@@ -88,7 +89,7 @@ const CoachVisit = () => {
   const [cancelling, setCancelling] = useState(false);
   const visit = data?.visit;
   const teacher = data?.teacher;
-  const today = localDay();
+  const today = karachiDay(); // bd-o15qnr.23: the day in Pakistan
 
   const rescheduleLink = () => {
     const qs = new URLSearchParams({
@@ -161,12 +162,14 @@ const CoachVisit = () => {
                 {visit.status === "done" ? <Chip tone="done">{C.done}</Chip> : h != null && h >= 0 ? <Chip>{C.inHours(h)}</Chip> : null}</div>
             </div>
             {teacher && (
-              <div className="grid grid-cols-4 gap-1 border-t border-[#e5e7eb] px-4 py-3.5" data-testid="visit-stats">
+              <div className="grid grid-cols-3 gap-x-1 gap-y-3 border-t border-[#e5e7eb] px-4 py-3.5" data-testid="visit-stats">
                 {[
                   { value: teacher.hitl, label: C.hitl }, { value: teacher.dc, label: C.dc },
                   { value: C.pct(teacher.avgHitl), label: C.avgScore }, { value: C.daysShort(teacher.daysSinceTraining), label: C.trainingCol },
+                  // bd-o15qnr.20 — lesson plan engagement, live on sandbox
+                  { value: teacher.examsGenerated ?? C.dash, label: C.examsGenerated }, { value: teacher.lpOpened ?? C.dash, label: C.lpOpened },
                 ].map((s) => (
-                  <span key={s.label} className="flex flex-col gap-0.5">
+                  <span key={s.label} data-stat className="flex flex-col gap-0.5">
                     <b className="text-[22px] font-bold tabular-nums">{s.value}</b>
                     <span className="text-xs text-[#6b7280]">{s.label}</span>
                   </span>

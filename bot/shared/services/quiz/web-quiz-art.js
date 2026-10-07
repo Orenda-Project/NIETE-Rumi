@@ -15,7 +15,7 @@
  *
  * Drawn once per content: the facts (not the HTML, which carries megabytes of
  * fonts) are hashed with the template version into the R2 key
- * wq-art/<hash>.jpg. A cache miss draws, uploads and serves; R2 failing never
+ * wq-art/<hash>.jpg. A cache miss draws and serves, and uploads in the background; R2 failing never
  * stops the picture, it is only drawn again next time. A small in-process map
  * answers repeat fetches (a group's previews arrive together) without R2.
  */
@@ -33,6 +33,7 @@ function getSharp() {
 const supabase = require('../../config/supabase');
 const r2 = require('../../storage/r2');
 const { logToFile } = require('../../utils/logger');
+const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const WebQuizBrand = require('../../config/web-quiz-brand');
 const { orgName, botName } = require('../../config/branding');
@@ -48,6 +49,10 @@ const CODE_RX = /^[A-Z0-9]{4,12}$/;
 const KIND_OF = { c: 'card', i: 'invite', l: 'class', s: 'school' };
 
 const mem = new Map();
+// A picture id seen before -> its drawn key, so a repeat (the link preview after the scorecard warmed it) skips
+// the facts' database reads. A card or invite never changes; a class or school picture moves as children play.
+const byId = new Map();
+const BY_ID_MS = { c: 86400000, i: 86400000, l: 120000, s: 120000 };
 
 class ArtError extends Error {
   constructor(status, error) { super(error); this.status = status; this.body = { error }; }
@@ -74,29 +79,35 @@ async function cardFacts(sessionId) {
   if (!s || s.status !== 'completed' || !s.share_code_id || s.user_id) notFound();
   const { data: sc } = await supabase.from('quiz_share_codes').select('id, code, quiz_id, topic, language').eq('id', s.share_code_id).maybeSingle();
   if (!sc) notFound();
-  // The kept score: this child's FIRST finish on the class code, the one the league counts.
-  let kept = s;
-  if (s.student_id) {
-    const { data: done } = await supabase.from('quiz_sessions')
-      .select('id, correct_answers, total_questions_answered, completed_at')
-      .eq('share_code_id', s.share_code_id).eq('student_id', s.student_id).eq('status', 'completed')
-      .order('completed_at', { ascending: true }).limit(1);
-    if (done && done[0]) kept = done[0];
-  }
   const lang = clampLanguage(sc.language);
-  const nameOf = await WebQuiz.shownNames(lang, [s.student_id]);
   // An invited friend is not in the challenger's class: their card names neither that class nor its school.
   const friend = Boolean(s.invited_by_student_id);
-  const cls = friend ? null : await require('./video-quiz-report.service').loadClassRows(sc.id).catch(() => null);
-  const school = friend ? {} : await schoolLine(sc.code, s);
+  // Independent lookups, together: the finish draws this card straight away, and one after another they took ~3.5 s.
+  const [kept, nameOf, cls, school, topic] = await Promise.all([
+    keptScore(s),
+    WebQuiz.shownNames(lang, [s.student_id]),
+    friend ? null : require('./video-quiz-report.service').loadClassRows(sc.id).catch(() => null),
+    friend ? {} : schoolLine(sc.code, s),
+    topicOf(sc),
+  ]);
   return {
     lang,
     d: {
       first: nameOf(s.student_id, s.student_name), animal: T.animalFor(s.student_id || s.id),
-      correct: kept.correct_answers || 0, total: kept.total_questions_answered || 0, topic: await topicOf(sc), cls: (cls && cls.className) || '',
+      correct: kept.correct_answers || 0, total: kept.total_questions_answered || 0, topic, cls: (cls && cls.className) || '',
       ...school,
     },
   };
+}
+
+/** The kept score: this child's FIRST finish on the class code, the one the league counts. */
+async function keptScore(s) {
+  if (!s.student_id) return s;
+  const { data: done } = await supabase.from('quiz_sessions')
+    .select('id, correct_answers, total_questions_answered, completed_at')
+    .eq('share_code_id', s.share_code_id).eq('student_id', s.student_id).eq('status', 'completed')
+    .order('completed_at', { ascending: true }).limit(1);
+  return (done && done[0]) || s;
 }
 
 /** A session token for this child, minted here only to ask the page's own boards "where do I stand". */
@@ -180,7 +191,26 @@ async function facts(kind, ref) {
 
 // ─── draw + cache ───────────────────────────────────────────────────────────
 
+// Every draw is a headless-browser render in the one bot process that also serves WhatsApp: at most DRAW_MAX at
+// once (a class finishing together asks for many pictures), the rest wait their turn.
+const DRAW_MAX = 2;
+let drawing = 0;
+const turns = [];
+async function drawTurn(fn) {
+  if (drawing >= DRAW_MAX) await new Promise((r) => turns.push(r));
+  drawing += 1;
+  try { return await fn(); } finally {
+    drawing -= 1;
+    const next = turns.shift();
+    if (next) next();
+  }
+}
+
 async function draw(input) {
+  return drawTurn(() => drawNow(input));
+}
+
+async function drawNow(input) {
   const sharp = getSharp();
   const { htmlToImage } = require('../../utils/html-to-pdf');
   const [w, h] = SIZES[input.size];
@@ -197,15 +227,44 @@ function remember(key, bytes) {
  * The picture for a signed id: { bytes, contentType: 'image/jpeg', key }.
  * Throws ArtError(404) for an id we did not issue or a thing that is not there.
  */
-async function artImage(id, { size = 'og' } = {}) {
+// One event per picture served (kind, size, ms, from: drawn | r2 | mem): a link preview fetches the picture with no
+// session, so this is how the logs show a phone fetched one. No id, code or name.
+function served(input, t0, from) {
+  logEvent('web_quiz.art_served', { kind: input.kind, size: input.size, ms: Date.now() - t0, from });
+}
+
+// A picture being drawn right now: a second caller (the scorecard, a moment after the finish asked) waits for the
+// same draw instead of starting another.
+const inflight = new Map();
+
+function artImage(id, { size = 'og' } = {}) {
+  const k = `${id}|${SIZES[size] ? size : 'og'}`;
+  if (inflight.has(k)) return inflight.get(k);
+  const p = artImageNow(id, { size }).finally(() => inflight.delete(k));
+  inflight.set(k, p);
+  return p;
+}
+
+async function artImageNow(id, { size = 'og' } = {}) {
+  const t0 = Date.now();
   const p = parseArtId(id);
   if (!p) notFound();
   const sz = SIZES[size] ? size : 'og';
-  const f = await facts(p.kind, p.ref);
-  const input = { kind: KIND_OF[p.kind], size: sz, brand: await brandKey(), lang: f.lang, d: f.d };
+  const seen = byId.get(`${id}|${sz}`);
+  if (seen && seen.until > Date.now() && mem.has(seen.key)) {
+    served({ kind: KIND_OF[p.kind], size: sz }, t0, 'mem');
+    return { bytes: mem.get(seen.key), contentType: 'image/jpeg', key: seen.key };
+  }
+  const [f, brand] = await Promise.all([facts(p.kind, p.ref), brandKey()]);
+  const input = { kind: KIND_OF[p.kind], size: sz, brand, lang: f.lang, d: f.d };
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
-  if (mem.has(key)) return { bytes: mem.get(key), contentType: 'image/jpeg', key };
+  if (mem.has(key)) {
+    byId.set(`${id}|${sz}`, { key, until: Date.now() + BY_ID_MS[p.kind] });
+    served(input, t0, 'mem');
+    return { bytes: mem.get(key), contentType: 'image/jpeg', key };
+  }
   let bytes = null;
+  let from = 'r2';
   // Ask first: a picture not drawn yet is a cache miss, and downloadFromR2 logs every failure as an error.
   try {
     if ((await r2.headObject(key)).exists) bytes = await r2.downloadFromR2(key);
@@ -214,15 +273,23 @@ async function artImage(id, { size = 'og' } = {}) {
     logToFile('⚠️ web-quiz art: R2 read failed, drawing instead', { key, error: (e && e.name) || 'error' }, 'warn');
   }
   if (!bytes || !bytes.length) {
-    const t0 = Date.now();
+    const d0 = Date.now();
+    from = 'drawn';
     bytes = await draw(input);
-    logToFile('web-quiz art drawn', { kind: input.kind, size: sz, ms: Date.now() - t0, kb: Math.round(bytes.length / 1024) });
-    try { await r2.uploadBuffer(bytes, key, 'image/jpeg'); } catch (e) { logToFile('⚠️ web-quiz art: R2 upload failed', { error: e.message }); }
+    logToFile('web-quiz art drawn', { kind: input.kind, size: sz, ms: Date.now() - d0, kb: Math.round(bytes.length / 1024) });
+    // R2 is the next process's cache: it fills in the background, so the picture (and a link preview waiting on
+    // it) never waits for the upload (~1 s on sandbox).
+    const up = bytes;
+    Promise.resolve().then(() => r2.uploadBuffer(up, key, 'image/jpeg'))
+      .catch((e) => logToFile('⚠️ web-quiz art: R2 upload failed', { error: (e && e.message) || 'error' }));
   }
   remember(key, bytes);
+  byId.set(`${id}|${sz}`, { key, until: Date.now() + BY_ID_MS[p.kind] });
+  if (byId.size > MEM_MAX * 4) byId.delete(byId.keys().next().value);
+  served(input, t0, from);
   return { bytes, contentType: 'image/jpeg', key };
 }
 
-function _resetCache() { mem.clear(); }
+function _resetCache() { mem.clear(); byId.clear(); }
 
 module.exports = { artId, parseArtId, artImage, ArtError, ART_V, _resetCache, _drawForTests: draw };

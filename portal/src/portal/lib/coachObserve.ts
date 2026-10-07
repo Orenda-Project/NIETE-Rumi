@@ -44,15 +44,36 @@ export function firstName(name: string | null | undefined): string {
   return n ? n.split(/\s+/)[0] : "the teacher";
 }
 
+// ── coach app v2 (bd-o15qnr.19) ──────────────────────────────────────────────
+//
+// The draft, talk and observation pages are shared with coaches who do not have
+// v2. Reached from v2 they carry ?from=coach: they then name the steps the v2
+// way (operator: "Draft should be Feedback Form, Talk should be Debrief") and
+// return to the v2 observation page. Without it they render exactly as before.
+
+export const FROM_COACH = "from=coach";
+
+/** True when this page was opened from the coach app v2. */
+export function openedFromCoach(search: URLSearchParams): boolean {
+  return search.get("from") === "coach";
+}
+
+/** Where "back" goes: the v2 observation page from v2, the observation page otherwise. */
+export function observationHome(id: string | undefined, fromCoach: boolean): string {
+  return fromCoach ? `/portal/coach/observation/${id}` : `/portal/leader/observe/${id}`;
+}
+
+export const V2_STEP = { draft: "Feedback Form", talk: "Debrief" } as const;
+
 // ── the steps, in the order WhatsApp /observe walks her through them ────────
 
 export type TrackerItem = { key: "analysed" | "draft" | "talk" | "feedback" | "report"; label: string };
 
-export function trackerItems(name: string): TrackerItem[] {
+export function trackerItems(name: string, fromCoach = false): TrackerItem[] {
   return [
     { key: "analysed", label: "Lesson analysed" },
-    { key: "draft", label: "Check the draft report" },
-    { key: "talk", label: `Talk with ${name}` },
+    { key: "draft", label: fromCoach ? V2_STEP.draft : "Check the draft report" },
+    { key: "talk", label: fromCoach ? V2_STEP.talk : `Talk with ${name}` },
     { key: "feedback", label: "Your feedback" },
     { key: "report", label: `Send ${name} the report` },
   ];

@@ -24,6 +24,7 @@ const express = require('express');
 // Dependency-free: the brand table both services read (the bot names the key, the edge dresses the page).
 const WebQuizBrand = require('../../bot/shared/config/web-quiz-brand');
 const { createCanonicalRedirect } = require('./web-quiz-canonical');
+const Preview = require('./web-quiz-preview');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
@@ -38,6 +39,10 @@ const ART_ID_RX = /^([cils])\.[A-Za-z0-9_-]{4,24}\.[A-Za-z0-9_-]{12}$/;
 const ART_KIND = { card: 'c', invite: 'i', class: 'l', schools: 's' };
 // A card or an invite never changes once drawn; a class or school picture moves as children play.
 const ART_MAX_AGE = { card: 86400, invite: 86400, class: 600, schools: 600 };
+// How long the edge itself keeps a drawn picture (ms): the preview fetch finds the one the card opening warmed.
+const ART_KEEP_MS = { card: 86400000, invite: 86400000, class: 120000, schools: 120000 };
+// How long the edge remembers a code's og facts for a link-preview fetch (ms).
+const OG_KEEP_MS = 3600000;
 function artId(v, kind) {
   const m = typeof v === 'string' ? ART_ID_RX.exec(v) : null;
   return m && m[1] === ART_KIND[kind] ? v : null;
@@ -66,6 +71,11 @@ const API_ROUTES = [
   { method: 'get', path: '/api/wq/ch/result/:ct', limiter: 'read', token: true },
   { method: 'post', path: '/api/wq/ch/upload', limiter: ['challenge', 'challengeIp'] },
   { method: 'post', path: '/api/wq/ch/result', limiter: ['challenge', 'challengeIp'] },
+  // read aloud, live: a one-run speech-to-text key (the bot mints it; counted by the same per-run limiter)
+  { method: 'post', path: '/api/wq/ch/live', limiter: ['challenge', 'challengeIp'] },
+  // questions after Read aloud: the reached questions (no key), then one answer per tap (counted per run)
+  { method: 'post', path: '/api/wq/ch/qs', limiter: ['challenge', 'challengeIp'] },
+  { method: 'post', path: '/api/wq/ch/qa', limiter: ['challenge', 'challengeIp'] },
   { method: 'get', path: '/api/wq/ch/:token', limiter: 'read', token: true },
   { method: 'get', path: '/api/wq/ch/:token/:exercise', limiter: 'read', token: true },
   // M4a hub — the kid hub's JSON (a hub token, not a code: checked by HUB_TOKEN_RX)
@@ -75,6 +85,8 @@ const API_ROUTES = [
   { method: 'get', path: '/api/wq/lib/:code', limiter: 'read' },
   { method: 'get', path: '/api/wq/videos/dl/:code', limiter: 'read' },
   { method: 'post', path: '/api/wq/hub/:token', limiter: 'read' },
+  // the results card's door to the child's hub (a session token in the body)
+  { method: 'post', path: '/api/wq/hubdoor', limiter: 'session' },
 ];
 
 // The shell's line under Jugnu, shown until wq.js boots (seconds on slow 4G), so the page never reads as stuck.
@@ -225,6 +237,21 @@ ${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></sc
 </html>`;
 }
 
+/**
+ * A link-preview fetch's answer: the quiz page's own head (og tags, lang, dir) from the facts the edge
+ * remembered, and an empty body. A crawler reads only the head; no quiz payload travels in it.
+ */
+function renderPreviewPage({ facts, code, view, origin, assetV, url, a, v }) {
+  const lang = facts.quiz.lang === 'ur' ? 'ur' : 'en';
+  const brand = brandOf(facts.brand);
+  const og = ogText(facts, view, brand);
+  const image = ogImageFor({ payload: facts, code, view, origin, a, v });
+  return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: og.title, desc: og.desc, origin, url, assetV, brand, image })}
+</head>
+<body></body>
+</html>`;
+}
+
 // M4a hub — the kid hub page: the same head and brand as the quiz page, its own script.
 const HUB_TITLE = { en: 'Your quizzes and videos', ur: 'آپ کے کوئز اور ویڈیوز' };
 const HUB_BOOT = { en: 'Opening…', ur: 'کھل رہا ہے…' };
@@ -341,8 +368,8 @@ const CH_COPY = {
   ur: { boot: 'چیلنج کھل رہا ہے…', title: (m) => `${m} کا چیلنج`, not_eligible: 'یہ چیلنج جماعت ۲ سے ۵ کے لیے ہے۔', pick_kid: 'چیلنج اپنے کوئز کے صفحے سے کھولیں۔', other_device: 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔ کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ ⁦/quiz⁩ بھیجیں۔' },
 };
 
-function challengeVersion() {
-  try { return crypto.createHash('sha256').update(fs.readFileSync(path.join(PUBLIC_DIR, 'wq-challenge.js'))).digest('hex').slice(0, 10); } catch (_) { return '0'; }
+function challengeVersion(file = 'wq-challenge.js') {
+  try { return crypto.createHash('sha256').update(fs.readFileSync(path.join(PUBLIC_DIR, file))).digest('hex').slice(0, 10); } catch (_) { return '0'; }
 }
 
 function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }) {
@@ -355,6 +382,7 @@ function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }
 <body>
 <main id="wq" class="wq-app wqc" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(CH_COPY[lang].boot)}</p></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
+<script src="/wq/wq-read-live.js?v=${challengeVersion('wq-read-live.js')}" defer></script>
 <script src="/wq/wq-challenge.js?v=${chV}" defer></script>
 </body>
 </html>`;
@@ -388,6 +416,10 @@ function createWebQuizRouter(opts = {}) {
   let lastBrand = null;
 
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl });
+  // Link previews (web-quiz-preview.js): what the edge last learned about each code, and the drawn pictures.
+  const now = opts.now || Date.now;
+  const ogKnown = Preview.ttlCache({ max: 2000, now });
+  const artKept = Preview.ttlCache({ max: 200, now });
 
   // A child page on any host but the canonical one goes there first (one origin = one remembered child).
   router.use(createCanonicalRedirect(opts.canonicalBase != null ? opts.canonicalBase : process.env.WEB_QUIZ_BASE_URL));
@@ -461,6 +493,22 @@ function createWebQuizRouter(opts = {}) {
     if (!botUrl || !apiKey) return res.status(503).type('html').send(renderClosedPage({ lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand }));
     const upper = code.toUpperCase();
     const p = typeof req.query.p === 'string' ? `?p=${encodeURIComponent(req.query.p.slice(0, 400))}` : '';
+    const url = `${origin}/q/${upper}${view === 'class' ? '/class' : view === 'schools' ? '/schools' : ''}`;
+    // A link-preview fetch (the sender's WhatsApp, before the message goes) is answered from what the edge
+    // already knows about this code: the child's own page load, or the card's warm-up, taught it.
+    const preview = !p && Preview.isPreviewFetch(req);
+    let known = preview ? ogKnown.get(upper) : null;
+    // This worker has not seen the code (the portal runs several): the bot keeps the facts in its one process
+    // and answers them without a quiz render. Anything but facts (an older bot, a closed code) takes the full path.
+    if (preview && !known) {
+      try {
+        const f = await callBot('GET', `/api/internal/wq/og/${upper}`, req);
+        if (f.status === 200 && f.body && f.body.quiz) { known = f.body; ogKnown.set(upper, known, OG_KEEP_MS); }
+      } catch (_) { /* the full path below */ }
+    }
+    if (known && !(view === 'class' && known.invited)) {
+      return res.status(200).type('html').send(renderPreviewPage({ facts: known, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v }));
+    }
     let out;
     try {
       out = await callBot('GET', `/api/internal/wq/quiz/${upper}${p}`, req);
@@ -473,7 +521,10 @@ function createWebQuizRouter(opts = {}) {
     }
     if (out.status === 200 && out.body && out.body.quiz) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
-      const url = `${origin}/q/${upper}${view === 'class' ? '/class' : view === 'schools' ? '/schools' : ''}`;
+      if (!p) ogKnown.set(upper, Preview.ogFacts(out.body), OG_KEEP_MS);
+      if (preview) {
+        return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v }));
+      }
       return res.status(200).type('html').send(renderQuizPage({ payload: out.body, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v }));
     }
     const lang = out.body && out.body.lang === 'ur' ? 'ur' : 'en';
@@ -553,9 +604,16 @@ function createWebQuizRouter(opts = {}) {
     const id = Object.prototype.hasOwnProperty.call(ART_KIND, kind) ? artId(req.query.a, kind) : null;
     if (!id || !CODE_RX.test(String(req.params.code || ''))) return res.status(404).set('Cache-Control', 'no-store').json({ error: 'not_found' });
     if (!botUrl || !apiKey) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'web_quiz_off' });
+    const sq = req.query.f === 'sq';
+    const send = (pic) => res.status(200).set({ 'Cache-Control': `public, max-age=${ART_MAX_AGE[kind]}`, 'X-Robots-Tag': 'noindex' }).type(pic.contentType).send(pic.bytes);
+    // Kept at the edge: the card opening fetched it, so the sender's preview fetch never waits for a draw.
+    const keyArt = `${kind}|${id}|${sq ? 'sq' : 'og'}`;
+    const kept = artKept.get(keyArt);
+    if (kept) return send(kept);
     try {
-      const out = await callBot('GET', `/api/internal/wq/art/${id}${req.query.f === 'sq' ? '?f=sq' : ''}`, req);
+      const out = await callBot('GET', `/api/internal/wq/art/${id}${sq ? '?f=sq' : ''}`, req);
       if (out.bytes) {
+        artKept.set(keyArt, { bytes: out.bytes, contentType: out.contentType }, ART_KEEP_MS[kind]);
         return res.status(200).set({ 'Cache-Control': `public, max-age=${ART_MAX_AGE[kind]}`, 'X-Robots-Tag': 'noindex' }).type(out.contentType).send(out.bytes);
       }
       return res.status(out.status === 404 ? 404 : 502).set('Cache-Control', 'no-store').json({ error: out.status === 404 ? 'not_found' : 'upstream_error' });
@@ -593,4 +651,4 @@ function createWebQuizRouter(opts = {}) {
 }
 
 
-module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderClosedPage, renderChallengePage, renderLibPage, bootJson, renderHubPage };
+module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderPreviewPage, renderClosedPage, renderChallengePage, renderLibPage, bootJson, renderHubPage };

@@ -1627,14 +1627,19 @@ router.post('/leader/schedules', requirePortalAuth, requireLeaderRole, async (re
       { teacherExtId, date, slot }
     );
     res.json({ success: true, ...result });
-    // bd-xorfy — tell the teacher on WhatsApp. Not awaited: the booking is
-    // saved and answered already; the client never throws. bd-o15qnr.8: a
-    // past-dated booking records a visit that already happened — no notice.
-    if (result && result.id && result.changed !== false && !result.past) {
+    // bd-xorfy + bd-o15qnr.17 — the bot announces it the way a WhatsApp booking
+    // is announced: the coach's calendar invite and the teacher's WhatsApp
+    // notice (observe-schedule.service announce). Not awaited: the booking is
+    // saved and answered already; the client never throws. A same-slot re-book
+    // re-times the invite but is not news to the teacher (moved:false).
+    // bd-o15qnr.8: a past-dated booking records a visit that already happened —
+    // nothing is sent.
+    if (result && result.id && !result.past) {
       ObserveNotice.notifyTeacher({
         scheduleId: result.id,
         leaderUserId: req.session.portalUserId,
         kind: result.updated ? 'rescheduled' : 'scheduled',
+        moved: result.changed !== false,
       });
     }
   } catch (error) {
@@ -1680,13 +1685,15 @@ router.post('/leader/schedules/:id/edit', requirePortalAuth, requireLeaderRole, 
     const result = await editSchedule(
       (sql, params) => pool.query(sql, params), req.session.portalUserId, req.params.id, { date, slot });
     res.json({ success: true, ...result });
-    // bd-xorfy — a real move is news to the teacher. Not awaited; never throws.
-    // bd-o15qnr.8: a move into the past is not news to her.
-    if (result && result.changed && !result.past) {
+    // bd-xorfy + bd-o15qnr.17 — announced as WhatsApp's move is: the invite is
+    // re-timed, and only a real move (result.changed) is news to the teacher.
+    // Not awaited; never throws. bd-o15qnr.8: a move into the past sends nothing.
+    if (result && !result.past) {
       ObserveNotice.notifyTeacher({
         scheduleId: req.params.id,
         leaderUserId: req.session.portalUserId,
         kind: 'rescheduled',
+        moved: !!result.changed,
       });
     }
   } catch (error) {
@@ -1793,6 +1800,14 @@ router.get('/coach/home', ...coachV2, async (req, res) => {
   } catch (error) { return coachFail(res, 'home', error); }
 });
 
+/** GET /api/portal/coach/pending — bd-o15qnr.21: { waiting, ids } — what waits on her (Feedback Form, Debrief), for the banner. */
+router.get('/coach/pending', ...coachV2, async (req, res) => {
+  try {
+    const out = await CoachV2.getCoachPending(pgQuery, req.session.portalUserId);
+    return res.json({ success: true, ...out });
+  } catch (error) { return coachFail(res, 'pending', error); }
+});
+
 /** GET /api/portal/coach/schedule?from=&to= — her visits in the range (default this week) and the overdue ones. */
 router.get('/coach/schedule', ...coachV2, async (req, res) => {
   const { from, to } = req.query || {};
@@ -1851,22 +1866,24 @@ router.get('/coach/teacher/:teacherExtId', ...coachV2, async (req, res) => {
 });
 
 /**
- * GET /api/portal/coach/observation/:id — bd-o15qnr.10: one HITL report from a
- * teacher's History, read-only. Served only while that teacher is in the
- * coach's patch and the report is out; the report image is the one the
- * teacher received (teacher_delivery.report_key), signed here the same way the
- * teacher's own session page signs it.
+ * GET /api/portal/coach/observation/:id — bd-o15qnr.10: one HITL observation for
+ * the v2 observation page (bd-o15qnr.19: any step, not only sent reports).
+ * Served only while that teacher is in the coach's patch; the report image is
+ * the one the teacher received (teacher_delivery.report_key), signed here the
+ * same way the teacher's own session page signs it, and so is the lesson audio.
  */
 router.get('/coach/observation/:id', ...coachV2, async (req, res) => {
   if (!UUID_RX.test(String(req.params.id || ''))) return res.status(404).json({ success: false, error: 'Not found' });
   try {
     const out = await CoachV2.getCoachObservation(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req) });
     if (!out) return res.status(404).json({ success: false, error: 'Not found' });
-    const { reportKey, ...rest } = out;
+    const { reportKey, audioKey, ...rest } = out;
     const imageUrl = reportKey && process.env.R2_ENDPOINT && process.env.R2_BUCKET_NAME
       ? await _resolveMediaUrl(`${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${reportKey}`)
       : null;
-    return res.json({ success: true, ...rest, imageUrl });
+    // bd-o15qnr.19 — the lesson itself, for the page's play button (stored as a full R2 URL).
+    const audioUrl = audioKey ? await _resolveMediaUrl(audioKey).catch(() => null) : null;
+    return res.json({ success: true, ...rest, imageUrl, audioUrl });
   } catch (error) { return coachFail(res, 'observation', error); }
 });
 

@@ -51,7 +51,7 @@ describe("CoachReports", () => {
     renderAt();
     const waiting = within(await screen.findByTestId("reports-waiting"));
     expect(waiting.getByText("Bushra Ali")).toBeInTheDocument();
-    expect(waiting.getByText("Check draft")).toBeInTheDocument();
+    expect(waiting.getAllByText("Feedback Form").length).toBeGreaterThan(0); // bd-o15qnr.19: was "Check draft"
     expect(within(screen.getByTestId("reports-in-progress")).getByText("Uzma Riaz")).toBeInTheDocument();
   });
 
@@ -64,11 +64,12 @@ describe("CoachReports", () => {
     expect(all.getByText("72%")).toBeInTheDocument();
   });
 
-  it("a portal observation opens its page; a WhatsApp one opens the teacher", async () => {
+  // bd-o15qnr.19 — portal or WhatsApp, every report opens the one v2 observation page.
+  it("every report opens the v2 observation page, portal and WhatsApp alike", async () => {
     renderAt();
     await screen.findByText("Mehwish Khan");
-    expect(screen.getByText("Mehwish Khan").closest("a")).toHaveAttribute("href", "/portal/leader/observe/a1");
-    expect(screen.getByText("Samina Ashraf").closest("a")).toHaveAttribute("href", "/portal/coach/teacher/923001110001");
+    expect(screen.getByText("Mehwish Khan").closest("a")).toHaveAttribute("href", "/portal/coach/observation/a1");
+    expect(screen.getByText("Samina Ashraf").closest("a")?.getAttribute("href")).toMatch(/^\/portal\/coach\/observation\//);
   });
 
   it("search asks the server with the words; Show more asks for the next page", async () => {

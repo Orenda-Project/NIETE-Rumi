@@ -27,4 +27,46 @@ function isAllowedSlot(slot) {
   return !!m && Number(m[1]) <= 23;
 }
 
-module.exports = { isAllowedSlot, LEGACY_SLOTS };
+/**
+ * bd-o15qnr.22 — a stored visit day as "YYYY-MM-DD", whatever the server's
+ * timezone. node-postgres builds a DATE as a Date at LOCAL midnight, so the
+ * stored day is its calendar fields — never toISOString(), which is UTC and
+ * turned 13 Oct into "2026-10-12" on a server in Asia/Karachi.
+ */
+function storedDay(value) {
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return '';
+    const p = (n) => String(n).padStart(2, '0');
+    return `${value.getFullYear()}-${p(value.getMonth() + 1)}-${p(value.getDate())}`;
+  }
+  return String(value || '').slice(0, 10);
+}
+
+/**
+ * Did saving this date and slot move the visit? Strings against strings, so the
+ * answer is the same on a server in any timezone. One rule for booking and
+ * Reschedule; a same-slot save is not news to the teacher (bd-xorfy).
+ */
+function visitMoved(prev, date, slot) {
+  return storedDay(prev && prev.scheduled_for) !== date
+    || ((prev && prev.scheduled_slot) || null) !== (slot || null);
+}
+
+/**
+ * bd-o15qnr.23 — today, as a coach in Pakistan counts it: the calendar day in
+ * Asia/Karachi, whatever the server's own zone. The UTC date (toISOString) is
+ * still yesterday from 00:00 to 05:00 PKT, which made a booking for yesterday
+ * "not past" (the teacher was told) and yesterday's visit "not yet overdue".
+ * The one rule for "past" and "overdue"; the coach app's time.ts karachiDay is
+ * its twin.
+ */
+const PK_DAY = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit',
+});
+function karachiToday(now = new Date()) {
+  const parts = PK_DAY.formatToParts(now);
+  const get = (t) => parts.find((p) => p.type === t).value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+module.exports = { isAllowedSlot, LEGACY_SLOTS, storedDay, visitMoved, karachiToday };

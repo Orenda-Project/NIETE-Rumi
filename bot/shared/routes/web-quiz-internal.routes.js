@@ -18,13 +18,14 @@
  *   GET  /videos/:code          E11 "watch another video": lessons of the quiz's grade
  *   POST /videos/start          E12 the code for one of them (minted once per class code)
  *   GET  /pulse/:code           E13 peer pulse: classmates' right answers, from memory
- *   GET  /ch/...  POST /ch/...  the kid's Challenge (web-quiz-challenge.js); GET /challenge/results?list=
+ *   GET  /ch/...  POST /ch/...  the kid's Challenge (POST /ch/live: a temporary key for a live read-aloud) (web-quiz-challenge.js); GET /challenge/results?list=
  *   GET  /art/:id               E14 a share picture (JPEG): card, invite, class, school (web-quiz-art.js)
  *   GET  /hub/:token            the kid hub (web-quiz-hub.js): teacher card, play again, recs
  *   GET  /lib/:code             the video library from a quiz: subjects (grade strip), then chapters
  *   GET  /lib/h/:token          the same from the kid's hub
  *   GET  /videos/dl/:code       302 to a 1-hour link that saves a bank video
  *   POST /hub/:token            the same, from the page with this phone's device_ref (names only for a trusted phone)
+ *   POST /hubdoor               the results card's door: {href: /h/<token>} for this session's child, bound to its phone
  */
 const express = require('express');
 const { requireInternalKey } = require('../middleware/require-internal-key');
@@ -34,6 +35,7 @@ const WebQuizVideos = require('../services/quiz/web-quiz-videos');
 const WebQuizSchools = require('../services/quiz/web-quiz-schools');
 const WebQuizPulse = require('../services/quiz/web-quiz-pulse');
 const WebQuizArt = require('../services/quiz/web-quiz-art');
+const WebQuizOg = require('../services/quiz/web-quiz-og');
 const Timing = require('../services/quiz/web-quiz-timing');
 const WebQuizLibrary = require('../services/quiz/web-quiz-library');
 
@@ -61,10 +63,22 @@ const serve = async (fn, req, res) => {
   }
 };
 
-router.get('/quiz/:code', handle((req) => WebQuiz.getQuiz(req.params.code, { p: req.query.p })));
+router.get('/quiz/:code', handle(async (req) => {
+  const out = await WebQuiz.getQuiz(req.params.code, { p: req.query.p });
+  // Every child's page load teaches the preview facts (not a teacher's ?p= preview, which answers differently).
+  if (!req.query.p) WebQuizOg.remember(req.params.code, out);
+  return out;
+}));
+// A shared link's preview facts (web-quiz-og.js): from memory, so a portal worker answers a link preview fast.
+router.get('/og/:code', handle((req) => WebQuizOg.forCode(req.params.code, (c) => WebQuiz.getQuiz(c))));
 router.post('/session', handle((req) => WebQuiz.startSession(req.body || {})));
 router.post('/answers', handle((req) => WebQuiz.recordAnswers(req.body || {})));
-router.post('/finish', handle((req) => WebQuiz.finishSession(req.body || {})));
+router.post('/finish', handle(async (req) => {
+  const out = await WebQuiz.finishSession(req.body || {});
+  // The share pictures are drawn now, after the answer, so a child who taps Share at once sends a ready picture.
+  require('../services/quiz/web-quiz-share-warm').afterFinish(out);
+  return out;
+}));
 router.get('/board/:code', handle((req) => WebQuiz.board(req.params.code, { st: req.query.st })));
 router.get('/schools/:code', handle((req) => WebQuizSchools.board(req.params.code, { st: req.query.st })));
 router.post('/me', handle((req) => WebQuiz.me(req.body || {})));
@@ -92,6 +106,11 @@ const challenge = (fn) => handle((req) => {
 });
 router.get('/ch/result/:ct', challenge((C, req) => C.poll(req.params.ct)));
 router.post('/ch/upload', challenge((C, req) => C.presignUpload(req.body || {})));
+// Read aloud, live: a temporary Soniox key for one run (web-quiz-soniox-live.js); the server key never leaves the bot.
+router.post('/ch/live', challenge((C, req) => C.liveKey(req.body || {})));
+// Questions after Read aloud: the reached questions with their 3 options (no key), then one answer per tap.
+router.post('/ch/qs', challenge((C, req) => C.questions(req.body || {})));
+router.post('/ch/qa', challenge((C, req) => C.answer(req.body || {})));
 router.post('/ch/result', challenge((C, req) => C.submit(req.body || {})));
 // x-wq-device: the phone's device_ref, forwarded by the edge from the wq_dv cookie (a hub token opens nothing on another phone).
 router.get('/ch/:token', challenge((C, req) => C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang, device: req.get('x-wq-device') })));
@@ -120,5 +139,7 @@ router.get('/videos/dl/:code', handle((req) => WebQuizLibrary.download(req.param
 // The page's own call carries this phone's device_ref (in the body, never the URL): only the
 // first phone to open a hub link, or one the children played on, sees their names.
 router.post('/hub/:token', handle((req) => require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref })));
+// The results card's door to the child's own hub: a hub link minted for this session's child, bound to this phone.
+router.post('/hubdoor', handle((req) => require('../services/quiz/web-quiz-hub-door').door(req.body || {}, WebQuiz.WqError)));
 
 module.exports = router;

@@ -375,7 +375,11 @@ function toNativeRequest(params) {
  * at 2.0x in this number too instead of being quietly under-reported at 1.25x.
  */
 function priceUsd(model, usage) {
-  const price = LIST_PRICE_PER_MTOK[String(model || '').trim()];
+  // Anthropic answers with the dated snapshot id (`claude-haiku-4-5-20251001` for a call to
+  // `claude-haiku-4-5`), so the date is dropped before the lookup (bd-gr4fy.10). Without that every
+  // direct-lane Haiku call was recorded unpriced. A model with no price still gets none.
+  const id = String(model || '').trim();
+  const price = LIST_PRICE_PER_MTOK[id] || LIST_PRICE_PER_MTOK[id.replace(/-\d{8}$/, '')];
   if (!price) return null;
   const u = usage || {};
   const creation = u.cache_creation || {};

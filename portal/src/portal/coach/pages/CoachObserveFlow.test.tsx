@@ -121,7 +121,7 @@ describe("10 + 12 — the Visit page, in the canvas order", () => {
     const last = c.getByRole("link", { name: /Last visit · 14 Sep/ });
     expect(last).toHaveTextContent("HITL · You");
     expect(last).toHaveTextContent("Report sent");
-    expect(last).toHaveAttribute("href", "/portal/leader/observe/s-sent");
+    expect(last).toHaveAttribute("href", "/portal/coach/observation/s-sent"); // bd-o15qnr.19: the one observation page
     expect(c.getByRole("link", { name: /Teacher profile/ })).toHaveAttribute("href", "/portal/coach/teacher/923001110001");
     expect(screen.queryByText("Last visit", { selector: "h2" })).toBeNull();
   });
@@ -134,13 +134,14 @@ describe("10 + 12 — the Visit page, in the canvas order", () => {
     expect(within(card).queryByTestId("teacher-phone")).toBeNull();
   });
 
-  it("someone else's WhatsApp observation: their name, its step, and nothing to tap", async () => {
+  // bd-o15qnr.19 — a WhatsApp observation opens the v2 observation page too, which shows its steps.
+  it("someone else's WhatsApp observation: their name, its step, and it opens the observation page", async () => {
     C.getVisit.mockResolvedValue({ ...VISIT, lastVisit: { id: "s-wa", date: "2026-09-30T09:00:00Z", score: null, step: "draft", byMe: false, observerName: "Imran S", portal: false } });
     renderAt(`/portal/coach/visit/${VISIT_ID}`);
     const row = await screen.findByTestId("last-visit");
-    expect(row.tagName).not.toBe("A");
+    expect(row).toHaveAttribute("href", "/portal/coach/observation/s-wa");
     expect(row).toHaveTextContent("HITL · Imran S");
-    expect(row).toHaveTextContent("Check draft");
+    expect(row).toHaveTextContent("Feedback Form");
   });
 
   it("a done visit has no Observation box", async () => {

@@ -36,6 +36,10 @@ export type CoachTeacher = {
   lastTrainingAt?: string | null;
   daysSinceTraining: number | null;
   trainingModules?: number;
+  /** bd-o15qnr.20 — ready assessment papers (the patch's exams_generated) */
+  examsGenerated?: number;
+  /** bd-o15qnr.20 — distinct lesson plans she used (lp-activity); null when not on Rumi. Teacher + Visit only. */
+  lpOpened?: number | null;
 };
 
 export type CoachSchool = {
@@ -123,6 +127,14 @@ export type VisitData = { visit: CoachVisit; teacher: CoachTeacher | null; lastV
 export type ObservationReport = {
   id: string;
   date: string | null;
+  /** bd-o15qnr.19 — where it stands, from the session row (draft · talk · analysing · sent). */
+  step?: ReportStep;
+  /** Her own observation started in the portal: the portal can take it through each step. */
+  portal?: boolean;
+  mine?: boolean;
+  /** The Digital Coach's score, before her check too. */
+  dcScore?: number | null;
+  audioUrl?: string | null;
   score: number | null;
   summary: string | null;
   teacher: { name: string; teacherExtId: string | null; schoolName: string | null };

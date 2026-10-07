@@ -71,6 +71,7 @@ function fakeQuery() {
     if (sql === S.MY_SCHEDULES) return { rows: [] };
     if (sql === S.TEACHER_HISTORY) return { rows: HISTORY };
     if (sql === S.TEACHER_LEVELS) return { rows: [] }; // bd-o15qnr.13
+    if (sql === S.LP_OPENED) return { rows: [{ n: 0 }] }; // bd-o15qnr.20
     if (sql === S.OBSERVATION_BY_ID) return { rows: SESSIONS[params[0]] ? [SESSIONS[params[0]]] : [] };
     if (sql === S.USER_NAME) return { rows: params[0] === ME ? [{ name: 'Hataf Atif' }] : [{ name: 'Imran S' }] };
     throw new Error(`unexpected SQL: ${sql.slice(0, 60)}`);
@@ -118,8 +119,10 @@ describe('getCoachObservation — one sent HITL report, patch-guarded', () => {
     expect(await SVC.getCoachObservation(fakeQuery(), ME, 'h-stranger', { today: TODAY })).toBeNull();
   });
 
-  test('an observation whose report is not out yet is not served here', async () => {
-    expect(await SVC.getCoachObservation(fakeQuery(), ME, 'h-wa-draft', { today: TODAY })).toBeNull();
+  // bd-o15qnr.19 — the v2 observation page serves every step now; the report image only once it is out.
+  test('an observation whose report is not out yet is served with its step and no report image', async () => {
+    const out = await SVC.getCoachObservation(fakeQuery(), ME, 'h-wa-draft', { today: TODAY });
+    expect(out).toMatchObject({ step: 'draft', reportKey: null, sentAt: null });
   });
 
   test('an unknown id is refused', async () => {

@@ -267,6 +267,14 @@ Feature: Web child quiz page on the portal
     Then the quiz starts as that child
     But when the server does not know that chip, the phone forgets it and asks "What is your name?"
 
+  @T564
+  Scenario: A link that already names the child never asks "Who is playing?" while the quiz opens
+    Given identity v2 is on and this phone remembers the child
+    When the child opens "/q/<code>?k=<chip>" from their hub, a play-again row or the video library
+    Then the page shows the quiz with "Opening your quiz…" and nothing to tap until question 1
+    And "Who is playing?" never appears before question 1
+    But when the session cannot start, the page shows "Who is playing?" and waits for the child to tap
+
   @T493
   Scenario: Replaying under the same typed name on the same phone is the same child, not a new one
     Given identity v2 is on and a child typed "Usman Testwala", which the class list does not have, and confirmed "Yes"
@@ -729,6 +737,80 @@ Feature: Web child quiz page on the portal
     Then the Challenge menu shows only "Which is bigger?"
     And a reading already open is answered "enough for today", and its uploaded recording is deleted
     And web_quiz.ch_read_capped is logged once that day
+
+  @T580
+  Scenario: Read aloud live: the words light up as the child reads and the words-a-minute bar moves
+    Given app_settings web_quiz_challenge_realtime is true and the microphone is allowed
+    When the child taps "I'm ready" and starts to read
+    Then the page streams the microphone to speech-to-text with a one-run key the bot minted, sent in the stream's first message and never in a URL
+    And each word read turns green as it is heard, and a word passed over is marked "not caught" in soft amber, never red
+    And a bar at the top shows the words a minute («ایک منٹ میں لفظ») as the child reads, with last time's mark when there is one
+    And no word on the page is "test", "exam" or "assessment"
+
+  @T581
+  Scenario: Read aloud live: the result shows the moment the reading ends, and the checked count follows
+    Given a child reading live reaches the last word, or the minute ends, or taps "Done"
+    Then "You read N words in a minute!" shows at once, with the coloured story and its key
+    And the recording still goes up by presigned upload and is scored the usual way, with the live numbers kept beside the score
+    And when the checked count differs by 3 or more the line becomes "Jugnu listened again: M words a minute!" («جگنو نے دوبارہ سنا: ایک منٹ میں M لفظ!»)
+    And "more words than last time" and the bar's "last time" compare checked counts of readings in the same language only
+    But a checked "nothing heard" replaces the praise with "We couldn't hear that clearly. Try again?"
+
+  @T582
+  Scenario: Read aloud live falls back to today's reading whenever the live stream cannot run
+    Given the live switch is on
+    When the key cannot be minted, the stream is refused (for example the stream limit), or it drops during the reading
+    Then the child keeps reading without a break and the result comes from the upload, as before the live switch
+    And web_quiz.ch_live is logged with ok false and the reason
+
+  @T583
+  Scenario: A live key is one per run and counts toward today's readings
+    Given a child has read aloud 10 times in the last 24 hours, or today's read-aloud cap is reached
+    Then no live key is minted ("enough for today")
+    And a second key for the same run is refused, and the run's one result is accepted once
+    And with app_settings web_quiz_challenge_realtime absent or not true, the page asks for no key at all
+
+  @T584
+  Scenario: Questions after Read aloud, only about the part the child read
+    Given app_settings web_quiz_challenge_questions is true and a child's reading was praised
+    When the child taps "Answer questions about the story" («کہانی کے بارے میں سوال»)
+    Then up to 3 of the story's own questions are asked, only those about lines the child reached
+    And each question is read aloud by the mascot and has 3 options: the story's accepted answer and two of its listed wrong answers, in the story's language
+    And a child stopped by the first-line rule, or a reading not heard, is offered no questions
+
+  @T585
+  Scenario: Each tap is checked by the server and the total is shown
+    Given a child is answering the questions after Read aloud
+    When the child taps an option
+    Then the page asks the server, which never sends the answers in advance
+    And a right tap shows "Yes!" («جی ہاں!») and a wrong one shows "The answer was: …" («جواب تھا: …») with the right option marked
+    And after the last question the page says "You got 2 of 3 right!" («آپ نے ۳ میں سے ۲ کے صحیح جواب دیے!»)
+    And only the numbers asked and correct are kept with the reading; a question counts once
+
+  @T586
+  Scenario: Questions are off unless switched on
+    Given app_settings web_quiz_challenge_questions is absent or not true
+    Then the Read aloud result offers no questions, and the question calls answer "questions_off"
+
+  @T587
+  Scenario: Listen and answer plays the story twice and never shows its text
+    Given app_settings web_quiz_challenge_listen is true and the listening story's clip is recorded
+    When the child opens "Listen and answer" («سنیں اور جواب دیں») and taps "Listen" («سنیں»)
+    Then the story is played twice in the quiz voice, and its text is never sent to the page
+    And then up to 3 of its own questions are asked as taps, each checked by the server
+    And the total says "You got 2 of 3 right!" and the run is stored as listen with its numbers only
+
+  @T588
+  Scenario: Listen and answer is offered only when the story can be heard
+    Given app_settings web_quiz_challenge_listen is absent or not true, or the story's clip is not recorded yet
+    Then the Challenge menu has no "Listen and answer" tile, and a missing clip starts recording for the next time
+    And a story that will not play says "The story won't play right now. Try another challenge." with More challenges
+
+  @T589
+  Scenario: Only listening questions a person has reviewed as taps are asked
+    Given the listening questions in the item bank
+    Then a question whose accepted answer is circular, or whose wrong answers the story also supports, is never asked
+    And for "What did Ayesha clean?" («عائشہ نے کیا صاف کیا؟») the whole class («کلاس») is never a wrong option
   @T491
   Scenario: A shared phone reopened on a finished child's card lets the next child play
     Given a phone where "Tooba" finished this quiz and the page reopens on Tooba's card
@@ -1031,3 +1113,68 @@ Feature: Web child quiz page on the portal
     Then it lists only the sibling who played there, never the other one
     And the other sibling's hub, library and challenge do not open on that phone
 
+  @T565
+  Scenario: The results card opens the child's own quizzes, videos and challenges
+    Given the hub door is switched on and a child of the class finished the teacher's quiz on their phone
+    When the child taps "My quizzes, videos and challenges" on their card
+    Then their own hub opens on that phone, with the video library and the challenge
+    And the same link opened on another phone shows no child's name and starts nothing
+    But a friend who played from a challenge link sees no such button
+
+  @T590
+  Scenario: A shared card or challenge link shows its picture in the WhatsApp message before the child taps send
+    Given a child finished a quiz in WhatsApp's own browser and the scorecard is open
+    When the child taps "Share to class group" or "Challenge a friend" and then "Send on WhatsApp"
+    Then within about a second the WhatsApp composer shows the link preview with the card picture (or the invite picture for a challenge)
+    And the message arrives in the chat with that picture, its title and the link, in English and in Urdu
+
+  @T591
+  Scenario: A link-preview fetch is answered fast and a child's browser still gets the live quiz
+    Given a quiz link the edge has served or warmed in the last hour
+    When WhatsApp's link-preview fetcher (a HEAD, or the user agent "WhatsApp/2.x A") asks for it
+    Then the edge answers with the page head and its og tags without asking the bot for the quiz
+    And the share picture is answered from the edge once the scorecard has warmed it
+    And a child opening the same link in any browser gets the full live quiz page
+  @T570
+  Scenario: The first child to open a quiz whose voice is still being recorded hears the recorded voice as soon as it exists
+    Given a quiz whose read-aloud clips have never been recorded (a library quiz, or a quiz nobody has opened yet)
+    When the first child opens it and the recording starts in the background
+    Then the page asks again for the quiz a few times over the next two minutes
+    And every question the child reaches after the clips land is read in the quiz's recorded voice, in Urdu as in English
+    And a quiz whose clips are already recorded never asks again
+
+  @T592
+  Scenario: Every portal worker answers a link preview fast, whichever one the phone reaches
+    Given the portal runs several worker processes and only one of them served the child's quiz page
+    When WhatsApp's link-preview fetch for the child's card or challenge link reaches any other worker
+    Then that worker answers the page head from the bot's remembered link facts, never a whole quiz load
+    And the share picture is answered from the bot's memory once the scorecard has fetched it
+
+  @T593
+  Scenario: A child who taps Share the moment the scorecard appears still sends the picture
+    Given a child has just finished a quiz on a slow connection
+    When the scorecard appears and the child taps "Share to class group" or "Challenge a friend" straight away
+    Then the card and invite pictures were already drawn when the quiz finished, so the link preview shows the picture
+    And the finish itself is never slower for it, and a picture that cannot be drawn never stops the scorecard
+
+  @T595
+  Scenario: The hub door is on the first screen of the card, and a forwarded door link says how to get your own
+    Given the hub door is switched on and a class child has just finished a quiz on a 360x740 phone
+    Then "My quizzes, videos and challenges" is the second action, right under "Share to class group", with no scrolling, in English and in Urdu
+    And the stars of a 7-question score stay on one row
+    When the same hub link is opened on another phone
+    Then the lock screen says to finish your own quiz and tap "My quizzes, videos and challenges", and also how to get a new link with /quiz
+
+  @T571
+  Scenario: A teacher whose stored name already carries a title is named once, without the title
+    Given a teacher stored as "Mr Kamran" (or «استانی رفعت», or «کامران صاحب»)
+    When a child opens the teacher's quiz page or reads the forwarded quiz message
+    Then the teacher is named "Teacher Kamran" («استاد رفعت», «استاد کامران»), never "Teacher Mr Kamran"
+    And a name that only begins with the same letters, like "Mrinal", is left as it is
+
+  @T594
+  Scenario: With the hub door, a class child's card opens on the score, the name notice, "Share to class group" and the door
+    Given the hub door is switched on and a class child finishes a teacher's quiz on a 360x740 phone, in English or Urdu
+    Then the first screen shows the score card, "Only your first name goes on the card", "Share to class group", then "My quizzes, videos and challenges"
+    And the practice note and the place-in-class note come right after the door, and a long topic shows on one line on the card
+    But a video quiz card keeps "Next in this chapter" and "Watch another video" first, and with the door switched off the card is unchanged
