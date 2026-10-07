@@ -354,6 +354,8 @@ async function hub(token, { kid, device } = {}) {
   const gradeOf = (r) => gradeNum((listOf(r) || {}).class_name) || gradeNum(r.self_reported_class) || null;
 
   const chosen = kidsRows.find((r) => kidChip(r.id) === String(kid || '')) || (kidsRows.length === 1 ? kidsRows[0] : null);
+  // Started now, beside the rest of the hub's reads (challengeGrade never rejects): it is a few round trips of its own.
+  const challengeP = f.challenge && chosen ? challengeGrade(chosen.id) : Promise.resolve(false);
   const ctx = chosen ? await kidContext(chosen.id) : null;
   const history = ctx ? ctx.history : [];
   const lang = clampLanguage(history[0] && history[0].language);
@@ -379,7 +381,7 @@ async function hub(token, { kid, device } = {}) {
     logToFile('⚠️ web quiz hub: recommendations unavailable', { error: err.message });
   }
   // The tile asks the challenge's own grade rule (a band of grades is no grade there), so it never opens onto a refusal.
-  if (f.challenge && await challengeGrade(chosen.id)) {
+  if (await challengeP) {
     out.challenge = { on: true, exercises: [{ id: 'bigger', done: false }, { id: 'read', done: false }] };
   }
   // The library: M4b's page when it is on; else the child's newest open quiz (its scorecard lists more videos).
