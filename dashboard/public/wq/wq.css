@@ -438,3 +438,17 @@ a.wq-vitem{color:inherit;text-decoration:none}
 /* A stem or option with a word too long for the phone ("quantity,quality,shape,color,size") breaks inside the word instead of
    pushing the whole page sideways (the question's own 🔊 went off the screen with it). */
 .wq-qcard .wq-qtext,.wq-opt .wq-lab,.wq-ptile .wq-pname{min-width:0;overflow-wrap:anywhere}
+/* Sound tiles: the tile plays its option's sound (never an answer); "This one" under it answers. */
+.wq-stiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.wq-stile{display:flex;flex-direction:column;gap:8px;min-width:0}
+.wq-shear{min-height:112px;border:3px solid transparent;border-radius:18px;box-shadow:0 4px 0 var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:30px;color:var(--ink);background:var(--card)}
+.wq-shear:active{transform:translateY(2px);box-shadow:0 2px 0 var(--line)}
+.wq-shear .wq-shp{width:34px;height:34px;border-radius:10px;display:grid;place-items:center}
+.wq-shear .wq-shp svg{width:18px;height:18px;fill:#fff}
+.wq-st1 .wq-shp{background:var(--s1)}.wq-st2 .wq-shp{background:var(--s2)}.wq-st3 .wq-shp{background:var(--s3)}.wq-st4 .wq-shp{background:var(--s4)}
+.wq-st1 .wq-shear{background:var(--s1-bg)}.wq-st2 .wq-shear{background:var(--s2-bg)}.wq-st3 .wq-shear{background:var(--s3-bg)}.wq-st4 .wq-shear{background:var(--s4-bg)}
+.wq-shear .wq-stxt{font-size:28px;font-weight:900;line-height:1.2;overflow-wrap:anywhere}
+.wq-opt.wq-sthis{min-height:52px;justify-content:center;font-size:18px;text-align:center}
+/* "Watch the lesson again" from a library question: the video over the question, Close goes back to the same question. */
+.wq-again{margin-top:14px;width:100%}
+.wq-vagain video{width:100%;max-height:82vh;border-radius:12px;background:#000}
