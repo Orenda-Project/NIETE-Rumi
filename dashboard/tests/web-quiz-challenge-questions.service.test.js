@@ -149,6 +149,15 @@ describe('three taps', () => {
   });
 });
 
+describe('the Urdu total agrees with its number', () => {
+  test('1 right ⇒ «۱ کا صحیح جواب دیا»; 2 right ⇒ «۲ کے صحیح جواب دیے»; English unchanged', () => {
+    const ur = page({ lang: 'ur', routes: routes() });
+    expect(ur.w.T.ur.qaDone(1, 3)).toBe('آپ نے ۳ میں سے ۱ کا صحیح جواب دیا!');
+    expect(ur.w.T.ur.qaDone(2, 3)).toBe('آپ نے ۳ میں سے ۲ کے صحیح جواب دیے!');
+    expect(ur.w.T.en.qaDone(1, 3)).toBe('You got 1 of 3 right!');
+  });
+});
+
 describe('the portal forwards the two question calls to the bot', () => {
   test('POST /api/wq/ch/qs and /api/wq/ch/qa reach /api/internal/wq/ch/qs and /ch/qa with the body', async () => {
     const http = require('http');
