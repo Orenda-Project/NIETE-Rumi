@@ -111,7 +111,7 @@ describe('the exercise says whether this run may go live', () => {
   test('a live read carries the child\'s last checked words-a-minute for the bar\'s "last time" mark (null the first time)', async () => {
     db.app_settings.push(LIVE);
     expect((await Ch.exercise(hub(), 'read', { ...D, lang: 'en' })).previous_wcpm).toBeNull();
-    db.web_quiz_challenge_runs.push({ id: 'p1', student_id: KID, exercise: 'read', status: 'scored', wcpm: 44, score: { correct: 44 }, created_at: new Date().toISOString() });
+    db.web_quiz_challenge_runs.push({ id: 'p1', student_id: KID, exercise: 'read', lang: 'en', status: 'scored', wcpm: 44, score: { correct: 44 }, created_at: new Date().toISOString() });
     expect((await Ch.exercise(hub(), 'read', { ...D, lang: 'en' })).previous_wcpm).toBe(44);
   });
 
@@ -238,6 +238,30 @@ describe('a live run is scored as today and keeps the live count beside it', () 
     await Ch.submit({ ct, key, ms: 60000, live: { correct: 999, attempted: 5, secs: 60, transcript: 'words' } }, { waitMs: 60000 });
     const row = db.web_quiz_challenge_runs.find((x) => x.id === T.verify(ct, 'c').r);
     expect(row.meta.live).toBeUndefined();
+  });
+});
+
+describe('"last time" means the same passage: a reading compares only with readings in its own language', () => {
+  const enTokens = () => Bank.getTaskSpec({ grade: 3, set: 'A', task: 'en.story' }).story.tokens;
+  const ago = (m) => new Date(Date.now() - m * 60000).toISOString();
+  test('an English reading\'s growth line and the bar\'s mark use the last English reading, never a later Urdu one', async () => {
+    db.app_settings.push(LIVE);
+    db.web_quiz_challenge_runs.push(
+      { id: 'en-old', student_id: KID, exercise: 'read', lang: 'en', status: 'scored', wcpm: 120, score: { correct: 60 }, created_at: ago(30) },
+      { id: 'ur-new', student_id: KID, exercise: 'read', lang: 'ur', status: 'scored', wcpm: 163, score: { correct: 60 }, created_at: ago(5) },
+    );
+    expect((await Ch.exercise(hub(), 'read', { ...D, lang: 'en' })).previous_wcpm).toBe(120);
+    expect((await Ch.exercise(hub(), 'read', { ...D, lang: 'ur' })).previous_wcpm).toBe(163);
+    const FF = require('@ffmpeg-installer/ffmpeg').path;
+    const f = path.join(os.tmpdir(), `wqlang-${process.pid}.webm`);
+    if (!fs.existsSync(f)) execFileSync(FF, ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'anullsrc=r=16000:cl=mono', '-t', '60', '-c:a', 'libopus', f]);
+    const ct = await readCt();
+    const { key } = await Ch.presignUpload({ ct, type: 'audio/webm', size: 500000 });
+    r2.downloadFromR2.mockResolvedValue(fs.readFileSync(f));
+    AudioService.transcribe.mockResolvedValue({ text: '', tokens: enTokens().slice(0, 45).map((w, k) => ({ text: ` ${w}`, start_ms: k * 1300, end_ms: k * 1300 + 1000, speaker: 1 })) });
+    llm.__create.mockResolvedValue({ usage: { cost: 0.002 }, choices: [{ message: { content: JSON.stringify({ words: enTokens().map((w, k) => ({ i: k + 1, w, v: k < 42 ? 'correct' : 'skipped' })), notes: '' }) } }] });
+    const r = await Ch.submit({ ct, key, ms: 60000, lang: 'en' }, { waitMs: 60000 });
+    expect(r.previous).toMatchObject({ wcpm: 120 });
   });
 });
 
