@@ -155,7 +155,14 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
     await api.resetFlow();
   }
 
-  if (want('LANG17')) {
+  // LANG17/06/18 read the replies a step sends (fresh) and upload media: a lane without those records
+  // them BLOCKED with the reason rather than throwing mid-suite (test_language_feature's fake bot).
+  const canRead = typeof api.fresh === 'function' && typeof api.freshReset === 'function';
+  const canUpload = canRead && typeof api.upload === 'function' && !!(api.caps && api.caps.upload);
+  if (want('LANG17') && !canRead) {
+    rec('LANG17', 'A Grade 1-5 lesson plan is the lesson\'s own PDF, in its book\'s language', 'BLOCKED',
+        { reason: 'this lane cannot read the replies a Flow completion sends (no api.fresh)' }, 0);
+  } else if (want('LANG17')) {
     // LANG17 — Grade 1-5 content language: the delivered PDF is the Urdu one when that row HAS an Urdu
     // file, else the English one. Judged against the row itself, so it stays right when Urdu PDFs land.
     s = t();
@@ -187,7 +194,11 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
     await api.resetFlow();
   }
 
-  if (want('LANG06', 'LANG18')) {
+  if (want('LANG06', 'LANG18') && !canUpload) {
+    for (const [id, name] of [['LANG06', 'coaching transcription cannot re-language a locked account'],
+                              ['LANG18', 'The coaching journey renders in Urdu on an Urdu account']])
+      rec(id, name, 'BLOCKED', { reason: 'this lane cannot upload a classroom recording (no api.upload / caps.upload)' }, 0);
+  } else if (want('LANG06', 'LANG18')) {
     // LANG06 + LANG18 — one real coaching upload on the Urdu-locked account. The audio-hash cache would
     // answer a recording this account already had analysed with the old report and transcribe nothing,
     // so archive the driver's own sessions first (cancel-stuck + reset-history, as coaching-ext does).
