@@ -101,10 +101,13 @@ const STEPS = {
   },
 };
 
+// When the per-job override answered, the seam says which model it was (usage.job_override.to); name that
+// one, not the ladder's own model (bd-gr4fy.13). When the override fell back, the ladder's model answered.
+const answeredBy = (r) => (r && r.usage && r.usage.job_override && r.usage.job_override.to) || null;
 const tag = (r, model_used) => ({
   content: r.choices[0].message.content,
   usage: r.usage,
-  model_used,
+  model_used: answeredBy(r) || model_used,
 });
 
 // True only when OUR per-attempt deadline fired (provider too slow / stalled) — NOT for a
@@ -135,7 +138,9 @@ async function callReflective(messages, { maxTokens = 2000, temperature = 0.7, t
       { timeout: timeoutMs },
     );
 
-  // 1) Primary: DeepSeek V3.2
+  // 1) Primary: DeepSeek V3.2. A per-job override, if one is in force, applies HERE only, with this step's
+  //    model behind it (the seam's own fallback). The retries below skip it (bd-gr4fy.13): trying the override
+  //    on every rung turned one failing override into six calls at the full timeout.
   try {
     return tag(await attempt(ladder.primary(), { temperature }), ladder.primary());
   } catch (e1) {
@@ -143,16 +148,16 @@ async function callReflective(messages, { maxTokens = 2000, temperature = 0.7, t
     // slow provider, so go straight to the (fast) GPT-5.4 failover.
     if (isOurTimeout(e1)) {
       logToFile('[refl-q] V3.2 timed out → straight to GPT-5.4 (skip V3.2 retry)', { err: e1.message, timeoutMs, step });
-      return tag(await attempt(ladder.retry()), 'gpt-5.4-fallback');
+      return tag(await attempt(ladder.retry(), { skipJobOverride: true }), 'gpt-5.4-fallback');
     }
     logToFile('[refl-q] V3.2 error, retrying once', { err: e1.message, step });
     // 2) One transient retry on V3.2 (rate-limit / 5xx / socket blip)
     try {
-      return tag(await attempt(ladder.primary(), { temperature }), `${ladder.primary()}-retry`);
+      return tag(await attempt(ladder.primary(), { temperature, skipJobOverride: true }), `${ladder.primary()}-retry`);
     } catch (e2) {
       logToFile('[refl-q] V3.2 failed twice → failover GPT-5.4', { err: e2.message, step });
       // 3) Failover: GPT-5.4 (omit temperature — gpt-5.x rejects it)
-      return tag(await attempt(ladder.retry()), 'gpt-5.4-fallback');
+      return tag(await attempt(ladder.retry(), { skipJobOverride: true }), 'gpt-5.4-fallback');
     }
   }
 }
