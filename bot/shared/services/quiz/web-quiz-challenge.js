@@ -858,14 +858,18 @@ async function answer({ ct, q, pick, lang } = {}) {
   if (!bq || !Number.isInteger(p) || p < 0 || p > 2) fail(400, 'bad_request');
   const t = tapOptions(bq, run.lang, c.r);
   if (!t) fail(400, 'bad_request');
-  const comp = (mem.comp && mem.comp.ans) ? mem.comp : { ans: {} };
-  if (comp.ans[q] !== undefined) return { ok: comp.ans[q], answer: t.right };
-  if (Object.keys(comp.ans).length >= QA_MAX) fail(400, 'bad_request');
+  // The answers so far come from the stored row (and this process): the next tap may be served by another replica,
+  // or by the new process after a deploy, which must count on from there, never from zero. Keys are question
+  // numbers, values 0/1: nothing a child said or tapped as text is kept.
+  const key = q.split('.').pop();
+  const ans = { ...((row && row.meta && row.meta.comp && row.meta.comp.a) || {}), ...((mem.comp && mem.comp.a) || {}) };
+  if (ans[key] !== undefined) return { ok: ans[key] === 1, answer: t.right };
+  if (Object.keys(ans).length >= QA_MAX) fail(400, 'bad_request');
   const ok = t.options[p] === t.right;
-  comp.ans[q] = ok;
-  RUNS.set(c.r, { ...(RUNS.get(c.r) || run), comp });
-  const vals = Object.values(comp.ans);
-  const numbers = { asked: vals.length, correct: vals.filter(Boolean).length, v: 1 };
+  ans[key] = ok ? 1 : 0;
+  RUNS.set(c.r, { ...(RUNS.get(c.r) || run), comp: { a: ans } });
+  const vals = Object.values(ans);
+  const numbers = { asked: vals.length, correct: vals.filter((x) => x === 1).length, v: 1, a: ans };
   if (row) await updateRun(c.r, { meta: { ...(row.meta || {}), comp: numbers } });
   // listening: the last answer scores the run ({correct, n}, as "Which is bigger?")
   const n = row && row.meta && Number(row.meta.n);

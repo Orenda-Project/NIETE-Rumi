@@ -121,6 +121,29 @@ describe('the tile', () => {
   });
 });
 
+describe('answers survive a bot restart or a second replica between taps', () => {
+  test('each tap is counted from the stored row, not this process\'s memory: after a "restart" between taps the run is still scored 3 of 3 asked', async () => {
+    db.app_settings.push(LISTEN);
+    clipsExist();
+    const { ct } = await Ch.exercise(hub(), 'listen', { ...D, lang: 'en' });
+    const qs = (await Ch.questions({ ct })).questions;
+    const bank = spec('en').questions;
+    const rightIdx = (k) => qs[k].options.indexOf(bank.find((b) => b.id === qs[k].id).accept[0]);
+    await Ch.answer({ ct, q: qs[0].id, pick: rightIdx(0) });
+    Ch.__reset();                                   // a deploy, or the next tap served by another replica
+    await Ch.answer({ ct, q: qs[1].id, pick: rightIdx(1) });
+    Ch.__reset();
+    await Ch.answer({ ct, q: qs[2].id, pick: (rightIdx(2) + 1) % 3 });
+    const row = db.web_quiz_challenge_runs.find((r) => r.id === T.verify(ct, 'c').r);
+    expect(row.meta.comp).toMatchObject({ asked: 3, correct: 2, v: 1 });
+    expect(row).toMatchObject({ status: 'scored', score: { correct: 2, n: 3 } });
+    // and a repeated tap on another replica still counts once
+    Ch.__reset();
+    expect(await Ch.answer({ ct, q: qs[0].id, pick: (rightIdx(0) + 1) % 3 })).toMatchObject({ ok: true });
+    expect(db.web_quiz_challenge_runs.find((r) => r.id === T.verify(ct, 'c').r).meta.comp).toMatchObject({ asked: 3, correct: 2 });
+  });
+});
+
 describe('the exercise', () => {
   beforeEach(() => { db.app_settings.push(LISTEN); clipsExist(); });
 
