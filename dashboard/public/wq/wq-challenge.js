@@ -539,8 +539,10 @@
     }
     show('read-result', jug(pose, line, true) + (score ? '<p class="wqc-score" id="wqc-score">' + esc(score) + '</p>' : '')
       + (growth ? '<p class="wq-sub" id="wqc-growth">' + esc(growth) + '</p>' : '')
-      + '<div class="wq-stack"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(t.more) + '</button>'
-      + (r.failed ? '<button class="wq-btn wq-soft" id="wqc-again" type="button">' + esc(t.again) + '</button>' : '') + '</div>');
+      // Not heard: steer the child to read again — "Try again" is the primary button, "More challenges" the second.
+      + '<div class="wq-stack">' + (r.failed
+        ? '<button class="wq-btn wq-go" id="wqc-again" type="button">' + esc(t.again) + '</button><button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(t.more) + '</button>'
+        : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(t.more) + '</button>') + '</div>');
     if (score) say(d.clips.done);
     on('wqc-menu', refreshMenu);
     on('wqc-again', function () { open('read'); });
