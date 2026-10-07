@@ -1858,22 +1858,24 @@ router.get('/coach/teacher/:teacherExtId', ...coachV2, async (req, res) => {
 });
 
 /**
- * GET /api/portal/coach/observation/:id — bd-o15qnr.10: one HITL report from a
- * teacher's History, read-only. Served only while that teacher is in the
- * coach's patch and the report is out; the report image is the one the
- * teacher received (teacher_delivery.report_key), signed here the same way the
- * teacher's own session page signs it.
+ * GET /api/portal/coach/observation/:id — bd-o15qnr.10: one HITL observation for
+ * the v2 observation page (bd-o15qnr.19: any step, not only sent reports).
+ * Served only while that teacher is in the coach's patch; the report image is
+ * the one the teacher received (teacher_delivery.report_key), signed here the
+ * same way the teacher's own session page signs it, and so is the lesson audio.
  */
 router.get('/coach/observation/:id', ...coachV2, async (req, res) => {
   if (!UUID_RX.test(String(req.params.id || ''))) return res.status(404).json({ success: false, error: 'Not found' });
   try {
     const out = await CoachV2.getCoachObservation(pgQuery, req.session.portalUserId, req.params.id, { today: coachToday(req) });
     if (!out) return res.status(404).json({ success: false, error: 'Not found' });
-    const { reportKey, ...rest } = out;
+    const { reportKey, audioKey, ...rest } = out;
     const imageUrl = reportKey && process.env.R2_ENDPOINT && process.env.R2_BUCKET_NAME
       ? await _resolveMediaUrl(`${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${reportKey}`)
       : null;
-    return res.json({ success: true, ...rest, imageUrl });
+    // bd-o15qnr.19 — the lesson itself, for the page's play button (stored as a full R2 URL).
+    const audioUrl = audioKey ? await _resolveMediaUrl(audioKey).catch(() => null) : null;
+    return res.json({ success: true, ...rest, imageUrl, audioUrl });
   } catch (error) { return coachFail(res, 'observation', error); }
 });
 

@@ -185,7 +185,7 @@ const SQL = {
   // bd-o15qnr.10 — one HITL observation, for its read-only report. The caller
   // re-checks that its teacher is in the coach's patch before serving it.
   OBSERVATION_BY_ID: `
-    SELECT id, created_at, status, debrief_status, observation_type, user_id, observer_user_id,
+    SELECT id, created_at, status, debrief_status, observation_type, user_id, observer_user_id, audio_url,
            analysis_data->'scores'                AS scores,
            analysis_data->>'executive_summary'    AS summary,
            analysis_data->'teacher_delivery'      AS delivery
@@ -510,18 +510,21 @@ function historyRow(r, leaderUserId) {
 }
 
 /**
- * bd-o15qnr.10 — one sent HITL report, read-only: when it was, its score and
- * summary, who observed, and the stored key of the report image the teacher
- * received (the route signs it). Null unless the observation's teacher is in
- * this coach's patch AND its report is out — the same patch guard as
- * getCoachTeacher.
+ * bd-o15qnr.10 / bd-o15qnr.19 — one HITL observation for the v2 observation
+ * page: when it was, where it stands (step, and whether it is her own portal
+ * observation — the portal can take only those through each step), the Digital
+ * Coach score (the draft's, before her check) and the final score, its summary,
+ * who observed, the lesson audio key and — once the report is out — the stored
+ * key of the report image the teacher received (the route signs both). Null
+ * unless the observation's teacher is in this coach's patch, the same guard as
+ * getCoachTeacher. Before bd-o15qnr.19 only sent reports were served.
  */
 async function getCoachObservation(query, leaderUserId, sessionId, opts = {}) {
   const today = opts.today || new Date().toISOString().slice(0, 10);
   const res = await query(SQL.OBSERVATION_BY_ID, [sessionId]);
   const row = (res.rows || [])[0];
   if (!row || !row.user_id) return null;
-  if (stepOf(row) !== 'sent') return null;
+  const step = stepOf(row);
 
   const teachers = await loadTeachers(query, leaderUserId, today);
   const teacher = teachers.find((t) => t.rumiUserId && t.rumiUserId === row.user_id);
@@ -533,17 +536,25 @@ async function getCoachObservation(query, leaderUserId, sessionId, opts = {}) {
     const n = await query(SQL.USER_NAME, [row.observer_user_id]);
     observerName = ((n.rows || [])[0] || {}).name || null;
   }
-  const delivery = row.delivery || {};
+  const sent = step === 'sent';
+  const delivery = sent ? (row.delivery || {}) : {};
+  const audio = row.audio_url ? String(row.audio_url).split('?')[0] : '';
+  const overall = row.scores ? getOverall({ scores: row.scores }) : null;
   return {
     id: row.id,
     date: isoStamp(row.created_at),
+    step,
+    portal: PORTAL_KEY_RX.test(audio),
+    mine: self,
     score: scoreOf({ status: row.status, analysis_data: { scores: row.scores } }),
+    dcScore: overall && overall.percentage != null ? overall.percentage : null,
     summary: row.summary || null,
     teacher: { name: teacher.name, teacherExtId: teacher.teacherExtId, schoolName: teacher.schoolName },
     observer: { self, name: observerName },
     sentAt: delivery.sent_at || delivery.send_requested_at || null,
     caption: delivery.caption || null,
     reportKey: delivery.report_key || null,
+    audioKey: row.audio_url || null,
   };
 }
 
