@@ -5,9 +5,17 @@
  * and are faked; every first-party module on the path runs for real.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
-jest.mock('../../../shared/services/cache/railway-redis.service', () => ({
-  get: jest.fn().mockResolvedValue(null), set: jest.fn().mockResolvedValue(true), delete: jest.fn().mockResolvedValue(true),
-}));
+// Redis is a boundary: an in-memory SET NX / GET, so the hub's first-device binding runs for real.
+jest.mock('../../../shared/services/cache/railway-redis.service', () => {
+  const store = new Map();
+  return {
+    _store: store, _up: true,
+    isAvailable() { return this._up; },
+    get: jest.fn(async function get(k) { return this._up && store.has(k) ? store.get(k) : null; }),
+    set: jest.fn().mockResolvedValue(true), delete: jest.fn().mockResolvedValue(true),
+    setNX: jest.fn(async function setNX(k, v) { if (!this._up) return true; if (store.has(k)) return false; store.set(k, v); return true; }),
+  };
+});
 jest.mock('../../../shared/services/whatsapp.service', () => ({
   sendMessage: jest.fn().mockResolvedValue(true),
   sendInteractiveButtons: jest.fn().mockResolvedValue(true),
@@ -25,6 +33,7 @@ const { resolveUx } = require('../../../shared/config/ux-strings');
 const T = require('../../../shared/services/quiz/web-quiz-token');
 const Hub = require('../../../shared/services/quiz/web-quiz-hub');
 const SQ = require('../../../shared/services/quiz/student-quiz.service');
+const redis = require('../../../shared/services/cache/railway-redis.service');
 
 const PHONE = '923001112223';
 const PORTAL = 'https://portal.example.test';
@@ -107,8 +116,15 @@ beforeEach(() => {
   delete process.env.WEB_QUIZ_BASE_URL;
   delete process.env.STUDENT_QUIZ_FLOW_ID;
   Hub._resetCache();
+  redis._store.clear();
+  redis._up = true;
   seed();
 });
+
+// The phone the WhatsApp /quiz link was opened on first (the hub binds its token to it).
+const DEV_A = 'AAAAAAAAAAAAAAAAAAAAAA';
+const DEV_B = 'BBBBBBBBBBBBBBBBBBBBBB';
+const A = { device: DEV_A };
 
 const chipH = (id) => T.chipId('h', id);
 
@@ -116,19 +132,19 @@ describe('hub(): who the hub is for', () => {
   test('a forged or wrong-kind token is 401; the hub switch off is 503', async () => {
     await expect(Hub.hub('abc.def')).rejects.toMatchObject({ status: 401, body: { error: 'bad_token' } });
     const st = T.signSession({ sessionId: 's', deviceRef: 'd', shareCodeId: 'sc' });
-    await expect(Hub.hub(st)).rejects.toMatchObject({ status: 401 });
+    await expect(Hub.hub(st, A)).rejects.toMatchObject({ status: 401 });
     seed({ app_settings: [{ key: 'web_quiz_hub', value: 'false' }] });
-    await expect(Hub.hub(T.signHub([KID]))).rejects.toMatchObject({ status: 503, body: { error: 'web_quiz_off' } });
+    await expect(Hub.hub(T.signHub([KID]), A)).rejects.toMatchObject({ status: 503, body: { error: 'web_quiz_off' } });
   });
 
   test('0 children: the token names nobody still active -> an empty hub, no reads beyond the students', async () => {
     seed({ students: [] });
-    const out = await Hub.hub(T.signHub([KID]));
+    const out = await Hub.hub(T.signHub([KID]), A);
     expect(out).toMatchObject({ kids: [], kid: null, teacher: null, again: [], recs: [], challenge: null });
   });
 
   test('1 child: chosen at once; the payload has no student id, no surname, no phone', async () => {
-    const out = await Hub.hub(T.signHub([KID]));
+    const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.kids).toEqual([{ chip: chipH(KID), first: 'Sana', animal: T.animalFor(KID), grade: '3' }]);
     expect(out.kid).toBe(chipH(KID));
     const text = JSON.stringify(out);
@@ -139,72 +155,131 @@ describe('hub(): who the hub is for', () => {
 
   test('2 children and no pick: ONLY the token\'s children, nothing else loaded; a pick chooses one', async () => {
     const token = T.signHub([KID, SIB]);
-    const out = await Hub.hub(token);
+    const out = await Hub.hub(token, A);
     expect(out.kids.map((k) => k.first)).toEqual(['Sana', 'Bilal']);
     expect(out.kid).toBeNull();
     expect(out.teacher).toBeNull();
     expect(out.again).toEqual([]);
     expect(JSON.stringify(out)).not.toContain('Other');
-    const picked = await Hub.hub(token, { kid: chipH(SIB) });
+    const picked = await Hub.hub(token, { kid: chipH(SIB), ...A });
     expect(picked.kid).toBe(chipH(SIB));
     // A chip of a child the token does not name picks nobody.
-    expect((await Hub.hub(token, { kid: chipH(OTHER) })).kid).toBeNull();
+    expect((await Hub.hub(token, { kid: chipH(OTHER), ...A })).kid).toBeNull();
     expect(Hub.kidOf(token, chipH(SIB))).toBe(SIB);
     expect(Hub.kidOf(token, chipH(OTHER))).toBeNull();
+  });
+});
+
+describe('hub(): a FORWARDED link names nobody (bound to the first phone that opens it)', () => {
+  const NAMES = /Sana|Bilal|Testwala/;
+
+  test('device A opens first and sees its children; device B opening the same link gets NO first name, no history', async () => {
+    const token = T.signHub([KID, SIB]);
+    const a = await Hub.hub(token, { device: DEV_A });
+    expect(a.kids.map((k) => k.first)).toEqual(['Sana', 'Bilal']);
+    for (const opts of [{ device: DEV_B }, { device: DEV_B, kid: chipH(KID) }]) {
+      const b = await Hub.hub(token, opts);
+      expect(JSON.stringify(b)).not.toMatch(NAMES);
+      expect(b).toMatchObject({ locked: true, kids: [], kid: null, teacher: null, again: [], recs: [], challenge: null, lib: null });
+      expect(b.lang).toBe('en');
+    }
+    const locked = logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.hub_locked');
+    expect(locked.length).toBe(2);
+    expect(JSON.stringify(locked)).not.toMatch(/Sana|Bilal|Testwala|4444|AAAA|BBBB/);
+  });
+
+  test('the same device A again: unchanged (names, the chosen child\'s hub)', async () => {
+    const token = T.signHub([KID]);
+    const first = await Hub.hub(token, { device: DEV_A });
+    await Hub.hub(token, { device: DEV_B });
+    const again = await Hub.hub(token, { device: DEV_A });
+    expect(again).toEqual(first);
+    expect(again.kids[0].first).toBe('Sana');
+    expect(again.locked).toBeUndefined();
+  });
+
+  test('no device (the server render): no names, and the link stays free for the first phone', async () => {
+    const token = T.signHub([KID]);
+    const none = await Hub.hub(token);
+    expect(JSON.stringify(none)).not.toMatch(NAMES);
+    expect(none.locked).toBe(true);
+    expect((await Hub.hub(token, { device: DEV_B })).kids[0].first).toBe('Sana');
+    expect((await Hub.hub(token, { device: DEV_A })).locked).toBe(true);
+  });
+
+  test('a device that already played as one of the children is trusted even after another phone took the link', async () => {
+    const token = T.signHub([KID]);
+    await Hub.hub(token, { device: DEV_A });
+    db.quiz_sessions.push(sess('s-b', 'sc-eng', 'q-eng', 'completed', 1, 2, ago(70), { device_ref: DEV_B }));
+    expect((await Hub.hub(token, { device: DEV_B })).kids[0].first).toBe('Sana');
+  });
+
+  test('Redis down: fail closed for a phone the children never played on; a known phone still works', async () => {
+    redis._up = false;
+    const token = T.signHub([KID]);
+    expect((await Hub.hub(token, { device: DEV_A })).locked).toBe(true);
+    db.quiz_sessions.push(sess('s-a', 'sc-eng', 'q-eng', 'completed', 1, 2, ago(70), { device_ref: DEV_A }));
+    expect((await Hub.hub(token, { device: DEV_A })).kids[0].first).toBe('Sana');
+  });
+
+  test('a device_ref that is not one we could have minted is no device', async () => {
+    const token = T.signHub([KID]);
+    expect((await Hub.hub(token, { device: 'x' })).locked).toBe(true);
+    expect((await Hub.hub(token, { device: DEV_A })).locked).toBeUndefined();
   });
 });
 
 describe('hub(): from your teacher', () => {
   test('(a) a teacher-sent code this child opened and has not finished comes first', async () => {
     db.quiz_sessions.push(sess('s5', 'sc-g5', 'q-g5', 'in_progress', 1, 1, ago(1)));
-    const out = await Hub.hub(T.signHub([KID]));
+    const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.teacher).toMatchObject({ code: 'GRD501', src: 'opened', k: T.chipId('sc-g5', KID) });
   });
 
   test('(b) else the class teacher\'s open code from the last 7 days for the list\'s grade (not grade 5, not 9 days old)', async () => {
-    const out = await Hub.hub(T.signHub([KID]));
+    const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.teacher).toMatchObject({ code: 'NEWQ01', topic: 'Shapes', src: 'teacher', k: T.chipId('sc-new', KID) });
   });
 
   test('(b) a LOOSE child (no class list, as every prod quiz child today): the teachers whose links they played', async () => {
     db.students[0].list_id = null;
     db.students[0].self_reported_class = '3B';
-    const out = await Hub.hub(T.signHub([KID]));
+    const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.teacher).toMatchObject({ code: 'NEWQ01', src: 'teacher' });
   });
 
   test('(b) a quiz with no grade, or a band without the child\'s grade, is never the teacher card', async () => {
     db.quizzes.find((q) => q.id === 'q-new').grade = null;
-    expect((await Hub.hub(T.signHub([KID]))).teacher).toBeNull();
+    expect((await Hub.hub(T.signHub([KID]), A)).teacher).toBeNull();
     db.quizzes.find((q) => q.id === 'q-new').grade = '4-6';
-    expect((await Hub.hub(T.signHub([KID]))).teacher).toBeNull();
+    expect((await Hub.hub(T.signHub([KID]), A)).teacher).toBeNull();
     db.quizzes.find((q) => q.id === 'q-new').grade = '1-3';
-    expect((await Hub.hub(T.signHub([KID]))).teacher).toMatchObject({ code: 'NEWQ01' });
+    expect((await Hub.hub(T.signHub([KID]), A)).teacher).toMatchObject({ code: 'NEWQ01' });
   });
 
   test('(b) another teacher\'s code is never shown', async () => {
     db.quiz_share_codes.find((c) => c.id === 'sc-new').teacher_user_id = '11111111-1111-4111-8111-00000000000f';
-    expect((await Hub.hub(T.signHub([KID]))).teacher).toBeNull();
+    expect((await Hub.hub(T.signHub([KID]), A)).teacher).toBeNull();
   });
 
   test('none: no open, unfinished code for the grade -> null (the page shows the warm empty state)', async () => {
     db.quiz_share_codes.find((c) => c.id === 'sc-new').active = false;
-    const out = await Hub.hub(T.signHub([KID]));
+    const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.teacher).toBeNull();
     // A child with no class list and nothing opened has no teacher card either.
-    expect((await Hub.hub(T.signHub([SIB]))).teacher).toBeNull();
+    expect((await Hub.hub(T.signHub([SIB]), A)).teacher).toBeNull();
   });
 
   test('a code the child already finished is never the teacher card', async () => {
     db.quiz_sessions.push(sess('s6', 'sc-new', 'q-new', 'completed', 3, 5, ago(3)));
-    const out = await Hub.hub(T.signHub([KID]));
+    const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.teacher).toBeNull();
   });
 });
 
 describe('hub(): play again', () => {
   test('finished, still-open codes, newest first, with the BEST score, the tries and the code\'s own chip', async () => {
-    const out = await Hub.hub(T.signHub([KID]));
+    const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.again.map((a) => a.code)).toEqual(['MATH01', 'ENGL01']); // SCIE01 is closed
     expect(out.again[0]).toMatchObject({ best: { c: 8, t: 10 }, tries: 2, k: T.chipId('sc-maths', KID) });
     expect(out.again[1]).toMatchObject({ best: { c: 6, t: 8 }, tries: 1 });
@@ -215,14 +290,14 @@ describe('hub(): play again', () => {
       db.quiz_share_codes.push(code(`sc-x${i}`, `XQ00${i}`, 'q-eng', { created_at: ago(100 + i) }));
       db.quiz_sessions.push(sess(`sx${i}`, `sc-x${i}`, 'q-eng', 'completed', 1, 2, ago(100 + i)));
     }
-    expect((await Hub.hub(T.signHub([KID]))).again).toHaveLength(6);
+    expect((await Hub.hub(T.signHub([KID]), A)).again).toHaveLength(6);
   });
 });
 
 describe('hub(): recommended for you', () => {
   test('the last finished quiz\'s chapter first, then the next chapters, then the rest; finished videos never', async () => {
     // Last finished = the Maths video quiz (V2, chapter Fractions). V2's quiz is finished.
-    const out = await Hub.hub(T.signHub([KID]));
+    const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.recs.map((r) => r.vid)).toEqual([V(3), V(8), V(4)]); // Quarters, Thirds (same chapter), Measurement (next)
     expect(out.recs[0]).toMatchObject({ title: 'Quarters', chapter: 'Fractions', subject: 'Maths', grade: '3' });
   });
@@ -231,24 +306,24 @@ describe('hub(): recommended for you', () => {
     db.quiz_sessions.push(sess('s7', 'sc-v3', VQ(3), 'completed', 2, 2, ago(19)));
     db.quiz_sessions.push(sess('s8', 'sc-v8', VQ(8), 'completed', 2, 2, ago(19)));
     db.quiz_sessions.push(sess('s9', 'sc-v4', VQ(4), 'completed', 2, 2, ago(19)));
-    const out = await Hub.hub(T.signHub([KID]));
+    const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.recs.map((r) => r.vid)).toEqual([V(1), V(5), V(6)]); // Addition (rest of Maths), then English
   });
 
   test('no history: the first chapter of each subject of the child\'s grade', async () => {
     seed({ quiz_sessions: [] });
-    const out = await Hub.hub(T.signHub([KID]));
+    const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.recs.map((r) => r.vid)).toEqual([V(5), V(1), V(7)]); // English, Maths, Science
   });
 
   test('a lesson quiz (no video) points the recs at its subject and grade', async () => {
     db.quiz_sessions = [sess('s1', 'sc-eng', 'q-eng', 'completed', 6, 8, ago(5))];
-    const out = await Hub.hub(T.signHub([KID]));
+    const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.recs[0].subject).toBe('English');
   });
 
   test('the hub_open event carries counts only', async () => {
-    await Hub.hub(T.signHub([KID]));
+    await Hub.hub(T.signHub([KID]), A);
     const call = logEvent.mock.calls.find((c) => c[0] === 'web_quiz.hub_open');
     expect(call[1]).toMatchObject({ kids: 1, has_teacher: true, again_n: 2, recs_n: 3 });
     expect(JSON.stringify(call[1])).not.toMatch(/Sana|Testwala|4444/);
@@ -258,20 +333,44 @@ describe('hub(): recommended for you', () => {
 describe('kidFromHub (the library and challenge routes)', () => {
   test('the chip\'s child, their grade and their class root code; a foreign chip or forged token is null', async () => {
     const token = T.signHub([KID, SIB]);
-    expect(await Hub.kidFromHub(token, chipH(KID))).toEqual({ studentId: KID, grade: '3', rootId: 'sc-maths' });
-    expect(await Hub.kidFromHub(token, chipH(OTHER))).toBeNull();
-    expect(await Hub.kidFromHub('abc.def', chipH(KID))).toBeNull();
-    expect(await Hub.kidFromHub(token, chipH(SIB))).toEqual({ studentId: SIB, grade: '5', rootId: null });
+    expect(await Hub.kidFromHub(token, chipH(KID), DEV_A)).toEqual({ studentId: KID, grade: '3', rootId: 'sc-maths' });
+    expect(await Hub.kidFromHub(token, chipH(OTHER), DEV_A)).toBeNull();
+    expect(await Hub.kidFromHub('abc.def', chipH(KID), DEV_A)).toBeNull();
+    expect(await Hub.kidFromHub(token, chipH(SIB), DEV_A)).toEqual({ studentId: SIB, grade: '5', rootId: null });
+  });
+
+  test('a forwarded link opens no library as the child: another phone, or no device, is null', async () => {
+    const token = T.signHub([KID]);
+    expect(await Hub.kidFromHub(token, chipH(KID), DEV_A)).toMatchObject({ studentId: KID });
+    expect(await Hub.kidFromHub(token, chipH(KID), DEV_B)).toBeNull();
+    expect(await Hub.kidFromHub(token, chipH(KID))).toBeNull();
+  });
+});
+
+describe('the library and the recommendations from a forwarded hub link (real kidFromHub)', () => {
+  test('device B: the library from the hub and a recommended video start are 401; device A is not refused for who it is', async () => {
+    db.app_settings.push({ key: 'web_quiz_library', value: 'true' }, { key: 'web_quiz_enabled', value: 'true' });
+    Hub._resetCache();
+    const Lib = require('../../../shared/services/quiz/web-quiz-library');
+    const Videos = require('../../../shared/services/quiz/web-quiz-videos');
+    const token = T.signHub([KID]);
+    await Hub.hub(token, A); // the family phone opens it first
+    await expect(Videos.start({ hub: token, kid: chipH(KID), vid: V(3), device: DEV_B })).rejects.toMatchObject({ status: 401, body: { error: 'bad_token' } });
+    await expect(Lib.libHub(token, { kid: chipH(KID), device: DEV_B })).rejects.toMatchObject({ status: 401 });
+    const whoA = await Videos.start({ hub: token, kid: chipH(KID), vid: V(3), device: DEV_A }).then(() => 200, (e) => e.status);
+    expect(whoA).not.toBe(401);
+    const libA = await Lib.libHub(token, { kid: chipH(KID), device: DEV_A }).then(() => 200, (e) => e.status);
+    expect(libA).not.toBe(401);
   });
 });
 
 describe('hub(): challenge and library', () => {
   test('challenge only with web_quiz_challenge on and grade 2-5; library to M4b\'s page when it is on', async () => {
-    expect((await Hub.hub(T.signHub([KID]))).challenge).toBeNull();
+    expect((await Hub.hub(T.signHub([KID]), A)).challenge).toBeNull();
     seed({ app_settings: [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_challenge', value: 'true' }, { key: 'web_quiz_library', value: 'true' }] });
     Hub._resetCache();
     const token = T.signHub([KID]);
-    const out = await Hub.hub(token);
+    const out = await Hub.hub(token, A);
     expect(out.challenge).toMatchObject({ on: true });
     expect(out.lib.href).toBe(`/lib/${token}?kid=${chipH(KID)}&l=en`);
   });
@@ -282,13 +381,13 @@ describe('hub(): challenge and library', () => {
     db.quizzes.forEach((q) => { q.language = 'ur'; });
     Hub._resetCache();
     const token = T.signHub([KID]);
-    const out = await Hub.hub(token);
+    const out = await Hub.hub(token, A);
     expect(out.lang).toBe('ur');
     expect(out.lib.href).toBe(`/lib/${token}?kid=${chipH(KID)}&l=ur`);
   });
 
   test('library off: the child\'s newest open quiz, under that code\'s chip', async () => {
-    const out = await Hub.hub(T.signHub([KID]));
+    const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.lib.href).toBe(`/q/MATH01?k=${T.chipId('sc-maths', KID)}`);
   });
 });

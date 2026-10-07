@@ -11,7 +11,7 @@ process.env.R2_BUCKET_NAME = 'test-bucket';
 
 jest.mock('../../../shared/config/supabase', () => ({}));
 const mockKidFromHub = jest.fn();
-jest.mock('../../../shared/services/quiz/web-quiz-hub', () => ({ kidFromHub: (...a) => mockKidFromHub(...a) }), { virtual: true });
+jest.mock('../../../shared/services/quiz/web-quiz-hub', () => ({ kidFromHub: (...a) => mockKidFromHub(...a) }));
 jest.mock('../../../shared/services/queue/sqs-queue.service', () => ({ queueJob: jest.fn().mockResolvedValue({ MessageId: 'm1' }) }));
 jest.mock('../../../shared/services/cache/railway-redis.service', () => ({
   setNX: jest.fn(async () => true), get: jest.fn(async () => null), set: jest.fn(async () => true), delete: jest.fn(async () => true),
@@ -313,7 +313,7 @@ describe('lib from the hub', () => {
   test('the child named by the hub: their grade, their done marks, the class code and k (their chip on that code)', async () => {
     mockKidFromHub.mockResolvedValue({ studentId: KID_A, grade: '3', rootId: SC });
     const out = await Lib.libHub('hubtoken', { kid: 'chip-1', s: 'Science' });
-    expect(mockKidFromHub).toHaveBeenCalledWith('hubtoken', 'chip-1');
+    expect(mockKidFromHub).toHaveBeenCalledWith('hubtoken', 'chip-1', undefined);
     const [leaves, flower] = out.chapters[1].videos;
     expect(leaves.done).toBe(true);
     expect(flower).toMatchObject({ code: 'VID001', k: T.chipId('sc-v1', KID_A) });

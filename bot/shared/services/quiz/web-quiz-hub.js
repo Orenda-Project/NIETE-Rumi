@@ -15,7 +15,14 @@
  *   hub(token, {kid})      the page's boot JSON (contract: W37 M4 SPEC §1.3)
  *   hubLink(studentIds)    `<portal>/h/<token>` when the hub is on, else null
  *   kidOf(token, kid)      the student id a hub chip names
- *   kidFromHub(token, kid) {studentId, grade, rootId} for the library / challenge routes
+ *   kidFromHub(token, kid, device) {studentId, grade, rootId} for the library route (null on an untrusted phone)
+ *   deviceTrusted(token, device)  may this phone (device_ref) see the children's names?
+ *
+ * A FORWARDED LINK NAMES NOBODY. The hub token is bound to the first phone (device_ref)
+ * that opens it — Redis SET NX for the token's life — and a phone that has already played
+ * as one of its children is trusted too. Any other phone, a request with no device (the
+ * server render) or Redis down gets `locked: true` with no names, no history and no chips:
+ * the page asks for the child the link was sent to. Fail closed, never a silent play.
  *
  * Teacher card: (a) a teacher-sent code this child opened and has not finished,
  * still open; else (b) an open code from the last 7 days, of the child's grade,
@@ -64,6 +71,9 @@ function kidOf(token, kid) {
   if (!tok || !Array.isArray(tok.ids) || !kid) return null;
   return tok.ids.map(String).find((id) => kidChip(id) === String(kid)) || null;
 }
+
+// Which phone may see a hub's children: web-quiz-hub-device.js (a leaf module, so web-quiz.service can ask it too).
+const { deviceTrusted, deviceMayName } = require('./web-quiz-hub-device');
 
 /**
  * Recommendation order (pure). `rows` = playable bank rows of grade G the child has not
@@ -185,9 +195,11 @@ async function recsFor(kidId, history, grade) {
  * their class root code (the newest teacher-sent code they played; "watch more" codes hang
  * off it). Null when the token or the chip is not genuine.
  */
-async function kidFromHub(token, chip) {
+async function kidFromHub(token, chip, device) {
   const studentId = kidOf(token, chip);
   if (!studentId) return null;
+  // A forwarded link opens nothing as the child on another phone.
+  if (!(await deviceTrusted(token, device)).ok) return null;
   const ctx = await kidContext(studentId);
   if (!ctx) return null;
   const root = ctx.history.find((e) => e.teacherSent) || null;
@@ -219,13 +231,31 @@ async function brandKey() {
   }
 }
 
+/** A phone that may not see the children: their language only, never a name, a chip or a quiz. */
+async function lockedHub(ids, why) {
+  let lang = 'en';
+  try {
+    const { data: rows } = await supabase.from('students').select('id, is_active').in('id', ids);
+    const live = (rows || []).filter((r) => r.is_active !== false);
+    if (live.length) {
+      const StudentQuiz = require('./student-quiz.service');
+      const history = await StudentQuiz.quizzesForStudents(live);
+      lang = clampLanguage(history[0] && history[0].language);
+    }
+  } catch (_) { /* English */ }
+  logEvent('web_quiz.hub_locked', { kids: ids.length, why });
+  return { lang, locked: true, kids: [], kid: null, teacher: null, again: [], recs: [], challenge: null, lib: null, brand: await brandKey() };
+}
+
 // ─── the hub ────────────────────────────────────────────────────────────────
 
-async function hub(token, { kid } = {}) {
+async function hub(token, { kid, device } = {}) {
   if (!T.secret()) fail(503, 'web_quiz_off');
   const ids = idsOf(token);
   const f = await Flags.flags();
   if (!f.hub) fail(503, 'web_quiz_off');
+  const trust = await deviceTrusted(token, device);
+  if (!trust.ok) return lockedHub(ids, trust.why);
 
   const { data: rows } = await supabase.from('students')
     .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', ids);
@@ -277,7 +307,7 @@ async function hub(token, { kid } = {}) {
 }
 
 module.exports = {
-  hub, kidOf, kidFromHub, recOrder, firstOfEach, AGAIN_MAX, RECS_MAX,
+  hub, kidOf, kidFromHub, deviceTrusted, deviceMayName, recOrder, firstOfEach, AGAIN_MAX, RECS_MAX,
   // the switches live in web-quiz-hub-flags.js (student-quiz reads them without loading this module)
   hubLink: Flags.hubLink, flags: Flags.flags, HUB_KEY: Flags.HUB_KEY, CHALLENGE_KEY: Flags.CHALLENGE_KEY, LIBRARY_KEY: Flags.LIBRARY_KEY,
   _resetCache: Flags._resetCache,

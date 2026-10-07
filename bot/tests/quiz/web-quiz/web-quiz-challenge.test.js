@@ -27,6 +27,16 @@ jest.mock('../../../shared/services/llm-client', () => {
   const create = jest.fn();
   return { __create: create, getClient: () => ({ chat: { completions: { create } } }) };
 });
+// Redis is a boundary: an in-memory SET NX / GET, so the hub's first-device binding (web-quiz-hub deviceTrusted) runs for real.
+jest.mock('../../../shared/services/cache/railway-redis.service', () => {
+  const store = new Map();
+  return {
+    _store: store,
+    isAvailable: () => true,
+    get: async (k) => (store.has(k) ? store.get(k) : null),
+    setNX: async (k, v) => { if (store.has(k)) return false; store.set(k, v); return true; },
+  };
+});
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 
 const fs = require('fs');
@@ -64,6 +74,10 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
+// The family's phone (the first to open the hub link); every hub-token call below comes from it.
+const DEV = 'FamilyPhoneDeviceRef_1';
+const DEV_B = 'ForwardedToPhoneRef_22';
+const D = { device: DEV };
 const hub = (ids = [KID]) => T.sign({ k: 'h', ids, exp: Math.floor(Date.now() / 1000) + 3600 });
 const st = () => T.signSession({ sessionId: SESSION, deviceRef: 'd'.repeat(22), shareCodeId: SC });
 const expectFail = async (p, status, error) => {
@@ -83,7 +97,7 @@ describe('challenge token (kind c)', () => {
   });
 
   test('the menu opens from a hub token (kind h) and from a quiz session token; a preview token is refused', async () => {
-    const a = await Ch.menu(hub());
+    const a = await Ch.menu(hub(), D);
     expect(a.exercises.map((e) => e.id)).toEqual(['bigger', 'read']);
     const b = await Ch.menu(st());
     expect(b.exercises.map((e) => e.id)).toEqual(['bigger', 'read']);
@@ -95,46 +109,58 @@ describe('challenge token (kind c)', () => {
     expect(Ch.kidChip(KID)).toBe(T.chipId('h', KID));
   });
 
+  test('a FORWARDED hub link names nobody here either: another phone gets 403 other_device on the menu (no last results) and on an exercise (no play as the child)', async () => {
+    db.web_quiz_challenge_runs.push({ id: 'x9', student_id: KID, exercise: 'bigger', status: 'scored', score: { correct: 7, n: 10 }, created_at: '2026-10-06T10:00:00Z' });
+    const tok = hub();
+    expect((await Ch.menu(tok, D)).exercises[0].done).toBe(true);
+    await expectFail(Ch.menu(tok, { device: DEV_B }), 403, 'other_device');
+    await expectFail(Ch.exercise(tok, 'bigger', { device: DEV_B }), 403, 'other_device');
+    await expectFail(Ch.menu(tok), 403, 'other_device');
+    // the family's phone is unchanged; a quiz session token (no hub) needs no device
+    expect((await Ch.menu(tok, D)).exercises).toHaveLength(2);
+    expect((await Ch.menu(st())).exercises).toHaveLength(2);
+  });
+
   test('a hub token with two children needs the kid chip, and only a chip of ITS children works', async () => {
     const two = hub([KID, KID2]);
-    await expectFail(Ch.menu(two), 400, 'pick_kid');
-    const m = await Ch.menu(two, { kid: Ch.kidChip(KID2) });
+    await expectFail(Ch.menu(two, D), 400, 'pick_kid');
+    const m = await Ch.menu(two, { ...D, kid: Ch.kidChip(KID2) });
     expect(m.exercises).toHaveLength(2);
-    await expectFail(Ch.menu(hub([KID]), { kid: Ch.kidChip(KID2) }), 401, 'bad_token');
+    await expectFail(Ch.menu(hub([KID]), { ...D, kid: Ch.kidChip(KID2) }), 401, 'bad_token');
   });
 
   test('a loose child (no class list, as most quiz children are) gets a grade from their own class or their newest quiz', async () => {
     db.students[0].list_id = null;
     db.students[0].self_reported_class = '4B';
-    expect((await Ch.menu(hub())).form).toBe('G5');
+    expect((await Ch.menu(hub(), D)).form).toBe('G5');
     db.students[0].self_reported_class = null;
     db.quiz_sessions[0].student_class = null;
     db.quiz_sessions[0].created_at = '2026-10-06T08:00:00Z';
     db.quizzes = [{ id: 'q1', grade: '3' }];
-    expect((await Ch.menu(hub())).form).toBe('G3');
+    expect((await Ch.menu(hub(), D)).form).toBe('G3');
   });
 
   test('a band ("3-5") is not a grade: never its first digit', async () => {
     db.students[0].list_id = null;
     db.students[0].self_reported_class = '3-5';
     db.quizzes = [{ id: 'q1', grade: '3-5' }];
-    await expectFail(Ch.menu(hub()), 403, 'not_eligible');
+    await expectFail(Ch.menu(hub(), D), 403, 'not_eligible');
   });
 
   test('the class the child is enrolled in wins over the old list and the child\'s own answer', async () => {
     db.classes = [{ id: 'c5', grade_code: 'grade_5', is_active: true }];
     db.class_enrollments = [{ id: 'e1', class_id: 'c5', student_id: KID, is_active: true }];
     db.students[0].self_reported_class = '2';
-    expect((await Ch.menu(hub())).form).toBe('G5');
+    expect((await Ch.menu(hub(), D)).form).toBe('G5');
   });
 
   test('switch off ⇒ 503; a grade outside 2-5 ⇒ not eligible', async () => {
     db.app_settings[0].value = false;
-    await expectFail(Ch.menu(hub()), 503, 'challenge_off');
+    await expectFail(Ch.menu(hub(), D), 503, 'challenge_off');
     Ch.__reset();
     db.app_settings[0].value = true;
     db.student_lists[0].class_name = '7';
-    await expectFail(Ch.menu(hub()), 403, 'not_eligible');
+    await expectFail(Ch.menu(hub(), D), 403, 'not_eligible');
   });
 });
 
@@ -142,7 +168,7 @@ describe('challenge token (kind c)', () => {
 describe('menu and exercise payloads', () => {
   test('menu: two exercises with names in the kid\'s language, the G3 form, done/last from stored runs', async () => {
     db.web_quiz_challenge_runs.push({ id: 'x1', student_id: KID, exercise: 'bigger', status: 'scored', score: { correct: 7, n: 10 }, created_at: '2026-10-06T10:00:00Z' });
-    const m = await Ch.menu(hub(), { lang: 'ur' });
+    const m = await Ch.menu(hub(), { ...D, lang: 'ur' });
     expect(m.form).toBe('G3');
     expect(m.lang).toBe('ur');
     expect(m.exercises[0]).toMatchObject({ id: 'bigger', name: 'کون سا بڑا ہے؟', mins: 2, done: true, last: { correct: 7, n: 10 } });
@@ -155,7 +181,7 @@ describe('menu and exercise payloads', () => {
   });
 
   test('bigger: the grade form\'s 10 pairs and 2 practice pairs from the item bank, without the answers', async () => {
-    const x = await Ch.exercise(hub(), 'bigger');
+    const x = await Ch.exercise(hub(), 'bigger', D);
     const bank = Bank.getTaskSpec({ grade: 3, set: 'A', task: 'ma.discrimination' });
     expect(x.items.map((i) => [i.a, i.b])).toEqual(bank.items.map((i) => [i.a, i.b]));
     expect(x.items.some((i) => 'answer' in i)).toBe(false);
@@ -163,12 +189,12 @@ describe('menu and exercise payloads', () => {
     expect(x.per_item_s).toBe(10);
     expect(T.verify(x.ct, 'c')).toMatchObject({ sid: KID, ex: 'bigger' });
     db.student_lists[0].class_name = '5';
-    const g5 = await Ch.exercise(hub(), 'bigger');
+    const g5 = await Ch.exercise(hub(), 'bigger', D);
     expect(g5.items[6]).toEqual({ a: 0.6, b: 0.8 });
   });
 
   test('read: the story of the page\'s language with its lines, 60 seconds', async () => {
-    const x = await Ch.exercise(hub(), 'read', { lang: 'ur' });
+    const x = await Ch.exercise(hub(), 'read', { ...D, lang: 'ur' });
     const bank = Bank.getTaskSpec({ grade: 3, set: 'A', task: 'ur.story' });
     expect(x.story.tokens).toEqual(bank.story.tokens);
     expect(x.story.lines[0]).toEqual({ n: 1, from: 0, to: 10 });
@@ -184,7 +210,7 @@ describe('menu and exercise payloads', () => {
     process.env.RAILWAY_ENVIRONMENT_NAME = 'sandbox';
     r2.headObject.mockResolvedValue({ exists: false });
     try {
-      const x = await Ch.exercise(hub(), 'read', { lang: 'en' });
+      const x = await Ch.exercise(hub(), 'read', { ...D, lang: 'en' });
       expect(x.clips.intro.url).toBeNull();
       for (let k = 0; k < 20 && r2.uploadBuffer.mock.calls.length < 4; k += 1) await new Promise((r) => setTimeout(r, 5));
       expect(tts.synthesize).toHaveBeenCalledWith(expect.objectContaining({ language: 'en', provider: 'soniox', voice: 'Grace' }));
@@ -194,7 +220,7 @@ describe('menu and exercise payloads', () => {
       expect(opts).toEqual({ bucket: 'quiz-audio-test' });
       expect(r2.headObject).toHaveBeenCalledWith(expect.stringMatching(/^quiz-audio\/sandbox\/challenge\//), { bucket: 'quiz-audio-test' });
       tts.synthesize.mockClear();
-      await Ch.exercise(hub(), 'read', { lang: 'en' });
+      await Ch.exercise(hub(), 'read', { ...D, lang: 'en' });
       expect(tts.synthesize).not.toHaveBeenCalled();
     } finally {
       delete process.env.WEB_QUIZ_AUDIO_BUCKET;
@@ -206,13 +232,13 @@ describe('menu and exercise payloads', () => {
   test('an existing clip is signed from the quiz-audio bucket', async () => {
     process.env.WEB_QUIZ_AUDIO_BUCKET = 'quiz-audio-test';
     try {
-      const x = await Ch.exercise(hub(), 'bigger', { lang: 'ur' });
+      const x = await Ch.exercise(hub(), 'bigger', { ...D, lang: 'ur' });
       expect(x.clips.start.url).toMatch(/^https:\/\/signed\.test\/quiz-audio\/.+\/challenge\/ur\/bigger\/start-sx-ishita-[0-9a-f]{8}\.ogg\?b=quiz-audio-test$/);
     } finally { delete process.env.WEB_QUIZ_AUDIO_BUCKET; }
   });
 
   test('an exercise that is not built yet is not offered', async () => {
-    await expectFail(Ch.exercise(hub(), 'sums'), 404, 'not_found');
+    await expectFail(Ch.exercise(hub(), 'sums', D), 404, 'not_found');
   });
 });
 
@@ -222,7 +248,7 @@ describe('bigger: the server re-scores and re-applies the 4-in-a-row stop', () =
   const taps = (picks, ms = 2000) => picks.map((pick, i) => ({ i, pick, ms }));
 
   test('all right ⇒ 10 / 10, stored once', async () => {
-    const { ct } = await Ch.exercise(hub(), 'bigger');
+    const { ct } = await Ch.exercise(hub(), 'bigger', D);
     const r = await Ch.submit({ ct, taps: taps(bank().map((i) => i.answer)), ms: 30000 });
     expect(r).toEqual({ score: { correct: 10, n: 10, stopped: false }, previous: null });
     expect(db.web_quiz_challenge_runs).toHaveLength(1);
@@ -231,7 +257,7 @@ describe('bigger: the server re-scores and re-applies the 4-in-a-row stop', () =
   });
 
   test('4 wrong in a row stops it: answers the phone sent after the stop are not counted', async () => {
-    const { ct } = await Ch.exercise(hub(), 'bigger');
+    const { ct } = await Ch.exercise(hub(), 'bigger', D);
     const items = bank();
     const wrong = (i) => (items[i].answer === items[i].a ? items[i].b : items[i].a);
     const picks = items.map((it, i) => ((i >= 2 && i <= 5) ? wrong(i) : it.answer));
@@ -240,7 +266,7 @@ describe('bigger: the server re-scores and re-applies the 4-in-a-row stop', () =
   });
 
   test('a tap slower than 10 s is a miss; a missing tap is a miss; a number that is not on the card is a miss', async () => {
-    const { ct } = await Ch.exercise(hub(), 'bigger');
+    const { ct } = await Ch.exercise(hub(), 'bigger', D);
     const items = bank();
     const t = taps(items.map((i) => i.answer));
     t[0].ms = 10500;
@@ -251,7 +277,7 @@ describe('bigger: the server re-scores and re-applies the 4-in-a-row stop', () =
   });
 
   test('a challenge token for another exercise, or a forged one, is refused', async () => {
-    const { ct } = await Ch.exercise(hub(), 'read');
+    const { ct } = await Ch.exercise(hub(), 'read', D);
     await expectFail(Ch.submit({ ct, taps: taps([1]), ms: 1 }), 400, 'no_audio');
     await expectFail(Ch.submit({ ct: `${ct}x`, taps: [], ms: 1 }), 401, 'bad_token');
   });
@@ -270,7 +296,7 @@ describe('wcpm = correct / (60 − time_left) × 60', () => {
 // ── upload presign ───────────────────────────────────────────────────────────
 describe('upload: presigned PUT straight to R2', () => {
   test('key = child-voice/<env>/<run>/read-<ts>.<ext> (the private prefix), content type signed, 15 minutes', async () => {
-    const { ct } = await Ch.exercise(hub(), 'read');
+    const { ct } = await Ch.exercise(hub(), 'read', D);
     const run = T.verify(ct, 'c').r;
     const u = await Ch.presignUpload({ ct, type: 'audio/webm;codecs=opus', size: 600000 });
     expect(u.key).toMatch(new RegExp(`^child-voice/sandbox/${run}/read-\\d{13}\\.webm$`));
@@ -283,7 +309,7 @@ describe('upload: presigned PUT straight to R2', () => {
   });
 
   test('the child\'s voice goes to CHILD_VOICE_BUCKET, else the quiz-audio bucket — never a default that is prod\'s on staging', async () => {
-    const { ct } = await Ch.exercise(hub(), 'read');
+    const { ct } = await Ch.exercise(hub(), 'read', D);
     process.env.WEB_QUIZ_AUDIO_BUCKET = 'quiz-audio-staging';
     try {
       await Ch.presignUpload({ ct, type: 'audio/webm', size: 10 });
@@ -295,10 +321,10 @@ describe('upload: presigned PUT straight to R2', () => {
   });
 
   test('over 3 MB, a non-audio type, or the "bigger" exercise ⇒ refused before any URL is made', async () => {
-    const { ct } = await Ch.exercise(hub(), 'read');
+    const { ct } = await Ch.exercise(hub(), 'read', D);
     await expectFail(Ch.presignUpload({ ct, type: 'audio/webm', size: 3 * 1024 * 1024 + 1 }), 413, 'too_large');
     await expectFail(Ch.presignUpload({ ct, type: 'text/html', size: 10 }), 400, 'wrong_type');
-    const b = await Ch.exercise(hub(), 'bigger');
+    const b = await Ch.exercise(hub(), 'bigger', D);
     await expectFail(Ch.presignUpload({ ct: b.ct, type: 'audio/webm', size: 10 }), 400, 'no_audio');
     expect(r2.getPresignedUploadUrl).not.toHaveBeenCalled();
   });
@@ -321,7 +347,7 @@ describe('read aloud: scored by the child-test story scorer', () => {
   const marks = (verdicts) => ({ usage: { cost: 0.0021 }, choices: [{ message: { content: JSON.stringify({
     words: verdicts.map((v, k) => ({ i: k + 1, w: enTokens()[k], v })), words_correct: 0, words_attempted: 0, notes: '' }) } }] });
   const start = async () => {
-    const { ct } = await Ch.exercise(hub(), 'read', { lang: 'en' });
+    const { ct } = await Ch.exercise(hub(), 'read', { ...D, lang: 'en' });
     const { key } = await Ch.presignUpload({ ct, type: 'audio/webm', size: 500000 });
     return { ct, key };
   };
@@ -356,10 +382,10 @@ describe('read aloud: scored by the child-test story scorer', () => {
     const second = await Ch.submit({ ct: again.ct, key: again.key, ms: 60000 }, { waitMs: 60000 });
     expect(second.wcpm).toBe(45);
     expect(second.previous).toMatchObject({ wcpm: 42 });
-    const b1 = await Ch.exercise(hub(), 'bigger');
+    const b1 = await Ch.exercise(hub(), 'bigger', D);
     const items = Bank.getTaskSpec({ grade: 3, set: 'A', task: 'ma.discrimination' }).items;
     await Ch.submit({ ct: b1.ct, taps: items.map((it, i) => ({ i, pick: it.answer, ms: 1000 })), ms: 1 });
-    const b2 = await Ch.exercise(hub(), 'bigger');
+    const b2 = await Ch.exercise(hub(), 'bigger', D);
     const r = await Ch.submit({ ct: b2.ct, taps: [], ms: 1 });
     expect(r.previous).toMatchObject({ correct: 10, n: 10 });
   });
@@ -493,7 +519,7 @@ describe('internal routes /api/internal/wq/ch/*', () => {
     app.use('/api/internal/wq', require('../../../shared/routes/web-quiz-internal.routes'));
     const srv = await new Promise((r) => { const s = app.listen(0, () => r(s)); });
     const base = `http://127.0.0.1:${srv.address().port}/api/internal/wq`;
-    const H = { 'x-api-key': 'test-internal-key', 'content-type': 'application/json' };
+    const H = { 'x-api-key': 'test-internal-key', 'content-type': 'application/json', 'x-wq-device': DEV };
     try {
       const m = await fetch(`${base}/ch/${hub()}?lang=en`, { headers: H });
       expect(m.status).toBe(200);

@@ -74,6 +74,7 @@ const API_ROUTES = [
   { method: 'get', path: '/api/wq/lib/h/:token', limiter: 'read', token: true },
   { method: 'get', path: '/api/wq/lib/:code', limiter: 'read' },
   { method: 'get', path: '/api/wq/videos/dl/:code', limiter: 'read' },
+  { method: 'post', path: '/api/wq/hub/:token', limiter: 'read' },
 ];
 
 // The shell's line under Jugnu, shown until wq.js boots (seconds on slow 4G), so the page never reads as stuck.
@@ -288,6 +289,12 @@ function clientIp(req) {
  * location } for a 2xx picture — or for ANY answer when `raw` is set (an HTML page, a
  * PDF). Throws { unreachable: true } when the bot cannot be reached.
  */
+const DEVICE_COOKIE_RX = /(?:^|;\s*)wq_dv=([A-Za-z0-9_-]{22})(?:;|$)/;
+function deviceCookie(req) {
+  const m = DEVICE_COOKIE_RX.exec(String((req.get && req.get('cookie')) || ''));
+  return m ? m[1] : null;
+}
+
 function createBotClient({ botUrl, apiKey, fetchImpl }) {
   return async function callBot(method, pathname, req, body, { raw = false } = {}) {
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -296,6 +303,9 @@ function createBotClient({ botUrl, apiKey, fetchImpl }) {
       const headers = { 'x-api-key': apiKey, 'x-forwarded-for': clientIp(req), accept: raw ? '*/*' : 'application/json' };
       const ua = req.get('user-agent');
       if (ua) headers['user-agent'] = ua.slice(0, 300);
+      // This phone's device_ref (the wq_dv cookie the hub page writes): a hub link opens nothing as a child on another phone.
+      const dv = deviceCookie(req);
+      if (dv) headers['x-wq-device'] = dv;
       const init = { method, headers, redirect: 'manual' };
       if (controller) init.signal = controller.signal;
       if (method !== 'GET') {
@@ -327,8 +337,8 @@ function createBotClient({ botUrl, apiKey, fetchImpl }) {
 // ── M4c challenge: the page shell ────────────────────────────────────────────────────────────────────
 const TOKEN_RX = /^[A-Za-z0-9_-]{8,900}\.[A-Za-z0-9_-]{22}$/;
 const CH_COPY = {
-  en: { boot: 'Opening the challenge…', title: (m) => `${m}'s Challenge`, not_eligible: 'This challenge is for classes 2 to 5.', pick_kid: 'Open the challenge from your quiz page.' },
-  ur: { boot: 'چیلنج کھل رہا ہے…', title: (m) => `${m} کا چیلنج`, not_eligible: 'یہ چیلنج جماعت ۲ سے ۵ کے لیے ہے۔', pick_kid: 'چیلنج اپنے کوئز کے صفحے سے کھولیں۔' },
+  en: { boot: 'Opening the challenge…', title: (m) => `${m}'s Challenge`, not_eligible: 'This challenge is for classes 2 to 5.', pick_kid: 'Open the challenge from your quiz page.', other_device: 'Ask the child this link was sent to to open it. Is this your link? Send /quiz on WhatsApp again for a new one.' },
+  ur: { boot: 'چیلنج کھل رہا ہے…', title: (m) => `${m} کا چیلنج`, not_eligible: 'یہ چیلنج جماعت ۲ سے ۵ کے لیے ہے۔', pick_kid: 'چیلنج اپنے کوئز کے صفحے سے کھولیں۔', other_device: 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔ کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ ⁦/quiz⁩ بھیجیں۔' },
 };
 
 function challengeVersion() {
@@ -529,7 +539,7 @@ function createWebQuizRouter(opts = {}) {
       return res.status(200).type('html').send(renderChallengePage({ menu: out.body, token, kid: q.get('kid'), origin, assetV: version(), chV: challengeVersion(), brandKey }));
     }
     const err = out.body && out.body.error;
-    if (err === 'not_eligible' || err === 'pick_kid') {
+    if (err === 'not_eligible' || err === 'pick_kid' || err === 'other_device') {
       return res.status(out.status).type('html').send(renderChallengeNote({ lang: lang0 || 'en', why: err, origin, assetV: version(), brandKey }));
     }
     const kind = out.status === 401 ? 'closed' : 'off';

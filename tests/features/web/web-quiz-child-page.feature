@@ -852,6 +852,16 @@ Feature: Web child quiz page on the portal
     When it is opened
     Then the page says "This link has expired" and "Send /quiz on WhatsApp to get a new one." in the child's language
     And no child's name or quiz is shown
+
+  @T530
+  Scenario: A forwarded hub link shows no child's name on another phone
+    Given a family's phone opened its /quiz hub link first and saw its children
+    When the same link is opened on a second phone that has never played as one of them
+    Then the page says "This link was sent to another player" and "Ask the child this link was sent to to open it." («جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔»)
+    And no child's name, animal, teacher quiz, past quiz or recommendation is shown, and nothing can be played as them
+    And "Someone else / new player" («کوئی اور / نیا کھلاڑی») says to ask the teacher for a quiz link or send /quiz on WhatsApp from the family's phone
+    And the family's own phone, and any phone a child of that family has already played on, still sees the hub unchanged
+    And the hub's Challenge link (/c/<link>?kid=…) opened on that second phone shows the same neutral note, with no past result and nothing to play as the child
   @T446
   Scenario: A challenger who scored nothing is not a score to beat
     Given a child finished a quiz with 0 right answers and sent a friend their challenge link
