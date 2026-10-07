@@ -9,7 +9,7 @@
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
-jest.mock('../../../shared/storage/r2', () => ({ downloadFromR2: jest.fn(), uploadBuffer: jest.fn() }));
+jest.mock('../../../shared/storage/r2', () => ({ downloadFromR2: jest.fn(), uploadBuffer: jest.fn(), headObject: jest.fn() }));
 jest.mock('../../../shared/utils/html-to-pdf', () => ({ htmlToImage: jest.fn() }));
 
 const express = require('express');
@@ -57,6 +57,7 @@ beforeEach(() => {
   require('../../../shared/services/quiz/web-quiz-schools')._reset();
   r2.downloadFromR2.mockReset().mockRejectedValue(Object.assign(new Error('NoSuchKey'), { name: 'NoSuchKey' }));
   r2.uploadBuffer.mockReset().mockResolvedValue('https://r2/x');
+  r2.headObject.mockReset().mockResolvedValue({ exists: false });
   htmlToImage.mockReset().mockImplementation(async (html, o) => sharp({ create: { width: o.width, height: o.height || o.width, channels: 3, background: '#333748' } }).png().toBuffer());
 });
 
@@ -161,6 +162,7 @@ describe('render + cache', () => {
 
     // Another process (no memory cache): R2 has it, nothing is drawn.
     Art._resetCache();
+    r2.headObject.mockResolvedValueOnce({ exists: true });
     r2.downloadFromR2.mockResolvedValueOnce(one.bytes);
     const two = await Art.artImage(id, { size: 'og' });
     expect(two.bytes.equals(one.bytes)).toBe(true);
