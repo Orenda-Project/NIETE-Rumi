@@ -46,6 +46,13 @@ function parseArgs(argv) {
 
 const sameText = (x, y) => String(x == null ? '' : x).trim() === String(y == null ? '' : y).trim();
 
+/** JSON with every object's keys sorted: jsonb hands keys back in its own order. Pure. */
+function canonical(v) {
+  if (Array.isArray(v)) return `[${v.map(canonical).join(',')}]`;
+  if (v && typeof v === 'object') return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonical(v[k])}`).join(',')}}`;
+  return JSON.stringify(v);
+}
+
 /** The media a row should hold for one map entry, or null when the row must not be touched. Pure. */
 function nextMedia(row, entry) {
   const shown = FIELDS.map((f, i) => ({ i, text: row[f] })).filter((o) => o.text != null && String(o.text).trim() !== '');
@@ -60,7 +67,7 @@ function nextMedia(row, entry) {
     media.question_audio_rejected = media.question_audio;
     media.question_audio = [];
   }
-  return JSON.stringify(media) === JSON.stringify(row.media || {}) ? { skip: 'same' } : { media };
+  return canonical(media) === canonical(row.media || {}) ? { skip: 'same' } : { media };
 }
 
 async function main(argv, deps = {}) {
