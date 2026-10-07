@@ -170,6 +170,8 @@ export const COACH_COPY = {
   // The observation page (v24 ObsTrack, bd-o15qnr.19)
   trackSteps: (first: string) => ["Lesson analysed", "Feedback Form", "Debrief", "Your feedback", `Send ${first} the report`],
   yourTurn: "Your turn",
+  reportsWaiting: (n: number) => (n === 1 ? "1 report waiting" : `${n} reports waiting`),
+  allReports: "All reports",
   onWhatsApp: "On WhatsApp",
   working: "Working",
   dcScore: "Digital Coach score",

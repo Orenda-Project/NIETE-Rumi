@@ -79,7 +79,7 @@ function Recorder({ visit, onBlocked }: { visit: CoachVisit; onBlocked: () => vo
   const time = formatSlot(visit.scheduledSlot);
 
   return (
-    <CoachPage bare title={C.recordLive} onBack={() => (recording ? setAsking(true) : navigate(`/portal/coach/visit/${visit.id}`))}
+    <CoachPage bare banner={false} title={C.recordLive} onBack={() => (recording ? setAsking(true) : navigate(`/portal/coach/visit/${visit.id}`))}
       crumb={<><span className="me-1.5 inline-block h-2 w-2 rounded-full bg-[#c8331f] align-middle" aria-hidden="true" />{`${visit.teacherName || C.dash} · ${time}`}</>}
       dock={(
         <>
@@ -152,7 +152,7 @@ const CoachRecord = () => {
 
   if (!visit || blocked) {
     return (
-      <CoachPage title={C.recordLive} backTo={`/portal/coach/visit/${id}`} crumb={visit ? `${visit.teacherName || C.dash} · ${formatSlot(visit.scheduledSlot)}` : undefined}>
+      <CoachPage banner={false} title={C.recordLive} backTo={`/portal/coach/visit/${id}`} crumb={visit ? `${visit.teacherName || C.dash} · ${formatSlot(visit.scheduledSlot)}` : undefined}>
         {failed && <Failed onRetry={reload} />}
         {!data && !failed && <Loading />}
         {blocked && (

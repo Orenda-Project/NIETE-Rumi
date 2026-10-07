@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Clock } from "lucide-react";
 import { coach } from "../../services/api";
 import { COACH_COPY as C } from "../copy";
@@ -83,6 +83,9 @@ function Row({ r }: { r: CoachReport }) {
 }
 
 const CoachReports = () => {
+  // bd-o15qnr.21 — the pending banner's "more than one" opens this filtered to waiting.
+  const [params] = useSearchParams();
+  const waitingOnly = params.get("show") === "waiting";
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [first, setFirst] = useState<ReportsData | null>(null);
@@ -125,6 +128,10 @@ const CoachReports = () => {
             <SectionLabel countStyle="count" count={first.waiting.length} countTone={first.waiting.length ? "warn" : "info"}>{C.waitingForYou}</SectionLabel>
             {first.waiting.map((r) => <ReportCard key={r.id} r={r} waiting />)}
           </div>
+          {waitingOnly && (
+            <Link to="/portal/coach/reports" className="flex min-h-[56px] items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-[15px] font-semibold text-[#33374a]">{C.allReports}</Link>
+          )}
+          {!waitingOnly && (<>
           <div className="flex flex-col gap-2.5" data-testid="reports-in-progress">
             <SectionLabel countStyle="count" count={first.inProgress.length}>{C.inProgress}</SectionLabel>
             {first.inProgress.map((r) => <ReportCard key={r.id} r={r} />)}
@@ -147,6 +154,7 @@ const CoachReports = () => {
                 className="min-h-[56px] rounded-2xl border border-[#e5e7eb] bg-white text-[15px] font-semibold text-[#33374a]">{C.showMore}</button>
             )}
           </div>
+          </>)}
         </>
       )}
     </CoachPage>

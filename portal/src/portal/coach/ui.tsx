@@ -1,7 +1,8 @@
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Search } from "lucide-react";
 import PortalLayout from "../components/PortalLayout";
+import { coach } from "../services/api";
 import CoachGate from "./CoachGate";
 import { COACH_COPY as C } from "./copy";
 import { splitSlot } from "./time";
@@ -45,8 +46,52 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[]): { data: T |
 }
 
 /** A v2 page: the gate, the live layout, a heading, the content, an optional bottom action. */
+// ── bd-o15qnr.21 — the pending banner ────────────────────────────────────────
+//
+// "There should be a banner at the top at all times showing if there are
+// reports pending on the coach." Read once and shared by every page for 30 s;
+// a failed read (or an API without the route) simply shows nothing.
+
+type Pending = { waiting: number; ids: string[] };
+const PENDING_TTL_MS = 30_000;
+let pendingCache: { at: number; value: Promise<Pending | null> } | null = null;
+
+function readPending(): Promise<Pending | null> {
+  if (pendingCache && Date.now() - pendingCache.at < PENDING_TTL_MS) return pendingCache.value;
+  const value = Promise.resolve()
+    .then(() => coach.getPending())
+    .then((r) => (r && typeof r.waiting === "number" ? { waiting: r.waiting, ids: Array.isArray(r.ids) ? r.ids : [] } : null))
+    .catch(() => null);
+  pendingCache = { at: Date.now(), value };
+  return value;
+}
+
+/** Tests only: forget the shared read. */
+export function resetPendingCache(): void {
+  pendingCache = null;
+}
+
+export function PendingBanner() {
+  const [pending, setPending] = useState<Pending | null>(null);
+  useEffect(() => {
+    let live = true;
+    readPending().then((p) => { if (live) setPending(p); });
+    return () => { live = false; };
+  }, []);
+  if (!pending || pending.waiting < 1) return null;
+  const to = pending.waiting === 1 && pending.ids[0] ? `/portal/coach/observation/${pending.ids[0]}` : "/portal/coach/reports?show=waiting";
+  return (
+    <Link to={to} data-testid="pending-banner"
+      className="mb-1 flex min-h-[56px] items-center gap-2.5 rounded-2xl bg-[#fef3c7] px-4 text-[15px] font-semibold text-[#b45309]">
+      <Clock className="h-5 w-5 shrink-0" aria-hidden="true" />
+      <span className="flex-1">{C.reportsWaiting(pending.waiting)}</span>
+      <ChevronRight className="h-5 w-5 shrink-0 rtl:rotate-180" aria-hidden="true" />
+    </Link>
+  );
+}
+
 export function CoachPage({
-  title, crumb, backTo, onBack, bare = false, chips, subtitle, dock, action, children,
+  title, crumb, backTo, onBack, bare = false, banner = true, chips, subtitle, dock, action, children,
 }: {
   title: ReactNode; crumb?: ReactNode; backTo?: string;
   /** bd-o15qnr.9: the back arrow runs this instead of leaving (Record live asks first). */
@@ -54,6 +99,8 @@ export function CoachPage({
   /** bd-o15qnr.9: no menu — a screen where one stray tap must not leave (Record live). */
   bare?: boolean;
   chips?: ReactNode; dock?: ReactNode;
+  /** bd-o15qnr.21: the pending banner; off on Record live / Upload / Check and send (and on any bare page). */
+  banner?: boolean;
   /** bd-o15qnr.18: a line under a top-level title (Home's full date). */
   subtitle?: ReactNode;
   /** bd-o15qnr.11: a control at the right of an inner page's header (the teacher's Edit). */
@@ -69,6 +116,7 @@ export function CoachPage({
     <CoachGate>
       <PortalLayout bare={bare}>
         <div className="mx-auto flex w-full max-w-xl flex-col text-[#1d2025]">
+          {banner && !bare && <div className="pt-2"><PendingBanner /></div>}
           {backTo || onBack ? (
             <header className="flex items-center gap-1 pb-2 pt-2">
               {onBack
