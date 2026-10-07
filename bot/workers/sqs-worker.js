@@ -1584,6 +1584,8 @@ function resolveWorkerQueuesBootStatus() {
 // firing the recovery sweep + worker start.
 function startWorker() {
   startHealthEndpoint();
+  // web_quiz.config: the buckets, link host and token-secret source this worker runs with (names only).
+  require('../shared/services/quiz/web-quiz-config-line').logWebQuizConfig();
   return Promise.all([
     recoverStaleLessonPlanRequests(),
     recoverStaleVideoRequests(),

@@ -10,7 +10,7 @@ jest.mock('sharp', () => { throw new Error("Cannot find module 'sharp'"); }, { v
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
-jest.mock('../../../shared/storage/r2', () => ({ downloadFromR2: jest.fn(), uploadBuffer: jest.fn() }));
+jest.mock('../../../shared/storage/r2', () => ({ downloadFromR2: jest.fn(), uploadBuffer: jest.fn(), headObject: jest.fn(async () => ({ exists: false })) }));
 jest.mock('../../../shared/utils/html-to-pdf', () => ({ htmlToImage: jest.fn(async () => Buffer.from('png')) }));
 
 test('the share-picture service loads where sharp is not installed', () => {
