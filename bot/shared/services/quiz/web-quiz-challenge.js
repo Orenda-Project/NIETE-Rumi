@@ -376,7 +376,10 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
     };
   }
   const st = spec.story || {};
-  return { ...base, secs: READ_SECS, live: await liveOn(), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: spec.direction } };
+  const live = await liveOn();
+  // live: the bar marks the child's last checked words a minute ("last time"), null the first time
+  const previousWcpm = live ? ((await previousRun(w.studentId, 'read')) || {}).wcpm : undefined;
+  return { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: spec.direction } };
 }
 
 // ── scoring ───────────────────────────────────────────────────────────────────────────────────────────

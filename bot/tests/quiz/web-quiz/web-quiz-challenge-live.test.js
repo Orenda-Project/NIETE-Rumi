@@ -108,6 +108,13 @@ describe('the exercise says whether this run may go live', () => {
     expect((await Ch.exercise(hub(), 'bigger', { ...D, lang: 'en' })).live).toBeUndefined();
   });
 
+  test('a live read carries the child\'s last checked words-a-minute for the bar\'s "last time" mark (null the first time)', async () => {
+    db.app_settings.push(LIVE);
+    expect((await Ch.exercise(hub(), 'read', { ...D, lang: 'en' })).previous_wcpm).toBeNull();
+    db.web_quiz_challenge_runs.push({ id: 'p1', student_id: KID, exercise: 'read', status: 'scored', wcpm: 44, score: { correct: 44 }, created_at: new Date().toISOString() });
+    expect((await Ch.exercise(hub(), 'read', { ...D, lang: 'en' })).previous_wcpm).toBe(44);
+  });
+
   test('the flag fails closed: a string other than true, or a failed read, is off', async () => {
     db.app_settings.push({ key: 'web_quiz_challenge_realtime', value: 'maybe' });
     expect((await Ch.exercise(hub(), 'read', { ...D, lang: 'en' })).live).toBe(false);
