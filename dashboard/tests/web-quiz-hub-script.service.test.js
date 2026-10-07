@@ -11,7 +11,8 @@ const vm = require('vm');
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'wq', 'hub.js'), 'utf8');
 const flush = () => new Promise((r) => setImmediate(r));
 
-function page(boot, { api = {}, store = {} } = {}) {
+function page(boot, { api = {}, store = {}, search = '' } = {}) {
+  const beacons = [];
   const els = {};
   const winL = {};
   const assigned = [];
@@ -48,10 +49,10 @@ function page(boot, { api = {}, store = {} } = {}) {
     document: { documentElement: docEl, getElementById: (id) => (id === 'wq' ? root : { textContent: JSON.stringify(boot) }), createElement: () => ({ setAttribute() {}, textContent: '' }),
       set cookie(v) { cookies.push(v); }, get cookie() { return cookies.join('; '); } },
     window: { scrollTo() {}, addEventListener(n, fn) { (winL[n] = winL[n] || []).push(fn); } },
-    navigator: { sendBeacon: () => true },
+    navigator: { sendBeacon: (u, b) => { beacons.push(...JSON.parse(b.parts[0]).events); return true; } },
     history: { replaceState() {} },
-    location: { assign(u) { assigned.push(u); }, reload() { reloaded += 1; } },
-    Blob: function Blob() {},
+    location: { search, assign(u) { assigned.push(u); }, reload() { reloaded += 1; } },
+    Blob: function Blob(parts) { this.parts = parts; },
     fetch: (url, init) => {
       fetches.push({ url, init });
       const hit = Object.keys(api).find((k) => url.indexOf(k) >= 0);
@@ -64,7 +65,7 @@ function page(boot, { api = {}, store = {} } = {}) {
   };
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx);
-  return { doc: docEl.attrs, cookies, store, root, els, toasts, fetches, assigned, html: () => root._h, moment: () => root.attrs['data-m'], win: winL, reloads: () => reloaded };
+  return { beacons, doc: docEl.attrs, cookies, store, root, els, toasts, fetches, assigned, html: () => root._h, moment: () => root.attrs['data-m'], win: winL, reloads: () => reloaded };
 }
 
 const KIDS = [{ chip: '0000000000000001', first: 'ثنا', animal: 'owl', grade: '3' }, { chip: '0000000000000002', first: 'بلال', animal: 'lion', grade: '5' }];
@@ -244,4 +245,27 @@ test('server render in Urdu for a family, unlocked with no child picked yet: "Wh
   expect(p.html()).toContain('کس کی باری ہے؟');
   expect(p.html()).not.toContain('Who is playing?');
   expect(p.doc).toEqual({ lang: 'ur', dir: 'rtl' });
+});
+
+/* ---------------- the results card's door ---------------- */
+test('a hub opened from the results card is counted as the door\'s (hub_view src=door), once', async () => {
+  const p = page(LOCKED(), { search: '?from=door', store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': { lang: 'en', kids: [KIDS[0]], kid: KIDS[0].chip, teacher: null, again: [], recs: [] } } });
+  await flush(); await flush();
+  expect(p.moment()).toBe('H2');
+  expect(p.beacons.filter((e) => e.n === 'hub_view').map((e) => e.src)).toEqual(['door']);
+  const q = page(LOCKED(), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': { lang: 'en', kids: [KIDS[0]], kid: KIDS[0].chip, teacher: null, again: [], recs: [] } } });
+  await flush(); await flush();
+  expect(q.beacons.filter((e) => e.n === 'hub_view').map((e) => e.src)).toEqual(['hub']);
+});
+
+test('the lock screen first tells the child to open their own quiz and tap the card\'s door, then the /quiz way (EN + UR)', async () => {
+  const p = page(LOCKED(), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': LOCKED() } });
+  await flush(); await flush();
+  const h = p.html();
+  expect(h).toContain('Finish your own quiz, then tap “My quizzes, videos and challenges”.');
+  expect(h.indexOf('My quizzes, videos and challenges')).toBeLessThan(h.indexOf('Send /quiz on WhatsApp'));
+  const u = page(LOCKED({ lang: 'ur' }), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': LOCKED({ lang: 'ur' }) } });
+  await flush(); await flush();
+  expect(u.html()).toContain('«میرے کوئز، ویڈیوز اور چیلنج»');
+  expect(u.html()).not.toMatch(/رہا|رہی|بیٹا|بیٹی/);
 });

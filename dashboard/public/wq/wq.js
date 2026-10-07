@@ -2100,6 +2100,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // A friend who played a challenge is not in the challenger's class: no class table, no class group.
     var friend = friendRun();
     var shares = (friend ? '' : '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>') +
+      // The door to this child's own hub (their quizzes, the video library, the challenge), when finish offered it:
+      // the second action, right under "Share to class group", so it is on the first screen of a phone.
+      (res.hub_door && !friend && !(S.queue && S.queue.length) ? '<button class="wq-btn wq-soft" id="wq-hubdoor">' + esc(T.hubDoor) + '</button>' : '') +
       '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' +
       (friend ? '' : '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>') +
       '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>';
@@ -2119,8 +2122,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         '<span class="wq-vtext"><small>' + esc(T.nextT) + '</small><b dir="auto">' + esc(nx.title) + '</b></span></button>' : '') +
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
       (isVideo ? moreBtn() + shares : shares + moreBtn()) +
-      // The door to this child's own hub (their quizzes, the video library, the challenge): when finish offered it.
-      (res.hub_door && !friend && !(S.queue && S.queue.length) ? '<button class="wq-btn wq-soft" id="wq-hubdoor">' + esc(T.hubDoor) + '</button>' : '') +
       // One phone, many children: the next child starts from the landing. Not while answers wait to be sent.
       (S.queue && S.queue.length ? '' : '<button class="wq-btn wq-ghost" id="wq-turn">' + esc(T.nextTurn) + '</button>');
     render(h, 'M10');
@@ -2270,16 +2271,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function hubDoor() {
     if (hubGoing) return;
     hubGoing = true;
-    ev('hub_door_tap', {});
     api('POST', 'hubdoor', { st: S.st }).then(function (r) {
       var href = r.ok && r.body && typeof r.body.href === 'string' ? r.body.href : '';
-      if (/^\/h\/[A-Za-z0-9._-]+$/.test(href)) { flushEv(true); location.assign(href); return; }
+      var ok = /^\/h\/[A-Za-z0-9._-]+$/.test(href);
+      // One event per tap, with whether a hub opened (the hub counts its own view as src=door).
+      ev('hub_door_tap', { ok: ok });
+      flushEv(true);
+      if (ok) { location.assign(href + '?from=door'); return; }
       hubGoing = false;
       if (S.result) { S.result.hub_door = false; save(); }
       var b = $('#wq-hubdoor');
       if (b && b.parentNode) b.parentNode.removeChild(b);
       toast(T.oops);
-    }, function () { hubGoing = false; toast(T.offline); });
+    }, function () { hubGoing = false; ev('hub_door_tap', { ok: false, err: 'net' }); toast(T.offline); });
   }
 
   /* ---------------- M11 league table ---------------- */

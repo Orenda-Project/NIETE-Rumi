@@ -180,6 +180,9 @@ html[lang=ur] .wq-jhelp{font-weight:600;line-height:1.9}
 #wq-hintbox .wq-say{margin-bottom:12px;font-size:17px}
 .wq-stars{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
 .wq-star{width:40px;height:40px}
+/* On the score card the stars keep ONE row (a 7- or 10-question quiz wrapped to two and pushed the card's actions below a phone's first screen): each shrinks from 40px to fit. */
+.wq-scorecard .wq-stars{flex-wrap:nowrap}
+.wq-scorecard .wq-star{flex:0 1 40px;min-width:0;height:auto;aspect-ratio:1}
 .wq-star path{fill:var(--star-off)}
 .wq-star.wq-on path{fill:var(--star);stroke:var(--star-d);stroke-width:1}
 /* a league / my-scores row: the score, then its stars small enough for 10 on a 360 px row */
@@ -194,6 +197,8 @@ html[lang=ur] .wq-big:not(.wq-jug){font-family:var(--f)}
 .wq-scorecard header{background:var(--navy);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:8px;font-weight:900;letter-spacing:.06em;font-size:13px}
 .wq-scorecard .wq-in{padding:14px;display:flex;flex-direction:column;gap:8px;align-items:center}
 .wq-scorecard img{width:110px;height:110px}
+/* A short phone (a 360x740 Android): a smaller Jugnu, so the card's first actions (share, the hub door) are on the first screen, Urdu included. */
+@media (max-height:800px){.wq-scorecard img{width:72px;height:72px}}
 .wq-name{font-size:26px;font-weight:900;color:var(--navy)}
 .wq-praise{font-size:22px;font-weight:900;color:var(--right)}
 .wq-table{width:100%;border-collapse:separate;border-spacing:0 6px}
