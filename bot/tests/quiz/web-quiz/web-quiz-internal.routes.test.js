@@ -109,3 +109,9 @@ test('the library from the hub and a hub video start take the device from x-wq-d
     expect(start.mock.calls[1][0].device).toBeUndefined();
   } finally { lib.mockRestore(); start.mockRestore(); }
 });
+
+test("the results card's hub door is mounted behind the key and keeps the service's refusals", async () => {
+  const r = await fetch(`${base}/hubdoor`, { method: 'POST', headers: KEY, body: JSON.stringify({ st: 'not-a-token' }) });
+  expect(r.status).toBe(401);
+  expect(await r.json()).toEqual({ error: 'bad_token' });
+});

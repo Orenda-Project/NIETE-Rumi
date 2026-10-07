@@ -1039,3 +1039,10 @@ Feature: Web child quiz page on the portal
     Then it lists only the sibling who played there, never the other one
     And the other sibling's hub, library and challenge do not open on that phone
 
+  @T565
+  Scenario: The results card opens the child's own quizzes, videos and challenges
+    Given the hub door is switched on and a child of the class finished the teacher's quiz on their phone
+    When the child taps "My quizzes, videos and challenges" on their card
+    Then their own hub opens on that phone, with the video library and the challenge
+    And the same link opened on another phone shows no child's name and starts nothing
+    But a friend who played from a challenge link sees no such button

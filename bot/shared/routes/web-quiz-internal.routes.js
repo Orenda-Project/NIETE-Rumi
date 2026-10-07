@@ -25,6 +25,7 @@
  *   GET  /lib/h/:token          the same from the kid's hub
  *   GET  /videos/dl/:code       302 to a 1-hour link that saves a bank video
  *   POST /hub/:token            the same, from the page with this phone's device_ref (names only for a trusted phone)
+ *   POST /hubdoor               the results card's door: {href: /h/<token>} for this session's child, bound to its phone
  */
 const express = require('express');
 const { requireInternalKey } = require('../middleware/require-internal-key');
@@ -120,5 +121,7 @@ router.get('/videos/dl/:code', handle((req) => WebQuizLibrary.download(req.param
 // The page's own call carries this phone's device_ref (in the body, never the URL): only the
 // first phone to open a hub link, or one the children played on, sees their names.
 router.post('/hub/:token', handle((req) => require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref })));
+// The results card's door to the child's own hub: a hub link minted for this session's child, bound to this phone.
+router.post('/hubdoor', handle((req) => require('../services/quiz/web-quiz-hub-door').door(req.body || {}, WebQuiz.WqError)));
 
 module.exports = router;
