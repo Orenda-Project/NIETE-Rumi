@@ -481,6 +481,36 @@ describe('hub(): challenge and library', () => {
     expect(out.lib.href).toBe(`/lib/${token}?kid=${chipH(KID)}&l=en`);
   });
 
+  // The tile and the challenge page decide eligibility with ONE grade rule (the challenge's), so a tile is never a dead end.
+  const CH_ON = [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_challenge', value: 'true' }];
+  function bandOnly(extra = {}) {
+    seed({ app_settings: CH_ON, ...extra });
+    // A loose child: no class list, no class given, and only quizzes for a band of grades.
+    Object.assign(db.students[0], { list_id: null, self_reported_class: null });
+    db.quizzes.forEach((q) => { q.grade = '3-5'; });
+    db.quiz_sessions.forEach((x) => { x.student_class = null; });
+    Hub._resetCache();
+  }
+
+  test('a child known only by a band of grades (3-5) gets no challenge tile: the challenge itself refuses them', async () => {
+    bandOnly();
+    const token = T.signHub([KID]);
+    const out = await Hub.hub(token, A);
+    expect(out.kid).toBe(chipH(KID));
+    expect(out.challenge).toBeNull();
+    // The library and recommendations still use the band's first grade.
+    expect(out.recs.length).toBeGreaterThan(0);
+    // The same child at the challenge door: refused, so the hub showing no tile is the same answer.
+    const Challenge = require('../../../shared/services/quiz/web-quiz-challenge');
+    await expect(Challenge.menu(token, { kid: chipH(KID), device: DEV_A })).rejects.toMatchObject({ status: 403, body: { error: 'not_eligible' } });
+  });
+
+  test('a band-only child enrolled in a grade-3 class gets the tile, as the challenge reads the enrolment', async () => {
+    bandOnly({ class_enrollments: [{ id: 'e1', class_id: 'c1', student_id: KID, is_active: true }], classes: [{ id: 'c1', grade_code: 'grade_3' }] });
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.challenge).toMatchObject({ on: true });
+  });
+
   test('the library link carries the child\'s language, so an Urdu child gets the Urdu library', async () => {
     seed({ app_settings: [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_library', value: 'true' }] });
     db.quiz_share_codes.forEach((c) => { c.language = 'ur'; });

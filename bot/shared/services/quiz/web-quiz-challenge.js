@@ -629,7 +629,7 @@ async function listResults({ cls, list } = {}) {
 
 module.exports = {
   menu, exercise, presignUpload, submit, poll, listResults,
-  scoreBigger, wcpm, formFor, kidChip, challengeOn, clipKey, childVoiceBucket,
+  scoreBigger, wcpm, formFor, gradeOf, kidChip, challengeOn, clipKey, childVoiceBucket,
   EXERCISES, nameOf, lineOf, FLAG_KEY, TABLE, MAX_BYTES,
   __reset,
 };
