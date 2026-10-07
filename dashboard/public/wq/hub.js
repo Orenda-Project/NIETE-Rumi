@@ -205,7 +205,9 @@
       if (!r.ok || !r.body) throw new Error('hub_' + r.status);
       if (r.body.locked) { locked(); return; }
       B = r.body; B.token = TOKEN; B.brand = BR;
-      setLang(B.lang || LANG);
+      // Only a hub for one child carries that child's language; with no child picked the bot's lang is a
+      // default, and the server render's (from this family's children) stays.
+      if (B.kid) setLang(B.lang || LANG);
       boot();
     }).catch(function (e) { toast(e && /^hub_/.test(e.message) ? T.oops : T.offline); locked(); });
   }
