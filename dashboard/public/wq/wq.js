@@ -1263,7 +1263,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       notYet: function (n) { return 'Not played yet (' + n + ')'; }, allPlayed: 'Everyone on your class list has played.',
       playedT: function (n) { return 'Played (' + n + ')'; }, setRollLink: 'Set roll',
       // identity v2 (wq-identity.js): name first, a collision asked, never shown
-      someone: 'Someone else', nameT: 'What is your name?', nameSay: 'Type the name you are called by in class.',
+      someone: 'Someone else', opening: 'Opening your quiz…', nameT: 'What is your name?', nameSay: 'Type the name you are called by in class.',
       nameFull: 'Type your full name.', namePriv: 'Only your name. No phone number.',
       moreFull: function (f, c) { return 'There is more than one ' + f + (c ? ' in ' + c : ' here') + '. What is your full name?'; },
       fatherT: "What is your father's name?", numT: 'What number does your teacher call you by?', numSay: 'The number on the class list.',
@@ -1291,7 +1291,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       avg: 'اوسط', hard: function (n, m) { return 'سوال ' + n + ' سب سے مشکل رہا (' + m + ' نے غلط کیا)'; },
       notYet: function (n) { return 'ابھی نہیں کھیلا (' + n + ')'; }, allPlayed: 'آپ کی کلاس لسٹ کے سب بچوں نے کھیل لیا۔',
       playedT: function (n) { return 'کھیل لیا (' + n + ')'; }, setRollLink: 'رول نمبر دیں',
-      someone: 'کوئی اور', nameT: 'آپ کا نام کیا ہے؟', nameSay: 'وہ نام لکھیں جس سے آپ کو کلاس میں پکارا جاتا ہے۔',
+      someone: 'کوئی اور', opening: 'آپ کا کوئز کھل رہا ہے…', nameT: 'آپ کا نام کیا ہے؟', nameSay: 'وہ نام لکھیں جس سے آپ کو کلاس میں پکارا جاتا ہے۔',
       nameFull: 'اپنا پورا نام لکھیں۔', namePriv: 'صرف نام۔ فون نمبر نہیں۔',
       moreFull: function (f, c) { return (c ? c + ' میں' : 'یہاں') + ' ایک سے زیادہ ' + f + ' ہیں۔ آپ کا پورا نام کیا ہے؟'; },
       fatherT: 'آپ کے والد کا نام کیا ہے؟', numT: 'کلاس لسٹ میں آپ کا نمبر کیا ہے؟', numSay: 'جو نمبر کلاس میں پکارا جاتا ہے۔',
@@ -1556,7 +1556,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         ev('identity_pick', { src: 'remembered_gone' });
         return who();
       }
-      if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st) landing(); return; }
+      // A hub link's session that cannot start: the landing asks who is playing (it never asked while starting).
+      if (!r.ok) { ev('error', { err: 'session_' + r.status }); toast(r.status === 410 ? T.oops : T.oops); if (pick.from_st || pick.via === 'hub') landing(); return; }
       var b = r.body;
       if (b.device_ref) sset('wq_d', b.device_ref);
       var child = b.child || kid || { first: typed || '' };
@@ -1569,7 +1570,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (ID) ID.started(child);
       ev('quiz_start', { reason: b.reason || undefined, ok: b.counted === false ? 0 : 1 });
       if (wantsVideo()) video(); else nextQuestion();
-    }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st) landing(); });
+    }, function () { busy = false; toast(T.offline); ev('error', { err: 'session_net' }); if (pick.from_st || pick.via === 'hub') landing(); });
   }
 
   function answeredCount() { var n = 0; QS.forEach(function (q) { if (S.answers[q.qid]) n++; }); return n; }
