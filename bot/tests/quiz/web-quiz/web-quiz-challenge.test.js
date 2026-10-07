@@ -295,13 +295,13 @@ describe('wcpm = correct / (60 − time_left) × 60', () => {
 
 // ── upload presign ───────────────────────────────────────────────────────────
 describe('upload: presigned PUT straight to R2', () => {
-  test('key = child-voice/<env>/<run>/read-<ts>.<ext> (the private prefix), content type signed, 15 minutes', async () => {
+  test('key = child-voice/<env>/<run>/read-<ts>.<ext> (the private prefix), content type signed, 3 minutes', async () => {
     const { ct } = await Ch.exercise(hub(), 'read', D);
     const run = T.verify(ct, 'c').r;
     const u = await Ch.presignUpload({ ct, type: 'audio/webm;codecs=opus', size: 600000 });
     expect(u.key).toMatch(new RegExp(`^child-voice/sandbox/${run}/read-\\d{13}\\.webm$`));
     expect(u.content_type).toBe('audio/webm');
-    expect(r2.getPresignedUploadUrl).toHaveBeenCalledWith(u.key, 'audio/webm', 900, { bucket: 'r2-default' });
+    expect(r2.getPresignedUploadUrl).toHaveBeenCalledWith(u.key, 'audio/webm', 180, { bucket: 'r2-default', signContentType: true });
     expect(u.put_url).toContain(encodeURIComponent('audio/webm'));
     expect(u.max_bytes).toBe(3 * 1024 * 1024);
     const mp4 = await Ch.presignUpload({ ct, type: 'audio/mp4', size: 1000 });
@@ -313,10 +313,10 @@ describe('upload: presigned PUT straight to R2', () => {
     process.env.WEB_QUIZ_AUDIO_BUCKET = 'quiz-audio-staging';
     try {
       await Ch.presignUpload({ ct, type: 'audio/webm', size: 10 });
-      expect(r2.getPresignedUploadUrl).toHaveBeenLastCalledWith(expect.any(String), 'audio/webm', 900, { bucket: 'quiz-audio-staging' });
+      expect(r2.getPresignedUploadUrl).toHaveBeenLastCalledWith(expect.any(String), 'audio/webm', 180, { bucket: 'quiz-audio-staging', signContentType: true });
       process.env.CHILD_VOICE_BUCKET = 'child-voice-private';
       await Ch.presignUpload({ ct, type: 'audio/webm', size: 10 });
-      expect(r2.getPresignedUploadUrl).toHaveBeenLastCalledWith(expect.any(String), 'audio/webm', 900, { bucket: 'child-voice-private' });
+      expect(r2.getPresignedUploadUrl).toHaveBeenLastCalledWith(expect.any(String), 'audio/webm', 180, { bucket: 'child-voice-private', signContentType: true });
     } finally { delete process.env.WEB_QUIZ_AUDIO_BUCKET; delete process.env.CHILD_VOICE_BUCKET; }
   });
 

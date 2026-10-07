@@ -39,7 +39,8 @@ const FLAG_TTL_MS = 30 * 1000;
 const PER_ITEM_S = 10;
 const READ_SECS = 60;
 const MAX_BYTES = 3 * 1024 * 1024;
-const PUT_TTL_S = 15 * 60;
+// The upload URL lives for the longest take (60 s) plus slack: it is minted when the recording stops.
+const PUT_TTL_S = 3 * 60;
 const CLIP_TTL_S = 6 * 60 * 60;
 const WAIT_MS = 5000;
 const READS_PER_DAY = 10;
@@ -398,7 +399,7 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }) {
     return { failed: true, reason: 'internal_error', meta: { error: String(e && e.message || e).slice(0, 120) } };
   } finally {
     if (file) media.cleanup(file);
-    await forget(key);
+    await forgetRun(key.slice(0, key.lastIndexOf('/') + 1), key);
   }
 }
 
@@ -431,6 +432,26 @@ async function forget(key) {
   }
 }
 
+/**
+ * Forget a run's whole private prefix: the key we know, then every key listed under the prefix (a reused upload
+ * URL can have put more than one), and once more just after the upload URL has expired — so a PUT made after
+ * scoring cannot leave an orphan (there is no lifecycle rule to catch one). Never throws.
+ */
+async function forgetRun(prefix, key, { again = true } = {}) {
+  if (!/^child-voice\/[^/]+\/[^/]+\/$/.test(String(prefix || ''))) return;
+  if (key) await forget(key);
+  try {
+    const keys = await r2.listKeys(prefix, { bucket: childVoiceBucket() });
+    for (const k of keys || []) if (k !== key && k.startsWith(prefix)) await forget(k);
+  } catch (e) {
+    logError('web_quiz.ch_voice_list_failed', { reason: String(e && e.message || e).slice(0, 80) });
+  }
+  if (again) {
+    const t = setTimeout(() => { forgetRun(prefix, null, { again: false }).catch(() => {}); }, (PUT_TTL_S + 1) * 1000);
+    if (t && typeof t.unref === 'function') t.unref();
+  }
+}
+
 async function presignUpload({ ct, type, size } = {}) {
   const c = runOf(ct);
   if (c.ex !== 'read') fail(400, 'no_audio');
@@ -439,8 +460,11 @@ async function presignUpload({ ct, type, size } = {}) {
   if (!ext) fail(400, 'wrong_type');
   const n = Number(size);
   if (!(n > 0) || n > MAX_BYTES) fail(413, 'too_large');
+  // One recording per run: a run already scoring or done (here, or stored by another process) gets no new URL.
+  const mem = RUNS.get(c.r);
+  if ((mem && mem.status && mem.status !== 'open') || (!(mem && mem.status) && await storedRun(c.r))) fail(409, 'already_done');
   const key = `${uploadPrefix(c)}${Date.now()}.${ext}`;
-  const putUrl = await r2.getPresignedUploadUrl(key, base, PUT_TTL_S, { bucket: childVoiceBucket() });
+  const putUrl = await r2.getPresignedUploadUrl(key, base, PUT_TTL_S, { bucket: childVoiceBucket(), signContentType: true });
   return { put_url: putUrl, key, content_type: base, max_bytes: MAX_BYTES, expires_in: PUT_TTL_S };
 }
 
@@ -477,7 +501,7 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   let CT;
   try { CT = childTest({ scorer: c.ex === 'read' }); } catch (e) {
     // Not scorable here: an uploaded recording is still forgotten (only this run's own prefix).
-    if (c.ex === 'read' && typeof body.key === 'string' && body.key.startsWith(runPrefix(c))) await forget(body.key);
+    if (c.ex === 'read' && typeof body.key === 'string') await forgetRun(runPrefix(c), body.key.startsWith(runPrefix(c)) ? body.key : null);
     throw e;
   }
   const { Bank } = CT;
@@ -508,7 +532,7 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   const key = typeof body.key === 'string' ? body.key : '';
   if (!key) fail(400, 'no_audio');
   // A refused upload is deleted too: a presigned PUT cannot cap what was put there. Only this run's own prefix.
-  const refuse = async (status, error) => { if (key.startsWith(runPrefix(c))) await forget(key); fail(status, error); };
+  const refuse = async (status, error) => { await forgetRun(runPrefix(c), key.startsWith(runPrefix(c)) ? key : null); fail(status, error); };
   if (!key.startsWith(uploadPrefix(c)) || !/^\d{13}\.(webm|ogg|m4a)$/.test(key.slice(uploadPrefix(c).length))) await refuse(403, 'not_your_upload');
   let head;
   try { head = await r2.headObject(key, { bucket: childVoiceBucket() }); } catch (_) { fail(502, 'storage_unavailable'); }
