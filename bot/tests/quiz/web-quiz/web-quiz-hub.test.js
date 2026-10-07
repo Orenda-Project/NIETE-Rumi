@@ -435,6 +435,26 @@ describe('the library and the recommendations from a forwarded hub link (real ki
   });
 });
 
+describe('hub(): subject and grade art (the library\'s pictures, WebQuizLibrary.subjectArt / gradeArt)', () => {
+  test('play-again rows and recommendations carry their subject\'s picture; the library tile the child\'s grade picture', async () => {
+    db.app_settings.push({ key: 'web_quiz_library', value: 'true' });
+    Hub._resetCache();
+    const out = await Hub.hub(T.signHub([KID]));
+    expect(out.again.find((a) => a.code === 'MATH01').art).toBe('/wq/art/subject-maths-1.webp');
+    // a lesson quiz writes 'english' in lower case: the bank's subject name finds its picture
+    expect(out.again.find((a) => a.code === 'ENGL01').art).toBe('/wq/art/subject-english-1.webp');
+    expect(out.recs.length).toBeGreaterThan(0);
+    out.recs.forEach((r) => expect(r.art).toBe(`/wq/art/subject-${r.subject.toLowerCase()}-1.webp`));
+    expect(out.lib.art).toBe('/wq/art/grade-3-1.webp');
+  });
+
+  test('a subject with no picture has no art (the page keeps its emoji tile)', async () => {
+    db.quizzes.find((q) => q.id === 'q-eng').subject = 'computer';
+    const out = await Hub.hub(T.signHub([KID]));
+    expect(out.again.find((a) => a.code === 'ENGL01').art).toBeUndefined();
+  });
+});
+
 describe('hub(): challenge and library', () => {
   test('challenge only with web_quiz_challenge on and grade 2-5; library to M4b\'s page when it is on', async () => {
     expect((await Hub.hub(T.signHub([KID]), A)).challenge).toBeNull();

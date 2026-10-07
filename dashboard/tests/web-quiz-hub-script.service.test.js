@@ -181,4 +181,15 @@ test('the phone\'s device_ref is also written to the wq_dv cookie (path /, 30 da
   expect(c).toMatch(/path=\//);
   expect(c).toMatch(/max-age=2592000/);
   expect(c).toMatch(/samesite=lax/i);
+test('subject art: a play-again row, a recommendation without a poster and the library tile show the picture, not the emoji', () => {
+  const p = page(boot({ lang: 'en', kids: [KIDS[0]], kid: KIDS[0].chip,
+    teacher: { code: 'NEWQ01', topic: 'Shapes', subject: 'maths', sent_at: new Date().toISOString(), k: 'k' },
+    lib: { href: '/lib/t?kid=c&l=en', art: '/wq/art/grade-3-1.webp' },
+    again: [{ code: 'MATH01', topic: 'Fractions', subject: 'Maths', tries: 1, best: { c: 1, t: 2 }, k: 'k', art: '/wq/art/subject-maths-1.webp' }],
+    recs: [{ vid: 'v1', title: 'Leaves', chapter: 'Plants', subject: 'Science', grade: '3', art: '/wq/art/subject-science-1.webp' }] }));
+  const h = p.html();
+  expect(h).toContain('<img class="wq-vtile" src="/wq/art/subject-maths-1.webp"');
+  expect(h).toContain('<img class="wq-vtile" src="/wq/art/subject-science-1.webp"');
+  expect(h).toContain('<img class="wq-htimg" src="/wq/art/grade-3-1.webp"');
+  expect(h).not.toContain('➗');
 });

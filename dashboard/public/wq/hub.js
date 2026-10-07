@@ -210,18 +210,22 @@
       '<h2 dir="auto">' + esc(t.topic) + '</h2><p class="wq-sub">' + [esc(subjectName(t.subject)), T.sent(daysSince(t.sent_at))].filter(Boolean).join(' · ') + '</p>' +
       '<a class="wq-btn wq-go" id="wq-h-teacher" href="' + esc(quizHref(t.code, { k: t.k })) + '">▶ ' + esc(T.play) + '</a></div>';
   }
-  function tile(subject, i) { return '<span class="wq-vtile wq-vt' + (i % 4 + 1) + '" aria-hidden="true">' + (SUBJECT_TILE[subjectKey(subject)] || '▶') + '</span>'; }
+  // The subject's picture when the server names one (the library's art), else the emoji tile.
+  function tile(subject, i, art) {
+    if (art) return '<img class="wq-vtile" src="' + esc(art) + '" alt="" loading="lazy" width="96" height="60" onerror="this.style.visibility=\'hidden\'">';
+    return '<span class="wq-vtile wq-vt' + (i % 4 + 1) + '" aria-hidden="true">' + (SUBJECT_TILE[subjectKey(subject)] || '▶') + '</span>';
+  }
   function againList(list) {
     if (!list.length) return '';
     return '<p class="wq-hlabel">' + esc(T.againT) + '</p><ul class="wq-vlist">' + list.map(function (a, i) {
-      return '<li><a class="wq-vitem" data-again="' + i + '" href="' + esc(quizHref(a.code, { again: '1', k: a.k })) + '">' + tile(a.subject, i) +
+      return '<li><a class="wq-vitem" data-again="' + i + '" href="' + esc(quizHref(a.code, { again: '1', k: a.k })) + '">' + tile(a.subject, i, a.art) +
         '<span class="wq-vtext"><b dir="auto">' + esc(a.topic) + '</b><small>' + T.againRow(a.best && a.best.t ? '<bdi dir="ltr">' + esc(a.best.c + '/' + a.best.t) + '</bdi>' : '–', Number(a.tries) || 1) + '</small></span></a></li>';
     }).join('') + '</ul><p class="wq-small">' + esc(T.practice) + '</p>';
   }
   function recList(list) {
     if (!list.length) return '';
     return '<p class="wq-hlabel">' + esc(T.recT) + '</p><ul class="wq-vlist">' + list.map(function (v, i) {
-      var pic = v.poster ? '<img class="wq-vtile" src="' + esc(v.poster) + '" alt="" loading="lazy" width="96" height="60" onerror="this.style.visibility=\'hidden\'">' : tile(v.subject, i);
+      var pic = v.poster ? '<img class="wq-vtile" src="' + esc(v.poster) + '" alt="" loading="lazy" width="96" height="60" onerror="this.style.visibility=\'hidden\'">' : tile(v.subject, i, v.art);
       // Each atom isolated, so a Latin chapter or "3 min" keeps its order inside an Urdu line.
       var meta = [subjectName(v.subject), v.chapter, v.secs ? T.mins(Math.max(1, Math.round(v.secs / 60))) : ''].filter(Boolean)
         .map(function (x) { return '<bdi>' + esc(x) + '</bdi>'; }).join(' · ');
@@ -231,7 +235,7 @@
   function hub() {
     var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     // With no teacher quiz the empty card already holds the library button: no second library tile.
-    var tiles = (B.lib && B.teacher ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(B.lib.href) + '"><span class="wq-htic" aria-hidden="true">📚</span><b>' + esc(T.libT) + '</b><small>' + esc(T.libSub) + '</small></a>' : '') +
+    var tiles = (B.lib && B.teacher ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(B.lib.href) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">📚</span>') + '<b>' + esc(T.libT) + '</b><small>' + esc(T.libSub) + '</small></a>' : '') +
       (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid) + '&lang=' + LANG) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
     render(bar() + jug('hello', T.hi(me.first || '')) + teacherCard(B.teacher) +
       (tiles ? '<div class="wq-htiles">' + tiles + '</div>' : '') +

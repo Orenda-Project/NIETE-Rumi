@@ -55,6 +55,18 @@ const fail = (status, error) => { const { WqError } = require('./web-quiz.servic
 
 // ─── helpers (pure) ─────────────────────────────────────────────────────────
 
+// The library's pictures (web-quiz-library.js), required on use so the hub never depends on the library to boot.
+function artOf(kind, v) {
+  try {
+    const Lib = require('./web-quiz-library');
+    const fn = kind === 'grade' ? Lib.gradeArt : Lib.subjectArt;
+    return (typeof fn === 'function' && fn(v)) || null;
+  } catch (_) {
+    return null;
+  }
+}
+const subjectArtOf = (subject) => artOf('subject', Videos.subjectFor(subject) || subject);
+
 const kidChip = (studentId) => T.chipId('h', studentId);
 const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
 const gradeNum = (v) => (String(v == null ? '' : v).match(/\d+/) || [''])[0];
@@ -182,11 +194,16 @@ function againOf(history, kidId, teacherCode) {
     .filter((e) => e.code && e.active && e.latest && e.code !== teacherCode)
     .sort((a, b) => String(b.lastAt || '').localeCompare(String(a.lastAt || '')))
     .slice(0, AGAIN_MAX)
-    .map((e) => ({
-      code: e.code, topic: e.topic, subject: e.subject,
-      best: { c: (e.best && e.best.correct_answers) || 0, t: (e.best && e.best.total_questions_answered) || 0 },
-      tries: e.attempts, last_at: e.lastAt, k: T.chipId(e.shareCodeId, kidId),
-    }));
+    .map((e) => {
+      const row = {
+        code: e.code, topic: e.topic, subject: e.subject,
+        best: { c: (e.best && e.best.correct_answers) || 0, t: (e.best && e.best.total_questions_answered) || 0 },
+        tries: e.attempts, last_at: e.lastAt, k: T.chipId(e.shareCodeId, kidId),
+      };
+      const art = subjectArtOf(e.subject);
+      if (art) row.art = art;
+      return row;
+    });
 }
 
 /** The video's poster without a network call: a presigned key (signPoster) or the meta cache. */
@@ -236,6 +253,8 @@ async function recsFor(kidId, history, grade) {
   return chosen.map((r, i) => {
     const out = { vid: r.id, title: r.clean_title || '', chapter: r.clean_chapter || '', subject: r.subject, grade: String(r.grade) };
     if (metas[i].poster) out.poster = metas[i].poster;
+    const art = subjectArtOf(r.subject);
+    if (art) out.art = art;
     if (metas[i].secs) out.secs = metas[i].secs;
     return out;
   });
@@ -353,6 +372,8 @@ async function hub(token, { kid, device } = {}) {
   // The library page opens in the child's language (?l=), the same one this hub is in.
   if (f.library) out.lib = { href: `/lib/${token}?kid=${out.kid}&l=${out.lang}` };
   else if (newest) out.lib = { href: `/q/${newest.code}?k=${T.chipId(newest.shareCodeId, chosen.id)}` };
+  // The Library tile wears the child's grade picture (the library opens on that grade).
+  if (out.lib && grade && artOf('grade', grade)) out.lib.art = artOf('grade', grade);
   logEvent('web_quiz.hub_open', {
     kids: kidsRows.length, has_teacher: Boolean(out.teacher), teacher_src: out.teacher ? out.teacher.src : null,
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
