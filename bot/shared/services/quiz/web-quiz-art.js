@@ -43,7 +43,7 @@ const { clampLanguage } = require('../../config/ux-strings');
 const { artId, parseArtId, UUID_RX } = require('./web-quiz-art-id');
 const Schools = require('./web-quiz-schools');
 
-const ART_V = 2;               // bump when the template's look or words change: every picture is drawn afresh (2: neutral Urdu invite, 0/N challenger)
+const ART_V = 3;               // bump when the template's look, words or encoding change: every picture is drawn afresh (2: neutral Urdu invite, 0/N challenger; 3: q72)
 const MEM_MAX = 64;
 const CODE_RX = /^[A-Z0-9]{4,12}$/;
 const KIND_OF = { c: 'card', i: 'invite', l: 'class', s: 'school' };
@@ -215,7 +215,9 @@ async function drawNow(input) {
   const { htmlToImage } = require('../../utils/html-to-pdf');
   const [w, h] = SIZES[input.size];
   const png = await htmlToImage(renderArt(input), { width: w, height: h, deviceScaleFactor: 1, selector: '.art' });
-  return sharp(png).resize(w, h, { fit: 'cover' }).jpeg({ quality: 82, mozjpeg: true }).toBuffer();
+  // q72: the phone downloads the picture after the preview's text is already showing; 27-29% fewer bytes than q82
+  // on the real card and invite, no visible loss at 1200x630.
+  return sharp(png).resize(w, h, { fit: 'cover' }).jpeg({ quality: 72, mozjpeg: true }).toBuffer();
 }
 
 function remember(key, bytes) {
@@ -227,25 +229,26 @@ function remember(key, bytes) {
  * The picture for a signed id: { bytes, contentType: 'image/jpeg', key }.
  * Throws ArtError(404) for an id we did not issue or a thing that is not there.
  */
-// One event per picture served (kind, size, ms, from: drawn | r2 | mem): a link preview fetches the picture with no
-// session, so this is how the logs show a phone fetched one. No id, code or name.
-function served(input, t0, from) {
-  logEvent('web_quiz.art_served', { kind: input.kind, size: input.size, ms: Date.now() - t0, from });
+// One event per picture served (kind, size, ms, from: drawn | r2 | mem, and where the time went): a link preview fetches
+// the picture with no session, so this is how the logs show a phone fetched one. No id, code or name.
+function served(input, t0, from, steps = {}) {
+  logEvent('web_quiz.art_served', { kind: input.kind, size: input.size, ms: Date.now() - t0, from, ...steps });
 }
 
 // A picture being drawn right now: a second caller (the scorecard, a moment after the finish asked) waits for the
 // same draw instead of starting another.
 const inflight = new Map();
 
-function artImage(id, { size = 'og' } = {}) {
+// fresh: the caller knows this picture was never drawn (a card at the finish of its session), so R2 is not asked.
+function artImage(id, { size = 'og', fresh = false } = {}) {
   const k = `${id}|${SIZES[size] ? size : 'og'}`;
   if (inflight.has(k)) return inflight.get(k);
-  const p = artImageNow(id, { size }).finally(() => inflight.delete(k));
+  const p = artImageNow(id, { size, fresh }).finally(() => inflight.delete(k));
   inflight.set(k, p);
   return p;
 }
 
-async function artImageNow(id, { size = 'og' } = {}) {
+async function artImageNow(id, { size = 'og', fresh = false } = {}) {
   const t0 = Date.now();
   const p = parseArtId(id);
   if (!p) notFound();
@@ -256,26 +259,31 @@ async function artImageNow(id, { size = 'og' } = {}) {
     return { bytes: mem.get(seen.key), contentType: 'image/jpeg', key: seen.key };
   }
   const [f, brand] = await Promise.all([facts(p.kind, p.ref), brandKey()]);
+  const steps = { facts_ms: Date.now() - t0, r2_ms: 0, draw_ms: 0 };
   const input = { kind: KIND_OF[p.kind], size: sz, brand, lang: f.lang, d: f.d };
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
   if (mem.has(key)) {
     byId.set(`${id}|${sz}`, { key, until: Date.now() + BY_ID_MS[p.kind] });
-    served(input, t0, 'mem');
+    served(input, t0, 'mem', steps);
     return { bytes: mem.get(key), contentType: 'image/jpeg', key };
   }
   let bytes = null;
   let from = 'r2';
   // Ask first: a picture not drawn yet is a cache miss, and downloadFromR2 logs every failure as an error.
+  // A fresh picture (a card at its session's finish) cannot be in R2: asking would only delay its draw.
+  const r0 = Date.now();
   try {
-    if ((await r2.headObject(key)).exists) bytes = await r2.downloadFromR2(key);
+    if (!fresh && (await r2.headObject(key)).exists) bytes = await r2.downloadFromR2(key);
   } catch (e) {
     bytes = null;
     logToFile('⚠️ web-quiz art: R2 read failed, drawing instead', { key, error: (e && e.name) || 'error' }, 'warn');
   }
+  steps.r2_ms = Date.now() - r0;
   if (!bytes || !bytes.length) {
     const d0 = Date.now();
     from = 'drawn';
     bytes = await draw(input);
+    steps.draw_ms = Date.now() - d0;
     logToFile('web-quiz art drawn', { kind: input.kind, size: sz, ms: Date.now() - d0, kb: Math.round(bytes.length / 1024) });
     // R2 is the next process's cache: it fills in the background, so the picture (and a link preview waiting on
     // it) never waits for the upload (~1 s on sandbox).
@@ -286,7 +294,7 @@ async function artImageNow(id, { size = 'og' } = {}) {
   remember(key, bytes);
   byId.set(`${id}|${sz}`, { key, until: Date.now() + BY_ID_MS[p.kind] });
   if (byId.size > MEM_MAX * 4) byId.delete(byId.keys().next().value);
-  served(input, t0, from);
+  served(input, t0, from, steps);
   return { bytes, contentType: 'image/jpeg', key };
 }
 

@@ -1477,6 +1477,9 @@ async function finishSession(body = {}) {
       ...(s.user_id ? { kind: 'self_test' } : {}),
     });
     logEvent('web_quiz.session_completed', { sessionId: s.id, shareCodeId: s.share_code_id, correct, total, pct });
+    // The card's share picture starts drawing now, while the rest of this answer is built: a link preview asks for it
+    // within seconds of the finish. Never awaited; a teacher's own run has no card picture.
+    if (!s.user_id) require('./web-quiz-share-warm').cardAtFinish(Art.artId('c', s.id));
   }
 
   const prior = await priorFinish(s.share_code_id, s.student_id, s.id);
