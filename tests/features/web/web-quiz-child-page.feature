@@ -267,6 +267,14 @@ Feature: Web child quiz page on the portal
     Then the quiz starts as that child
     But when the server does not know that chip, the phone forgets it and asks "What is your name?"
 
+  @T564
+  Scenario: A link that already names the child never asks "Who is playing?" while the quiz opens
+    Given identity v2 is on and this phone remembers the child
+    When the child opens "/q/<code>?k=<chip>" from their hub, a play-again row or the video library
+    Then the page shows the quiz with "Opening your quiz…" and nothing to tap until question 1
+    And "Who is playing?" never appears before question 1
+    But when the session cannot start, the page shows "Who is playing?" and waits for the child to tap
+
   @T493
   Scenario: Replaying under the same typed name on the same phone is the same child, not a new one
     Given identity v2 is on and a child typed "Usman Testwala", which the class list does not have, and confirmed "Yes"
