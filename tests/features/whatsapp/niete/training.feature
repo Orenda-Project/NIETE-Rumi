@@ -1029,6 +1029,38 @@ Feature: NIETE (ICT) Teacher Training
     # the legacy STUDENT_JOIN_FLOW_ID set, only an English child gets that (English) screen and an Urdu child is
     # asked in Urdu chat — proven in bot/tests/quiz/student-join-language.test.js. @wip.
 
+  # ── an old wa.me quiz link opens the WEB quiz ───────────────────────────────────────────
+  # Switching the web quiz on changed only the links handed out from then on; a link a
+  # teacher forwarded before it still arrives as "QUIZ-<code>" text and used to start the
+  # ~46-message chat quiz. With app_settings web_quiz_old_link_redirect on, that text is
+  # answered by ONE link button to the same code's web page and nothing starts in chat.
+  # Needs a pre-switch class link (a code minted while the web quiz was off), the flag on,
+  # a fresh driver number. @wip until driven on the sandbox number.
+
+  @e2e @quiz @config-gated @wip @draft @P1 @T596
+  Scenario: An old quiz link, with the redirect on, opens the web quiz with one button and starts nothing in chat
+    Given a class quiz link minted before the web quiz was switched on, and app_settings "web_quiz_old_link_redirect" is true for this environment
+    And the child's phone has no quiz running in chat
+    When the child sends the link's "QUIZ-<code>" text
+    Then exactly one message arrives: the greeting naming the teacher and the topic in the quiz's language, and a button reading "Start quiz" (or "کوئز شروع کریں")
+    And no join screen, name question or question 1 follows in chat
+    When the child taps the button
+    Then the web quiz page for that code opens inside WhatsApp and asks who is playing, as a new web link would
+    And after the child finishes, the teacher's class report lists them exactly as it lists a chat result
+    # video-quiz-share beginFromCode -> web-quiz-old-link tryRedirect: the flag (fail closed), the teacher's web
+    # quiz being on (web-quiz-link webQuizOn), no running chat quiz (video-quiz getActiveState) and an accepted
+    # cta_url send; any gate failing runs today's chat join. The teacher's own link opens the signed preview (?p=).
+    # Proven in bot/tests/quiz/old-link-redirect.test.js through the real text handler. @wip.
+
+  @e2e @quiz @config-gated @wip @draft @P2 @T597
+  Scenario: An old quiz link with the redirect off, or for a teacher whose web quiz is off, starts the chat quiz as before
+    Given a class quiz link minted before the web quiz was switched on, and app_settings "web_quiz_old_link_redirect" is absent or false
+    When the child sends the link's "QUIZ-<code>" text
+    Then the chat join runs exactly as today: the greeting, then the name-and-class screen or question
+    And no link button is sent
+    # web-quiz-old-link redirectOn reads app_settings with a 30 s cache and answers false on a read error, so a
+    # missing row, a bad value or a database blip all keep the chat quiz. @wip.
+
   @e2e @quiz @copy @wip @draft @P2 @T57
   Scenario: After an Urdu quiz, the message a child forwards to a friend is in Urdu
     Given a child has just finished an Urdu class quiz opened from its link

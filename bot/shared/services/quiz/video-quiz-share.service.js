@@ -378,6 +378,12 @@ async function beginFromCode(phone, code) {
     return true;
   }
 
+  // An old wa.me link, once the web quiz is on for this teacher: ONE link button to
+  // the same code's web page, nothing started in chat (web-quiz-old-link.js). Every
+  // gate there — the flag, the teacher, a chat quiz already running, a refused send —
+  // falls through to the join below, exactly as before.
+  if (await require('./web-quiz-old-link').tryRedirect(phone, code, sc)) return true;
+
   const ctx = {
     // The PARENT code when this was an invite — the child counts toward the
     // teacher's report exactly like anyone they sent it to directly.
