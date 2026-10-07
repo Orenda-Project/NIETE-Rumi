@@ -23,6 +23,10 @@ const http = require('http');
 const crypto = require('crypto');
 
 const [port, root] = [Number(process.argv[2]), process.argv[3]];
+// One line per READ-THROUGH (`GET|HEAD\t<key>\t<bytes>`): the staging files a run actually needed — what an
+// offline file snapshot would have to carry (bd-z3ze4.4). A file the run wrote itself is never listed.
+const READ_LOG = process.env.LOCAL_R2_READ_LOG;
+const logRead = (method, key, bytes) => { if (READ_LOG) try { fs.appendFileSync(READ_LOG, `${method}\t${key}\t${bytes == null ? '' : bytes}\n`); } catch (_) { /* never fail a read over the log */ } };
 if (!port || !root) { console.error('usage: local-r2.js <port> <dir>'); process.exit(2); }
 const OBJ = path.join(root, 'objects'), META = path.join(root, 'meta'), GONE = path.join(root, 'deleted');
 for (const d of [OBJ, META, GONE]) fs.mkdirSync(d, { recursive: true });
@@ -105,6 +109,7 @@ async function serveObject(res, bucket, key, head) {
     if (r.ETag) h.etag = r.ETag;
     if (r.LastModified) h['last-modified'] = new Date(r.LastModified).toUTCString();
     res.writeHead(200, h);
+    logRead(head ? 'HEAD' : 'GET', key, r.ContentLength);
     if (head) return res.end();
     r.Body.pipe(res);
   } catch (e) {

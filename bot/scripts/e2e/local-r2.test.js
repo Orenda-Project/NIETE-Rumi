@@ -50,7 +50,9 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
   await upS3.send(new PutObjectCommand({ Bucket: BUCKET, Key: 'lp/grade4/shared.pdf', Body: 'UPSTREAM-SHARED', ContentType: 'application/pdf' }));
   const upBefore = listFiles(upDir);
 
+  const readsLog = path.join(tmp, 'r2-reads.log');
   const local = await start(LOCAL_PORT, localDir, {
+    LOCAL_R2_READ_LOG: readsLog,
     LOCAL_R2_UPSTREAM_ENDPOINT: `http://127.0.0.1:${UP_PORT}`, LOCAL_R2_UPSTREAM_BUCKET: BUCKET,
     LOCAL_R2_UPSTREAM_KEY_ID: 'local', LOCAL_R2_UPSTREAM_SECRET: 'local' });
   const s3 = client(LOCAL_PORT);
@@ -98,6 +100,11 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
       assert.deepStrictEqual((r.Contents || []).map((o) => o.Key).sort(), ['lp/grade4/shared.pdf']);
       const all = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET }));
       assert.deepStrictEqual((all.Contents || []).map((o) => o.Key).sort(), ['lp/grade4/shared.pdf', 'reports/run1/report.pdf']);
+    });
+    await t('every read-through is logged (key + bytes) — what an offline file snapshot would need', async () => {
+      const lines = fs.readFileSync(readsLog, 'utf8').trim().split('\n');
+      assert.ok(lines.includes('GET\tlp/grade4/fractions.pdf\t12'), lines.join(' | '));
+      assert.ok(!lines.some((l) => l.includes('reports/run1/report.pdf')), 'a file the run wrote itself is not a read-through');
     });
     await t('NOTHING the run did reached upstream', async () => {
       assert.deepStrictEqual(listFiles(upDir), upBefore);

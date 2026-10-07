@@ -134,6 +134,7 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     kv() { sed -nE "s/^$1=(.*)$/\1/p" "$keys" | head -1 | tr -d "\"'"; }   # a keys-file value, quotes stripped
     ( cd "$src" && LOCAL_R2_UPSTREAM_ENDPOINT="$(kv R2_ENDPOINT)" LOCAL_R2_UPSTREAM_BUCKET="$(kv R2_BUCKET_NAME)" \
         LOCAL_R2_UPSTREAM_KEY_ID="$(kv R2_ACCESS_KEY_ID)" LOCAL_R2_UPSTREAM_SECRET="$(kv R2_SECRET_ACCESS_KEY)" \
+        LOCAL_R2_READ_LOG="$run_dir/r2-reads.log" \
         NODE_PATH="$src/bot/node_modules:$src/node_modules" exec node "$HERE/local-r2.js" "$r2_port" "$run_dir/r2" ) >"$run_dir/r2.log" 2>&1 &
     echo $! >"$run_dir/r2.pid"
     for i in $(seq 1 30); do curl -sf -m 2 "http://127.0.0.1:$r2_port/__health" >/dev/null 2>&1 && break; sleep 0.3; done
