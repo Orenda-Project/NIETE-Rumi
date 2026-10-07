@@ -938,7 +938,7 @@ async function startSessionTimed(body = {}, mark = () => {}) {
   // (web-quiz-hub deviceMayName). Anywhere else it names NOBODY: chip_unknown, so the page
   // forgets the chip and asks who is playing, as for any new phone.
   if (student && body.chip && body.via === 'hub' && body.confirm !== true
-    && !(await require('./web-quiz-hub').deviceMayName(found ? found.kid.ids : [student.id], body.device_ref))) {
+    && !(await require('./web-quiz-hub-device').deviceMayName(found ? found.kid.ids : [student.id], body.device_ref))) {
     logEvent('web_quiz.identity_step', { shareCodeId: ctx.shareCodeId, step: 'hub_other_device', hits: 0 });
     fail(404, 'chip_unknown');
   }

@@ -138,7 +138,7 @@ async function entryOf(token, kid, device) {
     } else if (ids.length > 1) fail(400, 'pick_kid');
     // A forwarded hub link opens nothing as the child: only the phone the link is bound to
     // (or one the child played on) gets their results or a run (web-quiz-hub deviceTrusted).
-    const trust = await require('./web-quiz-hub').deviceTrusted(token, device);
+    const trust = await require('./web-quiz-hub-device').deviceTrusted(token, device);
     if (!trust.ok) fail(403, 'other_device');
     return { studentId: hit, via: 'hub' };
   }
