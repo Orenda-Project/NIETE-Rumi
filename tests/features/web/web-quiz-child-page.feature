@@ -843,6 +843,15 @@ Feature: Web child quiz page on the portal
     And with no such quiz the card says "No new quiz from your teacher right now. Watch a video and try its quiz!" with the video library button
     And a quiz with no grade, or another grade, is never shown as the teacher's
 
+  @T540
+  Scenario: The hub's teacher card puts the quiz handed to the child's own class first
+    Given a teacher handed a grade 3-5 quiz to class 3-A and later sent another grade 3-5 quiz to no class in particular
+    When a child enrolled in 3-A opens their hub
+    Then "From your teacher" shows the quiz handed to 3-A, even though the other one is newer
+    And a child of 3-B never sees the quiz handed to 3-A
+    And the same lesson the child already finished in the other language is never shown as new
+    And of two quizzes for the class, the one in the child's language comes first
+
   @T303
   Scenario: Play again shows the child's best score and keeps the first score for the teacher
     Given a child who finished a quiz twice, scoring 4/10 and then 8/10
