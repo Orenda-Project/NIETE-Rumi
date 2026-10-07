@@ -33,10 +33,11 @@ import {
  *             the wait as an amber chip. Leaving mid-exam discards the answers, as before.
  */
 type ExamOption = string | { key?: string; text?: string; urdu?: string };
-type GQuestion = { id: number; question_text: string; question_urdu: string | null; options: ExamOption[]; order_index: number };
+// bd-klecr.7 — option_values[i] is options[i]'s canonical 1-based value when the paper shuffles them.
+type GQuestion = { id: number; question_text: string; question_urdu: string | null; options: ExamOption[]; option_values?: string[]; order_index: number };
 type CQuestion = { id: number; question_text: string; order_index: number };
 type Paper =
-  | { kind: 'grand_quiz'; questions: GQuestion[] }
+  | { kind: 'grand_quiz'; questions: GQuestion[]; attemptId: string | null }
   | { kind: 'capstone'; questions: CQuestion[]; floor: number };
 type Cert = { certificate_code: string; level_name: string; issued_at?: string } | null;
 type Result = { score: number; max: number; passed: boolean; cooldownUntil: string | null; certificate: Cert; answers?: CapAnswer[] };
@@ -87,7 +88,7 @@ export default function TrainingLevelExam() {
         setPaper({ kind: 'capstone', questions: [...(data.questions || [])].sort((a: CQuestion, b: CQuestion) => a.order_index - b.order_index), floor: Number(data.min_answer_chars) || 0 });
       } else {
         const { data } = await api.get(`/training/level/${encodeURIComponent(levelId)}/grand-quiz/questions`);
-        setPaper({ kind: 'grand_quiz', questions: [...(data.questions || [])].sort((a: GQuestion, b: GQuestion) => a.order_index - b.order_index) });
+        setPaper({ kind: 'grand_quiz', attemptId: data.attempt_id || null, questions: [...(data.questions || [])].sort((a: GQuestion, b: GQuestion) => a.order_index - b.order_index) });
       }
       setIndex(0); setPicks({}); setTexts({});
     } catch {
@@ -118,8 +119,13 @@ export default function TrainingLevelExam() {
         const a = data.attempt;
         setResult({ score: a.score, max: a.total_score, passed: a.is_passed, cooldownUntil: null, certificate: data.certificate || null, answers: data.answers || [] });
       } else {
+        const valueAt = (x: GQuestion, i: number) => Number(x.option_values?.[i] ?? i + 1);
         const { data } = await api.post(`/training/level/${encodeURIComponent(levelId)}/grand-quiz/attempts`, {
-          answers: paper.questions.map((x) => ({ question_id: x.id, chosen_option: (picks[x.id] || []).map((i) => i + 1).join(',') })),
+          ...(paper.attemptId ? { attempt_id: paper.attemptId } : {}),
+          answers: paper.questions.map((x) => ({
+            question_id: x.id,
+            chosen_option: (picks[x.id] || []).map((i) => valueAt(x, i)).sort((m, n) => m - n).join(','),
+          })),
         });
         const a = data.attempt;
         setResult({ score: a.score, max: a.max_score, passed: a.is_passed, cooldownUntil: a.cooldown_until ?? null, certificate: data.certificate || null });

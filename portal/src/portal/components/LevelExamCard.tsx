@@ -83,6 +83,8 @@ type ExamQuestion = {
   question_text: string;
   question_urdu: string | null;
   options: ExamOption[];
+  /** bd-klecr.7 — canonical 1-based value of options[i], when the paper shuffles them. */
+  option_values?: string[];
   order_index: number;
 };
 
@@ -155,6 +157,8 @@ const LevelExamCard = ({
 
   // Exam-taking state
   const [questions, setQuestions] = useState<ExamQuestion[] | null>(null);
+  // bd-klecr.7 — the attempt the paper was served for; the submit names it.
+  const [attemptId, setAttemptId] = useState<string | null>(null);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [answers, setAnswers] = useState<Record<number, string>>({}); // question_id → chosen_option ('1'-based)
   const [submitting, setSubmitting] = useState(false);
@@ -187,6 +191,7 @@ const LevelExamCard = ({
     try {
       const { data } = await api.get(`/training/level/${levelId}/grand-quiz/questions`);
       setQuestions(data.questions || []);
+      setAttemptId(data.attempt_id || null);
       setAnswers({});
     } catch (err: any) {
       const msg = err?.response?.data?.error || 'Could not load the exam';
@@ -202,6 +207,7 @@ const LevelExamCard = ({
     setSubmitting(true);
     try {
       const payload = {
+        ...(attemptId ? { attempt_id: attemptId } : {}),
         answers: questions.map(q => ({ question_id: q.id, chosen_option: answers[q.id] })),
       };
       const { data } = await api.post(`/training/level/${levelId}/grand-quiz/attempts`, payload);
@@ -216,7 +222,7 @@ const LevelExamCard = ({
     } finally {
       setSubmitting(false);
     }
-  }, [questions, answers, levelId, onCertified, toast, loadGate]);
+  }, [questions, answers, attemptId, levelId, onCertified, toast, loadGate]);
 
   if (loadingGate) {
     return (
@@ -315,7 +321,9 @@ const LevelExamCard = ({
               </legend>
               <div className="space-y-1.5">
                 {q.options.map((o, oi) => {
-                  const value = String(oi + 1); // 1-based option index — same payload as the WhatsApp buttons
+                  // 1-based CANONICAL option index — same payload as the WhatsApp buttons.
+                  // A shuffled paper (bd-klecr.7) says each option's value; else it is the position.
+                  const value = q.option_values?.[oi] ?? String(oi + 1);
                   const checked = answers[q.id] === value;
                   return (
                     <label
