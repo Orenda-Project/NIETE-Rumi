@@ -163,6 +163,25 @@ describe('a library quiz boots in its own language', () => {
     expect((await WQ.getQuiz(code)).quiz).toMatchObject({ lang: 'ur', dir: 'rtl' });
   });
 
+  test('the same old code opened straight from the library (no videos/start) boots Urdu, and its row is corrected for the rest of the quiz', async () => {
+    fake.db.quiz_share_codes.push({ id: 'sc-old', code: 'OLD777', quiz_id: VQ(3), video_id: V(3), teacher_user_id: TEACHER,
+      teacher_name: 'Ms Example Teacher', topic: 'Sounds around us', language: 'en', active: true, expires_at: future,
+      invited_by_student_id: null, parent_share_code_id: SC, uses_count: 0, created_at: ago(2) });
+    expect((await WQ.getQuiz('OLD777')).quiz).toMatchObject({ lang: 'ur', dir: 'rtl' });
+    await new Promise((r) => setImmediate(r));
+    expect(rowOf('OLD777')).toMatchObject({ language: 'ur', parent_share_code_id: SC, quiz_id: VQ(3) });
+    expect((await WQ.resolveCode('OLD777')).lang).toBe('ur');
+  });
+
+  test('a class code is never relabelled by its quiz (an English class quiz with Urdu words stays English)', async () => {
+    fake.db.quiz_questions.push({ id: '99999990-9999-4999-8999-99999999999c', quiz_id: QUIZ, external_id: 'leg:1', sort_order: 1,
+      question_text: 'Which word means «پانی»?', option_a: 'Water', option_b: 'Fire', option_c: 'Air', option_d: null,
+      correct_option: 'A', explanation: null, option_feedback: null, media: {}, render_pattern: null });
+    fake.db.quizzes.find((q) => q.id === QUIZ).language = null;
+    expect((await WQ.getQuiz('EN12CD')).quiz).toMatchObject({ lang: 'en', dir: 'ltr' });
+    expect(rowOf('EN12CD').language).toBe('en');
+  });
+
   test('a lesson in the class\'s own language is unchanged (English lesson, English class)', async () => {
     const { code } = await Videos.start({ code: 'EN12CD', st: st(), vid: V(1) });
     expect((await WQ.getQuiz(code)).quiz).toMatchObject({ lang: 'en', dir: 'ltr' });

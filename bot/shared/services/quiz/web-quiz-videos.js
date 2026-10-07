@@ -215,21 +215,16 @@ function hubModule() {
 /**
  * One code per (class code, video quiz): the live one, else minted with the class code's teacher. -> {id, code}
  * The code's language (its page's language and direction) is the LESSON's (`lang`), never the class code's:
- * an Urdu lesson tapped from an English class is an Urdu page. A live code minted in the class's language
- * before that rule is corrected in place, so a link already handed out keeps working.
+ * an Urdu lesson tapped from an English class is an Urdu page. (A live code minted in the class's language
+ * before this rule is corrected by the page's boot, getQuiz, which every lesson code passes through.)
  */
 async function codeFor({ rootId, root, vq, video, vid, lang, fail }) {
-  const { data: have } = await supabase.from('quiz_share_codes').select('id, code, active, expires_at, language')
+  const { data: have } = await supabase.from('quiz_share_codes').select('id, code, active, expires_at')
     .eq('parent_share_code_id', rootId).eq('quiz_id', vq.id).is('invited_by_student_id', null).limit(5);
   const live = (have || []).find((c) => c.active !== false && (!c.expires_at || new Date(c.expires_at) > new Date()));
   if (live) {
-    const relabel = live.language !== lang;
-    if (relabel) {
-      const { error } = await supabase.from('quiz_share_codes').update({ language: lang }).eq('id', live.id);
-      if (error) logToFile('⚠️ web-quiz videos: could not correct a lesson code\'s language', { error: error.message });
-    }
-    logEvent('web_quiz.more_video_code', { shareCodeId: rootId, videoId: vid, quizId: vq.id, reused: true, ...(relabel ? { relabeled: lang } : {}) });
-    return { id: live.id, code: live.code };
+    logEvent('web_quiz.more_video_code', { shareCodeId: rootId, videoId: vid, quizId: vq.id, reused: true });
+    return live;
   }
   let r = root;
   if (!r || r.id !== rootId) {
