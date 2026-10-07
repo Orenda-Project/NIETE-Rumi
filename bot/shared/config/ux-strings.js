@@ -3878,6 +3878,12 @@ const UX_STRINGS = {
   wqChReadStart: { en: 'Ready? Begin.', ur: 'تیار ہو جائیں۔ شروع کریں!' },
   wqChReadStop: { en: 'Stop. Thank you!', ur: 'رک جائیں۔ شکریہ!' },
   wqChReadDone: { en: 'Great reading! Well done.', ur: 'بہت اچھا پڑھا! شاباش!' },
+  // "Listen and answer": the bank's listening story, played twice, then tap questions (gender-neutral; no test words)
+  wqChListenName: { en: 'Listen and answer', ur: 'سنیں اور جواب دیں' },
+  wqChListenIntro: { en: 'Listen to a short story two times. Then answer the questions!', ur: 'ایک چھوٹی سی کہانی دو بار سنیں۔ پھر سوالوں کے جواب دیں!' },
+  wqChListenStart: { en: 'Listen carefully.', ur: 'غور سے سنیں۔' },
+  wqChListenStop: { en: 'Now the questions!', ur: 'اب سوال!' },
+  wqChListenDone: { en: 'Well done! Good listening.', ur: 'شاباش! آپ نے بہت غور سے سنا۔' },
 };
 
 /**

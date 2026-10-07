@@ -44,6 +44,7 @@ const Budget = require('./web-quiz-challenge-budget');
 const FLAG_KEY = 'web_quiz_challenge';
 const LIVE_FLAG_KEY = 'web_quiz_challenge_realtime';
 const QA_FLAG_KEY = 'web_quiz_challenge_questions';
+const LISTEN_FLAG_KEY = 'web_quiz_challenge_listen';
 const QA_MAX = 3;
 // Never shown to a child as an option (the page's no-test-words rule, Urdu and English).
 // "I don't know" is never offered as an option (it is in some rubrics' reject lists as a non-answer).
@@ -82,11 +83,12 @@ function childTest({ scorer = false } = {}) {
 const EXERCISES = Object.freeze([
   { id: 'bigger', mins: 2, task: () => 'ma.discrimination' },
   { id: 'read', mins: 2, task: (lang) => `${lang}.story` },
+  { id: 'listen', mins: 2, task: (lang) => `${lang}.listening` },
 ]);
 const byId = (id) => EXERCISES.find((e) => e.id === id) || null;
 
 // Names and the mascot's lines live in the string catalog (ux-strings.js, keys wqCh*), both languages.
-const KEY = { bigger: 'Bigger', read: 'Read' };
+const KEY = { bigger: 'Bigger', read: 'Read', listen: 'Listen' };
 const PART_KEY = { intro: 'Intro', start: 'Start', stop: 'Stop', done: 'Done' };
 const nameOf = (ex, lang) => resolveUx(`wqCh${KEY[ex]}Name`, { language: lang });
 const lineOf = (ex, part, lang) => resolveUx(`wqCh${KEY[ex]}${PART_KEY[part]}`, { language: lang });
@@ -110,12 +112,13 @@ const isMissingTable = (e) => !!e && (e.code === '42P01' || /does not exist|sche
 let flagCache = null;
 let liveCache = null;
 let qaCache = null;
+let listenCache = null;
 const RUNS = new Map();          // runId → { status, result, promise }
 const clipKnown = new Map();     // key → true (exists) | number (missing, checked at)
 const clipRecording = new Set();
 let clipsRecorded = 0;
 
-function __reset() { flagCache = null; liveCache = null; qaCache = null; Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; }
+function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; }
 
 function isTrue(v) {
   let x = v;
@@ -162,6 +165,20 @@ async function questionsOn(now = Date.now()) {
     qaCache = { at: now, on: false };
   }
   return qaCache.on;
+}
+
+/** "Listen and answer": only `true` turns it on; anything else, or a failed read, is off. */
+async function listenOn(now = Date.now()) {
+  if (listenCache && now - listenCache.at < FLAG_TTL_MS) return listenCache.on;
+  try {
+    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', LISTEN_FLAG_KEY);
+    if (error) throw new Error(error.message || 'app_settings read failed');
+    listenCache = { at: now, on: !!(data && data[0]) && isTrue(data[0].value) };
+  } catch (e) {
+    logToFile('⚠️ web quiz challenge: listen flag lookup failed — off', { error: e.message });
+    listenCache = { at: now, on: false };
+  }
+  return listenCache.on;
 }
 
 /** The chip a hub page sends for one of the phone's children (not reversible): the hub's own, T.chipId('h', id). */
@@ -339,6 +356,14 @@ async function clipUrl(key, text, lang) {
   } catch (_) { return null; }
 }
 
+/** The listening story in the quiz voice (recorded once per env; null until it exists, and asking starts it). */
+async function storyClip(lang) {
+  let text = null;
+  try { text = (childTest().Bank.getTaskSpec({ grade: 3, set: 'A', task: `${lang}.listening` }).story || {}).text; } catch (_) { text = null; }
+  if (!text) return null;
+  return clipUrl(clipKey('listen', 'story', lang, text), text, lang);
+}
+
 async function clipsFor(ex, lang) {
   const out = {};
   await Promise.all(PARTS.map(async (part) => {
@@ -362,10 +387,12 @@ async function menu(token, { kid, lang, device } = {}) {
   logEvent('web_quiz.ch_open', { via: w.via, grade: w.grade });
   // Today's read-aloud cap reached (web-quiz-challenge-budget.js): "Which is bigger?" only until Pakistan midnight.
   const readOk = await Budget.readOpen();
+  // "Listen and answer" only once its story is recorded (asking for it starts the recording): never silence to listen to
+  const listenOk = (await listenOn()) && !!(await storyClip(w.lang));
   return {
     form: `G${w.form}`,
     lang: w.lang,
-    exercises: EXERCISES.filter((e) => e.id !== 'read' || readOk).map((e) => {
+    exercises: EXERCISES.filter((e) => (e.id !== 'read' || readOk) && (e.id !== 'listen' || listenOk)).map((e) => {
       const last = runs.find((r) => r.exercise === e.id) || null;
       return { id: e.id, name: nameOf(e.id, w.lang), mins: e.mins, done: !!last, last: lastOf(last) };
     }),
@@ -379,6 +406,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   if (!def) fail(404, 'not_found');
   const w = await who(token, { kid, lang, device });
   if (ex === 'read' && !(await Budget.readOpen())) fail(429, 'enough_for_today');
+  if (ex === 'listen' && !(await listenOn())) fail(503, 'listen_off');
   const { Bank } = childTest();
   const task = def.task(w.lang);
   const spec = Bank.getTaskSpec({ grade: Number(w.form), set: 'A', task });
@@ -395,6 +423,12 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
       per_item_s: PER_ITEM_S,
       stop_after: (spec.stop && spec.stop.n) || 4,
     };
+  }
+  if (ex === 'listen') {
+    // the story is heard, never shown: only its clip and how many times EGRA reads it
+    const url = await storyClip(w.lang);
+    if (!url) fail(503, 'getting_ready');
+    return { ...base, read_times: Number(spec.read_times) || 2, story_clip: { url } };
   }
   const st = spec.story || {};
   const live = await liveOn();
@@ -715,6 +749,17 @@ const TAP_REVIEWED = new Map([
   ['ur.story.q1', { skip: ['والدہ کے ساتھ'] }],           // the same as «امی کے ساتھ» (with mother)
   ['ur.story.q2', { skip: [] }],
   ['ur.story.q4', { skip: [] }],
+  // listening (Phase 3 (2)): left out en q5 (its first accepted answer is circular), ur q4 («صاف کلاس» is the rubric's
+  // own near-miss, «عائشہ کی» arguable), ur q5 (circular, too few fair wrong answers)
+  ['en.listening.q1', { skip: [] }],
+  ['en.listening.q2', { skip: [] }],
+  ['en.listening.q3', { skip: [] }],
+  ['en.listening.q4', { skip: [] }],
+  ['en.listening.q6', { skip: [] }],
+  ['ur.listening.q1', { skip: [] }],
+  ['ur.listening.q2', { skip: ['کلاس'] }],                // the whole class cleaned, Ayesha included
+  ['ur.listening.q3', { skip: [] }],
+  ['ur.listening.q6', { skip: [] }],
 ]);
 
 /** One bank question as a tap question: its first accept + two of its rejects, in the passage's script; null if short. */
@@ -746,8 +791,9 @@ function tapOptions(q, lang, runId) {
 
 // The reading this run belongs to: its form, language and passage (from this process, else the table).
 async function readingOf(c, lang) {
-  if (c.ex !== 'read') fail(400, 'bad_request');
-  if (!(await questionsOn())) fail(503, 'questions_off');
+  if (c.ex !== 'read' && c.ex !== 'listen') fail(400, 'bad_request');
+  if (c.ex === 'read' && !(await questionsOn())) fail(503, 'questions_off');
+  if (c.ex === 'listen' && !(await listenOn())) fail(503, 'listen_off');
   const mem = RUNS.get(c.r) || {};
   const row = await storedRun(c.r);
   const run = await runFor(c, mem.task ? mem : {}, (row && row.lang) || mem.lang || lang);
@@ -763,6 +809,7 @@ async function readingOf(c, lang) {
 async function questions({ ct, attempted, lang } = {}) {
   const c = runOf(ct);
   const { run, row, mem, spec } = await readingOf(c, lang);
+  if (c.ex === 'listen') return listenQuestions(c, run, row, spec);
   const n = ((spec.story || {}).tokens || []).length;
   const checked = (row && row.status === 'scored' && row.score) || (mem.result && mem.result.score) || null;
   if (checked && checked.stopped) return { questions: [] };
@@ -784,6 +831,24 @@ async function questions({ ct, attempted, lang } = {}) {
   return { questions: out };
 }
 
+/** Listening: the child heard the whole story, so no reach rule; the run is written as scoring when they are served. */
+async function listenQuestions(c, run, row, spec) {
+  const out = [];
+  for (const q of spec.questions || []) {
+    if (out.length >= QA_MAX) break;
+    const t = tapOptions(q, run.lang, c.r);
+    if (!t) continue;
+    const k = q.id.split('.').pop();
+    out.push({ id: q.id, prompt: q.prompt, options: t.options, clip: { url: await clipUrl(clipKey('listen', k, run.lang, q.prompt), q.prompt, run.lang) } });
+  }
+  if (!row && out.length) {
+    RUNS.set(c.r, { ...run, status: 'listening' });
+    await insertRun({ id: c.r, student_id: c.sid, exercise: 'listen', grade: run.grade, lang: run.lang, status: 'scoring', created_at: nowIso(), meta: { phase: 'listen', n: out.length } });
+  }
+  logEvent('web_quiz.ch_qs', { lang: run.lang, n: out.length, step: 'listen' });
+  return { questions: out };
+}
+
 /** One tap: { ok, answer } (the right option's text). A question counts once; at most 3 per reading. */
 async function answer({ ct, q, pick, lang } = {}) {
   const c = runOf(ct);
@@ -802,6 +867,12 @@ async function answer({ ct, q, pick, lang } = {}) {
   const vals = Object.values(comp.ans);
   const numbers = { asked: vals.length, correct: vals.filter(Boolean).length, v: 1 };
   if (row) await updateRun(c.r, { meta: { ...(row.meta || {}), comp: numbers } });
+  // listening: the last answer scores the run ({correct, n}, as "Which is bigger?")
+  const n = row && row.meta && Number(row.meta.n);
+  if (c.ex === 'listen' && row && n && numbers.asked >= n) {
+    await updateRun(c.r, { status: 'scored', score: { correct: numbers.correct, n }, scored_at: nowIso() });
+    logEvent('web_quiz.ch_done', { step: 'listen', count: numbers.correct, n });
+  }
   logEvent('web_quiz.ch_qa', { lang: run.lang, ok });
   return { ok, answer: t.right };
 }
@@ -862,7 +933,7 @@ async function listResults({ cls, list } = {}) {
 }
 
 module.exports = {
-  menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, tapOptions,
+  menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, tapOptions, listenOn,
   scoreBigger, wcpm, formFor, gradeOf, kidChip, challengeOn, clipKey, childVoiceBucket,
   EXERCISES, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, TABLE, MAX_BYTES,
   __reset,
