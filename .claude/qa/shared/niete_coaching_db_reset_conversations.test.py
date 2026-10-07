@@ -21,5 +21,24 @@ def run():
         "DELETE did not target conversations for the user: %r" % deletes
     print("PASS reset_conversations targets conversations for the driver")
 
+def run_lp_context():
+    """The open-chat prompt also carries her recent lessons (lp-context.service: the in-run Redis shelf,
+    else niete_lp_downloads over 7 days). Those follow whatever this driver was sent on earlier runs and
+    age out after a week, so the cassette key drifted per driver and per week. clear_lp_context resets
+    both: the downloads rows and the shelf key."""
+    calls, redis = [], []
+    def fake_req(method, path, creds, body=None, prefer=None):
+        calls.append((method, path)); return None
+    def fake_get(creds, table, q):
+        return [] if any(c[0] == "DELETE" for c in calls) else [{"id": "a"}]
+    with m.patch.object(mod, "_req", fake_req), m.patch.object(mod, "_get", fake_get), \
+         m.patch.object(mod, "_redis_del", lambda port, key: redis.append((port, key))):
+        mod.reset_conversations({"url": "u", "key": "k"}, "UID-9", yes_write=True, clear_lp_context=True, redis_port=6397)
+    deletes = [p for meth, p in calls if meth == "DELETE"]
+    assert any("niete_lp_downloads" in p and "user_id=eq.UID-9" in p for p in deletes), deletes
+    assert redis == [(6397, "lp_shelf:UID-9")], redis
+    print("PASS reset_conversations clears the recent-lesson context (downloads + shelf)")
+
 if __name__ == "__main__":
     run()
+    run_lp_context()

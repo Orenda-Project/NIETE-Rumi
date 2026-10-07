@@ -460,7 +460,9 @@ function makeApi(c) {
       trace('resetConversation');
       const botUrl = process.env.E2E_BOT_URL || `http://127.0.0.1:${process.env.E2E_BOT_PORT || 3100}`;
       const args = [path.join(REPO, '.claude/qa/shared/niete_coaching_db.py'), 'reset-conversations',
-        '--env', ENV, '--phone', process.env.E2E_DRIVER || '923028931858', '--yes-write', '--clear-cache-url', botUrl];
+        '--env', ENV, '--phone', process.env.E2E_DRIVER || '923028931858', '--yes-write', '--clear-cache-url', botUrl,
+        // and her recent lessons, which ride in the same prompt (bd-oo8ka's identity line was only part of it)
+        '--clear-lp-context', ...(process.env.E2E_REDIS_PORT ? ['--redis-port', String(process.env.E2E_REDIS_PORT)] : [])];
       try { const out = execFileSync('python3', args, { cwd: REPO, encoding: 'utf8', timeout: 60000 }); return { ok: true, out: out.trim().split('\n').slice(-2).join(' | ') }; }
       catch (e) { return { ok: false, err: String(e.message).slice(0, 200) }; }
     },
@@ -600,7 +602,28 @@ function makeApi(c) {
     ? require(path.join(__dirname, 'mock-api.cjs')).makeMockApi({ baseUrl: process.env.E2E_MOCK_URL, driver: process.env.E2E_DRIVER, env: ENV, repo: REPO, trace, flows })
     : makeApi(c);
   const results = [];
-  const rec = (id, name, verdict, evidence, ms) => { trace(`REC ${id} ${verdict} ${Math.round((ms||0)/1000)}s`); results.push({ id, name, verdict, evidence, ms }); };
+  // ── scenario selection (select_scenarios.py → run-suite --only → E2E_ONLY_MAP) ──────────────────────
+  // "coaching=COA09,COA20;training=T42". Absent, or no entry for this feature → every scenario runs, as
+  // before. Present → the run REPORTS only those ids, and a driver that asks want(...ids) skips the blocks
+  // whose scenarios were not selected. A driver that never asks still runs everything; its unselected rows
+  // are left out of the result, so the output is the commit's scenarios either way.
+  const ONLY = (() => {
+    const raw = String(process.env.E2E_ONLY_MAP || '').trim();
+    if (!raw) return null;
+    for (const part of raw.split(';')) {
+      const i = part.indexOf('='); if (i < 0) continue;
+      if (part.slice(0, i).trim() === FEATURE) return new Set(part.slice(i + 1).split(',').map((x) => x.trim()).filter(Boolean));
+    }
+    return null;
+  })();
+  const SCENARIO_ID = /^[A-Z]{1,5}\d{1,3}$/;   // harness rows (COA-preflight, RUNNER) carry a hyphen and always report
+  const want = (...ids) => !ONLY || ids.flat().some((x) => ONLY.has(x));
+  let outOfScope = 0;
+  const rec = (id, name, verdict, evidence, ms) => {
+    if (ONLY && SCENARIO_ID.test(String(id)) && !ONLY.has(id)) { outOfScope++; trace(`SKIP ${id} (not selected for this commit)`); return; }
+    trace(`REC ${id} ${verdict} ${Math.round((ms||0)/1000)}s`); results.push({ id, name, verdict, evidence, ms });
+  };
+  if (ONLY) trace(`selection: ${[...ONLY].join(',')} (${ONLY.size} scenario(s) of ${FEATURE})`);
   // Generic role/persona support: snapshot the driver's mutable identity (role, language) so a feature
   // that switches role via api.setRole/api.setUser cannot leak that onto the next feature's run on this
   // ONE shared driver. Restored in the finally below — a role-based suite never has to clean up itself.
@@ -619,25 +642,25 @@ function makeApi(c) {
       headers: { apikey: _SB.key, Authorization: `Bearer ${_SB.key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify(snap) }); } catch (_) {}
   };
-  // Roster teardown — the observe suite seeds a DEDICATED E2E school + teachers + leader_schools row
-  // (api.setRoster, keyed E2E-OBS-<driver> / E2EOBS<driver>). Remove them UNCONDITIONALLY in the finally
-  // so nothing is left in the SHARED sandbox DB, even if the feature crashes before it cleans up itself.
-  // Idempotent + driver-scoped (never touches other users' data).
+  // Roster teardown — the observe suite seeds a driver-scoped roster (api.setRoster): the coach→school
+  // assignment (leader_schools, school_ext_id niete:E2EOBS<driver>) over a PERSISTENT fixture school and
+  // two fixture teacher users, which stay because observations reference them. Remove the ASSIGNMENT
+  // UNCONDITIONALLY in the finally, even if the feature crashed, so the coach never keeps a test roster.
+  // Also clears the pre-2026-10-06 seed's rows. Idempotent + driver-scoped (never other users' data).
   const clearRoster = async () => {
     if (!_SB.url || !_SB.key || !_SB.drv) return;
-    const sx = 'E2E-OBS-' + _SB.drv, em = 'E2EOBS' + _SB.drv;
     const H = { apikey: _SB.key, Authorization: `Bearer ${_SB.key}`, Prefer: 'return=minimal' };
     const del = (p) => fetch(`${_SB.url}/rest/v1/${p}`, { method: 'DELETE', headers: H }).catch(() => {});
-    await del(`leader_teachers?school_ext_id=eq.${sx}`);
-    await del(`leader_schools?school_ext_id=eq.${sx}`);
-    await del(`schools?emis=eq.${em}`);
+    await del(`leader_schools?school_ext_id=eq.${encodeURIComponent('niete:E2EOBS' + _SB.drv)}`);
+    await del(`leader_teachers?school_ext_id=eq.E2E-OBS-${_SB.drv}`);
+    await del(`leader_schools?school_ext_id=eq.E2E-OBS-${_SB.drv}`);
   };
   const _identSnap = await snapshotIdentity();
   try {
     const ok = await api.inject();
     if (!ok) throw new Error('wa-drive failed to inject');
     const mod = require(path.join(__dirname, 'features', FEATURE + '.cjs'));
-    await mod.run({ api, rec, sleep });
+    await mod.run({ api, rec, sleep, want, only: ONLY });
   } catch (e) {
     results.push({ id: 'RUNNER', verdict: 'ERROR', evidence: String(e && e.message || e) });
   } finally {
@@ -657,6 +680,10 @@ function makeApi(c) {
     try { c.close(); } catch (_) {}
     let flowEmulator = null;
     try { if (api.flowStats) flowEmulator = await api.flowStats(); } catch (_) {}
+    // a selected scenario the driver never recorded is not silently missing: it is BLOCKED, with why
+    if (ONLY) for (const id of ONLY) if (!results.some((r) => r.id === id))
+      results.push({ id, verdict: 'BLOCKED', evidence: { reason: 'selected for this commit, but the driver did not record it '
+        + '(a block it depends on was skipped, or the driver has no code for this id yet)' } });
     const wallMs = Date.now() - started;
     const pass = results.filter(r => r.verdict === 'PASS').length;
     const payload = {
@@ -665,7 +692,8 @@ function makeApi(c) {
       fail: results.filter(r => r.verdict === 'FAIL').length,
       other: results.filter(r => !['PASS', 'FAIL'].includes(r.verdict)).length,
       perScenarioSec: results.length ? +(wallMs / 1000 / results.length).toFixed(1) : null,
-      botWaitStats: stats, ...(flowEmulator ? { flowEmulator } : {}), results
+      botWaitStats: stats, ...(flowEmulator ? { flowEmulator } : {}),
+      ...(ONLY ? { selection: { only: [...ONLY], notSelectedButRecorded: outOfScope } } : {}), results
     };
     const outDir = process.env.RUN_DIR
       || path.join(__dirname, '..', 'results', 'whatsapp', 'niete', '2026-08-31-feature-runner');

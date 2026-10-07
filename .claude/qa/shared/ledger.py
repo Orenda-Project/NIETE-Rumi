@@ -24,6 +24,24 @@ def verdict(passed, failed=0, blocked=0):
         return "DEGRADED"
     return "HEALTHY"
 
+
+def status_reason(row):
+    """Why a run row got its status, in words, from its own counts. CRITICAL alone reads like a break,
+    but most CRITICAL rows have no failure at all: any BLOCKED scenario makes a run CRITICAL, and every
+    feature has scenarios this lane cannot drive. '' for a HEALTHY row."""
+    s = row.get("summary") or {}
+    failed, blocked, total = int(s.get("failed") or 0), int(s.get("blocked") or 0), int(s.get("total") or 0)
+    misses = int((row.get("cassette") or {}).get("misses") or 0)
+    parts = []
+    if failed:
+        parts.append("%d failed" % failed)
+    if blocked:
+        parts.append("%d of %d blocked (not drivable on this lane)" % (blocked, total) if total
+                     else "%d blocked (not drivable on this lane)" % blocked)
+    if misses:
+        parts.append("%d cassette miss%s" % (misses, "" if misses == 1 else "es"))
+    return " · ".join(parts)
+
 _RUN_STR = ["run_id", "ts", "surface", "tenant", "env", "method", "feature",
             "status", "evidence_dir"]
 _RUN_INT = ["duration_ms", "drift_count", "discovery_count"]

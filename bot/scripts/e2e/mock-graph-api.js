@@ -137,7 +137,16 @@ function normalize(payload) {
       pdf: /\.pdf$/i.test(filename) || /\.pdf/i.test(txt),
       media: { id: m.id, link: m.link, filename } };
   }
-  // reaction / typing indicator / template: recorded, not asserted on in Phase 1.
+  if (type === 'template' && payload.template) {
+    // A template send (the observe visit notice, report-outside-24h). The mock cannot render Meta's
+    // approved text, so txt carries the parameters the bot filled in, and `template` the name and
+    // language code — what a scenario asserts on ("in the teacher's language", "names the date").
+    const t = payload.template;
+    const params = (t.components || []).flatMap((c) => (c.parameters || []).map((p) => p.text != null ? String(p.text) : ''));
+    return { type: 'template', txt: params.filter(Boolean).join('\n'), btns: [],
+      template: { name: t.name, language: t.language && t.language.code, params } };
+  }
+  // reaction / typing indicator: recorded, not asserted on.
   return { type: type || 'unknown', txt: '', btns: [] };
 }
 

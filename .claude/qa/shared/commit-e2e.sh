@@ -107,6 +107,32 @@ if [ "$VEXIT" -ne 0 ]; then
 fi
 echo "│ validate_specs: exit 0 for $RUN"
 
+# 4b. which SCENARIOS inside those features (select_scenarios.py). A feature whose changed paths all map to named
+# scenarios drives just those; a path no scenario names makes its feature run whole, and says why; a spec edit
+# that touched no live scenario drives nothing. E2E_SCENARIO_SELECT=0 runs whole features, as before.
+ONLY=""
+if [ "${E2E_SCENARIO_SELECT:-1}" != 0 ] && [ -f "$QA/select_scenarios.py" ]; then
+  SCEN=$(printf '%s' "$SEL" | python3 "$QA/select_scenarios.py" --selection - --repo "$ROOT" --range "$SHA~1...$SHA" --spec-base "$SHA~1" --json 2>/dev/null) || SCEN=""
+  if [ -n "$SCEN" ]; then
+    ONLY=$(printf '%s' "$SCEN" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("only",""))')
+    printf '%s' "$SCEN" | RUN="$RUN" python3 -c '
+import json,os,sys
+d=json.load(sys.stdin)["features"]
+for f in os.environ["RUN"].split(","):
+    v=d.get(f)
+    if not v: continue
+    if v["scope"]=="subset": print("│ scenarios: %-12s %d of %d — %s" % (f, len(v["ids"]), v.get("of",0), ", ".join(v["ids"])))
+    elif v["scope"]=="none": print("│ scenarios: %-12s none — %s" % (f, v.get("note","")))
+    else: print("│ scenarios: %-12s ALL — %s" % (f, "; ".join(v["whole_feature_because"])[:150]))'
+    # features with nothing to drive leave the run
+    KEEP=$(printf '%s' "$SCEN" | RUN="$RUN" python3 -c 'import json,os,sys; d=json.load(sys.stdin)["features"]; print(",".join(f for f in os.environ["RUN"].split(",") if f and (d.get(f) or {}).get("scope")!="none"))')
+    RUN="$KEEP"
+    if [ -z "$RUN" ]; then echo "└ the commit changed no live scenario in any selected feature — nothing to drive."; exit 0; fi
+  else
+    echo "│ scenarios: selector could not decide — whole features"
+  fi
+fi
+
 # 5. drive: bot from a detached worktree at $SHA, mock Graph API, mock driver
 RUN_ID="$(date -u +%Y%m%d-%H%M%S)-${SHA:0:7}-mock"
 echo "│ driving:   $RUN  (run $RUN_ID)"
@@ -114,7 +140,7 @@ echo "└───────────────────────�
 # Two or more features run side by side, one slot each (run-suite --parallel); E2E_PARALLEL=0 runs them in series.
 PAR=""; case "$RUN" in *,*) [ "${E2E_PARALLEL:-1}" != 0 ] && PAR="--parallel";; esac
 [ -n "$PAR" ] && echo "│ parallel:  one slot per feature (E2E_PARALLEL=0 to run them one after another)"
-E2E_TRIGGER="${E2E_TRIGGER:-commit}" bash "$QA/run-suite.sh" "$RUN" --method mock $PAR --commit "$SHA" --run-id "$RUN_ID" \
+E2E_TRIGGER="${E2E_TRIGGER:-commit}" bash "$QA/run-suite.sh" "$RUN" --method mock $PAR ${ONLY:+--only "$ONLY"} --commit "$SHA" --run-id "$RUN_ID" \
   --spec-sync "$([ -f "$BRIEF_FILE" ] && echo "${BRIEF_FILE#$ROOT/}" || echo none)" --validator-exit "$VEXIT"
 RC=$?
 echo

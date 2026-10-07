@@ -26,7 +26,7 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
 
   # ═══════════════════════════ POSITIVE (happy path) ═══════════════════════════
 
-  @e2e @P1
+  @e2e @P1 @STA01
   Scenario: /status lists the teacher's in-flight work
     Given the NIETE bot chat is open
     And I have a coaching analysis running
@@ -44,7 +44,7 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
     # 2026-09-08 (PR #801 sync): the Then used to name only the text template, which
     # could not pass on staging even when the feature worked.
 
-  @e2e @P1 @copy
+  @e2e @P1 @copy @STA05
   Scenario: /status with nothing running answers in the chat and does not open the Flow
     Given the NIETE bot chat is open
     And I have nothing in flight
@@ -60,7 +60,7 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
 
   # ═══════════════════════ RULES · valid variations ════════════════════════════
 
-  @e2e @P2 @copy @language
+  @e2e @P2 @copy @language @STA06
   Scenario: The nothing-running answer is in the teacher's language
     Given the NIETE bot chat is open
     And my account language is Urdu
@@ -71,7 +71,7 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
     # Language is LOCKED once chosen (language.feature), so this needs an Urdu account;
     # the shared English driver reports BLOCKED (state), not FAIL.
 
-  @e2e @P2
+  @e2e @P2 @STA07
   Scenario: Opening the menu is a glance, not work — /status right after /menu still says nothing is running
     Given the NIETE bot chat is open
     And I have nothing in flight
@@ -84,7 +84,7 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
     # started. Both store questions ("is she busy?" / "what is running?") now read ONE
     # glance list so they cannot drift apart again.
 
-  @e2e @P2 @draft
+  @e2e @P2 @STA08
   Scenario: An in-flight item is named in plain words, never as an internal identifier
     Given the NIETE bot chat is open as a principal
     And I am part-way through marking an attendance register
@@ -95,12 +95,12 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
     # mid-register read "Continue: attendance_marking", the exact thing the resume
     # header forbids. The fallback is now a plain de-snaked title; proper bilingual
     # names come with the decision on whether those flows should be resumable at all.
-    # @draft: code-grounded, not yet driven — needs the principal persona mid-attendance
-    # (attendance.feature is itself @wip).
+    # Driven on the mock lane (2026-10-06): the driver becomes a principal linked to a seeded E2E
+    # school and sends /attendance, which parks on `attendance_method` — not in TASK_LABEL, so de-snaked.
 
   # ═══════════════════════════════ NEGATIVE ═════════════════════════════════════
 
-  @e2e @menu @negative @content-driven @P3
+  @e2e @menu @negative @content-driven @P3 @STA03
   Scenario: A bare "status" (no slash) does not open the status surface
     Given the NIETE bot chat is open
     When I send "status"
@@ -113,7 +113,7 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
 
   # ═══════════════════════════════ EDGE cases ══════════════════════════════════
 
-  @e2e @edge @P3
+  @e2e @edge @P3 @STA02
   Scenario: /status is case-insensitive and tolerates trailing text
     Given the NIETE bot chat is open
     When I send "/STATUS now"
@@ -121,7 +121,7 @@ Feature: NIETE (ICT) WhatsApp bot — /status (what's running + cancel)
     # The command matches /^\/status\b/i — case-insensitive, word-boundary, so
     # "/Status", "/STATUS", "/status now" all trigger it.
 
-  @e2e @P3
+  @e2e @P3 @STA04
   Scenario: /status lists multiple concurrent items
     Given the NIETE bot chat is open
     And I have more than one kind of work in flight (e.g. a lesson plan AND a video)

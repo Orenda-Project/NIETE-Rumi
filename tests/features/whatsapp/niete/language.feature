@@ -45,7 +45,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
 
   # ══════════════════════════ A. SELECTION & PERSISTENCE (/language) ═════════════════════
 
-  @e2e @acceptance @language @copy @P1
+  @e2e @acceptance @language @copy @P1 @LANG01
   Scenario: /language opens a bilingual picker offering EXACTLY Urdu and English (no Auto-detect)
     Given the NIETE bot chat is open
     When I send "/language"
@@ -76,7 +76,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # ux-strings-whatsapp-limits.test.js enforces it. "The picker actually sends" is asserted
     # FIRST and deliberately: a picker that fails to arrive is a FAIL, not a copy nit.
 
-  @e2e @acceptance @language @copy @P1
+  @e2e @acceptance @language @copy @P1 @LANG02
   Scenario: Selecting English confirms in English and persists the choice, locked
     Given the NIETE bot chat is open
     When I send "/language", open the "Languages" list, and select "English"
@@ -86,7 +86,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # OPS-118 acceptance step 2. Routing whatsapp-bot.js:1657 setUserLanguage(user.id,'en',true);
     # confirm :1669. Persistence language-cache.js:153-160 (writes BOTH fields) + Redis bust.
 
-  @e2e @acceptance @language @copy @P1
+  @e2e @acceptance @language @copy @P1 @LANG03
   Scenario: Selecting Urdu confirms IN Urdu and persists the choice, locked
     Given the NIETE bot chat is open
     When I send "/language", open the "Languages" list, and select "اردو"
@@ -98,14 +98,14 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # ("the first message after a switch contradicting the switch is its own bug", :1665). Restore
     # to the pre-test language at scenario end.
 
-  @e2e @language @edge @P3
+  @e2e @language @edge @P3 @LANG04
   Scenario: /language is case-insensitive
     Given the NIETE bot chat is open
     When I send "/LANGUAGE"
     Then the "Languages" picker is shown
     # text-message.handler.js:1715 matches messageBody.toLowerCase() === '/language'.
 
-  @e2e @language @negative @defensive @P2
+  @e2e @language @negative @defensive @P2 @LANG05
   Scenario: A stale client replaying an off-offer row is rejected by the writer, not stored
     Given the NIETE bot chat is open
     And a stale client somehow replays an old row id (e.g. "lang_pa-PK")
@@ -120,7 +120,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
 
   # ══════════════════ B. THE ONE-WRITER GUARANTEE (D1 — the headline) ════════════════════
 
-  @e2e @language @wip @draft @P2
+  @e2e @language @P2 @LANG06
   Scenario: The coaching transcription path cannot re-language a locked account
     Given the NIETE bot chat is open
     And my language is locked to Urdu
@@ -128,9 +128,10 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     Then my preferred_language remains 'ur' and locked
     # Same guarantee from the coaching side. transcription-processor.service.js resolves language
     # for the SESSION but any persist still routes through setUserLanguage → isOffered + the lock.
-    # @content-driven / @slow: needs a full coaching upload. Complements the voice-note scenario.
+    # Driven on the mock lane (2026-10-06) with the same coaching upload as LANG18: after transcription
+    # the account is still 'ur' and locked. Complements the voice-note scenario.
 
-  @e2e @language @coverage @P3
+  @e2e @language @coverage @P3 @LANG07
   Scenario: No dead language-lock reader export exists (removed 2026-08-11, bd-2485)
     Given the language subsystem source
     Then language-cache.js exports no isUserLanguageLocked (nor any lock reader) unless it has >= 1 caller in bot/
@@ -143,7 +144,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
 
   # ══════════════════════════════ C. REGISTRATION FLOW ══════════════════════════════════
 
-  @e2e @language @known-issue @P3
+  @e2e @language @known-issue @P3 @LANG09
   Scenario: The registration launch bubble is English regardless of any prior language
     Given the NIETE bot chat is open
     When I send "/register"
@@ -161,7 +162,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
 
   # ── E1. Localized correctly (positive) ──
 
-  @e2e @language @content-driven @P2
+  @e2e @language @content-driven @P2 @LANG10
   Scenario: Ask Anything answers an Urdu account in Urdu, and drift is logged
     Given the NIETE bot chat is open
     And my language is set to Urdu
@@ -182,7 +183,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
   #   - NOT localized (English) ✗: the native WhatsApp Flow chrome — screens "Observe / Schedule new
   #     observation / Pick a school / Pick a teacher / Support brief / Date & time / Save schedule /
   #     Scheduled". Same Flow-JSON localization gap as the LP Pick-Class + Training inner flows.
-  @e2e @persona:coach @language @config-gated @seeded @P2
+  @e2e @persona:coach @language @config-gated @seeded @P2 @LANG11
   Scenario: /observe — the whole visit flow renders bot CONTENT in Urdu, but the Flow chrome stays English
     Given a leader/field officer whose language is Urdu
     And a seeded school "QA Test School" with one teacher on the leader's roster
@@ -202,7 +203,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # "start recording" state (observe-audio-router). The debrief/report language was therefore not
     # driven live here; per code it follows observeLang (Urdu), same as the brief content above.
 
-  @e2e @language @P2
+  @e2e @language @P2 @LANG12
   Scenario: Lesson Plans via the natural-language path answers in the chosen language
     Given the NIETE bot chat is open
     And my language is set to Urdu
@@ -211,7 +212,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # handleLessonPlanRequest localizes via inline en/ur/ar/es maps keyed on responseLanguage
     # (text-message.handler.js:2301-2346). (Distinct from the Pick-Class Flow path — see E2.)
 
-  @e2e @language @wip @draft @P3
+  @e2e @language @wip @draft @P3 @LANG13
   Scenario: Teacher Training ENTRY launcher is localized (entry only)
     Given the NIETE bot chat is open
     And my language is set to Urdu
@@ -246,18 +247,17 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
 
   # ── E2. Still leaks English on an Urdu account (@known-issue) ──
 
-  @e2e @language @known-issue @P1
-  Scenario: /menu renders English on an Urdu account
+  @e2e @language @P1 @LANG14
+  Scenario: /menu renders in Urdu on an Urdu account
     Given the NIETE bot chat is open
     And my language is set to Urdu
     When I send "/menu"
-    Then the "View Features" list (header, body, button, rows) renders English (BUG)
-    # The interactive list is built by sendFeatureMenuCarousel(to)/sendFeatureMenuListFallback(to) —
-    # NO language param; menu.service.js:45 drops `language`. Copy hardcoded English
-    # (whatsapp.service.js:1892 header, :1895 body, :1901 button, :1904-1932 rows). A localized
-    # text-menu fallback exists (menu.service.js:185-195) but only fires if the list send FAILS.
+    Then the menu card, its button and every row are in Urdu
+    # Was @known-issue "renders English (BUG)" until 6dc2cad6 ("menu: the front door speaks her
+    # language"): MenuService.sendMenu resolves the teacher's language itself (menu.service.js:75-89)
+    # and the list copy is localized. Inverted 2026-10-06 when the old assertion started failing.
 
-  @e2e @language @P1
+  @e2e @language @P1 @LANG15
   Scenario: /status answers in Urdu on an Urdu account
     Given the NIETE bot chat is open
     And my language is set to Urdu
@@ -269,7 +269,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # the reply above, in Urdu — the leak is gone. The "something running" surface is per
     # environment (Flow card on staging) and is asserted in status.feature.
 
-  @e2e @language @known-issue @P2
+  @e2e @language @known-issue @P2 @LANG16
   Scenario: Lesson Plans via the Pick-Class Flow renders English on an Urdu account
     Given the NIETE bot chat is open
     And my language is set to Urdu
@@ -281,19 +281,18 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # (sendPreDeliveryAck :339-342) — it reads preferred_language only to pick the PDF R2 key, not to
     # localize the ack. Only the NL path (E1) and feedback survey localize.
 
-  @e2e @language @content-driven @P2
-  Scenario: A Grade 1-5 Pick-Class lesson plan is served in Urdu only if an Urdu PDF exists (else English)
+  @e2e @language @content-driven @P2 @LANG17
+  Scenario: A Grade 1-5 lesson plan is the lesson's own PDF, in its book's language
     Given the NIETE bot chat is open
     And my language is set to Urdu
-    When I complete the Pick-Class Flow for a Grade 1-5 chapter
-    Then the delivered PDF is row.pdf_r2_key_ur if present, otherwise it falls back to row.pdf_r2_key_en
-    And today that fallback ALWAYS fires — pre_generated_lps.pdf_r2_key_ur is 0/304 (no Urdu corpus)
-    # CONTENT language (distinct from the chrome leak above). Delivery is language-KEYED and correct
-    # (pakistan-lp-endpoint.js:362-365 — language==='ur' && row.pdf_r2_key_ur ? ur : en||ur), but the
-    # corpus has no Urdu files: verified 2026-08-11 via Supabase REST — 304 pakistan rows, pdf_r2_key_en
-    # 304/304, pdf_r2_key_ur 0/304 (grades 1-5). So Urdu teachers ALWAYS get the English PDF — a
-    # CONTENT-COVERAGE gap, NOT a language-logic bug: populate pdf_r2_key_ur and Urdu is served with no
-    # code change. (Grade 6-10 Oxbridge is passed clampLanguage(preferred_language), :306-312.)
+    When I complete the Pick-Class Flow for Grade 1 English, Chapter 1, Day 1
+    Then the delivered PDF is that lesson's plan, named "Grade 1 English — Ch1 Day 1 — …"
+    And it is in the book's language (English), not re-languaged to my preference
+    # Updated 2026-10-06. Grades 1-5 are served from the v8 corpus (FEAT-059 v3): one PDF per lesson,
+    # in its BOOK's language; preferred_language only labels the survey (lp-v8-delivery.service.js).
+    # The old contract — "row.pdf_r2_key_ur if present, else pdf_r2_key_en" (pakistan-lp-endpoint.js,
+    # pre_generated_lps, 0/304 Urdu) — now applies only on the legacy fallback, reached when a grade
+    # has no v8 assets.
 
   # Verified live on PROD 2026-08-11 (923206281951). PREREQUISITE: coaching only fires for a TEACHER —
   # a leader's audio routes to /observe first and "must NEVER fall into teacher coaching"
@@ -304,30 +303,16 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
   # comprehensive observation report…", "Great job, Mah!…". Observed UR interstitials: photo prompt
   # "کیا آپ اپنی کلاس روم کی تصویر شیئر کرنا چاہیں گے؟" and LP prompt "کیا آپ کے پاس اس کلاس کا سبق کا
   # منصوبہ ہے؟". Reflective step (Step 3/5) is delivered as VOICE notes.
-  @e2e @language @known-issue @slow @persona:teacher @P1
-  Scenario: Coaching progress steps render English on an Urdu account, but the interstitials render Urdu
+  @e2e @language @slow @persona:teacher @P1 @LANG18
+  Scenario: The coaching journey renders in Urdu on an Urdu account
     Given the NIETE bot chat is open as a TEACHER whose language is Urdu
     When I upload a classroom recording (≥ 15 min) and drive the coaching pipeline
-    Then the detection/confirm prompt and the Step 1–5/5 progress lines render English (BUG)
-    But the photo prompt and the lesson-plan interstitial render Urdu (correct)
+    Then the detection/confirm prompt, the photo prompt, the lesson-plan question and the progress steps render Urdu
+    And no text message in the journey is English
     And the reflective step (Step 3/5) is delivered as a voice note
-    # bd-2479, precisely: the progress steps ARE routed through a catalog (getCoachingMessage,
-    # coaching-messages.js:111) keyed on preferred_language, but every non-en value is the
-    # __TODO_TRANSLATE__ sentinel (:50-52) → EN fallback (:117). Keys step1_transcribing:73 …
-    # step5_voiceDebrief:81. Meanwhile the interstitials are inline-localized and DO render Urdu:
-    # photo-prompt.service.js:17-28, lp-selection-list.service.js:34-79. "Yes, Analyze" /
-    # report-delivery chrome are English. @slow: full pipeline is 10+ min.
-    # bd-di5ap (2026-09-18): "Long Lesson Detected" is no longer sent at all, and the
-    # post-transcription acknowledgement that followed it — the one message here with no
-    # language handling whatsoever (its GPT-4o prompt named no language) — became a
-    # translated catalog string. Both were removed from the English-chrome list above.
-    # bd-59840 (2026-09-20): that acknowledgement is now removed outright, so the
-    # message with no language handling is gone rather than translated — nothing is
-    # sent between Step 1/5 and the photo prompt. step1_transcribing's copy changed in
-    # the same commit (it no longer promises "30-60 seconds"), but its en/ur BEHAVIOUR
-    # is untouched and this scenario's BUG still stands: steps 1 and 2 pass no language
-    # to sendProgressUpdate, so they render English regardless. That is DC row 130 and
-    # is deliberately out of bd-59840's scope.
+    # Was @known-issue "Step 1–5/5 progress lines render English (BUG)" (bd-2479): the catalog keys
+    # were __TODO_TRANSLATE__ sentinels. Driven 2026-10-06 on the mock lane: the detection card is
+    # "مجھے 16 منٹ کی آڈیو ریکارڈنگ ملی ہے", the progress line is "مرحلہ 3/5", every text is Urdu.
 
   @e2e @wip @draft @language @config-gated @P1
   Scenario: A coach reads the observation flow in the COACH's language, not the observed teacher's
@@ -366,7 +351,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # offerDefaultLanguage() (also 'ur') and shipped a no-op — so assert the OFFER default is Urdu,
     # not merely "a default exists". @first-use.
 
-  @e2e @language @wip @draft @P2
+  @e2e @language @wip @draft @P2 @LANG20
   Scenario: A lesson plan keeps the language it was enqueued with, even if I switch mid-generation (D3)
     Given the NIETE bot chat is open
     And I request a lesson plan while my language is Urdu
@@ -377,7 +362,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
     # teacher-addressed text reads the current preference at send time. Guarded by
     # tests/queue/job-language-territories.test.js. @slow: spans a generation job.
 
-  @e2e @language @defensive @wip @draft @P3
+  @e2e @language @defensive @wip @draft @P3 @LANG21
   Scenario: An off-market language arriving from outside the offer is narrowed AND logged (D5)
     Given an inbound language value outside the offer reaches a render path
     When it passes through clampLanguage
@@ -390,7 +375,7 @@ Feature: NIETE (ICT) — Language: selection, the one-writer guarantee, and prop
 
   # ═══════════════════════════════ G. NEGATIVE ══════════════════════════════════════════
 
-  @e2e @language @negative @edge @P3
+  @e2e @language @negative @edge @P3 @LANG22
   Scenario: A bare "language" (no slash) does not open the picker
     Given the NIETE bot chat is open
     When I send "language"
