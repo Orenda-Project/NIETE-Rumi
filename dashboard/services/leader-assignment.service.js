@@ -64,7 +64,7 @@
  */
 
 // bd-o15qnr.2: any half hour 07:00–18:30 plus these three (dashboard/lib/visit-time).
-const { isAllowedSlot, LEGACY_SLOTS: SLOTS } = require('../lib/visit-time');
+const { isAllowedSlot, LEGACY_SLOTS: SLOTS, visitMoved } = require('../lib/visit-time');
 
 // Both tables carry CHECK (source = 'niete_ict') — verified against the live
 // schema, and the reason a 'coach_self_assign' value fails with a 23514 CHECK
@@ -78,7 +78,7 @@ const MIN_TERM = 2;
 // ── SQL ────────────────────────────────────────────────────────────────
 
 const OWNED_SCHEDULE_SQL = `
-  SELECT id, status, leader_user_id, scheduled_for, scheduled_slot FROM observation_schedules WHERE id = $1 LIMIT 1
+  SELECT id, status, leader_user_id, scheduled_for::text AS scheduled_for, scheduled_slot FROM observation_schedules WHERE id = $1 LIMIT 1
 `;
 
 const EDIT_SCHEDULE_SQL = `
@@ -265,9 +265,8 @@ async function editSchedule(query, leaderUserId, scheduleId, input = {}, opts = 
   if (!done || !done[0]) throw new Error('Schedule not found');
   // bd-xorfy: `changed` tells the route whether the teacher needs a "moved"
   // notice — saving the same date and slot is not news to her.
-  const prevDate = row.scheduled_for instanceof Date
-    ? row.scheduled_for.toISOString().slice(0, 10) : String(row.scheduled_for || '').slice(0, 10);
-  const changed = prevDate !== date || (row.scheduled_slot || null) !== (slot || null);
+  // bd-o15qnr.22: compared as strings, so it holds on a server in any timezone.
+  const changed = visitMoved(row, date, slot);
   return { id: done[0].id, date, slot: slot || null, updated: true, changed, past };
 }
 

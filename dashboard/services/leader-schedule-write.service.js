@@ -18,7 +18,7 @@
  */
 
 // bd-o15qnr.2: any half hour 07:00–18:30 plus these three (dashboard/lib/visit-time).
-const { isAllowedSlot, LEGACY_SLOTS: SLOTS } = require('../lib/visit-time');
+const { isAllowedSlot, LEGACY_SLOTS: SLOTS, visitMoved } = require('../lib/visit-time');
 
 // teacher_ext_id is the phone — 980 of 992 live observation_schedules rows
 // already key on it — so a booking still resolves by the same value it always
@@ -53,7 +53,7 @@ const PATCH_SQL = `
 `;
 
 const ACTIVE_SQL = `
-  SELECT id, scheduled_for, scheduled_slot FROM observation_schedules
+  SELECT id, scheduled_for::text AS scheduled_for, scheduled_slot FROM observation_schedules
   WHERE leader_user_id = $1 AND school_ext_id = $2 AND teacher_ext_id = $3 AND status = 'upcoming'
   LIMIT 1
 `;
@@ -123,10 +123,8 @@ async function createSchedule(query, leaderUserId, input = {}, opts = {}) {
     ]);
     // bd-xorfy: `changed` tells the route whether the teacher needs a "moved"
     // notice — re-booking the same date and slot is not news to her.
-    const prev = active[0];
-    const prevDate = prev.scheduled_for instanceof Date
-      ? prev.scheduled_for.toISOString().slice(0, 10) : String(prev.scheduled_for || '').slice(0, 10);
-    const changed = prevDate !== date || (prev.scheduled_slot || null) !== (slot || null);
+    // bd-o15qnr.22: compared as strings, so it holds on a server in any timezone.
+    const changed = visitMoved(active[0], date, slot);
     return { id: (rows && rows[0] && rows[0].id) || active[0].id, updated: true, changed, past };
   }
   const { rows } = await query(INSERT_SQL, [
