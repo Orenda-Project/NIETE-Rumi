@@ -5,10 +5,12 @@
  * web_quiz_hub_door, only with web_quiz_hub on; read fail-closed in web-quiz-hub-flags).
  *
  *   field(s)        finish()'s {hub_door: true} when the card may offer it, else {} (the payload stays today's)
- *   door({st})      {href: '/h/<token>'}: a hub token for THIS session's child only (no name in it), bound to the
+ *   door({st}, Err) {href: '/h/<token>'}: a hub token for THIS session's child only (no name in it), bound to the
  *                   phone in the session token — the body's device_ref is never trusted — so a forwarded copy
  *                   meets the hub's lock on any other phone, like a forwarded /quiz hub link.
  * A sibling on the same phone gets their own door from their own card: the token never names the phone's other children.
+ * Err is web-quiz.service's WqError, passed in by the route: this module never requires the service (whose finish()
+ * requires it), so there is no require cycle.
  */
 const supabase = require('../../config/supabase');
 const { logEvent } = require('../../utils/structured-logger');
@@ -34,11 +36,12 @@ async function field(s) {
   }
 }
 
-async function door(body = {}) {
-  const { WqError } = require('./web-quiz.service');
+async function door(body = {}, Err = Error) {
   const fail = (status, error, why) => {
     logEvent('web_quiz.hub_door', { ok: false, reason: why || error });
-    throw new WqError(status, { error });
+    const e = new Err(status, { error });
+    if (!(e.status && e.body)) Object.assign(e, { status, body: { error } });
+    throw e;
   };
   const tok = T.verify(body.st, 's');
   if (!tok || !tok.sid || !tok.d) fail(401, 'bad_token');

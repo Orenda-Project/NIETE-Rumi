@@ -60,7 +60,7 @@ function seed({ hub = true, door = true, sess = {} } = {}) {
   Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
 }
 const st = (over = {}) => T.signSession({ sessionId: 's1', deviceRef: D1, shareCodeId: SC, ...over });
-const err = async (p) => { try { await p; } catch (e) { return { status: e.status, ...(e.body || {}) }; } return null; };
+const err = async (p) => { try { await p; } catch (e) { expect(e).toBeInstanceOf(WQ.WqError); return { status: e.status, ...(e.body || {}) }; } return null; };
 
 const SAVED = { ...process.env };
 beforeEach(() => {
@@ -93,7 +93,7 @@ describe('finish(): the card is told it may offer the door', () => {
 describe('POST /hubdoor', () => {
   test('mints a hub link for this session\'s child only, bound to the phone that played', async () => {
     seed({ sess: { status: 'completed' } });
-    const out = await Door.door({ st: st(), device_ref: D2 });
+    const out = await Door.door({ st: st(), device_ref: D2 }, WQ.WqError);
     expect(out.href).toMatch(/^\/h\/[A-Za-z0-9._-]+$/);
     const token = out.href.slice(3);
     expect(T.verify(token, 'h').ids).toEqual([KID]);
@@ -103,16 +103,16 @@ describe('POST /hubdoor', () => {
   });
   test('a bad or foreign session token: 401', async () => {
     seed({ sess: { status: 'completed' } });
-    expect(await err(Door.door({ st: 'nope' }))).toMatchObject({ status: 401, error: 'bad_token' });
-    expect(await err(Door.door({ st: st({ shareCodeId: 'other' }) }))).toMatchObject({ status: 401, error: 'bad_token' });
+    expect(await err(Door.door({ st: 'nope' }, WQ.WqError))).toMatchObject({ status: 401, error: 'bad_token' });
+    expect(await err(Door.door({ st: st({ shareCodeId: 'other' }) }, WQ.WqError))).toMatchObject({ status: 401, error: 'bad_token' });
   });
   test('door off, an unfinished run, an invited friend\'s run: 404 no_door, nothing bound', async () => {
     seed({ door: false, sess: { status: 'completed' } });
-    expect(await err(Door.door({ st: st() }))).toMatchObject({ status: 404, error: 'no_door' });
+    expect(await err(Door.door({ st: st() }, WQ.WqError))).toMatchObject({ status: 404, error: 'no_door' });
     Flags._resetCache(); seed();
-    expect(await err(Door.door({ st: st() }))).toMatchObject({ status: 404, error: 'no_door' });
+    expect(await err(Door.door({ st: st() }, WQ.WqError))).toMatchObject({ status: 404, error: 'no_door' });
     Flags._resetCache(); seed({ sess: { status: 'completed', invited_by_student_id: FRIEND } });
-    expect(await err(Door.door({ st: st() }))).toMatchObject({ status: 404, error: 'no_door' });
+    expect(await err(Door.door({ st: st() }, WQ.WqError))).toMatchObject({ status: 404, error: 'no_door' });
     expect(redis.setNX).not.toHaveBeenCalled();
   });
 });

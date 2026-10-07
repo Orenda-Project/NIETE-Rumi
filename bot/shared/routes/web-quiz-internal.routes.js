@@ -122,6 +122,6 @@ router.get('/videos/dl/:code', handle((req) => WebQuizLibrary.download(req.param
 // first phone to open a hub link, or one the children played on, sees their names.
 router.post('/hub/:token', handle((req) => require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref })));
 // The results card's door to the child's own hub: a hub link minted for this session's child, bound to this phone.
-router.post('/hubdoor', handle((req) => require('../services/quiz/web-quiz-hub-door').door(req.body || {})));
+router.post('/hubdoor', handle((req) => require('../services/quiz/web-quiz-hub-door').door(req.body || {}, WebQuiz.WqError)));
 
 module.exports = router;
