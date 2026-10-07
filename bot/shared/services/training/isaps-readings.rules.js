@@ -1,8 +1,8 @@
 /**
  * I-SAPS recommended reading — the partner's per-module reading list.
  *
- * Source: I-SAPS "Reading Resources Level 1" (Sept 2026), transcribed into
- * isaps-readings.data.json. It is static partner material — 95 rows that change
+ * Source: I-SAPS "Novice Level Reading Resources" (edited, Oct 2026), transcribed into
+ * isaps-readings.data.json. It is static partner material — 29 rows that change
  * when the partner sends a new document — so it ships as reviewed data with the
  * code rather than as a new table (schema-first / anti-sprawl: no existing
  * training table has a place for it, and nothing queries it).
