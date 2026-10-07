@@ -19,6 +19,17 @@ function isPreviewFetch(req) {
   return PREVIEW_UA_RX.test(String((req.get && req.get('user-agent')) || ''));
 }
 
+/** Who fetched a share picture, as a small word for the logs (never the user agent itself). */
+function fetcherOf(req) {
+  const ua = String((req.get && req.get('user-agent')) || '');
+  const wa = /^WhatsApp\/\d[\d.]*(?:\s+([AIN]))?\s*$/.exec(ua);
+  if (wa) return wa[1] === 'A' ? 'wa_a' : wa[1] === 'I' ? 'wa_i' : 'wa';
+  if (/^(?:facebookexternalhit\/|Facebot\b|meta-externalagent\/)/.test(ua)) return 'fb';
+  if (PREVIEW_UA_RX.test(ua)) return 'bot';
+  if (/^Mozilla\//.test(ua)) return 'browser';
+  return 'other';
+}
+
 function ttlCache({ max = 500, now = Date.now } = {}) {
   const m = new Map();
   return {
@@ -51,4 +62,4 @@ function ogFacts(p) {
   };
 }
 
-module.exports = { isPreviewFetch, ttlCache, ogFacts, PREVIEW_UA_RX };
+module.exports = { isPreviewFetch, fetcherOf, ttlCache, ogFacts, PREVIEW_UA_RX };

@@ -9,6 +9,21 @@
  */
 const { logToFile } = require('../../utils/logger');
 
+/**
+ * The card picture, started the moment its session is marked completed (from inside the finish, before the finish's
+ * own answer is built: ~1.5-3 s earlier than afterFinish). A new card cannot be in R2, so R2 is not asked. afterFinish's
+ * later ask for the same picture joins this draw (web-quiz-art keeps one draw per picture).
+ */
+function cardAtFinish(cardId) {
+  if (!cardId) return;
+  // Asked synchronously (not awaited): the draw is registered before anything else can ask for the same picture.
+  try {
+    require('./web-quiz-art').artImage(cardId, { size: 'og', fresh: true }).catch((e) => {
+      logToFile('⚠️ web-quiz: share picture not drawn at finish', { kind: 'c', error: (e && e.message) || 'error' }, 'warn');
+    });
+  } catch (e) { /* the picture never decides the finish */ }
+}
+
 function afterFinish(out) {
   if (!out || !out.art) return;
   setImmediate(() => { warm(out).catch(() => {}); });
@@ -32,4 +47,4 @@ async function warm(out) {
   await Promise.all(jobs);
 }
 
-module.exports = { afterFinish, _warm: warm };
+module.exports = { afterFinish, cardAtFinish, _warm: warm };
