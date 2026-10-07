@@ -203,7 +203,8 @@ describe('start: one code per (class code, video quiz), the teacher kept', () =>
     const row = fake.db.quiz_share_codes.find((r) => r.code === a.code);
     expect(row).toMatchObject({
       quiz_id: VQ(1), video_id: V(1), teacher_user_id: TEACHER, teacher_name: 'Ms Example Teacher',
-      topic: 'Life Cycle of a Hen', language: 'ur', parent_share_code_id: SC, invited_by_student_id: null,
+      // the lesson's language (its questions are English), not the Urdu class code's
+      topic: 'Life Cycle of a Hen', language: 'en', parent_share_code_id: SC, invited_by_student_id: null,
     });
     const b = await Videos.start({ code: 'AB12CD', st: st(), vid: V(1) });
     expect(b.code).toBe(a.code);
