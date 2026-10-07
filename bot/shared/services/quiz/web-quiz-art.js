@@ -49,6 +49,10 @@ const CODE_RX = /^[A-Z0-9]{4,12}$/;
 const KIND_OF = { c: 'card', i: 'invite', l: 'class', s: 'school' };
 
 const mem = new Map();
+// A picture id seen before -> its drawn key, so a repeat (the link preview after the scorecard warmed it) skips
+// the facts' database reads. A card or invite never changes; a class or school picture moves as children play.
+const byId = new Map();
+const BY_ID_MS = { c: 86400000, i: 86400000, l: 120000, s: 120000 };
 
 class ArtError extends Error {
   constructor(status, error) { super(error); this.status = status; this.body = { error }; }
@@ -209,10 +213,19 @@ async function artImage(id, { size = 'og' } = {}) {
   const p = parseArtId(id);
   if (!p) notFound();
   const sz = SIZES[size] ? size : 'og';
+  const seen = byId.get(`${id}|${sz}`);
+  if (seen && seen.until > Date.now() && mem.has(seen.key)) {
+    served({ kind: KIND_OF[p.kind], size: sz }, t0, 'mem');
+    return { bytes: mem.get(seen.key), contentType: 'image/jpeg', key: seen.key };
+  }
   const f = await facts(p.kind, p.ref);
   const input = { kind: KIND_OF[p.kind], size: sz, brand: await brandKey(), lang: f.lang, d: f.d };
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
-  if (mem.has(key)) { served(input, t0, 'mem'); return { bytes: mem.get(key), contentType: 'image/jpeg', key }; }
+  if (mem.has(key)) {
+    byId.set(`${id}|${sz}`, { key, until: Date.now() + BY_ID_MS[p.kind] });
+    served(input, t0, 'mem');
+    return { bytes: mem.get(key), contentType: 'image/jpeg', key };
+  }
   let bytes = null;
   let from = 'r2';
   // Ask first: a picture not drawn yet is a cache miss, and downloadFromR2 logs every failure as an error.
@@ -230,10 +243,12 @@ async function artImage(id, { size = 'og' } = {}) {
     try { await r2.uploadBuffer(bytes, key, 'image/jpeg'); } catch (e) { logToFile('⚠️ web-quiz art: R2 upload failed', { error: e.message }); }
   }
   remember(key, bytes);
+  byId.set(`${id}|${sz}`, { key, until: Date.now() + BY_ID_MS[p.kind] });
+  if (byId.size > MEM_MAX * 4) byId.delete(byId.keys().next().value);
   served(input, t0, from);
   return { bytes, contentType: 'image/jpeg', key };
 }
 
-function _resetCache() { mem.clear(); }
+function _resetCache() { mem.clear(); byId.clear(); }
 
 module.exports = { artId, parseArtId, artImage, ArtError, ART_V, _resetCache, _drawForTests: draw };

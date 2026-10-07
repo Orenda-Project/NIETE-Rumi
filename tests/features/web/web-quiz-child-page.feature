@@ -1101,3 +1101,9 @@ Feature: Web child quiz page on the portal
     Then their own hub opens on that phone, with the video library and the challenge
     And the same link opened on another phone shows no child's name and starts nothing
     But a friend who played from a challenge link sees no such button
+  @T592
+  Scenario: Every portal worker answers a link preview fast, whichever one the phone reaches
+    Given the portal runs several worker processes and only one of them served the child's quiz page
+    When WhatsApp's link-preview fetch for the child's card or challenge link reaches any other worker
+    Then that worker answers the page head from the bot's remembered link facts, never a whole quiz load
+    And the share picture is answered from the bot's memory once the scorecard has fetched it

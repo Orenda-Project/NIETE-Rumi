@@ -96,3 +96,43 @@ test('a picture that does not exist logs no served event', async () => {
   await expect(Art.artImage('c.AAAAAAAAAAAAAAAAAAAAAA.abcdefghijkl', { size: 'og' })).rejects.toMatchObject({ status: 404 });
   expect(served()).toHaveLength(0);
 });
+
+describe('a repeat of the same picture id', () => {
+  const missEverywhere = async (c) => {
+    if (c.type === 'head') throw notFound('NotFound');
+    if (c.type === 'get') throw notFound('NoSuchKey');
+    return {};
+  };
+  let reads;
+  beforeEach(() => {
+    reads = 0;
+    const from = supabase.from;
+    supabase.from = (t) => { reads += 1; return from(t); };
+  });
+
+  test('is answered from memory without asking the database again (the preview fetch after the card warmed it)', async () => {
+    S3.__send.mockImplementation(missEverywhere);
+    const id = Art.artId('c', SID);
+    const a = await Art.artImage(id, { size: 'og' });
+    const before = reads;
+    const b = await Art.artImage(id, { size: 'og' });
+    expect(reads).toBe(before);
+    expect(Buffer.compare(a.bytes, b.bytes)).toBe(0);
+    expect(served().pop()).toMatchObject({ kind: 'card', from: 'mem' });
+  });
+
+  test('a class picture is looked up afresh after two minutes (the table moves as children play)', async () => {
+    S3.__send.mockImplementation(missEverywhere);
+    const id = Art.artId('l', 'CLS001');
+    const now = Date.now();
+    const spy = jest.spyOn(Date, 'now').mockReturnValue(now);
+    await Art.artImage(id, { size: 'og' });
+    const before = reads;
+    await Art.artImage(id, { size: 'og' });
+    expect(reads).toBe(before);
+    spy.mockReturnValue(now + 121000);
+    await Art.artImage(id, { size: 'og' });
+    expect(reads).toBeGreaterThan(before);
+    spy.mockRestore();
+  });
+});
