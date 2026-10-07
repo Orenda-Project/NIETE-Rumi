@@ -83,3 +83,12 @@ test('refuses another project (nothing read or written)', async () => {
 test('an entry naming an option the row does not show is refused', () => {
   expect(Restore.nextMedia(q1(), { ...ENTRY, option_audio: [{ index: 2, url: clip('x') }] })).toEqual({ skip: 'bad_entry' });
 });
+
+test('a row the database hands back with its keys reordered (jsonb) is still "same"', async () => {
+  // Postgres jsonb does not keep key order: {url, index} comes back for {index, url}, and option_audio may sit first.
+  const stored = { option_audio: [{ url: clip('feb'), index: 0 }, { url: clip('may'), index: 1 }], explanation_audio: clip('why1'), question_audio: [clip('q1')] };
+  const db = fakeDb([{ ...q1(), media: stored }], []);
+  const out = await run(['--expect-ref', REF, '--apply'], db, [ENTRY]);
+  expect(out.same).toBe(1);
+  expect(db.writes).toEqual([]);
+});
