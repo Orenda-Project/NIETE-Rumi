@@ -2099,28 +2099,40 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var nx = res.next && res.next.vid && res.next.title ? res.next : null;
     // A friend who played a challenge is not in the challenger's class: no class table, no class group.
     var friend = friendRun();
-    var shares = (friend ? '' : '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>') +
+    var shareBtn = friend ? '' : '<button class="wq-btn wq-go" id="wq-share">' + esc(T.shareBtn) + '</button>';
+    // The door to this child's own hub (their quizzes, the video library, the challenge), when finish offered it:
+    // the second action, right under "Share to class group".
+    var doorBtn = res.hub_door && !friend && !(S.queue && S.queue.length) ? '<button class="wq-btn wq-soft" id="wq-hubdoor">' + esc(T.hubDoor) + '</button>' : '';
+    // With the door, a class child's first screen is the score, "Share to class group" and the door (a 360x740 phone,
+    // Urdu included): the practice note and the two-line place-in-class note come after them. A video quiz card keeps its own order
+    // ("Next in this chapter", "Watch more" first).
+    var firstTwo = Boolean(doorBtn) && !isVideo;
+    var shares = (firstTwo ? '' : shareBtn + doorBtn) +
       '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' +
       (friend ? '' : '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>') +
       '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>';
+    var place = c.nth ? '<p class="wq-proof wq-nth"><span>' + nthHtml(c.nth) + '</span></p>' : '';
+    // The practice note is framing, not a control: on a door card it goes under the door with the place note.
+    var practice = (kept ? '<div class="wq-banner">' + esc(TW.practice(digitsFor(kept.correct), digitsFor(shareT))) + '</div>' : '');
+    var notes = (firstTwo ? '' : practice) +
+      vsStrip(res.vs, c, total) + newBest(c, total) +
+      (firstTwo ? '' : place) +
+      (nx ? '<button class="wq-vitem wq-nextv" id="wq-next-v">' +
+        (nx.poster ? '<img class="wq-vtile" src="' + esc(nx.poster) + '" alt="" loading="lazy">' : '<span class="wq-vtile wq-vt1" aria-hidden="true">▶</span>') +
+        '<span class="wq-vtext"><small>' + esc(T.nextT) + '</small><b dir="auto">' + esc(nx.title) + '</b></span></button>' : '') +
+      // The name notice is for the share it sits on: always directly above "Share to class group".
+      '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>';
     var h = bar() +
       '<div class="wq-scorecard"><header>' + markHtml() + dotJoin(BR ? BR.name : '', CLS.label) + '</header><div class="wq-in">' +
       '<img src="' + IMG + 'celebrate.webp" alt="">' +
       (isVideo ? '<span class="wq-vchip">' + esc(T.vchip) + '</span>' : '') +
       '<div class="wq-name">' + ani(c.animal) + ' ' + esc(c.first || (S.child && S.child.first) || '') + '</div>' +
-      '<p class="wq-sub">' + esc(Q.topic) + '</p>' +
+      // the topic: one line on a short phone (wq.css), the whole topic is on the quiz itself
+      '<p class="wq-sub wq-ctopic">' + esc(Q.topic) + '</p>' +
       '<div class="wq-big">' + esc(c.correct) + '/' + esc(total) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
       '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
-      (kept ? '<div class="wq-banner">' + esc(TW.practice(digitsFor(kept.correct), digitsFor(shareT))) + '</div>' : '') +
-      vsStrip(res.vs, c, total) + newBest(c, total) +
-      (c.nth ? '<p class="wq-proof wq-nth"><span>' + nthHtml(c.nth) + '</span></p>' : '') +
-      (nx ? '<button class="wq-vitem wq-nextv" id="wq-next-v">' +
-        (nx.poster ? '<img class="wq-vtile" src="' + esc(nx.poster) + '" alt="" loading="lazy">' : '<span class="wq-vtile wq-vt1" aria-hidden="true">▶</span>') +
-        '<span class="wq-vtext"><small>' + esc(T.nextT) + '</small><b dir="auto">' + esc(nx.title) + '</b></span></button>' : '') +
-      '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>' +
+      notes + (firstTwo ? shareBtn + doorBtn + practice + place : '') +
       (isVideo ? moreBtn() + shares : shares + moreBtn()) +
-      // The door to this child's own hub (their quizzes, the video library, the challenge): when finish offered it.
-      (res.hub_door && !friend && !(S.queue && S.queue.length) ? '<button class="wq-btn wq-soft" id="wq-hubdoor">' + esc(T.hubDoor) + '</button>' : '') +
       // One phone, many children: the next child starts from the landing. Not while answers wait to be sent.
       (S.queue && S.queue.length ? '' : '<button class="wq-btn wq-ghost" id="wq-turn">' + esc(T.nextTurn) + '</button>');
     render(h, 'M10');
@@ -2270,16 +2282,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function hubDoor() {
     if (hubGoing) return;
     hubGoing = true;
-    ev('hub_door_tap', {});
     api('POST', 'hubdoor', { st: S.st }).then(function (r) {
       var href = r.ok && r.body && typeof r.body.href === 'string' ? r.body.href : '';
-      if (/^\/h\/[A-Za-z0-9._-]+$/.test(href)) { flushEv(true); location.assign(href); return; }
+      var ok = /^\/h\/[A-Za-z0-9._-]+$/.test(href);
+      // One event per tap, with whether a hub opened (the hub counts its own view as src=door).
+      ev('hub_door_tap', { ok: ok });
+      flushEv(true);
+      if (ok) { location.assign(href + '?from=door'); return; }
       hubGoing = false;
       if (S.result) { S.result.hub_door = false; save(); }
       var b = $('#wq-hubdoor');
       if (b && b.parentNode) b.parentNode.removeChild(b);
       toast(T.oops);
-    }, function () { hubGoing = false; toast(T.offline); });
+    }, function () { hubGoing = false; ev('hub_door_tap', { ok: false, err: 'net' }); toast(T.offline); });
   }
 
   /* ---------------- M11 league table ---------------- */

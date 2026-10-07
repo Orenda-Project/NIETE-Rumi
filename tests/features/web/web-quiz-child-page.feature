@@ -1156,6 +1156,8 @@ Feature: Web child quiz page on the portal
     When the scorecard appears and the child taps "Share to class group" or "Challenge a friend" straight away
     Then the card and invite pictures were already drawn when the quiz finished, so the link preview shows the picture
     And the finish itself is never slower for it, and a picture that cannot be drawn never stops the scorecard
+
+  @T595
   Scenario: The hub door is on the first screen of the card, and a forwarded door link says how to get your own
     Given the hub door is switched on and a class child has just finished a quiz on a 360x740 phone
     Then "My quizzes, videos and challenges" is the second action, right under "Share to class group", with no scrolling, in English and in Urdu
@@ -1169,3 +1171,10 @@ Feature: Web child quiz page on the portal
     When a child opens the teacher's quiz page or reads the forwarded quiz message
     Then the teacher is named "Teacher Kamran" («استاد رفعت», «استاد کامران»), never "Teacher Mr Kamran"
     And a name that only begins with the same letters, like "Mrinal", is left as it is
+
+  @T594
+  Scenario: With the hub door, a class child's card opens on the score, the name notice, "Share to class group" and the door
+    Given the hub door is switched on and a class child finishes a teacher's quiz on a 360x740 phone, in English or Urdu
+    Then the first screen shows the score card, "Only your first name goes on the card", "Share to class group", then "My quizzes, videos and challenges"
+    And the practice note and the place-in-class note come right after the door, and a long topic shows on one line on the card
+    But a video quiz card keeps "Next in this chapter" and "Watch another video" first, and with the door switched off the card is unchanged
