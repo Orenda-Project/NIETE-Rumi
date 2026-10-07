@@ -26,10 +26,14 @@
 const { logToFile } = require('../../utils/logger');
 
 // The WhatsApp rule (video-quiz-render LISTEN_AND_IDENTIFY), plus stems that
-// ask about something only the clip carries: "which sound is this?", "how is
-// this word written?", "the word with the following sound:". A statement (it
-// ends with a full stop) only mentions sounds; its clip says the answer.
-const ASKS_ABOUT_THE_CLIP = /\bsounds?\b|\bhear\b|\bthis word\b|\bfollowing\b|آواز|سنیں|سنو|یہ لفظ|کون سا لفظ|اس لفظ/i;
+// ask about something only the clip carries, as the bank words them: "the word
+// with the following sound:", "the word that sounds like:", "the first letter of
+// this word", «یہ کس حرف کی آواز ہے؟», «روٹی جیسی آواز کس کی ہے؟», «یہ لفظ کیسے
+// لکھتے ہیں؟». NOT a stem that merely says "following" ("Which of the following
+// is a noun?") or talks about sound ("Musical sounds are:"): in those the clip in
+// this slot speaks the answer (R20). A statement (it ends with a full stop) only
+// mentions sounds; its clip says the answer.
+const ASKS_ABOUT_THE_CLIP = /\bthe following sound\b|\bsounds? like\b|\bthis word\b|\bhear\b|(?:کی|کس)\s*آواز\s*ہے|جیسی\s*آواز|آواز\s*کس\s*جیسی|سنیں|سنو|یہ لفظ|کون سا لفظ ہے|اس لفظ/i;
 const IS_STATEMENT = /[.۔]\s*$/;
 
 function stemAsksForSound(stem) {
