@@ -303,6 +303,51 @@ describe('hub(): from your teacher', () => {
   });
 });
 
+describe('hub(): from your teacher — the child\'s own class first (quiz_share_codes.class_id, resolveQuizClass)', () => {
+  const CLASS_A = 'c1a55000-0000-4000-8000-00000000000a';
+  const CLASS_B = 'c1a55000-0000-4000-8000-00000000000b';
+  function twoHandouts() {
+    db.class_enrollments = [{ id: 'e1', student_id: KID, class_id: CLASS_A, is_active: true }];
+    db.classes = [{ id: CLASS_A, grade_code: '3', section: 'A', is_active: true }, { id: CLASS_B, grade_code: '3', section: 'B', is_active: true }];
+    db.class_teachers = [{ class_id: CLASS_A, teacher_user_id: TEACHER, is_active: true }, { class_id: CLASS_B, teacher_user_id: TEACHER, is_active: true }];
+    db.quizzes.push({ id: 'q-bound', topic: 'Bound to 3-A', subject: 'maths', language: 'en', grade: '3-5', video_id: null });
+    db.quizzes.push({ id: 'q-loose', topic: 'Loose newer', subject: 'english', language: 'en', grade: '3-5', video_id: null });
+    db.quiz_share_codes.push(code('sc-bound', 'BOUND1', 'q-bound', { created_at: ago(10), class_id: CLASS_A }));
+    db.quiz_share_codes.push(code('sc-loose', 'LOOSE1', 'q-loose', { created_at: ago(1) }));
+  }
+
+  test('a code bound to the child\'s class comes before a newer unbound code of the same grade', async () => {
+    twoHandouts();
+    expect((await Hub.hub(T.signHub([KID]))).teacher).toMatchObject({ code: 'BOUND1', src: 'class' });
+  });
+
+  test('a code bound to ANOTHER class is never this child\'s teacher card (the unbound grade code is)', async () => {
+    twoHandouts();
+    db.quiz_share_codes.find((c) => c.id === 'sc-bound').class_id = CLASS_B;
+    expect((await Hub.hub(T.signHub([KID]))).teacher).toMatchObject({ code: 'LOOSE1' });
+  });
+
+  test('an unbound code that resolveQuizClass places in another class (one-class teacher) is never shown', async () => {
+    db.class_enrollments = [{ id: 'e1', student_id: KID, class_id: CLASS_A, is_active: true }];
+    db.classes = [{ id: CLASS_B, grade_code: '3', section: 'B', is_active: true }, { id: CLASS_A, grade_code: '3', section: 'A', is_active: true }];
+    db.class_teachers = [{ class_id: CLASS_B, teacher_user_id: TEACHER, is_active: true }];
+    expect((await Hub.hub(T.signHub([KID]))).teacher).toBeNull();
+  });
+
+  test('the same lesson the child already finished in the other language is skipped (lesson_plan_id / coaching_session_id twin)', async () => {
+    db.quizzes.find((q) => q.id === 'q-maths').coaching_session_id = 'cs-1';
+    db.quizzes.push({ id: 'q-twin', topic: 'Kasr', subject: 'maths', language: 'ur', grade: '3', video_id: null, coaching_session_id: 'cs-1' });
+    db.quiz_share_codes.push(code('sc-twin', 'TWIN01', 'q-twin', { created_at: ago(1) }));
+    expect((await Hub.hub(T.signHub([KID]))).teacher).toMatchObject({ code: 'NEWQ01' });
+  });
+
+  test('between two codes of the class, the one in the child\'s language wins over a newer one in the other', async () => {
+    db.quizzes.push({ id: 'q-ur', topic: 'Ashkal', subject: 'maths', language: 'ur', grade: '3', video_id: null });
+    db.quiz_share_codes.push(code('sc-ur', 'URDU01', 'q-ur', { created_at: ago(1) }));
+    expect((await Hub.hub(T.signHub([KID]))).teacher).toMatchObject({ code: 'NEWQ01' });
+  });
+});
+
 describe('hub(): play again', () => {
   test('finished, still-open codes, newest first, with the BEST score, the tries and the code\'s own chip', async () => {
     const out = await Hub.hub(T.signHub([KID]), A);
