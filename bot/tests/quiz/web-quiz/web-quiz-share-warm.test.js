@@ -141,6 +141,10 @@ beforeEach(() => {
   htmlToImage.mockImplementation(async (html, o) => { await gate; return draw(o); });
 });
 
+// Every finish leaves draws running after its answer: they end inside their own test, never log into the next one
+// (the class picture's id is the same in every test).
+afterEach(async () => { release(); await new Promise((r) => setTimeout(r, 100)); });
+
 async function play() {
   const s = await WQ.startSession({ code: 'AB12CD', new: { name: 'Amal Testwala', force: true } });
   await WQ.recordAnswers({ st: s.st, a: [1, 2, 3, 4].map((n) => ({ qid: qid(n), slot: 'B', ms: 2000, seq: n })) });
@@ -230,4 +234,27 @@ test("a friend's challenge finish draws no class picture (the friend is kept awa
   const out = await (await fetch(`${base}/finish`, { method: 'POST', headers: KEY, body: JSON.stringify({ st: f.st }) })).json();
   expect(out.art.table == null).toBe(true);
   expect(out.art.class == null).toBe(true);
+  // let the first finish's draws end here, not inside the next test
+  release();
+  expect(await until(() => htmlToImage.mock.calls.length >= 3)).toBe(true);
+});
+
+// Measured on sandbox after the first version: the table picture started only once the card AND the invite were done,
+// and the invite's R2 read alone took 2-2.5 s, so the table was ready 3.3 s after the answer. It starts alongside them.
+test("the class-table picture does not wait for the invite's R2 read", async () => {
+  const r2 = require('../../../shared/storage/r2');
+  let openR2; const r2Gate = new Promise((r) => { openR2 = r; });
+  r2.headObject.mockImplementation(async () => { await r2Gate; return { exists: false }; });
+  try {
+    const s = await play();
+    const r = await fetch(`${base}/finish`, { method: 'POST', headers: KEY, body: JSON.stringify({ st: s.st }) });
+    expect(r.status).toBe(200);
+    release();
+    const drawnClass = () => logEvent.mock.calls.some(([e, p]) => e === 'web_quiz.art_served' && p.kind === 'class' && p.from === 'drawn');
+    expect(await until(drawnClass, 2000)).toBe(true);
+  } finally {
+    openR2();
+    await new Promise((x) => setTimeout(x, 50));
+    r2.headObject.mockImplementation(async () => ({ exists: false }));
+  }
 });
