@@ -43,8 +43,9 @@ function page(boot, { api = {}, store = {} } = {}) {
   const toasts = [];
   const fetches = [];
   const cookies = [];
+  const docEl = { attrs: { lang: boot && boot.lang === 'ur' ? 'ur' : 'en', dir: boot && boot.lang === 'ur' ? 'rtl' : 'ltr' }, setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return this.attrs[k]; } };
   const ctx = {
-    document: { getElementById: (id) => (id === 'wq' ? root : { textContent: JSON.stringify(boot) }), createElement: () => ({ setAttribute() {}, textContent: '' }),
+    document: { documentElement: docEl, getElementById: (id) => (id === 'wq' ? root : { textContent: JSON.stringify(boot) }), createElement: () => ({ setAttribute() {}, textContent: '' }),
       set cookie(v) { cookies.push(v); }, get cookie() { return cookies.join('; '); } },
     window: { scrollTo() {}, addEventListener(n, fn) { (winL[n] = winL[n] || []).push(fn); } },
     navigator: { sendBeacon: () => true },
@@ -63,7 +64,7 @@ function page(boot, { api = {}, store = {} } = {}) {
   };
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx);
-  return { cookies, store, root, els, toasts, fetches, assigned, html: () => root._h, moment: () => root.attrs['data-m'], win: winL, reloads: () => reloaded };
+  return { doc: docEl.attrs, cookies, store, root, els, toasts, fetches, assigned, html: () => root._h, moment: () => root.attrs['data-m'], win: winL, reloads: () => reloaded };
 }
 
 const KIDS = [{ chip: '0000000000000001', first: 'ثنا', animal: 'owl', grade: '3' }, { chip: '0000000000000002', first: 'بلال', animal: 'lion', grade: '5' }];
@@ -194,4 +195,42 @@ test('subject art: a play-again row, a recommendation without a poster and the l
   expect(h).toContain('<img class="wq-vtile" src="/wq/art/subject-science-1.webp"');
   expect(h).toContain('<img class="wq-htimg" src="/wq/art/grade-3-1.webp"');
   expect(h).not.toContain('➗');
+});
+
+/* ---------------- a sibling pick renders in THAT child's language, not the boot language ---------------- */
+test('boot Urdu, pick a sibling whose hub is English: the hub, <html lang> and dir switch to English / ltr', async () => {
+  const p = page(boot({ lang: 'ur' }), { store: { wq_d: JSON.stringify(DEV) },
+    api: { '/api/wq/hub/': { lang: 'en', kids: KIDS, kid: KIDS[0].chip, teacher: null, again: [], recs: [], challenge: { on: true }, lib: { href: '/lib/t?kid=c&l=en' } } } });
+  expect(p.html()).toContain('کس کی باری ہے؟');
+  p.els['[data-chip="0000000000000001"]'].fire('click');
+  await flush(); await flush();
+  expect(p.moment()).toBe('H2');
+  expect(p.html()).toContain('Hi ثنا! What shall we do today?');
+  expect(p.html()).toContain('Switch player');
+  expect(p.html()).not.toMatch(/آج کیا کریں|کھلاڑی بدلیں|چیلنج/);
+  expect(p.els['#wq-h-ch'].attrs.href).toMatch(/&lang=en$/);
+  expect(p.doc).toEqual({ lang: 'en', dir: 'ltr' });
+});
+
+test('boot English, pick a sibling whose hub is Urdu: the hub, <html lang> and dir switch to Urdu / rtl', async () => {
+  const p = page(boot({ lang: 'en' }), { store: { wq_d: JSON.stringify(DEV) },
+    api: { '/api/wq/hub/': { lang: 'ur', kids: KIDS, kid: KIDS[1].chip, teacher: null, again: [], recs: [], challenge: { on: true }, lib: { href: '/lib/t?kid=c&l=ur' } } } });
+  expect(p.html()).toContain('Who is playing?');
+  p.els['[data-chip="0000000000000002"]'].fire('click');
+  await flush(); await flush();
+  expect(p.moment()).toBe('H2');
+  expect(p.html()).toContain('السلام علیکم بلال! آج کیا کریں؟');
+  expect(p.html()).toContain('کھلاڑی بدلیں');
+  expect(p.html()).not.toMatch(/What shall we do|Switch player|Challenge/);
+  expect(p.els['#wq-h-ch'].attrs.href).toMatch(/&lang=ur$/);
+  expect(p.doc).toEqual({ lang: 'ur', dir: 'rtl' });
+});
+
+test('server render in one language, the phone\'s own hub in the other: the unlocked hub follows the bot\'s lang', async () => {
+  const p = page(LOCKED({ lang: 'en' }), { store: { wq_d: JSON.stringify(DEV) },
+    api: { '/api/wq/hub/': { lang: 'ur', kids: [KIDS[0]], kid: KIDS[0].chip, teacher: null, again: [], recs: [] } } });
+  await flush(); await flush();
+  expect(p.moment()).toBe('H2');
+  expect(p.html()).toContain('السلام علیکم ثنا! آج کیا کریں؟');
+  expect(p.doc).toEqual({ lang: 'ur', dir: 'rtl' });
 });
