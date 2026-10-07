@@ -71,6 +71,7 @@ function fakeQuery() {
     if (sql === S.MY_SCHEDULES) return { rows: [] };
     if (sql === S.TEACHER_HISTORY) return { rows: HISTORY };
     if (sql === S.TEACHER_LEVELS) return { rows: [] }; // bd-o15qnr.13
+    if (sql === S.LP_OPENED) return { rows: [{ n: 0 }] }; // bd-o15qnr.20
     if (sql === S.OBSERVATION_BY_ID) return { rows: SESSIONS[params[0]] ? [SESSIONS[params[0]]] : [] };
     if (sql === S.USER_NAME) return { rows: params[0] === ME ? [{ name: 'Hataf Atif' }] : [{ name: 'Imran S' }] };
     throw new Error(`unexpected SQL: ${sql.slice(0, 60)}`);

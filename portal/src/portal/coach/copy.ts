@@ -193,6 +193,8 @@ export const COACH_COPY = {
   dcSessions: "DC sessions",
   modulesDone: "Modules done",
   lastTraining: "Last training",
+  examsGenerated: "Exams generated",
+  lpOpened: "Lesson plans opened",
   history: "History",
   monthOf: (iso: string) => new Date(iso).toLocaleDateString("en-GB", { month: "long", year: "numeric" }),
   // bd-o15qnr.10 — one HITL report, opened from a teacher's History (`observation` is defined above)

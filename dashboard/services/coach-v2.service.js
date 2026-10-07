@@ -22,6 +22,7 @@
 
 const { getOverall } = require('./coaching-frameworks.service');
 const { getPatchTeachers } = require('./leader-patch.service');
+const { ACTIVITY_CTE } = require('./lp-activity.service');
 
 const TERMINAL_STATUSES = ['completed', 'observer_review_complete'];
 /** The teaching levels a coach may set, in canonical order (bot: utils/teacher-level VALID_LEVELS). */
@@ -122,6 +123,14 @@ const SQL = {
     WHERE leader_user_id = $1 AND status = 'upcoming' AND scheduled_for >= $2::date
     ORDER BY scheduled_for ASC, scheduled_slot ASC NULLS LAST, created_at ASC
     LIMIT 1
+  `,
+
+  // bd-o15qnr.20 — "Lesson plans opened": the distinct plans one teacher used,
+  // all time, through lp-activity's OWN definition (portal opens + plans that
+  // reached her on WhatsApp — the count her Home shows). $1 user, $2/$3 null.
+  LP_OPENED: `
+    WITH ${ACTIVITY_CTE}
+    SELECT count(DISTINCT kind || ':' || ref) AS n FROM lp_activity
   `,
 
   SCHEDULE_BY_ID: `
@@ -318,6 +327,7 @@ async function loadTeachers(query, leaderUserId, today) {
       lastTrainingAt: isoStamp(lastTrainingAt),
       daysSinceTraining: lastTrainingAt ? daysSince(lastTrainingAt, today) : null,
       trainingModules: p.trainingModules,
+      examsGenerated: p.examsGenerated,
       // bd-o15qnr.11 — shown (not edited) on Edit teacher
       isPrincipal: !!p.isPrincipal,
       scores: mine.map(scoreOf).filter((s) => s != null),
@@ -325,6 +335,13 @@ async function loadTeachers(query, leaderUserId, today) {
     };
   });
   return teachers;
+}
+
+/** bd-o15qnr.20 — the plans one teacher has used (null when she is not on Rumi). */
+async function lpOpenedOf(query, teacher) {
+  if (!teacher || !teacher.rumiUserId) return null;
+  const { rows } = await query(SQL.LP_OPENED, [teacher.rumiUserId, null, null]);
+  return Number((rows && rows[0] && rows[0].n) || 0);
 }
 
 /** Strip the internal `scores` list and `latest` row before a teacher leaves the service. */
@@ -441,9 +458,10 @@ async function getCoachTeacher(query, leaderUserId, teacherExtId, opts = {}) {
   const teacher = teachers.find((t) => t.teacherExtId === teacherExtId);
   if (!teacher) return null;
 
-  const [historyRes, schedRes] = await Promise.all([
+  const [historyRes, schedRes, lpOpened] = await Promise.all([
     teacher.rumiUserId ? query(SQL.TEACHER_HISTORY, [teacher.rumiUserId]) : Promise.resolve({ rows: [] }),
     query(SQL.MY_SCHEDULES, [leaderUserId, today, addDays(today, 120), today]),
+    lpOpenedOf(query, teacher),
   ]);
   const history = (historyRes.rows || []).map((r) => historyRow(r, leaderUserId));
   const next = (schedRes.rows || []).find((r) => r.status === 'upcoming' && r.teacher_ext_id === teacherExtId
@@ -457,7 +475,7 @@ async function getCoachTeacher(query, leaderUserId, teacherExtId, opts = {}) {
     levels = TEACHING_LEVELS.filter((b) => have.has(b));
   }
   return {
-    teacher: { ...publicTeacher(teacher), levels },
+    teacher: { ...publicTeacher(teacher), levels, lpOpened },
     history,
     nextVisit: next ? shapeVisit(next, today) : null,
   };
@@ -604,9 +622,10 @@ async function getCoachVisit(query, leaderUserId, scheduleId, opts = {}) {
   if (!row || row.leader_user_id !== leaderUserId) return null;
   const teachers = await loadTeachers(query, leaderUserId, today);
   const teacher = teachers.find((t) => t.teacherExtId === row.teacher_ext_id) || null;
+  const lpOpened = await lpOpenedOf(query, teacher);
   return {
     visit: shapeVisit(row, today),
-    teacher: publicTeacher(teacher),
+    teacher: teacher ? { ...publicTeacher(teacher), lpOpened } : null,
     lastVisit: lastVisitOf(teacher, leaderUserId),
   };
 }
