@@ -7,12 +7,15 @@ import { DETAIL_M4, MODULES_C3, QUESTIONS_M4, httpError, trainingGet } from "../
 /**
  * bd-5rz1v.25 — the quick check, ONE QUESTION PER SCREEN (deep-screens.html, Training 6 and 7).
  *
- *   quiz    progress dots, the question, big A–D answers (the picked one indigo); "Pick all" on a
- *           multi-select question; Next once answered, Back to the previous question, Submit on
- *           the last. The data is unchanged: the same questions endpoint and the same answer set
- *           ModuleQuizPanel posts (chosen_option 1-based, '1,3' for pick all).
- *   result  a green score ring, the "80%" chip, an Up next row; Continue and Try again. No
- *           "Practice" chip: since bd-2450 only a PASS completes the part (and opens the next).
+ * bd-klecr.6 (operator, 2026-10-06) — the same flow as ModuleQuizPanel:
+ *   paper   POST …/quiz-attempts/start: the BOT's paper for the attempt (NIETE: one question per
+ *           Bloom level, options shuffled), not the whole bank — "1/3" here, from a bank of five.
+ *   quiz    the question, big answers; Check once picked → the answer is SAVED and marked:
+ *           "Correct" or "Not correct", her pick green or red, the right one never shown, the
+ *           answer locked. Next; Submit on the last. Back shows an earlier answer, still locked.
+ *   result  the result the last answer saved: the ring, Passed / Not passed, the %, a row per
+ *           question, Up next; Continue and Try again (a NEW attempt). No "Practice": only a
+ *           PASS completes the part (bd-2450).
  */
 
 // The first render of a file loads the whole page module; give it longer than 1s under a busy run.
@@ -61,143 +64,205 @@ beforeEach(() => {
     "/training/module/m-4/questions": { questions: QUESTIONS_M4 },
     "/training/modules": { modules: UNLOCKED, exam: null, readings: null },
   }) as never);
-  vi.mocked(api.post).mockResolvedValue({ data: { attempt: { id: "att-1", score: 4, max_score: 5, is_passed: true, completed_at: "2026-10-03T10:00:00Z" } } } as never);
+  wirePaper();
 });
 
-const next = () => screen.getByRole("button", { name: "Next" });
+/**
+ * The served paper: three of the five (41, 43, 44), and 41's options SHUFFLED — shown
+ * C, A, B, D, so the answer at position B is canonical "1". The page must send the canonical value.
+ */
+const SERVED = [
+  { id: 41, question_text: QUESTIONS_M4[0].question_text, multi: false, options: [3, 1, 2, 4].map((v) => ({ value: String(v), text: QUESTIONS_M4[0].options[v - 1] })) },
+  { id: 43, question_text: QUESTIONS_M4[2].question_text, multi: false, options: [1, 2, 3].map((v) => ({ value: String(v), text: QUESTIONS_M4[2].options[v - 1] })) },
+  { id: 44, question_text: QUESTIONS_M4[3].question_text, multi: true, options: [1, 2, 3, 4].map((v) => ({ value: String(v), text: QUESTIONS_M4[3].options[v - 1] })) },
+];
+const KEY: Record<number, string> = { 41: "2", 43: "2", 44: "1,3,4" };
+type Saved = { score: number; max_score: number; is_passed: boolean };
+let posts: Array<[string, unknown]>;
+let startData: Record<string, unknown>;
+let saved: Saved;
+
+function wirePaper(result: Saved = { score: 2, max_score: 3, is_passed: false }) {
+  posts = [];
+  saved = result;
+  startData = { success: true, attempt: { id: "att-1", total_questions: 3, current_index: 0 }, questions: SERVED, answered: [] };
+  vi.mocked(api.post).mockImplementation(((url: string, body: { question_id: number; chosen_option: string }) => {
+    posts.push([url, body]);
+    if (url.endsWith("/quiz-attempts/start")) return Promise.resolve({ data: startData });
+    if (url.endsWith("/answer")) {
+      const ok = KEY[body.question_id] === body.chosen_option;
+      const last = body.question_id === 44;
+      return Promise.resolve({ data: {
+        success: true, question_id: body.question_id, is_correct: ok,
+        result: last ? {
+          attempt: { id: "att-1", completed_at: "2026-10-03T10:00:00Z", pass_pct: 100, ...saved },
+          results: [{ question_id: 41, question_index: 0, is_correct: true }, { question_id: 43, question_index: 1, is_correct: false }, { question_id: 44, question_index: 2, is_correct: true }],
+        } : null,
+      } });
+    }
+    return Promise.resolve({ data: {} });
+  }) as never);
+}
+
+const button = (name: string) => screen.getByRole("button", { name });
 const choices = () => Array.from(document.querySelectorAll<HTMLElement>("[role=radio], [role=checkbox]"));
 const pick = (i: number) => fireEvent.click(choices()[i]);
+const answerUrl = "/training/module/m-4/quiz-attempts/att-1/answer";
 
-describe("one question per screen", () => {
-  it("the light bar (crumb 'Training · Noise and rules', title 'Quick check', '1/5'), dots, the question, A–D", async () => {
+async function checkAnswer(...positions: number[]) {
+  for (const i of positions) pick(i);
+  fireEvent.click(button("Check"));
+  await screen.findByTestId("training-quiz-verdict");
+}
+
+describe("the paper is the attempt's, not the bank", () => {
+  it("opens with POST start and shows its three questions, '1/3'", async () => {
     renderAt(QUIZ);
-    expect(await screen.findByRole("heading", { level: 1, name: "Quick check" })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByTestId("newui-crumb")).toHaveTextContent("Training · Noise and rules"));
-    expect(await within(screen.getByTestId("newui-inner-bar")).findByText("1/5")).toBeInTheDocument();
-    expect(screen.getByRole("progressbar", { name: /Question 1\/5/ })).toBeInTheDocument();
-    expect(screen.getByText("A group is too loud. What first?")).toBeInTheDocument();
+    expect(await screen.findByText("A group is too loud. What first?")).toBeInTheDocument();
+    expect(posts[0][0]).toBe("/training/module/m-4/quiz-attempts/start");
+    expect(within(screen.getByTestId("newui-inner-bar")).getByText("1/3")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: /Question 1\/3/ })).toBeInTheDocument();
     expect(screen.getAllByRole("radio")).toHaveLength(4);
-    expect(screen.queryByText("When do you agree the rules?")).not.toBeInTheDocument();
+    expect(api.get).not.toHaveBeenCalledWith("/training/module/m-4/questions", expect.anything());
   });
 
-  it("Next waits for an answer; the picked answer is indigo; Next shows the next question", async () => {
+  it("shows the served option order and sends the canonical value", async () => {
     renderAt(QUIZ);
     await screen.findByText("A group is too loud. What first?");
-    expect(next()).toBeDisabled();
-    pick(1);
-    expect(screen.getAllByRole("radio")[1]).toHaveAttribute("aria-checked", "true");
-    expect(next()).toBeEnabled();
-    fireEvent.click(next());
-    expect(screen.getByText("When do you agree the rules?")).toBeInTheDocument();
-    expect(within(screen.getByTestId("newui-inner-bar")).getByText("2/5")).toBeInTheDocument();
+    expect(choices().map((c) => c.textContent?.slice(1))).toEqual(["Stop the activity", "Shout louder", "Use the quiet signal", "Ignore it"]);
+    await checkAnswer(2);
+    expect(posts[1]).toEqual([answerUrl, { question_id: 41, chosen_option: "2" }]);
+  });
+});
+
+describe("Check", () => {
+  it("is off until she picks; then saves, says Correct, colours her pick, and locks", async () => {
+    renderAt(QUIZ);
+    await screen.findByText("A group is too loud. What first?");
+    expect(button("Check")).toBeDisabled();
+    await checkAnswer(2);
+    expect(screen.getByTestId("training-quiz-verdict")).toHaveTextContent("Correct");
+    expect(choices()[2]).toHaveAttribute("data-verdict", "correct");
+    expect(choices().every((c) => (c as HTMLButtonElement).disabled)).toBe(true);
+    expect(screen.queryByRole("button", { name: "Check" })).not.toBeInTheDocument();
+    fireEvent.click(button("Next"));
+    expect(screen.getByText("Who keeps the noise down?")).toBeInTheDocument();
+    expect(within(screen.getByTestId("newui-inner-bar")).getByText("2/3")).toBeInTheDocument();
   });
 
-  it("Back goes to the previous question, with its answer kept", async () => {
+  it("a wrong answer says Not correct and never shows the right one", async () => {
     renderAt(QUIZ);
     await screen.findByText("A group is too loud. What first?");
-    pick(1);
-    fireEvent.click(next());
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    await checkAnswer(0);
+    expect(screen.getByTestId("training-quiz-verdict")).toHaveTextContent("Not correct");
+    expect(choices()[0]).toHaveAttribute("data-verdict", "wrong");
+    expect(choices().filter((c) => c.hasAttribute("data-verdict"))).toHaveLength(1);
+  });
+
+  it("Back shows the earlier answer, still locked", async () => {
+    renderAt(QUIZ);
+    await screen.findByText("A group is too loud. What first?");
+    await checkAnswer(2);
+    fireEvent.click(button("Next"));
+    fireEvent.click(button("Back"));
     expect(screen.getByText("A group is too loud. What first?")).toBeInTheDocument();
-    expect(screen.getAllByRole("radio")[1]).toHaveAttribute("aria-checked", "true");
+    expect(choices()[2]).toHaveAttribute("data-verdict", "correct");
     expect(screen.getByTestId("where")).toHaveTextContent(QUIZ);
   });
 
-  it("a pick-all question says 'Pick all' and takes several", async () => {
+  it("a pick-all question says 'Pick all' and sends the whole set", async () => {
     renderAt(QUIZ);
     await screen.findByText("A group is too loud. What first?");
-    for (const i of [1, 0, 1]) { pick(i); fireEvent.click(next()); }
-    expect(screen.getByText("Which are good quiet signals?")).toBeInTheDocument();
+    await checkAnswer(2); fireEvent.click(button("Next"));
+    await checkAnswer(1); fireEvent.click(button("Next"));
     expect(screen.getByText("Pick all")).toBeInTheDocument();
-    pick(2);
-    pick(0);
-    expect(screen.getAllByRole("checkbox").map((c) => c.getAttribute("aria-checked"))).toEqual(["true", "false", "true", "false"]);
+    await checkAnswer(3, 0, 2);
+    expect(posts[posts.length - 1]).toEqual([answerUrl, { question_id: 44, chosen_option: "1,3,4" }]);
   });
 
-  it("the last question's button is Submit, and it sends ModuleQuizPanel's exact answer set", async () => {
+  it("a check that fails is not locked and says so", async () => {
     renderAt(QUIZ);
     await screen.findByText("A group is too loud. What first?");
-    pick(1); fireEvent.click(next());
-    pick(0); fireEvent.click(next());
-    pick(1); fireEvent.click(next());
-    pick(2); pick(0); fireEvent.click(next());
-    expect(screen.queryByRole("button", { name: "Next" })).not.toBeInTheDocument();
-    const submit = screen.getByRole("button", { name: "Submit" });
-    expect(submit).toBeDisabled();
-    pick(0);
-    fireEvent.click(submit);
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith("/training/module/m-4/quiz-attempts", {
-      answers: [
-        { question_id: 41, chosen_option: "2" },
-        { question_id: 42, chosen_option: "1" },
-        { question_id: 43, chosen_option: "2" },
-        { question_id: 44, chosen_option: "1,3" },
-        { question_id: 45, chosen_option: "1" },
-      ],
-    }));
+    vi.mocked(api.post).mockRejectedValueOnce(httpError(500));
+    pick(2);
+    fireEvent.click(button("Check"));
+    expect(await screen.findByText("Not sent")).toBeInTheDocument();
+    expect(button("Check")).toBeEnabled();
+  });
+
+  it("after a reload she is back where she was, earlier answers locked", async () => {
+    startData = { ...startData, attempt: { id: "att-1", total_questions: 3, current_index: 1 }, answered: [{ question_id: 41, chosen_option: "1", is_correct: false }] };
+    renderAt(QUIZ);
+    expect(await screen.findByText("Who keeps the noise down?")).toBeInTheDocument();
+    fireEvent.click(button("Back"));
+    expect(choices()[1]).toHaveAttribute("data-verdict", "wrong");
   });
 });
 
 async function answerAll() {
   renderAt(QUIZ);
   await screen.findByText("A group is too loud. What first?");
-  for (let q = 0; q < 5; q += 1) {
-    pick(0);
-    fireEvent.click(screen.getByRole("button", { name: q < 4 ? "Next" : "Submit" }));
-  }
+  await checkAnswer(2); fireEvent.click(button("Next"));
+  await checkAnswer(0); fireEvent.click(button("Next"));
+  await checkAnswer(0, 2, 3);
+  fireEvent.click(button("Submit"));
 }
 
 describe("the result", () => {
-  it("a green ring with 4/5, Passed, the 80% chip — no 'Practice': a pass is what completes the part", async () => {
+  it("the ring with the saved score, Passed, the % chip, a row per question — no 'Practice'", async () => {
+    wirePaper({ score: 3, max_score: 3, is_passed: true });
     await answerAll();
     const hero = await screen.findByTestId("newui-hero");
-    expect(within(hero).getByRole("progressbar")).toHaveAttribute("aria-valuetext", "4/5");
+    expect(within(hero).getByRole("progressbar")).toHaveAttribute("aria-valuetext", "3/3");
     expect(within(hero).getByText("Passed")).toBeInTheDocument();
-    expect(within(hero).getByText("80%")).toBeInTheDocument();
+    expect(within(hero).getByText("100%")).toBeInTheDocument();
     expect(within(hero).queryByText("Practice")).not.toBeInTheDocument();
+    const rows = screen.getAllByTestId(/training-quiz-result-q-/);
+    expect(rows.map((r) => r.textContent)).toEqual(["Question 1Correct", "Question 2Not correct", "Question 3Correct"]);
+    expect(posts.filter(([u]) => u.endsWith("/finish"))).toHaveLength(0);
   });
 
-  it("an Up next row and Continue go to the next part; Try again starts over", async () => {
+  it("an Up next row and Continue go to the next part; Try again opens a new attempt", async () => {
+    wirePaper({ score: 3, max_score: 3, is_passed: true });
     await answerAll();
     const up = await screen.findByTestId("training-up-next");
     expect(within(up).getByText("Checking work")).toBeInTheDocument();
-    expect(within(up).getByText("Up next")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Continue" })).toHaveAttribute("href", "/portal/training/unit/m-5");
-    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-    expect(screen.getByText("A group is too loud. What first?")).toBeInTheDocument();
-    expect(screen.getAllByRole("radio").every((r) => r.getAttribute("aria-checked") === "false")).toBe(true);
+    fireEvent.click(button("Try again"));
+    await waitFor(() => expect(posts.filter(([u]) => u.endsWith("/start"))).toHaveLength(2));
+    expect(await screen.findByText("A group is too loud. What first?")).toBeInTheDocument();
   });
 
-  it("not passed: says so; the ring is still the score; the next part stays shut (only a pass completes)", async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { attempt: { id: "att-2", score: 2, max_score: 5, is_passed: false, completed_at: "2026-10-03T10:00:00Z" } } } as never);
+  it("not passed: says so, with the score", async () => {
     await answerAll();
     const hero = await screen.findByTestId("newui-hero");
     expect(within(hero).getByText("Not passed")).toBeInTheDocument();
-    expect(within(hero).getByText("40%")).toBeInTheDocument();
-    // A sequential course: the part after is still locked, so Continue goes back to the course.
-    vi.mocked(api.get).mockImplementation(trainingGet({
-      "/training/module/m-4": { module: DETAIL_M4 },
-      "/training/module/m-4/questions": { questions: QUESTIONS_M4 },
-    }) as never);
+    expect(within(hero).getByText("67%")).toBeInTheDocument();
   });
 
   it("not passed in a sequential course: no Up next, Continue returns to the course", async () => {
     vi.mocked(api.get).mockImplementation(trainingGet({
       "/training/module/m-4": { module: DETAIL_M4 },
-      "/training/module/m-4/questions": { questions: QUESTIONS_M4 },
     }) as never);
-    vi.mocked(api.post).mockResolvedValue({ data: { attempt: { id: "att-3", score: 1, max_score: 5, is_passed: false, completed_at: "2026-10-03T10:00:00Z" } } } as never);
     await answerAll();
     await screen.findByTestId("newui-hero");
     await waitFor(() => expect(screen.getByRole("link", { name: "Continue" })).toHaveAttribute("href", "/portal/training/provider/TALEEMABAD/level/2/course/c-3"));
     expect(screen.queryByTestId("training-up-next")).not.toBeInTheDocument();
   });
 
-  it("a send that fails keeps her answers and says so", async () => {
-    vi.mocked(api.post).mockRejectedValue(httpError(500));
+  it("asks the server to finish when the last answer could not close the quiz", async () => {
+    const base = vi.mocked(api.post).getMockImplementation()!;
+    vi.mocked(api.post).mockImplementation(((url: string, b: unknown) => {
+      if (url.endsWith("/answer")) return (base(url, b) as Promise<{ data: Record<string, unknown> }>).then((r) => ({ data: { ...r.data, result: null } }));
+      if (url.endsWith("/finish")) {
+        posts.push([url, b]);
+        return Promise.resolve({ data: { success: true, attempt: { id: "att-1", score: 2, max_score: 3, is_passed: false, completed_at: "" }, results: [] } });
+      }
+      return base(url, b);
+    }) as never);
     await answerAll();
-    expect(await screen.findByText("Not sent")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled();
+    expect(await screen.findByTestId("newui-hero")).toBeInTheDocument();
+    expect(posts.map(([u]) => u)).toContain("/training/module/m-4/quiz-attempts/att-1/finish");
   });
 });
 
@@ -205,7 +270,7 @@ describe("the design rules", () => {
   it("every target is at least 56px, and our words are labels", async () => {
     renderAt(QUIZ);
     await screen.findByText("A group is too loud. What first?");
-    pick(0);
+    await checkAnswer(0);
     expect(tapProblems(document.body)).toEqual([]);
     for (const el of Array.from(document.body.querySelectorAll("[data-chip], h2, [data-testid=newui-bottom-actions] a, [data-testid=newui-bottom-actions] button"))) {
       expect(copyProblem(el.textContent?.trim() || ""), el.textContent || "").toBeNull();

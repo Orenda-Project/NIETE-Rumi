@@ -84,7 +84,7 @@ def test_yaml_lite_is_the_fallback_for_every_yaml_consumer():
         if "import yaml\n" in src or "import yaml " in src:
             consumers.append(os.path.basename(f))
             assert "import yaml_lite as yaml" in src, "%s imports yaml without the yaml_lite fallback" % f
-    assert consumers == ["select_e2e.py"], consumers
+    assert sorted(consumers) == ["select_e2e.py", "select_scenarios.py"], consumers
 
 
 def test_agrees_with_pyyaml_on_the_files_it_serves():

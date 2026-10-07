@@ -177,7 +177,7 @@ describe('GET /config — features.newUi', () => {
   test('the existing fields are unchanged in shape', async () => {
     const { payload } = await getConfig();
     expect(Object.keys(payload.features).sort()).toEqual([
-      'assessmentGenerator', 'assessmentGeneratorMessage', 'coachObservation', 'newUi', 'selfObservation',
+      'assessmentEditing', 'assessmentGenerator', 'assessmentGeneratorMessage', 'coachObservation', 'newUi', 'selfObservation',
     ]);
   });
 });

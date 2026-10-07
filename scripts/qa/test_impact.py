@@ -363,6 +363,32 @@ def test_drive_block_still_shows_when_the_run_is_not_recorded():
     shutil.rmtree(r)
 
 
+
+def test_a_critical_run_says_why():
+    """CRITICAL alone reads like a break. The run cell must carry the reason from the row's own counts:
+    a run with zero failures is CRITICAL only because some scenarios could not be driven on this lane."""
+    import ledger
+    assert ledger.status_reason({"status": "CRITICAL", "summary": {"total": 22, "passed": 14, "failed": 0,
+                                 "blocked": 6}}) == "6 of 22 blocked (not drivable on this lane)"
+    assert ledger.status_reason({"status": "CRITICAL", "summary": {"total": 22, "failed": 1, "blocked": 6},
+                                 "cassette": {"misses": 2}}) == \
+        "1 failed · 6 of 22 blocked (not drivable on this lane) · 2 cassette misses"
+    assert ledger.status_reason({"status": "DEGRADED", "summary": {"total": 9, "failed": 2, "blocked": 0}}) == "2 failed"
+    assert ledger.status_reason({"status": "HEALTHY", "summary": {"total": 9, "failed": 0, "blocked": 0}}) == ""
+    r = make_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    row = {"run_id": "x", "ts": "2026-10-06T00:00:00Z", "surface": "whatsapp", "tenant": "niete",
+           "env": "sandbox", "method": "mock", "feature": "menu", "status": "CRITICAL",
+           "summary": {"total": 19, "passed": 18, "failed": 0, "blocked": 1, "skipped": 0},
+           "regression": {"gate": "pass", "new_failures": [], "known": [], "fixed": []}}
+    head = commit(r, "feat(menu)+run",
+                  **{"bot/shared/services/menu.service.js": "// c\n",
+                     ".claude/qa/ledgers/runs.jsonl": json.dumps(row) + "\n"})
+    res = ci.analyse(r, base, head)
+    md = ci.render_markdown(res, "warn", "warn")
+    assert "CRITICAL — 1 of 19 blocked (not drivable on this lane)" in md, md
+    assert "1 of 19 blocked" in ci.render_text(res, "warn", "warn")
+    shutil.rmtree(r)
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

@@ -573,3 +573,23 @@ ignore:
   - "**/.gitignore"
   - "**/.env.example"
   - "**/.env.template"
+
+# ── scenarios ────────────────────────────────────────────────────────────────
+# OPTIONAL scenario pins, read by select_scenarios.py: a changed path → exactly these scenario ids of a
+# feature. Without a pin, a path selects the scenarios whose text NAMES it (the specs already ground their
+# scenarios in code, e.g. "coaching-inflight-guard.js shouldDeferNewClassroomAudio"); a path no scenario
+# names makes its feature run WHOLE. Pin such a path here to narrow it. Ids must be live @e2e scenarios.
+#
+# scenarios:
+#   coaching:
+#     bot/shared/services/coaching/session-terminal.js: [COA24]
+#   training:
+#     bot/shared/services/quiz/transcript-quiz-nudge.service.js: [T61, T52]
+
+
+scenarios:
+  lesson-plan:
+    # The bare-keyword matcher: decides whether a whole message opens the Lesson Plans Flow (L02, L08)
+    # or goes on to the LLM (L04). No lesson-plan scenario names the file, so without this pin every
+    # edit to it ran all eleven.
+    bot/shared/utils/lp-intent.js: [L02, L08, L04]

@@ -161,4 +161,39 @@ async function listPapers(userId, { page = 1, pageSize = 10, grade = null, subje
   };
 }
 
-module.exports = { options, listChapters, create, status, download, listPapers };
+async function askEdit(path, body, { timeout = TIMEOUT_MS } = {}) {
+  const { baseUrl, apiKey } = config();
+  if (!baseUrl || !apiKey) {
+    throw new Error('Assessment API is not configured (MAIN_BOT_URL / INTERNAL_API_KEY)');
+  }
+  const res = await axios.post(`${baseUrl}/api/internal/assessment/edit/${path}`, body, {
+    headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
+    timeout,
+    validateStatus: () => true, // every bot answer is passed through; transport errors still throw
+  });
+  if (res.status >= 200 && res.status < 300 && res.data && res.data.success === true) return res.data;
+  // Only a bot refusal that says what it is passes through. A 401 here is OUR key being wrong:
+  // forwarding it would make the portal's 401 handler log the teacher out on every click.
+  const coded = [400, 403, 404, 409, 502].includes(res.status) && res.data && typeof res.data === 'object' && typeof res.data.code === 'string';
+  if (coded) {
+    const err = new Error(res.data.error || res.data.code);
+    err.status = res.status;
+    err.body = res.data;
+    throw err;
+  }
+  const err = new Error(`Assessment edit ${path} failed (${res.status})`);
+  err.status = 502;
+  err.body = { success: false, code: 'UNREACHABLE', error: 'We could not reach the paper service.' };
+  throw err;
+}
+
+/** Rendering a version takes two PDFs; measured in Task 0 of bd-hb8qs. */
+const SAVE_TIMEOUT_MS = 45_000;
+
+const editVersions = (paperId, userId) => askEdit('versions', { paperId, userId });
+const editQuestions = (paperId, userId) => askEdit('questions', { paperId, userId });
+const editAddKinds = (paperId, userId) => askEdit('add-kinds', { paperId, userId });
+const editValidate = ({ paperId, userId, id = null, kind = null, edit = {} }) => askEdit('validate', { paperId, userId, id, kind, edit });
+const editSave = ({ parentId, userId, changes }) => askEdit('save', { parentId, userId, changes }, { timeout: SAVE_TIMEOUT_MS });
+
+module.exports = { options, listChapters, create, status, download, listPapers, editVersions, editQuestions, editAddKinds, editValidate, editSave };

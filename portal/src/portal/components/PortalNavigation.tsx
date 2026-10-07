@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School, BookOpen, CircleUserRound, ChevronRight } from 'lucide-react';
+import { Home, Library, GraduationCap, MessageSquare, TrendingUp, LogOut, Users, CalendarDays, MoreHorizontal, School, ClipboardList, BookOpen, CircleUserRound, ChevronRight } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '../hooks/useAuth';
 import { isLeader, resolveRole } from '../lib/leaderRole';
@@ -68,13 +68,16 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
   }
   const teacherNav = [
     { title: 'Dashboard', path: '/portal/dashboard', icon: Home },
-    { title: 'Curriculum', path: '/portal/curriculum', icon: Library },
+    { title: 'Lesson Plans', path: '/portal/curriculum', icon: Library },
+    // bd-4n7p4 — the Assessment Generator was a tab of the Curriculum page; it is its own item
+    // and page now. On a phone it lands under Other (not in MOBILE_PRIMARY).
+    { title: 'Assessment Generator', path: '/portal/assessment', icon: ClipboardList },
     { title: 'Training', path: '/portal/training', icon: GraduationCap },
     { title: 'My Classes', path: '/portal/classes', icon: School },
     // bd-60078 — "My Plans" removed. It listed a teacher's own Gamma-generated
     // lesson plans and presentations, and custom generation is off, so the tab
     // could only ever show her older work with no way to make more. The
-    // ready-made catalogue lives under Curriculum, which stays.
+    // ready-made catalogue lives under Lesson Plans (the menu item formerly named Curriculum), which stays.
     { title: 'Coaching', path: '/portal/coaching', icon: MessageSquare },
     { title: 'Analytics', path: '/portal/coaching/analytics', icon: TrendingUp },
   ];
@@ -85,7 +88,7 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
   // row: seven cells for teachers, each ~52px wide on a 360px screen, so the
   // labels cropped. Keep the four the operator named as primary and put the
   // rest behind a tray. Desktop is unaffected — it has the width.
-  const MOBILE_PRIMARY = ['Dashboard', 'Curriculum', 'Training', 'Coaching'];
+  const MOBILE_PRIMARY = ['Dashboard', 'Lesson Plans', 'Training', 'Coaching'];
   const primaryNav = navItems.filter((i) => MOBILE_PRIMARY.includes(i.title));
   // Anything not named primary overflows — including leader nav, whose titles
   // don't appear in the list above, so it degrades to "all in the tray" rather
@@ -137,13 +140,16 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
                   key={item.path}
                   to={item.path}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-md transition-colors",
+                    // One line per label: seven items (Lesson Plans, Assessment Generator)
+                    // wrapped below 1366px at px-4. Tighter padding until 2xl, and the
+                    // icons only from xl, keep the bar inside the screen on laptops.
+                    "flex items-center gap-2 whitespace-nowrap px-2 2xl:px-4 py-2 text-sm xl:text-base rounded-md transition-colors",
                     isActive(item.path)
                       ? "bg-white/20 text-white"
                       : "text-white/70 hover:text-white hover:bg-white/10"
                   )}
                 >
-                  <item.icon className="w-4 h-4" />
+                  <item.icon className="hidden xl:block w-4 h-4 shrink-0" aria-hidden="true" />
                   <span>{item.title}</span>
                 </Link>
               ))}

@@ -18,6 +18,9 @@
 /** app_settings key for the UG_EG-backed Assessment Generator. */
 const ASSESSMENT_GENERATOR_KEY = 'assessment_generator_enabled';
 
+/** app_settings key for editing a generated paper (bd-hb8qs). */
+const ASSESSMENT_EDITING_KEY = 'assessment_editing_enabled';
+
 /**
  * What every surface says while the Assessment Generator is off. Kept
  * character-identical to the bot's /assessment fallback
@@ -126,13 +129,50 @@ async function isFlagEnabledForUser(supabase, key, userId) {
   }
 }
 
+function isAssessmentEditingEnabled(supabase) {
+  return isFlagEnabled(supabase, ASSESSMENT_EDITING_KEY);
+}
+
+/** bd-6faz8m — app_settings key for editing a generated paper from the PORTAL only. */
+const PORTAL_ASSESSMENT_EDITING_KEY = 'portal_assessment_editing_enabled';
+
+/**
+ * Portal paper editing. Row absent -> follow assessment_editing_enabled (so
+ * nothing changes until the row is written); present -> only true / "true" is
+ * on; a failed read is off. Boolean only, no pilot list.
+ */
+async function isPortalAssessmentEditingEnabled(supabase) {
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', PORTAL_ASSESSMENT_EDITING_KEY)
+      .maybeSingle();
+    if (error) return false;
+    if (!data) return isAssessmentEditingEnabled(supabase);
+    let value = data.value;
+    if (typeof value === 'string') {
+      try { value = JSON.parse(value); } catch (_) { /* fall through to the raw string */ }
+    }
+    if (value === true) return true;
+    if (typeof value === 'string') return value.trim().toLowerCase() === 'true';
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+
 module.exports = {
+  PORTAL_ASSESSMENT_EDITING_KEY,
+  isPortalAssessmentEditingEnabled,
   PORTAL_SELF_OBSERVATION_KEY,
   PORTAL_COACH_OBSERVATION_KEY,
   PORTAL_NEW_UI_KEY,
   isFlagEnabledForUser,
   ASSESSMENT_GENERATOR_KEY,
+  ASSESSMENT_EDITING_KEY,
   ASSESSMENT_GENERATOR_OFF_MESSAGE,
   isFlagEnabled,
   isAssessmentGeneratorEnabled,
+  isAssessmentEditingEnabled,
 };

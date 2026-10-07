@@ -1,13 +1,17 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { render, screen, waitFor, act } from "@testing-library/react";
-import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useNavigate, useLocation } from "react-router-dom";
 
 /**
- * bd-5rz1v.12 — the new UI's menu has its own "Assessment" item. Until
+ * bd-4n7p4 — there is no Assessment tab any more: the Assessment Generator is its own page,
+ * /portal/assessment. An old link or bookmark to /portal/curriculum?tab=assessment goes there.
+ * Without the parameter (or with any other value) this is the Lesson Plans page, with no tabs.
+ *
+ * (History: bd-5rz1v.12 — the new UI's menu has its own "Assessment" item. Until
  * Assessment is a page of its own it opens /portal/curriculum?tab=assessment,
  * so the page must open on the Assessment tab when asked — including when she
  * is already on Lesson Plans and taps Assessment (same page, new query).
- * Without the parameter the page opens on Lesson Plans exactly as before.
+ * Without the parameter the page opens on Lesson Plans exactly as before.)
  */
 
 // The same stand-ins as PortalCurriculum.viewer.test.tsx: the network (api), the
@@ -57,6 +61,7 @@ beforeAll(() => {
 });
 
 let go: (to: string) => void = () => {};
+const Where = () => { const l = useLocation(); return <output data-testid="where">{l.pathname + l.search}</output>; };
 const Navigator = () => { go = useNavigate(); return null; };
 
 function renderAt(path: string) {
@@ -66,38 +71,38 @@ function renderAt(path: string) {
         <Navigator />
         <Routes>
           <Route path="/portal/curriculum" element={<PortalCurriculum />} />
+          <Route path="/portal/assessment" element={<Where />} />
         </Routes>
       </RecordingSessionProvider>
     </MemoryRouter>,
   );
 }
 
-const tab = (name: RegExp) => screen.findByRole("tab", { name });
-
 describe("PortalCurriculum ?tab=", () => {
-  it("opens on Lesson Plans with no parameter, as before", async () => {
+  it("is the Lesson Plans page, with no tabs, when there is no parameter", async () => {
     renderAt("/portal/curriculum");
-    expect(await tab(/Lesson Plans/)).toHaveAttribute("aria-selected", "true");
-    expect(await tab(/Assessment/)).toHaveAttribute("aria-selected", "false");
+    expect(await screen.findByRole("heading", { name: "Lesson Plans" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.queryByText("Assessment Generator")).toBeNull();
+    expect(screen.queryByText("Curriculum Library")).toBeNull();
+    expect(await screen.findByText("1. Grade")).toBeInTheDocument();
   });
 
-  it("opens on Assessment with ?tab=assessment", async () => {
+  it("?tab=assessment redirects to /portal/assessment", async () => {
     renderAt("/portal/curriculum?tab=assessment");
-    expect(await tab(/Assessment/)).toHaveAttribute("aria-selected", "true");
-    expect(await tab(/Lesson Plans/)).toHaveAttribute("aria-selected", "false");
+    expect(await screen.findByTestId("where")).toHaveTextContent(/^\/portal\/assessment$/);
   });
 
-  it("switches to Assessment when she is already on the page and the menu adds ?tab=assessment", async () => {
+  it("redirects when she is already on the page and a link adds ?tab=assessment", async () => {
     renderAt("/portal/curriculum");
-    expect(await tab(/Lesson Plans/)).toHaveAttribute("aria-selected", "true");
+    await screen.findByRole("heading", { name: "Lesson Plans" });
     act(() => go("/portal/curriculum?tab=assessment"));
-    await waitFor(async () => expect(await tab(/Assessment/)).toHaveAttribute("aria-selected", "true"));
-    act(() => go("/portal/curriculum"));
-    await waitFor(async () => expect(await tab(/Lesson Plans/)).toHaveAttribute("aria-selected", "true"));
+    expect(await screen.findByTestId("where")).toHaveTextContent(/^\/portal\/assessment$/);
   });
 
   it("ignores any other value", async () => {
     renderAt("/portal/curriculum?tab=nonsense");
-    expect(await tab(/Lesson Plans/)).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("heading", { name: "Lesson Plans" })).toBeInTheDocument();
+    expect(screen.queryByTestId("where")).toBeNull();
   });
 });

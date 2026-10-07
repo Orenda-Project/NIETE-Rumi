@@ -114,9 +114,14 @@ const btnOf = (r, rx) => (r.btns || []).find((b) => rx.test(b));
 
 module.exports.run = async function runExt(ctx) {
   const { api, rec, sleep, fresh, r1, mainRec } = ctx;
+  const want = ctx.want || (() => true);
   const out = new Map();
   const set = (id, verdict, ev) => out.set(id, [verdict, ev]);
-  const guard = async (ids, fn) => {
+  // A block runs when one of ITS scenarios is selected for this commit — or one of `also`, the later blocks
+  // that read state this block produces (run 2, the Urdu run, the ask set-up). [] = housekeeping, always runs.
+  const guard = async (ids, fn, also = []) => {
+    const mine = [].concat(ids);
+    if (mine.length && !want(mine.concat(also))) return;
     try { await fn(); }
     catch (e) { for (const id of [].concat(ids)) if (!out.has(id)) set(id, ...B('threw: ' + short(e && e.message, 240), { stack: short(e && e.stack, 300) })); }
   };
@@ -344,7 +349,7 @@ module.exports.run = async function runExt(ctx) {
     set('COA50', ...(r2.confirmed
       ? V(!!r2.midReply && !RX.awaitingAudio.test(r2.midReply), { question: MID_QUESTION, reply: r2.midReply, waitWasSet: 'menu row opened first (AWAITING_CLASSROOM_AUDIO)', note: 'spec places this after the report; the contract — the recording ended the wait — is checked right after "Yes, Analyze"' })
       : B('the recording was never confirmed', { card: r2.card })));
-  });
+  }, ['COA21', 'COA23', 'COA24']);
 
   // COA21 / COA23 / COA24 — after run 2 completed
   await guard(['COA21', 'COA23', 'COA24'], async () => {
@@ -426,7 +431,7 @@ module.exports.run = async function runExt(ctx) {
       ? V(checks.photoOffer.neutral && checks.commitment.neutral && checks.lpPrompt.neutral && checks.duplicate.neutral && anyGendered.length === 0,
           { ...checks, genderedMessagesInFlow: anyGendered.slice(0, 5), reportDelivered: !!r3.report })
       : B(r3.stalled || 'the Urdu run never started', { card: r3.card })));
-  });
+  }, ['COA33']);
   // back to English whatever run 3 did (run 20260930-0832 stayed Urdu: the picker row is 'انگریزی' on an Urdu account)
   await guard([], async () => {
     try { const r = await api.sendWait('/language'); const opener = (r.btns || []).find((b) => /Languages|زبانیں/.test(b)) || 'Languages'; const list = await api.openList(opener); const row = ((list && list.rows) || []).find((x) => /English|انگریزی/.test(x)) || 'English'; await api.pickRowAndWait(row, 60000); } catch (_) {}
@@ -438,7 +443,7 @@ module.exports.run = async function runExt(ctx) {
   // D — run 4 (English, worker on COACHING_PHOTO_VISION=v2 + LP_FIDELITY_PHOTO=on): a real LP PDF, a board
   //     photo + a screenshot, and the fidelity grader's first answer scripted empty
   // ══════════════════════════════════════════════════════════════════════════════════════════════
-  await guard(['COA20', 'COA28', 'COA29'], async () => {
+  await guard(['COA20', 'COA28', 'COA29', 'COA59'], async () => {
     await cleanSlate();
     // LP_FIDELITY_ENABLED gates BOTH the recent-plan list (bot, lp-step _recentLpsFor) and the grading (worker); the lane
     // env does not set it (production sets it on Railway), so both processes get it for the two fidelity runs
@@ -597,7 +602,7 @@ module.exports.run = async function runExt(ctx) {
       ? V(!!hdr && hdr.type === 'video' && /How to record a lesson with the WhatsApp mic/.test((raw.interactive.footer && raw.interactive.footer.text) || '') && videoMsgs === 0 && !!(row && row.context && row.context.howto === true) && Array.isArray(row.context.message_ids) && row.context.message_ids.length > 0,
           { headerType: hdr && hdr.type, headerLink: hdr && hdr.video && hdr.video.link, footer: raw.interactive.footer && raw.interactive.footer.text, separateVideoMessages: videoMsgs, rowContext: row && row.context })
       : B('no ask to inspect')));
-  });
+  }, ['COA42', 'COA41', 'COA40', 'COA43', 'COA45', 'COA52', 'COA48', 'COA55', 'COA49', 'COA47', 'COA46', 'COA51', 'COA54']);
   await guard('COA42', async () => {
     if (!askReady) throw new Error('ask block not ready');
     const c = await collect(() => false, 1); void c;
@@ -829,3 +834,4 @@ module.exports.run = async function runExt(ctx) {
 module.exports.ALL_IDS = ['COA58', 'COA60', 'COA19', 'COA20', 'COA21', 'COA23', 'COA24', 'COA16', 'COA25', 'COA26', 'COA27', 'COA28', 'COA29', 'COA30', 'COA31',
   'COA32', 'COA33', 'COA35', 'COA36', 'COA39', 'COA40', 'COA41', 'COA42', 'COA43', 'COA44', 'COA45', 'COA46', 'COA47', 'COA48', 'COA49',
   'COA50', 'COA51', 'COA52', 'COA53', 'COA54', 'COA55', 'COA56'];
+module.exports.IDS = [...new Set((require('fs').readFileSync(__filename, 'utf8').match(/set\('COA\d+'/g) || []).map((x) => x.slice(5, -1)))];

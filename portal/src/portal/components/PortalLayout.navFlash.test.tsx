@@ -39,7 +39,7 @@ describe("PortalLayout navigation", () => {
     renderLayout();
     await screen.findByText("page");
     await waitFor(() => expect(screen.getAllByText("Observations").length).toBeGreaterThan(0));
-    expect(screen.queryByText("Curriculum")).toBeNull();
+    expect(screen.queryByText("Lesson Plans")).toBeNull();
     expect(api.getDashboard).toHaveBeenCalledTimes(1);
   });
 
@@ -47,7 +47,7 @@ describe("PortalLayout navigation", () => {
     api.getDashboard.mockResolvedValue({ user: { firstName: "Ayesha", role: "teacher" } });
     renderLayout();
     await screen.findByText("page");
-    expect(screen.getAllByText("Curriculum").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Lesson Plans").length).toBeGreaterThan(0);
     expect(screen.queryByText("My Patch")).toBeNull();
   });
 });

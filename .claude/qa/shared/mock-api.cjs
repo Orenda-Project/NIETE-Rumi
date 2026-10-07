@@ -133,6 +133,8 @@ function makeMockApi(opts) {
     // the Flow card, when this reply is one — a "Select all that apply" training question arrives as
     // the training-msq Flow, not a list, and the quiz driver has to recognise it to answer it (bd-2ug2s)
     flow: i.flow || null,
+    // a template send: { name, language, params } (the observe visit notice)
+    template: i.template || null,
     // the raw outbox message, so openFlow({ from: item }) can open the Flow behind a card that arrived
     // through fresh() polling rather than through a send (the quiz loop is all polling)
     raw: i.raw });
@@ -267,6 +269,9 @@ function makeMockApi(opts) {
     // id/name/hay/value ride along: a NavigationList row's id (lp_<quizId>), a Dropdown option's field name,
     // and the row's full text are what drivers key on; the CDP lane has them too (bd-w3cb9).
     async flowProbe() { if (!flow || !flow.isOpen()) return { text: '', items: [] }; const p = flow.probe(); return { screen: p.screen, text: p.text, items: p.items.map((i) => ({ text: i.text, disabled: i.disabled, kind: i.kind, id: i.id, name: i.name, hay: i.hay, value: i.value })) }; },
+    /** Forge one data_exchange on the open Flow (a stale client's payload); the reply is returned, the
+     *  Flow does not move. Mirrors injectList for list replies. */
+    async flowRaw(payload) { if (!flow || !flow.isOpen()) return noFlow(); return flow.raw(payload); },
     async flowClick(text, o2) { if (!flow || !flow.isOpen()) return noFlow(); const r = await flow.click(text, o2 || {}); if (!flow.isOpen()) flow = null; return r; },
     async flowPick(want, o2) {
       if (!flow || !flow.isOpen()) return noFlow();
@@ -301,7 +306,7 @@ function makeMockApi(opts) {
     db(action, extra) {
       trace('db ' + action);
       const COACHING_DB = /^(session-get|age-sessions|seed-nudge|nudge-rows|purge-nudges|user-get|first-use-rows|lesson-plans|purge-first-use|cancel-stuck|reset-history|reset-first-use)$/.test(action);
-      const script = COACHING_DB ? path.join(repo, '.claude/qa/shared/niete_coaching_db.py') : /^(lookup|answer-key|module-answer-key|module-media|level-modules|seed-module-pass|seed-level-complete|seed-isaps-exams|seed-lp-quiz|seed-class-quiz|quiz-rows|revert-level|activate-program|seed-lp-download|seed-coaching-session|seed-lp612-delivery|purge-run-quizzes|quizzes-for-lesson|driver-user)$/.test(action)
+      const script = COACHING_DB ? path.join(repo, '.claude/qa/shared/niete_coaching_db.py') : /^(lookup|answer-key|module-answer-key|module-media|level-modules|seed-module-pass|seed-training-inflight|clear-training-inflight|seed-level-complete|seed-isaps-exams|seed-lp-quiz|seed-class-quiz|quiz-rows|revert-level|activate-program|seed-lp-download|seed-coaching-session|seed-lp612-delivery|purge-run-quizzes|quizzes-for-lesson|driver-user)$/.test(action)
         ? path.join(repo, '.claude/qa/shared/niete_training_db.py')
         : path.join(repo, '.claude/qa/shared/niete_registration_db.py');
       const args = [script, action, '--env', env, '--phone', driver];
@@ -323,7 +328,9 @@ function makeMockApi(opts) {
       trace('resetConversation');
       const botUrl = (opts.flows && opts.flows.botUrl) || process.env.E2E_BOT_URL || ('http://127.0.0.1:' + (process.env.E2E_BOT_PORT || 3100));
       const args = [path.join(repo, '.claude/qa/shared/niete_coaching_db.py'), 'reset-conversations',
-        '--env', env, '--phone', driver, '--yes-write', '--clear-cache-url', botUrl];
+        '--env', env, '--phone', driver, '--yes-write', '--clear-cache-url', botUrl,
+        // and her recent lessons, which ride in the same prompt (bd-oo8ka's identity line was only part of it)
+        '--clear-lp-context', '--redis-port', String(process.env.E2E_REDIS_PORT || 6390)];   // local-stack's default port on slot 0
       try {
         const out = execFileSync('python3', args, { cwd: repo, encoding: 'utf8', timeout: 60000 });
         return { ok: true, out: out.trim().split('\n').slice(-2).join(' | ') };
@@ -347,55 +354,101 @@ function makeMockApi(opts) {
       } catch (e) { return { ok: false, err: String(e.message).slice(0, 120) }; }
     },
     async setRole(role) { return this.setUser({ role }); },
-    /** Seed a DEDICATED, uniquely-named observe roster for THIS driver so the visit picker can advance:
-     *  one school + N teachers + the leader_schools assignment (coach → school) and leader_teachers
-     *  (school → teachers). Keys are driver-scoped (school_ext_id `E2E-OBS-<driver>`, emis `E2EOBS<driver>`)
-     *  and it is IDEMPOTENT (deletes its own rows first). The HARNESS tears these down unconditionally in
-     *  its finally (feature-runner clearRoster), so a run never leaves rows behind — but call clearRoster()
-     *  too if you want them gone mid-run. Scoped to the driver + test school ONLY — never other users' data. */
+    /** Seed a DEDICATED observe roster for THIS driver so the visit picker can advance: one school, two
+     *  teachers at it, and the coach→school assignment. Shaped the way the product READS a roster
+     *  (patch-resolver.service.js listPatchViaSupabase): the coach's leader_schools row names the school by
+     *  `niete:<emis>` (the EMIS after the last ':' is what finds the schools row), and the coach's teachers
+     *  are the users whose school_id is that school with role teacher/principal — leader_teachers is no
+     *  longer read. The old seed wrote `E2E-OBS-<driver>` (never equal to its emis) and leader_teachers
+     *  rows, so the picker showed no school and no teacher.
+     *
+     *  The school and the two teacher users are PERSISTENT driver-scoped sandbox fixtures (created when
+     *  absent, never deleted): an observation of a teacher writes rows that reference her user id across
+     *  dozens of foreign keys, so deleting her afterwards would fail or cascade. Teacher phones are derived
+     *  from the driver (92399 + its last 6 digits + n), so parallel slots never share a teacher. What the
+     *  harness tears down is the ASSIGNMENT (clearRoster), which is what makes the roster visible. */
     async setRoster(opts = {}) {
       const url = process.env.NIETE_SANDBOX_SUPABASE_URL, key = process.env.NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY;
       if (!url || !key) return { ok: false, err: 'no sandbox creds (NIETE_SANDBOX_SUPABASE_*)' };
       const H = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
-      const sx = 'E2E-OBS-' + driver, em = 'E2EOBS' + driver;
-      const schoolName = opts.schoolName || ('E2E Observe School ' + driver);
+      const em = 'E2EOBS' + driver, sx = 'niete:' + em;
+      const schoolName = opts.schoolName || ('E2E Observe School ' + driver.slice(-4));
       const teachers = opts.teachers || [
-        { ext: 'e2e-t1-' + driver, name: 'Ayesha Khan (E2E)', phone: '923990000001' },
-        { ext: 'e2e-t2-' + driver, name: 'Bilal Ahmed (E2E)', phone: '923990000002' },
+        { name: 'Ayesha Khan (E2E)', phone: '92399' + driver.slice(-6) + '1' },
+        { name: 'Bilal Ahmed (E2E)', phone: '92399' + driver.slice(-6) + '2' },
       ];
-      const req = (m, path, body) => fetch(`${url}/rest/v1/${path}`, { method: m, headers: { ...H, Prefer: body && body._rep ? 'return=representation' : 'return=minimal' }, body: body ? JSON.stringify(body._rep ? body.rows : body) : undefined });
+      const get = async (path) => { const r = await fetch(`${url}/rest/v1/${path}`, { headers: H }); return r.ok ? r.json() : []; };
+      const send = (m, path, body, rep) => fetch(`${url}/rest/v1/${path}`, { method: m, headers: { ...H, Prefer: rep ? 'return=representation' : 'return=minimal' }, body: body ? JSON.stringify(body) : undefined });
       try {
         trace('setRoster ' + sx + ' teachers=' + teachers.length);
-        const uidR = await fetch(`${url}/rest/v1/users?select=id&phone_number=eq.${driver}`, { headers: H });
-        const uidJson = await uidR.json().catch(() => []);
-        const uid = Array.isArray(uidJson) && uidJson[0] && uidJson[0].id;
-        if (!uid) return { ok: false, err: 'driver user not found for ' + driver };
-        // idempotent: clear this driver's E2E roster first
-        await req('DELETE', `leader_teachers?school_ext_id=eq.${sx}`);
-        await req('DELETE', `leader_schools?school_ext_id=eq.${sx}`);
-        await req('DELETE', `schools?emis=eq.${em}`);
-        // schools row → school_id (FK target for leader_schools)
-        const schR = await fetch(`${url}/rest/v1/schools`, { method: 'POST', headers: { ...H, Prefer: 'return=representation' }, body: JSON.stringify({ name: schoolName, emis: em }) });
-        const schJson = await schR.json().catch(() => []);
-        const school_id = Array.isArray(schJson) && schJson[0] && schJson[0].id;
-        if (!school_id) return { ok: false, err: 'schools insert failed: ' + JSON.stringify(schJson).slice(0, 160) };
-        // `source` MUST be 'niete_ict' — the only value the leader_schools/leader_teachers CHECK allows.
-        const lsR = await req('POST', 'leader_schools', { leader_user_id: uid, school_ext_id: sx, school_id, school_name: schoolName, emis: em, source: 'niete_ict' });
-        const ltR = await req('POST', 'leader_teachers', teachers.map((t) => ({ leader_user_id: uid, school_ext_id: sx, teacher_ext_id: t.ext, teacher_name: t.name, teacher_phone_e164: t.phone, teacher_phone: t.phone, level: 'Primary', source: 'niete_ict' })));
+        const [me] = await get(`users?select=id&phone_number=eq.${driver}`);
+        if (!me) return { ok: false, err: 'driver user not found for ' + driver };
+        let [school] = await get(`schools?select=id,name&emis=eq.${em}`);
+        if (!school) {
+          const r = await send('POST', 'schools', { name: schoolName, emis: em }, true);
+          school = (await r.json().catch(() => []))[0];
+          if (!school) return { ok: false, err: 'schools insert failed (' + r.status + ')' };
+        }
+        const have = await get(`users?select=id,phone_number&phone_number=in.(${teachers.map((t) => t.phone).join(',')})`);
+        for (const [i, t] of teachers.entries()) {
+          // opts.langs: each fixture teacher's preferred_language (the visit notice follows HER language)
+          const lang = (opts.langs || [])[i];
+          const row = { name: t.name, role: 'teacher', school_id: school.id, ...(lang ? { preferred_language: lang } : {}) };
+          const r = have.some((u) => u.phone_number === t.phone)
+            ? await send('PATCH', `users?phone_number=eq.${t.phone}`, row)
+            : await send('POST', 'users', { ...row, phone_number: t.phone });
+          if (!r.ok) return { ok: false, err: 'teacher user write failed (' + r.status + '): ' + (await r.text()).slice(0, 160) };
+        }
+        await send('DELETE', `leader_schools?leader_user_id=eq.${me.id}&school_ext_id=eq.${encodeURIComponent(sx)}`);
+        // `source` MUST be 'niete_ict' — the only value the leader_schools CHECK allows.
+        const ls = await send('POST', 'leader_schools', { leader_user_id: me.id, school_ext_id: sx, school_id: school.id, school_name: school.name || schoolName, emis: em, source: 'niete_ict' });
         await new Promise((r) => setTimeout(r, 400));
-        return { ok: lsR.ok && ltR.ok, schoolExtId: sx, schoolName, teachers, lsStatus: lsR.status, ltStatus: ltR.status };
+        return { ok: ls.ok, status: ls.status, schoolExtId: sx, schoolName: school.name || schoolName, teachers };
       } catch (e) { return { ok: false, err: String(e.message).slice(0, 160) }; }
     },
-    /** Remove this driver's E2E roster (idempotent). The harness also does this in its finally. */
+    /** Start the observe chain from a clean slate for THIS driver's fixture roster: the coach's upcoming
+     *  visits to the fixture school are cancelled, and her earlier leader observations of the fixture
+     *  teachers are marked 'abandoned' — a status the capture duplicate guard excludes
+     *  (audio-hash-cache.js NOT_ANALYSED_STATUSES), so the same fixture audio is analysed afresh each run.
+     *  Scoped to the driver as observer AND the fixture teachers only; never touches other users' rows. */
+    async resetObserve() {
+      const url = process.env.NIETE_SANDBOX_SUPABASE_URL, key = process.env.NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY;
+      if (!url || !key) return { ok: false, err: 'no sandbox creds (NIETE_SANDBOX_SUPABASE_*)' };
+      const H = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=representation' };
+      const get = async (path) => { const r = await fetch(`${url}/rest/v1/${path}`, { headers: H }); return r.ok ? r.json() : []; };
+      const patch = async (path, body) => { const r = await fetch(`${url}/rest/v1/${path}`, { method: 'PATCH', headers: H, body: JSON.stringify(body) }); return r.ok ? (await r.json().catch(() => [])).length : -r.status; };
+      const [me] = await get(`users?select=id&phone_number=eq.${driver}`);
+      if (!me) return { ok: false, err: 'driver user not found' };
+      const phones = [1, 2].map((n) => '92399' + driver.slice(-6) + n);
+      // + the coach herself: an unbound capture (no teacher picked) is stored with user_id = the observer
+      // (observe-capture.service.js:102), and the duplicate guard matches observer + hash alone.
+      const kids = [me.id, ...(await get(`users?select=id&phone_number=in.(${phones.join(',')})`)).map((u) => u.id)];
+      const visits = await patch(`observation_schedules?leader_user_id=eq.${me.id}&school_ext_id=eq.${encodeURIComponent('niete:E2EOBS' + driver)}&status=eq.upcoming`, { status: 'cancelled' });
+      const sessions = kids.length ? await patch(`coaching_sessions?observer_user_id=eq.${me.id}&observation_type=eq.leader_observation&user_id=in.(${kids.join(',')})&status=not.in.(cancelled,abandoned,failed)`, { status: 'abandoned' }) : 0;
+      // The DEBRIEF duplicate guard (audio-hash-cache findPriorAnalysedDebrief) ignores status: any of this coach's
+      // sessions whose analysis_data.observer_debrief has an audio_hash and feedback counts. Abandoning the sessions
+      // therefore did not clear it, and a rerun's first debrief was refused "already analysed" (run 20261006-2130,
+      // OBS10). Archive the hash on this coach's own abandoned sessions: rename the key, keep everything else.
+      const withDebrief = await get(`coaching_sessions?select=id,analysis_data&observer_user_id=eq.${me.id}&observation_type=eq.leader_observation&status=eq.abandoned&analysis_data->observer_debrief->>audio_hash=not.is.null`);
+      let debriefs = 0;
+      for (const row of withDebrief) {
+        const ad = row.analysis_data || {}; const od = { ...(ad.observer_debrief || {}) };
+        od.audio_hash_archived = od.audio_hash; delete od.audio_hash;
+        if ((await patch(`coaching_sessions?id=eq.${row.id}`, { analysis_data: { ...ad, observer_debrief: od } })) >= 0) debriefs++;
+      }
+      await new Promise((r) => setTimeout(r, 300));
+      return { ok: visits >= 0 && sessions >= 0, visits, sessions, debriefs, kids };
+    },
+    /** Remove this driver's roster ASSIGNMENT (idempotent); the school and teacher users stay as fixtures.
+     *  Also clears the pre-2026-10-06 seed's rows (E2E-OBS-<driver>), which nothing reads any more. */
     async clearRoster() {
       const url = process.env.NIETE_SANDBOX_SUPABASE_URL, key = process.env.NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY;
       if (!url || !key) return { ok: false };
       const H = { apikey: key, Authorization: `Bearer ${key}`, Prefer: 'return=minimal' };
-      const sx = 'E2E-OBS-' + driver, em = 'E2EOBS' + driver;
       const del = (path) => fetch(`${url}/rest/v1/${path}`, { method: 'DELETE', headers: H }).catch(() => {});
-      await del(`leader_teachers?school_ext_id=eq.${sx}`);
-      await del(`leader_schools?school_ext_id=eq.${sx}`);
-      await del(`schools?emis=eq.${em}`);
+      await del(`leader_schools?school_ext_id=eq.${encodeURIComponent('niete:E2EOBS' + driver)}`);
+      await del(`leader_teachers?school_ext_id=eq.E2E-OBS-${driver}`);
+      await del(`leader_schools?school_ext_id=eq.E2E-OBS-${driver}`);
       return { ok: true };
     },
     /** Attach a file the way the CDP driver does via Attach → <menu item>. The menu item picks the

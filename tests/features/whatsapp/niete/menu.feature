@@ -22,7 +22,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
 
   # ═══════════════════════════ POSITIVE (happy path) ═══════════════════════════
 
-  @e2e @menu @copy @P1
+  @e2e @menu @copy @P1 @M01
   Scenario: /menu renders the role-aware feature card for a teacher
     Given the NIETE bot chat is open
     When I send "/menu"
@@ -46,7 +46,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
 
   # ═══════════════════════════════ EDGE cases ══════════════════════════════════
 
-  @e2e @menu @edge @P3
+  @e2e @menu @edge @P3 @M02
   Scenario: /menu is case-insensitive
     Given the NIETE bot chat is open
     When I send "/MENU"
@@ -54,7 +54,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     # text-message.handler.js:1495 matches messageBody.toLowerCase() === '/menu',
     # so "/MENU" / "/Menu" open the menu too.
 
-  @e2e @menu @edge @P2
+  @e2e @menu @edge @P2 @M03
   Scenario: /menu re-opens the menu from inside a feature flow (escape hatch)
     Given the NIETE bot chat is open
     And I am mid-way through a feature (e.g. after choosing Classroom Coaching)
@@ -64,7 +64,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     # tells teachers to "type /menu" to leave a flow (text-message.handler.js:1259;
     # escape handling at :1495, :2195, :2215). Observed live 2026-08-04.
 
-  @e2e @menu @edge @P3
+  @e2e @menu @edge @P3 @M04
   Scenario: Sending /menu repeatedly is idempotent
     Given the NIETE bot chat is open
     When I send "/menu" twice in a row
@@ -72,7 +72,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     # Observed live 2026-08-04: repeated /menu just re-sends the list; the
     # awaiting_menu_selection state is overwritten each time (menu.service.js:35-42).
 
-  @e2e @menu @edge @P3
+  @e2e @menu @edge @P3 @M05
   Scenario: /menu with surrounding whitespace still opens the menu (client trims)
     Given the NIETE bot chat is open
     When I send " /menu " with leading and trailing spaces
@@ -85,7 +85,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
 
   # ═════════════════════════════════ NEGATIVE ══════════════════════════════════
 
-  @e2e @menu @negative @P3
+  @e2e @menu @negative @P3 @M06
   Scenario: A bare "menu" (no slash) does not open the interactive menu
     Given the NIETE bot chat is open
     When I send "menu"
@@ -96,7 +96,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
 
   # ═══════════════════════ Ask Anything (4th menu row — Q&A) ════════════════════
 
-  @e2e @ask @menu @P1
+  @e2e @ask @menu @P1 @M07
   Scenario: The Ask Anything menu row opens general help
     Given the NIETE bot chat is open
     When I send "/menu"
@@ -106,7 +106,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     # Verified live on PROD (2026-08-04): menu.service.js:391 (_handleOtherChoice)
     # → state GENERAL_CONVERSATION.
 
-  @e2e @ask @content-driven @P1
+  @e2e @ask @content-driven @P1 @M08
   Scenario: Ask Anything answers a teaching question
     Given the NIETE bot chat is open
     When I send "What are two quick classroom management strategies for a large class?"
@@ -114,7 +114,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     And the bot reply is longer than 60 characters
     # Verified live on PROD (2026-08-04): returned a relevant two-strategy answer.
 
-  @e2e @ask @negative @content-driven @P3
+  @e2e @ask @negative @content-driven @P3 @M09
   Scenario: Gibberish input is handled gracefully
     Given the NIETE bot chat is open
     When I send "asdfghjkl zxcvbnm qwerty"
@@ -126,7 +126,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
   # ══════════════════ Ancillary commands (positive + config-gated) ══════════════
   # /language moved to language.feature (2026-08-11) — selection + per-flow i18n.
 
-  @e2e @portal @P2
+  @e2e @portal @P2 @M10
   Scenario: /portal points an activated teacher to their portal login
     Given the NIETE bot chat is open
     And my portal account is already activated
@@ -156,7 +156,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
   #  and note the old "Auto-detect" scenario is gone entirely: OPS-118 removed the
   #  Auto-detect row on develop, so it is no longer a real surface to test.)
 
-  @e2e @ask @content-driven @P3
+  @e2e @ask @content-driven @P3 @M12
   Scenario: A capability question gets a guided answer, not a feature attempt
     Given the NIETE bot chat is open
     When I send "what can you do?"
@@ -171,7 +171,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
   # (helper-agent.service.js:317). The `![1,2,3,4]` guard inside handleMenuChoice is dead from
   # the text path, so its copy is NOT teacher-visible. The scenario pins what teachers see.
 
-  @e2e @menu @negative @copy @P3
+  @e2e @menu @negative @copy @P3 @M13
   Scenario: A menu number outside 1-4 gets the choose-an-option nudge and starts nothing
     Given the NIETE bot chat is open
     And I have just sent "/menu"
@@ -197,7 +197,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
   #   unknown    → Classroom Coaching only (never grant HITL by accident)
   # The HITL row additionally requires OBSERVE_MEWAKA_FLOW_ID — presence-based.
 
-  @e2e @menu @role @P1
+  @e2e @menu @role @P1 @M14
   Scenario: A principal sees BOTH Classroom Coaching and Observe a Teacher
     Given the NIETE bot chat is open
     And my role is "principal"
@@ -210,7 +210,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
       | Observe a Teacher  |
       | Ask Anything       |
 
-  @e2e @menu @role @P1
+  @e2e @menu @role @P1 @M15
   Scenario: A coach sees Observe a Teacher and NOT Classroom Coaching
     Given the NIETE bot chat is open
     And my role is "coach"
@@ -223,7 +223,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
       | Ask Anything      |
     # A coach observes; she does not have her own class to be coached on.
 
-  @e2e @menu @role @P1
+  @e2e @menu @role @P1 @M16
   Scenario: A teacher still sees Classroom Coaching and no observe row
     Given the NIETE bot chat is open
     And my role is "teacher"
@@ -232,7 +232,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     Then the feature list shows the core teacher rows
     And the feature list does NOT show "Observe a Teacher"
 
-  @e2e @menu @role @negative @P2
+  @e2e @menu @role @negative @P2 @M17
   Scenario: A coach tapping a Classroom Coaching row from old scrollback is refused
     Given the NIETE bot chat is open
     And my role is "coach"
@@ -245,7 +245,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     # Without this she is told to send a recording that is then parked: row 122's
     # ending, reached by a different door.
 
-  @e2e @menu @role @negative @P3
+  @e2e @menu @role @negative @P3 @M18
   Scenario: A teacher tapping a stray Observe row is refused and redirected
     Given the NIETE bot chat is open
     And my role is "teacher"
@@ -253,7 +253,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     Then the observe flow does not start
     And the bot reply names "Classroom Coaching" as the row that is mine
 
-  @e2e @menu @role @language @P2
+  @e2e @menu @role @language @P2 @M19
   Scenario: The refusal is in the teacher's own language
     Given the NIETE bot chat is open
     And my role is "coach"
@@ -285,7 +285,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
   # Each row answers to its feature's switch (app_redirect_<feature>), off by default. Unit:
   # tests/app-redirect/app-redirect-routing.test.js drives every row.
 
-  @e2e @menu @config-gated @P1
+  @e2e @menu @config-gated @P1 @M20
   Scenario: A menu row whose feature moved to the app sends me to the Play Store instead
     Given the NIETE bot chat is open
     And Lesson Plans has been switched to the NIETE app

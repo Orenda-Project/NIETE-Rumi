@@ -9,7 +9,8 @@ import { resetNewUiMemory } from "../lib/useNewUi";
  *
  * The snapshots in __snapshots__/ were recorded against PortalCurriculum as it was BEFORE the new
  * Lesson Plans existed (the layout and the navigation included): the picker with "My lesson
- * plans", the Assessment tab (?tab=assessment) and a lesson plan open in the viewer. Each flag-off
+ * plans" and a lesson plan open in the viewer. bd-4n7p4: the Assessment tab left this page for /portal/assessment
+ * (pinned in ClassicAssessment.test.tsx), so its snapshots are gone and the library/viewer ones were re-recorded for the new menu + heading. Each flag-off
  * state is pinned on its own — the old page reads /config itself, so "config still loading" and
  * "config failed" already rendered the Assessment tab differently from "off", before any of this.
  * A difference of one class name fails this test.
@@ -30,7 +31,7 @@ import api, { portal } from "../services/api";
 import PortalCurriculum from "./PortalCurriculum";
 
 type ConfigMode = "off" | "absent" | "loading" | "fails";
-type Page = "library" | "assessment" | "viewer";
+type Page = "library" | "viewer";
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
 
@@ -72,7 +73,6 @@ async function settle() {
 
 const ENTRIES: Record<Page, Parameters<typeof MemoryRouter>[0]["initialEntries"]> = {
   library: ["/portal/curriculum"],
-  assessment: ["/portal/curriculum?tab=assessment"],
   viewer: [{
     pathname: "/portal/curriculum",
     state: { lessonPlan: { source: { lane: "k5", lessonId: "L1", assetKind: "lesson" }, title: "Leaves make food" } },
@@ -81,7 +81,6 @@ const ENTRIES: Record<Page, Parameters<typeof MemoryRouter>[0]["initialEntries"]
 
 const READY: Record<Page, () => Promise<unknown>> = {
   library: () => screen.findByText("1. Grade"),
-  assessment: () => screen.findByRole("tab", { name: "Assessment Generator", selected: true }),
   viewer: () => screen.findByTestId("lesson-plan-viewer"),
 };
 
@@ -109,7 +108,7 @@ async function renderCurriculum(mode: ConfigMode, page: Page) {
 describe("bd-5rz1v.14 — flag off: the Curriculum page is exactly what it was", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  for (const page of ["library", "assessment", "viewer"] as const) {
+  for (const page of ["library", "viewer"] as const) {
     it(`${page}: matches the page recorded before the new Lesson Plans, in every flag-off state`, { timeout: 30_000 }, async () => {
       for (const mode of ["off", "absent", "loading", "fails"] as const) {
         expect(await renderCurriculum(mode, page)).toMatchSnapshot(`${page} · ${mode}`);

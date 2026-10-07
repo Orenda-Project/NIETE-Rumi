@@ -242,7 +242,7 @@ describe("bd-5rz1v.10 — the tip on the record screen", () => {
 
   it("shows the menu while recording now — it no longer ends the lesson", async () => {
     await recording();
-    expect(screen.getAllByText("Curriculum").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Lesson Plans").length).toBeGreaterThan(0);
   });
 });
 
