@@ -47,4 +47,7 @@ async function warm(out) {
   await Promise.all(jobs);
 }
 
+// The quiz service announces a finish through the hooks leaf, so it never requires this module (no require cycle).
+require('./web-quiz-hooks').on('session_completed', (p) => cardAtFinish(p && p.cardId));
+
 module.exports = { afterFinish, cardAtFinish, _warm: warm };

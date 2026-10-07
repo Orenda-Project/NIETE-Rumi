@@ -50,6 +50,7 @@ const Pulse = require('./web-quiz-pulse');
 const WebQuizBrand = require('../../config/web-quiz-brand');
 const { orgName, botName } = require('../../config/branding');
 const Art = require('./web-quiz-art-id');
+const Hooks = require('./web-quiz-hooks');
 
 const QUESTIONS_MAX = 15;          // = video-quiz.service QUESTIONS_PER_SESSION
 const CHIPS_MAX = 40;
@@ -1478,8 +1479,8 @@ async function finishSession(body = {}) {
     });
     logEvent('web_quiz.session_completed', { sessionId: s.id, shareCodeId: s.share_code_id, correct, total, pct });
     // The card's share picture starts drawing now, while the rest of this answer is built: a link preview asks for it
-    // within seconds of the finish. Never awaited; a teacher's own run has no card picture.
-    if (!s.user_id) require('./web-quiz-share-warm').cardAtFinish(Art.artId('c', s.id));
+    // within seconds of the finish (web-quiz-share-warm.js listens). Never awaited; a teacher's own run has no card picture.
+    if (!s.user_id) Hooks.emit('session_completed', { cardId: Art.artId('c', s.id) });
   }
 
   const prior = await priorFinish(s.share_code_id, s.student_id, s.id);
