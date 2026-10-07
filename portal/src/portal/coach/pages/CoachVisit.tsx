@@ -161,12 +161,14 @@ const CoachVisit = () => {
                 {visit.status === "done" ? <Chip tone="done">{C.done}</Chip> : h != null && h >= 0 ? <Chip>{C.inHours(h)}</Chip> : null}</div>
             </div>
             {teacher && (
-              <div className="grid grid-cols-4 gap-1 border-t border-[#e5e7eb] px-4 py-3.5" data-testid="visit-stats">
+              <div className="grid grid-cols-3 gap-x-1 gap-y-3 border-t border-[#e5e7eb] px-4 py-3.5" data-testid="visit-stats">
                 {[
                   { value: teacher.hitl, label: C.hitl }, { value: teacher.dc, label: C.dc },
                   { value: C.pct(teacher.avgHitl), label: C.avgScore }, { value: C.daysShort(teacher.daysSinceTraining), label: C.trainingCol },
+                  // bd-o15qnr.20 — lesson plan engagement, live on sandbox
+                  { value: teacher.examsGenerated ?? C.dash, label: C.examsGenerated }, { value: teacher.lpOpened ?? C.dash, label: C.lpOpened },
                 ].map((s) => (
-                  <span key={s.label} className="flex flex-col gap-0.5">
+                  <span key={s.label} data-stat className="flex flex-col gap-0.5">
                     <b className="text-[22px] font-bold tabular-nums">{s.value}</b>
                     <span className="text-xs text-[#6b7280]">{s.label}</span>
                   </span>
