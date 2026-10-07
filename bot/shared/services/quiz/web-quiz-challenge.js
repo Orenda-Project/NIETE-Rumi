@@ -33,9 +33,10 @@ const { WqError } = require('./web-quiz.service');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const { LANGUAGE_OFFER } = require('../../config/languages');
 
-const FLAG_KEY = 'web_quiz_challenge';
+const Gate = require('./web-quiz-challenge-gate');
+
+const FLAG_KEY = Gate.KEY;
 const TABLE = 'web_quiz_challenge_runs';
-const FLAG_TTL_MS = 30 * 1000;
 const PER_ITEM_S = 10;
 const READ_SECS = 60;
 const MAX_BYTES = 3 * 1024 * 1024;
@@ -90,32 +91,17 @@ const gradeNum = (v) => {
 const r2Env = () => process.env.CHILD_TEST_R2_ENV || process.env.RAILWAY_ENVIRONMENT || 'local';
 const isMissingTable = (e) => !!e && (e.code === '42P01' || /does not exist|schema cache/i.test(String(e.message || '')));
 
-// ── state kept in this process: the flag cache, runs being scored, runs stored nowhere else ──────────────
-let flagCache = null;
+// ── state kept in this process: runs being scored, runs stored nowhere else ─────────────────────────────
 const RUNS = new Map();          // runId → { status, result, promise }
 const clipKnown = new Map();     // key → true (exists) | number (missing, checked at)
 const clipRecording = new Set();
 let clipsRecorded = 0;
 
-function __reset() { flagCache = null; RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; }
+function __reset() { Gate._resetCache(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; }
 
-function isTrue(v) {
-  let x = v;
-  if (typeof x === 'string') { try { x = JSON.parse(x); } catch (_) { /* plain string */ } }
-  return x === true || (typeof x === 'string' && x.trim().toLowerCase() === 'true');
-}
-
-async function challengeOn(now = Date.now()) {
-  if (flagCache && now - flagCache.at < FLAG_TTL_MS) return flagCache.on;
-  try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', FLAG_KEY);
-    if (error) throw new Error(error.message || 'app_settings read failed');
-    flagCache = { at: now, on: !!(data && data[0]) && isTrue(data[0].value) };
-  } catch (e) {
-    logToFile('⚠️ web quiz challenge: flag lookup failed — off', { error: e.message });
-    flagCache = { at: now, on: false };
-  }
-  return flagCache.on;
+/** The flag is not off for everyone (web-quiz-challenge-gate.js: true | "all" | [teacher ids]). */
+async function challengeOn() {
+  return Gate.on();
 }
 
 /** The chip a hub page sends for one of the phone's children (not reversible): the hub's own, T.chipId('h', id). */
@@ -208,6 +194,8 @@ async function languageOf(entry, asked) {
 async function who(token, { kid, lang } = {}) {
   if (!(await challengeOn())) fail(503, 'challenge_off');
   const entry = await entryOf(token, kid);
+  // A canary (a list of teacher ids): only a child of a listed teacher; same answer as the flag off.
+  if (!(await Gate.offeredTo(entry.studentId, { shareCodeId: entry.shareCodeId }))) fail(503, 'challenge_off');
   const grade = await gradeOf(entry);
   const form = formFor(grade);
   if (!form) fail(403, 'not_eligible');

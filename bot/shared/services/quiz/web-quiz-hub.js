@@ -261,7 +261,8 @@ async function hub(token, { kid } = {}) {
   } catch (err) {
     logToFile('⚠️ web quiz hub: recommendations unavailable', { error: err.message });
   }
-  if (f.challenge && CHALLENGE_GRADES.includes(String(grade))) {
+  // f.challenge = not off for everyone; a canary list then asks whether this child's teachers are on it.
+  if (f.challenge && CHALLENGE_GRADES.includes(String(grade)) && await require('./web-quiz-challenge-gate').offeredTo(chosen.id)) {
     out.challenge = { on: true, exercises: [{ id: 'bigger', done: false }, { id: 'read', done: false }] };
   }
   // The library: M4b's page when it is on; else the child's newest open quiz (its scorecard lists more videos).

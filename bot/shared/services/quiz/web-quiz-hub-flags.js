@@ -8,6 +8,7 @@
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const T = require('./web-quiz-token');
+const ChallengeGate = require('./web-quiz-challenge-gate');
 
 const HUB_KEY = 'web_quiz_hub';
 const CHALLENGE_KEY = 'web_quiz_challenge';
@@ -27,7 +28,7 @@ async function flags(now = Date.now()) {
     const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-    cache = { at: now, hub: isTrue(by[HUB_KEY]), challenge: isTrue(by[CHALLENGE_KEY]), library: isTrue(by[LIBRARY_KEY]) };
+    cache = { at: now, hub: isTrue(by[HUB_KEY]), challenge: ChallengeGate.scopeOf(by[CHALLENGE_KEY]).mode !== 'off', library: isTrue(by[LIBRARY_KEY]) };
     return cache;
   } catch (err) {
     logToFile('⚠️ web quiz hub: settings lookup failed — hub off', { error: err.message });
