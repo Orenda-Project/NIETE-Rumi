@@ -36,6 +36,8 @@
  * merged into the existing meta, so nothing else in meta is touched.
  *
  * - Idempotent: a clip already in R2 is not recorded again.
+ * - Records only what is missing: a question or option the bank already voices (its own recorded
+ *   clip, web-quiz-sound recordedParts) is not recorded — the page plays the recorded one.
  * - Capped per quiz (maxClips), so a bad quiz cannot spend without limit.
  * - Fails soft: a clip that cannot be made is counted and skipped; the page
  *   falls back to the phone's own voice for it. Never throws.
@@ -92,10 +94,12 @@ function clipKey(args) {
   return Store.clipKey({ format: CLIP_FORMAT, ...args });
 }
 
-/** Text as it should be spoken: no TeX, no Markdown markers, no stored option letters. */
+/** Text as it should be spoken: no TeX, no Markdown markers, no stored option letters, a blank as a pause. */
 function spoken(text) {
   if (text == null) return '';
   let out = mathToText(String(text)).replace(/[\\$]/g, ' ');
+  // "The rabbit was eating _." — a fill-in blank is a pause, never "underscore" or "dash".
+  out = out.replace(/_{1,}/g, ' … ');
   // "A) Roots drink water" -> "Roots drink water"; the page shuffles options, so
   // a stored letter can name a different option than the one the child sees.
   out = out.replace(/(^|\s)\(?[A-D]\)\s*/g, '$1');
@@ -121,6 +125,25 @@ function whyText(q) {
   return spoken(q.explanation) || withoutPraise(fb.correct);
 }
 
+// A single letter is said by its NAME, the way a teacher reads it off the board (the voice would
+// otherwise guess a sound, or skip it): an English letter as "letter s", an Urdu letter by its Urdu
+// name ("عین"). The page still shows the letter; only what the voice reads changes.
+const URDU_LETTER_NAMES = Object.freeze({
+  'ا': 'الف', 'آ': 'الف مد', 'ب': 'بے', 'پ': 'پے', 'ت': 'تے', 'ٹ': 'ٹے', 'ث': 'ثے', 'ج': 'جیم', 'چ': 'چے', 'ح': 'بڑی حے',
+  'خ': 'خے', 'د': 'دال', 'ڈ': 'ڈال', 'ذ': 'ذال', 'ر': 'رے', 'ڑ': 'ڑے', 'ز': 'زے', 'ژ': 'ژے', 'س': 'سین', 'ش': 'شین',
+  'ص': 'صاد', 'ض': 'ضاد', 'ط': 'طوئے', 'ظ': 'ظوئے', 'ع': 'عین', 'غ': 'غین', 'ف': 'فے', 'ق': 'قاف', 'ک': 'کاف', 'گ': 'گاف',
+  'ل': 'لام', 'م': 'میم', 'ن': 'نون', 'ں': 'نون غنہ', 'و': 'واؤ', 'ہ': 'چھوٹی ہے', 'ھ': 'دو چشمی ہے', 'ء': 'ہمزہ',
+  'ی': 'چھوٹی یے', 'ے': 'بڑی یے',
+});
+
+/** An option as the voice should say it (spoken(), plus a lone letter by its name). */
+function spokenOption(text) {
+  const t = spoken(text);
+  if (/^[A-Za-z]$/.test(t)) return `letter ${t}`;
+  if (URDU_LETTER_NAMES[t]) return URDU_LETTER_NAMES[t];
+  return t;
+}
+
 // Something a voice can say. A picture option is stored as an emoji (no letter,
 // no digit): the voices strip it to nothing and the gateway would fall through
 // to a different voice, so it gets no clip — the page shows the picture.
@@ -131,10 +154,16 @@ function webItemOf(q) {
   return w && w.v === 2 && Array.isArray(w.options) ? w : null;
 }
 
-/** The clips one question needs, in order: [{ part, text }]. */
+/** The parts a question's own recorded voices already say (web-quiz-sound): never recorded again. */
+function recordedParts(q) {
+  try { return require('./web-quiz-sound').recordedParts(q); } catch (_) { return new Set(); }
+}
+
+/** The clips one question needs, in order: [{ part, text }]. A part the bank already has a recorded clip for is not one. */
 function partsFor(q) {
   const parts = [];
-  const add = (part, text) => { if (text && SAYABLE.test(text)) parts.push({ part, text }); };
+  const have = recordedParts(q || {});
+  const add = (part, text) => { if (text && SAYABLE.test(text) && !have.has(part)) parts.push({ part, text }); };
   const w = webItemOf(q);
   if (w) {
     const read = w.read && typeof w.read === 'object' ? w.read : {};
@@ -155,7 +184,7 @@ function partsFor(q) {
     return parts;
   }
   add('q', spoken(q.question_text));
-  PARTS_OPTS.forEach((p) => add(p, spoken(q[`option_${p}`])));
+  PARTS_OPTS.forEach((p) => add(p, spokenOption(q[`option_${p}`])));
   add('why', whyText(q));
   const wrong = (q.option_feedback && typeof q.option_feedback === 'object' && q.option_feedback.wrong) || {};
   PARTS_FB.forEach((x, i) => add(x, spoken(cleanWrongFeedback(wrong[String(i)]))));
@@ -418,5 +447,5 @@ async function runQuizAudioJob(payload, { db, publish = module.exports.publishQu
 }
 
 module.exports = {
-  quizLanguage, isCurrent, publishQuizAudio, ensureQuizAudio, requestQuizAudio, runQuizAudioJob, audioKey, clipKey, partsFor, spoken, whyText, withoutPraise, AUDIO_VERSION,
+  quizLanguage, isCurrent, publishQuizAudio, ensureQuizAudio, requestQuizAudio, runQuizAudioJob, audioKey, clipKey, partsFor, spoken, spokenOption, whyText, withoutPraise, AUDIO_VERSION,
 };
