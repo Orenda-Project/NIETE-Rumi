@@ -117,7 +117,7 @@ describe("10 + 12 — the Visit page, in the canvas order", () => {
     expect(c.getByText("IMSG I-10/1")).toBeInTheDocument();
     expect(c.getByText(/11:30 AM · Today/)).toBeInTheDocument();
     expect(c.getByText("In 2 h")).toBeInTheDocument();
-    expect(c.getByText("Avg score")).toBeInTheDocument();
+    expect(c.getByText("Avg. HITL Score")).toBeInTheDocument(); // bd-o15qnr.18
     const last = c.getByRole("link", { name: /Last visit · 14 Sep/ });
     expect(last).toHaveTextContent("HITL · You");
     expect(last).toHaveTextContent("Report sent");

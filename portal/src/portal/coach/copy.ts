@@ -87,7 +87,8 @@ export const COACH_COPY = {
   // bd-o15qnr.9 (v21): "Upload recording" everywhere, the sheet title too.
   attachRecording: "Upload recording",
   observation: "Observation",
-  avgScore: "Avg score",
+  // bd-o15qnr.18 — operator: "Where it says AVG score, it should instead say Avg. HITL Score."
+  avgScore: "Avg. HITL Score",
   teacher: "Teacher",
   lastVisitOn: (date: string) => `Last visit · ${date}`,
   hitlBy: (who: string) => `HITL · ${who}`,
@@ -171,7 +172,7 @@ export const COACH_COPY = {
   schoolsTab: "Schools",
   sort: "Sort",
   sortDays: "Days since visit",
-  sortAvg: "Avg score",
+  sortAvg: "Avg. HITL Score",
   sortAz: "A–Z",
   sortLeast: "Least visited",
   sortMost: "Most visited",
@@ -181,8 +182,8 @@ export const COACH_COPY = {
   sinceVisit: "Since visit",
   hitl: "HITL",
   dc: "DC",
-  avg: "Avg",
-  avgHitl: "Avg HITL",
+  avg: "Avg. HITL Score",
+  avgHitl: "Avg. HITL Score",
   trainingCol: "Training",
   visitsCol: "Visits",
   teachersCol: "Teachers",
@@ -193,6 +194,7 @@ export const COACH_COPY = {
   modulesDone: "Modules done",
   lastTraining: "Last training",
   history: "History",
+  monthOf: (iso: string) => new Date(iso).toLocaleDateString("en-GB", { month: "long", year: "numeric" }),
   // bd-o15qnr.10 — one HITL report, opened from a teacher's History (`observation` is defined above)
   observedBy: "Observed by",
   reportSent: "Sent",

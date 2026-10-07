@@ -46,7 +46,7 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[]): { data: T |
 
 /** A v2 page: the gate, the live layout, a heading, the content, an optional bottom action. */
 export function CoachPage({
-  title, crumb, backTo, onBack, bare = false, chips, dock, action, children,
+  title, crumb, backTo, onBack, bare = false, chips, subtitle, dock, action, children,
 }: {
   title: ReactNode; crumb?: ReactNode; backTo?: string;
   /** bd-o15qnr.9: the back arrow runs this instead of leaving (Record live asks first). */
@@ -54,6 +54,8 @@ export function CoachPage({
   /** bd-o15qnr.9: no menu — a screen where one stray tap must not leave (Record live). */
   bare?: boolean;
   chips?: ReactNode; dock?: ReactNode;
+  /** bd-o15qnr.18: a line under a top-level title (Home's full date). */
+  subtitle?: ReactNode;
   /** bd-o15qnr.11: a control at the right of an inner page's header (the teacher's Edit). */
   action?: ReactNode;
   children: ReactNode;
@@ -80,7 +82,10 @@ export function CoachPage({
             </header>
           ) : (
             <header className="flex flex-col gap-3 px-1 pb-2 pt-4">
-              <h1 className="text-[32px] font-light leading-tight tracking-[-0.015em]">{title}</h1>
+              <div className="flex flex-col gap-1">
+                <h1 className="text-[32px] font-light leading-tight tracking-[-0.015em]">{title}</h1>
+                {subtitle && <p data-testid="page-subtitle" className="text-[17px] font-medium text-[#4b5563]">{subtitle}</p>}
+              </div>
               {chips && <div className="flex flex-wrap gap-2">{chips}</div>}
             </header>
           )}
@@ -247,9 +252,9 @@ export function Stats({ items, testId }: { items: { value: ReactNode; label: str
   return (
     <span className="grid border-t border-[#e5e7eb] bg-[#f9fafb]" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }} data-testid={testId}>
       {items.map((it, i) => (
-        <span key={it.label} className={`flex flex-col gap-px px-3 py-2.5 ${i > 0 ? "border-s border-[#eef0f3]" : ""}`}>
+        <span key={it.label} className={`flex flex-col gap-px py-2.5 ${items.length >= 5 ? "px-2" : "px-3"} ${i > 0 ? "border-s border-[#eef0f3]" : ""}`}>
           <b className="text-[17px] font-bold tabular-nums">{it.value}</b>
-          <span className="whitespace-nowrap text-[11px] text-[#6b7280]">{it.label}</span>
+          <span className="text-[11px] leading-tight text-[#6b7280]">{it.label}</span>
         </span>
       ))}
     </span>
