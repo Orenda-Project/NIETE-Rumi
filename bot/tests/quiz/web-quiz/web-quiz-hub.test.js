@@ -587,3 +587,26 @@ describe('WhatsApp /quiz (student-quiz open)', () => {
     expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('hub(): the child\'s language is their class\'s, not their last library lesson\'s', () => {
+  // An Urdu lesson tapped from the English maths class: its code speaks Urdu (the lesson's language).
+  const lessonPlayed = () => {
+    db.quiz_share_codes.push(code('sc-lesson', 'LESN01', VQ(1), { language: 'ur', parent_share_code_id: 'sc-maths', created_at: ago(2) }));
+    db.quiz_sessions.push(sess('s9', 'sc-lesson', VQ(1), 'completed', 3, 3, ago(1)));
+  };
+
+  test('the hub stays English after the child plays an Urdu lesson from the library', async () => {
+    lessonPlayed();
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.lang).toBe('en');
+    expect(out.kids[0].first).toBe('Sana');
+    expect(out.lib && out.lib.href ? out.lib.href : '').not.toMatch(/l=ur/);
+  });
+
+  test('a forwarded (locked) hub stays English too', async () => {
+    lessonPlayed();
+    const token = T.signHub([KID]);
+    await Hub.hub(token, { device: DEV_A });
+    expect((await Hub.hub(token, { device: DEV_B })).lang).toBe('en');
+  });
+});
