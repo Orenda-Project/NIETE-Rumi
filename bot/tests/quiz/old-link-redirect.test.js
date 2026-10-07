@@ -221,6 +221,9 @@ describe('an old wa.me quiz link, with the redirect on', () => {
     }));
     const [, payload] = logEvent.mock.calls.find(([e]) => e === 'web_quiz.old_link_redirect');
     expect(JSON.stringify(payload)).not.toMatch(CHILD);
+    expect(payload.phoneTail).toBe(CHILD.slice(-4));   // the join key the other quiz events carry, never the phone
+    // The running-quiz state is never touched: only the pre-name join state is cleared.
+    expect(redisService.delete).not.toHaveBeenCalledWith(`videoquiz:${CHILD}:active`);
   });
 
   test('an Urdu quiz: the body and the button are Urdu, the button within 20 code points', async () => {
@@ -297,7 +300,8 @@ describe("today's chat path is kept when", () => {
     await handleTextMessage(MESSAGE, CHILD, `QUIZ-${CODE}`, null);
     await settle();
     expect(WhatsAppService.sendCtaUrl).not.toHaveBeenCalled();
-    expect(logEvent).toHaveBeenCalledWith('web_quiz.old_link_kept', expect.objectContaining({ reason: 'chat_quiz_running' }));
+    expect(logEvent).toHaveBeenCalledWith('web_quiz.old_link_kept', expect.objectContaining({ reason: 'chat_quiz_running', phoneTail: CHILD.slice(-4) }));
+    expect(redisService.delete).not.toHaveBeenCalledWith(`videoquiz:${CHILD}:active`);
   });
 
   test('Meta refuses the cta_url send: no dead end, the chat join runs', async () => {
