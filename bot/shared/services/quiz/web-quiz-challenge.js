@@ -29,8 +29,6 @@ const { logToFile, logError } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const r2 = require('../../storage/r2');
 const T = require('./web-quiz-token');
-const Bank = require('../child-test/item-bank');
-const { applyConsecutiveStop, rate } = require('../child-test/scoring/tasks/common');
 const { WqError } = require('./web-quiz.service');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const { LANGUAGE_OFFER } = require('../../config/languages');
@@ -49,6 +47,20 @@ const MAX_CLIP_RECORDINGS = 64;  // per process: 2 exercises × 4 lines × 2 lan
 const AUDIO_TYPES = { 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a' };
 
 const fail = (status, error, extra = {}) => { throw new WqError(status, { error, ...extra }); };
+
+// The child-test battery (item bank + scorer) is required on use, never at load: the web quiz boots without it,
+// and a deployment that did not carry it answers a named 503 'unavailable' here instead of failing to start.
+function childTest({ scorer = false } = {}) {
+  try {
+    const out = { Bank: require('../child-test/item-bank'), Common: require('../child-test/scoring/tasks/common') };
+    // The story scorer (STT + listening call) only when a recording is scored.
+    if (scorer) Object.assign(out, { media: require('../child-test/scoring/media'), scoreTask: require('../child-test/scoring/tasks').scoreTask });
+    return out;
+  } catch (e) {
+    logError('web_quiz.ch_unavailable', { error: String(e && e.message || e).slice(0, 120) });
+    return fail(503, 'unavailable');
+  }
+}
 
 // The exercises built so far, in menu order. The other five of the battery are added here as they ship.
 const EXERCISES = Object.freeze([
@@ -315,6 +327,7 @@ async function exercise(token, ex, { kid, lang } = {}) {
   const def = byId(ex);
   if (!def) fail(404, 'not_found');
   const w = await who(token, { kid, lang });
+  const { Bank } = childTest();
   const task = def.task(w.lang);
   const spec = Bank.getTaskSpec({ grade: Number(w.form), set: 'A', task });
   const runId = crypto.randomUUID();
@@ -339,7 +352,7 @@ async function exercise(token, ex, { kid, lang } = {}) {
 
 /** EGRA Toolkit §10.3 words (items) correct per minute, whole number for the kid. */
 function wcpm(correct, timeLeft = 0) {
-  return Math.round(rate(correct, timeLeft));
+  return Math.round(childTest().Common.rate(correct, timeLeft));
 }
 
 /**
@@ -357,13 +370,11 @@ function scoreBigger(items, taps, { stopAfter = 4 } = {}) {
     const ok = t && Number(t.pick) === it.answer && Number(t.ms) >= 0 && Number(t.ms) <= PER_ITEM_S * 1000;
     return { i: i + 1, verdict: ok ? 'correct' : (t ? 'wrong' : 'none') };
   });
-  const stop = applyConsecutiveStop(rows, stopAfter);
+  const stop = childTest().Common.applyConsecutiveStop(rows, stopAfter);
   return { correct: rows.filter((r) => r.verdict === 'correct').length, n: items.length, stopped: !!stop.stopped };
 }
 
-async function scoreRead(run, key, ext, ms) {
-  const media = require('../child-test/scoring/media');
-  const { scoreTask } = require('../child-test/scoring/tasks');
+async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }) {
   let file = null;
   try {
     file = media.tmpFile(ext);
@@ -460,6 +471,13 @@ async function readsToday(studentId) {
 
 async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   const c = runOf(body.ct);
+  let CT;
+  try { CT = childTest({ scorer: c.ex === 'read' }); } catch (e) {
+    // Not scorable here: an uploaded recording is still forgotten (only this run's own prefix).
+    if (c.ex === 'read' && typeof body.key === 'string' && body.key.startsWith(runPrefix(c))) await forget(body.key);
+    throw e;
+  }
+  const { Bank } = CT;
   const mem = RUNS.get(c.r) || {};
   if ((mem.status && mem.status !== 'open') || (!mem.status && await storedRun(c.r))) fail(409, 'already_done');
   // A token minted by another process (a restart, a second replica): rebuild the run from the student.
@@ -500,7 +518,7 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   const stored = await insertRun({ ...base, status: 'scoring', meta: { ms: Number(body.ms) || null } });
   if (stored === 'duplicate') await refuse(409, 'already_done');
   const ext = key.split('.').pop();
-  const promise = scoreRead(run, key, ext, body.ms).then(async (r) => {
+  const promise = scoreRead(run, key, ext, body.ms, CT).then(async (r) => {
     const result = r.failed ? { failed: true, reason: r.reason } : { score: r.score, wcpm: r.wcpm, previous };
     RUNS.set(c.r, { ...run, status: 'done', result });
     await updateRun(c.r, r.failed

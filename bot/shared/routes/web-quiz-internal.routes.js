@@ -29,7 +29,6 @@ const WebQuiz = require('../services/quiz/web-quiz.service');
 const WebQuizVideos = require('../services/quiz/web-quiz-videos');
 const WebQuizSchools = require('../services/quiz/web-quiz-schools');
 const WebQuizPulse = require('../services/quiz/web-quiz-pulse');
-const WebQuizChallenge = require('../services/quiz/web-quiz-challenge');
 const WebQuizArt = require('../services/quiz/web-quiz-art');
 const Timing = require('../services/quiz/web-quiz-timing');
 
@@ -74,13 +73,23 @@ router.get('/media/:code/:qid', handle((req) => WebQuiz.media(req.params.code, r
 router.get('/videos/:code', handle((req) => WebQuizVideos.list(req.params.code, { st: req.query.st })));
 router.post('/videos/start', handle((req) => WebQuizVideos.start(req.body || {})));
 router.get('/pulse/:code', handle((req) => WebQuizPulse.poll(req.params.code, { st: req.query.st, since: req.query.since }, WebQuiz)));
-// M4c challenge
-router.get('/ch/result/:ct', handle((req) => WebQuizChallenge.poll(req.params.ct)));
-router.post('/ch/upload', handle((req) => WebQuizChallenge.presignUpload(req.body || {})));
-router.post('/ch/result', handle((req) => WebQuizChallenge.submit(req.body || {})));
-router.get('/ch/:token', handle((req) => WebQuizChallenge.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang })));
-router.get('/ch/:token/:exercise', handle((req) => WebQuizChallenge.exercise(req.params.token, req.params.exercise, { kid: req.query.kid, lang: req.query.lang })));
-router.get('/challenge/results', handle((req) => WebQuizChallenge.listResults({ cls: req.query.class, list: req.query.list })));
+// M4c challenge — required on first use, so the bot boots without it; a missing module answers 503 'unavailable'.
+const challenge = (fn) => handle((req) => {
+  let C;
+  try {
+    C = require('../services/quiz/web-quiz-challenge');
+  } catch (err) {
+    logToFile('❌ web quiz challenge unavailable', { error: err.message }, 'error');
+    throw new WebQuiz.WqError(503, { error: 'unavailable' });
+  }
+  return fn(C, req);
+});
+router.get('/ch/result/:ct', challenge((C, req) => C.poll(req.params.ct)));
+router.post('/ch/upload', challenge((C, req) => C.presignUpload(req.body || {})));
+router.post('/ch/result', challenge((C, req) => C.submit(req.body || {})));
+router.get('/ch/:token', challenge((C, req) => C.menu(req.params.token, { kid: req.query.kid, lang: req.query.lang })));
+router.get('/ch/:token/:exercise', challenge((C, req) => C.exercise(req.params.token, req.params.exercise, { kid: req.query.kid, lang: req.query.lang })));
+router.get('/challenge/results', challenge((C, req) => C.listResults({ cls: req.query.class, list: req.query.list })));
 // A link preview fetches this with no session: the signed id is the permission, so anyone may cache it.
 router.get('/art/:id', async (req, res) => {
   try {
