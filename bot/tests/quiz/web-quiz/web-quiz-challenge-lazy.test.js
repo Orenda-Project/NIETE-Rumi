@@ -37,6 +37,8 @@ beforeAll(async () => {
     students: [{ id: KID, list_id: LIST }],
     quiz_share_codes: [{ id: 'sc-x', code: 'EXPD01', quiz_id: 'q', teacher_user_id: 't1', language: 'en', active: false }],
     web_quiz_challenge_runs: [],
+    // the family phone has played as the child, so its hub link opens the Challenge (a forwarded one would not)
+    quiz_sessions: [{ id: 's-fam', student_id: KID, share_code_id: 'sc-x', quiz_id: 'q', device_ref: 'FamilyPhoneDeviceRef_1', created_at: '2026-10-06T10:00:00Z' }],
   });
   Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
   T = require('../../../shared/services/quiz/web-quiz-token');
@@ -48,7 +50,7 @@ beforeAll(async () => {
 });
 afterAll(() => new Promise((r) => (server ? server.close(r) : r())));
 
-const KEY = { 'x-api-key': 'route-key', 'content-type': 'application/json' };
+const KEY = { 'x-api-key': 'route-key', 'content-type': 'application/json', 'x-wq-device': 'FamilyPhoneDeviceRef_1' };
 const hub = () => T.signHub([KID]);
 
 test('the router loads with child-test absent, and the quiz routes still answer', async () => {
