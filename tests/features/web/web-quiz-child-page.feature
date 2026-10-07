@@ -787,12 +787,13 @@ Feature: Web child quiz page on the portal
     And after the last question the page says "You got 2 of 3 right!" («آپ نے ۳ میں سے ۲ کے صحیح جواب دیے!»)
     And only the numbers asked and correct are kept with the reading; a question counts once
 
-  @T624
+  @T626
   Scenario: Every tap is kept even when the checked score lands between two taps
     Given a child is answering the questions after Read aloud while the reading's checked score is still being worked out
     When the checked score is stored between two of the child's taps, on any server
     Then the stored reading keeps every answer the child gave and the number asked equals the taps shown on the page
     And a tap stored while the checked score is written never removes the score's own details (the live count, the cost)
+    And the checked score itself is always stored, even when the reading keeps changing under it
 
   @T586
   Scenario: Questions are off unless switched on

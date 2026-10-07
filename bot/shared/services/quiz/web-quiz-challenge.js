@@ -319,12 +319,16 @@ async function storedRun(id) {
  * built from a fresh read and lands only if meta is still what was read (jsonb equality), else it is rebuilt from
  * a new read, so neither writer puts back a stale copy of the other's keys. `build(row)` returns the patch.
  * Returns the row as written, or null (no row, a store error, or still contended after the retries).
+ * `force`: a write that must never be dropped (the checked score) is, after the retries, written unconditionally
+ * from the last read — today's last-writer-wins, now only as the last resort.
  */
 const META_TRIES = 5;
-async function updateRunMeta(id, build) {
+async function updateRunMeta(id, build, { force = false } = {}) {
+  let last = null;
   for (let i = 0; i < META_TRIES; i += 1) {
     const cur = await storedRun(id);
     if (!cur) return null;
+    last = cur;
     const patch = build(cur);
     const q = supabase.from('web_quiz_challenge_runs').update(patch).eq('id', id);
     const { data, error } = await (cur.meta == null ? q.is('meta', null) : q.eq('meta', JSON.stringify(cur.meta))).select('id');
@@ -334,8 +338,11 @@ async function updateRunMeta(id, build) {
     }
     if (data && data.length) return { ...cur, ...patch };
   }
-  logError('web_quiz.challenge_meta_contended', { runId: id, tries: META_TRIES });
-  return null;
+  logError('web_quiz.challenge_meta_contended', { runId: id, tries: META_TRIES, forced: force });
+  if (!force || !last) return null;
+  const patch = build(last);
+  await updateRun(id, patch);
+  return { ...last, ...patch };
 }
 
 // ── clips: the mascot's lines, recorded once per env in the quiz voice ───────────────────────────────
@@ -741,7 +748,7 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
       return r.failed
         ? { status: 'failed', meta: { ...r.meta, ...comp, reason: r.reason }, scored_at: nowIso() }
         : { status: 'scored', score: r.score, wcpm: r.wcpm, meta: { ...r.meta, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() };
-    });
+    }, { force: true });
     if (r.failed) logError('web_quiz.ch_read_failed', { runId: c.r, reason: r.reason });
     else logEvent('web_quiz.ch_done', { step: 'read', count: r.score.correct, wcpm: r.wcpm, stopped: r.score.stopped, costUsd: r.meta.cost_usd });
     return result;
