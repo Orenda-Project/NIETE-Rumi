@@ -49,11 +49,6 @@ beforeEach(() => {
       { segment_id: "g9_phy.c02.p010", title: "Speed and velocity", menu_title: "Speed", pages_label: "p.10-12", ready: true },
       { segment_id: "g9_phy.c02.p013", title: "Newton's laws", menu_title: "Newton", pages_label: "p.13", ready: false, sent: true },
     ] }),
-    "/lesson-plans/recent": () => ({ plans: [{
-      planKey: "k5:L2", kind: "k5", lessonId: "L2", found: true, title: "Roots and stems", grade: 4, subject: "General Science",
-      chapterNumber: 2, chapterTitle: "Plants", dayLabel: "Day 2", pagesLabel: "p.16-17",
-      lastUsedAt: "2026-10-02T05:00:00Z", lastOpenedAt: null, lastReceivedAt: "2026-10-02T05:00:00Z", open: { lane: "k5", lessonId: "L2" },
-    }] }),
   };
   http.get.mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
     const answer = routes[url];
@@ -225,20 +220,5 @@ describe("status — the poll while a plan is written", () => {
     expect(await lp.status("R9")).toEqual({ state: "failed" });
     routes["/lp612/status/R9"] = () => httpError(502);
     await expect(lp.status("R9")).rejects.toThrow();
-  });
-});
-
-describe("recent — her last lesson plan, for the heading", () => {
-  it("asks for one, and says its day and chapter", async () => {
-    const lp = createLessonPlansApi();
-    expect(await lp.recent()).toEqual({ title: "Roots and stems", day: 2, part: null, chapter: "Plants" });
-    expect(gets("/lesson-plans/recent")[0][1]).toEqual({ params: { limit: 1 } });
-  });
-
-  it("a 6–12 plan has no day; none at all is null", async () => {
-    routes["/lesson-plans/recent"] = () => ({ plans: [{ planKey: "g612:S", kind: "g612", segmentId: "S", found: true, title: "Speed and velocity", chapterTitle: "Motion", dayLabel: null }] });
-    expect(await createLessonPlansApi().recent()).toEqual({ title: "Speed and velocity", day: null, part: null, chapter: "Motion" });
-    routes["/lesson-plans/recent"] = () => ({ plans: [] });
-    expect(await createLessonPlansApi().recent()).toBeNull();
   });
 });

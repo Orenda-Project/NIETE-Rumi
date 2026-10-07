@@ -378,9 +378,12 @@ My Patch, and flag off renders the old dashboard byte for byte (`PortalDashboard
 `?tab=assessment` (the old Assessment tab, where `/portal/assessment` goes with the flag off) and a leader's visit keep the old page, and flag off renders
 the old page byte for byte (`PortalCurriculum.flagOff.test.tsx`). One flow for every grade, 1 to 12:
 
-- **Main:** `MainHeading` "Lesson Plans" with the band chip "Last: Day 2 · Plants" (`GET
-  /lesson-plans/recent?limit=1`). Four `Row`s, Grade · Subject · Chapter · Lesson, each showing what she
-  chose and `off` until the step before is chosen. A grey `BottomButton` Open until a lesson is picked.
+- **Main:** `MainHeading` "Lesson Plans". Four `Row`s, Grade · Subject · Chapter · Lesson, each showing what she
+  chose and `off` until the step before is chosen. Then **Recent** (bd-k23p38, `lessons/RecentPlans.tsx`; it
+  replaced the band chip "Last: …"): her last 10 plans, any grade, newest first — the grade in the tile, the
+  title, the subject, and how she last had it (an eye and when, opened here; a green chat bubble and when, sent on
+  WhatsApp; Ready; Preparing… first). One list and one open for both grade bands: `lib/recentLessonPlans.ts`,
+  shared with the old page's Recent lesson plans. A grey `BottomButton` Open until a lesson is picked.
 - **Grade:** a `Sheet` with a `NumberGrid` 1–12; grades with no lesson plans are `disabled`. Picking
   one opens **Subject**: a `Sheet` of rows (subject icon, name, lesson count).
 - **Chapter, Lessons, Ready:** inner pages (`InnerBar`, breadcrumb "Lesson Plans · …"). Lessons show

@@ -16,12 +16,18 @@
  * per-teacher record, so the two surfaces agree about what she already has.
  *
  * bd-5rz1v.10 — every lesson plan here (grades 1-5 lesson and answer key, a
- * ready 6-12 lesson, one that finishes writing while she waits, My lesson
+ * ready 6-12 lesson, one that finishes writing while she waits, Recent lesson
  * plans) opens in the portal's own viewer, OVER this page: the viewer is a
  * history entry on this same path, so Back closes it and her four picks are
  * still made. Which way a lesson plan opens is ONE switch, in
  * lib/lessonPlanOpen.ts (IN_APP_LESSON_PLANS); today's window.open way is kept
  * there, for "Open in another app" and as the viewer's fallback.
+ *
+ * bd-k23p38 — every lesson opens the same way, grades 1 to 12 (operator, 7 Oct
+ * 2026: "All the LPs work the same way, no distinction on 6-12 1-5"). A 6-12
+ * lesson not written yet gets the same "Open lesson plan" and says Preparing
+ * after the tap, not a warning before it; and the bottom of the page is her
+ * Recent lesson plans, any grade, where "My lesson plans" (6-12 only) was.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -35,7 +41,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
-import MyLesson612Panel from '../components/MyLesson612Panel';
+import RecentLessonPlans from '../components/RecentLessonPlans';
 import LessonPlanViewer from '../components/LessonPlanViewer';
 import { useRecordingSession } from '../lib/recordingSession';
 import { useAuth } from '../hooks/useAuth';
@@ -85,8 +91,6 @@ type LessonPlan = {
   pages_label: string | null;
   /** K-5 only — the ✓/○ tick, from niete_lp_downloads. */
   downloaded?: boolean;
-  /** 6-12 only — false means tapping this WRITES it, and that takes ~3 minutes. */
-  ready?: boolean;
   subtitle: string | null;
 };
 
@@ -124,9 +128,9 @@ const ClassicCurriculum = () => {
   const [opening, setOpening] = useState(false);
 
   // 6-12 only: the render she is waiting on, and when it started.
-  // `lessons612RefreshKey` is bumped whenever that list could have changed — she should not
+  // `recentRefreshKey` is bumped whenever Recent lesson plans could have changed — she should not
   // have to reload the page to see the lesson she just asked for.
-  const [lessons612RefreshKey, setLessons612RefreshKey] = useState(0);
+  const [recentRefreshKey, setRecentRefreshKey] = useState(0);
   const [waitingRender, setWaitingRender] = useState<string | null>(null);
   const [waitingSince, setWaitingSince] = useState<number | null>(null);
   const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -239,7 +243,6 @@ const ClassicCurriculum = () => {
             id: String(l.segment_id),
             title: String(l.title ?? ''),
             pages_label: (l.pages_label as string) ?? null,
-            ready: l.ready === true,
             subtitle: null,
           })));
           return;
@@ -300,7 +303,7 @@ const ClassicCurriculum = () => {
         const { data } = await api.get(`/lp612/status/${renderId}`);
         if (data.state === 'ready') {
           setWaitingRender(null); setWaitingSince(null); setOpening(false);
-          setLessons612RefreshKey((k) => k + 1);
+          setRecentRefreshKey((k) => k + 1);
           toast({ title: 'Your lesson plan is ready' });
           if (inApp) void openLessonPlan({ lane: 'g612', renderId }, title);
           else if (data.url) window.open(data.url, '_blank', 'noopener,noreferrer');
@@ -308,7 +311,7 @@ const ClassicCurriculum = () => {
         }
         if (data.state === 'failed') {
           setWaitingRender(null); setWaitingSince(null); setOpening(false);
-          setLessons612RefreshKey((k) => k + 1);
+          setRecentRefreshKey((k) => k + 1);
           toast({
             title: 'That lesson could not be written',
             description: 'Try again — it usually works on a second attempt.',
@@ -339,8 +342,9 @@ const ClassicCurriculum = () => {
       }
       setWaitingRender(data.renderId);
       setWaitingSince(Date.now());
-      // Listed as "Writing…" straight away, so leaving the page now still leaves a trail back.
-      setLessons612RefreshKey((k) => k + 1);
+      // Listed in Recent lesson plans as Preparing straight away, so leaving the page now still
+      // leaves a way back to it.
+      setRecentRefreshKey((k) => k + 1);
       poll612(data.renderId, Date.now(), chosenLp.title);
     } catch (err: unknown) {
       setOpening(false);
@@ -483,14 +487,13 @@ const ClassicCurriculum = () => {
                 {lps.map(lp => (
                   <SelectItem key={lp.id} value={lp.id}>
                     {/* K-5: the same ✓/○ the WhatsApp picker shows, from the same record.
-                        6-12: no tick — the useful fact is whether it has been WRITTEN, which
-                        is said on the right, because tapping an unwritten one costs 3 minutes. */}
+                        6-12: no tick, and nothing about whether it is written yet (bd-k23p38):
+                        every lesson opens the same way. */}
                     {lane === 'k5' && <span className="mr-1">{lp.downloaded ? '✓' : '○'}</span>}
                     {lp.subtitle && <span className="font-medium">{lp.subtitle}: </span>}
                     <span>{lp.title}</span>
                     <span className="text-muted-foreground text-xs ml-2">
                       {lp.pages_label ? `· ${lp.pages_label}` : ''}
-                      {lane === 'g612' ? (lp.ready ? ' · ready now' : ' · takes ~3 min') : ''}
                     </span>
                   </SelectItem>
                 ))}
@@ -538,10 +541,9 @@ const ClassicCurriculum = () => {
               </div>
             )}
 
-            {/* 6-12: the same slot, a different promise. About 92% of this corpus has
-                not been written yet, so the button says which of the two things it is
-                about to do, and the three-minute cost is stated BEFORE she commits —
-                never discovered afterwards. */}
+            {/* 6-12: the same "Open lesson plan" as 1-5 (bd-k23p38). Most of this corpus is
+                written on request, so a tap may start the writing: that is said AFTER the
+                tap, as Preparing, and the lesson opens by itself when it is done. */}
             {lane === 'g612' && (
               <>
                 <div className="flex flex-wrap items-center gap-3">
@@ -549,24 +551,19 @@ const ClassicCurriculum = () => {
                     {(opening || waitingRender)
                       ? <Loader2 className="w-4 h-4 animate-spin" />
                       : <ExternalLink className="w-4 h-4" />}
-                    {chosenLp.ready ? 'Open lesson plan' : 'Write this lesson plan'}
+                    Open lesson plan
                   </Button>
-                  {!chosenLp.ready && !waitingRender && (
-                    <span className="text-sm text-muted-foreground">
-                      Not written yet — this takes about 3 minutes.
-                    </span>
-                  )}
                 </div>
 
                 {waitingSince && (
                   <div className="rounded-lg border bg-muted/40 p-4 mt-4">
                     <div className="flex items-center gap-2 font-medium">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Writing your lesson plan…
+                      Preparing…
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">
-                      About three minutes. Keep this page open and it will open by itself
-                      when it is done.
+                      About three minutes. It opens by itself. If you leave, it waits in Recent
+                      lesson plans.
                     </p>
                   </div>
                 )}
@@ -575,9 +572,9 @@ const ClassicCurriculum = () => {
           </div>
         )}
 
-        {/* The landing place for a three-minute wait. Hidden entirely until she has asked for
-            a 6-12 lesson, so a teacher who only ever uses grades 1-5 never sees it. */}
-        <MyLesson612Panel refreshKey={lessons612RefreshKey} />
+        {/* Her last 10 lesson plans, any grade (bd-k23p38). Also where a lesson being written
+            lands if she leaves before it is done. */}
+        <RecentLessonPlans refreshKey={recentRefreshKey} />
       </div>
     </PortalLayout>
   );
