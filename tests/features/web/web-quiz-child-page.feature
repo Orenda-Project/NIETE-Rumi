@@ -1212,3 +1212,8 @@ Feature: Web child quiz page on the portal
     When its read-aloud clips are recorded
     Then no clip is recorded for a question or option the bank already voices, and options are all recorded or all generated within a question
     And a lone letter is read by its name ("letter s", «عین»), and a fill-in blank is a pause, never "underscore" or "dash"
+  @T624
+  Scenario: A question or option with a word too long for the phone wraps inside the screen
+    Given a question whose stem holds a long run with no spaces, like "quantity,quality,shape,color,size", or options with long words and their own speaker
+    When a child opens it on a 360x740 phone, in English or Urdu
+    Then the words break inside the card, the page never scrolls sideways, and the question's speaker stays on the screen
