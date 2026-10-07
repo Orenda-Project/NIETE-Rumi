@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ChevronLeft, Loader2 } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import BottomSheet from '../components/coaching/BottomSheet';
 import { leader } from '../services/api';
 import type { DraftOption, DraftSection, ObservationDraft } from '../services/api';
+import { V2_STEP, observationHome, openedFromCoach } from '../lib/coachObserve';
 
 /**
  * bd-5rz1v.6 — "Check the draft report": the WhatsApp review form, in the portal.
@@ -106,6 +107,10 @@ const Warning = ({ children }: { children: ReactNode }) => (
 
 const LeaderObserveDraft = () => {
   const { id } = useParams<{ id: string }>();
+  // bd-o15qnr.19 — opened from coach v2: "Feedback Form", and back to the v2 observation page.
+  const [search] = useSearchParams();
+  const fromCoach = openedFromCoach(search);
+  const home = observationHome(id, fromCoach);
   const navigate = useNavigate();
   const [draft, setDraft] = useState<ObservationDraft | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -146,7 +151,7 @@ const LeaderObserveDraft = () => {
     setSaveError(null);
     try {
       await leader.saveObservationDraft(id, values);
-      navigate(`/portal/leader/observe/${id}`);
+      navigate(home);
     } catch (err) {
       const status = (err as { response?: { status?: number } })?.response?.status;
       setSaveError(status === 409 ? COPY.notReady : COPY.saveFailed);
@@ -170,11 +175,11 @@ const LeaderObserveDraft = () => {
     <PortalLayout>
       <div className="mx-auto flex w-full max-w-md flex-col gap-3 pb-32">
         <div className="flex h-12 items-center gap-1">
-          <button type="button" onClick={() => (part > 0 ? setPart(part - 1) : navigate(`/portal/leader/observe/${id}`))} aria-label={COPY.back}
+          <button type="button" onClick={() => (part > 0 ? setPart(part - 1) : navigate(home))} aria-label={COPY.back}
             className="flex h-11 w-11 items-center justify-center rounded-lg text-primary">
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <h1 className="text-lg font-bold text-primary" dir="auto">{COPY.title(first)}</h1>
+          <h1 className="text-lg font-bold text-primary" dir="auto">{fromCoach ? V2_STEP.draft : COPY.title(first)}</h1>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -237,7 +242,7 @@ const LeaderObserveDraft = () => {
       <div data-testid="draft-actions"
         className="fixed inset-x-0 bottom-16 md:bottom-0 z-40 border-t border-[#e5e7eb] bg-white px-4 py-3 shadow-[0_-4px_12px_rgba(29,33,41,0.08)]">
         <div className="mx-auto flex max-w-md gap-2.5">
-          <button type="button" onClick={() => (part > 0 ? setPart(part - 1) : navigate(`/portal/leader/observe/${id}`))}
+          <button type="button" onClick={() => (part > 0 ? setPart(part - 1) : navigate(home))}
             className="h-[52px] flex-1 rounded-[14px] border-2 border-primary bg-white text-[17px] font-bold text-primary">{COPY.back}</button>
           {last ? (
             <button type="button" onClick={() => setConfirm(true)} className="h-[52px] flex-[2] rounded-[14px] bg-primary text-[17px] font-bold text-white">{COPY.save}</button>

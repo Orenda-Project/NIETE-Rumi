@@ -62,7 +62,8 @@ function LastVisitRow({ last }: { last: LastVisit }) {
   const date = last.date ? new Date(last.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : C.dash;
   const who = last.byMe ? C.you : (last.observerName || C.dash);
   const step = last.step ? C.reportStep[last.step] : null;
-  const to = last.portal && last.id ? `/portal/leader/observe/${last.id}` : null;
+  // bd-o15qnr.19 — the one v2 observation page, portal or WhatsApp.
+  const to = last.id ? `/portal/coach/observation/${last.id}` : null;
   const inner = (
     <>
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#f3f4f6] text-[13px] font-bold text-[#33374a]">{C.pct(last.score)}</span>

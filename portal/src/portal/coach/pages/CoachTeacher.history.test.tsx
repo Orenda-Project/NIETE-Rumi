@@ -45,7 +45,6 @@ function renderAt(path: string) {
       <Routes>
         <Route path="/portal/coach/teacher/:ext" element={<CoachTeacher />} />
         <Route path="/portal/coach/observation/:id" element={<CoachObservation />} />
-        <Route path="/portal/leader/observe/:id" element={<div>EXISTING OBSERVE PAGE</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -58,33 +57,35 @@ beforeEach(() => {
 });
 
 describe("Teacher History opens reports", () => {
-  it("tapping a HITL row with its report out opens that report", async () => {
+  // bd-o15qnr.19 — every HITL row opens the one v2 observation page; the
+  // report the teacher received opens from its last step there.
+  it("tapping a HITL row with its report out opens the observation page, and its report from the last step", async () => {
+    C.getObservation.mockResolvedValue({ ...REPORT, step: "sent", portal: false, mine: true, dcScore: 61 });
     renderAt("/portal/coach/teacher/923001110001");
     const history = await screen.findByTestId("history");
     const row = within(history).getByTestId("history-h-wa-sent");
     expect(row.tagName).toBe("A");
     fireEvent.click(row);
-    expect(await screen.findByTestId("observation-report")).toBeInTheDocument();
+    const steps = await screen.findAllByTestId("obs-step");
     expect(C.getObservation).toHaveBeenCalledWith("h-wa-sent");
-    expect(screen.getByTestId("observation-report")).toHaveTextContent("61%");
-    expect(screen.getByRole("img")).toHaveAttribute("src", "https://signed.example/report.png");
+    fireEvent.click(within(steps[4]).getByRole("button"));
+    expect(await screen.findByTestId("observation-report")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Ayesha/ })).toHaveAttribute("src", "https://signed.example/report.png");
+    expect(screen.getByLabelText(/Digital Coach score 61%/)).toBeInTheDocument();
   });
 
-  it("her own portal observation opens its existing page, at whatever step it is", async () => {
-    renderAt("/portal/coach/teacher/923001110001");
-    const row = within(await screen.findByTestId("history")).getByTestId("history-h-portal");
-    expect(row).toHaveAttribute("href", "/portal/leader/observe/h-portal");
-    fireEvent.click(row);
-    expect(await screen.findByText("EXISTING OBSERVE PAGE")).toBeInTheDocument();
-  });
-
-  it("a DC session and a HITL still on WhatsApp are information only: no link", async () => {
+  it("her own portal observation and a HITL still on WhatsApp open the same page", async () => {
     renderAt("/portal/coach/teacher/923001110001");
     const history = await screen.findByTestId("history");
-    for (const id of ["h-dc", "h-wa-draft"]) {
-      const row = within(history).getByTestId(`history-${id}`);
-      expect(row.tagName).not.toBe("A");
-      expect(row.querySelector("[data-chevron]")).toBeNull();
-    }
+    expect(within(history).getByTestId("history-h-portal")).toHaveAttribute("href", "/portal/coach/observation/h-portal");
+    expect(within(history).getByTestId("history-h-wa-draft")).toHaveAttribute("href", "/portal/coach/observation/h-wa-draft");
+  });
+
+  it("a DC session is information only: no link", async () => {
+    renderAt("/portal/coach/teacher/923001110001");
+    const row = within(await screen.findByTestId("history")).getByTestId("history-h-dc");
+    expect(row.tagName).not.toBe("A");
+    expect(row.querySelector("[data-chevron]")).toBeNull();
   });
 });
+
