@@ -123,6 +123,60 @@ test('the checked score lands between two taps: the tap answered in between is k
   expect(row.meta.live).toEqual({ correct: 60, attempted: 60, secs: 30, v: 1 });
 });
 
+test('the row keeps changing under every try: the checked score is still stored (never dropped), with the taps it last read', async () => {
+  db.app_settings.push({ key: 'web_quiz_challenge_realtime', value: true });
+  global.fetch = jest.fn(async () => ({ ok: true, status: 200, json: async () => ({ api_key: 'temp:k-test-only', expires_at: 'x' }) }));
+  process.env.SONIOX_API_KEY = 'main-test-only';
+  const ct = (await Ch.exercise(hub(), 'read', { ...D, lang: 'en' })).ct;
+  await Ch.liveKey({ ct });
+  const { key } = await Ch.presignUpload({ ct, type: 'audio/webm', size: 500000 });
+  const FF = require('@ffmpeg-installer/ffmpeg').path;
+  const f = path.join(os.tmpdir(), `wqrace-${process.pid}.webm`);
+  if (!fs.existsSync(f)) execFileSync(FF, ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'anullsrc=r=16000:cl=mono', '-t', '60', '-c:a', 'libopus', f]);
+  r2.downloadFromR2.mockResolvedValue(fs.readFileSync(f));
+  const toks = enStory().story.tokens;
+  AudioService.transcribe.mockResolvedValue({ text: '', tokens: toks.map((w, k) => ({ text: ` ${w}`, start_ms: k * 500, end_ms: k * 500 + 400, speaker: 1 })) });
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  llm.__create.mockImplementation(async () => { await gate; return { usage: { cost: 0.002 }, choices: [{ message: { content: JSON.stringify({ words: toks.map((w, k) => ({ i: k + 1, w, v: 'correct' })), notes: '' }) } }] }; });
+  await Ch.submit({ ct, key, ms: 30000, lang: 'en', live: { correct: 60, attempted: 60, secs: 30 } }, { waitMs: 0 });
+  const qs = (await Ch.questions({ ct })).questions;
+  await Ch.answer({ ct, q: qs[0].id, pick: 0 });
+  // every conditional score write finds the row changed since its read (another writer touches meta each time)
+  const id = runIdOf(ct);
+  let bumps = 0;
+  const from = supabase.from;
+  supabase.from = (t) => {
+    const b = from(t);
+    if (t !== 'web_quiz_challenge_runs') return b;
+    let held = false;
+    const update = b.update;
+    b.update = (patch) => { if (patch.status === 'scored') held = true; return update(patch); };
+    const eq = b.eq;
+    let conditional = false;
+    b.eq = (c, v) => { if (c === 'meta') conditional = true; return eq(c, v); };
+    const then = b.then;
+    b.then = (res, rej) => {
+      if (held && conditional) {
+        const row = db.web_quiz_challenge_runs.find((r) => r.id === id);
+        bumps += 1;
+        row.meta = { ...row.meta, touched: bumps };
+      }
+      return then(res, rej);
+    };
+    return b;
+  };
+  release();
+  for (let i = 0; i < 100 && (await Ch.poll(ct)).pending; i += 1) await new Promise((r) => setTimeout(r, 20));
+  supabase.from = from;
+  const row = db.web_quiz_challenge_runs.find((r) => r.id === id);
+  expect(bumps).toBeGreaterThanOrEqual(5);
+  expect(row.status).toBe('scored');
+  expect(row.score).toMatchObject({ correct: 60, attempted: 60 });
+  expect(row.meta.comp).toMatchObject({ asked: 1 });
+  expect(row.meta.live).toEqual({ correct: 60, attempted: 60, secs: 30, v: 1 });
+});
+
 test('a tap lands while another writer changes the row: the tap keeps that writer\'s keys (the score\'s meta)', async () => {
   const ct = (await Ch.exercise(hub(), 'read', { ...D, lang: 'en' })).ct;
   const id = runIdOf(ct);
