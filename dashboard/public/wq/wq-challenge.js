@@ -761,7 +761,9 @@
     list: [], k: 0, right: 0, attempted: null,
     open: function () {
       var d = S.data;
-      api('ch/qs', { ct: d.ct, attempted: qa.attempted, lang: L }).then(function (out) {
+      // live: first let the reading's own result call land (it writes the run); at most 20 s, then go on regardless
+      var before = (live && live.submitted) ? Promise.race([live.submitted, new Promise(function (res) { setTimeout(res, 20000); })]) : Promise.resolve();
+      before.then(function () { return api('ch/qs', { ct: d.ct, attempted: qa.attempted, lang: L }); }).then(function (out) {
         qa.list = (out && out.questions) || [];
         qa.k = 0; qa.right = 0;
         if (!qa.list.length) { refreshMenu(); return; }
@@ -820,6 +822,9 @@
     var d = S.data;
     var type = (rec.mr && rec.mr.mimeType) || rec.type || 'audio/webm';
     var blob = new Blob(rec.chunks, { type: type });
+    // the questions wait for this reading's result call (qa.open), so no answer can be written before it
+    var settle;
+    live.submitted = new Promise(function (res) { settle = res; });
     api('ch/upload', { ct: d.ct, type: type, size: blob.size }).then(function (u) {
       return fetch(u.put_url, { method: 'PUT', headers: { 'content-type': u.content_type }, body: blob }).then(function (r) {
         if (!r.ok) { var e = new Error('put_' + r.status); e.status = r.status; throw e; }
@@ -828,9 +833,10 @@
     }).then(function (key) {
       return api('ch/result', { ct: d.ct, key: key, ms: rec.ms || 0, lang: L, live: lc });
     }).then(function (r) {
+      settle();
       if (r && r.pending) { pollQuiet(0); return; }
       liveChecked(r);
-    }).catch(function (e) { ev('ch_live', { ok: false, err: 'check_' + ((e && e.status) || 0) }); });
+    }).catch(function (e) { settle(); ev('ch_live', { ok: false, err: 'check_' + ((e && e.status) || 0) }); });
   }
   function pollQuiet(n) {
     if (n >= POLL_MAX) return;

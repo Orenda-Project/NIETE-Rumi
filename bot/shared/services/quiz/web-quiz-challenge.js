@@ -698,7 +698,11 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   const story = (Bank.getTaskSpec({ grade: Number(run.form), set: 'A', task: run.task }).story || {});
   const live = isLive ? liveCount(body.live, (story.tokens && story.tokens.length) || String(story.text || '').split(/\s+/).filter(Boolean).length) : null;
   const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}) };
-  if (isLive) await updateRun(c.r, { status: 'scoring', meta: metaIn });
+  if (isLive) {
+    // the child may already be answering the questions (the live result shows before this call): keep their answers
+    const cur = await storedRun(c.r);
+    await updateRun(c.r, { status: 'scoring', meta: { ...metaIn, ...(cur && cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {}) } });
+  }
   else {
     const stored = await insertRun({ ...base, status: 'scoring', meta: metaIn });
     if (stored === 'duplicate') await refuse(409, 'already_done');
