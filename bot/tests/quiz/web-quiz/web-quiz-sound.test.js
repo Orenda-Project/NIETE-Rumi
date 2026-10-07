@@ -48,7 +48,7 @@ function seed(questions, meta = {}) {
 }
 
 const SAVED = { ...process.env };
-beforeEach(() => { process.env = { ...SAVED, INTERNAL_API_KEY: 'test-key' }; delete process.env.WEB_QUIZ_TOKEN_SECRET; });
+beforeEach(() => { process.env = { ...SAVED, INTERNAL_API_KEY: 'test-key' }; delete process.env.WEB_QUIZ_TOKEN_SECRET; WQ._resetQuizCache(); });
 afterAll(() => { process.env = SAVED; });
 
 const CLIPS = {

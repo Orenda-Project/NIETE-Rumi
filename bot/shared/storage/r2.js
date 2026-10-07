@@ -972,6 +972,17 @@ async function uploadBuffer(buffer, key, contentType = 'application/octet-stream
  * @param {number} expiresIn    seconds
  * @returns {Promise<string>} presigned PUT url
  */
+/**
+ * A presigned GET for a bare key, signed locally and quietly (no log lines): for pages that sign
+ * many small objects at once (the web quiz library's posters). getPresignedUrl stays the general path.
+ * @param {string} key  R2 object key
+ * @param {number} expiresIn  seconds
+ * @returns {Promise<string>} presigned GET url
+ */
+async function getPresignedGetUrl(key, expiresIn = 3600) {
+  return getSignedUrl(getR2Client(), new GetObjectCommand({ Bucket: BUCKET_NAME, Key: key }), { expiresIn });
+}
+
 async function getPresignedUploadUrl(key, contentType, expiresIn = 900, { bucket } = {}) {
   const command = new PutObjectCommand({ Bucket: bucket || BUCKET_NAME, Key: key, ContentType: contentType });
   return getSignedUrl(getR2Client(), command, { expiresIn });
@@ -1030,6 +1041,7 @@ module.exports = {
   getPresignedUploadUrl,
   deleteKey,
   presignKey,
+  getPresignedGetUrl, // quiet GET presign for a bare key (web quiz library posters)
   headObject,
   uploadAudio,
   deleteAudio,

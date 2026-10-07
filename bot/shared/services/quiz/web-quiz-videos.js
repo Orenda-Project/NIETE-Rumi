@@ -116,6 +116,30 @@ async function lessonMeta(videoId, { fetchImpl } = {}) {
   return v;
 }
 
+/** A lesson's cached details without fetching: undefined when not (or no longer) cached. */
+function peekMeta(videoId) {
+  const hit = metaCache.get(videoId);
+  return hit && Date.now() - hit.at < META_TTL_MS ? hit.v : undefined;
+}
+
+// Lessons being warmed right now: one fetch per lesson, however many lists ask.
+const warming = new Map();
+/** Read the details of uncached lessons in the background, a few at a time. Resolves when done; never throws. */
+function warmMeta(videoIds, { fetchImpl, concurrency = 4 } = {}) {
+  const todo = [...new Set(videoIds)].filter((id) => peekMeta(id) === undefined && !warming.has(id));
+  if (!todo.length) return Promise.all([...warming.values()]).then(() => undefined);
+  let next = 0;
+  const worker = async () => {
+    while (next < todo.length) {
+      const id = todo[next++];
+      const p = lessonMeta(id, { fetchImpl }).catch(() => null);
+      warming.set(id, p);
+      try { await p; } finally { warming.delete(id); }
+    }
+  };
+  return Promise.all(Array.from({ length: Math.min(concurrency, todo.length) }, worker)).then(() => undefined);
+}
+
 // ─── list ───────────────────────────────────────────────────────────────────
 
 async function finishedVideoQuizzes(st) {
@@ -235,4 +259,4 @@ async function start(body = {}) {
   return fail(502, 'db_unavailable');
 }
 
-module.exports = { list, start, gradesFor, subjectFor, pick, mp4Seconds, classRootId, LIST_MAX, _metaCache: metaCache };
+module.exports = { list, start, gradesFor, subjectFor, pick, mp4Seconds, classRootId, peekMeta, warmMeta, LIST_MAX, VID_RX, _metaCache: metaCache };

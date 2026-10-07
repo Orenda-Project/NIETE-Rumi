@@ -880,3 +880,51 @@ Feature: Web child quiz page on the portal
     When a child answers a question and when the quiz ends
     Then the feedback lines ("Yes! That's right!", "Quiz complete!") are English, in the same voice as the question clips
     And an Urdu quiz keeps its Urdu feedback lines even when its page is opened from an English class
+
+
+  @T375
+  Scenario: "Watch another video" opens the quiz's own subject as chapters, at once
+    Given the video library is on and a child is looking at their result or scorecard
+    When the child taps "Watch another video"
+    Then the chapters of the quiz's own subject and grade are shown at once, in the WhatsApp Flow's order
+    And each lesson shows its poster (or the subject's picture until it loads), its title, minutes and MB, and "Done ✓" when finished
+
+  @T376
+  Scenario: Subjects with pictures and a grade strip
+    Given the library is showing a subject's chapters
+    When the child taps "Subjects"
+    Then the subjects of the child's grade are shown as picture tiles, two to a row, each with its number of videos
+    And a strip of grades with pictures sits above them, the child's grade selected and in view
+    When the child taps another grade
+    Then that grade's subjects are shown
+
+  @T377
+  Scenario: A lesson the class already has opens without waiting
+    Given the class already has a code for a lesson in the library
+    When the child taps that lesson
+    Then the lesson's page opens straight away and starts as the same child, with no name to pick
+
+  @T378
+  Scenario: A class's first play of a lesson still gets its own code
+    Given no child of the class has played a lesson yet
+    When a child taps it in the library
+    Then one code is made for that class and lesson, and the lesson's page opens as the same child
+
+  @T379
+  Scenario: A child downloads a lesson's video
+    Given the library is on
+    When a child taps "⬇ Download (12.4 MB)" on the video screen, or "⬇ Download" on a lesson in the library
+    Then the phone saves the video under a clean file name
+    And in WhatsApp's browser the child is also offered "Open in Chrome" in case the download does not start
+
+  @T380
+  Scenario: The library is off
+    Given the video library is off
+    When a child taps "Watch another video"
+    Then today's list of up to 8 lessons is shown, exactly as before, and no Download button appears
+
+  @T381
+  Scenario: The library in Urdu
+    Given an Urdu quiz
+    When the child opens the library
+    Then subject and grade names, counts, "Done" and "Download" are in Urdu, and sizes read left to right

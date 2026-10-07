@@ -69,6 +69,10 @@ const API_ROUTES = [
   { method: 'get', path: '/api/wq/ch/:token/:exercise', limiter: 'read', token: true },
   // M4a hub — the kid hub's JSON (a hub token, not a code: checked by HUB_TOKEN_RX)
   { method: 'get', path: '/api/wq/hub/:token', limiter: 'read' },
+  // M4b library
+  { method: 'get', path: '/api/wq/lib/h/:token', limiter: 'read', token: true },
+  { method: 'get', path: '/api/wq/lib/:code', limiter: 'read' },
+  { method: 'get', path: '/api/wq/videos/dl/:code', limiter: 'read' },
 ];
 
 // The shell's line under Jugnu, shown until wq.js boots (seconds on slow 4G), so the page never reads as stuck.
@@ -93,7 +97,7 @@ function bootJson(obj) {
 
 function assetVersion() {
   const h = crypto.createHash('sha256');
-  for (const f of ['wq.js', 'wq.css', 'wq-identity.js', 'hub.js']) {
+  for (const f of ['wq.js', 'wq.css', 'wq-identity.js', 'hub.js', 'wq-lib.js']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   return h.digest('hex').slice(0, 10);
@@ -213,7 +217,8 @@ function renderQuizPage({ payload, code, view, origin, assetV, url, a, v }) {
 <body>
 <main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(BOOT_COPY[lang])}</p></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
-${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq.js?v=${assetV}" defer></script>
+${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq-lib.js?v=${assetV}" defer></script>
+<script src="/wq/wq.js?v=${assetV}" defer></script>
 </body>
 </html>`;
 }
