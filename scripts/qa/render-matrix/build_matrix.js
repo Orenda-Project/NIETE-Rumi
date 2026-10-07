@@ -141,6 +141,11 @@ function shapes(lang) {
   add('voiced-options-long-words', row(lang, lang === 'ur'
     ? { option_a: 'غیرمتعدی', option_b: 'خودمختارانہ', option_c: 'بین الاقوامی', option_d: 'ناقابلِ تجدید' }
     : { option_a: 'Multiplication', option_b: 'non-contagious', option_c: 'Electromagnet', option_d: 'space-exploration' }), null, { audio: voiced });
+  // A listen-and-identify item whose options are sounds, each with its own clip: sound tiles + "This one".
+  add('sound-tiles', row(lang, lang === 'ur'
+    ? { question_text: 'یہ کس کی آواز ہے؟', option_a: 'نُ', option_b: 'پَ', option_c: 'بِ', option_d: null }
+    : { question_text: 'Listen and tap.', option_a: 's', option_b: 'p', option_c: 'm', option_d: null }), null,
+  { audio: { q: clip('q'), stim: clip('stim'), opts: [clip('a'), clip('b'), clip('c'), null], why: null } });
   add('long-unbroken-token-stem', row(lang, { question_text: lang === 'ur'
     ? 'صفت اسم کی مقدار،معیار،شکل،رنگ،سائز،اورنسل بتاتی ہے۔'
     : 'Adjectives are used to describe the quantity,quality,shape,color,size and origin of Nouns.', option_a: w.opts[0], option_b: w.opts[1], option_c: null }), null, { audio: voiced });
