@@ -74,6 +74,8 @@ router.get('/quiz/:code', handle(async (req) => {
 // A shared link's preview facts (web-quiz-og.js): from memory, so a portal worker answers a link preview fast.
 router.get('/og/:code', handle((req) => WebQuizOg.forCode(req.params.code, (c) => WebQuiz.getQuiz(c))));
 router.post('/session', handle((req) => WebQuiz.startSession(req.body || {})));
+// The handset key: the page redeems a bot-sent link's ?x= token once with its device (web-quiz-handset.js).
+router.post('/bind', handle((req) => require('../services/quiz/web-quiz-handset').bind(req.body || {}, WebQuiz.WqError)));
 router.post('/answers', handle((req) => WebQuiz.recordAnswers(req.body || {})));
 router.post('/finish', handle(async (req) => {
   const out = await WebQuiz.finishSession(req.body || {});

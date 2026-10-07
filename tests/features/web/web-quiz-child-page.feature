@@ -1276,3 +1276,35 @@ Feature: Web child quiz page on the portal
     Given a child of an English class has just finished an Urdu lesson from the library
     When the child opens their hub or sends /quiz again
     Then the hub and the /quiz reply stay in English
+
+  @T638
+  Scenario: An old WhatsApp link from a phone the bot already knows opens the web page as that same child
+    Given the one-shot handset link is switched on
+    And a child who played the chat quiz from their parent's phone texts an old QUIZ link from that phone
+    When the bot answers with the one "Start quiz" button
+    Then the button's address carries only a signed one-hour nonce in its fragment, never the phone, never a child's id
+    And the page drops the fragment from the address bar before anything else loads
+    And the page opens straight in as the child the phone already is, with the same student record on both routes
+
+  @T639
+  Scenario: Siblings on one phone pick themselves; a name typed on that phone that is one of them is confirmed, never duplicated
+    Given the one-shot handset link is switched on
+    And two children of one phone are known to the bot
+    When the button from an old link is tapped on that phone
+    Then the page shows "Who is playing?" with those two children only
+    And a name typed under "Someone else" that is one of them gets "Is this you?" with that one card
+
+  @T640
+  Scenario: A forwarded button is spent by its first tap; the owner is simply asked their name
+    Given the one-shot handset link is switched on
+    And the button's message is forwarded to another phone which taps it first
+    When the owner taps the same button afterwards
+    Then the owner's page asks who is playing, as for any new phone
+    And nothing about the other phone's children is written or merged by the first tap
+
+  @T641
+  Scenario: With the handset link off, nothing changes
+    Given the one-shot handset link is switched off
+    When a known phone texts an old QUIZ link
+    Then the button's address is the plain page address, as before
+    And the page never calls the bind endpoint

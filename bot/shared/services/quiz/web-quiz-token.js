@@ -18,6 +18,12 @@
  *   h   hub token      {k:'h', ids, exp}           7 days; the WhatsApp /quiz link to a
  *                                                  phone's own children (≤4 student ids,
  *                                                  never a name, never the phone)
+ *   x   handset link   {k:'x', n, sc, exp}         1 hour: rides the FRAGMENT of a web link the
+ *                                                  bot sends to ONE phone (the old-link redirect);
+ *                                                  n = a random nonce the server keeps that phone's
+ *                                                  children under (Redis, web-quiz-handset.js),
+ *                                                  sc = the share code it was sent for. Carries no
+ *                                                  id, no name, no phone: the page redeems it once
  *   chip               HMAC(secret, shareCodeId|studentId)[:16] — a child's name
  *                      button; not reversible, recomputed over the class
  *
@@ -43,6 +49,9 @@ const PREVIEW_TTL_S = 30 * 24 * 60 * 60;
 const CHALLENGE_TTL_S = 2 * 60 * 60;
 const HUB_TTL_S = 7 * 24 * 60 * 60;
 const HUB_MAX_KIDS = 4;
+// From the measured tap delay after a redirect (median 20 s, max 15 min): one hour covers every tap seen.
+const HANDSET_TTL_S = 60 * 60;
+const NONCE_RX = /^[A-Za-z0-9_-]{22}$/;
 const DEVICE_REF_RX = /^[A-Za-z0-9_-]{22}$/;
 
 // Stable per child (hash of the student id), so the same animal shows on every
@@ -115,6 +124,17 @@ function signHub(studentIds) {
   return sign({ k: 'h', ids, exp: nowS() + HUB_TTL_S });
 }
 
+/** A handset-link nonce: 16 random bytes, never derived from anything. */
+function newNonce() {
+  return crypto.randomBytes(16).toString('base64url');
+}
+
+/** The handset link token for one bot-sent web link: the nonce, the code it is for (null = none), one hour. */
+function signHandset({ n, shareCodeId = null } = {}) {
+  if (typeof n !== 'string' || !NONCE_RX.test(n)) return null;
+  return sign({ k: 'x', n, sc: shareCodeId || null, exp: nowS() + HANDSET_TTL_S });
+}
+
 function chipId(shareCodeId, studentId) {
   const key = secret();
   if (!key || !shareCodeId || !studentId) return null;
@@ -136,7 +156,7 @@ function animalFor(studentId) {
 }
 
 module.exports = {
-  secret, sign, verify, signSession, signPreview, signChallenge, signHub, chipId,
+  secret, sign, verify, signSession, signPreview, signChallenge, signHub, signHandset, newNonce, chipId,
   newDeviceRef, cleanDeviceRef, animalFor, ANIMALS,
-  SESSION_TTL_S, SYNC_TTL_S, PREVIEW_TTL_S, CHALLENGE_TTL_S, HUB_TTL_S, HUB_MAX_KIDS,
+  SESSION_TTL_S, SYNC_TTL_S, PREVIEW_TTL_S, CHALLENGE_TTL_S, HUB_TTL_S, HUB_MAX_KIDS, HANDSET_TTL_S,
 };

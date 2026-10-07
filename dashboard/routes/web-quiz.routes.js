@@ -57,6 +57,7 @@ const API_ROUTES = [
   { method: 'get', path: '/api/wq/pulse/:code', limiter: 'read' },
   { method: 'get', path: '/api/wq/media/:code/:qid', limiter: 'read' },
   { method: 'post', path: '/api/wq/session', limiter: 'session' },
+  { method: 'post', path: '/api/wq/bind', limiter: 'session' },
   { method: 'post', path: '/api/wq/answers', limiter: 'answers' },
   { method: 'post', path: '/api/wq/finish', limiter: 'finish' },
   { method: 'post', path: '/api/wq/me', limiter: 'read' },

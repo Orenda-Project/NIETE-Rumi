@@ -17,7 +17,8 @@
  *     this text is only ever a (re)start);
  *   - the send is accepted by Meta.
  * The teacher's own link opens the signed preview (`?p=`), recorded on the web as a
- * self-test exactly as beginFromCode records it in chat. The body carries the teacher
+ * self-test exactly as beginFromCode records it in chat. A child's link carries the
+ * one-shot handset link (`#x=`, web-quiz-handset.js) when that switch is on. The body carries the teacher
  * and the topic in the quiz's language, never a URL, a token or a child's name — the
  * link lives in the button, which a forward does not carry.
  *
@@ -93,7 +94,13 @@ async function tryRedirect(phone, code, sc, hooks = {}) {
       if (!url) return kept('no_preview');
       body = resolveUx('vqOldLinkSelfTestBody', { language: lang });
     } else {
-      url = `${Link.webBaseUrl()}/q/${code}`;
+      // The one-shot handset link (web-quiz-handset.js): with app_settings web_quiz_handset_link on, the
+      // button's URL carries, in its fragment, a one-hour single-use nonce the server keeps THIS phone's
+      // known children under — so the page opens as the child this phone already is. The ids come from
+      // the caller (the chat join already looks them up); off, or nobody known: the bare page URL, as
+      // before. The body never carries a URL either way.
+      const knownIds = typeof hooks.knownIds === 'function' ? await hooks.knownIds() : [];
+      url = await require('./web-quiz-handset').withLink(`${Link.webBaseUrl()}/q/${code}`, knownIds, shareCodeId);
       const teacher = isolateIfMixed(sc.teacher_name || resolveUx('tqYourTeacher', { language: lang }), lang);
       const topic = sc.topic || resolveUx('tqTodaysLesson', { language: lang });
       body = resolveUx('vqOldLinkBody', { language: lang, params: { teacher, topic } });
