@@ -1164,6 +1164,13 @@ FIGURE_BLANK ink floor is 1 for a lone empty tray). Covered by
 lesson-plan page is unaffected. Upstream still has the floor of 2; keep this at the next re-sync and offer
 it upstream with the lane's question check as the reason the engine can drop the floor.
 
+### 3.29 `lib/overlay.js` — the mistakes-box label is "What pupils say or write" (2026-10-05, bd-k3ry8) — NOT a divergence, identical hunk
+
+Amena, on GK G1 day 1 (an oral lesson): "no writing in this lesson, its the first, and remember this
+is grade 1!" `LABELS.en.pupilSays` printed "What pupils write" on every plan. It is now "What pupils
+say or write", UR "طلبہ کیا کہتے یا لکھتے ہیں". The same two lines changed upstream in the same pass,
+so a re-vendor keeps them. Test: `tests/lp-v8/bd-k3ry8-pupil-says-label.test.js`.
+
 ### 3.8 Nothing else
 
 Both schemas and every other file in `lib/` are **byte-identical to upstream**, with the single
