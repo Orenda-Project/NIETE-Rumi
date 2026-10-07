@@ -66,7 +66,6 @@ const { buildIsapsScoreSheet } = require('../../bot/shared/services/training/isa
 // bot via one app_settings row (see dashboard/lib/feature-flags.js).
 const {
   isAssessmentGeneratorEnabled,
-  isAssessmentEditingEnabled,
   ASSESSMENT_GENERATOR_OFF_MESSAGE,
   isFlagEnabledForUser,
   PORTAL_SELF_OBSERVATION_KEY,
@@ -75,6 +74,7 @@ const {
   PORTAL_NEW_UI_KEY,
   PORTAL_COACH_V2_KEY,
   isCoachObservationOn,
+  isPortalAssessmentEditingEnabled,
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
@@ -7713,7 +7713,7 @@ router.put('/me/language', requirePortalAuth, async (req, res) => {
 router.get('/config', async (req, res) => {
   try {
     const assessmentGenerator = await isAssessmentGeneratorEnabled(supabase);
-    const assessmentEditing = await isAssessmentEditingEnabled(supabase);
+    const assessmentEditing = await isPortalAssessmentEditingEnabled(supabase);
     // bd-3bvfj: per USER — a pilot list is answered for whoever is logged in;
     // logged out, it is off. Read from the session, never from the request.
     const selfObservation = await isFlagEnabledForUser(

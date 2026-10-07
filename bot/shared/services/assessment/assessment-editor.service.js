@@ -5,7 +5,8 @@
  * Holds no rule of its own: shapes and fields come from assessment-edit, ids and
  * removal from assessment-selection, the changes list from assessment-changes,
  * and the version from assessment-revision's buildVersion — which sends nothing.
- * Gated on the same switch as WhatsApp editing; fail-closed.
+ * Gated on its own switch, portal_assessment_editing_enabled (falls back to
+ * WhatsApp's assessment_editing_enabled while that row is absent); fail-closed.
  */
 const Revision = require('./assessment-revision.service');
 const Edit = require('./assessment-edit');
@@ -16,9 +17,38 @@ const {
 } = require('./assessment-changes');
 const { isRtl } = require('./assessment-paper.renderer');
 const { isAssessmentEditingEnabled } = require('../../config/feature-flags');
+const supabase = require('../../config/supabase');
+
+const PORTAL_EDITING_KEY = 'portal_assessment_editing_enabled';
+
+/**
+ * The portal's own switch (bd-6faz8m). Row absent -> follow assessment_editing_enabled
+ * (WhatsApp's switch), so nothing changes until someone writes the row. Row present
+ * -> only true / "true" is on. A failed read is off. Same parsing as isFlagEnabled.
+ */
+async function isPortalEditingEnabled() {
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', PORTAL_EDITING_KEY)
+      .maybeSingle();
+    if (error) return false;
+    if (!data) return isAssessmentEditingEnabled();
+    let value = data.value;
+    if (typeof value === 'string') {
+      try { value = JSON.parse(value); } catch (_) { /* keep the raw string */ }
+    }
+    if (value === true) return true;
+    if (typeof value === 'string') return value.trim().toLowerCase() === 'true';
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
 
 async function _gate() {
-  return (await isAssessmentEditingEnabled()) ? null : { code: 'EDITING_DISABLED' };
+  return (await isPortalEditingEnabled()) ? null : { code: 'EDITING_DISABLED' };
 }
 
 function _gradeOf(req) {
