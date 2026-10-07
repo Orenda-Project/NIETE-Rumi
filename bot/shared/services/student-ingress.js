@@ -52,9 +52,9 @@ const StudentMode = require('./student-mode.service');
 const { isQuizMenuRequest } = require('./quiz/quiz-menu-request');
 const QuizMenuFlags = require('./quiz/quiz-menu-flags');
 
-/** A verdict is cached per handset so a child's every message does not cost six head counts. */
-const CACHE_TTL_SECS = 10 * 60;
-const CACHE_KEY = (phone) => `student_ingress:${String(phone || '').replace(/^\+/, '')}`;
+/** A verdict is cached per handset (student-ingress-cache: whoever writes a students row drops it there). */
+const VerdictCache = require('./student-ingress-cache');
+const { CACHE_KEY, CACHE_TTL_SECS } = VerdictCache;
 
 const IDENTITY_FIELDS = ['registration_completed', 'registration_state', 'name', 'teacher_uuid',
   'school_id', 'portal_activated', 'role'];
@@ -146,7 +146,7 @@ async function classify({ user, phone } = {}) {
   if (!StudentMode.isEnabled()) return NONE('unknown', 'flag_off');
   if (!user) return NONE('unknown', 'no_user');
   try {
-    const cached = await Promise.resolve(redisService.get(CACHE_KEY(phone))).catch(() => null);
+    const cached = await VerdictCache.get(phone);
     if (cached && cached.mode) return cached;
 
     const full = await withIdentityFields(user);
@@ -173,7 +173,7 @@ async function classify({ user, phone } = {}) {
         }
       }
     }
-    await Promise.resolve(redisService.set(CACHE_KEY(phone), verdict, CACHE_TTL_SECS)).catch(() => {});
+    await VerdictCache.set(phone, verdict);
     logEvent('student_ingress.decided', { mode: verdict.mode, reason: verdict.reason, userId: full.id });
     return verdict;
   } catch (err) {
@@ -182,9 +182,7 @@ async function classify({ user, phone } = {}) {
   }
 }
 
-async function forget(phone) {
-  await Promise.resolve(redisService.delete(CACHE_KEY(phone))).catch(() => {});
-}
+const { forget } = VerdictCache;
 
 /** Attach the verdict to the users row so every handler reads one answer. */
 async function attach(user, phone) {

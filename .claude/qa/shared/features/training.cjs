@@ -1789,4 +1789,11 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
     rec('T405', HC.T405, ...hcV('T405'), ms);
     rec('T406', HC.T406, ...hcV('T406'), ms);
   }
+
+  // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature
+  //    but had no driver. Implement each one, then turn BLOCKED into V(...).
+  // TODO: drive this scenario, then replace BLOCKED with V(<pass?>, { ...evidence }).
+  rec('T499', 'A child who has just joined from a class quiz link gets the child\'s /quiz, not the teacher\'s', 'BLOCKED',
+      { reason: 'scaffolded stub — implement the mock-lane interaction (see menu.cjs / lesson-plan.cjs)' }, 0);
+
 };
