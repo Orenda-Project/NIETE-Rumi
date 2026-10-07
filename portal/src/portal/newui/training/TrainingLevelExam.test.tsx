@@ -155,6 +155,33 @@ describe("the exam, one question per screen", () => {
     }));
   });
 
+  // bd-klecr.7 — the paper is the attempt's (NIETE: 20 of the bank, options shuffled).
+  it("sends each picked option's canonical value, and the attempt id", async () => {
+    const SHUFFLED = EXAM_QUESTIONS.map((q) => {
+      const values = q.options.map((_, i) => String(q.options.length - i));
+      return { ...q, options: [...q.options].reverse(), option_values: values };
+    });
+    vi.mocked(api.get).mockImplementation(withGate(gate("ready"), {
+      "/training/level/2/grand-quiz/questions": { attempt_id: "att-7", questions: SHUFFLED },
+    }) as never);
+    vi.mocked(api.post).mockResolvedValue({ data: { attempt: { id: "att-7", score: 4, max_score: 4, is_passed: true, status: "passed", cooldown_until: null, completed_at: "2026-10-03T00:00:00Z" }, certificate: null } } as never);
+    await start();
+    expect(choices()[0]).toHaveTextContent("One leader only");
+    for (let i = 0; i < 4; i += 1) {
+      pick(0);
+      fireEvent.click(screen.getByRole("button", { name: i < 3 ? "Next" : "Submit" }));
+    }
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith("/training/level/2/grand-quiz/attempts", {
+      attempt_id: "att-7",
+      answers: [
+        { question_id: 201, chosen_option: "4" },
+        { question_id: 202, chosen_option: "3" },
+        { question_id: 203, chosen_option: "3" },
+        { question_id: 204, chosen_option: "3" },
+      ],
+    }));
+  });
+
   async function finish() {
     await start();
     for (let i = 0; i < 4; i += 1) {
