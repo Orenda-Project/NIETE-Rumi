@@ -1212,7 +1212,7 @@ Feature: Web child quiz page on the portal
     Then no clip is recorded for a question or option the bank already voices, and options are all recorded or all generated within a question
     And a lone letter is read by its name ("letter s", «عین»), and a fill-in blank is a pause, never "underscore" or "dash"
 
-  @T624
+  @T625
   Scenario: The class table's shared link previews with its picture already drawn
     Given a child who has finished opens the class table, in English or Urdu
     When the child taps "Share the table" and sends the link from WhatsApp
