@@ -465,8 +465,11 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   }
   // A quiz without its read-aloud clips (or with clips of an older voice version) gets them now,
   // recorded by the worker: the backfill for quizzes authored before clips were made at authoring.
+  // Until they are recorded the page is told (audio_pending): it asks again and takes them as they land.
+  let audioPending = false;
   try {
     const Publish = require('./web-quiz-publish.service');
+    audioPending = !Publish.isCurrent(((quizRow && quizRow.meta) || {}).web);
     Publish.requestQuizAudio(ctx.quizId, { meta: (quizRow && quizRow.meta) || {} }).catch(() => {});
   } catch { /* the page reads aloud */ }
   // The item's own recorded clips (the sound of a "whose sound is this?" item).
@@ -509,6 +512,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
       // The language the quiz's clips are recorded in (the row's, else its questions' script): the page's
       // shared feedback lines follow it, so one quiz is never two voices (an English quiz quoting an Urdu word).
       voice_lang: clampLanguage(require('./web-quiz-publish.service').quizLanguage(quizRow, questions)),
+      ...(audioPending ? { audio_pending: true } : {}),
       grade: (quizRow && quizRow.grade) || null, subject: (quizRow && quizRow.subject) || null,
       n: questions.length,
       questions: questions.map((q, i) => questionPayload(q, i, ctx.code, audio, zooms[i])),

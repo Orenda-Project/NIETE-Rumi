@@ -1054,3 +1054,10 @@ Feature: Web child quiz page on the portal
     Then the edge answers with the page head and its og tags without asking the bot for the quiz
     And the share picture is answered from the edge once the scorecard has warmed it
     And a child opening the same link in any browser gets the full live quiz page
+  @T570
+  Scenario: The first child to open a quiz whose voice is still being recorded hears the recorded voice as soon as it exists
+    Given a quiz whose read-aloud clips have never been recorded (a library quiz, or a quiz nobody has opened yet)
+    When the first child opens it and the recording starts in the background
+    Then the page asks again for the quiz a few times over the next two minutes
+    And every question the child reaches after the clips land is read in the quiz's recorded voice, in Urdu as in English
+    And a quiz whose clips are already recorded never asks again
