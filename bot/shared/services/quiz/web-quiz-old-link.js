@@ -64,7 +64,10 @@ async function redirectOn(now = Date.now()) {
 async function tryRedirect(phone, code, sc) {
   const shareCodeId = sc && (sc.shareCodeId || sc.id);
   const quizId = sc && sc.quiz_id;
-  const kept = (reason) => { logEvent('web_quiz.old_link_kept', { shareCodeId, quizId, reason }); return false; };
+  // The last four digits of the phone, as the join/answer events already carry them (never the phone):
+  // lets a redirect be set against the chat joins and web starts of the same code.
+  const phoneTail = String(phone || '').slice(-4);
+  const kept = (reason) => { logEvent('web_quiz.old_link_kept', { shareCodeId, quizId, code, reason, phoneTail }); return false; };
   try {
     if (!(await redirectOn())) return kept('flag_off');
     const Link = require('./web-quiz-link');
@@ -101,7 +104,7 @@ async function tryRedirect(phone, code, sc) {
       url,
     });
     logEvent('web_quiz.old_link_redirect', {
-      shareCodeId, quizId, code, kind: selfTest ? 'self_test' : 'child', language: lang, sent: Boolean(sent),
+      shareCodeId, quizId, code, kind: selfTest ? 'self_test' : 'child', language: lang, sent: Boolean(sent), phoneTail,
     });
     if (!sent) logToFile('⚠️ old quiz link: web link not delivered — running the chat join instead', { code }, 'error');
     return Boolean(sent);
