@@ -133,6 +133,27 @@ describe('a quiz whose clips are recorded while the child plays', () => {
     expect(Math.min(...p.lateDelays())).toBeGreaterThanOrEqual(10000);
   });
 
+  test('the question still on screen, unanswered, is read again in the recorded voice when its clips land', async () => {
+    const quiz = { code: 'TEST', lang: 'ur', voice_lang: 'ur', audio_pending: true, topic: 'جانور', grade: 5, questions: [urQ(QID1, 1), urQ(QID2, 2)] };
+    const p = page({ quiz, serve: [{ quiz: { ...quiz, audio_pending: false, questions: [recorded(urQ(QID1, 1)), recorded(urQ(QID2, 2))] } }] });
+    p.wq.question(0, false);
+    expect(p.voiced.some((v) => v.url)).toBe(false);
+    p.runTimers();
+    await p.settle();
+    expect(p.voiced.some((v) => v.url === clip(QID1, 'q'))).toBe(true);
+  });
+
+  test('a child who has moved on never hears the earlier question again', async () => {
+    const quiz = { code: 'TEST', lang: 'ur', voice_lang: 'ur', audio_pending: true, topic: 'جانور', grade: 5, questions: [urQ(QID1, 1), urQ(QID2, 2)] };
+    const p = page({ quiz, serve: [{ quiz: { ...quiz, audio_pending: false, questions: [recorded(urQ(QID1, 1)), recorded(urQ(QID2, 2))] } }] });
+    p.wq.question(0, false);
+    p.wq.question(1, false); // the child answered Q1 and is on Q2 when the clips land
+    p.runTimers();
+    await p.settle();
+    expect(p.voiced.some((v) => v.url === clip(QID1, 'q'))).toBe(false);
+    expect(p.voiced.some((v) => v.url === clip(QID2, 'q'))).toBe(true);
+  });
+
   test('a quiz already recorded never asks again', async () => {
     const quiz = { code: 'TEST', lang: 'ur', voice_lang: 'ur', topic: 'جانور', grade: 5, questions: [recorded(urQ(QID1, 1))] };
     const p = page({ quiz });
