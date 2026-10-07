@@ -229,6 +229,32 @@ describe('hub(): a FORWARDED link names nobody (bound to the first phone that op
   });
 });
 
+describe('hub(): trust is per child (a shared phone that played as ONE sibling sees only that sibling)', () => {
+  const DEV_C = 'CCCCCCCCCCCCCCCCCCCCCC';
+
+  test('phone C played as Sana only: the family link (bound to A) shows C only Sana; Bilal\'s hub, library and challenge stay closed to C', async () => {
+    const token = T.signHub([KID, SIB]);
+    expect((await Hub.hub(token, A)).kids.map((k) => k.first)).toEqual(['Sana', 'Bilal']);
+    db.quiz_sessions.push(sess('s-c', 'sc-eng', 'q-eng', 'completed', 1, 2, ago(70), { device_ref: DEV_C }));
+    const onC = await Hub.hub(token, { device: DEV_C });
+    expect(onC.kids.map((k) => k.first)).toEqual(['Sana']);
+    expect(JSON.stringify(onC)).not.toMatch(/Bilal/);
+    const asBilal = await Hub.hub(token, { device: DEV_C, kid: chipH(SIB) });
+    expect(JSON.stringify(asBilal)).not.toMatch(/Bilal/);
+    expect(asBilal.kid).not.toBe(chipH(SIB));
+    expect(await Hub.kidFromHub(token, chipH(SIB), DEV_C)).toBeNull();
+    expect(await Hub.kidFromHub(token, chipH(KID), DEV_C)).toMatchObject({ studentId: KID });
+    // the bound family phone keeps both children
+    expect((await Hub.hub(token, A)).kids).toHaveLength(2);
+  });
+
+  test('the first phone to open the link is trusted for the whole family, even if it played as one of them', async () => {
+    db.quiz_sessions.push(sess('s-a', 'sc-eng', 'q-eng', 'completed', 1, 2, ago(70), { device_ref: DEV_A }));
+    const token = T.signHub([KID, SIB]);
+    expect((await Hub.hub(token, A)).kids).toHaveLength(2);
+  });
+});
+
 describe('hub(): from your teacher', () => {
   test('(a) a teacher-sent code this child opened and has not finished comes first', async () => {
     db.quiz_sessions.push(sess('s5', 'sc-g5', 'q-g5', 'in_progress', 1, 1, ago(1)));

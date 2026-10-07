@@ -121,6 +121,14 @@ describe('challenge token (kind c)', () => {
     expect((await Ch.menu(st())).exercises).toHaveLength(2);
   });
 
+  test('per child: a phone that played as one sibling (not the bound phone) opens only that sibling\'s challenge', async () => {
+    const two = hub([KID, KID2]);
+    await Ch.menu(two, { ...D, kid: Ch.kidChip(KID) }); // the family phone binds the link
+    db.quiz_sessions.push({ id: 's-c', student_id: KID, share_code_id: SC, quiz_id: 'q1', device_ref: 'SharedClassPhoneRef_33' });
+    expect((await Ch.menu(two, { device: 'SharedClassPhoneRef_33', kid: Ch.kidChip(KID) })).exercises).toHaveLength(2);
+    await expectFail(Ch.menu(two, { device: 'SharedClassPhoneRef_33', kid: Ch.kidChip(KID2) }), 403, 'other_device');
+  });
+
   test('a hub token with two children needs the kid chip, and only a chip of ITS children works', async () => {
     const two = hub([KID, KID2]);
     await expectFail(Ch.menu(two, D), 400, 'pick_kid');
