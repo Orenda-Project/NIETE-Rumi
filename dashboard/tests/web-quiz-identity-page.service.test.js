@@ -230,6 +230,51 @@ describe('hub ?k=<chip>', () => {
     p.ctx.landing();
     expect(p.calls).toHaveLength(1);
   });
+  // A link that already names the child never asks "Who is playing?" while it starts their session: the question
+  // was drawn and then replaced ~2 s later with no tap (taps swallowed while the session was starting).
+  const asked = (s) => s.name === 'M4-who-v2' || /Whose turn is it\?|Someone else|id="wq-play"|id="wq-kid-/.test(s.h);
+  test('while the session starts: an opening frame with the quiz, never the question or a button', async () => {
+    const kids = [{ chip: 'hubchip', first: 'Ayesha', animal: 'lion' }, { chip: 'c2', first: 'Bilal', animal: 'owl' }];
+    const p = page({ params: { k: 'hubchip' }, kids });
+    p.ctx.landing();
+    expect(p.calls).toHaveLength(1);
+    expect(p.screens.filter(asked)).toEqual([]);
+    expect(p.last().name).toBe('M4-opening');
+    expect(p.last().h).toContain('Fractions');
+    expect(p.last().h).not.toMatch(/<button/);
+    await flush();
+    expect(p.screens.filter(asked)).toEqual([]);
+    expect(p.last().name).toBe('Q');
+  });
+  test('the chip refused (a forwarded link): the name screen, the question never flashed first', async () => {
+    const p = page({ params: { k: 'gone' }, kids: [{ chip: 'gone', first: 'Ayesha', animal: 'lion' }], replies: [{ status: 404, ok: false, body: { error: 'chip_unknown' } }] });
+    p.ctx.landing();
+    await flush();
+    expect(p.screens.map((s) => s.name)).toEqual(['M4-opening', 'M4-name']);
+  });
+  test('the session cannot start (server error or no network): the real landing, which waits for a tap', async () => {
+    const kids = [{ chip: 'hubchip', first: 'Ayesha', animal: 'lion' }];
+    const p = page({ params: { k: 'hubchip' }, kids, replies: [{ status: 500, ok: false, body: {} }] });
+    p.ctx.landing();
+    await flush();
+    expect(p.last().name).toBe('M4-who-v2');
+    expect(p.last().h).toContain('Ayesha');
+    expect(p.calls).toHaveLength(1);
+    const q = page({ params: { k: 'hubchip' }, kids });
+    q.ctx.api = () => { q.calls.push({}); return Promise.reject(new Error('net')); };
+    q.ctx.landing();
+    await flush();
+    expect(q.last().name).toBe('M4-who-v2');
+    expect(q.toasts).toEqual(['offline']);
+    q.tap('wq-kid-0');
+    expect(q.calls).toHaveLength(2);
+  });
+  test('Urdu: the opening frame is in Urdu', () => {
+    const p = page({ lang: 'ur', params: { k: 'hubchip' } });
+    p.ctx.landing();
+    expect(p.last().name).toBe('M4-opening');
+    expect(p.last().h).toMatch(/[؀-ۿ]/);
+  });
 });
 
 describe('S1 class, only when the hand-out is ambiguous', () => {
