@@ -2104,7 +2104,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // the second action, right under "Share to class group".
     var doorBtn = res.hub_door && !friend && !(S.queue && S.queue.length) ? '<button class="wq-btn wq-soft" id="wq-hubdoor">' + esc(T.hubDoor) + '</button>' : '';
     // With the door, a class child's first screen is the score, "Share to class group" and the door (a 360x740 phone,
-    // Urdu included): the two-line place-in-class note comes after them. A video quiz card keeps its own order
+    // Urdu included): the practice note and the two-line place-in-class note come after them. A video quiz card keeps its own order
     // ("Next in this chapter", "Watch more" first).
     var firstTwo = Boolean(doorBtn) && !isVideo;
     var shares = (firstTwo ? '' : shareBtn + doorBtn) +
@@ -2112,7 +2112,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       (friend ? '' : '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>') +
       '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>';
     var place = c.nth ? '<p class="wq-proof wq-nth"><span>' + nthHtml(c.nth) + '</span></p>' : '';
-    var notes = (kept ? '<div class="wq-banner">' + esc(TW.practice(digitsFor(kept.correct), digitsFor(shareT))) + '</div>' : '') +
+    // The practice note is framing, not a control: on a door card it goes under the door with the place note.
+    var practice = (kept ? '<div class="wq-banner">' + esc(TW.practice(digitsFor(kept.correct), digitsFor(shareT))) + '</div>' : '');
+    var notes = (firstTwo ? '' : practice) +
       vsStrip(res.vs, c, total) + newBest(c, total) +
       (firstTwo ? '' : place) +
       (nx ? '<button class="wq-vitem wq-nextv" id="wq-next-v">' +
@@ -2129,7 +2131,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<p class="wq-sub wq-ctopic">' + esc(Q.topic) + '</p>' +
       '<div class="wq-big">' + esc(c.correct) + '/' + esc(total) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
       '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
-      notes + (firstTwo ? shareBtn + doorBtn + place : '') +
+      notes + (firstTwo ? shareBtn + doorBtn + practice + place : '') +
       (isVideo ? moreBtn() + shares : shares + moreBtn()) +
       // One phone, many children: the next child starts from the landing. Not while answers wait to be sent.
       (S.queue && S.queue.length ? '' : '<button class="wq-btn wq-ghost" id="wq-turn">' + esc(T.nextTurn) + '</button>');

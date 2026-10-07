@@ -87,6 +87,17 @@ describe('the first screen of a class child\'s card is score, the name notice, "
     expect(at(h, 'id="wq-share"')).toBeLessThan(at(h, 'id="wq-hubdoor"'));
     expect(at(h, 'id="wq-hubdoor"')).toBeLessThan(at(h, 'wq-nth'));
   });
+  test('a replay: the practice note comes after the door too (the name notice stays above Share)', () => {
+    const h = page({ lang: 'en', store: store(NOTES) }).html();
+    expect(at(h, 'id="wq-hubdoor"')).toBeLessThan(at(h, 'wq-banner'));
+    expect(at(h, PRIV)).toBeLessThan(at(h, 'id="wq-share"'));
+    const u = page({ lang: 'ur', store: store(NOTES) }).html();
+    expect(at(u, 'id="wq-hubdoor"')).toBeLessThan(at(u, 'wq-banner'));
+  });
+  test('no door: the practice note keeps its place above the actions', () => {
+    const h = page({ lang: 'en', store: store({ ...NOTES, hub_door: undefined }) }).html();
+    expect(at(h, 'wq-banner')).toBeLessThan(at(h, 'id="wq-share"'));
+  });
   test('the card\'s topic carries the one-line hook for short phones', () => {
     expect(page({ lang: 'en', store: store(NOTES) }).html()).toMatch(/<p class="wq-sub wq-ctopic">Plants<\/p>/);
   });
