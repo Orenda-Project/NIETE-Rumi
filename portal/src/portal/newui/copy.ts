@@ -19,6 +19,9 @@
 /** Short month names, for dates on chips ("3 Oct"). */
 export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
+/** Short day names, Sunday first, for "when" on a chip ("Mon"). */
+export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
 /** The kit's own words — defaults for its props. */
 export const KIT_COPY = {
   back: 'Back',
@@ -152,8 +155,24 @@ export const HOME_COPY = {
 /** Lesson Plans (bd-5rz1v.14; deep-screens.html, Lesson Plans): one flow for grades 1–12. */
 export const LESSONS_COPY = {
   title: 'Lesson Plans',
-  /** The band's chip: her most recent plan ("Last: Day 2 · Plants"). What follows is data. */
-  last: (what?: string | null) => (what ? `Last: ${what}` : 'Last'),
+  /** bd-k23p38 — her last 10 plans, any grade, under the four rows (it replaced "Last: …"). */
+  recent: {
+    label: 'Recent',
+    /** The row's tile: her plan's grade. */
+    grade: (n: number | string) => `G${n}`,
+    /** How she last had it — for a screen reader; the chip shows an icon and when. */
+    opened: 'Opened',
+    onWhatsApp: 'On WhatsApp',
+    ready: 'Ready',
+    when: {
+      justNow: 'Just now',
+      minutesAgo: (n: number) => `${n}m ago`,
+      hoursAgo: (n: number) => `${n}h ago`,
+      yesterday: 'Yesterday',
+      weekdays: WEEKDAYS,
+      months: MONTHS,
+    },
+  },
   /** "Lesson Plans · Grade 4", "Lesson Plans · Plants": where an inner page sits. */
   crumb: (...parts: Array<string | null | undefined>) => ['Lesson Plans', ...parts.filter(Boolean)].join(' · '),
   rows: { grade: 'Grade', subject: 'Subject', chapter: 'Chapter', lesson: 'Lesson' },

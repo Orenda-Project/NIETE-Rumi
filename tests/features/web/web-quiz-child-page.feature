@@ -665,6 +665,15 @@ Feature: Web child quiz page on the portal
     When the Challenge link is opened
     Then the page says "This challenge is for classes 2 to 5." and no exercise starts
 
+  @T563
+  Scenario: The hub shows the Challenge tile only to a child the Challenge accepts
+    Given app setting "web_quiz_challenge" is on
+    And a child with no class list, no class of their own and no enrolment, whose quizzes were all for a band of grades such as "3-5"
+    When the child opens their hub
+    Then there is no Challenge tile, so no tap ends on a refusal
+    And the video library and the recommended videos still show
+    And a child enrolled in a grade 3 class sees the tile and the Challenge opens
+
   @T387
   Scenario: "Which is bigger?" is scored again on the server with the 4-in-a-row stop
     Given a child plays the 2 practice pairs (with "Yes! 8 is bigger." feedback) and then the 10 pairs of the grade form
@@ -833,6 +842,15 @@ Feature: Web child quiz page on the portal
     Then the first screen is "Who is playing?" («کس کی باری ہے؟», gender-neutral) with the two children's first names and animals
     And no classmate or other child is ever offered
     And tapping a name opens that child's hub, with "Switch player" to go back
+
+  @T562
+  Scenario: Siblings who play in different languages each get their hub in their own language
+    Given a phone with two registered children, one who played in English and one who played in Urdu
+    And the hub link opens in the other child's language
+    When "Who is playing?" is answered with one child's name
+    Then that child's hub is in that child's language: the greeting, the cards, "Switch player" and the challenge tile
+    And the page direction follows it (right to left for Urdu, left to right for English)
+    And the library and challenge open in that child's language
 
   @T302
   Scenario: The hub shows the newest quiz from the child's teacher, or a warm empty state

@@ -49,7 +49,16 @@ const AGAIN_MAX = 6;
 const RECS_MAX = 3;
 const TEACHER_DAYS = 7;
 const RESOLVE_MAX = 5;
-const CHALLENGE_GRADES = ['2', '3', '4', '5'];
+// The challenge's grade for a child (web-quiz-challenge.js gradeOf + formFor), required on use so the hub never depends on the challenge to boot.
+async function challengeGrade(studentId) {
+  try {
+    const Challenge = require('./web-quiz-challenge');
+    return Boolean(Challenge.formFor(await Challenge.gradeOf({ studentId })));
+  } catch (err) {
+    logToFile('⚠️ web quiz hub: challenge grade unavailable', { error: err.message });
+    return false;
+  }
+}
 
 // The web quiz's own error type, so the internal router answers it as every other wq route does.
 const fail = (status, error) => { const { WqError } = require('./web-quiz.service'); throw new WqError(status, { error }); };
@@ -345,6 +354,8 @@ async function hub(token, { kid, device } = {}) {
   const gradeOf = (r) => gradeNum((listOf(r) || {}).class_name) || gradeNum(r.self_reported_class) || null;
 
   const chosen = kidsRows.find((r) => kidChip(r.id) === String(kid || '')) || (kidsRows.length === 1 ? kidsRows[0] : null);
+  // Started now, beside the rest of the hub's reads (challengeGrade never rejects): it is a few round trips of its own.
+  const challengeP = f.challenge && chosen ? challengeGrade(chosen.id) : Promise.resolve(false);
   const ctx = chosen ? await kidContext(chosen.id) : null;
   const history = ctx ? ctx.history : [];
   const lang = clampLanguage(history[0] && history[0].language);
@@ -369,7 +380,8 @@ async function hub(token, { kid, device } = {}) {
   } catch (err) {
     logToFile('⚠️ web quiz hub: recommendations unavailable', { error: err.message });
   }
-  if (f.challenge && CHALLENGE_GRADES.includes(String(grade))) {
+  // The tile asks the challenge's own grade rule (a band of grades is no grade there), so it never opens onto a refusal.
+  if (await challengeP) {
     out.challenge = { on: true, exercises: [{ id: 'bigger', done: false }, { id: 'read', done: false }] };
   }
   // The library: M4b's page when it is on; else the child's newest open quiz (its scorecard lists more videos).

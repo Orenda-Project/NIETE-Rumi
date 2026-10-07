@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, Clock, FileText, Hash, Layers } from 'lucide-react';
+import { BookOpen, FileText, Hash, Layers } from 'lucide-react';
 import PortalLayout from '../../components/PortalLayout';
 import { useAuth } from '../../hooks/useAuth';
 import type { LessonPlanView } from '../../lib/lessonPlanOpen';
 import { LESSONS_COPY } from '../copy';
 import { MainHeading } from '../MainHeading';
 import { List, Row } from '../List';
-import { Chip } from '../Chip';
 import { Sheet } from '../Sheet';
 import { NumberGrid } from '../NumberGrid';
 import { BottomActions, BottomButton } from '../BottomButton';
 import { AccountAvatar } from '../NewUiNavigation';
-import { lessonPlans, readPicks, writePicks, type LpSubject, type Picks, type RecentPlan } from './lessonPlansApi';
+import { lessonPlans, readPicks, writePicks, type LpSubject, type Picks } from './lessonPlansApi';
+import { RecentPlans } from './RecentPlans';
 import { dataOf, pageUrl, subjectIcon, useLoad, useOpenLesson } from './shared';
 import { LoadStatus } from './LoadStatus';
 import { ChaptersPage, LessonsPage, PreparingPage, ReadyPage, ViewerPage } from './LessonPlanPages';
@@ -21,16 +21,16 @@ import { ChaptersPage, LessonsPage, PreparingPage, ReadyPage, ViewerPage } from 
  * bd-5rz1v.14 — Lesson Plans in the new UI, behind `portal_new_ui` (PortalCurriculum picks it;
  * deep-screens.html, "Lesson Plans"). ONE flow for every grade, 1 to 12:
  *
- *   main        the indigo band "Lesson Plans" + "Last: Day 2 · Plants" (her most recent plan);
- *               four rows Grade · Subject · Chapter · Lesson with what she chose, each off until
- *               the one before is chosen; a grey Open until a lesson is picked
+ *   main        the indigo band "Lesson Plans"; four rows Grade · Subject · Chapter · Lesson with
+ *               what she chose, each off until the one before is chosen; Recent, her last 10
+ *               plans of any grade (bd-k23p38, RecentPlans.tsx); a grey Open until a lesson is picked
  *   Grade       a sheet: 1–12, only grades with lesson plans can be picked
  *   Subject     a sheet: icon, name, how many lessons
  *   Chapter → Lessons → Ready → (Preparing →) the viewer: inner pages, LessonPlanPages.tsx
  *
  * A plan that exists opens; one not written yet (grades 6–12) is started, she sees Preparing…, and
- * it opens by itself. There is no "6–12 on request" and no "My 6–12 plans" here: her recent plans
- * are /lesson-plans/recent. Which service a grade lives in is lessonPlansApi's business, not this.
+ * it opens by itself. There is no "6–12 on request" and no "My 6–12 plans" here: her recent plans,
+ * any grade, are Recent. Which service a grade lives in is lessonPlansApi's business, not this.
  *
  * Where she is: an inner page's address (?view=…), and the lesson plan in the viewer is this
  * history entry's state, exactly as the old page (so every "open a lesson plan" in the portal
@@ -75,13 +75,6 @@ export default function NewLessonPlans() {
   return <Navigate to="/portal/curriculum" replace />;
 }
 
-/** "Day 2 · Plants" — a 6–12 plan has no day: its chapter, or its title. */
-function recentLabel(r: RecentPlan): string | null {
-  const day = r.day != null ? LESSONS_COPY.day(r.day) : null;
-  const parts = [day, r.chapter ?? (day ? null : r.title)].filter(Boolean);
-  return parts.length ? parts.join(' · ') : null;
-}
-
 /** A value on a row, cut short on a phone if it is long. */
 function Value({ text }: { text: string }) {
   return <span dir="auto" className="block max-w-[44vw] truncate md:max-w-[420px]">{text}</span>;
@@ -97,7 +90,6 @@ function MainPage() {
   const [sheet, setSheet] = useState<'grade' | 'subject' | null>(null);
   const { open, busy } = useOpenLesson();
 
-  const [recent] = useLoad(() => lessonPlans.recent(), 'recent');
   const [grades, retryGrades] = useLoad(() => lessonPlans.grades(), 'grades');
   const [subjects, retrySubjects] = useLoad(
     picks.grade ? () => lessonPlans.subjects(picks.grade as number) : null,
@@ -108,8 +100,6 @@ function MainPage() {
     picks.grade && picks.subject ? `c:${picks.grade}:${picks.subject}` : 'idle',
   );
 
-  const last = dataOf(recent);
-  const lastLabel = last ? recentLabel(last) : null;
   const withPlans = dataOf(grades) ?? [];
   const subjectList = dataOf(subjects) ?? [];
   const subject = subjectList.find((s) => s.key === picks.subject) ?? null;
@@ -141,7 +131,6 @@ function MainPage() {
         feature="lessonPlans"
         title={LESSONS_COPY.title}
         right={<div className="md:hidden"><AccountAvatar name={user?.firstName} testId="newui-lessons-avatar" /></div>}
-        context={lastLabel ? <Chip surface="band" icon={Clock}>{LESSONS_COPY.last(lastLabel)}</Chip> : undefined}
       />
       <div className="mx-auto flex max-w-[1120px] flex-col gap-3 px-[14px] pb-[14px] md:px-10 md:pt-[10px]">
         <List>
@@ -183,6 +172,7 @@ function MainPage() {
             onClick={lessonsTo ? undefined : OFF}
           />
         </List>
+        <RecentPlans />
         <BottomActions>
           <BottomButton icon={BookOpen} disabled={!picks.lesson || busy} onClick={openPicked} testId="lp-open">
             {LESSONS_COPY.open}

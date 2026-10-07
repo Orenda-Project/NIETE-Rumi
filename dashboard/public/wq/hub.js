@@ -22,7 +22,7 @@
   var SUBJECT_UR = { Maths: 'ریاضی', Science: 'سائنس', English: 'انگریزی', Urdu: 'اردو', 'Islamic Studies': 'اسلامیات', 'General Knowledge': 'جنرل نالج', Geography: 'جغرافیہ', History: 'تاریخ' };
 
   /* ---------------- copy (en + ur): imperatives, no gendered verb ---------------- */
-  var T = {
+  var COPY = {
     en: {
       who: 'Who is playing?', whoSay: 'Tap your name.', hi: function (n) { return 'Hi ' + n + '! What shall we do today?'; },
       fromT: 'From your teacher', play: 'Play',
@@ -53,7 +53,15 @@
       newSay: 'اپنے استاد سے کوئز کا لنک لیں، یا گھر کے فون سے واٹس ایپ پر ⁦/quiz⁩ بھیجیں۔',
       wait: 'کھل رہا ہے…', noClass: 'پہلے استاد کا کوئی کوئز کھیلیں۔', gone: 'ابھی یہاں کوئی کوئز نہیں۔ استاد سے کوئز کا لنک لیں۔', mins: function (m) { return m + ' منٹ'; },
     },
-  }[LANG];
+  };
+  var T = COPY[LANG];
+  // B is replaced by the bot's answer for one child (a sibling pick, an unlock): that child's language
+  // wins over the boot page's, for the copy and for <html lang/dir> (the Urdu face and the rtl flow).
+  function setLang(l) {
+    LANG = l === 'ur' ? 'ur' : 'en';
+    T = COPY[LANG];
+    try { document.documentElement.setAttribute('lang', LANG); document.documentElement.setAttribute('dir', LANG === 'ur' ? 'rtl' : 'ltr'); } catch (e) {}
+  }
 
   /* ---------------- helpers ---------------- */
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -171,6 +179,7 @@
       if (!r.ok || !r.body || !r.body.kid) throw new Error('hub_' + r.status);
       var kids = B.kids;
       B = r.body; B.token = TOKEN; B.brand = BR; B.kids = B.kids && B.kids.length ? B.kids : kids;
+      setLang(B.lang || LANG);
       try { history.replaceState(null, '', '/h/' + TOKEN + '?kid=' + encodeURIComponent(chip)); } catch (e) {}
       hub();
     }).catch(function (e) { toast(e && /^hub_/.test(e.message) ? T.oops : T.offline); picker(); });
@@ -196,6 +205,7 @@
       if (!r.ok || !r.body) throw new Error('hub_' + r.status);
       if (r.body.locked) { locked(); return; }
       B = r.body; B.token = TOKEN; B.brand = BR;
+      setLang(B.lang || LANG);
       boot();
     }).catch(function (e) { toast(e && /^hub_/.test(e.message) ? T.oops : T.offline); locked(); });
   }

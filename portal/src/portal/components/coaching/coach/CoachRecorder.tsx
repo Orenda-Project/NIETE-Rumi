@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { AlertTriangle, Mic, Pause, Smartphone } from 'lucide-react';
 import SoundBars from '../SoundBars';
 import BottomSheet from '../BottomSheet';
-import { pickRecordingType } from '../../../lib/recordingSupport';
-import { keepScreenOn } from '../../../lib/keepAwake';
 import { useRecordingBackGuard } from '../../../lib/useRecordingBackGuard';
-import { LessonRecorder, type FinishedRecording } from '../../../lib/lessonRecorder';
+import { type FinishedRecording } from '../../../lib/lessonRecorder';
+import { useCoachRecording } from '../../../lib/useCoachRecording';
 
 /**
  * bd-5rz1v.6 — the recorder a coach uses, for her teacher's lesson and for her
@@ -16,7 +15,8 @@ import { LessonRecorder, type FinishedRecording } from '../../../lib/lessonRecor
  * one under another's name.
  *
  * It starts on mount. A refused microphone calls onMicBlocked; Finish hands the
- * recording to onFinished.
+ * recording to onFinished. The engine itself is useCoachRecording (bd-o15qnr.9),
+ * shared with the coach app v2's Record live page.
  */
 
 export function clockText(ms: number): string {
@@ -33,40 +33,6 @@ export function minutesText(ms: number): string {
   if (ms < 60_000) return 'less than a minute';
   const m = Math.round(ms / 60_000);
   return `${m} minute${m === 1 ? '' : 's'}`;
-}
-
-/** A live 0..1 microphone level, or null where Web Audio is unavailable. */
-function useMicLevel(stream: MediaStream | null, active: boolean): number | null {
-  const [level, setLevel] = useState<number | null>(null);
-  useEffect(() => {
-    if (!stream || !active) return undefined;
-    const Ctx = (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext })
-      .AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return undefined;
-    let ctx: AudioContext | null = null;
-    let timer: ReturnType<typeof setInterval> | null = null;
-    try {
-      ctx = new Ctx();
-      const source = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 512;
-      source.connect(analyser);
-      const buf = new Uint8Array(analyser.fftSize);
-      timer = setInterval(() => {
-        analyser.getByteTimeDomainData(buf);
-        let sum = 0;
-        for (let i = 0; i < buf.length; i += 1) { const v = (buf[i] - 128) / 128; sum += v * v; }
-        setLevel(Math.sqrt(sum / buf.length));
-      }, 120);
-    } catch {
-      setLevel(null);
-    }
-    return () => {
-      if (timer) clearInterval(timer);
-      try { void ctx?.close(); } catch { /* closed */ }
-    };
-  }, [stream, active]);
-  return level;
 }
 
 const Warning = ({ children }: { children: ReactNode }) => (
@@ -95,97 +61,21 @@ const CoachRecorder = ({
   onFinished: (rec: FinishedRecording) => void;
   onMicBlocked: () => void;
 }) => {
-  const recorderRef = useRef<LessonRecorder | null>(null);
-  const releaseScreen = useRef<(() => Promise<void>) | null>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [recording, setRecording] = useState(false);
-  const [paused, setPaused] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const {
+    recording, paused, elapsed, level, screenWentOff, togglePause, finish: stopRecording, elapsedNow,
+  } = useCoachRecording({ onStarted, onMicBlocked });
 
   // Back while recording asks "Finish recording?" instead of leaving the lesson.
   useRecordingBackGuard(recording, () => setConfirmFinish(true));
-  const [screenWentOff, setScreenWentOff] = useState(false);
-  const level = useMicLevel(stream, recording && !paused);
-
-  // Start once, on mount; never leave the microphone or the screen hold on.
-  useEffect(() => {
-    let cancelled = false;
-    const start = async () => {
-      const type = pickRecordingType();
-      if (!type) { onMicBlocked(); return; }
-      let media: MediaStream;
-      try {
-        media = await navigator.mediaDevices.getUserMedia({
-          // A classroom, not a call: call-style processing would also suppress
-          // children answering from across the room.
-          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true },
-        });
-      } catch {
-        if (!cancelled) onMicBlocked();
-        return;
-      }
-      if (cancelled) { media.getTracks().forEach((t) => t.stop()); return; }
-      const rec = new LessonRecorder({ stream: media, type });
-      recorderRef.current = rec;
-      setStream(media);
-      try {
-        await rec.start();
-      } catch {
-        if (!cancelled) onMicBlocked();
-        return;
-      }
-      releaseScreen.current = await keepScreenOn();
-      if (cancelled) return;
-      onStarted?.(rec.id);
-      setRecording(true);
-    };
-    void start();
-    return () => {
-      cancelled = true;
-      void releaseScreen.current?.();
-      if (recorderRef.current) void recorderRef.current.stop().catch(() => {});
-    };
-    // Mount-only: the callbacks belong to the page that mounted it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // The clock, and a guard against leaving while recording.
-  useEffect(() => {
-    if (!recording) return undefined;
-    const tick = setInterval(() => setElapsed(recorderRef.current?.elapsedMs() ?? 0), 500);
-    const leave = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
-    const onHide = () => { if (document.visibilityState === 'hidden') setScreenWentOff(true); };
-    window.addEventListener('beforeunload', leave);
-    document.addEventListener('visibilitychange', onHide);
-    return () => {
-      clearInterval(tick);
-      window.removeEventListener('beforeunload', leave);
-      document.removeEventListener('visibilitychange', onHide);
-    };
-  }, [recording]);
-
-  const togglePause = () => {
-    const rec = recorderRef.current;
-    if (!rec) return;
-    if (paused) { rec.resume(); setPaused(false); } else { rec.pause(); setPaused(true); }
-    setElapsed(rec.elapsedMs());
-  };
 
   const finish = async () => {
-    const rec = recorderRef.current;
     setConfirmFinish(false);
-    if (!rec) return;
-    const out = await rec.stop();
-    recorderRef.current = null;
-    setStream(null);
-    setRecording(false);
-    void releaseScreen.current?.();
-    releaseScreen.current = null;
-    onFinished(out);
+    const out = await stopRecording();
+    if (out) onFinished(out);
   };
 
-  const now = recorderRef.current?.elapsedMs() ?? elapsed;
+  const now = elapsedNow();
 
   return (
     <div className="flex min-h-[70vh] flex-col items-center gap-4 rounded-2xl bg-white px-5 pb-6 pt-6">

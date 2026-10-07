@@ -117,6 +117,20 @@ export default {
           "0%": { transform: "translateX(-100%)" },
           "100%": { transform: "translateX(250%)" },
         },
+        // bd-o15qnr.9 — the coach app v2's Record live / Upload recording squares,
+        // copied from the v21 canvas (Visit.dc.html). Used only as motion-safe:.
+        "coach-rec-ring": {
+          "0%": { transform: "scale(.55)", opacity: ".9" },
+          "100%": { transform: "scale(1.35)", opacity: "0" },
+        },
+        "coach-rec-beat": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(.86)" },
+        },
+        "coach-up-nudge": {
+          "0%, 70%, 100%": { transform: "translateY(0)" },
+          "35%": { transform: "translateY(-3px)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -126,6 +140,9 @@ export default {
         "attention-ring": "attention-ring 1.6s ease-out infinite",
         "sound-level": "sound-level 0.9s ease-in-out infinite",
         "progress-stripe": "progress-stripe 1.4s ease-in-out infinite",
+        "coach-rec-ring": "coach-rec-ring 1.8s ease-out infinite",
+        "coach-rec-beat": "coach-rec-beat 1.6s ease-in-out infinite",
+        "coach-up-nudge": "coach-up-nudge 2.4s ease-in-out infinite",
       },
     },
   },

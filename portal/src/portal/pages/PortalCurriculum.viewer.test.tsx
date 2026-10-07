@@ -19,7 +19,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 //
 // Every place a lesson plan opens is covered: grades 1-5 (lesson + answer key),
 // a ready 6-12 lesson, a 6-12 lesson that finishes writing while she waits, and
-// "My lesson plans".
+// Recent lesson plans (bd-k23p38; it replaced "My lesson plans").
 
 const toast = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast }) }));
@@ -109,6 +109,7 @@ beforeEach(() => {
       case "/lp612/chapters": return { data: { chapters: [{ chapter_key: "c02", chapter_number: 2, chapter_title: "Motion", lesson_count: 1 }] } };
       case "/lp612/lessons": return { data: { lessons: [{ segment_id: "grade_9_physics.c02.p010", title: "Speed and velocity", ready: true }] } };
       case "/lp612/mine": return { data: { lessons: [] } };
+      case "/lesson-plans/recent": return { data: { plans: [] } };
       case "/curriculum/lp/grade_4_english_ch1_seg2/file": return { data: PDF_BYTES };
       case "/lp612/file/R1": return { data: PDF_BYTES };
       case "/lp612/file/R7": return { data: PDF_BYTES };
@@ -298,16 +299,16 @@ describe("bd-5rz1v.10 — grades 6-12 open inside the portal too", () => {
     expect(openSpy).not.toHaveBeenCalled();
   });
 
-  it("My lesson plans → Open opens the viewer", async () => {
+  it("Recent lesson plans → a plan written while she was away opens the viewer", async () => {
     const base = http.get.getMockImplementation()!;
     http.get.mockImplementation(async (url: string, cfg?: unknown) => {
       if (url === "/lp612/mine") {
-        return { data: { lessons: [{ renderId: "R7", segmentId: "grade_9_physics.c03", state: "ready", title: "Forces", grade: 9, subject: "Physics", lang: "en" }] } };
+        return { data: { lessons: [{ renderId: "R7", segmentId: "grade_9_physics.c03", state: "ready", title: "Forces", grade: 9, subject: "Physics", lang: "en", startedAt: "2026-10-07T05:00:00Z", completedAt: "2026-10-07T05:03:00Z" }] } };
       }
       return base(url, cfg);
     });
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: /^open$/i }));
+    fireEvent.click(await within(await screen.findByTestId("recent-lesson-plans")).findByRole("button", { name: /forces/i }));
     const v = await viewer();
     expect(within(v).getByRole("heading", { name: "Forces" })).toBeInTheDocument();
     await waitFor(() => expect(fileCall("/lp612/file/R7")).toBeTruthy());
@@ -336,8 +337,8 @@ describe("bd-5rz1v.10 — grades 6-12 open inside the portal too", () => {
     await pick612();
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
-      fireEvent.click(screen.getByRole("button", { name: /write this lesson plan/i }));
-      await screen.findByText(/writing your lesson plan/i);
+      fireEvent.click(screen.getByRole("button", { name: /open lesson plan/i }));
+      await screen.findByText("Preparing…");
       await vi.advanceTimersByTimeAsync(3_000);
       await vi.advanceTimersByTimeAsync(3_000);
       const v = await viewer();
