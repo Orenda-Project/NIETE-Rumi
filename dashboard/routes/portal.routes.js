@@ -71,6 +71,7 @@ const {
   PORTAL_SELF_OBSERVATION_KEY,
   PORTAL_COACH_OBSERVATION_KEY,
   PORTAL_NEW_UI_KEY,
+  isPortalAssessmentEditingEnabled,
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
@@ -2360,6 +2361,46 @@ router.get('/assessment/papers', requirePortalAuth, async (req, res) => {
   } catch (error) {
     assessmentFailure(res, error, 'Could not load your papers');
   }
+});
+
+// ── Editing a paper (bd-hb8qs) — the bot owns every rule; this passes through. ──
+function editFailure(res, error) {
+  if (error && error.body && error.status) return res.status(error.status).json(error.body);
+  console.error('portal/assessment/edit error:', error && error.message);
+  return res.status(502).json({ success: false, code: 'UNREACHABLE', error: 'We could not reach the paper service.' });
+}
+
+router.get('/assessment/edit/:paper_id/versions', requirePortalAuth, async (req, res) => {
+  try { return res.json(await Assessment.editVersions(String(req.params.paper_id), req.session.portalUserId)); }
+  catch (error) { return editFailure(res, error); }
+});
+
+router.get('/assessment/edit/:paper_id/questions', requirePortalAuth, async (req, res) => {
+  try { return res.json(await Assessment.editQuestions(String(req.params.paper_id), req.session.portalUserId)); }
+  catch (error) { return editFailure(res, error); }
+});
+
+router.get('/assessment/edit/:paper_id/add-kinds', requirePortalAuth, async (req, res) => {
+  try { return res.json(await Assessment.editAddKinds(String(req.params.paper_id), req.session.portalUserId)); }
+  catch (error) { return editFailure(res, error); }
+});
+
+router.post('/assessment/edit/:paper_id/validate', requirePortalAuth, async (req, res) => {
+  const { id = null, kind = null, edit = {} } = req.body || {};
+  try {
+    return res.json(await Assessment.editValidate({
+      paperId: String(req.params.paper_id), userId: req.session.portalUserId, id, kind, edit,
+    }));
+  } catch (error) { return editFailure(res, error); }
+});
+
+router.post('/assessment/edit/:paper_id/save', requirePortalAuth, async (req, res) => {
+  const { changes = {} } = req.body || {};
+  try {
+    return res.json(await Assessment.editSave({
+      parentId: String(req.params.paper_id), userId: req.session.portalUserId, changes,
+    }));
+  } catch (error) { return editFailure(res, error); }
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -4699,6 +4740,469 @@ router.post('/training/module/:id/quiz-attempts', requirePortalAuth, async (req,
   }
 });
 
+/* ------------------------------------------------------------------------- *
+ * bd-klecr.6 — the module quiz ONE QUESTION AT A TIME, with a verdict after
+ * each answer (operator, 2026-10-06).
+ *
+ *   POST /training/module/:id/quiz-attempts/start
+ *   POST /training/module/:id/quiz-attempts/:attemptId/answer
+ *   POST /training/module/:id/quiz-attempts/:attemptId/finish
+ *
+ * The all-at-once POST /quiz-attempts above stays for the screens that still
+ * use it. These three write the SAME rows the WhatsApp quiz writes, in the same
+ * order WhatsApp writes them (quiz-delivery.service.js: startModuleQuiz →
+ * handleQuizButton → gradeAttempt):
+ *
+ *   start   an in_progress training_assessment_attempts row, its paper the
+ *           bot's served paper for THAT attempt id (servePaper — deterministic
+ *           on the id), so WhatsApp resuming the attempt asks the same
+ *           questions in the same order and option order. An open attempt on
+ *           this module is RESUMED, as WhatsApp's start does, which is also
+ *           what a page reload is.
+ *   answer  one training_assessment_answers row the moment she checks; the
+ *           attempt's current_question_index moves on. The bot marks it
+ *           (markPaper). FINAL: a second answer to the same question in the
+ *           same attempt is refused with the stored verdict (operator,
+ *           2026-10-06: no trial-and-error by reloading). Right / wrong only:
+ *           the key never leaves this file, as on WhatsApp (bd-2523).
+ *   finish  the attempt closed with the bot's mark and verdict, progress on a
+ *           pass (bd-2450), the certificate guard (bd-60145). Run by the LAST
+ *           answer itself, so a result is saved even if she never taps Submit;
+ *           calling it again returns the stored result and writes nothing.
+ * ------------------------------------------------------------------------- */
+
+const crypto = require('crypto');
+
+const _optionText = (o) => (typeof o === 'string' ? o : (o && typeof o === 'object' && typeof o.text === 'string' ? o.text : String(o ?? '')));
+
+/** Gates + the facts every step needs. Returns { error: [status, body] } or { mod, levelId, assignment }. */
+async function _moduleQuizContext(userId, moduleId) {
+  const { data: mod, error: modErr } = await supabase
+    .from('training_modules').select('id, course_id, is_active').eq('id', moduleId).maybeSingle();
+  if (modErr) throw modErr;
+  if (!mod) return { error: [404, { success: false, error: 'Module not found' }] };
+  let levelId = null;
+  if (mod.course_id) {
+    const { data: course } = await supabase
+      .from('training_courses').select('level_id').eq('id', mod.course_id).maybeSingle();
+    if (course) {
+      levelId = course.level_id;
+      const gate = await _assertLevelUnlocked(userId, levelId);
+      if (!gate.ok) return { error: [gate.status, { success: false, error: gate.error, previous_level_order: gate.previous_level_order }] };
+    }
+  }
+  const modGate = await _assertModuleUnlocked(userId, moduleId);
+  if (!modGate.ok) return { error: [modGate.status, { success: false, error: modGate.error }] };
+  return { mod, levelId };
+}
+
+/**
+ * The paper this attempt is served, in order: [{ q, display_order }]. The bot
+ * chooses (servePaper); this only loads the bank and the vendor's serving
+ * settings it chooses from — the same columns quiz-delivery's
+ * getServingConfigByLevel reads. THROWS if the bot cannot be asked: serving a
+ * different paper than WhatsApp would is worse than not serving one.
+ */
+/**
+ * The vendor's serving settings for a level — the columns quiz-delivery's
+ * getServingConfigByLevel reads, handed to the bot as-is (servePaper decides).
+ * null when the level has no vendor: the bot then serves everything, unshuffled.
+ */
+async function _vendorServingSettings(levelId) {
+  if (!levelId) return null;
+  const { data: level } = await supabase.from('training_levels').select('vendor_id').eq('id', levelId).maybeSingle();
+  if (!level || !level.vendor_id) return null;
+  const { data: v } = await supabase
+    .from('training_vendors')
+    .select('key, module_quiz_strategy, exam_question_cap, shuffle_options')
+    .eq('id', level.vendor_id)
+    .maybeSingle();
+  return v || null;
+}
+
+/**
+ * bd-klecr.7 — a level exam's paper for an attempt: [{ q, display_order }], in
+ * served order. The same draw as WhatsApp's startGrandQuiz
+ * (selectServedQuestions with isModuleQuiz=false, seeded on the attempt id):
+ * NIETE's exam_question_cap of 20 picks a random 20 of the bank, a new 20 for
+ * every new attempt, in bank order, options shuffled. A vendor with no cap
+ * gets the whole bank. THROWS when the bot cannot be asked.
+ */
+async function _servedExamPaper(quizId, levelId, attemptId) {
+  const { data: bank, error } = await supabase
+    .from('training_questions')
+    .select('id, question_text, question_urdu, options, correct_option, order_index, bloom_level')
+    .eq('grand_quiz_id', quizId)
+    .eq('is_active', true)
+    .order('order_index', { ascending: true });
+  if (error) throw error;
+  const list = bank || [];
+  if (list.length === 0) return [];
+  const vendor = await _vendorServingSettings(levelId);
+  const served = await TrainingRules.servePaper(list, { attemptId, isModuleQuiz: false, vendor });
+  const byId = new Map(list.map((q) => [String(q.id), q]));
+  return served.questions
+    .map((s) => ({ q: byId.get(String(s.id)), display_order: Array.isArray(s.display_order) ? s.display_order : [] }))
+    .filter((s) => s.q);
+}
+
+async function _servedModulePaper(moduleId, levelId, attemptId) {
+  const { data: bank, error } = await supabase
+    .from('training_questions')
+    .select('id, question_text, options, correct_option, order_index, bloom_level')
+    .eq('training_module_id', moduleId)
+    .eq('is_active', true)
+    .order('order_index', { ascending: true });
+  if (error) throw error;
+  const list = bank || [];
+  if (list.length === 0) return [];
+
+  const vendor = await _vendorServingSettings(levelId);
+  const served = await TrainingRules.servePaper(list, { attemptId, isModuleQuiz: true, vendor });
+  const byId = new Map(list.map((q) => [String(q.id), q]));
+  return served.questions
+    .map((s) => ({ q: byId.get(String(s.id)), display_order: Array.isArray(s.display_order) ? s.display_order : [] }))
+    .filter((s) => s.q);
+}
+
+/** Her attempt on this module, or null. Never another teacher's. */
+async function _ownModuleAttempt(userId, moduleId, attemptId) {
+  const { data: attempt } = await supabase
+    .from('training_assessment_attempts')
+    .select('id, user_id, quiz_kind, training_module_id, level_id, program_id, status, current_question_index, total_questions, score, is_passed, completed_at')
+    .eq('id', attemptId)
+    .maybeSingle();
+  if (!attempt || attempt.user_id !== userId || attempt.quiz_kind !== 'training_module'
+    || Number(attempt.training_module_id) !== Number(moduleId)) return null;
+  return attempt;
+}
+
+async function _attemptAnswers(attemptId) {
+  const { data, error } = await supabase
+    .from('training_assessment_answers')
+    .select('question_index, question_id, chosen_option, is_correct')
+    .eq('attempt_id', attemptId)
+    .order('question_index', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+const _resultsOf = (rows) => rows.map((r) => ({ question_id: r.question_id, question_index: r.question_index, is_correct: Boolean(r.is_correct) }));
+
+/**
+ * Close the attempt and save its result. Idempotent: an attempt already closed
+ * (by an earlier call, or by WhatsApp) returns what is stored. THROWS when the
+ * bot cannot mark or decide — nothing is closed, and the caller says "try again".
+ */
+async function _finishModuleQuizAttempt(userId, moduleId, attempt, paper) {
+  const rows = await _attemptAnswers(attempt.id);
+  const total = attempt.total_questions;
+
+  if (attempt.status !== 'in_progress') {
+    return {
+      status: 200,
+      body: {
+        success: true,
+        attempt: { id: attempt.id, score: attempt.score, max_score: total, is_passed: attempt.is_passed === true, completed_at: attempt.completed_at },
+        results: _resultsOf(rows),
+        certificate: null,
+      },
+    };
+  }
+  if (rows.length < total) {
+    return { status: 409, body: { success: false, error: 'Answer every question first', answered: rows.length, total_questions: total } };
+  }
+
+  // The bot marks the whole paper from what was saved, the same call the
+  // all-at-once submit makes; the per-answer verdicts it gave are not re-used
+  // as a score here, so the two can never disagree with the bot.
+  const marked = await TrainingRules.markPaper(
+    paper.map((p) => ({ id: p.q.id, correct_option: p.q.correct_option, order_index: p.q.order_index })),
+    rows.map((r) => ({ question_id: r.question_id, chosen_option: r.chosen_option })),
+  );
+  const verdict = await TrainingRules.getModuleQuizVerdict(moduleId, marked.score, marked.total_questions);
+  const completedAt = new Date().toISOString();
+
+  // Conditional on still being open: if a parallel finish (the last answer's,
+  // and her Submit) got there first, this one closes nothing and reads back.
+  const { data: closed, error: closeErr } = await supabase
+    .from('training_assessment_attempts')
+    .update({
+      status: verdict.status,
+      score: marked.score,
+      is_passed: verdict.is_passed,
+      current_question_index: total,
+      completed_at: completedAt,
+      last_activity_at: completedAt,
+    })
+    .eq('id', attempt.id)
+    .eq('status', 'in_progress')
+    .select('id');
+  if (closeErr) throw closeErr;
+  if (!closed || closed.length === 0) {
+    const again = await _ownModuleAttempt(userId, moduleId, attempt.id);
+    return _finishModuleQuizAttempt(userId, moduleId, again, paper);
+  }
+
+  let certificate = null;
+  if (verdict.is_passed) {
+    await supabase
+      .from('teacher_training_progress')
+      .upsert({ user_id: userId, module_id: moduleId, completed_at: completedAt }, { onConflict: 'user_id,module_id' });
+    try {
+      const cert = await TrainingRules.certifyLevel({
+        userId, levelId: attempt.level_id, moduleId, attemptId: attempt.id, programId: attempt.program_id,
+      });
+      if (cert.issued) {
+        certificate = { certificate_code: cert.certificate_code, teacher_name: cert.teacher_name, level_name: cert.level_name, issued_at: cert.issued_at };
+      }
+    } catch (_) { /* never let certification fail a graded attempt */ }
+  }
+
+  try {
+    const { logEvent } = require('../../bot/shared/utils/structured-logger');
+    logEvent('training_quiz_completed', {
+      user_uuid: userId, attempt_uuid: attempt.id, module_row_id: moduleId,
+      raw_score: marked.score, total_qs: marked.total_questions, is_passed: verdict.is_passed,
+      pct_required: verdict.pass_pct, surface: 'portal', mode: 'per_question',
+    });
+  } catch (_) { /* best-effort telemetry */ }
+
+  return {
+    status: 200,
+    body: {
+      success: true,
+      attempt: {
+        id: attempt.id, score: marked.score, max_score: marked.total_questions, is_passed: verdict.is_passed,
+        pass_pct: verdict.pass_pct, achieved_pct: verdict.achieved_pct, completed_at: completedAt,
+      },
+      results: _resultsOf(rows),
+      certificate,
+    },
+  };
+}
+
+router.post('/training/module/:id/quiz-attempts/start', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const moduleId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(moduleId)) return res.status(400).json({ success: false, error: 'Invalid module id' });
+
+    const ctx = await _moduleQuizContext(userId, moduleId);
+    if (ctx.error) return res.status(ctx.error[0]).json(ctx.error[1]);
+
+    // Resume an open attempt on this module, as WhatsApp's start does — which
+    // is also what a page reload lands on.
+    const { data: latest } = await supabase
+      .from('training_assessment_attempts')
+      .select('id, status')
+      .eq('user_id', userId)
+      .eq('training_module_id', moduleId)
+      .eq('quiz_kind', 'training_module')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const open = latest && latest.status === 'in_progress' ? await _ownModuleAttempt(userId, moduleId, latest.id) : null;
+    const attemptId = open ? open.id : crypto.randomUUID();
+
+    let paper;
+    try {
+      paper = await _servedModulePaper(moduleId, ctx.levelId, attemptId);
+    } catch (serveErr) {
+      console.error('quiz-attempts/start — serving unavailable, nothing written', { moduleId, error: serveErr?.message });
+      return res.status(503).json({ success: false, error: 'We could not load this quiz just now. Please try again in a moment.' });
+    }
+    if (paper.length === 0) return res.status(400).json({ success: false, error: 'This module has no active questions' });
+
+    let attempt = open;
+    if (!attempt) {
+      const { data: assignment } = await supabase
+        .from('teacher_training_assignments')
+        .select('program_id')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+      if (!assignment) return res.status(400).json({ success: false, error: 'No active training program assignment' });
+      const now = new Date().toISOString();
+      // Shape parity with quiz-delivery.service.js startModuleQuiz.
+      const { data: made, error: insErr } = await supabase
+        .from('training_assessment_attempts')
+        .insert({
+          id: attemptId,
+          user_id: userId,
+          program_id: assignment.program_id,
+          quiz_kind: 'training_module',
+          training_module_id: moduleId,
+          level_id: ctx.levelId,
+          current_question_index: 0,
+          total_questions: paper.length,
+          total_score: paper.length,
+          status: 'in_progress',
+          started_at: now,
+          last_activity_at: now,
+        })
+        .select('id')
+        .single();
+      if (insErr || !made) throw insErr || new Error('attempt insert returned nothing');
+      attempt = { id: attemptId, current_question_index: 0, total_questions: paper.length };
+      try {
+        const { logEvent } = require('../../bot/shared/utils/structured-logger');
+        logEvent('training_quiz_started', { user_uuid: userId, attempt_uuid: attemptId, module_row_id: moduleId, total_qs: paper.length, surface: 'portal' });
+      } catch (_) { /* best-effort telemetry */ }
+    }
+
+    const done = await _attemptAnswers(attempt.id);
+    return res.json({
+      success: true,
+      attempt: { id: attempt.id, total_questions: attempt.total_questions, current_index: done.length },
+      // Options in the served order, each carrying its canonical 1-based value —
+      // the value the bot marks against. The key itself is never sent.
+      questions: paper.map(({ q, display_order }) => {
+        const opts = Array.isArray(q.options) ? q.options : [];
+        const order = display_order.length ? display_order : opts.map((_, i) => i + 1);
+        return {
+          id: q.id,
+          question_text: q.question_text || '',
+          multi: isMultiKey(q.correct_option),
+          options: order.map((i) => ({ value: String(i), text: _optionText(opts[i - 1]) })),
+        };
+      }),
+      answered: done.map((r) => ({ question_id: r.question_id, chosen_option: r.chosen_option, is_correct: Boolean(r.is_correct) })),
+    });
+  } catch (error) {
+    console.error('quiz-attempts/start error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to start the quiz' });
+  }
+});
+
+router.post('/training/module/:id/quiz-attempts/:attemptId/answer', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const moduleId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(moduleId)) return res.status(400).json({ success: false, error: 'Invalid module id' });
+    const questionId = req.body ? req.body.question_id : null;
+    const chosen = req.body && req.body.chosen_option != null ? String(req.body.chosen_option).trim() : '';
+    if (questionId == null || !chosen) return res.status(400).json({ success: false, error: 'Pick an answer first' });
+
+    const attempt = await _ownModuleAttempt(userId, moduleId, req.params.attemptId);
+    if (!attempt) return res.status(404).json({ success: false, error: 'Quiz not found' });
+
+    let paper;
+    try {
+      paper = await _servedModulePaper(moduleId, attempt.level_id, attempt.id);
+    } catch (serveErr) {
+      console.error('quiz-attempts/answer — serving unavailable, nothing written', { moduleId, error: serveErr?.message });
+      return res.status(503).json({ success: false, error: 'We could not check this answer just now. Please try again in a moment.' });
+    }
+    const index = paper.findIndex((p) => String(p.q.id) === String(questionId));
+    if (index < 0) return res.status(400).json({ success: false, error: 'That question is not on this quiz' });
+
+    // A checked answer is final. Reported with what she chose and its verdict,
+    // so a reloaded page shows the same locked state.
+    const stored = (await _attemptAnswers(attempt.id)).find((r) => r.question_index === index);
+    if (stored) {
+      return res.status(409).json({
+        success: false, error: 'Already answered', already_answered: true,
+        chosen_option: stored.chosen_option, is_correct: Boolean(stored.is_correct),
+      });
+    }
+    if (attempt.status !== 'in_progress') return res.status(409).json({ success: false, error: 'This quiz is already finished' });
+    if (index !== attempt.current_question_index) {
+      return res.status(409).json({ success: false, error: 'Answer the questions in order', current_index: attempt.current_question_index });
+    }
+
+    const { q } = paper[index];
+    let marked;
+    try {
+      marked = await TrainingRules.markPaper(
+        [{ id: q.id, correct_option: q.correct_option, order_index: q.order_index }],
+        [{ question_id: q.id, chosen_option: chosen }],
+      );
+    } catch (markErr) {
+      console.error('quiz-attempts/answer — marking unavailable, nothing written', { moduleId, error: markErr?.message });
+      return res.status(503).json({ success: false, error: 'We could not check this answer just now. Please try again in a moment.' });
+    }
+    const g = marked.graded[0];
+    if (!g) return res.status(400).json({ success: false, error: 'That question is not on this quiz' });
+
+    const now = new Date().toISOString();
+    const { error: ansErr } = await supabase.from('training_assessment_answers').insert({
+      attempt_id: attempt.id,
+      question_index: index,
+      question_id: q.id,
+      chosen_option: g.chosen_option != null ? String(g.chosen_option) : chosen,
+      is_correct: Boolean(g.is_correct),
+      answered_at: now,
+    });
+    if (ansErr) {
+      if (ansErr.code === '23505') {
+        // A double tap raced this one in; its answer stands.
+        const raced = (await _attemptAnswers(attempt.id)).find((r) => r.question_index === index);
+        return res.status(409).json({
+          success: false, error: 'Already answered', already_answered: true,
+          chosen_option: raced ? raced.chosen_option : null, is_correct: raced ? Boolean(raced.is_correct) : null,
+        });
+      }
+      throw ansErr;
+    }
+    const { error: moveErr } = await supabase
+      .from('training_assessment_attempts')
+      .update({ current_question_index: index + 1, last_activity_at: now })
+      .eq('id', attempt.id)
+      .eq('status', 'in_progress');
+    if (moveErr) throw moveErr;
+
+    // The last answer saves the result there and then.
+    let result = null;
+    if (index + 1 >= attempt.total_questions) {
+      try {
+        const fresh = await _ownModuleAttempt(userId, moduleId, attempt.id);
+        const out = await _finishModuleQuizAttempt(userId, moduleId, fresh, paper);
+        if (out.status === 200) result = out.body;
+      } catch (finErr) {
+        // The answer is saved; Submit (finish) closes the attempt once the bot answers.
+        console.error('quiz-attempts/answer — could not close the attempt yet', { moduleId, error: finErr?.message });
+      }
+    }
+
+    return res.json({
+      success: true,
+      question_id: q.id,
+      is_correct: Boolean(g.is_correct),
+      answered: index + 1,
+      total_questions: attempt.total_questions,
+      result,
+    });
+  } catch (error) {
+    console.error('quiz-attempts/answer error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to save the answer' });
+  }
+});
+
+router.post('/training/module/:id/quiz-attempts/:attemptId/finish', requirePortalAuth, async (req, res) => {
+  try {
+    const userId = req.session.portalUserId;
+    const moduleId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(moduleId)) return res.status(400).json({ success: false, error: 'Invalid module id' });
+    const attempt = await _ownModuleAttempt(userId, moduleId, req.params.attemptId);
+    if (!attempt) return res.status(404).json({ success: false, error: 'Quiz not found' });
+
+    let out;
+    try {
+      const paper = await _servedModulePaper(moduleId, attempt.level_id, attempt.id);
+      out = await _finishModuleQuizAttempt(userId, moduleId, attempt, paper);
+    } catch (finErr) {
+      console.error('quiz-attempts/finish — marking unavailable, nothing closed', { moduleId, error: finErr?.message });
+      return res.status(503).json({ success: false, error: 'We could not mark this quiz just now. Please try again in a moment.' });
+    }
+    return res.status(out.status).json(out.body);
+  } catch (error) {
+    console.error('quiz-attempts/finish error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to finish the quiz' });
+  }
+});
+
 // ────────────────────────────────────────────────────────────────────────────
 // Grand quiz (level exam) + certificate — portal quiz-parity phase 3.
 // The WhatsApp reference implementation is
@@ -4757,6 +5261,13 @@ async function _loadGrandQuizGate(userId, levelId) {
     ]);
     questionCount = (qs || []).length;
     examKind = (quizRow && quizRow.quiz_type) || null;
+    // bd-klecr.7 — the card quotes the PAPER, not the bank: a capped vendor
+    // (NIETE, 20) sits 20 of a 45–72 bank. Capstones are never capped.
+    if (examKind !== 'capstone') {
+      const vendor = await _vendorServingSettings(levelId);
+      const cap = vendor ? Number(vendor.exam_question_cap) : NaN;
+      if (Number.isFinite(cap) && cap > 0) questionCount = Math.min(questionCount, cap);
+    }
   }
 
   return {
@@ -4938,24 +5449,82 @@ router.get('/training/level/:id/grand-quiz/questions', requirePortalAuth, async 
       });
     }
 
-    const { data: questions, error: qErr } = await supabase
-      .from('training_questions')
-      .select('id, question_text, question_urdu, options, order_index')
+    // bd-klecr.7 — the paper is an ATTEMPT's, as on WhatsApp: resume her open
+    // attempt on this exam (a reload, or one started on WhatsApp), else open
+    // one now, sized to the served paper. The attempt id seeds the draw, so the
+    // submit marks exactly these questions.
+    const { data: latest } = await supabase
+      .from('training_assessment_attempts')
+      .select('id, user_id, status')
+      .eq('user_id', userId)
       .eq('grand_quiz_id', gate.quiz.id)
-      .eq('is_active', true)
-      .order('order_index', { ascending: true });
-    if (qErr) throw qErr;
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const open = latest && latest.status === 'in_progress' && latest.user_id === userId ? latest : null;
+    const attemptId = open ? open.id : crypto.randomUUID();
+
+    let paper;
+    try {
+      paper = await _servedExamPaper(gate.quiz.id, levelId, attemptId);
+    } catch (serveErr) {
+      console.error('grand-quiz/questions — serving unavailable, nothing written', { levelId, error: serveErr?.message });
+      return res.status(503).json({ success: false, code: 'unavailable', error: 'We could not load this exam just now. Please try again in a moment.' });
+    }
+    if (paper.length === 0) {
+      return res.status(404).json({ success: false, code: 'no_quiz', error: 'This level has no active exam questions' });
+    }
+
+    if (!open) {
+      const { data: assignment } = await supabase
+        .from('teacher_training_assignments')
+        .select('program_id')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+      if (!assignment) return res.status(400).json({ success: false, error: 'No active training program assignment' });
+      const now = new Date().toISOString();
+      // Shape parity with quiz-delivery.service.js startGrandQuiz.
+      const { error: insErr } = await supabase
+        .from('training_assessment_attempts')
+        .insert({
+          id: attemptId,
+          user_id: userId,
+          program_id: assignment.program_id,
+          quiz_kind: 'grand',
+          grand_quiz_id: gate.quiz.id,
+          level_id: levelId,
+          current_question_index: 0,
+          total_questions: paper.length,
+          total_score: paper.length,
+          status: 'in_progress',
+          started_at: now,
+          last_activity_at: now,
+        })
+        .select('id')
+        .single();
+      if (insErr) throw insErr;
+    }
 
     return res.json({
       success: true,
-      questions: (questions || []).map(q => ({
-        id: q.id,
-        question_text: q.question_text,
-        question_urdu: q.question_urdu || null,
-        options: Array.isArray(q.options) ? q.options : [],
-        order_index: q.order_index,
-      })),
-      question_count: (questions || []).length,
+      attempt_id: attemptId,
+      questions: paper.map(({ q, display_order: order }) => {
+        const opts = Array.isArray(q.options) ? q.options : [];
+        const shown = order.length ? order : opts.map((_, i) => i + 1);
+        return {
+          id: q.id,
+          question_text: q.question_text,
+          question_urdu: q.question_urdu || null,
+          // In the served order; option_values[i] is the canonical 1-based value
+          // of options[i] — what the submit sends, whatever order is shown.
+          options: shown.map((i) => opts[i - 1]),
+          option_values: shown.map(String),
+          order_index: q.order_index,
+        };
+      }),
+      question_count: paper.length,
     });
   } catch (error) {
     console.error('training/level/:id/grand-quiz/questions error:', error);
@@ -5073,15 +5642,36 @@ router.post('/training/level/:id/grand-quiz/attempts', requirePortalAuth, async 
       });
     }
 
-    // 3. Canonical question list (same order the WhatsApp side asks).
-    const { data: questions, error: qErr } = await supabase
-      .from('training_questions')
-      .select('id, correct_option, order_index')
-      .eq('grand_quiz_id', gate.quiz.id)
-      .eq('is_active', true)
-      .order('order_index', { ascending: true });
-    if (qErr) throw qErr;
-    const qList = questions || [];
+    // 3. The attempt's paper (bd-klecr.7). GET …/questions opened the attempt
+    //    and served its paper; this marks exactly that paper. The page sends
+    //    the attempt id; without one, her open attempt on this exam is used.
+    let openAttempt = null;
+    {
+      const wanted = req.body && req.body.attempt_id ? String(req.body.attempt_id) : null;
+      let q = supabase
+        .from('training_assessment_attempts')
+        .select('id, user_id, quiz_kind, grand_quiz_id, status, started_at')
+        .eq('user_id', userId)
+        .eq('grand_quiz_id', gate.quiz.id)
+        .eq('status', 'in_progress');
+      if (wanted) q = q.eq('id', wanted);
+      const { data: openRows } = await q.order('started_at', { ascending: false }).limit(1);
+      // Re-checked here as well as filtered above: only HER attempt that is still OPEN is closed.
+      openAttempt = (openRows || []).find((r) => r.status === 'in_progress' && r.user_id === userId) || null;
+    }
+    // No open attempt (a page that posts without opening the exam first): the
+    // paper is drawn for a new attempt id here, and the attempt is written in
+    // one go below — the old one-shot behaviour, still bound by the vendor's
+    // serving rule (a capped NIETE paper is 20, so the whole bank is refused).
+    const paperAttemptId = openAttempt ? openAttempt.id : crypto.randomUUID();
+    let paper;
+    try {
+      paper = await _servedExamPaper(gate.quiz.id, levelId, paperAttemptId);
+    } catch (serveErr) {
+      console.error('grand-quiz/attempts — serving unavailable, nothing written', { levelId, error: serveErr?.message });
+      return res.status(503).json({ success: false, error: 'We could not mark this exam just now. Please try again in a moment.' });
+    }
+    const qList = paper.map(({ q }) => ({ id: q.id, correct_option: q.correct_option, order_index: q.order_index }));
     if (qList.length === 0) {
       return res.status(404).json({ success: false, code: 'no_quiz', error: 'This level has no active exam questions' });
     }
@@ -5159,33 +5749,53 @@ router.post('/training/level/:id/grand-quiz/attempts', requirePortalAuth, async 
       ? null
       : new Date(Date.now() + GRAND_QUIZ_COOLDOWN_HOURS * 3_600_000).toISOString();
 
-    // 6. Insert the attempt row — shape parity with quiz-delivery.service.js
-    //    (startGrandQuiz insert + gradeAttempt grand-branch update, collapsed
-    //    into the one-shot row the portal writes).
-    const { data: attempt, error: aErr } = await supabase
-      .from('training_assessment_attempts')
-      .insert({
-        user_id: userId,
-        program_id: assignment.program_id,
-        quiz_kind: 'grand',
-        grand_quiz_id: gate.quiz.id,
-        level_id: levelId,
-        current_question_index: totalQuestions,
-        total_questions: totalQuestions,
-        total_score: totalQuestions,
-        status: isPassed ? 'passed' : 'failed',
-        score,
-        is_passed: isPassed,
-        completed_at: completedAt,
-        last_activity_at: completedAt,
-        started_at: completedAt,            // one-shot submit; no partial state on portal
-        cooldown_until: cooldownUntil,
-      })
-      .select('id')
-      .single();
-    if (aErr) throw aErr;
+    // 6. Close the attempt the paper was served for — shape parity with
+    //    quiz-delivery.service.js gradeAttempt's grand branch. Conditional on
+    //    still being open, so a parallel submit cannot close it twice.
+    const closing = {
+      current_question_index: totalQuestions,
+      total_questions: totalQuestions,
+      total_score: totalQuestions,
+      status: isPassed ? 'passed' : 'failed',
+      score,
+      is_passed: isPassed,
+      completed_at: completedAt,
+      last_activity_at: completedAt,
+      cooldown_until: cooldownUntil,
+    };
+    if (openAttempt) {
+      const { data: closedRows, error: aErr } = await supabase
+        .from('training_assessment_attempts')
+        .update(closing)
+        .eq('id', openAttempt.id)
+        .eq('status', 'in_progress')
+        .select('id');
+      if (aErr) throw aErr;
+      if (!closedRows || closedRows.length === 0) {
+        return res.status(409).json({ success: false, code: 'already_submitted', error: 'This exam was already submitted' });
+      }
+    } else {
+      const { error: aErr } = await supabase
+        .from('training_assessment_attempts')
+        .insert({
+          id: paperAttemptId,
+          user_id: userId,
+          program_id: assignment.program_id,
+          quiz_kind: 'grand',
+          grand_quiz_id: gate.quiz.id,
+          level_id: levelId,
+          started_at: completedAt,          // one-shot: no partial state
+          ...closing,
+        })
+        .select('id')
+        .single();
+      if (aErr) throw aErr;
+    }
+    const attempt = { id: paperAttemptId };
 
-    // 7. Per-question answer rows.
+    // 7. Per-question answer rows — upserted, because an attempt started on
+    //    WhatsApp already holds the answers she gave there; her final answers
+    //    from this page replace them, one row per question either way.
     const answerRows = graded.map(g => ({
       attempt_id: attempt.id,
       question_index: g.question_index,
@@ -5194,7 +5804,9 @@ router.post('/training/level/:id/grand-quiz/attempts', requirePortalAuth, async 
       is_correct: g.is_correct,
       answered_at: completedAt,
     }));
-    const { error: ansErr } = await supabase.from('training_assessment_answers').insert(answerRows);
+    const { error: ansErr } = await supabase
+      .from('training_assessment_answers')
+      .upsert(answerRows, { onConflict: 'attempt_id,question_index' });
     if (ansErr) throw ansErr;
 
     // 8. Certificate on pass — the bot's shared issuance service (idempotent
@@ -7029,6 +7641,7 @@ router.put('/me/language', requirePortalAuth, async (req, res) => {
 router.get('/config', async (req, res) => {
   try {
     const assessmentGenerator = await isAssessmentGeneratorEnabled(supabase);
+    const assessmentEditing = await isPortalAssessmentEditingEnabled(supabase);
     // bd-3bvfj: per USER — a pilot list is answered for whoever is logged in;
     // logged out, it is off. Read from the session, never from the request.
     const selfObservation = await isFlagEnabledForUser(
@@ -7046,6 +7659,7 @@ router.get('/config', async (req, res) => {
       success: true,
       features: {
         assessmentGenerator,
+        assessmentEditing,
         assessmentGeneratorMessage: assessmentGenerator ? null : ASSESSMENT_GENERATOR_OFF_MESSAGE,
         selfObservation,
         coachObservation,
@@ -7059,6 +7673,7 @@ router.get('/config', async (req, res) => {
       success: true,
       features: {
         assessmentGenerator: false,
+        assessmentEditing: false,
         assessmentGeneratorMessage: ASSESSMENT_GENERATOR_OFF_MESSAGE,
         selfObservation: false,
         coachObservation: false,

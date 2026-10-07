@@ -227,3 +227,30 @@ describe("bd-2673 — a written exam gets the written form, never the MCQ one", 
     expect(screen.queryByTestId("capstone-entry")).toBeNull();
   });
 });
+
+// bd-klecr.7 — the paper is the attempt's: options may come shuffled, each with
+// its canonical value, and the submit names the attempt it was served for.
+describe("bd-klecr.7 — the served paper", () => {
+  it("sends the canonical value of the option she picked, and the attempt id", async () => {
+    (api.get as any).mockImplementation((url: string) => {
+      if (url === GATE_URL) return Promise.resolve({ data: { grand_quiz: gate({ question_count: 20 }) } });
+      if (url === QUESTIONS_URL) {
+        return Promise.resolve({ data: {
+          attempt_id: "att-9",
+          questions: [{ id: 1, question_text: "Q1", question_urdu: null, options: ["b", "a"], option_values: ["2", "1"], order_index: 0 }],
+        } });
+      }
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    (api.post as any).mockResolvedValue({ data: { attempt: { id: "att-9", score: 1, max_score: 1, is_passed: true, status: "passed", cooldown_until: null, completed_at: "" }, certificate: null } });
+    renderCard();
+    await userEvent.click(await screen.findByTestId("exam-start"));
+    await screen.findByTestId("level-exam-form");
+    await userEvent.click(screen.getByRole("radio", { name: /A\.\s*b/ }));
+    await userEvent.click(screen.getByTestId("exam-submit"));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith("/training/level/7/grand-quiz/attempts", {
+      attempt_id: "att-9",
+      answers: [{ question_id: 1, chosen_option: "2" }],
+    }));
+  });
+});

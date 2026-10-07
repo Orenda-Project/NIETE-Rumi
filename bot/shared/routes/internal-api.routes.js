@@ -32,33 +32,12 @@
 const express = require('express');
 const { logToFile, logError } = require('../utils/logger');
 const { clampLanguage } = require('../config/ux-strings');
+const { requireInternalKey } = require('../middleware/require-internal-key');
 // Out of the doc comment above, where #913 first put it: inside /* */ this line never ran and
 // POST /training/bands/state threw "teacherLevelOf is not defined" for every teacher (15 Sep 2026).
 const { teacherLevelOf } = require('../utils/teacher-level');
 
 const router = express.Router();
-
-/**
- * Shared-secret auth for every route in this router.
- *
- * Rejects when INTERNAL_API_KEY is unset. Without that check a bot missing the
- * variable would compare `undefined === undefined` for a caller that sent no
- * header, and the endpoint would be open to anyone who found the URL.
- */
-function requireInternalKey(req, res, next) {
-  const expected = process.env.INTERNAL_API_KEY;
-  if (!expected) {
-    logToFile('❌ Internal API called but INTERNAL_API_KEY is not set — refusing', {
-      path: req.path,
-    });
-    return res.status(401).json({ success: false, error: 'Unauthorized' });
-  }
-  if (req.headers['x-api-key'] !== expected) {
-    logToFile('❌ Unauthorized internal API call', { path: req.path, ip: req.ip });
-    return res.status(401).json({ success: false, error: 'Unauthorized' });
-  }
-  return next();
-}
 
 /**
  * POST /api/internal/queue-lesson-plan
@@ -1535,6 +1514,9 @@ router.post('/assessment/papers', requireInternalKey, assessmentRoute('papers', 
   });
   return res.json({ success: true, ...out });
 }));
+
+// Editing a paper from the portal (bd-hb8qs) — its own file; see its header.
+router.use(require('./internal-assessment-edit.routes'));
 
 // ─── coaching ───────────────────────────────────────────────────────────────
 //

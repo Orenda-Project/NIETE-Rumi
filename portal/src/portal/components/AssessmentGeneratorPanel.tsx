@@ -27,11 +27,19 @@
  * pages before storing the request. Page ranges stay available for the teacher
  * who wants them, one disclosure down.
  *
- * WHY IT POLLS
- * ------------
- * Generation is a queued job of about a minute (the model call alone is ~25s).
- * `queued` and `generating` are ordinary answers, not errors — only `failed`
- * draws an apology, and it names the real reason rather than shrugging.
+ * WHY IT NO LONGER POLLS (bd-t5tow)
+ * ---------------------------------
+ * Generation is a queued job of about a minute, polled until it lands. That
+ * now happens at page level (assessment-jobs/usePaperJobs), because the page
+ * has two tabs — Create paper and My papers — and a paper being made shows in
+ * both; switching tabs must not stop the tracking. This panel starts a job via
+ * `onStart` and draws the card for the one job it started (`currentJob`).
+ *
+ * THE CARD STAYS UNTIL SHE MOVES ON
+ * ---------------------------------
+ * The writing / ready card replaces the form until she presses Make another or
+ * opens My papers (the page then stops passing `currentJob`). Never on a timer:
+ * a card that vanishes while she is reading it is a paper she cannot find.
  *
  * NO WHATSAPP COPY
  * ----------------
@@ -41,7 +49,7 @@
  * durable instead.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, Loader2, Download, Sparkles, ChevronDown, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,49 +60,25 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { portal } from '../services/api';
 import type {
-  AssessmentChapter, AssessmentQuestionType, AssessmentSubject,
+  AssessmentChapter, AssessmentQuestionType, AssessmentSpec, AssessmentSubject,
 } from '../services/api';
-
-const POLL_INTERVAL_MS = 4000;
-
-/**
- * How long to keep asking before saying something is wrong.
- *
- * The job extends its own SQS visibility to 300s, so a paper that has not
- * arrived by then is not merely slow. Without a ceiling the spinner is
- * indistinguishable from a worker that died, and she waits forever on a
- * promise nothing is going to keep.
- */
-const POLL_TIMEOUT_MS = 5 * 60 * 1000;
-
-/**
- * What she is told, per failure code, in words that name the thing she can
- * change. The bot has its own copy of these for WhatsApp; this is the same set
- * of situations phrased for a page rather than a chat.
- */
-const FAILURE_MESSAGE: Record<string, string> = {
-  BOOK_NOT_FOUND: "We don't have that book yet. Try a different class or subject.",
-  CHAPTER_NOT_FOUND: "We couldn't find that chapter. Please pick another one.",
-  NO_CONTENT: "We don't have the text for that chapter yet — please try another chapter.",
-  PAGE_OUT_OF_RANGE: 'Those page numbers are outside this book. Please check and try again.',
-  INVALID_PAGE_RANGE: "Those page numbers didn't make sense. Try something like 4-14.",
-  TRUNCATED: 'That was a lot to write in one go. Please try again with fewer questions.',
-  MODEL_UNAVAILABLE: "Sorry — we couldn't build your paper just now. Please try again in a moment.",
-  BAD_JSON: "Sorry — that didn't come out right. Please try again.",
-  NO_QUESTIONS: "Sorry — we couldn't write questions from that chapter. Please try another.",
-  RENDER_FAILED: "Sorry — we couldn't make the file. Please try again.",
-  UPLOAD_FAILED: "Sorry — we couldn't save your paper. Please try again.",
-};
-const FAILURE_FALLBACK = 'Sorry — something went wrong making your paper. Please try again.';
-
-type Phase = 'form' | 'working' | 'ready';
+import { FAILURE_FALLBACK } from './assessment-jobs/failureMessages';
+import type { PaperJob, StartResult } from './assessment-jobs/usePaperJobs';
 
 type Props = {
-  /** Called when a paper finishes, so My papers can refresh. */
-  onPaperReady?: () => void;
+  /** The job this tab started, while its card is showing; null shows the form. */
+  currentJob?: PaperJob | null;
+  /** Starts a job at page level (usePaperJobs.start). */
+  onStart: (spec: AssessmentSpec, label: string) => Promise<StartResult>;
+  /** Go to My papers / See in My papers. */
+  onGoToPapers: () => void;
+  /** Make another: back to the form; a job still writing carries on in My papers. */
+  onMakeAnother: () => void;
 };
 
-const AssessmentGeneratorPanel = ({ onPaperReady }: Props) => {
+const AssessmentGeneratorPanel = ({
+  currentJob = null, onStart, onGoToPapers, onMakeAnother,
+}: Props) => {
   const { toast } = useToast();
 
   // ── options, all server-supplied ────────────────────────────────────────
@@ -116,18 +100,12 @@ const AssessmentGeneratorPanel = ({ onPaperReady }: Props) => {
   const [showMore, setShowMore] = useState(false);
 
   // ── where we are ────────────────────────────────────────────────────────
-  const [phase, setPhase] = useState<Phase>('form');
+  // A failed job shows the form again; the page has already said why.
+  const phase = currentJob?.status === 'writing' ? 'working'
+    : currentJob?.status === 'ready' ? 'ready' : 'form';
+  const paperId = currentJob?.status === 'ready' ? currentJob.paperId ?? null : null;
   const [submitting, setSubmitting] = useState(false);
-  const [paperId, setPaperId] = useState<string | null>(null);
   const [countError, setCountError] = useState<string | null>(null);
-
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startedAtRef = useRef<number>(0);
-
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-  }, []);
-  useEffect(() => () => stopPolling(), [stopPolling]);
 
   // ── the grade list, once ────────────────────────────────────────────────
   useEffect(() => {
@@ -223,59 +201,13 @@ const AssessmentGeneratorPanel = ({ onPaperReady }: Props) => {
   const toggleType = (id: string) => setPickedTypes((cur) =>
     (cur.includes(id) ? cur.filter((t) => t !== id) : [...cur, id]));
 
-  const reset = () => {
-    stopPolling();
-    setPhase('form');
-    setPaperId(null);
-  };
-
-  const finishWithFailure = useCallback((code?: string | null) => {
-    stopPolling();
-    setPhase('form');
-    toast({
-      title: 'We could not make your paper',
-      description: (code && FAILURE_MESSAGE[code]) || FAILURE_FALLBACK,
-      variant: 'destructive',
-    });
-  }, [stopPolling, toast]);
-
-  const poll = useCallback(async (requestId: string) => {
-    try {
-      const res = await portal.getAssessmentStatus(requestId);
-
-      if (res.status === 'ready' && res.paperId) {
-        stopPolling();
-        setPaperId(res.paperId);
-        setPhase('ready');
-        onPaperReady?.();
-        return;
-      }
-      if (res.status === 'failed') { finishWithFailure(res.errorCode); return; }
-      if (res.status === 'not_found') { finishWithFailure(null); return; }
-
-      // queued | generating — keep waiting, but not forever.
-      if (Date.now() - startedAtRef.current > POLL_TIMEOUT_MS) {
-        stopPolling();
-        setPhase('form');
-        toast({
-          title: 'This is taking longer than it should',
-          description: 'Your paper may still arrive — check My papers in a few minutes.',
-          variant: 'destructive',
-        });
-      }
-    } catch {
-      // A transport blip must not kill the wait: the job is running on the
-      // server regardless of whether this one request got through.
-    }
-  }, [finishWithFailure, onPaperReady, stopPolling, toast]);
-
   const submit = async () => {
     const err = validateCount(questionCount);
     if (err) { setCountError(err); return; }
 
     setSubmitting(true);
     try {
-      const res = await portal.generateAssessment({
+      const spec: AssessmentSpec = {
         grade: Number(grade),
         subject,
         chapterNumber: Number(chapterNumber),
@@ -285,30 +217,23 @@ const AssessmentGeneratorPanel = ({ onPaperReady }: Props) => {
         // No answer-key choice: every paper is made with its key.
         answerLines,
         outputFormat: 'pdf',
-      });
+      };
+      const label = [
+        `Grade ${grade} ${subjects.find((s) => s.subject_key === subject)?.subject ?? subject}`,
+        chosenChapter?.chapter_title,
+        `${Number(questionCount)} questions`,
+      ].filter(Boolean).join(' · ');
 
-      if (!res.success || !res.requestId) {
+      // The page sends it and keeps checking on it (usePaperJobs); a refusal
+      // comes back here with the same sentence this panel always showed.
+      const res = await onStart(spec, label);
+      if (res.ok === false) {
         toast({
           title: 'Could not start your paper',
           description: res.error || FAILURE_FALLBACK,
           variant: 'destructive',
         });
-        return;
       }
-
-      setPhase('working');
-      startedAtRef.current = Date.now();
-      stopPolling();
-      pollRef.current = setInterval(() => poll(res.requestId as string), POLL_INTERVAL_MS);
-      poll(res.requestId);
-    } catch (e) {
-      const message = (e as { response?: { data?: { error?: string } } })
-        ?.response?.data?.error;
-      toast({
-        title: 'Could not start your paper',
-        description: message || FAILURE_FALLBACK,
-        variant: 'destructive',
-      });
     } finally {
       setSubmitting(false);
     }
@@ -343,33 +268,30 @@ const AssessmentGeneratorPanel = ({ onPaperReady }: Props) => {
     );
   }
 
-  if (phase === 'working') {
+  if (phase === 'working' && currentJob) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-lg border py-16 text-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
         <h3 className="text-lg font-medium">Writing your paper</h3>
-        <p className="text-sm text-muted-foreground">
-          Grade {grade} · {subjects.find((s) => s.subject_key === subject)?.subject}
-          {chosenChapter ? ` · ${chosenChapter.chapter_title}` : ''}
-        </p>
+        <p className="text-sm text-muted-foreground">{currentJob.label}</p>
         <p className="max-w-sm text-xs text-muted-foreground">
-          This takes about a minute. You can leave this page — it will be in My papers
-          when it is done.
+          This takes about a minute. You can switch to My papers or leave this page; your paper keeps being made and will be waiting in My papers.
         </p>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <Button variant="outline" onClick={onGoToPapers}>Go to My papers</Button>
+          <Button variant="ghost" onClick={onMakeAnother}>Make another</Button>
+        </div>
       </div>
     );
   }
 
-  if (phase === 'ready') {
+  if (phase === 'ready' && currentJob) {
     return (
       <div className="flex flex-col items-center gap-4 rounded-lg border py-14 text-center">
         <FileText className="h-9 w-9 text-primary" aria-hidden="true" />
         <div>
           <h3 className="text-lg font-medium">Your paper is ready</h3>
-          <p className="text-sm text-muted-foreground">
-            Grade {grade} · {subjects.find((s) => s.subject_key === subject)?.subject}
-            {chosenChapter ? ` · ${chosenChapter.chapter_title}` : ''}
-          </p>
+          <p className="text-sm text-muted-foreground">{currentJob.label}</p>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-2">
           <Button onClick={() => openArtifact('paper')}>
@@ -380,7 +302,8 @@ const AssessmentGeneratorPanel = ({ onPaperReady }: Props) => {
             <KeyRound className="mr-2 h-4 w-4" aria-hidden="true" />
             Answer key
           </Button>
-          <Button variant="ghost" onClick={reset}>Make another</Button>
+          <Button variant="outline" onClick={onGoToPapers}>See in My papers</Button>
+          <Button variant="ghost" onClick={onMakeAnother}>Make another</Button>
         </div>
         <p className="text-xs text-muted-foreground">
           It stays in My papers, so you can download it again later.

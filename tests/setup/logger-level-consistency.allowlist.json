@@ -211,19 +211,7 @@
   },
   {
     "file": "bot/shared/routes/internal-api.routes.js",
-    "line": 51,
-    "snippet": "logToFile('❌ Internal API called but INTERNAL_API_KEY is not set — refusing', {",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/routes/internal-api.routes.js",
-    "line": 57,
-    "snippet": "logToFile('❌ Unauthorized internal API call', { path: req.path, ip: req.ip });",
-    "occurrence": 0
-  },
-  {
-    "file": "bot/shared/routes/internal-api.routes.js",
-    "line": 98,
+    "line": 77,
     "snippet": "logToFile('❌ Internal API failed to queue grounded LP', {",
     "occurrence": 0
   },

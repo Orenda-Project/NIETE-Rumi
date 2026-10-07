@@ -90,21 +90,23 @@ describe("Noise and rules", () => {
     click.mockRestore();
   });
 
-  it("a Quick check row: '5 Q' and the best score so far", async () => {
+  // bd-klecr.6 — no question count: the bank (5 here) is not the paper an attempt serves
+  // (NIETE asks one question per Bloom level), and the quiz says "1/3" itself.
+  it("a Quick check row: the best score so far, and no bank-size count", async () => {
     vi.mocked(api.get).mockImplementation(routes({
       "/training/module/m-4/attempts": { attempts: [{ id: "q1", completed_at: "2026-10-02T00:00:00Z", score: 3, max_score: 5, quiz_kind: "training_module" }] },
     }) as never);
     renderAt(PART);
     const row = await screen.findByTestId("training-quick-check");
-    await waitFor(() => expect(within(row).getByText("5 Q")).toBeInTheDocument());
     await waitFor(() => expect(within(row).getByText("3/5")).toBeInTheDocument());
+    expect(within(row).queryByText(/\d+ Q$/)).not.toBeInTheDocument();
+    expect(api.get).not.toHaveBeenCalledWith("/training/module/m-4/questions", expect.anything());
     expect(row).toHaveAttribute("href", "/portal/training/unit/m-4/quiz");
   });
 
   it("no 'Practice' chip: since bd-2450 only a pass completes the part", async () => {
     renderAt(PART);
-    const row = await screen.findByTestId("training-quick-check");
-    await waitFor(() => expect(within(row).getByText("5 Q")).toBeInTheDocument());
+    await screen.findByTestId("training-quick-check");
     expect(screen.queryByText("Practice")).not.toBeInTheDocument();
   });
 

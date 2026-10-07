@@ -53,7 +53,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'rea
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import {
-  GraduationCap, CheckCircle2, Circle, Loader2, Lock, Award, ClipboardCheck,
+  GraduationCap, Check, CheckCircle2, Circle, Loader2, Lock, Award, ClipboardCheck,
   Building2, FileText, ChevronLeft, ChevronRight, Clock, PlayCircle,
 } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
@@ -1347,136 +1347,172 @@ const PortalTrainingV2 = () => {
             )}
 
             {/* bd-klecr — the COURSE page: its modules, its exam and its
-                readings. A module opens on the unit page. */}
+                readings. A module opens on the unit page.
+
+                bd-klecr.5 — the modules are CARDS, like the provider, level
+                and course cards one step up (operator, 2026-10-06, design
+                option A). A module's own assessment is a line INSIDE its card
+                (bd-60149 made it a second row; both rows opened the same unit,
+                and the second row cut long titles short on a phone). The lock
+                is still the bot's (bd-vej4h, unitRowState): a locked card is
+                disabled and says in words which module opens it, because the
+                hover hint never reached a phone.
+
+                Operator, 2026-10-06 (design option 1): a done card stays
+                WHITE, with a small green "Completed" badge; the green-filled
+                card turned the whole page green once most modules were done.
+                The very first module never says "Up next": nothing is behind
+                it, so "next" says nothing (its outline still marks the start). */}
             {screenKind === 'course' && (
-              <div className="rounded-2xl border bg-card p-2 shadow-sm mb-8" data-testid="module-list">
-                  <div className="px-4 pt-3 pb-2 flex items-baseline justify-between gap-3">
-                    <span className="text-xs font-bold tracking-wider text-muted-foreground truncate">
-                      MODULES
+              <section className="mb-8" data-testid="module-list">
+                <div className="flex items-baseline justify-between mb-3 gap-3">
+                  <h2 className="text-base font-semibold text-foreground">Modules</h2>
+                  {selectedCourseObj && (
+                    <span className="text-sm text-muted-foreground shrink-0">
+                      {selectedCourseObj.completed_count} of {selectedCourseObj.module_count} complete
                     </span>
-                    {selectedCourseObj && (
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        {selectedCourseObj.completed_count} of {selectedCourseObj.module_count} complete
-                      </span>
-                    )}
-                  </div>
-
-                  {loadingModules && (
-                    <div className="p-3"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div>
                   )}
-
-                  {/* The third distinct outcome: a real answer that is empty. */}
-                  {!loadingModules && selectedCourse && modules.length === 0 && (
-                    <p className="px-3.5 pb-3 text-sm text-muted-foreground" data-testid="training-empty-modules">
-                      {EMPTY_MODULES_MESSAGE}
-                    </p>
-                  )}
-
-                  {modules.map(m => {
-                    const active = m.id === selectedModule;
-                    const attempts = attemptsByModule[m.id];
-                    const loading = m.id in attemptsByModule && attempts === null;
-                    // The unit's own formative assessment is a separate row —
-                    // but only when the unit actually has one.
-                    const scored = (attempts || []).some(a => a.completed_at);
-                    // bd-vej4h — the bot's lock for this unit. A locked unit is
-                    // disabled here so the refusal is visible before the tap;
-                    // the server refuses it regardless.
-                    const row = unitRowState(m);
-                    return (
-                    <Fragment key={m.id}>
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => { if (!row.disabled) openUnit(m.id); }}
-                        disabled={row.disabled}
-                        title={row.hint || undefined}
-                        data-testid={`module-item-${m.id}`}
-                        data-done={m.completed_at ? 'true' : 'false'}
-                        data-lock={m.lock || undefined}
-                        aria-pressed={active}
-                        className={`w-full text-left rounded-lg px-3.5 py-2.5 mb-0.5 flex items-center gap-3 transition-colors ${
-                          row.disabled ? 'opacity-60 cursor-not-allowed' : active ? 'bg-accent/10 ring-1 ring-accent/30' : 'hover:bg-muted/50'
-                        }`}
-                      >
-                        {m.completed_at
-                          ? <CheckCircle2 className="w-4 h-4 text-accent shrink-0" />
-                          : row.disabled
-                            ? <Lock className="w-4 h-4 text-muted-foreground shrink-0" aria-label="Locked" />
-                            : <Circle className="w-4 h-4 text-muted-foreground shrink-0" />}
-                        <span className={`flex-1 text-[15px] truncate ${active ? 'font-semibold' : ''} text-foreground`}>
-                          {m.title}
-                        </span>
-                        {m.duration_seconds > 0 && (
-                          <span className="text-sm text-muted-foreground shrink-0">
-                            {formatDuration(m.duration_seconds)}
-                          </span>
-                        )}
-                        <QuizScoreBadge
-                          attempts={attempts ?? null}
-                          moduleCompleted={!!m.completed_at}
-                          loading={loading}
-                        />
-                      </button>
-                      {m.has_questions && !row.disabled && (
-                        <button
-                          type="button"
-                          onClick={() => openUnit(m.id)}
-                          data-testid={`module-assessment-${m.id}`}
-                          className={`w-full text-left rounded-lg pl-9 pr-3.5 py-2 mb-0.5 flex items-center gap-3 transition-colors ${
-                            active ? 'bg-accent/5' : 'hover:bg-muted/50'
-                          }`}
-                        >
-                          {scored
-                            ? <CheckCircle2 className="w-3.5 h-3.5 text-accent shrink-0" />
-                            : <Circle className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
-                          <span className="flex-1 text-sm truncate text-muted-foreground">
-                            {m.title} — Assessment
-                          </span>
-                        </button>
-                      )}
-                    </Fragment>
-                    );
-                  })}
-                  {/* bd-60149 — the I-SAPS reading of this list.
-                      A unit and its own formative assessment are two separate
-                      things a teacher does in order, so they are two rows:
-                      "Unit 301" then "Unit 301 — Assessment". The assessment
-                      row is CONDITIONAL — 2 of the level's 54 units carry no
-                      questions at all, and a row for them would promise work
-                      that does not exist. Selecting either row opens the same
-                      unit; the detail card already holds the quiz. */}
-
-                  {/* bd-60149 — the module's summative exam, as the row AFTER
-                      its units, which is where a teacher looks for it. It was
-                      first built inside a unit's detail card, so walking from
-                      the last unit of one module to the first of the next
-                      never showed it at all. Renders nothing unless this
-                      course has an exam. */}
-                  {selectedCourse && moduleExam && (
-                    <ModuleExamPanel
-                      key={`exam-${selectedCourse}`}
-                      courseId={String(selectedCourse)}
-                      exam={moduleExam}
-                      asListRow
-                      onOpen={() => openExam(String(selectedCourse))}
-                      onPassed={() => {
-                        if (!selectedCourse) return;
-                        setCertTick(t => t + 1);
-                        api.get('/training/modules', { params: { course_id: selectedCourse } })
-                          .then(({ data }) => {
-                            setModules(data.modules || []);
-                            setModuleExam(data.exam || null);
-                          })
-                          .catch(() => { /* the pass is recorded server-side either way */ });
-                      }}
-                    />
-                  )}
-
-                  {/* I-SAPS recommended reading (operator, 2026-09-23) — after
-                      the exam, collapsed by default, gates nothing. */}
-                  {selectedCourse && <ModuleReadings readings={moduleReadings} />}
                 </div>
+
+                {loadingModules && (
+                  <div className="p-3"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div>
+                )}
+
+                {/* The third distinct outcome: a real answer that is empty. */}
+                {!loadingModules && selectedCourse && modules.length === 0 && (
+                  <p className="text-sm text-muted-foreground" data-testid="training-empty-modules">
+                    {EMPTY_MODULES_MESSAGE}
+                  </p>
+                )}
+
+                {modules.length > 0 && (() => {
+                  const bar = (selectedVendor && VENDOR_BRAND[selectedVendor]?.tint) || '#47ba7d';
+                  // Up next: the first module neither done nor locked.
+                  const nextId = modules.find(m => !m.completed_at && !unitRowState(m).disabled)?.id;
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" data-testid="module-grid">
+                      {modules.map((m, i) => {
+                        const active = m.id === selectedModule;
+                        const attempts = attemptsByModule[m.id];
+                        const loading = m.id in attemptsByModule && attempts === null;
+                        const row = unitRowState(m);
+                        const done = !!m.completed_at;
+                        const isNext = !row.disabled && m.id === nextId;
+                        const showNextTag = isNext && i > 0;
+                        const highlight = active || isNext;
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => { if (!row.disabled) openUnit(m.id); }}
+                            disabled={row.disabled}
+                            title={row.hint || undefined}
+                            data-testid={`module-item-${m.id}`}
+                            data-done={done ? 'true' : 'false'}
+                            data-next={isNext ? 'true' : undefined}
+                            data-lock={m.lock || undefined}
+                            aria-pressed={active}
+                            className={`text-left rounded-xl border p-5 flex flex-col gap-2 transition-all ${
+                              row.disabled
+                                ? 'border-dashed border-border bg-muted/40 cursor-not-allowed'
+                                : 'border-border bg-card shadow-sm hover:shadow-md hover:-translate-y-0.5'
+                            }`}
+                            style={highlight && !done ? { borderColor: bar, boxShadow: `0 0 0 1px ${bar}` } : undefined}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-bold tracking-wider text-muted-foreground">
+                                MODULE {i + 1}
+                              </span>
+                              {done
+                                ? (
+                                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-green-700 shrink-0" data-testid="module-done-badge">
+                                    <span className="w-5 h-5 rounded-full bg-green-700 text-white inline-flex items-center justify-center">
+                                      <Check className="w-3 h-3" strokeWidth={3.5} />
+                                    </span>
+                                    Completed
+                                  </span>
+                                )
+                                : row.disabled
+                                  ? <Lock className="w-4 h-4 text-muted-foreground shrink-0" aria-label="Locked" />
+                                  : showNextTag
+                                    ? (
+                                      <span
+                                        className="text-xs font-semibold text-white rounded-full px-2 py-0.5 shrink-0"
+                                        style={{ backgroundColor: bar }}
+                                      >
+                                        Up next
+                                      </span>
+                                    )
+                                    : null}
+                            </div>
+
+                            <div className={`text-base font-semibold ${row.disabled ? 'text-muted-foreground' : 'text-foreground'}`}>
+                              {m.title}
+                            </div>
+
+                            {row.disabled ? (
+                              <div className="mt-auto pt-3 border-t flex items-center gap-2 text-sm text-muted-foreground">
+                                <Lock className="w-3.5 h-3.5 shrink-0" />
+                                {i > 0 ? `Finish Module ${i} first` : row.hint}
+                              </div>
+                            ) : (m.duration_seconds > 0 || m.has_questions) ? (
+                              <div className="mt-auto pt-3 border-t flex items-center justify-between gap-2 text-sm">
+                                {m.duration_seconds > 0 ? (
+                                  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                                    <Clock className="w-3.5 h-3.5" />
+                                    {formatDuration(m.duration_seconds)}
+                                  </span>
+                                ) : <span />}
+                                {m.has_questions && (
+                                  <span
+                                    className="inline-flex items-center gap-1.5 text-muted-foreground"
+                                    data-testid={`module-assessment-${m.id}`}
+                                  >
+                                    Quiz
+                                    {/* Never a bare dash on a card: no attempt reads "Not attempted". */}
+                                    <QuizScoreBadge attempts={attempts ?? null} moduleCompleted loading={loading} />
+                                  </span>
+                                )}
+                              </div>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+                {/* bd-60149 — the module's summative exam, AFTER its units,
+                    which is where a teacher looks for it; then the I-SAPS
+                    recommended reading (operator, 2026-09-23), collapsed by
+                    default, gating nothing. Both sit in one card under the
+                    module cards, like the level page's certificate row.
+                    Renders nothing when the course has neither. */}
+                {selectedCourse && (moduleExam || moduleReadings?.available?.length || moduleReadings?.unavailable?.length) ? (
+                  <div className="mt-4 rounded-2xl border bg-card p-2 shadow-sm" data-testid="module-extras">
+                    {moduleExam && (
+                      <ModuleExamPanel
+                        key={`exam-${selectedCourse}`}
+                        courseId={String(selectedCourse)}
+                        exam={moduleExam}
+                        asListRow
+                        onOpen={() => openExam(String(selectedCourse))}
+                        onPassed={() => {
+                          if (!selectedCourse) return;
+                          setCertTick(t => t + 1);
+                          api.get('/training/modules', { params: { course_id: selectedCourse } })
+                            .then(({ data }) => {
+                              setModules(data.modules || []);
+                              setModuleExam(data.exam || null);
+                            })
+                            .catch(() => { /* the pass is recorded server-side either way */ });
+                        }}
+                      />
+                    )}
+                    <ModuleReadings readings={moduleReadings} />
+                  </div>
+                ) : null}
+              </section>
             )}
 
             {/* ── The open module ──────────────────────────────────────── */}
