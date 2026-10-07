@@ -36,7 +36,9 @@ const SIG_LEN = 22;
 const LINK_TTL_S = 24 * 60 * 60;
 const KIND = 't';
 const DEFAULT_AREA = 'training';
-const AREAS = Object.freeze(['training', 'lessons']);
+// 'probe' is not a portal area: it opens only the phone test page (/iab/<token>,
+// dashboard/routes/iab-probe.routes.js), and /t refuses it.
+const AREAS = Object.freeze(['training', 'lessons', 'probe']);
 
 function secret() {
   const own = process.env.WEB_TRAINING_TOKEN_SECRET;
