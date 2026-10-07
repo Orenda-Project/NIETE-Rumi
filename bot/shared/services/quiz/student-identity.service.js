@@ -79,6 +79,19 @@ async function findByPhone(phone) {
 }
 
 /**
+ * The door (student-ingress) caches "who holds this handset" for minutes. A
+ * child we have just remembered must not wait that out as an "unknown" — their
+ * /quiz would be routed as a teacher's. Required lazily: the door requires the
+ * quiz modules. Never throws.
+ */
+async function forgetDoorVerdict(...phones) {
+  try {
+    const { forget } = require('../student-ingress');
+    await Promise.all([...new Set(phones.filter(Boolean).map(String))].map((p) => forget(p)));
+  } catch (_) { /* a stale verdict expires on its own */ }
+}
+
+/**
  * Remember a child we have not met before.
  *
  * `list_id` is deliberately left unset: this child reached us through a quiz
@@ -106,6 +119,7 @@ async function remember({ phone, name, className, enrolledByUserId = null }) {
       return null;
     }
     logEvent('video_quiz.student_remembered', { studentId: data.id });
+    await forgetDoorVerdict(phone, key);
     return data;
   } catch (err) {
     logToFile('⚠️ remember student threw', { error: err.message });
