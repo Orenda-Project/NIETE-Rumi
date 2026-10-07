@@ -1169,3 +1169,9 @@ Feature: Web child quiz page on the portal
     When a child opens the teacher's quiz page or reads the forwarded quiz message
     Then the teacher is named "Teacher Kamran" («استاد رفعت», «استاد کامران»), never "Teacher Mr Kamran"
     And a name that only begins with the same letters, like "Mrinal", is left as it is
+  @T594
+  Scenario: With the hub door, a class child's card opens on the score, the name notice, "Share to class group" and the door
+    Given the hub door is switched on and a class child finishes a teacher's quiz on a 360x740 phone, in English or Urdu
+    Then the first screen shows the score card, "Only your first name goes on the card", "Share to class group", then "My quizzes, videos and challenges"
+    And the practice note and the place-in-class note come right after the door, and a long topic shows on one line on the card
+    But a video quiz card keeps "Next in this chapter" and "Watch another video" first, and with the door switched off the card is unchanged
