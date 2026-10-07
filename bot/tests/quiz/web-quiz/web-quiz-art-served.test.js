@@ -217,3 +217,38 @@ describe("a card's facts are fetched together, not one after another", () => {
     expect(peak).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe('a drawn picture is handed out before its copy reaches R2', () => {
+  // Storing the drawn picture in R2 took ~1 s on sandbox, and the picture (and everyone waiting on it, like a
+  // link preview) waited for that. R2 is only the cache for the next process; it now fills in the background.
+  test('the picture arrives while the R2 upload is still running, and the upload still happens', async () => {
+    let uploaded = false; let finishUpload;
+    const held = new Promise((r) => { finishUpload = r; });
+    S3.__send.mockImplementation(async (c) => {
+      if (c.type === 'head') throw notFound('NotFound');
+      if (c.type === 'get') throw notFound('NoSuchKey');
+      if (c.type === 'put') { await held; uploaded = true; }
+      return {};
+    });
+    const out = await Promise.race([
+      Art.artImage(Art.artId('c', SID), { size: 'og' }),
+      new Promise((r) => setTimeout(() => r('timeout'), 1500)),
+    ]);
+    expect(out).not.toBe('timeout');
+    expect(out.contentType).toBe('image/jpeg');
+    expect(uploaded).toBe(false);
+    finishUpload();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(uploaded).toBe(true);
+  });
+
+  test('an upload that fails is a warning, never a failed picture', async () => {
+    S3.__send.mockImplementation(async (c) => {
+      if (c.type === 'head') throw notFound('NotFound');
+      if (c.type === 'get') throw notFound('NoSuchKey');
+      if (c.type === 'put') throw Object.assign(new Error('boom'), { name: 'InternalError', $metadata: { httpStatusCode: 500 } });
+      return {};
+    });
+    await expect(Art.artImage(Art.artId('c', SID), { size: 'og' })).resolves.toMatchObject({ contentType: 'image/jpeg' });
+  });
+});
