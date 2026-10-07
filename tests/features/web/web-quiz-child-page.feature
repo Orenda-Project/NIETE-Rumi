@@ -1082,3 +1082,16 @@ Feature: Web child quiz page on the portal
     When the scorecard appears and the child taps "Share to class group" or "Challenge a friend" straight away
     Then the card and invite pictures were already drawn when the quiz finished, so the link preview shows the picture
     And the finish itself is never slower for it, and a picture that cannot be drawn never stops the scorecard
+  Scenario: The hub door is on the first screen of the card, and a forwarded door link says how to get your own
+    Given the hub door is switched on and a class child has just finished a quiz on a 360x740 phone
+    Then "My quizzes, videos and challenges" is the second action, right under "Share to class group", with no scrolling, in English and in Urdu
+    And the stars of a 7-question score stay on one row
+    When the same hub link is opened on another phone
+    Then the lock screen says to finish your own quiz and tap "My quizzes, videos and challenges", and also how to get a new link with /quiz
+
+  @T571
+  Scenario: A teacher whose stored name already carries a title is named once, without the title
+    Given a teacher stored as "Mr Kamran" (or «استانی رفعت», or «کامران صاحب»)
+    When a child opens the teacher's quiz page or reads the forwarded quiz message
+    Then the teacher is named "Teacher Kamran" («استاد رفعت», «استاد کامران»), never "Teacher Mr Kamran"
+    And a name that only begins with the same letters, like "Mrinal", is left as it is
