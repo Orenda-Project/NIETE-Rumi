@@ -52,6 +52,7 @@ const { htmlToImage } = require('../../../shared/utils/html-to-pdf');
 const WQ = require('../../../shared/services/quiz/web-quiz.service');
 const Og = require('../../../shared/services/quiz/web-quiz-og');
 const Art = require('../../../shared/services/quiz/web-quiz-art');
+const { logEvent } = require('../../../shared/utils/structured-logger');
 
 const TEACHER = '11111111-1111-4111-8111-111111111111';
 const QUIZ = '22222222-2222-4222-8222-222222222222';
@@ -140,6 +141,10 @@ beforeEach(() => {
   htmlToImage.mockImplementation(async (html, o) => { await gate; return draw(o); });
 });
 
+// Every finish leaves draws running after its answer: they end inside their own test, never log into the next one
+// (the class picture's id is the same in every test).
+afterEach(async () => { release(); await new Promise((r) => setTimeout(r, 100)); });
+
 async function play() {
   const s = await WQ.startSession({ code: 'AB12CD', new: { name: 'Amal Testwala', force: true } });
   await WQ.recordAnswers({ st: s.st, a: [1, 2, 3, 4].map((n) => ({ qid: qid(n), slot: 'B', ms: 2000, seq: n })) });
@@ -158,7 +163,8 @@ test('the finish answers at once, then the card and invite pictures are drawn an
   // answered while the renderer was still held: at most the two allowed draws have started, none has finished
   expect(htmlToImage.mock.calls.length).toBeLessThanOrEqual(2);
   release();
-  expect(await until(() => htmlToImage.mock.calls.length >= 2)).toBe(true);
+  // card + invite, then the class table's picture
+  expect(await until(() => htmlToImage.mock.calls.length >= 3)).toBe(true);
   expect(await until(() => Boolean(Og.get(out.challenge_code)))).toBe(true);
   // the scorecard's own fetch of the card is now a memory hit: no new draw
   const before = htmlToImage.mock.calls.length;
@@ -191,5 +197,64 @@ test("the challenge code's preview facts are learned while the pictures are stil
   expect(await until(() => Boolean(Og.get(out.challenge_code)), 2000)).toBe(true);
   expect(htmlToImage.mock.calls.length).toBeLessThanOrEqual(2);
   release();
-  expect(await until(() => htmlToImage.mock.calls.length >= 2)).toBe(true);
+  expect(await until(() => htmlToImage.mock.calls.length >= 3)).toBe(true);
+});
+
+// The class-table share sends /q/<CODE>/class, whose preview picture is the CLASS one (nobody named): the id the
+// quiz payload's art.class carries. Nothing drew it at the finish, so the first preview of a table link waited
+// 2.4-3.2 s for a draw unless that exact picture had been fetched in the last two minutes.
+describe.each([['en'], ['ur']])('the class-table preview picture (%s)', (lang) => {
+  test('is drawn after the finish answer, so the link preview finds it ready', async () => {
+    fake.db.quiz_share_codes[0].language = lang;
+    fake.db.quizzes[0].language = lang;
+    const s = await play();
+    const r = await fetch(`${base}/finish`, { method: 'POST', headers: KEY, body: JSON.stringify({ st: s.st }) });
+    expect(r.status).toBe(200);
+    // the picture the shared table link previews as: the one the page boot names (getQuiz -> art.class)
+    const tableId = (await WQ.getQuiz('AB12CD')).art.class;
+    expect(tableId).toMatch(/^l\./);
+    release();
+    const drawnClass = () => logEvent.mock.calls.some(([e, p]) => e === 'web_quiz.art_served' && p.kind === 'class' && p.from === 'drawn');
+    expect(await until(drawnClass, 3000)).toBe(true);
+    // WhatsApp's fetch of that picture is now a memory hit: no new draw
+    const before = htmlToImage.mock.calls.length;
+    const pic = await Art.artImage(tableId, { size: 'og' });
+    expect(pic.bytes.length).toBeGreaterThan(0);
+    expect(htmlToImage.mock.calls.length).toBe(before);
+    const last = logEvent.mock.calls.filter(([e]) => e === 'web_quiz.art_served').pop();
+    expect(last[1]).toEqual(expect.objectContaining({ kind: 'class', from: 'mem' }));
+  });
+});
+
+test("a friend's challenge finish draws no class picture (the friend is kept away from the class table)", async () => {
+  const s = await play();
+  const first = await (await fetch(`${base}/finish`, { method: 'POST', headers: KEY, body: JSON.stringify({ st: s.st }) })).json();
+  const f = await WQ.startSession({ code: first.challenge_code, new: { name: 'Rida Example', force: true } });
+  await WQ.recordAnswers({ st: f.st, a: [1, 2, 3, 4].map((n) => ({ qid: qid(n), slot: 'B', ms: 2000, seq: n })) });
+  const out = await (await fetch(`${base}/finish`, { method: 'POST', headers: KEY, body: JSON.stringify({ st: f.st }) })).json();
+  expect(out.art.table == null).toBe(true);
+  expect(out.art.class == null).toBe(true);
+  // let the first finish's draws end here, not inside the next test
+  release();
+  expect(await until(() => htmlToImage.mock.calls.length >= 3)).toBe(true);
+});
+
+// Measured on sandbox after the first version: the table picture started only once the card AND the invite were done,
+// and the invite's R2 read alone took 2-2.5 s, so the table was ready 3.3 s after the answer. It starts alongside them.
+test("the class-table picture does not wait for the invite's R2 read", async () => {
+  const r2 = require('../../../shared/storage/r2');
+  let openR2; const r2Gate = new Promise((r) => { openR2 = r; });
+  r2.headObject.mockImplementation(async () => { await r2Gate; return { exists: false }; });
+  try {
+    const s = await play();
+    const r = await fetch(`${base}/finish`, { method: 'POST', headers: KEY, body: JSON.stringify({ st: s.st }) });
+    expect(r.status).toBe(200);
+    release();
+    const drawnClass = () => logEvent.mock.calls.some(([e, p]) => e === 'web_quiz.art_served' && p.kind === 'class' && p.from === 'drawn');
+    expect(await until(drawnClass, 2000)).toBe(true);
+  } finally {
+    openR2();
+    await new Promise((x) => setTimeout(x, 50));
+    r2.headObject.mockImplementation(async () => ({ exists: false }));
+  }
 });
