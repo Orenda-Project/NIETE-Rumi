@@ -16,7 +16,7 @@
  *   hubLink(studentIds)    `<portal>/h/<token>` when the hub is on, else null
  *   kidOf(token, kid)      the student id a hub chip names
  *   kidFromHub(token, kid, device) {studentId, grade, rootId} for the library route (null on an untrusted phone)
- *   deviceTrusted(token, device)  may this phone (device_ref) see the children's names?
+ *   deviceTrusted(token, device)  which of the children may this phone (device_ref) see? {ok, why, ids}
  *
  * A FORWARDED LINK NAMES NOBODY. The hub token is bound to the first phone (device_ref)
  * that opens it — Redis SET NX for the token's life — and a phone that has already played
@@ -199,7 +199,8 @@ async function kidFromHub(token, chip, device) {
   const studentId = kidOf(token, chip);
   if (!studentId) return null;
   // A forwarded link opens nothing as the child on another phone.
-  if (!(await deviceTrusted(token, device)).ok) return null;
+  const trust = await deviceTrusted(token, device);
+  if (!trust.ok || !trust.ids.includes(studentId)) return null;
   const ctx = await kidContext(studentId);
   if (!ctx) return null;
   const root = ctx.history.find((e) => e.teacherSent) || null;
@@ -256,10 +257,12 @@ async function hub(token, { kid, device } = {}) {
   if (!f.hub) fail(503, 'web_quiz_off');
   const trust = await deviceTrusted(token, device);
   if (!trust.ok) return lockedHub(ids, trust.why);
+  // Only the children this phone is trusted for: all of them on the bound phone, else the ones it played as.
+  const mine = ids.filter((id) => trust.ids.includes(id));
 
   const { data: rows } = await supabase.from('students')
-    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', ids);
-  const kidsRows = ids.map((id) => (rows || []).find((r) => r.id === id)).filter((r) => r && r.is_active !== false);
+    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', mine);
+  const kidsRows = mine.map((id) => (rows || []).find((r) => r.id === id)).filter((r) => r && r.is_active !== false);
   const { data: lists } = kidsRows.some((r) => r.list_id)
     ? await supabase.from('student_lists').select('id, user_id, class_name, section').in('id', kidsRows.map((r) => r.list_id).filter(Boolean))
     : { data: [] };

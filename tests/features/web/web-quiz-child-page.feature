@@ -987,3 +987,19 @@ Feature: Web child quiz page on the portal
     And it reads "This link was sent to another player" and "Ask the child this link was sent to to open it." (in Urdu «یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا»)
     And it adds "Is this your link? Send /quiz on WhatsApp again for a new one." so a family locked out on its own phone can get a new link
     And there is no "Try again", only "Back" to the hub
+  @T545
+  Scenario: A hub quiz link plays as the child on the family phone even for a teacher with many players
+    Given a teacher whose quizzes more than 40 children have played since this child last played
+    And the family phone opened the child's /quiz hub link
+    When the child taps "Play again" or the teacher's quiz on the hub
+    Then the quiz starts as that child, with no "Which class are you in?" and no name to pick
+    And the same quiz link opened on another phone names nobody and asks who is playing
+
+  @T546
+  Scenario: A shared phone that one sibling played on sees only that sibling from the family's hub link
+    Given a family's /quiz hub link for two siblings was opened first on the family's phone
+    And one of the siblings once played a quiz on a class phone
+    When the family's link is opened on that class phone
+    Then it lists only the sibling who played there, never the other one
+    And the other sibling's hub, library and challenge do not open on that phone
+

@@ -139,9 +139,9 @@ async function entryOf(token, kid, device) {
       if (!hit) fail(401, 'bad_token');
     } else if (ids.length > 1) fail(400, 'pick_kid');
     // A forwarded hub link opens nothing as the child: only the phone the link is bound to
-    // (or one the child played on) gets their results or a run (web-quiz-hub deviceTrusted).
+    // (or one THIS child played on) gets their results or a run (web-quiz-hub-device deviceTrusted).
     const trust = await require('./web-quiz-hub-device').deviceTrusted(token, device);
-    if (!trust.ok) fail(403, 'other_device');
+    if (!trust.ok || !trust.ids.includes(String(hit))) fail(403, 'other_device');
     return { studentId: hit, via: 'hub' };
   }
   const s = T.verify(token, 's');
