@@ -851,6 +851,7 @@ Feature: Web child quiz page on the portal
     Then that child's hub is in that child's language: the greeting, the cards, "Switch player" and the challenge tile
     And the page direction follows it (right to left for Urdu, left to right for English)
     And the library and challenge open in that child's language
+    And before a name is picked, "Who is playing?" stays in the language the link opened in
 
   @T302
   Scenario: The hub shows the newest quiz from the child's teacher, or a warm empty state
