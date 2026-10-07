@@ -3,19 +3,16 @@ import { CalendarDays, Check, Eye, GraduationCap, School } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { coach } from "../../services/api";
 import { COACH_COPY as C } from "../copy";
-import { hoursUntil } from "../time";
-import { CoachPage, PageChip, SectionLabel, Chip, IconCircle, TimeTile, RowText, TapRow, Chevron, Loading, Failed, useLoad } from "../ui";
+import { fullDate, hoursUntil } from "../time";
+import { CoachPage, SectionLabel, Chip, IconCircle, TimeTile, RowText, TapRow, Chevron, Loading, Failed, useLoad } from "../ui";
 import type { CoachVisit } from "../types";
 
 /**
  * bd-o15qnr — v2 Home (v18 Main): today's visits, the current one expanded with
  * one "Take observation" button (which opens its Visit page, where Record live
- * or Attach is chosen); then one big tile per feature.
+ * or Attach is chosen); then one big tile per feature. bd-o15qnr.18: the full
+ * date under the greeting ("Wednesday, 7th October"), no pills.
  */
-
-function todayChip() {
-  return new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-}
 
 function CurrentVisit({ v }: { v: CoachVisit }) {
   const h = hoursUntil(v.scheduledSlot);
@@ -57,7 +54,7 @@ const CoachHome = () => {
   const home = data?.home;
 
   return (
-    <CoachPage title={C.greeting(user?.firstName)} chips={<><PageChip><CalendarDays className="h-4 w-4" aria-hidden="true" />{todayChip()}</PageChip><PageChip>{C.coachChip}</PageChip></>}>
+    <CoachPage title={C.greeting(user?.firstName)} subtitle={fullDate()}>
       <SectionLabel count={<span data-testid="todays-visits">{home ? home.today.length : 0}</span>}>{C.todaysVisits}</SectionLabel>
       {failed && <Failed onRetry={reload} />}
       {!home && !failed && <Loading />}
