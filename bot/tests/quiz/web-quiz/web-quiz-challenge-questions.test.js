@@ -259,6 +259,26 @@ describe('answering: the key stays on the server', () => {
   });
 });
 
+describe('an answer given before the reading\'s own result call is kept', () => {
+  test('live: the child answers q1 while the recording is still uploading; the result call then keeps meta.comp', async () => {
+    db.app_settings.push(QA);
+    db.app_settings.push({ key: 'web_quiz_challenge_realtime', value: true });
+    global.fetch = jest.fn(async () => ({ ok: true, status: 200, json: async () => ({ api_key: 'temp:k-test-only', expires_at: 'x' }) }));
+    process.env.SONIOX_API_KEY = 'main-test-only';
+    const ct = await readCt('en');
+    await Ch.liveKey({ ct });
+    const qs = (await Ch.questions({ ct, attempted: 60 })).questions;
+    await Ch.answer({ ct, q: qs[0].id, pick: 0 });
+    const { key } = await Ch.presignUpload({ ct, type: 'audio/webm', size: 500000 });
+    r2.downloadFromR2.mockResolvedValue(Buffer.from('not audio'));
+    await Ch.submit({ ct, key, ms: 30000, lang: 'en', live: { correct: 60, attempted: 60, secs: 30 } }, { waitMs: 0 });
+    const row = db.web_quiz_challenge_runs.find((r) => r.id === runIdOf(ct));
+    expect(row.meta.comp).toMatchObject({ asked: 1 });
+    expect(row.meta.live).toEqual({ correct: 60, attempted: 60, secs: 30, v: 1 });
+    delete global.fetch;
+  });
+});
+
 describe('a question is read aloud by the mascot in the quiz voice (recorded once per environment)', () => {
   test('each question carries its prompt clip (absent the first time, recorded in the background)', async () => {
     db.app_settings.push(QA);
