@@ -1394,6 +1394,22 @@ editing an ayah. Cost: about 0.4 MB more base64 on a page that carries Urdu, and
 Test: `tests/lp612/quranic-annotation-marks.test.js` (cmap coverage plus a real-Chromium
 `getPlatformFontsForNode` check). Upstream embeds Nastaliq alone, so keep this at the next re-sync.
 
+### 3.34 Surah names, Makki/Madani examples, inheritance — `lib/religious_facts.js`, `lint_lp.js` `religiousMarks` check 0, briefs §4c.11 (2026-10-07)
+
+Amena ruled three errors on the G11 Islamiat ch2 pp10-12 plan (bd-nnd27p): «سورۃ طٰسٓمٓ» used as
+a surah name, Al-Ma'idah credited with the inheritance rulings, and سورۃ الانعام given as a Madani
+example in the H4 answer key. The third is printed by the textbook itself (G11 Islamiat p.11 lists
+الانعام and الاعراف as Madani), so the model was copying the book faithfully. `lib/religious_facts.js`
+(new, pure) checks all three, and `religiousMarks` fails each under `RELIGIOUS_MARKS`, so it is in
+`NEVER_DELIVER_CODES` with no change to the author service: the ladder re-authors and never ships it.
+Check 0 runs BEFORE the detection gate, because a plan that cites a surah is religious content even
+without a ﷺ or a قرآن. It stays silent when unsure. A disputed surah (13, 22, 55, 64, 76, 83, 98, 99,
+112-114) is never judged. Neither is a clause that names both kinds, negates or makes an exception
+(«…کے علاوہ»), nor a surah with no مکی/مدنی label next to سورت/سورۃ/آیات in its clause, block or the
+question an answer key answers. A sweep of all 954 Islamiat page truths (215 surah citations) flags
+only the two p.11 book errors. The briefs' §4c gains rule 11, so round one does not copy the book.
+Test: `tests/lp612/religious-facts.test.js`. Upstream has none of this, so keep it at the next re-sync.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of

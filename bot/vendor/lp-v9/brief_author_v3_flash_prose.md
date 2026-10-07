@@ -1485,7 +1485,9 @@ another subject (a سیرت chapter in an Urdu book, for instance).
 > **`RELIGIOUS_MARKS` now enforces the mechanical half of this section, and only that half.**
 > It blocks on: a mention of the Prophet with no `ﷺ` after it · a sacred name or honorific written
 > in Latin script (`Allah`, `Muhammad`, `PBUH`, `RA`) · quoted prophetic speech with no hadith or printed page behind it · and
-> religious content that does not set `needs_human_review`. It warns on a religious quotation with
+> religious content that does not set `needs_human_review` · and (bd-nnd27p) a surah named by its
+> disjoint letters, a Makki surah given as a Madani example or the reverse, or inheritance credited
+> to Al-Ma'idah — rule 11. It warns on a religious quotation with
 > no source in the same string.
 >
 > **A green build is NOT clearance.** The native-speaker review stays a hard hold before any
@@ -1526,6 +1528,14 @@ another subject (a سیرت chapter in an Urdu book, for instance).
 10. The `dua` page-truth block sometimes arrives with an empty `text` (the OCR could not carry the
     script). **Do not invent its contents.** Refer to it as "the آیت printed on p.N" and note it in
     `notes.gaps`.
+11. **Name and classify surahs correctly — even where the page prints it wrong** (bd-nnd27p, Amena
+    ruling 2026-10-07). G11 Islamiat p.11 gives سورۃ الانعام and سورۃ الاعراف as Madani examples;
+    both are Makki. (a) Never use حروفِ مقطعات as a name: «سورۃ طٰسٓمٓ» is wrong — طٰسٓمٓ opens
+    الشعراء and القصص. The surahs actually named by letters (طٰہٰ، یٰسٓ، صٓ، قٓ) are fine.
+    (b) A Makki/Madani example must be an undisputed one: Madani — البقرہ، آل عمران، النساء،
+    الانفال; Makki — العصر، الکوثر، المزمل، الانعام. (c) Inheritance shares are سورۃ النساء
+    (4:11-12, 4:176), not المائدہ; Al-Ma'idah's own rulings include wudu (5:6) and halal/haram food
+    (5:3-5). Where the book's example is wrong, use a correct one and record it in `notes.gaps`.
 
 ---
 ---
