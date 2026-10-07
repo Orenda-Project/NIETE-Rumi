@@ -33,6 +33,7 @@ function getSharp() {
 const supabase = require('../../config/supabase');
 const r2 = require('../../storage/r2');
 const { logToFile } = require('../../utils/logger');
+const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const WebQuizBrand = require('../../config/web-quiz-brand');
 const { orgName, botName } = require('../../config/branding');
@@ -48,6 +49,10 @@ const CODE_RX = /^[A-Z0-9]{4,12}$/;
 const KIND_OF = { c: 'card', i: 'invite', l: 'class', s: 'school' };
 
 const mem = new Map();
+// A picture id seen before -> its drawn key, so a repeat (the link preview after the scorecard warmed it) skips
+// the facts' database reads. A card or invite never changes; a class or school picture moves as children play.
+const byId = new Map();
+const BY_ID_MS = { c: 86400000, i: 86400000, l: 120000, s: 120000 };
 
 class ArtError extends Error {
   constructor(status, error) { super(error); this.status = status; this.body = { error }; }
@@ -197,15 +202,32 @@ function remember(key, bytes) {
  * The picture for a signed id: { bytes, contentType: 'image/jpeg', key }.
  * Throws ArtError(404) for an id we did not issue or a thing that is not there.
  */
+// One event per picture served (kind, size, ms, from: drawn | r2 | mem): a link preview fetches the picture with no
+// session, so this is how the logs show a phone fetched one. No id, code or name.
+function served(input, t0, from) {
+  logEvent('web_quiz.art_served', { kind: input.kind, size: input.size, ms: Date.now() - t0, from });
+}
+
 async function artImage(id, { size = 'og' } = {}) {
+  const t0 = Date.now();
   const p = parseArtId(id);
   if (!p) notFound();
   const sz = SIZES[size] ? size : 'og';
+  const seen = byId.get(`${id}|${sz}`);
+  if (seen && seen.until > Date.now() && mem.has(seen.key)) {
+    served({ kind: KIND_OF[p.kind], size: sz }, t0, 'mem');
+    return { bytes: mem.get(seen.key), contentType: 'image/jpeg', key: seen.key };
+  }
   const f = await facts(p.kind, p.ref);
   const input = { kind: KIND_OF[p.kind], size: sz, brand: await brandKey(), lang: f.lang, d: f.d };
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
-  if (mem.has(key)) return { bytes: mem.get(key), contentType: 'image/jpeg', key };
+  if (mem.has(key)) {
+    byId.set(`${id}|${sz}`, { key, until: Date.now() + BY_ID_MS[p.kind] });
+    served(input, t0, 'mem');
+    return { bytes: mem.get(key), contentType: 'image/jpeg', key };
+  }
   let bytes = null;
+  let from = 'r2';
   // Ask first: a picture not drawn yet is a cache miss, and downloadFromR2 logs every failure as an error.
   try {
     if ((await r2.headObject(key)).exists) bytes = await r2.downloadFromR2(key);
@@ -214,15 +236,19 @@ async function artImage(id, { size = 'og' } = {}) {
     logToFile('⚠️ web-quiz art: R2 read failed, drawing instead', { key, error: (e && e.name) || 'error' }, 'warn');
   }
   if (!bytes || !bytes.length) {
-    const t0 = Date.now();
+    const d0 = Date.now();
+    from = 'drawn';
     bytes = await draw(input);
-    logToFile('web-quiz art drawn', { kind: input.kind, size: sz, ms: Date.now() - t0, kb: Math.round(bytes.length / 1024) });
+    logToFile('web-quiz art drawn', { kind: input.kind, size: sz, ms: Date.now() - d0, kb: Math.round(bytes.length / 1024) });
     try { await r2.uploadBuffer(bytes, key, 'image/jpeg'); } catch (e) { logToFile('⚠️ web-quiz art: R2 upload failed', { error: e.message }); }
   }
   remember(key, bytes);
+  byId.set(`${id}|${sz}`, { key, until: Date.now() + BY_ID_MS[p.kind] });
+  if (byId.size > MEM_MAX * 4) byId.delete(byId.keys().next().value);
+  served(input, t0, from);
   return { bytes, contentType: 'image/jpeg', key };
 }
 
-function _resetCache() { mem.clear(); }
+function _resetCache() { mem.clear(); byId.clear(); }
 
 module.exports = { artId, parseArtId, artImage, ArtError, ART_V, _resetCache, _drawForTests: draw };
