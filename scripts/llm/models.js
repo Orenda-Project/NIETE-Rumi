@@ -105,19 +105,36 @@ function list(io) {
   return OK;
 }
 
+/**
+ * The env map as the bot reads it: a JSON object of job -> model id. Anything else is ignored there, so it is
+ * ignored here too, and said. Only well-formed model ids count.
+ */
+function envMap(raw) {
+  if (!raw || !String(raw).trim()) return { map: {} };
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch (_) { return { map: {}, problem: 'not JSON' }; }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { map: {}, problem: 'not a map of job -> model id' };
+  return { map: Object.fromEntries(Object.entries(parsed).filter(([, model]) => registry.isModel(model))) };
+}
+
 async function status(db, io) {
   const rows = await db.rows();
   const kill = rows[KILL] === true || String(rows[KILL]).toLowerCase() === 'true';
   const perJob = rows[PER_JOB] && typeof rows[PER_JOB] === 'object' ? rows[PER_JOB] : {};
+  const env = envMap(io.env.LLM_JOB_MODELS);
   io.out(`project ${db.project}`);
   for (const [key, value] of Object.entries(rows)) io.out(`  ${key} = ${JSON.stringify(value)}`);
   if (!Object.keys(rows).length) io.out('  (no llm_* rows: every job runs its own model)');
-  if (kill) io.out('\nKILL SWITCH IS ON: every job runs its own model; the per-job row is ignored until unkill.');
+  if (env.problem) io.out(`  LLM_JOB_MODELS (this environment) is ${env.problem}: ignored, as the bot ignores it`);
+  else if (Object.keys(env.map).length) io.out(`  LLM_JOB_MODELS (this environment) = ${JSON.stringify(env.map)}`);
+  if (kill) io.out('\nKILL SWITCH IS ON: every job runs its own model; the per-job row and the env map are ignored until unkill.');
+  // The bot's order (llm-client planForJob): kill switch > the row > the env map > the job's own model.
   const out = [['job', 'runs now', 'from', 'behind it on a failure']];
   for (const job of Object.keys(registry.JOBS)) {
     const own = ownModel(job);
-    const moved = !kill && registry.isModel(perJob[job]) ? perJob[job] : null;
-    out.push(moved ? [job, moved, 'llm_per_job', own] : [job, own, 'registry', '-']);
+    if (!kill && registry.isModel(perJob[job])) out.push([job, perJob[job], 'llm_per_job', own]);
+    else if (!kill && env.map[job]) out.push([job, env.map[job], 'LLM_JOB_MODELS', own]);
+    else out.push([job, own, 'registry', '-']);
   }
   io.out(`\n${table(out)}`);
   const unknown = Object.keys(perJob).filter((j) => !registry.JOBS[j]);
@@ -125,7 +142,8 @@ async function status(db, io) {
   for (const key of ['llm_per_language', 'llm_per_region', 'llm_rollout']) {
     if (rows[key] !== undefined) io.out(`\n${key} is set: jobs that read their settings at the call site apply it there too.`);
   }
-  io.out('\n"registry" is this checkout\'s model for the job; a deployed service applies its own env vars first.');
+  io.out('\n"registry" is this checkout\'s model for the job. A deployed service reads its OWN env vars and env map;');
+  io.out('this reads the environment you loaded, so load that service\'s env file to see what it runs.');
   return OK;
 }
 

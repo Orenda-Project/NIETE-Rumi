@@ -156,6 +156,30 @@ describe('npm run models: one tool for the single source, the per-job row and th
     expect(line(r.out, 'chat.respond')).not.toContain(SONNET);
   });
 
+  test('status: the env map LLM_JOB_MODELS moves a job the row does not name, ranked below the row as the bot ranks it', async () => {
+    rows.llm_per_job = { 'chat.respond': SONNET };
+    const r = await run(['status'], { LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': HAIKU, 'chat.respond': 'openai/gpt-4o' }) });
+    expect(r.code).toBe(0);
+    expect(line(r.out, 'chat.intent')).toContain(HAIKU);
+    expect(line(r.out, 'chat.intent')).toContain('LLM_JOB_MODELS');
+    expect(line(r.out, 'chat.respond')).toContain(SONNET); // the row outranks the env map
+    expect(line(r.out, 'chat.respond')).not.toContain('openai/gpt-4o');
+  });
+
+  test('status: with the kill switch on, the env map moves nothing either', async () => {
+    rows.llm_kill_switch = true;
+    const r = await run(['status'], { LLM_JOB_MODELS: JSON.stringify({ 'chat.intent': HAIKU }) });
+    expect(line(r.out, 'chat.intent')).toContain(modelFor('chat.intent'));
+    expect(line(r.out, 'chat.intent')).not.toContain(HAIKU);
+  });
+
+  test('status: a malformed env map is reported and ignored, as the bot ignores it', async () => {
+    const r = await run(['status'], { LLM_JOB_MODELS: '{not json' });
+    expect(r.code).toBe(0);
+    expect(r.out).toMatch(/LLM_JOB_MODELS[^\n]*ignored/);
+    expect(line(r.out, 'chat.intent')).toContain(modelFor('chat.intent'));
+  });
+
   test('a command that needs the database refuses without it, and nothing secret is ever printed', async () => {
     for (const cmd of [['status'], ['kill', '--confirm']]) {
       const r = await run(cmd, { SUPABASE_URL: '' });
