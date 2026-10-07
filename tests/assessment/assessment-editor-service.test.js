@@ -84,6 +84,58 @@ describe('gate', () => {
   });
 });
 
+describe('portal switch (bd-6faz8m): portal_assessment_editing_enabled', () => {
+  const calls = () => [
+    () => Editor.versions({ userId: U, paperId: 'v1' }),
+    () => Editor.questions({ userId: U, paperId: 'v1' }),
+    () => Editor.addKinds({ userId: U, paperId: 'v1' }),
+    () => Editor.validateEdit({ userId: U, paperId: 'v1', id: 'seen.objective.MCQs.0', edit: {} }),
+    () => Editor.saveVersion({ userId: U, parentId: 'v1', changes: { removed: ['seen.objective.MCQs.0'] } }),
+  ];
+  const rows = (old, portal) => {
+    const r = [];
+    if (old !== undefined) r.push({ key: 'assessment_editing_enabled', value: old });
+    if (portal !== undefined) r.push({ key: 'portal_assessment_editing_enabled', value: portal });
+    mockDb.tables.app_settings = r;
+  };
+
+  test('portal true + WhatsApp switch false -> editing allowed', async () => {
+    rows(false, true);
+    expect((await Editor.versions({ userId: U, paperId: 'v1' })).code).toBeUndefined();
+    expect((await Editor.questions({ userId: U, paperId: 'v1' })).code).toBeUndefined();
+  });
+
+  test('portal "true" (string) is on', async () => {
+    rows(false, 'true');
+    expect((await Editor.versions({ userId: U, paperId: 'v1' })).code).toBeUndefined();
+  });
+
+  test('portal false + WhatsApp switch true -> EDITING_DISABLED on all five methods', async () => {
+    rows(true, false);
+    for (const call of calls()) expect(await call()).toMatchObject({ code: 'EDITING_DISABLED' });
+  });
+
+  test('portal row missing -> follows the old switch (on)', async () => {
+    rows(true, undefined);
+    expect((await Editor.versions({ userId: U, paperId: 'v1' })).code).toBeUndefined();
+  });
+
+  test('portal row missing -> follows the old switch (off)', async () => {
+    rows(false, undefined);
+    for (const call of calls()) expect(await call()).toMatchObject({ code: 'EDITING_DISABLED' });
+  });
+
+  test('both rows missing -> disabled', async () => {
+    rows(undefined, undefined);
+    expect(await Editor.versions({ userId: U, paperId: 'v1' })).toMatchObject({ code: 'EDITING_DISABLED' });
+  });
+
+  test.each([[{}], ['yes'], [1], [null]])('portal value %j is malformed -> disabled even though the old switch is on', async (v) => {
+    rows(true, v);
+    for (const call of calls()) expect(await call()).toMatchObject({ code: 'EDITING_DISABLED' });
+  });
+});
+
 describe('versions', () => {
   test('lists the family numbered v1..vn, newest ready one is latest; failed is listed but never latest', async () => {
     seed([
