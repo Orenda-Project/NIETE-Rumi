@@ -94,3 +94,27 @@ test('Back from the subjects goes to the hub', async () => {
   p.els['#wql-back'].fire('click');
   expect(p.assigned).toEqual(['/h/HUBTOK?kid=c1']);
 });
+
+describe('a library link opened on another phone (the hub link is bound to the child\'s phone)', () => {
+  const LOCK = { '/api/wq/lib/h/HUBTOK': { __status: 401, error: 'bad_token' } };
+  test.each([
+    ['en', 'This link was sent to another player', 'Ask the child this link was sent to to open it.'],
+    ['ur', 'یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا', 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔'],
+  ])('%s: says whose link it is, offers no retry (a retry can never work there) and goes back to the hub', async (lang, title, say) => {
+    const p = libPage({ lang, api: LOCK });
+    await flush(); await flush();
+    expect(p.moment()).toBe('M15-lock');
+    expect(p.html()).toContain(title);
+    expect(p.html()).toContain(say);
+    expect(p.html()).not.toContain('wql-retry');
+    p.els['#wql-back'].fire('click');
+    expect(p.assigned).toEqual(['/h/HUBTOK?kid=c1']);
+  });
+
+  test('any other failure still offers Try again', async () => {
+    const p = libPage({ api: { '/api/wq/lib/h/HUBTOK': { __status: 502, error: 'bad_gateway' } } });
+    await flush(); await flush();
+    expect(p.moment()).toBe('M15-error');
+    expect(p.html()).toContain('wql-retry');
+  });
+});
