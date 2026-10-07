@@ -71,6 +71,8 @@
       slowNet: 'Slow internet. Keep reading, your voice is being recorded.',
       checked: function (m, w) { return m + ' listened again: ' + w + ' words a minute!'; },
       qaStart: 'Answer questions about the story',
+      listenGo: 'Listen',
+      listenWrong: "The story won't play right now. Try another challenge.",
       qaRight: 'Yes!',
       qaWas: function (a) { return 'The answer was: ' + a; },
       qaDone: function (c, n) { return 'You got ' + c + ' of ' + n + ' right!'; },
@@ -122,13 +124,15 @@
       slowNet: 'انٹرنیٹ آہستہ ہے۔ پڑھتے رہیں، آپ کی آواز ریکارڈ ہو رہی ہے۔',
       checked: function (m, w) { return m + ' نے دوبارہ سنا: ایک منٹ میں ' + ud(w) + ' لفظ!'; },
       qaStart: 'کہانی کے بارے میں سوال',
+      listenGo: 'سنیں',
+      listenWrong: 'کہانی ابھی نہیں چل رہی۔ کوئی اور چیلنج کریں۔',
       qaRight: 'جی ہاں!',
       qaWas: function (a) { return 'جواب تھا: ' + a; },
       qaDone: function (c, n) { return 'آپ نے ' + ud(n) + ' میں سے ' + ud(c) + ' کے صحیح جواب دیے!'; },
     },
   };
   var t = T[L];
-  var ICON = { bigger: '🔢', read: '📖' };
+  var ICON = { bigger: '🔢', read: '📖', listen: '👂' };
 
   // Urdu digits in Urdu prose; a number on a maths card stays Western and is isolated LTR.
   function ud(n) { return L === 'ur' ? String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.charAt(+d); }) : String(n); }
@@ -309,11 +313,59 @@
   function intro() {
     var d = S.data;
     show('intro', jug('hello', d.clips.intro.text, true) + hearBtn(d.clips.intro)
-      + '<div class="wqc-sticky"><button class="wq-btn wq-go" id="wqc-go" type="button">' + esc(d.ex === 'read' ? t.ready : t.start) + '</button></div>');
+      + '<div class="wqc-sticky"><button class="wq-btn wq-go" id="wqc-go" type="button">' + esc(d.ex === 'read' ? t.ready : (d.ex === 'listen' ? t.listenGo : t.start)) + '</button></div>');
     bindHear(d.clips.intro);
     say(d.clips.intro);
-    on('wqc-go', function () { if (d.ex === 'read') micStart(); else bigger.practice(0); });
+    on('wqc-go', function () {
+      if (d.ex === 'read') micStart();
+      else if (d.ex === 'listen') listen.start();
+      else bigger.practice(0);
+    });
   }
+
+  // ── Listen and answer: the story twice from its clip (its text is never on the page), then the questions ────
+  var listen = {
+    WAIT_MS: 1500,
+    CAP_MS: 120000,
+    start: function () {
+      var d = S.data;
+      if (player) { try { player.pause(); } catch (e) {} player = null; }
+      show('listen-play', jug('thinking', d.clips.start.text, true) + '<p class="wqc-score" aria-hidden="true">🔊</p>');
+      var left = Math.max(1, d.read_times || 2);
+      var a = null;
+      var over = false;
+      var cap = null;
+      var finish = function (ok) {
+        if (over) return;
+        over = true;
+        clearTimeout(cap);
+        if (!ok) {
+          ev('ch_listen', { ok: false });
+          show('error', jug('notyet', t.listenWrong, true) + '<div class="wq-stack"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(t.more) + '</button></div>');
+          on('wqc-menu', refreshMenu);
+          return;
+        }
+        var sy = q('wqc-say');
+        if (sy) sy.textContent = d.clips.stop.text;
+        qa.attempted = null;
+        qa.open();
+      };
+      try {
+        a = new Audio(d.story_clip && d.story_clip.url);
+        player = a;
+        a.addEventListener('ended', function () {
+          left -= 1;
+          if (left <= 0) { finish(true); return; }
+          setTimeout(function () { try { a.currentTime = 0; var p2 = a.play(); if (p2 && p2.catch) p2.catch(function () { finish(true); }); } catch (e) { finish(true); } }, listen.WAIT_MS);
+        });
+        a.addEventListener('error', function () { finish(false); });
+        var pl = a.play();
+        if (pl && pl.catch) pl.catch(function () { finish(false); });
+        // a WebView that never reports the end still reaches the questions
+        cap = setTimeout(function () { finish(true); }, listen.CAP_MS);
+      } catch (e) { finish(false); }
+    },
+  };
 
   // ── Which is bigger? ────────────────────────────────────────────────────────────────────────────────
   var bigger = {
@@ -850,7 +902,7 @@
   }
 
   // The test harness reaches the screens through this handle; nothing on the page uses it.
-  window.__wqc = { qa: qa, live: function () { return live; }, S: S, menu: menu, open: open, intro: intro, bigger: bigger, micStart: micStart, noMic: noMic, record: record, stopRec: stopRec, readResult: readResult, upload: upload, pollResult: pollResult, rec: rec, T: T };
+  window.__wqc = { listen: listen, qa: qa, live: function () { return live; }, S: S, menu: menu, open: open, intro: intro, bigger: bigger, micStart: micStart, noMic: noMic, record: record, stopRec: stopRec, readResult: readResult, upload: upload, pollResult: pollResult, rec: rec, T: T };
   ev('ch_open', {});
   menu();
 })();
