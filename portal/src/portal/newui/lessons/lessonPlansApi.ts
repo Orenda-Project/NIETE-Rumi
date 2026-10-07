@@ -77,9 +77,6 @@ export type PrepareStatus =
   | { state: 'preparing' }
   | { state: 'failed' };
 
-/** Her most recent plan, for "Last: Day 2 · Plants". */
-export type RecentPlan = { title: string | null; day: number | null; part: number | null; chapter: string | null };
-
 /** The language a 6–12 plan is asked for in — English, as the Curriculum page always asked. */
 const LANG_612 = 'en';
 
@@ -263,16 +260,7 @@ export function createLessonPlansApi() {
     }
   }
 
-  /** Her most recent lesson plan (opened here or received on WhatsApp), or null. */
-  async function recent(): Promise<RecentPlan | null> {
-    const { data } = await api.get('/lesson-plans/recent', { params: { limit: 1 } });
-    const p = (data?.plans || [])[0] as Row | undefined;
-    if (!p) return null;
-    const { day, part } = parseDay(p.dayLabel);
-    return { title: str(p.title), day, part, chapter: str(p.chapterTitle) };
-  }
-
-  return { grades, subjects, chapters, lessons, open, answerKey, status, recent };
+  return { grades, subjects, chapters, lessons, open, answerKey, status };
 }
 
 /** The one the screens use. */
