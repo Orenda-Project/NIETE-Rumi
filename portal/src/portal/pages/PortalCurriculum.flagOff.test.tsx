@@ -9,7 +9,8 @@ import { resetNewUiMemory } from "../lib/useNewUi";
  *
  * The snapshots in __snapshots__/ were recorded against PortalCurriculum as it was BEFORE the new
  * Lesson Plans existed (the layout and the navigation included): the picker with "My lesson
- * plans" and a lesson plan open in the viewer. bd-4n7p4: the Assessment tab left this page for /portal/assessment
+ * plans" and a lesson plan open in the viewer. bd-k23p38 re-recorded the library: "My lesson plans"
+ * (6-12 only) became Recent lesson plans (any grade), the one intended difference. bd-4n7p4: the Assessment tab left this page for /portal/assessment
  * (pinned in ClassicAssessment.test.tsx), so its snapshots are gone and the library/viewer ones were re-recorded for the new menu + heading. Each flag-off
  * state is pinned on its own — the old page reads /config itself, so "config still loading" and
  * "config failed" already rendered the Assessment tab differently from "off", before any of this.
@@ -56,6 +57,12 @@ function answerApi() {
       case "/curriculum/grades": return { data: { grades: [{ grade: 4, subject_count: 4 }] } };
       case "/lp612/grades": return { data: { grades: [{ grade: 9 }] } };
       case "/lp612/mine": return { data: { lessons: [{ renderId: "R1", segmentId: "S1", state: "ready", title: "Speed and velocity", grade: 9, subject: "Physics", lang: "en" }] } };
+      // bd-k23p38 — Recent lesson plans. Dated more than a week back, so "1 Sep" never moves.
+      case "/lesson-plans/recent": return { data: { plans: [{
+        planKey: "k5:L2", kind: "k5", lessonId: "L2", found: true, title: "Leaves make food", grade: 4, subject: "General Science",
+        chapterTitle: "Plants", dayLabel: "Day 2", lastUsedAt: "2026-09-01T05:00:00Z", lastOpenedAt: "2026-09-01T05:00:00Z", lastReceivedAt: null,
+        open: { lane: "k5", lessonId: "L2" },
+      }] } };
       // The viewer's PDF: still on its way when the snapshot is taken.
       case "/curriculum/lp/L1/file": return new Promise(() => {});
       default: throw new Error(`unexpected GET ${url}`);

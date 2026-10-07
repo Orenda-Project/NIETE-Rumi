@@ -7,8 +7,9 @@ import { tapProblems } from "../checks/rules";
  * bd-5rz1v.14 — Lesson Plans in the new UI (deep-screens.html, "Lesson Plans"): one flow for
  * every grade, 1 to 12.
  *
- *   main      the indigo band "Lesson Plans" + "Last: …"; Grade / Subject / Chapter / Lesson rows,
- *             each off until the one before is chosen; a grey Open until a lesson is picked
+ *   main      the indigo band "Lesson Plans"; Grade / Subject / Chapter / Lesson rows, each off
+ *             until the one before is chosen; then Recent, her last 10 plans (bd-k23p38); a grey
+ *             Open until a lesson is picked
  *   grade     a sheet of 1–12, only grades with lesson plans enabled
  *   subject   a sheet of rows: icon, name, how many lessons
  *   chapter   an inner page: number, title, pages, lesson count
@@ -83,7 +84,13 @@ beforeEach(() => {
   routes = {
     "/curriculum/grades": () => ({ grades: [{ grade: 1, subject_count: 3 }, { grade: 4, subject_count: 4 }] }),
     "/lp612/grades": () => ({ grades: [{ grade: 6 }, { grade: 9 }] }),
-    "/lesson-plans/recent": () => ({ plans: [{ planKey: "k5:L2", kind: "k5", found: true, title: "Roots and stems", chapterTitle: "Plants", dayLabel: "Day 2" }] }),
+    "/lesson-plans/recent": () => ({ plans: [{
+      planKey: "k5:L2", kind: "k5", lessonId: "L2", found: true, title: "Roots and stems", grade: 4, subject: "General Science",
+      chapterTitle: "Plants", dayLabel: "Day 2", lastUsedAt: new Date(Date.now() - 7_200_000).toISOString(),
+      lastOpenedAt: new Date(Date.now() - 7_200_000).toISOString(), lastReceivedAt: null, open: { lane: "k5", lessonId: "L2" },
+    }] }),
+    "/lp612/mine": () => ({ lessons: [] }),
+    "/curriculum/lp/L2/file": () => PDF_BYTES,
     "/curriculum/subjects": () => ({ subjects: [
       { subject_key: "english", subject: "English", lesson_count: 113 },
       { subject_key: "general_science", subject: "General Science", lesson_count: 72 },
@@ -177,7 +184,7 @@ const openButton = () => screen.getByRole("button", { name: "Open" });
 /** Main page → grade 4 → General Science → Plants → the lessons page. */
 async function walkToGrade4Lessons() {
   renderAt();
-  await screen.findByText("Last: Day 2 · Plants");
+  await screen.findByText("Roots and stems");
   fireEvent.click(rowOf("grade"));
   await waitFor(() => expect(within(sheet("Grade")).getByRole("radio", { name: "4" })).toBeEnabled());
   fireEvent.click(within(sheet("Grade")).getByRole("radio", { name: "4" }));
@@ -187,17 +194,17 @@ async function walkToGrade4Lessons() {
 }
 
 describe("main page", () => {
-  it("is a main page: the indigo band 'Lesson Plans' with 'Last: …' from her most recent plan", async () => {
+  it("is a main page: the indigo band 'Lesson Plans', no 'Last' chip — Recent says it (bd-k23p38)", async () => {
     renderAt();
     expect(screen.getByTestId("newui-main-heading")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "Lesson Plans" })).toBeInTheDocument();
-    expect(await screen.findByText("Last: Day 2 · Plants")).toBeInTheDocument();
-    expect(gets("/lesson-plans/recent")[0][1]).toEqual({ params: { limit: 1 } });
+    await screen.findByText("Roots and stems");
+    expect(screen.queryByText(/^Last/)).toBeNull();
   });
 
   it("shows four rows; only Grade can be tapped at first, and Open is grey", async () => {
     renderAt();
-    await screen.findByText("Last: Day 2 · Plants");
+    await screen.findByText("Roots and stems");
     expect(rowOf("grade")).toBeEnabled();
     expect(rowOf("grade")).toHaveTextContent("Choose");
     for (const key of ["subject", "chapter", "lesson"]) {
@@ -208,17 +215,84 @@ describe("main page", () => {
     expect(openButton().className).toMatch(/bg-nu-button-disabled/);
   });
 
-  it("with no plan used yet, the band has no 'Last' chip", async () => {
+  it("never offers '6–12 on request' or 'My lesson plans'", async () => {
+    await walkToGrade4Lessons();
+    expect(document.body.textContent).not.toMatch(/on request|My lesson plans|Write this lesson plan|6-12|6–12/i);
+  });
+});
+
+describe("bd-k23p38 — Recent: her last 10 lesson plans, any grade, under the four rows", () => {
+  const iso = (msAgo: number) => new Date(Date.now() - msAgo).toISOString();
+  const recentRow = (key: string) => screen.findByTestId(`lp-recent-${key}`);
+
+  beforeEach(() => {
+    routes["/lesson-plans/recent"] = () => ({ plans: [
+      {
+        planKey: "k5:L2", kind: "k5", lessonId: "L2", found: true, title: "Roots and stems", grade: 4, subject: "General Science",
+        chapterTitle: "Plants", dayLabel: "Day 2", lastUsedAt: iso(7_200_000), lastOpenedAt: iso(7_200_000), lastReceivedAt: null,
+        open: { lane: "k5", lessonId: "L2" },
+      },
+      {
+        planKey: "g612:g9p_newton", kind: "g612", segmentId: "g9p_newton", lang: "en", found: true, title: "Newton's laws", grade: 9,
+        subject: "Physics", chapterTitle: "Motion", dayLabel: null, lastUsedAt: iso(90_000_000), lastOpenedAt: null,
+        lastReceivedAt: iso(90_000_000), open: { lane: "g612", segmentId: "g9p_newton", lang: "en" },
+      },
+    ] });
+  });
+
+  it("asks for 10, and lists them newest first: grade, title, subject, how she last had it", async () => {
+    renderAt();
+    const g4 = await recentRow("k5:L2");
+    const g9 = await recentRow("g612:g9p_newton:en");
+    expect(gets("/lesson-plans/recent")[0][1]).toEqual({ params: { limit: 10 } });
+    expect(screen.getByText("Recent")).toBeInTheDocument();
+    expect(g4.compareDocumentPosition(g9) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(g4).toHaveTextContent("G4");
+    expect(g4).toHaveTextContent("General Science");
+    expect(g4).toHaveAccessibleName(/Roots and stems.*Opened/);
+    expect(g9).toHaveTextContent("G9");
+    expect(g9).toHaveAccessibleName(/Newton's laws.*On WhatsApp/);
+  });
+
+  it("with no plan used yet, there is no Recent", async () => {
     routes["/lesson-plans/recent"] = () => ({ plans: [] });
     renderAt();
     await waitFor(() => expect(gets("/lesson-plans/recent")).toHaveLength(1));
-    expect(screen.queryByText(/^Last/)).toBeNull();
+    await waitFor(() => expect(gets("/lp612/mine")).toHaveLength(1));
+    expect(screen.queryByText("Recent")).toBeNull();
   });
 
-  it("never offers '6–12 on request' or 'My lesson plans', and does not ask for them", async () => {
-    await walkToGrade4Lessons();
-    expect(document.body.textContent).not.toMatch(/on request|My lesson plans|Write this lesson plan|6-12|6–12/i);
-    expect(gets("/lp612/mine")).toHaveLength(0);
+  it("a grades 6–12 plan being written is first, as Preparing…", async () => {
+    routes["/lp612/mine"] = () => ({ lessons: [
+      { renderId: "R3", segmentId: "g9p_speed", state: "authoring", lang: "en", startedAt: iso(60_000), title: "Speed and velocity", grade: 9, subject: "Physics" },
+    ] });
+    renderAt();
+    const first = await recentRow("g612:g9p_speed:en");
+    expect(first).toHaveTextContent("Preparing…");
+    expect(first.compareDocumentPosition(await recentRow("k5:L2")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("grade 4: a tap opens it in the viewer, under 'Lesson Plans · Day 2'", async () => {
+    renderAt();
+    fireEvent.click(await recentRow("k5:L2"));
+    await screen.findByTestId("lesson-plan-viewer");
+    expect(crumb()).toBe("Lesson Plans · Day 2");
+    await waitFor(() => expect(gets("/curriculum/lp/L2/file")).toHaveLength(1));
+  });
+
+  it("grade 9: a tap asks for it in its language; not written: Preparing… on the row, then it opens by itself", async () => {
+    posts.push({ state: "authoring", renderId: "R2" });
+    let polls = 0;
+    routes["/lp612/status/R2"] = () => { polls += 1; return polls > 1 ? { state: "ready" } : { state: "authoring" }; };
+    renderAt();
+    const row = await recentRow("g612:g9p_newton:en");
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    fireEvent.click(row);
+    await waitFor(() => expect(row).toHaveTextContent("Preparing…"));
+    expect(http.post).toHaveBeenCalledWith("/lp612/request", { segment_id: "g9p_newton", lang: "en" });
+    await act(async () => { await vi.advanceTimersByTimeAsync(7_000); });
+    await screen.findByTestId("lesson-plan-viewer");
+    await waitFor(() => expect(gets("/lp612/file/R2")).toHaveLength(1));
   });
 });
 
@@ -232,7 +306,7 @@ describe("bd-5rz1v.14 (found live on sandbox) — Back or a reload never blanks 
       lesson: { id: "g4s_d3", kind: "day", number: 3, part: null, title: "Leaves make food", pages: "p.18-20", sent: false, answerKey: true, lane: "k5" },
     }));
     renderAt();
-    await screen.findByText("Last: Day 2 · Plants");
+    await screen.findByText("Roots and stems");
     expect(rowOf("subject")).toHaveTextContent("General Science");
     expect(rowOf("chapter")).toHaveTextContent("Plants");
     expect(rowOf("lesson")).toHaveTextContent("Leaves make food");
@@ -550,7 +624,7 @@ describe("RTL and the design rules on every step", () => {
   async function everyStep(check: (step: string) => void, dir?: "rtl") {
     // main + grade sheet
     renderAt("/portal/curriculum", { dir });
-    await screen.findByText("Last: Day 2 · Plants");
+    await screen.findByText("Roots and stems");
     check("main");
     fireEvent.click(rowOf("grade"));
     await waitFor(() => expect(within(sheet("Grade")).getByRole("radio", { name: "4" })).toBeEnabled());
