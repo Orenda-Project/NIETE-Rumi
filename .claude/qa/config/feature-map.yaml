@@ -119,7 +119,23 @@ features:
     - bot/shared/routes/assessment-gen-endpoint.js
     - bot/shared/routes/assessment-gen-callback.routes.js
     - bot/shared/services/assessment-*.service.js
-    - bot/shared/services/assessment/**                     # the generator the assessment routes call (bd-gr4fy.8 map gap)
+    # The generator the assessment routes call (bd-gr4fy.8 map gap). Listed file by file, not
+    # assessment/**: the folder also holds the portal-only paper editor (bd-kfpt3f, see not_covered).
+    - bot/shared/services/assessment/assessment-browse.service.js
+    - bot/shared/services/assessment/assessment-delivery.js
+    - bot/shared/services/assessment/assessment-edit.js
+    - bot/shared/services/assessment/assessment-format.js
+    - bot/shared/services/assessment/assessment-generation.service.js
+    - bot/shared/services/assessment/assessment-json.util.js
+    - bot/shared/services/assessment/assessment-orchestrator.service.js
+    - bot/shared/services/assessment/assessment-paper.renderer.js
+    - bot/shared/services/assessment/assessment-request.service.js
+    - bot/shared/services/assessment/assessment-revision.service.js
+    - bot/shared/services/assessment/assessment-selection.js
+    - bot/shared/services/assessment/assessment-vocabulary.js
+    - bot/shared/services/assessment/book-content.service.js
+    - bot/shared/services/assessment/ict-prompts.json
+    - bot/shared/services/assessment/question-types.js
     - bot/workers/exam-grading.worker.js
     - bot/workers/quiz-job-handler.js
     - bot/shared/templates/quiz-report.template.js
@@ -535,6 +551,11 @@ not_covered:
   bot/shared/utils/alphabet-grid-generator.js: "Reading Assessment asset generator — no reading.feature"
   bot/shared/utils/word-grid-generator.js: "Reading Assessment asset generator — no reading.feature"
   bot/shared/utils/letter-name-mapping.js: "Reading Assessment phonics table — no reading.feature"
+
+  # bd-kfpt3f — the portal-only paper editor: only the portal's /assessment/edit/* routes reach these;
+  # WhatsApp never imports them, so a change here cannot affect training.feature.
+  bot/shared/services/assessment/assessment-editor.service.js: "Portal paper editor (portal-only; no WhatsApp surface) — covered by tests/assessment + portal vitest"
+  bot/shared/services/assessment/assessment-changes.js: "Portal paper editor changes list (portal-only; no WhatsApp surface) — covered by tests/assessment"
 
   bot/shared/services/video/**: "Video generation — not on the ICT menu; no video.feature"
   bot/workers/video-generation.worker.js: "Video generation — no video.feature"
