@@ -853,7 +853,7 @@ Feature: Web child quiz page on the portal
     Then the page says "This link has expired" and "Send /quiz on WhatsApp to get a new one." in the child's language
     And no child's name or quiz is shown
 
-  @T520
+  @T530
   Scenario: A forwarded hub link shows no child's name on another phone
     Given a family's phone opened its /quiz hub link first and saw its children
     When the same link is opened on a second phone that has never played as one of them

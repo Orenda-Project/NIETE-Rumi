@@ -16,9 +16,19 @@
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/services/queue/sqs-queue.service', () => ({ queueJob: jest.fn().mockResolvedValue({ MessageId: 'm1' }) }));
-jest.mock('../../../shared/services/cache/railway-redis.service', () => ({
-  setNX: jest.fn(async () => true), get: jest.fn(async () => null), set: jest.fn(async () => true), delete: jest.fn(async () => true),
-}));
+// Redis is a boundary. Only the hub's device-binding keys (wq:hub:*) are kept, so the hub's first-phone claim runs for real.
+jest.mock('../../../shared/services/cache/railway-redis.service', () => {
+  const hubKeys = new Map();
+  const keep = (k) => String(k).startsWith('wq:hub:');
+  return {
+    _hubKeys: hubKeys,
+    isAvailable: () => true,
+    setNX: jest.fn(async (k, v) => { if (keep(k) && !hubKeys.has(k)) hubKeys.set(k, v); return keep(k) ? hubKeys.get(k) === v : true; }),
+    get: jest.fn(async (k) => (keep(k) && hubKeys.has(k) ? hubKeys.get(k) : null)),
+    set: jest.fn(async (k, v) => { if (keep(k)) hubKeys.set(k, v); return true; }),
+    delete: jest.fn(async () => true),
+  };
+});
 jest.mock('../../../shared/services/whatsapp.service', () => ({
   sendMessage: jest.fn(), sendImageFromBuffer: jest.fn(), sendDocument: jest.fn(), sendInteractiveButtons: jest.fn(),
 }));
@@ -223,12 +233,23 @@ describe('E3 a child opening their OWN challenge link plays for the class', () =
 });
 
 describe('E3 a hub link (?k=<chip>) plays straight through only on a phone that knows the child', () => {
-  test('a forwarded link (no session of that child on this device) gets the ONE card first, nothing started', async () => {
+  test('a forwarded /q?k= link (a phone that never played as the child and never opened their hub) names NOBODY: chip_unknown, so the page asks who is playing; nothing started', async () => {
     const n = fake.db.quiz_sessions.length;
     const r = await answer({ chip: chipOf(kid(1)), via: 'hub', device_ref: 'dev-stranger-000000001' });
-    expect(r).toEqual({ status: 409, body: { error: 'is_this_you', candidates: [{ chip: chipOf(kid(1)), first: 'Ayesha', animal: T.animalFor(kid(1)) }] } });
+    expect(r).toEqual({ status: 404, body: { error: 'chip_unknown' } });
+    expect(JSON.stringify(r)).not.toMatch(/Ayesha/);
     expect(fake.db.quiz_sessions).toHaveLength(n);
-    expect(ev('web_quiz.identity_step')).toEqual([{ shareCodeId: F.SC, step: 'hub_confirm', hits: 1 }]);
+    expect(ev('web_quiz.identity_step')).toEqual([{ shareCodeId: F.SC, step: 'hub_other_device', hits: 0 }]);
+  });
+
+  test('the family phone the hub link is bound to plays the hub\'s ?k= link straight through, even before its first quiz', async () => {
+    const Hub = require('../../../shared/services/quiz/web-quiz-hub');
+    const tok = T.signHub([kid(1)]);
+    expect((await Hub.deviceTrusted(tok, 'dev-family-phone-00001')).ok).toBe(true);
+    const r = await answer({ chip: chipOf(kid(1)), via: 'hub', device_ref: 'dev-family-phone-00001' });
+    expect(r.status).toBe(200);
+    // the forwarded copy on another phone still names nobody
+    expect((await answer({ chip: chipOf(kid(1)), via: 'hub', device_ref: 'dev-stranger-000000001' })).status).toBe(404);
   });
 
   test('the child\'s own phone (a prior session on this device_ref, any of the teacher\'s codes) plays straight through', async () => {

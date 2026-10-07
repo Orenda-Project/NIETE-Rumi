@@ -934,13 +934,13 @@ async function startSessionTimed(body = {}, mark = () => {}) {
   mark('identity');
 
   // A hub/library link carries the child's chip in its URL (?k=), and a link can be forwarded:
-  // it plays straight through only on a phone that has played as that child before; anywhere
-  // else the child sees the ONE "Are you <first>?" card first (confirm:true is the "Yes").
+  // it plays straight through only on a phone that played as that child or opened their hub
+  // (web-quiz-hub deviceMayName). Anywhere else it names NOBODY: chip_unknown, so the page
+  // forgets the chip and asks who is playing, as for any new phone.
   if (student && body.chip && body.via === 'hub' && body.confirm !== true
-    && !(await deviceKnows(found ? found.kid.ids : [student.id], T.cleanDeviceRef(body.device_ref)))) {
-    logEvent('web_quiz.identity_step', { shareCodeId: ctx.shareCodeId, step: 'hub_confirm', hits: 1 });
-    const nameOf = await shownNames(ctx.lang, [student.id]);
-    fail(409, 'is_this_you', { candidates: [{ chip: String(body.chip), first: nameOf(student.id, student.student_name), animal: T.animalFor(student.id) }] });
+    && !(await require('./web-quiz-hub').deviceMayName(found ? found.kid.ids : [student.id], body.device_ref))) {
+    logEvent('web_quiz.identity_step', { shareCodeId: ctx.shareCodeId, step: 'hub_other_device', hits: 0 });
+    fail(404, 'chip_unknown');
   }
   if (student) {
     takerName = student.student_name;
@@ -1107,16 +1107,6 @@ async function provisionalOnDevice(shareCodeId, deviceRef, name) {
     const kid = (kids || []).find((k) => !k.list_id && Identity.canon(k.student_name) === want);
     return kid ? { id: kid.id, student_name: kid.student_name, self_reported_class: kid.self_reported_class || null } : null;
   } catch { return null; }
-}
-
-/** Has this phone (device_ref) ever played as this child (any of their ids, any code)? */
-async function deviceKnows(studentIds, deviceRef) {
-  if (!deviceRef || !studentIds || !studentIds.length) return false;
-  try {
-    const { data } = await supabase.from('quiz_sessions').select('id')
-      .in('student_id', studentIds).eq('device_ref', deviceRef).limit(1);
-    return Boolean(data && data.length);
-  } catch { return false; }
 }
 
 /** The first name a card or a question shows: as the child typed it in Urdu script, else as the list spells it. */

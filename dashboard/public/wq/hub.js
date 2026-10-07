@@ -34,7 +34,7 @@
       recT: 'Try these next', chT: function (m) { return m + '\'s Challenge'; }, chSub: 'Short games for reading and numbers',
       switchKid: 'Switch player', oops: 'Something went wrong. Try again.', offline: 'No internet. Try again when you are online.',
       lockT: 'This link was sent to another player', lockSay: 'Ask the child this link was sent to to open it.',
-      someone: 'Someone else / new player', newT: 'New here?',
+      someone: 'Someone else / new player', newT: 'New here?', mine: 'Is this your link? Send /quiz on WhatsApp again for a new one.',
       newSay: 'Ask your teacher for a quiz link, or send /quiz on WhatsApp from your family\'s phone.',
       wait: 'Opening…', noClass: 'Play a quiz from your teacher first.', gone: 'No quizzes here yet. Ask your teacher for a quiz link.', mins: function (m) { return m + ' min'; },
     },
@@ -49,7 +49,7 @@
       recT: 'یہ بھی کریں', chT: function (m) { return m + ' کا چیلنج'; }, chSub: 'پڑھنے اور گنتی کے چھوٹے کھیل',
       switchKid: 'کھلاڑی بدلیں', oops: 'کچھ گڑبڑ ہو گئی۔ دوبارہ کوشش کریں۔', offline: 'انٹرنیٹ نہیں ہے۔ انٹرنیٹ آنے پر دوبارہ کوشش کریں۔',
       lockT: 'یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا', lockSay: 'جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔',
-      someone: 'کوئی اور / نیا کھلاڑی', newT: 'پہلی بار؟',
+      someone: 'کوئی اور / نیا کھلاڑی', newT: 'پہلی بار؟', mine: 'کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ ⁦/quiz⁩ بھیجیں۔',
       newSay: 'اپنے استاد سے کوئز کا لنک لیں، یا گھر کے فون سے واٹس ایپ پر ⁦/quiz⁩ بھیجیں۔',
       wait: 'کھل رہا ہے…', noClass: 'پہلے استاد کا کوئی کوئز کھیلیں۔', gone: 'ابھی یہاں کوئی کوئز نہیں۔ استاد سے کوئز کا لنک لیں۔', mins: function (m) { return m + ' منٹ'; },
     },
@@ -180,6 +180,7 @@
   function locked() {
     B = { lang: LANG, token: TOKEN, brand: BR, locked: true, kids: [] };
     render(bar() + jug('thinking', T.lockSay) + '<h2>' + esc(T.lockT) + '</h2>' +
+      '<p class="wq-sub">' + esc(T.mine) + '</p>' +
       '<button class="wq-btn wq-ghost" id="wq-h-new">' + esc(T.someone) + '</button>', 'H-lock');
     on('#wq-h-new', function () { newPlayer(); });
   }
