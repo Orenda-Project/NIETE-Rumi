@@ -12,8 +12,15 @@
  * The page plays `stim` behind its "Play the sound" button BEFORE the answer, so
  * it is sent only when the stem hands the question to a sound. A stem that
  * already asks the question ("When the switch is open…") means the clip speaks
- * the answer: it is not sent. A generated read-aloud clip (meta.web.audio) wins
- * over a recorded one for the same field; with neither, the page reads aloud.
+ * the answer: it is not sent.
+ *
+ * The bank's own recorded voices come first: a recorded question clip
+ * (media.question_audio) and recorded option clips (media.option_audio,
+ * [{ index, url }], index = the option's stored slot, so the page's shuffle can
+ * never pair a clip with another option) win over the generated read-aloud
+ * clips (meta.web.audio) for the same part. Options are all recorded or all
+ * generated within one question: one voice across a question's options. The
+ * why stays generated where both exist. With neither, the page reads aloud.
  */
 
 const { logToFile } = require('../../utils/logger');
@@ -32,12 +39,30 @@ function stemAsksForSound(stem) {
   return listen || (ASKS_ABOUT_THE_CLIP.test(s) && !IS_STATEMENT.test(s));
 }
 
-/** The recorded clip URLs a row carries for the page: {q?, stim?, why?}. */
+const OPTION_FIELDS = ['option_a', 'option_b', 'option_c', 'option_d'];
+
+/**
+ * The recorded option clips by stored slot ([a, b, c, d], null where there is no option), or null
+ * unless EVERY option the row shows has its own clip.
+ */
+function recordedOptions(row) {
+  const list = Array.isArray(row && row.media && row.media.option_audio) ? row.media.option_audio : [];
+  const byIndex = new Map(list
+    .filter((o) => o && Number.isInteger(o.index) && o.index >= 0 && o.index < 4 && typeof o.url === 'string' && o.url)
+    .map((o) => [o.index, o.url]));
+  const shown = [0, 1, 2, 3].filter((i) => row[OPTION_FIELDS[i]] != null && String(row[OPTION_FIELDS[i]]).trim() !== '');
+  if (!shown.length || !shown.every((i) => byIndex.has(i))) return null;
+  return [0, 1, 2, 3].map((i) => (shown.includes(i) ? byIndex.get(i) : null));
+}
+
+/** The recorded clip URLs a row carries for the page: {q?, opts?, stim?, why?}. */
 function recordedClips(row) {
   const m = (row && row.media) || {};
   const out = {};
   const qa = Array.isArray(m.question_audio) ? m.question_audio.find((u) => typeof u === 'string' && u) : null;
   if (qa) out.q = qa;
+  const opts = recordedOptions(row || {});
+  if (opts) out.opts = opts;
   if (typeof m.stimulus_audio === 'string' && m.stimulus_audio && stemAsksForSound(row.question_text)) out.stim = m.stimulus_audio;
   if (typeof m.explanation_audio === 'string' && m.explanation_audio) out.why = m.explanation_audio;
   return out;
@@ -53,9 +78,22 @@ async function presign(url, expiresIn) {
   }
 }
 
+/** The parts the publish step need not record for a row: its recorded question and options ('q', 'a'..'d'). */
+function recordedParts(row) {
+  const clips = recordedClips(row);
+  const parts = new Set();
+  if (clips.q) parts.add('q');
+  if (clips.opts) clips.opts.forEach((u, i) => { if (u) parts.add('abcd'.charAt(i)); });
+  return parts;
+}
+
+// Recorded WINS for these; for the why a generated clip is kept.
+const RECORDED_FIRST = new Set(['q', 'stim']);
+
 /**
  * Merge each row's recorded clips into the generated audio map (qid → {q, opts, why}).
- * A field the generated map already fills is kept; a clip that cannot be signed is left out.
+ * A recorded question / sound wins over a generated one; recorded options replace the generated
+ * ones only when every option's clip could be signed; a clip that cannot be signed is left out.
  */
 async function withRecordedClips(rows, generated, { expiresIn } = {}) {
   const out = { ...(generated || {}) };
@@ -65,7 +103,12 @@ async function withRecordedClips(rows, generated, { expiresIn } = {}) {
     if (!keys.length) return;
     const entry = { opts: [], ...(out[row.id] || {}) };
     await Promise.all(keys.map(async (k) => {
-      if (entry[k]) return;
+      if (k === 'opts') {
+        const signed = await Promise.all(clips.opts.map((u) => (u ? presign(u, expiresIn) : null)));
+        if (clips.opts.every((u, i) => !u || signed[i])) entry.opts = signed;
+        return;
+      }
+      if (entry[k] && !RECORDED_FIRST.has(k)) return;
       const url = await presign(clips[k], expiresIn);
       if (url) entry[k] = url;
     }));
@@ -74,4 +117,4 @@ async function withRecordedClips(rows, generated, { expiresIn } = {}) {
   return out;
 }
 
-module.exports = { withRecordedClips, recordedClips, stemAsksForSound };
+module.exports = { withRecordedClips, recordedClips, recordedOptions, recordedParts, stemAsksForSound };

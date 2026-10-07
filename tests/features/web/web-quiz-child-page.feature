@@ -1193,3 +1193,22 @@ Feature: Web child quiz page on the portal
     When the WhatsApp composer (Android or iOS) or a browser fetches the picture
     Then the portal logs web_quiz.art_edge with the picture kind, whether the portal already held it, the time taken and which kind of fetcher asked
     And the log carries no quiz code, picture id or child name
+  @T621
+  Scenario: A library question plays the bank's own recorded voice, and each option has its own tap-to-hear
+    Given a library question whose bank recording has a clip for the question and one for every option
+    When a child opens it on a 360x740 phone, in English or Urdu
+    Then the question is read in its recorded clip, and every option shows its own speaker that plays that option's clip only
+    And the clip heard is always the one for the option tapped, whatever order the options are shown in
+    And tapping an option's speaker never answers the question
+  @T622
+  Scenario: A listen-and-identify item never plays its options before the child answers
+    Given a library item "Listen and tap." whose sound to identify is played before the answer
+    When the question appears
+    Then the instruction and the sound are read, the options are not read as a block
+    And the child can still hear each option on its own speaker
+  @T623
+  Scenario: Only what the bank does not already voice is recorded, and a voice never misreads a letter or a blank
+    Given a library quiz with recorded clips for some questions and options
+    When its read-aloud clips are recorded
+    Then no clip is recorded for a question or option the bank already voices, and options are all recorded or all generated within a question
+    And a lone letter is read by its name ("letter s", «عین»), and a fill-in blank is a pause, never "underscore" or "dash"
