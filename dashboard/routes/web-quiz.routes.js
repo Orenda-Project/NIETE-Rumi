@@ -491,7 +491,15 @@ function createWebQuizRouter(opts = {}) {
     // A link-preview fetch (the sender's WhatsApp, before the message goes) is answered from what the edge
     // already knows about this code: the child's own page load, or the card's warm-up, taught it.
     const preview = !p && Preview.isPreviewFetch(req);
-    const known = preview ? ogKnown.get(upper) : null;
+    let known = preview ? ogKnown.get(upper) : null;
+    // This worker has not seen the code (the portal runs several): the bot keeps the facts in its one process
+    // and answers them without a quiz render. Anything but facts (an older bot, a closed code) takes the full path.
+    if (preview && !known) {
+      try {
+        const f = await callBot('GET', `/api/internal/wq/og/${upper}`, req);
+        if (f.status === 200 && f.body && f.body.quiz) { known = f.body; ogKnown.set(upper, known, OG_KEEP_MS); }
+      } catch (_) { /* the full path below */ }
+    }
     if (known && !(view === 'class' && known.invited)) {
       return res.status(200).type('html').send(renderPreviewPage({ facts: known, code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v }));
     }

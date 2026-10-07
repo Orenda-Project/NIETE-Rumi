@@ -67,6 +67,8 @@ afterEach(() => new Promise((r) => srv.close(r)));
 
 const meta = (html, p) => ((new RegExp(`<meta property="og:${p}" content="([^"]*)"`).exec(String(html)) || [])[1] || '').replace(/&amp;/g, '&') || undefined;
 const quizCalls = () => calls.filter((c) => c.url.indexOf('/api/internal/wq/quiz/') >= 0).length;
+// Every time the edge asks the bot about a page: a quiz render, or the light og facts.
+const pageCalls = () => calls.filter((c) => /\/api\/internal\/wq\/(quiz|og)\//.test(c.url)).length;
 const artCalls = () => calls.filter((c) => c.url.indexOf('/api/internal/wq/art/') >= 0).length;
 
 describe('the preview fetch is answered without the bot once the code is known', () => {
@@ -89,10 +91,10 @@ describe('the preview fetch is answered without the bot once the code is known',
     const h = await req(srv, '/q/CH12CD', { method: 'HEAD', ua: WA });
     expect(h.status).toBe(200);
     expect(h.headers['content-type']).toMatch(/text\/html/);
-    expect(quizCalls()).toBe(1);
+    expect(pageCalls()).toBe(1);
     const g = await req(srv, '/q/CH12CD', { ua: WA });
     expect(g.status).toBe(200);
-    expect(quizCalls()).toBe(1);
+    expect(pageCalls()).toBe(1);
   });
 
   test('the class table and the school league links preview from the same knowledge (one quiz call in all)', async () => {
@@ -109,7 +111,7 @@ describe('the preview fetch is answered without the bot once the code is known',
     answer = (url) => (url.indexOf('/art/') >= 0 ? jpegRes() : jsonRes(200, payload({ art: { class: CLASS, invite: INVITE }, challenge: { first: 'Amal', correct: 5, total: 7 }, invited: true })));
     await req(srv, '/q/CH12CD', { method: 'HEAD' });
     const res = await req(srv, '/q/CH12CD', { ua: WA });
-    expect(quizCalls()).toBe(1);
+    expect(pageCalls()).toBe(1);
     expect(meta(res.body, 'image')).toBe(`http://portal.example/q/CH12CD/art/invite.jpg?a=${INVITE}`);
     expect(meta(res.body, 'title')).toContain('5/7');
   });
@@ -127,7 +129,7 @@ describe('the preview fetch is answered without the bot once the code is known',
     await req(srv, '/q/AB12CD');
     clock += 61 * 60 * 1000;
     await req(srv, '/q/AB12CD', { ua: WA });
-    expect(quizCalls()).toBe(2);
+    expect(pageCalls()).toBe(2);
   });
 });
 
@@ -188,5 +190,55 @@ describe('the share picture is kept at the edge once drawn', () => {
     answer = () => jpegRes();
     expect((await req(srv, `/q/AB12CD/art/card.jpg?a=${CARD}`)).status).toBe(200);
     expect(artCalls()).toBe(2);
+  });
+});
+
+describe('several portal workers: what one learned, another can ask the bot for in one light call', () => {
+  // The portal runs several worker processes (cluster.js); each has its own memory. A second router stands in for
+  // a second worker, sharing the same fake bot.
+  let srv2;
+  const ogBody = () => ({ quiz: { lang: 'en', topic: 'Fractions', n: 7 }, cls: { label: 'Class 5' }, challenge: null,
+    art: { class: CLASS, invite: null, schools: SCHOOLS }, brand: 'niete', invited: false });
+  beforeEach(async () => {
+    answer = (url) => (url.indexOf('/art/') >= 0 ? jpegRes() : url.indexOf('/api/internal/wq/og/') >= 0 ? jsonRes(200, ogBody()) : jsonRes(200, payload()));
+    const app = express();
+    app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, now: () => clock, fetchImpl: async (url, opts) => { calls.push({ url, opts }); return answer(url); } }));
+    await new Promise((r) => { srv2 = app.listen(0, r); });
+  });
+  afterEach(() => new Promise((r) => srv2.close(r)));
+  const ogCalls = () => calls.filter((c) => c.url.indexOf('/api/internal/wq/og/') >= 0).length;
+
+  test("a preview fetch on a worker that never saw the code asks the bot's og facts, never the whole quiz", async () => {
+    await req(srv, '/q/AB12CD'); // worker 1: the child's page load
+    const res = await req(srv2, `/q/AB12CD?a=${CARD}`, { ua: WA }); // worker 2: WhatsApp's preview fetch
+    expect(quizCalls()).toBe(1);
+    expect(ogCalls()).toBe(1);
+    expect(calls.find((c) => c.url.indexOf('/og/') >= 0).url).toBe(`${BOT}/api/internal/wq/og/AB12CD`);
+    expect(meta(res.body, 'image')).toBe(`http://portal.example/q/AB12CD/art/card.jpg?a=${CARD}`);
+    expect(meta(res.body, 'title')).toContain('Fractions');
+    // and that worker now knows it too
+    await req(srv2, `/q/AB12CD?a=${CARD}`, { method: 'HEAD', ua: WA });
+    expect(ogCalls()).toBe(1);
+  });
+
+  test('a HEAD warm-up on a fresh worker uses the light call as well', async () => {
+    const h = await req(srv2, '/q/CH12CD', { method: 'HEAD' });
+    expect(h.status).toBe(200);
+    expect(ogCalls()).toBe(1);
+    expect(quizCalls()).toBe(0);
+  });
+
+  test('a bot that does not answer og facts (not deployed yet, or the code is closed) falls back to the full page path', async () => {
+    answer = (url) => (url.indexOf('/api/internal/wq/og/') >= 0 ? jsonRes(404, {}) : jsonRes(200, payload()));
+    const res = await req(srv2, '/q/AB12CD', { ua: WA });
+    expect(res.status).toBe(200);
+    expect(quizCalls()).toBe(1);
+    expect(meta(res.body, 'image')).toBe('http://portal.example/wq/og.jpg');
+  });
+
+  test('a closed code still gets its closed page', async () => {
+    answer = (url) => (url.indexOf('/api/internal/wq/og/') >= 0 ? jsonRes(410, { error: 'expired', lang: 'en' }) : jsonRes(410, { error: 'expired', lang: 'en' }));
+    const res = await req(srv2, '/q/AB12CD', { ua: WA });
+    expect(res.status).toBe(410);
   });
 });
