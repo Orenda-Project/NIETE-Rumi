@@ -571,6 +571,13 @@ function createWebQuizRouter(opts = {}) {
   });
 
   router.use('/wq', express.static(PUBLIC_DIR, { maxAge: YEAR_S * 1000, immutable: true, index: false, fallthrough: false }));
+  // A missing file (a page cached before a deploy asking for a renamed one) is the static server's own 404 or 400,
+  // answered here: the portal's last-resort handler would call it a 500 and the error monitors would count it.
+  router.use('/wq', (err, req, res, next) => {
+    const status = Number(err && (err.status || err.statusCode));
+    if (status >= 400 && status < 500) return res.status(status).set('Cache-Control', 'no-store').type('text').send('not found');
+    return next(err);
+  });
 
   return router;
 }
