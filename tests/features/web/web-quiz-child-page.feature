@@ -1046,3 +1046,25 @@ Feature: Web child quiz page on the portal
     Then their own hub opens on that phone, with the video library and the challenge
     And the same link opened on another phone shows no child's name and starts nothing
     But a friend who played from a challenge link sees no such button
+
+  @T590
+  Scenario: A shared card or challenge link shows its picture in the WhatsApp message before the child taps send
+    Given a child finished a quiz in WhatsApp's own browser and the scorecard is open
+    When the child taps "Share to class group" or "Challenge a friend" and then "Send on WhatsApp"
+    Then within about a second the WhatsApp composer shows the link preview with the card picture (or the invite picture for a challenge)
+    And the message arrives in the chat with that picture, its title and the link, in English and in Urdu
+
+  @T591
+  Scenario: A link-preview fetch is answered fast and a child's browser still gets the live quiz
+    Given a quiz link the edge has served or warmed in the last hour
+    When WhatsApp's link-preview fetcher (a HEAD, or the user agent "WhatsApp/2.x A") asks for it
+    Then the edge answers with the page head and its og tags without asking the bot for the quiz
+    And the share picture is answered from the edge once the scorecard has warmed it
+    And a child opening the same link in any browser gets the full live quiz page
+  @T570
+  Scenario: The first child to open a quiz whose voice is still being recorded hears the recorded voice as soon as it exists
+    Given a quiz whose read-aloud clips have never been recorded (a library quiz, or a quiz nobody has opened yet)
+    When the first child opens it and the recording starts in the background
+    Then the page asks again for the quiz a few times over the next two minutes
+    And every question the child reaches after the clips land is read in the quiz's recorded voice, in Urdu as in English
+    And a quiz whose clips are already recorded never asks again
