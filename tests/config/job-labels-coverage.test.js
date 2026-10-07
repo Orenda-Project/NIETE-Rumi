@@ -69,8 +69,9 @@ const EXPECTED = {
   },
   'shared/services/exam-checker/grading.service.js': { sites: 1, jobs: ['exam.grade'] },
   // Raw OpenRouter client, wrapped by withSpendRecording (bd-wgso2) -- see the quiz note below.
+  // One create() site, two jobs on its ladder (bd-gr4fy.12): the question and the corpus it is built from.
   'shared/services/coaching/reflective-questions/llm-router.service.js': {
-    sites: 1, jobs: ['coaching.questionRouter'],
+    sites: 1, jobs: ['coaching.questionRouter', 'coaching.reflectiveCorpus'],
   },
   'shared/services/reading/analysis.service.js': {
     sites: 7,
