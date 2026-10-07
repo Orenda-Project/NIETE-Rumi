@@ -1251,3 +1251,16 @@ Feature: Web child quiz page on the portal
     When the child taps "Watch the lesson again"
     Then the lesson plays over the question, and Close returns to the same question with nothing answered
     But a quiz with no video shows no such button
+  @T633
+  Scenario: A library lesson's page speaks the lesson's language, not the class's
+    Given a child of an English class opens the video library from their quiz or their hub
+    When they tap an Urdu lesson
+    Then the lesson's quiz page opens in Urdu, right to left
+    And it still counts for the same class and the same child, with no name to pick
+    And an English lesson tapped from an Urdu class opens in English, left to right
+
+  @T634
+  Scenario: Playing a lesson in another language does not change the child's own language
+    Given a child of an English class has just finished an Urdu lesson from the library
+    When the child opens their hub or sends /quiz again
+    Then the hub and the /quiz reply stay in English

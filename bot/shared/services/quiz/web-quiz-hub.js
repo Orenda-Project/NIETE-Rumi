@@ -173,7 +173,7 @@ async function teacherCard(kidRow, list, history, grade) {
   const quizById = new Map((quizzes || []).map((q) => [q.id, q]));
   // The same lesson the child already finished (its twin in the other language) is not "new from your teacher".
   const doneLessons = new Set(history.filter((e) => e.latest).flatMap((e) => lessonRefs(quizById.get(e.quizId))));
-  const lang = clampLanguage(history[0] && history[0].language);
+  const lang = clampLanguage(require('./student-quiz.service').childLanguage(history));
   const fresh = open.filter((c) => quizById.get(c.quiz_id) && !lessonRefs(quizById.get(c.quiz_id)).some((r) => doneLessons.has(r)));
   const ranked = [];
   const push = (c, rank) => { const q = quizById.get(c.quiz_id); ranked.push({ c, q, rank, langMiss: clampLanguage(q.language) === lang ? 0 : 1 }); };
@@ -325,7 +325,7 @@ async function lockedHub(ids, why) {
     if (live.length) {
       const StudentQuiz = require('./student-quiz.service');
       const history = await StudentQuiz.quizzesForStudents(live);
-      lang = clampLanguage(history[0] && history[0].language);
+      lang = clampLanguage(StudentQuiz.childLanguage(history));
     }
   } catch (_) { /* English */ }
   logEvent('web_quiz.hub_locked', { kids: ids.length, why });
@@ -358,7 +358,7 @@ async function hub(token, { kid, device } = {}) {
   const challengeP = f.challenge && chosen ? challengeGrade(chosen.id) : Promise.resolve(false);
   const ctx = chosen ? await kidContext(chosen.id) : null;
   const history = ctx ? ctx.history : [];
-  const lang = clampLanguage(history[0] && history[0].language);
+  const lang = clampLanguage(require('./student-quiz.service').childLanguage(history));
   const nameOf = (r) => firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name);
   const out = {
     lang,
