@@ -34,6 +34,7 @@ const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const { LANGUAGE_OFFER } = require('../../config/languages');
 
 const Gate = require('./web-quiz-challenge-gate');
+const Budget = require('./web-quiz-challenge-budget');
 
 const FLAG_KEY = Gate.KEY;
 const TABLE = 'web_quiz_challenge_runs';
@@ -97,7 +98,7 @@ const clipKnown = new Map();     // key → true (exists) | number (missing, che
 const clipRecording = new Set();
 let clipsRecorded = 0;
 
-function __reset() { Gate._resetCache(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; }
+function __reset() { Gate._resetCache(); Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; }
 
 /** The flag is not off for everyone (web-quiz-challenge-gate.js: true | "all" | [teacher ids]). */
 async function challengeOn() {
@@ -299,10 +300,12 @@ async function menu(token, { kid, lang } = {}) {
   const w = await who(token, { kid, lang });
   const runs = (await storedRuns(w.studentId)).filter((r) => r.status === 'scored');
   logEvent('web_quiz.ch_open', { via: w.via, grade: w.grade });
+  // Today's read-aloud budget spent (web-quiz-challenge-budget.js): "Which is bigger?" only until midnight UTC.
+  const readOk = await Budget.readOpen();
   return {
     form: `G${w.form}`,
     lang: w.lang,
-    exercises: EXERCISES.map((e) => {
+    exercises: EXERCISES.filter((e) => e.id !== 'read' || readOk).map((e) => {
       const last = runs.find((r) => r.exercise === e.id) || null;
       return { id: e.id, name: nameOf(e.id, w.lang), mins: e.mins, done: !!last, last: lastOf(last) };
     }),
@@ -315,6 +318,7 @@ async function exercise(token, ex, { kid, lang } = {}) {
   const def = byId(ex);
   if (!def) fail(404, 'not_found');
   const w = await who(token, { kid, lang });
+  if (ex === 'read' && !(await Budget.readOpen())) fail(503, 'read_paused');
   const { Bank } = childTest();
   const task = def.task(w.lang);
   const spec = Bank.getTaskSpec({ grade: Number(w.form), set: 'A', task });
@@ -424,6 +428,7 @@ async function presignUpload({ ct, type, size } = {}) {
   if (!ext) fail(400, 'wrong_type');
   const n = Number(size);
   if (!(n > 0) || n > MAX_BYTES) fail(413, 'too_large');
+  if (!(await Budget.readOpen())) fail(503, 'read_paused');
   const key = `${uploadPrefix(c)}${Date.now()}.${ext}`;
   const putUrl = await r2.getPresignedUploadUrl(key, base, PUT_TTL_S, { bucket: childVoiceBucket() });
   return { put_url: putUrl, key, content_type: base, max_bytes: MAX_BYTES, expires_in: PUT_TTL_S };
@@ -500,6 +505,8 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   if (!head || !head.exists) fail(404, 'no_upload');
   if (Number(head.sizeBytes) > MAX_BYTES) await refuse(413, 'too_large');
   if (await readsToday(c.sid) >= READS_PER_DAY) await refuse(429, 'enough_for_today');
+  if (!(await Budget.readOpen())) await refuse(503, 'read_paused');
+  Budget.noteStarted();
 
   RUNS.set(c.r, { ...run, status: 'scoring' });
   const previous = await previousRun(c.sid, 'read');
