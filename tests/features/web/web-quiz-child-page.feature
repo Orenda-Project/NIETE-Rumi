@@ -1244,3 +1244,9 @@ Feature: Web child quiz page on the portal
     When the child taps "Watch the lesson again"
     Then the lesson plays over the question, and Close returns to the same question with nothing answered
     But a quiz with no video shows no such button
+  @T632
+  Scenario: The bank's "answer" clip plays before the answer only when the question is about that sound
+    Given a library question that holds a clip in the bank's stimulus slot
+    When its stem is a listen item ("Listen and tap.", "the word with the following sound:", "sounds like:", «یہ کس حرف کی آواز ہے؟», «یہ لفظ کیسے لکھتے ہیں؟»)
+    Then "Play the sound" plays that clip before the child answers
+    But for an ordinary question that only says "following" or talks about sound ("Which of the following is a noun?", "Musical sounds are:") no clip plays before the answer
