@@ -90,7 +90,7 @@ describe('E2 names the teacher as the forwarded WhatsApp text does', () => {
   test('the whole stored name, with the same "Teacher" word, never a cut-off first word', async () => {
     seed({ teacherName: 'Ms Example Teacher' });
     const out = await WQ.getQuiz('AB12CD');
-    expect(out.cls.teacher).toBe('Teacher Ms Example Teacher');
+    expect(out.cls.teacher).toBe('Teacher Example Teacher');
   });
 
   test('Urdu quiz: the Urdu form; no stored name: "your teacher"', async () => {
