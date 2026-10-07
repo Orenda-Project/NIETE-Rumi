@@ -24,6 +24,11 @@
  * Telemetry (ids only): `web_quiz.old_link_redirect` once per redirect attempt
  * ({sent} says whether Meta took it), `web_quiz.old_link_kept` with the reason when a
  * gate kept the chat path.
+ *
+ * A LEAF MODULE: it requires none of the quiz engine (video-quiz.service,
+ * video-quiz-share, video-quiz-invite form a cycle this must not join). The two
+ * things it needs from the engine — "is a chat quiz running on this phone?" and
+ * "clear the chat join state" — are passed in by beginFromCode, which owns both.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -59,9 +64,12 @@ async function redirectOn(now = Date.now()) {
 /**
  * Answer an old link with the web page, or return false so the caller runs today's
  * chat join. `sc` is the resolved share code (resolveInvite's shape: `shareCodeId` is
- * the class code, `teacher_user_id` its teacher). Never throws.
+ * the class code, `teacher_user_id` its teacher). `hooks.isChatQuizRunning()` and
+ * `hooks.clearJoin()` come from the caller (see the header). Never throws.
  */
-async function tryRedirect(phone, code, sc) {
+async function tryRedirect(phone, code, sc, hooks = {}) {
+  const isChatQuizRunning = typeof hooks.isChatQuizRunning === 'function' ? hooks.isChatQuizRunning : async () => false;
+  const clearJoin = typeof hooks.clearJoin === 'function' ? hooks.clearJoin : async () => {};
   const shareCodeId = sc && (sc.shareCodeId || sc.id);
   const quizId = sc && sc.quiz_id;
   // The last four digits of the phone, as the join/answer events already carry them (never the phone):
@@ -73,8 +81,7 @@ async function tryRedirect(phone, code, sc) {
     const Link = require('./web-quiz-link');
     const teacherUserId = sc.teacher_user_id || null;
     if (!(await Link.webQuizOn(teacherUserId))) return kept('web_off');
-    const VideoQuiz = require('./video-quiz.service');
-    if (await VideoQuiz.getActiveState(phone)) return kept('chat_quiz_running');
+    if (await isChatQuizRunning()) return kept('chat_quiz_running');
 
     const lang = clampLanguage(sc.language);
     const TeacherSelfTest = require('./teacher-self-test');
@@ -93,9 +100,7 @@ async function tryRedirect(phone, code, sc) {
     }
 
     // The chat join must not be waiting for a name: the child's next text is theirs.
-    const Share = require('./video-quiz-share.service');
-    const redisService = require('../cache/railway-redis.service');
-    await redisService.delete(Share.JOIN_KEY(phone));
+    await clearJoin();
 
     const WhatsAppService = require('../whatsapp.service');
     const sent = await WhatsAppService.sendCtaUrl(phone, {
