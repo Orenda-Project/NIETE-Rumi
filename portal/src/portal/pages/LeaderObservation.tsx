@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Check, ChevronLeft, Loader2, MessageCircle } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
 import { leader } from '../services/api';
 import type { CoachFeedback, CoachObservationView } from '../services/api';
-import { firstName, isWaiting, trackerIndex, trackerItems } from '../lib/coachObserve';
+import { FROM_COACH, V2_STEP, firstName, isWaiting, observationHome, openedFromCoach, trackerIndex, trackerItems } from '../lib/coachObserve';
 
 /**
  * bd-5rz1v.6 — one observation a coach started in the portal, step by step, in
@@ -139,6 +139,10 @@ export const FeedbackCard = ({ fb }: { fb: CoachFeedback }) => (
 const LeaderObservation = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  // bd-o15qnr.19 — opened from coach v2: v2 step names, links that stay in v2, back to the v2 page.
+  const [search] = useSearchParams();
+  const fromCoach = openedFromCoach(search);
+  const step = (path: string) => `/portal/leader/observe/${id}/${path}${fromCoach ? `?${FROM_COACH}` : ''}`;
   const [view, setView] = useState<CoachObservationView | null>(null);
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -190,7 +194,7 @@ const LeaderObservation = () => {
 
   const name = (view.teacher && view.teacher.name) || view.report.teacherName || 'the teacher';
   const first = firstName(name);
-  const items = trackerItems(first);
+  const items = trackerItems(first, fromCoach);
   const at = trackerIndex(view.step);
   const fb = view.talk.feedback;
   const pastFeedback = at > 3 && fb;
@@ -199,7 +203,7 @@ const LeaderObservation = () => {
     <PortalLayout>
       <div className="mx-auto flex w-full max-w-md flex-col gap-4 pb-8">
         <div className="flex h-12 items-center gap-1">
-          <button type="button" onClick={() => navigate('/portal/leader/observations')} aria-label={COPY.back}
+          <button type="button" onClick={() => navigate(fromCoach ? observationHome(id, true) : '/portal/leader/observations')} aria-label={COPY.back}
             className="flex h-11 w-11 items-center justify-center rounded-lg text-primary">
             <ChevronLeft className="h-6 w-6" />
           </button>
@@ -244,7 +248,7 @@ const LeaderObservation = () => {
         {view.step === 'draft' && (
           <>
             <p className="text-[16px] leading-relaxed text-[#3a3f4b]">{COPY.draftReady}</p>
-            <Primary to={`/portal/leader/observe/${view.id}/draft`}>{COPY.checkDraft}</Primary>
+            <Primary to={step('draft')}>{fromCoach ? V2_STEP.draft : COPY.checkDraft}</Primary>
           </>
         )}
 
@@ -258,8 +262,8 @@ const LeaderObservation = () => {
                 {COPY.tryAgain}
               </button>
             )}
-            <Primary to={`/portal/leader/observe/${view.id}/talk`}>{COPY.talkWith(first)}</Primary>
-            <Link to={`/portal/leader/observe/${view.id}/draft`} className="text-center text-[15px] font-semibold text-primary underline">{COPY.changeDraft}</Link>
+            <Primary to={step('talk')}>{fromCoach ? V2_STEP.talk : COPY.talkWith(first)}</Primary>
+            <Link to={step('draft')} className="text-center text-[15px] font-semibold text-primary underline">{fromCoach ? `${V2_STEP.draft}` : COPY.changeDraft}</Link>
           </>
         )}
 
@@ -300,7 +304,7 @@ const LeaderObservation = () => {
                   <span>{[view.report.teacherName || name, view.report.teacherPhone ? `+${view.report.teacherPhone}` : null].filter(Boolean).join(' · ')}</span>
                 </div>
                 <Primary disabled={busy} onClick={() => act(() => leader.sendReport(view.id))}>{COPY.sendTo(first)}</Primary>
-                <Link to="/portal/leader/observations"
+                <Link to={fromCoach ? observationHome(id, true) : '/portal/leader/observations'}
                   className="flex h-12 items-center justify-center rounded-xl border border-[#d6d9de] bg-white text-[16px] font-semibold text-[#5b6170]">{COPY.notNow}</Link>
               </>
             )}

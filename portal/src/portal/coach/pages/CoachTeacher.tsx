@@ -108,10 +108,10 @@ const CoachTeacher = () => {
               <DayLabel count={rows.length}>{rows[0].date ? C.monthOf(rows[0].date) : C.dash}</DayLabel>
               <Card className="overflow-hidden">
                 {rows.map((h, i) => {
-                  // bd-o15qnr.10 — what this row opens: her own portal observation's
-                  // existing page (at its step), the v2 report, or nothing.
-                  const to = h.open === "observe" ? `/portal/leader/observe/${h.id}`
-                    : h.open === "report" ? `/portal/coach/observation/${h.id}` : null;
+                  // bd-o15qnr.19 — every HITL row opens the one v2 observation page
+                  // (its steps, and its reports once done); a DC session is the
+                  // teacher's own, information only.
+                  const to = h.kind === "HITL" ? `/portal/coach/observation/${h.id}` : null;
                   const cls = `flex min-h-[72px] items-center gap-3.5 px-3.5 py-2.5 ${i > 0 ? "border-t border-[#e5e7eb]" : ""} ${to ? "transition-colors hover:bg-[#f9fafb]" : ""}`;
                   const inner = (
                     <>

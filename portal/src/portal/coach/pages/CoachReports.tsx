@@ -10,15 +10,15 @@ import type { CoachReport, ReportsData } from "../types";
 /**
  * bd-o15qnr — Reports: Waiting for you (her draft to check, her talk to have),
  * In progress (still being analysed), then every observation grouped by day —
- * searchable by name or phone, a page at a time. A portal-started observation
- * opens its existing page; one captured on WhatsApp opens the teacher.
+ * searchable by name or phone, a page at a time. Every card and row opens the
+ * v2 observation page (bd-o15qnr.19).
  */
 
 const STEP_INDEX: Record<string, number> = { analysing: 0, draft: 1, talk: 2, sent: 4 };
 
-function hrefFor(r: CoachReport): string | null {
-  if (r.portal) return `/portal/leader/observe/${r.id}`;
-  return r.teacherExtId ? `/portal/coach/teacher/${r.teacherExtId}` : null;
+/** bd-o15qnr.19 — every report opens the one v2 observation page, never the teacher. */
+function hrefFor(r: CoachReport): string {
+  return `/portal/coach/observation/${r.id}`;
 }
 
 function Progress({ step }: { step: string }) {

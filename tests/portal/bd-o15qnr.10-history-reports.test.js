@@ -119,8 +119,10 @@ describe('getCoachObservation — one sent HITL report, patch-guarded', () => {
     expect(await SVC.getCoachObservation(fakeQuery(), ME, 'h-stranger', { today: TODAY })).toBeNull();
   });
 
-  test('an observation whose report is not out yet is not served here', async () => {
-    expect(await SVC.getCoachObservation(fakeQuery(), ME, 'h-wa-draft', { today: TODAY })).toBeNull();
+  // bd-o15qnr.19 — the v2 observation page serves every step now; the report image only once it is out.
+  test('an observation whose report is not out yet is served with its step and no report image', async () => {
+    const out = await SVC.getCoachObservation(fakeQuery(), ME, 'h-wa-draft', { today: TODAY });
+    expect(out).toMatchObject({ step: 'draft', reportKey: null, sentAt: null });
   });
 
   test('an unknown id is refused', async () => {

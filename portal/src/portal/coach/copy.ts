@@ -92,7 +92,8 @@ export const COACH_COPY = {
   teacher: "Teacher",
   lastVisitOn: (date: string) => `Last visit · ${date}`,
   hitlBy: (who: string) => `HITL · ${who}`,
-  reportStep: { sent: "Report sent", draft: "Check draft", talk: "Talk", analysing: "Analysing" } as Record<string, string>,
+  // bd-o15qnr.19 — operator: "Draft should be Feedback Form, Talk should be Debrief."
+  reportStep: { sent: "Report sent", draft: "Feedback Form", talk: "Debrief", analysing: "Analysing" } as Record<string, string>,
 
   // Record live (v18 Recording)
   recording: "Recording",
@@ -163,8 +164,24 @@ export const COACH_COPY = {
   waitingForYou: "Waiting for you",
   inProgress: "In progress",
   allObservations: "All observations",
-  stepLabel: { draft: "Check draft", talk: "Talk", analysing: "Analysing", sent: "Sent" } as Record<string, string>,
-  steps: ["Analysed", "Draft", "Talk", "Sent"],
+  stepLabel: { draft: "Feedback Form", talk: "Debrief", analysing: "Analysing", sent: "Sent" } as Record<string, string>,
+  steps: ["Analysed", "Feedback Form", "Debrief", "Sent"],
+
+  // The observation page (v24 ObsTrack, bd-o15qnr.19)
+  trackSteps: (first: string) => ["Lesson analysed", "Feedback Form", "Debrief", "Your feedback", `Send ${first} the report`],
+  yourTurn: "Your turn",
+  onWhatsApp: "On WhatsApp",
+  working: "Working",
+  dcScore: "Digital Coach score",
+  dcScoreOf: (n: string) => `Digital Coach score ${n}`,
+  draftBeforeCheck: "Draft · before your check",
+  finalScore: "Final score",
+  playLesson: "Play lesson",
+  pauseLesson: "Pause lesson",
+  steps5: "Steps",
+  reportOf: (name: string) => `${name}’s report`,
+  continueOnWhatsApp: "This observation continues on WhatsApp.",
+  stopped: "This observation was stopped.",
   showMore: "Show more",
 
   // Schools & teachers
