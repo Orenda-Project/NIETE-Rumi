@@ -149,16 +149,17 @@ async function lib(code, { st, g, s, fetchImpl } = {}) {
 
 /**
  * The library from the kid's hub. The hub module (web-quiz-hub.js, M4a) names the child from its
- * token: kidFromHub(token, chip) -> {studentId, grade, rootId} | null.
+ * token on THIS phone: kidFromHub(token, chip, device) -> {studentId, grade, rootId} | null.
  */
-async function libHub(token, { kid, g, s, fetchImpl } = {}) {
+async function libHub(token, { kid, g, s, device, fetchImpl } = {}) {
   const WebQuiz = await guard();
   // The hub module is M4a's and optional here: loaded by path so a deployment without it answers
   // hub_off instead of failing to boot.
   let Hub;
   try { Hub = require(require('path').join(__dirname, 'web-quiz-hub')); } catch (_) { Hub = null; }
   if (!Hub || typeof Hub.kidFromHub !== 'function') throw new WebQuiz.WqError(503, { error: 'hub_off' });
-  const who = await Hub.kidFromHub(token, kid);
+  // device: this phone's device_ref (x-wq-device) — a forwarded hub link opens no library as the child.
+  const who = await Hub.kidFromHub(token, kid, device);
   if (!who) throw new WebQuiz.WqError(401, { error: 'bad_token' });
   const Videos = require('./web-quiz-videos');
   const ix = await bank();

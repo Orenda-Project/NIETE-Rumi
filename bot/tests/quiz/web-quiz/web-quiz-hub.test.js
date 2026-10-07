@@ -347,6 +347,23 @@ describe('kidFromHub (the library and challenge routes)', () => {
   });
 });
 
+describe('the library and the recommendations from a forwarded hub link (real kidFromHub)', () => {
+  test('device B: the library from the hub and a recommended video start are 401; device A is not refused for who it is', async () => {
+    db.app_settings.push({ key: 'web_quiz_library', value: 'true' }, { key: 'web_quiz_enabled', value: 'true' });
+    Hub._resetCache();
+    const Lib = require('../../../shared/services/quiz/web-quiz-library');
+    const Videos = require('../../../shared/services/quiz/web-quiz-videos');
+    const token = T.signHub([KID]);
+    await Hub.hub(token, A); // the family phone opens it first
+    await expect(Videos.start({ hub: token, kid: chipH(KID), vid: V(3), device: DEV_B })).rejects.toMatchObject({ status: 401, body: { error: 'bad_token' } });
+    await expect(Lib.libHub(token, { kid: chipH(KID), device: DEV_B })).rejects.toMatchObject({ status: 401 });
+    const whoA = await Videos.start({ hub: token, kid: chipH(KID), vid: V(3), device: DEV_A }).then(() => 200, (e) => e.status);
+    expect(whoA).not.toBe(401);
+    const libA = await Lib.libHub(token, { kid: chipH(KID), device: DEV_A }).then(() => 200, (e) => e.status);
+    expect(libA).not.toBe(401);
+  });
+});
+
 describe('hub(): challenge and library', () => {
   test('challenge only with web_quiz_challenge on and grade 2-5; library to M4b\'s page when it is on', async () => {
     expect((await Hub.hub(T.signHub([KID]), A)).challenge).toBeNull();
@@ -364,7 +381,7 @@ describe('hub(): challenge and library', () => {
     db.quizzes.forEach((q) => { q.language = 'ur'; });
     Hub._resetCache();
     const token = T.signHub([KID]);
-    const out = await Hub.hub(token);
+    const out = await Hub.hub(token, A);
     expect(out.lang).toBe('ur');
     expect(out.lib.href).toBe(`/lib/${token}?kid=${chipH(KID)}&l=ur`);
   });
