@@ -915,41 +915,6 @@ Feature: Web child quiz page on the portal
     Then the feedback lines ("Yes! That's right!", "Quiz complete!") are English, in the same voice as the question clips
     And an Urdu quiz keeps its Urdu feedback lines even when its page is opened from an English class
 
-  @T520
-  Scenario: A child's link on the platform's default domain opens on the quiz's own address, so the phone still remembers the child
-    Given the web quiz's address is set for this deployment
-    And a child once opened a quiz link on that address and picked their own name
-    When the same child opens an older link that points at the platform's default domain
-    Then the page moves to the same quiz, hub, challenge or library page on the quiz's own address, keeping everything after the path
-    And the child is recognised without picking their name again
-    And the teacher's report link and the quiz's data calls are never moved
-
-  @T545
-  Scenario: A hub quiz link plays as the child on the family phone even for a teacher with many players
-    Given a teacher whose quizzes more than 40 children have played since this child last played
-    And the family phone opened the child's /quiz hub link
-    When the child taps "Play again" or the teacher's quiz on the hub
-    Then the quiz starts as that child, with no "Which class are you in?" and no name to pick
-    And the same quiz link opened on another phone names nobody and asks who is playing
-
-  @T546
-  Scenario: A shared phone that one sibling played on sees only that sibling from the family's hub link
-    Given a family's /quiz hub link for two siblings was opened first on the family's phone
-    And one of the siblings once played a quiz on a class phone
-    When the family's link is opened on that class phone
-    Then it lists only the sibling who played there, never the other one
-    And the other sibling's hub, library and challenge do not open on that phone
-
-
-  @T561
-  Scenario: A library link from the hub opened on another phone says whose link it is
-    Given a child's hub link is bound to the child's phone
-    When the hub's library link (/lib/<token>) is opened on another phone
-    Then no subjects, lessons or name are shown
-    And it reads "This link was sent to another player" and "Ask the child this link was sent to to open it." (in Urdu «یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا»)
-    And it adds "Is this your link? Send /quiz on WhatsApp again for a new one." so a family locked out on its own phone can get a new link
-    And there is no "Try again", only "Back" to the hub
-
 
   @T375
   Scenario: "Watch another video" opens the quiz's own subject as chapters, at once
@@ -1014,3 +979,36 @@ Feature: Web child quiz page on the portal
     Then the result names the next lesson of the same grade and subject in the WhatsApp Flow's order that the child has not finished
     And the rest of the same chapter comes first, then the next chapters
     And nothing is named when every lesson of that subject and grade is finished, or for a lesson quiz
+  @T520
+  Scenario: A child's link on the platform's default domain opens on the quiz's own address, so the phone still remembers the child
+    Given the web quiz's address is set for this deployment
+    And a child once opened a quiz link on that address and picked their own name
+    When the same child opens an older link that points at the platform's default domain
+    Then the page moves to the same quiz, hub, challenge or library page on the quiz's own address, keeping everything after the path
+    And the child is recognised without picking their name again
+    And the teacher's report link and the quiz's data calls are never moved
+
+  @T561
+  Scenario: A library link from the hub opened on another phone says whose link it is
+    Given a child's hub link is bound to the child's phone
+    When the hub's library link (/lib/<token>) is opened on another phone
+    Then no subjects, lessons or name are shown
+    And it reads "This link was sent to another player" and "Ask the child this link was sent to to open it." (in Urdu «یہ لنک کسی اور کھلاڑی کو بھیجا گیا تھا»)
+    And it adds "Is this your link? Send /quiz on WhatsApp again for a new one." so a family locked out on its own phone can get a new link
+    And there is no "Try again", only "Back" to the hub
+  @T545
+  Scenario: A hub quiz link plays as the child on the family phone even for a teacher with many players
+    Given a teacher whose quizzes more than 40 children have played since this child last played
+    And the family phone opened the child's /quiz hub link
+    When the child taps "Play again" or the teacher's quiz on the hub
+    Then the quiz starts as that child, with no "Which class are you in?" and no name to pick
+    And the same quiz link opened on another phone names nobody and asks who is playing
+
+  @T546
+  Scenario: A shared phone that one sibling played on sees only that sibling from the family's hub link
+    Given a family's /quiz hub link for two siblings was opened first on the family's phone
+    And one of the siblings once played a quiz on a class phone
+    When the family's link is opened on that class phone
+    Then it lists only the sibling who played there, never the other one
+    And the other sibling's hub, library and challenge do not open on that phone
+
