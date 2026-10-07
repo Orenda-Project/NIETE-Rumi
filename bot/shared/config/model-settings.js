@@ -187,20 +187,36 @@ function currentConfig() {
 const isStale = () => !cache || Date.now() - cache.at > TTL_MS;
 
 /**
+ * How old an answer may be and still move a job: two refresh periods (bd-gr4fy.11).
+ *
+ * A process that makes a model call at least once a refresh period never holds an older one.
+ * A process that has been quiet for longer holds an answer from before its silence, and the
+ * table may have changed since. In production (7 Oct 2026) a worker quiet for three
+ * minutes ran a job on the model the table had just taken it off, and it would have missed the
+ * kill switch the same way. Past this age a call is treated as at boot, before the first read:
+ * nothing moves, and the refresh it starts decides the next call.
+ */
+const MAX_AGE_MS = 2 * TTL_MS;
+const isTooOld = () => !!cache && Date.now() - cache.at > MAX_AGE_MS;
+
+/**
  * What a call site uses. Returns the cached config immediately and refreshes in the
  * background when it has gone stale, so no request ever waits on the settings table.
+ * An answer too old to trust comes back as `{}`, which moves nothing.
  */
 function configForRequest() {
   if (isStale()) refresh().catch(() => {});
-  return currentConfig();
+  return isTooOld() ? {} : currentConfig();
 }
 
 /**
- * Whether the settings are known: read at least once, or there is no database to read (no
- * database means no kill switch can be set, so there is nothing to wait for). Synchronous.
+ * Whether the settings are known NOW: read at least once, and not too old to move a job on
+ * (MAX_AGE_MS). With no database there is nothing to read and no kill switch can be set, so
+ * there is nothing to wait for: always true. Synchronous.
  */
-function hasRead() {
-  return readOnce || !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY;
+function isCurrent() {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return true;
+  return readOnce && !isTooOld();
 }
 
 /** What the last successful read dropped, and why. */
@@ -210,5 +226,5 @@ function rejectedEntries() { return lastRejected; }
 function _reset() { cache = null; readOnce = false; lastRejected = []; }
 
 module.exports = {
-  refresh, currentConfig, configForRequest, isStale, hasRead, rejectedEntries, KEYS, KEY_MAP, TTL_MS, _reset,
+  refresh, currentConfig, configForRequest, isStale, isCurrent, rejectedEntries, KEYS, KEY_MAP, TTL_MS, _reset,
 };
