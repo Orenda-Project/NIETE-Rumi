@@ -5,7 +5,8 @@ import PortalLayout from '../../components/PortalLayout';
 import { useLessonPlanOpener } from '../../lib/lessonPlanOpen';
 import { lessonPlans, type LpLesson } from '../../newui/lessons/lessonPlansApi';
 import { teacherPath } from '../routes';
-import { LESSONS_V2_COPY as C } from './copy';
+import { LESSONS } from './copy';
+import { useCopy } from '../i18n';
 import { LESSONS_HOME, LESSONS_VIEWER } from './paths';
 import { PageSkeleton } from '../../components/Skeleton';
 
@@ -23,6 +24,7 @@ import { PageSkeleton } from '../../components/Skeleton';
  */
 
 export function OpenPlanPage() {
+  const C = useCopy(LESSONS);
   const { search } = useLocation();
   const navigate = useNavigate();
   const openPlan = useLessonPlanOpener();
@@ -63,7 +65,7 @@ export function OpenPlanPage() {
       toast({ title: C.couldNotOpen, variant: 'destructive' });
       home();
     });
-  }, [search, navigate, openPlan, toast]);
+  }, [search, navigate, openPlan, toast, C]);
 
   return (
     <PortalLayout ownHeading>

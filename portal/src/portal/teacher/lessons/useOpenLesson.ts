@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useLessonPlanOpener } from '../../lib/lessonPlanOpen';
 import { lessonPlans, type LpLesson } from '../../newui/lessons/lessonPlansApi';
-import { LESSONS_V2_COPY } from './copy';
+import { LESSONS } from './copy';
+import { useCopy } from '../i18n';
 import { LESSONS_VIEWER, lessonsUrl, type DcPrefill, type LessonsAt } from './paths';
 
 /**
@@ -20,6 +21,7 @@ export function dcFor(lesson: Pick<LpLesson, 'id' | 'lane'>, at: LessonsAt): DcP
 }
 
 export function useOpenLesson() {
+  const C = useCopy(LESSONS);
   const openPlan = useLessonPlanOpener();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -35,18 +37,18 @@ export function useOpenLesson() {
         const how = await openPlan(r.source, lesson.title, {
           crumb: opts.crumb, replace: opts.replace, page: LESSONS_VIEWER, state: { dc: dcFor(lesson, at) },
         });
-        if (how === 'not_ready') toast({ title: LESSONS_V2_COPY.notReady });
+        if (how === 'not_ready') toast({ title: C.notReady });
       } else if (r.state === 'preparing') {
         navigate(lessonsUrl('preparing', { ...at, lesson: lesson.id, render: r.renderId }), opts.replace ? { replace: true } : undefined);
       } else {
-        toast({ title: LESSONS_V2_COPY.notAvailable, variant: 'destructive' });
+        toast({ title: C.notAvailable, variant: 'destructive' });
       }
     } catch {
-      toast({ title: LESSONS_V2_COPY.couldNotOpen, variant: 'destructive' });
+      toast({ title: C.couldNotOpen, variant: 'destructive' });
     } finally {
       if (live.current) setBusy(false);
     }
-  }, [navigate, openPlan, toast]);
+  }, [navigate, openPlan, toast, C]);
 
   return { open, busy };
 }

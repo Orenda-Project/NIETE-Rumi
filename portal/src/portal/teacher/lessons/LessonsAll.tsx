@@ -3,10 +3,12 @@ import { cn } from '@/lib/utils';
 import { loadGradeSubjects } from '../../lib/gradeSubjects';
 import { DEFAULT_RANGE, pkToday, type DateRange } from '../../newui/range';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
-import { DateRangeBar, GradeSubjectPicker, HistoryList, KpiTiles, TEACHER_UI_COPY, type GradeSubjectPair } from '../ui';
+import { DateRangeBar, GradeSubjectPicker, HistoryList, KpiTiles, type GradeSubjectPair, type TeacherUiCopy } from '../ui';
+import { useKitCopy } from '../ui/useKitCopy';
 import { resolveRange } from '../ui/range';
 import { FOCUS, OUTLINE_WIDE } from '../ui/styles';
-import { LESSONS_V2_COPY as C } from './copy';
+import { LESSONS } from './copy';
+import { useCopy } from '../i18n';
 import { LoadState } from './LoadState';
 import TeacherPage from '../TeacherPage';
 import { groupByDay, kpiItems, loadLessonHistory, type ClassFilter } from './lessonHistory';
@@ -26,12 +28,14 @@ import { LESSONS_HOME } from './paths';
  */
 
 /** The dates a range covers and the period before it — what DateRangeBar reports on a change. */
-function datesOf(range: DateRange) {
-  const r = resolveRange(range, pkToday());
-  return { from: r.from, to: r.to, prevFrom: r.prevFrom, prevTo: r.prevTo, compareLabel: r.prevSpan ? TEACHER_UI_COPY.compareWith(r.prevSpan) : '' };
+function datesOf(range: DateRange, kit: TeacherUiCopy) {
+  const r = resolveRange(range, pkToday(), kit.months);
+  return { from: r.from, to: r.to, prevFrom: r.prevFrom, prevTo: r.prevTo, compareLabel: r.prevSpan ? kit.compareWith(r.prevSpan) : '' };
 }
 
 export function LessonsAllPage() {
+  const C = useCopy(LESSONS);
+  const kit = useKitCopy();
   const [range, setRange] = useState<DateRange>(DEFAULT_RANGE);
   const [pair, setPair] = useState<GradeSubjectPair | null>(null);
   const [combos] = useLoad(() => loadGradeSubjects('lessons'), 'gs:lessons');
@@ -46,11 +50,11 @@ export function LessonsAllPage() {
     return c ? { grade: c.grade, subjectKey: c.subjectKey } : null;
   }, [pair, mine]);
 
-  const dates = useMemo(() => datesOf(range), [range]);
+  const dates = useMemo(() => datesOf(range, kit), [range, kit]);
   const key = JSON.stringify([dates.from, dates.to, dates.prevFrom, dates.prevTo, filter]);
   const [history, retry] = useLoad(() => loadLessonHistory(dates, filter), key);
   const h = dataOf(history);
-  const groups = useMemo(() => (h ? groupByDay(h.items, pkToday()) : []), [h]);
+  const groups = useMemo(() => (h ? groupByDay(h.items, pkToday(), C) : []), [h, C]);
 
   return (
     <TeacherPage feature="lessons" crumb={C.title} title={C.all.title} backTo={LESSONS_HOME}>
@@ -67,7 +71,7 @@ export function LessonsAllPage() {
       ) : null}
       {h ? (
         <>
-          <KpiTiles items={kpiItems(h)} compareLabel={dates.compareLabel} />
+          <KpiTiles items={kpiItems(h, C)} compareLabel={dates.compareLabel} />
           <HistoryList heading="" groups={groups} showMore={false} emptyLabel={C.all.empty} />
         </>
       ) : (

@@ -1,6 +1,7 @@
 import type { Bilingual } from './i18n';
 import { TEACHER_UI } from './ui/copy';
 import { TEACHER_FRAME } from './copy';
+import { LESSONS } from './lessons/copy';
 
 /**
  * bd-fmf24g.13 — every teacher v2 copy module that is bilingual, with the screen it serves and the keys that
@@ -31,5 +32,11 @@ export const COPY_MODULES: readonly CopyEntry[] = [
     same: ['brand', 'more.switchTo.ur', 'more.switchTo.en'],
     // "Salaam, Ayesha!" — a greeting, with its "!" as in English.
     longOk: ['home.greeting'],
+  },
+  {
+    screen: 'Lesson Plans',
+    module: LESSONS as Bilingual<unknown>,
+    // crumb only joins its parts ("Math · Chap 1"): the same in both languages.
+    same: ['crumb'],
   },
 ];

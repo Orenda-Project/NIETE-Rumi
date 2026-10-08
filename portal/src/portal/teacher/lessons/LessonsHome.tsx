@@ -10,7 +10,8 @@ import { dataOf, useLoad } from '../../newui/lessons/shared';
 import { teacherPath } from '../routes';
 import { GradeSubjectPicker, GradeSubjectSelector, HistoryList, type GradeSubjectValue } from '../ui';
 import { FOCUS } from '../ui/styles';
-import { LESSONS_V2_COPY as C } from './copy';
+import { LESSONS } from './copy';
+import { useCopy } from '../i18n';
 import TeacherPage from '../TeacherPage';
 import { LESSONS_ALL, lessonsUrl } from './paths';
 import { recentGroups } from './recent';
@@ -31,6 +32,7 @@ import { recentGroups } from './recent';
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '');
 
 export function LessonsHomePage() {
+  const C = useCopy(LESSONS);
   const navigate = useNavigate();
   const { toast } = useToast();
   const [combos] = useLoad(() => loadGradeSubjects('lessons'), 'gs:lessons');
@@ -65,7 +67,7 @@ export function LessonsHomePage() {
     }
   };
 
-  const groups = useMemo(() => recentGroups(dataOf(recent) ?? []), [recent]);
+  const groups = useMemo(() => recentGroups(dataOf(recent) ?? [], undefined, C), [recent, C]);
   const ready = !!picked?.subject && !busy;
 
   return (
