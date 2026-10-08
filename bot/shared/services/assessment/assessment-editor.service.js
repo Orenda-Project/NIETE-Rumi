@@ -128,6 +128,7 @@ async function addKinds({ userId, paperId }) {
         marks: d.marks, lines: d.lines,
       };
       if (t.id === 'MSQs') kind.msq = true;
+      if (t.id === 'Word Meanings') kind.meanings = true;
       if (t.id === 'True/False') kind.presetOptions = ['True', 'False'];
       return kind;
     });
