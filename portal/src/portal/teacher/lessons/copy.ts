@@ -12,7 +12,8 @@
  * title come from the API as they are.
  */
 
-import { bilingual, type Words } from '../i18n';
+import { bilingual, type Bilingual, type Words } from '../i18n';
+import type { CopyEntry } from '../copyRegistry';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
@@ -146,3 +147,11 @@ export const LESSONS_V2_COPY_UR: Words<typeof LESSONS_V2_COPY> = {
 /** Lesson Plans' words in both languages. */
 export const LESSONS = bilingual(LESSONS_V2_COPY, LESSONS_V2_COPY_UR);
 export type LessonsCopy = Words<typeof LESSONS_V2_COPY>;
+
+/** Registered for the completeness checks and the review file (copyRegistry). */
+export const COPY_ENTRY: CopyEntry = {
+  screen: 'Lesson Plans',
+  module: LESSONS as Bilingual<unknown>,
+  // crumb only joins its parts ("Math · Chap 1"): the same in both languages.
+  same: ['crumb'],
+};
