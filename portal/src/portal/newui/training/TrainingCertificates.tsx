@@ -33,7 +33,7 @@ type Cert = {
   download_url: string | null;
 };
 
-export default function TrainingCertificates() {
+export function useTrainingCertificates() {
   const { pathname } = useLocation();
   const paths = trainingPaths(trainingBase(pathname));
   const certs = useGet<Cert[]>('/training/certificates', undefined, (d) => (d as { certificates?: Cert[] })?.certificates || []);
@@ -58,6 +58,12 @@ export default function TrainingCertificates() {
     setOpen(c);
   };
 
+  return { pathname, paths, certs, filter, setFilter, open, setOpen, list, providers, active, shown, name, tap };
+}
+
+/** The view; every rule and read is useTrainingCertificates's, shared with the teacher app v2 (bd-fmf24g.12). */
+export default function TrainingCertificates() {
+  const { paths, certs, setFilter, open, setOpen, list, providers, active, shown, name, tap } = useTrainingCertificates();
   return (
     <TrainingInner crumb={TRAINING_COPY.crumb()} title={TRAINING_COPY.certificates} backTo={paths.home}>
       {certs.loading ? <Loading /> : null}

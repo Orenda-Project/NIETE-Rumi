@@ -26,7 +26,7 @@ import {
  * reading as a row that opens a sheet (I-SAPS, optional, gates nothing). Continue at the bottom
  * opens the next part.
  */
-export default function TrainingCourse() {
+export function useTrainingCourse() {
   const { vendorKey = '', levelId = '', browseCourseId: courseId = '' } = useParams();
   const { pathname } = useLocation();
   const paths = trainingPaths(trainingBase(pathname));
@@ -52,6 +52,12 @@ export default function TrainingCourse() {
   const next = nextPart(list);
   const doneCount = list.filter((m) => m.completed_at).length;
 
+  return { vendorKey, levelId, courseId, pathname, paths, vendors, levels, courses, modules, attempts, level, course, provider, levelWord, list, next, doneCount };
+}
+
+/** The view; every rule and read is useTrainingCourse's, shared with the teacher app v2 (bd-fmf24g.12). */
+export default function TrainingCourse() {
+  const { vendorKey, levelId, courseId, paths, modules, attempts, level, course, provider, levelWord, list, next, doneCount } = useTrainingCourse();
   return (
     <TrainingInner crumb={TRAINING_COPY.crumb(provider, levelWord)} title={course?.title ?? ''} backTo={paths.level(vendorKey, levelId)}>
       {modules.loading && !modules.data ? <Loading /> : null}
@@ -109,17 +115,28 @@ function PartRow({ part: m, n, isNext, attempts, to }: {
  * the gate's own short label as a chip, emoji stripped (bd-60166: the row must say what the gate
  * says); a sat exam (passed, being graded) still opens its page, where she can read it back.
  */
-function ModuleExamRow({ exam, to }: { exam: ExamGate; to: string }) {
+/**
+ * The exam row's state from the gate (bd-60166): open → ready; closed → passed / being graded when the gate
+ * says so (its cta or body), else locked. `word` is the gate's own short label, emoji stripped. Shared with
+ * the teacher app v2's course page (bd-fmf24g.12).
+ */
+export function moduleExamState(exam: ExamGate): { state: 'ready' | 'passed' | 'grading' | 'locked'; word: string } {
   const word = (exam.cta || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
-  if (exam.available) {
+  if (exam.available) return { state: 'ready', word };
+  if (/passed/i.test(exam.cta || '') || /passed/i.test(exam.body || '')) return { state: 'passed', word };
+  if (/being graded/i.test(exam.cta || '') || /being graded/i.test(exam.body || '')) return { state: 'grading', word };
+  return { state: 'locked', word };
+}
+
+function ModuleExamRow({ exam, to }: { exam: ExamGate; to: string }) {
+  const { state, word } = moduleExamState(exam);
+  if (state === 'ready') {
     return <Row icon={GraduationCap} title={TRAINING_COPY.moduleExam} chips={<Chip tone="done">{TRAINING_COPY.ready}</Chip>} to={to} testId="module-exam-row" />;
   }
-  const passed = /passed/i.test(exam.cta || '') || /passed/i.test(exam.body || '');
-  const grading = /being graded/i.test(exam.cta || '') || /being graded/i.test(exam.body || '');
-  if (passed) {
+  if (state === 'passed') {
     return <Row icon={GraduationCap} tile="done" title={TRAINING_COPY.moduleExam} chips={<Chip tone="done" icon={Check}>{word || TRAINING_COPY.passed}</Chip>} to={to} testId="module-exam-row" />;
   }
-  if (grading) {
+  if (state === 'grading') {
     return <Row icon={GraduationCap} title={TRAINING_COPY.moduleExam} chips={<Chip tone="waiting" icon={Timer}>{word || TRAINING_COPY.beingGraded}</Chip>} to={to} testId="module-exam-row" />;
   }
   return <Row icon={Lock} tile="quiet" title={TRAINING_COPY.moduleExam} state="off" onClick={() => {}} chips={<Chip icon={Lock}>{word || TRAINING_COPY.locked}</Chip>} testId="module-exam-row" />;

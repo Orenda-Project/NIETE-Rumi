@@ -12,10 +12,10 @@ import { TRAINING_V2_COPY as C } from './copy';
  * header (`context`, the teaching level on the main page), then the column.
  */
 export function TrainingPageV2({
-  crumb, title, backTo, onBack, right, context, children,
-}: TrainingFrameProps & { context?: ReactNode }) {
+  crumb, title, backTo, onBack, right, context, dock, children,
+}: TrainingFrameProps & { context?: ReactNode; dock?: ReactNode }) {
   return (
-    <TeacherPage feature="training" crumb={crumb} title={title} backTo={backTo} onBack={onBack} action={right} chips={context}>
+    <TeacherPage feature="training" crumb={crumb} title={title} backTo={backTo} onBack={onBack} action={right} chips={context} dock={dock}>
       {children}
     </TeacherPage>
   );
