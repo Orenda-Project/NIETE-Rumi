@@ -611,6 +611,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       revBack: function (n) { return 'Back to question ' + n; },
       todaySub: 'children played today', myScores: 'My scores',
       sharePlayed: function (w, t) { return w + ' played ' + t + '. Your turn!'; },
+      // The challenge asked as "who?" (app_settings web_quiz_invite_ask): the head around an isolated score, the play-at-home
+      // head below 60%, the three tiles, and the challenge's own first-person words (the friend sees a parent's number as sender).
+      askHead: ['🏆 Who can beat your ', '?'], askLow: '🏠 Play it with someone at home',
+      whoHome: 'Someone at home', whoCousin: 'A cousin', whoStreet: 'A friend in my street',
+      chalLine: function (w, s, n, t) { return w + ' here! I got ' + s + '/' + n + ' stars on ' + t + '. Can you beat me? 🏆 Tap the link to play:'; },
+      chalPlayed: function (w, t) { return w + ' here! I played ' + t + '. Your turn! Tap the link to play:'; },
       moreBtn: 'Watch another video', moreT: 'More videos for you', moreSay: 'Pick a video. Its quiz comes right after.',
       moreNone: 'No more videos for your class yet.', vchip: 'Video quiz', nextT: 'Next in this chapter', moreWait: 'Opening the video…', mins: function (n) { return n + ' min'; }, doneTag: 'Done ✓',
       selfT: 'This is your own test run. It will not show in your class report.',
@@ -677,6 +683,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       revBack: function (n) { return 'سوال \u2066' + n + '\u2069 پر واپس'; },
       todaySub: 'بچوں نے کھیلا', myScores: 'میرے اسکور',
       sharePlayed: function (w, t) { return w + ' نے ' + t + ' کھیلا۔ اب آپ کی باری!'; },
+      askHead: ['🏆 ', ' سے آگے نکلنے کا چیلنج کسے دیں؟'], askLow: '🏠 گھر میں کسی کے ساتھ کھیلیں',
+      whoHome: 'گھر میں کوئی', whoCousin: 'کزن', whoStreet: 'محلے کا دوست',
+      // Urdu prose: Urdu digits; the first name (either script) and the topic sit in first-strong isolates.
+      chalLine: function (w, s, n, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز میں ' + urDigits(n) + ' میں سے ' + urDigits(s) + ' ستارے لیے۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک پر ٹیپ کریں:'; },
+      chalPlayed: function (w, t) { return 'میں \u2068' + w + '\u2069 ہوں! میں نے \u2068' + t + '\u2069 کوئز کھیلا۔ اب آپ کی باری! کھیلنے کے لیے لنک پر ٹیپ کریں:'; },
       moreBtn: 'ایک اور ویڈیو دیکھیں', moreT: 'آپ کے لیے مزید ویڈیوز', moreSay: 'ایک ویڈیو چنیں۔ اس کے بعد اس کا کوئز آئے گا۔',
       moreNone: 'ابھی آپ کی کلاس کے لیے اور ویڈیوز نہیں ہیں۔', vchip: 'ویڈیو کوئز', nextT: 'اسی باب کی اگلی ویڈیو', moreWait: 'ویڈیو کھل رہی ہے…', mins: function (n) { return n + ' منٹ'; }, doneTag: 'مکمل ✓',
       selfT: 'یہ آپ کا اپنا ٹیسٹ رن ہے۔ یہ کلاس رپورٹ میں شامل نہیں ہوگا۔',
@@ -698,6 +709,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };
   var STAR = '<svg class="wq-star{on}" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z"/></svg>';
   var IMG = '/wq/jugnu/';
+
+  // Urdu digits (U+06F0–06F9) for a number inside Urdu prose.
+  function urDigits(n) { return String(n).replace(/[0-9]/g, function (d) { return String.fromCharCode(0x06F0 + Number(d)); }); }
 
   /* ---------------- storage that survives being blocked ---------------- */
   var mem = {};
@@ -735,6 +749,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var e = { t: Date.now(), code: CODE, lang: LANG };
     if (props) for (var k in props) if (props[k] !== undefined) e[k] = props[k];
     if (n === 'error' && e.src === undefined) e.src = 'h'; // a failure the page caught itself
+    // The invite-ask arm, on the events its measures read (the ask rate, the cancels, the class share and the door).
+    if ((n === 'card_view' || n === 'share_click' || n === 'hub_door_tap') && e.v === undefined) { var arm = askArm(); if (arm) e.v = arm; }
     e.n = n;
     // Page-session telemetry on (wq-tel.js): the event joins that page session's queue.
     if (window.WQT && window.WQT.push(e)) return;
@@ -2276,11 +2292,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   // A share tap's labels: WhatsApp's own browser or not (by its UA marker), what this phone can share with,
   // and, for a challenge, the code the message carries (a code, never a person), so a landing can be tied to it.
   var WA_IAB = /\bWA4A\/|WhatsApp/.test(navigator.userAgent || '') ? 1 : 0;
-  function share(text, url, what, art) {
+  function share(text, url, what, art, who) {
     var full = text + ' ' + url;
     var file = art && ART[art] && ART[art].file;
     var to = what === 'challenge' ? /\/q\/([A-Z0-9]{4,12})(?:[/?#]|$)/i.exec(url) : null;
-    ev('share_click', { src: what, step: 'tap', iab: WA_IAB, cap: file && navigator.share ? 'file' : navigator.share ? 'native' : 'none', to: to ? to[1] : undefined });
+    // `who`: the invite-ask tile tapped, on the tap only (never in the text, never on the friend's side).
+    ev('share_click', { src: what, step: 'tap', iab: WA_IAB, cap: file && navigator.share ? 'file' : navigator.share ? 'native' : 'none', to: to ? to[1] : undefined, who: who || undefined });
     if (file && navigator.share) {
       navigator.share({ files: [file], text: full }).then(function () { ev('share_click', { src: what, step: 'file', path: 'file' }); },
         function (e) { if (e && e.name === 'AbortError') ev('share_click', { src: what, step: 'file_cancel' }); else fallback(full, what, text, url, art); });
@@ -2349,8 +2366,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // Urdu included): the practice note and the two-line place-in-class note come after them. A video quiz card keeps its own order
     // ("Next in this chapter", "Watch more" first).
     var firstTwo = Boolean(doorBtn) && !isVideo;
-    var shares = (firstTwo ? '' : shareBtn + doorBtn) +
-      '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>' +
+    // The invite ask: the panel right under "Share to class group", in place of "Challenge a friend".
+    var panel = askArm() === 'a1' ? askPanel(shareC, shareT) : '';
+    var shares = (firstTwo ? '' : shareBtn + panel + doorBtn) +
+      (panel ? '' : '<button class="wq-btn wq-navy" id="wq-chal">' + esc(T.challenge) + '</button>') +
       (friend ? '' : '<button class="wq-btn wq-soft" id="wq-class">' + esc(T.classBtn) + '</button>') +
       '<button class="wq-btn wq-soft" id="wq-schools">' + esc(T.schoolsBtn) + '</button>';
     var place = c.nth ? '<p class="wq-proof wq-nth"><span>' + nthHtml(c.nth) + '</span></p>' : '';
@@ -2365,7 +2384,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       // The name notice is for the share it sits on: always directly above "Share to class group".
       '<p class="wq-small wq-center">' + esc(T.cardPriv) + '</p>';
     var h = bar() +
-      '<div class="wq-scorecard"><header>' + markHtml() + dotJoin(BR ? BR.name : '', CLS.label) + '</header><div class="wq-in">' +
+      '<div class="wq-scorecard' + (panel ? ' wq-askon' : '') + '"><header>' + markHtml() + dotJoin(BR ? BR.name : '', CLS.label) + '</header><div class="wq-in">' +
       '<img src="' + IMG + 'celebrate.webp" alt="">' +
       (isVideo ? '<span class="wq-vchip">' + esc(T.vchip) + '</span>' : '') +
       '<div class="wq-name">' + ani(c.animal) + ' ' + esc(c.first || (S.child && S.child.first) || '') + '</div>' +
@@ -2373,7 +2392,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<p class="wq-sub wq-ctopic">' + esc(Q.topic) + '</p>' +
       '<div class="wq-big">' + esc(c.correct) + '/' + esc(total) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
       '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
-      notes + (firstTwo ? shareBtn + doorBtn + practice + place : '') +
+      notes + (firstTwo ? shareBtn + panel + doorBtn + practice + place : '') +
       (isVideo ? moreBtn() + shares : shares + moreBtn()) +
       // One phone, many children: the next child starts from the landing. Not while answers wait to be sent.
       (S.queue && S.queue.length ? '' : '<button class="wq-btn wq-ghost" id="wq-turn">' + esc(T.nextTurn) + '</button>');
@@ -2400,6 +2419,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
     on('#wq-chal', function () { share(line, chalUrl, 'challenge', art.invite); });
+    // A tile shares the challenge in its own first-person words; the first name is the card's (c.first), never a full name.
+    if (panel) {
+      ASK_WHO.forEach(function (w) {
+        on('#wq-who-' + w[0], function () {
+          var chalText = askLow(shareC, shareT) ? T.chalPlayed(c.first, Q.topic) : T.chalLine(c.first, shareC, shareT, Q.topic);
+          share(chalText, chalUrl, 'challenge', art.invite, w[0]);
+        });
+      });
+    }
     on('#wq-class', board);
     on('#wq-schools', function () { schools(card); });
     on('#wq-more', moreVideos);
@@ -2413,6 +2441,32 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       location.assign('/q/' + encodeURIComponent(nx.code));
     });
   }
+  /* ---------------- the invite ask (app_settings web_quiz_invite_ask) ---------------- */
+  // a1 = the "who can beat your score?" panel, a0 = today's button; null = the switch is off, or this is a friend's own
+  // run (the panel is for a class child's card). "split": one arm per phone, from its device key (FNV-1a), never per
+  // load; a phone with no key yet is a0.
+  function askArm() {
+    var m = B.invite_ask;
+    if (m !== 'on' && m !== 'split') return null;
+    if (friendRun()) return null;
+    if (m === 'on') return 'a1';
+    var d = sget('wq_d', null);
+    if (typeof d !== 'string' || !d) return 'a0';
+    var h = 2166136261;
+    for (var i = 0; i < d.length; i++) { h ^= d.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    // The top bit: FNV-1a's lowest bit is only the parity of the key's characters.
+    return h >>> 31 ? 'a1' : 'a0';
+  }
+  var ASK_WHO = [['home', '🏠', 'whoHome'], ['cousin', '🧒', 'whoCousin'], ['street', '🏘️', 'whoStreet']];
+  // Below 60% (or nothing right) there is no score to beat: play it with someone at home.
+  function askLow(s, n) { return !s || !n || s / n < 0.6; }
+  function askPanel(s, n) {
+    var head = askLow(s, n) ? esc(T.askLow) : esc(T.askHead[0]) + '<bdi dir="ltr">' + esc(s + '/' + n) + '</bdi>' + esc(T.askHead[1]);
+    return '<div class="wq-ask"><h2>' + head + '</h2><div class="wq-who">' + ASK_WHO.map(function (w) {
+      return '<button class="wq-kid" id="wq-who-' + w[0] + '"><span class="wq-ani" aria-hidden="true">' + w[1] + '</span><span>' + esc(T[w[2]]) + '</span></button>';
+    }).join('') + '</div></div>';
+  }
+
   // Forgets the finished child's session on THIS page only (their result stays theirs on the server).
   function nextTurn() {
     ev('identity_pick', { src: 'next_turn' });
