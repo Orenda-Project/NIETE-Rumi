@@ -30,13 +30,13 @@
  * make-debrief-fixtures.cjs); the bot transcribes and judges them like any recording.
  *
  * BLOCKED, each with its evidence in the row: OBS13 (no refresh_on_back in the FICO Flow), OBS16, OBS17,
- * OBS22 (an unknown number gets an account before the gate), OBS24, OBS26/28 (no fault injection), OBS30,
+ * OBS22 (an unknown number gets an account before the gate), OBS24, OBS26/28/65/66 (no fault injection), OBS30,
  * OBS64's second half.
  *
  * Copy grounded in observe-strings.js (en) + observe-command.handler.js; screens confirmed by live probe. */
 const V = (c, ev) => [c ? 'PASS' : 'FAIL', ev];
 const B = (reason) => ['BLOCKED', { reason }];
-const FAULT    = B('needs an injected DB-write / report-send failure; the mock Graph API refuses only an unreachable media link and the cassette faults script vendor answers, so neither a failed session insert nor a refused delivery can be caused here.');
+const FAULT    = B('needs an injected DB-write / report-send / report-narrative failure; the mock Graph API refuses only an unreachable media link and the cassette faults script vendor answers, so neither a failed session insert nor a refused delivery can be caused here.');
 
 const DENIED = /school leaders|field officers|I'm here for you/i;                                 // S.role_denied
 const ENTRY  = /plan your visit|Plan my visit|Welcome to \/observe|how it works|record the lesson|Ready!|send me the recording/i;
@@ -696,4 +696,7 @@ exports.run = async ({ api, rec, want = () => true }) => {
     'unreachable from any client: text-message.handler.js:494-509 calls getOrCreateUser before the observe gate, which CREATES the account for an unknown number, so the gate sees user=null only when that lookup throws (a database outage). deny_no_user is an outage path, and the harness has no DB fault injection.' }, 0);
   rec('OBS26', 'A capture whose DB write fails reports a capture failure, not "no account"', ...FAULT, 0);
   rec('OBS28', 'A failed report send is surfaced to the coach with a retry', ...FAULT, 0);
+  // bd-trksw9: both need the report narrative to fail twice; the cassette answers it, it cannot fault it.
+  rec('OBS65', 'A report whose written feedback cannot be generated is held, and the coach is offered Regenerate', ...FAULT, 0);
+  rec('OBS66', 'Tapping "Regenerate report" rebuilds the same observation\'s report preview', ...FAULT, 0);
 };

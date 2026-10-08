@@ -438,6 +438,29 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe-send.service.js _handleDeliverFailure (bd-2411): status send_failed,
     # tell the coach, one-tap retry via /observe. No silent drop.
 
+  @e2e @wip @negative @destructive @config-gated @P1 @OBS65
+  Scenario: A report whose written feedback cannot be generated is held, and the coach is offered Regenerate
+    Given a completed observation whose report feedback fails to generate twice
+    When I tap "Send report"
+    Then no report image is sent to me or to the teacher
+    And I get one message naming the teacher, saying the report could not be prepared, with a "Regenerate report" button
+    # ADDED 2026-10-08 (bd-trksw9): prod 7 Oct, session 90073b76 — the narrative call hit 65,536
+    # output tokens of invalid JSON and the preview went out with an empty strength, horizon and
+    # moments. narrative.service.js now retries once; on a second failure generateHeroReport
+    # ({requireNarrative:true}) throws NARRATIVE_UNAVAILABLE and observe-send.service.js
+    # _handlePreviewUnavailable records send_failed / narrative_unavailable and sends
+    # send_preview_failed_fo + button observe_send_retry_<sessionId>.
+
+  @e2e @wip @destructive @config-gated @P1 @OBS66
+  Scenario: Tapping "Regenerate report" rebuilds the same observation's report preview
+    Given the coach was offered "Regenerate report" for an observation
+    When I tap "Regenerate report"
+    Then I am told the report is being prepared for the same teacher
+    And the report preview arrives with its scores unchanged and the strength and next step filled in
+    # handleSendRetry (bd-trksw9): owner only; re-queues phase 'preview' with a retryNonce so the
+    # 1h Redis / FIFO dedupe does not swallow it; the stored analysis is reused, nothing is re-scored.
+    # A tap after the report was sent answers send_already_sent and queues nothing.
+
   @e2e @wip @draft @negative @config-gated @P1 @OBS29
   Scenario: A cancelled observation stays cancelled whichever old button is tapped
     Given I cancelled an observation after its recording was accepted

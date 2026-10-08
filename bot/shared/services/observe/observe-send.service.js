@@ -31,6 +31,7 @@ const BTN = {
   confirm: 'observe_send_confirm_',
   other: 'observe_send_other_',
   cancel: 'observe_send_cancel_',
+  retry: 'observe_send_retry_',
 };
 const TEMPLATE_PAYLOAD_PREFIX = 'observe_report_';
 
@@ -993,6 +994,67 @@ async function _handleWindowClosedMidSend(sessionId, foPhone, S, delivery, foNam
   return true;
 }
 
+/**
+ * bd-trksw9: the preview could not get its written feedback (narrative failed
+ * twice). Nothing is rendered or sent. The row records it as `send_failed` — the
+ * status the portal already shows with a "Try again" that re-previews — and a
+ * WhatsApp coach gets one line with a Regenerate button for the SAME session.
+ * Returns normally: an SQS redelivery would just repeat the failure silently.
+ */
+async function _handlePreviewUnavailable(sessionId, foPhone, S, delivery, { portal } = {}) {
+  await mergeTeacherDelivery(sessionId, {
+    status: 'send_failed',
+    failure_reason: 'narrative_unavailable',
+    preview_failed_at: new Date().toISOString(),
+    channel: portal ? 'portal' : 'whatsapp',
+  });
+  logToFile('⚠️ observe send: report narrative unavailable — preview held, coach offered Regenerate', {
+    sessionId, portal: !!portal,
+  });
+  if (portal || !foPhone) return;
+  await WhatsAppService.sendInteractiveButtons(foPhone, {
+    body: String(S.send_preview_failed_fo).replace('{name}', String(delivery.teacher_name || '').trim())
+      .replace(/[ \t]{2,}/g, ' '),
+    buttons: [{ id: `${BTN.retry}${sessionId}`, title: String(S.btn_regenerate_report).slice(0, 20) }],
+  });
+}
+
+/**
+ * bd-trksw9: "Regenerate report" — re-run the preview for the same session and
+ * the same teacher. The analysis (and so every score) is reused as stored; only
+ * the report is rebuilt. A tap on a report that has since moved on queues nothing.
+ */
+async function handleSendRetry(sessionId, from, user) {
+  const S = observeStrings(observeLang(user));
+  const { data: session, error } = await supabase
+    .from('coaching_sessions').select('*').eq('id', sessionId).single();
+  if (error || !session) {
+    await WhatsAppService.sendMessage(from, S.debrief_load_error);
+    return;
+  }
+  if (session.observer_user_id !== user.id) {
+    await WhatsAppService.sendMessage(from, S.debrief_not_yours);
+    return;
+  }
+  const delivery = (session.analysis_data && session.analysis_data.teacher_delivery) || {};
+  if (delivery.status === 'sent' || delivery.status === 'awaiting_teacher_tap') {
+    await WhatsAppService.sendMessage(from, S.send_already_sent);
+    return;
+  }
+  if (delivery.status !== 'send_failed' || !delivery.preview_failed_at || !delivery.teacher_phone) {
+    logToFile('🔁 observe send: stale Regenerate tap — nothing to rebuild', { sessionId, status: delivery.status });
+    return;
+  }
+  const CoachingJobQueueService = require('../coaching/coaching-job-queue.service');
+  await mergeTeacherDelivery(sessionId, { status: 'previewing', channel: 'whatsapp' });
+  await ObserveState.setState(user.id, 'awaiting_send_confirm', { sessionId });
+  await WhatsAppService.sendMessage(from, fillPreviewComing(S, delivery.teacher_name, delivery.teacher_phone));
+  await CoachingJobQueueService.queueObserveTeacherReport(sessionId, {
+    from, phase: 'preview', teacherPhone: delivery.teacher_phone, retryNonce: String(Date.now()),
+  });
+  logToFile('🔁 observe send: Regenerate tapped — preview re-queued', { sessionId, observerId: user.id });
+}
+
 async function _handleDeliverFailure(sessionId, foPhone, S, path, err, meta = {}) {
   // Read the code BEFORE filing this as a failure. A 131047 on the direct path
   // means the window closed between our check and the send; the report is not
@@ -1079,12 +1141,22 @@ async function processTeacherReport(sessionId, payload = {}) {
     // renderer registry), so the framework brand must be injected here too —
     // otherwise a FICO/NIETE observe report renders the default Rumi palette
     // while the same teacher's coaching-pipeline report renders NIETE.
-    const { png, caption } = await generateHeroReport(session, v2, {
-      teacherName: delivery.teacher_name,
-      commitmentAction: (notes && notes.commitment_sw) || '',
-      language: teacherLang,   // bd-2405 — the teacher's market language drives the report
-      brand: heroBrandFor(v2.framework),
-    });
+    let rendered;
+    try {
+      rendered = await generateHeroReport(session, v2, {
+        teacherName: delivery.teacher_name,
+        commitmentAction: (notes && notes.commitment_sw) || '',
+        language: teacherLang,   // bd-2405 — the teacher's market language drives the report
+        brand: heroBrandFor(v2.framework),
+        // bd-trksw9: never preview a report whose written feedback failed to generate.
+        requireNarrative: true,
+      });
+    } catch (err) {
+      if (!err || err.code !== 'NARRATIVE_UNAVAILABLE') throw err;
+      await _handlePreviewUnavailable(sessionId, foPhone, S, delivery, { portal });
+      return;
+    }
+    const { png, caption } = rendered;
     const companionText = notes ? buildCompanionText(notes, { foName }, teacherS) : null;
     const teacherCaption = teacherS.report_caption_teacher.replace('{fo}', foName);
 
@@ -1246,6 +1318,7 @@ module.exports = {
   handleSendConfirm,
   handleSendCancel,
   processTeacherReport,
+  handleSendRetry,
   processUntappedDelivery,
   processUndeliveredDelivery,
   clampToMarket,
