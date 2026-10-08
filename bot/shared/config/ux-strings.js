@@ -4324,6 +4324,14 @@ const STUDENT_TUTOR_STRINGS = {
     ur: 'آپ کے کوئز، ویڈیوز اور چیلنج یہاں ہیں۔',
   },
   sqHubBtn: { en: 'Open', ur: 'کھولیں' },
+  // The child's /quiz as their home page (app_settings web_quiz_child_quiz_home): what is on it, and one Home
+  // button (≤ 20 code points). The plain label is the one retry if Meta refuses the emoji in a cta_url button.
+  sqHomeBody: {
+    en: 'Your home page: your last quiz is at the top, then videos and the challenge.',
+    ur: 'آپ کا ہوم پیج: سب سے اوپر آپ کا پچھلا کوئز، پھر ویڈیوز اور چیلنج۔',
+  },
+  sqHomeBtn: { en: '🏠 Home', ur: '🏠 ہوم' },
+  sqHomeBtnPlain: { en: 'Home', ur: 'ہوم' },
   studentOffTopicHint: {
     en: "Let's stay with your schoolwork — for anything else, ask a grown-up.",
     ur: 'آئیں سکول کے کام پر توجہ رکھیں — کسی اور بات کے لیے کسی بڑے سے پوچھیں۔',

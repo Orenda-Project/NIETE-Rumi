@@ -44,7 +44,8 @@ function pctOf(s) {
 /**
  * The quizzes taken on this handset, newest first, one entry per share code.
  * @returns {Promise<Array<{shareCodeId, code, active, quizId, topic, subject, language, studentId,
- *   studentName, className, attempts, latest, best, lastAt, teacherSent, sentAt, teacherUserId, grade, videoId}>>}
+ *   studentName, className, attempts, latest, best, lastAt, teacherSent, sentAt, teacherUserId, grade, videoId,
+ *   openAnswered?}>>}
  */
 async function quizzesForHandset(phone) {
   return quizzesForStudents(await StudentIdentity.findByPhone(phone));
@@ -78,6 +79,8 @@ async function quizzesForStudents(known) {
       attempts: 0, latest: null, best: null, lastAt: s.created_at, className: s.student_class || null,
     };
     g.attempts += 1;
+    // The newest unfinished sitting's answers so far (sessions are newest first): the home page's "Continue" card.
+    if (s.status === 'in_progress' && g.openAnswered == null && !g.latest) g.openAnswered = s.total_questions_answered || 0;
     if (s.status === 'completed') {
       if (!g.latest || String(s.completed_at || '') > String(g.latest.completed_at || '')) g.latest = s;
       if (!g.best || pctOf(s) > pctOf(g.best)) g.best = s;
@@ -135,8 +138,13 @@ async function open(phone, { language = 'en' } = {}) {
   const known = await StudentIdentity.findByPhone(phone);
   const quizzes = await quizzesForStudents(known);
   const lang = clampLanguage(childLanguage(quizzes) || language);
-  // The kid hub (app_settings web_quiz_hub): ONE link button to this phone's own children's hub.
-  if (known.length && await sendHub(phone, known, lang)) return true;
+  // The kid hub (app_settings web_quiz_hub): ONE link button to this phone's own children's hub;
+  // with web_quiz_child_quiz_home it is their home page, so the button says Home.
+  const home = Boolean((await require('./web-quiz-hub-flags').flags()).childHome);
+  if (known.length && await sendHub(phone, known, lang, { home })) return true;
+  // A hub token names at least one child: with none on the phone (a stale verdict, a failed lookup) there is no
+  // home to open, so today's message stands — counted, so the case is visible.
+  if (home && !known.length) logEvent('student_quiz.opened', { how: 'home_none' });
   if (!quizzes.length) {
     await WhatsAppService.sendMessage(phone, resolveUx('sqNoQuizzes', { language: lang }));
     logEvent('student_quiz.opened', { how: 'none' });
@@ -173,17 +181,23 @@ async function open(phone, { language = 'en' } = {}) {
   return true;
 }
 
-/** The hub's one cta_url message; false (send nothing) when the hub is off or the send failed. */
-async function sendHub(phone, known, lang) {
+/**
+ * The hub's one cta_url message; false (send nothing) when the hub is off or the send failed.
+ * `home`: the Home body and button; a refused emoji label is retried once with the plain one.
+ */
+async function sendHub(phone, known, lang, { home = false } = {}) {
   const url = await require('./web-quiz-hub-flags').hubLink(known.map((s) => s.id));
   if (!url) return false;
-  const sent = await WhatsAppService.sendCtaUrl(phone, {
-    body: resolveUx('sqHubBody', { language: lang }),
-    buttonText: resolveUx('sqHubBtn', { language: lang }), // ≤ 20 code points
-    url,
-  });
+  const body = resolveUx(home ? 'sqHomeBody' : 'sqHubBody', { language: lang });
+  const labels = home ? ['sqHomeBtn', 'sqHomeBtnPlain'] : ['sqHubBtn'];
+  let sent = false;
+  for (const key of labels) {
+    // ≤ 20 code points
+    sent = await WhatsAppService.sendCtaUrl(phone, { body, buttonText: resolveUx(key, { language: lang }), url });
+    if (sent) break;
+  }
   if (!sent) { logToFile('⚠️ student-quiz: hub link send failed, falling back', {}, 'error'); return false; }
-  logEvent('student_quiz.opened', { how: 'hub', kids: Math.min(known.length, 4) });
+  logEvent('student_quiz.opened', { how: home ? 'home' : 'hub', kids: Math.min(known.length, 4) });
   return true;
 }
 
