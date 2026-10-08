@@ -784,7 +784,9 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
         { role: 'user', content: `LESSON TRANSCRIPT:\n${transcript}` }],
       { maxTokens: 3000, step: 'corpus' },
     );
-    const corpus = this._safeJsonParse(content);
+    // bd-gr4fy.5.13: a moment's time anchor is spelled as the teacher reads it («قریب», never «کریب»).
+    const { normaliseCorpus } = require('./coaching/reflective-questions/corpus-normalise');
+    const corpus = normaliseCorpus(this._safeJsonParse(content), languageCode);
     logToFile('[refl-q] corpus extracted', { model_used, language: profile.language });
     return { corpus, usage, model_used };
   }
