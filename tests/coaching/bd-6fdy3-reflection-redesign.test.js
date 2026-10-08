@@ -24,7 +24,10 @@ describe('bd-6fdy3 — single question carries the research moves', () => {
   });
   it('closes with a light forward if-then tied to a cue', () => {
     expect(p).toMatch(/FORWARD/);
-    expect(p.toLowerCase()).toMatch(/one small thing/);
+    // Urdu asks for the one small step with a noun-agreeing close, since "what would you want to try?" needs a
+    // gendered verb in Urdu (bd-gr4fy.5.12). English keeps its own wording.
+    expect(p).toMatch(/ایک چھوٹا قدم/);
+    expect(buildQuestionPrompt(1, corpus, resolveProfile('en'), 'Afshan').toLowerCase()).toMatch(/one small thing/);
   });
   it('forbids advice-with-a-question-mark and stays warm/non-accusatory', () => {
     expect(p).toMatch(/ADVICE WITH A QUESTION MARK/);
