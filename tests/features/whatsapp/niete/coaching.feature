@@ -509,6 +509,20 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # (45 times in 8 production corpora), and the question copies the moment's anchor. The prompt now gives
     # Nastaliq anchors, and an Urdu approx_time_phrase is normalised to «قریب».
 
+  # @no-mock-driver: whether the question and the card put her in a gendered verb is a property of the live
+  # model's answer to the new prompt; the mock lane replays recorded vendor answers. Covered at unit level by
+  # tests/coaching/gender-neutral-urdu-address.test.js (detector, the rewrite, the card's one regeneration).
+  @e2e @wip @draft @content-driven @no-mock-driver @P1 @COA79
+  Scenario: An Urdu reflective question and commitment card never put the teacher in a gendered verb
+    Given the NIETE bot chat is open
+    And my account language is Urdu
+    When my coaching analysis reaches the reflective step (3/5) and later my commitment card arrives
+    Then the question closes without a gendered verb for me, like "کون سا ایک چھوٹا قدم آزمانا مفید رہے گا؟"
+    And neither the question nor the card says «چاہیں گے»، «چاہیں گی»، «آپ چاہتے ہیں» or «آپ چاہتی ہیں» to me
+    # reflective-questions/guardrails.js genderedAddress + language-profiles.js forward_close (bd-gr4fy.5.12):
+    # on 2026-10-08, 152/164 Urdu questions on Sonnet 5 and 166/230 on DeepSeek put her in a gendered verb, and
+    # 44/166 cards on Sonnet. We do not store a teacher's gender, so neither form may be assumed.
+
   @e2e @wip @draft @negative @P2 @COA27
   Scenario: The report-preparation greeting never calls a teacher "null"
     Given the NIETE bot chat is open
