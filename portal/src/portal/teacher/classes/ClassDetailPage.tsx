@@ -11,7 +11,8 @@ import { teacherPath } from '../routes';
 import { FeatureArt } from '../icons';
 import { StatusChip, SubjectTile, Tray, gradeSubjectLabel } from '../ui';
 import { CARD, FOCUS, LIST_CARD, OUTLINE_WIDE, ROW_DIVIDER } from '../ui/styles';
-import { CLASSES_V2_COPY as C } from './copy';
+import { CLASSES } from './copy';
+import { useCopy } from '../i18n';
 import { classChips, classRows, classTitle, lessonPlansLink, rosterRows, type RosterRow } from './model';
 import { EmptyCard, LoadFailed, LoadState, SectionHeading } from './parts';
 import { CLASSES_HOME } from './paths';
@@ -29,6 +30,7 @@ const DANGER = 'flex min-h-[56px] flex-1 items-center justify-center gap-2 round
  * names, remove one after asking).
  */
 export function ClassDetailPage() {
+  const C = useCopy(CLASSES);
   const { classId = '' } = useParams();
   const [listState, retryList] = useLoad(() => classesApi.list(), 'teacher-classes');
   const [rosterState, reloadRoster] = useLoad(() => classesApi.students(classId), `roster:${classId}`);

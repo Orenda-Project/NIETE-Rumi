@@ -7,7 +7,8 @@ import { dataOf, useLoad } from '../../newui/lessons/shared';
 import type { ClassOption } from '../../types/portal';
 import TeacherPage from '../TeacherPage';
 import { FOCUS } from '../ui/styles';
-import { CLASSES_V2_COPY as C } from './copy';
+import { CLASSES } from './copy';
+import { useCopy } from '../i18n';
 import { toCreatePayload } from './model';
 import { LoadState } from './parts';
 import { CLASSES_HOME } from './paths';
@@ -59,6 +60,7 @@ function Choice({ label, options, value, onChange, clearable = false }: {
  * her language; a class is required, the rest is optional, and the server decides what it accepts.
  */
 export function AddClassPage() {
+  const C = useCopy(CLASSES);
   const navigate = useNavigate();
   const [state, retry] = useLoad(() => classesApi.list(), 'teacher-classes');
   const data = dataOf(state);
