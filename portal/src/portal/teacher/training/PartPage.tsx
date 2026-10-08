@@ -1,13 +1,13 @@
 import DOMPurify from 'dompurify';
+import { useCopy } from '../i18n';
 import { Check, ClipboardCheck, FileText, Lock, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AudioPlayer } from '../../newui/AudioPlayer';
-import { TRAINING_COPY as T } from '../../newui/copy';
+import { TRAINING, TRAINING_INNER } from './copy';
 import { openInNewTab } from '../../newui/training/certificateFile';
 import { useTrainingPart } from '../../newui/training/TrainingPart';
 import { ListRow, StatusChip } from '../ui';
 import { CARD } from '../ui/styles';
-import { TRAINING_V2_COPY as C } from './copy';
 import { DockButton, HeroCard, V2Row } from './parts';
 import { LoadState, TrainingPageV2 } from './TrainingFrame';
 
@@ -18,6 +18,8 @@ import { LoadState, TrainingPageV2 } from './TrainingFrame';
  * is useTrainingPart's; only the look is v2.
  */
 export function PartPage() {
+  const T = useCopy(TRAINING_INNER);
+  const C = useCopy(TRAINING);
   const { moduleId, paths, detail, d, done, at, sorted, notSaved, best, after, courseUrl, markDone, saving, locked } = useTrainingPart();
 
   const chips = d ? (

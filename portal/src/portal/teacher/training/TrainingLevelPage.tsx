@@ -1,4 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
+import { useCopy } from '../i18n';
 import { Check, ChevronRight, Lock, Play, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CapstoneRow, hoursLeft, LevelCertificate } from '../../newui/training/TrainingLevel';
@@ -8,7 +9,7 @@ import {
 } from '../../newui/training/trainingApi';
 import { ListRow, StatusChip, type ChipData } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
-import { TRAINING_V2_COPY as C } from './copy';
+import { TRAINING, TRAINING_INNER } from './copy';
 import { journey, type JourneyNode, TRAINING_V2_BASE } from './model';
 import { LoadState, TrainingPageV2 } from './TrainingFrame';
 
@@ -22,6 +23,8 @@ import { LoadState, TrainingPageV2 } from './TrainingFrame';
 const paths = trainingPaths(TRAINING_V2_BASE);
 
 export function TrainingLevelPage() {
+  const T = useCopy(TRAINING_INNER);
+  const C = useCopy(TRAINING);
   const { vendorKey = '', levelId = '' } = useParams();
   const vendors = useGet<Vendor[]>('/training/vendors', undefined, (d) => (d as { vendors?: Vendor[] })?.vendors || []);
   const levels = useGet<Level[]>('/training/levels', undefined, (d) => (d as { levels?: Level[] })?.levels || []);
@@ -88,8 +91,8 @@ export function TrainingLevelPage() {
         </>
       ) : null}
 
-      {level && !ladder ? <CapstoneRow levelId={level.id} /> : null}
-      {level && examless && open ? <LevelCertificate levelId={level.id} onIssued={levels.reload} /> : null}
+      {level && !ladder ? <CapstoneRow levelId={level.id} words={T} /> : null}
+      {level && examless && open ? <LevelCertificate levelId={level.id} onIssued={levels.reload} words={T} /> : null}
 
       {next && open ? (
         <Link
@@ -108,6 +111,7 @@ export function TrainingLevelPage() {
 /* ── the journey path ─────────────────────────────────────────────────────── */
 
 function Journey({ nodes, fill }: { nodes: JourneyNode[]; fill: number }) {
+  const C = useCopy(TRAINING);
   // Four fit the column; more scroll sideways, the level she is on kept in view.
   const many = nodes.length > 4;
   const width = many ? nodes.length * 76 : undefined;
@@ -124,6 +128,7 @@ function Journey({ nodes, fill }: { nodes: JourneyNode[]; fill: number }) {
 }
 
 function Node({ node: n }: { node: JourneyNode }) {
+  const C = useCopy(TRAINING);
   const label = C.level(n.n);
   const dot = (
     <span className="flex h-16 items-center justify-center">
@@ -167,6 +172,7 @@ function Node({ node: n }: { node: JourneyNode }) {
 /* ── the level exam ──────────────────────────────────────────────────────── */
 
 function ExamRow({ gate, level, to }: { gate: GrandQuizGate; level: Level; to: string }) {
+  const C = useCopy(TRAINING);
   if (gate.state === 'no_quiz') return null;
   const left = Math.max(1, (level.courses_total || 0) - (level.courses_completed || 0));
   const chip: ChipData =

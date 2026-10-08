@@ -1,10 +1,10 @@
 import { Check, ChevronRight, ClipboardCheck, Play, RotateCcw, X } from 'lucide-react';
+import { useCopy } from '../i18n';
 import { cn } from '@/lib/utils';
-import { TRAINING_COPY as T } from '../../newui/copy';
+import { TRAINING, TRAINING_INNER } from './copy';
 import { quickCheckNext, useQuickCheck } from '../../newui/training/TrainingQuiz';
 import { ListRow, StatusChip } from '../ui';
 import { CARD } from '../ui/styles';
-import { TRAINING_V2_COPY as C } from './copy';
 import { answerStates } from './inner';
 import { Choices, DockButton, DockRow, Dots, HeroCard } from './parts';
 import { LoadState, TrainingPageV2 } from './TrainingFrame';
@@ -16,6 +16,8 @@ import { LoadState, TrainingPageV2 } from './TrainingFrame';
  * Continue and Try again). The paper, saving, marking and finishing are useQuickCheck's, unchanged.
  */
 export function QuickCheckPage() {
+  const T = useCopy(TRAINING_INNER);
+  const C = useCopy(TRAINING);
   const q = useQuickCheck();
   const { paths, moduleId, detail, courseId, result, modules, levels, partTitle, partUrl } = q;
 
