@@ -52,7 +52,15 @@ export type FileProblem = 'not_audio' | 'too_large' | null;
 export type PlanProblem = 'not_a_plan' | null;
 export type PhotosProblem = 'not_a_photo' | 'too_many' | null;
 
-export function useSendFlow(session: RecordingSession) {
+/**
+ * Where this flow lives and where it goes back to. Today's pages by default; the teacher v2 send page
+ * (teacher/coaching/SendPage, bd-fmf24g.4) passes its own, so the bar's Return and every way out land
+ * on v2 pages for a flagged teacher.
+ */
+export type SendFlowPaths = { record: string; hub: string };
+const TODAY_PATHS: SendFlowPaths = { record: RECORD_PATH, hub: '/portal/coaching' };
+
+export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TODAY_PATHS) {
   const navigate = useNavigate();
   const location = useLocation();
   const [stage, setStage] = useState<Stage>(() => (session.active ? 'recording' : 'starting'));
@@ -70,12 +78,12 @@ export function useSendFlow(session: RecordingSession) {
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   const toCoaching = useCallback(
-    () => navigate('/portal/coaching', { replace: true, state: { sendSheet: true } }),
-    [navigate],
+    () => navigate(paths.hub, { replace: true, state: { sendSheet: true } }),
+    [navigate, paths.hub],
   );
 
   const startRecording = async () => {
-    const result = await session.start({ returnTo: RECORD_PATH });
+    const result = await session.start({ returnTo: paths.record });
     setStage(result === 'recording' ? 'recording' : 'micBlocked');
   };
 
