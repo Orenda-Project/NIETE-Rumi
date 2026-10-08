@@ -9,6 +9,9 @@
  * object, and what each function returns, with the new UI's own checker.
  */
 
+import { MONTHS } from '../../newui/copy';
+import type { RangePreset } from '../../newui/range';
+
 export interface TeacherUiCopy {
   grade: (g?: string | number) => string;
   selected: string;
@@ -30,6 +33,53 @@ export interface TeacherUiCopy {
   otherClasses: string;
   noMatch: string;
   change: string;
+  dateRange: string;
+  presets: Record<RangePreset, string>;
+  pickDates: string;
+  pickedDates: string;
+  from: string;
+  to: string;
+  everything: string;
+  rangeError: string;
+  showDates: string;
+  showSpan: (span?: string) => string;
+  compareWith: (span?: string) => string;
+  months: readonly string[];
+  same: string;
+  sameAsBefore: string;
+  upBy: (n?: string | number) => string;
+  downBy: (n?: string | number) => string;
+  noValue: string;
+  progress: string;
+  done: string;
+  now: string;
+  stepsCount: (done?: number, total?: number) => string;
+  play: string;
+  pause: string;
+  report: ReportCopy;
+}
+
+/** ReportBody's words: the hero report PNG's own (bot report-v2/hero-report.template.js). */
+export interface ReportCopy {
+  report: string;
+  eyebrow: string;
+  brand: string;
+  brandMark: string;
+  scores: string;
+  moment: string;
+  strength: string;
+  horizon: string;
+  photos: string;
+  journey: string;
+  lastAsked: string;
+  tryNext: string;
+  commitment: string;
+  why: string;
+  notAssessed: string;
+  marks: (score?: number, max?: number) => string;
+  lessons: (n?: number) => string;
+  journeyAria: (n?: number) => string;
+  madeFor: (firstName?: string) => string;
 }
 
 export const TEACHER_UI_COPY: TeacherUiCopy = {
@@ -65,4 +115,62 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
   noMatch: 'No match',
   /** The picker's trigger, once picked. */
   change: 'Change',
+  /** DateRangeBar (the presets are the portal's own range keys, newui/range.ts). */
+  dateRange: 'Date range',
+  presets: {
+    this_week: 'This week',
+    this_month: 'This month',
+    last_3_months: 'Last 3 months',
+    this_year: 'This year',
+    all: 'All time',
+  },
+  pickDates: 'Pick dates',
+  pickedDates: 'Picked dates',
+  from: 'From',
+  to: 'To',
+  /** All time's dates. */
+  everything: 'Everything so far',
+  /** Pick dates with From after To. */
+  rangeError: 'From after To',
+  showDates: 'Show dates',
+  showSpan: (span = '') => `Show ${span}`.trim(),
+  /** Under KpiTiles: what the changes compare with ("vs 1 – 8 Sep 2026"). */
+  compareWith: (span = '') => `vs ${span}`.trim(),
+  months: MONTHS,
+  /** KpiTiles' change pill at 0, and the screen-reader words for a change. */
+  same: 'Same',
+  sameAsBefore: 'same as before',
+  upBy: (n = '') => `up ${n}`.trim(),
+  downBy: (n = '') => `down ${n}`.trim(),
+  noValue: '—',
+  /** ProgressSteps. */
+  progress: 'Progress',
+  done: 'Done',
+  now: 'Now',
+  stepsCount: (done = 0, total = 0) => `${done} of ${total}`,
+  /** VoiceNote's button. */
+  play: 'Play',
+  pause: 'Pause',
+  report: {
+    report: 'Report',
+    eyebrow: 'Celebrating your teaching',
+    brand: 'NIETE',
+    brandMark: 'N',
+    scores: 'Your scores',
+    moment: 'Moments to remember',
+    strength: 'Your strength',
+    horizon: 'Your next horizon',
+    photos: 'From your classroom',
+    journey: 'Your journey',
+    lastAsked: 'Last time we asked',
+    tryNext: 'Try next class',
+    commitment: 'Your commitment',
+    why: 'Why:',
+    notAssessed: 'Not assessed',
+    marks: (score = 0, max = 0) => `${score}/${max} marks`,
+    lessons: (n = 0) => `${n} lessons`,
+    journeyAria: (n = 0) => `Scores over ${n} lessons`,
+    /** The PNG's footer, word for word (5 words with a name: allowed in checks.test.tsx). */
+    madeFor: (firstName = '') => `Made just for you, ${firstName}`.replace(/,\s*$/, '').trim(),
+  },
 };

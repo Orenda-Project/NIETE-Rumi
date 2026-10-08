@@ -146,3 +146,45 @@ the history variants (`fields`, `stepper`, `chips`, `combos`, `mode="inline"`) a
 
 `catalogue.ts`: `LESSON_SUBJECTS_BY_GRADE`, `ASSESSMENT_SUBJECTS_BY_GRADE` (the bot's lists on 2026-10-08; sources in
 the file) and `subjectsByGradeFor(feature, given?)`.
+
+### `DateRangeBar` (top of an All page)
+| Prop | Type | Default |
+|---|---|---|
+| value / defaultValue | the portal's `DateRange` (`newui/range.ts`: `{ key: 'this_week' \| 'this_month' \| 'last_3_months' \| 'this_year' \| 'all' }` or `{ key: 'custom', from, to }`) | — / This month |
+| onChange | `(range, info)`: `info` = `{ from, to, prevFrom, prevTo, span, prevSpan, label, compareLabel }` | — |
+| today | YYYY-MM-DD the ranges end on | Pakistan's today (`pkToday()`) |
+| copy | `{ dateRange, presets, pickDates, pickedDates, from, to, everything, rangeError, showDates, showSpan, compareWith, months, close }` | `TEACHER_UI_COPY` |
+
+A 68px card: calendar tile, the range's name over its dates. Tray: six 64px choices with their dates; a preset applies
+and closes; Pick dates = From / To (labelled, max today) and Show, waiting for From ≤ To ("From after To" otherwise).
+`rangeQuery(range)` (newui) is the API query, as Home's. The previous period (`resolveRange()` in `range.ts`) is the
+same stretch one step back (1–8 Oct vs 1–8 Sep; the n picked days vs the n days before; All time has none), day-clamped.
+
+```tsx
+<DateRangeBar value={range} onChange={(r, info) => { setRange(r); setCompare(info.compareLabel); }} />
+<KpiTiles items={kpis} compareLabel={compare} />
+```
+
+### `KpiTiles`
+`items: [{ value, label, delta?, trend?, better? }]` (1–4 shown), `columns?` (2; 3 for three), `compareLabel?`, `copy?`
+(`same`, `sameAsBefore`, `upBy`, `downBy`, `noValue`). Number 32px (26px three across), thousands separated, missing =
+"—"; change pill ▲ green / ▼ amber / ● Same (`better: 'down'` swaps the colours); sparkline from ≥2 points. Numbers
+come from the page's data only.
+
+### `ProgressSteps`
+`heading?` (`copy.progress`), `steps: [{ label, sub?, state: 'done' | 'current' | 'later', nowText? }]`, `done?`,
+`doneLabel?`, `open?` / `onOpenChange?`, `copy?` (`progress`, `done`, `now`, `stepsCount`). The current step has
+`aria-current="step"`. Done collapses to a 56px green "Done · {doneLabel}" toggle.
+
+### `VoiceNote`
+`from`, `avatar` (`dc` · `person`), `initials?`, `duration`, `time`, `src?`, `heard?`, `copy?` (`play`, `pause`). With `src`
+it plays for real (preload none; one note at a time) and the 28-bar waveform fills as it plays; without, the button only
+toggles the drawing. DC only (the ~90 s voice debrief).
+
+### `ReportBody`
+`data: ReportData` (`headline, marks, max, teacher, topic, date, eyebrow?, identity?, sections[{ code, label, score, max,
+why, na }], moment?, strength?, horizon?, photos?[{ src, cap }], journey?{ points, first, last, note }, lastAsked?{ text,
+status, tone, line }, tryNext?, debrief?{ heading, initials, note, commitment, closing }`), `copy?` (`ReportCopy`). The
+hero report's sections in the PNG's order; every section without data is left out (that is the DC / coach-visit
+difference — the canvas's `kind` prop is not needed). Photos without an image are left out. Footer "Made just for you,
+{first name}" — the PNG's words (the copy check's one documented exception).
