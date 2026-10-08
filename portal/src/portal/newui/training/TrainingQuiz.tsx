@@ -46,7 +46,29 @@ const positionsOf = (q: Served, chosen: string) => {
 const valueOf = (q: Served, positions: number[]) =>
   positions.map((i) => Number(q.options[i]?.value)).filter(Number.isFinite).sort((x, y) => x - y).join(',');
 
-export default function TrainingQuiz() {
+/**
+ * After the result: the part to do next and where Continue goes. Only a pass completes the part (bd-2450);
+ * the parts are read again after the result. Shared with the teacher app v2's quick check (bd-fmf24g.12).
+ */
+export function quickCheckNext({ attempt, modules, levels, detail, moduleId, courseId, paths, partUrl }: {
+  attempt: Attempt;
+  modules: ModuleSummary[] | null;
+  levels: Level[] | null;
+  detail: Detail | null;
+  moduleId: string;
+  courseId: string | null;
+  paths: ReturnType<typeof trainingPaths>;
+  partUrl: string;
+}): { after: ModuleSummary | null; courseUrl: string; pct: number } {
+  const list = (modules || []).map((m) => (attempt.is_passed && m.id === moduleId && !m.completed_at ? { ...m, completed_at: attempt.completed_at } : m));
+  const after = partAfter(list, moduleId);
+  const levelId = detail?.level?.id;
+  const vendorKey = levels?.find((l) => l.id === levelId)?.vendor_key ?? null;
+  const courseUrl = vendorKey && levelId != null && courseId ? paths.course(vendorKey, levelId, courseId) : partUrl;
+  return { after, courseUrl, pct: percent(attempt.score, attempt.max_score) };
+}
+
+export function useQuickCheck() {
   const { moduleId = '' } = useParams();
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -153,18 +175,18 @@ export default function TrainingQuiz() {
 
   const again = () => { setIndex(0); void open(); };
 
+  return { moduleId, pathname, navigate, paths, id, detail, courseId, paper, setPaper, attemptId, setAttemptId, opening, setOpening, openFailed, setOpenFailed, index, setIndex, picks, setPicks, verdicts, setVerdicts, sending, setSending, notSent, setNotSent, saved, setSaved, result, setResult, open, modules, reloadModules, levels, qs, q, verdict, picked, last, partTitle, partUrl, back, check, submit, again };
+}
+
+/** The view; every rule and read is useQuickCheck's, shared with the teacher app v2 (bd-fmf24g.12). */
+export default function TrainingQuiz() {
+  const { moduleId, paths, id, detail, courseId, opening, openFailed, index, setIndex, setPicks, sending, notSent, result, open, modules, levels, qs, q, verdict, picked, last, partTitle, partUrl, back, check, submit, again } = useQuickCheck();
   const counter = !result && qs.length ? <Chip>{TRAINING_COPY.of(index + 1, qs.length)}</Chip> : null;
 
   if (result) {
     const done = result;
     const attempt = done.attempt;
-    // Only a pass completes the part (bd-2450); the parts are read again after the result.
-    const list = (modules.data || []).map((m) => (attempt.is_passed && m.id === moduleId && !m.completed_at ? { ...m, completed_at: attempt.completed_at } : m));
-    const after = partAfter(list, moduleId);
-    const levelId = detail.data?.level?.id;
-    const vendorKey = levels.data?.find((l) => l.id === levelId)?.vendor_key ?? null;
-    const courseUrl = vendorKey && levelId != null && courseId ? paths.course(vendorKey, levelId, courseId) : partUrl;
-    const pct = percent(attempt.score, attempt.max_score);
+    const { after, courseUrl, pct } = quickCheckNext({ attempt, modules: modules.data, levels: levels.data, detail: detail.data, moduleId, courseId, paths, partUrl });
     return (
       <TrainingInner crumb={TRAINING_COPY.crumb(partTitle)} title={TRAINING_COPY.quickCheck} backTo={partUrl}>
         <Hero

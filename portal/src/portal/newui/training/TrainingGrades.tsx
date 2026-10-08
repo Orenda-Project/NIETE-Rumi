@@ -32,12 +32,12 @@ type Bands = {
 };
 
 /** "Primary (Grades 1-5)" → "Primary" and "1–5". A title in any other shape is shown whole. */
-function split(title: string): { label: string; range: string | null } {
+export function split(title: string): { label: string; range: string | null } {
   const m = title.match(/^(.*?)\s*\(\s*grades?\s*(\d+)\s*[-–]\s*(\d+)\s*\)\s*$/i);
   return m ? { label: m[1], range: TRAINING_COPY.range(m[2], m[3]) } : { label: title, range: null };
 }
 
-export default function TrainingGrades() {
+export function useTrainingGrades() {
   const { pathname } = useLocation();
   const paths = trainingPaths(trainingBase(pathname));
   const bands = useGet<Bands>('/training/bands');
@@ -72,6 +72,12 @@ export default function TrainingGrades() {
     }
   };
 
+  return { pathname, paths, bands, chosen, setChosen, saving, setSaving, outcome, setOutcome, d, canChange, hours, save };
+}
+
+/** The view; every rule and read is useTrainingGrades's, shared with the teacher app v2 (bd-fmf24g.12). */
+export default function TrainingGrades() {
+  const { paths, bands, chosen, setChosen, saving, outcome, d, canChange, hours, save } = useTrainingGrades();
   const options = (d?.options || []).map((o) => {
     const { label, range } = split(o.title);
     return { key: o.id, label, aside: range ? <Chip>{range}</Chip> : undefined };
