@@ -116,3 +116,14 @@ describe("the Back / Next part bar on a phone", () => {
     expect(within(bar).getByRole("button", { name: "Next part" })).toBeInTheDocument();
   });
 });
+
+// bd-15y1pc — the draft is now READABLE once it can no longer be changed (the
+// coach v2 page shows the answers); this page, which edits, says so instead.
+describe("bd-15y1pc — a draft that can no longer be changed", () => {
+  it("shows the not-ready message, not an editable form", async () => {
+    L.getObservationDraft.mockResolvedValue({ ...DRAFT, editable: false });
+    renderPage();
+    expect(await screen.findByText("This draft cannot be changed any more.")).toBeInTheDocument();
+    expect(screen.queryByText("Quality Questioning")).toBeNull();
+  });
+});

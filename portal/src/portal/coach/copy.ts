@@ -93,7 +93,7 @@ export const COACH_COPY = {
   lastVisitOn: (date: string) => `Last visit · ${date}`,
   hitlBy: (who: string) => `HITL · ${who}`,
   // bd-o15qnr.19 — operator: "Draft should be Feedback Form, Talk should be Debrief."
-  reportStep: { sent: "Report sent", draft: "Feedback Form", talk: "Debrief", analysing: "Analysing" } as Record<string, string>,
+  reportStep: { sent: "Report sent", report: "Report not sent yet", draft: "Feedback Form", talk: "Debrief", analysing: "Analysing" } as Record<string, string>,
 
   // Record live (v18 Recording)
   recording: "Recording",
@@ -164,7 +164,7 @@ export const COACH_COPY = {
   waitingForYou: "Waiting for you",
   inProgress: "In progress",
   allObservations: "All observations",
-  stepLabel: { draft: "Feedback Form", talk: "Debrief", analysing: "Analysing", sent: "Sent" } as Record<string, string>,
+  stepLabel: { draft: "Feedback Form", talk: "Debrief", analysing: "Analysing", report: "Send report", sent: "Sent" } as Record<string, string>,
   steps: ["Analysed", "Feedback Form", "Debrief", "Sent"],
 
   // The observation page (v24 ObsTrack, bd-o15qnr.19)
