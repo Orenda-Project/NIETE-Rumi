@@ -49,6 +49,17 @@ test("unhandled rejection: src rej; a non-Error reason sends its own text; an Er
   expect(b).toMatchObject({ err: 'play() failed', src: 'rej', file: 'wq-read-live.js', line: 88, col: 21 });
 });
 
+test("a STRING rejection never sends its text (it may be a name): 'string_rejection'", () => {
+  const p = page({ lang: 'en' });
+  p.winListeners.unhandledrejection.forEach((fn) => fn({ reason: 'Ayesha Khan' }));
+  p.winListeners.unhandledrejection.forEach((fn) => fn({ reason: { code: 7 } }));
+  hide(p);
+  const [a, b] = sentErrors(p);
+  expect(a).toMatchObject({ err: 'string_rejection', src: 'rej' });
+  expect(JSON.stringify(a)).not.toMatch(/Ayesha|Khan/);
+  expect(b).toMatchObject({ err: '[object Object]', src: 'rej' });
+});
+
 test("a failure the page handled itself is src 'h'", async () => {
   const Q = [{ qid: 'q1', text: 'Q?', options: [{ slot: 'A', text: 'x' }], correct_slot: 'A' }];
   const played = { st: 'ST1', child: { first: 'Ali', chip: 'c1', animal: 'owl' }, seq: 1, wrong: [], result: null, answers: { q1: { slot: 'A', ok: true } }, queue: [] };
