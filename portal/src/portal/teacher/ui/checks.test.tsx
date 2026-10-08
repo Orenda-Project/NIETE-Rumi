@@ -11,6 +11,9 @@ import { HistoryRow } from "./HistoryRow";
 import { ListRow } from "./ListRow";
 import { GradeSubjectSelector } from "./GradeSubjectSelector";
 import { GradeSubjectPicker } from "./GradeSubjectPicker";
+import { DateRangeBar } from "./DateRangeBar";
+import { ProgressSteps } from "./ProgressSteps";
+import { VoiceNote } from "./VoiceNote";
 
 /**
  * bd-fmf24g.2 — the teacher kit's design rules, checked with the new UI's own checkers (newui/checks):
@@ -45,7 +48,12 @@ describe("teacher kit: style", () => {
 
 describe("teacher kit: copy", () => {
   it("every default word is a label: at most 4 words, never a sentence", () => {
-    const bad = collectCopy(TEACHER_UI_COPY).filter((c) => copyProblem(c.text)).map((c) => `${c.path}: ${c.text}`);
+    // The one exception, with its reason: the hero report PNG's footer, word for word ("Made just for you, Ayesha"
+    // is 5 words with her name) — report-v2/hero-report.template.js.
+    const ALLOWED = [/^report\.madeFor\(/];
+    const bad = collectCopy(TEACHER_UI_COPY)
+      .filter((c) => copyProblem(c.text) && !ALLOWED.some((a) => a.test(c.path)))
+      .map((c) => `${c.path}: ${c.text}`);
     expect(bad).toEqual([]);
   });
 
@@ -93,5 +101,21 @@ describe("teacher kit: every target is 56px or more", () => {
     expect(tapProblems(document.body)).toEqual([]);
     fireEvent.click(screen.getByRole("button", { name: /Pick/ }));
     expect(tapProblems(document.body)).toEqual([]);
+  });
+
+  it("DateRangeBar: the button, the tray's choices, the dates and Show", () => {
+    render(<DateRangeBar today="2026-10-08" />);
+    expect(tapProblems(document.body)).toEqual([]);
+    fireEvent.click(screen.getByRole("button", { name: /This month/ }));
+    fireEvent.click(screen.getByRole("radio", { name: "Pick dates" }));
+    expect(tapProblems(document.body)).toEqual([]);
+  });
+
+  it("ProgressSteps' Done line and VoiceNote's play", () => {
+    const { container } = render(<div>
+      <ProgressSteps steps={[{ label: "A", state: "done" }]} done doneLabel="Report ready" />
+      <VoiceNote from="Digital Coach" duration="1:30" time="11:06" src="/v.mp3" />
+    </div>);
+    expect(tapProblems(container)).toEqual([]);
   });
 });
