@@ -1283,3 +1283,11 @@ Feature: Web child quiz page on the portal
     When a child hears a figure question whose stem does not already point at the picture
     Then the page plays that line's recorded clip, matched by its exact words, before the question
     And a question's own wording for its figure, which has no recorded clip, is read by the phone's voice as before
+
+  @T643
+  Scenario: A library question recorded end to end gives its reason in the same recorded voice
+    Given a library question whose question and every option play the bank's recorded clips
+    And its recorded explanation was transcribed and says that question's explanation, with no option letter and no "the answer is"
+    When the child answers it
+    Then the reason after the answer is the recorded explanation, not a generated clip
+    But a question whose explanation clip failed that check, or changed since, keeps the generated reason
