@@ -57,6 +57,10 @@ import CoachAttach from "./portal/coach/pages/CoachAttach";
 import CoachCheckSend from "./portal/coach/pages/CoachCheckSend";
 import CoachObservation from "./portal/coach/pages/CoachObservation";
 import CoachEditTeacher from "./portal/coach/pages/CoachEditTeacher";
+// bd-fmf24g.1 — the teacher app v2 (behind portal_teacher_v2): every page a feature registers
+// in teacher/<folder>/routes.tsx, each one wrapped in the flag gate.
+import { TEACHER_ROUTES } from "./portal/teacher/routes";
+import TeacherGate from "./portal/teacher/TeacherGate";
 // bd-60117 — a principal's school-level Analytics tab.
 import SchoolAnalytics from "./portal/pages/SchoolAnalytics";
 import LegacyAttendanceRedirect from "./portal/components/LegacyAttendanceRedirect";
@@ -216,6 +220,11 @@ const App = () => {
             <Route path="/portal/coach/observation/:id" element={<CoachObservation />} />
             {/* bd-o15qnr.11 — Edit teacher (saved by the /observe teacher admin) */}
             <Route path="/portal/coach/teacher/:ext/edit" element={<CoachEditTeacher />} />
+            {/* bd-fmf24g.1 — the teacher app v2: teachers with portal_teacher_v2 only; anyone else
+                is sent to today's Home by the gate. Pages register themselves (teacher/routes.tsx). */}
+            {TEACHER_ROUTES.map((r) => (
+              <Route key={r.path} path={r.path} element={<TeacherGate>{r.element}</TeacherGate>} />
+            ))}
             {/* bd-60117 — principals only; the endpoint 403s the rest of
                 the leader family and the page says so rather than showing
                 one school's numbers to a multi-school role. */}

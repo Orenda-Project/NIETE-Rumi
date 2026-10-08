@@ -73,6 +73,7 @@ const {
   PORTAL_COACH_OBSERVATION_KEY,
   PORTAL_NEW_UI_KEY,
   PORTAL_COACH_V2_KEY,
+  PORTAL_TEACHER_V2_KEY,
   isCoachObservationOn,
   isPortalAssessmentEditingEnabled,
 } = require('../lib/feature-flags');
@@ -7893,6 +7894,10 @@ router.get('/config', async (req, res) => {
     const coachV2 = await isFlagEnabledForUser(
       supabase, PORTAL_COACH_V2_KEY, req.session && req.session.portalUserId,
     );
+    // bd-fmf24g.1: the teacher app v2, per user. The portal shows it to teachers only.
+    const teacherV2 = await isFlagEnabledForUser(
+      supabase, PORTAL_TEACHER_V2_KEY, req.session && req.session.portalUserId,
+    );
     return res.json({
       success: true,
       features: {
@@ -7904,6 +7909,7 @@ router.get('/config', async (req, res) => {
         coachObservation,
         newUi,
         coachV2,
+        teacherV2,
       },
     });
   } catch (error) {
@@ -7920,6 +7926,7 @@ router.get('/config', async (req, res) => {
         coachObservation: false,
         newUi: false,
         coachV2: false,
+        teacherV2: false,
       },
     });
   }

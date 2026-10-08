@@ -6,6 +6,7 @@ import { useRecordingSession } from '../lib/recordingSession';
 import { RecordingBarShownContext } from '../lib/recordingBarShown';
 import { useNewUi } from '../lib/useNewUi';
 import { useCoachV2, isCoachV2For } from '../coach/useCoachV2';
+import { useTeacherV2, isTeacherV2For } from '../teacher/useTeacherV2';
 import PortalNavigation from './PortalNavigation';
 import RecordingBar from './RecordingBar';
 import {
@@ -43,7 +44,9 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
   // does the page (and the recording bar) need more room. Off: as before.
   // bd-o15qnr — a coach on v2 keeps the live look even with the new UI on (v2 wins).
   const coachV2 = isCoachV2For(user, useCoachV2(user?.phoneNumber || null, !loading && !!user));
-  const newUi = useNewUi(user?.phoneNumber || null, !loading && !!user) === true && !coachV2;
+  // bd-fmf24g.1 — a teacher on v2 gets the v2 frame and menu (v2 wins over the new UI too).
+  const teacherV2 = isTeacherV2For(user, useTeacherV2(user?.phoneNumber || null, !loading && !!user));
+  const newUi = useNewUi(user?.phoneNumber || null, !loading && !!user) === true && !coachV2 && !teacherV2;
 
   // A session from a template's link (WhatsApp's own browser) can read its own area only
   // (training, lesson plans): no navigation, every other page goes to the area's home, and
@@ -106,13 +109,16 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
   const noNav = bare || linkOnly;
   const pad = noNav
     ? (showBar ? 'pb-24 md:pb-24' : 'pb-8')
+    // bd-fmf24g.1 — the v2 bottom bar is 78px + the safe area (canvas: 6 + 58 + 14).
+    : teacherV2
+      ? (showBar ? 'pb-[calc(168px+env(safe-area-inset-bottom))] md:pb-24' : 'pb-[calc(88px+env(safe-area-inset-bottom))] md:pb-8')
     : newUi
       ? (showBar ? 'pb-[calc(176px+env(safe-area-inset-bottom))] md:pb-24' : 'pb-[calc(96px+env(safe-area-inset-bottom))] md:pb-8')
       : (showBar ? 'pb-40 md:pb-24' : 'pb-20 md:pb-8');
   return (
     // The loaded user, to everything inside: the navigation never starts from "no user".
     <AuthContext.Provider value={auth}>
-    <div className={ownHeading ? 'min-h-screen bg-nu-surface' : 'min-h-screen bg-secondary'}>
+    <div className={teacherV2 ? 'min-h-screen bg-[#f3f4f6]' : ownHeading ? 'min-h-screen bg-nu-surface' : 'min-h-screen bg-secondary'}>
       {!noNav && <PortalNavigation hideStrip={ownHeading} />}
       {/* Issue #22: Added consistent padding for content */}
       <main className={ownHeading ? pad : `px-4 md:px-6 lg:px-8 pt-4 ${pad}`}>
