@@ -2273,10 +2273,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   }
 
   /* ---------------- share: the picture as a file -> navigator.share -> wa.me -> copy ---------------- */
+  // A share tap's labels: WhatsApp's own browser or not (by its UA marker), what this phone can share with,
+  // and, for a challenge, the code the message carries (a code, never a person), so a landing can be tied to it.
+  var WA_IAB = /\bWA4A\/|WhatsApp/.test(navigator.userAgent || '') ? 1 : 0;
   function share(text, url, what, art) {
     var full = text + ' ' + url;
-    ev('share_click', { src: what, step: 'tap' });
     var file = art && ART[art] && ART[art].file;
+    var to = what === 'challenge' ? /\/q\/([A-Z0-9]{4,12})(?:[/?#]|$)/i.exec(url) : null;
+    ev('share_click', { src: what, step: 'tap', iab: WA_IAB, cap: file && navigator.share ? 'file' : navigator.share ? 'native' : 'none', to: to ? to[1] : undefined });
     if (file && navigator.share) {
       navigator.share({ files: [file], text: full }).then(function () { ev('share_click', { src: what, step: 'file', path: 'file' }); },
         function (e) { if (e && e.name === 'AbortError') ev('share_click', { src: what, step: 'file_cancel' }); else fallback(full, what, text, url, art); });
@@ -2315,7 +2319,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         if (ok) done(); else ev('share_click', { src: what, step: 'copy_failed' });
       }
     });
-    on('#wq-back', back);
+    on('#wq-back', function () { ev('share_click', { src: what, step: 'fb_back' }); back(); });
   }
 
   /* ---------------- M10 scorecard ---------------- */
@@ -2376,7 +2380,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     render(h, 'M10');
     libPrefetch();
     wireBar();
-    ev('card_view', {});
+    // How the child did (the share ask may depend on it) and whether this was a friend's challenge run.
+    var pct = res.score && res.score.pct != null ? res.score.pct : (total ? Math.round(100 * (c.correct || 0) / total) : 0);
+    ev('card_view', { band: pct < 50 ? 'low' : pct < 80 ? 'mid' : 'high', friend: friend ? 1 : 0 });
     if (res.vs && T.vs[res.vs.outcome]) ev('challenge_result', { reason: res.vs.outcome });
     // The challenge code names the challenger on the server: no child's name rides in the link.
     var chalUrl = link('/q/' + (res.challenge_code || CODE));
@@ -2796,7 +2802,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
 
   /* ---------------- boot ---------------- */
   var conn = navigator.connection || {};
-  ev('page_open', { ua: String(navigator.userAgent || '').slice(0, 300), iab: IAB, store: STORE_OK ? 1 : 0, net: conn.effectiveType || '', src: B.view || 'quiz', reason: B.challenge ? 'challenge' : undefined });
+  ev('page_open', { ua: String(navigator.userAgent || '').slice(0, 300), iab: IAB, store: STORE_OK ? 1 : 0, net: conn.effectiveType || '', src: B.view || 'quiz', reason: B.challenge ? 'challenge' : undefined,
+    // Where this link came from: a friend's challenge code, the class table a child shared, a child's shared card, else the teacher's own.
+    via: B.challenge || B.invited ? 'invite' : B.view === 'class' ? 'table' : params.a ? 'card' : 'direct' });
   if (S.queue.length) flushQueue();
   // M4a hub: "Play again" (?again=1) starts a fresh attempt on this phone: a finished one only, never unsent
   // answers. (?k=<chip> is the identity code's: it confirms the child before playing.)
