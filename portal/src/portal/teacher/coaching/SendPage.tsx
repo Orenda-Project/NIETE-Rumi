@@ -293,6 +293,7 @@ export function SendPage() {
 
       {stage === 'library' ? (
         <LibraryStep
+          words={C.picker}
           onPick={(p) => { flow.pickPlan(p); flow.setStage('check'); }}
           onStepChange={onLibraryStep}
           backSignal={libraryBack}
@@ -346,6 +347,7 @@ export function SendPage() {
       ) : null}
 
       <PlanSheet
+        words={C.picker}
         open={planSheet}
         onClose={() => setPlanSheet(false)}
         onPick={(p) => { flow.pickPlan(p); setPlanSheet(false); }}

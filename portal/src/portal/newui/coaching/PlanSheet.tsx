@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { BookOpen, Camera, CircleAlert, FileText, Library } from 'lucide-react';
 import { acceptFor } from '../../lib/coachingUpload';
 import type { LessonPlanUsed } from '../home/progressApi';
-import { COACHING_COPY } from '../copy';
 import { Sheet } from '../Sheet';
 import { List, Row, SectionLabel } from '../List';
 import { Chip } from '../Chip';
 import { getRecentPlans, pickOf, planChips } from './coachingApi';
 import type { Picked } from './LibraryStep';
+import { PICKER_WORDS_EN, type PickerWords } from './pickerWords';
 
 /**
  * bd-5rz1v.26 — Check and send's "Lesson plan" sheet.
@@ -20,9 +20,11 @@ import type { Picked } from './LibraryStep';
  *   Choose a file         a PDF, Word file or photo
  *
  * Both pickers open from the tap (a hidden input), never later.
+ *
+ * `words`: the teacher v2's translation of the picker's words (bd-fmf24g.13); English when left out.
  */
 
-export function PlanSheet({ open, onClose, onPick, onLibrary, onFile, problem }: {
+export function PlanSheet({ open, onClose, onPick, onLibrary, onFile, problem, words }: {
   open: boolean;
   onClose: () => void;
   onPick: (plan: Picked) => void;
@@ -30,7 +32,9 @@ export function PlanSheet({ open, onClose, onPick, onLibrary, onFile, problem }:
   /** A photo or a file of her own plan; true when it was a lesson plan (the sheet then closes). */
   onFile: (file: File | undefined, asPhoto: boolean) => boolean;
   problem: 'not_a_plan' | null;
+  words?: PickerWords;
 }) {
+  const W = words ?? PICKER_WORDS_EN;
   const [recent, setRecent] = useState<LessonPlanUsed[]>([]);
   const photo = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -45,27 +49,27 @@ export function PlanSheet({ open, onClose, onPick, onLibrary, onFile, problem }:
   const chosen = (file: File | undefined, asPhoto: boolean) => { if (onFile(file, asPhoto)) onClose(); };
 
   return (
-    <Sheet open={open} title={COACHING_COPY.lessonPlan} onClose={onClose} testId="coaching-plan-sheet">
+    <Sheet open={open} title={W.lessonPlan} onClose={onClose} testId="coaching-plan-sheet">
       {recent.length ? (
         <>
-          <SectionLabel>{COACHING_COPY.recent}</SectionLabel>
-          <List label={COACHING_COPY.recent}>
+          <SectionLabel>{W.recent}</SectionLabel>
+          <List label={W.recent}>
             {recent.map((p) => (
               <Row
                 key={p.planKey}
-                title={p.title || COACHING_COPY.planFallback}
+                title={p.title || W.planFallback}
                 icon={BookOpen}
-                chips={planChips(p).map((c) => <Chip key={c}>{c}</Chip>)}
-                onClick={() => onPick({ pick: pickOf(p), title: p.title || COACHING_COPY.planFallback, chips: planChips(p) })}
+                chips={planChips(p, W).map((c) => <Chip key={c}>{c}</Chip>)}
+                onClick={() => onPick({ pick: pickOf(p), title: p.title || W.planFallback, chips: planChips(p, W) })}
               />
             ))}
           </List>
         </>
       ) : null}
       <List>
-        <Row title={COACHING_COPY.fromLibrary} icon={Library} onClick={onLibrary} />
-        <Row title={COACHING_COPY.takePhoto} icon={Camera} onClick={() => photo.current?.click()} />
-        <Row title={COACHING_COPY.chooseFile} icon={FileText} onClick={() => fileInput.current?.click()} />
+        <Row title={W.fromLibrary} icon={Library} onClick={onLibrary} />
+        <Row title={W.takePhoto} icon={Camera} onClick={() => photo.current?.click()} />
+        <Row title={W.chooseFile} icon={FileText} onClick={() => fileInput.current?.click()} />
       </List>
       <input
         ref={photo}
@@ -85,7 +89,7 @@ export function PlanSheet({ open, onClose, onPick, onLibrary, onFile, problem }:
         onChange={(e) => { chosen(e.target.files?.[0], false); e.target.value = ''; }}
       />
       {problem ? (
-        <div className="flex justify-center"><Chip tone="error" icon={CircleAlert}>{COACHING_COPY.notAPlan}</Chip></div>
+        <div className="flex justify-center"><Chip tone="error" icon={CircleAlert}>{W.notAPlan}</Chip></div>
       ) : null}
     </Sheet>
   );
