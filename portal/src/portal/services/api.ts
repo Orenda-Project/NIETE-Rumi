@@ -114,6 +114,12 @@ export const portal = {
     const response = await api.get('/dashboard');
     return response.data;
   },
+
+  /** bd-fxk3t8 — who is signed in: the same user as getDashboard, without its counts. */
+  getMe: async (): Promise<{ success: boolean; user: User }> => {
+    const response = await api.get('/me');
+    return response.data;
+  },
   
   getLessonPlans: async (page = 1, limit = 20, type?: string): Promise<{
     lessonPlans: LessonPlan[];

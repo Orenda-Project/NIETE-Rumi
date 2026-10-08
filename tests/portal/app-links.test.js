@@ -87,7 +87,7 @@ describe('App.tsx wiring', () => {
   const app = fs.readFileSync(path.join(__dirname, '../../portal/src/App.tsx'), 'utf8');
 
   it('mounts the app-link listener inside the router (it needs navigate)', () => {
-    const open = app.indexOf('<BrowserRouter>');
+    const open = app.indexOf('<BrowserRouter') /* bd-fxk3t8: the tag carries future={{ v7_startTransition }} */;
     const listener = app.indexOf('<AppLinkListener />');
     const close = app.indexOf('</BrowserRouter>');
     expect(listener).toBeGreaterThan(open);
