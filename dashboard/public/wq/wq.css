@@ -471,3 +471,17 @@ a.wq-vitem{color:inherit;text-decoration:none}
 .wq-sheetbox p{margin:0 0 6px;font-weight:800;font-size:20px;line-height:1.35;color:var(--navy)}
 .wq-hometop{display:flex;justify-content:flex-end;margin:0 0 6px}
 a.wq-home{text-decoration:none}
+
+/* The invite ask (app_settings web_quiz_invite_ask): the challenge as "who can beat your score?" with three who-tiles. */
+.wq-ask{background:#FFF6DC;border:2px solid var(--gold);border-radius:20px;padding:12px 12px 14px;box-shadow:0 4px 0 var(--gold-d);display:flex;flex-direction:column;gap:8px}
+.wq-ask h2{margin:0;font-size:20px;font-weight:900;color:var(--navy);line-height:1.25}
+html[lang=ur] .wq-ask h2{font-weight:700;font-size:19px;line-height:1.9}
+.wq-ask bdi{font-family:var(--f)}
+.wq-who{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.wq-who .wq-kid{flex-direction:column;justify-content:center;gap:4px;min-height:92px;padding:8px 4px;font-size:15px;line-height:1.2;text-align:center;background:#fff;border-color:var(--gold);box-shadow:0 3px 0 var(--gold-d)}
+html[lang=ur] .wq-who .wq-kid{font-weight:700;line-height:1.7;font-size:16px}
+.wq-who .wq-kid .wq-ani{width:38px;height:38px;font-size:22px;background:#FFF0C2}
+/* With the panel, the card's picture is smaller so the panel is on the first screen of a 360x740 phone. */
+.wq-askon img{width:56px!important;height:56px!important}
+.wq-askon .wq-in{gap:4px;padding:10px 14px}
+html[lang=ur] .wq-askon .wq-name,html[lang=ur] .wq-askon .wq-praise{line-height:1.5;margin:0}
