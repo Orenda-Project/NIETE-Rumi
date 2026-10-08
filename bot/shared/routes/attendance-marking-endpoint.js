@@ -1068,4 +1068,8 @@ module.exports = {
   parseToken,
   prettyDate,
   NO_ROSTER_OPTION,
+  // bd-fmf24g.7 — the portal's class attendance (services/attendance-portal.service.js) uses the
+  // same roster rule and counts, so WhatsApp and the portal name the same children.
+  loadStudentRoster,
+  rosterCounts,
 };
