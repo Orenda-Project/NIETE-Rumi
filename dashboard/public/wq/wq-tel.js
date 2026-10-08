@@ -22,7 +22,7 @@
  */
 (function () {
   'use strict';
-  var W = window.WQT = { on: false, push: function () { return false; }, screen: function () {} };
+  var W = window.WQT = { on: false, push: function () { return false; }, flush: function () {}, screen: function () {} };
   var B;
   try { B = JSON.parse(document.getElementById('boot').textContent) || {}; } catch (e) { return; }
   if (!B || B.rt !== true) return;
@@ -123,6 +123,7 @@
 
   W.on = true;
   W.push = push;
+  W.flush = flush;
   W.screen = function () { check(); };
   push({ n: 'page_start', page: PAGE, pps: PPS, ua: String(navigator.userAgent || '').slice(0, 300) });
   try { if (ROOT && window.MutationObserver) new MutationObserver(soon).observe(ROOT, { attributes: true, attributeFilter: ['data-m', 'data-screen'], childList: true, subtree: true }); } catch (e) {}

@@ -736,10 +736,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (props) for (var k in props) if (props[k] !== undefined) e[k] = props[k];
     if (n === 'error' && e.src === undefined) e.src = 'h'; // a failure the page caught itself
     e.n = n;
+    // Page-session telemetry on (wq-tel.js): the event joins that page session's queue.
+    if (window.WQT && window.WQT.push(e)) return;
     evq.push(e);
     if (evq.length >= 10) flushEv();
   }
   function flushEv(beacon) {
+    if (window.WQT && window.WQT.on) window.WQT.flush(beacon);
     if (!evq.length) return;
     var body = JSON.stringify({ events: evq.splice(0, 20) });
     try {
