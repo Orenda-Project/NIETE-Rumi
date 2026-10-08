@@ -1810,6 +1810,8 @@ function events(body = {}) {
     const c = cleanEvent(e);
     if (!c) continue;
     logEvent(`web_quiz.${c.name}`, c.props);
+    // The old-link re-offer stands down once the page has opened on that code (web-quiz-old-link.js).
+    if (c.name === 'page_open' && c.props.code) require('./web-quiz-old-link').noteOpen(c.props.code);
     logged += 1;
   }
   return { logged };
