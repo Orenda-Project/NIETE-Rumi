@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { resolve } from "node:path";
-import { render } from "@testing-library/react";
+import { render, fireEvent, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { newUiSourceFiles, scanCopy, scanStyle } from "../../newui/checks/source";
 import { collectCopy, copyProblem, tapProblems } from "../../newui/checks/rules";
@@ -9,6 +9,8 @@ import { GradeSubjectButton } from "./GradeSubjectButton";
 import { HistoryList } from "./HistoryList";
 import { HistoryRow } from "./HistoryRow";
 import { ListRow } from "./ListRow";
+import { GradeSubjectSelector } from "./GradeSubjectSelector";
+import { GradeSubjectPicker } from "./GradeSubjectPicker";
 
 /**
  * bd-fmf24g.2 — the teacher kit's design rules, checked with the new UI's own checkers (newui/checks):
@@ -74,5 +76,22 @@ describe("teacher kit: every target is 56px or more", () => {
       </div>,
     );
     expect(tapProblems(container)).toEqual([]);
+  });
+
+  it("GradeSubjectSelector: both fields, the grade tray (pills, close) and the subject tray (rows)", () => {
+    const { container } = inRouter(<GradeSubjectSelector defaultValue={{ grade: 4, subject: "Math" }} />);
+    expect(tapProblems(container)).toEqual([]);
+    fireEvent.click(screen.getByRole("button", { name: /Grade 4/ }));
+    expect(tapProblems(document.body)).toEqual([]);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByRole("button", { name: /Subject.*Math/ }));
+    expect(tapProblems(document.body)).toEqual([]);
+  });
+
+  it("GradeSubjectPicker: trigger, search, Your classes and Other classes rows, links too", () => {
+    inRouter(<GradeSubjectPicker label="Pick" combos={[{ grade: 4, subject: "Math" }]} value={{ grade: 4, subject: "Math" }} to={(v) => `/x/${v.grade}`} />);
+    expect(tapProblems(document.body)).toEqual([]);
+    fireEvent.click(screen.getByRole("button", { name: /Pick/ }));
+    expect(tapProblems(document.body)).toEqual([]);
   });
 });

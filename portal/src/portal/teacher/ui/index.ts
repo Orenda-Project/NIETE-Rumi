@@ -12,3 +12,11 @@ export { GradeSubjectButton, type GradeSubjectButtonProps, type GradeSubjectStat
 export { HistoryRow, type HistoryAction, type HistoryRowProps } from './HistoryRow';
 export { HistoryList, type HistoryGroup, type HistoryItem, type HistoryListProps } from './HistoryList';
 export { ListRow, type ListRowIcon, type ListRowProps, type ListRowState } from './ListRow';
+export { Tray, type TrayProps } from './Tray';
+export {
+  ASSESSMENT_SUBJECTS_BY_GRADE, LESSON_SUBJECTS_BY_GRADE, subjectsByGradeFor, type SubjectsByGrade, type TeacherCatalogueFeature,
+} from './catalogue';
+export { GradeSubjectSelector, type GradeSubjectSelectorProps, type GradeSubjectValue } from './GradeSubjectSelector';
+export {
+  GradeSubjectPicker, type GradeSubjectCombo, type GradeSubjectPair, type GradeSubjectPickerProps,
+} from './GradeSubjectPicker';
