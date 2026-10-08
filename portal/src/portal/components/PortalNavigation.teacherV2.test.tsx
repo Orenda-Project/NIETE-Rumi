@@ -76,4 +76,23 @@ describe("bd-fmf24g.1 — the teacher v2 bottom menu", () => {
     await renderNav({ id: "c-1", firstName: "Noor", role: "coach", phoneNumber: "923001110004" }, "/portal/leader", { teacherV2: true });
     expect(screen.queryByTestId("teacher-nav")).toBeNull();
   });
+  it("each item carries the kit's D2 menu glyph", async () => {
+    await renderNav(TEACHER, "/portal/dashboard", { teacherV2: true });
+    const links = within(screen.getByTestId("teacher-nav")).getAllByRole("link");
+    const glyphs = links.map((a) => a.querySelector("svg[data-glyph]")?.getAttribute("data-glyph"));
+    expect(glyphs).toEqual(["home", "lessons", "coaching", "training", "more"]);
+    for (const a of links) expect(a.querySelector("svg.lucide")).toBeNull();
+  });
+  it("the menu glyphs never animate: static at the source (no animation or transition can apply)", async () => {
+    await renderNav(TEACHER, "/portal/dashboard", { teacherV2: true });
+    for (const svg of Array.from(screen.getByTestId("teacher-nav").querySelectorAll("svg[data-glyph]"))) {
+      const cls = svg.getAttribute("class") || "";
+      expect(svg.getAttribute("data-still"), "glyph declares itself still").toBe("true");
+      expect(cls).toMatch(/\[animation:none!important\]/);
+      expect(cls).toMatch(/\[&_\*\]:\[animation:none!important\]/);
+      expect(cls).toMatch(/\[transition:none!important\]/);
+      expect(cls).not.toMatch(/animate-|motion-safe/);
+      expect(svg.querySelector("animate, animateTransform, animateMotion, set")).toBeNull();
+    }
+  });
 });

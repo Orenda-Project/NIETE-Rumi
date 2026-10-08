@@ -1,10 +1,9 @@
-import type { ComponentType, SVGProps } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { BookOpen, GraduationCap, Home, MoreHorizontal, Smartphone } from "lucide-react";
 import nieteLogo from "@/assets/niete-logo.png";
 import { cn } from "@/lib/utils";
 import { TEACHER_COPY as C } from "./copy";
 import { teacherPath } from "./routes";
+import { FeatureGlyph, type GlyphName } from "./icons";
 import { currentMenuItem, type NavFeature } from "./menu";
 
 /**
@@ -14,18 +13,16 @@ import { currentMenuItem, type NavFeature } from "./menu";
  * five items sit in a white bar at the top.
  *
  * Each item goes to the feature's v2 page once it is registered (routes.tsx) and to
- * today's page until then. The glyphs are stand-ins until the kit's D2 menu glyphs
- * (teacher/icons, bd-fmf24g.2) land; swap them in NAV_ICONS only.
+ * today's page until then. Glyphs: the kit's D2 menu glyphs (teacher/icons).
  */
 
-type Glyph = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
-
-const NAV_ICONS: Record<NavFeature, Glyph> = {
-  home: Home,
-  lessons: BookOpen,
-  coaching: Smartphone,
-  training: GraduationCap,
-  more: MoreHorizontal,
+/** The kit's D2 menu glyphs (teacher/icons, bd-fmf24g.2): Digital Coaching is the phone. */
+const NAV_ICONS: Record<NavFeature, GlyphName> = {
+  home: "home",
+  lessons: "lessons",
+  coaching: "coaching",
+  training: "training",
+  more: "more",
 };
 
 const ITEMS: { feature: NavFeature; label: string }[] = [
@@ -51,7 +48,6 @@ const TeacherNavigation = () => {
           </div>
           <div className="flex flex-1 items-center gap-1">
             {ITEMS.map(({ feature, label }) => {
-              const Icon = NAV_ICONS[feature];
               const on = current === feature;
               return (
                 <Link
@@ -63,7 +59,7 @@ const TeacherNavigation = () => {
                     on ? "text-[#48b078]" : "text-[#6b7280] hover:text-[#1d2025]",
                   )}
                 >
-                  <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  <FeatureGlyph name={NAV_ICONS[feature]} size={20} className="shrink-0" />
                   <span>{label}</span>
                 </Link>
               );
@@ -79,7 +75,6 @@ const TeacherNavigation = () => {
         className="fixed inset-x-0 bottom-0 z-40 flex justify-around border-t border-[#e5e7eb] bg-white px-1 pb-[calc(14px+env(safe-area-inset-bottom))] pt-1.5 md:hidden"
       >
         {ITEMS.map(({ feature, label }) => {
-          const Icon = NAV_ICONS[feature];
           const on = current === feature;
           return (
             <Link
@@ -91,7 +86,7 @@ const TeacherNavigation = () => {
                 on ? "text-[#48b078]" : "text-[#6b7280]",
               )}
             >
-              <Icon className="h-6 w-6" aria-hidden="true" />
+              <FeatureGlyph name={NAV_ICONS[feature]} size={24} />
               <span>{label}</span>
             </Link>
           );

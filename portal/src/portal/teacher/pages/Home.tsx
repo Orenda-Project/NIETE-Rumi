@@ -3,7 +3,7 @@ import { CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../../hooks/useAuth";
 import TeacherPage, { PageChip } from "../TeacherPage";
-import FeatureArt, { type ArtFeature } from "../FeatureArt";
+import { FeatureArt, type TeacherFeature as ArtFeature } from "../icons";
 import { TEACHER_COPY as C } from "../copy";
 import { cleanSchool, fullName, todayLabel } from "../format";
 import { teacherPath } from "../routes";
@@ -52,7 +52,7 @@ export default function Home() {
                 wide ? "col-span-2 min-h-[132px]" : "min-h-[176px]",
               )}
             >
-              <FeatureArt feature={feature} />
+              <FeatureArt feature={feature} size={80} />
               <span className="text-[18px] font-semibold leading-tight">{label}</span>
             </Link>
           );

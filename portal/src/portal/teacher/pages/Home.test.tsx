@@ -67,4 +67,13 @@ describe("teacher v2 Home", () => {
       expect(t.textContent).not.toMatch(/\d/);
     }
   });
+  it("each tile shows the kit's D2 illustration (Digital Coaching is the phone), not a stand-in", () => {
+    renderHome(AYESHA);
+    const tiles = within(screen.getByTestId("feature-tiles")).getAllByRole("link");
+    const features = ["lessons", "coaching", "observations", "training", "assessment", "attendance", "classes"];
+    tiles.forEach((t, i) => {
+      expect(t.querySelector(`svg[data-feature-art="${features[i]}"]`), features[i]).not.toBeNull();
+      expect(t.querySelector("svg.lucide"), `${features[i]} still a lucide stand-in`).toBeNull();
+    });
+  });
 });

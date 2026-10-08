@@ -99,4 +99,10 @@ describe("teacher v2 More", () => {
     renderMore();
     for (const row of within(document.body).getAllByTestId(/^more-row-/)) expect(row.className).toMatch(/min-h-\[64px\]/);
   });
+  it("the feature rows wear their D2 menu glyphs", () => {
+    renderMore();
+    expect(screen.getByTestId("more-row-assessment").querySelector('svg[data-glyph="assessment"]')).not.toBeNull();
+    expect(screen.getByTestId("more-row-attendance").querySelector('svg[data-glyph="attendance"]')).not.toBeNull();
+    expect(screen.getByTestId("more-row-classes").querySelector('svg[data-glyph="classes"]')).not.toBeNull();
+  });
 });
