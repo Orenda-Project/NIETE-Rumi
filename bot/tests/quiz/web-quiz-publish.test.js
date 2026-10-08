@@ -804,6 +804,66 @@ describe('maths operators are said as words, a range is still a range', () => {
   });
 });
 
+// A question ending "= ?" (or "= ___") gave the voice "… equals" with nothing after it but a mark, and the voice
+// sometimes made up the missing word ("720 divided by 6 equals questions Z", «پچاس منفی تیس برابر منچینی»): 11 of 60
+// takes with "= ?" or a blank, 0 of 60 with a word there. The blank after "=" is said as the catalog's word
+// (wqSayEqualsBlank: "what?" / «کتنے؟»), in the publish path only.
+describe('an "equals" with a blank or "?" after it is said with a word, never left open', () => {
+  const { UX_STRINGS } = require('../../shared/config/ux-strings');
+  const notFound = () => mockS3Send.mockImplementation(async (cmd) => {
+    if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+    return {};
+  });
+  const sentTexts = () => axios.post.mock.calls.map((c) => c[1] && c[1].text).filter(Boolean);
+  const oneQuestion = (language, q) => {
+    const rows = quizRows();
+    rows.quiz.language = language;
+    rows.questions = [{ ...rows.questions[0], option_feedback: null, explanation: null, ...q }];
+    return rows;
+  };
+  test('English: "= ?" and "= ___" reach the voice as "= what?"', async () => {
+    notFound();
+    const db = fakeDb(oneQuestion('en', { question_text: 'Use long division: 720 ÷ 6 = ?', option_a: '15 + 27 = ___', option_b: '120', option_c: null, option_d: null }));
+    const out = await publishQuizAudio(QUIZ_ID, { db });
+    expect(out.failed).toBe(0);
+    const sent = sentTexts();
+    expect(sent).toEqual(expect.arrayContaining(['Use long division: 720 divided by 6 = what?', '15 plus 27 = what?']));
+    sent.forEach((t) => expect(t).not.toMatch(/=\s*(?:…|\?|$)/));
+  });
+  test('Urdu: the word is the catalog\'s «کتنے» with an Urdu question mark', async () => {
+    notFound();
+    const db = fakeDb(oneQuestion('ur', { question_text: '۵۰ − ۳۰ = ?', option_a: '۲۰', option_b: '۳۰', option_c: null, option_d: null }));
+    const out = await publishQuizAudio(QUIZ_ID, { db });
+    expect(out.failed).toBe(0);
+    expect(UX_STRINGS.wqSayEqualsBlank).toEqual({ en: 'what?', ur: 'کتنے؟' });
+    expect(sentTexts()).toContain('۵۰ منفی ۳۰ = کتنے؟');
+  });
+  test('an "=" with its value, or a blank before the "=", is left as written', () => {
+    expect(Publish.voiceText('9 - 4 = 5', 'en')).toBe('9 minus 4 = 5');
+    expect(Publish.voiceText('12 + … = 20', 'en')).toBe('12 + … = 20');
+    expect(Publish.voiceText('x = y + 2. What is x?', 'en')).toBe('x = y + 2. What is x?');
+    expect(Publish.voiceText('Equal sign =', 'en')).toBe('Equal sign =');
+    expect(Publish.voiceText('3 + 4 = … . Fill in the blank.', 'en')).toBe('3 + 4 = … . Fill in the blank.');
+  });
+  test('only a gap that ENDS the text is filled: words after it already finish the sentence (as written on prod)', () => {
+    expect(Publish.voiceText(Publish.spoken("From 10 o'clock to 12 o'clock: 12 - 10 = ? hours"), 'en')).toBe("From 10 o'clock to 12 o'clock: 12 minus 10 = ? hours");
+    expect(Publish.voiceText(Publish.spoken('$326 + 241 = ?$ کا جواب کیا ہے؟'), 'ur')).not.toMatch(/کتنے/);
+    expect(Publish.voiceText('24 + 18 = ? Use the last digit of your answer.', 'en')).not.toMatch(/what/);
+    expect(Publish.voiceText('"5.29 + 2.16 = ?"', 'en')).toBe('"5.29 + 2.16 = what?"');
+  });
+});
+
+// A quiz recorded before an open "=" was closed with a word ("= ?" -> "= what?") is brought up to date on its next
+// open: only the clips whose words changed are recorded (191 on prod, about $0.11); the rest are found in R2.
+describe('a quiz recorded before an open "=" was said with a word', () => {
+  test('is not current: its next open asks for one quiz_web_audio job', async () => {
+    const queue = { queueJob: jest.fn().mockResolvedValue({ MessageId: 'm1' }) };
+    expect(Publish.isCurrent({ audio_v: 5, audio_voice: 'soniox-en' })).toBe(false);
+    await Publish.requestQuizAudio('quiz-eq-v5', { meta: { web: { audio_v: 5, audio_voice: 'soniox-en' } }, queue });
+    expect(queue.queueJob).toHaveBeenCalledWith('quiz-eq-v5', 'quiz_web_audio', { quizId: 'quiz-eq-v5' }, expect.any(Object));
+  });
+});
+
 // A quiz recorded before the operators were said as words keeps its old clips in its map, and a quiz at
 // the current voice version is never published again: the version is bumped so each one is brought up to
 // date on its next open (only the clips whose words changed are recorded; the rest are found in R2).

@@ -60,6 +60,18 @@
   ],
   "tffalse": [
    "Not yet. This sentence is false."
+  ],
+  "fig": [
+   "Look at the bars.",
+   "Look at the number line.",
+   "Look at the clock.",
+   "Look at the money.",
+   "Look at the shape.",
+   "Look at the graph.",
+   "Look at the steps.",
+   "Look at the timeline.",
+   "Look at the picture and the word.",
+   "Look at the picture."
   ]
  },
  "ur": {
@@ -123,6 +135,18 @@
   ],
   "tffalse": [
    "ابھی نہیں۔ یہ بات غلط ہے۔"
+  ],
+  "fig": [
+   "پٹیوں کو دیکھیں۔",
+   "عددی لکیر کو دیکھیں۔",
+   "گھڑی کو دیکھیں۔",
+   "پیسوں کو دیکھیں۔",
+   "شکل کو دیکھیں۔",
+   "گراف کو دیکھیں۔",
+   "مراحل کو دیکھیں۔",
+   "وقت کی لکیر کو دیکھیں۔",
+   "تصویر اور لفظ کو دیکھیں۔",
+   "تصویر کو دیکھیں۔"
   ]
  },
  "voices": {
