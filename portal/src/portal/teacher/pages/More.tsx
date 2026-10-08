@@ -1,13 +1,13 @@
-import type { ComponentType, ReactNode, SVGProps } from "react";
+import type { ComponentType, CSSProperties, ReactNode, SVGProps } from "react";
 import { Link } from "react-router-dom";
 import {
-  Award, BarChart3, CalendarCheck, ChevronRight, CircleUserRound, ClipboardCheck, Languages, Loader2, LogOut, School,
+  Award, BarChart3, ChevronRight, CircleUserRound, Languages, Loader2, LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../../hooks/useAuth";
 import { useLogoutGuard } from "../../lib/recordingSession";
 import TeacherPage from "../TeacherPage";
-import { FEATURE_HUE } from "../hues";
+import { FEATURE_HUE, FeatureGlyph, type GlyphName } from "../icons";
 import { TEACHER_COPY as C } from "../copy";
 import { cleanSchool, formatPhone, fullName, initials } from "../format";
 import { teacherPath } from "../routes";
@@ -28,14 +28,15 @@ const ROW = cn(
   "outline-none hover:bg-[#f9fafb] focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-[#f59e0b]",
 );
 
-function Tile({ icon: Icon, hue }: { icon: Glyph; hue?: { fg: string; bg: string } }) {
+function Tile({ icon: Icon, glyph, hue }: { icon?: Glyph; glyph?: GlyphName; hue?: { fg: string; bg: string } }) {
   return (
     <span
       aria-hidden="true"
       className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-[#f3f4f6] text-[#33374a]"
-      style={hue ? { background: hue.bg, color: hue.fg } : undefined}
+      // The glyph's knocked-out details take the tile's tint (teacher/icons: CSS --cut).
+      style={hue ? ({ background: hue.bg, color: hue.fg, "--cut": hue.bg } as CSSProperties) : undefined}
     >
-      <Icon className="h-[22px] w-[22px]" />
+      {glyph ? <FeatureGlyph name={glyph} size={22} /> : Icon ? <Icon className="h-[22px] w-[22px]" /> : null}
     </span>
   );
 }
@@ -52,10 +53,10 @@ function Card({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function RowLink({ id, to, icon, hue, label }: { id: string; to: string; icon: Glyph; hue?: { fg: string; bg: string }; label: string }) {
+function RowLink({ id, to, icon, glyph, hue, label }: { id: string; to: string; icon?: Glyph; glyph?: GlyphName; hue?: { fg: string; bg: string }; label: string }) {
   return (
     <Link to={to} data-testid={`more-row-${id}`} className={ROW}>
-      <Tile icon={icon} hue={hue} />
+      <Tile icon={icon} glyph={glyph} hue={hue} />
       <span className="min-w-0 truncate">{label}</span>
       <Chevron />
     </Link>
@@ -90,9 +91,9 @@ export default function More() {
       </section>
 
       <Card label={C.more.teaching}>
-        <RowLink id="assessment" to={teacherPath("assessment")} icon={ClipboardCheck} hue={FEATURE_HUE.assessment} label={C.more.assessment} />
-        <RowLink id="attendance" to={teacherPath("attendance")} icon={CalendarCheck} hue={FEATURE_HUE.attendance} label={C.more.attendance} />
-        <RowLink id="classes" to={teacherPath("classes")} icon={School} hue={FEATURE_HUE.classes} label={C.more.classes} />
+        <RowLink id="assessment" to={teacherPath("assessment")} glyph="assessment" hue={FEATURE_HUE.assessment} label={C.more.assessment} />
+        <RowLink id="attendance" to={teacherPath("attendance")} glyph="attendance" hue={FEATURE_HUE.attendance} label={C.more.attendance} />
+        <RowLink id="classes" to={teacherPath("classes")} glyph="classes" hue={FEATURE_HUE.classes} label={C.more.classes} />
         <RowLink id="analytics" to={teacherPath("analytics")} icon={BarChart3} label={C.more.analytics} />
       </Card>
 
