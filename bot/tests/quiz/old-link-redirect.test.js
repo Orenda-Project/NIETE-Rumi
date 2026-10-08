@@ -336,7 +336,7 @@ describe("today's chat path is kept when", () => {
 describe('the read-aloud clips get a head start at the redirect', () => {
   const audioJobs = () => Queue.queueJob.mock.calls.filter((c) => c[1] === 'quiz_web_audio');
   const NOT_CURRENT = { id: 'x', audio_v: null, audio_voice: null };
-  const CURRENT = { id: 'x', audio_v: 4, audio_voice: 'sx-grace' };
+  const CURRENT = { id: 'x', audio_v: String(require('../../shared/services/quiz/web-quiz-publish.service').AUDIO_VERSION), audio_voice: 'sx-grace' };
 
   test('a quiz without current clips: ONE quiz_web_audio job for that quiz, asked before the button is sent', async () => {
     stub({ sc: shareCode({ quiz_id: 'quiz-hs-new' }), settings: ON, quiz: NOT_CURRENT });
