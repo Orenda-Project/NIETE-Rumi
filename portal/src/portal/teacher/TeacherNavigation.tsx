@@ -1,7 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
 import nieteLogo from "@/assets/niete-logo.png";
 import { cn } from "@/lib/utils";
-import { TEACHER_COPY as C } from "./copy";
+import { TEACHER_FRAME } from "./copy";
+import { useCopy } from "./i18n";
 import { teacherPath } from "./routes";
 import { FeatureGlyph, type GlyphName } from "./icons";
 import { currentMenuItem, type NavFeature } from "./menu";
@@ -25,15 +26,12 @@ const NAV_ICONS: Record<NavFeature, GlyphName> = {
   more: "more",
 };
 
-const ITEMS: { feature: NavFeature; label: string }[] = [
-  { feature: "home", label: C.nav.home },
-  { feature: "lessons", label: C.nav.lessons },
-  { feature: "coaching", label: C.nav.coaching },
-  { feature: "training", label: C.nav.training },
-  { feature: "more", label: C.nav.more },
-];
+/** The menu, in order; each item's word is C.nav[feature] in the page's language. */
+const ITEMS: NavFeature[] = ["home", "lessons", "coaching", "training", "more"];
 
 const TeacherNavigation = () => {
+  const C = useCopy(TEACHER_FRAME);
+  const items = ITEMS.map((feature) => ({ feature, label: C.nav[feature] }));
   const { pathname } = useLocation();
   const current = currentMenuItem(pathname);
 
@@ -47,7 +45,7 @@ const TeacherNavigation = () => {
             <span className="text-lg font-bold text-[#1d2025]">{C.brand}</span>
           </div>
           <div className="flex flex-1 items-center gap-1">
-            {ITEMS.map(({ feature, label }) => {
+            {items.map(({ feature, label }) => {
               const on = current === feature;
               return (
                 <Link
@@ -74,7 +72,7 @@ const TeacherNavigation = () => {
         data-testid="teacher-nav"
         className="fixed inset-x-0 bottom-0 z-40 flex justify-around border-t border-[#e5e7eb] bg-white px-1 pb-[calc(14px+env(safe-area-inset-bottom))] pt-1.5 md:hidden"
       >
-        {ITEMS.map(({ feature, label }) => {
+        {items.map(({ feature, label }) => {
           const on = current === feature;
           return (
             <Link

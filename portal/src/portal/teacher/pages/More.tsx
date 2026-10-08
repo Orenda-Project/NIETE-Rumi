@@ -8,7 +8,8 @@ import { useAuth } from "../../hooks/useAuth";
 import { useLogoutGuard } from "../../lib/recordingSession";
 import TeacherPage from "../TeacherPage";
 import { FEATURE_HUE, FeatureGlyph, type GlyphName } from "../icons";
-import { TEACHER_COPY as C } from "../copy";
+import { TEACHER_FRAME } from "../copy";
+import { useCopy } from "../i18n";
 import { cleanSchool, formatPhone, fullName, initials } from "../format";
 import { teacherPath } from "../routes";
 import { useLanguageSwitch } from "../useLanguageSwitch";
@@ -64,6 +65,7 @@ function RowLink({ id, to, icon, glyph, hue, label }: { id: string; to: string; 
 }
 
 export default function More() {
+  const C = useCopy(TEACHER_FRAME);
   const { user, logout } = useAuth();
   const guardedLogout = useLogoutGuard(logout);
   const lang = useLanguageSwitch();

@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "../../hooks/useAuth";
 import TeacherPage, { PageChip } from "../TeacherPage";
 import { FeatureArt, type TeacherFeature as ArtFeature } from "../icons";
-import { TEACHER_COPY as C } from "../copy";
+import { TEACHER_FRAME } from "../copy";
+import { useCopy, useLang } from "../i18n";
 import { cleanSchool, fullName, todayLabel } from "../format";
 import { teacherPath } from "../routes";
 
@@ -15,17 +16,12 @@ import { teacherPath } from "../routes";
  * the tiles ("remove the pills… we will figure that out later"). Order is fixed in both
  * languages (most-used first), never alphabetical.
  */
-const TILES: { feature: ArtFeature; label: string }[] = [
-  { feature: "lessons", label: C.home.tiles.lessons },
-  { feature: "coaching", label: C.home.tiles.coaching },
-  { feature: "observations", label: C.home.tiles.observations },
-  { feature: "training", label: C.home.tiles.training },
-  { feature: "assessment", label: C.home.tiles.assessment },
-  { feature: "attendance", label: C.home.tiles.attendance },
-  { feature: "classes", label: C.home.tiles.classes },
-];
+const TILES: ArtFeature[] = ["lessons", "coaching", "observations", "training", "assessment", "attendance", "classes"];
 
 export default function Home() {
+  const C = useCopy(TEACHER_FRAME);
+  const lang = useLang();
+  const tiles = TILES.map((feature) => ({ feature, label: C.home.tiles[feature] }));
   const { user } = useAuth();
   const school = cleanSchool(user?.schoolName);
   return (
@@ -34,14 +30,14 @@ export default function Home() {
       title={C.home.greeting(fullName(user))}
       chips={(
         <>
-          <PageChip><CalendarDays className="h-[15px] w-[15px]" aria-hidden="true" />{todayLabel()}</PageChip>
+          <PageChip><CalendarDays className="h-[15px] w-[15px]" aria-hidden="true" />{todayLabel(new Date(), lang)}</PageChip>
           {school && <PageChip testId="home-school">{school}</PageChip>}
         </>
       )}
     >
       <nav aria-label={C.home.features} data-testid="feature-tiles" className="[display:grid] grid-cols-2 gap-3">
-        {TILES.map(({ feature, label }, i) => {
-          const wide = i === TILES.length - 1;
+        {tiles.map(({ feature, label }, i) => {
+          const wide = i === tiles.length - 1;
           return (
             <Link
               key={feature}

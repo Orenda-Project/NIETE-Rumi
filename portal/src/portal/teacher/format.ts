@@ -37,11 +37,17 @@ export function cleanSchool(value: unknown): string | null {
   return s;
 }
 
-/** Today in Pakistan, "Thu 8 Oct" (the canvas's date chip). */
-export function todayLabel(now: Date = new Date()): string {
+const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS_UR = ["اتوار", "پیر", "منگل", "بدھ", "جمعرات", "جمعہ", "ہفتہ"];
+const MONTHS_UR = ["جنوری", "فروری", "مارچ", "اپریل", "مئی", "جون", "جولائی", "اگست", "ستمبر", "اکتوبر", "نومبر", "دسمبر"];
+
+/** Today in Pakistan, "Thu 8 Oct" (the canvas's date chip); in Urdu "جمعرات 8 اکتوبر" (Western digits, as the bot). */
+export function todayLabel(now: Date = new Date(), lang: "en" | "ur" = "en"): string {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Karachi", weekday: "short", day: "numeric", month: "short",
   }).formatToParts(now);
   const get = (t: string) => parts.find((p) => p.type === t)?.value || "";
-  return `${get("weekday")} ${get("day")} ${get("month")}`;
+  if (lang !== "ur") return `${get("weekday")} ${get("day")} ${get("month")}`;
+  const month = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", month: "numeric" }).format(now));
+  return `${WEEKDAYS_UR[WEEKDAYS_EN.indexOf(get("weekday"))]} ${get("day")} ${MONTHS_UR[month - 1]}`;
 }
