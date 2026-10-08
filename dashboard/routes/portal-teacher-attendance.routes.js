@@ -23,7 +23,9 @@
 const express = require('express');
 const supabase = require('../config/supabase');
 const { isFlagEnabledForUser, PORTAL_TEACHER_V2_KEY } = require('../lib/feature-flags');
+const pool = require('../config/database');
 const Attendance = require('../services/teacher-attendance.service');
+const GradeSubjects = require('../services/grade-subjects.service');
 
 const router = express.Router();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -87,7 +89,13 @@ router.get('/teacher/attendance/classes', ...guard, (req, res, next) => {
   const raw = req.query && req.query.date;
   if (raw !== undefined && !realDate(raw)) return res.status(400).json({ success: false, error: 'date must be YYYY-MM-DD' });
   return next();
-}, answer('classes', (userId, req) => Attendance.classes(userId, (req.query && req.query.date) || null)));
+}, answer('classes', async (userId, req) => {
+  const [out, lang] = await Promise.all([
+    Attendance.classes(userId, (req.query && req.query.date) || null),
+    GradeSubjects.defaultDeps((sql, params) => pool.query(sql, params)).language(userId),
+  ]);
+  return out && out.code ? out : { ...out, classes: Attendance.withNames(out.classes, lang) };
+}));
 
 router.get('/teacher/attendance/classes/:listId/roster', ...guardList,
   answer('roster', (userId, req) => Attendance.roster(userId, req.params.listId)));
