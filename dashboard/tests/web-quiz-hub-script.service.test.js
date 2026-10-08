@@ -269,3 +269,62 @@ test('the lock screen first tells the child to open their own quiz and tap the c
   expect(u.html()).toContain('«میرے کوئز، ویڈیوز اور چیلنج»');
   expect(u.html()).not.toMatch(/رہا|رہی|بیٹا|بیٹی/);
 });
+
+describe('the home page (boot.home_v: the last quiz on top, then Videos + the Challenge)', () => {
+  const ONE = [KIDS[0]];
+  const LIB = { href: `/lib/${TOKEN}?kid=0000000000000001&l=en` };
+  const home = (extra) => boot({ lang: 'en', kids: ONE, kid: KIDS[0].chip, home_v: 1, lib: LIB, challenge: { on: true }, ...extra });
+  const order = (h, parts) => parts.map((p) => { const i = h.indexOf(p); expect(i).toBeGreaterThan(-1); return i; });
+
+  test('an unfinished last quiz: "Your last quiz", its topic, the answers so far, ONE Continue to its own chip; then Videos, then the Challenge', () => {
+    const p = page(home({ last: { code: 'NEWQ01', topic: 'Shapes', subject: 'maths', k: 'c1', state: 'open', answered: 2 }, teacher: { code: 'OTHR01', topic: 'Plants', subject: 'science', sent_at: new Date().toISOString(), k: 'c2' } }));
+    const h = p.html();
+    const [a, b, c, d] = order(h, ['Your last quiz', 'id="wq-h-last"', 'id="wq-h-lib"', 'id="wq-h-ch"']);
+    expect(a < b && b < c && c < d).toBe(true);
+    expect(h).toContain('Shapes');
+    expect(h).toContain('Continue');
+    expect(p.els['#wq-h-last'].attrs.href).toBe('/q/NEWQ01?k=c1');
+    // the teacher's other new quiz still shows, AFTER the tiles
+    expect(h.indexOf('id="wq-h-teacher"')).toBeGreaterThan(d);
+  });
+
+  test('a finished last quiz: its score and Play again (?again=1 under its chip); no Continue', () => {
+    const p = page(home({ last: { code: 'MATH01', topic: 'Fractions', subject: 'maths', k: 'c1', state: 'done', score: { c: 8, t: 10 }, again: true } }));
+    const h = p.html();
+    expect(h).toMatch(/<bdi dir="ltr">8\/10<\/bdi>/);
+    expect(h).not.toContain('Continue');
+    expect(p.els['#wq-h-last'].attrs.href).toBe('/q/MATH01?again=1&k=c1');
+  });
+
+  test('a finished quiz whose link closed: the score, no button', () => {
+    const p = page(home({ last: { code: 'MATH01', topic: 'Fractions', subject: 'maths', k: 'c1', state: 'done', score: { c: 8, t: 10 }, again: false } }));
+    expect(p.els['#wq-h-last']).toBeUndefined();
+    expect(p.html()).toContain('8/10');
+  });
+
+  test('no last quiz and no teacher quiz: Videos and the Challenge lead, no empty "no quiz" card', () => {
+    const p = page(home({ last: null }));
+    expect(p.html()).not.toContain('wq-hnone');
+    expect(p.els['#wq-h-lib']).toBeDefined();
+  });
+
+  test('a tap on the last-quiz card is counted (hub_pick src=last) and goes to its href', () => {
+    const p = page(home({ last: { code: 'NEWQ01', topic: 'Shapes', subject: 'maths', k: 'c1', state: 'open', answered: 0 } }));
+    p.els['#wq-h-last'].fire('click');
+    expect(p.assigned).toEqual(['/q/NEWQ01?k=c1']);
+  });
+
+  test('Urdu: the copy is Urdu and gender-neutral; the count is isolated', () => {
+    const p = page(home({ lang: 'ur', last: { code: 'NEWQ01', topic: 'شکلیں', subject: 'maths', k: 'c1', state: 'open', answered: 3 } }));
+    const h = p.html();
+    expect(h).toContain('آپ کا پچھلا کوئز');
+    expect(h).toContain('جاری رکھیں');
+    expect(h).toMatch(/<bdi>3<\/bdi>/);
+    expect(h).not.toMatch(/رہا|رہی|بیٹا|بیٹی/);
+  });
+
+  test('without home_v the page is today\'s (no last card even if one is sent)', () => {
+    const p = page(boot({ lang: 'en', kids: ONE, kid: KIDS[0].chip, lib: LIB, last: { code: 'X', topic: 'T', k: 'c', state: 'open' } }));
+    expect(p.html()).not.toContain('Your last quiz');
+  });
+});

@@ -1077,6 +1077,47 @@ Feature: NIETE (ICT) Teacher Training
     # tryReoffer skips: age > 600 s, video-quiz getActiveState, a page_open on the code after the button
     # (web-quiz.service events -> noteOpen), the redirect flag off; the teacher's own self-test is never kept. @wip.
 
+  # A child's /quiz is their HOME page (app_settings web_quiz_child_quiz_home, with web_quiz_hub on): one
+  # "🏠 Home" link button, and the page puts their last quiz first, then Videos and the Challenge. Who is a child
+  # is the door's existing decision (student-ingress); every doubt is the teacher's /quiz, unchanged.
+
+  @e2e @quiz @config-gated @wip @draft @P1 @T692
+  Scenario: A child's /quiz sends one "Home" button that opens their home page with the last quiz on top
+    Given a child on this phone has played a class quiz, with app_settings "web_quiz_hub" and "web_quiz_child_quiz_home" true
+    When the child sends "/quiz" (or "quiz", "quizz", "mera quiz", «کوئز»)
+    Then exactly one message arrives: a line saying the last quiz is at the top, then videos and the challenge, and one "🏠 Home" (or "🏠 ہوم") button
+    And the message text carries no link, no code and no child's name
+    When the child taps "Home"
+    Then the page shows "Your last quiz" first — "Continue" when it is unfinished, the score and "Play again" when it is finished — then Videos and the Challenge
+    # student-quiz.service open → sendHub {home}: sqHomeBody / sqHomeBtn (sqHomeBtnPlain if Meta refuses the emoji),
+    # logged student_quiz.opened how=home; web-quiz-hub.js lastOf → payload last + home_v; hub.js lastCard.
+    # Proven in bot/tests/quiz/child-quiz-home.test.js (real webhook) and web-quiz-hub.test.js. @wip.
+
+  @e2e @quiz @config-gated @wip @draft @P0 @T693
+  Scenario: A teacher's /quiz never opens the child's home page, even when children played on the teacher's phone
+    Given a registered teacher whose phone was used by children for a class quiz, with "web_quiz_child_quiz_home" true
+    When the teacher sends "/quiz" (or "quiz", «کوئز», "/quiz fractions")
+    Then the teacher's own /quiz menu opens as today, and no "Home" button is sent
+    # Identity (registration, a name, a school, coach/principal role) or activity (a quiz, a coaching session, a
+    # lesson plan with a link, a class list, training, an assessment) always wins; a failed lookup is the teacher's
+    # path. Every row of the adversarial list is executed in bot/tests/quiz/child-quiz-home.test.js. @wip.
+
+  @e2e @quiz @registration @wip @draft @P1 @T694
+  Scenario: An adult who registers on a phone a child used gets the teacher's /quiz straight away
+    Given this phone was last answered as a child's
+    When the adult completes registration in the registration form, without typing "register"
+    And sends "/quiz" a minute later
+    Then the teacher's /quiz menu opens, not the child's home page
+    # flow-response.handler handleRegistrationFlow and feature-registration.service handleNameResponse drop the
+    # handset's cached verdict (student-ingress forget). @wip.
+
+  @e2e @quiz @config-gated @wip @draft @P2 @T695
+  Scenario: With the home switch off, a child's /quiz is exactly today's
+    Given app_settings "web_quiz_child_quiz_home" is false, missing or unreadable
+    When a child sends "/quiz"
+    Then the message and its "Open" button are today's, word for word
+    # flags() fails closed: a read error is OFF. @wip.
+
   @e2e @quiz @copy @wip @draft @P2 @T57
   Scenario: After an Urdu quiz, the message a child forwards to a friend is in Urdu
     Given a child has just finished an Urdu class quiz opened from its link
