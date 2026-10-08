@@ -15,6 +15,8 @@ vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { chil
 
 import { TRAINING_V2_COPY } from "./copy";
 import { LoadState, TrainingPageV2 } from "./TrainingFrame";
+import { CertificateCardV2, Choices, DockButton, V2Row, WrittenBox } from "./parts";
+import { BookOpen } from "lucide-react";
 import routes from "./routes";
 import { TRAINING_V2_BASE } from "./model";
 
@@ -49,6 +51,23 @@ describe("training: every target is 56px or more", () => {
       <MemoryRouter>
         <TrainingPageV2 crumb="C" title="T" backTo="/x"><LoadState loading={false} failed onRetry={() => {}} /></TrainingPageV2>
         <TrainingPageV2 crumb="C" title="T" backTo="/x" onBack={() => {}}><span /></TrainingPageV2>
+      </MemoryRouter>,
+    );
+    expect(tapProblems(container)).toEqual([]);
+  });
+});
+
+describe("training: the inner screens' pieces are 56px too", () => {
+  it("answer choices, the bottom buttons, a row, the written box's floor, the certificate card", () => {
+    const { container } = render(
+      <MemoryRouter>
+        <Choices label="A" options={["x", "y"]} states={["idle", "picked"]} value={[1]} onChange={() => {}} />
+        <DockButton onClick={() => {}}>Go</DockButton>
+        <DockButton to="/x" outline>Go</DockButton>
+        <V2Row icon={BookOpen} title="T" onPress={() => {}} />
+        <V2Row icon={BookOpen} title="T" to="/x" />
+        <WrittenBox label="W" value="" floor={10} onChange={() => {}} />
+        <CertificateCardV2 certificate={{ certificate_code: "NT-1", level_name: "L" }} />
       </MemoryRouter>,
     );
     expect(tapProblems(container)).toEqual([]);

@@ -40,7 +40,7 @@ type Question = { id: number; index: number; question_text: string; options: str
  * The text box, the autosave and the submit all ask this, so a box that was drawn can never have its
  * words sent as a picked option (chosen_option is varchar(32)).
  */
-const isWritten = (q: Question) => q.is_open_ended || (!(q.options || []).length && !(q.option_images || []).length);
+export const isWritten = (q: Question) => q.is_open_ended || (!(q.options || []).length && !(q.option_images || []).length);
 type Attempt = {
   id: string;
   status: 'pending_review' | 'failed' | 'passed';
@@ -54,9 +54,9 @@ type Attempt = {
 };
 type Save = 'idle' | 'saving' | 'saved' | 'error';
 
-const LETTERS = 'ABCDEFGH';
+export const LETTERS = 'ABCDEFGH';
 
-export default function TrainingModuleExam() {
+export function useModuleExam() {
   const { courseId = '' } = useParams();
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -187,6 +187,12 @@ export default function TrainingModuleExam() {
     navigate(-1);
   };
 
+  return { courseId, pathname, navigate, paths, id, gate, attempts, questions, setQuestions, attemptId, setAttemptId, answers, setAnswers, index, setIndex, opening, setOpening, sending, setSending, problem, setProblem, save, setSave, result, setResult, answersOpen, setAnswersOpen, timers, g, title, latest, earlier, canRetake, start, saveDraft, setAnswer, qs, q, answered, last, submit, back };
+}
+
+/** The view; every rule and read is useModuleExam's, shared with the teacher app v2 (bd-fmf24g.12). */
+export default function TrainingModuleExam() {
+  const { paths, id, gate, attempts, questions, answers, index, setIndex, opening, sending, problem, save, result, answersOpen, setAnswersOpen, g, title, latest, earlier, canRetake, start, setAnswer, qs, q, answered, last, submit, back } = useModuleExam();
   const problemChip = problem ? <Chip tone="error" icon={CircleAlert}>{problem}</Chip> : null;
   const saveChip = save === 'saving'
     ? <Chip icon={Loader2}>{TRAINING_COPY.saving}</Chip>

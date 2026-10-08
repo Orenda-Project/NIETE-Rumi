@@ -41,6 +41,14 @@ export const TRAINING_V2_COPY = {
   subjects: 'Subjects',
   /** The breadcrumb over a page: its parts joined ("Training · NIETE"). */
   crumb: (...parts: Array<string | null | undefined>) => ['Training', ...parts.filter(Boolean)].join(' · '),
+  /* the inner screens (bd-fmf24g.12); their other words are the new UI's TRAINING_COPY */
+  partPrefix: 'Part',
+  more: 'More',
+  best: (score: string) => `Best ${score}`,
+  audio: 'Audio',
+  video: 'Video',
+  upNext: 'Up next',
+  joined: (...parts: Array<string | null | undefined>) => parts.filter(Boolean).join(' · '),
   /* loading */
   loading: 'Loading',
   loadFailed: 'Could not load',
