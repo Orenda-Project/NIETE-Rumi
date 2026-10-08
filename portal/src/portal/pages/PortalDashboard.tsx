@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { WHATSAPP_URL } from '@/lib/whatsapp';
 import { Library, MessageSquare, TrendingUp, ExternalLink, GraduationCap, FileText } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
 import { useAuth } from '../hooks/useAuth';
@@ -9,6 +9,8 @@ import { AuthContext } from '../hooks/authContext';
 import { isLeader } from '../lib/leaderRole';
 import { useNewUi } from '../lib/useNewUi';
 import NewHome from '../newui/home/NewHome';
+import { useTeacherV2, isTeacherV2For } from '../teacher/useTeacherV2';
+import { featurePath, teacherPath } from '../teacher/routes';
 import { portal } from '../services/api';
 import PortalLayout from '../components/PortalLayout';
 import StatCard from '../components/StatCard';
@@ -328,6 +330,10 @@ const PortalDashboard = () => {
   const auth = useAuth();
   const { user, loading } = auth;
   const newUi = useNewUi(user?.phoneNumber || null, !loading && !!user);
+  // bd-fmf24g.1 — a teacher on v2 who lands here (post-login, a bookmark, the app's cold
+  // start) goes to the v2 Home, once it is registered. Flag off, loading or a leader: as before.
+  const teacherV2 = isTeacherV2For(user, useTeacherV2(user?.phoneNumber || null, !loading && !!user));
+  if (teacherV2 && teacherPath('home') === featurePath('home')) return <Navigate to={featurePath('home')} replace />;
   return (
     <AuthContext.Provider value={auth}>
       {newUi === true && user && !isLeader(user) ? <NewHome /> : <ClassicDashboard />}
