@@ -36,6 +36,7 @@ const { logToFile, logError } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const r2 = require('../../storage/r2');
 const T = require('./web-quiz-token');
+const Tel = require('./web-quiz-telemetry');
 const { WqError } = require('./web-quiz.service');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const { LANGUAGE_OFFER } = require('../../config/languages');
@@ -427,6 +428,8 @@ async function menu(token, { kid, lang, device } = {}) {
       const last = runs.find((r) => r.exercise === e.id) || null;
       return { id: e.id, name: nameOf(e.id, w.lang), mins: e.mins, done: !!last, last: lastOf(last) };
     }),
+    // Whether the page sends its page-session events (wq-tel.js).
+    rt: await Tel.flag(),
   };
 }
 

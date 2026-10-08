@@ -628,3 +628,85 @@ describe('E2 guard and the figure the page draws', () => {
     expect(two && two.figure && two.figure.svg).toBeTruthy();
   });
 });
+
+describe('E8 answer right/wrong: the page sends ok 1/0', () => {
+  test('ok 1/0 (what wq.js sends on answer) reaches the log as true/false; other values are dropped', () => {
+    WQ.events({ events: [
+      { n: 'answer', code: 'AB12CD', qid: qid(1), slot: 'C', ok: 0, ms: 10643, i: 1 },
+      { n: 'answer', code: 'AB12CD', qid: qid(1), slot: 'A', ok: 1, ms: 900, i: 2 },
+      { n: 'answer', ok: 2 },
+      { n: 'answer', ok: '1' },
+    ] });
+    const calls = logEvent.mock.calls;
+    expect(calls[0]).toEqual(['web_quiz.answer', { code: 'AB12CD', qid: qid(1), slot: 'C', ok: false, ms: 10643, i: 1 }]);
+    expect(calls[1]).toEqual(['web_quiz.answer', { code: 'AB12CD', qid: qid(1), slot: 'A', ok: true, ms: 900, i: 2 }]);
+    expect(calls[2]).toEqual(['web_quiz.answer', {}]);
+    expect(calls[3]).toEqual(['web_quiz.answer', {}]);
+  });
+});
+
+describe('E8 rich telemetry (app_settings web_quiz_rich_telemetry)', () => {
+  const Tel = require('../../../shared/services/quiz/web-quiz-telemetry');
+  const SID = '77777777-7777-4777-8777-777777777777';
+  const DEV = 'AAAAAAAAAAAAAAAAAAAAAA';
+  const crypto = require('crypto');
+  const dh = crypto.createHash('sha256').update(`wqd|${DEV}`).digest('hex').slice(0, 16);
+  const batch = (extra = {}) => ({
+    ps: 'k2m9x0aa7bq1',
+    events: [
+      { n: 'page_start', page: 'quiz', pps: 'h7h7h7h7h7h7', ps: 'k2m9x0aa7bq1', pseq: 1, sm: 12, code: 'AB12CD', ua: 'Mozilla/5.0 (Linux; Android 13) WA4A/2.24.1' },
+      { n: 'screen_enter', scr: 'question', from: 'who', ps: 'k2m9x0aa7bq1', pseq: 2, sm: 1200, code: 'AB12CD' },
+      { n: 'screen_leave', scr: 'question', ms: 14200, vis_ms: 12000, ps: 'k2m9x0aa7bq1', pseq: 3, sm: 15400 },
+      { n: 'vis', state: 'hidden', ms: 15000, ps: 'k2m9x0aa7bq1', pseq: 4, sm: 15500 },
+      { n: 'hb', ms: 45000, vis_ms: 30000, ps: 'k2m9x0aa7bq1', pseq: 5, sm: 45000 },
+      { n: 'page_end', total_ms: 60000, vis_ms: 31000, scr: 'feedback', count: 7, ps: 'k2m9x0aa7bq1', pseq: 6, sm: 60000 },
+      { n: 'screen_enter', scr: 'Zara Khan', state: 'asleep', page: 'elsewhere', ps: 'TOO-LONG-and-UPPER-1234567' },
+    ],
+    ...extra,
+  });
+  afterEach(() => Tel._reset());
+
+  test('flag OFF: the six page-session events are dropped and no page-session prop is kept', () => {
+    Tel._set(false);
+    WQ.events(batch({ st: T.signSession({ sessionId: SID, deviceRef: DEV, shareCodeId: SC }), dr: DEV }));
+    expect(logEvent).not.toHaveBeenCalled();
+    WQ.events({ events: [{ n: 'answer', ok: 1, ps: 'k2m9x0aa7bq1', pseq: 3, sm: 9 }], st: 'x', dr: DEV });
+    expect(logEvent.mock.calls).toEqual([['web_quiz.answer', { ok: true }]]);
+  });
+
+  test('flag ON: ps/pseq/sm/screens/visibility/heartbeat/page_end are kept; sid from the signed token; dh from the device ref; never the raw token or ref', () => {
+    Tel._set(true);
+    const st = T.signSession({ sessionId: SID, deviceRef: DEV, shareCodeId: SC });
+    WQ.events(batch({ st, dr: DEV }));
+    const calls = logEvent.mock.calls;
+    const ids = { sid: SID, dh };
+    expect(calls[0]).toEqual(['web_quiz.page_start', { code: 'AB12CD', page: 'quiz', pps: 'h7h7h7h7h7h7', ps: 'k2m9x0aa7bq1', pseq: 1, sm: 12, ua: 'Mozilla/5.0 (Linux; Android 13) WA4A/2.24.1', ua_app: 'whatsapp', iab: 1, ...ids }]);
+    expect(calls[1]).toEqual(['web_quiz.screen_enter', { code: 'AB12CD', scr: 'question', from: 'who', ps: 'k2m9x0aa7bq1', pseq: 2, sm: 1200, ...ids }]);
+    expect(calls[2]).toEqual(['web_quiz.screen_leave', { scr: 'question', ms: 14200, vis_ms: 12000, ps: 'k2m9x0aa7bq1', pseq: 3, sm: 15400, ...ids }]);
+    expect(calls[3]).toEqual(['web_quiz.vis', { state: 'hidden', ms: 15000, ps: 'k2m9x0aa7bq1', pseq: 4, sm: 15500, ...ids }]);
+    expect(calls[4]).toEqual(['web_quiz.hb', { ms: 45000, vis_ms: 30000, ps: 'k2m9x0aa7bq1', pseq: 5, sm: 45000, ...ids }]);
+    expect(calls[5]).toEqual(['web_quiz.page_end', { total_ms: 60000, vis_ms: 31000, scr: 'feedback', count: 7, ps: 'k2m9x0aa7bq1', pseq: 6, sm: 60000, ...ids }]);
+    // free text in scr, a state or page outside the set, a malformed ps: each dropped, the event kept
+    expect(calls[6]).toEqual(['web_quiz.screen_enter', { ...ids }]);
+    const logged = JSON.stringify(calls);
+    expect(logged).not.toContain(st);
+    expect(logged).not.toContain(DEV);
+  });
+
+  test('a forged or expired token gives no sid (the batch is still logged); a malformed device ref gives no dh', () => {
+    Tel._set(true);
+    const old = T.sign({ k: 's', sid: SID, d: DEV, sc: SC, exp: Math.floor(Date.now() / 1000) - 5 });
+    WQ.events({ events: [{ n: 'hb', ms: 1 }], st: old, dr: 'not a ref' });
+    WQ.events({ events: [{ n: 'hb', ms: 2 }], st: 'forged.token' });
+    WQ.events({ events: [{ n: 'hb', ms: 3 }], st: T.signPreview({ shareCodeId: SC, teacherUserId: TEACHER }), dr: DEV });
+    expect(logEvent.mock.calls).toEqual([['web_quiz.hb', { ms: 1 }], ['web_quiz.hb', { ms: 2 }], ['web_quiz.hb', { ms: 3, dh }]]);
+  });
+
+  test('the quiz payload tells the page whether to send them (rt), from app_settings', async () => {
+    fake.db.app_settings = [{ key: 'web_quiz_rich_telemetry', value: 'true' }];
+    expect((await WQ.getQuiz('AB12CD')).rt).toBe(true);
+    Tel._reset();
+    fake.db.app_settings = [];
+    expect((await WQ.getQuiz('AB12CD')).rt).toBe(false);
+  });
+});
