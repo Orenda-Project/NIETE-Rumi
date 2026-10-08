@@ -31,7 +31,7 @@ function fakeEl(sel) {
   };
 }
 
-function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view, questions = null, voiceLang, connection, challenge = null, nav = {}, art = null, lib = false, ua = 'test' } = {}) {
+function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view, questions = null, voiceLang, connection, challenge = null, nav = {}, art = null, lib = false, ua = 'test', bootExtra = {} } = {}) {
   // tel: the page-session telemetry (wq-tel.js) loaded first, as the edge's template does, with the switch on.
   const tel = Boolean(arguments[0] && arguments[0].tel);
   const els = {};
@@ -42,9 +42,17 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
     return els[sel];
   };
   root.querySelectorAll = () => [];
+  // A sheet drawn over the screen (insertAdjacentHTML) and taken off again (removeChild), as the browser does.
+  root.insertAdjacentHTML = (pos, h) => { root.innerHTML += h; };
+  const sheet = { parentNode: { removeChild() {
+    const a = root.innerHTML.indexOf('<div class="wq-sheet"');
+    const end = '<!--/wq-sheet--></div></div>';
+    const b = root.innerHTML.indexOf(end, a);
+    if (a >= 0 && b > a) root.innerHTML = root.innerHTML.slice(0, a) + root.innerHTML.slice(b + end.length);
+  } } };
   const boot = {
     textContent: JSON.stringify({
-      code: 'TEST', cls, live, video, brand, preview, view, challenge, ...(art ? { art } : {}), ...(tel ? { rt: true } : {}),
+      code: 'TEST', cls, live, video, brand, preview, view, challenge, ...(art ? { art } : {}), ...(tel ? { rt: true } : {}), ...bootExtra,
       quiz: { code: 'TEST', lang, topic, grade, voice_lang: voiceLang, questions: questions || [{ qid: 'q1', text: 'a?', options: [{ slot: 'A', text: 'x' }], correct_slot: 'A' }] },
     }),
   };
@@ -67,7 +75,7 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   const ctx = {
     console,
     document: {
-      getElementById: (id) => (id === 'boot' ? boot : id === 'wq' ? root : null),
+      getElementById: (id) => (id === 'boot' ? boot : id === 'wq' ? root : id === 'wq-sheet' ? (root.innerHTML.indexOf('id="wq-sheet"') >= 0 ? sheet : null) : null),
       createElement: () => { const e = fakeEl('new'); created.push(e); return e; }, addEventListener(n, fn) { (dl[n] = dl[n] || []).push(fn); }, body: fakeEl('body'), visibilityState: 'visible',
     },
     history,
