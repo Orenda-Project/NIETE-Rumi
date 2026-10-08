@@ -53,6 +53,7 @@ import { useState, useEffect } from 'react';
 import { FileText, Loader2, Download, Sparkles, ChevronDown, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -92,7 +93,8 @@ const AssessmentGeneratorPanel = ({
   // ── her choices ─────────────────────────────────────────────────────────
   const [grade, setGrade] = useState<string>('');
   const [subject, setSubject] = useState<string>('');
-  const [chapterNumber, setChapterNumber] = useState<string>('');
+  // Any number of chapters, in book order (bd-ix9uhr): one paper can cover several.
+  const [chapterNumbers, setChapterNumbers] = useState<number[]>([]);
   const [questionCount, setQuestionCount] = useState<string>('');
   const [pickedTypes, setPickedTypes] = useState<string[]>([]);
   const [contentSource, setContentSource] = useState<'seen' | 'unseen' | 'both'>('unseen');
@@ -167,7 +169,7 @@ const AssessmentGeneratorPanel = ({
         setChapters(chapterRes.chapters || []);
         setTypes(opts.types || []);
         setMaxQuestions(opts.maxQuestions);
-        setChapterNumber('');
+        setChapterNumbers([]);
         setPickedTypes([]);
       } catch {
         if (!cancelled) { setChapters([]); setTypes([]); }
@@ -176,7 +178,9 @@ const AssessmentGeneratorPanel = ({
     return () => { cancelled = true; };
   }, [grade, subject]);
 
-  const chosenChapter = chapters.find((c) => String(c.chapter_number) === chapterNumber);
+  const chosen = chapters.filter((c) => chapterNumbers.includes(c.chapter_number));
+  const toggleChapter = (n: number) => setChapterNumbers((cur) =>
+    (cur.includes(n) ? cur.filter((x) => x !== n) : [...cur, n].sort((a, b) => a - b)));
 
   /**
    * Validate the count against the SERVER's cap.
@@ -195,7 +199,7 @@ const AssessmentGeneratorPanel = ({
     return null;
   };
 
-  const canSubmit = !!grade && !!subject && !!chapterNumber
+  const canSubmit = !!grade && !!subject && chapterNumbers.length > 0
     && !validateCount(questionCount) && !submitting;
 
   const toggleType = (id: string) => setPickedTypes((cur) =>
@@ -210,7 +214,9 @@ const AssessmentGeneratorPanel = ({
       const spec: AssessmentSpec = {
         grade: Number(grade),
         subject,
-        chapterNumber: Number(chapterNumber),
+        // A lone chapter also goes by itself, so a bot that predates chapterNumbers still reads it.
+        chapterNumber: chapterNumbers.length === 1 ? chapterNumbers[0] : null,
+        chapterNumbers,
         contentSource,
         questionCount: Number(questionCount),
         questionTypes: pickedTypes,
@@ -220,7 +226,7 @@ const AssessmentGeneratorPanel = ({
       };
       const label = [
         `Grade ${grade} ${subjects.find((s) => s.subject_key === subject)?.subject ?? subject}`,
-        chosenChapter?.chapter_title,
+        chosen.length === 1 ? chosen[0].chapter_title : `Chapters ${chapterNumbers.join(', ')}`,
         `${Number(questionCount)} questions`,
       ].filter(Boolean).join(' · ');
 
@@ -342,27 +348,36 @@ const AssessmentGeneratorPanel = ({
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="ag-chapter">Chapter</Label>
-        <Select value={chapterNumber} onValueChange={setChapterNumber} disabled={!subject}>
-          <SelectTrigger id="ag-chapter">
-            <SelectValue placeholder={subject ? 'Pick a chapter' : 'Pick a subject first'} />
-          </SelectTrigger>
-          <SelectContent>
+      <fieldset className="space-y-1.5" disabled={!subject}>
+        <legend className="text-sm font-medium leading-none">Chapters</legend>
+        {!subject ? (
+          <p className="text-sm text-muted-foreground">Pick a subject first</p>
+        ) : (
+          <div className="max-h-64 space-y-1 overflow-y-auto rounded-md border p-2">
             {chapters.map((c) => (
-              <SelectItem key={c.chapter_number} value={String(c.chapter_number)}>
-                {c.chapter_number} · {c.chapter_title}
-              </SelectItem>
+              <label
+                key={c.chapter_number}
+                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted"
+              >
+                <Checkbox
+                  checked={chapterNumbers.includes(c.chapter_number)}
+                  onCheckedChange={() => toggleChapter(c.chapter_number)}
+                />
+                <span className="flex-1">{c.chapter_number} · {c.chapter_title}</span>
+                {c.page_start != null && (
+                  <span className="text-xs text-muted-foreground">p.{c.page_start}–{c.page_end}</span>
+                )}
+              </label>
             ))}
-          </SelectContent>
-        </Select>
-        {chosenChapter && chosenChapter.page_start != null && (
+          </div>
+        )}
+        {chosen.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            Pages {chosenChapter.page_start}–{chosenChapter.page_end}
-            {chosenChapter.page_count ? ` · ${chosenChapter.page_count} pages` : ''}
+            {chosen.length === 1 ? '1 chapter' : `${chosen.length} chapters`}
+            {chosen.every((c) => c.page_count) ? ` · ${chosen.reduce((n, c) => n + (c.page_count || 0), 0)} pages` : ''}
           </p>
         )}
-      </div>
+      </fieldset>
 
       <div className="space-y-1.5 sm:max-w-[12rem]">
         <Label htmlFor="ag-count">Questions</Label>

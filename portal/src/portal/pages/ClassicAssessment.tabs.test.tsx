@@ -108,8 +108,8 @@ async function makePaper(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("combobox", { name: "Subject" }));
   await user.click(await screen.findByRole("option", { name: "Science" }));
   await waitFor(() => expect(api.getAssessmentChapters).toHaveBeenCalled());
-  await user.click(screen.getByRole("combobox", { name: "Chapter" }));
-  await user.click(await screen.findByRole("option", { name: "2 · Plants" }));
+  // Chapters are checkboxes (bd-ix9uhr): a paper can cover several.
+  await user.click(await screen.findByRole("checkbox", { name: /2 · Plants/ }));
   await user.click(screen.getByRole("button", { name: "Generate" }));
   await screen.findByRole("heading", { name: "Writing your paper" });
 }
@@ -379,8 +379,7 @@ describe("ClassicAssessment tabs", () => {
     await user.click(screen.getByRole("combobox", { name: "Subject" }));
     await user.click(await screen.findByRole("option", { name: "Science" }));
     await waitFor(() => expect(api.getAssessmentChapters).toHaveBeenCalled());
-    await user.click(screen.getByRole("combobox", { name: "Chapter" }));
-    await user.click(await screen.findByRole("option", { name: "2 · Plants" }));
+    await user.click(await screen.findByRole("checkbox", { name: /2 · Plants/ }));
     let release: (v: { success: boolean; requestId: string }) => void = () => {};
     api.generateAssessment.mockImplementation(() => new Promise((r) => { release = r; }));
     await user.dblClick(screen.getByRole("button", { name: "Generate" }));

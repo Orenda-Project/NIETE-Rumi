@@ -253,6 +253,8 @@ export const ASSESSMENT_COPY = {
   q: (n?: number) => `${n ?? ''} Q`.trim(),
   marks: (n?: number) => `${n ?? ''} marks`.trim(),
   pages: (from?: number | null, to?: number | null) => (from != null && to != null ? `p.${from}–${to}` : ''),
+  /** The Chapter row with several picked: "3 chapters". */
+  chapters: (n?: number) => (n === 1 ? '1 chapter' : `${n ?? ''} chapters`.trim()),
   /** "Science · Plants" — a subject and a chapter's title, both from the API. */
   paperTitle: (subject?: string | null, chapterTitle?: string | null) => joined(subject, chapterTitle),
   /** "Science · Ch 2", "Science · Ch 2 · v2". */

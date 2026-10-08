@@ -650,6 +650,8 @@ export type AssessmentSpec = {
   grade: number;
   subject: string;
   chapterNumber?: number | null;
+  /** Every chapter the paper covers, in book order (bd-ix9uhr). One chapter also goes as chapterNumber. */
+  chapterNumbers?: number[] | null;
   pageRanges?: string | null;
   contentSource?: 'seen' | 'unseen' | 'both';
   questionCount: number;
