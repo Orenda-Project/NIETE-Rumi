@@ -5,6 +5,7 @@ import { TEACHER_UI_COPY, type TeacherUiCopy } from './copy';
 import { StatusChip } from './StatusChip';
 import { CHEVRON, FOCUS, ROW_DIVIDER, ROW_SUB, ROW_TITLE, type ChipData } from './styles';
 import { blockSubject } from './subjects';
+import { SubjectTile } from './SubjectTile';
 
 /**
  * bd-fmf24g.2.1 — HistoryRow (COMPONENTS.md §2): one thing she did — a lesson plan opened, an observation, a paper.
@@ -13,6 +14,10 @@ import { blockSubject } from './subjects';
  * never wrapped or cut — the full subject name when it fits, else a longer abbreviation ending in a period
  * (subjects.ts `blockSubject`). The lead carries grade and subject, so line 2 is only the `extra` ("Chap 1").
  * (The canvas's other leads — icon, stacked, badge, tint — are history the operator turned down; not ported.)
+ *
+ * A grade never settled (bd-fmf24g.11: a DC lesson the analysis left open) — absent, empty, or a dash placeholder
+ * ("-", "–", "—") — leaves the block with the subject alone, centred, at the same 16px/700; with no subject either,
+ * the SubjectTile book icon. A subject with no grade is never "Grade –".
  *
  * Then the title (16px/600, 2 lines), the red New dot, a chip, and the action:
  *   chevron  the whole row is a link to `to` (with the ›);
@@ -24,7 +29,8 @@ export type HistoryAction = 'chevron' | 'download' | 'none';
 
 export interface HistoryRowProps {
   subject: string;
-  grade: string | number;
+  /** Absent, empty or a dash placeholder when the grade was never settled: the block shows the subject alone. */
+  grade?: string | number | null;
   title: string;
   /** Line 2: "Chap 1", "20 questions", the coach's name. */
   extra?: string;
@@ -45,14 +51,18 @@ export function HistoryRow({
 }: HistoryRowProps) {
   const words = { ...TEACHER_UI_COPY, ...copy };
   const isLink = action === 'chevron' && !!to;
+  const g = grade === null || grade === undefined ? '' : String(grade).trim();
+  const hasGrade = g !== '' && !/^[-–—]+$/.test(g);
+  const hasSubject = !!subject && subject.trim() !== '';
   const body = (
     <>
       <span
         data-testid="history-lead"
         className="flex min-h-[58px] w-24 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl bg-[#f3f4f6] px-[5px] py-[7px] text-center leading-[1.15] text-[#1d2025]"
       >
-        <span className="whitespace-nowrap text-[16px] font-bold">{words.grade(grade)}</span>
-        <span className="whitespace-nowrap text-[16px] font-bold">{blockSubject(subject)}</span>
+        {hasGrade ? <span className="whitespace-nowrap text-[16px] font-bold">{words.grade(g)}</span> : null}
+        {hasSubject ? <span className="whitespace-nowrap text-[16px] font-bold">{blockSubject(subject)}</span> : null}
+        {!hasGrade && !hasSubject ? <SubjectTile subject="" /> : null}
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
         <span className={cn(ROW_TITLE, 'line-clamp-2')}>{title}</span>
