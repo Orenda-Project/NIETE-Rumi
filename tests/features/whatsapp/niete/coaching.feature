@@ -493,7 +493,11 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # to let the transcript's language leak into the question; for language === 'English'
     # it now instructs English regardless of what was spoken in class.
 
-  @e2e @wip @draft @content-driven @P2 @COA78
+  # @no-mock-driver: the spelling is a property of the live model's answer to the new prompt; the mock lane
+  # replays recorded vendor answers, so it could only replay whatever spelling was recorded. Covered at unit
+  # level by tests/coaching/corpus-time-anchor.test.js (prompt anchors + the deterministic normaliser) and run
+  # on the chrome lane.
+  @e2e @wip @draft @content-driven @no-mock-driver @P2 @COA78
   Scenario: An Urdu reflective question places the moment with «قریب», never the misspelling «کریب»
     Given the NIETE bot chat is open
     And my account language is Urdu
