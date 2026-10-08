@@ -1,5 +1,5 @@
 import api from '../../services/api';
-import { LESSONS_V2_COPY } from './copy';
+import { LESSONS_V2_COPY, type LessonsCopy } from './copy';
 import { dayName } from './days';
 import { openUrl } from './paths';
 import type { HistoryGroup } from '../ui';
@@ -88,8 +88,8 @@ export async function loadLessonHistory(range: DateRange, filter: ClassFilter): 
 /** KpiTiles items (COMPONENTS.md §10): value, change against the period before, a trend of ≥2 points. */
 export type KpiItem = { value: number; label: string; delta?: number; trend?: number[] };
 
-export function kpiItems(h: Pick<LessonHistory, 'kpis' | 'trend'>): KpiItem[] {
-  const C = LESSONS_V2_COPY.all.kpis;
+export function kpiItems(h: Pick<LessonHistory, 'kpis' | 'trend'>, words: LessonsCopy = LESSONS_V2_COPY): KpiItem[] {
+  const C = words.all.kpis;
   const tile = (k: Kpi, label: string, trend?: number[]): KpiItem => {
     const t: KpiItem = { value: k.value, label };
     if (k.previous != null) t.delta = k.value - k.previous;
@@ -106,14 +106,14 @@ export function kpiItems(h: Pick<LessonHistory, 'kpis' | 'trend'>): KpiItem[] {
 
 /** The rows by Pakistan day, in the server's order (newest first), as the kit's HistoryList groups;
  *  each row reopens its plan by key (OpenPlanPage). `today` is Pakistan's today. */
-export function groupByDay(items: HistoryItem[], today: string): HistoryGroup[] {
-  const C = LESSONS_V2_COPY.all;
+export function groupByDay(items: HistoryItem[], today: string, words: LessonsCopy = LESSONS_V2_COPY): HistoryGroup[] {
+  const C = words.all;
   const groups: HistoryGroup[] = [];
   for (const it of items) {
-    const label = dayName(it.day, today);
+    const label = dayName(it.day, today, words.days);
     let g = groups[groups.length - 1];
     if (!g || g.day !== label) { g = { day: label, items: [] }; groups.push(g); }
-    const title = it.title || LESSONS_V2_COPY.planFallback;
+    const title = it.title || words.planFallback;
     g.items.push({
       id: it.planKey,
       subject: it.subject ?? '',

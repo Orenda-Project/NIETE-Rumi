@@ -1,4 +1,4 @@
-import { LESSONS_V2_COPY } from './copy';
+import { LESSONS_V2_COPY, type LessonsCopy } from './copy';
 
 /**
  * bd-fmf24g.3 — Pakistan days for the Lesson Plans lists (Recent, All lesson plans): which day an
@@ -21,8 +21,7 @@ export function pkDayOf(iso: string | null | undefined): string | null {
 const parse = (ymd: string) => new Date(`${ymd}T00:00:00Z`);
 
 /** Today · Yesterday · "Mon 5 Oct". */
-export function dayName(ymd: string, today: string): string {
-  const D = LESSONS_V2_COPY.days;
+export function dayName(ymd: string, today: string, D: LessonsCopy['days'] = LESSONS_V2_COPY.days): string {
   const gap = Math.round((parse(today).getTime() - parse(ymd).getTime()) / 86_400_000);
   if (gap === 0) return D.today;
   if (gap === 1) return D.yesterday;
