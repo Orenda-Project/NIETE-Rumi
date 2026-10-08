@@ -1,6 +1,6 @@
 'use strict';
 /**
- * WHICH PHONE MAY SEE A HUB'S CHILDREN (a leaf module: supabase, the token signer and Redis only,
+ * WHICH PHONE MAY SEE A HUB'S CHILDREN (a leaf module: one read through web-quiz-db-deadline, the token signer and Redis only,
  * so web-quiz-hub, web-quiz.service and web-quiz-challenge can all require it without a cycle).
  *
  * A hub token is bound to the first phone (device_ref) that opens it — Redis SET NX for the
@@ -13,7 +13,7 @@
  *   deviceKids(device)                 the student ids this phone was trusted with (newest hubs), [] if none
  */
 const crypto = require('crypto');
-const supabase = require('../../config/supabase');
+const { read: dbRead } = require('./web-quiz-db-deadline');   // a deadline + one retry on reads (web_quiz_db_deadline)
 const T = require('./web-quiz-token');
 
 const BIND_PREFIX = 'wq:hub:dev:';
@@ -36,7 +36,7 @@ async function deviceKnows(studentIds, deviceRef) {
 /** Which of these children has this phone played as (any code)? [] on a read error. */
 async function playedOn(studentIds, deviceRef) {
   try {
-    const { data } = await supabase.from('quiz_sessions').select('student_id').in('student_id', studentIds).eq('device_ref', deviceRef).limit(50);
+    const { data } = await dbRead('playedOn:quiz_sessions', (db) => db.from('quiz_sessions').select('student_id').in('student_id', studentIds).eq('device_ref', deviceRef).limit(50));
     const seen = new Set((data || []).map((r) => String(r.student_id)));
     return studentIds.filter((id) => seen.has(String(id)));
   } catch (_) {

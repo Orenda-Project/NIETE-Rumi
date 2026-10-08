@@ -51,6 +51,8 @@ const WebQuizBrand = require('../../config/web-quiz-brand');
 const { orgName, botName } = require('../../config/branding');
 const Art = require('./web-quiz-art-id');
 const Tel = require('./web-quiz-telemetry');
+// Reads on the child's request path: a per-attempt deadline + one retry when web_quiz_db_deadline is on.
+const { read: dbRead } = require('./web-quiz-db-deadline');
 
 const QUESTIONS_MAX = 15;          // = video-quiz.service QUESTIONS_PER_SESSION
 const CHIPS_MAX = 40;
@@ -62,13 +64,7 @@ const SLOT_RX = /^[A-D](,[A-D])*$/;
 const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
 const SLOTS = ['A', 'B', 'C', 'D'];
 
-class WqError extends Error {
-  constructor(status, body) {
-    super(body && body.error ? body.error : `web quiz ${status}`);
-    this.status = status;
-    this.body = body;
-  }
-}
+const { WqError } = require('./web-quiz-error');
 const fail = (status, error, extra = {}) => { throw new WqError(status, { error, ...extra }); };
 
 function requireOn() {
@@ -102,7 +98,7 @@ const SC_COLS = 'id, code, quiz_id, video_id, teacher_user_id, teacher_name, top
 async function resolveCode(rawCode) {
   const code = String(rawCode || '').trim().toUpperCase();
   if (!CODE_RX.test(code)) fail(404, 'not_found');
-  const { data: sc, error } = await supabase.from('quiz_share_codes').select(SC_COLS).eq('code', code).maybeSingle();
+  const { data: sc, error } = await dbRead('resolveCode:quiz_share_codes', (db) => db.from('quiz_share_codes').select(SC_COLS).eq('code', code).maybeSingle());
   if (error) fail(502, 'db_unavailable');
   if (!sc) fail(404, 'not_found');
   const lang = clampLanguage(sc.language);
@@ -110,7 +106,7 @@ async function resolveCode(rawCode) {
   if (!sc.active || (sc.expires_at && new Date(sc.expires_at) < new Date())) fail(410, 'expired', { lang });
   let parent = sc;
   if (sc.parent_share_code_id && sc.invited_by_student_id) {
-    const { data: p } = await supabase.from('quiz_share_codes').select(SC_COLS).eq('id', sc.parent_share_code_id).maybeSingle();
+    const { data: p } = await dbRead('resolveCode:quiz_share_codes', (db) => db.from('quiz_share_codes').select(SC_COLS).eq('id', sc.parent_share_code_id).maybeSingle());
     if (p) parent = p;
   }
   return {
@@ -201,8 +197,8 @@ async function withoutWrongWordBlanks(quizId, served, out, { log = false } = {})
 
 /** The quiz's questions in the order a WhatsApp child gets them, capped like a session; only playable ones. */
 async function loadQuestions(quizId, { log = false } = {}) {
-  const { data, error } = await supabase.from('quiz_questions').select(Q_COLS)
-    .eq('quiz_id', quizId).order('external_id', { ascending: true }).order('sort_order', { ascending: true });
+  const { data, error } = await dbRead('loadQuestions:quiz_questions', (db) => db.from('quiz_questions').select(Q_COLS)
+    .eq('quiz_id', quizId).order('external_id', { ascending: true }).order('sort_order', { ascending: true }));
   if (error) fail(502, 'db_unavailable');
   const rows = data || [];
   // One ordering rule for both channels (transcript bank by sort_order, video
@@ -356,14 +352,14 @@ function mediaHelpers() {
  */
 async function classChips(ctx) {
   const since = new Date(Date.now() - CHIP_WINDOW_DAYS * 86400000).toISOString();
-  const { data: codes } = await supabase.from('quiz_share_codes').select('id')
-    .eq('teacher_user_id', ctx.teacherUserId).is('invited_by_student_id', null).gte('created_at', since).limit(200);
+  const { data: codes } = await dbRead('classChips:quiz_share_codes', (db) => db.from('quiz_share_codes').select('id')
+    .eq('teacher_user_id', ctx.teacherUserId).is('invited_by_student_id', null).gte('created_at', since).limit(200));
   const ids = (codes || []).map((c) => c.id);
   if (!ids.includes(ctx.shareCodeId)) ids.push(ctx.shareCodeId);
-  const { data: sessions } = await supabase.from('quiz_sessions')
+  const { data: sessions } = await dbRead('classChips:quiz_sessions', (db) => db.from('quiz_sessions')
     .select('student_id, student_name, user_id, created_at, share_code_id')
     .in('share_code_id', ids).is('invited_by_student_id', null).not('student_id', 'is', null)
-    .gte('created_at', since).order('created_at', { ascending: false }).limit(500);
+    .gte('created_at', since).order('created_at', { ascending: false }).limit(500));
   const seen = new Set();
   const chips = [];
   // A phone remembers the chip it was given on an earlier link of this teacher;
@@ -404,11 +400,11 @@ async function liveCounts(ctx) {
   const since = pktMidnightIso();
   const out = { class_today: 0, ict_today_floor: 0 };
   try {
-    const { data } = await supabase.from('quiz_sessions').select('student_id, user_id, status, completed_at, created_at')
-      .eq('share_code_id', ctx.shareCodeId).is('invited_by_student_id', null).eq('status', 'completed').gte('completed_at', since);
+    const { data } = await dbRead('liveCounts:quiz_sessions', (db) => db.from('quiz_sessions').select('student_id, user_id, status, completed_at, created_at')
+      .eq('share_code_id', ctx.shareCodeId).is('invited_by_student_id', null).eq('status', 'completed').gte('completed_at', since));
     out.class_today = oneAttemptPerChild(excludeSelfTests(data || [], ctx.teacherUserId)).length;
-    const { count } = await supabase.from('quiz_sessions').select('id', { count: 'exact', head: true })
-      .eq('source', 'share_link').eq('status', 'completed').is('user_id', null).gte('completed_at', since);
+    const { count } = await dbRead('liveCounts:quiz_sessions', (db) => db.from('quiz_sessions').select('id', { count: 'exact', head: true })
+      .eq('source', 'share_link').eq('status', 'completed').is('user_id', null).gte('completed_at', since));
     out.ict_today_floor = count || 0;
   } catch (e) {
     logToFile('⚠️ web-quiz: live counts unavailable', { error: e.message });
@@ -433,7 +429,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   mark('resolve', { shareCodeId: ctx.shareCodeId });
   const [questions, { data: quizRow }] = await Promise.all([
     loadQuestions(ctx.quizId, { log: true }),
-    supabase.from('quizzes').select('id, topic, grade, subject, language, meta, video_id, list_id').eq('id', ctx.quizId).maybeSingle(),
+    dbRead('getQuizTimed:quizzes', (db) => db.from('quizzes').select('id, topic, grade, subject, language, meta, video_id, list_id').eq('id', ctx.quizId).maybeSingle()),
   ]);
   mark('questions');
   if (!questions.length) fail(404, 'no_questions');
@@ -562,7 +558,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
 
 async function quizInfo(quizId) {
   try {
-    const { data } = await supabase.from('quizzes').select('grade, list_id').eq('id', quizId).maybeSingle();
+    const { data } = await dbRead('quizInfo:quizzes', (db) => db.from('quizzes').select('grade, list_id').eq('id', quizId).maybeSingle());
     return { grade: (data && data.grade) || null, listId: (data && data.list_id) || null };
   } catch { return { grade: null, listId: null }; }
 }
@@ -585,7 +581,7 @@ async function oneClass(ctx, chosen) {
 
 async function gradeOf(quizId) {
   try {
-    const { data } = await supabase.from('quizzes').select('grade').eq('id', quizId).maybeSingle();
+    const { data } = await dbRead('gradeOf:quizzes', (db) => db.from('quizzes').select('grade').eq('id', quizId).maybeSingle());
     return (data && data.grade) || null;
   } catch { return null; }
 }
@@ -725,7 +721,7 @@ async function shownNames(lang, studentIds) {
   const names = new Map();
   if (lang === 'ur' && ids.length) {
     try {
-      const { data } = await supabase.from('students').select('id, student_name, student_name_urdu').in('id', ids);
+      const { data } = await dbRead('shownNames:students', (db) => db.from('students').select('id, student_name, student_name_urdu').in('id', ids));
       (data || []).forEach((k) => names.set(k.id, Roster.displayName(k, lang)));
     } catch { /* the session's name, never a failed screen */ }
   }
@@ -734,7 +730,7 @@ async function shownNames(lang, studentIds) {
 
 async function codeLanguage(shareCodeId) {
   try {
-    const { data } = await supabase.from('quiz_share_codes').select('language').eq('id', shareCodeId).maybeSingle();
+    const { data } = await dbRead('codeLanguage:quiz_share_codes', (db) => db.from('quiz_share_codes').select('language').eq('id', shareCodeId).maybeSingle());
     return clampLanguage(data && data.language);
   } catch { return clampLanguage(null); }
 }
@@ -753,9 +749,9 @@ function challengeOutcome(mine, theirs) {
 
 /** The friend who sent a challenge link: their first counted score on the class code. */
 async function challengeOf(ctx) {
-  const { data: rows } = await supabase.from('quiz_sessions')
+  const { data: rows } = await dbRead('challengeOf:quiz_sessions', (db) => db.from('quiz_sessions')
     .select('id, student_id, student_name, status, correct_answers, total_questions_answered, completed_at, created_at')
-    .eq('share_code_id', ctx.shareCodeId).eq('student_id', ctx.invitedByStudentId).eq('status', 'completed');
+    .eq('share_code_id', ctx.shareCodeId).eq('student_id', ctx.invitedByStudentId).eq('status', 'completed'));
   const [best] = oneAttemptPerChild(rows || [], { rule: 'first_completed' });
   if (!best) return null;
   const nameOf = await shownNames(ctx.lang, [best.student_id]);
@@ -770,14 +766,14 @@ const SESSION_COLS = 'id, quiz_id, student_id, student_name, user_id, share_code
 async function sessionFromToken(st) {
   const tok = T.verify(st, 's');
   if (!tok || !tok.sid) fail(401, 'bad_token');
-  const { data: s, error } = await supabase.from('quiz_sessions').select(SESSION_COLS).eq('id', tok.sid).maybeSingle();
+  const { data: s, error } = await dbRead('sessionFromToken:quiz_sessions', (db) => db.from('quiz_sessions').select(SESSION_COLS).eq('id', tok.sid).maybeSingle());
   if (error) fail(502, 'db_unavailable');
   if (!s) fail(401, 'bad_token');
   return { s, tok };
 }
 
 async function answeredIds(sessionId) {
-  const { data } = await supabase.from('quiz_answers').select('question_id, selected_option, is_correct').eq('session_id', sessionId);
+  const { data } = await dbRead('answeredIds:quiz_answers', (db) => db.from('quiz_answers').select('question_id, selected_option, is_correct').eq('session_id', sessionId));
   return data || [];
 }
 
@@ -790,8 +786,8 @@ function cleanName(raw) {
 /** Earlier completed attempts by this child on this class code (the first one counts). */
 async function priorFinish(shareCodeId, studentId, excludeId = null) {
   if (!studentId) return null;
-  const { data } = await supabase.from('quiz_sessions').select('id, device_ref, status, completed_at, created_at, student_id, correct_answers, total_questions_answered')
-    .eq('share_code_id', shareCodeId).eq('student_id', studentId).eq('status', 'completed');
+  const { data } = await dbRead('priorFinish:quiz_sessions', (db) => db.from('quiz_sessions').select('id, device_ref, status, completed_at, created_at, student_id, correct_answers, total_questions_answered')
+    .eq('share_code_id', shareCodeId).eq('student_id', studentId).eq('status', 'completed'));
   const rows = (data || []).filter((r) => r.id !== excludeId);
   const [first] = oneAttemptPerChild(rows, { rule: 'first_completed' });
   return first || null;
@@ -801,8 +797,8 @@ async function priorFinish(shareCodeId, studentId, excludeId = null) {
 async function bestBefore(shareCodeId, studentId, excludeId) {
   if (!studentId) return null;
   try {
-    const { data } = await supabase.from('quiz_sessions').select('id, correct_answers, total_questions_answered')
-      .eq('share_code_id', shareCodeId).eq('student_id', studentId).eq('status', 'completed');
+    const { data } = await dbRead('bestBefore:quiz_sessions', (db) => db.from('quiz_sessions').select('id, correct_answers, total_questions_answered')
+      .eq('share_code_id', shareCodeId).eq('student_id', studentId).eq('status', 'completed'));
     const rows = (data || []).filter((r) => r.id !== excludeId && (r.total_questions_answered || 0) > 0);
     if (!rows.length) return null;
     const share = (r) => (r.correct_answers || 0) / r.total_questions_answered;
@@ -838,7 +834,7 @@ async function startSessionTimed(body = {}, mark = () => {}) {
   if (body.resume_st) {
     const tok = T.verify(body.resume_st, 's');
     if (tok && tok.sc === ctx.shareCodeId) {
-      const { data: s } = await supabase.from('quiz_sessions').select(SESSION_COLS).eq('id', tok.sid).maybeSingle();
+      const { data: s } = await dbRead('startSessionTimed:quiz_sessions', (db) => db.from('quiz_sessions').select(SESSION_COLS).eq('id', tok.sid).maybeSingle());
       // A token resumes only ITS child: a body that names someone else (a typed name, a roll number, another
       // child's chip) starts that child's own session, never continues this one with their answers.
       const other = body.new || body.roll != null
@@ -901,7 +897,7 @@ async function startSessionTimed(body = {}, mark = () => {}) {
       const chips = await classChips(ctx);
       const hit = chips.find((c) => c.chip === want) || chips.find((c) => c.aliases.has(want));
       if (!hit) fail(404, 'chip_unknown');
-      const { data: st } = await supabase.from('students').select('id, student_name, self_reported_class').eq('id', hit.studentId).maybeSingle();
+      const { data: st } = await dbRead('startSessionTimed:students', (db) => db.from('students').select('id, student_name, self_reported_class').eq('id', hit.studentId).maybeSingle());
       student = st || { id: hit.studentId, student_name: hit.name };
       // A class-list child remembered from an earlier code of this teacher keeps the list's class.
       const listed = roster ? roster.kids.find((k) => k.id === hit.studentId) : null;
@@ -912,11 +908,11 @@ async function startSessionTimed(body = {}, mark = () => {}) {
     // are. Accepted only for a session on a code of the same teacher.
     const tok = T.verify(body.from_st, 's');
     if (!tok || !tok.sid) fail(401, 'bad_token');
-    const { data: prev } = await supabase.from('quiz_sessions').select('student_id, share_code_id, user_id').eq('id', tok.sid).maybeSingle();
+    const { data: prev } = await dbRead('startSessionTimed:quiz_sessions', (db) => db.from('quiz_sessions').select('student_id, share_code_id, user_id').eq('id', tok.sid).maybeSingle());
     if (!prev || !prev.student_id || prev.user_id) fail(401, 'bad_token');
-    const { data: prevCode } = await supabase.from('quiz_share_codes').select('teacher_user_id').eq('id', prev.share_code_id).maybeSingle();
+    const { data: prevCode } = await dbRead('startSessionTimed:quiz_share_codes', (db) => db.from('quiz_share_codes').select('teacher_user_id').eq('id', prev.share_code_id).maybeSingle());
     if (!prevCode || prevCode.teacher_user_id !== ctx.teacherUserId) fail(401, 'bad_token');
-    const { data: st } = await supabase.from('students').select('id, student_name, self_reported_class').eq('id', prev.student_id).maybeSingle();
+    const { data: st } = await dbRead('startSessionTimed:students', (db) => db.from('students').select('id, student_name, self_reported_class').eq('id', prev.student_id).maybeSingle());
     if (!st) fail(401, 'bad_token');
     student = st;
     // A class-list child keeps the list's class (as the chip branch does).
@@ -998,7 +994,7 @@ async function startSessionTimed(body = {}, mark = () => {}) {
   await countJoin(ctx.shareCodeId);
   let quizSource = null;
   try {
-    const { data: q } = await supabase.from('quizzes').select('quiz_source').eq('id', ctx.quizId).maybeSingle();
+    const { data: q } = await dbRead('startSessionTimed:quizzes', (db) => db.from('quizzes').select('quiz_source').eq('id', ctx.quizId).maybeSingle());
     quizSource = (q && q.quiz_source) || null;
   } catch { /* a missing label, never a stopped quiz */ }
   Funnel.emit('child_joined', {
@@ -1091,7 +1087,7 @@ async function hubChipKid(ctx, want, deviceRef) {
   const ids = await require('./web-quiz-hub-device').deviceKids(deviceRef);
   const id = ids.find((x) => T.chipId(ctx.shareCodeId, x) === want);
   if (!id) return null;
-  const { data: st } = await supabase.from('students').select('id, student_name, self_reported_class, is_active').eq('id', id).maybeSingle();
+  const { data: st } = await dbRead('hubChipKid:students', (db) => db.from('students').select('id, student_name, self_reported_class, is_active').eq('id', id).maybeSingle());
   return st && st.is_active !== false ? { id: st.id, student_name: st.student_name, self_reported_class: st.self_reported_class || null } : null;
 }
 
@@ -1134,11 +1130,11 @@ async function provisionalOnDevice(shareCodeId, deviceRef, name) {
   const want = Identity.canon(name);
   if (!want) return null;
   try {
-    const { data: rows } = await supabase.from('quiz_sessions').select('student_id, student_name')
-      .eq('share_code_id', shareCodeId).eq('device_ref', deviceRef).is('user_id', null).limit(50);
+    const { data: rows } = await dbRead('provisionalOnDevice:quiz_sessions', (db) => db.from('quiz_sessions').select('student_id, student_name')
+      .eq('share_code_id', shareCodeId).eq('device_ref', deviceRef).is('user_id', null).limit(50));
     const ids = [...new Set((rows || []).filter((r) => r.student_id && Identity.canon(r.student_name) === want).map((r) => r.student_id))];
     if (!ids.length) return null;
-    const { data: kids } = await supabase.from('students').select('id, student_name, self_reported_class, list_id').in('id', ids);
+    const { data: kids } = await dbRead('provisionalOnDevice:students', (db) => db.from('students').select('id, student_name, self_reported_class, list_id').in('id', ids));
     const kid = (kids || []).find((k) => !k.list_id && Identity.canon(k.student_name) === want);
     return kid ? { id: kid.id, student_name: kid.student_name, self_reported_class: kid.self_reported_class || null } : null;
   } catch { return null; }
@@ -1440,12 +1436,12 @@ async function withPulse(s, body, out, rows, questions) {
 async function challengeCodeFor(s) {
   if (!s.student_id || s.user_id) return null;
   try {
-    const { data: have } = await supabase.from('quiz_share_codes').select('code, active, expires_at')
-      .eq('invited_by_student_id', s.student_id).eq('parent_share_code_id', s.share_code_id).limit(1);
+    const { data: have } = await dbRead('challengeCodeFor:quiz_share_codes', (db) => db.from('quiz_share_codes').select('code, active, expires_at')
+      .eq('invited_by_student_id', s.student_id).eq('parent_share_code_id', s.share_code_id).limit(1));
     const live = (have || []).find((c) => c.active !== false && (!c.expires_at || new Date(c.expires_at) > new Date()));
     if (live) return live.code;
-    const { data: parent } = await supabase.from('quiz_share_codes')
-      .select('id, quiz_id, video_id, teacher_user_id, teacher_name, topic, language').eq('id', s.share_code_id).maybeSingle();
+    const { data: parent } = await dbRead('challengeCodeFor:quiz_share_codes', (db) => db.from('quiz_share_codes')
+      .select('id, quiz_id, video_id, teacher_user_id, teacher_name, topic, language').eq('id', s.share_code_id).maybeSingle());
     if (!parent) return null;
     const { randomCode } = require('./video-quiz-share.service');
     for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -1503,7 +1499,7 @@ async function finishSession(body = {}) {
   const nameOf = await shownNames(s.student_id ? await codeLanguage(s.share_code_id) : null, [s.student_id]);
   const first = nameOf(s.student_id, s.student_name);
   const challengeCode = await challengeCodeFor(s);
-  const { data: scRow } = await supabase.from('quiz_share_codes').select('code').eq('id', s.share_code_id).maybeSingle();
+  const { data: scRow } = await dbRead('finishSession:quiz_share_codes', (db) => db.from('quiz_share_codes').select('code').eq('id', s.share_code_id).maybeSingle());
   const classCode = (scRow && scRow.code) || null;
   return {
     score: { correct, total, pct, level },
@@ -1560,8 +1556,8 @@ async function versus(s, mine) {
 /** Today's (PKT) counted class finishers of one class code: first finish per child, no teacher, no invited friend. */
 async function classFinishersToday(shareCodeId) {
   try {
-    const { data } = await supabase.from('quiz_sessions').select('id, student_id, user_id, status, completed_at, created_at')
-      .eq('share_code_id', shareCodeId).is('invited_by_student_id', null).eq('status', 'completed').gte('completed_at', pktMidnightIso());
+    const { data } = await dbRead('classFinishersToday:quiz_sessions', (db) => db.from('quiz_sessions').select('id, student_id, user_id, status, completed_at, created_at')
+      .eq('share_code_id', shareCodeId).is('invited_by_student_id', null).eq('status', 'completed').gte('completed_at', pktMidnightIso()));
     return oneAttemptPerChild((data || []).filter((r) => !r.user_id), { rule: 'first_completed' });
   } catch (e) {
     logToFile('⚠️ web-quiz: class finishers unavailable', { error: e.message });
@@ -1613,7 +1609,7 @@ async function board(code, { st } = {}) {
   if (st) {
     const tok = T.verify(st, 's');
     if (tok && tok.sc === ctx.shareCodeId) {
-      const { data: s } = await supabase.from('quiz_sessions').select('id, student_id').eq('id', tok.sid).maybeSingle();
+      const { data: s } = await dbRead('board:quiz_sessions', (db) => db.from('quiz_sessions').select('id, student_id').eq('id', tok.sid).maybeSingle());
       const mine = s && ranked.find((r) => (s.student_id ? r.studentId === s.student_id : r.sessionId === s.id));
       if (mine) out.you = { place: mine.place, correct: mine.correct, total: mine.total, pct: mine.pct };
     }
