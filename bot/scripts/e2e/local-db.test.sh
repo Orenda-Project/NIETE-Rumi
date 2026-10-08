@@ -206,13 +206,13 @@ got=$(client "$r4/db.env" "$JS_CATALOG"); t "AC15 a run on it carries ONLY the k
 bash "$LDB" down "$r4" >/dev/null 2>&1
 cp "$LOCAL_DB_SEED_RELEASE" "$tmp/seed-release.good"
 mv "$LOCAL_DB_HOME/seed" "$tmp/seed.installed"   # a machine about to DOWNLOAD (a current seed is not re-pulled)
-sed -i '' -E 's/^sha256=.*/sha256=0000000000000000000000000000000000000000000000000000000000000000/' "$LOCAL_DB_SEED_RELEASE"
+sed -i.bak -E 's/^sha256=.*/sha256=0000000000000000000000000000000000000000000000000000000000000000/' "$LOCAL_DB_SEED_RELEASE" && rm -f "$LOCAL_DB_SEED_RELEASE.bak"   # -i.bak: GNU and BSD sed both accept it
 out=$(bash "$LDB" seed-pull 2>&1); rc=$?
 t "AC16 a checksum mismatch is refused (exit 3)" "$rc" "3"
 t "AC16 …and nothing is installed from the bad download" "$(bash "$LDB" seed-status 2>/dev/null)" "missing"
 rm -rf "$LOCAL_DB_HOME/seed"; mv "$tmp/seed.installed" "$LOCAL_DB_HOME/seed"
 cp "$tmp/seed-release.good" "$LOCAL_DB_SEED_RELEASE"
-sed -i '' -E 's/^tag=.*/tag=seed-newer/' "$LOCAL_DB_SEED_RELEASE"
+sed -i.bak -E 's/^tag=.*/tag=seed-newer/' "$LOCAL_DB_SEED_RELEASE" && rm -f "$LOCAL_DB_SEED_RELEASE.bak"   # -i.bak: GNU and BSD sed both accept it
 t "AC17 a new pointer (git pull) makes the seed stale, so the next run re-pulls" "$(bash "$LDB" seed-status 2>/dev/null)" "stale"
 cp "$tmp/seed-release.good" "$LOCAL_DB_SEED_RELEASE"
 # ---- AC18: parallel slots on a fresh machine each run the readiness check at once — the pull must happen ONCE
