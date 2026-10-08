@@ -271,8 +271,34 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
         tasks.push({ q, part, text, key: clipKey({ env, quizId, lang: language, qid: q.id, part, voice: voiceTag, text }) });
       }
     }
+    // The quiz's clips in meta.web: the map of every entry so far, merged into the freshest meta so a
+    // concurrent write to another key survives; stamped audio_v only when the whole quiz is done.
+    const writeAudio = async ({ final }) => {
+      const audio = {};
+      for (const [qid, entry] of entries) {
+        const { hint, ...rest } = entry;
+        const copy = { ...rest, opts: [...entry.opts], fbs: [...entry.fbs] };   // a snapshot: recording goes on
+        if (entry.q || entry.why || hint || entry.opts.some(Boolean) || entry.fbs.some(Boolean)) audio[qid] = hint ? { ...copy, hint } : copy;
+      }
+      const { data: fresh } = await client.from('quizzes').select('meta').eq('id', quizId).maybeSingle();
+      const meta = (fresh && fresh.meta) || quiz.meta || {};
+      const web = meta.web && typeof meta.web === 'object' ? meta.web : {};
+      const complete = final && stats.failed === 0 && !stats.capped;
+      const nextMeta = { ...meta, web: {
+        ...web, audio: { ...(web.audio || {}), ...audio }, audio_bucket: bucket, audio_voice: voiceTag,
+        ...(stats.synthesized ? { audio_day: allowed.day } : {}), ...(complete ? { audio_v: AUDIO_VERSION } : {}),
+      } };
+      const { error: uErr } = await client.from('quizzes').update({ meta: nextMeta }).eq('id', quizId);
+      if (uErr) throw uErr;
+    };
+    // A quiz is often recorded while its first child is already on question 1 (the page asks for the
+    // clips and takes them as they land): question 1's clips are written the moment they all exist,
+    // not a minute later with the rest. Its tasks are first in the queue.
+    const firstQid = (questions || []).length > 1 ? questions[0].id : null;
+    let firstLeft = firstQid ? tasks.filter((t) => t.q.id === firstQid).length : 0;
+    let early = Promise.resolve();
     let started = 0;
-    const record = async ({ q, part, text, key }) => {
+    const recordOne = async ({ q, part, text, key }) => {
       let have = await exists(key, bucket);
       if (have) {
         stats.skipped += 1;
@@ -309,27 +335,20 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
       else if (PARTS_FB.includes(part)) entry.fbs[PARTS_FB.indexOf(part)] = key;
       else entry.opts[PARTS_OPTS.indexOf(part)] = key;
     };
+    const record = async (task) => {
+      await recordOne(task);
+      if (firstQid && task.q.id === firstQid && (firstLeft -= 1) === 0) {
+        early = writeAudio({ final: false }).catch((error) => logError('web_quiz.publish_audio.early_write_failed', {
+          event: 'web_quiz.publish_audio.early_write_failed', quizId, error: String(error.message || error).slice(0, 200),
+        }));
+      }
+    };
     let next = 0;
     await Promise.all(Array.from({ length: Math.min(CLIP_WORKERS, tasks.length) }, async () => {
       while (next < tasks.length) await record(tasks[next++]);
     }));
-    const audio = {};
-    for (const [qid, entry] of entries) {
-      const { hint, ...rest } = entry;
-      if (entry.q || entry.why || hint || entry.opts.some(Boolean) || entry.fbs.some(Boolean)) audio[qid] = hint ? entry : rest;
-    }
-
-    // Merge into the freshest meta, so a concurrent write to another key survives.
-    const { data: fresh } = await client.from('quizzes').select('meta').eq('id', quizId).maybeSingle();
-    const meta = (fresh && fresh.meta) || quiz.meta || {};
-    const web = meta.web && typeof meta.web === 'object' ? meta.web : {};
-    const complete = stats.failed === 0 && !stats.capped;
-    const nextMeta = { ...meta, web: {
-      ...web, audio: { ...(web.audio || {}), ...audio }, audio_bucket: bucket, audio_voice: voiceTag,
-      ...(stats.synthesized ? { audio_day: allowed.day } : {}), ...(complete ? { audio_v: AUDIO_VERSION } : {}),
-    } };
-    const { error: uErr } = await client.from('quizzes').update({ meta: nextMeta }).eq('id', quizId);
-    if (uErr) throw uErr;
+    await early;
+    await writeAudio({ final: true });
 
     return done({ ok: true, questions: (questions || []).length });
   } catch (error) {
