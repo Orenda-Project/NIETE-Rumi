@@ -1102,7 +1102,9 @@ Feature: NIETE (ICT) Teacher Training
     # lesson plan with a link, a class list, training, an assessment) always wins; a failed lookup is the teacher's
     # path. Every row of the adversarial list is executed in bot/tests/quiz/child-quiz-home.test.js. @wip.
 
-  @e2e @quiz @registration @wip @draft @P1 @T694
+  # @no-mock-driver: the registration Flow is not on the mock lane (registration.cjs is mock-capable but
+  # excluded: the shared stack caches a registered teacher); bot/tests/quiz/child-quiz-home.test.js executes it.
+  @e2e @quiz @registration @wip @draft @no-mock-driver @P1 @T694
   Scenario: An adult who registers on a phone a child used gets the teacher's /quiz straight away
     Given this phone was last answered as a child's
     When the adult completes registration in the registration form, without typing "register"
