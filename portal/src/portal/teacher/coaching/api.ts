@@ -1,14 +1,18 @@
 import api from '../../services/api';
-import { scoreBandFor, bandLabel, type BandKey } from '../../lib/scoreBands';
+import { scoreBandFor, type BandKey } from '../../lib/scoreBands';
 import type { KpiItem } from '../ui';
 import type { ChipData, HistoryGroup } from '../ui';
 import { dayName, pkToday } from '../lessons/days';
-import { COACHING_V2_COPY as C } from './copy';
+import { LESSONS_V2_COPY, type LessonsCopy } from '../lessons/copy';
+import { COACHING_V2_COPY, type CoachingCopy } from './copy';
 import { lessonPath } from './paths';
 
 /**
  * bd-fmf24g.4 — the Digital Coaching reads (GET /api/portal/teacher/coaching/history, PR #1983).
  * A failed read throws: an empty list would read "you have no lessons".
+ *
+ * bd-fmf24g.13.2 — the shaping helpers take the page's words (useCopy(COACHING)) and day names
+ * (useCopy(LESSONS).days), English by default.
  */
 export type DcItem = {
   id: string;
@@ -44,18 +48,23 @@ const BAND_CHIP: Record<BandKey, ChipData['tone']> = {
 };
 
 /** A lesson's chip: its band (never the number), or Analysing until it has one. */
-export function lessonChip(item: DcItem): ChipData | null {
+export function lessonChip(item: DcItem, C: CoachingCopy = COACHING_V2_COPY): ChipData | null {
   const band = scoreBandFor(item.percentage);
-  if (band) return { text: bandLabel(band) as string, tone: BAND_CHIP[band] };
+  if (band) return { text: C.bands[band], tone: BAND_CHIP[band] };
   if (!item.reportReady) return { text: C.analysing, tone: 'waiting' };
   return null;
 }
 
 /** Her lessons as HistoryList groups, by Pakistan day, newest first. */
-export function lessonGroups(items: DcItem[], today: string = pkToday()): HistoryGroup[] {
+export function lessonGroups(
+  items: DcItem[],
+  today: string = pkToday(),
+  C: CoachingCopy = COACHING_V2_COPY,
+  days: LessonsCopy['days'] = LESSONS_V2_COPY.days,
+): HistoryGroup[] {
   const groups: HistoryGroup[] = [];
   for (const it of items) {
-    const label = dayName(it.date, today);
+    const label = dayName(it.date, today, days);
     let g = groups[groups.length - 1];
     if (!g || g.day !== label) { g = { day: label, items: [] }; groups.push(g); }
     g.items.push({
@@ -64,7 +73,7 @@ export function lessonGroups(items: DcItem[], today: string = pkToday()): Histor
       grade: it.grade != null ? it.grade : '–',
       title: it.topic || it.subject || C.yourLesson,
       extra: it.minutes != null ? C.minutes(it.minutes) : undefined,
-      chip: lessonChip(it),
+      chip: lessonChip(it, C),
       to: lessonPath(it.id),
     });
   }
@@ -81,17 +90,17 @@ export function historyParams(d: HistoryDates): Record<string, string> {
 }
 
 /** KpiTiles: the server's counts against the period before, and the latest SCORED lesson's band. */
-export function dcKpiItems(h: Pick<DcHistory, 'kpis' | 'trend' | 'items'>): KpiItem[] {
+export function dcKpiItems(h: Pick<DcHistory, 'kpis' | 'trend' | 'items'>, C: CoachingCopy = COACHING_V2_COPY): KpiItem[] {
   const tile = (k: DcKpi, label: string, trend?: number[]): KpiItem => {
     const t: KpiItem = { value: k.value, label };
     if (k.previous != null) t.delta = k.value - k.previous;
     if (trend && trend.length >= 2) t.trend = trend;
     return t;
   };
-  const latest = h.items.find((i) => scoreBandFor(i.percentage));
+  const latestBand = h.items.map((i) => scoreBandFor(i.percentage)).find((b): b is BandKey => !!b);
   return [
     tile(h.kpis.sessions, C.kpiSessions, h.trend && h.trend.points),
-    { value: latest ? bandLabel(scoreBandFor(latest.percentage)) : '—', label: C.kpiLatestBand },
+    { value: latestBand ? C.bands[latestBand] : '—', label: C.kpiLatestBand },
     tile(h.kpis.minutes, C.kpiMinutes),
     tile(h.kpis.reports, C.kpiReports),
   ];

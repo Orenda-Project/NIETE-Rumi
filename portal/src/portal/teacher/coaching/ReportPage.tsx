@@ -8,9 +8,11 @@ import { portal } from '../../services/api';
 import type { CoachingProgress, SessionDetail } from '../../types/portal';
 import TeacherPage from '../TeacherPage';
 import { fullName } from '../format';
+import { useCopy } from '../i18n';
+import { LESSONS } from '../lessons/copy';
 import { ProgressSteps, ReportBody, VoiceNote } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
-import { COACHING_V2_COPY as C } from './copy';
+import { COACHING } from './copy';
 import { SectionHeading } from './parts';
 import { COACHING_HOME } from './paths';
 import { dcSteps, loadJourney, toReportData, type JourneyPoint } from './report';
@@ -28,11 +30,17 @@ import { dcSteps, loadJourney, toReportData, type JourneyPoint } from './report'
  *   report        ReportBody — the report's own scores, photos, journey, next step, the coach's note
  *
  * Polled as today's lesson page polls (5 s for two minutes, then 15 s) until ready or stopped.
+ *
+ * bd-fmf24g.13.2 — every word in the page's language (useCopy); the crumb, unless a route names one, is
+ * Digital Coaching's title, resolved at render so it follows a language switch.
  */
 
 type Loaded = { progress: CoachingProgress | null; detail: SessionDetail | null; journey: JourneyPoint[] };
 
-export function ReportPage({ backTo = COACHING_HOME, crumb = C.title }: { backTo?: string; crumb?: string }) {
+export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backTo?: string; crumb?: string }) {
+  const C = useCopy(COACHING);
+  const { days } = useCopy(LESSONS);
+  const crumb = crumbProp ?? C.title;
   const { id = '' } = useParams();
   const { user } = useAuth();
   const [state, setState] = useState<Loaded>({ progress: null, detail: null, journey: [] });
@@ -134,7 +142,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb = C.title }: { backTo
       {progress && progress.stage !== 'stopped' && !isVisit ? (
         <ProgressSteps
           heading={C.progress}
-          steps={dcSteps(progress.stage, !!sent)}
+          steps={dcSteps(progress.stage, !!sent, C)}
           done={ready}
           doneLabel={C.reportReady}
         />
@@ -150,7 +158,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb = C.title }: { backTo
       {detail?.lessonAudioUrl ? (
         <>
           <SectionHeading>{C.yourRecording}</SectionHeading>
-          <AudioPlayer src={detail.lessonAudioUrl} label={C.yourRecording} />
+          <AudioPlayer src={detail.lessonAudioUrl} label={C.yourRecording} copy={C.audio} />
         </>
       ) : null}
 
@@ -215,7 +223,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb = C.title }: { backTo
 
       {ready && detail ? (
         <div className="mt-2">
-          <ReportBody data={toReportData(detail, { teacher: fullName(user), journey })} />
+          <ReportBody data={toReportData(detail, { teacher: fullName(user), journey, words: C, days })} />
         </div>
       ) : null}
     </TeacherPage>
