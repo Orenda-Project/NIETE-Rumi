@@ -27,6 +27,7 @@ const AddQuestionFields = ({ kind, slotCap, rtl, error, busy, onDone, onCancel }
   const [marks, setMarks] = useState('');
   const [lines, setLines] = useState('');
   const [slots, setSlots] = useState<string[]>(() => Array.from({ length: SLOTS }, (_, i) => kind.presetOptions?.[i] ?? ''));
+  const [meanings, setMeanings] = useState<string[]>(() => Array.from({ length: SLOTS }, () => ''));
   const [correct, setCorrect] = useState('');
   const [correctMany, setCorrectMany] = useState<string[]>([]);
   const [pairs, setPairs] = useState<Pair[]>([{ left: '', right: '' }, { left: '', right: '' }]);
@@ -41,7 +42,10 @@ const AddQuestionFields = ({ kind, slotCap, rtl, error, busy, onDone, onCancel }
         edit.slots = slots;
         if (kind.msq) edit.correctMany = correctMany; else edit.correct = correct;
       } else if (layout === 'columns') edit.pairs = pairs;
-      else if (layout === 'words') { edit.slots = slots; edit.answer = answer; }
+      else if (layout === 'words') {
+        edit.slots = slots;
+        if (kind.meanings) edit.meanings = meanings; else edit.answer = answer;
+      }
       else { edit.passage = passage; edit.subs = subs; }
       if (layout !== 'comprehension') edit.marks = marks;
     }
@@ -49,6 +53,7 @@ const AddQuestionFields = ({ kind, slotCap, rtl, error, busy, onDone, onCancel }
   };
 
   const setSlot = (i: number, v: string) => setSlots(slots.map((s, j) => (j === i ? v : s)));
+  const setMeaning = (i: number, v: string) => setMeanings(meanings.map((s, j) => (j === i ? v : s)));
   const setPair = (i: number, k: keyof Pair, v: string) => setPairs(pairs.map((p, j) => (j === i ? { ...p, [k]: v } : p)));
   const setSub = (i: number, k: keyof Sub, v: string) => setSubs(subs.map((s, j) => (j === i ? { ...s, [k]: v } : s)));
   const toggleMany = (i: string) => setCorrectMany(correctMany.includes(i) ? correctMany.filter((x) => x !== i) : [...correctMany, i]);
@@ -78,7 +83,18 @@ const AddQuestionFields = ({ kind, slotCap, rtl, error, busy, onDone, onCancel }
         </fieldset>
       )}
 
-      {layout === 'words' && (
+      {layout === 'words' && kind.meanings && (
+        <div className="space-y-2">
+          {slots.map((s, i) => (
+            <div key={i} className="grid grid-cols-2 gap-2">
+              <Input aria-label={`Word ${i + 1}`} placeholder="Word" value={s} onChange={(e) => setSlot(i, e.target.value)} />
+              <Input aria-label={`Meaning ${i + 1}`} placeholder="Meaning" value={meanings[i]} onChange={(e) => setMeaning(i, e.target.value)} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {layout === 'words' && !kind.meanings && (
         <div className="grid grid-cols-2 gap-2">
           {slots.map((s, i) => <Input key={i} aria-label={`Word ${i + 1}`} value={s} onChange={(e) => setSlot(i, e.target.value)} />)}
         </div>
@@ -118,7 +134,7 @@ const AddQuestionFields = ({ kind, slotCap, rtl, error, busy, onDone, onCancel }
         </div>
       )}
 
-      {(layout === 'standard' || layout === 'words') && (
+      {(layout === 'standard' || (layout === 'words' && !kind.meanings)) && (
         <div><Label>{layout === 'words' ? 'Answer (optional)' : 'Answer'}</Label>
           <Textarea aria-label="Answer" value={answer} onChange={(e) => setAnswer(e.target.value)} rows={2} /></div>
       )}

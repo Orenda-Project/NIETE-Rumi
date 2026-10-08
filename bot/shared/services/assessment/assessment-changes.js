@@ -142,6 +142,26 @@ function _buildColumns(e, d) {
   };
 }
 
+/**
+ * Word Meanings: every word needs its meaning, typed beside it, and the key
+ * lists them one per line. A meaning is a fact; a sample sentence (Word
+ * Sentences) is one of many right answers, so that one stays optional.
+ */
+function _wordMeanings(e) {
+  const slots = Array.isArray(e.slots) ? e.slots : [];
+  const meanings = Array.isArray(e.meanings) ? e.meanings : [];
+  const lines = [];
+  for (let i = 0; i < Math.max(slots.length, meanings.length); i += 1) {
+    const word = String(slots[i] ?? '').trim();
+    const meaning = String(meanings[i] ?? '').trim();
+    if (!word && meaning) _fail(`Meaning ${i + 1} has no word beside it.`);
+    if (!word) continue;
+    if (!meaning) _fail(`Write the meaning of "${word}" too — it goes in the answer key.`);
+    lines.push(`${word} — ${_answer(meaning, true)}`);
+  }
+  return lines.join('\n');
+}
+
 function _buildWords(type, e, d) {
   const words = (Array.isArray(e.slots) ? e.slots : []).map((s) => String(s ?? '').trim()).filter(Boolean);
   if (!words.length) _fail('Add at least one word.');
@@ -150,7 +170,7 @@ function _buildWords(type, e, d) {
       ? 'Write the meaning of each word.' : 'Use each word in a sentence.'),
     words, marks: _marks(e.marks, d.marks), lines: d.lines,
   };
-  const answer = _answer(e.answer, false);
+  const answer = type === 'Word Meanings' ? _wordMeanings(e) : _answer(e.answer, false);
   if (answer) out.answer = answer;
   return out;
 }

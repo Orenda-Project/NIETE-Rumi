@@ -225,6 +225,12 @@ describe('addKinds', () => {
     expect(out.kinds.find((k) => k.kind === 'Match the Column')).toMatchObject({ layout: 'columns', marks: 2, lines: 0 });
     expect(out.kinds.find((k) => k.kind === 'Word Problems')).toMatchObject({ layout: 'standard', section: 'subjective', marks: 2, lines: 4 });
   });
+  test('Word Meanings is flagged so the portal draws a meaning box per word (bd-do8azq)', async () => {
+    mockDb.tables.assessment_requests[0].subject_code = 'english';
+    const out = await Editor.addKinds({ userId: U, paperId: 'v1' });
+    expect(out.kinds.find((k) => k.kind === 'Word Meanings')).toMatchObject({ layout: 'words', meanings: true });
+    expect(out.kinds.find((k) => k.kind === 'Word Sentences')).not.toHaveProperty('meanings');
+  });
 });
 
 describe('validateEdit', () => {

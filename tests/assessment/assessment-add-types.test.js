@@ -72,7 +72,7 @@ describe('buildAdded per layout', () => {
   });
 
   test('words', () => {
-    expect(buildAdded('Word Meanings', { slots: ['big', '', 'small'] }, EN3))
+    expect(buildAdded('Word Meanings', { slots: ['big', '', 'small'], meanings: ['large', '', 'little'] }, EN3))
       .toMatchObject({ question: 'Write the meaning of each word.', words: ['big', 'small'], marks: 2 });
     expect(buildAdded('Word Sentences', { slots: ['run'], answer: 'I run.' }, EN3))
       .toMatchObject({ question: 'Use each word in a sentence.', words: ['run'], answer: 'I run.' });
@@ -90,8 +90,9 @@ describe('buildAdded per layout', () => {
   test('Urdu text survives every layout', () => {
     const a = buildAdded('Match the Column', { pairs: [{ left: 'بلی', right: 'میاؤں' }, { left: 'کتا', right: 'بھونکنا' }] }, { subject: 'urdu', grade: 3 });
     expect(a.answer).toBe('بلی → میاؤں; کتا → بھونکنا');
-    const b = buildAdded('Word Meanings', { slots: ['کتاب', 'قلم'] }, { subject: 'urdu', grade: 3 });
+    const b = buildAdded('Word Meanings', { slots: ['کتاب', 'قلم'], meanings: ['کتاب کا معنی', 'لکھنے کی چیز'] }, { subject: 'urdu', grade: 3 });
     expect(b.words).toEqual(['کتاب', 'قلم']);
+    expect(b.answer).toBe('کتاب — کتاب کا معنی\nقلم — لکھنے کی چیز');
     const c = buildAdded('Comprehension Passage', { passage: 'ایک کوّا تھا۔', subs: [{ question: 'کون تھا؟', answer: 'کوّا' }] }, { subject: 'urdu', grade: 3 });
     expect(c.passage).toBe('ایک کوّا تھا۔');
   });
@@ -226,5 +227,31 @@ describe('applyChanges with catalogue kinds', () => {
   test('a refused catalogue kind is collected with its addedIndex', () => {
     const out = applyChanges(TREE(), { added: [{ kind: 'Mind Map', edit: { question: 'q', answer: 'a' } }] }, EN3);
     expect(out).toEqual({ ok: false, code: 'INVALID_CHANGES', errors: [{ addedIndex: 0, message: REFUSED }] });
+  });
+});
+
+describe('Word Meanings carries a meaning per word in the answer key (bd-do8azq)', () => {
+  test('the key lists every word with its meaning, one per line', () => {
+    const out = buildAdded('Word Meanings', { slots: ['big', '', 'brave', '', '', ''], meanings: [' large ', '', 'not afraid', '', '', ''] }, EN3);
+    expect(out.words).toEqual(['big', 'brave']);
+    expect(out.answer).toBe('big — large\nbrave — not afraid');
+  });
+  test.each([
+    [{ slots: ['big', 'small'], meanings: ['large', ''] }, 'Write the meaning of "small" too — it goes in the answer key.'],
+    [{ slots: ['big'] }, 'Write the meaning of "big" too — it goes in the answer key.'],
+    [{ slots: ['big', ''], meanings: ['large', 'little'] }, 'Meaning 2 has no word beside it.'],
+    [{ slots: ['big'], meanings: ['x'.repeat(601)] }, 'An answer can be at most 600 characters.'],
+  ])('%j is refused', (edit, message) => {
+    expect(rejects(() => buildAdded('Word Meanings', edit, EN3))).toBe(message);
+  });
+  test('Word Sentences is unchanged: its sample answer stays optional', () => {
+    expect(buildAdded('Word Sentences', { slots: ['run'] }, EN3)).not.toHaveProperty('answer');
+  });
+  test('the answer key prints each meaning, not a dash', () => {
+    const out = applyChanges(TREE(), { added: [{ kind: 'Word Meanings', edit: { slots: ['big', 'brave'], meanings: ['large', 'not afraid'] } }] }, EN3);
+    expect(out.ok).toBe(true);
+    const key = Renderer.renderAnswerKey({ examJson: out.tree, grade: 3, subject: 'english', schoolName: 'S' });
+    expect(key).toContain('big — large');
+    expect(key).toContain('brave — not afraid');
   });
 });
