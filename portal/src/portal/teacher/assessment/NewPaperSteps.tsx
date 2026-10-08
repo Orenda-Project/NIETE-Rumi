@@ -6,7 +6,8 @@ import { loadGradeSubjects } from '../../lib/gradeSubjects';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import { GradeSubjectButton, GradeSubjectSelector, type GradeSubjectValue } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
-import { ASSESSMENT_V2_COPY as C } from './copy';
+import { ASSESSMENT } from './copy';
+import { useCopy } from '../i18n';
 import { catalogueOnce, loadChapters, loadTypes, subjectName } from './api';
 import {
   MAX_TOTAL_MARKS, stepReady, toSpec, typesTotal, unseenTarget, type Picks, type Source,
@@ -48,6 +49,7 @@ const changeClass = (p: Picks, grade: number, subject: string | null, name: stri
 /* ── 1 Class ─────────────────────────────────────────────────────────────── */
 
 export function ClassStep() {
+  const C = useCopy(ASSESSMENT);
   const [p, set] = usePicks();
   const navigate = useNavigate();
   const [combos, retryCombos] = useLoad(() => loadGradeSubjects('assessment'), 'gs:assessment');
@@ -127,6 +129,7 @@ export function ClassStep() {
 /* ── 2 Chapters or pages ─────────────────────────────────────────────────── */
 
 export function CoverStep() {
+  const C = useCopy(ASSESSMENT);
   const [p, set] = usePicks();
   const needsClass = needsClassOf(p);
   const [chapters, retry] = useLoad(
@@ -240,6 +243,7 @@ const SOURCE_ICON: Record<Source, JSX.Element> = {
 };
 
 export function QuestionsStep() {
+  const C = useCopy(ASSESSMENT);
   const [p, set] = usePicks();
   const [cat] = useLoad(catalogueOnce, 'assessment:catalogue');
   const max = dataOf(cat)?.maxQuestions ?? 50;
@@ -317,6 +321,7 @@ export function QuestionsStep() {
 /* ── 4 Question types ────────────────────────────────────────────────────── */
 
 export function TypesStep() {
+  const C = useCopy(ASSESSMENT);
   const [p, set] = usePicks();
   const needsClass = needsClassOf(p);
   const [types, retry] = useLoad(
@@ -401,6 +406,7 @@ export function TypesStep() {
 /* ── 5 Marks and lines ───────────────────────────────────────────────────── */
 
 export function ExtrasStep() {
+  const C = useCopy(ASSESSMENT);
   const [p, set] = usePicks();
   if (needsClassOf(p)) return <Navigate to={newPaperPath('class')} replace />;
   const marks = p.marks;
@@ -429,6 +435,7 @@ export function ExtrasStep() {
 /* ── 6 Check and make ────────────────────────────────────────────────────── */
 
 export function CheckStep() {
+  const C = useCopy(ASSESSMENT);
   const [p] = usePicks();
   const navigate = useNavigate();
   const { start } = useJobs();

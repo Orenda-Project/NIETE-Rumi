@@ -10,7 +10,8 @@ import { teacherPath } from '../routes';
 import TeacherPage from '../TeacherPage';
 import { HistoryList, HistoryRow } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
-import { ASSESSMENT_V2_COPY as C } from './copy';
+import { ASSESSMENT } from './copy';
+import { useCopy } from '../i18n';
 import { catalogueOnce, loadPapers, subjectName, useAssessmentSwitches } from './api';
 import { groupPapersByDay, pkToday } from './model';
 import { rememberPapers } from './paperCache';
@@ -38,6 +39,7 @@ type Filter = { grade: number; subject: string } | null;
 const filterKey = (f: Filter) => (f ? `${f.grade}|${f.subject}` : 'all');
 
 export function AssessmentHub() {
+  const C = useCopy(ASSESSMENT);
   const switches = useAssessmentSwitches();
   const [cat] = useLoad(catalogueOnce, 'assessment:catalogue');
   const catalogue = dataOf(cat);
@@ -77,11 +79,11 @@ export function AssessmentHub() {
   const pick = useCallback((f: Filter) => { setFilter(f); setPage(1); }, []);
   const filters = useMemo(() => (dataOf(combos) ?? [])
     .filter((c) => c.grade !== null && c.available && c.featureKey)
-    .map((c) => ({ grade: c.grade as number, subject: c.featureKey as string, label: C.gradeSubject(c.grade as number, c.subject) })), [combos]);
+    .map((c) => ({ grade: c.grade as number, subject: c.featureKey as string, label: C.gradeSubject(c.grade as number, c.subject) })), [combos, C]);
 
   const making = jobs.filter((j) => j.status === 'writing' || j.status === 'failed');
   const today = pkToday();
-  const groups = groupPapersByDay(papers, today).map((g) => ({
+  const groups = groupPapersByDay(papers, today, C.days).map((g) => ({
     day: g.day,
     items: g.items.map((p) => ({
       id: p.paper_id,
@@ -132,7 +134,7 @@ export function AssessmentHub() {
                 extra={C.questionsCount(j.spec.questionCount)}
                 chip={j.status === 'writing'
                   ? { text: j.slow ? C.slow : C.writing, tone: 'waiting' }
-                  : { text: failureLabel(j.errorCode), tone: 'error' }}
+                  : { text: failureLabel(j.errorCode, C), tone: 'error' }}
                 to={requestPath(j.requestId)}
               />
             ))}

@@ -9,7 +9,8 @@ import { dataOf, useLoad } from '../../newui/lessons/shared';
 import TeacherPage from '../TeacherPage';
 import { HistoryRow } from '../ui';
 import { CARD, FOCUS, GRID } from '../ui/styles';
-import { ASSESSMENT_V2_COPY as C } from './copy';
+import { ASSESSMENT } from './copy';
+import { useCopy } from '../i18n';
 import { catalogueOnce, subjectName, useAssessmentSwitches } from './api';
 import { failureLabel } from './failure';
 import { fromSpec, type AnySpec } from './model';
@@ -60,6 +61,7 @@ function useDirectStatus(requestId: string, ask: boolean): Seen | null {
 }
 
 export function RequestPage() {
+  const C = useCopy(ASSESSMENT);
   const { requestId = '' } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -134,7 +136,7 @@ export function RequestPage() {
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#fee4e2] text-[#c8331f]">
             <AlertCircle className="h-5 w-5" aria-hidden="true" />
           </span>
-          <span className="text-[17px] font-semibold">{failureLabel(seen.errorCode)}</span>
+          <span className="text-[17px] font-semibold">{failureLabel(seen.errorCode, C)}</span>
         </div>
         <div className="w-full">{card}</div>
       </div>

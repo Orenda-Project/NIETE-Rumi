@@ -7,7 +7,8 @@ import { downloadArtifact, type DownloadResult } from '../../newui/assessment/as
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import TeacherPage from '../TeacherPage';
 import { FOCUS } from '../ui/styles';
-import { ASSESSMENT_V2_COPY as C } from './copy';
+import { ASSESSMENT } from './copy';
+import { useCopy } from '../i18n';
 import { useAssessmentSwitches } from './api';
 import { dayLabel, pkDay, pkToday } from './model';
 import { findPaper } from './paperCache';
@@ -38,6 +39,7 @@ function ActionRow({ to, onPress, icon, label, first }: {
 }
 
 export function PaperPage() {
+  const C = useCopy(ASSESSMENT);
   const { paperId = '' } = useParams();
   const { toast } = useToast();
   const switches = useAssessmentSwitches();
@@ -72,7 +74,7 @@ export function PaperPage() {
       {p.question_count != null && <Chip>{C.questionsCount(p.question_count)}</Chip>}
       {p.total_marks != null && <Chip>{C.marksCount(p.total_marks)}</Chip>}
       {p.version != null && <Chip tone="done">{C.versionLong(p.version)}</Chip>}
-      {day && <Chip>{dayLabel(day, pkToday())}</Chip>}
+      {day && <Chip>{dayLabel(day, pkToday(), C.days)}</Chip>}
     </>
   );
   const dock = (
@@ -101,6 +103,7 @@ export function PaperPage() {
 /* ── Versions (v28 canvas AssessVersions) ────────────────────────────────── */
 
 export function VersionsPage() {
+  const C = useCopy(ASSESSMENT);
   const { paperId = '' } = useParams();
   const { toast } = useToast();
   // Only a paper's latest version is in My papers, so a version opens as its file (any version she owns).
@@ -125,7 +128,7 @@ export function VersionsPage() {
                 const ready = v.status === 'ready';
                 const day = pkDay(v.createdAt);
                 const meta = C.join(
-                  day ? dayLabel(day, today) : null,
+                  day ? dayLabel(day, today, C.days) : null,
                   v.questionCount != null ? C.questionsCount(v.questionCount) : null,
                   v.marks != null ? C.marksCount(v.marks) : null,
                 );

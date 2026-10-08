@@ -12,7 +12,8 @@ import { dataOf, useLoad } from '../../newui/lessons/shared';
 import TeacherPage from '../TeacherPage';
 import { Tray } from '../ui';
 import { FOCUS } from '../ui/styles';
-import { ASSESSMENT_V2_COPY as C } from './copy';
+import { ASSESSMENT } from './copy';
+import { useCopy } from '../i18n';
 import { addedEdit, blankValues, existingEdit, valuesFromFields, type FormValues } from './editForm';
 import { addQuestionPath, editPath, editQuestionPath, paperPath } from './paths';
 import { QuestionForm } from './QuestionForm';
@@ -56,6 +57,7 @@ function useDraft(paperId: string): [Draft, (d: Draft) => void] {
 /* ── Edit paper ──────────────────────────────────────────────────────────── */
 
 export function EditPaperPage() {
+  const C = useCopy(ASSESSMENT);
   const { paperId = '' } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -233,6 +235,7 @@ export function EditPaperPage() {
 /* ── Edit a question / Add a question ────────────────────────────────────── */
 
 export function EditQuestionPage({ mode }: { mode: 'edit' | 'add' }) {
+  const C = useCopy(ASSESSMENT);
   const { paperId = '', key = '', kind: kindId = '' } = useParams();
   const navigate = useNavigate();
   const [data, retry] = useLoad(() => portal.getAssessmentEditQuestions(paperId), `edit:${paperId}`);

@@ -4,7 +4,8 @@ import { Check, ChevronRight, Loader2, Minus, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CARD, CARD_SELECTED, FOCUS, LIST_CARD } from '../ui/styles';
 import TeacherPage from '../TeacherPage';
-import { ASSESSMENT_V2_COPY as C } from './copy';
+import { ASSESSMENT } from './copy';
+import { useCopy } from '../i18n';
 import { STEPS, type Step } from './model';
 import { SkeletonList } from '../../components/Skeleton';
 
@@ -49,6 +50,7 @@ export function StepFrame({
   next: { label: ReactNode; ready: boolean; to?: string; onPress?: () => void; busy?: boolean };
   children: ReactNode;
 }) {
+  const C = useCopy(ASSESSMENT);
   const n = STEPS.indexOf(step) + 1;
   const icon = next.busy
     ? <Loader2 className="h-5 w-5 motion-safe:animate-spin" aria-hidden="true" />
@@ -209,6 +211,7 @@ export function ListCard({ label, children }: { label?: string; children: ReactN
 export function LoadState({ status, empty, onRetry, emptyLabel }: {
   status: 'idle' | 'loading' | 'error' | 'ok'; empty?: boolean; onRetry: () => void; emptyLabel?: ReactNode;
 }) {
+  const C = useCopy(ASSESSMENT);
   if (status === 'loading' || status === 'idle') {
     return (
       // bd-fxk3t8 — rows of placeholders where the list will be, instead of a spinner.

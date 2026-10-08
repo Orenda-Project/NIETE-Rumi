@@ -3,7 +3,8 @@ import { Check, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AddKind, EditFields } from '../../services/api';
 import { FOCUS } from '../ui/styles';
-import { ASSESSMENT_V2_COPY as C } from './copy';
+import { ASSESSMENT } from './copy';
+import { useCopy } from '../i18n';
 import { showAnswerBox, showCorrect, type FormValues } from './editForm';
 
 /**
@@ -70,6 +71,7 @@ export function QuestionForm({
   rtl: boolean;
   slotCap?: number;
 }) {
+  const C = useCopy(ASSESSMENT);
   const set = (patch: Partial<FormValues>) => onChange({ ...values, ...patch });
   const shape = fields ? fields.shape : kind?.layout ?? 'standard';
   const tickOne = fields ? showCorrect(fields) : !!kind && kind.layout === 'options' && !kind.msq;
