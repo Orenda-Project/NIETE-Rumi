@@ -50,6 +50,7 @@ const Pulse = require('./web-quiz-pulse');
 const WebQuizBrand = require('../../config/web-quiz-brand');
 const { orgName, botName } = require('../../config/branding');
 const Art = require('./web-quiz-art-id');
+const Tel = require('./web-quiz-telemetry');
 
 const QUESTIONS_MAX = 15;          // = video-quiz.service QUESTIONS_PER_SESSION
 const CHIPS_MAX = 40;
@@ -551,6 +552,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
     class: Art.artId('l', ctx.parent.code || ctx.code), schools: Art.artId('s', ctx.parent.code || ctx.code),
     invite: ctx.invitedByStudentId ? Art.artId('i', ctx.code) : null,
   };
+  // Whether the page sends its page-session events (wq-tel.js).
+  out.rt = await Tel.flag();
   return out;
 }
 
@@ -1701,6 +1704,14 @@ const EVENT_PROPS = Object.freeze({
 });
 const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't', 'list_ms', 'nav_ms', 'ff_ms', 'ch_i', 'line', 'col'];
 const EVENT_BOOLS = ['ok'];
+// Page-session telemetry (wq-tel.js; app_settings web_quiz_rich_telemetry): its events and props are kept only
+// while the switch is on, so a cached page or a switched-off deployment logs nothing new.
+const TEL_NAMES = new Set(['page_start', 'screen_enter', 'screen_leave', 'vis', 'hb', 'page_end']);
+const TEL_PROPS = Object.freeze({
+  ps: /^[a-z0-9]{8,16}$/, pps: /^[a-z0-9]{8,16}$/, scr: /^[a-z0-9_]{1,24}$/, from: /^[a-z0-9_]{1,24}$/,
+  state: /^(hidden|visible)$/, page: /^(quiz|hub|lib|ch)$/,
+});
+const TEL_NUMS = ['pseq', 'sm', 'total_ms', 'vis_ms', 'count'];
 const SHARE_PATHS = ['native', 'wa', 'copy', 'file', 'save'];
 const UA_MAX = 300;
 const PROBE_MAX = 4096;
@@ -1751,12 +1762,23 @@ function uaApp(ua) {
   return 'browser';
 }
 
-/** Keep only allow-listed props of the right shape: no names, no free text, no phone. Pure. */
-function cleanEvent(e) {
+/**
+ * Keep only allow-listed props of the right shape: no names, no free text, no phone. `rich`: the page-session
+ * telemetry switch (TEL_NAMES / TEL_PROPS / TEL_NUMS are dropped while it is off). Pure.
+ */
+function cleanEvent(e, { rich = false } = {}) {
   if (!e || typeof e !== 'object' || !EVENT_NAME_RX.test(String(e.n || ''))) return null;
+  if (!rich && TEL_NAMES.has(e.n)) return null;
   const props = {};
   for (const [k, rx] of Object.entries(EVENT_PROPS)) {
     if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
+  }
+  if (rich) {
+    for (const [k, rx] of Object.entries(TEL_PROPS)) if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
+    for (const k of TEL_NUMS) {
+      const v = Number(e[k]);
+      if (e[k] !== undefined && e[k] !== null && e[k] !== '' && Number.isFinite(v)) props[k] = v;
+    }
   }
   if (e.n === 'error') {
     const err = safeErr(e.err, { whole: e.src === 'rej' });
@@ -1767,6 +1789,8 @@ function cleanEvent(e) {
     if (e[k] !== undefined && Number.isFinite(v)) props[k === 'n' ? 'count' : k] = v;
   }
   for (const k of EVENT_BOOLS) if (typeof e[k] === 'boolean') props[k] = e[k];
+  // The page sends answer right/wrong as 1/0: kept as a boolean (it was dropped while only booleans passed).
+  if (e.ok === 1 || e.ok === 0) props.ok = e.ok === 1;
   if (typeof e.ua === 'string' && e.ua) props.ua = e.ua.slice(0, UA_MAX);
   if (e.store === 0 || e.store === 1) props.store = e.store;
   // In-app browser (WhatsApp's own browser): the page sends 1/0; kept as 0/1 so the logs can split on it.
@@ -1774,7 +1798,7 @@ function cleanEvent(e) {
   else if (typeof e.iab === 'boolean') props.iab = e.iab ? 1 : 0;
   // A page_open's UA names the app: the page's own flag missed WhatsApp's browser (WA4A) and counted other apps'
   // webviews, so the UA decides here, for new and cached pages alike.
-  if (e.n === 'page_open' && props.ua) {
+  if ((e.n === 'page_open' || e.n === 'page_start') && props.ua) {
     props.ua_app = uaApp(props.ua);
     props.iab = props.ua_app === 'whatsapp' ? 1 : 0;
   }
@@ -1805,11 +1829,14 @@ function cleanProbe(p) {
 
 function events(body = {}) {
   const list = Array.isArray(body.events) ? body.events.slice(0, 20) : [];
+  const rich = Tel.on();
+  // The batch's own ids (never logged raw): the session from its signed token, the phone as a hash.
+  const ids = rich ? Tel.batchIds(body) : {};
   let logged = 0;
   for (const e of list) {
-    const c = cleanEvent(e);
+    const c = cleanEvent(e, { rich });
     if (!c) continue;
-    logEvent(`web_quiz.${c.name}`, c.props);
+    logEvent(`web_quiz.${c.name}`, { ...c.props, ...ids });
     // The old-link re-offer stands down once the page has opened on that code (web-quiz-old-link.js).
     if (c.name === 'page_open' && c.props.code) require('./web-quiz-old-link').noteOpen(c.props.code);
     logged += 1;

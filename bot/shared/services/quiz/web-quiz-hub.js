@@ -39,6 +39,7 @@
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
+const Tel = require('./web-quiz-telemetry');
 const T = require('./web-quiz-token');
 const Videos = require('./web-quiz-videos');
 const Order = require('./video-bank-order');
@@ -334,7 +335,7 @@ async function lockedHub(ids, why) {
 
 // ─── the hub ────────────────────────────────────────────────────────────────
 
-async function hub(token, { kid, device } = {}) {
+async function hubPayload(token, { kid, device } = {}) {
   if (!T.secret()) fail(503, 'web_quiz_off');
   const ids = idsOf(token);
   const f = await Flags.flags();
@@ -396,6 +397,11 @@ async function hub(token, { kid, device } = {}) {
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
   });
   return out;
+}
+
+/** The hub's boot JSON, with whether the page sends its page-session events (rt, wq-tel.js). */
+async function hub(token, opts = {}) {
+  return { ...(await hubPayload(token, opts)), rt: await Tel.flag() };
 }
 
 module.exports = {
