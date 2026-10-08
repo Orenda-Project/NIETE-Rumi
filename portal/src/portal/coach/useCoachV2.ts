@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { resolveRole } from "../lib/leaderRole";
-import { readConfigShared } from "../lib/useNewUi";
+import { forgetConfig, readConfigShared } from "../lib/useNewUi";
 
 /**
  * bd-o15qnr — is the coach app v2 (portal_coach_v2) on for this user?
@@ -53,4 +53,5 @@ export function isCoachV2For(user: { role?: string | null } | null | undefined, 
 /** Tests only: forget the remembered answer. */
 export function resetCoachV2Memory(): void {
   remembered = null;
+  forgetConfig();
 }

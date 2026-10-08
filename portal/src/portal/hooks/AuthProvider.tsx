@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AuthContext } from './authContext';
 import { useOwnAuth } from './useAuth';
+import { readConfigShared } from '../lib/useNewUi';
 
 /**
  * bd-fxk3t8 — the signed-in user, read once per visit and kept above every route.
@@ -22,11 +23,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { checkAuth, fetchedAt, loading } = own;
 
   const refreshing = useRef(false);
+  const started = useRef(false);
   const latest = useRef({ fetchedAt, loading });
   latest.current = { fetchedAt, loading };
 
   const request = useCallback(() => {
     setWanted(true);
+    // The flags that pick her frame and menu are read alongside who she is, not after.
+    if (!started.current) {
+      started.current = true;
+      void readConfigShared();
+    }
     const { fetchedAt: at, loading: busy } = latest.current;
     if (busy || !at || refreshing.current || Date.now() - at < AUTH_STALE_MS) return;
     refreshing.current = true;

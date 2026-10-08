@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { isLeader } from "../lib/leaderRole";
-import { readConfigShared } from "../lib/useNewUi";
+import { forgetConfig, readConfigShared } from "../lib/useNewUi";
 
 /**
  * bd-fmf24g.1 — is the teacher app v2 (portal_teacher_v2) on for this user?
@@ -57,4 +57,5 @@ export function isTeacherV2For(user: { role?: string | null } | null | undefined
 /** Tests only: forget the remembered answer. */
 export function resetTeacherV2Memory(): void {
   remembered = null;
+  forgetConfig();
 }

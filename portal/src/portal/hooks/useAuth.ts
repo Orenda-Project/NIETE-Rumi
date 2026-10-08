@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { auth, portal } from '../services/api';
 import type { User } from '../types/portal';
 import { clearShellHint } from '../lib/shellHint';
+import { forgetConfig } from '../lib/useNewUi';
 
 /**
  * bd-5rz1v.6.6 — PortalLayout PROVIDES the user it loaded. Everything inside the
@@ -33,6 +34,25 @@ export const useAuth = () => {
 const sameUser = (a: User | null, b: User | null) => a === b || JSON.stringify(a) === JSON.stringify(b);
 
 /**
+ * bd-fxk3t8 — who is signed in: GET /me (her user, without /dashboard's counts — about
+ * half the time on sandbox). If /me cannot answer for any reason but "not signed in"
+ * (a server without /me mid-deploy, a 500, a dropped request), /dashboard is asked, as
+ * before. A 401/403 is the answer itself.
+ */
+async function readSessionUser(): Promise<User> {
+  const p = portal as typeof portal & { getMe?: () => Promise<{ user: User }> };
+  if (typeof p.getMe === 'function') {
+    try {
+      return (await p.getMe()).user;
+    } catch (error) {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status === 401 || status === 403) throw error;
+    }
+  }
+  return (await portal.getDashboard()).user;
+}
+
+/**
  * @param active          read the user (on mount, or as soon as it turns true)
  * @param initialLoading  what `loading` says before the first read (the app-level
  *                        provider starts "loading": nobody knows yet)
@@ -51,10 +71,9 @@ export function useOwnAuth(active: boolean, initialLoading: boolean = active) {
    */
   const checkAuth = useCallback(async (silent = false) => {
     try {
-      // Try to get dashboard data - if successful, user is authenticated
-      const data = await portal.getDashboard();
+      const next = await readSessionUser();
       // The same user again keeps the same object, so nothing re-renders for it.
-      setUser((prev) => (sameUser(prev, data.user) ? prev : data.user));
+      setUser((prev) => (sameUser(prev, next) ? prev : next));
       setFetchedAt(Date.now());
     } catch (error) {
       if (!silent) {
@@ -78,6 +97,7 @@ export function useOwnAuth(active: boolean, initialLoading: boolean = active) {
     try {
       const response = await auth.login(phoneNumber, password);
       if (response.success) {
+        forgetConfig(); // the flags were read for nobody
         await checkAuth(); // Refresh user data
         // bd-2434: hand the role back so the caller can route a leader straight
         // to My Patch instead of flashing the teacher dashboard.
@@ -95,6 +115,7 @@ export function useOwnAuth(active: boolean, initialLoading: boolean = active) {
   const logout = async () => {
     try {
       await auth.logout();
+      forgetConfig();
       setUser(null);
       clearShellHint();
       navigate('/portal/login');
@@ -107,6 +128,7 @@ export function useOwnAuth(active: boolean, initialLoading: boolean = active) {
     try {
       const response = await auth.setup(token, password);
       if (response.success) {
+        forgetConfig();
         await checkAuth(); // Refresh user data
         return { success: true };
       }
