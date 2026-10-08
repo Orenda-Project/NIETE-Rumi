@@ -843,7 +843,13 @@ describe('an "equals" with a blank or "?" after it is said with a word, never le
     expect(Publish.voiceText('12 + … = 20', 'en')).toBe('12 + … = 20');
     expect(Publish.voiceText('x = y + 2. What is x?', 'en')).toBe('x = y + 2. What is x?');
     expect(Publish.voiceText('Equal sign =', 'en')).toBe('Equal sign =');
-    expect(Publish.voiceText('3 + 4 = … . Fill in the blank.', 'en')).toBe('3 + 4 = what? Fill in the blank.');
+    expect(Publish.voiceText('3 + 4 = … . Fill in the blank.', 'en')).toBe('3 + 4 = … . Fill in the blank.');
+  });
+  test('only a gap that ENDS the text is filled: words after it already finish the sentence (as written on prod)', () => {
+    expect(Publish.voiceText(Publish.spoken("From 10 o'clock to 12 o'clock: 12 - 10 = ? hours"), 'en')).toBe("From 10 o'clock to 12 o'clock: 12 minus 10 = ? hours");
+    expect(Publish.voiceText(Publish.spoken('$326 + 241 = ?$ کا جواب کیا ہے؟'), 'ur')).not.toMatch(/کتنے/);
+    expect(Publish.voiceText('24 + 18 = ? Use the last digit of your answer.', 'en')).not.toMatch(/what/);
+    expect(Publish.voiceText('"5.29 + 2.16 = ?"', 'en')).toBe('"5.29 + 2.16 = what?"');
   });
 });
 
