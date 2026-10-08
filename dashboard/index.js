@@ -2807,6 +2807,8 @@ app.use('/api/portal/attendance', cors(portalCorsOptions), portalAuthLimiter, po
 // bd-fmf24g.3 — teacher app v2: GET /me/grade-subjects (every v2 picker) and the Lesson Plans
 // feature's own reads. Same CORS / rate-limit / session / link-scope stack as the portal routes.
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, teacherLessonsRoutes);
+// bd-fmf24g.4 — teacher app v2: next coach visit, visits in progress, report journey, All DC observations.
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-coaching.routes'));
 
 // HCP endpoint tester — an HTML page for internal QA to hit the 10 /api/portal/hcp/*
 // endpoints without curl. Served under /observability/* so it's excluded from the
