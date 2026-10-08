@@ -95,6 +95,8 @@ got=$(client "$env1" "$JS_RPC");    t "AC1 rpc" "$got" "2"
 t "request log names the table read" "$(grep -c '^GET items$' "$r1/requests.log" 2>/dev/null)" "1"
 t "request log names the table written" "$(grep -c '^POST items$' "$r1/requests.log" 2>/dev/null)" "1"
 t "request log names the rpc" "$(grep -c '^POST rpc/count_items$' "$r1/requests.log" 2>/dev/null)" "1"
+# bd-z3ze4.6: the FULL query too — which reference ROWS a run reads is measured by replaying these.
+t "query log keeps the filter and select, not just the table" "$(grep -c '^GET items?select=label' "$r1/queries.log" 2>/dev/null)" "1"
 
 # ---- AC6–AC9: the seed snapshot. Run 1's database stands in for the sandbox (test-only seam).
 db1=$(cat "$r1/db.name")

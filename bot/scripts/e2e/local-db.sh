@@ -209,7 +209,7 @@ CONF
   ( exec postgrest "$run_dir/postgrest.conf" ) >"$run_dir/postgrest.log" 2>&1 &
   echo $! > "$run_dir/postgrest.pid"
   : > "$run_dir/requests.log"
-  ( LOCAL_DB_REQUEST_LOG="$run_dir/requests.log" exec node "$HERE/local-db-proxy.js" "$API_PORT" "$REST_PORT" ) >"$run_dir/proxy.log" 2>&1 &
+  ( LOCAL_DB_REQUEST_LOG="$run_dir/requests.log" LOCAL_DB_QUERY_LOG="$run_dir/queries.log" exec node "$HERE/local-db-proxy.js" "$API_PORT" "$REST_PORT" ) >"$run_dir/proxy.log" 2>&1 &
   echo $! > "$run_dir/proxy.pid"
   wait_http "http://127.0.0.1:$REST_PORT/" 20 || { log "PostgREST not healthy — $run_dir/postgrest.log"; tail -5 "$run_dir/postgrest.log" >&2; down "$run_dir"; exit 8; }
   wait_http "http://127.0.0.1:$API_PORT/health" 10 || { log "proxy not healthy — $run_dir/proxy.log"; down "$run_dir"; exit 8; }

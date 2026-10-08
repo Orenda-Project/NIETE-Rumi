@@ -18,10 +18,18 @@ const PREFIX = '/rest/v1';
 // One line per request, `<METHOD> <table|rpc/fn>` — what a run actually touched (the seed list is drafted
 // from it). Set by local-db.sh to <run_dir>/requests.log.
 const REQUEST_LOG = process.env.LOCAL_DB_REQUEST_LOG;
+// The FULL request (`<METHOD> <table>?<query>`, decoded): replaying the reads against the full seed tells which
+// reference ROWS a run actually used (bd-z3ze4.6). Set by local-db.sh to <run_dir>/queries.log.
+const QUERY_LOG = process.env.LOCAL_DB_QUERY_LOG;
 const record = (method, rest) => {
-  if (!REQUEST_LOG) return;
+  if (!REQUEST_LOG && !QUERY_LOG) return;
   const target = decodeURIComponent(rest.split('?')[0].replace(/^\/+/, '')) || '/';
-  try { fs.appendFileSync(REQUEST_LOG, `${method} ${target}\n`); } catch (_) { /* never fail a request over the log */ }
+  if (REQUEST_LOG) try { fs.appendFileSync(REQUEST_LOG, `${method} ${target}\n`); } catch (_) { /* never fail a request over the log */ }
+  if (QUERY_LOG) {
+    let full = rest.replace(/^\/+/, '');
+    try { full = decodeURIComponent(full); } catch (_) { /* keep it encoded */ }
+    try { fs.appendFileSync(QUERY_LOG, `${method} ${full}\n`); } catch (_) { /* never fail a request over the log */ }
+  }
 };
 
 http.createServer((req, res) => {
