@@ -1,4 +1,7 @@
-import { ASSESSMENT_V2_COPY as C } from './copy';
+import { ASSESSMENT, type AssessmentV2Copy } from './copy';
+
+/** English unless a screen passes its page's words (bd-fmf24g.13.1). */
+const EN = ASSESSMENT.en;
 
 /**
  * bd-fmf24g.6 — the teacher v2 New paper's choices and its rules, kept out of the screens so they can be
@@ -176,7 +179,7 @@ export function fromSpec(spec: AnySpec, subjectName: string | null): Picks {
 }
 
 /** The job's label in Being made: "Grade 4 · Science · 15 questions". */
-export function paperLabel(p: Picks): string {
+export function paperLabel(p: Picks, C: AssessmentV2Copy = EN): string {
   return C.join(p.grade !== null ? C.grade(p.grade) : null, p.subjectName ?? p.subject, C.questionsCount(p.count));
 }
 
@@ -197,24 +200,24 @@ export function pkDay(iso: string | null | undefined): string | null {
 const parse = (ymd: string) => new Date(`${ymd}T00:00:00Z`);
 
 /** Today · Yesterday · "Mon 5 Oct". */
-export function dayLabel(ymd: string, today: string): string {
+export function dayLabel(ymd: string, today: string, D: AssessmentV2Copy['days'] = EN.days): string {
   const gap = Math.round((parse(today).getTime() - parse(ymd).getTime()) / 86_400_000);
-  if (gap === 0) return C.days.today;
-  if (gap === 1) return C.days.yesterday;
+  if (gap === 0) return D.today;
+  if (gap === 1) return D.yesterday;
   const d = parse(ymd);
-  return C.days.date(d.getUTCDay(), d.getUTCDate(), d.getUTCMonth());
+  return D.date(d.getUTCDay(), d.getUTCDate(), d.getUTCMonth());
 }
 
 /** Papers grouped by the Pakistan day they were ready, newest day first, each day in its given order. */
 export function groupPapersByDay<T extends { ready_at: string | null }>(
-  papers: T[], today: string,
+  papers: T[], today: string, D: AssessmentV2Copy['days'] = EN.days,
 ): Array<{ key: string; day: string; items: T[] }> {
   const out: Array<{ key: string; day: string; items: T[] }> = [];
   for (const paper of papers) {
     const key = pkDay(paper.ready_at);
     if (!key) continue;
     let group = out.find((g) => g.key === key);
-    if (!group) { group = { key, day: dayLabel(key, today), items: [] }; out.push(group); }
+    if (!group) { group = { key, day: dayLabel(key, today, D), items: [] }; out.push(group); }
     group.items.push(paper);
   }
   return out.sort((a, b) => (a.key < b.key ? 1 : a.key > b.key ? -1 : 0));
