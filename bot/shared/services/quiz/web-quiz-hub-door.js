@@ -14,7 +14,7 @@
  * Err is web-quiz.service's WqError, passed in by the route: this module never requires the service (whose finish()
  * requires it), so there is no require cycle.
  */
-const supabase = require('../../config/supabase');
+const { read: dbRead } = require('./web-quiz-db-deadline');   // a deadline + one retry on reads (web_quiz_db_deadline)
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const Flags = require('./web-quiz-hub-flags');
@@ -47,8 +47,8 @@ async function door(body = {}, Err = Error) {
   };
   const tok = T.verify(body.st, 's');
   if (!tok || !tok.sid || !tok.d) fail(401, 'bad_token');
-  const { data: s } = await supabase.from('quiz_sessions')
-    .select('id, student_id, user_id, invited_by_student_id, status, share_code_id').eq('id', tok.sid).maybeSingle();
+  const { data: s } = await dbRead('door:quiz_sessions', (db) => db.from('quiz_sessions')
+    .select('id, student_id, user_id, invited_by_student_id, status, share_code_id').eq('id', tok.sid).maybeSingle());
   if (!s || s.share_code_id !== tok.sc) fail(401, 'bad_token');
   const f = await Flags.flags();
   const home = Boolean(body.home) && f.hub && f.homeButton;
