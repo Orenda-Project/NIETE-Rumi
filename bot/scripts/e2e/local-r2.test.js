@@ -106,6 +106,25 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
       assert.ok(lines.includes('GET\tlp/grade4/fractions.pdf\t12'), lines.join(' | '));
       assert.ok(!lines.some((l) => l.includes('reports/run1/report.pdf')), 'a file the run wrote itself is not a read-through');
     });
+    await t('a BASE snapshot (seeded per machine) serves a file with NO upstream at all — offline (bd-z3ze4.5)', async () => {
+      const baseDir = path.join(tmp, 'base files');
+      fs.mkdirSync(path.join(baseDir, BUCKET, 'lp612/page-truth'), { recursive: true });
+      fs.writeFileSync(path.join(baseDir, BUCKET, 'lp612/page-truth/g7.json'), '{"page":7}');
+      const off = await start(LOCAL_PORT + 10, path.join(tmp, 'offline run'), { LOCAL_R2_BASE_DIR: baseDir, LOCAL_R2_READ_LOG: readsLog });
+      try {
+        const o = client(LOCAL_PORT + 10);
+        assert.strictEqual(await body(await o.send(new GetObjectCommand({ Bucket: BUCKET, Key: 'lp612/page-truth/g7.json' }))), '{"page":7}');
+        const h = await o.send(new HeadObjectCommand({ Bucket: BUCKET, Key: 'lp612/page-truth/g7.json' }));
+        assert.strictEqual(h.ContentLength, 10);
+        await assert.rejects(o.send(new GetObjectCommand({ Bucket: BUCKET, Key: 'lp612/page-truth/missing.json' })), (e) => e.name === 'NoSuchKey' || e.$metadata?.httpStatusCode === 404);
+        // a base-layer hit is not a read-through: nothing went to staging
+        assert.ok(!fs.readFileSync(readsLog, 'utf8').includes('g7.json'), 'a base hit must not be logged as a staging read');
+        // the run can still shadow and delete a base file — the base itself is never written
+        await o.send(new PutObjectCommand({ Bucket: BUCKET, Key: 'lp612/page-truth/g7.json', Body: 'RUN' }));
+        assert.strictEqual(await body(await o.send(new GetObjectCommand({ Bucket: BUCKET, Key: 'lp612/page-truth/g7.json' }))), 'RUN');
+        assert.strictEqual(fs.readFileSync(path.join(baseDir, BUCKET, 'lp612/page-truth/g7.json'), 'utf8'), '{"page":7}');
+      } finally { off.kill(); }
+    });
     await t('NOTHING the run did reached upstream', async () => {
       assert.deepStrictEqual(listFiles(upDir), upBefore);
     });

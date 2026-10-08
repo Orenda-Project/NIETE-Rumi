@@ -48,7 +48,8 @@ MAIN="$(main_checkout)"
 # openai/@anthropic-ai/sdk/express/ioredis) and E2E_BOT_NODE_MODULES_ROOT (bot/node_modules).
 NM_ROOT="${E2E_NODE_MODULES_ROOT:-$MAIN}"
 NM_BOT="${E2E_BOT_NODE_MODULES_ROOT:-$MAIN}"
-KEYS_DIR="$MAIN/keys"; [ -f "$KEYS_DIR/niete-local.env" ] || KEYS_DIR="$(dirname "$MAIN")/keys"   # workspace-level keys/ fallback; check the FILE so a stray shadow keys/ dir cannot mask it
+KEYS_DIR="$MAIN/keys"; [ -f "$KEYS_DIR/niete-local.env" ] || KEYS_DIR="$(dirname "$MAIN")/keys"
+[ -n "${E2E_KEYS_DIR:-}" ] && KEYS_DIR="$E2E_KEYS_DIR"   # explicit override (tests: prove the local lane needs none)   # workspace-level keys/ fallback; check the FILE so a stray shadow keys/ dir cannot mask it
 
 log() { echo "[local-stack] $*" >&2; }
 
@@ -111,14 +112,22 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
   local keys_name="niete-local.env"
   if [ "$cassette_mode" = record ] || { [ "$cassette_mode" = replay ] && [ -f "$KEYS_DIR/niete-record.env" ]; }; then keys_name="niete-record.env"; fi
   local keys="$KEYS_DIR/$keys_name"
+  # The local lane (the default) needs NO keys file (bd-z3ze4.5): its settings come from the committed
+  # .claude/qa/config/local-lane.env, its database and file store are its own. A keys file, when present, only
+  # lets local-r2.js read through to staging for a file the seed snapshot lacks. The sandbox lane and record
+  # mode still need it: the sandbox database credential, and real vendor keys.
+  local lane_cfg="$REPO/.claude/qa/config/local-lane.env"
   if [ ! -f "$keys" ]; then
     if [ "$cassette_mode" = record ]; then
       log "record mode needs $keys with REAL vendor keys (Soniox/OpenRouter/ElevenLabs, + R2_* to mirror). The default lane never has them — see docs/e2e-mock-lane.md"
-    else
+      exit 14
+    elif ! local_db_on; then
       log "missing $keys (sandbox creds + placeholders — see docs/e2e-mock-lane.md)"
+      exit 14
     fi
-    exit 14
+    keys=""
   fi
+  if local_db_on && [ ! -f "$lane_cfg" ]; then log "missing $lane_cfg (the local lane's committed settings)"; exit 14; fi
   local mock_port="${MOCK_PORT:-4010}" bot_port="${E2E_BOT_PORT:-3100}" phone_id="${E2E_PHONE_NUMBER_ID:-e2e-local}"
   local redis_port="${E2E_REDIS_PORT:-6390}" worker_port="${E2E_WORKER_HEALTH_PORT:-3201}"
   command -v redis-server >/dev/null 2>&1 || { log "redis-server not found — the queue worker needs it (brew install redis)"; exit 16; }
@@ -131,9 +140,12 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     db_lines=$(grep -E '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' "$run_dir/db/db.env")
     db_kind=local
     r2_port="${LOCAL_R2_PORT:-54600}"
-    kv() { sed -nE "s/^$1=(.*)$/\1/p" "$keys" | head -1 | tr -d "\"'"; }   # a keys-file value, quotes stripped
+    kv() { [ -n "$keys" ] && sed -nE "s/^$1=(.*)$/\1/p" "$keys" | head -1 | tr -d "\"'"; }   # a keys-file value, if any
+    # Files: the run's own, then the per-machine seed snapshot (no credential, no network), then — only when a
+    # keys file exists — staging, read-only.
     ( cd "$src" && LOCAL_R2_UPSTREAM_ENDPOINT="$(kv R2_ENDPOINT)" LOCAL_R2_UPSTREAM_BUCKET="$(kv R2_BUCKET_NAME)" \
         LOCAL_R2_UPSTREAM_KEY_ID="$(kv R2_ACCESS_KEY_ID)" LOCAL_R2_UPSTREAM_SECRET="$(kv R2_SECRET_ACCESS_KEY)" \
+        LOCAL_R2_BASE_DIR="${LOCAL_DB_HOME:-$HOME/.cache/niete-e2e-db}/seed/files" \
         LOCAL_R2_READ_LOG="$run_dir/r2-reads.log" \
         NODE_PATH="$src/bot/node_modules:$src/node_modules" exec node "$HERE/local-r2.js" "$r2_port" "$run_dir/r2" ) >"$run_dir/r2.log" 2>&1 &
     echo $! >"$run_dir/r2.pid"
@@ -142,7 +154,11 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     db_lines="$db_lines"$'\n'"R2_ENDPOINT=http://127.0.0.1:$r2_port"$'\n'"R2_ACCESS_KEY_ID=local"$'\n'"R2_SECRET_ACCESS_KEY=local"
   fi
   {
-    if [ "$db_kind" = local ]; then grep -vE '^(SUPABASE_(URL|SERVICE_ROLE_KEY)|R2_(ENDPOINT|ACCESS_KEY_ID|SECRET_ACCESS_KEY))=' "$keys"; echo; echo "$db_lines"; else cat "$keys"; fi
+    if [ "$db_kind" = local ]; then
+      # record mode only: its REAL vendor keys first (dotenv keeps the first value), minus DB/storage credentials
+      if [ "$cassette_mode" = record ] && [ -n "$keys" ]; then grep -vE '^(SUPABASE_(URL|SERVICE_ROLE_KEY)|R2_(ENDPOINT|ACCESS_KEY_ID|SECRET_ACCESS_KEY))=' "$keys"; echo; fi
+      cat "$lane_cfg"; echo; echo "$db_lines"
+    else cat "$keys"; fi
     echo
     echo "# --- set by local-stack.sh for run $(basename "$run_dir") ---"
     echo "PORT=$bot_port"

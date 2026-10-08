@@ -7,7 +7,9 @@
  * path-style links `${R2_ENDPOINT}/${bucket}/${key}`. On a local run R2_ENDPOINT points here instead:
  *
  *   WRITE (PUT, DELETE)  → <dir> only. Nothing a run writes ever reaches the real bucket.
- *   READ  (GET, HEAD)    → <dir> if the run wrote the key; else READ-THROUGH to the upstream bucket (staging),
+ *   READ  (GET, HEAD)    → <dir> if the run wrote the key; else the BASE snapshot (LOCAL_R2_BASE_DIR: files pulled
+ *                          once per machine with the seed — read-only, never written); else READ-THROUGH to the
+ *                          upstream bucket (staging),
  *                          read-only — the pre-rendered lesson-plan PDFs, training media and cassette mirror the
  *                          seeded rows point at. A key the run deleted stays deleted (no fall-through).
  *   LIST                 → the run's keys merged with upstream's, minus the run's deletes.
@@ -31,6 +33,10 @@ if (!port || !root) { console.error('usage: local-r2.js <port> <dir>'); process.
 const OBJ = path.join(root, 'objects'), META = path.join(root, 'meta'), GONE = path.join(root, 'deleted');
 for (const d of [OBJ, META, GONE]) fs.mkdirSync(d, { recursive: true });
 
+// The per-machine file snapshot (<base>/<bucket>/<key>), pulled with the seed (bd-z3ze4.5): what lets a run
+// serve the staging files it needs with no upstream — offline, no staging credential.
+const BASE = process.env.LOCAL_R2_BASE_DIR || '';
+const basePath = (b, k) => (BASE ? path.join(BASE, safe(b, k)) : '');
 const UP = process.env.LOCAL_R2_UPSTREAM_ENDPOINT ? {
   endpoint: process.env.LOCAL_R2_UPSTREAM_ENDPOINT, bucket: process.env.LOCAL_R2_UPSTREAM_BUCKET,
   id: process.env.LOCAL_R2_UPSTREAM_KEY_ID, secret: process.env.LOCAL_R2_UPSTREAM_SECRET } : null;
@@ -54,6 +60,9 @@ const metaPath = (b, k) => path.join(META, safe(b, k) + '.json');
 const gonePath = (b, k) => path.join(GONE, safe(b, k));
 const ensureDir = (f) => fs.mkdirSync(path.dirname(f), { recursive: true });
 
+const TYPES = { pdf: 'application/pdf', json: 'application/json', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+  mp3: 'audio/mpeg', ogg: 'audio/ogg', m4a: 'audio/mp4', mp4: 'video/mp4', html: 'text/html', txt: 'text/plain' };
+const guessType = (key) => TYPES[String(key).split('.').pop().toLowerCase()] || 'application/octet-stream';
 const xml = (res, status, body) => { res.writeHead(status, { 'content-type': 'application/xml' }); res.end('<?xml version="1.0" encoding="UTF-8"?>\n' + body); };
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const noSuchKey = (res, key, head) => {
@@ -100,7 +109,14 @@ async function serveObject(res, bucket, key, head) {
     res.writeHead(200, { 'content-type': m.contentType, 'content-length': m.size, etag: m.etag, 'last-modified': new Date(m.lastModified).toUTCString() });
     return head ? res.end() : fs.createReadStream(f).pipe(res);
   }
-  if (fs.existsSync(gonePath(bucket, key)) || !upstream()) return noSuchKey(res, key, head);
+  if (fs.existsSync(gonePath(bucket, key))) return noSuchKey(res, key, head);
+  const bf = basePath(bucket, key);
+  if (bf && fs.existsSync(bf) && fs.statSync(bf).isFile()) {
+    const st = fs.statSync(bf);
+    res.writeHead(200, { 'content-type': guessType(key), 'content-length': st.size, 'last-modified': st.mtime.toUTCString() });
+    return head ? res.end() : fs.createReadStream(bf).pipe(res);
+  }
+  if (!upstream()) return noSuchKey(res, key, head);
   try {
     const { GetObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
     const r = await upstream().send(new (head ? HeadObjectCommand : GetObjectCommand)({ Bucket: UP.bucket || bucket, Key: key }));

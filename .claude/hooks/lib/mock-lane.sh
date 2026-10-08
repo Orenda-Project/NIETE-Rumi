@@ -128,7 +128,7 @@ e2e_local_db_script() {
 e2e_mock_lane_ready() {
   local main="$1" kd missing=0 ldb
   kd=$(e2e_keys_dir "$main")
-  if [ ! -f "$kd/niete-local.env" ]; then
+  if [ "${E2E_LOCAL_DB:-1}" = 0 ] && [ ! -f "$kd/niete-local.env" ]; then   # only the SANDBOX lane needs keys (bd-z3ze4.5)
     printf 'keys/niete-local.env missing (looked in %s/keys and %s/keys)\n' "$main" "$(dirname "$main")"
     missing=1
   fi
@@ -154,7 +154,7 @@ e2e_mock_lane_autofix() {
   [ "${2:-}" = "--with-redis" ] && with_redis=1
   if [ "${E2E_AUTOFIX_OFF:-}" = "1" ]; then e2e_mock_lane_ready "$main" >/dev/null; return $?; fi
   kd=$(e2e_keys_dir "$main")
-  if [ ! -f "$kd/niete-local.env" ]; then
+  if [ "${E2E_LOCAL_DB:-1}" = 0 ] && [ ! -f "$kd/niete-local.env" ]; then   # only the SANDBOX lane needs keys (bd-z3ze4.5)
     prov="$main/bot/scripts/e2e/provision-local-keys.sh"
     [ -f "$prov" ] || prov="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." 2>/dev/null && pwd)/bot/scripts/e2e/provision-local-keys.sh"
     if [ -f "$prov" ]; then
@@ -213,11 +213,13 @@ e2e_mock_lane_autofix() {
       fi
     fi
     # Schema drift (bd-z3ze4.3): the committed baseline vs the live sandbox, one query, ~4 s. A WARNING, never a
-    # refusal — the run still works, but a scenario touching a newer table/column/function will fail, and this
-    # says which and how to fix it. Unreachable sandbox (no railway, offline) = silent.
-    local dout drc
-    dout=$(bash "$ldb" drift 2>/dev/null); drc=$?
-    [ "$drc" = 10 ] && printf '%s\n' "$dout" | sed 's/^/auto-check: /'
+    # refusal. OPT-IN per run (E2E_DRIFT_CHECK=1): it needs sandbox access, and the local lane needs none
+    # (bd-z3ze4.5) — a maintainer or CI runs `local-db.sh drift` and refreshes the baseline instead.
+    if [ "${E2E_DRIFT_CHECK:-0}" = 1 ]; then
+      local dout drc
+      dout=$(bash "$ldb" drift 2>/dev/null); drc=$?
+      [ "$drc" = 10 ] && printf '%s\n' "$dout" | sed 's/^/auto-check: /'
+    fi
   fi
   e2e_mock_lane_ready "$main" >/dev/null || rc=1
   return $rc

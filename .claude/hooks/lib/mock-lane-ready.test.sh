@@ -201,13 +201,26 @@ out=$(LDB_MARK="$L/.ldb" PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$
 has "a STALE snapshot (the committed table list changed) is re-pulled" "$out" "auto-pulled the seed snapshot" yes
 touch "$L/.ldb/drift"
 out=$(LDB_MARK="$L/.ldb" PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$L" --with-redis 2>&1); rc=$?
-has "schema drift on the sandbox is SAID before a run (bd-z3ze4.3)" "$out" "schema drift" yes
+has "by DEFAULT a run does not check drift (it needs sandbox access; bd-z3ze4.5)" "$out" "schema drift" no
+out=$(E2E_DRIFT_CHECK=1 LDB_MARK="$L/.ldb" PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$L" --with-redis 2>&1); rc=$?
+has "with E2E_DRIFT_CHECK=1, schema drift on the sandbox is SAID before a run (bd-z3ze4.3)" "$out" "schema drift" yes
 has "…naming what differs" "$out" "device_ref" yes
 has "…and the fix" "$out" "local-db.sh baseline" yes
 say "…but never blocks the run (a warning, not a refusal)" "$rc" "0"
 rm -f "$L/.ldb/drift"
-out=$(LDB_MARK="$L/.ldb" PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$L" --with-redis 2>&1)
+out=$(E2E_DRIFT_CHECK=1 LDB_MARK="$L/.ldb" PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$L" --with-redis 2>&1)
 has "no drift → nothing said about it" "$out" "schema drift" no
+# bd-z3ze4.5: the local lane needs NO keys file and NO Railway — its settings are committed, its DB/files its own.
+NK="$TMP/nokeys/main"; mk_ldb "$NK"; touch "$NK/.ldb/tools"; echo ok > "$NK/.ldb/seed"
+mkdir -p "$TMP/nrbin"; cp "$TMP/lbin/redis-server" "$TMP/nrbin/"   # no railway, no brew on PATH
+out=$(PATH="$TMP/nrbin:/usr/bin:/bin" e2e_mock_lane_ready "$NK"); rc=$?
+say "local lane, no keys file, no railway: READY" "$rc:$out" "0:"
+out=$(LDB_MARK="$NK/.ldb" PATH="$TMP/nrbin:/usr/bin:/bin" e2e_mock_lane_autofix "$NK" --with-redis 2>&1); rc=$?
+say "…and the autofix succeeds without touching Railway" "$rc" "0"
+has "…and does not try to provision a keys file" "$out" "niete-local.env" no
+[ -e "$NK/keys/niete-local.env" ] && bad "a keys file was written on the local lane" || ok "…no keys file written"
+out=$(E2E_LOCAL_DB=0 PATH="$TMP/nrbin:/usr/bin:/bin" e2e_mock_lane_ready "$NK"); rc=$?
+has "the SANDBOX lane (E2E_LOCAL_DB=0) still requires the keys file" "$out" "niete-local.env" yes
 L2="$TMP/local2/main"; mk_ldb "$L2"; mkdir -p "$L2/keys"; : > "$L2/keys/niete-local.env"; touch "$L2/.ldb/tools"
 out=$(FAKE_RAILWAY_FAIL=1 LDB_MARK="$L2/.ldb" PATH="$TMP/lbin:/usr/bin:/bin" e2e_mock_lane_autofix "$L2" --with-redis 2>&1); rc=$?
 say "railway not logged in → the seed pull fails, autofix fails" "$rc" "1"

@@ -42,6 +42,9 @@ SCHEMA="${LOCAL_DB_SCHEMA:-$REPO/supabase/baseline/schema.sql}"
 SEED="${LOCAL_DB_SEED:-$REPO/supabase/baseline/seed.sql}"
 SEED_TABLES="${LOCAL_DB_SEED_TABLES:-$REPO/supabase/baseline/seed-tables.txt}"
 SEED_DIR="$LOCAL_DB_HOME/seed"
+# Staging FILES the runs read (bd-z3ze4.4 measured 4, 0.3 MB): pulled with the seed into $SEED_DIR/files, which
+# local-r2.js serves as its read-only BASE layer — so a run needs no staging credential and no network for them.
+SEED_FILES="${LOCAL_DB_SEED_FILES:-$REPO/supabase/baseline/seed-files.txt}"
 # Applied on top of the snapshot: the lane's own state for GLOBAL switches the sandbox happens to have set
 # (app_redirect_* was on there from 2026-10-01, which turned every lesson-plan scenario into a Play Store card).
 SEED_OVERRIDES="${LOCAL_DB_SEED_OVERRIDES:-$REPO/supabase/baseline/seed-overrides.sql}"
@@ -296,7 +299,29 @@ drift() {
 }
 
 seed_tables() { grep -vE '^[[:space:]]*(#|$)' "$SEED_TABLES" 2>/dev/null | tr -d ' \t\r' | sort -u; }
-seed_tables_sha() { seed_tables | shasum -a 256 | cut -c1-16; }
+seed_files() { grep -vE '^[[:space:]]*(#|$)' "$SEED_FILES" 2>/dev/null | tr -d ' \t\r' | sort -u; }
+seed_tables_sha() { { seed_tables; echo '--files--'; seed_files; } | shasum -a 256 | cut -c1-16; }
+
+# Node modules for the S3 client: this checkout's, else the main checkout's (a worktree has none of its own).
+node_path() {
+  local main; main="$(dirname "$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo "$REPO/.git")")"
+  printf '%s' "$REPO/bot/node_modules:$REPO/node_modules:$main/bot/node_modules:$main/node_modules"
+}
+
+# Staging R2 read credentials, at SEED time only (never during a run): LOCAL_DB_SEED_R2_*, else the keys file's
+# R2_*, else the Railway staging environment. Prints four lines endpoint/bucket/id/secret, or nothing.
+seed_r2_creds() {
+  if [ -n "${LOCAL_DB_SEED_R2_ENDPOINT:-}" ]; then
+    printf '%s\n' "$LOCAL_DB_SEED_R2_ENDPOINT" "${LOCAL_DB_SEED_R2_BUCKET:-}" "${LOCAL_DB_SEED_R2_KEY_ID:-}" "${LOCAL_DB_SEED_R2_SECRET:-}"; return 0
+  fi
+  local main kf kv=""
+  main="$(dirname "$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo "$REPO/.git")")"
+  for kf in "$main/keys/niete-local.env" "$(dirname "$main")/keys/niete-local.env"; do [ -f "$kf" ] && { kv=$(cat "$kf"); break; }; done
+  [ -n "$kv" ] || kv=$(railway variables -p "${LOCAL_DB_RAILWAY_PROJECT:-NIETE-Rumi Staging}" -s bot --environment staging --kv 2>/dev/null || true)
+  local k; for k in R2_ENDPOINT R2_BUCKET_NAME R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; do
+    printf '%s\n' "$(printf '%s\n' "$kv" | sed -nE "s/^$k=(.*)$/\\1/p" | head -1 | tr -d "\"'")"
+  done
+}
 
 seed_pull() {
   [ -f "$SEED_TABLES" ] || { log "no seed table list at $SEED_TABLES"; exit 2; }
@@ -316,7 +341,23 @@ seed_pull() {
   for t in $tables; do
     counts="$counts$t=$("$bin/psql" "$url" -X -Atc "select count(*) from public.\"$t\"" 2>/dev/null || echo '?')"$'\n'
   done
-  PULL_COUNTS="$counts" python3 - "$tmp/manifest.json" "$(seed_tables_sha)" "$(sandbox_ref)" "$(shasum -a 256 "$tmp/seed.dump" | cut -c1-16)" <<'MANIFEST'
+  # The staging files the runs read, into $tmp/files/<bucket>/<key>; their sizes go in the manifest.
+  local files_json="{}" flist; flist=$(seed_files)
+  if [ -n "$flist" ]; then
+    local creds; creds=$(seed_r2_creds)
+    local ep bk id sc; ep=$(sed -n 1p <<<"$creds"); bk=$(sed -n 2p <<<"$creds"); id=$(sed -n 3p <<<"$creds"); sc=$(sed -n 4p <<<"$creds")
+    [ -n "$ep" ] && [ -n "$bk" ] || { log "seed files listed but no R2 read credentials (railway login, or keys/niete-local.env)"; rm -rf "$tmp"; exit 3; }
+    files_json=$(printf '%s\n' "$flist" | R2E="$ep" R2B="$bk" R2I="$id" R2S="$sc" OUT="$tmp/files" NODE_PATH="$(node_path)" node -e '
+      const fs = require("fs"), path = require("path"); const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
+      const e = process.env; const s3 = new S3Client({ region: "auto", endpoint: e.R2E, credentials: { accessKeyId: e.R2I, secretAccessKey: e.R2S } });
+      const keys = fs.readFileSync(0, "utf8").split("\n").filter(Boolean); const out = {};
+      (async () => { for (const k of keys) {
+        const r = await s3.send(new GetObjectCommand({ Bucket: e.R2B, Key: k })); const b = Buffer.from(await r.Body.transformToByteArray());
+        const f = path.join(e.OUT, e.R2B, k); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, b); out[k] = b.length;
+      } process.stdout.write(JSON.stringify(out)); })().catch((x) => { console.error("seed files: " + x.name + " " + x.message); process.exit(1); });') \
+      || { log "pulling the seed files failed"; rm -rf "$tmp"; exit 3; }
+  fi
+  PULL_FILES="$files_json" PULL_COUNTS="$counts" python3 - "$tmp/manifest.json" "$(seed_tables_sha)" "$(sandbox_ref)" "$(shasum -a 256 "$tmp/seed.dump" | cut -c1-16)" <<'MANIFEST'
 import json, os, sys, datetime
 out, tsha, ref, dsha = sys.argv[1:]
 rows = {}
@@ -324,10 +365,12 @@ for line in os.environ["PULL_COUNTS"].splitlines():
     if "=" in line:
         k, v = line.split("=", 1); rows[k] = int(v) if v.isdigit() else v
 json.dump({"source": "sandbox:" + ref, "pulled_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-           "tables_sha": tsha, "dump_sha": dsha, "rows": rows}, open(out, "w"), indent=1)
+           "tables_sha": tsha, "dump_sha": dsha, "rows": rows,
+           "files": json.loads(os.environ.get("PULL_FILES") or "{}")}, open(out, "w"), indent=1)
 MANIFEST
-  rm -f "$SEED_DIR/seed.dump" "$SEED_DIR/manifest.json"
+  rm -rf "$SEED_DIR/seed.dump" "$SEED_DIR/manifest.json" "$SEED_DIR/files"
   mv "$tmp/seed.dump" "$SEED_DIR/seed.dump" && mv "$tmp/manifest.json" "$SEED_DIR/manifest.json"
+  [ -d "$tmp/files" ] && mv "$tmp/files" "$SEED_DIR/files"
   chmod 600 "$SEED_DIR/seed.dump"
   rm -rf "$tmp"
   log "seed: $(du -h "$SEED_DIR/seed.dump" | cut -f1) in $((SECONDS - t0))s → $SEED_DIR (the next up rebuilds the golden)"

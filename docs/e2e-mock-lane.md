@@ -48,6 +48,12 @@ Every existing chrome invocation is unchanged; `--method` defaults from `whatsap
 Every mock-lane run uses its own throwaway database and file store; nothing is shared with the sandbox or with
 another run. `E2E_LOCAL_DB=0` opts a run out to the shared sandbox database and staging's R2, as before.
 
+**A run needs no Railway, sandbox or staging access** (bd-z3ze4.5): no keys file, no `railway` call, no staging read.
+The bot's settings (Flow ids, `PORTAL_URL`, placeholders, bucket name) come from the committed
+`.claude/qa/config/local-lane.env`; the staging files a run reads (`supabase/baseline/seed-files.txt`, 4 files, 0.3 MB)
+are served from the per-machine snapshot. Access is needed only to **pull the snapshot** (`seed-pull`), once per
+machine and when the committed lists change.
+
 **A new machine sets itself up** the first time `run-suite.sh` or `commit-e2e.sh` runs (both call
 `e2e_mock_lane_autofix --with-redis`; never from inside `git commit`, so a commit is never held up):
 
@@ -69,9 +75,9 @@ What is committed vs per machine:
 
 Check a machine: `bash bot/scripts/e2e/local-db.sh doctor` (prints what is missing; silent when ready).
 Schema drift: `bash bot/scripts/e2e/local-db.sh drift` compares `supabase/baseline/schema.objects.txt` (every
-public column + function, written by `baseline`) with the live sandbox in ~4 s and names what differs. Every run
-checks it and prints `auto-check: schema drift …` as a warning — it never blocks. Fix: `local-db.sh baseline`,
-then commit `schema.sql` + `schema.objects.txt`.
+public column + function, written by `baseline`) with the live sandbox in ~4 s and names what differs. It needs
+sandbox access, so it is a **maintainer/CI** step; a run checks it only with `E2E_DRIFT_CHECK=1` (a warning, never
+a block). Fix: `local-db.sh baseline`, then commit `schema.sql` + `schema.objects.txt`.
 Without a snapshot, `local-db.sh up` **refuses** (exit 9) rather than run every scenario on an empty database.
 
 Parallel: `run-suite.sh … --parallel` gives each feature a slot with its own database, PostgREST, proxy and file

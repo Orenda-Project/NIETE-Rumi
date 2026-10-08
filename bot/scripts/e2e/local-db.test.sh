@@ -37,6 +37,15 @@ grant all on public.catalog, public.private_notes to service_role;
 SQL
 echo "insert into public.items(label) values ('seeded');" > "$LOCAL_DB_SEED"
 export LOCAL_DB_SEED_TABLES="$tmp/seed-tables.txt"
+# The staging FILES a run reads (bd-z3ze4.5): a stand-in R2 (local-r2.js) plays staging's bucket for the pull.
+export LOCAL_DB_SEED_FILES="$tmp/seed-files.txt"
+printf '# fixture\nlp612/page-truth/g7.json\n' > "$LOCAL_DB_SEED_FILES"
+R2UP_PORT=55479; mkdir -p "$tmp/r2up"
+MAIN_NM="$(dirname "$(git -C "$HERE" rev-parse --path-format=absolute --git-common-dir)")/bot/node_modules"
+( NODE_PATH="$MAIN_NM" exec node "$HERE/local-r2.js" $R2UP_PORT "$tmp/r2up" ) >/dev/null 2>&1 & R2UP_PID=$!
+for i in $(seq 1 25); do curl -sf "http://127.0.0.1:$R2UP_PORT/__health" >/dev/null 2>&1 && break; sleep 0.2; done
+curl -s -X PUT --data-binary '{"page":7}' -H 'content-type: application/json' "http://127.0.0.1:$R2UP_PORT/test-bucket/lp612/page-truth/g7.json" >/dev/null
+export LOCAL_DB_SEED_R2_ENDPOINT="http://127.0.0.1:$R2UP_PORT" LOCAL_DB_SEED_R2_BUCKET=test-bucket LOCAL_DB_SEED_R2_KEY_ID=local LOCAL_DB_SEED_R2_SECRET=local
 export LOCAL_DB_SEED_OVERRIDES="$tmp/seed-overrides.sql"; : > "$LOCAL_DB_SEED_OVERRIDES"   # hermetic: never the repo's file
 # The fixture runs below run BEFORE any seed pull, on purpose; a real run without one is refused (AC11).
 export LOCAL_DB_ALLOW_NO_SEED=1
@@ -102,6 +111,9 @@ t "AC7 seed-pull from the source exits 0" "$rc" "0"
 t "AC7 manifest lists only the seed tables, with row counts" \
   "$(python3 -c 'import json,sys; m=json.load(open(sys.argv[1])); print(",".join("%s=%s"%(k,v) for k,v in sorted(m["rows"].items())))' "$LOCAL_DB_HOME/seed/manifest.json" 2>/dev/null)" "catalog=2"
 t "AC9 seed-status after a pull is ok" "$(bash "$LDB" seed-status 2>/dev/null)" "ok"
+t "AC13 seed-pull also pulls the listed staging FILES into the base snapshot (bd-z3ze4.5)" \
+  "$(cat "$LOCAL_DB_HOME/seed/files/test-bucket/lp612/page-truth/g7.json" 2>/dev/null)" '{"page":7}'
+t "AC13 …and the manifest records them" "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("files",{}).get("lp612/page-truth/g7.json"))' "$LOCAL_DB_HOME/seed/manifest.json" 2>/dev/null)" "10"
 
 # ---- AC12 (bd-z3ze4.3): schema drift. Run 1's database plays the sandbox again.
 SRC="postgresql://postgres@127.0.0.1:$LOCAL_DB_PG_PORT/$db1"
@@ -159,9 +171,9 @@ t "AC3 nothing written" "$([ -e "$tmp/never.sql" ] && echo written || echo none)
 # (re)built (the schema changed): exactly one build, both runs come up, each on its own database.
 echo "-- changed for the parallel case" >> "$LOCAL_DB_SCHEMA"
 pa="$tmp/par-a"; pb="$tmp/par-b"
-( E2E_SUPABASE_PORT=55440 LOCAL_DB_REST_PORT=55441 bash "$LDB" up "$pa" >"$tmp/par-a.log" 2>&1; echo $? > "$tmp/par-a.rc" ) &
-( E2E_SUPABASE_PORT=55450 LOCAL_DB_REST_PORT=55451 bash "$LDB" up "$pb" >"$tmp/par-b.log" 2>&1; echo $? > "$tmp/par-b.rc" ) &
-wait
+( E2E_SUPABASE_PORT=55440 LOCAL_DB_REST_PORT=55441 bash "$LDB" up "$pa" >"$tmp/par-a.log" 2>&1; echo $? > "$tmp/par-a.rc" ) & PA=$!
+( E2E_SUPABASE_PORT=55450 LOCAL_DB_REST_PORT=55451 bash "$LDB" up "$pb" >"$tmp/par-b.log" 2>&1; echo $? > "$tmp/par-b.rc" ) & PB=$!
+wait $PA $PB   # only these two: a bare `wait` would also wait on the stand-in R2 server, which never exits
 t "AC10 slot A up exits 0" "$(cat "$tmp/par-a.rc")" "0"
 t "AC10 slot B up exits 0" "$(cat "$tmp/par-b.rc")" "0"
 [ "$(cat "$tmp/par-a.rc")" = 0 ] || tail -5 "$tmp/par-a.log" | sed 's/^/      /'
@@ -172,6 +184,7 @@ got=$(client "$pa/db.env" "$JS_INSERT"); t "AC10 slot A writes" "$got" "ok"
 got=$(client "$pb/db.env" "$JS_LABELS"); t "AC10 slot B does not see slot A's row" "$got" "seeded"
 bash "$LDB" down "$pa" >/dev/null 2>&1; bash "$LDB" down "$pb" >/dev/null 2>&1
 
+kill $R2UP_PID 2>/dev/null
 bash "$LDB" stop >/dev/null 2>&1
 rm -rf "$tmp_root"
 echo; if [ "$fails" -eq 0 ]; then echo "local-db: all passed"; else echo "local-db: $fails failed"; fi
