@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { FOCUS } from '../ui/styles';
-import { CLASSES_V2_COPY as C } from './copy';
+import { CLASSES } from './copy';
+import { useCopy } from '../i18n';
 import { SkeletonList } from '../../components/Skeleton';
 
 /**
@@ -24,6 +25,7 @@ export function SectionHeading({ children, count, countTestId }: { children: Rea
 
 /** Loading, or a failed load with Try again. */
 export function LoadState({ status, onRetry, label }: { status: 'idle' | 'loading' | 'error' | 'ok'; onRetry: () => void; label?: string }) {
+  const C = useCopy(CLASSES);
   if (status === 'loading' || status === 'idle') {
     return (
       // bd-fxk3t8 — rows of placeholders where the list will be, instead of a spinner.
@@ -35,6 +37,7 @@ export function LoadState({ status, onRetry, label }: { status: 'idle' | 'loadin
 }
 
 export function LoadFailed({ onRetry }: { onRetry: () => void }) {
+  const C = useCopy(CLASSES);
   return (
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-5 text-center">
       <p className="text-[16px] font-semibold text-[#1d2025]">{C.loadFailed}</p>
