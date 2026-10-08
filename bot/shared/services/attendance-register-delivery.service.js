@@ -270,4 +270,7 @@ module.exports = {
   deliverTeacherRegister,
   monthBounds,
   buildCaption,
+  // bd-fmf24g.7 — the portal's register download builds the same file from the same reads.
+  loadRoster,
+  loadMonthRecords,
 };
