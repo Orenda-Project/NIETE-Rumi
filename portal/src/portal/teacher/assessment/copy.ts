@@ -1,11 +1,18 @@
 /**
  * bd-fmf24g.6 — every word the teacher v2 Assessment screens show (the feature's own copy file).
  *
+ * bd-fmf24g.13.1 — bilingual: ASSESSMENT = { en, ur }, read with useCopy(ASSESSMENT); plain helpers take the
+ * words as a parameter (English by default). The Urdu is MACHINE-DRAFTED from the bot's existing Urdu
+ * (ux-strings.js: نیا پرچہ, پرچہ بنائیں, پرچہ بدلیں, جوابی کلید, {n} سوال · {n} نمبر, ہٹائے گئے, نئے…) and
+ * awaits a human review (workbench/teacher-v2-impl/urdu-review/).
+ *
  * Same rules as the new UI's copy (newui/copy.ts, DESIGN.md): 1–3 words, 4 at most, no sentences, no
- * question marks. English only for now; the Urdu pass gives each key an Urdu value. DATA is not copy:
- * a subject's name, a chapter's title and a question type's name (MCQs, Label the Diagram …) come from
- * the API as they are.
+ * question marks. DATA is not copy: a subject's name, a chapter's title and a question type's name
+ * (MCQs, Label the Diagram …) come from the API as they are.
  */
+
+import { bilingual, type Bilingual, type Words } from '../i18n';
+import type { CopyEntry } from '../copyRegistry';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
@@ -191,4 +198,199 @@ export const ASSESSMENT_V2_COPY = {
   },
 };
 
-export type AssessmentV2Copy = typeof ASSESSMENT_V2_COPY;
+const WEEKDAYS_UR = ['اتوار', 'پیر', 'منگل', 'بدھ', 'جمعرات', 'جمعہ', 'ہفتہ'] as const;
+const MONTHS_UR = ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'] as const;
+
+/**
+ * A page range inside Urdu text, isolated (LRI U+2066 … PDI U+2069): on its own "4 – 14" would show as
+ * "14 – 4" (language-protocol §8 rule 1). The kit isolates its own slots; these ranges also reach the
+ * feature's own chips and rows, so they carry the isolate themselves, as the bot's catalog does (⁦{n}⁩).
+ * The kit leaves an isolated run alone, so nothing is wrapped twice.
+ */
+const range = (from: number | string, to: number | string, gap = '–') => `⁦${from}${gap}${to}⁩`;
+
+/** bd-fmf24g.13.1 — Assessment's words in Urdu (MACHINE-DRAFTED; review pending). Western digits, as the bot. */
+export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
+  title: 'پرچہ',
+  home: 'ہوم',
+  back: 'واپس',
+  next: 'آگے بڑھیں',
+  newPaper: 'نیا پرچہ',
+  withKey: 'جوابی کلید کے ساتھ',
+  beingMade: 'تیار ہو رہے ہیں',
+  myPapers: 'میرے پرچے',
+  all: 'سب',
+  noPapersYet: 'ابھی کوئی پرچہ نہیں',
+  writing: 'بن رہا ہے',
+  failed: 'نہیں بن سکا',
+  grade: (g: number | string) => `جماعت ${g}`,
+  gradeSubject: (g: number | string, subject: string) => `جماعت ${g} · ${subject}`,
+  questionsCount: (n: number) => `${n} سوال`,
+  marksCount: (n: number) => `${n} نمبر`,
+  version: (n: number) => `ورژن ${n}`,
+  versionLong: (n: number) => `ورژن ${n}`,
+  chapterShort: (n: number) => `باب ${n}`,
+  join: (...parts: Array<string | null | undefined | false>) => parts.filter(Boolean).join(' · '),
+  step: (n: number, of: number) => `مرحلہ ${n} از ${of}`,
+  steps: {
+    class: 'کلاس',
+    cover: 'ابواب یا صفحات',
+    questions: 'سوالات',
+    types: 'سوالوں کی اقسام',
+    extras: 'نمبر اور سطریں',
+    check: 'جانچیں اور بنائیں',
+  },
+  myClasses: 'میری کلاسیں',
+  allGrades: 'تمام جماعتیں',
+  noClasses: 'ابھی کوئی کلاس نہیں',
+  chapters: 'ابواب',
+  pages: 'صفحات',
+  picked: (n: number) => `${n} منتخب`,
+  upTo: (n: number) => `زیادہ سے زیادہ ${n}`,
+  bookPages: (n: number) => `کتاب: صفحات ${range(1, n)}`,
+  pageRange: (from: number, to: number) => `صفحات ${range(from, to, ' – ')}`,
+  pagesSpan: (from: number | null, to: number | null) => (from != null && to != null ? `صفحات ${range(from, to)}` : ''),
+  from: 'پہلا صفحہ',
+  to: 'آخری صفحہ',
+  addPages: 'صفحات شامل کریں',
+  removePages: 'صفحات ہٹائیں',
+  howMany: 'کتنے سوال',
+  fewer: 'کم',
+  more: 'زیادہ',
+  questions: 'سوال',
+  fromWhere: 'کہاں سے',
+  sources: {
+    seen: { name: 'کتاب سے', sub: 'کتاب کے اپنے سوال' },
+    unseen: { name: 'نئے سوال', sub: 'وہی موضوعات، نئے سوال' },
+    both: { name: 'دونوں ملا کر', sub: 'کتاب اور نئے' },
+  },
+  fromBook: 'کتاب سے',
+  ofCount: (n: number) => `${n} میں سے`,
+  bookShort: (n: number) => `کتاب · ${n}`,
+  newShort: (n: number) => `نئے · ${n}`,
+  newCount: 'نئے سوال',
+  bookCount: 'کتاب',
+  autoMix: 'خودکار انتخاب',
+  chooseTypes: 'اقسام چنیں',
+  howManyEach: 'ہر قسم کے کتنے',
+  ofTarget: (n: number, of: number) => `${of} میں سے ${n}`,
+  objective: 'معروضی',
+  written: 'انشائیہ',
+  bookOnly: 'صرف کتاب کے سوال',
+  totalMarks: 'کل نمبر',
+  optional: 'اختیاری',
+  noLimit: 'کوئی حد نہیں',
+  setTotal: 'کل نمبر طے کریں',
+  marks: 'نمبر',
+  marksLabel: 'نمبر',
+  onPaper: 'پرچے پر',
+  answerLines: 'جواب کی سطریں',
+  on: 'شامل',
+  off: 'شامل نہیں',
+  newPaperCrumb: 'نیا پرچہ',
+  edit: 'بدلیں',
+  file: 'فائل',
+  pdfWithKey: 'PDF + جوابی کلید',
+  fixed: 'طے شدہ',
+  makePaper: 'پرچہ بنائیں',
+  making: 'شروع ہو رہا ہے',
+  couldNotStart: 'شروع نہیں ہو سکا',
+  writingTitle: 'پرچہ بن رہا ہے',
+  aboutAMinute: '~1 منٹ',
+  safeToLeave: 'صفحہ چھوڑ سکتے ہیں',
+  slow: 'دیر ہو رہی ہے',
+  notMadeTitle: 'پرچہ نہیں بن سکا',
+  tryAgain: 'دوبارہ کوشش کریں',
+  changeChoices: 'انتخاب بدلیں',
+  dismiss: 'ہٹا دیں',
+  readyTitle: 'پرچہ تیار ہے',
+  ready: 'تیار',
+  download: 'ڈاؤن لوڈ',
+  answerKey: 'جوابی کلید',
+  key: 'کلید',
+  makeAnother: 'ایک اور بنائیں',
+  open: 'کھولیں',
+  notFoundTitle: 'پرچہ نہیں ملا',
+  versions: 'تمام ورژن',
+  latest: 'تازہ ترین',
+  first: 'پہلا',
+  noKey: 'جوابی کلید نہیں',
+  notAvailable: 'دستیاب نہیں',
+  couldNotOpen: 'کھل نہیں سکا',
+  editPaper: 'پرچہ بدلیں',
+  kept: (n: number) => `${n} رکھے گئے`,
+  removed: (n: number) => `${n} ہٹائے گئے`,
+  added: (n: number) => `${n} نئے`,
+  keepQuestion: (n: number | string) => `سوال ${n} رکھیں`,
+  removeQuestion: (n: number | string) => `سوال ${n} ہٹائیں`,
+  addQuestion: 'سوال شامل کریں',
+  newQuestion: 'نیا سوال',
+  close: 'بند کریں',
+  cancel: 'منسوخ کریں',
+  saveAs: (v: number) => `ورژن ${v} محفوظ کریں`,
+  saving: 'محفوظ ہو رہا ہے',
+  saved: 'محفوظ ہو گیا',
+  notSaved: 'محفوظ نہیں ہوا',
+  nothingChanged: 'کوئی تبدیلی نہیں',
+  question: 'سوال',
+  questionN: (n: number | string) => `سوال ${n}`,
+  answer: 'جواب',
+  keyOnly: 'صرف جوابی کلید',
+  lines: 'سطریں',
+  options: 'جوابات',
+  optionN: (n: number) => `جواب ${n}`,
+  correct: 'درست',
+  pairs: 'جوڑے',
+  passage: 'عبارت',
+  parts: 'حصے',
+  partN: (n: number) => `حصہ ${n}`,
+  removeFromPaper: 'سوال ہٹائیں',
+  wordN: (n: number) => `لفظ ${n}`,
+  meaningN: (n: number) => `معنی ${n}`,
+  pairA: (n: number) => `جوڑا ${n} الف`,
+  pairB: (n: number) => `جوڑا ${n} ب`,
+  correctN: (n: number) => `جواب ${n} درست`,
+  addPart: 'حصہ شامل کریں',
+  removePart: (n: number) => `حصہ ${n} ہٹائیں`,
+  removeAdded: (n: number) => `نیا ${n} ہٹائیں`,
+  instruction: 'ہدایت',
+  putBack: 'واپس لائیں',
+  done: 'مکمل',
+  checking: 'جانچ ہو رہی ہے',
+  newItem: 'نیا',
+  editingOff: 'تبدیلی بند',
+  loadFailed: 'لوڈ نہیں ہو سکا',
+  comingSoon: 'جلد آ رہا ہے',
+  nothingHere: 'یہاں کچھ نہیں',
+  failures: {
+    BOOK_NOT_FOUND: 'ابھی کتاب نہیں',
+    CHAPTER_NOT_FOUND: 'باب نہیں ملا',
+    NO_CONTENT: 'باب کا متن نہیں',
+    PAGE_OUT_OF_RANGE: 'صفحات کتاب سے باہر',
+    INVALID_PAGE_RANGE: 'غلط صفحات',
+    TRUNCATED: 'سوال بہت زیادہ ہیں',
+    MODEL_UNAVAILABLE: 'ابھی مصروف ہے',
+    BAD_JSON: 'درست نہیں بنا',
+    NO_QUESTIONS: 'کوئی سوال نہیں بنا',
+    RENDER_FAILED: 'فائل نہیں بنی',
+    UPLOAD_FAILED: 'محفوظ نہیں ہوا',
+  },
+  failureFallback: 'کچھ مسئلہ ہو گیا',
+  days: {
+    today: 'آج',
+    yesterday: 'کل',
+    date: (weekday: number, day: number, month: number) => `${WEEKDAYS_UR[weekday]} ${day} ${MONTHS_UR[month]}`,
+  },
+};
+
+/** Assessment's words in both languages. */
+export const ASSESSMENT = bilingual(ASSESSMENT_V2_COPY, ASSESSMENT_V2_COPY_UR);
+export type AssessmentV2Copy = Words<typeof ASSESSMENT_V2_COPY>;
+
+/** Registered for the completeness checks and the review file (copyRegistry). */
+export const COPY_ENTRY: CopyEntry = {
+  screen: 'Assessment',
+  module: ASSESSMENT as Bilingual<unknown>,
+  // join only joins its parts ("Grade 4 · Science · 15 questions"): the same in both languages.
+  same: ['join'],
+};
