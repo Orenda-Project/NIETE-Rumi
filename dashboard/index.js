@@ -134,6 +134,8 @@ const portalLinkRoutes = require('./routes/portal-link.routes');
 const hcpRoutes = require('./routes/hcp.routes');
 const attendanceRoutes = require('./routes/attendance.routes');
 const childTestRoutes = require('./routes/portal-child-test.routes');
+// bd-fmf24g.3 — teacher app v2: grade·subject pairs + Lesson Plans routes.
+const teacherLessonsRoutes = require('./routes/portal-teacher-lessons.routes');
 
 // BYOF Routes (Build Your Own Feature) - Conversational AI for bug/feature planning
 const byofRoutes = require('./routes/byof.routes');
@@ -2818,6 +2820,10 @@ app.use('/api/portal/attendance', cors(portalCorsOptions), portalAuthLimiter, po
 
 // bd-s1oo0.7 — the child test in the coach app (relays to the bot; flag portal_child_test).
 app.use('/api/portal/leader/child-test', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, childTestRoutes);
+
+// bd-fmf24g.3 — teacher app v2: GET /me/grade-subjects (every v2 picker) and the Lesson Plans
+// feature's own reads. Same CORS / rate-limit / session / link-scope stack as the portal routes.
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, teacherLessonsRoutes);
 
 // HCP endpoint tester — an HTML page for internal QA to hit the 10 /api/portal/hcp/*
 // endpoints without curl. Served under /observability/* so it's excluded from the

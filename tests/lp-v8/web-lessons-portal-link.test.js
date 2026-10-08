@@ -133,6 +133,8 @@ describe('each area reaches its own API and nothing else', () => {
     ['GET', '/lp612/file/r-1'],
     ['GET', '/lesson-plans'],
     ['GET', '/lesson-plans/recent'],
+    // bd-fmf24g.3 — the v2 Lessons picker's "Select your class" reads her grade·subject pairs.
+    ['GET', '/me/grade-subjects'],
     ['GET', '/dashboard'],
     ['GET', '/config'],
   ])('a lesson-plans session reaches %s %s', async (method, path) => {
@@ -146,6 +148,8 @@ describe('each area reaches its own API and nothing else', () => {
     ['GET', '/attendance/today'],
     ['GET', '/curriculumx'],
     ['DELETE', '/lesson-plans/1'],
+    ['POST', '/me/grade-subjects'],
+    ['GET', '/me/grade-subjectsx'],
   ])('a lesson-plans session is refused %s %s', async (method, path) => {
     const srv = await apiApp(LESSONS);
     const res = await request(srv, method, `/api/portal${path}`);
@@ -153,7 +157,7 @@ describe('each area reaches its own API and nothing else', () => {
     expect(JSON.parse(res.body)).toMatchObject({ error: 'link_area_only' });
   });
 
-  test.each(['/curriculum/grades', '/lp612/lessons', '/lesson-plans'])('a training session is refused %s', async (path) => {
+  test.each(['/curriculum/grades', '/lp612/lessons', '/lesson-plans', '/me/grade-subjects'])('a training session is refused %s', async (path) => {
     const srv = await apiApp(TRAINING);
     expect((await request(srv, 'GET', `/api/portal${path}`)).status).toBe(403);
   });
