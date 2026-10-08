@@ -3,7 +3,6 @@ import { ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import PortalLayout from '../../components/PortalLayout';
 import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
 import { loadRecentLessonPlans } from '../../lib/recentLessonPlans';
 import { lessonPlans } from '../../newui/lessons/lessonPlansApi';
@@ -11,9 +10,8 @@ import { dataOf, useLoad } from '../../newui/lessons/shared';
 import { teacherPath } from '../routes';
 import { GradeSubjectPicker, GradeSubjectSelector, HistoryList, type GradeSubjectValue } from '../ui';
 import { FOCUS } from '../ui/styles';
-import { PAGE_BODY } from './ChaptersPage';
 import { LESSONS_V2_COPY as C } from './copy';
-import { LessonHeader } from './LessonHeader';
+import TeacherPage from '../TeacherPage';
 import { LESSONS_ALL, lessonsUrl } from './paths';
 import { recentGroups } from './recent';
 
@@ -71,46 +69,41 @@ export function LessonsHomePage() {
   const ready = !!picked?.subject && !busy;
 
   return (
-    <PortalLayout ownHeading>
-      <div className="mx-auto w-full max-w-[720px]">
-        <LessonHeader crumb={C.home} title={C.title} backTo={teacherPath('home')} />
+    <TeacherPage feature="lessons" crumb={C.home} title={C.title} backTo={teacherPath('home')}>
+      {mine.length ? (
+        <>
+          <GradeSubjectPicker label={C.selectClass} combos={mine} allowOther={false} to={toChapters} />
+          <div role="separator" aria-label={C.or} className="mx-2 my-1 flex items-center gap-3 text-[13px] font-semibold text-[#9ca3af]">
+            <i className="h-px flex-1 bg-[#e5e7eb]" />{C.or}<i className="h-px flex-1 bg-[#e5e7eb]" />
+          </div>
+        </>
+      ) : null}
+      <h2 className="mx-1 text-[20px] font-light text-[#1d2025]">{C.anyGradeOrSubject}</h2>
+      <GradeSubjectSelector feature="lessons" value={picked} onChange={setPicked} />
+      <button
+        type="button"
+        disabled={!ready}
+        onClick={() => { void openPicked(); }}
+        className={cn(
+          'flex min-h-[56px] items-center justify-center gap-2 rounded-2xl text-[16px] font-semibold',
+          ready ? 'bg-[#33374a] text-white' : 'bg-[#d1d5db] text-[#6b7280]',
+          FOCUS,
+        )}
+      >
+        {C.open}
+        <ChevronRight className="h-5 w-5 rtl:rotate-180" strokeWidth={2.4} aria-hidden="true" />
+      </button>
+      <div className="mt-3.5">
+        <HistoryList
+          heading={C.recent}
+          collapsible
+          defaultOpen={false}
+          groups={groups}
+          showMore={false}
+          seeAllTo={LESSONS_ALL}
+          emptyLabel={C.noLessonPlansYet}
+        />
       </div>
-      <div className={PAGE_BODY}>
-        {mine.length ? (
-          <>
-            <GradeSubjectPicker label={C.selectClass} combos={mine} allowOther={false} to={toChapters} />
-            <div role="separator" aria-label={C.or} className="mx-2 my-1 flex items-center gap-3 text-[13px] font-semibold text-[#9ca3af]">
-              <i className="h-px flex-1 bg-[#e5e7eb]" />{C.or}<i className="h-px flex-1 bg-[#e5e7eb]" />
-            </div>
-          </>
-        ) : null}
-        <h2 className="mx-1 text-[20px] font-light text-[#1d2025]">{C.anyGradeOrSubject}</h2>
-        <GradeSubjectSelector feature="lessons" value={picked} onChange={setPicked} />
-        <button
-          type="button"
-          disabled={!ready}
-          onClick={() => { void openPicked(); }}
-          className={cn(
-            'flex min-h-[56px] items-center justify-center gap-2 rounded-2xl text-[16px] font-semibold',
-            ready ? 'bg-[#33374a] text-white' : 'bg-[#d1d5db] text-[#6b7280]',
-            FOCUS,
-          )}
-        >
-          {C.open}
-          <ChevronRight className="h-5 w-5 rtl:rotate-180" strokeWidth={2.4} aria-hidden="true" />
-        </button>
-        <div className="mt-3.5">
-          <HistoryList
-            heading={C.recent}
-            collapsible
-            defaultOpen={false}
-            groups={groups}
-            showMore={false}
-            seeAllTo={LESSONS_ALL}
-            emptyLabel={C.noLessonPlansYet}
-          />
-        </div>
-      </div>
-    </PortalLayout>
+    </TeacherPage>
   );
 }

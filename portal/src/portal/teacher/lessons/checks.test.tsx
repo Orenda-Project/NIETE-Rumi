@@ -18,7 +18,7 @@ vi.mock("../../lib/recordingSession", () => ({ useRecordingSession: () => null }
 vi.mock("../../services/api", () => ({ default: { get: vi.fn(() => new Promise(() => {})), post: vi.fn() } }));
 
 import { LESSONS_V2_COPY } from "./copy";
-import { LessonHeader, LoadState } from "./LessonHeader";
+import { LoadState } from "./LoadState";
 import { ViewerPage } from "./ViewerPage";
 
 const files = () => newUiSourceFiles(resolve(__dirname)).filter((f) => !/\.test\.tsx?$/.test(f.rel));
@@ -47,14 +47,12 @@ describe("lessons: copy", () => {
 });
 
 describe("lessons: every target is 56px or more", () => {
-  it("the header's Back, the retry, the viewer's Start DC / Answer key / Open in another app", () => {
+  it("the frame's Back (TeacherPage), the retry, the viewer's Start DC / Answer key / Open in another app", () => {
     const { container } = render(
       <MemoryRouter initialEntries={[{ pathname: "/portal/teacher/lessons/plan", state: {
         lessonPlan: { source: { lane: "k5", lessonId: "a", assetKind: "lesson" }, title: "A" },
         dc: { grade: 4, subjectKey: "maths", plan: "k5:a", lang: null },
       } }]}>
-        <LessonHeader title="T" backTo="/x" />
-        <LessonHeader title="T" onBack={() => {}} />
         <LoadState status="error" empty onRetry={() => {}} />
         <ViewerPage />
       </MemoryRouter>,
