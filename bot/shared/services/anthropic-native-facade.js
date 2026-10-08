@@ -31,6 +31,16 @@
  *   | `reasoning:{enabled:false}`  | `thinking:{type:'disabled'}`  | 400: "reasoning: Extra       |
  *   |                              |                               | inputs are not permitted"    |
  *   | content blocks + cache_control | passed through UNCHANGED     | this is the whole point      |
+ *   | a `system` message mid-chat,  | an `<instruction>` block at   | /v1/messages has no mid-chat |
+ *   | right before a user turn     | the head of THAT user turn    | system role (bd-gr4fy.5.11)  |
+ *
+ * THE MID-CHAT ROW KEEPS A NOTE WHERE ITS AUTHOR PUT IT. Two chat notes are placed right before the
+ * message they govern because a rule at the top of a long chat loses to the chat's earlier replies:
+ * a child's REPLY LANGUAGE line and a teacher's lesson context (openai.service). Folded into the
+ * top-level system they lost that position, and on this lane 15% of children's replies came back
+ * in the wrong language (gpt-4.1-mini, which reads the note in place: 0.9-2.4%). A system message
+ * that is not right before a user turn (at the end, or before an assistant turn) still goes to the
+ * top-level system, and a request with no mid-chat system message is translated exactly as before.
  *
  * THE TEMPERATURE ROW IS NOT A BEHAVIOUR CHANGE. `temperature` is rejected outright by
  * `claude-sonnet-5` on the native surface, and OpenRouter returns 200 for the same request —
@@ -289,6 +299,19 @@ function mergeSystem(existing, content) {
 }
 
 /**
+ * A user turn with the mid-chat system notes that stood right before it, each as a marked
+ * instruction block at its head (bd-gr4fy.5.11). The user's own content follows, unchanged.
+ */
+function withNotes(notes, content) {
+  const textOfNote = (c) => (Array.isArray(c)
+    ? c.map((part) => (part && typeof part === 'object' ? part.text || '' : String(part || ''))).join('\n')
+    : String(c == null ? '' : c));
+  const head = notes.map((c) => ({ type: 'text', text: `<instruction>\n${textOfNote(c)}\n</instruction>` }));
+  const own = Array.isArray(content) ? content : [{ type: 'text', text: String(content == null ? '' : content) }];
+  return head.concat(own);
+}
+
+/**
  * OpenAI `chat.completions.create` params -> native `messages.create` params.
  *
  * Pure. Anything this function does not explicitly translate is DROPPED rather than forwarded:
@@ -312,14 +335,26 @@ function toNativeRequest(params) {
   const incoming = Array.isArray(p.messages) ? p.messages : [];
   let system;
   const messages = [];
+  // System messages met after the chat has started, waiting for the user turn they stand in front of.
+  let notes = [];
   for (const m of incoming) {
     if (!m) continue;
     if (m.role === 'system') {
-      system = mergeSystem(system, m.content);
+      if (messages.length) notes.push(m.content);
+      else system = mergeSystem(system, m.content);
       continue;
     }
+    if (notes.length && m.role === 'user') {
+      messages.push({ role: 'user', content: withNotes(notes, toNativeContent(m.content)) });
+      notes = [];
+      continue;
+    }
+    // Never into an assistant turn: a note with no user turn right after it goes where it always went.
+    for (const n of notes) system = mergeSystem(system, n);
+    notes = [];
     messages.push({ role: m.role, content: toNativeContent(m.content) });
   }
+  for (const n of notes) system = mergeSystem(system, n);
 
   const format = p.response_format && p.response_format.type;
   // json_object has no native schema to enforce, so the instruction goes AFTER the caller's own
