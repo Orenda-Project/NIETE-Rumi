@@ -13,6 +13,7 @@ const WQ = path.join(__dirname, '..', 'public', 'wq');
 const SRC = fs.readFileSync(path.join(WQ, 'wq.js'), 'utf8');
 const CSS = fs.readFileSync(path.join(WQ, 'wq.css'), 'utf8');
 const LIB = fs.readFileSync(path.join(WQ, 'wq-lib.js'), 'utf8');
+const TEL = fs.readFileSync(path.join(WQ, 'wq-tel.js'), 'utf8');
 const TAIL = '  else landing();\n})();';
 
 function fakeEl(sel) {
@@ -31,6 +32,8 @@ function fakeEl(sel) {
 }
 
 function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala', chips: [] }, store = {}, video = null, board = null, me = null, topic = 'Plants', api = {}, search = '', grade = 3, brand, live = {}, preview = false, view, questions = null, voiceLang, connection, challenge = null, nav = {}, art = null, lib = false, ua = 'test' } = {}) {
+  // tel: the page-session telemetry (wq-tel.js) loaded first, as the edge's template does, with the switch on.
+  const tel = Boolean(arguments[0] && arguments[0].tel);
   const els = {};
   const root = fakeEl('#wq');
   root.innerHTML = '';
@@ -41,7 +44,7 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   root.querySelectorAll = () => [];
   const boot = {
     textContent: JSON.stringify({
-      code: 'TEST', cls, live, video, brand, preview, view, challenge, ...(art ? { art } : {}),
+      code: 'TEST', cls, live, video, brand, preview, view, challenge, ...(art ? { art } : {}), ...(tel ? { rt: true } : {}),
       quiz: { code: 'TEST', lang, topic, grade, voice_lang: voiceLang, questions: questions || [{ qid: 'q1', text: 'a?', options: [{ slot: 'A', text: 'x' }], correct_slot: 'A' }] },
     }),
   };
@@ -106,7 +109,15 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
     ctx.document.head = { appendChild: (e) => head.push(e) };
     ctx.location.host = 'example.test';
   }
+  // Its observer is told whenever the page marks a screen on the root.
+  if (tel) {
+    const obs = [];
+    ctx.MutationObserver = function MutationObserver(fn) { this.observe = () => obs.push(fn); };
+    const set = root.setAttribute;
+    root.setAttribute = function (k, v) { set.call(this, k, v); if (k === 'data-m') obs.forEach((fn) => fn([])); };
+  }
   vm.createContext(ctx);
+  if (tel) vm.runInContext(TEL, ctx);
   if (lib) vm.runInContext(LIB, ctx);
   vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { who: who, card: card, board: board, video: video, isThisYou: isThisYou, history: history, landing: landing, today: today, results: results, question: question, S: S, finishFirstPass: finishFirstPass };\n})();'), ctx);
   const tap = () => (dl.click || []).forEach((fn) => fn({}));
