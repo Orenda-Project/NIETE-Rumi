@@ -130,6 +130,8 @@ function makeMockApi(opts) {
     pdf: !!i.pdf || /\.pdf/i.test(i.txt || ''), btns: i.btns || [], media: i.media,
     // interactive list rows, when this reply is one — the training module check is answered off these
     list: i.list || null,
+    // a cta_url link button (the child's Home message): its label is in btns, its URL here
+    cta: i.cta || null, type: i.type || null,
     // the Flow card, when this reply is one — a "Select all that apply" training question arrives as
     // the training-msq Flow, not a list, and the quiz driver has to recognise it to answer it (bd-2ug2s)
     flow: i.flow || null,

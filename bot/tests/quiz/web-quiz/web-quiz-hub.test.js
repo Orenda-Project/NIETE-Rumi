@@ -622,3 +622,139 @@ describe('hub(): the page-session telemetry switch rides the boot (rt)', () => {
     Tel._reset();
   });
 });
+
+describe('child /quiz → Home (app_settings web_quiz_child_quiz_home)', () => {
+  const HOME_ON = [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_child_quiz_home', value: 'true' }];
+  const onSettings = () => { Hub._resetCache(); seed({ app_settings: HOME_ON }); };
+
+  test('flag on: ONE cta_url, the Home button and body, the same hub link; logged how=home', async () => {
+    onSettings();
+    expect(await SQ.open(PHONE)).toBe(true);
+    expect(WhatsAppService.sendCtaUrl).toHaveBeenCalledTimes(1);
+    const [, msg] = WhatsAppService.sendCtaUrl.mock.calls[0];
+    expect(msg.buttonText).toBe(resolveUx('sqHomeBtn', { language: 'en' }));
+    expect(msg.buttonText).toBe('🏠 Home');
+    expect(msg.body).toBe(resolveUx('sqHomeBody', { language: 'en' }));
+    expect(msg.body).not.toMatch(/https?:|\/h\/|Sana|Bilal/);
+    expect(T.verify(/\/h\/([^/?#]+)$/.exec(msg.url)[1], 'h').ids.sort()).toEqual([KID, SIB].sort());
+    expect(logEvent).toHaveBeenCalledWith('student_quiz.opened', expect.objectContaining({ how: 'home' }));
+    expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
+  });
+
+  test('Urdu: the Urdu button and body; every button within 20 code points', async () => {
+    onSettings();
+    db.quizzes.forEach((q) => { q.language = 'ur'; });
+    await SQ.open(PHONE);
+    const [, msg] = WhatsAppService.sendCtaUrl.mock.calls[0];
+    expect(msg.buttonText).toBe(resolveUx('sqHomeBtn', { language: 'ur' }));
+    expect(msg.body).toBe(resolveUx('sqHomeBody', { language: 'ur' }));
+    for (const l of ['en', 'ur']) {
+      expect([...resolveUx('sqHomeBtn', { language: l })].length).toBeLessThanOrEqual(20);
+      expect([...resolveUx('sqHomeBtnPlain', { language: l })].length).toBeLessThanOrEqual(20);
+    }
+  });
+
+  test('the emoji button refused: ONE retry with the plain label; both refused: today\'s message, never silence', async () => {
+    onSettings();
+    WhatsAppService.sendCtaUrl.mockResolvedValueOnce(false);
+    await SQ.open(PHONE);
+    expect(WhatsAppService.sendCtaUrl).toHaveBeenCalledTimes(2);
+    expect(WhatsAppService.sendCtaUrl.mock.calls[1][1].buttonText).toBe(resolveUx('sqHomeBtnPlain', { language: 'en' }));
+    expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
+    jest.clearAllMocks();
+    WhatsAppService.sendCtaUrl.mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+    await SQ.open(PHONE);
+    expect(WhatsAppService.sendCtaUrl).toHaveBeenCalledTimes(2);
+    expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
+  });
+
+  test('no known children on the phone: today\'s no-quiz line, logged how=home_none, no link', async () => {
+    Hub._resetCache();
+    seed({ app_settings: HOME_ON, students: [] });
+    await SQ.open(PHONE);
+    expect(WhatsAppService.sendCtaUrl).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(PHONE, resolveUx('sqNoQuizzes', { language: 'en' }));
+    expect(logEvent).toHaveBeenCalledWith('student_quiz.opened', expect.objectContaining({ how: 'home_none' }));
+  });
+
+  test('the hub OFF wins: Home on alone sends no link (today\'s buttons)', async () => {
+    Hub._resetCache();
+    seed({ app_settings: [{ key: 'web_quiz_child_quiz_home', value: 'true' }] });
+    await SQ.open(PHONE);
+    expect(WhatsAppService.sendCtaUrl).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('hub(): the LAST quiz on top (web_quiz_child_quiz_home)', () => {
+  const HOME_ON = [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_child_quiz_home', value: 'true' }];
+
+  test('flag off: no last card and no home_v (today\'s payload)', async () => {
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.last).toBeUndefined();
+    expect(out.home_v).toBeUndefined();
+  });
+
+  test('finished last quiz: its code, its chip, done, the latest score; it is not repeated in Play again', async () => {
+    Hub._resetCache();
+    seed({ app_settings: HOME_ON });
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.home_v).toBe(1);
+    expect(out.last).toEqual({
+      code: 'MATH01', topic: 'Fractions quiz', subject: 'Maths', k: T.chipId('sc-maths', KID),
+      state: 'done', score: { c: 8, t: 10 }, again: true,
+    });
+    expect(out.again.map((a) => a.code)).not.toContain('MATH01');
+  });
+
+  test('an unfinished open quiz is the last one: state open with the answers so far; the same quiz is not the teacher card too', async () => {
+    Hub._resetCache();
+    seed({ app_settings: HOME_ON });
+    db.quiz_sessions.push(sess('s9', 'sc-new', 'q-new', 'in_progress', 1, 2, ago(1)));
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.last).toEqual({
+      code: 'NEWQ01', topic: 'Shapes', subject: 'maths', k: T.chipId('sc-new', KID), state: 'open', answered: 2,
+    });
+    expect(out.teacher === null || out.teacher.code !== 'NEWQ01').toBe(true);
+  });
+
+  test('an unfinished quiz whose link closed is skipped: the newest playable or finished one is shown', async () => {
+    Hub._resetCache();
+    seed({ app_settings: HOME_ON });
+    db.quiz_share_codes.push(code('sc-shut', 'SHUT01', 'q-g5', { active: false }));
+    db.quiz_sessions.push(sess('s9', 'sc-shut', 'q-g5', 'in_progress', 0, 1, ago(1)));
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.last.code).toBe('MATH01');
+  });
+
+  test('the payload still carries no student id, surname or phone', async () => {
+    Hub._resetCache();
+    seed({ app_settings: HOME_ON });
+    const text = JSON.stringify(await Hub.hub(T.signHub([KID]), A));
+    const surname = db.students.find((r) => r.id === KID).student_name.split(' ').pop();
+    expect(text).not.toContain(KID);
+    expect(text).not.toContain(surname);
+    expect(text).not.toContain(PHONE);
+  });
+});
+
+describe('hub(): the last quiz — a retry in progress is continued, not shown as done', () => {
+  test('finished once, then a newer attempt left unfinished on the open link: Continue, with that attempt\'s answers', async () => {
+    Hub._resetCache();
+    seed({ app_settings: [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_child_quiz_home', value: 'true' }] });
+    db.quiz_sessions.push(sess('s9', 'sc-maths', 'q-maths', 'in_progress', 1, 3, ago(1)));
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.last).toMatchObject({ code: 'MATH01', state: 'open', answered: 3 });
+  });
+});
+
+describe('hub(): the last quiz counts the answers a web sitting has saved', () => {
+  test('a web sitting keeps total_questions_answered at 0 until it finishes: the card counts its answer rows instead', async () => {
+    Hub._resetCache();
+    seed({ app_settings: [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_child_quiz_home', value: 'true' }] });
+    db.quiz_sessions.push(sess('s9', 'sc-new', 'q-new', 'in_progress', 0, 0, ago(1)));
+    db.quiz_answers = [{ id: 'a1', session_id: 's9' }, { id: 'a2', session_id: 's9' }, { id: 'a3', session_id: 's9' }, { id: 'x1', session_id: 's1' }];
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.last).toMatchObject({ code: 'NEWQ01', state: 'open', answered: 3 });
+  });
+});

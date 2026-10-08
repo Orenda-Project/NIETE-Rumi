@@ -204,6 +204,34 @@ async function teacherCard(kidRow, list, history, grade) {
   return { code: hit.c.code, topic: hit.q.topic || hit.c.topic || '', subject: hit.q.subject || '', sent_at: hit.c.created_at, k: T.chipId(hit.c.id, kidRow.id), src: hit.rank === 0 ? 'class' : 'teacher' };
 }
 
+/**
+ * The home page's top card (web_quiz_child_quiz_home): the quiz this child touched last that can still be
+ * continued (an unfinished attempt — a retry included — on an open link) or was finished, with its latest
+ * score. Null when there is none.
+ */
+function lastOf(history, kidId) {
+  const e = history.find((x) => x.code && (x.latest || x.active));
+  if (!e) return null;
+  const base = { code: e.code, topic: e.topic, subject: e.subject, k: T.chipId(e.shareCodeId, kidId) };
+  // Unfinished — or finished once and a newer attempt left unfinished on a still-open link: Continue resumes it.
+  if (!e.latest || (e.openAnswered != null && e.active)) return { ...base, state: 'open', answered: e.openAnswered || 0 };
+  return { ...base, state: 'done', score: { c: e.latest.correct_answers || 0, t: e.latest.total_questions_answered || 0 }, again: Boolean(e.active) };
+}
+
+/**
+ * How many questions an unfinished sitting has answered. A web sitting keeps total_questions_answered at 0 until it
+ * finishes (its answers are quiz_answers rows), so the rows are counted; the larger of the two wins. Never throws.
+ */
+async function answeredSoFar(entry, fallback = 0) {
+  if (!entry || !entry.openSessionId) return fallback;
+  try {
+    const { count, error } = await supabase.from('quiz_answers').select('id', { count: 'exact', head: true }).eq('session_id', entry.openSessionId);
+    return error ? fallback : Math.max(fallback, count || 0);
+  } catch (_) {
+    return fallback;
+  }
+}
+
 function againOf(history, kidId, teacherCode) {
   return history
     .filter((e) => e.code && e.active && e.latest && e.code !== teacherCode)
@@ -376,6 +404,14 @@ async function hubPayload(token, { kid, device } = {}) {
   const grade = ctx.grade;
   out.teacher = await teacherCard(chosen, ctx.list, history, grade);
   out.again = againOf(history, chosen.id, out.teacher && out.teacher.code);
+  // The home page: the last quiz on top; neither the teacher card nor Play again repeats it.
+  if (f.childHome) {
+    out.home_v = 1;
+    out.last = lastOf(history, chosen.id);
+    if (out.last && out.last.state === 'open') out.last.answered = await answeredSoFar(history.find((e) => e.code === out.last.code), out.last.answered);
+    if (out.last && out.teacher && out.teacher.code === out.last.code) out.teacher = null;
+    if (out.last) out.again = out.again.filter((a) => a.code !== out.last.code);
+  }
   try {
     out.recs = await recsFor(chosen.id, history, grade);
   } catch (err) {

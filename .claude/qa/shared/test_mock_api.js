@@ -322,6 +322,17 @@ const ROWS = ['Teacher Training', 'Lesson Plans', 'Classroom Coaching', 'Ask Any
     assert.ok(log.split('\n').filter(Boolean).length >= 5);
   });
 
+  await ita('a cta_url link button keeps its label and URL, and its label is held to 20 code points', async () => {
+    const { normalize, CapError } = require(path.join(REPO, 'bot/scripts/e2e/mock-graph-api.js'));
+    const cta = (label) => ({ messaging_product: 'whatsapp', to: '923000000000', type: 'interactive',
+      interactive: { type: 'cta_url', body: { text: 'Your home page.' }, action: { name: 'cta_url', parameters: { display_text: label, url: 'https://p.example/h/abc.def' } } } });
+    const n = normalize(cta('🏠 Home'));
+    assert.strictEqual(n.type, 'interactive.cta_url');
+    assert.deepStrictEqual(n.btns, ['🏠 Home']);
+    assert.strictEqual(n.cta.url, 'https://p.example/h/abc.def');
+    assert.throws(() => normalize(cta('x'.repeat(21))), CapError);
+  });
+
   await mock.close(); await new Promise((r) => bot.close(r));
   console.log(`\n${passed} passed${process.exitCode ? ', with failures' : ''}`);
   setTimeout(() => process.exit(process.exitCode || 0), 50).unref();
