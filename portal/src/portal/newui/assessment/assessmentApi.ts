@@ -72,8 +72,8 @@ export type Picks = {
   grade: number | null;
   subject: string | null;
   subjectName: string | null;
-  chapter: number | null;
-  chapterTitle: string | null;
+  /** Any number of chapters, in book order (bd-ix9uhr). */
+  chapters: number[];
   count: number | null;
   types: string[];
   source: ContentSource;
@@ -81,7 +81,7 @@ export type Picks = {
 };
 
 export const NO_PICKS: Picks = {
-  grade: null, subject: null, subjectName: null, chapter: null, chapterTitle: null, count: null,
+  grade: null, subject: null, subjectName: null, chapters: [], count: null,
   types: [], source: 'unseen', answerLines: true,
 };
 
@@ -91,7 +91,7 @@ export const NO_PICKS: Picks = {
  */
 let remembered: Picks | null = null;
 export const recallAssessmentPicks = (): Picks => ({ ...NO_PICKS, ...(remembered || {}) });
-export const rememberAssessmentPicks = (p: Picks): void => { remembered = { ...p, types: [...p.types] }; };
+export const rememberAssessmentPicks = (p: Picks): void => { remembered = { ...p, chapters: [...p.chapters], types: [...p.types] }; };
 /** Tests only. */
 export const forgetAssessmentPicks = (): void => { remembered = null; };
 

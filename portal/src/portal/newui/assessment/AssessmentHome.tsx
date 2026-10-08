@@ -28,7 +28,8 @@ import {
  *
  *   band     "Assessment", with "12 made" and "Last: 3 Oct" (GET /assessment/papers)
  *   rows     Class · Subject · Chapter, each opening a sheet; Subject waits for a class and
- *            Chapter for a subject. A new class clears what was under it.
+ *            Chapter for a subject. A new class clears what was under it. Chapter takes any
+ *            number of chapters (bd-ix9uhr): one paper from several, as on WhatsApp.
  *   stepper  Questions − 15 +: the server's default, never past its maximum or under 1
  *   More     question types (toggle chips), where questions come from, answer lines
  *   button   Make assessment → POST /assessment/generate → the writing page
@@ -159,8 +160,7 @@ function Form({ made }: { made: Made | null }) {
         // What she had picked stays only if this subject still offers it.
         setPicks((p) => ({
           ...p,
-          chapter: list.some((c) => c.chapter_number === p.chapter) ? p.chapter : null,
-          chapterTitle: list.some((c) => c.chapter_number === p.chapter) ? p.chapterTitle : null,
+          chapters: p.chapters.filter((n) => list.some((c) => c.chapter_number === n)),
           types: p.types.filter((t) => offered.some((o) => o.id === t)),
         }));
       })
@@ -171,32 +171,38 @@ function Form({ made }: { made: Made | null }) {
   }, [picks.grade, picks.subject]);
 
   const count = Math.max(1, Math.min(bounds.max, picks.count ?? bounds.initial));
-  const canMake = picks.grade != null && !!picks.subject && picks.chapter != null && load === 'ok' && !submitting;
+  const canMake = picks.grade != null && !!picks.subject && picks.chapters.length > 0 && load === 'ok' && !submitting;
+  // One chapter shows its title; several, how many.
+  const chapterLabel = picks.chapters.length > 1
+    ? ASSESSMENT_COPY.chapters(picks.chapters.length)
+    : chapters.find((c) => c.chapter_number === picks.chapters[0])?.chapter_title ?? null;
 
   const close = () => setSheet(null);
   const pickGrade = (grade: number) => {
-    setPicks((p) => (p.grade === grade ? p : { ...p, grade, subject: null, subjectName: null, chapter: null, chapterTitle: null, types: [] }));
+    setPicks((p) => (p.grade === grade ? p : { ...p, grade, subject: null, subjectName: null, chapters: [], types: [] }));
     setRefused(false);
     close();
   };
   const pickSubject = (key: string) => {
     const name = subjects.find((s) => s.subject_key === key)?.subject ?? key;
-    setPicks((p) => (p.subject === key ? p : { ...p, subject: key, subjectName: name, chapter: null, chapterTitle: null, types: [] }));
+    setPicks((p) => (p.subject === key ? p : { ...p, subject: key, subjectName: name, chapters: [], types: [] }));
     setRefused(false);
     close();
   };
-  const pickChapter = (c: AssessmentChapter) => {
-    setPicks((p) => ({ ...p, chapter: c.chapter_number, chapterTitle: c.chapter_title }));
+  // The sheet stays open while she ticks; Done closes it.
+  const pickChapters = (keys: string[]) => {
+    setPicks((p) => ({ ...p, chapters: keys.map(Number).sort((a, b) => a - b) }));
     setRefused(false);
-    close();
   };
 
   const make = async () => {
-    if (!canMake || picks.grade == null || !picks.subject || picks.chapter == null) return;
+    if (!canMake || picks.grade == null || !picks.subject || !picks.chapters.length) return;
     const spec = {
       grade: picks.grade,
       subject: picks.subject,
-      chapterNumber: picks.chapter,
+      // A lone chapter also goes by itself, so a bot that predates chapterNumbers still reads it.
+      chapterNumber: picks.chapters.length === 1 ? picks.chapters[0] : null,
+      chapterNumbers: picks.chapters,
       contentSource: picks.source,
       questionCount: count,
       questionTypes: picks.types,
@@ -208,7 +214,7 @@ function Form({ made }: { made: Made | null }) {
     try {
       const res = await portal.generateAssessment(spec);
       if (!res?.success || !res.requestId) { setRefused(true); return; }
-      const state: RequestState = { spec, subjectName: picks.subjectName, chapterTitle: picks.chapterTitle, startedAt: Date.now() };
+      const state: RequestState = { spec, subjectName: picks.subjectName, chapterTitle: chapterLabel, startedAt: Date.now() };
       navigate(`/portal/assessment/request/${encodeURIComponent(res.requestId)}`, { state });
     } catch {
       setRefused(true);
@@ -255,11 +261,11 @@ function Form({ made }: { made: Made | null }) {
         <Row
           title={ASSESSMENT_COPY.rows.chapter}
           icon={Layers}
-          value={picks.chapterTitle
+          value={chapterLabel
             // A chapter's title can be long: it gives way to the row's name and the arrow.
-            ? <span className="block max-w-[46vw] truncate md:max-w-[360px]">{picks.chapterTitle}</span>
+            ? <span className="block max-w-[46vw] truncate md:max-w-[360px]">{chapterLabel}</span>
             : ASSESSMENT_COPY.pick}
-          valueMuted={!picks.chapterTitle}
+          valueMuted={!chapterLabel}
           onClick={() => setSheet('chapter')}
           state={!picks.subject ? 'off' : undefined}
           testId="assessment-chapter"
@@ -328,21 +334,21 @@ function Form({ made }: { made: Made | null }) {
       </Sheet>
 
       <Sheet open={sheet === 'chapter'} title={ASSESSMENT_COPY.rows.chapter} onClose={close}>
-        <List label={ASSESSMENT_COPY.rows.chapter}>
-          {chapters.map((c) => {
+        <ToggleList
+          mode="multi"
+          label={ASSESSMENT_COPY.rows.chapter}
+          options={chapters.map((c) => {
             const pages = ASSESSMENT_COPY.pages(c.page_start, c.page_end);
-            return (
-              <Row
-                key={c.chapter_number}
-                lead={String(c.chapter_number)}
-                title={c.chapter_title}
-                chips={pages ? <Chip>{pages}</Chip> : undefined}
-                state={c.chapter_number === picks.chapter ? 'selected' : undefined}
-                onClick={() => pickChapter(c)}
-              />
-            );
+            return {
+              key: String(c.chapter_number),
+              label: `${c.chapter_number} · ${c.chapter_title}`,
+              aside: pages ? <Chip>{pages}</Chip> : undefined,
+            };
           })}
-        </List>
+          value={picks.chapters.map(String)}
+          onChange={pickChapters}
+        />
+        <BottomButton onClick={close}>{ASSESSMENT_COPY.done}</BottomButton>
       </Sheet>
 
       <Sheet open={sheet === 'more'} title={ASSESSMENT_COPY.rows.more} onClose={close}>
