@@ -5,7 +5,9 @@ export const COACHING_HOME = featurePath('coaching');
 /** Record → Check and send → Sent, one page (SendPage). The recording bar's Return comes here. */
 export const COACHING_SEND = `${COACHING_HOME}/send`;
 
-/** A lesson's report. Today's lesson page until the v2 report page is registered. */
+/** One lesson's page: its progress while it is analysed, then its report (ReportPage). */
+export const COACHING_REPORT = `${COACHING_HOME}/report/:id`;
+
 export function lessonPath(sessionId: string): string {
-  return `/portal/coaching/session/${encodeURIComponent(sessionId)}`;
+  return COACHING_REPORT.replace(':id', encodeURIComponent(sessionId));
 }
