@@ -14,7 +14,7 @@ import { FOCUS } from '../ui/styles';
 import { PAGE_BODY } from './ChaptersPage';
 import { LESSONS_V2_COPY as C } from './copy';
 import { LessonHeader } from './LessonHeader';
-import { lessonsUrl } from './paths';
+import { LESSONS_ALL, lessonsUrl } from './paths';
 import { recentGroups } from './recent';
 
 /**
@@ -106,6 +106,7 @@ export function LessonsHomePage() {
             defaultOpen={false}
             groups={groups}
             showMore={false}
+            seeAllTo={LESSONS_ALL}
             emptyLabel={C.noLessonPlansYet}
           />
         </div>

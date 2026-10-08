@@ -27,7 +27,7 @@ import { resetLessonPlans } from "../../newui/lessons/lessonPlansApi";
 import { LessonsHomePage } from "./LessonsHome";
 import { OpenPlanPage } from "./OpenPlanPage";
 import lessonRoutes from "./routes";
-import { LESSONS_HOME, LESSONS_OPEN, LESSONS_VIEWER, lessonsUrl } from "./paths";
+import { LESSONS_ALL, LESSONS_HOME, LESSONS_OPEN, LESSONS_VIEWER, lessonsUrl } from "./paths";
 import { LESSONS_V2_COPY as C } from "./copy";
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
@@ -139,6 +139,13 @@ describe("Recent Lesson Plans", () => {
     const s = new URL(speed.getAttribute("href") as string, "https://x");
     expect([s.searchParams.get("plan"), s.searchParams.get("lang"), s.searchParams.get("grade")]).toEqual(["g612:S9", "ur", "9"]);
     expect(screen.getByText(C.days.today)).toBeTruthy();
+  });
+
+  it("See all → All lesson plans", async () => {
+    renderAt(LESSONS_HOME, <LessonsHomePage />);
+    await screen.findByRole("button", { name: new RegExp(C.recent) });
+    const all = screen.getAllByRole("link", { name: /See all/ });
+    expect(all.every((a) => a.getAttribute("href") === LESSONS_ALL)).toBe(true);
   });
 });
 
