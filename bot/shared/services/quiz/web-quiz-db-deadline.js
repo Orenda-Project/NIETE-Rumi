@@ -36,7 +36,9 @@ const OFF = { on: false, ms: DEADLINE_MS, inject: null };
 let flag = null;        // { at, on, ms }
 let loading = null;
 
-function parse(v) {
+function parse(raw) {
+  let v = raw;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* a plain string */ } }
   if (v === true || v === 'true') return { on: true, ms: DEADLINE_MS, inject: null };
   if (v && typeof v === 'object' && v.enabled === true) {
     const ms = Number(v.ms);
