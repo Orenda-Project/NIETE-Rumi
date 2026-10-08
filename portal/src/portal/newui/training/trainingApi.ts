@@ -66,7 +66,8 @@ export type ModuleSummary = {
 /** The I-SAPS module exam's gate, from GET /training/modules (ModuleExamPanel's ExamGate). */
 export type ExamGate = { available: boolean; body: string; caption: string; cta: string; module_no: number | null };
 
-export type ReadingItem = { title: string; author: string; type: string; description: string; url: string | null };
+// bd-klecr.9 — section: what to read; outcome: what she will be able to do after it.
+export type ReadingItem = { title: string; author: string; type: string; section?: string; rationale?: string; outcome?: string; description: string; url: string | null };
 export type ReadingList = { available: ReadingItem[]; unavailable: ReadingItem[] };
 
 export type QuizAttempt = { id: string; completed_at: string | null; score: number | null; max_score: number | null; quiz_kind: string };
