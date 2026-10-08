@@ -1,6 +1,7 @@
 import { ChevronRight, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useBidi } from './bidi';
 import type { TeacherUiCopy } from './copy';
 import { useKitCopy } from './useKitCopy';
 import { StatusChip } from './StatusChip';
@@ -50,6 +51,7 @@ export interface HistoryRowProps {
 export function HistoryRow({
   subject, grade, title, extra, chip, action = 'chevron', to, isNew = false, first = true, onAction, copy,
 }: HistoryRowProps) {
+  const bidi = useBidi();
   const words = { ...useKitCopy(), ...copy };
   const isLink = action === 'chevron' && !!to;
   const g = grade === null || grade === undefined ? '' : String(grade).trim();
@@ -66,8 +68,8 @@ export function HistoryRow({
         {!hasGrade && !hasSubject ? <SubjectTile subject="" /> : null}
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
-        <span className={cn(ROW_TITLE, 'line-clamp-2')}>{title}</span>
-        {extra ? <span className={ROW_SUB}>{extra}</span> : null}
+        <span className={cn(ROW_TITLE, 'line-clamp-2')}>{bidi(title)}</span>
+        {extra ? <span className={ROW_SUB}>{bidi(extra)}</span> : null}
       </span>
       {isNew ? <span role="img" aria-label={words.newItem} className="h-[9px] w-[9px] shrink-0 rounded-full bg-[#c8331f]" /> : null}
       {chip?.text ? <StatusChip text={chip.text} tone={chip.tone} /> : null}

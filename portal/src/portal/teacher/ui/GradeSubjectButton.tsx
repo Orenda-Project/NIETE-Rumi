@@ -1,6 +1,7 @@
 import { Check, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useBidi } from './bidi';
 import type { TeacherUiCopy } from './copy';
 import { useKitCopy } from './useKitCopy';
 import { StatusChip } from './StatusChip';
@@ -46,6 +47,7 @@ export function GradeSubjectButton({
   grade = '', section = '', subject, sub, chip, state = 'default', variant = 'card', first = false, to, onPress, copy,
   className,
 }: GradeSubjectButtonProps) {
+  const bidi = useBidi();
   const words = { ...useKitCopy(), ...copy };
   const selected = state === 'selected';
   const disabled = state === 'disabled';
@@ -62,8 +64,8 @@ export function GradeSubjectButton({
     <>
       <SubjectTile subject={subject} tone={selected ? 'selected' : disabled ? 'dim' : 'neutral'} />
       <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
-        <span className={ROW_TITLE}>{gradeSubjectLabel(grade, subject, section, words.grade)}</span>
-        {sub ? <span className={ROW_SUB}>{sub}</span> : null}
+        <span className={ROW_TITLE}>{bidi(gradeSubjectLabel(grade, subject, section, words.grade))}</span>
+        {sub ? <span className={ROW_SUB}>{bidi(sub)}</span> : null}
       </span>
       {chip?.text ? <StatusChip text={chip.text} tone={chip.tone} /> : null}
       {selected ? (
