@@ -142,24 +142,23 @@ describe("LeaderObservation", () => {
   });
 });
 
-// bd-15y1pc — a WhatsApp observation can now be READ through this endpoint (for
-// the coach v2 page); its steps still happen on WhatsApp, so this page offers none.
-describe("bd-15y1pc — a WhatsApp observation opened here", () => {
+// bd-15y1pc made a WhatsApp observation readable here; bd-gie5ep lets her carry
+// it on: its steps are offered exactly as for one she started in the portal.
+describe("bd-gie5ep — her WhatsApp observation, carried on here", () => {
   it.each([
-    ["draft", "Check the draft report"],
-    ["talk", "Talk with Ayesha"],
-  ])("at %s: no portal action, and it says where it continues", async (step, cta) => {
+    ["draft", "Check the draft report", "draft page"],
+    ["talk", "Talk with Ayesha", "talk page"],
+  ])("at %s: the step is offered and opens", async (step, cta, page) => {
     L.getObservation.mockResolvedValue(view({ step, portal: false }));
     renderPage();
-    expect(await screen.findByText("This observation continues on WhatsApp.")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: cta })).toBeNull();
+    fireEvent.click(await screen.findByRole("link", { name: cta }));
+    expect(await screen.findByText(page)).toBeInTheDocument();
   });
 
-  it("at feedback: her feedback shows, without the button that starts the report", async () => {
+  it("at feedback: she can start the report from here", async () => {
     L.getObservation.mockResolvedValue(view({ step: "feedback", portal: false, talk: { guide: null, recordedAt: null, feedback: FEEDBACK } }));
     renderPage();
-    expect(await screen.findByText("This observation continues on WhatsApp.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /report/i })).toBeNull();
-    expect(L.previewReport).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole("button", { name: "Next: send Ayesha the report" }));
+    await waitFor(() => expect(L.previewReport).toHaveBeenCalledWith("cs-1"));
   });
 });

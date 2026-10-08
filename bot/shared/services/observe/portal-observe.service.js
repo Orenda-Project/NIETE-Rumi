@@ -27,10 +27,12 @@
  * either (they read isPortalSession / the talk's and the send's channel).
  *
  * IDENTITY. `userId` is the coach the portal read from ITS session. Only an
- * observation she observed AND started in the portal can be acted on; anything
- * else answers not_found, the same as one that does not exist. bd-15y1pc: what
- * the page READS (observationView, getDraft) is hers from either side — one she
- * captured on WhatsApp too — and says whether the portal can act on it.
+ * observation she observed is reachable; anything else answers not_found, the
+ * same as one that does not exist. bd-15y1pc / bd-gie5ep: that is hers from
+ * either side — one she captured on WhatsApp she reads AND carries on here.
+ * When the portal takes a step of one, a WhatsApp chat still waiting on THAT
+ * step of THAT observation is released (releaseWhatsAppStep), so an old button
+ * or a stray voice note cannot take it a second time.
  */
 
 const crypto = require('crypto');
@@ -73,6 +75,7 @@ function withDefaults(deps = {}) {
     send: () => require('./observe-send.service'),
     roster: () => require('./observe-roster'),
     people: () => require('./observe-people'),
+    state: () => require('./observe-state.service'),
     log: () => require('../../utils/logger').logToFile,
     now: () => () => new Date(),
     newId: () => () => crypto.randomUUID(),
@@ -116,10 +119,28 @@ async function loadMine(d, userId, coachingSessionId) {
   return row;
 }
 
-/** Her observation, started in the portal — what the portal may ACT on. Null for every other case alike. */
-async function loadOwn(d, userId, coachingSessionId) {
-  const row = await loadMine(d, userId, coachingSessionId);
-  return row && isPortalSession(row) ? row : null;
+// bd-gie5ep — the WhatsApp chat states each portal step stands in for.
+const WHATSAPP_STEP = {
+  draft: ['awaiting_form'],
+  talk: ['awaiting_debrief_audio'],
+  report: ['awaiting_teacher_pick', 'awaiting_teacher_details', 'awaiting_send_confirm'],
+};
+
+/**
+ * The portal just took `step` of this observation: a WhatsApp chat still waiting
+ * on that step of it is released. Only that step, only this observation — a
+ * debrief armed on WhatsApp outlives a form edited here, and another
+ * observation's state is never touched. Best-effort: the step already happened.
+ */
+async function releaseWhatsAppStep(d, userId, coachingSessionId, step) {
+  try {
+    const st = await d.state.getState(userId);
+    if (!st || st.sessionId !== coachingSessionId || !WHATSAPP_STEP[step].includes(st.state)) return;
+    await d.state.clearState(userId);
+    d.log('🖥️ portal observe: the portal took this step — WhatsApp chat released', { coachingSessionId, step, state: st.state });
+  } catch (err) {
+    d.log('⚠️ portal observe: WhatsApp chat state not released (non-blocking)', { coachingSessionId, step, error: err && err.message }, 'warn');
+  }
 }
 
 const debriefOf = (row) => ((row && row.analysis_data) || {}).observer_debrief || {};
@@ -402,17 +423,15 @@ async function observationView({ userId, coachingSessionId }, deps) {
  * ratings, notes and lesson-plan moves, and submits the same keys.
  *
  * bd-15y1pc: her answers can be READ from either side, and after the report is
- * out; `editable` says whether the portal can still change them (her portal
- * observation, before the teacher has the report).
+ * out; `editable` says whether they can still be changed (before the teacher
+ * has the report).
  */
 async function getDraft({ userId, coachingSessionId }, deps) {
   const d = withDefaults(deps);
   const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
   if (!READABLE_STATUSES.includes(row.status)) return notReady('not_ready');
-  const editable = isPortalSession(row)
-    && EDITABLE_STATUSES.includes(row.status)
-    && !REPORT_OUT.includes(deliveryOf(row).status);
+  const editable = EDITABLE_STATUSES.includes(row.status) && !REPORT_OUT.includes(deliveryOf(row).status);
 
   const pack = d.pack();
   const lang = await d.languageFor('coach', row);
@@ -467,7 +486,7 @@ async function getDraft({ userId, coachingSessionId }, deps) {
 /** Apply her edits — the MEWAKA Flow's keys, through the MEWAKA Flow's save. */
 async function saveDraft({ userId, coachingSessionId, edits }, deps) {
   const d = withDefaults(deps);
-  const row = await loadOwn(d, userId, coachingSessionId);
+  const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
   if (!EDITABLE_STATUSES.includes(row.status)) return notReady('not_ready');
   if (REPORT_OUT.includes(deliveryOf(row).status)) return notReady('report_sent');
@@ -478,6 +497,7 @@ async function saveDraft({ userId, coachingSessionId, edits }, deps) {
   }
   const summary = await d.draft.applyObserverEdits(coachingSessionId, clean);
   if (summary && summary.refused) return { status: 'not_ready', reason: 'terminal' };
+  await releaseWhatsAppStep(d, userId, coachingSessionId, 'draft');
   return { status: 'ok', summary };
 }
 
@@ -488,7 +508,7 @@ const TALK_STATUS = 'observer_review_complete';
 /** The guide startDebrief would send — built once, kept on the row. */
 async function talkGuide({ userId, coachingSessionId }, deps) {
   const d = withDefaults(deps);
-  const row = await loadOwn(d, userId, coachingSessionId);
+  const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
   if (row.status !== TALK_STATUS && row.status !== 'completed') return notReady('draft_not_saved');
   const od = debriefOf(row);
@@ -506,7 +526,7 @@ async function talkGuide({ userId, coachingSessionId }, deps) {
 async function startTalk({ userId, coachingSessionId, key }, deps) {
   if (!isOwnPortalKey(userId, key, 'audio')) return { status: 'invalid', reason: 'not_your_upload' };
   const d = withDefaults(deps);
-  const row = await loadOwn(d, userId, coachingSessionId);
+  const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
   if (row.status !== TALK_STATUS) return notReady('draft_not_saved');
   if (row.debrief_status && row.debrief_status !== 'pending') return notReady('talk_done');
@@ -537,13 +557,14 @@ async function startTalk({ userId, coachingSessionId, key }, deps) {
     await d.debrief.mergeObserverDebrief(coachingSessionId, { failed_at: now });
     return { status: 'queue_failed', coachingSessionId };
   }
+  await releaseWhatsAppStep(d, userId, coachingSessionId, 'talk');
   return { status: 'ok' };
 }
 
 /** Try a portal talk again after a failed transcription or feedback — the same recording. */
 async function retryTalk({ userId, coachingSessionId }, deps) {
   const d = withDefaults(deps);
-  const row = await loadOwn(d, userId, coachingSessionId);
+  const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
   const od = debriefOf(row);
   if (row.status !== TALK_STATUS || row.debrief_status === 'done') return notReady('talk_done');
@@ -569,7 +590,7 @@ async function retryTalk({ userId, coachingSessionId }, deps) {
  */
 async function previewReport({ userId, coachingSessionId }, deps) {
   const d = withDefaults(deps);
-  const row = await loadOwn(d, userId, coachingSessionId);
+  const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
   if (row.status !== TALK_STATUS || row.debrief_status !== 'done') return notReady('feedback_first');
   if (REPORT_OUT.includes(deliveryOf(row).status)) return notReady('report_sent');
@@ -591,13 +612,14 @@ async function previewReport({ userId, coachingSessionId }, deps) {
   await d.queue.queueObserveTeacherReport(coachingSessionId, {
     from: coach && coach.phone_number, phase: 'preview', channel: 'portal', dedupNonce: d.newId(),
   });
+  await releaseWhatsAppStep(d, userId, coachingSessionId, 'report');
   return { status: 'ok' };
 }
 
 /** "Send to <teacher>": the deliver phase, for a preview she has seen. */
 async function sendReport({ userId, coachingSessionId }, deps) {
   const d = withDefaults(deps);
-  const row = await loadOwn(d, userId, coachingSessionId);
+  const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
   const td = deliveryOf(row);
   if (td.status !== 'awaiting_confirm' || !td.report_key || !td.teacher_phone) return notReady('preview_first');
@@ -607,6 +629,7 @@ async function sendReport({ userId, coachingSessionId }, deps) {
   await d.queue.queueObserveTeacherReport(coachingSessionId, {
     from: coach && coach.phone_number, phase: 'deliver', channel: 'portal', dedupNonce: d.newId(),
   });
+  await releaseWhatsAppStep(d, userId, coachingSessionId, 'report');
   return { status: 'ok' };
 }
 

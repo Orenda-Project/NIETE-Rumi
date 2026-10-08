@@ -73,15 +73,26 @@ describe("bd-15y1pc — her own WhatsApp observation, in full", () => {
     expect(screen.queryByTestId("obs-dock")).toBeNull();
   });
 
-  it("in progress on WhatsApp: what is done opens here, the step she is at says WhatsApp, and there is no portal action", async () => {
+  it.each([
+    ["draft", 1, "/portal/leader/observe/cs-wa/draft?from=coach"],
+    ["talk", 2, "/portal/leader/observe/cs-wa/talk?from=coach"],
+    ["report", 4, "/portal/leader/observe/cs-wa?from=coach"],
+  ])("bd-gie5ep — in progress at %s: she can carry on here — the step is hers and the dock opens it", async (step, at, href) => {
+    C.getObservation.mockResolvedValue(OBS({ step: step === "report" ? "report" : step, score: null, sentAt: null, caption: null, imageUrl: null }));
+    L.getObservation.mockResolvedValue(VIEW(step));
+    renderPage();
+    await waitFor(() => expect(stepRows()[at]).toHaveAttribute("aria-current", "step"));
+    expect(await screen.findByTestId("obs-dock")).toHaveAttribute("href", href);
+    expect(screen.queryByText("On WhatsApp")).toBeNull();
+  });
+
+  it("in progress: what is already done still opens here", async () => {
     C.getObservation.mockResolvedValue(OBS({ step: "talk", score: null, sentAt: null, caption: null, imageUrl: null }));
     L.getObservation.mockResolvedValue(VIEW("talk"));
     renderPage();
     await waitFor(() => expect(stepRows()[2]).toHaveAttribute("aria-current", "step"));
-    expect(within(stepRows()[2]).getByText("On WhatsApp")).toBeInTheDocument();
     fireEvent.click(within(stepRows()[1]).getByRole("button"));
     expect(await screen.findByTestId("form-answers")).toHaveTextContent("Quality Questioning");
-    expect(screen.queryByTestId("obs-dock")).toBeNull();
   });
 
   it("another coach's WhatsApp observation stays as it was: the row only, the pipeline view is not asked", async () => {
