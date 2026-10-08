@@ -4,7 +4,9 @@
 #   bash bot/scripts/e2e/local-db.sh up <run_dir>          # clone a fresh run database; writes <run_dir>/db.env
 #   bash bot/scripts/e2e/local-db.sh down <run_dir>        # stop this run's PostgREST + proxy, drop its database
 #   bash bot/scripts/e2e/local-db.sh baseline [out.sql]    # re-dump the sandbox schema (schema only, no rows)
-#   bash bot/scripts/e2e/local-db.sh seed-pull             # pull the REFERENCE tables' rows from the sandbox
+#   bash bot/scripts/e2e/local-db.sh seed-pull             # install the small seed named by seed-release.txt (gh; no Railway)
+#   bash bot/scripts/e2e/local-db.sh seed-pull --from-sandbox   # maintainers: the FULL reference rows from the sandbox
+#   bash bot/scripts/e2e/local-db.sh seed-publish          # maintainers: trim to seed-keep.json, release it privately, write the pointer
 #   bash bot/scripts/e2e/local-db.sh seed-status           # missing | stale | ok  (the readiness check reads it)
 #   bash bot/scripts/e2e/local-db.sh doctor                # one line per thing this machine lacks; exit 0 iff none
 #   bash bot/scripts/e2e/local-db.sh drift [objects.txt]   # does the live sandbox still match schema.sql? exit 10 if not
@@ -45,6 +47,13 @@ SEED_DIR="$LOCAL_DB_HOME/seed"
 # Staging FILES the runs read (bd-z3ze4.4 measured 4, 0.3 MB): pulled with the seed into $SEED_DIR/files, which
 # local-r2.js serves as its read-only BASE layer — so a run needs no staging credential and no network for them.
 SEED_FILES="${LOCAL_DB_SEED_FILES:-$REPO/supabase/baseline/seed-files.txt}"
+# The small seed (bd-z3ze4.7): the measured rows only, released as one asset on a PRIVATE GitHub repo. The public
+# NIETE-Rumi repo commits just the POINTER (repo, tag, asset, sha256) and the keep-list of row ids, never content.
+SEED_RELEASE="${LOCAL_DB_SEED_RELEASE:-$REPO/supabase/baseline/seed-release.txt}"
+SEED_KEEP="${LOCAL_DB_SEED_KEEP:-$REPO/supabase/baseline/seed-keep.json}"
+FIXTURES_REPO="${LOCAL_DB_FIXTURES_REPO:-Orenda-Project/niete-e2e-fixtures}"
+SEED_ASSET="niete-e2e-seed.tar.gz"
+GH="${LOCAL_DB_GH:-gh}"
 # Applied on top of the snapshot: the lane's own state for GLOBAL switches the sandbox happens to have set
 # (app_redirect_* was on there from 2026-10-01, which turned every lesson-plan scenario into a Play Store card).
 SEED_OVERRIDES="${LOCAL_DB_SEED_OVERRIDES:-$REPO/supabase/baseline/seed-overrides.sql}"
@@ -102,6 +111,18 @@ cluster_up() {   # once per machine: init on first use, start if stopped
   fi
 }
 
+# Roles are cluster-wide and never in a schema dump. Any role the schema grants to, or names in a policy
+# (portal_app_user, …), gets a NOLOGIN stand-in so the GRANT/POLICY applies; nothing can log in as it.
+ensure_schema_roles() {
+  local role
+  for role in $(grep -hE '^(GRANT|REVOKE|CREATE POLICY|ALTER DEFAULT PRIVILEGES)' "$SCHEMA" \
+                | grep -oE '\b(TO|FROM|FOR ROLE) [a-z_][a-z0-9_, ]*' | sed -E 's/^(TO|FROM|FOR ROLE) //' | tr ',' '\n' \
+                | tr -d ' ;' | grep -vE '^(public|current_user|session_user|anon|authenticated|service_role|authenticator)$' | sort -u); do
+    # (the four API roles are local-db-bootstrap.sql's: a bare stand-in here would lack BYPASSRLS / LOGIN)
+    psql_ -d postgres -c "do \$\$ begin if not exists (select from pg_roles where rolname='$role') then create role \"$role\" nologin; end if; end \$\$" >/dev/null || return 1
+  done
+}
+
 golden_name() {   # golden_<12 hex of bootstrap + schema + seed>
   local h
   h=$(cat "$BOOTSTRAP" "$SCHEMA" "$([ -f "$SEED" ] && echo "$SEED" || echo /dev/null)" \
@@ -118,14 +139,7 @@ golden_ensure() {   # once per schema hash
   local t0=$SECONDS
   psql_ -d postgres -c "drop database if exists $tmpdb" >/dev/null
   psql_ -d postgres -c "create database $tmpdb" >/dev/null || exit 6
-  # Roles are cluster-wide and never in a schema dump. Any role the schema grants to, or names in a policy
-  # (portal_app_user, …), gets a NOLOGIN stand-in so the GRANT/POLICY applies; nothing can log in as it.
-  local role
-  for role in $(grep -hE '^(GRANT|REVOKE|CREATE POLICY|ALTER DEFAULT PRIVILEGES)' "$SCHEMA" \
-                | grep -oE '\b(TO|FROM|FOR ROLE) [a-z_][a-z0-9_, ]*' | sed -E 's/^(TO|FROM|FOR ROLE) //' | tr ',' '\n' \
-                | tr -d ' ;' | grep -vE '^(public|current_user|session_user)$' | sort -u); do
-    psql_ -d postgres -c "do \$\$ begin if not exists (select from pg_roles where rolname='$role') then create role \"$role\" nologin; end if; end \$\$" >/dev/null || exit 6
-  done
+  ensure_schema_roles || exit 6
   local f files=("$BOOTSTRAP" "$SCHEMA")
   [ -f "$SEED" ] && files+=("$SEED")
   for f in "${files[@]}"; do
@@ -323,7 +337,40 @@ seed_r2_creds() {
   done
 }
 
+ptr() { sed -nE "s/^$1=//p" "$SEED_RELEASE" 2>/dev/null | head -1; }
+
+# Install the small seed the committed pointer names: download the private release asset with gh, verify its
+# sha256 against the pointer, unpack. No Railway, no sandbox, no staging — only access to the fixtures repo.
+seed_pull_release() {
+  local repo tag asset sha; repo=$(ptr repo); tag=$(ptr tag); asset=$(ptr asset); sha=$(ptr sha256)
+  [ -n "$repo" ] && [ -n "$tag" ] && [ -n "$asset" ] && [ -n "$sha" ] || { log "incomplete pointer $SEED_RELEASE (repo/tag/asset/sha256)"; exit 2; }
+  command -v "$GH" >/dev/null 2>&1 || [ -x "$GH" ] || { log "gh not found — brew install gh, then gh auth login (needs access to $repo)"; exit 3; }
+  mkdir -p "$SEED_DIR"
+  local tmp="$SEED_DIR/.pull.$$" t0=$SECONDS; rm -rf "$tmp"; mkdir -p "$tmp/x"
+  "$GH" release download "$tag" -R "$repo" -p "$asset" -D "$tmp" >"$tmp/gh.log" 2>&1 \
+    || { log "could not download $asset from $repo release $tag: $(tail -1 "$tmp/gh.log") — gh auth login with access to $repo"; rm -rf "$tmp"; exit 3; }
+  local got; got=$(shasum -a 256 "$tmp/$asset" | cut -c1-64)
+  [ "$got" = "$sha" ] || { log "REFUSED: $asset sha256 $got does not match the pointer's $sha — nothing installed"; rm -rf "$tmp"; exit 3; }
+  tar -xzf "$tmp/$asset" -C "$tmp/x" || { log "could not unpack $asset"; rm -rf "$tmp"; exit 3; }
+  [ -f "$tmp/x/seed.dump" ] && [ -f "$tmp/x/manifest.json" ] || { log "$asset lacks seed.dump/manifest.json"; rm -rf "$tmp"; exit 3; }
+  python3 - "$tmp/x/manifest.json" "$tag" <<'MANIFEST'
+import json, sys
+p, tag = sys.argv[1:]; m = json.load(open(p)); m["release"] = tag; json.dump(m, open(p, "w"), indent=1)
+MANIFEST
+  rm -rf "$SEED_DIR/seed.dump" "$SEED_DIR/manifest.json" "$SEED_DIR/files"
+  mv "$tmp/x/seed.dump" "$SEED_DIR/seed.dump" && mv "$tmp/x/manifest.json" "$SEED_DIR/manifest.json"
+  [ -d "$tmp/x/files" ] && mv "$tmp/x/files" "$SEED_DIR/files"
+  chmod 600 "$SEED_DIR/seed.dump"; rm -rf "$tmp"
+  log "seed: release $tag from $repo ($(du -h "$SEED_DIR/seed.dump" | cut -f1)) in $((SECONDS - t0))s → $SEED_DIR"
+}
+
 seed_pull() {
+  if [ "${1:-}" != "--from-sandbox" ] && [ -f "$SEED_RELEASE" ]; then
+    # Parallel slots on a fresh machine all reach this at once: one pulls, the rest wait and find it done.
+    setup_lock
+    if [ "$(seed_status)" = ok ]; then setup_unlock; log "seed: already current (another run pulled it)"; return 0; fi
+    seed_pull_release; setup_unlock; return
+  fi
   [ -f "$SEED_TABLES" ] || { log "no seed table list at $SEED_TABLES"; exit 2; }
   local url; url=$(sandbox_source "${LOCAL_DB_SEED_SOURCE_URL:-}" seed) || exit 3
   local bin; bin=$(dump_bin)
@@ -385,8 +432,77 @@ doctor() {   # what this machine lacks for `up`, one line each — e2e_mock_lane
   return $rc
 }
 
+# Maintainers: from the FULL seed on this machine (seed-pull --from-sandbox), keep every row of every seed table
+# except the tables seed-keep.json names, which are trimmed to the listed primary keys (the rows the tests read,
+# measured with seed-rows-used.js). Package it with the staging files, release it on the PRIVATE fixtures repo,
+# and write the pointer for NIETE-Rumi to commit.
+seed_publish() {
+  need_tools
+  [ -f "$SEED_DIR/seed.dump" ] && [ -f "$SEED_DIR/manifest.json" ] || { log "no seed here — run: local-db.sh seed-pull --from-sandbox"; exit 2; }
+  [ -f "$SEED_KEEP" ] || { log "no keep-list at $SEED_KEEP"; exit 2; }
+  command -v "$GH" >/dev/null 2>&1 || [ -x "$GH" ] || { log "gh not found"; exit 3; }
+  setup_lock; cluster_up; setup_unlock
+  local db="publish_$$" out="$SEED_DIR/.publish.$$" bin; bin=$(dump_bin)
+  rm -rf "$out"; mkdir -p "$out/pkg"
+  psql_ -d postgres -c "create database $db" >/dev/null || exit 6
+  ensure_schema_roles || exit 6
+  { psql_ -d "$db" -f "$BOOTSTRAP" && psql_ -d "$db" -f "$SCHEMA"; } >"$out/build.log" 2>&1 || { log "publish: schema failed — $out/build.log"; exit 6; }
+  "$bin/pg_restore" --data-only --disable-triggers --no-owner -h 127.0.0.1 -p "$PG_PORT" -U postgres -d "$db" "$SEED_DIR/seed.dump" >>"$out/build.log" 2>&1 \
+    || { log "publish: restoring the full seed failed — $out/build.log"; exit 6; }
+  # trim: delete every row of a kept table whose primary key is not on the list (plain SQL, one DELETE per table)
+  local pkmap; pkmap=$(psql_ -d "$db" -At -F'|' -c "select c.relname, string_agg(a.attname, ',' order by array_position(i.indkey::int2[], a.attnum))
+      from pg_index i join pg_class c on c.oid=i.indrelid join pg_namespace n on n.oid=c.relnamespace
+      join pg_attribute a on a.attrelid=i.indrelid and a.attnum=any(i.indkey)
+     where i.indisprimary and n.nspname='public' group by c.relname")
+  PKMAP="$pkmap" python3 - "$SEED_KEEP" > "$out/trim.sql" <<'TRIM' || { log "publish: bad keep-list"; exit 2; }
+import json, os, sys
+pk = dict(l.split("|", 1) for l in os.environ["PKMAP"].splitlines() if "|" in l)
+lit = lambda v: "'" + str(v).replace("'", "''") + "'"
+for table, rows in json.load(open(sys.argv[1])).items():
+    if table.startswith("_"): continue
+    cols = pk[table].split(",")
+    if not rows:
+        print(f'delete from public."{table}";'); continue
+    key = "(" + ", ".join(f'"{c}"::text' for c in cols) + ")" if len(cols) > 1 else f'"{cols[0]}"::text'
+    vals = ", ".join("(" + ", ".join(lit(v) for v in r) + ")" if len(cols) > 1 else lit(r[0]) for r in rows)
+    print(f'delete from public."{table}" where {key} not in ({vals});')
+TRIM
+  psql_ -d "$db" -f "$out/trim.sql" >>"$out/build.log" 2>&1 || { log "publish: trimming failed — $out/build.log"; exit 6; }
+  local args=() t; for t in $(seed_tables); do args+=(-t "public.$t"); done
+  "$bin/pg_dump" -h 127.0.0.1 -p "$PG_PORT" -U postgres -d "$db" --data-only --format=custom --no-owner "${args[@]}" -f "$out/pkg/seed.dump" \
+    || { log "publish: dump failed"; exit 6; }
+  [ -d "$SEED_DIR/files" ] && cp -R "$SEED_DIR/files" "$out/pkg/files"
+  local counts=""; for t in $(seed_tables); do counts="$counts$t=$(psql_ -d "$db" -Atc "select count(*) from public.\"$t\"")"$'\n'; done
+  PUB_COUNTS="$counts" python3 - "$SEED_DIR/manifest.json" "$out/pkg/manifest.json" "$SEED_KEEP" <<'MANIFEST'
+import json, os, sys, datetime, hashlib
+src, dst, keep = sys.argv[1:]
+m = json.load(open(src))
+rows = {k: int(v) for k, v in (l.split("=", 1) for l in os.environ["PUB_COUNTS"].splitlines() if "=" in l)}
+json.dump({"source": m.get("source"), "pulled_at": m.get("pulled_at"), "tables_sha": m.get("tables_sha"),
+           "published_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), "rows": rows,
+           "files": m.get("files", {}), "trimmed": sorted(k for k in json.load(open(keep)) if not k.startswith("_")),
+           "keep_sha": hashlib.sha256(open(keep, "rb").read()).hexdigest()[:16]}, open(dst, "w"), indent=1)
+MANIFEST
+  psql_ -d postgres -c "drop database if exists $db with (force)" >/dev/null 2>&1
+  tar -czf "$out/$SEED_ASSET" -C "$out/pkg" . || { log "publish: tar failed"; exit 6; }
+  local sha tag; sha=$(shasum -a 256 "$out/$SEED_ASSET" | cut -c1-64); tag="seed-$(date -u +%Y%m%d-%H%M%S)"
+  "$GH" release create "$tag" -R "$FIXTURES_REPO" "$out/$SEED_ASSET" --title "$tag" \
+    --notes "NIETE mock-lane seed (measured rows only, restricted content — keep private). sha256 $sha" >"$out/gh.log" 2>&1 \
+    || { log "publish: gh release create failed: $(tail -1 "$out/gh.log")"; exit 3; }
+  { echo "# The small seed of the mock lane's local database (bd-z3ze4.7). The CONTENT is a private release asset;"
+    echo "# this file only names it. Operators' machines download it with gh when this file changes — no Railway."
+    echo "repo=$FIXTURES_REPO"; echo "tag=$tag"; echo "asset=$SEED_ASSET"; echo "sha256=$sha"; } > "$SEED_RELEASE"
+  log "published $tag on $FIXTURES_REPO ($(du -h "$out/$SEED_ASSET" | cut -f1), sha256 ${sha:0:16}…) → commit $SEED_RELEASE"
+  rm -rf "$out"
+}
+
 seed_status() {   # missing | stale | ok
   { [ -f "$SEED_DIR/manifest.json" ] && [ -f "$SEED_DIR/seed.dump" ]; } || { echo missing; return 0; }
+  if [ -f "$SEED_RELEASE" ]; then   # the pointer decides: the installed release must be the one it names
+    local rel; rel=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("release",""))' "$SEED_DIR/manifest.json" 2>/dev/null)
+    if [ -n "$rel" ] && [ "$rel" = "$(ptr tag)" ]; then echo ok; else echo stale; fi
+    return 0
+  fi
   local have; have=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("tables_sha",""))' "$SEED_DIR/manifest.json" 2>/dev/null)
   if [ "$have" = "$(seed_tables_sha)" ]; then echo ok; else echo stale; fi
 }
@@ -422,6 +538,6 @@ stop() { [ -n "$PGBIN" ] && "$PGBIN/pg_ctl" -D "$PGDATA" stop -m fast >/dev/null
 CMD="${1:-}"; shift || true
 case "$CMD" in
   up) up "$@";; down) down "$@";; baseline) baseline "$@";; status) status;; stop) stop;;
-  seed-pull) seed_pull;; seed-status) seed_status;; doctor) doctor;; drift) drift "$@";;
+  seed-pull) seed_pull "$@";; seed-publish) seed_publish;; seed-status) seed_status;; doctor) doctor;; drift) drift "$@";;
   *) sed -n '2,7p' "$0" >&2; exit 2;;
 esac

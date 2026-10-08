@@ -239,4 +239,19 @@ out=$(cd "$R3" && PATH="$TMP/abin:/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin
 has "run-suite.sh auto-provisioned the keys (it no longer depends on commit-e2e.sh having run first)" "$out" "auto-provisioned" yes
 [ -f "$R3/keys/niete-local.env" ] && ok "…keys file exists afterwards" || bad "run-suite did not provision keys"
 
+echo "mock-lane — the seed comes from the PRIVATE release: the fix text says gh, not railway (bd-z3ze4.7)"
+blk=$(e2e_mock_not_ready_block "seed snapshot missing (pull failed: could not download niete-e2e-seed.tar.gz from Orenda-Project/niete-e2e-fixtures release seed-x: HTTP 404 — gh auth login with access to Orenda-Project/niete-e2e-fixtures)")
+has "a failed release download names gh auth login" "$blk" "gh auth login" yes
+has "…and does NOT send the operator to railway" "$blk" "railway login" no
+blk=$(e2e_mock_not_ready_block "seed snapshot missing (pull failed: gh not found — brew install gh, then gh auth login (needs access to Orenda-Project/niete-e2e-fixtures))")
+has "no gh at all → names the install" "$blk" "brew install gh" yes
+
+echo "mock-lane — no gh on a machine that needs the release seed: brew installs it (bd-z3ze4.7)"
+G="$TMP/ghless/main"; mk_ldb "$G"; touch "$G/.ldb/tools"; mkdir -p "$G/supabase/baseline"; echo "tag=seed-x" > "$G/supabase/baseline/seed-release.txt"
+mkdir -p "$TMP/gbin"; cp "$TMP/lbin/redis-server" "$TMP/gbin/"
+printf '#!/bin/sh\ncase "$*" in *install*gh*) printf "#!/bin/sh\\nexit 0\\n" > "%s/gbin/gh"; chmod +x "%s/gbin/gh";; esac\n' "$TMP" "$TMP" > "$TMP/gbin/brew"; chmod +x "$TMP/gbin/brew"
+out=$(LDB_MARK="$G/.ldb" PATH="$TMP/gbin:/usr/bin:/bin" e2e_mock_lane_autofix "$G" --with-redis 2>&1)
+has "autofix installs gh when the seed comes from the release and gh is missing" "$out" "auto-installed gh" yes
+[ -x "$TMP/gbin/gh" ] && ok "…gh is on PATH afterwards" || bad "gh was not installed"
+
 echo; [ "$FAILED" -eq 0 ] && { echo "mock-lane-ready: all passed"; exit 0; } || { echo "mock-lane-ready: $FAILED failed"; exit 1; }

@@ -20,6 +20,12 @@ BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'service_role') THEN CREATE ROLE service_role NOLOGIN NOINHERIT BYPASSRLS; END IF;
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticator') THEN CREATE ROLE authenticator LOGIN NOINHERIT; END IF;
 END $$;
+-- Enforce the attributes every time, not only on creation: a role that already exists without them (a stand-in
+-- made from a GRANT before this ran — bd-z3ze4.7, service_role lost BYPASSRLS on a fresh machine) is repaired.
+ALTER ROLE service_role NOLOGIN NOINHERIT BYPASSRLS;
+ALTER ROLE anon NOLOGIN NOINHERIT NOBYPASSRLS;
+ALTER ROLE authenticated NOLOGIN NOINHERIT NOBYPASSRLS;
+ALTER ROLE authenticator LOGIN NOINHERIT NOBYPASSRLS;
 GRANT anon, authenticated, service_role TO authenticator;
 
 CREATE SCHEMA IF NOT EXISTS extensions;

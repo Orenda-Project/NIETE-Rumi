@@ -51,8 +51,18 @@ another run. `E2E_LOCAL_DB=0` opts a run out to the shared sandbox database and 
 **A run needs no Railway, sandbox or staging access** (bd-z3ze4.5): no keys file, no `railway` call, no staging read.
 The bot's settings (Flow ids, `PORTAL_URL`, placeholders, bucket name) come from the committed
 `.claude/qa/config/local-lane.env`; the staging files a run reads (`supabase/baseline/seed-files.txt`, 4 files, 0.3 MB)
-are served from the per-machine snapshot. Access is needed only to **pull the snapshot** (`seed-pull`), once per
-machine and when the committed lists change.
+are served from the per-machine snapshot. The snapshot itself is a **small seed** (bd-z3ze4.7): only the reference rows the tests read (measured with
+`bot/scripts/e2e/seed-rows-used.js`; 13 MB instead of 176 MB), released as one asset on the **private** repo
+`Orenda-Project/niete-e2e-fixtures`. This public repo commits only the pointer
+(`supabase/baseline/seed-release.txt`: tag + sha256) and the keep-list of row ids (`seed-keep.json`) — never content.
+
+**What an operator needs:** `gh` signed in (`gh auth login`) with access to `Orenda-Project/niete-e2e-fixtures`
+(ask an org admin). That's all — no Railway. The first run downloads the seed (checksum-verified); a `git pull`
+that brings a new pointer makes the next run download the new one. Missing `gh` is installed with brew.
+
+**Maintainers (sandbox access) publishing a new seed:** `local-db.sh seed-pull --from-sandbox` (full data),
+replay a run's `db/queries.log` with `seed-rows-used.js` to refresh `seed-keep.json` if tests changed, then
+`local-db.sh seed-publish` (trims, packages, releases privately, writes the pointer) and commit the pointer.
 
 **A new machine sets itself up** the first time `run-suite.sh` or `commit-e2e.sh` runs (both call
 `e2e_mock_lane_autofix --with-redis`; never from inside `git commit`, so a commit is never held up):
