@@ -21,6 +21,8 @@ const { modelFor } = require('../../../config/model-registry');
 const { logToFile } = require('../../../utils/logger');
 const { generatePrioritizedAction } = require('./prioritized-action.service');
 const { simplifyPedagogyJargon } = require('../pedagogy-jargon');
+// bd-gr4fy.5.12: the same gendered-address detector the reflective question uses.
+const { genderedAddress } = require('../reflective-questions/guardrails');
 
 /**
  * bd-2373: gloss any coach-jargon that slipped into the visible text so the
@@ -46,7 +48,7 @@ const LANG_NAME = { sw: 'Kiswahili', ur: 'Urdu', en: 'English', ar: 'Arabic' };
 
 // Per-language gender + code-switch guidance (mirrors the approved mock).
 const GENDER_RULE = {
-  ur: 'In Urdu the 2nd-person future (کریں گی / کریں گے, دیں گی) is gendered — DO NOT use it. Use the RESPECTFUL آپ-imperative (the -یں / -ائیں ending: کریں، دیں، آزمائیں، پوچھیں، رکھیں، لکھیں) which is both respectful AND gender-neutral. NEVER use the intimate تم-imperative (کرو، دو، پوچھو، لکھو) — it is disrespectful to a teacher.',
+  ur: 'In Urdu the 2nd-person future (کریں گی / کریں گے, دیں گی) is gendered — DO NOT use it. Use the RESPECTFUL آپ-imperative (the -یں / -ائیں ending: کریں، دیں، آزمائیں، پوچھیں، رکھیں، لکھیں) which is both respectful AND gender-neutral. NEVER use the intimate تم-imperative (کرو، دو، پوچھو، لکھو) — it is disrespectful to a teacher. The 2nd-person PRESENT is gendered too (آپ چاہتے/چاہتی ہیں، سمجھتے/سمجھتی ہیں، مانتے/مانتی ہیں) — DO NOT use it either: say «آپ کی خواہش ہے کہ…», «آپ کا ارادہ ہے کہ…», «آپ کے لیے اہم ہے کہ…».',
   ar: 'In Arabic the 2nd-person is gendered (تفعل masc / تفعلين fem). Avoid gendered 2nd-person by preferring the verbal noun / impersonal phrasing (e.g. "كتابة جملة"، "في الحصة القادمة: تقسيم الطلاب إلى أزواج"). Write respectfully and gender-neutrally.',
   sw: 'Swahili verbs are not gendered, so it is naturally neutral — just never add a gendered noun for the teacher.',
   en: 'English is gender-neutral; address as "you".',
@@ -165,14 +167,26 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
 
   try {
     const prompt = buildPrompt(lang, analysis, q3);
-    const r = await GPT5MiniService.openai.chat.completions.create({
-      model: modelFor('coaching.commitmentCard'),
-      job: 'coaching.commitmentCard',
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
-    });
-    const parsed = JSON.parse(r.choices[0].message.content);
-    if (!parsed.commitment || !parsed.action) throw new Error('incomplete card JSON (no commitment/action)');
+    const ask = async (text) => {
+      const r = await GPT5MiniService.openai.chat.completions.create({
+        model: modelFor('coaching.commitmentCard'),
+        job: 'coaching.commitmentCard',
+        messages: [{ role: 'user', content: text }],
+        response_format: { type: 'json_object' },
+      });
+      const card = JSON.parse(r.choices[0].message.content);
+      if (!card.commitment || !card.action) throw new Error('incomplete card JSON (no commitment/action)');
+      return card;
+    };
+    let parsed = await ask(prompt);
+    // bd-gr4fy.5.12: in Urdu, no verb may put her in a gender ("آپ چاہتے ہیں" was in 44 of 166 Urdu cards on
+    // Sonnet 5). One regeneration at most, with the reason.
+    const gendered = lang === 'ur' ? genderedAddress(`${parsed.commitment}۔ ${parsed.action}`) : [];
+    if (gendered.length) {
+      const note = `\n\nREWRITE — your previous draft was rejected: it put the teacher in a gendered Urdu verb (${gendered.join(' / ')}) and we do not know her gender: use the آپ-imperative (کریں، دیں، آزمائیں) or a noun («آپ کی خواہش ہے کہ…», «آپ کا ارادہ ہے کہ…») so no verb agrees with her; return the whole card again, otherwise unchanged.`;
+      logToFile('Commitment card: draft regenerated once', { gendered: gendered.length });
+      parsed = await ask(prompt + note);
+    }
     return finalizeCard({
       commitment: String(parsed.commitment).trim(),
       action: String(parsed.action).trim(),
