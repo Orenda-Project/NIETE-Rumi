@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 're
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { TEACHER_UI_COPY } from './copy';
+import { useKitCopy } from './useKitCopy';
 import { FOCUS } from './styles';
 
 /**
@@ -27,7 +27,9 @@ export interface TrayProps {
 
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function Tray({ open, title, onClose, children, closeLabel = TEACHER_UI_COPY.close, testId }: TrayProps) {
+export function Tray({ open, title, onClose, children, closeLabel: closeLabelProp, testId }: TrayProps) {
+  const kit = useKitCopy();
+  const closeLabel = closeLabelProp ?? kit.close;
   const panel = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const closeRef = useRef(onClose);

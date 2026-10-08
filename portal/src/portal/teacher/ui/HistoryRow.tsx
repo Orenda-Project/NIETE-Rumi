@@ -1,7 +1,8 @@
 import { ChevronRight, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { TEACHER_UI_COPY, type TeacherUiCopy } from './copy';
+import type { TeacherUiCopy } from './copy';
+import { useKitCopy } from './useKitCopy';
 import { StatusChip } from './StatusChip';
 import { CHEVRON, FOCUS, ROW_DIVIDER, ROW_SUB, ROW_TITLE, type ChipData } from './styles';
 import { blockSubject } from './subjects';
@@ -49,7 +50,7 @@ export interface HistoryRowProps {
 export function HistoryRow({
   subject, grade, title, extra, chip, action = 'chevron', to, isNew = false, first = true, onAction, copy,
 }: HistoryRowProps) {
-  const words = { ...TEACHER_UI_COPY, ...copy };
+  const words = { ...useKitCopy(), ...copy };
   const isLink = action === 'chevron' && !!to;
   const g = grade === null || grade === undefined ? '' : String(grade).trim();
   const hasGrade = g !== '' && !/^[-–—]+$/.test(g);

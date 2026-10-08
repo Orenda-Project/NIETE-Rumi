@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
-import { TEACHER_UI_COPY, type TeacherUiCopy } from './copy';
+import type { TeacherUiCopy } from './copy';
+import { useKitCopy } from './useKitCopy';
 import { GRID } from './styles';
 
 /**
@@ -36,7 +37,7 @@ export interface KpiTilesProps {
 const TONE = { good: 'bg-[#eaf6ef] text-[#2f7a52]', bad: 'bg-[#fef3c7] text-[#b45309]', same: 'bg-[#f3f4f6] text-[#374151]' };
 
 export function KpiTiles({ items, columns, compareLabel, copy, className }: KpiTilesProps) {
-  const words = { ...TEACHER_UI_COPY, ...copy };
+  const words = { ...useKitCopy(), ...copy };
   const shown = items.slice(0, 4);
   const cols = columns ?? (shown.length === 3 ? 3 : shown.length === 1 ? 1 : 2);
   const tiles = shown.map((it) => {
