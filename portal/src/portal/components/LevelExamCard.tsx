@@ -49,6 +49,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
 import CapstoneExamForm from './CapstoneExamForm';
+import { SkeletonLine } from './Skeleton';
 
 type GrandQuizState =
   | 'no_quiz' | 'passed' | 'cooldown' | 'courses_incomplete' | 'ready';
@@ -226,8 +227,10 @@ const LevelExamCard = ({
 
   if (loadingGate) {
     return (
-      <div className="rounded-lg border bg-card p-4 shadow-sm flex items-center gap-2 text-sm text-muted-foreground" data-testid="level-exam-loading">
-        <Loader2 className="w-4 h-4 animate-spin" /> Checking level exam…
+      // bd-fxk3t8 — the card's lines held by placeholders, not a spinner.
+      <div role="status" aria-busy="true" aria-label="Checking level exam…" className="space-y-2 rounded-lg border bg-card p-4 shadow-sm" data-testid="level-exam-loading">
+        <SkeletonLine className="w-1/2" />
+        <SkeletonLine className="w-1/3" />
       </div>
     );
   }

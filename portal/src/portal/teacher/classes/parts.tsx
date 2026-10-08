@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FOCUS } from '../ui/styles';
 import { CLASSES_V2_COPY as C } from './copy';
+import { SkeletonList } from '../../components/Skeleton';
 
 /**
  * bd-fmf24g.8 — small pieces the My Classes and Analytics pages share: a section heading with its count
@@ -26,9 +26,8 @@ export function SectionHeading({ children, count, countTestId }: { children: Rea
 export function LoadState({ status, onRetry, label }: { status: 'idle' | 'loading' | 'error' | 'ok'; onRetry: () => void; label?: string }) {
   if (status === 'loading' || status === 'idle') {
     return (
-      <div role="status" aria-label={label ?? C.loading} className="flex justify-center py-10 text-[#6b7280]">
-        <Loader2 className="h-6 w-6 motion-safe:animate-spin" aria-hidden="true" />
-      </div>
+      // bd-fxk3t8 — rows of placeholders where the list will be, instead of a spinner.
+      <SkeletonList rows={3} label={label ?? C.loading} className="py-2" />
     );
   }
   if (status === 'error') return <LoadFailed onRetry={onRetry} />;

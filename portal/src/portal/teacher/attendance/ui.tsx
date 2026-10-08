@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Loader2, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { GradeSubjectButton, Tray, type ChipData } from '../ui';
 import { FOCUS, LIST_CARD } from '../ui/styles';
 import { ATTENDANCE_V2_COPY as C } from './copy';
 import { classButton, selectorGroups, type AttendanceClass } from './model';
+import { SkeletonList } from '../../components/Skeleton';
 
 /**
  * bd-fmf24g.7 — pieces the Attendance pages share: the search box, the load state, a class's status
@@ -46,9 +47,8 @@ export function SearchBox({ value, onChange, label, sticky = false }: {
 export function LoadState({ loading, failed, onRetry }: { loading: boolean; failed: boolean; onRetry: () => void }) {
   if (loading) {
     return (
-      <div role="status" aria-label={C.loading} className="flex justify-center py-10 text-[#6b7280]">
-        <Loader2 className="h-6 w-6 motion-safe:animate-spin" aria-hidden="true" />
-      </div>
+      // bd-fxk3t8 — rows of placeholders where the list will be, instead of a spinner.
+      <SkeletonList rows={3} label={C.loading} className="py-2" />
     );
   }
   if (failed) {
