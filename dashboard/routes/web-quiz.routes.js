@@ -29,6 +29,8 @@ const Preview = require('./web-quiz-preview');
 const PUBLIC_DIR = path.join(__dirname, '..', 'public', 'wq');
 const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
 const CODE_RX = /^[A-Za-z0-9]{4,12}$/;
+// A page session id (wq-tel.js): 8-16 lower-case letters and digits.
+const PS_RX = /^[a-z0-9]{8,16}$/;
 // A signed hub token (bot web-quiz-token.js): base64url payload "." 22-char signature.
 const HUB_TOKEN_RX = /^[A-Za-z0-9_-]{16,600}\.[A-Za-z0-9_-]{22}$/;
 const BODY_LIMIT = '16kb';
@@ -65,7 +67,7 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/who/class', limiter: 'session' },
   { method: 'get', path: '/api/wq/videos/:code', limiter: 'read' },
   { method: 'post', path: '/api/wq/videos/start', limiter: 'session' },
-  { method: 'post', path: '/api/wq/e', limiter: 'events' },
+  { method: 'post', path: '/api/wq/e', limiter: ['events', 'eventsPs'] },
   // M4c challenge (audio goes browser → R2 by presigned PUT, never through this body cap)
   // (limits per challenge token, so one carrier IP's classroom is not throttled as one child; a loose IP ceiling too)
   { method: 'get', path: '/api/wq/ch/result/:ct', limiter: 'read', token: true },
@@ -235,7 +237,8 @@ function renderQuizPage({ payload, code, view, origin, assetV, url, a, v }) {
 <body>
 <main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(BOOT_COPY[lang])}</p></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
-${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq-lib.js?v=${assetV}" defer></script>
+${identityV2(payload) ? `<script src="/wq/wq-identity.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
+<script src="/wq/wq-lib.js?v=${assetV}" defer></script>
 <script src="/wq/wq.js?v=${assetV}" defer></script>
 </body>
 </html>`;
@@ -269,6 +272,7 @@ function renderHubPage({ payload, token, origin, assetV }) {
 <body>
 <main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
+<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/hub.js?v=${assetV}" defer></script>
 </body>
 </html>`;
@@ -277,15 +281,16 @@ function renderHubPage({ payload, token, origin, assetV }) {
 // M4b library: the video library opened from the kid's hub (/lib/<hub token>?kid=<chip>&l=<lang>).
 // A shell only: wq-lib.js asks the bot for the library with the hub token, so the edge calls nothing.
 const LIB_TITLE = { en: 'Video library', ur: 'ویڈیو لائبریری' };
-function renderLibPage({ hub, kid, lang, origin, assetV, brandKey }) {
+function renderLibPage({ hub, kid, lang, origin, assetV, brandKey, rt = false }) {
   const l = lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(brandKey || WebQuizBrand.brandKey({ orgName: process.env.ORG_NAME, botName: process.env.BOT_NAME }));
-  const boot = { view: 'lib', hub, kid, lang: l, brand: Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, brandKey) ? brandKey : null };
+  const boot = { view: 'lib', hub, kid, lang: l, brand: Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, brandKey) ? brandKey : null, rt: rt === true };
   return `${head({ lang: l, dir: l === 'ur' ? 'rtl' : 'ltr', title: LIB_TITLE[l], desc: LIB_TITLE[l], origin, url: origin, assetV, brand })}
 </head>
 <body>
 <main id="wq" class="wq-app"><div class="wq-bar wq-topbar">${lockupHtml(brand, l)}</div><div id="wql-root" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"></div></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
+<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/wq-lib.js?v=${assetV}" defer></script>
 </body>
 </html>`;
@@ -380,12 +385,13 @@ function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }
   const lang = menu.lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(brandKey);
   const title = CH_COPY[lang].title(brand.mascot[lang]);
-  const boot = { token, kid: kid || null, menu, brand, mascot: brand.mascot[lang] };
+  const boot = { token, kid: kid || null, menu, brand, mascot: brand.mascot[lang], rt: menu.rt === true };
   return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title, desc: title, origin, url: `${origin}/c/`, assetV, brand })}
 </head>
 <body>
 <main id="wq" class="wq-app wqc" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(CH_COPY[lang].boot)}</p></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
+<script src="/wq/wq-tel.js?v=${assetV}" defer></script>
 <script src="/wq/wq-read-live.js?v=${challengeVersion('wq-read-live.js')}" defer></script>
 <script src="/wq/wq-challenge.js?v=${chV}" defer></script>
 </body>
@@ -420,6 +426,9 @@ function createWebQuizRouter(opts = {}) {
   const version = () => (assetV || (assetV = assetVersion()));
   // The brand the bot last named: a closed or unreachable quiz still wears this deployment's brand.
   let lastBrand = null;
+  // Whether the pages send their page-session events (wq-tel.js): the bot's last word, for the library page,
+  // which the edge draws without asking the bot.
+  let lastRt = false;
 
   const callBot = createBotClient({ botUrl, apiKey, fetchImpl });
   // Link previews (web-quiz-preview.js): what the edge last learned about each code, and the drawn pictures.
@@ -434,13 +443,28 @@ function createWebQuizRouter(opts = {}) {
   // the per-IP ceilings are generous and the tight ones are keyed on the token.
   const common = { windowMs: 60 * 1000, standardHeaders: true, legacyHeaders: false, validate: false,
     handler: (req, res) => res.status(429).json({ error: 'slow_down' }) };
+  // web_quiz.events_limited: the first refusal at once, then at most one line per 10 s with the count since.
+  const refused = { n: 0, ip: 0, ps: 0, at: -Infinity };
+  const limitedEvents = (by) => (req, res) => {
+    refused.n += 1; refused[by] += 1;
+    const t = now();
+    if (t - refused.at >= 10000) {
+      logEvent('web_quiz.events_limited', { n: refused.n, ip: refused.ip, ps: refused.ps });
+      refused.n = 0; refused.ip = 0; refused.ps = 0; refused.at = t;
+    }
+    return res.status(429).json({ error: 'slow_down' });
+  };
   const stKey = (req) => `st:${(req.body && typeof req.body.st === 'string' && req.body.st.slice(0, 200)) || clientIp(req)}`;
   const limiters = {
     read: rateLimit({ ...common, max: 300, keyGenerator: (req) => `ip:${clientIp(req)}` }),
     session: rateLimit({ ...common, max: 60, keyGenerator: (req) => `ipc:${clientIp(req)}:${String((req.body && req.body.code) || '').toUpperCase().slice(0, 12)}` }),
     answers: rateLimit({ ...common, max: 120, keyGenerator: stKey }),
     finish: rateLimit({ ...common, max: 10, keyGenerator: stKey }),
-    events: rateLimit({ ...common, max: 120, keyGenerator: (req) => `ip:${clientIp(req)}` }),
+    // Page events: a whole class behind one school NAT sends at once, so the IP ceiling is generous and the
+    // tight one is per page session (wq-tel.js sends ps on the batch). A refused batch is counted in the log.
+    events: rateLimit({ ...common, max: 600, keyGenerator: (req) => `ip:${clientIp(req)}`, handler: limitedEvents('ip') }),
+    eventsPs: rateLimit({ ...common, max: 30, keyGenerator: (req) => `ps:${req.body.ps}`, handler: limitedEvents('ps'),
+      skip: (req) => !(req.body && typeof req.body.ps === 'string' && PS_RX.test(req.body.ps)) }),
     challenge: rateLimit({ ...common, max: 20, keyGenerator: (req) => `ct:${(req.body && typeof req.body.ct === 'string' && req.body.ct.slice(0, 200)) || clientIp(req)}` }),
     challengeIp: rateLimit({ ...common, max: 600, keyGenerator: (req) => `chip:${clientIp(req)}` }),
   };
@@ -527,6 +551,7 @@ function createWebQuizRouter(opts = {}) {
     }
     if (out.status === 200 && out.body && out.body.quiz) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
+      if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       if (!p) ogKnown.set(upper, Preview.ogFacts(out.body), OG_KEEP_MS);
       if (preview) {
         return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v }));
@@ -563,6 +588,7 @@ function createWebQuizRouter(opts = {}) {
     }
     if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
+      if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
       return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
     }
     if (out.status === 401) return closed(401, 'hub');
@@ -645,7 +671,7 @@ function createWebQuizRouter(opts = {}) {
     if (!TOKEN_RX.test(token)) return res.status(404).type('html').send(renderClosedPage({ lang: 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand }));
     const kid = typeof req.query.kid === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(req.query.kid) ? req.query.kid : null;
     const lang = req.query.l === 'ur' || req.query.lang === 'ur' ? 'ur' : 'en';
-    return res.status(200).type('html').send(renderLibPage({ hub: token, kid, lang, origin, assetV: version(), brandKey: lastBrand }));
+    return res.status(200).type('html').send(renderLibPage({ hub: token, kid, lang, origin, assetV: version(), brandKey: lastBrand, rt: lastRt }));
   });
 
   router.get('/wq-probe', (req, res) => {

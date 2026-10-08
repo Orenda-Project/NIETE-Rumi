@@ -560,3 +560,15 @@ describe('internal routes /api/internal/wq/ch/*', () => {
     } finally { srv.close(); }
   });
 });
+
+describe('menu(): the page-session telemetry switch rides the boot (rt)', () => {
+  test('rt follows app_settings web_quiz_rich_telemetry, off by default', async () => {
+    const Tel = require('../../../shared/services/quiz/web-quiz-telemetry');
+    Tel._reset();
+    expect((await Ch.menu(hub(), D)).rt).toBe(false);
+    db.app_settings.push({ key: 'web_quiz_rich_telemetry', value: true });
+    Tel._reset();
+    expect((await Ch.menu(hub(), D)).rt).toBe(true);
+    Tel._reset();
+  });
+});

@@ -610,3 +610,15 @@ describe('hub(): the child\'s language is their class\'s, not their last library
     expect((await Hub.hub(token, { device: DEV_B })).lang).toBe('en');
   });
 });
+
+describe('hub(): the page-session telemetry switch rides the boot (rt)', () => {
+  test('rt follows app_settings web_quiz_rich_telemetry, off by default', async () => {
+    const Tel = require('../../../shared/services/quiz/web-quiz-telemetry');
+    Tel._reset();
+    expect((await Hub.hub(T.signHub([KID]), A)).rt).toBe(false);
+    db.app_settings.push({ key: 'web_quiz_rich_telemetry', value: 'true' });
+    Tel._reset();
+    expect((await Hub.hub(T.signHub([KID]), A)).rt).toBe(true);
+    Tel._reset();
+  });
+});
