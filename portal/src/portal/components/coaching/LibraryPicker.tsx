@@ -3,6 +3,7 @@ import { BookOpen, ChevronRight, Loader2 } from 'lucide-react';
 import { portal } from '../../services/api';
 import type { LibraryGrade, LibraryLesson, LibraryOption, RecentLessonPlan } from '../../services/api';
 import type { LibraryPick } from '../../lib/coachingSend';
+import { SkeletonList } from '../Skeleton';
 
 /**
  * bd-5rz1v — "From our library": the lesson plan she taught from, one big tap at
@@ -185,7 +186,8 @@ const LibraryPicker = ({ onPick, onStepChange, backSignal, loadRecent, recentTit
     }
   };
 
-  const loading = <div className="flex justify-center py-8"><Loader2 className="h-7 w-7 animate-spin text-muted-foreground" /></div>;
+  // bd-fxk3t8 — placeholder rows where the list will be, not a spinner.
+  const loading = <SkeletonList rows={3} className="py-2" />;
   const failure = (
     <div className="flex flex-col items-start gap-3 rounded-xl bg-white p-4 text-[15px] text-[#3a3f4b]">
       <span>{COPY.loadFailed}</span>

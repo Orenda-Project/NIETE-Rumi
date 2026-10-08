@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
-import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TrainingFrameContext, type TrainingFrameProps } from '../../newui/training/frame';
 import TeacherPage from '../TeacherPage';
 import { FOCUS } from '../ui/styles';
 import { TRAINING_V2_COPY as C } from './copy';
+import { SkeletonList } from '../../components/Skeleton';
 
 /**
  * bd-fmf24g.5 — every teacher v2 Training page is the shared v2 page (TeacherPage, bd-fmf24g.1) with the
@@ -34,9 +34,8 @@ export function InV2Frame({ children }: { children: ReactNode }) {
 export function LoadState({ loading, failed, onRetry }: { loading: boolean; failed: boolean; onRetry: () => void }) {
   if (loading) {
     return (
-      <div role="status" aria-label={C.loading} className="flex justify-center py-10 text-[#6b7280]">
-        <Loader2 className="h-6 w-6 motion-safe:animate-spin" aria-hidden="true" />
-      </div>
+      // bd-fxk3t8 — rows of placeholders where the list will be, instead of a spinner.
+      <SkeletonList rows={3} label={C.loading} className="py-2" />
     );
   }
   if (failed) {

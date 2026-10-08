@@ -56,9 +56,14 @@ export function SkeletonRow({ className }: Cls) {
   );
 }
 
-export function SkeletonList({ rows = 3, className }: Cls & { rows?: number }) {
+/** `label` names what is loading for a screen reader (the region becomes a status). */
+export function SkeletonList({ rows = 3, label, className }: Cls & { rows?: number; label?: string }) {
   return (
-    <div aria-busy="true" className={cn("flex flex-col gap-3", className)}>
+    <div
+      aria-busy="true"
+      {...(label ? { role: "status", "aria-label": label } : {})}
+      className={cn("flex flex-col gap-3", className)}
+    >
       {Array.from({ length: rows }, (_, i) => <SkeletonRow key={i} />)}
     </div>
   );

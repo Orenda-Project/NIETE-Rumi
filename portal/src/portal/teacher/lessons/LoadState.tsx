@@ -1,7 +1,7 @@
-import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FOCUS } from '../ui/styles';
 import { LESSONS_V2_COPY } from './copy';
+import { SkeletonList } from '../../components/Skeleton';
 
 /**
  * bd-fmf24g.3 — the Lesson Plans list pages' shared states: loading, a failed load (with Try again),
@@ -11,9 +11,8 @@ import { LESSONS_V2_COPY } from './copy';
 export function LoadState({ status, empty, onRetry }: { status: 'idle' | 'loading' | 'error' | 'ok'; empty: boolean; onRetry: () => void }) {
   if (status === 'loading') {
     return (
-      <div role="status" aria-label={LESSONS_V2_COPY.title} className="flex justify-center py-10 text-[#6b7280]">
-        <Loader2 className="h-6 w-6 motion-safe:animate-spin" aria-hidden="true" />
-      </div>
+      // bd-fxk3t8 — rows of placeholders where the list will be, instead of a spinner.
+      <SkeletonList rows={3} label={LESSONS_V2_COPY.title} className="py-2" />
     );
   }
   if (status === 'error') {
