@@ -35,6 +35,21 @@ function stripEmphasis(s) {
 }
 
 /**
+ * bd-gr4fy.5.10 — markdown emphasis in a chat reply, rewritten as WhatsApp's own.
+ *
+ * WhatsApp bolds *one* asterisk pair; `**x**` arrives as a bold word wrapped in a stray asterisk, and a
+ * `# heading` arrives with its hashes. So `**x**` becomes `*x*` and a heading line becomes a bold line. Unlike
+ * stripEmphasis (a PDF has no markup), the emphasis is kept, in the form WhatsApp shows. A lone `*` (`2 * 3`)
+ * and an existing `*x*` are untouched.
+ */
+function toWhatsAppEmphasis(s) {
+  if (s === null || s === undefined) return s;
+  return String(s)
+    .replace(/\*\*(?=\S)([^\n]*?\S)\*\*/g, '*$1*')
+    .replace(/^[ \t]*#{1,6}[ \t]+(.+?)[ \t#]*$/gm, (_m, text) => (/^\*[^*].*\*$/.test(text) ? text : `*${text}*`));
+}
+
+/**
  * Read the class a child typed into the join form.
  *
  * The column is free text and one class of children writes it a dozen ways:
@@ -196,4 +211,4 @@ function markLines(text, mark) {
     .join('\n');
 }
 
-module.exports = { stripEmphasis, classLabel, classHeading, normaliseClasses, gradeText, markLines };
+module.exports = { stripEmphasis, toWhatsAppEmphasis, classLabel, classHeading, normaliseClasses, gradeText, markLines };
