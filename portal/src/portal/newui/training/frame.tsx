@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ComponentType, type ReactNode } from 'react';
 import { CircleAlert, Loader2, RotateCcw } from 'lucide-react';
 import PortalLayout from '../../components/PortalLayout';
 import { InnerBar } from '../InnerBar';
@@ -11,16 +11,25 @@ import { TRAINING_COPY } from '../copy';
  * graduation cap and the breadcrumb, then the content at the kit's spacing (0 14px 14px, 12px
  * between blocks; desktop 40px sides, centred at 1120px).
  */
-export function TrainingInner({
-  crumb, title, backTo, onBack, right, children,
-}: {
+export type TrainingFrameProps = {
   crumb: string;
   title: string;
   backTo: string;
   onBack?: () => void;
   right?: ReactNode;
   children: ReactNode;
-}) {
+};
+
+/**
+ * bd-fmf24g.5 — the teacher app v2 mounts these screens under its own frame: a page inside this
+ * context's provider renders through the given frame instead of the new UI's bar. Nothing here changes
+ * without a provider (the default), so /portal/training is exactly as before.
+ */
+export const TrainingFrameContext = createContext<ComponentType<TrainingFrameProps> | null>(null);
+
+export function TrainingInner({ crumb, title, backTo, onBack, right, children }: TrainingFrameProps) {
+  const Frame = useContext(TrainingFrameContext);
+  if (Frame) return <Frame crumb={crumb} title={title} backTo={backTo} onBack={onBack} right={right}>{children}</Frame>;
   return (
     <PortalLayout ownHeading>
       <InnerBar feature="training" crumb={crumb} title={title} backTo={backTo} onBack={onBack} right={right} />
