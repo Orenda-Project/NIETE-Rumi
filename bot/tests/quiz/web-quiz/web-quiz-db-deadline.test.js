@@ -96,6 +96,14 @@ describe('web quiz: a read that hangs gets a deadline and one retry (flag on)', 
     expect(retryLines()).toEqual([expect.objectContaining({ label: 'resolveCode:quiz_share_codes', outcome: 'recovered', deadline_ms: 4000 })]);
   }, 15000);
 
+  test('the flag stored as a JSON string (as other app_settings rows are) works the same', async () => {
+    flag = '{"enabled": true, "ms": 4000}';
+    hangs.quiz_share_codes = 1;
+    await WQ.board('AB12CD');
+    expect(shareCodeCalls()).toHaveLength(2);
+    expect(retryLines()).toEqual([expect.objectContaining({ outcome: 'recovered', deadline_ms: 4000 })]);
+  }, 15000);
+
   test('hang twice -> a clean 502 db_unavailable (the page\'s existing error) by ~8 s, never a third try', async () => {
     flag = true;
     hangs.quiz_share_codes = 2;
