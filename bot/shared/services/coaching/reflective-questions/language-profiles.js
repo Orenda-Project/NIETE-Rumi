@@ -7,8 +7,9 @@
  *   • keep subject terms (multiply, place value, proper nouns) in English/Latin for clean TTS
  *
  * This module carries only the thin per-language DATA those principles need: the language name,
- * its script, the region whose spoken register to match, and two short hints (what to avoid, how
- * gender works). Adding a new language is ONE entry here — zero change to prompt logic.
+ * its script, the region whose spoken register to match, and short hints (what to avoid, how gender
+ * works, and how a moment's time is said — in the language's OWN script: a Roman example is copied
+ * sound by sound, which is how Urdu corpora came to say «کریب» for «قریب», bd-gr4fy.5.13). Adding a new language is ONE entry here — zero change to prompt logic.
  *
  * Soniox already transcribes ur / sw / en / ar, so the profile is keyed by the same ISO codes the
  * transcriber emits. `ar` ships as a working stub ahead of the Arabic rollout.
@@ -26,6 +27,7 @@ const LANGUAGE_PROFILES = {
     avoid_hint: " Use everyday Urdu rooted in Persian/Arabic — NEVER Hindi/Sanskrit-origin words (say شکریہ not دھنیہ واد, فوراً not ترنت/turant, سوال not پرشن, ضرورت not آوشیکتا, کوشش not پریاس). Also avoid bookish words (taajub, muntakhab, markooz).",
     gender_hint:
       "Urdu is gendered — agree verbs with a noun (zehen, khayal, sawal, qadam), not with 'aap'.",
+    time_anchor_hint: "'شروع میں' / 'قریب دس منٹ پر' / 'سبق کے آخر میں' — numbers as words",
   },
   sw: {
     language: 'Kiswahili',
@@ -33,6 +35,7 @@ const LANGUAGE_PROFILES = {
     region: 'Tanzania',
     avoid_hint: '',
     gender_hint: 'Kiswahili is gender-neutral — write naturally.',
+    time_anchor_hint: "'mwanzoni' / 'karibu dakika ya kumi' / 'mwishoni mwa somo'",
   },
   en: {
     language: 'English',
@@ -40,6 +43,7 @@ const LANGUAGE_PROFILES = {
     region: '(English-medium)',
     avoid_hint: '',
     gender_hint: 'English 2nd-person is gender-neutral — write naturally.',
+    time_anchor_hint: "'at the start' / 'around minute ten' / 'near the end of the lesson'",
   },
   ar: {
     language: 'Arabic',
@@ -48,6 +52,7 @@ const LANGUAGE_PROFILES = {
     avoid_hint: ' Avoid classical/Quranic register; use simple spoken MSA.',
     gender_hint:
       "Arabic is gendered: undiacritized PAST-tense reads as neutral, but FUTURE/imperfect is NOT — restructure to a noun ('ما هي الخطوة الأولى' not 'ماذا ستفعل').",
+    time_anchor_hint: "'في البداية' / 'حوالي الدقيقة العاشرة' / 'في نهاية الدرس'",
   },
 };
 
@@ -58,7 +63,7 @@ const LANGUAGE_PROFILES = {
  * with a principle-only fallback for any code we don't ship yet.
  *
  * @param {string|null|undefined} code  ISO language code (e.g. 'ur', 'sw').
- * @returns {{language:string, script:string, region:string, avoid_hint:string, gender_hint:string}}
+ * @returns {{language:string, script:string, region:string, avoid_hint:string, gender_hint:string, time_anchor_hint:string}}
  */
 function resolveProfile(code) {
   if (code && LANGUAGE_PROFILES[code]) return LANGUAGE_PROFILES[code];
@@ -68,6 +73,7 @@ function resolveProfile(code) {
     region: '',
     avoid_hint: '',
     gender_hint: 'Use a gender-neutral construction native to this language.',
+    time_anchor_hint: "a short natural phrase in this language and its own script ('at the start', 'around minute ten', 'near the end')",
   };
 }
 
