@@ -59,10 +59,21 @@ describe("TeacherGate", () => {
     expect(screen.queryByText("v2 page")).toBeNull();
   });
 
-  it("nothing renders while the flag is read", async () => {
+  // bd-fxk3t8: "nothing" was a white screen (3 s on sandbox). Still nothing of v2 — the
+  // app's frame with placeholder blocks instead.
+  it("while the flag is read: no v2 page, but the frame with placeholders — never blank", async () => {
     await visit(TEACHER, "loading");
     expect(screen.queryByText("v2 page")).toBeNull();
     expect(screen.queryByText("today's home")).toBeNull();
+    expect(document.querySelector("[data-frame]")).not.toBeNull();
+    expect(document.querySelectorAll("[data-skeleton]").length).toBeGreaterThan(3);
+  });
+
+  it("while the user loads: the frame with placeholders — never blank", async () => {
+    await visit(null, "loading", true);
+    expect(screen.queryByText("v2 page")).toBeNull();
+    expect(screen.queryByText("login")).toBeNull();
+    expect(document.querySelector("[data-frame]")).not.toBeNull();
   });
 
   it("signed out goes to login", async () => {
