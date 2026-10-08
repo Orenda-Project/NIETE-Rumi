@@ -2,7 +2,8 @@ import { useId, useState } from 'react';
 import { ChevronDown, Search, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { subjectsByGradeFor, type SubjectsByGrade, type TeacherCatalogueFeature } from './catalogue';
-import { TEACHER_UI_COPY, type TeacherUiCopy } from './copy';
+import type { TeacherUiCopy } from './copy';
+import { useKitCopy } from './useKitCopy';
 import { GradeSubjectButton } from './GradeSubjectButton';
 import { FOCUS } from './styles';
 import { gradeSubjectLabel } from './subjects';
@@ -65,7 +66,7 @@ export function GradeSubjectPicker({
   label, value, defaultValue = null, onChange, combos, allowOther = true, recentFirst = false, feature = 'lessons',
   subjectsByGrade, to, copy, className,
 }: GradeSubjectPickerProps) {
-  const words = { ...TEACHER_UI_COPY, ...copy };
+  const words = { ...useKitCopy(), ...copy };
   const map = subjectsByGradeFor(feature, subjectsByGrade);
   const [inner, setInner] = useState<GradeSubjectPair | null>(defaultValue);
   const [open, setOpen] = useState(false);

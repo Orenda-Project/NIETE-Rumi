@@ -2,7 +2,8 @@ import type { ReactElement } from 'react';
 import { Check, ChevronRight, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { TEACHER_UI_COPY, type TeacherUiCopy } from './copy';
+import type { TeacherUiCopy } from './copy';
+import { useKitCopy } from './useKitCopy';
 import { StatusChip } from './StatusChip';
 import { CARD, CARD_SELECTED, CHEVRON, FOCUS, ROW_DIVIDER, ROW_SELECTED, ROW_SUB, ROW_TITLE, type ChipData } from './styles';
 
@@ -68,7 +69,7 @@ export function ListRow({
   prefix = '', number = '', icon, label, subtitle, chip, state = 'default', variant = 'card', first = true, to, onPress,
   copy, className,
 }: ListRowProps) {
-  const words = { ...TEACHER_UI_COPY, ...copy };
+  const words = { ...useKitCopy(), ...copy };
   const locked = state === 'locked';
   const selected = state === 'selected';
   const used = state === 'used';

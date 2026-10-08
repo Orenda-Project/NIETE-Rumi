@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { FeatureGlyph } from '../icons';
-import { TEACHER_UI_COPY, type TeacherUiCopy } from './copy';
+import type { TeacherUiCopy } from './copy';
+import { useKitCopy } from './useKitCopy';
 import { FOCUS } from './styles';
 
 /**
@@ -39,7 +40,7 @@ let sounding: HTMLAudioElement | null = null;
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 export function VoiceNote({ from, avatar = 'dc', initials = '', duration, time, src, heard = false, copy, className }: VoiceNoteProps) {
-  const words = { ...TEACHER_UI_COPY, ...copy };
+  const words = { ...useKitCopy(), ...copy };
   const audio = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [played, setPlayed] = useState(false);
