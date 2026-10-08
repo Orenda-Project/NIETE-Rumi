@@ -803,3 +803,15 @@ describe('maths operators are said as words, a range is still a range', () => {
     expect(rows.quiz.meta.web.audio[q.id].opts[0]).not.toBe([...old][1]);
   });
 });
+
+// A quiz recorded before the operators were said as words keeps its old clips in its map, and a quiz at
+// the current voice version is never published again: the version is bumped so each one is brought up to
+// date on its next open (only the clips whose words changed are recorded; the rest are found in R2).
+describe('a quiz recorded before maths operators were said as words', () => {
+  test('is not current: its next open asks for one quiz_web_audio job', async () => {
+    const queue = { queueJob: jest.fn().mockResolvedValue({ MessageId: 'm1' }) };
+    expect(Publish.isCurrent({ audio_v: 4, audio_voice: 'soniox-en' })).toBe(false);
+    await Publish.requestQuizAudio('quiz-ops-v4', { meta: { web: { audio_v: 4, audio_voice: 'soniox-en' } }, queue });
+    expect(queue.queueJob).toHaveBeenCalledWith('quiz-ops-v4', 'quiz_web_audio', { quizId: 'quiz-ops-v4' }, expect.any(Object));
+  });
+});
