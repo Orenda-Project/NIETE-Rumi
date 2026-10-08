@@ -109,7 +109,8 @@ describe("readPrefill (Start DC observation on a lesson plan)", () => {
 describe("the hub", () => {
   it("her own classes only, the first chosen; Start and Upload are on", async () => {
     at(COACHING_HOME);
-    const trigger = await screen.findByRole("button", { name: new RegExp(`${C.selectClass}.*Grade 4 · General Science`) });
+    // The first test of the file also loads the page's module graph: room for a slow, loaded run.
+    const trigger = await screen.findByRole("button", { name: new RegExp(`${C.selectClass}.*Grade 4 · General Science`) }, { timeout: 5000 });
     expect(trigger).toBeTruthy();
     expect(screen.getByRole("heading", { name: C.yourClass })).toBeTruthy();
     expect((screen.getByRole("button", { name: C.startRecording }) as HTMLButtonElement).disabled).toBe(false);

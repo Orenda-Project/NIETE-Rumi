@@ -96,4 +96,11 @@ export const COACHING_V2_COPY = {
   loading: 'Loading',
   retry: 'Try again',
   fromCoach: (name: string) => `From ${name}`,
+  /* All DC observations */
+  allTitle: 'All DC observations',
+  kpiSessions: 'DC observations',
+  kpiLatestBand: 'Latest band',
+  kpiMinutes: 'Minutes recorded',
+  kpiReports: 'Reports received',
+  noneInRange: 'None in these dates',
 };
