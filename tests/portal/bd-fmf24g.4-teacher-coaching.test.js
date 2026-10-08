@@ -56,6 +56,7 @@ describe('nextVisit', () => {
     expect(sql).toMatch(/scheduled_for\s*>=\s*\$2/);
     expect(sql).toMatch(/teacher_ext_id/);
     expect(sql).toMatch(/LIMIT 1/);
+    expect(sql).toMatch(/u\.name AS coach_name/); // NIETE's one name column (bd-60092)
   });
 
   test('a Date scheduled_for comes back as its calendar day', async () => {

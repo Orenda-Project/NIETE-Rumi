@@ -24,6 +24,8 @@ const JOURNEY_POINTS = 12;
 const IN_PROGRESS_DAYS = 60;
 const HISTORY_LIMIT = 1000;
 
+// NIETE's users table has ONE name column, `name` (bd-60092): never first_name / last_name.
+const nameOf = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
 const digits = (v) => String(v == null ? '' : v).replace(/\D/g, '');
 const dayOf = (v) => {
   if (v == null) return null;
@@ -45,7 +47,7 @@ const PHONE_SQL = '/* teacher-coaching:phone */ SELECT phone_number FROM users W
 // (leader-schedule-write.service.js). Compared as digits on both sides, so '+92 300-…' and
 // '92300…' are the same teacher — and only ever her own number, read from her own row.
 const NEXT_VISIT_SQL = `/* teacher-coaching:next-visit */
-  SELECT s.scheduled_for, s.scheduled_slot, s.school_name, u.first_name AS coach_name
+  SELECT s.scheduled_for, s.scheduled_slot, s.school_name, u.name AS coach_name
     FROM observation_schedules s
     LEFT JOIN users u ON u.id = s.leader_user_id
    WHERE regexp_replace(COALESCE(s.teacher_ext_id, ''), '\\D', '', 'g') = $1
@@ -64,7 +66,7 @@ async function nextVisit(query, userId, { today = pkToday() } = {}) {
   return {
     date: dayOf(r.scheduled_for),
     slot: r.scheduled_slot || null,
-    coachName: r.coach_name || null,
+    coachName: nameOf(r.coach_name),
     schoolName: r.school_name || null,
   };
 }
@@ -74,7 +76,7 @@ async function nextVisit(query, userId, { today = pkToday() } = {}) {
 // Her coach visits not yet sent to her. Only the stage, the day and the coach leave the server:
 // a draft's scores and notes are the coach's until the report is sent (teacher-observation.js).
 const IN_PROGRESS_SQL = `/* teacher-coaching:in-progress */
-  SELECT cs.id, cs.created_at, cs.status, cs.debrief_status, u.first_name AS coach_name
+  SELECT cs.id, cs.created_at, cs.status, cs.debrief_status, u.name AS coach_name
     FROM coaching_sessions cs
     LEFT JOIN users u ON u.id = cs.observer_user_id
    WHERE cs.user_id = $1
@@ -97,7 +99,7 @@ async function visitsInProgress(query, userId) {
   return (rows || []).map((r) => ({
     sessionId: r.id,
     date: pkDayOf(r.created_at),
-    coachName: r.coach_name || null,
+    coachName: nameOf(r.coach_name),
     stage: hitlStage(r),
   }));
 }
