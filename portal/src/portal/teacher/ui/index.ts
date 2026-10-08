@@ -3,7 +3,7 @@
  * spec (versions/v28_teacher-polish/COMPONENTS.md in the NIETE Portal Coaching report folder). How to use each:
  * README.md beside this file. Feature icons: ../icons.
  */
-export { TEACHER_UI_COPY, type TeacherUiCopy } from './copy';
+export { TEACHER_UI_COPY, type ReportCopy, type TeacherUiCopy } from './copy';
 export { CHIP_TONE, type ChipData, type ChipTone } from './styles';
 export { StatusChip, type StatusChipProps } from './StatusChip';
 export { blockSubject, gradeSubjectLabel, subjectIcon, type SubjectIconKey } from './subjects';
@@ -20,3 +20,9 @@ export { GradeSubjectSelector, type GradeSubjectSelectorProps, type GradeSubject
 export {
   GradeSubjectPicker, type GradeSubjectCombo, type GradeSubjectPair, type GradeSubjectPickerProps,
 } from './GradeSubjectPicker';
+export { formatSpan, resolveRange, type ResolvedRange } from './range';
+export { DateRangeBar, type DateRangeBarProps, type DateRangeInfo } from './DateRangeBar';
+export { KpiTiles, type KpiItem, type KpiTilesProps } from './KpiTiles';
+export { ProgressSteps, type ProgressStep, type ProgressStepsProps } from './ProgressSteps';
+export { VoiceNote, type VoiceNoteProps } from './VoiceNote';
+export { ReportBody, type ReportBodyProps, type ReportData, type ReportScore } from './ReportBody';
