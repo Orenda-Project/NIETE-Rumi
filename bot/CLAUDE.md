@@ -25,7 +25,8 @@
 - **Feature gating:** check `feature-availability.js`, not env vars directly; a feature is on iff its keys exist.
 - **Shared-service edits are high-blast-radius** — grep consumers, verify imports, run the suite. See the
   `cross-agent-safety` skill.
-- **LLM:** all model calls go through `shared/services/llm-client.js`.
+- **LLM:** all model calls go through `shared/services/llm-client.js`; which model each job runs is one table,
+  `shared/config/model-registry.js` (switch or revert without a deploy: [../docs/model-switching.md](../docs/model-switching.md)).
 - **Flows:** a new Flow = `shared/routes/<x>-endpoint.js` + mount in `flow-endpoint.routes.js` + `<X>_FLOW_ID`
   in `shared/utils/constants.js` + `.env.template` + a `/command` trigger in `shared/handlers/text-message.handler.js`
   + sanitized JSON in `docs/flows/`. See the `whatsapp-flows` skill.

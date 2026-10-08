@@ -6,6 +6,15 @@ const { classroomMinimumMinutes } = require('../config/classroom-audio.config');
 const { voiceLanguageRules } = require('../config/voice-language-rules'); // bd-2651
 const { getConversationHistory: getDbConversationHistory } = require('../database/bot-helpers');
 const { getClient } = require('./llm-client');
+const { toWhatsAppEmphasis } = require('../utils/text-format');
+
+/**
+ * bd-gr4fy.5.10 — the one shape every TEXT chat reply is asked for, whichever model writes it. "Keep it brief"
+ * alone was read as ~30 words by gpt-4.1-mini and ~66 by Sonnet 5, which also reached for markdown WhatsApp
+ * cannot show. Persona-neutral on purpose ("the person"): the student prompt keeps adult-persona words out.
+ * The no-markdown half is also enforced on the reply itself (toWhatsAppEmphasis), since a model may ignore it.
+ */
+const WHATSAPP_TEXT_SHAPE = 'WHATSAPP TEXT: 2-4 short sentences, about 50 words at most, unless the person asks for steps, a list or more detail. Plain WhatsApp text: no # headings, no **double asterisks**, no tables; for the odd bold word use *single asterisks*.';
 
 /**
  * OpenAI Service
@@ -238,7 +247,7 @@ ANTI-FALSE-PROMISE RULE (CRITICAL - applies to ALL languages):
 
     const formatNote = format === 'voice'
       ? '\n\nVOICE FORMAT: Keep it to a few short sentences, spoken naturally. Never end mid-sentence.'
-      : '\n\nTEXT FORMAT: Keep it WhatsApp-short.';
+      : `\n\n${WHATSAPP_TEXT_SHAPE}`;
 
     if (language === 'ur') {
       // Every borrowed term stays Latin (the catalog's own rule); the class
@@ -312,7 +321,7 @@ ANTI-FALSE-PROMISE: never say you are "creating" or "sending" something unless i
 
       const formatNote = format === 'voice'
         ? `\n\nVOICE FORMAT: Keep responses SHORT (max 60 seconds). Complete thoughts, never end mid-sentence.\n${voiceLanguageRules(language)}` // bd-2651: spoken aloud — enforce Nastaliq/anti-Hindi (ur) or pure English
-        : '\n\nTEXT FORMAT: Keep responses concise for WhatsApp. Be warm and supportive.';
+        : `\n\n${WHATSAPP_TEXT_SHAPE} Be warm and supportive.`;
 
       logToFile('Using enhanced language prompt', { language, format, ttsProvider: voiceModel?.provider ?? null, useEmotionTags });
 
@@ -411,7 +420,9 @@ CRITICAL: NEVER say "I can't do that" or "I'm unable to" for any of the capabili
 
 ANTI-FALSE-PROMISE RULE: Only say "I'm creating a lesson plan/presentation" if the user EXPLICITLY asked you to create one (e.g., "create a lesson plan", "make me a presentation"). If they just mention a topic or ask a question, provide helpful guidance - but NEVER claim you are creating documents unless they specifically requested it.
 
-For general questions, provide concise advice. Be warm and supportive. Keep responses brief for WhatsApp.`;
+For general questions, provide concise advice. Be warm and supportive.
+
+${WHATSAPP_TEXT_SHAPE}`;
     }
 
     // Text response in Arabic
@@ -445,7 +456,7 @@ IMPORTANT: When a teacher asks you to create educational materials, follow these
 
 3. **General Questions**: For other educational questions, provide concise, pedagogically sound advice in Urdu using female verb forms.
 
-Keep your responses relatively short as they will be sent via WhatsApp messages.`;
+${WHATSAPP_TEXT_SHAPE}`;
     }
 
     // The real fall-through: English, the same floor every other surface uses.
@@ -567,7 +578,10 @@ Keep your responses relatively short as they will be sent via WhatsApp messages.
         temperature: 0.7,
       });
 
-      const aiResponse = completion.choices[0].message.content;
+      // A text reply goes out in WhatsApp's own emphasis (bd-gr4fy.5.10); a voice reply is spoken, and the TTS
+      // text path normalises it there.
+      const rawResponse = completion.choices[0].message.content;
+      const aiResponse = format === 'voice' ? rawResponse : toWhatsAppEmphasis(rawResponse);
 
       // Store the turn WITHOUT the system prompt (bd-njn7u). Storing it put
       // this turn's system message — featureContext and all — at [0] of the
