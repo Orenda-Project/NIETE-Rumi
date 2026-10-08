@@ -129,6 +129,20 @@ describe('POST /e — web_quiz.error carries a sanitised err', () => {
     expect(d).not.toHaveProperty('file');
   });
 
+  test("src 'rej': a capitalised word is '_' across the WHOLE message, a browser's own words kept", async () => {
+    await post([
+      { ...page('Ayesha Khan not found'), src: 'rej' },
+      { ...page('[object Event]'), src: 'rej' },
+      { ...page('NotAllowedError: play() failed'), src: 'rej' },
+      { ...page('Ayesha Khan not found'), src: 'win' },
+    ]);
+    const errs = logged('web_quiz.error').map((p) => p.err);
+    expect(errs[0]).toBe('not found');
+    expect(errs[1]).toBe('object event');
+    expect(errs[2]).toBe('notallowederror: play_ failed');
+    expect(errs[3]).toBe('ayesha khan not found'); // a window error's text up to its first unsafe character: as before
+  });
+
   test('any OTHER event keeps the strict err shape: free text is still dropped there', async () => {
     await post([{ n: 'audio_fallback', err: 'Some free text' }, { n: 'audio_fallback', err: 'net_fail' }]);
     expect(logged('web_quiz.audio_fallback')).toEqual([{}, { err: 'net_fail' }]);

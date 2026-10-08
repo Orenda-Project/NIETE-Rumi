@@ -758,8 +758,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   });
   window.addEventListener('unhandledrejection', function (e) {
     var r = e && e.reason, at = errAt(r), msg;
-    // A non-Error reason (an Event, a string) says what it is in its own text: "[object Event]".
-    try { msg = String((r && r.message) || (r == null ? 'rejection' : r)); } catch (x) { msg = 'rejection'; }
+    // A non-Error reason says what it is by its type ("[object Event]"); a string reason's text is never sent (it may be a name).
+    try { msg = r && r.message ? String(r.message) : typeof r === 'string' ? 'string_rejection' : r == null ? 'rejection' : Object.prototype.toString.call(r); } catch (x) { msg = 'rejection'; }
     ev('error', { err: msg.slice(0, 200), src: 'rej', file: at.file, line: at.line, col: at.col });
   });
 

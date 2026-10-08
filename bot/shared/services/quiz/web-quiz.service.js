@@ -1717,15 +1717,16 @@ const BROWSER_WORD = /^(?:[A-Z][A-Za-z]*(?:Error|Exception|Event|Element|Array|O
  * ("[object Event]", "Cannot read properties of null (reading 'x')") is the only clue to a page that broke on
  * a real phone, so it is kept as a slug instead of being cut at its first '[' or quote. Past that first unsafe
  * character a capitalised word that is not a browser's own word is '_', so a name there is no more readable
- * than when the message was cut at that point. Text with nothing Latin left is 'unreadable'. Pure.
+ * than when the message was cut at that point. `whole` (an unhandled rejection's reason, which can be any value
+ * the page held) applies that from the first character. Text with nothing Latin left is 'unreadable'. Pure.
  */
-function safeErr(v) {
+function safeErr(v, { whole = false } = {}) {
   if (typeof v !== 'string') return null;
   let s = v;
   const url = s.search(/[a-z][a-z0-9+.-]*:\/\//i);
   if (url >= 0) s = s.slice(0, url);
   if (!s.trim()) return null;
-  const bad = s.toLowerCase().search(/[^a-z0-9_ .:-]/);
+  const bad = whole ? 0 : s.toLowerCase().search(/[^a-z0-9_ .:-]/);
   if (bad >= 0) s = s.slice(0, bad) + s.slice(bad).replace(/(^|[^A-Za-z])([A-Z][A-Za-z]*)/g, (m, pre, w) => pre + (BROWSER_WORD.test(w) ? w : '_'));
   s = s.toLowerCase().replace(/[^a-z0-9_ .:-]+/g, '_').replace(/_+/g, '_');
   // A long word with digits in it is a token or an id, never a reason.
@@ -1758,7 +1759,7 @@ function cleanEvent(e) {
     if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
   }
   if (e.n === 'error') {
-    const err = safeErr(e.err);
+    const err = safeErr(e.err, { whole: e.src === 'rej' });
     if (err) props.err = err;
   }
   for (const k of EVENT_NUMS) {
