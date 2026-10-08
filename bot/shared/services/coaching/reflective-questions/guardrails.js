@@ -71,7 +71,64 @@ function validateQuestion(question, corpus = {}, firstName = '', profile = {}) {
   // are stripped first — quoting what a child actually said stays allowed.
   if (profile.language === 'English' && _isRomanUrdu(q)) v.push('wrong_language');
 
+  // Urdu verbs carry gender, and we do not know hers (bd-gr4fy.5.12). Fires a RETRY with the reason.
+  if (profile.language === 'Urdu' && genderedAddress(q).length) v.push('gendered_address');
+
   return v;
+}
+
+// ── bd-gr4fy.5.12: is a verb addressed to HER in a gendered form? ─────────────────────────────────
+// "کیا آپ ... آزمانا چاہیں گے؟" is masculine, "چاہیں گی" feminine, "آپ چاہتے ہیں" masculine. Measured on
+// production (2026-10-08): 152/164 Urdu questions on Sonnet 5 and 166/230 on DeepSeek V3.2 did it, and 44/166
+// Urdu commitment cards. A verb is hers when آپ is the subject of its clause (not «آپ نے/کے/کو…»), or, for
+// «چاہیں گے/گی», when the clause has no other subject: Urdu drops آپ ("اس وقت کیا آزمانا چاہیں گی؟").
+// Children's verbs ("بچے کیا سیکھیں گے"), «ہم», quotes and noun agreement ("کون سا قدم مفید رہے گا") pass.
+const UR_POSTPOSITIONS = new Set(['نے', 'کے', 'کی', 'کا', 'کو', 'سے', 'پر', 'میں', 'تک', 'والے', 'والی', 'جیسے', 'جیسی', 'جیسا', 'لیے', 'لئے']);
+const UR_CLAUSE_BREAKS = new Set(['تو', 'کہ', 'جب', 'اور', 'لیکن', 'مگر', 'تاکہ', 'اگر', 'یا', 'بلکہ', 'کیونکہ', 'جبکہ']);
+const UR_OTHER_SUBJECTS = new Set(['بچے', 'بچہ', 'بچی', 'بچیاں', 'طلبہ', 'طلباء', 'طالبات', 'لوگ', 'ساتھی', 'وہ', 'ہم']);
+const UR_GENDERED = [
+  /(?:یں|ئیں)\s+(?:گے|گی)(?=[\s؟۔،!?.]|$)/u, // future: کریں گے / چاہیں گی
+  /(?:تے|تی)\s+(?:ہیں|تھے|تھیں|ہوں)(?=[\s؟۔،!?.]|$)/u, // habitual: سوچتے ہیں / چاہتی ہیں
+  /(?:^|\s)(?:رہے|رہی|سکتے|سکتی|چکے|چکی)\s+(?:ہیں|تھے|تھیں)(?=[\s؟۔،!?.]|$)/u, // progressive, potential, perfect
+];
+const UR_DROPPED_SUBJECT_VERBS = [/چاہیں\s+(?:گے|گی)(?=[\s؟۔،!?.]|$)/u];
+
+function _urClauses(text) {
+  const out = [];
+  for (const sentence of _stripQuotes(text).replace(/«[^»]*»/g, ' ').split(/[؟۔!?\n]+/u)) {
+    for (const part of sentence.split(/[،,;—–]/u)) {
+      const clauses = [[]];
+      for (const t of part.trim().split(/\s+/u).filter(Boolean)) {
+        if (UR_CLAUSE_BREAKS.has(t)) clauses.push([]); else clauses[clauses.length - 1].push(t);
+      }
+      out.push(...clauses.filter((c) => c.length));
+    }
+  }
+  return out;
+}
+
+const _isSubject = (tokens, i) => !UR_POSTPOSITIONS.has(tokens[i + 1]);
+
+/**
+ * @param {string} text  Urdu text that speaks to the teacher (a question, a commitment card).
+ * @returns {string[]} the clauses that address her with a gendered verb; empty = neutral.
+ */
+function genderedAddress(text) {
+  const hits = [];
+  for (const c of _urClauses(text)) {
+    const at = c.findIndex((t, i) => t === 'آپ' && _isSubject(c, i));
+    if (at >= 0) {
+      const rest = [];
+      for (let j = at + 1; j < c.length; j++) {
+        if (UR_OTHER_SUBJECTS.has(c[j]) && c[j] !== 'وہ' && _isSubject(c, j)) break; // another subject takes over
+        rest.push(c[j]);
+      }
+      if (UR_GENDERED.some((re) => re.test(` ${rest.join(' ')}`))) { hits.push(c.join(' ')); continue; }
+    }
+    const ownSubject = c.some((t, i) => UR_OTHER_SUBJECTS.has(t) && _isSubject(c, i));
+    if (!ownSubject && UR_DROPPED_SUBJECT_VERBS.some((re) => re.test(` ${c.join(' ')}`))) hits.push(c.join(' '));
+  }
+  return hits;
 }
 
 /**
@@ -155,4 +212,4 @@ function buildSafeFallback(questionNumber, corpus, profile = {}) {
   return set[questionNumber] || set[1];
 }
 
-module.exports = { validateQuestion, buildSafeFallback, WORD_LIMIT };
+module.exports = { validateQuestion, buildSafeFallback, genderedAddress, WORD_LIMIT };

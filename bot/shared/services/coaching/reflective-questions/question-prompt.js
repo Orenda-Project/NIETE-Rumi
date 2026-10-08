@@ -20,10 +20,12 @@
 // call-coaching and chat-coaching cannot drift apart (bd-1hae7.5).
 const { buildCoachingVoice } = require('../../../config/coaching-voice');
 
+const DEFAULT_FORWARD_CLOSE = '"…and the next time you reach that same kind of moment, what is the one small thing you\'d want to try?"';
+
 const Q_BEATS = {
   1: `THIS IS THE ONE REFLECTIVE QUESTION — the teacher gets EXACTLY ONE, so make it the single highest-leverage move. Keep it SHORT and speakable: ONE question, HARD CAP ~55-70 words total. Two folded beats:
 1) THE IMPASSE (this is the engine). Name TWO distant moments in the corpus where the SAME children did DIFFERENT cognitive work — e.g. reasoning/discovering for themselves at one point, and being given a rule / corrected / drilled at another. State each briefly and concretely: roughly WHEN, what was said or done, quote the real words, name a child ONLY if named_student is set. Put them side by side and ask her to make sense of the SHIFT between them — what changed in the children's thinking? Do NOT resolve it, do NOT hint which was "better": HERS to interpret. (Duncker/Ohlsson + Beeman-Kounios: insight lives in a held contradiction between two moments.)
-2) A LIGHT FORWARD CLOSE (one short clause, a genuine invitation — NEVER a demand, NEVER advice-with-a-question-mark): "…and the next time you reach that same kind of moment, what is the one small thing you'd want to try?" — tied to a CUE she can SEE again (a child answering in one or two words; tomorrow's first problem), never a vague mental state. (Gollwitzer-Sheeran: an if-then with a real cue moves behaviour.)
+2) A LIGHT FORWARD CLOSE (one short clause, a genuine invitation — NEVER a demand, NEVER advice-with-a-question-mark): {forwardClose} — tied to a CUE she can SEE again (a child answering in one or two words; tomorrow's first problem), never a vague mental state. (Gollwitzer-Sheeran: an if-then with a real cue moves behaviour.)
 Do NOT add a third "what does this tell you about how they learn" clause — that bloats it; the interpretation is already carried by "what changed in their thinking". If the lesson truly has only ONE strong moment, use it (interpret, never justify) and keep the light forward close. STAY UNDER ~70 words.`,
 };
 
@@ -36,7 +38,12 @@ Do NOT add a third "what does this tell you about how they learn" clause — tha
  */
 function buildQuestionPrompt(questionNumber, corpus, profile, firstName = '') {
   const { language, script, region, avoid_hint = '', gender_hint = '' } = profile;
-  const beat = (Q_BEATS[questionNumber] || Q_BEATS[1]).replace(/\{firstName\}/g, firstName || 'the teacher');
+  // bd-gr4fy.5.12: the close comes from the language. In English "what would you want to try?" is neutral; said in
+  // Urdu it needs a gendered verb («چاہیں گے/گی»), so the Urdu profile carries a noun-agreeing close of its own.
+  const forwardClose = profile.forward_close || DEFAULT_FORWARD_CLOSE;
+  const beat = (Q_BEATS[questionNumber] || Q_BEATS[1])
+    .replace(/\{firstName\}/g, firstName || 'the teacher')
+    .replace(/\{forwardClose\}/g, forwardClose);
 
   // This question is read aloud by a text-to-speech voice. For a non-Latin-script
   // language (e.g. Urdu Nastaliq) two things break the voice and MUST be enforced in-prompt:

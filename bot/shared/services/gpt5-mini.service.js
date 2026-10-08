@@ -784,7 +784,9 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
         { role: 'user', content: `LESSON TRANSCRIPT:\n${transcript}` }],
       { maxTokens: 3000, step: 'corpus' },
     );
-    const corpus = this._safeJsonParse(content);
+    // bd-gr4fy.5.13: a moment's time anchor is spelled as the teacher reads it («قریب», never «کریب»).
+    const { normaliseCorpus } = require('./coaching/reflective-questions/corpus-normalise');
+    const corpus = normaliseCorpus(this._safeJsonParse(content), languageCode);
     logToFile('[refl-q] corpus extracted', { model_used, language: profile.language });
     return { corpus, usage, model_used };
   }
@@ -830,7 +832,7 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
     let { question, model_used } = await generate(baseSys);
     let violations = validateQuestion(question, corpus, firstName, profile);
     if (violations.length) {
-      const fixSys = `${baseSys}\n\n═══ FIX THESE PROBLEMS ═══\nYour previous attempt violated: ${violations.join(', ')}. Rewrite the question: ≤65 words, NO honorifics, NO raw MM:SS times, NO "Q1/Q2" meta, ONLY child names from the corpus, write ENTIRELY in ${profile.script}, spell every number as a word. If 'judgemental_language': REMOVE every evaluative label about the class or teacher (غلط/غلطی/بے ترتیب/wrong/error/chaotic/struggling/confused/failed/misconception) — describe ONLY what was observably said or done, in warm neutral language; a word is allowed only inside a direct quote of what someone actually said.${violations.includes('wrong_language') ? ` If 'wrong_language': write the whole question in plain ${profile.language} — not Roman Urdu, not any other language in Latin letters. Only a direct quote of what someone said keeps its original words.` : ''}`;
+      const fixSys = `${baseSys}\n\n═══ FIX THESE PROBLEMS ═══\nYour previous attempt violated: ${violations.join(', ')}. Rewrite the question: ≤65 words, NO honorifics, NO raw MM:SS times, NO "Q1/Q2" meta, ONLY child names from the corpus, write ENTIRELY in ${profile.script}, spell every number as a word. If 'judgemental_language': REMOVE every evaluative label about the class or teacher (غلط/غلطی/بے ترتیب/wrong/error/chaotic/struggling/confused/failed/misconception) — describe ONLY what was observably said or done, in warm neutral language; a word is allowed only inside a direct quote of what someone actually said.${violations.includes('wrong_language') ? ` If 'wrong_language': write the whole question in plain ${profile.language} — not Roman Urdu, not any other language in Latin letters. Only a direct quote of what someone said keeps its original words.` : ''}${violations.includes('gendered_address') ? " If 'gendered_address': the question put the teacher in a gendered Urdu verb («چاہیں گے/گی», «سوچتے/سوچتی ہیں», «کرتے/کرتی ہیں»), and we do not know her gender. Rewrite it so no verb agrees with her: agree with a noun or use نے, e.g. «کون سا ایک چھوٹا قدم آزمانا مفید رہے گا؟», «آپ کا کیا خیال ہے؟», «آپ نے کیا محسوس کیا؟»." : ''}`;
       const retry = await generate(fixSys);
       const retryViolations = validateQuestion(retry.question, corpus, firstName, profile);
       if (!retryViolations.length) {
