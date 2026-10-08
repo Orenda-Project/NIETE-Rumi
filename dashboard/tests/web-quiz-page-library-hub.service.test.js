@@ -14,7 +14,7 @@ function el(sel) {
   return { sel, listeners: {}, attrs: {}, innerHTML: '', addEventListener(n, fn) { (this.listeners[n] = this.listeners[n] || []).push(fn); },
     fire(n) { (this.listeners[n] || []).forEach((fn) => fn({})); }, setAttribute(k, v) { this.attrs[k] = v; }, getAttribute(k) { return this.attrs[k]; } };
 }
-function libPage({ lang = 'en', api = {}, kid = 'c1' } = {}) {
+function libPage({ lang = 'en', api = {}, kid = 'c1', search = '' } = {}) {
   const els = {};
   const root = el('#wql-root');
   root.querySelector = (s) => (els[s] = els[s] || el(s));
@@ -24,7 +24,7 @@ function libPage({ lang = 'en', api = {}, kid = 'c1' } = {}) {
   const ctx = {
     console, JSON, Promise, setTimeout: () => 0,
     document: { getElementById: (id) => (id === 'boot' ? boot : id === 'wql-root' ? root : null), querySelector: () => null, addEventListener() {} },
-    location: { host: 'example.test', assign: (u) => assigned.push(u) },
+    location: { host: 'example.test', search, assign: (u) => assigned.push(u) },
     navigator: { userAgent: 'test' },
     fetch: (url, init) => {
       fetches.push({ url, init });
@@ -121,5 +121,23 @@ describe('a library link opened on another phone (the hub link is bound to the c
     await flush(); await flush();
     expect(p.moment()).toBe('M15-error');
     expect(p.html()).toContain('wql-retry');
+  });
+});
+
+describe('the Home button on the library (the hub passes home=1 when web_quiz_home_button is on)', () => {
+  test('home=1: a Home link to this child\'s hub, counted as from=home', async () => {
+    const p = libPage({ api: API, search: '?kid=c1&l=en&home=1' });
+    await flush(); await flush();
+    expect(p.html()).toMatch(/<a class="wq-home wq-home-top" id="wq-home" href="\/h\/HUBTOK\?kid=c1&amp;from=home"[^>]*aria-label="Home"/);
+  });
+  test('Urdu label', async () => {
+    const p = libPage({ lang: 'ur', api: API, search: '?kid=c1&l=ur&home=1' });
+    await flush(); await flush();
+    expect(p.html()).toMatch(/id="wq-home"[^>]*aria-label="ہوم"/);
+  });
+  test('without home=1: no Home (today)', async () => {
+    const p = libPage({ api: API });
+    await flush(); await flush();
+    expect(p.html()).not.toContain('id="wq-home"');
   });
 });

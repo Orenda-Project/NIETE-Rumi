@@ -328,3 +328,22 @@ describe('the home page (boot.home_v: the last quiz on top, then Videos + the Ch
     expect(p.html()).not.toContain('Your last quiz');
   });
 });
+
+describe('the hub and the Home button (boot.nav_home)', () => {
+  const LIB = { href: `/lib/${TOKEN}?kid=0000000000000001&l=en` };
+  test('the library and challenge links carry home=1, so those pages show Home', () => {
+    const p = page(boot({ lang: 'en', kids: [KIDS[0]], kid: KIDS[0].chip, lib: LIB, challenge: { on: true }, teacher: { code: 'AB12CD', topic: 'T', subject: 'maths', sent_at: new Date().toISOString(), k: 'k1' }, nav_home: true }));
+    expect(p.els['#wq-h-lib'].attrs.href).toBe(`/lib/${TOKEN}?kid=0000000000000001&l=en&home=1`);
+    expect(p.els['#wq-h-ch'].attrs.href).toMatch(/[?&]home=1$/);
+  });
+  test('without nav_home the links are today\'s', () => {
+    const p = page(boot({ lang: 'en', kids: [KIDS[0]], kid: KIDS[0].chip, lib: LIB, challenge: { on: true }, teacher: { code: 'AB12CD', topic: 'T', subject: 'maths', sent_at: new Date().toISOString(), k: 'k1' } }));
+    expect(p.els['#wq-h-lib'].attrs.href).toBe(LIB.href);
+    expect(p.els['#wq-h-ch'].attrs.href).not.toContain('home=1');
+  });
+  test('a hub opened by the Home button is counted as such (hub_view src=home)', () => {
+    const p = page(boot({ lang: 'en', kids: [KIDS[0]], kid: KIDS[0].chip }), { search: '?from=home' });
+    p.win.pagehide && p.win.pagehide.forEach((fn) => fn({}));
+    expect(p.beacons.concat([]).some((e) => e.n === 'hub_view' && e.src === 'home') || p.fetches.some((f) => /hub_view/.test(String(f.init && f.init.body)) && /"src":"home"/.test(String(f.init && f.init.body)))).toBe(true);
+  });
+});

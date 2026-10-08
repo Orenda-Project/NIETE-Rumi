@@ -148,3 +148,20 @@ describe('POST /e — web_quiz.error carries a sanitised err', () => {
     expect(logged('web_quiz.audio_fallback')).toEqual([{}, { err: 'net_fail' }]);
   });
 });
+
+describe('POST /e — the Home button and the step-back carry their props through the allow-list', () => {
+  test('home_tap {src, how} and back {src, step} arrive with every prop', async () => {
+    await post([
+      { n: 'home_tap', t: 1, code: 'QX6T2L', lang: 'en', src: 'm6', how: 'door' },
+      { n: 'home_tap', t: 2, code: 'QX6T2L', lang: 'ur', src: 'm6_review', how: 'stay' },
+      { n: 'back', t: 3, code: 'QX6T2L', lang: 'en', src: 'm6', step: 'review' },
+      { n: 'home_tap', t: 4, code: 'QX6T2L', lang: 'en', src: 'm10', how: 'Not A Slug!' },
+    ]);
+    expect(logged('web_quiz.home_tap')).toEqual([
+      { code: 'QX6T2L', lang: 'en', t: 1, src: 'm6', how: 'door' },
+      { code: 'QX6T2L', lang: 'ur', t: 2, src: 'm6_review', how: 'stay' },
+      { code: 'QX6T2L', lang: 'en', t: 4, src: 'm10' },
+    ]);
+    expect(logged('web_quiz.back')).toEqual([{ code: 'QX6T2L', lang: 'en', t: 3, src: 'm6', step: 'review' }]);
+  });
+});
