@@ -380,6 +380,7 @@ html[lang=ur] .wq-hlabel{letter-spacing:0;font-weight:700;font-size:16px;line-he
 .wq-hcard{display:flex;flex-direction:column;gap:10px;border:2px solid var(--brand);box-shadow:0 4px 0 var(--brand-d)}
 .wq-hcard .wq-hlabel{margin:0;color:var(--brand-d)}
 .wq-hnone{border-color:var(--line);box-shadow:0 3px 0 var(--line)}
+.wq-hscore{margin:0;font-weight:900;font-size:28px;color:var(--navy)}
 .wq-hnonesay{margin:0;font-weight:800;font-size:18px;line-height:1.4;color:var(--navy)}
 html[lang=ur] .wq-hnonesay{font-weight:600;font-size:17px;line-height:2}
 .wq-htiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
