@@ -722,6 +722,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function ev(n, props) {
     var e = { t: Date.now(), code: CODE, lang: LANG };
     if (props) for (var k in props) if (props[k] !== undefined) e[k] = props[k];
+    if (n === 'error' && e.src === undefined) e.src = 'h'; // a failure the page caught itself
     e.n = n;
     evq.push(e);
     if (evq.length >= 10) flushEv();
@@ -737,8 +738,30 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   setInterval(function () { flushEv(false); }, 5000);
   window.addEventListener('pagehide', function () { flushQueue(true); flushEv(true); });
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') { flushEv(true); } });
-  window.addEventListener('error', function (e) { ev('error', { err: String((e && e.message) || 'error').slice(0, 200) }); });
-  window.addEventListener('unhandledrejection', function (e) { ev('error', { err: String((e && e.reason && e.reason.message) || 'rejection').slice(0, 200) }); });
+  // Which script broke, by file name only: one of ours ('wq.js'), 'page' for the page's own inline script,
+  // 'other' for a script that is not ours (a browser or app can inject one). Never the URL.
+  function errFile(u) {
+    u = String(u || '');
+    if (!u) return undefined;
+    var own = u.indexOf(location.origin + '/') === 0;
+    var b = u.split(/[?#]/)[0].split('/').pop().toLowerCase();
+    return !own ? 'other' : /^[a-z0-9_.-]{1,37}\.js$/.test(b) ? b : 'page';
+  }
+  // An Error's first stack frame with a position: its file, line and column.
+  function errAt(r) {
+    var m = /(https?:\/\/[^\s()]+?):(\d+):(\d+)/.exec(String((r && r.stack) || ''));
+    return m ? { file: errFile(m[1]), line: +m[2], col: +m[3] } : {};
+  }
+  window.addEventListener('error', function (e) {
+    e = e || {};
+    ev('error', { err: String(e.message || 'error').slice(0, 200), src: 'win', file: errFile(e.filename), line: e.lineno || undefined, col: e.colno || undefined });
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var r = e && e.reason, at = errAt(r), msg;
+    // A non-Error reason says what it is by its type ("[object Event]"); a string reason's text is never sent (it may be a name).
+    try { msg = r && r.message ? String(r.message) : typeof r === 'string' ? 'string_rejection' : r == null ? 'rejection' : Object.prototype.toString.call(r); } catch (x) { msg = 'rejection'; }
+    ev('error', { err: msg.slice(0, 200), src: 'rej', file: at.file, line: at.line, col: at.col });
+  });
 
   /* ---------------- api ---------------- */
   function api(method, path, body) {
