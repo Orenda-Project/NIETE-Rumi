@@ -9,22 +9,20 @@ import { dataOf, useLoad } from '../../newui/lessons/shared';
 import TeacherPage from '../TeacherPage';
 import { teacherPath } from '../routes';
 import { FeatureGlyph, type TeacherFeature } from '../icons';
-import { DateRangeBar, KpiTiles, StatusChip, TEACHER_UI_COPY } from '../ui';
+import { DateRangeBar, KpiTiles, StatusChip } from '../ui';
+import { useKitCopy } from '../ui/useKitCopy';
+import { useCopy } from '../i18n';
 import { resolveRange } from '../ui/range';
 import { CARD, CHEVRON, FOCUS, ROW_DIVIDER } from '../ui/styles';
 import { LESSONS_ALL } from '../lessons/paths';
 import { COACHING_ALL } from '../coaching/paths';
 import { EmptyCard, LoadState, SectionHeading } from '../classes/parts';
 import { BandChart } from './BandChart';
-import { ANALYTICS_V2_COPY as C } from './copy';
+import { ANALYTICS } from './copy';
 import {
-  activityKpis, areaRows, bandTrend, observationKpis, presenceRows, previousRange, remarkItems,
+  activityKpis, areaRows, bandRows, bandTrend, observationKpis, presenceRows, previousRange, remarkItems,
 } from './model';
 
-const isoDay = (iso: string) => {
-  const [, m, d] = iso.split('-').map(Number);
-  return C.day(d, m - 1);
-};
 
 function Section({ label, children }: { label: string; children: ReactNode }) {
   return <section aria-label={label} className="flex flex-col gap-2.5">{children}</section>;
@@ -55,11 +53,17 @@ function SeeAllRow({ to, label, glyph, first }: { to: string; label: string; gly
  *   Principal remarks   the quarterly remarks she received
  */
 export function AnalyticsPage() {
+  const C = useCopy(ANALYTICS);
+  const kit = useKitCopy();
+  const isoDay = (iso: string) => {
+    const [, m, d] = iso.split('-').map(Number);
+    return C.day(d, m - 1);
+  };
   const [range, setRange] = useState<DateRange>(DEFAULT_RANGE);
   const dates = useMemo(() => {
-    const r = resolveRange(range, pkToday());
-    return { ...r, compareLabel: r.prevSpan ? TEACHER_UI_COPY.compareWith(r.prevSpan) : '' };
-  }, [range]);
+    const r = resolveRange(range, pkToday(), kit.months);
+    return { ...r, compareLabel: r.prevSpan ? kit.compareWith(r.prevSpan) : '' };
+  }, [range, kit]);
   const before = useMemo(() => previousRange(dates), [dates]);
   const rangeKey = JSON.stringify([range, dates.from, dates.to]);
 
@@ -74,10 +78,10 @@ export function AnalyticsPage() {
 
   const p = dataOf(progress);
   const m = dataOf(mine);
-  const trend = bandTrend(m?.analytics?.scoreTrend);
-  const areas = areaRows(m?.analytics?.areas);
+  const trend = bandTrend(m?.analytics?.scoreTrend, C);
+  const areas = areaRows(m?.analytics?.areas, C);
   const presence = presenceRows(m?.presence);
-  const remarks = remarkItems(m?.remarksReceived);
+  const remarks = remarkItems(m?.remarksReceived, C);
 
   return (
     <TeacherPage crumb={C.more} title={C.title} backTo={teacherPath('more')}>
@@ -87,11 +91,11 @@ export function AnalyticsPage() {
         <>
           <Section label={C.activity}>
             <SectionHeading>{C.activity}</SectionHeading>
-            <KpiTiles items={activityKpis(p.cur, p.prev)} compareLabel={dates.compareLabel} />
+            <KpiTiles items={activityKpis(p.cur, p.prev, C)} compareLabel={dates.compareLabel} />
           </Section>
           <Section label={C.observationsHeading}>
             <SectionHeading>{C.observationsHeading}</SectionHeading>
-            <KpiTiles items={observationKpis(p.cur, p.prev)} compareLabel={dates.compareLabel} />
+            <KpiTiles items={observationKpis(p.cur, p.prev, C)} compareLabel={dates.compareLabel} />
           </Section>
           <nav aria-label={C.title} className={cn(CARD, 'overflow-hidden')}>
             <SeeAllRow to={LESSONS_ALL} label={C.allLessonPlans} glyph="lessons" first />
@@ -113,6 +117,7 @@ export function AnalyticsPage() {
               <BandChart
                 points={trend}
                 dateLabel={isoDay}
+                rows={bandRows(C)}
                 label={trend.map((t) => `${t.band} ${isoDay(t.date)}`).join(', ')}
               />
             ) : (

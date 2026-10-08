@@ -1,9 +1,9 @@
 import type { RemarkReceived, SchoolAnalytics, SchoolPresence } from '../../types/portal';
 import type { ProgressCounts } from '../../newui/home/progressApi';
 import type { DateRange } from '../../newui/range';
-import { BAND_THRESHOLDS, bandLabel, scoreBandFor, scoreBandForScore, type BandKey } from '../../lib/scoreBands';
+import { BAND_THRESHOLDS, scoreBandFor, scoreBandForScore, type BandKey } from '../../lib/scoreBands';
 import type { KpiItem } from '../ui';
-import { ANALYTICS_V2_COPY as C } from './copy';
+import { ANALYTICS_V2_COPY, type AnalyticsCopy } from './copy';
 
 /**
  * bd-fmf24g.8 — what the teacher v2 Analytics page shows, computed from the existing answers:
@@ -23,7 +23,7 @@ function kpi(value: unknown, before: unknown, label: string, hasBefore: boolean)
 }
 
 /** Lesson plans used, modules done, papers made, attendance days — with the change against `prev`. */
-export function activityKpis(cur: ProgressCounts, prev: ProgressCounts | null): KpiItem[] {
+export function activityKpis(cur: ProgressCounts, prev: ProgressCounts | null, C: AnalyticsCopy = ANALYTICS_V2_COPY): KpiItem[] {
   const p = prev ?? {};
   const has = prev !== null;
   return [
@@ -35,7 +35,7 @@ export function activityKpis(cur: ProgressCounts, prev: ProgressCounts | null): 
 }
 
 /** Coach and principal observations, and her Digital Coaching lessons. */
-export function observationKpis(cur: ProgressCounts, prev: ProgressCounts | null): KpiItem[] {
+export function observationKpis(cur: ProgressCounts, prev: ProgressCounts | null, C: AnalyticsCopy = ANALYTICS_V2_COPY): KpiItem[] {
   const p = prev ?? {};
   const has = prev !== null;
   return [
@@ -52,26 +52,33 @@ export function previousRange(r: { prevFrom: string | null; prevTo: string | nul
 /** The five band rows, best on top — the chart's gridlines. */
 export const BAND_ROWS: ReadonlyArray<{ key: BandKey; label: string }> = BAND_THRESHOLDS.map((b) => ({ key: b.key, label: b.label }));
 
+/** The same rows, named in the page's language. */
+export function bandRows(C: AnalyticsCopy = ANALYTICS_V2_COPY): ReadonlyArray<{ key: BandKey; label: string }> {
+  return BAND_THRESHOLDS.map((b) => ({ key: b.key, label: C.bands[b.key] }));
+}
+
+const bandName = (key: BandKey | null, C: AnalyticsCopy) => (key ? C.bands[key] : null);
+
 export type TrendPoint = { date: string; row: number; band: string };
 
 /** Her rated (Human) observations, oldest first, each on its band's row (0 = Excellent). */
-export function bandTrend(points: SchoolAnalytics['scoreTrend'] | null | undefined): TrendPoint[] {
+export function bandTrend(points: SchoolAnalytics['scoreTrend'] | null | undefined, C: AnalyticsCopy = ANALYTICS_V2_COPY): TrendPoint[] {
   return (points ?? [])
     .map((p) => ({ date: p.date, key: scoreBandFor(p.percentage) }))
     .filter((p): p is { date: string; key: BandKey } => p.key !== null && !!p.date)
     .sort((a, b) => a.date.localeCompare(b.date))
-    .map((p) => ({ date: p.date, row: BAND_ROWS.findIndex((b) => b.key === p.key), band: bandLabel(p.key) as string }));
+    .map((p) => ({ date: p.date, row: BAND_ROWS.findIndex((b) => b.key === p.key), band: bandName(p.key, C) as string }));
 }
 
 export type AreaRow = { key: string; name: string; band: string; width: number; focus: boolean };
 
 /** The STEPS areas from Human observations, strongest first; the weakest is the focus. */
-export function areaRows(areas: SchoolAnalytics['areas'] | null | undefined): AreaRow[] {
+export function areaRows(areas: SchoolAnalytics['areas'] | null | undefined, C: AnalyticsCopy = ANALYTICS_V2_COPY): AreaRow[] {
   const sorted = [...(areas ?? [])].filter((a) => num(a.pct) !== null).sort((a, b) => b.pct - a.pct);
   return sorted.map((a, i) => ({
     key: a.key,
     name: a.name,
-    band: bandLabel(scoreBandFor(a.pct)) ?? '',
+    band: bandName(scoreBandFor(a.pct), C) ?? '',
     width: Math.max(0, Math.min(100, Math.round(a.pct))),
     focus: sorted.length > 1 && i === sorted.length - 1,
   }));
@@ -95,7 +102,7 @@ export function presenceRows(p: SchoolPresence | null | undefined): PresenceRows
 }
 
 /** A timestamp as Pakistan's calendar day, "28 Sep". */
-function pkDay(iso: string | null): string {
+function pkDay(iso: string | null, C: AnalyticsCopy): string {
   if (!iso) return '';
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return '';
@@ -112,17 +119,17 @@ export type RemarkItem = {
 };
 
 /** Principal remarks, newest first: date, cycle, comment; without a comment, each area and its band. */
-export function remarkItems(remarks: RemarkReceived[] | null | undefined): RemarkItem[] {
+export function remarkItems(remarks: RemarkReceived[] | null | undefined, C: AnalyticsCopy = ANALYTICS_V2_COPY): RemarkItem[] {
   return (remarks ?? [])
     .map((r, i) => ({ r, i }))
     .sort((a, b) => (b.r.submittedAt ?? '').localeCompare(a.r.submittedAt ?? ''))
     .map(({ r, i }) => ({
       key: `${r.submittedAt ?? ''}-${i}`,
-      date: pkDay(r.submittedAt),
+      date: pkDay(r.submittedAt, C),
       cycle: r.cycleName ?? null,
       comment: r.comment && r.comment.trim() ? r.comment : null,
       areas: r.comment && r.comment.trim()
         ? []
-        : (r.areas ?? []).map((a) => ({ name: a.name, band: bandLabel(scoreBandForScore(a.score, 4)) ?? '' })),
+        : (r.areas ?? []).map((a) => ({ name: a.name, band: bandName(scoreBandForScore(a.score, 4), C) ?? '' })),
     }));
 }
