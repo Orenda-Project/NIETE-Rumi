@@ -123,6 +123,11 @@ function normalize(payload) {
       return { type: 'interactive.flow', txt, btns: [p.flow_cta].filter(Boolean),
         flow: { id: p.flow_id, cta: p.flow_cta, token: p.flow_token, action: p.flow_action } };
     }
+    if (it.type === 'cta_url') {
+      const p = action.parameters || {};
+      check('button', p.display_text, CAPS.button);
+      return { type: 'interactive.cta_url', txt, btns: [p.display_text].filter(Boolean), cta: { text: p.display_text, url: p.url } };
+    }
     return { type: 'interactive.' + it.type, txt, btns: [] };
   }
   if (['document', 'image', 'audio', 'video', 'sticker'].includes(type) && payload[type]) {
