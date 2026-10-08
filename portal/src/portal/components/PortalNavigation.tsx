@@ -8,6 +8,8 @@ import { useLogoutGuard } from '../lib/recordingSession';
 import { useNewUi } from '../lib/useNewUi';
 import NewUiNavigation from '../newui/NewUiNavigation';
 import { useCoachV2, isCoachV2For } from '../coach/useCoachV2';
+import { useTeacherV2, isTeacherV2For } from '../teacher/useTeacherV2';
+import TeacherNavigation from '../teacher/TeacherNavigation';
 import { cn } from '@/lib/utils';
 import nieteLogo from '@/assets/niete-logo.png';
 
@@ -32,6 +34,10 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
   // items, and it wins over the new UI for a coach. Off, loading, unreadable,
   // or not a coach: the markup below, unchanged.
   const coachV2 = isCoachV2For(user, useCoachV2(user?.phoneNumber || null));
+  // bd-fmf24g.1 — the teacher app v2, for a teacher with portal_teacher_v2 only (never the
+  // leader family). It wins over the new UI. Off, loading, unreadable, or not a teacher:
+  // the markup below, unchanged.
+  const teacherV2 = isTeacherV2For(user, useTeacherV2(user?.phoneNumber || null));
   const currentPath = location.pathname;
 
   // bd-2434 (Leader Portal): the school-leader family gets the leader nav
@@ -127,6 +133,8 @@ const PortalNavigation = ({ hideStrip = false }: { hideStrip?: boolean } = {}) =
   const isActive = (path: string) => (coachV2 && COACH_SECTIONS[path]
     ? COACH_SECTIONS[path].some((p) => currentPath === p || currentPath.startsWith(`${p}/`))
     : currentPath === path);
+
+  if (teacherV2) return <TeacherNavigation />;
 
   if (newUiOn && !coachV2) {
     return (

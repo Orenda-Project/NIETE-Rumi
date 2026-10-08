@@ -99,6 +99,14 @@ const PORTAL_NEW_UI_KEY = 'portal_new_ui';
 const PORTAL_COACH_V2_KEY = 'portal_coach_v2';
 
 /**
+ * bd-fmf24g.1 — app_settings key for the TEACHER app v2 (the v28 teacher design:
+ * Home with illustrated feature tiles, Lesson Plans, Digital Coaching, Training…).
+ * Same shape and rule as the keys above: true = everyone, a list of users.id =
+ * a pilot, absent = off. The portal shows it to teachers only (never the leader family).
+ */
+const PORTAL_TEACHER_V2_KEY = 'portal_teacher_v2';
+
+/**
  * bd-3bvfj — a flag that can be on for EVERYONE or for a PILOT.
  *
  *   true (or "true")            → on for every user
@@ -192,6 +200,7 @@ module.exports = {
   PORTAL_COACH_OBSERVATION_KEY,
   PORTAL_NEW_UI_KEY,
   PORTAL_COACH_V2_KEY,
+  PORTAL_TEACHER_V2_KEY,
   isFlagEnabledForUser,
   isCoachObservationOn,
   ASSESSMENT_GENERATOR_KEY,
