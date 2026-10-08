@@ -2,66 +2,20 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { isPortalTarget } from "@/lib/runtime";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import Index from "./pages/Index";
-import HowItWorks from "./pages/HowItWorks";
 import NotFound from "./pages/NotFound";
-import PortalSetup from "./portal/pages/PortalSetup";
 import PortalLogin from "./portal/pages/PortalLogin";
 import PortalRoot from "./portal/pages/PortalRoot";
-import PortalPasswordReset from "./portal/pages/PortalPasswordReset";
-import PortalPasswordResetVerify from "./portal/pages/PortalPasswordResetVerify";
-import PortalDeleteAccount from "./portal/pages/PortalDeleteAccount";
-import PortalPrivacy from "./portal/pages/PortalPrivacy";
-import PortalAccount from "./portal/pages/PortalAccount";
 import PortalDashboard from "./portal/pages/PortalDashboard";
-import PortalHomeList from "./portal/pages/PortalHomeList";
-import PortalAssessment from "./portal/pages/PortalAssessment";
 import { ASSESSMENT_ROUTES } from "./portal/lib/assessmentRoutes";
-import PortalClasses from "./portal/pages/PortalClasses";
-import PortalCurriculum from "./portal/pages/PortalCurriculum";
-import PortalTraining from "./portal/pages/PortalTraining";
-import PortalTrainingPage from "./portal/pages/PortalTrainingPage";
 import { TRAINING_ROUTES } from "./portal/lib/trainingRoutes";
-import PortalCoaching from "./portal/pages/PortalCoaching";
-import PortalCoachingAnalytics from "./portal/pages/PortalCoachingAnalytics";
-import PortalCoachingDetail from "./portal/pages/PortalCoachingDetail";
-import PortalCoachingRecord from "./portal/pages/PortalCoachingRecord";
-import LeaderHome from "./portal/pages/LeaderHome";
-import LeaderTeachers from "./portal/pages/LeaderTeachers";
-import LeaderTeacherDetail from "./portal/pages/LeaderTeacherDetail";
-import LeaderObservations from "./portal/pages/LeaderObservations";
-import LeaderObserveRecord from "./portal/pages/LeaderObserveRecord";
-import LeaderObservation from "./portal/pages/LeaderObservation";
-import LeaderObserveDraft from "./portal/pages/LeaderObserveDraft";
-import LeaderObserveTalk from "./portal/pages/LeaderObserveTalk";
-// bd-o15qnr — the coach app v2 (behind portal_coach_v2; each page gates itself).
-import CoachHome from "./portal/coach/pages/CoachHome";
-import CoachScheduling from "./portal/coach/pages/CoachScheduling";
-import CoachSchedule from "./portal/coach/pages/CoachSchedule";
-import CoachTeam from "./portal/coach/pages/CoachTeam";
-import CoachNewVisit from "./portal/coach/pages/CoachNewVisit";
-import CoachObserve from "./portal/coach/pages/CoachObserve";
-import CoachObservePick from "./portal/coach/pages/CoachObservePick";
-import CoachVisit from "./portal/coach/pages/CoachVisit";
-import CoachReports from "./portal/coach/pages/CoachReports";
-import CoachPeople from "./portal/coach/pages/CoachPeople";
-import CoachSchool from "./portal/coach/pages/CoachSchool";
-import CoachTeacher from "./portal/coach/pages/CoachTeacher";
-import CoachRecord from "./portal/coach/pages/CoachRecord";
-import CoachAttach from "./portal/coach/pages/CoachAttach";
-import CoachCheckSend from "./portal/coach/pages/CoachCheckSend";
-import CoachObservation from "./portal/coach/pages/CoachObservation";
-import CoachEditTeacher from "./portal/coach/pages/CoachEditTeacher";
 // bd-fmf24g.1 — the teacher app v2 (behind portal_teacher_v2): every page a feature registers
 // in teacher/<folder>/routes.tsx, each one wrapped in the flag gate.
 import { TEACHER_ROUTES } from "./portal/teacher/routes";
 import TeacherGate from "./portal/teacher/TeacherGate";
-// bd-60117 — a principal's school-level Analytics tab.
-import SchoolAnalytics from "./portal/pages/SchoolAnalytics";
 import LegacyAttendanceRedirect from "./portal/components/LegacyAttendanceRedirect";
 import AppLinkListener from "./portal/components/AppLinkListener";
 import BackButtonHandler from "./portal/components/BackButtonHandler";
@@ -69,11 +23,77 @@ import BackButtonHandler from "./portal/components/BackButtonHandler";
 import { RecordingSessionProvider } from "./portal/lib/recordingSession";
 // bd-fxk3t8 — the signed-in user, read once per visit above every route.
 import { AuthProvider } from "./portal/hooks/AuthProvider";
-// bd-60121 — every observed lesson, its own page.
-import SchoolLessons from "./portal/pages/SchoolLessons";
+import { FrameSkeleton, LoginSkeleton } from "./portal/components/Skeleton";
+import { readShellHint } from "./portal/lib/shellHint";
+import { lazyPage as page, prefetchPages } from "./lib/lazyPage";
 /* Reading assessments + video library are not part of NIETE's launch scope. Routes + imports
  * removed so the URLs 404 rather than expose unfinished screens. Restore by re-adding both
  * imports and the /portal/reading-* + /portal/video* routes below. */
+
+/**
+ * bd-fxk3t8 — every page that is not an entry point is its own chunk (lib/lazyPage), so the
+ * first paint waits only for what the first screen needs (sign-in, "/", today's Home, the
+ * teacher v2 pages). The rest load when first opened — behind the page already on screen
+ * (the router's transitions keep it there; no blank, no spinner) — and, once the app is
+ * idle, all of them are fetched in the background so a later tap is instant.
+ */
+const Index = page(() => import("./pages/Index"));
+const HowItWorks = page(() => import("./pages/HowItWorks"));
+const PortalSetup = page(() => import("./portal/pages/PortalSetup"));
+const PortalPasswordReset = page(() => import("./portal/pages/PortalPasswordReset"));
+const PortalPasswordResetVerify = page(() => import("./portal/pages/PortalPasswordResetVerify"));
+const PortalDeleteAccount = page(() => import("./portal/pages/PortalDeleteAccount"));
+const PortalPrivacy = page(() => import("./portal/pages/PortalPrivacy"));
+const PortalAccount = page(() => import("./portal/pages/PortalAccount"));
+const PortalHomeList = page(() => import("./portal/pages/PortalHomeList"));
+const PortalAssessment = page(() => import("./portal/pages/PortalAssessment"));
+const PortalClasses = page(() => import("./portal/pages/PortalClasses"));
+const PortalCurriculum = page(() => import("./portal/pages/PortalCurriculum"));
+const PortalTraining = page(() => import("./portal/pages/PortalTraining"));
+const PortalTrainingPage = page(() => import("./portal/pages/PortalTrainingPage"));
+const PortalCoaching = page(() => import("./portal/pages/PortalCoaching"));
+const PortalCoachingAnalytics = page(() => import("./portal/pages/PortalCoachingAnalytics"));
+const PortalCoachingDetail = page(() => import("./portal/pages/PortalCoachingDetail"));
+const PortalCoachingRecord = page(() => import("./portal/pages/PortalCoachingRecord"));
+const LeaderHome = page(() => import("./portal/pages/LeaderHome"));
+const LeaderTeachers = page(() => import("./portal/pages/LeaderTeachers"));
+const LeaderTeacherDetail = page(() => import("./portal/pages/LeaderTeacherDetail"));
+const LeaderObservations = page(() => import("./portal/pages/LeaderObservations"));
+const LeaderObserveRecord = page(() => import("./portal/pages/LeaderObserveRecord"));
+const LeaderObservation = page(() => import("./portal/pages/LeaderObservation"));
+const LeaderObserveDraft = page(() => import("./portal/pages/LeaderObserveDraft"));
+const LeaderObserveTalk = page(() => import("./portal/pages/LeaderObserveTalk"));
+// bd-o15qnr — the coach app v2 (behind portal_coach_v2; each page gates itself).
+const CoachHome = page(() => import("./portal/coach/pages/CoachHome"));
+const CoachScheduling = page(() => import("./portal/coach/pages/CoachScheduling"));
+const CoachSchedule = page(() => import("./portal/coach/pages/CoachSchedule"));
+const CoachTeam = page(() => import("./portal/coach/pages/CoachTeam"));
+const CoachNewVisit = page(() => import("./portal/coach/pages/CoachNewVisit"));
+const CoachObserve = page(() => import("./portal/coach/pages/CoachObserve"));
+const CoachObservePick = page(() => import("./portal/coach/pages/CoachObservePick"));
+const CoachVisit = page(() => import("./portal/coach/pages/CoachVisit"));
+const CoachReports = page(() => import("./portal/coach/pages/CoachReports"));
+const CoachPeople = page(() => import("./portal/coach/pages/CoachPeople"));
+const CoachSchool = page(() => import("./portal/coach/pages/CoachSchool"));
+const CoachTeacher = page(() => import("./portal/coach/pages/CoachTeacher"));
+const CoachRecord = page(() => import("./portal/coach/pages/CoachRecord"));
+const CoachAttach = page(() => import("./portal/coach/pages/CoachAttach"));
+const CoachCheckSend = page(() => import("./portal/coach/pages/CoachCheckSend"));
+const CoachObservation = page(() => import("./portal/coach/pages/CoachObservation"));
+const CoachEditTeacher = page(() => import("./portal/coach/pages/CoachEditTeacher"));
+// bd-60117 — a principal's school-level Analytics tab.
+const SchoolAnalytics = page(() => import("./portal/pages/SchoolAnalytics"));
+// bd-60121 — every observed lesson, its own page.
+const SchoolLessons = page(() => import("./portal/pages/SchoolLessons"));
+
+/** While a page's chunk arrives on a cold start at that page: its outline, never a spinner. */
+function RouteFallback() {
+  const { pathname } = useLocation();
+  if (/^\/portal\/(setup|reset-password|delete-account|privacy)/.test(pathname) || pathname === "/how-it-works") {
+    return <LoginSkeleton />;
+  }
+  return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
+}
 
 const queryClient = new QueryClient();
 
@@ -82,6 +102,10 @@ const App = () => {
   // In the Android app the WebView host is `localhost`, so a hostname check
   // alone would render the marketing splash instead of the portal.
   const isPortalSubdomain = isPortalTarget();
+
+  useEffect(() => {
+    prefetchPages();
+  }, []);
 
   useEffect(() => {
     // Update the lang attribute on the HTML element
@@ -108,7 +132,9 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        {/* bd-fxk3t8 — v7_startTransition: moving to a page whose chunk is still on its way
+            keeps the current page on screen until it is ready (no blank, no fallback). */}
+        <BrowserRouter future={{ v7_startTransition: true }}>
           {/* bd-fxk3t8 — the signed-in user lives here, above the routes, so moving
               between pages never reads it again or blanks the screen for it. */}
           <AuthProvider>
@@ -120,6 +146,7 @@ const App = () => {
           <AppLinkListener />
           {/* Android app only: the hardware back key (close / back / leave). */}
           <BackButtonHandler />
+          <Suspense fallback={<RouteFallback />}>
           <Routes>
             {/* bd-2394: for the portal audience "/" resolves against the
                 session (PortalRoot), not straight to the login form — the
@@ -238,6 +265,7 @@ const App = () => {
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
           </RecordingSessionProvider>
           </AuthProvider>
         </BrowserRouter>
