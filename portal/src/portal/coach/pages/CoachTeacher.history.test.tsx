@@ -5,8 +5,9 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock("../CoachGate", () => ({ default: ({ children }: any) => <>{children}</> }));
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Hataf", role: "coach", phoneNumber: "923001234567" }, loading: false }) }));
-vi.mock("../../services/api", () => ({ coach: { getTeacher: vi.fn(), getObservation: vi.fn() } }));
-import { coach } from "../../services/api";
+// bd-15y1pc: her own observation, WhatsApp too, also asks the pipeline view (leader.getObservation).
+vi.mock("../../services/api", () => ({ coach: { getTeacher: vi.fn(), getObservation: vi.fn() }, leader: { getObservation: vi.fn(), getObservationDraft: vi.fn() } }));
+import { coach, leader } from "../../services/api";
 import CoachTeacher from "./CoachTeacher";
 import CoachObservation from "./CoachObservation";
 
@@ -54,6 +55,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   C.getTeacher.mockResolvedValue(TEACHER);
   C.getObservation.mockResolvedValue(REPORT);
+  // Unreachable view: the page stands on the session row alone, as these tests always read it.
+  (leader as any).getObservation.mockRejectedValue(new Error("view unavailable"));
 });
 
 describe("Teacher History opens reports", () => {

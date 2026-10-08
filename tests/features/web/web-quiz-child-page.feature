@@ -1276,3 +1276,27 @@ Feature: Web child quiz page on the portal
     Given a child of an English class has just finished an Urdu lesson from the library
     When the child opens their hub or sends /quiz again
     Then the hub and the /quiz reply stay in English
+
+  @T642
+  Scenario: A figure's "look at" line is spoken from the shared recorded voices
+    Given the ten figure pointer lines ("Look at the bars.", «گھڑی کو دیکھیں۔» …) are recorded once per language in the quiz voice
+    When a child hears a figure question whose stem does not already point at the picture
+    Then the page plays that line's recorded clip, matched by its exact words, before the question
+    And a question's own wording for its figure, which has no recorded clip, is read by the phone's voice as before
+
+  @T643
+  Scenario: A library question recorded end to end gives its reason in the same recorded voice
+    Given a library question whose question and every option play the bank's recorded clips
+    And its recorded explanation was transcribed and says that question's explanation, with no option letter and no "the answer is"
+    When the child answers it
+    Then the reason after the answer is the recorded explanation, not a generated clip
+    But a question whose explanation clip failed that check, or changed since, keeps the generated reason
+    And an explanation clip that was not checked is never played, even before the generated reason is recorded: the written reason is read aloud instead
+
+  @T644
+  Scenario: A sum that ends in "= ?" or a blank is read with a word in the gap
+    Given a question such as "Use long division: 720 ÷ 6 = ?" or "۵۰ − ۳۰ = ___"
+    When its read-aloud clip is recorded
+    Then the voice is given "… = what?" in English and «… = کتنے؟» in Urdu
+    And the clip ends on that word, never on made-up words after "equals"
+    But an "=" with its value, a blank before the "=", an option that names the "=" sign, or a gap with words after it ("12 − 10 = ? hours") is read as written

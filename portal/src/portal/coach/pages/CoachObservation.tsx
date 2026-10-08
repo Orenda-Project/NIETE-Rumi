@@ -26,16 +26,21 @@ import { Guide } from "../../pages/LeaderObserveTalk";
  * the coach's feedback and the report the teacher received.
  *
  * The session row (/coach/observation/:id, any HITL of a teacher in her patch)
- * says where it stands; for her own portal observation the pipeline's view
- * (/leader/observe/:id) adds the finer steps and their content.
+ * says where it stands; for her own observation the pipeline's view
+ * (/leader/observe/:id) adds the finer steps and their content — captured in
+ * the portal or on WhatsApp alike (bd-15y1pc), and she carries either on from
+ * here (bd-gie5ep). Someone else's observation is only read.
  */
 
 const WORKER_STEPS = new Set(["analysing", "listening", "sending"]);
 
-/** The step index from the session row alone (no portal view): draft 1, debrief 2, sent → all done. */
+/** The step index from the session row alone (no portal view): draft 1, debrief 2, report 4, sent → all done. */
 function indexFromRow(step: string | undefined): number {
-  return { analysing: 0, draft: 1, talk: 2, sent: 5 }[step || "analysing"] ?? 0;
+  return { analysing: 0, draft: 1, talk: 2, report: 4, sent: 5 }[step || "analysing"] ?? 0;
 }
+
+/** The steps that wait on the coach who made the observation. */
+const HER_STEPS = ["draft", "talk", "feedback", "report"];
 
 const dateTime = (iso: string | null | undefined) => (iso
   ? new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true })
@@ -117,15 +122,16 @@ const CoachObservation = () => {
   const [draft, setDraft] = useState<ObservationDraft | null>(null);
   const [playing, setPlaying] = useState(false);
   const player = useRef<HTMLAudioElement | null>(null);
-  const portalMine = !!(data?.portal && data?.mine);
+  const mine = !!data?.mine;
 
-  // Her own portal observation: the pipeline's view knows the finer steps and their content.
+  // Her own observation: the pipeline's view knows the finer steps and their content,
+  // whichever side it was captured on (bd-15y1pc).
   useEffect(() => {
-    if (!portalMine) return undefined;
+    if (!mine) return undefined;
     let live = true;
     leader.getObservation(id).then((v) => { if (live) setView(v); }).catch(() => { /* the row's step is enough */ });
     return () => { live = false; };
-  }, [portalMine, id]);
+  }, [mine, id]);
 
   useEffect(() => () => { player.current?.pause(); }, []);
 
@@ -144,8 +150,9 @@ const CoachObservation = () => {
   const at = view ? trackerIndex(view.step) : indexFromRow(data?.step);
   const allDone = at >= 5;
   const viewStep = view?.step;
-  const herTurn = portalMine && !!view && ["draft", "talk", "feedback", "report"].includes(view.step) && !(view.step === "report" && view.preparing);
-  const onWhatsApp = !portalMine && (data?.step === "draft" || data?.step === "talk");
+  // bd-gie5ep — hers from either side: the step waiting on her opens here.
+  const herTurn = mine && !!view && HER_STEPS.includes(view.step) && !(view.step === "report" && view.preparing);
+  const onWhatsApp = !mine && HER_STEPS.includes((view ? view.step : data?.step) || "");
   const working = (viewStep && WORKER_STEPS.has(viewStep)) || (viewStep === "report" && view?.preparing) || (!view && data?.step === "analysing");
   const dockHref = !herTurn ? null
     : at === 1 ? `/portal/leader/observe/${id}/draft?${FROM_COACH}`
@@ -170,7 +177,7 @@ const CoachObservation = () => {
   const contentFor = (i: number): (() => ReactNode) | undefined => {
     if (i >= at && !allDone) return undefined;
     if (i === 0 && data?.summary) return () => <p className="whitespace-pre-line text-[15px] leading-relaxed" dir="auto">{data.summary}</p>;
-    if (i === 1 && portalMine) return () => { loadDraft(); return draft ? <FormAnswers draft={draft} /> : <Loading />; };
+    if (i === 1 && mine) return () => { loadDraft(); return draft ? <FormAnswers draft={draft} /> : <Loading />; };
     if (i === 2 && view?.talk.guide) return () => <Guide guide={view.talk.guide!} />;
     if (i === 3 && view?.talk.feedback) return () => <FeedbackCard fb={view.talk.feedback!} />;
     if (i === 4 && allDone && reportImage) {

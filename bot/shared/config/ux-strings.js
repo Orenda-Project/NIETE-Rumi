@@ -2327,15 +2327,23 @@ const UX_STRINGS = {
   // link button to the web page (web-quiz-old-link.js). Read by CHILDREN in the
   // quiz language; the button is capped at 20 code points. Urdu: imperatives
   // only (دبائیں), the verb agrees with the quiz (کھلے گا) — never with the child.
+  // {button} is vqOldLinkBtn itself, filled in by the sender, so the body names the
+  // button exactly as it renders; "nothing to type" because children who did not
+  // tap typed a name instead (the old chat quiz's next step).
   vqOldLinkBody: {
-    en: '👋 Assalam o Alaikum!\n\n*{teacher}* has sent you a quiz on *{topic}*.\n\nTap the button to start — it opens right here in WhatsApp.',
-    ur: '\u200F👋 السلام علیکم!\n\n*{teacher}* نے آپ کو *{topic}* پر quiz بھیجا ہے۔\n\nشروع کرنے کے لیے بٹن دبائیں — یہ WhatsApp میں ہی کھلے گا۔',
+    en: '👋 Assalam o Alaikum!\n\n*{teacher}* has sent you a quiz on *{topic}*.\n\n👇 Tap *{button}* below. The quiz opens here in WhatsApp, so there is no need to type anything.',
+    ur: '\u200F👋 السلام علیکم!\n\n*{teacher}* نے آپ کو *{topic}* پر quiz بھیجا ہے۔\n\n👇 نیچے *{button}* کا بٹن دبائیں۔ quiz یہیں WhatsApp میں کھلے گا، کچھ لکھنے کی ضرورت نہیں۔',
   },
   vqOldLinkSelfTestBody: {
     en: 'This is your own test run — it won’t show up in your class report. Tap the button to open it.',
     ur: '\u200Fیہ آپ کا اپنا test run ہے — یہ آپ کی کلاس رپورٹ میں شامل نہیں ہوگا۔ کھولنے کے لیے بٹن دبائیں۔',
   },
   vqOldLinkBtn: { en: 'Start quiz', ur: 'کوئز شروع کریں' },
+  // Web quiz read-aloud: maths operators as the voice says them (never shown; web-quiz-publish voiceText).
+  wqSayMinus: { en: 'minus', ur: 'منفی' },
+  wqSayTimes: { en: 'times', ur: 'ضرب' },
+  wqSayDividedBy: { en: 'divided by', ur: 'تقسیم' },
+  wqSayEqualsBlank: { en: 'what?', ur: 'کتنے؟' },
   vqWelcomeBack: {
     en: 'Good to see you again, {name} — let’s begin!',
     ur: '\u200F{name}، آپ کو دوبارہ دیکھ کر خوشی ہوئی — چلیں شروع کریں!',

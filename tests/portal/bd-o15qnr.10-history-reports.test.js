@@ -34,7 +34,7 @@ const PATCH = [
 const HISTORY = [
   { id: 'h-portal', created_at: '2026-10-05T09:00:00Z', status: 'observer_review_complete', debrief_status: 'pending', observation_type: 'leader_observation', observer_user_id: ME, audio_url: PORTAL_AUDIO, analysis_data: pct(66) },
   { id: 'h-wa-sent', created_at: '2026-09-14T09:00:00Z', status: 'completed', debrief_status: 'done', observation_type: 'leader_observation', observer_user_id: ME, audio_url: WA_AUDIO, analysis_data: pct(61) },
-  { id: 'h-other-coach', created_at: '2026-09-01T09:00:00Z', status: 'observer_review_complete', debrief_status: 'done', observation_type: 'leader_observation', observer_user_id: 'coach-2', audio_url: WA_AUDIO, analysis_data: pct(58) },
+  { id: 'h-other-coach', created_at: '2026-09-01T09:00:00Z', status: 'observer_review_complete', debrief_status: 'done', observation_type: 'leader_observation', observer_user_id: 'coach-2', audio_url: WA_AUDIO, analysis_data: { ...pct(58), teacher_delivery: { status: 'sent' } } },
   { id: 'h-wa-draft', created_at: '2026-08-20T09:00:00Z', status: 'awaiting_observer_review', debrief_status: 'pending', observation_type: 'leader_observation', observer_user_id: ME, audio_url: WA_AUDIO, analysis_data: null },
   { id: 'h-dc', created_at: '2026-08-10T09:00:00Z', status: 'completed', debrief_status: null, observation_type: null, observer_user_id: null, audio_url: null, analysis_data: pct(55) },
 ];

@@ -85,7 +85,7 @@ function page({ lang = 'en', store = {}, noVoice = false, stallClips = false } =
   if (noVoice) { delete ctx.speechSynthesis; delete ctx.SpeechSynthesisUtterance; }
   ctx.window = ctx;
   vm.createContext(ctx);
-  vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { feedback: feedback, speak: speak, speakSeq: speakSeq, sfx: sfx, results: results, VOICE: typeof VOICE === \'undefined\' ? null : VOICE, T: T, wireBar: wireBar, evq: evq };\n})();'), ctx);
+  vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { feedback: feedback, speak: speak, speakSeq: speakSeq, sfx: sfx, results: results, VOICE: typeof VOICE === \'undefined\' ? null : VOICE, T: T, wireBar: wireBar, evq: evq, readParts: typeof readParts === \'undefined\' ? null : readParts };\n})();'), ctx);
   // Moving the voice on: the current clip or phone-voice line ends by itself.
   const advance = () => {
     const last = voiced[voiced.length - 1];
@@ -380,5 +380,37 @@ describe('the shared lines are versioned by their sound, not only their words', 
   test('the manifest names the voice each language was recorded in: the quiz voice', () => {
     const { QUIZ_VOICE } = require('../../bot/shared/services/quiz/web-quiz-voice');
     expect(MANIFEST.voices).toEqual({ en: { ...QUIZ_VOICE.en }, ur: { ...QUIZ_VOICE.ur } });
+  });
+});
+
+/* ---------------- the figure pointer lines ("Look at the bars."): recorded once, in the shared set ---------------- */
+describe('a figure pointer line plays its recorded clip from the shared voice set', () => {
+  const { resolveUx } = require('../../bot/shared/config/ux-strings');
+  const FIG_KEYS = ['Bars', 'Numberline', 'Clock', 'Money', 'Shape', 'Graph', 'Steps', 'Timeline', 'Word', 'Picture'];
+  const VOICE_V = (/var VOICE_V = '([0-9a-f]{8})'/.exec(SRC) || [])[1];
+  const figQ = (lang, say) => ({
+    qid: 'q9', text: lang === 'ur' ? 'کتنا حصہ رنگا ہوا ہے؟' : 'How much is coloured?', figure: { kind: 'svg', svg: '<svg></svg>', say },
+    options: [{ slot: 'A', text: lang === 'ur' ? 'آدھا' : 'half' }], correct_slot: 'A', audio: { q: 'https://r2.example/q.ogg', opts: ['https://r2.example/a.ogg'] },
+  });
+  test('the shared set holds exactly the catalog\'s ten pointer lines per language, each with its recorded clip', () => {
+    for (const lang of ['en', 'ur']) {
+      expect((MANIFEST[lang] || {}).fig).toEqual(FIG_KEYS.map((k) => resolveUx(`wqFig${k}Say`, { language: lang })));
+      MANIFEST[lang].fig.forEach((_, i) => expect(fs.existsSync(path.join(VOICE_DIR, lang, `fig-${i}.mp3`))).toBe(true));
+    }
+  });
+  test.each([['en', 'Bars', 0], ['en', 'Picture', 9], ['ur', 'Clock', 2], ['ur', 'Word', 8]])('%s %s: the page plays fig-%i, not the phone voice', (lang, key, i) => {
+    const p = page({ lang });
+    const say = resolveUx(`wqFig${key}Say`, { language: lang });
+    const parts = p.wq.readParts(figQ(lang, say));
+    expect(parts[0]).toEqual({ text: say, url: `/wq/voice/${lang}/fig-${i}.mp3?v=${VOICE_V}`, p: 'fig' });
+    p.wq.speakSeq(parts, null, 'q9');
+    expect(p.voiced[0]).toEqual({ url: `/wq/voice/${lang}/fig-${i}.mp3?v=${VOICE_V}` });
+    expect(p.utterances.length).toBe(0);
+    expect(JSON.parse(JSON.stringify(p.wq.evq)).filter((e) => e.n === 'audio_missing')).toEqual([]);
+  });
+  test('a question\'s own wording for its figure has no shared clip: the phone voice reads it, as before', () => {
+    const p = page({ lang: 'en' });
+    const parts = p.wq.readParts(figQ('en', 'Look at the red bar.'));
+    expect(parts[0]).toEqual({ text: 'Look at the red bar.', url: null, p: 'fig' });
   });
 });

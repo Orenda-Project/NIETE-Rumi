@@ -367,6 +367,7 @@ const JSON_REPAIRED_BY_CALLER = Object.freeze({
   'coaching.reflectiveCorpus': 'whole',  // gpt5-mini.service.js extractReflectiveCorpus: _safeJsonParse(content)
   'lp.extractUpload': 'whole',           // coaching/fidelity/lp-upload-extractor.js safeJsonParse
   'lp.fidelity': 'whole',                // coaching/fidelity/fidelity-analyzer.js safeJsonParse
+  'vision.analyse': 'whole',             // classroom-photo/photo-analysis.service.js parseJsonObject: JSON.parse, then jsonrepair (bd-gr4fy.5.7)
   'coaching.fidelityFallback': 'span',   // gpt5-mini.service.js: /\{[\s\S]*\}/, then _safeJsonParse
   'lp.extractText': 'span',              // workers/lesson-plan-extraction.worker.js: same span, then repair
 });

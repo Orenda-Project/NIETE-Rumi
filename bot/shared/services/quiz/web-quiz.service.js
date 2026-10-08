@@ -1664,11 +1664,12 @@ const EVENT_NAME_RX = /^[a-z][a-z0-9_]{0,39}$/;
 const EVENT_PROPS = Object.freeze({
   code: /^[A-Z0-9]{4,12}$/i, qid: /^[0-9a-f-]{8,64}$/i, slot: /^[A-D]$/i, step: /^[a-z0-9_]{1,32}$/,
   src: /^[a-z0-9_]{1,32}$/, reason: /^[a-z0-9_]{1,40}$/, lang: /^(en|ur)$/, net: /^[a-z0-9_]{1,16}$/, err: /^[a-z0-9_]{1,40}$/,
+  file: /^[a-z0-9_.-]{1,40}$/, // an error's script by file name only ('wq.js'), or 'other' / 'page'; never a URL
   part: /^[a-z]{1,4}$/, // which spoken part had no clip (audio_missing): q, opt, stim, fig, left, why, fb, hint
   // M4b library: a bank video's id, a grade, a bank subject name
   vid: /^[0-9a-f-]{36}$/i, g: /^(NURSERY|KG|[1-6])$/, s: /^(English|Maths|Urdu|Science|Geography|General Knowledge|History|Islamic Studies)$/,
 });
-const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't', 'list_ms', 'nav_ms', 'ff_ms', 'ch_i'];
+const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't', 'list_ms', 'nav_ms', 'ff_ms', 'ch_i', 'line', 'col'];
 const EVENT_BOOLS = ['ok'];
 const SHARE_PATHS = ['native', 'wa', 'copy', 'file', 'save'];
 const UA_MAX = 300;
@@ -1676,29 +1677,36 @@ const PROBE_MAX = 4096;
 
 const ERR_MAX = 80;
 
+// A capitalised word a browser itself writes ("[object Event]", "NotAllowedError", "JSON"): kept in an error
+// slug. Any other capitalised word past the first unsafe character may be a name, so it becomes '_'.
+const BROWSER_WORD = /^(?:[A-Z][A-Za-z]*(?:Error|Exception|Event|Element|Array|Object|Promise|Function|Storage|Request|Response|Worker|Context|Node|List|Buffer|Stream|Track|Source|Target)|Object|Promise|Uncaught|Script|Cannot|Failed|Unexpected|Invalid|Illegal|Maximum|Unhandled|Rejection|Error|Event|JSON|URL|NaN|Infinity|Window|Document|Navigator|Audio|Video|Image|Blob|File|Symbol|Math|Date|Number|String|Boolean|Array|WebSocket|Notification|Network|Timeout)$/;
+
 /**
- * An error event's reason, safe to log: lower-cased, cut before any URL, at the
- * first character outside [a-z0-9_ .:-] and before any token-like word, at most
- * 80 characters. A browser's own message ("Cannot read properties of null
- * (reading 'x')") is the only clue to a page that broke on a real phone, so it is
- * kept as its safe prefix instead of being dropped whole. Pure.
+ * An error event's reason, safe to log, as a slug: lower-cased, cut before any URL, every run of characters
+ * outside [a-z0-9_ .:-] one '_', token-like words removed, at most 80 characters. A browser's own message
+ * ("[object Event]", "Cannot read properties of null (reading 'x')") is the only clue to a page that broke on
+ * a real phone, so it is kept as a slug instead of being cut at its first '[' or quote. Past that first unsafe
+ * character a capitalised word that is not a browser's own word is '_', so a name there is no more readable
+ * than when the message was cut at that point. `whole` (an unhandled rejection's reason, which can be any value
+ * the page held) applies that from the first character. Text with nothing Latin left is 'unreadable'. Pure.
  */
-function safeErr(v) {
+function safeErr(v, { whole = false } = {}) {
   if (typeof v !== 'string') return null;
-  let s = v.toLowerCase();
-  const url = s.search(/[a-z][a-z0-9+.-]*:\/\//);
+  let s = v;
+  const url = s.search(/[a-z][a-z0-9+.-]*:\/\//i);
   if (url >= 0) s = s.slice(0, url);
-  const bad = s.search(/[^a-z0-9_ .:-]/);
-  if (bad >= 0) s = s.slice(0, bad);
+  if (!s.trim()) return null;
+  const bad = whole ? 0 : s.toLowerCase().search(/[^a-z0-9_ .:-]/);
+  if (bad >= 0) s = s.slice(0, bad) + s.slice(bad).replace(/(^|[^A-Za-z])([A-Z][A-Za-z]*)/g, (m, pre, w) => pre + (BROWSER_WORD.test(w) ? w : '_'));
+  s = s.toLowerCase().replace(/[^a-z0-9_ .:-]+/g, '_').replace(/_+/g, '_');
   // A long word with digits in it is a token or an id, never a reason.
-  const tok = s.search(/(^|[ .:-])(?=[a-z0-9_]*[0-9])[a-z0-9_]{20,}/);
-  if (tok >= 0) s = s.slice(0, tok);
+  s = s.replace(/(^|[ .:-])(?=[a-z0-9_]*[0-9])[a-z0-9_]{20,}/g, '$1').replace(/ {2,}/g, ' ');
   if (s.length > ERR_MAX) {
     const cut = s.slice(0, ERR_MAX + 1).lastIndexOf(' ');
     s = s.slice(0, cut > 0 ? cut : ERR_MAX);
   }
-  s = s.replace(/[ .:-]+$/, '');
-  return s || null;
+  s = s.replace(/^[ ._:-]+|[ ._:-]+$/g, '');
+  return s || 'unreadable';
 }
 
 /**
@@ -1721,7 +1729,7 @@ function cleanEvent(e) {
     if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
   }
   if (e.n === 'error') {
-    const err = safeErr(e.err);
+    const err = safeErr(e.err, { whole: e.src === 'rej' });
     if (err) props.err = err;
   }
   for (const k of EVENT_NUMS) {
@@ -1772,6 +1780,8 @@ function events(body = {}) {
     const c = cleanEvent(e);
     if (!c) continue;
     logEvent(`web_quiz.${c.name}`, c.props);
+    // The old-link re-offer stands down once the page has opened on that code (web-quiz-old-link.js).
+    if (c.name === 'page_open' && c.props.code) require('./web-quiz-old-link').noteOpen(c.props.code);
     logged += 1;
   }
   return { logged };

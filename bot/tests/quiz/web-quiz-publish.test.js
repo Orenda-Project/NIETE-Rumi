@@ -696,19 +696,21 @@ describe('a maths option written in square brackets', () => {
     expect(failed).toEqual([]);
     expect(out.failed).toBe(0);
     const sent = axios.post.mock.calls.map((c) => c[1] && c[1].text).filter(Boolean);
-    const said = sent.filter((t) => /18/.test(t) && /×/.test(t));
+    const said = sent.filter((t) => /18/.test(t) && /\btimes\b/.test(t));
     expect(said).toHaveLength(1);
     expect(said[0]).not.toMatch(/\[/);
     // A subtraction inside the brackets is a minus, never a range ("18 to 8").
     expect(said[0]).not.toMatch(/\bto\b/);
-    expect(said[0]).toMatch(/18 − 8/);
+    expect(said[0]).toMatch(/18 minus 8/);
     const web = rows.quiz.meta.web;
     expect(web.audio[FIRST_QID].opts[0]).toBeTruthy();
     expect(web.audio_v).toBe(Publish.AUDIO_VERSION);
   });
 
-  test('the clip key is still taken from the words as written (a re-publish finds the same clip)', () => {
-    expect(Publish.partsFor({ ...quizRows().questions[0], option_a: OPT }).find((p) => p.part === 'a').text).toMatch(/^\[/);
+  test('the parts keep the words as written; only the words given to the voice change', () => {
+    const text = Publish.partsFor({ ...quizRows().questions[0], option_a: OPT }).find((p) => p.part === 'a').text;
+    expect(text).toMatch(/^\[/);
+    expect(Publish.voiceText(text, 'en')).toBe('( 4 times ( 18 minus 8 ) )');
   });
 
   test.each([
@@ -720,5 +722,156 @@ describe('a maths option written in square brackets', () => {
     ['Roots', 'Roots'],
   ])('%s is said as %s', (text, said) => {
     expect(Publish.speakableMaths(text)).toBe(said);
+  });
+});
+
+// The voice's text step reads "18 - 8" as the range "18 to 8" (and mathToText writes every subtraction with
+// a hyphen), and × ÷ reached the voice as bare symbols: a child heard "50 to 30 equals 20". The publish path
+// says a maths minus, × and ÷ as words in the quiz's language (the string catalog), and tells a minus from a
+// range the way the quiz text writes them: "−" or a spaced hyphen is a minus, a hyphen in a run that ends in
+// "=" is a minus, an en dash or a bare "30-39" is a range. A clip's key is the words the voice is given, so a
+// clip recorded with the old words is recorded again.
+describe('maths operators are said as words, a range is still a range', () => {
+  const { UX_STRINGS } = require('../../shared/config/ux-strings');
+  const notFound = () => mockS3Send.mockImplementation(async (cmd) => {
+    if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+    return {};
+  });
+  const sentTexts = () => axios.post.mock.calls.map((c) => c[1] && c[1].text).filter(Boolean);
+  const oneQuestion = (language, q) => {
+    const rows = quizRows();
+    rows.quiz.language = language;
+    rows.questions = [{ ...rows.questions[0], option_feedback: null, explanation: null, ...q }];
+    return rows;
+  };
+
+  test('English: a minus is "minus", never "to"; × is "times"; ÷ is "divided by"; a range keeps "to"', async () => {
+    notFound();
+    const db = fakeDb(oneQuestion('en', {
+      question_text: 'What is 50 − 30?', option_a: '50 − 30 = 20', option_b: '12 × 3', option_c: '12 ÷ 4', option_d: 'Marks 30-39',
+    }));
+    const out = await publishQuizAudio(QUIZ_ID, { db });
+    expect(out.failed).toBe(0);
+    const sent = sentTexts();
+    const minus = sent.filter((t) => /50/.test(t) || /fifty/i.test(t));
+    expect(minus.length).toBeGreaterThanOrEqual(2);
+    minus.forEach((t) => { expect(t).toMatch(/\bminus\b/); expect(t).not.toMatch(/\bto\b/); });
+    expect(sent.some((t) => /\btimes\b/.test(t) && !/×/.test(t))).toBe(true);
+    expect(sent.some((t) => /\bdivided by\b/.test(t) && !/÷/.test(t))).toBe(true);
+    expect(sent.some((t) => /Marks/.test(t) && /\bto\b/.test(t) && !/minus/.test(t))).toBe(true);
+  });
+
+  test('a hyphen in a run that ends in "=" is a minus ("14-5=9"); a bare "30-39" and an en dash are ranges', () => {
+    expect(Publish.voiceText('14-5=9', 'en')).toMatch(/14 minus 5 ?= ?9/);
+    expect(Publish.voiceText('Marks 30-39', 'en')).toBe('Marks 30-39');
+    expect(Publish.voiceText('1236–1240 CE', 'en')).toBe('1236–1240 CE');
+    expect(Publish.voiceText('9 - 4 = 5', 'en')).toBe('9 minus 4 = 5');
+  });
+
+  test('Urdu: the words come from the catalog (منفی، ضرب، تقسیم), never the symbols', async () => {
+    notFound();
+    const db = fakeDb(oneQuestion('ur', {
+      question_text: '۵۰ − ۳۰ کتنے ہیں؟', option_a: '7 × 4', option_b: '12 ÷ 4', option_c: '9 - 4', option_d: null,
+    }));
+    const out = await publishQuizAudio(QUIZ_ID, { db });
+    expect(out.failed).toBe(0);
+    const sent = sentTexts().join(' | ');
+    expect(UX_STRINGS.wqSayMinus.ur).toBe('منفی');
+    for (const key of ['wqSayMinus', 'wqSayTimes', 'wqSayDividedBy']) expect(sent).toContain(UX_STRINGS[key].ur);
+    expect(sent).not.toMatch(/[−×÷]/);
+  });
+
+  test('a clip recorded with the old words is recorded again (its key is the words the voice is given)', async () => {
+    const rows = oneQuestion('en', { question_text: 'Which is right?', option_a: '50 − 30 = 20', option_b: 'Roots', option_c: null, option_d: null });
+    // Everything the old code recorded is already in R2: keys made from the words as written.
+    const q = rows.questions[0];
+    const old = new Set(['q', 'a', 'b'].map((part) => {
+      const text = part === 'q' ? Publish.spoken(q.question_text) : Publish.spokenOption(q[`option_${part}`]);
+      return Publish.clipKey({ quizId: QUIZ_ID, lang: 'en', qid: q.id, part, voice: require('../../shared/services/quiz/web-quiz-voice').voiceTag('en'), text });
+    }));
+    mockS3Send.mockImplementation(async (cmd) => {
+      if (cmd.constructor.name === 'HeadObjectCommand') {
+        if (old.has(cmd.input.Key)) return {};
+        const e = new Error('nf'); e.name = 'NotFound'; throw e;
+      }
+      return {};
+    });
+    const out = await publishQuizAudio(QUIZ_ID, { db: fakeDb(rows) });
+    expect(out.skipped).toBe(2);            // the question and "Roots" are unchanged
+    expect(out.synthesized).toBe(1);        // the minus option is said anew
+    expect(sentTexts()[0]).toMatch(/minus/);
+    expect(rows.quiz.meta.web.audio[q.id].opts[0]).not.toBe([...old][1]);
+  });
+});
+
+// A question ending "= ?" (or "= ___") gave the voice "… equals" with nothing after it but a mark, and the voice
+// sometimes made up the missing word ("720 divided by 6 equals questions Z", «پچاس منفی تیس برابر منچینی»): 11 of 60
+// takes with "= ?" or a blank, 0 of 60 with a word there. The blank after "=" is said as the catalog's word
+// (wqSayEqualsBlank: "what?" / «کتنے؟»), in the publish path only.
+describe('an "equals" with a blank or "?" after it is said with a word, never left open', () => {
+  const { UX_STRINGS } = require('../../shared/config/ux-strings');
+  const notFound = () => mockS3Send.mockImplementation(async (cmd) => {
+    if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+    return {};
+  });
+  const sentTexts = () => axios.post.mock.calls.map((c) => c[1] && c[1].text).filter(Boolean);
+  const oneQuestion = (language, q) => {
+    const rows = quizRows();
+    rows.quiz.language = language;
+    rows.questions = [{ ...rows.questions[0], option_feedback: null, explanation: null, ...q }];
+    return rows;
+  };
+  test('English: "= ?" and "= ___" reach the voice as "= what?"', async () => {
+    notFound();
+    const db = fakeDb(oneQuestion('en', { question_text: 'Use long division: 720 ÷ 6 = ?', option_a: '15 + 27 = ___', option_b: '120', option_c: null, option_d: null }));
+    const out = await publishQuizAudio(QUIZ_ID, { db });
+    expect(out.failed).toBe(0);
+    const sent = sentTexts();
+    expect(sent).toEqual(expect.arrayContaining(['Use long division: 720 divided by 6 = what?', '15 plus 27 = what?']));
+    sent.forEach((t) => expect(t).not.toMatch(/=\s*(?:…|\?|$)/));
+  });
+  test('Urdu: the word is the catalog\'s «کتنے» with an Urdu question mark', async () => {
+    notFound();
+    const db = fakeDb(oneQuestion('ur', { question_text: '۵۰ − ۳۰ = ?', option_a: '۲۰', option_b: '۳۰', option_c: null, option_d: null }));
+    const out = await publishQuizAudio(QUIZ_ID, { db });
+    expect(out.failed).toBe(0);
+    expect(UX_STRINGS.wqSayEqualsBlank).toEqual({ en: 'what?', ur: 'کتنے؟' });
+    expect(sentTexts()).toContain('۵۰ منفی ۳۰ = کتنے؟');
+  });
+  test('an "=" with its value, or a blank before the "=", is left as written', () => {
+    expect(Publish.voiceText('9 - 4 = 5', 'en')).toBe('9 minus 4 = 5');
+    expect(Publish.voiceText('12 + … = 20', 'en')).toBe('12 + … = 20');
+    expect(Publish.voiceText('x = y + 2. What is x?', 'en')).toBe('x = y + 2. What is x?');
+    expect(Publish.voiceText('Equal sign =', 'en')).toBe('Equal sign =');
+    expect(Publish.voiceText('3 + 4 = … . Fill in the blank.', 'en')).toBe('3 + 4 = … . Fill in the blank.');
+  });
+  test('only a gap that ENDS the text is filled: words after it already finish the sentence (as written on prod)', () => {
+    expect(Publish.voiceText(Publish.spoken("From 10 o'clock to 12 o'clock: 12 - 10 = ? hours"), 'en')).toBe("From 10 o'clock to 12 o'clock: 12 minus 10 = ? hours");
+    expect(Publish.voiceText(Publish.spoken('$326 + 241 = ?$ کا جواب کیا ہے؟'), 'ur')).not.toMatch(/کتنے/);
+    expect(Publish.voiceText('24 + 18 = ? Use the last digit of your answer.', 'en')).not.toMatch(/what/);
+    expect(Publish.voiceText('"5.29 + 2.16 = ?"', 'en')).toBe('"5.29 + 2.16 = what?"');
+  });
+});
+
+// A quiz recorded before an open "=" was closed with a word ("= ?" -> "= what?") is brought up to date on its next
+// open: only the clips whose words changed are recorded (191 on prod, about $0.11); the rest are found in R2.
+describe('a quiz recorded before an open "=" was said with a word', () => {
+  test('is not current: its next open asks for one quiz_web_audio job', async () => {
+    const queue = { queueJob: jest.fn().mockResolvedValue({ MessageId: 'm1' }) };
+    expect(Publish.isCurrent({ audio_v: 5, audio_voice: 'soniox-en' })).toBe(false);
+    await Publish.requestQuizAudio('quiz-eq-v5', { meta: { web: { audio_v: 5, audio_voice: 'soniox-en' } }, queue });
+    expect(queue.queueJob).toHaveBeenCalledWith('quiz-eq-v5', 'quiz_web_audio', { quizId: 'quiz-eq-v5' }, expect.any(Object));
+  });
+});
+
+// A quiz recorded before the operators were said as words keeps its old clips in its map, and a quiz at
+// the current voice version is never published again: the version is bumped so each one is brought up to
+// date on its next open (only the clips whose words changed are recorded; the rest are found in R2).
+describe('a quiz recorded before maths operators were said as words', () => {
+  test('is not current: its next open asks for one quiz_web_audio job', async () => {
+    const queue = { queueJob: jest.fn().mockResolvedValue({ MessageId: 'm1' }) };
+    expect(Publish.isCurrent({ audio_v: 4, audio_voice: 'soniox-en' })).toBe(false);
+    await Publish.requestQuizAudio('quiz-ops-v4', { meta: { web: { audio_v: 4, audio_voice: 'soniox-en' } }, queue });
+    expect(queue.queueJob).toHaveBeenCalledWith('quiz-ops-v4', 'quiz_web_audio', { quizId: 'quiz-ops-v4' }, expect.any(Object));
   });
 });

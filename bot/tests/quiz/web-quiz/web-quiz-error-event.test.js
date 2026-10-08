@@ -51,9 +51,46 @@ describe('POST /e — web_quiz.error carries a sanitised err', () => {
     expect(logged('web_quiz.error')).toEqual([{ code: 'QX6T2L', lang: 'en', t: 1791347865363, err: 'session_401' }]);
   });
 
-  test("a browser's own message arrives lower-cased, cut at its first unsafe character", async () => {
+  test("a browser's own message arrives as a lower-cased slug: each run of unsafe characters is one '_'", async () => {
     await post([page("Cannot read properties of null (reading 'x')")]);
-    expect(logged('web_quiz.error')[0].err).toBe('cannot read properties of null');
+    expect(logged('web_quiz.error')[0].err).toBe('cannot read properties of null _reading _x');
+  });
+
+  test("a message that STARTS with '[', a quote or '<' keeps its reason (it used to log blank)", async () => {
+    await post([
+      page('[object Event] x'),
+      page('"undefined" is not valid JSON'),
+      page("<anonymous>: Unexpected token '<'"),
+      page('[object Object]'),
+    ]);
+    expect(logged('web_quiz.error').map((p) => p.err)).toEqual([
+      'object event_ x', 'undefined_ is not valid json', 'anonymous_: unexpected token', 'object object',
+    ]);
+  });
+
+  test("a message in another script still says so: 'unreadable', never blank, never the text", async () => {
+    await post([page('خطا: صفحہ نہیں ملا'), page('[]'), page('   ')]);
+    expect(logged('web_quiz.error').map((p) => p.err)).toEqual(['unreadable', 'unreadable', undefined]);
+  });
+
+  test("a child-name-shaped string inside a message is no more readable than before (it was cut there)", async () => {
+    await post([
+      page("Cannot read properties of undefined (reading 'Sara Ali')"),
+      page('[Sara Ali] not found'),
+      page('"Ayesha" is not valid JSON'),
+      page("Cannot read properties of undefined (reading 'length')"),
+      page('[object HTMLMediaElement] NotAllowedError'),
+    ]);
+    const errs = logged('web_quiz.error').map((p) => p.err);
+    for (const e of errs.slice(0, 3)) expect(e).not.toMatch(/\b(sara|ali|ayesha)\b/);
+    expect(errs[0]).toBe('cannot read properties of undefined _reading');
+    expect(errs[3]).toBe('cannot read properties of undefined _reading _length');
+    expect(errs[4]).toBe('object htmlmediaelement_ notallowederror');
+  });
+
+  test('a token or id word in the MIDDLE is removed, the reason after it kept', async () => {
+    await post([page('[x] bad id ab12cd34ef56gh78ij90kl12 at load')]);
+    expect(logged('web_quiz.error')[0].err).toBe('x_ bad id at load');
   });
 
   test('a URL or token in the message never reaches the log: only the safe prefix before it', async () => {
@@ -74,6 +111,36 @@ describe('POST /e — web_quiz.error carries a sanitised err', () => {
     const err = logged('web_quiz.error')[0].err;
     expect(err.length).toBeLessThanOrEqual(80);
     expect(err).toMatch(/^a( word)+$/);
+  });
+
+  test('src, line, col and the script file name reach the log; a URL or path as file never does', async () => {
+    await post([
+      { ...page('x'), src: 'win', line: 740, col: 12, file: 'wq.js' },
+      { ...page('x'), src: 'rej', file: 'other' },
+      { ...page('x'), src: 'h', file: 'https://x/wq.js', line: 'abc' },
+      { ...page('x'), file: '../../etc/passwd' },
+    ]);
+    const [a, b, c, d] = logged('web_quiz.error');
+    expect(a).toMatchObject({ src: 'win', line: 740, col: 12, file: 'wq.js' });
+    expect(b).toMatchObject({ src: 'rej', file: 'other' });
+    expect(c).toMatchObject({ src: 'h' });
+    expect(c).not.toHaveProperty('file');
+    expect(c).not.toHaveProperty('line');
+    expect(d).not.toHaveProperty('file');
+  });
+
+  test("src 'rej': a capitalised word is '_' across the WHOLE message, a browser's own words kept", async () => {
+    await post([
+      { ...page('Ayesha Khan not found'), src: 'rej' },
+      { ...page('[object Event]'), src: 'rej' },
+      { ...page('NotAllowedError: play() failed'), src: 'rej' },
+      { ...page('Ayesha Khan not found'), src: 'win' },
+    ]);
+    const errs = logged('web_quiz.error').map((p) => p.err);
+    expect(errs[0]).toBe('not found');
+    expect(errs[1]).toBe('object event');
+    expect(errs[2]).toBe('notallowederror: play_ failed');
+    expect(errs[3]).toBe('ayesha khan not found'); // a window error's text up to its first unsafe character: as before
   });
 
   test('any OTHER event keeps the strict err shape: free text is still dropped there', async () => {

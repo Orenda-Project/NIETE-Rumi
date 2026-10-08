@@ -134,6 +134,7 @@ function deps(over = {}) {
     send: { mergeTeacherDelivery: jest.fn().mockResolvedValue({}), ...(over.send || {}) },
     roster: { upsertTeacher: jest.fn().mockResolvedValue(true), ...(over.roster || {}) },
     people: { teacherOf: jest.fn().mockResolvedValue({ name: 'Ayesha Bibi', phone: '923120004471' }), ...(over.people || {}) },
+    state: { getState: jest.fn().mockResolvedValue(null), clearState: jest.fn().mockResolvedValue(true), ...(over.state || {}) },
     log: jest.fn(),
     now: () => new Date('2026-10-02T05:00:00Z'),
     newId: () => 'nonce-1',
@@ -275,10 +276,58 @@ describe('only the observing coach, only a portal-started observation', () => {
     const d = deps({ supabase: fakeSupabase({ users: () => coachRow(), coaching_sessions: () => obsRow({ observer_user_id: OTHER }) }) });
     expect(await Svc[fn]({ userId: COACH, coachingSessionId: SID, ...extra }, d)).toEqual({ status: 'not_found' });
   });
-  test.each(calls)('%s: a WhatsApp-captured observation is not found here', async (fn, extra) => {
-    const wa = 'https://r2.example/bucket/classroom_audio/u/2026-10/683335f3_1790852380454.ogg';
-    const d = deps({ supabase: fakeSupabase({ users: () => coachRow(), coaching_sessions: () => obsRow({ audio_url: wa }) }) });
-    expect(await Svc[fn]({ userId: COACH, coachingSessionId: SID, ...extra }, d)).toEqual({ status: 'not_found' });
+});
+
+/**
+ * bd-15y1pc — operator: "view the observation you did on the bot on the portal".
+ * Her own observation reads the same from either side — the step, the form's
+ * answers, the debrief guide and her feedback — whichever app it was captured
+ * in. `portal` says whether the portal can also take it through its steps;
+ * `editable` whether the form can still be changed here.
+ */
+describe('bd-15y1pc — her own observation reads the same from either side', () => {
+  const WA = 'https://r2.example/bucket/classroom_audio/u/2026-10/683335f3_1790852380454.ogg';
+  const withRow = (over) => deps({ supabase: fakeSupabase({ users: () => coachRow(), coaching_sessions: () => obsRow(over) }) });
+  const feedback = { praise_line: 'p', wins: [], try: null, reflection_question: 'q' };
+
+  test('observationView serves her WhatsApp observation: step, guide and feedback, marked not a portal one', async () => {
+    const out = await Svc.observationView({ userId: COACH, coachingSessionId: SID }, withRow({
+      audio_url: WA,
+      status: 'completed',
+      debrief_status: 'done',
+      analysis_data: { observer_debrief: { feedback, guide_snapshot: { intro: 'g' } }, teacher_delivery: { status: 'sent' } },
+    }));
+    expect(out).toMatchObject({
+      status: 'ok', step: 'done', portal: false,
+      talk: { guide: { intro: 'g' }, feedback: { praise_line: 'p' } },
+    });
+  });
+
+  test('observationView marks her portal observation as one the portal takes through its steps', async () => {
+    expect(await Svc.observationView({ userId: COACH, coachingSessionId: SID }, withRow({}))).toMatchObject({ status: 'ok', portal: true });
+  });
+
+  test('getDraft serves her WhatsApp observation\'s form answers — editable while awaiting her check (bd-gie5ep)', async () => {
+    const out = await Svc.getDraft({ userId: COACH, coachingSessionId: SID }, withRow({ audio_url: WA, status: 'awaiting_observer_review' }));
+    expect(out).toMatchObject({ status: 'ok', editable: true });
+    expect(out.sections.map((s) => s.key)).toEqual(['lesson_plan_fidelity', 'high_leverage_practices']);
+  });
+
+  test.each([
+    ['the report is out', { debrief_status: 'done', analysis_data: { teacher_delivery: { status: 'sent' } } }],
+    ['the observation is completed', { status: 'completed', debrief_status: 'done' }],
+  ])('getDraft still reads the answers once %s — read-only', async (_why, over) => {
+    expect(await Svc.getDraft({ userId: COACH, coachingSessionId: SID }, withRow(over))).toMatchObject({ status: 'ok', editable: false });
+  });
+
+  test('getDraft of her portal observation awaiting her check is editable', async () => {
+    expect(await Svc.getDraft({ userId: COACH, coachingSessionId: SID }, withRow({ status: 'awaiting_observer_review' })))
+      .toMatchObject({ status: 'ok', editable: true });
+  });
+
+  test('getDraft is still not ready before the analysis, from either side', async () => {
+    expect(await Svc.getDraft({ userId: COACH, coachingSessionId: SID }, withRow({ audio_url: WA, status: 'analyzing' })))
+      .toMatchObject({ status: 'not_ready' });
   });
 });
 
@@ -450,5 +499,83 @@ describe('observationView — what the observation page shows', () => {
       report: { status: 'awaiting_confirm', caption: 'cap', companionText: 'comp', imageUrl: `${URL('observe-reports/cs.png')}?sig=1` },
     });
     expect(out.talk.feedback.rubric).toBeUndefined();
+  });
+});
+
+/**
+ * bd-gie5ep — operator: "you can start an /observation from the bot and carry
+ * it over in the portal". Her WhatsApp observation goes through every remaining
+ * step here, through the same functions; and when the portal takes a step, a
+ * WhatsApp chat still waiting on THAT observation is released, so an old
+ * button or a stray voice note cannot act on it a second time.
+ */
+describe('bd-gie5ep — she continues her WhatsApp observation in the portal', () => {
+  const WA = 'https://r2.example/bucket/classroom_audio/u/2026-10/683335f3_1790852380454.ogg';
+  const TALK = `classroom_audio/${COACH}/2026-10/portal_talk1.webm`;
+  const READY = { teacher_delivery: { status: 'awaiting_confirm', report_key: 'observe-reports/x.png', teacher_phone: '923120004471' } };
+  const withRow = (over, extra = {}) => deps({
+    supabase: fakeSupabase({ users: () => coachRow(), coaching_sessions: () => obsRow({ audio_url: WA, ...over }) }), ...extra,
+  });
+
+  test('saveDraft applies her edits through the review form\'s save', async () => {
+    const d = withRow({ status: 'awaiting_observer_review' });
+    expect(await Svc.saveDraft({ userId: COACH, coachingSessionId: SID, edits: { r_C1: '2', junk: 'x' } }, d)).toMatchObject({ status: 'ok' });
+    expect(d.draft.applyObserverEdits).toHaveBeenCalledWith(SID, { r_C1: '2' });
+  });
+
+  test('startTalk attaches her portal recording and queues its coaching', async () => {
+    const d = withRow({});
+    expect(await Svc.startTalk({ userId: COACH, coachingSessionId: SID, key: TALK }, d)).toEqual({ status: 'ok' });
+    expect(d.debrief.mergeObserverDebrief).toHaveBeenCalledWith(SID, expect.objectContaining({ audio_id: null, audio_r2_key: TALK }));
+    expect(d.queue.queueObserveDebrief).toHaveBeenCalledWith(SID, expect.objectContaining({ from: '923333232533' }));
+  });
+
+  test('previewReport and sendReport run the report as the portal\'s', async () => {
+    const p = withRow({ debrief_status: 'done' });
+    expect(await Svc.previewReport({ userId: COACH, coachingSessionId: SID }, p)).toEqual({ status: 'ok' });
+    expect(p.queue.queueObserveTeacherReport).toHaveBeenCalledWith(SID, expect.objectContaining({ phase: 'preview', channel: 'portal' }));
+    const s = withRow({ debrief_status: 'done', analysis_data: READY });
+    expect(await Svc.sendReport({ userId: COACH, coachingSessionId: SID }, s)).toEqual({ status: 'ok' });
+    expect(s.queue.queueObserveTeacherReport).toHaveBeenCalledWith(SID, expect.objectContaining({ phase: 'deliver', channel: 'portal' }));
+  });
+
+  test.each([
+    ['saveDraft', { status: 'awaiting_observer_review' }, { edits: {} }, 'awaiting_form'],
+    ['startTalk', {}, { key: TALK }, 'awaiting_debrief_audio'],
+    ['previewReport', { debrief_status: 'done' }, {}, 'awaiting_send_confirm'],
+    ['sendReport', { debrief_status: 'done', analysis_data: READY }, {}, 'awaiting_send_confirm'],
+  ])('%s releases a WhatsApp chat waiting on THIS observation', async (fn, over, extra, waiting) => {
+    const d = withRow(over, { state: { getState: jest.fn().mockResolvedValue({ state: waiting, sessionId: SID }) } });
+    expect(await Svc[fn]({ userId: COACH, coachingSessionId: SID, ...extra }, d)).toMatchObject({ status: 'ok' });
+    expect(d.state.clearState).toHaveBeenCalledWith(COACH);
+  });
+
+  test('a step releases only its own WhatsApp step — saving the form leaves an armed debrief recording alone', async () => {
+    const d = withRow({}, { state: { getState: jest.fn().mockResolvedValue({ state: 'awaiting_debrief_audio', sessionId: SID }) } });
+    expect(await Svc.saveDraft({ userId: COACH, coachingSessionId: SID, edits: {} }, d)).toMatchObject({ status: 'ok' });
+    expect(d.state.clearState).not.toHaveBeenCalled();
+  });
+
+  test.each(['awaiting_teacher_pick', 'awaiting_teacher_details'])('previewReport also releases the WhatsApp send flow\'s %s', async (waiting) => {
+    const d = withRow({ debrief_status: 'done' }, { state: { getState: jest.fn().mockResolvedValue({ state: waiting, sessionId: SID }) } });
+    expect(await Svc.previewReport({ userId: COACH, coachingSessionId: SID }, d)).toEqual({ status: 'ok' });
+    expect(d.state.clearState).toHaveBeenCalledWith(COACH);
+  });
+
+  test('a WhatsApp chat waiting on ANOTHER observation is left alone', async () => {
+    const d = withRow({}, { state: { getState: jest.fn().mockResolvedValue({ state: 'awaiting_debrief_audio', sessionId: 'cs-other' }) } });
+    expect(await Svc.startTalk({ userId: COACH, coachingSessionId: SID, key: TALK }, d)).toEqual({ status: 'ok' });
+    expect(d.state.clearState).not.toHaveBeenCalled();
+  });
+
+  test('a refused step releases nothing', async () => {
+    const d = withRow({ debrief_status: 'pending' }, { state: { getState: jest.fn().mockResolvedValue({ state: 'awaiting_debrief_audio', sessionId: SID }) } });
+    expect(await Svc.previewReport({ userId: COACH, coachingSessionId: SID }, d)).toMatchObject({ status: 'not_ready' });
+    expect(d.state.clearState).not.toHaveBeenCalled();
+  });
+
+  test('a chat state that cannot be read never fails the step', async () => {
+    const d = withRow({}, { state: { getState: jest.fn().mockRejectedValue(new Error('redis down')) } });
+    expect(await Svc.startTalk({ userId: COACH, coachingSessionId: SID, key: TALK }, d)).toEqual({ status: 'ok' });
   });
 });

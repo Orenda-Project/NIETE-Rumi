@@ -13,7 +13,7 @@ const { getClient } = require('./llm-client');
 const { logEvent } = require('../utils/structured-logger');
 const { OPENAI_API_KEY } = require('../utils/constants');
 const { resolveModelForJob } = require('../config/model-registry');
-const { configForRequest } = require('../config/model-settings');
+const { configForRequest, ensureCurrent } = require('../config/model-settings');
 
 const openai = getClient();
 
@@ -30,8 +30,14 @@ const openai = getClient();
  *
  * `language` is what `analyzeImage` was already given. `userId` is passed by the one caller
  * that has a teacher; the coaching path has none, passes none, and is simply never bucketed.
+ *
+ * bd-gr4fy.5.8 — settings too old to trust are read first (one bounded wait, model-settings
+ * `ensureCurrent`), because this job picks its model HERE, before the client's own wait runs.
+ * Without it the first photo of a quiet process went out on the job's own model with the
+ * per-job row in force. Fresh settings: no wait, no read.
  */
-function analysisModelFor({ language, userId } = {}) {
+async function analysisModelFor({ language, userId } = {}) {
+  if (typeof ensureCurrent === 'function') await ensureCurrent();
   return resolveModelForJob('vision.analyse', {
     cfg: configForRequest(),
     language,
@@ -155,7 +161,7 @@ async function analyzeImage(imageBuffer, mimeType, options = {}) {
 
   // Resolved ONCE per call and then reused, so the request, the result and both log lines
   // can never disagree about which model ran.
-  const analysisModel = analysisModelFor({ language, userId });
+  const analysisModel = await analysisModelFor({ language, userId });
 
   logEvent('vision.analysis.started', {
     mimeType,

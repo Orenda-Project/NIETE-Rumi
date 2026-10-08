@@ -42,7 +42,7 @@ const PORTAL_AUDIO = 'https://r2.example/classroom_audio/coach-me/2026-09/portal
 test('my sent portal observation: id, step sent, by me, opens in the portal', async () => {
   const out = await SVC.getCoachVisit(fake([
     { id: 's-sent', user_id: 'u-ayesha', created_at: '2026-09-14T09:00:00Z', status: 'observer_review_complete', debrief_status: 'done',
-      audio_url: PORTAL_AUDIO, observer_user_id: ME, observer_name: 'Hataf Atif', analysis_data: pct(61) },
+      audio_url: PORTAL_AUDIO, observer_user_id: ME, observer_name: 'Hataf Atif', analysis_data: { ...pct(61), teacher_delivery: { status: 'sent' } } },
     { id: 's-old', user_id: 'u-ayesha', created_at: '2026-08-20T09:00:00Z', status: 'completed', debrief_status: null,
       audio_url: null, observer_user_id: 'coach-2', observer_name: 'Imran S', analysis_data: pct(64) },
   ]), ME, 'v-next', { today: TODAY });

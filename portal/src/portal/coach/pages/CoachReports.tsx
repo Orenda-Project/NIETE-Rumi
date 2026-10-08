@@ -14,7 +14,7 @@ import type { CoachReport, ReportsData } from "../types";
  * v2 observation page (bd-o15qnr.19).
  */
 
-const STEP_INDEX: Record<string, number> = { analysing: 0, draft: 1, talk: 2, sent: 4 };
+const STEP_INDEX: Record<string, number> = { analysing: 0, draft: 1, talk: 2, report: 3, sent: 4 };
 
 /** bd-o15qnr.19 — every report opens the one v2 observation page, never the teacher. */
 function hrefFor(r: CoachReport): string {
