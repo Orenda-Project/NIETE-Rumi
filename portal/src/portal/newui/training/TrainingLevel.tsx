@@ -112,7 +112,7 @@ export default function TrainingLevel() {
 
 /* ── the level exam, as a row ─────────────────────────────────────────────── */
 
-function hoursLeft(iso: string | null): number {
+export function hoursLeft(iso: string | null): number {
   if (!iso) return 0;
   return Math.max(1, Math.round((new Date(iso).getTime() - Date.now()) / 3_600_000));
 }
@@ -141,7 +141,7 @@ type CapstoneRecord = {
   answers?: Array<{ question_index: number; question_text: string; answer_text: string; answer_score: number | null; feedback_text: string }>;
 };
 
-function CapstoneRow({ levelId }: { levelId: number }) {
+export function CapstoneRow({ levelId }: { levelId: number }) {
   const record = useGet<CapstoneRecord>(`/training/level/${levelId}/capstone`);
   const [open, setOpen] = useState(false);
   const a = record.data?.attempt;
@@ -191,7 +191,7 @@ type CertState = {
   scores?: { modules: Array<{ course_id: number; title: string; units: Array<{ id: number; title: string; best_pct: number | null }>; exam: ExamMarks | null }> } | null;
 };
 
-function LevelCertificate({ levelId, onIssued }: { levelId: number; onIssued: () => void }) {
+export function LevelCertificate({ levelId, onIssued }: { levelId: number; onIssued: () => void }) {
   const info = useGet<CertState>(`/training/level/${levelId}/certificate`);
   const [claiming, setClaiming] = useState(false);
   const [failed, setFailed] = useState(false);
