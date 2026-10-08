@@ -19,7 +19,7 @@
 
 const { getClient } = require('../llm-client');
 const { resolveModelForJob } = require('../../config/model-registry');
-const { configForRequest } = require('../../config/model-settings');
+const { configForRequest, ensureCurrent } = require('../../config/model-settings');
 const { logToFile } = require('../../utils/logger');
 const { extractJsonFromResponse } = require('./assessment-json.util');
 
@@ -553,6 +553,9 @@ async function generateExam(args) {
 
   const key = canonical(subject) || 'eng';
   const family = URDU_MEDIUM.has(key) ? 'urdu' : 'eng';
+  // bd-gr4fy.5.8: this job picks its model here, before the client's own wait for stale settings runs, so
+  // settings too old to trust are read first (one bounded wait). familyModel stays synchronous for MODELS.
+  if (typeof ensureCurrent === 'function') await ensureCurrent();
   const model = familyModel(family);
   // The model this family runs with no settings at all (bd-gr4fy.7). Named as `fallbackModel` only
   // when the settings moved the call, so llm-client stands this paper's own model behind the moved
