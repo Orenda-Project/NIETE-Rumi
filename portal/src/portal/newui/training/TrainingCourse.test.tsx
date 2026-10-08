@@ -11,7 +11,7 @@ import { MODULES_C3, trainingGet } from "../../../test/trainingFixtures";
  *   done   a green check tile, its duration and best score ("9/10", neutral)
  *   next   a play icon and a "Next" chip
  *   locked off, not tappable (the bot's lock)
- * Then the I-SAPS module-exam row and Recommended reading, and Continue at the bottom.
+ * Then the I-SAPS module-exam row and Required reading (bd-klecr.9), and Continue at the bottom.
  */
 
 // The first render of a file loads the whole page module; give it longer than 1s under a busy run.
@@ -105,7 +105,7 @@ describe("Group Work", () => {
   });
 });
 
-describe("I-SAPS — the module exam row and Recommended reading", () => {
+describe("I-SAPS — the module exam row and Required reading", () => {
   const ISAPS_COURSE = "/portal/training/provider/ISAPS/level/9/course/c-9";
   const modules = (exam: unknown, readings: unknown = null) => trainingGet({
     "/training/courses": { courses: [{ id: "c-9", title: "Module 1", order_index: 0, module_count: 2, completed_count: 2 }] },
@@ -140,18 +140,19 @@ describe("I-SAPS — the module exam row and Recommended reading", () => {
     expect(Boolean(row.closest("a"))).toBe(opens);
   });
 
-  it("Recommended reading is a row; a tap lists what is online and what is coming", async () => {
+  it("Required reading is a row; a tap lists each reading with the section to read", async () => {
     vi.mocked(api.get).mockImplementation(modules(null, {
-      available: [{ title: "Teaching in groups", author: "A. Writer", type: "Book", description: "", url: "https://example.org/r1" }],
-      unavailable: [{ title: "Classroom talk", author: "B. Writer", type: "Video", description: "", url: null }],
+      available: [{ title: "Teaching in groups", author: "A. Writer", type: "Book", section: "Chapter 2 (pp. 37–40)", rationale: "Why.", outcome: "Plan group work.", description: "Why.", url: "https://example.org/r1" }],
+      unavailable: [{ title: "Classroom talk", author: "B. Writer", type: "Video", section: "", rationale: "", outcome: "", description: "", url: null }],
     }) as never);
     renderAt(ISAPS_COURSE);
     const row = await screen.findByTestId("readings-row");
-    expect(within(row).getByText("Recommended reading")).toBeInTheDocument();
-    expect(within(row).getByText("1 available")).toBeInTheDocument();
+    expect(within(row).getByText("Required reading")).toBeInTheDocument();
+    expect(within(row).getByText("1 reading")).toBeInTheDocument();
     fireEvent.click(row);
     const sheet = await screen.findByRole("dialog");
     expect(within(sheet).getByText("Teaching in groups")).toBeInTheDocument();
+    expect(within(sheet).getByText("Chapter 2 (pp. 37–40)")).toBeInTheDocument();
     expect(within(sheet).getByText("Classroom talk")).toBeInTheDocument();
     expect(within(sheet).getByText("Coming soon")).toBeInTheDocument();
   });
