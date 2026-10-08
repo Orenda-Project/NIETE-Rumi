@@ -162,6 +162,8 @@
     var e = { t: Date.now(), lang: LANG };
     if (props) for (var k in props) if (props[k] !== undefined) e[k] = props[k];
     e.n = n;
+    // Page-session telemetry on (wq-tel.js): the event joins that page session's queue.
+    if (window.WQT && window.WQT.push(e)) return;
     try {
       var body = JSON.stringify({ events: [e] });
       if (!(navigator.sendBeacon && navigator.sendBeacon('/api/wq/e', new Blob([body], { type: 'application/json' })))) {

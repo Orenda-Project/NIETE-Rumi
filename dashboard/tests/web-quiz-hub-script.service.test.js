@@ -63,6 +63,8 @@ function page(boot, { api = {}, store = {}, search = '' } = {}) {
     localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } },
     setTimeout: () => 0, Date, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent,
   };
+  // wqt: the page-session telemetry (wq-tel.js) as the page sees it, when a test turns it on.
+  if (arguments[1] && arguments[1].wqt) ctx.window.WQT = arguments[1].wqt;
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx);
   return { beacons, doc: docEl.attrs, cookies, store, root, els, toasts, fetches, assigned, html: () => root._h, moment: () => root.attrs['data-m'], win: winL, reloads: () => reloaded };
@@ -72,6 +74,22 @@ const KIDS = [{ chip: '0000000000000001', first: 'ثنا', animal: 'owl', grade:
 const TOKEN = 'eyJrIjoiaCJ9.AbCdEfGhIjKlMnOpQrStUv';
 const BR = { mascot: { en: 'Jugnu', ur: 'جگنو' }, label: { en: 'NIETE', ur: 'NIETE' }, sub: { en: 'FOR STUDENTS', ur: 'FOR STUDENTS' }, name: 'NIETE', mark: { tile: true, svg: '' } };
 const boot = (extra = {}) => ({ lang: 'ur', token: TOKEN, brand: BR, kids: KIDS, kid: null, teacher: null, again: [], recs: [], challenge: null, lib: null, ...extra });
+
+describe('page-session telemetry (wq-tel.js) on', () => {
+  const tel = () => { const pushed = []; return { pushed, wqt: { on: true, push: (e) => { pushed.push(e); return true; } } }; };
+  test("the hub's own events go through wq-tel's queue, not the hub's beacon", () => {
+    const t = tel();
+    const p = page(boot({ kid: KIDS[0].chip }), { wqt: t.wqt });
+    expect(t.pushed.map((e) => e.n)).toContain('hub_view');
+    expect(t.pushed.find((e) => e.n === 'hub_view')).toMatchObject({ lang: 'ur', src: 'hub' });
+    expect(p.beacons.filter((e) => e.n === 'hub_view')).toEqual([]);
+  });
+  test('switched off (push says no): the hub sends its own beacon as before', () => {
+    const p = page(boot({ kid: KIDS[0].chip }), { wqt: { on: false, push: () => false } });
+    expect(p.beacons.filter((e) => e.n === 'hub_view')).toHaveLength(1);
+  });
+});
+
 
 test('Urdu "who is playing" is gender-neutral: «کس کی باری ہے؟», never the masculine «کون کھیل رہا ہے؟»', () => {
   const p = page(boot());
