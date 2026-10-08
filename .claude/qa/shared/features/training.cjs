@@ -1876,7 +1876,13 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       const KID_PHONE = '923009900692';
       const kid = api.as(KID_PHONE);
       const seeded = [];
+      // The lane's bot runs without the door's child verdict (STUDENT_MODE_ENABLED) and without a portal to link
+      // to: this block restarts it with both (stack-control, as T72/T73 and child-test do) and puts it back after.
+      const SC = require('../stack-control.cjs');
+      const LANE_ENV = { STUDENT_MODE_ENABLED: 'true', WEB_QUIZ_BASE_URL: 'https://portal.example.test', WEB_QUIZ_TOKEN_SECRET: 'mock-lane-home-secret' };
+      let restarted = null;
       try {
+        restarted = SC.runDir() ? await SC.restart('bot', LANE_ENV) : { ok: false, err: 'no RUN_DIR' };
         await api.setAppSetting('web_quiz_hub', true, { settleMs: 0 });
         await api.setAppSetting('web_quiz_child_quiz_home', true);   // waits out the bot's 30 s switch cache
         const kidId = await seedChild(KID_PHONE); seeded.push(kidId);
@@ -1890,6 +1896,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
           const home = ctas.length === 1 && (ctas[0].btns || []).some((b) => HOME_RX.test(b)) && isHub(ctas[0])
             && !/https?:|\/h\//.test(String(ctas[0].txt || ''));
           if (!kidId) rec('T692', HOME_TITLE.T692, 'BLOCKED', { harness: 'could not seed the child row', ...on }, t() - s);
+          else if (!(restarted && restarted.ok)) rec('T692', HOME_TITLE.T692, 'BLOCKED', { harness: 'could not restart the bot with STUDENT_MODE_ENABLED: ' + JSON.stringify(restarted).slice(0, 120), ...on }, t() - s);
           else if (!ctas.length && !seen.some(isHub)) rec('T692', HOME_TITLE.T692, 'BLOCKED', { harness: 'no hub link on this lane (PORTAL_URL / token secret unset?)', ...on }, t() - s);
           else rec('T692', HOME_TITLE.T692, ...V(home, on), t() - s);
         }
@@ -1898,7 +1905,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
           s = t();
           const rowId = await seedChild(String(process.env.E2E_DRIVER || '')); seeded.push(rowId);
           const seen = await ask(api, '/quiz');
-          rec('T693', HOME_TITLE.T693, ...V(seen.length > 0 && !seen.some(isHub), { childRowOnTeacherPhone: Boolean(rowId), seen: brief(seen) }), t() - s);
+          rec('T693', HOME_TITLE.T693, ...V(seen.length > 0 && !seen.some(isHub), { childRowOnTeacherPhone: Boolean(rowId), studentMode: Boolean(restarted && restarted.ok), seen: brief(seen) }), t() - s);
         }
 
         if (want('T695')) {
@@ -1907,11 +1914,13 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
           const seen = await ask(kid, '/quiz');
           const ctas = seen.filter(isCta);
           const today = ctas.length === 1 && isHub(ctas[0]) && (ctas[0].btns || []).some((b) => /^(Open|کھولیں)$/.test(b));
-          if (!ctas.length && !seen.some(isHub)) rec('T695', HOME_TITLE.T695, 'BLOCKED', { harness: 'no hub link on this lane (PORTAL_URL / token secret unset?)', seen: brief(seen) }, t() - s);
+          if (!(restarted && restarted.ok)) rec('T695', HOME_TITLE.T695, 'BLOCKED', { harness: 'could not restart the bot with STUDENT_MODE_ENABLED', seen: brief(seen) }, t() - s);
+          else if (!ctas.length && !seen.some(isHub)) rec('T695', HOME_TITLE.T695, 'BLOCKED', { harness: 'no hub link on this lane (PORTAL_URL / token secret unset?)', seen: brief(seen) }, t() - s);
           else rec('T695', HOME_TITLE.T695, ...V(today, { seen: brief(seen) }), t() - s);
         }
       } finally {
         for (const id of seeded) await dropRow(id);
+        if (restarted && restarted.ok) await SC.restart('bot', {});
       }
     }
   }
