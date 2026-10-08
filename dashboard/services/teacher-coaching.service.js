@@ -24,7 +24,7 @@ const JOURNEY_POINTS = 12;
 const IN_PROGRESS_DAYS = 60;
 const HISTORY_LIMIT = 1000;
 
-// NIETE's users table has ONE name column, `name` (bd-60092): never first_name / last_name.
+// NIETE's users table has ONE name column, `name`: never first_name / last_name.
 const nameOf = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
 const digits = (v) => String(v == null ? '' : v).replace(/\D/g, '');
 const dayOf = (v) => {
