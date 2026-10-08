@@ -25,8 +25,14 @@ const LANGUAGE_PROFILES = {
     script: 'Nastaliq',
     region: 'Pakistan',
     avoid_hint: " Use everyday Urdu rooted in Persian/Arabic — NEVER Hindi/Sanskrit-origin words (say شکریہ not دھنیہ واد, فوراً not ترنت/turant, سوال not پرشن, ضرورت not آوشیکتا, کوشش not پریاس). Also avoid bookish words (taajub, muntakhab, markooz).",
+    // bd-gr4fy.5.12: concrete, in Nastaliq. The abstract rule alone ("agree with a noun") left 152 of 164 Sonnet
+    // and 166 of 230 DeepSeek questions in a gendered verb («چاہیں گے/گی»).
     gender_hint:
-      "Urdu is gendered — agree verbs with a noun (zehen, khayal, sawal, qadam), not with 'aap'.",
+      'Urdu verbs show gender and we do not know hers, so NEVER put her in a verb: not «آزمانا چاہیں گے/گی»,'
+      + ' not «سوچتے/سوچتی ہیں», not «چاہتے/چاہتی ہیں», not «کرتے/کرتی ہیں». Agree with a noun or use نے:'
+      + ' «کون سا ایک چھوٹا قدم آزمانا مفید رہے گا؟», «آپ کا کیا خیال ہے؟», «آپ نے کیا محسوس کیا؟».',
+    // The question's closing invitation, said without a gendered verb (question-prompt.js {forwardClose}).
+    forward_close: '«…اور اگلی بار جب ویسا ہی لمحہ آئے، تو کون سا ایک چھوٹا قدم آزمانا مفید رہے گا؟»',
     time_anchor_hint: "'شروع میں' / 'قریب دس منٹ پر' / 'سبق کے آخر میں' — numbers as words",
   },
   sw: {
@@ -63,7 +69,7 @@ const LANGUAGE_PROFILES = {
  * with a principle-only fallback for any code we don't ship yet.
  *
  * @param {string|null|undefined} code  ISO language code (e.g. 'ur', 'sw').
- * @returns {{language:string, script:string, region:string, avoid_hint:string, gender_hint:string, time_anchor_hint:string}}
+ * @returns {{language:string, script:string, region:string, avoid_hint:string, gender_hint:string, time_anchor_hint:string, forward_close?:string}}
  */
 function resolveProfile(code) {
   if (code && LANGUAGE_PROFILES[code]) return LANGUAGE_PROFILES[code];

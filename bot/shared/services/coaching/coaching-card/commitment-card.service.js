@@ -23,6 +23,8 @@ const { generatePrioritizedAction } = require('./prioritized-action.service');
 const { simplifyPedagogyJargon } = require('../pedagogy-jargon');
 const { resolveTarget, resolveIndicator } = require('../target-resolver');
 const { tooSimilar, countBarFor, rubricAsk } = require('../uptake-loop.service');
+// bd-gr4fy.5.12: the same gendered-address detector the reflective question uses.
+const { genderedAddress } = require('../reflective-questions/guardrails');
 
 /**
  * bd-2373: gloss any coach-jargon that slipped into the visible text so the
@@ -143,7 +145,7 @@ const LANG_NAME = { sw: 'Kiswahili', ur: 'Urdu', en: 'English', ar: 'Arabic' };
 
 // Per-language gender + code-switch guidance (mirrors the approved mock).
 const GENDER_RULE = {
-  ur: 'In Urdu the 2nd-person future (کریں گی / کریں گے, دیں گی) is gendered — DO NOT use it. Use the RESPECTFUL آپ-imperative (the -یں / -ائیں ending: کریں، دیں، آزمائیں، پوچھیں، رکھیں، لکھیں) which is both respectful AND gender-neutral. NEVER use the intimate تم-imperative (کرو، دو، پوچھو، لکھو) — it is disrespectful to a teacher.',
+  ur: 'In Urdu the 2nd-person future (کریں گی / کریں گے, دیں گی) is gendered — DO NOT use it. Use the RESPECTFUL آپ-imperative (the -یں / -ائیں ending: کریں، دیں، آزمائیں، پوچھیں، رکھیں، لکھیں) which is both respectful AND gender-neutral. NEVER use the intimate تم-imperative (کرو، دو، پوچھو، لکھو) — it is disrespectful to a teacher. The 2nd-person PRESENT is gendered too (آپ چاہتے/چاہتی ہیں، سمجھتے/سمجھتی ہیں، مانتے/مانتی ہیں) — DO NOT use it either: say «آپ کی خواہش ہے کہ…», «آپ کا ارادہ ہے کہ…», «آپ کے لیے اہم ہے کہ…».',
   ar: 'In Arabic the 2nd-person is gendered (تفعل masc / تفعلين fem). Avoid gendered 2nd-person by preferring the verbal noun / impersonal phrasing (e.g. "كتابة جملة"، "في الحصة القادمة: تقسيم الطلاب إلى أزواج"). Write respectfully and gender-neutrally.',
   sw: 'Swahili verbs are not gendered, so it is naturally neutral — just never add a gendered noun for the teacher.',
   en: 'English is gender-neutral; address as "you".',
@@ -381,26 +383,30 @@ async function generateCommitmentCard(analysis, conversationState, outputLanguag
     const prompt = buildPrompt(lang, analysis, q3, target, loop);
     let parsed = await ask(prompt);
     let similarToPrior = false;
-    if (loop) {
-      // Two guards, one regeneration at most: the action must be ONE move, and
-      // it must not read like the prior action for the same target.
-      const problems = (d) => ({
-        many: looksLikeManyMoves(d.action),
-        similar: !!(loop.prior && loop.prior.action && tooSimilar(loop.prior.action, d.action)),
-      });
-      const first = problems(parsed);
-      if (first.many || first.similar) {
-        const note = `\n\nREWRITE — your previous draft was rejected: ${first.many ? 'it contained more than ONE move (write exactly one); ' : ''}${first.similar ? 'it was too close to the prior action for this target (a different cue, a different example, a different shape); ' : ''}return a fresh "action" and "action_spec".`;
-        logToFile('[uptake-loop] card draft regenerated once', { many: first.many, similar: first.similar });
-        const second = await ask(prompt + note);
-        const again = problems(second);
-        if (first.many && again.many) {
-          parsed = String(second.action).length < String(parsed.action).length ? second : parsed;
-        } else {
-          parsed = second;
-        }
-        similarToPrior = problems(parsed).similar;
+    // Guards, one regeneration at most: with a loop, the action must be ONE move and must not read like the
+    // prior action for the same target; in Urdu, no verb may put her in a gender (bd-gr4fy.5.12 — "آپ چاہتے ہیں"
+    // was in 44 of 166 Urdu cards on Sonnet 5).
+    const problems = (d) => ({
+      many: !!loop && looksLikeManyMoves(d.action),
+      similar: !!(loop && loop.prior && loop.prior.action && tooSimilar(loop.prior.action, d.action)),
+      gendered: lang === 'ur' ? genderedAddress(`${d.commitment}۔ ${d.action}`) : [],
+    });
+    const count = (p) => Number(p.many) + Number(p.similar) + Number(p.gendered.length > 0);
+    const first = problems(parsed);
+    if (count(first)) {
+      const note = `\n\nREWRITE — your previous draft was rejected: ${first.many ? 'it contained more than ONE move (write exactly one); ' : ''}${first.similar ? 'it was too close to the prior action for this target (a different cue, a different example, a different shape); ' : ''}${first.gendered.length ? `it put the teacher in a gendered Urdu verb (${first.gendered.join(' / ')}) and we do not know her gender: use the آپ-imperative (کریں، دیں، آزمائیں) or a noun («آپ کی خواہش ہے کہ…», «آپ کا ارادہ ہے کہ…») so no verb agrees with her; ` : ''}${loop ? 'return a fresh "action" and "action_spec".' : 'return the whole card again, otherwise unchanged.'}`;
+      logToFile(loop ? '[uptake-loop] card draft regenerated once' : 'Commitment card: draft regenerated once',
+        { many: first.many, similar: first.similar, gendered: first.gendered.length });
+      const second = await ask(prompt + note);
+      const again = problems(second);
+      if (count(again) !== count(first)) {
+        parsed = count(again) < count(first) ? second : parsed;
+      } else if (first.many && again.many) {
+        parsed = String(second.action).length < String(parsed.action).length ? second : parsed;
+      } else {
+        parsed = second;
       }
+      similarToPrior = problems(parsed).similar;
     }
     return finalizeCard({
       commitment: String(parsed.commitment).trim(),
