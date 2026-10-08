@@ -20,6 +20,16 @@ export interface TeacherUiCopy {
   seeAll: string;
   seeAllNamed: (heading?: string) => string;
   nothingYet: string;
+  close: string;
+  gradeField: string;
+  subjectField: string;
+  selectGrade: string;
+  selectSubject: string;
+  search: string;
+  yourClasses: string;
+  otherClasses: string;
+  noMatch: string;
+  change: string;
 }
 
 export const TEACHER_UI_COPY: TeacherUiCopy = {
@@ -40,4 +50,19 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
   seeAllNamed: (heading = '') => `See all ${heading}`.trim(),
   /** HistoryList with no rows. */
   nothingYet: 'Nothing yet',
+  /** A tray's round close. */
+  close: 'Close',
+  /** GradeSubjectSelector: the fields' small labels (the grade one is also the pills' caption and group name). */
+  gradeField: 'Grade',
+  subjectField: 'Subject',
+  /** …their empty values, and the trays' titles. */
+  selectGrade: 'Select grade',
+  selectSubject: 'Select subject',
+  /** GradeSubjectPicker's sheet. */
+  search: 'Search grade or subject',
+  yourClasses: 'Your classes',
+  otherClasses: 'Other classes',
+  noMatch: 'No match',
+  /** The picker's trigger, once picked. */
+  change: 'Change',
 };
