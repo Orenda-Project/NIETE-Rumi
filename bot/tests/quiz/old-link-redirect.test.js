@@ -106,6 +106,8 @@ jest.mock('../../shared/config/supabase', () => {
   chain.then = (resolve) => Promise.resolve({ data: null, error: null }).then(resolve);
   return chain;
 });
+// The job queue is the network boundary of the clip head start (SQS on the bot).
+jest.mock('../../shared/services/queue', () => ({ queueJob: jest.fn().mockResolvedValue(true) }));
 jest.mock('../../shared/handlers/homework-trigger', () => ({
   evaluateHomeworkTrigger: jest.fn(() => ({ match: false })),
 }));
@@ -145,6 +147,7 @@ const WhatsAppService = require('../../shared/services/whatsapp.service');
 const { logEvent } = require('../../shared/utils/structured-logger');
 const { handleTextMessage } = require('../../shared/handlers/text-message.handler');
 const WebQuizLink = require('../../shared/services/quiz/web-quiz-link');
+const Queue = require('../../shared/services/queue');
 const OldLink = (() => { try { return require('../../shared/services/quiz/web-quiz-old-link'); } catch (_) { return null; } })();
 
 const CHILD = '923001112233';
@@ -159,7 +162,7 @@ const shareCode = (over = {}) => ({
 });
 
 /** Table-driven Supabase: the share code, the app_settings flags, the teacher row for the self-test. */
-function stub({ sc = shareCode(), settings = {}, teacherPhone = TEACHER_PHONE } = {}) {
+function stub({ sc = shareCode(), settings = {}, teacherPhone = TEACHER_PHONE, quiz = null } = {}) {
   const rows = (table) => {
     if (table === 'app_settings') return Object.entries(settings).map(([key, value]) => ({ key, value }));
     return [];
@@ -170,6 +173,7 @@ function stub({ sc = shareCode(), settings = {}, teacherPhone = TEACHER_PHONE } 
     chain.maybeSingle = jest.fn(async () => {
       if (table === 'quiz_share_codes') return { data: sc, error: null };
       if (table === 'users') return { data: { id: TEACHER_ID, phone_number: teacherPhone, first_name: 'Hina' }, error: null };
+      if (table === 'quizzes') return { data: quiz, error: null };
       return { data: null, error: null };
     });
     chain.single = jest.fn(async () => ({ data: null, error: { code: 'PGRST116' } }));
@@ -322,5 +326,78 @@ describe("today's chat path is kept when", () => {
     expect(WhatsAppService.sendCtaUrl).not.toHaveBeenCalled();
     expect(supabase.from).not.toHaveBeenCalledWith('quiz_share_codes');
     expect(logEvent).not.toHaveBeenCalledWith('web_quiz.old_link_redirect', expect.anything());
+  });
+});
+
+// An old chat quiz was never opened on the web, so its read-aloud clips do not exist yet. They take
+// about a minute to record, and children start 20-160 s after the button: asked for only when the
+// page first opens, they land after the child has begun, and a phone with no voice reads in silence.
+// So the redirect asks for them the moment it decides to redirect, before the button is even sent.
+describe('the read-aloud clips get a head start at the redirect', () => {
+  const audioJobs = () => Queue.queueJob.mock.calls.filter((c) => c[1] === 'quiz_web_audio');
+  const NOT_CURRENT = { id: 'x', audio_v: null, audio_voice: null };
+  const CURRENT = { id: 'x', audio_v: 4, audio_voice: 'sx-grace' };
+
+  test('a quiz without current clips: ONE quiz_web_audio job for that quiz, asked before the button is sent', async () => {
+    stub({ sc: shareCode({ quiz_id: 'quiz-hs-new' }), settings: ON, quiz: NOT_CURRENT });
+    await handleTextMessage(MESSAGE, CHILD, `QUIZ-${CODE}`, null);
+    await settle();
+    expect(WhatsAppService.sendCtaUrl).toHaveBeenCalledTimes(1);
+    expect(audioJobs()).toHaveLength(1);
+    expect(audioJobs()[0][2]).toEqual({ quizId: 'quiz-hs-new' });
+    // Asked before the send: the quiz's clip state is read before the button goes out.
+    const read = supabase.from.mock.calls.findIndex(([t]) => t === 'quizzes');
+    expect(read).toBeGreaterThanOrEqual(0);
+    expect(supabase.from.mock.invocationCallOrder[read]).toBeLessThan(WhatsAppService.sendCtaUrl.mock.invocationCallOrder[0]);
+  });
+
+  test("the teacher's own link (self-test preview) asks for them too", async () => {
+    stub({ sc: shareCode({ quiz_id: 'quiz-hs-self' }), settings: ON, quiz: NOT_CURRENT });
+    await handleTextMessage(MESSAGE, TEACHER_PHONE, `QUIZ-${CODE}`, null);
+    await settle();
+    expect(audioJobs().map((c) => c[2].quizId)).toEqual(['quiz-hs-self']);
+  });
+
+  test('a quiz whose clips are already current: no job', async () => {
+    stub({ sc: shareCode({ quiz_id: 'quiz-hs-current' }), settings: ON, quiz: CURRENT });
+    await handleTextMessage(MESSAGE, CHILD, `QUIZ-${CODE}`, null);
+    await settle();
+    expect(WhatsAppService.sendCtaUrl).toHaveBeenCalledTimes(1);
+    expect(audioJobs()).toHaveLength(0);
+  });
+
+  test.each([
+    ['flag_off', { web_quiz_enabled: 'true', web_quiz_teachers: '"all"' }, null],
+    ['web_off', { web_quiz_enabled: 'true', web_quiz_teachers: '["someone-else"]', web_quiz_old_link_redirect: 'true' }, null],
+    ['chat_quiz_running', ON, { sessionId: 'sess-7', quizId: 'quiz-1' }],
+  ])('kept on the chat path (%s): no job', async (reason, settings, active) => {
+    stub({ sc: shareCode({ quiz_id: `quiz-hs-kept-${reason}` }), settings, quiz: NOT_CURRENT });
+    if (active) redisService.get.mockImplementation(async (key) => (key === `videoquiz:${CHILD}:active` ? active : null));
+    await handleTextMessage(MESSAGE, CHILD, `QUIZ-${CODE}`, null);
+    await settle();
+    expect(logEvent).toHaveBeenCalledWith('web_quiz.old_link_kept', expect.objectContaining({ reason }));
+    expect(audioJobs()).toHaveLength(0);
+  });
+
+  test('a queue that throws never breaks the redirect: the button is still sent, nothing starts in chat', async () => {
+    stub({ sc: shareCode({ quiz_id: 'quiz-hs-throw' }), settings: ON, quiz: NOT_CURRENT });
+    Queue.queueJob.mockImplementationOnce(() => { throw new Error('queue down'); });
+    await handleTextMessage(MESSAGE, CHILD, `QUIZ-${CODE}`, null);
+    await settle();
+    expect(Queue.queueJob).toHaveBeenCalledWith('quiz-hs-throw', 'quiz_web_audio', { quizId: 'quiz-hs-throw' }, expect.anything());
+    expect(WhatsAppService.sendCtaUrl).toHaveBeenCalledTimes(1);
+    expect(logEvent).toHaveBeenCalledWith('web_quiz.old_link_redirect', expect.objectContaining({ quizId: 'quiz-hs-throw', sent: true }));
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
+  });
+
+  test('a quiz read that fails never breaks the redirect either', async () => {
+    stub({ sc: shareCode({ quiz_id: 'quiz-hs-dbfail' }), settings: ON, quiz: NOT_CURRENT });
+    const base = supabase.from.getMockImplementation();
+    supabase.from.mockImplementation((table) => { if (table === 'quizzes') throw new Error('db down'); return base(table); });
+    await handleTextMessage(MESSAGE, CHILD, `QUIZ-${CODE}`, null);
+    await settle();
+    expect(WhatsAppService.sendCtaUrl).toHaveBeenCalledTimes(1);
+    expect(logEvent).toHaveBeenCalledWith('web_quiz.old_link_redirect', expect.objectContaining({ sent: true }));
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
   });
 });

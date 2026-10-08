@@ -45,7 +45,11 @@ class CoachingJobQueueService {
     const payload = { ...metadata };
     if (payload.phase === 'preview' && payload.teacherPhone) {
       const crypto = require('crypto');
-      payload.dedupNonce = crypto.createHash('sha1').update(String(payload.teacherPhone)).digest('hex').slice(0, 16);
+      // bd-trksw9: a Regenerate tap is the same session and teacher as the preview
+      // that failed, so without its retryNonce the 1h Redis key and the FIFO
+      // window would swallow it as a duplicate.
+      const seed = payload.retryNonce ? `${payload.teacherPhone}:${payload.retryNonce}` : String(payload.teacherPhone);
+      payload.dedupNonce = crypto.createHash('sha1').update(seed).digest('hex').slice(0, 16);
     }
     return await this.queueJob(coachingSessionId, 'observe_teacher_report', payload);
   }

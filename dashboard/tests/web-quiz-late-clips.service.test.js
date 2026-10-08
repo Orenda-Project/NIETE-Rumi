@@ -123,14 +123,41 @@ describe('a quiz whose clips are recorded while the child plays', () => {
     expect(p.gets.length).toBe(asked);
   });
 
-  test('keeps asking (a few times, then gives up) while the recording is still running', async () => {
+  // Prod, the first day of old links on the web: the clips landed 52-75 s after the page booted and the
+  // page's next ask came 5-28 s later (it asked at 15, 40, 80 and 140 s). Every question read in that gap
+  // read without its recorded clip although the clip existed. So: ask every 10 s for about three minutes.
+  test('keeps asking every 10 s while the recording is still running, for about three minutes, then gives up', async () => {
     const quiz = { code: 'TEST', lang: 'ur', voice_lang: 'ur', audio_pending: true, topic: 'جانور', grade: 5, questions: [urQ(QID1, 1)] };
-    const p = page({ quiz, serve: Array.from({ length: 10 }, () => ({ quiz })) });
-    for (let k = 0; k < 10; k += 1) { p.runTimers(); await p.settle(); }
-    expect(p.gets.length).toBeGreaterThanOrEqual(2);
-    expect(p.gets.length).toBeLessThanOrEqual(5);
-    // Spaced out: never a tight loop on a slow connection.
-    expect(Math.min(...p.lateDelays())).toBeGreaterThanOrEqual(10000);
+    const p = page({ quiz, serve: Array.from({ length: 40 }, () => ({ quiz })) });
+    for (let k = 0; k < 40; k += 1) { p.runTimers(); await p.settle(); }
+    const delays = p.lateDelays();
+    // Never more than 10 s between two asks, and never a tight loop on a slow connection.
+    expect(Math.max(...delays)).toBeLessThanOrEqual(10000);
+    expect(Math.min(...delays)).toBeGreaterThanOrEqual(10000);
+    // Covers the slowest recording seen (about 160 s), then stops.
+    const covered = delays.reduce((a, b) => a + b, 0);
+    expect(covered).toBeGreaterThanOrEqual(170000);
+    expect(covered).toBeLessThanOrEqual(200000);
+    expect(p.gets.length).toBe(delays.length);
+  });
+
+  test('clips that land between two asks reach the next question within 10 s', async () => {
+    const quiz = { code: 'TEST', lang: 'ur', voice_lang: 'ur', audio_pending: true, topic: 'جانور', grade: 5, questions: [urQ(QID1, 1), urQ(QID2, 2)] };
+    const done = { quiz: { ...quiz, audio_pending: false, questions: [recorded(urQ(QID1, 1)), recorded(urQ(QID2, 2))] } };
+    // Recording takes 60 s: the first five asks (at 10..50 s) find nothing, the sixth (60 s) finds the clips.
+    const p = page({ quiz, serve: [{ quiz }, { quiz }, { quiz }, { quiz }, { quiz }, done] });
+    p.wq.question(0, false);
+    let elapsed = 0;
+    while (p.gets.length < 6) {
+      const pending = p.lateDelays().slice(p.gets.length);
+      elapsed += pending[0] || 0;
+      p.runTimers(); await p.settle();
+      if (elapsed > 200000) break;
+    }
+    expect(elapsed).toBeLessThanOrEqual(70000);
+    const n = p.voiced.length;
+    p.wq.question(1, false);
+    expect(p.voiced[n]).toEqual({ url: clip(QID2, 'q') });
   });
 
   test('the question still on screen, unanswered, is read again in the recorded voice when its clips land', async () => {

@@ -75,7 +75,9 @@ function attachSubjectNote(groups, analysis, language) {
 /**
  * @param {object} session - coaching_sessions row (transcript_text, user_id, created_at, classroom_photos)
  * @param {object} analysis - enhancedAnalysis (framework, scores, domains, reflective_corpus, …)
- * @param {object} opts - { teacherName, commitmentAction, language, brand }
+ * @param {object} opts - { teacherName, commitmentAction, language, brand, requireNarrative }
+ *   `requireNarrative` (bd-trksw9): reject with code NARRATIVE_UNAVAILABLE instead of
+ *   rendering when the narrative pass failed twice. Off by default.
  *   `brand` selects the template palette ('niete' for the FICO/NIETE path,
  *   injected by renderer-registry; omitted = default palette). bd-2452.
  * @returns {Promise<{png:Buffer, caption:string}>}
@@ -112,6 +114,14 @@ async function generateHeroReport(session, analysis, opts = {}) {
     language: lang,
     teacherName,
   });
+  // bd-trksw9: without the narrative the page renders its score, photos and trend
+  // around an empty strength, horizon and moments. A caller that would rather say so
+  // than send that (the /observe preview) opts in; every other caller is unchanged.
+  if (!narrative && opts.requireNarrative) {
+    const err = new Error('hero report: narrative unavailable after retry');
+    err.code = 'NARRATIVE_UNAVAILABLE';
+    throw err;
+  }
 
   // bd-1t1wz: per-section "why" diagnosis lines onto the scorecard rows.
   attachDomainWhys(score.groups, narrative && narrative.domain_whys);

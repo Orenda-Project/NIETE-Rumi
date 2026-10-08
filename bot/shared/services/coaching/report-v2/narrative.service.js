@@ -278,6 +278,17 @@ ${String(transcript || '').slice(0, 11000)}`;
  * @returns {Promise<object|null>} celebration JSON (no try_next), normalized; null on failure.
  */
 async function generateReportNarrative(analysis, opts = {}) {
+  // bd-trksw9: one retry, never more. On 7 Oct 2026 a single call ran 430s to
+  // 65,536 output tokens of unparseable JSON, and the report shipped without its
+  // strength, horizon or moments. The same request again almost always succeeds
+  // (2 runaways in ~6,600 calls over 30 days), so the first try is unchanged and a
+  // failure gets exactly one more.
+  const first = await narrativeAttempt(analysis, opts, 1);
+  if (first) return first;
+  return narrativeAttempt(analysis, opts, 2);
+}
+
+async function narrativeAttempt(analysis, opts, attempt) {
   const { transcript = '', trend = [], language = 'en', teacherName = 'Teacher' } = opts;
   try {
     const prompt = buildPrompt(analysis, { transcript, trend, language, teacherName });
@@ -310,7 +321,7 @@ async function generateReportNarrative(analysis, opts = {}) {
     narrative._language = language;
     return narrative;
   } catch (err) {
-    logToFile('❌ generateReportNarrative failed', { error: err.message, framework: analysis?.framework, language });
+    logToFile('❌ generateReportNarrative failed', { error: err.message, framework: analysis?.framework, language, attempt });
     return null;
   }
 }

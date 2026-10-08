@@ -21,6 +21,12 @@
  * and the topic in the quiz's language, never a URL, a token or a child's name — the
  * link lives in the button, which a forward does not carry.
  *
+ * The read-aloud clips get a head start: an old chat quiz was never opened on the web, so its
+ * clips do not exist yet and take about a minute to record, while children start 20-160 s after
+ * the button. The redirect asks for them (web-quiz-publish requestQuizAudio: skips a quiz whose
+ * clips are current, one request per quiz per process) the moment it decides to redirect, before
+ * the send, not awaited; nothing on a kept path asks.
+ *
  * Telemetry (ids only): `web_quiz.old_link_redirect` once per redirect attempt
  * ({sent} says whether Meta took it), `web_quiz.old_link_kept` with the reason when a
  * gate kept the chat path.
@@ -61,6 +67,19 @@ async function redirectOn(now = Date.now()) {
   }
 }
 
+/** Ask the worker to record the quiz's clips now (see the header). Not awaited; never throws. */
+function clipsHeadStart(quizId) {
+  if (!quizId) return;
+  Promise.resolve()
+    .then(async () => {
+      const { data } = await supabase.from('quizzes')
+        .select('id, audio_v:meta->web->>audio_v, audio_voice:meta->web->>audio_voice').eq('id', quizId).maybeSingle();
+      const web = { audio_v: data && data.audio_v, audio_voice: data && data.audio_voice };
+      return require('./web-quiz-publish.service').requestQuizAudio(quizId, { meta: { web } });
+    })
+    .catch((err) => logToFile('⚠️ old quiz link: could not ask for the read-aloud clips', { quizId, error: err.message }));
+}
+
 /**
  * Answer an old link with the web page, or return false so the caller runs today's
  * chat join. `sc` is the resolved share code (resolveInvite's shape: `shareCodeId` is
@@ -98,6 +117,8 @@ async function tryRedirect(phone, code, sc, hooks = {}) {
       const topic = sc.topic || resolveUx('tqTodaysLesson', { language: lang });
       body = resolveUx('vqOldLinkBody', { language: lang, params: { teacher, topic } });
     }
+
+    clipsHeadStart(quizId);
 
     // The chat join must not be waiting for a name: the child's next text is theirs.
     await clearJoin();
