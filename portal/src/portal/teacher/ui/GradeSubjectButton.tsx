@@ -74,7 +74,7 @@ export function GradeSubjectButton({
     </>
   );
   if (to && !disabled) {
-    return <Link to={to} className={box}>{inner}</Link>;
+    return <Link to={to} onClick={() => onPress?.()} className={box}>{inner}</Link>;
   }
   return (
     <button
