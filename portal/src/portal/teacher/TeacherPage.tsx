@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import PortalLayout from "../components/PortalLayout";
-import { TEACHER_COPY as C } from "./copy";
+import { TEACHER_FRAME } from "./copy";
+import { useCopy } from "./i18n";
 import { FeatureArt, type TeacherFeature } from "./icons";
 
 /**
@@ -39,6 +40,7 @@ export default function TeacherPage({
   testId?: string;
   children: ReactNode;
 }) {
+  const C = useCopy(TEACHER_FRAME);
   const circle = (
     <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#33374a]">
       <ChevronLeft className="h-[22px] w-[22px] rtl:rotate-180" aria-hidden="true" />

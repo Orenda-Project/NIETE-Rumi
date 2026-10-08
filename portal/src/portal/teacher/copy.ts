@@ -4,9 +4,13 @@
  * Feature folders keep their own copy.ts (teacher/<feature>/copy.ts) so parallel
  * work never collides here. Rules (DESIGN.md, Rule 20): labels are 1–4 words,
  * no sentences; data (her name, a school, a lesson title) is not copy and comes
- * from the API as is. NIETE is flat en/ur: these are the English words; the Urdu
- * pass translates this file (language-protocol skill).
+ * from the API as is. NIETE is flat en/ur (language-protocol skill).
+ *
+ * bd-fmf24g.13 — bilingual: TEACHER_FRAME = { en, ur }, read with useCopy(TEACHER_FRAME). The Urdu is
+ * MACHINE-DRAFTED from the bot's existing Urdu (ux-strings.js menu rows: لیسن پلان, حاضری, میری کلاسیں…)
+ * and awaits a human review (workbench/teacher-v2-impl/urdu-review/).
  */
+import { bilingual } from "./i18n";
 
 export const TEACHER_COPY = {
   back: "Back",
@@ -68,3 +72,65 @@ export const TEACHER_COPY = {
     lockedAfterSave: "Locked 48h after save",
   },
 } as const;
+
+/** bd-fmf24g.13 — the frame's words in Urdu (MACHINE-DRAFTED; review pending). */
+export const TEACHER_COPY_UR = {
+  back: "واپس",
+  menu: "مینو",
+  brand: "NIETE",
+  logoAlt: "NIETE لوگو",
+  tryAgain: "دوبارہ کوشش کریں",
+  nav: {
+    home: "ہوم",
+    lessons: "لیسن پلان",
+    coaching: "ڈیجیٹل کوچنگ",
+    training: "ٹریننگ",
+    more: "مزید",
+  },
+  home: {
+    greeting: (name: string) => (name ? `السلام علیکم، ${name}!` : "السلام علیکم!"),
+    features: "سہولیات",
+    tiles: {
+      lessons: "لیسن پلان",
+      coaching: "ڈیجیٹل کوچنگ",
+      observations: "مشاہدات",
+      training: "ٹریننگ",
+      assessment: "پرچہ",
+      attendance: "حاضری",
+      classes: "میری کلاسیں",
+    },
+  },
+  more: {
+    title: "مزید",
+    teaching: "تدریس",
+    records: "ٹریننگ ریکارڈ",
+    account: "اکاؤنٹ",
+    assessment: "پرچہ",
+    attendance: "حاضری",
+    classes: "میری کلاسیں",
+    analytics: "تجزیہ",
+    certificates: "سرٹیفکیٹ",
+    language: "زبان",
+    profile: "میری پروفائل",
+    logout: "لاگ آؤٹ",
+    switchTo: { ur: "اردو", en: "English" },
+    notSaved: "محفوظ نہیں ہوا",
+  },
+  profile: {
+    title: "میری پروفائل",
+    crumb: "مزید",
+    name: "نام",
+    phone: "فون",
+    school: "اسکول",
+    level: "تدریسی سطح",
+    save: "محفوظ کریں",
+    saved: "محفوظ ہو گیا",
+    notSaved: "محفوظ نہیں ہوا",
+    lockedFor: (hours: number) => `بند · ${hours} گھنٹے`,
+    locked: "بند",
+    lockedAfterSave: "48 گھنٹے تک بند",
+  },
+};
+
+/** The frame's words in both languages. */
+export const TEACHER_FRAME = bilingual(TEACHER_COPY, TEACHER_COPY_UR);

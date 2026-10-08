@@ -1,5 +1,6 @@
 import type { Bilingual } from './i18n';
 import { TEACHER_UI } from './ui/copy';
+import { TEACHER_FRAME } from './copy';
 
 /**
  * bd-fmf24g.13 — every teacher v2 copy module that is bilingual, with the screen it serves and the keys that
@@ -22,5 +23,13 @@ export const COPY_MODULES: readonly CopyEntry[] = [
     module: TEACHER_UI as Bilingual<unknown>,
     same: ['noValue', 'report.brand', 'report.brandMark'],
     longOk: ['report.madeFor', 'report.eyebrow', 'report.lastAsked'],
+  },
+  {
+    screen: 'frame (menu, Home, More, My profile)',
+    module: TEACHER_FRAME as Bilingual<unknown>,
+    // The brand, and the Language row's names, each written in its own script in both languages.
+    same: ['brand', 'more.switchTo.ur', 'more.switchTo.en'],
+    // "Salaam, Ayesha!" — a greeting, with its "!" as in English.
+    longOk: ['home.greeting'],
   },
 ];

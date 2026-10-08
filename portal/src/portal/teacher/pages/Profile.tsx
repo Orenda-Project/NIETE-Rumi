@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils";
 import api from "../../services/api";
 import { useAuth } from "../../hooks/useAuth";
 import TeacherPage from "../TeacherPage";
-import { TEACHER_COPY as C } from "../copy";
+import { TEACHER_FRAME } from "../copy";
+import { useCopy } from "../i18n";
 import { cleanSchool, formatPhone, fullName, initials } from "../format";
 import { teacherPath } from "../routes";
 
@@ -50,6 +51,7 @@ function Field({ label, children, testId }: { label: string; children: ReactNode
 }
 
 export default function Profile() {
+  const C = useCopy(TEACHER_FRAME);
   const { user } = useAuth();
   const name = fullName(user);
   const phone = formatPhone(user?.phoneNumber);
