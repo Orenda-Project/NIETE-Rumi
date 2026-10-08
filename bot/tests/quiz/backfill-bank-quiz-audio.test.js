@@ -148,7 +148,8 @@ describe('--apply records through publishQuizAudio, idempotent on isCurrent', ()
     expect(quizIdsSpoken).toEqual(new Set(['q-g1eng-2']));
     tts.synthesize.mock.calls.forEach((c) => expect(c[0]).toMatchObject({ provider: 'soniox', voice: 'Grace' }));
     expect(r).toMatchObject({ done: 1, skipped: 1, failed: 0 });
-    const stamped = db.writes.find((x) => x.id === 'q-g1eng-2').v.meta.web;
+    // The last write: question 1's clips are written as soon as they exist, the stamp comes with the rest.
+    const stamped = db.writes.filter((x) => x.id === 'q-g1eng-2').pop().v.meta.web;
     expect(Publish.isCurrent(stamped)).toBe(true);
     expect(lines[lines.length - 1]).toMatch(/^SUMMARY mode=apply quizzes done=1 skipped=1 failed=0 not_started=0 chars=\d+ usd=\d/);
 
