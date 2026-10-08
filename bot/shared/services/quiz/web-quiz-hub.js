@@ -131,12 +131,12 @@ function firstOfEach(rows, max = RECS_MAX) {
 async function kidClasses(studentId, history) {
   const ids = new Set();
   try {
-    const { data } = await dbRead('kidClasses:class_enrollments', (db) => db.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true));
+    const { data } = await dbRead('kidClasses:class_enrollments:1', (db) => db.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true));
     (data || []).forEach((r) => r.class_id && ids.add(r.class_id));
   } catch (_) { /* no roster: the played codes only */ }
   const played = history.filter((e) => e.teacherSent && e.shareCodeId).map((e) => e.shareCodeId);
   if (played.length) {
-    const { data, error } = await dbRead('kidClasses:quiz_share_codes', (db) => db.from('quiz_share_codes').select('id, class_id').in('id', played.slice(0, 50)));
+    const { data, error } = await dbRead('kidClasses:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('id, class_id').in('id', played.slice(0, 50)));
     if (!error) (data || []).forEach((r) => r.class_id && ids.add(r.class_id));
   }
   return ids;
@@ -144,7 +144,7 @@ async function kidClasses(studentId, history) {
 
 /** Open teacher-sent codes of these teachers from the last 7 days, newest first; class_id when the column exists. */
 async function recentCodes(teachers) {
-  const q = (cols) => dbRead('recentCodes:quiz_share_codes', (db) => db.from('quiz_share_codes').select(cols)
+  const q = (cols) => dbRead('recentCodes:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select(cols)
     .in('teacher_user_id', teachers.slice(0, 5)).eq('active', true)
     .is('parent_share_code_id', null).is('invited_by_student_id', null)
     .gte('created_at', daysAgoIso(TEACHER_DAYS)).order('created_at', { ascending: false }).limit(30));
@@ -171,7 +171,7 @@ async function teacherCard(kidRow, list, history, grade) {
   const open = codes.filter((c) => isOpen(c) && !seen.has(c.id));
   if (!open.length) return null;
   const quizIds = [...new Set([...open.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
-  const { data: quizzes } = await dbRead('teacherCard:quizzes', (db) => db.from('quizzes').select('id, topic, subject, grade, language, lesson_plan_id, coaching_session_id').in('id', quizIds));
+  const { data: quizzes } = await dbRead('teacherCard:quizzes:1', (db) => db.from('quizzes').select('id, topic, subject, grade, language, lesson_plan_id, coaching_session_id').in('id', quizIds));
   const quizById = new Map((quizzes || []).map((q) => [q.id, q]));
   // The same lesson the child already finished (its twin in the other language) is not "new from your teacher".
   const doneLessons = new Set(history.filter((e) => e.latest).flatMap((e) => lessonRefs(quizById.get(e.quizId))));
@@ -226,7 +226,7 @@ function lastOf(history, kidId) {
 async function answeredSoFar(entry, fallback = 0) {
   if (!entry || !entry.openSessionId) return fallback;
   try {
-    const { count, error } = await dbRead('answeredSoFar:quiz_answers', (db) => db.from('quiz_answers').select('id', { count: 'exact', head: true }).eq('session_id', entry.openSessionId));
+    const { count, error } = await dbRead('answeredSoFar:quiz_answers:1', (db) => db.from('quiz_answers').select('id', { count: 'exact', head: true }).eq('session_id', entry.openSessionId));
     return error ? fallback : Math.max(fallback, count || 0);
   } catch (_) {
     return fallback;
@@ -271,7 +271,7 @@ async function recsFor(kidId, history, grade) {
   let G = grade;
   if (lastDone) {
     if (lastDone.videoId) {
-      const { data: v } = await dbRead('recsFor:student_videos', (db) => db.from('student_videos').select('id, grade, subject, clean_chapter').eq('id', lastDone.videoId).maybeSingle());
+      const { data: v } = await dbRead('recsFor:student_videos:1', (db) => db.from('student_videos').select('id, grade, subject, clean_chapter').eq('id', lastDone.videoId).maybeSingle());
       if (v) { last = { subject: v.subject, chapter: v.clean_chapter, vid: v.id }; G = String(v.grade); }
     }
     if (!last) {
@@ -281,14 +281,14 @@ async function recsFor(kidId, history, grade) {
     }
   }
   if (!G) return [];
-  const { data: vids, error } = await dbRead('recsFor:student_videos', (db) => db.from('student_videos')
+  const { data: vids, error } = await dbRead('recsFor:student_videos:2', (db) => db.from('student_videos')
     .select('id, grade, subject, clean_chapter, clean_title, r2_url')
     .eq('migration_status', 'done').is('superseded_by', null).eq('grade', G).limit(400));
   if (error || !vids || !vids.length) return [];
-  const { data: quizzes } = await dbRead('recsFor:quizzes', (db) => db.from('quizzes').select('id, video_id')
+  const { data: quizzes } = await dbRead('recsFor:quizzes:1', (db) => db.from('quizzes').select('id, video_id')
     .in('video_id', vids.map((r) => r.id)).eq('quiz_source', 'video').eq('status', 'ready'));
   const quizOf = new Map((quizzes || []).map((q) => [q.video_id, q.id]));
-  const { data: done } = await dbRead('recsFor:quiz_sessions', (db) => db.from('quiz_sessions').select('quiz_id')
+  const { data: done } = await dbRead('recsFor:quiz_sessions:1', (db) => db.from('quiz_sessions').select('quiz_id')
     .eq('student_id', kidId).eq('status', 'completed').limit(300));
   const finished = new Set((done || []).map((r) => r.quiz_id));
   const playable = vids.filter((r) => quizOf.has(r.id) && !finished.has(quizOf.get(r.id)));
@@ -322,11 +322,11 @@ async function kidFromHub(token, chip, device) {
 }
 
 async function kidContext(studentId) {
-  const { data: row } = await dbRead('kidContext:students', (db) => db.from('students')
+  const { data: row } = await dbRead('kidContext:students:1', (db) => db.from('students')
     .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').eq('id', studentId).maybeSingle());
   if (!row || row.is_active === false) return null;
   const { data: list } = row.list_id
-    ? await dbRead('kidContext:student_lists', (db) => db.from('student_lists').select('id, user_id, class_name, section').eq('id', row.list_id).maybeSingle())
+    ? await dbRead('kidContext:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').eq('id', row.list_id).maybeSingle())
     : { data: null };
   const StudentQuiz = require('./student-quiz.service');
   const history = await StudentQuiz.quizzesForStudents([row]);
@@ -350,7 +350,7 @@ async function brandKey() {
 async function lockedHub(ids, why) {
   let lang = 'en';
   try {
-    const { data: rows } = await dbRead('lockedHub:students', (db) => db.from('students').select('id, is_active').in('id', ids));
+    const { data: rows } = await dbRead('lockedHub:students:1', (db) => db.from('students').select('id, is_active').in('id', ids));
     const live = (rows || []).filter((r) => r.is_active !== false);
     if (live.length) {
       const StudentQuiz = require('./student-quiz.service');
@@ -374,11 +374,11 @@ async function hubPayload(token, { kid, device } = {}) {
   // Only the children this phone is trusted for: all of them on the bound phone, else the ones it played as.
   const mine = ids.filter((id) => trust.ids.includes(id));
 
-  const { data: rows } = await dbRead('hubPayload:students', (db) => db.from('students')
+  const { data: rows } = await dbRead('hubPayload:students:1', (db) => db.from('students')
     .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', mine));
   const kidsRows = mine.map((id) => (rows || []).find((r) => r.id === id)).filter((r) => r && r.is_active !== false);
   const { data: lists } = kidsRows.some((r) => r.list_id)
-    ? await dbRead('hubPayload:student_lists', (db) => db.from('student_lists').select('id, user_id, class_name, section').in('id', kidsRows.map((r) => r.list_id).filter(Boolean)))
+    ? await dbRead('hubPayload:student_lists:1', (db) => db.from('student_lists').select('id, user_id, class_name, section').in('id', kidsRows.map((r) => r.list_id).filter(Boolean)))
     : { data: [] };
   const listOf = (r) => (lists || []).find((l) => l.id === r.list_id) || null;
   const gradeOf = (r) => gradeNum((listOf(r) || {}).class_name) || gradeNum(r.self_reported_class) || null;

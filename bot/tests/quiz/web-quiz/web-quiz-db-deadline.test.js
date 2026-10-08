@@ -41,9 +41,11 @@ let calls;         // every request: { table, method, query }
 let held;          // resolvers of hung requests that were never aborted (the flag-off case)
 
 const json = (rows) => new Response(JSON.stringify(rows), { status: 200, headers: { 'content-type': 'application/json' } });
-const rowsFor = (table) => {
+// A friend's challenge code: resolveCode reads it (call site 1), then its parent class code (call site 2).
+const FRIEND_ROW = { ...SC_ROW, id: '55555555-5555-4555-8555-555555555555', code: 'FR12ND', invited_by_student_id: '44444444-4444-4444-8444-444444444444', parent_share_code_id: SC_ROW.id };
+const rowsFor = (table, query = '') => {
   if (table === 'app_settings') return flag === undefined ? [] : [{ key: 'web_quiz_db_deadline', value: flag }];
-  if (table === 'quiz_share_codes') return [SC_ROW];
+  if (table === 'quiz_share_codes') return query.includes('FR12ND') ? [FRIEND_ROW] : [SC_ROW];
   return [];
 };
 
@@ -54,13 +56,13 @@ global.__wqFetch = (url, init = {}) => {
   if (hangs[table] > 0) {
     hangs[table] -= 1;
     return new Promise((resolve, reject) => {
-      held.push(() => resolve(json(rowsFor(table))));
+      held.push(() => resolve(json(rowsFor(table, decodeURIComponent(u.search)))));
       if (init.signal) {
         init.signal.addEventListener('abort', () => reject(Object.assign(new Error('This operation was aborted'), { name: 'AbortError', code: 'ABORT_ERR' })));
       }
     });
   }
-  return Promise.resolve(json(rowsFor(table)));
+  return Promise.resolve(json(rowsFor(table, decodeURIComponent(u.search))));
 };
 
 // resolveCode's lookup of the class code (the report loader reads quiz_share_codes too, by id)
@@ -93,7 +95,7 @@ describe('web quiz: a read that hangs gets a deadline and one retry (flag on)', 
     expect(shareCodeCalls()).toHaveLength(2);
     expect(ms).toBeGreaterThanOrEqual(3500);
     expect(ms).toBeLessThan(8000);
-    expect(retryLines()).toEqual([expect.objectContaining({ label: 'resolveCode:quiz_share_codes', outcome: 'recovered', deadline_ms: 4000 })]);
+    expect(retryLines()).toEqual([expect.objectContaining({ label: 'resolveCode:quiz_share_codes:1', outcome: 'recovered', deadline_ms: 4000 })]);
   }, 15000);
 
   test('the flag stored as a JSON string (as other app_settings rows are) works the same', async () => {
@@ -116,7 +118,7 @@ describe('web quiz: a read that hangs gets a deadline and one retry (flag on)', 
     expect(shareCodeCalls()).toHaveLength(2);
     expect(ms).toBeGreaterThanOrEqual(7500);
     expect(ms).toBeLessThan(9500);
-    expect(retryLines()).toEqual([expect.objectContaining({ label: 'resolveCode:quiz_share_codes', outcome: 'failed' })]);
+    expect(retryLines()).toEqual([expect.objectContaining({ label: 'resolveCode:quiz_share_codes:1', outcome: 'failed' })]);
   }, 15000);
 
   test('a write handed to the wrapper is never given a deadline or retried', async () => {
@@ -181,7 +183,7 @@ test('the shared client itself is untouched: a hung read outside the web quiz st
 }, 15000);
 
 describe('measuring it on a test tier: the flag can hold one read\'s first attempt (never in production)', () => {
-  const INJECT = { enabled: true, inject: 'resolveCode:quiz_share_codes' };
+  const INJECT = { enabled: true, inject: 'resolveCode:quiz_share_codes:1' };
   const env = process.env.NODE_ENV;
   afterEach(() => { process.env.NODE_ENV = env; });
 
@@ -194,8 +196,17 @@ describe('measuring it on a test tier: the flag can hold one read\'s first attem
     expect(shareCodeCalls()).toHaveLength(1);
     expect(ms).toBeGreaterThanOrEqual(3500);
     expect(ms).toBeLessThan(8000);
-    expect(retryLines()).toEqual([expect.objectContaining({ label: 'resolveCode:quiz_share_codes', outcome: 'recovered', injected: true })]);
+    expect(retryLines()).toEqual([expect.objectContaining({ label: 'resolveCode:quiz_share_codes:1', outcome: 'recovered', injected: true })]);
   }, 15000);
+
+  test('each call site has its own label: a friend\'s code reads twice in resolveCode, inject holds only site 1', async () => {
+    flag = INJECT;
+    const t0 = Date.now();
+    await WQ.getQuiz('FR12ND').catch(() => null);
+    const ms = Date.now() - t0;
+    expect(retryLines().map((l) => l.label)).toEqual(['resolveCode:quiz_share_codes:1']);
+    expect(ms).toBeLessThan(7500);
+  }, 20000);
 
   test('NODE_ENV=production -> inject is ignored: no hold, no line', async () => {
     process.env.NODE_ENV = 'production';

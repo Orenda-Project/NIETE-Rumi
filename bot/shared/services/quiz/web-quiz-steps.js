@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Where the server time of the calls a child waits on goes (getQuiz, startSession): one log line per
+ * Where the server time of the calls a child waits on goes (getQuiz, startSession, finishSession): one log line per
  * call with each step's duration and the total. Ids and numbers only.
  *
  * The DB round-trip count per request is the route-level web_quiz.timing line (M4's), so it is not
