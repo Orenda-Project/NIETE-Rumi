@@ -35,6 +35,8 @@ const PS_RX = /^[a-z0-9]{8,16}$/;
 const HUB_TOKEN_RX = /^[A-Za-z0-9_-]{16,600}\.[A-Za-z0-9_-]{22}$/;
 const BODY_LIMIT = '16kb';
 const BOT_TIMEOUT_MS = 10000;
+// A bot call this slow or slower is logged (web_quiz.bot_call) even when it answers.
+const BOT_SLOW_MS = 3000;
 const YEAR_S = 31536000;
 // A share picture's signed id (the bot's web-quiz-art.js): kind letter, ref, mac. The edge only checks its shape.
 const ART_ID_RX = /^([cils])\.[A-Za-z0-9_-]{4,24}\.[A-Za-z0-9_-]{12}$/;
@@ -332,10 +334,25 @@ function deviceCookie(req) {
   return m ? m[1] : null;
 }
 
-function createBotClient({ botUrl, apiKey, fetchImpl }) {
-  return async function callBot(method, pathname, req, body, { raw = false } = {}) {
+// A bot route as it is logged: the caller's template, else the path cut to its first four
+// segments with ":x" for the rest, so a code or a token in the path is never written down.
+function botRouteOf(pathname) {
+  const parts = String(pathname || '').split('?')[0].split('/').filter(Boolean);
+  return `/${parts.slice(0, 4).join('/')}${parts.length > 4 ? '/:x' : ''}`;
+}
+
+const defaultLogEvent = (e, p) => { try { require('../services/telemetry.service').logEvent(e, p); } catch (_) { /* never decides a response */ } };
+
+function createBotClient({ botUrl, apiKey, fetchImpl, logEvent = defaultLogEvent, now = Date.now, timeoutMs = BOT_TIMEOUT_MS }) {
+  // One line per call that fails or is slow (web_quiz.bot_call): the 502 a child sees has its reason on record.
+  const record = (method, route, t0, fields) => {
+    try { logEvent('web_quiz.bot_call', { route, method, ms: now() - t0, ...fields }); } catch (_) { /* never decides a response */ }
+  };
+  return async function callBot(method, pathname, req, body, { raw = false, route = null } = {}) {
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timer = controller ? setTimeout(() => controller.abort(), BOT_TIMEOUT_MS) : null;
+    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    const t0 = now();
+    const where = route || botRouteOf(pathname);
     try {
       const headers = { 'x-api-key': apiKey, 'x-forwarded-for': clientIp(req), accept: raw ? '*/*' : 'application/json' };
       const ua = req.get('user-agent');
@@ -350,6 +367,8 @@ function createBotClient({ botUrl, apiKey, fetchImpl }) {
         init.body = JSON.stringify(body || {});
       }
       const res = await fetchImpl(`${botUrl}${pathname}`, init);
+      if (res.status >= 500 && res.status !== 503) record(method, where, t0, { outcome: 'upstream_5xx', status: res.status });
+      else if (now() - t0 >= BOT_SLOW_MS) record(method, where, t0, { outcome: 'slow', status: res.status });
       const location = res.headers && res.headers.get ? res.headers.get('location') : null;
       // A picture the bot answers as bytes (a cropped option, an inline option picture) is passed
       // through as that picture: parsing it as JSON turned every one into "{}" (a blank tile).
@@ -362,6 +381,9 @@ function createBotClient({ botUrl, apiKey, fetchImpl }) {
       try { json = text ? JSON.parse(text) : null; } catch (_) { json = null; }
       return { status: res.status, body: json, location };
     } catch (err) {
+      const timedOut = Boolean(controller && controller.signal.aborted);
+      record(method, where, t0, timedOut ? { outcome: 'timeout' }
+        : { outcome: 'error', cause: String((err && err.cause && err.cause.code) || (err && err.name) || 'error').slice(0, 40) });
       const e = new Error('bot_unreachable');
       e.unreachable = true;
       throw e;
@@ -431,9 +453,9 @@ function createWebQuizRouter(opts = {}) {
   // which the edge draws without asking the bot.
   let lastRt = false;
 
-  const callBot = createBotClient({ botUrl, apiKey, fetchImpl });
   // Link previews (web-quiz-preview.js): what the edge last learned about each code, and the drawn pictures.
   const now = opts.now || Date.now;
+  const callBot = createBotClient({ botUrl, apiKey, fetchImpl, logEvent, now, timeoutMs: opts.botTimeoutMs || BOT_TIMEOUT_MS });
   const ogKnown = Preview.ttlCache({ max: 2000, now });
   const artKept = Preview.ttlCache({ max: 200, now });
 
@@ -493,7 +515,7 @@ function createWebQuizRouter(opts = {}) {
       const qs = req.originalUrl.indexOf('?') >= 0 ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '';
       const pathname = req.path.replace(/^\/api\/wq\//, '/api/internal/wq/') + qs;
       try {
-        const out = await callBot(r.method.toUpperCase(), pathname, req, req.body);
+        const out = await callBot(r.method.toUpperCase(), pathname, req, req.body, { route: r.path.replace(/^\/api\/wq\//, '/api/internal/wq/') });
         if (out.status >= 300 && out.status < 400 && out.location) return res.redirect(out.status, out.location);
         if (out.status === 204) return res.status(204).end();
         if (out.bytes) return res.status(out.status).type(out.contentType).send(out.bytes);
