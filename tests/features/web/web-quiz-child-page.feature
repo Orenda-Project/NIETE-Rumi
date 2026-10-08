@@ -1323,6 +1323,7 @@ Feature: Web child quiz page on the portal
     When the child answers it
     Then the reason after the answer is the recorded explanation, not a generated clip
     But a question whose explanation clip failed that check, or changed since, keeps the generated reason
+    And an explanation clip that was not checked is never played, even before the generated reason is recorded: the written reason is read aloud instead
 
   @T644
   Scenario: A sum that ends in "= ?" or a blank is read with a word in the gap

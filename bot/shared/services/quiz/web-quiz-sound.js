@@ -19,12 +19,14 @@
  * [{ index, url }], index = the option's stored slot, so the page's shuffle can
  * never pair a clip with another option) win over the generated read-aloud
  * clips (meta.web.audio) for the same part. Options are all recorded or all
- * generated within one question: one voice across a question's options. The
- * why stays generated where both exist, except for a question recorded end to
- * end (its question and every option) whose recorded explanation passed the
- * transcript check (web-quiz-recorded-why.json: it says this row's explanation,
- * names no option letter, does not announce the answer): then the recorded why
- * wins, so the whole question is one human voice. With neither, the page reads aloud.
+ * generated within one question: one voice across a question's options. A
+ * recorded explanation is served as the why ONLY for a question recorded end to
+ * end (its question and every option) whose clip passed the transcript check
+ * (web-quiz-recorded-why.json: it says this row's explanation, names no option
+ * letter, does not announce the answer): then it wins over the generated why,
+ * so the whole question is one human voice. Any other recorded explanation is
+ * never served (some name a stored letter the page has shuffled, or say the
+ * answer). With no why clip, the page reads the written why aloud.
  */
 
 const crypto = require('crypto');
@@ -133,7 +135,9 @@ async function withRecordedClips(rows, generated, { expiresIn } = {}) {
         if (clips.opts.every((u, i) => !u || signed[i])) entry.opts = signed;
         return;
       }
-      if (entry[k] && !RECORDED_FIRST.has(k) && !(k === 'why' && recordedWhyWins(row, clips))) return;
+      // The why: only a CHECKED recorded explanation, and then it wins. An unchecked one is never served, even
+      // where no generated why exists yet (it may name a shuffled letter or say the answer).
+      if (k === 'why' ? !recordedWhyWins(row, clips) : entry[k] && !RECORDED_FIRST.has(k)) return;
       const url = await presign(clips[k], expiresIn);
       if (url) entry[k] = url;
     }));
