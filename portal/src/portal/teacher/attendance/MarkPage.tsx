@@ -6,7 +6,8 @@ import TeacherPage from '../TeacherPage';
 import { StatusChip } from '../ui';
 import { CARD, CHEVRON, FOCUS, LIST_CARD, ROW_DIVIDER } from '../ui/styles';
 import { getClasses, getDay, getRoster, postMark, useRead, type MarkResult } from './api';
-import { ATTENDANCE_V2_COPY as C } from './copy';
+import { ATTENDANCE, type AttendanceCopy } from './copy';
+import { useCopy, useLang } from '../i18n';
 import {
   addDays, dateWindow, dayLabel, filterStudents, markPayload, marksFrom, rollCounts, setStatus, type Marks, type Status,
 } from './model';
@@ -21,13 +22,15 @@ import { ClassCard, LoadState, SearchBox } from './ui';
  * The window (today back 90 days) is WhatsApp's; the server checks it again.
  */
 
-const SEG: { s: Status; short: keyof typeof C; label: keyof typeof C; on: string }[] = [
+const SEG: { s: Status; short: keyof AttendanceCopy; label: keyof AttendanceCopy; on: string }[] = [
   { s: 'present', short: 'presentShort', label: 'present', on: 'bg-[#2f7a52] text-white' },
   { s: 'absent', short: 'absentShort', label: 'absent', on: 'bg-[#c8331f] text-white' },
   { s: 'leave', short: 'leaveShort', label: 'leave', on: 'bg-[#b45309] text-white' },
 ];
 
 export function MarkPage() {
+  const lang = useLang();
+  const C = useCopy(ATTENDANCE);
   const { listId = '' } = useParams();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
@@ -102,7 +105,7 @@ export function MarkPage() {
             <Check className="h-12 w-12" aria-hidden="true" />
           </span>
           {cls && <ClassCard cls={cls} chip={false} />}
-          <StatusChip text={dayLabel(saved.date)} tone="info" />
+          <StatusChip text={dayLabel(saved.date, lang)} tone="info" />
           <div className="flex flex-wrap justify-center gap-1.5">
             <StatusChip text={C.presentCount(saved.present)} tone="done" />
             <StatusChip text={C.absentCount(saved.absent)} tone="error" />
@@ -161,7 +164,7 @@ export function MarkPage() {
         <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label={C.date}>
           {chip(date === today && !picking, C.today, () => { setPicking(false); pickDate(today); })}
           {chip(date === yesterday && !picking, C.yesterday, () => { setPicking(false); pickDate(yesterday); })}
-          {chip(picking || (date !== today && date !== yesterday), date && date !== today && date !== yesterday ? dayLabel(date) : C.pickDate, () => setPicking(true))}
+          {chip(picking || (date !== today && date !== yesterday), date && date !== today && date !== yesterday ? dayLabel(date, lang) : C.pickDate, () => setPicking(true))}
           {already && <StatusChip text={C.alreadyMarked} tone="waiting" />}
         </div>
       )}

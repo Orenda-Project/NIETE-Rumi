@@ -6,7 +6,8 @@ import TeacherPage from '../TeacherPage';
 import { StatusChip } from '../ui';
 import { CARD, FOCUS, GRID, LIST_CARD, ROW_DIVIDER } from '../ui/styles';
 import { getClasses, getDay, getMonth, getRoster, useRead } from './api';
-import { ATTENDANCE_V2_COPY as C } from './copy';
+import { ATTENDANCE } from './copy';
+import { useCopy, useLang } from '../i18n';
 import { calendar, dayLabel, monthLabel, monthOf, shiftMonth, type CalendarCell } from './model';
 import { ATTENDANCE_V2_BASE, markPath, viewPath } from './paths';
 import { ClassCard, ClassTray, LoadState } from './ui';
@@ -31,6 +32,8 @@ const TONE: Record<CalendarCell['tone'], string> = {
 const SHOWN = 5;
 
 export function ViewPage() {
+  const lang = useLang();
+  const C = useCopy(ATTENDANCE);
   const { listId = '' } = useParams();
   const [params, setParams] = useSearchParams();
   const classes = useRead('classes', () => getClasses());
@@ -79,12 +82,12 @@ export function ViewPage() {
       {cls && <ClassCard cls={cls} onPress={() => setTray(true)} />}
       {month && monthRead.data && (
         <>
-          <section className={CARD} aria-label={monthLabel(month)}>
+          <section className={CARD} aria-label={monthLabel(month, lang)}>
             <div className="flex items-center justify-between p-1">
               <button type="button" aria-label={C.prevMonth} onClick={() => goMonth(shiftMonth(month, -1))} className={cn('flex h-14 w-14 items-center justify-center rounded-xl text-[#33374a]', FOCUS)}>
                 <ChevronLeft className="h-[22px] w-[22px] rtl:rotate-180" aria-hidden="true" />
               </button>
-              <span className="text-[18px] font-semibold">{monthLabel(month)}</span>
+              <span className="text-[18px] font-semibold">{monthLabel(month, lang)}</span>
               <button type="button" aria-label={C.nextMonth} disabled={atLatest} onClick={() => goMonth(shiftMonth(month, 1))} className={cn('flex h-14 w-14 items-center justify-center rounded-xl text-[#33374a] disabled:opacity-30', FOCUS)}>
                 <ChevronRight className="h-[22px] w-[22px] rtl:rotate-180" aria-hidden="true" />
               </button>
@@ -94,7 +97,7 @@ export function ViewPage() {
                 <button
                   key={c.key}
                   type="button"
-                  aria-label={c.pct != null ? `${dayLabel(c.date as string)} ${C.pct(c.pct)}` : `${dayLabel(c.date as string)} ${C.unmarked}`}
+                  aria-label={c.pct != null ? `${dayLabel(c.date as string, lang)} ${C.pct(c.pct)}` : `${dayLabel(c.date as string, lang)} ${C.unmarked}`}
                   aria-pressed={sel === c.date}
                   onClick={() => setSel(c.date)}
                   className={cn('flex h-14 items-center justify-center rounded-xl text-[15px] font-semibold tabular-nums', FOCUS, TONE[c.tone],
@@ -120,7 +123,7 @@ export function ViewPage() {
       {sel && (
         <section className={CARD} aria-live="polite">
           <div className="flex items-center gap-2.5 py-3 pe-3 ps-4">
-            <h2 className="flex-1 text-[18px] font-semibold">{dayLabel(sel)}</h2>
+            <h2 className="flex-1 text-[18px] font-semibold">{dayLabel(sel, lang)}</h2>
             {dayRead.data && (dayRead.data.marked && dayRead.data.present != null
               ? <StatusChip text={C.ofTotal(dayRead.data.present, (dayRead.data.present || 0) + (dayRead.data.absent || 0) + (dayRead.data.leave || 0))} tone="done" />
               : <StatusChip text={C.notMarked} tone="waiting" />)}

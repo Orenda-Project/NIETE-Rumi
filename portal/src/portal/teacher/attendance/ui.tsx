@@ -3,7 +3,8 @@ import { Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { GradeSubjectButton, Tray, type ChipData } from '../ui';
 import { FOCUS, LIST_CARD } from '../ui/styles';
-import { ATTENDANCE_V2_COPY as C } from './copy';
+import { ATTENDANCE, ATTENDANCE_V2_COPY, type AttendanceCopy } from './copy';
+import { useCopy } from '../i18n';
 import { classButton, selectorGroups, type AttendanceClass } from './model';
 import { SkeletonList } from '../../components/Skeleton';
 
@@ -13,7 +14,7 @@ import { SkeletonList } from '../../components/Skeleton';
  * as the selector).
  */
 
-export function classChip(c: AttendanceClass): ChipData {
+export function classChip(c: AttendanceClass, C: AttendanceCopy = ATTENDANCE_V2_COPY): ChipData {
   return c.marked && c.present != null
     ? { text: C.markedOf(c.present, c.students), tone: 'done' }
     : { text: C.notMarked, tone: 'waiting' };
@@ -22,6 +23,7 @@ export function classChip(c: AttendanceClass): ChipData {
 export function SearchBox({ value, onChange, label, sticky = false }: {
   value: string; onChange: (v: string) => void; label: string; sticky?: boolean;
 }) {
+  const C = useCopy(ATTENDANCE);
   return (
     <div className={cn(sticky && 'sticky top-0 z-10 bg-[#f3f4f6] py-1.5')}>
       <label className="flex min-h-[56px] items-center gap-2.5 rounded-2xl border-[1.5px] border-[#d1d5db] bg-white pe-2 ps-3.5 text-[#6b7280] focus-within:border-[#33374a]">
@@ -45,6 +47,7 @@ export function SearchBox({ value, onChange, label, sticky = false }: {
 }
 
 export function LoadState({ loading, failed, onRetry }: { loading: boolean; failed: boolean; onRetry: () => void }) {
+  const C = useCopy(ATTENDANCE);
   if (loading) {
     return (
       // bd-fxk3t8 — rows of placeholders where the list will be, instead of a spinner.
@@ -68,6 +71,7 @@ export function LoadState({ loading, failed, onRetry }: { loading: boolean; fail
 export function ClassCard({ cls, to, onPress, chip = true }: {
   cls: AttendanceClass; to?: string; onPress?: () => void; chip?: boolean;
 }) {
+  const C = useCopy(ATTENDANCE);
   const b = classButton(cls);
   return (
     <GradeSubjectButton
@@ -75,7 +79,7 @@ export function ClassCard({ cls, to, onPress, chip = true }: {
       section={b.section}
       subject={b.subject}
       sub={C.students(cls.students)}
-      chip={chip ? classChip(cls) : undefined}
+      chip={chip ? classChip(cls, C) : undefined}
       to={to}
       onPress={onPress}
     />
@@ -86,6 +90,7 @@ export function ClassCard({ cls, to, onPress, chip = true }: {
 export function ClassTray({ open, onClose, classes, currentId, to }: {
   open: boolean; onClose: () => void; classes: AttendanceClass[]; currentId: string; to: (listId: string) => string;
 }) {
+  const C = useCopy(ATTENDANCE);
   const [q, setQ] = useState('');
   const shown = useMemo(() => {
     const g = selectorGroups(classes, q);
@@ -108,7 +113,7 @@ export function ClassTray({ open, onClose, classes, currentId, to }: {
                   section={b.section}
                   subject={b.subject}
                   sub={C.students(c.students)}
-                  chip={classChip(c)}
+                  chip={classChip(c, C)}
                   state={c.listId === currentId ? 'selected' : 'default'}
                   to={to(c.listId)}
                   onPress={onClose}
