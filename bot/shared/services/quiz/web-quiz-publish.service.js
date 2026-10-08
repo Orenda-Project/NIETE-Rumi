@@ -64,9 +64,10 @@ const PARTS_OPTS = ['a', 'b', 'c', 'd'];
 const DEFAULT_MAX_CLIPS = 120;
 const CLIP_WORKERS = 4;
 // Bumped when the clips of every quiz change (2: the why is the reason, wrong-option feedback
-// recorded; 3: stored small; 4: one voice per language, new key scheme, configurable bucket), so
-// already-published quizzes are brought up to date on their next open.
-const AUDIO_VERSION = 4;
+// recorded; 3: stored small; 4: one voice per language, new key scheme, configurable bucket; 5: maths
+// operators said as words, keys from the words the voice is given), so already-published quizzes are
+// brought up to date on their next open.
+const AUDIO_VERSION = 5;
 const PARTS_FB = ['xa', 'xb', 'xc', 'xd'];
 // Spend estimate for the log line, by the provider that actually spoke:
 // ElevenLabs bills per character, Soniox per second of audio (tts/index.js).
