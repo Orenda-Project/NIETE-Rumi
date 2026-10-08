@@ -4,7 +4,8 @@ import { dataOf, useLoad } from '../../newui/lessons/shared';
 import { teacherPath } from '../routes';
 import { ListRow, type ListRowProps } from '../ui';
 import { LIST_CARD } from '../ui/styles';
-import { LESSONS_V2_COPY as C } from './copy';
+import { LESSONS, type LessonsCopy } from './copy';
+import { useCopy } from '../i18n';
 import { LoadState } from './LoadState';
 import TeacherPage from '../TeacherPage';
 import { lessonsUrl, readAt, type LessonsAt } from './paths';
@@ -24,7 +25,7 @@ export function LessonsPage() {
 }
 
 /** How a lesson is drawn: its number under LP #, or what it is (a worksheet, a revision). */
-function lead(l: LpLesson): Pick<ListRowProps, 'prefix' | 'number' | 'icon' | 'label'> {
+function lead(l: LpLesson, C: LessonsCopy): Pick<ListRowProps, 'prefix' | 'number' | 'icon' | 'label'> {
   if (l.kind === 'worksheet') return { icon: 'worksheet', label: C.worksheet };
   if (l.kind === 'revision') return { icon: 'revision', label: C.revision };
   if (l.number == null) return { icon: 'file', label: l.title };
@@ -32,6 +33,7 @@ function lead(l: LpLesson): Pick<ListRowProps, 'prefix' | 'number' | 'icon' | 'l
 }
 
 function Lessons({ at }: { at: LessonsAt & { chapter: string } }) {
+  const C = useCopy(LESSONS);
   const [subjects] = useLoad(() => lessonPlans.subjects(at.grade), `s:${at.grade}`);
   const [chapters] = useLoad(() => lessonPlans.chapters(at.grade, at.subject), `c:${at.grade}:${at.subject}`);
   const [lessons, retry] = useLoad(() => lessonPlans.lessons(at.grade, at.subject, at.chapter), `l:${at.grade}:${at.subject}:${at.chapter}`);
@@ -51,7 +53,7 @@ function Lessons({ at }: { at: LessonsAt & { chapter: string } }) {
               key={l.id}
               variant="row"
               first={i === 0}
-              {...lead(l)}
+              {...lead(l, C)}
               subtitle={C.crumb(l.pages, l.part != null ? C.part(l.part) : null) || undefined}
               state={l.sent ? 'used' : 'default'}
               onPress={() => { if (!busy) void open(l, at, { crumb }); }}

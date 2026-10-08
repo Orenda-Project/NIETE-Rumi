@@ -9,7 +9,8 @@ import { openLessonPlanOutside, useLessonPlanOpener, type LessonPlanView } from 
 import { FeatureArt } from '../icons';
 import { teacherPath } from '../routes';
 import { CHEVRON, FOCUS } from '../ui/styles';
-import { LESSONS_V2_COPY as C } from './copy';
+import { LESSONS } from './copy';
+import { useCopy } from '../i18n';
 import TeacherPage from '../TeacherPage';
 import { LESSONS_VIEWER, dcHref, type DcPrefill } from './paths';
 
@@ -31,6 +32,7 @@ import { LESSONS_VIEWER, dcHref, type DcPrefill } from './paths';
 type ViewerState = { lessonPlan?: LessonPlanView; dc?: DcPrefill } | null;
 
 export function ViewerPage() {
+  const C = useCopy(LESSONS);
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();

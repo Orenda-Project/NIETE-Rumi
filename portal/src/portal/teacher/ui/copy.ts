@@ -14,7 +14,8 @@
 
 import { MONTHS } from '../../newui/copy';
 import type { RangePreset } from '../../newui/range';
-import { bilingual } from '../i18n';
+import { bilingual, type Bilingual } from '../i18n';
+import type { CopyEntry } from '../copyRegistry';
 
 export interface TeacherUiCopy {
   grade: (g?: string | number) => string;
@@ -260,3 +261,12 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
 
 /** The kit's words in both languages; kit components read them through useKitCopy(). */
 export const TEACHER_UI = bilingual<TeacherUiCopy>(TEACHER_UI_COPY, TEACHER_UI_UR);
+
+/** Registered for the completeness checks and the review file (copyRegistry). */
+export const COPY_ENTRY: CopyEntry = {
+  screen: 'kit (shared components)',
+  module: TEACHER_UI as Bilingual<unknown>,
+  same: ['noValue', 'report.brand', 'report.brandMark'],
+  // The report's words mirror the hero PNG word for word.
+  longOk: ['report.madeFor', 'report.eyebrow', 'report.lastAsked'],
+};

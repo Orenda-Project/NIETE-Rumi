@@ -10,7 +10,8 @@
  * MACHINE-DRAFTED from the bot's existing Urdu (ux-strings.js menu rows: لیسن پلان, حاضری, میری کلاسیں…)
  * and awaits a human review (workbench/teacher-v2-impl/urdu-review/).
  */
-import { bilingual } from "./i18n";
+import { bilingual, type Bilingual } from "./i18n";
+import type { CopyEntry } from "./copyRegistry";
 
 export const TEACHER_COPY = {
   back: "Back",
@@ -134,3 +135,13 @@ export const TEACHER_COPY_UR = {
 
 /** The frame's words in both languages. */
 export const TEACHER_FRAME = bilingual(TEACHER_COPY, TEACHER_COPY_UR);
+
+/** Registered for the completeness checks and the review file (copyRegistry). */
+export const COPY_ENTRY: CopyEntry = {
+  screen: "frame (menu, Home, More, My profile)",
+  module: TEACHER_FRAME as Bilingual<unknown>,
+  // The brand, and the Language row's names, each written in its own script in both languages.
+  same: ["brand", "more.switchTo.ur", "more.switchTo.en"],
+  // "Salaam, Ayesha!" — a greeting, with its "!" as in English.
+  longOk: ["home.greeting"],
+};

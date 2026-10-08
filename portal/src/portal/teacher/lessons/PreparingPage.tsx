@@ -7,7 +7,8 @@ import { clock, dataOf, useLoad } from '../../newui/lessons/shared';
 import { teacherPath } from '../routes';
 import { StatusChip } from '../ui';
 import { FOCUS, OUTLINE_WIDE } from '../ui/styles';
-import { LESSONS_V2_COPY as C } from './copy';
+import { LESSONS } from './copy';
+import { useCopy } from '../i18n';
 import TeacherPage from '../TeacherPage';
 import { LESSONS_VIEWER, lessonsUrl, openUrl, readAt, type LessonsAt } from './paths';
 import { dcFor, useOpenLesson } from './useOpenLesson';
@@ -51,6 +52,7 @@ function Ring({ value, text }: { value: number; text: string }) {
 }
 
 function Preparing({ at }: { at: AtRender }) {
+  const C = useCopy(LESSONS);
   const navigate = useNavigate();
   const openPlan = useLessonPlanOpener();
   const chapter = at.chapter;

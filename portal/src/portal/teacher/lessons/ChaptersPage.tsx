@@ -4,7 +4,8 @@ import { dataOf, useLoad } from '../../newui/lessons/shared';
 import { teacherPath } from '../routes';
 import { ListRow } from '../ui';
 import { LIST_CARD } from '../ui/styles';
-import { LESSONS_V2_COPY as C } from './copy';
+import { LESSONS } from './copy';
+import { useCopy } from '../i18n';
 import { LoadState } from './LoadState';
 import TeacherPage from '../TeacherPage';
 import { lessonsUrl, readAt, type LessonsAt } from './paths';
@@ -22,6 +23,7 @@ export function ChaptersPage() {
 }
 
 function Chapters({ at }: { at: LessonsAt }) {
+  const C = useCopy(LESSONS);
   const [subjects] = useLoad(() => lessonPlans.subjects(at.grade), `s:${at.grade}`);
   const [chapters, retry] = useLoad(() => lessonPlans.chapters(at.grade, at.subject), `c:${at.grade}:${at.subject}`);
   const name = dataOf(subjects)?.find((s) => s.key === at.subject)?.name ?? '';
