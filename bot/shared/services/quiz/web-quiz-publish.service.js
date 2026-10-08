@@ -144,6 +144,27 @@ function spokenOption(text) {
   return t;
 }
 
+// Maths brackets are said as round ones. The voice's text step (services/tts, soniox-text mapTags) treats
+// any [..] that is not a voice direction as a stage direction and removes it, so an option written
+// "[ 4 × { 18 − 8 } ]" left nothing to say and its clip failed. Only brackets holding numbers and operators
+// (no letters) change, innermost first; a [direction] or a [placeholder] keeps the voice's own rules. Used
+// on the words sent to the voice only: a clip's key is still taken from the words as written. Inside a
+// group it changes, a spaced hyphen between two operands is the minus sign it was written as (the text
+// step reads "18 - 8" as the range "18 to 8").
+const MATHS_INNER = /^[\s\d.,+\-−×÷*/=<>()%^:]*\d[\s\d.,+\-−×÷*/=<>()%^:]*$/u;
+function speakableMaths(text) {
+  let out = String(text == null ? '' : text);
+  for (let i = 0; i < 8; i += 1) {
+    const next = out.replace(/\[([^[\]{}]*)\]|\{([^[\]{}]*)\}/g, (whole, sq, cu) => {
+      const inner = sq !== undefined ? sq : cu;
+      return MATHS_INNER.test(inner) ? `(${inner.replace(/([\d)])\s+-\s+(?=[\d(])/g, '$1 − ')})` : whole;
+    });
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
+
 // Something a voice can say. A picture option is stored as an emoji (no letter,
 // no digit): the voices strip it to nothing and the gateway would fall through
 // to a different voice, so it gets no clip — the page shows the picture.
@@ -308,7 +329,7 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
         started += 1;
         try {
           const res = await tts.synthesize({
-            text, language, useCase: 'reading', site: 'web_quiz_read_aloud', ...(voice ? { provider: voice.provider, voice: voice.voice } : {}),
+            text: speakableMaths(text), language, useCase: 'reading', site: 'web_quiz_read_aloud', ...(voice ? { provider: voice.provider, voice: voice.voice } : {}),
           });
           const clip = await compactClip(res.audio);
           await r2.uploadBuffer(clip, key, 'audio/ogg', { bucket });
@@ -466,5 +487,5 @@ async function runQuizAudioJob(payload, { db, publish = module.exports.publishQu
 }
 
 module.exports = {
-  quizLanguage, isCurrent, publishQuizAudio, ensureQuizAudio, requestQuizAudio, runQuizAudioJob, audioKey, clipKey, partsFor, spoken, spokenOption, whyText, withoutPraise, AUDIO_VERSION,
+  quizLanguage, isCurrent, publishQuizAudio, ensureQuizAudio, requestQuizAudio, runQuizAudioJob, audioKey, clipKey, partsFor, spoken, spokenOption, speakableMaths, whyText, withoutPraise, AUDIO_VERSION,
 };

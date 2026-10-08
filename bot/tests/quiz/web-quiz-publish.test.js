@@ -674,3 +674,51 @@ describe("question 1's clips reach the quiz before the rest are recorded", () =>
     expect(ups[0].patch.meta.web.audio_v).toBe(Publish.AUDIO_VERSION);
   });
 });
+
+// A maths option written wholly in square brackets ("[ 4 × { 18 − 8 } ]") went to the voice as a bracketed
+// stage direction, which the voice's text step removes: nothing was left to say, the clip failed, the quiz
+// was never stamped complete and that option was read by the phone (or not at all). The publish path says
+// maths brackets as round ones; anything else in square brackets is left to the voice's own rules.
+describe('a maths option written in square brackets', () => {
+  const { logError } = require('../../shared/utils/logger');
+  const OPT = '[ 4 × { 18 − 8 } ]';
+  test('is recorded (the voice is sent the numbers), and the quiz is complete', async () => {
+    mockS3Send.mockImplementation(async (cmd) => {
+      if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+      return {};
+    });
+    logError.mockClear();
+    const rows = quizRows();
+    rows.questions = [{ ...rows.questions[0], question_text: 'Which is the same as 4 × 10?', option_a: OPT, option_b: '4 + 18', option_c: '18 − 8' }];
+    const db = fakeDb(rows);
+    const out = await publishQuizAudio(QUIZ_ID, { db });
+    const failed = logError.mock.calls.filter(([e]) => e === 'web_quiz.publish_audio.clip_failed');
+    expect(failed).toEqual([]);
+    expect(out.failed).toBe(0);
+    const sent = axios.post.mock.calls.map((c) => c[1] && c[1].text).filter(Boolean);
+    const said = sent.filter((t) => /18/.test(t) && /×/.test(t));
+    expect(said).toHaveLength(1);
+    expect(said[0]).not.toMatch(/\[/);
+    // A subtraction inside the brackets is a minus, never a range ("18 to 8").
+    expect(said[0]).not.toMatch(/\bto\b/);
+    expect(said[0]).toMatch(/18 − 8/);
+    const web = rows.quiz.meta.web;
+    expect(web.audio[FIRST_QID].opts[0]).toBeTruthy();
+    expect(web.audio_v).toBe(Publish.AUDIO_VERSION);
+  });
+
+  test('the clip key is still taken from the words as written (a re-publish finds the same clip)', () => {
+    expect(Publish.partsFor({ ...quizRows().questions[0], option_a: OPT }).find((p) => p.part === 'a').text).toMatch(/^\[/);
+  });
+
+  test.each([
+    ['[ 4 × { 18 − 8 } ]', '( 4 × ( 18 − 8 ) )'],
+    ['[2 + 3] × 4', '(2 + 3) × 4'],
+    ['{ 12 ÷ 3 }', '( 12 ÷ 3 )'],
+    ['[laughs] Well done', '[laughs] Well done'],      // a direction, not maths: the voice's rules apply
+    ['[Greeting]', '[Greeting]'],
+    ['Roots', 'Roots'],
+  ])('%s is said as %s', (text, said) => {
+    expect(Publish.speakableMaths(text)).toBe(said);
+  });
+});
