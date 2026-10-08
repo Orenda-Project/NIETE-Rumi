@@ -2336,6 +2336,10 @@ const UX_STRINGS = {
     ur: '\u200Fیہ آپ کا اپنا test run ہے — یہ آپ کی کلاس رپورٹ میں شامل نہیں ہوگا۔ کھولنے کے لیے بٹن دبائیں۔',
   },
   vqOldLinkBtn: { en: 'Start quiz', ur: 'کوئز شروع کریں' },
+  // Web quiz read-aloud: maths operators as the voice says them (never shown; web-quiz-publish voiceText).
+  wqSayMinus: { en: 'minus', ur: 'منفی' },
+  wqSayTimes: { en: 'times', ur: 'ضرب' },
+  wqSayDividedBy: { en: 'divided by', ur: 'تقسیم' },
   vqWelcomeBack: {
     en: 'Good to see you again, {name} — let’s begin!',
     ur: '\u200F{name}، آپ کو دوبارہ دیکھ کر خوشی ہوئی — چلیں شروع کریں!',
