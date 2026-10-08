@@ -226,7 +226,7 @@ function lastOf(history, kidId) {
 async function answeredSoFar(entry, fallback = 0) {
   if (!entry || !entry.openSessionId) return fallback;
   try {
-    const { count, error } = await supabase.from('quiz_answers').select('id', { count: 'exact', head: true }).eq('session_id', entry.openSessionId);
+    const { count, error } = await dbRead('answeredSoFar:quiz_answers', (db) => db.from('quiz_answers').select('id', { count: 'exact', head: true }).eq('session_id', entry.openSessionId));
     return error ? fallback : Math.max(fallback, count || 0);
   } catch (_) {
     return fallback;
