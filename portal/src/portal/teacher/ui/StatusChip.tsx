@@ -1,5 +1,6 @@
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useBidi } from './bidi';
 import { CHIP_TONE, type ChipData } from './styles';
 
 /**
@@ -13,6 +14,7 @@ export interface StatusChipProps extends ChipData {
 }
 
 export function StatusChip({ text, tone = 'info', tick = false, className }: StatusChipProps) {
+  const bidi = useBidi();
   return (
     <span
       data-chip
@@ -24,7 +26,7 @@ export function StatusChip({ text, tone = 'info', tick = false, className }: Sta
       )}
     >
       {tick ? <Check className="h-[13px] w-[13px]" strokeWidth={3} aria-hidden="true" /> : null}
-      {text}
+      {bidi(text)}
     </span>
   );
 }
