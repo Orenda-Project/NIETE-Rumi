@@ -64,6 +64,7 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
   // ── T15 — "/teacher training" (two words) is NOT a trigger ──────────────────
   if (want('T15')) {
   s = t();
+  api.resetConversation();   // two words fall to open chat, which folds her history into the prompt → reset so its cassette replays
   const two = await api.sendWait('/teacher training');
   rec('T15', '"/teacher training" (two words) is not a training command',
       ...V(!CARD.test(two.txt) || !(two.btns || []).some(b => new RegExp(CTA).test(b)),
@@ -1153,7 +1154,10 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
       s = t();
       let row = null;
       try {
-        row = dbJson('seed-lp-quiz', ['--state', state, '--lessons-from', 'auto', '--subject', 'maths']);
+        // A PINNED catalog lesson, not --lessons-from auto: auto borrowed the newest lp_v8 quiz on the whole
+        // sandbox, which every run (and every teacher) moves, so the digest prompt — and its cassette key —
+        // changed run to run and replay-strict always missed (bd-m1cf2q.1). No other scenario uses this lesson.
+        row = dbJson('seed-lp-quiz', ['--state', state, '--lesson-id', 'grade_1_maths_ch1_seg5', '--subject', 'maths']);
         if (!row || !row.id) throw new Error('SEED:' + JSON.stringify(row));
         const les = await openLesson(i => String(i.id || '') === 'lp_' + row.id);
         const ev = { lessonsBorrowed: row.lessons, rowText: les.row && les.row.hay, screen: les.screen, text: (les.text || '').slice(0, 300), actions: (les.actions || []).map(a => a.text) };
