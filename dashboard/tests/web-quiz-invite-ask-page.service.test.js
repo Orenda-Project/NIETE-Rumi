@@ -9,7 +9,7 @@ const { page } = require('./wq-page-harness');
 jest.mock('../../bot/shared/config/supabase', () => ({}));
 const { cleanEvent } = require('../../bot/shared/services/quiz/web-quiz.service');
 
-const CHILD = { first: 'Zara', name: 'Zara Testwala', chip: 'c1', animal: 'owl' };
+const CHILD = { first: 'Zara', name: 'Zara Khan', chip: 'c1', animal: 'owl' };
 const result = (correct, total, extra = {}) => ({
   card: { first: 'Zara', animal: 'owl', correct, total, stars: correct }, challenge_code: 'CHAL12',
   score: { correct, total, pct: Math.round((100 * correct) / total) }, hub_door: true, ...extra,
@@ -56,7 +56,7 @@ describe('switch on', () => {
     const text = waHref(p);
     expect(text).toContain('Zara here! I got 7/9 stars on Plants. Can you beat me?');
     expect(text).toContain('https://example.test/q/CHAL12');
-    expect(text).not.toContain('Testwala');
+    expect(text).not.toContain('Khan');
     expect(text).not.toMatch(/street|cousin|home/i);
   });
 
@@ -103,7 +103,7 @@ describe('switch on', () => {
     expect(text).toContain('میں \u2068Zara\u2069 ہوں!');
     expect(text).toContain('\u2068پودے\u2069 کوئز میں ۹ میں سے ۷ ستارے لیے۔');
     expect(text).toContain('مجھ سے آگے نکل کر دکھائیں!');
-    expect(text).not.toContain('Testwala');
+    expect(text).not.toContain('Khan');
   });
 });
 
