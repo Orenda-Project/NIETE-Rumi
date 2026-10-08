@@ -70,7 +70,7 @@ beforeEach(() => {
   db = {
     app_settings: [{ key: 'web_quiz_challenge', value: true }],
     student_lists: [{ id: LIST, class_name: '3', section: 'B', user_id: 't1', is_active: true }],
-    students: [{ id: KID, list_id: LIST, name: 'Sana Testwala' }, { id: KID2, list_id: LIST, name: 'Omar Khan' }],
+    students: [{ id: KID, list_id: LIST, student_name: 'Sana Testwala' }, { id: KID2, list_id: LIST, student_name: 'Omar Khan' }],
     quiz_share_codes: [{ id: SC, language: 'en' }],
     quiz_sessions: [{ id: SESSION, student_id: KID, share_code_id: SC, quiz_id: 'q1' }],
     web_quiz_challenge_runs: [],
@@ -252,12 +252,12 @@ describe('record: where the grade came from, and who is a test child', () => {
     on(RECORD);
     const { row } = await bigger(allRight);
     expect(row.meta).toMatchObject({ grade_source: 'list', test: true, sequence_n: 1 });
-    db.students = [{ id: KID2, self_reported_class: '4', name: 'Omar Khan' }];
+    db.students = [{ id: KID2, self_reported_class: '4', student_name: 'Omar Khan' }];
     const ex = await Ch.exercise(hub([KID2]), 'bigger', D);
     await Ch.submit({ ct: ex.ct, taps: allRight(ex.items), ms: 25000 });
     const r2row = db.web_quiz_challenge_runs.find((x) => x.student_id === KID2);
     expect(r2row.meta).toMatchObject({ grade_source: 'self', test: false });
-    db.students = [{ id: KID2, name: 'Omar Khan' }];
+    db.students = [{ id: KID2, student_name: 'Omar Khan' }];
     db.quiz_sessions.push({ id: 'sess-2', student_id: KID2, share_code_id: SC, quiz_id: 'q1', student_class: '5', created_at: new Date().toISOString() });
     Ch.__reset();
     const ex2 = await Ch.exercise(hub([KID2]), 'bigger', D);
@@ -292,5 +292,51 @@ describe('the orphan sweeper: a recording whose result never came is deleted', (
     expect(r2.deleteKey).toHaveBeenCalledWith(old, { bucket: 'r2-default' });
     expect(out).toEqual({ listed: 3, deleted: 1, failed: 0 });
     expect(logEvent).toHaveBeenCalledWith('web_quiz.ch_voice_swept', { listed: 3, deleted: 1, failed: 0 });
+  });
+});
+
+describe('the columns the service selects exist in the schema', () => {
+  // The in-memory fake returns whole rows whatever the select names, so a column that is not in the live table
+  // (students.name, which is student_name) passes every test above and answers 42703 in production. The schema
+  // of record is supabase/baseline/schema.sql plus the migrations' ALTERs: every students column the service
+  // names must be defined there.
+  const repo = path.join(__dirname, '..', '..', '..', '..');
+  const studentsColumns = () => {
+    const base = fs.readFileSync(path.join(repo, 'supabase', 'baseline', 'schema.sql'), 'utf8');
+    const created = /CREATE TABLE public\.students \(([\s\S]*?)\n\);/.exec(base);
+    expect(created).toBeTruthy();
+    const cols = new Set(created[1].split('\n').map((l) => l.trim().split(/\s+/)[0]).filter((c) => /^[a-z_]+$/.test(c) && c !== 'CONSTRAINT'));
+    const migDir = path.join(repo, 'bot', 'database', 'migrations');
+    const sql = fs.readdirSync(migDir).filter((f) => f.endsWith('.sql')).map((f) => fs.readFileSync(path.join(migDir, f), 'utf8')).join('\n');
+    for (const m of sql.matchAll(/ALTER TABLE (?:public\.)?students ADD COLUMN (?:IF NOT EXISTS )?([a-z_]+)/gi)) cols.add(m[1]);
+    return cols;
+  };
+  test('every students column named by web-quiz-challenge.js is in the schema of record', () => {
+    const cols = studentsColumns();
+    expect(cols.has('student_name')).toBe(true);
+    expect(cols.has('name')).toBe(false);
+    const src = fs.readFileSync(path.join(repo, 'bot', 'shared', 'services', 'quiz', 'web-quiz-challenge.js'), 'utf8').replace(/\/\/.*$/gm, '');
+    const selects = [...src.matchAll(/from\('students'\)\.select\('([^']+)'\)/g)].map((m) => m[1]);
+    expect(selects.length).toBeGreaterThan(0);
+    for (const s of selects) for (const c of s.split(',').map((x) => x.trim())) expect({ column: c, known: cols.has(c) }).toEqual({ column: c, known: true });
+  });
+});
+
+describe('a students read that fails is logged, never swallowed', () => {
+  test('PostgREST refusing the select (42703) is logged at error level with the code; the grade falls through to the session, nothing throws', async () => {
+    on(RECORD);
+    const { logError } = require('../../../shared/utils/logger');
+    const real = supabase.from;
+    supabase.from = (t) => (t === 'students'
+      ? { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: { code: '42703', message: 'column students.name does not exist' } }) }) }) }
+      : real(t));
+    try {
+      db.quiz_sessions = [{ id: SESSION, student_id: KID, share_code_id: SC, quiz_id: 'q1', student_class: '3', created_at: new Date().toISOString() }];
+      const info = await Ch.gradeInfo({ studentId: KID });
+      expect(info).toMatchObject({ grade: 3, source: 'session', name: null });
+      expect(logError).toHaveBeenCalledWith('web_quiz.ch_student_read_failed', expect.objectContaining({ code: '42703', error: expect.stringContaining('does not exist') }));
+    } finally {
+      supabase.from = real;
+    }
   });
 });

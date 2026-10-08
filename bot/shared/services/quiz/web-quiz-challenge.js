@@ -268,8 +268,11 @@ async function entryOf(token, kid, device) {
 async function gradeInfo(entry) {
   const { data: enr } = await supabase.from('class_enrollments').select('id, class_id, student_id, is_active')
     .eq('student_id', entry.studentId).eq('is_active', true);
-  const { data: kid } = await supabase.from('students').select('id, list_id, self_reported_class, name').eq('id', entry.studentId).maybeSingle();
-  const name = (kid && kid.name) || null;
+  const { data: kid, error: kidErr } = await supabase.from('students').select('id, list_id, self_reported_class, student_name').eq('id', entry.studentId).maybeSingle();
+  // A refused read (a column that is not there, a pooler error) is logged at error level: silently falling through
+  // to the next grade source is how a wrong column name once passed every test.
+  if (kidErr) logError('web_quiz.ch_student_read_failed', { code: kidErr.code || null, error: String(kidErr.message || kidErr).slice(0, 160) });
+  const name = (kid && kid.student_name) || null;
   if (enr && enr.length) {
     const { data: cls } = await supabase.from('classes').select('id, grade_code').eq('id', enr[0].class_id).maybeSingle();
     const g = cls && gradeNum(String(cls.grade_code || '').replace(/^grade_/, ''));
