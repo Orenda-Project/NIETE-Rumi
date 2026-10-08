@@ -44,9 +44,9 @@ const D2 = 'BBBBBBBBBBBBBBBBBBBBBB';
 const future = new Date(Date.now() + 86400000 * 10).toISOString();
 const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
 
-function seed({ hub = true, door = true, sess = {} } = {}) {
+function seed({ hub = true, door = true, sess = {}, settings = [] } = {}) {
   const fake = makeFake({
-    app_settings: [{ key: 'web_quiz_teachers', value: '"all"' }, { key: 'web_quiz_hub', value: hub }, { key: 'web_quiz_hub_door', value: door }],
+    app_settings: [{ key: 'web_quiz_teachers', value: '"all"' }, { key: 'web_quiz_hub', value: hub }, { key: 'web_quiz_hub_door', value: door }, ...settings],
     quizzes: [{ id: QUIZ, topic: 'Fractions', grade: '3', subject: 'maths', quiz_source: 'transcript', video_id: null }],
     quiz_share_codes: [{ id: SC, code: 'AB12CD', quiz_id: QUIZ, video_id: null, teacher_user_id: TEACHER, language: 'en', active: true,
       expires_at: future, invited_by_student_id: null, parent_share_code_id: null, created_at: ago(30) }],
@@ -114,5 +114,46 @@ describe('POST /hubdoor', () => {
     Flags._resetCache(); seed({ sess: { status: 'completed', invited_by_student_id: FRIEND } });
     expect(await err(Door.door({ st: st() }, WQ.WqError))).toMatchObject({ status: 404, error: 'no_door' });
     expect(redis.setNX).not.toHaveBeenCalled();
+  });
+});
+
+describe('the Home button (app_settings web_quiz_home_button): the door from any screen of the child\'s own run', () => {
+  const HOME = (v) => [{ key: 'web_quiz_home_button', value: v }];
+
+  test('switch on, the run still in progress, home asked: a hub link for this child, bound to the phone that played', async () => {
+    seed({ settings: HOME(true) });
+    const out = await Door.door({ st: st(), home: 1 }, WQ.WqError);
+    expect(out.href).toMatch(/^\/h\/[A-Za-z0-9._-]+$/);
+    expect(T.verify(out.href.slice(3), 'h').ids).toEqual([KID]);
+    expect((await Device.deviceTrusted(out.href.slice(3), D1)).ok).toBe(true);
+  });
+
+  test('switch on with the results door off: Home still opens (its own switch)', async () => {
+    seed({ door: false, settings: HOME(true) });
+    expect((await Door.door({ st: st(), home: 1 }, WQ.WqError)).href).toMatch(/^\/h\//);
+  });
+
+  test('switch off: an unfinished run is still 404 no_door (today), even when home is asked', async () => {
+    seed({ settings: HOME(false) });
+    expect(await err(Door.door({ st: st(), home: 1 }, WQ.WqError))).toMatchObject({ status: 404, error: 'no_door' });
+  });
+
+  test('switch on: a friend\'s run and the teacher\'s own run still get no door; the hub off gets none', async () => {
+    seed({ sess: { invited_by_student_id: FRIEND }, settings: HOME(true) });
+    expect(await err(Door.door({ st: st(), home: 1 }, WQ.WqError))).toMatchObject({ status: 404, error: 'no_door' });
+    Flags._resetCache(); seed({ sess: { user_id: TEACHER, student_id: null }, settings: HOME(true) });
+    expect(await err(Door.door({ st: st(), home: 1 }, WQ.WqError))).toMatchObject({ status: 404, error: 'no_door' });
+    Flags._resetCache(); seed({ hub: false, settings: HOME(true) });
+    expect(await err(Door.door({ st: st(), home: 1 }, WQ.WqError))).toMatchObject({ status: 404, error: 'no_door' });
+    expect(redis.setNX).not.toHaveBeenCalled();
+  });
+
+  test('the quiz payload says which of Home / Back are on (nav), and nothing when both switches are off', async () => {
+    seed();
+    const off = await WQ.getQuiz('AB12CD');
+    expect(off.nav).toBeUndefined();
+    Flags._resetCache(); seed({ settings: HOME(true) });
+    const on = await WQ.getQuiz('AB12CD');
+    expect(on.nav).toEqual({ home: true, back: false });
   });
 });

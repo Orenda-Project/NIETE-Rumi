@@ -404,6 +404,8 @@ async function hubPayload(token, { kid, device } = {}) {
   const grade = ctx.grade;
   out.teacher = await teacherCard(chosen, ctx.list, history, grade);
   out.again = againOf(history, chosen.id, out.teacher && out.teacher.code);
+  // The Home button is on: the library and challenge links from here say so (hub.js adds home=1).
+  if (f.homeButton) out.nav_home = true;
   // The home page: the last quiz on top; neither the teacher card nor Play again repeats it.
   if (f.childHome) {
     out.home_v = 1;

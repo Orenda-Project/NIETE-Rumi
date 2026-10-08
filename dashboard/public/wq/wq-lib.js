@@ -24,6 +24,7 @@
   var SUBJ_UR = { English: 'انگریزی', Maths: 'ریاضی', Urdu: 'اردو', Science: 'سائنس', Geography: 'جغرافیہ', 'General Knowledge': 'معلوماتِ عامہ', History: 'تاریخ', 'Islamic Studies': 'اسلامیات' };
   var T = {
     en: {
+      homeBtn: 'Home',
       libT: 'Video library', pick: 'Pick a subject', vids: function (n) { return n === 1 ? '1 video' : n + ' videos'; },
       grade: function (g) { return g === 'NURSERY' ? 'Nursery' : g === 'KG' ? 'KG' : 'Grade ' + g; },
       subj: function (s) { return s; }, subjects: 'Subjects', back: 'Back', done: 'Done ✓', mins: function (n) { return n + ' min'; },
@@ -34,6 +35,7 @@
       mine: 'Is this your link? Send /quiz on WhatsApp again for a new one.',
     },
     ur: {
+      homeBtn: 'ہوم',
       libT: 'ویڈیو لائبریری', pick: 'ایک مضمون چنیں', vids: function (n) { return n + ' ویڈیوز'; },
       grade: function (g) { return g === 'NURSERY' ? 'نرسری' : g === 'KG' ? 'کے جی' : 'جماعت ' + g; },
       subj: function (s) { return SUBJ_UR[s] || s; }, subjects: 'مضامین', back: 'واپس', done: 'مکمل ✓', mins: function (n) { return n + ' منٹ'; },
@@ -366,6 +368,10 @@
     var lang = b.lang === 'ur' ? 'ur' : 'en';
     var t = T[lang];
     var hubUrl = '/h/' + encodeURIComponent(b.hub) + (b.kid ? '?kid=' + encodeURIComponent(b.kid) : '');
+    // The Home button (the hub adds home=1 to its link when web_quiz_home_button is on): back to this child's hub.
+    var homeTop = /[?&]home=1(&|$)/.test(String(location.search || ''))
+      ? '<div class="wq-hometop"><a class="wq-home wq-home-top" id="wq-home" href="' + esc(hubUrl + (b.kid ? '&' : '?') + 'from=home') + '" aria-label="' + esc(t.homeBtn) + '"><span aria-hidden="true">🏠</span><span class="wq-homet">' + esc(t.homeBtn) + '</span></a></div>'
+      : '';
     var evs = [];
     function ev(n, p) {
       var e = { t: Date.now(), lang: lang, n: n };
@@ -379,7 +385,7 @@
     var going = false;
     var o = {
       hub: b.hub, kid: b.kid || '', lang: lang, iab: /WhatsApp|FBAN|FBAV|Instagram|; wv\)/.test(navigator.userAgent || ''),
-      paint: function (h, m) { root.innerHTML = '<section class="wq-screen" data-m="' + m + '">' + h + '</section>'; },
+      paint: function (h, m) { root.innerHTML = '<section class="wq-screen" data-m="' + m + '">' + homeTop + h + '</section>'; },
       on: function (sel, fn) { var x = root.querySelector(sel); if (x) x.addEventListener('click', fn); return x; },
       ev: ev,
       onBack: function () { flushEv(); location.assign(hubUrl); },

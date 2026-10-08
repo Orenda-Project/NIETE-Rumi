@@ -445,3 +445,16 @@ describe('review fixes: the microphone is always given back, and every failure s
     expect(p.timers.filter((x) => x.ms === 1600)).toHaveLength(1);
   });
 });
+
+describe('the Home button on the Challenge (the hub passes home=1 when web_quiz_home_button is on)', () => {
+  test('home=1: the menu has a Home link to the hub of this token', async () => {
+    const p = page({ href: 'https://portal.test/c/HUB.TOKEN?lang=en&home=1' });
+    await p.flush();
+    expect(p.root.innerHTML).toMatch(/<a class="wq-home wq-home-top" id="wq-home" href="\/h\/HUB\.TOKEN\?from=home"[^>]*aria-label="Home"/);
+  });
+  test('without home=1: no Home (today)', async () => {
+    const p = page();
+    await p.flush();
+    expect(p.root.innerHTML).not.toContain('id="wq-home"');
+  });
+});
