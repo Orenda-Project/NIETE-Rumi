@@ -12,6 +12,8 @@
   var LOCKED_BOOT = Boolean(B.locked);
   // Opened from the quiz results card's door (?from=door): counted as the door's on its first view.
   var FROM_DOOR = /[?&]from=door(&|$)/.test(String((typeof location !== 'undefined' && location.search) || ''));
+  // Opened from the quiz page's Home button (?from=home): counted as Home's.
+  var FROM_HOME = /[?&]from=home(&|$)/.test(String((typeof location !== 'undefined' && location.search) || ''));
   var TOKEN = String(B.token || '');
   var BR = B.brand || null;
   var MASC = (BR && BR.mascot) || { en: 'Jugnu', ur: 'جگنو' };
@@ -222,10 +224,12 @@
   }
 
   /* ---------------- H2 the hub ---------------- */
+  // With the Home button on (nav_home), the library and the challenge are told to show it too.
+  function withHome(h) { return B.nav_home ? h + (h.indexOf('?') >= 0 ? '&' : '?') + 'home=1' : h; }
   function teacherCard(t) {
     if (!t) {
       return '<div class="wq-card wq-hcard wq-hnone"><p class="wq-hnonesay">' + esc(T.none) + '</p>' +
-        (B.lib ? '<a class="wq-btn wq-go" id="wq-h-lib2" href="' + esc(B.lib.href) + '">📚 ' + esc(T.libT) + '</a>' : '') + '</div>';
+        (B.lib ? '<a class="wq-btn wq-go" id="wq-h-lib2" href="' + esc(withHome(B.lib.href)) + '">📚 ' + esc(T.libT) + '</a>' : '') + '</div>';
     }
     return '<div class="wq-card wq-hcard"><p class="wq-hlabel">' + esc(T.fromT) + '</p>' +
       '<h2 dir="auto">' + esc(t.topic) + '</h2><p class="wq-sub">' + [esc(subjectName(t.subject)), T.sent(daysSince(t.sent_at))].filter(Boolean).join(' · ') + '</p>' +
@@ -266,16 +270,16 @@
   }
   function homeTiles() {
     return '<div class="wq-htiles">' +
-      (B.lib ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(B.lib.href) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">🎬</span>') + '<b>' + esc(T.vidT) + '</b><small>' + esc(T.vidSub) + '</small></a>' : '') +
-      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid) + '&lang=' + LANG) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '') +
+      (B.lib ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(withHome(B.lib.href)) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">🎬</span>') + '<b>' + esc(T.vidT) + '</b><small>' + esc(T.vidSub) + '</small></a>' : '') +
+      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid) + '&lang=' + LANG)) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '') +
       '</div>';
   }
   function hub() {
     var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
     var HOME = Boolean(B.home_v);
     // With no teacher quiz the empty card already holds the library button: no second library tile.
-    var tiles = (B.lib && B.teacher ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(B.lib.href) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">📚</span>') + '<b>' + esc(T.libT) + '</b><small>' + esc(T.libSub) + '</small></a>' : '') +
-      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid) + '&lang=' + LANG) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
+    var tiles = (B.lib && B.teacher ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(withHome(B.lib.href)) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">📚</span>') + '<b>' + esc(T.libT) + '</b><small>' + esc(T.libSub) + '</small></a>' : '') +
+      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid) + '&lang=' + LANG)) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
     var top = HOME
       ? lastCard(B.last) + homeTiles() + (B.teacher ? teacherCard(B.teacher) : '')
       : teacherCard(B.teacher) + (tiles ? '<div class="wq-htiles">' + tiles + '</div>' : '');
@@ -317,8 +321,8 @@
 
   /* ---------------- boot ---------------- */
   function boot() {
-    ev('hub_view', { src: FROM_DOOR ? 'door' : B.kid ? 'hub' : 'who', i: (B.kids || []).length });
-    if (FROM_DOOR) { FROM_DOOR = false; try { history.replaceState(null, '', '/h/' + TOKEN); } catch (e) {} }
+    ev('hub_view', { src: FROM_DOOR ? 'door' : FROM_HOME ? 'home' : B.kid ? 'hub' : 'who', i: (B.kids || []).length });
+    if (FROM_DOOR || FROM_HOME) { FROM_DOOR = false; FROM_HOME = false; try { history.replaceState(null, '', '/h/' + TOKEN); } catch (e) {} }
     if (!(B.kids || []).length) render(bar() + jug('sleep', T.gone), 'H0');
     else if (!B.kid) picker();
     else hub();

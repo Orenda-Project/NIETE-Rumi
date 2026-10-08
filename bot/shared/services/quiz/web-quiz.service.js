@@ -547,6 +547,9 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   mark('live');
   // A friend's challenge: the page keeps the friend away from the challenger's class (its table, its group).
   if (ctx.invitedByStudentId) { out.invited = true; out.challenge = await challengeOf(ctx); }
+  // The Home button and the step-back (web-quiz-hub-flags pageNav): absent when both switches are off.
+  const nav = await require('./web-quiz-hub-flags').pageNav();
+  if (nav) out.nav = nav;
   // The pictures this link previews as (web-quiz-art.js): the class one, and the invite on a challenge code.
   out.art = {
     class: Art.artId('l', ctx.parent.code || ctx.code), schools: Art.artId('s', ctx.parent.code || ctx.code),
@@ -1696,7 +1699,7 @@ async function me(body = {}) {
 const EVENT_NAME_RX = /^[a-z][a-z0-9_]{0,39}$/;
 const EVENT_PROPS = Object.freeze({
   code: /^[A-Z0-9]{4,12}$/i, qid: /^[0-9a-f-]{8,64}$/i, slot: /^[A-D]$/i, step: /^[a-z0-9_]{1,32}$/,
-  src: /^[a-z0-9_]{1,32}$/, reason: /^[a-z0-9_]{1,40}$/, lang: /^(en|ur)$/, net: /^[a-z0-9_]{1,16}$/, err: /^[a-z0-9_]{1,40}$/,
+  src: /^[a-z0-9_]{1,32}$/, how: /^[a-z0-9_]{1,24}$/, reason: /^[a-z0-9_]{1,40}$/, lang: /^(en|ur)$/, net: /^[a-z0-9_]{1,16}$/, err: /^[a-z0-9_]{1,40}$/,
   file: /^[a-z0-9_.-]{1,40}$/, // an error's script by file name only ('wq.js'), or 'other' / 'page'; never a URL
   part: /^[a-z]{1,4}$/, // which spoken part had no clip (audio_missing): q, opt, stim, fig, left, why, fb, hint
   // M4b library: a bank video's id, a grade, a bank subject name
