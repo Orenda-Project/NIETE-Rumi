@@ -747,3 +747,14 @@ describe('hub(): the last quiz — a retry in progress is continued, not shown a
     expect(out.last).toMatchObject({ code: 'MATH01', state: 'open', answered: 3 });
   });
 });
+
+describe('hub(): the last quiz counts the answers a web sitting has saved', () => {
+  test('a web sitting keeps total_questions_answered at 0 until it finishes: the card counts its answer rows instead', async () => {
+    Hub._resetCache();
+    seed({ app_settings: [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_child_quiz_home', value: 'true' }] });
+    db.quiz_sessions.push(sess('s9', 'sc-new', 'q-new', 'in_progress', 0, 0, ago(1)));
+    db.quiz_answers = [{ id: 'a1', session_id: 's9' }, { id: 'a2', session_id: 's9' }, { id: 'a3', session_id: 's9' }, { id: 'x1', session_id: 's1' }];
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.last).toMatchObject({ code: 'NEWQ01', state: 'open', answered: 3 });
+  });
+});
