@@ -44,4 +44,20 @@ const month = (userId, listId, m) => callBot('month', { userId, listId, month: m
 const registerFile = (userId, listId, m) => callBot('register', { userId, listId, month: m });
 const sendRegister = (userId, listId, m) => callBot('register/send', { userId, listId, month: m });
 
-module.exports = { classes, roster, mark, day, month, registerFile, sendRegister, callBot };
+/**
+ * Her classes as the selector shows them: the class's grade code → its grade number, and her
+ * subjects' codes → their names in her language (subject-vocabulary, the same spellings every v2
+ * picker uses). A class with no grade (early years) or no subjects keeps null / [].
+ */
+function withNames(list, lang) {
+  const { subjectKey, subjectName, gradeOf } = require('./subject-vocabulary.service');
+  return (list || []).map((c) => {
+    const g = c.gradeCode ? gradeOf(c.gradeCode) : null;
+    const names = (c.subjectCodes || [])
+      .map((code) => { const k = subjectKey(code); return k ? subjectName(k, lang) : null; })
+      .filter(Boolean);
+    return { ...c, grade: g && g.grade ? g.grade : null, subjects: [...new Set(names)] };
+  });
+}
+
+module.exports = { classes, roster, mark, day, month, registerFile, sendRegister, withNames, callBot };

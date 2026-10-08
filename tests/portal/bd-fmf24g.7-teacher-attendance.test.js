@@ -87,8 +87,11 @@ beforeEach(() => {
     month: jest.fn(async () => ({ month: '2026-10', days: [], students: [] })),
     registerFile: jest.fn(async () => ({ fileName: 'Grade 4 - A, October 2026.xlsx', base64: Buffer.from('xlsx').toString('base64') })),
     sendRegister: jest.fn(async () => ({ delivered: true })),
+    withNames: jest.fn((classes, lang) => classes.map((c) => ({ ...c, named: lang }))),
   };
   jest.doMock('../../dashboard/services/teacher-attendance.service', () => svc);
+  jest.doMock('../../dashboard/config/database', () => ({ query: jest.fn() }));
+  jest.doMock('../../dashboard/services/grade-subjects.service', () => ({ defaultDeps: () => ({ language: async () => 'ur' }) }));
   jest.doMock('../../dashboard/config/supabase', () => ({}));
   jest.doMock('../../dashboard/lib/feature-flags', () => ({
     PORTAL_TEACHER_V2_KEY: 'portal_teacher_v2',
@@ -97,7 +100,7 @@ beforeEach(() => {
 });
 afterEach(() => { jest.restoreAllMocks(); });
 
-const asked = () => Object.values(svc).some((fn) => fn.mock.calls.length > 0);
+const asked = () => Object.entries(svc).some(([k, fn]) => k !== 'withNames' && fn.mock.calls.length > 0);
 
 test.each(ROUTES)('%s %s signed out: 401, bot never asked', async (m, p) => {
   const { statusCode } = await invoke(m, p, { ...OK_ARGS, userId: null });
@@ -189,4 +192,26 @@ test('register send: the existing WhatsApp delivery; a failed delivery is 502 wi
   r = await invoke('post', '/teacher/attendance/classes/:listId/register/send', { params: { listId: LIST }, body: { month: '2026-10' } });
   expect(r.statusCode).toBe(502);
   expect(r.payload).toEqual({ success: false, delivered: false, error: 'no_phone_number' });
+});
+
+test('classes: grade and subject names in her language, from the class codes', async () => {
+  svc.classes.mockResolvedValue({ date: '2026-10-08', classes: [{ listId: LIST, gradeCode: 'grade_4', subjectCodes: ['science'] }] });
+  const r = await invoke('get', '/teacher/attendance/classes', { query: {} });
+  expect(svc.withNames).toHaveBeenCalledWith([{ listId: LIST, gradeCode: 'grade_4', subjectCodes: ['science'] }], 'ur');
+  expect(r.payload.classes[0].named).toBe('ur');
+});
+
+describe('class names (teacher-attendance.service.withNames)', () => {
+  const real = () => jest.requireActual('../../dashboard/services/teacher-attendance.service');
+  test('grade code → grade number, subject codes → names in her language; none → null / []', () => {
+    const out = real().withNames([
+      { listId: 'a', gradeCode: 'grade_4', subjectCodes: ['science', 'maths'] },
+      { listId: 'b', gradeCode: null, subjectCodes: [] },
+      { listId: 'c', gradeCode: 'early_years', subjectCodes: ['urdu'] },
+    ], 'en');
+    expect(out.map((c) => [c.grade, c.subjects])).toEqual([
+      [4, ['General Science', 'Mathematics']], [null, []], [null, ['Urdu']],
+    ]);
+    expect(real().withNames([{ gradeCode: 'grade_5', subjectCodes: ['english'] }], 'ur')[0].subjects).toEqual(['انگریزی']);
+  });
 });
