@@ -120,7 +120,7 @@ export const LESSONS_V2_COPY_UR: Words<typeof LESSONS_V2_COPY> = {
   notPrepared: 'تیار نہیں ہو سکا',
   otherLessons: 'دوسرے اسباق',
   startDc: 'ڈیجیٹل کوچنگ شروع کریں',
-  answerKey: 'جوابات کی کنجی',
+  answerKey: 'جوابی کلید',
   openOutside: 'دوسری ایپ میں کھولیں',
   all: {
     title: 'تمام لیسن پلان',
