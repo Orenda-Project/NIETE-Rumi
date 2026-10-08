@@ -294,7 +294,9 @@
     var tiles = (menuData.exercises || []).map(function (x) {
       return '<button class="wqc-tile" type="button" id="wqc-ex-' + esc(x.id) + '"><span class="wqc-ico" aria-hidden="true">' + (ICON[x.id] || '⭐') + '</span>'
         + '<span><b>' + esc(x.name) + '</b><small>' + esc(t.mins(x.mins)) + '</small>'
-        + (x.done && (x.id !== 'read' || lastLine(x)) ? '<span class="wqc-badge">✓ ' + esc(lastLine(x)) + '</span>' : '') + '</span></button>';
+        // under the record rule the menu is not a report: a tick, never a number
+        + (menuData.record ? (x.done ? '<span class="wqc-badge">✓ ' + esc(t.done) + '</span>' : '')
+          : (x.done && (x.id !== 'read' || lastLine(x)) ? '<span class="wqc-badge">✓ ' + esc(lastLine(x)) + '</span>' : '')) + '</span></button>';
     }).join('');
     show('menu', jug('hello', t.title(MASCOT), true) + '<p class="wq-sub">' + esc(t.pick) + '</p><div class="wqc-tiles">' + tiles + '</div>');
     (menuData.exercises || []).forEach(function (x) { on('wqc-ex-' + x.id, function () { open(x.id); }); });
@@ -465,7 +467,7 @@
   };
 
   // ── Read aloud ──────────────────────────────────────────────────────────────────────────────────────
-  var rec = { stream: null, mr: null, chunks: [], type: '', left: 60, timer: null, started: 0, sent: false };
+  var rec = { stream: null, mr: null, chunks: [], type: '', left: 60, timer: null, started: 0, sent: false, micCheck: null, ended: null, stuckOpen: false, sampler: null };
   var MIC_WAIT_MS = 12000;
   var MIN_BYTES = 1000;
 
@@ -483,7 +485,7 @@
   });
   // The child left WhatsApp's browser mid-read: stop there and send what was read (the mic is released).
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'hidden' && rec.mr && rec.mr.state === 'recording') stopRec();
+    if (document.visibilityState === 'hidden' && rec.mr && rec.mr.state === 'recording') stopRec('hidden');
   });
 
   function pickType() {
@@ -498,6 +500,7 @@
   function micStart() {
     var md = navigator.mediaDevices;
     var type = pickType();
+    rec.micCheck = null; rec.ended = null; rec.stuckOpen = false;
     if (!md || typeof md.getUserMedia !== 'function' || type === null) {
       ev('ch_mic', { ok: false, err: 'unsupported' });
       noMic();
@@ -519,7 +522,7 @@
       ev('ch_mic', { ok: true });
       rec.stream = stream;
       rec.type = type;
-      readStart();
+      if (guardOn()) micCheck(); else readStart();
     }).catch(function (e) {
       if (settled) return;
       settled = true;
@@ -622,12 +625,114 @@
     if (live.v.heardOk > before) live.lastWordAt = Date.now();
     livePaint();
     // the last word heard ends the reading; finalize then makes Soniox confirm what it has at once
-    if ((live.v.finished || live.v.lastHeard) && S.screen === 'read-live') stopRec();
+    if ((live.v.finished || live.v.lastHeard) && S.screen === 'read-live') stopRec('last_word');
+  }
+
+  // ── the read guard (the exercise says guard:true and carries its copy): a local microphone check before the
+  // minute, no Done during it, "too hard" only after the first line's window, the story revealed when the clock
+  // starts, no countdown, Home asks first, the result says how the reading ended. Without it the page is today's.
+  function guardOn() { return !!(S.data && S.data.guard && S.data.copy); }
+  function cp(k) { return (S.data && S.data.copy && S.data.copy[k]) || ''; }
+  var MIC_CHECK_MS = 3000;
+  var SILENT_MS = 10000;
+  var MIC_FLOOR = 12;   // byte time-domain samples sit at 128 in silence; a voice swings well past ±12
+  var aud = null;       // { ctx, an, buf, peak } while the guard listens on the phone itself
+  function audOpen() {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC || !rec.stream) return null;
+    try {
+      var ctx = new AC();
+      var src = ctx.createMediaStreamSource(rec.stream);
+      var an = ctx.createAnalyser();
+      an.fftSize = 2048;
+      src.connect(an);
+      if (ctx.resume) ctx.resume().catch(function () {});
+      return { ctx: ctx, an: an, buf: new Uint8Array(an.fftSize), peak: 0 };
+    } catch (e) { return null; }
+  }
+  function audSample() {
+    if (!aud) return 0;
+    try {
+      aud.an.getByteTimeDomainData(aud.buf);
+      var peak = 0;
+      for (var i = 0; i < aud.buf.length; i++) { var dv = Math.abs(aud.buf[i] - 128); if (dv > peak) peak = dv; }
+      if (peak > aud.peak) aud.peak = peak;
+      return peak;
+    } catch (e) { return 0; }
+  }
+  function audClose() {
+    if (!aud) return;
+    try { if (aud.ctx && aud.ctx.close) aud.ctx.close().catch(function () {}); } catch (e) { /* already closed */ }
+    aud = null;
+  }
+  // Nothing leaves the phone here: no recorder, no socket, no upload. The analyser stays on for the minute's
+  // own silence watch and is closed when the reading ends.
+  function micCheck() {
+    aud = audOpen();
+    if (!aud) { rec.micCheck = 'none'; readStart(); return; }
+    show('mic-check', jug('hello', cp('micSay'), true) + '<div class="wqc-meter" aria-hidden="true"><i id="wqc-meter-bar"></i></div>');
+    var tick = setInterval(function () {
+      var lvl = audSample();
+      var bar = q('wqc-meter-bar');
+      if (bar) bar.style.width = Math.min(100, Math.round(lvl * 100 / 64)) + '%';
+    }, 100);
+    setTimeout(function () {
+      clearInterval(tick);
+      audSample();
+      if (aud && aud.peak > MIC_FLOOR) {
+        rec.micCheck = 'pass';
+        aud.peak = 0;
+        readStart();
+        return;
+      }
+      rec.micCheck = 'silent';
+      audClose();
+      releaseMic();
+      show('mic-silent', jug('notyet', cp('micSilent'), true) + '<div class="wq-stack">'
+        + '<button class="wq-btn wq-go" id="wqc-again" type="button">' + esc(t.again) + '</button>'
+        + '<button class="wq-btn wq-soft" id="wqc-skip" type="button">' + esc(t.skip) + '</button></div>');
+      on('wqc-again', function () { micStart(); });
+      on('wqc-skip', function () { refreshMenu(); });
+    }, MIC_CHECK_MS);
+  }
+  function heardAny() {
+    if (liveOk() && live && live.v) return live.v.heardOk > 0;
+    audSample();
+    return !!(aud && aud.peak > MIC_FLOOR);
+  }
+  // The one way out of a timed reading under the guard, and only once the first line's window has passed.
+  function stickyHtml() {
+    if (!guardOn()) return '<div class="wqc-sticky"><button class="wq-btn wq-navy" id="wqc-stop" type="button">⏹ ' + esc(t.finished) + '</button></div>';
+    return rec.stuckOpen ? '<div class="wqc-sticky"><button class="wq-btn wq-soft" id="wqc-stuck" type="button">' + esc(cp('stuck')) + '</button></div>' : '';
+  }
+  // Home during the minute asks first (today it just leaves, and leaving ends the reading).
+  function bindHomeAsk() {
+    if (!guardOn()) return;
+    var h = q('wq-home');
+    if (!h || h.__asks) return;
+    h.__asks = true;
+    h.addEventListener('click', function (e) {
+      if (!(rec.mr && rec.mr.state === 'recording')) return;
+      if (e && e.preventDefault) e.preventDefault();
+      show('stop-ask', jug('thinking', cp('stopAsk'), true) + '<div class="wq-stack">'
+        + '<button class="wq-btn wq-navy" id="wqc-stop-yes" type="button">' + esc(t.finished) + '</button>'
+        + '<button class="wq-btn wq-soft" id="wqc-stop-no" type="button">' + esc(t.keepGoing) + '</button></div>');
+      on('wqc-stop-yes', function () { if (rec.mr && rec.mr.state === 'recording') stopRec('home'); });
+      on('wqc-stop-no', function () { paintRead(); });
+    });
+  }
+  // The result call's body; under the guard it also says how the reading ended and whether the check passed.
+  function resultBody(extra) {
+    var b = { ct: S.data.ct, lang: L };
+    for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) b[k] = extra[k];
+    if (guardOn()) { b.ended = rec.ended || 'timer'; b.read_s = Math.round((rec.ms || 0) / 1000); b.mic_check = rec.micCheck || 'none'; }
+    return b;
   }
 
   function readStart() {
     var d = S.data;
-    show('read-ready', jug('hello', d.clips.start.text) + storyHtml(d.story));
+    // under the read guard the story is revealed when the clock starts, not while the cue plays
+    show('read-ready', jug('hello', d.clips.start.text) + (guardOn() ? '' : storyHtml(d.story)));
     // the key is asked for while the cue plays; the reading starts when both are done
     var wait = 2;
     var go = function () { wait -= 1; if (wait === 0) record(); };
@@ -664,31 +769,55 @@
     if (liveOk()) {
       live.started = rec.started;
       live.lastWordAt = rec.started;
-      var prev = d.previous_wcpm;
-      show('read-live', '<div class="wqc-wpm" id="wqc-wpm"><div class="wqc-wpm-top"><b id="wqc-wpm-n">…</b><span>' + esc(t.liveWpm) + '</span>'
-        + '<span class="wqc-wpm-left"><span class="wqc-dot" aria-hidden="true"></span> <span id="wqc-left">' + clock(rec.left) + '</span></span></div>'
-        + '<div class="wqc-wpm-track"><i id="wqc-wpm-bar"></i>' + (prev > 0 ? '<em style="inset-inline-start:' + Math.min(100, Math.round(100 * prev / liveScale())) + '%"></em>' : '') + '</div>'
-        + (prev > 0 ? '<p class="wqc-wpm-last">' + esc(t.lastTime) + ': ' + esc(ud(prev)) + '</p>' : '') + '</div>'
-        + '<p class="wq-sub" id="wqc-nudge">' + esc(t.readNow) + '</p>'
-        + '<div class="wqc-story" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(null) + '</div>'
-        + '<div class="wqc-sticky"><button class="wq-btn wq-navy" id="wqc-stop" type="button">⏹ ' + esc(t.finished) + '</button></div>');
-    } else {
-      show('read-rec', '<div class="wqc-clock"><span class="wqc-dot" aria-hidden="true"></span><span id="wqc-left">' + clock(rec.left) + '</span></div>'
-        + '<p class="wq-sub">' + esc(t.readNow) + '</p>' + storyHtml(d.story)
-        + '<div class="wqc-sticky"><button class="wq-btn wq-navy" id="wqc-stop" type="button">⏹ ' + esc(t.finished) + '</button></div>');
     }
-    on('wqc-stop', function () { stopRec(); });
+    paintRead();
+    if (guardOn()) {
+      // the first line's window: only after it may the child say the rest is too hard
+      setTimeout(function () { if (rec.mr && rec.mr.state === 'recording' && !rec.stuckOpen) { rec.stuckOpen = true; paintRead(); } }, LINE1_MS);
+      // the microphone was proven working: a silent start is a stopped reading, not a minute of nothing
+      if (rec.micCheck === 'pass') {
+        rec.sampler = setInterval(audSample, 200);
+        setTimeout(function () { if (rec.mr && rec.mr.state === 'recording' && !heardAny()) stopRec('silent'); }, SILENT_MS);
+      }
+    }
     rec.timer = setInterval(function () {
       rec.left = Math.max(0, (d.secs || 60) - Math.floor((Date.now() - rec.started) / 1000));
       var el = q('wqc-left');
       if (el) el.textContent = clock(rec.left);
       if (liveOk()) liveTick();
-      if (rec.left <= 0) stopRec();
+      if (rec.left <= 0) stopRec('timer');
     }, 250);
   }
 
-  function stopRec() {
+  // The reading screen from the current state (painted again when "too hard" opens, or after Home's question).
+  function paintRead() {
+    var d = S.data;
+    var g = guardOn();
+    if (liveOk()) {
+      var prev = d.previous_wcpm;
+      show('read-live', '<div class="wqc-wpm" id="wqc-wpm"><div class="wqc-wpm-top"><b id="wqc-wpm-n">…</b><span>' + esc(t.liveWpm) + '</span>'
+        + (g ? '' : '<span class="wqc-wpm-left"><span class="wqc-dot" aria-hidden="true"></span> <span id="wqc-left">' + clock(rec.left) + '</span></span>') + '</div>'
+        + '<div class="wqc-wpm-track"><i id="wqc-wpm-bar"></i>' + (prev > 0 ? '<em style="inset-inline-start:' + Math.min(100, Math.round(100 * prev / liveScale())) + '%"></em>' : '') + '</div>'
+        + (prev > 0 ? '<p class="wqc-wpm-last">' + esc(t.lastTime) + ': ' + esc(ud(prev)) + '</p>' : '') + '</div>'
+        + '<p class="wq-sub" id="wqc-nudge">' + esc(t.readNow) + '</p>'
+        + '<div class="wqc-story" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live && live.v ? live.v.marks : null) + '</div>'
+        + stickyHtml());
+      livePaint();
+    } else {
+      show('read-rec', (g ? '' : '<div class="wqc-clock"><span class="wqc-dot" aria-hidden="true"></span><span id="wqc-left">' + clock(rec.left) + '</span></div>')
+        + '<p class="wq-sub">' + esc(t.readNow) + '</p>' + storyHtml(d.story)
+        + stickyHtml());
+    }
+    on('wqc-stop', function () { stopRec('done_tap'); });
+    on('wqc-stuck', function () { stopRec('stuck'); });
+    bindHomeAsk();
+  }
+
+  function stopRec(reason) {
     clearInterval(rec.timer);
+    if (rec.sampler) { clearInterval(rec.sampler); rec.sampler = null; }
+    if (!rec.ended) rec.ended = reason || 'done_tap';
+    audClose();
     rec.ms = rec.ms || (Date.now() - rec.started);
     if (rec.mr && rec.mr.state !== 'inactive') {
       try { rec.mr.stop(); say(S.data.clips.stop); return; } catch (e) { /* finish below */ }
@@ -727,7 +856,7 @@
     if (line1 && Date.now() - live.started > LINE1_MS) {
       var any = false;
       for (var i = line1.from; i <= line1.to; i++) if (live.v.marks[i] === 'ok') any = true;
-      if (!any) stopRec();
+      if (!any) stopRec('line1');
     }
   }
 
@@ -842,7 +971,7 @@
         return u.key;
       });
     }).then(function (key) {
-      return api('ch/result', { ct: d.ct, key: key, ms: rec.ms || 0, lang: L, live: lc });
+      return api('ch/result', resultBody({ key: key, ms: rec.ms || 0, live: lc }));
     }).then(function (r) {
       settle();
       if (r && r.pending) { pollQuiet(0); return; }
@@ -871,7 +1000,7 @@
       });
     }).then(function (key) {
       show('read-wait', jug('thinking', t.listening, true));
-      return api('ch/result', { ct: d.ct, key: key, ms: rec.ms || 0, lang: L });
+      return api('ch/result', resultBody({ key: key, ms: rec.ms || 0 }));
     }).then(function (r) {
       if (r && r.pending) return pollResult(0);
       readResult(r);
@@ -899,10 +1028,17 @@
     if (r.later) { line = t.later; pose = 'hello'; }
     // Nothing heard (attempted 0) is "try again", whatever the server called it; heard but nothing right is
     // encouragement. Only a reading with words per minute above 0 is praised.
+    // under the guard: a reading the child ended early keeps its words and asks for the whole minute; a silent
+    // minute after the microphone check is a stopped reading ("good try"), never "we couldn't hear"
+    else if (guardOn() && r.failed && (r.reason === 'incomplete' || r.reason === 'abandoned')) {
+      line = r.reason === 'incomplete' && r.words != null ? cp('incomplete').replace('{words}', ud(r.words)) : cp('incomplete').replace(/^[^.!۔]*[.!۔]\s*/, '');
+      pose = 'notyet'; r = { failed: true };
+    }
+    else if (guardOn() && r.ended === 'silent') { line = t.readStopped; pose = 'notyet'; r = { score: r.score, wcpm: 0 }; }
     else if (r.failed || (r.score && !r.score.stopped && r.score.attempted === 0)) { r = { failed: true }; line = t.unheard; pose = 'notyet'; }
     else if ((r.score && r.score.stopped) || !(r.wcpm > 0)) { line = t.readStopped; pose = 'notyet'; }
     else {
-      line = d.clips.done.text; score = t.wcpm(r.wcpm);
+      line = guardOn() && r.ended === 'timer' ? cp('wholeMinute') : d.clips.done.text; score = t.wcpm(r.wcpm);
       var prev = r.previous && r.previous.wcpm;
       if (prev != null && r.wcpm > prev) growth = t.more_words(r.wcpm - prev);
       else if (prev != null && r.wcpm === prev) growth = t.same_words;

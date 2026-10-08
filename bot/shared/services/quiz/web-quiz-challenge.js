@@ -46,6 +46,17 @@ const FLAG_KEY = 'web_quiz_challenge';
 const LIVE_FLAG_KEY = 'web_quiz_challenge_realtime';
 const QA_FLAG_KEY = 'web_quiz_challenge_questions';
 const LISTEN_FLAG_KEY = 'web_quiz_challenge_listen';
+// The record rules, each its own switch (off ⇒ today's rows, byte for byte):
+//   _record     the first scored attempt is the record (attempt_no / exposure_no / counted on the row, the menu and
+//               the class results read the first), the clock is the server's (the scorer's clock from the first
+//               word, elapsed from the token's mint), a reading the child ended early is incomplete, never a
+//               words-per-minute, and nothing on the menu is a number
+//   _read_guard the page's read screen: a local microphone check before the minute, no Done, "too hard" only after
+//               the first line's window, how the reading ended (sent as ended / read_s / mic_check)
+//   _items      per-item verdicts and timings on the row — numbers only, never a word heard
+const RECORD_FLAG_KEY = 'web_quiz_challenge_record';
+const GUARD_FLAG_KEY = 'web_quiz_challenge_read_guard';
+const ITEMS_FLAG_KEY = 'web_quiz_challenge_items';
 const QA_MAX = 3;
 // Never shown to a child as an option (the page's no-test-words rule, Urdu and English).
 // "I don't know" is never offered as an option (it is in some rubrics' reject lists as a non-answer).
@@ -119,7 +130,40 @@ const clipKnown = new Map();     // key → true (exists) | number (missing, che
 const clipRecording = new Set();
 let clipsRecorded = 0;
 
-function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; }
+const settingCache = new Map();  // key → { v, at } for the record switches
+const SETTING_TTL_MS = 30 * 1000;
+
+function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; }
+
+/** An app_settings switch, true only when its value reads true (fails closed), cached for 30 s. */
+async function settingOn(key) {
+  const c = settingCache.get(key);
+  if (c && Date.now() - c.at < SETTING_TTL_MS) return c.v;
+  let v = false;
+  try {
+    const { data, error } = await supabase.from('app_settings').select('key, value').eq('key', key);
+    if (error) throw new Error(error.message || 'app_settings read failed');
+    v = !!(data && data[0] && isTrue(data[0].value));
+  } catch (e) {
+    logError('web_quiz.ch_setting_read_failed', { key, error: String(e && e.message || e).slice(0, 120) });
+    v = false;
+  }
+  settingCache.set(key, { v, at: Date.now() });
+  return v;
+}
+const recordOn = () => settingOn(RECORD_FLAG_KEY);
+const readGuardOn = () => settingOn(GUARD_FLAG_KEY);
+const itemsOn = () => settingOn(ITEMS_FLAG_KEY);
+const rulesOf = async () => ({ record: await recordOn(), guard: await readGuardOn(), items: await itemsOn() });
+// The payload says only which rules are on (nothing when none is: today's payload).
+const ruleFlags = (rules) => ({ ...(rules.record ? { record: true } : {}), ...(rules.guard ? { guard: true } : {}), ...(rules.items ? { items: true } : {}) });
+
+// The read guard's page copy, from the catalog (both languages). The page fills `{words}` with the words read.
+const COPY_KEYS = { stuck: 'wqChStuck', incomplete: 'wqChIncomplete', micSay: 'wqChMicSay', micHeard: 'wqChMicHeard', micSilent: 'wqChMicSilent', stopAsk: 'wqChStopAsk', wholeMinute: 'wqChWholeMinute' };
+const copyFor = (lang) => Object.fromEntries(Object.entries(COPY_KEYS).map(([k, key]) => [k, resolveUx(key, { language: lang, params: { words: '{words}' } })]));
+
+// A test child ("<Name> Testwala"): the row says so, so no filter has to guess.
+const isTestName = (name) => /testwala\s*$/i.test(String(name || ''));
 
 function isTrue(v) {
   let x = v;
@@ -221,32 +265,38 @@ async function entryOf(token, kid, device) {
  * class, then that quiz's grade. Most quiz children are LOOSE students rows (no list, no enrolment). A band is
  * unknown, never its first digit.
  */
-async function gradeOf(entry) {
+async function gradeInfo(entry) {
   const { data: enr } = await supabase.from('class_enrollments').select('id, class_id, student_id, is_active')
     .eq('student_id', entry.studentId).eq('is_active', true);
+  const { data: kid } = await supabase.from('students').select('id, list_id, self_reported_class, name').eq('id', entry.studentId).maybeSingle();
+  const name = (kid && kid.name) || null;
   if (enr && enr.length) {
     const { data: cls } = await supabase.from('classes').select('id, grade_code').eq('id', enr[0].class_id).maybeSingle();
     const g = cls && gradeNum(String(cls.grade_code || '').replace(/^grade_/, ''));
-    if (g) return g;
+    if (g) return { grade: g, source: 'enrolment', name };
   }
-  const { data: kid } = await supabase.from('students').select('id, list_id, self_reported_class').eq('id', entry.studentId).maybeSingle();
   if (kid && kid.list_id) {
     const { data: list } = await supabase.from('student_lists').select('id, class_name').eq('id', kid.list_id).maybeSingle();
     const g = list && gradeNum(list.class_name);
-    if (g) return g;
+    if (g) return { grade: g, source: 'list', name };
   }
-  if (kid && gradeNum(kid.self_reported_class)) return gradeNum(kid.self_reported_class);
+  if (kid && gradeNum(kid.self_reported_class)) return { grade: gradeNum(kid.self_reported_class), source: 'self', name };
   let quizId = entry.quizId || null;
   const { data: sessions } = await supabase.from('quiz_sessions').select('id, quiz_id, student_class, created_at')
     .eq('student_id', entry.studentId).order('created_at', { ascending: false }).limit(1);
   const last = sessions && sessions[0];
-  if (last && gradeNum(last.student_class)) return gradeNum(last.student_class);
+  if (last && gradeNum(last.student_class)) return { grade: gradeNum(last.student_class), source: 'session', name };
   if (!quizId && last) quizId = last.quiz_id;
   if (quizId) {
     const { data: q } = await supabase.from('quizzes').select('id, grade').eq('id', quizId).maybeSingle();
-    return q ? gradeNum(q.grade) : null;
+    return { grade: q ? gradeNum(q.grade) : null, source: q ? 'quiz' : null, name };
   }
-  return null;
+  return { grade: null, source: null, name };
+}
+
+/** The grade alone (the row's `grade`); `gradeInfo` also says where it came from. */
+async function gradeOf(entry) {
+  return (await gradeInfo(entry)).grade;
 }
 
 /** The maths form for a grade: 2-3 ⇒ '3', 4-5 ⇒ '5'; anything else is not eligible. */
@@ -275,10 +325,10 @@ async function languageOf(entry, asked) {
 async function who(token, { kid, lang, device } = {}) {
   if (!(await challengeOn())) fail(503, 'challenge_off');
   const entry = await entryOf(token, kid, device);
-  const grade = await gradeOf(entry);
-  const form = formFor(grade);
+  const gi = await gradeInfo(entry);
+  const form = formFor(gi.grade);
   if (!form) fail(403, 'not_eligible');
-  return { ...entry, grade, form, lang: await languageOf(entry, lang) };
+  return { ...entry, grade: gi.grade, gradeSource: gi.source, test: isTestName(gi.name), form, lang: await languageOf(entry, lang) };
 }
 
 // ── runs (stored) ─────────────────────────────────────────────────────────────────────────────────────
@@ -413,9 +463,53 @@ function lastOf(run) {
   return run.exercise === 'read' ? { correct: s.correct, wcpm: run.wcpm, stopped: !!s.stopped } : { correct: s.correct, n: s.n };
 }
 
+// Under the record rule a scored reading the child ended early (no `ended` on the row: written before the rule)
+// is read as incomplete: done on the menu, never a number in the class results.
+function legacyIncomplete(r) {
+  const s = (r && r.score) || {};
+  return r.exercise === 'read' && r.status === 'scored' && s.finished_early === false && !s.stopped
+    && Number(r.meta && r.meta.duration_s) < READ_SECS - 5;
+}
+
+// The child's runs oldest first, by their own query (storedRuns keeps the newest 50: the first attempt would fall
+// out of it). Counted here = a scored run, or an incomplete reading (the minute was begun and the window passed).
+async function countedRuns(studentId) {
+  const { data, error } = await supabase.from(TABLE).select('id, exercise, status, score, wcpm, lang, meta, created_at, scored_at')
+    .eq('student_id', studentId).order('created_at', { ascending: true }).limit(5000);
+  if (error) {
+    if (!isMissingTable(error)) logToFile('⚠️ web quiz challenge: runs read failed', { error: error.message });
+    return [];
+  }
+  return (data || []).filter((r) => r.status === 'scored' || (r.status === 'failed' && r.meta && r.meta.reason === 'incomplete'));
+}
+
+/** attempt_no = 1 + this child's scored runs of the task (a reading: in this language); exposure_no counts every row. */
+async function attemptInfo(studentId, exercise, lang, { except = null } = {}) {
+  let qb = supabase.from(TABLE).select('id, status, lang').eq('student_id', studentId).eq('exercise', exercise);
+  if (exercise === 'read' && lang) qb = qb.eq('lang', lang);
+  const { data, error } = await qb.order('created_at', { ascending: true }).limit(5000);
+  const rows = (error ? [] : data || []).filter((r) => r.id !== except);
+  const scored = rows.filter((r) => r.status === 'scored').length;
+  return { attempt_no: scored + 1, exposure_no: rows.length + 1 };
+}
+
+// Which run of the child's day this is (any exercise, any status, last 24 h), for order effects.
+async function sequenceNo(studentId, except = null) {
+  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const { data, error } = await supabase.from(TABLE).select('id').eq('student_id', studentId).gte('created_at', since);
+  return (error ? [] : data || []).filter((r) => r.id !== except).length + 1;
+}
+
+/** What the record rule stamps on a row at insert: attempt, exposure, counted, where the grade came from, test. */
+async function provenance(studentId, exercise, lang, run, { except = null } = {}) {
+  const a = await attemptInfo(studentId, exercise, lang, { except });
+  return { ...a, counted: a.attempt_no === 1, grade_source: run.gradeSource || null, test: !!run.test, sequence_n: await sequenceNo(studentId, except) };
+}
+
 async function menu(token, { kid, lang, device } = {}) {
   const w = await who(token, { kid, lang, device });
-  const runs = (await storedRuns(w.studentId)).filter((r) => r.status === 'scored');
+  const rules = await rulesOf();
+  const runs = rules.record ? await countedRuns(w.studentId) : (await storedRuns(w.studentId)).filter((r) => r.status === 'scored');
   logEvent('web_quiz.ch_open', { via: w.via, grade: w.grade });
   // Today's read-aloud cap reached (web-quiz-challenge-budget.js): "Which is bigger?" only until Pakistan midnight.
   const readOk = await Budget.readOpen();
@@ -426,8 +520,10 @@ async function menu(token, { kid, lang, device } = {}) {
     lang: w.lang,
     exercises: EXERCISES.filter((e) => (e.id !== 'read' || readOk) && (e.id !== 'listen' || listenOk)).map((e) => {
       const last = runs.find((r) => r.exercise === e.id) || null;
-      return { id: e.id, name: nameOf(e.id, w.lang), mins: e.mins, done: !!last, last: lastOf(last) };
+      // the record rule: done from the first counted run, and the menu is not a report — no number on it
+      return { id: e.id, name: nameOf(e.id, w.lang), mins: e.mins, done: !!last, last: rules.record ? null : lastOf(last) };
     }),
+    ...(rules.record ? { record: true } : {}),
     // Whether the page sends its page-session events (wq-tel.js).
     rt: await Tel.flag(),
   };
@@ -446,13 +542,14 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   const spec = Bank.getTaskSpec({ grade: Number(w.form), set: 'A', task });
   const runId = crypto.randomUUID();
   const ct = T.signChallenge({ studentId: w.studentId, ex, runId });
-  RUNS.set(runId, { status: 'open', grade: w.grade, form: w.form, lang: w.lang, task });
-  logEvent('web_quiz.ch_start', { step: ex, grade: w.grade });
-  const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await clipsFor(ex, w.lang) };
+  const rules = await rulesOf();
+  RUNS.set(runId, { status: 'open', grade: w.grade, form: w.form, lang: w.lang, task, gradeSource: w.gradeSource, test: w.test });
+  logEvent('web_quiz.ch_start', { step: ex, grade: w.grade, run: runId });
+  const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await clipsFor(ex, w.lang), ...ruleFlags(rules), ...(rules.guard ? { copy: copyFor(w.lang) } : {}) };
   if (ex === 'bigger') {
     return {
       ...base,
-      items: spec.items.map((i) => ({ a: i.a, b: i.b })),
+      items: servePairs(spec.items, w.form, rules.record),
       practice: (spec.practice || []).map((i) => ({ a: i.a, b: i.b, answer: i.answer })),
       per_item_s: PER_ITEM_S,
       stop_after: (spec.stop && spec.stop.n) || 4,
@@ -467,7 +564,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   const st = spec.story || {};
   const live = await liveOn();
   // live: the bar marks the child's last checked words a minute ("last time"), null the first time
-  const previousWcpm = live ? ((await previousRun(w.studentId, 'read', w.lang)) || {}).wcpm : undefined;
+  const previousWcpm = live ? (rules.record ? null : ((await previousRun(w.studentId, 'read', w.lang)) || {}).wcpm) : undefined;
   return { ...base, secs: READ_SECS, live, ...(live ? { previous_wcpm: previousWcpm == null ? null : previousWcpm } : {}), questions_on: await questionsOn(), story: { text: st.text, tokens: st.tokens, lines: st.lines, dir: spec.direction } };
 }
 
@@ -497,7 +594,49 @@ function scoreBigger(items, taps, { stopAfter = 4 } = {}) {
   return { correct: rows.filter((r) => r.verdict === 'correct').length, n: items.length, stopped: !!stop.stopped };
 }
 
-async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }) {
+/**
+ * The pairs as served. Under the record rule the bigger number sits second on exactly half of the form's pairs,
+ * drawn once per form (the same for every child, so the side carries nothing a child can learn across runs);
+ * the score compares the VALUE tapped, so the order touches nothing else.
+ */
+function servePairs(items, form, record) {
+  if (!record) return items.map((i) => ({ a: i.a, b: i.b }));
+  // a small seeded draw (mulberry32) of half the positions, seeded by the form
+  let s = 0x9e3779b9 ^ (Number(form) || 0);
+  const rnd = () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const idx = items.map((_, i) => i).sort(() => rnd() - 0.5).slice(0, Math.floor(items.length / 2));
+  const second = new Set(idx);
+  return items.map((i, k) => {
+    const hi = Math.max(i.a, i.b); const lo = Math.min(i.a, i.b);
+    return second.has(k) ? { a: lo, b: hi } : { a: hi, b: lo };
+  });
+}
+
+/** Per item: where the answer sat as served, the tap's verdict (null = no tap) and its ms. Numbers only. */
+function biggerItems(items, taps, served) {
+  const byI = new Map();
+  for (const t of Array.isArray(taps) ? taps.slice(0, 50) : []) {
+    const i = Number(t && t.i);
+    if (Number.isInteger(i) && i >= 0 && i < items.length && !byI.has(i)) byI.set(i, t);
+  }
+  return items.map((it, i) => {
+    const t = byI.get(i);
+    const ms = t && Number.isFinite(Number(t.ms)) ? Math.max(0, Math.round(Number(t.ms))) : null;
+    const ok = t ? (Number(t.pick) === it.answer && ms != null && ms <= PER_ITEM_S * 1000) : null;
+    const s = served && served[i];
+    return { i: i + 1, side: s && s.b === it.answer ? 'b' : 'a', ok, ms };
+  });
+}
+const BIGGER_FAST_MS = 500;
+// A run is rapid when three or more items were FAST AND WRONG (fast and right is fluency); abandoned when the stop
+// came from items never touched.
+function itemFlags(rows, { fastMs, stopped }) {
+  const noneN = rows.filter((r) => r.ok === null).length;
+  const rapid = rows.filter((r) => r.ok === false && r.ms != null && r.ms < fastMs).length >= 3;
+  return { none_n: noneN, rapid, abandoned: !!stopped && noneN >= 3 };
+}
+
+async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = {}, ctx = {}) {
   let file = null;
   try {
     file = media.tmpFile(ext);
@@ -505,18 +644,41 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }) {
     // Chrome's MediaRecorder webm has no duration header (ffmpeg reads "Duration: N/A"): the page's own
     // recorded length stands in, so the STT cost and the stored duration are not lost.
     const pageSec = Number(ms) > 0 ? Math.min(READ_SECS + 1, Number(ms) / 1000) : null;
-    const durationSec = (await media.probeDuration(file)) || pageSec;
+    const probedSec = await media.probeDuration(file);
+    const durationSec = probedSec || pageSec;
     const spec = Bank.getTaskSpec({ grade: Number(run.form), set: 'A', task: run.task });
     // The comprehension questions are not part of the Challenge: the kid only reads.
-    const m = await scoreTask({ task: run.task, spec: { ...spec, questions: [] }, media: { file, durationSec, beginAtS: 0 }, lang: run.lang, grade: Number(run.form) });
+    // Under the record rule the scorer's clock starts at the child's first word (EGRA's timer), not at the recording.
+    const m = await scoreTask({ task: run.task, spec: { ...spec, questions: [] }, media: { file, durationSec, beginAtS: rules.record ? null : 0 }, lang: run.lang, grade: Number(run.form) });
     if (!m || m.ok === false) return { failed: true, reason: (m && m.reason) || 'internal_error', meta: { calls: m && m.calls ? m.calls.length : 0 } };
     const t = m.timed || {};
     const stopped = !!m.stopped_by_rule;
     const score = { correct: t.correct || 0, attempted: t.attempted || 0, stopped, finished_early: (t.time_remaining || 0) > 0, time_left: t.time_remaining || 0 };
+    const cost = (m.meta && m.meta.cost_usd) || 0;
+    const durationS = Math.round(durationSec * 10) / 10;
+    // What the record rule keeps beside the numbers: how the reading ended, the scorer's own clock and doubt.
+    const extra = rules.record ? {
+      ended: ctx.ended || null, mic_check: ctx.micCheck || null, read_s: Math.round(durationSec), duration_source: probedSec ? 'probe' : 'page',
+      clock: t.clock || null, begin_at_s: t.begin_at_s == null ? null : t.begin_at_s, end_at_s: t.end_at_s == null ? null : t.end_at_s,
+      count_flag: m.count_flag || null, story_confidence: m.story_confidence == null ? null : m.story_confidence,
+      ...(rules.items ? { items: (m.items || []).map((x) => ({ i: x.i, v: x.verdict })) } : {}),
+    } : {};
+    // The microphone was proven working and not one word came: the child was silent — EGRA's discontinue, a 0 —
+    // not "unheard" (which would send them round again).
+    if (rules.record && ctx.micCheck === 'pass' && ctx.ended === 'silent' && !stopped && score.attempted === 0) {
+      const s = { ...score, stopped: true, finished_early: false, time_left: 0 };
+      return { score: s, wcpm: 0, ended: 'silent', meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra, ended: 'silent' } };
+    }
     // Not one word of the story was heard: that is not a reading of 0 words — no score, no ✓, no growth baseline,
     // nothing in the class results; the child is asked to try again.
-    if (!stopped && score.attempted === 0) return { failed: true, reason: 'unheard', meta: { cost_usd: (m.meta && m.meta.cost_usd) || 0, duration_s: Math.round(durationSec * 10) / 10 } };
-    return { score, wcpm: stopped ? 0 : wcpm(score.correct, score.time_left), meta: { cost_usd: (m.meta && m.meta.cost_usd) || 0, seconds: m.meta && m.meta.seconds, duration_s: Math.round(durationSec * 10) / 10, flags: m.flags || [] } };
+    if (!stopped && score.attempted === 0) return { failed: true, reason: 'unheard', meta: { cost_usd: cost, duration_s: durationS, ...extra } };
+    // A reading the child ended before the minute, the story unfinished, is not a words-per-minute: incomplete
+    // (the words read are kept), or abandoned when it barely began. The audio's own length is the evidence.
+    if (rules.record && !stopped && !score.finished_early && durationSec < READ_SECS - 5) {
+      const reason = durationSec < 15 ? 'abandoned' : 'incomplete';
+      return { failed: true, reason, words: score.correct, meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra, words: score.correct } };
+    }
+    return { score, wcpm: stopped ? 0 : wcpm(score.correct, score.time_left), ended: ctx.ended || null, meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra } };
   } catch (e) {
     return { failed: true, reason: 'internal_error', meta: { error: String(e && e.message || e).slice(0, 120) } };
   } finally {
@@ -572,6 +734,34 @@ async function forgetRun(prefix, key, { again = true } = {}) {
     const t = setTimeout(() => { forgetRun(prefix, null, { again: false }).catch(() => {}); }, (PUT_TTL_S + 1) * 1000);
     if (t && typeof t.unref === 'function') t.unref();
   }
+}
+
+/**
+ * The orphan sweep: a recording whose result call never came (the tab closed between the PUT and the result) is
+ * deleted by nobody else. Every key under this env's private prefix older than `olderThanMs` (its name carries
+ * the upload's ms timestamp) is deleted; counts only are logged. Never throws.
+ */
+const VOICE_KEY_RX = /\/read-(\d{13})\.(webm|ogg|m4a)$/;
+const SWEEP_MAX_PER_TICK = 500;
+async function sweepOrphans({ now = Date.now(), olderThanMs = 10 * 60 * 1000, max = SWEEP_MAX_PER_TICK } = {}) {
+  const out = { listed: 0, deleted: 0, failed: 0 };
+  const prefix = `child-voice/${r2Env()}/`;
+  let keys = [];
+  try { keys = (await r2.listKeys(prefix, { bucket: childVoiceBucket() })) || []; } catch (e) {
+    logError('web_quiz.ch_voice_list_failed', { reason: String(e && e.message || e).slice(0, 80) });
+    return out;
+  }
+  out.listed = keys.length;
+  for (const k of keys) {
+    if (out.deleted + out.failed >= max) break;   // the rest next tick: a tick is bounded
+    const m = VOICE_KEY_RX.exec(String(k || ''));
+    if (!m || !k.startsWith(prefix) || now - Number(m[1]) <= olderThanMs) continue;
+    try {
+      if (await r2.deleteKey(k, { bucket: childVoiceBucket() })) out.deleted += 1; else out.failed += 1;
+    } catch (_) { out.failed += 1; }
+  }
+  logEvent('web_quiz.ch_voice_swept', out);
+  return out;
 }
 
 async function presignUpload({ ct, type, size } = {}) {
@@ -638,11 +828,11 @@ async function readsToday(studentId, except = null) {
 // The run, from this process or rebuilt from the student (a token minted by another process: a restart, a replica).
 async function runFor(c, mem, lang) {
   if (mem && mem.task) return mem;
-  const grade = await gradeOf({ studentId: c.sid });
-  const form = formFor(grade);
+  const gi = await gradeInfo({ studentId: c.sid });
+  const form = formFor(gi.grade);
   if (!form) fail(403, 'not_eligible');
   const l = clampLanguage(lang);
-  return { grade, form, lang: l, task: byId(c.ex).task(l) };
+  return { grade: gi.grade, form, lang: l, task: byId(c.ex).task(l), gradeSource: gi.source, test: isTestName(gi.name) };
 }
 
 /**
@@ -669,9 +859,11 @@ async function liveKey({ ct, lang } = {}) {
   }
   RUNS.set(c.r, { ...run, status: 'live' });
   Budget.noteStarted();
-  const stored = await insertRun({ id: c.r, student_id: c.sid, exercise: 'read', grade: run.grade, lang: run.lang, status: 'scoring', created_at: nowIso(), meta: { phase: 'live' } });
+  const rules = await rulesOf();
+  const prov = rules.record ? await provenance(c.sid, 'read', run.lang, run) : {};
+  const stored = await insertRun({ id: c.r, student_id: c.sid, exercise: 'read', grade: run.grade, lang: run.lang, status: 'scoring', created_at: nowIso(), meta: { phase: 'live', ...prov } });
   if (stored === 'duplicate') fail(409, 'already_done');
-  logEvent('web_quiz.ch_live_key', { grade: run.grade, lang: run.lang });
+  logEvent('web_quiz.ch_live_key', { grade: run.grade, lang: run.lang, run: c.r });
   return { api_key: k.api_key, expires_at: k.expires_at, ws: Live.WS_URL, model: Live.MODEL, lang: run.lang };
 }
 
@@ -685,8 +877,9 @@ function liveCount(v, passageLen) {
   return { correct, attempted, secs, v: 1 };
 }
 
-async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
+async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
   const c = runOf(body.ct);
+  const rules = await rulesOf();
   let CT;
   try { CT = childTest({ scorer: c.ex === 'read' }); } catch (e) {
     // Not scorable here: an uploaded recording is still forgotten (only this run's own prefix).
@@ -705,11 +898,20 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   if (c.ex === 'bigger') {
     const spec = Bank.getTaskSpec({ grade: Number(run.form), set: 'A', task: 'ma.discrimination' });
     const score = scoreBigger(spec.items, body.taps, { stopAfter: (spec.stop && spec.stop.n) || 4 });
-    const result = { score, previous: await previousRun(c.sid, 'bigger') };
+    const result = { score, previous: rules.record ? null : await previousRun(c.sid, 'bigger') };
     RUNS.set(c.r, { ...run, status: 'done', result });
-    const stored = await insertRun({ ...base, status: 'scored', score, scored_at: nowIso(), meta: { ms: Number(body.ms) || null } });
+    let meta = { ms: Number(body.ms) || null };
+    if (rules.record) {
+      // the server's clock: elapsed since the token's mint; a submit faster than its own taps is marked, never refused
+      const rows = biggerItems(spec.items, body.taps, servePairs(spec.items, run.form, true));
+      const tapped = rows.reduce((a, r) => a + (r.ms || 0), 0);
+      const elapsedMs = Math.max(0, now - (Number(c.exp) - T.CHALLENGE_TTL_S) * 1000);
+      meta = { ...meta, ...(await provenance(c.sid, 'bigger', null, run)), elapsed_s: Math.round(elapsedMs / 100) / 10, too_fast: elapsedMs < tapped || elapsedMs < rows.length * 400 };
+      if (rules.items) meta = { ...meta, items: rows, ...itemFlags(rows, { fastMs: BIGGER_FAST_MS, stopped: score.stopped }) };
+    }
+    const stored = await insertRun({ ...base, status: 'scored', score, scored_at: nowIso(), meta });
     if (stored === 'duplicate') fail(409, 'already_done');
-    logEvent('web_quiz.ch_done', { step: 'bigger', count: score.correct, n: score.n, stopped: score.stopped });
+    logEvent('web_quiz.ch_done', { step: 'bigger', count: score.correct, n: score.n, stopped: score.stopped, run: c.r });
     return result;
   }
 
@@ -728,10 +930,15 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
   if (!isLive) Budget.noteStarted();
 
   RUNS.set(c.r, { ...run, status: 'scoring' });
-  const previous = await previousRun(c.sid, 'read', run.lang);
+  const previous = rules.record ? null : await previousRun(c.sid, 'read', run.lang);
   const story = (Bank.getTaskSpec({ grade: Number(run.form), set: 'A', task: run.task }).story || {});
   const live = isLive ? liveCount(body.live, (story.tokens && story.tokens.length) || String(story.text || '').split(/\s+/).filter(Boolean).length) : null;
-  const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}) };
+  // the record rule's stamps (a live run was stamped at its mint; stamped again here from the same facts) and how
+  // the page says the reading ended (its own words; the audio's length is what decides)
+  const prov = rules.record ? await provenance(c.sid, 'read', run.lang, run, { except: c.r }) : {};
+  const word = (v) => (typeof v === 'string' && /^[a-z_]{1,16}$/.test(v) ? v : null);
+  const guardIn = rules.record ? { ended: word(body.ended), mic_check: word(body.mic_check), read_s: Number.isFinite(Number(body.read_s)) ? Math.max(0, Math.round(Number(body.read_s))) : null } : {};
+  const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}), ...prov, ...guardIn };
   if (isLive) {
     // the child may already be answering the questions (the live result shows before this call): keep their answers
     await updateRunMeta(c.r, (cur) => ({ status: 'scoring', meta: { ...metaIn, ...(cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {}) } }));
@@ -741,19 +948,24 @@ async function submit(body = {}, { waitMs = WAIT_MS } = {}) {
     if (stored === 'duplicate') await refuse(409, 'already_done');
   }
   const ext = key.split('.').pop();
-  const promise = scoreRead(run, key, ext, body.ms, CT).then(async (r) => {
-    const result = r.failed ? { failed: true, reason: r.reason } : { score: r.score, wcpm: r.wcpm, previous };
+  const promise = scoreRead(run, key, ext, body.ms, CT, rules, { ended: guardIn.ended, micCheck: guardIn.mic_check, readS: guardIn.read_s }).then(async (r) => {
+    const result = r.failed
+      ? { failed: true, reason: r.reason, ...(r.words != null ? { words: r.words } : {}) }
+      : { score: r.score, wcpm: r.wcpm, previous, ...(rules.record ? { ended: r.ended || null } : {}) };
     const before = RUNS.get(c.r) || {};
     RUNS.set(c.r, { ...run, ...(before.comp ? { comp: before.comp } : {}), status: 'done', result });
+    // the record rule's stamps ride the final write (which replaces meta); an abandoned reading is an exposure only
+    const keep = !rules.record ? {} : (r.reason === 'abandoned' ? (({ attempt_no, counted, ...rest }) => rest)(prov) : prov);
+    const stamp = rules.record ? { ms: metaIn.ms, ...keep } : {};
     // answers to the questions may have been given while this reading was scored: keep them (meta.comp)
     await updateRunMeta(c.r, (cur) => {
       const comp = cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {};
       return r.failed
-        ? { status: 'failed', meta: { ...r.meta, ...comp, reason: r.reason }, scored_at: nowIso() }
-        : { status: 'scored', score: r.score, wcpm: r.wcpm, meta: { ...r.meta, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() };
+        ? { status: 'failed', meta: { ...r.meta, ...stamp, ...comp, reason: r.reason }, scored_at: nowIso() }
+        : { status: 'scored', score: r.score, wcpm: r.wcpm, meta: { ...r.meta, ...stamp, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() };
     }, { force: true });
-    if (r.failed) logError('web_quiz.ch_read_failed', { runId: c.r, reason: r.reason });
-    else logEvent('web_quiz.ch_done', { step: 'read', count: r.score.correct, wcpm: r.wcpm, stopped: r.score.stopped, costUsd: r.meta.cost_usd });
+    if (r.failed) logError('web_quiz.ch_read_failed', { runId: c.r, reason: r.reason, run: c.r });
+    else logEvent('web_quiz.ch_done', { step: 'read', count: r.score.correct, wcpm: r.wcpm, stopped: r.score.stopped, costUsd: r.meta.cost_usd, run: c.r, ...(rules.record ? { ended: r.ended || null } : {}) });
     return result;
   });
   RUNS.get(c.r).promise = promise;
@@ -961,8 +1173,10 @@ async function listResults({ cls, list } = {}) {
   }
   const ids = await classStudentIds({ cls, list });
   if (!ids.length) return [];
-  const { data: runs, error: rErr } = await supabase.from('web_quiz_challenge_runs').select('id, student_id, exercise, status, score, wcpm, created_at, scored_at')
-    .in('student_id', ids).eq('status', 'scored').order('created_at', { ascending: false });
+  // the record rule: the FIRST scored run per child × exercise (oldest first), never an early-stopped reading
+  const record = await recordOn();
+  const { data: runs, error: rErr } = await supabase.from('web_quiz_challenge_runs').select('id, student_id, exercise, status, score, wcpm, meta, created_at, scored_at')
+    .in('student_id', ids).eq('status', 'scored').order('created_at', { ascending: record });
   if (rErr) {
     if (isMissingTable(rErr)) return [];
     fail(502, 'db_unavailable');
@@ -970,6 +1184,7 @@ async function listResults({ cls, list } = {}) {
   const seen = new Set();
   const out = [];
   for (const r of runs || []) {
+    if (record && legacyIncomplete(r)) continue;
     const k = `${r.student_id}|${r.exercise}`;
     if (seen.has(k)) continue;
     seen.add(k);
@@ -983,7 +1198,8 @@ async function listResults({ cls, list } = {}) {
 
 module.exports = {
   menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, tapOptions, listenOn,
-  scoreBigger, wcpm, formFor, gradeOf, kidChip, challengeOn, clipKey, childVoiceBucket,
-  EXERCISES, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, TABLE, MAX_BYTES,
+  scoreBigger, wcpm, formFor, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
+  recordOn, readGuardOn, itemsOn, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
+  EXERCISES, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TABLE, MAX_BYTES,
   __reset,
 };

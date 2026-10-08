@@ -1560,6 +1560,38 @@ function resolveWorkerQueuesBootStatus() {
   return SQSCoachingWorker._workerQueuesBootStatus();
 }
 
+// The Challenge's child-voice orphans — a recording whose result call never came (the tab closed between the
+// upload and the result) is deleted by nobody else. Swept hourly from the replicas that poll the main queue
+// (the first pass a few minutes after boot), bounded per tick, idempotent across replicas (a delete is a
+// delete), off with WEB_QUIZ_VOICE_SWEEP=off; each tick logs counts only.
+const CHALLENGE_VOICE_SWEEP_INTERVAL_MS = 60 * 60 * 1000;
+const CHALLENGE_VOICE_SWEEP_FIRST_MS = 3 * 60 * 1000;
+function challengeVoiceSweepEnabled(env = process.env) {
+  const raw = String(env.WEB_QUIZ_VOICE_SWEEP || '').trim().toLowerCase();
+  if (raw === 'off' || raw === 'false' || raw === '0' || raw === 'no') return false;
+  return SQSCoachingWorker._enabledQueues().has('main');
+}
+function scheduleChallengeVoiceSweep({ worker: w = null, setIntervalFn = setInterval, setTimeoutFn = setTimeout } = {}) {
+  if (!challengeVoiceSweepEnabled()) {
+    logToFile('Challenge voice orphan sweep not scheduled on this replica', { reason: 'no main queue, or WEB_QUIZ_VOICE_SWEEP=off' });
+    return null;
+  }
+  const tick = async () => {
+    if (w && w.isShuttingDown) return;
+    try {
+      const res = await require('../shared/services/quiz/web-quiz-challenge').sweepOrphans();
+      logToFile('🧹 Challenge voice orphan sweep', res);
+    } catch (error) {
+      logToFile('Error in challenge voice orphan sweep (non-fatal)', { error: error.message });
+    }
+  };
+  const first = setTimeoutFn(tick, CHALLENGE_VOICE_SWEEP_FIRST_MS);
+  if (first && typeof first.unref === 'function') first.unref();
+  const timer = setIntervalFn(tick, CHALLENGE_VOICE_SWEEP_INTERVAL_MS);
+  logToFile('Periodic Challenge voice orphan sweep enabled (hourly, main-queue replicas)');
+  return { tick, timer };
+}
+
 // make the WORKER_QUEUES decision visible on every boot, not just inferable after an
 // incident (see _workerQueuesBootStatus() above for why this matters for lp612_author).
 {
@@ -1645,6 +1677,8 @@ function startWorker() {
     }, SONIOX_CLEANUP_INTERVAL_MS);
 
     logToFile('Periodic Soniox storage cleanup enabled (every 15 minutes)');
+
+    scheduleChallengeVoiceSweep({ worker });
 
     // bd-2417: NIETE has no Railway Cron, so drive stale-session recovery from
     // this always-on worker too — auto-complete abandoned reflection sessions
@@ -1844,5 +1878,5 @@ if (require.main === module) {
 // Export for testing
 module.exports = {
   SQSCoachingWorker, WORKER_ID, startWorker, runDebriefRetrySweep, resolveWorkerQueuesBootStatus,
-  exitAfterFlush, runQuizFunnelWatch,
+  exitAfterFlush, runQuizFunnelWatch, scheduleChallengeVoiceSweep, challengeVoiceSweepEnabled,
 };

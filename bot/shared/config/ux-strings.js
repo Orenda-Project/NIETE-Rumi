@@ -3905,6 +3905,15 @@ const UX_STRINGS = {
   wqChListenStart: { en: 'Listen carefully.', ur: 'غور سے سنیں۔' },
   wqChListenStop: { en: 'Now the questions!', ur: 'اب سوال!' },
   wqChListenDone: { en: 'Well done! Good listening.', ur: 'شاباش! آپ نے بہت غور سے سنا۔' },
+  // Read aloud under the read guard (web_quiz_challenge_read_guard): the local microphone check, the one way out
+  // of a timed reading, Home's question, and how a reading ended. Page copy, no WhatsApp field. Gender-neutral.
+  wqChMicSay: { en: 'Say "Jugnu!" so I can hear you.', ur: '"جگنو!" کہیں تاکہ میں آپ کو سن سکوں۔' },
+  wqChMicHeard: { en: 'I can hear you! Nothing is saved.', ur: 'آپ کی آواز آ رہی ہے! کچھ محفوظ نہیں ہوتا۔' },
+  wqChMicSilent: { en: "Jugnu can't hear you yet.", ur: 'جگنو کو ابھی آپ کی آواز نہیں آ رہی۔' },
+  wqChStuck: { en: 'The rest is too hard', ur: 'آگے بہت مشکل ہے' },
+  wqChStopAsk: { en: 'Stop reading?', ur: 'پڑھنا روکیں؟' },
+  wqChIncomplete: { en: 'You read {words} words. Read for the whole minute to get your number!', ur: 'آپ نے {words} لفظ پڑھے۔ اپنا نمبر پانے کے لیے پورا منٹ پڑھیں!' },
+  wqChWholeMinute: { en: 'You read for the whole minute!', ur: 'آپ نے پورا منٹ پڑھا!' },
 };
 
 /**
