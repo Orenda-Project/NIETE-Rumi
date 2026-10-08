@@ -62,7 +62,8 @@ chevron, never a link. A button carries `aria-pressed`. `gradeSubjectLabel()` gi
 ### `HistoryRow`
 | Prop | Type | Default |
 |---|---|---|
-| subject, grade, title | string, string \| number, string | — |
+| subject, title | string | — |
+| grade | string \| number; **optional** — absent, empty or a dash placeholder ("–") when it was never settled | — |
 | extra | line 2 ("Chap 1", "20 questions") | — |
 | chip | `ChipData` | — |
 | action | `chevron` (link to `to`) · `download` (56px button → `onAction`) · `none` | `chevron` |
@@ -72,7 +73,8 @@ chevron, never a link. A button carries `aria-pressed`. `gradeSubjectLabel()` gi
 | copy | `{ grade, download, newItem }` | `TEACHER_UI_COPY` |
 
 Lead = the operator's block: "Grade 4" over the subject (`blockSubject()`: full name when it fits, else "Soc. St.",
-"Pak. St.", "Geogr." …), both 16px/700. The canvas's other leads (icon, stacked, badge, tint) were turned down and are
+"Pak. St.", "Geogr." …), both 16px/700. No grade (bd-fmf24g.11: a DC lesson the analysis left open): the subject alone, centred, same
+16px/700 — never "Grade –". No grade and no subject: the SubjectTile book icon. A grade with no subject: "Grade 4" alone. The canvas's other leads (icon, stacked, badge, tint) were turned down and are
 not ported.
 
 ### `HistoryList`
