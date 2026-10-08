@@ -3,16 +3,14 @@ import { ChevronRight, ExternalLink, KeyRound } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import PortalLayout from '../../components/PortalLayout';
 import LessonPlanViewer from '../../components/LessonPlanViewer';
 import { useRecordingSession } from '../../lib/recordingSession';
 import { openLessonPlanOutside, useLessonPlanOpener, type LessonPlanView } from '../../lib/lessonPlanOpen';
 import { FeatureArt } from '../icons';
 import { teacherPath } from '../routes';
 import { CHEVRON, FOCUS } from '../ui/styles';
-import { PAGE_BODY } from './ChaptersPage';
 import { LESSONS_V2_COPY as C } from './copy';
-import { LessonHeader } from './LessonHeader';
+import TeacherPage from '../TeacherPage';
 import { LESSONS_VIEWER, dcHref, type DcPrefill } from './paths';
 
 /**
@@ -72,52 +70,47 @@ export function ViewerPage() {
   const act = cn('flex min-h-[56px] items-center gap-2 rounded-2xl border border-[#e5e7eb] bg-white px-4 text-[15px] font-semibold text-[#33374a]', FOCUS);
 
   return (
-    <PortalLayout ownHeading>
-      <div className="mx-auto w-full max-w-[720px]">
-        <LessonHeader crumb={view.crumb} title={view.title} onBack={close} tile={false} />
-      </div>
-      <div className={PAGE_BODY}>
-        {recording ? null : (
-          <Link
-            to={dcHref(teacherPath('coaching'), dc)}
-            className={cn('flex min-h-[68px] items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] px-3.5 text-[16px] font-semibold text-[#1d2025]', FOCUS)}
+    <TeacherPage crumb={view.crumb} title={view.title} onBack={close}>
+      {recording ? null : (
+        <Link
+          to={dcHref(teacherPath('coaching'), dc)}
+          className={cn('flex min-h-[68px] items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] px-3.5 text-[16px] font-semibold text-[#1d2025]', FOCUS)}
+        >
+          <FeatureArt feature="coaching" size={40} />
+          <span className="flex-1">{C.startDc}</span>
+          <ChevronRight className={cn('h-[22px] w-[22px]', CHEVRON)} strokeWidth={2.4} aria-hidden="true" />
+        </Link>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {answerKey ? (
+          <button
+            type="button"
+            className={act}
+            onClick={() => {
+              void openPlan(answerKey, view.title, { crumb: C.crumb(view.crumb, C.answerKey), page: LESSONS_VIEWER, state: { dc } });
+            }}
           >
-            <FeatureArt feature="coaching" size={40} />
-            <span className="flex-1">{C.startDc}</span>
-            <ChevronRight className={cn('h-[22px] w-[22px]', CHEVRON)} strokeWidth={2.4} aria-hidden="true" />
-          </Link>
+            <KeyRound className="h-5 w-5" aria-hidden="true" />
+            {C.answerKey}
+          </button>
+        ) : null}
+        {recording ? null : (
+          <button type="button" className={cn(act, 'ms-auto w-14 justify-center px-0')} aria-label={C.openOutside} onClick={() => { void outside(); }}>
+            <ExternalLink className="h-5 w-5" aria-hidden="true" />
+          </button>
         )}
-        <div className="flex flex-wrap gap-2">
-          {answerKey ? (
-            <button
-              type="button"
-              className={act}
-              onClick={() => {
-                void openPlan(answerKey, view.title, { crumb: C.crumb(view.crumb, C.answerKey), page: LESSONS_VIEWER, state: { dc } });
-              }}
-            >
-              <KeyRound className="h-5 w-5" aria-hidden="true" />
-              {C.answerKey}
-            </button>
-          ) : null}
-          {recording ? null : (
-            <button type="button" className={cn(act, 'ms-auto w-14 justify-center px-0')} aria-label={C.openOutside} onClick={() => { void outside(); }}>
-              <ExternalLink className="h-5 w-5" aria-hidden="true" />
-            </button>
-          )}
-        </div>
-        <LessonPlanViewer
-          key={key}
-          view={view}
-          recording={recording}
-          chrome="none"
-          onClose={close}
-          onNotReady={() => {
-            toast({ title: C.notReady });
-            close();
-          }}
-        />
       </div>
-    </PortalLayout>
+      <LessonPlanViewer
+        key={key}
+        view={view}
+        recording={recording}
+        chrome="none"
+        onClose={close}
+        onNotReady={() => {
+          toast({ title: C.notReady });
+          close();
+        }}
+      />
+    </TeacherPage>
   );
 }

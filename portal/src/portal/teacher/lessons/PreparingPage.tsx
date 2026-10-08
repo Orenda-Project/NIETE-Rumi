@@ -1,16 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import PortalLayout from '../../components/PortalLayout';
 import { useLessonPlanOpener } from '../../lib/lessonPlanOpen';
 import { lessonPlans } from '../../newui/lessons/lessonPlansApi';
 import { clock, dataOf, useLoad } from '../../newui/lessons/shared';
 import { teacherPath } from '../routes';
 import { StatusChip } from '../ui';
 import { FOCUS, OUTLINE_WIDE } from '../ui/styles';
-import { PAGE_BODY } from './ChaptersPage';
 import { LESSONS_V2_COPY as C } from './copy';
-import { LessonHeader } from './LessonHeader';
+import TeacherPage from '../TeacherPage';
 import { LESSONS_VIEWER, lessonsUrl, openUrl, readAt, type LessonsAt } from './paths';
 import { dcFor, useOpenLesson } from './useOpenLesson';
 
@@ -105,46 +103,41 @@ function Preparing({ at }: { at: AtRender }) {
   const left = EXPECTED_MS - elapsed;
 
   return (
-    <PortalLayout ownHeading>
-      <div className="mx-auto w-full max-w-[720px]">
-        <LessonHeader crumb={C.grade(at.grade)} title={title} backTo={otherLessons} />
-      </div>
-      <div className={PAGE_BODY}>
-        <section aria-live="polite" className="flex flex-col items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white px-4 py-6 text-center">
-          {failed ? (
-            <>
-              <p className="text-[20px] font-semibold text-[#c8331f]">{C.notPrepared}</p>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  if (lesson) void open(lesson, at, { replace: true });
-                  else navigate(openUrl({ plan: `g612:${at.lesson}`, title: at.title, grade: at.grade }), { replace: true });
-                }}
-                className={cn('min-h-[56px] w-full rounded-2xl bg-[#33374a] text-[16px] font-semibold text-white disabled:opacity-50', FOCUS)}
-              >
-                {C.tryAgain}
-              </button>
-            </>
-          ) : (
-            <>
-              {left > 0 ? <Ring value={elapsed / EXPECTED_MS} text={clock(left)} /> : null}
-              <p className="text-[22px] font-light text-[#1d2025]">{C.preparing}</p>
-              <div className="flex flex-wrap justify-center gap-1.5">
-                <StatusChip text={C.aboutTwoMinutes} tone="waiting" />
-                <StatusChip text={C.opensByItself} tone="info" />
-              </div>
-            </>
-          )}
-        </section>
-        <button
-          type="button"
-          onClick={() => navigate(otherLessons, { replace: true })}
-          className={cn(OUTLINE_WIDE, FOCUS)}
-        >
-          {C.otherLessons}
-        </button>
-      </div>
-    </PortalLayout>
+    <TeacherPage feature="lessons" crumb={C.grade(at.grade)} title={title} backTo={otherLessons}>
+      <section aria-live="polite" className="flex flex-col items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white px-4 py-6 text-center">
+        {failed ? (
+          <>
+            <p className="text-[20px] font-semibold text-[#c8331f]">{C.notPrepared}</p>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                if (lesson) void open(lesson, at, { replace: true });
+                else navigate(openUrl({ plan: `g612:${at.lesson}`, title: at.title, grade: at.grade }), { replace: true });
+              }}
+              className={cn('min-h-[56px] w-full rounded-2xl bg-[#33374a] text-[16px] font-semibold text-white disabled:opacity-50', FOCUS)}
+            >
+              {C.tryAgain}
+            </button>
+          </>
+        ) : (
+          <>
+            {left > 0 ? <Ring value={elapsed / EXPECTED_MS} text={clock(left)} /> : null}
+            <p className="text-[22px] font-light text-[#1d2025]">{C.preparing}</p>
+            <div className="flex flex-wrap justify-center gap-1.5">
+              <StatusChip text={C.aboutTwoMinutes} tone="waiting" />
+              <StatusChip text={C.opensByItself} tone="info" />
+            </div>
+          </>
+        )}
+      </section>
+      <button
+        type="button"
+        onClick={() => navigate(otherLessons, { replace: true })}
+        className={cn(OUTLINE_WIDE, FOCUS)}
+      >
+        {C.otherLessons}
+      </button>
+    </TeacherPage>
   );
 }
