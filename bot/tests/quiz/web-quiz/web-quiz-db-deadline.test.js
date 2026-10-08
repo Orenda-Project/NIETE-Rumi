@@ -171,3 +171,30 @@ test('the shared client itself is untouched: a hung read outside the web quiz st
   held = [];
   await p;
 }, 15000);
+
+describe('measuring it on a test tier: the flag can hold one read\'s first attempt (never in production)', () => {
+  const INJECT = { enabled: true, inject: 'resolveCode:quiz_share_codes' };
+  const env = process.env.NODE_ENV;
+  afterEach(() => { process.env.NODE_ENV = env; });
+
+  test('inject -> that read\'s first attempt is held for the deadline, the retry runs for real, one line says so', async () => {
+    flag = INJECT;
+    const t0 = Date.now();
+    const out = await WQ.board('AB12CD');
+    const ms = Date.now() - t0;
+    expect(out).toEqual(expect.objectContaining({ finishers_n: 0 }));
+    expect(shareCodeCalls()).toHaveLength(1);
+    expect(ms).toBeGreaterThanOrEqual(3500);
+    expect(ms).toBeLessThan(8000);
+    expect(retryLines()).toEqual([expect.objectContaining({ label: 'resolveCode:quiz_share_codes', outcome: 'recovered', injected: true })]);
+  }, 15000);
+
+  test('NODE_ENV=production -> inject is ignored: no hold, no line', async () => {
+    process.env.NODE_ENV = 'production';
+    flag = INJECT;
+    const t0 = Date.now();
+    await WQ.board('AB12CD');
+    expect(Date.now() - t0).toBeLessThan(1500);
+    expect(retryLines()).toEqual([]);
+  }, 15000);
+});

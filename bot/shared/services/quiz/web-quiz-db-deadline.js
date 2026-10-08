@@ -18,6 +18,9 @@
  *
  * Flag value: true | {"enabled": true, "ms": 4000}. Read at most once a minute, fail closed; after the first load it
  * refreshes in the background, so a slow settings read never holds a child's request.
+ *
+ * To measure it on a test tier, {"enabled": true, "inject": "<label>"} holds that read's FIRST attempt for the deadline
+ * (the request is never sent), then the retry runs for real and logs injected: true. Ignored when NODE_ENV=production.
  */
 const supabase = require('../../config/supabase');
 const { logEvent } = require('../../utils/structured-logger');
@@ -29,15 +32,19 @@ const FLAG_READ_MS = 2000;
 const DEADLINE_MS = 4000;
 const READ_METHODS = new Set(['GET', 'HEAD']);
 
-const OFF = { on: false, ms: DEADLINE_MS };
+const OFF = { on: false, ms: DEADLINE_MS, inject: null };
 let flag = null;        // { at, on, ms }
 let loading = null;
 
 function parse(v) {
-  if (v === true || v === 'true') return { on: true, ms: DEADLINE_MS };
+  if (v === true || v === 'true') return { on: true, ms: DEADLINE_MS, inject: null };
   if (v && typeof v === 'object' && v.enabled === true) {
     const ms = Number(v.ms);
-    return { on: true, ms: Number.isFinite(ms) ? Math.min(4500, Math.max(1000, Math.round(ms))) : DEADLINE_MS };
+    return {
+      on: true,
+      ms: Number.isFinite(ms) ? Math.min(4500, Math.max(1000, Math.round(ms))) : DEADLINE_MS,
+      inject: typeof v.inject === 'string' ? v.inject.slice(0, 60) : null,
+    };
   }
   return OFF;
 }
@@ -51,7 +58,7 @@ async function load() {
     const row = (data || []).find((r) => r.key === FLAG_KEY);
     flag = { at: Date.now(), ...parse(row && row.value) };
   } catch (_) {
-    flag = { at: Date.now(), ...(flag ? { on: flag.on, ms: flag.ms } : OFF) };
+    flag = { at: Date.now(), ...(flag ? { on: flag.on, ms: flag.ms, inject: flag.inject } : OFF) };
   } finally {
     loading = null;
   }
@@ -80,15 +87,20 @@ async function attempt(q, ms) {
   }
 }
 
+/** The injected stall: wait out the deadline without sending anything, as a hung request would. */
+const held = (ms) => new Promise((resolve) => { setTimeout(() => resolve({ res: null, hung: true }), ms); });
+
 async function read(label, build) {
   const cfg = await settings();
   const first = build(supabase);
   if (!cfg.on || !first || !READ_METHODS.has(first.method) || typeof first.abortSignal !== 'function') return first;
   const t0 = Date.now();
-  const a = await attempt(first, cfg.ms);
+  const injected = Boolean(cfg.inject) && cfg.inject === label && process.env.NODE_ENV !== 'production';
+  const a = injected ? await held(cfg.ms) : await attempt(first, cfg.ms);
   if (!a.hung) return a.res;
   const b = await attempt(build(supabase), cfg.ms);
   const ev = { label: String(label).slice(0, 60), outcome: b.hung ? 'failed' : 'recovered', ms: Date.now() - t0, deadline_ms: cfg.ms };
+  if (injected) ev.injected = true;
   logEvent('web_quiz.db_retry', ev);
   if (b.hung) throw new WqError(502, { error: 'db_unavailable' });
   return b.res;
