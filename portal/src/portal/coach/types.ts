@@ -80,7 +80,8 @@ export type TeamData = {
   coaches: { id: string; name: string | null; me: boolean }[];
 };
 
-export type ReportStep = "draft" | "talk" | "analysing" | "sent";
+/** bd-15y1pc: `report` — her debrief is done, the report has not reached the teacher yet. */
+export type ReportStep = "draft" | "talk" | "analysing" | "report" | "sent";
 
 export type CoachReport = {
   id: string;

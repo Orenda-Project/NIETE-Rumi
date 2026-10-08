@@ -589,6 +589,8 @@ export type CoachObservationView = {
   step: ObserveStep;
   problem: ObserveProblem;
   preparing: boolean;
+  /** bd-15y1pc — false: captured on WhatsApp, read here, acted on there. Absent from an older bot. */
+  portal?: boolean;
   teacher: { name: string | null; phone: string | null } | null;
   lesson: { topic: string | null; subject: string | null; hasLessonPlan: boolean };
   draft: { edited: boolean };
@@ -609,7 +611,8 @@ export type DraftMove = { k: number; plan: string; verdict: string; evidence: st
 export type DraftSection =
   | { key: string; letter: string; title: string; kind: 'indicators'; notes: string[]; indicators: DraftIndicator[] }
   | { key: string; letter: string; title: string; kind: 'moves'; header: string; fallback: string; moves: DraftMove[] };
-export type ObservationDraft = { scale: DraftOption[]; fidelityScale: DraftOption[]; sections: DraftSection[]; saved: boolean };
+/** bd-15y1pc — `editable: false`: her answers, to read; the portal can no longer change them. Absent from an older bot. */
+export type ObservationDraft = { scale: DraftOption[]; fidelityScale: DraftOption[]; sections: DraftSection[]; saved: boolean; editable?: boolean };
 
 // ── Assessment Generator types ────────────────────────────────────────────
 //
