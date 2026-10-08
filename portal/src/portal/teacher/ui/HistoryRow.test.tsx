@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { HistoryRow } from "./HistoryRow";
+import { HistoryList } from "./HistoryList";
 
 /**
  * bd-fmf24g.2.1 — HistoryRow (COMPONENTS.md §2): one thing she did. The lead is the operator's "block"
@@ -63,6 +64,38 @@ describe("HistoryRow", () => {
     const rows = container.querySelectorAll("[data-history-row]");
     expect(classes(rows[0])).not.toContain("border-t");
     expect(classes(rows[1])).toEqual(expect.arrayContaining(["border-t", "border-[#f0f1f3]"]));
+  });
+
+  describe("bd-fmf24g.11 — a grade that was never settled (DC lessons whose analysis left it open)", () => {
+    it.each([[undefined], [null], [""], ["  "], ["-"], ["–"], ["—"]])("grade %j: the block is the subject alone, centred, 16px/700 — no 'Grade', no dash", (grade) => {
+      inRouter(<HistoryRow subject="General Science" grade={grade as never} title="Parts of a plant" to="/dc/1" />);
+      const block = screen.getByTestId("history-lead");
+      expect(block.children).toHaveLength(1);
+      expect(block).toHaveTextContent(/^Science$/);
+      expect(block.textContent).not.toMatch(/Grade|[-–—]/);
+      expect(block.children[0]).toHaveClass("text-[16px]", "font-bold", "whitespace-nowrap");
+      expect(classes(block)).toEqual(expect.arrayContaining(["w-24", "items-center", "justify-center", "text-center"]));
+    });
+
+    it("no grade and no subject: the SubjectTile book icon, centred in the block", () => {
+      inRouter(<HistoryRow subject="" grade={null} title="A lesson" to="/dc/2" />);
+      const block = screen.getByTestId("history-lead");
+      expect(block.textContent).toBe("");
+      expect(block.querySelector("[data-icon='book']")).not.toBeNull();
+      expect(classes(block)).toEqual(expect.arrayContaining(["w-24", "items-center", "justify-center"]));
+    });
+
+    it("a grade but no subject: \"Grade 4\" alone", () => {
+      inRouter(<HistoryRow subject="" grade={4} title="A lesson" to="/dc/3" />);
+      const block = screen.getByTestId("history-lead");
+      expect(block.children).toHaveLength(1);
+      expect(block).toHaveTextContent(/^Grade 4$/);
+    });
+
+    it("HistoryList passes a row with no grade straight through", () => {
+      inRouter(<HistoryList heading="Recent" groups={[{ day: "Today", items: [{ subject: "English", title: "Naming words", to: "/dc/4" }] }]} />);
+      expect(screen.getByTestId("history-lead")).toHaveTextContent(/^English$/);
+    });
   });
 
   it("its words come from props (copy)", () => {
