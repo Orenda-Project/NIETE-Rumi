@@ -4,6 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useTeacherV2, isTeacherV2For } from "./useTeacherV2";
 import { FrameSkeleton } from "../components/Skeleton";
 import { readShellHint } from "../lib/shellHint";
+import { useFollowPreferredLanguage } from "./i18n";
 
 /**
  * bd-fmf24g.1 — the /portal/teacher pages exist only for a teacher with
@@ -15,10 +16,15 @@ import { readShellHint } from "../lib/shellHint";
  *
  * App.tsx wraps EVERY registered teacher route in this gate, so a feature page
  * cannot forget it.
+ *
+ * bd-fmf24g.13 — and it turns a v2 page to her stored preferred_language, locked or not
+ * (teacher/i18n.ts useFollowPreferredLanguage; read only, once per page load). Anyone turned
+ * away is not asked: today's pages keep their own rule.
  */
 const TeacherGate = ({ children }: { children: ReactNode }) => {
   const { user, loading } = useAuth();
   const flag = useTeacherV2(user?.phoneNumber || null, !loading && !!user);
+  useFollowPreferredLanguage(!loading && isTeacherV2For(user, flag));
   if (loading) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;
   if (!user) return <Navigate to="/portal/login" replace />;
   if (flag === null) return <FrameSkeleton variant={readShellHint() ?? "classic"} />;

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { TEACHER_UI_COPY, type TeacherUiCopy } from './copy';
+import type { TeacherUiCopy } from './copy';
+import { useKitCopy } from './useKitCopy';
 import { FOCUS } from './styles';
 
 /**
@@ -35,7 +36,7 @@ export interface ProgressStepsProps {
 }
 
 export function ProgressSteps({ heading, steps, done = false, doneLabel = '', open, onOpenChange, copy, className }: ProgressStepsProps) {
-  const words = { ...TEACHER_UI_COPY, ...copy };
+  const words = { ...useKitCopy(), ...copy };
   const title = heading || words.progress;
   const [toggled, setToggled] = useState<{ value: boolean; forProp: boolean | undefined } | null>(null);
   useEffect(() => { setToggled(null); }, [open]);

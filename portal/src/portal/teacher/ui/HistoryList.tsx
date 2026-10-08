@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { TEACHER_UI_COPY, type TeacherUiCopy } from './copy';
+import type { TeacherUiCopy } from './copy';
+import { useKitCopy } from './useKitCopy';
 import { HistoryRow, type HistoryRowProps } from './HistoryRow';
 import { FOCUS, LIST_CARD, OUTLINE_WIDE } from './styles';
 
@@ -53,7 +54,7 @@ export function HistoryList({
   heading = '', groups, showMore = true, onShowMore, emptyLabel, collapsible = false, defaultOpen = true, open,
   onOpenChange, seeAllTo, onSeeAll, copy, className,
 }: HistoryListProps) {
-  const words = { ...TEACHER_UI_COPY, ...copy };
+  const words = { ...useKitCopy(), ...copy };
   const rowCopy = { grade: words.grade, download: words.download, newItem: words.newItem };
   const days = groups.filter((g) => g.items.length > 0);
   const total = days.reduce((n, g) => n + g.items.length, 0);

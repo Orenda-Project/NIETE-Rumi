@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
-import { TEACHER_UI_COPY, type ReportCopy } from './copy';
+import type { ReportCopy } from './copy';
+import { useKitCopy } from './useKitCopy';
 
 /**
  * bd-fmf24g.2.3 — ReportBody (COMPONENTS.md §8): the finished report, for a Digital Coach lesson and a coach visit
@@ -63,7 +64,7 @@ function Card({ label, className, children }: { label: string; className?: strin
 }
 
 export function ReportBody({ data: d, copy, className }: ReportBodyProps) {
-  const words = { ...TEACHER_UI_COPY.report, ...copy };
+  const words = { ...useKitCopy().report, ...copy };
   const percent = pct(d.marks, d.max);
   const photos = (d.photos ?? []).filter((p) => !!p.src);
   const first = String(d.teacher || '').split(' ')[0];

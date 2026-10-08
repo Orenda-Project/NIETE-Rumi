@@ -1,7 +1,10 @@
 /**
  * bd-fmf24g.2 — the teacher kit's OWN words: the defaults for its `copy` props. A feature's words live in that
- * feature's `copy.ts` (COORDINATION.md); a screen passes the kit any word it wants different, and the Urdu work
- * passes a whole translated object. English only for now, as newui/copy.ts is.
+ * feature's `copy.ts` (COORDINATION.md); a screen passes the kit any word it wants different.
+ * bd-fmf24g.13 — bilingual: TEACHER_UI = { en, ur }; every kit component's defaults follow the page's language
+ * (useKitCopy). The Urdu is MACHINE-DRAFTED from the bot's existing Urdu (bot/shared/config/ux-strings.js, the
+ * hero report's labels in coaching/report-v2/hero-report.template.js) for one voice, and awaits a human
+ * review (workbench/teacher-v2-impl/urdu-review/).
  *
  * DATA is not copy: a subject's name, a lesson's title, a day ("Today" is the screen's word, passed in a group).
  *
@@ -11,6 +14,7 @@
 
 import { MONTHS } from '../../newui/copy';
 import type { RangePreset } from '../../newui/range';
+import { bilingual } from '../i18n';
 
 export interface TeacherUiCopy {
   grade: (g?: string | number) => string;
@@ -174,3 +178,85 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
     madeFor: (firstName = '') => `Made just for you, ${firstName}`.replace(/,\s*$/, '').trim(),
   },
 };
+
+/** Urdu months, January first (as the bot's dates). */
+const MONTHS_UR = ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'] as const;
+
+/** bd-fmf24g.13 — the kit's words in Urdu (MACHINE-DRAFTED; review pending). Digits stay Western, as the bot's. */
+export const TEACHER_UI_UR: TeacherUiCopy = {
+  grade: (g: string | number = '') => `جماعت ${g}`.trim(),
+  selected: 'منتخب',
+  newItem: 'نیا',
+  download: 'ڈاؤن لوڈ',
+  locked: 'بند',
+  used: 'استعمال شدہ',
+  showMore: 'مزید دکھائیں',
+  seeAll: 'سب دیکھیں',
+  seeAllNamed: (heading = '') => `${heading} سب دیکھیں`.trim(),
+  nothingYet: 'ابھی کچھ نہیں',
+  close: 'بند کریں',
+  gradeField: 'جماعت',
+  subjectField: 'مضمون',
+  selectGrade: 'جماعت چنیں',
+  selectSubject: 'مضمون چنیں',
+  search: 'جماعت یا مضمون ڈھونڈیں',
+  yourClasses: 'آپ کی کلاسیں',
+  otherClasses: 'دوسری کلاسیں',
+  noMatch: 'کچھ نہیں ملا',
+  change: 'تبدیل کریں',
+  dateRange: 'تاریخیں',
+  presets: {
+    this_week: 'یہ ہفتہ',
+    this_month: 'یہ مہینہ',
+    last_3_months: 'پچھلے 3 مہینے',
+    this_year: 'یہ سال',
+    all: 'اب تک',
+  },
+  pickDates: 'تاریخیں چنیں',
+  pickedDates: 'چنی گئی تاریخیں',
+  from: 'سے',
+  to: 'تک',
+  everything: 'اب تک سب کچھ',
+  rangeError: 'تاریخیں الٹی ہیں',
+  showDates: 'تاریخیں دکھائیں',
+  showSpan: (span = '') => `${span} دکھائیں`.trim(),
+  compareWith: (span = '') => `بمقابلہ ${span}`.trim(),
+  months: MONTHS_UR,
+  same: 'برابر',
+  sameAsBefore: 'پہلے جیسا',
+  upBy: (n = '') => `${n} زیادہ`.trim(),
+  downBy: (n = '') => `${n} کم`.trim(),
+  noValue: '—',
+  progress: 'پیش رفت',
+  done: 'مکمل',
+  now: 'ابھی',
+  stepsCount: (done = 0, total = 0) => `${total} میں سے ${done}`,
+  play: 'چلائیں',
+  pause: 'روکیں',
+  report: {
+    report: 'رپورٹ',
+    /** The hero PNG's own words (hero-report.template.js ur.celebrate), word for word. */
+    eyebrow: 'آپ کی تدریس کا جشن',
+    brand: 'NIETE',
+    brandMark: 'N',
+    scores: 'اس سبق کے اسکور',
+    moment: 'یادگار لمحے',
+    strength: 'آپ کی خوبی',
+    horizon: 'آپ کا اگلا اُفق',
+    photos: 'آپ کی کلاس سے',
+    journey: 'آپ کا سفر',
+    /** The hero PNG's own words (uptake_asked), word for word. */
+    lastAsked: 'پچھلی بار ہم نے کہا تھا',
+    tryNext: 'اگلی کلاس میں آزمائیں',
+    commitment: 'آپ کا عہد',
+    why: 'کیوں:',
+    notAssessed: 'جائزہ نہیں لیا گیا',
+    marks: (score = 0, max = 0) => `${score}/${max} نمبر`,
+    lessons: (n = 0) => `${n} اسباق`,
+    journeyAria: (n = 0) => `${n} اسباق کے اسکور`,
+    madeFor: (firstName = '') => `خاص آپ کے لیے، ${firstName}`.replace(/،\s*$/, '').trim(),
+  },
+};
+
+/** The kit's words in both languages; kit components read them through useKitCopy(). */
+export const TEACHER_UI = bilingual<TeacherUiCopy>(TEACHER_UI_COPY, TEACHER_UI_UR);

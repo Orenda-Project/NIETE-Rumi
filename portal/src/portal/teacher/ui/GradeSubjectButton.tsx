@@ -1,7 +1,8 @@
 import { Check, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { TEACHER_UI_COPY, type TeacherUiCopy } from './copy';
+import type { TeacherUiCopy } from './copy';
+import { useKitCopy } from './useKitCopy';
 import { StatusChip } from './StatusChip';
 import { gradeSubjectLabel } from './subjects';
 import { SubjectTile } from './SubjectTile';
@@ -45,7 +46,7 @@ export function GradeSubjectButton({
   grade = '', section = '', subject, sub, chip, state = 'default', variant = 'card', first = false, to, onPress, copy,
   className,
 }: GradeSubjectButtonProps) {
-  const words = { ...TEACHER_UI_COPY, ...copy };
+  const words = { ...useKitCopy(), ...copy };
   const selected = state === 'selected';
   const disabled = state === 'disabled';
   const box = cn(

@@ -2,7 +2,8 @@ import { useRef, useState, type KeyboardEvent } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { subjectsByGradeFor, type SubjectsByGrade, type TeacherCatalogueFeature } from './catalogue';
-import { TEACHER_UI_COPY, type TeacherUiCopy } from './copy';
+import type { TeacherUiCopy } from './copy';
+import { useKitCopy } from './useKitCopy';
 import { GradeSubjectButton } from './GradeSubjectButton';
 import { FOCUS, GRID } from './styles';
 import { SubjectTile } from './SubjectTile';
@@ -54,7 +55,7 @@ const edge = (on: boolean) => (on ? 'border-2 border-[#33374a]' : 'border border
 export function GradeSubjectSelector({
   value, defaultValue = null, onChange, feature = 'lessons', subjectsByGrade, grades = ALL_GRADES, copy, className,
 }: GradeSubjectSelectorProps) {
-  const words = { ...TEACHER_UI_COPY, ...copy };
+  const words = { ...useKitCopy(), ...copy };
   const map = subjectsByGradeFor(feature, subjectsByGrade);
   const [inner, setInner] = useState<GradeSubjectValue | null>(defaultValue);
   const [tray, setTray] = useState<'' | 'grade' | 'subject'>('');

@@ -2,7 +2,8 @@ import { useRef, useState, type KeyboardEvent } from 'react';
 import { Calendar, Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_RANGE, RANGE_PRESETS, isIsoDate, pkToday, type DateRange, type RangePreset } from '../../newui/range';
-import { TEACHER_UI_COPY, type TeacherUiCopy } from './copy';
+import type { TeacherUiCopy } from './copy';
+import { useKitCopy } from './useKitCopy';
 import { formatSpan, resolveRange, type ResolvedRange } from './range';
 import { FOCUS } from './styles';
 import { Tray } from './Tray';
@@ -38,7 +39,7 @@ type Choice = RangePreset | 'custom';
 const CHOICES: Choice[] = [...RANGE_PRESETS, 'custom'];
 
 export function DateRangeBar({ value, defaultValue = DEFAULT_RANGE, onChange, today, copy, className }: DateRangeBarProps) {
-  const words = { ...TEACHER_UI_COPY, ...copy };
+  const words = { ...useKitCopy(), ...copy };
   const day = today ?? pkToday();
   const [inner, setInner] = useState<DateRange>(defaultValue);
   const [tray, setTray] = useState<'' | 'presets' | 'dates'>('');
