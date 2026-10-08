@@ -28,7 +28,8 @@ import { Guide } from "../../pages/LeaderObserveTalk";
  * The session row (/coach/observation/:id, any HITL of a teacher in her patch)
  * says where it stands; for her own observation the pipeline's view
  * (/leader/observe/:id) adds the finer steps and their content — captured in
- * the portal or on WhatsApp alike (bd-15y1pc). Only a portal one is acted on here.
+ * the portal or on WhatsApp alike (bd-15y1pc), and she carries either on from
+ * here (bd-gie5ep). Someone else's observation is only read.
  */
 
 const WORKER_STEPS = new Set(["analysing", "listening", "sending"]);
@@ -38,7 +39,7 @@ function indexFromRow(step: string | undefined): number {
   return { analysing: 0, draft: 1, talk: 2, report: 4, sent: 5 }[step || "analysing"] ?? 0;
 }
 
-/** The steps that wait on the coach — on WhatsApp, for an observation captured there. */
+/** The steps that wait on the coach who made the observation. */
 const HER_STEPS = ["draft", "talk", "feedback", "report"];
 
 const dateTime = (iso: string | null | undefined) => (iso
@@ -122,7 +123,6 @@ const CoachObservation = () => {
   const [playing, setPlaying] = useState(false);
   const player = useRef<HTMLAudioElement | null>(null);
   const mine = !!data?.mine;
-  const portalMine = !!(data?.portal && mine);
 
   // Her own observation: the pipeline's view knows the finer steps and their content,
   // whichever side it was captured on (bd-15y1pc).
@@ -150,8 +150,9 @@ const CoachObservation = () => {
   const at = view ? trackerIndex(view.step) : indexFromRow(data?.step);
   const allDone = at >= 5;
   const viewStep = view?.step;
-  const herTurn = portalMine && !!view && HER_STEPS.includes(view.step) && !(view.step === "report" && view.preparing);
-  const onWhatsApp = !portalMine && HER_STEPS.includes((view ? view.step : data?.step) || "");
+  // bd-gie5ep — hers from either side: the step waiting on her opens here.
+  const herTurn = mine && !!view && HER_STEPS.includes(view.step) && !(view.step === "report" && view.preparing);
+  const onWhatsApp = !mine && HER_STEPS.includes((view ? view.step : data?.step) || "");
   const working = (viewStep && WORKER_STEPS.has(viewStep)) || (viewStep === "report" && view?.preparing) || (!view && data?.step === "analysing");
   const dockHref = !herTurn ? null
     : at === 1 ? `/portal/leader/observe/${id}/draft?${FROM_COACH}`
