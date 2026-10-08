@@ -7,7 +7,8 @@ import TeacherPage from '../TeacherPage';
 import { teacherPath } from '../routes';
 import { GradeSubjectButton } from '../ui';
 import { FOCUS, LIST_CARD, OUTLINE_WIDE } from '../ui/styles';
-import { CLASSES_V2_COPY as C } from './copy';
+import { CLASSES } from './copy';
+import { useCopy } from '../i18n';
 import { classRows } from './model';
 import { EmptyCard, LoadState, SectionHeading } from './parts';
 import { CLASSES_ADD } from './paths';
@@ -18,6 +19,7 @@ import { CLASSES_ADD } from './paths';
  * Add a class when the account can have one (the server's `canAdd`).
  */
 export function MyClassesPage() {
+  const C = useCopy(CLASSES);
   const [state, retry] = useLoad(() => classesApi.list(), 'teacher-classes');
   const data = dataOf(state);
   const rows = data ? classRows(data.classes ?? [], C) : [];
