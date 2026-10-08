@@ -45,6 +45,8 @@ const AREAS = {
     api: [
       { method: 'GET', test: prefix('/curriculum', '/lp612', '/lesson-plans') },
       { method: 'POST', test: prefix('/lp612/request') },
+      // bd-fmf24g.3 — the v2 Lessons picker ("Select your class") reads her grade·subject pairs.
+      { method: 'GET', test: (p) => p === '/me/grade-subjects' },
     ],
   },
 };
