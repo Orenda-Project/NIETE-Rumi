@@ -340,7 +340,8 @@ const PortalDashboard = () => {
   // bd-fxk3t8 — on a device that last showed the v2 frame, a teacher waits for the flag in
   // that frame instead of seeing today's dashboard first and then the swap (measured on
   // sandbox: old dashboard → white → spinner → v2 Home). Any other device: as before.
-  if (teacherFlag === null && isTeacherV2For(user, true) && readShellHint() === 'teacher') {
+  // While she loads too: the old dashboard would otherwise start its own counts read.
+  if (readShellHint() === 'teacher' && (loading || (teacherFlag === null && isTeacherV2For(user, true)))) {
     return <FrameSkeleton variant="teacher" />;
   }
   return (

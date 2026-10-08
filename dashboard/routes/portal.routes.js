@@ -846,6 +846,34 @@ router.post('/reset-password', async (req, res) => {
 // ============================================================================
 
 /**
+ * The signed-in user as the app holds her: /dashboard and /me answer exactly this.
+ * bd-2434: includes `role` (+ contact fields) via the shared shaper.
+ */
+function sessionUserPayload(req, user, schoolName) {
+  return {
+    ...publicUserPayload(user, { includeContact: true }),
+    schoolName,
+  };
+}
+
+/**
+ * GET /api/portal/me — who is signed in, and nothing else (bd-fxk3t8).
+ *
+ * The app asks this before it can draw any page (portal AuthProvider). It used to ask
+ * /dashboard, which also counts her sessions, assessments and training — 0.9–1.2 s on
+ * sandbox. Same user, same shape, no counts.
+ */
+router.get('/me', requirePortalAuth, async (req, res) => {
+  try {
+    const user = await getUserById(req.session.portalUserId);
+    res.json({ success: true, user: sessionUserPayload(req, user, await resolveUserSchoolName(supabase, user)) });
+  } catch (error) {
+    console.error('portal/me error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load your account' });
+  }
+});
+
+/**
  * GET /api/portal/dashboard
  * Get dashboard overview stats
  */
@@ -965,8 +993,7 @@ router.get('/dashboard', requirePortalAuth, async (req, res) => {
     // Return partial data even if some queries failed
     res.json({
       success: true,
-      // bd-2434: includes `role` (+ contact fields) via the shared shaper.
-      user: { ...publicUserPayload(user, { includeContact: true }), schoolName: await schoolNamePromise },
+      user: sessionUserPayload(req, user, await schoolNamePromise),
       stats: {
         totalCoachingSessions: coachingSessionsResult.status === 'fulfilled' ? (coachingSessionsResult.value.count || 0) : 0,
         totalAssessments: assessmentsResult.status === 'fulfilled' ? (assessmentsResult.value.count || 0) : 0,

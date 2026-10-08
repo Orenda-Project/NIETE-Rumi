@@ -108,11 +108,15 @@ describe("useNewUi", () => {
     await waitFor(() => expect(first.result.current).toBe(true));
     first.unmount();
 
+    // bd-fxk3t8: an answer is reused for 30 s; a later mount asks again.
+    const realNow = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(realNow + 31_000);
     answer({ newUi: false });
     const again = renderHook(() => useNewUi("u1"));
     await waitFor(() => expect(again.result.current).toBe(false));
     await act(async () => { await Promise.resolve(); });
     const third = renderHook(() => useNewUi("u1"));
     expect(third.result.current).toBe(false);
+    clock.mockRestore();
   });
 });
