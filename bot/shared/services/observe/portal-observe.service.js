@@ -27,8 +27,10 @@
  * either (they read isPortalSession / the talk's and the send's channel).
  *
  * IDENTITY. `userId` is the coach the portal read from ITS session. Only an
- * observation she observed AND started in the portal is reachable; anything
- * else answers not_found, the same as one that does not exist.
+ * observation she observed AND started in the portal can be acted on; anything
+ * else answers not_found, the same as one that does not exist. bd-15y1pc: what
+ * the page READS (observationView, getDraft) is hers from either side — one she
+ * captured on WhatsApp too — and says whether the portal can act on it.
  */
 
 const crypto = require('crypto');
@@ -42,6 +44,8 @@ const LEADER_ROLES = ['school_leader', 'supervisor', 'coach', 'principal', 'aeo'
 
 // The draft can be edited until the report is out — after that the teacher has read it.
 const EDITABLE_STATUSES = ['awaiting_observer_review', 'observer_review_complete'];
+// bd-15y1pc — her answers exist from the draft on, and stay readable once the observation is done.
+const READABLE_STATUSES = [...EDITABLE_STATUSES, 'completed'];
 const REPORT_OUT = ['sent', 'awaiting_teacher_tap', 'operator_review'];
 
 // The keys the MEWAKA Flow submits (observe-mewaka-endpoint bufferEdits), and a
@@ -95,8 +99,12 @@ async function loadCoach(d, userId) {
   return data || null;
 }
 
-/** Her observation, started in the portal — or null, for every other case alike. */
-async function loadOwn(d, userId, coachingSessionId) {
+/**
+ * bd-15y1pc — her observation, from either side: she observed it, whether she
+ * captured it on WhatsApp or in the portal. What the page READS comes through
+ * here; null for every other case alike.
+ */
+async function loadMine(d, userId, coachingSessionId) {
   if (!userId || !coachingSessionId) return null;
   const { data: row } = await d.supabase
     .from('coaching_sessions')
@@ -104,8 +112,14 @@ async function loadOwn(d, userId, coachingSessionId) {
     .eq('id', coachingSessionId)
     .maybeSingle();
   if (!row || row.observation_type !== 'leader_observation') return null;
-  if (row.observer_user_id !== userId || !isPortalSession(row)) return null;
+  if (row.observer_user_id !== userId) return null;
   return row;
+}
+
+/** Her observation, started in the portal — what the portal may ACT on. Null for every other case alike. */
+async function loadOwn(d, userId, coachingSessionId) {
+  const row = await loadMine(d, userId, coachingSessionId);
+  return row && isPortalSession(row) ? row : null;
 }
 
 const debriefOf = (row) => ((row && row.analysis_data) || {}).observer_debrief || {};
@@ -324,10 +338,13 @@ function shapeFeedback(fb) {
   };
 }
 
-/** One observation, as its page shows it. */
+/**
+ * One observation, as its page shows it — hers from either side (bd-15y1pc).
+ * `portal` says whether the portal can also take it through its steps.
+ */
 async function observationView({ userId, coachingSessionId }, deps) {
   const d = withDefaults(deps);
-  const row = await loadOwn(d, userId, coachingSessionId);
+  const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
   const ad = row.analysis_data || {};
   const od = debriefOf(row);
@@ -355,6 +372,7 @@ async function observationView({ userId, coachingSessionId }, deps) {
     step,
     problem: problem || null,
     preparing: !!preparing,
+    portal: isPortalSession(row),
     teacher,
     lesson: { topic: ad.topic || null, subject: ad.subject || null, hasLessonPlan: !!row.has_lesson_plan },
     draft: { edited: !!ad.observer_edit_summary, summary: ad.observer_edit_summary || null },
@@ -382,13 +400,19 @@ async function observationView({ userId, coachingSessionId }, deps) {
  * Each section of the review form, with exactly what the MEWAKA Flow pre-fills
  * on its screen (buildScreenPrefill) — so the portal shows the coach the same
  * ratings, notes and lesson-plan moves, and submits the same keys.
+ *
+ * bd-15y1pc: her answers can be READ from either side, and after the report is
+ * out; `editable` says whether the portal can still change them (her portal
+ * observation, before the teacher has the report).
  */
 async function getDraft({ userId, coachingSessionId }, deps) {
   const d = withDefaults(deps);
-  const row = await loadOwn(d, userId, coachingSessionId);
+  const row = await loadMine(d, userId, coachingSessionId);
   if (!row) return notFound();
-  if (!EDITABLE_STATUSES.includes(row.status)) return notReady('not_ready');
-  if (REPORT_OUT.includes(deliveryOf(row).status)) return notReady('report_sent');
+  if (!READABLE_STATUSES.includes(row.status)) return notReady('not_ready');
+  const editable = isPortalSession(row)
+    && EDITABLE_STATUSES.includes(row.status)
+    && !REPORT_OUT.includes(deliveryOf(row).status);
 
   const pack = d.pack();
   const lang = await d.languageFor('coach', row);
@@ -436,6 +460,7 @@ async function getDraft({ userId, coachingSessionId }, deps) {
     fidelityScale: d.draft.FIDELITY_VERDICT_OPTIONS || [],
     sections,
     saved: row.status === 'observer_review_complete',
+    editable,
   };
 }
 

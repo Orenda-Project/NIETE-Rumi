@@ -28,6 +28,8 @@ const { ACTIVITY_CTE } = require('./lp-activity.service');
 const { karachiToday } = require('../lib/visit-time');
 
 const TERMINAL_STATUSES = ['completed', 'observer_review_complete'];
+/** The report has reached the teacher (bot portal-observe.service REPORT_OUT). */
+const REPORT_OUT = ['sent', 'awaiting_teacher_tap', 'operator_review'];
 /** The teaching levels a coach may set, in canonical order (bot: utils/teacher-level VALID_LEVELS). */
 const TEACHING_LEVELS = ['PRIMARY', 'MIDDLE', 'HIGH'];
 const DEAD_STATUSES = ['failed', 'cancelled'];
@@ -65,7 +67,8 @@ const SQL = {
   TEACHER_FACTS: `
     SELECT c.id, c.user_id, c.created_at, c.status, c.debrief_status, c.audio_url,
            c.observer_user_id, ou.name AS observer_name,
-           jsonb_build_object('scores', c.analysis_data->'scores') AS analysis_data
+           jsonb_build_object('scores', c.analysis_data->'scores',
+                              'teacher_delivery', jsonb_build_object('status', c.analysis_data->'teacher_delivery'->'status')) AS analysis_data
     FROM coaching_sessions c
     LEFT JOIN users ou ON ou.id = c.observer_user_id
     WHERE c.user_id = ANY($1::uuid[])
@@ -146,7 +149,8 @@ const SQL = {
 
   TEACHER_HISTORY: `
     SELECT id, created_at, status, debrief_status, observation_type, observer_user_id, audio_url,
-           jsonb_build_object('scores', analysis_data->'scores') AS analysis_data
+           jsonb_build_object('scores', analysis_data->'scores',
+                              'teacher_delivery', jsonb_build_object('status', analysis_data->'teacher_delivery'->'status')) AS analysis_data
     FROM coaching_sessions
     WHERE user_id = $1::uuid AND status NOT IN ('failed', 'cancelled')
     ORDER BY created_at DESC
@@ -372,10 +376,25 @@ function lastVisitOf(teacher, leaderUserId) {
 
 // ── report classification ───────────────────────────────────────────────────
 
-/** Where an observation stands for the coach: draft · talk · analysing · sent. */
+/** The report's own status, from whichever slice the row's query carries. */
+function deliveryStatusOf(r) {
+  const td = r.delivery || (r.analysis_data || {}).teacher_delivery || {};
+  return td.status || null;
+}
+
+/**
+ * Where an observation stands for the coach: analysing · draft · talk · report · sent.
+ * bd-15y1pc — the bot's portal-observe-step, read coarsely (a test holds the
+ * two in step): a debrief that is done with no report out is `report`, never
+ * `sent` — the teacher does not have it yet. A row with no debrief status at
+ * all predates the debrief: reviewed was the end of it then, so it stays `sent`.
+ */
 function stepOf(r) {
   if (r.status === 'awaiting_observer_review' || r.status === 'observe2_checked') return 'draft';
   if (r.status === 'observer_review_complete' && r.debrief_status === 'pending') return 'talk';
+  if (r.status === 'observer_review_complete' && r.debrief_status === 'done') {
+    return REPORT_OUT.includes(deliveryStatusOf(r)) ? 'sent' : 'report';
+  }
   if (TERMINAL_STATUSES.includes(r.status)) return 'sent';
   return 'analysing';
 }

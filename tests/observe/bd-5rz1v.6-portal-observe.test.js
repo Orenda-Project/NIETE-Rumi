@@ -275,10 +275,66 @@ describe('only the observing coach, only a portal-started observation', () => {
     const d = deps({ supabase: fakeSupabase({ users: () => coachRow(), coaching_sessions: () => obsRow({ observer_user_id: OTHER }) }) });
     expect(await Svc[fn]({ userId: COACH, coachingSessionId: SID, ...extra }, d)).toEqual({ status: 'not_found' });
   });
-  test.each(calls)('%s: a WhatsApp-captured observation is not found here', async (fn, extra) => {
+  // bd-15y1pc: she READS her WhatsApp observation in the portal (below); every
+  // step that acts on it still happens on WhatsApp.
+  const actions = calls.filter(([fn]) => !['observationView', 'getDraft'].includes(fn));
+  test.each(actions)('%s: a WhatsApp-captured observation is not found here', async (fn, extra) => {
     const wa = 'https://r2.example/bucket/classroom_audio/u/2026-10/683335f3_1790852380454.ogg';
     const d = deps({ supabase: fakeSupabase({ users: () => coachRow(), coaching_sessions: () => obsRow({ audio_url: wa }) }) });
     expect(await Svc[fn]({ userId: COACH, coachingSessionId: SID, ...extra }, d)).toEqual({ status: 'not_found' });
+  });
+});
+
+/**
+ * bd-15y1pc — operator: "view the observation you did on the bot on the portal".
+ * Her own observation reads the same from either side — the step, the form's
+ * answers, the debrief guide and her feedback — whichever app it was captured
+ * in. `portal` says whether the portal can also take it through its steps;
+ * `editable` whether the form can still be changed here.
+ */
+describe('bd-15y1pc — her own observation reads the same from either side', () => {
+  const WA = 'https://r2.example/bucket/classroom_audio/u/2026-10/683335f3_1790852380454.ogg';
+  const withRow = (over) => deps({ supabase: fakeSupabase({ users: () => coachRow(), coaching_sessions: () => obsRow(over) }) });
+  const feedback = { praise_line: 'p', wins: [], try: null, reflection_question: 'q' };
+
+  test('observationView serves her WhatsApp observation: step, guide and feedback, marked not a portal one', async () => {
+    const out = await Svc.observationView({ userId: COACH, coachingSessionId: SID }, withRow({
+      audio_url: WA,
+      status: 'completed',
+      debrief_status: 'done',
+      analysis_data: { observer_debrief: { feedback, guide_snapshot: { intro: 'g' } }, teacher_delivery: { status: 'sent' } },
+    }));
+    expect(out).toMatchObject({
+      status: 'ok', step: 'done', portal: false,
+      talk: { guide: { intro: 'g' }, feedback: { praise_line: 'p' } },
+    });
+  });
+
+  test('observationView marks her portal observation as one the portal takes through its steps', async () => {
+    expect(await Svc.observationView({ userId: COACH, coachingSessionId: SID }, withRow({}))).toMatchObject({ status: 'ok', portal: true });
+  });
+
+  test('getDraft serves her WhatsApp observation\'s form answers, read-only', async () => {
+    const out = await Svc.getDraft({ userId: COACH, coachingSessionId: SID }, withRow({ audio_url: WA, status: 'awaiting_observer_review' }));
+    expect(out).toMatchObject({ status: 'ok', editable: false });
+    expect(out.sections.map((s) => s.key)).toEqual(['lesson_plan_fidelity', 'high_leverage_practices']);
+  });
+
+  test.each([
+    ['the report is out', { debrief_status: 'done', analysis_data: { teacher_delivery: { status: 'sent' } } }],
+    ['the observation is completed', { status: 'completed', debrief_status: 'done' }],
+  ])('getDraft still reads the answers once %s — read-only', async (_why, over) => {
+    expect(await Svc.getDraft({ userId: COACH, coachingSessionId: SID }, withRow(over))).toMatchObject({ status: 'ok', editable: false });
+  });
+
+  test('getDraft of her portal observation awaiting her check is editable', async () => {
+    expect(await Svc.getDraft({ userId: COACH, coachingSessionId: SID }, withRow({ status: 'awaiting_observer_review' })))
+      .toMatchObject({ status: 'ok', editable: true });
+  });
+
+  test('getDraft is still not ready before the analysis, from either side', async () => {
+    expect(await Svc.getDraft({ userId: COACH, coachingSessionId: SID }, withRow({ audio_url: WA, status: 'analyzing' })))
+      .toMatchObject({ status: 'not_ready' });
   });
 });
 
