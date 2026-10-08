@@ -5,7 +5,7 @@
  * WhatsApp builds a shared link's preview on the child's phone before the message goes; a picture not drawn yet
  * (a first draw takes 1-5 s) is a link sent without it. The scorecard used to warm its pictures only once it was
  * on screen. After a finish answers, this asks for the card and invite pictures and the challenge code's preview
- * facts all at once (web-quiz-art caps the renders). It never holds or fails the finish.
+ * facts and the class table's picture all at once (web-quiz-art caps the renders). It never holds or fails the finish.
  */
 const { logToFile } = require('../../utils/logger');
 
@@ -22,10 +22,15 @@ async function warm(out) {
     const WebQuiz = require('./web-quiz.service');
     jobs.push(require('./web-quiz-og').forCode(out.challenge_code, (c) => WebQuiz.getQuiz(c)).catch(() => {}));
   }
-  // Both pictures are asked for at once; web-quiz-art keeps the renders to two at a time.
+  // The pictures are asked for at once; web-quiz-art keeps the renders to two at a time.
   // After the answer, never inside it: started during the finish, the draw's own reads slowed the answer by 0.2-0.5 s.
   // A card is new at its finish, so R2 cannot hold its picture yet and is not asked (fresh); an invite may exist.
-  for (const [id, fresh] of [[out.art.card, true], [out.art.invite, false]]) {
+  // The class table's picture (nobody named) is the one its shared link previews as. It starts alongside the others:
+  // queued after them it was ready only 3.3 s after the answer (the invite's R2 read alone took 2-2.5 s on sandbox).
+  // The card still reaches the renderer first (its facts are one row; the table's are the class board). This finish
+  // just changed the board, so its new picture cannot be in R2 yet either. A class picture is kept two minutes
+  // (web-quiz-art), so a class finishing together draws it about once, not once per child.
+  for (const [id, fresh] of [[out.art.card, true], [out.art.invite, false], [out.art.table, true]]) {
     if (!id) continue;
     jobs.push(WebQuizArt.artImage(id, { size: 'og', fresh }).catch((e) => {
       logToFile('⚠️ web-quiz: share picture not drawn at finish', { kind: id.slice(0, 1), error: (e && e.message) || 'error' }, 'warn');

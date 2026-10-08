@@ -24,6 +24,7 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
+const { clampLanguage } = require('../../config/ux-strings');
 
 const LIST_MAX = 8;
 const CODE_DAYS = 30;
@@ -211,7 +212,12 @@ function hubModule() {
   try { return require(require('path').join(__dirname, 'web-quiz-hub')); } catch (_) { return null; }
 }
 
-/** One code per (class code, video quiz): the live one, else minted with the class code's teacher. -> {id, code} */
+/**
+ * One code per (class code, video quiz): the live one, else minted with the class code's teacher. -> {id, code}
+ * The code's language (its page's language and direction) is the LESSON's (`lang`), never the class code's:
+ * an Urdu lesson tapped from an English class is an Urdu page. (A live code minted in the class's language
+ * before this rule is corrected by the page's boot, getQuiz, which every lesson code passes through.)
+ */
 async function codeFor({ rootId, root, vq, video, vid, lang, fail }) {
   const { data: have } = await supabase.from('quiz_share_codes').select('id, code, active, expires_at')
     .eq('parent_share_code_id', rootId).eq('quiz_id', vq.id).is('invited_by_student_id', null).limit(5);
@@ -232,7 +238,7 @@ async function codeFor({ rootId, root, vq, video, vid, lang, fail }) {
     const { data, error } = await supabase.from('quiz_share_codes').insert({
       code: randomCode(), quiz_id: vq.id, video_id: vid,
       teacher_user_id: r.teacher_user_id, teacher_name: r.teacher_name,
-      topic: video.clean_title || vq.topic || null, language: r.language || lang,
+      topic: video.clean_title || vq.topic || null, language: lang,
       parent_share_code_id: rootId, invited_by_student_id: null, active: true,
       expires_at: new Date(Date.now() + CODE_DAYS * 86400000).toISOString(),
     }).select('id, code').single();
@@ -251,10 +257,21 @@ async function codeFor({ rootId, root, vq, video, vid, lang, fail }) {
 async function lessonOf(vid, fail) {
   const [{ data: video }, { data: vq }] = await Promise.all([
     supabase.from('student_videos').select('id, clean_title, migration_status, superseded_by').eq('id', vid).maybeSingle(),
-    supabase.from('quizzes').select('id, topic, status').eq('video_id', vid).eq('quiz_source', 'video').maybeSingle(),
+    supabase.from('quizzes').select('id, topic, status, language').eq('video_id', vid).eq('quiz_source', 'video').maybeSingle(),
   ]);
   if (!video || video.migration_status !== 'done' || !vq || vq.status !== 'ready') fail(404, 'not_found');
-  return { video, vq };
+  return { video, vq, lang: await lessonLanguage(vq) };
+}
+
+/**
+ * The lesson quiz's language, by the rule its clips are recorded in (the row's, else its questions' script):
+ * bank video quizzes carry no language of their own, so an Urdu lesson is known by its Urdu questions.
+ */
+async function lessonLanguage(vq) {
+  const { quizLanguage } = require('./web-quiz-publish.service');
+  const { data: qs } = vq.language ? { data: [] }
+    : await supabase.from('quiz_questions').select('question_text, option_a').eq('quiz_id', vq.id).limit(3);
+  return clampLanguage(quizLanguage(vq, qs || []));
 }
 
 /**
@@ -275,16 +292,16 @@ async function start(body = {}) {
     if (!who || !who.studentId) fail(401, 'bad_token');
     if (!who.rootId) fail(409, 'no_class');
     if (!VID_RX.test(vid)) fail(400, 'bad_request');
-    const { video, vq } = await lessonOf(vid, fail);
-    const c = await codeFor({ rootId: who.rootId, root: null, vq, video, vid, lang: 'en', fail });
+    const { video, vq, lang } = await lessonOf(vid, fail);
+    const c = await codeFor({ rootId: who.rootId, root: null, vq, video, vid, lang, fail });
     return { code: c.code, k: T.chipId(c.id, who.studentId) };
   }
   const ctx = await WebQuiz.resolveCode(body.code);
   const tok = T.verify(body.st, 's');
   if (!tok || tok.sc !== ctx.shareCodeId) fail(401, 'bad_token');
   if (!VID_RX.test(vid)) fail(400, 'bad_request');
-  const { video, vq } = await lessonOf(vid, fail);
-  const c = await codeFor({ rootId: classRootId(ctx), root: ctx.parent, vq, video, vid, lang: ctx.lang, fail });
+  const { video, vq, lang } = await lessonOf(vid, fail);
+  const c = await codeFor({ rootId: classRootId(ctx), root: ctx.parent, vq, video, vid, lang, fail });
   return { code: c.code };
 }
 

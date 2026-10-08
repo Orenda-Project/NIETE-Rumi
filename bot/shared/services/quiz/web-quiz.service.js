@@ -436,6 +436,17 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   ]);
   mark('questions');
   if (!questions.length) fail(404, 'no_questions');
+  // The language the quiz's clips are recorded in (the row's, else its questions' script).
+  const voiceLang = clampLanguage(require('./web-quiz-publish.service').quizLanguage(quizRow, questions));
+  // A library lesson's page speaks the lesson's language, never its class code's: a lesson code minted in
+  // the class's language before videos/start took the lesson's is corrected here (the library hands its
+  // known codes straight to the page, so this is the one place every such code passes through).
+  if (ctx.moreVideosOf && voiceLang !== ctx.lang) {
+    logEvent('web_quiz.lesson_code_relabeled', { shareCodeId: ctx.shareCodeId, quizId: ctx.quizId, from: ctx.lang, to: voiceLang });
+    ctx.lang = voiceLang;
+    supabase.from('quiz_share_codes').update({ language: voiceLang }).eq('id', ctx.row.id)
+      .then(({ error }) => { if (error) logToFile('⚠️ web-quiz: could not correct a lesson code\'s language', { error: error.message }); }, () => {});
+  }
   const helpers = mediaHelpers();
   let audio = {};
   let video = null;
@@ -511,7 +522,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
       lang: ctx.lang, dir: ctx.lang === 'ur' ? 'rtl' : 'ltr',
       // The language the quiz's clips are recorded in (the row's, else its questions' script): the page's
       // shared feedback lines follow it, so one quiz is never two voices (an English quiz quoting an Urdu word).
-      voice_lang: clampLanguage(require('./web-quiz-publish.service').quizLanguage(quizRow, questions)),
+      voice_lang: voiceLang,
       ...(audioPending ? { audio_pending: true } : {}),
       grade: (quizRow && quizRow.grade) || null, subject: (quizRow && quizRow.subject) || null,
       n: questions.length,
@@ -1508,7 +1519,9 @@ async function finishSession(body = {}) {
     // (Never against themselves: a child who opens their own challenge link is not their own challenger.)
     ...(s.invited_by_student_id && s.invited_by_student_id !== s.student_id ? await versus(s, { correct, total }) : {}),
     // The signed ids of the pictures this child can share (web-quiz-art.js).
-    art: { card: Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classCode && !s.invited_by_student_id ? Art.artId('l', s.id) : null },
+    art: { card: Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classCode && !s.invited_by_student_id ? Art.artId('l', s.id) : null,
+      // The class picture (nobody named) the shared table link /q/<CODE>/class previews as: getQuiz's art.class.
+      table: classCode && !s.invited_by_student_id ? Art.artId('l', classCode) : null },
     // M4b library: a video quiz's scorecard offers the next lesson ("Next in this chapter").
     ...(await nextLesson(s)),
     // The card's door to this child's hub (web-quiz-hub-door.js), with the hub and the door switched on.
@@ -1688,6 +1701,18 @@ function safeErr(v) {
   return s || null;
 }
 
+/**
+ * Which app's browser a UA is: whatsapp (WhatsApp's own browser: "WA4A/<v>" or "WhatsApp"), webview (another
+ * app's: Android "; wv)", or Facebook/Instagram on iPhone), samsung (Samsung Internet), else browser. Pure.
+ */
+function uaApp(ua) {
+  const s = String(ua || '');
+  if (/\bWA4A\/|WhatsApp/.test(s)) return 'whatsapp';
+  if (/; wv\)|FBAN|FBAV|Instagram/.test(s)) return 'webview';
+  if (/SamsungBrowser\//.test(s)) return 'samsung';
+  return 'browser';
+}
+
 /** Keep only allow-listed props of the right shape: no names, no free text, no phone. Pure. */
 function cleanEvent(e) {
   if (!e || typeof e !== 'object' || !EVENT_NAME_RX.test(String(e.n || ''))) return null;
@@ -1709,6 +1734,12 @@ function cleanEvent(e) {
   // In-app browser (WhatsApp's own browser): the page sends 1/0; kept as 0/1 so the logs can split on it.
   if (e.iab === 0 || e.iab === 1) props.iab = e.iab;
   else if (typeof e.iab === 'boolean') props.iab = e.iab ? 1 : 0;
+  // A page_open's UA names the app: the page's own flag missed WhatsApp's browser (WA4A) and counted other apps'
+  // webviews, so the UA decides here, for new and cached pages alike.
+  if (e.n === 'page_open' && props.ua) {
+    props.ua_app = uaApp(props.ua);
+    props.iab = props.ua_app === 'whatsapp' ? 1 : 0;
+  }
   if (SHARE_PATHS.includes(e.path)) props.path = e.path;
   if (e.n === 'probe') {
     const probe = cleanProbe(e.probe);

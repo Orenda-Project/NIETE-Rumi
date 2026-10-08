@@ -493,7 +493,7 @@ async function buildDebriefGuide(session, lang) {
   try {
     const prompt = buildGuidePrompt(v2, { language: lang });
     const { result } = await GPT5MiniService.completeJson(prompt, {
-      maxTokens: 4000, label: 'observeDebriefGuide',
+      maxTokens: 4000, label: 'observeDebriefGuide', job: 'coaching.observeDebrief',
     });
     validateGuide(result, S, lang);
     guide = result;
@@ -778,7 +778,7 @@ async function coachFeedbackWithRepair(prompt, sessionId) {
   // written and never re-asked for a verb — the repair below is for shape only.
   const { noteGenderedAddress, feedbackFields } = require('./observe-gender-address');
   const { result } = await GPT5MiniService.completeJson(prompt, {
-    maxTokens: 6000, label: 'observeCoachFeedback',
+    maxTokens: 6000, label: 'observeCoachFeedback', job: 'coaching.observeDebrief',
   });
   try {
     validateCoachFeedback(result);
@@ -790,7 +790,7 @@ async function coachFeedbackWithRepair(prompt, sessionId) {
     });
     const repairPrompt = `${prompt}\n\nIMPORTANT — your previous answer was rejected by a strict validator with this error:\n"${vErr.message}"\nProduce the SAME JSON shape again, corrected so the validator passes. Stay faithful to the transcript; fix only what the error names. Remember the hard rules: a harmful debrief (teacher disparaged, or feedback aimed at the person not the moves) must have wins: [] , NO praise_line, and a filled concern {what_happened, why_it_matters, instead}; a non-harmful one needs a praise_line and exactly 2 wins, each with behaviour + evidence.`;
     const { result: repaired } = await GPT5MiniService.completeJson(repairPrompt, {
-      maxTokens: 6000, label: 'observeCoachFeedbackRepair',
+      maxTokens: 6000, label: 'observeCoachFeedbackRepair', job: 'coaching.observeDebrief',
     });
     validateCoachFeedback(repaired);   // still strict — throws on a second miss
     noteGenderedAddress('coach_feedback', feedbackFields(repaired), { sessionId, repaired: true });

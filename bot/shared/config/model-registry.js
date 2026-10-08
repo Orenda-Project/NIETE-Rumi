@@ -164,6 +164,11 @@ const JOBS = {
   'helper.stuckRecovery': { env: null, default: 'gpt-4o-mini', site: 'shared/services/helper-agent.service.js' },
   'coaching.pedagogy': { env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/gpt5-mini.service.js' },
   'coaching.completeJson': { env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/gpt5-mini.service.js' },
+  // bd-gr4fy.15: the coach's /observe debrief guide and feedback card (and its repair), through completeJson's
+  // `job` option under their own name, so they and its other consumers can run on different models.
+  'coaching.observeDebrief': {
+    env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/observe/observe-debrief.service.js',
+  },
   'coaching.fidelityFallback': { env: null, default: 'gpt-4o-mini', site: 'shared/services/gpt5-mini.service.js' },
   'coaching.enhance': { env: null, default: 'gpt-5-mini-2025-08-07', site: 'shared/services/gpt5-mini.service.js' },
   'coaching.reflectiveQuestion': { env: null, default: 'gpt-4o', site: 'shared/services/gpt5-mini.service.js' },
@@ -185,6 +190,11 @@ const JOBS = {
   },
   // Its own OpenRouter client and ladder: this model twice, then FALLBACK['coaching.questionRouter'].
   'coaching.questionRouter': {
+    env: null, default: 'deepseek/deepseek-v3.2', site: 'shared/services/coaching/reflective-questions/llm-router.service.js',
+  },
+  // bd-gr4fy.12: the corpus of moments the reflective question is built from, on the same ladder (this
+  // model twice, then its FALLBACK) under its own name, so it and the question can run on different models.
+  'coaching.reflectiveCorpus': {
     env: null, default: 'deepseek/deepseek-v3.2', site: 'shared/services/coaching/reflective-questions/llm-router.service.js',
   },
   // Shares lp.fidelity's variable, exactly as the extractor always did.
@@ -255,6 +265,8 @@ const FALLBACK = {
   'platform.default': null,  // the floor
   // bd-gr4fy.8: the question router's own ladder already retried on this model; it now reads it here.
   'coaching.questionRouter': 'openai/gpt-5.4',
+  // bd-gr4fy.12: the corpus step shares that ladder, so the same retry model.
+  'coaching.reflectiveCorpus': 'openai/gpt-5.4',
 };
 
 /**
@@ -350,7 +362,9 @@ const JSON_REPLY_JOBS = Object.freeze({
 const JSON_REPAIRED_BY_CALLER = Object.freeze({
   'coaching.pedagogy': 'whole',          // gpt5-mini.service.js _safeJsonParse(rawContent)
   'coaching.completeJson': 'whole',      // gpt5-mini.service.js _safeJsonParse(content)
-  'coaching.questionRouter': 'whole',    // gpt5-mini.service.js _safeJsonParse(content), both callers
+  'coaching.observeDebrief': 'whole',    // gpt5-mini.service.js completeJson: _safeJsonParse(content)
+  'coaching.questionRouter': 'whole',    // gpt5-mini.service.js _generateReflectiveQuestionV12: _safeJsonParse(content)
+  'coaching.reflectiveCorpus': 'whole',  // gpt5-mini.service.js extractReflectiveCorpus: _safeJsonParse(content)
   'lp.extractUpload': 'whole',           // coaching/fidelity/lp-upload-extractor.js safeJsonParse
   'lp.fidelity': 'whole',                // coaching/fidelity/fidelity-analyzer.js safeJsonParse
   'coaching.fidelityFallback': 'span',   // gpt5-mini.service.js: /\{[\s\S]*\}/, then _safeJsonParse

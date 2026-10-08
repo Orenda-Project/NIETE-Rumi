@@ -1238,6 +1238,18 @@ Feature: Web child quiz page on the portal
     When its stem is a listen item ("Listen and tap.", "the word with the following sound:", "sounds like:", «یہ کس حرف کی آواز ہے؟», «یہ لفظ کیسے لکھتے ہیں؟»)
     Then "Play the sound" plays that clip before the child answers
     But for an ordinary question that only says "following" or talks about sound ("Which of the following is a noun?", "Musical sounds are:") no clip plays before the answer
+  @T636
+  Scenario: The class table's preview picture is drawn when a child finishes, before anyone opens the table
+    Given a child in a class finishes the quiz, in English or Urdu, and has not opened the class table
+    When someone shares that class's table link and WhatsApp fetches its preview picture
+    Then the class picture (nobody named) is already drawn and WhatsApp's fetch does not wait for a draw
+    And a friend who finished a challenge link draws no class picture
+  @T637
+  Scenario: Opening the quiz page logs which app's browser opened it
+    Given a child opens a quiz link in WhatsApp's own browser, another app's in-app browser, Samsung Internet or an ordinary browser
+    When the page logs that it opened
+    Then the log names the app as whatsapp, webview, samsung or browser from the browser's own user agent
+    And the in-app-browser flag is on only for WhatsApp's own browser, including the one whose user agent says "WA4A"
   @T630
   Scenario: A sound item shows sound tiles: the tile plays the sound, "This one" answers
     Given a listen-and-identify library item whose options each have their own recorded sound, or an audio-only item ("Sound 1", "Sound 2")
@@ -1251,3 +1263,16 @@ Feature: Web child quiz page on the portal
     When the child taps "Watch the lesson again"
     Then the lesson plays over the question, and Close returns to the same question with nothing answered
     But a quiz with no video shows no such button
+  @T633
+  Scenario: A library lesson's page speaks the lesson's language, not the class's
+    Given a child of an English class opens the video library from their quiz or their hub
+    When they tap an Urdu lesson
+    Then the lesson's quiz page opens in Urdu, right to left
+    And it still counts for the same class and the same child, with no name to pick
+    And an English lesson tapped from an Urdu class opens in English, left to right
+
+  @T634
+  Scenario: Playing a lesson in another language does not change the child's own language
+    Given a child of an English class has just finished an Urdu lesson from the library
+    When the child opens their hub or sends /quiz again
+    Then the hub and the /quiz reply stay in English

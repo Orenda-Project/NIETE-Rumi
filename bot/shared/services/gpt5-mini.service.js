@@ -713,10 +713,11 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
     const { maxTokens = 4000, label = 'completeJson' } = options;
     try {
       const response = await this.openai.chat.completions.create({
-        model: modelFor('coaching.completeJson'),
-        // One job for every consumer of this helper today (observe debrief/feedback, remark
-        // narrative). `options.job` is the seam for splitting them apart later WITHOUT
-        // touching this method again -- the existing `label` is for logs, not for spend.
+        // The job a caller names decides the model as well as the label: the coach's debrief guide
+        // and feedback card pass coaching.observeDebrief (bd-gr4fy.15); every other consumer
+        // (debrief notes, observe2 moments, remark narrative) runs as coaching.completeJson. The
+        // existing `label` is for logs, not for spend.
+        model: modelFor(options.job || 'coaching.completeJson'),
         job: options.job || 'coaching.completeJson',
         messages: [{ role: 'user', content: prompt }],
         max_completion_tokens: maxTokens,
@@ -776,10 +777,12 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
     const { callReflective } = require('./coaching/reflective-questions/llm-router.service');
     const profile = resolveProfile(languageCode);
     const sys = buildCorpusPrompt(profile);
+    // Its own job on the router's ladder (bd-gr4fy.12): coaching.reflectiveCorpus, so the extraction can run
+    // on the model that serves it best, independently of the question built from it.
     const { content, usage, model_used } = await callReflective(
       [{ role: 'system', content: sys },
         { role: 'user', content: `LESSON TRANSCRIPT:\n${transcript}` }],
-      { maxTokens: 3000 },
+      { maxTokens: 3000, step: 'corpus' },
     );
     const corpus = this._safeJsonParse(content);
     logToFile('[refl-q] corpus extracted', { model_used, language: profile.language });
@@ -819,7 +822,7 @@ CONVERSATIONAL FRAMEWORK: S.T.I.C.K.S. PRINCIPLES
     const generate = async (sys) => {
       const { content, model_used } = await callReflective(
         [{ role: 'system', content: sys }, { role: 'user', content: user }],
-        { maxTokens: 1500 },
+        { maxTokens: 1500, step: 'question' },
       );
       const parsed = this._safeJsonParse(content);
       return { question: (parsed.question || '').trim(), question_en: parsed.question_en, model_used };

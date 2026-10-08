@@ -111,6 +111,8 @@ async function quizzesForStudents(known) {
       studentName: st.student_name || '',
       className: g.className || st.self_reported_class || null,
       teacherSent: Boolean(c.code) && !c.parent_share_code_id && !c.invited_by_student_id,
+      // a library ("watch another video") lesson code: it speaks its lesson's language, not the child's
+      lessonCode: Boolean(c.parent_share_code_id) && !c.invited_by_student_id,
       sentAt: c.created_at || null,
       teacherUserId: c.teacher_user_id || null,
       grade: q.grade || null,
@@ -119,11 +121,20 @@ async function quizzesForStudents(known) {
   });
 }
 
+/**
+ * The child's language: their newest quiz's, skipping library lesson codes (an Urdu lesson tapped from an
+ * English class is an Urdu page, not an Urdu child). Only lesson codes played: the newest one. None: null.
+ */
+function childLanguage(history) {
+  const e = (history || []).find((x) => !x.lessonCode) || (history || [])[0];
+  return e ? clampLanguage(e.language) : null;
+}
+
 /** Open the child's /quiz: the Flow when configured, else two buttons for the latest quiz. */
 async function open(phone, { language = 'en' } = {}) {
   const known = await StudentIdentity.findByPhone(phone);
   const quizzes = await quizzesForStudents(known);
-  const lang = clampLanguage(quizzes[0]?.language || language);
+  const lang = clampLanguage(childLanguage(quizzes) || language);
   // The kid hub (app_settings web_quiz_hub): ONE link button to this phone's own children's hub.
   if (known.length && await sendHub(phone, known, lang)) return true;
   if (!quizzes.length) {
@@ -255,6 +266,6 @@ async function sendCard(phone, { shareCodeId, studentId, language = 'en' }) {
 }
 
 module.exports = {
-  quizzesForHandset, quizzesForStudents, open, handleButton, retry, sendCard, flowId,
+  quizzesForHandset, quizzesForStudents, childLanguage, open, handleButton, retry, sendCard, flowId,
   RETRY_ID, CARD_ID, FALLBACK_KEY, MAX_QUIZZES,
 };
