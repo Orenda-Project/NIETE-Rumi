@@ -1,5 +1,6 @@
 import api from '../../services/api';
 import { scoreBandFor, bandLabel, type BandKey } from '../../lib/scoreBands';
+import type { KpiItem } from '../ui';
 import type { ChipData, HistoryGroup } from '../ui';
 import { dayName, pkToday } from '../lessons/days';
 import { COACHING_V2_COPY as C } from './copy';
@@ -68,4 +69,30 @@ export function lessonGroups(items: DcItem[], today: string = pkToday()): Histor
     });
   }
   return groups;
+}
+
+/** The dates a page shows and the period before it compares with (DateRangeBar's resolved range). */
+export type HistoryDates = { from: string | null; to: string | null; prevFrom?: string | null; prevTo?: string | null };
+
+export function historyParams(d: HistoryDates): Record<string, string> {
+  const p: Record<string, string> = d.from && d.to ? { range: 'custom', from: d.from, to: d.to } : { range: 'all' };
+  if (d.from && d.to && d.prevFrom && d.prevTo) { p.prevFrom = d.prevFrom; p.prevTo = d.prevTo; }
+  return p;
+}
+
+/** KpiTiles: the server's counts against the period before, and the latest SCORED lesson's band. */
+export function dcKpiItems(h: Pick<DcHistory, 'kpis' | 'trend' | 'items'>): KpiItem[] {
+  const tile = (k: DcKpi, label: string, trend?: number[]): KpiItem => {
+    const t: KpiItem = { value: k.value, label };
+    if (k.previous != null) t.delta = k.value - k.previous;
+    if (trend && trend.length >= 2) t.trend = trend;
+    return t;
+  };
+  const latest = h.items.find((i) => scoreBandFor(i.percentage));
+  return [
+    tile(h.kpis.sessions, C.kpiSessions, h.trend && h.trend.points),
+    { value: latest ? bandLabel(scoreBandFor(latest.percentage)) : '—', label: C.kpiLatestBand },
+    tile(h.kpis.minutes, C.kpiMinutes),
+    tile(h.kpis.reports, C.kpiReports),
+  ];
 }

@@ -17,7 +17,7 @@ import { lessonGroups, loadDcHistory } from './api';
 import { COACHING_V2_COPY as C } from './copy';
 import { holdDraft, planKeyOf, readPrefill, type DraftPlan } from './draft';
 import { PhotoGrid, PlanPicker, SectionHeading } from './parts';
-import { COACHING_SEND } from './paths';
+import { COACHING_ALL, COACHING_SEND } from './paths';
 
 /**
  * bd-fmf24g.4 — the teacher v2 Digital Coaching page (v28 canvas Coaching): one page to send a lesson.
@@ -153,6 +153,7 @@ export function CoachingHomePage() {
           defaultOpen={false}
           groups={groups}
           showMore={false}
+          seeAllTo={COACHING_ALL}
           emptyLabel={C.noneYet}
         />
       </div>
