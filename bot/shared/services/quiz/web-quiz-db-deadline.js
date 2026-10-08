@@ -19,6 +19,9 @@
  * Flag value: true | {"enabled": true, "ms": 4000}. Read at most once a minute, fail closed; after the first load it
  * refreshes in the background, so a slow settings read never holds a child's request.
  *
+ * Labels are "<function>:<table>:<n>", n numbering that function's reads of that table in source order, so each call site
+ * is named on its own line.
+ *
  * To measure it on a test tier, {"enabled": true, "inject": "<label>"} holds that read's FIRST attempt for the deadline
  * (the request is never sent), then the retry runs for real and logs injected: true. Ignored when NODE_ENV=production.
  */
