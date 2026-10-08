@@ -1,7 +1,7 @@
 import api from '../../services/api';
 import type { LibraryPick } from '../../lib/coachingSend';
 import type { LessonPlanUsed } from '../home/progressApi';
-import { COACHING_COPY } from '../copy';
+import { PICKER_WORDS_EN, type PickerWords } from './pickerWords';
 
 /**
  * bd-5rz1v.26 — Check and send's "Recent lesson plans": GET /api/portal/lesson-plans/recent
@@ -27,10 +27,10 @@ export function pickOf(plan: LessonPlanUsed): LibraryPick {
   return { segmentId: plan.open.segmentId, lang: plan.open.lang === 'ur' ? 'ur' : 'en' };
 }
 
-/** A recent plan's chips: "Grade 4", "Science", "Day 3". */
-export function planChips(p: LessonPlanUsed): string[] {
+/** A recent plan's chips: "Grade 4", "Science", "Day 3" (the grade in `words`' language; English by default). */
+export function planChips(p: LessonPlanUsed, words: Pick<PickerWords, 'grade'> = PICKER_WORDS_EN): string[] {
   return [
-    p.grade != null ? COACHING_COPY.grade(p.grade) : null,
+    p.grade != null ? words.grade(p.grade) : null,
     p.subject,
     p.dayLabel,
   ].filter((x): x is string => !!x);

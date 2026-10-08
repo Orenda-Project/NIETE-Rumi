@@ -84,7 +84,7 @@ export function CoachingHomePage() {
       kind: 'library',
       pick: known ? pickOf(known) : prefill.pick,
       title: known?.title || C.planFallback,
-      chips: known ? planChips(known) : [],
+      chips: known ? planChips(known, C.picker) : [],
     });
   }, [prefill, recentPlans, C]);
 
@@ -168,6 +168,7 @@ export function CoachingHomePage() {
       </div>
 
       <PlanSheet
+        words={C.picker}
         open={planSheet}
         onClose={() => setPlanSheet(false)}
         onPick={(p) => { setPlan({ kind: 'library', ...p }); setPlanSheet(false); }}
