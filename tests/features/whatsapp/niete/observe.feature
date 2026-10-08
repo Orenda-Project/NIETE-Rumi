@@ -991,10 +991,12 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the observation shows as stopped in the portal
     And the coach receives no failure message on WhatsApp
 
-  # ── Her WhatsApp observation, read in the PORTAL (coach v2, bd-15y1pc) ──────
-  # Dark behind app_settings.portal_coach_v2. What the observation page READS is
-  # hers from either side (portal-observe.service observationView / getDraft);
-  # every step that ACTS on a WhatsApp observation stays on WhatsApp.
+  # ── Her WhatsApp observation, in the PORTAL (coach v2, bd-15y1pc, bd-gie5ep) ─
+  # Dark behind app_settings.portal_coach_v2. Her observation is hers from either
+  # side: she reads one she captured on WhatsApp in full in the portal, and
+  # carries it on there through the same functions (portal-observe.service). When
+  # the portal takes a step, a WhatsApp chat still waiting on that step of that
+  # observation is released.
   # @no-mock-driver: the outcome is the portal page, which the WhatsApp mock lane
   # does not render. Covered at unit level by
   # tests/observe/bd-5rz1v.6-portal-observe.test.js and
@@ -1012,7 +1014,22 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given a coach's WhatsApp observation whose debrief is done but whose report has not gone to the teacher
     When she opens that observation in the portal
     Then the send-report step is where it stands, and the steps before it open with what they hold
-    And the send-report step says it continues on WhatsApp
+    And she can send the report from the portal
+
+  @e2e @config-gated @no-mock-driver @P1 @OBS69
+  Scenario: A coach carries her WhatsApp observation on in the portal
+    Given a coach in the portal_coach_v2 pilot recorded an observation on WhatsApp with /observe and its draft is ready
+    When she checks the draft, records the talk with the teacher and sends the report, all in the portal
+    Then each step is saved exactly as the same step on WhatsApp saves it
+    And the teacher receives her report on WhatsApp
+    And the coach receives nothing on WhatsApp about the steps she took in the portal
+
+  @e2e @config-gated @no-mock-driver @negative @P1 @OBS70
+  Scenario: A WhatsApp prompt for a step the coach took in the portal no longer acts on it
+    Given a coach tapped "debrief now" on WhatsApp for an observation, so WhatsApp is waiting for her voice note
+    When she records that talk in the portal instead
+    Then a voice note she sends on WhatsApp afterwards is not filed as that observation's talk
+    And a WhatsApp prompt she has open for a different observation still works
 
   # ── Edit a teacher from the PORTAL (coach v2, bd-o15qnr.13) ─────────────────
   # Dark behind app_settings.portal_coach_v2. Name, teaching level, role and

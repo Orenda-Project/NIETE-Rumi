@@ -57,7 +57,6 @@ const COPY = {
   sent: (name: string) => `Sent to ${name}`,
   sentSub: 'It is on their WhatsApp now.',
   stopped: 'This observation was stopped.',
-  onWhatsApp: 'This observation continues on WhatsApp.',
   stoppedDuplicate: 'This recording was already analysed for another observation, so it was stopped.',
   failedAction: 'Something went wrong. Please try again.',
 };
@@ -199,8 +198,6 @@ const LeaderObservation = () => {
   const at = trackerIndex(view.step);
   const fb = view.talk.feedback;
   const pastFeedback = at > 3 && fb;
-  // bd-15y1pc — captured on WhatsApp: readable here, but every step that acts on it happens there.
-  const onWhatsApp = view.portal === false;
 
   return (
     <PortalLayout>
@@ -246,20 +243,16 @@ const LeaderObservation = () => {
 
         {actionError && <Warning>{actionError}</Warning>}
 
-        {onWhatsApp && ['draft', 'talk', 'feedback', 'report'].includes(view.step) && (
-          <p className="text-[16px] leading-relaxed text-[#3a3f4b]">{COPY.onWhatsApp}</p>
-        )}
-
         {view.step === 'analysing' && <Working>{COPY.analysing(first)}</Working>}
 
-        {view.step === 'draft' && !onWhatsApp && (
+        {view.step === 'draft' && (
           <>
             <p className="text-[16px] leading-relaxed text-[#3a3f4b]">{COPY.draftReady}</p>
             <Primary to={step('draft')}>{fromCoach ? V2_STEP.draft : COPY.checkDraft}</Primary>
           </>
         )}
 
-        {view.step === 'talk' && !onWhatsApp && (
+        {view.step === 'talk' && (
           <>
             {view.problem && COPY.problems[view.problem] && <Warning>{COPY.problems[view.problem]}</Warning>}
             {!view.problem && <p className="text-[16px] leading-relaxed text-[#3a3f4b]" dir="auto">{COPY.talkNow(first)}</p>}
@@ -280,17 +273,15 @@ const LeaderObservation = () => {
           <>
             <h2 className="text-[20px] font-bold">{COPY.yourFeedback}</h2>
             <FeedbackCard fb={fb} />
-            {!onWhatsApp && (
-              <Primary disabled={busy} onClick={() => act(() => leader.previewReport(view.id))}>
-                {busy && <Loader2 className="h-5 w-5 motion-safe:animate-spin" aria-hidden="true" />}{COPY.nextReport(first)}
-              </Primary>
-            )}
+            <Primary disabled={busy} onClick={() => act(() => leader.previewReport(view.id))}>
+              {busy && <Loader2 className="h-5 w-5 motion-safe:animate-spin" aria-hidden="true" />}{COPY.nextReport(first)}
+            </Primary>
           </>
         )}
 
         {view.step === 'report' && view.preparing && <Working>{COPY.makingReport(first)}</Working>}
 
-        {view.step === 'report' && !view.preparing && !onWhatsApp && (
+        {view.step === 'report' && !view.preparing && (
           <>
             <h2 className="text-[20px] font-bold" dir="auto">{COPY.sendTitle(first)}</h2>
             {view.problem === 'send_failed' ? (
