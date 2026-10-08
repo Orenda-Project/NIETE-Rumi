@@ -448,6 +448,18 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # to let the transcript's language leak into the question; for language === 'English'
     # it now instructs English regardless of what was spoken in class.
 
+  @e2e @wip @draft @content-driven @P2 @COA78
+  Scenario: An Urdu reflective question places the moment with «قریب», never the misspelling «کریب»
+    Given the NIETE bot chat is open
+    And my account language is Urdu
+    When my coaching analysis reaches the reflective step (3/5)
+    Then any time anchor in the question is written in Urdu script, like "قریب دس منٹ پر" or "شروع میں"
+    And the question never contains «کریب»
+    # reflective-questions/language-profiles.js time_anchor_hint + corpus-normalise.js (bd-gr4fy.5.13): the
+    # corpus prompt offered Roman-Urdu anchors ('kareeb 10 minute par'), Haiku transliterated them to «کریب»
+    # (45 times in 8 production corpora), and the question copies the moment's anchor. The prompt now gives
+    # Nastaliq anchors, and an Urdu approx_time_phrase is normalised to «قریب».
+
   @e2e @wip @draft @negative @P2 @COA27
   Scenario: The report-preparation greeting never calls a teacher "null"
     Given the NIETE bot chat is open
