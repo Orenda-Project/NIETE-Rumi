@@ -2343,6 +2343,7 @@ const UX_STRINGS = {
   wqSayMinus: { en: 'minus', ur: 'منفی' },
   wqSayTimes: { en: 'times', ur: 'ضرب' },
   wqSayDividedBy: { en: 'divided by', ur: 'تقسیم' },
+  wqSayEqualsBlank: { en: 'what?', ur: 'کتنے؟' },
   vqWelcomeBack: {
     en: 'Good to see you again, {name} — let’s begin!',
     ur: '\u200F{name}، آپ کو دوبارہ دیکھ کر خوشی ہوئی — چلیں شروع کریں!',

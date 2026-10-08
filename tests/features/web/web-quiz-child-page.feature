@@ -1291,3 +1291,11 @@ Feature: Web child quiz page on the portal
     When the child answers it
     Then the reason after the answer is the recorded explanation, not a generated clip
     But a question whose explanation clip failed that check, or changed since, keeps the generated reason
+
+  @T644
+  Scenario: A sum that ends in "= ?" or a blank is read with a word in the gap
+    Given a question such as "Use long division: 720 ÷ 6 = ?" or "۵۰ − ۳۰ = ___"
+    When its read-aloud clip is recorded
+    Then the voice is given "… = what?" in English and «… = کتنے؟» in Urdu
+    And the clip ends on that word, never on made-up words after "equals"
+    But an "=" with its value, a blank before the "=", or an option that names the "=" sign is read as written

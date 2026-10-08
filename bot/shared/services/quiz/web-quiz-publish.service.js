@@ -188,9 +188,20 @@ function spokenOperators(text, language) {
     .trim();
 }
 
-/** The words a clip's voice is given (and its key is made from): maths brackets round, operators as words. */
+// An "=" with only a blank or a question mark after it ("720 ÷ 6 = ?", "15 + 27 = ___") left the
+// voice on "… equals" with no word to say, and it sometimes made one up ("equals questions Z"; 11 of 60 takes, 0 of 60
+// with a word there). The blank is said as the catalog's words (wqSayEqualsBlank: "what?" / «کتنے؟»). An "=" with
+// its value, a blank before the "=" ("12 + … = 20"), or a bare "=" ("Equal sign =", which the voice ends cleanly) is
+// left as written.
+const EQUALS_BLANK = /=\s*(?:(?:…|\.{3})\s*[?؟]?|[?؟])(?:\s*[.!۔](?=\s|$))?(?=\s*(?:$|[\p{L}"'(]))/gu;
+function sayEqualsBlank(text, language) {
+  const word = resolveUx('wqSayEqualsBlank', { language }).replace(BIDI_MARKS, '').trim();
+  return String(text == null ? '' : text).replace(EQUALS_BLANK, `= ${word}`);
+}
+
+/** The words a clip's voice is given (and its key is made from): maths brackets round, operators as words, an open "=" closed with a word. */
 function voiceText(text, language) {
-  return spokenOperators(speakableMaths(text), language);
+  return sayEqualsBlank(spokenOperators(speakableMaths(text), language), language);
 }
 
 // Something a voice can say. A picture option is stored as an emoji (no letter,
