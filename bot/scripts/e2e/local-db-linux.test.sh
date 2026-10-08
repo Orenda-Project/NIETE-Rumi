@@ -71,6 +71,8 @@ echo "curl \$*" >>"$CALLS"
 out=""; while [ \$# -gt 0 ]; do [ "\$1" = -o ] && { out="\$2"; shift; }; shift; done
 cp "$tmp/postgrest.tar.xz" "\$out"
 SH
+# redis-server: autofix also checks for it; a CI runner has none, and installing it is not what this file tests
+printf '#!/bin/sh\nexit 0\n' >"$SHIM/redis-server"
 chmod +x "$SHIM"/* "$tmp/pgdg.sh"
 
 BASE=$(mkpath "$tmp/path" lsof brew shasum sha256sum postgrest gh ss)
