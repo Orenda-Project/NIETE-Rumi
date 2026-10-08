@@ -131,3 +131,55 @@ describe('what the voice reads for the items a voice gets wrong (the page still 
     expect([ur.a, ur.b, ur.c, ur.d]).toEqual(['کھ', 'عین', 'چھوٹی ہے', 'بَن']);
   });
 });
+
+/*
+ * The bank's recorded EXPLANATION, as the why, for a question already recorded end to end (question + every option):
+ * one human voice through the whole question. Only a clip that a transcript check proved says THIS row's explanation,
+ * names no option letter (the page re-letters options) and does not announce the answer (the page has just said it)
+ * is served: web-quiz-recorded-why.json holds those, each bound to its clip's URL.
+ */
+describe('a checked recorded explanation is the why, for a question recorded end to end', () => {
+  const CHECKED = { id: '5c432bf6-d600-4108-8c2d-0745c26b18ed', url: 'https://pub-0edccec5d5bd419782ba389c59faecac.r2.dev/quiz-audio-opus/Grade1EnglishAlphabetsRevisionGroupThreeQuestion1ExplanationAudio.ogg' };
+  const gen = () => ({ [CHECKED.id]: { q: 'gen-q', opts: ['gen-a', 'gen-b', 'gen-c', 'gen-d'], why: 'gen-why', fbs: [null, null, null, null] } });
+  const row = (media) => bankRow(media, { id: CHECKED.id, explanation: 'This is the sound of F' });
+
+  test('the checked clip replaces the generated why', async () => {
+    const q = await served([row({ question_audio: [rec('q')], option_audio: ALL_OPTS, explanation_audio: CHECKED.url })], gen());
+    expect(q.audio.q).toBe(rec('q'));
+    expect(q.audio.why).toBe(CHECKED.url);
+  });
+  test('a different clip on the same question (not the one checked) leaves the generated why', async () => {
+    const q = await served([row({ question_audio: [rec('q')], option_audio: ALL_OPTS, explanation_audio: rec('other-why') })], gen());
+    expect(q.audio.why).toBe('gen-why');
+  });
+  test('not recorded end to end (no question clip, or some options generated): the generated why stays', async () => {
+    let q = await served([row({ question_audio: [], option_audio: ALL_OPTS, explanation_audio: CHECKED.url })], gen());
+    expect(q.audio.why).toBe('gen-why');
+    q = await served([row({ question_audio: [rec('q')], option_audio: ALL_OPTS.slice(0, 2), explanation_audio: CHECKED.url })], gen());
+    expect(q.audio.why).toBe('gen-why');
+  });
+  test('an unchecked question keeps the generated why even when recorded end to end', async () => {
+    const q = await served([bankRow({ question_audio: [rec('q')], option_audio: ALL_OPTS, explanation_audio: CHECKED.url })], { [QID]: { q: 'gen-q', opts: [], why: 'gen-why' } });
+    expect(q.audio.why).toBe('gen-why');
+  });
+});
+
+/*
+ * An UNCHECKED recorded explanation is never the why. It used to be served wherever no generated why existed yet
+ * (the first opens of a library quiz): of 818 such rows on the bank, 13 clips name a stored option LETTER the page
+ * has shuffled ("D is the correct option…"), 36 announce the answer and 65 read option words or other words. Until
+ * the generated why is recorded the page reads the written why with the phone's voice, as for any part with no clip.
+ */
+describe('an unchecked recorded explanation is never served as the why', () => {
+  test('a "D is the correct option" clip on a question with no generated why yet: no why clip', async () => {
+    const q = await served([bankRow({ question_audio: [rec('q')], explanation_audio: rec('d-is-the-correct-option') })], { [QID]: { q: null, opts: [], why: null } });
+    expect(q.audio.q).toBe(rec('q'));
+    expect(q.audio.why == null).toBe(true);
+  });
+  test('the checked clip is still served even before a generated why exists', async () => {
+    const id = '5c432bf6-d600-4108-8c2d-0745c26b18ed';
+    const url = 'https://pub-0edccec5d5bd419782ba389c59faecac.r2.dev/quiz-audio-opus/Grade1EnglishAlphabetsRevisionGroupThreeQuestion1ExplanationAudio.ogg';
+    const q = await served([bankRow({ question_audio: [rec('q')], option_audio: ALL_OPTS, explanation_audio: url }, { id })], {});
+    expect(q.audio.why).toBe(url);
+  });
+});

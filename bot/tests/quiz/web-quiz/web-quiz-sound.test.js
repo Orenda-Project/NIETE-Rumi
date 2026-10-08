@@ -59,10 +59,11 @@ const CLIPS = {
 };
 
 describe('E2 carries the sound item\'s own clips', () => {
-  test('"whose sound is this?": the sound to identify, the spoken question and the why', async () => {
+  test('"whose sound is this?": the sound to identify and the spoken question; an unchecked recorded why is not sent', async () => {
     seed([row(1, 'یہ کس کی آواز ہے؟', CLIPS)]);
     const q = (await WQ.getQuiz('AB12CD')).quiz.questions[0];
-    expect(q.audio).toEqual(expect.objectContaining({ q: 'https://r2/q1.ogg', stim: 'https://r2/stim1.ogg', why: 'https://r2/why1.ogg' }));
+    expect(q.audio).toEqual(expect.objectContaining({ q: 'https://r2/q1.ogg', stim: 'https://r2/stim1.ogg' }));
+    expect(q.audio.why == null).toBe(true); // not in web-quiz-recorded-why.json: the page reads the written why
   });
 
   test('a stem that already asks the question: its clip speaks the answer, so it is never sent before the answer', async () => {
@@ -78,7 +79,8 @@ describe('E2 carries the sound item\'s own clips', () => {
     const spy = jest.spyOn(helpers, 'presignAudio').mockResolvedValue({ [qid(1)]: { q: 'https://r2/gen-q.mp3', opts: [], why: null } });
     const q = (await WQ.getQuiz('AB12CD')).quiz.questions[0];
     spy.mockRestore();
-    expect(q.audio).toEqual(expect.objectContaining({ q: 'https://r2/q1.ogg', stim: 'https://r2/stim1.ogg', why: 'https://r2/why1.ogg' }));
+    expect(q.audio).toEqual(expect.objectContaining({ q: 'https://r2/q1.ogg', stim: 'https://r2/stim1.ogg' }));
+    expect(q.audio.why == null).toBe(true);
   });
 
   test.each([

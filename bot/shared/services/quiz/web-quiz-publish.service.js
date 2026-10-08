@@ -65,9 +65,9 @@ const DEFAULT_MAX_CLIPS = 120;
 const CLIP_WORKERS = 4;
 // Bumped when the clips of every quiz change (2: the why is the reason, wrong-option feedback
 // recorded; 3: stored small; 4: one voice per language, new key scheme, configurable bucket; 5: maths
-// operators said as words, keys from the words the voice is given), so already-published quizzes are
-// brought up to date on their next open.
-const AUDIO_VERSION = 5;
+// operators said as words, keys from the words the voice is given; 6: an open "= ?" said "= what?"), so
+// already-published quizzes are brought up to date on their next open.
+const AUDIO_VERSION = 6;
 const PARTS_FB = ['xa', 'xb', 'xc', 'xd'];
 // Spend estimate for the log line, by the provider that actually spoke:
 // ElevenLabs bills per character, Soniox per second of audio (tts/index.js).
@@ -188,9 +188,21 @@ function spokenOperators(text, language) {
     .trim();
 }
 
-/** The words a clip's voice is given (and its key is made from): maths brackets round, operators as words. */
+// An "=" with only a blank or a question mark after it ("720 ÷ 6 = ?", "15 + 27 = ___") left the
+// voice on "… equals" with no word to say, and it sometimes made one up ("equals questions Z"; 11 of 60 takes, 0 of 60
+// with a word there). The blank is said as the catalog's words (wqSayEqualsBlank: "what?" / «کتنے؟»). An "=" with
+// its value, a blank before the "=" ("12 + … = 20"), a bare "=" ("Equal sign =", which the voice ends cleanly), or
+// a gap with words after it ("12 - 10 = ? hours", «= ? کا جواب کیا ہے؟»: the sentence goes on, so nothing is left
+// open) is left as written. Only a gap that ends the text is filled.
+const EQUALS_BLANK = /=\s*(?:(?:…|\.{3})\s*[?؟]?|[?؟])\s*[.!۔]?(?=\s*["'”’)]*\s*$)/u;
+function sayEqualsBlank(text, language) {
+  const word = resolveUx('wqSayEqualsBlank', { language }).replace(BIDI_MARKS, '').trim();
+  return String(text == null ? '' : text).replace(EQUALS_BLANK, `= ${word}`);
+}
+
+/** The words a clip's voice is given (and its key is made from): maths brackets round, operators as words, an open "=" closed with a word. */
 function voiceText(text, language) {
-  return spokenOperators(speakableMaths(text), language);
+  return sayEqualsBlank(spokenOperators(speakableMaths(text), language), language);
 }
 
 // Something a voice can say. A picture option is stored as an emoji (no letter,
