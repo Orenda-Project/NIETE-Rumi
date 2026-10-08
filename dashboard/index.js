@@ -3746,7 +3746,9 @@ app.get('/how-it-works', (req, res) => res.redirect(302, NIETE_MARKETING_REDIREC
 
 // Serve static frontend files from /portal-frontend/dist folder
 // This includes all compiled React/Vite assets (JS, CSS, images)
-app.use(express.static(path.join(__dirname, 'portal-frontend', 'dist')));
+// bd-fxk3t8: hashed /assets/ files are kept for a year; index.html is revalidated.
+const { portalStaticHeaders, PORTAL_INDEX_CACHE_CONTROL } = require('./lib/portal-static-cache');
+app.use(express.static(path.join(__dirname, 'portal-frontend', 'dist'), { setHeaders: portalStaticHeaders }));
 
 // SPA Catch-all route: Serve index.html for all non-API, non-observability routes
 // This allows React Router to handle client-side routing for the TEACHER PORTAL
@@ -3759,6 +3761,7 @@ app.get('*', (req, res, next) => {
 
   if (!isExcludedPath) {
     // Serve portal frontend (teacher portal React app)
+    res.setHeader('Cache-Control', PORTAL_INDEX_CACHE_CONTROL);
     res.sendFile(path.join(__dirname, 'portal-frontend', 'dist', 'index.html'));
   } else {
     // Let other handlers deal with it (API routes or observability pages)

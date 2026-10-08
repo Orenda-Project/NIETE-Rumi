@@ -7867,29 +7867,32 @@ router.put('/me/language', requirePortalAuth, async (req, res) => {
 
 router.get('/config', async (req, res) => {
   try {
-    const assessmentGenerator = await isAssessmentGeneratorEnabled(supabase);
-    const assessmentEditing = await isPortalAssessmentEditingEnabled(supabase);
-    // bd-3bvfj: per USER — a pilot list is answered for whoever is logged in;
-    // logged out, it is off. Read from the session, never from the request.
-    const selfObservation = await isFlagEnabledForUser(
-      supabase, PORTAL_SELF_OBSERVATION_KEY, req.session && req.session.portalUserId,
-    );
-    // bd-5rz1v.6: per USER too — the coach's portal observation pilot.
-    const coachObservation = await isFlagEnabledForUser(
-      supabase, PORTAL_COACH_OBSERVATION_KEY, req.session && req.session.portalUserId,
-    );
-    // bd-5rz1v.12: the new UI, per user — designed screen by screen behind it.
-    const newUi = await isFlagEnabledForUser(
-      supabase, PORTAL_NEW_UI_KEY, req.session && req.session.portalUserId,
-    );
-    // bd-o15qnr: the coach app v2, per user. The portal shows it to role=coach only.
-    const coachV2 = await isFlagEnabledForUser(
-      supabase, PORTAL_COACH_V2_KEY, req.session && req.session.portalUserId,
-    );
-    // bd-fmf24g.1: the teacher app v2, per user. The portal shows it to teachers only.
-    const teacherV2 = await isFlagEnabledForUser(
-      supabase, PORTAL_TEACHER_V2_KEY, req.session && req.session.portalUserId,
-    );
+    const userId = req.session && req.session.portalUserId;
+    // bd-fxk3t8: the reads are independent, so they run together. One after
+    // another they took 1.8–4.9 s on sandbox, and every v2 page waits on this.
+    const [
+      assessmentGenerator,
+      assessmentEditing,
+      selfObservation,
+      coachObservation,
+      newUi,
+      coachV2,
+      teacherV2,
+    ] = await Promise.all([
+      isAssessmentGeneratorEnabled(supabase),
+      isPortalAssessmentEditingEnabled(supabase),
+      // bd-3bvfj: per USER — a pilot list is answered for whoever is logged in;
+      // logged out, it is off. Read from the session, never from the request.
+      isFlagEnabledForUser(supabase, PORTAL_SELF_OBSERVATION_KEY, userId),
+      // bd-5rz1v.6: per USER too — the coach's portal observation pilot.
+      isFlagEnabledForUser(supabase, PORTAL_COACH_OBSERVATION_KEY, userId),
+      // bd-5rz1v.12: the new UI, per user — designed screen by screen behind it.
+      isFlagEnabledForUser(supabase, PORTAL_NEW_UI_KEY, userId),
+      // bd-o15qnr: the coach app v2, per user. The portal shows it to role=coach only.
+      isFlagEnabledForUser(supabase, PORTAL_COACH_V2_KEY, userId),
+      // bd-fmf24g.1: the teacher app v2, per user. The portal shows it to teachers only.
+      isFlagEnabledForUser(supabase, PORTAL_TEACHER_V2_KEY, userId),
+    ]);
     return res.json({
       success: true,
       features: {
