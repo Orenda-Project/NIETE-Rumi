@@ -191,9 +191,10 @@ function spokenOperators(text, language) {
 // An "=" with only a blank or a question mark after it ("720 ÷ 6 = ?", "15 + 27 = ___") left the
 // voice on "… equals" with no word to say, and it sometimes made one up ("equals questions Z"; 11 of 60 takes, 0 of 60
 // with a word there). The blank is said as the catalog's words (wqSayEqualsBlank: "what?" / «کتنے؟»). An "=" with
-// its value, a blank before the "=" ("12 + … = 20"), or a bare "=" ("Equal sign =", which the voice ends cleanly) is
-// left as written.
-const EQUALS_BLANK = /=\s*(?:(?:…|\.{3})\s*[?؟]?|[?؟])(?:\s*[.!۔](?=\s|$))?(?=\s*(?:$|[\p{L}"'(]))/gu;
+// its value, a blank before the "=" ("12 + … = 20"), a bare "=" ("Equal sign =", which the voice ends cleanly), or
+// a gap with words after it ("12 - 10 = ? hours", «= ? کا جواب کیا ہے؟»: the sentence goes on, so nothing is left
+// open) is left as written. Only a gap that ends the text is filled.
+const EQUALS_BLANK = /=\s*(?:(?:…|\.{3})\s*[?؟]?|[?؟])\s*[.!۔]?(?=\s*["'”’)]*\s*$)/u;
 function sayEqualsBlank(text, language) {
   const word = resolveUx('wqSayEqualsBlank', { language }).replace(BIDI_MARKS, '').trim();
   return String(text == null ? '' : text).replace(EQUALS_BLANK, `= ${word}`);

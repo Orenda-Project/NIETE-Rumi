@@ -1330,4 +1330,4 @@ Feature: Web child quiz page on the portal
     When its read-aloud clip is recorded
     Then the voice is given "… = what?" in English and «… = کتنے؟» in Urdu
     And the clip ends on that word, never on made-up words after "equals"
-    But an "=" with its value, a blank before the "=", or an option that names the "=" sign is read as written
+    But an "=" with its value, a blank before the "=", an option that names the "=" sign, or a gap with words after it ("12 − 10 = ? hours") is read as written
