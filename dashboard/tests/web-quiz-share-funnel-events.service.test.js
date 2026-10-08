@@ -9,6 +9,8 @@ const { page } = require('./wq-page-harness');
 
 // The allow-list is pure; only its module's database client is stood in for.
 jest.mock('../../bot/shared/config/supabase', () => ({}));
+// The hashed codes are keyed by the web quiz token secret.
+process.env.WEB_QUIZ_TOKEN_SECRET = 'test-secret';
 const { cleanEvent } = require('../../bot/shared/services/quiz/web-quiz.service');
 
 const CHILD = { first: 'Zara', chip: 'c1', animal: 'owl' };
@@ -29,7 +31,13 @@ describe('share taps', () => {
     p.els['#wq-chal'].fire('click');
     const tap = named(p, 'share_click').find((e) => e.step === 'tap');
     expect(tap).toMatchObject({ src: 'challenge', iab: 1, cap: 'none', to: 'CHAL12' });
-    expect(cleanEvent(tap).props).toMatchObject({ src: 'challenge', step: 'tap', iab: 1, cap: 'none', to: 'CHAL12' });
+    const kept = cleanEvent(tap).props;
+    expect(kept).toMatchObject({ src: 'challenge', step: 'tap', iab: 1, cap: 'none' });
+    // The code never reaches the logs in clear: a keyed hash, the same one a landing on that code carries.
+    expect(kept.to).toBeUndefined();
+    expect(kept.to_h).toMatch(/^[0-9a-f]{12}$/);
+    expect(cleanEvent({ n: 'page_open', code: 'CHAL12' }).props.code_h).toBe(kept.to_h);
+    expect(cleanEvent({ n: 'page_open', code: 'OTHER9' }).props.code_h).not.toBe(kept.to_h);
   });
 
   test('a class-group tap in a browser that can share a file says "file" and carries no "to" (it sends the class link)', () => {
@@ -84,5 +92,6 @@ describe('the allow-list', () => {
   test('keeps only well-formed labels', () => {
     const c = cleanEvent({ n: 'share_click', step: 'tap', src: 'challenge', to: 'not a code!', cap: 'everything', band: 'top', via: 'somewhere', friend: 2 });
     expect(c.props).toEqual({ step: 'tap', src: 'challenge' });
+    expect(cleanEvent({ n: 'page_open', code: 'no!' }).props.code_h).toBeUndefined();
   });
 });
