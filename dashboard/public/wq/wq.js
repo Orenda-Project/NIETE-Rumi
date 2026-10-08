@@ -2401,7 +2401,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     wireBar();
     // How the child did (the share ask may depend on it) and whether this was a friend's challenge run.
     var pct = res.score && res.score.pct != null ? res.score.pct : (total ? Math.round(100 * (c.correct || 0) / total) : 0);
-    ev('card_view', { band: pct < 50 ? 'low' : pct < 80 ? 'mid' : 'high', friend: friend ? 1 : 0 });
+    // Once per finished session: the card re-renders on Back from the share screen, the class table or the league,
+    // and a re-render is not another card (the share rate per card is read off this event).
+    if (S.st && sget('wq_cv', null) !== S.st) {
+      sset('wq_cv', S.st);
+      ev('card_view', { band: pct < 50 ? 'low' : pct < 80 ? 'mid' : 'high', friend: friend ? 1 : 0 });
+    }
     if (res.vs && T.vs[res.vs.outcome]) ev('challenge_result', { reason: res.vs.outcome });
     // The challenge code names the challenger on the server: no child's name rides in the link.
     var chalUrl = link('/q/' + (res.challenge_code || CODE));
