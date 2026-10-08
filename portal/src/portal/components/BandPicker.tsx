@@ -28,6 +28,7 @@ import { GraduationCap, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
+import { SkeletonChip } from './Skeleton';
 
 interface BandOption {
   id: string;
@@ -118,8 +119,9 @@ const BandPicker = ({
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="band-picker-loading">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading the grade options…
+      // bd-fxk3t8 — placeholder pills where the grade options will be, not a spinner.
+      <div role="status" aria-busy="true" aria-label="Loading the grade options…" className="flex flex-wrap gap-2" data-testid="band-picker-loading">
+        <SkeletonChip /><SkeletonChip /><SkeletonChip />
       </div>
     );
   }

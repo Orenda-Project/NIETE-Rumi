@@ -44,6 +44,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import api from '../services/api';
+import { SkeletonLine } from '../components/Skeleton';
 
 // Per-vendor aggregate from GET /api/portal/training/vendors — one card
 // per vendor in the "Content Provider" row at the top of the page.
@@ -748,8 +749,11 @@ const PortalTraining = () => {
 
         {/* Detail card */}
         {loadingDetail && (
-          <div className="rounded-lg border bg-card p-6 shadow-sm">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          // bd-fxk3t8 — the detail card's lines held by placeholders, not a spinner.
+          <div aria-busy="true" className="space-y-3 rounded-lg border bg-card p-6 shadow-sm">
+            <SkeletonLine className="h-5 w-1/2" />
+            <SkeletonLine className="w-5/6" />
+            <SkeletonLine className="w-2/3" />
           </div>
         )}
         {moduleDetail && !loadingDetail && (

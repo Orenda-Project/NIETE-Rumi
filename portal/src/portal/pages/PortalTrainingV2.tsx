@@ -58,6 +58,7 @@ import {
 } from 'lucide-react';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
+import { SkeletonList, SkeletonLine } from '../components/Skeleton';
 import ModuleQuizPanel, { type SubmittedAttempt } from '../components/ModuleQuizPanel';
 import { completesModule } from '../lib/moduleQuiz';
 import LevelExamCard from '../components/LevelExamCard';
@@ -1294,7 +1295,8 @@ const PortalTrainingV2 = () => {
                   )}
                 </div>
                 {loadingCourses && (
-                  <div className="p-3"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div>
+                  // bd-fxk3t8 — placeholder rows where the courses will be, not a spinner.
+                  <SkeletonList rows={2} className="p-3" />
                 )}
                 {!loadingCourses && courses.length === 0 && (
                   <p className="text-sm text-muted-foreground">No courses in this level.</p>
@@ -1395,7 +1397,8 @@ const PortalTrainingV2 = () => {
                 </div>
 
                 {loadingModules && (
-                  <div className="p-3"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div>
+                  // bd-fxk3t8 — placeholder rows where the modules will be, not a spinner.
+                  <SkeletonList rows={2} className="p-3" />
                 )}
 
                 {/* The third distinct outcome: a real answer that is empty. */}
@@ -1537,8 +1540,11 @@ const PortalTrainingV2 = () => {
 
             {/* ── The open module ──────────────────────────────────────── */}
             {loadingDetail && (
-              <div className="rounded-2xl border bg-card p-6 shadow-sm">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              // bd-fxk3t8 — the module card's lines held by placeholders, not a spinner.
+              <div aria-busy="true" className="space-y-3 rounded-2xl border bg-card p-6 shadow-sm">
+                <SkeletonLine className="h-5 w-1/2" />
+                <SkeletonLine className="w-5/6" />
+                <SkeletonLine className="w-2/3" />
               </div>
             )}
 

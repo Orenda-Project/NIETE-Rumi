@@ -6,6 +6,7 @@ import { CARD, CARD_SELECTED, FOCUS, LIST_CARD } from '../ui/styles';
 import TeacherPage from '../TeacherPage';
 import { ASSESSMENT_V2_COPY as C } from './copy';
 import { STEPS, type Step } from './model';
+import { SkeletonList } from '../../components/Skeleton';
 
 /**
  * bd-fmf24g.6 — the Assessment pages' own small pieces, in the v28 canvas look (Assess*.dc.html): the
@@ -210,9 +211,8 @@ export function LoadState({ status, empty, onRetry, emptyLabel }: {
 }) {
   if (status === 'loading' || status === 'idle') {
     return (
-      <div role="status" aria-label={C.title} className="flex justify-center py-10 text-[#6b7280]">
-        <Loader2 className="h-6 w-6 motion-safe:animate-spin" aria-hidden="true" />
-      </div>
+      // bd-fxk3t8 — rows of placeholders where the list will be, instead of a spinner.
+      <SkeletonList rows={3} label={C.title} className="py-2" />
     );
   }
   if (status === 'error') {

@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { Loader2 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import PortalLayout from '../../components/PortalLayout';
@@ -8,6 +7,7 @@ import { lessonPlans, type LpLesson } from '../../newui/lessons/lessonPlansApi';
 import { teacherPath } from '../routes';
 import { LESSONS_V2_COPY as C } from './copy';
 import { LESSONS_HOME, LESSONS_VIEWER } from './paths';
+import { PageSkeleton } from '../../components/Skeleton';
 
 /**
  * bd-fmf24g.3 — reopen a lesson plan by its KEY (`?plan=k5:<lesson_id>` | `g612:<segment_id>&lang=`),
@@ -67,8 +67,9 @@ export function OpenPlanPage() {
 
   return (
     <PortalLayout ownHeading>
-      <div role="status" aria-label={C.title} className="flex justify-center py-16 text-[#6b7280]">
-        <Loader2 className="h-6 w-6 motion-safe:animate-spin" aria-hidden="true" />
+      {/* bd-fxk3t8 — the plan's place held by placeholders while it opens, instead of a spinner. */}
+      <div role="status" aria-label={C.title} aria-busy="true" className="px-4 pt-6 md:px-8">
+        <PageSkeleton kind="list" />
       </div>
     </PortalLayout>
   );

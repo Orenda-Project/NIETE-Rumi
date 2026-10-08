@@ -55,6 +55,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { SkeletonList, SkeletonChip } from './Skeleton';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -267,9 +268,10 @@ const AssessmentGeneratorPanel = ({
 
   if (loadingOptions) {
     return (
-      <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-        <span className="text-sm">Loading…</span>
+      // bd-fxk3t8 — placeholders where the options will be, not a spinner.
+      <div role="status" aria-busy="true" aria-label="Loading…" className="space-y-4 py-4">
+        <div className="flex flex-wrap gap-2"><SkeletonChip /><SkeletonChip /><SkeletonChip /></div>
+        <SkeletonList rows={2} />
       </div>
     );
   }
