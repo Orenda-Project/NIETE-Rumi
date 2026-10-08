@@ -715,6 +715,29 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the observation shows as stopped in the portal
     And the coach receives no failure message on WhatsApp
 
+  # ── Her WhatsApp observation, read in the PORTAL (coach v2, bd-15y1pc) ──────
+  # Dark behind app_settings.portal_coach_v2. What the observation page READS is
+  # hers from either side (portal-observe.service observationView / getDraft);
+  # every step that ACTS on a WhatsApp observation stays on WhatsApp.
+  # @no-mock-driver: the outcome is the portal page, which the WhatsApp mock lane
+  # does not render. Covered at unit level by
+  # tests/observe/bd-5rz1v.6-portal-observe.test.js and
+  # portal/src/portal/coach/pages/CoachObservation.whatsapp.test.tsx.
+
+  @e2e @config-gated @no-mock-driver @P1 @OBS67
+  Scenario: A coach sees her finished WhatsApp observation in full in the portal
+    Given a coach in the portal_coach_v2 pilot finished an observation of a teacher in her patch on WhatsApp with /observe
+    When she opens that observation in the portal
+    Then she sees its summary, the review form's answers, the debrief guide, her feedback on the talk and the report the teacher received
+    And the portal offers her no step to act on it
+
+  @e2e @config-gated @no-mock-driver @negative @P2 @OBS68
+  Scenario: A WhatsApp observation whose report has not reached the teacher is not shown as sent
+    Given a coach's WhatsApp observation whose debrief is done but whose report has not gone to the teacher
+    When she opens that observation in the portal
+    Then the send-report step is where it stands, and the steps before it open with what they hold
+    And the send-report step says it continues on WhatsApp
+
   # ═══════════════════ /observe2 — the FICO ICT field-form pilot ═══════════════════
   # /observe2 lets a coach fill a live form DURING the lesson (Part 1, Part 2, then the seal),
   # send the recording afterwards, and check the moments found in it before a brief comes back.
