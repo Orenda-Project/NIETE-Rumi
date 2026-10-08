@@ -4,10 +4,10 @@
 # Hermetic: uname, apt-get, sudo, curl and the PGDG setup script are shims that record what they were asked to
 # do; nothing is installed and nothing needs root. Proves:
 #   AC1  install-tools on Linux with passwordless sudo: Postgres 17 + pgvector from the PGDG apt repo, gh from
-#        apt, PostgREST as a static binary into $LOCAL_DB_HOME/bin (no root for that one).
+#        apt, PostgREST as a static binary into the per-machine tools folder (no root for that one).
 #   AC2  without passwordless sudo it never calls apt-get or prompts, still installs PostgREST, and prints the
 #        exact commands that need root.
-#   AC3  doctor finds a PostgREST that lives only in $LOCAL_DB_HOME/bin.
+#   AC3  doctor finds a PostgREST that lives only in the tools folder, even with another LOCAL_DB_HOME.
 #   AC4  port checks work with no lsof on PATH (ss, else a TCP connect).
 #   AC5  checksums work with sha256sum when shasum is absent.
 #   AC6  autofix with no brew hands the install to local-db.sh install-tools and relays what it installed.
@@ -81,25 +81,25 @@ export LOCAL_DB_PG_SEARCH="$tmp/no-postgres-here" LOCAL_DB_PGDG_SCRIPT="$tmp/pgd
 
 echo "AC1 install-tools, passwordless sudo"
 H1="$tmp/home1"
-out=$(PATH="$LPATH" SUDO_MODE=ok LOCAL_DB_HOME="$H1" bash "$LDB" install-tools 2>&1); calls=$(cat "$CALLS")
+out=$(PATH="$LPATH" SUDO_MODE=ok LOCAL_DB_HOME="$H1" LOCAL_DB_TOOLS="$H1/bin" bash "$LDB" install-tools 2>&1); calls=$(cat "$CALLS")
 has   "postgresql-common first"            "$calls" "apt-get install -y postgresql-common"
 has   "PGDG repo added"                    "$calls" "pgdg.sh -y"
 has   "Postgres 17 + pgvector from apt"    "$calls" "apt-get install -y postgresql-17 postgresql-17-pgvector"
 has   "gh from apt"                        "$calls" "apt-get install -y gh"
 has   "PostgREST tarball for linux x86-64" "$calls" "postgrest-v16.4-linux-static-x86-64.tar.xz"
-t     "postgrest in LOCAL_DB_HOME/bin"     "$([ -x "$H1/bin/postgrest" ] && echo yes)" "yes"
+t     "postgrest in the tools folder"     "$([ -x "$H1/bin/postgrest" ] && echo yes)" "yes"
 has   "says what it installed"             "$out" "installed postgrest"
 
 echo "AC2 install-tools, sudo wants a password"
 : >"$CALLS"; H2="$tmp/home2"
-out=$(PATH="$LPATH" SUDO_MODE=nopass LOCAL_DB_HOME="$H2" bash "$LDB" install-tools 2>&1 </dev/null); rc=$?; calls=$(cat "$CALLS")   # no tty: as from a hook
+out=$(PATH="$LPATH" SUDO_MODE=nopass LOCAL_DB_HOME="$H2" LOCAL_DB_TOOLS="$H2/bin" bash "$LDB" install-tools 2>&1 </dev/null); rc=$?; calls=$(cat "$CALLS")   # no tty: as from a hook
 hasnt "no apt-get without root"            "$calls" "apt-get"
 t     "postgrest still installed (no root)" "$([ -x "$H2/bin/postgrest" ] && echo yes)" "yes"
 t     "non-zero: Postgres still missing"   "$([ "$rc" != 0 ] && echo yes)" "yes"
 has   "prints the root command"            "$out" "sudo apt-get install -y postgresql-17 postgresql-17-pgvector"
 
-echo "AC3 doctor finds the LOCAL_DB_HOME/bin postgrest"
-out=$(PATH="$LPATH" LOCAL_DB_HOME="$H1" bash "$LDB" doctor 2>&1)
+echo "AC3 doctor finds the tools-folder postgrest, whatever LOCAL_DB_HOME is"
+out=$(PATH="$LPATH" LOCAL_DB_HOME="$tmp/other-home" LOCAL_DB_TOOLS="$H1/bin" bash "$LDB" doctor 2>&1)
 hasnt "postgrest not reported missing"     "$out" "postgrest missing"
 has   "postgres reported, with apt advice" "$out" "postgres17 missing"
 

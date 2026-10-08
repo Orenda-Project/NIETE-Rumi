@@ -39,8 +39,10 @@ REPO="$(cd "$HERE/../../.." && pwd)"
 . "$HERE/portable.sh"
 
 LOCAL_DB_HOME="${LOCAL_DB_HOME:-$HOME/.cache/niete-e2e-db}"
-# Tools this script installs without root (PostgREST on Linux) live here, ahead of everything else.
-export PATH="$LOCAL_DB_HOME/bin:$PATH"
+# Tools this script installs without root (PostgREST on Linux): one folder per MACHINE, not per LOCAL_DB_HOME —
+# a run or a test that points LOCAL_DB_HOME elsewhere must still find them. Ahead of everything else on PATH.
+TOOLS_BIN="${LOCAL_DB_TOOLS:-$HOME/.cache/niete-e2e-db/bin}"
+export PATH="$TOOLS_BIN:$PATH"
 POSTGREST_VERSION="${LOCAL_DB_POSTGREST_VERSION:-v16.4}"
 # The PGDG apt-repo setup script that ships with postgresql-common (Debian/Ubuntu).
 PGDG_SCRIPT="${LOCAL_DB_PGDG_SCRIPT:-/usr/share/postgresql-common/pgdg/apt.postgresql.org.sh}"
@@ -546,7 +548,7 @@ status() {
   "$PGBIN/pg_ctl" -D "$PGDATA" status >/dev/null 2>&1 && psql_ -d postgres -Atc "select datname from pg_database where datname like 'golden\_%' or datname like 'run\_%'"
 }
 # install-tools — the Linux counterpart of `brew install postgresql@17 pgvector postgrest gh` (bd-z3ze4.8).
-# PostgREST is one static binary from its GitHub release, into $LOCAL_DB_HOME/bin: no root. Postgres 17 + pgvector
+# PostgREST is one static binary from its GitHub release, into $TOOLS_BIN (~/.cache/niete-e2e-db/bin): no root. Postgres 17 + pgvector
 # (from the PGDG apt repo, which carries 17 on every supported Ubuntu/Debian) and gh need root, so they install
 # only when this already runs as root, sudo works WITHOUT a password, or a person is at the terminal (stdin is a
 # tty, so sudo may ask). From a hook or an agent there is no tty: it never prompts, and prints the commands instead. Prints one "installed …" line per thing it installed;
@@ -566,8 +568,8 @@ install_tools() {
       local asset="postgrest-$POSTGREST_VERSION-linux-static-$arch.tar.xz"
       if curl -fsSL -o "$tmp/$asset" "https://github.com/PostgREST/postgrest/releases/download/$POSTGREST_VERSION/$asset" \
          && tar -xJf "$tmp/$asset" -C "$tmp" && [ -f "$tmp/postgrest" ]; then
-        mkdir -p "$LOCAL_DB_HOME/bin" && mv "$tmp/postgrest" "$LOCAL_DB_HOME/bin/postgrest" && chmod 755 "$LOCAL_DB_HOME/bin/postgrest"
-        echo "installed postgrest $POSTGREST_VERSION → $LOCAL_DB_HOME/bin"
+        mkdir -p "$TOOLS_BIN" && mv "$tmp/postgrest" "$TOOLS_BIN/postgrest" && chmod 755 "$TOOLS_BIN/postgrest"
+        echo "installed postgrest $POSTGREST_VERSION → $TOOLS_BIN"
       else echo "postgrest download failed ($asset)"; rc=1; fi
       rm -rf "$tmp"
     fi
