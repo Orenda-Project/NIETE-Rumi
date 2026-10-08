@@ -2,11 +2,14 @@ import { useMemo, useState } from 'react';
 import { DEFAULT_RANGE, pkToday, type DateRange } from '../../newui/range';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import TeacherPage from '../TeacherPage';
+import { useCopy } from '../i18n';
+import { LESSONS } from '../lessons/copy';
 import { LoadState } from '../lessons/LoadState';
-import { DateRangeBar, HistoryList, KpiTiles, TEACHER_UI_COPY } from '../ui';
+import { DateRangeBar, HistoryList, KpiTiles, type TeacherUiCopy } from '../ui';
+import { useKitCopy } from '../ui/useKitCopy';
 import { resolveRange } from '../ui/range';
 import { dcKpiItems, historyParams, lessonGroups, loadDcHistory } from './api';
-import { COACHING_V2_COPY as C } from './copy';
+import { COACHING } from './copy';
 import { COACHING_HOME } from './paths';
 
 /**
@@ -17,30 +20,36 @@ import { COACHING_HOME } from './paths';
  *   KpiTiles       DC observations (with its trend), Latest band, Minutes recorded, Reports received —
  *                  the server's counts (GET /teacher/coaching/history); a band, never a number
  *   the list       every Digital Coach lesson in the range by Pakistan day, each opening its report
+ *
+ * bd-fmf24g.13.2 — every word in the page's language: the screen's (useCopy), the kit's "vs …" and months
+ * (useKitCopy, as All lesson plans), the days (Lesson Plans' day names).
  */
 
-function datesOf(range: DateRange) {
-  const r = resolveRange(range, pkToday());
+function datesOf(range: DateRange, kit: TeacherUiCopy) {
+  const r = resolveRange(range, pkToday(), kit.months);
   return {
     from: r.from, to: r.to, prevFrom: r.prevFrom, prevTo: r.prevTo,
-    compareLabel: r.prevSpan ? TEACHER_UI_COPY.compareWith(r.prevSpan) : '',
+    compareLabel: r.prevSpan ? kit.compareWith(r.prevSpan) : '',
   };
 }
 
 export function CoachingAllPage() {
+  const C = useCopy(COACHING);
+  const { days } = useCopy(LESSONS);
+  const kit = useKitCopy();
   const [range, setRange] = useState<DateRange>(DEFAULT_RANGE);
-  const dates = useMemo(() => datesOf(range), [range]);
+  const dates = useMemo(() => datesOf(range, kit), [range, kit]);
   const key = JSON.stringify([dates.from, dates.to, dates.prevFrom, dates.prevTo]);
   const [history, retry] = useLoad(() => loadDcHistory(historyParams(dates)), `dc-all:${key}`);
   const h = dataOf(history);
-  const groups = useMemo(() => (h ? lessonGroups(h.items) : []), [h]);
+  const groups = useMemo(() => (h ? lessonGroups(h.items, undefined, C, days) : []), [h, C, days]);
 
   return (
     <TeacherPage feature="coaching" crumb={C.title} title={C.allTitle} backTo={COACHING_HOME} testId="dc-all">
       <DateRangeBar value={range} onChange={(r) => setRange(r)} />
       {h ? (
         <>
-          <KpiTiles items={dcKpiItems(h)} compareLabel={dates.compareLabel} />
+          <KpiTiles items={dcKpiItems(h, C)} compareLabel={dates.compareLabel} />
           <HistoryList heading="" groups={groups} showMore={false} emptyLabel={C.noneInRange} />
         </>
       ) : (

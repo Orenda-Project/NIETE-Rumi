@@ -3,14 +3,19 @@ import { CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import TeacherPage from '../TeacherPage';
+import { useCopy } from '../i18n';
 import { dayName, pkToday } from '../lessons/days';
+import { LESSONS } from '../lessons/copy';
 import { LoadState } from '../lessons/LoadState';
 import { teacherPath } from '../routes';
 import { HistoryList, StatusChip } from '../ui';
 import { CARD, LIST_CARD } from '../ui/styles';
+import { COACHING } from '../coaching/copy';
 import { SectionHeading } from '../coaching/parts';
+import { ReportPage } from '../coaching/ReportPage';
 import { loadVisitReports, loadVisits, reportGroups } from './api';
-import { OBSERVATIONS_COPY as C } from './copy';
+import { OBSERVATIONS } from './copy';
+import { OBS_HOME } from './paths';
 
 /**
  * bd-fmf24g.4 — the teacher v2 Observations page (v28 canvas Observations).
@@ -19,14 +24,20 @@ import { OBSERVATIONS_COPY as C } from './copy';
  *   In progress   a coach's visit not sent to her yet: its stage only — the draft is the coach's
  *   Reports       the coach visits sent to her (GET /coaching-sessions, `observation` only), each opening
  *                 the shared report page (the same layout as a Digital Coach lesson's)
+ *
+ * bd-fmf24g.13.2 — every word in the page's language (useCopy): the page's own, the report bands (Digital
+ * Coaching's) and the day names (Lesson Plans').
  */
 export function ObservationsHomePage() {
+  const C = useCopy(OBSERVATIONS);
+  const { bands } = useCopy(COACHING);
+  const { days } = useCopy(LESSONS);
   const [visitsLoad, retryVisits] = useLoad(() => loadVisits(), 'obs:visits');
   const [reportsLoad, retryReports] = useLoad(() => loadVisitReports(), 'obs:reports');
   const visits = dataOf(visitsLoad);
   const reports = dataOf(reportsLoad);
   const today = pkToday();
-  const groups = useMemo(() => (reports ? reportGroups(reports, today) : []), [reports, today]);
+  const groups = useMemo(() => (reports ? reportGroups(reports, today, bands, days) : []), [reports, today, bands, days]);
   const next = visits?.next ?? null;
 
   return (
@@ -39,7 +50,7 @@ export function ObservationsHomePage() {
           </span>
           {next ? (
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate text-[17px] font-semibold">{[dayName(next.date, today), next.slot].filter(Boolean).join(' · ')}</span>
+              <span className="truncate text-[17px] font-semibold">{[dayName(next.date, today, days), next.slot].filter(Boolean).join(' · ')}</span>
               <span className="truncate text-[13px] text-[#6b7280]">{[next.coachName, next.schoolName].filter(Boolean).join(' · ')}</span>
             </span>
           ) : (
@@ -58,7 +69,7 @@ export function ObservationsHomePage() {
               <li key={v.sessionId} className={cn('flex min-h-[68px] items-center gap-3 px-3.5 py-2', i > 0 && 'border-t border-[#f0f1f3]')}>
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="truncate text-[16px] font-semibold">{C.coachVisit}</span>
-                  <span className="truncate text-[13px] text-[#6b7280]">{[dayName(v.date, today), v.coachName].filter(Boolean).join(' · ')}</span>
+                  <span className="truncate text-[13px] text-[#6b7280]">{[dayName(v.date, today, days), v.coachName].filter(Boolean).join(' · ')}</span>
                 </span>
                 <StatusChip text={C.stages[v.stage]} tone="waiting" />
               </li>
@@ -76,4 +87,10 @@ export function ObservationsHomePage() {
       </div>
     </TeacherPage>
   );
+}
+
+/** A coach visit's report: the shared report page, with Observations (in the page's language) as its way back. */
+export function ObservationReportPage() {
+  const C = useCopy(OBSERVATIONS);
+  return <ReportPage backTo={OBS_HOME} crumb={C.title} />;
 }
