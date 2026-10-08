@@ -7,7 +7,8 @@ import { TEACHER_BASE } from '../paths';
 import { GradeSubjectButton, StatusChip } from '../ui';
 import { CARD, FOCUS, GRID, LIST_CARD } from '../ui/styles';
 import { getClasses, useRead } from './api';
-import { ATTENDANCE_V2_COPY as C } from './copy';
+import { ATTENDANCE } from './copy';
+import { useCopy, useLang } from '../i18n';
 import { classButton, dayLabel, selectorGroups, type AttendanceClass } from './model';
 import { downloadPath, markPath, viewPath } from './paths';
 import { classChip, LoadState, SearchBox } from './ui';
@@ -19,6 +20,8 @@ import { classChip, LoadState, SearchBox } from './ui';
  * View and Download sit on top and open on her first class (each has Change).
  */
 export function AttendanceHub() {
+  const lang = useLang();
+  const C = useCopy(ATTENDANCE);
   const read = useRead('classes', () => getClasses());
   const [q, setQ] = useState('');
   const classes: AttendanceClass[] = read.data?.classes || [];
@@ -43,7 +46,7 @@ export function AttendanceHub() {
               section={b.section}
               subject={b.subject}
               sub={C.students(c.students)}
-              chip={classChip(c)}
+              chip={classChip(c, C)}
               to={markPath(c.listId)}
             />
           );
@@ -58,7 +61,7 @@ export function AttendanceHub() {
       feature="attendance"
       crumb={C.home}
       backTo={TEACHER_BASE}
-      chips={read.data ? <StatusChip text={dayLabel(read.data.date)} tone="info" /> : undefined}
+      chips={read.data ? <StatusChip text={dayLabel(read.data.date, lang)} tone="info" /> : undefined}
       testId="attendance-hub"
     >
       <LoadState loading={read.loading && !read.data} failed={read.error} onRetry={read.reload} />

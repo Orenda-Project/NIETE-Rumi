@@ -3,6 +3,7 @@
  * without a browser. Every number comes from the API (GET /teacher/attendance/…); nothing here
  * invents a count, a school day or a percentage.
  */
+import { ATTENDANCE_MONTHS_UR, ATTENDANCE_WEEKDAYS_UR } from './copy';
 
 export type AttendanceClass = {
   listId: string;
@@ -109,14 +110,16 @@ export function shiftMonth(month: string, n: number): string {
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-export function monthLabel(month: string): string {
+/** "October 2026"; in Urdu "اکتوبر 2026" (bd-fmf24g.13). */
+export function monthLabel(month: string, lang: 'en' | 'ur' = 'en'): string {
   const [y, m] = month.split('-').map(Number);
-  return `${MONTHS[m - 1]} ${y}`;
+  return `${(lang === 'ur' ? ATTENDANCE_MONTHS_UR : MONTHS)[m - 1]} ${y}`;
 }
 
-/** "Thu 8 Oct" */
-export function dayLabel(date: string): string {
+/** "Thu 8 Oct"; in Urdu "جمعرات 8 اکتوبر" (Western digits, as the bot). English is exactly as before. */
+export function dayLabel(date: string, lang: 'en' | 'ur' = 'en'): string {
   const d = new Date(`${date}T00:00:00Z`);
+  if (lang === 'ur') return `${ATTENDANCE_WEEKDAYS_UR[d.getUTCDay()]} ${d.getUTCDate()} ${ATTENDANCE_MONTHS_UR[d.getUTCMonth()]}`;
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).replace(',', '');
 }
 

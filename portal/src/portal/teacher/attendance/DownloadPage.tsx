@@ -7,7 +7,8 @@ import TeacherPage from '../TeacherPage';
 import { StatusChip } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
 import { getClasses, getMonth, saveRegister, sendRegister, useRead } from './api';
-import { ATTENDANCE_V2_COPY as C } from './copy';
+import { ATTENDANCE } from './copy';
+import { useCopy, useLang } from '../i18n';
 import { monthLabel, monthOf, shiftMonth } from './model';
 import { ATTENDANCE_V2_BASE, downloadPath } from './paths';
 import { ClassCard, ClassTray, LoadState } from './ui';
@@ -22,6 +23,8 @@ import { ClassCard, ClassTray, LoadState } from './ui';
 type Pick = 'this' | 'last' | 'other';
 
 export function DownloadPage() {
+  const lang = useLang();
+  const C = useCopy(ATTENDANCE);
   const { listId = '' } = useParams();
   const classes = useRead('classes', () => getClasses());
   const today = classes.data?.date || null;
@@ -115,7 +118,7 @@ export function DownloadPage() {
                   className={cn('min-h-[56px] rounded-full border-[1.5px] px-4 text-[15px] font-semibold', FOCUS,
                     (other || earlier[0]) === m ? 'border-[#33374a] bg-[#33374a] text-white' : 'border-[#d1d5db] bg-white text-[#1d2025]')}
                 >
-                  {monthLabel(m)}
+                  {monthLabel(m, lang)}
                 </button>
               ))}
             </div>
@@ -130,7 +133,7 @@ export function DownloadPage() {
               <FileSpreadsheet className="h-6 w-6" aria-hidden="true" />
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="text-[16px] font-semibold">{monthLabel(month)}</span>
+              <span className="text-[16px] font-semibold">{monthLabel(month, lang)}</span>
               <span className="text-[13px] text-[#6b7280]">{monthRead.data ? C.daysMarked(monthRead.data.days.length) : C.noValue}</span>
             </span>
             <StatusChip text={C.excel} tone="info" />
