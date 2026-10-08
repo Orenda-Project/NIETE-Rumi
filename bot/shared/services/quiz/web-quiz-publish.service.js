@@ -58,14 +58,16 @@ const Voice = require('./web-quiz-voice');
 const Store = require('./web-quiz-audio-store');
 const { logEvent } = require('../../utils/structured-logger');
 const { logError } = require('../../utils/logger');
+const { resolveUx } = require('../../config/ux-strings');
 
 const PARTS_OPTS = ['a', 'b', 'c', 'd'];
 const DEFAULT_MAX_CLIPS = 120;
 const CLIP_WORKERS = 4;
 // Bumped when the clips of every quiz change (2: the why is the reason, wrong-option feedback
-// recorded; 3: stored small; 4: one voice per language, new key scheme, configurable bucket), so
-// already-published quizzes are brought up to date on their next open.
-const AUDIO_VERSION = 4;
+// recorded; 3: stored small; 4: one voice per language, new key scheme, configurable bucket; 5: maths
+// operators said as words, keys from the words the voice is given), so already-published quizzes are
+// brought up to date on their next open.
+const AUDIO_VERSION = 5;
 const PARTS_FB = ['xa', 'xb', 'xc', 'xd'];
 // Spend estimate for the log line, by the provider that actually spoke:
 // ElevenLabs bills per character, Soniox per second of audio (tts/index.js).
@@ -147,10 +149,8 @@ function spokenOption(text) {
 // Maths brackets are said as round ones. The voice's text step (services/tts, soniox-text mapTags) treats
 // any [..] that is not a voice direction as a stage direction and removes it, so an option written
 // "[ 4 × { 18 − 8 } ]" left nothing to say and its clip failed. Only brackets holding numbers and operators
-// (no letters) change, innermost first; a [direction] or a [placeholder] keeps the voice's own rules. Used
-// on the words sent to the voice only: a clip's key is still taken from the words as written. Inside a
-// group it changes, a spaced hyphen between two operands is the minus sign it was written as (the text
-// step reads "18 - 8" as the range "18 to 8").
+// (no letters) change, innermost first; a [direction] or a [placeholder] keeps the voice's own rules. Inside
+// a group it changes, a spaced hyphen between two operands is the minus sign it was written as.
 const MATHS_INNER = /^[\s\d.,+\-−×÷*/=<>()%^:]*\d[\s\d.,+\-−×÷*/=<>()%^:]*$/u;
 function speakableMaths(text) {
   let out = String(text == null ? '' : text);
@@ -163,6 +163,34 @@ function speakableMaths(text) {
     out = next;
   }
   return out;
+}
+
+// Maths operators are said as words in the quiz's language (the catalog's wqSay* strings). The voice's text
+// step reads a hyphen between digits as a range ("18 - 8" -> "18 to 8") and mathToText writes every
+// subtraction with one, and × ÷ reached the voice as bare symbols. A minus is told from a range the way the
+// quiz text writes them: "−" or a hyphen with spaces round it is a minus, and so is a hyphen in a run of
+// numbers that ends in "=" ("14-5=9"); an en dash or a bare "30-39" is a range and is left to the text step.
+const BIDI_MARKS = /[\u200e\u200f\u2066-\u2069]/g;
+const NUM = String.raw`\p{N}[\p{N},.]*(?:\/\p{N}+)?`;
+const TIGHT_RUN = new RegExp(String.raw`(?<![\p{L}\p{N}-])${NUM}(?:-${NUM})+(?=\s*=)`, 'gu');
+const MINUS_SIGN = /(?<=[\p{L}\p{N})\]])\s*−\s*(?=[\p{L}\p{N}(\[])/gu;
+const SPACED_HYPHEN = /(?<=[\p{N})\]])\s+-\s+(?=[\p{N}(\[])/gu;
+const operatorWord = (key, language) => ` ${resolveUx(key, { language }).replace(BIDI_MARKS, '').trim()} `;
+function spokenOperators(text, language) {
+  const minus = operatorWord('wqSayMinus', language);
+  return String(text == null ? '' : text)
+    .replace(TIGHT_RUN, (run) => run.replace(/-/g, ' − '))
+    .replace(MINUS_SIGN, minus)
+    .replace(SPACED_HYPHEN, minus)
+    .replace(/\s*×\s*/g, operatorWord('wqSayTimes', language))
+    .replace(/\s*÷\s*/g, operatorWord('wqSayDividedBy', language))
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** The words a clip's voice is given (and its key is made from): maths brackets round, operators as words. */
+function voiceText(text, language) {
+  return spokenOperators(speakableMaths(text), language);
 }
 
 // Something a voice can say. A picture option is stored as an emoji (no letter,
@@ -289,7 +317,9 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
     for (const q of questions || []) {
       entries.set(q.id, { q: null, opts: [null, null, null, null], why: null, fbs: [null, null, null, null], hint: null });
       for (const { part, text } of partsFor(q)) {
-        tasks.push({ q, part, text, key: clipKey({ env, quizId, lang: language, qid: q.id, part, voice: voiceTag, text }) });
+        // The key is made from the words the voice is given: a clip recorded with other words is recorded again.
+        const say = voiceText(text, language);
+        tasks.push({ q, part, text: say, key: clipKey({ env, quizId, lang: language, qid: q.id, part, voice: voiceTag, text: say }) });
       }
     }
     // The quiz's clips in meta.web: the map of every entry so far, merged into the freshest meta so a
@@ -329,7 +359,7 @@ async function publishQuizAudio(quizId, { db, maxClips = DEFAULT_MAX_CLIPS } = {
         started += 1;
         try {
           const res = await tts.synthesize({
-            text: speakableMaths(text), language, useCase: 'reading', site: 'web_quiz_read_aloud', ...(voice ? { provider: voice.provider, voice: voice.voice } : {}),
+            text, language, useCase: 'reading', site: 'web_quiz_read_aloud', ...(voice ? { provider: voice.provider, voice: voice.voice } : {}),
           });
           const clip = await compactClip(res.audio);
           await r2.uploadBuffer(clip, key, 'audio/ogg', { bucket });
@@ -487,5 +517,5 @@ async function runQuizAudioJob(payload, { db, publish = module.exports.publishQu
 }
 
 module.exports = {
-  quizLanguage, isCurrent, publishQuizAudio, ensureQuizAudio, requestQuizAudio, runQuizAudioJob, audioKey, clipKey, partsFor, spoken, spokenOption, speakableMaths, whyText, withoutPraise, AUDIO_VERSION,
+  quizLanguage, isCurrent, publishQuizAudio, ensureQuizAudio, requestQuizAudio, runQuizAudioJob, audioKey, clipKey, partsFor, spoken, spokenOption, speakableMaths, spokenOperators, voiceText, whyText, withoutPraise, AUDIO_VERSION,
 };
