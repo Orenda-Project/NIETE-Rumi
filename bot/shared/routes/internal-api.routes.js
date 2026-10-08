@@ -1448,9 +1448,58 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     return res.status(400).json({ success: false, error: 'We do not have that book yet.' });
   }
 
-  const types = (Array.isArray(body.questionTypes) && body.questionTypes.length)
-    ? QuestionTypes.withCounts(body.questionTypes, parsed.count, subject, grade)
-    : QuestionTypes.defaultMix(subject, grade, parsed.count);
+  // bd-fmf24g.6 — the three choices the WhatsApp Flow offers and this route used to drop, held to
+  // the Flow's own rules (question-types.js parsers; planCounts() in the generation service).
+  const contentSource = body.contentSource || 'unseen';
+
+  // The marks budget (the Flow's QUESTIONS screen): optional, but a number she gave is held to its range.
+  const budget = QuestionTypes.parseTotalMarks(body.totalMarks == null ? '' : body.totalMarks);
+  if (!budget.ok) return res.status(400).json({ success: false, error: budget.message });
+
+  // Mix: how many from the book (SEEN_COUNT). Seen may not take the whole paper — the Unseen part
+  // needs at least one question. Carried only on Mix, as submit() does.
+  let seenCount = null;
+  if (contentSource === 'both' && body.seenCount != null && body.seenCount !== '') {
+    const seen = QuestionTypes.parseQuestionCount(body.seenCount);
+    if (!seen.ok) return res.status(400).json({ success: false, error: seen.message });
+    if (seen.count >= parsed.count) {
+      return res.status(400).json({ success: false, error: 'Leave room for new questions.' });
+    }
+    seenCount = seen.count;
+  }
+  // The questions the types are for: the whole paper, less the ones lifted from the book on Mix.
+  const unseenTarget = parsed.count - (seenCount || 0);
+
+  // How many of each type (COUNTS): hers, used as given — never re-spread — and they must add up
+  // to the Unseen part. Type names alone keep today's even spread; nothing keeps the default mix.
+  const asked = Array.isArray(body.questionTypes) ? body.questionTypes.filter(Boolean) : [];
+  let types;
+  if (asked.length && asked.every((t) => typeof t === 'object')) {
+    const allowed = QuestionTypes.forSubject(subject, grade).map((t) => t.id);
+    types = [];
+    for (const t of asked) {
+      const id = String(t.id || '').trim();
+      const n = Number(t.count);
+      if (!allowed.includes(id)) {
+        return res.status(400).json({ success: false, error: `${id || 'That type'} is not a question type for this subject.` });
+      }
+      if (!Number.isInteger(n) || n < 1) {
+        return res.status(400).json({ success: false, error: `How many ${id}? Type a number of 1 or more.` });
+      }
+      types.push({ id, count: n, category: QuestionTypes.categoryOf(id, subject, grade) });
+    }
+    const total = types.reduce((s, t) => s + t.count, 0);
+    if (total !== unseenTarget) {
+      return res.status(400).json({
+        success: false,
+        error: `The types add up to ${total}, but the paper has ${unseenTarget} new questions.`,
+      });
+    }
+  } else if (asked.length) {
+    types = QuestionTypes.withCounts(asked, unseenTarget, subject, grade);
+  } else {
+    types = QuestionTypes.defaultMix(subject, grade, unseenTarget);
+  }
 
   // She picked a chapter, not pages — but the row should still say which pages
   // it covers, so a request is readable later without re-reading a contents
@@ -1478,8 +1527,10 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     chapterNumber,
     chapterNumbers: picked.length ? picked : null,
     pageRanges: pages,
-    contentSource: body.contentSource || 'unseen',
+    contentSource,
     questionCount: parsed.count,
+    seenCount,
+    totalMarks: budget.marks,
     questionTypes: types,
     // Every paper gets a key; the portal no longer offers the choice (bd-bfnsk).
     includeAnswerKey: true,
