@@ -847,6 +847,17 @@ describe('an "equals" with a blank or "?" after it is said with a word, never le
   });
 });
 
+// A quiz recorded before an open "=" was closed with a word ("= ?" -> "= what?") is brought up to date on its next
+// open: only the clips whose words changed are recorded (191 on prod, about $0.11); the rest are found in R2.
+describe('a quiz recorded before an open "=" was said with a word', () => {
+  test('is not current: its next open asks for one quiz_web_audio job', async () => {
+    const queue = { queueJob: jest.fn().mockResolvedValue({ MessageId: 'm1' }) };
+    expect(Publish.isCurrent({ audio_v: 5, audio_voice: 'soniox-en' })).toBe(false);
+    await Publish.requestQuizAudio('quiz-eq-v5', { meta: { web: { audio_v: 5, audio_voice: 'soniox-en' } }, queue });
+    expect(queue.queueJob).toHaveBeenCalledWith('quiz-eq-v5', 'quiz_web_audio', { quizId: 'quiz-eq-v5' }, expect.any(Object));
+  });
+});
+
 // A quiz recorded before the operators were said as words keeps its old clips in its map, and a quiz at
 // the current voice version is never published again: the version is bumped so each one is brought up to
 // date on its next open (only the clips whose words changed are recorded; the rest are found in R2).
