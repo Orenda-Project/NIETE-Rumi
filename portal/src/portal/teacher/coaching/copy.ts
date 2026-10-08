@@ -16,6 +16,7 @@
 import { BAND_THRESHOLDS, type BandKey } from '../../lib/scoreBands';
 import { bilingual, type Bilingual, type Words } from '../i18n';
 import type { CopyEntry } from '../copyRegistry';
+import { PICKER_WORDS_EN } from '../../newui/coaching/pickerWords';
 
 /** A band's word, by BandKey. English is lib/scoreBands' own, so the two can never drift. */
 const BANDS_EN = Object.fromEntries(BAND_THRESHOLDS.map((b) => [b.key, b.label])) as Record<BandKey, string>;
@@ -125,6 +126,9 @@ export const COACHING_V2_COPY = {
   noneInRange: 'None in these dates',
   /** A lesson's band (never its number) — on its chip and the Latest band tile; Observations' reports too. */
   bands: BANDS_EN,
+  /** The lesson-plan picker (the new UI's PlanSheet and LibraryStep, passed in so they follow the page):
+   *  its English is the new UI's own, word for word. */
+  picker: PICKER_WORDS_EN,
 };
 
 /**
@@ -233,6 +237,25 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
     average: 'اوسط',
     below_average: 'اوسط سے کم',
     needs_support: 'مدد درکار',
+  },
+  picker: {
+    lessonPlan: 'لیسن پلان',
+    recent: 'حالیہ لیسن پلان',
+    planFallback: 'لیسن پلان',
+    fromLibrary: 'لائبریری سے',
+    takePhoto: 'تصویر لیں',
+    chooseFile: 'فائل چنیں',
+    notAPlan: 'یہ لیسن پلان نہیں',
+    steps: { grade: 'جماعت', subject: 'مضمون', chapter: 'باب', lesson: 'سبق' },
+    grade: (n: number | string) => `جماعت ${n}`,
+    used: 'استعمال شدہ',
+    notWritten: 'ابھی لکھا نہیں گیا',
+    preparing: 'تیار ہو رہا ہے',
+    failed: 'تیار نہیں ہو سکا',
+    nothingHere: 'ابھی یہاں کچھ نہیں',
+    notLoaded: 'لوڈ نہیں ہوا',
+    retry: 'دوبارہ کوشش کریں',
+    loading: 'لوڈ ہو رہا ہے',
   },
 };
 
