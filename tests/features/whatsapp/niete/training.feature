@@ -1052,6 +1052,31 @@ Feature: NIETE (ICT) Teacher Training
     # web-quiz-old-link redirectOn reads app_settings with a 30 s cache and answers false on a read error, so a
     # missing row, a bad value or a database blip all keep the chat quiz. @wip.
 
+  # A child who reads the old link's button but TYPES instead (a name, a greeting: the old chat quiz's
+  # next step) used to get an AI chat reply and never saw the button again. For ten minutes after a
+  # child's redirect, the phone's next plain text gets the same button once.
+
+  @e2e @quiz @config-gated @wip @draft @P1 @T690
+  Scenario: A child who types after the old link's button gets the same button once, not a chat reply
+    Given a child has just got the "Start quiz" button from an old quiz link, with app_settings "web_quiz_old_link_redirect" true
+    And the page has not been opened on that code since the button
+    When the child types their name within ten minutes instead of tapping
+    Then exactly one message arrives: the same greeting and the same "Start quiz" (or "کوئز شروع کریں") button
+    And no chat reply is sent
+    When the child types again
+    Then the bot answers as it answers any text today, and no further button is sent
+    # web-quiz-old-link tryReoffer, from the text handler after the quiz intercepts: the button kept in Redis
+    # for 10 minutes (children only), claimed once; logged web_quiz.old_link_reoffer {sent, wamid}.
+    # Proven in bot/tests/quiz/old-link-reoffer.test.js through the real text handler. @wip.
+
+  @e2e @quiz @config-gated @wip @draft @P2 @T691
+  Scenario: No second button after ten minutes, mid chat quiz, once the page has opened, or for a slash command
+    Given a child got the "Start quiz" button from an old quiz link
+    When the child types more than ten minutes later, or while a chat quiz runs on the phone, or after the page opened on that code, or sends a "/" command
+    Then no button is sent and the text is handled as it is today
+    # tryReoffer skips: age > 600 s, video-quiz getActiveState, a page_open on the code after the button
+    # (web-quiz.service events -> noteOpen), the redirect flag off; the teacher's own self-test is never kept. @wip.
+
   @e2e @quiz @copy @wip @draft @P2 @T57
   Scenario: After an Urdu quiz, the message a child forwards to a friend is in Urdu
     Given a child has just finished an Urdu class quiz opened from its link

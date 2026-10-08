@@ -427,6 +427,14 @@ async function handleTextMessage(message, from, messageBody, user = null) {
       } catch (vqErr) {
         logToFile('Video Quiz share: routing error', { error: vqErr.message });
       }
+
+      // A child who got the old link's 'Start quiz' button in the last ten minutes and TYPED instead
+      // (a name, a greeting) gets the same button once, not the AI chat (web-quiz-old-link.js tryReoffer).
+      // After the quiz intercepts, so a quiz answer is never taken for it; a /command is a request of its own.
+      const reoffered = !/^\s*\//.test(messageBody) && await require('../services/quiz/web-quiz-old-link').tryReoffer(from, {
+        isChatQuizRunning: () => require('../services/quiz/video-quiz.service').getActiveState(from),
+      });
+      if (reoffered) { typingController.stop(); return; }
     }
 
     // ============================================================
