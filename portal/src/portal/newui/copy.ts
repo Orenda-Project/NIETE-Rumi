@@ -603,3 +603,11 @@ export const TRAINING_COPY = {
   empty: 'Nothing yet',
   notFound: 'Not found',
 } as const;
+
+/** bd-fmf24g.13 — TRAINING_COPY's shape with its words widened, so a translation (the teacher v2's Urdu,
+ *  teacher/training/copy.ts) can stand in for it. The English above is unchanged. */
+export type TrainingWords = {
+  readonly [K in keyof typeof TRAINING_COPY]: (typeof TRAINING_COPY)[K] extends (...args: infer A) => string
+    ? (...args: A) => string
+    : string;
+};

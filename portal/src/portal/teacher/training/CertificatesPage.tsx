@@ -1,6 +1,7 @@
 import { Award, Download, Eye } from 'lucide-react';
+import { useCopy } from '../i18n';
 import { cn } from '@/lib/utils';
-import { TRAINING_COPY as T } from '../../newui/copy';
+import { TRAINING_INNER } from './copy';
 import { shortDate } from '../../newui/range';
 import { downloadCertificate, viewCertificate } from '../../newui/training/certificateFile';
 import { useTrainingCertificates } from '../../newui/training/TrainingCertificates';
@@ -18,6 +19,7 @@ import { LoadState, ProviderMark, TrainingPageV2 } from './TrainingFrame';
  * useTrainingCertificates' (certificateFile's rules); only the look is v2.
  */
 export function CertificatesPage() {
+  const T = useCopy(TRAINING_INNER);
   const { paths, certs, list, providers, active, setFilter, shown, name, tap, open, setOpen } = useTrainingCertificates();
 
   const chip = (key: string, label: string) => (

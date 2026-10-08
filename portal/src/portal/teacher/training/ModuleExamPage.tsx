@@ -1,9 +1,9 @@
 import { Check, ChevronRight, GraduationCap, Hourglass, Lock, PenLine, Play, RotateCcw, XCircle } from 'lucide-react';
-import { TRAINING_COPY as T } from '../../newui/copy';
+import { useCopy } from '../i18n';
+import { TRAINING, TRAINING_INNER } from './copy';
 import { shortDate } from '../../newui/range';
 import { isWritten, LETTERS, useModuleExam } from '../../newui/training/TrainingModuleExam';
 import { StatusChip, Tray } from '../ui';
-import { TRAINING_V2_COPY as C } from './copy';
 import { answerStates } from './inner';
 import { AnswerBack, Choices, DockButton, Dots, HeroCard, V2Row, WrittenBox } from './parts';
 import { LoadState, TrainingPageV2 } from './TrainingFrame';
@@ -15,6 +15,8 @@ import { LoadState, TrainingPageV2 } from './TrainingFrame';
  * The paper, the draft restore, the 800ms autosave, submit and Try again are useModuleExam's, unchanged.
  */
 export function ModuleExamPage() {
+  const T = useCopy(TRAINING_INNER);
+  const C = useCopy(TRAINING);
   const x = useModuleExam();
   const { paths, title, questions, q, qs, index, save, problem, sending, gate, attempts, g, latest, earlier, result, canRetake, opening } = x;
   const problemChip = problem ? <StatusChip text={problem} tone="error" /> : null;

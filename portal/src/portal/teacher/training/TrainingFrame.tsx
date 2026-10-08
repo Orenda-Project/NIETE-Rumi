@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
+import { useCopy } from '../i18n';
 import { cn } from '@/lib/utils';
 import { TrainingFrameContext, type TrainingFrameProps } from '../../newui/training/frame';
 import TeacherPage from '../TeacherPage';
 import { FOCUS } from '../ui/styles';
-import { TRAINING_V2_COPY as C } from './copy';
+import { TRAINING } from './copy';
 import { SkeletonList } from '../../components/Skeleton';
 
 /**
@@ -32,6 +33,7 @@ export function InV2Frame({ children }: { children: ReactNode }) {
 
 /** Loading, or a failed read with Try again. */
 export function LoadState({ loading, failed, onRetry }: { loading: boolean; failed: boolean; onRetry: () => void }) {
+  const C = useCopy(TRAINING);
   if (loading) {
     return (
       // bd-fxk3t8 — rows of placeholders where the list will be, instead of a spinner.
