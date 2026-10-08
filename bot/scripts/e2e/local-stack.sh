@@ -33,6 +33,7 @@ set -uo pipefail
 local_db_on() { [ "${E2E_LOCAL_DB:-1}" != 0 ]; }   # default ON; only an explicit 0 means the sandbox
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
+. "$HERE/portable.sh"   # port_listening / port_pids: lsof, else ss (Linux has no lsof by default)
 CMD="${1:-}"; shift || true
 
 # The main checkout (where gitignored keys/ and the installed node_modules live), even from a worktree.
@@ -63,10 +64,10 @@ up() {
   local p busy=""
   for p in "${MOCK_PORT:-4010}" "${E2E_BOT_PORT:-3100}" "${E2E_REDIS_PORT:-6390}" "${E2E_WORKER_HEALTH_PORT:-3201}" \
            $(local_db_on && echo "${LOCAL_R2_PORT:-54600}" "${E2E_SUPABASE_PORT:-54321}" "${LOCAL_DB_REST_PORT:-54330}"); do
-    lsof -ti tcp:"$p" -sTCP:LISTEN >/dev/null 2>&1 && busy="$busy $p"
+    port_listening "$p" && busy="$busy $p"
   done
   if [ -n "$busy" ]; then
-    log "port(s)${busy} already in use — another run holds them (pid $(lsof -ti tcp:"${busy# }" -sTCP:LISTEN 2>/dev/null | head -1)). Refusing; nothing was started."
+    log "port(s)${busy} already in use — another run holds them (pid $(port_pids "${busy# }" | head -1)). Refusing; nothing was started."
     exit 19
   fi
   mkdir -p "$run_dir"
@@ -286,7 +287,7 @@ down() {
   # Belt and braces: anything still listening on this run's ports goes too.
   if [ -f "$run_dir/ports" ]; then
     for port in $(cat "$run_dir/ports"); do
-      for pid in $(lsof -ti tcp:"$port" -sTCP:LISTEN 2>/dev/null); do kill "$pid" >/dev/null 2>&1 || true; done
+      for pid in $(port_pids "$port"); do kill "$pid" >/dev/null 2>&1 || true; done
     done
     rm -f "$run_dir/ports"
   fi
@@ -311,13 +312,13 @@ restart() {
   if [ -f "$run_dir/$proc.pid" ]; then kill "$(cat "$run_dir/$proc.pid")" >/dev/null 2>&1 || true; fi
   case "$proc" in
     bot)
-      for i in $(seq 1 40); do lsof -ti tcp:"$bot_port" -sTCP:LISTEN >/dev/null 2>&1 || break; sleep 0.25; done
+      for i in $(seq 1 40); do port_listening "$bot_port" || break; sleep 0.25; done
       ( cd "$src" && exec env "$@" node bot/whatsapp-bot.js ) >>"$run_dir/bot.log" 2>&1 &
       echo $! >"$run_dir/bot.pid"
       for i in $(seq 1 120); do curl -sf -m 2 "http://127.0.0.1:$bot_port/health" >/dev/null 2>&1 && break; sleep 0.5; done
       curl -sf -m 2 "http://127.0.0.1:$bot_port/health" >/dev/null 2>&1 || { log "restart: bot not healthy on $bot_port"; exit 12; };;
     worker)
-      for i in $(seq 1 40); do lsof -ti tcp:"$worker_port" -sTCP:LISTEN >/dev/null 2>&1 || break; sleep 0.25; done
+      for i in $(seq 1 40); do port_listening "$worker_port" || break; sleep 0.25; done
       ( cd "$src" && exec env "$@" node bot/workers/sqs-worker.js ) >>"$run_dir/worker.log" 2>&1 &
       echo $! >"$run_dir/worker.pid"
       for i in $(seq 1 120); do curl -sf -m 2 "http://127.0.0.1:$worker_port/health" >/dev/null 2>&1 && break; sleep 0.5; done

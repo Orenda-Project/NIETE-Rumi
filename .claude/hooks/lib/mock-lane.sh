@@ -197,19 +197,31 @@ e2e_mock_lane_autofix() {
   # Never from the commit hook itself — a 3-minute pull must not hold a developer's terminal after `git commit`.
   local ldb
   if [ -n "$with_redis" ] && [ "${E2E_LOCAL_DB:-1}" != 0 ] && ldb=$(e2e_local_db_script "$main"); then
-    if bash "$ldb" doctor 2>/dev/null | grep -qE '^(postgres17|pgvector|postgrest) '; then
-      if command -v brew >/dev/null 2>&1 && brew install postgresql@17 pgvector postgrest >/dev/null 2>&1 \
-         && ! bash "$ldb" doctor 2>/dev/null | grep -qE '^(postgres17|pgvector|postgrest) '; then
-        echo "auto-installed postgresql@17 + pgvector + postgrest via brew"
-      else
-        echo "postgres17 missing (brew install postgresql@17 pgvector postgrest failed or no brew)"; rc=1
-      fi
-    fi
+    local need_tools="" need_gh=""
+    bash "$ldb" doctor 2>/dev/null | grep -qE '^(postgres17|pgvector|postgrest) ' && need_tools=1
     # The seed comes from a PRIVATE GitHub release when the repo commits a pointer (bd-z3ze4.7): gh downloads it.
-    if [ -f "$main/supabase/baseline/seed-release.txt" ] && ! command -v gh >/dev/null 2>&1 && command -v brew >/dev/null 2>&1 \
-       && [ "$(bash "$ldb" seed-status 2>/dev/null)" != ok ]; then
-      if brew install gh >/dev/null 2>&1 && command -v gh >/dev/null 2>&1; then echo "auto-installed gh via brew (then: gh auth login, once)"
-      else echo "seed snapshot missing (gh not found — brew install gh, then gh auth login)"; rc=1; fi
+    [ -f "$main/supabase/baseline/seed-release.txt" ] && ! command -v gh >/dev/null 2>&1 \
+      && [ "$(bash "$ldb" seed-status 2>/dev/null)" != ok ] && need_gh=1
+    if command -v brew >/dev/null 2>&1; then
+      if [ -n "$need_tools" ]; then
+        if brew install postgresql@17 pgvector postgrest >/dev/null 2>&1 \
+           && ! bash "$ldb" doctor 2>/dev/null | grep -qE '^(postgres17|pgvector|postgrest) '; then
+          echo "auto-installed postgresql@17 + pgvector + postgrest via brew"
+        else
+          echo "postgres17 missing (brew install postgresql@17 pgvector postgrest failed)"; rc=1
+        fi
+      fi
+      if [ -n "$need_gh" ]; then
+        if brew install gh >/dev/null 2>&1 && command -v gh >/dev/null 2>&1; then echo "auto-installed gh via brew (then: gh auth login, once)"
+        else echo "seed snapshot missing (gh not found — brew install gh, then gh auth login)"; rc=1; fi
+      fi
+    elif [ -n "$need_tools$need_gh" ]; then
+      # Linux (bd-z3ze4.8): local-db.sh install-tools — PostgREST needs no root; Postgres 17, pgvector and gh come
+      # from apt only when sudo needs no password. Otherwise it names the one command to run by hand.
+      local iout
+      if iout=$(bash "$ldb" install-tools 2>&1); then :; else rc=1; fi
+      printf '%s\n' "$iout" | sed -n 's/^installed /auto-installed /p'
+      printf '%s\n' "$iout" | grep -E 'missing|failed|no Linux build|is for Linux' || true
     fi
     if [ "$(bash "$ldb" seed-status 2>/dev/null)" != ok ]; then
       if out=$(bash "$ldb" seed-pull 2>&1); then
@@ -239,14 +251,19 @@ e2e_mock_not_ready_block() {
   printf '%s\n' "$why" | sed 's/^/    · /'
   echo "  what is left (everything else is automatic):"
   case "$why" in
-    *"gh auth login"*|*"gh not found"*)   # the seed is a PRIVATE release (bd-z3ze4.7): GitHub access, not Railway
-      case "$why" in *"gh not found"*) echo "    brew install gh" ;; esac
+    *"gh auth login"*|*"gh not found"*|*"gh missing"*)   # the seed is a PRIVATE release (bd-z3ze4.7): GitHub access, not Railway
+      case "$why" in *"gh not found"*|*"gh missing"*)
+        if command -v brew >/dev/null 2>&1; then echo "    brew install gh"; else echo "    sudo apt-get install -y gh"; fi ;; esac
       echo "    gh auth login        # with access to Orenda-Project/niete-e2e-fixtures (ask an org admin); the seed then downloads on the next run" ;;
     *niete-local.env*|*"seed "*|*"seed snapshot"*)
       echo "    railway login        # an account with access to the \"NIETE-Rumi Staging\" project; the keys file is then provisioned automatically on the next commit / session" ;;
   esac
   case "$why" in *postgres17*|*pgvector*|*postgrest*)
-    echo "    brew install postgresql@17 pgvector postgrest   # run-suite.sh / commit-e2e.sh install them automatically when brew is present (or E2E_LOCAL_DB=0 for the sandbox)" ;;
+    if command -v brew >/dev/null 2>&1; then
+      echo "    brew install postgresql@17 pgvector postgrest   # run-suite.sh / commit-e2e.sh install them automatically when brew is present (or E2E_LOCAL_DB=0 for the sandbox)"
+    else
+      echo "    bash bot/scripts/e2e/local-db.sh install-tools   # Linux: run it once yourself in a terminal — sudo asks for your password there"
+    fi ;;
   esac
   case "$why" in *redis-server*)
     if command -v brew >/dev/null 2>&1 || ! command -v apt-get >/dev/null 2>&1; then

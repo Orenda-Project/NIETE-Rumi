@@ -23,6 +23,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 # no sudo; -w ties it to this shell so it ends when the run does.
 if command -v caffeinate >/dev/null 2>&1; then caffeinate -dims -w $$ & fi
 QA="$ROOT/.claude/qa/shared"
+. "$ROOT/bot/scripts/e2e/portable.sh"   # port_listening: lsof, else ss, else a TCP connect (Linux has no lsof by default)
 MODE="${1:-safe}"; shift || true
 # REFLECT: default to the inherited env value (REFLECT=slash drives COA10 instead of COA06);
 # an empty local default here USED to shadow the inherited env, so named `coaching` mode could
@@ -39,7 +40,7 @@ METHOD="" COMMIT="" SPEC_SYNC="" VALIDATOR_EXIT="" TRIGGER="${E2E_TRIGGER:-manua
 slot_ports() { local n=$1
   printf '%s\n' "MOCK_PORT=$((4010+n))" "E2E_BOT_PORT=$((3100+n))" "E2E_REDIS_PORT=$((6390+n))" "E2E_WORKER_HEALTH_PORT=$((3201+n))" \
                  "E2E_SUPABASE_PORT=$((54400+n))" "LOCAL_DB_REST_PORT=$((54500+n))" "LOCAL_R2_PORT=$((54600+n))"; }
-# …and just the numbers, for lsof. The names hold digits (E2E_…), so the strip must allow them — `[A-Z_]*=`
+# …and just the numbers, for the port probes. The names hold digits (E2E_…), so the strip must allow them — `[A-Z_]*=`
 # left every name but MOCK_PORT on, and the free-slot probe checked one port of seven.
 slot_port_numbers() { slot_ports "$1" | sed 's/^[A-Z0-9_]*=//'; }
 while [ $# -gt 0 ]; do case "$1" in
@@ -76,7 +77,7 @@ if [ "$METHOD" = mock ]; then
     i=0; PIDS=""; T0=$(date +%s)
     # a slot is free when none of its four ports is listening AND no run holds a lock on its driver — a second
     # parallel run (another commit, another session) takes the next free slots instead of colliding
-    slot_free() { local n=$1 p; for p in $(slot_port_numbers "$n"); do lsof -ti tcp:$p -sTCP:LISTEN >/dev/null 2>&1 && return 1; done
+    slot_free() { local n=$1 p; for p in $(slot_port_numbers "$n"); do port_listening "$p" && return 1; done
                   [ -e "$PDIR/.slot-$n" ] && return 1; return 0; }
     for f in $PFEATS; do
       i=$((i+1)); while ! slot_free "$i"; do i=$((i+1)); [ "$i" -gt 40 ] && { echo "ERROR: no free slot under 40"; exit 3; }; done
@@ -117,7 +118,7 @@ if [ "$METHOD" = mock ]; then
   # A --slot given directly (not by --parallel, whose parent probes) is checked too: another run on this machine
   # may hold it (bd-d2zge — a second session's `--slot 1` killed a running slot-1 stack). Refuse before anything.
   if [ "${SLOT:-0}" != 0 ]; then
-    _busy=""; for _p in $(slot_port_numbers "$SLOT"); do lsof -ti tcp:$_p -sTCP:LISTEN >/dev/null 2>&1 && _busy="$_busy $_p"; done
+    _busy=""; for _p in $(slot_port_numbers "$SLOT"); do port_listening "$_p" && _busy="$_busy $_p"; done
     [ -z "$_busy" ] || { echo "BLOCKED: slot $SLOT is in use — port(s)${_busy} already listening (another run on this machine). Pick a free --slot, or use --parallel, which picks one."; exit 3; }
   fi
   # The mock driver is PER MACHINE (mock_driver.py: hostname|user → 92300XXXXXXX; E2E_MOCK_DRIVER pins it).

@@ -9,12 +9,13 @@
 #   bash bot/scripts/e2e/local-db.sh seed-publish          # maintainers: trim to seed-keep.json, release it privately, write the pointer
 #   bash bot/scripts/e2e/local-db.sh seed-status           # missing | stale | ok  (the readiness check reads it)
 #   bash bot/scripts/e2e/local-db.sh doctor                # one line per thing this machine lacks; exit 0 iff none
+#   bash bot/scripts/e2e/local-db.sh install-tools         # Linux: Postgres 17 + pgvector + gh via apt, PostgREST as a binary
 #   bash bot/scripts/e2e/local-db.sh drift [objects.txt]   # does the live sandbox still match schema.sql? exit 10 if not
 #   bash bot/scripts/e2e/local-db.sh status | stop          # the machine's cluster
 #
 # Three tiers, the same split the lane already uses for redis and node_modules:
 #   once per machine   a Postgres 17 cluster under $LOCAL_DB_HOME, started on first use and left running
-#                      (brew install postgresql@17 pgvector postgrest — no Docker).
+#                      (brew install postgresql@17 pgvector postgrest on a Mac; `install-tools` on Linux — no Docker).
 #   once per schema    a GOLDEN database = bootstrap + schema + seed snapshot, named by the hash of all three.
 #                      A changed baseline or a new snapshot builds a new one; an unchanged one is reused.
 #
@@ -35,8 +36,14 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
+. "$HERE/portable.sh"
 
 LOCAL_DB_HOME="${LOCAL_DB_HOME:-$HOME/.cache/niete-e2e-db}"
+# Tools this script installs without root (PostgREST on Linux) live here, ahead of everything else.
+export PATH="$LOCAL_DB_HOME/bin:$PATH"
+POSTGREST_VERSION="${LOCAL_DB_POSTGREST_VERSION:-v16.4}"
+# The PGDG apt-repo setup script that ships with postgresql-common (Debian/Ubuntu).
+PGDG_SCRIPT="${LOCAL_DB_PGDG_SCRIPT:-/usr/share/postgresql-common/pgdg/apt.postgresql.org.sh}"
 PG_PORT="${LOCAL_DB_PG_PORT:-54329}"
 REST_PORT="${LOCAL_DB_REST_PORT:-54330}"
 API_PORT="${E2E_SUPABASE_PORT:-54321}"
@@ -62,9 +69,9 @@ PGDATA="$LOCAL_DB_HOME/pg17"
 
 log() { echo "[local-db] $*" >&2; }
 
-pg_bin() {   # Postgres 17's bin dir: LOCAL_DB_PG_BIN, else Homebrew's keg, else PATH if it is 17
+pg_bin() {   # Postgres 17's bin dir: LOCAL_DB_PG_BIN, else Homebrew's keg or Debian's, else PATH if it is 17
   local d
-  for d in "${LOCAL_DB_PG_BIN:-}" /opt/homebrew/opt/postgresql@17/bin /usr/local/opt/postgresql@17/bin /usr/lib/postgresql/17/bin; do
+  for d in "${LOCAL_DB_PG_BIN:-}" ${LOCAL_DB_PG_SEARCH:-/opt/homebrew/opt/postgresql@17/bin /usr/local/opt/postgresql@17/bin /usr/lib/postgresql/17/bin}; do
     [ -n "$d" ] && [ -x "$d/postgres" ] && { echo "$d"; return 0; }
   done
   d="$(dirname "$(command -v postgres 2>/dev/null || echo /nonexistent/x)")"
@@ -72,10 +79,15 @@ pg_bin() {   # Postgres 17's bin dir: LOCAL_DB_PG_BIN, else Homebrew's keg, else
   return 1
 }
 PGBIN="$(pg_bin)" || PGBIN=""
+# How to get a missing tool on THIS machine: brew on a Mac, `install-tools` on Linux.
+hint() {
+  if [ "$(uname -s)" = Linux ]; then echo "bash bot/scripts/e2e/local-db.sh install-tools"; else echo "brew install $1"; fi
+}
+has_pgvector() { [ -n "$PGBIN" ] && [ -f "$("$PGBIN/pg_config" --sharedir)/extension/vector.control" ]; }
 need_tools() {
-  [ -n "$PGBIN" ] || { log "Postgres 17 not found — brew install postgresql@17 pgvector"; exit 4; }
-  [ -f "$("$PGBIN/pg_config" --sharedir)/extension/vector.control" ] || { log "pgvector missing for Postgres 17 — brew install pgvector"; exit 4; }
-  command -v postgrest >/dev/null 2>&1 || { log "postgrest not found — brew install postgrest"; exit 4; }
+  [ -n "$PGBIN" ] || { log "Postgres 17 not found — $(hint 'postgresql@17 pgvector')"; exit 4; }
+  has_pgvector || { log "pgvector missing for Postgres 17 — $(hint pgvector)"; exit 4; }
+  command -v postgrest >/dev/null 2>&1 || { log "postgrest not found — $(hint postgrest)"; exit 4; }
   command -v node >/dev/null 2>&1 || { log "node not found"; exit 4; }
 }
 psql_() { "$PGBIN/psql" -X -q -v ON_ERROR_STOP=1 -h 127.0.0.1 -p "$PG_PORT" -U postgres "$@"; }
@@ -127,7 +139,7 @@ golden_name() {   # golden_<12 hex of bootstrap + schema + seed>
   local h
   h=$(cat "$BOOTSTRAP" "$SCHEMA" "$([ -f "$SEED" ] && echo "$SEED" || echo /dev/null)" \
         "$([ -f "$SEED_DIR/manifest.json" ] && echo "$SEED_DIR/manifest.json" || echo /dev/null)" \
-        "$([ -f "$SEED_OVERRIDES" ] && echo "$SEED_OVERRIDES" || echo /dev/null)" | shasum -a 256 | cut -c1-12)
+        "$([ -f "$SEED_OVERRIDES" ] && echo "$SEED_OVERRIDES" || echo /dev/null)" | sha256_of | cut -c1-12)
   echo "golden_$h"
 }
 
@@ -314,7 +326,7 @@ drift() {
 
 seed_tables() { grep -vE '^[[:space:]]*(#|$)' "$SEED_TABLES" 2>/dev/null | tr -d ' \t\r' | sort -u; }
 seed_files() { grep -vE '^[[:space:]]*(#|$)' "$SEED_FILES" 2>/dev/null | tr -d ' \t\r' | sort -u; }
-seed_tables_sha() { { seed_tables; echo '--files--'; seed_files; } | shasum -a 256 | cut -c1-16; }
+seed_tables_sha() { { seed_tables; echo '--files--'; seed_files; } | sha256_of | cut -c1-16; }
 
 # Node modules for the S3 client: this checkout's, else the main checkout's (a worktree has none of its own).
 node_path() {
@@ -349,7 +361,7 @@ seed_pull_release() {
   local tmp="$SEED_DIR/.pull.$$" t0=$SECONDS; rm -rf "$tmp"; mkdir -p "$tmp/x"
   "$GH" release download "$tag" -R "$repo" -p "$asset" -D "$tmp" >"$tmp/gh.log" 2>&1 \
     || { log "could not download $asset from $repo release $tag: $(tail -1 "$tmp/gh.log") — gh auth login with access to $repo"; rm -rf "$tmp"; exit 3; }
-  local got; got=$(shasum -a 256 "$tmp/$asset" | cut -c1-64)
+  local got; got=$(sha256_of "$tmp/$asset" | cut -c1-64)
   [ "$got" = "$sha" ] || { log "REFUSED: $asset sha256 $got does not match the pointer's $sha — nothing installed"; rm -rf "$tmp"; exit 3; }
   tar -xzf "$tmp/$asset" -C "$tmp/x" || { log "could not unpack $asset"; rm -rf "$tmp"; exit 3; }
   [ -f "$tmp/x/seed.dump" ] && [ -f "$tmp/x/manifest.json" ] || { log "$asset lacks seed.dump/manifest.json"; rm -rf "$tmp"; exit 3; }
@@ -404,7 +416,7 @@ seed_pull() {
       } process.stdout.write(JSON.stringify(out)); })().catch((x) => { console.error("seed files: " + x.name + " " + x.message); process.exit(1); });') \
       || { log "pulling the seed files failed"; rm -rf "$tmp"; exit 3; }
   fi
-  PULL_FILES="$files_json" PULL_COUNTS="$counts" python3 - "$tmp/manifest.json" "$(seed_tables_sha)" "$(sandbox_ref)" "$(shasum -a 256 "$tmp/seed.dump" | cut -c1-16)" <<'MANIFEST'
+  PULL_FILES="$files_json" PULL_COUNTS="$counts" python3 - "$tmp/manifest.json" "$(seed_tables_sha)" "$(sandbox_ref)" "$(sha256_of "$tmp/seed.dump" | cut -c1-16)" <<'MANIFEST'
 import json, os, sys, datetime
 out, tsha, ref, dsha = sys.argv[1:]
 rows = {}
@@ -425,9 +437,9 @@ MANIFEST
 
 doctor() {   # what this machine lacks for `up`, one line each — e2e_mock_lane_ready / autofix read it
   local rc=0 s
-  if [ -z "$PGBIN" ]; then echo "postgres17 missing (brew install postgresql@17)"; rc=1
-  elif [ ! -f "$("$PGBIN/pg_config" --sharedir)/extension/vector.control" ]; then echo "pgvector missing (brew install pgvector)"; rc=1; fi
-  command -v postgrest >/dev/null 2>&1 || { echo "postgrest missing (brew install postgrest)"; rc=1; }
+  if [ -z "$PGBIN" ]; then echo "postgres17 missing ($(hint postgresql@17))"; rc=1
+  elif ! has_pgvector; then echo "pgvector missing ($(hint pgvector))"; rc=1; fi
+  command -v postgrest >/dev/null 2>&1 || { echo "postgrest missing ($(hint postgrest))"; rc=1; }
   s=$(seed_status); [ "$s" = ok ] || { echo "seed $s (local-db.sh seed-pull)"; rc=1; }
   return $rc
 }
@@ -485,7 +497,7 @@ json.dump({"source": m.get("source"), "pulled_at": m.get("pulled_at"), "tables_s
 MANIFEST
   psql_ -d postgres -c "drop database if exists $db with (force)" >/dev/null 2>&1
   tar -czf "$out/$SEED_ASSET" -C "$out/pkg" . || { log "publish: tar failed"; exit 6; }
-  local sha tag; sha=$(shasum -a 256 "$out/$SEED_ASSET" | cut -c1-64); tag="seed-$(date -u +%Y%m%d-%H%M%S)"
+  local sha tag; sha=$(sha256_of "$out/$SEED_ASSET" | cut -c1-64); tag="seed-$(date -u +%Y%m%d-%H%M%S)"
   "$GH" release create "$tag" -R "$FIXTURES_REPO" "$out/$SEED_ASSET" --title "$tag" \
     --notes "NIETE mock-lane seed (measured rows only, restricted content — keep private). sha256 $sha" >"$out/gh.log" 2>&1 \
     || { log "publish: gh release create failed: $(tail -1 "$out/gh.log")"; exit 3; }
@@ -533,11 +545,64 @@ status() {
   "$PGBIN/pg_ctl" -D "$PGDATA" status 2>&1 | head -1
   "$PGBIN/pg_ctl" -D "$PGDATA" status >/dev/null 2>&1 && psql_ -d postgres -Atc "select datname from pg_database where datname like 'golden\_%' or datname like 'run\_%'"
 }
+# install-tools — the Linux counterpart of `brew install postgresql@17 pgvector postgrest gh` (bd-z3ze4.8).
+# PostgREST is one static binary from its GitHub release, into $LOCAL_DB_HOME/bin: no root. Postgres 17 + pgvector
+# (from the PGDG apt repo, which carries 17 on every supported Ubuntu/Debian) and gh need root, so they install
+# only when this already runs as root, sudo works WITHOUT a password, or a person is at the terminal (stdin is a
+# tty, so sudo may ask). From a hook or an agent there is no tty: it never prompts, and prints the commands instead. Prints one "installed …" line per thing it installed;
+# exit 0 iff nothing is still missing.
+install_tools() {
+  [ "$(uname -s)" = Linux ] || { log "install-tools is for Linux; on a Mac: brew install postgresql@17 pgvector postgrest gh"; return 4; }
+  local rc=0 as_root="" arch tmp manual=""
+  if [ "$(id -u)" = 0 ]; then as_root="env"
+  elif command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then as_root="sudo -n"
+  elif command -v sudo >/dev/null 2>&1 && [ -t 0 ]; then as_root="sudo"; fi
+
+  if ! command -v postgrest >/dev/null 2>&1; then
+    case "$(uname -m)" in x86_64|amd64) arch=x86-64;; aarch64|arm64) arch=aarch64;; *) arch="";; esac
+    if [ -z "$arch" ]; then echo "postgrest: no Linux build for $(uname -m)"; rc=1
+    else
+      tmp=$(mktemp -d)
+      local asset="postgrest-$POSTGREST_VERSION-linux-static-$arch.tar.xz"
+      if curl -fsSL -o "$tmp/$asset" "https://github.com/PostgREST/postgrest/releases/download/$POSTGREST_VERSION/$asset" \
+         && tar -xJf "$tmp/$asset" -C "$tmp" && [ -f "$tmp/postgrest" ]; then
+        mkdir -p "$LOCAL_DB_HOME/bin" && mv "$tmp/postgrest" "$LOCAL_DB_HOME/bin/postgrest" && chmod 755 "$LOCAL_DB_HOME/bin/postgrest"
+        echo "installed postgrest $POSTGREST_VERSION → $LOCAL_DB_HOME/bin"
+      else echo "postgrest download failed ($asset)"; rc=1; fi
+      rm -rf "$tmp"
+    fi
+  fi
+
+  if [ -z "$PGBIN" ] || ! has_pgvector; then
+    if [ -n "$as_root" ] && command -v apt-get >/dev/null 2>&1 \
+       && $as_root apt-get install -y postgresql-common >/dev/null 2>&1 \
+       && $as_root "$PGDG_SCRIPT" -y >/dev/null 2>&1 \
+       && $as_root apt-get install -y postgresql-17 postgresql-17-pgvector >/dev/null 2>&1; then
+      PGBIN="$(pg_bin)" || PGBIN=""
+      echo "installed postgresql-17 + pgvector via apt (PGDG)"
+    else
+      manual="sudo apt-get install -y postgresql-common && sudo $PGDG_SCRIPT -y && sudo apt-get install -y postgresql-17 postgresql-17-pgvector"
+    fi
+    if ! { [ -n "$PGBIN" ] && has_pgvector; }; then
+      if [ -n "$manual" ]; then echo "postgres17 + pgvector missing — run once: $manual"
+      else echo "postgres17 + pgvector installed by apt but not found in /usr/lib/postgresql/17/bin (set LOCAL_DB_PG_BIN)"; fi
+      rc=1
+    fi
+  fi
+
+  if [ -f "$SEED_RELEASE" ] && ! command -v "$GH" >/dev/null 2>&1; then
+    if [ -n "$as_root" ] && command -v apt-get >/dev/null 2>&1 && $as_root apt-get install -y gh >/dev/null 2>&1; then
+      echo "installed gh via apt (then: gh auth login, once)"
+    else echo "gh missing — run once: sudo apt-get install -y gh && gh auth login"; rc=1; fi
+  fi
+  return $rc
+}
+
 stop() { [ -n "$PGBIN" ] && "$PGBIN/pg_ctl" -D "$PGDATA" stop -m fast >/dev/null 2>&1; return 0; }
 
 CMD="${1:-}"; shift || true
 case "$CMD" in
   up) up "$@";; down) down "$@";; baseline) baseline "$@";; status) status;; stop) stop;;
-  seed-pull) seed_pull "$@";; seed-publish) seed_publish;; seed-status) seed_status;; doctor) doctor;; drift) drift "$@";;
-  *) sed -n '2,7p' "$0" >&2; exit 2;;
+  seed-pull) seed_pull "$@";; seed-publish) seed_publish;; seed-status) seed_status;; doctor) doctor;; install-tools) install_tools;; drift) drift "$@";;
+  *) sed -n '2,15p' "$0" >&2; exit 2;;
 esac
