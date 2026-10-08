@@ -8,7 +8,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "NODE_ENV=production vite build",
     "build:dev": "vite build --mode development",
     "build:app": "vite build --mode app",
     "android:sync": "npm run build:app && cap sync android",

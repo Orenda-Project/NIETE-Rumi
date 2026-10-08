@@ -69,8 +69,10 @@ describe('/config', () => {
   const block = src.slice(src.indexOf("router.get('/config'"), src.indexOf("router.get('/config'") + 3000);
 
   test('features.assessmentEditing comes from the portal switch', () => {
-    expect(block).toMatch(/assessmentEditing = await isPortalAssessmentEditingEnabled\(supabase\)/);
-    expect(block).not.toMatch(/await isAssessmentEditingEnabled\(/);
+    // bd-fxk3t8: the flags are read together (one Promise.all), so the pairing is positional:
+    // the second name gets the second read.
+    expect(block).toMatch(/const \[\s*assessmentGenerator,\s*assessmentEditing,[\s\S]*?\] = await Promise\.all\(\[\s*isAssessmentGeneratorEnabled\(supabase\),\s*isPortalAssessmentEditingEnabled\(supabase\),/);
+    expect(block).not.toMatch(/\bisAssessmentEditingEnabled\(/);
   });
 
   test('the catch branch stays closed', () => {
