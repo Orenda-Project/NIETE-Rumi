@@ -44,8 +44,10 @@ export type LessonPlanSource =
 export type LessonPlanView = { source: LessonPlanSource; title: string; crumb?: string };
 
 /** bd-5rz1v.14 — how the new Lesson Plans opens one: its breadcrumb, and whether the viewer
- *  REPLACES the page it opens from (a "Preparing…" page that opened it by itself). */
-export type OpenOptions = { crumb?: string; replace?: boolean };
+ *  REPLACES the page it opens from (a "Preparing…" page that opened it by itself).
+ *  bd-fmf24g.3 — `page`: the viewer page to open it on (the teacher v2 Lesson Plans has its own;
+ *  default the Curriculum page), and `state`: anything more that page reads from its history entry. */
+export type OpenOptions = { crumb?: string; replace?: boolean; page?: string; state?: Record<string, unknown> };
 
 /** The viewer sits over the Curriculum page, where every lesson plan is opened. */
 export const LESSON_PLAN_PAGE = '/portal/curriculum';
@@ -118,7 +120,7 @@ export function useLessonPlanOpener() {
   return useCallback(async (source: LessonPlanSource, title: string, opts: OpenOptions = {}): Promise<'viewer' | 'opened' | 'not_ready'> => {
     if (shouldOpenInApp(recording)) {
       const lessonPlan: LessonPlanView = opts.crumb ? { source, title, crumb: opts.crumb } : { source, title };
-      navigate(LESSON_PLAN_PAGE, { state: { lessonPlan }, ...(opts.replace ? { replace: true } : {}) });
+      navigate(opts.page ?? LESSON_PLAN_PAGE, { state: { ...opts.state, lessonPlan }, ...(opts.replace ? { replace: true } : {}) });
       return 'viewer';
     }
     return openLessonPlanOutside(source);
