@@ -270,7 +270,7 @@ class FeatureRegistrationService {
 
       // Registered now: the handset's cached child verdict (student-ingress, up to 10 min) is stale — drop it,
       // so this adult's next message is never answered as a child's.
-      await require('./student-ingress').forget(phoneNumber).catch(() => {});
+      await require('./student-ingress-cache').forget(phoneNumber).catch(() => {});
 
       // Send confirmation. portalUrl is null if PORTAL_URL is unset, in
       // which case sendConfirmation omits the link from the message.
