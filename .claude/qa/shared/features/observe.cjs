@@ -131,6 +131,9 @@ exports.run = async ({ api, rec }) => {
   rec('OBS26', 'A capture whose DB write fails reports a capture failure, not "no account"', ...FAULT, 0);
   rec('OBS27', 'A too-short debrief recording is refused and stays pending', ...ANALYSIS, 0);
   rec('OBS28', 'A failed report send is surfaced to the coach with a retry', ...FAULT, 0);
+  // bd-trksw9: both need the report narrative to fail twice; the harness cannot inject that.
+  rec('OBS65', 'A report whose written feedback cannot be generated is held, and the coach is offered Regenerate', ...FAULT, 0);
+  rec('OBS66', 'Tapping "Regenerate report" rebuilds the same observation\'s report preview', ...FAULT, 0);
   rec('OBS29', 'A cancelled observation stays cancelled whichever old button is tapped', ...ROSTER, 0);
   rec('OBS30', "Reopening a cancelled observation's form names the real reason, once", ...ROSTER, 0);
   rec('OBS31', 'The FICO report total reflects the real 148-point maximum', ...ANALYSIS, 0);
