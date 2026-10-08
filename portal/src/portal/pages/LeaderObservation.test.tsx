@@ -141,3 +141,24 @@ describe("LeaderObservation", () => {
     expect(await screen.findByText(/could not find this observation/i)).toBeInTheDocument();
   });
 });
+
+// bd-15y1pc made a WhatsApp observation readable here; bd-gie5ep lets her carry
+// it on: its steps are offered exactly as for one she started in the portal.
+describe("bd-gie5ep — her WhatsApp observation, carried on here", () => {
+  it.each([
+    ["draft", "Check the draft report", "draft page"],
+    ["talk", "Talk with Ayesha", "talk page"],
+  ])("at %s: the step is offered and opens", async (step, cta, page) => {
+    L.getObservation.mockResolvedValue(view({ step, portal: false }));
+    renderPage();
+    fireEvent.click(await screen.findByRole("link", { name: cta }));
+    expect(await screen.findByText(page)).toBeInTheDocument();
+  });
+
+  it("at feedback: she can start the report from here", async () => {
+    L.getObservation.mockResolvedValue(view({ step: "feedback", portal: false, talk: { guide: null, recordedAt: null, feedback: FEEDBACK } }));
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Next: send Ayesha the report" }));
+    await waitFor(() => expect(L.previewReport).toHaveBeenCalledWith("cs-1"));
+  });
+});

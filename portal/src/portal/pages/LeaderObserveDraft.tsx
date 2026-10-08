@@ -128,6 +128,8 @@ const LeaderObserveDraft = () => {
     leader.getObservationDraft(id)
       .then((d) => {
         if (!live) return;
+        // bd-15y1pc — a draft is readable after it can no longer be changed; this page edits.
+        if (d.editable === false) { setProblem(COPY.notReady); return; }
         const v = initialValues(d);
         setDraft(d); setStart(v); setValues(v);
       })
