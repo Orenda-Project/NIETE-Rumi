@@ -1,0 +1,75 @@
+/**
+ * bd-fmf24g.4 — every word the teacher v2 Digital Coaching screens show, in the feature's own copy file.
+ *
+ * Same rules as the new UI's copy (newui/copy.ts, DESIGN.md): 1–3 words, 4 at most, no sentences, no
+ * question marks. The one exception the operator asked for is the Photos hint, one short line. English
+ * only for now; the Urdu pass gives each key an Urdu value. DATA is not copy: a plan's title, a subject's
+ * name and a lesson's topic come from the API as they are.
+ */
+export const COACHING_V2_COPY = {
+  title: 'Digital Coaching',
+  home: 'Home',
+  /* the hub */
+  yourClass: 'Your class',
+  selectClass: 'Select your class',
+  lessonPlan: 'Lesson plan',
+  optional: 'Optional',
+  selectPlan: 'Select lesson plan',
+  planPhoto: 'Plan photo',
+  planFallback: 'Lesson plan',
+  change: 'Change',
+  photos: 'Photos',
+  photosHint: 'Board work, charts or your classroom',
+  noFaces: 'No faces',
+  addPhoto: 'Add photo',
+  removePhoto: (n: number) => `Remove photo ${n}`,
+  upToThree: 'Up to 3 photos',
+  notAPhoto: 'Not a photo',
+  startRecording: 'Start recording',
+  uploadRecording: 'Upload recording',
+  recent: 'Recent DC Observations',
+  noneYet: 'No DC observations yet',
+  analysing: 'Analysing',
+  /* record */
+  recordTitle: 'Record lesson',
+  starting: 'Starting',
+  recording: 'Recording',
+  paused: 'Paused',
+  pause: 'Pause',
+  resume: 'Resume',
+  stop: 'Stop',
+  finishTitle: 'Finish lesson',
+  yesFinish: 'Yes, finish',
+  keepRecording: 'Keep recording',
+  openPlan: 'Open lesson plan',
+  lessonPlans: 'Lesson plans',
+  keepAppOpen: 'Keep app open',
+  micBlocked: 'Microphone blocked',
+  tryAgain: 'Try again',
+  /* check and send */
+  checkTitle: 'Check and send',
+  yourLesson: 'Your lesson',
+  minutes: (n: number) => `${n} min`,
+  listen: 'Listen',
+  stopListening: 'Stop',
+  redo: 'Redo',
+  changeFile: 'Change file',
+  attached: 'Attached',
+  none: 'None',
+  photosCount: (n: number) => (n === 1 ? '1 photo' : `${n} photos`),
+  send: 'Send',
+  tooLarge: 'File too large',
+  notAudio: 'Not a recording',
+  /* after */
+  sending: 'Sending',
+  sent: 'Sent',
+  openLesson: 'Open lesson',
+  noInternet: 'No internet',
+  savedOnPhone: 'Saved on phone',
+  planNotUsed: 'Lesson plan not used',
+  changePlan: 'Change lesson plan',
+  notAccepted: 'Not accepted',
+  busy: 'Another lesson analysing',
+  openThat: 'Open that lesson',
+  grade: (g: number) => `Grade ${g}`,
+};
