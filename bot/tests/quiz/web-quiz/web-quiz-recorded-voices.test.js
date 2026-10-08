@@ -163,3 +163,23 @@ describe('a checked recorded explanation is the why, for a question recorded end
     expect(q.audio.why).toBe('gen-why');
   });
 });
+
+/*
+ * An UNCHECKED recorded explanation is never the why. It used to be served wherever no generated why existed yet
+ * (the first opens of a library quiz): of 818 such rows on the bank, 13 clips name a stored option LETTER the page
+ * has shuffled ("D is the correct option…"), 36 announce the answer and 65 read option words or other words. Until
+ * the generated why is recorded the page reads the written why with the phone's voice, as for any part with no clip.
+ */
+describe('an unchecked recorded explanation is never served as the why', () => {
+  test('a "D is the correct option" clip on a question with no generated why yet: no why clip', async () => {
+    const q = await served([bankRow({ question_audio: [rec('q')], explanation_audio: rec('d-is-the-correct-option') })], { [QID]: { q: null, opts: [], why: null } });
+    expect(q.audio.q).toBe(rec('q'));
+    expect(q.audio.why == null).toBe(true);
+  });
+  test('the checked clip is still served even before a generated why exists', async () => {
+    const id = '5c432bf6-d600-4108-8c2d-0745c26b18ed';
+    const url = 'https://pub-0edccec5d5bd419782ba389c59faecac.r2.dev/quiz-audio-opus/Grade1EnglishAlphabetsRevisionGroupThreeQuestion1ExplanationAudio.ogg';
+    const q = await served([bankRow({ question_audio: [rec('q')], option_audio: ALL_OPTS, explanation_audio: url }, { id })], {});
+    expect(q.audio.why).toBe(url);
+  });
+});
