@@ -1,10 +1,12 @@
 /**
- * ModuleReadings — the partner's recommended reading for one module.
+ * ModuleReadings — the partner's required reading for one module.
  *
- * Operator, 2026-09-23: add I-SAPS's per-module reading list, COLLAPSIBLE and
- * closed by default. It is optional material: it gates nothing and counts
- * toward nothing, so it must not push the units and the module exam off a
- * phone screen.
+ * Operator, 2026-09-23: add I-SAPS's per-module reading list, COLLAPSIBLE.
+ *
+ * bd-klecr.9 (2026-10-08): I-SAPS replaced its 95-item recommended list with a
+ * short MANDATORY one, so this is "Required reading", OPEN by default, and each
+ * reading says what to read (`section`) and what the teacher will be able to do
+ * after it (`outcome`). Nothing is gated on it (operator).
  *
  * Items the partner has no free copy of yet are still named — in their own
  * nested list — rather than shown as dead links. The list itself comes from
@@ -18,6 +20,10 @@ export type ReadingItem = {
   title: string;
   author: string;
   type: string;
+  /** bd-klecr.9 — what to read ("Chapter 2 (pp. 37–40)"), why, and what she will be able to do. */
+  section?: string;
+  rationale?: string;
+  outcome?: string;
   description: string;
   url: string | null;
 };
@@ -34,6 +40,7 @@ function kindOf(type: string): 'video' | 'book' | 'doc' {
 }
 
 function Item({ r }: { r: ReadingItem }) {
+  const targeted = Boolean(r.section || r.outcome);
   const kind = kindOf(r.type);
   const Icon = kind === 'video' ? PlayCircle : kind === 'book' ? BookOpen : FileText;
   const meta = [r.author, r.type].filter(Boolean).join(' · ');
@@ -49,7 +56,17 @@ function Item({ r }: { r: ReadingItem }) {
       <span className="flex-1 min-w-0">
         <span className="block text-[15px] font-medium text-foreground break-words">{r.title}</span>
         {meta && <span className="block text-sm text-muted-foreground">{meta}</span>}
-        {r.description && (
+        {r.section && (
+          <span className="block text-sm text-foreground mt-1">
+            <span className="font-semibold">Read:</span> {r.section}
+          </span>
+        )}
+        {r.outcome && (
+          <span className="block text-sm text-muted-foreground mt-0.5">
+            <span className="font-medium">You will be able to:</span> {r.outcome}
+          </span>
+        )}
+        {!targeted && r.description && (
           <span className="block text-sm text-muted-foreground mt-0.5">{r.description}</span>
         )}
       </span>
@@ -72,7 +89,8 @@ function Item({ r }: { r: ReadingItem }) {
 }
 
 export default function ModuleReadings({ readings }: { readings: ModuleReadingList | null | undefined }) {
-  const [open, setOpen] = useState(false);
+  // Open by default: it is the partner's required reading (bd-klecr.9).
+  const [open, setOpen] = useState(true);
   const [offOpen, setOffOpen] = useState(false);
   if (!readings) return null;
   const on = readings.available || [];
@@ -80,7 +98,7 @@ export default function ModuleReadings({ readings }: { readings: ModuleReadingLi
   if (on.length === 0 && off.length === 0) return null;
 
   const counts = [
-    on.length > 0 ? `${on.length} available` : null,
+    on.length > 0 ? `${on.length} reading${on.length === 1 ? '' : 's'}` : null,
     off.length > 0 ? `${off.length} coming soon` : null,
   ].filter(Boolean).join(' · ');
 
@@ -96,14 +114,14 @@ export default function ModuleReadings({ readings }: { readings: ModuleReadingLi
         <ChevronRight
           className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform ${open ? 'rotate-90' : ''}`}
         />
-        <span className="flex-1 text-[15px] font-semibold text-foreground">Recommended reading</span>
+        <span className="flex-1 text-[15px] font-semibold text-foreground">Required reading</span>
         <span className="text-sm text-muted-foreground shrink-0">{counts}</span>
       </button>
 
       {open && (
         <div className="pb-2">
           <p className="px-3.5 pb-2 text-sm text-muted-foreground">
-            Optional. Recommended by I-SAPS to go deeper on this module. These don't count toward your certificate.
+            Set by I-SAPS for this module: read the part shown under each title.
           </p>
           {on.length === 0 && (
             <p className="px-3.5 pb-2 text-sm text-muted-foreground">No online resources yet for this module.</p>

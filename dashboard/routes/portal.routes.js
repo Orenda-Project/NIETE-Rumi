@@ -2505,6 +2505,8 @@ router.post('/assessment/generate', requirePortalAuth, async (req, res) => {
       grade: body.grade,
       subject: body.subject,
       chapterNumber: body.chapterNumber ?? null,
+      // Several chapters (bd-ix9uhr); the bot turns them into the pages the paper covers.
+      chapterNumbers: body.chapterNumbers ?? null,
       pageRanges: body.pageRanges ?? null,
       contentSource: body.contentSource,
       questionCount: body.questionCount,

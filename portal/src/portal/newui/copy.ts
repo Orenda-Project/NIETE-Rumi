@@ -253,6 +253,8 @@ export const ASSESSMENT_COPY = {
   q: (n?: number) => `${n ?? ''} Q`.trim(),
   marks: (n?: number) => `${n ?? ''} marks`.trim(),
   pages: (from?: number | null, to?: number | null) => (from != null && to != null ? `p.${from}–${to}` : ''),
+  /** The Chapter row with several picked: "3 chapters". */
+  chapters: (n?: number) => (n === 1 ? '1 chapter' : `${n ?? ''} chapters`.trim()),
   /** "Science · Plants" — a subject and a chapter's title, both from the API. */
   paperTitle: (subject?: string | null, chapterTitle?: string | null) => joined(subject, chapterTitle),
   /** "Science · Ch 2", "Science · Ch 2 · v2". */
@@ -525,8 +527,9 @@ export const TRAINING_COPY = {
   /** "Wait 18h": a failed exam's cooldown. */
   waitHours: (h?: number) => `Wait ${h ?? 0}h`,
   moduleExam: 'Module exam',
-  reading: 'Recommended reading',
+  reading: 'Required reading',
   available: (n?: number) => `${n ?? 0} available`,
+  readings: (n?: number) => (n === 1 ? '1 reading' : `${n ?? 0} readings`),
   comingSoon: 'Coming soon',
   writtenQuiz: 'Written quiz',
   onWhatsApp: 'On WhatsApp',

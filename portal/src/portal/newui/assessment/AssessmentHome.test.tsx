@@ -101,7 +101,16 @@ async function pickAll() {
   await waitFor(() => expect(row(/Subject/)).toBeEnabled());
   await pick(/Subject/, { role: "radio", name: /Science/ });
   await waitFor(() => expect(row(/Chapter/)).toBeEnabled());
-  await pick(/Chapter/, { role: "button", name: /Plants/ });
+  await pickChapters(/Plants/);
+}
+
+/** The chapter sheet takes any number of chapters; Done closes it. */
+async function pickChapters(...names: RegExp[]) {
+  fireEvent.click(row(/Chapter/));
+  const sheet = await screen.findByRole("dialog", { name: "Chapter" });
+  for (const name of names) fireEvent.click(within(sheet).getByRole("checkbox", { name }));
+  fireEvent.click(within(sheet).getByRole("button", { name: "Done" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 }
 
 beforeEach(() => {
@@ -184,12 +193,41 @@ describe("Assessment — Class, Subject, Chapter", () => {
     await waitFor(() => expect(row(/Chapter/)).toBeEnabled());
     fireEvent.click(row(/Chapter/));
     const sheet = await screen.findByRole("dialog", { name: "Chapter" });
-    const plants = within(sheet).getByRole("button", { name: /Plants/ });
+    const plants = within(sheet).getByRole("checkbox", { name: /Plants/ });
     expect(plants).toHaveTextContent("2");
     expect(plants).toHaveTextContent("p.11–20");
     fireEvent.click(plants);
+    expect(plants).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(within(sheet).getByRole("button", { name: "Done" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(within(row(/Chapter/)).getByText("Plants")).toBeInTheDocument();
+  });
+
+  it("takes several chapters: the sheet stays open, and the row says how many", async () => {
+    renderHome();
+    await ready();
+    await pick(/Class/, { role: "radio", name: "4" });
+    await waitFor(() => expect(row(/Subject/)).toBeEnabled());
+    await pick(/Subject/, { role: "radio", name: /Science/ });
+    await waitFor(() => expect(row(/Chapter/)).toBeEnabled());
+    fireEvent.click(row(/Chapter/));
+    const sheet = await screen.findByRole("dialog", { name: "Chapter" });
+    fireEvent.click(within(sheet).getByRole("checkbox", { name: /Plants/ }));
+    fireEvent.click(within(sheet).getByRole("checkbox", { name: /Living things/ }));
+    expect(screen.getByRole("dialog", { name: "Chapter" })).toBeInTheDocument();
+    expect(within(sheet).getAllByRole("checkbox", { checked: true })).toHaveLength(2);
+    fireEvent.click(within(sheet).getByRole("button", { name: "Done" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(row(/Chapter/)).toHaveTextContent("2 chapters");
+  });
+
+  it("taking every chapter off leaves the button disabled", async () => {
+    renderHome();
+    await pickAll();
+    expect(screen.getByRole("button", { name: "Make assessment" })).toBeEnabled();
+    await pickChapters(/Plants/);
+    expect(row(/Chapter/)).toHaveTextContent(/ChapterPick/);
+    expect(screen.getByRole("button", { name: "Make assessment" })).toBeDisabled();
   });
 
   it("a new class clears the subject and chapter under it", async () => {
@@ -291,12 +329,30 @@ describe("Assessment — Make assessment", () => {
     fireEvent.click(screen.getByRole("button", { name: "Make assessment" }));
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/portal/assessment/request/r-1"));
     expect(portal.generateAssessment).toHaveBeenCalledWith({
-      grade: 4, subject: "science", chapterNumber: 2, contentSource: "seen", questionCount: 14,
+      grade: 4, subject: "science", chapterNumber: 2, chapterNumbers: [2], contentSource: "seen", questionCount: 14,
       questionTypes: ["MCQs"], answerLines: false, outputFormat: "pdf",
     });
     const state = JSON.parse(screen.getByTestId("where").getAttribute("data-state") || "null");
     expect(state).toMatchObject({ subjectName: "Science", chapterTitle: "Plants", spec: { grade: 4, questionCount: 14 } });
     expect(typeof state.startedAt).toBe("number");
+  });
+
+  it("several chapters go as one paper: chapterNumbers in book order, no single chapterNumber", async () => {
+    renderHome();
+    await pickAll();
+    await pickChapters(/Living things/);
+    fireEvent.click(moreRow());
+    const sheet = await screen.findByRole("dialog", { name: "More" });
+    fireEvent.click(within(sheet).getByRole("checkbox", { name: /MCQ/ }));
+    fireEvent.click(within(sheet).getByRole("button", { name: "Done" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "Make assessment" }));
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/portal/assessment/request/r-1"));
+    expect(portal.generateAssessment).toHaveBeenCalledWith(expect.objectContaining({
+      grade: 4, subject: "science", chapterNumber: null, chapterNumbers: [1, 2], questionTypes: ["MCQs"],
+    }));
+    const state = JSON.parse(screen.getByTestId("where").getAttribute("data-state") || "null");
+    expect(state).toMatchObject({ subjectName: "Science", chapterTitle: "2 chapters" });
   });
 
   it("a refused start shows a 'Not started' chip — never the server's sentence — and the button stays", async () => {
