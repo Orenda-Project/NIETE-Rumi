@@ -27,6 +27,7 @@
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
+const crypto = require('crypto');
 const T = require('./web-quiz-token');
 const Steps = require('./web-quiz-steps');
 const WebItems = require('./web-quiz-items');
@@ -1724,6 +1725,8 @@ const EVENT_PROPS = Object.freeze({
   part: /^[a-z]{1,4}$/, // which spoken part had no clip (audio_missing): q, opt, stim, fig, left, why, fb, hint
   // M4b library: a bank video's id, a grade, a bank subject name
   vid: /^[0-9a-f-]{36}$/i, g: /^(NURSERY|KG|[1-6])$/, s: /^(English|Maths|Urdu|Science|Geography|General Knowledge|History|Islamic Studies)$/,
+  // The share funnel: what the phone could share with, how the child did, and where a page's link came from.
+  cap: /^(file|native|none)$/, band: /^(low|mid|high)$/, via: /^(invite|card|table|direct)$/,
 });
 const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't', 'list_ms', 'nav_ms', 'ff_ms', 'ch_i', 'line', 'col'];
 const EVENT_BOOLS = ['ok'];
@@ -1736,6 +1739,18 @@ const TEL_PROPS = Object.freeze({
 });
 const TEL_NUMS = ['pseq', 'sm', 'total_ms', 'vis_ms', 'count'];
 const SHARE_PATHS = ['native', 'wa', 'copy', 'file', 'save'];
+const SHARE_CODE_RX = /^[A-Z0-9]{4,12}$/i;
+
+/**
+ * A share code as the logs may hold it: the first 12 hex of HMAC-SHA256 under the web quiz token secret. A
+ * challenge share's code (`to`) and a page open's code meet on this, so a share joins the landing it produced
+ * without the code that opens a child's challenge ever being logged in clear. Null without a secret. Pure.
+ */
+function codeHash(code) {
+  const key = T.secret();
+  if (!key || typeof code !== 'string' || !SHARE_CODE_RX.test(code)) return null;
+  return crypto.createHmac('sha256', key).update(`wqcode|${code.toUpperCase()}`).digest('hex').slice(0, 12);
+}
 const UA_MAX = 300;
 const PROBE_MAX = 4096;
 
@@ -1817,6 +1832,8 @@ function cleanEvent(e, { rich = false } = {}) {
   if (typeof e.ua === 'string' && e.ua) props.ua = e.ua.slice(0, UA_MAX);
   if (e.store === 0 || e.store === 1) props.store = e.store;
   // In-app browser (WhatsApp's own browser): the page sends 1/0; kept as 0/1 so the logs can split on it.
+  // A friend's own run (card_view): 0/1.
+  if (e.friend === 0 || e.friend === 1) props.friend = e.friend;
   if (e.iab === 0 || e.iab === 1) props.iab = e.iab;
   else if (typeof e.iab === 'boolean') props.iab = e.iab ? 1 : 0;
   // A page_open's UA names the app: the page's own flag missed WhatsApp's browser (WA4A) and counted other apps'
@@ -1826,6 +1843,13 @@ function cleanEvent(e, { rich = false } = {}) {
     props.iab = props.ua_app === 'whatsapp' ? 1 : 0;
   }
   if (SHARE_PATHS.includes(e.path)) props.path = e.path;
+  // The code a challenge share carried, and a page open's own code, hashed alike (codeHash); `to` is never kept.
+  const toH = typeof e.to === 'string' ? codeHash(e.to) : null;
+  if (toH) props.to_h = toH;
+  if (e.n === 'page_open' && props.code) {
+    const codeH = codeHash(props.code);
+    if (codeH) props.code_h = codeH;
+  }
   if (e.n === 'probe') {
     const probe = cleanProbe(e.probe);
     if (probe) props.probe = probe;
