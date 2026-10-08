@@ -31,19 +31,22 @@
          tab bar, placeholder blocks) so the first paint is the app's frame, not a white page.
          React replaces it on its first render. Inline only — this file is also the Capacitor
          app's entry. Which outline: a sign-in page gets the sign-in card; otherwise the frame
-         the app last showed on this device (niete:shell, written by the app), else the classic one. -->
+         the app last showed on this device (niete:shell, written by the app — see
+         src/portal/lib/shellHint.ts), else the classic one. "/" (every Android app launch) is the
+         app's frame on a device that was signed in last time, the sign-in card otherwise. -->
     <script>
       (function () {
         var d = document.documentElement;
         var p = location.pathname;
         try {
-          if (p === '/' || p.indexOf('/portal/login') === 0 || p.indexOf('/portal/setup') === 0 ||
+          var k = window.localStorage.getItem('niete:shell');
+          var known = k === 'teacher' || k === 'classic';
+          if (p.indexOf('/portal/login') === 0 || p.indexOf('/portal/setup') === 0 ||
               p.indexOf('/portal/reset-password') === 0 || p.indexOf('/portal/delete-account') === 0 ||
-              p.indexOf('/portal/privacy') === 0) {
+              p.indexOf('/portal/privacy') === 0 || (p === '/' && !known)) {
             d.setAttribute('data-shell', 'login');
-          } else {
-            var k = window.localStorage.getItem('niete:shell');
-            if (k === 'teacher' || k === 'classic') d.setAttribute('data-shell', k);
+          } else if (known) {
+            d.setAttribute('data-shell', k);
           }
         } catch (e) { /* storage blocked: the classic outline */ }
       })();
