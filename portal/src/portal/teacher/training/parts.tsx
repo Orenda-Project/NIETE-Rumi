@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
+import { useCopy } from '../i18n';
 import type { LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Check, ChevronRight, Download, Lock, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { TRAINING_COPY as T } from '../../newui/copy';
+import { TRAINING_INNER } from './copy';
 import { shortDate } from '../../newui/range';
 import { certificateUrl, downloadCertificate } from '../../newui/training/certificateFile';
 import { StatusChip, type ChipData } from '../ui';
@@ -210,6 +211,7 @@ export function Choices({
 
 /** The box, and the server's character floor as a chip (amber until reached) — the new UI's WrittenField, restyled. */
 export function WrittenBox({ value, floor, onChange, disabled, label }: { value: string; floor: number; onChange: (v: string) => void; disabled?: boolean; label: string }) {
+  const T = useCopy(TRAINING_INNER);
   const n = value.trim().length;
   return (
     <div className="flex flex-col gap-2">
@@ -246,6 +248,7 @@ export function AnswerBack({ question, answer, score, feedback }: { question: st
 /* ── the certificate a pass issued ────────────────────────────────────────── */
 
 export function CertificateCardV2({ certificate }: { certificate: { certificate_code: string; level_name: string; issued_at?: string | null } }) {
+  const T = useCopy(TRAINING_INNER);
   const day = certificate.issued_at ? shortDate(certificate.issued_at.slice(0, 10)) : null;
   return (
     <button

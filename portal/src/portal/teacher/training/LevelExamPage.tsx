@@ -1,5 +1,6 @@
 import { Check, ChevronRight, Lock, PenLine, Play, Timer, Trophy, XCircle } from 'lucide-react';
-import { TRAINING_COPY as T } from '../../newui/copy';
+import { useCopy } from '../i18n';
+import { TRAINING_INNER } from './copy';
 import { hoursLeft } from '../../newui/training/TrainingLevel';
 import { optionText, useLevelExam } from '../../newui/training/TrainingLevelExam';
 import { percent, statusOf } from '../../newui/training/trainingApi';
@@ -15,6 +16,7 @@ import { LoadState, TrainingPageV2 } from './TrainingFrame';
  * character floor for Beacon House — and the result. Opening, sending and the gate are useLevelExam's.
  */
 export function LevelExamPage() {
+  const T = useCopy(TRAINING_INNER);
   const x = useLevelExam();
   const { paths, vendorKey, provider, title, levelUrl, result, paper, q, qs, index, g, gate, level, problem, sending } = x;
   const problemChip = problem ? <StatusChip text={problem} tone="error" /> : null;

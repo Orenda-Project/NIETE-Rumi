@@ -1,10 +1,10 @@
 import { useState } from 'react';
+import { useCopy } from '../i18n';
 import { BookOpen, FileText, GraduationCap, Play, PlayCircle } from 'lucide-react';
-import { TRAINING_COPY as T } from '../../newui/copy';
+import { TRAINING, TRAINING_INNER } from './copy';
 import { moduleExamState, useTrainingCourse } from '../../newui/training/TrainingCourse';
 import type { ExamGate, ReadingItem, ReadingList } from '../../newui/training/trainingApi';
 import { ListRow, StatusChip, Tray, type ChipData } from '../ui';
-import { TRAINING_V2_COPY as C } from './copy';
 import { partRows } from './inner';
 import { DockButton, V2Row } from './parts';
 import { LoadState, TrainingPageV2 } from './TrainingFrame';
@@ -16,6 +16,8 @@ import { LoadState, TrainingPageV2 } from './TrainingFrame';
  * UI's course page's (useTrainingCourse); only the look is v2.
  */
 export function CoursePage() {
+  const T = useCopy(TRAINING_INNER);
+  const C = useCopy(TRAINING);
   const { vendorKey, levelId, courseId, paths, modules, attempts, course, provider, levelWord, list, next, doneCount } = useTrainingCourse();
   const rows = partRows(list, next, attempts);
 
@@ -65,6 +67,7 @@ export function CoursePage() {
 }
 
 function ModuleExamRowV2({ exam, to }: { exam: ExamGate; to: string }) {
+  const T = useCopy(TRAINING_INNER);
   const { state, word } = moduleExamState(exam);
   const chip: ChipData = state === 'ready' ? { text: T.ready, tone: 'done' }
     : state === 'passed' ? { text: word || T.passed, tone: 'done' }
@@ -78,6 +81,7 @@ const readingIcon = (r: ReadingItem) => (/video|ted|talk|lecture/i.test(r.type) 
 
 /** I-SAPS required reading: a row, and the list in a tray (the new UI's ReadingsRow, restyled). Gates nothing. */
 function ReadingsV2({ readings }: { readings: ReadingList }) {
+  const T = useCopy(TRAINING_INNER);
   const [open, setOpen] = useState(false);
   const on = readings.available || [];
   const off = readings.unavailable || [];

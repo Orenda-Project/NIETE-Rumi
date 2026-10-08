@@ -1,7 +1,8 @@
 import { Navigate, useParams } from 'react-router-dom';
+import { useCopy } from '../i18n';
 import { isLadder, providerLabel, trainingPaths, useGet, type Level, type Vendor } from '../../newui/training/trainingApi';
 import { ListRow, type ChipData } from '../ui';
-import { TRAINING_V2_COPY as C } from './copy';
+import { TRAINING } from './copy';
 import { TRAINING_V2_BASE } from './model';
 import { LoadState, TrainingPageV2 } from './TrainingFrame';
 
@@ -14,6 +15,7 @@ import { LoadState, TrainingPageV2 } from './TrainingFrame';
 const paths = trainingPaths(TRAINING_V2_BASE);
 
 export function TrainingProviderPage() {
+  const C = useCopy(TRAINING);
   const { vendorKey = '' } = useParams();
   const vendors = useGet<Vendor[]>('/training/vendors', undefined, (d) => (d as { vendors?: Vendor[] })?.vendors || []);
   const levels = useGet<Level[]>('/training/levels', undefined, (d) => (d as { levels?: Level[] })?.levels || []);

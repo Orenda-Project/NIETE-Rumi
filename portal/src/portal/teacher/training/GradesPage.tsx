@@ -1,6 +1,7 @@
 import { Check } from 'lucide-react';
+import { useCopy } from '../i18n';
 import { cn } from '@/lib/utils';
-import { TRAINING_COPY as T } from '../../newui/copy';
+import { TRAINING_INNER } from './copy';
 import { split, useTrainingGrades } from '../../newui/training/TrainingGrades';
 import { StatusChip } from '../ui';
 import { FOCUS } from '../ui/styles';
@@ -13,6 +14,7 @@ import { LoadState, TrainingPageV2 } from './TrainingFrame';
  * useTrainingGrades (GET/POST /training/bands, 429 → locked), unchanged; only the look is v2.
  */
 export function GradesPage() {
+  const T = useCopy(TRAINING_INNER);
   const { paths, bands, d, chosen, setChosen, saving, outcome, canChange, hours, save } = useTrainingGrades();
   const off = !canChange || saving;
   const toggle = (id: string) => {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useCopy } from '../i18n';
 import { Link } from 'react-router-dom';
 import { ChevronRight, PencilLine, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -7,7 +8,7 @@ import { trainingPaths, useGet, type Level, type Vendor } from '../../newui/trai
 import { teacherPath } from '../routes';
 import { StatusChip } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
-import { TRAINING_V2_COPY as C } from './copy';
+import { TRAINING } from './copy';
 import {
   certificateSummary, continueCard, courseTiles, teachingLevels, TRAINING_V2_BASE,
   type Bands, type CertLike, type CourseTile,
@@ -28,6 +29,7 @@ import { LoadState, ProviderMark, TrainingPageV2 } from './TrainingFrame';
 const paths = trainingPaths(TRAINING_V2_BASE);
 
 export function TrainingHub() {
+  const C = useCopy(TRAINING);
   const vendors = useGet<Vendor[]>('/training/vendors', undefined, (d) => (d as { vendors?: Vendor[] })?.vendors || []);
   const levels = useGet<Level[]>('/training/levels', undefined, (d) => (d as { levels?: Level[] })?.levels || []);
   const certs = useGet<CertLike[]>('/training/certificates', undefined, (d) => (d as { certificates?: CertLike[] })?.certificates || []);
@@ -141,6 +143,7 @@ export function TrainingHub() {
 }
 
 function CourseTileCard({ tile: t }: { tile: CourseTile }) {
+  const C = useCopy(TRAINING);
   const sub = t.sub?.kind === 'level' ? C.levelOf(t.sub.n, t.sub.of) : t.sub?.kind === 'courses' ? C.coursesOf(t.sub.done, t.sub.total) : null;
   return (
     <Link

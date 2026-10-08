@@ -21,9 +21,11 @@ export type CopyEntry = {
   longOk?: readonly string[];
 };
 
-const found = import.meta.glob<{ COPY_ENTRY?: CopyEntry }>('./*/copy.ts', { eager: true });
+const found = import.meta.glob<{ COPY_ENTRY?: CopyEntry; COPY_ENTRIES?: readonly CopyEntry[] }>('./*/copy.ts', { eager: true });
 
+/** A folder registers one module (COPY_ENTRY) or several (COPY_ENTRIES). */
 export const COPY_MODULES: readonly CopyEntry[] = [
   FRAME_ENTRY,
-  ...Object.keys(found).sort().map((k) => found[k].COPY_ENTRY).filter((e): e is CopyEntry => !!e),
+  ...Object.keys(found).sort().flatMap((k) => [found[k].COPY_ENTRY, ...(found[k].COPY_ENTRIES ?? [])])
+    .filter((e): e is CopyEntry => !!e),
 ];
