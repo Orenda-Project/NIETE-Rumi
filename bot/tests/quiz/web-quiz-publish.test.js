@@ -614,3 +614,63 @@ describe('presignAudio / presignVideo', () => {
     expect(await presignVideo({ id: QUIZ_ID, video_id: 'v4' }, { db })).toBeNull();
   });
 });
+
+const [FIRST_QID, SECOND_QID] = quizRows().questions.map((q) => q.id);
+
+// A quiz is recorded the first time a child needs it, while that child is already on question 1. The
+// clips were written to the quiz only once EVERY clip was done (a minute and more), so question 1 was
+// always read without its clip. Question 1's clips are now written to the quiz the moment they exist.
+describe("question 1's clips reach the quiz before the rest are recorded", () => {
+  test('while question 2 is still recording, the quiz already has question 1 (and is not yet stamped complete)', async () => {
+    mockS3Send.mockImplementation(async (cmd) => {
+      if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+      return {};
+    });
+    const held = [];
+    axios.post.mockImplementation((...args) => {
+      if (/leaves make|Food|Stones/.test(JSON.stringify(args))) return new Promise((resolve) => held.push(() => resolve({ data: OGG })));
+      return Promise.resolve({ data: OGG });
+    });
+    const rows = quizRows();
+    const db = fakeDb(rows);
+    const run = publishQuizAudio(QUIZ_ID, { db });
+    // Each clip goes through ffmpeg (real time): wait, in real time, for question 2 to be held and
+    // question 1 to be done; on a service that writes only at the end the write never comes.
+    const until = async (ok, ms = 8000) => { const end = Date.now() + ms; while (!ok() && Date.now() < end) await new Promise((r) => setTimeout(r, 20)); };
+    await until(() => held.length > 0);
+    expect(held.length).toBeGreaterThan(0);
+    await until(() => db.updates.some((u) => u.table === 'quizzes'), 5000);
+
+    const early = db.updates.filter((u) => u.table === 'quizzes');
+    expect(early).toHaveLength(1);
+    const web = early[0].patch.meta.web;
+    expect(web.audio[FIRST_QID].q).toBeTruthy();
+    expect(web.audio[FIRST_QID].opts.slice(0, 3).every(Boolean)).toBe(true);
+    expect(web.audio[SECOND_QID]).toBeUndefined();
+    expect(web.audio_v).toBeUndefined();
+    expect(web.arm).toBe('web');                  // other meta kept
+    expect(rows.quiz.meta.share_code).toBe('AB12CD');
+
+    held.forEach((go) => go());
+    const out = await run;
+    expect(out.ok).toBe(true);
+    const fin = rows.quiz.meta.web;
+    expect(fin.audio[FIRST_QID].q).toBeTruthy();
+    expect(fin.audio[SECOND_QID].q).toBeTruthy();
+    expect(fin.audio_v).toBe(Publish.AUDIO_VERSION);
+  });
+
+  test('a one-question quiz is written once, complete', async () => {
+    mockS3Send.mockImplementation(async (cmd) => {
+      if (cmd.constructor.name === 'HeadObjectCommand') { const e = new Error('nf'); e.name = 'NotFound'; throw e; }
+      return {};
+    });
+    const rows = quizRows();
+    rows.questions = rows.questions.slice(0, 1);
+    const db = fakeDb(rows);
+    await publishQuizAudio(QUIZ_ID, { db });
+    const ups = db.updates.filter((u) => u.table === 'quizzes');
+    expect(ups).toHaveLength(1);
+    expect(ups[0].patch.meta.web.audio_v).toBe(Publish.AUDIO_VERSION);
+  });
+});
