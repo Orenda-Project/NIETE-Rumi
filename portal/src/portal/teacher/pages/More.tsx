@@ -1,0 +1,135 @@
+import type { ComponentType, ReactNode, SVGProps } from "react";
+import { Link } from "react-router-dom";
+import {
+  Award, BarChart3, CalendarCheck, ChevronRight, CircleUserRound, ClipboardCheck, Languages, Loader2, LogOut, School,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useAuth } from "../../hooks/useAuth";
+import { useLogoutGuard } from "../../lib/recordingSession";
+import TeacherPage from "../TeacherPage";
+import { FEATURE_HUE } from "../hues";
+import { TEACHER_COPY as C } from "../copy";
+import { cleanSchool, formatPhone, fullName, initials } from "../format";
+import { teacherPath } from "../routes";
+import { useLanguageSwitch } from "../useLanguageSwitch";
+
+/**
+ * bd-fmf24g.1 — teacher v2 More (canvas v28 More, after changes 8 and the wiring): who she
+ * is, then the features the menu bar does not hold.
+ *   Assessment · Attendance · My Classes · Analytics
+ *   Certificates
+ *   Language · My profile · Logout
+ * No counts on the rows: nothing here shows a number the API does not send.
+ */
+type Glyph = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
+
+const ROW = cn(
+  "flex min-h-[64px] w-full items-center gap-3.5 border-t border-[#f0f1f3] px-3 py-2 text-start text-[16px] font-semibold first:border-t-0",
+  "outline-none hover:bg-[#f9fafb] focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-[#f59e0b]",
+);
+
+function Tile({ icon: Icon, hue }: { icon: Glyph; hue?: { fg: string; bg: string } }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-[#f3f4f6] text-[#33374a]"
+      style={hue ? { background: hue.bg, color: hue.fg } : undefined}
+    >
+      <Icon className="h-[22px] w-[22px]" />
+    </span>
+  );
+}
+
+function Chevron() {
+  return <ChevronRight className="ms-auto h-[22px] w-[22px] shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />;
+}
+
+function Card({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <nav aria-label={label} className="overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+      {children}
+    </nav>
+  );
+}
+
+function RowLink({ id, to, icon, hue, label }: { id: string; to: string; icon: Glyph; hue?: { fg: string; bg: string }; label: string }) {
+  return (
+    <Link to={to} data-testid={`more-row-${id}`} className={ROW}>
+      <Tile icon={icon} hue={hue} />
+      <span className="min-w-0 truncate">{label}</span>
+      <Chevron />
+    </Link>
+  );
+}
+
+export default function More() {
+  const { user, logout } = useAuth();
+  const guardedLogout = useLogoutGuard(logout);
+  const lang = useLanguageSwitch();
+  const name = fullName(user);
+  const phone = formatPhone(user?.phoneNumber);
+  const school = cleanSchool(user?.schoolName);
+
+  return (
+    <TeacherPage title={C.more.title} testId="teacher-more">
+      <section
+        data-testid="more-who"
+        className="flex items-center gap-3.5 rounded-2xl border border-[#e5e7eb] bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.05)]"
+      >
+        <span aria-hidden="true" className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#33374a] text-[18px] font-bold text-white">
+          {initials(name)}
+        </span>
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="truncate text-[17px] font-semibold">{name}</span>
+          {(phone || school) && (
+            <span className="truncate text-[13px] text-[#6b7280]">
+              <span dir="ltr">{phone}</span>{phone && school ? " · " : ""}{school}
+            </span>
+          )}
+        </span>
+      </section>
+
+      <Card label={C.more.teaching}>
+        <RowLink id="assessment" to={teacherPath("assessment")} icon={ClipboardCheck} hue={FEATURE_HUE.assessment} label={C.more.assessment} />
+        <RowLink id="attendance" to={teacherPath("attendance")} icon={CalendarCheck} hue={FEATURE_HUE.attendance} label={C.more.attendance} />
+        <RowLink id="classes" to={teacherPath("classes")} icon={School} hue={FEATURE_HUE.classes} label={C.more.classes} />
+        <RowLink id="analytics" to={teacherPath("analytics")} icon={BarChart3} label={C.more.analytics} />
+      </Card>
+
+      <Card label={C.more.records}>
+        <RowLink id="certificates" to="/portal/training/certificates" icon={Award} hue={FEATURE_HUE.training} label={C.more.certificates} />
+      </Card>
+
+      <Card label={C.more.account}>
+        <button type="button" data-testid="more-row-language" onClick={lang.toggle} disabled={lang.status === "saving"} className={ROW}>
+          <Tile icon={lang.status === "saving" ? Loader2 : Languages} />
+          <span className="min-w-0 truncate">{C.more.language}</span>
+          {lang.status === "failed" && (
+            <span className="ms-auto inline-flex h-[26px] items-center rounded-full bg-[#fee4e2] px-2.5 text-[12px] font-semibold text-[#c8331f]">
+              {C.more.notSaved}
+            </span>
+          )}
+          <span
+            lang={lang.target}
+            className={cn(
+              "inline-flex h-[26px] items-center rounded-full bg-[#f3f4f6] px-2.5 text-[12px] font-semibold text-[#374151]",
+              lang.status === "failed" ? "" : "ms-auto",
+            )}
+          >
+            {C.more.switchTo[lang.target]}
+          </span>
+        </button>
+        <RowLink id="profile" to={teacherPath("profile")} icon={CircleUserRound} label={C.more.profile} />
+        <button
+          type="button"
+          data-testid="more-row-logout"
+          onClick={guardedLogout}
+          className={cn(ROW, "text-[#c8331f]")}
+        >
+          <Tile icon={LogOut} hue={{ fg: "#c8331f", bg: "#fee4e2" }} />
+          <span>{C.more.logout}</span>
+        </button>
+      </Card>
+    </TeacherPage>
+  );
+}
