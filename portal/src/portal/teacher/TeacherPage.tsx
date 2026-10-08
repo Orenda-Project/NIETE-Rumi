@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import PortalLayout from "../components/PortalLayout";
 import { TEACHER_COPY as C } from "./copy";
+import { FeatureArt, type TeacherFeature } from "./icons";
 
 /**
  * bd-fmf24g.1 — the teacher v2 page frame (canvas v28), for every teacher v2 page.
@@ -10,6 +11,10 @@ import { TEACHER_COPY as C } from "./copy";
  *   top-level page   a 32px light title (Home's greeting, "More"), optional chips under it
  *   inner page       a 56px back target around a 40px white circle, a 13px crumb and a
  *                    26px light title (`backTo`, or `onBack` when Back must ask first)
+ *   `feature`        the page's feature tile beside the title: its D2 illustration at 52px,
+ *                    as on the canvas page headings (Lesson Plans, Digital Coaching, …)
+ *
+ * Titles and crumbs WRAP — a long lesson-plan title shows in full, never cut to one line.
  *
  * Grey page (#f3f4f6), one phone-width column (max-w-xl) on a desktop too. The bottom
  * menu comes from PortalLayout (PortalNavigation → TeacherNavigation for a flagged
@@ -17,9 +22,11 @@ import { TEACHER_COPY as C } from "./copy";
  * The flag gate is App.tsx's (every registered route is wrapped in TeacherGate).
  */
 export default function TeacherPage({
-  title, crumb, backTo, onBack, chips, action, dock, bare = false, testId, children,
+  title, crumb, backTo, onBack, feature, chips, action, dock, bare = false, testId, children,
 }: {
   title: ReactNode;
+  /** The page's feature: its illustration sits beside the title. */
+  feature?: TeacherFeature;
   crumb?: ReactNode;
   backTo?: string;
   onBack?: () => void;
@@ -38,23 +45,32 @@ export default function TeacherPage({
     </span>
   );
   const inner = !!(backTo || onBack);
+  const tile = feature ? (
+    <span data-testid="page-feature-tile" className="flex h-[52px] w-[52px] shrink-0 items-center justify-center">
+      <FeatureArt feature={feature} size={52} />
+    </span>
+  ) : null;
   return (
     <PortalLayout bare={bare}>
       <div data-testid={testId} className="mx-auto flex w-full max-w-xl flex-col text-[#1d2025]">
         {inner ? (
-          <header className="flex items-center gap-1 pb-1.5 pt-2">
+          <header className="flex items-start gap-1 pb-1.5 pt-2">
             {onBack
               ? <button type="button" onClick={onBack} aria-label={C.back} className="flex h-14 w-14 shrink-0 items-center justify-center">{circle}</button>
               : <Link to={backTo as string} aria-label={C.back} className="flex h-14 w-14 shrink-0 items-center justify-center">{circle}</Link>}
-            <div className="min-w-0 flex-1">
-              {crumb && <div className="truncate text-[13px] font-medium text-[#6b7280]">{crumb}</div>}
-              <h1 className="truncate text-[26px] font-light leading-tight tracking-[-0.01em]">{title}</h1>
+            {tile}
+            <div className={tile ? "ms-2 min-w-0 flex-1" : "min-w-0 flex-1"}>
+              {crumb && <div data-testid="page-crumb" className="break-words text-[13px] font-medium leading-snug text-[#6b7280] [overflow-wrap:anywhere]">{crumb}</div>}
+              <h1 className="break-words text-[26px] font-light leading-tight tracking-[-0.01em] [overflow-wrap:anywhere]">{title}</h1>
             </div>
             {action}
           </header>
         ) : (
           <header className="flex flex-col gap-3 px-1 pb-1.5 pt-6">
-            <h1 className="break-words text-[32px] font-light leading-[1.15] tracking-[-0.015em]">{title}</h1>
+            <div className="flex items-center gap-3">
+              {tile}
+              <h1 className="min-w-0 break-words text-[32px] font-light leading-[1.15] tracking-[-0.015em] [overflow-wrap:anywhere]">{title}</h1>
+            </div>
             {chips && <div className="flex flex-wrap gap-2">{chips}</div>}
           </header>
         )}
