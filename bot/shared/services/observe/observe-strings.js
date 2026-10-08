@@ -220,6 +220,9 @@ const STRINGS = {
     send_done_fo: '✅ Ripoti imefika kwa mwalimu. Asante kwa kazi nzuri ya ukocha! 🌱',
     // bd-2411: delivery to the teacher failed on the worker; tell the coach so it isn't a silent drop.
     send_failed_fo: '⚠️ Samahani — ripoti haikuweza kutumwa kwa mwalimu sasa hivi. Andika /observe, chagua uchunguzi huo, na ujaribu tena kutuma (📨).',
+    // bd-trksw9: the report's written feedback could not be generated — nothing was sent; one tap rebuilds it.
+    send_preview_failed_fo: '⚠️ Samahani — ripoti ya {name} haikuweza kuandaliwa kwa sababu ya hitilafu ya kiufundi. Bonyeza hapa chini kujaribu tena.',
+    btn_regenerate_report: 'Tengeneza upya',
     send_template_queued_fo:
       '📨 Mwalimu hajanitumia ujumbe hivi karibuni, kwa hivyo nimemtumia mwaliko rasmi — akiubonyeza, ripoti yake itamfikia mara moja. Nitakujulisha.',
     send_operator_review_fo:
@@ -412,6 +415,9 @@ const STRINGS = {
     send_done_fo: '✅ رپورٹ استاد کو پہنچ گئی۔',
     // bd-2411: delivery failed on the worker — surface it to the coach, never silent.
     send_failed_fo: '⚠️ معذرت — رپورٹ ابھی استاد کو نہیں بھیجی جا سکی۔ /observe لکھیں، وہ مشاہدہ منتخب کریں، اور دوبارہ بھیجنے کی کوشش کریں (📨)۔',
+    // bd-trksw9: the report's written feedback could not be generated — nothing was sent; one tap rebuilds it.
+    send_preview_failed_fo: '⚠️ معذرت — {name} کی رپورٹ ایک تکنیکی خرابی کی وجہ سے تیار نہیں ہو سکی۔ دوبارہ کوشش کے لیے نیچے بٹن دبائیں۔',
+    btn_regenerate_report: 'رپورٹ دوبارہ بنائیں',
     send_template_queued_fo: '📨 استاد نے حال میں مجھے پیغام نہیں بھیجا، اس لیے انہیں دعوت بھیجی ہے — ایک ٹیپ پر رپورٹ مل جائے گی۔ میں بتاؤں گی۔',
     send_operator_review_fo: '📨 رپورٹ جائزے کے لیے بھیج دی گئی ہے — منظوری پر استاد کو پہنچے گی۔',
     report_caption_teacher: '🌱 آپ کے سبق پر مبارک ہو! یہ رہی آپ کی رپورٹ۔',
@@ -646,6 +652,9 @@ const STRINGS = {
     send_done_fo: '✅ The report reached the teacher. Beautiful coaching work! 🌱',
     // bd-2411: delivery failed on the worker — surface it to the coach, never silent.
     send_failed_fo: "⚠️ Sorry — the report couldn't be sent to the teacher just now. Type /observe, pick that observation, and try sending again (📨).",
+    // bd-trksw9: the report's written feedback could not be generated — nothing was sent; one tap rebuilds it.
+    send_preview_failed_fo: "⚠️ Sorry — {name}'s report couldn't be prepared because of a technical error. Tap below to try again.",
+    btn_regenerate_report: 'Regenerate report',
     send_template_queued_fo:
       "📨 The teacher hasn't messaged me recently, so I sent them an official invite — one tap and the report arrives. I'll let you know.",
     send_operator_review_fo:
