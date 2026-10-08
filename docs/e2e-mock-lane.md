@@ -58,7 +58,8 @@ are served from the per-machine snapshot. The snapshot itself is a **small seed*
 
 **What an operator needs:** `gh` signed in (`gh auth login`) with access to `Orenda-Project/niete-e2e-fixtures`
 (ask an org admin). That's all — no Railway. The first run downloads the seed (checksum-verified); a `git pull`
-that brings a new pointer makes the next run download the new one. Missing `gh` is installed with brew.
+that brings a new pointer makes the next run download the new one. Missing `gh` is installed with brew on a Mac,
+with apt on Linux (see below).
 
 **Maintainers (sandbox access) publishing a new seed:** `local-db.sh seed-pull --from-sandbox` (full data),
 replay a run's `db/queries.log` with `seed-rows-used.js` to refresh `seed-keep.json` if tests changed, then
@@ -69,11 +70,21 @@ replay a run's `db/queries.log` with `seed-rows-used.js` to refresh `seed-keep.j
 
 | Step | Who | When |
 |---|---|---|
-| `railway login` (access to "NIETE-Rumi Staging") | **you** — the one manual fact, same as for the keys | once |
-| `brew install postgresql@17 pgvector postgrest` | automatic | first run |
-| reference-data snapshot: `local-db.sh seed-pull` (~3.5 min, ~180 MB) into `~/.cache/niete-e2e-db/seed` | automatic | first run, and again when `supabase/baseline/seed-tables.txt` changes |
+| `gh auth login` (an account in the Orenda-Project org) | **you** — the one manual step | once |
+| Mac: `brew install postgresql@17 pgvector postgrest gh` | automatic | first run |
+| Linux: `local-db.sh install-tools` — see below | automatic, or **you** once if sudo needs a password | first run |
+| reference-data seed: `local-db.sh seed-pull` (13.6 MB, private release) into `~/.cache/niete-e2e-db/seed` | automatic | first run, and again when `seed-release.txt` changes |
 | golden database (schema + snapshot + `seed-overrides.sql`, ~12 s) | automatic | first run after a schema/snapshot change |
 | a fresh copy per run (~1.4 s), dropped at `down` | automatic | every run |
+
+**Linux (Ubuntu/Debian; no Homebrew).** `bash bot/scripts/e2e/local-db.sh install-tools` installs PostgREST as the
+static binary from its GitHub release into `~/.cache/niete-e2e-db/bin` (no root), and Postgres 17 + pgvector
+(`postgresql-17`, `postgresql-17-pgvector` from the PGDG apt repo) and `gh` with apt. The run calls it by itself; the
+apt part runs only as root or when `sudo` needs no password, because a hook must never wait on a password prompt.
+Otherwise the run stops and prints the command: run `install-tools` once yourself in a terminal, where sudo can ask.
+Port checks use `ss` when `lsof` is missing. Verified on GitHub's Ubuntu 22.04, 24.04 and 24.04-arm runners
+(install, the real schema, PostgREST, supabase-js). Other distros (Fedora, Arch): install Postgres 17, pgvector and
+PostgREST yourself; `LOCAL_DB_PG_BIN` points at a Postgres 17 `bin/` the script does not find on its own.
 
 What is committed vs per machine:
 
