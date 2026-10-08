@@ -45,7 +45,7 @@ function pctOf(s) {
  * The quizzes taken on this handset, newest first, one entry per share code.
  * @returns {Promise<Array<{shareCodeId, code, active, quizId, topic, subject, language, studentId,
  *   studentName, className, attempts, latest, best, lastAt, teacherSent, sentAt, teacherUserId, grade, videoId,
- *   openAnswered?}>>}
+ *   openAnswered?, openSessionId?}>>}
  */
 async function quizzesForHandset(phone) {
   return quizzesForStudents(await StudentIdentity.findByPhone(phone));
@@ -80,7 +80,10 @@ async function quizzesForStudents(known) {
     };
     g.attempts += 1;
     // The newest unfinished sitting's answers so far (sessions are newest first): the home page's "Continue" card.
-    if (s.status === 'in_progress' && g.openAnswered == null && !g.latest) g.openAnswered = s.total_questions_answered || 0;
+    if (s.status === 'in_progress' && g.openAnswered == null && !g.latest) {
+      g.openAnswered = s.total_questions_answered || 0;
+      g.openSessionId = s.id;
+    }
     if (s.status === 'completed') {
       if (!g.latest || String(s.completed_at || '') > String(g.latest.completed_at || '')) g.latest = s;
       if (!g.best || pctOf(s) > pctOf(g.best)) g.best = s;

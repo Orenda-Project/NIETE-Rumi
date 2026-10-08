@@ -218,6 +218,20 @@ function lastOf(history, kidId) {
   return { ...base, state: 'done', score: { c: e.latest.correct_answers || 0, t: e.latest.total_questions_answered || 0 }, again: Boolean(e.active) };
 }
 
+/**
+ * How many questions an unfinished sitting has answered. A web sitting keeps total_questions_answered at 0 until it
+ * finishes (its answers are quiz_answers rows), so the rows are counted; the larger of the two wins. Never throws.
+ */
+async function answeredSoFar(entry, fallback = 0) {
+  if (!entry || !entry.openSessionId) return fallback;
+  try {
+    const { count, error } = await supabase.from('quiz_answers').select('id', { count: 'exact', head: true }).eq('session_id', entry.openSessionId);
+    return error ? fallback : Math.max(fallback, count || 0);
+  } catch (_) {
+    return fallback;
+  }
+}
+
 function againOf(history, kidId, teacherCode) {
   return history
     .filter((e) => e.code && e.active && e.latest && e.code !== teacherCode)
@@ -394,6 +408,7 @@ async function hubPayload(token, { kid, device } = {}) {
   if (f.childHome) {
     out.home_v = 1;
     out.last = lastOf(history, chosen.id);
+    if (out.last && out.last.state === 'open') out.last.answered = await answeredSoFar(history.find((e) => e.code === out.last.code), out.last.answered);
     if (out.last && out.teacher && out.teacher.code === out.last.code) out.teacher = null;
     if (out.last) out.again = out.again.filter((a) => a.code !== out.last.code);
   }
