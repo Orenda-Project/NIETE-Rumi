@@ -91,6 +91,8 @@ function page({ lang = 'en', menu = MENU, ua = 'Mozilla/5.0 (Linux; Android 13) 
   if (media === 'norecorder') delete window.MediaRecorder;
   window.MediaRecorder = window.MediaRecorder;
   ctx.MediaRecorder = MediaRecorder;
+  // wqt: the page-session telemetry (wq-tel.js) as the page sees it, when a test turns it on.
+  if (arguments[0] && arguments[0].wqt) window.WQT = arguments[0].wqt;
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx);
   const flush = async () => { for (let i = 0; i < 8; i += 1) await new Promise((r) => setImmediate(r)); };
@@ -110,6 +112,25 @@ function page({ lang = 'en', menu = MENU, ua = 'Mozilla/5.0 (Linux; Android 13) 
 }
 
 const ok = (body) => () => ({ status: 200, body });
+
+describe('page-session telemetry (wq-tel.js) on', () => {
+  const routes = { 'ch/HUB.TOKEN/read': ok(READ) };
+  test("the challenge's own events go through wq-tel's queue, not their own request", async () => {
+    const pushed = [];
+    const p = page({ media: 'none', routes, wqt: { on: true, push: (e) => { pushed.push(e); return true; } } });
+    await p.click('wqc-ex-read');
+    await p.click('wqc-go');
+    expect(pushed).toContainEqual(expect.objectContaining({ n: 'ch_mic', ok: false, err: 'unsupported', lang: 'en' }));
+    expect(p.events.filter((e) => e.n === 'ch_mic')).toEqual([]);
+  });
+  test('switched off (push says no): its own request as before', async () => {
+    const p = page({ media: 'none', routes, wqt: { on: false, push: () => false } });
+    await p.click('wqc-ex-read');
+    await p.click('wqc-go');
+    expect(p.events).toContainEqual(expect.objectContaining({ n: 'ch_mic', err: 'unsupported' }));
+  });
+});
+
 
 describe('menu', () => {
   test('two tiles, names from the server, a done badge with the last score; no other exercise', () => {

@@ -376,6 +376,8 @@
     function ev(n, p) {
       var e = { t: Date.now(), lang: lang, n: n };
       for (var k in p) if (p[k] !== undefined) e[k] = p[k];
+      // Page-session telemetry on (wq-tel.js): the event joins that page session's queue.
+      if (window.WQT && window.WQT.push(e)) return;
       evs.push(e);
     }
     function flushEv() {

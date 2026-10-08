@@ -225,6 +225,40 @@ describe('with the real quiz page (wq.js through the page harness)', () => {
     expect(p.fetches.flatMap((f) => (f.url === '/api/wq/e' ? JSON.parse(f.init.body).events : [])).filter((e) => e.n === 'answer')).toHaveLength(1);
   });
 
+  test("the quiz page's own events (answer, feedback_view) join the page session: same ps, in sequence, with right/wrong", () => {
+    const p = page({ lang: 'en', tel: true });
+    let tap = null;
+    const wire = p.ctx.WQI.wire;
+    p.ctx.WQI.wire = (root, item, answer, hear) => { tap = answer; return wire(root, item, answer, hear); };
+    p.wq.question(0);
+    p.runTimers(0);
+    tap('A');
+    p.runTimers(0);
+    (p.winListeners.pagehide || []).forEach((fn) => fn({}));
+    const ev = p.fetches.filter((f) => f.url === '/api/wq/e').flatMap((f) => JSON.parse(f.init.body).events);
+    const ps = ev.find((e) => e.n === 'page_start').ps;
+    const answer = ev.find((e) => e.n === 'answer');
+    expect(answer).toMatchObject({ ps, ok: 1, i: 1, qid: 'q1', code: 'TEST' });
+    expect(ev.find((e) => e.n === 'feedback_view')).toMatchObject({ ps });
+    expect(ev.filter((e) => !e.ps)).toEqual([]);
+    const mine = ev.filter((e) => e.ps === ps).map((e) => e.pseq).sort((a, b) => a - b);
+    expect(mine).toEqual(mine.map((_, i) => i + 1));
+  });
+
+  test("the library's own events (wq-lib.js inside the quiz page) join the page session", async () => {
+    const { flush } = require('./wq-page-harness');
+    const p = page({ lang: 'en', tel: true, lib: true, store: { wq_s_TEST: { st: 's1', child: null, answers: {}, queue: [], seq: 0, wrong: [], result: { pct: 80 } } },
+      api: { '/lib/TEST?st=s1': { grade: '3', subjects: [{ s: 'Science', n: 2 }] } } });
+    await flush(); await flush();
+    p.els['#wq-more'].fire('click');
+    await flush(); await flush();
+    (p.winListeners.pagehide || []).forEach((fn) => fn({}));
+    const ev = p.fetches.filter((f) => f.url === '/api/wq/e').flatMap((f) => JSON.parse(f.init.body).events);
+    const libEv = ev.filter((e) => /^(lib_|more_)/.test(e.n));
+    expect(libEv.length).toBeGreaterThan(0);
+    expect(libEv.every((e) => typeof e.ps === 'string' && e.pseq > 0)).toBe(true);
+  });
+
   test('without tel the quiz page sends nothing new', () => {
     const p = page({ lang: 'en' });
     p.wq.question(0);
