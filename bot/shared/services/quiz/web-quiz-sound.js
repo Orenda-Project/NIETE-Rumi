@@ -20,10 +20,31 @@
  * never pair a clip with another option) win over the generated read-aloud
  * clips (meta.web.audio) for the same part. Options are all recorded or all
  * generated within one question: one voice across a question's options. The
- * why stays generated where both exist. With neither, the page reads aloud.
+ * why stays generated where both exist, except for a question recorded end to
+ * end (its question and every option) whose recorded explanation passed the
+ * transcript check (web-quiz-recorded-why.json: it says this row's explanation,
+ * names no option letter, does not announce the answer): then the recorded why
+ * wins, so the whole question is one human voice. With neither, the page reads aloud.
  */
 
+const crypto = require('crypto');
 const { logToFile } = require('../../utils/logger');
+
+// qid -> sha256(explanation clip URL) first 12 hex, for each recorded explanation the transcript check passed.
+let CHECKED_WHY = null;
+function checkedWhy() {
+  if (!CHECKED_WHY) {
+    try { CHECKED_WHY = require('./web-quiz-recorded-why.json').clips || {}; } catch { CHECKED_WHY = {}; }
+  }
+  return CHECKED_WHY;
+}
+
+/** True when this row's recorded explanation may be the why: the row is recorded end to end and its clip was checked. */
+function recordedWhyWins(row, clips) {
+  if (!clips.why || !clips.q || !clips.opts) return false;
+  const want = checkedWhy()[row && row.id];
+  return Boolean(want) && crypto.createHash('sha256').update(clips.why).digest('hex').slice(0, 12) === want;
+}
 
 // The WhatsApp rule (video-quiz-render LISTEN_AND_IDENTIFY), plus stems that
 // ask about something only the clip carries, as the bank words them: "the word
@@ -112,7 +133,7 @@ async function withRecordedClips(rows, generated, { expiresIn } = {}) {
         if (clips.opts.every((u, i) => !u || signed[i])) entry.opts = signed;
         return;
       }
-      if (entry[k] && !RECORDED_FIRST.has(k)) return;
+      if (entry[k] && !RECORDED_FIRST.has(k) && !(k === 'why' && recordedWhyWins(row, clips))) return;
       const url = await presign(clips[k], expiresIn);
       if (url) entry[k] = url;
     }));
@@ -121,4 +142,4 @@ async function withRecordedClips(rows, generated, { expiresIn } = {}) {
   return out;
 }
 
-module.exports = { withRecordedClips, recordedClips, recordedOptions, recordedParts, stemAsksForSound };
+module.exports = { withRecordedClips, recordedClips, recordedOptions, recordedParts, stemAsksForSound, recordedWhyWins };
