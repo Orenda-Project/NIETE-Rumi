@@ -109,3 +109,13 @@ it('comprehension part marks placeholder is 1; words answer is labelled optional
   setup(mk({ kind: 'Jumbled Words', layout: 'words' }));
   expect(screen.getByText('Answer (optional)')).toBeTruthy();
 });
+
+it('Word Meanings: a required meaning box per word, no single answer box (bd-do8azq)', () => {
+  const { onDone } = setup(mk({ kind: 'Word Meanings', layout: 'words', section: 'subjective', meanings: true }));
+  for (let i = 1; i <= 6; i++) expect(screen.getByLabelText(`Meaning ${i}`)).toBeTruthy();
+  expect(screen.queryByLabelText('Answer')).toBeNull();
+  type('Word 1', 'big'); type('Meaning 1', 'large'); type('Word 2', 'brave'); type('Meaning 2', 'not afraid');
+  done();
+  expect(onDone).toHaveBeenCalledWith({ question: '', slots: ['big', 'brave', '', '', '', ''],
+    meanings: ['large', 'not afraid', '', '', '', ''], marks: '' });
+});

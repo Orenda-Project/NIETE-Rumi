@@ -726,6 +726,7 @@ export type AddKind = {
   marks: number; lines: number;
   msq?: boolean;           // several correct
   presetOptions?: string[]; // True/False: ['True','False']
+  meanings?: boolean;      // Word Meanings: a meaning beside each word
 };
 export type EditChanges = {
   edits?: { id: string; edit: Record<string, unknown> }[];
