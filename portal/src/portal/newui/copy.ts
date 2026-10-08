@@ -525,8 +525,9 @@ export const TRAINING_COPY = {
   /** "Wait 18h": a failed exam's cooldown. */
   waitHours: (h?: number) => `Wait ${h ?? 0}h`,
   moduleExam: 'Module exam',
-  reading: 'Recommended reading',
+  reading: 'Required reading',
   available: (n?: number) => `${n ?? 0} available`,
+  readings: (n?: number) => (n === 1 ? '1 reading' : `${n ?? 0} readings`),
   comingSoon: 'Coming soon',
   writtenQuiz: 'Written quiz',
   onWhatsApp: 'On WhatsApp',

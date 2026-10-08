@@ -129,7 +129,10 @@ const hasReadings = (r: ReadingList | null | undefined) => Boolean(r && ((r.avai
 
 const readingIcon = (r: ReadingItem) => (/video|ted|talk|lecture/i.test(r.type) ? PlayCircle : /book|novel|textbook/i.test(r.type) ? BookOpen : FileText);
 
-/** I-SAPS recommended reading (ModuleReadings): a row, and the list in a sheet. Optional. */
+/**
+ * I-SAPS required reading (ModuleReadings): a row, and the list in a sheet. bd-klecr.9 — the
+ * partner's mandatory list; each reading carries the section to read as a chip. Gates nothing.
+ */
 function ReadingsRow({ readings }: { readings: ReadingList }) {
   const [open, setOpen] = useState(false);
   const on = readings.available || [];
@@ -139,7 +142,7 @@ function ReadingsRow({ readings }: { readings: ReadingList }) {
       <Row
         icon={BookOpen}
         title={TRAINING_COPY.reading}
-        chips={on.length ? <Chip>{TRAINING_COPY.available(on.length)}</Chip> : <Chip>{TRAINING_COPY.comingSoon}</Chip>}
+        chips={on.length ? <Chip>{TRAINING_COPY.readings(on.length)}</Chip> : <Chip>{TRAINING_COPY.comingSoon}</Chip>}
         onClick={() => setOpen(true)}
         testId="readings-row"
       />
@@ -150,7 +153,7 @@ function ReadingsRow({ readings }: { readings: ReadingList }) {
               key={`on-${i}`}
               icon={readingIcon(r)}
               title={r.title}
-              chips={[r.author, r.type].filter(Boolean).map((t) => <Chip key={t}>{t}</Chip>)}
+              chips={[r.section, r.author].filter(Boolean).map((t) => <Chip key={t}>{t}</Chip>)}
               end={ExternalLink}
               onClick={() => { if (r.url) window.open(r.url, '_blank', 'noopener,noreferrer'); }}
             />
