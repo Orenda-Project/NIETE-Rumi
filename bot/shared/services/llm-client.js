@@ -657,11 +657,33 @@ function unusableAnswer(res, params, job) {
       const json = extractJson(content, shape);
       if (json) message.content = json;
       else if (!callerRepairsTo(job, content, shape)) {
-        return { kind: 'not_json', reason: `not JSON of the shape asked for (${shape})`, finishReason };
+        return { kind: 'not_json', reason: `not JSON of the shape asked for (${shape})`, finishReason, replyShape: replyShape(content) };
       }
     }
   }
   return null;
+}
+
+/**
+ * What a not-JSON answer looked like, without a word of it (bd-gr4fy.5.7): counts and flags only, so a fenced reply,
+ * a sentence around an object, a cut-off object and two objects can be told apart from the logs. `startsWith` and
+ * `endsWith` are one of a fixed set of structural characters, else 'text'.
+ */
+function replyShape(text) {
+  const s = String(text || '');
+  const t = s.trim();
+  const count = (re) => (s.match(re) || []).length;
+  const edge = (c) => ('{}[]`"'.includes(c) && c ? c : 'text');
+  return {
+    length: s.length,
+    fenced: t.startsWith('```'),
+    startsWith: edge(t.charAt(0)),
+    endsWith: edge(t.charAt(t.length - 1)),
+    openBraces: count(/\{/g),
+    closeBraces: count(/\}/g),
+    quotes: count(/"/g),
+    newlines: count(/\n/g),
+  };
 }
 
 /**
@@ -768,6 +790,7 @@ async function runWithJobOverride(job, params, options, callSite, declared = nul
     status: failure.status == null ? null : failure.status, reason: failure.reason,
     finishReason: failure.finishReason || null, errName: failure.errName || null,
     elapsedMs: Date.now() - startedAt,
+    ...(failure.replyShape ? { replyShape: failure.replyShape } : {}),
   };
   logEvent('llm.job_override_fallback', event);
   logToFile(`llm-client: ${job} could not use ${first.model}, answering on ${behind}`, event, 'warn');
