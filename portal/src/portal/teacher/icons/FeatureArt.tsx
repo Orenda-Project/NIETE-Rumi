@@ -89,6 +89,13 @@ const ART: Record<TeacherFeature, ReactElement> = {
   ),
 };
 
+/**
+ * Never animated (operator, 2026-10-08: "the icons on the menu are now animated"): no
+ * animation or transition can apply to the icon or anything inside it, whatever a page or a
+ * global stylesheet says. Inline + !important, so it wins over any class rule.
+ */
+const STILL = "[animation:none!important] [&_*]:[animation:none!important] [transition:none!important] [&_*]:[transition:none!important]";
+
 export interface FeatureArtProps {
   feature: TeacherFeature;
   /** px; 48 is the drawing's own size, Home uses 76–80. */
@@ -105,7 +112,8 @@ export function FeatureArt({ feature, size = 48, label, className }: FeatureArtP
       width={size}
       height={size}
       data-feature-art={feature}
-      className={className}
+      data-still="true"
+      className={className ? `${STILL} ${className}` : STILL}
       {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })}
     >
       {ART[feature]}
