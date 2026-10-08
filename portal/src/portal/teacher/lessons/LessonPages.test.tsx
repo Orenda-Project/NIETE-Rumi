@@ -39,6 +39,7 @@ import { PreparingPage } from "./PreparingPage";
 import { ViewerPage } from "./ViewerPage";
 import lessonRoutes from "./routes";
 import { lessonsUrl, LESSONS_VIEWER } from "./paths";
+import { featurePath } from "../paths";
 import { LESSONS_V2_COPY } from "./copy";
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
@@ -202,7 +203,10 @@ describe("viewer", () => {
     expect(screen.getByTestId("viewer").textContent).toBe("Place value");
     const dc = screen.getByRole("link", { name: new RegExp(C.startDc) });
     const url = new URL(dc.getAttribute("href") as string, "https://x");
-    expect(url.pathname).toBe("/portal/coaching");
+    // The v2 Digital Coaching hub (registered: #1987/#1992), reached through the routes registry —
+    // never today's /portal/coaching, which would drop her into the old flow without the prefill.
+    expect(url.pathname).toBe(featurePath("coaching"));
+    expect(url.pathname).toBe("/portal/teacher/coaching");
     expect(Object.fromEntries(url.searchParams)).toEqual({ grade: "4", subject: "maths", plan: "k5:g4m2" });
     expect(screen.getByRole("button", { name: C.answerKey })).toBeTruthy();
     expect(screen.getByRole("button", { name: C.openOutside })).toBeTruthy();
