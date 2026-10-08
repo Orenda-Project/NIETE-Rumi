@@ -14,7 +14,7 @@ import { collectCopy, copyProblem, tapProblems } from "../../newui/checks/rules"
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 
 import { TRAINING_V2_COPY } from "./copy";
-import { LoadState, TrainingHeader } from "./TrainingFrame";
+import { LoadState, TrainingPageV2 } from "./TrainingFrame";
 import routes from "./routes";
 import { TRAINING_V2_BASE } from "./model";
 
@@ -44,12 +44,11 @@ describe("training: copy", () => {
 });
 
 describe("training: every target is 56px or more", () => {
-  it("the header's Back and the retry", () => {
+  it("the page's Back (link and button) and the retry", () => {
     const { container } = render(
       <MemoryRouter>
-        <TrainingHeader title="T" backTo="/x" />
-        <TrainingHeader title="T" onBack={() => {}} />
-        <LoadState loading={false} failed onRetry={() => {}} />
+        <TrainingPageV2 crumb="C" title="T" backTo="/x"><LoadState loading={false} failed onRetry={() => {}} /></TrainingPageV2>
+        <TrainingPageV2 crumb="C" title="T" backTo="/x" onBack={() => {}}><span /></TrainingPageV2>
       </MemoryRouter>,
     );
     expect(tapProblems(container)).toEqual([]);

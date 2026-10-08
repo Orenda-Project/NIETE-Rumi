@@ -55,7 +55,7 @@ export function TrainingHub() {
   const levelsShown = teachingLevels(bands.data);
 
   const context = (
-    <div className="flex flex-wrap items-center gap-2 pe-4 ps-[66px]" data-testid="training-level-indicator">
+    <div className="flex flex-wrap items-center gap-2" data-testid="training-level-indicator">
       <span className="text-[13px] font-medium text-[#6b7280]">{C.teachingLevel}</span>
       {levelsShown.map((l) => (
         <span key={l} className="inline-flex h-7 items-center rounded-full bg-[#e5e7eb] px-3 text-[13px] font-semibold text-[#374151]">{l}</span>
