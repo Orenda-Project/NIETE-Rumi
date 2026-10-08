@@ -11,7 +11,7 @@ const TOP = 10;
 const STEP = 26;
 const BOTTOM = TOP + STEP * (BAND_ROWS.length - 1) + STEP;
 
-export function BandChart({ points, label, dateLabel }: { points: TrendPoint[]; label: string; dateLabel: (iso: string) => string }) {
+export function BandChart({ points, label, dateLabel, rows = BAND_ROWS }: { points: TrendPoint[]; label: string; dateLabel: (iso: string) => string; rows?: ReadonlyArray<{ key: string; label: string }> }) {
   const n = points.length;
   const x = (i: number) => (n === 1 ? (LEFT + W) / 2 : LEFT + 28 + (i * (W - LEFT - 50)) / (n - 1));
   const y = (row: number) => TOP + 13 + row * STEP;
@@ -19,7 +19,7 @@ export function BandChart({ points, label, dateLabel }: { points: TrendPoint[]; 
   return (
     <svg width="100%" viewBox={`0 0 ${W} ${BOTTOM + 24}`} role="img" aria-label={label} className="block">
       <g fill="#6b7280" fontSize="10.5" fontWeight={600}>
-        {BAND_ROWS.map((b, i) => <text key={b.key} x={0} y={y(i) + 4}>{b.label}</text>)}
+        {rows.map((b, i) => <text key={b.key} x={0} y={y(i) + 4}>{b.label}</text>)}
       </g>
       <g stroke="#eef0f3" strokeWidth={1}>
         {BAND_ROWS.map((b, i) => <line key={b.key} x1={LEFT} y1={y(i)} x2={W} y2={y(i)} />)}
