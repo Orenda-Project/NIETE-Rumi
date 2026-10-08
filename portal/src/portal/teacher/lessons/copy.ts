@@ -14,6 +14,15 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 export const LESSONS_V2_COPY = {
   title: 'Lesson Plans',
   back: 'Back',
+  /* the main page */
+  home: 'Home',
+  selectClass: 'Select your class',
+  or: 'or',
+  anyGradeOrSubject: 'Any grade or subject',
+  open: 'Open',
+  recent: 'Recent Lesson Plans',
+  noLessonPlansYet: 'No lesson plans yet',
+  ready: 'Ready',
   /** A plan the catalogue no longer names. */
   planFallback: 'Lesson plan',
   grade: (g: number) => `Grade ${g}`,

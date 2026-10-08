@@ -14,6 +14,8 @@ import { featurePath } from '../paths';
 export const LESSONS_HOME = featurePath('lessons');
 export const LESSONS_VIEWER = `${LESSONS_HOME}/plan`;
 export const LESSONS_ALL = `${LESSONS_HOME}/all`;
+/** Reopen a plan by its key (Recent, All lesson plans): `?plan=k5:<id>|g612:<segment>&lang=&title=&grade=`. */
+export const LESSONS_OPEN = `${LESSONS_HOME}/open`;
 
 export type LessonsView = 'chapters' | 'lessons' | 'preparing';
 
@@ -24,6 +26,8 @@ export type LessonsAt = {
   chapter?: string;
   lesson?: string;
   render?: string;
+  /** A plan's title, when the page cannot look it up (Preparing reached from Recent). */
+  title?: string;
 };
 
 export function lessonsUrl(view: LessonsView, at: LessonsAt): string {
@@ -32,6 +36,7 @@ export function lessonsUrl(view: LessonsView, at: LessonsAt): string {
   if (at.chapter) q.set('chapter', at.chapter);
   if (at.lesson) q.set('lesson', at.lesson);
   if (at.render) q.set('render', at.render);
+  if (at.title) q.set('title', at.title);
   return `${LESSONS_HOME}/${view}?${q.toString()}`;
 }
 
@@ -42,7 +47,7 @@ export function readAt(search: string): LessonsAt | null {
   const subject = q.get('subject');
   if (!Number.isInteger(grade) || grade < 1 || grade > 12 || !subject) return null;
   const at: LessonsAt = { grade, subject };
-  for (const k of ['key', 'chapter', 'lesson', 'render'] as const) {
+  for (const k of ['key', 'chapter', 'lesson', 'render', 'title'] as const) {
     const v = q.get(k);
     if (v) at[k] = v;
   }
@@ -65,4 +70,15 @@ export function dcHref(base: string, dc: DcPrefill | null | undefined): string {
   if (dc.plan && dc.plan.startsWith('g612:') && dc.lang) q.set('lang', dc.lang);
   const s = q.toString();
   return s ? `${base}?${s}` : base;
+}
+
+/** A plan to reopen by its key, with what the viewer and Start DC need. */
+export type PlanRef = { plan: string; lang?: string | null; title?: string | null; grade?: number | null };
+
+export function openUrl(ref: PlanRef): string {
+  const q = new URLSearchParams({ plan: ref.plan });
+  if (ref.lang && ref.plan.startsWith('g612:')) q.set('lang', ref.lang);
+  if (ref.title) q.set('title', ref.title);
+  if (ref.grade != null) q.set('grade', String(ref.grade));
+  return `${LESSONS_OPEN}?${q.toString()}`;
 }

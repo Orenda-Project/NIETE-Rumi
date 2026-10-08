@@ -11,7 +11,7 @@ import { FOCUS, OUTLINE_WIDE } from '../ui/styles';
 import { PAGE_BODY } from './ChaptersPage';
 import { LESSONS_V2_COPY as C } from './copy';
 import { LessonHeader } from './LessonHeader';
-import { LESSONS_VIEWER, lessonsUrl, readAt, type LessonsAt } from './paths';
+import { LESSONS_VIEWER, lessonsUrl, openUrl, readAt, type LessonsAt } from './paths';
 import { dcFor, useOpenLesson } from './useOpenLesson';
 
 /**
@@ -27,11 +27,12 @@ const EXPECTED_MS = 120_000;
 /** Responsive at first, then fewer asks for a slow one. */
 const nextPollMs = (waited: number) => (waited < 30_000 ? 3_000 : waited < 120_000 ? 6_000 : 12_000);
 
-type AtRender = LessonsAt & { chapter: string; lesson: string; render: string };
+/** Chapter optional: a plan reopened from Recent has none (its title rides in the address instead). */
+type AtRender = LessonsAt & { lesson: string; render: string };
 
 export function PreparingPage() {
   const at = readAt(useLocation().search);
-  if (!at || !at.chapter || !at.lesson || !at.render) return <Navigate to={teacherPath('lessons')} replace />;
+  if (!at || !at.lesson || !at.render) return <Navigate to={teacherPath('lessons')} replace />;
   return <Preparing key={at.render} at={at as AtRender} />;
 }
 
@@ -54,8 +55,14 @@ function Ring({ value, text }: { value: number; text: string }) {
 function Preparing({ at }: { at: AtRender }) {
   const navigate = useNavigate();
   const openPlan = useLessonPlanOpener();
-  const [lessons] = useLoad(() => lessonPlans.lessons(at.grade, at.subject, at.chapter), `l:${at.grade}:${at.subject}:${at.chapter}`);
+  const chapter = at.chapter;
+  const [lessons] = useLoad(
+    chapter ? () => lessonPlans.lessons(at.grade, at.subject, chapter) : null,
+    chapter ? `l:${at.grade}:${at.subject}:${chapter}` : 'idle',
+  );
   const lesson = dataOf(lessons)?.find((l) => l.id === at.lesson) ?? null;
+  const title = lesson?.title ?? at.title ?? C.planFallback;
+  const otherLessons = chapter ? lessonsUrl('lessons', { ...at, chapter }) : teacherPath('lessons');
   const { open, busy } = useOpenLesson();
   const [failed, setFailed] = useState(false);
   const [startedAt] = useState(() => Date.now());
@@ -78,7 +85,7 @@ function Preparing({ at }: { at: AtRender }) {
         const s = await lessonPlans.status(at.render);
         if (!live) return;
         if (s.state === 'ready') {
-          void openPlan(s.source, lessonRef.current?.title ?? C.planFallback, {
+          void openPlan(s.source, lessonRef.current?.title ?? at.title ?? C.planFallback, {
             replace: true, page: LESSONS_VIEWER, state: { dc: dcFor({ id: at.lesson, lane: 'g612' }, at) },
           });
           return;
@@ -100,7 +107,7 @@ function Preparing({ at }: { at: AtRender }) {
   return (
     <PortalLayout ownHeading>
       <div className="mx-auto w-full max-w-[720px]">
-        <LessonHeader crumb={C.grade(at.grade)} title={lesson?.title ?? C.planFallback} backTo={lessonsUrl('lessons', at)} />
+        <LessonHeader crumb={C.grade(at.grade)} title={title} backTo={otherLessons} />
       </div>
       <div className={PAGE_BODY}>
         <section aria-live="polite" className="flex flex-col items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white px-4 py-6 text-center">
@@ -109,8 +116,11 @@ function Preparing({ at }: { at: AtRender }) {
               <p className="text-[20px] font-semibold text-[#c8331f]">{C.notPrepared}</p>
               <button
                 type="button"
-                disabled={!lesson || busy}
-                onClick={() => { if (lesson) void open(lesson, at, { replace: true }); }}
+                disabled={busy}
+                onClick={() => {
+                  if (lesson) void open(lesson, at, { replace: true });
+                  else navigate(openUrl({ plan: `g612:${at.lesson}`, title: at.title, grade: at.grade }), { replace: true });
+                }}
                 className={cn('min-h-[56px] w-full rounded-2xl bg-[#33374a] text-[16px] font-semibold text-white disabled:opacity-50', FOCUS)}
               >
                 {C.tryAgain}
@@ -129,7 +139,7 @@ function Preparing({ at }: { at: AtRender }) {
         </section>
         <button
           type="button"
-          onClick={() => navigate(lessonsUrl('lessons', at), { replace: true })}
+          onClick={() => navigate(otherLessons, { replace: true })}
           className={cn(OUTLINE_WIDE, FOCUS)}
         >
           {C.otherLessons}

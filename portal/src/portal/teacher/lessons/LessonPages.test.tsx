@@ -235,7 +235,7 @@ describe("viewer", () => {
 });
 
 describe("routes", () => {
-  it("registers the inner pages — not the main page, which stays today's until the landing ships", () => {
+  it("registers the inner pages (the main page and open: LessonsHome.test.tsx)", () => {
     const paths = lessonRoutes.map((r) => r.path);
     expect(paths).toEqual(expect.arrayContaining([
       lessonsUrl("chapters", { grade: 1, subject: "x" }).split("?")[0],
@@ -243,6 +243,5 @@ describe("routes", () => {
       lessonsUrl("preparing", { grade: 1, subject: "x" }).split("?")[0],
       LESSONS_VIEWER,
     ]));
-    expect(paths).not.toContain("/portal/teacher/lessons");
   });
 });

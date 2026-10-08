@@ -219,16 +219,18 @@ export function createLessonPlansApi() {
   }
 
   /**
-   * Open a lesson plan, whichever grade. 1–5: it is written, open it. 6–12: ask for it — the
+   * Open a lesson plan, whichever grade (6–12 in `lang` when given, else English). 1–5: it is written, open it. 6–12: ask for it — the
    * service answers "ready" (open it) or starts writing it ("preparing", poll status()). Held
    * back or not in the catalogue (403/404) is an answer, not a fault; anything else throws.
    */
-  async function open(lesson: LpLesson): Promise<OpenResult> {
+  async function open(lesson: LpLesson, lang?: string): Promise<OpenResult> {
     if (lesson.lane === 'k5') {
       return { state: 'ready', source: { lane: 'k5', lessonId: lesson.id, assetKind: 'lesson' } };
     }
+    // bd-fmf24g.3 — reopening a plan she had in Urdu asks for it in Urdu; browsing asks in English.
+    const asked = lang === 'ur' || lang === 'en' ? lang : LANG_612;
     try {
-      const { data } = await api.post('/lp612/request', { segment_id: lesson.id, lang: LANG_612 });
+      const { data } = await api.post('/lp612/request', { segment_id: lesson.id, lang: asked });
       const renderId = str(data?.renderId);
       if (!renderId) throw new Error('lp612 request: no render id');
       return data?.state === 'ready'
