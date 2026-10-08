@@ -1276,3 +1276,10 @@ Feature: Web child quiz page on the portal
     Given a child of an English class has just finished an Urdu lesson from the library
     When the child opens their hub or sends /quiz again
     Then the hub and the /quiz reply stay in English
+
+  @T642
+  Scenario: A figure's "look at" line is spoken from the shared recorded voices
+    Given the ten figure pointer lines ("Look at the bars.", «گھڑی کو دیکھیں۔» …) are recorded once per language in the quiz voice
+    When a child hears a figure question whose stem does not already point at the picture
+    Then the page plays that line's recorded clip, matched by its exact words, before the question
+    And a question's own wording for its figure, which has no recorded clip, is read by the phone's voice as before
