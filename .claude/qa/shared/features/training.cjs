@@ -10,6 +10,7 @@
  * English heading but the body and CTA are Urdu — CTA is "کھولیں", not "Open".
  */
 const fs = require('fs'); const path = require('path'); const { execFileSync } = require('child_process');
+const { withRedirect, isStoreNotice, REDIRECT_BLOCKED } = require('../app-redirect-case.cjs');
 const V  = (c, ev) => [c ? 'PASS' : 'FAIL', ev];
 const VF = (op, c, ev) => op.ok ? V(c, ev) : ['BLOCKED', { harness: op.err, clicked: op.clicked, waitedMs: op.waitedMs }];
 const CARD = /Teacher Training/i;
@@ -1725,11 +1726,27 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
   }
 
   // bd-onxyu — app redirect. Recorded with the reason, not left absent.
-  rec('T92', 'With Teacher Training moved to the app, /training sends me to the Play Store instead', 'BLOCKED',
-      { reason: APP_REDIRECT_WHY }, 0);
-
-  rec('T93', 'Asking again within the hour gets no reply at all', 'BLOCKED',
-      { reason: APP_REDIRECT_WHY }, 0);
+  const T92 = 'With Teacher Training moved to the app, /training sends me to the Play Store instead';
+  const T93 = 'Asking again within the hour gets no reply at all';
+  const r9x = await withRedirect(api, 'app_redirect_teacher_training', async () => {
+    const t0 = Date.now(), a = await api.sendWait('/training', 90000), txt = a.txt || '';
+    const t92 = { storeLink: isStoreNotice(txt), messages: a.freshIds, flowOpened: a.kind === 'flow', reply: txt.slice(0, 160), ms: Date.now() - t0 };
+    // T93: the notice went out seconds ago — inside the quiet hour the bot sends NOTHING (no notice, no
+    // feature, no AI chat). 20 s is several times the bot's normal reply latency on this lane.
+    const t1 = Date.now(), b = await api.sendWait('/training', 20000);
+    const t93 = { replied: !!b.ok, messages: b.freshIds || 0, reply: (b.txt || '').slice(0, 160), ms: Date.now() - t1 };
+    return { t92, t93 };
+  });
+  if (r9x.ran) {
+    const { t92, t93 } = r9x.value;
+    rec('T92', T92, t92.storeLink && t92.messages === 1 && !t92.flowOpened ? 'PASS' : 'FAIL', t92, t92.ms);
+    // T93 only means something if T92 actually sent the notice that starts the quiet hour.
+    if (!t92.storeLink) rec('T93', T93, 'BLOCKED', { reason: 'T92 sent no Play Store notice, so no quiet hour started', t93 }, t93.ms);
+    else rec('T93', T93, !t93.replied && t93.messages === 0 ? 'PASS' : 'FAIL', t93, t93.ms);
+  } else {
+    rec('T92', T92, 'BLOCKED', { reason: APP_REDIRECT_WHY, setAppSetting: r9x.reason }, 0);
+    rec('T93', T93, 'BLOCKED', { reason: APP_REDIRECT_WHY, setAppSetting: r9x.reason }, 0);
+  }
 
   // bd-w2daa.7 — fewer bubbles, same words (the Meta bill cut). Recorded with the reason, not left
   // absent: no driver yet reads reactions or counts a child's bubbles on this lane. Each rule is

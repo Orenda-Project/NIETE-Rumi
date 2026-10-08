@@ -115,18 +115,29 @@ e2e_keys_dir() {
   printf '%s' "$d"
 }
 
+# e2e_local_db_script "<main>" → this checkout's local-db.sh (bd-z3ze4), or nothing on an older checkout.
+e2e_local_db_script() {
+  local f="$1/bot/scripts/e2e/local-db.sh"
+  [ -f "$f" ] || f="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." 2>/dev/null && pwd)/bot/scripts/e2e/local-db.sh"
+  [ -f "$f" ] && printf '%s' "$f"
+}
+
 # e2e_mock_lane_ready "<main>" → one missing precondition per line on stdout; returns 0 iff none.
-# Exactly the two things local-stack.sh refuses without (exit 14 and exit 16); nothing speculative.
+# Exactly the things local-stack.sh refuses without (exit 14, 16, and on the local lane exit 18 —
+# local-db.sh doctor names those); nothing speculative.
 e2e_mock_lane_ready() {
-  local main="$1" kd missing=0
+  local main="$1" kd missing=0 ldb
   kd=$(e2e_keys_dir "$main")
-  if [ ! -f "$kd/niete-local.env" ]; then
+  if [ "${E2E_LOCAL_DB:-1}" = 0 ] && [ ! -f "$kd/niete-local.env" ]; then   # only the SANDBOX lane needs keys (bd-z3ze4.5)
     printf 'keys/niete-local.env missing (looked in %s/keys and %s/keys)\n' "$main" "$(dirname "$main")"
     missing=1
   fi
   if ! command -v redis-server >/dev/null 2>&1; then
     printf 'redis-server not on PATH\n'
     missing=1
+  fi
+  if [ "${E2E_LOCAL_DB:-1}" != 0 ] && ldb=$(e2e_local_db_script "$main"); then   # local is the default (bd-z3ze4.2)
+    bash "$ldb" doctor 2>/dev/null || missing=1
   fi
   return $missing
 }
@@ -143,7 +154,7 @@ e2e_mock_lane_autofix() {
   [ "${2:-}" = "--with-redis" ] && with_redis=1
   if [ "${E2E_AUTOFIX_OFF:-}" = "1" ]; then e2e_mock_lane_ready "$main" >/dev/null; return $?; fi
   kd=$(e2e_keys_dir "$main")
-  if [ ! -f "$kd/niete-local.env" ]; then
+  if [ "${E2E_LOCAL_DB:-1}" = 0 ] && [ ! -f "$kd/niete-local.env" ]; then   # only the SANDBOX lane needs keys (bd-z3ze4.5)
     prov="$main/bot/scripts/e2e/provision-local-keys.sh"
     [ -f "$prov" ] || prov="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." 2>/dev/null && pwd)/bot/scripts/e2e/provision-local-keys.sh"
     if [ -f "$prov" ]; then
@@ -182,6 +193,52 @@ e2e_mock_lane_autofix() {
       echo "redis-server not on PATH (no brew or apt-get to auto-install it)"; rc=1
     fi
   fi
+  # Local lane (the default; E2E_LOCAL_DB=0 opts out), about to run (--with-redis): Postgres 17 + pgvector + postgrest, then the seed snapshot.
+  # Never from the commit hook itself — a 3-minute pull must not hold a developer's terminal after `git commit`.
+  local ldb
+  if [ -n "$with_redis" ] && [ "${E2E_LOCAL_DB:-1}" != 0 ] && ldb=$(e2e_local_db_script "$main"); then
+    local need_tools="" need_gh=""
+    bash "$ldb" doctor 2>/dev/null | grep -qE '^(postgres17|pgvector|postgrest) ' && need_tools=1
+    # The seed comes from a PRIVATE GitHub release when the repo commits a pointer (bd-z3ze4.7): gh downloads it.
+    [ -f "$main/supabase/baseline/seed-release.txt" ] && ! command -v gh >/dev/null 2>&1 \
+      && [ "$(bash "$ldb" seed-status 2>/dev/null)" != ok ] && need_gh=1
+    if command -v brew >/dev/null 2>&1; then
+      if [ -n "$need_tools" ]; then
+        if brew install postgresql@17 pgvector postgrest >/dev/null 2>&1 \
+           && ! bash "$ldb" doctor 2>/dev/null | grep -qE '^(postgres17|pgvector|postgrest) '; then
+          echo "auto-installed postgresql@17 + pgvector + postgrest via brew"
+        else
+          echo "postgres17 missing (brew install postgresql@17 pgvector postgrest failed)"; rc=1
+        fi
+      fi
+      if [ -n "$need_gh" ]; then
+        if brew install gh >/dev/null 2>&1 && command -v gh >/dev/null 2>&1; then echo "auto-installed gh via brew (then: gh auth login, once)"
+        else echo "seed snapshot missing (gh not found — brew install gh, then gh auth login)"; rc=1; fi
+      fi
+    elif [ -n "$need_tools$need_gh" ]; then
+      # Linux (bd-z3ze4.8): local-db.sh install-tools — PostgREST needs no root; Postgres 17, pgvector and gh come
+      # from apt only when sudo needs no password. Otherwise it names the one command to run by hand.
+      local iout
+      if iout=$(bash "$ldb" install-tools 2>&1); then :; else rc=1; fi
+      printf '%s\n' "$iout" | sed -n 's/^installed /auto-installed /p'
+      printf '%s\n' "$iout" | grep -E 'missing|failed|no Linux build|is for Linux' || true
+    fi
+    if [ "$(bash "$ldb" seed-status 2>/dev/null)" != ok ]; then
+      if out=$(bash "$ldb" seed-pull 2>&1); then
+        echo "auto-pulled the seed snapshot — $(printf '%s' "$out" | grep 'seed:' | tail -1 | sed 's/^\[local-db\] //')"
+      else
+        echo "seed snapshot missing (pull failed: $(printf '%s' "$out" | tail -1 | sed 's/^\[local-db\] //' | cut -c1-200))"; rc=1
+      fi
+    fi
+    # Schema drift (bd-z3ze4.3): the committed baseline vs the live sandbox, one query, ~4 s. A WARNING, never a
+    # refusal. OPT-IN per run (E2E_DRIFT_CHECK=1): it needs sandbox access, and the local lane needs none
+    # (bd-z3ze4.5) — a maintainer or CI runs `local-db.sh drift` and refreshes the baseline instead.
+    if [ "${E2E_DRIFT_CHECK:-0}" = 1 ]; then
+      local dout drc
+      dout=$(bash "$ldb" drift 2>/dev/null); drc=$?
+      [ "$drc" = 10 ] && printf '%s\n' "$dout" | sed 's/^/auto-check: /'
+    fi
+  fi
   e2e_mock_lane_ready "$main" >/dev/null || rc=1
   return $rc
 }
@@ -193,8 +250,20 @@ e2e_mock_not_ready_block() {
   echo "⚠ MOCK LANE NOT RUNNABLE ON THIS MACHINE — a commit's commit-e2e.sh run stops before starting anything:"
   printf '%s\n' "$why" | sed 's/^/    · /'
   echo "  what is left (everything else is automatic):"
-  case "$why" in *niete-local.env*)
-    echo "    railway login        # an account with access to the \"NIETE-Rumi Staging\" project; the keys file is then provisioned automatically on the next commit / session" ;;
+  case "$why" in
+    *"gh auth login"*|*"gh not found"*|*"gh missing"*)   # the seed is a PRIVATE release (bd-z3ze4.7): GitHub access, not Railway
+      case "$why" in *"gh not found"*|*"gh missing"*)
+        if command -v brew >/dev/null 2>&1; then echo "    brew install gh"; else echo "    sudo apt-get install -y gh"; fi ;; esac
+      echo "    gh auth login        # with access to Orenda-Project/niete-e2e-fixtures (ask an org admin); the seed then downloads on the next run" ;;
+    *niete-local.env*|*"seed "*|*"seed snapshot"*)
+      echo "    railway login        # an account with access to the \"NIETE-Rumi Staging\" project; the keys file is then provisioned automatically on the next commit / session" ;;
+  esac
+  case "$why" in *postgres17*|*pgvector*|*postgrest*)
+    if command -v brew >/dev/null 2>&1; then
+      echo "    brew install postgresql@17 pgvector postgrest   # run-suite.sh / commit-e2e.sh install them automatically when brew is present (or E2E_LOCAL_DB=0 for the sandbox)"
+    else
+      echo "    bash bot/scripts/e2e/local-db.sh install-tools   # Linux: run it once yourself in a terminal — sudo asks for your password there"
+    fi ;;
   esac
   case "$why" in *redis-server*)
     if command -v brew >/dev/null 2>&1 || ! command -v apt-get >/dev/null 2>&1; then

@@ -23,6 +23,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 # no sudo; -w ties it to this shell so it ends when the run does.
 if command -v caffeinate >/dev/null 2>&1; then caffeinate -dims -w $$ & fi
 QA="$ROOT/.claude/qa/shared"
+. "$ROOT/bot/scripts/e2e/portable.sh"   # port_listening: lsof, else ss, else a TCP connect (Linux has no lsof by default)
 MODE="${1:-safe}"; shift || true
 # REFLECT: default to the inherited env value (REFLECT=slash drives COA10 instead of COA06);
 # an empty local default here USED to shadow the inherited env, so named `coaching` mode could
@@ -32,7 +33,16 @@ DRIVER="" ENV="sandbox" TARGET="" PORT="${CDP_PORT:-9223}" RUN_ID="" SEED=1 REFL
 # --commit <sha> behind bot/scripts/e2e/mock-graph-api.js, on the sandbox DB, vendors replay-strict. No
 # Chrome, no WhatsApp number. Default chrome — every existing invocation is unchanged.
 # --spec-sync <brief.json|none> and --validator-exit <n> are provenance for the ledger row (phase 1).
-METHOD="" COMMIT="" SPEC_SYNC="" VALIDATOR_EXIT="" TRIGGER="${E2E_TRIGGER:-manual}" PRINT_DRIVER="" SLOT="${E2E_SLOT:-0}" PARALLEL=""
+METHOD="" COMMIT="" SPEC_SYNC="" VALIDATOR_EXIT="" TRIGGER="${E2E_TRIGGER:-manual}" PRINT_DRIVER="" PRINT_PORTS="" SLOT="${E2E_SLOT:-0}" PARALLEL=""
+# slot_ports N → every port slot N's stack listens on, NAME=port per line. The ONE list: a child run exports it
+# and the parent's free-slot check probes it, so they cannot drift. The last two are the per-run local database
+# (E2E_LOCAL_DB=1, bd-z3ze4: the supabase-js proxy and PostgREST); unslotted they are 54321/54330, never reused here.
+slot_ports() { local n=$1
+  printf '%s\n' "MOCK_PORT=$((4010+n))" "E2E_BOT_PORT=$((3100+n))" "E2E_REDIS_PORT=$((6390+n))" "E2E_WORKER_HEALTH_PORT=$((3201+n))" \
+                 "E2E_SUPABASE_PORT=$((54400+n))" "LOCAL_DB_REST_PORT=$((54500+n))" "LOCAL_R2_PORT=$((54600+n))"; }
+# …and just the numbers, for the port probes. The names hold digits (E2E_…), so the strip must allow them — `[A-Z_]*=`
+# left every name but MOCK_PORT on, and the free-slot probe checked one port of seven.
+slot_port_numbers() { slot_ports "$1" | sed 's/^[A-Z0-9_]*=//'; }
 while [ $# -gt 0 ]; do case "$1" in
   --driver) DRIVER="$2"; shift 2;; --env) ENV="$2"; shift 2;; --target) TARGET="$2"; shift 2;;
   --port) PORT="$2"; shift 2;; --run-id) RUN_ID="$2"; shift 2;; --no-seed) SEED=0; shift;; --reflect) REFLECT="$2"; shift 2;;
@@ -41,6 +51,8 @@ while [ $# -gt 0 ]; do case "$1" in
   --method) METHOD="$2"; shift 2;; --commit) COMMIT="$2"; shift 2;;
   --spec-sync) SPEC_SYNC="$2"; shift 2;; --validator-exit) VALIDATOR_EXIT="$2"; shift 2;;
   --print-driver) PRINT_DRIVER=1; shift;;   # resolve the driver exactly as a run would, print it, exit — touches nothing
+  --print-ports) PRINT_PORTS=1; shift;;     # the ports this --slot would export, then exit — touches nothing
+  --print-port-numbers) PRINT_PORTS=numbers; shift;;   # …as the bare numbers the free-slot probes check
   *) echo "unknown option $1"; exit 2;; esac; done
 if [ -z "$METHOD" ]; then METHOD=$(python3 "$QA/targets_lite.py" "$ROOT/.claude/qa/config/whatsapp-targets.yaml" --where "env=$ENV" --where 'tenant~NIETE' --get method); METHOD="${METHOD:-chrome}"; fi
 case "$METHOD" in chrome|mock) ;; *) echo "ERROR: --method must be chrome or mock (got '$METHOD')"; exit 2;; esac
@@ -65,7 +77,7 @@ if [ "$METHOD" = mock ]; then
     i=0; PIDS=""; T0=$(date +%s)
     # a slot is free when none of its four ports is listening AND no run holds a lock on its driver — a second
     # parallel run (another commit, another session) takes the next free slots instead of colliding
-    slot_free() { local n=$1 p; for p in $((4010+n)) $((3100+n)) $((6390+n)) $((3201+n)); do lsof -ti tcp:$p -sTCP:LISTEN >/dev/null 2>&1 && return 1; done
+    slot_free() { local n=$1 p; for p in $(slot_port_numbers "$n"); do port_listening "$p" && return 1; done
                   [ -e "$PDIR/.slot-$n" ] && return 1; return 0; }
     for f in $PFEATS; do
       i=$((i+1)); while ! slot_free "$i"; do i=$((i+1)); [ "$i" -gt 40 ] && { echo "ERROR: no free slot under 40"; exit 3; }; done
@@ -96,11 +108,18 @@ if [ "$METHOD" = mock ]; then
   # ── --slot N: this run's own ports and its own synthetic driver (derived from the machine key + the slot),
   #    so two runs on one machine never share a port, a Redis, a stack or a driver row.
   if [ "${SLOT:-0}" != 0 ]; then
-    export MOCK_PORT=$((4010+SLOT)) E2E_BOT_PORT=$((3100+SLOT)) E2E_REDIS_PORT=$((6390+SLOT)) E2E_WORKER_HEALTH_PORT=$((3201+SLOT))
+    for _kv in $(slot_ports "$SLOT"); do export "$_kv"; done
     if [ -z "$DRIVER" ]; then
       export E2E_MOCK_DRIVER_MACHINE="${E2E_MOCK_DRIVER:-$(hostname)|$(id -un)}#slot$SLOT"; unset E2E_MOCK_DRIVER
     fi
     [ -n "$RUN_ID" ] || RUN_ID="$(date +%Y%m%d-%H%M)-$MODE-s$SLOT"
+  fi
+  if [ -n "$PRINT_PORTS" ]; then [ "${SLOT:-0}" != 0 ] && { [ "$PRINT_PORTS" = numbers ] && slot_port_numbers "$SLOT" || slot_ports "$SLOT"; }; exit 0; fi
+  # A --slot given directly (not by --parallel, whose parent probes) is checked too: another run on this machine
+  # may hold it (bd-d2zge — a second session's `--slot 1` killed a running slot-1 stack). Refuse before anything.
+  if [ "${SLOT:-0}" != 0 ]; then
+    _busy=""; for _p in $(slot_port_numbers "$SLOT"); do port_listening "$_p" && _busy="$_busy $_p"; done
+    [ -z "$_busy" ] || { echo "BLOCKED: slot $SLOT is in use — port(s)${_busy} already listening (another run on this machine). Pick a free --slot, or use --parallel, which picks one."; exit 3; }
   fi
   # The mock driver is PER MACHINE (mock_driver.py: hostname|user → 92300XXXXXXX; E2E_MOCK_DRIVER pins it).
   # Two machines used to share the fixed yaml number on the same sandbox DB and interleave (bd-yj4e4).
@@ -132,6 +151,19 @@ T0=$(date +%s)
 say "=== /niete-e2e $MODE · $(date -u +%FT%TZ) · tenant NIETE env=$ENV target=$TARGET driver=$DRIVER method=$METHOD${COMMIT:+ commit=${COMMIT:0:12}} run=$RUN_ID"
 
 # ── 0. preconditions ─────────────────────────────────────────────────────────────────────────
+# The mock lane sets its machine up ITSELF — keys from Railway, redis, and on the local lane (the default)
+# Postgres 17 + pgvector + postgrest and the seed snapshot — exactly as commit-e2e.sh does, so a direct
+# run-suite.sh call on a new machine works too (bd-z3ze4.2). Only `railway login` is ever manual.
+if [ "$METHOD" = mock ] && . "$ROOT/.claude/hooks/lib/mock-lane.sh" 2>/dev/null && type e2e_mock_lane_autofix >/dev/null 2>&1; then
+  _MAIN=$(e2e_main_checkout "$ROOT")
+  _FIX=$(e2e_mock_lane_autofix "$_MAIN" --with-redis); _FIX_RC=$?
+  printf '%s\n' "$_FIX" | grep -E '^auto-' | while IFS= read -r l; do say "machine: $l"; done
+  if [ "$_FIX_RC" -ne 0 ]; then
+    say "BLOCKED: this machine cannot run the mock lane yet:"
+    e2e_mock_not_ready_block "$(e2e_mock_lane_ready "$_MAIN"; printf '%s\n' "$_FIX" | grep -E 'failed|unavailable|missing' || true)" | tee -a "$LOG"
+    exit 3
+  fi
+fi
 python3 "$QA/driver_lock.py" acquire --driver "$DRIVER" --run-id "$RUN_ID" >>"$LOG" 2>&1 || { say "BLOCKED: driver lock held (see $LOG) — another run is driving $DRIVER"; exit 3; }
 STACK_DOWN=""
 cleanup() { python3 "$QA/driver_lock.py" release --driver "$DRIVER" >/dev/null 2>&1; [ -n "$STACK_DOWN" ] && bash "$ROOT/bot/scripts/e2e/local-stack.sh" down "$RUN_DIR" >>"$LOG" 2>&1; }
@@ -157,6 +189,13 @@ for c in (os.path.join(main, "keys", "niete-local.env"), os.path.join(os.path.di
 PY
 )
   [ -f "$KEYS_FILE" ] && eval "$(grep -E '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' "$KEYS_FILE" | sed 's/^SUPABASE_/export NIETE_SANDBOX_SUPABASE_/')"
+  # E2E_LOCAL_DB=1 (bd-z3ze4): the bot is on this run's own local database, so every DB tool must be too —
+  # --env local resolves only from NIETE_LOCAL_SUPABASE_* and only accepts a 127.0.0.1 URL.
+  if [ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("db",""))' "$RUN_DIR/stack.json")" = local ]; then
+    eval "$(grep -E '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' "$RUN_DIR/db/db.env" | sed 's/^SUPABASE_/export NIETE_LOCAL_SUPABASE_/')"
+    ENV=local; export E2E_ENV=local
+    say "db: local per-run database ($(sed -nE 's/^LOCAL_DB_NAME=//p' "$RUN_DIR/db/db.env")) — table log $RUN_DIR/db/requests.log"
+  fi
   say "stack: $(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print("bot", d["bot_url"], "commit", d["commit_sha"][:12], "← mock", d["mock_url"])' "$RUN_DIR/stack.json")"
   python3 "$QA/niete_sandbox_driver.py" ensure --phone "$DRIVER" --yes-write 2>&1 | tee -a "$LOG" | tail -1
 else

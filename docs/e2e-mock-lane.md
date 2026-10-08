@@ -37,10 +37,77 @@ Every existing chrome invocation is unchanged; `--method` defaults from `whatsap
 | The running bot is that commit | `/health` returns `commit` (`E2E_COMMIT_SHA`, or `RAILWAY_GIT_COMMIT_SHA` on Railway); `local-stack.sh` refuses to drive a mismatch (exit 13) |
 | Installed deps match the commit's lockfiles | root and bot `package-lock.json` blobs at the sha must equal the installed trees' (exit 10) |
 | No live vendor call | `E2E_CASSETTE=replay-strict`: a hit replays, a miss **throws** `E2E_CASSETTE_MISS`, is logged to `cassette-misses.jsonl`, and makes the ledger row `CRITICAL` naming the scenarios it hit |
-| No production or staging data | the bot runs on the **sandbox** Supabase (`keys/niete-local.env`); the cassette and the DB tooling both refuse any other project ref |
-| One driver row per machine | the synthetic driver is derived from `hostname\|user` (`mock_driver.py`, `92300XXXXXXX`; `E2E_MOCK_DRIVER` pins it) and `ensure`d on first use, so two machines never seed or read the same rows on the shared sandbox DB; the run lock (`driver_lock.py`) is per machine and guards same-machine parallel runs |
+| No shared data at all (the default) | every run gets its **own local database** (Postgres 17 + PostgREST, copied in ~1.4 s from a golden built from the committed sandbox schema + a per-machine reference-data snapshot) and its **own file store** (`local-r2.js`: writes stay in the run, unwritten keys read through from staging, read-only). Both are dropped after the run. See *The local lane* below |
+| No production or staging writes | the DB tooling (Python `--env local`, Node `db-target.cjs`) only accepts 127.0.0.1 on a local run; with `E2E_LOCAL_DB=0` the bot runs on the **sandbox** Supabase (`keys/niete-local.env`), and the cassette and the DB tooling refuse any other project ref |
+| One driver row per machine | the synthetic driver is derived from `hostname\|user` (`mock_driver.py`, `92300XXXXXXX`; `E2E_MOCK_DRIVER` pins it) and `ensure`d on first use; on the sandbox (`E2E_LOCAL_DB=0`) that is what keeps two machines off each other's rows. The run lock (`driver_lock.py`) guards same-machine runs, and a `--slot` whose ports are busy is refused (bd-d2zge) |
 | Flows are emulated, never rendered | the `flow*` primitives play Meta's client from the stored FLOW_JSON (phase 4); every result carries `via: flow-emulator`, `caps.render` stays `false`, and a component the emulator does not model (PhotoPicker) is refused, not faked |
 | Meta's field caps are enforced | the mock rejects header/footer > 60, button > 20, row title > 24, > 3 buttons, > 10 rows — counted in **code points**, like Meta |
+
+## The local lane — the default (bd-z3ze4)
+
+Every mock-lane run uses its own throwaway database and file store; nothing is shared with the sandbox or with
+another run. `E2E_LOCAL_DB=0` opts a run out to the shared sandbox database and staging's R2, as before.
+
+**A run needs no Railway, sandbox or staging access** (bd-z3ze4.5): no keys file, no `railway` call, no staging read.
+The bot's settings (Flow ids, `PORTAL_URL`, placeholders, bucket name) come from the committed
+`.claude/qa/config/local-lane.env`; the staging files a run reads (`supabase/baseline/seed-files.txt`, 4 files, 0.3 MB)
+are served from the per-machine snapshot. The snapshot itself is a **small seed** (bd-z3ze4.7): only the reference rows the tests read (measured with
+`bot/scripts/e2e/seed-rows-used.js`; 13 MB instead of 176 MB), released as one asset on the **private** repo
+`Orenda-Project/niete-e2e-fixtures`. This public repo commits only the pointer
+(`supabase/baseline/seed-release.txt`: tag + sha256) and the keep-list of row ids (`seed-keep.json`) — never content.
+
+**What an operator needs:** `gh` signed in (`gh auth login`) with access to `Orenda-Project/niete-e2e-fixtures`
+(ask an org admin). That's all — no Railway. The first run downloads the seed (checksum-verified); a `git pull`
+that brings a new pointer makes the next run download the new one. Missing `gh` is installed with brew on a Mac,
+with apt on Linux (see below).
+
+**Maintainers (sandbox access) publishing a new seed:** `local-db.sh seed-pull --from-sandbox` (full data),
+replay a run's `db/queries.log` with `seed-rows-used.js` to refresh `seed-keep.json` if tests changed, then
+`local-db.sh seed-publish` (trims, packages, releases privately, writes the pointer) and commit the pointer.
+
+**A new machine sets itself up** the first time `run-suite.sh` or `commit-e2e.sh` runs (both call
+`e2e_mock_lane_autofix --with-redis`; never from inside `git commit`, so a commit is never held up):
+
+| Step | Who | When |
+|---|---|---|
+| `gh auth login` (an account in the Orenda-Project org) | **you** — the one manual step | once |
+| Mac: `brew install postgresql@17 pgvector postgrest gh` | automatic | first run |
+| Linux: `local-db.sh install-tools` — see below | automatic, or **you** once if sudo needs a password | first run |
+| reference-data seed: `local-db.sh seed-pull` (13.6 MB, private release) into `~/.cache/niete-e2e-db/seed` | automatic | first run, and again when `seed-release.txt` changes |
+| golden database (schema + snapshot + `seed-overrides.sql`, ~12 s) | automatic | first run after a schema/snapshot change |
+| a fresh copy per run (~1.4 s), dropped at `down` | automatic | every run |
+
+**Linux (Ubuntu/Debian; no Homebrew).** `bash bot/scripts/e2e/local-db.sh install-tools` installs PostgREST as the
+static binary from its GitHub release into `~/.cache/niete-e2e-db/bin` (no root), and Postgres 17 + pgvector
+(`postgresql-17`, `postgresql-17-pgvector` from the PGDG apt repo) and `gh` with apt. The run calls it by itself; the
+apt part runs only as root or when `sudo` needs no password, because a hook must never wait on a password prompt.
+Otherwise the run stops and prints the command: run `install-tools` once yourself in a terminal, where sudo can ask.
+Port checks use `ss` when `lsof` is missing. Verified on GitHub's Ubuntu 22.04, 24.04 and 24.04-arm runners
+(install, the real schema, PostgREST, supabase-js). Other distros (Fedora, Arch): install Postgres 17, pgvector and
+PostgREST yourself; `LOCAL_DB_PG_BIN` points at a Postgres 17 `bin/` the script does not find on its own.
+
+What is committed vs per machine:
+
+| Committed | Per machine, never committed |
+|---|---|
+| `supabase/baseline/schema.sql` — the sandbox schema, no rows (regenerate: `local-db.sh baseline`) | the reference-data snapshot (part of it is the restricted ICT corpus) |
+| `supabase/baseline/seed-tables.txt` — which reference tables are pulled (never a per-teacher table) | the Postgres cluster (`~/.cache/niete-e2e-db/pg17`) |
+| `supabase/baseline/seed-overrides.sql` — the lane's own state for global switches (`app_redirect_*` off) | |
+
+Check a machine: `bash bot/scripts/e2e/local-db.sh doctor` (prints what is missing; silent when ready).
+Schema drift: `bash bot/scripts/e2e/local-db.sh drift` compares `supabase/baseline/schema.objects.txt` (every
+public column + function, written by `baseline`) with the live sandbox in ~4 s and names what differs. It needs
+sandbox access, so it is a **maintainer/CI** step; a run checks it only with `E2E_DRIFT_CHECK=1` (a warning, never
+a block). Fix: `local-db.sh baseline`, then commit `schema.sql` + `schema.objects.txt`.
+Without a snapshot, `local-db.sh up` **refuses** (exit 9) rather than run every scenario on an empty database.
+
+Parallel: `run-suite.sh … --parallel` gives each feature a slot with its own database, PostgREST, proxy and file
+store ports (`slot_ports`); the shared cluster and golden build are serialised by a lock. All nine mock-capable
+features run in ~35 min (sequential ~100 min).
+
+What the private database makes possible: scenarios that need a GLOBAL switch (`app_redirect_*`: M20, L11,
+COA62, T92, T93) flip it for their own run via `api.setAppSetting` (`app-redirect-case.cjs`) and put it back;
+on the sandbox they stay BLOCKED, since the switch would reach every tester.
 
 ## Setup (automatic — no manual step)
 

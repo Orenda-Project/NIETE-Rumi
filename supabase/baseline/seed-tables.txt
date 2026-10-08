@@ -1,0 +1,38 @@
+# Reference tables the mock lane's local database is seeded with (bd-z3ze4).
+# `bash bot/scripts/e2e/local-db.sh seed-pull` copies these tables' ROWS from the sandbox into
+# ~/.cache/niete-e2e-db/seed on each machine. This LIST is committed; the DATA never is
+# (niete_lp612_segments and lesson_plan_catalog are the restricted ICT corpus).
+#
+# Rule: reference content only — the same for every teacher. Never a per-teacher table (users,
+# conversations, coaching_sessions, quizzes, quiz_*, lesson_plans, niete_lp_downloads, teacher_*,
+# schools, leader_*, …): a run must start with no teacher history, and a test that needs some
+# creates it in its own setup.
+#
+# Changing this list makes every machine's snapshot `stale`; the readiness check re-pulls it.
+
+# training catalogue
+training_vendors
+training_programs
+training_program_scopes
+training_levels
+training_courses
+training_modules
+training_questions
+training_grand_quizzes
+
+# lesson-plan content
+niete_lp_asset_sources
+niete_lp_assets
+niete_lp612_segments
+pre_generated_lps
+lesson_plan_catalog
+
+# settings
+app_settings
+region_features
+
+# school-structure lookups (foreign-key targets of classes: grade, session, section, shift codes)
+academic_sessions
+grade_levels
+sections
+shifts

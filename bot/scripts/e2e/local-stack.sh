@@ -11,7 +11,7 @@
 #      installed set is symlinked when its lockfile is byte-identical; otherwise the lane provisions a
 #      private tree keyed to that lockfile (provision-local-modules.sh, bd-vaee9). It never asks for
 #      `npm ci` in the shared clone, which every other worktree and session is mid-flight on.
-#   3. The bot's .env is composed from keys/niete-local.env (sandbox DB + placeholders, never a real
+#   3. The bot's .env is composed from keys/niete-local.env (placeholders, never a real
 #      WhatsApp token) plus the run's own values: WHATSAPP_API_BASE → the mock, E2E_COMMIT_SHA=<sha>,
 #      E2E_CASSETTE=replay-strict (a vendor miss FAILS, never goes live).
 #   4. Four processes: a private redis-server (no persistence), mock-graph-api, the bot, and the
@@ -20,10 +20,20 @@
 #
 # Exit codes: 10 modules unavailable for this commit · 11 worktree failed · 12 bot not healthy in time · 13 /health sha
 # mismatch · 14 keys/niete-local.env missing · 15 mock not healthy · 16 redis-server missing/unhealthy ·
-# 17 worker not healthy.
+# 19 a port this stack would bind is already in use (another run) — nothing was started ·
+# 17 worker not healthy · 18 local database (E2E_LOCAL_DB=1) did not come up.
+#
+# THE LOCAL LANE IS THE DEFAULT (bd-z3ze4.2): the bot runs on a clean per-run local database (local-db.sh)
+# instead of the shared sandbox Supabase; the keys file's SUPABASE_URL/SERVICE_ROLE_KEY are replaced by the
+# run's own. E2E_LOCAL_DB=0 opts out: the bot runs on the sandbox database and staging's R2, as before.
+# It also gets a per-run FILE store (local-r2.js, bd-z3ze4.1) instead of the staging R2 bucket: every upload
+# lands in <run_dir>/r2; a file the run did not write is read through from staging, read-only. The staging
+# R2 keys go to local-r2.js only; the bot gets dummy local ones.
 set -uo pipefail
+local_db_on() { [ "${E2E_LOCAL_DB:-1}" != 0 ]; }   # default ON; only an explicit 0 means the sandbox
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
+. "$HERE/portable.sh"   # port_listening / port_pids: lsof, else ss (Linux has no lsof by default)
 CMD="${1:-}"; shift || true
 
 # The main checkout (where gitignored keys/ and the installed node_modules live), even from a worktree.
@@ -39,13 +49,27 @@ MAIN="$(main_checkout)"
 # openai/@anthropic-ai/sdk/express/ioredis) and E2E_BOT_NODE_MODULES_ROOT (bot/node_modules).
 NM_ROOT="${E2E_NODE_MODULES_ROOT:-$MAIN}"
 NM_BOT="${E2E_BOT_NODE_MODULES_ROOT:-$MAIN}"
-KEYS_DIR="$MAIN/keys"; [ -f "$KEYS_DIR/niete-local.env" ] || KEYS_DIR="$(dirname "$MAIN")/keys"   # workspace-level keys/ fallback; check the FILE so a stray shadow keys/ dir cannot mask it
+KEYS_DIR="$MAIN/keys"; [ -f "$KEYS_DIR/niete-local.env" ] || KEYS_DIR="$(dirname "$MAIN")/keys"
+[ -n "${E2E_KEYS_DIR:-}" ] && KEYS_DIR="$E2E_KEYS_DIR"   # explicit override (tests: prove the local lane needs none)   # workspace-level keys/ fallback; check the FILE so a stray shadow keys/ dir cannot mask it
 
 log() { echo "[local-stack] $*" >&2; }
 
 up() {
   local sha="$1" run_dir="$2"
   [ -n "$sha" ] && [ -n "$run_dir" ] || { echo "usage: local-stack.sh up <sha> <run_dir>" >&2; exit 2; }
+  # 0. Every port this stack will bind must be FREE, checked before anything starts (bd-d2zge). A port that is
+  # already listening belongs to another run: starting anyway made /health answer with THAT run's commit
+  # (exit 13), and this run's down then port-killed the other run's bot and worker mid-scenario. Refusing
+  # here, before run_dir/ports exists, means down can never touch processes this run did not start.
+  local p busy=""
+  for p in "${MOCK_PORT:-4010}" "${E2E_BOT_PORT:-3100}" "${E2E_REDIS_PORT:-6390}" "${E2E_WORKER_HEALTH_PORT:-3201}" \
+           $(local_db_on && echo "${LOCAL_R2_PORT:-54600}" "${E2E_SUPABASE_PORT:-54321}" "${LOCAL_DB_REST_PORT:-54330}"); do
+    port_listening "$p" && busy="$busy $p"
+  done
+  if [ -n "$busy" ]; then
+    log "port(s)${busy} already in use — another run holds them (pid $(port_pids "${busy# }" | head -1)). Refusing; nothing was started."
+    exit 19
+  fi
   mkdir -p "$run_dir"
   local src="$run_dir/src"
   local full; full=$(git -C "$REPO" rev-parse --verify "${sha}^{commit}" 2>/dev/null) || { log "unknown commit $sha"; exit 11; }
@@ -89,20 +113,53 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
   local keys_name="niete-local.env"
   if [ "$cassette_mode" = record ] || { [ "$cassette_mode" = replay ] && [ -f "$KEYS_DIR/niete-record.env" ]; }; then keys_name="niete-record.env"; fi
   local keys="$KEYS_DIR/$keys_name"
+  # The local lane (the default) needs NO keys file (bd-z3ze4.5): its settings come from the committed
+  # .claude/qa/config/local-lane.env, its database and file store are its own. A keys file, when present, only
+  # lets local-r2.js read through to staging for a file the seed snapshot lacks. The sandbox lane and record
+  # mode still need it: the sandbox database credential, and real vendor keys.
+  local lane_cfg="$REPO/.claude/qa/config/local-lane.env"
   if [ ! -f "$keys" ]; then
     if [ "$cassette_mode" = record ]; then
       log "record mode needs $keys with REAL vendor keys (Soniox/OpenRouter/ElevenLabs, + R2_* to mirror). The default lane never has them — see docs/e2e-mock-lane.md"
-    else
+      exit 14
+    elif ! local_db_on; then
       log "missing $keys (sandbox creds + placeholders — see docs/e2e-mock-lane.md)"
+      exit 14
     fi
-    exit 14
+    keys=""
   fi
+  if local_db_on && [ ! -f "$lane_cfg" ]; then log "missing $lane_cfg (the local lane's committed settings)"; exit 14; fi
   local mock_port="${MOCK_PORT:-4010}" bot_port="${E2E_BOT_PORT:-3100}" phone_id="${E2E_PHONE_NUMBER_ID:-e2e-local}"
   local redis_port="${E2E_REDIS_PORT:-6390}" worker_port="${E2E_WORKER_HEALTH_PORT:-3201}"
   command -v redis-server >/dev/null 2>&1 || { log "redis-server not found — the queue worker needs it (brew install redis)"; exit 16; }
   local cassette_dir="${E2E_CASSETTE_DIR:-$REPO/.claude/qa/fixtures/cassettes}"; mkdir -p "$cassette_dir"   # committed fixture: recorded once, replayed by every run/clone
+  # The database: the sandbox lines from the keys file, or (E2E_LOCAL_DB=1) this run's own local database.
+  # dotenv keeps the FIRST value, so the keys file's SUPABASE_* must be REMOVED, not overridden below it.
+  local db_kind=sandbox db_lines r2_port=""
+  if local_db_on; then
+    bash "$HERE/local-db.sh" up "$run_dir/db" >&2 || { log "local database did not come up — see $run_dir/db/"; exit 18; }
+    db_lines=$(grep -E '^SUPABASE_(URL|SERVICE_ROLE_KEY)=' "$run_dir/db/db.env")
+    db_kind=local
+    r2_port="${LOCAL_R2_PORT:-54600}"
+    kv() { [ -n "$keys" ] && sed -nE "s/^$1=(.*)$/\1/p" "$keys" | head -1 | tr -d "\"'"; }   # a keys-file value, if any
+    # Files: the run's own, then the per-machine seed snapshot (no credential, no network), then — only when a
+    # keys file exists — staging, read-only.
+    ( cd "$src" && LOCAL_R2_UPSTREAM_ENDPOINT="$(kv R2_ENDPOINT)" LOCAL_R2_UPSTREAM_BUCKET="$(kv R2_BUCKET_NAME)" \
+        LOCAL_R2_UPSTREAM_KEY_ID="$(kv R2_ACCESS_KEY_ID)" LOCAL_R2_UPSTREAM_SECRET="$(kv R2_SECRET_ACCESS_KEY)" \
+        LOCAL_R2_BASE_DIR="${LOCAL_DB_HOME:-$HOME/.cache/niete-e2e-db}/seed/files" \
+        LOCAL_R2_READ_LOG="$run_dir/r2-reads.log" \
+        NODE_PATH="$src/bot/node_modules:$src/node_modules" exec node "$HERE/local-r2.js" "$r2_port" "$run_dir/r2" ) >"$run_dir/r2.log" 2>&1 &
+    echo $! >"$run_dir/r2.pid"
+    for i in $(seq 1 30); do curl -sf -m 2 "http://127.0.0.1:$r2_port/__health" >/dev/null 2>&1 && break; sleep 0.3; done
+    curl -sf -m 2 "http://127.0.0.1:$r2_port/__health" >/dev/null 2>&1 || { log "local file store not healthy on $r2_port (see $run_dir/r2.log)"; down "$run_dir"; exit 18; }
+    db_lines="$db_lines"$'\n'"R2_ENDPOINT=http://127.0.0.1:$r2_port"$'\n'"R2_ACCESS_KEY_ID=local"$'\n'"R2_SECRET_ACCESS_KEY=local"
+  fi
   {
-    cat "$keys"
+    if [ "$db_kind" = local ]; then
+      # record mode only: its REAL vendor keys first (dotenv keeps the first value), minus DB/storage credentials
+      if [ "$cassette_mode" = record ] && [ -n "$keys" ]; then grep -vE '^(SUPABASE_(URL|SERVICE_ROLE_KEY)|R2_(ENDPOINT|ACCESS_KEY_ID|SECRET_ACCESS_KEY))=' "$keys"; echo; fi
+      cat "$lane_cfg"; echo; echo "$db_lines"
+    else cat "$keys"; fi
     echo
     echo "# --- set by local-stack.sh for run $(basename "$run_dir") ---"
     echo "PORT=$bot_port"
@@ -117,6 +174,11 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
     # sandbox DB is seeded; without this the bot falls to the Oxbridge fallback and lesson-plan/L03
     # fails. Overridable for a dev testing the flag-off path: LP_612_ENABLED=false bash commit-e2e.sh …
     echo "LP_612_ENABLED=${LP_612_ENABLED:-true}"
+    # The region the bot runs as. Every NIETE deployment sets DEFAULT_REGION on Railway (sandbox:
+    # niete-sandbox, staging: niete-staging); without it the lane's bot ran as region `default`, so every
+    # region-gated feature (child-test /egra: ICT only, CHILD_TEST_REGIONS) was off and the lane did not test
+    # the bot as deployed. Mirrors the sandbox; E2E_DEFAULT_REGION overrides it.
+    echo "DEFAULT_REGION=${E2E_DEFAULT_REGION:-niete-sandbox}"
     # The lesson/quiz list behind /quiz (transcript-quiz-list + the TRANSCRIPT_QUIZ Flow) is flag-gated
     # at call time; with it unset /quiz falls to the old QuizOrchestrator and training T24 cannot list
     # a lesson-plan quiz. On by default here, like LP_612_ENABLED; no other mock driver sends /quiz.
@@ -191,7 +253,7 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
   echo $! >"$run_dir/bot.pid"
   ( cd "$src" && exec node bot/workers/sqs-worker.js ) >"$run_dir/worker.log" 2>&1 &
   echo $! >"$run_dir/worker.pid"
-  echo "$mock_port $bot_port $redis_port $worker_port" >"$run_dir/ports"
+  echo "$mock_port $bot_port $redis_port $worker_port${r2_port:+ $r2_port}" >"$run_dir/ports"
   for i in $(seq 1 30); do redis-cli -p "$redis_port" ping 2>/dev/null | grep -q PONG && break; sleep 0.3; done
   redis-cli -p "$redis_port" ping 2>/dev/null | grep -q PONG || { log "redis not answering on $redis_port (see $run_dir/redis.log)"; down "$run_dir"; exit 16; }
 
@@ -205,12 +267,12 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
   local running; running=$(printf '%s' "$health" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("commit") or "")')
   if [ "$running" != "$full" ]; then log "/health reports commit '${running:-null}', wanted $full — refusing to drive"; down "$run_dir"; exit 13; fi
 
-  STACK_CASSETTE_MODE="$cassette_mode" python3 - "$run_dir/stack.json" "$full" "$src" "$bot_port" "$mock_port" "$phone_id" "$want" "$bot_root/bot/node_modules" "$cassette_dir" "$run_dir/flow-public-key.b64" "$REPO/.claude/qa/fixtures/flows" <<'PY'
+  STACK_CASSETTE_MODE="$cassette_mode" STACK_DB="$db_kind" python3 - "$run_dir/stack.json" "$full" "$src" "$bot_port" "$mock_port" "$phone_id" "$want" "$bot_root/bot/node_modules" "$cassette_dir" "$run_dir/flow-public-key.b64" "$REPO/.claude/qa/fixtures/flows" <<'PY'
 import json, sys, datetime, os
 p, sha, src, bot, mock, phone, lock, nm, cas, pubkey_file, flows_dir = sys.argv[1:]
 json.dump({"commit_sha": sha, "worktree": src, "bot_url": "http://127.0.0.1:%s" % bot, "mock_url": "http://127.0.0.1:%s" % mock, "worker": True, "queue": "bullmq",
            "flow_public_key_file": pubkey_file, "flows_dir": flows_dir, "flows": "emulated",
-           "phone_number_id": phone, "lock_blob": lock, "node_modules": nm, "cassette_dir": cas, "cassette_mode": os.environ.get("STACK_CASSETTE_MODE", "replay-strict"),
+           "phone_number_id": phone, "lock_blob": lock, "node_modules": nm, "cassette_dir": cas, "cassette_mode": os.environ.get("STACK_CASSETTE_MODE", "replay-strict"), "db": os.environ.get("STACK_DB", "sandbox"), "files": "local" if os.environ.get("STACK_DB") == "local" else "r2:staging",
            "started_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")}, open(p, "w"), indent=1)
 PY
   log "up: bot $full on :$bot_port ← mock :$mock_port · worker :$worker_port · redis :$redis_port (worktree $src)"
@@ -219,13 +281,13 @@ PY
 
 down() {
   local run_dir="$1"
-  for f in worker bot mock redis; do
+  for f in worker bot mock redis r2; do
     if [ -f "$run_dir/$f.pid" ]; then kill "$(cat "$run_dir/$f.pid")" >/dev/null 2>&1 || true; rm -f "$run_dir/$f.pid"; fi
   done
   # Belt and braces: anything still listening on this run's ports goes too.
   if [ -f "$run_dir/ports" ]; then
     for port in $(cat "$run_dir/ports"); do
-      for pid in $(lsof -ti tcp:"$port" -sTCP:LISTEN 2>/dev/null); do kill "$pid" >/dev/null 2>&1 || true; done
+      for pid in $(port_pids "$port"); do kill "$pid" >/dev/null 2>&1 || true; done
     done
     rm -f "$run_dir/ports"
   fi
@@ -234,6 +296,7 @@ down() {
     git -C "$REPO" worktree remove --force "$run_dir/src" >/dev/null 2>&1 || rm -rf "$run_dir/src"
   fi
   git -C "$REPO" worktree prune >/dev/null 2>&1 || true
+  [ -d "$run_dir/db" ] && bash "$HERE/local-db.sh" down "$run_dir/db" >/dev/null 2>&1
   log "down: $run_dir"
 }
 
@@ -243,18 +306,19 @@ down() {
 restart() {
   local proc="$1" run_dir="$2"; shift 2
   local src="$run_dir/src"; [ -d "$src" ] || { log "restart: no $src"; exit 2; }
-  read -r mock_port bot_port redis_port worker_port <"$run_dir/ports"
+  local _more   # a local run appends its file-store port; it must not land in worker_port
+  read -r mock_port bot_port redis_port worker_port _more <"$run_dir/ports"
   export NODE_OPTIONS="--require \"$src/bot/scripts/e2e/dns-pin.js\""   # quoted: the workspace path has spaces
   if [ -f "$run_dir/$proc.pid" ]; then kill "$(cat "$run_dir/$proc.pid")" >/dev/null 2>&1 || true; fi
   case "$proc" in
     bot)
-      for i in $(seq 1 40); do lsof -ti tcp:"$bot_port" -sTCP:LISTEN >/dev/null 2>&1 || break; sleep 0.25; done
+      for i in $(seq 1 40); do port_listening "$bot_port" || break; sleep 0.25; done
       ( cd "$src" && exec env "$@" node bot/whatsapp-bot.js ) >>"$run_dir/bot.log" 2>&1 &
       echo $! >"$run_dir/bot.pid"
       for i in $(seq 1 120); do curl -sf -m 2 "http://127.0.0.1:$bot_port/health" >/dev/null 2>&1 && break; sleep 0.5; done
       curl -sf -m 2 "http://127.0.0.1:$bot_port/health" >/dev/null 2>&1 || { log "restart: bot not healthy on $bot_port"; exit 12; };;
     worker)
-      for i in $(seq 1 40); do lsof -ti tcp:"$worker_port" -sTCP:LISTEN >/dev/null 2>&1 || break; sleep 0.25; done
+      for i in $(seq 1 40); do port_listening "$worker_port" || break; sleep 0.25; done
       ( cd "$src" && exec env "$@" node bot/workers/sqs-worker.js ) >>"$run_dir/worker.log" 2>&1 &
       echo $! >"$run_dir/worker.pid"
       for i in $(seq 1 120); do curl -sf -m 2 "http://127.0.0.1:$worker_port/health" >/dev/null 2>&1 && break; sleep 0.5; done

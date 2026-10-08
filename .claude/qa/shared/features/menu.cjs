@@ -1,6 +1,7 @@
 // @mock-lane — mock-capable driver (uses the mock API, not the browser DOM). Its presence enrols this feature in the mock lane; E2E_MOCK_FEATURES is derived from this marker, so there is no hardcoded list.
 /* menu.feature — all 13 @e2e scenarios, driven in one process.
  * Assertions mirror tests/features/whatsapp/niete/menu.feature. */
+const { withRedirect, isStoreNotice, REDIRECT_BLOCKED } = require('../app-redirect-case.cjs');
 // The CORE teacher rows that must always be present. The menu is role-aware (78406d1e): a teacher's
 // full layout is up to ten rows, role- and config-gated, so assert these are INCLUDED, not an exact
 // list — matching menu.feature's "includes these teacher rows".
@@ -204,7 +205,15 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
       ['M19', "The role-refusal is in the tapping user's own language (Urdu)"]]) roleBlocked(id, name);
   }
 
-  // bd-onxyu — app redirect. Recorded with the reason, not left absent.
-  rec('M20', 'A menu row whose feature moved to the app sends me to the Play Store instead', 'BLOCKED',
-      { reason: 'needs an app_redirect_* switch turned ON in the target database, and the switch is global: it would redirect every teacher on that environment for the length of the run. Covered by tests/app-redirect/ (the real text handler and menu router, red-first).' }, 0);
+  // bd-onxyu — app redirect. The switch is GLOBAL (one app_settings row every teacher reads), so it is only
+  // flipped where it reaches nobody else: the run's own local database (E2E_LOCAL_DB=1, bd-z3ze4). There
+  // api.setAppSetting turns it on, waits out the bot's 30 s switch cache, and the harness puts it back.
+  const M20 = 'A menu row whose feature moved to the app sends me to the Play Store instead';
+  const r20 = await withRedirect(api, 'app_redirect_lesson_plan', async () => {
+    const t0 = Date.now(), r = await api.injectList('menu_lesson_plan', 'Lesson Plans'), txt = r.txt || '';
+    return { storeLink: isStoreNotice(txt), messages: r.newIds, flowStarted: /Pick (your )?class|جماعت چنیں/i.test(txt) || (r.btns || []).length > 0,
+             reply: txt.slice(0, 160), ms: Date.now() - t0 };
+  });
+  if (!r20.ran) rec('M20', M20, 'BLOCKED', { reason: REDIRECT_BLOCKED, setAppSetting: r20.reason }, 0);
+  else rec('M20', M20, r20.value.storeLink && !r20.value.flowStarted ? 'PASS' : 'FAIL', r20.value, r20.value.ms);
 };

@@ -55,7 +55,9 @@ socket.getaddrinfo = _getaddrinfo_fallback
 
 # sandbox = the landing branch's environment since 2026-09-09 (sandbox -> staging -> main);
 # staging is cut from main and is a regression check, not where new work lands (bd-yd11o).
-ENV_REFS = {"sandbox": "olvritwoqujtjvwfulbh", "staging": "rpqkekcfvumypldbejhp", "prod": "ihzciabopbttygxxgrkm"}
+ENV_REFS = {"sandbox": "olvritwoqujtjvwfulbh", "staging": "rpqkekcfvumypldbejhp", "prod": "ihzciabopbttygxxgrkm", "local": "local"}
+# "local" is the mock lane's per-run database (bot/scripts/e2e/local-db.sh, bd-z3ze4): a 127.0.0.1 URL whose
+# ref reads as "local". Its creds come ONLY from NIETE_LOCAL_SUPABASE_* (run-suite.sh exports the run's db.env).
 
 def _repo_root():
     here = os.path.dirname(os.path.abspath(__file__))
@@ -84,7 +86,9 @@ def _main_checkout():
         return None   # not a repo / git unavailable — a NameError here must NOT be swallowed
 
 def _project_ref(url):
-    """https://<ref>.supabase.co -> <ref> (None if unparseable)."""
+    """https://<ref>.supabase.co -> <ref>; http://127.0.0.1|localhost[:port] -> "local"; None if unparseable."""
+    if re.match(r"http://(127\.0\.0\.1|localhost)(:\d+)?/?$", (url or "").strip()):
+        return "local"
     m = re.match(r"https?://([a-z0-9]+)\.supabase\.co", (url or "").strip().rstrip("/"))
     return m.group(1) if m else None
 
@@ -129,6 +133,8 @@ def _env_candidates(env):
     from any clone on any machine, so no path here may reach for a parent
     workspace. A git worktree additionally checks its main checkout, because
     gitignored files exist only there."""
+    if env == "local":
+        return []   # never a file: keys/niete-local.env carries the SANDBOX url, the run's db.env is exported
     name = ".env" if env == "prod" else ".env.%s" % env     # .env.sandbox / .env.staging; prod keeps .env
     roots, seen = [], set()
     for r in (_repo_root(), _main_checkout()):   # worktree first, then the main checkout
