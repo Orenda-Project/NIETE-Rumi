@@ -2,8 +2,9 @@ import api from '../../services/api';
 import type { CoachingStage, SessionDetail } from '../../types/portal';
 import { initials } from '../format';
 import { dayName, pkDayOf, pkToday } from '../lessons/days';
+import { LESSONS_V2_COPY, type LessonsCopy } from '../lessons/copy';
 import type { ProgressStep, ReportData } from '../ui';
-import { COACHING_V2_COPY as C } from './copy';
+import { COACHING_V2_COPY, type CoachingCopy } from './copy';
 
 /**
  * bd-fmf24g.4 — the shared report page's data: GET /coaching-session/:id (the report she got, built by the
@@ -13,6 +14,9 @@ import { COACHING_V2_COPY as C } from './copy';
  * Only what the API carries. The hero report's narrative (headline, identity, moments, strength, horizon)
  * is written per render and not stored, so those sections are left out rather than made up; the image she
  * received is one tap away (Download).
+ *
+ * bd-fmf24g.13.2 — both helpers take the page's words (useCopy(COACHING)) and toReportData its day names
+ * (useCopy(LESSONS).days), English by default.
  */
 
 export type JourneyPoint = { date: string; pct: number };
@@ -26,15 +30,17 @@ export async function loadJourney(sessionId: string): Promise<JourneyPoint[]> {
   }
 }
 
-const dateLabel = (iso: string | null | undefined): string => {
+const dateLabel = (iso: string | null | undefined, days: LessonsCopy['days']): string => {
   const day = pkDayOf(iso ?? null);
-  return day ? dayName(day, pkToday()) : '';
+  return day ? dayName(day, pkToday(), days) : '';
 };
 
 /** The section's letter as the bot sends it (B/C/D/F for FICO); a longer key gives its first letter. */
 const codeOf = (key: string, name: string) => (key && key.length <= 2 ? key.toUpperCase() : (name || key || '?').charAt(0).toUpperCase());
 
-export function toReportData(s: SessionDetail, { teacher, journey }: { teacher: string; journey: JourneyPoint[] }): ReportData {
+export function toReportData(s: SessionDetail, {
+  teacher, journey, words: C = COACHING_V2_COPY, days = LESSONS_V2_COPY.days,
+}: { teacher: string; journey: JourneyPoint[]; words?: CoachingCopy; days?: LessonsCopy['days'] }): ReportData {
   const b = s.breakdown || null;
   const marks = b && b.marks != null ? b.marks : (s.overallScore ?? 0);
   const max = b && b.max != null ? b.max : (s.maxScore ?? 0);
@@ -46,7 +52,7 @@ export function toReportData(s: SessionDetail, { teacher, journey }: { teacher: 
     max,
     teacher,
     topic: s.topic || s.subject || '',
-    date: dateLabel(s.date),
+    date: dateLabel(s.date, days),
     sections: (b?.groups ?? []).map((g) => ({
       code: codeOf(g.key, g.name),
       label: g.name,
@@ -56,7 +62,7 @@ export function toReportData(s: SessionDetail, { teacher, journey }: { teacher: 
     })),
     photos: (s.photoUrls ?? []).map((src) => ({ src, cap: '' })),
     journey: points.length > 1
-      ? { points: points.map((p) => p.pct), first: dateLabel(points[0].date), last: dateLabel(points[points.length - 1].date) }
+      ? { points: points.map((p) => p.pct), first: dateLabel(points[0].date, days), last: dateLabel(points[points.length - 1].date, days) }
       : null,
     // A Digital Coach lesson: the one thing to try, from her commitment card. A coach's visit: what they
     // agreed is in the coach's note below.
@@ -68,7 +74,7 @@ export function toReportData(s: SessionDetail, { teacher, journey }: { teacher: 
 }
 
 /** The Digital Coach pipeline's stage as the steps she sees (the bot tells her the same on WhatsApp). */
-export function dcSteps(stage: CoachingStage, answered: boolean): ProgressStep[] {
+export function dcSteps(stage: CoachingStage, answered: boolean, C: CoachingCopy = COACHING_V2_COPY): ProgressStep[] {
   const at = stage === 'done' ? 5
     : stage === 'report' ? 4
       : stage === 'reflection' ? (answered ? 4 : 3)

@@ -4,7 +4,8 @@ import { cn } from '@/lib/utils';
 import { acceptFor, checkFile, MAX_PHOTOS } from '../../lib/coachingUpload';
 import { ListRow } from '../ui';
 import { FOCUS, GRID } from '../ui/styles';
-import { COACHING_V2_COPY as C } from './copy';
+import { useCopy } from '../i18n';
+import { COACHING } from './copy';
 import type { DraftPlan } from './draft';
 
 /**
@@ -25,6 +26,7 @@ export function SectionHeading({ children, chip }: { children: ReactNode; chip?:
 
 /** The lesson plan: a "Select lesson plan" trigger, or the chosen plan as a row with Change. */
 export function PlanPicker({ plan, disabled, onOpen }: { plan: DraftPlan | null; disabled?: boolean; onOpen: () => void }) {
+  const C = useCopy(COACHING);
   if (plan) {
     const label = plan.kind === 'library' ? plan.title : C.planPhoto;
     const subtitle = plan.kind === 'library' ? plan.chips.join(' · ') : plan.file.name;
@@ -72,6 +74,7 @@ export type PhotosProblem = 'too_many' | 'not_a_photo' | null;
 
 /** One grid of photos (at most MAX_PHOTOS), each removable, and Add photo while there is room. */
 export function PhotoGrid({ photos, onChange, testId }: { photos: File[]; onChange: (next: File[]) => void; testId: string }) {
+  const C = useCopy(COACHING);
   const input = useRef<HTMLInputElement>(null);
   const [problem, setProblem] = useState<PhotosProblem>(null);
   const previews = usePreviews(photos);

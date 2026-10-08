@@ -13,8 +13,10 @@ import TeacherPage from '../TeacherPage';
 import { teacherPath } from '../routes';
 import { GradeSubjectPicker, HistoryList, type GradeSubjectPair } from '../ui';
 import { FOCUS } from '../ui/styles';
+import { useCopy } from '../i18n';
+import { LESSONS } from '../lessons/copy';
 import { lessonGroups, loadDcHistory } from './api';
-import { COACHING_V2_COPY as C } from './copy';
+import { COACHING } from './copy';
 import { holdDraft, planKeyOf, readPrefill, type DraftPlan } from './draft';
 import { PhotoGrid, PlanPicker, SectionHeading } from './parts';
 import { COACHING_ALL, COACHING_SEND } from './paths';
@@ -30,11 +32,15 @@ import { COACHING_ALL, COACHING_SEND } from './paths';
  *   Start recording  / Upload recording — off until a class; both hand the plan and photos to the send
  *                    page (draft.ts), which records or takes the file and sends exactly those.
  *   Recent DC Observations   collapsed; her Digital Coach lessons (GET /teacher/coaching/history).
+ *
+ * bd-fmf24g.13.2 — every word in the page's language (useCopy); Recent's chips and days too.
  */
 
 const RECENT_COUNT = 5;
 
 export function CoachingHomePage() {
+  const C = useCopy(COACHING);
+  const { days } = useCopy(LESSONS);
   const navigate = useNavigate();
   const location = useLocation();
   const session = useRecordingSession();
@@ -80,7 +86,7 @@ export function CoachingHomePage() {
       title: known?.title || C.planFallback,
       chips: known ? planChips(known) : [],
     });
-  }, [prefill, recentPlans]);
+  }, [prefill, recentPlans, C]);
 
   const ready = !!combo;
   const go = (start: 'record' | 'file') => {
@@ -93,7 +99,10 @@ export function CoachingHomePage() {
     go('file');
   };
 
-  const groups = useMemo(() => lessonGroups((dataOf(history)?.items ?? []).slice(0, RECENT_COUNT)), [history]);
+  const groups = useMemo(
+    () => lessonGroups((dataOf(history)?.items ?? []).slice(0, RECENT_COUNT), undefined, C, days),
+    [history, C, days],
+  );
 
   return (
     <TeacherPage feature="coaching" title={C.title} crumb={C.home} backTo={teacherPath("home")} testId="dc-home">

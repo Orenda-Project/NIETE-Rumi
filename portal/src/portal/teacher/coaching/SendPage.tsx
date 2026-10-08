@@ -17,7 +17,8 @@ import { openUrl } from '../lessons/paths';
 import { teacherPath } from '../routes';
 import { GradeSubjectPicker, Tray, type GradeSubjectPair } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
-import { COACHING_V2_COPY as C } from './copy';
+import { useCopy } from '../i18n';
+import { COACHING, type CoachingCopy } from './copy';
 import { clearDraft, peekDraft, planKeyOf, type DraftPlan } from './draft';
 import { PhotoGrid, PlanPicker, SectionHeading } from './parts';
 import { COACHING_HOME, COACHING_SEND, lessonPath } from './paths';
@@ -33,6 +34,9 @@ import { COACHING_HOME, COACHING_SEND, lessonPath } from './paths';
  *   check     her lesson (listen, Redo / Change file), Attached: her class, the lesson plan, the photos —
  *             each changeable here — then Send.
  *   after     Sending (no menu), Sent → Open lesson, or what went wrong and the way on.
+ *
+ * bd-fmf24g.13.2 — every word in the page's language (useCopy). The plan sheet and the library step are
+ * today's (newui/coaching) and keep their own words.
  */
 
 const PATHS = { record: COACHING_SEND, hub: COACHING_HOME };
@@ -43,7 +47,7 @@ function useSession(): RecordingSession {
   return session;
 }
 
-const comboLabel = (c: GradeSubjectPair | null) => (c ? `${C.grade(c.grade)} · ${c.subject}` : C.title);
+const comboLabel = (c: GradeSubjectPair | null, C: CoachingCopy) => (c ? `${C.grade(c.grade)} · ${c.subject}` : C.title);
 
 function Dock({ children }: { children: ReactNode }) {
   return <div className="flex w-full gap-2.5">{children}</div>;
@@ -78,6 +82,7 @@ function Status({ title, tone = 'info', children }: { title: string; tone?: 'inf
 }
 
 export function SendPage() {
+  const C = useCopy(COACHING);
   const navigate = useNavigate();
   const location = useLocation();
   const session = useSession();
@@ -164,7 +169,7 @@ export function SendPage() {
       : stage === 'sent' ? C.sent
         : stage === 'sending' || stage === 'failed' || stage === 'busy' ? C.send
           : C.recordTitle;
-  const crumb = stage === 'recording' && plan?.kind === 'library' ? `${comboLabel(combo)} · ${plan.title}` : comboLabel(combo);
+  const crumb = stage === 'recording' && plan?.kind === 'library' ? `${comboLabel(combo, C)} · ${plan.title}` : comboLabel(combo, C);
 
   const dock = stage === 'recording' ? (
     <Dock>

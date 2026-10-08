@@ -1,7 +1,9 @@
 import api, { portal } from '../../services/api';
-import { bandLabel, scoreBandFor, type BandKey } from '../../lib/scoreBands';
+import { scoreBandFor, type BandKey } from '../../lib/scoreBands';
 import type { CoachingSession } from '../../types/portal';
+import { COACHING_V2_COPY, type CoachingCopy } from '../coaching/copy';
 import { dayName, pkDayOf, pkToday } from '../lessons/days';
+import { LESSONS_V2_COPY, type LessonsCopy } from '../lessons/copy';
 import type { ChipData, HistoryGroup } from '../ui';
 import { obsReportPath } from './paths';
 
@@ -27,7 +29,6 @@ const MAX_PAGES = 4;
 export async function loadVisitReports(): Promise<CoachingSession[]> {
   const out: CoachingSession[] = [];
   for (let page = 1; page <= MAX_PAGES; page += 1) {
-    // eslint-disable-next-line no-await-in-loop
     const r = await portal.getCoachingSessions(page, PAGE);
     out.push(...(r.sessions || []).filter((s) => !!s.observation));
     if (!r.pagination || page >= r.pagination.totalPages) break;
@@ -39,12 +40,20 @@ const BAND_CHIP: Record<BandKey, ChipData['tone']> = {
   excellent: 'done', good: 'done', average: 'info', below_average: 'waiting', needs_support: 'waiting',
 };
 
-/** The reports as HistoryList groups by the day she was observed; a band, never the number. */
-export function reportGroups(reports: CoachingSession[], today: string = pkToday()): HistoryGroup[] {
+/**
+ * The reports as HistoryList groups by the day she was observed; a band, never the number. bd-fmf24g.13.2 —
+ * the band words (Digital Coaching's) and the day names come in the page's language, English by default.
+ */
+export function reportGroups(
+  reports: CoachingSession[],
+  today: string = pkToday(),
+  bands: CoachingCopy['bands'] = COACHING_V2_COPY.bands,
+  days: LessonsCopy['days'] = LESSONS_V2_COPY.days,
+): HistoryGroup[] {
   const groups: HistoryGroup[] = [];
   for (const s of reports) {
     const day = pkDayOf(s.observation?.observedAt || s.date);
-    const label = day ? dayName(day, today) : '';
+    const label = day ? dayName(day, today, days) : '';
     let g = groups[groups.length - 1];
     if (!g || g.day !== label) { g = { day: label, items: [] }; groups.push(g); }
     const band = scoreBandFor(s.percentage);
@@ -54,7 +63,7 @@ export function reportGroups(reports: CoachingSession[], today: string = pkToday
       grade: '–',
       title: s.topic || s.subject || '',
       extra: s.observation?.observerName || undefined,
-      chip: band ? { text: bandLabel(band) as string, tone: BAND_CHIP[band] } : null,
+      chip: band ? { text: bands[band], tone: BAND_CHIP[band] } : null,
       to: obsReportPath(s.id),
     });
   }
