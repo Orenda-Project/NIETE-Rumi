@@ -1,13 +1,12 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import PortalLayout from '../../components/PortalLayout';
 import { lessonPlans, type LpLesson } from '../../newui/lessons/lessonPlansApi';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import { teacherPath } from '../routes';
 import { ListRow, type ListRowProps } from '../ui';
 import { LIST_CARD } from '../ui/styles';
-import { PAGE_BODY } from './ChaptersPage';
 import { LESSONS_V2_COPY as C } from './copy';
-import { LessonHeader, LoadState } from './LessonHeader';
+import { LoadState } from './LoadState';
+import TeacherPage from '../TeacherPage';
 import { lessonsUrl, readAt, type LessonsAt } from './paths';
 import { useOpenLesson } from './useOpenLesson';
 
@@ -43,28 +42,23 @@ function Lessons({ at }: { at: LessonsAt & { chapter: string } }) {
   const crumb = C.crumb(subject, chapter?.number != null ? C.all.chapter(chapter.number) : null);
 
   return (
-    <PortalLayout ownHeading>
-      <div className="mx-auto w-full max-w-[720px]">
-        <LessonHeader crumb={subject ?? undefined} title={chapter?.title ?? ''} backTo={lessonsUrl('chapters', at)} />
-      </div>
-      <div className={PAGE_BODY}>
-        <LoadState status={lessons.status} empty={!list.length} onRetry={retry} />
-        {list.length ? (
-          <div className={LIST_CARD}>
-            {list.map((l, i) => (
-              <ListRow
-                key={l.id}
-                variant="row"
-                first={i === 0}
-                {...lead(l)}
-                subtitle={C.crumb(l.pages, l.part != null ? C.part(l.part) : null) || undefined}
-                state={l.sent ? 'used' : 'default'}
-                onPress={() => { if (!busy) void open(l, at, { crumb }); }}
-              />
-            ))}
-          </div>
-        ) : null}
-      </div>
-    </PortalLayout>
+    <TeacherPage feature="lessons" crumb={subject ?? undefined} title={chapter?.title ?? ''} backTo={lessonsUrl('chapters', at)}>
+      <LoadState status={lessons.status} empty={!list.length} onRetry={retry} />
+      {list.length ? (
+        <div className={LIST_CARD}>
+          {list.map((l, i) => (
+            <ListRow
+              key={l.id}
+              variant="row"
+              first={i === 0}
+              {...lead(l)}
+              subtitle={C.crumb(l.pages, l.part != null ? C.part(l.part) : null) || undefined}
+              state={l.sent ? 'used' : 'default'}
+              onPress={() => { if (!busy) void open(l, at, { crumb }); }}
+            />
+          ))}
+        </div>
+      ) : null}
+    </TeacherPage>
   );
 }

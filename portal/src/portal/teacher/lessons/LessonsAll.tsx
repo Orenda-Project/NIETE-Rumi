@@ -1,15 +1,14 @@
 import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
-import PortalLayout from '../../components/PortalLayout';
 import { loadGradeSubjects } from '../../lib/gradeSubjects';
 import { DEFAULT_RANGE, pkToday, type DateRange } from '../../newui/range';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import { DateRangeBar, GradeSubjectPicker, HistoryList, KpiTiles, TEACHER_UI_COPY, type GradeSubjectPair } from '../ui';
 import { resolveRange } from '../ui/range';
 import { FOCUS, OUTLINE_WIDE } from '../ui/styles';
-import { PAGE_BODY } from './ChaptersPage';
 import { LESSONS_V2_COPY as C } from './copy';
-import { LessonHeader, LoadState } from './LessonHeader';
+import { LoadState } from './LoadState';
+import TeacherPage from '../TeacherPage';
 import { groupByDay, kpiItems, loadLessonHistory, type ClassFilter } from './lessonHistory';
 import { LESSONS_HOME } from './paths';
 
@@ -54,31 +53,26 @@ export function LessonsAllPage() {
   const groups = useMemo(() => (h ? groupByDay(h.items, pkToday()) : []), [h]);
 
   return (
-    <PortalLayout ownHeading>
-      <div className="mx-auto w-full max-w-[720px]">
-        <LessonHeader crumb={C.title} title={C.all.title} backTo={LESSONS_HOME} />
-      </div>
-      <div className={PAGE_BODY}>
-        <DateRangeBar value={range} onChange={(r) => setRange(r)} />
-        {mine.length ? (
-          <>
-            <GradeSubjectPicker label={C.all.filterLabel} combos={mine} allowOther={false} value={pair} onChange={setPair} />
-            {pair ? (
-              <button type="button" onClick={() => setPair(null)} className={cn(OUTLINE_WIDE, FOCUS)}>
-                {C.all.showAllClasses}
-              </button>
-            ) : null}
-          </>
-        ) : null}
-        {h ? (
-          <>
-            <KpiTiles items={kpiItems(h)} compareLabel={dates.compareLabel} />
-            <HistoryList heading="" groups={groups} showMore={false} emptyLabel={C.all.empty} />
-          </>
-        ) : (
-          <LoadState status={history.status} empty={false} onRetry={retry} />
-        )}
-      </div>
-    </PortalLayout>
+    <TeacherPage feature="lessons" crumb={C.title} title={C.all.title} backTo={LESSONS_HOME}>
+      <DateRangeBar value={range} onChange={(r) => setRange(r)} />
+      {mine.length ? (
+        <>
+          <GradeSubjectPicker label={C.all.filterLabel} combos={mine} allowOther={false} value={pair} onChange={setPair} />
+          {pair ? (
+            <button type="button" onClick={() => setPair(null)} className={cn(OUTLINE_WIDE, FOCUS)}>
+              {C.all.showAllClasses}
+            </button>
+          ) : null}
+        </>
+      ) : null}
+      {h ? (
+        <>
+          <KpiTiles items={kpiItems(h)} compareLabel={dates.compareLabel} />
+          <HistoryList heading="" groups={groups} showMore={false} emptyLabel={C.all.empty} />
+        </>
+      ) : (
+        <LoadState status={history.status} empty={false} onRetry={retry} />
+      )}
+    </TeacherPage>
   );
 }
