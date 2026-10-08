@@ -228,6 +228,8 @@
     try {
       var e = { n: n, lang: L };
       for (var k in (props || {})) e[k] = props[k];
+      // Page-session telemetry on (wq-tel.js): the event joins that page session's queue.
+      if (window.WQT && window.WQT.push(e)) return;
       var body = JSON.stringify({ events: [e] });
       fetch('/api/wq/e', { method: 'POST', headers: { 'content-type': 'application/json' }, body: body, keepalive: true }).catch(function () {});
     } catch (e) { /* events never break the page */ }
