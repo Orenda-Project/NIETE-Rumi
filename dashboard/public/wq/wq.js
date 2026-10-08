@@ -1738,12 +1738,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   /* Late clips: a quiz's clips are recorded the first time its page is opened (about a minute), so
      that first page booted without them (the server says audio_pending). It asks for the quiz again a
      few times and each question takes its clips as they arrive: the next line spoken is the recorded
-     voice, never a silent Urdu quiz (Android has no Urdu phone voice). */
-  var LATE_MS = [15000, 25000, 40000, 60000];
+     voice, never a silent Urdu quiz (Android has no Urdu phone voice). Every 10 s for three minutes:
+     clips land 50-160 s after the first open, and a question read in the gap before the next ask is read
+     without a clip that already exists. */
+  var LATE_EVERY_MS = 10000, LATE_TRIES = 18;
   var lateTry = 0;
   var lateHook = null; // the question on screen: re-read in the recorded voice if it was read without it
   function lateClips() {
-    if (!Q.audio_pending || lateTry >= LATE_MS.length) return;
+    if (!Q.audio_pending || lateTry >= LATE_TRIES) return;
     setTimeout(function () {
       lateTry += 1;
       api('GET', 'quiz/' + encodeURIComponent(CODE)).then(function (r) {
@@ -1758,7 +1760,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
         }
         lateClips();
       }, function () { lateClips(); });
-    }, LATE_MS[lateTry]);
+    }, LATE_EVERY_MS);
   }
   lateClips();
   function nextQuestion() {
