@@ -1375,8 +1375,44 @@ router.post('/assessment/chapters', requireInternalKey, assessmentRoute('chapter
 }));
 
 /**
+ * Her chapters as one tidy list: numbers only, each once, in book order.
+ * `chapterNumbers` wins over the scalar `chapterNumber` older portal builds send.
+ */
+function pickedChapters(body) {
+  const raw = Array.isArray(body.chapterNumbers) ? body.chapterNumbers : [body.chapterNumber];
+  const nums = raw.map(num).filter((n) => n !== null);
+  return [...new Set(nums)].sort((a, b) => a - b);
+}
+
+/**
+ * The pages several chapters cover, the way the WhatsApp Flow writes them
+ * (assessment-gen-endpoint chapterPageRange): neighbouring chapters merged into
+ * one span, so "11-20" + "21-30" reads "11-30". A chapter the contents page
+ * never paginated contributes nothing rather than sinking the rest.
+ */
+function chapterPages(chapters, picked) {
+  const spans = picked
+    .map((n) => chapters.find((c) => c.chapter_number === n))
+    .filter((c) => c && c.page_start != null && c.page_end != null)
+    .map((c) => [Number(c.page_start), Number(c.page_end)])
+    .sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  for (const [lo, hi] of spans) {
+    const last = merged[merged.length - 1];
+    if (last && lo <= last[1] + 1) last[1] = Math.max(last[1], hi);
+    else merged.push([lo, hi]);
+  }
+  return merged.length ? merged.map(([lo, hi]) => `${lo}-${hi}`).join(', ') : null;
+}
+
+/**
  * POST /api/internal/assessment/create
- * Body { userId, grade, subject, chapterNumber|pageRanges, ... } → 202 { success, requestId }
+ * Body { userId, grade, subject, chapterNumbers|chapterNumber|pageRanges, ... } → 202 { success, requestId }
+ *
+ * Several chapters are stored the way the WhatsApp Flow stores them (submit()):
+ * `chapter_number` stays null — the orchestrator would load only that one
+ * chapter — and the union of their pages goes in `page_ranges`, which it loads
+ * range by range. One chapter still names itself.
  *
  * 202, not 200: the paper does not exist yet. Generation is a queued job that
  * runs about a minute, and the caller polls /status.
@@ -1390,15 +1426,16 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   const userId = String(body.userId || '').trim();
   const grade = num(body.grade);
   const subject = String(body.subject || '').trim();
-  const chapterNumber = num(body.chapterNumber);
+  const picked = pickedChapters(body);
+  const chapterNumber = picked.length === 1 ? picked[0] : null;
   const pageRanges = body.pageRanges ? String(body.pageRanges).trim() : null;
   const questionCount = num(body.questionCount);
 
   if (!userId) return res.status(400).json({ success: false, error: 'userId is required' });
   if (grade === null) return res.status(400).json({ success: false, error: 'grade is required' });
   if (!subject) return res.status(400).json({ success: false, error: 'subject is required' });
-  if (chapterNumber === null && !pageRanges) {
-    return res.status(400).json({ success: false, error: 'chapterNumber or pageRanges is required' });
+  if (picked.length === 0 && !pageRanges) {
+    return res.status(400).json({ success: false, error: 'chapterNumbers or pageRanges is required' });
   }
 
   // The cap is enforced HERE as well as offered by /options. A form that reads
@@ -1422,11 +1459,16 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
   // it covers, so a request is readable later without re-reading a contents
   // page that a re-import can change underneath it.
   let pages = pageRanges;
-  if (!pages && chapterNumber !== null) {
+  if (!pages && picked.length) {
     const chapters = await Browse.listChapters(grade, subject);
-    const c = chapters.find((x) => x.chapter_number === chapterNumber);
-    pages = (c && c.page_start != null && c.page_end != null)
-      ? `${c.page_start}-${c.page_end}` : null;
+    if (picked.some((n) => !chapters.some((c) => c.chapter_number === n))) {
+      return res.status(400).json({ success: false, error: 'That chapter is not in this book.' });
+    }
+    pages = chapterPages(chapters, picked);
+    // With no single chapter to load by number, the pages ARE the paper.
+    if (chapterNumber === null && !pages) {
+      return res.status(400).json({ success: false, error: 'We do not have the pages for those chapters yet.' });
+    }
   }
 
   const AssessmentRequest = require('../services/assessment/assessment-request.service');
@@ -1437,6 +1479,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     subject,
     textbookId: book.id,
     chapterNumber,
+    chapterNumbers: picked.length ? picked : null,
     pageRanges: pages,
     contentSource: body.contentSource || 'unseen',
     questionCount: parsed.count,
