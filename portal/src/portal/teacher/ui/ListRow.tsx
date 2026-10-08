@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { Check, ChevronRight, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useBidi } from './bidi';
 import type { TeacherUiCopy } from './copy';
 import { useKitCopy } from './useKitCopy';
 import { StatusChip } from './StatusChip';
@@ -69,6 +70,7 @@ export function ListRow({
   prefix = '', number = '', icon, label, subtitle, chip, state = 'default', variant = 'card', first = true, to, onPress,
   copy, className,
 }: ListRowProps) {
+  const bidi = useBidi();
   const words = { ...useKitCopy(), ...copy };
   const locked = state === 'locked';
   const selected = state === 'selected';
@@ -110,8 +112,8 @@ export function ListRow({
   );
   const middle = (
     <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
-      <span className={cn(ROW_TITLE, 'line-clamp-2')}>{label}</span>
-      {subtitle ? <span className={ROW_SUB}>{subtitle}</span> : null}
+      <span className={cn(ROW_TITLE, 'line-clamp-2')}>{bidi(label)}</span>
+      {subtitle ? <span className={ROW_SUB}>{bidi(subtitle)}</span> : null}
     </span>
   );
   const chipEl = shownChip ? <StatusChip text={shownChip.text} tone={shownChip.tone} tick={used && !chip?.text} /> : null;
