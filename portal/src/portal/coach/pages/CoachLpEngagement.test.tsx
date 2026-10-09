@@ -43,8 +43,9 @@ describe("Exams generated and Lesson plans opened", () => {
   it("on the Visit page's teacher card numbers", async () => {
     at("/portal/coach/visit/v1", "/portal/coach/visit/:id", <CoachVisit />);
     const stats = await screen.findByTestId("visit-stats");
-    expect(valueOf(stats, "Exams generated")).toBe("5");
-    expect(valueOf(stats, "Lesson plans opened")).toBe("12");
+    // bd-4404s7.4 — the Visit page's words are the Blueprint's: "Papers made", "Lesson Plans opened".
+    expect(valueOf(stats, "Papers made")).toBe("5");
+    expect(valueOf(stats, "Lesson Plans opened")).toBe("12");
   });
 
   it("a teacher off Rumi shows a dash for lesson plans", async () => {

@@ -29,8 +29,8 @@ import { useKitCopy } from './useKitCopy';
 
 export interface BannerRow {
   id: string;
-  feature: 'lessons' | 'assessment';
-  /** "Lesson plan" / "Paper". */
+  feature: 'lessons' | 'assessment' | 'observations';
+  /** "Lesson plan" / "Paper" / "Observation". */
   what: string;
   /** The title — data. */
   title: string;
@@ -91,8 +91,10 @@ export function ReadyBanner({
   const many = !failed && items.length > 1;
   const pct = Math.max(0, 100 - (elapsed / durationMs) * 100);
   const barHue = failed ? RED : many ? INDIGO : FEATURE_HUE[first.feature].fg;
-  const readyWord = first.feature === 'lessons' ? words.readyLesson : words.readyPaper;
-  const title = failed ? words.couldntMake : many ? words.readyMany(items.length) : readyWord;
+  const readyWord = first.feature === 'lessons' ? words.readyLesson : first.feature === 'observations' ? words.readyObservation : words.readyPaper;
+  // The coach's observation is SENT, not made: "Couldn't send", where a plan or paper says "Couldn't make it".
+  const failedWord = first.feature === 'observations' ? words.couldntSend : words.couldntMake;
+  const title = failed ? failedWord : many ? words.readyMany(items.length) : readyWord;
 
   const close = (
     <button
@@ -131,7 +133,7 @@ export function ReadyBanner({
               <NoticeIcon feature={row.feature} size="sm" />
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span dir="auto" className="truncate text-[15px] font-semibold leading-snug">{bidi(row.title)}</span>
-                <span dir="auto" className="truncate text-[13px] font-semibold text-[#374151]">{bidi(`${row.what} · ${row.line}`)}</span>
+                <span dir="auto" className="truncate text-[13px] font-semibold text-[#374151]">{bidi([row.what, row.line].filter(Boolean).join(' · '))}</span>
               </span>
               <button
                 type="button"
@@ -162,7 +164,7 @@ export function ReadyBanner({
             <span className="flex min-w-0 flex-1 flex-col gap-[3px] pt-px">
               <span className="text-[18px] font-bold leading-tight">{bidi(title)}</span>
               <span dir="auto" className="truncate text-[15px] font-semibold leading-snug">{bidi(first.title)}</span>
-              <span dir="auto" className="truncate text-[13px] font-semibold text-[#374151]">{bidi(failed ? `${first.what} · ${first.line}` : first.line)}</span>
+              <span dir="auto" className="truncate text-[13px] font-semibold text-[#374151]">{bidi(failed ? [first.what, first.line].filter(Boolean).join(' · ') : first.line)}</span>
             </span>
             {close}
           </div>

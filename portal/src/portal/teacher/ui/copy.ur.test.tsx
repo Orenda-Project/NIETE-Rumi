@@ -35,7 +35,8 @@ describe("TEACHER_UI in Urdu", () => {
   it("every Urdu word is a label: at most 4 words, never a sentence (the report's footer as in English)", () => {
     const bad = collectCopy(TEACHER_UI_UR).filter((c) => copyProblem(c.text)).map((c) => `${c.path}: ${c.text}`);
     // The report's words mirror the hero PNG word for word (as the English footer is allowed to).
-    const PNG_WORDS = ["report.madeFor", "report.eyebrow", "report.lastAsked"];
+    // bd-4404s7.4: the strip's "Sending · 62%" is the ontology's passive "بھیجا جا رہا ہے" (4 words) plus the percent.
+    const PNG_WORDS = ["report.madeFor", "report.eyebrow", "report.lastAsked", "notify.sending"];
     expect(bad.filter((x) => !PNG_WORDS.some((p) => x.startsWith(p)))).toEqual([]);
   });
 

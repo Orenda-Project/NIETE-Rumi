@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, within, fireEvent, waitFor, act } from "@testing-library/react";
+import { cleanup, render, screen, within, fireEvent, waitFor, act } from "@testing-library/react";
+import i18n from "i18next";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { readFileSync } from "fs";
 import { resolve } from "path";
@@ -33,10 +34,15 @@ import CoachRecord from "./CoachRecord";
 import CoachAttach from "./CoachAttach";
 import CoachCheckSend from "./CoachCheckSend";
 import { setDraft, getDraft, clearDraft } from "../observeDraft";
+import CoachSending from "./CoachSending";
+import { getJob, resetSender } from "../observe/sender";
+import { noticeTracker } from "../../teacher/notices/tracker";
 
 /**
  * bd-o15qnr.9 — taking an observation in coach v2, built from the canvas
- * (v21 Visit, v18 Recording / Attach / CheckSend):
+ * (v21 Visit, v18 Recording / Attach / CheckSend); bd-4404s7.4 — rebuilt on the kit (Blueprint: Coach_Visit / Record /
+ * Upload / Check / Sending): "Start recording", "Record observation", the words "observation" and not "lesson", and SENDING
+ * IN THE BACKGROUND (the sender holds the upload; the Sending page and the notices follow it):
  *  6  "i clicked on Record Live and it asked me in a bottom up tray again to Record or Upload" — no second choice.
  *  8  two square buttons, centred icon over label; Record live pulses, Upload nudges; still under reduced motion.
  * 10  the Observation box first (no visible title), Reschedule/Cancel inside it; then Teacher.
@@ -68,6 +74,8 @@ function renderAt(path: string) {
         <Route path="/portal/coach/visit/:id/record" element={<CoachRecord />} />
         <Route path="/portal/coach/visit/:id/attach" element={<CoachAttach />} />
         <Route path="/portal/coach/visit/:id/check" element={<CoachCheckSend />} />
+        <Route path="/portal/coach/visit/:id/sending" element={<CoachSending />} />
+        <Route path="/portal/coach/observation/:id" element={<div>observation page</div>} />
         <Route path="/portal/coach/reports" element={<div>reports page</div>} />
         <Route path="*" element={<Where />} />
       </Routes>
@@ -75,8 +83,12 @@ function renderAt(path: string) {
   );
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
+  noticeTracker.reset();
+  resetSender();
+  if (!i18n.isInitialized) await i18n.init({ lng: "en", resources: {} });
+  await act(async () => { await i18n.changeLanguage("en"); });
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-10-06T09:30:00+05:00"));
   clearDraft(VISIT_ID);
@@ -95,10 +107,10 @@ describe("10 + 12 — the Visit page, in the canvas order", () => {
     renderAt(`/portal/coach/visit/${VISIT_ID}`);
     const box = await screen.findByRole("region", { name: "Observation" });
     const b = within(box);
-    expect(b.getByRole("link", { name: "Record live" })).toBeInTheDocument();
+    expect(b.getByRole("link", { name: "Start recording" })).toBeInTheDocument();
     expect(b.getByRole("link", { name: "Upload recording" })).toBeInTheDocument();
     expect(b.getByRole("link", { name: /Reschedule/ })).toBeInTheDocument();
-    expect(b.getByRole("button", { name: /^Cancel$/ })).toBeInTheDocument();
+    expect(b.getByRole("button", { name: /^Cancel visit$/ })).toBeInTheDocument();
     expect(b.queryByRole("heading")).toBeNull();
     expect(screen.queryByText("Take observation", { selector: "h2" })).toBeNull();
     const teacherHeading = screen.getByRole("heading", { name: "Teacher" });
@@ -115,12 +127,13 @@ describe("10 + 12 — the Visit page, in the canvas order", () => {
     expect(c.getByText("0300 1110001")).toBeInTheDocument();
     expect(card).not.toHaveTextContent("+92");
     expect(c.getByText("IMSG I-10/1")).toBeInTheDocument();
-    expect(c.getByText(/11:30 AM · Today/)).toBeInTheDocument();
+    expect(c.getByRole("img", { name: "11:30 AM" })).toBeInTheDocument();
+    expect(c.getByText(/· Today/)).toBeInTheDocument();
     expect(c.getByText("In 2 h")).toBeInTheDocument();
     expect(c.getByText("Avg. HITL Score")).toBeInTheDocument(); // bd-o15qnr.18
     const last = c.getByRole("link", { name: /Last visit · 14 Sep/ });
     expect(last).toHaveTextContent("HITL · You");
-    expect(last).toHaveTextContent("Report sent");
+    expect(last).toHaveTextContent("Sent");
     expect(last).toHaveAttribute("href", "/portal/coach/observation/s-sent"); // bd-o15qnr.19: the one observation page
     expect(c.getByRole("link", { name: /Teacher profile/ })).toHaveAttribute("href", "/portal/coach/teacher/923001110001");
     expect(screen.queryByText("Last visit", { selector: "h2" })).toBeNull();
@@ -153,9 +166,9 @@ describe("10 + 12 — the Visit page, in the canvas order", () => {
 });
 
 describe("8 — the two square buttons", () => {
-  it("Record live: indigo square, centred icon over label, the pulse only when motion is allowed", async () => {
+  it("Start recording: indigo square, centred icon over label, the pulse only when motion is allowed", async () => {
     renderAt(`/portal/coach/visit/${VISIT_ID}`);
-    const record = await screen.findByRole("link", { name: "Record live" });
+    const record = await screen.findByRole("link", { name: "Start recording" });
     expect(record.className).toMatch(/bg-\[#33374a\]/);
     expect(record.className).toMatch(/flex-col/);
     expect(record.className).toMatch(/items-center/);
@@ -192,11 +205,11 @@ describe("8 — the two square buttons", () => {
 });
 
 describe("6 — one choice, then straight on", () => {
-  it("tapping Record live opens the record screen; no sheet with a second Record/Upload choice", async () => {
+  it("tapping Start recording opens the record screen; no sheet with a second Record/Upload choice", async () => {
     renderAt(`/portal/coach/visit/${VISIT_ID}`);
-    fireEvent.click(await screen.findByRole("link", { name: "Record live" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Start recording" }));
     await screen.findByRole("timer");
-    expect(screen.getByRole("heading", { level: 1, name: "Record live" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Record observation" })).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.queryByText(/Record Live Lecture/)).toBeNull();
     expect(screen.queryByRole("button", { name: /Upload Recording/i })).toBeNull();
@@ -206,12 +219,12 @@ describe("6 — one choice, then straight on", () => {
     renderAt(`/portal/coach/visit/${VISIT_ID}`);
     fireEvent.click(await screen.findByRole("link", { name: "Upload recording" }));
     const sheet = await screen.findByRole("dialog", { name: "Upload recording" });
-    expect(within(sheet).getByText("Choose file")).toBeInTheDocument();
+    expect(within(sheet).getByText("Select file")).toBeInTheDocument();
     expect(within(sheet).queryByText(/Record/)).toBeNull();
   });
 });
 
-describe("Record live (v18 Recording)", () => {
+describe("Record observation (Blueprint: Coach_Record)", () => {
   it("the timer ring with Recording, the meter, and the visit it is linked to", async () => {
     renderAt(`/portal/coach/visit/${VISIT_ID}/record`);
     expect(await screen.findByRole("timer")).toHaveTextContent("18:42");
@@ -220,21 +233,25 @@ describe("Record live (v18 Recording)", () => {
     const card = screen.getByTestId("linked-visit");
     expect(card).toHaveTextContent("Ayesha Bibi");
     expect(card).toHaveTextContent("IMSG I-10/1");
-    expect(card).toHaveTextContent("Visit · 11:30 AM");
+    expect(card).toHaveTextContent("Visit ·");
+    expect(within(card).getByRole("img", { name: "11:30 AM" })).toBeInTheDocument();
     expect(card).toHaveTextContent("Linked");
   });
 
-  it("Pause pauses; Stop asks once, then Check and send has the recording", async () => {
+  it("Pause pauses; Stop asks once, then Check and send has the recording as an observation", async () => {
     const blob = new Blob(["x"], { type: "audio/webm" });
     rec.finish.mockResolvedValue({ id: "rec-1", blob, durationMs: 1122000, type: { ext: ".webm", mime: "audio/webm" } });
     renderAt(`/portal/coach/visit/${VISIT_ID}/record`);
     fireEvent.click(await screen.findByRole("button", { name: /Pause/ }));
     expect(rec.togglePause).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: /Stop/ }));
-    fireEvent.click(await screen.findByRole("button", { name: /Yes, stop/ }));
-    await screen.findByText("Ayesha Bibi’s lesson");
+    const ask = await screen.findByRole("dialog", { name: "Stop recording" });
+    expect(ask).toHaveTextContent("You recorded 19 min.");
+    fireEvent.click(within(ask).getByRole("button", { name: /Yes, stop/ }));
+    await screen.findByText("Ayesha Bibi’s observation");
     expect(screen.getByRole("heading", { level: 1, name: "Check and send" })).toBeInTheDocument();
     expect(getDraft(VISIT_ID)?.recordingId).toBe("rec-1");
+    expect(screen.getByText(/19 min · just now/)).toBeInTheDocument();
   });
 
   it("a refused microphone: Try again, or Upload recording instead", async () => {
@@ -245,13 +262,13 @@ describe("Record live (v18 Recording)", () => {
   });
 });
 
-describe("Upload recording (v18 Attach)", () => {
+describe("Upload recording (Blueprint: Coach_Upload)", () => {
   it("a file that is not a recording is refused", async () => {
     renderAt(`/portal/coach/visit/${VISIT_ID}/attach`);
     await screen.findByRole("dialog", { name: "Upload recording" });
     const input = screen.getByTestId("audio-input");
     await act(async () => { fireEvent.change(input, { target: { files: [new File(["x"], "notes.pdf", { type: "application/pdf" })] } }); });
-    expect(screen.getByRole("alert")).toHaveTextContent(/not a recording/);
+    expect(screen.getByRole("alert")).toHaveTextContent(/Not a recording/);
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
   });
 
@@ -268,81 +285,175 @@ describe("Upload recording (v18 Attach)", () => {
   });
 });
 
-describe("Check and send (v18 CheckSend)", () => {
+describe("Check and send (Blueprint: Coach_Check)", () => {
   const draft = () => setDraft(VISIT_ID, {
     blob: new Blob(["x"], { type: "audio/webm" }), filename: "Observation 6 Oct 11.30.webm", durationMs: 2520000,
-    recordingId: "rec-1", label: "Ayesha Bibi’s lesson", sub: "42 minutes · recorded just now",
+    recordingId: "rec-1", label: "Ayesha Bibi’s observation", sub: "42 min · just now",
   });
 
-  it("the recording, the plan options, board photos, and Send to Reports — tied to the visit's teacher and school", async () => {
+  it("the recording, the plan options, photos, and Send observation", async () => {
     draft();
     renderAt(`/portal/coach/visit/${VISIT_ID}/check`);
-    expect(await screen.findByText("Ayesha Bibi’s lesson")).toBeInTheDocument();
+    expect(await screen.findByText("Ayesha Bibi’s observation")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Redo/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Lesson plan/ })).toHaveTextContent("Optional");
-    for (const t of ["Their recent plans", "Library", "Photo of plan"]) expect(screen.getByRole("button", { name: t })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Board photos/ })).toHaveTextContent("Up to 3");
-    fireEvent.click(screen.getByRole("button", { name: /^Send$/ }));
+    for (const t of ["Their recent plans", "Library", "Plan photo"]) expect(screen.getByRole("button", { name: t })).toBeInTheDocument();
+    const photos = screen.getByRole("heading", { name: /Photos/ });
+    expect(photos).toHaveTextContent("Up to 3");
+    expect(photos).toHaveTextContent("No faces");
+    expect(screen.queryByText(/Board photos/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Send observation" })).toBeInTheDocument();
+    expect(screen.queryByText(/\blesson\b(?! plan)/i)).toBeNull();
+  });
+
+  it("Send observation sends THIS visit's teacher and school IN THE BACKGROUND and moves to the Sending page", async () => {
+    send.mockImplementation(() => new Promise(() => {})); // still uploading
+    draft();
+    renderAt(`/portal/coach/visit/${VISIT_ID}/check`);
+    fireEvent.click(await screen.findByRole("button", { name: "Send observation" }));
     await waitFor(() => expect(send).toHaveBeenCalled());
     const args = send.mock.calls[0][0];
     expect(args).toMatchObject({ teacherExtId: "923001110001", schoolExtId: "niete:110", plan: null, photos: [] });
     expect(args.audio.filename).toBe("Observation 6 Oct 11.30.webm");
-    expect(await screen.findByText("reports page")).toBeInTheDocument();
-    expect(getDraft(VISIT_ID)).toBeNull();
+    expect(await screen.findByTestId("send-state")).toHaveTextContent("Sending");
+    // the notices follow it: "Observation · Ayesha Bibi"
+    expect(noticeTracker.getItems()).toEqual([expect.objectContaining({ kind: "observation", state: "making", title: "Ayesha Bibi", visitId: VISIT_ID })]);
   });
 
-  it("their recent plan can be picked and is sent with the lesson", async () => {
+  it("their recent plan can be picked and is sent with the observation", async () => {
+    send.mockImplementation(() => new Promise(() => {}));
     draft();
     renderAt(`/portal/coach/visit/${VISIT_ID}/check`);
     fireEvent.click(await screen.findByRole("button", { name: "Their recent plans" }));
     fireEvent.click(await screen.findByRole("button", { name: /Fractions/ }));
     expect(L.getObserveRecentPlans).toHaveBeenCalledWith("923001110001", "niete:110");
     expect(screen.getByTestId("chosen-plan")).toHaveTextContent("Fractions");
-    fireEvent.click(screen.getByRole("button", { name: /^Send$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Send observation" }));
     await waitFor(() => expect(send).toHaveBeenCalled());
     expect(send.mock.calls[0][0].plan).toEqual({ kind: "library", pick: { assetId: "a1" } });
   });
 
-  it("board photos: up to three, each removable; a fourth is refused", async () => {
+  it("photos: up to three, each removable; a fourth is refused", async () => {
     draft();
     renderAt(`/portal/coach/visit/${VISIT_ID}/check`);
-    await screen.findByText("Ayesha Bibi’s lesson");
+    await screen.findByText("Ayesha Bibi’s observation");
     const input = screen.getByTestId("photos-input");
     const jpg = (n: string) => new File(["p"], n, { type: "image/jpeg" });
     fireEvent.change(input, { target: { files: [jpg("a.jpg"), jpg("b.jpg"), jpg("c.jpg")] } });
-    expect(screen.getAllByTestId("board-photo")).toHaveLength(3);
+    const removers = () => screen.queryAllByRole("button", { name: /^Remove photo/ });
+    expect(removers()).toHaveLength(3);
     expect(screen.queryByRole("button", { name: /Add photo/ })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Remove b.jpg" }));
-    expect(screen.getAllByTestId("board-photo")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: "Remove photo 2" }));
+    expect(removers()).toHaveLength(2);
     fireEvent.change(input, { target: { files: [jpg("d.jpg"), jpg("e.jpg")] } });
-    expect(screen.getByRole("alert")).toHaveTextContent(/up to 3/);
-  });
-
-  it("a network failure keeps the lesson and offers Try again", async () => {
-    const { SendError } = await import("../../lib/coachingSend");
-    send.mockRejectedValueOnce(new SendError("network"));
-    draft();
-    renderAt(`/portal/coach/visit/${VISIT_ID}/check`);
-    fireEvent.click(await screen.findByRole("button", { name: /^Send$/ }));
-    expect(await screen.findByText(/internet stopped/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Try again/ }));
-    expect(await screen.findByText("reports page")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/Up to 3/);
   });
 
   it("opened with no recording: back to the two ways", async () => {
     renderAt(`/portal/coach/visit/${VISIT_ID}/check`);
-    expect(await screen.findByRole("link", { name: "Record live" })).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}/record`);
+    expect(await screen.findByRole("link", { name: "Start recording" })).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}/record`);
     expect(screen.getByRole("link", { name: "Upload recording" })).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}/attach`);
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it("an observation already being sent for this visit: Check and send is the Sending page", async () => {
+    send.mockImplementation(() => new Promise(() => {}));
+    draft();
+    renderAt(`/portal/coach/visit/${VISIT_ID}/check`);
+    fireEvent.click(await screen.findByRole("button", { name: "Send observation" }));
+    await screen.findByTestId("send-state");
+    cleanup();
+    renderAt(`/portal/coach/visit/${VISIT_ID}/check`);
+    expect(await screen.findByTestId("send-state")).toBeInTheDocument();
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Sending, in the background (Blueprint: Coach_Sending)", () => {
+  const draft = () => setDraft(VISIT_ID, {
+    blob: new Blob(["x"], { type: "audio/webm" }), filename: "Observation 6 Oct 11.30.webm", durationMs: 38 * 60_000,
+    recordingId: null, label: "Ayesha Bibi’s observation", sub: "38 min · just now",
+  });
+  async function startSending() {
+    draft();
+    renderAt(`/portal/coach/visit/${VISIT_ID}/check`);
+    fireEvent.click(await screen.findByRole("button", { name: "Send observation" }));
+    return screen.findByTestId("send-state");
+  }
+
+  it("the ring fills with the real progress; 'You can leave. We'll tell you here.' and the way out, Go to Reports", async () => {
+    let progress!: (n: number) => void;
+    send.mockImplementation((_a: unknown, _b: unknown, _c: unknown, p: (n: number) => void) => { progress = p; return new Promise(() => {}); });
+    await startSending();
+    act(() => progress(62));
+    expect(screen.getByRole("progressbar", { name: "Sending" })).toHaveAttribute("aria-valuenow", "62");
+    expect(screen.getByTestId("send-pct")).toHaveTextContent("62%");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Ayesha Bibi’s observation");
+    expect(screen.getByText("38 min")).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent("You can leave. We'll tell you here.");
+    expect(screen.getByRole("note")).toHaveTextContent("The observation keeps sending in the background.");
+    expect(screen.getByRole("link", { name: "Go to Reports" })).toHaveAttribute("href", "/portal/coach/reports");
+  });
+
+  it("leaving the page does not stop it: the upload carries on and the notices follow it", async () => {
+    let finish!: (v: { coachingSessionId: string }) => void;
+    send.mockImplementation(() => new Promise((res) => { finish = res; }));
+    await startSending();
+    fireEvent.click(screen.getByRole("link", { name: "Go to Reports" }));
+    expect(await screen.findByText("reports page")).toBeInTheDocument();
+    expect(getJob(VISIT_ID)?.state).toBe("sending");
+    await act(async () => { finish({ coachingSessionId: "cs-1" }); });
+    expect(getJob(VISIT_ID)).toMatchObject({ state: "sent", observationId: "cs-1" });
+    expect(noticeTracker.getItems()[0]).toMatchObject({ state: "ready", observationId: "cs-1" });
+    expect(getDraft(VISIT_ID)).toBeNull();
+  });
+
+  it("sent while she is looking: Open observation", async () => {
+    let finish!: (v: { coachingSessionId: string }) => void;
+    send.mockImplementation(() => new Promise((res) => { finish = res; }));
+    await startSending();
+    await act(async () => { finish({ coachingSessionId: "cs-1" }); });
+    expect(screen.getByTestId("send-state")).toHaveTextContent("Observation sent");
+    fireEvent.click(screen.getByRole("link", { name: "Open observation" }));
+    expect(await screen.findByText("observation page")).toBeInTheDocument();
+  });
+
+  it("a failure: 'Couldn't send', the real reason and Try again, which sends the SAME observation; nothing goes to WhatsApp", async () => {
+    const { SendError } = await import("../../lib/coachingSend");
+    send.mockRejectedValueOnce(new SendError("network"));
+    await startSending();
+    await waitFor(() => expect(screen.getByTestId("send-state")).toHaveTextContent("Couldn't send"));
+    expect(screen.getByRole("alert")).toHaveTextContent("The internet stopped. The observation is safe on this phone.");
+    send.mockResolvedValueOnce({ coachingSessionId: "cs-2" });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Try again" })); });
+    await waitFor(() => expect(screen.getByTestId("send-state")).toHaveTextContent("Observation sent"));
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1][0].audio).toBe(send.mock.calls[0][0].audio);
+  });
+
+  it("in Urdu", async () => {
+    send.mockImplementation(() => new Promise(() => {}));
+    await act(async () => { await i18n.changeLanguage("ur"); });
+    draft();
+    renderAt(`/portal/coach/visit/${VISIT_ID}/check`);
+    fireEvent.click(await screen.findByRole("button", { name: "مشاہدہ بھیجیں" }));
+    expect(await screen.findByTestId("send-state")).toHaveTextContent("بھیجا جا رہا ہے");
+    expect(screen.getByRole("note")).toHaveTextContent("آپ یہاں سے جا سکتے ہیں");
+  });
+
+  it("nothing being sent for this visit: back to the visit", async () => {
+    renderAt(`/portal/coach/visit/${VISIT_ID}/sending`);
+    expect(await screen.findByRole("heading", { level: 1, name: "Ayesha Bibi" })).toBeInTheDocument();
   });
 });
 
 describe("routes", () => {
-  it("the three steps have v2 routes; the old page's route is still there", () => {
+  it("the steps have v2 routes; the old page's route is still there", () => {
     const app = readFileSync(resolve(__dirname, "../../../App.tsx"), "utf8");
     expect(app).toContain('<Route path="/portal/coach/visit/:id/record" element={<CoachRecord />} />');
     expect(app).toContain('<Route path="/portal/coach/visit/:id/attach" element={<CoachAttach />} />');
     expect(app).toContain('<Route path="/portal/coach/visit/:id/check" element={<CoachCheckSend />} />');
+    expect(app).toContain('<Route path="/portal/coach/visit/:id/sending" element={<CoachSending />} />');
     expect(app).toMatch(/\/portal\/leader\/observe\/new/);
   });
 });

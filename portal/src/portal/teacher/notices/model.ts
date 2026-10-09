@@ -11,7 +11,9 @@ import type { LessonsAt } from '../lessons/paths';
  *
  * DATA (title, subject) is kept as it came from the API; words are composed at draw time, in her language.
  */
-export type NoticeKind = 'lesson' | 'paper';
+export type NoticeKind = 'lesson' | 'paper' | 'observation';
+/** What the SERVER lists (GET /me/notices). An observation is sent from this phone, so only this phone follows it. */
+export type ServerKind = Exclude<NoticeKind, 'observation'>;
 export type NoticeState = 'making' | 'ready' | 'failed';
 
 export interface NoticeItem {
@@ -44,6 +46,19 @@ export interface NoticeItem {
   lang?: string;
   at?: LessonsAt;
   errorCode?: string | null;
+  /**
+   * bd-4404s7.4 — the coach's observation being SENT in the background (the files go to R2, then the analysis starts).
+   * `title` is the teacher's name. The sender (coach/observe/sender.ts) pushes `progress`, and ends it ready (with the
+   * observation it started) or failed (`errorCode`: why). Nothing about it is kept across a reload: the files only
+   * live in this tab, and a recording is still on the phone to be sent again from Check and send.
+   */
+  visitId?: string;
+  /** The visit's day (YYYY-MM-DD), for "Tue 6 Oct"; data, formatted at draw time in her language. */
+  visitDay?: string | null;
+  durationMs?: number | null;
+  /** Real upload progress, 0..1. */
+  progress?: number;
+  observationId?: string | null;
 }
 
 /** What tracking a new job needs; the rest is the tracker's. */
@@ -60,12 +75,16 @@ export interface NewNotice {
   lessonId?: string;
   lang?: string;
   at?: LessonsAt;
+  /** Observation: the visit it is for, its day, and how long the recording is. */
+  visitId?: string;
+  visitDay?: string | null;
+  durationMs?: number | null;
 }
 
 export const itemId = (kind: NoticeKind, ref: string) => `${kind}:${ref}`;
 
 /** How long each takes, as the design promises it (lp612.service.js: median 172 s; a paper about a minute). */
-export const EXPECTED_MS: Record<NoticeKind, number> = { lesson: 120_000, paper: 60_000 };
+export const EXPECTED_MS: Record<NoticeKind, number> = { lesson: 120_000, paper: 60_000, observation: 0 };
 
 /** The first asks come quickly; after 3 minutes a slow one is asked less often. The tab hidden: not at all. */
 export const FAST_POLL_MS = 4_000;
@@ -73,13 +92,16 @@ export const SLOW_POLL_MS = 15_000;
 export const SLOW_AFTER_MS = 3 * 60_000;
 
 /** Elapsed ÷ expected, never past 95%: a late item still lands, so a full ring would be a promise. */
-export function progressOf(item: Pick<NoticeItem, 'kind' | 'startedAt'>, now: number): number {
+export function progressOf(item: Pick<NoticeItem, 'kind' | 'startedAt' | 'progress'>, now: number): number {
+  // An upload knows how far it has got: that is the ring, not a guess from the clock.
+  if (item.kind === 'observation') return Math.max(0, Math.min(1, item.progress ?? 0));
   const p = (now - item.startedAt) / EXPECTED_MS[item.kind];
   return Math.max(0, Math.min(0.95, p));
 }
 
 /** Whole minutes left (at least 1), or null once it is past its time: the row then says "Almost done". */
 export function minutesLeft(item: Pick<NoticeItem, 'kind' | 'startedAt'>, now: number): number | null {
+  if (item.kind === 'observation') return null; // no time promised for an upload: the row says how much is sent
   const left = EXPECTED_MS[item.kind] - (now - item.startedAt);
   return left <= 0 ? null : Math.max(1, Math.ceil(left / 60_000));
 }
@@ -111,7 +133,7 @@ export function isOnOwnPage(item: Pick<NoticeItem, 'waitHref'>, pathname: string
  */
 export interface ServerItem {
   id: string;
-  kind: NoticeKind;
+  kind: ServerKind;
   state: NoticeState;
   title: string;
   grade: number | null;

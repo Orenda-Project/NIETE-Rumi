@@ -83,7 +83,8 @@ describe("02:00 PKT, 8 Oct", () => {
   it("the visit page: a visit on the 8th is today, in 7 h", async () => {
     C.getVisit.mockResolvedValue({ success: true, visit: visit("2", "Ayesha Bibi", "2026-10-08", "09:00"), teacher: { teacherExtId: "923001110002", name: "Ayesha Bibi", phone: "923001110002" }, lastVisit: null });
     renderAt("/portal/coach/visit/2");
-    expect(await screen.findByText(/9:00 AM · Today/)).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: "9:00 AM" })).toBeInTheDocument();
+    expect(screen.getByText(/· Today/)).toBeInTheDocument();
     expect(screen.getByText("In 7 h")).toBeInTheDocument();
   });
 

@@ -206,28 +206,28 @@ describe("4 — Pick the teacher lists every visit, by day, in order", () => {
     expect(within(screen.getByText("Mehwish Khan").closest("[aria-disabled]") as HTMLElement).getByText("Done")).toBeInTheDocument();
   });
 
-  it("searching opens Earlier so a match is never hidden; the school filter still works", async () => {
+  it("no search (bd-4404s7.4); the school filter opens Earlier so a match is never hidden", async () => {
     C.getSchedule.mockResolvedValue(SCHEDULE);
     renderAt("/portal/coach/observe/pick");
     await screen.findByText("Ayesha Bibi");
-    fireEvent.change(screen.getByPlaceholderText("Name or phone"), { target: { value: "03001110005" } });
-    expect(screen.getByText("Sadia Noor")).toBeInTheDocument();
-    expect(screen.queryByText("Ayesha Bibi")).toBeNull();
-    fireEvent.change(screen.getByPlaceholderText("Name or phone"), { target: { value: "" } });
+    expect(screen.queryByPlaceholderText("Name or phone")).toBeNull();
     fireEvent.change(screen.getByLabelText("School"), { target: { value: "niete:494" } });
     expect(screen.getByText("Hina Tariq")).toBeInTheDocument();
     expect(screen.queryByText("Ayesha Bibi")).toBeNull();
   });
 });
 
-describe("5 — Take observation shows the next visit, whatever its day", () => {
+describe("5 — Observe shows the next visit, whatever its day (bd-4404s7.4: a Next visit row under the tiles)", () => {
   it("Thursday's visit when there is none today", async () => {
     C.getHome.mockResolvedValue({ success: true, home: {
       today: [], next: visit("thu", "Ayesha Bibi", "923001110001", "2026-10-08", "09:00"),
       counts: { week: 1, overdue: 0, waiting: 0, inProgress: 0, teachers: 3, schools: 2 },
     } });
     renderAt("/portal/coach/observe");
-    expect(await screen.findByRole("link", { name: /Take observation/ })).toHaveTextContent("Next: Ayesha · Thu 8 Oct 9:00 AM");
+    const row = await screen.findByTestId("next-visit");
+    expect(row).toHaveTextContent("Ayesha Bibi");
+    expect(within(row).getByRole("img", { name: "9:00 AM" })).toBeInTheDocument();
+    expect(row).toHaveTextContent("Thu 8 Oct");
   });
 
   it("today's next visit shows its time only", async () => {
@@ -236,7 +236,10 @@ describe("5 — Take observation shows the next visit, whatever its day", () => 
       today: [{ ...t, current: true }], next: t, counts: { week: 1, overdue: 0, waiting: 0, inProgress: 0, teachers: 3, schools: 2 },
     } });
     renderAt("/portal/coach/observe");
-    expect(await screen.findByRole("link", { name: /Take observation/ })).toHaveTextContent("Next: Ayesha · 11:30 AM");
+    const row = await screen.findByTestId("next-visit");
+    expect(within(row).getByRole("img", { name: "11:30 AM" })).toBeInTheDocument();
+    expect(row).toHaveTextContent("In 2 h");
+    expect(row).not.toHaveTextContent("Thu");
   });
 
   it("no chip when nothing is coming up", async () => {
@@ -244,6 +247,7 @@ describe("5 — Take observation shows the next visit, whatever its day", () => 
     const tile = await screen.findByRole("link", { name: /Take observation/ });
     await waitFor(() => expect(C.getHome).toHaveBeenCalled());
     expect(tile).not.toHaveTextContent("Next");
+    expect(screen.queryByTestId("next-visit")).toBeNull();
   });
 });
 

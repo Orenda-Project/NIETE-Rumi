@@ -1,44 +1,63 @@
-import { Eye, FileCheck2 } from "lucide-react";
+import { useCopy } from "../../teacher/i18n";
+import { FeatureMotionProvider } from "../../teacher/icons";
+import { FeatureTile } from "../../teacher/ui";
+import { TimeStamp } from "../../teacher/ui/TimeStamp";
+import { StatusChip } from "../../teacher/ui/StatusChip";
 import { coach } from "../../services/api";
-import { COACH_COPY as C } from "../copy";
-import { CoachPage, HubTile, Chip, useLoad } from "../ui";
-import { formatSlot, localDay } from "../time";
-import type { CoachVisit } from "../types";
+import { Initials, RowText, SectionLabel, TapRow, useLoad } from "../ui";
+import { hoursUntil, karachiDay } from "../time";
+import { OBSERVE } from "../observe/copy";
+import { dayShort } from "../observe/format";
+import ObservePage from "../observe/ObservePage";
 
 /**
- * bd-o15qnr — Observe: two tiles. Take observation (always against a scheduled
- * visit: pick the teacher, then Record live or Attach on her Visit page) and
- * Reports.
+ * bd-4404s7.4 — Observe, on the kit (Blueprint: Coach_Observe): the AttentionBanner under the header, two FeatureTiles
+ * (Take observation, Reports, moving together), and her Next visit.
  *
- * bd-o15qnr.8 — the Take observation chip names her next visit whatever its day
- * (operator: "show whichever one the next is, even if it is not today"):
- * "Next: Ayesha · Thu 8 Oct 9:00 AM", or the time alone when it is today.
+ *   Take observation   a chip "N left today" ONLY when the API has her visits today (home.today) and some are still to do;
+ *                      otherwise no chip (never a made-up number).
+ *   Reports            "N waiting" (amber) or, with none waiting, "N in progress"; no chip when both are 0.
+ *   Next visit         her next upcoming visit whatever its day (home.next): the teacher, the school, the time (TimeStamp,
+ *                      the "next" tone), and "In 2 h" when it is today or its day when it is not.
+ *
+ * Observe is always against a scheduled visit: Take observation goes to Pick the teacher.
  */
-function nextChip(v: CoachVisit, today: string): string {
-  const first = (v.teacherName || "").split(" ")[0];
-  const time = v.scheduledSlot ? formatSlot(v.scheduledSlot) : "";
-  const day = v.scheduledFor && v.scheduledFor !== today
-    ? new Date(`${v.scheduledFor}T00:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
-    : "";
-  return `${C.next}: ${first} · ${[day, time].filter(Boolean).join(" ")}`.trim().replace(/ ·$/, "");
-}
-
 const CoachObserve = () => {
+  const C = useCopy(OBSERVE);
   const { data } = useLoad(() => coach.getHome(), []);
   const home = data?.home;
   const next = home?.next || null;
+  const today = karachiDay();
+  const left = home?.today ? home.today.filter((v) => v.status === "upcoming").length : 0;
+  const waiting = home?.counts.waiting ?? 0;
+  const inProgress = home?.counts.inProgress ?? 0;
+  const reportsChip = waiting > 0 ? { text: C.waitingN(waiting), tone: "waiting" as const }
+    : inProgress > 0 ? { text: C.inProgressN(inProgress), tone: "info" as const } : null;
+  const hours = next && next.scheduledFor === today ? hoursUntil(next.scheduledSlot) : null;
+  const when = next && next.scheduledFor !== today ? dayShort(next.scheduledFor, C) : "";
+
   return (
-    <CoachPage title={C.observe} crumb={C.home} backTo="/portal/coach">
-      <HubTile to="/portal/coach/observe/pick" hue="observe" icon={<Eye className="h-8 w-8" />} title={C.takeObservationTile}
-        chips={next ? <Chip>{nextChip(next, localDay())}</Chip> : undefined} />
-      <HubTile to="/portal/coach/reports" hue="observe" icon={<FileCheck2 className="h-8 w-8" />} title={C.reports}
-        chips={home ? (
-          <>
-            <Chip tone={home.counts.waiting > 0 ? "warn" : "info"}>{C.waitingN(home.counts.waiting)}</Chip>
-            {home.counts.inProgress > 0 && <Chip>{C.inProgressN(home.counts.inProgress)}</Chip>}
-          </>
-        ) : undefined} />
-    </CoachPage>
+    <ObservePage title={C.observe} crumb={C.home} backTo="/portal/coach" feature="observations">
+      <FeatureMotionProvider>
+        <nav aria-label={C.observe} className="[display:grid] grid-cols-2 gap-3">
+          <FeatureTile feature="observations" label={C.takeObservation} to="/portal/coach/observe/pick" chip={left > 0 ? { text: C.leftToday(left), tone: "info" } : null} />
+          <FeatureTile feature="reports" label={C.reports} to="/portal/coach/reports" chip={reportsChip} />
+        </nav>
+      </FeatureMotionProvider>
+      {next && (
+        <>
+          <SectionLabel>{C.nextVisit}</SectionLabel>
+          <TapRow to={`/portal/coach/visit/${next.id}`} emphasis testId="next-visit">
+            <Initials name={next.teacherName} />
+            <RowText name={next.teacherName || C.dash} sub={next.schoolName} />
+            <span className="flex shrink-0 flex-col items-end gap-1">
+              <TimeStamp time={next.scheduledSlot} tone="next" />
+              {hours != null && hours >= 0 ? <StatusChip text={C.inHours(hours)} tone="info" /> : when ? <StatusChip text={when} tone="info" /> : null}
+            </span>
+          </TapRow>
+        </>
+      )}
+    </ObservePage>
   );
 };
 
