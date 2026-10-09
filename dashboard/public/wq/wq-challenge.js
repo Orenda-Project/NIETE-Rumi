@@ -38,6 +38,7 @@
       start: 'Start',
       ready: "I'm ready",
       hear: 'Tap to hear',
+      hearOption: 'Hear this answer',
       practice: "Let's practise first",
       own: 'Now on your own!',
       tapBigger: 'Tap the bigger number',
@@ -92,6 +93,7 @@
       start: 'شروع کریں',
       ready: 'تیار ہوں',
       hear: 'سننے کے لیے چھوئیں',
+      hearOption: 'یہ جواب سنیں',
       practice: 'پہلے مشق کریں',
       own: 'اب خود کریں!',
       tapBigger: 'بڑے نمبر کو چھوئیں',
@@ -243,6 +245,12 @@
         '.wqc-k[disabled]{opacity:.45;cursor:default}',
         '.wqc-skip[hidden]{display:none}',
         '.wqc-skip{display:block;margin:10px auto 0;min-height:44px;min-width:88px;border:0;background:transparent;color:var(--muted);font-weight:800;font-size:16px;text-decoration:underline;cursor:pointer;padding:6px 12px;font-family:inherit}',
+        // Listen's read-aloud options: a play button at the row's start (the right edge in Urdu), never part of the answer
+        '.wqc-orow{display:flex;gap:10px;align-items:stretch}',
+        '.wqc-orow .wqc-opt{flex:1;min-width:0}',
+        '.wqc-ohear{flex:0 0 52px;min-height:52px;border-radius:16px;border:3px solid var(--line);background:var(--paper-2);font-size:22px;cursor:pointer;padding:0}',
+        '.wqc-ohear-none{border-color:transparent;background:transparent}',
+        '.wqc-opt.wqc-reading{border-color:var(--navy)}',
         '.wqc-sticky{position:fixed;left:0;right:0;bottom:0;z-index:5;padding:14px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(rgba(255,255,255,0),var(--paper) 30%)}',
       ].join('\n');
       document.head.appendChild(s);
@@ -1163,16 +1171,45 @@
       var x = qa.list[k];
       if (!x) { qa.done(); return; }
       qa.k = k;
-      var opts = x.options.map(function (o, i) { return '<button class="wqc-opt" type="button" id="wqc-o' + i + '">' + esc(o) + '</button>'; }).join('');
+      // Listen's options read aloud (when the server sends their clips): each option gets its own play button beside
+      // it — never the answer tap — and after the question the options are read in turn, the row lit while it plays.
+      var oc = x.option_clips || [];
+      var heard = oc.some(function (c) { return c && c.url; });
+      var opt = function (o, i) { return '<button class="wqc-opt" type="button" id="wqc-o' + i + '">' + esc(o) + '</button>'; };
+      var opts = x.options.map(function (o, i) {
+        if (!heard) return opt(o, i);
+        var c = oc[i];
+        return '<div class="wqc-orow">' + (c && c.url ? '<button class="wqc-ohear" type="button" id="wqc-oh' + i + '" data-src="' + esc(c.url) + '" aria-label="' + esc(t.hearOption) + '">🔊</button>' : '<span class="wqc-ohear wqc-ohear-none" aria-hidden="true"></span>') + opt(o, i) + '</div>';
+      }).join('');
       show('qa', '<p class="wq-small">' + esc(t.of(k + 1, qa.list.length)) + '</p>' + jug('thinking', x.prompt) + hearBtn(x.clip)
         + '<div class="wqc-opts">' + opts + '</div>');
       bindHear(x.clip);
-      say(x.clip);
       var picked = false;
+      var seq = { on: heard, at: 0, told: false };
+      var light = function (i) { x.options.forEach(function (o, j) { var b = q('wqc-o' + j); if (b) b.className = b.className.replace(/ wqc-reading/g, '') + (j === i ? ' wqc-reading' : ''); }); };
+      // once per question: did the child wait for every option to be read ('heard') or answer first ('tapped')?
+      var told = function (how) { if (seq.told || !heard) return; seq.told = true; ev('wqc_optaudio_done', { how: how, i: seq.at }); };
+      var readOpt = function (i) {
+        if (!seq.on || picked || qa.k !== k) return;
+        if (i >= x.options.length) { seq.on = false; light(-1); told('heard'); return; }
+        seq.at = i;
+        if (!(oc[i] && oc[i].url)) { readOpt(i + 1); return; }
+        light(i);
+        say(oc[i], function () { readOpt(i + 1); });
+      };
+      say(x.clip, heard ? function () { readOpt(0); } : null);
       x.options.forEach(function (o, i) {
+        on('wqc-oh' + i, function () {
+          if (picked) return;
+          seq.on = false;   // the child took over: the turn-by-turn reading stops, this option plays
+          light(i);
+          say(oc[i], function () { light(-1); });
+        });
         on('wqc-o' + i, function () {
           if (picked) return;
           picked = true;
+          // an answer is taken at once, never after the reading: the reading stops
+          if (heard) { told('tapped'); seq.on = false; light(-1); if (player) { try { player.pause(); } catch (e) {} player = null; } }
           api('ch/qa', { ct: S.data.ct, q: x.id, pick: i, lang: L }).then(function (r) {
             var el = q('wqc-o' + i);
             if (el) el.className += r.ok ? ' wqc-ok' : ' wqc-no';
