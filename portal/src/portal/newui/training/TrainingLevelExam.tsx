@@ -43,14 +43,14 @@ type Cert = { certificate_code: string; level_name: string; issued_at?: string }
 type Result = { score: number; max: number; passed: boolean; cooldownUntil: string | null; certificate: Cert; answers?: CapAnswer[] };
 type CapAnswer = { question_index: number; question_text: string; answer_text: string; answer_score: number | null; feedback_text: string };
 
-const optionText = (o: ExamOption) => (typeof o === 'string' ? o : o?.text ?? o?.key ?? '');
+export const optionText = (o: ExamOption) => (typeof o === 'string' ? o : o?.text ?? o?.key ?? '');
 
 function hoursLeft(iso: string | null): number {
   if (!iso) return 0;
   return Math.max(1, Math.round((new Date(iso).getTime() - Date.now()) / 3_600_000));
 }
 
-export default function TrainingLevelExam() {
+export function useLevelExam() {
   const { vendorKey = '', levelId = '' } = useParams();
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -145,6 +145,12 @@ export default function TrainingLevelExam() {
     navigate(-1);
   };
 
+  return { vendorKey, levelId, pathname, navigate, paths, vendors, levels, gate, level, provider, title, levelUrl, paper, setPaper, opening, setOpening, index, setIndex, picks, setPicks, texts, setTexts, sending, setSending, problem, setProblem, result, setResult, answersOpen, setAnswersOpen, g, start, qs, q, answered, last, submit, back };
+}
+
+/** The view; every rule and read is useLevelExam's, shared with the teacher app v2 (bd-fmf24g.12). */
+export default function TrainingLevelExam() {
+  const { vendorKey, paths, gate, level, provider, title, levelUrl, paper, opening, index, setIndex, picks, setPicks, texts, setTexts, sending, problem, result, answersOpen, setAnswersOpen, g, start, qs, q, answered, last, submit, back } = useLevelExam();
   const problemChip = problem ? <Chip tone="error" icon={CircleAlert}>{problem}</Chip> : null;
 
   /* ── the result ───────────────────────────────────────────────────────── */

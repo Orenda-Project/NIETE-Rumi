@@ -8,7 +8,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "NODE_ENV=production vite build",
     "build:dev": "vite build --mode development",
     "build:app": "vite build --mode app",
     "android:sync": "npm run build:app && cap sync android",
@@ -102,6 +102,7 @@
     "globals": "^15.15.0",
     "jsdom": "^25.0.1",
     "lovable-tagger": "^1.1.11",
+    "playwright-core": "^1.64.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",

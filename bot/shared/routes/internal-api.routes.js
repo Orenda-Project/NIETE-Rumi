@@ -1451,9 +1451,58 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     return res.status(400).json({ success: false, error: 'We do not have that book yet.' });
   }
 
-  const types = (Array.isArray(body.questionTypes) && body.questionTypes.length)
-    ? QuestionTypes.withCounts(body.questionTypes, parsed.count, subject, grade)
-    : QuestionTypes.defaultMix(subject, grade, parsed.count);
+  // bd-fmf24g.6 — the three choices the WhatsApp Flow offers and this route used to drop, held to
+  // the Flow's own rules (question-types.js parsers; planCounts() in the generation service).
+  const contentSource = body.contentSource || 'unseen';
+
+  // The marks budget (the Flow's QUESTIONS screen): optional, but a number she gave is held to its range.
+  const budget = QuestionTypes.parseTotalMarks(body.totalMarks == null ? '' : body.totalMarks);
+  if (!budget.ok) return res.status(400).json({ success: false, error: budget.message });
+
+  // Mix: how many from the book (SEEN_COUNT). Seen may not take the whole paper — the Unseen part
+  // needs at least one question. Carried only on Mix, as submit() does.
+  let seenCount = null;
+  if (contentSource === 'both' && body.seenCount != null && body.seenCount !== '') {
+    const seen = QuestionTypes.parseQuestionCount(body.seenCount);
+    if (!seen.ok) return res.status(400).json({ success: false, error: seen.message });
+    if (seen.count >= parsed.count) {
+      return res.status(400).json({ success: false, error: 'Leave room for new questions.' });
+    }
+    seenCount = seen.count;
+  }
+  // The questions the types are for: the whole paper, less the ones lifted from the book on Mix.
+  const unseenTarget = parsed.count - (seenCount || 0);
+
+  // How many of each type (COUNTS): hers, used as given — never re-spread — and they must add up
+  // to the Unseen part. Type names alone keep today's even spread; nothing keeps the default mix.
+  const asked = Array.isArray(body.questionTypes) ? body.questionTypes.filter(Boolean) : [];
+  let types;
+  if (asked.length && asked.every((t) => typeof t === 'object')) {
+    const allowed = QuestionTypes.forSubject(subject, grade).map((t) => t.id);
+    types = [];
+    for (const t of asked) {
+      const id = String(t.id || '').trim();
+      const n = Number(t.count);
+      if (!allowed.includes(id)) {
+        return res.status(400).json({ success: false, error: `${id || 'That type'} is not a question type for this subject.` });
+      }
+      if (!Number.isInteger(n) || n < 1) {
+        return res.status(400).json({ success: false, error: `How many ${id}? Type a number of 1 or more.` });
+      }
+      types.push({ id, count: n, category: QuestionTypes.categoryOf(id, subject, grade) });
+    }
+    const total = types.reduce((s, t) => s + t.count, 0);
+    if (total !== unseenTarget) {
+      return res.status(400).json({
+        success: false,
+        error: `The types add up to ${total}, but the paper has ${unseenTarget} new questions.`,
+      });
+    }
+  } else if (asked.length) {
+    types = QuestionTypes.withCounts(asked, unseenTarget, subject, grade);
+  } else {
+    types = QuestionTypes.defaultMix(subject, grade, unseenTarget);
+  }
 
   // She picked a chapter, not pages — but the row should still say which pages
   // it covers, so a request is readable later without re-reading a contents
@@ -1481,8 +1530,10 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     chapterNumber,
     chapterNumbers: picked.length ? picked : null,
     pageRanges: pages,
-    contentSource: body.contentSource || 'unseen',
+    contentSource,
     questionCount: parsed.count,
+    seenCount,
+    totalMarks: budget.marks,
     questionTypes: types,
     // Every paper gets a key; the portal no longer offers the choice (bd-bfnsk).
     includeAnswerKey: true,
@@ -1560,6 +1611,8 @@ router.post('/assessment/papers', requireInternalKey, assessmentRoute('papers', 
 
 // Editing a paper from the portal (bd-hb8qs) — its own file; see its header.
 router.use(require('./internal-assessment-edit.routes'));
+// Class attendance for the teacher portal v2 (bd-fmf24g.7) — its own file; see its header.
+router.use(require('./internal-attendance.routes'));
 
 // ─── coaching ───────────────────────────────────────────────────────────────
 //
@@ -2217,7 +2270,8 @@ router.post('/coaching/presign-upload', requireInternalKey, portalCoachingRoute(
 
 /**
  * POST /api/internal/coaching/start
- * Body { userId, key, lessonPlanKey?, lessonPlan?, photoKeys? }
+ * Body { userId, key, lessonPlanKey?, lessonPlan?, photoKeys?, teacherClass? }
+ *   teacherClass (bd-fmf24g.9): { grade 1-12, subject, subjectKey? } — the class she picked; stored on the row
  *   lessonPlan (bd-5rz1v): a library pick — { assetId } | { lessonId } | { segmentId, lang }
  * Ok   200 { status:'ok', coachingSessionId }   409 in_progress
  *      400 invalid (incl. plan_not_found / plan_not_ready)
@@ -2225,6 +2279,7 @@ router.post('/coaching/presign-upload', requireInternalKey, portalCoachingRoute(
 router.post('/coaching/start', requireInternalKey, portalCoachingRoute('start',
   (Svc, b) => Svc.startPortalSession({
     userId: b.userId, key: b.key, lessonPlanKey: b.lessonPlanKey, photoKeys: b.photoKeys, lessonPlan: b.lessonPlan,
+    teacherClass: b.teacherClass,
   })));
 
 /**

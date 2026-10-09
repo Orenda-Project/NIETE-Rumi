@@ -80,7 +80,7 @@ function attachSubjectNote(groups, analysis, language) {
  *   rendering when the narrative pass failed twice. Off by default.
  *   `brand` selects the template palette ('niete' for the FICO/NIETE path,
  *   injected by renderer-registry; omitted = default palette). bd-2452.
- * @returns {Promise<{png:Buffer, caption:string}>}
+ * @returns {Promise<{png:Buffer, caption:string, narrative:(object|null)}>}
  */
 async function generateHeroReport(session, analysis, opts = {}) {
   const { teacherName = 'Teacher', commitmentAction = '', brand } = opts;
@@ -163,7 +163,9 @@ async function generateHeroReport(session, analysis, opts = {}) {
   };
 
   const png = await htmlToImage(buildHeroReportHtml(vm), { selector: '.report', width: 794, deviceScaleFactor: 2 });
-  return { png, caption: buildReportCaption(vm) };
+  // bd-fmf24g.10: the narrative travels back with the image so the caller can keep it
+  // (narrative-store) — the app's report page reads the session, not the PNG.
+  return { png, caption: buildReportCaption(vm), narrative: narrative || null };
 }
 
 module.exports = { generateHeroReport, attachDomainWhys, attachSubjectNote };

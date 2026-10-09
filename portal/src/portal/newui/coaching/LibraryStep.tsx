@@ -3,12 +3,12 @@ import { BookOpen, CircleAlert, Inbox, Layers, Loader2 } from 'lucide-react';
 import { portal } from '../../services/api';
 import type { LibraryGrade, LibraryLesson, LibraryOption } from '../../services/api';
 import type { LibraryPick } from '../../lib/coachingSend';
-import { COACHING_COPY } from '../copy';
 import { List, Row } from '../List';
 import { Chip } from '../Chip';
 import { NumberGrid } from '../NumberGrid';
 import { Hero } from '../Hero';
 import { BottomButton } from '../BottomButton';
+import { PICKER_WORDS_EN, type PickerWords } from './pickerWords';
 
 /**
  * bd-5rz1v.26 — "From the library" in the new UI: the lesson plan she taught from, one step at a
@@ -18,6 +18,8 @@ import { BottomButton } from '../BottomButton';
  *
  * A grades 6-12 lesson not written yet ("Not written") is asked for when she taps it, and picked
  * once it is ready (the Curriculum page's request, polled with its back-off).
+ *
+ * `words`: the teacher v2's translation of the picker's words (bd-fmf24g.13); English when left out.
  */
 
 export type LibraryStepInfo = { level: 0 | 1 | 2 | 3; crumb: string[] };
@@ -29,16 +31,15 @@ type Step =
   | { level: 2; grade: LibraryGrade; subject: LibraryOption }
   | { level: 3; grade: LibraryGrade; subject: LibraryOption; chapter: LibraryOption };
 
-const STEP_TITLES = [
-  COACHING_COPY.steps.grade, COACHING_COPY.steps.subject, COACHING_COPY.steps.chapter, COACHING_COPY.steps.lesson,
-] as const;
-
-export function LibraryStep({ onPick, onStepChange, backSignal }: {
+export function LibraryStep({ onPick, onStepChange, backSignal, words }: {
   onPick: (plan: Picked) => void;
   onStepChange: (info: LibraryStepInfo) => void;
   /** Bumped by the page's Back: go up one step. */
   backSignal: number;
+  words?: PickerWords;
 }) {
+  const W = words ?? PICKER_WORDS_EN;
+  const stepTitles = [W.steps.grade, W.steps.subject, W.steps.chapter, W.steps.lesson] as const;
   const [step, setStep] = useState<Step>({ level: 0 });
   const [grades, setGrades] = useState<LibraryGrade[] | null>(null);
   const [options, setOptions] = useState<LibraryOption[] | null>(null);
@@ -52,7 +53,7 @@ export function LibraryStep({ onPick, onStepChange, backSignal }: {
   useEffect(() => () => { if (poll.current) clearTimeout(poll.current); }, []);
 
   const crumb: string[] = [];
-  if (step.level !== 0) crumb.push(COACHING_COPY.grade(step.grade.grade));
+  if (step.level !== 0) crumb.push(W.grade(step.grade.grade));
   if (step.level === 2 || step.level === 3) crumb.push(step.subject.label);
   if (step.level === 3) crumb.push(step.chapter.label);
   const crumbKey = crumb.join('|');
@@ -100,7 +101,7 @@ export function LibraryStep({ onPick, onStepChange, backSignal }: {
 
   const pickLesson = (lesson: LibraryLesson) => {
     if (step.level !== 3) return;
-    const chips = [COACHING_COPY.grade(step.grade.grade), step.subject.label];
+    const chips = [W.grade(step.grade.grade), step.subject.label];
     if (step.grade.lane === 'k5') { onPick({ pick: { lessonId: lesson.id }, title: lesson.label, chips }); return; }
     const picked: Picked = { pick: { segmentId: lesson.id, lang: 'en' }, title: lesson.label, chips };
     if (lesson.ready) { onPick(picked); return; }
@@ -140,20 +141,20 @@ export function LibraryStep({ onPick, onStepChange, backSignal }: {
   if (failed) {
     return (
       <>
-        <Hero title={COACHING_COPY.notLoaded} icon={CircleAlert} tone="error" live />
-        <BottomButton tone="outline" onClick={() => setReload((n) => n + 1)}>{COACHING_COPY.retry}</BottomButton>
+        <Hero title={W.notLoaded} icon={CircleAlert} tone="error" live />
+        <BottomButton tone="outline" onClick={() => setReload((n) => n + 1)}>{W.retry}</BottomButton>
       </>
     );
   }
-  const loading = <Hero title={COACHING_COPY.loading} icon={Loader2} spinning live />;
-  const nothing = <Hero title={COACHING_COPY.nothingHere} icon={Inbox} />;
+  const loading = <Hero title={W.loading} icon={Loader2} spinning live />;
+  const nothing = <Hero title={W.nothingHere} icon={Inbox} />;
 
   if (step.level === 0) {
     if (!grades) return loading;
     // The page's bar already says "Grade": the grid needs no heading of its own.
     return (
       <NumberGrid
-        label={COACHING_COPY.steps.grade}
+        label={W.steps.grade}
         numbers={grades.map((g) => g.grade)}
         value={null}
         onChange={(n) => { const g = grades.find((x) => x.grade === n); if (g) setStep({ level: 1, grade: g }); }}
@@ -165,7 +166,7 @@ export function LibraryStep({ onPick, onStepChange, backSignal }: {
     if (!options) return loading;
     if (!options.length) return nothing;
     return (
-      <List label={STEP_TITLES[step.level]}>
+      <List label={stepTitles[step.level]}>
         {options.map((o) => (
           <Row
             key={o.key}
@@ -183,7 +184,7 @@ export function LibraryStep({ onPick, onStepChange, backSignal }: {
   if (!lessons) return loading;
   if (!lessons.length) return nothing;
   return (
-    <List label={STEP_TITLES[3]}>
+    <List label={stepTitles[3]}>
       {lessons.map((l) => {
         const busy = preparing === l.id;
         return (
@@ -196,10 +197,10 @@ export function LibraryStep({ onPick, onStepChange, backSignal }: {
             chips={(
               <>
                 {l.sub ? <Chip>{l.sub}</Chip> : null}
-                {l.used ? <Chip tone="done">{COACHING_COPY.used}</Chip> : null}
-                {!l.ready && !busy && prepFailed !== l.id ? <Chip tone="waiting">{COACHING_COPY.notWritten}</Chip> : null}
-                {busy ? <Chip tone="waiting">{COACHING_COPY.preparing}</Chip> : null}
-                {prepFailed === l.id ? <Chip tone="error">{COACHING_COPY.failed}</Chip> : null}
+                {l.used ? <Chip tone="done">{W.used}</Chip> : null}
+                {!l.ready && !busy && prepFailed !== l.id ? <Chip tone="waiting">{W.notWritten}</Chip> : null}
+                {busy ? <Chip tone="waiting">{W.preparing}</Chip> : null}
+                {prepFailed === l.id ? <Chip tone="error">{W.failed}</Chip> : null}
               </>
             )}
           />

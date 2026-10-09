@@ -62,11 +62,12 @@ function presignUpload({ userId, filename, sizeBytes, kind }) {
 }
 
 /**
- * @param {{userId, key, lessonPlanKey, photoKeys, lessonPlan}} args
+ * @param {{userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass}} args
+ *   teacherClass (bd-fmf24g.9): { grade, subject, subjectKey? } — the class she picked in the app
  *   lessonPlan (bd-5rz1v): a library pick — { assetId } | { lessonId } | { segmentId, lang }
  */
-function startSession({ userId, key, lessonPlanKey, photoKeys, lessonPlan }) {
-  return post('start', { userId, key, lessonPlanKey, photoKeys, lessonPlan });
+function startSession({ userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass }) {
+  return post('start', { userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass });
 }
 
 /** @param {{userId, coachingSessionId, answer}} args */

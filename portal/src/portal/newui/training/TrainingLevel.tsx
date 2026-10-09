@@ -6,7 +6,7 @@ import { List, Row, SectionLabel } from '../List';
 import { Chip } from '../Chip';
 import { Hero } from '../Hero';
 import { Sheet } from '../Sheet';
-import { TRAINING_COPY } from '../copy';
+import { TRAINING_COPY, type TrainingWords } from '../copy';
 import { Loading, NotLoaded, TrainingInner } from './frame';
 import { certificateUrl, downloadCertificate } from './certificateFile';
 import {
@@ -112,7 +112,7 @@ export default function TrainingLevel() {
 
 /* ── the level exam, as a row ─────────────────────────────────────────────── */
 
-function hoursLeft(iso: string | null): number {
+export function hoursLeft(iso: string | null): number {
   if (!iso) return 0;
   return Math.max(1, Math.round((new Date(iso).getTime() - Date.now()) / 3_600_000));
 }
@@ -141,34 +141,36 @@ type CapstoneRecord = {
   answers?: Array<{ question_index: number; question_text: string; answer_text: string; answer_score: number | null; feedback_text: string }>;
 };
 
-function CapstoneRow({ levelId }: { levelId: number }) {
+/** bd-fmf24g.13 — `words`: the teacher v2's translation of TRAINING_COPY (English when left out). */
+export function CapstoneRow({ levelId, words }: { levelId: number; words?: TrainingWords }) {
+  const T = words ?? (TRAINING_COPY as TrainingWords);
   const record = useGet<CapstoneRecord>(`/training/level/${levelId}/capstone`);
   const [open, setOpen] = useState(false);
   const a = record.data?.attempt;
   if (!a) return null;
   const answers = record.data?.answers || [];
   const status = a.is_passed
-    ? <Chip tone="done" icon={Check}>{TRAINING_COPY.passed}</Chip>
+    ? <Chip tone="done" icon={Check}>{T.passed}</Chip>
     : a.status === 'in_progress'
-      ? <Chip tone="waiting">{TRAINING_COPY.onWhatsApp}</Chip>
-      : <Chip>{TRAINING_COPY.notPassed}</Chip>;
+      ? <Chip tone="waiting">{T.onWhatsApp}</Chip>
+      : <Chip>{T.notPassed}</Chip>;
   return (
     <div data-testid="capstone-row">
       <List>
         <Row
           icon={PenLine}
-          title={TRAINING_COPY.writtenQuiz}
-          chips={<><Chip>{TRAINING_COPY.of(a.score, a.total_score)}</Chip>{status}</>}
+          title={T.writtenQuiz}
+          chips={<><Chip>{T.of(a.score, a.total_score)}</Chip>{status}</>}
           onClick={answers.length ? () => setOpen(true) : undefined}
         />
       </List>
-      <Sheet open={open} title={TRAINING_COPY.writtenQuiz} onClose={() => setOpen(false)}>
+      <Sheet open={open} title={T.writtenQuiz} onClose={() => setOpen(false)}>
         <ol className="flex flex-col gap-2.5">
           {answers.map((ans) => (
             <li key={ans.question_index} className="flex flex-col gap-1.5 rounded-2xl border-[1.5px] border-nu-surface-line bg-nu-surface-card p-3">
               <p className="text-[15px] font-bold text-nu-surface-text">{ans.question_text}</p>
               <p className="whitespace-pre-wrap text-[15px] text-nu-surface-text">{ans.answer_text}</p>
-              <span className="flex flex-wrap gap-[5px]"><Chip>{TRAINING_COPY.outOfFive(ans.answer_score)}</Chip></span>
+              <span className="flex flex-wrap gap-[5px]"><Chip>{T.outOfFive(ans.answer_score)}</Chip></span>
               {ans.feedback_text ? <p className="text-sm text-nu-surface-muted">{ans.feedback_text}</p> : null}
             </li>
           ))}
@@ -191,7 +193,9 @@ type CertState = {
   scores?: { modules: Array<{ course_id: number; title: string; units: Array<{ id: number; title: string; best_pct: number | null }>; exam: ExamMarks | null }> } | null;
 };
 
-function LevelCertificate({ levelId, onIssued }: { levelId: number; onIssued: () => void }) {
+/** bd-fmf24g.13 — `words`: the teacher v2's translation of TRAINING_COPY (English when left out). */
+export function LevelCertificate({ levelId, onIssued, words }: { levelId: number; onIssued: () => void; words?: TrainingWords }) {
+  const T = words ?? (TRAINING_COPY as TrainingWords);
   const info = useGet<CertState>(`/training/level/${levelId}/certificate`);
   const [claiming, setClaiming] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -220,7 +224,7 @@ function LevelCertificate({ levelId, onIssued }: { levelId: number; onIssued: ()
   const done = examsTotal > 0 ? Math.min(examsTotal, d.exams_done || 0) : Math.min(d.units_total || 0, d.units_done || 0);
   const total = examsTotal > 0 ? examsTotal : d.units_total || 0;
   const ready = total > 0 && done >= total;
-  const failChip = failed ? <Chip tone="error">{TRAINING_COPY.notLoaded}</Chip> : null;
+  const failChip = failed ? <Chip tone="error">{T.notLoaded}</Chip> : null;
 
   let row;
   if (d.state === 'issued' && d.certificate) {
@@ -229,9 +233,9 @@ function LevelCertificate({ levelId, onIssued }: { levelId: number; onIssued: ()
       <Row
         icon={Award}
         tile="done"
-        title={TRAINING_COPY.levelCertificate}
-        chips={<Chip tone="done">{TRAINING_COPY.ready}</Chip>}
-        value={TRAINING_COPY.download}
+        title={T.levelCertificate}
+        chips={<Chip tone="done">{T.ready}</Chip>}
+        value={T.download}
         end={Download}
         onClick={() => downloadCertificate(url)}
         testId="level-certificate-download"
@@ -241,10 +245,10 @@ function LevelCertificate({ levelId, onIssued }: { levelId: number; onIssued: ()
     row = (
       <Row
         icon={ready ? Award : Lock}
-        title={TRAINING_COPY.levelCertificate}
-        chips={<><Chip>{examsTotal > 0 ? TRAINING_COPY.exams(done, total) : TRAINING_COPY.of(done, total)}</Chip>{failChip}</>}
+        title={T.levelCertificate}
+        chips={<><Chip>{examsTotal > 0 ? T.exams(done, total) : T.of(done, total)}</Chip>{failChip}</>}
         progress={percent(done, total)}
-        value={ready ? TRAINING_COPY.receive : undefined}
+        value={ready ? T.receive : undefined}
         onClick={ready && !claiming ? claim : undefined}
         testId="level-certificate-claim"
       />
@@ -255,10 +259,10 @@ function LevelCertificate({ levelId, onIssued }: { levelId: number; onIssued: ()
     <div data-testid="level-certificate-row">
       <List>
         {row}
-        {scores ? <Row icon={ListChecks} title={TRAINING_COPY.myScores} onClick={() => setScoresOpen(true)} testId="level-scores" /> : null}
+        {scores ? <Row icon={ListChecks} title={T.myScores} onClick={() => setScoresOpen(true)} testId="level-scores" /> : null}
       </List>
       {scores ? (
-        <Sheet open={scoresOpen} title={TRAINING_COPY.myScores} onClose={() => setScoresOpen(false)}>
+        <Sheet open={scoresOpen} title={T.myScores} onClose={() => setScoresOpen(false)}>
           <div className="flex flex-col gap-2.5">
             {scores.modules.map((m) => (
               <section key={m.course_id} className="flex flex-col gap-1.5">
@@ -267,16 +271,16 @@ function LevelCertificate({ levelId, onIssued }: { levelId: number; onIssued: ()
                   {m.exam ? (
                     <>
                       {m.exam.pending
-                        ? <Chip tone="waiting">{TRAINING_COPY.beingGraded}</Chip>
-                        : m.exam.passed ? <Chip tone="done">{TRAINING_COPY.passed}</Chip> : <Chip>{TRAINING_COPY.notPassed}</Chip>}
-                      <Chip>{TRAINING_COPY.choice(m.exam.mcq_earned, m.exam.mcq_possible)}</Chip>
-                      <Chip>{TRAINING_COPY.written(m.exam.crq_earned, m.exam.crq_max)}</Chip>
+                        ? <Chip tone="waiting">{T.beingGraded}</Chip>
+                        : m.exam.passed ? <Chip tone="done">{T.passed}</Chip> : <Chip>{T.notPassed}</Chip>}
+                      <Chip>{T.choice(m.exam.mcq_earned, m.exam.mcq_possible)}</Chip>
+                      <Chip>{T.written(m.exam.crq_earned, m.exam.crq_max)}</Chip>
                     </>
-                  ) : <Chip>{TRAINING_COPY.notTaken}</Chip>}
+                  ) : <Chip>{T.notTaken}</Chip>}
                 </span>
                 <List>
                   {m.units.map((u) => (
-                    <Row key={u.id} title={u.title} tile="quiet" icon={BookOpen} value={u.best_pct === null ? TRAINING_COPY.notTaken : TRAINING_COPY.pct(u.best_pct)} valueMuted={u.best_pct === null} />
+                    <Row key={u.id} title={u.title} tile="quiet" icon={BookOpen} value={u.best_pct === null ? T.notTaken : T.pct(u.best_pct)} valueMuted={u.best_pct === null} />
                   ))}
                 </List>
               </section>

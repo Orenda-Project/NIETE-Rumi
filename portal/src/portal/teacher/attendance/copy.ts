@@ -1,0 +1,192 @@
+/**
+ * bd-fmf24g.7 — every word the teacher v2 Attendance screens show, in the feature's own copy file.
+ * Same rules as the new UI's copy: 1–3 words, 4 at most, no sentences. DATA is not copy: a class's name, a
+ * child's name and the subject names come from the API as they are.
+ *
+ * bd-fmf24g.13 — bilingual: ATTENDANCE = { en, ur }, read with useCopy(ATTENDANCE); month and day names in
+ * Urdu below (model.ts monthLabel/dayLabel take the language). The Urdu is MACHINE-DRAFTED from the bot's
+ * existing Urdu (ux-strings.js: حاضری، حاضری لگائیں، کلاس چنیں، آپ کی کلاسیں) and awaits a human review.
+ */
+import { bilingual, type Bilingual, type Words } from '../i18n';
+import type { CopyEntry } from '../copyRegistry';
+
+export const ATTENDANCE_V2_COPY = {
+  title: 'Attendance',
+  home: 'Home',
+  /* the selector */
+  view: 'View',
+  download: 'Download',
+  search: 'Search class or subject',
+  clear: 'Clear',
+  notMarked: 'Not marked',
+  marked: 'Marked',
+  markedOf: (present: number, total: number) => `Marked ${present}/${total}`,
+  students: (n: number) => `${n} students`,
+  noClass: 'No class found',
+  noClasses: 'No classes yet',
+  /* the roll call */
+  markTitle: 'Mark attendance',
+  today: 'Today',
+  yesterday: 'Yesterday',
+  pickDate: 'Select date',
+  date: 'Date',
+  alreadyMarked: 'Already marked',
+  allPresent: 'All present',
+  searchStudent: 'Search student',
+  noStudent: 'No student found',
+  noStudents: 'No students yet',
+  present: 'Present',
+  absent: 'Absent',
+  leave: 'Leave',
+  presentShort: 'P',
+  absentShort: 'A',
+  leaveShort: 'L',
+  save: 'Save',
+  saveChanges: 'Save changes',
+  saving: 'Saving',
+  saveFailed: 'Not saved',
+  saved: 'Saved',
+  presentCount: (n: number) => `${n} present`,
+  absentCount: (n: number) => `${n} absent`,
+  leaveCount: (n: number) => `${n} leave`,
+  monthRegister: 'Month register',
+  excel: 'Excel',
+  viewAttendance: 'View attendance',
+  edit: 'Edit',
+  nextClass: 'Next class',
+  /* the view */
+  viewTitle: 'Class attendance',
+  change: 'Change',
+  chooseClass: 'Select class',
+  prevMonth: 'Previous month',
+  nextMonth: 'Next month',
+  hi: '90%+',
+  mid: '75–89%',
+  lo: 'Below 75%',
+  unmarked: 'Not marked',
+  ofTotal: (present: number, total: number) => `${present} of ${total}`,
+  markNow: 'Mark now',
+  everyonePresent: 'Everyone present',
+  studentsTitle: 'Students',
+  lowestFirst: 'Lowest first',
+  allStudents: (n: number) => `All ${n} students`,
+  fewer: 'Show fewer',
+  pct: (n: number) => `${n}%`,
+  daysOf: (present: number, marked: number) => `${present} of ${marked} days`,
+  noValue: '—',
+  nothingThisMonth: 'Nothing marked yet',
+  /* download */
+  downloadTitle: 'Download register',
+  month: 'Month',
+  thisMonth: 'This month',
+  lastMonth: 'Last month',
+  otherMonth: 'Other month',
+  register: 'Register',
+  daysMarked: (n: number) => `${n} days marked`,
+  whatsapp: 'Send on WhatsApp',
+  sent: 'Sent on WhatsApp',
+  notSent: 'Not sent',
+  downloadFailed: 'Not downloaded',
+  /* shared */
+  failed: 'Could not load',
+  retry: 'Try again',
+  loading: 'Loading',
+};
+
+export type AttendanceCopy = Words<typeof ATTENDANCE_V2_COPY>;
+
+/** bd-fmf24g.13 — Attendance's words in Urdu (MACHINE-DRAFTED; review pending). Western digits, as the bot. */
+export const ATTENDANCE_V2_COPY_UR: AttendanceCopy = {
+  title: 'حاضری',
+  home: 'ہوم',
+  view: 'دیکھیں',
+  download: 'ڈاؤن لوڈ',
+  search: 'کلاس یا مضمون ڈھونڈیں',
+  clear: 'صاف کریں',
+  notMarked: 'حاضری نہیں لگی',
+  marked: 'حاضری لگ گئی',
+  markedOf: (present: number, total: number) => `حاضری ${present}/${total}`,
+  students: (n: number) => `${n} طلبہ`,
+  noClass: 'کوئی کلاس نہیں ملی',
+  noClasses: 'ابھی کوئی کلاس نہیں',
+  markTitle: 'حاضری لگائیں',
+  today: 'آج',
+  yesterday: 'کل',
+  pickDate: 'تاریخ چنیں',
+  date: 'تاریخ',
+  alreadyMarked: 'حاضری پہلے لگ چکی',
+  allPresent: 'سب حاضر',
+  searchStudent: 'طالب علم ڈھونڈیں',
+  noStudent: 'طالب علم نہیں ملا',
+  noStudents: 'کوئی طالب علم نہیں',
+  present: 'حاضر',
+  absent: 'غیر حاضر',
+  leave: 'چھٹی',
+  presentShort: 'ح',
+  absentShort: 'غ',
+  leaveShort: 'چ',
+  save: 'محفوظ کریں',
+  saveChanges: 'تبدیلیاں محفوظ کریں',
+  saving: 'محفوظ ہو رہا ہے',
+  saveFailed: 'محفوظ نہیں ہوا',
+  saved: 'محفوظ ہو گیا',
+  presentCount: (n: number) => `${n} حاضر`,
+  absentCount: (n: number) => `${n} غیر حاضر`,
+  leaveCount: (n: number) => `${n} چھٹی`,
+  monthRegister: 'ماہانہ رجسٹر',
+  excel: 'ایکسل',
+  viewAttendance: 'حاضری دیکھیں',
+  edit: 'ترمیم کریں',
+  nextClass: 'اگلی کلاس',
+  viewTitle: 'کلاس کی حاضری',
+  change: 'تبدیل کریں',
+  chooseClass: 'کلاس چنیں',
+  prevMonth: 'پچھلا مہینہ',
+  nextMonth: 'اگلا مہینہ',
+  hi: '90%+',
+  mid: '75–89%',
+  lo: '75% سے کم',
+  unmarked: 'حاضری نہیں لگی',
+  ofTotal: (present: number, total: number) => `${total} میں سے ${present}`,
+  markNow: 'ابھی لگائیں',
+  everyonePresent: 'سب حاضر تھے',
+  studentsTitle: 'طلبہ',
+  lowestFirst: 'کم سے زیادہ',
+  allStudents: (n: number) => `تمام ${n} طلبہ`,
+  fewer: 'کم دکھائیں',
+  pct: (n: number) => `${n}%`,
+  daysOf: (present: number, marked: number) => `${present}/${marked} دن`,
+  noValue: '—',
+  nothingThisMonth: 'ابھی حاضری نہیں لگی',
+  downloadTitle: 'رجسٹر ڈاؤن لوڈ کریں',
+  month: 'مہینہ',
+  thisMonth: 'یہ مہینہ',
+  lastMonth: 'پچھلا مہینہ',
+  otherMonth: 'دوسرا مہینہ',
+  register: 'رجسٹر',
+  daysMarked: (n: number) => `${n} دن حاضری لگی`,
+  whatsapp: 'واٹس ایپ پر بھیجیں',
+  sent: 'واٹس ایپ پر بھیجا گیا',
+  notSent: 'نہیں بھیجا گیا',
+  downloadFailed: 'ڈاؤن لوڈ نہیں ہوا',
+  failed: 'لوڈ نہیں ہو سکا',
+  retry: 'دوبارہ کوشش کریں',
+  loading: 'لوڈ ہو رہا ہے',
+};
+
+/** Attendance's words in both languages. */
+export const ATTENDANCE = bilingual(ATTENDANCE_V2_COPY, ATTENDANCE_V2_COPY_UR);
+
+/** Urdu month and short weekday names (Sunday first), for model.ts monthLabel/dayLabel. */
+export const ATTENDANCE_MONTHS_UR = ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'] as const;
+export const ATTENDANCE_WEEKDAYS_UR = ['اتوار', 'پیر', 'منگل', 'بدھ', 'جمعرات', 'جمعہ', 'ہفتہ'] as const;
+
+/** Registered for the completeness checks and the review file (copyRegistry). */
+export const COPY_ENTRY: CopyEntry = {
+  screen: 'Attendance',
+  module: ATTENDANCE as Bilingual<unknown>,
+  // Percent bands and numbers, the same in both languages.
+  same: ['hi', 'mid', 'pct', 'noValue'],
+  // "Sent on WhatsApp": five words in Urdu (واٹس ایپ is one name).
+  longOk: ['sent'],
+};

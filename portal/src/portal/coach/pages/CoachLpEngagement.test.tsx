@@ -36,21 +36,24 @@ describe("Exams generated and Lesson plans opened", () => {
   it("on the Teacher page's stats card", async () => {
     at("/portal/coach/teacher/923001110001", "/portal/coach/teacher/:ext", <CoachTeacher />);
     const card = await screen.findByTestId("teacher-stats");
-    expect(valueOf(card, "Exams generated")).toBe("5");
-    expect(valueOf(card, "Lesson plans opened")).toBe("12");
+    // bd-4404s7.6: the kit's KpiTiles, with the ontology's words (Papers made, Lesson Plans opened)
+    expect(within(card).getByRole("group", { name: "5 Papers made" })).toBeInTheDocument();
+    expect(within(card).getByRole("group", { name: "12 Lesson Plans opened" })).toBeInTheDocument();
   });
 
   it("on the Visit page's teacher card numbers", async () => {
     at("/portal/coach/visit/v1", "/portal/coach/visit/:id", <CoachVisit />);
     const stats = await screen.findByTestId("visit-stats");
-    expect(valueOf(stats, "Exams generated")).toBe("5");
-    expect(valueOf(stats, "Lesson plans opened")).toBe("12");
+    // bd-4404s7.4 — the Visit page's words are the Blueprint's: "Papers made", "Lesson Plans opened".
+    expect(valueOf(stats, "Papers made")).toBe("5");
+    expect(valueOf(stats, "Lesson Plans opened")).toBe("12");
   });
 
   it("a teacher off Rumi shows a dash for lesson plans", async () => {
     C.getTeacher.mockResolvedValue({ success: true, teacher: { ...T, lpOpened: null, examsGenerated: 0 }, history: [], nextVisit: null });
     at("/portal/coach/teacher/923001110001", "/portal/coach/teacher/:ext", <CoachTeacher />);
     const card = await screen.findByTestId("teacher-stats");
-    expect(valueOf(card, "Lesson plans opened")).toBe("—");
+    expect(within(card).getByRole("group", { name: "— Lesson Plans opened" })).toBeInTheDocument();
+    expect(within(card).getByRole("group", { name: "0 Papers made" })).toBeInTheDocument();
   });
 });

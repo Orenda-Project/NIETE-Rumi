@@ -39,6 +39,20 @@ describe("Scheduling hub", () => {
     expect(screen.getByRole("link", { name: /My schedule/ })).toHaveTextContent("1 overdue");
     expect(screen.getByRole("link", { name: /Team schedule/ })).toHaveAttribute("href", "/portal/coach/team");
   });
+
+  it("bd-4404s7.3: the three doors are the Schedule feature's rose, and their chips use the kit's status tones", async () => {
+    renderAt("/portal/coach/scheduling");
+    await screen.findByRole("link", { name: /New visit/ });
+    const icons = screen.getAllByTestId("hub-icon");
+    expect(icons).toHaveLength(3);
+    for (const el of icons) {
+      expect(el.style.background).toBe("rgb(252, 231, 243)"); // #fce7f3
+      expect(el.style.color).toBe("rgb(190, 24, 93)"); // #be185d
+    }
+    await waitFor(() => expect(screen.getByText("1 overdue")).toBeInTheDocument());
+    expect(screen.getByText("1 overdue").className).toContain("fef3c7");
+    expect(screen.getByText("6 this week").className).toContain("f3f4f6");
+  });
 });
 
 describe("My schedule", () => {
@@ -61,9 +75,26 @@ describe("My schedule", () => {
     expect(overdue.getByText("Sadia Noor").closest("a")).toHaveAttribute("href", "/portal/coach/visit/o1");
     expect(overdue.getByText(/days late/)).toBeInTheDocument();
     const rabia = screen.getByText("Rabia Saleem").closest("a") as HTMLElement;
-    expect(rabia).toHaveTextContent("2:30");
-    expect(rabia).toHaveTextContent("PM");
+    expect(within(rabia).getByRole("img", { name: "2:30 PM" })).toBeInTheDocument(); // the kit's TimeStamp
     expect(screen.getByText("Mehwish Khan").closest("a")).toHaveTextContent("Done");
+  });
+
+  it("bd-4404s7.3: a visit's time is a TimeStamp in the visit's tone, beside a round avatar (never a grade tile)", async () => {
+    renderAt("/portal/coach/schedule");
+    const done = (await screen.findByText("Mehwish Khan")).closest("a") as HTMLElement;
+    expect(within(done).getByRole("img", { name: "9:00 AM" })).toHaveAttribute("data-tone", "done");
+    const late = screen.getByText("Sadia Noor").closest("a") as HTMLElement;
+    expect(within(late).getByRole("img", { name: "9:00 AM" })).toHaveAttribute("data-tone", "overdue");
+    expect(late.querySelector(".rounded-full")).not.toBeNull();
+    expect(late.querySelector("[data-testid=history-lead]")).toBeNull();
+    expect(within(late).getByText(/days late/).className).toContain("fef3c7"); // waiting tone
+    expect(done.querySelector("[data-chip]")?.className).toContain("eaf6ef"); // done tone
+  });
+
+  it("a visit with no time shows nothing for it, not a made-up one", async () => {
+    renderAt("/portal/coach/schedule");
+    const row = (await screen.findByText("Nadia Parveen")).closest("a") as HTMLElement;
+    expect(within(row).queryByRole("img")).toBeNull();
   });
 
   it("the week strip shows a dot per visit; New visit at the bottom", async () => {
@@ -95,20 +126,27 @@ describe("Team schedule", () => {
     expect(totals.getByText("840")).toBeInTheDocument();
   });
 
+  it("bd-4404s7.3: the totals are the kit's KpiTiles, three across", async () => {
+    renderAt("/portal/coach/team");
+    const totals = within(await screen.findByTestId("team-totals"));
+    expect(totals.getByRole("group", { name: /46.*Today/ })).toBeInTheDocument();
+    expect(totals.getByText("This month")).toBeInTheDocument();
+  });
+
   it("a time with 20 visits shows a few and a Show all 20; it opens to all 20", async () => {
     renderAt("/portal/coach/team");
     const group = within(await screen.findByTestId("slot-09:00"));
-    expect(group.getByText("9:00 AM")).toBeInTheDocument();
+    expect(group.getByRole("img", { name: "9:00 AM" })).toBeInTheDocument(); // the kit's TimeStamp
     expect(group.getByText("20 visits")).toBeInTheDocument();
-    expect(group.getAllByTestId("team-visit").length).toBeLessThan(20);
+    expect(group.getAllByText(/^Teacher \d+$/).length).toBeLessThan(20);
     fireEvent.click(group.getByRole("button", { name: /Show all 20/ }));
-    expect(group.getAllByTestId("team-visit")).toHaveLength(20);
+    expect(group.getAllByText(/^Teacher \d+$/)).toHaveLength(20);
   });
 
   it("a coach can be picked from the list; the page asks again for her only", async () => {
     renderAt("/portal/coach/team");
-    const select = await screen.findByLabelText("Coach");
-    fireEvent.change(select, { target: { value: "00000000-0000-4000-8000-000000000002" } });
+    fireEvent.click(await screen.findByRole("button", { name: /^Coach, All coaches/ })); // the kit's SelectField
+    fireEvent.click(await screen.findByRole("button", { name: /Imran S/ }));
     await waitFor(() => expect(C.getTeam).toHaveBeenLastCalledWith(expect.objectContaining({ coach: "00000000-0000-4000-8000-000000000002" })));
   });
 });

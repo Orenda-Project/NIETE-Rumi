@@ -34,6 +34,16 @@ describe("sendLesson", () => {
     expect(out).toEqual({ coachingSessionId: "cs-9" });
   });
 
+  it("bd-fmf24g.9 — the class she picked travels with the recording; without one nothing is added", async () => {
+    await sendLesson({ audio, plan: null, photos: [], teacherClass: { grade: 4, subject: "General Science", subjectKey: "science" } }, a as never);
+    expect(a.startCoachingUpload).toHaveBeenCalledWith({
+      key: "audio/1-Lesson 2 Oct.webm", photoKeys: [], teacherClass: { grade: 4, subject: "General Science", subjectKey: "science" },
+    });
+    a = api();
+    await sendLesson({ audio, plan: null, photos: [], teacherClass: null }, a as never);
+    expect(a.startCoachingUpload.mock.calls[0][0]).not.toHaveProperty("teacherClass");
+  });
+
   it("a library pick is sent as lessonPlan, with nothing uploaded for it", async () => {
     await sendLesson({ audio, plan: { kind: "library", pick: { lessonId: "g4-sst-ch3-seg2" } }, photos: [] }, a as never);
     expect(a.presignCoachingUpload).toHaveBeenCalledTimes(1);

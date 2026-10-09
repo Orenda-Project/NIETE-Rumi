@@ -3,6 +3,8 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
+// bd-4404s7.6: the gate follows her stored language; no network here
+vi.mock("../services/api", async (orig) => ({ ...(await orig<any>()), language: { get: vi.fn(() => new Promise(() => {})) } }));
 vi.mock("./useCoachV2", async (orig) => ({ ...(await orig<any>()), useCoachV2: vi.fn() }));
 import { useAuth } from "../hooks/useAuth";
 import { useCoachV2 } from "./useCoachV2";

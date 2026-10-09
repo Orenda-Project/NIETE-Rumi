@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Download, KeyRound, Loader2, Pencil } from 'lucide-react';
+import { Download, KeyRound, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { portal, type EditVersion } from '../../services/api';
+import { SkeletonList } from '../Skeleton';
 
 type Props = { paperId: string; open: boolean; onOpenChange: (open: boolean) => void; onEdit: (paperId: string) => void };
 
@@ -42,7 +43,8 @@ const AssessmentVersionsDialog = ({ paperId, open, onOpenChange, onEdit }: Props
           <DialogDescription>Every version of this paper. Download any of them, or edit one to make a new version.</DialogDescription>
         </DialogHeader>
         {versions === null ? (
-          <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin" /></div>
+          // bd-fxk3t8 — placeholder rows where the versions will be, not a spinner.
+          <SkeletonList rows={2} className="py-2" />
         ) : (
           <ul className="divide-y">
             {versions.map((v) => (

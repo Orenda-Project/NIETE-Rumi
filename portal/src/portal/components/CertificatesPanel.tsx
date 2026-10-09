@@ -47,10 +47,11 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Award, Download, Eye, Loader2, AlertCircle, Lock } from 'lucide-react';
+import { Award, Download, Eye, AlertCircle, Lock } from 'lucide-react';
 import api from '../services/api';
 import { getApiBaseUrl, isNativeApp } from '@/lib/runtime';
 import { downloadCertificate } from '../newui/training/certificateFile';
+import { SkeletonList } from './Skeleton';
 
 /**
  * Resolve the API's `download_url` for the environment we are actually in.
@@ -313,8 +314,9 @@ export default function CertificatesPanel({
           data-testid="certificates-panel"
         >
           {loading && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="certificates-loading">
-              <Loader2 className="w-4 h-4 animate-spin" /> Loading your certificates…
+            // bd-fxk3t8 — placeholder rows where the certificates will be, not a spinner.
+            <div data-testid="certificates-loading">
+              <SkeletonList rows={2} label="Loading your certificates…" />
             </div>
           )}
 

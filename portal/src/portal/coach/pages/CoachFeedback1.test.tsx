@@ -120,7 +120,7 @@ describe("2 — a visit can be booked on a past day", () => {
   it("the day strip goes back a week; a past day is booked as picked", async () => {
     renderAt("/portal/coach/new-visit?school=niete%3A494&teacher=923001110005");
     await screen.findByText("Step 3 of 3");
-    fireEvent.click(screen.getByRole("button", { name: "Earlier days" }));
+    fireEvent.click(screen.getByRole("button", { name: "Earlier week" }));
     fireEvent.click(screen.getByRole("button", { name: "Fri 2" }));
     fireEvent.click(screen.getByRole("button", { name: /^Schedule$/ }));
     await waitFor(() => expect(L.createSchedule).toHaveBeenCalledWith(expect.objectContaining({ date: "2026-10-02", slot: "09:00" })));
@@ -129,7 +129,7 @@ describe("2 — a visit can be booked on a past day", () => {
   it("and forward again to later weeks", async () => {
     renderAt("/portal/coach/new-visit?school=niete%3A494&teacher=923001110005");
     await screen.findByText("Step 3 of 3");
-    fireEvent.click(screen.getByRole("button", { name: "Later days" }));
+    fireEvent.click(screen.getByRole("button", { name: "Later week" }));
     fireEvent.click(screen.getByRole("button", { name: "Wed 14" }));
     fireEvent.click(screen.getByRole("button", { name: /^Schedule$/ }));
     await waitFor(() => expect(L.createSchedule).toHaveBeenCalledWith(expect.objectContaining({ date: "2026-10-14" })));
@@ -141,7 +141,7 @@ describe("3 — no AM/PM warning", () => {
     renderAt("/portal/coach/new-visit?school=niete%3A494&teacher=923001110005");
     await screen.findByText("Step 3 of 3");
     fireEvent.click(screen.getByRole("radio", { name: "PM" }));
-    expect(screen.getByTestId("time-readout")).toHaveTextContent("9:00 PM");
+    expect(within(screen.getByTestId("time-picker")).getByRole("img")).toHaveAttribute("aria-label", "9:00 PM");
     expect(screen.queryByText(/7:00 AM/)).toBeNull();
     const button = screen.getByRole("button", { name: /^Schedule$/ });
     expect(button).not.toBeDisabled();
@@ -154,9 +154,9 @@ describe("3 — no AM/PM warning", () => {
     await screen.findByText("Step 3 of 3");
     const later = screen.getByRole("button", { name: "Later hour" });
     fireEvent.click(later); fireEvent.click(later); // 9 → 10 → 11
-    expect(screen.getByTestId("time-readout")).toHaveTextContent("11:00 AM");
+    expect(within(screen.getByTestId("time-picker")).getByRole("img")).toHaveAttribute("aria-label", "11:00 AM");
     fireEvent.click(later); // 12
-    expect(screen.getByTestId("time-readout")).toHaveTextContent("12:00 PM");
+    expect(within(screen.getByTestId("time-picker")).getByRole("img")).toHaveAttribute("aria-label", "12:00 PM");
   });
 });
 
@@ -198,36 +198,37 @@ describe("4 — Pick the teacher lists every visit, by day, in order", () => {
     await screen.findByText("Ayesha Bibi");
     fireEvent.click(screen.getByRole("button", { name: /Earlier/ }));
     const earlier = within(screen.getAllByTestId("day-group")[0]);
-    const names = earlier.getAllByTestId("name").map((n) => n.textContent);
+    const names = earlier.getAllByText(/Sadia Noor|Rabia Saleem/).map((n) => n.textContent);
     expect(names).toEqual(["Sadia Noor", "Rabia Saleem"]);
     expect(earlier.getByText("Sadia Noor").closest("a")).toHaveAttribute("href", "/portal/coach/visit/late");
     expect(earlier.getByText("Rabia Saleem").closest("a")).toBeNull();
     expect(screen.getByText("Mehwish Khan").closest("a")).toBeNull();
-    expect(within(screen.getByText("Mehwish Khan").closest("[aria-disabled]") as HTMLElement).getByText("Done")).toBeInTheDocument();
+    expect(within(screen.getByText("Mehwish Khan").closest("[data-history-row]") as HTMLElement).getByText("Done")).toBeInTheDocument();
   });
 
-  it("searching opens Earlier so a match is never hidden; the school filter still works", async () => {
+  it("no search (bd-4404s7.4); the school filter opens Earlier so a match is never hidden", async () => {
     C.getSchedule.mockResolvedValue(SCHEDULE);
     renderAt("/portal/coach/observe/pick");
     await screen.findByText("Ayesha Bibi");
-    fireEvent.change(screen.getByPlaceholderText("Name or phone"), { target: { value: "03001110005" } });
-    expect(screen.getByText("Sadia Noor")).toBeInTheDocument();
-    expect(screen.queryByText("Ayesha Bibi")).toBeNull();
-    fireEvent.change(screen.getByPlaceholderText("Name or phone"), { target: { value: "" } });
-    fireEvent.change(screen.getByLabelText("School"), { target: { value: "niete:494" } });
+    expect(screen.queryByPlaceholderText("Name or phone")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^School, / }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByText("IMCB G-9/4"));
     expect(screen.getByText("Hina Tariq")).toBeInTheDocument();
     expect(screen.queryByText("Ayesha Bibi")).toBeNull();
   });
 });
 
-describe("5 — Take observation shows the next visit, whatever its day", () => {
+describe("5 — Observe shows the next visit, whatever its day (bd-4404s7.4: a Next visit row under the tiles)", () => {
   it("Thursday's visit when there is none today", async () => {
     C.getHome.mockResolvedValue({ success: true, home: {
       today: [], next: visit("thu", "Ayesha Bibi", "923001110001", "2026-10-08", "09:00"),
       counts: { week: 1, overdue: 0, waiting: 0, inProgress: 0, teachers: 3, schools: 2 },
     } });
     renderAt("/portal/coach/observe");
-    expect(await screen.findByRole("link", { name: /Take observation/ })).toHaveTextContent("Next: Ayesha · Thu 8 Oct 9:00 AM");
+    const row = await screen.findByTestId("next-visit-card");
+    expect(row).toHaveTextContent("Ayesha Bibi");
+    expect(within(row).getByRole("img", { name: "9:00 AM" })).toBeInTheDocument();
+    expect(row).toHaveTextContent("Thu 8 Oct");
   });
 
   it("today's next visit shows its time only", async () => {
@@ -236,7 +237,10 @@ describe("5 — Take observation shows the next visit, whatever its day", () => 
       today: [{ ...t, current: true }], next: t, counts: { week: 1, overdue: 0, waiting: 0, inProgress: 0, teachers: 3, schools: 2 },
     } });
     renderAt("/portal/coach/observe");
-    expect(await screen.findByRole("link", { name: /Take observation/ })).toHaveTextContent("Next: Ayesha · 11:30 AM");
+    const row = await screen.findByTestId("next-visit-card");
+    expect(within(row).getByRole("img", { name: "11:30 AM" })).toBeInTheDocument();
+    expect(row).toHaveTextContent("In 2 h");
+    expect(row).not.toHaveTextContent("Thu");
   });
 
   it("no chip when nothing is coming up", async () => {
@@ -244,6 +248,7 @@ describe("5 — Take observation shows the next visit, whatever its day", () => 
     const tile = await screen.findByRole("link", { name: /Take observation/ });
     await waitFor(() => expect(C.getHome).toHaveBeenCalled());
     expect(tile).not.toHaveTextContent("Next");
+    expect(screen.queryByTestId("next-visit-card")).toBeNull();
   });
 });
 
@@ -262,7 +267,8 @@ describe("7 — Schools first, and open by default", () => {
     renderAt("/portal/coach/people");
     await screen.findAllByTestId("school-card");
     fireEvent.click(screen.getAllByTestId("tab")[1]);
-    expect(await screen.findAllByTestId("teacher-card")).toHaveLength(3);
+    // the Teachers tab is grouped by school (bd-4404s7.6): two schools here
+    expect(await screen.findAllByTestId("school-group")).toHaveLength(2);
   });
 });
 
@@ -286,7 +292,7 @@ describe("11 — a heading's count sits right after the heading text", () => {
     expectCountBeside(screen.getByRole("heading", { name: /Today's visits/ }), "Today's visits", "2");
   });
 
-  it("Reports: Waiting for you, In progress, All observations, and each day", async () => {
+  it("Reports: Waiting for you and In progress", async () => {
     const R = (id: string, step: string, createdAt: string) => ({ id, createdAt, teacherName: "Bushra Ali", teacherPhone: null, teacherExtId: null, schoolName: "IMS Tarnol", schoolExtId: null, status: "x", step, score: step === "sent" ? 70 : null, portal: true });
     C.getReports.mockResolvedValue({ success: true, waiting: [R("w1", "draft", "2026-10-05T09:00:00Z")], inProgress: [R("p1", "analysing", "2026-10-05T08:00:00Z")],
       all: { total: 1, page: 1, pageSize: 20, items: [R("s1", "sent", "2026-10-05T07:00:00Z")] } });
@@ -294,9 +300,6 @@ describe("11 — a heading's count sits right after the heading text", () => {
     await screen.findAllByText("Bushra Ali");
     expectCountBeside(screen.getByRole("heading", { name: /Waiting for you/ }), "Waiting for you", "1");
     expectCountBeside(screen.getByRole("heading", { name: /In progress/ }), "In progress", "1");
-    expectCountBeside(screen.getByRole("heading", { name: /All observations/ }), "All observations", "1");
-    const day = within(screen.getByTestId("report-day")).getByRole("heading");
-    expectCountBeside(day, "Mon 5 Oct", "1");
   });
 
   it("Pick the teacher: Today and each later day", async () => {
@@ -306,9 +309,10 @@ describe("11 — a heading's count sits right after the heading text", () => {
     ] });
     renderAt("/portal/coach/observe/pick");
     await screen.findByText("Ayesha Bibi");
+    // bd-4404s7.4 — the days are the kit HistoryList's own headings now (a day, then its rows).
     const [, thu] = screen.getAllByTestId("day-group");
-    expectCountBeside(screen.getByRole("heading", { name: /^Today/ }), "Today", "1");
-    expectCountBeside(within(thu).getByRole("heading"), "Thu 8 Oct", "1");
+    expect(screen.getByRole("heading", { name: /^Today/ })).toBeInTheDocument();
+    expect(within(thu).getByRole("heading")).toHaveTextContent("Thu 8 Oct");
   });
 });
 
@@ -321,7 +325,9 @@ describe("15 — Schedule, not Scheduling", () => {
   it("New visit's crumb", async () => {
     renderAt("/portal/coach/new-visit");
     await screen.findByText("Step 1 of 3");
-    expect(screen.getByText("Schedule · New visit")).toBeInTheDocument();
+    // bd-4404s7.3 (Coach_NewVisit1): the header says New visit, the crumb over it says Schedule
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/^New visit$/);
+    expect(screen.getByText("Schedule")).toBeInTheDocument();
     expect(screen.queryByText(/Scheduling/)).toBeNull();
   });
 });
