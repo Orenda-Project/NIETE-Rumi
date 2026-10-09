@@ -37,6 +37,7 @@ import { setDraft, getDraft, clearDraft } from "../observeDraft";
 import CoachSending from "./CoachSending";
 import { getJob, resetSender } from "../observe/sender";
 import { noticeTracker } from "../../teacher/notices/tracker";
+import { NOTICES } from "../../teacher/notices/copy";
 
 /**
  * bd-o15qnr.9 — taking an observation in coach v2, built from the canvas
@@ -438,7 +439,7 @@ describe("Sending, in the background (Blueprint: Coach_Sending)", () => {
     renderAt(`/portal/coach/visit/${VISIT_ID}/check`);
     fireEvent.click(await screen.findByRole("button", { name: "مشاہدہ بھیجیں" }));
     expect(await screen.findByTestId("send-state")).toHaveTextContent("بھیجا جا رہا ہے");
-    expect(screen.getByRole("note")).toHaveTextContent("آپ یہاں سے جا سکتے ہیں");
+    expect(screen.getByRole("note")).toHaveTextContent(NOTICES.ur.leave); // the one line every waiting screen carries
   });
 
   it("nothing being sent for this visit: back to the visit", async () => {
