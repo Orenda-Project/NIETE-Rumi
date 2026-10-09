@@ -134,6 +134,30 @@ describe('chat.intent on Claude: a cut-off reply whose label is complete is the 
     expect(intent.type).toBe('video');
   });
 
+  // Production read lp_ref anywhere in the reply; reading it only after a space would drop it from compact replies
+  // that put a comma, a colon, a bracket or markdown between the word and the marker.
+  test.each([
+    ['general, lp_ref'],
+    ['general: lp_ref'],
+    ['general (lp_ref)'],
+    ['general - lp_ref'],
+    ['**general** lp_ref'],
+    ['general "lp_ref"'],
+  ])('lp_ref after the label behind punctuation still counts: %j', async (reply) => {
+    claudeText = reply;
+    const svc = await service();
+    const intent = await svc.detectIntent('is lesson ki activity kaise karun');
+    expect(intent).toEqual({ type: 'general', message: 'is lesson ki activity kaise karun', lp_reference: true });
+  });
+
+  test('a cut-off reply with lp_ref behind a comma keeps it', async () => {
+    cutOff('general, lp_ref\n\nShe is asking about the lesson she was sent');
+    const svc = await service();
+    const intent = await svc.detectIntent('yeh wali activity mushkil hai');
+    expect(openrouter).toHaveLength(0);
+    expect(intent.lp_reference).toBe(true);
+  });
+
   test('lp_ref inside an explanation is not an lp_ref', async () => {
     claudeText = 'general\nNot an lp_ref: she asks something new.';
     const svc = await service();
