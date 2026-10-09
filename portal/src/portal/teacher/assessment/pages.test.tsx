@@ -150,9 +150,10 @@ describe('Assessment hub', () => {
     }]));
     portal.getAssessmentPapers.mockResolvedValue({ success: true, papers: [], total: 0, page: 1, pageSize: 10 });
     at(ASSESSMENT_V2_BASE, ASSESSMENT_V2_BASE, <AssessmentHub />);
-    expect(await screen.findByText(C.beingMade)).toBeTruthy();
+    // One word for one state: the section heading and the row's chip both say Being made.
+    expect((await screen.findAllByText(C.beingMade)).length).toBe(2);
+    expect(C.writing).toBe(C.beingMade);
     expect(screen.getByText('Green Guardians of Earth')).toBeTruthy();
-    expect(screen.getByText(C.writing)).toBeTruthy();
   });
 
   it('Coming soon when the generator is off on this deployment', async () => {

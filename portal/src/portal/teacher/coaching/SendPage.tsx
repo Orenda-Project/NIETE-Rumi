@@ -240,7 +240,7 @@ export function SendPage() {
 
       {stage === 'check' && audio ? (
         <>
-          <section aria-label={C.yourLesson} className={cn(CARD, 'flex min-h-[84px] items-center gap-3 p-3')}>
+          <section aria-label={C.yourRecording} className={cn(CARD, 'flex min-h-[84px] items-center gap-3 p-3')}>
             <button
               type="button"
               onClick={togglePlay}
@@ -251,7 +251,7 @@ export function SendPage() {
               {playing ? <Pause className="h-[22px] w-[22px]" aria-hidden="true" /> : <Play className="h-[22px] w-[22px] rtl:rotate-180" aria-hidden="true" />}
             </button>
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate text-[16px] font-semibold">{audio.source === 'file' ? audio.filename : C.yourLesson}</span>
+              <span className="truncate text-[16px] font-semibold">{audio.source === 'file' ? audio.filename : C.yourRecording}</span>
               {minutesOf(audio.durationMs) != null ? <span className="text-[13px] text-[#6b7280]">{C.minutes(minutesOf(audio.durationMs) as number)}</span> : null}
             </span>
             <button

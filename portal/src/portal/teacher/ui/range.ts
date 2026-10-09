@@ -9,7 +9,7 @@ import type { DateRange } from '../../newui/range';
  *   This month     the 1st → today           vs the same days last month (1–8 Oct vs 1–8 Sep)
  *   Last 3 months  the 1st two months back   vs the 3 months before, to the same day
  *   This year      1 Jan → today             vs last year to the same day
- *   Pick dates     From → To (n days)        vs the n days just before
+ *   Select dates     From → To (n days)        vs the n days just before
  *   All time       —                         nothing to compare with
  *
  * A day of the month is clamped (31 Mar → 28 Feb). Dates are YYYY-MM-DD; the arithmetic is in UTC so no time

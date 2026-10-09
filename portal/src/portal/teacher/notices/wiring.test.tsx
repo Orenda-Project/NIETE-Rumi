@@ -83,7 +83,7 @@ describe("a paper she just asked for", () => {
     setPicks({ ...newPicks(15), grade: 4, subject: "science", subjectName: "Science", chapters: [1] });
     portal.generateAssessment.mockResolvedValue({ success: true, requestId: "req-9" });
     at(newPaperPath("check"), newPaperPath("check"), <CheckStep />);
-    fireEvent.click(await screen.findByRole("button", { name: /Make paper/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Make my paper/ }));
     await waitFor(() => expect(noticeTracker.getItems()).toHaveLength(1));
     expect(noticeTracker.getItems()[0]).toMatchObject({
       id: itemId("paper", "req-9"), kind: "paper", state: "making", title: "Green Guardians of Earth",
@@ -96,7 +96,7 @@ describe("a paper she just asked for", () => {
     setPicks({ ...newPicks(15), grade: 4, subject: "science", subjectName: "Science", chapters: [1] });
     portal.generateAssessment.mockRejectedValue({ response: { data: { error: "Leave room for new questions." } } });
     at(newPaperPath("check"), newPaperPath("check"), <CheckStep />);
-    fireEvent.click(await screen.findByRole("button", { name: /Make paper/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Make my paper/ }));
     await screen.findByRole("alert");
     expect(noticeTracker.getItems()).toEqual([]);
   });

@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 
 /**
  * bd-fmf24g.1 — with `portal_teacher_v2` on, a teacher gets the v2 bottom menu:
- * Home, Lessons, Digital Coaching, Training, More. Each item goes to the
+ * Home, Lesson Plans, Digital Coaching, Training, More. Each item goes to the
  * feature's v2 page once it is registered, and to today's page until then.
  */
 
@@ -46,7 +46,7 @@ describe("bd-fmf24g.1 — the teacher v2 bottom menu", () => {
     await renderNav(TEACHER, "/portal/dashboard", { teacherV2: true, newUi: true });
     const nav = screen.getByTestId("teacher-nav");
     const links = within(nav).getAllByRole("link");
-    expect(links.map((a) => a.textContent)).toEqual(["Home", "Lessons", "Digital Coaching", "Training", "More"]);
+    expect(links.map((a) => a.textContent)).toEqual(["Home", "Lesson Plans", "Digital Coaching", "Training", "More"]);
     expect(links.map((a) => a.getAttribute("href"))).toEqual([
       teacherPath("home"), teacherPath("lessons"), teacherPath("coaching"), teacherPath("training"), teacherPath("more"),
     ]);

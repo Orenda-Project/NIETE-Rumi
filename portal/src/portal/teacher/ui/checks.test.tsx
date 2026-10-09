@@ -104,7 +104,7 @@ describe("teacher kit: every target is 56px or more", () => {
     render(<DateRangeBar today="2026-10-08" />);
     expect(tapProblems(document.body)).toEqual([]);
     fireEvent.click(screen.getByRole("button", { name: /This month/ }));
-    fireEvent.click(screen.getByRole("radio", { name: "Pick dates" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Select dates" }));
     expect(tapProblems(document.body)).toEqual([]);
   });
 
