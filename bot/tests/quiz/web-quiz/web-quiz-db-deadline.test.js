@@ -37,6 +37,7 @@ const SC_ROW = {
 
 let flag;          // the app_settings value of web_quiz_db_deadline (undefined = no row)
 let hangs;         // table -> how many of its next requests hang until aborted
+let slowCodeMs;    // the class-code lookup (code=eq.AB12CD) answers only after this many ms (or when aborted)
 let calls;         // every request: { table, method, query }
 let held;          // resolvers of hung requests that were never aborted (the flag-off case)
 
@@ -53,6 +54,14 @@ global.__wqFetch = (url, init = {}) => {
   const u = new URL(String(url));
   const table = u.pathname.split('/').pop();
   calls.push({ table, method: init.method || 'GET', query: decodeURIComponent(u.search) });
+  if (slowCodeMs > 0 && table === 'quiz_share_codes' && decodeURIComponent(u.search).includes('code=eq.AB12CD')) {
+    return new Promise((resolve, reject) => {
+      const t = setTimeout(() => resolve(json(rowsFor(table, decodeURIComponent(u.search)))), slowCodeMs);
+      if (init.signal) {
+        init.signal.addEventListener('abort', () => { clearTimeout(t); reject(Object.assign(new Error('This operation was aborted'), { name: 'AbortError', code: 'ABORT_ERR' })); });
+      }
+    });
+  }
   if (hangs[table] > 0) {
     hangs[table] -= 1;
     return new Promise((resolve, reject) => {
@@ -76,6 +85,7 @@ function deadlineModule() {
 beforeEach(() => {
   flag = undefined;
   hangs = {};
+  slowCodeMs = 0;
   calls = [];
   held = [];
   logEvent.mockClear();
@@ -106,7 +116,7 @@ describe('web quiz: a read that hangs gets a deadline and one retry (flag on)', 
     expect(retryLines()).toEqual([expect.objectContaining({ outcome: 'recovered', deadline_ms: 4000 })]);
   }, 15000);
 
-  test('hang twice -> a clean 502 db_unavailable (the page\'s existing error) by ~8 s, never a third try', async () => {
+  test('hang twice -> a clean 502 db_unavailable (the page\'s existing error) at ~9.5 s, inside the portal\'s 10 s, never a third try', async () => {
     flag = true;
     hangs.quiz_share_codes = 2;
     const t0 = Date.now();
@@ -116,10 +126,51 @@ describe('web quiz: a read that hangs gets a deadline and one retry (flag on)', 
     expect(err.status).toBe(502);
     expect(err.body).toEqual({ error: 'db_unavailable' });
     expect(shareCodeCalls()).toHaveLength(2);
-    expect(ms).toBeGreaterThanOrEqual(7500);
-    expect(ms).toBeLessThan(9500);
-    expect(retryLines()).toEqual([expect.objectContaining({ label: 'resolveCode:quiz_share_codes:1', outcome: 'failed' })]);
+    expect(ms).toBeGreaterThanOrEqual(9000);
+    expect(ms).toBeLessThan(9900);
+    const [line] = retryLines();
+    expect(retryLines()).toHaveLength(1);
+    expect(line).toEqual(expect.objectContaining({ label: 'resolveCode:quiz_share_codes:1', outcome: 'failed' }));
+    expect(line.retry_ms).toBeGreaterThanOrEqual(5400);   // 10000 - ~4000 elapsed - 500, at most 5500
+    expect(line.retry_ms).toBeLessThanOrEqual(5500);
   }, 15000);
+
+  test('a slow read that DOES answer (5 s) gets the rest of the budget on its retry: the board answers by ~9 s', async () => {
+    flag = true;
+    slowCodeMs = 5000;
+    const t0 = Date.now();
+    const out = await WQ.board('AB12CD');
+    const ms = Date.now() - t0;
+    expect(out).toEqual(expect.objectContaining({ finishers_n: 0 }));
+    expect(shareCodeCalls()).toHaveLength(2);
+    expect(ms).toBeGreaterThanOrEqual(8500);
+    expect(ms).toBeLessThan(9900);
+    const [line] = retryLines();
+    expect(retryLines()).toHaveLength(1);
+    expect(line).toEqual(expect.objectContaining({ label: 'resolveCode:quiz_share_codes:1', outcome: 'recovered', deadline_ms: 4000 }));
+    expect(line.retry_ms).toBeGreaterThanOrEqual(5400);
+    expect(line.retry_ms).toBeLessThanOrEqual(5500);
+  }, 20000);
+
+  test('the budget is the REQUEST\'s: 3 s already spent, a read stuck on both tries still ends in db_unavailable before 10 s', async () => {
+    flag = true;
+    hangs.quiz_share_codes = 2;
+    const Timing = require('../../../shared/services/quiz/web-quiz-timing');
+    const t0 = Date.now();
+    const err = await Timing.run('/board/:code', async () => {
+      await new Promise((r) => setTimeout(r, 3000));
+      return WQ.board('AB12CD');
+    }).catch((e) => e);
+    const ms = Date.now() - t0;
+    expect(err).toBeInstanceOf(WQ.WqError);
+    expect(err.body).toEqual({ error: 'db_unavailable' });
+    expect(ms).toBeGreaterThanOrEqual(9000);
+    expect(ms).toBeLessThan(9900);
+    const [line] = retryLines();
+    expect(line).toEqual(expect.objectContaining({ outcome: 'failed' }));
+    expect(line.retry_ms).toBeGreaterThanOrEqual(2300);
+    expect(line.retry_ms).toBeLessThanOrEqual(2600);
+  }, 20000);
 
   test('a write handed to the wrapper is never given a deadline or retried', async () => {
     flag = true;

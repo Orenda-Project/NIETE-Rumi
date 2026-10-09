@@ -5,9 +5,10 @@
  * At the evening peak a few reads hung 16–50 s in transit between the bot and the database while the database
  * itself answered in milliseconds; the portal gives up at 10 s and the child sees an error. The same read sent
  * again comes back in well under a second. So, with the flag on, each read wrapped here gets DEADLINE_MS per attempt
- * and is sent once more if that attempt overran it; a second overrun ends the request with the 502 db_unavailable
- * the page already handles (logged web_quiz.db_retry {label, outcome, ms, deadline_ms}). Off: the read runs exactly
- * as before.
+ * and is sent once more if that attempt overran it. The retry gets what is left of the portal's 10 s budget for the
+ * request, clamp(10000 - elapsed - 500, 1000, 5500) ms, so a slow read that does answer is not cut off before the portal
+ * itself would give up. A second overrun ends the request with the 502 db_unavailable the page already handles (logged
+ * web_quiz.db_retry {label, outcome, ms, deadline_ms, retry_ms}). Off: the read runs exactly as before.
  *
  *   read(label, build)  build(client) returns ONE supabase read (select / head count). Writes (insert, update,
  *                       upsert, delete, rpc) are not idempotent: never pass one. If one arrives anyway it runs once,
@@ -28,12 +29,24 @@
 const supabase = require('../../config/supabase');
 const { logEvent } = require('../../utils/structured-logger');
 const { WqError } = require('./web-quiz-error');
+const Timing = require('./web-quiz-timing');
 
 const FLAG_KEY = 'web_quiz_db_deadline';
 const FLAG_TTL_MS = 60 * 1000;
 const FLAG_READ_MS = 2000;
 const DEADLINE_MS = 4000;
 const READ_METHODS = new Set(['GET', 'HEAD']);
+const PORTAL_BUDGET_MS = 10000;   // the portal's BOT_TIMEOUT_MS for a web-quiz call
+const BUDGET_MARGIN_MS = 500;
+const RETRY_MIN_MS = 1000;
+const RETRY_MAX_MS = 5500;
+
+/** The retry's deadline: what is left of the request's budget, clamped. elapsed = since the request began, else this read. */
+function retryMs(readStartedAt) {
+  const inRequest = Timing.elapsed();
+  const elapsed = inRequest == null ? Date.now() - readStartedAt : inRequest;
+  return Math.min(RETRY_MAX_MS, Math.max(RETRY_MIN_MS, PORTAL_BUDGET_MS - elapsed - BUDGET_MARGIN_MS));
+}
 
 const OFF = { on: false, ms: DEADLINE_MS, inject: null };
 let flag = null;        // { at, on, ms }
@@ -103,12 +116,13 @@ async function read(label, build) {
   const injected = Boolean(cfg.inject) && cfg.inject === label && process.env.NODE_ENV !== 'production';
   const a = injected ? await held(cfg.ms) : await attempt(first, cfg.ms);
   if (!a.hung) return a.res;
-  const b = await attempt(build(supabase), cfg.ms);
-  const ev = { label: String(label).slice(0, 60), outcome: b.hung ? 'failed' : 'recovered', ms: Date.now() - t0, deadline_ms: cfg.ms };
+  const second = retryMs(t0);
+  const b = await attempt(build(supabase), second);
+  const ev = { label: String(label).slice(0, 60), outcome: b.hung ? 'failed' : 'recovered', ms: Date.now() - t0, deadline_ms: cfg.ms, retry_ms: second };
   if (injected) ev.injected = true;
   logEvent('web_quiz.db_retry', ev);
   if (b.hung) throw new WqError(502, { error: 'db_unavailable' });
   return b.res;
 }
 
-module.exports = { read, FLAG_KEY, DEADLINE_MS, _reset: () => { flag = null; loading = null; } };
+module.exports = { read, retryMs, FLAG_KEY, DEADLINE_MS, _reset: () => { flag = null; loading = null; } };
