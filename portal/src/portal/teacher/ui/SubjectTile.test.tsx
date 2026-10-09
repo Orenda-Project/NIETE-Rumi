@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import { SubjectTile } from "./SubjectTile";
-import { subjectIcon, blockSubject } from "./subjects";
+import { subjectIcon, subjectShort, subjectFamily, SUBJECT_SHORT } from "./subjects";
 
 /**
  * bd-fmf24g.2.1 — SubjectTile (COMPONENTS.md "SubjectTile"): a 48px rounded-12 square with the subject's icon,
@@ -23,15 +23,43 @@ describe("subjectIcon: subject → icon, first match wins", () => {
   });
 });
 
-describe("blockSubject: the block lead's subject line (about as long as \"Grade 10\")", () => {
+describe("subjectShort: the D6.5 lead's subject half (operator, 9 Oct: \"short form without a period, e.g. SST/Sci/Math\")", () => {
   it.each([
-    ["English", "English"], ["Urdu", "Urdu"], ["Math", "Maths"], ["Mathematics", "Maths"], ["General Science", "Science"],
-    ["Physics", "Physics"], ["Chemistry", "Chemistry"], ["Biology", "Biology"], ["Computer Science", "Computer"],
-    ["Islamiyat", "Islamiat"], ["Islamiat", "Islamiat"], ["History", "History"], ["Geography", "Geogr."],
-    ["Agricultural Education (Zarai Taleem)", "Agricul."], ["Social Studies", "Soc. St."], ["Pakistan Studies", "Pak. St."],
-    ["General Knowledge", "Gen. Kn."], ["Religious Studies", "Religion"], ["Art", "Art"], ["Calligraphy", "Callig."],
+    ["English", "Eng"], ["Urdu", "Urdu"], ["اردو", "Urdu"], ["Math", "Math"], ["Maths", "Math"], ["Mathematics", "Math"],
+    ["Computer Science", "Comp"], ["Computer", "Comp"], ["Physics", "Phy"], ["Chemistry", "Chem"], ["Biology", "Bio"],
+    ["Agricultural Education (Zarai Taleem)", "Agri"], ["General Knowledge", "GK"], ["General Science", "Sci"],
+    ["Science", "Sci"], ["Religious Studies", "Rel"], ["Pakistan Studies", "Pak St"], ["Social Studies", "SST"],
+    ["Islamiat", "Isl"], ["Islamiyat", "Isl"], ["Geography", "Geo"], ["History", "Hist"],
+    // Anything else: its first word, cut to 4 letters.
+    ["Art", "Art"], ["Calligraphy", "Call"], ["Environmental Studies", "Envi"], ["  Drawing  ", "Draw"], ["", ""],
   ])("%j → %j", (subject, shown) => {
-    expect(blockSubject(subject)).toBe(shown);
+    expect(subjectShort(subject)).toBe(shown);
+  });
+
+  it("no short form ends in a period, and none is longer than \"Pak St\" (never wrapped or cut in 64px)", () => {
+    for (const r of SUBJECT_SHORT) {
+      expect(r.en).not.toMatch(/\.$/);
+      expect([...r.en].length).toBeLessThanOrEqual(6);
+      // Urdu: ONE word, 13px Nastaliq ≤ 50px wide (measured, Noto Nastaliq Urdu Bold — see subjects.ts).
+      expect(r.ur).not.toMatch(/\s|\./);
+      expect(r.ur).toMatch(/^[\u0600-\u06FF]+$/);
+    }
+  });
+
+  it("Urdu: the short Urdu word; no Urdu form → the English 4 letters", () => {
+    expect(subjectShort("General Science", "ur")).toBe("سائنس");
+    expect(subjectShort("Maths", "ur")).toBe("ریاضی");
+    expect(subjectShort("English", "ur")).toBe("انگریزی");
+    expect(subjectShort("Calligraphy", "ur")).toBe("Call");
+  });
+
+  it("subjectFamily: languages, maths, sciences (incl. physics/chemistry/biology/agriculture), computer, humanities + everything else", () => {
+    expect(["English", "Urdu"].map(subjectFamily)).toEqual(["languages", "languages"]);
+    expect(subjectFamily("Mathematics")).toBe("maths");
+    expect(["General Science", "Physics", "Chemistry", "Biology", "Agriculture"].map(subjectFamily)).toEqual(Array(5).fill("sciences"));
+    expect(subjectFamily("Computer Science")).toBe("computer");
+    expect(["Social Studies", "Pakistan Studies", "Islamiat", "History", "Geography", "General Knowledge", "Religious Studies", "Art", ""].map(subjectFamily))
+      .toEqual(Array(9).fill("humanities"));
   });
 });
 

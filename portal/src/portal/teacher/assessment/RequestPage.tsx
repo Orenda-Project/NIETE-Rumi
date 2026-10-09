@@ -183,13 +183,15 @@ export function RequestPage() {
           {spec && <Chip>{C.questionsCount(spec.questionCount)}</Chip>}
           <Chip>{C.withKey}</Chip>
         </div>
-        <Link to={paperPath(paperId)} className={cn('flex min-h-[84px] w-full items-center gap-3 p-2.5 pe-3', CARD, FOCUS)}>
-          <span className="min-w-0 flex-1">
+        {/* bd-fmf24g.16 — the card IS the row (no padding, overflow-hidden), so the row's lead column sits flush
+            with the card's start edge and the card's rounded corners clip it. */}
+        <Link to={paperPath(paperId)} className={cn('flex min-h-[76px] w-full items-stretch gap-3 overflow-hidden pe-3', CARD, FOCUS)}>
+          <span className="flex min-w-0 flex-1 items-center">
             {spec
               ? <HistoryRow subject={name} grade={spec.grade} title={job?.label ?? ''} extra={C.open} action="none" />
-              : <span className="ps-2 text-[16px] font-semibold">{C.open}</span>}
+              : <span className="ps-4 text-[16px] font-semibold">{C.open}</span>}
           </span>
-          <ChevronRight className="h-6 w-6 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
+          <ChevronRight className="h-6 w-6 shrink-0 self-center text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
         </Link>
         <div className={cn(GRID, 'w-full grid-cols-3 gap-2.5')}>
           <button type="button" onClick={() => open('answer_key')} className={cn('flex min-h-[96px] flex-col items-center justify-center gap-2 p-2 text-[14px] font-semibold', CARD, FOCUS)}>

@@ -11,7 +11,9 @@ import { collectCopy, copyProblem } from "../../newui/checks/rules";
  * file in workbench/teacher-v2-impl/urdu-review/.
  */
 
-import { TEACHER_UI, TEACHER_UI_UR } from "./copy";
+import { TEACHER_UI, TEACHER_UI_COPY, TEACHER_UI_UR } from "./copy";
+import { COPY_MODULES } from "../copyRegistry";
+import { SUBJECT_SHORT } from "./subjects";
 import { untranslated } from "../i18n";
 import { HistoryList } from "./HistoryList";
 import { DateRangeBar } from "./DateRangeBar";
@@ -35,6 +37,22 @@ describe("TEACHER_UI in Urdu", () => {
     // The report's words mirror the hero PNG word for word (as the English footer is allowed to).
     const PNG_WORDS = ["report.madeFor", "report.eyebrow", "report.lastAsked"];
     expect(bad.filter((x) => !PNG_WORDS.some((p) => x.startsWith(p)))).toEqual([]);
+  });
+
+  it("bd-fmf24g.16 — the history row lead: \"G4\" in English, the numeral alone in Urdu", () => {
+    expect(TEACHER_UI_COPY.gradeShort(4)).toBe("G4");
+    expect(TEACHER_UI_COPY.gradeShort(12)).toBe("G12");
+    expect(TEACHER_UI_UR.gradeShort(4)).toBe("4");
+  });
+
+  it("bd-fmf24g.16 — the lead's Urdu subject short forms are registered (completeness check + review file)", () => {
+    const entry = COPY_MODULES.find((m) => (m.module.en as { subjectShort?: unknown }).subjectShort);
+    expect(entry?.screen).toMatch(/^kit/);
+    const en = (entry!.module.en as { subjectShort: Record<string, string> }).subjectShort;
+    const ur = (entry!.module.ur as { subjectShort: Record<string, string> }).subjectShort;
+    expect(Object.keys(en)).toHaveLength(SUBJECT_SHORT.length);
+    expect(en.pakistanStudies).toBe("Pak St");
+    expect(ur.science).toBe("سائنس");
   });
 
   it("twelve Urdu months, January first", () => {
