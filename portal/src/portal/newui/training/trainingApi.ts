@@ -137,6 +137,19 @@ export const isLadder = (level: Pick<Level, 'unlock_logic'>) => (level.unlock_lo
 
 export const percent = (done: number, total: number) => (total > 0 ? Math.round((Math.min(done, total) / total) * 100) : 0);
 
+/**
+ * bd-fmf24g.32 — a course's name for the teacher. The catalogue stores course titles as
+ * "Module 1 - Classroom Management" (a number the screens already show as the row's number tile),
+ * and the teacher sees Course and Part, never "Module". Strips that lead ("Module"/"ماڈیول", a number in
+ * Latin, Arabic-Indic or Persian digits, then a dash, colon or nothing); a title without it, or one that
+ * would be left empty, comes back whole. Every Training screen shows a course through this, nowhere else.
+ */
+export function courseName(title: string | null | undefined): string {
+  const t = String(title ?? '').trim();
+  const stripped = t.replace(/^(?:module|ماڈیول)\s*[0-9\u0660-\u0669\u06F0-\u06F9]+\s*[-\u2013\u2014:.]?\s*/i, '').trim();
+  return stripped || t;
+}
+
 export const courseDone = (c: Course) => c.module_count > 0 && c.completed_count >= c.module_count;
 
 /** The quick check's best attempt (PortalTrainingV2's bestAttempt). */

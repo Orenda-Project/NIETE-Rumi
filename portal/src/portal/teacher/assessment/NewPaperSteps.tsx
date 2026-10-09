@@ -4,14 +4,15 @@ import { AlignLeft, BookOpen, ListChecks, Plus, Shuffle, Sparkles, X } from 'luc
 import { cn } from '@/lib/utils';
 import { loadGradeSubjects } from '../../lib/gradeSubjects';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
-import { ClassPicker, type ClassPick, type GradeSubjectPair } from '../ui';
+import { ClassPicker, NumberField, type ClassPick, type GradeSubjectPair } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
 import { ASSESSMENT } from './copy';
 import { useCopy } from '../i18n';
 import { catalogueOnce, loadChapters, loadTypes, subjectName } from './api';
 import {
-  MAX_TOTAL_MARKS, stepReady, toSpec, typesTotal, unseenTarget, type Picks, type Source,
+  MAX_TOTAL_MARKS, checkPages, toSpec, typesStatus, unseenTarget, type Picks, type Source,
 } from './model';
+import { pagesMessage, stepReason } from './reasons';
 import { ASSESSMENT_V2_BASE, newPaperPath, requestPath } from './paths';
 import { usePicks } from './store';
 import { useJobs } from './useJobs';
@@ -76,7 +77,7 @@ export function ClassStep() {
     <StepFrame
       step="class"
       backTo={ASSESSMENT_V2_BASE}
-      next={{ label: C.next, ready: stepReady('class', p, catalogue?.maxQuestions ?? 50), to: newPaperPath('cover') }}
+      next={{ label: C.next, why: stepReason('class', p, catalogue?.maxQuestions ?? 50, C), to: newPaperPath('cover') }}
     >
       {combos.status !== 'ok'
         ? <LoadState status={combos.status} onRetry={retryCombos} />
@@ -109,17 +110,18 @@ export function CoverStep() {
   );
   const list = dataOf(chapters) ?? [];
   const lastPage = list.reduce((m, c) => Math.max(m, c.page_end ?? 0), 0) || null;
-  const [from, setFrom] = useState(1);
-  const [to, setTo] = useState(10);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   if (needsClass) return <Navigate to={newPaperPath('class')} replace />;
 
   const toggle = (n: number) => set((cur) => ({
     chapters: cur.chapters.includes(n) ? cur.chapters.filter((x) => x !== n) : [...cur.chapters, n],
   }));
-  const hi = lastPage ?? 999;
+  const check = checkPages(from, to, lastPage);
+  const note = pagesMessage(check, C);
 
   return (
-    <StepFrame step="cover" backTo={backTo('class')} next={{ label: C.next, ready: stepReady('cover', p, 50), to: newPaperPath('questions') }}>
+    <StepFrame step="cover" backTo={backTo('class')} next={{ label: C.next, why: stepReason('cover', p, 50, C), to: newPaperPath('questions') }}>
       <Tabs
         label={C.steps.cover}
         value={p.coverBy}
@@ -177,24 +179,33 @@ export function CoverStep() {
               ))}
             </ListCard>
           )}
-          <div className="flex flex-col gap-2.5 sm:flex-row">
-            <div className="flex flex-1 flex-col gap-1.5 rounded-2xl border border-[#e5e7eb] bg-white p-2.5">
-              <span className="ps-1 text-[13px] font-semibold text-[#6b7280]">{C.from}</span>
-              <Stepper compact value={from} lessLabel={C.fewer} moreLabel={C.more}
-                canLess={from > 1} canMore={from < Math.min(to, hi)}
-                onLess={() => setFrom((v) => Math.max(1, v - 1))} onMore={() => setFrom((v) => Math.min(to, hi, v + 1))} />
-            </div>
-            <div className="flex flex-1 flex-col gap-1.5 rounded-2xl border border-[#e5e7eb] bg-white p-2.5">
-              <span className="ps-1 text-[13px] font-semibold text-[#6b7280]">{C.to}</span>
-              <Stepper compact value={to} lessLabel={C.fewer} moreLabel={C.more}
-                canLess={to > from} canMore={to < hi}
-                onLess={() => setTo((v) => Math.max(from, v - 1))} onMore={() => setTo((v) => Math.min(hi, v + 1))} />
-            </div>
+          <div className="flex gap-2.5">
+            <NumberField label={C.fromPage} value={from} onChange={setFrom} error={!!note && note.tone === 'error'} describedBy="pages-note" testId="pages-from" />
+            <NumberField label={C.toPage} value={to} onChange={setTo} error={!!note && note.tone === 'error'} describedBy="pages-note" testId="pages-to" />
           </div>
+          <p
+            id="pages-note"
+            role="status"
+            data-testid="pages-note"
+            className={cn('min-h-[24px] px-1.5 text-[15px] font-semibold', note?.tone === 'error' ? 'text-[#c8331f]' : 'text-[#6b7280]')}
+          >
+            {note?.text ?? ''}
+          </p>
           <button
             type="button"
-            onClick={() => set((cur) => ({ ranges: [...cur.ranges, [from, to] as [number, number]] }))}
-            className={cn('flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-[#c7cad6] bg-white text-[16px] font-semibold text-[#33374a]', FOCUS)}
+            disabled={!check.ok}
+            aria-describedby="pages-note"
+            onClick={() => {
+              if (!check.ok) return;
+              set((cur) => ({ ranges: [...cur.ranges, [check.from, check.to] as [number, number]] }));
+              setFrom('');
+              setTo('');
+            }}
+            className={cn(
+              'flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] text-[16px] font-semibold',
+              check.ok ? 'border-dashed border-[#c7cad6] bg-white text-[#33374a]' : 'cursor-not-allowed border-[#e5e7eb] bg-[#e5e7eb] text-[#9ca3af]',
+              FOCUS,
+            )}
           >
             <Plus className="h-5 w-5" aria-hidden="true" />
             {C.addPages}
@@ -228,7 +239,7 @@ export function QuestionsStep() {
   const pct = Math.round((p.seen / Math.max(1, p.count)) * 100);
 
   return (
-    <StepFrame step="questions" backTo={backTo('cover')} next={{ label: C.next, ready: stepReady('questions', p, max), to: newPaperPath('types') }}>
+    <StepFrame step="questions" backTo={backTo('cover')} next={{ label: C.next, why: stepReason('questions', p, max, C), to: newPaperPath('types') }}>
       <Label chip={<Chip>{C.upTo(max)}</Chip>}>{C.howMany}</Label>
       <div role="radiogroup" aria-label={C.howMany} className="flex gap-2">
         {quick.map((n) => (
@@ -300,8 +311,8 @@ export function TypesStep() {
     `types:${p.grade}:${p.subject}`,
   );
   if (needsClass) return <Navigate to={newPaperPath('class')} replace />;
-  const target = unseenTarget(p);
-  const total = typesTotal(p);
+  const status = typesStatus(p);
+  const { total, target } = status;
   const all = dataOf(types) ?? [];
   const setCount = (id: string, n: number) => set((cur) => {
     const next = { ...cur.typeCounts };
@@ -319,17 +330,19 @@ export function TypesStep() {
           {rows.map((t, i) => {
             const n = p.typeCounts[t.id] ?? 0;
             return (
-              <div key={t.id} className={cn('flex items-center gap-1 pe-1.5', i > 0 && 'border-t border-[#f0f1f3]', n > 0 && 'bg-[#f4f5f8]')}>
-                <div className="min-w-0 flex-1">
-                  <CheckRow first checked={n > 0} onToggle={() => setCount(t.id, n > 0 ? 0 : 1)}
-                    label={<span className="min-w-0 flex-1 text-[16px] font-semibold">{t.id}</span>} />
-                </div>
-                {n > 0 && (
-                  <div className="w-[150px] shrink-0">
-                    <Stepper compact value={n} lessLabel={C.fewer} moreLabel={C.more}
-                      onLess={() => setCount(t.id, n - 1)} onMore={() => setCount(t.id, n + 1)} canMore={total < target} />
-                  </div>
-                )}
+              <div key={t.id} className={cn('flex min-h-[72px] items-center gap-3 px-3 py-2', i > 0 && 'border-t border-[#f0f1f3]', n > 0 && 'bg-[#f4f5f8]')}>
+                <NumberField
+                  size="row"
+                  value={String(n)}
+                  dim={n === 0}
+                  maxLength={3}
+                  ariaLabel={C.typeCount(t.id)}
+                  describedBy="types-total"
+                  error={status.kind === 'over' && n > 0}
+                  onChange={(d) => setCount(t.id, Number(d || '0'))}
+                  testId={`type-count-${t.id}`}
+                />
+                <span className="min-w-0 flex-1 text-[16px] font-semibold">{t.id}</span>
               </div>
             );
           })}
@@ -339,7 +352,7 @@ export function TypesStep() {
   };
 
   return (
-    <StepFrame step="types" backTo={backTo('questions')} next={{ label: C.next, ready: stepReady('types', p, 50), to: newPaperPath('extras') }}>
+    <StepFrame step="types" backTo={backTo('questions')} next={{ label: C.next, why: stepReason('types', p, 50, C), to: newPaperPath('extras') }}>
       {p.source === 'seen' ? (
         <div className={cn('flex items-center gap-3.5 p-4', CARD)}>
           <BookOpen className="h-6 w-6 text-[#33374a]" aria-hidden="true" />
@@ -362,7 +375,21 @@ export function TypesStep() {
               ? <LoadState status={types.status} onRetry={retry} />
               : (
                 <>
-                  <Label chip={<Chip tone={total === target ? 'done' : 'warn'}>{C.ofTarget(total, target)}</Chip>}>{C.howManyEach}</Label>
+                  <Label>{C.howManyEach}</Label>
+                  <div
+                    id="types-total"
+                    role="status"
+                    data-testid="types-total"
+                    className={cn(
+                      'flex flex-col gap-1 rounded-2xl border p-3.5',
+                      status.kind === 'over' ? 'border-[#f5b5ad] bg-[#fff8f7]' : status.kind === 'ok' ? 'border-[#e5e7eb] bg-white' : 'border-[#fde68a] bg-[#fffbeb]',
+                    )}
+                  >
+                    <b className="text-[24px] font-bold tabular-nums text-[#1d2025]">{C.why.totalOf(total, target)}</b>
+                    <span className={cn('text-[15px] font-semibold', status.kind === 'over' ? 'text-[#c8331f]' : status.kind === 'ok' ? 'text-[#2f7a52]' : 'text-[#b45309]')}>
+                      {status.kind === 'none' ? C.why.typesNone : status.kind === 'over' ? C.why.over(status.diff) : status.kind === 'under' ? C.why.under(-status.diff) : C.why.allAdded(target)}
+                    </span>
+                  </div>
                   {group('objective', C.objective)}
                   {group('subjective', C.written)}
                 </>
@@ -382,7 +409,7 @@ export function ExtrasStep() {
   if (needsClassOf(p)) return <Navigate to={newPaperPath('class')} replace />;
   const marks = p.marks;
   return (
-    <StepFrame step="extras" backTo={backTo('types')} next={{ label: C.next, ready: stepReady('extras', p, 50), to: newPaperPath('check') }}>
+    <StepFrame step="extras" backTo={backTo('types')} next={{ label: C.next, why: stepReason('extras', p, 50, C), to: newPaperPath('check') }}>
       <Label chip={<Chip>{C.optional}</Chip>}>{C.totalMarks}</Label>
       <Tabs
         label={C.totalMarks}
@@ -454,7 +481,7 @@ export function CheckStep() {
   };
 
   return (
-    <StepFrame step="check" backTo={backTo('extras')} next={{ label: busy ? C.making : C.makePaper, ready: stepReady('check', p, 50), onPress: make, busy }}>
+    <StepFrame step="check" backTo={backTo('extras')} next={{ label: busy ? C.making : C.makePaper, why: stepReason('check', p, 50, C), onPress: make, busy }}>
       <ListCard label={C.steps.check}>
         {rows.map((r, i) => (
           <div key={r.k} className={cn('flex min-h-[72px] items-center gap-3 py-2 ps-3.5 pe-1.5', i > 0 && 'border-t border-[#f0f1f3]')}>

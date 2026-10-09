@@ -7,19 +7,24 @@ import { downloadArtifact, type DownloadResult } from '../../newui/assessment/as
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import TeacherPage from '../TeacherPage';
 import { FOCUS } from '../ui/styles';
+import { ShareActions } from '../ui/ShareActions';
+import { shareToWhatsApp, useShareAvailable } from '../share/api';
 import { ASSESSMENT } from './copy';
 import { useCopy } from '../i18n';
 import { useAssessmentSwitches } from './api';
 import { dayLabel, pkDay, pkToday } from './model';
 import { findPaper } from './paperCache';
 import { ASSESSMENT_V2_BASE, editPath, paperPath, versionsPath } from './paths';
-import { Chip, ListCard, LoadState, PRIMARY } from './ui';
+import { HistoryRow } from '../ui';
+import { PaperBody } from './PaperBody';
+import { Chip, ListCard, LoadState } from './ui';
+import { SkeletonList } from '../../components/Skeleton';
 
 /**
  * bd-fmf24g.6 — one paper (v28 canvas AssessPaper): its class, chapter, questions, marks and version,
- * then Download (primary), Answer key (only when the paper has one — has_answer_key), and, when editing is
- * on (GET /config assessmentEditing), Edit and Versions. No WhatsApp: a portal paper is not sent to
- * WhatsApp (no template exists; outside the 24-hour window it would land sometimes and not others).
+ * then, in the dock, ShareActions (Send on WhatsApp as a template, grey "Not available yet" until one is configured; Open in
+ * another app), and in the list Download, Answer key (only when the paper has one — has_answer_key) and, when editing is
+ * on (GET /config assessmentEditing), Edit and Versions.
  */
 
 function ActionRow({ to, onPress, icon, label, first }: {
@@ -45,6 +50,10 @@ export function PaperPage() {
   const switches = useAssessmentSwitches();
   const [paper, retry] = useLoad(() => findPaper(paperId), `paper:${paperId}`);
   const p = dataOf(paper);
+  // bd-fmf24g.31: the paper's own questions. Not needed for the actions, so a failed read never blocks them.
+  const [content] = useLoad(() => portal.getAssessmentPaperView(paperId), `paperview:${paperId}`);
+  const view = dataOf(content);
+  const canSend = useShareAvailable('paper');
 
   const open = async (artifact: 'paper' | 'answer_key') => {
     const r: DownloadResult = await downloadArtifact(paperId, artifact);
@@ -77,14 +86,18 @@ export function PaperPage() {
       {day && <Chip>{dayLabel(day, pkToday(), C.days)}</Chip>}
     </>
   );
+  // bd-fmf24g.30 — the dock is the kit's ShareActions (Send on WhatsApp; Open in another app = the paper's PDF link).
+  // Download moves into the list below, where Key already is.
   const dock = (
-    <button type="button" onClick={() => open('paper')} className={cn(PRIMARY, FOCUS)}>
-      <Download className="h-5 w-5" aria-hidden="true" />
-      {C.download}
-    </button>
+    <ShareActions
+      available={canSend}
+      onSend={() => shareToWhatsApp('paper', paperId)}
+      open={{ fileUrl: async () => (await portal.getAssessmentDownload(paperId, 'paper'))?.url ?? null }}
+    />
   );
 
   const rows: JSX.Element[] = [];
+  rows.push(<ActionRow key="download" first onPress={() => open('paper')} icon={<Download className="h-5 w-5" aria-hidden="true" />} label={C.download} />);
   if (p.has_answer_key) {
     rows.push(<ActionRow key="key" first={rows.length === 0} onPress={() => open('answer_key')} icon={<KeyRound className="h-5 w-5" aria-hidden="true" />} label={C.answerKey} />);
   }
@@ -95,6 +108,19 @@ export function PaperPage() {
 
   return (
     <TeacherPage crumb={C.title} title={C.gradeSubject(p.grade ?? '', p.subject)} backTo={ASSESSMENT_V2_BASE} chips={chips} dock={dock} testId="assessment-paper">
+      {/* The paper itself (bd-fmf24g.31): its D6.5 heading, then its sections. The actions sit below it. */}
+      <ListCard label={C.thePaper}>
+        <HistoryRow
+          grade={p.grade ?? undefined} subject={p.subject} title={p.subject}
+          extra={C.join(p.chapter_number != null ? C.chapterShort(p.chapter_number) : null, p.total_marks != null ? C.marksCount(p.total_marks) : null)}
+          action="none"
+        />
+      </ListCard>
+      {content.status === 'loading' || content.status === 'idle'
+        ? <SkeletonList rows={3} label={C.thePaper} className="py-2" />
+        : view && view.sections.length > 0
+          ? <PaperBody view={view} />
+          : <p className="rounded-2xl border border-dashed border-[#c7cad6] bg-white p-5 text-center text-[16px] font-semibold text-[#4b5563]">{C.downloadToView}</p>}
       {rows.length > 0 && <ListCard label={C.myPapers}>{rows}</ListCard>}
     </TeacherPage>
   );

@@ -523,5 +523,5 @@ ${rows.join('\n')}
 module.exports = {
   renderPaper, renderAnswerKey, collectQuestions, totalMarks, renderQuestion,
   answerLinesFor, storedLines, MAX_STORED_LINES,
-  NO_LINES, isRtl,
+  NO_LINES, isRtl, GENERIC_TYPES,
 };

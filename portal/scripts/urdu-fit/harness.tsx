@@ -9,8 +9,8 @@ import { MemoryRouter } from 'react-router-dom';
 import '@/index.css';
 import i18n from '@/i18n/config';
 import {
-  AttentionBanner, AudioCard, DateRangeBar, HomeGreeting, RatingScale, ScoreRing, SubjectTile, TimePicker, ChoiceChips, ChosenSoFar, ClassPicker, DayStrip, FeatureTile, GradeSubjectButton, HistoryList, HistoryRow,
-  KpiTiles, LeaveNote, ListRow, ProgressSteps, ReadyBanner, ReadyTray, SelectField, SlotGroup, StatStrip, StatusChip, StepBar,
+  AttentionBanner, ShareActions, ButtonWithReason, NumberField, AudioCard, DateRangeBar, HomeGreeting, RatingScale, ScoreRing, SubjectTile, TimePicker, ChoiceChips, ChosenSoFar, ClassPicker, DayStrip, FeatureTile, GradeSubjectButton, HistoryList, HistoryRow,
+  FeatureCard, MeterRow, KpiTiles, LeaveNote, ListRow, ProgressSteps, ReadyBanner, ReadyTray, SelectField, SlotGroup, StatStrip, StatusChip, StepBar,
   Tabs, TimeStamp, Tray, trayHeight, type TrayRow,
 } from '@/portal/teacher/ui';
 import { ROW_PX, ROW_PX_UR } from '@/portal/teacher/ui/ReadyTray';
@@ -158,6 +158,22 @@ function Main() {
           ]}
         />
       </Case>
+      <Case name="FeatureKpiTiles">
+        <KpiTiles
+          items={[
+            { value: 61, label: T.kpi, delta: 8, feature: 'lessons' },
+            { value: 17, label: T.kpi2, delta: 0, feature: 'assessment' },
+            { value: 7, label: T.deep, delta: -2, feature: 'observations' },
+            { value: 38, label: T.kpi, delta: 11, feature: 'coaching' },
+          ]}
+        />
+      </Case>
+      <Case name="FeatureCard">
+        <FeatureCard feature="attendance" title={T.deep} count={2}>
+          <MeterRow feature="attendance" label={T.kpi2} value="93%" pct={93} />
+          <MeterRow feature="observations" label={T.deep} pct={51} chips={[{ text: T.chip, tone: 'waiting' }]} />
+        </FeatureCard>
+      </Case>
       <Case name="StatStrip">
         <div className="overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white">
           <StatStrip items={[{ value: 12, label: T.kpi2 }, { value: 4, label: T.chip }, { value: 7, label: T.deep }]} />
@@ -203,6 +219,17 @@ function Main() {
           <LeaveNote text={T.deep} sub={T.long} />
         </div>
       </Case>
+      <Case name="ButtonWithReason + NumberField">
+        <div className="flex flex-col gap-2">
+          <ButtonWithReason label={T.step} reason={T.long} />
+          <ButtonWithReason label={T.step} reason={null} onPress={noop} />
+          <div className="flex gap-2.5">
+            <NumberField label={T.short} value="12" onChange={noop} />
+            <NumberField label={T.deep} value="8" error onChange={noop} />
+          </div>
+          <NumberField size="row" ariaLabel={T.short} value="0" dim onChange={noop} />
+        </div>
+      </Case>
       <Case name="FeatureTile">
         <div className="grid grid-cols-2 gap-2.5">
           <FeatureTile feature="lessons" label={T.long} to="/x" chip={{ text: T.chip, tone: 'done' }} />
@@ -220,6 +247,13 @@ function Main() {
       </Case>
       <Case name="OUTLINE_WIDE button">
         <button type="button" className={OUTLINE_WIDE}>{T.long}</button>
+      </Case>
+      <Case name="ShareActions (bd-fmf24g.30): default, failed, sent, locked, Copy link">
+        <div className="flex flex-col gap-3">
+          <ShareActions onSend={async () => ({ status: 'sent' })} sendTo="عائشہ بی بی" open={{ fileUrl: 'https://x.example/a.pdf' }} env="ios-iab" />
+          <ShareActions onSend={async () => ({ status: 'failed' })} open={{ fileUrl: 'https://x.example/a.pdf' }} env="android-iab" />
+          <ShareActions onSend={async () => ({ status: 'sent' })} available={false} env="browser" />
+        </div>
       </Case>
       <Case name="ReadyBanner">
         <ReadyBanner

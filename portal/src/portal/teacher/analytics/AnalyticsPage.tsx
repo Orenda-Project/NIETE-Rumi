@@ -9,18 +9,21 @@ import { dataOf, useLoad } from '../../newui/lessons/shared';
 import TeacherPage from '../TeacherPage';
 import { teacherPath } from '../routes';
 import { FeatureGlyph, type TeacherFeature } from '../icons';
-import { DateRangeBar, KpiTiles, StatusChip } from '../ui';
+import { DateRangeBar, Tabs } from '../ui';
+import { useAuth } from '../../hooks/useAuth';
+import { resolveRole } from '../../lib/leaderRole';
+import { SchoolView } from './SchoolView';
 import { useKitCopy } from '../ui/useKitCopy';
 import { useCopy } from '../i18n';
 import { resolveRange } from '../ui/range';
 import { CARD, CHEVRON, FOCUS, ROW_DIVIDER } from '../ui/styles';
 import { LESSONS_ALL } from '../lessons/paths';
 import { COACHING_ALL } from '../coaching/paths';
-import { EmptyCard, LoadState, SectionHeading } from '../classes/parts';
-import { BandChart } from './BandChart';
+import { LoadState } from '../classes/parts';
+import { AreasCard, AttendanceCard, RatingCard, RemarksCard, TilesSection } from './sections';
 import { ANALYTICS } from './copy';
 import {
-  activityKpis, areaRows, bandRows, bandTrend, observationKpis, presenceRows, previousRange, remarkItems,
+  activityKpis, areaRows, bandTrend, observationKpis, presenceRows, previousRange, remarkItems,
 } from './model';
 
 
@@ -41,18 +44,21 @@ function SeeAllRow({ to, label, glyph, first }: { to: string; label: string; gly
 }
 
 /**
- * bd-fmf24g.8 — Analytics (v28 canvas), from More. The existing answers only:
+ * bd-fmf24g.8 / bd-fmf24g.27 — Analytics (v28 canvas, A centred), from More. The existing answers only:
  *
  *   DateRangeBar        This month by default; every section follows it
- *   Activity, Observations   GET /progress (Home's counts) for the range and the period before, so each
- *                       tile carries its change; lesson plans and papers are shown (operator, 2026-10-08)
+ *   Activity, Observations   GET /progress (Home's counts) for the range and the period before, so each tile carries
+ *                       its change; the tiles wear their feature, centred (Lesson Plans, Courses done, Assessments,
+ *                       Attendance days; Coach Observations, Digital Coaching)
  *   See all             → All lesson plans, All Digital Coaching
  *   Rating over time    GET /my-analytics scoreTrend (Human observations) on BAND rows, never numbers
  *   Strongest → weakest the STEPS areas, the weakest marked Focus
- *   Attendance          her own days and her students' presence
+ *   Attendance          her own days and her students' presence, as percentages
  *   Principal remarks   the quarterly remarks she received
+ *
+ * `MeAnalytics` is the body (no page frame) so a principal's "Me" tab shows exactly this.
  */
-export function AnalyticsPage() {
+export function MeAnalytics() {
   const C = useCopy(ANALYTICS);
   const kit = useKitCopy();
   const isoDay = (iso: string) => {
@@ -84,19 +90,13 @@ export function AnalyticsPage() {
   const remarks = remarkItems(m?.remarksReceived, C);
 
   return (
-    <TeacherPage crumb={C.more} title={C.title} backTo={teacherPath('more')}>
+    <>
       <DateRangeBar value={range} onChange={(r) => setRange(r)} />
 
       {p ? (
         <>
-          <Section label={C.activity}>
-            <SectionHeading>{C.activity}</SectionHeading>
-            <KpiTiles items={activityKpis(p.cur, p.prev, C)} compareLabel={dates.compareLabel} />
-          </Section>
-          <Section label={C.observationsHeading}>
-            <SectionHeading>{C.observationsHeading}</SectionHeading>
-            <KpiTiles items={observationKpis(p.cur, p.prev, C)} compareLabel={dates.compareLabel} />
-          </Section>
+          <TilesSection heading={C.activity} items={activityKpis(p.cur, p.prev, C)} />
+          <TilesSection heading={C.observationsHeading} items={observationKpis(p.cur, p.prev, C)} />
           <nav aria-label={C.title} className={cn(CARD, 'overflow-hidden')}>
             <SeeAllRow to={LESSONS_ALL} label={C.allLessonPlans} glyph="lessons" first />
             <SeeAllRow to={COACHING_ALL} label={C.allDigitalCoaching} glyph="coaching" first={false} />
@@ -108,105 +108,35 @@ export function AnalyticsPage() {
 
       {m ? (
         <>
-          <section aria-label={C.ratingOverTime} className={cn(CARD, 'flex flex-col gap-2.5 px-3.5 pb-3 pt-3.5')}>
-            <h3 className="flex items-center gap-2 text-[15px] font-semibold">
-              {C.ratingOverTime}
-              <StatusChip text={C.observations} />
-            </h3>
-            {trend.length ? (
-              <BandChart
-                points={trend}
-                dateLabel={isoDay}
-                rows={bandRows(C)}
-                label={trend.map((t) => `${t.band} ${isoDay(t.date)}`).join(', ')}
-              />
-            ) : (
-              <p className="py-3 text-center text-[15px] text-[#6b7280]">{C.noRatingsYet}</p>
-            )}
-          </section>
-
-          {areas.length ? (
-            <section aria-label={C.strongestToWeakest} className={cn(CARD, 'flex flex-col gap-2.5 px-3.5 pb-3 pt-3.5')}>
-              <h3 className="text-[15px] font-semibold">{C.strongestToWeakest}</h3>
-              <ul className="flex flex-col gap-2.5">
-                {areas.map((a) => (
-                  <li key={a.key} className="flex flex-col gap-1.5 py-1">
-                    <span className="flex items-center gap-2 text-[15px] font-semibold">
-                      <span className="min-w-0 flex-1">{a.name}</span>
-                      {a.focus ? <StatusChip text={C.focus} tone="waiting" /> : null}
-                      <StatusChip text={a.band} tone={a.focus ? 'info' : 'done'} />
-                    </span>
-                    <span className="relative block h-2 overflow-hidden rounded-full bg-[#eef0f3]" aria-hidden="true">
-                      <i className="absolute inset-y-0 start-0 rounded-full bg-[#33374a]" style={{ width: `${a.width}%` }} />
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          {presence.teacher || presence.students ? (
-            <Section label={C.attendance}>
-              <SectionHeading>{C.attendance}</SectionHeading>
-              <div className={cn(CARD, 'flex flex-col gap-3 px-3.5 py-3.5')}>
-                {presence.teacher ? (
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex items-baseline justify-between gap-2 text-[15px] font-semibold">
-                      {C.youWerePresent}
-                      <span className="flex items-baseline gap-1.5 text-[13px] font-medium text-[#6b7280]">
-                        <b className="text-[22px] font-light tabular-nums text-[#1d2025]">{C.pct(presence.teacher.pct)}</b>
-                        <span>{C.daysOf(presence.teacher.present, presence.teacher.of)}</span>
-                      </span>
-                    </div>
-                    <span className="relative block h-2 overflow-hidden rounded-full bg-[#eef0f3]" aria-hidden="true">
-                      <i className="absolute inset-y-0 start-0 rounded-full bg-[#2f7a52]" style={{ width: `${Math.min(100, presence.teacher.pct)}%` }} />
-                    </span>
-                  </div>
-                ) : null}
-                {presence.students ? (
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex items-baseline justify-between gap-2 text-[15px] font-semibold">
-                      {C.yourStudents}
-                      <span className="flex items-baseline gap-1.5 text-[13px] font-medium text-[#6b7280]">
-                        <b className="text-[22px] font-light tabular-nums text-[#1d2025]">{C.pct(presence.students.pct)}</b>
-                        <span>{C.present}</span>
-                      </span>
-                    </div>
-                    <span className="relative block h-2 overflow-hidden rounded-full bg-[#eef0f3]" aria-hidden="true">
-                      <i className="absolute inset-y-0 start-0 rounded-full bg-[#2f7a52]" style={{ width: `${Math.min(100, presence.students.pct)}%` }} />
-                    </span>
-                  </div>
-                ) : null}
-              </div>
-            </Section>
-          ) : null}
-
-          <Section label={C.principalRemarks}>
-            <SectionHeading count={remarks.length}>{C.principalRemarks}</SectionHeading>
-            {remarks.length ? remarks.map((r) => (
-              <article key={r.key} className={cn(CARD, 'flex flex-col gap-2 px-3.5 py-3.5')}>
-                <div className="flex flex-wrap gap-1.5">
-                  {r.date ? <StatusChip text={r.date} /> : null}
-                  {r.cycle ? <StatusChip text={r.cycle} /> : null}
-                </div>
-                {r.comment ? <p className="text-[15px] leading-relaxed text-[#374151]">{r.comment}</p> : null}
-                {r.areas.length ? (
-                  <ul className="flex flex-col gap-1">
-                    {r.areas.map((a) => (
-                      <li key={a.name} className="flex items-center gap-2 text-[15px]">
-                        <span className="min-w-0 flex-1">{a.name}</span>
-                        {a.band ? <StatusChip text={a.band} /> : null}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </article>
-            )) : <EmptyCard>{C.noRemarksYet}</EmptyCard>}
-          </Section>
+          <RatingCard trend={trend} C={C} dateLabel={isoDay} />
+          <AreasCard areas={areas} C={C} />
+          <AttendanceCard presence={presence} firstLabel={C.youWerePresent} C={C} />
+          <RemarksCard remarks={remarks} C={C} />
         </>
       ) : (
         <LoadState status={mine.status} onRetry={retryMine} label={C.loading} />
       )}
+    </>
+  );
+}
+
+/**
+ * A teacher sees Me. A principal sees "My school | Me", My school first (operator, 2026-10-10); whether she is a
+ * principal is her role; the school itself is never chosen here (the server reads it from her session).
+ */
+export function AnalyticsPage() {
+  const C = useCopy(ANALYTICS);
+  const { user } = useAuth();
+  const principal = resolveRole(user) === 'principal';
+  const [tab, setTab] = useState<'school' | 'me'>('school');
+  return (
+    <TeacherPage crumb={C.more} title={C.title} backTo={teacherPath('more')} feature="reports">
+      {principal ? (
+        <>
+          <Tabs label={C.title} value={tab} onChange={(k) => setTab(k === 'me' ? 'me' : 'school')} tabs={[{ key: 'school', label: C.mySchool }, { key: 'me', label: C.me }]} />
+          {tab === 'school' ? <SchoolView /> : <MeAnalytics />}
+        </>
+      ) : <MeAnalytics />}
     </TeacherPage>
   );
 }

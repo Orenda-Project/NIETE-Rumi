@@ -2616,6 +2616,16 @@ router.get('/assessment/papers', requirePortalAuth, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/portal/assessment/paper/:paper_id/view → { success, paper, sections }
+ * The paper's own questions (bd-fmf24g.31). Hers only (identity from the session; the bot checks the
+ * owner in its query), and NOT behind the editing switch: looking is not editing.
+ */
+router.get('/assessment/paper/:paper_id/view', requirePortalAuth, async (req, res) => {
+  try { return res.json(await Assessment.viewPaper(String(req.params.paper_id), req.session.portalUserId)); }
+  catch (error) { return editFailure(res, error); }
+});
+
 // ── Editing a paper (bd-hb8qs) — the bot owns every rule; this passes through. ──
 function editFailure(res, error) {
   if (error && error.body && error.status) return res.status(error.status).json(error.body);

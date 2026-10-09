@@ -130,6 +130,7 @@ const wordCloudRoutes = require('./routes/wordcloud');
 
 // Teacher Portal Routes
 const portalRoutes = require('./routes/portal.routes');
+const appLoginRoutes = require('./routes/app-login.routes');
 const hcpRoutes = require('./routes/hcp.routes');
 const attendanceRoutes = require('./routes/attendance.routes');
 // bd-fmf24g.3 — teacher app v2: grade·subject pairs + Lesson Plans routes.
@@ -2791,6 +2792,9 @@ app.get('/observability/ama-chats/:conversationId/messages', requireAuth, async 
 // Funnel Tracking routes (PUBLIC - no auth required, with CORS and rate limiting)
 app.use('/api/track', cors(trackingCorsOptions), trackingLimiter, funnelTrackingRoutes);
 
+// bd-fmf24g.35 — /go/:token: the one-tap login a pilot teacher gets on WhatsApp (the WHOLE teacher app, no area scope).
+app.use(appLoginRoutes.createAppLoginRouter());
+
 // Teacher Portal API routes (with CORS, rate limiting, NO auth middleware - routes handle auth internally)
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, portalRoutes);
 
@@ -2812,6 +2816,8 @@ app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLim
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-attendance.routes'));
 // bd-fmf24g.15 — teacher app v2: what she asked for that takes a while (strip, ready banner, Home's "Ready for you").
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-notices.routes'));
+// bd-fmf24g.30 — Send on WhatsApp from a teacher-app screen (template only; the bot answers the real result).
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-share.routes'));
 
 // HCP endpoint tester — an HTML page for internal QA to hit the 10 /api/portal/hcp/*
 // endpoints without curl. Served under /observability/* so it's excluded from the

@@ -95,8 +95,7 @@ describe("bd-fmf24g.1 — teacher v2 off: the navigation is exactly what it was"
 
   it.each([
     ["coach", { id: "c-1", firstName: "Noor", role: "coach", phoneNumber: "923001110004" }, "/portal/leader"],
-    ["principal", { id: "p-1", firstName: "Sana", role: "principal", phoneNumber: "923001110002" }, "/portal/leader"],
-  ])("flag ON for a %s: unchanged — v2 is for teachers only", async (_label, user, path) => {
+  ])("flag ON for a %s: unchanged — the coach has her own app, never the teacher's", async (_label, user, path) => {
     const off = await renderNav(user, path, "off");
     const on = await renderNav(user, path, "on");
     expect(on.closed).toBe(off.closed);

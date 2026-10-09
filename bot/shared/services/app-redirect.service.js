@@ -31,6 +31,8 @@ const WhatsAppService = require('./whatsapp.service');
 const { logToFile } = require('../utils/logger');
 const { resolveUx } = require('../config/ux-strings');
 const { appStoreUrl } = require('../config/branding');
+const { signAppLink, LANDINGS } = require('./app-login-link');
+const { portalUrl } = require('../config/branding');
 
 /** feature → app_settings key. The keys are the contract with whoever flips them. */
 const APP_REDIRECT_FLAGS = Object.freeze({
@@ -49,7 +51,11 @@ const APP_REDIRECT_FLAGS = Object.freeze({
   classes: 'app_redirect_classes',
   presentation: 'app_redirect_presentation',
   general_chat: 'app_redirect_general_chat',
+  menu: 'app_redirect_menu', // bd-fmf24g.35 — /menu; only ever a pilot link (no Play Store notice exists for it)
 });
+
+/** The teacher app's own switch (dashboard/lib/feature-flags.js PORTAL_TEACHER_V2_KEY): true, or a list of users.id. */
+const TEACHER_APP_KEY = 'portal_teacher_v2';
 
 const NOTICE_FEATURE = 'app_redirect_notice';
 const QUIET_MS = 60 * 60 * 1000;
@@ -60,42 +66,69 @@ const QUIET_MS = 60 * 60 * 1000;
  * to take effect on a running replica.
  */
 const FLAG_TTL_MS = 30 * 1000;
-let flagCache = null; // { at, enabled: Set<key> }
+let flagCache = null; // { at, values: Map<key, raw value> }
 
-function isOn(value) {
+function parseValue(value) {
   let v = value;
   if (typeof v === 'string') {
     try { v = JSON.parse(v); } catch (_) { /* keep the raw string */ }
   }
+  return v;
+}
+
+function isOn(value) {
+  const v = parseValue(value);
   if (v === true) return true;
   if (typeof v === 'string') return v.trim().toLowerCase() === 'true';
   return false;
 }
 
-async function enabledFlags(now) {
-  if (flagCache && now - flagCache.at < FLAG_TTL_MS) return flagCache.enabled;
-  const enabled = new Set();
+/** A pilot list: a JSON array of users.id strings holding this teacher (bd-fmf24g.35). Anything else is not a pilot. */
+function listHas(value, userId) {
+  const v = parseValue(value);
+  return Array.isArray(v) && Boolean(userId) && v.some((id) => typeof id === 'string' && id === String(userId));
+}
+
+/** key → parsed app_settings value, for every switch plus the teacher-app flag. Empty on a failed read (fail closed). */
+async function settingValues(now) {
+  if (flagCache && now - flagCache.at < FLAG_TTL_MS) return flagCache.values;
+  const values = new Map();
   try {
     const { data, error } = await supabase
       .from('app_settings')
       .select('key,value')
-      .in('key', Object.values(APP_REDIRECT_FLAGS));
+      .in('key', [...Object.values(APP_REDIRECT_FLAGS), TEACHER_APP_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
-    for (const row of data || []) if (isOn(row.value)) enabled.add(row.key);
+    for (const row of data || []) values.set(row.key, row.value);
   } catch (err) {
     // Fail closed, and do not cache the failure — the next message retries.
     logToFile('⚠️ App-redirect flag lookup failed — treating all as off', { error: err?.message });
-    return enabled;
+    return values;
   }
-  flagCache = { at: now, enabled };
-  return enabled;
+  flagCache = { at: now, values };
+  return values;
 }
 
-/** Is the redirect switch for `feature` on? */
+/** Is the redirect switch for `feature` on for everyone (the Play Store notice)? A pilot list is NOT this. */
 async function isRedirectEnabled(feature, { now = Date.now() } = {}) {
   const key = APP_REDIRECT_FLAGS[feature];
   if (!key) throw new Error(`app-redirect: unknown feature "${feature}"`);
-  return (await enabledFlags(now)).has(key);
+  return isOn((await settingValues(now)).get(key));
+}
+
+/**
+ * bd-fmf24g.35 — the one-tap link, for a pilot: `feature` has a v2 page, its switch holds a LIST that includes
+ * this teacher, and she is on the teacher app (portal_teacher_v2 true, or a list holding her). The pilot gate
+ * and the v2 flag must agree, so a teacher who would land on a page she cannot open never gets the link.
+ */
+async function isLinkPilot(feature, userId, now) {
+  const key = APP_REDIRECT_FLAGS[feature];
+  if (!key) throw new Error(`app-redirect: unknown feature "${feature}"`);
+  if (!Object.prototype.hasOwnProperty.call(LANDINGS, feature)) return false;
+  const values = await settingValues(now);
+  if (!listHas(values.get(key), userId)) return false;
+  const app = values.get(TEACHER_APP_KEY);
+  return isOn(app) || listHas(app, userId);
 }
 
 async function lastNotice(userId) {
@@ -150,7 +183,39 @@ async function recordNotice(userId, previous, now) {
  * @param {number} [args.now]    clock, for tests
  * @returns {Promise<boolean>} true = handled (notice sent, or silenced by the quiet hour)
  */
+/**
+ * The pilot's answer: ONE message — a line and a button that opens the app signed in on the right page.
+ * No quiet hour: she asked for this, and each ask (menu, then lessons) is a different page. Failing closed means
+ * false — the caller runs the WhatsApp flow — never silence.
+ */
+async function sendAppLink(feature, { userId, from, language, reason }) {
+  const base = String(portalUrl() || '').replace(/\/+$/, '');
+  const token = base ? signAppLink(userId, feature) : null;
+  if (!token) {
+    logToFile('⚠️ App link: no portal url or signing key on this deployment — the flow runs', { userId, feature }, 'warn');
+    return false;
+  }
+  const url = `${base}/go/${token}`;
+  const body = resolveUx('appLinkBody', { language });
+  const buttonText = resolveUx('appLinkButton', { language });
+  let sent = false;
+  try {
+    sent = await WhatsAppService.sendCtaUrl(from, { body, buttonText, url });
+    // The button is the nicer form; if Meta refuses it the same link goes as plain text.
+    if (!sent) sent = await WhatsAppService.sendMessage(from, `${body}\n${url}`);
+  } catch (err) {
+    logToFile('❌ App link: send threw', { userId, feature, error: err?.message }, 'error');
+  }
+  // The token is the credential: it is never logged.
+  if (sent) logToFile('🔗 App link sent', { userId, feature, reason });
+  else logToFile('❌ App link not delivered — the flow runs', { userId, feature, reason }, 'error');
+  return Boolean(sent);
+}
+
 async function redirectIfFlagged(feature, { userId, from, language, reason = 'unspecified', now = Date.now() } = {}) {
+  if (userId && from && await isLinkPilot(feature, userId, now)) {
+    return sendAppLink(feature, { userId, from, language, reason });
+  }
   if (!(await isRedirectEnabled(feature, { now }))) return false;
   if (!userId || !from) return false;
 

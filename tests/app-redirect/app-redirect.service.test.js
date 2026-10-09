@@ -73,13 +73,13 @@ const ask = (feature, { userId = 'u-1', now = T0, language = 'en' } = {}) =>
   svc.redirectIfFlagged(feature, { userId, from: FROM, language, now });
 
 describe('the switch registry', () => {
-  test('fifteen features, each keyed app_redirect_<feature>', () => {
+  test('sixteen features (fifteen + menu, bd-fmf24g.35), each keyed app_redirect_<feature>', () => {
     const entries = Object.entries(svc.APP_REDIRECT_FLAGS);
-    expect(entries).toHaveLength(15);
+    expect(entries).toHaveLength(16);
     for (const [feature, key] of entries) expect(key).toBe(`app_redirect_${feature}`);
     expect(Object.keys(svc.APP_REDIRECT_FLAGS).sort()).toEqual([
       'ai_coaching', 'assessment_generator', 'attendance', 'classes', 'exam_checker',
-      'general_chat', 'homework', 'lesson_plan', 'observe', 'presentation', 'quiz',
+      'general_chat', 'homework', 'lesson_plan', 'menu', 'observe', 'presentation', 'quiz',
       'reading_test', 'remark', 'teacher_training', 'video',
     ]);
   });

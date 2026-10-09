@@ -216,6 +216,14 @@ same stretch one step back (1–8 Oct vs 1–8 Sep; the n picked days vs the n d
 "—"; change pill ▲ green / ▼ amber / ● Same (`better: 'down'` swaps the colours); sparkline from ≥2 points. Numbers
 come from the page's data only.
 
+`items[].feature?` (bd-fmf24g.27): the Home-tile look, CENTRED: the feature's art on its tint, the number (44px) in the feature's colour,
+the change pill, the label; information only (no chevron). Pass no `compareLabel` on Analytics: the pill carries the comparison.
+
+### `FeatureCard`, `MeterRow`
+`FeatureCard`: `feature`, `title`, `count?`, children. A white card whose header wears the feature (tint, art on white, title in its colour); the body is the
+page's content. `MeterRow`: `feature`, `label`, `value?` ("94%"), `unit?`, `pct`, `chips?`; a bar in the feature's colour on its tint. `TrendChart` takes
+`colour` (the feature's) for its line and dots. Charts and bars take the colour of the feature they measure; grade colours only where a grade·subject shows.
+
 ### `ProgressSteps`
 `heading?` (`copy.progress`), `steps: [{ label, sub?, state: 'done' | 'current' | 'later', nowText? }]`, `done?`,
 `doneLabel?`, `open?` / `onOpenChange?`, `copy?` (`progress`, `done`, `now`, `stepsCount`). The current step has
@@ -435,3 +443,17 @@ The notices (`../notices`) follow a THIRD kind of item, the coach's `observation
 reason and Try again). It is never polled, never kept across a reload and never told to the server; the coach's shell mounts
 `NoticeHost` with `local` so it does not ask `GET /me/notices` (the teacher's list). A failure is the app's alone.
 `TeacherPage` with `bare` puts its `dock` at the bottom edge (a recording has no menu under it).
+
+### `NumberField`
+`value` (string; "" = empty), `onChange(digits)`, `label` (big: a visible label over a 64px box), `ariaLabel` (when no label), `error`, `describedBy` (the id of the page's message), `size` (`big` · `row`: 72×56 in front of a name), `maxLength` (4), `dim` (row at its pre-written 0).
+An open number box (bd-fmf24g.34): `inputMode="numeric"`, digits only (Urdu and Arabic-Indic digits become Western), all selected on focus so the first key replaces a 0, `dir="ltr"`. No − / + stepper. The limit and its message belong to the page, shown right under the box and tied by `describedBy`. Canvas: AssessCoverage (Pages), AssessTypes (per-type counts).
+
+### `ButtonWithReason`
+`label`, `reason` (words, or null when it works), `to` | `onPress`, `icon`, `testId`.
+A main button that is never grey without a reason (bd-fmf24g.34): while `reason` is set the button is off and the reason shows ABOVE it (amber, a polite live region); with null the line is gone. Every New paper step's Next / Make my paper uses it. The words come from the screen (live, updating as she types).
+
+### `ShareActions`
+`onSend` (omit = no Send button; resolves `{status:'sent', at?}` | `{status:'failed'}` | `{status:'unavailable'}`), `available` (`false`/`null` = grey locked "Not available yet"; from `useShareAvailable(kind)`), `sendTo` (a name → "Send to Ayesha"), `open` (`{ fileUrl: string | () => Promise<string|null> }` or `{ page: true }`; omit = no Open button), `copy`, `testId`.
+THE pair for anything she can take out of the app (bd-fmf24g.30, Blueprint: ShareActions): **Send on WhatsApp** (WhatsApp green `#09883F`, white text 4.56:1, the WhatsApp glyph, 64px, full width; default · sending · sent ✓ + the Pakistan time + a quiet Send again · failed = the whole button is Try again · unavailable) and **Open in another app** (white, navy outline, same size). Put it in `TeacherPage`'s `dock`. One press is one billed message: it is off while sending and a second tap is ignored.
+Open, by `browserEnv()` (`lib/runtime.ts`; the Capacitor WebView is checked first and is never WhatsApp's browser): WhatsApp's browser on Android → an `intent://…;S.browser_fallback_url=…` link (the phone's browser or the NIETE app), Copy link after 2 s if the page was not left; WhatsApp's browser on iPhone → Copy link + "Open in Safari"; Chrome / Safari / the app → hidden for a page, and for a file it opens the file. A PAGE target stays off while `PAGE_HANDOFF` is false (the external browser has no session until the hand-off link area exists); a FILE target is a presigned link and needs none.
+Server: `POST /api/portal/share/whatsapp {kind, id}` (`teacher/share/api.ts`), template only, the real result; unavailable wherever `WHATSAPP_SHARE_TEMPLATE_<KIND>` is not set on that deployment. Used by: the LP viewer, the report page (DC and Observation), the coach's Send the report ("Send to …").

@@ -16,6 +16,7 @@ vi.mock('../../components/PortalLayout', () => ({ default: ({ children }: { chil
 import { ASSESSMENT_V2_COPY } from './copy';
 import routes from './routes';
 import { ASSESSMENT_V2_BASE } from './paths';
+import { NumberField } from '../ui';
 import { CheckRow, Choice, StepFrame, Stepper, SwitchRow, Tabs, LoadState } from './ui';
 import { QuestionForm } from './QuestionForm';
 import { blankValues, valuesFromFields } from './editForm';
@@ -35,7 +36,7 @@ describe('assessment: style', () => {
 
 describe('assessment: copy', () => {
   it('every word is a label: at most 4 words, never a sentence', () => {
-    const bad = collectCopy(ASSESSMENT_V2_COPY).filter((c) => copyProblem(c.text)).map((c) => `${c.path}: ${c.text}`);
+    const bad = collectCopy(ASSESSMENT_V2_COPY).filter((c) => !c.path.startsWith('why.') && copyProblem(c.text)).map((c) => `${c.path}: ${c.text}`);
     expect(bad).toEqual([]);
   });
 
@@ -49,16 +50,18 @@ describe('assessment: every target is 56px or more', () => {
   it('the step frame, tabs, stepper, choices, tick rows, switch and the retry', () => {
     const { container } = render(
       <MemoryRouter>
-        <StepFrame step="types" backTo="/x" next={{ label: 'N', ready: true, to: '/y' }}>
+        <StepFrame step="types" backTo="/x" next={{ label: 'N', why: null, to: '/y' }}>
           <Tabs label="T" value="a" onChange={() => {}} options={[{ key: 'a', label: 'A' }, { key: 'b', label: 'B' }]} />
           <Stepper value={3} lessLabel="L" moreLabel="M" onLess={() => {}} onMore={() => {}} />
           <Stepper compact value={3} lessLabel="L" moreLabel="M" onLess={() => {}} onMore={() => {}} />
+          <NumberField label="F" value="3" onChange={() => {}} />
+          <NumberField size="row" ariaLabel="R" value="0" onChange={() => {}} />
           <Choice picked onPick={() => {}} icon={<span />} name="C" />
           <CheckRow checked onToggle={() => {}} label={<span />} />
           <SwitchRow on onFlip={() => {}} icon={<span />} name="S" />
           <LoadState status="error" onRetry={() => {}} />
         </StepFrame>
-        <StepFrame step="check" backTo="/x" next={{ label: 'N', ready: false }}><span /></StepFrame>
+        <StepFrame step="check" backTo="/x" next={{ label: 'N', why: 'Select at least one chapter' }}><span /></StepFrame>
       </MemoryRouter>,
     );
     expect(tapProblems(container)).toEqual([]);
