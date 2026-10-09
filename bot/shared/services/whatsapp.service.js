@@ -985,6 +985,8 @@ class WhatsAppService {
    * @param {Array} components - Template components (header/body/button params)
    * @param {{budget?: object}} [opts] budget: whatsapp-send-pacer SYNC_BUDGET, for
    *   a send an HTTP response is waiting on
+   * opts.report: an object the caller owns; on a Meta refusal it gets `.code` (Meta's error code, e.g. 132001 = no such
+   *   template) so a caller can tell "this template does not exist" from "try again" (bd-fmf24g.30).
    * @returns {Promise<boolean>}
    */
   static async sendTemplate(to, templateName, languageCode, components = [], opts = {}) {
@@ -1021,6 +1023,7 @@ class WhatsAppService {
       return true;
     } catch (error) {
       if (error && error.paced === 'skipped') return false; // budgeted, no slot in time — logged by the pacer
+      if (opts && opts.report && typeof opts.report === 'object') opts.report.code = error.response?.data?.error?.code ?? null;
       logToFile('❌ Error sending template message', {
         error: error.message,
         errorDetails: error.response?.data,

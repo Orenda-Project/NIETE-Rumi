@@ -89,6 +89,27 @@ export interface TeacherUiCopy {
   report: ReportCopy;
   /** bd-fmf24g.15 — ReadyTray / ReadyBanner. */
   notify: NotifyCopy;
+  /** bd-fmf24g.30 — ShareActions: Send on WhatsApp, Open in another app. */
+  share: ShareCopy;
+}
+
+/** bd-fmf24g.30 — ShareActions' words (Blueprint: ShareActions). The ontology owns Send on WhatsApp / Sent on WhatsApp / Try again. */
+export interface ShareCopy {
+  send: string;
+  sendTo: (name?: string) => string;
+  sending: string;
+  sent: string;
+  sendAgain: string;
+  tryAgain: string;
+  couldntSend: string;
+  notAvailable: string;
+  open: string;
+  opening: string;
+  copyLink: string;
+  linkCopied: string;
+  pasteIt: string;
+  couldntOpen: string;
+  openInSafari: string;
 }
 
 /** bd-fmf24g.15 — ReadyTray's and ReadyBanner's words (COMPONENTS.md §12 "Words"; the ontology's states). */
@@ -280,6 +301,23 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
     couldntSend: "Couldn't send",
     questions: (n = 0) => (n === 1 ? '1 question' : `${n} questions`),
   },
+  share: {
+    send: 'Send on WhatsApp',
+    sendTo: (name = '') => `Send to ${name}`.trim(),
+    sending: 'Sending…',
+    sent: 'Sent on WhatsApp',
+    sendAgain: 'Send again',
+    tryAgain: 'Try again',
+    couldntSend: "Couldn't send",
+    notAvailable: 'Not available yet',
+    open: 'Open in another app',
+    opening: 'Opening…',
+    copyLink: 'Copy link',
+    linkCopied: 'Link copied',
+    pasteIt: 'Paste in browser',
+    couldntOpen: "Couldn't open it",
+    openInSafari: 'Open in Safari',
+  },
 };
 
 /** Urdu months, January first (as the bot's dates). */
@@ -406,6 +444,24 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
     couldntSend: 'نہیں بھیجا جا سکا',
     questions: (n = 0) => `${n} سوال`,
   },
+  /** MACHINE-DRAFTED, review pending: Send on WhatsApp / Sent on WhatsApp / Try again are the ontology's; Open in another app is the LP viewer's. */
+  share: {
+    send: 'واٹس ایپ پر بھیجیں',
+    sendTo: (name = '') => `${name} کو بھیجیں`.trim(),
+    sending: 'بھیجا جا رہا ہے…',
+    sent: 'واٹس ایپ پر بھیجا گیا',
+    sendAgain: 'دوبارہ بھیجیں',
+    tryAgain: 'دوبارہ کوشش کریں',
+    couldntSend: 'بھیجا نہیں جا سکا',
+    notAvailable: 'ابھی دستیاب نہیں',
+    open: 'دوسری ایپ میں کھولیں',
+    opening: 'کھولا جا رہا ہے…',
+    copyLink: 'لنک کاپی کریں',
+    linkCopied: 'لنک کاپی ہو گیا',
+    pasteIt: 'براؤزر میں پیسٹ کریں',
+    couldntOpen: 'کھل نہیں سکا',
+    openInSafari: 'سفاری میں کھولیں',
+  },
 };
 
 /** The kit's words in both languages; kit components read them through useKitCopy(). */
@@ -418,7 +474,8 @@ export const COPY_ENTRY: CopyEntry = {
   same: ['noValue', 'report.brand', 'report.brandMark'],
   // The report's words mirror the hero PNG word for word.
   // `notify.sending`: the passive "بھیجا جا رہا ہے" (4 words) with the percent after it.
-  longOk: ['report.madeFor', 'report.eyebrow', 'report.lastAsked', 'notify.sending'],
+  // `share.sent`: the ontology's "Sent on WhatsApp" is five words in Urdu (واٹس ایپ is one name).
+  longOk: ['report.madeFor', 'report.eyebrow', 'report.lastAsked', 'notify.sending', 'share.sent'],
 };
 
 /** bd-fmf24g.16 — the history row lead's subject short forms (ui/subjects.ts), registered beside the kit's words. */
