@@ -19,6 +19,7 @@ const { portal, config } = vi.hoisted(() => ({
     getAssessmentPapers: vi.fn(),
     getAssessmentDownload: vi.fn(),
     getAssessmentVersions: vi.fn(),
+    getAssessmentPaperView: vi.fn(() => Promise.resolve({ success: true, paper: {}, sections: [] })),
     getAssessmentEditQuestions: vi.fn(),
     getAssessmentAddKinds: vi.fn(),
   },

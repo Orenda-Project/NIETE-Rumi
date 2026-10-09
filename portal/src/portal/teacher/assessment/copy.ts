@@ -152,6 +152,11 @@ export const ASSESSMENT_V2_COPY = {
   makeAnother: 'Make another',
   open: 'Open',
   notFoundTitle: 'Paper not found',
+  /* the paper itself (bd-fmf24g.31) */
+  thePaper: 'Paper',
+  columnA: 'Column A',
+  columnB: 'Column B',
+  downloadToView: 'Download to view',
   /* paper page */
   versions: 'Versions',
   latest: 'Latest',
@@ -364,6 +369,10 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   makeAnother: 'ایک اور بنائیں',
   open: 'کھولیں',
   notFoundTitle: 'پرچہ نہیں ملا',
+  thePaper: 'پرچہ',
+  columnA: 'کالم الف',
+  columnB: 'کالم ب',
+  downloadToView: 'ڈاؤن لوڈ کریں',
   versions: 'تمام ورژن',
   latest: 'تازہ ترین',
   first: 'پہلا',

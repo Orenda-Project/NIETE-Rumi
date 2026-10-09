@@ -118,6 +118,7 @@ features:
     - bot/shared/routes/exam-confirm-endpoint.js
     - bot/shared/routes/assessment-gen-endpoint.js
     - bot/shared/routes/assessment-gen-callback.routes.js
+    - bot/shared/routes/internal-assessment-view.routes.js    # a finished paper's questions for the portal paper page (bd-fmf24g.31)
     - bot/shared/services/assessment-*.service.js
     - bot/shared/services/assessment/**                     # the generator the assessment routes call (bd-gr4fy.8 map gap)
     - bot/workers/exam-grading.worker.js
