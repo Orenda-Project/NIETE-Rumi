@@ -198,6 +198,8 @@ const PINNED: Pin[] = [
   { screen: "Lesson Plans", path: "aboutTwoMinutes", ur: "تقریباً 2 منٹ" },
   { screen: "kit (shared components)", path: "notify.more(4)", ur: "مزید 4" },
   { screen: "kit (shared components)", path: "notify.timeLeft(4)", ur: "تقریباً 4 منٹ باقی" },
+  // PM is any time after noon: شام is wrong for a 1:30 PM class; بعد دوپہر is right for every PM hour.
+  { screen: "kit (shared components)", path: "pm", en: "PM", ur: "بعد دوپہر" },
 ];
 
 function find(screen: string, path: string, lang: "en" | "ur") {

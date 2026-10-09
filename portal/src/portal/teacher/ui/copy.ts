@@ -282,9 +282,9 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
   stepsCount: (done = 0, total = 0) => `${total} میں سے ${done}`,
   play: 'چلائیں',
   pause: 'روکیں',
-  /** MACHINE-DRAFTED: صبح (AM) and شام (PM) as in the coach board's 8:30 صبح. */
+  /** صبح (AM) as in the coach board's 8:30 صبح. PM is بعد دوپہر: شام is wrong for a 2:00 PM class (Urdu review, bd-fmf24g.13). */
   am: 'صبح',
-  pm: 'شام',
+  pm: 'بعد دوپہر',
   chosenSoFar: 'اب تک کا انتخاب',
   report: {
     report: 'رپورٹ',
