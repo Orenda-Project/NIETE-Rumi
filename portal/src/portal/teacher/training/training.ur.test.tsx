@@ -7,7 +7,7 @@ import i18n from "i18next";
  * bd-fmf24g.13 — Training in Urdu: the v2 pages' own words (TRAINING) and the new UI's training words they
  * reuse (TRAINING_INNER — the same keys as newui TRAINING_COPY, translated on the v2 side so today's new-UI
  * pages are unchanged) follow the page's language. Provider, level and course names stay as the API sends
- * them. MACHINE-DRAFTED Urdu from the bot's (ٹریننگ، ماڈیول، امتحان، کوئز، جاری رکھیں، درجہ).
+ * them. MACHINE-DRAFTED Urdu from the bot's (ٹریننگ، کورس، امتحان، کوئز، جاری رکھیں، درجہ).
  */
 
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
