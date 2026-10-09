@@ -3,3 +3,4 @@ export { FEATURE_HUE, TEACHER_FEATURES, type TeacherFeature } from './features';
 export { FeatureArt, type FeatureArtProps } from './FeatureArt';
 export { FeatureGlyph, type FeatureGlyphProps, type GlyphName } from './FeatureGlyph';
 export { FeatureMotionProvider, useFeatureMotion, MOTION_GAP_MS, type FeatureMotionState } from './FeatureMotion';
+export { NieteLattice, type NieteLatticeProps } from './NieteLattice';
