@@ -1608,6 +1608,8 @@ router.post('/assessment/papers', requireInternalKey, assessmentRoute('papers', 
 
 // Editing a paper from the portal (bd-hb8qs) — its own file; see its header.
 router.use(require('./internal-assessment-edit.routes'));
+// A paper's own questions for the portal's paper page (bd-fmf24g.31) — its own file; see its header.
+router.use(require('./internal-assessment-view.routes'));
 // Class attendance for the teacher portal v2 (bd-fmf24g.7) — its own file; see its header.
 router.use(require('./internal-attendance.routes'));
 

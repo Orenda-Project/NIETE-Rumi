@@ -13,7 +13,10 @@ import { useAssessmentSwitches } from './api';
 import { dayLabel, pkDay, pkToday } from './model';
 import { findPaper } from './paperCache';
 import { ASSESSMENT_V2_BASE, editPath, paperPath, versionsPath } from './paths';
+import { HistoryRow } from '../ui';
+import { PaperBody } from './PaperBody';
 import { Chip, ListCard, LoadState, PRIMARY } from './ui';
+import { SkeletonList } from '../../components/Skeleton';
 
 /**
  * bd-fmf24g.6 — one paper (v28 canvas AssessPaper): its class, chapter, questions, marks and version,
@@ -45,6 +48,9 @@ export function PaperPage() {
   const switches = useAssessmentSwitches();
   const [paper, retry] = useLoad(() => findPaper(paperId), `paper:${paperId}`);
   const p = dataOf(paper);
+  // bd-fmf24g.31: the paper's own questions. Not needed for the actions, so a failed read never blocks them.
+  const [content] = useLoad(() => portal.getAssessmentPaperView(paperId), `paperview:${paperId}`);
+  const view = dataOf(content);
 
   const open = async (artifact: 'paper' | 'answer_key') => {
     const r: DownloadResult = await downloadArtifact(paperId, artifact);
@@ -95,6 +101,19 @@ export function PaperPage() {
 
   return (
     <TeacherPage crumb={C.title} title={C.gradeSubject(p.grade ?? '', p.subject)} backTo={ASSESSMENT_V2_BASE} chips={chips} dock={dock} testId="assessment-paper">
+      {/* The paper itself (bd-fmf24g.31): its D6.5 heading, then its sections. The actions sit below it. */}
+      <ListCard label={C.thePaper}>
+        <HistoryRow
+          grade={p.grade ?? undefined} subject={p.subject} title={p.subject}
+          extra={C.join(p.chapter_number != null ? C.chapterShort(p.chapter_number) : null, p.total_marks != null ? C.marksCount(p.total_marks) : null)}
+          action="none"
+        />
+      </ListCard>
+      {content.status === 'loading' || content.status === 'idle'
+        ? <SkeletonList rows={3} label={C.thePaper} className="py-2" />
+        : view && view.sections.length > 0
+          ? <PaperBody view={view} />
+          : <p className="rounded-2xl border border-dashed border-[#c7cad6] bg-white p-5 text-center text-[16px] font-semibold text-[#4b5563]">{C.downloadToView}</p>}
       {rows.length > 0 && <ListCard label={C.myPapers}>{rows}</ListCard>}
     </TeacherPage>
   );

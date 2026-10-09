@@ -77,3 +77,26 @@ describe('routes', () => {
     expect(read(ROUTES)).toMatch(/assessmentEditing/);
   });
 });
+
+// bd-fmf24g.31 — reading a paper's own questions: NOT behind the editing switch, still hers only.
+describe('paper view (bd-fmf24g.31)', () => {
+  test('client posts userId + paperId to the bot view route and passes a coded refusal through', async () => {
+    const Client = require('../../dashboard/services/assessment.service');
+    axios.post.mockResolvedValue({ status: 200, data: { success: true, paper: { paperId: 'p1' }, sections: [] } });
+    const out = await Client.viewPaper('p1', 'u1');
+    expect(axios.post.mock.calls[0][0]).toBe('https://bot.test/api/internal/assessment/paper/view');
+    expect(axios.post.mock.calls[0][1]).toEqual({ paperId: 'p1', userId: 'u1' });
+    expect(out.sections).toEqual([]);
+    axios.post.mockResolvedValue({ status: 404, data: { success: false, code: 'NOT_FOUND' } });
+    await expect(Client.viewPaper('p1', 'u2')).rejects.toMatchObject({ status: 404, body: { code: 'NOT_FOUND' } });
+  });
+
+  test('the portal route is auth-gated and takes identity only from the session', () => {
+    const s = read(ROUTES);
+    expect(s).toContain("router.get('/assessment/paper/:paper_id/view', requirePortalAuth");
+    const at = s.indexOf("router.get('/assessment/paper/:paper_id/view'");
+    const body = s.slice(at, at + 500);
+    expect(body).toContain('req.session.portalUserId');
+    expect(body).not.toMatch(/req\.(body|query)\.user/);
+  });
+});
