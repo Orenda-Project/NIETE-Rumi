@@ -97,6 +97,7 @@ const BANNED: Ban[] = [
   { lang: "ur", re: /کوئی کارکردگی/, use: "ابھی کارکردگی دستیاب نہیں (no band is not 'no performance')" },
   { lang: "ur", re: /کچھ نہیں لگا/, use: "ابھی حاضری نہیں لگی" },
   { lang: "ur", re: /تبدیلی بند/, use: "ترمیم بند (Edit = ترمیم)" },
+  { lang: "ur", re: /(کورس|ماڈیول)( \d+)? امتحان/, use: "کورس کا امتحان, as درجے کا امتحان" },
   { lang: "ur", re: /^جانچیں اور/, use: "دیکھیں اور … (Check and send / Check and make: one verb)" },
   // Gender: the teacher is addressed with an imperative or an impersonal phrase, never a gendered verb.
   { lang: "ur", re: /آپ (?!کا|کی|کے)[^،۔]*?(سکتے|سکتی|رہے|رہی|تھے|تھی|چکے|چکی|گئے|گئی)(\s|$|۔)/, use: "an imperative or an impersonal phrase (آپ کی حاضری; انتظار ضروری نہیں)" },
@@ -177,7 +178,7 @@ const PINNED: Pin[] = [
   { screen: "Analytics", path: "allDigitalCoaching", en: "All DC Observations" },
   { screen: "Analytics", path: "ratingOverTime", ur: "وقت کے ساتھ کارکردگی" },
   { screen: "Training", path: "locked", ur: "مقفل" },
-  { screen: "Training (new-UI words reused)", path: "moduleExam", en: "Course exam", ur: "کورس امتحان" },
+  { screen: "Training (new-UI words reused)", path: "moduleExam", en: "Course exam", ur: "کورس کا امتحان" },
   { screen: "Analytics", path: "modulesDone", en: "Courses done", ur: "مکمل کورسز" },
   { screen: "Training", path: "edit", en: "Change", ur: "تبدیل کریں" },
   { screen: "Training", path: "editLevel", en: "Change teaching level" },
