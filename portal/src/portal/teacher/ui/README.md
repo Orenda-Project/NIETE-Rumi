@@ -26,7 +26,7 @@ import { FeatureArt, FeatureGlyph, FEATURE_HUE, TEACHER_FEATURES } from '@/porta
 
 | Export | Props | Notes |
 |---|---|---|
-| `FeatureArt` | `feature`, `size` (48), `label?`, `className?` | The D2-refined spot illustrations (Main.dc.html `r-*`). Decorative unless `label`. Digital Coaching is a phone. |
+| `FeatureArt` | `feature`, `size` (48), `label?`, `className?`, `motion?` | The D2-refined spot illustrations (Main.dc.html `r-*`). Decorative unless `label`. Digital Coaching is a phone. `motion` opts in to the small movements, only inside a `FeatureMotionProvider` (Home): ONE shared 30–60 s timer plays every opted-in icon together, none under reduced motion, paused while hidden. Menu glyphs never move. |
 | `FeatureGlyph` | `name` (a feature, `home`, `more`), `size` (24), `label?`, `className?` | The menu glyphs (`g-*`), `currentColor`. Knocked-out details use CSS `--cut` (white by default; set it to the tint behind). |
 | `FEATURE_HUE` | — | `{ fg, bg }` per feature (lessons green, coaching orange, observations red, training violet, assessment blue, attendance indigo, classes teal). |
 | `TEACHER_FEATURES` | — | The seven features in Home's order. |
