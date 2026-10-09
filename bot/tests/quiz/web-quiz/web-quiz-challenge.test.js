@@ -572,3 +572,15 @@ describe('menu(): the page-session telemetry switch rides the boot (rt)', () => 
     Tel._reset();
   });
 });
+
+describe('menu(): the Urdu polish switch rides the boot (ui)', () => {
+  test('ui is absent by default and { ur2: true } with app_settings web_quiz_ur_polish', async () => {
+    const Ur = require('../../../shared/services/quiz/web-quiz-ur-polish');
+    Ur._reset();
+    expect((await Ch.menu(hub(), D)).ui).toBeUndefined();
+    db.app_settings.push({ key: 'web_quiz_ur_polish', value: true });
+    Ur._reset();
+    expect((await Ch.menu(hub(), D)).ui).toEqual({ ur2: true });
+    Ur._reset();
+  });
+});

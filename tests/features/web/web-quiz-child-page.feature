@@ -1548,3 +1548,21 @@ Feature: Web child quiz page on the portal
     When children finish on different phones
     Then each phone always sees the same card: the panel, or today's "Challenge a friend" button (a phone with no saved key gets today's button)
     And the score card and every share tap say which of the two the child saw
+
+  @T760
+  Scenario: The polished Urdu look is one switch and one class on the page root
+    Given the app setting web_quiz_ur_polish is "on"
+    When an Urdu quiz, hub, library or challenge page is opened
+    Then the page root is <html lang="ur" dir="rtl" class="wq-ur2"> and it preloads the second Urdu face (Noto Nastaliq Urdu Regular, self-hosted, ~105 KB, OFL)
+    And every Urdu run draws in that one face at one weight — no synthetic bold, no size-adjust, no extra word spacing
+    And a line that wraps keeps a 2.2 line height, a one-line control a 2.0 line height with room above and below the Nastaliq stacks, so no letter is cut by its box
+    And the mascot's bubble and the feedback box take the full width under the mascot when they have more than a line
+    And a long option keeps its label on its own row at 320 px, and an English word inside Urdu never breaks mid-word
+    But an English page gets no class and no Urdu font, and renders exactly as before
+    And with the setting off every page renders exactly as before, with today's face
+
+  @T761
+  Scenario: On the hub the polish class follows the child's language, not the boot
+    Given web_quiz_ur_polish is "on" and the hub booted in Urdu with the class
+    When a sibling whose hub is English is picked
+    Then <html> loses the class with the language, and gets it back when an Urdu child is picked
