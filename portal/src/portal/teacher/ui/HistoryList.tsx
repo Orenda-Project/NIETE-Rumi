@@ -136,12 +136,15 @@ export function HistoryList({
               <span className="text-[16px] font-semibold">{emptyLabel ?? words.nothingYet}</span>
             </div>
           ) : null}
-          {days.map((g) => (
-            <section key={g.day} aria-label={g.day} className="flex flex-col gap-2">
-              <h3 className="mx-1 mb-0 mt-2 flex items-center gap-2 text-[20px] font-light leading-[1.2]">
-                {g.day}
-                <span className={cn(COUNT, 'h-6 px-[9px]')}>{g.items.length}</span>
-              </h3>
+          {days.map((g, gi) => (
+            <section key={g.day || `day-${gi}`} aria-label={g.day || undefined} className="flex flex-col gap-2">
+              {/* a group with no day (a coach's visits of one day under the page's own heading) draws no heading */}
+              {g.day ? (
+                <h3 className="mx-1 mb-0 mt-2 flex items-center gap-2 text-[20px] font-light leading-[1.2]">
+                  {g.day}
+                  <span className={cn(COUNT, 'h-6 px-[9px]')}>{g.items.length}</span>
+                </h3>
+              ) : null}
               <div className={LIST_CARD}>
                 {g.items.map(({ id, ...item }, i) => (
                   <HistoryRow key={id ?? i} {...item} first={i === 0} copy={rowCopy} />

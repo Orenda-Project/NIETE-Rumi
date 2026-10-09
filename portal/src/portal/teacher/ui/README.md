@@ -69,7 +69,15 @@ chevron, never a link. A button carries `aria-pressed`. `gradeSubjectLabel()` gi
 ### `HistoryRow`
 | Prop | Type | Default |
 |---|---|---|
-| subject, title | string | — |
+| subject | string; the grade·subject lead's subject, **optional** since the coach leads have none | — |
+| title | string | — |
+| lead | `grade` (the D6.5 column below) · `person` · `school` (a coach's round 48px avatar) | `grade` |
+| leadText | `person`/`school` avatar text instead of her initials: a score or a kind ("87%", "HITL", "DC") | initials of `title` |
+| leadTone | avatar colour: `grey` · `indigo` · `green` · `amber` (status-like, never a grade or feature hue) | `grey` |
+| leadLabel | what a screen reader hears for the avatar ("Score 87%"); the avatar itself is `aria-hidden` | — |
+| time | a time on the row's first line, above the title, drawn by `TimeStamp` (`"08:30"` or `"8:30 AM"`) | — |
+| timeTone | `TimeStamp` tone | `next` when `state="next"`, `done` when `done`, else `neutral` |
+| state | `default` · `next` (the coming visit: `#f4f5f8` tint and a 3px bar on the start edge) · `done` (muted) | `default` |
 | grade | string \| number; **optional** — absent, empty or a dash placeholder ("–") when it was never settled | — |
 | extra | line 2 ("Chap 1", "20 questions") | — |
 | chip | `ChipData` | — |
@@ -101,6 +109,18 @@ that is too, with no padding between (RequestPage's ready card is the row itself
   13px (سائنس, ریاضی, انگریزی, پاکستان, معاشرتی …; the bot's names, first word of a two-word one), measured to fit the
   64px column in Noto Nastaliq Urdu. A subject with no Urdu form keeps its English 4 letters; digits and Latin go
   through the kit's bidi egress (isolated).
+
+**Coach rows (bd-4404s7.1).** `lead="person"` / `lead="school"` swap the grade·subject column for a ROUND 48px grey avatar,
+inset 14px from the start edge (initials, a school glyph, or `leadText`). It is deliberately not the 64px flush column: that
+column belongs to grade·subject only, and a time, count, score or person must never borrow its look. A grade·subject row
+(`lead` left out) is drawn exactly as before, with or without a `time`. `HistoryList` draws no day heading for a group whose
+`day` is `""` (a page's own heading above it).
+
+```tsx
+<HistoryRow lead="person" title="Ayesha Bibi" extra="IMSG I-10/1" time="08:30" state="next" to="/portal/coach/visit/12" />
+<HistoryRow lead="person" leadText="87%" leadLabel="Score 87%" title="Ayesha Bibi" extra="12 Oct" to="/portal/coach/observation/9" />
+<HistoryRow lead="school" title="IMSG I-10/1" extra="12 teachers" chip={{ text: "41 days ago", tone: "waiting" }} to="/portal/coach/school/123" />
+```
 
 ### `HistoryList`
 | Prop | Type | Default |
