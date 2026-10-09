@@ -49,6 +49,8 @@ export const ANALYTICS_V2_COPY = {
   teacherCounts: (obs: number, dc: number) => `${obs} Observations · ${dc} DC`,
   noTeachers: 'No teachers yet',
   notFound: 'Not found',
+  allSchools: 'All schools',
+  school: 'School',
   /** The rating bands, best first (lib/scoreBands keys) — the chart's rows and the area chips. */
   bands: {
     excellent: 'Excellent',
@@ -96,6 +98,8 @@ export const ANALYTICS_V2_COPY_UR: Words<typeof ANALYTICS_V2_COPY> = {
   teacherCounts: (obs: number, dc: number) => `${obs} مشاہدات · ${dc} DC`,
   noTeachers: 'ابھی کوئی ٹیچر نہیں',
   notFound: 'نہیں ملا',
+  allSchools: 'تمام اسکول',
+  school: 'اسکول',
   bands: {
     excellent: 'بہترین',
     good: 'اچھا',
