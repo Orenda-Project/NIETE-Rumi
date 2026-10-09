@@ -26,12 +26,13 @@ vi.mock("../../services/api", () => ({ default: { get: vi.fn(), post: vi.fn() },
 
 import "../routes";
 import api from "../../services/api";
+import { resetShareAvailability } from "../share/api";
 import { ReportPage } from "./ReportPage";
 import { toReportData } from "./report";
 import { COACHING_REPORT } from "./paths";
 import { COACHING_V2_COPY as C } from "./copy";
 
-const http = api as unknown as { get: ReturnType<typeof vi.fn> };
+const http = api as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
 const ID = "0b4e8f9a-1c2d-4e5f-8a9b-0c1d2e3f4a5b";
 
 const DETAIL = {
@@ -51,6 +52,7 @@ const DETAIL = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resetShareAvailability();
   http.get.mockImplementation(async (url: string) => {
     if (url === `/teacher/coaching/${ID}/journey`) return { data: { success: true, points: [{ date: "2026-09-10", pct: 50 }, { date: "2026-10-02", pct: 58 }] } };
     throw new Error(`unexpected GET ${url}`);
@@ -164,6 +166,39 @@ describe("the report page — a Digital Coach lesson", () => {
     expect(fold.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(fold);
     expect(screen.getByText("Only the front rows.")).toBeTruthy();
+  });
+
+  it("bd-fmf24g.30 — the dock: Send on WhatsApp is locked (no template configured), and Open is the report image", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "completed", stage: "done", reflection: null, reportReady: true });
+    portal.getCoachingSession.mockResolvedValue({ session: DETAIL });
+    open();
+    const send = await screen.findByTestId("share-send");
+    await waitFor(() => expect(send).toBeDisabled());
+    expect(send.textContent).toContain("Not available yet");
+    expect(screen.getByTestId("share-open")).toBeTruthy();
+  });
+
+  it("bd-fmf24g.30 — configured: a press posts {kind:'dc', id}; a coach's visit posts kind 'observation'", async () => {
+    http.get.mockImplementation(async (url: string) => {
+      if (url === "/share/availability") return { data: { kinds: { dc: true, observation: true } } };
+      if (url === `/teacher/coaching/${ID}/journey`) return { data: { success: true, points: [] } };
+      throw new Error(`unexpected GET ${url}`);
+    });
+    http.post.mockResolvedValue({ data: { status: "sent", at: "2026-10-10T10:42:00.000Z" } });
+    portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "completed", stage: "done", reflection: null, reportReady: true });
+    portal.getCoachingSession.mockResolvedValue({ session: DETAIL });
+    const first = open();
+    await waitFor(() => expect(screen.getByTestId("share-send")).not.toBeDisabled());
+    fireEvent.click(screen.getByTestId("share-send"));
+    await waitFor(() => expect(http.post).toHaveBeenCalledWith("/share/whatsapp", { kind: "dc", id: ID }));
+    first.unmount();
+
+    resetShareAvailability();
+    portal.getCoachingSession.mockResolvedValue({ session: { ...DETAIL, observation: { observerName: "Hataf Atif", observedAt: DETAIL.date, sentAt: null, reportImageUrl: "https://r2/visit.png", caption: null, companionText: null } } });
+    open();
+    await waitFor(() => expect(screen.getByTestId("share-send")).not.toBeDisabled());
+    fireEvent.click(screen.getByTestId("share-send"));
+    await waitFor(() => expect(http.post).toHaveBeenCalledWith("/share/whatsapp", { kind: "observation", id: ID }));
   });
 
   it("stopped: said so, no report", async () => {

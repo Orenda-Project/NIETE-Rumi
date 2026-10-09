@@ -27,4 +27,9 @@ router.post('/share/send', requireInternalKey, async (req, res) => {
   }
 });
 
+// Which kinds this deployment can send (a template is configured): the app greys the button for the rest.
+router.post('/share/availability', requireInternalKey, (req, res) => (
+  res.json({ success: true, kinds: require('../services/share-send.service').availability() })
+));
+
 module.exports = router;

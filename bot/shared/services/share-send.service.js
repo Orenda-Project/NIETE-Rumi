@@ -39,6 +39,11 @@ function templateNameFromEnv(kind, env = process.env) {
   return v || null;
 }
 
+/** Which kinds this deployment can send at all (a template is named for them). The app greys the button for the rest. */
+function availability(env = process.env) {
+  return Object.fromEntries(KINDS.map((k) => [k, !!templateNameFromEnv(k, env)]));
+}
+
 const first = (embedded) => (Array.isArray(embedded) ? embedded[0] : embedded) || null;
 const gradeOf = (code) => Number(String(code || '').replace(/^grade_/, '')) || null;
 
@@ -184,4 +189,4 @@ async function sendShare({ userId, kind, id } = {}, deps) {
   }
 }
 
-module.exports = { sendShare, itemResolvers, templateNameFromEnv, KINDS, ENV_OF, TEMPLATE_GONE };
+module.exports = { sendShare, availability, itemResolvers, templateNameFromEnv, KINDS, ENV_OF, TEMPLATE_GONE };

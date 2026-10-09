@@ -47,6 +47,13 @@ describe('templateName: only what this deployment configures, never a default', 
   });
 });
 
+describe('availability', () => {
+  it('is true only for a kind whose template is configured on THIS deployment', () => {
+    expect(Share.availability({})).toEqual({ lesson: false, paper: false, dc: false, observation: false });
+    expect(Share.availability({ WHATSAPP_SHARE_TEMPLATE_PAPER: 'paper_ready_v1' })).toEqual({ lesson: false, paper: true, dc: false, observation: false });
+  });
+});
+
 describe('sendShare', () => {
   it('no template configured → unavailable, nothing looked up, nothing sent', async () => {
     const d = deps({ templateName: () => null, item: jest.fn(), user: jest.fn() });

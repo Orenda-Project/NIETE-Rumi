@@ -32,6 +32,29 @@ async function call({ userId = TEACHER, body = { kind: 'paper', id: 'r1' } } = {
   return { status, payload };
 }
 
+describe('GET /share/availability', () => {
+  async function avail() {
+    const router = require('../../dashboard/routes/portal-share.routes');
+    const layer = router.stack.find((l) => l.route && l.route.path === '/share/availability' && l.route.methods.get);
+    const req = { session: { portalUserId: TEACHER }, body: {} };
+    let status = 200; let payload = null;
+    const res = { status(c) { status = c; return this; }, json(b) { payload = b; return this; } };
+    for (const s of layer.route.stack) {
+      let advanced = false;
+      // eslint-disable-next-line no-await-in-loop
+      await s.handle(req, res, () => { advanced = true; });
+      if (!advanced) break;
+    }
+    return { status, payload };
+  }
+  it('passes the bot\'s map through, false for anything missing; unreachable is 502', async () => {
+    post.mockResolvedValue({ status: 200, data: { success: true, kinds: { paper: true } } });
+    expect((await avail()).payload).toEqual({ success: true, kinds: { lesson: false, paper: true, dc: false, observation: false } });
+    post.mockRejectedValue(new Error('down'));
+    expect((await avail()).status).toBe(502);
+  });
+});
+
 describe('POST /share/whatsapp', () => {
   it('signed out is 401; the teacher app off is 404 and the bot is not asked', async () => {
     expect((await call({ userId: null })).status).toBe(401);

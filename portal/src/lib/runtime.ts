@@ -75,3 +75,37 @@ export function getPortalOrigin(): string | null {
     return null;
   }
 }
+
+/**
+ * bd-fmf24g.30 — where is this page running? Decides what "Open in another app" does (ui/ShareActions).
+ *
+ *   native       the NIETE Android app (Capacitor). Its WebView user agent also carries "; wv)", so the app is checked
+ *                FIRST and a WebView is never mistaken for WhatsApp's browser.
+ *   android-iab  WhatsApp's in-app browser on Android: "WhatsApp" or "WA4A/" in the user agent, or a bare Android
+ *                WebView ("; wv)") that is not our app.
+ *   ios-iab      an iPhone/iPad web view that is not Safari or another browser: WKWebView leaves out the "Safari/" token.
+ *   browser      anything else (Chrome, Safari, Samsung Internet, a desktop).
+ */
+export type BrowserEnv = 'native' | 'android-iab' | 'ios-iab' | 'browser';
+
+export function classifyBrowser(userAgent: string | null | undefined, native: boolean): BrowserEnv {
+  if (native) return 'native';
+  const ua = String(userAgent || '');
+  if (/Android/i.test(ua)) return /WhatsApp|WA4A\/|; wv\)/.test(ua) ? 'android-iab' : 'browser';
+  if (/iPhone|iPad|iPod/i.test(ua)) {
+    const otherBrowser = /CriOS|FxiOS|EdgiOS|OPiOS|GSA\//.test(ua);
+    return !otherBrowser && (/WhatsApp/.test(ua) || !/Safari\//.test(ua)) ? 'ios-iab' : 'browser';
+  }
+  return 'browser';
+}
+
+/** The environment this page is running in (see classifyBrowser). */
+export function browserEnv(): BrowserEnv {
+  return classifyBrowser(typeof navigator !== 'undefined' ? navigator.userAgent : '', isNativeApp());
+}
+
+/** True inside WhatsApp's (or another app's) in-app browser, where downloads, PDFs and printing often fail. */
+export function isInAppBrowser(): boolean {
+  const env = browserEnv();
+  return env === 'android-iab' || env === 'ios-iab';
+}

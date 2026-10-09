@@ -11,6 +11,8 @@ import { fullName } from '../format';
 import { useCopy } from '../i18n';
 import { LESSONS } from '../lessons/copy';
 import { ProgressSteps, ReportBody, VoiceNote } from '../ui';
+import { ShareActions } from '../ui/ShareActions';
+import { shareToWhatsApp, useShareAvailable } from '../share/api';
 import { CARD, FOCUS } from '../ui/styles';
 import { COACHING } from './copy';
 import { SectionHeading } from './parts';
@@ -99,6 +101,8 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
   const ready = progress?.stage === 'done' && !!detail;
   const isVisit = !!detail?.observation;
   const reportImage = detail ? (detail.observation?.reportImageUrl || detail.reportUrl || null) : null;
+  // bd-fmf24g.30 — the same report, to her WhatsApp as a template (grey until one is configured), or out of this browser.
+  const canSend = useShareAvailable(isVisit ? 'observation' : 'dc');
   const asked = progress?.stage === 'reflection' && !sent ? progress.reflection : null;
   const answered = (detail?.reflection ?? []).filter((r) => r.question && r.answer);
   const title = detail?.topic || detail?.subject || C.dcObservation;
@@ -132,6 +136,13 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
       backTo={backTo}
       action={action}
       testId="dc-report"
+      dock={ready && reportImage ? (
+        <ShareActions
+          available={canSend}
+          onSend={() => shareToWhatsApp(isVisit ? 'observation' : 'dc', id)}
+          open={{ fileUrl: reportImage }}
+        />
+      ) : undefined}
     >
       {!progress ? <p aria-live="polite" className="mx-1 text-[15px] text-[#6b7280]">{C.loading}</p> : null}
 

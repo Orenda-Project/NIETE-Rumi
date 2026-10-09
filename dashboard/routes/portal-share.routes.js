@@ -31,16 +31,29 @@ async function requireTeacherV2(req, res, next) {
   return next();
 }
 
-async function callBot(body) {
+async function callBot(body, path = 'send') {
   const axios = require('axios');
   const baseUrl = (process.env.MAIN_BOT_URL || '').replace(/\/$/, '');
   const apiKey = process.env.INTERNAL_API_KEY || '';
   if (!baseUrl || !apiKey) throw new Error('share API is not configured (MAIN_BOT_URL / INTERNAL_API_KEY)');
-  const res = await axios.post(`${baseUrl}/api/internal/share/send`, body, {
+  const res = await axios.post(`${baseUrl}/api/internal/share/${path}`, body, {
     headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' }, timeout: 25000, validateStatus: () => true,
   });
   return res;
 }
+
+/** GET /api/portal/share/availability → { kinds: { lesson, paper, dc, observation } }: true where a template is configured. */
+router.get('/share/availability', requirePortalAuth, requireTeacherV2, async (req, res) => {
+  try {
+    const r = await callBot({}, 'availability');
+    const kinds = r && r.status === 200 && r.data && r.data.kinds;
+    if (!kinds || typeof kinds !== 'object') throw new Error(`share/availability failed (HTTP ${r && r.status})`);
+    return res.json({ success: true, kinds: Object.fromEntries(KINDS.map((k) => [k, kinds[k] === true])) });
+  } catch (error) {
+    console.error('❌ Portal share/availability failed', { error: error && error.message });
+    return res.status(502).json({ success: false, error: 'Could not reach sharing.' });
+  }
+});
 
 router.post('/share/whatsapp', requirePortalAuth, requireTeacherV2, async (req, res) => {
   const b = req.body || {};
