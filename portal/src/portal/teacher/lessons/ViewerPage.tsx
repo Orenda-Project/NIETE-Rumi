@@ -1,14 +1,16 @@
 import { useCallback, useEffect } from 'react';
-import { ChevronRight, ExternalLink, KeyRound } from 'lucide-react';
+import { ChevronRight, KeyRound } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import LessonPlanViewer from '../../components/LessonPlanViewer';
 import { useRecordingSession } from '../../lib/recordingSession';
-import { openLessonPlanOutside, useLessonPlanOpener, type LessonPlanView } from '../../lib/lessonPlanOpen';
+import { lessonPlanFileUrl, lessonPlanShareId, useLessonPlanOpener, type LessonPlanView } from '../../lib/lessonPlanOpen';
 import { FeatureArt } from '../icons';
 import { teacherPath } from '../routes';
 import { CHEVRON, FOCUS } from '../ui/styles';
+import { ShareActions } from '../ui/ShareActions';
+import { shareToWhatsApp, useShareAvailable } from '../share/api';
 import { LESSONS } from './copy';
 import { useCopy } from '../i18n';
 import TeacherPage from '../TeacherPage';
@@ -20,7 +22,8 @@ import { LESSONS_VIEWER, dcHref, type DcPrefill } from './paths';
  *   Start DC observation  option A, the light action card with the Digital Coaching art → Digital
  *                         Coaching with her grade, subject and THIS plan prefilled (paths.dcHref)
  *   Answer key            grades 1–5, in this same viewer
- *   Open in another app   today's presigned link
+ *   ShareActions          the dock: Send on WhatsApp (a template; grey "Not available yet" until one is configured) and
+ *                         Open in another app (the plan's presigned PDF link, opened the way her browser allows)
  *
  * While a lesson records, neither Start DC observation (one is running) nor Open in another app
  * (another app in front silences the microphone, bd-5rz1v.10); the frame's recording bar shows
@@ -38,6 +41,7 @@ export function ViewerPage() {
   const { toast } = useToast();
   const openPlan = useLessonPlanOpener();
   const recording = !!useRecordingSession()?.active;
+  const canSend = useShareAvailable('lesson');
   const state = location.state as ViewerState;
   const view = state?.lessonPlan ?? null;
   const dc = state?.dc ?? null;
@@ -61,18 +65,22 @@ export function ViewerPage() {
     ? { lane: 'k5' as const, lessonId: source.lessonId, assetKind: 'answer_key' as const }
     : null;
 
-  const outside = async () => {
-    try {
-      if ((await openLessonPlanOutside(source)) === 'not_ready') toast({ title: C.notReady });
-    } catch {
-      toast({ title: C.couldNotOpen, variant: 'destructive' });
-    }
-  };
-
   const act = cn('flex min-h-[56px] items-center gap-2 rounded-2xl border border-[#e5e7eb] bg-white px-4 text-[15px] font-semibold text-[#33374a]', FOCUS);
 
   return (
-    <TeacherPage crumb={view.crumb} title={view.title} onBack={close}>
+    <TeacherPage
+      crumb={view.crumb}
+      title={view.title}
+      onBack={close}
+      dock={(
+        <ShareActions
+          available={canSend}
+          onSend={() => shareToWhatsApp('lesson', lessonPlanShareId(source))}
+          // While a lesson records, another app in front would silence the microphone (bd-5rz1v.10): no Open then.
+          open={recording ? undefined : { fileUrl: () => lessonPlanFileUrl(source) }}
+        />
+      )}
+    >
       {recording ? null : (
         <Link
           to={dcHref(teacherPath('coaching'), dc)}
@@ -96,11 +104,6 @@ export function ViewerPage() {
             {C.answerKey}
           </button>
         ) : null}
-        {recording ? null : (
-          <button type="button" className={cn(act, 'ms-auto w-14 justify-center px-0')} aria-label={C.openOutside} onClick={() => { void outside(); }}>
-            <ExternalLink className="h-5 w-5" aria-hidden="true" />
-          </button>
-        )}
       </div>
       <LessonPlanViewer
         key={key}

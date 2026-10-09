@@ -1613,6 +1613,8 @@ router.post('/assessment/papers', requireInternalKey, assessmentRoute('papers', 
 router.use(require('./internal-assessment-edit.routes'));
 // Class attendance for the teacher portal v2 (bd-fmf24g.7) — its own file; see its header.
 router.use(require('./internal-attendance.routes'));
+// bd-fmf24g.30 — Send on WhatsApp from a portal screen (template only, the real result).
+router.use(require('./internal-share.routes'));
 
 // ─── coaching ───────────────────────────────────────────────────────────────
 //

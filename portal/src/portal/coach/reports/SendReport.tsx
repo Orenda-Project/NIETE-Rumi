@@ -10,7 +10,8 @@ import { coach } from "../../services/api";
 import { LESSONS } from "../../teacher/lessons/copy";
 import { dayName, pkDayOf, pkToday } from "../../teacher/lessons/days";
 import { ScoreRing } from "../../teacher/ui";
-import { BottomButton, Initials, useLoad } from "../ui";
+import { ShareActions } from "../../teacher/ui/ShareActions";
+import { Initials, useLoad } from "../ui";
 import ReportsFrame from "./ReportsFrame";
 import { REPORTS } from "./copy";
 import { observationPath } from "./paths";
@@ -57,11 +58,12 @@ export default function SendReport() {
     leader.previewReport(id).then(reload).catch(() => setFailed(true));
   }, [step, id, reload]);
 
-  const send = async () => {
-    setBusy(true);
+  // bd-fmf24g.30 — the Send button is the kit's ShareActions ("Send to Ayesha", WhatsApp green). The coach's send is the
+  // existing queued delivery: it answers `sent` once the bot has the job, and the page then moves on to its own sending
+  // / sent / not-sent steps (which carry the teacher's real delivery state).
+  const send = async (): Promise<{ status: "sent" } | { status: "failed" }> => {
     setFailed(false);
-    try { await leader.sendReport(id); reload(); } catch { setFailed(true); }
-    setBusy(false);
+    try { await leader.sendReport(id); reload(); return { status: "sent" }; } catch { setFailed(true); return { status: "failed" }; }
   };
   const again = async () => {
     setBusy(true);
@@ -79,7 +81,7 @@ export default function SendReport() {
   const phone = view?.report.teacherPhone || view?.teacher?.phone || null;
 
   const dock = ready ? (
-    <BottomButton onClick={send} disabled={busy}>{C.sendTo(first)}</BottomButton>
+    <ShareActions onSend={send} sendTo={first} copy={{ sendTo: C.sendTo }} />
   ) : undefined;
 
   return (
