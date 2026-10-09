@@ -59,6 +59,10 @@ export interface TeacherUiCopy {
   stepsCount: (done?: number, total?: number) => string;
   play: string;
   pause: string;
+  /** bd-4404s7.1 — TimeStamp's AM/PM, and ChosenSoFar's group name. */
+  am: string;
+  pm: string;
+  chosenSoFar: string;
   report: ReportCopy;
   /** bd-fmf24g.15 — ReadyTray / ReadyBanner. */
   notify: NotifyCopy;
@@ -181,6 +185,9 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
   /** VoiceNote's button. */
   play: 'Play',
   pause: 'Pause',
+  am: 'AM',
+  pm: 'PM',
+  chosenSoFar: 'Chosen so far',
   report: {
     report: 'Report',
     eyebrow: 'Celebrating your teaching',
@@ -275,6 +282,10 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
   stepsCount: (done = 0, total = 0) => `${total} میں سے ${done}`,
   play: 'چلائیں',
   pause: 'روکیں',
+  /** صبح (AM) as in the coach board's 8:30 صبح. PM is بعد دوپہر: شام is wrong for a 2:00 PM class (Urdu review, bd-fmf24g.13). */
+  am: 'صبح',
+  pm: 'بعد دوپہر',
+  chosenSoFar: 'اب تک کا انتخاب',
   report: {
     report: 'رپورٹ',
     /** The hero PNG's own words (hero-report.template.js ur.celebrate), word for word. */
@@ -303,13 +314,13 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
     beingMade: 'تیار ہو رہا ہے',
     lessonPlan: 'لیسن پلان',
     paper: 'پرچہ',
-    timeLeft: (n = 1) => `~${n} منٹ باقی`,
+    timeLeft: (n = 1) => `تقریباً ${n} منٹ باقی`,
     almostDone: 'تقریباً تیار',
-    more: (n = 0) => `+${n} مزید`,
+    more: (n = 0) => `مزید ${n}`,
     readyLesson: 'لیسن پلان تیار ہے',
     readyPaper: 'پرچہ تیار ہے',
     readyMany: (n = 0) => `${n} تیار ہیں`,
-    moreReady: (n = 0) => `+${n} مزید تیار`,
+    moreReady: (n = 0) => `مزید ${n} تیار`,
     open: 'کھولیں',
     tryAgain: 'دوبارہ کوشش کریں',
     couldntMake: 'نہیں بن سکا',

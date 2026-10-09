@@ -20,6 +20,9 @@
   try { boot = JSON.parse(document.getElementById('boot').textContent || '{}'); } catch (e) { boot = {}; }
   var menuData = boot.menu || { exercises: [], lang: 'en' };
   var L = menuData.lang === 'ur' ? 'ur' : 'en';
+  // The Urdu polish (web_quiz_ur_polish): the edge puts `wq-ur2` on <html>; read before the copy below is built.
+  var UR2 = false;
+  try { UR2 = !!(document.documentElement && document.documentElement.classList && document.documentElement.classList.contains('wq-ur2')); } catch (e) { UR2 = false; }
   var MASCOT = boot.mascot || (L === 'ur' ? 'جگنو' : 'Jugnu');
   var JUG = '/wq/jugnu/';
 
@@ -35,6 +38,7 @@
       start: 'Start',
       ready: "I'm ready",
       hear: 'Tap to hear',
+      hearOption: 'Hear this answer',
       practice: "Let's practise first",
       own: 'Now on your own!',
       tapBigger: 'Tap the bigger number',
@@ -81,7 +85,7 @@
     ur: {
       homeBtn: 'ہوم',
       title: function (m) { return m + ' کا چیلنج'; },
-      pick: 'ایک چنیں۔ ہر ایک تقریباً ۲ منٹ کا ہے۔',
+      pick: 'ایک چنیں۔ ہر ایک تقریباً ' + ud(2) + ' منٹ کا ہے۔',
       mins: function (n) { return ud(n) + ' منٹ'; },
       done: 'ہو گیا',
       lastBigger: function (c, n) { return ud(n) + ' میں سے ' + ud(c); },
@@ -89,6 +93,7 @@
       start: 'شروع کریں',
       ready: 'تیار ہوں',
       hear: 'سننے کے لیے چھوئیں',
+      hearOption: 'یہ جواب سنیں',
       practice: 'پہلے مشق کریں',
       own: 'اب خود کریں!',
       tapBigger: 'بڑے نمبر کو چھوئیں',
@@ -135,10 +140,12 @@
     },
   };
   var t = T[L];
-  var ICON = { bigger: '🔢', read: '📖', listen: '👂' };
+  var ICON = { bigger: '🔢', missing: '🧩', read: '📖', listen: '👂' };
 
   // Urdu digits in Urdu prose; a number on a maths card stays Western and is isolated LTR.
-  function ud(n) { return L === 'ur' ? String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.charAt(+d); }) : String(n); }
+  // On the trail, or under the Urdu polish (the edge's `wq-ur2` class on <html>), every number the page writes is
+  // Western, isolated LTR in Urdu (the keypad is Western; one system). Otherwise today's Urdu digits.
+  function ud(n) { if (trailOn() || UR2) return L === 'ur' ? iso(n) : String(n); return L === 'ur' ? String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.charAt(+d); }) : String(n); }
   function iso(n) { return '⁦' + n + '⁩'; }
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
@@ -205,6 +212,45 @@
         'html[lang=ur] .wqc-opt{font-weight:700;line-height:1.9}',
         '.wqc-opt.wqc-ok{border-color:var(--right);background:var(--right-bg)}',
         '.wqc-opt.wqc-no{border-color:var(--notyet);background:var(--notyet-bg)}',
+        // the trail: stops down a dotted path; a gold stop is a finished first play, a grey one waits for a microphone
+        '.wqc-trail{list-style:none;margin:0;padding:0;display:grid;gap:14px;position:relative}',
+        '.wqc-trail:before{content:"";position:absolute;top:36px;bottom:36px;inset-inline-start:35px;border-inline-start:4px dotted var(--line)}',
+        '.wqc-stop{display:flex;align-items:center;gap:14px;width:100%;min-height:84px;border:0;background:transparent;padding:0;text-align:start;cursor:pointer;color:var(--navy);font-family:inherit;position:relative}',
+        '.wqc-dotc{flex:0 0 auto;width:74px;height:74px;border-radius:50%;display:grid;place-items:center;font-size:34px;line-height:1;background:var(--card);box-shadow:0 5px 0 var(--line)}',
+        '.wqc-stop.wqc-gold .wqc-dotc{background:radial-gradient(circle at 35% 30%,#FFE9A8,#F4C04E);box-shadow:0 5px 0 #B98612}',
+        '.wqc-stop.wqc-nextup .wqc-dotc{background:var(--brand);box-shadow:0 5px 0 rgba(0,0,0,.18),0 0 0 7px var(--right-bg)}',
+        '.wqc-stop.wqc-wait .wqc-dotc{background:var(--paper-2);box-shadow:0 5px 0 var(--line);filter:grayscale(1);opacity:.7}',
+        '.wqc-stxt{flex:1 1 auto;min-width:0}',
+        '.wqc-stxt b{display:block;font-size:20px;font-weight:900;overflow-wrap:anywhere}',
+        'html[lang=ur] .wqc-stxt b{font-weight:700;line-height:1.9}',
+        '.wqc-stxt small{display:block;color:var(--muted);font-weight:700;font-size:14px}',
+        'html[lang=ur] .wqc-stxt small{line-height:1.9}',
+        '.wqc-pill{display:inline-block;margin-top:4px;border-radius:999px;padding:2px 10px;font-weight:800;font-size:13px}',
+        '.wqc-pill.wqc-pgold{background:#FFF3D1;color:#8A5A00}',
+        '.wqc-pill.wqc-pnext{background:var(--right-bg);color:var(--right)}',
+        '.wqc-pill.wqc-pwait{background:var(--paper-2);color:var(--muted)}',
+        '.wqc-banner{border-radius:14px;background:#EFE7FB;color:#5B3A9A;font-weight:800;font-size:15px;padding:8px 12px;margin:0 0 10px;text-align:center}',
+        'html[lang=ur] .wqc-banner{font-weight:700;line-height:1.9}',
+        '.wqc-medal{width:120px;height:120px;margin:4px auto 0;border-radius:50%;display:grid;place-items:center;font-size:56px;background:radial-gradient(circle at 35% 30%,#FFE9A8,#F4C04E);box-shadow:0 6px 0 #B98612}',
+        '.wqc-medal-t{text-align:center;font-weight:900;font-size:20px;color:#8A5A00;margin:8px 0 0}',
+        // Missing number: the row (always left to right, Western digits) and a phone keypad
+        '.wqc-seq{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;direction:ltr;margin:6px 0 12px}',
+        '.wqc-cell{min-height:76px;border-radius:18px;background:var(--card);box-shadow:0 4px 0 var(--line);display:grid;place-items:center;font-size:32px;font-weight:900;color:var(--navy);font-family:var(--f);overflow:hidden}',
+        '.wqc-cell.wqc-gap{border:3px dashed var(--brand);background:var(--right-bg);box-shadow:none}',
+        '.wqc-cell.wqc-ok{border:3px solid var(--right);background:var(--right-bg)}',
+        '.wqc-cell.wqc-no{border:3px solid var(--notyet);background:var(--notyet-bg)}',
+        '.wqc-keys{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;direction:ltr}',
+        '.wqc-k{min-height:58px;min-width:48px;border-radius:16px;border:0;background:var(--card);box-shadow:0 4px 0 var(--line);font-size:28px;font-weight:900;color:var(--navy);cursor:pointer;font-family:var(--f)}',
+        '.wqc-k.wqc-kok{background:var(--brand);color:#fff;box-shadow:0 4px 0 rgba(0,0,0,.2)}',
+        '.wqc-k[disabled]{opacity:.45;cursor:default}',
+        '.wqc-skip[hidden]{display:none}',
+        '.wqc-skip{display:block;margin:10px auto 0;min-height:44px;min-width:88px;border:0;background:transparent;color:var(--muted);font-weight:800;font-size:16px;text-decoration:underline;cursor:pointer;padding:6px 12px;font-family:inherit}',
+        // Listen's read-aloud options: a play button at the row's start (the right edge in Urdu), never part of the answer
+        '.wqc-orow{display:flex;gap:10px;align-items:stretch}',
+        '.wqc-orow .wqc-opt{flex:1;min-width:0}',
+        '.wqc-ohear{flex:0 0 52px;min-height:52px;border-radius:16px;border:3px solid var(--line);background:var(--paper-2);font-size:22px;cursor:pointer;padding:0}',
+        '.wqc-ohear-none{border-color:transparent;background:transparent}',
+        '.wqc-opt.wqc-reading{border-color:var(--navy)}',
         '.wqc-sticky{position:fixed;left:0;right:0;bottom:0;z-index:5;padding:14px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(rgba(255,255,255,0),var(--paper) 30%)}',
       ].join('\n');
       document.head.appendChild(s);
@@ -235,6 +281,61 @@
     } catch (e) { /* events never break the page */ }
   }
   function kidQs() { return '?lang=' + L + (boot.kid ? '&kid=' + encodeURIComponent(boot.kid) : ''); }
+
+  // ── the trail (the menu says trail:true and brings its copy): the stops, the badge, the practice banner ────
+  function trailOn() { return !!(menuData.trail && menuData.trail_copy); }
+  function tc(k, p) {
+    var c = (menuData.trail_copy && menuData.trail_copy[k]) || (S.data && S.data.trail_copy && S.data.trail_copy[k]) || '';
+    // a number filled into Urdu copy is isolated left to right (Western digits, as the keypad)
+    for (var key in (p || {})) {
+      var v = p[key];
+      c = c.split('{' + key + '}').join(L === 'ur' && /^[0-9]+$/.test(String(v)) ? iso(v) : String(v));
+    }
+    return c;
+  }
+  // A phone with no microphone (WhatsApp's browser often has none), or one that refused it on this device: the
+  // stops that need it wait, labelled; they are never shown as failed, and the other stops play on.
+  var NOMIC_KEY = 'wqc_nomic';
+  var micRefused = false;
+  try { micRefused = window.localStorage.getItem(NOMIC_KEY) === '1'; } catch (e) { micRefused = false; }
+  function micAbsent() {
+    var md = navigator.mediaDevices;
+    return micRefused || !md || typeof md.getUserMedia !== 'function' || !window.MediaRecorder;
+  }
+  // Only a HARD denial is remembered on the phone (the browser says the microphone is denied): a timeout, a dismissed
+  // prompt or a busy microphone must not close the stop for the next child on a shared phone.
+  function noteNoMic() {
+    micRefused = true;
+    try { window.localStorage.setItem(NOMIC_KEY, '1'); } catch (e) { /* this visit only */ }
+  }
+  function hardDenied(cb) {
+    try {
+      var pm = navigator.permissions;
+      if (!pm || typeof pm.query !== 'function') { cb(false); return; }
+      pm.query({ name: 'microphone' }).then(function (st) { cb(!!st && st.state === 'denied'); }, function () { cb(false); });
+    } catch (e) { cb(false); }
+  }
+  // "On your own, or with help?" — asked once per sitting on the trail, nothing preselected; the answer rides each
+  // run (helped true / false), the badge comes either way. Not asked ⇒ nothing sent (null on the row).
+  var helped = null;
+  function helpAsk(then) {
+    show('help-ask', jug('hello', tc('helpAsk'), true) + '<div class="wq-stack">'
+      + '<button class="wq-btn wq-go" id="wqc-help-no" type="button">' + esc(tc('helpNo')) + '</button>'
+      + '<button class="wq-btn wq-go" id="wqc-help-yes" type="button">' + esc(tc('helpYes')) + '</button></div>');
+    on('wqc-help-no', function () { helped = false; ev('ch_helped', { v: 0 }); then(); });
+    on('wqc-help-yes', function () { helped = true; ev('ch_helped', { v: 1 }); then(); });
+  }
+  function withHelped(b) { if (helped != null) b.helped = helped; return b; }
+  function noteMic() {
+    micRefused = false;
+    try { window.localStorage.removeItem(NOMIC_KEY); } catch (e) { /* nothing kept */ }
+  }
+  function backLabel() { return trailOn() ? tc('back') : t.more; }
+  function medal(ex) {
+    // the finish badge, on the first play only (whatever the score); a practice round earns nothing new
+    if (!S.data || !S.data.trail || S.data.practice_round) return '';
+    return '<div class="wqc-medal" aria-hidden="true">' + (ICON[ex] || '⭐') + '</div><p class="wqc-medal-t" id="wqc-medal">⭐ ' + esc(tc('stopDone')) + '</p>';
+  }
 
   // ── the mascot: a bubble and, when there is one, its recorded clip ────────────────────────────────
   var player = null;
@@ -279,7 +380,9 @@
   }
   function show(name, html) {
     S.screen = name;
-    root.innerHTML = '<section class="wq-screen wqc" data-screen="' + name + '">' + homeTop() + html + '</section>';
+    // a stop played again on the trail: every screen of it says it is practice, scored into nothing
+    var banner = name !== 'menu' && name !== 'trail' && S.data && S.data.practice_round ? '<p class="wqc-banner" id="wqc-practice">' + esc(tc('practice')) + '</p>' : '';
+    root.innerHTML = '<section class="wq-screen wqc" data-screen="' + name + '">' + homeTop() + banner + html + '</section>';
     try { window.scrollTo(0, 0); } catch (e) {}
   }
 
@@ -290,7 +393,43 @@
     if (x.id === 'read') return x.last.wcpm > 0 && !x.last.stopped ? t.lastRead(x.last.wcpm) : '';
     return x.last.n ? t.lastBigger(x.last.correct, x.last.n) : t.done;
   }
+  function trailMap() {
+    S.data = null;
+    var xs = menuData.exercises || [];
+    var playable = xs.filter(function (x) { return !(x.mic && micAbsent()); });
+    var done = xs.filter(function (x) { return x.badge; }).length;
+    var allDone = playable.length > 0 && playable.every(function (x) { return x.badge; });
+    var next = null;
+    playable.forEach(function (x) { if (!next && !x.badge) next = x.id; });
+    var stops = xs.map(function (x) {
+      var wait = x.mic && micAbsent();
+      var cls = x.badge ? ' wqc-gold' : (wait ? ' wqc-wait' : (x.id === next ? ' wqc-nextup' : ''));
+      var pill = x.badge ? '<span class="wqc-pill wqc-pgold">⭐ ' + esc(tc('badge')) + '</span>'
+        : (wait ? '<span class="wqc-pill wqc-pwait">🎤 ' + esc(tc('needsMic')) + '</span>'
+          : (x.id === next ? '<span class="wqc-pill wqc-pnext">' + esc(tc('next')) + '</span>' : ''));
+      return '<li><button class="wqc-stop' + cls + '" type="button" id="wqc-ex-' + esc(x.id) + '" data-badge="' + (x.badge ? '1' : '0') + '"' + (wait ? ' data-wait="1"' : '') + '>'
+        + '<span class="wqc-dotc" aria-hidden="true">' + (ICON[x.id] || '⭐') + '</span>'
+        + '<span class="wqc-stxt"><b>' + esc(x.name) + '</b><small>' + esc(t.mins(x.mins)) + (x.mic && !wait ? ' · 🎤 ' + esc(tc('mic')) : '') + '</small>' + pill + '</span></button></li>';
+    }).join('');
+    var sub = allDone ? tc('allDone', { name: MASCOT }) : tc('sub', { done: done, total: xs.length });
+    show('trail', jug(allDone ? 'celebrate' : 'hello', tc('title', { name: MASCOT }), true) + '<p class="wq-sub" id="wqc-trail-sub">' + esc(sub) + '</p><ol class="wqc-trail">' + stops + '</ol>');
+    xs.forEach(function (x) {
+      on('wqc-ex-' + x.id, function () { if (x.mic && micAbsent()) micWait(); else open(x.id); });
+    });
+  }
+
+  // A stop that needs the microphone on a phone without one: it waits, and the child goes on elsewhere.
+  // (No "how to allow it" copy: the steps differ by phone and are not verified inside WhatsApp's browser.)
+  function micWait(retry) {
+    releaseMic();
+    show('mic-wait', jug('hello', tc('micWait'), true) + '<div class="wq-stack"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(tc('other')) + '</button>'
+      + (retry ? '<button class="wq-btn wq-soft" id="wqc-micagain" type="button">' + esc(tc('micAgain')) + '</button>' : '') + '</div>');
+    on('wqc-menu', refreshMenu);
+    if (retry) on('wqc-micagain', function () { open('read'); });
+  }
+
   function menu() {
+    if (trailOn()) { trailMap(); return; }
     var tiles = (menuData.exercises || []).map(function (x) {
       return '<button class="wqc-tile" type="button" id="wqc-ex-' + esc(x.id) + '"><span class="wqc-ico" aria-hidden="true">' + (ICON[x.id] || '⭐') + '</span>'
         + '<span><b>' + esc(x.name) + '</b><small>' + esc(t.mins(x.mins)) + '</small>'
@@ -311,7 +450,7 @@
     var line = err && err.status === 429 ? t.tooMany : (err && err.status ? t.wrong : t.offline);
     show('error', jug('notyet', line, true) + '<div class="wq-stack">'
       + (retry ? '<button class="wq-btn wq-go" id="wqc-retry" type="button">' + esc(t.again) + '</button>' : '')
-      + '<button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(t.more) + '</button></div>');
+      + '<button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(backLabel()) + '</button></div>');
     if (retry) on('wqc-retry', retry);
     on('wqc-menu', refreshMenu);
   }
@@ -321,19 +460,20 @@
     api('ch/' + encodeURIComponent(boot.token) + '/' + ex + kidQs()).then(function (d) {
       S.data = d;
       ev('ch_start', { step: ex });
-      intro();
+      if (d.trail && helped == null && d.trail_copy && d.trail_copy.helpAsk) helpAsk(intro); else intro();
     }).catch(function (e) { errorScreen(e, function () { open(ex); }); });
   }
 
   function intro() {
     var d = S.data;
-    show('intro', jug('hello', d.clips.intro.text, true) + hearBtn(d.clips.intro)
+    show('intro', jug('hello', d.clips.intro.text, true) + hearBtn(d.clips.intro) + (d.ex === 'missing' ? missing.rowHtml(d.practice[0] || { seq: [] }, null, true) : '')
       + '<div class="wqc-sticky"><button class="wq-btn wq-go" id="wqc-go" type="button">' + esc(d.ex === 'read' ? t.ready : (d.ex === 'listen' ? t.listenGo : t.start)) + '</button></div>');
     bindHear(d.clips.intro);
     say(d.clips.intro);
     on('wqc-go', function () {
       if (d.ex === 'read') micStart();
       else if (d.ex === 'listen') listen.start();
+      else if (d.ex === 'missing') missing.practice(0);
       else bigger.practice(0);
     });
   }
@@ -356,7 +496,7 @@
         clearTimeout(cap);
         if (!ok) {
           ev('ch_listen', { ok: false });
-          show('error', jug('notyet', t.listenWrong, true) + '<div class="wq-stack"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(t.more) + '</button></div>');
+          show('error', jug('notyet', t.listenWrong, true) + '<div class="wq-stack"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button></div>');
           on('wqc-menu', refreshMenu);
           return;
         }
@@ -449,20 +589,125 @@
       var d = S.data;
       show('bigger-wait', jug('thinking', d.clips.stop.text, true));
       say(d.clips.stop);
-      api('ch/result', { ct: d.ct, taps: bigger.taps, ms: Date.now() - bigger.started })
+      api('ch/result', withHelped({ ct: d.ct, taps: bigger.taps, ms: Date.now() - bigger.started }))
         .then(function (r) { bigger.result(r.score); })
         .catch(function (e) { errorScreen(e, bigger.finish); });
     },
     result: function (s) {
       var d = S.data;
       var good = !s.stopped;
-      show('bigger-result', jug(good ? 'celebrate' : 'notyet', good ? d.clips.done.text : t.stoppedBigger, true)
+      // on the trail the stop's badge comes on the first play whatever the score; "again" is the practice round
+      show('bigger-result', jug(good ? 'celebrate' : 'notyet', good ? d.clips.done.text : t.stoppedBigger, true) + medal('bigger')
         + '<p class="wqc-score" id="wqc-score">' + esc(t.gotBigger(s.correct, s.n)) + '</p>'
-        + '<div class="wq-stack"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(t.more) + '</button>'
-        + '<button class="wq-btn wq-soft" id="wqc-again" type="button">' + esc(t.again) + '</button></div>');
+        + '<div class="wq-stack"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>'
+        + (d.trail ? '' : '<button class="wq-btn wq-soft" id="wqc-again" type="button">' + esc(t.again) + '</button>') + '</div>');
       if (good) say(d.clips.done);
       on('wqc-menu', refreshMenu);
       on('wqc-again', function () { open('bigger'); });
+    },
+  };
+
+  // ── Missing number ──────────────────────────────────────────────────────────────────────────────────
+  // Four numbers in a row, one a gap; the child types it on a keypad (left to right, Western digits) and taps ✓.
+  // Untimed, no countdown; "Skip" shows after 5 s. 2 practice rows with feedback, then 10 without; 4 wrong or skipped
+  // in a row stop it (the server applies the same stop to what it stores). Each answer: what was typed, how long the
+  // item took, when the first key came, how many keys were pressed.
+  var missing = {
+    answers: [], miss: 0, started: 0, val: '', t0: 0, first: null, keys: 0, skipT: null,
+    rowHtml: function (it, typed, still, mark) {
+      return '<div class="wqc-seq" id="wqc-seq">' + (it.seq || []).map(function (v) {
+        if (v != null) return '<div class="wqc-cell">' + esc(v) + '</div>';
+        return '<div class="wqc-cell wqc-gap' + (mark ? ' ' + mark : '') + '" id="wqc-gap">' + (still ? '?' : esc(typed || '')) + '</div>';
+      }).join('') + '</div>';
+    },
+    keysHtml: function () {
+      var k = function (v, cls, label) { return '<button class="wqc-k' + (cls || '') + '" type="button" data-k="' + v + '" id="wqc-k' + v + '" aria-label="' + esc(label || v) + '">' + (label ? label : v) + '</button>'; };
+      return '<div class="wqc-keys">' + [1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (n) { return k(String(n)); }).join('')
+        + k('del', '', '⌫') + k('0') + k('ok', ' wqc-kok', '✓') + '</div>';
+    },
+    screen: function (name, it, line, k, n) {
+      show(name, jug('thinking', line) + (n ? '<p class="wq-small" id="wqc-of">' + esc(t.of(k, n)) + '</p>' : '')
+        + missing.rowHtml(it, '') + missing.keysHtml() + '<button class="wqc-skip" id="wqc-skip1" type="button" hidden>' + esc(tc('missSkip')) + '</button>');
+    },
+    // `max`: no more digits than the answer has (3 for the 3-digit rows), so a long tap-run cannot be typed
+    pad: function (done, max) {
+      missing.val = ''; missing.first = null; missing.keys = 0; missing.t0 = Date.now();
+      var paint = function () {
+        var g = q('wqc-gap'); if (g) g.textContent = missing.val;
+        var ok = q('wqc-kok'); if (ok) ok.disabled = !missing.val;
+      };
+      paint();
+      ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'del', 'ok'].forEach(function (v) {
+        on('wqc-k' + v, function () {
+          if (missing.first == null) missing.first = Date.now() - missing.t0;
+          missing.keys += 1;
+          if (v === 'ok') { if (missing.val) done(missing.val); return; }
+          if (v === 'del') missing.val = missing.val.slice(0, -1);
+          else if (missing.val.length < (max || 4)) missing.val += v;
+          paint();
+        });
+      });
+    },
+    practice: function (k) {
+      var d = S.data;
+      var it = d.practice[k];
+      if (!it) { missing.ownTurn(); return; }
+      missing.screen('missing-practice', it, tc('missAsk'));
+      var over = false;
+      missing.pad(function (v) {
+        if (over) return;
+        over = true;
+        var right = Number(v) === Number(it.answer);
+        var g = q('wqc-gap'); if (g) g.className += right ? ' wqc-ok' : ' wqc-no';
+        if (!right && g) g.textContent = it.answer;
+        var s = q('wqc-say');
+        if (s) s.textContent = tc(right ? 'missYes' : 'missWas', { n: it.answer });
+        setTimeout(function () { missing.practice(k + 1); }, 1800);
+      }, String(it.answer).length);
+    },
+    ownTurn: function () {
+      missing.answers = []; missing.miss = 0; missing.started = Date.now();
+      show('missing-go', jug('hello', t.own, true));
+      say(S.data.clips.start, function () { setTimeout(function () { missing.item(0); }, 300); });
+    },
+    item: function (i) {
+      var d = S.data;
+      clearTimeout(missing.skipT);
+      if (i >= d.items.length || missing.miss >= (d.stop_after || 4)) { missing.finish(); return; }
+      var it = d.items[i];
+      missing.screen('missing-play', it, tc('missAsk'), i + 1, d.items.length);
+      var over = false;
+      var next = function (v) {
+        if (over) return;
+        over = true;
+        clearTimeout(missing.skipT);
+        missing.answers.push({ i: i, value: v, ms: Date.now() - missing.t0, first_key_ms: missing.first, keys: missing.keys });
+        // the phone keeps its own count so a stopped child is not shown more rows; no right/wrong is shown
+        missing.miss = v != null && Number(v) === Number(it.answer) ? 0 : missing.miss + 1;
+        setTimeout(function () { missing.item(i + 1); }, 250);
+      };
+      // the item's clock starts here, at the row's paint (first_key_ms and ms are measured from it)
+      missing.pad(next, String(it.answer).length);
+      missing.skipT = setTimeout(function () { var b = q('wqc-skip1'); if (b) b.hidden = false; }, (d.first_key_s || 5) * 1000);
+      on('wqc-skip1', function () { next(null); });
+    },
+    finish: function () {
+      clearTimeout(missing.skipT);
+      var d = S.data;
+      show('missing-wait', jug('thinking', d.clips.stop.text, true));
+      say(d.clips.stop);
+      api('ch/result', withHelped({ ct: d.ct, answers: missing.answers, ms: Date.now() - missing.started }))
+        .then(function (r) { missing.result(r.score); })
+        .catch(function (e) { errorScreen(e, missing.finish); });
+    },
+    result: function (s) {
+      var d = S.data;
+      var good = !s.stopped;
+      show('missing-result', jug(good ? 'celebrate' : 'notyet', good ? d.clips.done.text : t.stoppedBigger, true) + medal('missing')
+        + (good ? '<p class="wqc-score" id="wqc-score">' + esc(t.gotBigger(s.correct, s.n)) + '</p>' : '')
+        + '<div class="wq-stack"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button></div>');
+      if (good) say(d.clips.done);
+      on('wqc-menu', refreshMenu);
     },
   };
 
@@ -503,7 +748,7 @@
     rec.micCheck = null; rec.ended = null; rec.stuckOpen = false;
     if (!md || typeof md.getUserMedia !== 'function' || type === null) {
       ev('ch_mic', { ok: false, err: 'unsupported' });
-      noMic();
+      noMic('unsupported');
       return;
     }
     show('mic-ask', jug('hello', t.micAsk, true) + '<button class="wq-btn wq-soft" id="wqc-skip" type="button">' + esc(t.skip) + '</button>');
@@ -514,12 +759,13 @@
       if (settled) return;
       settled = true;
       ev('ch_mic', { ok: false, err: 'timeout' });
-      noMic();
+      noMic('timeout');
     }, MIC_WAIT_MS);
     md.getUserMedia({ audio: true }).then(function (stream) {
       if (settled) { stopTracks(stream); return; }
       settled = true;
       ev('ch_mic', { ok: true });
+      noteMic();
       rec.stream = stream;
       rec.type = type;
       if (guardOn()) micCheck(); else readStart();
@@ -528,14 +774,24 @@
       settled = true;
       var name = String((e && e.name) || 'error').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 40) || 'error';
       ev('ch_mic', { ok: false, err: name });
-      noMic();
+      noMic(name);
     });
   }
 
   function chromeHref() {
     return 'intent://' + location.host + location.pathname + (location.search || '') + '#Intent;scheme=https;package=com.android.chrome;end';
   }
-  function noMic() {
+  function noMic(reason) {
+    // on the trail a phone without a microphone is a branch, not a failure: the stop waits, the others play.
+    // A hard denial is remembered and waits; anything softer (timeout, dismissed, busy) offers to ask again.
+    if (trailOn()) {
+      if (reason === 'notallowederror') {
+        hardDenied(function (hard) { if (hard) { noteNoMic(); micWait(false); } else micWait(true); });
+        return;
+      }
+      micWait(reason !== 'unsupported');
+      return;
+    }
     var android = /Android/i.test(navigator.userAgent || '');
     show('no-mic', jug('notyet', t.noMic, true) + '<div class="wq-stack">'
       + (android ? '<a class="wq-btn wq-go" id="wqc-chrome" href="' + esc(chromeHref()) + '">' + esc(t.chrome) + '</a>' : '')
@@ -725,6 +981,7 @@
   function resultBody(extra) {
     var b = { ct: S.data.ct, lang: L };
     for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) b[k] = extra[k];
+    withHelped(b);
     if (guardOn()) { b.ended = rec.ended || 'timer'; b.read_s = Math.round((rec.ms || 0) / 1000); b.mic_check = rec.micCheck || 'none'; }
     return b;
   }
@@ -835,7 +1092,7 @@
     if (liveOk()) { liveEnd(); return; }
     if (size < MIN_BYTES) {
       show('read-empty', jug('notyet', t.empty, true) + '<div class="wq-stack"><button class="wq-btn wq-go" id="wqc-again" type="button">' + esc(t.again) + '</button>'
-        + '<button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(t.more) + '</button></div>');
+        + '<button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(backLabel()) + '</button></div>');
       on('wqc-again', function () { open('read'); });
       on('wqc-menu', refreshMenu);
       return;
@@ -885,7 +1142,7 @@
       + '<p class="wq-sub" id="wqc-growth"></p>'
       + '<div class="wqc-story" id="wqc-live-story" dir="' + (d.story.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + liveStoryHtml(live.v.marks) + '</div>'
       + '<p class="wqc-key"><span><i style="background:var(--right-bg)"></i>' + esc(t.readGreen) + '</span><span><i style="background:#FFF1D6"></i>' + esc(t.notCaught(MASCOT)) + '</span></p>'
-      + '<div class="wqc-sticky">' + (good && d.questions_on ? '<div class="wq-stack">' + qaButtons() + '</div>' : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(t.more) + '</button>') + '</div>');
+      + '<div class="wqc-sticky">' + (good && d.questions_on ? '<div class="wq-stack">' + qaButtons() + '</div>' : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>') + '</div>');
     if (good) say(d.clips.done);
     qa.attempted = live.v.attempted;
     on('wqc-menu', refreshMenu);
@@ -895,7 +1152,7 @@
   // ── questions after Read aloud: up to 3 taps about the part the child read; the server holds the answers ──
   function qaButtons() {
     return '<button class="wq-btn wq-go" id="wqc-qa" type="button">' + esc(t.qaStart) + '</button>'
-      + '<button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(t.more) + '</button>';
+      + '<button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>';
   }
   var qa = {
     list: [], k: 0, right: 0, attempted: null,
@@ -914,16 +1171,45 @@
       var x = qa.list[k];
       if (!x) { qa.done(); return; }
       qa.k = k;
-      var opts = x.options.map(function (o, i) { return '<button class="wqc-opt" type="button" id="wqc-o' + i + '">' + esc(o) + '</button>'; }).join('');
+      // Listen's options read aloud (when the server sends their clips): each option gets its own play button beside
+      // it — never the answer tap — and after the question the options are read in turn, the row lit while it plays.
+      var oc = x.option_clips || [];
+      var heard = oc.some(function (c) { return c && c.url; });
+      var opt = function (o, i) { return '<button class="wqc-opt" type="button" id="wqc-o' + i + '">' + esc(o) + '</button>'; };
+      var opts = x.options.map(function (o, i) {
+        if (!heard) return opt(o, i);
+        var c = oc[i];
+        return '<div class="wqc-orow">' + (c && c.url ? '<button class="wqc-ohear" type="button" id="wqc-oh' + i + '" data-src="' + esc(c.url) + '" aria-label="' + esc(t.hearOption) + '">🔊</button>' : '<span class="wqc-ohear wqc-ohear-none" aria-hidden="true"></span>') + opt(o, i) + '</div>';
+      }).join('');
       show('qa', '<p class="wq-small">' + esc(t.of(k + 1, qa.list.length)) + '</p>' + jug('thinking', x.prompt) + hearBtn(x.clip)
         + '<div class="wqc-opts">' + opts + '</div>');
       bindHear(x.clip);
-      say(x.clip);
       var picked = false;
+      var seq = { on: heard, at: 0, told: false };
+      var light = function (i) { x.options.forEach(function (o, j) { var b = q('wqc-o' + j); if (b) b.className = b.className.replace(/ wqc-reading/g, '') + (j === i ? ' wqc-reading' : ''); }); };
+      // once per question: did the child wait for every option to be read ('heard') or answer first ('tapped')?
+      var told = function (how) { if (seq.told || !heard) return; seq.told = true; ev('wqc_optaudio_done', { how: how, i: seq.at }); };
+      var readOpt = function (i) {
+        if (!seq.on || picked || qa.k !== k) return;
+        if (i >= x.options.length) { seq.on = false; light(-1); told('heard'); return; }
+        seq.at = i;
+        if (!(oc[i] && oc[i].url)) { readOpt(i + 1); return; }
+        light(i);
+        say(oc[i], function () { readOpt(i + 1); });
+      };
+      say(x.clip, heard ? function () { readOpt(0); } : null);
       x.options.forEach(function (o, i) {
+        on('wqc-oh' + i, function () {
+          if (picked) return;
+          seq.on = false;   // the child took over: the turn-by-turn reading stops, this option plays
+          light(i);
+          say(oc[i], function () { light(-1); });
+        });
         on('wqc-o' + i, function () {
           if (picked) return;
           picked = true;
+          // an answer is taken at once, never after the reading: the reading stops
+          if (heard) { told('tapped'); seq.on = false; light(-1); if (player) { try { player.pause(); } catch (e) {} player = null; } }
           api('ch/qa', { ct: S.data.ct, q: x.id, pick: i, lang: L }).then(function (r) {
             var el = q('wqc-o' + i);
             if (el) el.className += r.ok ? ' wqc-ok' : ' wqc-no';
@@ -939,7 +1225,7 @@
     done: function () {
       var good = qa.right > 0;
       show('qa-done', jug(good ? 'celebrate' : 'hello', t.qaDone(qa.right, qa.list.length), true)
-        + '<div class="wq-stack"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(t.more) + '</button></div>');
+        + '<div class="wq-stack"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button></div>');
       on('wqc-menu', refreshMenu);
     },
   };
@@ -1047,8 +1333,8 @@
       + (growth ? '<p class="wq-sub" id="wqc-growth">' + esc(growth) + '</p>' : '')
       // Not heard: steer the child to read again — "Try again" is the primary button, "More challenges" the second.
       + '<div class="wq-stack">' + (r.failed
-        ? '<button class="wq-btn wq-go" id="wqc-again" type="button">' + esc(t.again) + '</button><button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(t.more) + '</button>'
-        : (score && d.questions_on ? qaButtons() : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(t.more) + '</button>')) + '</div>');
+        ? '<button class="wq-btn wq-go" id="wqc-again" type="button">' + esc(t.again) + '</button><button class="wq-btn wq-soft" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>'
+        : (score && d.questions_on ? qaButtons() : '<button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button>')) + '</div>');
     if (score) say(d.clips.done);
     if (score) qa.attempted = r.score && r.score.attempted;
     on('wqc-menu', refreshMenu);
@@ -1057,7 +1343,7 @@
   }
 
   // The test harness reaches the screens through this handle; nothing on the page uses it.
-  window.__wqc = { listen: listen, qa: qa, live: function () { return live; }, S: S, menu: menu, open: open, intro: intro, bigger: bigger, micStart: micStart, noMic: noMic, record: record, stopRec: stopRec, readResult: readResult, upload: upload, pollResult: pollResult, rec: rec, T: T };
+  window.__wqc = { missing: missing, trailMap: trailMap, micWait: micWait, listen: listen, qa: qa, live: function () { return live; }, S: S, menu: menu, open: open, intro: intro, bigger: bigger, micStart: micStart, noMic: noMic, record: record, stopRec: stopRec, readResult: readResult, upload: upload, pollResult: pollResult, rec: rec, T: T };
   ev('ch_open', {});
   menu();
 })();

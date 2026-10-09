@@ -119,6 +119,24 @@ describe('POST /coaching-upload/start', () => {
     expect(client.startSession).toHaveBeenCalledWith({ userId: 'teacher-1', key: 'k', lessonPlanKey: 'lp', photoKeys: ['p1'] });
   });
 
+  it('bd-fmf24g.9 — forwards the class she picked, only its named fields', async () => {
+    await invoke('post', '/coaching-upload/start', {
+      body: { key: 'k', teacherClass: { grade: 4, subject: 'Mathematics', subjectKey: 'maths', userId: 'x', junk: 1 } },
+    });
+    expect(client.startSession).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'teacher-1', key: 'k', teacherClass: { grade: 4, subject: 'Mathematics', subjectKey: 'maths' },
+    }));
+  });
+
+  it('bd-fmf24g.9 — a malformed teacherClass is not forwarded (the recording still starts)', async () => {
+    for (const bad of ['maths', [4], 7, null]) {
+      client.startSession.mockClear();
+      const { statusCode } = await invoke('post', '/coaching-upload/start', { body: { key: 'k', teacherClass: bad } });
+      expect(statusCode).toBe(200);
+      expect(client.startSession.mock.calls[0][0].teacherClass).toBeUndefined();
+    }
+  });
+
   it('relays "already analysing one" as 409', async () => {
     client.startSession.mockResolvedValue({ httpStatus: 409, body: { success: false, status: 'in_progress', coachingSessionId: 'cs-old' } });
     const { statusCode, payload } = await invoke('post', '/coaching-upload/start', { body: { key: 'k' } });

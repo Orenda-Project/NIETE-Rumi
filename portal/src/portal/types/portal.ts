@@ -116,6 +116,9 @@ export interface BreakdownGroup {
   max: number;
   pct: number;
   indicators: BreakdownIndicator[];
+  /** A section the paper could not assess (no bar). The bot writes its `why` in code, never the model. */
+  notAssessed?: boolean;
+  why?: string;
 }
 
 /**
@@ -169,6 +172,22 @@ export interface AnalysisData {
   photo_analysis?: unknown;
 }
 
+/**
+ * bd-fmf24g.10 — the written part of her report, as the bot stored it when it rendered the report image
+ * (analysis_data.report_narrative) and the server maps it. Null on a session that has none (older lessons,
+ * or a narrative that never generated): the page then leaves those sections out.
+ */
+export interface ReportNarrative {
+  headline: string;
+  identity: string;
+  moments: Array<{ title: string; quote: string; why: string }>;
+  strength: { title: string; note: string } | null;
+  horizon: { title: string; note: string } | null;
+  /** The per-section "why" lines, by the section's domainKey. */
+  domainWhys: Record<string, string>;
+  language: string | null;
+}
+
 export interface SessionDetail extends CoachingSession {
   status?: string;
   /** HER lesson recording. Present on 100% of sessions, never served before. */
@@ -187,6 +206,7 @@ export interface SessionDetail extends CoachingSession {
   hasLessonPlan?: boolean;
   photoUrls?: string[];
   breakdown?: ScoreBreakdown | null;
+  reportNarrative?: ReportNarrative | null;
   reflection?: ReflectionEntry[];
   prioritizedAction?: PrioritizedAction | null;
   analysisData: AnalysisData;

@@ -111,7 +111,7 @@ export const LESSONS_V2_COPY_UR: Words<typeof LESSONS_V2_COPY> = {
   couldNotOpen: 'کھل نہیں سکا',
   preparing: 'تیار ہو رہا ہے',
   pleaseHold: 'براہ کرم انتظار کریں، ہم آپ کا لیسن پلان لا رہے ہیں',
-  aboutTwoMinutes: '~2 منٹ',
+  aboutTwoMinutes: 'تقریباً 2 منٹ',
   notPrepared: 'نہیں بن سکا',
   otherLessons: 'دوسرے لیسن پلان',
   startDc: 'ڈیجیٹل کوچنگ مشاہدہ شروع کریں',
@@ -127,7 +127,7 @@ export const LESSONS_V2_COPY_UR: Words<typeof LESSONS_V2_COPY> = {
     chapter: (n: number) => `باب ${n}`,
     kpis: {
       lessonPlans: 'لیسن پلان',
-      classesCovered: 'کلاسیں شامل',
+      classesCovered: 'شامل کلاسیں',
       daysActive: 'سرگرم دن',
     },
   },

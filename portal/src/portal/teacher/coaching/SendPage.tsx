@@ -4,6 +4,7 @@ import { BookOpen, Check, Mic, Pause, Play, RotateCcw, Send, Square, Upload } fr
 import { cn } from '@/lib/utils';
 import { clockText } from '../../lib/clockText';
 import { acceptFor } from '../../lib/coachingUpload';
+import type { TeacherClass } from '../../lib/coachingSend';
 import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
 import { hasHistoryBehind, useMicLevel } from '../../lib/recordFlow';
 import { useRecordingClock, useRecordingSession, type RecordingSession } from '../../lib/recordingSession';
@@ -99,6 +100,14 @@ export function SendPage() {
   );
   const [combo, setCombo] = useState<GradeSubjectPair | null>(() => peekDraft()?.combo ?? null);
 
+  // bd-fmf24g.9: the class she picked travels with the recording and is what the lesson is scored on. Her
+  // subject key comes from her own class list (the pick is her subject's name, in her language).
+  const teacherClass = useMemo<TeacherClass | null>(() => {
+    if (!combo) return null;
+    const hit = mine.find((c) => c.grade === combo.grade && c.subject === combo.subject);
+    return { grade: combo.grade, subject: combo.subject, ...(hit?.subjectKey ? { subjectKey: hit.subjectKey } : {}) };
+  }, [combo, mine]);
+
   // The hub's plan and photos, once, after the flow has taken its arrival.
   const applied = useRef(false);
   useEffect(() => {
@@ -177,7 +186,7 @@ export function SendPage() {
       <Action tone="danger" icon={Square} onClick={() => setConfirmFinish(true)}>{C.stop}</Action>
     </Dock>
   ) : stage === 'check' && audio ? (
-    <Dock><Action icon={Send} onClick={() => { void flow.send(); }}>{C.send}</Action></Dock>
+    <Dock><Action icon={Send} onClick={() => { void flow.send(teacherClass); }}>{C.send}</Action></Dock>
   ) : null;
 
   return (
@@ -311,7 +320,7 @@ export function SendPage() {
         flow.failure.kind === 'network' ? (
           <>
             <Status title={C.noInternet} tone="error">{audio?.recordingId ? <span className="text-[14px] text-[#2f7a52]">{C.savedOnPhone}</span> : null}</Status>
-            <Dock><Action icon={RotateCcw} onClick={() => { void flow.send(); }}>{C.tryAgain}</Action></Dock>
+            <Dock><Action icon={RotateCcw} onClick={() => { void flow.send(teacherClass); }}>{C.tryAgain}</Action></Dock>
           </>
         ) : flow.failure.kind === 'plan_not_ready' || flow.failure.kind === 'plan_not_found' ? (
           <>

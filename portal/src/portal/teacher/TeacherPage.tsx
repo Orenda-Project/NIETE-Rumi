@@ -4,7 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import PortalLayout from "../components/PortalLayout";
 import { TEACHER_FRAME } from "./copy";
 import { useCopy } from "./i18n";
-import { FeatureArt, type TeacherFeature } from "./icons";
+import { FeatureArt, type AnyFeature } from "./icons";
 
 /**
  * bd-fmf24g.1 — the teacher v2 page frame (canvas v28), for every teacher v2 page.
@@ -31,12 +31,12 @@ export default function TeacherPage({
   /** bd-fmf24g.22 — a top-level page's own heading block (Home's NIETE band) instead of the plain title + chips. Full-bleed on a phone. */
   hero?: ReactNode;
   /** The page's feature: its illustration sits beside the title. */
-  feature?: TeacherFeature;
+  feature?: AnyFeature;
   crumb?: ReactNode;
   backTo?: string;
   onBack?: () => void;
   chips?: ReactNode;
-  /** A control at the right of an inner page's header. */
+  /** A control at the end of the header (right in English, left in Urdu), inner or top-level: a coach's "New visit", an Edit. */
   action?: ReactNode;
   /** The page's bottom action(s), kept above the menu. */
   dock?: ReactNode;
@@ -77,7 +77,8 @@ export default function TeacherPage({
           <header className="flex flex-col gap-3 px-1 pb-1.5 pt-6">
             <div className="flex items-center gap-3">
               {tile}
-              <h1 className="min-w-0 break-words text-[32px] font-light leading-[1.15] tracking-[-0.015em] [overflow-wrap:anywhere]">{title}</h1>
+              <h1 className="min-w-0 flex-1 break-words text-[32px] font-light leading-[1.15] tracking-[-0.015em] [overflow-wrap:anywhere]">{title}</h1>
+              {action}
             </div>
             {chips && <div className="flex flex-wrap gap-2">{chips}</div>}
           </header>

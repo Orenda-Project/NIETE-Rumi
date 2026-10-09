@@ -12,7 +12,9 @@ export {
 export { SubjectTile, type SubjectTileProps, type SubjectTileTone } from './SubjectTile';
 export { GradeSubjectButton, type GradeSubjectButtonProps, type GradeSubjectState } from './GradeSubjectButton';
 export { GRADE_COLOURS, NEUTRAL_COLOURS, gradeColoursFor, type GradeColours } from './gradeColours';
-export { HistoryRow, leadColours, type HistoryAction, type HistoryRowProps, type LeadColours } from './HistoryRow';
+export {
+  HistoryRow, leadColours, type HistoryAction, type HistoryLead, type HistoryLeadTone, type HistoryRowProps, type HistoryRowState, type LeadColours,
+} from './HistoryRow';
 export { HistoryList, type HistoryGroup, type HistoryItem, type HistoryListProps } from './HistoryList';
 export { ListRow, type ListRowIcon, type ListRowProps, type ListRowState } from './ListRow';
 export { Tray, type TrayProps } from './Tray';
@@ -34,3 +36,7 @@ export { ProgressSteps, type ProgressStep, type ProgressStepsProps } from './Pro
 export { VoiceNote, type VoiceNoteProps } from './VoiceNote';
 export { ReportBody, type ReportBodyProps, type ReportData, type ReportScore } from './ReportBody';
 export { HomeGreeting, type HomeGreetingProps } from './HomeGreeting';
+export { TimeStamp, parseTime, type Meridiem, type TimeStampProps, type TimeTone } from './TimeStamp';
+export { ChosenSoFar, type ChosenItem, type ChosenSoFarProps } from './ChosenSoFar';
+export { AttentionBanner, type AttentionBannerProps } from './AttentionBanner';
+export { FeatureTile, type FeatureTileProps } from './FeatureTile';

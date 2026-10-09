@@ -191,6 +191,9 @@ describe("the send page", () => {
     const [payload] = sendLesson.mock.calls[0] as unknown as [{ plan: unknown; photos: File[] }];
     expect(payload.plan).toEqual({ kind: "library", pick: { lessonId: "L3" } });
     expect(payload.photos).toEqual([photo]);
+    // bd-fmf24g.9: the class she picked goes with it, with her subject's key from her own class list.
+    expect((sendLesson.mock.calls[0] as unknown as [{ teacherClass: unknown }])[0].teacherClass)
+      .toEqual({ grade: 4, subject: "General Science", subjectKey: "science" });
     expect(await screen.findByRole("heading", { name: C.sent })).toBeTruthy();
   });
 });

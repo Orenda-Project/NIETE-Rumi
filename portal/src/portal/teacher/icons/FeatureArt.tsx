@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import type { TeacherFeature } from './features';
+import type { AnyFeature } from './features';
 import { useFeatureMotion } from './FeatureMotion';
 import './featureMotion.css';
 
@@ -12,7 +12,7 @@ import './featureMotion.css';
  * given — the tile's words already name the feature.
  */
 
-const ART: Record<TeacherFeature, ReactElement> = {
+const ART: Record<AnyFeature, ReactElement> = {
   lessons: (
     <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
       <path d="M5 13.5c6.5-2.2 13-1.6 19 1.8 6-3.4 12.5-4 19-1.8v24.5c-6.5-2.2-13-1.6-19 1.8-6-3.4-12.5-4-19-1.8z" fill="#2f7a52" />
@@ -113,6 +113,50 @@ const ART: Record<TeacherFeature, ReactElement> = {
       </g>
     </g>
   ),
+  // bd-4404s7.1 — the coach's two (FeatureArt.dc.html `schedule` / `schools`): the clock badge pops and its hand swings,
+  // the calendar dots twinkle; the flag swings, the windows twinkle. `reports`: the three bars rise in turn, the % badge pops. Built from the motion set's own keyframes.
+  schedule: (
+    <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="9" width="38" height="34" rx="4" fill="#fff" />
+      <path d="M9 9h30a4 4 0 0 1 4 4v6H5v-6a4 4 0 0 1 4-4z" fill="#be185d" />
+      <rect x="14" y="5" width="3.5" height="8" rx="1.75" fill="#fce7f3" />
+      <rect x="30.5" y="5" width="3.5" height="8" rx="1.75" fill="#fce7f3" />
+      <circle className="fm-an fm-tw" cx="14" cy="27" r="2.1" fill="#fce7f3" />
+      <circle className="fm-an fm-tw fm-t3" cx="22" cy="27" r="2.1" fill="#fce7f3" />
+      <circle className="fm-an fm-tw fm-t6" cx="14" cy="35" r="2.1" fill="#fce7f3" />
+      <g className="fm-an fm-bdg">
+        <circle cx="35" cy="35" r="8" fill="#be185d" />
+        <path className="fm-an fm-hnd fm-t2" d="M35 30.5v4.8l3.2 2" fill="none" stroke="#fff" strokeWidth="1.8" />
+      </g>
+    </g>
+  ),
+  schools: (
+    <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="6" y="21" width="36" height="22" rx="2.5" fill="#fff" />
+      <path d="M3 22 24 9l21 13z" fill="#0f766e" />
+      <path className="fm-an fm-flg" d="M24 9V3h7l-2 2 2 2h-7" fill="#d4a017" />
+      <rect x="20" y="30" width="8" height="13" rx="1.5" fill="#ccfbf1" />
+      <rect className="fm-an fm-tw fm-t2" x="10" y="27" width="6" height="6" rx="1" fill="#ccfbf1" />
+      <rect className="fm-an fm-tw fm-t5" x="32" y="27" width="6" height="6" rx="1" fill="#ccfbf1" />
+      <circle cx="24" cy="16" r="2.2" fill="#fff" />
+    </g>
+  ),
+  reports: (
+    <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 5h20l8 8v28.5a2.5 2.5 0 0 1-2.5 2.5H9a2.5 2.5 0 0 1-2.5-2.5v-34A2.5 2.5 0 0 1 9 5z" fill="#fff" />
+      <path d="M29 5v8h8" fill="#ecfccb" />
+      <path d="M11 12h11M11 16.5h7" fill="none" stroke="#4d7c0f" />
+      <rect className="fm-an fm-brs" x="10.5" y="29" width="4.5" height="9" rx="1" fill="#4d7c0f" />
+      <rect className="fm-an fm-brs fm-t1" x="17" y="23" width="4.5" height="15" rx="1" fill="#4d7c0f" />
+      <rect className="fm-an fm-brs fm-t2" x="23.5" y="19" width="4.5" height="19" rx="1" fill="#4d7c0f" />
+      <g className="fm-an fm-bdg fm-t3">
+        <circle cx="36" cy="36" r="8.5" fill="#4d7c0f" />
+        <circle cx="33.4" cy="33.4" r="1.3" fill="none" stroke="#fff" strokeWidth="1.5" />
+        <circle cx="38.6" cy="38.6" r="1.3" fill="none" stroke="#fff" strokeWidth="1.5" />
+        <path d="M39 33l-6 6" fill="none" stroke="#fff" strokeWidth="1.6" />
+      </g>
+    </g>
+  ),
 };
 
 /**
@@ -123,7 +167,7 @@ const ART: Record<TeacherFeature, ReactElement> = {
 const STILL = "[animation:none!important] [&_*]:[animation:none!important] [transition:none!important] [&_*]:[transition:none!important]";
 
 export interface FeatureArtProps {
-  feature: TeacherFeature;
+  feature: AnyFeature;
   /** px; 48 is the drawing's own size, Home uses 76–80. */
   size?: number;
   /** Only when the art stands alone: makes it an image with this name. */

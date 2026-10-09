@@ -778,6 +778,94 @@ Feature: Web child quiz page on the portal
     And Jugnu does not celebrate, and the teacher's class results do not list it
     But a reading with words heard and none right says "Good try! Reading gets easier every day you practise." with no number
 
+  @T751
+  Scenario: With keep on, a reading is kept private under one dated prefix and its row says where
+    Given app setting "web_quiz_challenge_keep_audio" is on
+    When a child reads aloud
+    Then the recording goes to the private child-voice bucket under child-voice/<env>/kept/<upload day>/<run>/, never a public link
+    And scoring keeps it, whether the reading scored, failed or was unheard, and the run row keeps its key and nothing about the child
+    And nothing under the kept prefix is deleted by scoring, a refused upload or the hourly orphan sweep: only the purge removes it
+    But with the setting off a reading is scored and deleted, as before
+
+  @T752
+  Scenario: Kept readings leave by one purge command, dry run first
+    Given kept readings from 8 and 9 October
+    When the purge runs for this deployment's env with no --apply
+    Then it prints how many readings it would delete per day and deletes nothing
+    And with --from/--to it counts only those days, and with --apply it deletes exactly those and each run row stops naming its reading
+    And it refuses without --env or with another deployment's env, and prints no key, run id, name or phone
+
+  @T720
+  Scenario: The trail and Missing number stay off without the record rule
+    Given app settings "web_quiz_challenge_trail" and "web_quiz_challenge_missing" are on and "web_quiz_challenge_record" is off
+    When a child opens Jugnu's Challenge
+    Then the menu and every exercise are exactly today's, with no trail and no "Missing number"
+    And opening "Missing number" directly answers that it is off
+
+  @T721
+  Scenario: The trail shows each stop with a finish badge for its first play, whatever the score
+    Given app settings "web_quiz_challenge_record" and "web_quiz_challenge_trail" are on
+    And a child's first "Which is bigger?" run was stopped by four misses in a row
+    When the child opens Jugnu's Challenge
+    Then the page says "Jugnu's Trail" and "1 of 4 stops done. Pick any stop!"
+    And "Which is bigger?" is gold with "Done", the next unplayed stop says "Next", and "Read aloud" says it uses the microphone
+    And no score, words a minute, streak, rank or countdown is on the map
+
+  @T722
+  Scenario: Missing number is typed on a keypad and scored two ways on the server
+    Given app settings "web_quiz_challenge_record" and "web_quiz_challenge_missing" are on
+    When a Grade 3 child plays "Missing number": two practice rows with feedback, then ten rows with none
+    Then each row is four numbers left to right with one gap, typed on a keypad no longer than the answer
+    And "Skip" appears only after 5 seconds and counts as a miss
+    And four misses in a row end the run, on the phone and again on the server, whatever the phone sent after
+    And the row stores the count right at any time and the count right with the first key inside 5 seconds
+    And each item's time runs from the moment its row is painted
+
+  @T723
+  Scenario: A stop played again is a practice round
+    Given the trail is on and a child has already played "Missing number" once
+    When the child plays it again
+    Then every screen of that run says "Practice round. Play as much as you like!"
+    And the run earns no new badge and its row is not counted
+
+  @T724
+  Scenario: A phone without a microphone sees those stops waiting, never failed
+    Given the trail is on and the phone has no microphone, or the browser says it is denied
+    When the child opens Jugnu's Trail
+    Then "Read aloud" is grey with "needs a microphone"
+    And tapping it says "This stop needs a microphone. It will wait for you!" with "Go to another stop", and never offers Chrome
+    And the trail is finished when every stop the phone can play is done
+    But a dismissed or timed-out microphone prompt is not remembered, and "Try the microphone again" asks again
+
+  @T725
+  Scenario: "On your own, or with help?" is asked once per sitting
+    Given the trail is on
+    When a child opens their first stop of the sitting
+    Then the page asks "On your own, or with help?" with neither answer chosen
+    And the answer is kept on each run of the sitting, and the badge comes either way
+
+  @T726
+  Scenario: Numbers on the trail are Western digits in Urdu too
+    Given the trail is on and the child plays in Urdu
+    Then every number the page writes is a Western digit set left to right, like the keypad
+
+  @T753
+  Scenario: Listen and answer reads each answer option aloud, with a play button that never answers
+    Given app setting "web_quiz_challenge_option_audio" is on and a child is on a Listen question
+    Then each option has its own 🔊 button beside it ("Hear this answer" / «یہ جواب سنیں»), separate from the option itself
+    And after the question is read, the options are read in turn in the quiz voice, the option being read lit up
+    And tapping 🔊 plays that option and answers nothing
+    And tapping an option answers at once and stops the reading
+    And an option whose clip is not recorded yet shows no 🔊 and is skipped in the reading
+    But with the setting off the options are printed only, as before
+
+  @T727
+  Scenario: With the Urdu polish on, the old challenge menu writes Western digits too
+    Given app setting "web_quiz_ur_polish" is on and the trail is off
+    When a child opens Jugnu's Challenge in Urdu
+    Then the minutes, the counters and the scores are Western digits set left to right
+    But with the polish off the page keeps today's Urdu digits, and English never changes
+
   @T532
   Scenario: Today's read-aloud cap leaves "Which is bigger?" only
     Given app_settings web_quiz_challenge_daily_reads is 500 (or absent) and 500 read-alouds have been scored since Pakistan midnight
@@ -1460,3 +1548,21 @@ Feature: Web child quiz page on the portal
     When children finish on different phones
     Then each phone always sees the same card: the panel, or today's "Challenge a friend" button (a phone with no saved key gets today's button)
     And the score card and every share tap say which of the two the child saw
+
+  @T760
+  Scenario: The polished Urdu look is one switch and one class on the page root
+    Given the app setting web_quiz_ur_polish is "on"
+    When an Urdu quiz, hub, library or challenge page is opened
+    Then the page root is <html lang="ur" dir="rtl" class="wq-ur2"> and it preloads the second Urdu face (Noto Nastaliq Urdu Regular, self-hosted, ~105 KB, OFL)
+    And every Urdu run draws in that one face at one weight — no synthetic bold, no size-adjust, no extra word spacing
+    And a line that wraps keeps a 2.2 line height, a one-line control a 2.0 line height with room above and below the Nastaliq stacks, so no letter is cut by its box
+    And the mascot's bubble and the feedback box take the full width under the mascot when they have more than a line
+    And a long option keeps its label on its own row at 320 px, and an English word inside Urdu never breaks mid-word
+    But an English page gets no class and no Urdu font, and renders exactly as before
+    And with the setting off every page renders exactly as before, with today's face
+
+  @T761
+  Scenario: On the hub the polish class follows the child's language, not the boot
+    Given web_quiz_ur_polish is "on" and the hub booted in Urdu with the class
+    When a sibling whose hub is English is picked
+    Then <html> loses the class with the language, and gets it back when an Urdu child is picked
