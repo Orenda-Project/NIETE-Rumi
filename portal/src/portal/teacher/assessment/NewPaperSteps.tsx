@@ -447,7 +447,7 @@ export function CheckStep() {
   const make = async () => {
     setBusy(true);
     setError(null);
-    const res = await start(toSpec(p), coverName);
+    const res = await start(toSpec(p), coverName, p.subjectName ?? p.subject);
     setBusy(false);
     if ('job' in res) navigate(requestPath(res.job.requestId), { replace: true });
     else setError(res.error);

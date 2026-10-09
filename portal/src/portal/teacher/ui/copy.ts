@@ -60,6 +60,30 @@ export interface TeacherUiCopy {
   play: string;
   pause: string;
   report: ReportCopy;
+  /** bd-fmf24g.15 — ReadyTray / ReadyBanner. */
+  notify: NotifyCopy;
+}
+
+/** bd-fmf24g.15 — ReadyTray's and ReadyBanner's words (COMPONENTS.md §12 "Words"; the ontology's states). */
+export interface NotifyCopy {
+  /** The strip's name, the list's title, and a row's state. */
+  beingMade: string;
+  lessonPlan: string;
+  paper: string;
+  /** "~1 min left". Past its time the row says almostDone: never a countdown below zero. */
+  timeLeft: (n?: number) => string;
+  almostDone: string;
+  /** The strip's third row: "+2 more" (its words under it are seeAll). */
+  more: (n?: number) => string;
+  readyLesson: string;
+  readyPaper: string;
+  readyMany: (n?: number) => string;
+  moreReady: (n?: number) => string;
+  open: string;
+  tryAgain: string;
+  couldntMake: string;
+  /** "15 questions", on a paper's line. */
+  questions: (n?: number) => string;
 }
 
 /** ReportBody's words: the hero report PNG's own (bot report-v2/hero-report.template.js). */
@@ -177,6 +201,22 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
     /** The PNG's footer, word for word (5 words with a name: allowed in checks.test.tsx). */
     madeFor: (firstName = '') => `Made just for you, ${firstName}`.replace(/,\s*$/, '').trim(),
   },
+  notify: {
+    beingMade: 'Being made',
+    lessonPlan: 'Lesson plan',
+    paper: 'Paper',
+    timeLeft: (n = 1) => `~${n} min left`,
+    almostDone: 'Almost done',
+    more: (n = 0) => `+${n} more`,
+    readyLesson: 'Lesson plan ready',
+    readyPaper: 'Paper ready',
+    readyMany: (n = 0) => `${n} ready`,
+    moreReady: (n = 0) => `+${n} more ready`,
+    open: 'Open',
+    tryAgain: 'Try again',
+    couldntMake: "Couldn't make it",
+    questions: (n = 0) => (n === 1 ? '1 question' : `${n} questions`),
+  },
 };
 
 /** Urdu months, January first (as the bot's dates). */
@@ -254,6 +294,23 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
     lessons: (n = 0) => `${n} اسباق`,
     journeyAria: (n = 0) => `${n} اسباق کے اسکور`,
     madeFor: (firstName = '') => `خاص آپ کے لیے، ${firstName}`.replace(/،\s*$/, '').trim(),
+  },
+  /** The ontology's words: Being made تیار ہو رہا ہے, Ready تیار, Open کھولیں, Couldn't make it نہیں بن سکا. */
+  notify: {
+    beingMade: 'تیار ہو رہا ہے',
+    lessonPlan: 'لیسن پلان',
+    paper: 'پرچہ',
+    timeLeft: (n = 1) => `~${n} منٹ باقی`,
+    almostDone: 'تقریباً تیار',
+    more: (n = 0) => `+${n} مزید`,
+    readyLesson: 'لیسن پلان تیار ہے',
+    readyPaper: 'پرچہ تیار ہے',
+    readyMany: (n = 0) => `${n} تیار ہیں`,
+    moreReady: (n = 0) => `+${n} مزید تیار`,
+    open: 'کھولیں',
+    tryAgain: 'دوبارہ کوشش کریں',
+    couldntMake: 'نہیں بن سکا',
+    questions: (n = 0) => `${n} سوال`,
   },
 };
 

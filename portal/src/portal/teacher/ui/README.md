@@ -205,3 +205,26 @@ status, tone, line }, tryNext?, debrief?{ heading, initials, note, commitment, c
 hero report's sections in the PNG's order; every section without data is left out (that is the DC / coach-visit
 difference — the canvas's `kind` prop is not needed). Photos without an image are left out. Footer "Made just for you,
 {first name}" — the PNG's words (the copy check's one documented exception).
+
+### `ReadyTray` (what is being made, on every screen — bd-fmf24g.15)
+`items: TrayRow[]` (`{ id, feature: 'lessons' | 'assessment', what, gradeSubject, title, state: 'making' | 'failed', progress 0..1,
+left, to }`), `maxRows?` (2), `hideId?`, `onFollow?(id)`, `onOpenList()`, `listOpen?`, `onCloseList?`, `note?`, `copy?` (`NotifyCopy`).
+A grey strip with one white card above the bottom menu: a 64px row per item (a 48px progress ring in the feature colour,
+"Lesson plan · Grade 7 · Science", "Being made · ~1 min left", a chevron → `to`). Past its time `left` is empty and the row
+says "Almost done". A 3rd+ adds one 56px "+N more · See all" row that opens the list (a `Tray` sheet, every item with its title
+on its own line, `note` under the title). `failed` rows are red ("Couldn't make it · Try again") and stay until followed
+(`onFollow`). `trayHeight(rows, hasMore)` is the strip's height, for the host to give the page. The shell's host
+(`teacher/notices/NoticeHost`) is the only caller: pages never draw it.
+
+### `ReadyBanner` ("it is ready" for 10 seconds — bd-fmf24g.15)
+`items: BannerRow[]` (`{ id, feature, what, title, line }`), `variant?` (`ready` | `failed`), `reason?` (failed), `durationMs?`
+(10 000), `onOpen(id)`, `onClose()`, `onExpire()`, `onRetry?(id)`, `onSeeAll?()`, `copy?`. A white card above the menu: icon + green
+tick, "Lesson plan ready", the title, "Grade 7 · Science", a 56px ✕, a full-width 56px indigo Open, and a 6px bar that shrinks from
+its end edge to its start (right to left in English, left to right in Urdu). It **pauses while a finger, the mouse or focus is
+on it** and carries on; `onExpire` fires once. Two or more are ONE banner, "2 ready" (a row and an Open each, at most two,
+then "+N more ready"); a change in the set restarts the 10 seconds. `failed` is the same frame in red with the reason and
+Try again, `role="alert"`. It only reports; the host says what Open, ✕ and running out mean.
+
+### `LeaveNote`
+`text`. A white card with a bell and the screen's sentence ("You can leave. We'll tell you here."), `role="note"`. The words are
+the screen's: a sentence is not a kit label (`teacher/notices/copy.ts`).

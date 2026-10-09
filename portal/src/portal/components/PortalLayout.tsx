@@ -7,6 +7,7 @@ import { RecordingBarShownContext } from '../lib/recordingBarShown';
 import { useNewUi } from '../lib/useNewUi';
 import { useCoachV2, isCoachV2For } from '../coach/useCoachV2';
 import { useTeacherV2, isTeacherV2For } from '../teacher/useTeacherV2';
+import { NoticeHost } from '../teacher/notices/NoticeHost';
 import PortalNavigation from './PortalNavigation';
 import RecordingBar from './RecordingBar';
 import { FrameSkeleton, TabBarSkeleton, TopBarSkeleton } from './Skeleton';
@@ -132,6 +133,12 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
         <RecordingBarShownContext.Provider value={showBar && !noNav}>
           {children}
         </RecordingBarShownContext.Provider>
+        {/* bd-fmf24g.15 — what is being made, and "ready", on every teacher v2 screen (and only those). It stays
+            mounted-or-not with the frame, but the tracker behind it is a module, so a page change does not
+            restart anything. */}
+        {teacherV2 && !menuPending && user.phoneNumber && (
+          <NoticeHost userKey={user.phoneNumber} bare={noNav} aboveBar={showBar} />
+        )}
       </main>
       {showBar && session && <RecordingBar session={session} aboveMenu={!noNav} newMenu={newUi} />}
     </div>

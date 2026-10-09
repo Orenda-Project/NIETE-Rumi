@@ -35,7 +35,10 @@ describe("teacher kit: style", () => {
   });
 
   it("no left/right utilities, no motion outside motion-safe:, no lying theme classes", () => {
-    const problems = files().flatMap((f) => scanStyle(f.rel, f.text)).filter((p) => p.rule !== "raw-colour" && p.rule !== "feature-colour");
+    // The one false positive: the prose "~1 min left" (notify.timeLeft, bd-fmf24g.15) — the checker splits any string on spaces
+    // and reads a lone "left" as the utility. It is the operator's design wording, and a word, not a class.
+    const PROSE = (p: { file: string; rule: string; text: string }) => p.file === "ui/copy.ts" && p.rule === "physical" && p.text === "left";
+    const problems = files().flatMap((f) => scanStyle(f.rel, f.text)).filter((p) => p.rule !== "raw-colour" && p.rule !== "feature-colour" && !PROSE(p));
     expect(problems).toEqual([]);
   });
 
