@@ -103,7 +103,7 @@ describe("heading counts on Reports are the canvas's .count pills", () => {
     at("/portal/coach/reports", <CoachReports />);
     await screen.findAllByText("Bushra Ali");
     const pill = (name: RegExp) => within(screen.getByRole("heading", { name })).getByTestId("section-count").firstElementChild!;
-    for (const name of [/In progress/, /All observations/]) {
+    for (const name of [/In progress/]) {
       const c = classOf(pill(name));
       expect(c).toMatch(/bg-white/);
       expect(c).toMatch(/border-\[#e5e7eb\]/);

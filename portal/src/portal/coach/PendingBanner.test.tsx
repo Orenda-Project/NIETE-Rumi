@@ -97,6 +97,6 @@ describe("Reports filtered to waiting", () => {
     expect(screen.getByText("T w2")).toBeInTheDocument();
     expect(screen.queryByText("T p1")).toBeNull();
     expect(screen.queryByText("T s1")).toBeNull();
-    expect(screen.getByRole("link", { name: /All reports/ })).toHaveAttribute("href", "/portal/coach/reports");
+    expect(screen.getByRole("link", { name: "All reports" })).toHaveAttribute("href", "/portal/coach/reports");
   });
 });
