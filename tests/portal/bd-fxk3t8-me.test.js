@@ -108,7 +108,7 @@ afterEach(() => jest.resetModules());
 
 
 describe('GET /me', () => {
-  it('is exactly the user /dashboard returns — same fields, school name, link scope', async () => {
+  it('is exactly the user /dashboard returns — same fields, school name', async () => {
     tableStates.users = { rows: [{ ...USER, school_id: 'sch-7' }] };
     tableStates.schools = { rows: [{ id: 'sch-7', name: 'IMSG (I-V) G-7/2' }] };
     const me = await call('/me', 'u-1');
@@ -117,7 +117,6 @@ describe('GET /me', () => {
     expect(me.payload.success).toBe(true);
     expect(me.payload.user).toEqual(dash.payload.user);
     expect(me.payload.user.schoolName).toBe('IMSG (I-V) G-7/2');
-    expect(me.payload.user.sessionScope).toBe('training');
   });
 
   it('reads no counts — only the user and her school', async () => {

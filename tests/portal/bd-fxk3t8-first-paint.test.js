@@ -72,12 +72,11 @@ describe('GET /config — the flag reads run together', () => {
     }
     await done;
 
-    expect(started).toBe(8);
+    expect(started).toBe(7); // the seven flags staging has (sandbox's child test is not here)
     expect(payload.features).toMatchObject({
       assessmentGenerator: true,
       assessmentEditing: true,
       selfObservation: true,
-      childTest: true,
       coachObservation: true,
       newUi: true,
       coachV2: true,
