@@ -2,7 +2,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TeacherUiCopy } from './copy';
 import { FOCUS, GRID } from './styles';
-import { TimeStamp, parseTime } from './TimeStamp';
+import { TimeStamp, parseTime, type TimeTone } from './TimeStamp';
 import { useKitCopy } from './useKitCopy';
 
 /**
@@ -18,6 +18,8 @@ export interface TimePickerProps {
   value: string;
   onChange: (hhmm: string) => void;
   caption?: string;
+  /** The readout's tone: `overdue` (amber) for a pick that clashes, `next`, `done`; default `neutral`. */
+  tone?: TimeTone;
   copy?: Partial<Pick<TeacherUiCopy, 'hour' | 'minutes' | 'meridiem' | 'earlierHour' | 'laterHour' | 'am' | 'pm'>>;
   className?: string;
 }
@@ -32,7 +34,7 @@ const hhmm = (h24: number, m: number): string => `${String(h24).padStart(2, '0')
 const COL_BTN = 'flex min-h-[56px] w-full items-center justify-center rounded-[14px] bg-[#f3f4f6] text-[#33374a]';
 const CHOICE = 'flex min-h-[56px] items-center justify-center rounded-[14px] border text-[20px] font-bold';
 
-export function TimePicker({ value, onChange, caption, copy, className }: TimePickerProps) {
+export function TimePicker({ value, onChange, caption, tone, copy, className }: TimePickerProps) {
   const words = { ...useKitCopy(), ...copy };
   const t = parseTime(value);
   const h24 = t ? Number(value.split(':')[0]) : 9;
@@ -49,7 +51,7 @@ export function TimePicker({ value, onChange, caption, copy, className }: TimePi
   const mins = [0, 30];
   return (
     <section className={cn('flex flex-col gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)]', className)}>
-      <div className="flex justify-center"><TimeStamp time={value} size={44} /></div>
+      <div className="flex justify-center"><TimeStamp time={value} size={44} tone={tone} /></div>
       {caption ? <p className="m-0 text-center text-[15px] font-semibold text-[#4b5563]">{caption}</p> : null}
       <div className={cn(GRID, 'grid-cols-3 gap-2.5')}>
         <div className="flex flex-col items-stretch gap-1.5">

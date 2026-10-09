@@ -344,7 +344,7 @@ Sat and Sun dimmed but pickable. The arrows move the SHOWN week and never change
 strings, no time zone).
 
 ### `TimePicker`
-`value` (24-hour `"HH:MM"`, as the server stores), `onChange("HH:MM")`, `caption?` (the day under the readout: "Wednesday 7 October"),
+`value` (24-hour `"HH:MM"`, as the server stores), `onChange("HH:MM")`, `caption?` (the day under the readout: "Wednesday 7 October"), `tone?` (the readout's `TimeStamp` tone: `overdue` is the amber one a clashing pick shows),
 `copy?` (`hour`, `minutes`, `meridiem`, `earlierHour`, `laterHour`, `am`, `pm`), `className?`. A 12-hour picker on half hours: a 44px
 `TimeStamp` readout, then three columns: Hour (Earlier / Later stepper, the hours go 7 8 9 10 11 12 1 2 3 4 5 6 and wrap), Minutes
 (`:00` / `:30` radios), AM / PM radios; all 56px or more. Stepping an hour also picks its usual AM/PM (7–11 AM, 12–6 PM); she can flip
@@ -372,3 +372,53 @@ equal 56px choices (1 2 3 4 N/A), the picked one indigo; arrow keys move the pic
 
 A white card with a 64px header toggle (`aria-expanded`): the time, an "N visits" chip, two overlapping avatars and "+N" while closed, a
 chevron. Open, it lists the first `limit` people (36px avatar, name, second line) and a 56px "Show all N" / "Show fewer".
+
+## Coach build, PR 2c (bd-4404s7.1) — fields, tabs, chips, numbers, charts, audio, recording
+
+Import from `@/portal/teacher/ui`. Every word is the kit's (`TEACHER_UI`, en + ur); a screen's `copy` prop wins. What was extended
+rather than duplicated: **`Tray`** and **`ListRow`** (SelectField is built on them), **`VoiceNote`**'s one-sound-at-a-time rule (now
+the shared `sounding.ts`, used by AudioCard too), and **Analytics' `BandChart`**, which now draws through `TrendChart` (same picture).
+`KpiTiles` (big tiles) and `StatStrip` (flat numbers) are different jobs, so both stay.
+
+### `SelectField`
+`label` (the field's name), `title` (the Tray's title), `value` (the chosen option's value; null = nothing yet), `options: [{ value, label, sub? }]`,
+`onChange(value)`, `icon?` (a 44px grey tile), `disabled?`, `copy?` (`select`, `close`). A 68px card (label small over the choice at 17px/600, the
+option's `sub` under it, a chevron) that opens a `Tray` of 56px+ `ListRow`s, the picked one marked; a pick closes it. No search: group long lists on the
+screen. An "All coaches" choice is just an option (`value: ""`).
+
+### `Tabs`
+`label` (the tablist's name), `tabs: [{ key, label, count?, to? }]`, `value`, `onChange?`. One white bar, 56px tabs, the picked one indigo, an optional
+count. Buttons (`role="tab"`, `aria-selected`) swap content in place; with `to` on the tabs each is a link and the current one has `aria-current="page"`.
+
+### `ChoiceChips`
+`label` (name and small first word; `hideLabel` hides the word), `options: [{ key, label }]`, then either `value` + `onChange(key)` (a radiogroup with
+arrow keys) or `multiple` + `value: string[]` + `onChange(keys)` (toggles, `aria-pressed`). 56px target around a 44px pill; wraps to a second line.
+
+### `StatStrip`
+`items: [{ value, label }]` (five at most), `copy?` (`noValue`). Flat numbers (17px/700 over an 11px label) in a grey strip with hairlines, for the foot of a
+card; a missing value is "—"; information only. Each cell is a group named "Visits, 31".
+
+### `ScoreRing`
+`value` (0–100, null = "—", clamped), `label` ("Digital Coach score"), `size?` (64). An indigo ring filled to the percentage on a light track, the number
+inside; an image named "Digital Coach score 64%". (The fill is a CSS `conic-gradient`; `data-pct` carries the number for tests.)
+
+### `TrendChart`
+| Prop | Type |
+|---|---|
+| points | `[{ date, value?, row?, kind? }]` oldest first |
+| label | the chart's name for a screen reader |
+| dateLabel | `(iso) => string`, the screen's date words (at most 4 shown, else first / middle / last) |
+| rows | band rows `[{ key, label }]` (Excellent on top): switches to band mode, `points[i].row` is the row index |
+| legend | `{ hitl, dc }` words for the key under a percentage chart |
+
+Percentage mode: `value` on a 0–100 scale; `kind: "hitl"` is a filled indigo dot, `kind: "dc"` a hollow green-ringed one (fill vs ring, not colour alone). One
+point = a dot, no line. Band mode is the teacher's Rating over time. 326 wide and it scales to its card.
+
+### `AudioCard`
+`title`, `sub?`, `src?`, `lead?` (a `ScoreRing`), `action?` (Redo: keep it 56px), `copy?` (`play`, `pause`). A white card, 84px at least, with a 56px round play
+button (a green ring; green filled with pause while it plays). With `src` it plays for real, preload none, one kit sound at a time.
+
+### `RecordUploadPair`
+`recordTo` / `onRecord`, `uploadTo` / `onUpload` (a link or a button each), `actions?: [{ key, label, icon?, to?, onPress?, danger? }]` (small 56px buttons under
+the squares: Reschedule; Cancel visit in red), `copy?` (`startRecording`, `uploadRecording`). Two 176px squares in one box with no heading: Start recording
+(indigo, a beating red mark with two rings, only when the phone allows motion) and Upload recording (white). Teacher and coach use the same one.

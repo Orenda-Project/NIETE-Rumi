@@ -82,6 +82,10 @@ export interface TeacherUiCopy {
   showFewer: string;
   you: string;
   doneWord: string;
+  /** bd-4404s7.1 PR 2c — SelectField's empty value, RecordUploadPair's two squares. */
+  select: string;
+  startRecording: string;
+  uploadRecording: string;
   report: ReportCopy;
   /** bd-fmf24g.15 — ReadyTray / ReadyBanner. */
   notify: NotifyCopy;
@@ -225,6 +229,9 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
   showFewer: 'Show fewer',
   you: 'You',
   doneWord: 'Done',
+  select: 'Select',
+  startRecording: 'Start recording',
+  uploadRecording: 'Upload recording',
   report: {
     report: 'Report',
     eyebrow: 'Celebrating your teaching',
@@ -342,6 +349,9 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
   showFewer: 'کم دکھائیں',
   you: 'آپ',
   doneWord: 'مکمل',
+  select: 'چنیں',
+  startRecording: 'ریکارڈنگ شروع کریں',
+  uploadRecording: 'ریکارڈنگ اپ لوڈ کریں',
   report: {
     report: 'رپورٹ',
     /** The hero PNG's own words (hero-report.template.js ur.celebrate), word for word. */
