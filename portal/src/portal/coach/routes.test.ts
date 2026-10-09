@@ -36,6 +36,12 @@ describe("coach v2 routes", () => {
     ));
   });
 
+  it("Analytics (bd-fmf24g.27): the page and one teacher, each its own chunk", () => {
+    expect(app).toContain('<Route path="/portal/coach/analytics" element={<CoachAnalytics />} />');
+    expect(app).toContain('<Route path="/portal/coach/analytics/teacher/:ext" element={<CoachTeacherAnalytics />} />');
+    expect(app).toContain('import("./portal/coach/analytics/CoachAnalytics")');
+  });
+
   it("every v2 page gates itself through CoachPage", () => {
     const ui = readFileSync(resolve(__dirname, "ui.tsx"), "utf8");
     expect(ui).toMatch(/<CoachGate>\s*<PortalLayout[ >]/);
