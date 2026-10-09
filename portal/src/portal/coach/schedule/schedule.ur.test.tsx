@@ -97,7 +97,7 @@ describe("Schedule in Urdu", () => {
   it("Team schedule: the totals' labels and the coach field", async () => {
     at("/portal/coach/team");
     expect(await screen.findByRole("heading", { level: 1, name: U.teamSchedule })).toBeTruthy();
-    expect(await screen.findByLabelText(U.coach)).toBeTruthy();
+    expect(await screen.findByRole("button", { name: new RegExp(`^${U.coach}`) })).toBeTruthy();
     expect(screen.getByText(text(U.totals.month))).toBeTruthy();
     expect(screen.getByText(text(U.visitsN(1)))).toBeTruthy();
   });
