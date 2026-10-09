@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, within, fireEvent } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
@@ -37,8 +37,11 @@ function renderAt(path = "/portal/coach/reports") {
   );
 }
 
+afterEach(() => { vi.useRealTimers(); });
+
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-08T07:00:00Z") });
   resetPendingCache();
   C.getPending.mockResolvedValue({ success: true, waiting: 2, ids: ["w1", "w2"] });
   C.getReports.mockResolvedValue(page([
@@ -74,11 +77,11 @@ describe("CoachReports", () => {
   it("Recent shows her last five by day with TimeStamp times and percentages, and See all opens the All page", async () => {
     renderAt();
     const recent = within(await screen.findByTestId("reports-recent"));
-    expect(recent.getAllByTestId("report-day").map((d) => d.getAttribute("data-day"))).toEqual(["2026-10-06", "2026-10-05", "2026-10-04", "2026-10-03"]);
+    for (const day of ["Tue 6 Oct", "Mon 5 Oct", "Sun 4 Oct", "Sat 3 Oct"]) expect(recent.getByRole("region", { name: day })).toBeInTheDocument();
     expect(recent.getByText("72%")).toBeInTheDocument();
     expect(recent.getByLabelText("9:00 AM")).toBeInTheDocument(); // 04:00Z is 9:00 AM in Pakistan
     expect(recent.queryByText("Six Beyond Recent")).toBeNull();
-    expect(recent.getByTestId("see-all")).toHaveAttribute("href", "/portal/coach/reports/all");
+    expect(recent.getAllByRole("link", { name: /See all/ })[0]).toHaveAttribute("href", "/portal/coach/reports/all");
   });
 
   it("Recent collapses", async () => {

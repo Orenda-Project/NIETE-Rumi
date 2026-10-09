@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { DateRangeBar, KpiTiles, type KpiItem } from "../../teacher/ui";
+import { DateRangeBar, HistoryList, KpiTiles, type KpiItem } from "../../teacher/ui";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
 import { resolveRange } from "../../teacher/ui/range";
 import { DEFAULT_RANGE, pkToday, type DateRange } from "../../newui/range";
@@ -9,7 +9,7 @@ import { dayName } from "../../teacher/lessons/days";
 import { SearchBox } from "../ui";
 import { LoadState } from "../../teacher/lessons/LoadState";
 import ReportsFrame from "./ReportsFrame";
-import { ReportDays } from "./ReportRows";
+import { reportGroups } from "./ReportRows";
 import { REPORTS } from "./copy";
 import { dayGroups, inSpan, kpiNumbers } from "./data";
 import { useAllReports } from "./useAllReports";
@@ -36,7 +36,8 @@ export default function CoachReportsAll() {
   const data = useAllReports(q, span);
 
   const rows = useMemo(() => data.items.filter((r) => inSpan(r, span.from, span.to)), [data.items, span]);
-  const groups = useMemo(() => dayGroups(rows), [rows]);
+  const today = pkToday();
+  const groups = useMemo(() => reportGroups(dayGroups(rows), (d) => dayName(d, today, days), C), [rows, days, C, today]);
   const kpi = useMemo(() => kpiNumbers(data.items, span, data.waiting), [data.items, span, data.waiting]);
 
   const items: KpiItem[] = [
@@ -54,9 +55,7 @@ export default function CoachReportsAll() {
       {data.status !== "failed" && (data.status === "ready" || data.items.length > 0) && (
         <>
           <KpiTiles items={items} compareLabel={compareLabel} />
-          {groups.length === 0
-            ? <p data-empty className="rounded-2xl border border-dashed border-[#d1d5db] bg-white px-4 py-6 text-center text-[16px] font-semibold text-[#6b7280]">{C.noneInRange}</p>
-            : <ReportDays groups={groups} dayName={(d) => dayName(d, pkToday(), days)} line="school-time" />}
+          <HistoryList heading="" groups={groups} showMore={false} emptyLabel={C.noneInRange} />
         </>
       )}
     </ReportsFrame>

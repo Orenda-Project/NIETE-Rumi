@@ -64,7 +64,7 @@ describe("All Observations", () => {
     renderPage();
     await screen.findByText("T a");
     expect(screen.queryByText("T old")).toBeNull(); // September is outside this month
-    expect(screen.getAllByTestId("report-day").map((d) => d.getAttribute("data-day"))).toEqual(["2026-10-06", "2026-10-05", "2026-10-04"]);
+    for (const day of ["Tue 6 Oct", "Mon 5 Oct", "Sun 4 Oct"]) expect(screen.getByRole("region", { name: day })).toBeInTheDocument();
     expect(screen.getByText("80%")).toBeInTheDocument();
     const search = screen.getByPlaceholderText("Name or phone");
     const bar = screen.getByRole("button", { name: /This month/ });
@@ -102,6 +102,6 @@ describe("All Observations", () => {
     C.getReports.mockResolvedValue(page([R("old", "2026-01-06T06:00:00Z")], 1));
     renderPage();
     expect(await screen.findByText("None in these dates")).toBeInTheDocument();
-    expect(within(document.body).queryByTestId("report-day")).toBeNull();
+    expect(within(document.body).queryAllByRole("region", { name: /Oct/ })).toHaveLength(0);
   });
 });
