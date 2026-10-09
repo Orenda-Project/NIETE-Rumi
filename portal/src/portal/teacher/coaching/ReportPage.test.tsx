@@ -79,6 +79,39 @@ describe("toReportData", () => {
     expect(d.photos).toEqual([{ src: "https://r2/p1.jpg", cap: "" }]);
   });
 
+  it("bd-fmf24g.10 — the stored narrative fills the headline, identity, the first moment, strength, horizon and each section's why", () => {
+    const d = toReportData({
+      ...DETAIL,
+      breakdown: { ...DETAIL.breakdown, groups: [
+        { ...DETAIL.breakdown.groups[0], notAssessed: true, why: "No lesson plan was attached." },
+        { ...DETAIL.breakdown.groups[1], domainKey: "hlp" },
+      ] },
+      reportNarrative: {
+        headline: "You made fractions feel easy", identity: "A teacher who waits",
+        moments: [{ title: "Pair talk", quote: "Tell your partner why", why: "Every child spoke" }, { title: "Two", quote: "q2", why: "w2" }],
+        strength: { title: "Wait time", note: "You waited." }, horizon: { title: "Name one moment", note: "" },
+        domainWhys: { lp: "model line that must not replace the code-written one", hlp: "You modelled each fold." }, language: "en",
+      },
+    } as never, { teacher: "Ayesha Bibi", journey: [] });
+    expect(d).toMatchObject({
+      headline: "You made fractions feel easy", identity: "A teacher who waits",
+      moment: { quote: "Tell your partner why", why: "Every child spoke" },
+      strength: { title: "Wait time", note: "You waited." },
+      horizon: { title: "Name one moment" },
+    });
+    expect(d.horizon).not.toHaveProperty("note");
+    expect(d.sections.map((x) => x.why)).toEqual(["No lesson plan was attached.", "You modelled each fold."]);
+  });
+
+  it("bd-fmf24g.10 — without a stored narrative those sections are left out: no headline, no moment, strength, horizon or why", () => {
+    const d = toReportData(DETAIL as never, { teacher: "Ayesha Bibi", journey: [] });
+    expect(d.headline).toBe("");
+    expect(d.moment).toBeNull();
+    expect(d.strength).toBeNull();
+    expect(d.horizon).toBeNull();
+    expect(d.sections.every((x) => x.why === undefined)).toBe(true);
+  });
+
   it("a session with no marks yet carries none: not a stand-in 0/0", () => {
     const d = toReportData({ ...DETAIL, overallScore: undefined, maxScore: null, breakdown: null } as never, { teacher: "Ayesha Bibi", journey: [] });
     expect(d.marks).toBeNull();

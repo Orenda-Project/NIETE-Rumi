@@ -11,9 +11,10 @@ import { COACHING_V2_COPY, type CoachingCopy } from './copy';
  * bot: scores, photos, recording, voice note, her answers, the coach's note) and GET
  * /teacher/coaching/:id/journey (#1983), shaped for the kit's ReportBody.
  *
- * Only what the API carries. The hero report's narrative (headline, identity, moments, strength, horizon)
- * is written per render and not stored, so those sections are left out rather than made up; the image she
- * received is one tap away (Download).
+ * Only what the API carries. The hero report's written part (headline, identity, a moment, strength, horizon,
+ * each section's "why") is what the bot stored when it rendered her report (bd-fmf24g.10, `reportNarrative`);
+ * on a session without it those sections are left out rather than made up. The image she received is one
+ * tap away (Download).
  *
  * bd-fmf24g.13.2 — both helpers take the page's words (useCopy(COACHING)) and toReportData its day names
  * (useCopy(LESSONS).days), English by default.
@@ -47,8 +48,15 @@ export function toReportData(s: SessionDetail, {
   const max = b && b.max != null ? b.max : (s.maxScore ?? null);
   const coach = s.observation?.observerName?.trim() || null;
   const points = journey.filter((p) => Number.isFinite(p.pct));
+  const n = s.reportNarrative || null;
+  // The hero image shows the FIRST moment only; the page keeps to the image's order.
+  const moment = n?.moments?.[0] ?? null;
   return {
-    headline: '',
+    headline: n?.headline ?? '',
+    ...(n?.identity ? { identity: n.identity } : {}),
+    moment: moment ? { quote: moment.quote, ...(moment.why ? { why: moment.why } : {}) } : null,
+    strength: n?.strength ? { title: n.strength.title, ...(n.strength.note ? { note: n.strength.note } : {}) } : null,
+    horizon: n?.horizon ? { title: n.horizon.title, ...(n.horizon.note ? { note: n.horizon.note } : {}) } : null,
     marks,
     max,
     teacher,
@@ -60,6 +68,8 @@ export function toReportData(s: SessionDetail, {
       score: g.score,
       max: g.max,
       na: !g.max,
+      // A section that was not assessed carries the bot's own line; every other one, the narrative's.
+      why: (g.notAssessed ? g.why : n?.domainWhys?.[g.domainKey] ?? g.why) || undefined,
     })),
     photos: (s.photoUrls ?? []).map((src) => ({ src, cap: '' })),
     journey: points.length > 1

@@ -1109,6 +1109,8 @@ async function processTeacherReport(sessionId, payload = {}) {
       return;
     }
     const { png, caption } = rendered;
+    // bd-fmf24g.10: keep the narrative this preview was written from (non-fatal, warn on failure).
+    await require('../coaching/report-v2/narrative-store').persistReportNarrative(sessionId, rendered.narrative);
     const companionText = notes ? buildCompanionText(notes, { foName }, teacherS) : null;
     const teacherCaption = teacherS.report_caption_teacher.replace('{fo}', foName);
 

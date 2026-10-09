@@ -272,6 +272,22 @@ describe('GET /coaching-session/:id — the lesson page', () => {
     expect(p.payload.stage).toBe('done');
   });
 
+  it('bd-fmf24g.10 — carries the stored report narrative for the report page; null on a session that has none; nothing else of the blob', async () => {
+    tableRows.coaching_sessions.push(own('own-narr', {
+      analysis_data: {
+        scores: SCORES, framework: 'fico', topic: 'Fractions',
+        voice_debrief_script: 'the spoken script, never served',
+        report_narrative: { affirmation: 'You made fractions feel easy', strength_name: 'Wait time', strength_note: 'You waited.', moments: [{ title: 't', quote: 'q', why: 'w' }], _language: 'en' },
+      },
+    }));
+    const { payload } = await invoke('get', '/coaching-session/:id', { params: { id: 'own-narr' } });
+    expect(payload.session.reportNarrative).toMatchObject({
+      headline: 'You made fractions feel easy', strength: { title: 'Wait time', note: 'You waited.' }, moments: [{ title: 't', quote: 'q', why: 'w' }],
+    });
+    expect(JSON.stringify(payload)).not.toMatch(/spoken script/);
+    expect((await invoke('get', '/coaching-session/:id', { params: { id: 'own-1' } })).payload.session.reportNarrative).toBeNull();
+  });
+
   it('her own lesson has no observation block', async () => {
     const { payload } = await invoke('get', '/coaching-session/:id', { params: { id: 'own-1' } });
     expect(payload.session.observation).toBeNull();

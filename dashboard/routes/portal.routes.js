@@ -83,6 +83,7 @@ const { resolveUserSchoolName } = require('../lib/user-school-name');
 // A coach's observation of her is the teacher's to see only once it is SENT to her.
 const TeacherObservation = require('../lib/teacher-observation');
 const { getOverall } = require('../services/coaching-frameworks.service');
+const { narrativeView } = require('../services/report-narrative-view'); // bd-fmf24g.10
 // Leader "patch" resolver (leader_teachers → Rumi users + activity) needs the
 // pg pool — the LATERAL-join SQL can't be expressed through supabase-js.
 const pool = require('../config/database');
@@ -6661,6 +6662,10 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
         lessonPlanUrl,
         hasLessonPlan: !!session.has_lesson_plan,
         photoUrls,
+
+        // bd-fmf24g.10: the report's written part (headline, moments, strength, horizon, the per-section
+        // "why" lines) as the bot stored it when it rendered her report; null on a session that has none.
+        reportNarrative: narrativeView(session.analysis_data),
 
         // ── how she was scored ─────────────────────────────────────────────
         overallScore: overallMarks,
