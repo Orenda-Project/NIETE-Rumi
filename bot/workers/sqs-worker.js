@@ -1794,6 +1794,19 @@ function startWorker() {
       });
     }
 
+    // bd-fmf24g.15 — the WhatsApp fallback for a finished paper / grades 6-12 lesson plan she did not see in the
+    // teacher app. BUILT SWITCHED OFF: the sweep reads app_settings.portal_ready_whatsapp_enabled (absent = off) and
+    // sends nothing until the operator turns it on AND the two templates are approved on this WABA. Owned by the
+    // worker class that owns the `main` queue (this file also runs as the video worker), first run 90 s after boot
+    // and then every 20 s (Class P); bounded per tick (Class R). Required lazily and in its own try: it must never be
+    // able to stop the sweeps above from starting.
+    try {
+      const readyWhatsapp = require('../shared/services/portal-ready-whatsapp.service');
+      readyWhatsapp.scheduleSweep({ worker, queues: SQSCoachingWorker._enabledQueues() });
+    } catch (error) {
+      logToFile('Portal ready WhatsApp fallback sweep NOT registered', { error: error.message }, 'error');
+    }
+
     // Offer interrupted tasks back. Rides the same always-on worker as the sweeps
     // above (this deployment has no cron), on a deliberately slower interval: the
     // window we are detecting is measured in hours, and a teacher whose step timed

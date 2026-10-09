@@ -122,6 +122,7 @@ assessment_requests.has_answer_lines:boolean
 assessment_requests.id:uuid
 assessment_requests.notice_opened_at:timestamp with time zone
 assessment_requests.notice_seen_at:timestamp with time zone
+assessment_requests.notice_whatsapp_at:timestamp with time zone
 assessment_requests.output_format:text
 assessment_requests.page_ranges:text
 assessment_requests.question_count:integer
@@ -1018,6 +1019,7 @@ niete_lp612_deliveries.id:uuid
 niete_lp612_deliveries.lang:text
 niete_lp612_deliveries.notice_opened_at:timestamp with time zone
 niete_lp612_deliveries.notice_seen_at:timestamp with time zone
+niete_lp612_deliveries.notice_whatsapp_at:timestamp with time zone
 niete_lp612_deliveries.render_id:uuid
 niete_lp612_deliveries.segment_id:text
 niete_lp612_deliveries.surface:text

@@ -5185,11 +5185,17 @@ CREATE TABLE IF NOT EXISTS assessment_requests (
   -- (a banner that ran out untouched leaves it NULL), and when she opened it (or, for a failed one, tapped it).
   -- NULL = not yet; each written once.
   notice_seen_at    TIMESTAMPTZ,
-  notice_opened_at  TIMESTAMPTZ
+  notice_opened_at  TIMESTAMPTZ,
+  -- Migration V1.6.3: when the ready-notice fallback claimed this paper to message her on WhatsApp (never retried).
+  notice_whatsapp_at TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS idx_assessment_requests_user_time
   ON assessment_requests (user_id, created_at DESC);
+-- Migration V1.6.3: the fallback sweep's "waiting" set — portal items nobody has seen, opened or messaged about.
+CREATE INDEX IF NOT EXISTS idx_assessment_requests_notice_waiting
+  ON assessment_requests (created_at)
+  WHERE surface = 'portal' AND notice_seen_at IS NULL AND notice_opened_at IS NULL AND notice_whatsapp_at IS NULL;
 
 -- ---------------------------------------------------------------------------
 -- assessment_papers — what came back. Nullable throughout, honestly so.
@@ -6259,10 +6265,16 @@ CREATE TABLE IF NOT EXISTS niete_lp612_deliveries (
   created_at        timestamptz NOT NULL DEFAULT now(),
   -- Teacher app v2 "ready" notices (migration V1.6.2); portal rows only. NULL = not yet; each written once.
   notice_seen_at    timestamptz,
-  notice_opened_at  timestamptz
+  notice_opened_at  timestamptz,
+  -- Migration V1.6.3: when the ready-notice fallback claimed this plan to message her on WhatsApp (never retried).
+  notice_whatsapp_at timestamptz
 );
 CREATE INDEX IF NOT EXISTS idx_lp612_deliveries_user_recent
   ON niete_lp612_deliveries (user_id, delivered_at DESC);
+-- Migration V1.6.3: the fallback sweep's "waiting" set — portal rows nobody has seen, opened or messaged about.
+CREATE INDEX IF NOT EXISTS idx_lp612_deliveries_notice_waiting
+  ON niete_lp612_deliveries (delivered_at)
+  WHERE surface = 'portal' AND notice_seen_at IS NULL AND notice_opened_at IS NULL AND notice_whatsapp_at IS NULL;
 COMMENT ON TABLE niete_lp612_deliveries IS
   'One row per Grades 6-12 lesson a teacher received (append-only; written by lp612-serving.deliverRender after a confirmed send). Read by the lp612 /quiz lesson provider. Ids and the version triple only — no phone, name or message text.';
 
