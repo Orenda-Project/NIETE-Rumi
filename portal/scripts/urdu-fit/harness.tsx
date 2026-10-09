@@ -9,7 +9,7 @@ import { MemoryRouter } from 'react-router-dom';
 import '@/index.css';
 import i18n from '@/i18n/config';
 import {
-  AttentionBanner, ChoiceChips, ChosenSoFar, ClassPicker, DayStrip, FeatureTile, GradeSubjectButton, HistoryList, HistoryRow,
+  AttentionBanner, AudioCard, DateRangeBar, HomeGreeting, RatingScale, ScoreRing, SubjectTile, TimePicker, ChoiceChips, ChosenSoFar, ClassPicker, DayStrip, FeatureTile, GradeSubjectButton, HistoryList, HistoryRow,
   KpiTiles, LeaveNote, ListRow, ProgressSteps, ReadyBanner, ReadyTray, SelectField, SlotGroup, StatStrip, StatusChip, StepBar,
   Tabs, TimeStamp, Tray, trayHeight, type TrayRow,
 } from '@/portal/teacher/ui';
@@ -130,6 +130,7 @@ function Main() {
       <Case name="ListRow">
         <div className="flex flex-col gap-2">
           <ListRow label={T.long} subtitle={T.extra} number={3} icon="worksheet" chip={{ text: T.chip, tone: 'done' }} to="/x" />
+          <ListRow label={T.short} prefix={LANG === 'ur' ? 'پلان #' : 'LP #'} number={12} to="/x" />
           <ListRow label={T.deep} prefix={LANG === 'ur' ? 'باب' : 'Ch'} number={4} state="used" chip={{ text: T.chip, tone: 'done' }} to="/x" />
         </div>
       </Case>
@@ -235,6 +236,24 @@ function Main() {
           ]}
           onOpen={noop} onClose={noop} onExpire={noop} onSeeAll={noop} durationMs={3_600_000}
         />
+      </Case>
+      <Case name="SubjectTile + ScoreRing + RatingScale">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3"><SubjectTile subject={T.subject} /><SubjectTile subject={T.subject2} /><SubjectTile subject={T.subject3} /><ScoreRing value={86} label={T.label} /><ScoreRing value={null} label={T.label} /></div>
+          <RatingScale value="2" onChange={noop} />
+        </div>
+      </Case>
+      <Case name="TimePicker + DateRangeBar">
+        <div className="flex flex-col gap-2">
+          <TimePicker value="09:30" onChange={noop} caption={T.label} />
+          <DateRangeBar />
+        </div>
+      </Case>
+      <Case name="HomeGreeting + AudioCard">
+        <div className="flex flex-col gap-2">
+          <HomeGreeting title={T.page} date={T.day} school={T.school} brand={T.lesson} logoAlt={T.paper} />
+          <AudioCard title={T.long} sub={T.sub} />
+        </div>
       </Case>
       <Case name="ReadyTray">
         <ReadyTray items={trayRows} onOpenList={noop} />
