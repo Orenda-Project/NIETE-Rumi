@@ -849,6 +849,16 @@ Feature: Web child quiz page on the portal
     Given the trail is on and the child plays in Urdu
     Then every number the page writes is a Western digit set left to right, like the keypad
 
+  @T753
+  Scenario: Listen and answer reads each answer option aloud, with a play button that never answers
+    Given app setting "web_quiz_challenge_option_audio" is on and a child is on a Listen question
+    Then each option has its own 🔊 button beside it ("Hear this answer" / «یہ جواب سنیں»), separate from the option itself
+    And after the question is read, the options are read in turn in the quiz voice, the option being read lit up
+    And tapping 🔊 plays that option and answers nothing
+    And tapping an option answers at once and stops the reading
+    And an option whose clip is not recorded yet shows no 🔊 and is skipped in the reading
+    But with the setting off the options are printed only, as before
+
   @T532
   Scenario: Today's read-aloud cap leaves "Which is bigger?" only
     Given app_settings web_quiz_challenge_daily_reads is 500 (or absent) and 500 read-alouds have been scored since Pakistan midnight
