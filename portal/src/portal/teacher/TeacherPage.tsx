@@ -12,8 +12,9 @@ import { FeatureArt, type TeacherFeature } from "./icons";
  *   top-level page   a 32px light title (Home's greeting, "More"), optional chips under it
  *   inner page       a 56px back target around a 40px white circle, a 13px crumb and a
  *                    26px light title (`backTo`, or `onBack` when Back must ask first)
- *   `feature`        the page's feature tile beside the title: its D2 illustration at 52px,
- *                    as on the canvas page headings (Lesson Plans, Digital Coaching, …)
+ *   `feature`        the page's feature tile beside the title: its D2 illustration at 40px inside
+ *                    a 52px white card (radius 14, 1px #e5e7eb border), the Blueprint's ScreenHeader
+ *                    tile="card" (bd-fmf24g.23)
  *
  * Titles and crumbs WRAP — a long lesson-plan title shows in full, never cut to one line.
  *
@@ -48,8 +49,8 @@ export default function TeacherPage({
   );
   const inner = !!(backTo || onBack);
   const tile = feature ? (
-    <span data-testid="page-feature-tile" className="flex h-[52px] w-[52px] shrink-0 items-center justify-center">
-      <FeatureArt feature={feature} size={52} />
+    <span data-testid="page-feature-tile" className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[14px] border border-[#e5e7eb] bg-white">
+      <FeatureArt feature={feature} size={40} />
     </span>
   ) : null;
   return (
