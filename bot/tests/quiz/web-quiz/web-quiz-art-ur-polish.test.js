@@ -18,8 +18,8 @@ describe('renderArt under ui.ur2 (Urdu, wide card)', () => {
     expect(css(on, '.kick')).toMatch(/font-size:32px/);
     expect(css(on, '.cta')).toMatch(/font-size:40px/);
     expect(css(on, '.pts')).toMatch(/font-size:28px/);
-    expect(css(on, '.name')).toMatch(/line-height:1\.9/);
-    expect(css(on, '.head')).toMatch(/font-size:46px/);
+    expect(on).toContain('.name{font-size:56px;line-height:1.7}');   // the wide card's Nastaliq name
+    expect(css(on, '.head')).toMatch(/font-size:40px/);   // the wide card keeps 40 (height budget), at line-height 1.9
   });
   test('without ui the Urdu card is today\'s (32 / 26 / 26 / 24, name 1.55 on the wide card)', () => {
     expect(css(off, '.sub')).toMatch(/font-size:32px/);
@@ -55,5 +55,56 @@ describe('the picture input the cache key is hashed from', () => {
     expect(Object.prototype.hasOwnProperty.call(Art.artInput('card', 'og', 'niete', f, null), 'ui')).toBe(false);
     expect(Art.artInput('card', 'og', 'niete', f, null)).toEqual({ kind: 'card', size: 'og', brand: 'niete', lang: 'ur', d: card });
     expect(Art.artInput('card', 'og', 'niete', f, { ur2: true }).ui).toEqual({ ur2: true });
+  });
+});
+
+/**
+ * The wide (1200×630) Urdu picture must hold its whole stack — the last child is the CTA pill, and a stack that
+ * overruns the canvas loses exactly that pill. The budget below is arithmetic on the rendered CSS: every block's
+ * font-size × line-height × its lines (a line of Nastaliq is ~0.55 em per code point in the 1200 − 64 − 330 − 40 px
+ * the stack gets), the stars row, the gaps and the paddings. It is a floor, not a pixel measure — the browser shot
+ * sits beside it — and it fails on a template whose stack cannot fit.
+ */
+describe('the wide Urdu picture keeps its CTA on the canvas (height budget)', () => {
+  // the LAST rule for the selector wins, as in the cascade (the wide Urdu card re-declares .name and .big after the base rules)
+  const rule = (html, sel) => { const re = new RegExp('(?:^|[\\n}])' + sel.replace(/[.\\]/g, '\\$&') + '\\{([^}]*)\\}', 'g'); let m; let last = ''; while ((m = re.exec(html))) last = m[1]; return last; };
+  const px = (css, prop) => { const m = new RegExp(prop + ':(\\d+(?:\\.\\d+)?)px').exec(css); return m ? Number(m[1]) : 0; };
+  const lh = (css, fs) => { const m = /line-height:(\d+(?:\.\d+)?)/.exec(css); return m ? Number(m[1]) * fs : fs * 1.2; };
+  const LONG_TOPIC = 'کسر اور اعشاریہ: مناسب کسر کی پہچان';        // 35 code points
+  const LONG_NAME = 'محمد عبدالرحمٰن';
+  const STACK_W = 1200 - 64 - 40 - 330 - 64;                       // padding, gap, the mascot column, padding
+  function budget(html, blocks) {
+    const art = rule(html, '.art');
+    const pad = (px(art, 'padding') || 56) * 2 + (/padding-top:60px/.test(rule(html, '.main')) ? 60 : 0);
+    const gap = px(rule(html, '.main'), 'gap') || 14;
+    let total = pad + gap * (blocks.length - 1);
+    for (const b of blocks) {
+      if (b === 'stars') { total += px(rule(html, '.star'), 'width') || 44; continue; }
+      const css = rule(html, '.' + b.sel);
+      const fs = px(css, 'font-size');
+      const perLine = Math.max(1, Math.floor(STACK_W / (fs * 0.55)));
+      const lines = b.cp ? Math.ceil(b.cp / perLine) : 1;
+      total += lh(css, fs) * lines + (b.sel === 'cta' ? 8 : 0);
+    }
+    return total;
+  }
+  const ui = { ur2: true };
+  test('card og: a long topic and a Nastaliq name fit under the switch (and the kicker is not on the wide card)', () => {
+    const html = renderArt({ kind: 'card', size: 'og', brand: 'niete', lang: 'ur', d: { first: LONG_NAME, correct: 5, total: 6, topic: LONG_TOPIC, cls: 'جماعت 3' }, ui }, { fonts: false, pictures: false });
+    const blocks = [{ sel: 'name', cp: [...LONG_NAME].length }, { sel: 'big' }, 'stars', { sel: 'sub', cp: [...LONG_TOPIC].length }, { sel: 'cta', cp: 14 }];
+    if (/class="kick"/.test(html)) blocks.unshift({ sel: 'kick', cp: 20 });
+    expect(budget(html, blocks)).toBeLessThanOrEqual(630);
+    expect(html).not.toMatch(/class="kick"/);
+  });
+  test('invite og: a two-line headline, the scored line, stars and the pill fit under the switch', () => {
+    const html = renderArt({ kind: 'invite', size: 'og', brand: 'niete', lang: 'ur', d: { first: LONG_NAME, correct: 6, total: 6, topic: LONG_TOPIC }, ui }, { fonts: false, pictures: false });
+    const blocks = [{ sel: 'head', cp: 34 }, { sel: 'sub', cp: 50 }, 'stars', { sel: 'cta', cp: 22 }];
+    if (/class="kick"/.test(html)) blocks.unshift({ sel: 'kick', cp: 14 });
+    expect(budget(html, blocks)).toBeLessThanOrEqual(630);
+  });
+  test('the square keeps the larger sizes (it has the height)', () => {
+    const html = renderArt({ kind: 'card', size: 'sq', brand: 'niete', lang: 'ur', d: { first: LONG_NAME, correct: 5, total: 6, topic: LONG_TOPIC, cls: 'جماعت 3' }, ui }, { fonts: false, pictures: false });
+    expect(rule(html, '.sub')).toMatch(/font-size:48px/);     // 44 × 1.08
+    expect(rule(html, '.cta')).toMatch(/font-size:43px/);     // 40 × 1.08
   });
 });
