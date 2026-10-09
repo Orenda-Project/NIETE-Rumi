@@ -4914,7 +4914,13 @@ CREATE TABLE IF NOT EXISTS assessment_requests (
   output_format     TEXT NOT NULL DEFAULT 'pdf' CHECK (output_format IN ('pdf', 'docx')),
 
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- Teacher app v2 "ready" notices (migration V1.6.2): when she closed the ready banner for this paper with its X
+  -- (a banner that ran out untouched leaves it NULL), and when she opened it (or, for a failed one, tapped it).
+  -- NULL = not yet; each written once.
+  notice_seen_at    TIMESTAMPTZ,
+  notice_opened_at  TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS idx_assessment_requests_user_time
