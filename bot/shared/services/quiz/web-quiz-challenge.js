@@ -639,6 +639,9 @@ function itemFlags(rows, { fastMs, stopped }) {
   return { none_n: noneN, rapid, abandoned: !!stopped && noneN >= 3 };
 }
 
+// The endings that are the child's own: a reading ended this way is never a words-per-minute.
+const ENDED_BY_CHILD = new Set(['stuck', 'home', 'hidden']);
+
 async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = {}, ctx = {}) {
   let file = null;
   try {
@@ -675,9 +678,12 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = 
     // Not one word of the story was heard: that is not a reading of 0 words — no score, no ✓, no growth baseline,
     // nothing in the class results; the child is asked to try again.
     if (!stopped && score.attempted === 0) return { failed: true, reason: 'unheard', meta: { cost_usd: cost, duration_s: durationS, ...extra } };
-    // A reading the child ended before the minute, the story unfinished, is not a words-per-minute: incomplete
-    // (the words read are kept), or abandoned when it barely began. The audio's own length is the evidence.
-    if (rules.record && !stopped && !score.finished_early && durationSec < READ_SECS - 5) {
+    // A reading the child ended before the minute is not a words-per-minute: incomplete (the words read are
+    // kept), or abandoned when it barely began. The child's own ending ("too hard", Home, leaving) decides first —
+    // a scorer can claim a finished story on audio that has no reading in it (seen: 60 of 60 "correct" on a
+    // 21-s tone); otherwise the audio's own length, with the story unfinished, is the evidence.
+    const childEnded = ENDED_BY_CHILD.has(ctx.ended);
+    if (rules.record && !stopped && (childEnded || (!score.finished_early && durationSec < READ_SECS - 5))) {
       const reason = durationSec < 15 ? 'abandoned' : 'incomplete';
       return { failed: true, reason, words: score.correct, meta: { cost_usd: cost, seconds: m.meta && m.meta.seconds, duration_s: durationS, flags: m.flags || [], ...extra, words: score.correct } };
     }
