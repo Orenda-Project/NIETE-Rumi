@@ -3,7 +3,7 @@ import { CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../../hooks/useAuth";
 import TeacherPage, { PageChip } from "../TeacherPage";
-import { FeatureArt, type TeacherFeature as ArtFeature } from "../icons";
+import { FeatureArt, FeatureMotionProvider, type TeacherFeature as ArtFeature } from "../icons";
 import { TEACHER_FRAME } from "../copy";
 import { useCopy, useLang } from "../i18n";
 import { cleanSchool, fullName, todayLabel } from "../format";
@@ -35,6 +35,7 @@ export default function Home() {
         </>
       )}
     >
+      <FeatureMotionProvider>
       <nav aria-label={C.home.features} data-testid="feature-tiles" className="[display:grid] grid-cols-2 gap-3">
         {tiles.map(({ feature, label }, i) => {
           const wide = i === tiles.length - 1;
@@ -48,12 +49,13 @@ export default function Home() {
                 wide ? "col-span-2 min-h-[132px]" : "min-h-[176px]",
               )}
             >
-              <FeatureArt feature={feature} size={80} />
+              <FeatureArt feature={feature} size={80} motion />
               <span className="text-[18px] font-semibold leading-tight">{label}</span>
             </Link>
           );
         })}
       </nav>
+      </FeatureMotionProvider>
     </TeacherPage>
   );
 }

@@ -76,4 +76,16 @@ describe("teacher v2 Home", () => {
       expect(t.querySelector("svg.lucide"), `${features[i]} still a lucide stand-in`).toBeNull();
     });
   });
+
+  it("the seven icons play together on arrival and share one timer (bd-fmf24g.18)", () => {
+    vi.useFakeTimers();
+    try {
+      renderHome(AYESHA);
+      const nav = screen.getByTestId("feature-tiles");
+      const svgs = Array.from(nav.querySelectorAll("svg[data-feature-art]"));
+      expect(svgs).toHaveLength(7);
+      expect(svgs.map((s) => s.getAttribute("data-motion"))).toEqual(Array(7).fill("arrive"));
+      expect(vi.getTimerCount()).toBe(1);
+    } finally { vi.useRealTimers(); }
+  });
 });

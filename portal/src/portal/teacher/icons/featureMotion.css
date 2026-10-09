@@ -1,0 +1,44 @@
+/*
+ * bd-fmf24g.18 — the feature icons' small movements (Blueprint: IconMotion.dc.html / FeatureArt.dc.html).
+ * Subtle: tiny amplitudes, ease-in-out, transform + opacity (+ stroke-dashoffset for the tick draw-in). CSS only;
+ * FeatureMotion.tsx just changes one class on one shared timer. No motion at all under reduced motion.
+ *   .fm-on     the icon is allowed to move (set by <FeatureArt motion> inside <FeatureMotionProvider>)
+ *   .fm-arrive the first play, when the screen opens   .fm-again every replay (the svg is re-created, so it restarts)
+ */
+@keyframes fm-pg{0%{transform:scaleX(1)}30%{transform:scaleX(.84)}62%{transform:scaleX(1.03)}82%{transform:scaleX(1)}100%{transform:scaleX(1)}}
+@keyframes fm-wv{0%{transform:scaleY(1)}20%{transform:scaleY(.62)}45%{transform:scaleY(1.12)}70%{transform:scaleY(.78)}100%{transform:scaleY(1)}}
+@keyframes fm-tw{0%{transform:scale(1);opacity:1}35%{transform:scale(.4);opacity:.5}70%{transform:scale(1.2);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes fm-bub{0%{transform:scale(1)}35%{transform:scale(.93)}70%{transform:scale(1.04)}100%{transform:scale(1)}}
+@keyframes fm-tas{0%{transform:rotate(0deg)}22%{transform:rotate(12deg)}46%{transform:rotate(-9deg)}68%{transform:rotate(5deg)}86%{transform:rotate(-2deg)}100%{transform:rotate(0deg)}}
+@keyframes fm-hop{0%{transform:translateY(0)}50%{transform:translateY(-2px)}100%{transform:translateY(0)}}
+@keyframes fm-bdg{0%{transform:scale(1)}45%{transform:scale(1.08)}100%{transform:scale(1)}}
+@keyframes fm-dr-arrive{0%{stroke-dashoffset:101}100%{stroke-dashoffset:0}}
+@keyframes fm-dr-again{0%{stroke-dashoffset:0;opacity:1}14%{stroke-dashoffset:0;opacity:0}15%{stroke-dashoffset:101;opacity:0}16%{stroke-dashoffset:101;opacity:1}100%{stroke-dashoffset:0;opacity:1}}
+
+.fm-on{overflow:visible}
+.fm-pg{transform-box:view-box;transform-origin:24px 26px}
+.fm-wv,.fm-tw{transform-box:fill-box;transform-origin:center}
+.fm-bub{transform-box:view-box;transform-origin:28.5px 21px}
+.fm-tas{transform-box:view-box;transform-origin:39.5px 21.7px}
+.fm-bdg{transform-box:view-box;transform-origin:35px 35px}
+
+.fm-on .fm-an{animation-fill-mode:both;animation-timing-function:ease-in-out;animation-iteration-count:1;animation-delay:var(--fm-s,0s)}
+.fm-on.fm-arrive .fm-an{animation-delay:calc(.2s + var(--fm-s,0s))}
+.fm-on .fm-dr{stroke-dasharray:100 101}
+.fm-on .fm-pg{animation-name:fm-pg;animation-duration:1.2s}
+.fm-on .fm-wv{animation-name:fm-wv;animation-duration:1s}
+.fm-on .fm-tw{animation-name:fm-tw;animation-duration:1s}
+.fm-on .fm-bub{animation-name:fm-bub;animation-duration:.9s}
+.fm-on .fm-tas{animation-name:fm-tas;animation-duration:1.4s}
+.fm-on .fm-hop{animation-name:fm-hop;animation-duration:.6s}
+.fm-on .fm-bdg{animation-name:fm-bdg;animation-duration:.7s}
+.fm-on .fm-dr{animation-duration:.8s}
+.fm-on.fm-arrive .fm-dr{animation-name:fm-dr-arrive}
+.fm-on.fm-again .fm-dr{animation-name:fm-dr-again}
+
+.fm-t1{--fm-s:.1s}.fm-t2{--fm-s:.2s}.fm-t3{--fm-s:.3s}.fm-t4{--fm-s:.4s}.fm-t5{--fm-s:.5s}.fm-t6{--fm-s:.6s}.fm-t9{--fm-s:.9s}
+
+@media (prefers-reduced-motion:reduce){
+  .fm-an{animation:none !important}
+  .fm-dr{stroke-dasharray:none !important}
+}
