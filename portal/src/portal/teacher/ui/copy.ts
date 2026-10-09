@@ -282,9 +282,9 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
   stepsCount: (done = 0, total = 0) => `${total} میں سے ${done}`,
   play: 'چلائیں',
   pause: 'روکیں',
-  /** MACHINE-DRAFTED: صبح (AM) and شام (PM) as in the coach board's 8:30 صبح. */
+  /** صبح (AM) as in the coach board's 8:30 صبح. PM is بعد دوپہر: شام is wrong for a 2:00 PM class (Urdu review, bd-fmf24g.13). */
   am: 'صبح',
-  pm: 'شام',
+  pm: 'بعد دوپہر',
   chosenSoFar: 'اب تک کا انتخاب',
   report: {
     report: 'رپورٹ',
@@ -314,13 +314,13 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
     beingMade: 'تیار ہو رہا ہے',
     lessonPlan: 'لیسن پلان',
     paper: 'پرچہ',
-    timeLeft: (n = 1) => `~${n} منٹ باقی`,
+    timeLeft: (n = 1) => `تقریباً ${n} منٹ باقی`,
     almostDone: 'تقریباً تیار',
-    more: (n = 0) => `+${n} مزید`,
+    more: (n = 0) => `مزید ${n}`,
     readyLesson: 'لیسن پلان تیار ہے',
     readyPaper: 'پرچہ تیار ہے',
     readyMany: (n = 0) => `${n} تیار ہیں`,
-    moreReady: (n = 0) => `+${n} مزید تیار`,
+    moreReady: (n = 0) => `مزید ${n} تیار`,
     open: 'کھولیں',
     tryAgain: 'دوبارہ کوشش کریں',
     couldntMake: 'نہیں بن سکا',

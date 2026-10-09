@@ -38,7 +38,7 @@ describe("notices: style and copy", () => {
     const bad = collectCopy(NOTICES_COPY).filter((c) => copyProblem(c.text) && !SENTENCES.includes(c.path)).map((c) => `${c.path}: ${c.text}`);
     expect(bad).toEqual([]);
     expect(NOTICES.en.leave).toBe("You can leave. We'll tell you here.");
-    expect(NOTICES.ur.leave).toBe("آپ یہاں سے جا سکتے ہیں۔ تیار ہونے پر ہم یہیں بتائیں گے۔");
+    expect(NOTICES.ur.leave).toBe("انتظار ضروری نہیں۔ تیار ہونے پر ہم یہیں بتائیں گے۔"); // gender-neutral (Urdu review, bd-fmf24g.13)
   });
 });
 
