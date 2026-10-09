@@ -69,6 +69,12 @@ const DIAGRAM_TYPES = new Set([
   // VENDOR DIVERGENCE — SYNC.md §3.18: the place-value mat this deployment added to the engine.
   // Same rule as the eight above: legal to V5 because the engine draws it; no 6-12 brief offers it.
   "base_ten", "place_value", "base_ten_blocks", "bundles",
+  // VENDOR DIVERGENCE (bd-yggj4o.2) — SYNC.md, 2026-10-09 partial re-vendor: the three families the
+  // grade 1-5 ch11-18 build added to the engine. Same rule as above: legal to V5 because the engine
+  // draws them; no 6-12 brief offers them.
+  "solid", "solid_shape", "cube_sphere", "3d_shape",
+  "bar_graph", "bar_chart", "column_graph",
+  "thermometer", "thermometers",
 ]);
 
 // type -> canonical family, so a spec written with an alias still satisfies its subject minimum.
@@ -105,6 +111,10 @@ const CANON = {
   missing_letter: "word_blank", fill_the_blank_word: "word_blank", phonics_word: "word_blank",
   // VENDOR DIVERGENCE — SYNC.md §3.18.
   place_value: "base_ten", base_ten_blocks: "base_ten", bundles: "base_ten",
+  // VENDOR DIVERGENCE (bd-yggj4o.2) — the ch11-18 three.
+  solid_shape: "solid", cube_sphere: "solid", "3d_shape": "solid",
+  bar_chart: "bar_graph", column_graph: "bar_graph",
+  thermometers: "thermometer",
 };
 
 const NON_VISUAL = new Set(["illustrative"]);
