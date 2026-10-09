@@ -21,6 +21,7 @@ export const COACH_HOME_EN = {
     schedule: "Schedule",
     observe: "Observe",
     schools: "Schools & teachers",
+    analytics: "Analytics",
   },
   chips: {
     thisWeek: (n: number) => `${n} this week`,
@@ -42,6 +43,7 @@ export const COACH_HOME_UR: Words<typeof COACH_HOME_EN> = {
     schedule: "شیڈول",
     observe: "مشاہدہ",
     schools: "اسکول اور ٹیچرز",
+    analytics: "تجزیہ",
   },
   chips: {
     thisWeek: (n: number) => `اس ہفتے ${n}`,

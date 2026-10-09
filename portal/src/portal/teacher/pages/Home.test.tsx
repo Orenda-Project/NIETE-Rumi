@@ -78,22 +78,22 @@ describe("teacher v2 Home", () => {
     expect(tiles.parentElement?.firstElementChild).toBe(tiles); // nothing finished: the tiles ARE the first thing under the band
   });
 
-  it("seven feature tiles, in the operator's order, each going to its feature", () => {
+  it("eight feature tiles (Analytics last, bd-fmf24g.33), in the operator's order, each going to its feature", () => {
     renderHome(AYESHA);
     const tiles = within(screen.getByTestId("feature-tiles")).getAllByRole("link");
     expect(tiles.map((a) => a.textContent)).toEqual([
-      "Lesson Plans", "Digital Coaching", "Observations", "Training", "Assessment", "Attendance", "My Classes",
+      "Lesson Plans", "Digital Coaching", "Observations", "Training", "Assessment", "Attendance", "My Classes", "Analytics",
     ]);
     expect(tiles.map((a) => a.getAttribute("href"))).toEqual([
       teacherPath("lessons"), teacherPath("coaching"), teacherPath("observations"), teacherPath("training"),
-      teacherPath("assessment"), teacherPath("attendance"), teacherPath("classes"),
+      teacherPath("assessment"), teacherPath("attendance"), teacherPath("classes"), teacherPath("analytics"),
     ]);
   });
 
-  it("My Classes is the wide tile; every tile is a big target with no number on it", () => {
+  it("eight tiles fill four rows, so none is wide; every tile is a big target with no number on it", () => {
     renderHome(AYESHA);
     const tiles = within(screen.getByTestId("feature-tiles")).getAllByRole("link");
-    expect(tiles[6].className).toMatch(/col-span-2/);
+    for (const t of tiles) expect(t.className).not.toMatch(/col-span-2/);
     for (const t of tiles) {
       expect(t.className).toMatch(/min-h-\[(176|132)px\]/);
       expect(t.textContent).not.toMatch(/\d/);
@@ -102,21 +102,22 @@ describe("teacher v2 Home", () => {
   it("each tile shows the kit's D2 illustration (Digital Coaching is the phone), not a stand-in", () => {
     renderHome(AYESHA);
     const tiles = within(screen.getByTestId("feature-tiles")).getAllByRole("link");
-    const features = ["lessons", "coaching", "observations", "training", "assessment", "attendance", "classes"];
+    // Analytics wears the kit's Reports art (bars + %) until it has its own illustration.
+    const features = ["lessons", "coaching", "observations", "training", "assessment", "attendance", "classes", "reports"];
     tiles.forEach((t, i) => {
       expect(t.querySelector(`svg[data-feature-art="${features[i]}"]`), features[i]).not.toBeNull();
       expect(t.querySelector("svg.lucide"), `${features[i]} still a lucide stand-in`).toBeNull();
     });
   });
 
-  it("the seven icons play together on arrival and share one timer (bd-fmf24g.18)", () => {
+  it("the eight icons play together on arrival and share one timer (bd-fmf24g.18)", () => {
     vi.useFakeTimers();
     try {
       renderHome(AYESHA);
       const nav = screen.getByTestId("feature-tiles");
       const svgs = Array.from(nav.querySelectorAll("svg[data-feature-art]"));
-      expect(svgs).toHaveLength(7);
-      expect(svgs.map((s) => s.getAttribute("data-motion"))).toEqual(Array(7).fill("arrive"));
+      expect(svgs).toHaveLength(8);
+      expect(svgs.map((s) => s.getAttribute("data-motion"))).toEqual(Array(8).fill("arrive"));
       expect(vi.getTimerCount()).toBe(1);
     } finally { vi.useRealTimers(); }
   });
