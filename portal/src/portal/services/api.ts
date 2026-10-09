@@ -184,6 +184,8 @@ export const portal = {
   startCoachingUpload: async (args: {
     key: string; lessonPlanKey?: string; photoKeys: string[];
     lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' };
+    /** bd-fmf24g.9: the class she picked in the teacher app (grade 1–12 and her subject). */
+    teacherClass?: { grade: number; subject: string; subjectKey?: string };
   }): Promise<{ coachingSessionId: string }> => {
     const response = await api.post('/coaching-upload/start', args);
     return response.data;

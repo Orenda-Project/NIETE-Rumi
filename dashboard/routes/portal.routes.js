@@ -6786,16 +6786,32 @@ function libraryPlanPick(raw) {
 }
 
 /**
+ * bd-fmf24g.9 — the class she picked in the teacher app: { grade, subject, subjectKey? } and
+ * no other field. The bot validates the values (and drops a bad pick without refusing the
+ * recording); this only keeps anything else from riding along.
+ */
+function teacherClassPick(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const out = {};
+  for (const k of ['grade', 'subject', 'subjectKey']) {
+    if (raw[k] !== undefined) out[k] = raw[k];
+  }
+  return out;
+}
+
+/**
  * POST /api/portal/coaching-upload/start
- * Body { key, lessonPlanKey?, lessonPlan?, photoKeys? } — keys returned by /presign, uploaded.
+ * Body { key, lessonPlanKey?, lessonPlan?, photoKeys?, teacherClass? } — keys returned by /presign, uploaded.
+ *   teacherClass (bd-fmf24g.9): { grade, subject, subjectKey? } — the class she picked; the bot stores it
  *   lessonPlan: a library pick — { assetId } | { lessonId } | { segmentId, lang }
  * → 200 { coachingSessionId }   409 { status:'in_progress', coachingSessionId }
  *   400 { reason: 'plan_not_found' | 'plan_not_ready' | … }
  */
 router.post('/coaching-upload/start', requirePortalAuth, requireSelfObservation, (req, res) => {
-  const { key, lessonPlanKey, photoKeys, lessonPlan } = req.body || {};
+  const { key, lessonPlanKey, photoKeys, lessonPlan, teacherClass } = req.body || {};
   return relayToBot(res, 'start', () => PortalCoachingClient.startSession({
     userId: req.session.portalUserId, key, lessonPlanKey, photoKeys, lessonPlan: libraryPlanPick(lessonPlan),
+    teacherClass: teacherClassPick(teacherClass),
   }));
 });
 
