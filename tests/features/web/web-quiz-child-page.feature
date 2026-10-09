@@ -1546,3 +1546,12 @@ Feature: Web child quiz page on the portal
     And the hub greets "<name>، السلام علیکم! آج کیا کھیلیں؟" with the name first and isolated
     And the share line to WhatsApp keeps the approved sentence shape with Western digits inside isolates
     But with the class absent every string is today's, word for word, and English never changes
+
+  @T763
+  Scenario: Under the polished Urdu look the share pictures read at WhatsApp's preview size
+    Given web_quiz_ur_polish is "on"
+    When an Urdu score card, invite, class or school picture is drawn
+    Then the quiz name is the headline (44 px on the 1200 px canvas), the kicker 32, the call-to-action pill 40, the points pill 28, a Nastaliq name at line-height 1.9
+    And the school sits on its own line under the points, and the class picture's average on its own line — no middots inside an Urdu sentence
+    And the picture's cache key carries the switch only when it is on, so every picture already cached is served as before when it is off
+    But an English picture is byte-identical with or without the switch
