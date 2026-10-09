@@ -14,7 +14,7 @@ function el(sel) {
   return { sel, listeners: {}, attrs: {}, innerHTML: '', addEventListener(n, fn) { (this.listeners[n] = this.listeners[n] || []).push(fn); },
     fire(n) { (this.listeners[n] || []).forEach((fn) => fn({})); }, setAttribute(k, v) { this.attrs[k] = v; }, getAttribute(k) { return this.attrs[k]; } };
 }
-function libPage({ lang = 'en', api = {}, kid = 'c1', search = '' } = {}) {
+function libPage({ lang = 'en', api = {}, kid = 'c1', search = '', ur2 = false } = {}) {
   const els = {};
   const root = el('#wql-root');
   root.querySelector = (s) => (els[s] = els[s] || el(s));
@@ -23,7 +23,8 @@ function libPage({ lang = 'en', api = {}, kid = 'c1', search = '' } = {}) {
   const assigned = [];
   const ctx = {
     console, JSON, Promise, setTimeout: () => 0,
-    document: { getElementById: (id) => (id === 'boot' ? boot : id === 'wql-root' ? root : null), querySelector: () => null, addEventListener() {} },
+    // <html> as the edge renders it: the Urdu polish class only when the switch is on for an Urdu page
+    document: { documentElement: { classList: { contains: (c) => c === 'wq-ur2' && ur2 && lang === 'ur' } }, getElementById: (id) => (id === 'boot' ? boot : id === 'wql-root' ? root : null), querySelector: () => null, addEventListener() {} },
     location: { host: 'example.test', search, assign: (u) => assigned.push(u) },
     navigator: { userAgent: 'test' },
     fetch: (url, init) => {
@@ -139,5 +140,24 @@ describe('the Home button on the library (the hub passes home=1 when web_quiz_ho
     const p = libPage({ api: API });
     await flush(); await flush();
     expect(p.html()).not.toContain('id="wq-home"');
+  });
+});
+
+describe('the polished Urdu copy on the library (the wq-ur2 class on <html>)', () => {
+  const LOCK = { '/api/wq/lib/h/HUBTOK': { __status: 401, error: 'bad_token' } };
+  test('with the class, the lock screen says whose link it is in seven words; without it, today\'s sentence', async () => {
+    const on = libPage({ lang: 'ur', api: LOCK, ur2: true });
+    await flush(); await flush();
+    expect(on.moment()).toBe('M15-lock');
+    expect(on.html()).toContain('یہ لنک جس کو ملا تھا، وہی کھولے۔');
+    expect(on.html()).not.toContain('جس بچے کو یہ لنک بھیجا گیا تھا');
+    const off = libPage({ lang: 'ur', api: LOCK });
+    await flush(); await flush();
+    expect(off.html()).toContain('جس بچے کو یہ لنک بھیجا گیا تھا، اُس سے کہیں کہ اسے کھولے۔');
+  });
+  test('English with the class flag never changes', async () => {
+    const p = libPage({ lang: 'en', api: LOCK, ur2: true });
+    await flush(); await flush();
+    expect(p.html()).toContain('Ask the child this link was sent to to open it.');
   });
 });
