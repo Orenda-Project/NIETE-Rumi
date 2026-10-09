@@ -20,6 +20,9 @@
   try { boot = JSON.parse(document.getElementById('boot').textContent || '{}'); } catch (e) { boot = {}; }
   var menuData = boot.menu || { exercises: [], lang: 'en' };
   var L = menuData.lang === 'ur' ? 'ur' : 'en';
+  // The Urdu polish (web_quiz_ur_polish): the edge puts `wq-ur2` on <html>; read before the copy below is built.
+  var UR2 = false;
+  try { UR2 = !!(document.documentElement && document.documentElement.classList && document.documentElement.classList.contains('wq-ur2')); } catch (e) { UR2 = false; }
   var MASCOT = boot.mascot || (L === 'ur' ? 'جگنو' : 'Jugnu');
   var JUG = '/wq/jugnu/';
 
@@ -82,7 +85,7 @@
     ur: {
       homeBtn: 'ہوم',
       title: function (m) { return m + ' کا چیلنج'; },
-      pick: 'ایک چنیں۔ ہر ایک تقریباً ۲ منٹ کا ہے۔',
+      pick: 'ایک چنیں۔ ہر ایک تقریباً ' + ud(2) + ' منٹ کا ہے۔',
       mins: function (n) { return ud(n) + ' منٹ'; },
       done: 'ہو گیا',
       lastBigger: function (c, n) { return ud(n) + ' میں سے ' + ud(c); },
@@ -140,8 +143,9 @@
   var ICON = { bigger: '🔢', missing: '🧩', read: '📖', listen: '👂' };
 
   // Urdu digits in Urdu prose; a number on a maths card stays Western and is isolated LTR.
-  // On the trail every number the page writes is Western, isolated LTR in Urdu (the keypad is Western; one system).
-  function ud(n) { if (trailOn()) return L === 'ur' ? iso(n) : String(n); return L === 'ur' ? String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.charAt(+d); }) : String(n); }
+  // On the trail, or under the Urdu polish (the edge's `wq-ur2` class on <html>), every number the page writes is
+  // Western, isolated LTR in Urdu (the keypad is Western; one system). Otherwise today's Urdu digits.
+  function ud(n) { if (trailOn() || UR2) return L === 'ur' ? iso(n) : String(n); return L === 'ur' ? String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.charAt(+d); }) : String(n); }
   function iso(n) { return '⁦' + n + '⁩'; }
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
