@@ -99,7 +99,7 @@ describe('Missing number', () => {
     await p.click('wqc-go');
     expect(p.screen()).toBe('missing-practice');
     await type(p, 3);
-    expect(p.els['wqc-say'].textContent).toBe('Yes! ⁦3⁩ goes here.');
+    expect(p.els['wqc-say'].textContent).toBe('Yes! 3 goes here.');
     expect(p.els['wqc-gap'].className).toContain('wqc-ok');
     await p.runTimers((x) => x.ms === 1800);
     await p.runTimers((x) => x.ms === 300);
@@ -268,5 +268,14 @@ describe('numbers in Urdu on the trail are Western, isolated', () => {
     expect(p.html()).not.toMatch(/[۰-۹]/);
     await toItems(p);
     expect(p.html()).toContain('⁦6⁩ میں سے ⁦1⁩');
+  });
+
+  test('tc() isolates a number it fills into Urdu copy, and only in Urdu', async () => {
+    const ur = { ...TRAIL, lang: 'ur', trail_copy: { ...TC, sub: '{total} میں سے {done} پڑاؤ مکمل۔' } };
+    const pu = page({ menu: ur, lang: 'ur', freshEls: true });
+    expect(pu.html()).toMatch(/⁦3⁩ میں سے ⁦1⁩ پڑاؤ مکمل/);
+    const pe = page({ menu: TRAIL, freshEls: true });
+    expect(pe.html()).toContain('1 of 3 stops done.');
+    expect(pe.html()).not.toContain('⁦');
   });
 });
