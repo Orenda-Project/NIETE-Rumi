@@ -82,6 +82,9 @@ const CoachCheckSend = page(() => import("./portal/coach/pages/CoachCheckSend"))
 const CoachSending = page(() => import("./portal/coach/pages/CoachSending"));
 const CoachObservation = page(() => import("./portal/coach/pages/CoachObservation"));
 const CoachEditTeacher = page(() => import("./portal/coach/pages/CoachEditTeacher"));
+// bd-4404s7.2 — the coach's More and her own profile.
+const CoachMore = page(() => import("./portal/coach/profile/CoachMore"));
+const CoachProfile = page(() => import("./portal/coach/profile/CoachProfile"));
 // bd-60117 — a principal's school-level Analytics tab.
 const SchoolAnalytics = page(() => import("./portal/pages/SchoolAnalytics"));
 // bd-60121 — every observed lesson, its own page.
@@ -250,6 +253,9 @@ const App = () => {
             <Route path="/portal/coach/observation/:id" element={<CoachObservation />} />
             {/* bd-o15qnr.11 — Edit teacher (saved by the /observe teacher admin) */}
             <Route path="/portal/coach/teacher/:ext/edit" element={<CoachEditTeacher />} />
+            {/* bd-4404s7.2 — the coach menu and her own profile. */}
+            <Route path="/portal/coach/more" element={<CoachMore />} />
+            <Route path="/portal/coach/profile" element={<CoachProfile />} />
             {/* bd-fmf24g.1 — the teacher app v2: teachers with portal_teacher_v2 only; anyone else
                 is sent to today's Home by the gate. Pages register themselves (teacher/routes.tsx). */}
             {TEACHER_ROUTES.map((r) => (
