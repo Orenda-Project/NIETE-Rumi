@@ -274,7 +274,11 @@
   function trailOn() { return !!(menuData.trail && menuData.trail_copy); }
   function tc(k, p) {
     var c = (menuData.trail_copy && menuData.trail_copy[k]) || (S.data && S.data.trail_copy && S.data.trail_copy[k]) || '';
-    for (var key in (p || {})) c = c.split('{' + key + '}').join(p[key]);
+    // a number filled into Urdu copy is isolated left to right (Western digits, as the keypad)
+    for (var key in (p || {})) {
+      var v = p[key];
+      c = c.split('{' + key + '}').join(L === 'ur' && /^[0-9]+$/.test(String(v)) ? iso(v) : String(v));
+    }
     return c;
   }
   // A phone with no microphone (WhatsApp's browser often has none), or one that refused it on this device: the
@@ -395,7 +399,7 @@
         + '<span class="wqc-dotc" aria-hidden="true">' + (ICON[x.id] || '⭐') + '</span>'
         + '<span class="wqc-stxt"><b>' + esc(x.name) + '</b><small>' + esc(t.mins(x.mins)) + (x.mic && !wait ? ' · 🎤 ' + esc(tc('mic')) : '') + '</small>' + pill + '</span></button></li>';
     }).join('');
-    var sub = allDone ? tc('allDone', { name: MASCOT }) : tc('sub', { done: ud(done), total: ud(xs.length) });
+    var sub = allDone ? tc('allDone', { name: MASCOT }) : tc('sub', { done: done, total: xs.length });
     show('trail', jug(allDone ? 'celebrate' : 'hello', tc('title', { name: MASCOT }), true) + '<p class="wq-sub" id="wqc-trail-sub">' + esc(sub) + '</p><ol class="wqc-trail">' + stops + '</ol>');
     xs.forEach(function (x) {
       on('wqc-ex-' + x.id, function () { if (x.mic && micAbsent()) micWait(); else open(x.id); });
@@ -645,7 +649,7 @@
         var g = q('wqc-gap'); if (g) g.className += right ? ' wqc-ok' : ' wqc-no';
         if (!right && g) g.textContent = it.answer;
         var s = q('wqc-say');
-        if (s) s.textContent = tc(right ? 'missYes' : 'missWas', { n: iso(it.answer) });
+        if (s) s.textContent = tc(right ? 'missYes' : 'missWas', { n: it.answer });
         setTimeout(function () { missing.practice(k + 1); }, 1800);
       }, String(it.answer).length);
     },
