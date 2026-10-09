@@ -22,6 +22,18 @@
 const { logToFile } = require('../utils/logger');
 const { logEvent } = require('../utils/structured-logger');
 
+/**
+ * The ready-notice modules (portal-ready-*) and the area-link signer (portal-link-token) are not on every
+ * branch yet. Where one is absent the send answers "unavailable" instead of throwing (a module that IS there
+ * but fails to load still throws).
+ */
+function optionalRequire(path) {
+  try { return require(path); } catch (err) {
+    if (err && err.code === 'MODULE_NOT_FOUND' && String(err.message || '').includes(path.replace(/^\.\//, ''))) return null;
+    throw err;
+  }
+}
+
 const KINDS = Object.freeze(['lesson', 'paper', 'dc', 'observation']);
 const ENV_OF = Object.freeze({
   lesson: 'WHATSAPP_SHARE_TEMPLATE_LESSON',
@@ -61,9 +73,9 @@ function itemResolvers(supabase, { presign } = {}) {
       if (error) throw new Error(error.message || 'paper read failed');
       const p = data && first(data.assessment_papers);
       if (!data || !p || !p.file_r2_key) return null;
-      const Ready = require('./portal-ready-whatsapp.service');
+      const Ready = optionalRequire('./portal-ready-whatsapp.service');
       const grade = gradeOf(data.grade_code);
-      const title = await Ready.paperTitle({ grade, subjectKey: data.subject_code, chapterNumber: data.chapter_number });
+      const title = Ready ? await Ready.paperTitle({ grade, subjectKey: data.subject_code, chapterNumber: data.chapter_number }) : null;
       const { subjectLabel } = require('./assessment/assessment-vocabulary');
       return {
         kind: 'paper', itemRef: `paper:${data.id}`, title, grade, subject: subjectLabel(data.subject_code),
@@ -123,7 +135,9 @@ function oneLine(text, max = 60) {
 
 function componentsFor(item, { token, lang }) {
   if (item.kind === 'paper' || item.kind === 'lesson') {
-    const { buildSend } = require('./portal-ready-templates');
+    const Templates = optionalRequire('./portal-ready-templates');
+    if (!Templates) return null;
+    const { buildSend } = Templates;
     return buildSend({
       kind: item.kind, lang, token, pdfUrl: item.pdfUrl, title: item.title, grade: item.grade, subject: item.subject, questions: item.questions,
     }).components;
@@ -137,7 +151,7 @@ function componentsFor(item, { token, lang }) {
 function defaultDeps() {
   const supabase = require('../config/supabase');
   const WhatsAppService = require('./whatsapp.service');
-  const { signPortalLink } = require('./portal-link-token');
+  const LinkToken = optionalRequire('./portal-link-token');
   const resolvers = itemResolvers(supabase);
   return {
     templateName: (kind) => templateNameFromEnv(kind),
@@ -147,7 +161,7 @@ function defaultDeps() {
       return data || null;
     },
     item: (kind, id, userId) => resolvers[kind](userId, id),
-    token: (userId, itemRef) => (/^(paper|lesson):/.test(itemRef) ? signPortalLink(userId, 'ready', { i: itemRef }) : null),
+    token: (userId, itemRef) => (/^(paper|lesson):/.test(itemRef) && LinkToken ? LinkToken.signPortalLink(userId, 'ready', { i: itemRef }) : null),
     now: () => new Date(),
     sendTemplate: (...a) => WhatsAppService.sendTemplate(...a),
   };
@@ -177,6 +191,7 @@ async function sendShare({ userId, kind, id } = {}, deps) {
       return { status: 'unavailable', reason: 'no_signing_secret' };
     }
     const components = componentsFor(item, { token, lang });
+    if (!components) return { status: 'unavailable', reason: 'not_on_this_deployment' };
     const report = {};
     const ok = (await d.sendTemplate(user.phone_number, name, lang, components, { report })) === true;
     try { logEvent(ok ? 'share_send.sent' : 'share_send.refused', { kind, userId, template: name, lang, code: report.code || null }); } catch (_) { /* logging never decides */ }

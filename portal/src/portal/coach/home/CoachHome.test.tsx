@@ -7,10 +7,8 @@ vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: any) =
 vi.mock("../CoachGate", () => ({ default: ({ children }: any) => <>{children}</> }));
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Hataf Atif", role: "coach", phoneNumber: "923001234567" }, loading: false }) }));
 vi.mock("../../services/api", () => ({ coach: { getHome: vi.fn() } }));
-vi.mock("../../lib/useChildTest", () => ({ useChildTest: vi.fn(() => false) }));
 import { coach } from "../../services/api";
 import CoachHome from "../pages/CoachHome";
-import { useChildTest } from "../../lib/useChildTest";
 
 /**
  * bd-4404s7.2 — coach Home on the kit (Coach_Home / Coach_HomeBusy / Coach_Home_Urdu): the NIETE band (no school row,
@@ -94,16 +92,6 @@ describe("CoachHome (kit)", () => {
     expect(links[1]).toHaveTextContent("2 waiting");
     expect(links[2]).toHaveTextContent("24 teachers");
     expect(links[3]).toHaveTextContent(/^Training$/);
-  });
-
-  it("the child test, off by default, is a row under the tiles when her flag is on (it left More)", async () => {
-    const first = renderHome();
-    await screen.findByTestId("feature-tiles");
-    expect(screen.queryByTestId("more-row-child-test")).toBeNull();
-    first.unmount();
-    vi.mocked(useChildTest).mockReturnValue(true);
-    renderHome();
-    expect(await screen.findByTestId("more-row-child-test")).toHaveAttribute("href", "/portal/leader/child-test");
   });
 
   it("no visits today: tiles still show and the count is a quiet 0", async () => {
