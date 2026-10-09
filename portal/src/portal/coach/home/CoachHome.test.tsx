@@ -104,7 +104,7 @@ describe("CoachHome (kit)", () => {
     await lang("ur");
     renderHome();
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("السلام علیکم، Hataf Atif!");
-    expect(screen.getByTestId("reports-waiting")).toHaveTextContent("2 رپورٹیں منتظر");
+    expect(await screen.findByTestId("reports-waiting")).toHaveTextContent("2 رپورٹیں منتظر");
     expect(screen.getByText("آج کے دورے")).toBeInTheDocument();
     expect(screen.getByText("مشاہدہ لیں")).toBeInTheDocument();
     const tiles = within(screen.getByTestId("feature-tiles"));
