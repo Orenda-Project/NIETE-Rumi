@@ -9,7 +9,11 @@ const ON = { ui: { ur2: true } };
 const store = () => ({ wq_s_TEST: { st: 's1', child: { chip: 'c1', first: 'زمزم', animal: 'owl' }, answers: {}, queue: [] } });
 const LONG = 'یہ ایک Proper Fraction ہے کیونکہ numerator denominator سے بڑا ہے اور یہ بہت لمبا جواب ہے';   // > 40 code points
 const SHORT = 'جڑ';
-const qs = () => [{ qid: 'q1', text: 'کون سا؟', options: [{ slot: 'A', text: LONG }, { slot: 'B', text: SHORT }], correct_slot: 'A' }];
+// 36 code points: the real shape of the longest live options («numerator denominator سے بڑا ہے» with an English term) — three
+// lines at 360 px in the row layout, so it must take its own row too; a 26-code-point label stays in the row.
+const MID = '\u200Fnumerator اور denominator برابر ہوں';
+const SHORT26 = 'یہ ایک سادہ کسر ہے جی ہاں';
+const qs = () => [{ qid: 'q1', text: 'کون سا؟', options: [{ slot: 'A', text: LONG }, { slot: 'B', text: SHORT }, { slot: 'C', text: MID }, { slot: 'D', text: SHORT26 }], correct_slot: 'A' }];
 
 describe('the landing and identity copy under the class', () => {
   test('on: the landing meta is «5 سوال، 3 منٹ» with the numbers isolated, the teacher line and the class on two lines', () => {
@@ -37,7 +41,7 @@ describe('the landing and identity copy under the class', () => {
 });
 
 describe('the question screen under the class', () => {
-  test('the counter reads «1 میں سے سوال 1» (Western digits, isolated), and a label over 40 code points gets wq-long', () => {
+  test('the counter reads «1 میں سے سوال 1» (Western digits, isolated), and a label over 28 code points gets wq-long', () => {
     const p = page({ lang: 'ur', bootExtra: ON, questions: qs() });
     p.ctx.__wq.question(0);
     const h = p.html();
@@ -45,6 +49,10 @@ describe('the question screen under the class', () => {
     expect(h).not.toContain(' از ');
     expect(h).toMatch(/class="wq-opt wq-s1 wq-long"[^>]*data-slot="A"/);
     expect(h).toMatch(/class="wq-opt wq-s2"[^>]*data-slot="B"/);
+    expect([...MID].length).toBe(36);
+    expect(h).toMatch(/class="wq-opt wq-s3 wq-long"[^>]*data-slot="C"/);
+    expect([...SHORT26].length).toBeLessThanOrEqual(28);
+    expect(h).toMatch(/class="wq-opt wq-s4"[^>]*data-slot="D"/);
   });
   test('off: «سوال 1 از 1» and no wq-long', () => {
     const p = page({ lang: 'ur', questions: qs() });
