@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AssessmentPaper } from '../../services/api';
-import { loadGradeSubjects } from '../../lib/gradeSubjects';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import { FEATURE_HUE } from '../icons';
 import { teacherPath } from '../routes';
@@ -13,9 +12,9 @@ import { CARD, FOCUS } from '../ui/styles';
 import { ASSESSMENT } from './copy';
 import { useCopy } from '../i18n';
 import { catalogueOnce, loadPapers, subjectName, useAssessmentSwitches } from './api';
-import { groupPapersByDay, pkToday } from './model';
+import { paperGroups } from './papersList';
 import { rememberPapers } from './paperCache';
-import { newPaperPath, paperPath, requestPath } from './paths';
+import { ASSESSMENT_ALL, newPaperPath, requestPath } from './paths';
 import { resetPicks } from './store';
 import { failureLabel } from './failure';
 import { useJobs } from './useJobs';
@@ -27,27 +26,19 @@ import { Chip, Label, ListCard, LoadState } from './ui';
  *   New paper      the six-step flow (fresh choices each time)
  *   Being made     her papers still being written, and any that failed (Try again / Dismiss on its page),
  *                  from today's job tracking (usePaperJobs, the tab's session)
- *   filters        All, then her classes (GET /me/grade-subjects?feature=assessment) → GET /assessment/papers'
- *                  own grade + subject filters
- *   My papers      every ready paper, grouped by the day it was ready, newest first, paged (Show more);
- *                  the ones that landed while she watched carry the New dot
+ *   Recent papers  her latest ready papers (GET /assessment/papers, page 1), by the day each was ready, newest first;
+ *                  the ones that landed while she watched carry the New dot. Collapsible, open, with See all
+ *                  → All papers (AssessmentAll): the Lesson Plans pattern (bd-fmf24g.34)
  *
  * With the generator off on this deployment (GET /config), Coming soon and nothing else.
  */
-
-type Filter = { grade: number; subject: string } | null;
-const filterKey = (f: Filter) => (f ? `${f.grade}|${f.subject}` : 'all');
 
 export function AssessmentHub() {
   const C = useCopy(ASSESSMENT);
   const switches = useAssessmentSwitches();
   const [cat] = useLoad(catalogueOnce, 'assessment:catalogue');
   const catalogue = dataOf(cat);
-  const [combos] = useLoad(() => loadGradeSubjects('assessment'), 'gs:assessment');
-  const [filter, setFilter] = useState<Filter>(null);
   const [papers, setPapers] = useState<AssessmentPaper[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [status, setStatus] = useState<'loading' | 'error' | 'ok'>('loading');
   const [reloadTick, setReloadTick] = useState(0);
   const [newIds, setNewIds] = useState<string[]>([]);
@@ -55,50 +46,27 @@ export function AssessmentHub() {
   const { jobs } = useJobs({
     onReady: (job) => {
       if (job.paperId) setNewIds((ids) => (ids.includes(job.paperId as string) ? ids : [...ids, job.paperId as string]));
-      setPage(1);
       setReloadTick((t) => t + 1);
     },
   });
 
-  // Page 1 replaces the list (a new filter, a paper that just landed); later pages add to it.
+  // Her latest page of papers; a paper that just landed asks again.
   useEffect(() => {
     let live = true;
-    setStatus((s) => (page === 1 ? 'loading' : s));
-    loadPapers({ page, grade: filter?.grade, subject: filter?.subject })
+    setStatus('loading');
+    loadPapers({ page: 1 })
       .then((res) => {
         if (!live) return;
         rememberPapers(res.papers || []);
-        setPapers((cur) => (page === 1 ? res.papers || [] : [...cur, ...(res.papers || [])]));
-        setTotal(res.total || 0);
+        setPapers(res.papers || []);
         setStatus('ok');
       })
       .catch(() => { if (live) setStatus('error'); });
     return () => { live = false; };
-  }, [page, filter, reloadTick]);
-
-  const pick = useCallback((f: Filter) => { setFilter(f); setPage(1); }, []);
-  const filters = useMemo(() => (dataOf(combos) ?? [])
-    .filter((c) => c.grade !== null && c.available && c.featureKey)
-    .map((c) => ({ grade: c.grade as number, subject: c.featureKey as string, label: C.gradeSubject(c.grade as number, c.subject) })), [combos, C]);
+  }, [reloadTick]);
 
   const making = jobs.filter((j) => j.status === 'writing' || j.status === 'failed');
-  const today = pkToday();
-  const groups = groupPapersByDay(papers, today, C.days).map((g) => ({
-    day: g.day,
-    items: g.items.map((p) => ({
-      id: p.paper_id,
-      subject: p.subject,
-      grade: p.grade ?? '',
-      title: p.chapter_number != null ? C.chapterShort(p.chapter_number) : C.questionsCount(p.question_count ?? 0),
-      extra: C.join(
-        p.chapter_number != null && p.question_count != null ? C.questionsCount(p.question_count) : null,
-        p.total_marks != null ? C.marksCount(p.total_marks) : null,
-        p.version != null && p.version > 1 ? C.version(p.version) : null,
-      ),
-      isNew: newIds.includes(p.paper_id),
-      to: paperPath(p.paper_id),
-    })),
-  }));
+  const groups = useMemo(() => paperGroups(papers, C, newIds), [papers, C, newIds]);
 
   const page1 = (
     <>
@@ -142,44 +110,22 @@ export function AssessmentHub() {
         </>
       )}
 
-      {filters.length > 0 && (
-        <div role="radiogroup" aria-label={C.myPapers} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 pt-2">
-          {[{ key: 'all', label: C.all, value: null as Filter }, ...filters.map((f) => ({ key: filterKey(f), label: f.label, value: f as Filter }))].map((o) => {
-            const on = filterKey(filter) === o.key;
-            return (
-              <button
-                key={o.key}
-                type="button"
-                role="radio"
-                aria-checked={on}
-                onClick={() => pick(o.value)}
-                className={cn(
-                  'flex min-h-[56px] shrink-0 items-center whitespace-nowrap rounded-full border-[1.5px] px-4 text-[15px] font-semibold',
-                  on ? 'border-[#33374a] bg-[#33374a] text-white' : 'border-[#d1d5db] bg-white',
-                  FOCUS,
-                )}
-              >
-                {o.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {status !== 'ok' && page === 1
+      {status !== 'ok'
         ? (
           <>
-            <Label>{C.myPapers}</Label>
+            <Label>{C.recent}</Label>
             <LoadState status={status} onRetry={() => setReloadTick((t) => t + 1)} />
           </>
         )
         : (
           <HistoryList
-            heading={C.myPapers}
+            heading={C.recent}
+            collapsible
+            defaultOpen
             groups={groups}
+            showMore={false}
+            seeAllTo={ASSESSMENT_ALL}
             emptyLabel={C.noPapersYet}
-            showMore={papers.length < total}
-            onShowMore={() => setPage((n) => n + 1)}
           />
         )}
     </>
