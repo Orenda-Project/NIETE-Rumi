@@ -75,6 +75,8 @@ const CoachObservePick = page(() => import("./portal/coach/pages/CoachObservePic
 const CoachVisit = page(() => import("./portal/coach/pages/CoachVisit"));
 const CoachReports = page(() => import("./portal/coach/pages/CoachReports"));
 const CoachPeople = page(() => import("./portal/coach/pages/CoachPeople"));
+const CoachAnalytics = page(() => import("./portal/coach/analytics/CoachAnalytics").then((m) => ({ default: m.CoachAnalytics })));
+const CoachTeacherAnalytics = page(() => import("./portal/coach/analytics/CoachAnalytics").then((m) => ({ default: m.CoachTeacherAnalytics })));
 const CoachSchool = page(() => import("./portal/coach/pages/CoachSchool"));
 const CoachTeacher = page(() => import("./portal/coach/pages/CoachTeacher"));
 const CoachRecord = page(() => import("./portal/coach/pages/CoachRecord"));
@@ -258,6 +260,9 @@ const App = () => {
             <Route path="/portal/coach/reports" element={<CoachReports />} />
             <Route path="/portal/coach/reports/all" element={<CoachReportsAll />} />
             <Route path="/portal/coach/people" element={<CoachPeople />} />
+            {/* bd-fmf24g.27 — the coach's Analytics, and one of her teachers */}
+            <Route path="/portal/coach/analytics" element={<CoachAnalytics />} />
+            <Route path="/portal/coach/analytics/teacher/:ext" element={<CoachTeacherAnalytics />} />
             <Route path="/portal/coach/school/:emis" element={<CoachSchool />} />
             <Route path="/portal/coach/teacher/:ext" element={<CoachTeacher />} />
             {/* bd-o15qnr.10 — one HITL report, from a teacher's History */}
