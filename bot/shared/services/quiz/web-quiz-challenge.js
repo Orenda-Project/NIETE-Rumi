@@ -553,6 +553,7 @@ async function menu(token, { kid, lang, device } = {}) {
     ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang) } : {}),
     // Whether the page sends its page-session events (wq-tel.js).
     rt: await Tel.flag(),
+    ...((await require('./web-quiz-ur-polish').ui()) ? { ui: { ur2: true } } : {}),
   };
 }
 

@@ -179,12 +179,16 @@ function ogText(payload, view, brand) {
 // Android has no Nastaliq of its own, so it is fetched first, before the stylesheet that uses it.
 // The file name carries a version because /wq is served with a one-year immutable cache.
 const URDU_FONT = '/wq/fonts/wq-nastaliq-1.woff2';
+// The polished Urdu look (app_settings web_quiz_ur_polish, carried as payload `ui.ur2`): a second face and ONE class on <html>.
+const URDU_FONT_2 = '/wq/fonts/wq-nastaliq-2.woff2';
+const ur2On = (ui, lang) => Boolean(ui && ui.ur2 === true && lang === 'ur');
 
 // Every share picture and brand picture is a 1200x630 JPEG: the head says so, so the phone knows what it fetches.
-function head({ lang, dir, title, desc, origin, url, assetV, brand, image }) {
+function head({ lang, dir, title, desc, origin, url, assetV, brand, image, ui }) {
   const img = image || `${origin}${brand.og.image}`;
+  const ur2 = ur2On(ui, lang);
   return `<!doctype html>
-<html lang="${lang}" dir="${dir}">
+<html lang="${lang}" dir="${dir}"${ur2 ? ' class="wq-ur2"' : ''}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -201,7 +205,7 @@ function head({ lang, dir, title, desc, origin, url, assetV, brand, image }) {
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="${esc(title)}">
 <meta property="og:url" content="${esc(url)}">
-<link rel="icon" href="${esc(WebQuizBrand.faviconHref(brand))}">${lang === 'ur' ? `\n<link rel="preload" href="${URDU_FONT}" as="font" type="font/woff2" crossorigin>` : ''}
+<link rel="icon" href="${esc(WebQuizBrand.faviconHref(brand))}">${lang === 'ur' ? `\n<link rel="preload" href="${ur2 ? URDU_FONT_2 : URDU_FONT}" as="font" type="font/woff2" crossorigin>` : ''}
 <link rel="stylesheet" href="/wq/wq.css?v=${assetV}">
 <style id="wq-brand">${WebQuizBrand.cssVars(brand)}</style>`;
 }
@@ -235,7 +239,7 @@ function renderQuizPage({ payload, code, view, origin, assetV, url, a, v }) {
   const og = ogText(payload, view, brand);
   const boot = { ...payload, code, view, brand };
   const image = ogImageFor({ payload, code, view, origin, a, v });
-  return `${head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand, image })}
+  return `${head({ lang, dir, title: og.title, desc: og.desc, origin, url: url || `${origin}/q/${code}`, assetV, brand, image, ui: payload && payload.ui })}
 </head>
 <body>
 <main id="wq" class="wq-app" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(BOOT_COPY[lang])}</p></div></main>
@@ -270,7 +274,7 @@ function renderHubPage({ payload, token, origin, assetV }) {
   const lang = payload && payload.lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(payload && payload.brand);
   const boot = { ...payload, token, view: 'hub', brand };
-  return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: HUB_TITLE[lang], desc: HUB_TITLE[lang], origin, url: origin, assetV, brand })}
+  return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: HUB_TITLE[lang], desc: HUB_TITLE[lang], origin, url: origin, assetV, brand, ui: payload && payload.ui })}
 </head>
 <body>
 <main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>
@@ -284,11 +288,11 @@ function renderHubPage({ payload, token, origin, assetV }) {
 // M4b library: the video library opened from the kid's hub (/lib/<hub token>?kid=<chip>&l=<lang>).
 // A shell only: wq-lib.js asks the bot for the library with the hub token, so the edge calls nothing.
 const LIB_TITLE = { en: 'Video library', ur: 'ویڈیو لائبریری' };
-function renderLibPage({ hub, kid, lang, origin, assetV, brandKey, rt = false }) {
+function renderLibPage({ hub, kid, lang, origin, assetV, brandKey, rt = false, ui = null }) {
   const l = lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(brandKey || WebQuizBrand.brandKey({ orgName: process.env.ORG_NAME, botName: process.env.BOT_NAME }));
   const boot = { view: 'lib', hub, kid, lang: l, brand: Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, brandKey) ? brandKey : null, rt: rt === true };
-  return `${head({ lang: l, dir: l === 'ur' ? 'rtl' : 'ltr', title: LIB_TITLE[l], desc: LIB_TITLE[l], origin, url: origin, assetV, brand })}
+  return `${head({ lang: l, dir: l === 'ur' ? 'rtl' : 'ltr', title: LIB_TITLE[l], desc: LIB_TITLE[l], origin, url: origin, assetV, brand, ui })}
 </head>
 <body>
 <main id="wq" class="wq-app"><div class="wq-bar wq-topbar">${lockupHtml(brand, l)}</div><div id="wql-root" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"></div></div></main>
@@ -299,13 +303,13 @@ function renderLibPage({ hub, kid, lang, origin, assetV, brandKey, rt = false })
 </html>`;
 }
 
-function renderClosedPage({ lang, kind, origin, assetV, brandKey }) {
+function renderClosedPage({ lang, kind, origin, assetV, brandKey, ui = null }) {
   const l = lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(brandKey || WebQuizBrand.brandKey({ orgName: process.env.ORG_NAME, botName: process.env.BOT_NAME }));
   const c = CLOSED_COPY[l];
   const title = kind === 'off' ? c.off : kind === 'hub' ? c.hub : c.title;
   const say = kind === 'off' ? c.offSay : kind === 'hub' ? c.hubSay : c.say;
-  return `${head({ lang: l, dir: l === 'ur' ? 'rtl' : 'ltr', title, desc: say, origin, url: origin, assetV, brand })}
+  return `${head({ lang: l, dir: l === 'ur' ? 'rtl' : 'ltr', title, desc: say, origin, url: origin, assetV, brand, ui })}
 </head>
 <body>
 <main id="wq" class="wq-app"><div class="wq-bar wq-topbar">${lockupHtml(brand, l)}</div><section class="wq-screen wq-closed">
@@ -409,7 +413,7 @@ function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }
   const brand = brandOf(brandKey);
   const title = CH_COPY[lang].title(brand.mascot[lang]);
   const boot = { token, kid: kid || null, menu, brand, mascot: brand.mascot[lang], rt: menu.rt === true };
-  return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title, desc: title, origin, url: `${origin}/c/`, assetV, brand })}
+  return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title, desc: title, origin, url: `${origin}/c/`, assetV, brand, ui: menu && menu.ui })}
 </head>
 <body>
 <main id="wq" class="wq-app wqc" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(CH_COPY[lang].boot)}</p></div></main>
@@ -421,11 +425,11 @@ function renderChallengePage({ menu, token, kid, origin, assetV, chV, brandKey }
 </html>`;
 }
 
-function renderChallengeNote({ lang, why, origin, assetV, brandKey }) {
+function renderChallengeNote({ lang, why, origin, assetV, brandKey, ui = null }) {
   const l = lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(brandKey);
   const title = CH_COPY[l].title(brand.mascot[l]);
-  return `${head({ lang: l, dir: l === 'ur' ? 'rtl' : 'ltr', title, desc: title, origin, url: origin, assetV, brand })}
+  return `${head({ lang: l, dir: l === 'ur' ? 'rtl' : 'ltr', title, desc: title, origin, url: origin, assetV, brand, ui })}
 </head>
 <body>
 <main id="wq" class="wq-app"><div class="wq-bar wq-topbar">${lockupHtml(brand, l)}</div><section class="wq-screen wq-closed">
@@ -452,6 +456,7 @@ function createWebQuizRouter(opts = {}) {
   // Whether the pages send their page-session events (wq-tel.js): the bot's last word, for the library page,
   // which the edge draws without asking the bot.
   let lastRt = false;
+  let lastUi = null;   // the last payload's `ui` (the Urdu polish switch), for the shells that call no bot
 
   // Link previews (web-quiz-preview.js): what the edge last learned about each code, and the drawn pictures.
   const now = opts.now || Date.now;
@@ -542,8 +547,8 @@ function createWebQuizRouter(opts = {}) {
     pageHeaders(res);
     const origin = originOf(req);
     const code = String(req.params.code || '');
-    if (!CODE_RX.test(code)) return res.status(404).type('html').send(renderClosedPage({ lang: 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand }));
-    if (!botUrl || !apiKey) return res.status(503).type('html').send(renderClosedPage({ lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand }));
+    if (!CODE_RX.test(code)) return res.status(404).type('html').send(renderClosedPage({ lang: 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
+    if (!botUrl || !apiKey) return res.status(503).type('html').send(renderClosedPage({ lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     const upper = code.toUpperCase();
     const p = typeof req.query.p === 'string' ? `?p=${encodeURIComponent(req.query.p.slice(0, 400))}` : '';
     const url = `${origin}/q/${upper}${view === 'class' ? '/class' : view === 'schools' ? '/schools' : ''}`;
@@ -566,15 +571,16 @@ function createWebQuizRouter(opts = {}) {
     try {
       out = await callBot('GET', `/api/internal/wq/quiz/${upper}${p}`, req);
     } catch (_) {
-      return res.status(502).type('html').send(renderClosedPage({ lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand }));
+      return res.status(502).type('html').send(renderClosedPage({ lang: 'en', kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     }
     // A friend's challenge code has no class page: the class table is the challenger's classmates'.
     if (view === 'class' && out.status === 200 && out.body && out.body.invited) {
-      return res.status(404).type('html').send(renderClosedPage({ lang: out.body.quiz && out.body.quiz.lang === 'ur' ? 'ur' : 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand }));
+      return res.status(404).type('html').send(renderClosedPage({ lang: out.body.quiz && out.body.quiz.lang === 'ur' ? 'ur' : 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     }
     if (out.status === 200 && out.body && out.body.quiz) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
+      lastUi = out.body.ui && out.body.ui.ur2 === true ? { ur2: true } : null;
       if (!p) ogKnown.set(upper, Preview.ogFacts(out.body), OG_KEEP_MS);
       if (preview) {
         return res.status(200).type('html').send(renderPreviewPage({ facts: Preview.ogFacts(out.body), code: upper, view, origin, assetV: version(), url, a: req.query.a, v: req.query.v }));
@@ -586,9 +592,9 @@ function createWebQuizRouter(opts = {}) {
     // endpoint is not deployed yet, which is "not open right now", not the child's fault.
     const contractAnswer = out.body && typeof out.body.error === 'string';
     if ((out.status === 404 || out.status === 410) && contractAnswer) {
-      return res.status(out.status).type('html').send(renderClosedPage({ lang, kind: 'closed', origin, assetV: version(), brandKey: lastBrand }));
+      return res.status(out.status).type('html').send(renderClosedPage({ lang, kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     }
-    return res.status(out.status === 503 || out.status === 404 ? 503 : 502).type('html').send(renderClosedPage({ lang, kind: 'off', origin, assetV: version(), brandKey: lastBrand }));
+    return res.status(out.status === 503 || out.status === 404 ? 503 : 502).type('html').send(renderClosedPage({ lang, kind: 'off', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
   }
 
   router.get('/q/:code', limiters.read, unknownCode, (req, res) => page(req, res, 'quiz'));
@@ -599,7 +605,7 @@ function createWebQuizRouter(opts = {}) {
     const token = String(req.params.token || '');
     // No hub JSON on a closed link, so the phone's own language picks the page's (an Urdu phone reads Urdu).
     const phoneLang = /^\s*ur\b/i.test(String(req.get('accept-language') || '')) ? 'ur' : 'en';
-    const closed = (status, kind) => res.status(status).type('html').send(renderClosedPage({ lang: phoneLang, kind, origin, assetV: version(), brandKey: lastBrand }));
+    const closed = (status, kind) => res.status(status).type('html').send(renderClosedPage({ lang: phoneLang, kind, origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     if (!HUB_TOKEN_RX.test(token)) return closed(401, 'hub');
     if (!botUrl || !apiKey) return closed(503, 'off');
     const kid = typeof req.query.kid === 'string' && /^[0-9a-f]{16}$/.test(req.query.kid) ? `?kid=${req.query.kid}` : '';
@@ -612,6 +618,7 @@ function createWebQuizRouter(opts = {}) {
     if (out.status === 200 && out.body && Array.isArray(out.body.kids)) {
       if (Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, out.body.brand)) lastBrand = out.body.brand;
       if (typeof out.body.rt === 'boolean') lastRt = out.body.rt;
+      lastUi = out.body.ui && out.body.ui.ur2 === true ? { ur2: true } : null;
       return res.status(200).type('html').send(renderHubPage({ payload: out.body, token, origin, assetV: version() }));
     }
     if (out.status === 401) return closed(401, 'hub');
@@ -629,8 +636,8 @@ function createWebQuizRouter(opts = {}) {
     const token = String(req.params.token || '');
     const brandKey = lastBrand || WebQuizBrand.brandKey({ orgName: process.env.ORG_NAME, botName: process.env.BOT_NAME });
     const lang0 = req.query.lang === 'ur' ? 'ur' : (req.query.lang === 'en' ? 'en' : null);
-    if (!TOKEN_RX.test(token)) return res.status(404).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind: 'closed', origin, assetV: version(), brandKey }));
-    if (!botUrl || !apiKey) return res.status(503).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind: 'off', origin, assetV: version(), brandKey }));
+    if (!TOKEN_RX.test(token)) return res.status(404).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind: 'closed', origin, assetV: version(), brandKey, ui: lastUi }));
+    if (!botUrl || !apiKey) return res.status(503).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind: 'off', origin, assetV: version(), brandKey, ui: lastUi }));
     const q = new URLSearchParams();
     if (typeof req.query.kid === 'string' && /^[0-9a-f]{16}$/.test(req.query.kid)) q.set('kid', req.query.kid);
     if (lang0) q.set('lang', lang0);
@@ -639,17 +646,17 @@ function createWebQuizRouter(opts = {}) {
     try {
       out = await callBot('GET', `/api/internal/wq/ch/${encodeURIComponent(token)}${qs}`, req);
     } catch (_) {
-      return res.status(502).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind: 'off', origin, assetV: version(), brandKey }));
+      return res.status(502).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind: 'off', origin, assetV: version(), brandKey, ui: lastUi }));
     }
     if (out.status === 200 && out.body && Array.isArray(out.body.exercises)) {
       return res.status(200).type('html').send(renderChallengePage({ menu: out.body, token, kid: q.get('kid'), origin, assetV: version(), chV: challengeVersion(), brandKey }));
     }
     const err = out.body && out.body.error;
     if (err === 'not_eligible' || err === 'pick_kid' || err === 'other_device') {
-      return res.status(out.status).type('html').send(renderChallengeNote({ lang: lang0 || 'en', why: err, origin, assetV: version(), brandKey }));
+      return res.status(out.status).type('html').send(renderChallengeNote({ lang: lang0 || 'en', why: err, origin, assetV: version(), brandKey, ui: lastUi }));
     }
     const kind = out.status === 401 ? 'closed' : 'off';
-    return res.status(out.status === 401 ? 410 : 503).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind, origin, assetV: version(), brandKey }));
+    return res.status(out.status === 401 ? 410 : 503).type('html').send(renderClosedPage({ lang: lang0 || 'en', kind, origin, assetV: version(), brandKey, ui: lastUi }));
   }
 
   // The share pictures. The id is the permission (the bot checks its mac); the edge checks its shape and that it
@@ -691,10 +698,10 @@ function createWebQuizRouter(opts = {}) {
     pageHeaders(res);
     const origin = originOf(req);
     const token = String(req.params.token || '');
-    if (!TOKEN_RX.test(token)) return res.status(404).type('html').send(renderClosedPage({ lang: 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand }));
+    if (!TOKEN_RX.test(token)) return res.status(404).type('html').send(renderClosedPage({ lang: 'en', kind: 'closed', origin, assetV: version(), brandKey: lastBrand, ui: lastUi }));
     const kid = typeof req.query.kid === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(req.query.kid) ? req.query.kid : null;
     const lang = req.query.l === 'ur' || req.query.lang === 'ur' ? 'ur' : 'en';
-    return res.status(200).type('html').send(renderLibPage({ hub: token, kid, lang, origin, assetV: version(), brandKey: lastBrand, rt: lastRt }));
+    return res.status(200).type('html').send(renderLibPage({ hub: token, kid, lang, origin, assetV: version(), brandKey: lastBrand, rt: lastRt, ui: lastUi }));
   });
 
   router.get('/wq-probe', (req, res) => {

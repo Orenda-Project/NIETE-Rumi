@@ -71,6 +71,8 @@
     LANG = l === 'ur' ? 'ur' : 'en';
     T = COPY[LANG];
     try { document.documentElement.setAttribute('lang', LANG); document.documentElement.setAttribute('dir', LANG === 'ur' ? 'rtl' : 'ltr'); } catch (e) {}
+    // The polished Urdu look (the edge put `wq-ur2` on <html> for an Urdu boot): it follows the language, never the boot.
+    try { if (B && B.ui && B.ui.ur2 === true) document.documentElement.classList.toggle('wq-ur2', LANG === 'ur'); } catch (e) {}
   }
 
   /* ---------------- helpers ---------------- */
