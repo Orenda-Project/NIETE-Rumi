@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { RecordStart } from '../../components/coaching/CoachingHome';
 import { checkFile, MAX_PHOTOS, readAudioDuration } from '../../lib/coachingUpload';
-import { sendLesson, SendError, type LibraryPick } from '../../lib/coachingSend';
+import { sendLesson, SendError, type LibraryPick, type TeacherClass } from '../../lib/coachingSend';
 import { takeHandedOffRecording } from '../../lib/lessonHandoff';
 import { lessonFilename } from '../../lib/recordFlow';
 import { deleteRecording, latestUnsent, type StoredRecording } from '../../lib/recordingStore';
@@ -192,7 +192,8 @@ export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TO
 
   const removePhoto = (i: number) => { setPhotosProblem(null); setPhotos((p) => p.filter((_, j) => j !== i)); };
 
-  const send = async () => {
+  /** `teacherClass`: the class she picked (teacher app v2); today's pages send none. */
+  const send = async (teacherClass?: TeacherClass | null) => {
     if (!audio) return;
     setFailure(null);
     setProgress(0);
@@ -202,6 +203,7 @@ export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TO
         audio: { blob: audio.blob, filename: audio.filename },
         plan: plan ? (plan.kind === 'library' ? { kind: 'library', pick: plan.pick } : { kind: 'file', file: plan.file }) : null,
         photos,
+        teacherClass: teacherClass ?? null,
       }, portal, setProgress);
       if (audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* gone */ } }
       setSessionId(coachingSessionId);

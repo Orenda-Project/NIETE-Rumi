@@ -19,7 +19,8 @@
  * So this module does NOT claim certainty it does not have. It returns one of three
  * confidences, and the caller behaves differently for each:
  *
- *   high    — the teacher's own lesson plan, extracted, names the subject.
+ *   high    — the class the teacher picked when she sent the recording (bd-fmf24g.9, tier 0:
+ *             wins over everything below), or her own lesson plan, extracted, names the subject.
  *   medium  — the corpus key of the plan she selected for this lesson, or exactly
  *             one distinct subject downloaded in the hours before the recording.
  *             Both are good signals about the PLAN; neither is proof about the lesson.
@@ -144,6 +145,40 @@ function graderSaysLessonMismatch(session) {
   return typeof note === 'string' && note.trim() === 'lesson_mismatch';
 }
 
+/**
+ * bd-fmf24g.9 — the class the teacher picked in the v2 app when she sent the recording,
+ * stored by portal-coaching.service at conversation_state.teacher_class
+ * ({ grade, subject, subject_key?, picked_at }).
+ *
+ * PRECEDENCE: her pick is TIER 0 — it wins over her uploaded plan, the corpus plan she
+ * linked, recent downloads and the grader's lesson_mismatch note (that note is about a
+ * PLAN; her pick is not one). It is her statement about her own lesson. What is NOT done
+ * is silence about disagreement: see subjectDisagreement().
+ *
+ * A pick whose subject the registry cannot name (Physics, Woodwork) yields no code and
+ * the chain falls through to the other tiers — never a nearest match. A grade outside
+ * 1-12 makes the whole pick unusable.
+ *
+ * @param {object} session coaching_sessions row
+ * @returns {{code: string, grade: string}|null}
+ */
+function teacherPickOf(session) {
+  const tc = session && session.conversation_state && session.conversation_state.teacher_class;
+  if (!tc || typeof tc !== 'object' || Array.isArray(tc)) return null;
+  const grade = typeof tc.grade === 'string' && /^\d{1,2}$/.test(tc.grade.trim()) ? Number(tc.grade) : tc.grade;
+  if (!Number.isInteger(grade) || grade < 1 || grade > 12) return null;
+  const code = canonicalSubject(tc.subject_key) || canonicalSubject(tc.subject);
+  if (!code) return null;
+  return { code, grade: String(grade) };
+}
+
+/** The row as it was before she picked — what the other tiers see. */
+function withoutTeacherPick(session) {
+  const cs = (session && session.conversation_state) || {};
+  const { teacher_class: _dropped, ...rest } = cs;
+  return { ...session, conversation_state: rest };
+}
+
 const NO_SUBJECT = (source) => ({
   code: null, grade: null, confidence: 'none', source, group: null,
 });
@@ -171,6 +206,11 @@ const resolved = (code, grade, confidence, source) => ({
 function resolveLessonSubject(session, opts = {}) {
   const s = session || {};
   const structured = s.lesson_plan_structured || null;
+
+  // Tier 0 — HIGH. The class she picked when she sent the recording (bd-fmf24g.9). Wins
+  // over every tier below and is not demoted by lesson_mismatch (that is about a plan).
+  const picked = teacherPickOf(s);
+  if (picked) return resolved(picked.code, picked.grade, 'high', 'teacher');
 
   // The grader had the plan and the transcript side by side and said they are not
   // the same lesson. Anything derived from that plan is then worse than nothing:
@@ -226,6 +266,34 @@ function resolveLessonSubject(session, opts = {}) {
   return NO_SUBJECT('no_signal');
 }
 
+/**
+ * Does an INDEPENDENT signal strongly disagree with her pick? Pure; the caller logs it.
+ * The pick stands either way — this only makes the disagreement visible.
+ *
+ * "Strongly" is deliberately narrow: her OWN uploaded plan (high confidence) names a
+ * different subject, or the analysis itself inferred a different one. A corpus-ref or a
+ * recent download is a statement about a plan she opened, not about this lesson, so it
+ * is not a disagreement worth a warn.
+ *
+ * @param {object} session coaching_sessions row
+ * @param {object} resolution what resolveLessonSubject returned for it
+ * @param {{inferredSubject?: *}} [opts] inferredSubject: the analysis' own `subject`
+ * @returns {null|{teacher:{code:string,grade:string}, against:Array<{code:string,source:string,confidence:string}>}}
+ */
+function subjectDisagreement(session, resolution, opts = {}) {
+  if (!resolution || resolution.source !== 'teacher') return null;
+  const against = [];
+  const planOnly = resolveLessonSubject(withoutTeacherPick(session));
+  if (planOnly.confidence === 'high' && planOnly.code && planOnly.code !== resolution.code) {
+    against.push({ code: planOnly.code, source: planOnly.source, confidence: 'high' });
+  }
+  const inferred = canonicalSubject(opts.inferredSubject);
+  if (inferred && inferred !== resolution.code) {
+    against.push({ code: inferred, source: 'analysis_inferred', confidence: 'inferred' });
+  }
+  return against.length ? { teacher: { code: resolution.code, grade: resolution.grade }, against } : null;
+}
+
 module.exports = {
   SUBJECT_ALIASES,
   SUBJECT_GROUP,
@@ -234,4 +302,5 @@ module.exports = {
   parseCorpusLessonId,
   subjectGroupFor,
   resolveLessonSubject,
+  subjectDisagreement,
 };
