@@ -76,26 +76,86 @@ export function rangesText(ranges: Array<[number, number]>): string {
 
 const intIn = (n: number, lo: number, hi: number) => Number.isInteger(n) && n >= lo && n <= hi;
 
-/** May she go on from this step? `max` is GET /assessment/options' maxQuestions. */
-export function stepReady(step: Step, p: Picks, max: number): boolean {
+/** What is wrong with the step: ONE reason, as data (whyText in copy.ts words it, en and ur). null = she may go on. */
+export type Why =
+  | { code: 'class' }
+  | { code: 'chapters' }
+  | { code: 'ranges' }
+  | { code: 'count'; max: number }
+  | { code: 'seen'; count: number }
+  | { code: 'typesNone' }
+  | { code: 'typesUnder' | 'typesOver'; total: number; target: number }
+  | { code: 'marks'; max: number }
+  | { code: 'earlier'; step: Step };
+
+/**
+ * Why she may not go on from this step, or null when she may. `max` is GET /assessment/options' maxQuestions.
+ * The limits are the server's: count 1..max, a Mix book count 1..count-1, the per-type counts add up to the new
+ * questions, marks 1..MAX_TOTAL_MARKS. Every disabled Next / Make my paper says this beside it (ButtonWithReason).
+ */
+export function stepWhy(step: Step, p: Picks, max: number): Why | null {
   switch (step) {
     case 'class':
-      return p.grade !== null && !!p.subject;
+      return p.grade !== null && !!p.subject ? null : { code: 'class' };
     case 'cover':
-      return p.coverBy === 'chapters' ? p.chapters.length > 0 : p.ranges.length > 0;
+      if (p.coverBy === 'chapters') return p.chapters.length > 0 ? null : { code: 'chapters' };
+      return p.ranges.length > 0 ? null : { code: 'ranges' };
     case 'questions':
-      if (!intIn(p.count, 1, max)) return false;
-      return p.source !== 'both' || intIn(p.seen, 1, p.count - 1);
-    case 'types':
-      if (p.source === 'seen' || p.typeMode === 'auto') return true;
-      return typesTotal(p) === unseenTarget(p) && Object.values(p.typeCounts).some((n) => n > 0);
+      if (!intIn(p.count, 1, max)) return { code: 'count', max };
+      if (p.source === 'both' && !intIn(p.seen, 1, p.count - 1)) return { code: 'seen', count: p.count };
+      return null;
+    case 'types': {
+      if (p.source === 'seen' || p.typeMode === 'auto') return null;
+      const t = typesStatus(p);
+      if (t.kind === 'none') return { code: 'typesNone' };
+      if (t.kind === 'under') return { code: 'typesUnder', total: t.total, target: t.target };
+      if (t.kind === 'over') return { code: 'typesOver', total: t.total, target: t.target };
+      return null;
+    }
     case 'extras':
-      return p.marks === null || intIn(p.marks, 1, MAX_TOTAL_MARKS);
-    case 'check':
-      return STEPS.slice(0, -1).every((s) => stepReady(s, p, max));
+      return p.marks === null || intIn(p.marks, 1, MAX_TOTAL_MARKS) ? null : { code: 'marks', max: MAX_TOTAL_MARKS };
+    case 'check': {
+      const first = STEPS.slice(0, -1).find((s) => stepWhy(s, p, max) !== null);
+      return first ? { code: 'earlier', step: first } : null;
+    }
     default:
-      return false;
+      return null;
   }
+}
+
+/** May she go on from this step? */
+export function stepReady(step: Step, p: Picks, max: number): boolean {
+  return stepWhy(step, p, max) === null;
+}
+
+/** The per-type counts against the paper's new questions: nothing picked, short of it, past it, or exactly it. */
+export function typesStatus(p: Picks): { kind: 'none' | 'under' | 'over' | 'ok'; total: number; target: number; diff: number } {
+  const total = typesTotal(p);
+  const target = unseenTarget(p);
+  const diff = total - target;
+  const kind = total === 0 ? 'none' : diff < 0 ? 'under' : diff > 0 ? 'over' : 'ok';
+  return { kind, total, target, diff };
+}
+
+export { digitsOnly } from '../ui/digits';
+
+/** The From and To boxes of a page range, against the book: pages 1..last, From before To (the Flow's PAGES rules). */
+export type PageCheck =
+  | { ok: true; from: number; to: number }
+  | { ok: false; why: 'empty' }
+  | { ok: false; why: 'zero' }
+  | { ok: false; why: 'beyond'; last: number }
+  | { ok: false; why: 'order'; from: number; to: number };
+
+/** `last` is the book's last page when the chapters give one; null = no upper limit is known, so none is held. */
+export function checkPages(from: string, to: string, last: number | null): PageCheck {
+  if (from === '' || to === '') return { ok: false, why: 'empty' };
+  const a = Number(from);
+  const b = Number(to);
+  if (a < 1 || b < 1) return { ok: false, why: 'zero' };
+  if (last !== null && Math.max(a, b) > last) return { ok: false, why: 'beyond', last };
+  if (a > b) return { ok: false, why: 'order', from: a, to: b };
+  return { ok: true, from: a, to: b };
 }
 
 /** The body for POST /api/portal/assessment/generate (the bot's create route reads every field). */
