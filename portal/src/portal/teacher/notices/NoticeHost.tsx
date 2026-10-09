@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { failureLabel } from '../assessment/failure';
 import { ASSESSMENT } from '../assessment/copy';
+import { OBSERVE } from '../../coach/observe/copy';
+import { failureWords, observationLine } from '../../coach/observe/format';
 import { useCopy } from '../i18n';
 import { LESSONS } from '../lessons/copy';
 import { teacherPath } from '../routes';
@@ -31,6 +33,10 @@ import { noticeTracker } from './tracker';
  *
  * A failure goes to the app only: nothing here, or anywhere, sends a failure to WhatsApp.
  *
+ * bd-4404s7.4 — the coach's observation being SENT is one more kind of item (an upload, not a render): the same strip
+ * ("Observation · Ayesha Bibi — Sending · 62%"), the same banner ("Observation sent", Open; or "Couldn't send", the
+ * real reason, Try again). It is mounted for a coach on v2 as it is for a teacher.
+ *
  * The strip's height goes to the page (`--notice-h` on <html>, and a spacer in flow) so a page's last row and its
  * bottom action stay above the strip.
  */
@@ -51,11 +57,12 @@ function useNow(active: boolean): number {
   return now;
 }
 
-export function NoticeHost({ userKey, bare = false, aboveBar = false }: { userKey: string; bare?: boolean; aboveBar?: boolean }) {
+export function NoticeHost({ userKey, bare = false, aboveBar = false, local = false }: { userKey: string; bare?: boolean; aboveBar?: boolean; local?: boolean }) {
   const kit = useKitCopy();
   const C = useCopy(NOTICES);
   const { what, classLine, titleOf } = useNoticeWords();
   const assessC = useCopy(ASSESSMENT);
+  const observeC = useCopy(OBSERVE);
   const lessonsC = useCopy(LESSONS);
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
@@ -64,7 +71,8 @@ export function NoticeHost({ userKey, bare = false, aboveBar = false }: { userKe
   const items = useTrackedItems();
   const [listOpen, setListOpen] = useState(false);
 
-  useEffect(() => noticeTracker.attach(userKey), [userKey]);
+  // `local` (a coach): what is followed is sent from this phone; the teacher's server list is not hers to ask.
+  useEffect(() => noticeTracker.attach(userKey, { server: !local }), [userKey, local]);
 
   const own = useCallback((i: NoticeItem) => isOnOwnPage(i, pathname, search), [pathname, search]);
 
@@ -85,11 +93,29 @@ export function NoticeHost({ userKey, bare = false, aboveBar = false }: { userKe
 
   const now = useNow(stripItems.some((i) => i.state === 'making'));
 
+  const featureOf = (i: NoticeItem) => (i.kind === 'lesson' ? 'lessons' : i.kind === 'observation' ? 'observations' : 'assessment');
+
   const rows: TrayRow[] = stripItems.map((i) => {
     const left = minutesLeft(i, now);
+    if (i.kind === 'observation') {
+      return {
+        id: i.id,
+        feature: 'observations',
+        what: what(i),
+        gradeSubject: i.title,
+        title: observationLine(i.visitDay, i.durationMs, observeC),
+        state: i.state === 'failed' ? 'failed' : 'making',
+        progress: progressOf(i, now),
+        left: '',
+        to: i.waitHref,
+        status: i.state === 'failed'
+          ? `${kit.notify.couldntSend} · ${kit.notify.tryAgain}`
+          : kit.notify.sending(Math.round(progressOf(i, now) * 100)),
+      };
+    }
     return {
       id: i.id,
-      feature: i.kind === 'lesson' ? 'lessons' : 'assessment',
+      feature: featureOf(i),
       what: what(i),
       gradeSubject: classLine(i),
       title: titleOf(i),
@@ -102,10 +128,12 @@ export function NoticeHost({ userKey, bare = false, aboveBar = false }: { userKe
 
   const banner = (i: NoticeItem): BannerRow => ({
     id: i.id,
-    feature: i.kind === 'lesson' ? 'lessons' : 'assessment',
+    feature: featureOf(i),
     what: what(i),
     title: titleOf(i),
-    line: i.kind === 'paper' && i.questions != null ? `${classLine(i)} · ${kit.notify.questions(i.questions)}` : classLine(i),
+    line: i.kind === 'observation'
+      ? observationLine(i.visitDay, i.durationMs, observeC)
+      : i.kind === 'paper' && i.questions != null ? `${classLine(i)} · ${kit.notify.questions(i.questions)}` : classLine(i),
   });
 
   const showStrip = !bare && rows.length > 0;
@@ -128,13 +156,17 @@ export function NoticeHost({ userKey, bare = false, aboveBar = false }: { userKe
 
   const retry = async (id: string) => {
     const res = await noticeTracker.retry(id);
-    if ('error' in res) toast({ title: kit.notify.couldntMake, description: res.error || undefined, variant: 'destructive' });
+    if ('error' in res) {
+      const observation = id.startsWith('observation:');
+      toast({ title: observation ? kit.notify.couldntSend : kit.notify.couldntMake, description: res.error || undefined, variant: 'destructive' });
+    }
   };
 
   if (bare) return null;
 
   const reason = failedItem
-    ? (failedItem.kind === 'paper' ? failureLabel(failedItem.errorCode, assessC) : lessonsC.notPrepared)
+    ? (failedItem.kind === 'observation' ? failureWords(failedItem.errorCode, observeC)
+      : failedItem.kind === 'paper' ? failureLabel(failedItem.errorCode, assessC) : lessonsC.notPrepared)
     : undefined;
 
   return (

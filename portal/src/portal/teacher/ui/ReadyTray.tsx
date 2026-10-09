@@ -28,8 +28,8 @@ import { useKitCopy } from './useKitCopy';
 export interface TrayRow {
   id: string;
   /** Whose colour the ring takes. */
-  feature: 'lessons' | 'assessment';
-  /** "Lesson plan" / "Paper". */
+  feature: 'lessons' | 'assessment' | 'observations';
+  /** "Lesson plan" / "Paper" / "Observation". */
   what: string;
   /** "Grade 7 · Science" — data. */
   gradeSubject: string;
@@ -42,6 +42,11 @@ export interface TrayRow {
   left: string;
   /** Its waiting page. */
   to: string;
+  /**
+   * bd-4404s7.4 — the row's own state line, when a job's state is not "being made" (the coach's "Sending · 62%",
+   * "Couldn't send · Try again"). Absent: the kit's "Being made · ~1 min left" / "Couldn't make it · Try again".
+   */
+  status?: string;
 }
 
 export interface ReadyTrayProps {
@@ -87,8 +92,8 @@ function Ring({ row }: { row: TrayRow }) {
 function Row({ row, first, withTitle, words, onFollow }: { row: TrayRow; first: boolean; withTitle: boolean; words: NotifyCopy; onFollow?: (id: string) => void }) {
   const bidi = useBidi();
   const failed = row.state === 'failed';
-  const status = failed ? `${words.couldntMake} · ${words.tryAgain}` : `${words.beingMade} · ${row.left || words.almostDone}`;
-  const name = `${row.what}, ${row.gradeSubject}, ${row.title}. ${failed ? `${words.couldntMake}. ${words.tryAgain}.` : `${words.beingMade}, ${row.left || words.almostDone}.`}`;
+  const status = row.status ?? (failed ? `${words.couldntMake} · ${words.tryAgain}` : `${words.beingMade} · ${row.left || words.almostDone}`);
+  const name = `${row.what}, ${row.gradeSubject}, ${row.title}. ${row.status ?? (failed ? `${words.couldntMake}. ${words.tryAgain}.` : `${words.beingMade}, ${row.left || words.almostDone}.`)}`;
   return (
     <Link
       to={row.to}

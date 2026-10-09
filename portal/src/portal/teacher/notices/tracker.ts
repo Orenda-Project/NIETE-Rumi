@@ -3,7 +3,7 @@ import type { AssessmentSpec } from '../../services/api';
 import { lessonPlans, type LpLesson } from '../../newui/lessons/lessonPlansApi';
 import {
   FAST_POLL_MS, SLOW_AFTER_MS, SLOW_POLL_MS, itemId, mergeServer, oldestFirst,
-  type NewNotice, type NoticeItem, type ServerItem,
+  type NewNotice, type NoticeItem, type NoticeKind, type ServerItem,
 } from './model';
 import { fetchNotices as fetchFromServer, reportNotice } from './serverNotices';
 
@@ -49,6 +49,12 @@ const DETACH_GRACE_MS = 1_000;
 
 export type RetryResult = { ok: true } | { ok: false; error: string };
 
+/** What sends again a thing the tracker cannot re-ask the server for (the coach's observation: the sender holds its files). */
+export type RetryHandler = (id: string) => Promise<RetryResult>;
+
+/** An observation is sent from this phone: the server has no row for it, so nothing is asked of or told to it. */
+const isLocalOnly = (id: string) => id.startsWith('observation:');
+
 export interface TrackerDeps {
   /** Her items from the server. Defaults to GET /me/notices. */
   fetchNotices?: () => Promise<ServerItem[]>;
@@ -63,9 +69,19 @@ export interface Tracker {
   /** Fold the server's list in. At most every 30 s unless `force`; a failed read changes nothing. */
   sync(force?: boolean): Promise<void>;
   subscribe(listener: () => void): () => void;
-  /** A screen is showing the shell for `userKey`. Returns its detach. */
-  attach(userKey: string): () => void;
+  /**
+   * A screen is showing the shell for `userKey`. Returns its detach. `server: false` (a coach: her only item is an upload
+   * sent from this phone, and the server's list is the teacher's) never asks GET /me/notices.
+   */
+  attach(userKey: string, opts?: { server?: boolean }): () => void;
   track(job: NewNotice): void;
+  /**
+   * bd-4404s7.4 — change a followed item: the coach's upload pushes its progress, then ends it ready or failed. Only
+   * what the caller names changes; an unknown id is ignored.
+   */
+  update(id: string, change: Partial<NoticeItem>): void;
+  /** Who sends `kind` again when she taps Try again (the observation's sender registers itself). */
+  registerRetry(kind: NoticeKind, handler: RetryHandler): void;
   settle(id: string): void;
   /**
    * The banner for these finished. `closed` (she tapped ✕ or went to Home) means SEEN and is told to the server;
@@ -99,7 +115,8 @@ function readStored(userKey: string): NoticeItem[] {
 function writeStored(userKey: string | null, items: readonly NoticeItem[]): void {
   if (!userKey) return;
   try {
-    localStorage.setItem(noticesStorageKey(userKey), JSON.stringify(items));
+    // An observation being sent lives in this tab only (its files are not storable): never written, never read back.
+    localStorage.setItem(noticesStorageKey(userKey), JSON.stringify(items.filter((i) => i.kind !== 'observation')));
   } catch {
     /* storage is a convenience: what is in memory is what the screen shows */
   }
@@ -142,6 +159,7 @@ export function createTracker(deps: TrackerDeps = {}): Tracker {
   let home: readonly ServerItem[] = [];
   let bannered: Bannered = {};
   let lastSync = 0;
+  let serverOn = true;
   let userKey: string | null = null;
   let screens = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -160,10 +178,13 @@ export function createTracker(deps: TrackerDeps = {}): Tracker {
     commit(items.map((i) => (i.id === id ? { ...i, ...change } : i)));
   };
 
-  const making = () => items.filter((i) => i.state === 'making');
+  const retryHandlers = new Map<NoticeKind, RetryHandler>();
+  // What is asked of the server: an upload is pushed by its sender, never polled.
+  const making = () => items.filter((i) => i.state === 'making' && i.kind !== 'observation');
 
   /** Tell the server on the side; never throws, never waits. */
   const tell = (id: string, what: 'seen' | 'opened'): Promise<unknown> => {
+    if (isLocalOnly(id)) return Promise.resolve(false);
     try {
       return Promise.resolve(report(id, what)).catch(() => false);
     } catch {
@@ -173,7 +194,7 @@ export function createTracker(deps: TrackerDeps = {}): Tracker {
 
   async function sync(force = false): Promise<void> {
     const key = userKey;
-    if (!key) return;
+    if (!key || !serverOn) return;
     if (!force && Date.now() - lastSync < SYNC_EVERY_MS) return;
     lastSync = Date.now();
     let server: ServerItem[];
@@ -268,9 +289,16 @@ export function createTracker(deps: TrackerDeps = {}): Tracker {
       announced: false,
       ...(job.kind === 'paper'
         ? { requestId: job.ref, spec: job.spec, paperId: null }
-        : { renderId: job.ref, lessonId: job.lessonId, lang: job.lang, at: job.at }),
+        : job.kind === 'observation'
+          ? { visitId: job.visitId ?? job.ref, visitDay: job.visitDay ?? null, durationMs: job.durationMs ?? null, progress: 0, observationId: null }
+          : { renderId: job.ref, lessonId: job.lessonId, lang: job.lang, at: job.at }),
     };
     commit([...items, item].sort(oldestFirst));
+    schedule();
+  }
+
+  function update(id: string, change: Partial<NoticeItem>): void {
+    patch(id, change);
     schedule();
   }
 
@@ -308,6 +336,8 @@ export function createTracker(deps: TrackerDeps = {}): Tracker {
   async function retry(id: string): Promise<RetryResult> {
     const old = items.find((i) => i.id === id);
     if (!old) return { ok: false, error: '' };
+    const handler = retryHandlers.get(old.kind);
+    if (handler) return handler(id);
     try {
       if (old.kind === 'paper') {
         const res = await portal.generateAssessment(old.spec as AssessmentSpec);
@@ -337,7 +367,8 @@ export function createTracker(deps: TrackerDeps = {}): Tracker {
     }
   }
 
-  function attach(key: string): () => void {
+  function attach(key: string, opts: { server?: boolean } = {}): () => void {
+    serverOn = opts.server !== false;
     if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
     if (userKey !== key) {
       // Jobs tracked before we knew whose they are (a page's effect runs before the shell's) are hers: keep them,
@@ -377,6 +408,8 @@ export function createTracker(deps: TrackerDeps = {}): Tracker {
     },
     attach,
     track,
+    update,
+    registerRetry(kind, handler) { retryHandlers.set(kind, handler); },
     settle,
     announced,
     retry,
@@ -389,6 +422,7 @@ export function createTracker(deps: TrackerDeps = {}): Tracker {
       home = [];
       bannered = {};
       lastSync = 0;
+      serverOn = true;
       listeners.clear();
     },
   };

@@ -80,6 +80,7 @@ const CoachTeacher = page(() => import("./portal/coach/pages/CoachTeacher"));
 const CoachRecord = page(() => import("./portal/coach/pages/CoachRecord"));
 const CoachAttach = page(() => import("./portal/coach/pages/CoachAttach"));
 const CoachCheckSend = page(() => import("./portal/coach/pages/CoachCheckSend"));
+const CoachSending = page(() => import("./portal/coach/pages/CoachSending"));
 const CoachObservation = page(() => import("./portal/coach/pages/CoachObservation"));
 const CoachEditTeacher = page(() => import("./portal/coach/pages/CoachEditTeacher"));
 // bd-60117 — a principal's school-level Analytics tab.
@@ -244,6 +245,7 @@ const App = () => {
             <Route path="/portal/coach/visit/:id/record" element={<CoachRecord />} />
             <Route path="/portal/coach/visit/:id/attach" element={<CoachAttach />} />
             <Route path="/portal/coach/visit/:id/check" element={<CoachCheckSend />} />
+            <Route path="/portal/coach/visit/:id/sending" element={<CoachSending />} />
             <Route path="/portal/coach/reports" element={<CoachReports />} />
             <Route path="/portal/coach/people" element={<CoachPeople />} />
             <Route path="/portal/coach/school/:emis" element={<CoachSchool />} />

@@ -86,7 +86,8 @@ export default function TeacherPage({
         {inner && chips && <div className="flex flex-wrap gap-2 px-1 pb-2">{chips}</div>}
         <div className="flex flex-col gap-2.5 pb-4 pt-3">{children}</div>
         {dock && (
-          <div className="sticky bottom-[calc(88px+var(--notice-h,0px)+env(safe-area-inset-bottom))] z-10 -mx-4 flex gap-2.5 bg-[#f3f4f6]/95 px-4 pb-2 pt-3 md:bottom-4 md:mx-0 md:px-0">
+          // `bare`: no menu under the dock (a recording), so it stands at the bottom edge, not 88px up.
+          <div className={`sticky ${bare ? 'bottom-[calc(8px+env(safe-area-inset-bottom))]' : 'bottom-[calc(88px+var(--notice-h,0px)+env(safe-area-inset-bottom))]'} z-10 -mx-4 flex gap-2.5 bg-[#f3f4f6]/95 px-4 pb-2 pt-3 md:bottom-4 md:mx-0 md:px-0`}>
             {dock}
           </div>
         )}

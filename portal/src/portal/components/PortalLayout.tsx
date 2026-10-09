@@ -133,11 +133,12 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
         <RecordingBarShownContext.Provider value={showBar && !noNav}>
           {children}
         </RecordingBarShownContext.Provider>
-        {/* bd-fmf24g.15 — what is being made, and "ready", on every teacher v2 screen (and only those). It stays
+        {/* bd-fmf24g.15 — what is being made, and "ready", on every teacher v2 screen (and only those). bd-4404s7.4: a
+            coach on v2 gets it too: her observation being sent is one more thing it follows. It stays
             mounted-or-not with the frame, but the tracker behind it is a module, so a page change does not
             restart anything. */}
-        {teacherV2 && !menuPending && user.phoneNumber && (
-          <NoticeHost userKey={user.phoneNumber} bare={noNav} aboveBar={showBar} />
+        {(teacherV2 || coachV2) && !menuPending && user.phoneNumber && (
+          <NoticeHost userKey={user.phoneNumber} bare={noNav} aboveBar={showBar} local={!teacherV2} />
         )}
       </main>
       {showBar && session && <RecordingBar session={session} aboveMenu={!noNav} newMenu={newUi} />}

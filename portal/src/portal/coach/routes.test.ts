@@ -21,6 +21,7 @@ describe("coach v2 routes", () => {
     ["/portal/coach/visit/:id/record", "CoachRecord"],
     ["/portal/coach/visit/:id/attach", "CoachAttach"],
     ["/portal/coach/visit/:id/check", "CoachCheckSend"],
+    ["/portal/coach/visit/:id/sending", "CoachSending"],
     ["/portal/coach/reports", "CoachReports"],
     ["/portal/coach/people", "CoachPeople"],
     ["/portal/coach/school/:emis", "CoachSchool"],

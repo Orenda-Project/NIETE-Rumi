@@ -13,13 +13,15 @@ import type { DraftPlan } from './draft';
  */
 
 /** A section's light 20px heading, with an optional small chip ("Optional", "No faces"). */
-export function SectionHeading({ children, chip }: { children: ReactNode; chip?: string }) {
+export function SectionHeading({ children, chip }: { children: ReactNode; chip?: string | readonly string[] }) {
+  // bd-4404s7.4 — the coach's Photos heading carries two ("Up to 3", "No faces"); one string is as before.
+  const chips = (typeof chip === 'string' ? [chip] : chip ?? []).filter(Boolean);
   return (
-    <h2 className="mx-1 mt-3 flex items-center gap-2 text-[20px] font-light text-[#1d2025]">
+    <h2 className="mx-1 mt-3 flex flex-wrap items-center gap-2 text-[20px] font-light text-[#1d2025]">
       {children}
-      {chip ? (
-        <span className="inline-flex h-[26px] items-center rounded-full bg-[#e5e7eb] px-2.5 text-[12px] font-semibold text-[#374151]">{chip}</span>
-      ) : null}
+      {chips.map((c) => (
+        <span key={c} className="inline-flex h-[26px] items-center rounded-full bg-[#e5e7eb] px-2.5 text-[12px] font-semibold text-[#374151]">{c}</span>
+      ))}
     </h2>
   );
 }

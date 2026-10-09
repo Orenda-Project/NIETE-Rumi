@@ -1,20 +1,26 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, CalendarDays, Check, MicOff, Pause, Play, Square } from "lucide-react";
+import { AlertTriangle, CalendarDays, MicOff, Pause, Play, Square } from "lucide-react";
+import { useCopy } from "../../teacher/i18n";
+import { HistoryRow } from "../../teacher/ui";
+import { StatusChip } from "../../teacher/ui/StatusChip";
+import { Tray } from "../../teacher/ui/Tray";
+import { TimeStamp } from "../../teacher/ui/TimeStamp";
 import { coach } from "../../services/api";
-import { COACH_COPY as C } from "../copy";
-import { CoachPage, Card, Chip, Initials, Loading, Failed, useLoad } from "../ui";
-import { formatSlot } from "../time";
+import { Card, Loading, Failed, useLoad } from "../ui";
+import { OBSERVE } from "../observe/copy";
+import { lengthShort } from "../observe/format";
+import ObservePage from "../observe/ObservePage";
 import { setDraft } from "../observeDraft";
 import { useCoachRecording } from "../../lib/useCoachRecording";
 import { useRecordingBackGuard } from "../../lib/useRecordingBackGuard";
 import { rememberRecording } from "../../lib/coachObserve";
-import { minutesText, SHORT_RECORDING_SECONDS } from "../../lib/coachingUpload";
+import { SHORT_RECORDING_SECONDS } from "../../lib/coachingUpload";
 import { clockText } from "../../components/coaching/coach/CoachRecorder";
 import type { CoachVisit } from "../types";
 
 /**
- * bd-o15qnr.9 — Record live, for one scheduled visit (v18 Recording.dc.html): a
+ * bd-4404s7.4 — Record observation, for one scheduled visit (Blueprint: Coach_Record; it was Record live): a
  * timer ring with the Recording chip, the level meter, the teacher and school
  * with "Visit · 11:30 AM" and a Linked chip, then Pause and Stop. Stop asks
  * once, then Check and send has the recording.
@@ -23,7 +29,7 @@ import type { CoachVisit } from "../types";
  * kept on the phone as it records, the screen held on). The recording is
  * remembered as this teacher's, so a reload can still send it. No menu while
  * recording; Back asks first. A refused microphone offers Try again, or Upload
- * recording instead.
+ * recording instead. The words are the Observe copy's (English and Urdu), "observation" and "Start recording".
  */
 
 const BARS = 24;
@@ -53,6 +59,7 @@ function LevelMeter({ level, live }: { level: number | null; live: boolean }) {
 }
 
 function Recorder({ visit, onBlocked }: { visit: CoachVisit; onBlocked: () => void }) {
+  const C = useCopy(OBSERVE);
   const navigate = useNavigate();
   const [asking, setAsking] = useState(false);
   const { recording, paused, elapsed, level, screenWentOff, micBlocked, togglePause, finish, elapsedNow } = useCoachRecording({
@@ -69,18 +76,17 @@ function Recorder({ visit, onBlocked }: { visit: CoachVisit; onBlocked: () => vo
     if (!out) return;
     setDraft(visit.id, {
       blob: out.blob, filename: lessonFilename(out.type.ext), durationMs: out.durationMs, recordingId: out.id,
-      label: C.lessonOf(visit.teacherName || C.dash), sub: `${minutesText(out.durationMs)} · ${C.justNow}`,
+      label: C.observationOf(visit.teacherName || C.dash), sub: [lengthShort(out.durationMs, C), C.justNow].filter(Boolean).join(" · "),
     });
     navigate(`/portal/coach/visit/${visit.id}/check`);
   };
 
   if (micBlocked) return null;
   const now = elapsedNow();
-  const time = formatSlot(visit.scheduledSlot);
 
   return (
-    <CoachPage bare banner={false} title={C.recordLive} onBack={() => (recording ? setAsking(true) : navigate(`/portal/coach/visit/${visit.id}`))}
-      crumb={<><span className="me-1.5 inline-block h-2 w-2 rounded-full bg-[#c8331f] align-middle" aria-hidden="true" />{`${visit.teacherName || C.dash} · ${time}`}</>}
+    <ObservePage bare banner={false} title={C.recordTitle} onBack={() => (recording ? setAsking(true) : navigate(`/portal/coach/visit/${visit.id}`))}
+      crumb={<><span className="me-1.5 inline-block h-2 w-2 rounded-full bg-[#c8331f] align-middle" aria-hidden="true" />{visit.teacherName || C.dash} · <TimeStamp time={visit.scheduledSlot} size={13} /></>}
       dock={(
         <>
           <button type="button" onClick={togglePause} disabled={!recording}
@@ -97,8 +103,8 @@ function Recorder({ visit, onBlocked }: { visit: CoachVisit; onBlocked: () => vo
         <div role="timer" aria-label={C.recordingTime}
           className="flex h-60 w-60 flex-col items-center justify-center gap-2.5 rounded-full border-[12px] border-[#fee4e2] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)]">
           {paused
-            ? <Chip>{C.paused}</Chip>
-            : <Chip tone="rec"><span className="h-2 w-2 rounded-full bg-[#c8331f]" aria-hidden="true" />{C.recording}</Chip>}
+            ? <StatusChip text={C.paused} tone="info" />
+            : <StatusChip text={C.recording} tone="error" />}
           <span className="text-[54px] font-light leading-none tracking-[-0.02em] tabular-nums">{clockText(elapsed)}</span>
         </div>
         <LevelMeter level={level} live={recording && !paused} />
@@ -108,41 +114,31 @@ function Recorder({ visit, onBlocked }: { visit: CoachVisit; onBlocked: () => vo
           </div>
         )}
         <Card className="w-full overflow-hidden" data-testid="linked-visit">
-          <div className="flex items-center gap-3.5 px-4 py-3.5">
-            <Initials name={visit.teacherName} />
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate text-[17px] font-semibold">{visit.teacherName || C.dash}</span>
-              <span className="truncate text-[13px] text-[#6b7280]">{visit.schoolName || C.dash}</span>
-            </span>
-          </div>
+          <HistoryRow lead="person" title={visit.teacherName || C.dash} extra={visit.schoolName || undefined} action="none" />
           <div className="flex min-h-[56px] items-center gap-2.5 border-t border-[#e5e7eb] px-4 py-3">
             <CalendarDays className="h-5 w-5 text-[#6b7280]" aria-hidden="true" />
-            <span className="flex-1 text-[15px] font-medium">{C.visitAt(time)}</span>
-            <Chip tone="done"><Check className="h-3.5 w-3.5" aria-hidden="true" />{C.linked}</Chip>
+            <span className="flex flex-1 items-center gap-2 text-[15px] font-medium">{C.visitAt("")}<TimeStamp time={visit.scheduledSlot} tone="next" size={15} /></span>
+            <StatusChip text={C.linked} tone="done" tick />
           </div>
         </Card>
       </div>
 
-      {asking && (
-        <div className="fixed inset-0 z-50 flex items-end bg-[rgba(17,24,39,0.5)] md:items-center md:justify-center" role="dialog" aria-modal="true" aria-label={C.stopAsk}>
-          <div className="flex w-full flex-col gap-3 rounded-t-3xl bg-white p-4 pb-6 md:max-w-md md:rounded-3xl">
-            <h2 className="text-2xl font-light">{C.stopAsk}</h2>
-            <div className="text-[15px]">{C.recordedFor(minutesText(now))}</div>
-            {now < SHORT_RECORDING_SECONDS * 1000 && (
-              <div className="rounded-2xl bg-[#fef3c7] px-3.5 py-3 text-[15px] text-[#b45309]">{C.shortNote}</div>
-            )}
-            <div className="flex gap-2.5">
-              <button type="button" onClick={() => setAsking(false)} className="flex h-14 flex-1 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold">{C.keepRecording}</button>
-              <button type="button" onClick={stop} className="flex h-14 flex-1 items-center justify-center rounded-2xl bg-[#c8331f] text-base font-semibold text-white">{C.yesStop}</button>
-            </div>
-          </div>
+      <Tray open={asking} title={C.stopAsk} onClose={() => setAsking(false)}>
+        <div className="text-[15px]">{C.recordedFor(lengthShort(now, C) || C.underMinute)}</div>
+        {now < SHORT_RECORDING_SECONDS * 1000 && (
+          <div className="rounded-2xl bg-[#fef3c7] px-3.5 py-3 text-[15px] text-[#b45309]">{C.shortNote}</div>
+        )}
+        <div className="flex gap-2.5">
+          <button type="button" onClick={() => setAsking(false)} className="flex h-14 flex-1 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold">{C.keepRecording}</button>
+          <button type="button" onClick={stop} className="flex h-14 flex-1 items-center justify-center rounded-2xl bg-[#c8331f] text-base font-semibold text-white">{C.yesStop}</button>
         </div>
-      )}
-    </CoachPage>
+      </Tray>
+    </ObservePage>
   );
 }
 
 const CoachRecord = () => {
+  const C = useCopy(OBSERVE);
   const { id = "" } = useParams();
   const { data, failed, reload } = useLoad(() => coach.getVisit(id), [id]);
   const [attempt, setAttempt] = useState(0);
@@ -152,7 +148,8 @@ const CoachRecord = () => {
 
   if (!visit || blocked) {
     return (
-      <CoachPage banner={false} title={C.recordLive} backTo={`/portal/coach/visit/${id}`} crumb={visit ? `${visit.teacherName || C.dash} · ${formatSlot(visit.scheduledSlot)}` : undefined}>
+      <ObservePage banner={false} title={C.recordTitle} backTo={`/portal/coach/visit/${id}`}
+        crumb={visit ? <>{visit.teacherName || C.dash} · <TimeStamp time={visit.scheduledSlot} size={13} /></> : undefined}>
         {failed && <Failed onRetry={reload} />}
         {!data && !failed && <Loading />}
         {blocked && (
@@ -163,10 +160,10 @@ const CoachRecord = () => {
             <button type="button" onClick={() => { setBlocked(false); setAttempt((n) => n + 1); }}
               className="flex h-14 w-full items-center justify-center rounded-2xl bg-[#33374a] text-base font-semibold text-white">{C.tryAgain}</button>
             <Link to={`/portal/coach/visit/${id}/attach`}
-              className="flex h-14 w-full items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold text-[#1d2025]">{C.attachRecording}</Link>
+              className="flex h-14 w-full items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold text-[#1d2025]">{C.uploadRecording}</Link>
           </Card>
         )}
-      </CoachPage>
+      </ObservePage>
     );
   }
   // Only an upcoming visit is recorded; a done or cancelled one goes back to its page.
