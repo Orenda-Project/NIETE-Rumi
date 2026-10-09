@@ -77,15 +77,17 @@ describe("CoachHome (kit)", () => {
     expect(done).toHaveTextContent("Done");
   });
 
-  it("four kit tiles: Schedule rose, Observe, Schools teal, Training; chips from the counts only", async () => {
+  it("five kit tiles: Schedule rose, Observe, Schools teal, Training, Analytics (wide, bd-fmf24g.33); chips from the counts only", async () => {
     renderHome();
     const tiles = within(await screen.findByTestId("feature-tiles"));
     const art = (a: HTMLElement) => a.querySelector("svg[data-feature-art]")?.getAttribute("data-feature-art");
     const links = tiles.getAllByRole("link");
-    expect(links.map(art)).toEqual(["schedule", "observations", "schools", "training"]);
+    expect(links.map(art)).toEqual(["schedule", "observations", "schools", "training", "reports"]);
     expect(links.map((a) => a.getAttribute("href"))).toEqual([
-      "/portal/coach/scheduling", "/portal/coach/observe", "/portal/coach/people", "/portal/training",
+      "/portal/coach/scheduling", "/portal/coach/observe", "/portal/coach/people", "/portal/training", "/portal/coach/analytics",
     ]);
+    expect(links[4]).toHaveTextContent(/^Analytics$/);
+    expect(links[4].className).toMatch(/col-span-2/);
     expect(links[0]).toHaveTextContent("6 this week");
     expect(links[1]).toHaveTextContent("2 waiting");
     expect(links[2]).toHaveTextContent("24 teachers");

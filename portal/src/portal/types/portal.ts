@@ -307,6 +307,8 @@ export interface LeaderPatchTeacher {
   focusArea: string | null;   // bd-2672: the named area, not just "Focus Area"
   schoolName: string | null;
   emis: string | null;
+  /** The roster carries principals too; the teacher lists leave them out. */
+  isPrincipal?: boolean;
 }
 
 /** My Patch headline KPIs + focus list (GET /leader/overview). */

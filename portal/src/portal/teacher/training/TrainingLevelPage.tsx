@@ -4,6 +4,7 @@ import { Check, ChevronRight, Lock, Play, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CapstoneRow, hoursLeft, LevelCertificate } from '../../newui/training/TrainingLevel';
 import {
+  courseName,
   courseDone, isExamless, isLadder, lockedBehind, providerLabel, statusOf, trainingPaths, useGet,
   type Course, type GrandQuizGate, type Level, type Vendor,
 } from '../../newui/training/trainingApi';
@@ -80,7 +81,7 @@ export function TrainingLevelPage() {
                 <ListRow
                   key={c.id}
                   number={i + 1}
-                  label={c.title}
+                  label={courseName(c.title)}
                   subtitle={C.partsOf(Math.min(c.completed_count, c.module_count), c.module_count)}
                   chip={chip}
                   to={paths.course(vendorKey, levelId, c.id)}

@@ -47,11 +47,23 @@ describe("HistoryRow", () => {
     expect(bottom).toHaveStyle({ backgroundColor: "#e6f2f0", color: "#00796b" });
   });
 
-  it("the column: 64px always, full row height, flush with the START edge (no start/vertical padding on the row), 12px gap", () => {
+  it("bd-fmf24g.29 the lead is a ROUNDED TILE (operator pick F, 10 Oct): 4px in from the row's top and bottom, 8px from its START edge (logical, so Urdu puts it on the right), all four corners 6px; the text column keeps the 12px gap", () => {
+    inRouter(<HistoryRow subject="General Science" grade={4} title="How plants make their own food" extra="Chap 1" to="/lp/1" />);
+    const lead = screen.getByTestId("history-lead");
+    expect(classes(lead)).toEqual(expect.arrayContaining(["ms-2", "my-1", "rounded-[6px]", "w-16", "self-stretch", "overflow-hidden"]));
+    // logical properties only: nothing that would pin the tile to the physical left
+    expect(classes(lead).some((c) => /^(ml-|mr-|me-|mx-|m-|mt-|mb-|rounded-(l|r|tl|tr|bl|br)|rtl:|ltr:)/.test(c))).toBe(false);
+    // the row itself still has no start or vertical padding: the tile's own margins make the inset
+    const link = screen.getByRole("link");
+    expect(classes(link).some((c) => /^(ps-|pl-|py-|pt-|pb-|p-)/.test(c))).toBe(false);
+    expect(classes(link)).toEqual(expect.arrayContaining(["min-h-[76px]", "gap-3"]));
+  });
+
+  it("the column: 64px always, full row height, no start/vertical padding on the row, 12px gap", () => {
     inRouter(<HistoryRow subject="General Science" grade={4} title="How plants make their own food" extra="Chap 1" to="/lp/1" />);
     const lead = screen.getByTestId("history-lead");
     expect(classes(lead)).toEqual(expect.arrayContaining(["w-16", "shrink-0", "self-stretch", "flex-col", "whitespace-nowrap", "overflow-hidden"]));
-    expect(classes(lead).some((c) => /^(rounded|m[sxy]?-|-m|p[sxy]?-|min-w|max-w)/.test(c))).toBe(false);
+    expect(classes(lead).some((c) => /^(p[sxy]?-|min-w|max-w)/.test(c))).toBe(false);
     const link = screen.getByRole("link");
     expect(classes(link)).toEqual(expect.arrayContaining(["min-h-[76px]", "items-center", "gap-3", "pe-3.5"]));
     expect(classes(link).some((c) => /^(ps-|pl-|py-|pt-|pb-|p-)/.test(c))).toBe(false);

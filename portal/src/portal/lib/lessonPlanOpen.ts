@@ -87,6 +87,25 @@ export async function fetchLessonPlanPdf(
 }
 
 /**
+ * bd-fmf24g.30 — the plan's presigned PDF link WITHOUT opening it (ShareActions opens it its own way: an intent link in
+ * WhatsApp's browser on Android, Copy link on iPhone, a plain open elsewhere). Null when there is nothing to open yet.
+ * Minting is an open as far as the server is concerned, exactly as in openLessonPlanOutside.
+ */
+export async function lessonPlanFileUrl(source: LessonPlanSource): Promise<string | null> {
+  if (source.lane === 'k5') {
+    const { data } = await api.get(`/curriculum/lp/${source.lessonId}/pdf`, { params: { kind: source.assetKind } });
+    return data.available && data.url ? (data.url as string) : null;
+  }
+  const { data } = await api.get(`/lp612/status/${source.renderId}`, { params: { open: 1 } });
+  return data.state === 'ready' && data.url ? (data.url as string) : null;
+}
+
+/** The share route's id for a plan: g612 by its render, k5 by its lesson (the server says unavailable for k5). */
+export function lessonPlanShareId(source: LessonPlanSource): string {
+  return source.lane === 'k5' ? `k5:${source.lessonId}` : `g612:${source.renderId}`;
+}
+
+/**
  * TODAY'S WAY, unchanged: mint the link, window.open it. 'not_ready' when the
  * API says there is nothing to open (yet); throws on a real failure.
  */

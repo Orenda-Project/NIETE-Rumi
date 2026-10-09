@@ -3,7 +3,7 @@ import { useCopy } from '../i18n';
 import { BookOpen, FileText, GraduationCap, Play, PlayCircle } from 'lucide-react';
 import { TRAINING, TRAINING_INNER } from './copy';
 import { moduleExamState, useTrainingCourse } from '../../newui/training/TrainingCourse';
-import type { ExamGate, ReadingItem, ReadingList } from '../../newui/training/trainingApi';
+import { courseName, type ExamGate, type ReadingItem, type ReadingList } from '../../newui/training/trainingApi';
 import { ListRow, StatusChip, Tray, type ChipData } from '../ui';
 import { partRows } from './inner';
 import { DockButton, V2Row } from './parts';
@@ -24,7 +24,7 @@ export function CoursePage() {
   return (
     <TrainingPageV2
       crumb={T.crumb(provider, levelWord)}
-      title={course?.title ?? ''}
+      title={courseName(course?.title)}
       backTo={paths.level(vendorKey, levelId)}
       dock={next ? <DockButton icon={Play} to={paths.unit(next.id)} testId="training-course-continue">{T.continue}</DockButton> : undefined}
     >

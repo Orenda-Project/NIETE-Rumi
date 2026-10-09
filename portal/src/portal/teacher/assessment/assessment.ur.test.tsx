@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import i18n from 'i18next';
 
@@ -19,6 +19,7 @@ const { portal, config } = vi.hoisted(() => ({
     getAssessmentPapers: vi.fn(),
     getAssessmentDownload: vi.fn(),
     getAssessmentVersions: vi.fn(),
+    getAssessmentPaperView: vi.fn(() => Promise.resolve({ success: true, paper: {}, sections: [] })),
     getAssessmentEditQuestions: vi.fn(),
     getAssessmentAddKinds: vi.fn(),
   },
@@ -121,13 +122,13 @@ describe('Assessment in Urdu', () => {
     expect(screen.getByRole('heading', { name: new RegExp(U.beingMade) })).toBeTruthy();
     expect(pageText()).toContain(U.writing);
     expect(pageText()).toContain(U.failures.TRUNCATED);
-    expect(await screen.findByText(U.myPapers)).toBeTruthy();
+    expect(await screen.findByText(U.recent)).toBeTruthy();
     expect(pageText()).toContain(U.days.today);
     expect(pageText()).toContain(U.chapterShort(2));
     expect(pageText()).toContain(U.marksCount(20));
     // data stays as it is
     expect(pageText()).toContain('Green Guardians of Earth');
-    for (const en of ['New paper', 'With answer key', 'Being made', 'My papers', 'Writing', 'Too many questions', 'Today']) {
+    for (const en of ['New paper', 'With answer key', 'Being made', 'Recent papers', 'Writing', 'Too many questions', 'Today']) {
       expect(screen.queryByText(en)).toBeNull();
     }
   });
@@ -143,10 +144,17 @@ describe('Assessment in Urdu', () => {
     expect(await screen.findByText(U.objective)).toBeTruthy();
     expect(screen.getByText(U.written)).toBeTruthy();
     expect(screen.getByText(U.howManyEach)).toBeTruthy();
-    expect(screen.getByText(U.ofTarget(0, 3))).toBeTruthy();
-    // the question types are data
-    expect(screen.getByRole('checkbox', { name: /MCQs/ })).toBeTruthy();
-    for (const en of ['Question types', 'Next', 'Auto mix', 'Choose types', 'Objective', 'Written', 'How many each']) {
+    // nothing picked: the reason is on the card and above the off Next, in Urdu
+    expect(screen.getAllByText(U.why.typesNone).length).toBe(2);
+    // each type has a number box in front, 0 written in it (the type's name is data)
+    const mcq = screen.getByRole('textbox', { name: U.typeCount('MCQs') }) as HTMLInputElement;
+    expect(mcq.value).toBe('0');
+    // too many: the total and the message, live, in Urdu
+    fireEvent.change(mcq, { target: { value: '5' } });
+    expect(screen.getByText(U.why.totalOf(5, 3))).toBeTruthy();
+    expect(screen.getAllByText(U.why.over(2)).length).toBeGreaterThan(0);
+    expect(screen.getByTestId('button-reason').textContent).toContain(U.why.over(2));
+    for (const en of ['Question types', 'Next', 'Auto mix', 'Choose types', 'Objective', 'Written', 'How many each', 'too many']) {
       expect(screen.queryByText(en)).toBeNull();
     }
   });

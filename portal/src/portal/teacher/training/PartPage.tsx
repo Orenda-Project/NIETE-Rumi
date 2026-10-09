@@ -6,6 +6,7 @@ import { AudioPlayer } from '../../newui/AudioPlayer';
 import { TRAINING, TRAINING_INNER } from './copy';
 import { openInNewTab } from '../../newui/training/certificateFile';
 import { useTrainingPart } from '../../newui/training/TrainingPart';
+import { courseName } from '../../newui/training/trainingApi';
 import { ListRow, StatusChip } from '../ui';
 import { CARD } from '../ui/styles';
 import { DockButton, HeroCard, V2Row } from './parts';
@@ -39,7 +40,7 @@ export function PartPage() {
   ) : undefined;
 
   return (
-    <TrainingPageV2 crumb={T.crumb(d?.course?.title)} title={d?.title ?? ''} backTo={courseUrl ?? paths.home} context={chips} dock={dock}>
+    <TrainingPageV2 crumb={T.crumb(d?.course ? courseName(d.course.title) : null)} title={d?.title ?? ''} backTo={courseUrl ?? paths.home} context={chips} dock={dock}>
       <LoadState loading={detail.loading} failed={!detail.loading && !!detail.error && !locked} onRetry={detail.reload} />
       {locked ? <HeroCard icon={Lock} tone="quiet" title={T.locked} /> : null}
 

@@ -166,7 +166,7 @@ async function askEdit(path, body, { timeout = TIMEOUT_MS } = {}) {
   if (!baseUrl || !apiKey) {
     throw new Error('Assessment API is not configured (MAIN_BOT_URL / INTERNAL_API_KEY)');
   }
-  const res = await axios.post(`${baseUrl}/api/internal/assessment/edit/${path}`, body, {
+  const res = await axios.post(`${baseUrl}/api/internal/assessment/${path}`, body, {
     headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
     timeout,
     validateStatus: () => true, // every bot answer is passed through; transport errors still throw
@@ -190,10 +190,11 @@ async function askEdit(path, body, { timeout = TIMEOUT_MS } = {}) {
 /** Rendering a version takes two PDFs; measured in Task 0 of bd-hb8qs. */
 const SAVE_TIMEOUT_MS = 45_000;
 
-const editVersions = (paperId, userId) => askEdit('versions', { paperId, userId });
-const editQuestions = (paperId, userId) => askEdit('questions', { paperId, userId });
-const editAddKinds = (paperId, userId) => askEdit('add-kinds', { paperId, userId });
-const editValidate = ({ paperId, userId, id = null, kind = null, edit = {} }) => askEdit('validate', { paperId, userId, id, kind, edit });
-const editSave = ({ parentId, userId, changes }) => askEdit('save', { parentId, userId, changes }, { timeout: SAVE_TIMEOUT_MS });
+const viewPaper = (paperId, userId) => askEdit('paper/view', { paperId, userId });
+const editVersions = (paperId, userId) => askEdit('edit/versions', { paperId, userId });
+const editQuestions = (paperId, userId) => askEdit('edit/questions', { paperId, userId });
+const editAddKinds = (paperId, userId) => askEdit('edit/add-kinds', { paperId, userId });
+const editValidate = ({ paperId, userId, id = null, kind = null, edit = {} }) => askEdit('edit/validate', { paperId, userId, id, kind, edit });
+const editSave = ({ parentId, userId, changes }) => askEdit('edit/save', { parentId, userId, changes }, { timeout: SAVE_TIMEOUT_MS });
 
-module.exports = { options, listChapters, create, status, download, listPapers, editVersions, editQuestions, editAddKinds, editValidate, editSave };
+module.exports = { options, listChapters, create, status, download, listPapers, viewPaper, editVersions, editQuestions, editAddKinds, editValidate, editSave };

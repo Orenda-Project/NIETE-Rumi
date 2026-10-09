@@ -231,6 +231,7 @@ async function deliverRegister({
     const dir = fs.mkdtempSync(path.join(TEMP_DIR, 'reg-'));
     const tempPath = path.join(dir, fileName);
     let fileSha256 = null;
+    let sentOk = true;
 
     try {
       fs.writeFileSync(tempPath, buffer);
@@ -238,12 +239,19 @@ async function deliverRegister({
       // principal is sent. Logged beside the buffer's so a mismatch is visible.
       fileSha256 = shortSha256(fs.readFileSync(tempPath));
       const WhatsAppService = require('./whatsapp.service');
-      await WhatsAppService.sendDocument(
+      // sendDocument never throws: it answers false when Meta refuses (outside the 24 h window, a bad token).
+      // That is NOT a delivery (bd-fmf24g.36): the portal showed "Sent on WhatsApp" for a file that never arrived.
+      sentOk = (await WhatsAppService.sendDocument(
         recipient.phone_number, tempPath, fileName,
         buildCaption(label, bounds, date, todayTally, resolvedSubject),
-      );
+      )) !== false;
     } finally {
       try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* a temp file is not worth an error */ }
+    }
+
+    if (!sentOk) {
+      logToFile('⚠️ Register generated but WhatsApp refused the send', { userId: who, subject: resolvedSubject, target, fileName }, 'warn');
+      return { delivered: false, fileName, url, error: 'send_refused' };
     }
 
     logToFile('✅ Register delivered', {

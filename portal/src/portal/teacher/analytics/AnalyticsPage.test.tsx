@@ -19,7 +19,7 @@ vi.mock("../../services/api", () => ({
 import "../routes";
 import api, { portal } from "../../services/api";
 import analyticsRoutes from "./routes";
-import { ANALYTICS_HOME } from "./paths";
+import { ANALYTICS_HOME, ANALYTICS_TEACHER } from "./paths";
 import { ANALYTICS_V2_COPY as C } from "./copy";
 import { LESSONS_ALL } from "../lessons/paths";
 import { COACHING_ALL } from "../coaching/paths";
@@ -72,7 +72,7 @@ beforeEach(() => {
 
 describe("Analytics", () => {
   it("registers at /portal/teacher/analytics; Back goes to More", async () => {
-    expect(analyticsRoutes.map((r) => r.path)).toEqual([ANALYTICS_HOME]);
+    expect(analyticsRoutes.map((r) => r.path)).toEqual([ANALYTICS_HOME, ANALYTICS_TEACHER]);
     open();
     expect(await screen.findByRole("heading", { name: C.title })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Back" }).getAttribute("href")).toBe(teacherPath("more"));
@@ -98,6 +98,24 @@ describe("Analytics", () => {
     expect(within(obs).getByText(C.digitalCoaching)).toBeTruthy();
   });
 
+  it("the tiles wear their feature, centred, with the locked names and no compare line or pressable look", async () => {
+    const { container } = open();
+    await screen.findByRole("region", { name: C.activity });
+    expect(Array.from(container.querySelectorAll("[data-feature-tile]")).map((t) => t.getAttribute("data-feature-tile"))).toEqual([
+      "lessons", "training", "assessment", "attendance", "observations", "coaching",
+    ]);
+    for (const name of ["Lesson Plans", "Assessments", "Coach Observations", "Digital Coaching"]) expect(screen.getByText(name)).toBeTruthy();
+    expect(container.textContent).not.toMatch(/vs \d/);
+    expect(container.querySelector("[data-feature-tile] a, [data-feature-tile] button")).toBeNull();
+  });
+
+  it("charts and bars take the feature's colour, never a grade colour", async () => {
+    const { container } = open();
+    await screen.findByRole("img", { name: /Average.*Good.*Good/ });
+    expect(container.querySelector("polyline")).toHaveAttribute("stroke", "#c8331f");
+    expect(container.querySelector("[data-feature-card='attendance'] i")).toHaveStyle({ background: "#33374a" });
+  });
+
   it("See all rows go to All lesson plans and All Digital Coaching", async () => {
     open();
     expect((await screen.findByRole("link", { name: C.allLessonPlans })).getAttribute("href")).toBe(LESSONS_ALL);
@@ -112,12 +130,14 @@ describe("Analytics", () => {
       expect(within(chart).getAllByText(band).length).toBeGreaterThan(0);
     }
     const areas = screen.getByRole("region", { name: C.strongestToWeakest });
-    expect(within(areas).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+    expect(Array.from(areas.querySelectorAll("[data-meter-row]")).map((li) => li.textContent)).toEqual([
       expect.stringContaining("Teaching skills"), expect.stringContaining("Subject knowledge"),
     ]);
     expect(within(areas).getByText(C.focus)).toBeTruthy();
     const att = screen.getByRole("region", { name: C.attendance });
-    expect(within(att).getByText(C.daysOf(19, 20))).toBeTruthy();
+    // numbers and short labels, never "19 of 20 days" (operator, 2026-10-10)
+    expect(within(att).queryByText(C.daysOf(19, 20))).toBeNull();
+    expect(within(att).getByText(C.youWerePresent)).toBeTruthy();
     expect(within(att).getByText("95%")).toBeTruthy();
     expect(within(att).getByText("87%")).toBeTruthy();
     const remarks = screen.getByRole("region", { name: C.principalRemarks });

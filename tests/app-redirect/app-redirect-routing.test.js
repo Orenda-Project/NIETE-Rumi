@@ -1,4 +1,6 @@
 'use strict';
+// The text handler builds its LLM client when it loads on some branches; nothing here calls a model.
+process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-key-not-used';
 /**
  * bd-onxyu — every door to a feature asks that feature's app-redirect switch.
  *

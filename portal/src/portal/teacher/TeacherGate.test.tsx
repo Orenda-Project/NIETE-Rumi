@@ -59,6 +59,16 @@ describe("TeacherGate", () => {
     expect(screen.queryByText("v2 page")).toBeNull();
   });
 
+  it("a principal with the flag sees the page, exactly as a teacher does", async () => {
+    await visit({ id: "p-1", role: "principal", phoneNumber: "923001110005" }, { teacherV2: true });
+    expect(screen.getByText("v2 page")).toBeTruthy();
+  });
+
+  it("a principal without the flag goes to today's Home", async () => {
+    await visit({ id: "p-1", role: "principal", phoneNumber: "923001110005" }, { teacherV2: false });
+    expect(screen.queryByText("v2 page")).toBeNull();
+  });
+
   // bd-fxk3t8: "nothing" was a white screen (3 s on sandbox). Still nothing of v2 — the
   // app's frame with placeholder blocks instead.
   it("while the flag is read: no v2 page, but the frame with placeholders — never blank", async () => {

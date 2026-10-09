@@ -32,6 +32,7 @@ vi.mock("../../lib/recordingSession", () => ({
 vi.mock("../../services/api", () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 
 import api from "../../services/api";
+import { resetShareAvailability } from "../share/api";
 import { resetLessonPlans } from "../../newui/lessons/lessonPlansApi";
 import { ChaptersPage } from "./ChaptersPage";
 import { LessonsPage } from "./LessonsPage";
@@ -220,6 +221,30 @@ describe("viewer", () => {
     const url = new URL(screen.getByRole("link", { name: new RegExp(C.startDc) }).getAttribute("href") as string, "https://x");
     expect(url.searchParams.get("lang")).toBe("en");
     expect(screen.queryByRole("button", { name: C.answerKey })).toBeNull();
+  });
+
+  it("bd-fmf24g.30: the dock has Send on WhatsApp, locked while no template is configured, and sends a g612 plan by its render", async () => {
+    resetShareAvailability();
+    http.get.mockImplementation(async (url: string) => {
+      if (url === "/share/availability") return { data: { kinds: { lesson: false, paper: false, dc: false, observation: false } } };
+      return { data: {} };
+    });
+    renderAt(LESSONS_VIEWER, <ViewerPage />, { lessonPlan: { source: { lane: "g612", renderId: "R9" }, title: "Speed" } });
+    const send = await screen.findByTestId("share-send");
+    await waitFor(() => expect(send).toBeDisabled());
+    expect(send.textContent).toContain("Not available yet");
+    expect(http.post).not.toHaveBeenCalled();
+  });
+
+  it("bd-fmf24g.30: with a template configured, a press posts {kind:'lesson', id:'g612:<render>'} and shows Sent", async () => {
+    resetShareAvailability();
+    http.get.mockImplementation(async (url: string) => (url === "/share/availability" ? { data: { kinds: { lesson: true } } } : { data: {} }));
+    http.post.mockResolvedValue({ data: { status: "sent", at: "2026-10-10T10:42:00.000Z" } });
+    renderAt(LESSONS_VIEWER, <ViewerPage />, { lessonPlan: { source: { lane: "g612", renderId: "R9" }, title: "Speed" } });
+    await waitFor(() => expect(screen.getByTestId("share-send")).not.toBeDisabled());
+    fireEvent.click(screen.getByTestId("share-send"));
+    await waitFor(() => expect(screen.getByTestId("share-send").textContent).toContain("3:42 PM"));
+    expect(http.post).toHaveBeenCalledWith("/share/whatsapp", { kind: "lesson", id: "g612:R9" });
   });
 
   it("while a lesson records: no Start DC observation, no Open in another app", () => {

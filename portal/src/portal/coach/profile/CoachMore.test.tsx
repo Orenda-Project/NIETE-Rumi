@@ -50,21 +50,27 @@ describe("CoachMore", () => {
     expect(screen.getByTestId("more-who")).not.toHaveTextContent("school");
   });
 
-  it("the rows, in order, each going to its page", () => {
+  it("exactly three things: Language, My profile, Log out (bd-fmf24g.33)", () => {
     renderMore();
-    const byName = (n: string) => screen.getAllByRole("link").find((a) => a.textContent?.includes(n));
-    expect(byName("Training")).toHaveAttribute("href", "/portal/training");
-    expect(byName("Certificates")).toHaveAttribute("href", "/portal/training/certificates");
-    expect(byName("My profile")).toHaveAttribute("href", "/portal/coach/profile");
     expect(screen.getAllByTestId(/^more-row-/).map((r) => r.getAttribute("data-testid"))).toEqual([
-      "more-row-training", "more-row-certificates", "more-row-language", "more-row-profile", "more-row-logout",
+      "more-row-language", "more-row-profile", "more-row-logout",
     ]);
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    expect(screen.getByTestId("more-row-profile")).toHaveAttribute("href", "/portal/coach/profile");
+    expect(screen.queryByText("Training")).toBeNull();
+    expect(screen.queryByText("Certificates")).toBeNull();
+  });
+
+  it("Language is a two-option toggle, English | اردو", () => {
+    renderMore();
+    const tabs = within(screen.getByTestId("more-row-language")).getAllByRole("tab");
+    expect(tabs.map((t) => t.textContent)).toEqual(["English", "اردو"]);
   });
 
   it("Language switches (one writer) and Log out logs out", async () => {
     const user = userEvent.setup();
     renderMore();
-    await user.click(screen.getByTestId("more-row-language"));
+    await user.click(screen.getByRole("tab", { name: "اردو" }));
     expect(language.set).toHaveBeenCalledWith("ur");
     await user.click(screen.getByTestId("more-row-logout"));
     expect(logout).toHaveBeenCalled();
@@ -74,7 +80,6 @@ describe("CoachMore", () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     renderMore();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("مزید");
-    expect(screen.getByText("سرٹیفکیٹ")).toBeInTheDocument();
     expect(screen.getByText("میری پروفائل")).toBeInTheDocument();
     expect(screen.getByText("لاگ آؤٹ")).toBeInTheDocument();
     expect(await screen.findByText(/12 اسکول/)).toBeInTheDocument();

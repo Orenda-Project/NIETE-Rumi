@@ -3,7 +3,7 @@
  * spec (versions/v28_teacher-polish/COMPONENTS.md in the NIETE Portal Coaching report folder). How to use each:
  * README.md beside this file. Feature icons: ../icons.
  */
-export { TEACHER_UI_COPY, type NotifyCopy, type ReportCopy, type TeacherUiCopy } from './copy';
+export { TEACHER_UI_COPY, type NotifyCopy, type ReportCopy, type ShareCopy, type TeacherUiCopy } from './copy';
 export { CHIP_TONE, type ChipData, type ChipTone } from './styles';
 export { StatusChip, type StatusChipProps } from './StatusChip';
 export {
@@ -31,6 +31,7 @@ export {
 } from './ClassPicker';
 export { formatSpan, resolveRange, type ResolvedRange } from './range';
 export { DateRangeBar, type DateRangeBarProps, type DateRangeInfo } from './DateRangeBar';
+export { FeatureCard, MeterRow, type FeatureCardProps, type MeterRowProps } from './FeatureCard';
 export { KpiTiles, type KpiItem, type KpiTilesProps } from './KpiTiles';
 export { ProgressSteps, type ProgressStep, type ProgressStepsProps } from './ProgressSteps';
 export { VoiceNote, type VoiceNoteProps } from './VoiceNote';
@@ -54,3 +55,7 @@ export { ScoreRing, type ScoreRingProps } from './ScoreRing';
 export { TrendChart, type TrendChartProps, type TrendPoint } from './TrendChart';
 export { AudioCard, type AudioCardProps } from './AudioCard';
 export { RecordUploadPair, type PairAction, type RecordUploadPairProps } from './RecordUploadPair';
+export { NumberField, type NumberFieldProps } from './NumberField';
+export { ButtonWithReason, type ButtonWithReasonProps } from './ButtonWithReason';
+export { digitsOnly } from './digits';
+export { ShareActions, intentUrl, clockOf, PAGE_HANDOFF, type OpenTarget, type ShareActionsProps, type ShareResult } from './ShareActions';

@@ -193,7 +193,7 @@ const PINNED: Pin[] = [
   { screen: "Digital Coaching", path: "picker.failed", en: "Failed", ur: "نہیں بن سکا" },
   { screen: "Digital Coaching", path: "planNotUsed", ur: "لیسن پلان استعمال نہیں" },
   { screen: "Assessment", path: "editPaper", ur: "پرچے میں ترمیم کریں" },
-  { screen: "Analytics", path: "youWerePresent", ur: "آپ کی حاضری" },
+  { screen: "Analytics", path: "youWerePresent", ur: "حاضر" },
   { screen: "Analytics", path: "focus", ur: "توجہ طلب" },
   { screen: "Lesson Plans", path: "aboutTwoMinutes", ur: "تقریباً 2 منٹ" },
   { screen: "kit (shared components)", path: "notify.more(4)", ur: "مزید 4" },

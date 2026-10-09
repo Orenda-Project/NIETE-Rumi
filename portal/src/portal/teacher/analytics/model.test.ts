@@ -23,22 +23,22 @@ const prev: ProgressCounts = {
 describe('activityKpis / observationKpis', () => {
   it('lesson plans, modules, papers and attendance days, each with its change against the period before', () => {
     expect(activityKpis(cur, prev)).toEqual([
-      { value: 14, label: C.lessonPlansUsed, delta: 3 },
-      { value: 6, label: C.modulesDone, delta: 0 },
-      { value: 4, label: C.papersMade, delta: -1 },
-      { value: 18, label: C.attendanceDays, delta: 0 },
+      { value: 14, label: C.lessonPlansUsed, delta: 3, feature: "lessons" },
+      { value: 6, label: C.modulesDone, delta: 0, feature: "training" },
+      { value: 4, label: C.papersMade, delta: -1, feature: "assessment" },
+      { value: 18, label: C.attendanceDays, delta: 0, feature: "attendance" },
     ]);
     expect(observationKpis(cur, prev)).toEqual([
-      { value: 3, label: C.observations, delta: 0 },
-      { value: 9, label: C.digitalCoaching, delta: 2 },
+      { value: 3, label: C.observations, delta: 0, feature: "observations" },
+      { value: 9, label: C.digitalCoaching, delta: 2, feature: "coaching" },
     ]);
   });
 
   it('no period before (All time) → no change; a missing count → no value, never a made-up 0', () => {
     expect(activityKpis(cur, null).map((k) => k.delta)).toEqual([undefined, undefined, undefined, undefined]);
     const [lp, mod] = activityKpis({ training: {} }, prev);
-    expect(lp).toEqual({ value: null, label: C.lessonPlansUsed });
-    expect(mod).toEqual({ value: null, label: C.modulesDone });
+    expect(lp).toEqual({ value: null, label: C.lessonPlansUsed, feature: "lessons" });
+    expect(mod).toEqual({ value: null, label: C.modulesDone, feature: "training" });
   });
 });
 
