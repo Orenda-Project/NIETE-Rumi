@@ -64,15 +64,25 @@
       wait: 'کھل رہا ہے…', noClass: 'پہلے استاد کا کوئی کوئز کھیلیں۔', gone: 'ابھی یہاں کوئی کوئز نہیں۔ استاد سے کوئز کا لنک لیں۔', mins: function (m) { return m + ' منٹ'; },
     },
   };
-  var T = COPY[LANG];
+  // The polished Urdu copy (app_settings web_quiz_ur_polish → the edge's `wq-ur2` class on <html>): a child's words, the name
+  // first in the greeting. Off, COPY.ur is today's, untouched.
+  var UR2_COPY = {
+    whoSay: 'اپنا نام دبائیں۔', hi: function (n) { return '\u2068' + n + '\u2069، السلام علیکم! آج کیا کھیلیں؟'; },
+    none: 'ابھی نیا کوئز نہیں۔ ایک ویڈیو دیکھیں اور اس کا کوئز کھیلیں!', practice: 'مشق۔ استاد کو پہلا اسکور ہی دکھے گا۔',
+    chSub: 'پڑھنے اور گنتی کے کھیل', lockSay: 'یہ لنک جس کو ملا تھا، وہی کھولے۔',
+    mineDoor: 'اپنا کوئز مکمل کریں، پھر «میرے کوئز اور ویڈیوز» دبائیں۔'
+  };
+  function ur2() { try { return !!(B && B.ui && B.ui.ur2 === true) && document.documentElement.classList.contains('wq-ur2'); } catch (e) { return false; } }
+  function copyFor(l) { return l === 'ur' && ur2() ? Object.assign({}, COPY.ur, UR2_COPY) : COPY[l]; }
+  var T = copyFor(LANG);
   // B is replaced by the bot's answer for one child (a sibling pick, an unlock): that child's language
   // wins over the boot page's, for the copy and for <html lang/dir> (the Urdu face and the rtl flow).
   function setLang(l) {
     LANG = l === 'ur' ? 'ur' : 'en';
-    T = COPY[LANG];
     try { document.documentElement.setAttribute('lang', LANG); document.documentElement.setAttribute('dir', LANG === 'ur' ? 'rtl' : 'ltr'); } catch (e) {}
     // The polished Urdu look (the edge put `wq-ur2` on <html> for an Urdu boot): it follows the language, never the boot.
     try { if (B && B.ui && B.ui.ur2 === true) document.documentElement.classList.toggle('wq-ur2', LANG === 'ur'); } catch (e) {}
+    T = copyFor(LANG);
   }
 
   /* ---------------- helpers ---------------- */

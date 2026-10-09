@@ -649,3 +649,7 @@ html.wq-ur2[lang=ur] .wq-hcard .wq-hlabel{margin-bottom:4px}
 html.wq-ur2[lang=ur] .wq-vtext small bdi{display:inline-block;max-width:100%;vertical-align:top}
 html.wq-ur2[lang=ur] .wq-zoom{width:44px;height:44px}
 html.wq-ur2[lang=ur] .wq-m,html.wq-ur2[lang=ur] math,html.wq-ur2[lang=ur] .wq-m *{font-family:var(--f)}
+/* The polished copy: the landing's teacher line and the class on two lines; a label over 40 code points on its own row, a step smaller (the 360 px case) */
+html.wq-ur2[lang=ur] .wq-sub{white-space:pre-line}
+html.wq-ur2[lang=ur] .wq-opt.wq-long{flex-wrap:wrap}
+html.wq-ur2[lang=ur] .wq-opt.wq-long .wq-lab{flex:1 1 100%;font-size:18px}

@@ -1566,3 +1566,15 @@ Feature: Web child quiz page on the portal
     Given web_quiz_ur_polish is "on" and the hub booted in Urdu with the class
     When a sibling whose hub is English is picked
     Then <html> loses the class with the language, and gets it back when an Urdu child is picked
+
+  @T762
+  Scenario: Under the polished Urdu look the copy is a child's — shorter, Western digits, the name first
+    Given web_quiz_ur_polish is "on" and an Urdu page carries the class
+    When the landing, a question, the feedback, the results card, the hub or the library renders
+    Then the landing says "السلام علیکم! کوئز کھیلیں؟", "5 سوال، 3 منٹ" with each number on its own left-to-right run, and the teacher line and the class on two lines
+    And the question counter reads "5 میں سے سوال 1", never "از"
+    And an option whose label is over 40 code points takes its own row a step smaller
+    And the feedback's "comes back at the end" line is seven words, "ٹیپ کریں" is "دبائیں" everywhere, "مکمل" is the one word for done, and no adult word ("تقریباً", "جشن", "ہم جماعت") remains
+    And the hub greets "<name>، السلام علیکم! آج کیا کھیلیں؟" with the name first and isolated
+    And the share line to WhatsApp keeps the approved sentence shape with Western digits inside isolates
+    But with the class absent every string is today's, word for word, and English never changes

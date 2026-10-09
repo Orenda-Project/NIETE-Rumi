@@ -394,3 +394,26 @@ describe('the hub and the Home button (boot.nav_home)', () => {
     expect(p.beacons.concat([]).some((e) => e.n === 'hub_view' && e.src === 'home') || p.fetches.some((f) => /hub_view/.test(String(f.init && f.init.body)) && /"src":"home"/.test(String(f.init && f.init.body)))).toBe(true);
   });
 });
+
+/* ---------------- the polished Urdu copy (ui.ur2 + the class): the name first in the greeting, a child's words ---------------- */
+test('with the class: «بلال، السلام علیکم! آج کیا کھیلیں؟» (the name first, isolated) and «اپنا نام دبائیں۔»; without: today\'s lines', async () => {
+  const on = page(boot({ lang: 'ur', ui: { ur2: true } }), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': { lang: 'ur', kids: KIDS, kid: KIDS[1].chip, teacher: null, again: [], recs: [], challenge: null, lib: null, ui: { ur2: true } } } });
+  expect(on.html()).toContain('اپنا نام دبائیں۔');
+  on.els['[data-chip="0000000000000002"]'].fire('click');
+  await flush(); await flush();
+  expect(on.html()).toContain('\u2068بلال\u2069، السلام علیکم! آج کیا کھیلیں؟');
+  expect(on.html()).not.toContain('آج کیا کریں');
+  const off = page(boot({ lang: 'ur' }), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': { lang: 'ur', kids: KIDS, kid: KIDS[1].chip, teacher: null, again: [], recs: [], challenge: null, lib: null } } });
+  expect(off.html()).toContain('اپنے نام پر ٹیپ کریں۔');
+  off.els['[data-chip="0000000000000002"]'].fire('click');
+  await flush(); await flush();
+  expect(off.html()).toContain('السلام علیکم بلال! آج کیا کریں؟');
+});
+
+test('with the class, the Urdu lock screen says whose link it is in seven words', async () => {
+  const p = page(LOCKED({ lang: 'ur', ui: { ur2: true } }), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': LOCKED({ lang: 'ur', ui: { ur2: true } }) } });
+  await flush(); await flush();
+  expect(p.moment()).toBe('H-lock');
+  expect(p.html()).toContain('یہ لنک جس کو ملا تھا، وہی کھولے۔');
+  expect(p.html()).not.toMatch(/رہا|رہی|بیٹا|بیٹی/);
+});
