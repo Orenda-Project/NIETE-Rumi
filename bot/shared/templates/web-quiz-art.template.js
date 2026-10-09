@@ -151,7 +151,7 @@ function body(kind, d, C, pics, size, ur2 = false, og2 = false) {
         + `<p class="big">${num(`${d.correct}/${d.total}`)}</p>${starsHtml(d.correct, d.total)}`
         + `<p class="sub">${own(d.topic)}</p>`
         // under the Urdu polish the school sits on its own line under the points: a Latin school name never breaks an Urdu sentence
-        + (d.school && d.added ? `<p class="pts">${ur2 ? `${num(`+${d.added}`)} ${esc(C.pts)}<br>${own(d.school)}` : C.added(num(`+${d.added}`), own(d.school))}</p>` : (d.school ? `<p class="pts">${own(d.school)}</p>` : '')),
+        + (d.school && d.added ? `<p class="pts">${ur2 ? `${num(`+${d.added}`)} ${esc(C.pts)}<span class="sch">${own(d.school)}</span>` : C.added(num(`+${d.added}`), own(d.school))}</p>` : (d.school ? `<p class="pts">${own(d.school)}</p>` : '')),
       cta: d.school ? '' : C.playSame,
     };
   }
@@ -278,7 +278,8 @@ bdi[dir="rtl"]{font-family:'NastaliqUrdu','Lexend',sans-serif}
 ${col && !sq ? '.sn small{display:none}.pt{flex-direction:row;align-items:baseline;gap:10px}' : ''}
 ${RTL && !sq ? `.kick{line-height:1.9}.name{font-size:56px;line-height:${UR2 ? 1.7 : 1.55}}.big{font-size:92px}.head{line-height:${UR2 ? 1.9 : 1.7}}.crow li{line-height:1.45}.crow{gap:4px}.sub{line-height:1.9}` : ''}
 .ani{width:1em;height:1em;display:inline-block;vertical-align:-.12em;margin-inline-end:.25em;object-fit:contain}
-.pts{display:inline-block;align-self:${sq ? 'center' : 'flex-start'};background:rgba(255,255,255,.14);border-radius:${UR2 ? '28px' : '999px'};padding:${RTL ? (UR2 ? '2px 24px' : '0 22px') : '8px 22px'};font-size:${Math.round((UR2 ? 28 : 24) * S)}px;line-height:${RTL ? 1.9 : 1.3};font-weight:700${UR2 ? ';text-align:start' : ''}}
+.pts{display:inline-block;align-self:${sq ? 'center' : 'flex-start'};background:rgba(255,255,255,.14);border-radius:${UR2 ? '28px' : '999px'};padding:${RTL ? (UR2 ? '2px 24px' : '0 22px') : '8px 22px'};font-size:${Math.round((UR2 && !OG2 ? 28 : 24) * S)}px;line-height:${RTL ? 1.9 : 1.3};font-weight:700${UR2 ? ';text-align:start' : ''}}${UR2 ? `
+.pts .sch{display:block;font-family:'Lexend','NastaliqUrdu',sans-serif;font-size:${Math.round((OG2 ? 21 : 26) * S)}px;line-height:1.35;opacity:.9}` : ''}
 .crow{list-style:none;display:flex;flex-direction:column;gap:${sq ? 10 : 6}px;width:${sq ? '86%' : '100%'};text-align:start}
 .crow li{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,.08);border-radius:12px;padding:${RTL ? '0 16px' : '4px 16px'};font-size:${Math.round((sq ? 34 : 26) * S)}px;line-height:${RTL ? 1.6 : 1.25}}
 .crow li.me{background:${t.brand};color:${t['brand-on']}}
