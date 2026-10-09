@@ -60,11 +60,11 @@ describe("TimeStamp", () => {
     render(<TimeStamp time="morning" />);
     expect(screen.getByText("morning")).toBeTruthy();
   });
-  it("Urdu: صبح / شام beside the time", async () => {
+  it("Urdu: صبح / بعد دوپہر beside the time (2 PM is not شام)", async () => {
     await act(async () => { await i18n.changeLanguage("ur"); });
     const { container } = render(<TimeStamp time="14:00" />);
     expect(container.textContent).toContain("2:00");
-    expect(container.textContent).toContain("شام");
+    expect(container.textContent).toContain("بعد دوپہر");
     expect(container.textContent).not.toContain("PM");
   });
 });

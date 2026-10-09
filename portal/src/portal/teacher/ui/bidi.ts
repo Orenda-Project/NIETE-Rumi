@@ -14,8 +14,11 @@ import { useLang } from '../i18n';
 export const LRI = '⁦';
 export const PDI = '⁩';
 
-/** A Latin/digit token: "p.1", "4", "~2", "1/2", "Science". */
-const TOKEN = '[A-Za-z0-9~][A-Za-z0-9.~/]*';
+/**
+ * A Latin/digit token: "p.1", "4", "~2", "1/2", "Science", and a number's own signs: "+3" (a plus before a digit),
+ * "75%", "90%+". Without them the sign is left outside the isolate and lands on the wrong side ("%89–75").
+ */
+const TOKEN = '(?:\\+(?=[0-9]))?[A-Za-z0-9~][A-Za-z0-9.~/]*(?:%\\+?)?';
 /** Tokens joined by a space or a dash/colon (with or without spaces): "1 – 12", "4-A", "General Science". */
 const RUN = new RegExp(`${TOKEN}(?:(?:\\s*[–\\-:]\\s*|\\s+)${TOKEN})*`, 'g');
 /** A run that is already isolated is left alone. */

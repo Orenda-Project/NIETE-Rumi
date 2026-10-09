@@ -20,7 +20,7 @@ export const NOTICES_COPY = {
 } as const;
 
 export const NOTICES_COPY_UR = {
-  leave: 'آپ یہاں سے جا سکتے ہیں۔ تیار ہونے پر ہم یہیں بتائیں گے۔',
+  leave: 'انتظار ضروری نہیں۔ تیار ہونے پر ہم یہیں بتائیں گے۔',
   listNote: 'ہر ایک تیار ہونے پر ہم یہیں بتائیں گے۔',
 };
 
