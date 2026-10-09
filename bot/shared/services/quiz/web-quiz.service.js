@@ -98,7 +98,7 @@ const SC_COLS = 'id, code, quiz_id, video_id, teacher_user_id, teacher_name, top
 async function resolveCode(rawCode) {
   const code = String(rawCode || '').trim().toUpperCase();
   if (!CODE_RX.test(code)) fail(404, 'not_found');
-  const { data: sc, error } = await dbRead('resolveCode:quiz_share_codes', (db) => db.from('quiz_share_codes').select(SC_COLS).eq('code', code).maybeSingle());
+  const { data: sc, error } = await dbRead('resolveCode:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select(SC_COLS).eq('code', code).maybeSingle());
   if (error) fail(502, 'db_unavailable');
   if (!sc) fail(404, 'not_found');
   const lang = clampLanguage(sc.language);
@@ -106,7 +106,7 @@ async function resolveCode(rawCode) {
   if (!sc.active || (sc.expires_at && new Date(sc.expires_at) < new Date())) fail(410, 'expired', { lang });
   let parent = sc;
   if (sc.parent_share_code_id && sc.invited_by_student_id) {
-    const { data: p } = await dbRead('resolveCode:quiz_share_codes', (db) => db.from('quiz_share_codes').select(SC_COLS).eq('id', sc.parent_share_code_id).maybeSingle());
+    const { data: p } = await dbRead('resolveCode:quiz_share_codes:2', (db) => db.from('quiz_share_codes').select(SC_COLS).eq('id', sc.parent_share_code_id).maybeSingle());
     if (p) parent = p;
   }
   return {
@@ -197,7 +197,7 @@ async function withoutWrongWordBlanks(quizId, served, out, { log = false } = {})
 
 /** The quiz's questions in the order a WhatsApp child gets them, capped like a session; only playable ones. */
 async function loadQuestions(quizId, { log = false } = {}) {
-  const { data, error } = await dbRead('loadQuestions:quiz_questions', (db) => db.from('quiz_questions').select(Q_COLS)
+  const { data, error } = await dbRead('loadQuestions:quiz_questions:1', (db) => db.from('quiz_questions').select(Q_COLS)
     .eq('quiz_id', quizId).order('external_id', { ascending: true }).order('sort_order', { ascending: true }));
   if (error) fail(502, 'db_unavailable');
   const rows = data || [];
@@ -352,11 +352,11 @@ function mediaHelpers() {
  */
 async function classChips(ctx) {
   const since = new Date(Date.now() - CHIP_WINDOW_DAYS * 86400000).toISOString();
-  const { data: codes } = await dbRead('classChips:quiz_share_codes', (db) => db.from('quiz_share_codes').select('id')
+  const { data: codes } = await dbRead('classChips:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('id')
     .eq('teacher_user_id', ctx.teacherUserId).is('invited_by_student_id', null).gte('created_at', since).limit(200));
   const ids = (codes || []).map((c) => c.id);
   if (!ids.includes(ctx.shareCodeId)) ids.push(ctx.shareCodeId);
-  const { data: sessions } = await dbRead('classChips:quiz_sessions', (db) => db.from('quiz_sessions')
+  const { data: sessions } = await dbRead('classChips:quiz_sessions:1', (db) => db.from('quiz_sessions')
     .select('student_id, student_name, user_id, created_at, share_code_id')
     .in('share_code_id', ids).is('invited_by_student_id', null).not('student_id', 'is', null)
     .gte('created_at', since).order('created_at', { ascending: false }).limit(500));
@@ -400,10 +400,10 @@ async function liveCounts(ctx) {
   const since = pktMidnightIso();
   const out = { class_today: 0, ict_today_floor: 0 };
   try {
-    const { data } = await dbRead('liveCounts:quiz_sessions', (db) => db.from('quiz_sessions').select('student_id, user_id, status, completed_at, created_at')
+    const { data } = await dbRead('liveCounts:quiz_sessions:1', (db) => db.from('quiz_sessions').select('student_id, user_id, status, completed_at, created_at')
       .eq('share_code_id', ctx.shareCodeId).is('invited_by_student_id', null).eq('status', 'completed').gte('completed_at', since));
     out.class_today = oneAttemptPerChild(excludeSelfTests(data || [], ctx.teacherUserId)).length;
-    const { count } = await dbRead('liveCounts:quiz_sessions', (db) => db.from('quiz_sessions').select('id', { count: 'exact', head: true })
+    const { count } = await dbRead('liveCounts:quiz_sessions:2', (db) => db.from('quiz_sessions').select('id', { count: 'exact', head: true })
       .eq('source', 'share_link').eq('status', 'completed').is('user_id', null).gte('completed_at', since));
     out.ict_today_floor = count || 0;
   } catch (e) {
@@ -429,7 +429,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   mark('resolve', { shareCodeId: ctx.shareCodeId });
   const [questions, { data: quizRow }] = await Promise.all([
     loadQuestions(ctx.quizId, { log: true }),
-    dbRead('getQuizTimed:quizzes', (db) => db.from('quizzes').select('id, topic, grade, subject, language, meta, video_id, list_id').eq('id', ctx.quizId).maybeSingle()),
+    dbRead('getQuizTimed:quizzes:1', (db) => db.from('quizzes').select('id, topic, grade, subject, language, meta, video_id, list_id').eq('id', ctx.quizId).maybeSingle()),
   ]);
   mark('questions');
   if (!questions.length) fail(404, 'no_questions');
@@ -558,7 +558,7 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
 
 async function quizInfo(quizId) {
   try {
-    const { data } = await dbRead('quizInfo:quizzes', (db) => db.from('quizzes').select('grade, list_id').eq('id', quizId).maybeSingle());
+    const { data } = await dbRead('quizInfo:quizzes:1', (db) => db.from('quizzes').select('grade, list_id').eq('id', quizId).maybeSingle());
     return { grade: (data && data.grade) || null, listId: (data && data.list_id) || null };
   } catch { return { grade: null, listId: null }; }
 }
@@ -581,7 +581,7 @@ async function oneClass(ctx, chosen) {
 
 async function gradeOf(quizId) {
   try {
-    const { data } = await dbRead('gradeOf:quizzes', (db) => db.from('quizzes').select('grade').eq('id', quizId).maybeSingle());
+    const { data } = await dbRead('gradeOf:quizzes:1', (db) => db.from('quizzes').select('grade').eq('id', quizId).maybeSingle());
     return (data && data.grade) || null;
   } catch { return null; }
 }
@@ -721,7 +721,7 @@ async function shownNames(lang, studentIds) {
   const names = new Map();
   if (lang === 'ur' && ids.length) {
     try {
-      const { data } = await dbRead('shownNames:students', (db) => db.from('students').select('id, student_name, student_name_urdu').in('id', ids));
+      const { data } = await dbRead('shownNames:students:1', (db) => db.from('students').select('id, student_name, student_name_urdu').in('id', ids));
       (data || []).forEach((k) => names.set(k.id, Roster.displayName(k, lang)));
     } catch { /* the session's name, never a failed screen */ }
   }
@@ -730,7 +730,7 @@ async function shownNames(lang, studentIds) {
 
 async function codeLanguage(shareCodeId) {
   try {
-    const { data } = await dbRead('codeLanguage:quiz_share_codes', (db) => db.from('quiz_share_codes').select('language').eq('id', shareCodeId).maybeSingle());
+    const { data } = await dbRead('codeLanguage:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('language').eq('id', shareCodeId).maybeSingle());
     return clampLanguage(data && data.language);
   } catch { return clampLanguage(null); }
 }
@@ -749,7 +749,7 @@ function challengeOutcome(mine, theirs) {
 
 /** The friend who sent a challenge link: their first counted score on the class code. */
 async function challengeOf(ctx) {
-  const { data: rows } = await dbRead('challengeOf:quiz_sessions', (db) => db.from('quiz_sessions')
+  const { data: rows } = await dbRead('challengeOf:quiz_sessions:1', (db) => db.from('quiz_sessions')
     .select('id, student_id, student_name, status, correct_answers, total_questions_answered, completed_at, created_at')
     .eq('share_code_id', ctx.shareCodeId).eq('student_id', ctx.invitedByStudentId).eq('status', 'completed'));
   const [best] = oneAttemptPerChild(rows || [], { rule: 'first_completed' });
@@ -766,14 +766,14 @@ const SESSION_COLS = 'id, quiz_id, student_id, student_name, user_id, share_code
 async function sessionFromToken(st) {
   const tok = T.verify(st, 's');
   if (!tok || !tok.sid) fail(401, 'bad_token');
-  const { data: s, error } = await dbRead('sessionFromToken:quiz_sessions', (db) => db.from('quiz_sessions').select(SESSION_COLS).eq('id', tok.sid).maybeSingle());
+  const { data: s, error } = await dbRead('sessionFromToken:quiz_sessions:1', (db) => db.from('quiz_sessions').select(SESSION_COLS).eq('id', tok.sid).maybeSingle());
   if (error) fail(502, 'db_unavailable');
   if (!s) fail(401, 'bad_token');
   return { s, tok };
 }
 
 async function answeredIds(sessionId) {
-  const { data } = await dbRead('answeredIds:quiz_answers', (db) => db.from('quiz_answers').select('question_id, selected_option, is_correct').eq('session_id', sessionId));
+  const { data } = await dbRead('answeredIds:quiz_answers:1', (db) => db.from('quiz_answers').select('question_id, selected_option, is_correct').eq('session_id', sessionId));
   return data || [];
 }
 
@@ -786,7 +786,7 @@ function cleanName(raw) {
 /** Earlier completed attempts by this child on this class code (the first one counts). */
 async function priorFinish(shareCodeId, studentId, excludeId = null) {
   if (!studentId) return null;
-  const { data } = await dbRead('priorFinish:quiz_sessions', (db) => db.from('quiz_sessions').select('id, device_ref, status, completed_at, created_at, student_id, correct_answers, total_questions_answered')
+  const { data } = await dbRead('priorFinish:quiz_sessions:1', (db) => db.from('quiz_sessions').select('id, device_ref, status, completed_at, created_at, student_id, correct_answers, total_questions_answered')
     .eq('share_code_id', shareCodeId).eq('student_id', studentId).eq('status', 'completed'));
   const rows = (data || []).filter((r) => r.id !== excludeId);
   const [first] = oneAttemptPerChild(rows, { rule: 'first_completed' });
@@ -797,7 +797,7 @@ async function priorFinish(shareCodeId, studentId, excludeId = null) {
 async function bestBefore(shareCodeId, studentId, excludeId) {
   if (!studentId) return null;
   try {
-    const { data } = await dbRead('bestBefore:quiz_sessions', (db) => db.from('quiz_sessions').select('id, correct_answers, total_questions_answered')
+    const { data } = await dbRead('bestBefore:quiz_sessions:1', (db) => db.from('quiz_sessions').select('id, correct_answers, total_questions_answered')
       .eq('share_code_id', shareCodeId).eq('student_id', studentId).eq('status', 'completed'));
     const rows = (data || []).filter((r) => r.id !== excludeId && (r.total_questions_answered || 0) > 0);
     if (!rows.length) return null;
@@ -834,7 +834,7 @@ async function startSessionTimed(body = {}, mark = () => {}) {
   if (body.resume_st) {
     const tok = T.verify(body.resume_st, 's');
     if (tok && tok.sc === ctx.shareCodeId) {
-      const { data: s } = await dbRead('startSessionTimed:quiz_sessions', (db) => db.from('quiz_sessions').select(SESSION_COLS).eq('id', tok.sid).maybeSingle());
+      const { data: s } = await dbRead('startSessionTimed:quiz_sessions:1', (db) => db.from('quiz_sessions').select(SESSION_COLS).eq('id', tok.sid).maybeSingle());
       // A token resumes only ITS child: a body that names someone else (a typed name, a roll number, another
       // child's chip) starts that child's own session, never continues this one with their answers.
       const other = body.new || body.roll != null
@@ -897,7 +897,7 @@ async function startSessionTimed(body = {}, mark = () => {}) {
       const chips = await classChips(ctx);
       const hit = chips.find((c) => c.chip === want) || chips.find((c) => c.aliases.has(want));
       if (!hit) fail(404, 'chip_unknown');
-      const { data: st } = await dbRead('startSessionTimed:students', (db) => db.from('students').select('id, student_name, self_reported_class').eq('id', hit.studentId).maybeSingle());
+      const { data: st } = await dbRead('startSessionTimed:students:1', (db) => db.from('students').select('id, student_name, self_reported_class').eq('id', hit.studentId).maybeSingle());
       student = st || { id: hit.studentId, student_name: hit.name };
       // A class-list child remembered from an earlier code of this teacher keeps the list's class.
       const listed = roster ? roster.kids.find((k) => k.id === hit.studentId) : null;
@@ -908,11 +908,11 @@ async function startSessionTimed(body = {}, mark = () => {}) {
     // are. Accepted only for a session on a code of the same teacher.
     const tok = T.verify(body.from_st, 's');
     if (!tok || !tok.sid) fail(401, 'bad_token');
-    const { data: prev } = await dbRead('startSessionTimed:quiz_sessions', (db) => db.from('quiz_sessions').select('student_id, share_code_id, user_id').eq('id', tok.sid).maybeSingle());
+    const { data: prev } = await dbRead('startSessionTimed:quiz_sessions:2', (db) => db.from('quiz_sessions').select('student_id, share_code_id, user_id').eq('id', tok.sid).maybeSingle());
     if (!prev || !prev.student_id || prev.user_id) fail(401, 'bad_token');
-    const { data: prevCode } = await dbRead('startSessionTimed:quiz_share_codes', (db) => db.from('quiz_share_codes').select('teacher_user_id').eq('id', prev.share_code_id).maybeSingle());
+    const { data: prevCode } = await dbRead('startSessionTimed:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('teacher_user_id').eq('id', prev.share_code_id).maybeSingle());
     if (!prevCode || prevCode.teacher_user_id !== ctx.teacherUserId) fail(401, 'bad_token');
-    const { data: st } = await dbRead('startSessionTimed:students', (db) => db.from('students').select('id, student_name, self_reported_class').eq('id', prev.student_id).maybeSingle());
+    const { data: st } = await dbRead('startSessionTimed:students:2', (db) => db.from('students').select('id, student_name, self_reported_class').eq('id', prev.student_id).maybeSingle());
     if (!st) fail(401, 'bad_token');
     student = st;
     // A class-list child keeps the list's class (as the chip branch does).
@@ -994,7 +994,7 @@ async function startSessionTimed(body = {}, mark = () => {}) {
   await countJoin(ctx.shareCodeId);
   let quizSource = null;
   try {
-    const { data: q } = await dbRead('startSessionTimed:quizzes', (db) => db.from('quizzes').select('quiz_source').eq('id', ctx.quizId).maybeSingle());
+    const { data: q } = await dbRead('startSessionTimed:quizzes:1', (db) => db.from('quizzes').select('quiz_source').eq('id', ctx.quizId).maybeSingle());
     quizSource = (q && q.quiz_source) || null;
   } catch { /* a missing label, never a stopped quiz */ }
   Funnel.emit('child_joined', {
@@ -1087,7 +1087,7 @@ async function hubChipKid(ctx, want, deviceRef) {
   const ids = await require('./web-quiz-hub-device').deviceKids(deviceRef);
   const id = ids.find((x) => T.chipId(ctx.shareCodeId, x) === want);
   if (!id) return null;
-  const { data: st } = await dbRead('hubChipKid:students', (db) => db.from('students').select('id, student_name, self_reported_class, is_active').eq('id', id).maybeSingle());
+  const { data: st } = await dbRead('hubChipKid:students:1', (db) => db.from('students').select('id, student_name, self_reported_class, is_active').eq('id', id).maybeSingle());
   return st && st.is_active !== false ? { id: st.id, student_name: st.student_name, self_reported_class: st.self_reported_class || null } : null;
 }
 
@@ -1130,11 +1130,11 @@ async function provisionalOnDevice(shareCodeId, deviceRef, name) {
   const want = Identity.canon(name);
   if (!want) return null;
   try {
-    const { data: rows } = await dbRead('provisionalOnDevice:quiz_sessions', (db) => db.from('quiz_sessions').select('student_id, student_name')
+    const { data: rows } = await dbRead('provisionalOnDevice:quiz_sessions:1', (db) => db.from('quiz_sessions').select('student_id, student_name')
       .eq('share_code_id', shareCodeId).eq('device_ref', deviceRef).is('user_id', null).limit(50));
     const ids = [...new Set((rows || []).filter((r) => r.student_id && Identity.canon(r.student_name) === want).map((r) => r.student_id))];
     if (!ids.length) return null;
-    const { data: kids } = await dbRead('provisionalOnDevice:students', (db) => db.from('students').select('id, student_name, self_reported_class, list_id').in('id', ids));
+    const { data: kids } = await dbRead('provisionalOnDevice:students:1', (db) => db.from('students').select('id, student_name, self_reported_class, list_id').in('id', ids));
     const kid = (kids || []).find((k) => !k.list_id && Identity.canon(k.student_name) === want);
     return kid ? { id: kid.id, student_name: kid.student_name, self_reported_class: kid.self_reported_class || null } : null;
   } catch { return null; }
@@ -1436,11 +1436,11 @@ async function withPulse(s, body, out, rows, questions) {
 async function challengeCodeFor(s) {
   if (!s.student_id || s.user_id) return null;
   try {
-    const { data: have } = await dbRead('challengeCodeFor:quiz_share_codes', (db) => db.from('quiz_share_codes').select('code, active, expires_at')
+    const { data: have } = await dbRead('challengeCodeFor:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('code, active, expires_at')
       .eq('invited_by_student_id', s.student_id).eq('parent_share_code_id', s.share_code_id).limit(1));
     const live = (have || []).find((c) => c.active !== false && (!c.expires_at || new Date(c.expires_at) > new Date()));
     if (live) return live.code;
-    const { data: parent } = await dbRead('challengeCodeFor:quiz_share_codes', (db) => db.from('quiz_share_codes')
+    const { data: parent } = await dbRead('challengeCodeFor:quiz_share_codes:2', (db) => db.from('quiz_share_codes')
       .select('id, quiz_id, video_id, teacher_user_id, teacher_name, topic, language').eq('id', s.share_code_id).maybeSingle());
     if (!parent) return null;
     const { randomCode } = require('./video-quiz-share.service');
@@ -1460,11 +1460,19 @@ async function challengeCodeFor(s) {
   return null;
 }
 
-async function finishSession(body = {}) {
+/** E5, timed: one web_quiz.finish_timing line per call (each step, total; labels and numbers only, never an id). */
+function finishSession(body = {}) {
+  return Steps.run('finish', {}, (mark) => finishSessionTimed(body, mark));
+}
+
+async function finishSessionTimed(body = {}, mark = () => {}) {
   requireOn();
   const { s, tok } = await sessionFromToken(body.st);
+  mark('session');
   const questions = await loadQuestions(s.quiz_id);
+  mark('questions');
   const answers = await answeredIds(s.id);
+  mark('answers');
   const byQ = new Map(answers.map((a) => [a.question_id, a]));
   const served = questions.filter((q) => byQ.has(q.id));
   const total = served.length;
@@ -1491,16 +1499,32 @@ async function finishSession(body = {}) {
     });
     logEvent('web_quiz.session_completed', { sessionId: s.id, shareCodeId: s.share_code_id, correct, total, pct });
   }
+  mark('complete', { completed_now: s.status !== 'completed' });
 
   const prior = await priorFinish(s.share_code_id, s.student_id, s.id);
+  mark('prior');
   // Counted when no OTHER attempt finished before this one.
   const earlier = prior && s.completed_at && String(prior.completed_at) > String(s.completed_at) ? null : prior;
   const counted = countedFor(earlier, tok.d, Boolean(s.user_id));
   const nameOf = await shownNames(s.student_id ? await codeLanguage(s.share_code_id) : null, [s.student_id]);
   const first = nameOf(s.student_id, s.student_name);
+  mark('names');
   const challengeCode = await challengeCodeFor(s);
-  const { data: scRow } = await dbRead('finishSession:quiz_share_codes', (db) => db.from('quiz_share_codes').select('code').eq('id', s.share_code_id).maybeSingle());
+  mark('challenge');
+  const { data: scRow } = await dbRead('finishSession:quiz_share_codes:1', (db) => db.from('quiz_share_codes').select('code').eq('id', s.share_code_id).maybeSingle());
   const classCode = (scRow && scRow.code) || null;
+  mark('class_code');
+  // The card's remaining reads, in the order the payload used to await them, each timed.
+  const best = earlier && !s.user_id ? await bestField(s) : {};
+  mark('best');
+  const place = counted.counted && !s.user_id && !s.invited_by_student_id ? placeToday(await classFinishersToday(s.share_code_id), s.id) : {};
+  mark('place');
+  const vs = s.invited_by_student_id && s.invited_by_student_id !== s.student_id ? await versus(s, { correct, total }) : {};
+  mark('versus');
+  const next = await nextLesson(s);
+  mark('next_lesson');
+  const door = await require('./web-quiz-hub-door').field(s);
+  mark('hub_door');
   return {
     score: { correct, total, pct, level },
     ...counted,
@@ -1513,21 +1537,21 @@ async function finishSession(body = {}) {
       // A practice round: the card says so and carries the kept first-try score the league shows.
       ...(earlier && !s.user_id ? { practice: true, kept: { correct: earlier.correct_answers || 0, total: earlier.total_questions_answered || 0 } } : {}),
       // A practice round's goal: the best earlier score on this code, so the card can say "New best!".
-      ...(earlier && !s.user_id ? await bestField(s) : {}),
-      ...(counted.counted && !s.user_id && !s.invited_by_student_id ? placeToday(await classFinishersToday(s.share_code_id), s.id) : {}),
+      ...best,
+      ...place,
     },
     challenge_code: challengeCode,
     // A friend's challenge: who won against the score the landing showed them.
     // (Never against themselves: a child who opens their own challenge link is not their own challenger.)
-    ...(s.invited_by_student_id && s.invited_by_student_id !== s.student_id ? await versus(s, { correct, total }) : {}),
+    ...vs,
     // The signed ids of the pictures this child can share (web-quiz-art.js).
     art: { card: Art.artId('c', s.id), invite: challengeCode ? Art.artId('i', challengeCode) : null, class: classCode && !s.invited_by_student_id ? Art.artId('l', s.id) : null,
       // The class picture (nobody named) the shared table link /q/<CODE>/class previews as: getQuiz's art.class.
       table: classCode && !s.invited_by_student_id ? Art.artId('l', classCode) : null },
     // M4b library: a video quiz's scorecard offers the next lesson ("Next in this chapter").
-    ...(await nextLesson(s)),
+    ...next,
     // The card's door to this child's hub (web-quiz-hub-door.js), with the hub and the door switched on.
-    ...(await require('./web-quiz-hub-door').field(s)),
+    ...door,
   };
 }
 
@@ -1556,7 +1580,7 @@ async function versus(s, mine) {
 /** Today's (PKT) counted class finishers of one class code: first finish per child, no teacher, no invited friend. */
 async function classFinishersToday(shareCodeId) {
   try {
-    const { data } = await dbRead('classFinishersToday:quiz_sessions', (db) => db.from('quiz_sessions').select('id, student_id, user_id, status, completed_at, created_at')
+    const { data } = await dbRead('classFinishersToday:quiz_sessions:1', (db) => db.from('quiz_sessions').select('id, student_id, user_id, status, completed_at, created_at')
       .eq('share_code_id', shareCodeId).is('invited_by_student_id', null).eq('status', 'completed').gte('completed_at', pktMidnightIso()));
     return oneAttemptPerChild((data || []).filter((r) => !r.user_id), { rule: 'first_completed' });
   } catch (e) {
@@ -1609,7 +1633,7 @@ async function board(code, { st } = {}) {
   if (st) {
     const tok = T.verify(st, 's');
     if (tok && tok.sc === ctx.shareCodeId) {
-      const { data: s } = await dbRead('board:quiz_sessions', (db) => db.from('quiz_sessions').select('id, student_id').eq('id', tok.sid).maybeSingle());
+      const { data: s } = await dbRead('board:quiz_sessions:1', (db) => db.from('quiz_sessions').select('id, student_id').eq('id', tok.sid).maybeSingle());
       const mine = s && ranked.find((r) => (s.student_id ? r.studentId === s.student_id : r.sessionId === s.id));
       if (mine) out.you = { place: mine.place, correct: mine.correct, total: mine.total, pct: mine.pct };
     }
