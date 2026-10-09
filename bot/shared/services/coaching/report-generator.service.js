@@ -33,6 +33,7 @@ const { getCoachingMessage } = require('../../config/coaching-messages');
 const { coachRoleLabelForRegion } = require('../../config/region-config');
 const { isUptakeLoopEnabled } = require('../../config/uptake-loop-flags');
 const { clampLanguage } = require('../../config/ux-strings');
+const { persistReportNarrative } = require('./report-v2/narrative-store');
 const { offerDefaultLanguage } = require('../../config/languages');
 
 /**
@@ -987,7 +988,10 @@ class ReportGeneratorService {
         pngSizeKB: Math.round(rendered.png.length / 1024),
         hasCaption: !!rendered.caption,
       });
-      return rendered; // { png, caption } — caller detects this shape
+      // bd-fmf24g.10: keep the narrative this image was written from, for the app's report page.
+      // Non-fatal and logged at warn inside; awaited so the row is written before delivery moves on.
+      await persistReportNarrative(session.id, rendered.narrative);
+      return rendered; // { png, caption, narrative } — caller detects this shape
     }
 
     const pdfBuffer = rendered;

@@ -32,6 +32,13 @@ describe("ReportBody", () => {
     expect(hero).toHaveTextContent("Ayesha Bibi · Fractions · 28 Sep 2026");
   });
 
+  it("bd-fmf24g.10 — an empty headline and a section with no why leave their lines out (no empty 'Why:')", () => {
+    render(<ReportBody data={{ ...BASE, headline: "", sections: [{ code: "B", label: "Lesson Plan Fidelity", score: 10, max: 14 }] }} />);
+    const hero = screen.getByRole("region", { name: "Report" });
+    expect(hero.querySelectorAll("p")).toHaveLength(0);
+    expect(within(screen.getByRole("region", { name: "Your scores" })).queryByText("Why:")).toBeNull();
+  });
+
   it("no marks, no score: neither the % nor the marks are shown (nothing invented)", () => {
     const { marks: _m, max: _x, ...rest } = BASE;
     render(<ReportBody data={rest as ReportData} />);
