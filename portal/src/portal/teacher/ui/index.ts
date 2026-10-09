@@ -55,3 +55,6 @@ export { ScoreRing, type ScoreRingProps } from './ScoreRing';
 export { TrendChart, type TrendChartProps, type TrendPoint } from './TrendChart';
 export { AudioCard, type AudioCardProps } from './AudioCard';
 export { RecordUploadPair, type PairAction, type RecordUploadPairProps } from './RecordUploadPair';
+export { NumberField, type NumberFieldProps } from './NumberField';
+export { ButtonWithReason, type ButtonWithReasonProps } from './ButtonWithReason';
+export { digitsOnly } from './digits';

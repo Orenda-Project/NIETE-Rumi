@@ -9,7 +9,7 @@ import { MemoryRouter } from 'react-router-dom';
 import '@/index.css';
 import i18n from '@/i18n/config';
 import {
-  AttentionBanner, AudioCard, DateRangeBar, HomeGreeting, RatingScale, ScoreRing, SubjectTile, TimePicker, ChoiceChips, ChosenSoFar, ClassPicker, DayStrip, FeatureTile, GradeSubjectButton, HistoryList, HistoryRow,
+  AttentionBanner, ButtonWithReason, NumberField, AudioCard, DateRangeBar, HomeGreeting, RatingScale, ScoreRing, SubjectTile, TimePicker, ChoiceChips, ChosenSoFar, ClassPicker, DayStrip, FeatureTile, GradeSubjectButton, HistoryList, HistoryRow,
   FeatureCard, MeterRow, KpiTiles, LeaveNote, ListRow, ProgressSteps, ReadyBanner, ReadyTray, SelectField, SlotGroup, StatStrip, StatusChip, StepBar,
   Tabs, TimeStamp, Tray, trayHeight, type TrayRow,
 } from '@/portal/teacher/ui';
@@ -217,6 +217,17 @@ function Main() {
         <div className="flex flex-col gap-2">
           <AttentionBanner text={T.long} to="/x" />
           <LeaveNote text={T.deep} sub={T.long} />
+        </div>
+      </Case>
+      <Case name="ButtonWithReason + NumberField">
+        <div className="flex flex-col gap-2">
+          <ButtonWithReason label={T.step} reason={T.long} />
+          <ButtonWithReason label={T.step} reason={null} onPress={noop} />
+          <div className="flex gap-2.5">
+            <NumberField label={T.short} value="12" onChange={noop} />
+            <NumberField label={T.deep} value="8" error onChange={noop} />
+          </div>
+          <NumberField size="row" ariaLabel={T.short} value="0" dim onChange={noop} />
         </div>
       </Case>
       <Case name="FeatureTile">

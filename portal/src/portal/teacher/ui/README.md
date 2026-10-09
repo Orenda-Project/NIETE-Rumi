@@ -443,3 +443,11 @@ The notices (`../notices`) follow a THIRD kind of item, the coach's `observation
 reason and Try again). It is never polled, never kept across a reload and never told to the server; the coach's shell mounts
 `NoticeHost` with `local` so it does not ask `GET /me/notices` (the teacher's list). A failure is the app's alone.
 `TeacherPage` with `bare` puts its `dock` at the bottom edge (a recording has no menu under it).
+
+### `NumberField`
+`value` (string; "" = empty), `onChange(digits)`, `label` (big: a visible label over a 64px box), `ariaLabel` (when no label), `error`, `describedBy` (the id of the page's message), `size` (`big` · `row`: 72×56 in front of a name), `maxLength` (4), `dim` (row at its pre-written 0).
+An open number box (bd-fmf24g.34): `inputMode="numeric"`, digits only (Urdu and Arabic-Indic digits become Western), all selected on focus so the first key replaces a 0, `dir="ltr"`. No − / + stepper. The limit and its message belong to the page, shown right under the box and tied by `describedBy`. Canvas: AssessCoverage (Pages), AssessTypes (per-type counts).
+
+### `ButtonWithReason`
+`label`, `reason` (words, or null when it works), `to` | `onPress`, `icon`, `testId`.
+A main button that is never grey without a reason (bd-fmf24g.34): while `reason` is set the button is off and the reason shows ABOVE it (amber, a polite live region); with null the line is gone. Every New paper step's Next / Make my paper uses it. The words come from the screen (live, updating as she types).
