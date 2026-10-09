@@ -87,9 +87,9 @@ describe("2 — Reports and History open the one observation page", () => {
       ] });
     renderAt("/portal/coach/teacher/923001110001");
     const history = await screen.findByTestId("history");
-    expect(within(history).getByTestId("history-h-portal")).toHaveAttribute("href", "/portal/coach/observation/h-portal");
-    expect(within(history).getByTestId("history-h-wa-draft")).toHaveAttribute("href", "/portal/coach/observation/h-wa-draft");
-    expect(within(history).getByTestId("history-h-dc").tagName).not.toBe("A");
+    expect(history.querySelector('a[href="/portal/coach/observation/h-portal"]')).not.toBeNull();
+    expect(history.querySelector('a[href="/portal/coach/observation/h-wa-draft"]')).not.toBeNull();
+    expect((within(history).getAllByTestId("history-avatar").find((a) => a.textContent === "DC")!.closest("[data-history-row]") as HTMLElement).querySelector("a")).toBeNull();
   });
 });
 

@@ -18,6 +18,8 @@ import CoachObservation from "./CoachObservation";
  * information only — no link, no chevron.
  */
 const C = coach as any;
+/** The link of a HITL row: the kit's HistoryRow is a link to its observation page. */
+const rowOf = (history: HTMLElement, id: string) => history.querySelector(`a[href="/portal/coach/observation/${id}"]`);
 const TEACHER = {
   success: true,
   teacher: {
@@ -66,7 +68,7 @@ describe("Teacher History opens reports", () => {
     C.getObservation.mockResolvedValue({ ...REPORT, step: "sent", portal: false, mine: true, dcScore: 61 });
     renderAt("/portal/coach/teacher/923001110001");
     const history = await screen.findByTestId("history");
-    const row = within(history).getByTestId("history-h-wa-sent");
+    const row = rowOf(history, "h-wa-sent") as HTMLElement;
     expect(row.tagName).toBe("A");
     fireEvent.click(row);
     expect(await screen.findByTestId("observation-report")).toBeInTheDocument();
@@ -78,14 +80,14 @@ describe("Teacher History opens reports", () => {
   it("her own portal observation and a HITL still on WhatsApp open the same page", async () => {
     renderAt("/portal/coach/teacher/923001110001");
     const history = await screen.findByTestId("history");
-    expect(within(history).getByTestId("history-h-portal")).toHaveAttribute("href", "/portal/coach/observation/h-portal");
-    expect(within(history).getByTestId("history-h-wa-draft")).toHaveAttribute("href", "/portal/coach/observation/h-wa-draft");
+    expect(rowOf(history, "h-portal")).toHaveAttribute("href", "/portal/coach/observation/h-portal");
+    expect(rowOf(history, "h-wa-draft")).toHaveAttribute("href", "/portal/coach/observation/h-wa-draft");
   });
 
   it("a DC session is information only: no link", async () => {
     renderAt("/portal/coach/teacher/923001110001");
-    const row = within(await screen.findByTestId("history")).getByTestId("history-h-dc");
-    expect(row.tagName).not.toBe("A");
+    const row = within(await screen.findByTestId("history")).getAllByTestId("history-avatar").find((a) => a.textContent === "DC")!.closest("[data-history-row]") as HTMLElement;
+    expect(row.querySelector("a")).toBeNull();
     expect(row.querySelector("[data-chevron]")).toBeNull();
   });
 });

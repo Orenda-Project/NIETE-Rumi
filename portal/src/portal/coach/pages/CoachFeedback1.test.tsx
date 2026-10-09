@@ -267,7 +267,8 @@ describe("7 — Schools first, and open by default", () => {
     renderAt("/portal/coach/people");
     await screen.findAllByTestId("school-card");
     fireEvent.click(screen.getAllByTestId("tab")[1]);
-    expect(await screen.findAllByTestId("teacher-card")).toHaveLength(3);
+    // the Teachers tab is grouped by school (bd-4404s7.6): two schools here
+    expect(await screen.findAllByTestId("school-group")).toHaveLength(2);
   });
 });
 

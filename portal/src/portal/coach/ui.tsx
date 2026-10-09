@@ -241,11 +241,11 @@ export function TimeTile({ slot, tone = "neutral", size = 60 }: { slot: string |
   );
 }
 
-export function Initials({ name, size = 48 }: { name: string | null | undefined; size?: number }) {
+export function Initials({ name, size = 48, round = false }: { name: string | null | undefined; size?: number; round?: boolean }) {
   const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
   const text = parts.length ? `${parts[0][0]}${parts.length > 1 ? parts[parts.length - 1][0] : ""}`.toUpperCase() : "·";
   return (
-    <span className="flex shrink-0 items-center justify-center rounded-xl bg-[#f3f4f6] text-[15px] font-bold text-[#33374a]" style={{ width: size, height: size }} aria-hidden="true">
+    <span className={`flex shrink-0 items-center justify-center bg-[#f3f4f6] text-[15px] font-bold text-[#33374a] ${round ? "rounded-full" : "rounded-xl"}`} style={{ width: size, height: size }} aria-hidden="true">
       {text}
     </span>
   );
@@ -271,11 +271,13 @@ export function TapRow({ to, children, emphasis = false, muted = false, testId }
 }
 
 /** Name over a muted line, filling the row. */
-export function RowText({ name, sub }: { name: ReactNode; sub?: ReactNode }) {
+export function RowText({ name, sub, wrap = false }: { name: ReactNode; sub?: ReactNode; wrap?: boolean }) {
+  // bd-4404s7.6: `wrap` lets a long school or teacher name run to as many lines as it needs, never cut with an ellipsis.
+  const cut = wrap ? "break-words [overflow-wrap:anywhere]" : "truncate";
   return (
     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-      <span className="truncate text-[17px] font-semibold" data-testid="name">{name}</span>
-      {sub != null && <span className="truncate text-[13px] text-[#6b7280]">{sub}</span>}
+      <span className={`${cut} text-[17px] font-semibold`} data-testid="name">{name}</span>
+      {sub != null && <span className={`${cut} text-[13px] text-[#6b7280]`}>{sub}</span>}
     </span>
   );
 }
@@ -352,9 +354,9 @@ export function ChoiceChips<T extends string>({ label, value, onChange, options 
   );
 }
 
-export function Tabs({ items }: { items: { to: string; label: string; count?: number; active: boolean }[] }) {
+export function Tabs({ items, label = C.schoolsAndTeachers }: { items: { to: string; label: string; count?: number; active: boolean }[]; label?: string }) {
   return (
-    <nav className="flex gap-1 rounded-2xl border border-[#e5e7eb] bg-white p-1" aria-label={C.schoolsAndTeachers}>
+    <nav className="flex gap-1 rounded-2xl border border-[#e5e7eb] bg-white p-1" aria-label={label}>
       {items.map((t) => (
         <Link key={t.to} to={t.to} aria-current={t.active ? "page" : undefined} data-testid="tab"
           className={`flex min-h-[56px] flex-1 items-center justify-center gap-2 rounded-xl text-base font-semibold ${t.active ? "bg-[#33374a] text-white" : "text-[#4b5563]"}`}>
