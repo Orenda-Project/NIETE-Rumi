@@ -1410,6 +1410,39 @@ question an answer key answers. A sweep of all 954 Islamiat page truths (215 sur
 only the two p.11 book errors. The briefs' §4c gains rule 11, so round one does not copy the book.
 Test: `tests/lp612/religious-facts.test.js`. Upstream has none of this, so keep it at the next re-sync.
 
+### 3.35 Solids, bar graphs, thermometers — `types/{solid,bar_graph,thermometer}.js`, `types_manifest.json`, `visual_check.js` (2026-10-09, bd-yggj4o.2) — partial re-vendor
+
+The grade 1-5 ch11-18 build (bd-yggj4o.1) added three diagram families to the engine on 8 Oct:
+`solid` (cube, cuboid, cylinder, cone, sphere and pyramid, plus prisms and pyramids on a 3-8 sided
+base, with names that can be hidden), `bar_graph` and `thermometer`. Until this entry, a spec that
+used them threw "unknown diagram type" here. This was a PARTIAL re-vendor, taken from the review
+copy of the engine
+(`ICT NIETE/workbench/scratchpad_2026-09-28/lp-v9-review/diagrams/`), not from the §1 skill path:
+
+* **Copied byte-for-byte:** `types/bar_graph.js` and `types/thermometer.js`. `types/solid.js` was
+  copied too, with the one change below.
+* **`types_manifest.json`:** the upstream entries for the three, with aliases `solid_shape`,
+  `cube_sphere`, `3d_shape`, `bar_chart`, `column_graph` and `thermometers`, merged in sorted
+  order. The count goes from 29 to 32.
+* **`visual_check.js` (VENDOR DIVERGENCE):** the three and their aliases join `DIAGRAM_TYPES`,
+  with matching `CANON` rows, the same way as the early-years eight and `base_ten`. Upstream
+  `visual_check` does not carry them yet.
+* **`types/solid.js` (VENDOR DIVERGENCE, examples only):** upstream's single example
+  `solid_g3_prisms_pyramids` drew six shapes, and its smallest label came out at 7.51 px in the
+  phone column, below §3.26's 8.74 px floor. It is split into `solid_g3_prisms` and
+  `solid_g3_pyramids`, three shapes each, which draw at 15.5 px and 14.0 px. The render code is
+  untouched. Upstream should take the same split.
+* **Not a 6-12 author type.** `tests/lp612/brief-field-coverage.test.js` lists the three with the
+  early-years types. They are also NOT yet in the quiz lane's `ALLOWED_TYPES`
+  (`bot/shared/services/quiz/transcript-quiz-figure.js`). Widening that is a separate change.
+* **Deliberately NOT synced:** every other diff in the review copy (`lib/svg.js`, `lib/tex.js`,
+  `lib/tokens.js`, `types/base_ten.js`, the pictograms and the rest). They are out of scope here
+  and would undo the divergences above.
+
+Test: `tests/lp612/diagram-solid-bar-thermo.test.js`, which runs through `renderDiagram`. When the
+skill path in §1 carries these types, take its copy and keep only the `visual_check` rows and the
+example split, unless upstream has adopted them.
+
 ## 4 · What was ported (not vendored) from the Python
 
 `bot/shared/services/lp612-author.service.js` ports the control flow of
