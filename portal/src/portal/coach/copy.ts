@@ -31,51 +31,18 @@ export const COACH_COPY = {
   inProgressN: (n: number) => `${n} in progress`,
   teachersN: (n: number) => `${n} teachers`,
 
-  // Scheduling
-  newVisit: "New visit",
-  mySchedule: "My schedule",
-  teamSchedule: "Team schedule",
-  newVisitChip: "School · teacher · time",
+  // Scheduling (its own words moved to schedule/copy.ts, bd-4404s7.3; these are shared with Home)
   overdueN: (n: number) => `${n} overdue`,
-  coachesN: (n: number) => `${n} coaches`,
   overdue: "Overdue",
   today: "Today",
   daysLate: (n: number) => `${n} days late`,
   earlier: "Earlier",
-  earlierDays: "Earlier days",
-  laterDays: "Later days",
 
   // Team
-  totals: { today: "Today", week: "This week", month: "This month" },
-  coach: "Coach",
-  allCoaches: "All coaches",
   you: "You",
-  visitsN: (n: number) => `${n} visits`,
-  showAllN: (n: number) => `Show all ${n}`,
-  showFewer: "Show fewer",
-  noVisits: "No visits",
 
   // New visit
-  stepOf: (n: number) => `Step ${n} of 3`,
-  pickSchool: "Pick a school",
-  pickTeacher: "Pick a teacher",
-  pickDayTime: "Pick day and time",
-  sortedBySince: "Days since last visit",
-  change: "Change",
   profile: "Profile",
-  day: "Day",
-  time: "Time",
-  hour: "Hour",
-  minutes: "Minutes",
-  amPm: "AM / PM",
-  laterHour: "Later hour",
-  earlierHour: "Earlier hour",
-  booked: "Booked",
-  schedule: "Schedule",
-  saving: "Saving",
-  visitScheduled: "Visit scheduled",
-  teachersCount: (n: number) => `${n} teachers`,
-  lastVisitDays: (d: number | null) => (d == null ? "No visits yet" : `Last visit ${d} days`),
   reschedule: "Reschedule",
 
   // Observe

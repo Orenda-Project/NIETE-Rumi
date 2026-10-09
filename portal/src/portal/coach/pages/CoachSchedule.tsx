@@ -1,56 +1,51 @@
 import { useMemo, useState } from "react";
-import { Check, Clock, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { coach } from "../../services/api";
-import { COACH_COPY as C } from "../copy";
-import { CoachPage, Card, SectionLabel, Chip, TimeTile, RowText, TapRow, BottomLink, Loading, Failed, useLoad } from "../ui";
+import { CoachPage, Card, BottomLink, Loading, Failed, useLoad } from "../ui";
 import { karachiDay } from "../time";
 import type { CoachVisit } from "../types";
+import { DayStrip, HistoryList, addDays, type HistoryGroup, type HistoryItem } from "../../teacher/ui";
+import { useCopy } from "../../teacher/i18n";
+import { SCHEDULE, type ScheduleCopy } from "../schedule/copy";
+import { dayShort, daysBetween } from "../schedule/model";
 
 /**
  * bd-o15qnr — My schedule: the week strip (a dot per visit, green when done),
  * overdue visits first with days late, then each day's visits. Tap a day to see
  * only that day; tap it again for the whole week.
+ *
+ * bd-4404s7.3: the visits are the kit's HistoryList of HistoryRow lead="person" (a round avatar, the TimeStamp on the
+ * first line, status tones: next is a tinted row with a bar, done is muted), the words are en + ur
+ * (../schedule/copy.ts). The week is the kit's DayStrip (a dot per visit, green when done; the arrows ask for that week).
  */
 
-const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function dayParts(iso: string) {
-  const d = new Date(`${iso}T00:00:00`);
-  return { wd: WEEKDAY[d.getDay()], n: d.getDate() };
-}
-
-function daysBetween(a: string, b: string) {
-  return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
-}
-
-function VisitRow({ v, today }: { v: CoachVisit; today: string }) {
+/** One visit as the kit's coach row: a round avatar, the TimeStamp on the first line, the teacher, the school. */
+function visitItem(v: CoachVisit, today: string, c: ScheduleCopy): HistoryItem {
   const done = v.status === "done";
-  const next = !done && v.current;
-  return (
-    <TapRow to={`/portal/coach/visit/${v.id}`} muted={done} emphasis={next}>
-      <TimeTile slot={v.scheduledSlot} tone={v.overdue ? "overdue" : done ? "done" : next ? "next" : "neutral"} />
-      <RowText name={<span className={done ? "text-[#6b7280]" : ""}>{v.teacherName || C.dash}</span>}
-        sub={v.overdue ? `${v.schoolName || ""} · ${v.scheduledFor ? `${dayParts(v.scheduledFor).wd} ${dayParts(v.scheduledFor).n}` : ""}` : v.schoolName} />
-      {done && <Chip tone="done"><Check className="h-3.5 w-3.5" aria-hidden="true" />{C.done}</Chip>}
-      {v.overdue && v.scheduledFor && <Chip tone="warn">{C.daysLate(daysBetween(v.scheduledFor, today))}</Chip>}
-      {next && <Chip>{C.next}</Chip>}
-    </TapRow>
-  );
+  const next = !done && !!v.current;
+  const late = v.overdue && v.scheduledFor ? daysBetween(v.scheduledFor, today) : null;
+  return {
+    id: v.id,
+    lead: "person",
+    title: v.teacherName || c.dash,
+    extra: [v.schoolName, v.overdue && v.scheduledFor ? dayShort(v.scheduledFor, c) : null].filter(Boolean).join(" · "),
+    time: v.scheduledSlot,
+    timeTone: v.overdue ? "overdue" : undefined,
+    state: done ? "done" : next ? "next" : "default",
+    chip: done ? { text: c.done, tone: "done" } : late != null ? { text: c.daysLate(late), tone: "waiting" } : next ? { text: c.next, tone: "info" } : null,
+    to: `/portal/coach/visit/${v.id}`,
+  };
 }
 
 const CoachSchedule = () => {
+  const c = useCopy(SCHEDULE);
   const today = karachiDay(); // bd-o15qnr.23: the day in Pakistan
-  const { data, failed, reload } = useLoad(() => coach.getSchedule(), []);
+  // The week asked for with the strip's arrows; none = this week, as the server counts it.
+  const [range, setRange] = useState<{ from: string; to: string } | null>(null);
+  const { data, failed, reload } = useLoad(() => coach.getSchedule(range ?? {}), [range?.from]);
   const [picked, setPicked] = useState<string | null>(null);
 
-  const days = useMemo(() => {
-    if (!data) return [];
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(`${data.from}T00:00:00Z`);
-      d.setUTCDate(d.getUTCDate() + i);
-      return d.toISOString().slice(0, 10);
-    });
-  }, [data]);
+  const days = useMemo(() => (data ? Array.from({ length: 7 }, (_, i) => addDays(data.from, i)) : []), [data]);
 
   const byDay = useMemo(() => {
     const m = new Map<string, CoachVisit[]>();
@@ -64,51 +59,38 @@ const CoachSchedule = () => {
   }, [data, today]);
 
   const shownDays = days.filter((d) => byDay.has(d) && (!picked || picked === d));
+  const dayNo = (iso: string) => Number(iso.slice(8));
 
   return (
-    <CoachPage title={C.mySchedule} crumb={data ? `${C.scheduling} · ${dayParts(data.from).n}–${dayParts(data.to).n}` : C.scheduling}
+    <CoachPage title={c.mySchedule} crumb={data ? c.weekCrumb(dayNo(data.from), dayNo(data.to)) : c.title}
       backTo="/portal/coach/scheduling"
-      dock={<BottomLink to="/portal/coach/new-visit"><Plus className="h-5 w-5" aria-hidden="true" />{C.newVisit}</BottomLink>}>
+      dock={<BottomLink to="/portal/coach/new-visit"><Plus className="h-5 w-5" aria-hidden="true" />{c.newVisit}</BottomLink>}>
       {failed && <Failed onRetry={reload} />}
       {!data && !failed && <Loading />}
       {data && (
         <>
-          <Card className="grid grid-cols-7 gap-1 p-2">
-            {days.map((d) => {
-              const { wd, n } = dayParts(d);
-              const list = byDay.get(d) || [];
-              const on = picked === d || (!picked && d === today);
-              return (
-                <button key={d} type="button" aria-pressed={picked === d} aria-label={`${wd} ${n}`}
-                  onClick={() => setPicked((p) => (p === d ? null : d))}
-                  className={`flex min-h-[72px] flex-col items-center justify-center gap-0.5 rounded-xl ${on ? "bg-[#33374a] text-white" : ""} ${[0, 6].includes(new Date(`${d}T00:00:00`).getDay()) ? "opacity-50" : ""}`}>
-                  <small className={`text-[11px] font-semibold uppercase ${on ? "text-[#c7cad6]" : "text-[#6b7280]"}`}>{wd}</small>
-                  <b className="text-lg font-bold tabular-nums">{n}</b>
-                  <i className="flex h-1.5 gap-0.5" aria-hidden="true">
-                    {list.slice(0, 4).map((v) => <span key={v.id} className="h-1.5 w-1.5 rounded-full" style={{ background: v.status === "done" ? "#48b078" : on ? "#c7cad6" : "#9ca3af" }} />)}
-                  </i>
-                </button>
-              );
-            })}
-          </Card>
+          <DayStrip
+            label={c.week}
+            value={picked ?? (days.includes(today) ? today : data.from)}
+            week={data.from}
+            onChange={(d) => setPicked((p) => (p === d ? null : d))}
+            onWeekChange={(first) => { setPicked(null); setRange({ from: first, to: addDays(first, 6) }); }}
+            dots={Object.fromEntries(days.map((d) => [d, (byDay.get(d) || []).slice(0, 3).map((v) => (v.status === "done" ? "done" : "open") as "done" | "open")]))}
+          />
 
           {data.overdue.length > 0 && (
-            <div className="flex flex-col gap-3" data-testid="overdue">
-              <SectionLabel><span className="inline-flex items-center gap-2"><Clock className="h-[18px] w-[18px] text-[#b45309]" aria-hidden="true" />{C.overdue}</span></SectionLabel>
-              {data.overdue.map((v) => <VisitRow key={v.id} v={v} today={today} />)}
+            <div data-testid="overdue">
+              <HistoryList showMore={false} groups={[{ day: c.overdue, items: data.overdue.map((v) => visitItem(v, today, c)) }]} />
             </div>
           )}
 
-          {shownDays.map((d) => {
-            const { wd, n } = dayParts(d);
-            return (
-              <div key={d} className="flex flex-col gap-3">
-                <SectionLabel>{d === today ? `${C.today} · ${wd} ${n}` : `${wd} ${n}`}</SectionLabel>
-                {(byDay.get(d) || []).map((v) => <VisitRow key={v.id} v={v} today={today} />)}
-              </div>
-            );
-          })}
-          {shownDays.length === 0 && data.overdue.length === 0 && <Card className="p-4 text-[15px] text-[#6b7280]">{C.noVisits}</Card>}
+          {shownDays.length > 0 && (
+            <HistoryList showMore={false} groups={shownDays.map((d): HistoryGroup => ({
+              day: d === today ? `${c.today} · ${dayShort(d, c)}` : dayShort(d, c),
+              items: (byDay.get(d) || []).map((v) => visitItem(v, today, c)),
+            }))} />
+          )}
+          {shownDays.length === 0 && data.overdue.length === 0 && <Card className="p-4 text-[15px] text-[#6b7280]">{c.noVisits}</Card>}
         </>
       )}
     </CoachPage>
