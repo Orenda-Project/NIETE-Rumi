@@ -131,6 +131,7 @@ const wordCloudRoutes = require('./routes/wordcloud');
 // Teacher Portal Routes
 const portalRoutes = require('./routes/portal.routes');
 const portalLinkRoutes = require('./routes/portal-link.routes');
+const appLoginRoutes = require('./routes/app-login.routes');
 const hcpRoutes = require('./routes/hcp.routes');
 const attendanceRoutes = require('./routes/attendance.routes');
 const childTestRoutes = require('./routes/portal-child-test.routes');
@@ -2803,6 +2804,8 @@ app.use('/api/track', cors(trackingCorsOptions), trackingLimiter, funnelTracking
 // front of EVERY /api/portal router below (portal, hcp, attendance, child test), so a session
 // from a link reaches its area and nothing else; password sessions pass straight through.
 app.use(portalLinkRoutes.createPortalLinkRouter());
+// bd-fmf24g.35 — /go/:token: the one-tap login a pilot teacher gets on WhatsApp (the WHOLE teacher app, no area scope).
+app.use(appLoginRoutes.createAppLoginRouter());
 app.use('/api/portal', portalLinkRoutes.portalLinkScope);
 
 // Teacher Portal API routes (with CORS, rate limiting, NO auth middleware - routes handle auth internally)
