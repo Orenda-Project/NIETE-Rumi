@@ -5,7 +5,7 @@ import { Tray } from "./Tray";
 import { LESSON_SUBJECTS_BY_GRADE, ASSESSMENT_SUBJECTS_BY_GRADE, subjectsByGradeFor } from "./catalogue";
 
 /**
- * bd-fmf24g.2.2 — Tray: the canvas's bottom sheet (GradeSubjectSelector / GradeSubjectPicker / DateRangeBar):
+ * bd-fmf24g.2.2 — Tray: the canvas's bottom sheet (ClassPicker / DateRangeBar):
  * the page dims (rgba(17,24,39,.45)) and a tap on it closes; a #f3f4f6 sheet with 22px top corners, a grab handle,
  * the title 22px/600 and a 56px round close. Behaves as the new UI's Sheet does: Android Back (role=dialog +
  * data-state=open), Escape, focus in and kept in, the page under it does not scroll.

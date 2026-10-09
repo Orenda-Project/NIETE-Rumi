@@ -64,13 +64,12 @@ function renderAt(path: string, element: React.ReactElement, state?: unknown) {
 }
 
 describe("Lesson Plans in Urdu", () => {
-  it("the main page: title, Any grade or subject, Open, Recent", async () => {
+  it("the main page: title, Select grade and subject, Recent", async () => {
     renderAt(LESSONS_HOME, <LessonsHomePage />);
-    expect(await screen.findByRole("heading", { name: U.anyGradeOrSubject })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: new RegExp(U.selectGradeSubject) })).toBeTruthy();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(U.title);
-    expect(screen.getByRole("button", { name: new RegExp(U.open) })).toBeTruthy();
     expect(screen.getByText(U.recent)).toBeTruthy();
-    expect(screen.queryByText("Any grade or subject")).toBeNull();
+    expect(screen.queryByText("Select grade and subject")).toBeNull();
   });
 
   it("chapters: the Chap prefix and the lessons count in Urdu", async () => {

@@ -11,7 +11,7 @@ import { PlanSheet } from '../../newui/coaching/PlanSheet';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import TeacherPage from '../TeacherPage';
 import { teacherPath } from '../routes';
-import { GradeSubjectPicker, HistoryList, type GradeSubjectPair } from '../ui';
+import { ClassPicker, HistoryList, type GradeSubjectPair } from '../ui';
 import { FOCUS } from '../ui/styles';
 import { useCopy } from '../i18n';
 import { LESSONS } from '../lessons/copy';
@@ -108,7 +108,7 @@ export function CoachingHomePage() {
     <TeacherPage feature="coaching" title={C.title} crumb={C.home} backTo={teacherPath("home")} testId="dc-home">
       <SectionHeading>{C.yourClass}</SectionHeading>
       {mine.length ? (
-        <GradeSubjectPicker label={C.selectClass} combos={mine} allowOther={false} value={combo} onChange={setCombo} />
+        <ClassPicker label={C.selectClass} combos={mine} allowOther={false} value={combo} onChange={(v) => setCombo(v)} />
       ) : null}
 
       <SectionHeading chip={C.optional}>{C.lessonPlan}</SectionHeading>

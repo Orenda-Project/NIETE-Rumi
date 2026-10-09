@@ -131,37 +131,34 @@ Selected: `aria-current="true"` on a link, `aria-pressed` on a button.
 `newui/Sheet`: Android Back (role=dialog + data-state=open), Escape, focus in/trapped/restored, page scroll locked,
 motion-safe rise. Scrolls inside itself, so sticky headings stick.
 
-### `GradeSubjectSelector` (any grade, any subject)
+### `ClassPicker` (her class, or any grade and subject — bd-fmf24g.14)
+ONE control wherever a page needs a grade·subject (Lesson Plans, its All page's filter, Digital Coaching, Check and
+send, Assessment New paper 1). It replaced `GradeSubjectPicker` (a long class list under a search box) and
+`GradeSubjectSelector` (separate Grade / Subject fields). Design: option A of `ClassPickerOptions.dc.html` on the
+v28 canvas; spec COMPONENTS.md §11.
+
 | Prop | Type | Default |
 |---|---|---|
-| value / defaultValue | `{ grade, subject \| null }` — controlled or on its own | — / null |
-| onChange | `({ grade, subject })` on **every** change; `subject` null until picked (a new grade clears a subject it lacks) | — |
-| feature | `lessons` · `assessment` — the built-in map in `catalogue.ts` | `lessons` |
-| subjectsByGrade | `{ [grade]: string[] }` — the live catalogue, replaces the built-in map | — |
-| grades | grades that may be picked | 1–12 |
-| copy | `{ grade, gradeField, subjectField, selectGrade, selectSubject, close, selected }` | `TEACHER_UI_COPY` |
+| label | the trigger's words and the tray's title (the screen's copy) | — |
+| combos | `GET /api/portal/me/grade-subjects` → `combos` as they come (`featureKey` / `subjectKey` match a pair however it is spelled; `grade: null` left out; `available: false` shown starred and off) | — |
+| allowOther | any grade and subject (true), or her classes only | true |
+| value / defaultValue | `{ grade, subject }` | — / null |
+| onChange | `(pair, { mine, combo })` — `combo` is her combo (keys and all) when the pick is hers, else null | — |
+| to | `(pair, { mine, combo }) => string \| undefined`: a string makes that pair a link (it still reports the pick) | — |
+| feature / subjectsByGrade | the built-in map in `catalogue.ts`, or the live catalogue's names | `lessons` / — |
+| grades | grades that may be picked (the rest are off) | 1–12 |
+| copy | `{ grade, gradeField, selectGrade, gradeSubjects, yourClass, gradeAndSubject, change, close, selected }` | `TEACHER_UI_COPY` |
 
-Two 68px fields (~146px). Grade → a tray of 12 pills, 4 across, 64px (grades with nothing for the feature flat grey,
-not pickable; arrows move the focus, Enter/Space picks). Subject (off until a grade) → that grade's subjects as rows.
-Picking closes the tray. Differences from the canvas: `onChange` fires on every change (not only once both are set);
-the history variants (`fields`, `stepper`, `chips`, `combos`, `mode="inline"`) and the canvas-only `openTray`,
-`sheetMode`, `inlineHeight` are not ported.
-
-### `GradeSubjectPicker` (her grade·subject combinations)
-| Prop | Type | Default |
-|---|---|---|
-| label | trigger words and sheet title (the screen's copy) | — |
-| combos | `GET /api/portal/me/grade-subjects` → `combos` as they come (`{ grade, subject, … }`; one pair once; `grade: null` left out) | — |
-| value / defaultValue / onChange | `{ grade, subject }` | — |
-| allowOther | the "Other classes" section | true |
-| recentFirst | keep `combos`' order instead of grade → subject A–Z | false |
-| feature / subjectsByGrade | what "Other classes" offers | `lessons` / — |
-| to | `(value) => string`: every row is a link (and still calls onChange) | — |
-| copy | `{ grade, selected, close, search, yourClasses, otherClasses, noMatch, change }` | `TEACHER_UI_COPY` |
+Trigger: a 76px card — the label, or the subject tile, a small line ("★ Your class" over one of hers, "Grade and
+subject" over any other, the label itself with `allowOther` off), the pair, Change. Tray (no search): "Grade" and the
+twelve grades, four across, 56px, hers starred and tinted, a grade with nothing on offer grey and off; then that
+grade's subjects two across (64px, tile + name), hers first and starred, the rest A–Z. No grade is picked for her
+(no last-used memory) unless she teaches one grade or a pair is already chosen. `allowOther` off: only her grades and
+subjects; four classes or fewer are plain rows; one grade skips the grade step.
 
 ```tsx
-<GradeSubjectPicker label={copy.selectLessonPlan} combos={data.combos} value={pair} onChange={setPair} />
-<GradeSubjectPicker label={copy.chooseClass} combos={data.combos} allowOther={false} onChange={startLesson} />
+<ClassPicker label={copy.selectGradeSubject} feature="lessons" combos={mine} to={toChapters} onChange={openOther} />
+<ClassPicker label={copy.selectClass} combos={mine} allowOther={false} value={pair} onChange={(v) => setPair(v)} />
 ```
 
 `catalogue.ts`: `LESSON_SUBJECTS_BY_GRADE`, `ASSESSMENT_SUBJECTS_BY_GRADE` (the bot's lists on 2026-10-08; sources in

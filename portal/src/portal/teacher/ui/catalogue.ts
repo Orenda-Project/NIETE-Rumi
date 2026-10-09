@@ -1,6 +1,6 @@
 /**
  * bd-fmf24g.2.2 — what each feature offers per grade: the subjects the WhatsApp bot offers today, read on
- * 2026-10-08 (COMPONENTS.md §4 has the sources). The selector and the picker's "Other classes" fall back to these;
+ * 2026-10-08 (COMPONENTS.md §4 has the sources). ClassPicker's other subjects fall back to these;
  * a page that reads the catalogue live passes `subjectsByGrade` instead.
  *
  * Lesson Plans: grades 1–5 = the books in bot/data/lp_catalog.json; 6–12 = distinct `subject` per grade in

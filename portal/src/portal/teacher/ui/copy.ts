@@ -31,13 +31,10 @@ export interface TeacherUiCopy {
   nothingYet: string;
   close: string;
   gradeField: string;
-  subjectField: string;
   selectGrade: string;
-  selectSubject: string;
-  search: string;
-  yourClasses: string;
-  otherClasses: string;
-  noMatch: string;
+  gradeSubjects: (g?: string | number) => string;
+  yourClass: string;
+  gradeAndSubject: string;
   change: string;
   dateRange: string;
   presets: Record<RangePreset, string>;
@@ -110,17 +107,16 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
   nothingYet: 'Nothing yet',
   /** A tray's round close. */
   close: 'Close',
-  /** GradeSubjectSelector: the fields' small labels (the grade one is also the pills' caption and group name). */
+  /** ClassPicker (bd-fmf24g.14): the grade buttons' heading and group name. */
   gradeField: 'Grade',
-  subjectField: 'Subject',
-  /** …their empty values, and the trays' titles. */
+  /** …what the tray says while no grade is picked. */
   selectGrade: 'Select grade',
-  selectSubject: 'Select subject',
-  /** GradeSubjectPicker's sheet. */
-  search: 'Search grade or subject',
-  yourClasses: 'Your classes',
-  otherClasses: 'Other classes',
-  noMatch: 'No match',
+  /** …the heading over a grade's subjects. */
+  gradeSubjects: (g: string | number = '') => `Grade ${g} subjects`.replace(/\s+/g, ' ').trim(),
+  /** …her own class: the star's meaning, and the trigger's line over one of hers. */
+  yourClass: 'Your class',
+  /** …the trigger's line over a pair that is not one of hers. */
+  gradeAndSubject: 'Grade and subject',
   /** The picker's trigger, once picked. */
   change: 'Change',
   /** DateRangeBar (the presets are the portal's own range keys, newui/range.ts). */
@@ -202,13 +198,10 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
   nothingYet: 'ابھی کچھ نہیں',
   close: 'بند کریں',
   gradeField: 'جماعت',
-  subjectField: 'مضمون',
   selectGrade: 'جماعت چنیں',
-  selectSubject: 'مضمون چنیں',
-  search: 'جماعت یا مضمون ڈھونڈیں',
-  yourClasses: 'آپ کی کلاسیں',
-  otherClasses: 'دوسری کلاسیں',
-  noMatch: 'کچھ نہیں ملا',
+  gradeSubjects: (g: string | number = '') => `جماعت ${g} کے مضامین`.replace(/\s+/g, ' ').trim(),
+  yourClass: 'آپ کی کلاس',
+  gradeAndSubject: 'جماعت اور مضمون',
   change: 'تبدیل کریں',
   dateRange: 'تاریخیں',
   presets: {
