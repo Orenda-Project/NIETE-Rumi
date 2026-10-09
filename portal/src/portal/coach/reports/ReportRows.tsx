@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { HistoryRow, type ChipData, type HistoryGroup, type HistoryItem } from "../../teacher/ui";
+import { HistoryRow, StepBar, type ChipData, type HistoryGroup, type HistoryItem } from "../../teacher/ui";
 import { useCopy } from "../../teacher/i18n";
 import type { CoachReport } from "../types";
 import { REPORTS, type ReportsCopy } from "./copy";
@@ -36,28 +36,14 @@ export function reportGroups(groups: DayGroup[], dayName: (day: string) => strin
   return groups.map((g) => ({ day: dayName(g.day), items: g.items.map((r) => reportItem(r, C)) }));
 }
 
-/**
- * The four labelled segments under a waiting / in-progress card: done green, current amber, later grey.
- * INTERIM: the kit's StepBar (PR 2b) draws these; this is replaced by it.
- */
+/** The four labelled segments under a waiting / in-progress card: the kit's StepBar, filled through the current stage. */
 export function ReportSegments({ step }: { step: string }) {
   const C = useCopy(REPORTS);
-  const at = stepIndex(step);
+  const current = Math.min(stepIndex(step) + 1, C.segments.length);
   return (
-    <span className="grid grid-cols-4 gap-1.5 px-3.5 pb-3" aria-hidden="true" data-testid="report-segments">
-      {C.segments.map((label, i) => {
-        const done = i < at;
-        const current = i === at;
-        return (
-          <span key={label} className="flex flex-col gap-1">
-            <i className="block h-1.5 rounded-full" style={{ background: done ? "#48b078" : current ? "#f59e0b" : "#e5e7eb" }} />
-            <span className="text-[11px] font-semibold" style={{ color: done ? "#2f7a52" : current ? "#b45309" : "#9ca3af" }}>
-              {current && step === "analysing" ? C.analysing : label}
-            </span>
-          </span>
-        );
-      })}
-    </span>
+    <div className="px-2.5 pb-3 pt-1" data-testid="report-segments">
+      <StepBar total={C.segments.length} current={current} labels={C.segments} />
+    </div>
   );
 }
 
