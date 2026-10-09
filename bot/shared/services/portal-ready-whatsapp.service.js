@@ -9,7 +9,9 @@
  *
  * BUILT SWITCHED OFF. `app_settings.portal_ready_whatsapp_enabled` (absent, false or unreadable = off) and the
  * allow-list `portal_ready_whatsapp_teachers` ("all" or a list holding her user id). Fail closed, like every web link
- * (portal-web-link.js). Turning it ON needs the two templates approved on that environment's WABA and the operator's
+ * (portal-web-link.js). And only for a teacher on the teacher app (`portal_teacher_v2`, true or a list holding her):
+ * only that app tells the server what she saw and opened, so a teacher on today's pages — who never reports — would
+ * otherwise be messaged about every paper she made. Turning it ON needs the two templates approved on that environment's WABA and the operator's
  * go (infrastructure/templates/drafts/README.md): until then nothing is ever sent.
  *
  * WHO GETS A MESSAGE. An item that became ready at least 30 seconds ago (the 10-second banner + the app's polling gap +
@@ -46,6 +48,8 @@ const { isTrue, parse, teacherAllowed, TEMPLATE_LANGUAGES } = require('./portal-
 
 const SETTING_ENABLED = 'portal_ready_whatsapp_enabled';
 const SETTING_TEACHERS = 'portal_ready_whatsapp_teachers';
+/** The teacher app's own switch (dashboard/lib/feature-flags.js PORTAL_TEACHER_V2_KEY): true, or a list of users.id. */
+const SETTING_TEACHER_APP = 'portal_teacher_v2';
 const SETTINGS_TTL_MS = 30 * 1000;
 
 /** Banner 10 s + the app's polling gap (<= 15 s) + slack. */
@@ -70,16 +74,28 @@ let cache = null; // { at, enabled, teachers }
 async function readSwitch(nowMs = Date.now()) {
   if (cache && nowMs - cache.at < SETTINGS_TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [SETTING_ENABLED, SETTING_TEACHERS]);
+    const { data, error } = await supabase.from('app_settings').select('key, value')
+      .in('key', [SETTING_ENABLED, SETTING_TEACHERS, SETTING_TEACHER_APP]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const byKey = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
-    cache = { at: nowMs, enabled: isTrue(byKey[SETTING_ENABLED]), teachers: parse(byKey[SETTING_TEACHERS]) };
+    cache = {
+      at: nowMs,
+      enabled: isTrue(byKey[SETTING_ENABLED]),
+      teachers: parse(byKey[SETTING_TEACHERS]),
+      app: parse(byKey[SETTING_TEACHER_APP]),
+    };
     return cache;
   } catch (err) {
     // Fail closed, and do not cache the failure: the next tick asks again.
     logToFile('portal_ready_whatsapp: settings lookup failed — the fallback stays off this tick', { error: err.message }, 'warn');
-    return { enabled: false, teachers: null };
+    return { enabled: false, teachers: null, app: null };
   }
+}
+
+/** On the teacher app: true (everyone) or a list holding her. Anything else, or no row, is not on it. */
+function onTeacherApp(app, userId) {
+  if (app === true || (typeof app === 'string' && app.trim().toLowerCase() === 'true')) return true;
+  return Array.isArray(app) && app.map(String).includes(String(userId));
 }
 
 /* ── candidates ─────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -160,7 +176,15 @@ async function findLessons({ sinceIso, dueIso, limit }) {
   if (meta.error) throw new Error(meta.error.message || 'segments read failed');
   const byId = new Map((meta.data || []).map((s) => [s.segment_id, s]));
 
-  return waited.filter((d) => !opened(d)).slice(0, limit).map((d) => {
+  // One item per (teacher, render): a re-asked lesson is a second delivery row, never a second message.
+  const seenKey = new Set();
+  const unique = waited.filter((d) => {
+    const k = `${d.user_id}:${d.render_id}`;
+    if (seenKey.has(k)) return false;
+    seenKey.add(k);
+    return true;
+  });
+  return unique.filter((d) => !opened(d)).slice(0, limit).map((d) => {
     const r = first(d.niete_lp612_renders);
     const s = byId.get(d.segment_id) || {};
     return {
@@ -219,22 +243,31 @@ async function prepare(c, user) {
   return buildSend({ kind: 'lesson', lang, token, pdfUrl, title: c.title, grade: c.grade, subject: c.subject });
 }
 
-/** The ONE conditional UPDATE that decides who sends: it returns the row only to the sweep that wins. */
+/**
+ * The ONE conditional UPDATE that decides who sends: it returns rows only to the sweep that wins. A paper is one row. A
+ * lesson plan is claimed by (teacher, render) — a re-asked lesson is a second delivery row, and claiming them together
+ * is what makes it ONE message however many rows there are.
+ */
 async function claim(c) {
-  const table = c.kind === 'paper' ? 'assessment_requests' : 'niete_lp612_deliveries';
-  const { data, error } = await supabase.from(table)
-    .update({ notice_whatsapp_at: new Date().toISOString() })
-    .eq('id', c.id)
+  const stamp = { notice_whatsapp_at: new Date().toISOString() };
+  let q;
+  if (c.kind === 'paper') {
+    q = supabase.from('assessment_requests').update(stamp).eq('id', c.id);
+  } else {
+    q = supabase.from('niete_lp612_deliveries').update(stamp)
+      .eq('user_id', c.userId).eq('render_id', c.renderId).eq('surface', 'portal');
+  }
+  const { data, error } = await q
     .is('notice_whatsapp_at', null)
     .is('notice_opened_at', null)
     .is('notice_seen_at', null)
     .select('id');
   if (error) throw new Error(error.message || 'claim failed');
-  return Array.isArray(data) && data.length === 1;
+  return Array.isArray(data) && data.length >= 1;
 }
 
 async function handle(c, sw, users, counts) {
-  if (!teacherAllowed(sw.teachers, c.userId)) { counts.skipped += 1; return; }
+  if (!teacherAllowed(sw.teachers, c.userId) || !onTeacherApp(sw.app, c.userId)) { counts.skipped += 1; return; }
   const user = users.get(c.userId);
   if (!user || !user.phone_number) { counts.skipped += 1; return; }
 

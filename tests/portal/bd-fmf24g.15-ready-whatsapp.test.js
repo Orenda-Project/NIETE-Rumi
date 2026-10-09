@@ -50,12 +50,13 @@ const render = (over = {}) => ({
 
 let fake; let whatsapp; let logs; let settings;
 
-function boot({ tables = {}, on = true, teachers = 'all', users } = {}) {
+function boot({ tables = {}, on = true, teachers = 'all', users, app = true } = {}) {
   jest.resetModules();
   process.env.INTERNAL_API_KEY = 'test-internal-key';
   settings = [];
   if (on !== null) settings.push({ key: 'portal_ready_whatsapp_enabled', value: on });
   if (teachers !== null) settings.push({ key: 'portal_ready_whatsapp_teachers', value: teachers });
+  if (app !== null) settings.push({ key: 'portal_teacher_v2', value: app });
   fake = createFakePostgrest({
     relations,
     tables: {
@@ -118,6 +119,15 @@ describe('it is OFF until someone turns it on', () => {
     const out = await Ready.runSweep({ now: NOW });
     expect(out).toMatchObject({ enabled: true, sent: 0, skipped: 1 });
     expect(fake.db.assessment_requests[0].notice_whatsapp_at).toBeNull();
+  });
+
+  it('on, but she is not on the teacher app (portal_teacher_v2): skipped — only that app reports what she saw and opened', async () => {
+    for (const app of [null, false, [OTHER]]) {
+      const Ready = boot({ app, tables: readyPaper() });
+      expect(await Ready.runSweep({ now: NOW })).toMatchObject({ enabled: true, sent: 0, skipped: 1 });
+    }
+    expect((await boot({ app: [TEACHER], tables: readyPaper() }).runSweep({ now: NOW })).sent).toBe(1);
+    expect(whatsapp.sendTemplate).toHaveBeenCalledTimes(1);
   });
 
   it('"all", or her id in the list, lets her through', async () => {
@@ -239,6 +249,13 @@ describe('a grades 6-12 lesson plan she waited for', () => {
     const token = whatsapp.sendTemplate.mock.calls[0][3].find((c) => c.type === 'button').parameters[0].text;
     const { verifyPortalLink } = require('../../bot/shared/services/portal-link-token');
     expect(verifyPortalLink(token)).toMatchObject({ u: TEACHER, area: 'ready', i: 'lesson:phy9.c02.p010:ur' });
+  });
+
+  it('a lesson she asked for twice is two delivery rows but ONE message', async () => {
+    const Ready = boot({ tables: { ...readyLesson(), niete_lp612_deliveries: [delivery(), delivery({ id: 'd2', delivered_at: iso(35) })] } });
+    expect((await Ready.runSweep({ now: NOW })).sent).toBe(1);
+    await Ready.runSweep({ now: NOW + 60_000 });
+    expect(whatsapp.sendTemplate).toHaveBeenCalledTimes(1);
   });
 
   it('one she opened at once (a cache hit, delivered long after the render completed) is not "made for you"', async () => {
