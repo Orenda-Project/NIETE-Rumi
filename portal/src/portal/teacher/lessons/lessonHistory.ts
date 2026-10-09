@@ -55,7 +55,7 @@ export type HistoryItem = {
 export type LessonHistory = {
   range: { key: string; from: string | null; to: string | null };
   previous: { from: string; to: string } | null;
-  kpis: { lessonPlans: Kpi; classesCovered: Kpi; sentOnWhatsapp: Kpi; daysActive: Kpi };
+  kpis: { lessonPlans: Kpi; classesCovered: Kpi; sentOnWhatsapp?: Kpi; daysActive: Kpi };
   trend: { bucketDays: number; points: number[] };
   items: HistoryItem[];
   total: number;
@@ -99,7 +99,6 @@ export function kpiItems(h: Pick<LessonHistory, 'kpis' | 'trend'>, words: Lesson
   return [
     tile(h.kpis.lessonPlans, C.lessonPlans, h.trend && h.trend.points),
     tile(h.kpis.classesCovered, C.classesCovered),
-    tile(h.kpis.sentOnWhatsapp, C.sentOnWhatsapp),
     tile(h.kpis.daysActive, C.daysActive),
   ];
 }

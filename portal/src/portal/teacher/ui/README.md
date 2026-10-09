@@ -173,7 +173,7 @@ the file) and `subjectsByGradeFor(feature, given?)`.
 | copy | `{ dateRange, presets, pickDates, pickedDates, from, to, everything, rangeError, showDates, showSpan, compareWith, months, close }` | `TEACHER_UI_COPY` |
 
 A 68px card: calendar tile, the range's name over its dates. Tray: six 64px choices with their dates; a preset applies
-and closes; Pick dates = From / To (labelled, max today) and Show, waiting for From ≤ To ("From after To" otherwise).
+and closes; Select dates = From / To (labelled, max today) and Show, waiting for From ≤ To ("From after To" otherwise).
 `rangeQuery(range)` (newui) is the API query, as Home's. The previous period (`resolveRange()` in `range.ts`) is the
 same stretch one step back (1–8 Oct vs 1–8 Sep; the n picked days vs the n days before; All time has none), day-clamped.
 

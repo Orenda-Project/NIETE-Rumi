@@ -36,7 +36,8 @@ describe("lessons: style", () => {
 
 describe("lessons: copy", () => {
   it("every word is a label: at most 4 words, never a sentence", () => {
-    const bad = collectCopy(LESSONS_V2_COPY).filter((c) => copyProblem(c.text)).map((c) => `${c.path}: ${c.text}`);
+    // pleaseHold is the operator's own sentence for the waiting page (ontology: Open item 9).
+    const bad = collectCopy(LESSONS_V2_COPY).filter((c) => c.path !== "pleaseHold" && copyProblem(c.text)).map((c) => `${c.path}: ${c.text}`);
     expect(bad).toEqual([]);
   });
 
