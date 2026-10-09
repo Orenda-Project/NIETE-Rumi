@@ -92,7 +92,7 @@ export function ReportBody({ data: d, copy, className }: ReportBodyProps) {
           <span className="text-[12px] font-bold uppercase tracking-[.08em] text-[#a9e3c4]">{d.eyebrow || words.eyebrow}</span>
           <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-[#47ba7d] text-[15px] font-black text-white">{words.brandMark}</span>
         </div>
-        <p className="m-0 text-[21px] font-semibold leading-[1.35]">{d.headline}</p>
+        {d.headline ? <p className="m-0 text-[21px] font-semibold leading-[1.35]">{d.headline}</p> : null}
         {hasMarks ? (
           <div data-testid="report-score" className="flex items-baseline gap-2.5">
             <b className="text-[48px] font-extrabold leading-none tracking-[-.02em]">{`${percent}%`}</b>{' '}
@@ -129,9 +129,11 @@ export function ReportBody({ data: d, copy, className }: ReportBodyProps) {
                     <span data-testid="score-bar" style={{ width: `${v}%` }} className={cn('block h-full rounded-full', band(v))} />
                   </div>
                 ) : null}
-                <p className="m-0 ms-[30px] mt-1.5 text-[13px] leading-[1.45] text-[#5a6272]">
-                  <b className="text-[#33374a]">{words.why}</b>{' '}{s.why}
-                </p>
+                {s.why ? (
+                  <p className="m-0 ms-[30px] mt-1.5 text-[13px] leading-[1.45] text-[#5a6272]">
+                    <b className="text-[#33374a]">{words.why}</b>{' '}{s.why}
+                  </p>
+                ) : null}
               </div>
             );
           })}
