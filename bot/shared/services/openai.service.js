@@ -705,9 +705,9 @@ If (and ONLY if) the message refers back to a lesson plan the teacher ALREADY ha
       // bd-njn7u: the optional " lp_ref" marker — she is referring back to a
       // lesson she already has. Only meaningful on general (it gates the LP
       // Q&A context detail tier); stripped before intent validation either way.
-      // After a label it counts only right after it (punctuation, brackets, quotes or markdown between are
-      // fine), never inside an explanation.
-      const lpRef = head ? /^[\s,;:.()[\]*_"'`–—-]*lp_ref\b/.test(head.rest) : /\blp_ref\b/.test(raw);
+      // After a label it counts only right after it (the registry's marker: punctuation, brackets, quotes or
+      // markdown between are fine), never inside an explanation.
+      const lpRef = head ? head.marker : /\blp_ref\b/.test(raw);
       const intent = head ? head.label : raw.replace(/\blp_ref\b/g, '').trim();
 
       // Validate the response

@@ -98,30 +98,44 @@ async function service() {
 /** Claude stops at the output limit with this text. */
 function cutOff(text) { claudeText = text; claudeStop = 'max_tokens'; }
 
-describe('chat.intent on Claude: a cut-off reply whose label is complete is the answer (bd-gr4fy.5.15)', () => {
-  test('a bare "Yes" answered "general" plus the start of an explanation is general, and the old model is not asked', async () => {
-    cutOff('general\n\nThe message "Yes" is a short affirmation with no');
+const eventsOf = (spy, name) => spy.mock.calls.filter(([n]) => n === name).map(([, data]) => data);
+
+describe('chat.intent on Claude: a cut-off reply whose decision is complete is the answer (bd-gr4fy.5.15)', () => {
+  // The caller reads the label AND, after "general", the lp_ref marker. A cut-off "general" with no marker may
+  // have been about to add it ("…so: general lp_ref"), so it goes back to the old model exactly as before.
+  test('a cut-off "general" with no marker goes back to the old model, which decides lp_ref', async () => {
+    cutOff('general\n\nThe teacher is asking about an activity in a lesson they already received, so');
+    oldModelText = 'general lp_ref';
     const svc = await service();
-    const intent = await svc.detectIntent('Yes');
+    const events = jest.spyOn(require('../../bot/shared/utils/structured-logger'), 'logEvent');
+    const intent = await svc.detectIntent('yeh wali activity mushkil hai');
     expect(native).toHaveLength(1);
-    expect(openrouter).toHaveLength(0);
-    expect(intent).toEqual({ type: 'general', message: 'Yes', lp_reference: false });
+    expect(openrouter).toHaveLength(1);
+    expect(intent).toEqual({ type: 'general', message: 'yeh wali activity mushkil hai', lp_reference: true });
+    // Fixed words only, never the reply: what the cut-off started with, so the next decision can be measured.
+    expect(eventsOf(events, 'llm.job_override_fallback')[0])
+      .toMatchObject({ job: 'chat.intent', kind: 'cut_off', labelHead: 'general', labelMarker: false });
+    expect(eventsOf(events, 'llm.cut_off_label_kept')).toHaveLength(0);
   });
 
-  test('a cut-off reply that starts with lesson_plan is a lesson-plan request', async () => {
+  test('a cut-off reply that starts with lesson_plan is a lesson-plan request, and is counted', async () => {
     cutOff('lesson_plan\n\nThe teacher names a class and a chapter, which');
     oldModelText = 'general'; // were it asked again, the old model would say otherwise; it must not be asked
     const svc = await service();
+    const events = jest.spyOn(require('../../bot/shared/utils/structured-logger'), 'logEvent');
     const intent = await svc.detectIntent('Class 3 chapter 3');
     expect(openrouter).toHaveLength(0);
     expect(intent).toEqual({ type: 'lesson_plan', message: 'Class 3 chapter 3', lp_reference: false });
+    expect(eventsOf(events, 'llm.cut_off_label_kept')[0]).toMatchObject({ job: 'chat.intent', label: 'lesson_plan', marker: false });
   });
 
   test('"general lp_ref" at the start keeps its lp_ref when the rest is cut off', async () => {
-    cutOff('general lp_ref\n\nShe is talking about the lesson she was sent');
+    cutOff('general lp_ref\n\nThe teacher is talking about the lesson they were sent');
     const svc = await service();
+    const events = jest.spyOn(require('../../bot/shared/utils/structured-logger'), 'logEvent');
     const intent = await svc.detectIntent('is lesson mein activity kaisi karun');
     expect(openrouter).toHaveLength(0);
+    expect(eventsOf(events, 'llm.cut_off_label_kept')[0]).toMatchObject({ job: 'chat.intent', label: 'general', marker: true });
     expect(intent.type).toBe('general');
     expect(intent.lp_reference).toBe(true);
   });
@@ -181,8 +195,10 @@ describe('everything else is read exactly as before', () => {
     cutOff('generally a message like this is a reply to the last');
     oldModelText = 'general';
     const svc = await service();
+    const events = jest.spyOn(require('../../bot/shared/utils/structured-logger'), 'logEvent');
     await svc.detectIntent('Yes');
     expect(openrouter).toHaveLength(1);
+    expect(eventsOf(events, 'llm.job_override_fallback')[0]).toMatchObject({ kind: 'cut_off', labelHead: null, labelMarker: false });
   });
 
   test.each([
