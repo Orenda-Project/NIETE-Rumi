@@ -4,7 +4,7 @@ import { AlignLeft, BookOpen, ListChecks, Plus, Shuffle, Sparkles, X } from 'luc
 import { cn } from '@/lib/utils';
 import { loadGradeSubjects } from '../../lib/gradeSubjects';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
-import { GradeSubjectButton, GradeSubjectSelector, type GradeSubjectValue } from '../ui';
+import { ClassPicker, type ClassPick, type GradeSubjectPair } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
 import { ASSESSMENT } from './copy';
 import { useCopy } from '../i18n';
@@ -24,8 +24,9 @@ import {
  * own route so Back and a reload work; the choices live in ./store. Every option the WhatsApp Flow
  * offers, Word aside (its flag is off in production):
  *
- *   1 Class       My classes (GET /me/grade-subjects?feature=assessment) | All grades (the kit's selector
- *                 over the live /assessment/options catalogue)
+ *   1 Class       the kit's ClassPicker (bd-fmf24g.14): any grade and subject of the live /assessment/options
+ *                 catalogue, her classes (GET /me/grade-subjects?feature=assessment) starred, one the
+ *                 catalogue cannot make shown and off; a pick goes on to step 2
  *   2 Cover       chapters (several) | page ranges
  *   3 Questions   how many (the bot's cap) · from the book / new / a mix, and on a mix how many from the book
  *   4 Types       Auto mix | her types and how many of each, adding up to the new questions
@@ -55,18 +56,21 @@ export function ClassStep() {
   const [combos, retryCombos] = useLoad(() => loadGradeSubjects('assessment'), 'gs:assessment');
   const [cat, retryCat] = useLoad(catalogueOnce, 'assessment:catalogue');
   const catalogue = dataOf(cat);
-  const mine = (dataOf(combos) ?? []).filter((c) => c.grade !== null);
-  const [tab, setTab] = useState<'mine' | 'all' | null>(null);
-  const shown = tab ?? (combos.status === 'ok' && mine.length === 0 ? 'all' : 'mine');
+  const mine = useMemo(() => (dataOf(combos) ?? []).filter((c) => c.grade !== null), [combos]);
 
   const byGradeNames = useMemo(() => (catalogue
     ? Object.fromEntries(Object.entries(catalogue.byGrade).map(([g, list]) => [g, list.map((s) => s.name)]))
     : undefined), [catalogue]);
 
-  const onSelect = (v: GradeSubjectValue) => {
-    const key = v.subject ? catalogue?.byGrade[v.grade]?.find((s) => s.name === v.subject)?.key ?? null : null;
-    set((cur) => changeClass(cur, v.grade, key, v.subject));
+  const onPick = (v: GradeSubjectPair, pick: ClassPick) => {
+    const own = pick.combo && typeof pick.combo.featureKey === 'string' ? pick.combo.featureKey : null;
+    const key = own ?? catalogue?.byGrade[v.grade]?.find((s) => s.name === v.subject)?.key ?? null;
+    if (!key) return;
+    set((cur) => changeClass(cur, v.grade, key, subjectName(catalogue, v.grade, key) || v.subject));
+    navigate(newPaperPath('cover'));
   };
+
+  const value = p.grade !== null && p.subject ? { grade: p.grade, subject: subjectName(catalogue, p.grade, p.subject) || p.subjectName || p.subject } : null;
 
   return (
     <StepFrame
@@ -74,54 +78,21 @@ export function ClassStep() {
       backTo={ASSESSMENT_V2_BASE}
       next={{ label: C.next, ready: stepReady('class', p, catalogue?.maxQuestions ?? 50), to: newPaperPath('cover') }}
     >
-      <Tabs<'mine' | 'all'>
-        label={C.steps.class}
-        value={shown}
-        onChange={setTab}
-        options={[{ key: 'mine', label: C.myClasses }, { key: 'all', label: C.allGrades }]}
-      />
-      {shown === 'mine' && (
-        combos.status !== 'ok'
-          ? <LoadState status={combos.status} onRetry={retryCombos} />
-          : mine.length === 0
-            ? <LoadState status="ok" empty emptyLabel={C.noClasses} onRetry={retryCombos} />
-            : (
-              <ListCard label={C.myClasses}>
-                {mine.map((c, i) => {
-                  const picked = p.grade === c.grade && p.subject === c.featureKey;
-                  return (
-                    <GradeSubjectButton
-                      key={`${c.grade}:${c.subjectKey}`}
-                      variant="row"
-                      first={i === 0}
-                      grade={c.grade}
-                      subject={c.subject}
-                      state={!c.available ? 'disabled' : picked ? 'selected' : 'default'}
-                      onPress={() => {
-                        if (!c.available || !c.featureKey) return;
-                        set((cur) => changeClass(cur, c.grade as number, c.featureKey as string,
-                          subjectName(catalogue, c.grade, c.featureKey ?? null) || c.subject));
-                        navigate(newPaperPath('cover'));
-                      }}
-                    />
-                  );
-                })}
-              </ListCard>
-            )
-      )}
-      {shown === 'all' && (
-        cat.status !== 'ok' || !catalogue
+      {combos.status !== 'ok'
+        ? <LoadState status={combos.status} onRetry={retryCombos} />
+        : cat.status !== 'ok' || !catalogue
           ? <LoadState status={cat.status} onRetry={retryCat} />
           : (
-            <GradeSubjectSelector
+            <ClassPicker
+              label={C.selectGradeSubject}
               feature="assessment"
+              combos={mine}
               subjectsByGrade={byGradeNames}
               grades={catalogue.grades}
-              value={p.grade !== null ? { grade: p.grade, subject: p.subjectName } : null}
-              onChange={onSelect}
+              value={value}
+              onChange={onPick}
             />
-          )
-      )}
+          )}
     </StepFrame>
   );
 }

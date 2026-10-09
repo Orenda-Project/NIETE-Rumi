@@ -18,10 +18,9 @@ export { Tray, type TrayProps } from './Tray';
 export {
   ASSESSMENT_SUBJECTS_BY_GRADE, LESSON_SUBJECTS_BY_GRADE, subjectsByGradeFor, type SubjectsByGrade, type TeacherCatalogueFeature,
 } from './catalogue';
-export { GradeSubjectSelector, type GradeSubjectSelectorProps, type GradeSubjectValue } from './GradeSubjectSelector';
 export {
-  GradeSubjectPicker, type GradeSubjectCombo, type GradeSubjectPair, type GradeSubjectPickerProps,
-} from './GradeSubjectPicker';
+  ClassPicker, type ClassPick, type ClassPickerProps, type GradeSubjectCombo, type GradeSubjectPair,
+} from './ClassPicker';
 export { formatSpan, resolveRange, type ResolvedRange } from './range';
 export { DateRangeBar, type DateRangeBarProps, type DateRangeInfo } from './DateRangeBar';
 export { KpiTiles, type KpiItem, type KpiTilesProps } from './KpiTiles';

@@ -1,15 +1,12 @@
-import { useMemo, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
 import { loadRecentLessonPlans } from '../../lib/recentLessonPlans';
 import { lessonPlans } from '../../newui/lessons/lessonPlansApi';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import { teacherPath } from '../routes';
-import { GradeSubjectPicker, GradeSubjectSelector, HistoryList, type GradeSubjectValue } from '../ui';
-import { FOCUS } from '../ui/styles';
+import { ClassPicker, HistoryList, type ClassPick, type GradeSubjectPair } from '../ui';
 import { LESSONS } from './copy';
 import { useCopy } from '../i18n';
 import TeacherPage from '../TeacherPage';
@@ -37,8 +34,7 @@ export function LessonsHomePage() {
   const { toast } = useToast();
   const [combos] = useLoad(() => loadGradeSubjects('lessons'), 'gs:lessons');
   const [recent] = useLoad(() => loadRecentLessonPlans(), 'recent');
-  const [picked, setPicked] = useState<GradeSubjectValue | null>(null);
-  const [busy, setBusy] = useState(false);
+  const busy = useRef(false);
 
   // Only her classes the lesson-plan catalogue has: a class with none would be a dead end.
   const mine = useMemo(
@@ -46,55 +42,40 @@ export function LessonsHomePage() {
       c.available === true && c.grade != null && !!c.featureKey),
     [combos],
   );
-  const toChapters = (v: { grade: number; subject: string }) => {
-    const c = mine.find((x) => x.grade === v.grade && x.subject === v.subject);
-    return c ? lessonsUrl('chapters', { grade: c.grade, subject: c.featureKey, key: c.subjectKey }) : teacherPath('lessons');
+  // Hers: straight to its chapters, with the catalogue's own key and the one subject key.
+  const toChapters = (_v: GradeSubjectPair, pick: ClassPick) => {
+    const c = pick.combo as (GradeSubject & { featureKey: string }) | null;
+    return pick.mine && c && c.grade != null ? lessonsUrl('chapters', { grade: c.grade, subject: c.featureKey, key: c.subjectKey }) : undefined;
   };
 
-  const openPicked = async () => {
-    if (!picked?.subject) return;
-    setBusy(true);
+  // Any other pair: the catalogue's key for it, then its chapters.
+  const openOther = async (v: GradeSubjectPair, pick: ClassPick) => {
+    if (pick.mine || busy.current) return;
+    busy.current = true;
     try {
-      const subjects = await lessonPlans.subjects(picked.grade);
-      const want = norm(picked.subject);
+      const subjects = await lessonPlans.subjects(v.grade);
+      const want = norm(v.subject);
       const s = subjects.find((x) => norm(x.name) === want || norm(x.key) === want);
-      if (s) navigate(lessonsUrl('chapters', { grade: picked.grade, subject: s.key }));
+      if (s) navigate(lessonsUrl('chapters', { grade: v.grade, subject: s.key }));
       else toast({ title: C.notAvailable });
     } catch {
       toast({ title: C.couldNotOpen, variant: 'destructive' });
     } finally {
-      setBusy(false);
+      busy.current = false;
     }
   };
 
   const groups = useMemo(() => recentGroups(dataOf(recent) ?? [], undefined, C), [recent, C]);
-  const ready = !!picked?.subject && !busy;
 
   return (
     <TeacherPage feature="lessons" crumb={C.home} title={C.title} backTo={teacherPath('home')}>
-      {mine.length ? (
-        <>
-          <GradeSubjectPicker label={C.selectClass} combos={mine} allowOther={false} to={toChapters} />
-          <div role="separator" aria-label={C.or} className="mx-2 my-1 flex items-center gap-3 text-[13px] font-semibold text-[#9ca3af]">
-            <i className="h-px flex-1 bg-[#e5e7eb]" />{C.or}<i className="h-px flex-1 bg-[#e5e7eb]" />
-          </div>
-        </>
-      ) : null}
-      <h2 className="mx-1 text-[20px] font-light text-[#1d2025]">{C.anyGradeOrSubject}</h2>
-      <GradeSubjectSelector feature="lessons" value={picked} onChange={setPicked} />
-      <button
-        type="button"
-        disabled={!ready}
-        onClick={() => { void openPicked(); }}
-        className={cn(
-          'flex min-h-[56px] items-center justify-center gap-2 rounded-2xl text-[16px] font-semibold',
-          ready ? 'bg-[#33374a] text-white' : 'bg-[#d1d5db] text-[#6b7280]',
-          FOCUS,
-        )}
-      >
-        {C.open}
-        <ChevronRight className="h-5 w-5 rtl:rotate-180" strokeWidth={2.4} aria-hidden="true" />
-      </button>
+      <ClassPicker
+        label={C.selectGradeSubject}
+        feature="lessons"
+        combos={mine}
+        to={toChapters}
+        onChange={(v, pick) => { void openOther(v, pick); }}
+      />
       <div className="mt-3.5">
         <HistoryList
           heading={C.recent}

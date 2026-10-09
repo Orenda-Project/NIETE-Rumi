@@ -5,11 +5,10 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 /**
  * bd-fmf24g.3 — the teacher v2 Lesson Plans main page (v28 canvas Lessons) and the reopen-by-key page.
  *
- *   Select your class      her classes that HAVE lesson plans (GET /me/grade-subjects?feature=lessons,
- *                          available only) in the kit's GradeSubjectPicker; a pick goes straight to that
- *                          subject's chapters, with the catalogue's own key and the one subject key
- *   or · Any grade or subject   the kit's GradeSubjectSelector; Open (off until both) → its chapters, the
- *                          subject's catalogue key read from the catalogue
+ *   Select grade and subject   ONE control (the kit's ClassPicker, bd-fmf24g.14 option A): her classes that HAVE
+ *                          lesson plans (GET /me/grade-subjects?feature=lessons, `available` only) starred, each a
+ *                          link to its chapters with the catalogue's own key and the one subject key; any other
+ *                          grade and subject opens its chapters by the key the catalogue gives (lessonPlans.subjects)
  *   Recent Lesson Plans    collapsed by default; her recent plans (lib/recentLessonPlans, both ways she had
  *                          them, both grade bands) by Pakistan day, each reopening by its key
  *   open?plan=…            reopens a plan by key: grades 1–5 straight to the viewer; 6–12 asked for in the
@@ -81,45 +80,48 @@ function renderAt(path: string, element: React.ReactElement) {
 }
 const where = () => screen.getByTestId("where");
 
-describe("Select your class", () => {
-  it("her classes WITH lesson plans; each goes to its chapters with the catalogue key and the subject key", async () => {
+describe("Select grade and subject (one control, no search)", () => {
+  it("her classes WITH lesson plans are starred; each is a link to its chapters with the catalogue key and the subject key", async () => {
     renderAt(LESSONS_HOME, <LessonsHomePage />);
-    fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.selectClass) }));
-    const sheet = screen.getByRole("dialog", { name: C.selectClass });
-    const links = within(sheet).getAllByRole("link");
-    expect(links.map((l) => l.textContent?.replace(/\s+/g, " ").trim())).toEqual(
-      expect.arrayContaining([expect.stringContaining("Mathematics"), expect.stringContaining("Physics")]),
-    );
-    expect(within(sheet).queryByText(/Social Studies/)).toBeNull();
-    const maths = links.find((l) => /Mathematics/.test(l.textContent || ""))!;
+    // Starred once her classes have loaded.
+    await waitFor(() => expect(http.get).toHaveBeenCalledWith("/me/grade-subjects", { params: { feature: "lessons" } }));
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.selectGradeSubject) }));
+    const sheet = screen.getByRole("dialog", { name: C.selectGradeSubject });
+    expect(within(sheet).queryByRole("searchbox")).toBeNull();
+    fireEvent.click(await within(sheet).findByRole("radio", { name: /^Grade 4 · Your class/ }));
+    const maths = within(sheet).getByRole("link", { name: /Grade 4 · Mathematics · Your class/ });
     expect(maths.getAttribute("href")).toBe(lessonsUrl("chapters", { grade: 4, subject: "math", key: "maths" }));
-    const physics = links.find((l) => /Physics/.test(l.textContent || ""))!;
+    // A class with no lesson plans is not offered (a dead end); the catalogue's own Math is her Mathematics, once.
+    expect(within(sheet).queryByText(/Social Studies/)).toBeNull();
+    expect(within(sheet).queryByRole("button", { name: /Grade 4 · Math$/ })).toBeNull();
+    fireEvent.click(within(sheet).getByRole("radio", { name: /^Grade 9 · Your class/ }));
+    const physics = within(sheet).getByRole("link", { name: /Grade 9 · Physics · Your class/ });
     expect(physics.getAttribute("href")).toBe(lessonsUrl("chapters", { grade: 9, subject: "Physics", key: "physics" }));
   });
 
-  it("no class with lesson plans: no picker, no 'or' — Any grade or subject only", async () => {
+  it("any other grade and subject: its chapters, by the catalogue's own key", async () => {
+    answers["/curriculum/subjects"] = () => ({ subjects: [
+      { subject_key: "math", subject: "Math", lesson_count: 80 },
+      { subject_key: "urdu", subject: "Urdu", lesson_count: 40 },
+    ] });
+    renderAt(LESSONS_HOME, <LessonsHomePage />);
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.selectGradeSubject) }));
+    fireEvent.click(screen.getByRole("radio", { name: /^Grade 4/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Grade 4 · Urdu" }));
+    await waitFor(() => expect(where().dataset.path).toBe(lessonsUrl("chapters", { grade: 4, subject: "urdu" }).split("?")[0]));
+    expect(new URLSearchParams(where().dataset.search).get("subject")).toBe("urdu");
+  });
+
+  it("no class with lesson plans: the same one control, nothing starred; no 'or', no second selector, no Open", async () => {
     answers["/me/grade-subjects"] = () => ({ success: true, combos: [] });
     renderAt(LESSONS_HOME, <LessonsHomePage />);
-    expect(await screen.findByRole("heading", { name: C.anyGradeOrSubject })).toBeTruthy();
     await waitFor(() => expect(http.get).toHaveBeenCalledWith("/me/grade-subjects", { params: { feature: "lessons" } }));
-    expect(screen.queryByRole("button", { name: new RegExp(C.selectClass) })).toBeNull();
-    expect(screen.queryByText(C.or)).toBeNull();
-  });
-});
-
-describe("Any grade or subject", () => {
-  it("Open is off until a grade and a subject; then it goes to that subject's chapters, by its catalogue key", async () => {
-    renderAt(LESSONS_HOME, <LessonsHomePage />);
-    const openBtn = await screen.findByRole("button", { name: C.open });
-    expect(openBtn).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: /Select grade/ }));
-    fireEvent.click(screen.getByRole("radio", { name: /Grade\s*4/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Select subject/ }));
-    fireEvent.click(within(screen.getByRole("dialog", { name: "Select subject" })).getByRole("button", { name: "Math" }));
-    expect(openBtn).toBeEnabled();
-    fireEvent.click(openBtn);
-    await waitFor(() => expect(where().dataset.path).toBe(lessonsUrl("chapters", { grade: 4, subject: "math" }).split("?")[0]));
-    expect(new URLSearchParams(where().dataset.search).get("subject")).toBe("math");
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.selectGradeSubject) }));
+    expect(screen.getAllByRole("radio").some((r) => /Your class/.test(r.getAttribute("aria-label") || ""))).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("separator")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Open/ })).toBeNull();
+    expect(screen.getAllByRole("button", { name: new RegExp(C.selectGradeSubject) })).toHaveLength(1);
   });
 });
 

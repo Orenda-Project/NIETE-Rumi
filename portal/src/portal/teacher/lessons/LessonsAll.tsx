@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { loadGradeSubjects } from '../../lib/gradeSubjects';
 import { DEFAULT_RANGE, pkToday, type DateRange } from '../../newui/range';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
-import { DateRangeBar, GradeSubjectPicker, HistoryList, KpiTiles, type GradeSubjectPair, type TeacherUiCopy } from '../ui';
+import { ClassPicker, DateRangeBar, HistoryList, KpiTiles, type GradeSubjectPair, type TeacherUiCopy } from '../ui';
 import { useKitCopy } from '../ui/useKitCopy';
 import { resolveRange } from '../ui/range';
 import { FOCUS, OUTLINE_WIDE } from '../ui/styles';
@@ -61,7 +61,7 @@ export function LessonsAllPage() {
       <DateRangeBar value={range} onChange={(r) => setRange(r)} />
       {mine.length ? (
         <>
-          <GradeSubjectPicker label={C.all.filterLabel} combos={mine} allowOther={false} value={pair} onChange={setPair} />
+          <ClassPicker label={C.all.filterLabel} combos={mine} allowOther={false} value={pair} onChange={(v) => setPair(v)} />
           {pair ? (
             <button type="button" onClick={() => setPair(null)} className={cn(OUTLINE_WIDE, FOCUS)}>
               {C.all.showAllClasses}
