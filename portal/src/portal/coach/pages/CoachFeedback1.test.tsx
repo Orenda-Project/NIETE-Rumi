@@ -321,7 +321,9 @@ describe("15 — Schedule, not Scheduling", () => {
   it("New visit's crumb", async () => {
     renderAt("/portal/coach/new-visit");
     await screen.findByText("Step 1 of 3");
-    expect(screen.getByText("Schedule · New visit")).toBeInTheDocument();
+    // bd-4404s7.3 (Coach_NewVisit1): the header says New visit, the crumb over it says Schedule
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/^New visit$/);
+    expect(screen.getByText("Schedule")).toBeInTheDocument();
     expect(screen.queryByText(/Scheduling/)).toBeNull();
   });
 });

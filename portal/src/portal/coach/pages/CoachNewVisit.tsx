@@ -2,12 +2,17 @@ import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus, School, User } from "lucide-react";
 import { coach, leader } from "../../services/api";
-import { COACH_COPY as C } from "../copy";
 import {
-  CoachPage, Card, SectionLabel, Chip, Initials, RowText, Stats, SearchBox, StepBar, BottomButton, BottomLink, Loading, Failed, useLoad, personMatches, Chevron, formatPhone, IconTile,
+  CoachPage, Card, SectionLabel, Initials, RowText, Stats, SearchBox, StepBar, BottomButton, BottomLink, Loading, Failed, useLoad, personMatches, Chevron, formatPhone, IconTile,
 } from "../ui";
-import { DEFAULT_TIME, formatSlot, fromSlot, isAllowedSlot, karachiDay, localDay, pickHour, stepHour, toSlot, type VisitTime } from "../time";
+import { DEFAULT_TIME, fromSlot, isAllowedSlot, karachiDay, pickHour, stepHour, toSlot, type VisitTime } from "../time";
 import type { CoachSchool, CoachTeacher } from "../types";
+import { ChosenSoFar, StatusChip, TimeStamp } from "../../teacher/ui";
+import { useKitCopy } from "../../teacher/ui/useKitCopy";
+import { useCopy } from "../../teacher/i18n";
+import { SCHEDULE } from "../schedule/copy";
+import { BookedList, ClashAlert } from "../schedule/BookedList";
+import { bookedOn, clashesAt, dayLong, dayShort, shiftDay, sinceText, sinceTone, timeWords, weekMonth } from "../schedule/model";
 
 /**
  * bd-o15qnr — New visit: 1 school → 2 teacher (her numbers, a Profile link,
@@ -21,9 +26,13 @@ import type { CoachSchool, CoachTeacher } from "../types";
  * bd-o15qnr.8 (operator feedback): step 2 shows each teacher's phone; the day
  * strip pages a week back or forward, so a visit can be booked on a past day;
  * no AM/PM warning — whatever the toggles make can be booked.
+ *
+ * bd-4404s7.3 (the Blueprint, coach build): what she chose so far is the kit's ChosenSoFar (plain text, a separate
+ * Change); the month shows over the day strip; every time is the kit's TimeStamp; "Already booked" says who and when;
+ * a time she already holds is an amber Clash row and a warning, and Schedule stays enabled (it warns, never blocks);
+ * a school's and a teacher's last visit is a status chip in the kit's tones. Words: ../schedule/copy.ts (en + ur).
+ * DayStrip, TimePicker and StepBar below are this page's own until the kit's PR 2 lands; then they are swapped in.
  */
-
-const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** Never-visited first, then the longest since a visit. */
 function bySince<T extends { daysSinceVisit: number | null }>(a: T, b: T) {
@@ -39,26 +48,34 @@ function weekFrom(offset: number) {
   return Array.from({ length: 7 }, (_, i) => shiftDay(start, offset + i));
 }
 
-function shiftDay(day: string, by: number) {
-  const d = new Date(`${day}T00:00:00`);
-  d.setDate(d.getDate() + by);
-  return localDay(d);
-}
-
-const short = (day: string) => new Date(`${day}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 const WEEKS_BACK = 4;
 const WEEKS_AHEAD = 8;
+const NEW_VISIT = "/portal/coach/new-visit";
+const pct = (n: number | null) => (n == null ? "—" : `${Math.round(n * 10) / 10}%`);
+
+function SinceChip({ days }: { days: number | null }) {
+  const c = useCopy(SCHEDULE);
+  return <StatusChip text={sinceText(days, c)} tone={sinceTone(days)} />;
+}
 
 function SchoolStep({ schools, onPick }: { schools: CoachSchool[]; onPick: (s: CoachSchool) => string }) {
+  const c = useCopy(SCHEDULE);
   return (
     <>
-      <StepBar step={1} />
-      <div className="px-1 pt-0.5 text-[13px] font-semibold text-[#6b7280]">{C.sortedBySince}</div>
+      <StepBar step={1} label={c.stepOf(1)} />
+      <SectionLabel>{c.pickSchool}</SectionLabel>
+      <p className="mx-1 -mt-1.5 text-[13px] font-semibold text-[#6b7280]">{c.lastVisit}</p>
+      <div data-testid="since-legend" className="mx-1 flex flex-wrap gap-1.5">
+        <StatusChip text={c.legendOld} tone="waiting" />
+        <StatusChip text={c.legendMid} tone="info" />
+        <StatusChip text={c.legendNew} tone="done" />
+      </div>
       {[...schools].sort(bySince).map((s) => (
         <Link key={s.schoolExtId} to={onPick(s)} data-testid="school-option"
-          className="flex min-h-[84px] items-center gap-3.5 rounded-2xl border border-[#e5e7eb] bg-white p-3 pe-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.08)] hover:bg-[#f9fafb]">
-          <IconTile hue="schools" size={48} testId="school-icon"><School className="h-6 w-6" /></IconTile>
-          <RowText name={s.name || C.dash} sub={`${C.teachersCount(s.teachers)} · ${C.lastVisitDays(s.daysSinceVisit)}`} />
+          className="flex min-h-[84px] items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-3 pe-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.08)] hover:bg-[#f9fafb]">
+          <IconTile hue="scheduling" size={48} round testId="school-icon"><School className="h-6 w-6" /></IconTile>
+          <RowText name={s.name || c.dash} sub={c.teachersCount(s.teachers)} />
+          <SinceChip days={s.daysSinceVisit} />
           <Chevron />
         </Link>
       ))}
@@ -67,35 +84,35 @@ function SchoolStep({ schools, onPick }: { schools: CoachSchool[]; onPick: (s: C
 }
 
 function TeacherStep({ school, teachers, linkFor }: { school: CoachSchool | undefined; teachers: CoachTeacher[]; linkFor: (t: CoachTeacher) => string }) {
+  const c = useCopy(SCHEDULE);
   const [q, setQ] = useState("");
   const shown = teachers.filter((t) => personMatches(t.name, t.phone, q)).sort(bySince);
   return (
     <>
-      <StepBar step={2} />
-      <Card className="flex min-h-[60px] items-center gap-3 p-1.5 ps-3">
-        <IconTile hue="schools" size={40} testId="school-icon"><School className="h-5 w-5" /></IconTile>
-        <RowText name={<span className="text-base">{school?.name || C.dash}</span>} sub={school ? C.teachersCount(school.teachers) : undefined} />
-        <Link to="/portal/coach/new-visit" className="flex min-h-[48px] min-w-[88px] items-center justify-center rounded-xl bg-[#f3f4f6] px-3.5 text-sm font-semibold text-[#33374a]">{C.change}</Link>
-      </Card>
-      <SearchBox value={q} onChange={setQ} placeholder={C.searchPlaceholder} />
-      <div className="px-1 text-[13px] font-semibold text-[#6b7280]">{C.sortedBySince}</div>
+      <StepBar step={2} label={c.stepOf(2)} />
+      <ChosenSoFar heading={c.chosenSoFar} copy={{ change: c.change, chosenSoFar: c.chosenSoFar }}
+        items={[{ label: c.school, value: school?.name || c.dash, sub: school ? c.teachersCount(school.teachers) : undefined, to: NEW_VISIT }]} />
+      <SectionLabel>{c.pickTeacher}</SectionLabel>
+      <SearchBox value={q} onChange={setQ} placeholder={c.searchPlaceholder} />
+      <p className="mx-1 text-[13px] font-semibold text-[#6b7280]">{c.lastVisit}</p>
       {shown.map((t) => (
         <div key={t.teacherExtId || t.name} data-testid={`teacher-${t.teacherExtId}`}
           className="flex flex-col overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)]">
           <Link to={linkFor(t)} className="flex flex-col hover:bg-[#f9fafb]">
             <span className="flex min-h-[76px] items-center gap-3 p-3 pe-3">
-              <Initials name={t.name} />
-              <RowText name={t.name} sub={[formatPhone(t.phone || t.teacherExtId), C.lastVisitDays(t.daysSinceVisit)].filter(Boolean).join(" · ")} />
+              <Initials name={t.name} round />
+              <RowText name={t.name} sub={formatPhone(t.phone || t.teacherExtId)} />
+              <SinceChip days={t.daysSinceVisit} />
               <Chevron />
             </span>
             <Stats items={[
-              { value: t.hitl, label: C.hitl }, { value: t.dc, label: C.dc },
-              { value: C.pct(t.avgHitl), label: C.avg }, { value: C.daysShort(t.daysSinceTraining), label: C.trainingCol },
+              { value: t.hitl, label: c.hitl }, { value: t.dc, label: c.dc },
+              { value: pct(t.avgHitl), label: c.avgHitl }, { value: t.daysSinceTraining == null ? "—" : `${t.daysSinceTraining}d`, label: c.training },
             ]} />
           </Link>
           {t.teacherExtId && (
             <Link to={`/portal/coach/teacher/${t.teacherExtId}`} className="flex min-h-[48px] items-center gap-2 border-t border-[#e5e7eb] px-3.5 text-sm font-semibold text-[#33374a]">
-              <User className="h-[18px] w-[18px]" aria-hidden="true" />{C.profile}
+              <User className="h-[18px] w-[18px]" aria-hidden="true" />{c.profile}
             </Link>
           )}
         </div>
@@ -104,35 +121,40 @@ function TeacherStep({ school, teachers, linkFor }: { school: CoachSchool | unde
   );
 }
 
-function TimePicker({ value, onChange }: { value: VisitTime; onChange: (t: VisitTime) => void }) {
+function TimePicker({ value, onChange, dayText, clash }: { value: VisitTime; onChange: (t: VisitTime) => void; dayText: string; clash: boolean }) {
+  const c = useCopy(SCHEDULE);
+  const kit = useKitCopy();
   const slot = toSlot(value);
   const opt = (on: boolean) => `flex min-h-[64px] items-center justify-center rounded-[14px] border text-xl font-bold tabular-nums ${on ? "border-[#33374a] bg-[#33374a] text-white" : "border-[#e5e7eb] bg-white text-[#4b5563]"}`;
   return (
-    <Card className="flex flex-col gap-3.5 p-4" aria-label={C.time}>
-      <div className="flex items-baseline justify-center gap-2 text-[44px] font-light leading-none tabular-nums" data-testid="time-readout" aria-live="polite">
-        {formatSlot(slot)}
+    <Card className="flex flex-col gap-3.5 p-4" aria-label={c.time}>
+      <div className="flex flex-col items-center gap-1" data-testid="time-readout">
+        {/* the picked time as the kit draws every time; the live line below tells a screen reader when it changes */}
+        <span aria-hidden="true" className="flex justify-center"><TimeStamp time={slot} tone={clash ? "overdue" : "neutral"} size={44} /></span>
+        <span className="sr-only" aria-live="polite">{timeWords(slot, kit)}</span>
+        <p className="text-[15px] font-semibold text-[#4b5563]">{dayText}</p>
       </div>
       <div className="grid grid-cols-3 gap-2.5">
-        <div className="flex flex-col gap-1.5" role="group" aria-label={C.hour}>
-          <span className="text-center text-xs font-semibold text-[#6b7280]">{C.hour}</span>
-          <button type="button" aria-label={C.laterHour} onClick={() => onChange({ ...value, ...pickHour(stepHour(value.hour, 1)) })}
+        <div className="flex flex-col gap-1.5" role="group" aria-label={c.hour}>
+          <span className="text-center text-xs font-semibold text-[#6b7280]">{c.hour}</span>
+          <button type="button" aria-label={c.laterHour} onClick={() => onChange({ ...value, ...pickHour(stepHour(value.hour, 1)) })}
             className="flex min-h-[56px] items-center justify-center rounded-[14px] bg-[#f3f4f6] text-[#33374a]"><ChevronUp className="h-6 w-6" aria-hidden="true" /></button>
           <div className="flex min-h-[56px] items-center justify-center text-3xl font-bold tabular-nums">{value.hour}</div>
-          <button type="button" aria-label={C.earlierHour} onClick={() => onChange({ ...value, ...pickHour(stepHour(value.hour, -1)) })}
+          <button type="button" aria-label={c.earlierHour} onClick={() => onChange({ ...value, ...pickHour(stepHour(value.hour, -1)) })}
             className="flex min-h-[56px] items-center justify-center rounded-[14px] bg-[#f3f4f6] text-[#33374a]"><ChevronDown className="h-6 w-6" aria-hidden="true" /></button>
         </div>
-        <div className="flex flex-col gap-1.5" role="radiogroup" aria-label={C.minutes}>
-          <span className="text-center text-xs font-semibold text-[#6b7280]">{C.minutes}</span>
+        <div className="flex flex-col gap-1.5" role="radiogroup" aria-label={c.minutes}>
+          <span className="text-center text-xs font-semibold text-[#6b7280]">{c.minutes}</span>
           {([0, 30] as const).map((m) => (
             <button key={m} type="button" role="radio" aria-checked={value.minute === m} onClick={() => onChange({ ...value, minute: m })}
               className={`${opt(value.minute === m)} min-h-[81px]`}>{m === 0 ? ":00" : ":30"}</button>
           ))}
         </div>
-        <div className="flex flex-col gap-1.5" role="radiogroup" aria-label={C.amPm}>
-          <span className="text-center text-xs font-semibold text-[#6b7280]">{C.amPm}</span>
+        <div className="flex flex-col gap-1.5" role="radiogroup" aria-label={c.amPm}>
+          <span className="text-center text-xs font-semibold text-[#6b7280]">{c.amPm}</span>
           {(["AM", "PM"] as const).map((mer) => (
             <button key={mer} type="button" role="radio" aria-checked={value.meridiem === mer} onClick={() => onChange({ ...value, meridiem: mer })}
-              className={`${opt(value.meridiem === mer)} min-h-[81px]`}>{mer}</button>
+              className={`${opt(value.meridiem === mer)} min-h-[81px]`}>{mer === "AM" ? kit.am : kit.pm}</button>
           ))}
         </div>
       </div>
@@ -144,6 +166,8 @@ function TimeStep({ teacher, schoolName, visitId, initialSlot, onDone }: {
   teacher: CoachTeacher | undefined; schoolName: string | null; visitId: string | null; initialSlot: string | null;
   onDone: (when: { date: string; slot: string }) => void;
 }) {
+  const c = useCopy(SCHEDULE);
+  const kit = useKitCopy();
   const today = karachiDay(); // bd-o15qnr.23: the day in Pakistan
   const [week, setWeek] = useState(0);
   const [date, setDate] = useState(today);
@@ -154,8 +178,10 @@ function TimeStep({ teacher, schoolName, visitId, initialSlot, onDone }: {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const booked = useLoad(() => coach.getSchedule({ from: date, to: date }), [date]);
-  const bookedSlots = (booked.data?.visits || []).filter((v) => v.id !== visitId && v.scheduledFor === date).map((v) => v.scheduledSlot);
+  const bookedVisits = useMemo(() => bookedOn(booked.data?.visits, date, visitId), [booked.data, date, visitId]);
   const slot = toSlot(time);
+  const clashing = useMemo(() => clashesAt(bookedVisits, slot), [bookedVisits, slot]);
+  const clashIds = useMemo(() => new Set(clashing.map((v) => v.id)), [clashing]);
 
   const submit = async () => {
     if (!teacher?.teacherExtId || !isAllowedSlot(slot)) return;
@@ -166,55 +192,57 @@ function TimeStep({ teacher, schoolName, visitId, initialSlot, onDone }: {
       else await leader.createSchedule({ teacherExtId: teacher.teacherExtId, date, slot });
       onDone({ date, slot });
     } catch (err: any) {
-      setError(err?.response?.data?.error || C.loadFailed);
+      setError(err?.response?.data?.error || c.loadFailed);
     } finally {
       setSaving(false);
     }
   };
 
+  const teacherPhone = formatPhone(teacher?.phone || teacher?.teacherExtId);
+  const arrow = "flex h-14 w-14 items-center justify-center text-[#33374a] disabled:opacity-40";
   return (
     <>
-      <StepBar step={3} />
-      <Card className="flex min-h-[72px] items-center gap-3 p-2.5 ps-3">
-        <Initials name={teacher?.name} />
-        <RowText name={teacher?.name || C.dash} sub={schoolName} />
-        {!visitId && <Link to={`/portal/coach/new-visit?school=${encodeURIComponent(teacher?.schoolExtId || "")}`}
-          className="flex min-h-[48px] min-w-[88px] items-center justify-center rounded-xl bg-[#f3f4f6] px-3.5 text-sm font-semibold text-[#33374a]">{C.change}</Link>}
-      </Card>
-      <SectionLabel right={(
-        <span className="flex items-center gap-1.5">
-          <span className="text-[13px] font-semibold text-[#6b7280]">{`${short(days[0])} – ${short(days[6])}`}</span>
-          <button type="button" aria-label={C.earlierDays} disabled={week <= -WEEKS_BACK} onClick={() => page(-1)}
-            className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#e5e7eb] bg-white text-[#33374a] disabled:opacity-40"><ChevronLeft className="h-5 w-5 rtl:rotate-180" aria-hidden="true" /></button>
-          <button type="button" aria-label={C.laterDays} disabled={week >= WEEKS_AHEAD} onClick={() => page(1)}
-            className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#e5e7eb] bg-white text-[#33374a] disabled:opacity-40"><ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" /></button>
-        </span>
-      )}>{C.day}</SectionLabel>
-      <Card className="grid grid-cols-7 gap-1 p-2">
-        {days.map((d) => {
-          const dt = new Date(`${d}T00:00:00`);
-          const on = d === date;
-          return (
-            <button key={d} type="button" aria-pressed={on} aria-label={`${WEEKDAY[dt.getDay()]} ${dt.getDate()}`} onClick={() => setDate(d)}
-              className={`flex min-h-[68px] flex-col items-center justify-center gap-0.5 rounded-xl ${on ? "bg-[#33374a] text-white" : d === today ? "shadow-[inset_0_0_0_1.5px_#c7cad6]" : ""} ${[0, 6].includes(dt.getDay()) && !on ? "opacity-50" : ""}`}>
-              <small className={`text-[11px] font-semibold uppercase ${on ? "text-[#c7cad6]" : "text-[#6b7280]"}`}>{WEEKDAY[dt.getDay()]}</small>
-              <b className="text-lg font-bold tabular-nums">{dt.getDate()}</b>
-            </button>
-          );
-        })}
-      </Card>
-      <SectionLabel>{C.time}</SectionLabel>
-      <TimePicker value={time} onChange={setTime} />
-      {bookedSlots.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 px-1">
-          <span className="text-[13px] font-semibold text-[#6b7280]">{C.booked}</span>
-          {bookedSlots.map((s, i) => <Chip key={`${s}-${i}`}>{formatSlot(s)}</Chip>)}
-        </div>
+      <StepBar step={3} label={c.stepOf(3)} />
+      {visitId ? (
+        <Card className="flex min-h-[72px] items-center gap-3 p-2.5 ps-3">
+          <Initials name={teacher?.name} round />
+          <RowText name={teacher?.name || c.dash} sub={schoolName} />
+        </Card>
+      ) : (
+        <ChosenSoFar heading={c.chosenSoFar} copy={{ change: c.change, chosenSoFar: c.chosenSoFar }} items={[
+          { label: c.school, value: schoolName || c.dash, to: NEW_VISIT },
+          { label: c.teacher, value: teacher?.name || c.dash, sub: teacherPhone ?? undefined, to: `${NEW_VISIT}?school=${encodeURIComponent(teacher?.schoolExtId || "")}` },
+        ]} />
       )}
+      <SectionLabel>{c.pickDayTime}</SectionLabel>
+      <Card aria-label={c.day}>
+        <div className="flex items-center gap-1 px-1 pt-1">
+          <button type="button" aria-label={c.earlierDays} disabled={week <= -WEEKS_BACK} onClick={() => page(-1)} className={arrow}><ChevronLeft className="h-5 w-5 rtl:rotate-180" aria-hidden="true" /></button>
+          <b className="flex-1 text-center text-lg font-semibold">{weekMonth(days, c)}</b>
+          <button type="button" aria-label={c.laterDays} disabled={week >= WEEKS_AHEAD} onClick={() => page(1)} className={arrow}><ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" /></button>
+        </div>
+        <div className="grid grid-cols-7 gap-1 px-2 pb-2">
+          {days.map((d) => {
+            const dow = new Date(`${d}T00:00:00Z`).getUTCDay();
+            const on = d === date;
+            const label = dayShort(d, c);
+            return (
+              <button key={d} type="button" aria-pressed={on} aria-label={label} onClick={() => setDate(d)}
+                className={`flex min-h-[68px] flex-col items-center justify-center gap-0.5 rounded-xl ${on ? "bg-[#33374a] text-white" : d === today ? "shadow-[inset_0_0_0_1.5px_#c7cad6]" : ""} ${[0, 6].includes(dow) && !on ? "opacity-50" : ""}`}>
+                <small className={`text-[11px] font-semibold uppercase ${on ? "text-[#c7cad6]" : "text-[#6b7280]"}`}>{c.weekdaysShort[dow]}</small>
+                <b className="text-lg font-bold tabular-nums">{Number(d.slice(8))}</b>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+      <BookedList visits={bookedVisits} clashIds={clashIds} />
+      <TimePicker value={time} onChange={setTime} dayText={dayLong(date, c)} clash={clashing.length > 0} />
+      {clashing.length > 0 && <ClashAlert time={timeWords(slot, kit)} visits={clashing} />}
       {error && <Card className="border-[#fde68a] bg-[#fffbeb] p-3.5 text-[15px] font-semibold text-[#b45309]" role="alert">{error}</Card>}
       <div className="sticky bottom-20 z-10 -mx-4 flex bg-[#f3f4f6]/95 px-4 pb-2 pt-3 md:bottom-4 md:mx-0 md:px-0">
         <BottomButton onClick={submit} disabled={saving || !isAllowedSlot(slot) || !teacher?.teacherExtId}>
-          <Check className="h-5 w-5" aria-hidden="true" />{saving ? C.saving : C.schedule}
+          <Check className="h-5 w-5" aria-hidden="true" />{saving ? c.saving : c.schedule}
         </BottomButton>
       </div>
     </>
@@ -222,29 +250,35 @@ function TimeStep({ teacher, schoolName, visitId, initialSlot, onDone }: {
 }
 
 function Done({ teacher, schoolName, when }: { teacher: CoachTeacher | undefined; schoolName: string | null; when: { date: string; slot: string } }) {
-  const dt = new Date(`${when.date}T00:00:00`);
+  const c = useCopy(SCHEDULE);
   return (
     <>
       <div className="flex flex-col items-center gap-5 pt-10">
         <span className="flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#eaf6ef] text-[#48b078]" aria-hidden="true"><Check className="h-14 w-14" /></span>
-        <h2 className="text-[30px] font-light">{C.visitScheduled}</h2>
+        <h2 className="text-[30px] font-light">{c.visitScheduled}</h2>
       </div>
       <Card className="overflow-hidden">
-        <div className="flex min-h-[72px] items-center gap-3 px-3.5 py-2.5"><Initials name={teacher?.name} /><RowText name={teacher?.name || C.dash} sub={schoolName} /></div>
+        <div className="flex min-h-[72px] items-center gap-3 px-3.5 py-2.5">
+          <Initials name={teacher?.name} round />
+          <RowText name={teacher?.name || c.dash} sub={schoolName} />
+          <TimeStamp time={when.slot} tone="done" />
+        </div>
         <div className="flex min-h-[72px] items-center gap-3 border-t border-[#e5e7eb] px-3.5 py-2.5">
           <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#f3f4f6] text-[#33374a]" aria-hidden="true"><CalendarDays className="h-5 w-5" /></span>
-          <RowText name={dt.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} sub={formatSlot(when.slot)} />
+          <RowText name={dayLong(when.date, c)} sub={c.oneVisitAdded} />
+          <StatusChip text={c.scheduled} tone="done" tick />
         </div>
       </Card>
       <div className="flex gap-2.5 pt-2">
-        <BottomLink to="/portal/coach/new-visit" tone="outline"><Plus className="h-5 w-5" aria-hidden="true" />{C.newVisit}</BottomLink>
-        <BottomLink to="/portal/coach/schedule">{C.mySchedule}</BottomLink>
+        <BottomLink to={NEW_VISIT} tone="outline"><Plus className="h-5 w-5" aria-hidden="true" />{c.newVisit}</BottomLink>
+        <BottomLink to="/portal/coach/schedule">{c.mySchedule}</BottomLink>
       </div>
     </>
   );
 }
 
 const CoachNewVisit = () => {
+  const c = useCopy(SCHEDULE);
   const [params] = useSearchParams();
   const schoolExt = params.get("school");
   const teacherExt = params.get("teacher");
@@ -257,21 +291,20 @@ const CoachNewVisit = () => {
   const teachers = useMemo(() => (data?.teachers || []).filter((t) => t.schoolExtId === schoolExt), [data, schoolExt]);
   const teacher = useMemo(() => (data?.teachers || []).find((t) => t.teacherExtId === teacherExt), [data, teacherExt]);
 
-  const title = done ? C.newVisit : teacherExt ? C.pickDayTime : schoolExt ? C.pickTeacher : C.pickSchool;
-  const back = visitId ? `/portal/coach/visit/${visitId}` : teacherExt ? `/portal/coach/new-visit?school=${encodeURIComponent(schoolExt || "")}` : schoolExt ? "/portal/coach/new-visit" : "/portal/coach/scheduling";
-  const crumb = `${C.scheduling} · ${visitId ? C.reschedule : C.newVisit}`;
+  const back = visitId ? `/portal/coach/visit/${visitId}` : teacherExt ? `${NEW_VISIT}?school=${encodeURIComponent(schoolExt || "")}` : schoolExt ? NEW_VISIT : "/portal/coach/scheduling";
+  const crumb = visitId ? `${c.crumb} · ${c.reschedule}` : c.crumb;
 
   return (
-    <CoachPage title={title} crumb={crumb} backTo={back}>
+    <CoachPage title={visitId ? c.reschedule : c.newVisit} crumb={crumb} backTo={back}>
       {failed && <Failed onRetry={reload} />}
       {!data && !failed && <Loading />}
       {data && done && <Done teacher={teacher} schoolName={teacher?.schoolName || school?.name || null} when={done} />}
       {data && !done && !schoolExt && !teacherExt && (
-        <SchoolStep schools={data.schools} onPick={(s) => `/portal/coach/new-visit?school=${encodeURIComponent(s.schoolExtId)}`} />
+        <SchoolStep schools={data.schools} onPick={(s) => `${NEW_VISIT}?school=${encodeURIComponent(s.schoolExtId)}`} />
       )}
       {data && !done && schoolExt && !teacherExt && (
         <TeacherStep school={school} teachers={teachers}
-          linkFor={(t) => `/portal/coach/new-visit?school=${encodeURIComponent(schoolExt)}&teacher=${encodeURIComponent(t.teacherExtId || "")}`} />
+          linkFor={(t) => `${NEW_VISIT}?school=${encodeURIComponent(schoolExt)}&teacher=${encodeURIComponent(t.teacherExtId || "")}`} />
       )}
       {data && !done && teacherExt && (
         <TimeStep teacher={teacher} schoolName={teacher?.schoolName || school?.name || null} visitId={visitId} initialSlot={initialSlot} onDone={setDone} />

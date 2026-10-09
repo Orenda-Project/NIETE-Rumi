@@ -83,13 +83,15 @@ describe("school icons are 12px-rounded blue tiles, not circles", () => {
     expectTile(within(card).getByTestId("school-icon"), 44);
   });
 
-  it("New visit step 1: 48px; step 2's school card: 40px", async () => {
+  it("New visit step 1: a round 48px school avatar (bd-4404s7.3: a coach row's avatar is round, never the grade tile); step 2's school is ChosenSoFar text, no icon", async () => {
     const one = at("/portal/coach/new-visit", <CoachNewVisit />);
-    expectTile(within(await screen.findByTestId("school-option")).getByTestId("school-icon"), 48);
+    const icon = within(await screen.findByTestId("school-option")).getByTestId("school-icon");
+    expect(classOf(icon)).toMatch(/rounded-full/);
+    expect((icon as HTMLElement).style.width).toBe("48px");
     one.unmount();
     at("/portal/coach/new-visit?school=niete%3A494", <CoachNewVisit />);
     await screen.findByText("Step 2 of 3");
-    expectTile(screen.getByTestId("school-icon"), 40);
+    expect(screen.queryByTestId("school-icon")).toBeNull();
   });
 });
 

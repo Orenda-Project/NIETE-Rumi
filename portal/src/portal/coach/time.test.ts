@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   HOURS, defaultMeridiem, stepHour, toSlot, fromSlot, isAllowedSlot, formatSlot, pickHour, DEFAULT_TIME,
 } from "./time";
+import { parseTime } from "../teacher/ui";
 
 /**
  * bd-o15qnr — the coach app's visit time: three toggles (hour, :00/:30, AM/PM).
@@ -70,6 +71,20 @@ describe("coach visit time", () => {
     expect(formatSlot("09:00")).toBe("9:00 AM");
     expect(formatSlot("14:00")).toBe("2:00 PM");
     expect(formatSlot("12:30")).toBe("12:30 PM");
+    expect(formatSlot("morning")).toBe("Morning");
+    expect(formatSlot(null)).toBe("—");
+  });
+
+  it("bd-4404s7.3: a time's words are the kit's TimeStamp clock (every half hour, and the legacy words)", () => {
+    for (let h = 0; h < 24; h += 1) {
+      for (const m of ["00", "30"]) {
+        const slot = `${String(h).padStart(2, "0")}:${m}`;
+        const p = parseTime(slot)!;
+        expect(formatSlot(slot)).toBe(`${p.hm} ${p.meridiem}`);
+      }
+    }
+    expect(formatSlot("08:30")).toBe("8:30 AM");
+    expect(formatSlot("00:00")).toBe("12:00 AM");
     expect(formatSlot("morning")).toBe("Morning");
     expect(formatSlot(null)).toBe("—");
   });
