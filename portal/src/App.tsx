@@ -82,6 +82,12 @@ const CoachAttach = page(() => import("./portal/coach/pages/CoachAttach"));
 const CoachCheckSend = page(() => import("./portal/coach/pages/CoachCheckSend"));
 const CoachSending = page(() => import("./portal/coach/pages/CoachSending"));
 const CoachObservation = page(() => import("./portal/coach/pages/CoachObservation"));
+// bd-4404s7.5 — Reports: All Observations, and the four screens of one observation.
+const CoachReportsAll = page(() => import("./portal/coach/reports/CoachReportsAll"));
+const CoachFeedbackForm = page(() => import("./portal/coach/reports/FeedbackForm"));
+const CoachDebrief = page(() => import("./portal/coach/reports/Debrief"));
+const CoachYourFeedback = page(() => import("./portal/coach/reports/YourFeedback"));
+const CoachSendReport = page(() => import("./portal/coach/reports/SendReport"));
 const CoachEditTeacher = page(() => import("./portal/coach/pages/CoachEditTeacher"));
 // bd-4404s7.2 — the coach's More and her own profile.
 const CoachMore = page(() => import("./portal/coach/profile/CoachMore"));
@@ -250,11 +256,16 @@ const App = () => {
             <Route path="/portal/coach/visit/:id/check" element={<CoachCheckSend />} />
             <Route path="/portal/coach/visit/:id/sending" element={<CoachSending />} />
             <Route path="/portal/coach/reports" element={<CoachReports />} />
+            <Route path="/portal/coach/reports/all" element={<CoachReportsAll />} />
             <Route path="/portal/coach/people" element={<CoachPeople />} />
             <Route path="/portal/coach/school/:emis" element={<CoachSchool />} />
             <Route path="/portal/coach/teacher/:ext" element={<CoachTeacher />} />
             {/* bd-o15qnr.10 — one HITL report, from a teacher's History */}
             <Route path="/portal/coach/observation/:id" element={<CoachObservation />} />
+            <Route path="/portal/coach/observation/:id/form" element={<CoachFeedbackForm />} />
+            <Route path="/portal/coach/observation/:id/debrief" element={<CoachDebrief />} />
+            <Route path="/portal/coach/observation/:id/feedback" element={<CoachYourFeedback />} />
+            <Route path="/portal/coach/observation/:id/send" element={<CoachSendReport />} />
             {/* bd-o15qnr.11 — Edit teacher (saved by the /observe teacher admin) */}
             <Route path="/portal/coach/teacher/:ext/edit" element={<CoachEditTeacher />} />
             {/* bd-4404s7.2 — the coach menu and her own profile. */}

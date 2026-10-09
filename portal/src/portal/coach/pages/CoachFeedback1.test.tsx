@@ -291,7 +291,7 @@ describe("11 — a heading's count sits right after the heading text", () => {
     expectCountBeside(screen.getByRole("heading", { name: /Today's visits/ }), "Today's visits", "2");
   });
 
-  it("Reports: Waiting for you, In progress, All observations, and each day", async () => {
+  it("Reports: Waiting for you and In progress", async () => {
     const R = (id: string, step: string, createdAt: string) => ({ id, createdAt, teacherName: "Bushra Ali", teacherPhone: null, teacherExtId: null, schoolName: "IMS Tarnol", schoolExtId: null, status: "x", step, score: step === "sent" ? 70 : null, portal: true });
     C.getReports.mockResolvedValue({ success: true, waiting: [R("w1", "draft", "2026-10-05T09:00:00Z")], inProgress: [R("p1", "analysing", "2026-10-05T08:00:00Z")],
       all: { total: 1, page: 1, pageSize: 20, items: [R("s1", "sent", "2026-10-05T07:00:00Z")] } });
@@ -299,9 +299,6 @@ describe("11 — a heading's count sits right after the heading text", () => {
     await screen.findAllByText("Bushra Ali");
     expectCountBeside(screen.getByRole("heading", { name: /Waiting for you/ }), "Waiting for you", "1");
     expectCountBeside(screen.getByRole("heading", { name: /In progress/ }), "In progress", "1");
-    expectCountBeside(screen.getByRole("heading", { name: /All observations/ }), "All observations", "1");
-    const day = within(screen.getByTestId("report-day")).getByRole("heading");
-    expectCountBeside(day, "Mon 5 Oct", "1");
   });
 
   it("Pick the teacher: Today and each later day", async () => {

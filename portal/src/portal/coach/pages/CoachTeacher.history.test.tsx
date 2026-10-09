@@ -62,17 +62,15 @@ beforeEach(() => {
 describe("Teacher History opens reports", () => {
   // bd-o15qnr.19 — every HITL row opens the one v2 observation page; the
   // report the teacher received opens from its last step there.
-  it("tapping a HITL row with its report out opens the observation page, and its report from the last step", async () => {
+  it("tapping a HITL row with its report out opens the observation page, with the report she sent", async () => {
     C.getObservation.mockResolvedValue({ ...REPORT, step: "sent", portal: false, mine: true, dcScore: 61 });
     renderAt("/portal/coach/teacher/923001110001");
     const history = await screen.findByTestId("history");
     const row = within(history).getByTestId("history-h-wa-sent");
     expect(row.tagName).toBe("A");
     fireEvent.click(row);
-    const steps = await screen.findAllByTestId("obs-step");
-    expect(C.getObservation).toHaveBeenCalledWith("h-wa-sent");
-    fireEvent.click(within(steps[4]).getByRole("button"));
     expect(await screen.findByTestId("observation-report")).toBeInTheDocument();
+    expect(C.getObservation).toHaveBeenCalledWith("h-wa-sent");
     expect(screen.getByRole("img", { name: /Ayesha/ })).toHaveAttribute("src", "https://signed.example/report.png");
     expect(screen.getByLabelText(/Digital Coach score 61%/)).toBeInTheDocument();
   });
