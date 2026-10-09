@@ -33,3 +33,4 @@ export { KpiTiles, type KpiItem, type KpiTilesProps } from './KpiTiles';
 export { ProgressSteps, type ProgressStep, type ProgressStepsProps } from './ProgressSteps';
 export { VoiceNote, type VoiceNoteProps } from './VoiceNote';
 export { ReportBody, type ReportBodyProps, type ReportData, type ReportScore } from './ReportBody';
+export { HomeGreeting, type HomeGreetingProps } from './HomeGreeting';

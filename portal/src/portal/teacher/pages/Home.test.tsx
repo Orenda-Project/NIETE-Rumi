@@ -47,12 +47,35 @@ describe("teacher v2 Home", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/^Salaam!$/);
   });
 
-  it("her school is a chip; an unknown school shows nothing", () => {
+  it("her school is plain text in the band; an unknown school shows nothing (no pill either way)", () => {
     const { unmount } = renderHome(AYESHA);
     expect(screen.getByTestId("home-school")).toHaveTextContent("IMSG I-10/1");
+    expect(screen.getByTestId("home-school").className).not.toMatch(/rounded-full|border/);
     unmount();
     renderHome({ ...AYESHA, schoolName: null });
     expect(screen.queryByTestId("home-school")).toBeNull();
+  });
+
+  it("the top of Home is option C: the NIETE band with her name, today's date in the long form, and the mark (bd-fmf24g.22)", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-08T10:00:00Z"));
+    try {
+      renderHome(AYESHA);
+      expect(screen.getByTestId("home-date")).toHaveTextContent("Thursday 8 October");
+      expect(screen.getByAltText("NIETE logo")).toBeTruthy();
+      expect(screen.getByTestId("home-greeting")).toHaveTextContent("NIETE");
+      expect(screen.getByTestId("home-greeting").className).toMatch(/bg-\[#333748\]/);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("the band comes first and the tiles climb into it (nothing after it overlaps it by accident)", () => {
+    renderHome(AYESHA);
+    const band = screen.getByTestId("home-greeting");
+    const tiles = screen.getByTestId("feature-tiles");
+    expect(band.compareDocumentPosition(tiles) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(tiles.className).toMatch(/\bfirst:-mt-10\b/); // only when nothing sits between the band and them
+    expect(tiles.className).toMatch(/\brelative\b/);
+    expect(tiles.parentElement?.firstElementChild).toBe(tiles); // nothing finished: the tiles ARE the first thing under the band
   });
 
   it("seven feature tiles, in the operator's order, each going to its feature", () => {
@@ -110,6 +133,20 @@ describe("teacher v2 Home", () => {
     const tiles = screen.getByTestId("feature-tiles");
     expect(card.compareDocumentPosition(tiles) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(vi.mocked(api.get)).toHaveBeenCalledWith("/me/notices");
+  });
+
+  it("with 'Ready for you' above them the tiles are not first, so they do not climb (its heading never lands on the navy)", async () => {
+    const iso = (ms: number) => new Date(Date.now() + ms).toISOString();
+    vi.mocked(api.get).mockResolvedValue({ data: { success: true, items: [{
+      id: "paper:b", kind: "paper", state: "ready", title: null, grade: 4, subject: "Science", chapterNumber: 2, questions: 15,
+      startedAt: iso(-600_000), readyAt: iso(-300_000), seenAt: iso(-290_000), openedAt: null, homeUntil: iso(3_600_000),
+      paperId: "pp-b", renderId: null, lessonId: null, lang: null, errorCode: null,
+    }] } } as never);
+    renderHome(AYESHA);
+    const card = await screen.findByRole("region", { name: "Ready for you" });
+    const tiles = screen.getByTestId("feature-tiles");
+    expect(tiles.parentElement?.firstElementChild).toBe(card);
+    expect(card.className).not.toMatch(/-mt-/);
   });
 
   it("and nothing extra when there is nothing finished", async () => {

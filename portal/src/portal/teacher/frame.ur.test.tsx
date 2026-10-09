@@ -67,10 +67,13 @@ describe("the frame in Urdu", () => {
 });
 
 describe("today's date", () => {
-  it("Urdu weekday and month, Western digits; English as before", () => {
+  it("Urdu weekday and month, Western digits; English in the long form", () => {
     const thu = new Date("2026-10-08T10:00:00Z");
     expect(todayLabel(thu, "ur")).toBe("جمعرات 8 اکتوبر");
-    expect(todayLabel(thu, "en")).toBe("Thu 8 Oct");
-    expect(todayLabel(thu)).toBe("Thu 8 Oct");
+    // bd-fmf24g.22 — the long form, as the operator asked ("Thursday 8 October"); Urdu already was long.
+    expect(todayLabel(thu, "en")).toBe("Thursday 8 October");
+    expect(todayLabel(thu)).toBe("Thursday 8 October");
+    expect(todayLabel(new Date("2026-10-11T10:00:00Z"), "en")).toBe("Sunday 11 October");
+    expect(todayLabel(new Date("2026-12-31T20:00:00Z"), "en")).toBe("Friday 1 January"); // Karachi is UTC+5: already next day
   });
 });
