@@ -72,7 +72,7 @@ function subjectsFor(grade, available) {
       lesson_count: lessons,
     });
   }
-  return out.sort((a, b) => a.subject.localeCompare(b.subject));
+  return out.sort(V8Catalog.bySubjectOrder); // same order as the WhatsApp menu (bd-6640j.1.8.8)
 }
 
 async function listSubjects(grade) {
