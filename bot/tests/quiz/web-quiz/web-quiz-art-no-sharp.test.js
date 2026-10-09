@@ -6,7 +6,12 @@
  * it at module load took down every suite that loads the webhook. The module must load
  * without sharp, and a picture asked for there fails as a picture, not as the whole bot.
  */
-jest.mock('sharp', () => { throw new Error("Cannot find module 'sharp'"); }, { virtual: true });
+// Where sharp IS installed (the bot's own install) the mock is keyed by the real module path; where it is not (the
+// repo-root CI) it is virtual. One hoisted virtual mock did both until the suite count grew: in a run of the whole
+// web-quiz folder the virtual key stopped matching the service's require and the REAL sharp drew the picture.
+let sharpInstalled = false;
+try { require.resolve('sharp'); sharpInstalled = true; } catch (_) { sharpInstalled = false; }
+jest.doMock('sharp', () => { throw new Error("Cannot find module 'sharp'"); }, sharpInstalled ? undefined : { virtual: true });
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));

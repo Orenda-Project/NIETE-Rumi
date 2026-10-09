@@ -248,6 +248,8 @@ function artImage(id, { size = 'og', fresh = false } = {}) {
   return p;
 }
 
+const { artInput } = require('./web-quiz-art-input');
+
 async function artImageNow(id, { size = 'og', fresh = false } = {}) {
   const t0 = Date.now();
   const p = parseArtId(id);
@@ -258,9 +260,9 @@ async function artImageNow(id, { size = 'og', fresh = false } = {}) {
     served({ kind: KIND_OF[p.kind], size: sz }, t0, 'mem');
     return { bytes: mem.get(seen.key), contentType: 'image/jpeg', key: seen.key };
   }
-  const [f, brand] = await Promise.all([facts(p.kind, p.ref), brandKey()]);
+  const [f, brand, ui] = await Promise.all([facts(p.kind, p.ref), brandKey(), require('./web-quiz-ur-polish').ui().catch(() => null)]);
   const steps = { facts_ms: Date.now() - t0, r2_ms: 0, draw_ms: 0 };
-  const input = { kind: KIND_OF[p.kind], size: sz, brand, lang: f.lang, d: f.d };
+  const input = artInput(KIND_OF[p.kind], sz, brand, f, ui);
   const key = `wq-art/${crypto.createHash('sha256').update(JSON.stringify({ v: ART_V, ...input })).digest('hex').slice(0, 32)}.jpg`;
   if (mem.has(key)) {
     byId.set(`${id}|${sz}`, { key, until: Date.now() + BY_ID_MS[p.kind] });
@@ -300,4 +302,4 @@ async function artImageNow(id, { size = 'og', fresh = false } = {}) {
 
 function _resetCache() { mem.clear(); byId.clear(); }
 
-module.exports = { artId, parseArtId, artImage, ArtError, ART_V, _resetCache, _drawForTests: draw };
+module.exports = { artId, parseArtId, artImage, ArtError, ART_V, _resetCache, _drawForTests: draw, artInput };
