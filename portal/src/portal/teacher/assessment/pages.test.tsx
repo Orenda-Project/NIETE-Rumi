@@ -35,7 +35,7 @@ import { forgetPapers } from './paperCache';
 import { clearPicksForTest, setPicks } from './store';
 import { newPicks } from './model';
 import { AssessmentHub } from './AssessmentHub';
-import { CheckStep, TypesStep } from './NewPaperSteps';
+import { CheckStep, ClassStep, CoverStep, TypesStep } from './NewPaperSteps';
 import { PaperPage } from './PaperPage';
 import { RequestPage } from './RequestPage';
 import { ASSESSMENT_V2_BASE, newPaperPath, paperPath, requestPath } from './paths';
@@ -103,16 +103,77 @@ describe('Check and make', () => {
 });
 
 describe('Question types', () => {
-  it('holds Next until her counts add up to the new questions', async () => {
+  it('holds Next, and says why, until her counts add up to the new questions', async () => {
     setPicks({ ...newPicks(15), grade: 4, subject: 'science', subjectName: 'Science', chapters: [1], count: 3, typeMode: 'pick' });
     at(newPaperPath('types'), newPaperPath('types'), <TypesStep />);
     const next = () => screen.getByRole('button', { name: new RegExp(C.next) }) as HTMLButtonElement;
+    const box = async (name: string) => (await screen.findByRole('textbox', { name: C.typeCount(name) })) as HTMLInputElement;
+    expect((await box('MCQs')).value).toBe('0');
     expect(next().disabled).toBe(true);
-    fireEvent.click(await screen.findByRole('checkbox', { name: /MCQs/ }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /Brief Answers/ }));
+    expect(screen.getByTestId('button-reason').textContent).toBe(C.why.typesNone);
+    fireEvent.change(await box('MCQs'), { target: { value: '1' } });
+    fireEvent.change(await box('Brief Answers'), { target: { value: '1' } });
     expect(next().disabled).toBe(true);
-    fireEvent.click(within(screen.getByRole('checkbox', { name: /MCQs/ }).parentElement!.parentElement!).getByRole('button', { name: C.more }));
+    expect(screen.getByTestId('button-reason').textContent).toBe(C.join(C.why.totalOf(2, 3), C.why.under(1)));
+    fireEvent.change(await box('MCQs'), { target: { value: '4' } });
+    expect(screen.getByTestId('button-reason').textContent).toBe(C.join(C.why.totalOf(5, 3), C.why.over(2)));
+    fireEvent.change(await box('MCQs'), { target: { value: '2' } });
     await waitFor(() => expect(screen.getByRole('link', { name: new RegExp(C.next) })).toBeTruthy());
+    expect(screen.queryByTestId('button-reason')).toBeNull();
+  });
+});
+
+describe('Pages step', () => {
+  const setup = async () => {
+    setPicks({ ...newPicks(15), grade: 4, subject: 'science', subjectName: 'Science', coverBy: 'pages' });
+    at(newPaperPath('cover'), newPaperPath('cover'), <CoverStep />);
+    return {
+      from: (await screen.findByTestId('pages-from')) as HTMLInputElement,
+      to: (await screen.findByTestId('pages-to')) as HTMLInputElement,
+      add: screen.getByRole('button', { name: new RegExp(C.addPages) }) as HTMLButtonElement,
+    };
+  };
+
+  it('two open number boxes, digits only, and live messages: empty, order, beyond the book', async () => {
+    const { from, to, add } = await setup();
+    await waitFor(() => expect(portal.getAssessmentChapters).toHaveBeenCalled());
+    await screen.findByText(C.bookPages(46));
+    expect(from.getAttribute('inputmode')).toBe('numeric');
+    expect(screen.getByTestId('pages-note').textContent).toBe(C.why.typePages);
+    expect(add.disabled).toBe(true);
+    fireEvent.change(from, { target: { value: '1a2' } });
+    expect(from.value).toBe('12');
+    fireEvent.change(to, { target: { value: '8' } });
+    expect(screen.getByTestId('pages-note').textContent).toBe(C.why.pagesOrder(12, 8));
+    expect(add.disabled).toBe(true);
+    fireEvent.change(to, { target: { value: '90' } });
+    expect(screen.getByTestId('pages-note').textContent).toBe(C.why.pagesBeyond(46));
+    fireEvent.change(to, { target: { value: '20' } });
+    expect(screen.getByTestId('pages-note').textContent).toBe('');
+    expect(add.disabled).toBe(false);
+    expect(screen.getByTestId('button-reason').textContent).toBe(C.why.ranges);
+    fireEvent.click(add);
+    expect(screen.getByText(C.pageRange(12, 20))).toBeTruthy();
+    expect(from.value).toBe('');
+    await waitFor(() => expect(screen.getByRole('link', { name: new RegExp(C.next) })).toBeTruthy());
+  });
+});
+
+describe('Every New paper step says why Next is off', () => {
+  it.each([
+    ['class', () => <ClassStep />, C.why.class],
+    ['cover', () => <CoverStep />, C.why.chapters],
+  ] as const)('%s', async (step, el, reason) => {
+    setPicks({ ...newPicks(15), ...(step === 'class' ? {} : { grade: 4, subject: 'science', subjectName: 'Science' }) });
+    at(newPaperPath(step), newPaperPath(step), el());
+    expect((await screen.findByTestId('button-reason')).textContent).toBe(reason);
+    expect((screen.getByTestId('step-next') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('check: finish the first step still open; Make my paper wears none when all is well', async () => {
+    setPicks({ ...newPicks(15), grade: 4, subject: 'science', subjectName: 'Science', chapters: [] });
+    at(newPaperPath('check'), newPaperPath('check'), <CheckStep />);
+    expect((await screen.findByTestId('button-reason')).textContent).toBe(C.why.earlier(C.steps.cover));
   });
 });
 

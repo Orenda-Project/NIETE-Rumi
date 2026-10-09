@@ -4,6 +4,7 @@ import { Check, ChevronRight, Loader2, Minus, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CARD, CARD_SELECTED, FOCUS, LIST_CARD } from '../ui/styles';
 import TeacherPage from '../TeacherPage';
+import { ButtonWithReason } from '../ui/ButtonWithReason';
 import { ASSESSMENT } from './copy';
 import { useCopy } from '../i18n';
 import { STEPS, type Step } from './model';
@@ -46,8 +47,9 @@ export function StepFrame({
 }: {
   step: Step;
   backTo: string;
-  /** The dock: a link (`to`) or a button (`onPress`), off until `ready`. */
-  next: { label: ReactNode; ready: boolean; to?: string; onPress?: () => void; busy?: boolean };
+  /** The dock: a link (`to`) or a button (`onPress`). `why` is the reason it is off, in words, or null when it works
+   *  (bd-fmf24g.34: a disabled button always says why); `busy` is off too, with "Please wait" unless `why` says more. */
+  next: { label: ReactNode; why: string | null; to?: string; onPress?: () => void; busy?: boolean };
   children: ReactNode;
 }) {
   const C = useCopy(ASSESSMENT);
@@ -55,14 +57,16 @@ export function StepFrame({
   const icon = next.busy
     ? <Loader2 className="h-5 w-5 motion-safe:animate-spin" aria-hidden="true" />
     : <ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />;
-  let dock: ReactNode;
-  if (!next.ready || next.busy) {
-    dock = <button type="button" disabled aria-disabled="true" className={cn(OFF, FOCUS)}>{next.label}{icon}</button>;
-  } else if (next.to) {
-    dock = <Link to={next.to} className={cn(PRIMARY, FOCUS)}>{next.label}{icon}</Link>;
-  } else {
-    dock = <button type="button" onClick={next.onPress} className={cn(PRIMARY, FOCUS)}>{next.label}{icon}</button>;
-  }
+  const dock = (
+    <ButtonWithReason
+      label={next.label}
+      reason={next.busy ? (next.why ?? C.why.wait) : next.why}
+      to={next.to}
+      onPress={next.onPress}
+      icon={icon}
+      testId="step-next"
+    />
+  );
   return (
     <TeacherPage crumb={C.newPaperCrumb} title={C.steps[step]} backTo={backTo} dock={dock} testId={`assessment-step-${step}`}>
       <div role="progressbar" aria-label={C.step(n, STEPS.length)} aria-valuemin={1} aria-valuemax={STEPS.length} aria-valuenow={n} className="flex gap-1.5 px-1">
