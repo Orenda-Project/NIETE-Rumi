@@ -9,7 +9,7 @@ import { MemoryRouter } from 'react-router-dom';
 import '@/index.css';
 import i18n from '@/i18n/config';
 import {
-  AttentionBanner, ButtonWithReason, NumberField, AudioCard, DateRangeBar, HomeGreeting, RatingScale, ScoreRing, SubjectTile, TimePicker, ChoiceChips, ChosenSoFar, ClassPicker, DayStrip, FeatureTile, GradeSubjectButton, HistoryList, HistoryRow,
+  AttentionBanner, ShareActions, ButtonWithReason, NumberField, AudioCard, DateRangeBar, HomeGreeting, RatingScale, ScoreRing, SubjectTile, TimePicker, ChoiceChips, ChosenSoFar, ClassPicker, DayStrip, FeatureTile, GradeSubjectButton, HistoryList, HistoryRow,
   FeatureCard, MeterRow, KpiTiles, LeaveNote, ListRow, ProgressSteps, ReadyBanner, ReadyTray, SelectField, SlotGroup, StatStrip, StatusChip, StepBar,
   Tabs, TimeStamp, Tray, trayHeight, type TrayRow,
 } from '@/portal/teacher/ui';
@@ -247,6 +247,13 @@ function Main() {
       </Case>
       <Case name="OUTLINE_WIDE button">
         <button type="button" className={OUTLINE_WIDE}>{T.long}</button>
+      </Case>
+      <Case name="ShareActions (bd-fmf24g.30): default, failed, sent, locked, Copy link">
+        <div className="flex flex-col gap-3">
+          <ShareActions onSend={async () => ({ status: 'sent' })} sendTo="عائشہ بی بی" open={{ fileUrl: 'https://x.example/a.pdf' }} env="ios-iab" />
+          <ShareActions onSend={async () => ({ status: 'failed' })} open={{ fileUrl: 'https://x.example/a.pdf' }} env="android-iab" />
+          <ShareActions onSend={async () => ({ status: 'sent' })} available={false} env="browser" />
+        </div>
       </Case>
       <Case name="ReadyBanner">
         <ReadyBanner

@@ -54,7 +54,7 @@ type SendState = 'default' | 'sending' | 'sent' | 'failed' | 'locked';
 type OpenState = 'default' | 'opening' | 'copy' | 'copied' | 'failed';
 
 const WA_GREEN = '#09883F';
-const BASE = 'relative flex min-h-[64px] w-full items-center justify-center gap-3 overflow-hidden rounded-2xl border-2 px-[18px] text-[18px] font-bold leading-tight';
+const BASE = 'relative flex min-h-[64px] w-full items-center justify-center gap-3 rounded-2xl border-2 px-[18px] py-1 text-[18px] font-bold leading-tight rtl:leading-[1.9]';
 
 /** The intent link: the phone's own handler for this https URL (the NIETE app if it claims the path, else the default browser). */
 export function intentUrl(url: string): string {
@@ -91,7 +91,7 @@ function Label({ children, sub }: { children: ReactNode; sub?: ReactNode }) {
   return (
     <span className="flex min-w-0 flex-col items-center gap-px text-center">
       <span>{children}</span>
-      {sub ? <span className="text-[13px] font-semibold leading-tight">{sub}</span> : null}
+      {sub ? <span className="text-[13px] font-semibold leading-tight rtl:leading-[1.7]">{sub}</span> : null}
     </span>
   );
 }
@@ -190,7 +190,7 @@ export function ShareActions({ onSend, available = true, sendTo, open, copy, tes
         <button {...common} aria-busy="true" aria-disabled="true" disabled style={{ backgroundColor: WA_GREEN, borderColor: WA_GREEN }} className={cn(BASE, 'cursor-progress text-white opacity-90', FOCUS)}>
           <WhatsAppGlyph />
           <Label>{words.sending}</Label>
-          <i aria-hidden="true" className="absolute bottom-0 start-0 h-[5px] w-[45%] bg-white/80" />
+          <i aria-hidden="true" className="absolute bottom-0 start-0 h-[5px] w-[45%] rounded-es-[14px] bg-white/80" />
         </button>
       );
     } else if (state === 'sent') {
@@ -227,7 +227,7 @@ export function ShareActions({ onSend, available = true, sendTo, open, copy, tes
         <button {...common} aria-busy="true" className={cn(BASE, 'cursor-progress border-[#33374a] bg-[#f3f4f6] text-[#33374a]', FOCUS)}>
           <ExternalLink className="h-[26px] w-[26px] shrink-0" strokeWidth={2.4} aria-hidden="true" />
           <Label>{words.opening}</Label>
-          <i aria-hidden="true" className="absolute bottom-0 start-0 h-[5px] w-[45%] bg-[#33374a]" />
+          <i aria-hidden="true" className="absolute bottom-0 start-0 h-[5px] w-[45%] rounded-es-[14px] bg-[#33374a]" />
         </button>
       );
     } else if (mode === 'copied') {
