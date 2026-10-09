@@ -554,6 +554,9 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   };
   // Whether the page sends its page-session events (wq-tel.js).
   out.rt = await Tel.flag();
+  // The invite ask (web-quiz-invite-ask.js): named only when it is not off, so a switched-off payload is today's.
+  const ask = await require('./web-quiz-invite-ask').mode();
+  if (ask !== 'off') out.invite_ask = ask;
   return out;
 }
 
@@ -1697,6 +1700,8 @@ const EVENT_PROPS = Object.freeze({
   vid: /^[0-9a-f-]{36}$/i, g: /^(NURSERY|KG|[1-6])$/, s: /^(English|Maths|Urdu|Science|Geography|General Knowledge|History|Islamic Studies)$/,
   // The share funnel: what the phone could share with, how the child did, and where a page's link came from.
   cap: /^(file|native|none)$/, band: /^(low|mid|high)$/, via: /^(invite|card|table|direct)$/,
+  // The invite ask (web-quiz-invite-ask.js): the arm (a0 today's button, a1 the panel) and the tile tapped.
+  v: /^a[01]$/, who: /^(home|cousin|street)$/,
 });
 const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't', 'list_ms', 'nav_ms', 'ff_ms', 'ch_i', 'line', 'col'];
 const EVENT_BOOLS = ['ok'];

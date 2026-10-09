@@ -1355,3 +1355,29 @@ Feature: Web child quiz page on the portal
     When the child presses Back on the first screen of the quiz or on the results card
     Then the page offers "Go to your home page?" instead of closing (when a home page exists for this run)
     And with the setting off the phone's Back is today's: on a question the first press warns, the second leaves
+
+  @T700
+  Scenario: The challenge is asked as "Who can beat your score?" right under the class-group share
+    Given the app setting web_quiz_invite_ask is "on" and a child of the class finished with 7 of 9
+    When the score card opens
+    Then right under "Share to class group" a panel asks "🏆 Who can beat your 7/9?" with three tiles: "Someone at home", "A cousin", "A friend in my street"
+    And in Urdu it asks "🏆 7/9 سے آگے نکلنے کا چیلنج کسے دیں؟" with "گھر میں کوئی", "کزن", "محلے کا دوست", the score on its own left-to-right run
+    And the panel replaces "Challenge a friend", and the hub door comes after it
+    When the child taps a tile
+    Then the share sends the child's challenge link with the words "<first name> here! I got 7/9 stars on <topic>. Can you beat me? 🏆 Tap the link to play:"
+    And only the first name is in the words, and nothing says which tile was tapped
+    But a friend's own challenge run keeps today's "Challenge a friend" button, and with the setting off the card is today's
+
+  @T701
+  Scenario: A low score asks to play with someone at home, with no score to beat
+    Given web_quiz_invite_ask is "on" and a child finished with 2 of 9
+    When the score card opens
+    Then the panel says "🏠 Play it with someone at home" ("🏠 گھر میں کسی کے ساتھ کھیلیں") and shows no score
+    And a tile shares "<first name> here! I played <topic>. Your turn! Tap the link to play:" with no score in it
+
+  @T702
+  Scenario: Split mode gives each phone one arm, so the panel can be compared with today's button
+    Given web_quiz_invite_ask is "split"
+    When children finish on different phones
+    Then each phone always sees the same card: the panel, or today's "Challenge a friend" button (a phone with no saved key gets today's button)
+    And the score card and every share tap say which of the two the child saw
