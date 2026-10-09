@@ -9,7 +9,7 @@ import { FeatureGlyph, FEATURE_HUE } from '../icons';
  */
 const RED = '#c8331f';
 
-export function NoticeIcon({ feature, size, failed = false }: { feature: 'lessons' | 'assessment'; size: 'lg' | 'md' | 'sm'; failed?: boolean }) {
+export function NoticeIcon({ feature, size, failed = false }: { feature: 'lessons' | 'assessment' | 'observations'; size: 'lg' | 'md' | 'sm'; failed?: boolean }) {
   const hue = failed ? { fg: RED, bg: '#fee4e2' } : FEATURE_HUE[feature];
   const big = size === 'lg';
   const box = size === 'lg' ? 'h-14 w-14' : size === 'md' ? 'h-[52px] w-[52px]' : 'h-12 w-12';

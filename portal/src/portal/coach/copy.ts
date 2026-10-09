@@ -46,13 +46,9 @@ export const COACH_COPY = {
   reschedule: "Reschedule",
 
   // Observe
-  takeObservationTile: "Take observation",
   reports: "Reports",
   pickTheTeacher: "Pick the teacher",
   scheduleFirst: "Schedule a visit first",
-  recordLive: "Record live",
-  // bd-o15qnr.9 (v21): "Upload recording" everywhere, the sheet title too.
-  attachRecording: "Upload recording",
   observation: "Observation",
   // bd-o15qnr.18 — operator: "Where it says AVG score, it should instead say Avg. HITL Score."
   avgScore: "Avg. HITL Score",
@@ -62,7 +58,7 @@ export const COACH_COPY = {
   // bd-o15qnr.19 — operator: "Draft should be Feedback Form, Talk should be Debrief."
   reportStep: { sent: "Report sent", report: "Report not sent yet", draft: "Feedback Form", talk: "Debrief", analysing: "Analysing" } as Record<string, string>,
 
-  // Record live (v18 Recording)
+  // Observe (record, upload, check and send, sending) now lives in observe/copy.ts (bd-4404s7.4); what is left here is shared.
   recording: "Recording",
   paused: "Paused",
   recordingTime: "Recording time",
@@ -89,7 +85,6 @@ export const COACH_COPY = {
 
   // Check and send (v18 CheckSend)
   checkAndSend: "Check and send",
-  lessonOf: (name: string) => `${name}’s lesson`,
   justNow: "just now",
   play: "Play",
   stopPlaying: "Stop playing",
@@ -99,26 +94,17 @@ export const COACH_COPY = {
   optional: "Optional",
   theirRecentPlans: "Their recent plans",
   library: "Library",
-  photoOfPlan: "Photo of plan",
   takenNow: "Taken just now",
   noRecentPlans: "No recent plans",
   removePlan: "Remove the lesson plan",
   planNotOk: "That is not a lesson plan photo. Choose a JPG or PNG.",
-  boardPhotos: "Board photos",
   upToN: (n: number) => `Up to ${n}`,
   noFaces: "No faces",
   addPhoto: "Add photo",
   removePhoto: (name: string) => `Remove ${name}`,
-  tooManyPhotos: (n: number) => `You can add up to ${n} photos.`,
   notAPhoto: "That is not a photo. Choose a JPG or PNG.",
   send: "Send",
   sending: (name: string) => `Sending ${name}’s lesson…`,
-  keepOpenSending: "Keep this screen open until it is done.",
-  netTitle: "The internet stopped",
-  netSafe: "Don't worry. The lesson is safe on this phone.",
-  planProblem: "That lesson plan could not be used. Pick another, or take a photo of the plan.",
-  notYourTeacher: "That teacher is not in your schools any more.",
-  refused: "Something was not accepted. Please try again.",
   noRecording: "No recording yet",
   teacherProfile: "Teacher profile",
   lastVisit: "Last visit",

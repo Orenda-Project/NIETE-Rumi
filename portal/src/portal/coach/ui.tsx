@@ -52,11 +52,12 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[]): { data: T |
 // reports pending on the coach." Read once and shared by every page for 30 s;
 // a failed read (or an API without the route) simply shows nothing.
 
-type Pending = { waiting: number; ids: string[] };
+export type Pending = { waiting: number; ids: string[] };
 const PENDING_TTL_MS = 30_000;
 let pendingCache: { at: number; value: Promise<Pending | null> } | null = null;
 
-function readPending(): Promise<Pending | null> {
+/** bd-4404s7.4 — the one shared read of the pending reports, also read by the Observe frame (observe/ObservePage). */
+export function readPending(): Promise<Pending | null> {
   if (pendingCache && Date.now() - pendingCache.at < PENDING_TTL_MS) return pendingCache.value;
   const value = Promise.resolve()
     .then(() => coach.getPending())

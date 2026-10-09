@@ -111,6 +111,11 @@ export interface NotifyCopy {
   couldntMake: string;
   /** Home's card of finished items. */
   readyForYou: string;
+  /** bd-4404s7.4 — the coach's observation being sent: its kind, its state in the strip, its banner. */
+  observation: string;
+  sending: (pct?: number) => string;
+  readyObservation: string;
+  couldntSend: string;
   /** "15 questions", on a paper's line. */
   questions: (n?: number) => string;
 }
@@ -269,6 +274,10 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
     tryAgain: 'Try again',
     couldntMake: "Couldn't make it",
     readyForYou: 'Ready for you',
+    observation: 'Observation',
+    sending: (pct = 0) => `Sending · ${pct}%`,
+    readyObservation: 'Observation sent',
+    couldntSend: "Couldn't send",
     questions: (n = 0) => (n === 1 ? '1 question' : `${n} questions`),
   },
 };
@@ -391,6 +400,10 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
     tryAgain: 'دوبارہ کوشش کریں',
     couldntMake: 'نہیں بن سکا',
     readyForYou: 'آپ کے لیے تیار',
+    observation: 'مشاہدہ',
+    sending: (pct = 0) => `بھیجا جا رہا ہے · ${pct}%`,
+    readyObservation: 'مشاہدہ بھیجا گیا',
+    couldntSend: 'نہیں بھیجا جا سکا',
     questions: (n = 0) => `${n} سوال`,
   },
 };
@@ -404,7 +417,8 @@ export const COPY_ENTRY: CopyEntry = {
   module: TEACHER_UI as Bilingual<unknown>,
   same: ['noValue', 'report.brand', 'report.brandMark'],
   // The report's words mirror the hero PNG word for word.
-  longOk: ['report.madeFor', 'report.eyebrow', 'report.lastAsked'],
+  // `notify.sending`: the passive "بھیجا جا رہا ہے" (4 words) with the percent after it.
+  longOk: ['report.madeFor', 'report.eyebrow', 'report.lastAsked', 'notify.sending'],
 };
 
 /** bd-fmf24g.16 — the history row lead's subject short forms (ui/subjects.ts), registered beside the kit's words. */

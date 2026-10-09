@@ -6,7 +6,7 @@ import { useKitCopy } from '../ui/useKitCopy';
 
 /** What every notice screen needs to say about an item, in her language: its kind, its class, its title. */
 export interface NoticeLike {
-  kind: 'lesson' | 'paper';
+  kind: 'lesson' | 'paper' | 'observation';
   title: string;
   grade: number | null;
   subject: string | null;
@@ -25,13 +25,16 @@ export function useNoticeWords() {
   const kit = useKitCopy();
   const assess = useCopy(ASSESSMENT);
   const lessons = useCopy(LESSONS);
-  const what = useCallback((i: Pick<NoticeLike, 'kind'>) => (i.kind === 'lesson' ? kit.notify.lessonPlan : kit.notify.paper), [kit]);
+  const what = useCallback((i: Pick<NoticeLike, 'kind'>) => (
+    i.kind === 'lesson' ? kit.notify.lessonPlan : i.kind === 'observation' ? kit.notify.observation : kit.notify.paper
+  ), [kit]);
   const classLine = useCallback(
     (i: Pick<NoticeLike, 'grade' | 'subject'>) => [i.grade != null ? kit.grade(i.grade) : null, i.subject].filter(Boolean).join(' · '),
     [kit],
   );
   const titleOf = useCallback((i: NoticeLike) => {
     if (i.title) return i.title;
+    if (i.kind === 'observation') return kit.notify.observation;
     if (i.kind === 'lesson') return lessons.planFallback;
     if (i.chapterNumber != null) return assess.chapterShort(i.chapterNumber);
     return i.questions != null ? kit.notify.questions(i.questions) : kit.notify.paper;

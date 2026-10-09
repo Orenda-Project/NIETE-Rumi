@@ -235,8 +235,8 @@ difference — the canvas's `kind` prop is not needed). Photos without an image 
 {first name}" — the PNG's words (the copy check's one documented exception).
 
 ### `ReadyTray` (what is being made, on every screen — bd-fmf24g.15)
-`items: TrayRow[]` (`{ id, feature: 'lessons' | 'assessment', what, gradeSubject, title, state: 'making' | 'failed', progress 0..1,
-left, to }`), `maxRows?` (2), `hideId?`, `onFollow?(id)`, `onOpenList()`, `listOpen?`, `onCloseList?`, `note?`, `copy?` (`NotifyCopy`).
+`items: TrayRow[]` (`{ id, feature: 'lessons' | 'assessment' | 'observations', what, gradeSubject, title, state: 'making' | 'failed', progress 0..1,
+left, to, status? }`; `status` is the row's own state line when it is not "being made": the coach's observation says "Sending · 62%" / "Couldn't send · Try again"), `maxRows?` (2), `hideId?`, `onFollow?(id)`, `onOpenList()`, `listOpen?`, `onCloseList?`, `note?`, `copy?` (`NotifyCopy`).
 A grey strip with one white card above the bottom menu: a 64px row per item (a 48px progress ring in the feature colour,
 "Lesson plan · Grade 7 · Science", "Being made · ~1 min left", a chevron → `to`). Past its time `left` is empty and the row
 says "Almost done". A 3rd+ adds one 56px "+N more · See all" row that opens the list (a `Tray` sheet, every item with its title
@@ -245,7 +245,7 @@ on its own line, `note` under the title). `failed` rows are red ("Couldn't make 
 (`teacher/notices/NoticeHost`) is the only caller: pages never draw it.
 
 ### `ReadyBanner` ("it is ready" for 10 seconds — bd-fmf24g.15)
-`items: BannerRow[]` (`{ id, feature, what, title, line }`), `variant?` (`ready` | `failed`), `reason?` (failed), `durationMs?`
+`items: BannerRow[]` (`{ id, feature: 'lessons' | 'assessment' | 'observations', what, title, line }`; an observation says "Observation sent" / "Couldn't send"), `variant?` (`ready` | `failed`), `reason?` (failed), `durationMs?`
 (10 000), `onOpen(id)`, `onClose()`, `onExpire()`, `onRetry?(id)`, `onSeeAll?()`, `copy?`. A white card above the menu: icon + green
 tick, "Lesson plan ready", the title, "Grade 7 · Science", a 56px ✕, a full-width 56px indigo Open, and a 6px bar that shrinks from
 its end edge to its start (right to left in English, left to right in Urdu). It **pauses while a finger, the mouse or focus is
@@ -254,7 +254,7 @@ then "+N more ready"); a change in the set restarts the 10 seconds. `failed` is 
 Try again, `role="alert"`. It only reports; the host says what Open, ✕ and running out mean.
 
 ### `LeaveNote`
-`text`. A white card with a bell and the screen's sentence ("You can leave. We'll tell you here."), `role="note"`. The words are
+`text`, `sub?` (a second, muted line: the coach's "The observation keeps sending in the background."). A white card with a bell and the screen's sentence ("You can leave. We'll tell you here."), `role="note"`. The words are
 the screen's: a sentence is not a kit label (`teacher/notices/copy.ts`).
 
 ### `ReadyCard` (Home's "Ready for you" — bd-fmf24g.15)
@@ -266,7 +266,7 @@ the full list in a `Tray`. Which items and for how long (24 weekday hours, Monda
 is the server's: this only draws them. The shell's `teacher/notices/ReadyForYou` is the one caller.
 
 ### `NoticeIcon`
-`feature` (`lessons` | `assessment`), `size` (`lg` 56 · `md` 52 · `sm` 48), `failed?`. The feature's glyph in its colour on its tint with a
+`feature` (`lessons` | `assessment` | `observations`), `size` (`lg` 56 · `md` 52 · `sm` 48), `failed?`. The feature's glyph in its colour on its tint with a
 green tick badge at the end-bottom corner (a red "!" when failed). Decorative: the row names the item.
 
 ## Coach build, PR 1 (bd-4404s7.1) — shared pieces the coach screens use
@@ -422,3 +422,13 @@ button (a green ring; green filled with pause while it plays). With `src` it pla
 `recordTo` / `onRecord`, `uploadTo` / `onUpload` (a link or a button each), `actions?: [{ key, label, icon?, to?, onPress?, danger? }]` (small 56px buttons under
 the squares: Reschedule; Cancel visit in red), `copy?` (`startRecording`, `uploadRecording`). Two 176px squares in one box with no heading: Start recording
 (indigo, a beating red mark with two rings, only when the phone allows motion) and Upload recording (white). Teacher and coach use the same one.
+
+## Coach build, Observe (bd-4404s7.4) — the coach's observation is sent in the background
+
+The notices (`../notices`) follow a THIRD kind of item, the coach's `observation`: an upload, not a render. The sender
+(`coach/observe/sender.ts`) holds the files, runs the existing pipeline and pushes `tracker.update(id, { progress })`, then
+`{ state: 'ready', observationId }` or `{ state: 'failed', errorCode }`; the host draws it with the kit pieces above
+(strip row "Observation · Ayesha Bibi — Sending · 62%", banner "Observation sent" with Open, or "Couldn't send" with the real
+reason and Try again). It is never polled, never kept across a reload and never told to the server; the coach's shell mounts
+`NoticeHost` with `local` so it does not ask `GET /me/notices` (the teacher's list). A failure is the app's alone.
+`TeacherPage` with `bare` puts its `dock` at the bottom edge (a recording has no menu under it).
