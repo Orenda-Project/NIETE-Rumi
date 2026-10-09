@@ -141,16 +141,17 @@ function around(rows, n) {
   return rows.slice(from, from + n);
 }
 
-function body(kind, d, C, pics, size) {
+function body(kind, d, C, pics, size, ur2 = false, og2 = false) {
   const pic = (name) => (pics && assets()[name] ? `<img class="jug" src="data:image/webp;base64,${assets()[name]}" alt="">` : '<div class="jug"></div>');
   if (kind === 'card') {
     return {
       pic: pic('celebrate'),
-      main: `<p class="kick">${esc(C.my)}${d.cls ? `${DOT}${own(d.cls)}` : ''}</p>`
+      main: `${og2 ? '' : `<p class="kick">${esc(C.my)}${d.cls ? `${DOT}${own(d.cls)}` : ''}</p>`}`
         + `<h1 class="name">${d.animal ? animal(d.animal, pics) : ''}${own(d.first)}</h1>`
         + `<p class="big">${num(`${d.correct}/${d.total}`)}</p>${starsHtml(d.correct, d.total)}`
         + `<p class="sub">${own(d.topic)}</p>`
-        + (d.school && d.added ? `<p class="pts">${C.added(num(`+${d.added}`), own(d.school))}</p>` : (d.school ? `<p class="pts">${own(d.school)}</p>` : '')),
+        // under the Urdu polish the school sits on its own line under the points: a Latin school name never breaks an Urdu sentence
+        + (d.school && d.added ? `<p class="pts">${ur2 ? `${num(`+${d.added}`)} ${esc(C.pts)}<br>${own(d.school)}` : C.added(num(`+${d.added}`), own(d.school))}</p>` : (d.school ? `<p class="pts">${own(d.school)}</p>` : '')),
       cta: d.school ? '' : C.playSame,
     };
   }
@@ -160,7 +161,7 @@ function body(kind, d, C, pics, size) {
     const zero = !(Number(d.correct) > 0);
     return {
       pic: pic('hello'),
-      main: `<p class="kick">${esc(C.chal)}</p>`
+      main: `${og2 ? '' : `<p class="kick">${esc(C.chal)}</p>`}`
         + `<h1 class="head">${zero ? C.dared(own(d.first)) : C.beat(own(d.first), num(score))}</h1>`
         + (zero ? `<p class="sub">${own(d.topic)}</p>` : `<p class="sub">${C.scored(own(d.first), num(score), own(d.topic))}</p>${starsHtml(d.correct, d.total)}`),
       cta: C.tapPlay,
@@ -171,7 +172,7 @@ function body(kind, d, C, pics, size) {
     return {
       pic: d.rows && d.rows.length ? '' : pic('celebrate'),
       // The wide picture has no room for a separate line: the average joins the top line there.
-      main: `<p class="kick">${d.cls ? `${own(d.cls)}${DOT}` : ''}${own(d.topic)}${size !== 'sq' && d.rows && d.rows.length ? `${DOT}${C.avgLine(num(`${d.avgPct || 0}%`))}` : ''}</p>`
+      main: `<p class="kick">${d.cls ? `${own(d.cls)}${ur2 ? ' ' : DOT}` : ''}${own(d.topic)}${size !== 'sq' && d.rows && d.rows.length ? `${ur2 ? '<br>' : DOT}${C.avgLine(num(`${d.avgPct || 0}%`))}` : ''}</p>`
         + `<h1 class="head">${d.of ? C.playedOf(num(d.played || 0), num(d.of)) : `${num(d.played || 0)} ${esc(C.played)}`}</h1>`
         + (d.rows && d.rows.length ? `<ol class="crow">${around(d.rows.map((r) => ({ ...r, you: r.me })), size === 'sq' ? 6 : 3).map((r) => `<li class="${r.me ? 'me' : ''}">`
           + `<span class="rk">${num(r.place)}</span>${animal(r.animal, pics)}`
@@ -198,24 +199,32 @@ function body(kind, d, C, pics, size) {
  * @param {{fonts?:boolean, pictures?:boolean}} [opt] - off only for the layout snapshot
  * @returns {string} HTML; the picture is the `.art` element, exactly SIZES[size]
  */
-function renderArt({ kind, size, brand, lang, d }, opt = {}) {
+function renderArt({ kind, size, brand, lang, d, ui }, opt = {}) {
   const k = KINDS.includes(kind) ? kind : 'card';
   const sz = SIZES[size] ? size : 'og';
   const [W, H] = SIZES[sz];
   const L = clampLanguage(lang);
   const RTL = L === 'ur';
+  // The Urdu polish switch (app_settings web_quiz_ur_polish, carried as `ui.ur2`): the Urdu lines a step larger, the quiz name
+  // the headline, the CTA readable at WhatsApp's ~300 px preview. Off (or English), every size below is today's.
+  const UR2 = RTL && Boolean(ui && ui.ur2 === true);
   const C = COPY[L];
+  // The wide picture (1200×630) has no height to spare: under the polish its stack is budgeted — no kicker on the card and
+  // the invite, the name 56/1.7, the topic 44 (36 when long), the invite's scored line 32, every line at 1.9 — so the
+  // CTA pill, the last child, is never the one that falls off. The square has the height and keeps the larger sizes.
+  const OG2 = UR2 && size !== 'sq';
+  const topicLen = Array.from(String((d && d.topic) || '')).length;
   const B = WebQuizBrand.publicBrand(Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, brand) ? brand : WebQuizBrand.DEFAULT_BRAND);
   const t = B.tokens;
   const a = opt.fonts === false ? {} : assets();
-  const parts = body(k, d || {}, C, opt.pictures !== false, sz);
+  const parts = body(k, d || {}, C, opt.pictures !== false, sz, UR2, OG2);
   const sq = sz === 'sq';
   const col = sq || k === 'school' || (k === 'class' && Boolean(d && d.rows && d.rows.length));   // stacked: the square, and the board in either size
   const deco = B.deco ? `url("data:image/svg+xml;utf8,${encodeURIComponent(B.deco)}")` : 'none';
   // A wide mark (Rumi) sits bare on the dark ground: drawn in white and the accent, never navy on navy.
   const [mk1, mk2] = B.mark.tile ? B.mark.onTile : ['#FFFFFF', t.brand];
   const body1 = RTL ? "'NastaliqUrdu','Lexend',sans-serif" : "'Lexend','NastaliqUrdu',sans-serif";
-  const lh = RTL ? NASTALIQ.leading.regular : 1.25;
+  const lh = RTL ? (UR2 ? 2.5 : NASTALIQ.leading.regular) : 1.25;
   const fonts = opt.fonts === false ? '' : `@font-face{font-family:'Lexend';font-weight:400;src:url(data:font/ttf;base64,${a.lexend})}
 @font-face{font-family:'Lexend';font-weight:800;src:url(data:font/ttf;base64,${a.lexendBold})}
 @font-face{font-family:'NastaliqUrdu';font-weight:400;src:url(data:font/ttf;base64,${a.nastaliq})}
@@ -236,11 +245,11 @@ body{width:${W}px;height:${H}px;overflow:hidden;font-family:${body1};color:#fff}
 .mark svg{width:${B.mark.tile ? 70 : 100}%;height:auto}
 .brand{font:800 ${Math.round(26 * S)}px/1 'Lexend',sans-serif;letter-spacing:.04em}
 .main{flex:1;display:flex;flex-direction:column;justify-content:safe center;gap:${sq ? 12 : 14}px;min-width:0;min-height:0;${sq ? 'text-align:center;align-items:center;' : (col ? '' : 'padding-top:60px;')}}
-.kick{font-size:${Math.round(26 * S)}px;line-height:${lh};color:${t.brand};font-weight:${RTL ? 700 : 800};${RTL ? '' : 'letter-spacing:.02em;'}}
-.name{font-size:${Math.round(68 * S)}px;line-height:${RTL ? 1.7 : 1.05};font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.kick{font-size:${Math.round((UR2 ? 32 : 26) * S)}px;line-height:${lh};color:${t.brand};font-weight:${RTL ? 700 : 800};${RTL ? '' : 'letter-spacing:.02em;'}}
+.name{font-size:${Math.round(68 * S)}px;line-height:${RTL ? (UR2 && !OG2 ? 1.9 : 1.7) : 1.05};font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .head{font-size:${Math.round((RTL && !sq ? 40 : 58) * S)}px;line-height:${RTL ? 2.0 : 1.12};font-weight:800}
 .big{font-size:${Math.round((sq ? 100 : 104) * S)}px;line-height:1;font-weight:800}
-.sub{font-size:${Math.round(32 * S)}px;line-height:${RTL ? lh : 1.3};opacity:.92;max-width:100%}
+.sub{font-size:${Math.round((UR2 ? (OG2 ? (k === 'invite' ? 32 : (topicLen > 22 ? 36 : 44)) : 44) : 32) * S)}px;line-height:${RTL ? (OG2 ? 1.9 : lh) : 1.3};opacity:.92;max-width:100%}
 .num{font-family:'Lexend',sans-serif;unicode-bidi:isolate;direction:ltr;font-weight:800}
 bdi[dir="ltr"]{font-family:'Lexend','NastaliqUrdu',sans-serif}
 bdi[dir="rtl"]{font-family:'NastaliqUrdu','Lexend',sans-serif}
@@ -253,7 +262,7 @@ bdi[dir="rtl"]{font-family:'NastaliqUrdu','Lexend',sans-serif}
 .tile{background:rgba(255,255,255,.12);border-radius:20px;padding:16px 24px;display:flex;flex-direction:column;gap:4px;font-size:${Math.round(48 * S)}px;line-height:1.2}
 .tile small{font-size:${Math.round(22 * S)}px;opacity:.85;line-height:${RTL ? lh : 1.3}}
 .cta{flex:0 0 auto;${sq ? '' : 'align-self:flex-start;'}${col ? '' : 'margin-top:8px;'}display:inline-block;background:${t.brand};color:${t['brand-on']};
-  font-size:${Math.round(26 * S)}px;line-height:${RTL ? 1.9 : 1.2};font-weight:800;padding:${RTL ? '4px 28px' : '14px 28px'};border-radius:999px}
+  font-size:${Math.round((UR2 ? 40 : 26) * S)}px;line-height:${RTL ? 1.9 : 1.2};font-weight:800;padding:${RTL ? '4px 28px' : '14px 28px'};border-radius:999px}
 .board{list-style:none;display:flex;flex-direction:column;gap:${sq ? 12 : 6}px;width:100%;text-align:start}
 .row{display:flex;align-items:center;gap:18px;background:rgba(255,255,255,.08);border-radius:16px;padding:${sq ? '12px 22px' : '4px 18px'};font-size:${Math.round((sq ? 28 : (RTL ? 22 : 25)) * S)}px;line-height:${RTL ? (sq ? 1.75 : 1.6) : 1.2}}
 .row.you{background:${t.brand};color:${t['brand-on']};box-shadow:0 0 0 3px #fff}
@@ -267,9 +276,9 @@ bdi[dir="rtl"]{font-family:'NastaliqUrdu','Lexend',sans-serif}
 /* A line never gives up its height to the box (a clipped name shrank to nothing). */
 .main>*{flex-shrink:0}
 ${col && !sq ? '.sn small{display:none}.pt{flex-direction:row;align-items:baseline;gap:10px}' : ''}
-${RTL && !sq ? `.kick{line-height:1.9}.name{font-size:56px;line-height:1.55}.big{font-size:92px}.head{line-height:1.7}.crow li{line-height:1.45}.crow{gap:4px}.sub{line-height:1.9}` : ''}
+${RTL && !sq ? `.kick{line-height:1.9}.name{font-size:56px;line-height:${UR2 ? 1.7 : 1.55}}.big{font-size:92px}.head{line-height:${UR2 ? 1.9 : 1.7}}.crow li{line-height:1.45}.crow{gap:4px}.sub{line-height:1.9}` : ''}
 .ani{width:1em;height:1em;display:inline-block;vertical-align:-.12em;margin-inline-end:.25em;object-fit:contain}
-.pts{display:inline-block;align-self:${sq ? 'center' : 'flex-start'};background:rgba(255,255,255,.14);border-radius:999px;padding:${RTL ? '0 22px' : '8px 22px'};font-size:${Math.round(24 * S)}px;line-height:${RTL ? 1.9 : 1.3};font-weight:700}
+.pts{display:inline-block;align-self:${sq ? 'center' : 'flex-start'};background:rgba(255,255,255,.14);border-radius:${UR2 ? '28px' : '999px'};padding:${RTL ? (UR2 ? '2px 24px' : '0 22px') : '8px 22px'};font-size:${Math.round((UR2 ? 28 : 24) * S)}px;line-height:${RTL ? 1.9 : 1.3};font-weight:700${UR2 ? ';text-align:start' : ''}}
 .crow{list-style:none;display:flex;flex-direction:column;gap:${sq ? 10 : 6}px;width:${sq ? '86%' : '100%'};text-align:start}
 .crow li{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,.08);border-radius:12px;padding:${RTL ? '0 16px' : '4px 16px'};font-size:${Math.round((sq ? 34 : 26) * S)}px;line-height:${RTL ? 1.6 : 1.25}}
 .crow li.me{background:${t.brand};color:${t['brand-on']}}
