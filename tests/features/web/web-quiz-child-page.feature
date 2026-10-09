@@ -778,6 +778,23 @@ Feature: Web child quiz page on the portal
     And Jugnu does not celebrate, and the teacher's class results do not list it
     But a reading with words heard and none right says "Good try! Reading gets easier every day you practise." with no number
 
+  @T751
+  Scenario: With keep on, a reading is kept private under one dated prefix and its row says where
+    Given app setting "web_quiz_challenge_keep_audio" is on
+    When a child reads aloud
+    Then the recording goes to the private child-voice bucket under child-voice/<env>/kept/<upload day>/<run>/, never a public link
+    And scoring keeps it, whether the reading scored, failed or was unheard, and the run row keeps its key and nothing about the child
+    And nothing under the kept prefix is deleted by scoring, a refused upload or the hourly orphan sweep: only the purge removes it
+    But with the setting off a reading is scored and deleted, as before
+
+  @T752
+  Scenario: Kept readings leave by one purge command, dry run first
+    Given kept readings from 8 and 9 October
+    When the purge runs for this deployment's env with no --apply
+    Then it prints how many readings it would delete per day and deletes nothing
+    And with --from/--to it counts only those days, and with --apply it deletes exactly those and each run row stops naming its reading
+    And it refuses without --env or with another deployment's env, and prints no key, run id, name or phone
+
   @T532
   Scenario: Today's read-aloud cap leaves "Which is bigger?" only
     Given app_settings web_quiz_challenge_daily_reads is 500 (or absent) and 500 read-alouds have been scored since Pakistan midnight
