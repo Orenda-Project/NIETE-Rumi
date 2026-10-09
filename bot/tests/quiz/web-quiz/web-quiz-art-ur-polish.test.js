@@ -55,7 +55,10 @@ describe('the picture input the cache key is hashed from', () => {
     const f = { lang: 'ur', d: card };
     expect(Object.prototype.hasOwnProperty.call(Art.artInput('card', 'og', 'niete', f, null), 'ui')).toBe(false);
     expect(Art.artInput('card', 'og', 'niete', f, null)).toEqual({ kind: 'card', size: 'og', brand: 'niete', lang: 'ur', d: card });
-    expect(Art.artInput('card', 'og', 'niete', f, { ur2: true }).ui).toEqual({ ur2: true });
+    // the polished look has its own version in the input: a change to the polished template (PR 5's school line) must
+    // not be served from a picture cached under the earlier look — the key changes only under the switch
+    expect(Art.artInput('card', 'og', 'niete', f, { ur2: true }).ui).toEqual({ ur2: true, v: Art.ART_UR2_V });
+    expect(Art.ART_UR2_V).toBeGreaterThanOrEqual(2);
   });
 });
 
