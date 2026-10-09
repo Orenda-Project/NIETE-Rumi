@@ -381,7 +381,7 @@ function scheduleSweep({ worker, queues, runSweep: run = runSweep } = {}) {
 }
 
 module.exports = {
-  runSweep, scheduleSweep, readSwitch,
+  runSweep, scheduleSweep, readSwitch, paperTitle,
   READY_AFTER_MS, LOOKBACK_MS, PER_TICK, FIRST_RUN_MS, SWEEP_EVERY_MS,
   SETTING_ENABLED, SETTING_TEACHERS,
   _resetCache: () => { cache = null; },
