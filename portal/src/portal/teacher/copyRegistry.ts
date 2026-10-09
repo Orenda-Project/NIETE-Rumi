@@ -21,7 +21,8 @@ export type CopyEntry = {
   longOk?: readonly string[];
 };
 
-const found = import.meta.glob<{ COPY_ENTRY?: CopyEntry; COPY_ENTRIES?: readonly CopyEntry[] }>('./*/copy.ts', { eager: true });
+// bd-4404s7.2 — the coach app's per-area copy files (coach/<area>/copy.ts) register the same way.
+const found = import.meta.glob<{ COPY_ENTRY?: CopyEntry; COPY_ENTRIES?: readonly CopyEntry[] }>(['./*/copy.ts', '../coach/*/copy.ts'], { eager: true });
 
 /** A folder registers one module (COPY_ENTRY) or several (COPY_ENTRIES). */
 export const COPY_MODULES: readonly CopyEntry[] = [

@@ -111,7 +111,8 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
   // (bd-5rz1v.26.4), and md:pb-24 (96px) keeps the page's end above it.
   const noNav = bare || linkOnly;
   // While her menu is pending (a v2 device), the page is already padded for the v2 frame.
-  const v2Frame = teacherV2 || menuPending;
+  // bd-4404s7.2 — a coach on v2 stands in the same frame (the kit's bar, 78px + the safe area).
+  const v2Frame = teacherV2 || coachV2 || menuPending;
   const pad = noNav
     ? (showBar ? 'pb-24 md:pb-24' : 'pb-8')
     // bd-fmf24g.1 — the v2 bottom bar is 78px + the safe area (canvas: 6 + 58 + 14).

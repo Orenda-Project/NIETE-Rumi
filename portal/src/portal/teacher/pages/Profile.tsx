@@ -36,7 +36,7 @@ function shortLevel(title: string): string {
   return m ? m[1] : title;
 }
 
-function Field({ label, children, testId }: { label: string; children: ReactNode; testId?: string }) {
+export function Field({ label, children, testId }: { label: string; children: ReactNode; testId?: string }) {
   return (
     <div className="flex flex-col gap-1.5">
       <span className="px-1 text-[13px] font-semibold text-[#6b7280]">{label}</span>

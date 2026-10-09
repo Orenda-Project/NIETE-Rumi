@@ -37,14 +37,11 @@ afterEach(() => {
 });
 
 describe("1 — Home: a full-date subheading, no pills", () => {
-  it("'Wednesday, 7th October' under the greeting, muted 17px/500; no date pill, no Coach pill", async () => {
+  // bd-4404s7.2 — Home's date moved into the NIETE band (the kit's HomeGreeting), in the band's long form.
+  it("the date is in the band, 'Wednesday 7 October'; no date pill, no Coach pill", async () => {
     at("/portal/coach", "/portal/coach", <CoachHome />);
-    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Salaam, Hataf");
-    const sub = screen.getByTestId("page-subtitle");
-    expect(sub).toHaveTextContent(/^Wednesday, 7th October$/);
-    expect(sub.className).toMatch(/text-\[17px\]/);
-    expect(sub.className).toMatch(/font-medium/);
-    expect(sub.className).toMatch(/text-\[#4b5563\]/);
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Salaam, Hataf!");
+    expect(screen.getByTestId("home-date")).toHaveTextContent(/^Wednesday 7 October$/);
     expect(screen.queryByText("Coach")).toBeNull();
     expect(screen.queryByText(/Wed 7 Oct/)).toBeNull();
   });
