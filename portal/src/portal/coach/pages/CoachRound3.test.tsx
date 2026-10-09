@@ -80,15 +80,13 @@ describe("3 — Teacher History: a count, then months, newest first", () => {
   it("History 6, then October 2026 · 2, September 2026 · 1, August 2026 · 3", async () => {
     C.getTeacher.mockResolvedValue(TEACHER);
     at("/portal/coach/teacher/923001110001", "/portal/coach/teacher/:ext", <CoachTeacher />);
-    const heading = await screen.findByRole("heading", { name: /History/ });
-    expect(within(heading).getByTestId("section-count")).toHaveTextContent("6");
-    const months = screen.getAllByTestId("history-month");
-    const label = (m: HTMLElement) => {
-      const h = within(m).getByRole("heading");
-      return [m.getAttribute("data-month"), h.firstElementChild?.textContent, within(h).getByTestId("section-count").textContent];
-    };
-    expect(months.map(label)).toEqual([["2026-10", "October 2026", "2"], ["2026-09", "September 2026", "1"], ["2026-08", "August 2026", "3"]]);
-    expect(within(months[2]).getAllByTestId(/^history-h/).map((r) => r.getAttribute("data-testid"))).toEqual(["history-h4", "history-h5", "history-h6"]);
+    // bd-4404s7.6: the kit's HistoryList: a History heading with the total, a section per month with its count
+    const history = await screen.findByTestId("history");
+    expect(within(history).getByRole("heading", { name: /History/ })).toHaveTextContent("6");
+    const months = within(history).getAllByRole("region");
+    const label = (m: HTMLElement) => [m.getAttribute("aria-label"), within(m).getByRole("heading").querySelector("span")?.textContent];
+    expect(months.map(label)).toEqual([["October 2026", "2"], ["September 2026", "1"], ["August 2026", "3"]]);
+    expect([...months[2].querySelectorAll("[data-history-row] .line-clamp-2")].map((r) => r.textContent)).toEqual(["20 Aug", "10 Aug", "2 Aug"]);
   });
 });
 

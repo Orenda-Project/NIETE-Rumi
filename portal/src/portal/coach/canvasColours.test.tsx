@@ -78,12 +78,13 @@ describe("school icons are 12px-rounded blue tiles, not circles (Schools tab; Ne
     expect((el as HTMLElement).style.color).toBe("rgb(29, 111, 216)");
   };
 
-  it("Schools tab: a round 48px neutral avatar, not the square tile", async () => {
+  it("Schools tab: a round 48px grey avatar, not the square tile", async () => {
     at("/portal/coach/people", <CoachPeople />);
     const card = await screen.findByTestId("school-card");
-    const avatar = card.querySelector("span.rounded-full") as HTMLElement;
-    expect(avatar.style.width).toBe("48px");
-    expect(avatar.style.background).toBe("rgb(243, 244, 246)");
+    // the kit's HistoryRow coach lead: a round 48px grey avatar
+    const avatar = within(card).getByTestId("history-avatar");
+    expect(classOf(avatar)).toMatch(/rounded-full/);
+    expect(classOf(avatar)).toMatch(/h-12 w-12/);
     expect(within(card).queryByTestId("school-icon")).toBeNull();
   });
 

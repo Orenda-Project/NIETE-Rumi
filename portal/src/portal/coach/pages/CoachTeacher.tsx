@@ -1,10 +1,10 @@
 import { Link, useParams } from "react-router-dom";
 import { MapPin, Pencil, Plus } from "lucide-react";
-import { KpiTiles, TimeStamp } from "../../teacher/ui";
+import { HistoryList, KpiTiles, TimeStamp } from "../../teacher/ui";
 import { PageChip } from "../../teacher/TeacherPage";
 import { useCopy } from "../../teacher/i18n";
 import { coach } from "../../services/api";
-import { Card, SectionLabel, DayLabel, BottomLink, Loading, useLoad, Chevron, Chip } from "../ui";
+import { Card, BottomLink, Loading, useLoad } from "../ui";
 import { PEOPLE } from "../people/copy";
 import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
 
@@ -114,37 +114,22 @@ const CoachTeacher = () => {
             ]} />
           </div>
           {data.history.length > 0 && (
-            <>
-              <SectionLabel count={data.history.length} countStyle="count">{C.history}</SectionLabel>
-              <div className="flex flex-col gap-1.5" data-testid="history">
-                {byMonth(data.history).map(([month, rows]) => (
-                  <section key={month} data-testid="history-month" data-month={month} className="flex flex-col gap-1.5">
-                    <DayLabel count={rows.length}>{rows[0].date ? C.monthOf(pkDay(rows[0].date).y, pkDay(rows[0].date).m) : C.dash}</DayLabel>
-                    <Card className="overflow-hidden">
-                      {rows.map((h, i) => {
-                        // bd-o15qnr.19 — every HITL row opens the one v2 observation page (its steps, and its reports once
-                        // done); a DC session is the teacher's own, information only.
-                        const to = h.kind === "HITL" ? `/portal/coach/observation/${h.id}` : null;
-                        const cls = `flex min-h-[72px] items-center gap-3.5 px-3.5 py-2.5 ${i > 0 ? "border-t border-[#e5e7eb]" : ""} ${to ? "transition-colors hover:bg-[#f9fafb]" : ""}`;
-                        const step = h.kind === "HITL" && (h.step === "draft" || h.step === "talk") ? C.stepLabel[h.step] : null;
-                        const inner = (
-                          <>
-                            <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${h.kind === "HITL" ? "bg-[#33374a] text-white" : "bg-[#f3f4f6] text-[#33374a]"}`}>{h.kind}</span>
-                            <span className="flex-1 text-[17px] font-semibold">{dayMonth(h.date)}</span>
-                            {step && <Chip tone="warn">{step}</Chip>}
-                            <span className="text-lg font-bold tabular-nums">{C.pct(h.score)}</span>
-                            {to && <span data-chevron className="flex"><Chevron /></span>}
-                          </>
-                        );
-                        return to
-                          ? <Link key={h.id} to={to} className={cls} data-testid={`history-${h.id}`}>{inner}</Link>
-                          : <div key={h.id} className={cls} data-testid={`history-${h.id}`}>{inner}</div>;
-                      })}
-                    </Card>
-                  </section>
-                ))}
-              </div>
-            </>
+            <div data-testid="history">
+              {/* The kit's HistoryList by month (newest first), a round avatar saying HITL or DC, the score as the chip. */}
+              <HistoryList heading={C.history} showMore={false} groups={byMonth(data.history).map(([month, rows]) => ({
+                day: rows[0].date ? C.monthOf(pkDay(rows[0].date).y, pkDay(rows[0].date).m) : C.dash,
+                items: rows.map((h) => {
+                  // bd-o15qnr.19 — every HITL row opens the one v2 observation page (its steps, and its reports once
+                  // done); a DC session is the teacher's own, information only.
+                  const to = h.kind === "HITL" ? `/portal/coach/observation/${h.id}` : undefined;
+                  const step = h.kind === "HITL" && (h.step === "draft" || h.step === "talk") ? C.stepLabel[h.step] : undefined;
+                  return {
+                    id: h.id, lead: "person" as const, leadText: h.kind, leadLabel: h.kind, title: dayMonth(h.date), extra: step,
+                    chip: h.score == null ? null : { text: C.pct(h.score), tone: "score" as const }, to, action: to ? "chevron" as const : "none" as const,
+                  };
+                }),
+              }))} />
+            </div>
           )}
         </>
       )}
