@@ -17,10 +17,12 @@ import { TimeStamp, type TimeTone } from './TimeStamp';
  * observation, a paper.
  *
  * Lead = the operator's D6.5 "section, stacked" (9 Oct: "switch this component everywhere"; it replaced the 8 Oct
- * 96px grey block, which is gone, not an option). Not a chip: a 64px column built into the row, flush with the
- * row's START edge (left in English, right in Urdu — the row has no start or vertical padding of its own), the
- * full row height (76px, more when the title wraps), 12px from the text. The card the row sits in clips it at its
- * rounded corners (LIST_CARD is overflow-hidden; a standalone row's card must be too — RequestPage).
+ * 96px grey block, which is gone, not an option), drawn as a ROUNDED TILE (bd-fmf24g.29, operator pick F, 10 Oct: the
+ * flush columns of consecutive rows ran into each other): a 64px column inset 4px from the row's top and bottom (`my-1`)
+ * and 8px from its START edge (`ms-2`: left in English, right in Urdu — the row has no start or vertical padding of its
+ * own, the tile's margins make the inset), all four corners 6px, 12px from the text. It is as tall as the row less 8px
+ * (76px min, more when the title wraps). The card the row sits in clips the tile at its rounded corners (LIST_CARD is
+ * overflow-hidden; a standalone row's card must be too — RequestPage).
  *   top    "G4" (copy `gradeShort`) 17px/800 tabular, white on the grade's dark colour;
  *   bottom the subject's short form (subjects.ts `subjectShort`: Sci, Math, SST, Pak St — no period, never
  *          wrapped or cut) 15px/700 in the grade's dark colour on its light tint.
@@ -142,7 +144,7 @@ export function HistoryRow({
         <span
           aria-hidden="true"
           data-testid="history-lead"
-          className="flex w-16 shrink-0 flex-col self-stretch overflow-hidden whitespace-nowrap text-center leading-none"
+          className="ms-2 my-1 flex w-16 shrink-0 flex-col self-stretch overflow-hidden rounded-[6px] whitespace-nowrap text-center leading-none"
         >
           {hasGrade ? (
             <span
