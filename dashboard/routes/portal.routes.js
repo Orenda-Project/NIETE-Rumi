@@ -29,6 +29,7 @@ const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const supabase = require('../config/supabase');
+const telemetry = require('../services/telemetry.service');
 // bd-60085 — bands go over the internal API, NOT by requiring the bot in-process.
 //
 // This was `require('../../bot/shared/services/training/band-selection.service')`, and saving
@@ -553,6 +554,19 @@ router.post('/login', publicAuthLimiter, async (req, res) => {
       });
     }
 
+    // Activated but no password saved (thousands of accounts were flagged this way outside
+    // the setup flow). bcrypt.compare throws on a NULL hash, which used to surface as a 500
+    // whatever she typed. There is nothing to check her password against — send her to
+    // Forgot password, which writes the hash.
+    if (!user.portal_password_hash) {
+      telemetry.logEvent('portal.login.no_password', { userId: user.id });
+      return res.status(403).json({
+        success: false,
+        code: 'PASSWORD_NOT_SET',
+        error: 'You have not set a portal password yet. Please use "Forgot password" to set one.'
+      });
+    }
+
     const validPassword = await bcrypt.compare(password, user.portal_password_hash);
 
     if (!validPassword) {
@@ -594,6 +608,7 @@ router.post('/login', publicAuthLimiter, async (req, res) => {
     });
   } catch (error) {
     console.error('Portal login error:', error);
+    telemetry.logEvent('portal.login.failed', { err: error && error.message });
     res.status(500).json({
       success: false,
       error: 'Something went wrong. Please try again.'
