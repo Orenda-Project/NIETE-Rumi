@@ -33,7 +33,7 @@ const telemetry = require('../services/telemetry.service');
 
 const prefix = (...roots) => (p) => roots.some((r) => p === r || p.startsWith(`${r}/`));
 
-/** Each area: where the link lands, and what its session may call under /api/portal. */
+/** Each area: where the link lands (a path, or a function of the verified token), and what its session may call under /api/portal. */
 const AREAS = {
   training: {
     landing: '/portal/training',
@@ -47,6 +47,28 @@ const AREAS = {
       { method: 'POST', test: prefix('/lp612/request') },
       // bd-fmf24g.3 — the v2 Lessons picker ("Select your class") reads her grade·subject pairs.
       { method: 'GET', test: (p) => p === '/me/grade-subjects' },
+    ],
+  },
+  // bd-fmf24g.15 — the "Open in app" button on the WhatsApp message for a finished paper or lesson plan she did not
+  // see. The token names the item and the link lands on it: a paper on its request page (Download, Answer key), a
+  // grades 6-12 plan on the page that opens it by key. The session reads what those pages read, reports what she did
+  // with the item, and nothing more — it cannot start a paper, edit one, or reach training or coaching.
+  ready: {
+    landing: (payload) => {
+      const [kind, ...rest] = String(payload.i || '').split(':');
+      if (kind === 'paper') return `/portal/teacher/assessment/request/${encodeURIComponent(rest.join(':'))}`;
+      if (kind === 'lesson') {
+        const lang = rest[rest.length - 1] === 'ur' ? 'ur' : 'en';
+        const segment = rest.slice(0, -1).join(':');
+        return `/portal/teacher/lessons/open?${new URLSearchParams({ plan: `g612:${segment}`, lang }).toString()}`;
+      }
+      return '/portal/teacher';
+    },
+    api: [
+      { method: 'GET', test: prefix('/assessment', '/curriculum', '/lp612', '/lesson-plans') },
+      { method: 'POST', test: (p) => p === '/lp612/request' },
+      { method: 'GET', test: (p) => p === '/me/grade-subjects' || p === '/me/notices' },
+      { method: 'POST', test: (p) => /^\/me\/notices\/[^/]+\/(seen|opened)$/.test(p) },
     ],
   },
 };
@@ -175,7 +197,7 @@ function createPortalLinkRouter({ findUser = defaultFindUser, verify = verifyPor
         if (saveErr) return expired(req, res, 'error', { area, userId: user.id, err: 'session_save' });
         log({ outcome: 'ok', area, userId: user.id, ...browserFacts(req) });
         res.set('Cache-Control', 'no-store');
-        return res.redirect(303, spec.landing);
+        return res.redirect(303, typeof spec.landing === 'function' ? spec.landing(payload) : spec.landing);
       });
     });
   });

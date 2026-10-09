@@ -1,0 +1,46 @@
+{
+  "name": "lesson_plan_ready_v1",
+  "category": "UTILITY",
+  "language": "en",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "DOCUMENT",
+      "example": {
+        "header_handle": [
+          "<UPLOAD A SAMPLE PDF TO META (resumable upload) AND PASTE ITS HANDLE HERE BEFORE SUBMITTING>"
+        ]
+      }
+    },
+    {
+      "type": "BODY",
+      "text": "Your lesson plan is ready.\n\n*{{1}}*\nGrade {{2}} · {{3}}\n\nThe PDF is attached. Tap Open in app to see it in the NIETE app.",
+      "example": {
+        "body_text": [
+          [
+            "Transport of Water in Plants",
+            "7",
+            "Science"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "FOOTER",
+      "text": "You asked for this in the NIETE app"
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "URL",
+          "text": "Open in app",
+          "url": "https://portal.niete.edu.pk/t/{{1}}",
+          "example": [
+            "https://portal.niete.edu.pk/t/Zm9v.YWJj"
+          ]
+        }
+      ]
+    }
+  ]
+}

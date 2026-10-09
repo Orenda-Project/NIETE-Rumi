@@ -1,0 +1,47 @@
+{
+  "name": "paper_ready_v1",
+  "category": "UTILITY",
+  "language": "en",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "DOCUMENT",
+      "example": {
+        "header_handle": [
+          "<UPLOAD A SAMPLE PDF TO META (resumable upload) AND PASTE ITS HANDLE HERE BEFORE SUBMITTING>"
+        ]
+      }
+    },
+    {
+      "type": "BODY",
+      "text": "Your paper is ready.\n\n*{{1}}*\nGrade {{2}} · {{3}} · {{4}} questions\n\nThe PDF is attached. The answer key is in the app. Tap Open in app to see both.",
+      "example": {
+        "body_text": [
+          [
+            "Plants and food",
+            "4",
+            "Science",
+            "15"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "FOOTER",
+      "text": "You asked for this in the NIETE app"
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "URL",
+          "text": "Open in app",
+          "url": "https://portal.niete.edu.pk/t/{{1}}",
+          "example": [
+            "https://portal.niete.edu.pk/t/Zm9v.YWJj"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -114,4 +114,6 @@ function createWebLink({ area, enabledKey, teachersKey, defaultTemplate, templat
   return { on, send, _resetCache: () => { cache = null; } };
 }
 
-module.exports = { createWebLink };
+// bd-fmf24g.15 — the switch helpers and the template languages are shared with the ready-notice fallback, so "what counts as
+// on" and "which languages a portal template is approved in" each have ONE definition.
+module.exports = { createWebLink, TEMPLATE_LANGUAGES, isTrue, parse, teacherAllowed };

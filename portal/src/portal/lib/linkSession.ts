@@ -21,6 +21,9 @@ const KEY = 'niete_training_link';
 const AREAS: Record<string, { home: string }> = {
   training: { home: '/portal/training' },
   lessons: { home: '/portal/curriculum' },
+  // bd-fmf24g.15 — the "Open in app" button on the ready WhatsApp message: the teacher app's pages (the server
+  // scopes what they may call to the one item and what is needed to open it).
+  ready: { home: '/portal/teacher' },
 };
 
 export const LINK_EXPIRED_PAGE = '/t';

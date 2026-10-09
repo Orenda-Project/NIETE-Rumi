@@ -2757,6 +2757,7 @@ CREATE TABLE public.assessment_requests (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     notice_seen_at timestamp with time zone,
     notice_opened_at timestamp with time zone,
+    notice_whatsapp_at timestamp with time zone,
     CONSTRAINT assessment_requests_content_source_check CHECK ((content_source = ANY (ARRAY['seen'::text, 'unseen'::text, 'both'::text]))),
     CONSTRAINT assessment_requests_has_coverage CHECK (((chapter_number IS NOT NULL) OR (page_ranges IS NOT NULL))),
     CONSTRAINT assessment_requests_output_format_check CHECK ((output_format = ANY (ARRAY['pdf'::text, 'docx'::text]))),
@@ -4652,6 +4653,7 @@ CREATE TABLE public.niete_lp612_deliveries (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     notice_seen_at timestamp with time zone,
     notice_opened_at timestamp with time zone,
+    notice_whatsapp_at timestamp with time zone,
     CONSTRAINT niete_lp612_deliveries_lang_check CHECK ((lang = ANY (ARRAY['en'::text, 'ur'::text]))),
     CONSTRAINT niete_lp612_deliveries_surface_check CHECK ((surface = ANY (ARRAY['whatsapp'::text, 'portal'::text, 'backfill'::text])))
 );
@@ -8273,6 +8275,13 @@ CREATE INDEX idx_assessment_requests_user_time ON public.assessment_requests USI
 
 
 --
+-- Name: idx_assessment_requests_notice_waiting; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_assessment_requests_notice_waiting ON public.assessment_requests USING btree (created_at) WHERE ((surface = 'portal'::text) AND (notice_seen_at IS NULL) AND (notice_opened_at IS NULL) AND (notice_whatsapp_at IS NULL));
+
+
+--
 -- Name: idx_attendance_one_mark; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9299,6 +9308,13 @@ CREATE INDEX idx_lesson_plans_user_created ON public.lesson_plans USING btree (u
 --
 
 CREATE INDEX idx_lp612_deliveries_user_recent ON public.niete_lp612_deliveries USING btree (user_id, delivered_at DESC);
+
+
+--
+-- Name: idx_lp612_deliveries_notice_waiting; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lp612_deliveries_notice_waiting ON public.niete_lp612_deliveries USING btree (delivered_at) WHERE ((surface = 'portal'::text) AND (notice_seen_at IS NULL) AND (notice_opened_at IS NULL) AND (notice_whatsapp_at IS NULL));
 
 
 --

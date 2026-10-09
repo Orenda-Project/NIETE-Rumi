@@ -1,0 +1,46 @@
+{
+  "name": "lesson_plan_ready_v1",
+  "category": "UTILITY",
+  "language": "ur",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "DOCUMENT",
+      "example": {
+        "header_handle": [
+          "<UPLOAD A SAMPLE PDF TO META (resumable upload) AND PASTE ITS HANDLE HERE BEFORE SUBMITTING>"
+        ]
+      }
+    },
+    {
+      "type": "BODY",
+      "text": "آپ کا لیسن پلان تیار ہے۔\n\n*{{1}}*\nجماعت {{2}} · {{3}}\n\nپی ڈی ایف ساتھ لگی ہے۔ NIETE ایپ میں دیکھنے کے لیے \"ایپ میں کھولیں\" دبائیں۔",
+      "example": {
+        "body_text": [
+          [
+            "Transport of Water in Plants",
+            "7",
+            "Science"
+          ]
+        ]
+      }
+    },
+    {
+      "type": "FOOTER",
+      "text": "آپ نے یہ NIETE ایپ میں مانگا تھا"
+    },
+    {
+      "type": "BUTTONS",
+      "buttons": [
+        {
+          "type": "URL",
+          "text": "ایپ میں کھولیں",
+          "url": "https://portal.niete.edu.pk/t/{{1}}",
+          "example": [
+            "https://portal.niete.edu.pk/t/Zm9v.YWJj"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -5,7 +5,8 @@
  * The link on a template's button logs one teacher into ONE area of the
  * portal, inside WhatsApp's own browser:
  *
- *   {k:'t', u, a?, exp}   24 h; u = users.id; a = the area (absent = training)
+ *   {k:'t', u, a?, i?, exp}   24 h; u = users.id; a = the area (absent = training);
+ *                             i = the ITEM, for the 'ready' area only (see below)
  *
  * AREAS are the parts of the portal a link may open. Training came first, and
  * its links carry no area, so every training link already sent keeps working;
@@ -38,7 +39,18 @@ const KIND = 't';
 const DEFAULT_AREA = 'training';
 // 'probe' is not a portal area: it opens only the phone test page (/iab/<token>,
 // dashboard/routes/iab-probe.routes.js), and /t refuses it.
-const AREAS = Object.freeze(['training', 'lessons', 'probe']);
+const AREAS = Object.freeze(['training', 'lessons', 'probe', 'ready']);
+
+/**
+ * The 'ready' area (bd-fmf24g.15): the "Open in app" button on the WhatsApp message that follows a finished
+ * paper or grades 6-12 lesson plan she did not see. Unlike the other areas it names ONE thing, so the link lands on
+ * it: `paper:<assessment request uuid>` or `lesson:<segment id>:<en|ur>`. Nothing else may ride in a token — the
+ * item is checked when it is signed and again when it is read, and a 'ready' token without a well-formed item is
+ * no token at all.
+ */
+const ITEM_AREA = 'ready';
+const ITEM_RE = /^(?:paper:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|lesson:[A-Za-z0-9._-]{1,120}:(?:en|ur))$/;
+const validItem = (i) => typeof i === 'string' && ITEM_RE.test(i);
 
 function secret() {
   const own = process.env.WEB_TRAINING_TOKEN_SECRET;
@@ -54,11 +66,19 @@ function mac(key, body) {
 
 const nowS = () => Math.floor(Date.now() / 1000);
 
-/** A link token for this teacher and area, or null (no teacher, unknown area, or no secret here). */
-function signPortalLink(userId, area = DEFAULT_AREA) {
+/**
+ * A link token for this teacher and area, or null (no teacher, unknown area, or no secret here).
+ * The 'ready' area takes `extra.i`, the item it opens, and is null without a well-formed one; any other area
+ * ignores `extra`, so every link signed before this existed is signed exactly as it was.
+ */
+function signPortalLink(userId, area = DEFAULT_AREA, extra = undefined) {
   const key = secret();
   if (!key || !userId || !AREAS.includes(area)) return null;
-  const payload = { k: KIND, u: String(userId), ...(area === DEFAULT_AREA ? {} : { a: area }), exp: nowS() + LINK_TTL_S };
+  const item = area === ITEM_AREA ? (extra && extra.i) : undefined;
+  if (area === ITEM_AREA && !validItem(item)) return null;
+  const payload = {
+    k: KIND, u: String(userId), ...(area === DEFAULT_AREA ? {} : { a: area }), ...(item ? { i: item } : {}), exp: nowS() + LINK_TTL_S,
+  };
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
   return `${body}.${mac(key, body)}`;
 }
@@ -80,6 +100,12 @@ function verifyPortalLink(token) {
     if (!payload.exp || payload.exp < nowS()) return null;
     const area = payload.a === undefined ? DEFAULT_AREA : payload.a;
     if (!AREAS.includes(area)) return null;
+    if (area === ITEM_AREA && !validItem(payload.i)) return null;
+    // Only the 'ready' area carries an item; anything a token of another area says about one is dropped.
+    if (area !== ITEM_AREA && 'i' in payload) {
+      const { i: _ignored, ...rest } = payload;
+      return { ...rest, area };
+    }
     return { ...payload, area };
   } catch {
     return null;
