@@ -26,6 +26,8 @@ export interface TrendChartProps {
   dateLabel: (iso: string) => string;
   rows?: ReadonlyArray<{ key: string; label: string }>;
   legend?: { hitl: string; dc: string };
+  /** The line and dots' colour (band-rows mode): the feature the chart measures. Default indigo. */
+  colour?: string;
   className?: string;
 }
 
@@ -33,7 +35,7 @@ const W = 326;
 const INK = '#33374a';
 const DC = '#48b078';
 
-export function TrendChart({ points, label, dateLabel, rows, legend, className }: TrendChartProps) {
+export function TrendChart({ points, label, dateLabel, rows, legend, colour = INK, className }: TrendChartProps) {
   const n = points.length;
   const banded = !!rows && rows.length > 0;
   const LEFT = banded ? 84 : 16;
@@ -66,7 +68,7 @@ export function TrendChart({ points, label, dateLabel, rows, legend, className }
           <polyline
             points={points.map((p, i) => `${x(i)},${y(p)}`).join(' ')}
             fill="none"
-            stroke={banded ? INK : '#c7cad6'}
+            stroke={banded ? colour : '#c7cad6'}
             strokeWidth={banded ? 2.5 : 2}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -75,8 +77,8 @@ export function TrendChart({ points, label, dateLabel, rows, legend, className }
         {points.map((p, i) => {
           const dc = p.kind === 'dc';
           return banded
-            ? <circle key={`${p.date}-${i}`} cx={x(i)} cy={y(p)} r={5} fill="#fff" stroke={INK} strokeWidth={2.5} />
-            : <circle key={`${p.date}-${i}`} data-kind={dc ? 'dc' : 'hitl'} cx={x(i)} cy={y(p)} r={dc ? 5 : 5.5} fill={dc ? '#fff' : INK} stroke={dc ? DC : 'none'} strokeWidth={dc ? 2.5 : 0} />;
+            ? <circle key={`${p.date}-${i}`} cx={x(i)} cy={y(p)} r={5} fill="#fff" stroke={colour} strokeWidth={2.5} />
+            : <circle key={`${p.date}-${i}`} data-kind={dc ? 'dc' : 'hitl'} cx={x(i)} cy={y(p)} r={dc ? 5 : 5.5} fill={dc ? '#fff' : colour} stroke={dc ? DC : 'none'} strokeWidth={dc ? 2.5 : 0} />;
         })}
         <g fill="#6b7280" fontSize={banded ? 10.5 : 10} fontWeight={banded ? 600 : 400} textAnchor="middle">
           {shown.map((i) => <text key={`d-${i}`} x={x(i)} y={bottom + 18}>{dateLabel(points[i].date)}</text>)}

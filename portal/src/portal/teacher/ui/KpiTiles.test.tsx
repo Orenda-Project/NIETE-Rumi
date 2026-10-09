@@ -70,3 +70,29 @@ describe("KpiTiles", () => {
     expect(screen.getByRole("group", { name: "4 دن, پہلے جیسا" })).toHaveTextContent("برابر");
   });
 });
+
+describe("KpiTiles with a feature (Analytics look, bd-fmf24g.27)", () => {
+  it("wears the feature: art on its tint, number in its colour, centred, then pill, then label", () => {
+    const { container } = render(<KpiTiles items={[{ value: 14, label: "Lesson Plans", delta: 3, feature: "lessons" }, { value: 4, label: "Assessments", feature: "assessment" }]} />);
+    const tile = screen.getByRole("group", { name: "14 Lesson Plans, up 3" });
+    expect(tile).toHaveAttribute("data-feature-tile", "lessons");
+    expect(tile.className).toMatch(/items-center/);
+    expect(tile.className).toMatch(/text-center/);
+    expect(tile.querySelector("svg[data-feature-art='lessons']")).not.toBeNull();
+    expect(screen.getByText("14")).toHaveStyle({ color: "#2f7a52" });
+    expect(screen.getByText("4")).toHaveStyle({ color: "#1d6fd8" });
+    const order = Array.from(tile.children).map((c) => c.textContent);
+    expect(order[1]).toBe("14");
+    expect(order[order.length - 1]).toBe("Lesson Plans");
+    expect(container.querySelector("[data-delta]")).not.toBeNull();
+  });
+  it("is information: no link, no button, no chevron", () => {
+    const { container } = render(<KpiTiles items={[{ value: 1, label: "Digital Coaching", feature: "coaching" }]} />);
+    expect(container.querySelector("a,button,[role=button]")).toBeNull();
+    expect(container.querySelector("svg.lucide")).toBeNull();
+  });
+  it("without a feature the tile is the plain one", () => {
+    const { container } = render(<KpiTiles items={[{ value: 1, label: "Plain" }]} />);
+    expect(container.querySelector("[data-feature-tile]")).toBeNull();
+  });
+});
