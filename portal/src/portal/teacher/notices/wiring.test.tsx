@@ -10,7 +10,7 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
  *   Try again        a paper made again is followed under its new request; Dismiss lets the old one go;
  *   Preparing        a grades 6–12 plan being written is followed from the shell, however she reached the page;
  *   both pages       "You can leave. We'll tell you here." (the paper page's "Safe to leave" chip is replaced by it;
- *                    the plan page keeps "Opens by itself", still true if she stays).
+ *                    the plan page no longer says "Opens by itself": banned, the plan still opens by itself).
  */
 const { portal } = vi.hoisted(() => ({
   portal: {
@@ -152,9 +152,9 @@ describe("the lesson plan page", () => {
     });
   });
 
-  it("'You can leave. We'll tell you here.' and still 'Opens by itself'", async () => {
+  it("'You can leave. We'll tell you here.' and no 'Opens by itself' chip", async () => {
     at(lessonsUrl("preparing", AT), lessonsUrl("preparing", AT).split("?")[0], <PreparingPage />);
     expect(await screen.findByText(L.leave)).toBeInTheDocument();
-    expect(screen.getByText("Opens by itself")).toBeInTheDocument();
+    expect(screen.queryByText("Opens by itself")).toBeNull();
   });
 });

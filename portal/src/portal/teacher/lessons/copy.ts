@@ -54,7 +54,6 @@ export const LESSONS_V2_COPY = {
   /** The waiting page's title (operator, 2026-10-08: "Please hold while we fetch your lp"). */
   pleaseHold: 'Please hold while we fetch your lesson plan',
   aboutTwoMinutes: '~2 min',
-  opensByItself: 'Opens by itself',
   notPrepared: "Couldn't make it",
   otherLessons: 'Other lesson plans',
   /* the viewer */
@@ -113,7 +112,6 @@ export const LESSONS_V2_COPY_UR: Words<typeof LESSONS_V2_COPY> = {
   preparing: 'تیار ہو رہا ہے',
   pleaseHold: 'براہ کرم انتظار کریں، ہم آپ کا لیسن پلان لا رہے ہیں',
   aboutTwoMinutes: '~2 منٹ',
-  opensByItself: 'خود کھل جائے گا',
   notPrepared: 'نہیں بن سکا',
   otherLessons: 'دوسرے لیسن پلان',
   startDc: 'ڈیجیٹل کوچنگ مشاہدہ شروع کریں',
