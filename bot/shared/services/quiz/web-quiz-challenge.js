@@ -15,7 +15,9 @@
  * of classmates. Each exercise load mints a challenge token {k:'c', sid, ex, r, exp 2 h}; r is the run id.
  *
  * A child's recording is scored and forgotten: it goes to the private child-voice/<env>/ prefix, is deleted
- * after scoring (or a failed scoring), and only numbers are stored.
+ * after scoring (or a failed scoring), and only numbers are stored. Under `web_quiz_challenge_keep_audio` (for
+ * calibrating the scorers) it is uploaded to child-voice/<env>/kept/<YYYY-MM-DD>/<run>/ instead and KEPT, private,
+ * with its key on the run row (meta.audio_key); it leaves only by the purge (scripts/quiz/purge-kept-child-voice.js).
  *
  * Results live in web_quiz_challenge_runs (one row per finished run; migration web_quiz_challenge.sql) —
  * child_test_sessions cannot hold a run with no draw and no coach. While the table is absent the run is
@@ -57,6 +59,8 @@ const LISTEN_FLAG_KEY = 'web_quiz_challenge_listen';
 const RECORD_FLAG_KEY = 'web_quiz_challenge_record';
 const GUARD_FLAG_KEY = 'web_quiz_challenge_read_guard';
 const ITEMS_FLAG_KEY = 'web_quiz_challenge_items';
+// Keep the readings (private, one prefix, dated) instead of deleting them after scoring; off ⇒ scored and deleted.
+const KEEP_FLAG_KEY = 'web_quiz_challenge_keep_audio';
 const QA_MAX = 3;
 // Never shown to a child as an option (the page's no-test-words rule, Urdu and English).
 // "I don't know" is never offered as an option (it is in some rubrics' reject lists as a non-answer).
@@ -154,6 +158,7 @@ async function settingOn(key) {
 const recordOn = () => settingOn(RECORD_FLAG_KEY);
 const readGuardOn = () => settingOn(GUARD_FLAG_KEY);
 const itemsOn = () => settingOn(ITEMS_FLAG_KEY);
+const keepAudioOn = () => settingOn(KEEP_FLAG_KEY);
 const rulesOf = async () => ({ record: await recordOn(), guard: await readGuardOn(), items: await itemsOn() });
 // The payload says only which rules are on (nothing when none is: today's payload).
 const ruleFlags = (rules) => ({ ...(rules.record ? { record: true } : {}), ...(rules.guard ? { guard: true } : {}), ...(rules.items ? { items: true } : {}) });
@@ -703,13 +708,32 @@ function runOf(ct) {
 }
 
 // A child's voice is scored and forgotten: a private prefix (never the quiz-audio keys), deleted after scoring;
-// the bucket's lifecycle rule (≤ 7 days) catches an upload whose result never came.
+// the hourly orphan sweep catches an upload whose result never came (the buckets have no expiry rule). A kept
+// reading (web_quiz_challenge_keep_audio) lives under kept/ and leaves only by the purge.
 function runPrefix(c) {
   return `child-voice/${r2Env()}/${c.r}/`;
 }
 function uploadPrefix(c) {
   return `${runPrefix(c)}read-`;
 }
+// The kept readings: ONE prefix per env, the upload's UTC day in the key (the retention start), then the run.
+function keptRoot() {
+  return `child-voice/${r2Env()}/kept/`;
+}
+const DAY_RX = /^\d{4}-\d{2}-\d{2}$/;
+function keptRunPrefix(c, day) {
+  return `${keptRoot()}${day}/${c.r}/`;
+}
+const isKeptKey = (key) => typeof key === 'string' && key.startsWith(keptRoot()) && DAY_RX.test(key.slice(keptRoot().length).split('/')[0]);
+// This run's own prefix that `key` sits under (the plain one, or its kept one of any day), else null.
+function ownPrefix(c, key) {
+  if (typeof key !== 'string') return null;
+  if (key.startsWith(runPrefix(c))) return runPrefix(c);
+  if (!isKeptKey(key)) return null;
+  const day = key.slice(keptRoot().length).split('/')[0];
+  return key.startsWith(keptRunPrefix(c, day)) ? keptRunPrefix(c, day) : null;
+}
+const RUN_PREFIX_RX = /^child-voice\/[^/]+\/(?:[^/]+|kept\/\d{4}-\d{2}-\d{2}\/[^/]+)\/$/;
 
 // The child's voice bucket: CHILD_VOICE_BUCKET, else the quiz-audio bucket (WEB_QUIZ_AUDIO_BUCKET, else the
 // default). Never the bare default alone: on staging R2_BUCKET_NAME is production's bucket.
@@ -729,9 +753,11 @@ async function forget(key) {
  * Forget a run's whole private prefix: the key we know, then every key listed under the prefix (a reused upload
  * URL can have put more than one), and once more just after the upload URL has expired — so a PUT made after
  * scoring cannot leave an orphan (there is no lifecycle rule to catch one). Never throws.
+ * THE KEEP INVARIANT: nothing under child-voice/<env>/kept/ is ever deleted here (or by the sweep) — only the purge
+ * script removes a kept reading. The key's prefix decides, never the switch's value at this moment.
  */
 async function forgetRun(prefix, key, { again = true } = {}) {
-  if (!/^child-voice\/[^/]+\/[^/]+\/$/.test(String(prefix || ''))) return;
+  if (!RUN_PREFIX_RX.test(String(prefix || '')) || prefix.startsWith(keptRoot())) return;
   if (key) await forget(key);
   try {
     const keys = await r2.listKeys(prefix, { bucket: childVoiceBucket() });
@@ -752,6 +778,17 @@ async function forgetRun(prefix, key, { again = true } = {}) {
  */
 const VOICE_KEY_RX = /\/read-(\d{13})\.(webm|ogg|m4a)$/;
 const SWEEP_MAX_PER_TICK = 500;
+/**
+ * The purge's row write: a run whose kept reading was deleted no longer points at it (meta.audio_key null, the day it
+ * was purged). Only when the row still names this exact key. Returns true when the row was cleared.
+ */
+async function forgetAudioKey(runId, key, { now = Date.now() } = {}) {
+  const row = await updateRunMeta(runId, (cur) => (cur.meta && cur.meta.audio_key === key
+    ? { meta: { ...cur.meta, audio_key: null, audio_purged_on: new Date(now).toISOString().slice(0, 10) } }
+    : { meta: cur.meta }));
+  return !!(row && row.meta && row.meta.audio_key === null);
+}
+
 async function sweepOrphans({ now = Date.now(), olderThanMs = 10 * 60 * 1000, max = SWEEP_MAX_PER_TICK } = {}) {
   const out = { listed: 0, deleted: 0, failed: 0 };
   const prefix = `child-voice/${r2Env()}/`;
@@ -764,7 +801,8 @@ async function sweepOrphans({ now = Date.now(), olderThanMs = 10 * 60 * 1000, ma
   for (const k of keys) {
     if (out.deleted + out.failed >= max) break;   // the rest next tick: a tick is bounded
     const m = VOICE_KEY_RX.exec(String(k || ''));
-    if (!m || !k.startsWith(prefix) || now - Number(m[1]) <= olderThanMs) continue;
+    // a kept reading is not an orphan: it leaves only by the purge
+    if (!m || !k.startsWith(prefix) || k.startsWith(keptRoot()) || now - Number(m[1]) <= olderThanMs) continue;
     try {
       if (await r2.deleteKey(k, { bucket: childVoiceBucket() })) out.deleted += 1; else out.failed += 1;
     } catch (_) { out.failed += 1; }
@@ -785,7 +823,10 @@ async function presignUpload({ ct, type, size } = {}) {
   const mem = RUNS.get(c.r);
   if (!(await uploadable(c, mem))) fail(409, 'already_done');
   if (!(await Budget.readOpen())) fail(429, 'enough_for_today');
-  const key = `${uploadPrefix(c)}${Date.now()}.${ext}`;
+  const ts = Date.now();
+  const key = (await keepAudioOn())
+    ? `${keptRunPrefix(c, new Date(ts).toISOString().slice(0, 10))}read-${ts}.${ext}`
+    : `${uploadPrefix(c)}${ts}.${ext}`;
   const putUrl = await r2.getPresignedUploadUrl(key, base, PUT_TTL_S, { bucket: childVoiceBucket(), signContentType: true });
   return { put_url: putUrl, key, content_type: base, max_bytes: MAX_BYTES, expires_in: PUT_TTL_S };
 }
@@ -892,7 +933,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
   let CT;
   try { CT = childTest({ scorer: c.ex === 'read' }); } catch (e) {
     // Not scorable here: an uploaded recording is still forgotten (only this run's own prefix).
-    if (c.ex === 'read' && typeof body.key === 'string') await forgetRun(runPrefix(c), body.key.startsWith(runPrefix(c)) ? body.key : null);
+    if (c.ex === 'read' && typeof body.key === 'string') await forgetRun(ownPrefix(c, body.key) || runPrefix(c), ownPrefix(c, body.key) ? body.key : null);
     throw e;
   }
   const { Bank } = CT;
@@ -928,8 +969,10 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
   const key = typeof body.key === 'string' ? body.key : '';
   if (!key) fail(400, 'no_audio');
   // A refused upload is deleted too: a presigned PUT cannot cap what was put there. Only this run's own prefix.
-  const refuse = async (status, error) => { await forgetRun(runPrefix(c), key.startsWith(runPrefix(c)) ? key : null); fail(status, error); };
-  if (!key.startsWith(uploadPrefix(c)) || !/^\d{13}\.(webm|ogg|m4a)$/.test(key.slice(uploadPrefix(c).length))) await refuse(403, 'not_your_upload');
+  // the run's plain prefix, or its kept one (the switch may have flipped between the upload and this call)
+  const own = ownPrefix(c, key);
+  const refuse = async (status, error) => { await forgetRun(own || runPrefix(c), own ? key : null); fail(status, error); };
+  if (!own || !/^read-\d{13}\.(webm|ogg|m4a)$/.test(key.slice(own.length))) await refuse(403, 'not_your_upload');
   let head;
   try { head = await r2.headObject(key, { bucket: childVoiceBucket() }); } catch (_) { fail(502, 'storage_unavailable'); }
   if (!head || !head.exists) fail(404, 'no_upload');
@@ -947,7 +990,11 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
   const prov = rules.record ? await provenance(c.sid, 'read', run.lang, run, { except: c.r }) : {};
   const word = (v) => (typeof v === 'string' && /^[a-z_]{1,16}$/.test(v) ? v : null);
   const guardIn = rules.record ? { ended: word(body.ended), mic_check: word(body.mic_check), read_s: Number.isFinite(Number(body.read_s)) ? Math.max(0, Math.round(Number(body.read_s))) : null } : {};
-  const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}), ...prov, ...guardIn };
+  // a kept reading: where it is (the key only — the bucket is the deployment's, nothing about the child)
+  // The key decides, never the switch at this moment: a kept key stays whatever the switch now says; a plain key with
+  // the switch now on is still deleted, and the row says so (calibration then knows why there is no audio).
+  const audio = isKeptKey(key) ? { audio_key: key } : ((await keepAudioOn()) ? { audio_kept: false } : {});
+  const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}), ...prov, ...guardIn, ...audio };
   if (isLive) {
     // the child may already be answering the questions (the live result shows before this call): keep their answers
     await updateRunMeta(c.r, (cur) => ({ status: 'scoring', meta: { ...metaIn, ...(cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {}) } }));
@@ -970,8 +1017,8 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
     await updateRunMeta(c.r, (cur) => {
       const comp = cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {};
       return r.failed
-        ? { status: 'failed', meta: { ...r.meta, ...stamp, ...comp, reason: r.reason }, scored_at: nowIso() }
-        : { status: 'scored', score: r.score, wcpm: r.wcpm, meta: { ...r.meta, ...stamp, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() };
+        ? { status: 'failed', meta: { ...r.meta, ...stamp, ...audio, ...comp, reason: r.reason }, scored_at: nowIso() }
+        : { status: 'scored', score: r.score, wcpm: r.wcpm, meta: { ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() };
     }, { force: true });
     if (r.failed) logError('web_quiz.ch_read_failed', { runId: c.r, reason: r.reason, run: c.r });
     else logEvent('web_quiz.ch_done', { step: 'read', count: r.score.correct, wcpm: r.wcpm, stopped: r.score.stopped, costUsd: r.meta.cost_usd, run: c.r, ...(rules.record ? { ended: r.ended || null } : {}) });
@@ -1208,7 +1255,7 @@ async function listResults({ cls, list } = {}) {
 module.exports = {
   menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, tapOptions, listenOn,
   scoreBigger, wcpm, formFor, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
-  recordOn, readGuardOn, itemsOn, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
+  recordOn, readGuardOn, itemsOn, keepAudioOn, keptRoot, isKeptKey, forgetAudioKey, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
   EXERCISES, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TABLE, MAX_BYTES,
   __reset,
 };
