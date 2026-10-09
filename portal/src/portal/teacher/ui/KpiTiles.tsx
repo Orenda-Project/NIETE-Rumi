@@ -2,6 +2,8 @@ import { cn } from '@/lib/utils';
 import type { TeacherUiCopy } from './copy';
 import { useKitCopy } from './useKitCopy';
 import { GRID } from './styles';
+import { FeatureArt } from '../icons/FeatureArt';
+import { FEATURE_HUE, type AnyFeature } from '../icons/features';
 
 /**
  * bd-fmf24g.2.3 — KpiTiles (COMPONENTS.md §10): compiled numbers for a range, at the top of an All page. 1–4 white
@@ -15,6 +17,10 @@ import { GRID } from './styles';
  *
  * Numbers come only from the page's real data; a missing one shows "—". Each tile is a labelled group
  * ("5 Lesson plans, up 3").
+ *
+ * bd-fmf24g.27 — `feature` on an item gives that tile the Home-tile look, CENTRED (Analytics, operator 2026-10-10): the
+ * feature's art on its light tint, the number (44px) in the feature's colour, the change pill, then the label. It is
+ * information, so it carries no chevron and no pressed look. Without `feature` the tile is the plain white one.
  */
 
 export interface KpiItem {
@@ -24,6 +30,8 @@ export interface KpiItem {
   delta?: number | string | null;
   trend?: readonly number[] | null;
   better?: 'up' | 'down';
+  /** The feature this number measures: its art and colour on the tile. */
+  feature?: AnyFeature;
 }
 
 export interface KpiTilesProps {
@@ -65,29 +73,51 @@ export function KpiTiles({ items, columns, compareLabel, copy, className }: KpiT
   return (
     <div className={cn('flex w-full flex-col gap-2 text-[#1d2025]', className)}>
       <div data-kpi-grid className={cn(GRID, 'gap-2.5')} style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-        {tiles.map((t, i) => (
-          <div
-            key={`${t.it.label}-${i}`}
-            role="group"
-            aria-label={`${t.value} ${t.it.label}${t.change}`}
-            className="flex min-h-[104px] min-w-0 flex-col gap-1 rounded-2xl border border-[#e5e7eb] bg-white px-3.5 pb-3 pt-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.05)]"
-          >
-            <span className={cn('truncate font-bold leading-[1.1] tabular-nums', cols >= 3 ? 'text-[26px]' : 'text-[32px]')}>{t.value}</span>
-            <span className="text-[14px] font-semibold leading-[1.25] text-[#4b5563]">{t.it.label}</span>
-            {t.hasDelta ? (
-              <span data-delta dir="ltr" className={cn('mt-1 inline-flex h-6 items-center gap-1 self-start rounded-full px-2 text-[13px] font-bold tabular-nums', t.tone)}>
-                <span aria-hidden="true" className="text-[10px]">{t.dir > 0 ? '▲' : t.dir < 0 ? '▼' : '●'}</span>
-                {t.dir === 0 ? words.same : t.mag}
-              </span>
-            ) : null}
-            {t.points ? (
-              <svg width="100%" height="28" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true" className="mt-auto block overflow-visible pt-1.5">
-                <polygon points={`${t.points} 100,28 0,28`} fill="rgba(51,55,74,0.08)" />
-                <polyline points={t.points} fill="none" stroke="#33374a" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-              </svg>
-            ) : null}
-          </div>
-        ))}
+        {tiles.map((t, i) => {
+          const hue = t.it.feature ? FEATURE_HUE[t.it.feature] : null;
+          const pill = t.hasDelta ? (
+            <span data-delta dir="ltr" className={cn('inline-flex h-6 items-center gap-1 rounded-full px-2 text-[13px] font-bold tabular-nums', hue ? 'self-center' : 'mt-1 self-start', t.tone)}>
+              <span aria-hidden="true" className="text-[10px]">{t.dir > 0 ? '▲' : t.dir < 0 ? '▼' : '●'}</span>
+              {t.dir === 0 ? words.same : t.mag}
+            </span>
+          ) : null;
+          if (hue && t.it.feature) {
+            return (
+              <div
+                key={`${t.it.label}-${i}`}
+                role="group"
+                aria-label={`${t.value} ${t.it.label}${t.change}`}
+                data-feature-tile={t.it.feature}
+                className="flex min-h-[176px] min-w-0 flex-col items-center gap-2 rounded-[20px] border border-[#e5e7eb] bg-white px-3 py-4 text-center shadow-[0_1px_2px_rgba(16,24,40,0.05)]"
+              >
+                <span className="flex h-16 w-16 items-center justify-center rounded-[18px]" style={{ background: hue.bg }}>
+                  <FeatureArt feature={t.it.feature} size={48} motion={false} />
+                </span>
+                <span dir="ltr" className="text-[44px] font-bold leading-[1.05] tabular-nums" style={{ color: hue.fg }}>{t.value}</span>
+                {pill}
+                <span className="text-[14px] font-semibold leading-[1.35] text-[#4b5563]">{t.it.label}</span>
+              </div>
+            );
+          }
+          return (
+            <div
+              key={`${t.it.label}-${i}`}
+              role="group"
+              aria-label={`${t.value} ${t.it.label}${t.change}`}
+              className="flex min-h-[104px] min-w-0 flex-col gap-1 rounded-2xl border border-[#e5e7eb] bg-white px-3.5 pb-3 pt-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.05)]"
+            >
+              <span className={cn('truncate font-bold leading-[1.1] tabular-nums', cols >= 3 ? 'text-[26px]' : 'text-[32px]')}>{t.value}</span>
+              <span className="text-[14px] font-semibold leading-[1.25] text-[#4b5563]">{t.it.label}</span>
+              {pill}
+              {t.points ? (
+                <svg width="100%" height="28" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true" className="mt-auto block overflow-visible pt-1.5">
+                  <polygon points={`${t.points} 100,28 0,28`} fill="rgba(51,55,74,0.08)" />
+                  <polyline points={t.points} fill="none" stroke="#33374a" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                </svg>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
       {compareLabel && tiles.some((t) => t.hasDelta) ? (
         <p className="m-0 mx-1 text-[13px] font-semibold text-[#4b5563]">

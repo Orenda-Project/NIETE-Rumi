@@ -31,6 +31,7 @@ export {
 } from './ClassPicker';
 export { formatSpan, resolveRange, type ResolvedRange } from './range';
 export { DateRangeBar, type DateRangeBarProps, type DateRangeInfo } from './DateRangeBar';
+export { FeatureCard, MeterRow, type FeatureCardProps, type MeterRowProps } from './FeatureCard';
 export { KpiTiles, type KpiItem, type KpiTilesProps } from './KpiTiles';
 export { ProgressSteps, type ProgressStep, type ProgressStepsProps } from './ProgressSteps';
 export { VoiceNote, type VoiceNoteProps } from './VoiceNote';
