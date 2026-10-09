@@ -106,7 +106,6 @@ export const ASSESSMENT_V2_COPY = {
   /* writing / failed / ready */
   writingTitle: 'Writing your paper',
   aboutAMinute: '~1 min',
-  safeToLeave: 'Safe to leave',
   slow: 'Taking longer',
   notMadeTitle: 'Paper not made',
   tryAgain: 'Try again',
@@ -294,7 +293,6 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   couldNotStart: 'شروع نہیں ہو سکا',
   writingTitle: 'پرچہ بن رہا ہے',
   aboutAMinute: '~1 منٹ',
-  safeToLeave: 'صفحہ چھوڑ سکتے ہیں',
   slow: 'دیر ہو رہی ہے',
   notMadeTitle: 'پرچہ نہیں بن سکا',
   tryAgain: 'دوبارہ کوشش کریں',

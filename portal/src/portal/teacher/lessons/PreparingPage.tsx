@@ -5,7 +5,9 @@ import { useLessonPlanOpener } from '../../lib/lessonPlanOpen';
 import { lessonPlans } from '../../newui/lessons/lessonPlansApi';
 import { clock, dataOf, useLoad } from '../../newui/lessons/shared';
 import { teacherPath } from '../routes';
-import { StatusChip } from '../ui';
+import { LeaveNote, StatusChip } from '../ui';
+import { NOTICES } from '../notices/copy';
+import { noticeTracker } from '../notices/tracker';
 import { FOCUS, OUTLINE_WIDE } from '../ui/styles';
 import { LESSONS } from './copy';
 import { useCopy } from '../i18n';
@@ -53,6 +55,7 @@ function Ring({ value, text }: { value: number; text: string }) {
 
 function Preparing({ at }: { at: AtRender }) {
   const C = useCopy(LESSONS);
+  const N = useCopy(NOTICES);
   const navigate = useNavigate();
   const openPlan = useLessonPlanOpener();
   const chapter = at.chapter;
@@ -69,6 +72,19 @@ function Preparing({ at }: { at: AtRender }) {
   const [now, setNow] = useState(startedAt);
   const lessonRef = useRef(lesson);
   lessonRef.current = lesson;
+
+  // bd-fmf24g.15 — the shell follows this plan from here on, so leaving the page does not lose it: the strip shows
+  // it on every screen and the banner tells her when it is written. However she reached this page (a lesson's
+  // tap, Recent, a reload) it ends up here, so this is the one place a plan is handed over.
+  const { pathname, search } = useLocation();
+  useEffect(() => {
+    noticeTracker.track({
+      kind: 'lesson', ref: at.render, title, grade: at.grade, subject: at.subject, questions: null,
+      waitHref: `${pathname}${search}`, lessonId: at.lesson, lang: 'en', at,
+    });
+    // `at` is read afresh from the address on every render; what it says is these.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [at.render, at.grade, at.subject, at.lesson, title, pathname, search]);
 
   useEffect(() => {
     if (failed) return undefined;
@@ -130,6 +146,8 @@ function Preparing({ at }: { at: AtRender }) {
               <StatusChip text={C.aboutTwoMinutes} tone="waiting" />
               <StatusChip text={C.opensByItself} tone="info" />
             </div>
+            {/* bd-fmf24g.15 — "You can leave. We'll tell you here." */}
+            <LeaveNote text={N.leave} />
           </>
         )}
       </section>
