@@ -64,7 +64,11 @@ export interface ReadyTrayProps {
 }
 
 /** The strip's own height: 1px edge + 8px padding each side + the card's 2px edge + 64px a row + 56px for the "more" row. */
-export const trayHeight = (rows: number, hasMore: boolean): number => (rows > 0 ? 19 + 64 * rows + (hasMore ? 56 : 0) : 0);
+export const trayHeight = (rows: number, hasMore: boolean, rowPx = 64): number => (rows > 0 ? 19 + rowPx * rows + (hasMore ? 56 : 0) : 0);
+
+/** A strip row's height: 64px; Urdu's two lines need 2.0 leading (index.css, bd-fmf24g.24), so its row is 76px (ROW_PX_UR). */
+export const ROW_PX = 64;
+export const ROW_PX_UR = 76;
 
 const RING = 48;
 const R = 21;
@@ -99,7 +103,7 @@ function Row({ row, first, withTitle, words, onFollow }: { row: TrayRow; first: 
       to={row.to}
       onClick={() => onFollow?.(row.id)}
       aria-label={name}
-      className={cn('flex min-h-[64px] w-full items-center gap-3 px-2.5 py-2', !first && ROW_DIVIDER, withTitle && 'min-h-[76px]', FOCUS)}
+      className={cn('flex min-h-[64px] w-full items-center gap-3 px-2.5 py-2 rtl:min-h-[76px]', !first && ROW_DIVIDER, withTitle && 'min-h-[76px]', FOCUS)}
     >
       <Ring row={row} />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
