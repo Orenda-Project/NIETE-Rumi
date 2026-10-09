@@ -94,7 +94,8 @@ describe('the polished Urdu look is one scoped block of the stylesheet', () => {
   test('under the class: one weight, no synthetic bold, no word-spacing hack, the Nastaliq line heights', () => {
     const body = rule('html.wq-ur2[lang=ur] body');
     expect(body).toMatch(/font-synthesis-weight:none/);
-    expect(body).toMatch(/word-spacing:normal/);
+    // Noto's own space is 0.132 em (2 px at 16 px): a Latin run sat glued to the Urdu word before it («استادRukhsana») — a small, even word space
+    expect(body).toMatch(/word-spacing:\.12em/);
     expect(rule('html.wq-ur2[lang=ur] .wq-qtext')).toMatch(/line-height:var\(--ulh\)/);
     expect(rule('html.wq-ur2[lang=ur]')).toMatch(/--ulh:2\.2;--ulh1:2/);
     expect(rule('html.wq-ur2[lang=ur] .wq-kid-big bdi')).toMatch(/white-space:normal/);
