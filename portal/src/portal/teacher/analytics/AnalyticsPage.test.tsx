@@ -19,7 +19,7 @@ vi.mock("../../services/api", () => ({
 import "../routes";
 import api, { portal } from "../../services/api";
 import analyticsRoutes from "./routes";
-import { ANALYTICS_HOME } from "./paths";
+import { ANALYTICS_HOME, ANALYTICS_TEACHER } from "./paths";
 import { ANALYTICS_V2_COPY as C } from "./copy";
 import { LESSONS_ALL } from "../lessons/paths";
 import { COACHING_ALL } from "../coaching/paths";
@@ -72,7 +72,7 @@ beforeEach(() => {
 
 describe("Analytics", () => {
   it("registers at /portal/teacher/analytics; Back goes to More", async () => {
-    expect(analyticsRoutes.map((r) => r.path)).toEqual([ANALYTICS_HOME]);
+    expect(analyticsRoutes.map((r) => r.path)).toEqual([ANALYTICS_HOME, ANALYTICS_TEACHER]);
     open();
     expect(await screen.findByRole("heading", { name: C.title })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Back" }).getAttribute("href")).toBe(teacherPath("more"));
