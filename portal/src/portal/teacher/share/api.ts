@@ -29,8 +29,9 @@ let pending: Promise<Availability | null> | null = null;
 /** Which kinds this deployment can send. Read once per page load; null when it cannot be read. */
 function readAvailability(): Promise<Availability | null> {
   if (!pending) {
-    pending = api.get('/share/availability')
-      .then(({ data }) => (data?.kinds ? (data.kinds as Availability) : null))
+    // Promise.resolve().then: a read that throws (or a test double that returns nothing) is just "cannot read".
+    pending = Promise.resolve().then(() => api.get('/share/availability'))
+      .then((res) => (res?.data?.kinds ? (res.data.kinds as Availability) : null))
       .catch(() => { pending = null; return null; });
   }
   return pending;
