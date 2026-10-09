@@ -92,6 +92,7 @@ try {
 
 const ARABIC = '[\\u0600-\\u06FF\\u0750-\\u077F\\uFB50-\\uFDFF\\uFE70-\\uFEFF]';
 const failures = [];
+const overflows = [];
 const notes = [];
 const enHashes = {};
 
@@ -144,6 +145,55 @@ function collect(arabicSrc) {
   return out;
 }
 
+
+/**
+ * bd-fmf24g.25 — the OTHER half of fit: a box with a FIXED height (Tailwind h-[52px], h-9, size-8, an inline height)
+ * whose Urdu content spills out of it. Nothing clips, so the clip check above never sees it: the "پلان #" prefix over
+ * the number in ListRow's 52px lead hung out of the box. In the page: every such element holding Urdu text whose
+ * descendant boxes (or its own text) cross its border box by more than a pixel.
+ */
+function collectOverflow(arabicSrc) {
+  const hasArabic = new RegExp(arabicSrc);
+  const fixed = /(^|\s)(h|size)-(\[|\d|px)/;
+  const out = [];
+  for (const el of document.querySelectorAll('#root *')) {
+    if (el.closest('svg')) continue;
+    const cls = el.getAttribute('class') || '';
+    if (!hasArabic.test(el.textContent || '')) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width <= 1 || r.height <= 1) continue;
+    // Fixed = a height class / inline height, OR measurably so: with `height:auto` the box would be taller.
+    let isFixed = fixed.test(cls) || /(^|;)\s*height:\s*\d/.test(el.getAttribute('style') || '');
+    if (!isFixed) {
+      const keep = [el.style.getPropertyValue('height'), el.style.getPropertyPriority('height'), el.style.getPropertyValue('min-height'), el.style.getPropertyPriority('min-height')];
+      el.style.setProperty('height', 'auto', 'important');
+      el.style.setProperty('min-height', '0', 'important');
+      isFixed = el.getBoundingClientRect().height > r.height + 1;
+      el.style.removeProperty('height'); el.style.removeProperty('min-height');
+      if (keep[0]) el.style.setProperty('height', keep[0], keep[1]);
+      if (keep[2]) el.style.setProperty('min-height', keep[2], keep[3]);
+    }
+    if (!isFixed) continue;
+    let worst = 0;
+    let what = '';
+    for (const d of el.querySelectorAll('*')) {
+      if (d.closest('svg') && d.tagName.toLowerCase() !== 'svg') continue;
+      const cs = getComputedStyle(d);
+      if (cs.position === 'absolute' || cs.position === 'fixed' || cs.display === 'none') continue;
+      if (!d.textContent?.trim() && d.tagName.toLowerCase() !== 'svg') continue;
+      const q = d.getBoundingClientRect();
+      if (q.width <= 0 || q.height <= 0) continue;
+      const over = Math.max(r.top - q.top, q.bottom - r.bottom);
+      if (over > worst) { worst = over; what = `${d.tagName.toLowerCase()} "${(d.textContent || '').trim().slice(0, 14)}"`; }
+    }
+    if (worst > 1) {
+      const host = el.closest('[data-case]');
+      out.push({ case: host ? host.getAttribute('data-case') : '(page)', tag: el.tagName.toLowerCase(), cls: cls.split(/\s+/).filter((c) => /^(h|size|min-h)-|leading/.test(c)).join(' '), boxH: Math.round(r.height * 10) / 10, overPx: Math.round(worst * 10) / 10, what });
+    }
+  }
+  return out;
+}
+
 /** Device pixels that differ clearly between two same-size PNGs (decoded in the page, so no image dependency). */
 const NOISE_FLOOR = 8; // a lone diacritic dot grazing the edge (3 device px) is not a cut word; a clipped line is thousands
 async function differing(page, a, b) {
@@ -189,6 +239,12 @@ try {
         return [e.tagName, Math.round(r.x * 10) / 10, Math.round(r.y * 10) / 10, Math.round(r.width * 10) / 10, Math.round(r.height * 10) / 10].join(',');
       }));
       enHashes[which] = { pixels: createHash('sha1').update(shot).digest('hex'), geometry: createHash('sha1').update(geometry.join('|')).digest('hex'), elements: geometry.length };
+    }
+
+    if (LANG === 'ur') {
+      const spill = await page.evaluate(collectOverflow, ARABIC);
+      for (const o of spill) overflows.push({ which, ...o });
+      console.log(`[${LANG}/${which}] ${spill.length} fixed-height box(es) overflow`);
     }
 
     // From here only TEXT may draw: a card's shadow, a negative-margin button or an icon that pokes out of a box is
@@ -257,9 +313,14 @@ if (LANG === 'en') {
 }
 
 for (const n of notes) console.log(`note: ${n}`);
+console.log(`OVERFLOW COUNT: ${overflows.length}`);
+for (const o of overflows) console.log(` - [${o.which}] ${o.case} <${o.tag} ${o.cls}> box ${o.boxH}px, ${o.what} sticks out ${o.overPx}px`);
+console.log(`CLIP COUNT: ${failures.length}`);
+if (overflows.length) process.exitCode = 1;
 if (failures.length) {
   console.log(`\nFAIL: ${failures.length} Urdu box(es) cut their text`);
   for (const f of failures) console.log(` - [${f.which}] ${f.case} <${f.tag} ${f.cls}> "${f.text}" (${f.fontPx}px, line-height ${f.line}): ${f.problems.join('; ')}`);
   process.exit(1);
 }
-console.log('\nPASS: no Urdu box cuts its text');
+if (overflows.length) { console.log(`\nFAIL: ${overflows.length} fixed-height box(es) overflow`); process.exit(1); }
+console.log('\nPASS: no Urdu box cuts its text or spills out of its box');

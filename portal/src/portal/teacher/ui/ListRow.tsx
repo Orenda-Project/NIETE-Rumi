@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { Check, ChevronRight, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useLang } from '../i18n';
 import { useBidi } from './bidi';
 import type { TeacherUiCopy } from './copy';
 import { useKitCopy } from './useKitCopy';
@@ -66,11 +67,16 @@ const ICON: Record<ListRowIcon, ReactElement> = {
   ),
 };
 
+/** Urdu lines of the stacked lead: inline, because the global `html[lang=ur] body *` line-height 2 outranks a utility. */
+const URDU_PREFIX_LINE = { lineHeight: 1.5 } as const;
+const URDU_NUMBER_LINE = { lineHeight: 1.4 } as const;
+
 export function ListRow({
   prefix = '', number = '', icon, label, subtitle, chip, state = 'default', variant = 'card', first = true, to, onPress,
   copy, className,
 }: ListRowProps) {
   const bidi = useBidi();
+  const ur = useLang() === 'ur';
   const words = { ...useKitCopy(), ...copy };
   const locked = state === 'locked';
   const selected = state === 'selected';
@@ -91,7 +97,10 @@ export function ListRow({
     <span
       data-testid="listrow-lead"
       className={cn(
-        'flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl leading-none text-[#33374a]',
+        'flex shrink-0 items-center justify-center rounded-xl text-[#33374a]',
+        // Urdu: the global line-height 2 would make the stacked prefix + number ~66px, so the lines below set their own
+        // (tight, ink still free: the box does not clip) and the box may grow instead of holding a fixed 52px.
+        ur ? 'min-h-[56px] w-[56px]' : 'h-[52px] w-[52px] leading-none',
         selected ? 'bg-[#e8e9f0]' : 'bg-[#f3f4f6]',
         icon ? 'flex-row' : 'flex-col',
       )}
@@ -102,11 +111,11 @@ export function ListRow({
         </svg>
       ) : prefix ? (
         <>
-          <span className="whitespace-nowrap text-[10px] font-extrabold uppercase tracking-[.04em] text-[#6b7280]">{prefix}</span>
-          <span className="mt-[3px] whitespace-nowrap text-[20px] font-extrabold tabular-nums">{num}</span>
+          <span style={ur ? URDU_PREFIX_LINE : undefined} className="whitespace-nowrap text-[10px] font-extrabold uppercase tracking-[.04em] text-[#6b7280]">{prefix}</span>
+          <span style={ur ? URDU_NUMBER_LINE : undefined} className="mt-[3px] whitespace-nowrap text-[20px] font-extrabold tabular-nums">{num}</span>
         </>
       ) : (
-        <span className="text-[20px] font-extrabold tabular-nums">{num}</span>
+        <span style={ur ? URDU_NUMBER_LINE : undefined} className="text-[20px] font-extrabold tabular-nums">{num}</span>
       )}
     </span>
   );
