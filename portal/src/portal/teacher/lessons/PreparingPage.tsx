@@ -141,7 +141,7 @@ function Preparing({ at }: { at: AtRender }) {
         ) : (
           <>
             {left > 0 ? <Ring value={elapsed / EXPECTED_MS} text={clock(left)} /> : null}
-            <p className="text-[22px] font-light text-[#1d2025]">{C.preparing}</p>
+            <p className="text-[22px] font-light text-[#1d2025]">{C.pleaseHold}</p>
             <div className="flex flex-wrap justify-center gap-1.5">
               <StatusChip text={C.aboutTwoMinutes} tone="waiting" />
               <StatusChip text={C.opensByItself} tone="info" />

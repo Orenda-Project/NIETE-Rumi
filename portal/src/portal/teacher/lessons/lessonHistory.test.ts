@@ -78,14 +78,13 @@ describe("loadLessonHistory", () => {
   });
 });
 
-describe("kpiItems — the four tiles", () => {
+describe("kpiItems — the three tiles", () => {
   it("value, change against the period before, the trend under Lesson plans; labels from copy", () => {
     const tiles = kpiItems(ANSWER);
     const C = LESSONS_V2_COPY.all.kpis;
     expect(tiles).toEqual([
       { value: 4, label: C.lessonPlans, delta: 3, trend: [1, 1, 0, 0, 0, 1, 0, 2] },
       { value: 3, label: C.classesCovered, delta: 2 },
-      { value: 3, label: C.sentOnWhatsapp, delta: 0 },
       { value: 4, label: C.daysActive },
     ]);
   });

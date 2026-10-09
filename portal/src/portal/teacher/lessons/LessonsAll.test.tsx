@@ -91,11 +91,11 @@ describe("the range", () => {
 });
 
 describe("the numbers", () => {
-  it("four tiles from the server's counts, each against the period before", async () => {
+  it("three tiles from the server's counts, each against the period before (Sent on WhatsApp is a row marker, not a number)", async () => {
     renderAll();
     expect(await screen.findByRole("group", { name: `4 ${C.all.kpis.lessonPlans}, up 3` })).toBeTruthy();
     expect(screen.getByRole("group", { name: `3 ${C.all.kpis.classesCovered}, up 2` })).toBeTruthy();
-    expect(screen.getByRole("group", { name: new RegExp(`^3 ${C.all.kpis.sentOnWhatsapp}`) })).toBeTruthy();
+    expect(screen.queryByRole("group", { name: /WhatsApp/ })).toBeNull();
     expect(screen.getByRole("group", { name: `4 ${C.all.kpis.daysActive}, up 2` })).toBeTruthy();
   });
 });

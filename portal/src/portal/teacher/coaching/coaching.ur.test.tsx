@@ -221,7 +221,7 @@ describe("Digital Coaching in Urdu — the lesson's report page", () => {
       reflection: { questionNumber: 1, question: "Which children answered?" } });
     openReport();
     const steps = await screen.findByRole("region", { name: U.progress });
-    for (const w of [U.stepReceived, U.stepListening, U.stepChecking, U.stepReport, U.yourTurn, U.subReflection]) {
+    for (const w of [U.analysing, U.stepReport, U.yourTurn, U.subReflection]) {
       expect(within(steps).getAllByText(w).length).toBeGreaterThan(0);
     }
     expect(screen.getAllByText(U.stepReflection).length).toBeGreaterThan(0);
@@ -289,10 +289,10 @@ describe("Digital Coaching in Urdu — the helpers take the words given", () => 
     expect(d.journey?.first).toBe(dayName("2026-09-10", pkToday(), DAYS));
   });
 
-  it("dcSteps: the five steps and their Now / Your turn in Urdu", () => {
+  it("dcSteps: the three steps (one Analysing) and their Now / Your turn in Urdu", () => {
     const steps = dcSteps("reflection", false, UR);
-    expect(steps.map((s) => s.label)).toEqual([U.stepReceived, U.stepListening, U.stepChecking, U.stepReflection, U.stepReport]);
-    expect(steps[3]).toMatchObject({ sub: U.subReflection, nowText: U.yourTurn, state: "current" });
+    expect(steps.map((s) => s.label)).toEqual([U.analysing, U.stepReflection, U.stepReport]);
+    expect(steps[1]).toMatchObject({ sub: U.subReflection, nowText: U.yourTurn, state: "current" });
   });
 
   it("lessonChip and dcKpiItems: the band and the tiles in Urdu", () => {

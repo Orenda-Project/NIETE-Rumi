@@ -9,7 +9,7 @@ import { currentMenuItem, type NavFeature } from "./menu";
 
 /**
  * bd-fmf24g.1 — the teacher v2 menu (canvas v28): a white bottom bar on a phone with
- * Home, Lessons, Digital Coaching, Training, More — single-line 11.5px labels, 64px
+ * Home, Lesson Plans, Digital Coaching, Training, More — single-line 11.5px labels, 64px
  * minimum width, 58px tall targets, the current item green. On a desktop the same
  * five items sit in a white bar at the top.
  *

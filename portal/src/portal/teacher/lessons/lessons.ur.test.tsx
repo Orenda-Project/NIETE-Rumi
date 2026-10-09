@@ -90,7 +90,7 @@ describe("Lesson Plans in Urdu", () => {
 
   it("Preparing: its words in Urdu", () => {
     renderAt(lessonsUrl("preparing", { grade: 9, subject: "Physics", lesson: "s", render: "r", title: "Speed" }), <PreparingPage />);
-    expect(screen.getByText(U.preparing)).toBeTruthy();
+    expect(screen.getByText(U.pleaseHold)).toBeTruthy();
     expect(screen.getByRole("button", { name: U.otherLessons })).toBeTruthy();
   });
 
@@ -105,8 +105,8 @@ describe("Lesson Plans in Urdu", () => {
 
   it("All lesson plans: the tiles' labels and the day names come in the language given", () => {
     const C = copyIn(LESSONS, "ur");
-    const tiles = kpiItems({ kpis: { lessonPlans: { value: 1, previous: null }, classesCovered: { value: 1, previous: null }, sentOnWhatsapp: { value: 0, previous: null }, daysActive: { value: 1, previous: null } }, trend: { bucketDays: 1, points: [] } }, C);
-    expect(tiles.map((t) => t.label)).toEqual([U.all.kpis.lessonPlans, U.all.kpis.classesCovered, U.all.kpis.sentOnWhatsapp, U.all.kpis.daysActive]);
+    const tiles = kpiItems({ kpis: { lessonPlans: { value: 1, previous: null }, classesCovered: { value: 1, previous: null }, daysActive: { value: 1, previous: null } }, trend: { bucketDays: 1, points: [] } }, C);
+    expect(tiles.map((t) => t.label)).toEqual([U.all.kpis.lessonPlans, U.all.kpis.classesCovered, U.all.kpis.daysActive]);
     const [g] = groupByDay([{ planKey: "k5:a", kind: "k5", found: true, title: "A", grade: 4, subject: "Math", subjectKey: "maths", chapterNumber: 1,
       chapterTitle: null, dayLabel: null, pagesLabel: null, lastUsedAt: "2026-10-08T04:00:00Z", day: "2026-10-08", via: "portal", open: { lane: "k5", lessonId: "a" } }], "2026-10-08", C);
     expect(g.day).toBe(U.days.today);

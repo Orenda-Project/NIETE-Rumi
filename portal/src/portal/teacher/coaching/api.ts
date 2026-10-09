@@ -71,7 +71,7 @@ export function lessonGroups(
       subject: it.subject || '',
       // A lesson whose grade the analysis did not settle has none to show.
       grade: it.grade != null ? it.grade : '–',
-      title: it.topic || it.subject || C.yourLesson,
+      title: it.topic || it.subject || C.dcObservation,
       extra: it.minutes != null ? C.minutes(it.minutes) : undefined,
       chip: lessonChip(it, C),
       to: lessonPath(it.id),

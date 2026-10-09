@@ -28,7 +28,7 @@ export const ATTENDANCE_V2_COPY = {
   markTitle: 'Mark attendance',
   today: 'Today',
   yesterday: 'Yesterday',
-  pickDate: 'Pick date',
+  pickDate: 'Select date',
   date: 'Date',
   alreadyMarked: 'Already marked',
   allPresent: 'All present',
@@ -57,7 +57,7 @@ export const ATTENDANCE_V2_COPY = {
   /* the view */
   viewTitle: 'Class attendance',
   change: 'Change',
-  chooseClass: 'Choose class',
+  chooseClass: 'Select class',
   prevMonth: 'Previous month',
   nextMonth: 'Next month',
   hi: '90%+',
@@ -83,8 +83,8 @@ export const ATTENDANCE_V2_COPY = {
   otherMonth: 'Other month',
   register: 'Register',
   daysMarked: (n: number) => `${n} days marked`,
-  whatsapp: 'WhatsApp',
-  sent: 'Sent',
+  whatsapp: 'Send on WhatsApp',
+  sent: 'Sent on WhatsApp',
   notSent: 'Not sent',
   downloadFailed: 'Not downloaded',
   /* shared */
@@ -136,7 +136,7 @@ export const ATTENDANCE_V2_COPY_UR: AttendanceCopy = {
   monthRegister: 'ماہانہ رجسٹر',
   excel: 'ایکسل',
   viewAttendance: 'حاضری دیکھیں',
-  edit: 'تبدیل کریں',
+  edit: 'ترمیم کریں',
   nextClass: 'اگلی کلاس',
   viewTitle: 'کلاس کی حاضری',
   change: 'تبدیل کریں',
@@ -165,8 +165,8 @@ export const ATTENDANCE_V2_COPY_UR: AttendanceCopy = {
   otherMonth: 'دوسرا مہینہ',
   register: 'رجسٹر',
   daysMarked: (n: number) => `${n} دن حاضری`,
-  whatsapp: 'واٹس ایپ',
-  sent: 'بھیج دیا',
+  whatsapp: 'واٹس ایپ پر بھیجیں',
+  sent: 'واٹس ایپ پر بھیجا گیا',
   notSent: 'نہیں بھیجا گیا',
   downloadFailed: 'ڈاؤن لوڈ نہیں ہوا',
   failed: 'لوڈ نہیں ہو سکا',
@@ -187,4 +187,6 @@ export const COPY_ENTRY: CopyEntry = {
   module: ATTENDANCE as Bilingual<unknown>,
   // Percent bands and numbers, the same in both languages.
   same: ['hi', 'mid', 'pct', 'noValue'],
+  // "Sent on WhatsApp": five words in Urdu (واٹس ایپ is one name).
+  longOk: ['sent'],
 };

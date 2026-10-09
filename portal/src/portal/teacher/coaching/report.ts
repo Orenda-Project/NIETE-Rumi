@@ -75,22 +75,20 @@ export function toReportData(s: SessionDetail, {
 
 /** The Digital Coach pipeline's stage as the steps she sees (the bot tells her the same on WhatsApp). */
 export function dcSteps(stage: CoachingStage, answered: boolean, C: CoachingCopy = COACHING_V2_COPY): ProgressStep[] {
-  const at = stage === 'done' ? 5
-    : stage === 'report' ? 4
-      : stage === 'reflection' ? (answered ? 4 : 3)
-        : stage === 'analysing' ? 2
-          : 1; // queued, transcribing
+  // One Analysing step covers queued, transcribing and analysing (operator, 2026-10-02).
+  const at = stage === 'done' ? 3
+    : stage === 'report' ? 2
+      : stage === 'reflection' ? (answered ? 2 : 1)
+        : 0;
   const defs: Array<[string, string | undefined]> = [
-    [C.stepReceived, undefined],
-    [C.stepListening, undefined],
-    [C.stepChecking, undefined],
+    [C.analysing, undefined],
     [C.stepReflection, C.subReflection],
     [C.stepReport, C.subReport],
   ];
   return defs.map(([label, sub], i) => ({
     label,
     sub,
-    nowText: i === 3 ? C.yourTurn : C.now,
+    nowText: i === 1 ? C.yourTurn : C.now,
     state: i < at ? 'done' : i === at ? 'current' : 'later',
   }));
 }

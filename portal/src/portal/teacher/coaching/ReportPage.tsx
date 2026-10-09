@@ -101,7 +101,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
   const reportImage = detail ? (detail.observation?.reportImageUrl || detail.reportUrl || null) : null;
   const asked = progress?.stage === 'reflection' && !sent ? progress.reflection : null;
   const answered = (detail?.reflection ?? []).filter((r) => r.question && r.answer);
-  const title = detail?.topic || detail?.subject || C.yourLesson;
+  const title = detail?.topic || detail?.subject || C.dcObservation;
 
   const action = ready && reportImage ? (
     <a

@@ -20,8 +20,8 @@ export const TRAINING_V2_COPY = {
   back: 'Back',
   /* the hub */
   teachingLevel: 'Teaching level',
-  edit: 'Edit',
-  editLevel: 'Edit teaching level',
+  edit: 'Change',
+  editLevel: 'Change teaching level',
   continue: 'Continue',
   certificates: 'Certificates',
   earned: (n: number) => `${n} earned`,
@@ -92,7 +92,7 @@ export const TRAINING_V2_COPY_UR: Words<typeof TRAINING_V2_COPY> = {
   certified: 'سرٹیفکیٹ ملا',
   waitHours: (h: number) => `${h} گھنٹے انتظار`,
   moreCourses: (n: number) => (n === 1 ? '1 مزید کورس' : `${n} مزید کورسز`),
-  locked: 'بند',
+  locked: 'مقفل',
   passLevel: (n: number) => `درجہ ${n} پاس کریں`,
   subjects: 'مضامین',
   crumb: (...parts: Array<string | null | undefined>) => ['ٹریننگ', ...parts.filter(Boolean)].join(' · '),
@@ -128,7 +128,7 @@ export const TRAINING_INNER_UR: TrainingWords = {
   certified: 'سرٹیفکیٹ ملا',
   ready: 'تیار',
   next: 'اگلا',
-  locked: 'بند',
+  locked: 'مقفل',
   passed: 'پاس',
   notPassed: 'پاس نہیں',
   beingGraded: 'جانچ ہو رہی ہے',
@@ -155,7 +155,7 @@ export const TRAINING_INNER_UR: TrainingWords = {
   available: (n?: number) => `${n ?? 0} دستیاب`,
   readings: (n?: number) => (n === 1 ? '1 مطالعہ' : `${n ?? 0} مطالعے`),
   comingSoon: 'جلد آ رہا ہے',
-  writtenQuiz: 'تحریری کوئز',
+  writtenQuiz: 'تحریری امتحان',
   onWhatsApp: 'واٹس ایپ پر',
   outOfFive: (n?: number | null) => `${n ?? '—'}/5`,
   levelCertificate: 'درجے کا سرٹیفکیٹ',
@@ -208,18 +208,31 @@ export const TRAINING_INNER_UR: TrainingWords = {
   certTitle: (provider?: string | null, levelName?: string | null) => joinUr(provider, levelName),
   grades: 'جماعتیں',
   range: (from?: number | string, to?: number | string) => `${from ?? ''}–${to ?? ''}`,
-  lockedAfterSave: '48 گھنٹے تک بند',
-  lockedFor: (h?: number) => `بند · ${h ?? 0} گھنٹے`,
+  lockedAfterSave: '48 گھنٹے تک مقفل',
+  lockedFor: (h?: number) => `مقفل · ${h ?? 0} گھنٹے`,
   save: 'محفوظ کریں',
   loading: 'لوڈ ہو رہا ہے…',
-  notLoaded: 'لوڈ نہیں ہوا',
+  notLoaded: 'لوڈ نہیں ہو سکا',
   retry: 'دوبارہ کوشش کریں',
   empty: 'ابھی کچھ نہیں',
   notFound: 'نہیں ملا',
 };
 
 /** The new UI's training words in both languages, for the v2 pages that reuse them. */
-export const TRAINING_INNER = bilingual<TrainingWords>(TRAINING_COPY as TrainingWords, TRAINING_INNER_UR);
+/**
+ * The new UI's English, with the ontology's words where the old UI differs (bd-fmf24g.17): Select (not Pick),
+ * Could not load (not Not loaded), N questions (not N Q), Written exam (not quiz). newui/copy.ts keeps its own
+ * words for today's pages.
+ */
+const TRAINING_INNER_EN: TrainingWords = {
+  ...(TRAINING_COPY as TrainingWords),
+  pickAll: 'Select all',
+  notLoaded: 'Could not load',
+  questions: (n?: number) => (n === 1 ? '1 question' : `${n ?? 0} questions`),
+  writtenQuiz: 'Written exam',
+};
+
+export const TRAINING_INNER = bilingual<TrainingWords>(TRAINING_INNER_EN, TRAINING_INNER_UR);
 
 /** Registered for the completeness checks and the review file (copyRegistry). */
 export const COPY_ENTRIES: readonly CopyEntry[] = [

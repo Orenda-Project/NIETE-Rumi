@@ -21,7 +21,7 @@ export const TEACHER_COPY = {
   tryAgain: "Try again",
   nav: {
     home: "Home",
-    lessons: "Lessons",
+    lessons: "Lesson Plans",
     coaching: "Digital Coaching",
     training: "Training",
     more: "More",
@@ -52,7 +52,7 @@ export const TEACHER_COPY = {
     certificates: "Certificates",
     language: "Language",
     profile: "My profile",
-    logout: "Logout",
+    logout: "Log out",
     /** The Language row names the language it switches TO, in that language's own script. */
     switchTo: { ur: "اردو", en: "English" },
     notSaved: "Not saved",
@@ -127,9 +127,9 @@ export const TEACHER_COPY_UR = {
     save: "محفوظ کریں",
     saved: "محفوظ ہو گیا",
     notSaved: "محفوظ نہیں ہوا",
-    lockedFor: (hours: number) => `بند · ${hours} گھنٹے`,
-    locked: "بند",
-    lockedAfterSave: "48 گھنٹے تک بند",
+    lockedFor: (hours: number) => `مقفل · ${hours} گھنٹے`,
+    locked: "مقفل",
+    lockedAfterSave: "48 گھنٹے تک مقفل",
   },
 };
 

@@ -12,7 +12,7 @@ import { Tray } from './Tray';
  * bd-fmf24g.2.3 — DateRangeBar (COMPONENTS.md §9): the range at the top of an All page. Operator: "a range
  * selector on top and some compiled KPIs". A 68px card button — a calendar tile, the range's name (17px/600)
  * over its dates (13px), ⌄ — opens a Tray: This week · This month (default) · Last 3 months · This year ·
- * All time · Pick dates, each a 64px row with its dates. A preset applies at once and closes the tray. Pick dates
+ * All time · Select dates, each a 64px row with its dates. A preset applies at once and closes the tray. Select dates
  * shows From and To (labelled date fields, not after today) and Show, which waits for From ≤ To.
  *
  * The value is the portal's own DateRange (newui/range.ts), so `rangeQuery(range)` is the API's query as it already

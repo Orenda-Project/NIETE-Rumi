@@ -23,7 +23,7 @@ export const CLASSES_V2_COPY = {
   classTeacher: 'Class teacher',
   /* Class detail */
   attendance: 'Attendance',
-  lessonPlans: 'Lesson plans',
+  lessonPlans: 'Lesson Plans',
   students: 'Students',
   noStudentsYet: 'No students yet',
   showAll: (n: number) => `Show all ${n}`,

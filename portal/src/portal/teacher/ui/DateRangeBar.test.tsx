@@ -7,7 +7,7 @@ import { rangeQuery } from "../../newui/range";
 /**
  * bd-fmf24g.2.3 — DateRangeBar (COMPONENTS.md §9): the range at the top of an All page. A 68px card button
  * ("This month" over "1 – 8 Oct 2026") opens a Tray of presets — This week, This month (default), Last 3 months,
- * This year, All time, Pick dates. Its value is the portal's own DateRange (newui/range.ts), so rangeQuery() and
+ * This year, All time, Select dates. Its value is the portal's own DateRange (newui/range.ts), so rangeQuery() and
  * GET /api/portal/progress read it as they already do.
  */
 
@@ -55,7 +55,7 @@ describe("DateRangeBar", () => {
     const radios = within(group).getAllByRole("radio");
     expect(radios.map((r) => r.getAttribute("aria-label"))).toEqual([
       "This week, 5 – 8 Oct 2026", "This month, 1 – 8 Oct 2026", "Last 3 months, 1 Aug – 8 Oct 2026",
-      "This year, 1 Jan – 8 Oct 2026", "All time", "Pick dates",
+      "This year, 1 Jan – 8 Oct 2026", "All time", "Select dates",
     ]);
     expect(radios[1]).toHaveAttribute("aria-checked", "true");
     expect(classes(radios[0])).toContain("min-h-[64px]");
@@ -81,11 +81,11 @@ describe("DateRangeBar", () => {
     expect(screen.getByRole("button", { name: /All time.*Everything so far/ })).toBeInTheDocument();
   });
 
-  it("Pick dates: From and To (labelled, not after today), Show waits for From ≤ To, then applies them", () => {
+  it("Select dates: From and To (labelled, not after today), Show waits for From ≤ To, then applies them", () => {
     const onChange = vi.fn();
     render(<DateRangeBar today={TODAY} onChange={onChange} />);
     fireEvent.click(screen.getByRole("button", { name: /This month/ }));
-    fireEvent.click(screen.getByRole("radio", { name: "Pick dates" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Select dates" }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     const from = screen.getByLabelText("From");
     const to = screen.getByLabelText("To");
@@ -101,7 +101,7 @@ describe("DateRangeBar", () => {
     expect(show).toBeEnabled();
     fireEvent.click(show);
     expect(onChange).toHaveBeenCalledWith({ key: "custom", from: "2026-09-01", to: "2026-09-15" }, expect.objectContaining({ compareLabel: "vs 17 – 31 Aug 2026" }));
-    expect(screen.getByRole("button", { name: /Picked dates.*1 – 15 Sep 2026/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Selected dates.*1 – 15 Sep 2026/ })).toBeInTheDocument();
   });
 
   it("controlled: shows the value it is given", () => {

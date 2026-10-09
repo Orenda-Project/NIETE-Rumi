@@ -67,7 +67,7 @@ export const SUBJECT_SHORT: readonly SubjectShortForm[] = [
   { key: 'physics', match: /physics/, en: 'Phy', ur: 'طبیعیات', family: 'sciences' },
   { key: 'chemistry', match: /chemistry/, en: 'Chem', ur: 'کیمیا', family: 'sciences' },
   { key: 'biology', match: /biology/, en: 'Bio', ur: 'حیاتیات', family: 'sciences' },
-  { key: 'agriculture', match: /agricultur|zarai/, en: 'Agri', ur: 'زراعت', family: 'sciences' },
+  { key: 'agriculture', match: /agricultur|zarai/, en: 'Agri', ur: 'زرعی', family: 'sciences' },
   { key: 'generalKnowledge', match: /general knowledge/, en: 'GK', ur: 'معلومات', family: 'humanities' },
   { key: 'science', match: /science/, en: 'Sci', ur: 'سائنس', family: 'sciences' },
   { key: 'religious', match: /religio/, en: 'Rel', ur: 'مذہبی', family: 'humanities' },

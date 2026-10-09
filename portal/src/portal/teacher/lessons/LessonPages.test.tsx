@@ -176,7 +176,7 @@ describe("preparing", () => {
   it("written: opens the viewer by itself, in place of this page, with the DC prefill", async () => {
     routes["/lp612/status"] = () => ({ state: "ready" });
     renderAt(lessonsUrl("preparing", AT), <PreparingPage />);
-    expect(screen.getByText(C.preparing)).toBeTruthy();
+    expect(screen.getByText(C.pleaseHold)).toBeTruthy();
     await waitFor(() => expect(where().dataset.path).toBe(LESSONS_VIEWER), { timeout: 5000 });
     const state = JSON.parse(where().dataset.state as string);
     expect(state.lessonPlan.source).toEqual({ lane: "g612", renderId: "R9" });
