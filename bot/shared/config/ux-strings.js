@@ -776,6 +776,13 @@ const UX_STRINGS = {
     ur: 'یہ سہولت اب NIETE ایپ میں ہے۔ Play Store سے ایپ ڈاؤن لوڈ کریں — یا اگر ایپ پہلے سے موجود ہے تو Open (کھولیں) دبائیں — اور اپنے فون نمبر سے لاگ اِن کریں:\n{url}',
   },
 
+  // bd-fmf24g.35 — the pilot's one-tap link: ONE cta_url message (body + button). Button <= 20 code points.
+  appLinkBody: {
+    en: 'Tap below to open this in the NIETE app. You are already signed in.',
+    ur: 'اسے NIETE ایپ میں کھولنے کے لیے نیچے دیا گیا بٹن دبائیں۔ آپ پہلے سے لاگ اِن ہیں۔',
+  },
+  appLinkButton: { en: 'Open in app', ur: 'ایپ میں کھولیں' },
+
   assessmentNotReady: {
     en: "We're getting the assessment generator ready for you. I'll tell you the moment it's live.",
     ur: 'پرچہ بنانے والا حصہ آپ کے لیے تیار کیا جا رہا ہے۔ جیسے ہی چالو ہوا، میں بتا دوں گی۔',

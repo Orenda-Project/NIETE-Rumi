@@ -2051,6 +2051,9 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     logToFile('📋 Menu command detected');
     typingController.stop();
 
+    // bd-fmf24g.35 — a pilot teacher on the teacher app gets the app Home as a one-tap link instead of the menu.
+    if (user?.id && await redirectToApp('menu', 'menu_command')) return;
+
     if (user && sessionId) {
       // no second store. The generic path above already stored this
       // message; storing it again put every `/menu` into history twice. In
