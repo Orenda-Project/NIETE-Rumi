@@ -340,3 +340,20 @@ describe('a students read that fails is logged, never swallowed', () => {
     }
   });
 });
+
+describe('record: a reading the child ended is never scored, whatever the scorer says', () => {
+  test('"too hard" after 21 s with the scorer claiming the whole story was read ⇒ incomplete, no words-per-minute', async () => {
+    on(RECORD, GUARD);
+    // the upload scorer marked every word correct on 21 s of audio (seen live on a pure tone: 60/60, finished_early true,
+    // wcpm 167); the child had said the rest was too hard — that ending decides, not the scorer's claim
+    const { r, row } = await read({ secs: 21, n: 60, gap: 0.33, right: 60, tried: 60, body: { ended: 'stuck', read_s: 21, mic_check: 'pass' } });
+    expect(r).toEqual({ failed: true, reason: 'incomplete', words: 60 });
+    expect(row.status).toBe('failed');
+    expect(row.wcpm == null).toBe(true);
+    expect(row.meta).toMatchObject({ reason: 'incomplete', ended: 'stuck' });
+    const home = await read({ secs: 30, n: 60, gap: 0.45, right: 60, tried: 60, body: { ended: 'home', read_s: 30, mic_check: 'pass' } });
+    expect(home.r).toMatchObject({ failed: true, reason: 'incomplete' });
+    const hidden = await read({ secs: 9, n: 60, gap: 0.14, right: 60, tried: 60, body: { ended: 'hidden', read_s: 9, mic_check: 'pass' } });
+    expect(hidden.r).toMatchObject({ failed: true, reason: 'abandoned' });
+  });
+});
