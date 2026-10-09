@@ -59,6 +59,10 @@ export interface TeacherUiCopy {
   stepsCount: (done?: number, total?: number) => string;
   play: string;
   pause: string;
+  /** bd-4404s7.1 — TimeStamp's AM/PM, and ChosenSoFar's group name. */
+  am: string;
+  pm: string;
+  chosenSoFar: string;
   report: ReportCopy;
   /** bd-fmf24g.15 — ReadyTray / ReadyBanner. */
   notify: NotifyCopy;
@@ -181,6 +185,9 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
   /** VoiceNote's button. */
   play: 'Play',
   pause: 'Pause',
+  am: 'AM',
+  pm: 'PM',
+  chosenSoFar: 'Chosen so far',
   report: {
     report: 'Report',
     eyebrow: 'Celebrating your teaching',
@@ -275,6 +282,10 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
   stepsCount: (done = 0, total = 0) => `${total} میں سے ${done}`,
   play: 'چلائیں',
   pause: 'روکیں',
+  /** MACHINE-DRAFTED: صبح (AM) and شام (PM) as in the coach board's 8:30 صبح. */
+  am: 'صبح',
+  pm: 'شام',
+  chosenSoFar: 'اب تک کا انتخاب',
   report: {
     report: 'رپورٹ',
     /** The hero PNG's own words (hero-report.template.js ur.celebrate), word for word. */
