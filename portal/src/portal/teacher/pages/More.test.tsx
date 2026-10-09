@@ -55,38 +55,44 @@ describe("teacher v2 More", () => {
     expect(who).toHaveTextContent("IMSG I-10/1");
   });
 
-  it("the rows, in order, each going to its page", () => {
+  it("exactly three things: Language, My profile, Log out (bd-fmf24g.33)", () => {
     renderMore();
-    const links = screen.getAllByRole("link");
-    const byName = (name: string) => links.find((a) => a.textContent?.includes(name));
-    expect(byName("Assessment")).toHaveAttribute("href", teacherPath("assessment"));
-    expect(byName("Attendance")).toHaveAttribute("href", teacherPath("attendance"));
-    expect(byName("My Classes")).toHaveAttribute("href", teacherPath("classes"));
-    expect(byName("Analytics")).toHaveAttribute("href", teacherPath("analytics"));
-    expect(byName("Certificates")).toHaveAttribute("href", "/portal/training/certificates");
-    expect(byName("My profile")).toHaveAttribute("href", teacherPath("profile"));
-    const order = screen.getAllByTestId(/^more-row-/).map((r) => r.getAttribute("data-testid"));
-    expect(order).toEqual([
-      "more-row-assessment", "more-row-attendance", "more-row-classes", "more-row-analytics",
-      "more-row-certificates", "more-row-language", "more-row-profile", "more-row-logout",
+    expect(screen.getAllByTestId(/^more-row-/).map((r) => r.getAttribute("data-testid"))).toEqual([
+      "more-row-language", "more-row-profile", "more-row-logout",
     ]);
+    const links = screen.getAllByRole("link");
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute("href", teacherPath("profile"));
+    for (const gone of ["Assessment", "Attendance", "My Classes", "Analytics", "Certificates"]) expect(screen.queryByText(gone)).toBeNull();
   });
 
-  it("Language names the language it switches to, and saves through the one writer", async () => {
+  it("Language is a two-option toggle, English | اردو, the current one picked", () => {
     renderMore();
-    const row = screen.getByTestId("more-row-language");
-    expect(row).toHaveTextContent("اردو");
-    await userEvent.setup().click(row);
+    const tabs = within(screen.getByTestId("more-row-language")).getAllByRole("tab");
+    expect(tabs.map((t) => t.textContent)).toEqual(["English", "اردو"]);
+    expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual(["true", "false"]);
+  });
+
+  it("picking the other language saves through the one writer, then switches the page", async () => {
+    renderMore();
+    await userEvent.setup().click(screen.getByRole("tab", { name: "اردو" }));
     await waitFor(() => expect(language.set).toHaveBeenCalledWith("ur"));
     await waitFor(() => expect(i18n.changeLanguage).toHaveBeenCalledWith("ur"));
   });
 
-  it("a failed save keeps the page's language", async () => {
+  it("picking the language already shown writes nothing", async () => {
+    renderMore();
+    await userEvent.setup().click(screen.getByRole("tab", { name: "English" }));
+    expect(language.set).not.toHaveBeenCalled();
+  });
+
+  it("a failed save keeps the page's language and says Not saved", async () => {
     vi.mocked(language.set).mockRejectedValue(new Error("400"));
     renderMore();
-    await userEvent.setup().click(screen.getByTestId("more-row-language"));
+    await userEvent.setup().click(screen.getByRole("tab", { name: "اردو" }));
     await waitFor(() => expect(language.set).toHaveBeenCalled());
     expect(i18n.changeLanguage).not.toHaveBeenCalled();
+    expect(await screen.findByText("Not saved")).toBeInTheDocument();
   });
 
   it("Logout logs out (through the recording guard)", async () => {
@@ -98,11 +104,5 @@ describe("teacher v2 More", () => {
   it("every row is a 56px+ target", () => {
     renderMore();
     for (const row of within(document.body).getAllByTestId(/^more-row-/)) expect(row.className).toMatch(/min-h-\[64px\]/);
-  });
-  it("the feature rows wear their D2 menu glyphs", () => {
-    renderMore();
-    expect(screen.getByTestId("more-row-assessment").querySelector('svg[data-glyph="assessment"]')).not.toBeNull();
-    expect(screen.getByTestId("more-row-attendance").querySelector('svg[data-glyph="attendance"]')).not.toBeNull();
-    expect(screen.getByTestId("more-row-classes").querySelector('svg[data-glyph="classes"]')).not.toBeNull();
   });
 });

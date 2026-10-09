@@ -1,3 +1,4 @@
+import { ClipboardCheck } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { coach } from "../../services/api";
 import TeacherPage from "../../teacher/TeacherPage";
@@ -6,6 +7,9 @@ import { FeatureMotionProvider } from "../../teacher/icons";
 import { TEACHER_FRAME } from "../../teacher/copy";
 import { useCopy, useLang } from "../../teacher/i18n";
 import { fullName, todayLabel } from "../../teacher/format";
+import { Card, RowLink } from "../../teacher/pages/More";
+import { useChildTest } from "../../lib/useChildTest";
+import { COACH_PROFILE } from "../profile/copy";
 import CoachGate from "../CoachGate";
 import { COACH_HOME } from "../home/copy";
 import { CurrentVisit, visitItem } from "../home/VisitCards";
@@ -21,6 +25,8 @@ import { Failed, Loading, SectionLabel, useLoad } from "../ui";
 const CoachHome = () => {
   const F = useCopy(TEACHER_FRAME);
   const W = useCopy(COACH_HOME);
+  const P = useCopy(COACH_PROFILE);
+  const childTest = useChildTest() === true;
   const lang = useLang();
   const { user } = useAuth();
   const { data, failed, reload } = useLoad(() => coach.getHome(), []);
@@ -69,8 +75,17 @@ const CoachHome = () => {
             <FeatureTile feature="schools" label={W.tiles.schools} to="/portal/coach/people"
               chip={home ? { text: W.chips.teachers(home.counts.teachers), tone: "info" } : null} />
             <FeatureTile feature="training" label={F.home.tiles.training} to="/portal/training" />
+            {/* bd-fmf24g.33 — Analytics left More. No illustration of its own yet: the kit's Reports art (bars and a % badge). */}
+            <FeatureTile feature="reports" label={W.tiles.analytics} to="/portal/coach/analytics" wide />
           </nav>
         </FeatureMotionProvider>
+
+        {/* bd-fmf24g.33 — the child test left More; with her flag on it is a row here (bd-s1oo0.7: the flag decides). */}
+        {childTest && (
+          <Card label={P.childTest}>
+            <RowLink id="child-test" to="/portal/leader/child-test" icon={ClipboardCheck} label={P.childTest} />
+          </Card>
+        )}
       </TeacherPage>
     </CoachGate>
   );

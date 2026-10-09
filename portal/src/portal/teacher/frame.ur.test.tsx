@@ -53,7 +53,7 @@ describe("the frame in Urdu", () => {
 
   it("More: rows and Logout in Urdu; the Language row names English in English", () => {
     inRouter(<More />, "/portal/teacher/more");
-    for (const w of [U.more.assessment, U.more.attendance, U.more.classes, U.more.analytics, U.more.certificates, U.more.profile, U.more.logout]) {
+    for (const w of [U.more.language, U.more.profile, U.more.logout]) {
       expect(screen.getAllByText(w).length).toBeGreaterThan(0);
     }
     expect(screen.getByText("English")).toBeTruthy();
