@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactElement } from 'react';
-import type { TeacherFeature } from './features';
+import type { AnyFeature } from './features';
 
 /**
  * bd-fmf24g.2.1 — the menu's 24px glyphs from the v28 canvas (Main.dc.html's `g-*` sprite + the inline Home and
@@ -8,7 +8,7 @@ import type { TeacherFeature } from './features';
  * the CSS variable `--cut` — white unless the parent sets it (a tile on a tint sets `--cut` to that tint).
  */
 
-export type GlyphName = TeacherFeature | 'home' | 'more';
+export type GlyphName = AnyFeature | 'home' | 'more';
 
 const CUT: CSSProperties = { stroke: 'var(--cut, #fff)' };
 
@@ -75,6 +75,31 @@ const GLYPH: Record<GlyphName, ReactElement> = {
       <circle cx="12" cy="17.2" r="1.7" />
       <circle cx="18" cy="17.2" r="1.7" />
       <path d="M3.3 22.3a2.7 2.7 0 0 1 5.4 0M9.3 22.3a2.7 2.7 0 0 1 5.4 0M15.3 22.3a2.7 2.7 0 0 1 5.4 0" />
+    </g>
+  ),
+  // bd-4404s7.1 — the coach's menu glyphs (Coach_TileOptions g-sch / g-scl).
+  schedule: (
+    <g fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4.5" width="18" height="17" rx="2.5" />
+      <path d="M5.5 4.5h13A2.5 2.5 0 0 1 21 7v3H3V7a2.5 2.5 0 0 1 2.5-2.5z" fill="currentColor" />
+      <path d="M8 2v4M16 2v4" />
+      <circle cx="16.5" cy="16.5" r="3.6" fill="currentColor" stroke="none" />
+      <path d="M16.5 14.6v2.1l1.4.9" strokeWidth="1.4" style={CUT} />
+    </g>
+  ),
+  schools: (
+    <g fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 11 12 4.5 22 11z" fill="currentColor" />
+      <path d="M4 11v9.5h16V11" />
+      <path d="M10 20.5v-5h4v5" />
+      <path d="M12 4.5V1.5h3.5" />
+    </g>
+  ),
+  reports: (
+    <g fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M13.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8.5z" />
+      <path d="M13.5 2v6.5H20" />
+      <path d="M8 18v-3.5M12 18v-6M16 18v-4.5" strokeWidth="2.4" />
     </g>
   ),
   more: (

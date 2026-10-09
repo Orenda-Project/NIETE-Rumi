@@ -1,9 +1,7 @@
-import { Link } from "react-router-dom";
-import { cn } from "@/lib/utils";
 import { useAuth } from "../../hooks/useAuth";
 import TeacherPage from "../TeacherPage";
-import { HomeGreeting } from "../ui";
-import { FeatureArt, FeatureMotionProvider, type TeacherFeature as ArtFeature } from "../icons";
+import { FeatureTile, HomeGreeting } from "../ui";
+import { FeatureMotionProvider, type TeacherFeature as ArtFeature } from "../icons";
 import { TEACHER_FRAME } from "../copy";
 import { useCopy, useLang } from "../i18n";
 import { cleanSchool, fullName, todayLabel } from "../format";
@@ -45,21 +43,7 @@ export default function Home() {
       <FeatureMotionProvider>
       <nav aria-label={C.home.features} data-testid="feature-tiles" className="relative [display:grid] grid-cols-2 gap-3 first:-mt-10">
         {tiles.map(({ feature, label }, i) => {
-          const wide = i === tiles.length - 1;
-          return (
-            <Link
-              key={feature}
-              to={teacherPath(feature)}
-              className={cn(
-                "flex flex-col items-center justify-center gap-3.5 rounded-[20px] border border-[#e5e7eb] bg-white px-2.5 py-[18px] text-center shadow-[0_1px_3px_rgba(16,24,40,0.08)]",
-                "outline-none transition-colors hover:bg-[#f9fafb] focus-visible:ring-[3px] focus-visible:ring-[#f59e0b] motion-reduce:transition-none",
-                wide ? "col-span-2 min-h-[132px]" : "min-h-[176px]",
-              )}
-            >
-              <FeatureArt feature={feature} size={80} motion />
-              <span className="text-[18px] font-semibold leading-tight">{label}</span>
-            </Link>
-          );
+          return <FeatureTile key={feature} feature={feature} label={label} to={teacherPath(feature)} wide={i === tiles.length - 1} />;
         })}
       </nav>
       </FeatureMotionProvider>

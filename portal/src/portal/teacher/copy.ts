@@ -26,6 +26,14 @@ export const TEACHER_COPY = {
     training: "Training",
     more: "More",
   },
+  /** bd-4404s7.1 — the coach's menu (Coach_Home): Home, Schedule, Observe, Schools, More. */
+  coachNav: {
+    home: "Home",
+    schedule: "Schedule",
+    observe: "Observe",
+    schools: "Schools",
+    more: "More",
+  },
   home: {
     /** "Salaam, Ayesha Bibi!" — her whole name (operator, 2026-10-08). */
     greeting: (name: string) => (name ? `Salaam, ${name}!` : "Salaam!"),
@@ -86,6 +94,13 @@ export const TEACHER_COPY_UR = {
     lessons: "لیسن پلان",
     coaching: "ڈیجیٹل کوچنگ",
     training: "ٹریننگ",
+    more: "مزید",
+  },
+  coachNav: {
+    home: "ہوم",
+    schedule: "شیڈول",
+    observe: "مشاہدہ",
+    schools: "اسکول",
     more: "مزید",
   },
   home: {

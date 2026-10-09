@@ -18,18 +18,23 @@
 .fm-on{overflow:visible}
 .fm-pg{transform-box:view-box;transform-origin:24px 26px}
 .fm-wv,.fm-tw{transform-box:fill-box;transform-origin:center}
+/* bd-4404s7.1 — Reports' bars rise from their foot with the sound bars' keyframes */
+.fm-brs{transform-box:fill-box;transform-origin:50% 100%}
 .fm-bub{transform-box:view-box;transform-origin:28.5px 21px}
 .fm-tas{transform-box:view-box;transform-origin:39.5px 21.7px}
 .fm-bdg{transform-box:view-box;transform-origin:35px 35px}
+/* bd-4404s7.1 — Schedule's clock hand turns on the badge's centre, Schools' flag on its pole's foot (the tassel's keyframes) */
+.fm-hnd{transform-box:view-box;transform-origin:35px 35px}
+.fm-flg{transform-box:view-box;transform-origin:24px 9px}
 
 .fm-on .fm-an{animation-fill-mode:both;animation-timing-function:ease-in-out;animation-iteration-count:1;animation-delay:var(--fm-s,0s)}
 .fm-on.fm-arrive .fm-an{animation-delay:calc(.2s + var(--fm-s,0s))}
 .fm-on .fm-dr{stroke-dasharray:100 101}
 .fm-on .fm-pg{animation-name:fm-pg;animation-duration:1.2s}
-.fm-on .fm-wv{animation-name:fm-wv;animation-duration:1s}
+.fm-on .fm-wv,.fm-on .fm-brs{animation-name:fm-wv;animation-duration:1s}
 .fm-on .fm-tw{animation-name:fm-tw;animation-duration:1s}
 .fm-on .fm-bub{animation-name:fm-bub;animation-duration:.9s}
-.fm-on .fm-tas{animation-name:fm-tas;animation-duration:1.4s}
+.fm-on .fm-tas,.fm-on .fm-hnd,.fm-on .fm-flg{animation-name:fm-tas;animation-duration:1.4s}
 .fm-on .fm-hop{animation-name:fm-hop;animation-duration:.6s}
 .fm-on .fm-bdg{animation-name:fm-bdg;animation-duration:.7s}
 .fm-on .fm-dr{animation-duration:.8s}
