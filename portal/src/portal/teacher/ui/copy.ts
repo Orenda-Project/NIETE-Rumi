@@ -19,6 +19,7 @@ import type { CopyEntry } from '../copyRegistry';
 
 export interface TeacherUiCopy {
   grade: (g?: string | number) => string;
+  gradeShort: (g?: string | number) => string;
   selected: string;
   newItem: string;
   download: string;
@@ -88,8 +89,10 @@ export interface ReportCopy {
 }
 
 export const TEACHER_UI_COPY: TeacherUiCopy = {
-  /** "Grade 4" — a grade on a button, a block lead, a field. */
+  /** "Grade 4" — a grade on a button, a field, a history row's spoken name. */
   grade: (g: string | number = '') => `Grade ${g}`.trim(),
+  /** bd-fmf24g.16 — the history row lead's top half ("G4"); its accessible name says `grade` in full. */
+  gradeShort: (g: string | number = '') => `G${g}`,
   /** The indigo check circle on a selected row (its name for a screen reader). */
   selected: 'Selected',
   /** The red dot on a row she has not opened yet. */
@@ -186,6 +189,8 @@ const MONTHS_UR = ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی
 /** bd-fmf24g.13 — the kit's words in Urdu (MACHINE-DRAFTED; review pending). Digits stay Western, as the bot's. */
 export const TEACHER_UI_UR: TeacherUiCopy = {
   grade: (g: string | number = '') => `جماعت ${g}`.trim(),
+  /** The numeral alone: "G" is an English abbreviation, and جماعت does not fit the 64px lead beside the subject. */
+  gradeShort: (g: string | number = '') => `${g}`,
   selected: 'منتخب',
   newItem: 'نیا',
   download: 'ڈاؤن لوڈ',
@@ -270,3 +275,6 @@ export const COPY_ENTRY: CopyEntry = {
   // The report's words mirror the hero PNG word for word.
   longOk: ['report.madeFor', 'report.eyebrow', 'report.lastAsked'],
 };
+
+/** bd-fmf24g.16 — the history row lead's subject short forms (ui/subjects.ts), registered beside the kit's words. */
+export { SUBJECT_SHORT_ENTRIES as COPY_ENTRIES } from './subjects';

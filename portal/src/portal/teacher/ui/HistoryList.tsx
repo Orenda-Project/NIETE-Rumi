@@ -44,7 +44,7 @@ export interface HistoryListProps {
   /** The All page. */
   seeAllTo?: string;
   onSeeAll?: () => void;
-  copy?: Partial<Pick<TeacherUiCopy, 'grade' | 'download' | 'newItem' | 'showMore' | 'seeAll' | 'seeAllNamed' | 'nothingYet'>>;
+  copy?: Partial<Pick<TeacherUiCopy, 'grade' | 'gradeShort' | 'download' | 'newItem' | 'showMore' | 'seeAll' | 'seeAllNamed' | 'nothingYet'>>;
   className?: string;
 }
 
@@ -55,7 +55,7 @@ export function HistoryList({
   onOpenChange, seeAllTo, onSeeAll, copy, className,
 }: HistoryListProps) {
   const words = { ...useKitCopy(), ...copy };
-  const rowCopy = { grade: words.grade, download: words.download, newItem: words.newItem };
+  const rowCopy = { grade: words.grade, gradeShort: words.gradeShort, download: words.download, newItem: words.newItem };
   const days = groups.filter((g) => g.items.length > 0);
   const total = days.reduce((n, g) => n + g.items.length, 0);
 

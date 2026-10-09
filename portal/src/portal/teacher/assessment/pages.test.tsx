@@ -37,7 +37,8 @@ import { newPicks } from './model';
 import { AssessmentHub } from './AssessmentHub';
 import { CheckStep, TypesStep } from './NewPaperSteps';
 import { PaperPage } from './PaperPage';
-import { ASSESSMENT_V2_BASE, newPaperPath, paperPath } from './paths';
+import { RequestPage } from './RequestPage';
+import { ASSESSMENT_V2_BASE, newPaperPath, paperPath, requestPath } from './paths';
 
 function at(path: string, routePath: string, el: JSX.Element) {
   return render(
@@ -160,5 +161,27 @@ describe('Assessment hub', () => {
     at(ASSESSMENT_V2_BASE, ASSESSMENT_V2_BASE, <AssessmentHub />);
     expect(await screen.findByText(C.comingSoon)).toBeTruthy();
     expect(screen.queryByText(C.newPaper)).toBeNull();
+  });
+});
+
+describe('Request page', () => {
+  it('ready: the paper card is the row itself, so its rounded corners clip the row lead (bd-fmf24g.16)', async () => {
+    sessionStorage.setItem('assessment-jobs:v1:923001234567', JSON.stringify([{
+      requestId: 'req-2', label: 'Green Guardians of Earth', startedAt: Date.now(), status: 'writing',
+      spec: { grade: 4, subject: 'science', questionCount: 15 },
+    }]));
+    // Her tracked job comes back ready on its first poll.
+    portal.getAssessmentStatus.mockResolvedValue({ success: true, status: 'ready', paperId: 'p-9' });
+    at(requestPath('req-2'), `${ASSESSMENT_V2_BASE}/request/:requestId`, <RequestPage />);
+    const card = await waitFor(() => {
+      const a = screen.getAllByTestId('history-lead').map((l) => l.closest('a')).find(Boolean);
+      expect(a).toBeTruthy();
+      return a as HTMLAnchorElement;
+    });
+    expect(card).toHaveAttribute('href', paperPath('p-9'));
+    const cls = card.className.split(/\s+/);
+    expect(cls).toEqual(expect.arrayContaining(['overflow-hidden', 'rounded-2xl', 'items-stretch', 'min-h-[76px]']));
+    // No padding between the card's edge and the row: the lead column sits flush with the card's start edge.
+    expect(cls.some((c) => /^(p|ps|pl|py|pt|pb)-/.test(c))).toBe(false);
   });
 });

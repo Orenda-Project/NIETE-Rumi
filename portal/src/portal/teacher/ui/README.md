@@ -70,12 +70,30 @@ chevron, never a link. A button carries `aria-pressed`. `gradeSubjectLabel()` gi
 | to | where the row goes | — |
 | isNew | the red dot | false |
 | first | no divider above | true |
-| copy | `{ grade, download, newItem }` | `TEACHER_UI_COPY` |
+| copy | `{ grade, gradeShort, download, newItem }` | `TEACHER_UI_COPY` |
 
-Lead = the operator's block: "Grade 4" over the subject (`blockSubject()`: full name when it fits, else "Soc. St.",
-"Pak. St.", "Geogr." …), both 16px/700. No grade (bd-fmf24g.11: a DC lesson the analysis left open): the subject alone, centred, same
-16px/700 — never "Grade –". No grade and no subject: the SubjectTile book icon. A grade with no subject: "Grade 4" alone. The canvas's other leads (icon, stacked, badge, tint) were turned down and are
-not ported.
+Lead = the operator's **D6.5 "section, stacked"** (bd-fmf24g.16, 9 Oct: "switch this component everywhere"; it replaced
+the 8 Oct grey block — there is no lead prop). Not a chip: a **64px column** built into the row, flush with its START
+edge (left in English, right in Urdu), the full row height (76px, taller when the title wraps), 12px from the text.
+The card clips it at its rounded corners: `LIST_CARD` is `overflow-hidden`, and a row standing alone must sit in a card
+that is too, with no padding between (RequestPage's ready card is the row itself).
+
+- **Top:** "G4" (`copy.gradeShort`) 17px/800, tabular numbers, white on the family's dark colour.
+- **Bottom:** the subject's short form (`subjectShort()` in `subjects.ts`: Eng, Urdu, Math, Comp, Phy, Chem, Bio, Agri,
+  GK, Sci, Rel, Pak St, SST, Isl, Geo, Hist; anything else its first word cut to 4 letters) 15px/700, no period, never
+  wrapped or cut, in the dark colour on the family's light tint.
+- **Colour is PROVISIONAL** and chosen in ONE place, `leadColours()` (HistoryRow.tsx): subject family →
+  `[light, dark]` — languages `#e6ebf2`/`#2c3a52`, maths `#f0e9df`/`#5b4426`, sciences (physics, chemistry, biology,
+  agriculture too) `#e3eee8`/`#2b5440`, computer `#e8e6f1`/`#3f3a63`, humanities and everything else
+  `#ece9e4`/`#4a4237`. The rules waiting: the row's feature colour, a single indigo, a grade band.
+- **No grade** (bd-fmf24g.11: absent, empty or a dash): the subject alone, centred on its tint, full height — never
+  "G–". **No subject either:** the SubjectTile book icon on grey. **A grade with no subject:** "G4" alone on the dark.
+- **Accessibility:** the column is `aria-hidden`; a visually hidden span gives the row's accessible name the full words,
+  "Grade 4 General Science" (`copy.grade` + the subject as given).
+- **Urdu** (MACHINE-DRAFTED, in the review file): the numeral alone on top ("4"), and one short Urdu word below at
+  13px (سائنس, ریاضی, انگریزی, پاکستان, معاشرتی …; the bot's names, first word of a two-word one), measured to fit the
+  64px column in Noto Nastaliq Urdu. A subject with no Urdu form keeps its English 4 letters; digits and Latin go
+  through the kit's bidi egress (isolated).
 
 ### `HistoryList`
 | Prop | Type | Default |
@@ -86,7 +104,7 @@ not ported.
 | emptyLabel | the empty card's words | `copy.nothingYet` |
 | collapsible / defaultOpen / open / onOpenChange | heading becomes a ≥56px toggle; `open` sets it from outside, a tap still toggles until `open` changes | false / true / — / — |
 | seeAllTo / onSeeAll | "See all ›" ends the heading row (collapsed and open) and a full-width See all **replaces** Show more | — |
-| copy | `{ grade, download, newItem, showMore, seeAll, seeAllNamed, nothingYet }` | `TEACHER_UI_COPY` |
+| copy | `{ grade, gradeShort, download, newItem, showMore, seeAll, seeAllNamed, nothingYet }` | `TEACHER_UI_COPY` |
 
 ```tsx
 <HistoryList heading={copy.recent} groups={byDay} collapsible defaultOpen={false} seeAllTo="/portal/teacher/lessons/all" />
