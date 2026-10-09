@@ -67,17 +67,8 @@ describe("feature colours", () => {
   });
 });
 
-describe("school icons are 12px-rounded blue tiles, not circles (Schools tab; New visit is the kit row now)", () => {
+describe("school icons are round kit avatars, not tiles (Schools tab and New visit are kit rows now)", () => {
   // bd-4404s7.6: the Schools list is the exception: a coach row uses a ROUND 48px avatar (the square tile is reserved).
-  const expectTile = (el: Element, size: number) => {
-    const c = classOf(el);
-    expect(c).toMatch(/rounded-xl/);
-    expect(c).not.toMatch(/rounded-full/);
-    expect((el as HTMLElement).style.width).toBe(`${size}px`);
-    expect((el as HTMLElement).style.background).toBe("rgb(227, 238, 252)");
-    expect((el as HTMLElement).style.color).toBe("rgb(29, 111, 216)");
-  };
-
   it("Schools tab: a round 48px grey avatar, not the square tile", async () => {
     at("/portal/coach/people", <CoachPeople />);
     const card = await screen.findByTestId("school-card");
