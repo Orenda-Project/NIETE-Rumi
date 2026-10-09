@@ -10,7 +10,7 @@ import '@/index.css';
 import i18n from '@/i18n/config';
 import {
   AttentionBanner, AudioCard, DateRangeBar, HomeGreeting, RatingScale, ScoreRing, SubjectTile, TimePicker, ChoiceChips, ChosenSoFar, ClassPicker, DayStrip, FeatureTile, GradeSubjectButton, HistoryList, HistoryRow,
-  KpiTiles, LeaveNote, ListRow, ProgressSteps, ReadyBanner, ReadyTray, SelectField, SlotGroup, StatStrip, StatusChip, StepBar,
+  FeatureCard, MeterRow, KpiTiles, LeaveNote, ListRow, ProgressSteps, ReadyBanner, ReadyTray, SelectField, SlotGroup, StatStrip, StatusChip, StepBar,
   Tabs, TimeStamp, Tray, trayHeight, type TrayRow,
 } from '@/portal/teacher/ui';
 import { ROW_PX, ROW_PX_UR } from '@/portal/teacher/ui/ReadyTray';
@@ -157,6 +157,22 @@ function Main() {
             { value: '٨٥٪', label: T.deep },
           ]}
         />
+      </Case>
+      <Case name="FeatureKpiTiles">
+        <KpiTiles
+          items={[
+            { value: 61, label: T.kpi, delta: 8, feature: 'lessons' },
+            { value: 17, label: T.kpi2, delta: 0, feature: 'assessment' },
+            { value: 7, label: T.deep, delta: -2, feature: 'observations' },
+            { value: 38, label: T.kpi, delta: 11, feature: 'coaching' },
+          ]}
+        />
+      </Case>
+      <Case name="FeatureCard">
+        <FeatureCard feature="attendance" title={T.deep} count={2}>
+          <MeterRow feature="attendance" label={T.kpi2} value="93%" pct={93} />
+          <MeterRow feature="observations" label={T.deep} pct={51} chips={[{ text: T.chip, tone: 'waiting' }]} />
+        </FeatureCard>
       </Case>
       <Case name="StatStrip">
         <div className="overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white">

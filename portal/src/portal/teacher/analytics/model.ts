@@ -14,10 +14,10 @@ import { ANALYTICS_V2_COPY, type AnalyticsCopy } from './copy';
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
-function kpi(value: unknown, before: unknown, label: string, hasBefore: boolean): KpiItem {
+function kpi(value: unknown, before: unknown, label: string, hasBefore: boolean, feature: KpiItem['feature']): KpiItem {
   const v = num(value);
   const b = num(before);
-  const out: KpiItem = { value: v, label };
+  const out: KpiItem = { value: v, label, feature };
   if (hasBefore && v !== null && b !== null) out.delta = v - b;
   return out;
 }
@@ -27,10 +27,10 @@ export function activityKpis(cur: ProgressCounts, prev: ProgressCounts | null, C
   const p = prev ?? {};
   const has = prev !== null;
   return [
-    kpi(cur.lessonPlans?.used, p.lessonPlans?.used, C.lessonPlansUsed, has),
-    kpi(cur.training?.completed, p.training?.completed, C.modulesDone, has),
-    kpi(cur.assessments?.made, p.assessments?.made, C.papersMade, has),
-    kpi(cur.attendance?.days, p.attendance?.days, C.attendanceDays, has),
+    kpi(cur.lessonPlans?.used, p.lessonPlans?.used, C.lessonPlansUsed, has, 'lessons'),
+    kpi(cur.training?.completed, p.training?.completed, C.modulesDone, has, 'training'),
+    kpi(cur.assessments?.made, p.assessments?.made, C.papersMade, has, 'assessment'),
+    kpi(cur.attendance?.days, p.attendance?.days, C.attendanceDays, has, 'attendance'),
   ];
 }
 
@@ -39,8 +39,8 @@ export function observationKpis(cur: ProgressCounts, prev: ProgressCounts | null
   const p = prev ?? {};
   const has = prev !== null;
   return [
-    kpi(cur.coaching?.observations, p.coaching?.observations, C.observations, has),
-    kpi(cur.coaching?.digitalCoach, p.coaching?.digitalCoach, C.digitalCoaching, has),
+    kpi(cur.coaching?.observations, p.coaching?.observations, C.observations, has, 'observations'),
+    kpi(cur.coaching?.digitalCoach, p.coaching?.digitalCoach, C.digitalCoaching, has, 'coaching'),
   ];
 }
 
