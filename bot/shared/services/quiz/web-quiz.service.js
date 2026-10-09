@@ -554,6 +554,9 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   };
   // Whether the page sends its page-session events (wq-tel.js).
   out.rt = await Tel.flag();
+  // The Urdu polish (web-quiz-ur-polish.js): one class on the page root when on; absent when off.
+  const ui = await require('./web-quiz-ur-polish').ui();
+  if (ui) out.ui = ui;
   // The invite ask (web-quiz-invite-ask.js): named only when it is not off, so a switched-off payload is today's.
   const ask = await require('./web-quiz-invite-ask').mode();
   if (ask !== 'off') out.invite_ask = ask;

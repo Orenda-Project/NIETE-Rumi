@@ -440,7 +440,8 @@ async function hubPayload(token, { kid, device } = {}) {
 
 /** The hub's boot JSON, with whether the page sends its page-session events (rt, wq-tel.js). */
 async function hub(token, opts = {}) {
-  return { ...(await hubPayload(token, opts)), rt: await Tel.flag() };
+  const ui = await require('./web-quiz-ur-polish').ui();
+  return { ...(await hubPayload(token, opts)), rt: await Tel.flag(), ...(ui ? { ui } : {}) };
 }
 
 module.exports = {
