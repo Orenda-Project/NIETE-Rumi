@@ -9,6 +9,7 @@ import { Sheet } from '../Sheet';
 import { TRAINING_COPY } from '../copy';
 import { Loading, NotLoaded, TrainingActions, TrainingInner } from './frame';
 import {
+  courseName,
   bestAttempt, isLadder, nextPart, providerLabel, trainingBase, trainingPaths, useAttempts, useGet,
   type Course, type ExamGate, type Level, type ModuleSummary, type ReadingItem, type ReadingList, type Vendor,
 } from './trainingApi';
@@ -59,7 +60,7 @@ export function useTrainingCourse() {
 export default function TrainingCourse() {
   const { vendorKey, levelId, courseId, paths, modules, attempts, level, course, provider, levelWord, list, next, doneCount } = useTrainingCourse();
   return (
-    <TrainingInner crumb={TRAINING_COPY.crumb(provider, levelWord)} title={course?.title ?? ''} backTo={paths.level(vendorKey, levelId)}>
+    <TrainingInner crumb={TRAINING_COPY.crumb(provider, levelWord)} title={courseName(course?.title)} backTo={paths.level(vendorKey, levelId)}>
       {modules.loading && !modules.data ? <Loading /> : null}
       {!modules.loading && modules.error ? <NotLoaded onRetry={modules.reload} /> : null}
 
