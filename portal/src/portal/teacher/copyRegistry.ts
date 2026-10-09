@@ -1,5 +1,9 @@
 import type { Bilingual } from './i18n';
 import { COPY_ENTRY as FRAME_ENTRY } from './copy';
+// bd-4404s7.2 — the coach Home and More/Profile words (coach/<area>/copy.ts), registered by name: a coach area joins the
+// Urdu completeness checks when its owner adds the line here (a glob would put every coach area under the gate at once).
+import { COPY_ENTRY as COACH_HOME_ENTRY } from '../coach/home/copy';
+import { COPY_ENTRY as COACH_PROFILE_ENTRY } from '../coach/profile/copy';
 
 /**
  * bd-fmf24g.13 — every teacher v2 copy module that is bilingual, with the screen it serves and the keys that
@@ -26,6 +30,8 @@ const found = import.meta.glob<{ COPY_ENTRY?: CopyEntry; COPY_ENTRIES?: readonly
 /** A folder registers one module (COPY_ENTRY) or several (COPY_ENTRIES). */
 export const COPY_MODULES: readonly CopyEntry[] = [
   FRAME_ENTRY,
+  COACH_HOME_ENTRY,
+  COACH_PROFILE_ENTRY,
   ...Object.keys(found).sort().flatMap((k) => [found[k].COPY_ENTRY, ...(found[k].COPY_ENTRIES ?? [])])
     .filter((e): e is CopyEntry => !!e),
 ];

@@ -6,6 +6,9 @@ import { coach } from "../services/api";
 import CoachGate from "./CoachGate";
 import { COACH_COPY as C } from "./copy";
 import { splitSlot } from "./time";
+import { useCopy } from "../teacher/i18n";
+import { AttentionBanner } from "../teacher/ui";
+import { COACH_HOME } from "./home/copy";
 
 /**
  * bd-o15qnr — the coach app v2's building blocks, in the LIVE portal look (not
@@ -73,6 +76,7 @@ export function resetPendingCache(): void {
 }
 
 export function PendingBanner() {
+  const W = useCopy(COACH_HOME);
   const [pending, setPending] = useState<Pending | null>(null);
   useEffect(() => {
     let live = true;
@@ -81,14 +85,8 @@ export function PendingBanner() {
   }, []);
   if (!pending || pending.waiting < 1) return null;
   const to = pending.waiting === 1 && pending.ids[0] ? `/portal/coach/observation/${pending.ids[0]}` : "/portal/coach/reports?show=waiting";
-  return (
-    <Link to={to} data-testid="pending-banner"
-      className="mb-1 flex min-h-[56px] items-center gap-2.5 rounded-2xl bg-[#fef3c7] px-4 text-[15px] font-semibold text-[#b45309]">
-      <Clock className="h-5 w-5 shrink-0" aria-hidden="true" />
-      <span className="flex-1">{C.reportsWaiting(pending.waiting)}</span>
-      <ChevronRight className="h-5 w-5 shrink-0 rtl:rotate-180" aria-hidden="true" />
-    </Link>
-  );
+  // bd-4404s7.2 — the kit's AttentionBanner (one component for every "this needs you" line), in her language.
+  return <AttentionBanner testId="pending-banner" text={W.reportsWaiting(pending.waiting)} to={to} className="mb-1" />;
 }
 
 export function CoachPage({
@@ -394,11 +392,12 @@ export function Loading() {
   );
 }
 
-export function Failed({ onRetry }: { onRetry: () => void }) {
+/** `message` and `retryLabel` carry a screen's own words (Urdu); left out, the coach app's English. */
+export function Failed({ onRetry, message, retryLabel }: { onRetry: () => void; message?: string; retryLabel?: string }) {
   return (
     <Card className="flex items-center gap-3 p-4">
-      <span className="flex-1 text-[15px] font-semibold">{C.loadFailed}</span>
-      <button type="button" onClick={onRetry} className="min-h-[48px] rounded-xl bg-[#f3f4f6] px-4 text-sm font-semibold text-[#33374a]">{C.retry}</button>
+      <span className="flex-1 text-[15px] font-semibold">{message ?? C.loadFailed}</span>
+      <button type="button" onClick={onRetry} className="min-h-[48px] rounded-xl bg-[#f3f4f6] px-4 text-sm font-semibold text-[#33374a]">{retryLabel ?? C.retry}</button>
     </Card>
   );
 }

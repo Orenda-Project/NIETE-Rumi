@@ -24,12 +24,12 @@ import { useLanguageSwitch } from "../useLanguageSwitch";
  */
 type Glyph = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
 
-const ROW = cn(
+export const ROW = cn(
   "flex min-h-[64px] w-full items-center gap-3.5 border-t border-[#f0f1f3] px-3 py-2 text-start text-[16px] font-semibold first:border-t-0",
   "outline-none hover:bg-[#f9fafb] focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-[#f59e0b]",
 );
 
-function Tile({ icon: Icon, glyph, hue }: { icon?: Glyph; glyph?: GlyphName; hue?: { fg: string; bg: string } }) {
+export function Tile({ icon: Icon, glyph, hue }: { icon?: Glyph; glyph?: GlyphName; hue?: { fg: string; bg: string } }) {
   return (
     <span
       aria-hidden="true"
@@ -42,11 +42,11 @@ function Tile({ icon: Icon, glyph, hue }: { icon?: Glyph; glyph?: GlyphName; hue
   );
 }
 
-function Chevron() {
+export function Chevron() {
   return <ChevronRight className="ms-auto h-[22px] w-[22px] shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />;
 }
 
-function Card({ label, children }: { label: string; children: ReactNode }) {
+export function Card({ label, children }: { label: string; children: ReactNode }) {
   return (
     <nav aria-label={label} className="overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
       {children}
@@ -54,7 +54,7 @@ function Card({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function RowLink({ id, to, icon, glyph, hue, label }: { id: string; to: string; icon?: Glyph; glyph?: GlyphName; hue?: { fg: string; bg: string }; label: string }) {
+export function RowLink({ id, to, icon, glyph, hue, label }: { id: string; to: string; icon?: Glyph; glyph?: GlyphName; hue?: { fg: string; bg: string }; label: string }) {
   return (
     <Link to={to} data-testid={`more-row-${id}`} className={ROW}>
       <Tile icon={icon} glyph={glyph} hue={hue} />
@@ -64,11 +64,39 @@ function RowLink({ id, to, icon, glyph, hue, label }: { id: string; to: string; 
   );
 }
 
+/**
+ * The Language row: names the language it switches TO, in that language's own script (the kit's one switch,
+ * useLanguageSwitch → the bot's setUserLanguage). Shared with the coach's More (bd-4404s7.2).
+ */
+export function LanguageRow() {
+  const C = useCopy(TEACHER_FRAME);
+  const lang = useLanguageSwitch();
+  return (
+    <button type="button" data-testid="more-row-language" onClick={lang.toggle} disabled={lang.status === "saving"} className={ROW}>
+      <Tile icon={lang.status === "saving" ? Loader2 : Languages} />
+      <span className="min-w-0 truncate">{C.more.language}</span>
+      {lang.status === "failed" && (
+        <span className="ms-auto inline-flex h-[26px] items-center rounded-full bg-[#fee4e2] px-2.5 text-[12px] font-semibold text-[#c8331f]">
+          {C.more.notSaved}
+        </span>
+      )}
+      <span
+        lang={lang.target}
+        className={cn(
+          "inline-flex h-[26px] items-center rounded-full bg-[#f3f4f6] px-2.5 text-[12px] font-semibold text-[#374151]",
+          lang.status === "failed" ? "" : "ms-auto",
+        )}
+      >
+        {C.more.switchTo[lang.target]}
+      </span>
+    </button>
+  );
+}
+
 export default function More() {
   const C = useCopy(TEACHER_FRAME);
   const { user, logout } = useAuth();
   const guardedLogout = useLogoutGuard(logout);
-  const lang = useLanguageSwitch();
   const name = fullName(user);
   const phone = formatPhone(user?.phoneNumber);
   const school = cleanSchool(user?.schoolName);
@@ -104,24 +132,7 @@ export default function More() {
       </Card>
 
       <Card label={C.more.account}>
-        <button type="button" data-testid="more-row-language" onClick={lang.toggle} disabled={lang.status === "saving"} className={ROW}>
-          <Tile icon={lang.status === "saving" ? Loader2 : Languages} />
-          <span className="min-w-0 truncate">{C.more.language}</span>
-          {lang.status === "failed" && (
-            <span className="ms-auto inline-flex h-[26px] items-center rounded-full bg-[#fee4e2] px-2.5 text-[12px] font-semibold text-[#c8331f]">
-              {C.more.notSaved}
-            </span>
-          )}
-          <span
-            lang={lang.target}
-            className={cn(
-              "inline-flex h-[26px] items-center rounded-full bg-[#f3f4f6] px-2.5 text-[12px] font-semibold text-[#374151]",
-              lang.status === "failed" ? "" : "ms-auto",
-            )}
-          >
-            {C.more.switchTo[lang.target]}
-          </span>
-        </button>
+        <LanguageRow />
         <RowLink id="profile" to={teacherPath("profile")} icon={CircleUserRound} label={C.more.profile} />
         <button
           type="button"
