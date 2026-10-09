@@ -193,3 +193,46 @@ describe('the exercise', () => {
     expect(res).toContainEqual(expect.objectContaining({ student_id: KID, exercise: 'listen', score: 2, of: 3 }));
   });
 });
+
+describe('the options read aloud (web_quiz_challenge_option_audio)', () => {
+  const OPT = { key: 'web_quiz_challenge_option_audio', value: true };
+  const { logEvent } = require('../../../shared/utils/structured-logger');
+  beforeEach(() => { db.app_settings.push(LISTEN); clipsExist(); });
+
+  test('switch off: the questions carry no option clips (today\'s payload)', async () => {
+    const { ct } = await Ch.exercise(hub(), 'listen', { ...D, lang: 'en' });
+    const out = await Ch.questions({ ct });
+    out.questions.forEach((q) => expect(q).not.toHaveProperty('option_clips'));
+  });
+
+  test('switch on: every option carries its own clip, in the option\'s order, keyed by its own text in the quiz voice', async () => {
+    db.app_settings.push(OPT);
+    const { ct } = await Ch.exercise(hub(), 'listen', { ...D, lang: 'en' });
+    const out = await Ch.questions({ ct });
+    for (const q of out.questions) {
+      const k = q.id.split('.').pop();
+      expect(q.option_clips).toHaveLength(q.options.length);
+      q.option_clips.forEach((c, i) => {
+        expect(c.url).toBe(`https://signed.test/${Ch.clipKey('listen', `${k}-opt`, 'en', q.options[i])}?b=r2-default`);
+        expect(c.url).toMatch(/\/challenge\/en\/listen\/q\d-opt-sx-grace-[0-9a-f]{8}\.ogg/);
+      });
+    }
+  });
+
+  test('an option not recorded yet comes back null and is recorded in the quiz voice (Urdu: Ishita), its cost logged', async () => {
+    db.app_settings.push(OPT);
+    const { ct } = await Ch.exercise(hub(), 'listen', { ...D, lang: 'ur' });
+    clipsMissing();
+    Ch.__reset();   // forget the clips this process already knew to exist
+    const out = await Ch.questions({ ct, lang: 'ur' });
+    expect(out.questions.length).toBeGreaterThan(0);
+    out.questions.forEach((q) => q.option_clips.forEach((c) => expect(c.url).toBeNull()));
+    await new Promise((r) => setImmediate(r));
+    const opts = out.questions.flatMap((q) => q.options);
+    const spoken = tts.synthesize.mock.calls.map((c) => c[0]);
+    for (const o of opts) expect(spoken).toContainEqual(expect.objectContaining({ text: o, language: 'ur', provider: 'soniox', voice: 'Ishita' }));
+    const rec = logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.ch_clip_recorded').map((c) => c[1]);
+    expect(rec.length).toBeGreaterThanOrEqual(opts.length);
+    rec.forEach((e) => expect(e.costUsd).toBeCloseTo(2 * 0.722 / 3600, 6));
+  });
+});

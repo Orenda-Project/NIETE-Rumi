@@ -66,6 +66,9 @@ const KEEP_FLAG_KEY = 'web_quiz_challenge_keep_audio';
 // and the practice banner both read the first-attempt record.
 const TRAIL_FLAG_KEY = 'web_quiz_challenge_trail';
 const MISSING_FLAG_KEY = 'web_quiz_challenge_missing';
+// Listen and answer: each answer option read aloud in the quiz voice, with its own play button (a child who cannot
+// read the options can still answer); off ⇒ the options are printed only.
+const OPTION_AUDIO_FLAG_KEY = 'web_quiz_challenge_option_audio';
 const QA_MAX = 3;
 // Never shown to a child as an option (the page's no-test-words rule, Urdu and English).
 // "I don't know" is never offered as an option (it is in some rubrics' reject lists as a non-answer).
@@ -81,7 +84,8 @@ const PUT_TTL_S = 3 * 60;
 const CLIP_TTL_S = 6 * 60 * 60;
 const WAIT_MS = 5000;
 const READS_PER_DAY = 10;
-const MAX_CLIP_RECORDINGS = 64;  // per process: 2 exercises × 4 lines × 2 languages = 16 clips, ever
+// per process: the mascot's 16 lines, the stories and question prompts, and Listen's ~27 answer options, ever
+const MAX_CLIP_RECORDINGS = 128;
 const AUDIO_TYPES = { 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a' };
 
 const fail = (status, error, extra = {}) => { throw new WqError(status, { error, ...extra }); };
@@ -171,6 +175,7 @@ const rulesOf = async () => {
   const record = await recordOn();
   return { record, guard: await readGuardOn(), items: await itemsOn(), trail: record && (await trailOn()), missing: record && (await missingOn()) };
 };
+const optionAudioOn = () => settingOn(OPTION_AUDIO_FLAG_KEY);
 // The payload says only which rules are on (nothing when none is: today's payload).
 const ruleFlags = (rules) => ({ ...(rules.record ? { record: true } : {}), ...(rules.guard ? { guard: true } : {}), ...(rules.items ? { items: true } : {}) });
 
@@ -438,12 +443,18 @@ async function recordClip(key, text, lang) {
     const out = await tts.synthesize({ text, language: lang, useCase: 'reading', site: 'web_quiz_challenge', provider: v.provider, voice: v.voice });
     await r2.uploadBuffer(out.audio, key, 'audio/ogg', { bucket: AudioStore.quizAudioBucket() });
     clipKnown.set(key, true);
-    logEvent('web_quiz.ch_clip_recorded', { lang, provider: out.provider, voice: out.voice, audioSec: Math.round((out.durationSec || 0) * 10) / 10 });
+    logEvent('web_quiz.ch_clip_recorded', { lang, provider: out.provider, voice: out.voice, audioSec: Math.round((out.durationSec || 0) * 10) / 10, chars: [...String(text)].length, costUsd: clipCostUsd(out) });
   } catch (e) {
     logError('web_quiz.ch_clip_failed', { lang, error: String(e && e.message || e).slice(0, 200) });
   } finally {
     clipRecording.delete(key);
   }
+}
+
+// What a clip cost: Soniox bills by audio time ($0.722 an hour, as tts/index.js); null for a provider billed otherwise.
+const SONIOX_USD_PER_AUDIO_S = 0.722 / 3600;
+function clipCostUsd(out) {
+  return out && out.provider === 'soniox' ? Math.round((out.durationSec || 0) * SONIOX_USD_PER_AUDIO_S * 1e6) / 1e6 : null;
 }
 
 async function clipUrl(key, text, lang) {
@@ -1236,12 +1247,17 @@ async function questions({ ct, attempted, lang } = {}) {
 /** Listening: the child heard the whole story, so no reach rule; the run is written as scoring when they are served. */
 async function listenQuestions(c, run, row, spec) {
   const out = [];
+  const optAudio = await optionAudioOn();
   for (const q of spec.questions || []) {
     if (out.length >= QA_MAX) break;
     const t = tapOptions(q, run.lang, c.r);
     if (!t) continue;
     const k = q.id.split('.').pop();
-    out.push({ id: q.id, prompt: q.prompt, options: t.options, clip: { url: await clipUrl(clipKey('listen', k, run.lang, q.prompt), q.prompt, run.lang) } });
+    const item = { id: q.id, prompt: q.prompt, options: t.options, clip: { url: await clipUrl(clipKey('listen', k, run.lang, q.prompt), q.prompt, run.lang) } };
+    // each option in the same voice and pipeline as the question, in the option's own (per-run) order; a clip not
+    // recorded yet is null (and asked for), so that option is shown without its play button
+    if (optAudio) item.option_clips = await Promise.all(t.options.map(async (o) => ({ url: await clipUrl(clipKey('listen', `${k}-opt`, run.lang, o), o, run.lang) })));
+    out.push(item);
   }
   if (!row && out.length) {
     RUNS.set(c.r, { ...run, status: 'listening' });
@@ -1349,7 +1365,7 @@ async function listResults({ cls, list } = {}) {
 }
 
 module.exports = {
-  menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, tapOptions, listenOn,
+  menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, tapOptions, listenOn, optionAudioOn,
   scoreBigger, wcpm, formFor, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
   recordOn, readGuardOn, itemsOn, keepAudioOn, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
   EXERCISES, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,
