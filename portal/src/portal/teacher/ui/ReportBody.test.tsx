@@ -28,7 +28,22 @@ describe("ReportBody", () => {
     expect(within(hero).getByText("Celebrating your teaching")).toHaveClass("uppercase");
     expect(within(hero).getByText("63%")).toHaveClass("text-[48px]", "font-extrabold");
     expect(within(hero).getByText("33/52 marks")).toBeInTheDocument();
+    expect(within(hero).getByTestId("report-score")).toHaveTextContent(/^63% · 33\/52 marks$/);
     expect(hero).toHaveTextContent("Ayesha Bibi · Fractions · 28 Sep 2026");
+  });
+
+  it("no marks, no score: neither the % nor the marks are shown (nothing invented)", () => {
+    const { marks: _m, max: _x, ...rest } = BASE;
+    render(<ReportBody data={rest as ReportData} />);
+    const hero = screen.getByRole("region", { name: "Report" });
+    expect(within(hero).queryByTestId("report-score")).toBeNull();
+    expect(hero).not.toHaveTextContent(/%|marks/);
+    expect(screen.getByRole("region", { name: "Your scores" })).not.toHaveTextContent(/\d+%/);
+  });
+
+  it("marks of 0 out of 0 are not a score either", () => {
+    render(<ReportBody data={{ ...BASE, marks: 0, max: 0 }} />);
+    expect(screen.queryByTestId("report-score")).toBeNull();
   });
 
   it("Your scores: score/max with a bar coloured by band (≥80 green, ≥60 amber, else coral), a Why line; Not assessed has no bar", () => {

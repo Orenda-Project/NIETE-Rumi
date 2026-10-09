@@ -42,8 +42,9 @@ export function toReportData(s: SessionDetail, {
   teacher, journey, words: C = COACHING_V2_COPY, days = LESSONS_V2_COPY.days,
 }: { teacher: string; journey: JourneyPoint[]; words?: CoachingCopy; days?: LessonsCopy['days'] }): ReportData {
   const b = s.breakdown || null;
-  const marks = b && b.marks != null ? b.marks : (s.overallScore ?? 0);
-  const max = b && b.max != null ? b.max : (s.maxScore ?? 0);
+  // Never a stand-in zero: no marks means no score is shown (ReportBody leaves the % and the marks out).
+  const marks = b && b.marks != null ? b.marks : (s.overallScore ?? null);
+  const max = b && b.max != null ? b.max : (s.maxScore ?? null);
   const coach = s.observation?.observerName?.trim() || null;
   const points = journey.filter((p) => Number.isFinite(p.pct));
   return {

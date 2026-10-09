@@ -107,22 +107,28 @@ describe("readPrefill (Start DC observation on a lesson plan)", () => {
 });
 
 describe("the hub", () => {
-  it("her own classes only, the first chosen; Start and Upload are on", async () => {
+  it("her own classes only, NOTHING chosen yet: Start and Upload are off until she picks", async () => {
     at(COACHING_HOME);
     // The first test of the file also loads the page's module graph: room for a slow, loaded run.
-    const trigger = await screen.findByRole("button", { name: new RegExp(`${C.selectClass}.*Grade 4 · General Science`) }, { timeout: 5000 });
+    const trigger = await screen.findByRole("button", { name: new RegExp(`^${C.selectClass}$`) }, { timeout: 5000 });
     expect(trigger).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Grade 4 · General Science/ })).toBeNull();
     expect(screen.getByRole("heading", { name: C.yourClass })).toBeTruthy();
-    expect((screen.getByRole("button", { name: C.startRecording }) as HTMLButtonElement).disabled).toBe(false);
-    expect((screen.getByRole("button", { name: C.uploadRecording }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole("button", { name: C.startRecording }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: C.uploadRecording }) as HTMLButtonElement).disabled).toBe(true);
     // the grade-less class (early years) is not offered: DC needs a grade
     fireEvent.click(trigger);
     expect(screen.queryByText("Play")).toBeNull();
+    // she picks (two classes: plain rows, one tap); Start and Upload come on
+    fireEvent.click(await screen.findByRole("button", { name: /General Science/ }));
+    expect(await screen.findByRole("button", { name: new RegExp(`${C.selectClass}.*Grade 4 · General Science`) })).toBeTruthy();
+    expect((screen.getByRole("button", { name: C.startRecording }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole("button", { name: C.uploadRecording }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("Photos: one grid, the hint, No faces; at most 3", async () => {
     at(COACHING_HOME);
-    await screen.findByRole("button", { name: new RegExp(`${C.selectClass}.*Grade 4 · General Science`) });
+    await screen.findByRole("button", { name: new RegExp(`^${C.selectClass}$`) });
     expect(screen.getByRole("heading", { name: new RegExp(C.photos) })).toBeTruthy();
     expect(screen.getByText(C.photosHint)).toBeTruthy();
     expect(screen.getByText(C.noFaces)).toBeTruthy();

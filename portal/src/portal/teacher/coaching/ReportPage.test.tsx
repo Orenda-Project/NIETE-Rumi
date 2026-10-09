@@ -79,6 +79,12 @@ describe("toReportData", () => {
     expect(d.photos).toEqual([{ src: "https://r2/p1.jpg", cap: "" }]);
   });
 
+  it("a session with no marks yet carries none: not a stand-in 0/0", () => {
+    const d = toReportData({ ...DETAIL, overallScore: undefined, maxScore: null, breakdown: null } as never, { teacher: "Ayesha Bibi", journey: [] });
+    expect(d.marks).toBeNull();
+    expect(d.max).toBeNull();
+  });
+
   it("a coach's visit: her debrief from the coach as the last section", () => {
     const d = toReportData({ ...DETAIL, prioritizedAction: null, observation: {
       observerName: "Hataf Atif", observedAt: null, sentAt: null, reportImageUrl: "https://r2/hero.png", caption: null,
