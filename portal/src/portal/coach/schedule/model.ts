@@ -46,12 +46,6 @@ export function sinceText(days: number | null | undefined, c: Pick<ScheduleCopy,
   return days === 0 ? c.today : c.daysAgo(days);
 }
 
-export function shiftDay(day: string, by: number): string {
-  const d = new Date(`${day}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + by);
-  return d.toISOString().slice(0, 10);
-}
-
 const dayOf = (iso: string) => new Date(`${iso}T00:00:00Z`);
 
 /** "Wed 7" */
@@ -64,23 +58,6 @@ export function dayShort(iso: string, c: Pick<ScheduleCopy, 'weekdaysShort' | 'd
 export function dayLong(iso: string, c: Pick<ScheduleCopy, 'weekdaysLong' | 'months'>): string {
   const d = dayOf(iso);
   return `${c.weekdaysLong[d.getUTCDay()]} ${d.getUTCDate()} ${c.months[d.getUTCMonth()]}`;
-}
-
-/** "October 2026", for the month shown above the day strip. */
-export function monthYear(iso: string, c: Pick<ScheduleCopy, 'months'>): string {
-  const d = dayOf(iso);
-  return `${c.months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
-}
-
-/** The month a week of days sits in; a week that spans two months names both ("September – October 2026"). */
-export function weekMonth(days: readonly string[], c: Pick<ScheduleCopy, 'months'>): string {
-  const first = days[0];
-  const last = days[days.length - 1];
-  if (!first) return '';
-  const a = dayOf(first);
-  const b = dayOf(last);
-  if (a.getUTCMonth() === b.getUTCMonth()) return monthYear(first, c);
-  return `${c.months[a.getUTCMonth()]} – ${monthYear(last, c)}`;
 }
 
 /** "Wed 7 Oct": the short day, its number and the SHORT month (the kit's `months`; Urdu's are whole). */

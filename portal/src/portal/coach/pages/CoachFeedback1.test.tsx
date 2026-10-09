@@ -120,7 +120,7 @@ describe("2 — a visit can be booked on a past day", () => {
   it("the day strip goes back a week; a past day is booked as picked", async () => {
     renderAt("/portal/coach/new-visit?school=niete%3A494&teacher=923001110005");
     await screen.findByText("Step 3 of 3");
-    fireEvent.click(screen.getByRole("button", { name: "Earlier days" }));
+    fireEvent.click(screen.getByRole("button", { name: "Earlier week" }));
     fireEvent.click(screen.getByRole("button", { name: "Fri 2" }));
     fireEvent.click(screen.getByRole("button", { name: /^Schedule$/ }));
     await waitFor(() => expect(L.createSchedule).toHaveBeenCalledWith(expect.objectContaining({ date: "2026-10-02", slot: "09:00" })));
@@ -129,7 +129,7 @@ describe("2 — a visit can be booked on a past day", () => {
   it("and forward again to later weeks", async () => {
     renderAt("/portal/coach/new-visit?school=niete%3A494&teacher=923001110005");
     await screen.findByText("Step 3 of 3");
-    fireEvent.click(screen.getByRole("button", { name: "Later days" }));
+    fireEvent.click(screen.getByRole("button", { name: "Later week" }));
     fireEvent.click(screen.getByRole("button", { name: "Wed 14" }));
     fireEvent.click(screen.getByRole("button", { name: /^Schedule$/ }));
     await waitFor(() => expect(L.createSchedule).toHaveBeenCalledWith(expect.objectContaining({ date: "2026-10-14" })));
@@ -141,7 +141,7 @@ describe("3 — no AM/PM warning", () => {
     renderAt("/portal/coach/new-visit?school=niete%3A494&teacher=923001110005");
     await screen.findByText("Step 3 of 3");
     fireEvent.click(screen.getByRole("radio", { name: "PM" }));
-    expect(screen.getByTestId("time-readout")).toHaveTextContent("9:00 PM");
+    expect(within(screen.getByTestId("time-picker")).getByRole("img")).toHaveAttribute("aria-label", "9:00 PM");
     expect(screen.queryByText(/7:00 AM/)).toBeNull();
     const button = screen.getByRole("button", { name: /^Schedule$/ });
     expect(button).not.toBeDisabled();
@@ -154,9 +154,9 @@ describe("3 — no AM/PM warning", () => {
     await screen.findByText("Step 3 of 3");
     const later = screen.getByRole("button", { name: "Later hour" });
     fireEvent.click(later); fireEvent.click(later); // 9 → 10 → 11
-    expect(screen.getByTestId("time-readout")).toHaveTextContent("11:00 AM");
+    expect(within(screen.getByTestId("time-picker")).getByRole("img")).toHaveAttribute("aria-label", "11:00 AM");
     fireEvent.click(later); // 12
-    expect(screen.getByTestId("time-readout")).toHaveTextContent("12:00 PM");
+    expect(within(screen.getByTestId("time-picker")).getByRole("img")).toHaveAttribute("aria-label", "12:00 PM");
   });
 });
 

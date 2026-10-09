@@ -138,9 +138,9 @@ describe("Team schedule", () => {
     const group = within(await screen.findByTestId("slot-09:00"));
     expect(group.getByRole("img", { name: "9:00 AM" })).toBeInTheDocument(); // the kit's TimeStamp
     expect(group.getByText("20 visits")).toBeInTheDocument();
-    expect(group.getAllByTestId("team-visit").length).toBeLessThan(20);
+    expect(group.getAllByText(/^Teacher \d+$/).length).toBeLessThan(20);
     fireEvent.click(group.getByRole("button", { name: /Show all 20/ }));
-    expect(group.getAllByTestId("team-visit")).toHaveLength(20);
+    expect(group.getAllByText(/^Teacher \d+$/)).toHaveLength(20);
   });
 
   it("a coach can be picked from the list; the page asks again for her only", async () => {

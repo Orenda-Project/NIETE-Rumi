@@ -4,10 +4,10 @@ import { coach } from "../../services/api";
 import { CoachPage, Card, BottomLink, Loading, Failed, useLoad } from "../ui";
 import { karachiDay } from "../time";
 import type { CoachVisit } from "../types";
-import { HistoryList, type HistoryGroup, type HistoryItem } from "../../teacher/ui";
+import { DayStrip, HistoryList, addDays, type HistoryGroup, type HistoryItem } from "../../teacher/ui";
 import { useCopy } from "../../teacher/i18n";
 import { SCHEDULE, type ScheduleCopy } from "../schedule/copy";
-import { dayShort, daysBetween, shiftDay } from "../schedule/model";
+import { dayShort, daysBetween } from "../schedule/model";
 
 /**
  * bd-o15qnr — My schedule: the week strip (a dot per visit, green when done),
@@ -16,7 +16,7 @@ import { dayShort, daysBetween, shiftDay } from "../schedule/model";
  *
  * bd-4404s7.3: the visits are the kit's HistoryList of HistoryRow lead="person" (a round avatar, the TimeStamp on the
  * first line, status tones: next is a tinted row with a bar, done is muted), the words are en + ur
- * (../schedule/copy.ts). The week strip is this page's own until the kit's DayStrip (PR 2b) lands.
+ * (../schedule/copy.ts). The week is the kit's DayStrip (a dot per visit, green when done; the arrows ask for that week).
  */
 
 /** One visit as the kit's coach row: a round avatar, the TimeStamp on the first line, the teacher, the school. */
@@ -40,10 +40,12 @@ function visitItem(v: CoachVisit, today: string, c: ScheduleCopy): HistoryItem {
 const CoachSchedule = () => {
   const c = useCopy(SCHEDULE);
   const today = karachiDay(); // bd-o15qnr.23: the day in Pakistan
-  const { data, failed, reload } = useLoad(() => coach.getSchedule(), []);
+  // The week asked for with the strip's arrows; none = this week, as the server counts it.
+  const [range, setRange] = useState<{ from: string; to: string } | null>(null);
+  const { data, failed, reload } = useLoad(() => coach.getSchedule(range ?? {}), [range?.from]);
   const [picked, setPicked] = useState<string | null>(null);
 
-  const days = useMemo(() => (data ? Array.from({ length: 7 }, (_, i) => shiftDay(data.from, i)) : []), [data]);
+  const days = useMemo(() => (data ? Array.from({ length: 7 }, (_, i) => addDays(data.from, i)) : []), [data]);
 
   const byDay = useMemo(() => {
     const m = new Map<string, CoachVisit[]>();
@@ -67,24 +69,14 @@ const CoachSchedule = () => {
       {!data && !failed && <Loading />}
       {data && (
         <>
-          <Card className="grid grid-cols-7 gap-1 p-2" aria-label={c.week}>
-            {days.map((d) => {
-              const dow = new Date(`${d}T00:00:00Z`).getUTCDay();
-              const list = byDay.get(d) || [];
-              const on = picked === d || (!picked && d === today);
-              return (
-                <button key={d} type="button" aria-pressed={picked === d} aria-label={dayShort(d, c)}
-                  onClick={() => setPicked((p) => (p === d ? null : d))}
-                  className={`flex min-h-[72px] flex-col items-center justify-center gap-0.5 rounded-xl ${on ? "bg-[#33374a] text-white" : ""} ${[0, 6].includes(dow) ? "opacity-50" : ""}`}>
-                  <small className={`text-[11px] font-semibold uppercase ${on ? "text-[#c7cad6]" : "text-[#6b7280]"}`}>{c.weekdaysShort[dow]}</small>
-                  <b className="text-lg font-bold tabular-nums">{dayNo(d)}</b>
-                  <i className="flex h-1.5 gap-0.5" aria-hidden="true">
-                    {list.slice(0, 4).map((v) => <span key={v.id} className="h-1.5 w-1.5 rounded-full" style={{ background: v.status === "done" ? "#48b078" : on ? "#c7cad6" : "#9ca3af" }} />)}
-                  </i>
-                </button>
-              );
-            })}
-          </Card>
+          <DayStrip
+            label={c.week}
+            value={picked ?? (days.includes(today) ? today : data.from)}
+            week={data.from}
+            onChange={(d) => setPicked((p) => (p === d ? null : d))}
+            onWeekChange={(first) => { setPicked(null); setRange({ from: first, to: addDays(first, 6) }); }}
+            dots={Object.fromEntries(days.map((d) => [d, (byDay.get(d) || []).slice(0, 3).map((v) => (v.status === "done" ? "done" : "open") as "done" | "open")]))}
+          />
 
           {data.overdue.length > 0 && (
             <div data-testid="overdue">

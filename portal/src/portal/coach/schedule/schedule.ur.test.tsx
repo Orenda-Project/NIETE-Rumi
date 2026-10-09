@@ -104,7 +104,7 @@ describe("Schedule in Urdu", () => {
 
   it("New visit 3: Chosen so far, the month in Urdu, Already booked, and the clash that still lets her book", async () => {
     at("/portal/coach/new-visit?school=niete%3A494&teacher=923001110005");
-    expect(await screen.findByText(U.stepOf(3))).toBeTruthy();
+    expect(await screen.findByText(text(U.stepOf(3)))).toBeTruthy();
     expect(screen.getByRole("region", { name: U.chosenSoFar })).toBeTruthy();
     expect(screen.getByRole("link", { name: `${U.change} ${U.school}` })).toBeTruthy();
     expect(screen.getByText(text(`${U.months[9]} 2026`))).toBeTruthy();
@@ -118,7 +118,7 @@ describe("Schedule in Urdu", () => {
 
   it("New visit 1: the legend and the status chips are Urdu", async () => {
     at("/portal/coach/new-visit");
-    expect(await screen.findByText(U.stepOf(1))).toBeTruthy();
+    expect(await screen.findByText(text(U.stepOf(1)))).toBeTruthy();
     const legend = screen.getByTestId("since-legend");
     expect(plain(legend.textContent)).toContain(U.legendOld);
     expect(screen.getByText(text(U.daysAgo(41)))).toBeTruthy();

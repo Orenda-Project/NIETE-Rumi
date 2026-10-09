@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { bookedOn, clashesAt, dayLong, dayShort, monthYear, shiftDay, sinceText, sinceTone, timeWords, weekMonth } from "./model";
+import { bookedOn, clashesAt, dayLong, dayShort, sinceText, sinceTone, timeWords } from "./model";
 import { SCHEDULE_COPY as EN, SCHEDULE_COPY_UR as UR } from "./copy";
 import { TEACHER_UI_COPY, TEACHER_UI_UR } from "../../teacher/ui/copy";
 import type { CoachVisit } from "../types";
@@ -43,13 +43,9 @@ describe("bd-4404s7.3 schedule model", () => {
   });
 
   it("day words come from the copy, in the day's own calendar (no time zone slip)", () => {
-    expect(shiftDay("2026-10-31", 1)).toBe("2026-11-01");
     expect(dayShort("2026-10-07", EN)).toBe("Wed 7");
     expect(dayShort("2026-10-07", UR)).toBe("بدھ 7");
     expect(dayLong("2026-10-07", EN)).toBe("Wednesday 7 October");
     expect(dayLong("2026-10-07", UR)).toBe("بدھ 7 اکتوبر");
-    expect(monthYear("2026-10-07", EN)).toBe("October 2026");
-    expect(weekMonth(["2026-10-04", "2026-10-10"], EN)).toBe("October 2026");
-    expect(weekMonth(["2026-09-27", "2026-10-03"], EN)).toBe("September – October 2026");
   });
 });

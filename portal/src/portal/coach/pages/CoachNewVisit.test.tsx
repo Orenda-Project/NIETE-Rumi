@@ -34,6 +34,9 @@ const PEOPLE = {
   ],
 };
 
+/** The time the picker shows, as the kit's TimeStamp names it ("9:00 AM"). */
+const picked = () => within(screen.getByTestId("time-picker")).getByRole("img").getAttribute("aria-label");
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -93,7 +96,7 @@ describe("step 3 — day and time", () => {
   it("starts at 9:00 AM and books 24-hour time", async () => {
     renderAt("/portal/coach/new-visit?school=niete%3A494&teacher=923001110005");
     expect(await screen.findByText("Step 3 of 3")).toBeInTheDocument();
-    expect(screen.getByTestId("time-readout")).toHaveTextContent("9:00 AM");
+    expect(picked()).toBe("9:00 AM");
     fireEvent.click(screen.getByRole("button", { name: /Schedule/ }));
     await waitFor(() => expect(L.createSchedule).toHaveBeenCalledWith(expect.objectContaining({ teacherExtId: "923001110005", slot: "09:00" })));
     expect(await screen.findByText("Visit scheduled")).toBeInTheDocument();
@@ -105,7 +108,7 @@ describe("step 3 — day and time", () => {
     const later = screen.getByRole("button", { name: "Later hour" });
     for (let i = 0; i < 5; i += 1) fireEvent.click(later); // 9 → 10 → 11 → 12 → 1 → 2
     fireEvent.click(screen.getByRole("radio", { name: ":30" }));
-    expect(screen.getByTestId("time-readout")).toHaveTextContent("2:30 PM");
+    expect(picked()).toBe("2:30 PM");
     expect(screen.getByRole("radio", { name: "PM" })).toHaveAttribute("aria-checked", "true");
     fireEvent.click(screen.getByRole("button", { name: /Schedule/ }));
     await waitFor(() => expect(L.createSchedule).toHaveBeenCalledWith(expect.objectContaining({ slot: "14:30" })));
@@ -115,13 +118,13 @@ describe("step 3 — day and time", () => {
     renderAt("/portal/coach/new-visit?school=niete%3A494&teacher=923001110005");
     await screen.findByText("Step 3 of 3");
     fireEvent.click(screen.getByRole("radio", { name: "PM" }));
-    expect(screen.getByTestId("time-readout")).toHaveTextContent("9:00 PM");
+    expect(picked()).toBe("9:00 PM");
   });
 
   it("Reschedule edits the visit instead of booking a new one", async () => {
     renderAt("/portal/coach/new-visit?school=niete%3A110&teacher=923001110001&visit=0d8a6d1c-1111-4c1c-9a1a-000000000009&slot=11%3A30");
     await screen.findByText("Step 3 of 3");
-    expect(screen.getByTestId("time-readout")).toHaveTextContent("11:30 AM");
+    expect(picked()).toBe("11:30 AM");
     fireEvent.click(screen.getByRole("button", { name: /Schedule/ }));
     await waitFor(() => expect(C.editSchedule).toHaveBeenCalledWith("0d8a6d1c-1111-4c1c-9a1a-000000000009", expect.objectContaining({ slot: "11:30" })));
     expect(L.createSchedule).not.toHaveBeenCalled();

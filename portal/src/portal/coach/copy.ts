@@ -42,12 +42,7 @@ export const COACH_COPY = {
   you: "You",
 
   // New visit
-  stepOf: (n: number) => `Step ${n} of 3`,
-  change: "Change",
   profile: "Profile",
-  day: "Day",
-  minutes: "Minutes",
-  saving: "Saving",
   reschedule: "Reschedule",
 
   // Observe

@@ -82,14 +82,6 @@ export const SCHEDULE_COPY = {
 
   /* day and time */
   day: 'Day',
-  time: 'Time',
-  hour: 'Hour',
-  minutes: 'Minutes',
-  amPm: 'AM / PM',
-  laterHour: 'Later hour',
-  earlierHour: 'Earlier hour',
-  earlierDays: 'Earlier days',
-  laterDays: 'Later days',
   alreadyBooked: 'Already booked',
   clash: 'Clash',
   /** The time is already worded ("8:30 AM"). */
@@ -168,14 +160,6 @@ export const SCHEDULE_COPY_UR: ScheduleCopy = {
   training: 'ٹریننگ',
 
   day: 'دن',
-  time: 'وقت',
-  hour: 'گھنٹہ',
-  minutes: 'منٹ',
-  amPm: 'صبح / شام',
-  laterHour: 'اگلا گھنٹہ',
-  earlierHour: 'پچھلا گھنٹہ',
-  earlierDays: 'پچھلے دن',
-  laterDays: 'اگلے دن',
   alreadyBooked: 'پہلے سے بک',
   clash: 'ٹکراؤ',
   clashTitle: (time: string) => `آپ کا ${time} پر پہلے سے دورہ ہے`,
