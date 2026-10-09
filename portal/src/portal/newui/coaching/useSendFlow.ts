@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { RecordStart } from '../../components/coaching/CoachingHome';
 import { checkFile, MAX_PHOTOS, readAudioDuration } from '../../lib/coachingUpload';
-import { sendLesson, SendError, type LibraryPick } from '../../lib/coachingSend';
+import { sendLesson, SendError, type LibraryPick, type TeacherClass } from '../../lib/coachingSend';
 import { takeHandedOffRecording } from '../../lib/lessonHandoff';
 import { lessonFilename } from '../../lib/recordFlow';
 import { deleteRecording, latestUnsent, type StoredRecording } from '../../lib/recordingStore';
@@ -52,7 +52,15 @@ export type FileProblem = 'not_audio' | 'too_large' | null;
 export type PlanProblem = 'not_a_plan' | null;
 export type PhotosProblem = 'not_a_photo' | 'too_many' | null;
 
-export function useSendFlow(session: RecordingSession) {
+/**
+ * Where this flow lives and where it goes back to. Today's pages by default; the teacher v2 send page
+ * (teacher/coaching/SendPage, bd-fmf24g.4) passes its own, so the bar's Return and every way out land
+ * on v2 pages for a flagged teacher.
+ */
+export type SendFlowPaths = { record: string; hub: string };
+const TODAY_PATHS: SendFlowPaths = { record: RECORD_PATH, hub: '/portal/coaching' };
+
+export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TODAY_PATHS) {
   const navigate = useNavigate();
   const location = useLocation();
   const [stage, setStage] = useState<Stage>(() => (session.active ? 'recording' : 'starting'));
@@ -70,12 +78,12 @@ export function useSendFlow(session: RecordingSession) {
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   const toCoaching = useCallback(
-    () => navigate('/portal/coaching', { replace: true, state: { sendSheet: true } }),
-    [navigate],
+    () => navigate(paths.hub, { replace: true, state: { sendSheet: true } }),
+    [navigate, paths.hub],
   );
 
   const startRecording = async () => {
-    const result = await session.start({ returnTo: RECORD_PATH });
+    const result = await session.start({ returnTo: paths.record });
     setStage(result === 'recording' ? 'recording' : 'micBlocked');
   };
 
@@ -184,7 +192,8 @@ export function useSendFlow(session: RecordingSession) {
 
   const removePhoto = (i: number) => { setPhotosProblem(null); setPhotos((p) => p.filter((_, j) => j !== i)); };
 
-  const send = async () => {
+  /** `teacherClass`: the class she picked (teacher app v2); today's pages send none. */
+  const send = async (teacherClass?: TeacherClass | null) => {
     if (!audio) return;
     setFailure(null);
     setProgress(0);
@@ -194,6 +203,7 @@ export function useSendFlow(session: RecordingSession) {
         audio: { blob: audio.blob, filename: audio.filename },
         plan: plan ? (plan.kind === 'library' ? { kind: 'library', pick: plan.pick } : { kind: 'file', file: plan.file }) : null,
         photos,
+        teacherClass: teacherClass ?? null,
       }, portal, setProgress);
       if (audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* gone */ } }
       setSessionId(coachingSessionId);

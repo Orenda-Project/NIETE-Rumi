@@ -9,6 +9,7 @@ import {
 import { portal, type AddKind, type EditError, type EditItem, type EditPaper } from '../../services/api';
 import QuestionFields from './QuestionFields';
 import AddQuestionFields from './AddQuestionFields';
+import { SkeletonList } from '../Skeleton';
 import {
   addQuestion, clearDraft, dropAdded, emptyDraft, isDirty, isRemovedNow, loadDraft, saveDraft,
   setEdit, toChanges, toggleRemove, type Draft,
@@ -233,7 +234,8 @@ const AssessmentEditor = ({ paperId, open, onClose, onSaved }: Props) => {
 
         <div className="flex-1 space-y-6 overflow-y-auto py-4">
           {loadError && <p className="text-sm text-destructive">{loadError}</p>}
-          {!paper && !loadError && <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin" /></div>}
+          {/* bd-fxk3t8 — placeholder rows where the paper will be, not a spinner. */}
+          {!paper && !loadError && <SkeletonList rows={3} />}
           {offerDraft && (
             <div className="rounded-md bg-muted p-3 text-sm">
               You have unsaved changes from before.

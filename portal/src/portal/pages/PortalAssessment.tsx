@@ -4,11 +4,12 @@ import { AuthContext } from '../hooks/authContext';
 import { isLeader } from '../lib/leaderRole';
 import { useNewUi } from '../lib/useNewUi';
 import { ASSESSMENT_PATH, type AssessmentView } from '../lib/assessmentRoutes';
-import LoadingState from '../components/LoadingState';
 import ClassicAssessment from './ClassicAssessment';
 import AssessmentHome from '../newui/assessment/AssessmentHome';
 import AssessmentRequest from '../newui/assessment/AssessmentRequest';
 import MyAssessments from '../newui/assessment/MyAssessments';
+import { FrameSkeleton } from '../components/Skeleton';
+import { readShellHint } from '../lib/shellHint';
 
 /**
  * bd-5rz1v.13 — /portal/assessment and the pages inside it. They exist only in the new UI
@@ -20,7 +21,8 @@ const PortalAssessment = ({ view }: { view: AssessmentView }) => {
   const auth = useAuth();
   const { user, loading } = auth;
   const newUi = useNewUi(user?.phoneNumber || null, !loading && !!user);
-  if (newUi === null && (loading || user)) return <LoadingState type="full" />;
+  // bd-fxk3t8 — the app's frame with placeholders while the flag is read, not a full-screen spinner.
+  if (newUi === null && (loading || user)) return <FrameSkeleton variant={readShellHint() ?? 'classic'} />;
   if (newUi !== true || !user || isLeader(user)) {
     // The home route IS the classic page; the inner routes land on it, so there is no loop.
     // bd-t5tow — handed the user this page already loaded, so ClassicAssessment (which keys its

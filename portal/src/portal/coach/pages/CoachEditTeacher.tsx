@@ -2,8 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Check, School, Trash2 } from "lucide-react";
 import { coach } from "../../services/api";
-import { COACH_COPY as C } from "../copy";
-import { CoachPage, SelectBox, BottomButton, Chip, Loading, Failed, useLoad, formatPhone } from "../ui";
+import { StatusChip } from "../../teacher/ui";
+import { useCopy } from "../../teacher/i18n";
+import { SelectBox, BottomButton, Loading, useLoad, formatPhone } from "../ui";
+import { PEOPLE, PEOPLE_EN } from "../people/copy";
+import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
+
+type Words = typeof PEOPLE_EN;
 
 /**
  * bd-o15qnr.11 + .13 — Edit teacher (v22 EditTeacher.dc.html).
@@ -19,7 +24,7 @@ import { CoachPage, SelectBox, BottomButton, Chip, Loading, Failed, useLoad, for
 const LEVELS = ["PRIMARY", "MIDDLE", "HIGH"] as const;
 type Role = "teacher" | "principal";
 
-function reasonText(data: any): string {
+function reasonText(C: Words, data: any): string {
   switch (data?.reason) {
     case "not_found": return C.editNotYours;
     case "not_my_school": return C.notYourSchool;
@@ -35,6 +40,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 type PhoneResult = { kind: "free" | "shell" | "same"; phone: string } | { kind: "refused"; text: string } | null;
 
 const CoachEditTeacher = () => {
+  const C = useCopy(PEOPLE);
   const { ext = "" } = useParams();
   const navigate = useNavigate();
   const { data, failed, reload } = useLoad(() => coach.getTeacher(ext), [ext]);
@@ -89,7 +95,7 @@ const CoachEditTeacher = () => {
       if (changes.school) await coach.moveTeacher(ext, school);
       navigate(`/portal/coach/teacher/${ext}`);
     } catch (e: any) {
-      setError(reasonText(e?.response?.data));
+      setError(reasonText(C, e?.response?.data));
       reload();
     } finally { setBusy(false); }
   };
@@ -103,7 +109,7 @@ const CoachEditTeacher = () => {
       setPhoneResult({ kind, phone: r.phone || "" });
     } catch (e: any) {
       const d = e?.response?.data;
-      setPhoneResult({ kind: "refused", text: d?.reason === "taken" ? (d?.heading || C.saveFailed) : reasonText(d) });
+      setPhoneResult({ kind: "refused", text: d?.reason === "taken" ? (d?.heading || C.saveFailed) : reasonText(C, d) });
     } finally { setBusy(false); }
   };
 
@@ -116,7 +122,7 @@ const CoachEditTeacher = () => {
       navigate(`/portal/coach/teacher/${r.phone || phoneResult.phone}`);
     } catch (e: any) {
       const d = e?.response?.data;
-      setPhoneResult({ kind: "refused", text: d?.reason === "taken" ? (d?.heading || C.saveFailed) : reasonText(d) });
+      setPhoneResult({ kind: "refused", text: d?.reason === "taken" ? (d?.heading || C.saveFailed) : reasonText(C, d) });
     } finally { setBusy(false); }
   };
 
@@ -126,7 +132,7 @@ const CoachEditTeacher = () => {
     try {
       await coach.removeTeacher(ext);
       navigate(t?.emis ? `/portal/coach/school/${t.emis}` : "/portal/coach/people");
-    } catch (e: any) { setError(reasonText(e?.response?.data)); setConfirmRemove(false); } finally { setBusy(false); }
+    } catch (e: any) { setError(reasonText(C, e?.response?.data)); setConfirmRemove(false); } finally { setBusy(false); }
   };
 
   const label = "px-1 text-sm font-semibold text-[#4b5563]";
@@ -134,13 +140,13 @@ const CoachEditTeacher = () => {
   const pill = (on: boolean) => `flex min-h-[56px] flex-1 items-center justify-center rounded-xl text-base font-semibold ${on ? "bg-[#33374a] text-white" : "text-[#4b5563]"}`;
 
   return (
-    <CoachPage title={C.editTeacher} crumb={t?.name || undefined} backTo={`/portal/coach/teacher/${ext}`}
+    <PeopleFrame title={C.editTeacher} crumb={t?.name || undefined} backTo={`/portal/coach/teacher/${ext}`}
       dock={t ? (
         <BottomButton onClick={save} disabled={!dirty || busy}>
           <Check className="h-5 w-5" aria-hidden="true" />{C.save}
         </BottomButton>
       ) : undefined}>
-      {failed && <Failed onRetry={reload} />}
+      {failed && <LoadFailed onRetry={reload} />}
       {!data && !failed && <Loading />}
       {t && (
         <>
@@ -163,13 +169,13 @@ const CoachEditTeacher = () => {
             </div>
             {phoneResult && (
               <div className="flex flex-wrap items-center gap-2" data-testid="phone-result">
-                {phoneResult.kind === "refused" && <Chip tone="warn">{phoneResult.text}</Chip>}
-                {phoneResult.kind === "same" && <Chip>{C.phoneSame}</Chip>}
+                {phoneResult.kind === "refused" && <StatusChip text={phoneResult.text} tone="waiting" className="h-auto min-h-[26px] whitespace-normal py-1" />}
+                {phoneResult.kind === "same" && <StatusChip text={C.phoneSame} tone="info" />}
                 {(phoneResult.kind === "free" || phoneResult.kind === "shell") && (
                   <>
-                    <Chip tone={phoneResult.kind === "free" ? "done" : "info"}>{phoneResult.kind === "free" ? C.phoneFree : C.phoneShell}</Chip>
+                    <StatusChip text={phoneResult.kind === "free" ? C.phoneFree : C.phoneShell} tone={phoneResult.kind === "free" ? "done" : "info"} tick={phoneResult.kind === "free"} />
                     <button type="button" onClick={changePhone} disabled={busy}
-                      className="ms-auto min-h-[48px] rounded-xl bg-[#33374a] px-4 text-[15px] font-semibold text-white">
+                      className="ms-auto min-h-[56px] rounded-xl bg-[#33374a] px-4 text-[15px] font-semibold text-white">
                       {C.changeNumber}
                     </button>
                   </>
@@ -188,12 +194,12 @@ const CoachEditTeacher = () => {
                 </button>
               ))}
             </div>
-            {role === "principal" && !t.isPrincipal && <div className="flex" data-testid="role-note"><Chip tone="warn">{C.canObserve}</Chip></div>}
+            {role === "principal" && !t.isPrincipal && <div className="flex" data-testid="role-note"><StatusChip text={C.canObserve} tone="waiting" /></div>}
           </div>
 
           <div className="flex flex-col gap-2">
             <span className={label}>{C.teachingLevel}</span>
-            <div className="grid grid-cols-3 gap-2.5" role="group" aria-label={C.teachingLevel}>
+            <div className="[display:grid] grid-cols-3 gap-2.5" role="group" aria-label={C.teachingLevel}>
               {LEVELS.map((b) => {
                 const on = levels.includes(b);
                 return (
@@ -212,7 +218,7 @@ const CoachEditTeacher = () => {
               icon={<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#e3eefc] text-[#1d6fd8]"><School className="h-5 w-5" aria-hidden="true" /></span>} />
           </div>
 
-          {error && <div className="flex" data-testid="edit-error"><Chip tone="warn">{error}</Chip></div>}
+          {error && <div className="flex" data-testid="edit-error"><StatusChip text={error} tone="waiting" className="h-auto min-h-[26px] whitespace-normal py-1" /></div>}
 
           {!confirmRemove ? (
             <button type="button" onClick={() => setConfirmRemove(true)}
@@ -227,7 +233,7 @@ const CoachEditTeacher = () => {
           )}
         </>
       )}
-    </CoachPage>
+    </PeopleFrame>
   );
 };
 

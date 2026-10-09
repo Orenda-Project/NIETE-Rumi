@@ -9,10 +9,13 @@
     <meta name="description" content="The NIETE Portal for teachers and coaches — lesson plans, coaching feedback, observations, and classroom analytics. From NIETE (National Institute of Excellence in Teacher Education, Islamabad).">
     <meta name="author" content="NIETE" />
 
-    <!-- Google Fonts: Plus Jakarta Sans + Poppins per NIETE brand guide, plus Nastaliq for Urdu -->
+    <!-- Google Fonts: Plus Jakarta Sans + Poppins per NIETE brand guide, plus Nastaliq for Urdu.
+         bd-fxk3t8: preloaded and switched on when they arrive, so they never hold up the first
+         paint (the page shows in the fallback font for a moment instead of staying white). -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap"></noscript>
 
     <meta property="og:type" content="website" />
     <meta property="og:image" content="/favicon.png">
@@ -23,10 +26,110 @@
     <meta name="twitter:title" content="NIETE Portal">
     <meta property="og:description" content="The NIETE Portal for teachers and coaches — lesson plans, coaching feedback, observations, and classroom analytics.">
     <meta name="twitter:description" content="The NIETE Portal for teachers and coaches — lesson plans, coaching feedback, observations, and classroom analytics.">
-</head>
+
+    <!-- bd-fxk3t8: the static app shell. #root below holds an outline of the app (menu bar,
+         tab bar, placeholder blocks) so the first paint is the app's frame, not a white page.
+         React replaces it on its first render. Inline only — this file is also the Capacitor
+         app's entry. Which outline: a sign-in page gets the sign-in card; otherwise the frame
+         the app last showed on this device (niete:shell, written by the app — see
+         src/portal/lib/shellHint.ts), else the classic one. "/" (every Android app launch) is the
+         app's frame on a device that was signed in last time, the sign-in card otherwise. -->
+    <script>
+      (function () {
+        var d = document.documentElement;
+        var p = location.pathname;
+        try {
+          var k = window.localStorage.getItem('niete:shell');
+          var known = k === 'teacher' || k === 'classic';
+          if (p.indexOf('/portal/login') === 0 || p.indexOf('/portal/setup') === 0 ||
+              p.indexOf('/portal/reset-password') === 0 || p.indexOf('/portal/delete-account') === 0 ||
+              p.indexOf('/portal/privacy') === 0 || (p === '/' && !known)) {
+            d.setAttribute('data-shell', 'login');
+          } else if (known) {
+            d.setAttribute('data-shell', k);
+          }
+        } catch (e) { /* storage blocked: the classic outline */ }
+      })();
+    </script>
+    <style id="app-shell-css">
+      .as { min-height: 100vh; background: #f3f4f6; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      .as-top { display: none; height: 64px; background: #333748; }
+      .as-top-in { max-width: 1152px; height: 100%; margin: 0 auto; padding: 0 32px; display: flex; align-items: center; gap: 28px; box-sizing: border-box; }
+      .as-tab { position: fixed; left: 0; right: 0; bottom: 0; height: 64px; background: #fff; border-top: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-around; padding-bottom: env(safe-area-inset-bottom); }
+      .as-main { max-width: 1152px; margin: 0 auto; padding: 24px 16px 96px; box-sizing: border-box; }
+      .as-sk { background: #e5e7eb; border-radius: 8px; }
+      .as-top .as-sk { background: rgba(255, 255, 255, .18); }
+      .as-logo { width: 104px; height: 22px; }
+      .as-link { width: 72px; height: 12px; }
+      .as-ico { width: 26px; height: 26px; border-radius: 9px; }
+      .as-h1 { width: 46%; max-width: 320px; height: 26px; margin-bottom: 12px; }
+      .as-h2 { width: 30%; max-width: 200px; height: 14px; margin-bottom: 24px; }
+      .as-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .as-card { background: #fff; border-radius: 18px; height: 116px; padding: 16px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; }
+      .as-dot { width: 40px; height: 40px; border-radius: 12px; }
+      .as-cl { width: 64%; height: 12px; }
+      .as-login { display: none; }
+      @media (min-width: 768px) {
+        .as-top { display: block; }
+        .as-tab { display: none; }
+        .as-main { padding: 32px 32px 48px; }
+        .as-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+      }
+      /* the teacher app v2: a white menu bar on a desktop, a taller tab bar on a phone */
+      [data-shell="teacher"] .as-top { background: #fff; border-bottom: 1px solid #e5e7eb; }
+      [data-shell="teacher"] .as-top .as-sk { background: #e5e7eb; }
+      [data-shell="teacher"] .as-tab { height: 78px; }
+      /* a sign-in page: one card, no menu */
+      [data-shell="login"] .as-top, [data-shell="login"] .as-tab, [data-shell="login"] .as-main { display: none; }
+      [data-shell="login"] .as-login { display: flex; min-height: 100vh; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
+      .as-lcard { width: 100%; max-width: 400px; background: #fff; border-radius: 16px; padding: 28px 24px; box-sizing: border-box; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); }
+      .as-lmark { width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 20px; }
+      .as-lt { width: 60%; height: 20px; margin: 0 auto 28px; }
+      .as-lin { height: 44px; margin-bottom: 14px; }
+      .as-lbtn { height: 44px; margin-top: 22px; background: #d1d5db; }
+      @media (prefers-reduced-motion: no-preference) {
+        .as-sk { background-image: linear-gradient(90deg, rgba(255, 255, 255, 0) 0, rgba(255, 255, 255, .55) 50%, rgba(255, 255, 255, 0) 100%); background-size: 200% 100%; background-repeat: no-repeat; animation: as-shimmer 1.4s ease-in-out infinite; }
+        @keyframes as-shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+      }
+    </style>
+  </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="as" data-app-shell aria-hidden="true">
+      <div class="as-top"><div class="as-top-in">
+        <div class="as-sk as-logo" data-skeleton></div>
+        <div class="as-sk as-link" data-skeleton></div>
+        <div class="as-sk as-link" data-skeleton></div>
+        <div class="as-sk as-link" data-skeleton></div>
+        <div class="as-sk as-link" data-skeleton></div>
+      </div></div>
+      <div class="as-main">
+        <div class="as-sk as-h1" data-skeleton></div>
+        <div class="as-sk as-h2" data-skeleton></div>
+        <div class="as-grid">
+          <div class="as-card"><div class="as-sk as-dot" data-skeleton></div><div class="as-sk as-cl" data-skeleton></div></div>
+          <div class="as-card"><div class="as-sk as-dot" data-skeleton></div><div class="as-sk as-cl" data-skeleton></div></div>
+          <div class="as-card"><div class="as-sk as-dot" data-skeleton></div><div class="as-sk as-cl" data-skeleton></div></div>
+          <div class="as-card"><div class="as-sk as-dot" data-skeleton></div><div class="as-sk as-cl" data-skeleton></div></div>
+          <div class="as-card"><div class="as-sk as-dot" data-skeleton></div><div class="as-sk as-cl" data-skeleton></div></div>
+          <div class="as-card"><div class="as-sk as-dot" data-skeleton></div><div class="as-sk as-cl" data-skeleton></div></div>
+        </div>
+      </div>
+      <div class="as-tab">
+        <div class="as-sk as-ico" data-skeleton></div>
+        <div class="as-sk as-ico" data-skeleton></div>
+        <div class="as-sk as-ico" data-skeleton></div>
+        <div class="as-sk as-ico" data-skeleton></div>
+        <div class="as-sk as-ico" data-skeleton></div>
+      </div>
+      <div class="as-login"><div class="as-lcard">
+        <div class="as-sk as-lmark" data-skeleton></div>
+        <div class="as-sk as-lt" data-skeleton></div>
+        <div class="as-sk as-lin" data-skeleton></div>
+        <div class="as-sk as-lin" data-skeleton></div>
+        <div class="as-sk as-lbtn" data-skeleton></div>
+      </div></div>
+    </div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

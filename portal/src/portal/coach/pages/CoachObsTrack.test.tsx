@@ -87,92 +87,85 @@ describe("2 — Reports and History open the one observation page", () => {
       ] });
     renderAt("/portal/coach/teacher/923001110001");
     const history = await screen.findByTestId("history");
-    expect(within(history).getByTestId("history-h-portal")).toHaveAttribute("href", "/portal/coach/observation/h-portal");
-    expect(within(history).getByTestId("history-h-wa-draft")).toHaveAttribute("href", "/portal/coach/observation/h-wa-draft");
-    expect(within(history).getByTestId("history-h-dc").tagName).not.toBe("A");
+    expect(history.querySelector('a[href="/portal/coach/observation/h-portal"]')).not.toBeNull();
+    expect(history.querySelector('a[href="/portal/coach/observation/h-wa-draft"]')).not.toBeNull();
+    expect((within(history).getAllByTestId("history-avatar").find((a) => a.textContent === "DC")!.closest("[data-history-row]") as HTMLElement).querySelector("a")).toBeNull();
   });
 });
 
-describe("2 — the observation page (v24 ObsTrack)", () => {
-  it("header, score ring, play, and the five steps by their new names", async () => {
+const stepsRegion = () => within(screen.getByRole("region", { name: "Steps" }));
+const stepLabels = () => stepsRegion().getAllByRole("listitem").map((li) => li.querySelector("span.text-\\[16px\\]")?.textContent);
+
+describe("2 — the observation page (v24 ObsTrack, on the kit)", () => {
+  it("header with the school and the TimeStamp, the score ring, play, and the five steps by their names", async () => {
     renderAt("/portal/coach/observation/cs-1");
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Ayesha Bibi");
     expect(screen.getByText("IMSG I-10/1")).toBeInTheDocument();
+    expect(screen.getByLabelText("11:30 AM")).toBeInTheDocument(); // 06:30Z on Pakistan's clock
     expect(screen.getByLabelText(/Digital Coach score 64%/)).toBeInTheDocument();
-    expect(screen.getByText("Draft · before your check")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Play lesson" })).toBeInTheDocument();
-    await waitFor(() => expect(stepRows().map((r) => r.getAttribute("data-label"))).toEqual(
-      ["Lesson analysed", "Feedback Form", "Debrief", "Your feedback", "Send Ayesha the report"]));
+    expect(screen.getByText("Draft before your check")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
+    await waitFor(() => expect(stepLabels()).toEqual(
+      ["Observation analysed", "Feedback Form", "Debrief", "Your feedback", "Send Ayesha the report"]));
   });
 
-  it("in progress at the Feedback Form: that step is 'Your turn' and the dock opens the existing form, from coach", async () => {
+  it("in progress at the Feedback Form: that step is 'Your turn' and the dock opens the v2 Feedback Form", async () => {
     renderAt("/portal/coach/observation/cs-1");
-    await waitFor(() => expect(stepRows()[1]).toHaveAttribute("aria-current", "step"));
-    expect(stepRows().map((r) => r.getAttribute("data-state"))).toEqual(["done", "now", "todo", "todo", "todo"]);
-    expect(await within(stepRows()[1]).findByText("Your turn")).toBeInTheDocument();
-    expect(await screen.findByTestId("obs-dock")).toHaveAttribute("href", "/portal/leader/observe/cs-1/draft?from=coach");
-    expect(screen.getByTestId("obs-dock")).toHaveTextContent("Feedback Form");
+    const dock = await screen.findByTestId("obs-dock");
+    expect(dock).toHaveAttribute("href", "/portal/coach/observation/cs-1/form");
+    expect(dock).toHaveTextContent("Feedback Form");
+    await waitFor(() => expect(stepsRegion().getByText("Your turn")).toBeInTheDocument());
+    const current = stepsRegion().getAllByRole("listitem").find((li) => li.getAttribute("aria-current") === "step")!;
+    expect(current).toHaveTextContent("Feedback Form");
   });
 
   it.each([
-    ["talk", 2, "Debrief", "/portal/leader/observe/cs-1/talk?from=coach"],
-    ["feedback", 3, "Your feedback", "/portal/leader/observe/cs-1?from=coach"],
-    ["report", 4, "Send Ayesha the report", "/portal/leader/observe/cs-1?from=coach"],
-  ])("at %s: step %i is hers, and the dock opens where she does it", async (step, at, label, href) => {
+    ["talk", "Debrief", "/portal/coach/observation/cs-1/debrief"],
+    ["feedback", "Your feedback", "/portal/coach/observation/cs-1/feedback"],
+    ["report", "Send Ayesha the report", "/portal/coach/observation/cs-1/send"],
+  ])("at %s: that step is hers, and the dock opens its v2 screen (never the old /leader/observe pages)", async (step, label, href) => {
     C.getObservation.mockResolvedValue(OBS({ step: "talk" })); // the DB knows Debrief; the portal view knows the rest
     L.getObservation.mockResolvedValue(VIEW(step));
     renderAt("/portal/coach/observation/cs-1");
-    const dock = await screen.findByTestId("obs-dock");
-    await waitFor(() => expect(stepRows()[at]).toHaveAttribute("aria-current", "step"));
-    await waitFor(() => expect(dock).toHaveTextContent(label));
+    await waitFor(() => expect(screen.getByTestId("obs-dock")).toHaveTextContent(label));
     expect(screen.getByTestId("obs-dock")).toHaveAttribute("href", href);
+    expect(document.querySelector('a[href^="/portal/leader/observe"]')).toBeNull();
   });
 
   it("a WhatsApp observation in progress says so, and offers no portal action", async () => {
     C.getObservation.mockResolvedValue(OBS({ step: "talk", portal: false, mine: false, observer: { self: false, name: "Imran S" } }));
     renderAt("/portal/coach/observation/cs-1");
-    await waitFor(() => expect(stepRows()[2]).toHaveAttribute("aria-current", "step"));
-    expect(within(stepRows()[2]).getByText("On WhatsApp")).toBeInTheDocument();
+    expect(await screen.findByText("On WhatsApp")).toBeInTheDocument();
+    expect(screen.getByText("Continues on WhatsApp")).toBeInTheDocument();
     expect(screen.queryByTestId("obs-dock")).toBeNull();
     expect(L.getObservation).not.toHaveBeenCalled();
   });
 
-  it("completed: every step done, and each opens what it holds — report, coach feedback, debrief, form answers", async () => {
+  it("sent: the steps fold into one Done line, What you made opens her form, debrief and feedback, and the report she sent shows", async () => {
     C.getObservation.mockResolvedValue(OBS({ step: "sent", score: 66, sentAt: "2026-10-06T12:00:00Z", caption: "Your report", imageUrl: "https://signed.example/report.png" }));
     L.getObservation.mockResolvedValue(VIEW("sent"));
     renderAt("/portal/coach/observation/cs-1");
-    await waitFor(() => expect(stepRows().map((r) => r.getAttribute("data-state"))).toEqual(["done", "done", "done", "done", "done"]));
+    expect(await screen.findByRole("button", { name: /Done/ })).toHaveTextContent("Report sent");
     expect(screen.queryByTestId("obs-dock")).toBeNull();
+    expect(screen.getByText("Final score 66%")).toBeInTheDocument();
 
-    fireEvent.click(within(stepRows()[4]).getByRole("button"));
-    expect(await screen.findByRole("img", { name: /Ayesha/ })).toHaveAttribute("src", "https://signed.example/report.png");
+    const made = within(await screen.findByTestId("what-you-made"));
+    await waitFor(() => expect(made.getAllByRole("link")).toHaveLength(3));
+    expect(made.getByRole("link", { name: /Feedback Form/ })).toHaveAttribute("href", "/portal/coach/observation/cs-1/form");
+    expect(made.getByRole("link", { name: /Debrief/ })).toHaveAttribute("href", "/portal/coach/observation/cs-1/debrief");
+    expect(made.getByRole("link", { name: /Your feedback/ })).toHaveAttribute("href", "/portal/coach/observation/cs-1/feedback");
+
+    expect(screen.getByText("The report Ayesha received")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Ayesha/ })).toHaveAttribute("src", "https://signed.example/report.png");
     expect(screen.getByText("Your report")).toBeInTheDocument();
-
-    fireEvent.click(within(stepRows()[3]).getByRole("button"));
-    expect(await screen.findByTestId("coach-feedback")).toHaveTextContent("You listened well.");
-
-    fireEvent.click(within(stepRows()[2]).getByRole("button"));
-    expect(await screen.findByTestId("talk-guide")).toHaveTextContent("Start with a win.");
-
-    fireEvent.click(within(stepRows()[1]).getByRole("button"));
-    const answers = await screen.findByTestId("form-answers");
-    expect(answers).toHaveTextContent("Quality Questioning");
-    expect(answers).toHaveTextContent("2 · Proficient");
-    expect(answers).toHaveTextContent("Asked why twice");
-    expect(L.getObservationDraft).toHaveBeenCalledWith("cs-1");
-
-    fireEvent.click(within(stepRows()[0]).getByRole("button"));
-    expect(await screen.findByText("Clear modelling.")).toBeInTheDocument();
   });
 
-  it("a sent WhatsApp report: the report still opens from its step; steps with nothing to show are not buttons", async () => {
+  it("a sent WhatsApp report that is not hers: the report shows, nothing to make, no play button", async () => {
     C.getObservation.mockResolvedValue(OBS({ step: "sent", portal: false, mine: false, score: 61, caption: "Your report", imageUrl: "https://signed.example/report.png", audioUrl: null }));
     renderAt("/portal/coach/observation/cs-1");
-    await waitFor(() => expect(stepRows()[4]).toHaveAttribute("data-state", "done"));
-    expect(within(stepRows()[1]).queryByRole("button")).toBeNull();
-    fireEvent.click(within(stepRows()[4]).getByRole("button"));
     expect(await screen.findByRole("img", { name: /Ayesha/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Play lesson" })).toBeNull();
+    expect(screen.queryByTestId("what-you-made")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Play" })).toBeNull();
   });
 });
 
@@ -183,9 +176,10 @@ describe("7 — Feedback Form and Debrief in the v2 screens", () => {
     renderAt("/portal/coach/reports");
     const w1 = (await screen.findByText("T w1")).closest("a") as HTMLElement;
     expect(w1).toHaveTextContent("Feedback Form");
-    expect(within(w1).getByText("Analysed")).toBeInTheDocument();
-    expect(within(w1).getAllByText(/^Feedback Form$/).length).toBeGreaterThan(0);
-    expect(within(w1).getByText("Debrief")).toBeInTheDocument();
+    const card1 = w1.closest('[data-testid="report-card"]') as HTMLElement;
+    expect(within(card1).getByText("Analysed")).toBeInTheDocument();
+    expect(within(card1).getAllByText(/^Feedback Form$/).length).toBeGreaterThan(0);
+    expect(within(card1).getByText("Debrief")).toBeInTheDocument();
     expect((screen.getByText("T w2").closest("a") as HTMLElement)).toHaveTextContent("Debrief");
     expect(screen.queryByText(/Check draft|^Talk$|^Draft$/)).toBeNull();
   });
@@ -195,6 +189,6 @@ describe("7 — Feedback Form and Debrief in the v2 screens", () => {
       visit: { id: "v1", teacherName: "Ayesha Bibi", teacherExtId: "923001110001", schoolName: "IMSG I-10/1", schoolExtId: "niete:110", scheduledFor: "2026-10-07", scheduledSlot: "11:30", status: "upcoming" },
       lastVisit: { id: "s-wa", date: "2026-09-30T09:00:00Z", score: null, step: "talk", byMe: false, observerName: "Imran S", portal: false } });
     renderAt("/portal/coach/visit/v1");
-    expect(await screen.findByTestId("last-visit")).toHaveTextContent("Debrief");
+    expect(await screen.findByRole("link", { name: /Last visit/ })).toHaveTextContent("Debrief");
   });
 });

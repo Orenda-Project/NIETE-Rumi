@@ -37,14 +37,11 @@ afterEach(() => {
 });
 
 describe("1 — Home: a full-date subheading, no pills", () => {
-  it("'Wednesday, 7th October' under the greeting, muted 17px/500; no date pill, no Coach pill", async () => {
+  // bd-4404s7.2 — Home's date moved into the NIETE band (the kit's HomeGreeting), in the band's long form.
+  it("the date is in the band, 'Wednesday 7 October'; no date pill, no Coach pill", async () => {
     at("/portal/coach", "/portal/coach", <CoachHome />);
-    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Salaam, Hataf");
-    const sub = screen.getByTestId("page-subtitle");
-    expect(sub).toHaveTextContent(/^Wednesday, 7th October$/);
-    expect(sub.className).toMatch(/text-\[17px\]/);
-    expect(sub.className).toMatch(/font-medium/);
-    expect(sub.className).toMatch(/text-\[#4b5563\]/);
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("Salaam, Hataf!");
+    expect(screen.getByTestId("home-date")).toHaveTextContent(/^Wednesday 7 October$/);
     expect(screen.queryByText("Coach")).toBeNull();
     expect(screen.queryByText(/Wed 7 Oct/)).toBeNull();
   });
@@ -83,15 +80,13 @@ describe("3 — Teacher History: a count, then months, newest first", () => {
   it("History 6, then October 2026 · 2, September 2026 · 1, August 2026 · 3", async () => {
     C.getTeacher.mockResolvedValue(TEACHER);
     at("/portal/coach/teacher/923001110001", "/portal/coach/teacher/:ext", <CoachTeacher />);
-    const heading = await screen.findByRole("heading", { name: /History/ });
-    expect(within(heading).getByTestId("section-count")).toHaveTextContent("6");
-    const months = screen.getAllByTestId("history-month");
-    const label = (m: HTMLElement) => {
-      const h = within(m).getByRole("heading");
-      return [m.getAttribute("data-month"), h.firstElementChild?.textContent, within(h).getByTestId("section-count").textContent];
-    };
-    expect(months.map(label)).toEqual([["2026-10", "October 2026", "2"], ["2026-09", "September 2026", "1"], ["2026-08", "August 2026", "3"]]);
-    expect(within(months[2]).getAllByTestId(/^history-h/).map((r) => r.getAttribute("data-testid"))).toEqual(["history-h4", "history-h5", "history-h6"]);
+    // bd-4404s7.6: the kit's HistoryList: a History heading with the total, a section per month with its count
+    const history = await screen.findByTestId("history");
+    expect(within(history).getByRole("heading", { name: /History/ })).toHaveTextContent("6");
+    const months = within(history).getAllByRole("region");
+    const label = (m: HTMLElement) => [m.getAttribute("aria-label"), within(m).getByRole("heading").querySelector("span")?.textContent];
+    expect(months.map(label)).toEqual([["October 2026", "2"], ["September 2026", "1"], ["August 2026", "3"]]);
+    expect([...months[2].querySelectorAll("[data-history-row] .line-clamp-2")].map((r) => r.textContent)).toEqual(["20 Aug", "10 Aug", "2 Aug"]);
   });
 });
 
@@ -100,12 +95,12 @@ describe("5 — 'Avg. HITL Score' everywhere", () => {
     for (const k of ["avg", "avgHitl", "avgScore", "sortAvg"] as const) expect(COACH_COPY[k]).toBe("Avg. HITL Score");
   });
 
-  it("Teachers tab: the strip shows it, and lets it wrap rather than cut it", async () => {
-    C.getPeople.mockResolvedValue({ success: true, schools: [], teachers: [
-      { teacherExtId: "923001110005", name: "Sadia Noor", phone: "923001110005", schoolExtId: "niete:494", emis: "494", schoolName: "IMCB G-9/4", hitl: 1, dc: 0, avgHitl: 49, daysSinceVisit: 41, daysSinceTraining: 64 },
+  it("Schools tab: the strip shows it, and lets it wrap rather than cut it", async () => {
+    C.getPeople.mockResolvedValue({ success: true, teachers: [], schools: [
+      { schoolExtId: "niete:494", emis: "494", name: "IMCB G-9/4", teachers: 8, visits: 1, daysSinceVisit: 41, avgHitl: 58 },
     ] });
-    at("/portal/coach/people?tab=teachers", "/portal/coach/people", <CoachPeople />);
-    const card = await screen.findByTestId("teacher-card");
+    at("/portal/coach/people", "/portal/coach/people", <CoachPeople />);
+    const card = await screen.findByTestId("school-card");
     const label = within(card).getByText("Avg. HITL Score");
     expect(label.className).not.toMatch(/whitespace-nowrap/);
     expect(screen.queryByText(/^Avg score$|^Avg HITL$|^Avg$/)).toBeNull();

@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import i18n from "i18next";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
@@ -11,6 +12,7 @@ vi.mock("../../services/api", () => ({
 import { coach } from "../../services/api";
 import CoachTeacher from "./CoachTeacher";
 import CoachEditTeacher from "./CoachEditTeacher";
+import { PEOPLE_UR as U } from "../people/copy";
 
 /**
  * bd-o15qnr.11 + .13 — Edit teacher (v22 EditTeacher.dc.html).
@@ -180,5 +182,22 @@ describe("Edit teacher", () => {
     fireEvent.click(screen.getByRole("button", { name: /^remove$/i }));
     await waitFor(() => expect(C.removeTeacher).toHaveBeenCalledWith("923001110001"));
     expect(await screen.findByText("SCHOOL PAGE")).toBeInTheDocument();
+  });
+});
+
+describe("Edit teacher in Urdu", () => {
+  const setLang = async (lng: string) => { if (!i18n.isInitialized) await i18n.init({ lng: "en", resources: {} }); await act(async () => { await i18n.changeLanguage(lng); }); };
+  beforeEach(async () => { await setLang("ur"); });
+  afterEach(async () => { await setLang("en"); });
+
+  it("every label is the Urdu word; the levels are the Urdu names; Save saves the same way", async () => {
+    renderAt(EDIT);
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(U.editTeacher);
+    const group = await screen.findByRole("group", { name: U.teachingLevel });
+    expect(within(group).getAllByRole("checkbox").map((b) => b.textContent)).toEqual([U.levelNames.PRIMARY, U.levelNames.MIDDLE, U.levelNames.HIGH]);
+    expect(screen.getByRole("button", { name: U.removeFromSchool })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: U.nameLabel }), { target: { value: "Ayesha Khan" } });
+    fireEvent.click(screen.getByRole("button", { name: U.save }));
+    await waitFor(() => expect(C.editTeacher).toHaveBeenCalledWith("923001110001", "name", "Ayesha Khan"));
   });
 });

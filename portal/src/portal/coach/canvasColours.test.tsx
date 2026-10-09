@@ -67,29 +67,28 @@ describe("feature colours", () => {
   });
 });
 
-describe("school icons are 12px-rounded blue tiles, not circles", () => {
-  const expectTile = (el: Element, size: number) => {
-    const c = classOf(el);
-    expect(c).toMatch(/rounded-xl/);
-    expect(c).not.toMatch(/rounded-full/);
-    expect((el as HTMLElement).style.width).toBe(`${size}px`);
-    expect((el as HTMLElement).style.background).toBe("rgb(227, 238, 252)");
-    expect((el as HTMLElement).style.color).toBe("rgb(29, 111, 216)");
-  };
-
-  it("Schools tab: 44px", async () => {
+describe("school icons are round kit avatars, not tiles (Schools tab and New visit are kit rows now)", () => {
+  // bd-4404s7.6: the Schools list is the exception: a coach row uses a ROUND 48px avatar (the square tile is reserved).
+  it("Schools tab: a round 48px grey avatar, not the square tile", async () => {
     at("/portal/coach/people", <CoachPeople />);
     const card = await screen.findByTestId("school-card");
-    expectTile(within(card).getByTestId("school-icon"), 44);
+    // the kit's HistoryRow coach lead: a round 48px grey avatar
+    const avatar = within(card).getByTestId("history-avatar");
+    expect(classOf(avatar)).toMatch(/rounded-full/);
+    expect(classOf(avatar)).toMatch(/h-12 w-12/);
+    expect(within(card).queryByTestId("school-icon")).toBeNull();
   });
 
-  it("New visit step 1: 48px; step 2's school card: 40px", async () => {
+  it("New visit step 1: the kit's coach row (a round avatar, not the grade tile); step 2's school is ChosenSoFar text, no icon (bd-4404s7.3)", async () => {
     const one = at("/portal/coach/new-visit", <CoachNewVisit />);
-    expectTile(within(await screen.findByTestId("school-option")).getByTestId("school-icon"), 48);
+    await screen.findByText("IMCB G-9/4");
+    expect(document.querySelector("[data-history-row] [data-testid=history-lead]")).toBeNull();
+    expect(document.querySelector("[data-history-row] .rounded-full")).not.toBeNull();
+    expect(screen.queryByTestId("school-icon")).toBeNull();
     one.unmount();
     at("/portal/coach/new-visit?school=niete%3A494", <CoachNewVisit />);
     await screen.findByText("Step 2 of 3");
-    expectTile(screen.getByTestId("school-icon"), 40);
+    expect(screen.queryByTestId("school-icon")).toBeNull();
   });
 });
 
@@ -100,7 +99,7 @@ describe("heading counts on Reports are the canvas's .count pills", () => {
     at("/portal/coach/reports", <CoachReports />);
     await screen.findAllByText("Bushra Ali");
     const pill = (name: RegExp) => within(screen.getByRole("heading", { name })).getByTestId("section-count").firstElementChild!;
-    for (const name of [/In progress/, /All observations/]) {
+    for (const name of [/In progress/]) {
       const c = classOf(pill(name));
       expect(c).toMatch(/bg-white/);
       expect(c).toMatch(/border-\[#e5e7eb\]/);

@@ -6,6 +6,9 @@ import { coach } from "../services/api";
 import CoachGate from "./CoachGate";
 import { COACH_COPY as C } from "./copy";
 import { splitSlot } from "./time";
+import { useCopy } from "../teacher/i18n";
+import { AttentionBanner } from "../teacher/ui";
+import { COACH_HOME } from "./home/copy";
 
 /**
  * bd-o15qnr — the coach app v2's building blocks, in the LIVE portal look (not
@@ -52,11 +55,12 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[]): { data: T |
 // reports pending on the coach." Read once and shared by every page for 30 s;
 // a failed read (or an API without the route) simply shows nothing.
 
-type Pending = { waiting: number; ids: string[] };
+export type Pending = { waiting: number; ids: string[] };
 const PENDING_TTL_MS = 30_000;
 let pendingCache: { at: number; value: Promise<Pending | null> } | null = null;
 
-function readPending(): Promise<Pending | null> {
+/** bd-4404s7.4 — the one shared read of the pending reports, also read by the Observe frame (observe/ObservePage). */
+export function readPending(): Promise<Pending | null> {
   if (pendingCache && Date.now() - pendingCache.at < PENDING_TTL_MS) return pendingCache.value;
   const value = Promise.resolve()
     .then(() => coach.getPending())
@@ -72,6 +76,7 @@ export function resetPendingCache(): void {
 }
 
 export function PendingBanner() {
+  const W = useCopy(COACH_HOME);
   const [pending, setPending] = useState<Pending | null>(null);
   useEffect(() => {
     let live = true;
@@ -80,14 +85,8 @@ export function PendingBanner() {
   }, []);
   if (!pending || pending.waiting < 1) return null;
   const to = pending.waiting === 1 && pending.ids[0] ? `/portal/coach/observation/${pending.ids[0]}` : "/portal/coach/reports?show=waiting";
-  return (
-    <Link to={to} data-testid="pending-banner"
-      className="mb-1 flex min-h-[56px] items-center gap-2.5 rounded-2xl bg-[#fef3c7] px-4 text-[15px] font-semibold text-[#b45309]">
-      <Clock className="h-5 w-5 shrink-0" aria-hidden="true" />
-      <span className="flex-1">{C.reportsWaiting(pending.waiting)}</span>
-      <ChevronRight className="h-5 w-5 shrink-0 rtl:rotate-180" aria-hidden="true" />
-    </Link>
-  );
+  // bd-4404s7.2 — the kit's AttentionBanner (one component for every "this needs you" line), in her language.
+  return <AttentionBanner testId="pending-banner" text={W.reportsWaiting(pending.waiting)} to={to} className="mb-1" />;
 }
 
 export function CoachPage({
@@ -242,11 +241,11 @@ export function TimeTile({ slot, tone = "neutral", size = 60 }: { slot: string |
   );
 }
 
-export function Initials({ name, size = 48 }: { name: string | null | undefined; size?: number }) {
+export function Initials({ name, size = 48, round = false }: { name: string | null | undefined; size?: number; round?: boolean }) {
   const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
   const text = parts.length ? `${parts[0][0]}${parts.length > 1 ? parts[parts.length - 1][0] : ""}`.toUpperCase() : "·";
   return (
-    <span className="flex shrink-0 items-center justify-center rounded-xl bg-[#f3f4f6] text-[15px] font-bold text-[#33374a]" style={{ width: size, height: size }} aria-hidden="true">
+    <span className={`flex shrink-0 items-center justify-center bg-[#f3f4f6] text-[15px] font-bold text-[#33374a] ${round ? "rounded-full" : "rounded-xl"}`} style={{ width: size, height: size }} aria-hidden="true">
       {text}
     </span>
   );
@@ -272,11 +271,13 @@ export function TapRow({ to, children, emphasis = false, muted = false, testId }
 }
 
 /** Name over a muted line, filling the row. */
-export function RowText({ name, sub }: { name: ReactNode; sub?: ReactNode }) {
+export function RowText({ name, sub, wrap = false }: { name: ReactNode; sub?: ReactNode; wrap?: boolean }) {
+  // bd-4404s7.6: `wrap` lets a long school or teacher name run to as many lines as it needs, never cut with an ellipsis.
+  const cut = wrap ? "break-words [overflow-wrap:anywhere]" : "truncate";
   return (
     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-      <span className="truncate text-[17px] font-semibold" data-testid="name">{name}</span>
-      {sub != null && <span className="truncate text-[13px] text-[#6b7280]">{sub}</span>}
+      <span className={`${cut} text-[17px] font-semibold`} data-testid="name">{name}</span>
+      {sub != null && <span className={`${cut} text-[13px] text-[#6b7280]`}>{sub}</span>}
     </span>
   );
 }
@@ -353,9 +354,9 @@ export function ChoiceChips<T extends string>({ label, value, onChange, options 
   );
 }
 
-export function Tabs({ items }: { items: { to: string; label: string; count?: number; active: boolean }[] }) {
+export function Tabs({ items, label = C.schoolsAndTeachers }: { items: { to: string; label: string; count?: number; active: boolean }[]; label?: string }) {
   return (
-    <nav className="flex gap-1 rounded-2xl border border-[#e5e7eb] bg-white p-1" aria-label={C.schoolsAndTeachers}>
+    <nav className="flex gap-1 rounded-2xl border border-[#e5e7eb] bg-white p-1" aria-label={label}>
       {items.map((t) => (
         <Link key={t.to} to={t.to} aria-current={t.active ? "page" : undefined} data-testid="tab"
           className={`flex min-h-[56px] flex-1 items-center justify-center gap-2 rounded-xl text-base font-semibold ${t.active ? "bg-[#33374a] text-white" : "text-[#4b5563]"}`}>
@@ -385,15 +386,6 @@ export function BottomButton({ onClick, tone = "primary", disabled, children }: 
   );
 }
 
-export function StepBar({ step }: { step: 1 | 2 | 3 }) {
-  return (
-    <div className="flex items-center gap-1.5 px-1" aria-label={C.stepOf(step)}>
-      {[1, 2, 3].map((n) => <span key={n} className="h-1.5 flex-1 rounded-full" style={{ background: n <= step ? "#33374a" : "#e5e7eb" }} />)}
-      <em className="ms-1.5 whitespace-nowrap text-[13px] font-semibold not-italic text-[#6b7280]">{C.stepOf(step)}</em>
-    </div>
-  );
-}
-
 export function Loading() {
   return (
     <div className="flex flex-col gap-3" aria-busy="true">
@@ -402,11 +394,12 @@ export function Loading() {
   );
 }
 
-export function Failed({ onRetry }: { onRetry: () => void }) {
+/** `message` and `retryLabel` carry a screen's own words (Urdu); left out, the coach app's English. */
+export function Failed({ onRetry, message, retryLabel }: { onRetry: () => void; message?: string; retryLabel?: string }) {
   return (
     <Card className="flex items-center gap-3 p-4">
-      <span className="flex-1 text-[15px] font-semibold">{C.loadFailed}</span>
-      <button type="button" onClick={onRetry} className="min-h-[48px] rounded-xl bg-[#f3f4f6] px-4 text-sm font-semibold text-[#33374a]">{C.retry}</button>
+      <span className="flex-1 text-[15px] font-semibold">{message ?? C.loadFailed}</span>
+      <button type="button" onClick={onRetry} className="min-h-[48px] rounded-xl bg-[#f3f4f6] px-4 text-sm font-semibold text-[#33374a]">{retryLabel ?? C.retry}</button>
     </Card>
   );
 }

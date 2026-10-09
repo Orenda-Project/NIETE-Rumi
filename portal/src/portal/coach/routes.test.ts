@@ -21,6 +21,7 @@ describe("coach v2 routes", () => {
     ["/portal/coach/visit/:id/record", "CoachRecord"],
     ["/portal/coach/visit/:id/attach", "CoachAttach"],
     ["/portal/coach/visit/:id/check", "CoachCheckSend"],
+    ["/portal/coach/visit/:id/sending", "CoachSending"],
     ["/portal/coach/reports", "CoachReports"],
     ["/portal/coach/people", "CoachPeople"],
     ["/portal/coach/school/:emis", "CoachSchool"],
@@ -29,7 +30,10 @@ describe("coach v2 routes", () => {
     ["/portal/coach/teacher/:ext/edit", "CoachEditTeacher"],
   ])("%s → %s", (path, component) => {
     expect(app).toContain(`<Route path="${path}" element={<${component} />} />`);
-    expect(app).toMatch(new RegExp(`import ${component} from "\\./portal/coach/pages/${component}";`));
+    // bd-fxk3t8: a page is either imported or its own chunk (page(() => import(…))).
+    expect(app).toMatch(new RegExp(
+      `(import ${component} from "|const ${component} = page\\(\\(\\) => import\\(")\\./portal/coach/pages/${component}"`,
+    ));
   });
 
   it("every v2 page gates itself through CoachPage", () => {

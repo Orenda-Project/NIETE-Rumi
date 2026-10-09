@@ -167,8 +167,13 @@ export function partAfter(modules: ModuleSummary[], id: string): ModuleSummary |
 
 /* ── addresses ────────────────────────────────────────────────────────────── */
 
-/** /portal/training, or /portal/training/v2 when she came in on the review URL (bd-60160). */
+/**
+ * /portal/training, or /portal/training/v2 when she came in on the review URL (bd-60160), or
+ * /portal/teacher/training when the teacher app v2 mounts these screens (bd-fmf24g.5) — so every
+ * link a training page builds stays inside the base it was opened under.
+ */
 export function trainingBase(pathname: string): string {
+  if (pathname.startsWith('/portal/teacher/training')) return '/portal/teacher/training';
   return pathname.startsWith('/portal/training/v2') ? '/portal/training/v2' : '/portal/training';
 }
 

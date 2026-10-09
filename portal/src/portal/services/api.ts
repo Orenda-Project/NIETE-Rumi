@@ -106,6 +106,12 @@ export const portal = {
     const response = await api.get('/dashboard');
     return response.data;
   },
+
+  /** bd-fxk3t8 — who is signed in: the same user as getDashboard, without its counts. */
+  getMe: async (): Promise<{ success: boolean; user: User }> => {
+    const response = await api.get('/me');
+    return response.data;
+  },
   
   getLessonPlans: async (page = 1, limit = 20, type?: string): Promise<{
     lessonPlans: LessonPlan[];
@@ -178,6 +184,8 @@ export const portal = {
   startCoachingUpload: async (args: {
     key: string; lessonPlanKey?: string; photoKeys: string[];
     lessonPlan?: { assetId: string } | { lessonId: string } | { segmentId: string; lang: 'en' | 'ur' };
+    /** bd-fmf24g.9: the class she picked in the teacher app (grade 1–12 and her subject). */
+    teacherClass?: { grade: number; subject: string; subjectKey?: string };
   }): Promise<{ coachingSessionId: string }> => {
     const response = await api.post('/coaching-upload/start', args);
     return response.data;
@@ -365,6 +373,7 @@ export const portal = {
           newUi: false,
           assessmentEditing: false,
           coachV2: false,
+          teacherV2: false,
         },
       };
     }
@@ -533,6 +542,8 @@ export type PortalConfig = {
     assessmentEditing?: boolean;
     /** bd-o15qnr — the coach app v2 is on for THIS user (fail-closed; shown to role=coach only). */
     coachV2?: boolean;
+    /** bd-fmf24g.1 — the teacher app v2 is on for THIS user (fail-closed; shown to teachers only). */
+    teacherV2?: boolean;
   };
 };
 
@@ -715,6 +726,7 @@ export type AddKind = {
   marks: number; lines: number;
   msq?: boolean;           // several correct
   presetOptions?: string[]; // True/False: ['True','False']
+  meanings?: boolean;      // Word Meanings: a meaning beside each word
 };
 export type EditChanges = {
   edits?: { id: string; edit: Record<string, unknown> }[];

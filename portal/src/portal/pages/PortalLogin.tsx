@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff } from 'lucide-react';
 import nieteLogo from '@/assets/niete-logo.png';
+import { FrameSkeleton, LoginSkeleton } from '../components/Skeleton';
+import { readShellHint } from '../lib/shellHint';
 
 const PortalLogin = () => {
   const navigate = useNavigate();
@@ -77,7 +79,12 @@ const PortalLogin = () => {
   // Render nothing until the session is known, then either the redirect above
   // fires or there is genuinely no session and the form is the right answer.
   // Flashing the form and yanking it away looks worse than the bug it fixes.
-  if (sessionLoading || user) return null;
+  // bd-fxk3t8 — an outline while the session is checked (it was white): the app's frame
+  // if this device was signed in last time, else the sign-in card.
+  if (sessionLoading || user) {
+    const hint = readShellHint();
+    return hint ? <FrameSkeleton variant={hint} /> : <LoginSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-primary niete-lattice flex items-center justify-center p-6">

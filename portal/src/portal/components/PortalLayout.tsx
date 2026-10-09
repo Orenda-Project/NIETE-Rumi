@@ -6,18 +6,22 @@ import { useRecordingSession } from '../lib/recordingSession';
 import { RecordingBarShownContext } from '../lib/recordingBarShown';
 import { useNewUi } from '../lib/useNewUi';
 import { useCoachV2, isCoachV2For } from '../coach/useCoachV2';
+import { useTeacherV2, isTeacherV2For } from '../teacher/useTeacherV2';
+import { NoticeHost } from '../teacher/notices/NoticeHost';
 import PortalNavigation from './PortalNavigation';
 import RecordingBar from './RecordingBar';
+import { FrameSkeleton, TabBarSkeleton, TopBarSkeleton } from './Skeleton';
+import { readShellHint, writeShellHint } from '../lib/shellHint';
 
 interface PortalLayoutProps {
   children: ReactNode;
   /** Hide the navigation (bd-5rz1v: while a lesson is recorded or sent). */
   bare?: boolean;
   /**
-   * What to show while the session loads, inside the page's own frame, instead
-   * of the full-screen spinner (bd-3wb0s: My account holds its layout with a
-   * skeleton). The desktop nav's 64px is reserved so nothing moves when the
-   * real page replaces it. Optional: every other page keeps the spinner.
+   * What to show while the session loads, inside the page's own frame (bd-3wb0s: My
+   * account holds its layout with a skeleton). The desktop nav's 64px is reserved so
+   * nothing moves when the real page replaces it. Optional: without it the frame holds
+   * placeholder blocks (bd-fxk3t8 — there is no full-screen spinner any more).
    */
   loadingFallback?: ReactNode;
   /**
@@ -40,7 +44,24 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
   // does the page (and the recording bar) need more room. Off: as before.
   // bd-o15qnr — a coach on v2 keeps the live look even with the new UI on (v2 wins).
   const coachV2 = isCoachV2For(user, useCoachV2(user?.phoneNumber || null, !loading && !!user));
-  const newUi = useNewUi(user?.phoneNumber || null, !loading && !!user) === true && !coachV2;
+  // bd-fmf24g.1 — a teacher on v2 gets the v2 frame and menu (v2 wins over the new UI too).
+  const teacherFlag = useTeacherV2(user?.phoneNumber || null, !loading && !!user);
+  const teacherV2 = isTeacherV2For(user, teacherFlag);
+  const newUi = useNewUi(user?.phoneNumber || null, !loading && !!user) === true && !coachV2 && !teacherV2;
+  // The frame this device showed last — what to draw while the user or the menu is unknown.
+  const hint = readShellHint() ?? 'classic';
+  // bd-fxk3t8 — on a device that last showed the v2 frame, a teacher's menu is not drawn
+  // until her v2 flag is read (remembered per user, so only on the first page of a visit):
+  // placeholder bars hold its place. Drawing the classic menu first was a flash of the wrong
+  // one. Every other device draws the classic menu at once, exactly as before.
+  const teacherUser = isTeacherV2For(user, true);
+  const menuPending = teacherUser && teacherFlag === null && hint === 'teacher';
+  const frameKnown = !!user && (!teacherUser || teacherFlag !== null);
+
+  // bd-fxk3t8 — remembered for the next cold start: index.html's static shell draws this frame.
+  useEffect(() => {
+    if (frameKnown) writeShellHint(teacherV2 ? 'teacher' : 'classic');
+  }, [frameKnown, teacherV2]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -48,26 +69,11 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
     }
   }, [user, loading, navigate]);
 
-  if (loading && loadingFallback) {
-    return (
-      <div className="min-h-screen bg-secondary" aria-busy="true">
-        {!bare && <div className="hidden md:block h-16 bg-primary" aria-hidden="true" />}
-        <main className={bare ? 'px-4 md:px-6 lg:px-8 pt-4 pb-8' : 'px-4 md:px-6 lg:px-8 pt-4 pb-20 md:pb-8'}>
-          {loadingFallback}
-        </main>
-      </div>
-    );
-  }
-
+  // bd-fxk3t8 — the first page of a visit, while the user is read: the app's frame with
+  // placeholder blocks (or the page's own), never a full-screen spinner. Under the app's
+  // AuthProvider every later page already has her and never comes here.
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
+    return <FrameSkeleton variant={hint} bare={bare}>{loadingFallback}</FrameSkeleton>;
   }
 
   if (!user) return null;
@@ -80,22 +86,37 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
   // thing on the page reachable. On a desktop the old menu's bar floats in a
   // corner; the new menu's docks in an 81px strip on the bottom edge
   // (bd-5rz1v.26.4), and md:pb-24 (96px) keeps the page's end above it.
+  // While her menu is pending (a v2 device), the page is already padded for the v2 frame.
+  // bd-4404s7.2 — a coach on v2 stands in the same frame (the kit's bar, 78px + the safe area).
+  const v2Frame = teacherV2 || coachV2 || menuPending;
   const pad = bare
     ? (showBar ? 'pb-24 md:pb-24' : 'pb-8')
+    // bd-fmf24g.1 — the v2 bottom bar is 78px + the safe area (canvas: 6 + 58 + 14).
+    : v2Frame
+      ? (showBar ? 'pb-[calc(168px+env(safe-area-inset-bottom))] md:pb-24' : 'pb-[calc(88px+env(safe-area-inset-bottom))] md:pb-8')
     : newUi
       ? (showBar ? 'pb-[calc(176px+env(safe-area-inset-bottom))] md:pb-24' : 'pb-[calc(96px+env(safe-area-inset-bottom))] md:pb-8')
       : (showBar ? 'pb-40 md:pb-24' : 'pb-20 md:pb-8');
   return (
     // The loaded user, to everything inside: the navigation never starts from "no user".
     <AuthContext.Provider value={auth}>
-    <div className={ownHeading ? 'min-h-screen bg-nu-surface' : 'min-h-screen bg-secondary'}>
-      {!bare && <PortalNavigation hideStrip={ownHeading} />}
+    <div className={v2Frame ? 'min-h-screen bg-[#f3f4f6]' : ownHeading ? 'min-h-screen bg-nu-surface' : 'min-h-screen bg-secondary'}>
+      {!bare && (menuPending
+        ? <><TopBarSkeleton variant={hint} /><TabBarSkeleton variant={hint} /></>
+        : <PortalNavigation hideStrip={ownHeading} />)}
       {/* Issue #22: Added consistent padding for content */}
       <main className={ownHeading ? pad : `px-4 md:px-6 lg:px-8 pt-4 ${pad}`}>
         {/* bd-5rz1v.14 — a new-UI page's bottom action stands above the bar while it shows. */}
         <RecordingBarShownContext.Provider value={showBar && !bare}>
           {children}
         </RecordingBarShownContext.Provider>
+        {/* bd-fmf24g.15 — what is being made, and "ready", on every teacher v2 screen (and only those). bd-4404s7.4: a
+            coach on v2 gets it too: her observation being sent is one more thing it follows. It stays
+            mounted-or-not with the frame, but the tracker behind it is a module, so a page change does not
+            restart anything. */}
+        {(teacherV2 || coachV2) && !menuPending && user.phoneNumber && (
+          <NoticeHost userKey={user.phoneNumber} bare={bare} aboveBar={showBar} local={!teacherV2} />
+        )}
       </main>
       {showBar && session && <RecordingBar session={session} aboveMenu={!bare} newMenu={newUi} />}
     </div>

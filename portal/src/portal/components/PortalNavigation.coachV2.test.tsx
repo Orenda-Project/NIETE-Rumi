@@ -4,10 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 
 /**
- * bd-o15qnr — a coach with portal_coach_v2 gets the v2 menu, in the LIVE look
- * (white bottom bar, green active item): Home · Schedule · Observe · Schools ·
- * Other. Training (bd-60160: coaches must keep reaching it) and My account sit
- * in Other. v2 wins over portal_new_ui for a coach.
+ * bd-o15qnr / bd-4404s7.2 — a coach with portal_coach_v2 gets the kit's role-aware
+ * menu: Home · Schedule · Observe · Schools · More (the teacher bar, the coach's
+ * items). Training and My account sit on More. v2 wins over portal_new_ui.
  */
 
 vi.mock("../hooks/useAuth", () => ({ useAuth: vi.fn() }));
@@ -33,45 +32,40 @@ async function renderNav(path: string, features: Record<string, unknown>) {
   for (let i = 0; i < 5; i += 1) await act(async () => { await Promise.resolve(); });
 }
 
-function mobileBar() {
-  return screen.getByTestId("mobile-nav-more").closest("nav") as HTMLElement;
+function bar() {
+  return screen.getByTestId("teacher-nav");
 }
 
-describe("coach v2 menu", () => {
+describe("coach v2 menu (the kit's role-aware bar)", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("Home · Schedule · Observe · Schools, then Other", async () => {
+  it("Home · Schedule · Observe · Schools · More", async () => {
     await renderNav("/portal/coach", { coachV2: true });
-    const bar = within(mobileBar());
-    const links = bar.getAllByRole("link").map((a) => [a.textContent, a.getAttribute("href")]);
+    const links = within(bar()).getAllByRole("link").map((a) => [a.textContent, a.getAttribute("href")]);
     expect(links).toEqual([
       ["Home", "/portal/coach"],
       ["Schedule", "/portal/coach/scheduling"],
       ["Observe", "/portal/coach/observe"],
       ["Schools", "/portal/coach/people"],
+      ["More", "/portal/coach/more"],
     ]);
-    expect(bar.getByRole("button", { name: "Other" })).toBeInTheDocument();
+    expect(screen.queryByTestId("mobile-nav-more")).toBeNull();
   });
 
-  it("the current feature is the active (green) item", async () => {
+  it("the current feature is the current item, on every page inside it", async () => {
     await renderNav("/portal/coach/observe/pick", { coachV2: true });
-    const observe = within(mobileBar()).getByRole("link", { name: "Observe" });
-    expect(observe.className).toContain("text-accent");
-    expect(within(mobileBar()).getByRole("link", { name: "Home" }).className).not.toContain("text-accent");
+    expect(within(bar()).getByRole("link", { name: "Observe" })).toHaveAttribute("aria-current", "page");
+    expect(within(bar()).getByRole("link", { name: "Home" })).not.toHaveAttribute("aria-current");
   });
 
-  it("Other holds Training, My account and Logout", async () => {
-    await renderNav("/portal/coach", { coachV2: true });
-    await userEvent.setup().click(screen.getByTestId("mobile-nav-more"));
-    const sheet = within(await screen.findByRole("dialog"));
-    expect(sheet.getByRole("link", { name: "Training" })).toHaveAttribute("href", "/portal/training");
-    expect(sheet.getByRole("link", { name: /My account/ })).toBeInTheDocument();
-    expect(sheet.getByRole("button", { name: "Logout" })).toBeInTheDocument();
+  it("More stays current on My profile", async () => {
+    await renderNav("/portal/coach/profile", { coachV2: true });
+    expect(within(bar()).getByRole("link", { name: "More" })).toHaveAttribute("aria-current", "page");
   });
 
-  it("v2 wins over the new UI for a coach: the live-look menu, not the indigo bar", async () => {
+  it("v2 wins over the new UI for a coach: the kit bar, not the indigo one", async () => {
     await renderNav("/portal/coach", { coachV2: true, newUi: true });
-    expect(within(mobileBar()).getByRole("link", { name: "Observe" })).toBeInTheDocument();
-    expect(mobileBar().className).toContain("bg-white");
+    expect(within(bar()).getByRole("link", { name: "Observe" })).toBeInTheDocument();
+    expect(bar().className).toContain("bg-white");
   });
 });

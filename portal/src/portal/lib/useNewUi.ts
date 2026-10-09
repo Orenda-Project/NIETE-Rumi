@@ -14,8 +14,9 @@ import { forgetNewUi, rememberedNewUiFor, rememberNewUi } from './newUiMemory';
  * One difference: it remembers the last answer for the SAME user. Every page
  * mounts its own layout and navigation, so without this a pilot user would see
  * the old menu for a moment before the new one on every tap. The remembered
- * answer is only a starting point — /config is still read on every mount, and
- * a fresh "off" replaces a remembered "on". It is never carried to another user.
+ * answer is only a starting point — /config is still asked on every mount (an
+ * answer under 30 s old is reused, bd-fxk3t8), and a fresh "off" replaces a
+ * remembered "on". It is never carried to another user.
  *
  * `userKey` identifies whose answer it is. The portal's user payload carries no
  * id, so the navigation passes her phone number; it is held in memory only and
@@ -29,17 +30,39 @@ import { forgetNewUi, rememberedNewUiFor, rememberNewUi } from './newUiMemory';
 let inflight: Promise<PortalConfig | null> | null = null;
 
 /**
+ * bd-fxk3t8 — an answer is reused for CONFIG_FRESH_MS: every hook that mounts
+ * after the first page used to read /config again. Signing in or out forgets it
+ * (forgetConfig), because the flags are per user. A failed read is never kept.
+ */
+const CONFIG_FRESH_MS = 30_000;
+let kept: { at: number; config: PortalConfig } | null = null;
+
+/**
  * One /config read shared by every caller while it is in flight (the layout,
- * the navigation, and bd-o15qnr's useCoachV2). A failed read is null.
+ * the navigation, and bd-o15qnr's useCoachV2), then kept for 30 s. A failed
+ * read is null.
  */
 export function readConfigShared(): Promise<PortalConfig | null> {
+  if (kept && Date.now() - kept.at < CONFIG_FRESH_MS) return Promise.resolve(kept.config);
   if (!inflight) {
-    inflight = Promise.resolve()
+    const read: Promise<PortalConfig | null> = Promise.resolve()
       .then(() => portal.getConfig())
+      .then((config) => {
+        // a read that was forgotten mid-flight (sign-in, sign-out) is not kept
+        if (config && inflight === read) kept = { at: Date.now(), config };
+        return config;
+      })
       .catch(() => null)
-      .finally(() => { inflight = null; });
+      .finally(() => { if (inflight === read) inflight = null; });
+    inflight = read;
   }
   return inflight;
+}
+
+/** Signing in or out: the next read asks the server (the flags are per user). */
+export function forgetConfig(): void {
+  kept = null;
+  inflight = null;
 }
 
 function readNewUi(): Promise<boolean> {
@@ -71,5 +94,5 @@ export function useNewUi(userKey?: string | null, ready = true): boolean | null 
 /** Tests only: forget the remembered answer. */
 export function resetNewUiMemory(): void {
   forgetNewUi();
-  inflight = null;
+  forgetConfig();
 }

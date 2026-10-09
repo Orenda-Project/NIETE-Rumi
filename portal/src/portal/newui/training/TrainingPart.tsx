@@ -47,7 +47,7 @@ type Detail = {
   level: { id: number; name: string } | null;
 };
 
-export default function TrainingPart() {
+export function useTrainingPart() {
   const { moduleId = '' } = useParams();
   const { pathname } = useLocation();
   const paths = trainingPaths(trainingBase(pathname));
@@ -92,6 +92,12 @@ export default function TrainingPart() {
 
   const locked = statusOf(detail.error) === 403;
 
+  return { moduleId, pathname, paths, detail, d, courseId, modules, levels, attempts, completedAt, setCompletedAt, saving, setSaving, notSaved, setNotSaved, done, list, sorted, at, after, levelId, vendorKey, courseUrl, best, markDone, locked };
+}
+
+/** The view; every rule and read is useTrainingPart's, shared with the teacher app v2 (bd-fmf24g.12). */
+export default function TrainingPart() {
+  const { moduleId, paths, detail, d, saving, notSaved, done, sorted, at, after, courseUrl, best, markDone, locked } = useTrainingPart();
   return (
     <TrainingInner crumb={TRAINING_COPY.crumb(d?.course?.title)} title={d?.title ?? ''} backTo={courseUrl ?? paths.home}>
       {detail.loading ? <Loading /> : null}

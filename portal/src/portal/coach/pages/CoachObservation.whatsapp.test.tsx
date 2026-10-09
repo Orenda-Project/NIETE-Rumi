@@ -46,7 +46,8 @@ const renderPage = () => render(
     <Routes><Route path="/portal/coach/observation/:id" element={<CoachObservation />} /></Routes>
   </MemoryRouter>,
 );
-const stepRows = () => screen.getAllByTestId("obs-step");
+const stepsRegion = () => within(screen.getByRole("region", { name: "Steps" }));
+const current = () => stepsRegion().getAllByRole("listitem").find((li) => li.getAttribute("aria-current") === "step");
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -56,58 +57,44 @@ beforeEach(() => {
 });
 
 describe("bd-15y1pc — her own WhatsApp observation, in full", () => {
-  it("completed: the form's answers, the debrief guide and her feedback all open — not only the summary and report", async () => {
+  it("completed: What you made opens the form's answers, the debrief guide and her feedback — from either side", async () => {
     renderPage();
     await waitFor(() => expect(L.getObservation).toHaveBeenCalledWith("cs-wa"));
-    await waitFor(() => expect(stepRows().map((r) => r.getAttribute("data-state"))).toEqual(["done", "done", "done", "done", "done"]));
-
-    fireEvent.click(within(stepRows()[1]).getByRole("button"));
-    expect(await screen.findByTestId("form-answers")).toHaveTextContent("Asked why twice");
-
-    await waitFor(() => expect(within(stepRows()[2]).getByRole("button")).toBeInTheDocument());
-    fireEvent.click(within(stepRows()[2]).getByRole("button"));
-    expect(await screen.findByTestId("talk-guide")).toHaveTextContent("Start with a win.");
-
-    fireEvent.click(within(stepRows()[3]).getByRole("button"));
-    expect(await screen.findByTestId("coach-feedback")).toHaveTextContent("You listened well.");
+    const made = within(await screen.findByTestId("what-you-made"));
+    await waitFor(() => expect(made.getAllByRole("link")).toHaveLength(3));
+    expect(made.getByRole("link", { name: /Feedback Form/ })).toHaveAttribute("href", "/portal/coach/observation/cs-wa/form");
+    expect(made.getByRole("link", { name: /Debrief/ })).toHaveAttribute("href", "/portal/coach/observation/cs-wa/debrief");
+    expect(made.getByRole("link", { name: /Your feedback/ })).toHaveAttribute("href", "/portal/coach/observation/cs-wa/feedback");
     expect(screen.queryByTestId("obs-dock")).toBeNull();
   });
 
   it.each([
-    ["draft", 1, "/portal/leader/observe/cs-wa/draft?from=coach"],
-    ["talk", 2, "/portal/leader/observe/cs-wa/talk?from=coach"],
-    ["report", 4, "/portal/leader/observe/cs-wa?from=coach"],
-  ])("bd-gie5ep — in progress at %s: she can carry on here — the step is hers and the dock opens it", async (step, at, href) => {
-    C.getObservation.mockResolvedValue(OBS({ step: step === "report" ? "report" : step, score: null, sentAt: null, caption: null, imageUrl: null }));
+    ["draft", "Feedback Form", "/portal/coach/observation/cs-wa/form"],
+    ["talk", "Debrief", "/portal/coach/observation/cs-wa/debrief"],
+    ["report", "Send Ayesha the report", "/portal/coach/observation/cs-wa/send"],
+  ])("bd-gie5ep — in progress at %s: she can carry on here — the step is hers and the dock opens its v2 screen", async (step, label, href) => {
+    C.getObservation.mockResolvedValue(OBS({ step, score: null, sentAt: null, caption: null, imageUrl: null }));
     L.getObservation.mockResolvedValue(VIEW(step));
     renderPage();
-    await waitFor(() => expect(stepRows()[at]).toHaveAttribute("aria-current", "step"));
-    expect(await screen.findByTestId("obs-dock")).toHaveAttribute("href", href);
+    const dock = await screen.findByTestId("obs-dock");
+    await waitFor(() => expect(dock).toHaveAttribute("href", href));
+    expect(current()).toHaveTextContent(label);
     expect(screen.queryByText("On WhatsApp")).toBeNull();
   });
 
-  it("in progress: what is already done still opens here", async () => {
-    C.getObservation.mockResolvedValue(OBS({ step: "talk", score: null, sentAt: null, caption: null, imageUrl: null }));
-    L.getObservation.mockResolvedValue(VIEW("talk"));
-    renderPage();
-    await waitFor(() => expect(stepRows()[2]).toHaveAttribute("aria-current", "step"));
-    fireEvent.click(within(stepRows()[1]).getByRole("button"));
-    expect(await screen.findByTestId("form-answers")).toHaveTextContent("Quality Questioning");
-  });
-
-  it("another coach's WhatsApp observation stays as it was: the row only, the pipeline view is not asked", async () => {
+  it("another coach's WhatsApp observation stays as it was: the report only, the pipeline view is not asked", async () => {
     C.getObservation.mockResolvedValue(OBS({ mine: false, observer: { self: false, name: "Imran S" } }));
     renderPage();
-    await waitFor(() => expect(stepRows()[4]).toHaveAttribute("data-state", "done"));
+    expect(await screen.findByRole("img", { name: /Ayesha/ })).toBeInTheDocument();
     expect(L.getObservation).not.toHaveBeenCalled();
-    expect(within(stepRows()[1]).queryByRole("button")).toBeNull();
+    expect(screen.queryByTestId("what-you-made")).toBeNull();
   });
 
   it("a debrief done but no report out is the Send-report step, not every step ticked", async () => {
     C.getObservation.mockResolvedValue(OBS({ mine: false, step: "report", score: null, sentAt: null, caption: null, imageUrl: null }));
     renderPage();
-    await waitFor(() => expect(stepRows()[4]).toHaveAttribute("aria-current", "step"));
-    expect(stepRows().map((r) => r.getAttribute("data-state"))).toEqual(["done", "done", "done", "done", "now"]);
-    expect(within(stepRows()[4]).getByText("On WhatsApp")).toBeInTheDocument();
+    await screen.findByText("On WhatsApp");
+    expect(current()).toHaveTextContent("Send Ayesha the report");
+    expect(stepsRegion().getAllByRole("listitem").filter((li) => li.querySelector("[data-testid=step-dot] svg"))).toHaveLength(4);
   });
 });

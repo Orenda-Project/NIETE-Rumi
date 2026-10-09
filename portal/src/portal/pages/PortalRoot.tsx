@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { isLeader } from '../lib/leaderRole';
 import PortalLogin from './PortalLogin';
+import { FrameSkeleton, LoginSkeleton } from '../components/Skeleton';
+import { readShellHint } from '../lib/shellHint';
 
 /**
  * What "/" renders for the portal audience (bd-2394).
@@ -40,9 +42,14 @@ const PortalRoot = () => {
     navigate(isLeader(user) ? '/portal/leader' : '/portal/dashboard', { replace: true });
   }, [user, loading, navigate]);
 
-  // Nothing until the session is known, then either the redirect above fires
-  // or there is genuinely no session and the form is the right answer.
-  if (loading || user) return null;
+  // An outline until the session is known (bd-fxk3t8: it was a white screen on every
+  // app launch) — the app's frame if this device was signed in last time, else the
+  // sign-in card. Then either the redirect above fires or there is genuinely no
+  // session and the form is the right answer.
+  if (loading || user) {
+    const hint = readShellHint();
+    return hint ? <FrameSkeleton variant={hint} /> : <LoginSkeleton />;
+  }
 
   return <PortalLogin />;
 };

@@ -73,6 +73,7 @@ const {
   PORTAL_NEW_UI_KEY,
   isPortalAssessmentEditingEnabled,
   PORTAL_COACH_V2_KEY,
+  PORTAL_TEACHER_V2_KEY,
   isCoachObservationOn,
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
@@ -82,6 +83,7 @@ const { resolveUserSchoolName } = require('../lib/user-school-name');
 // A coach's observation of her is the teacher's to see only once it is SENT to her.
 const TeacherObservation = require('../lib/teacher-observation');
 const { getOverall } = require('../services/coaching-frameworks.service');
+const { narrativeView } = require('../services/report-narrative-view'); // bd-fmf24g.10
 // Leader "patch" resolver (leader_teachers → Rumi users + activity) needs the
 // pg pool — the LATERAL-join SQL can't be expressed through supabase-js.
 const pool = require('../config/database');
@@ -845,6 +847,34 @@ router.post('/reset-password', async (req, res) => {
 // ============================================================================
 
 /**
+ * The signed-in user as the app holds her: /dashboard and /me answer exactly this.
+ * bd-2434: includes `role` (+ contact fields) via the shared shaper.
+ */
+function sessionUserPayload(req, user, schoolName) {
+  return {
+    ...publicUserPayload(user, { includeContact: true }),
+    schoolName,
+  };
+}
+
+/**
+ * GET /api/portal/me — who is signed in, and nothing else (bd-fxk3t8).
+ *
+ * The app asks this before it can draw any page (portal AuthProvider). It used to ask
+ * /dashboard, which also counts her sessions, assessments and training — 0.9–1.2 s on
+ * sandbox. Same user, same shape, no counts.
+ */
+router.get('/me', requirePortalAuth, async (req, res) => {
+  try {
+    const user = await getUserById(req.session.portalUserId);
+    res.json({ success: true, user: sessionUserPayload(req, user, await resolveUserSchoolName(supabase, user)) });
+  } catch (error) {
+    console.error('portal/me error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load your account' });
+  }
+});
+
+/**
  * GET /api/portal/dashboard
  * Get dashboard overview stats
  */
@@ -964,8 +994,7 @@ router.get('/dashboard', requirePortalAuth, async (req, res) => {
     // Return partial data even if some queries failed
     res.json({
       success: true,
-      // bd-2434: includes `role` (+ contact fields) via the shared shaper.
-      user: { ...publicUserPayload(user, { includeContact: true }), schoolName: await schoolNamePromise },
+      user: sessionUserPayload(req, user, await schoolNamePromise),
       stats: {
         totalCoachingSessions: coachingSessionsResult.status === 'fulfilled' ? (coachingSessionsResult.value.count || 0) : 0,
         totalAssessments: assessmentsResult.status === 'fulfilled' ? (assessmentsResult.value.count || 0) : 0,
@@ -2510,6 +2539,9 @@ router.post('/assessment/generate', requirePortalAuth, async (req, res) => {
       pageRanges: body.pageRanges ?? null,
       contentSource: body.contentSource,
       questionCount: body.questionCount,
+      // bd-fmf24g.6 — Mix's book count and the marks budget, as the WhatsApp Flow sends them.
+      seenCount: body.seenCount ?? null,
+      totalMarks: body.totalMarks ?? null,
       questionTypes: body.questionTypes,
       includeAnswerKey: body.includeAnswerKey,
       answerLines: body.answerLines,
@@ -6631,6 +6663,10 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
         hasLessonPlan: !!session.has_lesson_plan,
         photoUrls,
 
+        // bd-fmf24g.10: the report's written part (headline, moments, strength, horizon, the per-section
+        // "why" lines) as the bot stored it when it rendered her report; null on a session that has none.
+        reportNarrative: narrativeView(session.analysis_data),
+
         // ── how she was scored ─────────────────────────────────────────────
         overallScore: overallMarks,
         maxScore: maxMarks,
@@ -6755,16 +6791,32 @@ function libraryPlanPick(raw) {
 }
 
 /**
+ * bd-fmf24g.9 — the class she picked in the teacher app: { grade, subject, subjectKey? } and
+ * no other field. The bot validates the values (and drops a bad pick without refusing the
+ * recording); this only keeps anything else from riding along.
+ */
+function teacherClassPick(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const out = {};
+  for (const k of ['grade', 'subject', 'subjectKey']) {
+    if (raw[k] !== undefined) out[k] = raw[k];
+  }
+  return out;
+}
+
+/**
  * POST /api/portal/coaching-upload/start
- * Body { key, lessonPlanKey?, lessonPlan?, photoKeys? } — keys returned by /presign, uploaded.
+ * Body { key, lessonPlanKey?, lessonPlan?, photoKeys?, teacherClass? } — keys returned by /presign, uploaded.
+ *   teacherClass (bd-fmf24g.9): { grade, subject, subjectKey? } — the class she picked; the bot stores it
  *   lessonPlan: a library pick — { assetId } | { lessonId } | { segmentId, lang }
  * → 200 { coachingSessionId }   409 { status:'in_progress', coachingSessionId }
  *   400 { reason: 'plan_not_found' | 'plan_not_ready' | … }
  */
 router.post('/coaching-upload/start', requirePortalAuth, requireSelfObservation, (req, res) => {
-  const { key, lessonPlanKey, photoKeys, lessonPlan } = req.body || {};
+  const { key, lessonPlanKey, photoKeys, lessonPlan, teacherClass } = req.body || {};
   return relayToBot(res, 'start', () => PortalCoachingClient.startSession({
     userId: req.session.portalUserId, key, lessonPlanKey, photoKeys, lessonPlan: libraryPlanPick(lessonPlan),
+    teacherClass: teacherClassPick(teacherClass),
   }));
 });
 
@@ -7863,25 +7915,32 @@ router.put('/me/language', requirePortalAuth, async (req, res) => {
 
 router.get('/config', async (req, res) => {
   try {
-    const assessmentGenerator = await isAssessmentGeneratorEnabled(supabase);
-    const assessmentEditing = await isPortalAssessmentEditingEnabled(supabase);
-    // bd-3bvfj: per USER — a pilot list is answered for whoever is logged in;
-    // logged out, it is off. Read from the session, never from the request.
-    const selfObservation = await isFlagEnabledForUser(
-      supabase, PORTAL_SELF_OBSERVATION_KEY, req.session && req.session.portalUserId,
-    );
-    // bd-5rz1v.6: per USER too — the coach's portal observation pilot.
-    const coachObservation = await isFlagEnabledForUser(
-      supabase, PORTAL_COACH_OBSERVATION_KEY, req.session && req.session.portalUserId,
-    );
-    // bd-5rz1v.12: the new UI, per user — designed screen by screen behind it.
-    const newUi = await isFlagEnabledForUser(
-      supabase, PORTAL_NEW_UI_KEY, req.session && req.session.portalUserId,
-    );
-    // bd-o15qnr: the coach app v2, per user. The portal shows it to role=coach only.
-    const coachV2 = await isFlagEnabledForUser(
-      supabase, PORTAL_COACH_V2_KEY, req.session && req.session.portalUserId,
-    );
+    const userId = req.session && req.session.portalUserId;
+    // bd-fxk3t8: the reads are independent, so they run together. One after
+    // another they took 1.8–4.9 s on sandbox, and every v2 page waits on this.
+    const [
+      assessmentGenerator,
+      assessmentEditing,
+      selfObservation,
+      coachObservation,
+      newUi,
+      coachV2,
+      teacherV2,
+    ] = await Promise.all([
+      isAssessmentGeneratorEnabled(supabase),
+      isPortalAssessmentEditingEnabled(supabase),
+      // bd-3bvfj: per USER — a pilot list is answered for whoever is logged in;
+      // logged out, it is off. Read from the session, never from the request.
+      isFlagEnabledForUser(supabase, PORTAL_SELF_OBSERVATION_KEY, userId),
+      // bd-5rz1v.6: per USER too — the coach's portal observation pilot.
+      isFlagEnabledForUser(supabase, PORTAL_COACH_OBSERVATION_KEY, userId),
+      // bd-5rz1v.12: the new UI, per user — designed screen by screen behind it.
+      isFlagEnabledForUser(supabase, PORTAL_NEW_UI_KEY, userId),
+      // bd-o15qnr: the coach app v2, per user. The portal shows it to role=coach only.
+      isFlagEnabledForUser(supabase, PORTAL_COACH_V2_KEY, userId),
+      // bd-fmf24g.1: the teacher app v2, per user. The portal shows it to teachers only.
+      isFlagEnabledForUser(supabase, PORTAL_TEACHER_V2_KEY, userId),
+    ]);
     return res.json({
       success: true,
       features: {
@@ -7892,6 +7951,7 @@ router.get('/config', async (req, res) => {
         coachObservation,
         newUi,
         coachV2,
+        teacherV2,
       },
     });
   } catch (error) {
@@ -7907,6 +7967,7 @@ router.get('/config', async (req, res) => {
         coachObservation: false,
         newUi: false,
         coachV2: false,
+        teacherV2: false,
       },
     });
   }

@@ -1,0 +1,202 @@
+import type { ReactElement } from 'react';
+import type { AnyFeature } from './features';
+import { useFeatureMotion } from './FeatureMotion';
+import './featureMotion.css';
+
+/**
+ * bd-fmf24g.2.1 — the teacher app's feature illustrations: the D2-refined 48px spot art from the v28 canvas
+ * (Main.dc.html's `r-*` sprite, identical to the D2-refined row of IconOptions2.dc.html). Drawn in the app's ink
+ * outline (#33374a, 1.25) with each feature's own hue. Digital Coaching is a PHONE.
+ *
+ * Home draws them on the tiles (76–80px, no background disc: `.hart`). They are decorative unless a `label` is
+ * given — the tile's words already name the feature.
+ */
+
+const ART: Record<AnyFeature, ReactElement> = {
+  lessons: (
+    <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 13.5c6.5-2.2 13-1.6 19 1.8 6-3.4 12.5-4 19-1.8v24.5c-6.5-2.2-13-1.6-19 1.8-6-3.4-12.5-4-19-1.8z" fill="#2f7a52" />
+      <path d="M8 12.5c5.5-1.4 10.8-.8 16 2.4v23.6c-5.2-3.2-10.5-3.8-16-2.4z" fill="#fff" />
+      <path d="M11.5 19.5c3.2-.6 6-.3 8.8.9M11.5 24c3.2-.6 6-.3 8.8.9M11.5 28.5c3.2-.6 6-.3 8.8.9" fill="none" stroke="#2f7a52" />
+      <g className="fm-an fm-pg">
+        <path d="M40 12.5c-5.5-1.4-10.8-.8-16 2.4v23.6c5.2-3.2 10.5-3.8 16-2.4z" fill="#eaf6ef" />
+        <path d="M36.5 30c-2.6-.5-5-.3-7.2.6" fill="none" stroke="#2f7a52" />
+        <path d="M29.5 13.8v12.6l2.6-2 2.6 2V13z" fill="#2f7a52" />
+      </g>
+    </g>
+  ),
+  coaching: (
+    <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="13" y="4" width="22" height="40" rx="5" fill="#ffedd5" />
+      <rect x="16" y="9" width="16" height="27" rx="2.5" fill="#c2410c" />
+      <path d="M21.5 6.5h5" fill="none" />
+      <circle cx="24" cy="40" r="1.6" fill="#fff" />
+      <g fill="none" stroke="#fff" strokeWidth="2.2">
+        <path className="fm-an fm-wv" d="M19.5 20.5v6" />
+        <path className="fm-an fm-wv fm-t1" d="M22.5 17v13" />
+        <path className="fm-an fm-wv fm-t2" d="M25.5 19.5v8" />
+        <path className="fm-an fm-wv fm-t3" d="M28.5 21.5v4" />
+      </g>
+      <path className="fm-an fm-tw" d="M40.5 4.5 41.76 7.74 45 9 41.76 10.26 40.5 13.5 39.24 10.26 36 9 39.24 7.74z" fill="#d4a017" />
+      <path className="fm-an fm-tw fm-t3" d="M42 17.1 42.67 18.83 44.4 19.5 42.67 20.17 42 21.9 41.33 20.17 39.6 19.5 41.33 18.83z" fill="#d4a017" />
+      <path className="fm-an fm-tw fm-t6" d="M8 27.4 8.73 29.27 10.6 30 8.73 30.73 8 32.6 7.27 30.73 5.4 30 7.27 29.27z" fill="#c2410c" />
+    </g>
+  ),
+  observations: (
+    <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4.5 44a10.5 10.5 0 0 1 21 0z" fill="#c8331f" />
+      <circle cx="15" cy="26.5" r="5.5" fill="#fee4e2" />
+      <path d="M24.5 44a9.5 9.5 0 0 1 19 0z" fill="#fee4e2" />
+      <circle cx="34" cy="29.5" r="5" fill="#fff" />
+      <g className="fm-an fm-bub">
+        <path d="M25.5 4h14a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H33l-4.5 4v-4h-3a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3z" fill="#fff" />
+        <path className="fm-an fm-dr fm-t5" pathLength={100} d="M28.5 10.5l3 3 6-6" fill="none" stroke="#c8331f" strokeWidth="2.2" />
+      </g>
+    </g>
+  ),
+  training: (
+    <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M13 23v9c3 2.6 6.8 4 11 4s8-1.4 11-4v-9" fill="#eeeafd" />
+      <path d="M45 18.5 24 8 3 18.5 24 29z" fill="#6e52e0" />
+      <circle cx="24" cy="18.5" r="1.7" fill="#33374a" />
+      <path d="M24 18.5l15.5 3.2" fill="none" stroke="#d4a017" strokeWidth="1.8" />
+      <g className="fm-an fm-tas">
+        <path d="M39.5 21.7v10.3" fill="none" stroke="#d4a017" strokeWidth="1.8" />
+        <circle cx="39.5" cy="34" r="2.6" fill="#d4a017" />
+        <path d="M38 36.5v5M39.5 36.5v5.5M41 36.5v5" fill="none" stroke="#d4a017" strokeWidth="1.4" />
+      </g>
+    </g>
+  ),
+  assessment: (
+    <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 5h16l8 8v28.5a2.5 2.5 0 0 1-2.5 2.5H11a2.5 2.5 0 0 1-2.5-2.5v-34A2.5 2.5 0 0 1 11 5z" fill="#fff" />
+      <path d="M27 5v8h8" fill="#e3eefc" />
+      <g fill="none" stroke="#1d6fd8" strokeWidth="1.8">
+        <path className="fm-an fm-dr" pathLength={100} d="M12.5 19l2 2 3.5-3.5" />
+        <path className="fm-an fm-dr fm-t4" pathLength={100} d="M12.5 26l2 2 3.5-3.5" />
+      </g>
+      <path d="M21.5 19.5h7.5M21.5 26.5h5.5M12.5 33h7" fill="none" stroke="#1d6fd8" />
+      <g className="fm-an fm-bdg fm-t9">
+        <circle cx="35" cy="35" r="9" fill="#1d6fd8" />
+        <path d="M30.4 39l3-8 3 8M31.5 36.4h3.8M39.3 32.6v4.6M37 34.9h4.6" fill="none" stroke="#fff" strokeWidth="1.8" />
+      </g>
+    </g>
+  ),
+  attendance: (
+    <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="6" y="9" width="36" height="33" rx="4" fill="#fff" />
+      <path d="M10 9h28a4 4 0 0 1 4 4v5H6v-5a4 4 0 0 1 4-4z" fill="#33374a" />
+      <rect x="14.5" y="5" width="3.5" height="8" rx="1.75" fill="#e8e9f0" />
+      <rect x="30" y="5" width="3.5" height="8" rx="1.75" fill="#e8e9f0" />
+      <circle cx="37" cy="24" r="1.6" fill="#e8e9f0" />
+      <circle cx="37" cy="30" r="1.6" fill="#e8e9f0" />
+      <circle cx="37" cy="36" r="1.6" fill="#e8e9f0" />
+      <path className="fm-an fm-dr" pathLength={100} d="M13.5 30l5.5 5.5L30.5 24" fill="none" strokeWidth="3.4" />
+    </g>
+  ),
+  classes: (
+    <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="4" width="38" height="22" rx="3" fill="#0f766e" />
+      <path d="M10 10h14M10 15h10M10 20h7" fill="none" stroke="#fff" />
+      <path className="fm-an fm-dr" pathLength={100} d="M31 15.5l2.5 2.5 5-5" fill="none" stroke="#fff" strokeWidth="1.8" />
+      <g className="fm-an fm-hop fm-t2">
+        <path d="M7.5 43a5.5 5.5 0 0 1 11 0z" fill="#ccfbf1" />
+        <circle cx="13" cy="32.5" r="3.2" fill="#fff" />
+      </g>
+      <g className="fm-an fm-hop fm-t4">
+        <path d="M18.5 43a5.5 5.5 0 0 1 11 0z" fill="#ccfbf1" />
+        <circle cx="24" cy="32.5" r="3.2" fill="#fff" />
+      </g>
+      <g className="fm-an fm-hop fm-t6">
+        <path d="M29.5 43a5.5 5.5 0 0 1 11 0z" fill="#ccfbf1" />
+        <circle cx="35" cy="32.5" r="3.2" fill="#fff" />
+      </g>
+    </g>
+  ),
+  // bd-4404s7.1 — the coach's two (FeatureArt.dc.html `schedule` / `schools`): the clock badge pops and its hand swings,
+  // the calendar dots twinkle; the flag swings, the windows twinkle. `reports`: the three bars rise in turn, the % badge pops. Built from the motion set's own keyframes.
+  schedule: (
+    <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="9" width="38" height="34" rx="4" fill="#fff" />
+      <path d="M9 9h30a4 4 0 0 1 4 4v6H5v-6a4 4 0 0 1 4-4z" fill="#be185d" />
+      <rect x="14" y="5" width="3.5" height="8" rx="1.75" fill="#fce7f3" />
+      <rect x="30.5" y="5" width="3.5" height="8" rx="1.75" fill="#fce7f3" />
+      <circle className="fm-an fm-tw" cx="14" cy="27" r="2.1" fill="#fce7f3" />
+      <circle className="fm-an fm-tw fm-t3" cx="22" cy="27" r="2.1" fill="#fce7f3" />
+      <circle className="fm-an fm-tw fm-t6" cx="14" cy="35" r="2.1" fill="#fce7f3" />
+      <g className="fm-an fm-bdg">
+        <circle cx="35" cy="35" r="8" fill="#be185d" />
+        <path className="fm-an fm-hnd fm-t2" d="M35 30.5v4.8l3.2 2" fill="none" stroke="#fff" strokeWidth="1.8" />
+      </g>
+    </g>
+  ),
+  schools: (
+    <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="6" y="21" width="36" height="22" rx="2.5" fill="#fff" />
+      <path d="M3 22 24 9l21 13z" fill="#0f766e" />
+      <path className="fm-an fm-flg" d="M24 9V3h7l-2 2 2 2h-7" fill="#d4a017" />
+      <rect x="20" y="30" width="8" height="13" rx="1.5" fill="#ccfbf1" />
+      <rect className="fm-an fm-tw fm-t2" x="10" y="27" width="6" height="6" rx="1" fill="#ccfbf1" />
+      <rect className="fm-an fm-tw fm-t5" x="32" y="27" width="6" height="6" rx="1" fill="#ccfbf1" />
+      <circle cx="24" cy="16" r="2.2" fill="#fff" />
+    </g>
+  ),
+  reports: (
+    <g stroke="#33374a" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 5h20l8 8v28.5a2.5 2.5 0 0 1-2.5 2.5H9a2.5 2.5 0 0 1-2.5-2.5v-34A2.5 2.5 0 0 1 9 5z" fill="#fff" />
+      <path d="M29 5v8h8" fill="#ecfccb" />
+      <path d="M11 12h11M11 16.5h7" fill="none" stroke="#4d7c0f" />
+      <rect className="fm-an fm-brs" x="10.5" y="29" width="4.5" height="9" rx="1" fill="#4d7c0f" />
+      <rect className="fm-an fm-brs fm-t1" x="17" y="23" width="4.5" height="15" rx="1" fill="#4d7c0f" />
+      <rect className="fm-an fm-brs fm-t2" x="23.5" y="19" width="4.5" height="19" rx="1" fill="#4d7c0f" />
+      <g className="fm-an fm-bdg fm-t3">
+        <circle cx="36" cy="36" r="8.5" fill="#4d7c0f" />
+        <circle cx="33.4" cy="33.4" r="1.3" fill="none" stroke="#fff" strokeWidth="1.5" />
+        <circle cx="38.6" cy="38.6" r="1.3" fill="none" stroke="#fff" strokeWidth="1.5" />
+        <path d="M39 33l-6 6" fill="none" stroke="#fff" strokeWidth="1.6" />
+      </g>
+    </g>
+  ),
+};
+
+/**
+ * Never animated unless it opts in (operator, 2026-10-08: "the icons on the menu are now animated"): no
+ * animation or transition can apply to the icon or anything inside it, whatever a page or a global stylesheet says.
+ * Inline + !important, so it wins over any class rule.
+ */
+const STILL = "[animation:none!important] [&_*]:[animation:none!important] [transition:none!important] [&_*]:[transition:none!important]";
+
+export interface FeatureArtProps {
+  feature: AnyFeature;
+  /** px; 48 is the drawing's own size, Home uses 76–80. */
+  size?: number;
+  /** Only when the art stands alone: makes it an image with this name. */
+  label?: string;
+  className?: string;
+  /**
+   * Opt in to the small movement (bd-fmf24g.18). Only has an effect inside a `<FeatureMotionProvider>`, which owns
+   * the ONE timer every opted-in icon shares, so they all move together. Off by default; Home opts in.
+   */
+  motion?: boolean;
+}
+
+export function FeatureArt({ feature, size = 48, label, className, motion = false }: FeatureArtProps) {
+  const shared = useFeatureMotion();
+  const moving = motion && shared.on;
+  const base = moving ? `fm-on ${shared.cycle === 0 ? 'fm-arrive' : 'fm-again'}` : STILL;
+  return (
+    <svg
+      // a new key restarts the CSS animations; every icon changes key in the same render, so they restart together
+      key={moving ? shared.cycle : 'still'}
+      viewBox="0 0 48 48"
+      width={size}
+      height={size}
+      data-feature-art={feature}
+      {...(moving ? { 'data-motion': shared.cycle === 0 ? 'arrive' : 'again' } : { 'data-still': 'true' })}
+      className={className ? `${base} ${className}` : base}
+      {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })}
+    >
+      {ART[feature]}
+    </svg>
+  );
+}

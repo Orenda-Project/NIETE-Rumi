@@ -20,6 +20,12 @@ export type PlanChoice =
   | { kind: "library"; pick: LibraryPick }
   | { kind: "file"; file: File };
 
+/**
+ * bd-fmf24g.9 — the class (grade·subject) she picked in the teacher app. It travels with the recording and is the
+ * subject the lesson is scored on. `subjectKey` is the registry key (maths, science…) when her pick carried one.
+ */
+export type TeacherClass = { grade: number; subject: string; subjectKey?: string };
+
 export type SendKind = "network" | "in_progress" | "plan_not_ready" | "plan_not_found" | "refused";
 
 export class SendError extends Error {
@@ -35,6 +41,8 @@ type Args = {
   audio: { blob: Blob; filename: string };
   plan: PlanChoice | null;
   photos: File[];
+  /** Digital Coaching from the teacher app: the class she picked. Absent elsewhere. */
+  teacherClass?: TeacherClass | null;
 };
 
 type Item = { blob: Blob; filename: string; kind: "audio" | "lesson_plan" | "photo" };
@@ -49,7 +57,7 @@ function body(err: unknown): Record<string, unknown> {
 }
 
 export async function sendLesson(
-  { audio, plan, photos }: Args,
+  { audio, plan, photos, teacherClass }: Args,
   api: Api = portal,
   onProgress?: (pct: number) => void,
 ): Promise<{ coachingSessionId: string }> {
@@ -88,6 +96,7 @@ export async function sendLesson(
   const lessonPlanKey = keys.find((k) => k.kind === "lesson_plan")?.key;
   if (lessonPlanKey) start.lessonPlanKey = lessonPlanKey;
   if (plan && plan.kind === "library") start.lessonPlan = plan.pick;
+  if (teacherClass) start.teacherClass = teacherClass;
 
   try {
     return await api.startCoachingUpload(start);

@@ -132,6 +132,8 @@ const wordCloudRoutes = require('./routes/wordcloud');
 const portalRoutes = require('./routes/portal.routes');
 const hcpRoutes = require('./routes/hcp.routes');
 const attendanceRoutes = require('./routes/attendance.routes');
+// bd-fmf24g.3 — teacher app v2: grade·subject pairs + Lesson Plans routes.
+const teacherLessonsRoutes = require('./routes/portal-teacher-lessons.routes');
 
 // BYOF Routes (Build Your Own Feature) - Conversational AI for bug/feature planning
 const byofRoutes = require('./routes/byof.routes');
@@ -2802,6 +2804,15 @@ app.use('/api/portal/hcp', cors(portalCorsOptions), portalAuthLimiter, portalDat
 // Same CORS / rate-limit / session stack as the portal routes.
 app.use('/api/portal/attendance', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, attendanceRoutes);
 
+// bd-fmf24g.3 — teacher app v2: GET /me/grade-subjects (every v2 picker) and the Lesson Plans
+// feature's own reads. Same CORS / rate-limit / session / link-scope stack as the portal routes.
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, teacherLessonsRoutes);
+// bd-fmf24g.4 — teacher app v2: next coach visit, visits in progress, report journey, All DC observations.
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-coaching.routes'));
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-attendance.routes'));
+// bd-fmf24g.15 — teacher app v2: what she asked for that takes a while (strip, ready banner, Home's "Ready for you").
+app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, require('./routes/portal-teacher-notices.routes'));
+
 // HCP endpoint tester — an HTML page for internal QA to hit the 10 /api/portal/hcp/*
 // endpoints without curl. Served under /observability/* so it's excluded from the
 // SPA catch-all. Self-contained: handles portal login + endpoint dispatch client-side.
@@ -3737,7 +3748,9 @@ app.get('/how-it-works', (req, res) => res.redirect(302, NIETE_MARKETING_REDIREC
 
 // Serve static frontend files from /portal-frontend/dist folder
 // This includes all compiled React/Vite assets (JS, CSS, images)
-app.use(express.static(path.join(__dirname, 'portal-frontend', 'dist')));
+// bd-fxk3t8: hashed /assets/ files are kept for a year; index.html is revalidated.
+const { portalStaticHeaders, PORTAL_INDEX_CACHE_CONTROL } = require('./lib/portal-static-cache');
+app.use(express.static(path.join(__dirname, 'portal-frontend', 'dist'), { setHeaders: portalStaticHeaders }));
 
 // SPA Catch-all route: Serve index.html for all non-API, non-observability routes
 // This allows React Router to handle client-side routing for the TEACHER PORTAL
@@ -3750,6 +3763,7 @@ app.get('*', (req, res, next) => {
 
   if (!isExcludedPath) {
     // Serve portal frontend (teacher portal React app)
+    res.setHeader('Cache-Control', PORTAL_INDEX_CACHE_CONTROL);
     res.sendFile(path.join(__dirname, 'portal-frontend', 'dist', 'index.html'));
   } else {
     // Let other handlers deal with it (API routes or observability pages)
