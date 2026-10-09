@@ -63,6 +63,25 @@ export interface TeacherUiCopy {
   am: string;
   pm: string;
   chosenSoFar: string;
+  /** bd-4404s7.1 PR 2b — DayStrip, TimePicker, StepBar, RatingScale, SlotGroup. */
+  weekdaysShort: readonly string[];
+  monthsLong: readonly string[];
+  earlierWeek: string;
+  laterWeek: string;
+  stepOf: (n?: number, total?: number) => string;
+  hour: string;
+  minutes: string;
+  meridiem: string;
+  earlierHour: string;
+  laterHour: string;
+  rating: string;
+  notApplicable: string;
+  digitalCoach: string;
+  visitsN: (n?: number) => string;
+  showAllN: (n?: number) => string;
+  showFewer: string;
+  you: string;
+  doneWord: string;
   report: ReportCopy;
   /** bd-fmf24g.15 — ReadyTray / ReadyBanner. */
   notify: NotifyCopy;
@@ -188,6 +207,24 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
   am: 'AM',
   pm: 'PM',
   chosenSoFar: 'Chosen so far',
+  weekdaysShort: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+  monthsLong: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+  earlierWeek: 'Earlier week',
+  laterWeek: 'Later week',
+  stepOf: (n = 1, total = 1) => `Step ${n} of ${total}`,
+  hour: 'Hour',
+  minutes: 'Minutes',
+  meridiem: 'AM / PM',
+  earlierHour: 'Earlier hour',
+  laterHour: 'Later hour',
+  rating: 'Rating',
+  notApplicable: 'N/A',
+  digitalCoach: 'Digital Coach',
+  visitsN: (n = 0) => (n === 1 ? '1 visit' : `${n} visits`),
+  showAllN: (n = 0) => `Show all ${n}`,
+  showFewer: 'Show fewer',
+  you: 'You',
+  doneWord: 'Done',
   report: {
     report: 'Report',
     eyebrow: 'Celebrating your teaching',
@@ -286,6 +323,25 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
   am: 'صبح',
   pm: 'شام',
   chosenSoFar: 'اب تک کا انتخاب',
+  /** MACHINE-DRAFTED (coach words, COACH.md §5): the weekday short forms, "Step n of m", rating, N/A لاگو نہیں. */
+  weekdaysShort: ['اتوار', 'پیر', 'منگل', 'بدھ', 'جمعرات', 'جمعہ', 'ہفتہ'],
+  monthsLong: MONTHS_UR,
+  earlierWeek: 'پچھلا ہفتہ',
+  laterWeek: 'اگلا ہفتہ',
+  stepOf: (n = 1, total = 1) => `مرحلہ ${n} از ${total}`,
+  hour: 'گھنٹہ',
+  minutes: 'منٹ',
+  meridiem: 'صبح / شام',
+  earlierHour: 'پچھلا گھنٹہ',
+  laterHour: 'اگلا گھنٹہ',
+  rating: 'کارکردگی',
+  notApplicable: 'لاگو نہیں',
+  digitalCoach: 'ڈیجیٹل کوچ',
+  visitsN: (n = 0) => `${n} دورے`,
+  showAllN: (n = 0) => `سب ${n} دکھائیں`,
+  showFewer: 'کم دکھائیں',
+  you: 'آپ',
+  doneWord: 'مکمل',
   report: {
     report: 'رپورٹ',
     /** The hero PNG's own words (hero-report.template.js ur.celebrate), word for word. */

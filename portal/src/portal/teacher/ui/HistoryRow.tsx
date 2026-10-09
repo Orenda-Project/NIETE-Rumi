@@ -102,6 +102,8 @@ export interface HistoryRowProps {
   /** Absent, empty or a dash placeholder when the grade was never settled: the lead shows the subject alone. */
   grade?: string | number | null;
   title: string;
+  /** Let a long title wrap in full (a school's long name) instead of the 2-line clamp. */
+  wrapTitle?: boolean;
   /** Line 2: "Chap 1", "20 questions", the coach's name. */
   extra?: string;
   chip?: ChipData | null;
@@ -121,7 +123,7 @@ const ARABIC_SCRIPT = /[؀-ۿ]/;
 
 export function HistoryRow({
   lead = 'grade', leadText, leadTone = 'grey', leadLabel, time, timeTone, state = 'default',
-  subject = '', grade, title, extra, chip, action = 'chevron', to, isNew = false, first = true, onAction, copy,
+  subject = '', grade, title, wrapTitle = false, extra, chip, action = 'chevron', to, isNew = false, first = true, onAction, copy,
 }: HistoryRowProps) {
   const bidi = useBidi();
   const lang = useLang();
@@ -179,7 +181,7 @@ export function HistoryRow({
         {lead === 'grade' && spoken ? <span className="sr-only">{bidi(spoken)}</span> : null}
         {lead !== 'grade' && leadLabel ? <span className="sr-only">{bidi(leadLabel)}</span> : null}
         {time ? <TimeStamp time={time} tone={timeTone ?? (state === 'next' ? 'next' : state === 'done' ? 'done' : 'neutral')} size={15} /> : null}
-        <span className={cn(ROW_TITLE, 'line-clamp-2', state === 'done' && 'text-[#6b7280]')}>{bidi(title)}</span>
+        <span className={cn(ROW_TITLE, wrapTitle ? '[overflow-wrap:anywhere]' : 'line-clamp-2', state === 'done' && 'text-[#6b7280]')}>{bidi(title)}</span>
         {extra ? <span className={ROW_SUB}>{bidi(extra)}</span> : null}
       </span>
       {isNew ? <span role="img" aria-label={words.newItem} className="h-[9px] w-[9px] shrink-0 rounded-full bg-[#c8331f]" /> : null}

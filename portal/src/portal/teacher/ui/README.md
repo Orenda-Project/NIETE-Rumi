@@ -75,6 +75,7 @@ chevron, never a link. A button carries `aria-pressed`. `gradeSubjectLabel()` gi
 | leadText | `person`/`school` avatar text instead of her initials: a score or a kind ("87%", "HITL", "DC") | initials of `title` |
 | leadTone | avatar colour: `grey` · `indigo` · `green` · `amber` (status-like, never a grade or feature hue) | `grey` |
 | leadLabel | what a screen reader hears for the avatar ("Score 87%"); the avatar itself is `aria-hidden` | — |
+| wrapTitle | let a long title wrap in full (a school's long name) instead of the 2-line clamp | false |
 | time | a time on the row's first line, above the title, drawn by `TimeStamp` (`"08:30"` or `"8:30 AM"`) | — |
 | timeTone | `TimeStamp` tone | `next` when `state="next"`, `done` when `done`, else `neutral` |
 | state | `default` · `next` (the coming visit: `#f4f5f8` tint and a 3px bar on the start edge) · `done` (muted) | `default` |
@@ -319,3 +320,55 @@ reduced motion. Chips use status tones only.
   `/portal/coach/more`.
 - `TeacherPage` `action`: a control at the END of the header (right in English, left in Urdu) on a top-level page as well as an
   inner one. Keep it a 56px target. `feature` takes `AnyFeature`, so a coach page shows the rose Schedule / teal Schools art.
+
+## Coach build, PR 2b (bd-4404s7.1) — the coach's day, time, steps, rating and slot
+
+Import all of them from `@/portal/teacher/ui`. Words for every one are the kit's (`TEACHER_UI`, en + ur); a screen's `copy` prop wins.
+
+### `DayStrip`
+| Prop | Type | Default |
+|---|---|---|
+| value | the picked day, `"YYYY-MM-DD"` | — |
+| onChange | `(day) => void` | — |
+| week | any day inside the week to show; leave out to follow `value` | `value` |
+| onWeekChange | `(firstDay) => void`, after an arrow (so the screen can fetch that week) | — |
+| counts | `{ "2026-10-05": 38 }` a number under a day (Team: 38, 0) | — |
+| dots | `{ "2026-10-06": ["done","open","open"] }` up to three dots (open grey, done green) | — |
+| label | the group's name for a screen reader | "Day" |
+| copy | `{ weekdaysShort, monthsLong, earlierWeek, laterWeek }` | `TEACHER_UI` |
+
+A card: the MONTH and year ("October 2026"; across two months "Sep – Oct 2026") between 56px Earlier week / Later week arrows
+(they swap sides in Urdu), then seven day buttons, Sunday first, 72px tall: weekday word over the number; the picked day indigo;
+Sat and Sun dimmed but pickable. The arrows move the SHOWN week and never change the pick. Each day button's name is "Wed 7" or
+"Mon 5, 38" with a count. Helpers: `weekOf(day)`, `addDays(day, n)`, `weekdayOf(day)`, `dayNumber(day)` (calendar-day arithmetic on
+strings, no time zone).
+
+### `TimePicker`
+`value` (24-hour `"HH:MM"`, as the server stores), `onChange("HH:MM")`, `caption?` (the day under the readout: "Wednesday 7 October"),
+`copy?` (`hour`, `minutes`, `meridiem`, `earlierHour`, `laterHour`, `am`, `pm`), `className?`. A 12-hour picker on half hours: a 44px
+`TimeStamp` readout, then three columns: Hour (Earlier / Later stepper, the hours go 7 8 9 10 11 12 1 2 3 4 5 6 and wrap), Minutes
+(`:00` / `:30` radios), AM / PM radios; all 56px or more. Stepping an hour also picks its usual AM/PM (7–11 AM, 12–6 PM); she can flip
+AM/PM herself and any half hour is bookable (a past day too). A value that is not on the half hour is shown as it is. `PICKER_HOURS`.
+
+### `StepBar`
+`total`, `current` (1-based), `label?` (replaces "Step n of m", e.g. "Part 2 of 4"), `labels?` (one word under each segment: the labelled
+variant for a report's stages), `copy?` (`stepOf`). One 6px segment per step filled through the current one, the label at the end.
+Information only; fills from the start edge (right to left in Urdu); `role="img"` named by the label.
+
+### `RatingScale`
+`value` (`1 | 2 | 3 | 4 | 'na' | null`), `onChange`, `dcValue?` (the Digital Coach's rating: a 2px green ring inside that choice, spoken as
+"2, Digital Coach"), `name?` (the indicator; default "Rating"), `copy?` (`rating`, `notApplicable`, `digitalCoach`). A radiogroup of five
+equal 56px choices (1 2 3 4 N/A), the picked one indigo; arrow keys move the pick. Coach only: a teacher is never rated here.
+
+### `SlotGroup`
+| Prop | Type | Default |
+|---|---|---|
+| time | `"8:30 AM"` / `"08:30"` (a `TimeStamp`) | — |
+| count | the slot's total, may exceed `people` | `people.length` |
+| people | `[{ id, name, sub?, initials?, mine?, done?, to? }]`: `mine` is the dark "You" avatar, `done` a green check, `to` makes the row a link | — |
+| open / defaultOpen / onOpenChange | controlled or initial open state | closed |
+| limit | rows shown before "Show all N" | 4 |
+| copy | `{ visitsN, showAllN, showFewer, you, doneWord }` | `TEACHER_UI` |
+
+A white card with a 64px header toggle (`aria-expanded`): the time, an "N visits" chip, two overlapping avatars and "+N" while closed, a
+chevron. Open, it lists the first `limit` people (36px avatar, name, second line) and a 56px "Show all N" / "Show fewer".

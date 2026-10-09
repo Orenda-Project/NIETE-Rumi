@@ -104,3 +104,17 @@ describe("in a list, with an untitled day", () => {
     expect(tapProblems(container)).toEqual([]);
   });
 });
+
+describe("wrapTitle", () => {
+  const LONG = "Federal Government Girls Secondary School Tarlai";
+  it("the default clamps the title to two lines", () => {
+    inRouter(<HistoryRow lead="school" title={LONG} />);
+    expect(screen.getByText(LONG).className).toMatch(/line-clamp-2/);
+  });
+  it("wrapTitle drops the clamp so the whole name wraps", () => {
+    inRouter(<HistoryRow lead="school" title={LONG} wrapTitle />);
+    const t = screen.getByText(LONG);
+    expect(t.className).not.toMatch(/line-clamp/);
+    expect(t.className).toMatch(/overflow-wrap:anywhere/);
+  });
+});
