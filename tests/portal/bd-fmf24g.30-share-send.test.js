@@ -17,6 +17,9 @@ jest.mock('../../bot/shared/utils/structured-logger', () => ({ logEvent: jest.fn
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({ sendTemplate: jest.fn() }));
 
 const Share = require('../../bot/shared/services/share-send.service');
+// The paper/lesson template builder ships with the ready-notice work, which is not on every branch yet.
+const HAS_READY_TEMPLATES = (() => { try { require.resolve('../../bot/shared/services/portal-ready-templates'); return true; } catch (_) { return false; } })();
+const DC = { kind: 'dc', itemRef: 'report:s1', title: 'Parts of a plant', line: 'Grade 4 · Science', imageUrl: 'https://r2.example/r.png' };
 
 const USER = { id: 'u1', phone_number: '923001112222', preferred_language: 'ur' };
 const PAPER = {
@@ -80,7 +83,13 @@ describe('sendShare', () => {
     expect(await Share.sendShare({ userId: 'u1', kind: 'lesson', id: 'k5:1' }, d)).toEqual({ status: 'unavailable', reason: 'lesson_source' });
   });
 
-  it('sent: ONE template to HER number, in HER language, with the configured name; the answer carries when', async () => {
+  (HAS_READY_TEMPLATES ? it.skip : it)('without the ready-notice templates on this branch a paper send is unavailable, never thrown', async () => {
+    const d = deps();
+    expect(await Share.sendShare({ userId: 'u1', kind: 'paper', id: 'r1' }, d)).toEqual({ status: 'unavailable', reason: 'not_on_this_deployment' });
+    expect(d.calls).toHaveLength(0);
+  });
+
+  (HAS_READY_TEMPLATES ? it : it.skip)('sent: ONE template to HER number, in HER language, with the configured name; the answer carries when', async () => {
     const d = deps();
     const out = await Share.sendShare({ userId: 'u1', kind: 'paper', id: 'r1' }, d);
     expect(out).toEqual({ status: 'sent', at: '2026-10-10T10:42:00.000Z' });
@@ -92,23 +101,23 @@ describe('sendShare', () => {
   });
 
   it('an English teacher gets the en template; an unknown language falls to en', async () => {
-    const d = deps({ user: async () => ({ ...USER, preferred_language: 'fr' }) });
-    await Share.sendShare({ userId: 'u1', kind: 'paper', id: 'r1' }, d);
+    const d = deps({ user: async () => ({ ...USER, preferred_language: 'fr' }), item: async () => DC });
+    await Share.sendShare({ userId: 'u1', kind: 'dc', id: 's1' }, d);
     expect(d.calls[0].lang).toBe('en');
   });
 
   it('Meta: template does not exist / paused / disabled → unavailable (not failed)', async () => {
     for (const code of [132001, 132015, 132016]) {
-      const d = deps({ sendTemplate: async (a, b, c, e, opts) => { opts.report.code = code; return false; } });
-      expect(await Share.sendShare({ userId: 'u1', kind: 'paper', id: 'r1' }, d)).toEqual({ status: 'unavailable', reason: 'template_missing' });
+      const d = deps({ item: async () => DC, sendTemplate: async (a, b, c, e, opts) => { opts.report.code = code; return false; } });
+      expect(await Share.sendShare({ userId: 'u1', kind: 'dc', id: 's1' }, d)).toEqual({ status: 'unavailable', reason: 'template_missing' });
     }
   });
 
   it('Meta refuses for any other reason → failed, and it is the REAL result (never "sent")', async () => {
-    const d = deps({ sendTemplate: async (a, b, c, e, opts) => { opts.report.code = 131026; return false; } });
-    expect(await Share.sendShare({ userId: 'u1', kind: 'paper', id: 'r1' }, d)).toEqual({ status: 'failed', reason: 'refused' });
-    const d2 = deps({ sendTemplate: async () => { throw new Error('boom'); } });
-    expect(await Share.sendShare({ userId: 'u1', kind: 'paper', id: 'r1' }, d2)).toEqual({ status: 'failed', reason: 'error' });
+    const d = deps({ item: async () => DC, sendTemplate: async (a, b, c, e, opts) => { opts.report.code = 131026; return false; } });
+    expect(await Share.sendShare({ userId: 'u1', kind: 'dc', id: 's1' }, d)).toEqual({ status: 'failed', reason: 'refused' });
+    const d2 = deps({ item: async () => DC, sendTemplate: async () => { throw new Error('boom'); } });
+    expect(await Share.sendShare({ userId: 'u1', kind: 'dc', id: 's1' }, d2)).toEqual({ status: 'failed', reason: 'error' });
   });
 
   it('no phone on her row → unavailable', async () => {
