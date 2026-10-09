@@ -121,13 +121,13 @@ describe('Assessment in Urdu', () => {
     expect(screen.getByRole('heading', { name: new RegExp(U.beingMade) })).toBeTruthy();
     expect(pageText()).toContain(U.writing);
     expect(pageText()).toContain(U.failures.TRUNCATED);
-    expect(await screen.findByText(U.myPapers)).toBeTruthy();
+    expect(await screen.findByText(U.recent)).toBeTruthy();
     expect(pageText()).toContain(U.days.today);
     expect(pageText()).toContain(U.chapterShort(2));
     expect(pageText()).toContain(U.marksCount(20));
     // data stays as it is
     expect(pageText()).toContain('Green Guardians of Earth');
-    for (const en of ['New paper', 'With answer key', 'Being made', 'My papers', 'Writing', 'Too many questions', 'Today']) {
+    for (const en of ['New paper', 'With answer key', 'Being made', 'Recent papers', 'Writing', 'Too many questions', 'Today']) {
       expect(screen.queryByText(en)).toBeNull();
     }
   });

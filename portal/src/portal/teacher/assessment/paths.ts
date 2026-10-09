@@ -4,6 +4,9 @@ import type { Step } from './model';
 /** bd-fmf24g.6 — where each teacher v2 Assessment page lives (all under /portal/teacher/assessment). */
 export const ASSESSMENT_V2_BASE = featurePath('assessment');
 
+/** All papers: the whole list, from Recent papers' See all. */
+export const ASSESSMENT_ALL = `${ASSESSMENT_V2_BASE}/all`;
+
 const enc = encodeURIComponent;
 
 export const newPaperPath = (step: Step) => `${ASSESSMENT_V2_BASE}/new/${step}`;

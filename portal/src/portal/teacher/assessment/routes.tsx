@@ -1,9 +1,10 @@
 import type { TeacherRoute } from '../routes';
+import { AssessmentAll } from './AssessmentAll';
 import { AssessmentHub } from './AssessmentHub';
 import { EditPaperPage, EditQuestionPage } from './EditPages';
 import { CheckStep, ClassStep, CoverStep, ExtrasStep, QuestionsStep, TypesStep } from './NewPaperSteps';
 import { PaperPage, VersionsPage } from './PaperPage';
-import { ASSESSMENT_V2_BASE as B } from './paths';
+import { ASSESSMENT_ALL, ASSESSMENT_V2_BASE as B } from './paths';
 import { RequestPage } from './RequestPage';
 
 /**
@@ -13,6 +14,7 @@ import { RequestPage } from './RequestPage';
  */
 const routes: TeacherRoute[] = [
   { path: B, element: <AssessmentHub /> },
+  { path: ASSESSMENT_ALL, element: <AssessmentAll /> },
   { path: `${B}/new/class`, element: <ClassStep /> },
   { path: `${B}/new/cover`, element: <CoverStep /> },
   { path: `${B}/new/questions`, element: <QuestionsStep /> },
