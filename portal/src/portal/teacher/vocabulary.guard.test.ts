@@ -72,7 +72,9 @@ const BANNED: Ban[] = [
   { lang: "en", re: /\bMaths\b|\bAgricul\b|\bSoc\. St\b|\bPak\. St\b|\bGen\. Kn\b|\bGeogr\b/, use: "the short forms in ontology section 6" },
   { lang: "en", re: /\bClassroom Coaching\b|\bRecord live lecture\b/, use: "Digital Coaching / Record lesson" },
   { lang: "en", re: /\bOpens by itself\b/i, use: "no chip: the plan still opens by itself, the page does not say so" },
+  { lang: "en", re: /\bModules?\b/, use: "Course exam / Courses done / Part: the teacher sees Course and Part, never Module (item 8, 2026-10-09)" },
   // ---- Urdu
+  { lang: "ur", re: /ماڈیول/, use: "کورس (Course) or حصہ (Part): never ماڈیول (item 8, 2026-10-09)" },
   { lang: "ur", re: /سبق #/, use: "پلان #" },
   { lang: "ur", re: /بدلیں/, use: "Change = تبدیل کریں; Edit = ترمیم کریں" },
   { lang: "ur", re: /بھیج دیا|بھیجے/, use: "بھیجا گیا" },
@@ -156,6 +158,8 @@ const PINNED: Pin[] = [
   { screen: "Analytics", path: "allDigitalCoaching", en: "All DC Observations" },
   { screen: "Analytics", path: "ratingOverTime", ur: "وقت کے ساتھ کارکردگی" },
   { screen: "Training", path: "locked", ur: "مقفل" },
+  { screen: "Training (new-UI words reused)", path: "moduleExam", en: "Course exam", ur: "کورس امتحان" },
+  { screen: "Analytics", path: "modulesDone", en: "Courses done", ur: "مکمل کورسز" },
   { screen: "Training", path: "edit", en: "Change", ur: "تبدیل کریں" },
   { screen: "Training", path: "editLevel", en: "Change teaching level" },
   { screen: "Training (new-UI words reused)", path: "locked", ur: "مقفل" },
