@@ -76,6 +76,15 @@ describe("bd-fmf24g.1 — the teacher v2 bottom menu", () => {
     await renderNav({ id: "c-1", firstName: "Noor", role: "coach", phoneNumber: "923001110004" }, "/portal/leader", { teacherV2: true });
     expect(screen.queryByTestId("teacher-nav")).toBeNull();
   });
+  it("a principal with the flag gets the same five items as a teacher", async () => {
+    await renderNav({ id: "p-1", firstName: "Noor", role: "principal", phoneNumber: "923001110005" }, "/portal/leader", { teacherV2: true });
+    const links = within(screen.getByTestId("teacher-nav")).getAllByRole("link");
+    expect(links.map((a) => a.textContent)).toEqual(["Home", "Lesson Plans", "Digital Coaching", "Training", "More"]);
+  });
+  it("a principal without the flag keeps the leader menu", async () => {
+    await renderNav({ id: "p-1", firstName: "Noor", role: "principal", phoneNumber: "923001110005" }, "/portal/leader", { teacherV2: false });
+    expect(screen.queryByTestId("teacher-nav")).toBeNull();
+  });
   it("each item carries the kit's D2 menu glyph", async () => {
     await renderNav(TEACHER, "/portal/dashboard", { teacherV2: true });
     const links = within(screen.getByTestId("teacher-nav")).getAllByRole("link");

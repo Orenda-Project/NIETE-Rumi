@@ -52,7 +52,7 @@ describe("useTeacherV2", () => {
   });
 });
 
-describe("isTeacherV2For — teachers only, never the leader family", () => {
+describe("isTeacherV2For — teachers and principals, never the rest of the leader family", () => {
   it("a teacher with the flag", () => expect(isTeacherV2For({ role: "teacher" }, true)).toBe(true));
   it("no role recorded, with the flag (the pilot list already names her)", () => {
     expect(isTeacherV2For({ role: null }, true)).toBe(true);
@@ -61,8 +61,16 @@ describe("isTeacherV2For — teachers only, never the leader family", () => {
     expect(isTeacherV2For({ role: "teacher" }, false)).toBe(false);
     expect(isTeacherV2For({ role: "teacher" }, null)).toBe(false);
   });
-  it.each(["coach", "principal", "aeo", "supervisor", "school_leader", " Coach "])("role %s with the flag: no", (role) => {
+  it.each(["coach", "aeo", "supervisor", "school_leader", " Coach "])("role %s with the flag: no", (role) => {
     expect(isTeacherV2For({ role }, true)).toBe(false);
+  });
+  // A principal gets the teacher app exactly as a teacher does (only her school analytics is added).
+  it.each(["principal", " Principal "])("role %s with the flag: yes", (role) => {
+    expect(isTeacherV2For({ role }, true)).toBe(true);
+  });
+  it("a principal, flag off or loading: no", () => {
+    expect(isTeacherV2For({ role: "principal" }, false)).toBe(false);
+    expect(isTeacherV2For({ role: "principal" }, null)).toBe(false);
   });
   it("no user: no", () => expect(isTeacherV2For(null, true)).toBe(false));
 });

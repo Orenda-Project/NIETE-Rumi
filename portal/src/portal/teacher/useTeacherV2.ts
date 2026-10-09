@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { isLeader } from "../lib/leaderRole";
+import { isLeader, resolveRole } from "../lib/leaderRole";
 import { forgetConfig, readConfigShared } from "../lib/useNewUi";
 
 /**
@@ -46,12 +46,14 @@ export function useTeacherV2(userKey?: string | null, ready = true): boolean | n
 }
 
 /**
- * v2 is for teachers only: the flag on AND not the leader family (coach,
- * principal, AEO, supervisor, school leader). A user with no role recorded
- * counts as a teacher — the pilot list already names her. Loading or unknown is no.
+ * v2 is for teachers AND principals: the flag on AND either not in the leader family or a
+ * principal (operator, 2026-10-09: a principal gets the teacher app exactly as a teacher does,
+ * plus her school's analytics). Coach, AEO, supervisor and school leader stay out (the coach has
+ * her own app, useCoachV2). A user with no role recorded counts as a teacher — the pilot list
+ * already names her. Loading or unknown is no.
  */
 export function isTeacherV2For(user: { role?: string | null } | null | undefined, flag: boolean | null): boolean {
-  return flag === true && !!user && !isLeader(user);
+  return flag === true && !!user && (!isLeader(user) || resolveRole(user) === "principal");
 }
 
 /** Tests only: forget the remembered answer. */
