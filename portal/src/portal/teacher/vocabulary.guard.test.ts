@@ -71,6 +71,7 @@ const BANNED: Ban[] = [
   { lang: "en", re: /\bEdit teaching level\b/, use: "Change teaching level" },
   { lang: "en", re: /\bMaths\b|\bAgricul\b|\bSoc\. St\b|\bPak\. St\b|\bGen\. Kn\b|\bGeogr\b/, use: "the short forms in ontology section 6" },
   { lang: "en", re: /\bClassroom Coaching\b|\bRecord live lecture\b/, use: "Digital Coaching / Record lesson" },
+  { lang: "en", re: /\bOpens by itself\b/i, use: "no chip: the plan still opens by itself, the page does not say so" },
   // ---- Urdu
   { lang: "ur", re: /سبق #/, use: "پلان #" },
   { lang: "ur", re: /بدلیں/, use: "Change = تبدیل کریں; Edit = ترمیم کریں" },

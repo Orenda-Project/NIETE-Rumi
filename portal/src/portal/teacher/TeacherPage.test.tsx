@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 
 vi.mock("../components/PortalLayout", () => ({ default: ({ children }: { children: unknown }) => <div>{children as never}</div> }));
 import TeacherPage from "./TeacherPage";
+import { TrainingPageV2 } from "./training/TrainingFrame";
 
 /**
  * bd-fmf24g.1 — ONE header for every teacher v2 page: an optional feature tile (the D2
@@ -53,5 +54,54 @@ describe("TeacherPage header", () => {
     page({ backTo: "/portal/teacher/lessons", crumb: "Grade 4 · General Science · Chap 1 · Fractions and decimals" });
     const crumb = screen.getByTestId("page-crumb");
     expect(crumb.className).not.toMatch(/\btruncate\b|whitespace-nowrap/);
+  });
+});
+
+/**
+ * bd-fmf24g.23 — the screen header is the Blueprint's ScreenHeader tile="card": the feature art at 40px
+ * inside a 52px white card (radius 14, 1px #e5e7eb border), beside the back button, crumb and title.
+ */
+describe("TeacherPage header: card tile (bd-fmf24g.23)", () => {
+  const cardOf = () => screen.getByTestId("page-feature-tile");
+
+  it("a feature page wraps the art at 40px in a white rounded card with a thin border", () => {
+    page({ backTo: "/portal/teacher/lessons", crumb: "Grade 4 · General Science", feature: "lessons" });
+    const card = cardOf();
+    expect(card.className).toEqual(expect.stringContaining("h-[52px]"));
+    expect(card.className).toEqual(expect.stringContaining("w-[52px]"));
+    expect(card.className).toEqual(expect.stringContaining("rounded-[14px]"));
+    expect(card.className).toEqual(expect.stringContaining("bg-white"));
+    expect(card.className).toMatch(/\bborder\b/);
+    expect(card.className).toEqual(expect.stringContaining("border-[#e5e7eb]"));
+    const art = card.querySelector('svg[data-feature-art="lessons"]') as SVGElement;
+    expect(art).not.toBeNull();
+    expect(art.getAttribute("width")).toBe("40");
+    expect(art.getAttribute("height")).toBe("40");
+  });
+
+  it("a Training page (TrainingPageV2 -> TeacherPage) gets the same card", () => {
+    render(
+      <MemoryRouter>
+        <TrainingPageV2 crumb="Training" title="Level 1" backTo="/portal/teacher/training"><p>body</p></TrainingPageV2>
+      </MemoryRouter>,
+    );
+    const card = cardOf();
+    expect(card.className).toEqual(expect.stringContaining("bg-white"));
+    expect(card.className).toEqual(expect.stringContaining("rounded-[14px]"));
+    const art = card.querySelector('svg[data-feature-art="training"]') as SVGElement;
+    expect(art.getAttribute("width")).toBe("40");
+  });
+
+  it("the title column keeps its 8px gap from the card, in logical (RTL-safe) units", () => {
+    page({ backTo: "/portal/teacher/lessons", crumb: "c", feature: "lessons" });
+    const col = screen.getByTestId("page-crumb").parentElement as HTMLElement;
+    expect(col.className).toMatch(/\bms-2\b/);
+    expect(cardOf().className).not.toMatch(/\b(ml|mr|pl|pr|left|right)-/);
+  });
+
+  it("RTL still mirrors: Back's chevron rotates under rtl and the header has no physical left/right", () => {
+    const { container } = page({ backTo: "/portal/teacher/lessons", crumb: "c", feature: "lessons" });
+    expect(container.querySelector("svg.rtl\\:rotate-180")).not.toBeNull();
+    expect(container.querySelector("header")?.outerHTML).not.toMatch(/\b(ml|mr|pl|pr|left|right)-\d|\b(left|right)-\[/);
   });
 });

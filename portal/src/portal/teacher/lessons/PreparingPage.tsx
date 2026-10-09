@@ -17,7 +17,7 @@ import { dcFor, useOpenLesson } from './useOpenLesson';
 
 /**
  * bd-fmf24g.3 — a grades 6–12 plan being written (v28 canvas LessonPreparing): a countdown ring over
- * "Preparing", "~2 min", "Opens by itself". When it is written the viewer opens by itself, IN PLACE
+ * "Preparing", "~2 min". When it is written the viewer opens by itself, IN PLACE
  * of this page (Back goes to the lessons, not here). Failed: Try again, or Other lessons.
  * The poll and its back-off are today's Lesson Plans' (newui PreparingPage): a dropped poll is not a
  * failed plan — it is written on a worker whether or not this phone can reach us — so it keeps asking.
@@ -144,7 +144,6 @@ function Preparing({ at }: { at: AtRender }) {
             <p className="text-[22px] font-light text-[#1d2025]">{C.pleaseHold}</p>
             <div className="flex flex-wrap justify-center gap-1.5">
               <StatusChip text={C.aboutTwoMinutes} tone="waiting" />
-              <StatusChip text={C.opensByItself} tone="info" />
             </div>
             {/* bd-fmf24g.15 — "You can leave. We'll tell you here." */}
             <LeaveNote text={N.leave} />
