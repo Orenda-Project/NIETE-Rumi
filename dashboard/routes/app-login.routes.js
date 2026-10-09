@@ -10,10 +10,9 @@
  * The bot sends this link (as a cta_url button) only to a pilot teacher on the teacher app. If she is no longer
  * on it by the time she taps, she is still signed in and lands on today's dashboard, never on a page she cannot
  * open. The path is outside the Android app's link list, so WhatsApp opens it in its own browser. The token is
- * the credential: it is never logged, and the response is no-store. Rate limited per IP.
+ * the credential: it is never logged, and the response is no-store. Rate limited per IP (60 a minute).
  */
 const express = require('express');
-const rateLimit = require('express-rate-limit');
 const { verifyAppLink, LANDINGS, LEGACY_LANDING } = require('../../bot/shared/services/app-login-link');
 // The portal's OWN sink (the bot's loggers need pino, which this service does not install).
 const telemetry = require('../services/telemetry.service');
@@ -78,12 +77,28 @@ async function defaultIsTeacherV2(userId) {
   return isFlagEnabledForUser(supabase, PORTAL_TEACHER_V2_KEY, userId);
 }
 
+/** A fixed-window per-IP limiter with no dependency (the root test install has no express-rate-limit). */
+function createLimiter({ windowMs = 60 * 1000, max = 60 } = {}) {
+  const hits = new Map(); // ip -> { n, resetAt }
+  return (req, res, next) => {
+    const now = Date.now();
+    if (hits.size > 5000) for (const [k, v] of hits) if (v.resetAt <= now) hits.delete(k);
+    const ip = req.ip || (req.socket && req.socket.remoteAddress) || 'unknown';
+    let h = hits.get(ip);
+    if (!h || h.resetAt <= now) { h = { n: 0, resetAt: now + windowMs }; hits.set(ip, h); }
+    h.n += 1;
+    if (h.n > max) {
+      res.set('Retry-After', String(Math.ceil((h.resetAt - now) / 1000)));
+      return res.status(429).type('text').send('Too many requests. Please try again later.');
+    }
+    return next();
+  };
+}
+
 function createAppLoginRouter({ findUser = defaultFindUser, isTeacherV2 = defaultIsTeacherV2, limiter } = {}) {
   const router = express.Router();
   // Per IP; a teacher taps a link a handful of times, never 60 times a minute. (Mobile carriers share IPs, so not tighter.)
-  const limit = limiter || rateLimit({
-    windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false, message: 'Too many requests. Please try again later.',
-  });
+  const limit = limiter || createLimiter();
 
   const newLink = (req, res, outcome, extra = {}) => {
     log({ outcome, ...extra });

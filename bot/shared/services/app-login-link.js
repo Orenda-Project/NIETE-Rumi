@@ -66,6 +66,9 @@ function verifyAppLink(token) {
     if (!k || typeof token !== 'string' || token.length < 40 || token.length > MAX_LEN) return null;
     if (!/^[A-Za-z0-9_-]+$/.test(token)) return null;
     const raw = Buffer.from(token, 'base64url');
+    // Canonical form only: the last base64 character can carry spare bits, and a token that decodes to the same bytes
+    // by a different spelling is not the token we issued.
+    if (raw.toString('base64url') !== token) return null;
     if (raw.length < IV_LEN + TAG_LEN + 2) return null;
     const decipher = crypto.createDecipheriv('aes-256-gcm', k, raw.subarray(0, IV_LEN));
     decipher.setAuthTag(raw.subarray(raw.length - TAG_LEN));
