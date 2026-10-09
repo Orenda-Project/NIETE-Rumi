@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Urdu fit harness</title>
+    <!-- bd-fmf24g.24 — a LOCAL measurement page, never part of the build (vite builds index.html only).
+         The font is the repo's own Noto Nastaliq Urdu, so the run never needs the network. -->
+    <style>
+      @font-face {
+        font-family: "Noto Nastaliq Urdu";
+        src: url("../../../bot/fonts/NotoNastaliqUrdu.ttf") format("truetype");
+        font-weight: 400 700;
+        font-display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./harness.tsx"></script>
+  </body>
+</html>

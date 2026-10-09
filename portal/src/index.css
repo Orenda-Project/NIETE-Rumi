@@ -159,6 +159,34 @@ All colors MUST be HSL.
   html[lang="ur"] p {
     line-height: 2 !important;
   }
+
+  /* bd-fmf24g.24 — Urdu (Noto Nastaliq) was cut off at the bottom, and sometimes the top, wherever a box clips it.
+     Its ink and font metrics are about 2.2em tall per line, against the 1.0-1.3 that Tailwind `leading-*` classes give
+     Latin, and a line-clamp, a `truncate`, an `overflow-hidden` card or a fixed-height tile clips at the line box.
+
+     1. Every Urdu line gets line-height 2 (inside the 1.8-2.2 range; the bot's Urdu PDFs use 1.9). The selector is
+        more specific than a `leading-*` utility, so no component needs its own override and a new component is
+        covered without remembering. English is untouched: html[lang="ur"] only. `h1`-`h3` and `p` keep their own
+        rules above (display sizes and prose, never inside a clipping box). svg is skipped.
+     2. A box that CLIPS its text (`truncate`, `line-clamp-N`) also gets 0.3em of padding above and below, pulled
+        back by an equal negative margin, so its clip edge sits 0.3em outside the line box and its place in the
+        layout is unchanged. Specificity (0,1,0): a utility the component wrote itself (`py-3`, `mt-1`) still wins.
+     Guarded by src/lib/urduLeading.test.ts; measured, on the real ink, by scripts/urdu-fit/run.mjs. */
+  html[lang="ur"] body *:not(svg):not(svg *):not(h1):not(h2):not(h3):not(p) {
+    line-height: 2;
+  }
+
+  :where(html[lang="ur"]) :is(.truncate, [class*="line-clamp-"]) {
+    padding-block: 0.3em;
+    margin-block: -0.3em;
+  }
+
+  /* 3. Nastaliq is unreadable below 13px (never squeeze Urdu below 13px to make it fit). The small sizes
+        the kit writes for Latin (10-12.5px, text-xs) are raised to 13px in Urdu, in this one place. TimeStamp, which
+        sizes itself in a style attribute, does the same in its own code. */
+  html[lang="ur"] :is(.text-xs, .text-\[10px\], .text-\[11px\], .text-\[11\.5px\], .text-\[12px\], .text-\[12\.5px\]) {
+    font-size: 13px;
+  }
   
   h1, h2, h3, h4, h5, h6 {
     font-feature-settings: 'kern' 1;
