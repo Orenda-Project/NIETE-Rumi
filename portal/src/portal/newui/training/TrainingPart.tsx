@@ -11,6 +11,7 @@ import { TRAINING_COPY } from '../copy';
 import { Loading, NotLoaded, TrainingActions, TrainingInner } from './frame';
 import { openInNewTab } from './certificateFile';
 import {
+  courseName,
   bestAttempt, partAfter, statusOf, trainingBase, trainingPaths, useGet,
   type Level, type ModuleSummary, type QuizAttempt,
 } from './trainingApi';
@@ -99,7 +100,7 @@ export function useTrainingPart() {
 export default function TrainingPart() {
   const { moduleId, paths, detail, d, saving, notSaved, done, sorted, at, after, courseUrl, best, markDone, locked } = useTrainingPart();
   return (
-    <TrainingInner crumb={TRAINING_COPY.crumb(d?.course?.title)} title={d?.title ?? ''} backTo={courseUrl ?? paths.home}>
+    <TrainingInner crumb={TRAINING_COPY.crumb(d?.course ? courseName(d.course.title) : null)} title={d?.title ?? ''} backTo={courseUrl ?? paths.home}>
       {detail.loading ? <Loading /> : null}
       {locked ? <Hero title={TRAINING_COPY.locked} icon={Lock} tone="neutral" /> : null}
       {!detail.loading && detail.error && !locked ? <NotLoaded onRetry={detail.reload} /> : null}

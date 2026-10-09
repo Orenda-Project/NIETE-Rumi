@@ -10,6 +10,7 @@ import { TRAINING_COPY, type TrainingWords } from '../copy';
 import { Loading, NotLoaded, TrainingInner } from './frame';
 import { certificateUrl, downloadCertificate } from './certificateFile';
 import {
+  courseName,
   courseDone, isExamless, isLadder, lockedBehind, percent, providerLabel, statusOf, trainingBase, trainingPaths, useGet,
   type Course, type GrandQuizGate, type Level, type Vendor,
 } from './trainingApi';
@@ -89,7 +90,7 @@ export default function TrainingLevel() {
                     key={c.id}
                     lead={String(i + 1)}
                     tile={done ? 'done' : 'neutral'}
-                    title={c.title}
+                    title={courseName(c.title)}
                     chips={done
                       ? <Chip tone="done" icon={Check}>{TRAINING_COPY.done}</Chip>
                       : <Chip>{TRAINING_COPY.of(c.completed_count, c.module_count)}</Chip>}
@@ -266,7 +267,7 @@ export function LevelCertificate({ levelId, onIssued, words }: { levelId: number
           <div className="flex flex-col gap-2.5">
             {scores.modules.map((m) => (
               <section key={m.course_id} className="flex flex-col gap-1.5">
-                <h3 className="px-1 text-[15px] font-bold text-nu-surface-text">{m.title}</h3>
+                <h3 className="px-1 text-[15px] font-bold text-nu-surface-text">{courseName(m.title)}</h3>
                 <span className="flex flex-wrap gap-[5px] px-1">
                   {m.exam ? (
                     <>
