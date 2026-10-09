@@ -34,7 +34,7 @@ export function subjectIcon(subject: string | null | undefined): SubjectIconKey 
 /** English and Urdu are letters in the tile, not a drawing. */
 export const SUBJECT_GLYPH: Partial<Record<SubjectIconKey, string>> = { en: 'Aa', ur: 'اب' };
 
-/** The subject families the history row lead is coloured by (PROVISIONAL — HistoryRow.tsx `leadColours`). */
+/** The subject families (the history row lead used to be coloured by them; it is now coloured by grade — gradeColours.ts). */
 export type SubjectFamily = 'languages' | 'maths' | 'sciences' | 'computer' | 'humanities';
 
 export interface SubjectShortForm {

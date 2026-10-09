@@ -32,11 +32,19 @@ describe("HistoryRow", () => {
     expect(halves()).toHaveLength(2);
     expect(top).toHaveTextContent(/^G4$/);
     expect(classes(top)).toEqual(expect.arrayContaining(["text-[17px]", "font-extrabold", "tabular-nums", "text-white", "flex-1"]));
-    expect(top).toHaveStyle({ backgroundColor: "#2b5440" });
+    expect(top).toHaveStyle({ backgroundColor: "#c62828" });
     expect(bottom).toHaveTextContent(/^Sci$/);
     expect(bottom.textContent).not.toContain(".");
     expect(classes(bottom)).toEqual(expect.arrayContaining(["text-[15px]", "font-bold", "flex-1"]));
-    expect(bottom).toHaveStyle({ backgroundColor: "#e3eee8", color: "#2b5440" });
+    expect(bottom).toHaveStyle({ backgroundColor: "#f8e5e5", color: "#c62828" });
+  });
+
+  it("the colour follows the GRADE, not the subject: G10 is teal for any subject", () => {
+    inRouter(<HistoryRow subject="Mathematics" grade={10} title="Quadratics" to="/lp/1" />);
+    const [top, bottom] = halves();
+    expect(top).toHaveTextContent(/^G10$/);
+    expect(top).toHaveStyle({ backgroundColor: "#00796b" });
+    expect(bottom).toHaveStyle({ backgroundColor: "#e6f2f0", color: "#00796b" });
   });
 
   it("the column: 64px always, full row height, flush with the START edge (no start/vertical padding on the row), 12px gap", () => {
@@ -63,12 +71,12 @@ describe("HistoryRow", () => {
     expect(g12Classes).toContain("w-16");
   });
 
-  it("Pakistan Studies → \"Pak St\" (humanities colours)", () => {
+  it("Pakistan Studies → \"Pak St\" (grade 9 colours)", () => {
     inRouter(<HistoryRow subject="Pakistan Studies" grade={9} title="The Lahore Resolution" to="/a" />);
     const [top, bottom] = halves();
     expect(bottom).toHaveTextContent(/^Pak St$/);
-    expect(top).toHaveStyle({ backgroundColor: "#4a4237" });
-    expect(bottom).toHaveStyle({ backgroundColor: "#ece9e4", color: "#4a4237" });
+    expect(top).toHaveStyle({ backgroundColor: "#881337" });
+    expect(bottom).toHaveStyle({ backgroundColor: "#f1e3e7", color: "#881337" });
   });
 
   it("the column is visual only; the row's accessible name carries the full words \"Grade 4 General Science\"", () => {
@@ -79,17 +87,12 @@ describe("HistoryRow", () => {
     expect(screen.getByText("Grade 4 General Science")).toHaveClass("sr-only");
   });
 
-  it("the colour is chosen in ONE place (leadColours): subject family, [light, dark] — PROVISIONAL", () => {
-    expect(leadColours({ subject: "English" })).toEqual({ light: "#e6ebf2", dark: "#2c3a52" });
-    expect(leadColours({ subject: "Urdu" })).toEqual({ light: "#e6ebf2", dark: "#2c3a52" });
-    expect(leadColours({ subject: "Mathematics" })).toEqual({ light: "#f0e9df", dark: "#5b4426" });
-    for (const s of ["General Science", "Physics", "Chemistry", "Biology", "Agricultural Education (Zarai Taleem)"]) {
-      expect(leadColours({ subject: s })).toEqual({ light: "#e3eee8", dark: "#2b5440" });
-    }
-    expect(leadColours({ subject: "Computer Science" })).toEqual({ light: "#e8e6f1", dark: "#3f3a63" });
-    for (const s of ["Social Studies", "Islamiat", "History", "General Knowledge", "Art", ""]) {
-      expect(leadColours({ subject: s })).toEqual({ light: "#ece9e4", dark: "#4a4237" });
-    }
+  it("the colour is chosen in ONE place (leadColours): a grade lookup, [light, dark]; no grade is neutral", () => {
+    expect(leadColours({ subject: "English", grade: 4 })).toEqual({ light: "#f8e5e5", dark: "#c62828" });
+    expect(leadColours({ subject: "Physics", grade: "10" })).toEqual({ light: "#e6f2f0", dark: "#00796b" });
+    // the subject changes nothing
+    expect(leadColours({ subject: "Urdu", grade: 4 })).toEqual(leadColours({ subject: "Computer Science", grade: 4 }));
+    for (const grade of [null, undefined, "", "–"]) expect(leadColours({ subject: "English", grade })).toEqual({ light: "#f3f4f6", dark: "#33374a" });
   });
 
   it("inside a HistoryList the day's card (overflow-hidden, 16px corners) clips the column", () => {
@@ -150,7 +153,7 @@ describe("HistoryRow", () => {
       expect(lead.textContent).not.toMatch(/G|Grade|[-–—]/);
       const [only] = halves();
       expect(classes(only)).toEqual(expect.arrayContaining(["flex-1", "items-center", "justify-center", "text-[15px]", "font-bold"]));
-      expect(only).toHaveStyle({ backgroundColor: "#e3eee8", color: "#2b5440" });
+      expect(only).toHaveStyle({ backgroundColor: "#f3f4f6", color: "#33374a" });
       expect(classes(lead)).toEqual(expect.arrayContaining(["w-16", "self-stretch"]));
       // The accessible name: the subject's full words, no grade.
       expect(screen.getByRole("link", { name: /^General Science Parts of a plant/ })).toBeInTheDocument();
@@ -200,7 +203,7 @@ describe("HistoryRow", () => {
       expect(top.textContent).not.toContain("G");
       expect(bottom.textContent).toBe("سائنس");
       expect(classes(bottom)).toEqual(expect.arrayContaining(["text-[13px]", "font-bold"]));
-      expect(bottom).toHaveStyle({ backgroundColor: "#e3eee8", color: "#2b5440" });
+      expect(bottom).toHaveStyle({ backgroundColor: "#f8e5e5", color: "#c62828" });
     });
 
     it.each([

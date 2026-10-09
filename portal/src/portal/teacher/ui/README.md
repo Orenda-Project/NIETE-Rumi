@@ -78,15 +78,15 @@ edge (left in English, right in Urdu), the full row height (76px, taller when th
 The card clips it at its rounded corners: `LIST_CARD` is `overflow-hidden`, and a row standing alone must sit in a card
 that is too, with no padding between (RequestPage's ready card is the row itself).
 
-- **Top:** "G4" (`copy.gradeShort`) 17px/800, tabular numbers, white on the family's dark colour.
+- **Top:** "G4" (`copy.gradeShort`) 17px/800, tabular numbers, white on the grade's dark colour.
 - **Bottom:** the subject's short form (`subjectShort()` in `subjects.ts`: Eng, Urdu, Math, Comp, Phy, Chem, Bio, Agri,
   GK, Sci, Rel, Pak St, SST, Isl, Geo, Hist; anything else its first word cut to 4 letters) 15px/700, no period, never
-  wrapped or cut, in the dark colour on the family's light tint.
-- **Colour is PROVISIONAL** and chosen in ONE place, `leadColours()` (HistoryRow.tsx): subject family →
-  `[light, dark]` — languages `#e6ebf2`/`#2c3a52`, maths `#f0e9df`/`#5b4426`, sciences (physics, chemistry, biology,
-  agriculture too) `#e3eee8`/`#2b5440`, computer `#e8e6f1`/`#3f3a63`, humanities and everything else
-  `#ece9e4`/`#4a4237`. The rules waiting: the row's feature colour, a single indigo, a grade band.
-- **No grade** (bd-fmf24g.11: absent, empty or a dash): the subject alone, centred on its tint, full height — never
+  wrapped or cut, in the grade's dark colour on its light tint.
+- **Colour is the GRADE's** (operator, 9 Oct), chosen in ONE place, `leadColours()` (HistoryRow.tsx), from the one
+  table in `gradeColours.ts` (`GRADE_COLOURS`, `gradeColoursFor(grade)`, exported for other components): grade →
+  `{ dark, light }`, Grades 1–5 bright, 6–12 deeper — G4 `#c62828`/`#f8e5e5`, G10 `#00796b`/`#e6f2f0`. The subject
+  changes nothing. A tile with no grade is neutral (`NEUTRAL_COLOURS`: `#33374a` on `#f3f4f6`).
+- **No grade** (bd-fmf24g.11: absent, empty or a dash): the subject alone, centred on the neutral grey, full height — never
   "G–". **No subject either:** the SubjectTile book icon on grey. **A grade with no subject:** "G4" alone on the dark.
 - **Accessibility:** the column is `aria-hidden`; a visually hidden span gives the row's accessible name the full words,
   "Grade 4 General Science" (`copy.grade` + the subject as given).
