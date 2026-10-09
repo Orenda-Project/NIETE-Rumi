@@ -223,6 +223,36 @@ function subjectKey(subject) {
   return s;
 }
 
+/**
+ * The electives ship in an Urdu- and an English-medium edition (bd-6640j.1.3,
+ * Amena 3 Oct 2026), so the menu name and key carry the medium: two books of
+ * one subject on one key would leave the second unreachable in bookFor().
+ */
+const ELECTIVE_MENU = {
+  general_knowledge: {
+    ur: { subject: 'واقفیتِ عامہ', subject_key: 'general_knowledge_ur' },
+    en: { subject: 'General Knowledge', subject_key: 'general_knowledge' },
+  },
+  social_studies: {
+    ur: { subject: 'Social Studies (Urdu)', subject_key: 'social_studies_ur' },
+    en: { subject: 'Social Studies (English)', subject_key: 'social_studies_en' },
+  },
+  // G1-5 Islamiat is Urdu-medium only (bd-6640j.1.8).
+  islamiat: {
+    ur: { subject: 'اسلامیات', subject_key: 'islamiat' },
+  },
+};
+
+/** Menu name, catalog key and reading direction for one book's _meta. */
+function bookMenu(meta) {
+  const key = subjectKey(meta.subject);
+  const elective = ELECTIVE_MENU[key];
+  if (!elective) return { subject: meta.subject, subject_key: key, rtl: key === 'urdu' };
+  const m = elective[meta.medium];
+  if (!m) throw new Error(`${meta.subject}: _meta.medium must be "ur" or "en", got ${JSON.stringify(meta.medium)}`);
+  return { ...m, rtl: meta.medium === 'ur' };
+}
+
 /** True when every "(" in `s` has been closed. */
 function bracketsBalanced(s) {
   let depth = 0;
@@ -366,8 +396,9 @@ const cleanChapterTitle = (t) => String(t || '')
  * @param {string} o.segmentationDir
  * @param {string} o.tocDir
  * @param {string} [o.builtAt] — pass a fixed value to prove determinism
+ * @param {string[]} [o.splits] — lesson ids split in two (default data/lp_splits.json; [] for a partial build)
  */
-function buildCatalog({ segmentationDir, tocDir, builtAt }) {
+function buildCatalog({ segmentationDir, tocDir, builtAt, splits }) {
   const tocs = loadTocs(tocDir);
 
   const files = fs.readdirSync(segmentationDir)
@@ -382,8 +413,8 @@ function buildCatalog({ segmentationDir, tocDir, builtAt }) {
     const d = JSON.parse(fs.readFileSync(path.join(segmentationDir, file), 'utf8'));
     const meta = d._meta || {};
     const stem = meta.book_stem;
-    const key = subjectKey(meta.subject);
-    const rtl = key === 'urdu';
+    const menu = bookMenu(meta);
+    const rtl = menu.rtl;
     const tocMap = tocs[stem] || {};
 
     const byChapter = new Map();
@@ -440,8 +471,8 @@ function buildCatalog({ segmentationDir, tocDir, builtAt }) {
     books.push({
       stem,
       grade: Number(meta.grade),
-      subject: meta.subject,
-      subject_key: key,
+      subject: menu.subject,
+      subject_key: menu.subject_key,
       rtl,
       chapters,
     });
@@ -456,7 +487,7 @@ function buildCatalog({ segmentationDir, tocDir, builtAt }) {
     source: { segmentation: segmentationDir, toc: tocDir, books: books.length },
     counts: { books: books.length, chapters: chapterCount, lessons: lessonCount },
     books,
-  }, loadSplits(), module.exports);
+  }, splits || loadSplits(), module.exports);
 }
 
 /** Stable serialisation — same inputs, byte-identical output. */
@@ -521,6 +552,7 @@ module.exports = {
   lpTypeFor,
   dayLabelFor,
   subjectKey,
+  bookMenu,
   firstClause,
   stripBoilerplate,
   bracketsBalanced,

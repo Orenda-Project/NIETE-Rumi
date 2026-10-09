@@ -250,12 +250,17 @@ describe('lp-catalog: the committed artifact (bot/data/lp_catalog.json)', () => 
     }
   };
 
-  // 2,038 corpus lessons + 3 part-2 days from data/lp_splits.json.
-  test('covers the whole corpus — 17 books, 233 chapters, 2041 lessons', () => {
+  // The 17 core books: 2,038 corpus lessons + 3 part-2 days from data/lp_splits.json (+8 since).
+  // The G1-5 electives (GK, SST, Islamiat) are merged in by scripts/lp-catalog-merge.js (bd-6640j.1.8).
+  const ELECTIVE_KEYS = ['general_knowledge', 'general_knowledge_ur', 'social_studies_en', 'social_studies_ur', 'islamiat'];
+  const isElective = (b) => ELECTIVE_KEYS.includes(b.subject_key);
+
+  test('covers the whole corpus — 17 core books + 15 elective books, 343 chapters, 3070 lessons', () => {
     expect(catalog.catalog_version).toBe('v8');
-    expect(catalog.books).toHaveLength(17);
-    expect(catalog.counts.chapters).toBe(233);
-    expect(catalog.counts.lessons).toBe(2041);
+    expect(catalog.books).toHaveLength(32);
+    expect(catalog.books.filter((b) => !isElective(b))).toHaveLength(17);
+    expect(catalog.counts.chapters).toBe(343);
+    expect(catalog.counts.lessons).toBe(3070);
     let chapters = 0; let lessons = 0;
     for (const b of catalog.books) { chapters += b.chapters.length; for (const c of b.chapters) lessons += c.lessons.length; }
     expect(chapters).toBe(catalog.counts.chapters);
@@ -300,12 +305,12 @@ describe('lp-catalog: the committed artifact (bot/data/lp_catalog.json)', () => 
     expect(over).toEqual([]);
   });
 
-  test('grade_1_maths ch3 is the single chapter over 20 lessons — the pagination case', () => {
+  test('grade_1_maths ch3 is the single core chapter over 20 lessons — the pagination case', () => {
     const book = catalog.books.find((b) => b.stem === 'grade_1_maths');
     const ch3 = book.chapters.find((c) => c.number === 3);
     expect(ch3.lessons.length).toBe(24);
     const big = [];
-    for (const b of catalog.books) for (const c of b.chapters) {
+    for (const b of catalog.books.filter((x) => !isElective(x))) for (const c of b.chapters) {
       if (c.lessons.length > ITEMS_PER_SCREEN) big.push(`${b.stem}_ch${c.number}`);
     }
     expect(big).toEqual(['grade_1_maths_ch3']);

@@ -56,4 +56,6 @@ module.exports = {
   setSample: (p) => { SAMPLE = p; },
   // the running request's round trips so far; null outside a web-quiz request
   peek: () => { const st = als.getStore(); return st ? st.db : null; },
+  // ms since the running request began (the portal's 10 s clock); null outside a web-quiz request
+  elapsed: () => { const st = als.getStore(); return st ? Date.now() - st.t0 : null; },
 };

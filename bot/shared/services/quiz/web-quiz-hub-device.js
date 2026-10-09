@@ -36,7 +36,7 @@ async function deviceKnows(studentIds, deviceRef) {
 /** Which of these children has this phone played as (any code)? [] on a read error. */
 async function playedOn(studentIds, deviceRef) {
   try {
-    const { data } = await dbRead('playedOn:quiz_sessions', (db) => db.from('quiz_sessions').select('student_id').in('student_id', studentIds).eq('device_ref', deviceRef).limit(50));
+    const { data } = await dbRead('playedOn:quiz_sessions:1', (db) => db.from('quiz_sessions').select('student_id').in('student_id', studentIds).eq('device_ref', deviceRef).limit(50));
     const seen = new Set((data || []).map((r) => String(r.student_id)));
     return studentIds.filter((id) => seen.has(String(id)));
   } catch (_) {

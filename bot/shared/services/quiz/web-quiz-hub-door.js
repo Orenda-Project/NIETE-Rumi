@@ -47,7 +47,7 @@ async function door(body = {}, Err = Error) {
   };
   const tok = T.verify(body.st, 's');
   if (!tok || !tok.sid || !tok.d) fail(401, 'bad_token');
-  const { data: s } = await dbRead('door:quiz_sessions', (db) => db.from('quiz_sessions')
+  const { data: s } = await dbRead('door:quiz_sessions:1', (db) => db.from('quiz_sessions')
     .select('id, student_id, user_id, invited_by_student_id, status, share_code_id').eq('id', tok.sid).maybeSingle());
   if (!s || s.share_code_id !== tok.sc) fail(401, 'bad_token');
   const f = await Flags.flags();

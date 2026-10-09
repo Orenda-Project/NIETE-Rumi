@@ -728,8 +728,143 @@ Feature: Web child quiz page on the portal
     Given the scorer hears no word of the story attempted
     Then the run is stored as failed "unheard", with no words-per-minute and no tick on the Read aloud tile
     And the page says "We couldn't hear that clearly. Try again?" («آواز صاف سنائی نہیں دی۔ دوبارہ کوشش کریں؟») with "Try again"
+
+  # ── The record rule and the read guard (app settings web_quiz_challenge_record / _read_guard / _items, each off by default) ──
+  @T703
+  Scenario: Under the record rule the first scored attempt is the child's record and the menu shows no number
+    Given app setting "web_quiz_challenge_record" is on and a child has played "Which is bigger?" twice
+    Then the second run is stored as attempt 2 and not counted, and the result carries no "last time"
+    And the Challenge menu ticks the tile ("✓ Done" / «✓ ہو گیا») from the first run and shows no score on any tile
+    And the class results name the first scored run per child and exercise, never a later one or an early-stopped reading
+    And the bigger number sits second on exactly half of the form's pairs, the same for every child
+
+  @T704
+  Scenario: Under the read guard the microphone is checked on the phone before the minute
+    Given app settings "web_quiz_challenge_record" and "web_quiz_challenge_read_guard" are on and the phone allows the microphone
+    When the child taps "I'm ready"
+    Then Jugnu says "Say "Jugnu!" so I can hear you." («"جگنو!" کہیں تاکہ میں آپ کو سن سکوں۔») and listens for 3 seconds on the phone itself
+    And nothing is recorded or uploaded during the check
+    And a voice starts the reading; silence says "Jugnu can't hear you yet." («جگنو کو ابھی آپ کی آواز نہیں آ رہی۔») with "Try again" and "Skip this one"
+
+  @T705
+  Scenario: Under the read guard the minute has no Done and no countdown, and "too hard" opens after the first line's window
+    Given the microphone check passed
+    Then the story appears only when the recording starts, with no countdown and no "Done" button
+    And "The rest is too hard" («آگے بہت مشکل ہے») is absent for the first 20 seconds, then offered
+    And tapping it ends the reading as "stuck", and Home during the minute first asks "Stop reading?" («پڑھنا روکیں؟»)
+
+  @T706
+  Scenario: A reading the child ended early is stored as incomplete, never as words per minute
+    Given the child stopped after 43 seconds with the story unfinished
+    Then the run is stored as failed "incomplete" with the seconds read and the words read, and no words-per-minute
+    And the page says "You read 35 words. Read for the whole minute to get your number!" («آپ نے ۳۵ لفظ پڑھے۔ اپنا نمبر پانے کے لیے پورا منٹ پڑھیں!») with "Try again"
+    And a stop inside the first 15 seconds is stored as "abandoned": an exposure, not an attempt
+    And a full minute says "You read for the whole minute!" («آپ نے پورا منٹ پڑھا!») with the words per minute
+
+  @T707
+  Scenario: Silence after a passed microphone check is a stopped reading, not "unheard"
+    Given the microphone check passed and no word is heard for 10 seconds
+    Then the reading ends itself as "silent" and is stored as stopped with 0 words per minute
+    And the page says "Good try! Reading gets easier every day you practise." with no "Try again"
+
+  @T708
+  Scenario: With items on, the row keeps per-item verdicts and timings, numbers only
+    Given app settings "web_quiz_challenge_record" and "web_quiz_challenge_items" are on
+    When a child plays "Which is bigger?"
+    Then the row keeps, per pair, which side held the bigger number, the verdict and the tap's milliseconds
+    And a run with three or more fast wrong taps is marked rapid, a stop made of untouched pairs abandoned, and a submit faster than its own taps too fast
+    And a reading's row keeps the scorer's per-word verdicts and its doubt, never a word heard
+    And every row says where the child's grade came from and whether the child is a test child
     And Jugnu does not celebrate, and the teacher's class results do not list it
     But a reading with words heard and none right says "Good try! Reading gets easier every day you practise." with no number
+
+  @T751
+  Scenario: With keep on, a reading is kept private under one dated prefix and its row says where
+    Given app setting "web_quiz_challenge_keep_audio" is on
+    When a child reads aloud
+    Then the recording goes to the private child-voice bucket under child-voice/<env>/kept/<upload day>/<run>/, never a public link
+    And scoring keeps it, whether the reading scored, failed or was unheard, and the run row keeps its key and nothing about the child
+    And nothing under the kept prefix is deleted by scoring, a refused upload or the hourly orphan sweep: only the purge removes it
+    But with the setting off a reading is scored and deleted, as before
+
+  @T752
+  Scenario: Kept readings leave by one purge command, dry run first
+    Given kept readings from 8 and 9 October
+    When the purge runs for this deployment's env with no --apply
+    Then it prints how many readings it would delete per day and deletes nothing
+    And with --from/--to it counts only those days, and with --apply it deletes exactly those and each run row stops naming its reading
+    And it refuses without --env or with another deployment's env, and prints no key, run id, name or phone
+
+  @T720
+  Scenario: The trail and Missing number stay off without the record rule
+    Given app settings "web_quiz_challenge_trail" and "web_quiz_challenge_missing" are on and "web_quiz_challenge_record" is off
+    When a child opens Jugnu's Challenge
+    Then the menu and every exercise are exactly today's, with no trail and no "Missing number"
+    And opening "Missing number" directly answers that it is off
+
+  @T721
+  Scenario: The trail shows each stop with a finish badge for its first play, whatever the score
+    Given app settings "web_quiz_challenge_record" and "web_quiz_challenge_trail" are on
+    And a child's first "Which is bigger?" run was stopped by four misses in a row
+    When the child opens Jugnu's Challenge
+    Then the page says "Jugnu's Trail" and "1 of 4 stops done. Pick any stop!"
+    And "Which is bigger?" is gold with "Done", the next unplayed stop says "Next", and "Read aloud" says it uses the microphone
+    And no score, words a minute, streak, rank or countdown is on the map
+
+  @T722
+  Scenario: Missing number is typed on a keypad and scored two ways on the server
+    Given app settings "web_quiz_challenge_record" and "web_quiz_challenge_missing" are on
+    When a Grade 3 child plays "Missing number": two practice rows with feedback, then ten rows with none
+    Then each row is four numbers left to right with one gap, typed on a keypad no longer than the answer
+    And "Skip" appears only after 5 seconds and counts as a miss
+    And four misses in a row end the run, on the phone and again on the server, whatever the phone sent after
+    And the row stores the count right at any time and the count right with the first key inside 5 seconds
+    And each item's time runs from the moment its row is painted
+
+  @T723
+  Scenario: A stop played again is a practice round
+    Given the trail is on and a child has already played "Missing number" once
+    When the child plays it again
+    Then every screen of that run says "Practice round. Play as much as you like!"
+    And the run earns no new badge and its row is not counted
+
+  @T724
+  Scenario: A phone without a microphone sees those stops waiting, never failed
+    Given the trail is on and the phone has no microphone, or the browser says it is denied
+    When the child opens Jugnu's Trail
+    Then "Read aloud" is grey with "needs a microphone"
+    And tapping it says "This stop needs a microphone. It will wait for you!" with "Go to another stop", and never offers Chrome
+    And the trail is finished when every stop the phone can play is done
+    But a dismissed or timed-out microphone prompt is not remembered, and "Try the microphone again" asks again
+
+  @T725
+  Scenario: "On your own, or with help?" is asked once per sitting
+    Given the trail is on
+    When a child opens their first stop of the sitting
+    Then the page asks "On your own, or with help?" with neither answer chosen
+    And the answer is kept on each run of the sitting, and the badge comes either way
+
+  @T726
+  Scenario: Numbers on the trail are Western digits in Urdu too
+    Given the trail is on and the child plays in Urdu
+    Then every number the page writes is a Western digit set left to right, like the keypad
+
+  @T727
+  Scenario: With the Urdu polish on, the old challenge menu writes Western digits too
+    Given app setting "web_quiz_ur_polish" is on and the trail is off
+    When a child opens Jugnu's Challenge in Urdu
+    Then the minutes, the counters and the scores are Western digits set left to right
+    But with the polish off the page keeps today's Urdu digits, and English never changes
+
+  @T753
+  Scenario: Listen and answer reads each answer option aloud, with a play button that never answers
+    Given app setting "web_quiz_challenge_option_audio" is on and a child is on a Listen question
+    Then each option has its own 🔊 button beside it ("Hear this answer" / «یہ جواب سنیں»), separate from the option itself
+    And after the question is read, the options are read in turn in the quiz voice, the option being read lit up
+    And tapping 🔊 plays that option and answers nothing
+    And tapping an option answers at once and stops the reading
+    And an option whose clip is not recorded yet shows no 🔊 and is skipped in the reading
+    But with the setting off the options are printed only, as before
 
   @T532
   Scenario: Today's read-aloud cap leaves "Which is bigger?" only
@@ -1355,3 +1490,29 @@ Feature: Web child quiz page on the portal
     When the child presses Back on the first screen of the quiz or on the results card
     Then the page offers "Go to your home page?" instead of closing (when a home page exists for this run)
     And with the setting off the phone's Back is today's: on a question the first press warns, the second leaves
+
+  @T700
+  Scenario: The challenge is asked as "Who can beat your score?" right under the class-group share
+    Given the app setting web_quiz_invite_ask is "on" and a child of the class finished with 7 of 9
+    When the score card opens
+    Then right under "Share to class group" a panel asks "🏆 Who can beat your 7/9?" with three tiles: "Someone at home", "A cousin", "A friend in my street"
+    And in Urdu it asks "🏆 7/9 سے آگے نکلنے کا چیلنج کسے دیں؟" with "گھر میں کوئی", "کزن", "محلے کا دوست", the score on its own left-to-right run
+    And the panel replaces "Challenge a friend", and the hub door comes after it
+    When the child taps a tile
+    Then the share sends the child's challenge link with the words "<first name> here! I got 7/9 stars on <topic>. Can you beat me? 🏆 Tap the link to play:"
+    And only the first name is in the words, and nothing says which tile was tapped
+    But a friend's own challenge run keeps today's "Challenge a friend" button, and with the setting off the card is today's
+
+  @T701
+  Scenario: A low score asks to play with someone at home, with no score to beat
+    Given web_quiz_invite_ask is "on" and a child finished with 2 of 9
+    When the score card opens
+    Then the panel says "🏠 Play it with someone at home" ("🏠 گھر میں کسی کے ساتھ کھیلیں") and shows no score
+    And a tile shares "<first name> here! I played <topic>. Your turn! Tap the link to play:" with no score in it
+
+  @T702
+  Scenario: Split mode gives each phone one arm, so the panel can be compared with today's button
+    Given web_quiz_invite_ask is "split"
+    When children finish on different phones
+    Then each phone always sees the same card: the panel, or today's "Challenge a friend" button (a phone with no saved key gets today's button)
+    And the score card and every share tap say which of the two the child saw

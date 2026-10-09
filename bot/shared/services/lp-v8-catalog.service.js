@@ -55,6 +55,12 @@ function bookFor(grade, subjectKey) {
   return catalog().books.find((b) => b.grade === Number(grade) && b.subject_key === subjectKey) || null;
 }
 
+/** The book's menu name ("Social Studies (Urdu)"); the key itself when no book matches. */
+function subjectTitle(grade, subjectKey) {
+  const book = bookFor(grade, subjectKey);
+  return book ? book.subject : subjectKey;
+}
+
 function chapterFor(grade, subjectKey, chapterNumber) {
   const book = bookFor(grade, subjectKey);
   if (!book) return null;
@@ -121,11 +127,18 @@ function buildGradeItems(grades) {
   }));
 }
 
-/** Subjects for a grade that have at least one available chapter. */
+// Amena, 9 Oct 2026 (bd-6640j.1.8.7): core books first, then the electives, in this order; a book not listed here
+// comes after them, alphabetically, so a new subject shows up without reshuffling the rest.
+const SUBJECT_ORDER = ['english', 'urdu', 'math', 'general_science',
+  'general_knowledge_ur', 'general_knowledge', 'social_studies_en', 'social_studies_ur', 'islamiat'];
+const subjectRank = (key) => (SUBJECT_ORDER.includes(key) ? SUBJECT_ORDER.indexOf(key) : SUBJECT_ORDER.length);
+const bySubjectOrder = (a, b) => subjectRank(a.subject_key) - subjectRank(b.subject_key)
+  || String(a.subject_key).localeCompare(String(b.subject_key));
+
+/** Subjects for a grade that have at least one available chapter, in SUBJECT_ORDER. */
 function buildSubjectItems(grade, available) {
   const items = [];
-  for (const book of catalog().books) {
-    if (book.grade !== Number(grade)) continue;
+  for (const book of catalog().books.filter((b) => b.grade === Number(grade)).sort(bySubjectOrder)) {
     let chapters = 0;
     let lessons = 0;
     for (const chapter of book.chapters) {
@@ -280,12 +293,14 @@ function buildLessonItems(grade, subjectKey, chapterNumber, available, downloade
 module.exports = {
   buildGradeItems,
   buildSubjectItems,
+  bySubjectOrder,
   buildChapterItems,
   buildLessonItems,
   parseLessonId,
   lessonById,
   gradesWithContent,
   bookFor,
+  subjectTitle,
   chapterFor,
   catalog,
   clip,
