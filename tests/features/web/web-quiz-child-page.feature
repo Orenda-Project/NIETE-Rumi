@@ -859,6 +859,13 @@ Feature: Web child quiz page on the portal
     And an option whose clip is not recorded yet shows no 🔊 and is skipped in the reading
     But with the setting off the options are printed only, as before
 
+  @T727
+  Scenario: With the Urdu polish on, the old challenge menu writes Western digits too
+    Given app setting "web_quiz_ur_polish" is on and the trail is off
+    When a child opens Jugnu's Challenge in Urdu
+    Then the minutes, the counters and the scores are Western digits set left to right
+    But with the polish off the page keeps today's Urdu digits, and English never changes
+
   @T532
   Scenario: Today's read-aloud cap leaves "Which is bigger?" only
     Given app_settings web_quiz_challenge_daily_reads is 500 (or absent) and 500 read-alouds have been scored since Pakistan midnight

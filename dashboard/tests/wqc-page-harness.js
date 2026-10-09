@@ -35,7 +35,7 @@ function fakeEl(id) {
   };
 }
 
-function page({ freshEls = false, storage = null, perm = null, clock = null, lang = 'en', menu = MENU, ua = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 WhatsApp', media = 'grant', routes = {}, recorder = 'ok', chunk = 4000, href = 'https://portal.test/c/HUB.TOKEN', micLevel = 128 } = {}) {
+function page({ htmlClass = '', freshEls = false, storage = null, perm = null, clock = null, lang = 'en', menu = MENU, ua = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 WhatsApp', media = 'grant', routes = {}, recorder = 'ok', chunk = 4000, href = 'https://portal.test/c/HUB.TOKEN', micLevel = 128 } = {}) {
   const els = {};
   const root = { querySelector: (sel) => { const id = sel.replace(/^#/, ''); if (!els[id]) els[id] = fakeEl(id); return els[id]; } };
   // freshEls: each render replaces the elements, as a real DOM does (a key bound on one screen is not the next one's)
@@ -100,6 +100,8 @@ function page({ freshEls = false, storage = null, perm = null, clock = null, lan
     document: {
       getElementById: (id) => (id === 'wq' ? root : id === 'boot' ? boot : null),
       createElement: () => ({}), head: { appendChild() {} }, visibilityState: 'visible',
+      // the edge's class on <html> (htmlClass: e.g. 'wq-ur2' when the Urdu polish is on)
+      documentElement: { classList: { contains: (c) => String(htmlClass).split(/\s+/).includes(c) } },
       addEventListener(n, fn) { (wl[`doc:${n}`] = wl[`doc:${n}`] || []).push(fn); },
     },
     setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
