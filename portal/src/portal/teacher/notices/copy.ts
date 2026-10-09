@@ -17,14 +17,11 @@ export const NOTICES_COPY = {
   leave: "You can leave. We'll tell you here.",
   /** Under the list that "+N more" opens. */
   listNote: "We'll tell you here when each one is ready.",
-  /** Try again from the banner or the strip was refused. */
-  retryFailed: 'Could not start',
 } as const;
 
 export const NOTICES_COPY_UR = {
   leave: 'آپ یہاں سے جا سکتے ہیں۔ تیار ہونے پر ہم یہیں بتائیں گے۔',
   listNote: 'ہر ایک تیار ہونے پر ہم یہیں بتائیں گے۔',
-  retryFailed: 'شروع نہیں ہو سکا',
 };
 
 export const NOTICES = bilingual(NOTICES_COPY, NOTICES_COPY_UR);
