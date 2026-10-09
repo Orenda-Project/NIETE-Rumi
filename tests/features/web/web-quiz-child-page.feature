@@ -728,6 +728,53 @@ Feature: Web child quiz page on the portal
     Given the scorer hears no word of the story attempted
     Then the run is stored as failed "unheard", with no words-per-minute and no tick on the Read aloud tile
     And the page says "We couldn't hear that clearly. Try again?" («آواز صاف سنائی نہیں دی۔ دوبارہ کوشش کریں؟») with "Try again"
+
+  # ── The record rule and the read guard (app settings web_quiz_challenge_record / _read_guard / _items, each off by default) ──
+  @T703
+  Scenario: Under the record rule the first scored attempt is the child's record and the menu shows no number
+    Given app setting "web_quiz_challenge_record" is on and a child has played "Which is bigger?" twice
+    Then the second run is stored as attempt 2 and not counted, and the result carries no "last time"
+    And the Challenge menu ticks the tile ("✓ Done" / «✓ ہو گیا») from the first run and shows no score on any tile
+    And the class results name the first scored run per child and exercise, never a later one or an early-stopped reading
+    And the bigger number sits second on exactly half of the form's pairs, the same for every child
+
+  @T704
+  Scenario: Under the read guard the microphone is checked on the phone before the minute
+    Given app settings "web_quiz_challenge_record" and "web_quiz_challenge_read_guard" are on and the phone allows the microphone
+    When the child taps "I'm ready"
+    Then Jugnu says "Say "Jugnu!" so I can hear you." («"جگنو!" کہیں تاکہ میں آپ کو سن سکوں۔») and listens for 3 seconds on the phone itself
+    And nothing is recorded or uploaded during the check
+    And a voice starts the reading; silence says "Jugnu can't hear you yet." («جگنو کو ابھی آپ کی آواز نہیں آ رہی۔») with "Try again" and "Skip this one"
+
+  @T705
+  Scenario: Under the read guard the minute has no Done and no countdown, and "too hard" opens after the first line's window
+    Given the microphone check passed
+    Then the story appears only when the recording starts, with no countdown and no "Done" button
+    And "The rest is too hard" («آگے بہت مشکل ہے») is absent for the first 20 seconds, then offered
+    And tapping it ends the reading as "stuck", and Home during the minute first asks "Stop reading?" («پڑھنا روکیں؟»)
+
+  @T706
+  Scenario: A reading the child ended early is stored as incomplete, never as words per minute
+    Given the child stopped after 43 seconds with the story unfinished
+    Then the run is stored as failed "incomplete" with the seconds read and the words read, and no words-per-minute
+    And the page says "You read 35 words. Read for the whole minute to get your number!" («آپ نے ۳۵ لفظ پڑھے۔ اپنا نمبر پانے کے لیے پورا منٹ پڑھیں!») with "Try again"
+    And a stop inside the first 15 seconds is stored as "abandoned": an exposure, not an attempt
+    And a full minute says "You read for the whole minute!" («آپ نے پورا منٹ پڑھا!») with the words per minute
+
+  @T707
+  Scenario: Silence after a passed microphone check is a stopped reading, not "unheard"
+    Given the microphone check passed and no word is heard for 10 seconds
+    Then the reading ends itself as "silent" and is stored as stopped with 0 words per minute
+    And the page says "Good try! Reading gets easier every day you practise." with no "Try again"
+
+  @T708
+  Scenario: With items on, the row keeps per-item verdicts and timings, numbers only
+    Given app settings "web_quiz_challenge_record" and "web_quiz_challenge_items" are on
+    When a child plays "Which is bigger?"
+    Then the row keeps, per pair, which side held the bigger number, the verdict and the tap's milliseconds
+    And a run with three or more fast wrong taps is marked rapid, a stop made of untouched pairs abandoned, and a submit faster than its own taps too fast
+    And a reading's row keeps the scorer's per-word verdicts and its doubt, never a word heard
+    And every row says where the child's grade came from and whether the child is a test child
     And Jugnu does not celebrate, and the teacher's class results do not list it
     But a reading with words heard and none right says "Good try! Reading gets easier every day you practise." with no number
 
