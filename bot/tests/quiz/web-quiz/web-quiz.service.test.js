@@ -710,3 +710,17 @@ describe('E8 rich telemetry (app_settings web_quiz_rich_telemetry)', () => {
     expect((await WQ.getQuiz('AB12CD')).rt).toBe(false);
   });
 });
+
+describe('the Urdu polish switch (app_settings web_quiz_ur_polish) rides the quiz payload as ui', () => {
+  const Ur = require('../../../shared/services/quiz/web-quiz-ur-polish');
+  test('absent → no ui key at all (the payload stays today\'s); on → ui.ur2', async () => {
+    Ur._reset();
+    fake.db.app_settings = [];
+    expect(Object.prototype.hasOwnProperty.call(await WQ.getQuiz('AB12CD'), 'ui')).toBe(false);
+    Ur._reset();
+    fake.db.app_settings = [{ key: 'web_quiz_ur_polish', value: 'true' }];
+    expect((await WQ.getQuiz('AB12CD')).ui).toEqual({ ur2: true });
+    Ur._reset();
+    fake.db.app_settings = [];
+  });
+});

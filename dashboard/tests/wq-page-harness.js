@@ -75,6 +75,8 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   const ctx = {
     console,
     document: {
+      // <html> as the edge renders it: lang/dir, and the Urdu polish class `wq-ur2` only for an Urdu page whose boot carries ui.ur2.
+      documentElement: { lang, dir: lang === 'ur' ? 'rtl' : 'ltr', classList: { contains: (c) => c === 'wq-ur2' && lang === 'ur' && Boolean(bootExtra.ui && bootExtra.ui.ur2 === true) } },
       getElementById: (id) => (id === 'boot' ? boot : id === 'wq' ? root : id === 'wq-sheet' ? (root.innerHTML.indexOf('id="wq-sheet"') >= 0 ? sheet : null) : null),
       createElement: () => { const e = fakeEl('new'); created.push(e); return e; }, addEventListener(n, fn) { (dl[n] = dl[n] || []).push(fn); }, body: fakeEl('body'), visibilityState: 'visible',
     },
@@ -127,7 +129,7 @@ function page({ lang = 'ur', cls = { label: 'Class 3-B', teacher: 'Ms Testwala',
   vm.createContext(ctx);
   if (tel) vm.runInContext(TEL, ctx);
   if (lib) vm.runInContext(LIB, ctx);
-  vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { who: who, card: card, board: board, video: video, isThisYou: isThisYou, history: history, landing: landing, today: today, results: results, question: question, S: S, finishFirstPass: finishFirstPass };\n})();'), ctx);
+  vm.runInContext(SRC.replace(TAIL, '  else landing();\n  window.__wq = { who: who, card: card, board: board, video: video, isThisYou: isThisYou, history: history, landing: landing, today: today, results: results, question: question, S: S, finishFirstPass: finishFirstPass, T: T };\n})();'), ctx);
   const tap = () => (dl.click || []).forEach((fn) => fn({}));
   const back = () => { if (hist.i > 0) hist.i -= 1; (wl.popstate || []).forEach((fn) => fn({ state: hist.stack[hist.i].state })); };
   const moment = () => root.attrs['data-m'];
