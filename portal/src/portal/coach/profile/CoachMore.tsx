@@ -1,8 +1,7 @@
-import { Award, CircleUserRound, ClipboardCheck, GraduationCap, LogOut } from "lucide-react";
+import { Award, CircleUserRound, GraduationCap, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../../hooks/useAuth";
 import { useLogoutGuard } from "../../lib/recordingSession";
-import { useChildTest } from "../../lib/useChildTest";
 import TeacherPage from "../../teacher/TeacherPage";
 import { Card, LanguageRow, ROW, RowLink, Tile } from "../../teacher/pages/More";
 import { FEATURE_HUE } from "../../teacher/icons";
@@ -25,7 +24,6 @@ export default function CoachMore() {
   const { user, logout } = useAuth();
   const guardedLogout = useLogoutGuard(logout);
   const counts = useCoachCounts();
-  const childTest = useChildTest() === true;
   const name = fullName(user);
   const phone = formatPhone(user?.phoneNumber);
 
@@ -53,7 +51,6 @@ export default function CoachMore() {
           <RowLink id="training" to="/portal/training" icon={GraduationCap} hue={FEATURE_HUE.training} label={C.nav.training} />
           <RowLink id="certificates" to="/portal/training/certificates" icon={Award} hue={FEATURE_HUE.training} label={C.more.certificates} />
           {/* The child test sat in the old coach menu's Other; it must stay reachable (bd-s1oo0.7: the flag decides). */}
-          {childTest && <RowLink id="child-test" to="/portal/leader/child-test" icon={ClipboardCheck} label={P.childTest} />}
         </Card>
 
         <Card label={C.more.account}>

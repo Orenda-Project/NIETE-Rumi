@@ -8,10 +8,8 @@ vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { chil
 vi.mock("../CoachGate", () => ({ default: ({ children }: any) => <>{children}</> }));
 vi.mock("../../hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("../../services/api", () => ({ language: { get: vi.fn(), set: vi.fn() }, coach: { getHome: vi.fn() } }));
-vi.mock("../../lib/useChildTest", () => ({ useChildTest: vi.fn() }));
 vi.mock("../../lib/recordingSession", () => ({ useLogoutGuard: (fn: () => void) => fn }));
 import { useAuth } from "../../hooks/useAuth";
-import { useChildTest } from "../../lib/useChildTest";
 import { coach, language } from "../../services/api";
 import CoachMore from "./CoachMore";
 
@@ -31,7 +29,6 @@ describe("CoachMore", () => {
     vi.clearAllMocks();
     if (!i18n.isInitialized) await i18n.init({ lng: "en", resources: {} });
     await act(async () => { await i18n.changeLanguage("en"); });
-    vi.mocked(useChildTest).mockReturnValue(false);
     vi.mocked(language.get).mockResolvedValue({ language: "en", locked: false });
     vi.mocked(language.set).mockResolvedValue(undefined);
     vi.mocked(coach.getHome).mockResolvedValue({ success: true, home: HOME } as never);
@@ -62,15 +59,6 @@ describe("CoachMore", () => {
     expect(screen.getAllByTestId(/^more-row-/).map((r) => r.getAttribute("data-testid"))).toEqual([
       "more-row-training", "more-row-certificates", "more-row-language", "more-row-profile", "more-row-logout",
     ]);
-  });
-
-  it("the child test keeps its row when its flag is on for her, and has none otherwise", () => {
-    const first = renderMore();
-    expect(screen.queryByTestId("more-row-child-test")).toBeNull();
-    first.unmount();
-    vi.mocked(useChildTest).mockReturnValue(true);
-    renderMore();
-    expect(screen.getByTestId("more-row-child-test")).toHaveAttribute("href", "/portal/leader/child-test");
   });
 
   it("Language switches (one writer) and Log out logs out", async () => {

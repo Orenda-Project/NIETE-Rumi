@@ -115,7 +115,7 @@ const PortalLayout = ({ children, bare = false, loadingFallback, ownHeading = fa
             mounted-or-not with the frame, but the tracker behind it is a module, so a page change does not
             restart anything. */}
         {(teacherV2 || coachV2) && !menuPending && user.phoneNumber && (
-          <NoticeHost userKey={user.phoneNumber} bare={noNav} aboveBar={showBar} local={!teacherV2} />
+          <NoticeHost userKey={user.phoneNumber} bare={bare} aboveBar={showBar} local={!teacherV2} />
         )}
       </main>
       {showBar && session && <RecordingBar session={session} aboveMenu={!bare} newMenu={newUi} />}
