@@ -8,6 +8,7 @@ import { TEACHER_FRAME } from "../copy";
 import { useCopy, useLang } from "../i18n";
 import { cleanSchool, fullName, todayLabel } from "../format";
 import { teacherPath } from "../routes";
+import { ReadyForYou } from "../notices/ReadyForYou";
 
 /**
  * bd-fmf24g.1 — teacher v2 Home (canvas v28 Main, after the operator's changes 1–3):
@@ -35,6 +36,8 @@ export default function Home() {
         </>
       )}
     >
+      {/* bd-fmf24g.15 — the finished papers and plans she has not opened (nothing drawn when there are none). */}
+      {user?.phoneNumber && <ReadyForYou userKey={user.phoneNumber} />}
       <FeatureMotionProvider>
       <nav aria-label={C.home.features} data-testid="feature-tiles" className="[display:grid] grid-cols-2 gap-3">
         {tiles.map(({ feature, label }, i) => {

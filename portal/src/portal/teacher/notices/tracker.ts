@@ -2,9 +2,10 @@ import { portal } from '../../services/api';
 import type { AssessmentSpec } from '../../services/api';
 import { lessonPlans, type LpLesson } from '../../newui/lessons/lessonPlansApi';
 import {
-  FAST_POLL_MS, SLOW_AFTER_MS, SLOW_POLL_MS, itemId, oldestFirst,
-  type NewNotice, type NoticeItem,
+  FAST_POLL_MS, SLOW_AFTER_MS, SLOW_POLL_MS, itemId, mergeServer, oldestFirst,
+  type NewNotice, type NoticeItem, type ServerItem,
 } from './model';
+import { fetchNotices as fetchFromServer, reportNotice } from './serverNotices';
 
 /**
  * bd-fmf24g.15 — the shell-level job tracker (COMPONENTS.md §12, "One poll for the tray, app-wide").
@@ -29,24 +30,48 @@ import {
  * KEPT for her, in this browser (localStorage, her phone number in the key), so a refresh or a closed app does
  * not lose what she is waiting for. Every read and write is in try/catch: a blocked or full store never breaks it.
  *
+ * THE SERVER knows her items too (GET /me/notices), which is what lets a second phone — or a browser that was
+ * cleared — show the same strip, and Home keep "Ready for you". `sync` folds its list in (model.mergeServer) when a
+ * screen attaches (at most every 30 s) and after a banner finishes; what she does is told to it on the side
+ * (`seen`: the banner finished on a ready item; `opened`: she opened it, tapped a failed one, or its own page
+ * showed it). A failed sync or report is silent: the device keeps what it has.
+ *
  * Nothing here knows about screens or words: the host (NoticeHost) draws, this only follows.
  */
 
 const STORE_PREFIX = 'teacher-notices:v1';
 export const noticesStorageKey = (userKey: string) => `${STORE_PREFIX}:${userKey}`;
+/** The items whose ready banner has run on this device (so a refresh does not announce them again). */
+export const bannerStorageKey = (userKey: string) => `teacher-notices-banner:v1:${userKey}`;
+const BANNERED_KEEP_MS = 3 * 24 * 60 * 60 * 1000;
 /** A screen that detaches and another that attaches in the same moment (a page change) must not stop the polling. */
 const DETACH_GRACE_MS = 1_000;
 
 export type RetryResult = { ok: true } | { ok: false; error: string };
 
+export interface TrackerDeps {
+  /** Her items from the server. Defaults to GET /me/notices. */
+  fetchNotices?: () => Promise<ServerItem[]>;
+  /** Tell the server what she did. Defaults to POST /me/notices/:id/seen|opened. */
+  report?: (id: string, what: 'seen' | 'opened') => Promise<boolean>;
+}
+
 export interface Tracker {
   getItems(): readonly NoticeItem[];
+  /** Ready, unopened items still inside their 24 weekday hours, as the server last listed them (Home's card). */
+  getHome(): readonly ServerItem[];
+  /** Fold the server's list in. At most every 30 s unless `force`; a failed read changes nothing. */
+  sync(force?: boolean): Promise<void>;
   subscribe(listener: () => void): () => void;
   /** A screen is showing the shell for `userKey`. Returns its detach. */
   attach(userKey: string): () => void;
   track(job: NewNotice): void;
   settle(id: string): void;
-  announced(ids: readonly string[]): void;
+  /**
+   * The banner for these finished. `closed` (she tapped ✕ or went to Home) means SEEN and is told to the server;
+   * `expired` (it ran its 10 seconds untouched) is not: the WhatsApp fallback still treats it as unseen.
+   */
+  announced(ids: readonly string[], how?: 'closed' | 'expired'): void;
   retry(id: string): Promise<RetryResult>;
   /** Tests: forget everything, stop everything. */
   reset(): void;
@@ -80,10 +105,43 @@ function writeStored(userKey: string | null, items: readonly NoticeItem[]): void
   }
 }
 
+type Bannered = Record<string, number>;
+
+function readBannered(userKey: string): Bannered {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(bannerStorageKey(userKey)) || '{}');
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const out: Bannered = {};
+    for (const [id, at] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof at === 'number' && Date.now() - at < BANNERED_KEEP_MS) out[id] = at;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function writeBannered(userKey: string | null, b: Bannered): void {
+  if (!userKey) return;
+  try {
+    localStorage.setItem(bannerStorageKey(userKey), JSON.stringify(b));
+  } catch {
+    /* a convenience: without it a refresh may announce the same item twice */
+  }
+}
+
 const hidden = () => typeof document !== 'undefined' && document.visibilityState === 'hidden';
 
-export function createTracker(): Tracker {
+/** How often a screen attaching may ask the server (it attaches on every page change). */
+const SYNC_EVERY_MS = 30_000;
+
+export function createTracker(deps: TrackerDeps = {}): Tracker {
+  const fetchNotices = deps.fetchNotices ?? fetchFromServer;
+  const report = deps.report ?? reportNotice;
   let items: readonly NoticeItem[] = [];
+  let home: readonly ServerItem[] = [];
+  let bannered: Bannered = {};
+  let lastSync = 0;
   let userKey: string | null = null;
   let screens = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -103,6 +161,36 @@ export function createTracker(): Tracker {
   };
 
   const making = () => items.filter((i) => i.state === 'making');
+
+  /** Tell the server on the side; never throws, never waits. */
+  const tell = (id: string, what: 'seen' | 'opened'): Promise<unknown> => {
+    try {
+      return Promise.resolve(report(id, what)).catch(() => false);
+    } catch {
+      return Promise.resolve(false);
+    }
+  };
+
+  async function sync(force = false): Promise<void> {
+    const key = userKey;
+    if (!key) return;
+    if (!force && Date.now() - lastSync < SYNC_EVERY_MS) return;
+    lastSync = Date.now();
+    let server: ServerItem[];
+    try {
+      server = await fetchNotices();
+    } catch {
+      return;
+    }
+    if (userKey !== key) return;
+    const merged = mergeServer(items, server, Date.now(), new Set(Object.keys(bannered)));
+    home = merged.home;
+    // Write only what changed: a list that tells us nothing new must not touch the store.
+    const same = merged.items.length === items.length && merged.items.every((m, i) => m === items[i]);
+    if (same) listeners.forEach((l) => l());
+    else commit(merged.items);
+    schedule();
+  }
 
   async function pollOne(item: NoticeItem): Promise<void> {
     try {
@@ -187,12 +275,31 @@ export function createTracker(): Tracker {
   }
 
   function settle(id: string): void {
-    if (items.some((i) => i.id === id)) commit(items.filter((i) => i.id !== id));
+    const followed = items.some((i) => i.id === id);
+    const onHome = home.some((h) => h.id === id);
+    if (!followed && !onHome) return;
+    if (onHome) home = home.filter((h) => h.id !== id);
+    if (followed) commit(items.filter((i) => i.id !== id));
+    else listeners.forEach((l) => l());
+    void tell(id, 'opened');
   }
 
-  function announced(ids: readonly string[]): void {
+  function announced(ids: readonly string[], how: 'closed' | 'expired' = 'expired'): void {
     const set = new Set(ids);
     if (!items.some((i) => set.has(i.id))) return;
+    const ready = items.filter((i) => set.has(i.id) && i.state === 'ready');
+    // This device remembers a banner that ran, so a refresh does not announce the same item again.
+    if (ready.length) {
+      const now = Date.now();
+      bannered = { ...bannered };
+      ready.forEach((i) => { bannered[i.id] = now; });
+      writeBannered(userKey, bannered);
+    }
+    // Closing it with the X is SEEN (told to the server; no WhatsApp follows). A failed item is not told: she has
+    // not tapped it. Running out untouched is not told either, and Home keeps it either way.
+    const told = how === 'closed' ? ready.map((i) => tell(i.id, 'seen')) : [];
+    // Home keeps it: ask the server for the list once it knows.
+    if (ready.length) void Promise.all(told).then(() => sync(true));
     commit(items
       .filter((i) => !(set.has(i.id) && i.state === 'ready'))
       .map((i) => (set.has(i.id) ? { ...i, announced: true } : i)));
@@ -237,11 +344,19 @@ export function createTracker(): Tracker {
       // beside what she was already following. A different teacher on this browser starts from her own.
       const carried = userKey === null ? items : [];
       userKey = key;
+      bannered = readBannered(key);
       const stored = readStored(key).filter((s) => !carried.some((c) => c.id === s.id));
-      commit([...stored, ...carried].sort(oldestFirst));
+      if (carried.length) {
+        commit([...stored, ...carried].sort(oldestFirst));
+      } else {
+        // Nothing new to keep: read what she had, and write nothing.
+        items = stored;
+        listeners.forEach((l) => l());
+      }
     }
     screens += 1;
     start();
+    void sync();
     let done = false;
     return () => {
       if (done) return;
@@ -254,6 +369,8 @@ export function createTracker(): Tracker {
 
   return {
     getItems: () => items,
+    getHome: () => home,
+    sync,
     subscribe(listener) {
       listeners.add(listener);
       return () => { listeners.delete(listener); };
@@ -269,6 +386,9 @@ export function createTracker(): Tracker {
       screens = 0;
       userKey = null;
       items = [];
+      home = [];
+      bannered = {};
+      lastSync = 0;
       listeners.clear();
     },
   };

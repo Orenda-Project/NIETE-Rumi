@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: { children: unknown }) => <div>{children as never}</div> }));
 vi.mock("../../hooks/useAuth", () => ({ useAuth: vi.fn() }));
+vi.mock("../../services/api", () => ({ default: { get: vi.fn(), post: vi.fn() }, portal: { getAssessmentStatus: vi.fn(), generateAssessment: vi.fn() } }));
+vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
+import api from "../../services/api";
+import { noticeTracker } from "../notices/tracker";
 import { useAuth } from "../../hooks/useAuth";
 import Home from "./Home";
 import { teacherPath } from "../routes";
@@ -21,7 +25,12 @@ function renderHome(user: Record<string, unknown>) {
 const AYESHA = { firstName: "Ayesha Bibi", lastName: null, role: "teacher", phoneNumber: "923001234567", schoolName: "IMSG I-10/1" };
 
 describe("teacher v2 Home", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    noticeTracker.reset();
+    vi.mocked(api.get).mockResolvedValue({ data: { success: true, items: [] } } as never);
+  });
 
   it("greets her by her full name, with an exclamation mark", () => {
     renderHome(AYESHA);
@@ -87,5 +96,25 @@ describe("teacher v2 Home", () => {
       expect(svgs.map((s) => s.getAttribute("data-motion"))).toEqual(Array(7).fill("arrive"));
       expect(vi.getTimerCount()).toBe(1);
     } finally { vi.useRealTimers(); }
+  });
+
+  it("'Ready for you' stands above the feature tiles when she has finished things she has not opened (bd-fmf24g.15)", async () => {
+    const iso = (ms: number) => new Date(Date.now() + ms).toISOString();
+    vi.mocked(api.get).mockResolvedValue({ data: { success: true, items: [{
+      id: "paper:a", kind: "paper", state: "ready", title: null, grade: 4, subject: "Science", chapterNumber: 2, questions: 15,
+      startedAt: iso(-600_000), readyAt: iso(-300_000), seenAt: iso(-290_000), openedAt: null, homeUntil: iso(3_600_000),
+      paperId: "pp-a", renderId: null, lessonId: null, lang: null, errorCode: null,
+    }] } } as never);
+    renderHome(AYESHA);
+    const card = await screen.findByRole("region", { name: "Ready for you" });
+    const tiles = screen.getByTestId("feature-tiles");
+    expect(card.compareDocumentPosition(tiles) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(vi.mocked(api.get)).toHaveBeenCalledWith("/me/notices");
+  });
+
+  it("and nothing extra when there is nothing finished", async () => {
+    renderHome(AYESHA);
+    await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalledWith("/me/notices"));
+    expect(screen.queryByRole("region", { name: "Ready for you" })).toBeNull();
   });
 });

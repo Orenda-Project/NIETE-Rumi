@@ -228,3 +228,15 @@ Try again, `role="alert"`. It only reports; the host says what Open, ✕ and run
 ### `LeaveNote`
 `text`. A white card with a bell and the screen's sentence ("You can leave. We'll tell you here."), `role="note"`. The words are
 the screen's: a sentence is not a kit label (`teacher/notices/copy.ts`).
+
+### `ReadyCard` (Home's "Ready for you" — bd-fmf24g.15)
+`items: ReadyCardRow[]` (`{ id, feature, what, title, line }`), `maxRows?` (2), `onOpen(id)`, `listOpen?`, `onOpenList?`, `onCloseList?`, `copy?`.
+A heading ("Ready for you", with a green count chip) and one white card with a 92px row per finished item: `NoticeIcon` (feature
+glyph, green tick), the title, "Lesson plan · Grade 7 · Science", a big indigo Open. The whole row is ONE button (a nested Open
+would be a second target in the same place; the Open pill is the row's drawing). At most 2 rows, then "See all", which opens
+the full list in a `Tray`. Which items and for how long (24 weekday hours, Monday to Friday in Pakistan time, or until opened)
+is the server's: this only draws them. The shell's `teacher/notices/ReadyForYou` is the one caller.
+
+### `NoticeIcon`
+`feature` (`lessons` | `assessment`), `size` (`lg` 56 · `md` 52 · `sm` 48), `failed?`. The feature's glyph in its colour on its tint with a
+green tick badge at the end-bottom corner (a red "!" when failed). Decorative: the row names the item.

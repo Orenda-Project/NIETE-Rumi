@@ -2,17 +2,16 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { useLessonPlanOpener } from '../../lib/lessonPlanOpen';
 import { failureLabel } from '../assessment/failure';
 import { ASSESSMENT } from '../assessment/copy';
-import { paperPath } from '../assessment/paths';
 import { useCopy } from '../i18n';
-import { dcFor } from '../lessons/useOpenLesson';
 import { LESSONS } from '../lessons/copy';
-import { LESSONS_VIEWER } from '../lessons/paths';
+import { teacherPath } from '../routes';
 import { ReadyBanner, ReadyTray, trayHeight, type BannerRow, type TrayRow } from '../ui';
 import { useKitCopy } from '../ui/useKitCopy';
 import { NOTICES } from './copy';
+import { useNoticeWords } from './useNoticeWords';
+import { useOpenNotice } from './useOpenNotice';
 import { isOnOwnPage, minutesLeft, progressOf, type NoticeItem } from './model';
 import { noticeTracker } from './tracker';
 
@@ -55,12 +54,13 @@ function useNow(active: boolean): number {
 export function NoticeHost({ userKey, bare = false, aboveBar = false }: { userKey: string; bare?: boolean; aboveBar?: boolean }) {
   const kit = useKitCopy();
   const C = useCopy(NOTICES);
+  const { what, classLine, titleOf } = useNoticeWords();
   const assessC = useCopy(ASSESSMENT);
   const lessonsC = useCopy(LESSONS);
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const openPlan = useLessonPlanOpener();
+  const open = useOpenNotice();
   const items = useTrackedItems();
   const [listOpen, setListOpen] = useState(false);
 
@@ -84,8 +84,6 @@ export function NoticeHost({ userKey, bare = false, aboveBar = false }: { userKe
   const failedItem = items.find((i) => i.state === 'failed' && !i.announced && !own(i)) ?? null;
 
   const now = useNow(stripItems.some((i) => i.state === 'making'));
-  const what = (i: NoticeItem) => (i.kind === 'lesson' ? kit.notify.lessonPlan : kit.notify.paper);
-  const classLine = (i: NoticeItem) => [i.grade != null ? kit.grade(i.grade) : null, i.subject].filter(Boolean).join(' · ');
 
   const rows: TrayRow[] = stripItems.map((i) => {
     const left = minutesLeft(i, now);
@@ -94,7 +92,7 @@ export function NoticeHost({ userKey, bare = false, aboveBar = false }: { userKe
       feature: i.kind === 'lesson' ? 'lessons' : 'assessment',
       what: what(i),
       gradeSubject: classLine(i),
-      title: i.title,
+      title: titleOf(i),
       state: i.state === 'failed' ? 'failed' : 'making',
       progress: progressOf(i, now),
       left: left === null ? '' : kit.notify.timeLeft(left),
@@ -106,7 +104,7 @@ export function NoticeHost({ userKey, bare = false, aboveBar = false }: { userKe
     id: i.id,
     feature: i.kind === 'lesson' ? 'lessons' : 'assessment',
     what: what(i),
-    title: i.title,
+    title: titleOf(i),
     line: i.kind === 'paper' && i.questions != null ? `${classLine(i)} · ${kit.notify.questions(i.questions)}` : classLine(i),
   });
 
@@ -123,21 +121,14 @@ export function NoticeHost({ userKey, bare = false, aboveBar = false }: { userKe
     const item = items.find((i) => i.id === id);
     if (!item) return;
     noticeTracker.settle(id);
-    if (item.kind === 'paper' && item.paperId) {
-      navigate(paperPath(item.paperId));
-    } else if (item.kind === 'lesson' && item.renderId) {
-      const at = item.at ?? { grade: item.grade ?? 0, subject: item.subject ?? '' };
-      void openPlan({ lane: 'g612', renderId: item.renderId }, item.title, {
-        page: LESSONS_VIEWER, state: { dc: dcFor({ id: item.lessonId ?? '', lane: 'g612' }, at) },
-      });
-    }
+    open({ ...item, title: titleOf(item) });
   };
 
-  const finish = (ids: readonly string[]) => noticeTracker.announced(ids);
+  const finish = (ids: readonly string[], how: 'closed' | 'expired') => noticeTracker.announced(ids, how);
 
   const retry = async (id: string) => {
     const res = await noticeTracker.retry(id);
-    if ('error' in res) toast({ title: C.retryFailed, description: res.error || undefined, variant: 'destructive' });
+    if ('error' in res) toast({ title: kit.notify.couldntMake, description: res.error || undefined, variant: 'destructive' });
   };
 
   if (bare) return null;
@@ -162,8 +153,10 @@ export function NoticeHost({ userKey, bare = false, aboveBar = false }: { userKe
               <ReadyBanner
                 items={readyItems.map(banner)}
                 onOpen={openItem}
-                onClose={() => finish(readyItems.map((i) => i.id))}
-                onExpire={() => finish(readyItems.map((i) => i.id))}
+                onClose={() => finish(readyItems.map((i) => i.id), 'closed')}
+                onExpire={() => finish(readyItems.map((i) => i.id), 'expired')}
+                // Three or more at once: Home's card holds them all (going there is acting on the banner).
+                onSeeAll={() => { finish(readyItems.map((i) => i.id), 'closed'); navigate(teacherPath('home')); }}
               />
             </div>
           ) : failedItem ? (
@@ -174,8 +167,8 @@ export function NoticeHost({ userKey, bare = false, aboveBar = false }: { userKe
                 reason={reason}
                 onOpen={openItem}
                 onRetry={(id) => { void retry(id); }}
-                onClose={() => finish([failedItem.id])}
-                onExpire={() => finish([failedItem.id])}
+                onClose={() => finish([failedItem.id], 'closed')}
+                onExpire={() => finish([failedItem.id], 'expired')}
               />
             </div>
           ) : null}

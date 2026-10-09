@@ -82,6 +82,8 @@ export interface NotifyCopy {
   open: string;
   tryAgain: string;
   couldntMake: string;
+  /** Home's card of finished items. */
+  readyForYou: string;
   /** "15 questions", on a paper's line. */
   questions: (n?: number) => string;
 }
@@ -215,6 +217,7 @@ export const TEACHER_UI_COPY: TeacherUiCopy = {
     open: 'Open',
     tryAgain: 'Try again',
     couldntMake: "Couldn't make it",
+    readyForYou: 'Ready for you',
     questions: (n = 0) => (n === 1 ? '1 question' : `${n} questions`),
   },
 };
@@ -310,6 +313,7 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
     open: 'کھولیں',
     tryAgain: 'دوبارہ کوشش کریں',
     couldntMake: 'نہیں بن سکا',
+    readyForYou: 'آپ کے لیے تیار',
     questions: (n = 0) => `${n} سوال`,
   },
 };
