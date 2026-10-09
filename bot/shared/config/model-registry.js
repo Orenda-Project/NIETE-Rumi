@@ -372,6 +372,36 @@ const JSON_REPAIRED_BY_CALLER = Object.freeze({
   'lp.extractText': 'span',              // workers/lesson-plan-extraction.worker.js: same span, then repair
 });
 
+/**
+ * Jobs whose caller reads a LABEL at the start of the reply, and the labels it reads. bd-gr4fy.5.15.
+ *
+ * chat.intent asks for one word. On a bare "Yes", Haiku adds a sentence after the word, reaches the
+ * output limit, and the cut-off sent the call back to the old model every time (116 calls, 7-9 Oct
+ * 2026), although the label the caller reads was already complete. llm-client hands such a cut-off
+ * over when it starts with one of these labels; one that starts with anything else still goes back.
+ * The caller reads the label with leadingLabel(), so the two cannot disagree on what counts.
+ */
+const LABEL_REPLY_JOBS = Object.freeze({
+  'chat.intent': Object.freeze(['lesson_plan', 'lesson plan', 'presentation', 'video', 'general']), // openai.service.js detectIntent
+});
+
+/**
+ * The label a reply to this job starts with, and the rest of the reply, or null. Case, leading
+ * spaces, quotes and markdown emphasis are ignored; the label must end where a word ends, so
+ * "generally" is not "general".
+ */
+function leadingLabel(job, text) {
+  const labels = LABEL_REPLY_JOBS[job];
+  if (!labels || typeof text !== 'string') return null;
+  const head = text.toLowerCase().replace(/^[\s"'`*_]+/, '');
+  for (const label of labels) {
+    if (head.startsWith(label) && !/[a-z0-9]/.test(head.charAt(label.length))) {
+      return { label, rest: head.slice(label.length) };
+    }
+  }
+  return null;
+}
+
 /** The model this job is known to work with, or null when it has nothing behind it. */
 function fallbackForJob(job) {
   if (!JOBS[job]) throw new Error(`unknown job: ${job}`);
@@ -480,6 +510,6 @@ function modelFor(job, ctx = {}) {
 
 module.exports = {
   modelFor,
-  JOBS, FALLBACK, TELEMETRY_ONLY_JOBS, JSON_REPLY_JOBS, JSON_REPAIRED_BY_CALLER,
-  fallbackForJob, resolveModelForJob, todaysModel, bucketOf, isModel,
+  JOBS, FALLBACK, TELEMETRY_ONLY_JOBS, JSON_REPLY_JOBS, JSON_REPAIRED_BY_CALLER, LABEL_REPLY_JOBS,
+  fallbackForJob, resolveModelForJob, todaysModel, bucketOf, isModel, leadingLabel,
 };
