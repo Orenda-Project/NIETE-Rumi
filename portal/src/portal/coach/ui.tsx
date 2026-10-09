@@ -385,15 +385,6 @@ export function BottomButton({ onClick, tone = "primary", disabled, children }: 
   );
 }
 
-export function StepBar({ step }: { step: 1 | 2 | 3 }) {
-  return (
-    <div className="flex items-center gap-1.5 px-1" aria-label={C.stepOf(step)}>
-      {[1, 2, 3].map((n) => <span key={n} className="h-1.5 flex-1 rounded-full" style={{ background: n <= step ? "#33374a" : "#e5e7eb" }} />)}
-      <em className="ms-1.5 whitespace-nowrap text-[13px] font-semibold not-italic text-[#6b7280]">{C.stepOf(step)}</em>
-    </div>
-  );
-}
-
 export function Loading() {
   return (
     <div className="flex flex-col gap-3" aria-busy="true">

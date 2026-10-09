@@ -67,7 +67,7 @@ describe("feature colours", () => {
   });
 });
 
-describe("school icons are 12px-rounded blue tiles, not circles", () => {
+describe("school icons are 12px-rounded blue tiles, not circles (Schools tab; New visit is the kit row now)", () => {
   const expectTile = (el: Element, size: number) => {
     const c = classOf(el);
     expect(c).toMatch(/rounded-xl/);
@@ -83,13 +83,16 @@ describe("school icons are 12px-rounded blue tiles, not circles", () => {
     expectTile(within(card).getByTestId("school-icon"), 44);
   });
 
-  it("New visit step 1: 48px; step 2's school card: 40px", async () => {
+  it("New visit step 1: the kit's coach row (a round avatar, not the grade tile); step 2's school is ChosenSoFar text, no icon (bd-4404s7.3)", async () => {
     const one = at("/portal/coach/new-visit", <CoachNewVisit />);
-    expectTile(within(await screen.findByTestId("school-option")).getByTestId("school-icon"), 48);
+    await screen.findByText("IMCB G-9/4");
+    expect(document.querySelector("[data-history-row] [data-testid=history-lead]")).toBeNull();
+    expect(document.querySelector("[data-history-row] .rounded-full")).not.toBeNull();
+    expect(screen.queryByTestId("school-icon")).toBeNull();
     one.unmount();
     at("/portal/coach/new-visit?school=niete%3A494", <CoachNewVisit />);
     await screen.findByText("Step 2 of 3");
-    expectTile(screen.getByTestId("school-icon"), 40);
+    expect(screen.queryByTestId("school-icon")).toBeNull();
   });
 });
 
