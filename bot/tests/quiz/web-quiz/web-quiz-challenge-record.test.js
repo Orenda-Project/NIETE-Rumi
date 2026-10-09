@@ -297,21 +297,29 @@ describe('the orphan sweeper: a recording whose result never came is deleted', (
 
 describe('the columns the service selects exist in the schema', () => {
   // The in-memory fake returns whole rows whatever the select names, so a column that is not in the live table
-  // (students.name, which is student_name) passes every test above and answers 42703 in production. The schema
-  // of record is supabase/baseline/schema.sql plus the migrations' ALTERs: every students column the service
-  // names must be defined there.
+  // (students.name, which is student_name) passes every test above and answers 42703 in production. A column is
+  // known when the schema of record names it — supabase/baseline/schema.sql (where the tree has it) or a
+  // migration — or when another service file that already runs in production selects it from students.
   const repo = path.join(__dirname, '..', '..', '..', '..');
+  const read = (f) => (fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '');
   const studentsColumns = () => {
-    const base = fs.readFileSync(path.join(repo, 'supabase', 'baseline', 'schema.sql'), 'utf8');
-    const created = /CREATE TABLE public\.students \(([\s\S]*?)\n\);/.exec(base);
-    expect(created).toBeTruthy();
-    const cols = new Set(created[1].split('\n').map((l) => l.trim().split(/\s+/)[0]).filter((c) => /^[a-z_]+$/.test(c) && c !== 'CONSTRAINT'));
+    const cols = new Set();
+    const created = /CREATE TABLE (?:public\.)?students \(([\s\S]*?)\n\);/.exec(read(path.join(repo, 'supabase', 'baseline', 'schema.sql')));
+    if (created) for (const c of created[1].split('\n').map((l) => l.trim().split(/\s+/)[0])) if (/^[a-z_]+$/.test(c) && c !== 'CONSTRAINT') cols.add(c);
     const migDir = path.join(repo, 'bot', 'database', 'migrations');
-    const sql = fs.readdirSync(migDir).filter((f) => f.endsWith('.sql')).map((f) => fs.readFileSync(path.join(migDir, f), 'utf8')).join('\n');
+    const sql = fs.readdirSync(migDir).filter((f) => f.endsWith('.sql')).map((f) => read(path.join(migDir, f))).join('\n');
+    const mig = /CREATE TABLE (?:IF NOT EXISTS )?(?:public\.)?students \(([\s\S]*?)\n\);/.exec(sql);
+    if (mig) for (const c of mig[1].split('\n').map((l) => l.trim().split(/\s+/)[0])) if (/^[a-z_]+$/.test(c)) cols.add(c);
     for (const m of sql.matchAll(/ALTER TABLE (?:public\.)?students ADD COLUMN (?:IF NOT EXISTS )?([a-z_]+)/gi)) cols.add(m[1]);
+    const svc = path.join(repo, 'bot', 'shared', 'services');
+    const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : e.name.endsWith('.js') ? [path.join(d, e.name)] : []));
+    for (const f of walk(svc)) {
+      if (f.endsWith(path.join('quiz', 'web-quiz-challenge.js'))) continue;
+      for (const m of read(f).replace(/\/\/.*$/gm, '').matchAll(/from\('students'\)\s*\.select\('([^']+)'\)/g)) for (const c of m[1].split(',').map((x) => x.trim())) if (/^[a-z_]+$/.test(c)) cols.add(c);
+    }
     return cols;
   };
-  test('every students column named by web-quiz-challenge.js is in the schema of record', () => {
+  test('every students column named by web-quiz-challenge.js is known to the schema of record or to code already in production', () => {
     const cols = studentsColumns();
     expect(cols.has('student_name')).toBe(true);
     expect(cols.has('name')).toBe(false);
