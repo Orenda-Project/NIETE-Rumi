@@ -8,7 +8,7 @@
  *
  * bd-fmf24g.13 — bilingual: TRAINING = { en, ur } (these words) and TRAINING_INNER = { en, ur } (the new UI's
  * TRAINING_COPY keys, translated HERE so today's new-UI pages stay as they are), read with useCopy(). The
- * Urdu is MACHINE-DRAFTED from the bot's existing Urdu (ux-strings.js: ٹریننگ، ماڈیول، امتحان، کوئز، جاری
+ * Urdu is MACHINE-DRAFTED from the bot's existing Urdu (ux-strings.js: ٹریننگ، کورس، امتحان، کوئز، جاری
  * رکھیں، درجہ) and awaits a human review (workbench/teacher-v2-impl/urdu-review/).
  */
 import { TRAINING_COPY, type TrainingWords } from '../../newui/copy';
@@ -150,7 +150,7 @@ export const TRAINING_INNER_UR: TrainingWords = {
   levelExam: 'درجے کا امتحان',
   moreCourses: (n?: number) => `${n ?? 0} مزید کورس`,
   waitHours: (h?: number) => `${h ?? 0} گھنٹے انتظار`,
-  moduleExam: 'ماڈیول امتحان',
+  moduleExam: 'کورس امتحان',
   reading: 'لازمی مطالعہ',
   available: (n?: number) => `${n ?? 0} دستیاب`,
   readings: (n?: number) => (n === 1 ? '1 مطالعہ' : `${n ?? 0} مطالعے`),
@@ -187,7 +187,7 @@ export const TRAINING_INNER_UR: TrainingWords = {
   notSent: 'نہیں بھیجا گیا',
   levelExamTitle: (n?: number) => `درجہ ${n ?? ''} کا امتحان`.replace(/\s+/g, ' ').trim(),
   examOf: (name?: string | null) => `${name ?? ''} امتحان`.trim(),
-  moduleExamN: (n?: number | null) => (n != null ? `ماڈیول ${n} امتحان` : 'ماڈیول امتحان'),
+  moduleExamN: (n?: number | null) => (n != null ? `کورس ${n} امتحان` : 'کورس امتحان'),
   startExam: 'امتحان شروع کریں',
   toPass: (pct?: number) => `پاس کے لیے ${pct ?? 0}%`,
   waitIfFailed: (h?: number) => `فیل پر ${h ?? 0} گھنٹے`,
@@ -230,6 +230,9 @@ const TRAINING_INNER_EN: TrainingWords = {
   notLoaded: 'Could not load',
   questions: (n?: number) => (n === 1 ? '1 question' : `${n ?? 0} questions`),
   writtenQuiz: 'Written exam',
+  // The teacher sees Course and Part, never Module (operator, 2026-10-09). The API field stays module_no.
+  moduleExam: 'Course exam',
+  moduleExamN: (n?: number | null) => (n != null ? `Course ${n} exam` : 'Course exam'),
 };
 
 export const TRAINING_INNER = bilingual<TrainingWords>(TRAINING_INNER_EN, TRAINING_INNER_UR);
