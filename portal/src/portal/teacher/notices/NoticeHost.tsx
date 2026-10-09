@@ -6,10 +6,11 @@ import { failureLabel } from '../assessment/failure';
 import { ASSESSMENT } from '../assessment/copy';
 import { OBSERVE } from '../../coach/observe/copy';
 import { failureWords, observationLine } from '../../coach/observe/format';
-import { useCopy } from '../i18n';
+import { useCopy, useLang } from '../i18n';
 import { LESSONS } from '../lessons/copy';
 import { teacherPath } from '../routes';
 import { ReadyBanner, ReadyTray, trayHeight, type BannerRow, type TrayRow } from '../ui';
+import { ROW_PX, ROW_PX_UR } from '../ui/ReadyTray';
 import { useKitCopy } from '../ui/useKitCopy';
 import { NOTICES } from './copy';
 import { useNoticeWords } from './useNoticeWords';
@@ -59,6 +60,7 @@ function useNow(active: boolean): number {
 
 export function NoticeHost({ userKey, bare = false, aboveBar = false, local = false }: { userKey: string; bare?: boolean; aboveBar?: boolean; local?: boolean }) {
   const kit = useKitCopy();
+  const lang = useLang();
   const C = useCopy(NOTICES);
   const { what, classLine, titleOf } = useNoticeWords();
   const assessC = useCopy(ASSESSMENT);
@@ -137,7 +139,7 @@ export function NoticeHost({ userKey, bare = false, aboveBar = false, local = fa
   });
 
   const showStrip = !bare && rows.length > 0;
-  const height = showStrip ? trayHeight(Math.min(rows.length, 2), rows.length > 2) : 0;
+  const height = showStrip ? trayHeight(Math.min(rows.length, 2), rows.length > 2, lang === 'ur' ? ROW_PX_UR : ROW_PX) : 0;
   useEffect(() => {
     const root = document.documentElement;
     if (height > 0) root.style.setProperty('--notice-h', `${height}px`);

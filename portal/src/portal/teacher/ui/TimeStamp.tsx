@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { useLang } from '../i18n';
 import { useKitCopy } from './useKitCopy';
 
 /**
@@ -54,6 +55,7 @@ export interface TimeStampProps {
 
 export function TimeStamp({ time, tone = 'neutral', size = 17, className }: TimeStampProps) {
   const kit = useKitCopy();
+  const lang = useLang();
   const parsed = parseTime(time);
   const t: TimeTone = INK[tone] ? tone : 'neutral';
   if (!parsed) {
@@ -73,7 +75,7 @@ export function TimeStamp({ time, tone = 'neutral', size = 17, className }: Time
       style={{ gap: Math.max(2, Math.round(size * 0.22)) }}
     >
       <b dir="ltr" aria-hidden="true" className="font-bold leading-tight tracking-[-0.01em]" style={{ fontSize: size }}>{parsed.hm}</b>
-      <span aria-hidden="true" className={cn('font-bold leading-tight tracking-[0.03em]', MUTE[t])} style={{ fontSize: Math.max(10, Math.round(size * 0.72)) }}>{word}</span>
+      <span aria-hidden="true" className={cn('font-bold leading-tight tracking-[0.03em]', MUTE[t])} style={{ fontSize: Math.max(lang === 'ur' ? 13 : 10, Math.round(size * 0.72)) }}>{word}</span>
     </span>
   );
 }
