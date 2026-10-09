@@ -6,7 +6,11 @@ import { cn } from "@/lib/utils";
 import { useCopy } from "../../teacher/i18n";
 import { LoadState } from "../../teacher/lessons/LoadState";
 import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
-import { BottomButton, Initials } from "../ui";
+import { coach } from "../../services/api";
+import { LESSONS } from "../../teacher/lessons/copy";
+import { dayName, pkDayOf, pkToday } from "../../teacher/lessons/days";
+import { ScoreRing } from "../../teacher/ui";
+import { BottomButton, Initials, useLoad } from "../ui";
 import ReportsFrame from "./ReportsFrame";
 import { REPORTS } from "./copy";
 import { observationPath } from "./paths";
@@ -26,15 +30,18 @@ import { useBackTo } from "./useBackTo";
  *   sending / waiting      the bot is sending / waiting for the teacher to open the message
  *   sent                   Sent to {name}, and a way back to the observation
  *
- * NOT drawn: the score ring and "72% · 37/52 marks" header, and the Went well / To grow / Next step lines of the
- * Blueprint. The view carries the report as an image and caption only; its marks and sections are not served to the
- * coach (see the report's gap list).
+ * The header (ScoreRing, name, Observation · day, the percentage) is the observation row's score (GET coach/observation/:id).
+ * NOT drawn: "37/52 marks" and the Went well / To grow / Next step lines of the Blueprint. The view carries the report as
+ * an image and caption only; marks and sections are not served to the coach (see the report's gap list).
  */
 export default function SendReport() {
   const C = useCopy(REPORTS);
+  const { days } = useCopy(LESSONS);
   const { id = "" } = useParams();
   const { view, status, reload } = useObservationView(id);
   const back = useBackTo(observationPath(id));
+  // The observation row: the score and the day, for the preview's header (a failed read just leaves the header out).
+  const { data: row } = useLoad(() => coach.getObservation(id), [id]);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const asked = useRef(false);
@@ -95,6 +102,16 @@ export default function SendReport() {
       {ready && view && (
         <>
           <h2 className="mx-1 mt-1 text-[22px] font-semibold leading-[1.2]">{C.preview}</h2>
+          {row && (row.score ?? row.dcScore) != null && (
+            <section data-testid="send-score" className={cn(LIST_CARD, "flex items-center gap-3.5 p-3.5")}>
+              <ScoreRing value={row.score ?? row.dcScore ?? null} label={C.dcScore} />
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="truncate text-[17px] font-semibold" dir="auto">{name}</span>
+                <span className="truncate text-[13px] text-[#6b7280]">{[C.observation, (() => { const d = pkDayOf(row.date); return d ? dayName(d, pkToday(), days) : ""; })()].filter(Boolean).join(" · ")}</span>
+                <span className="text-[13px] font-semibold text-[#4b5563]">{C.pct(row.score ?? row.dcScore ?? null)}</span>
+              </span>
+            </section>
+          )}
           <section data-testid="report-preview" className={cn(LIST_CARD, "flex flex-col gap-2 p-2.5")}>
             {view.report.imageUrl && <img src={view.report.imageUrl} alt={C.reportImage(name)} className="w-full rounded-xl border border-[#e5e7eb] bg-[#f9fafb]" />}
             {view.report.caption && <p className="whitespace-pre-line px-1 text-[14px] leading-relaxed" dir="auto">{view.report.caption}</p>}

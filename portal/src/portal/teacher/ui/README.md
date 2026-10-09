@@ -359,6 +359,9 @@ Information only; fills from the start edge (right to left in Urdu); `role="img"
 `value` (`1 | 2 | 3 | 4 | 'na' | null`), `onChange`, `dcValue?` (the Digital Coach's rating: a 2px green ring inside that choice, spoken as
 "2, Digital Coach"), `name?` (the indicator; default "Rating"), `copy?` (`rating`, `notApplicable`, `digitalCoach`). A radiogroup of five
 equal 56px choices (1 2 3 4 N/A), the picked one indigo; arrow keys move the pick. Coach only: a teacher is never rated here.
+`options?: [{ id, label? }]` (bd-4404s7.5) draws the scale the bot's review form actually has instead of 1 to 4: `id` is the face (`na` is drawn N/A), `label` the rung's
+name, spoken only ("1, Developing"); `value`, `dcValue` and `onChange` then carry the id string. The live FICO scale is **0 Not observed · 1 Developing · 2 Proficient · N/A**
+(bot `fico-framework` `SCALE_MAX = 2`; the draft route returns it as `scale`), so the Feedback Form passes it. Without `options` nothing changes.
 
 ### `SlotGroup`
 | Prop | Type | Default |

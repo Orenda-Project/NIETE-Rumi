@@ -13,35 +13,55 @@ import { useKitCopy } from './useKitCopy';
 export type RatingValue = 1 | 2 | 3 | 4 | 'na';
 const KEYS: readonly RatingValue[] = [1, 2, 3, 4, 'na'];
 
+/** With `options` a value is the option's id (the live scale's own: "0", "1", "2", "na"). */
+export type RatingKey = RatingValue | (string & {});
+
+/** One rung of the scale the review form actually has. `label` is the rung's name, spoken (never drawn): "Developing". */
+export interface RatingOption {
+  id: string;
+  label?: string;
+}
+
 export interface RatingScaleProps {
-  value: RatingValue | null;
-  onChange: (value: RatingValue) => void;
-  dcValue?: RatingValue | null;
+  value: RatingKey | null;
+  /** Method syntax on purpose: a handler written for the default `RatingValue` stays assignable. */
+  onChange(value: RatingKey): void;
+  dcValue?: RatingKey | null;
+  /**
+   * The scale the bot's review form gives (bd-4404s7.5): the framework owns the rungs (FICO today: 0 Not observed, 1 Developing,
+   * 2 Proficient, N/A), so the row follows it instead of a fixed 1 to 4. Leave out for 1 2 3 4 N/A. `na` is drawn as N/A.
+   */
+  options?: readonly RatingOption[];
   /** The group's name for a screen reader (default "Rating"). */
   name?: string;
   copy?: Partial<Pick<TeacherUiCopy, 'rating' | 'notApplicable' | 'digitalCoach'>>;
   className?: string;
 }
 
-export function RatingScale({ value, onChange, dcValue = null, name, copy, className }: RatingScaleProps) {
+export function RatingScale({ value, onChange, dcValue = null, options, name, copy, className }: RatingScaleProps) {
   const words = { ...useKitCopy(), ...copy };
-  const onKey = (e: KeyboardEvent<HTMLElement>) => radioKeyDown(e, KEYS, value, onChange);
+  const items: readonly RatingOption[] = options ?? KEYS.map((k) => ({ id: String(k) }));
+  const ids = items.map((o) => o.id);
+  const at = value === null ? null : String(value);
+  const onKey = (e: KeyboardEvent<HTMLElement>) => radioKeyDown(e, ids, at, (id) => onChange(options ? id : (id === 'na' ? 'na' : (Number(id) as RatingValue))));
   return (
-    <div role="radiogroup" aria-label={name ?? words.rating} onKeyDown={onKey} className={cn(GRID, 'grid-cols-5 gap-2', className)}>
-      {KEYS.map((k) => {
-        const on = value === k;
-        const dc = dcValue === k;
-        const text = k === 'na' ? words.notApplicable : String(k);
+    <div role="radiogroup" aria-label={name ?? words.rating} onKeyDown={onKey} style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }} className={cn(GRID, 'gap-2', className)}>
+      {items.map((o, i) => {
+        const k = o.id;
+        const on = at === k;
+        const dc = dcValue !== null && String(dcValue) === k;
+        const text = k === 'na' ? words.notApplicable : k;
+        const spoken = [text, o.label, dc ? words.digitalCoach : ''].filter(Boolean).join(', ');
         return (
           <button
-            key={String(k)}
+            key={k}
             type="button"
             role="radio"
             aria-checked={on}
-            aria-label={dc ? `${text}, ${words.digitalCoach}` : text}
-            data-radio-key={String(k)}
-            tabIndex={on || (value === null && k === 1) ? 0 : -1}
-            onClick={() => onChange(k)}
+            aria-label={spoken}
+            data-radio-key={k}
+            tabIndex={on || (at === null && i === 0) ? 0 : -1}
+            onClick={() => onChange(options ? k : (k === 'na' ? 'na' : (Number(k) as RatingValue)))}
             className={cn(
               'flex min-h-[56px] items-center justify-center rounded-[14px] border font-bold',
               k === 'na' ? 'text-[14px]' : 'text-[18px]',

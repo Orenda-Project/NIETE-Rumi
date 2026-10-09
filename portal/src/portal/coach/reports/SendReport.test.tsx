@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 vi.mock("../../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
 vi.mock("../CoachGate", () => ({ default: ({ children }: any) => <>{children}</> }));
 vi.mock("../../hooks/useAuth", () => ({ useAuth: () => ({ user: { firstName: "Hataf", role: "coach", phoneNumber: "923001234567" }, loading: false }) }));
-vi.mock("../../services/api", () => ({ coach: { getPending: vi.fn() }, leader: { getObservation: vi.fn(), previewReport: vi.fn(), sendReport: vi.fn() } }));
-import { leader } from "../../services/api";
+vi.mock("../../services/api", () => ({ coach: { getPending: vi.fn(), getObservation: vi.fn() }, leader: { getObservation: vi.fn(), previewReport: vi.fn(), sendReport: vi.fn() } }));
+import { coach, leader } from "../../services/api";
 import SendReport from "./SendReport";
 
 /**
@@ -15,6 +15,7 @@ import SendReport from "./SendReport";
  * report/send sends it on WhatsApp (the teacher's own phone, so nothing here sends before she taps Send).
  */
 const L = leader as any;
+const C = coach as any;
 const VIEW = (step: string, extra: Record<string, unknown> = {}, report: Record<string, unknown> = {}) => ({
   id: "cs-1", createdAt: "2026-10-06T06:30:00Z", sessionStatus: "x", step, problem: null, preparing: false, portal: true,
   teacher: { name: "Ayesha Bibi", phone: "923001110001" }, lesson: { topic: null, subject: null, hasLessonPlan: false }, draft: { edited: false },
@@ -34,6 +35,7 @@ const renderPage = () => render(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  C.getObservation.mockResolvedValue({ success: true, id: "cs-1", date: "2026-10-06T06:30:00Z", step: "report", score: null, dcScore: 72 });
   L.getObservation.mockResolvedValue(VIEW("report"));
   L.previewReport.mockResolvedValue({ success: true });
   L.sendReport.mockResolvedValue({ success: true });
@@ -47,6 +49,14 @@ describe("Send {name} the report", () => {
     expect(screen.getByTestId("page-crumb")).toHaveTextContent("Ayesha Bibi · Step 5 of 5");
     expect(await screen.findByRole("img", { name: /Ayesha/ })).toHaveAttribute("src", "https://signed.example/report.png");
     expect(screen.getByText("Your report, Ayesha")).toBeInTheDocument();
+  });
+
+  it("the preview's header: the Digital Coach score ring, the teacher, the day, the percentage", async () => {
+    renderPage();
+    const head = await screen.findByTestId("send-score");
+    expect(within(head).getByRole("img", { name: "Digital Coach score 72%" })).toBeInTheDocument();
+    expect(head).toHaveTextContent("Ayesha Bibi");
+    expect(head).toHaveTextContent("Observation ·");
   });
 
   it("To: the teacher's name and number", async () => {

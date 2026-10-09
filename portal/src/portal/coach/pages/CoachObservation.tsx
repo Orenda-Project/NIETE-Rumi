@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, ChevronRight, MapPin, Pause, Play } from "lucide-react";
+import { AlertTriangle, ChevronRight, MapPin } from "lucide-react";
 import { coach, leader } from "../../services/api";
 import type { CoachObservationView } from "../../services/api";
 import { useCopy } from "../../teacher/i18n";
@@ -8,7 +8,7 @@ import { LESSONS } from "../../teacher/lessons/copy";
 import { dayName, pkDayOf, pkToday } from "../../teacher/lessons/days";
 import { LoadState } from "../../teacher/lessons/LoadState";
 import { PageChip } from "../../teacher/TeacherPage";
-import { ListRow, ProgressSteps, TimeStamp, type ProgressStep } from "../../teacher/ui";
+import { AudioCard, ListRow, ProgressSteps, ScoreRing, TimeStamp, type ProgressStep } from "../../teacher/ui";
 import { FOCUS, LIST_CARD } from "../../teacher/ui/styles";
 import { cn } from "@/lib/utils";
 import { trackerIndex } from "../../lib/coachObserve";
@@ -31,7 +31,6 @@ import { observationPath } from "../reports/paths";
  * and the report the teacher received is shown as she got it (the image and its caption).
  * An observation captured on WhatsApp is shown here too, but its steps happen there; someone else's is only read.
  *
- * INTERIM (kit PR 2): the score ring and the play button are the coach-local ones until ScoreRing and AudioCard land.
  */
 
 const WORKER_STEPS = new Set(["analysing", "listening", "sending"]);
@@ -44,16 +43,6 @@ function indexFromRow(step: string | undefined): number {
 /** The steps that wait on the coach who made the observation. */
 const HER_STEPS = ["draft", "talk", "feedback", "report"];
 
-function ScoreRing({ value, label, text }: { value: number | null; label: string; text: string }) {
-  const pct = value == null ? 0 : Math.max(0, Math.min(100, value));
-  return (
-    <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full" aria-label={label} role="img"
-      style={{ background: `conic-gradient(#33374a 0 ${pct}%, #e8e9f0 ${pct}% 100%)` }}>
-      <span className="flex h-[50px] w-[50px] items-center justify-center rounded-full bg-white text-[15px] font-bold tabular-nums">{text}</span>
-    </span>
-  );
-}
-
 const CoachObservation = () => {
   const C = useCopy(REPORTS);
   const { days } = useCopy(LESSONS);
@@ -62,8 +51,6 @@ const CoachObservation = () => {
   const location = useLocation();
   const { data, failed, reload } = useLoad(() => coach.getObservation(id), [id]);
   const [view, setView] = useState<CoachObservationView | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const player = useRef<HTMLAudioElement | null>(null);
   const mine = !!data?.mine;
 
   // Her own observation: the pipeline's view knows the finer steps and their content, whichever side it was
@@ -74,8 +61,6 @@ const CoachObservation = () => {
     leader.getObservation(id).then((v) => { if (live) setView(v); }).catch(() => { /* the row's step is enough */ });
     return () => { live = false; };
   }, [mine, id]);
-
-  useEffect(() => () => { player.current?.pause(); }, []);
 
   const back = () => (location.key && location.key !== "default" ? navigate(-1) : navigate("/portal/coach/reports"));
   const name = data?.teacher?.name || view?.teacher?.name || C.dash;
@@ -97,17 +82,6 @@ const CoachObservation = () => {
   const dayOf = (iso: string | null | undefined) => { const d = pkDayOf(iso ?? null); return d ? dayName(d, today, days) : ""; };
   const shownDate = data ? dayOf(data.date) : "";
   const sentOn = dayOf(data?.sentAt || data?.date);
-
-  const togglePlay = () => {
-    if (!data?.audioUrl) return;
-    try {
-      if (!player.current) {
-        player.current = new Audio(data.audioUrl);
-        player.current.onended = () => setPlaying(false);
-      }
-      if (playing) { player.current.pause(); setPlaying(false); } else { void player.current.play(); setPlaying(true); }
-    } catch { setPlaying(false); }
-  };
 
   const labels = [C.stepAnalysed, C.stepForm, C.stepDebrief, C.stepFeedback, C.stepSend(first)];
   const nowText = onWhatsApp ? C.onWhatsApp : herTurn ? C.yourTurn : working ? C.working : undefined;
@@ -138,19 +112,21 @@ const CoachObservation = () => {
       <LoadState status={failed ? "error" : data ? "ok" : "loading"} empty={false} onRetry={reload} />
       {data && (
         <>
-          <Card className="flex items-center gap-3.5 px-4 py-3.5">
-            <ScoreRing value={score} label={C.dcScoreOf(C.pct(score))} text={C.pct(score)} />
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate text-[17px] font-semibold">{C.dcScore}</span>
-              <span className="truncate text-[13px] text-[#6b7280]">{allDone && data.score != null ? C.finalScore(C.pct(data.score)) : C.draftBeforeCheck}</span>
-            </span>
-            {data.audioUrl && (
-              <button type="button" onClick={togglePlay} aria-label={playing ? C.pauseRecording : C.playRecording}
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-[2.5px] border-[#48b078] bg-white text-[#48b078]">
-                {playing ? <Pause className="h-5 w-5" aria-hidden="true" /> : <Play className="h-5 w-5 fill-current" aria-hidden="true" />}
-              </button>
-            )}
-          </Card>
+          {(() => {
+            const ring = <ScoreRing value={score} label={C.dcScore} />;
+            const sub = allDone && data.score != null ? C.finalScore(C.pct(data.score)) : C.draftBeforeCheck;
+            return data.audioUrl
+              ? <AudioCard title={C.dcScore} sub={sub} src={data.audioUrl} lead={ring} />
+              : (
+                <section data-testid="score-card" className={cn(LIST_CARD, "flex min-h-[84px] items-center gap-3 p-3")}>
+                  {ring}
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="text-[16px] font-semibold leading-[1.3]">{C.dcScore}</span>
+                    <span className="text-[13px] leading-[1.3] text-[#6b7280]">{sub}</span>
+                  </span>
+                </section>
+              );
+          })()}
 
           {stopped ? (
             <Card className="flex gap-2.5 bg-[#fef3c7] p-4 text-[15px] text-[#b45309]">

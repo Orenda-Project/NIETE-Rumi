@@ -48,8 +48,6 @@ export const REPORTS_EN = {
   dcScoreOf: (n: string) => `Digital Coach score ${n}`,
   draftBeforeCheck: "Draft before your check",
   finalScore: (n: string) => `Final score ${n}`,
-  playRecording: "Play recording",
-  pauseRecording: "Pause recording",
   steps: "Steps",
   stepAnalysed: "Observation analysed",
   stepForm: "Feedback Form",
@@ -78,6 +76,7 @@ export const REPORTS_EN = {
   na: "N/A",
   ratingOf: (id: string) => `Rating for ${id}`,
   whatSeen: "What was seen",
+  verdict: "Verdict",
   toImprove: "To improve",
   changedFrom: (was: string) => `Changed from ${was}`,
   moveOf: (k: number, n: number) => `Move ${k} of ${n}`,
@@ -117,6 +116,15 @@ export const REPORTS_EN = {
   netSafe: "The recording is safe",
   refused: "Not accepted",
   micBlocked: "Microphone blocked",
+  keepOpenSending: "Keep this screen open",
+  micHelpApp: "Open phone Settings, Apps, NIETE, Permissions, Microphone, Allow.",
+  micHelpWeb: "Tap the lock by the web address, then allow the microphone.",
+  /** The recorder's own lines (components/coaching/coach/CoachRecorder). */
+  recorder: {
+    hearing: "We can hear you both.",
+    keepOpen: "Keep this screen open. Put the phone between the two of you.",
+    shortNote: "That is short. A few minutes of talking gives better feedback.",
+  },
   problems: {
     too_short: "Recording too short",
     failed: "Could not listen",
@@ -178,8 +186,6 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   dcScoreOf: (n: string) => `ڈیجیٹل کوچ اسکور ${n}`,
   draftBeforeCheck: "جانچ سے پہلے مسودہ",
   finalScore: (n: string) => `حتمی اسکور ${n}`,
-  playRecording: "ریکارڈنگ چلائیں",
-  pauseRecording: "ریکارڈنگ روکیں",
   steps: "مراحل",
   stepAnalysed: "مشاہدے کا تجزیہ",
   stepForm: "فیڈبیک فارم",
@@ -207,6 +213,7 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   na: "لاگو نہیں",
   ratingOf: (id: string) => `${id} کی ریٹنگ`,
   whatSeen: "جو دیکھا گیا",
+  verdict: "نتیجہ",
   toImprove: "بہتری کے لیے",
   changedFrom: (was: string) => `پہلے ${was} تھا`,
   moveOf: (k: number, n: number) => `طریقہ ${k} از ${n}`,
@@ -245,6 +252,14 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
   netSafe: "ریکارڈنگ محفوظ ہے",
   refused: "قبول نہیں ہوا",
   micBlocked: "مائیک کی اجازت نہیں",
+  keepOpenSending: "یہ اسکرین کھلی رکھیں",
+  micHelpApp: "فون کی سیٹنگز میں NIETE کے لیے مائیکروفون کی اجازت دیں۔",
+  micHelpWeb: "ویب ایڈریس کے ساتھ تالے پر ٹیپ کریں، پھر مائیکروفون کی اجازت دیں۔",
+  recorder: {
+    hearing: "ہم آپ دونوں کو سن رہے ہیں۔",
+    keepOpen: "یہ اسکرین کھلی رکھیں۔ فون دونوں کے بیچ رکھیں۔",
+    shortNote: "یہ مختصر ہے۔ چند منٹ کی گفتگو سے بہتر فیڈبیک ملتا ہے۔",
+  },
   problems: {
     too_short: "ریکارڈنگ بہت چھوٹی",
     failed: "سنا نہیں جا سکا",
@@ -284,5 +299,5 @@ export const COPY_ENTRY = {
   /** "—" and the percent formatter are rightly the same in both languages. */
   same: ["dash", "pct"],
   /** Sentences that mirror a screen's name word for word. */
-  longOk: ["reportReceived", "stepSend", "changesSummary", "stepCrumb"],
+  longOk: ["reportReceived", "stepSend", "changesSummary", "stepCrumb", "micHelp", "recorder"],
 };

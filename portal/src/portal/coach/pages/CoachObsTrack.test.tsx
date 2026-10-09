@@ -104,7 +104,7 @@ describe("2 — the observation page (v24 ObsTrack, on the kit)", () => {
     expect(screen.getByLabelText("11:30 AM")).toBeInTheDocument(); // 06:30Z on Pakistan's clock
     expect(screen.getByLabelText(/Digital Coach score 64%/)).toBeInTheDocument();
     expect(screen.getByText("Draft before your check")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Play recording" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
     await waitFor(() => expect(stepLabels()).toEqual(
       ["Observation analysed", "Feedback Form", "Debrief", "Your feedback", "Send Ayesha the report"]));
   });
@@ -165,7 +165,7 @@ describe("2 — the observation page (v24 ObsTrack, on the kit)", () => {
     renderAt("/portal/coach/observation/cs-1");
     expect(await screen.findByRole("img", { name: /Ayesha/ })).toBeInTheDocument();
     expect(screen.queryByTestId("what-you-made")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Play recording" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Play" })).toBeNull();
   });
 });
 
