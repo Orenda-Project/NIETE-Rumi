@@ -68,6 +68,7 @@ describe("feature colours", () => {
 });
 
 describe("school icons are 12px-rounded blue tiles, not circles (Schools tab; New visit is the kit row now)", () => {
+  // bd-4404s7.6: the Schools list is the exception: a coach row uses a ROUND 48px avatar (the square tile is reserved).
   const expectTile = (el: Element, size: number) => {
     const c = classOf(el);
     expect(c).toMatch(/rounded-xl/);
@@ -77,10 +78,13 @@ describe("school icons are 12px-rounded blue tiles, not circles (Schools tab; Ne
     expect((el as HTMLElement).style.color).toBe("rgb(29, 111, 216)");
   };
 
-  it("Schools tab: 44px", async () => {
+  it("Schools tab: a round 48px neutral avatar, not the square tile", async () => {
     at("/portal/coach/people", <CoachPeople />);
     const card = await screen.findByTestId("school-card");
-    expectTile(within(card).getByTestId("school-icon"), 44);
+    const avatar = card.querySelector("span.rounded-full") as HTMLElement;
+    expect(avatar.style.width).toBe("48px");
+    expect(avatar.style.background).toBe("rgb(243, 244, 246)");
+    expect(within(card).queryByTestId("school-icon")).toBeNull();
   });
 
   it("New visit step 1: the kit's coach row (a round avatar, not the grade tile); step 2's school is ChosenSoFar text, no icon (bd-4404s7.3)", async () => {

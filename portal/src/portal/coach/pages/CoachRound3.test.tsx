@@ -97,12 +97,12 @@ describe("5 — 'Avg. HITL Score' everywhere", () => {
     for (const k of ["avg", "avgHitl", "avgScore", "sortAvg"] as const) expect(COACH_COPY[k]).toBe("Avg. HITL Score");
   });
 
-  it("Teachers tab: the strip shows it, and lets it wrap rather than cut it", async () => {
-    C.getPeople.mockResolvedValue({ success: true, schools: [], teachers: [
-      { teacherExtId: "923001110005", name: "Sadia Noor", phone: "923001110005", schoolExtId: "niete:494", emis: "494", schoolName: "IMCB G-9/4", hitl: 1, dc: 0, avgHitl: 49, daysSinceVisit: 41, daysSinceTraining: 64 },
+  it("Schools tab: the strip shows it, and lets it wrap rather than cut it", async () => {
+    C.getPeople.mockResolvedValue({ success: true, teachers: [], schools: [
+      { schoolExtId: "niete:494", emis: "494", name: "IMCB G-9/4", teachers: 8, visits: 1, daysSinceVisit: 41, avgHitl: 58 },
     ] });
-    at("/portal/coach/people?tab=teachers", "/portal/coach/people", <CoachPeople />);
-    const card = await screen.findByTestId("teacher-card");
+    at("/portal/coach/people", "/portal/coach/people", <CoachPeople />);
+    const card = await screen.findByTestId("school-card");
     const label = within(card).getByText("Avg. HITL Score");
     expect(label.className).not.toMatch(/whitespace-nowrap/);
     expect(screen.queryByText(/^Avg score$|^Avg HITL$|^Avg$/)).toBeNull();
