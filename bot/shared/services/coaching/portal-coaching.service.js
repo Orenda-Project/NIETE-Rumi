@@ -238,16 +238,38 @@ function libraryPick(lessonPlan) {
 }
 
 /**
+ * bd-fmf24g.9 — the class she picked in the teacher app, kept as the row's
+ * conversation_state.teacher_class and read by subject-resolution as tier 0.
+ * { grade 1-12, subject, subjectKey? } → { grade, subject, subject_key?, picked_at }.
+ * Only the named fields are kept. Anything else is DROPPED, never refused: the
+ * recording is the valuable part, and a bad pick just leaves her lesson on the
+ * plan signals it had before (the drop is logged at warn).
+ */
+const MAX_CLASS_TEXT = 64;
+function classPick(raw, pickedAt) {
+  if (raw == null) return { pick: null };
+  if (typeof raw !== 'object' || Array.isArray(raw)) return { bad: 'not an object' };
+  const grade = typeof raw.grade === 'string' && /^\d{1,2}$/.test(raw.grade.trim()) ? Number(raw.grade) : raw.grade;
+  if (!Number.isInteger(grade) || grade < 1 || grade > 12) return { bad: 'grade out of range' };
+  const text = (v) => (typeof v === 'string' ? v.trim() : '');
+  const subject = text(raw.subject);
+  if (!subject || subject.length > MAX_CLASS_TEXT) return { bad: 'subject missing or too long' };
+  const key = text(raw.subjectKey);
+  const out = { grade, subject, ...(key && key.length <= MAX_CLASS_TEXT ? { subject_key: key } : {}), picked_at: pickedAt };
+  return { pick: out };
+}
+
+/**
  * Turn an uploaded recording (and optional lesson plan / photos) into a
  * coaching session and start the pipeline.
- * @param {{userId, key, lessonPlanKey?, lessonPlan?, photoKeys?: string[]}} args
+ * @param {{userId, key, lessonPlanKey?, lessonPlan?, photoKeys?: string[], teacherClass?: {grade, subject, subjectKey?}}} args
  *   lessonPlanKey — a plan she uploaded; lessonPlan — one she picked (libraryPick).
  * @returns {{status:'ok', coachingSessionId}
  *         | {status:'in_progress', coachingSessionId}
  *         | {status:'invalid', reason}
  *         | {status:'queue_failed', coachingSessionId}}
  */
-async function startPortalSession({ userId, key, lessonPlanKey = null, lessonPlan: picked = null, photoKeys = [] }, deps) {
+async function startPortalSession({ userId, key, lessonPlanKey = null, lessonPlan: picked = null, photoKeys = [], teacherClass = null }, deps) {
   const photos = Array.isArray(photoKeys) ? photoKeys.filter(Boolean) : [];
 
   // Every key must be this teacher's own, of the right kind — checked before
@@ -306,6 +328,12 @@ async function startPortalSession({ userId, key, lessonPlanKey = null, lessonPla
 
   const startedAt = d.now().toISOString();
 
+  // bd-fmf24g.9: the class she picked in the app. Invalid → dropped with a warn (see classPick).
+  const { pick: classChoice, bad: classBad } = classPick(teacherClass, startedAt);
+  if (classBad) {
+    d.log('⚠️ Portal coaching: teacher class pick dropped — recording starts without it', { userId, reason: classBad }, 'warn');
+  }
+
   // The lesson plan, written field for field as lesson-plan-processor writes
   // it — handleLessonPlanUpload for a plan, the "No" tap for none. A written
   // 6-12 lesson is a PDF in R2, so it is that upload too. A linked library
@@ -349,6 +377,7 @@ async function startPortalSession({ userId, key, lessonPlanKey = null, lessonPla
         started_at: startedAt,
         last_interaction: startedAt,
         ...(classroomPhotos.length ? { classroom_photos: classroomPhotos } : {}),
+        ...(classChoice ? { teacher_class: classChoice } : {}),
       },
       created_at: startedAt,
     })

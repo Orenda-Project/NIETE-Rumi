@@ -239,7 +239,11 @@ class CoachingOrchestrator {
     const resetState = {
       current_state: 'AWAITING_ANALYSIS',
       questions: [],
-      current_question_index: 0
+      current_question_index: 0,
+      // bd-fmf24g.9: the class she picked is her statement about the lesson, not progress — a retry keeps it.
+      ...(session.conversation_state && session.conversation_state.teacher_class
+        ? { teacher_class: session.conversation_state.teacher_class }
+        : {}),
     };
 
     // Update session status

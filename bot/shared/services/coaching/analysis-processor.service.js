@@ -479,6 +479,23 @@ class AnalysisProcessorService {
         hasReflectiveCorpus: !!reflectiveCorpus,
       });
 
+      // bd-fmf24g.9: her pick stands — an INDEPENDENT signal that strongly disagrees (her own uploaded
+      // plan, or the analysis' own inferred subject) is made visible, never allowed to overrule.
+      // logToFile carries the correlationId of the worker job (runWithCorrelation in the SQS worker).
+      try {
+        const { subjectDisagreement } = require('./subject-resolution');
+        const disagreement = subjectDisagreement(session, subjectResolution, {
+          inferredSubject: analysisResult.analysis && analysisResult.analysis.subject,
+        });
+        if (disagreement) {
+          logToFile('[subject] teacher class disagrees with an independent signal — her pick stands', {
+            coachingSessionId, ...disagreement,
+          }, 'warn');
+        }
+      } catch (disagreeErr) {
+        logToFile('[subject] disagreement check failed (non-blocking)', { coachingSessionId, error: disagreeErr.message }, 'warn');
+      }
+
       // Update database — merge reflective_corpus into analysis_data when present.
       // Also persist the framework provenance (which key + why it was chosen)
       // so downstream analytics can audit selection paths without re-computing.
