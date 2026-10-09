@@ -60,7 +60,11 @@ Anything that is not a well-formed model id is refused by the tool, and ignored 
 
 - **Its own model stands behind the new one.** On an error, a refusal, an answer cut off at the limit, an empty
   answer, or not-JSON where JSON is expected, the call is answered by the job's own model and logged as
-  `llm.job_override_fallback` (with `kind`). A move can cost a few seconds, never an answer.
+  `llm.job_override_fallback` (with `kind`). A move can cost a few seconds, never an answer. One exception: a job
+  whose caller reads only the label its reply starts with (`LABEL_REPLY_JOBS` in the registry: `chat.intent`)
+  keeps a cut-off answer when its decision is complete (a label that carries no marker, or the label and its
+  marker, as in `general lp_ref`), and logs `llm.cut_off_label_kept` instead. Its cut-off fallbacks carry
+  `labelHead` and `labelMarker`: what the answer started with, in fixed words, never the reply.
 - **No SDK retry on the attempt**: the model behind it is the retry.
 - **Twice the output limit** for a moved job (bounded), because Claude counts the same text in more tokens.
 - **Nothing moves until the settings have been read once** in a process, so the kill switch is always known. A
@@ -91,6 +95,9 @@ Every call records a cost event with its job and the model that answered. In the
 
 | where event == 'llm.job_override_fallback'
 | extend d = parse_json(data_json) | summarize n = count() by job, kind = tostring(d.kind)
+
+| where event == 'llm.cut_off_label_kept'
+| summarize n = count() by job
 
 | where event == 'llm.job_override_config'
 ```

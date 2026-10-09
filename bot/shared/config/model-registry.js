@@ -372,6 +372,50 @@ const JSON_REPAIRED_BY_CALLER = Object.freeze({
   'lp.extractText': 'span',              // workers/lesson-plan-extraction.worker.js: same span, then repair
 });
 
+/**
+ * Jobs whose caller reads a LABEL at the start of the reply, and what it reads. bd-gr4fy.5.15.
+ *
+ * chat.intent asks for one word. On a bare "Yes", Haiku writes more than the word, reaches the output
+ * limit, and the cut-off sent the call back to the old model every time (116 calls, 7-9 Oct 2026).
+ * A label can carry a MARKER after it: chat.intent's "general" may be followed by "lp_ref" (the
+ * teacher is talking about a lesson they already have), which the caller also reads. So a cut-off reply is the
+ * answer only when its DECISION is complete: a label that carries no marker, or a label whose marker
+ * is already there. A cut-off "general" with no marker may have been about to add one, and still goes
+ * back. The caller reads the label and the marker with leadingLabel(), so the two cannot disagree.
+ */
+const LP_REF_MARKER = /^[\s,;:.()[\]*_"'`–—-]*lp_ref\b/; // punctuation, brackets, quotes or markdown between; no words
+const LABEL_REPLY_JOBS = Object.freeze({
+  'chat.intent': Object.freeze({ // openai.service.js detectIntent
+    labels: Object.freeze(['lesson_plan', 'lesson plan', 'presentation', 'video', 'general']),
+    markers: Object.freeze({ general: LP_REF_MARKER }),
+  }),
+});
+
+/**
+ * The label a reply to this job starts with, whether its marker follows (for a label that can carry
+ * one), and the rest of the reply; or null. Case, leading spaces, quotes and markdown emphasis are
+ * ignored; the label must end where a word ends, so "generally" is not "general".
+ */
+function leadingLabel(job, text) {
+  const spec = LABEL_REPLY_JOBS[job];
+  if (!spec || typeof text !== 'string') return null;
+  const head = text.toLowerCase().replace(/^[\s"'`*_]+/, '');
+  for (const label of spec.labels) {
+    if (head.startsWith(label) && !/[a-z0-9]/.test(head.charAt(label.length))) {
+      const rest = head.slice(label.length);
+      const marker = spec.markers[label] || null;
+      return { label, rest, canCarryMarker: Boolean(marker), marker: Boolean(marker && marker.test(rest)) };
+    }
+  }
+  return null;
+}
+
+/** Whether a reply's decision is all there: its label, and its marker if the label can carry one. */
+function labelDecisionComplete(job, text) {
+  const head = leadingLabel(job, text);
+  return Boolean(head) && (!head.canCarryMarker || head.marker);
+}
+
 /** The model this job is known to work with, or null when it has nothing behind it. */
 function fallbackForJob(job) {
   if (!JOBS[job]) throw new Error(`unknown job: ${job}`);
@@ -480,6 +524,6 @@ function modelFor(job, ctx = {}) {
 
 module.exports = {
   modelFor,
-  JOBS, FALLBACK, TELEMETRY_ONLY_JOBS, JSON_REPLY_JOBS, JSON_REPAIRED_BY_CALLER,
-  fallbackForJob, resolveModelForJob, todaysModel, bucketOf, isModel,
+  JOBS, FALLBACK, TELEMETRY_ONLY_JOBS, JSON_REPLY_JOBS, JSON_REPAIRED_BY_CALLER, LABEL_REPLY_JOBS,
+  fallbackForJob, resolveModelForJob, todaysModel, bucketOf, isModel, leadingLabel, labelDecisionComplete,
 };
