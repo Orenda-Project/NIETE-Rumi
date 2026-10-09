@@ -6,7 +6,7 @@ import { useKitCopy } from './useKitCopy';
 /**
  * bd-fmf24g.2.3 — ReportBody (COMPONENTS.md §8): the finished report, for a Digital Coach lesson and a coach visit
  * alike, in the order of the bot's hero-report PNG (report-v2/hero-report.template.js): the indigo hero (eyebrow,
- * N mark, headline, the %, the marks of 52, name · topic · date) → identity line → Your scores (score/max, a bar
+ * N mark, headline, "63% · 33/52 marks" (the % first and large, the marks small beside it; neither when she has no marks), name · topic · date) → identity line → Your scores (score/max, a bar
  * ≥80 green, ≥60 amber, else coral, a "Why:" line; `na` = Not assessed, no bar) → Moments to remember → Your
  * strength → Your next horizon → From your classroom → Your journey (her scores over her lessons) → Last time we
  * asked → Try next class (green) → From {coach} (notes, her commitment, closing) → footer.
@@ -28,8 +28,9 @@ export interface ReportScore {
 
 export interface ReportData {
   headline: string;
-  marks: number;
-  max: number;
+  /** Her marks and the paper's total. Absent (or a total of 0): the report shows no score — never an invented one. */
+  marks?: number | null;
+  max?: number | null;
   teacher: string;
   topic: string;
   date: string;
@@ -65,7 +66,8 @@ function Card({ label, className, children }: { label: string; className?: strin
 
 export function ReportBody({ data: d, copy, className }: ReportBodyProps) {
   const words = { ...useKitCopy().report, ...copy };
-  const percent = pct(d.marks, d.max);
+  const hasMarks = Number.isFinite(d.marks) && Number.isFinite(d.max) && (d.max as number) > 0;
+  const percent = hasMarks ? pct(d.marks as number, d.max as number) : null;
   const photos = (d.photos ?? []).filter((p) => !!p.src);
   const first = String(d.teacher || '').split(' ')[0];
 
@@ -91,10 +93,13 @@ export function ReportBody({ data: d, copy, className }: ReportBodyProps) {
           <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-[#47ba7d] text-[15px] font-black text-white">{words.brandMark}</span>
         </div>
         <p className="m-0 text-[21px] font-semibold leading-[1.35]">{d.headline}</p>
-        <div className="flex items-baseline gap-2.5">
-          <b className="text-[48px] font-extrabold leading-none tracking-[-.02em]">{`${percent}%`}</b>
-          <span className="text-[15px] font-semibold text-[#c6e9d5]">{words.marks(d.marks, d.max)}</span>
-        </div>
+        {hasMarks ? (
+          <div data-testid="report-score" className="flex items-baseline gap-2.5">
+            <b className="text-[48px] font-extrabold leading-none tracking-[-.02em]">{`${percent}%`}</b>{' '}
+            <span aria-hidden="true" className="text-[15px] font-semibold text-[#c6e9d5]">·</span>{' '}
+            <span className="text-[15px] font-semibold text-[#c6e9d5]">{words.marks(d.marks as number, d.max as number)}</span>
+          </div>
+        ) : null}
         <div className="border-t border-white/15 pt-2.5 text-[14px] text-[#e2e5ea]">
           <b className="text-white">{d.teacher}</b>{' · '}{d.topic}{' · '}{d.date}
         </div>
@@ -105,7 +110,7 @@ export function ReportBody({ data: d, copy, className }: ReportBodyProps) {
       <Card label={words.scores}>
         <h3 className={LABEL}>
           {words.scores}
-          <span className={cn(PILL, PILL_TONE.info)}>{`${percent}%`}</span>
+          {percent !== null ? <span className={cn(PILL, PILL_TONE.info)}>{`${percent}%`}</span> : null}
         </h3>
         <div className="flex flex-col gap-3.5">
           {d.sections.map((s) => {

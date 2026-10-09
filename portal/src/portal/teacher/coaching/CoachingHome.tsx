@@ -25,7 +25,8 @@ import { COACHING_ALL, COACHING_SEND } from './paths';
  * bd-fmf24g.4 — the teacher v2 Digital Coaching page (v28 canvas Coaching): one page to send a lesson.
  *
  *   Your class       her own grade·subject classes only (GET /me/grade-subjects, a grade required — the
- *                    analysis needs one), the first chosen; opened from a lesson plan, that class.
+ *                    analysis needs one); none chosen until she picks (the picker's own rule: a grade opens
+ *                    selected only if she teaches exactly one); opened from a lesson plan, that class.
  *   Lesson plan      optional: her recent plans, a photo of her own plan, or the library (today's plan
  *                    sheet); opened from a lesson plan, that plan, named from her recent plans.
  *   Photos           one grid (board work, charts, the classroom), at most 3, No faces.
@@ -63,14 +64,12 @@ export function CoachingHomePage() {
   const [photos, setPhotos] = useState<File[]>([]);
   const audioInput = useRef<HTMLInputElement>(null);
 
-  // Her class: the one a lesson plan sent her with, else her first.
+  // Her class: only the one a lesson plan sent her with (?grade=&subject=). Otherwise nothing is chosen for
+  // her: she picks, as on every other screen (operator, 9 Oct: "it is fine to let her pick").
   useEffect(() => {
-    if (combo || !mine.length) return;
-    const fromPlan = prefill.grade != null
-      ? mine.find((c) => c.grade === prefill.grade && (!prefill.subjectKey || c.subjectKey === prefill.subjectKey))
-      : null;
-    const first = fromPlan || mine[0];
-    setCombo({ grade: first.grade, subject: first.subject });
+    if (combo || !mine.length || prefill.grade == null) return;
+    const fromPlan = mine.find((c) => c.grade === prefill.grade && (!prefill.subjectKey || c.subjectKey === prefill.subjectKey));
+    if (fromPlan) setCombo({ grade: fromPlan.grade, subject: fromPlan.subject });
   }, [mine, prefill, combo]);
 
   // The plan a lesson plan sent her with, named from her recent plans (the viewer just opened it).

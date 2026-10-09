@@ -85,9 +85,9 @@ beforeEach(async () => {
   });
 });
 
-function at(path: string, element: React.ReactElement, state?: unknown) {
+function at(path: string, element: React.ReactElement, state?: unknown, search = "") {
   return render(
-    <MemoryRouter initialEntries={[{ pathname: path, state }]}>
+    <MemoryRouter initialEntries={[{ pathname: path, search, state }]}>
       <Routes>
         <Route path={path} element={element} />
         <Route path="*" element={<div />} />
@@ -98,8 +98,8 @@ function at(path: string, element: React.ReactElement, state?: unknown) {
 
 describe("the lesson-plan picker in Urdu", () => {
   it("the hub's plan sheet: its title, Recent, From the library, Take a photo, Choose a file, a plan's grade chip", async () => {
-    at(COACHING_HOME, <CoachingHomePage />);
-    // The plan opens once her class has loaded (until then the button is off).
+    // Her class is not chosen for her: the link from a lesson plan chooses it (the plan button is off until a class is).
+    at(COACHING_HOME, <CoachingHomePage />, undefined, "?grade=4&subject=science");
     const open = await screen.findByRole("button", { name: new RegExp(U.selectPlan) }, { timeout: 5000 }) as HTMLButtonElement;
     await waitFor(() => expect(open.disabled).toBe(false));
     fireEvent.click(open);
