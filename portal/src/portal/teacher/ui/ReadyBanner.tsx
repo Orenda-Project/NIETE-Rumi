@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Check, ChevronRight, RotateCcw, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { FeatureGlyph, FEATURE_HUE } from '../icons';
+import { FEATURE_HUE } from '../icons';
+import { NoticeIcon } from './NoticeIcon';
 import { useBidi } from './bidi';
 import type { NotifyCopy } from './copy';
 import { CHEVRON, FOCUS } from './styles';
@@ -54,26 +55,6 @@ export interface ReadyBannerProps {
 const TICK_MS = 100;
 const INDIGO = '#33374a';
 const RED = '#c8331f';
-
-function Icon({ row, size, failed }: { row: BannerRow; size: 'lg' | 'sm'; failed: boolean }) {
-  const hue = failed ? { fg: RED, bg: '#fee4e2' } : FEATURE_HUE[row.feature];
-  const big = size === 'lg';
-  return (
-    <span
-      aria-hidden="true"
-      className={cn('relative flex shrink-0 items-center justify-center rounded-full', big ? 'h-14 w-14' : 'h-12 w-12')}
-      style={{ background: hue.bg, color: hue.fg }}
-    >
-      <FeatureGlyph name={row.feature} size={big ? 28 : 24} />
-      <i
-        className={cn('absolute -bottom-[3px] -end-[3px] flex items-center justify-center rounded-full border-white text-white', big ? 'h-6 w-6 border-[2.5px]' : 'h-5 w-5 border-2')}
-        style={{ background: failed ? RED : '#2f7a52' }}
-      >
-        {failed ? <span className="text-[13px] font-extrabold leading-none">!</span> : <Check className="h-[13px] w-[13px]" strokeWidth={3.6} />}
-      </i>
-    </span>
-  );
-}
 
 export function ReadyBanner({
   items, variant = 'ready', reason, durationMs = 10_000, onOpen, onClose, onExpire, onRetry, onSeeAll, copy,
@@ -147,7 +128,7 @@ export function ReadyBanner({
           </div>
           {items.slice(0, 2).map((row) => (
             <div key={row.id} className="flex min-h-[76px] items-center gap-3 border-t border-[#f0f1f3] px-3.5 py-2">
-              <Icon row={row} size="sm" failed={false} />
+              <NoticeIcon feature={row.feature} size="sm" />
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span dir="auto" className="truncate text-[15px] font-semibold leading-snug">{bidi(row.title)}</span>
                 <span dir="auto" className="truncate text-[13px] font-semibold text-[#374151]">{bidi(`${row.what} · ${row.line}`)}</span>
@@ -177,7 +158,7 @@ export function ReadyBanner({
       ) : (
         <>
           <div className="flex items-start gap-3 pe-0.5 ps-3.5 pt-3.5">
-            <Icon row={first} size="lg" failed={failed} />
+            <NoticeIcon feature={first.feature} size="lg" failed={failed} />
             <span className="flex min-w-0 flex-1 flex-col gap-[3px] pt-px">
               <span className="text-[18px] font-bold leading-tight">{bidi(title)}</span>
               <span dir="auto" className="truncate text-[15px] font-semibold leading-snug">{bidi(first.title)}</span>

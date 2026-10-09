@@ -2755,6 +2755,8 @@ CREATE TABLE public.assessment_requests (
     output_format text DEFAULT 'pdf'::text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    notice_seen_at timestamp with time zone,
+    notice_opened_at timestamp with time zone,
     CONSTRAINT assessment_requests_content_source_check CHECK ((content_source = ANY (ARRAY['seen'::text, 'unseen'::text, 'both'::text]))),
     CONSTRAINT assessment_requests_has_coverage CHECK (((chapter_number IS NOT NULL) OR (page_ranges IS NOT NULL))),
     CONSTRAINT assessment_requests_output_format_check CHECK ((output_format = ANY (ARRAY['pdf'::text, 'docx'::text]))),
@@ -4648,6 +4650,8 @@ CREATE TABLE public.niete_lp612_deliveries (
     surface text DEFAULT 'whatsapp'::text NOT NULL,
     delivered_at timestamp with time zone DEFAULT now() NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    notice_seen_at timestamp with time zone,
+    notice_opened_at timestamp with time zone,
     CONSTRAINT niete_lp612_deliveries_lang_check CHECK ((lang = ANY (ARRAY['en'::text, 'ur'::text]))),
     CONSTRAINT niete_lp612_deliveries_surface_check CHECK ((surface = ANY (ARRAY['whatsapp'::text, 'portal'::text, 'backfill'::text])))
 );

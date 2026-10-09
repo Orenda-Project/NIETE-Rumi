@@ -5179,7 +5179,13 @@ CREATE TABLE IF NOT EXISTS assessment_requests (
   output_format     TEXT NOT NULL DEFAULT 'pdf' CHECK (output_format IN ('pdf', 'docx')),
 
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- Teacher app v2 "ready" notices (migration V1.6.2): when she closed the ready banner for this paper with its X
+  -- (a banner that ran out untouched leaves it NULL), and when she opened it (or, for a failed one, tapped it).
+  -- NULL = not yet; each written once.
+  notice_seen_at    TIMESTAMPTZ,
+  notice_opened_at  TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS idx_assessment_requests_user_time
@@ -6250,7 +6256,10 @@ CREATE TABLE IF NOT EXISTS niete_lp612_deliveries (
   template_version  text NOT NULL,
   surface           text NOT NULL DEFAULT 'whatsapp' CHECK (surface IN ('whatsapp', 'portal', 'backfill')),
   delivered_at      timestamptz NOT NULL DEFAULT now(),
-  created_at        timestamptz NOT NULL DEFAULT now()
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  -- Teacher app v2 "ready" notices (migration V1.6.2); portal rows only. NULL = not yet; each written once.
+  notice_seen_at    timestamptz,
+  notice_opened_at  timestamptz
 );
 CREATE INDEX IF NOT EXISTS idx_lp612_deliveries_user_recent
   ON niete_lp612_deliveries (user_id, delivered_at DESC);

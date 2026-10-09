@@ -7,6 +7,7 @@ import { collectCopy, copyProblem, tapProblems } from "../../newui/checks/rules"
 import { ReadyBanner } from "../ui/ReadyBanner";
 import { ReadyTray } from "../ui/ReadyTray";
 import { LeaveNote } from "../ui/LeaveNote";
+import { ReadyCard } from "../ui/ReadyCard";
 import { NOTICES, NOTICES_COPY } from "./copy";
 
 /**
@@ -52,8 +53,14 @@ describe("notices: every target is 56px or more", () => {
         <ReadyBanner items={[b, { ...b, id: "e" }, { ...b, id: "f" }, { ...b, id: "g" }]} onOpen={() => {}} onClose={() => {}} onExpire={() => {}} onSeeAll={() => {}} />
         <ReadyBanner variant="failed" items={[b]} reason="x" onRetry={() => {}} onOpen={() => {}} onClose={() => {}} onExpire={() => {}} />
         <LeaveNote text="x" />
+        <ReadyCard
+          items={[b, { ...b, id: "e" }, { ...b, id: "f" }].map((r) => ({ ...r }))}
+          onOpen={() => {}} listOpen onOpenList={() => {}} onCloseList={() => {}}
+        />
       </MemoryRouter>,
     );
     expect(tapProblems(container)).toEqual([]);
+    // …and the list sheet that "See all" opens (it is drawn in the page body).
+    expect(tapProblems(document.body)).toEqual([]);
   });
 });

@@ -191,6 +191,19 @@ describe("the ready banner", () => {
     expect(screen.getByRole("status")).toHaveTextContent("2 ready");
   });
 
+  it("three or more at once: two rows and '+N more ready', which goes to Home where they all wait (the banner is done with them)", async () => {
+    ["a", "b", "c"].forEach((r) => noticeTracker.track(paper(r, { title: `Paper ${r}` })));
+    paperStatus = { a: { status: "ready", paperId: "pa" }, b: { status: "ready", paperId: "pb" }, c: { status: "ready", paperId: "pc" } };
+    mount();
+    await tick(4000);
+    const banner = screen.getByRole("status");
+    expect(banner).toHaveTextContent("3 ready");
+    fireEvent.click(within(banner).getByRole("button", { name: /\+1 more ready/ }));
+    expect(screen.getByTestId("at")).toHaveTextContent("/portal/teacher");
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(noticeTracker.getItems()).toEqual([]);
+  });
+
   it("never on the item's own page: there the page shows it, and the item is settled", async () => {
     noticeTracker.track(paper("req1"));
     paperStatus = { req1: { status: "ready", paperId: "p9" } };

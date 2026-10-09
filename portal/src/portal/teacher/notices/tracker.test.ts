@@ -19,7 +19,7 @@ vi.mock("../../services/api", () => {
 
 import api from "../../services/api";
 import { createTracker, type Tracker } from "./tracker";
-import { itemId, type NewNotice } from "./model";
+import { itemId, type NewNotice, type ServerItem } from "./model";
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
 const USER = "923001234567";
@@ -42,9 +42,16 @@ let paperAnswer: () => unknown;
 let lessonAnswer: () => unknown;
 const flush = async (ms = 0) => { await vi.advanceTimersByTimeAsync(ms); };
 
+/** The server's side: what GET /me/notices answers, and the reports the tracker sends. */
+let serverList: ServerItem[] = [];
+const report = vi.fn(async (_id: string, _what: "seen" | "opened") => true);
+const deps = () => ({ fetchNotices: async () => serverList, report });
+
 let t: Tracker;
 let detach: () => void;
 beforeEach(() => {
+  serverList = [];
+  report.mockClear();
   vi.useFakeTimers();
   vi.clearAllMocks();
   localStorage.clear();
@@ -55,7 +62,7 @@ beforeEach(() => {
     if (url.startsWith("/lp612/status/")) return { data: lessonAnswer() };
     throw new Error(`unmocked ${url}`);
   });
-  t = createTracker();
+  t = createTracker(deps());
   detach = t.attach(USER);
 });
 afterEach(() => {
@@ -187,7 +194,7 @@ describe("what happens once she has seen it", () => {
       data: url.endsWith("/ok") ? { success: true, status: "ready", paperId: "p1" } : { success: true, status: "failed", errorCode: "X" },
     }));
     await flush(4000);
-    t.announced([itemId("paper", "ok"), itemId("paper", "bad")]);
+    t.announced([itemId("paper", "ok"), itemId("paper", "bad")], "expired");
     const left = t.getItems();
     expect(left.map((i) => i.id)).toEqual([itemId("paper", "bad")]);
     expect(left[0]).toMatchObject({ state: "failed", announced: true });
@@ -201,11 +208,11 @@ describe("kept for the teacher, across a refresh", () => {
     t.track(paper());
     detach();
     t.reset();
-    const again = createTracker();
+    const again = createTracker(deps());
     const off = again.attach(USER);
     expect(again.getItems().map((i) => i.id)).toEqual([itemId("paper", "req1")]);
     off();
-    const other = createTracker();
+    const other = createTracker(deps());
     const offOther = other.attach("923009999999");
     expect(other.getItems()).toEqual([]);
     offOther();
@@ -219,7 +226,7 @@ describe("kept for the teacher, across a refresh", () => {
     expect(t.getItems()).toHaveLength(1);
     spy.mockRestore();
     localStorage.setItem(`teacher-notices:v1:${USER}`, "{not json");
-    const again = createTracker();
+    const again = createTracker(deps());
     expect(() => again.attach(USER)()).not.toThrow();
     again.reset();
   });
@@ -263,7 +270,7 @@ describe("Try again", () => {
 
 describe("a job tracked before the shell knows whose it is", () => {
   it("is kept and is hers: a page's effect runs before the shell's, so it can be the first to speak", () => {
-    const fresh = createTracker();
+    const fresh = createTracker(deps());
     fresh.track(paper());
     const off = fresh.attach(USER);
     expect(fresh.getItems().map((i) => i.id)).toEqual([itemId("paper", "req1")]);
@@ -279,5 +286,132 @@ describe("the same job handed over twice", () => {
     t.track(lesson({ title: "Transport of Water" }));
     expect(t.getItems()).toHaveLength(1);
     expect(t.getItems()[0].title).toBe("Transport of Water");
+  });
+});
+
+
+describe("the server's list", () => {
+  const srvItem = (over: Partial<ServerItem> = {}): ServerItem => ({
+    id: "paper:other", kind: "paper", state: "making", title: "", grade: 4, subject: "Science", questions: 15, chapterNumber: 2,
+    startedAt: Date.now() - 60_000, readyAt: null, seenAt: null, openedAt: null, homeUntil: null, paperId: null, renderId: null,
+    lessonId: null, lang: null, errorCode: null, waitHref: "/portal/teacher/assessment/request/other", ...over,
+  });
+
+  it("on attaching, what she asked for on another device (or before a refresh) is followed here", async () => {
+    detach();
+    t.reset();
+    serverList = [srvItem()];
+    t = createTracker(deps());
+    detach = t.attach(USER);
+    await flush(0);
+    expect(t.getItems().map((i) => i.id)).toEqual(["paper:other"]);
+  });
+
+  it("Home's list is the ready, unopened items the server holds, and it is told when it changes", async () => {
+    detach();
+    t.reset();
+    serverList = [srvItem({ id: "paper:done", state: "ready", paperId: "p1", readyAt: Date.now() - 60_000, seenAt: Date.now(), homeUntil: Date.now() + 3_600_000 })];
+    t = createTracker(deps());
+    const listener = vi.fn();
+    t.subscribe(listener);
+    detach = t.attach(USER);
+    await flush(0);
+    expect(t.getHome().map((h) => h.id)).toEqual(["paper:done"]);
+    expect(listener).toHaveBeenCalled();
+  });
+
+  it("asks at most every 30 seconds on its own, but sync(true) asks now; a failed read changes nothing", async () => {
+    const fetchNotices = vi.fn(async () => serverList);
+    detach();
+    t.reset();
+    t = createTracker({ fetchNotices, report });
+    detach = t.attach(USER);
+    await flush(0);
+    detach();
+    detach = t.attach(USER);
+    await t.sync();
+    expect(fetchNotices).toHaveBeenCalledTimes(1);
+    await t.sync(true);
+    expect(fetchNotices).toHaveBeenCalledTimes(2);
+    fetchNotices.mockRejectedValueOnce(new Error("offline"));
+    t.track(paper({ ref: "kept" }));
+    await expect(t.sync(true)).resolves.toBeUndefined();
+    expect(t.getItems().map((i) => i.id)).toContain(itemId("paper", "kept"));
+  });
+});
+
+describe("telling the server what she did", () => {
+  it("opening (or tapping) an item reports opened; closing the banner with the X reports seen", async () => {
+    t.track(paper({ ref: "a" }));
+    t.track(paper({ ref: "b" }));
+    http.get.mockImplementation(async () => ({ data: { success: true, status: "ready", paperId: "p" } }));
+    await flush(4000);
+    t.announced([itemId("paper", "a")], "closed");
+    expect(report).toHaveBeenCalledWith(itemId("paper", "a"), "seen");
+    t.settle(itemId("paper", "b"));
+    expect(report).toHaveBeenCalledWith(itemId("paper", "b"), "opened");
+  });
+
+  it("a banner that ran its 10 seconds untouched is NOT seen: nothing is told (the WhatsApp fallback may follow)", async () => {
+    t.track(paper({ ref: "a" }));
+    http.get.mockImplementation(async () => ({ data: { success: true, status: "ready", paperId: "p" } }));
+    await flush(4000);
+    t.announced([itemId("paper", "a")], "expired");
+    expect(report).not.toHaveBeenCalled();
+    expect(t.getItems()).toEqual([]);
+  });
+
+  it("and this device remembers the banner ran: a refresh does not announce the same item again", async () => {
+    t.track(paper({ ref: "a" }));
+    http.get.mockImplementation(async () => ({ data: { success: true, status: "ready", paperId: "p" } }));
+    await flush(4000);
+    t.announced([itemId("paper", "a")], "expired");
+    detach();
+    t.reset();
+    serverList = [{
+      id: itemId("paper", "a"), kind: "paper", state: "ready", title: "", grade: 4, subject: "Science", questions: 15, chapterNumber: 2,
+      startedAt: Date.now() - 60_000, readyAt: Date.now() - 20_000, seenAt: null, openedAt: null, homeUntil: Date.now() + 3_600_000,
+      paperId: "p", renderId: null, lessonId: null, lang: null, errorCode: null, waitHref: "/x",
+    }];
+    t = createTracker(deps());
+    detach = t.attach(USER);
+    await flush(0);
+    expect(t.getItems()).toEqual([]);
+    expect(t.getHome().map((h) => h.id)).toEqual([itemId("paper", "a")]);
+  });
+
+  it("a failed one finishing its banner is NOT reported (she has not tapped it); tapping it is", async () => {
+    t.track(paper({ ref: "bad" }));
+    paperAnswer = () => ({ success: true, status: "failed", errorCode: "X" });
+    await flush(4000);
+    t.announced([itemId("paper", "bad")]);
+    expect(report).not.toHaveBeenCalled();
+    t.settle(itemId("paper", "bad"));
+    expect(report).toHaveBeenCalledWith(itemId("paper", "bad"), "opened");
+  });
+
+  it("settling something it does not follow reports nothing; a report that fails never throws or blocks", async () => {
+    t.settle("paper:never");
+    expect(report).not.toHaveBeenCalled();
+    report.mockRejectedValueOnce(new Error("offline"));
+    t.track(paper({ ref: "x" }));
+    expect(() => t.settle(itemId("paper", "x"))).not.toThrow();
+    await flush(0);
+  });
+
+  it("an item that is settled is also gone from Home's list", async () => {
+    detach();
+    t.reset();
+    serverList = [{
+      id: "paper:done", kind: "paper", state: "ready", title: "", grade: 4, subject: "Science", questions: 15, chapterNumber: 2,
+      startedAt: Date.now() - 60_000, readyAt: Date.now() - 30_000, seenAt: Date.now(), openedAt: null, homeUntil: Date.now() + 3_600_000,
+      paperId: "p1", renderId: null, lessonId: null, lang: null, errorCode: null, waitHref: "/x",
+    }];
+    t = createTracker(deps());
+    detach = t.attach(USER);
+    await flush(0);
+    t.settle("paper:done");
+    expect(t.getHome()).toEqual([]);
+    expect(report).toHaveBeenCalledWith("paper:done", "opened");
   });
 });
