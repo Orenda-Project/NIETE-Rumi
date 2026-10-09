@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, Camera, Clock, Library, Pause, Play, RotateCcw, Send } from "lucide-react";
+import { AlertTriangle, Camera, Clock, Library, RotateCcw, Send } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
 import { PhotoGrid, SectionHeading } from "../../teacher/coaching/parts";
-import { ListRow } from "../../teacher/ui";
+import { AudioCard, ListRow } from "../../teacher/ui";
 import { Tray } from "../../teacher/ui/Tray";
 import { TimeStamp } from "../../teacher/ui/TimeStamp";
 import { coach, leader, type RecentLessonPlan } from "../../services/api";
@@ -73,29 +73,13 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   const [photos, setPhotos] = useState<File[]>([]);
   const [libraryLevel, setLibraryLevel] = useState(0);
   const [libraryBack, setLibraryBack] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const player = useRef<HTMLAudioElement | null>(null);
   const planPhotoInput = useRef<HTMLInputElement>(null);
   const teacherName = visit.teacherName || C.dash;
   const isShort = audio.durationMs != null && audio.durationMs < SHORT_RECORDING_SECONDS * 1000;
 
-  useEffect(() => () => {
-    if (player.current) {
-      player.current.pause();
-      if (typeof URL.revokeObjectURL === "function" && player.current.src) URL.revokeObjectURL(player.current.src);
-    }
-  }, []);
-
-  const togglePlay = () => {
-    try {
-      if (!player.current) {
-        if (typeof URL.createObjectURL !== "function") return;
-        player.current = new Audio(URL.createObjectURL(audio.blob));
-        player.current.onended = () => setPlaying(false);
-      }
-      if (playing) { player.current.pause(); setPlaying(false); } else { void player.current.play(); setPlaying(true); }
-    } catch { setPlaying(false); }
-  };
+  // The recording plays from a link to the file on this phone (AudioCard plays it for real).
+  const src = useMemo(() => (typeof URL.createObjectURL === "function" ? URL.createObjectURL(audio.blob) : undefined), [audio.blob]);
+  useEffect(() => () => { if (src && typeof URL.revokeObjectURL === "function") URL.revokeObjectURL(src); }, [src]);
 
   const redo = async () => {
     if (audio.recordingId) {
@@ -166,20 +150,13 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
           <Send className="h-5 w-5 rtl:-scale-x-100" aria-hidden="true" />{C.sendObservation}
         </button>
       )}>
-      <Card className="flex min-h-[84px] items-center gap-3 p-3">
-        <button type="button" onClick={togglePlay} aria-label={playing ? C.stopPlaying : C.play}
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-[2.5px] border-[#48b078] bg-white text-[#48b078]">
-          {playing ? <Pause className="h-6 w-6" aria-hidden="true" /> : <Play className="h-6 w-6 fill-current" aria-hidden="true" />}
-        </button>
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-[17px] font-semibold" dir="auto">{audio.label}</span>
-          <span className="truncate text-[13px] text-[#6b7280]" dir="auto">{audio.sub}</span>
-        </span>
-        <button type="button" onClick={redo}
-          className="flex min-h-[56px] items-center justify-center gap-1.5 rounded-xl bg-[#f3f4f6] px-3.5 text-sm font-semibold text-[#33374a]">
-          <RotateCcw className="h-4 w-4" aria-hidden="true" />{C.redo}
-        </button>
-      </Card>
+      <AudioCard title={audio.label} sub={audio.sub} src={src}
+        action={(
+          <button type="button" onClick={redo}
+            className="flex min-h-[56px] items-center justify-center gap-1.5 rounded-xl bg-[#f3f4f6] px-3.5 text-sm font-semibold text-[#33374a]">
+            <RotateCcw className="h-4 w-4" aria-hidden="true" />{C.redo}
+          </button>
+        )} />
       {isShort && <Alert>{C.shortWarning}</Alert>}
 
       <SectionHeading chip={C.optional}>{C.lessonPlan}</SectionHeading>

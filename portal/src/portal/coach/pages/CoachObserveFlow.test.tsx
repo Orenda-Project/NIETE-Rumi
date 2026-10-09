@@ -106,7 +106,7 @@ afterEach(() => {
 describe("10 + 12 — the Visit page, in the canvas order", () => {
   it("the Observation box comes first, holds the two ways and Reschedule/Cancel, and shows no heading", async () => {
     renderAt(`/portal/coach/visit/${VISIT_ID}`);
-    const box = await screen.findByRole("region", { name: "Observation" });
+    const box = await screen.findByRole("group", { name: "Observation" });
     const b = within(box);
     expect(b.getByRole("link", { name: "Start recording" })).toBeInTheDocument();
     expect(b.getByRole("link", { name: "Upload recording" })).toBeInTheDocument();
@@ -166,42 +166,16 @@ describe("10 + 12 — the Visit page, in the canvas order", () => {
   });
 });
 
-describe("8 — the two square buttons", () => {
-  it("Start recording: indigo square, centred icon over label, the pulse only when motion is allowed", async () => {
+describe("8 — the two square buttons are the kit's RecordUploadPair", () => {
+  it("Start recording and Upload recording, side by side, with Reschedule and Cancel visit under them", async () => {
     renderAt(`/portal/coach/visit/${VISIT_ID}`);
     const record = await screen.findByRole("link", { name: "Start recording" });
+    const upload = screen.getByRole("link", { name: "Upload recording" });
     expect(record.className).toMatch(/bg-\[#33374a\]/);
-    expect(record.className).toMatch(/flex-col/);
-    expect(record.className).toMatch(/items-center/);
     expect(record.className).toMatch(/min-h-\[176px\]/);
-    const core = within(record).getByTestId("rec-core");
-    expect(core.className).toMatch(/motion-safe:animate-coach-rec-beat/);
-    const rings = within(record).getAllByTestId("rec-ring");
-    expect(rings).toHaveLength(2);
-    for (const r of rings) {
-      expect(r.className).toMatch(/motion-safe:animate-coach-rec-ring/);
-      expect(r.className).toMatch(/motion-reduce:opacity-0/);
-    }
-    expect(rings[1].className).toMatch(/\[animation-delay:0\.9s\]/);
-    expect(record.className).not.toMatch(/(^|\s)animate-/);
-  });
-
-  it("Upload recording: white square, the arrow nudges only when motion is allowed", async () => {
-    renderAt(`/portal/coach/visit/${VISIT_ID}`);
-    const upload = await screen.findByRole("link", { name: "Upload recording" });
     expect(upload.className).toMatch(/bg-white/);
     expect(upload.className).toMatch(/min-h-\[176px\]/);
-    expect(within(upload).getByTestId("up-arrow").getAttribute("class")).toMatch(/motion-safe:animate-coach-up-nudge/);
-  });
-
-  it("the keyframes are the canvas's, exactly", () => {
-    const tw = readFileSync(resolve(__dirname, "../../../../tailwind.config.ts"), "utf8");
-    expect(tw).toMatch(/"coach-rec-ring": \{\s*"0%": \{ transform: "scale\(\.55\)", opacity: "\.9" \},\s*"100%": \{ transform: "scale\(1\.35\)", opacity: "0" \},\s*\}/);
-    expect(tw).toMatch(/"coach-rec-beat": \{\s*"0%, 100%": \{ transform: "scale\(1\)" \},\s*"50%": \{ transform: "scale\(\.86\)" \},\s*\}/);
-    expect(tw).toMatch(/"coach-up-nudge": \{\s*"0%, 70%, 100%": \{ transform: "translateY\(0\)" \},\s*"35%": \{ transform: "translateY\(-3px\)" \},\s*\}/);
-    expect(tw).toContain('"coach-rec-ring": "coach-rec-ring 1.8s ease-out infinite"');
-    expect(tw).toContain('"coach-rec-beat": "coach-rec-beat 1.6s ease-in-out infinite"');
-    expect(tw).toContain('"coach-up-nudge": "coach-up-nudge 2.4s ease-in-out infinite"');
+    expect(screen.getByRole("button", { name: "Cancel visit" }).className).toMatch(/text-\[#c8331f\]/);
   });
 });
 

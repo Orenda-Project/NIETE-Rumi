@@ -128,7 +128,8 @@ describe("Pick the teacher", () => {
     await screen.findByText("Ayesha Bibi");
     expect(screen.queryByRole("searchbox")).toBeNull();
     expect(screen.queryByPlaceholderText("Name or phone")).toBeNull();
-    fireEvent.change(screen.getByLabelText("School"), { target: { value: "niete:494" } });
+    fireEvent.click(screen.getByRole("button", { name: /^School, / }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByText("IMCB G-9/4"));
     expect(screen.queryByText("Ayesha Bibi")).toBeNull();
     // a school filter opens Earlier, so a match is never hidden behind the fold
     expect(screen.getByText("Sadia Noor")).toBeInTheDocument();

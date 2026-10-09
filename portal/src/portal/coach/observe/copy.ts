@@ -39,6 +39,7 @@ export const OBSERVE_COPY = {
   /* pick the teacher */
   pickTheTeacher: 'Pick the teacher',
   school: 'School',
+  selectSchool: 'Select school',
   allSchools: 'All schools',
   earlier: 'Earlier',
   today: 'Today',
@@ -100,8 +101,6 @@ export const OBSERVE_COPY = {
   justNow: 'just now',
   minShort: (n = 0) => `${n} min`,
   underMinute: 'Under 1 min',
-  play: 'Play',
-  stopPlaying: 'Stop',
   redo: 'Redo',
   shortWarning: 'This is under 10 minutes. You can still send it, but the report may be thin.',
   lessonPlan: 'Lesson plan',
@@ -165,6 +164,7 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
 
   pickTheTeacher: 'ٹیچر چنیں',
   school: 'اسکول',
+  selectSchool: 'اسکول چنیں',
   allSchools: 'تمام اسکول',
   earlier: 'پہلے',
   today: 'آج',
@@ -222,8 +222,6 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   justNow: 'ابھی',
   minShort: (n = 0) => `${n} منٹ`,
   underMinute: 'ایک منٹ سے کم',
-  play: 'چلائیں',
-  stopPlaying: 'ختم کریں',
   redo: 'دوبارہ ریکارڈ کریں',
   shortWarning: 'یہ 10 منٹ سے کم ہے۔ آپ پھر بھی بھیج سکتے ہیں، مگر رپورٹ مختصر ہو سکتی ہے۔',
   lessonPlan: 'لیسن پلان',

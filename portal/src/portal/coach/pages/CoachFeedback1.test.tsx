@@ -211,7 +211,8 @@ describe("4 — Pick the teacher lists every visit, by day, in order", () => {
     renderAt("/portal/coach/observe/pick");
     await screen.findByText("Ayesha Bibi");
     expect(screen.queryByPlaceholderText("Name or phone")).toBeNull();
-    fireEvent.change(screen.getByLabelText("School"), { target: { value: "niete:494" } });
+    fireEvent.click(screen.getByRole("button", { name: /^School, / }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByText("IMCB G-9/4"));
     expect(screen.getByText("Hina Tariq")).toBeInTheDocument();
     expect(screen.queryByText("Ayesha Bibi")).toBeNull();
   });

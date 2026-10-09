@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Clock, Plus, School } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
-import { HistoryList, type HistoryItem } from "../../teacher/ui";
+import { HistoryList, SelectField, type HistoryItem } from "../../teacher/ui";
 import { StatusChip } from "../../teacher/ui/StatusChip";
 import { coach } from "../../services/api";
-import { SelectBox, BottomLink, Loading, Failed, useLoad, formatPhone } from "../ui";
+import { BottomLink, Loading, Failed, useLoad, formatPhone } from "../ui";
 import { karachiDay, localDay } from "../time";
 import { OBSERVE } from "../observe/copy";
 import { dayShort } from "../observe/format";
@@ -109,7 +109,8 @@ const CoachObservePick = () => {
   return (
     <ObservePage title={C.pickTheTeacher} crumb={`${C.observe} · ${C.takeObservation}`} backTo="/portal/coach/observe" feature="observations"
       dock={<BottomLink to="/portal/coach/new-visit" tone="outline"><Plus className="h-5 w-5" aria-hidden="true" />{C.scheduleFirst}</BottomLink>}>
-      <SelectBox label={C.school} value={school} onChange={setSchool} icon={<School className="h-5 w-5 shrink-0 text-[#6b7280]" aria-hidden="true" />}
+      <SelectField label={C.school} title={C.selectSchool} value={school} onChange={setSchool}
+        icon={<School className="h-5 w-5" aria-hidden="true" />}
         options={[{ value: "", label: C.allSchools }, ...schools]} />
       {failed && <Failed onRetry={reload} />}
       {!data && !failed && <Loading />}
