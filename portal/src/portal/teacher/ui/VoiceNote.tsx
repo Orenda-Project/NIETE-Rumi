@@ -4,6 +4,7 @@ import { FeatureGlyph } from '../icons';
 import type { TeacherUiCopy } from './copy';
 import { useKitCopy } from './useKitCopy';
 import { FOCUS } from './styles';
+import { claimSound, releaseSound } from './sounding';
 
 /**
  * bd-fmf24g.2.3 — VoiceNote (COMPONENTS.md §7): a WhatsApp-style incoming voice note — the Digital Coach's ~90 s
@@ -33,9 +34,6 @@ export interface VoiceNoteProps {
 }
 
 const BARS = [8, 14, 22, 12, 26, 18, 10, 24, 16, 8, 20, 28, 14, 18, 10, 22, 16, 8, 12, 24, 18, 10, 26, 14, 8, 20, 12, 16];
-
-/** The one voice note sounding now: starting another pauses it. */
-let sounding: HTMLAudioElement | null = null;
 
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -67,7 +65,7 @@ export function VoiceNote({ from, avatar = 'dc', initials = '', duration, time, 
       el.removeEventListener('pause', onPause);
       el.removeEventListener('ended', onEnd);
       el.removeEventListener('timeupdate', onTime);
-      if (sounding === el) sounding = null;
+      releaseSound(el);
     };
   }, [src]);
 
@@ -75,8 +73,7 @@ export function VoiceNote({ from, avatar = 'dc', initials = '', duration, time, 
     const el = audio.current;
     if (!el || !src) { setPlaying((p) => !p); setPlayed(true); return; }
     if (playing) { el.pause(); return; }
-    if (sounding && sounding !== el) sounding.pause();
-    sounding = el;
+    claimSound(el);
     void el.play()?.catch?.(() => setPlaying(false));
   };
 
