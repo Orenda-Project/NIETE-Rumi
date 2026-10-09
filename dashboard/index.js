@@ -130,6 +130,7 @@ const wordCloudRoutes = require('./routes/wordcloud');
 
 // Teacher Portal Routes
 const portalRoutes = require('./routes/portal.routes');
+const appLoginRoutes = require('./routes/app-login.routes');
 const hcpRoutes = require('./routes/hcp.routes');
 const attendanceRoutes = require('./routes/attendance.routes');
 // bd-fmf24g.3 — teacher app v2: grade·subject pairs + Lesson Plans routes.
@@ -2790,6 +2791,9 @@ app.get('/observability/ama-chats/:conversationId/messages', requireAuth, async 
 
 // Funnel Tracking routes (PUBLIC - no auth required, with CORS and rate limiting)
 app.use('/api/track', cors(trackingCorsOptions), trackingLimiter, funnelTrackingRoutes);
+
+// bd-fmf24g.35 — /go/:token: the one-tap login a pilot teacher gets on WhatsApp (the WHOLE teacher app, no area scope).
+app.use(appLoginRoutes.createAppLoginRouter());
 
 // Teacher Portal API routes (with CORS, rate limiting, NO auth middleware - routes handle auth internally)
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, portalRoutes);
