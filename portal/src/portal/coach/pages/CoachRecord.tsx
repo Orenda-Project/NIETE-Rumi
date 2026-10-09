@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, CalendarDays, MicOff, Pause, Play, Square } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
+import { HistoryRow } from "../../teacher/ui";
 import { StatusChip } from "../../teacher/ui/StatusChip";
 import { Tray } from "../../teacher/ui/Tray";
 import { TimeStamp } from "../../teacher/ui/TimeStamp";
 import { coach } from "../../services/api";
-import { Card, Initials, Loading, Failed, useLoad } from "../ui";
+import { Card, Loading, Failed, useLoad } from "../ui";
 import { OBSERVE } from "../observe/copy";
 import { lengthShort } from "../observe/format";
 import ObservePage from "../observe/ObservePage";
@@ -113,13 +114,7 @@ function Recorder({ visit, onBlocked }: { visit: CoachVisit; onBlocked: () => vo
           </div>
         )}
         <Card className="w-full overflow-hidden" data-testid="linked-visit">
-          <div className="flex items-center gap-3.5 px-4 py-3.5">
-            <Initials name={visit.teacherName} />
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate text-[17px] font-semibold">{visit.teacherName || C.dash}</span>
-              <span className="truncate text-[13px] text-[#6b7280]">{visit.schoolName || C.dash}</span>
-            </span>
-          </div>
+          <HistoryRow lead="person" title={visit.teacherName || C.dash} extra={visit.schoolName || undefined} action="none" />
           <div className="flex min-h-[56px] items-center gap-2.5 border-t border-[#e5e7eb] px-4 py-3">
             <CalendarDays className="h-5 w-5 text-[#6b7280]" aria-hidden="true" />
             <span className="flex flex-1 items-center gap-2 text-[15px] font-medium">{C.visitAt("")}<TimeStamp time={visit.scheduledSlot} tone="next" size={15} /></span>

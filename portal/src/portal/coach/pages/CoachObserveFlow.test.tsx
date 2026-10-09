@@ -151,7 +151,7 @@ describe("10 + 12 — the Visit page, in the canvas order", () => {
   it("someone else's WhatsApp observation: their name, its step, and it opens the observation page", async () => {
     C.getVisit.mockResolvedValue({ ...VISIT, lastVisit: { id: "s-wa", date: "2026-09-30T09:00:00Z", score: null, step: "draft", byMe: false, observerName: "Imran S", portal: false } });
     renderAt(`/portal/coach/visit/${VISIT_ID}`);
-    const row = await screen.findByTestId("last-visit");
+    const row = await screen.findByRole("link", { name: /Last visit/ });
     expect(row).toHaveAttribute("href", "/portal/coach/observation/s-wa");
     expect(row).toHaveTextContent("HITL · Imran S");
     expect(row).toHaveTextContent("Feedback Form");

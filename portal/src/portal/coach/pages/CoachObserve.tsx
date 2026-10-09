@@ -1,10 +1,9 @@
 import { useCopy } from "../../teacher/i18n";
 import { FeatureMotionProvider } from "../../teacher/icons";
-import { FeatureTile } from "../../teacher/ui";
-import { TimeStamp } from "../../teacher/ui/TimeStamp";
-import { StatusChip } from "../../teacher/ui/StatusChip";
+import { FeatureTile, HistoryRow } from "../../teacher/ui";
+import { LIST_CARD } from "../../teacher/ui/styles";
 import { coach } from "../../services/api";
-import { Initials, RowText, SectionLabel, TapRow, useLoad } from "../ui";
+import { SectionLabel, useLoad } from "../ui";
 import { hoursUntil, karachiDay } from "../time";
 import { OBSERVE } from "../observe/copy";
 import { dayShort } from "../observe/format";
@@ -47,14 +46,11 @@ const CoachObserve = () => {
       {next && (
         <>
           <SectionLabel>{C.nextVisit}</SectionLabel>
-          <TapRow to={`/portal/coach/visit/${next.id}`} emphasis testId="next-visit">
-            <Initials name={next.teacherName} />
-            <RowText name={next.teacherName || C.dash} sub={next.schoolName} />
-            <span className="flex shrink-0 flex-col items-end gap-1">
-              <TimeStamp time={next.scheduledSlot} tone="next" />
-              {hours != null && hours >= 0 ? <StatusChip text={C.inHours(hours)} tone="info" /> : when ? <StatusChip text={when} tone="info" /> : null}
-            </span>
-          </TapRow>
+          <section className={LIST_CARD} data-testid="next-visit-card">
+            <HistoryRow lead="person" state="next" title={next.teacherName || C.dash} extra={next.schoolName || undefined}
+              time={next.scheduledSlot} to={`/portal/coach/visit/${next.id}`}
+              chip={hours != null && hours >= 0 ? { text: C.inHours(hours), tone: "info" } : when ? { text: when, tone: "info" } : null} />
+          </section>
         </>
       )}
     </ObservePage>

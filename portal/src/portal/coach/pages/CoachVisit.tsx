@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { CalendarDays, MapPin, Phone, User, X } from "lucide-react";
+import { CalendarDays, MapPin, User, X } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
+import { HistoryRow } from "../../teacher/ui";
 import { StatusChip } from "../../teacher/ui/StatusChip";
 import { Tray } from "../../teacher/ui/Tray";
 import { TimeStamp } from "../../teacher/ui/TimeStamp";
 import { coach, leader } from "../../services/api";
-import { Card, SectionLabel, Initials, Loading, Failed, useLoad, Chevron, formatPhone } from "../ui";
+import { Card, SectionLabel, Loading, Failed, useLoad, Chevron, formatPhone } from "../ui";
 import { hoursUntil, karachiDay } from "../time";
 import { OBSERVE } from "../observe/copy";
 import { dayMonth, dayShort, daysShort, pct } from "../observe/format";
@@ -66,22 +67,14 @@ function LastVisitRow({ last }: { last: LastVisit }) {
   const who = last.byMe ? C.you : (last.observerName || C.dash);
   const step = last.step ? C.lastStep[last.step] : null;
   // bd-o15qnr.19 — the one v2 observation page, portal or WhatsApp.
-  const to = last.id ? `/portal/coach/observation/${last.id}` : null;
-  const inner = (
-    <>
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#f3f4f6] text-[13px] font-bold text-[#33374a]">{pct(last.score)}</span>
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-[15px] font-semibold">{C.lastVisitOn(date)}</span>
-        <span className="truncate text-[13px] text-[#6b7280]">{C.hitlBy(who)}</span>
-      </span>
-      {step && <StatusChip text={step} tone={last.step === "sent" ? "done" : last.step === "analysing" ? "info" : "waiting"} />}
-      {to && <Chevron />}
-    </>
+  const to = last.id ? `/portal/coach/observation/${last.id}` : undefined;
+  return (
+    <div data-testid="last-visit-row" className="border-t border-[#e5e7eb]">
+      <HistoryRow lead="person" leadText={pct(last.score)} leadLabel={pct(last.score)} title={C.lastVisitOn(date)} extra={C.hitlBy(who)}
+        to={to} action={to ? "chevron" : "none"}
+        chip={step ? { text: step, tone: last.step === "sent" ? "done" : last.step === "analysing" ? "info" : "waiting" } : null} />
+    </div>
   );
-  const cls = "flex min-h-[68px] items-center gap-3 border-t border-[#e5e7eb] py-2 pe-3.5 ps-4";
-  return to
-    ? <Link to={to} data-testid="last-visit" className={`${cls} hover:bg-[#f9fafb]`}>{inner}</Link>
-    : <div data-testid="last-visit" className={cls}>{inner}</div>;
 }
 
 const CoachVisit = () => {
@@ -158,17 +151,7 @@ const CoachVisit = () => {
 
           <div className="mt-[10px]"><SectionLabel>{C.teacher}</SectionLabel></div>
           <Card className="overflow-hidden" data-testid="teacher-card">
-            <div className="flex items-center gap-3 px-4 py-3.5">
-              <Initials name={name} />
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="truncate text-lg font-semibold">{name}</span>
-                {phone && (
-                  <span data-testid="teacher-phone" dir="ltr" className="flex items-center gap-1 text-[13px] text-[#6b7280]">
-                    <Phone className="h-[13px] w-[13px]" aria-hidden="true" />{phone}
-                  </span>
-                )}
-              </span>
-            </div>
+            <HistoryRow lead="person" title={name} extra={phone || undefined} action="none" />
             <div className="flex flex-col gap-3 border-t border-[#e5e7eb] px-4 py-3.5">
               <div className="flex items-center gap-2.5 text-[15px] font-medium"><MapPin className="h-5 w-5 shrink-0 text-[#6b7280]" aria-hidden="true" />{visit.schoolName || C.dash}</div>
               <div className="flex items-center gap-2.5 text-[15px] font-medium">

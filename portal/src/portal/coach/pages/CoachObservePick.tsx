@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Clock, Plus, School } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
+import { HistoryList, type HistoryItem } from "../../teacher/ui";
 import { StatusChip } from "../../teacher/ui/StatusChip";
-import { TimeStamp } from "../../teacher/ui/TimeStamp";
 import { coach } from "../../services/api";
-import { SectionLabel, DayLabel, Initials, RowText, TapRow, SelectBox, BottomLink, Loading, Failed, useLoad, formatPhone } from "../ui";
+import { SelectBox, BottomLink, Loading, Failed, useLoad, formatPhone } from "../ui";
 import { karachiDay, localDay } from "../time";
 import { OBSERVE } from "../observe/copy";
 import { dayShort } from "../observe/format";
@@ -89,38 +89,21 @@ const CoachObservePick = () => {
 
   const sub = (v: CoachVisit) => [v.schoolName, formatPhone(v.teacherExtId)].filter(Boolean).join(" · ");
 
-  const row = (v: CoachVisit) => {
+  /** One visit as a kit coach row: the round avatar, the time on the first line, its status as a chip. */
+  const item = (v: CoachVisit): HistoryItem => {
     if (v.status === "done") {
-      return (
-        <div key={v.id} aria-disabled="true" className="flex min-h-[84px] items-center gap-3.5 rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] p-3 opacity-75">
-          <Initials name={v.teacherName} />
-          <RowText name={v.teacherName || C.dash} sub={sub(v)} />
-          <span className="flex shrink-0 flex-col items-end gap-1">
-            <TimeStamp time={v.scheduledSlot} tone="done" />
-            <StatusChip text={C.done} tone="done" tick />
-          </span>
-        </div>
-      );
+      return { id: v.id, lead: "person", state: "done", title: v.teacherName || C.dash, extra: sub(v), time: v.scheduledSlot, action: "none", chip: { text: C.done, tone: "done" } };
     }
     const late = !!v.scheduledFor && v.scheduledFor < today;
-    return (
-      <TapRow key={v.id} to={`/portal/coach/visit/${v.id}`} emphasis={v.id === nextId}>
-        <Initials name={v.teacherName} />
-        <RowText name={v.teacherName || C.dash} sub={sub(v)} />
-        <span className="flex shrink-0 flex-col items-end gap-1">
-          <TimeStamp time={v.scheduledSlot} tone={late ? "overdue" : v.id === nextId ? "next" : "neutral"} />
-          {late ? <StatusChip text={C.daysLate(daysBetween(v.scheduledFor!, today))} tone="waiting" />
-            : v.id === nextId ? <StatusChip text={C.next} tone="info" /> : null}
-        </span>
-      </TapRow>
-    );
+    return {
+      id: v.id, lead: "person", title: v.teacherName || C.dash, extra: sub(v), time: v.scheduledSlot, to: `/portal/coach/visit/${v.id}`,
+      state: v.id === nextId ? "next" : "default", timeTone: late ? "overdue" : undefined,
+      chip: late ? { text: C.daysLate(daysBetween(v.scheduledFor!, today)), tone: "waiting" } : v.id === nextId ? { text: C.next, tone: "info" } : null,
+    };
   };
 
-  const group = (g: { day: string; visits: CoachVisit[] }) => (
-    <div key={g.day} className="flex flex-col gap-2.5">
-      <DayLabel count={g.visits.length}>{g.day ? dayShort(g.day, C) : C.dash}</DayLabel>
-      {g.visits.map(row)}
-    </div>
+  const list = (day: string, visits: CoachVisit[]) => (
+    <HistoryList groups={[{ day, items: visits.map(item) }]} showMore={false} />
   );
 
   return (
@@ -143,16 +126,15 @@ const CoachObservePick = () => {
                 <span className="flex-1" />
                 {earlierOpen ? <ChevronUp className="h-5 w-5 text-[#9ca3af]" aria-hidden="true" /> : <ChevronDown className="h-5 w-5 text-[#9ca3af]" aria-hidden="true" />}
               </button>
-              {earlierOpen && earlier.map(group)}
+              {earlierOpen && earlier.map((g) => <div key={g.day}>{list(g.day ? dayShort(g.day, C) : C.dash, g.visits)}</div>)}
             </section>
           )}
           <section data-testid="day-group" data-day={today} className="flex flex-col gap-2.5">
-            <SectionLabel count={todays.length}>{C.today}</SectionLabel>
-            {todays.map(row)}
+            {todays.length > 0 && list(C.today, todays)}
           </section>
           {later.map((g) => (
             <section key={g.day} data-testid="day-group" data-day={g.day} className="flex flex-col gap-2.5">
-              {group(g)}
+              {list(g.day ? dayShort(g.day, C) : C.dash, g.visits)}
             </section>
           ))}
         </>

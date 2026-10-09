@@ -195,6 +195,6 @@ describe("7 — Feedback Form and Debrief in the v2 screens", () => {
       visit: { id: "v1", teacherName: "Ayesha Bibi", teacherExtId: "923001110001", schoolName: "IMSG I-10/1", schoolExtId: "niete:110", scheduledFor: "2026-10-07", scheduledSlot: "11:30", status: "upcoming" },
       lastVisit: { id: "s-wa", date: "2026-09-30T09:00:00Z", score: null, step: "talk", byMe: false, observerName: "Imran S", portal: false } });
     renderAt("/portal/coach/visit/v1");
-    expect(await screen.findByTestId("last-visit")).toHaveTextContent("Debrief");
+    expect(await screen.findByRole("link", { name: /Last visit/ })).toHaveTextContent("Debrief");
   });
 });

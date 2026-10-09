@@ -98,8 +98,8 @@ describe("Observe hub", () => {
       },
     });
     renderAt("/portal/coach/observe");
-    const row = await screen.findByTestId("next-visit");
-    expect(row).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}`);
+    const row = await screen.findByTestId("next-visit-card");
+    expect(within(row).getByRole("link")).toHaveAttribute("href", `/portal/coach/visit/${VISIT_ID}`);
     expect(row).toHaveTextContent("Ayesha Bibi");
     expect(row).toHaveTextContent("IMSG I-10/1");
     expect(within(row).getByRole("img", { name: "11:30 AM" })).toBeInTheDocument();
