@@ -3,7 +3,7 @@
  * spec (versions/v28_teacher-polish/COMPONENTS.md in the NIETE Portal Coaching report folder). How to use each:
  * README.md beside this file. Feature icons: ../icons.
  */
-export { TEACHER_UI_COPY, type ReportCopy, type TeacherUiCopy } from './copy';
+export { TEACHER_UI_COPY, type NotifyCopy, type ReportCopy, type TeacherUiCopy } from './copy';
 export { CHIP_TONE, type ChipData, type ChipTone } from './styles';
 export { StatusChip, type StatusChipProps } from './StatusChip';
 export {
@@ -15,6 +15,9 @@ export { HistoryRow, leadColours, type HistoryAction, type HistoryRowProps, type
 export { HistoryList, type HistoryGroup, type HistoryItem, type HistoryListProps } from './HistoryList';
 export { ListRow, type ListRowIcon, type ListRowProps, type ListRowState } from './ListRow';
 export { Tray, type TrayProps } from './Tray';
+export { ReadyTray, trayHeight, type ReadyTrayProps, type TrayRow } from './ReadyTray';
+export { ReadyBanner, type BannerRow, type ReadyBannerProps } from './ReadyBanner';
+export { LeaveNote } from './LeaveNote';
 export {
   ASSESSMENT_SUBJECTS_BY_GRADE, LESSON_SUBJECTS_BY_GRADE, subjectsByGradeFor, type SubjectsByGrade, type TeacherCatalogueFeature,
 } from './catalogue';

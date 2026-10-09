@@ -18,11 +18,13 @@ import { ASSESSMENT_V2_BASE, editPath, newPaperPath, paperPath, requestPath } fr
 import { resetPicks, setPicks } from './store';
 import { useJobs } from './useJobs';
 import { Chip, ListCard, LoadState, OUTLINE, PRIMARY } from './ui';
+import { LeaveNote } from '../ui';
+import { NOTICES } from '../notices/copy';
 
 /**
  * bd-fmf24g.6 — one paper she asked for (v28 canvas AssessWriting / AssessFailed / AssessReady):
  *
- *   writing  a ring, ~1 min, Safe to leave (the job keeps being tracked; Being made shows it),
+ *   writing  a ring, ~1 min, "You can leave. We'll tell you here." (the shell follows the job; the strip shows it),
  *            My papers / Make another
  *   failed   the bot's reason (its error code, as a label), Try again (the same request again),
  *            Change choices (back to Check and make with her choices), Dismiss
@@ -62,6 +64,7 @@ function useDirectStatus(requestId: string, ask: boolean): Seen | null {
 
 export function RequestPage() {
   const C = useCopy(ASSESSMENT);
+  const N = useCopy(NOTICES);
   const { requestId = '' } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -113,8 +116,9 @@ export function RequestPage() {
         </div>
         <div className="flex flex-wrap justify-center gap-2">
           <Chip tone="warn">{job?.slow ? C.slow : C.aboutAMinute}</Chip>
-          <Chip>{C.safeToLeave}</Chip>
         </div>
+        {/* bd-fmf24g.15 — replaces the "Safe to leave" chip: the app tells her here when it is ready. */}
+        <LeaveNote text={N.leave} />
         <div className="w-full">{card}</div>
       </div>
     );
