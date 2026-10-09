@@ -216,6 +216,14 @@ same stretch one step back (1–8 Oct vs 1–8 Sep; the n picked days vs the n d
 "—"; change pill ▲ green / ▼ amber / ● Same (`better: 'down'` swaps the colours); sparkline from ≥2 points. Numbers
 come from the page's data only.
 
+`items[].feature?` (bd-fmf24g.27): the Home-tile look, CENTRED: the feature's art on its tint, the number (44px) in the feature's colour,
+the change pill, the label; information only (no chevron). Pass no `compareLabel` on Analytics: the pill carries the comparison.
+
+### `FeatureCard`, `MeterRow`
+`FeatureCard`: `feature`, `title`, `count?`, children. A white card whose header wears the feature (tint, art on white, title in its colour); the body is the
+page's content. `MeterRow`: `feature`, `label`, `value?` ("94%"), `unit?`, `pct`, `chips?`; a bar in the feature's colour on its tint. `TrendChart` takes
+`colour` (the feature's) for its line and dots. Charts and bars take the colour of the feature they measure; grade colours only where a grade·subject shows.
+
 ### `ProgressSteps`
 `heading?` (`copy.progress`), `steps: [{ label, sub?, state: 'done' | 'current' | 'later', nowText? }]`, `done?`,
 `doneLabel?`, `open?` / `onOpenChange?`, `copy?` (`progress`, `done`, `now`, `stepsCount`). The current step has
