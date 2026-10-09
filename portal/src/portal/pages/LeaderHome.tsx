@@ -8,6 +8,8 @@ import StatCard from "../components/StatCard";
 import LoadingState from "../components/LoadingState";
 import type { LeaderOverview } from "../types/portal";
 import { useCoachV2, isCoachV2For } from "../coach/useCoachV2";
+import { useTeacherV2, isTeacherV2For } from "../teacher/useTeacherV2";
+import { teacherPath } from "../teacher/routes";
 
 /**
  * Leader Portal — "My Patch" home (bd-2434, NIETE port of upstream bd-2391).
@@ -21,6 +23,8 @@ const LeaderHome = () => {
   const { user } = useAuth();
   // bd-o15qnr — a coach in the v2 pilot lands on the v2 Home instead.
   const coachV2 = isCoachV2For(user, useCoachV2(user?.phoneNumber || null, !!user));
+  // A principal on the teacher app v2 lands on its Home (she gets the teacher app, plus her school).
+  const teacherV2 = isTeacherV2For(user, useTeacherV2(user?.phoneNumber || null, !!user));
   const name = user?.firstName?.trim();
   const [overview, setOverview] = useState<LeaderOverview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,6 +40,7 @@ const LeaderHome = () => {
   }, []);
 
   if (coachV2) return <Navigate to="/portal/coach" replace />;
+  if (teacherV2) return <Navigate to={teacherPath("home")} replace />;
 
   return (
     <PortalLayout>
