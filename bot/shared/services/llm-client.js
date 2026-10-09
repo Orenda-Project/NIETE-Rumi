@@ -646,7 +646,9 @@ function unusableAnswer(res, params, job) {
   if ((message && message.refusal) || finishReason === 'content_filter') {
     return { kind: 'refused', reason: 'refused, or stopped by a content filter', finishReason };
   }
-  if (finishReason === 'length') return { kind: 'cut_off', reason: 'cut off at the output limit', finishReason };
+  if (finishReason === 'length' && !labelSurvivesCutOff(job, message && message.content)) {
+    return { kind: 'cut_off', reason: 'cut off at the output limit', finishReason };
+  }
   const content = message ? message.content : null;
   if (typeof content !== 'string' || !content.trim()) return { kind: 'empty', reason: 'empty answer', finishReason };
   const shape = jsonShapeFor(params) || jsonReplyShape(job);
@@ -713,6 +715,20 @@ function callerRepairsTo(job, content, shape) {
   try { return hasShape(JSON.parse(repair(text)), shape); } catch (_) { return false; }
 }
 
+/**
+ * Whether a cut-off answer still holds everything its caller reads (bd-gr4fy.5.15): a job in
+ * LABEL_REPLY_JOBS reads only the label its reply starts with, so when that label is complete, the
+ * limit cut the sentence after it, not the answer. Any other cut-off answer is not the answer.
+ */
+function labelSurvivesCutOff(job, content) {
+  try {
+    // eslint-disable-next-line global-require
+    return Boolean(require('../config/model-registry').leadingLabel(job, content));
+  } catch (_) {
+    return false;
+  }
+}
+
 /** The JSON shape a job's caller parses out of a reply it never asked JSON mode for, or null. */
 function jsonReplyShape(job) {
   try {
@@ -768,6 +784,11 @@ async function runWithJobOverride(job, params, options, callSite, declared = nul
     const res = await callModel(first.model, params, { ...(options || {}), maxRetries: 0 }, job, moved);
     failure = unusableAnswer(res, params, job);
     if (!failure) {
+      // A cut-off answer gets here only with its label complete (bd-gr4fy.5.15); counted, so the gain is measured.
+      if (res.choices[0].finish_reason === 'length') {
+        // eslint-disable-next-line global-require
+        require('../utils/structured-logger').logEvent('llm.cut_off_label_kept', { job, model: first.model, source: first.source });
+      }
       res.usage = { ...(res.usage || {}), job_override: { from: behind, to: first.model, source: first.source } };
       return res;
     }

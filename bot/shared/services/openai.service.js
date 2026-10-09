@@ -1,5 +1,5 @@
 const { CONVERSATION_HISTORY_LIMIT } = require('../utils/constants');
-const { modelFor } = require('../config/model-registry');
+const { modelFor, leadingLabel } = require('../config/model-registry');
 const { logToFile } = require('../utils/logger');
 const { buildLanguagePrompt, hasEnhancedPrompt } = require('../config/language-prompts');
 const { classroomMinimumMinutes } = require('../config/classroom-audio.config');
@@ -732,11 +732,17 @@ If (and ONLY if) the message refers back to a lesson plan the teacher ALREADY ha
       });
 
       const raw = completion.choices[0].message.content.trim().toLowerCase();
+      // bd-gr4fy.5.15: the label is read where the reply starts. A model that writes a sentence after
+      // its one word still meant that word, and a cut-off reply whose label is complete now reaches
+      // here instead of being asked again (llm-client, LABEL_REPLY_JOBS). A reply that does not start
+      // with a label is read exactly as before.
+      const head = leadingLabel('chat.intent', raw);
       // bd-njn7u: the optional " lp_ref" marker — she is referring back to a
       // lesson she already has. Only meaningful on general (it gates the LP
       // Q&A context detail tier); stripped before intent validation either way.
-      const lpRef = /\blp_ref\b/.test(raw);
-      const intent = raw.replace(/\blp_ref\b/g, '').trim();
+      // After a label it counts only right after it, never inside an explanation.
+      const lpRef = head ? /^\s*lp_ref\b/.test(head.rest) : /\blp_ref\b/.test(raw);
+      const intent = head ? head.label : raw.replace(/\blp_ref\b/g, '').trim();
 
       // Validate the response
       if (intent === 'lesson_plan' || intent === 'lesson plan') {
