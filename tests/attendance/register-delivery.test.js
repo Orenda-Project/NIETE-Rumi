@@ -128,6 +128,20 @@ describe('the happy path', () => {
   });
 });
 
+describe('a refused send is not a delivery (bd-fmf24g.36)', () => {
+  // WhatsAppService.sendDocument never throws: it answers false when Meta refuses (outside the 24 h window,
+  // a bad token). The register used to be reported delivered anyway, so the portal showed "Sent on WhatsApp".
+  it('says not delivered when sendDocument answers false', async () => {
+    db();
+    mockSendDocument.mockResolvedValue(false);
+    const result = await delivery.deliverTeacherRegister({
+      principalUserId: 'p1', schoolId: 'sch1', date: '2026-08-14', staff: STAFF,
+    });
+    expect(result.delivered).toBe(false);
+    expect(result.error).toBe('send_refused');
+  });
+});
+
 describe('delivery never breaks the save', () => {
   it('reports not-delivered when WhatsApp refuses, without throwing', async () => {
     db();
