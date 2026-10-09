@@ -354,7 +354,7 @@ export const TEACHER_UI_UR: TeacherUiCopy = {
   notApplicable: 'لاگو نہیں',
   digitalCoach: 'ڈیجیٹل کوچ',
   visitsN: (n = 0) => `${n} دورے`,
-  showAllN: (n = 0) => `سب ${n} دکھائیں`,
+  showAllN: (n = 0) => `تمام ${n}`,
   showFewer: 'کم دکھائیں',
   you: 'آپ',
   doneWord: 'مکمل',
