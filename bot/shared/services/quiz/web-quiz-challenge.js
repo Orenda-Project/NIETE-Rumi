@@ -61,6 +61,11 @@ const GUARD_FLAG_KEY = 'web_quiz_challenge_read_guard';
 const ITEMS_FLAG_KEY = 'web_quiz_challenge_items';
 // Keep the readings (private, one prefix, dated) instead of deleting them after scoring; off ⇒ scored and deleted.
 const KEEP_FLAG_KEY = 'web_quiz_challenge_keep_audio';
+// The trail (each exercise a stop on a map, a finish badge on a stop's first counted play, replays under a practice
+// banner) and "Missing number" (keypad, EGMA's missing-number task). Each is effective only with _record: the badge
+// and the practice banner both read the first-attempt record.
+const TRAIL_FLAG_KEY = 'web_quiz_challenge_trail';
+const MISSING_FLAG_KEY = 'web_quiz_challenge_missing';
 const QA_MAX = 3;
 // Never shown to a child as an option (the page's no-test-words rule, Urdu and English).
 // "I don't know" is never offered as an option (it is in some rubrics' reject lists as a non-answer).
@@ -98,13 +103,14 @@ function childTest({ scorer = false } = {}) {
 // The exercises built so far, in menu order. The other five of the battery are added here as they ship.
 const EXERCISES = Object.freeze([
   { id: 'bigger', mins: 2, task: () => 'ma.discrimination' },
-  { id: 'read', mins: 2, task: (lang) => `${lang}.story` },
+  { id: 'missing', mins: 2, task: () => 'ma.missing' },
+  { id: 'read', mins: 2, task: (lang) => `${lang}.story`, mic: true },
   { id: 'listen', mins: 2, task: (lang) => `${lang}.listening` },
 ]);
 const byId = (id) => EXERCISES.find((e) => e.id === id) || null;
 
 // Names and the mascot's lines live in the string catalog (ux-strings.js, keys wqCh*), both languages.
-const KEY = { bigger: 'Bigger', read: 'Read', listen: 'Listen' };
+const KEY = { bigger: 'Bigger', missing: 'Missing', read: 'Read', listen: 'Listen' };
 const PART_KEY = { intro: 'Intro', start: 'Start', stop: 'Stop', done: 'Done' };
 const nameOf = (ex, lang) => resolveUx(`wqCh${KEY[ex]}Name`, { language: lang });
 const lineOf = (ex, part, lang) => resolveUx(`wqCh${KEY[ex]}${PART_KEY[part]}`, { language: lang });
@@ -159,13 +165,23 @@ const recordOn = () => settingOn(RECORD_FLAG_KEY);
 const readGuardOn = () => settingOn(GUARD_FLAG_KEY);
 const itemsOn = () => settingOn(ITEMS_FLAG_KEY);
 const keepAudioOn = () => settingOn(KEEP_FLAG_KEY);
-const rulesOf = async () => ({ record: await recordOn(), guard: await readGuardOn(), items: await itemsOn() });
+const trailOn = () => settingOn(TRAIL_FLAG_KEY);
+const missingOn = () => settingOn(MISSING_FLAG_KEY);
+const rulesOf = async () => {
+  const record = await recordOn();
+  return { record, guard: await readGuardOn(), items: await itemsOn(), trail: record && (await trailOn()), missing: record && (await missingOn()) };
+};
 // The payload says only which rules are on (nothing when none is: today's payload).
 const ruleFlags = (rules) => ({ ...(rules.record ? { record: true } : {}), ...(rules.guard ? { guard: true } : {}), ...(rules.items ? { items: true } : {}) });
 
 // The read guard's page copy, from the catalog (both languages). The page fills `{words}` with the words read.
 const COPY_KEYS = { stuck: 'wqChStuck', incomplete: 'wqChIncomplete', micSay: 'wqChMicSay', micHeard: 'wqChMicHeard', micSilent: 'wqChMicSilent', stopAsk: 'wqChStopAsk', wholeMinute: 'wqChWholeMinute' };
 const copyFor = (lang) => Object.fromEntries(Object.entries(COPY_KEYS).map(([k, key]) => [k, resolveUx(key, { language: lang, params: { words: '{words}' } })]));
+// The trail's page copy and the keypad's lines (both languages). The page fills {name} {done} {total} {n}.
+const TRAIL_KEYS = { title: 'wqChTrailTitle', sub: 'wqChTrailSub', allDone: 'wqChTrailAllDone', badge: 'wqChTrailBadge', next: 'wqChTrailNext', mic: 'wqChTrailMic', needsMic: 'wqChTrailNeedsMic', micWait: 'wqChTrailMicWait', other: 'wqChTrailOther', back: 'wqChTrailBack', practice: 'wqChTrailPractice', stopDone: 'wqChTrailStopDone', missAsk: 'wqChMissingAsk', missYes: 'wqChMissingYes', missWas: 'wqChMissingWas', missSkip: 'wqChMissingSkip', micAgain: 'wqChTrailMicAgain', helpAsk: 'wqChHelpAsk', helpNo: 'wqChHelpNo', helpYes: 'wqChHelpYes' };
+// "On your own, or with help?" as the page sends it: true, false, or not asked (null). Never a default.
+const helpedOf = (v) => (v === true || v === false ? v : null);
+const trailCopy = (lang) => Object.fromEntries(Object.entries(TRAIL_KEYS).map(([k, key]) => [k, resolveUx(key, { language: lang, params: { name: '{name}', done: '{done}', total: '{total}', n: '{n}' } })]));
 
 // A test child ("<Name> Testwala"): the row says so, so no filter has to guess.
 const isTestName = (name) => /testwala\s*$/i.test(String(name || ''));
@@ -526,12 +542,15 @@ async function menu(token, { kid, lang, device } = {}) {
   return {
     form: `G${w.form}`,
     lang: w.lang,
-    exercises: EXERCISES.filter((e) => (e.id !== 'read' || readOk) && (e.id !== 'listen' || listenOk)).map((e) => {
+    exercises: EXERCISES.filter((e) => (e.id !== 'read' || readOk) && (e.id !== 'listen' || listenOk) && (e.id !== 'missing' || rules.missing)).map((e) => {
       const last = runs.find((r) => r.exercise === e.id) || null;
-      // the record rule: done from the first counted run, and the menu is not a report — no number on it
-      return { id: e.id, name: nameOf(e.id, w.lang), mins: e.mins, done: !!last, last: rules.record ? null : lastOf(last) };
+      // the record rule: done from the first counted run, and the menu is not a report — no number on it.
+      // On the trail that same first counted run, of any outcome (stopped, incomplete), is the stop's badge.
+      return { id: e.id, name: nameOf(e.id, w.lang), mins: e.mins, done: !!last, last: rules.record ? null : lastOf(last),
+        ...(rules.trail ? { badge: !!last, ...(e.mic ? { mic: true } : {}) } : {}) };
     }),
     ...(rules.record ? { record: true } : {}),
+    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang) } : {}),
     // Whether the page sends its page-session events (wq-tel.js).
     rt: await Tel.flag(),
   };
@@ -545,15 +564,30 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   const w = await who(token, { kid, lang, device });
   if (ex === 'read' && !(await Budget.readOpen())) fail(429, 'enough_for_today');
   if (ex === 'listen' && !(await listenOn())) fail(503, 'listen_off');
+  const rules = await rulesOf();
+  if (ex === 'missing' && !rules.missing) fail(503, 'missing_off');
   const { Bank } = childTest();
   const task = def.task(w.lang);
   const spec = Bank.getTaskSpec({ grade: Number(w.form), set: 'A', task });
   const runId = crypto.randomUUID();
   const ct = T.signChallenge({ studentId: w.studentId, ex, runId });
-  const rules = await rulesOf();
   RUNS.set(runId, { status: 'open', grade: w.grade, form: w.form, lang: w.lang, task, gradeSource: w.gradeSource, test: w.test });
   logEvent('web_quiz.ch_start', { step: ex, grade: w.grade, run: runId });
-  const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await clipsFor(ex, w.lang), ...ruleFlags(rules), ...(rules.guard ? { copy: copyFor(w.lang) } : {}) };
+  // On the trail a stop already played (its first counted run exists) is a practice round: the page says so.
+  const practiceRound = rules.trail ? (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).attempt_no > 1 : false;
+  const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await clipsFor(ex, w.lang), ...ruleFlags(rules), ...(rules.guard ? { copy: copyFor(w.lang) } : {}),
+    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}) };
+  if (ex === 'missing') {
+    // the bank's order on every play (the form is the same for every child); the answer rides along for the page's
+    // own feedback and stop — the item bank is public — and the server re-scores and re-applies the stop
+    return {
+      ...base,
+      items: spec.items.map((i) => ({ seq: i.seq.slice(), answer: i.answer })),
+      practice: (spec.practice || []).map((i) => ({ seq: i.seq.slice(), answer: i.answer })),
+      stop_after: (spec.stop && spec.stop.n) || 4,
+      first_key_s: MISSING_FIRST_KEY_S,
+    };
+  }
   if (ex === 'bigger') {
     return {
       ...base,
@@ -640,8 +674,52 @@ const BIGGER_FAST_MS = 500;
 // came from items never touched.
 function itemFlags(rows, { fastMs, stopped }) {
   const noneN = rows.filter((r) => r.ok === null).length;
-  const rapid = rows.filter((r) => r.ok === false && r.ms != null && r.ms < fastMs).length >= 3;
+  const fast = (r) => r.ms < (typeof fastMs === 'function' ? fastMs(r) : fastMs);
+  const rapid = rows.filter((r) => r.ok === false && r.ms != null && fast(r)).length >= 3;
   return { none_n: noneN, rapid, abandoned: !!stopped && noneN >= 3 };
+}
+
+// "Missing number" (EGMA): untimed, and scored two ways from the one run — `correct` (any time; drives the stop and
+// the badge) and `correct_5s` (the first key pressed within 5 s of the item showing: the EGMA-comparable figure).
+const MISSING_FIRST_KEY_S = 5;
+const MISSING_MAX_MS = 10 * 60 * 1000;
+// a keypad answer is rapid when it is wrong and came faster than a child can read the row and type it
+const missingFastMs = (r) => 400 + 300 * (r.digits || 1);
+
+/**
+ * The phone's answers [{i, value, ms, first_key_ms, keys}] (value: the digits typed, or null for a skip) against the
+ * form's items. EGMA's stop (4 wrong or skipped in a row) is applied here whatever the phone did; anything after the
+ * stop is not reached. Returns the score and the per-item rows (numbers only).
+ */
+function scoreMissing(items, answers, { stopAfter = 4 } = {}) {
+  const byI = new Map();
+  for (const a of Array.isArray(answers) ? answers.slice(0, 50) : []) {
+    const i = Number(a && a.i);
+    if (Number.isInteger(i) && i >= 0 && i < items.length && !byI.has(i)) byI.set(i, a);
+  }
+  const num = (v, max) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Math.min(max, Math.round(Number(v))) : null);
+  const rows = items.map((it, i) => {
+    const a = byI.get(i);
+    const value = a && typeof a.value === 'string' && /^\d{1,4}$/.test(a.value) ? a.value : null;
+    const ms = a ? num(a.ms, MISSING_MAX_MS) : null;
+    const firstKey = a ? num(a.first_key_ms, MISSING_MAX_MS) : null;
+    const ok = value != null && Number(value) === Number(it.answer);
+    // a skip (or no answer) is EGMA's silence: wrong for the stop, and an untouched item for the flags
+    return {
+      i: i + 1, verdict: value == null ? 'none' : (ok ? 'correct' : 'wrong'),
+      ok: value == null ? null : ok, ok_5s: ok && firstKey != null && firstKey <= MISSING_FIRST_KEY_S * 1000,
+      ms, first_key_ms: firstKey, keys: a ? num(a.keys, 99) : null, digits: String(it.answer).length,
+    };
+  });
+  const stop = childTest().Common.applyConsecutiveStop(rows, stopAfter);
+  // an item past the stop counts for nothing, whatever the phone sent
+  const reached = rows.filter((r) => r.verdict !== 'not_reached');
+  const correct = reached.filter((r) => r.verdict === 'correct').length;
+  const correct5s = reached.filter((r) => r.verdict === 'correct' && r.ok_5s).length;
+  const out = rows.map((r) => (r.verdict === 'not_reached'
+    ? { i: r.i, ok: null, ok_5s: false, ms: null, first_key_ms: null, keys: null, digits: r.digits, reached: false }
+    : { i: r.i, ok: r.ok, ok_5s: r.ok_5s, ms: r.ms, first_key_ms: r.first_key_ms, keys: r.keys, digits: r.digits }));
+  return { score: { correct, correct_5s: correct5s, n: items.length, stopped: !!stop.stopped }, rows: out };
 }
 
 // The endings that are the child's own: a reading ended this way is never a words-per-minute.
@@ -945,6 +1023,24 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
   const run = await runFor(c, mem, body.lang);
   const base = { id: c.r, student_id: c.sid, exercise: c.ex, grade: run.grade, lang: run.lang, created_at: nowIso() };
 
+  if (c.ex === 'missing') {
+    if (!rules.missing) fail(503, 'missing_off');
+    const spec = Bank.getTaskSpec({ grade: Number(run.form), set: 'A', task: 'ma.missing' });
+    const { score, rows } = scoreMissing(spec.items, body.answers, { stopAfter: (spec.stop && spec.stop.n) || 4 });
+    const result = { score };
+    RUNS.set(c.r, { ...run, status: 'done', result });
+    const reached = rows.filter((r) => r.reached !== false);
+    const typed = reached.reduce((a, r) => a + (r.ms || 0), 0);
+    const elapsedMs = Math.max(0, now - (Number(c.exp) - T.CHALLENGE_TTL_S) * 1000);
+    // clock 'row_paint': each item's ms and first_key_ms run from the moment its row is painted (the page's rule)
+    let meta = { ms: Number(body.ms) || null, ...(await provenance(c.sid, 'missing', null, run)), helped: helpedOf(body.helped), clock: 'row_paint', elapsed_s: Math.round(elapsedMs / 100) / 10, too_fast: elapsedMs < typed };
+    if (rules.items) meta = { ...meta, items: rows, ...itemFlags(reached, { fastMs: missingFastMs, stopped: score.stopped }) };
+    const stored = await insertRun({ ...base, status: 'scored', score, scored_at: nowIso(), meta });
+    if (stored === 'duplicate') fail(409, 'already_done');
+    logEvent('web_quiz.ch_done', { step: 'missing', count: score.correct, count_5s: score.correct_5s, n: score.n, stopped: score.stopped, run: c.r });
+    return result;
+  }
+
   if (c.ex === 'bigger') {
     const spec = Bank.getTaskSpec({ grade: Number(run.form), set: 'A', task: 'ma.discrimination' });
     const score = scoreBigger(spec.items, body.taps, { stopAfter: (spec.stop && spec.stop.n) || 4 });
@@ -956,7 +1052,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
       const rows = biggerItems(spec.items, body.taps, servePairs(spec.items, run.form, true));
       const tapped = rows.reduce((a, r) => a + (r.ms || 0), 0);
       const elapsedMs = Math.max(0, now - (Number(c.exp) - T.CHALLENGE_TTL_S) * 1000);
-      meta = { ...meta, ...(await provenance(c.sid, 'bigger', null, run)), elapsed_s: Math.round(elapsedMs / 100) / 10, too_fast: elapsedMs < tapped || elapsedMs < rows.length * 400 };
+      meta = { ...meta, ...(await provenance(c.sid, 'bigger', null, run)), ...(rules.trail ? { helped: helpedOf(body.helped) } : {}), elapsed_s: Math.round(elapsedMs / 100) / 10, too_fast: elapsedMs < tapped || elapsedMs < rows.length * 400 };
       if (rules.items) meta = { ...meta, items: rows, ...itemFlags(rows, { fastMs: BIGGER_FAST_MS, stopped: score.stopped }) };
     }
     const stored = await insertRun({ ...base, status: 'scored', score, scored_at: nowIso(), meta });
@@ -989,7 +1085,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
   // the page says the reading ended (its own words; the audio's length is what decides)
   const prov = rules.record ? await provenance(c.sid, 'read', run.lang, run, { except: c.r }) : {};
   const word = (v) => (typeof v === 'string' && /^[a-z_]{1,16}$/.test(v) ? v : null);
-  const guardIn = rules.record ? { ended: word(body.ended), mic_check: word(body.mic_check), read_s: Number.isFinite(Number(body.read_s)) ? Math.max(0, Math.round(Number(body.read_s))) : null } : {};
+  const guardIn = rules.record ? { ended: word(body.ended), mic_check: word(body.mic_check), read_s: Number.isFinite(Number(body.read_s)) ? Math.max(0, Math.round(Number(body.read_s))) : null, ...(rules.trail ? { helped: helpedOf(body.helped) } : {}) } : {};
   // a kept reading: where it is (the key only — the bucket is the deployment's, nothing about the child)
   // The key decides, never the switch at this moment: a kept key stays whatever the switch now says; a plain key with
   // the switch now on is still deleted, and the row says so (calibration then knows why there is no audio).
@@ -1012,7 +1108,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
     RUNS.set(c.r, { ...run, ...(before.comp ? { comp: before.comp } : {}), status: 'done', result });
     // the record rule's stamps ride the final write (which replaces meta); an abandoned reading is an exposure only
     const keep = !rules.record ? {} : (r.reason === 'abandoned' ? (({ attempt_no, counted, ...rest }) => rest)(prov) : prov);
-    const stamp = rules.record ? { ms: metaIn.ms, ...keep } : {};
+    const stamp = rules.record ? { ms: metaIn.ms, ...keep, ...(rules.trail ? { helped: guardIn.helped } : {}) } : {};
     // answers to the questions may have been given while this reading was scored: keep them (meta.comp)
     await updateRunMeta(c.r, (cur) => {
       const comp = cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {};
@@ -1247,7 +1343,7 @@ async function listResults({ cls, list } = {}) {
     const s = r.score || {};
     out.push(r.exercise === 'read'
       ? { student_id: r.student_id, exercise: r.exercise, score: s.correct || 0, wcpm: r.wcpm == null ? null : r.wcpm, at: r.scored_at || r.created_at }
-      : { student_id: r.student_id, exercise: r.exercise, score: s.correct || 0, of: s.n || 10, at: r.scored_at || r.created_at });
+      : { student_id: r.student_id, exercise: r.exercise, score: s.correct || 0, of: s.n || 10, ...(r.exercise === 'missing' ? { score_5s: s.correct_5s || 0 } : {}), at: r.scored_at || r.created_at });
   }
   return out;
 }
@@ -1255,7 +1351,7 @@ async function listResults({ cls, list } = {}) {
 module.exports = {
   menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, tapOptions, listenOn,
   scoreBigger, wcpm, formFor, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
-  recordOn, readGuardOn, itemsOn, keepAudioOn, keptRoot, isKeptKey, forgetAudioKey, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
-  EXERCISES, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TABLE, MAX_BYTES,
+  recordOn, readGuardOn, itemsOn, keepAudioOn, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
+  EXERCISES, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,
   __reset,
 };

@@ -35,9 +35,12 @@ function fakeEl(id) {
   };
 }
 
-function page({ lang = 'en', menu = MENU, ua = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 WhatsApp', media = 'grant', routes = {}, recorder = 'ok', chunk = 4000, href = 'https://portal.test/c/HUB.TOKEN', micLevel = 128 } = {}) {
+function page({ htmlClass = '', freshEls = false, storage = null, perm = null, clock = null, lang = 'en', menu = MENU, ua = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 WhatsApp', media = 'grant', routes = {}, recorder = 'ok', chunk = 4000, href = 'https://portal.test/c/HUB.TOKEN', micLevel = 128 } = {}) {
   const els = {};
-  const root = { innerHTML: '', querySelector: (sel) => { const id = sel.replace(/^#/, ''); if (!els[id]) els[id] = fakeEl(id); return els[id]; } };
+  const root = { querySelector: (sel) => { const id = sel.replace(/^#/, ''); if (!els[id]) els[id] = fakeEl(id); return els[id]; } };
+  // freshEls: each render replaces the elements, as a real DOM does (a key bound on one screen is not the next one's)
+  let html0 = '';
+  Object.defineProperty(root, 'innerHTML', { get: () => html0, set: (v) => { html0 = v; if (freshEls) Object.keys(els).forEach((k) => { delete els[k]; }); } });
   const fetches = [];
   const events = [];
   const timers = [];
@@ -63,6 +66,8 @@ function page({ lang = 'en', menu = MENU, ua = 'Mozilla/5.0 (Linux; Android 13) 
     static isTypeSupported(t) { return t === 'audio/webm;codecs=opus'; }
   }
   const navigator = { userAgent: ua, mediaDevices: undefined };
+  // perm: what navigator.permissions says about the microphone ('denied' | 'prompt' | 'granted'); null = no API
+  if (perm) navigator.permissions = { query: () => Promise.resolve({ state: perm }) };
   if (media !== 'none') {
     navigator.mediaDevices = {
       getUserMedia: () => (media === 'grant' ? Promise.resolve({ getTracks: () => [{ stop() { mic.stops += 1; } }] })
@@ -87,7 +92,7 @@ function page({ lang = 'en', menu = MENU, ua = 'Mozilla/5.0 (Linux; Android 13) 
   }
   const boot = { textContent: JSON.stringify({ token: 'HUB.TOKEN', kid: null, menu: { ...menu, lang }, mascot: lang === 'ur' ? 'جگنو' : 'Jugnu' }) };
   const wl = {};
-  const window = { MediaRecorder, scrollTo() {}, AudioContext, addEventListener(n, fn) { (wl[n] = wl[n] || []).push(fn); } };
+  const window = { MediaRecorder, scrollTo() {}, AudioContext, ...(storage ? { localStorage: storage } : {}), addEventListener(n, fn) { (wl[n] = wl[n] || []).push(fn); } };
   const ctx = {
     window, navigator, fetch, Audio, console, Uint8Array,
     Blob: function Blob(parts, o) { this.size = parts.reduce((a, p) => a + (p.size || 0), 0); this.type = o && o.type; },
@@ -95,11 +100,14 @@ function page({ lang = 'en', menu = MENU, ua = 'Mozilla/5.0 (Linux; Android 13) 
     document: {
       getElementById: (id) => (id === 'wq' ? root : id === 'boot' ? boot : null),
       createElement: () => ({}), head: { appendChild() {} }, visibilityState: 'visible',
+      // the edge's class on <html> (htmlClass: e.g. 'wq-ur2' when the Urdu polish is on)
+      documentElement: { classList: { contains: (c) => String(htmlClass).split(/\s+/).includes(c) } },
       addEventListener(n, fn) { (wl[`doc:${n}`] = wl[`doc:${n}`] || []).push(fn); },
     },
     setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
     clearTimeout() {}, setInterval: () => 1, clearInterval() {},
-    Date, JSON, Math, String, Number, Promise, Error, RegExp, Object, Array, encodeURIComponent,
+    // clock: { t } — a test-held time for Date.now() (the page's item timings); null = the real clock
+    Date: clock ? Object.assign(function D() { return new Date(clock.t); }, { now: () => clock.t }) : Date, JSON, Math, String, Number, Promise, Error, RegExp, Object, Array, encodeURIComponent,
   };
   ctx.MediaRecorder = MediaRecorder;
   vm.createContext(ctx);
