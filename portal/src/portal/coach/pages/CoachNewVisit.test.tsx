@@ -260,6 +260,7 @@ describe("bd-4404s7.3 — day and time: the month, who is booked, the clash", ()
     expect(alert).toHaveTextContent("IMSG G-10/2");
     expect(alert).toHaveTextContent("You can still book it.");
     expect(booked.getByText("Muhammad Abdul Rehman Siddiqui").closest("[data-clash]")).toBeNull();
+    expect(within(screen.getByTestId("time-picker")).getByRole("img")).toHaveAttribute("data-tone", "overdue"); // the readout turns amber
     const go = screen.getByRole("button", { name: /Schedule/ });
     expect(go).toBeEnabled();
     fireEvent.click(go);
@@ -273,6 +274,7 @@ describe("bd-4404s7.3 — day and time: the month, who is booked, the clash", ()
     await screen.findByRole("alert");
     fireEvent.click(screen.getByRole("radio", { name: ":30" })); // 9:30 AM: nobody there
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(within(screen.getByTestId("time-picker")).getByRole("img")).toHaveAttribute("data-tone", "neutral");
   });
 
   it("the Visit scheduled page shows her time as a TimeStamp", async () => {

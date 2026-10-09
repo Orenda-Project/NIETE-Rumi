@@ -145,8 +145,8 @@ describe("Team schedule", () => {
 
   it("a coach can be picked from the list; the page asks again for her only", async () => {
     renderAt("/portal/coach/team");
-    const select = await screen.findByLabelText("Coach");
-    fireEvent.change(select, { target: { value: "00000000-0000-4000-8000-000000000002" } });
+    fireEvent.click(await screen.findByRole("button", { name: /^Coach, All coaches/ })); // the kit's SelectField
+    fireEvent.click(await screen.findByRole("button", { name: /Imran S/ }));
     await waitFor(() => expect(C.getTeam).toHaveBeenLastCalledWith(expect.objectContaining({ coach: "00000000-0000-4000-8000-000000000002" })));
   });
 });

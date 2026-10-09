@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Users } from "lucide-react";
 import { coach } from "../../services/api";
-import { CoachPage, Card, SectionLabel, SelectBox, Loading, Failed, useLoad } from "../ui";
+import { CoachPage, Card, SectionLabel, Loading, Failed, useLoad } from "../ui";
 import { localDay } from "../time";
 import type { TeamVisit } from "../types";
-import { DayStrip, KpiTiles, SlotGroup, addDays, weekdayOf } from "../../teacher/ui";
+import { DayStrip, KpiTiles, SelectField, SlotGroup, addDays, weekdayOf } from "../../teacher/ui";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
 import { useCopy } from "../../teacher/i18n";
 import { SCHEDULE } from "../schedule/copy";
@@ -18,7 +18,7 @@ import { dayMonth } from "../schedule/model";
  *
  * bd-4404s7.3: the totals are the kit's KpiTiles, the week is the kit's DayStrip (a count under each day; the arrows ask
  * for that week), each time is the kit's SlotGroup (TimeStamp, "N visits", avatars, Show all), the words are en + ur
- * (../schedule/copy.ts). The coach field is this page's native select until the kit's SelectField (PR 2c) lands.
+ * (../schedule/copy.ts). The coach field is the kit's SelectField (a Tray of choices).
  */
 
 function personOf(v: TeamVisit, you: string) {
@@ -46,8 +46,8 @@ const CoachTeam = () => {
             ]} />
           </div>
 
-          <SelectBox label={c.coach} value={coachId} onChange={setCoachId}
-            icon={<Users className="h-5 w-5 shrink-0 text-[#6b7280]" aria-hidden="true" />}
+          <SelectField label={c.coach} title={c.coach} value={coachId} onChange={setCoachId}
+            icon={<Users className="h-5 w-5" aria-hidden="true" />}
             options={[{ value: "", label: `${c.allCoaches} · ${data.coaches.length}` },
               ...data.coaches.map((k) => ({ value: k.id, label: k.me ? `${k.name || ""} (${c.you})` : (k.name || c.dash) }))]} />
 

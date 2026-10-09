@@ -3,11 +3,11 @@ import { Link, useSearchParams } from "react-router-dom";
 import { CalendarDays, Check, Plus, User } from "lucide-react";
 import { coach, leader } from "../../services/api";
 import {
-  CoachPage, Card, SectionLabel, RowText, Stats, SearchBox, BottomButton, BottomLink, Loading, Failed, useLoad, personMatches, formatPhone,
+  CoachPage, Card, SectionLabel, RowText, SearchBox, BottomButton, BottomLink, Loading, Failed, useLoad, personMatches, formatPhone,
 } from "../ui";
 import { isAllowedSlot, karachiDay } from "../time";
 import type { CoachSchool, CoachTeacher } from "../types";
-import { ChosenSoFar, DayStrip, HistoryList, HistoryRow, StatusChip, StepBar, TimePicker } from "../../teacher/ui";
+import { ChosenSoFar, DayStrip, HistoryList, HistoryRow, StatStrip, StatusChip, StepBar, TimePicker } from "../../teacher/ui";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
 import { useCopy } from "../../teacher/i18n";
 import { SCHEDULE } from "../schedule/copy";
@@ -31,8 +31,8 @@ import { bookedOn, clashesAt, dayLong, sinceText, sinceTone, timeWords } from ".
  * Change); the month shows over the day strip; every time is the kit's TimeStamp; "Already booked" says who and when;
  * a time she already holds is an amber Clash row and a warning, and Schedule stays enabled (it warns, never blocks);
  * a school's and a teacher's last visit is a status chip in the kit's tones. Words: ../schedule/copy.ts (en + ur).
- * StepBar, DayStrip (the month over the strip, week arrows) and TimePicker are the kit's (PR 2b). The picker's readout
- * stays neutral on a clash until the kit's TimePicker takes a `tone`; the Clash row and the alert carry the warning.
+ * StepBar, DayStrip (the month over the strip, week arrows), TimePicker (its readout turns amber on a clash) and StatStrip
+ * are the kit's.
  */
 
 /** Never-visited first, then the longest since a visit. */
@@ -90,9 +90,9 @@ function TeacherStep({ school, teachers, linkFor }: { school: CoachSchool | unde
           className="flex flex-col overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)]">
           <HistoryRow lead="person" title={t.name} extra={formatPhone(t.phone || t.teacherExtId) ?? undefined}
             chip={{ text: sinceText(t.daysSinceVisit, c), tone: sinceTone(t.daysSinceVisit) }} to={linkFor(t)} />
-          <Stats items={[
+          <StatStrip items={[
             { value: t.hitl, label: c.hitl }, { value: t.dc, label: c.dc },
-            { value: pct(t.avgHitl), label: c.avgHitl }, { value: t.daysSinceTraining == null ? "—" : `${t.daysSinceTraining}d`, label: c.training },
+            { value: pct(t.avgHitl), label: c.avgHitl }, { value: t.daysSinceTraining == null ? null : `${t.daysSinceTraining}d`, label: c.training },
           ]} />
           {t.teacherExtId && (
             <Link to={`/portal/coach/teacher/${t.teacherExtId}`} className="flex min-h-[48px] items-center gap-2 border-t border-[#e5e7eb] px-3.5 text-sm font-semibold text-[#33374a]">
@@ -153,7 +153,7 @@ function TimeStep({ teacher, schoolName, visitId, initialSlot, onDone }: {
       <SectionLabel>{c.pickDayTime}</SectionLabel>
       <DayStrip label={c.day} value={date} onChange={setDate} />
       <BookedList visits={bookedVisits} clashIds={clashIds} />
-      <div data-testid="time-picker"><TimePicker value={slot} onChange={setSlot} caption={dayLong(date, c)} /></div>
+      <div data-testid="time-picker"><TimePicker value={slot} onChange={setSlot} caption={dayLong(date, c)} tone={clashing.length > 0 ? "overdue" : undefined} /></div>
       {clashing.length > 0 && <ClashAlert time={timeWords(slot, kit)} visits={clashing} />}
       {error && <Card className="border-[#fde68a] bg-[#fffbeb] p-3.5 text-[15px] font-semibold text-[#b45309]" role="alert">{error}</Card>}
       <div className="sticky bottom-20 z-10 -mx-4 flex bg-[#f3f4f6]/95 px-4 pb-2 pt-3 md:bottom-4 md:mx-0 md:px-0">
