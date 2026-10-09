@@ -293,6 +293,7 @@ function buildLessonItems(grade, subjectKey, chapterNumber, available, downloade
 module.exports = {
   buildGradeItems,
   buildSubjectItems,
+  bySubjectOrder,
   buildChapterItems,
   buildLessonItems,
   parseLessonId,
