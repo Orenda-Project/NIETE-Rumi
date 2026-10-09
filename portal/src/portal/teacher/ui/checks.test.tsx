@@ -9,8 +9,7 @@ import { GradeSubjectButton } from "./GradeSubjectButton";
 import { HistoryList } from "./HistoryList";
 import { HistoryRow } from "./HistoryRow";
 import { ListRow } from "./ListRow";
-import { GradeSubjectSelector } from "./GradeSubjectSelector";
-import { GradeSubjectPicker } from "./GradeSubjectPicker";
+import { ClassPicker } from "./ClassPicker";
 import { DateRangeBar } from "./DateRangeBar";
 import { ProgressSteps } from "./ProgressSteps";
 import { VoiceNote } from "./VoiceNote";
@@ -86,20 +85,15 @@ describe("teacher kit: every target is 56px or more", () => {
     expect(tapProblems(container)).toEqual([]);
   });
 
-  it("GradeSubjectSelector: both fields, the grade tray (pills, close) and the subject tray (rows)", () => {
-    const { container } = inRouter(<GradeSubjectSelector defaultValue={{ grade: 4, subject: "Math" }} />);
-    expect(tapProblems(container)).toEqual([]);
-    fireEvent.click(screen.getByRole("button", { name: /Grade 4/ }));
+  it("ClassPicker: the trigger, the grade buttons, the subjects (buttons and links), her-classes-only rows", () => {
+    const combos = [3, 4, 5, 6, 7].flatMap((g) => [{ grade: g, subject: "Math" }, { grade: g, subject: "English" }]);
+    const { unmount } = inRouter(<ClassPicker label="Pick" combos={combos} value={{ grade: 4, subject: "Math" }} to={(v, p) => (p.mine ? `/x/${v.grade}` : undefined)} />);
     expect(tapProblems(document.body)).toEqual([]);
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
-    fireEvent.click(screen.getByRole("button", { name: /Subject.*Math/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Grade 4 · Math/ }));
     expect(tapProblems(document.body)).toEqual([]);
-  });
-
-  it("GradeSubjectPicker: trigger, search, Your classes and Other classes rows, links too", () => {
-    inRouter(<GradeSubjectPicker label="Pick" combos={[{ grade: 4, subject: "Math" }]} value={{ grade: 4, subject: "Math" }} to={(v) => `/x/${v.grade}`} />);
-    expect(tapProblems(document.body)).toEqual([]);
-    fireEvent.click(screen.getByRole("button", { name: /Pick/ }));
+    unmount();
+    inRouter(<ClassPicker label="Mine" combos={combos.slice(0, 3)} allowOther={false} />);
+    fireEvent.click(screen.getByRole("button", { name: /Mine/ }));
     expect(tapProblems(document.body)).toEqual([]);
   });
 

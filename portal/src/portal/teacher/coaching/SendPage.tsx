@@ -15,7 +15,7 @@ import { dataOf, useLoad } from '../../newui/lessons/shared';
 import TeacherPage from '../TeacherPage';
 import { openUrl } from '../lessons/paths';
 import { teacherPath } from '../routes';
-import { GradeSubjectPicker, Tray, type GradeSubjectPair } from '../ui';
+import { ClassPicker, Tray, type GradeSubjectPair } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
 import { useCopy } from '../i18n';
 import { COACHING, type CoachingCopy } from './copy';
@@ -269,7 +269,7 @@ export function SendPage() {
           <SectionHeading>{C.attached}</SectionHeading>
           <section aria-label={C.attached} className="flex flex-col gap-2.5">
             {mine.length ? (
-              <GradeSubjectPicker label={C.yourClass} combos={mine} allowOther={false} value={combo} onChange={setCombo} />
+              <ClassPicker label={C.yourClass} combos={mine} allowOther={false} value={combo} onChange={(v) => setCombo(v)} />
             ) : null}
             <PlanPicker plan={plan as DraftPlan | null} onOpen={() => { flow.clearPlanProblem(); setPlanSheet(true); }} />
             <div className="mx-1 mt-1 flex items-center justify-between text-[15px]">

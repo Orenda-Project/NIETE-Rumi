@@ -6,8 +6,7 @@ import { useKitCopy } from './useKitCopy';
 import { FOCUS } from './styles';
 
 /**
- * bd-fmf24g.2.2 — Tray: the teacher canvas's bottom sheet (GradeSubjectSelector's trays, GradeSubjectPicker's
- * sheet, DateRangeBar's presets). The page dims (rgba(17,24,39,.45)) and a tap on the dim closes it; the sheet is
+ * bd-fmf24g.2.2 — Tray: the teacher canvas's bottom sheet (ClassPicker's tray, DateRangeBar's presets). The page dims (rgba(17,24,39,.45)) and a tap on the dim closes it; the sheet is
  * #f3f4f6 with 22px top corners, a 44×5 grab handle, the title 22px/600 and a 56px round white close. A centred
  * card on a desktop. It scrolls inside itself (88% of the screen at most), so a sticky heading inside sticks.
  *
