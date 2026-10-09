@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus, School, User } from "lucide-react";
+import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus, User } from "lucide-react";
 import { coach, leader } from "../../services/api";
 import {
-  CoachPage, Card, SectionLabel, Initials, RowText, Stats, SearchBox, StepBar, BottomButton, BottomLink, Loading, Failed, useLoad, personMatches, Chevron, formatPhone, IconTile,
+  CoachPage, Card, SectionLabel, RowText, Stats, SearchBox, StepBar, BottomButton, BottomLink, Loading, Failed, useLoad, personMatches, formatPhone,
 } from "../ui";
 import { DEFAULT_TIME, fromSlot, isAllowedSlot, karachiDay, pickHour, stepHour, toSlot, type VisitTime } from "../time";
 import type { CoachSchool, CoachTeacher } from "../types";
-import { ChosenSoFar, StatusChip, TimeStamp } from "../../teacher/ui";
+import { ChosenSoFar, HistoryList, HistoryRow, StatusChip, TimeStamp } from "../../teacher/ui";
 import { useKitCopy } from "../../teacher/ui/useKitCopy";
 import { useCopy } from "../../teacher/i18n";
 import { SCHEDULE } from "../schedule/copy";
@@ -53,11 +53,6 @@ const WEEKS_AHEAD = 8;
 const NEW_VISIT = "/portal/coach/new-visit";
 const pct = (n: number | null) => (n == null ? "—" : `${Math.round(n * 10) / 10}%`);
 
-function SinceChip({ days }: { days: number | null }) {
-  const c = useCopy(SCHEDULE);
-  return <StatusChip text={sinceText(days, c)} tone={sinceTone(days)} />;
-}
-
 function SchoolStep({ schools, onPick }: { schools: CoachSchool[]; onPick: (s: CoachSchool) => string }) {
   const c = useCopy(SCHEDULE);
   return (
@@ -70,15 +65,17 @@ function SchoolStep({ schools, onPick }: { schools: CoachSchool[]; onPick: (s: C
         <StatusChip text={c.legendMid} tone="info" />
         <StatusChip text={c.legendNew} tone="done" />
       </div>
-      {[...schools].sort(bySince).map((s) => (
-        <Link key={s.schoolExtId} to={onPick(s)} data-testid="school-option"
-          className="flex min-h-[84px] items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-3 pe-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.08)] hover:bg-[#f9fafb]">
-          <IconTile hue="scheduling" size={48} round testId="school-icon"><School className="h-6 w-6" /></IconTile>
-          <RowText name={s.name || c.dash} sub={c.teachersCount(s.teachers)} />
-          <SinceChip days={s.daysSinceVisit} />
-          <Chevron />
-        </Link>
-      ))}
+      <HistoryList showMore={false} groups={[{
+        day: "",
+        items: [...schools].sort(bySince).map((s) => ({
+          id: s.schoolExtId,
+          lead: "school" as const,
+          title: s.name || c.dash,
+          extra: c.teachersCount(s.teachers),
+          chip: { text: sinceText(s.daysSinceVisit, c), tone: sinceTone(s.daysSinceVisit) },
+          to: onPick(s),
+        })),
+      }]} />
     </>
   );
 }
@@ -98,18 +95,12 @@ function TeacherStep({ school, teachers, linkFor }: { school: CoachSchool | unde
       {shown.map((t) => (
         <div key={t.teacherExtId || t.name} data-testid={`teacher-${t.teacherExtId}`}
           className="flex flex-col overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)]">
-          <Link to={linkFor(t)} className="flex flex-col hover:bg-[#f9fafb]">
-            <span className="flex min-h-[76px] items-center gap-3 p-3 pe-3">
-              <Initials name={t.name} round />
-              <RowText name={t.name} sub={formatPhone(t.phone || t.teacherExtId)} />
-              <SinceChip days={t.daysSinceVisit} />
-              <Chevron />
-            </span>
-            <Stats items={[
-              { value: t.hitl, label: c.hitl }, { value: t.dc, label: c.dc },
-              { value: pct(t.avgHitl), label: c.avgHitl }, { value: t.daysSinceTraining == null ? "—" : `${t.daysSinceTraining}d`, label: c.training },
-            ]} />
-          </Link>
+          <HistoryRow lead="person" title={t.name} extra={formatPhone(t.phone || t.teacherExtId) ?? undefined}
+            chip={{ text: sinceText(t.daysSinceVisit, c), tone: sinceTone(t.daysSinceVisit) }} to={linkFor(t)} />
+          <Stats items={[
+            { value: t.hitl, label: c.hitl }, { value: t.dc, label: c.dc },
+            { value: pct(t.avgHitl), label: c.avgHitl }, { value: t.daysSinceTraining == null ? "—" : `${t.daysSinceTraining}d`, label: c.training },
+          ]} />
           {t.teacherExtId && (
             <Link to={`/portal/coach/teacher/${t.teacherExtId}`} className="flex min-h-[48px] items-center gap-2 border-t border-[#e5e7eb] px-3.5 text-sm font-semibold text-[#33374a]">
               <User className="h-[18px] w-[18px]" aria-hidden="true" />{c.profile}
@@ -204,9 +195,8 @@ function TimeStep({ teacher, schoolName, visitId, initialSlot, onDone }: {
     <>
       <StepBar step={3} label={c.stepOf(3)} />
       {visitId ? (
-        <Card className="flex min-h-[72px] items-center gap-3 p-2.5 ps-3">
-          <Initials name={teacher?.name} round />
-          <RowText name={teacher?.name || c.dash} sub={schoolName} />
+        <Card className="overflow-hidden">
+          <HistoryRow lead="person" action="none" title={teacher?.name || c.dash} extra={schoolName ?? undefined} />
         </Card>
       ) : (
         <ChosenSoFar heading={c.chosenSoFar} copy={{ change: c.change, chosenSoFar: c.chosenSoFar }} items={[
@@ -258,11 +248,7 @@ function Done({ teacher, schoolName, when }: { teacher: CoachTeacher | undefined
         <h2 className="text-[30px] font-light">{c.visitScheduled}</h2>
       </div>
       <Card className="overflow-hidden">
-        <div className="flex min-h-[72px] items-center gap-3 px-3.5 py-2.5">
-          <Initials name={teacher?.name} round />
-          <RowText name={teacher?.name || c.dash} sub={schoolName} />
-          <TimeStamp time={when.slot} tone="done" />
-        </div>
+        <HistoryRow lead="person" action="none" title={teacher?.name || c.dash} extra={schoolName ?? undefined} time={when.slot} timeTone="done" />
         <div className="flex min-h-[72px] items-center gap-3 border-t border-[#e5e7eb] px-3.5 py-2.5">
           <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#f3f4f6] text-[#33374a]" aria-hidden="true"><CalendarDays className="h-5 w-5" /></span>
           <RowText name={dayLong(when.date, c)} sub={c.oneVisitAdded} />

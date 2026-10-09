@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- test mocks, as the other coach tests */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, within, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -89,15 +90,15 @@ describe("Schedule in Urdu", () => {
     const overdue = within(await screen.findByTestId("overdue"));
     expect(overdue.getByText(text(U.daysLate(5)))).toBeTruthy();
     expect(screen.getByRole("button", { name: `${U.weekdaysShort[3]} 7` })).toBeTruthy();
-    expect(screen.getByText(text(`${U.today} · ${U.weekdaysShort[3]} 7`))).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 3, name: new RegExp(`${U.today} · ${U.weekdaysShort[3]}`) })).toBeTruthy();
     expect(plain(document.body.textContent)).toContain("صبح"); // TimeStamp's own AM word
   });
 
   it("Team schedule: the totals' labels and the coach field", async () => {
     at("/portal/coach/team");
     expect(await screen.findByRole("heading", { level: 1, name: U.teamSchedule })).toBeTruthy();
+    expect(await screen.findByLabelText(U.coach)).toBeTruthy();
     expect(screen.getByText(text(U.totals.month))).toBeTruthy();
-    expect(screen.getByLabelText(U.coach)).toBeTruthy();
     expect(screen.getByText(text(U.visitsN(1)))).toBeTruthy();
   });
 

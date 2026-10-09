@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import { Clock, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { coach } from "../../services/api";
-import { CoachPage, Card, SectionLabel, Initials, RowText, TapRow, BottomLink, Loading, Failed, useLoad } from "../ui";
+import { CoachPage, Card, BottomLink, Loading, Failed, useLoad } from "../ui";
 import { karachiDay } from "../time";
 import type { CoachVisit } from "../types";
-import { StatusChip, TimeStamp, type TimeTone } from "../../teacher/ui";
+import { HistoryList, type HistoryGroup, type HistoryItem } from "../../teacher/ui";
 import { useCopy } from "../../teacher/i18n";
 import { SCHEDULE, type ScheduleCopy } from "../schedule/copy";
 import { dayShort, daysBetween, shiftDay } from "../schedule/model";
@@ -14,30 +14,27 @@ import { dayShort, daysBetween, shiftDay } from "../schedule/model";
  * overdue visits first with days late, then each day's visits. Tap a day to see
  * only that day; tap it again for the whole week.
  *
- * bd-4404s7.3: every visit time is the kit's TimeStamp (never a tile), the avatar is round, the status chips are the
- * kit's tones, and the words are en + ur (../schedule/copy.ts). The week strip is this page's own until the kit's
- * DayStrip (PR 2) lands; the visit row until the kit's HistoryRow gets its person lead and `time`.
+ * bd-4404s7.3: the visits are the kit's HistoryList of HistoryRow lead="person" (a round avatar, the TimeStamp on the
+ * first line, status tones: next is a tinted row with a bar, done is muted), the words are en + ur
+ * (../schedule/copy.ts). The week strip is this page's own until the kit's DayStrip (PR 2b) lands.
  */
 
-function VisitRow({ v, today, c }: { v: CoachVisit; today: string; c: ScheduleCopy }) {
+/** One visit as the kit's coach row: a round avatar, the TimeStamp on the first line, the teacher, the school. */
+function visitItem(v: CoachVisit, today: string, c: ScheduleCopy): HistoryItem {
   const done = v.status === "done";
-  const next = !done && v.current;
-  const tone: TimeTone = v.overdue ? "overdue" : done ? "done" : next ? "next" : "neutral";
-  return (
-    <TapRow to={`/portal/coach/visit/${v.id}`} muted={done} emphasis={next}>
-      <Initials name={v.teacherName} round />
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <TimeStamp time={v.scheduledSlot} tone={tone} size={16} />
-        <span className={`truncate text-[17px] font-semibold ${done ? "text-[#6b7280]" : ""}`} data-testid="name">{v.teacherName || c.dash}</span>
-        <span className="truncate text-[13px] text-[#6b7280]">
-          {[v.schoolName, v.overdue && v.scheduledFor ? dayShort(v.scheduledFor, c) : null].filter(Boolean).join(" · ")}
-        </span>
-      </span>
-      {done && <StatusChip text={c.done} tone="done" tick />}
-      {v.overdue && v.scheduledFor && <StatusChip text={c.daysLate(daysBetween(v.scheduledFor, today))} tone="waiting" />}
-      {next && <StatusChip text={c.next} tone="info" />}
-    </TapRow>
-  );
+  const next = !done && !!v.current;
+  const late = v.overdue && v.scheduledFor ? daysBetween(v.scheduledFor, today) : null;
+  return {
+    id: v.id,
+    lead: "person",
+    title: v.teacherName || c.dash,
+    extra: [v.schoolName, v.overdue && v.scheduledFor ? dayShort(v.scheduledFor, c) : null].filter(Boolean).join(" · "),
+    time: v.scheduledSlot,
+    timeTone: v.overdue ? "overdue" : undefined,
+    state: done ? "done" : next ? "next" : "default",
+    chip: done ? { text: c.done, tone: "done" } : late != null ? { text: c.daysLate(late), tone: "waiting" } : next ? { text: c.next, tone: "info" } : null,
+    to: `/portal/coach/visit/${v.id}`,
+  };
 }
 
 const CoachSchedule = () => {
@@ -90,18 +87,17 @@ const CoachSchedule = () => {
           </Card>
 
           {data.overdue.length > 0 && (
-            <div className="flex flex-col gap-3" data-testid="overdue">
-              <SectionLabel><span className="inline-flex items-center gap-2"><Clock className="h-[18px] w-[18px] text-[#b45309]" aria-hidden="true" />{c.overdue}</span></SectionLabel>
-              {data.overdue.map((v) => <VisitRow key={v.id} v={v} today={today} c={c} />)}
+            <div data-testid="overdue">
+              <HistoryList showMore={false} groups={[{ day: c.overdue, items: data.overdue.map((v) => visitItem(v, today, c)) }]} />
             </div>
           )}
 
-          {shownDays.map((d) => (
-            <div key={d} className="flex flex-col gap-3">
-              <SectionLabel>{d === today ? `${c.today} · ${dayShort(d, c)}` : dayShort(d, c)}</SectionLabel>
-              {(byDay.get(d) || []).map((v) => <VisitRow key={v.id} v={v} today={today} c={c} />)}
-            </div>
-          ))}
+          {shownDays.length > 0 && (
+            <HistoryList showMore={false} groups={shownDays.map((d): HistoryGroup => ({
+              day: d === today ? `${c.today} · ${dayShort(d, c)}` : dayShort(d, c),
+              items: (byDay.get(d) || []).map((v) => visitItem(v, today, c)),
+            }))} />
+          )}
           {shownDays.length === 0 && data.overdue.length === 0 && <Card className="p-4 text-[15px] text-[#6b7280]">{c.noVisits}</Card>}
         </>
       )}

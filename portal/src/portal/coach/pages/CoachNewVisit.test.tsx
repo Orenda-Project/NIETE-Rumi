@@ -57,7 +57,7 @@ describe("step 1 — pick a school", () => {
   it("never-visited first, then longest since a visit; numbers only", async () => {
     renderAt("/portal/coach/new-visit");
     expect(await screen.findByText("Step 1 of 3")).toBeInTheDocument();
-    const names = screen.getAllByTestId("school-option").map((el) => within(el).getByTestId("name").textContent);
+    const names = Array.from(document.querySelectorAll("[data-history-row]")).map((el) => el.querySelector("[class*=line-clamp]")?.textContent);
     expect(names).toEqual(["IMSG G-6/2", "IMCB G-9/4", "IMSG I-10/1"]);
     expect(screen.queryByText(/due/i)).toBeNull();
   });
@@ -171,7 +171,7 @@ describe("bd-4404s7.3 — step 1 status, in the kit's tones", () => {
   it("none or over 30 days is amber, 8 to 30 is grey, within a week is green; a legend says so", async () => {
     renderAt("/portal/coach/new-visit");
     await screen.findByText("Step 1 of 3");
-    const row = (name: string) => screen.getByText(name).closest("a") as HTMLElement;
+    const row = (name: string) => screen.getByText(name).closest("[data-history-row]") as HTMLElement;
     const chip = (name: string) => row(name).querySelector("[data-chip]") as HTMLElement;
     expect(chip("IMSG G-6/2")).toHaveTextContent("No visits yet");
     expect(chip("IMSG G-6/2").className).toContain("fef3c7");
@@ -185,7 +185,9 @@ describe("bd-4404s7.3 — step 1 status, in the kit's tones", () => {
     expect(legend).toHaveTextContent("Within a week");
     // the teacher count stays plain text, never a chip
     expect(row("IMCB G-9/4")).toHaveTextContent("8 teachers");
-    expect(within(row("IMCB G-9/4")).queryByText("8 teachers")?.closest("[data-chip]") ?? null).toBeNull();
+    expect(within(row("IMCB G-9/4")).getByText("8 teachers").closest("[data-chip]")).toBeNull();
+    // a coach row's lead is the round avatar, never the grade·subject column
+    expect(row("IMCB G-9/4").querySelector("[data-testid=history-lead]")).toBeNull();
   });
 });
 

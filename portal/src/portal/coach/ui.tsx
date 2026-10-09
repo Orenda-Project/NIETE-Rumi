@@ -213,9 +213,9 @@ export function IconCircle({ hue = "green", size = 44, children }: { hue?: Hue; 
 }
 
 /** bd-o15qnr.12 — the canvas's school tile (.sic): a 12px-rounded square, not a circle. */
-export function IconTile({ hue = "schools", size = 44, children, testId, round = false }: { hue?: Hue; size?: number; children: ReactNode; testId?: string; round?: boolean }) {
+export function IconTile({ hue = "schools", size = 44, children, testId }: { hue?: Hue; size?: number; children: ReactNode; testId?: string }) {
   return (
-    <span data-testid={testId} className={`flex shrink-0 items-center justify-center ${round ? "rounded-full" : "rounded-xl"}`} style={{ width: size, height: size, background: HUE[hue].bg, color: HUE[hue].fg }} aria-hidden="true">
+    <span data-testid={testId} className="flex shrink-0 items-center justify-center rounded-xl" style={{ width: size, height: size, background: HUE[hue].bg, color: HUE[hue].fg }} aria-hidden="true">
       {children}
     </span>
   );
@@ -242,11 +242,11 @@ export function TimeTile({ slot, tone = "neutral", size = 60 }: { slot: string |
   );
 }
 
-export function Initials({ name, size = 48, round = false }: { name: string | null | undefined; size?: number; round?: boolean }) {
+export function Initials({ name, size = 48 }: { name: string | null | undefined; size?: number }) {
   const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
   const text = parts.length ? `${parts[0][0]}${parts.length > 1 ? parts[parts.length - 1][0] : ""}`.toUpperCase() : "·";
   return (
-    <span className={`flex shrink-0 items-center justify-center text-[15px] font-bold text-[#33374a] ${round ? "rounded-full bg-[#e8e9f0]" : "rounded-xl bg-[#f3f4f6]"}`} style={{ width: size, height: size }} aria-hidden="true">
+    <span className="flex shrink-0 items-center justify-center rounded-xl bg-[#f3f4f6] text-[15px] font-bold text-[#33374a]" style={{ width: size, height: size }} aria-hidden="true">
       {text}
     </span>
   );
