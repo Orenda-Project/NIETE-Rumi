@@ -7,7 +7,8 @@ import type { TeacherUiCopy } from './copy';
 import { useKitCopy } from './useKitCopy';
 import { StatusChip } from './StatusChip';
 import { CHEVRON, FOCUS, ROW_DIVIDER, ROW_SUB, ROW_TITLE, type ChipData } from './styles';
-import { subjectFamily, subjectShort, type SubjectFamily } from './subjects';
+import { gradeColoursFor } from './gradeColours';
+import { subjectShort } from './subjects';
 import { SubjectTile } from './SubjectTile';
 
 /**
@@ -19,9 +20,9 @@ import { SubjectTile } from './SubjectTile';
  * row's START edge (left in English, right in Urdu — the row has no start or vertical padding of its own), the
  * full row height (76px, more when the title wraps), 12px from the text. The card the row sits in clips it at its
  * rounded corners (LIST_CARD is overflow-hidden; a standalone row's card must be too — RequestPage).
- *   top    "G4" (copy `gradeShort`) 17px/800 tabular, white on the family's dark colour;
+ *   top    "G4" (copy `gradeShort`) 17px/800 tabular, white on the grade's dark colour;
  *   bottom the subject's short form (subjects.ts `subjectShort`: Sci, Math, SST, Pak St — no period, never
- *          wrapped or cut) 15px/700 in the dark colour on the family's light tint.
+ *          wrapped or cut) 15px/700 in the grade's dark colour on its light tint.
  * Urdu (machine-drafted, review pending): the numeral alone on top and one short Urdu word below at 13px
  * (سائنس, ریاضی, انگریزی …); digits and any Latin fallback go through the kit's bidi egress (isolated).
  *
@@ -29,10 +30,10 @@ import { SubjectTile } from './SubjectTile';
  * (copy `grade` + the subject as given), a visually hidden span where the lead used to speak.
  *
  * A grade never settled (bd-fmf24g.11: a DC lesson the analysis left open) — absent, empty, or a dash placeholder
- * ("-", "–", "—") — leaves the subject alone, centred on its tint, full height: never "G–". No subject either: the
+ * ("-", "–", "—") — leaves the subject alone, centred on the neutral grey, full height: never "G–". No subject either: the
  * SubjectTile book icon on grey. A grade with no subject: "G4" alone on the dark.
  *
- * Colour is PROVISIONAL (operator: "let's experiment with the color later") and chosen in ONE place, `leadColours`.
+ * Colour is the GRADE's (gradeColours.ts), chosen in ONE place, `leadColours`.
  *
  * Then the title (16px/600, 2 lines), the red New dot, a chip, and the action:
  *   chevron  the whole row is a link to `to` (with the ›);
@@ -49,22 +50,13 @@ export interface LeadColours {
   dark: string;
 }
 
-/** Subject family → [light, dark], as drawn on the canvas (HistoryRow.dc.html TINT). */
-const FAMILY_TINT: Record<SubjectFamily, LeadColours> = {
-  languages: { light: '#e6ebf2', dark: '#2c3a52' },
-  maths: { light: '#f0e9df', dark: '#5b4426' },
-  sciences: { light: '#e3eee8', dark: '#2b5440' },
-  computer: { light: '#e8e6f1', dark: '#3f3a63' },
-  humanities: { light: '#ece9e4', dark: '#4a4237' },
-};
-
 /**
- * The lead's ONE colour rule — PROVISIONAL: the subject family. The rules waiting (SplitStackColours.dc.html): the
- * row's feature colour, a single indigo (#33374a on #e8e9f0), or a grade band (1–4 / 5–8 / 9–12). Swapping is a
- * change to this function alone; it takes the whole row so a grade band needs nothing else.
+ * The lead's ONE colour rule: the GRADE (operator, 9 Oct; bd-fmf24g.19) — the table is gradeColours.ts, so other
+ * components can use it. No grade: neutral (the subject alone on grey). It takes the whole row for the day a row
+ * needs more than the grade.
  */
 export function leadColours(row: { subject: string; grade?: string | number | null }): LeadColours {
-  return FAMILY_TINT[subjectFamily(row.subject)];
+  return gradeColoursFor(row.grade);
 }
 
 export interface HistoryRowProps {
