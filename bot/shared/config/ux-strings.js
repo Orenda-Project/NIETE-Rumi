@@ -3914,6 +3914,35 @@ const UX_STRINGS = {
   wqChStopAsk: { en: 'Stop reading?', ur: 'پڑھنا روکیں؟' },
   wqChIncomplete: { en: 'You read {words} words. Read for the whole minute to get your number!', ur: 'آپ نے {words} لفظ پڑھے۔ اپنا نمبر پانے کے لیے پورا منٹ پڑھیں!' },
   wqChWholeMinute: { en: 'You read for the whole minute!', ur: 'آپ نے پورا منٹ پڑھا!' },
+  // "Missing number" (EGMA's missing-number task on a keypad) and the trail (each exercise a stop on a map, a finish
+  // badge on a stop's first play). Page copy, no WhatsApp field. Gender-neutral; no test words; the page fills
+  // {name} (the mascot), {done} {total} {n} (Western digits, isolated LTR in Urdu: the keypad is Western).
+  wqChMissingName: { en: 'Missing number', ur: 'غائب نمبر' },
+  wqChMissingIntro: { en: 'One number is missing. Type the missing number!', ur: 'ایک نمبر غائب ہے۔ غائب نمبر لکھیں!' },
+  wqChMissingStart: { en: 'Ready? Go!', ur: 'تیار؟ شروع کریں!' },
+  wqChMissingStop: { en: 'All done!', ur: 'بس، ہو گیا!' },
+  wqChMissingDone: { en: 'Well done! You finished this stop.', ur: 'شاباش! آپ نے یہ پڑاؤ مکمل کر لیا۔' },
+  wqChMissingAsk: { en: 'Which number is missing?', ur: 'کون سا نمبر غائب ہے؟' },
+  wqChMissingYes: { en: 'Yes! {n} goes here.', ur: 'جی ہاں! یہاں {n} آئے گا۔' },
+  wqChMissingWas: { en: '{n} goes here. Let us try another.', ur: 'یہاں {n} آئے گا۔ ایک اور کریں۔' },
+  wqChMissingSkip: { en: 'Skip', ur: 'چھوڑیں' },
+  wqChTrailTitle: { en: "{name}'s Trail", ur: '{name} کا راستہ' },
+  wqChTrailSub: { en: '{done} of {total} stops done. Pick any stop!', ur: '{total} میں سے {done} پڑاؤ مکمل۔ کوئی بھی پڑاؤ چنیں!' },
+  wqChTrailAllDone: { en: "You finished {name}'s Trail!", ur: 'آپ نے {name} کا راستہ مکمل کر لیا!' },
+  wqChTrailBadge: { en: 'Done', ur: 'مکمل' },
+  wqChTrailNext: { en: 'Next', ur: 'اگلا' },
+  wqChTrailMic: { en: 'uses the microphone', ur: 'مائیک استعمال ہوگا' },
+  wqChTrailNeedsMic: { en: 'needs a microphone', ur: 'مائیک چاہیے' },
+  wqChTrailMicWait: { en: 'This stop needs a microphone. It will wait for you!', ur: 'اس پڑاؤ کے لیے مائیک چاہیے۔ یہ انتظار کرے گا!' },
+  wqChTrailMicAgain: { en: 'Try the microphone again', ur: 'مائیک دوبارہ آزمائیں' },
+  // asked once per sitting, nothing preselected; recorded on the run, the badge comes either way
+  wqChHelpAsk: { en: 'On your own, or with help?', ur: 'اکیلے، یا کسی کی مدد سے؟' },
+  wqChHelpNo: { en: 'On my own', ur: 'اکیلے' },
+  wqChHelpYes: { en: 'With help', ur: 'مدد کے ساتھ' },
+  wqChTrailOther: { en: 'Go to another stop', ur: 'کسی اور پڑاؤ پر جائیں' },
+  wqChTrailBack: { en: 'Back to the trail', ur: 'راستے پر واپس' },
+  wqChTrailPractice: { en: 'Practice round. Play as much as you like!', ur: 'مشق کا دور۔ جتنا چاہیں کھیلیں!' },
+  wqChTrailStopDone: { en: 'Stop done!', ur: 'پڑاؤ مکمل!' },
 };
 
 /**
