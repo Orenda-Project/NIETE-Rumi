@@ -6,10 +6,12 @@
 export { TEACHER_UI_COPY, type ReportCopy, type TeacherUiCopy } from './copy';
 export { CHIP_TONE, type ChipData, type ChipTone } from './styles';
 export { StatusChip, type StatusChipProps } from './StatusChip';
-export { blockSubject, gradeSubjectLabel, subjectIcon, type SubjectIconKey } from './subjects';
+export {
+  gradeSubjectLabel, subjectFamily, subjectIcon, subjectShort, SUBJECT_SHORT, type SubjectFamily, type SubjectIconKey, type SubjectShortForm,
+} from './subjects';
 export { SubjectTile, type SubjectTileProps, type SubjectTileTone } from './SubjectTile';
 export { GradeSubjectButton, type GradeSubjectButtonProps, type GradeSubjectState } from './GradeSubjectButton';
-export { HistoryRow, type HistoryAction, type HistoryRowProps } from './HistoryRow';
+export { HistoryRow, leadColours, type HistoryAction, type HistoryRowProps, type LeadColours } from './HistoryRow';
 export { HistoryList, type HistoryGroup, type HistoryItem, type HistoryListProps } from './HistoryList';
 export { ListRow, type ListRowIcon, type ListRowProps, type ListRowState } from './ListRow';
 export { Tray, type TrayProps } from './Tray';
