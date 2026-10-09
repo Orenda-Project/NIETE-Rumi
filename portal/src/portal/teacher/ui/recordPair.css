@@ -1,0 +1,11 @@
+/*
+ * bd-4404s7.1 — RecordUploadPair's recording mark: a red core that beats and two rings that spread (Coach_Visit's .recicon).
+ * Ambient, never a call to action by itself, so it runs only while the phone allows motion.
+ */
+@keyframes rup-beat{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+@keyframes rup-ring{0%{transform:scale(.8);opacity:.9}100%{transform:scale(1.5);opacity:0}}
+@media (prefers-reduced-motion:no-preference){
+  .rup-core{animation:rup-beat 1.8s ease-in-out infinite}
+  .rup-ring{animation:rup-ring 1.8s ease-out infinite}
+  .rup-ring2{animation-delay:.9s}
+}
