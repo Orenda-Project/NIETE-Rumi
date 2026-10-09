@@ -141,12 +141,12 @@ function around(rows, n) {
   return rows.slice(from, from + n);
 }
 
-function body(kind, d, C, pics, size, ur2 = false) {
+function body(kind, d, C, pics, size, ur2 = false, og2 = false) {
   const pic = (name) => (pics && assets()[name] ? `<img class="jug" src="data:image/webp;base64,${assets()[name]}" alt="">` : '<div class="jug"></div>');
   if (kind === 'card') {
     return {
       pic: pic('celebrate'),
-      main: `<p class="kick">${esc(C.my)}${d.cls ? `${DOT}${own(d.cls)}` : ''}</p>`
+      main: `${og2 ? '' : `<p class="kick">${esc(C.my)}${d.cls ? `${DOT}${own(d.cls)}` : ''}</p>`}`
         + `<h1 class="name">${d.animal ? animal(d.animal, pics) : ''}${own(d.first)}</h1>`
         + `<p class="big">${num(`${d.correct}/${d.total}`)}</p>${starsHtml(d.correct, d.total)}`
         + `<p class="sub">${own(d.topic)}</p>`
@@ -161,7 +161,7 @@ function body(kind, d, C, pics, size, ur2 = false) {
     const zero = !(Number(d.correct) > 0);
     return {
       pic: pic('hello'),
-      main: `<p class="kick">${esc(C.chal)}</p>`
+      main: `${og2 ? '' : `<p class="kick">${esc(C.chal)}</p>`}`
         + `<h1 class="head">${zero ? C.dared(own(d.first)) : C.beat(own(d.first), num(score))}</h1>`
         + (zero ? `<p class="sub">${own(d.topic)}</p>` : `<p class="sub">${C.scored(own(d.first), num(score), own(d.topic))}</p>${starsHtml(d.correct, d.total)}`),
       cta: C.tapPlay,
@@ -209,10 +209,15 @@ function renderArt({ kind, size, brand, lang, d, ui }, opt = {}) {
   // the headline, the CTA readable at WhatsApp's ~300 px preview. Off (or English), every size below is today's.
   const UR2 = RTL && Boolean(ui && ui.ur2 === true);
   const C = COPY[L];
+  // The wide picture (1200×630) has no height to spare: under the polish its stack is budgeted — no kicker on the card and
+  // the invite, the name 56/1.7, the topic 44 (36 when long), the invite's scored line 32, every line at 1.9 — so the
+  // CTA pill, the last child, is never the one that falls off. The square has the height and keeps the larger sizes.
+  const OG2 = UR2 && size !== 'sq';
+  const topicLen = Array.from(String((d && d.topic) || '')).length;
   const B = WebQuizBrand.publicBrand(Object.prototype.hasOwnProperty.call(WebQuizBrand.BRANDS, brand) ? brand : WebQuizBrand.DEFAULT_BRAND);
   const t = B.tokens;
   const a = opt.fonts === false ? {} : assets();
-  const parts = body(k, d || {}, C, opt.pictures !== false, sz, UR2);
+  const parts = body(k, d || {}, C, opt.pictures !== false, sz, UR2, OG2);
   const sq = sz === 'sq';
   const col = sq || k === 'school' || (k === 'class' && Boolean(d && d.rows && d.rows.length));   // stacked: the square, and the board in either size
   const deco = B.deco ? `url("data:image/svg+xml;utf8,${encodeURIComponent(B.deco)}")` : 'none';
@@ -241,10 +246,10 @@ body{width:${W}px;height:${H}px;overflow:hidden;font-family:${body1};color:#fff}
 .brand{font:800 ${Math.round(26 * S)}px/1 'Lexend',sans-serif;letter-spacing:.04em}
 .main{flex:1;display:flex;flex-direction:column;justify-content:safe center;gap:${sq ? 12 : 14}px;min-width:0;min-height:0;${sq ? 'text-align:center;align-items:center;' : (col ? '' : 'padding-top:60px;')}}
 .kick{font-size:${Math.round((UR2 ? 32 : 26) * S)}px;line-height:${lh};color:${t.brand};font-weight:${RTL ? 700 : 800};${RTL ? '' : 'letter-spacing:.02em;'}}
-.name{font-size:${Math.round(68 * S)}px;line-height:${RTL ? (UR2 ? 1.9 : 1.7) : 1.05};font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.head{font-size:${Math.round((RTL && !sq ? (UR2 ? 46 : 40) : 58) * S)}px;line-height:${RTL ? 2.0 : 1.12};font-weight:800}
+.name{font-size:${Math.round(68 * S)}px;line-height:${RTL ? (UR2 && !OG2 ? 1.9 : 1.7) : 1.05};font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.head{font-size:${Math.round((RTL && !sq ? 40 : 58) * S)}px;line-height:${RTL ? 2.0 : 1.12};font-weight:800}
 .big{font-size:${Math.round((sq ? 100 : 104) * S)}px;line-height:1;font-weight:800}
-.sub{font-size:${Math.round((UR2 ? 44 : 32) * S)}px;line-height:${RTL ? lh : 1.3};opacity:.92;max-width:100%}
+.sub{font-size:${Math.round((UR2 ? (OG2 ? (k === 'invite' ? 32 : (topicLen > 22 ? 36 : 44)) : 44) : 32) * S)}px;line-height:${RTL ? (OG2 ? 1.9 : lh) : 1.3};opacity:.92;max-width:100%}
 .num{font-family:'Lexend',sans-serif;unicode-bidi:isolate;direction:ltr;font-weight:800}
 bdi[dir="ltr"]{font-family:'Lexend','NastaliqUrdu',sans-serif}
 bdi[dir="rtl"]{font-family:'NastaliqUrdu','Lexend',sans-serif}
@@ -271,7 +276,7 @@ bdi[dir="rtl"]{font-family:'NastaliqUrdu','Lexend',sans-serif}
 /* A line never gives up its height to the box (a clipped name shrank to nothing). */
 .main>*{flex-shrink:0}
 ${col && !sq ? '.sn small{display:none}.pt{flex-direction:row;align-items:baseline;gap:10px}' : ''}
-${RTL && !sq ? `.kick{line-height:1.9}.name{font-size:56px;line-height:${UR2 ? 1.9 : 1.55}}.big{font-size:92px}.head{line-height:${UR2 ? 1.9 : 1.7}}.crow li{line-height:1.45}.crow{gap:4px}.sub{line-height:1.9}` : ''}
+${RTL && !sq ? `.kick{line-height:1.9}.name{font-size:56px;line-height:${UR2 ? 1.7 : 1.55}}.big{font-size:92px}.head{line-height:${UR2 ? 1.9 : 1.7}}.crow li{line-height:1.45}.crow{gap:4px}.sub{line-height:1.9}` : ''}
 .ani{width:1em;height:1em;display:inline-block;vertical-align:-.12em;margin-inline-end:.25em;object-fit:contain}
 .pts{display:inline-block;align-self:${sq ? 'center' : 'flex-start'};background:rgba(255,255,255,.14);border-radius:${UR2 ? '28px' : '999px'};padding:${RTL ? (UR2 ? '2px 24px' : '0 22px') : '8px 22px'};font-size:${Math.round((UR2 ? 28 : 24) * S)}px;line-height:${RTL ? 1.9 : 1.3};font-weight:700${UR2 ? ';text-align:start' : ''}}
 .crow{list-style:none;display:flex;flex-direction:column;gap:${sq ? 10 : 6}px;width:${sq ? '86%' : '100%'};text-align:start}
