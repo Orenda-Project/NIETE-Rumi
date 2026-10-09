@@ -21,10 +21,9 @@ interface ChipsBase {
   hideLabel?: boolean;
   className?: string;
 }
-export type ChoiceChipsProps = ChipsBase & (
-  | { multiple?: false; value: string | null; onChange: (key: string) => void }
-  | { multiple: true; value: readonly string[]; onChange: (keys: string[]) => void }
-);
+type SingleChips = ChipsBase & { multiple?: false; value: string | null; onChange: (key: string) => void };
+type MultiChips = ChipsBase & { multiple: true; value: readonly string[]; onChange: (keys: string[]) => void };
+export type ChoiceChipsProps = SingleChips | MultiChips;
 
 const PILL = 'inline-flex min-h-11 items-center whitespace-nowrap rounded-full border px-3.5 text-[14px] font-semibold';
 const pill = (on: boolean) => cn(PILL, on ? 'border-[#33374a] bg-[#33374a] text-white' : 'border-[#e5e7eb] bg-white text-[#4b5563]');
@@ -34,8 +33,8 @@ export function ChoiceChips(props: ChoiceChipsProps) {
   const { label, options, hideLabel = false, className } = props;
   const keys = options.map((o) => o.key);
   const head = hideLabel ? null : <span className="shrink-0 text-[13px] font-semibold text-[#6b7280]">{label}</span>;
-  if (props.multiple) {
-    const { value, onChange } = props;
+  if (props.multiple === true) {
+    const { value, onChange } = props as MultiChips;
     return (
       <div role="group" aria-label={label} className={cn('flex flex-wrap items-center gap-x-2', className)}>
         {head}
@@ -50,7 +49,7 @@ export function ChoiceChips(props: ChoiceChipsProps) {
       </div>
     );
   }
-  const { value, onChange } = props;
+  const { value, onChange } = props as SingleChips;
   const onKey = (e: KeyboardEvent<HTMLElement>) => radioKeyDown(e, keys, value && keys.includes(value) ? value : null, onChange);
   return (
     <div role="radiogroup" aria-label={label} onKeyDown={onKey} className={cn('flex flex-wrap items-center gap-x-2', className)}>

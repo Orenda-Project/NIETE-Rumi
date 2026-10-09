@@ -105,6 +105,15 @@ describe("TimePicker", () => {
   });
 });
 
+describe("TimePicker tone", () => {
+  it("the readout takes a tone: overdue shows the amber stamp for a clashing pick", () => {
+    const { container, rerender } = render(<TimePicker value="09:00" onChange={() => {}} />);
+    expect(container.querySelector("[data-tone]")!.getAttribute("data-tone")).toBe("neutral");
+    rerender(<TimePicker value="09:00" onChange={() => {}} tone="overdue" />);
+    expect(container.querySelector("[data-tone]")!.getAttribute("data-tone")).toBe("overdue");
+  });
+});
+
 describe("StepBar", () => {
   it("segments up to the current step and 'Step 3 of 3'", () => {
     const { container } = render(<StepBar total={3} current={2} />);

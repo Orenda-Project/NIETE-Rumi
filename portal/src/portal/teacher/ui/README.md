@@ -344,7 +344,7 @@ Sat and Sun dimmed but pickable. The arrows move the SHOWN week and never change
 strings, no time zone).
 
 ### `TimePicker`
-`value` (24-hour `"HH:MM"`, as the server stores), `onChange("HH:MM")`, `caption?` (the day under the readout: "Wednesday 7 October"),
+`value` (24-hour `"HH:MM"`, as the server stores), `onChange("HH:MM")`, `caption?` (the day under the readout: "Wednesday 7 October"), `tone?` (the readout's `TimeStamp` tone: `overdue` is the amber one a clashing pick shows),
 `copy?` (`hour`, `minutes`, `meridiem`, `earlierHour`, `laterHour`, `am`, `pm`), `className?`. A 12-hour picker on half hours: a 44px
 `TimeStamp` readout, then three columns: Hour (Earlier / Later stepper, the hours go 7 8 9 10 11 12 1 2 3 4 5 6 and wrap), Minutes
 (`:00` / `:30` radios), AM / PM radios; all 56px or more. Stepping an hour also picks its usual AM/PM (7–11 AM, 12–6 PM); she can flip
