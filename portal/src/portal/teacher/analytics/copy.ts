@@ -42,6 +42,13 @@ export const ANALYTICS_V2_COPY = {
   /** A day as the canvas writes it: "28 Sep". */
   day: (d: number, m: number) => `${d} ${MONTHS[m] ?? ''}`.trim(),
   loading: 'Loading',
+  mySchool: 'My school',
+  me: 'Me',
+  teachers: 'Teachers',
+  teachersN: (n: number) => `${n} teachers`,
+  teacherCounts: (obs: number, dc: number) => `${obs} Observations · ${dc} DC`,
+  noTeachers: 'No teachers yet',
+  notFound: 'Not found',
   /** The rating bands, best first (lib/scoreBands keys) — the chart's rows and the area chips. */
   bands: {
     excellent: 'Excellent',
@@ -82,6 +89,13 @@ export const ANALYTICS_V2_COPY_UR: Words<typeof ANALYTICS_V2_COPY> = {
   noRemarksYet: 'ابھی کوئی تبصرہ نہیں',
   day: (d: number, m: number) => `${d} ${MONTHS_UR[m] ?? ''}`.trim(),
   loading: 'لوڈ ہو رہا ہے',
+  mySchool: 'میرا اسکول',
+  me: 'میں',
+  teachers: 'ٹیچرز',
+  teachersN: (n: number) => `${n} ٹیچرز`,
+  teacherCounts: (obs: number, dc: number) => `${obs} مشاہدات · ${dc} DC`,
+  noTeachers: 'ابھی کوئی ٹیچر نہیں',
+  notFound: 'نہیں ملا',
   bands: {
     excellent: 'بہترین',
     good: 'اچھا',

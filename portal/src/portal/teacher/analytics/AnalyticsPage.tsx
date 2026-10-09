@@ -9,7 +9,10 @@ import { dataOf, useLoad } from '../../newui/lessons/shared';
 import TeacherPage from '../TeacherPage';
 import { teacherPath } from '../routes';
 import { FeatureGlyph, type TeacherFeature } from '../icons';
-import { DateRangeBar } from '../ui';
+import { DateRangeBar, Tabs } from '../ui';
+import { useAuth } from '../../hooks/useAuth';
+import { resolveRole } from '../../lib/leaderRole';
+import { SchoolView } from './SchoolView';
 import { useKitCopy } from '../ui/useKitCopy';
 import { useCopy } from '../i18n';
 import { resolveRange } from '../ui/range';
@@ -117,11 +120,23 @@ export function MeAnalytics() {
   );
 }
 
+/**
+ * A teacher sees Me. A principal sees "My school | Me", My school first (operator, 2026-10-10); whether she is a
+ * principal is her role; the school itself is never chosen here (the server reads it from her session).
+ */
 export function AnalyticsPage() {
   const C = useCopy(ANALYTICS);
+  const { user } = useAuth();
+  const principal = resolveRole(user) === 'principal';
+  const [tab, setTab] = useState<'school' | 'me'>('school');
   return (
-    <TeacherPage crumb={C.more} title={C.title} backTo={teacherPath('more')}>
-      <MeAnalytics />
+    <TeacherPage crumb={C.more} title={C.title} backTo={teacherPath('more')} feature="reports">
+      {principal ? (
+        <>
+          <Tabs label={C.title} value={tab} onChange={(k) => setTab(k === 'me' ? 'me' : 'school')} tabs={[{ key: 'school', label: C.mySchool }, { key: 'me', label: C.me }]} />
+          {tab === 'school' ? <SchoolView /> : <MeAnalytics />}
+        </>
+      ) : <MeAnalytics />}
     </TeacherPage>
   );
 }
