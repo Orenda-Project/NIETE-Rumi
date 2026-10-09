@@ -22,7 +22,7 @@ import { PEOPLE_UR as U } from "../people/copy";
  */
 const C = coach as any;
 /** A row's title: the kit's HistoryRow title (the first one in the element). */
-const titleOf = (el: Element) => el.querySelector("[data-history-row] .line-clamp-2")?.textContent;
+const titleOf = (el: Element) => el.querySelector("[data-history-row] .font-semibold.leading-\\[1\\.3\\]")?.textContent;
 const T = (name: string, extra: Record<string, unknown>) => ({
   teacherExtId: extra.teacherExtId || "923001110000", name, phone: extra.teacherExtId || "923001110000", schoolName: "IMSG I-10/1",
   schoolExtId: "niete:110", emis: "110", hitl: 0, dc: 0, avgHitl: null, daysSinceVisit: null, daysSinceTraining: null, ...extra,
@@ -107,7 +107,7 @@ describe("Schools tab", () => {
     expect(cards[1]).toHaveTextContent("41d");
     expect(cards[1].querySelector("a")).toHaveAttribute("href", "/portal/coach/school/494");
     fireEvent.click(screen.getByRole("radio", { name: "Most visited" }));
-    expect(screen.getAllByTestId("school-card")[0].querySelector("[data-history-row] .line-clamp-2")).toHaveTextContent("IMSG I-10/1");
+    expect(screen.getAllByTestId("school-card")[0].querySelector("[data-history-row] .font-semibold.leading-\\[1\\.3\\]")).toHaveTextContent("IMSG I-10/1");
   });
 
   it("no search box; sort chips; a legend for the visit-status chips", async () => {
@@ -151,8 +151,8 @@ describe("Schools tab", () => {
     renderAt("/portal/coach/people?tab=schools");
     const card = await screen.findByTestId("school-card");
     expect(within(card).getByText("Federal Government Girls Secondary School Tarlai")).toBeInTheDocument();
-    // TODO(bd-4404s7.1 PR 2b): once HistoryRow has `wrapTitle`, set it on these rows and assert the title has no line-clamp.
-    expect(card.innerHTML).not.toMatch(/truncate|text-ellipsis/);
+    // the kit's wrapTitle: the whole name, never clamped to two lines
+    expect(within(card).getByText("Federal Government Girls Secondary School Tarlai").className).not.toMatch(/line-clamp|truncate|ellipsis/);
   });
 
   it("the tabs switch between the two lists", async () => {

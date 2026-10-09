@@ -21,7 +21,7 @@ export function SchoolCard({ s }: { s: CoachSchool }) {
   const C = useCopy(PEOPLE);
   return (
     <section data-testid="school-card" className={CARD}>
-      <HistoryRow lead="school" title={s.name || C.dash} extra={C.teachersN(s.teachers)} chip={visitChip(s.daysSinceVisit, C)}
+      <HistoryRow lead="school" wrapTitle title={s.name || C.dash} extra={C.teachersN(s.teachers)} chip={visitChip(s.daysSinceVisit, C)}
         to={`/portal/coach/school/${encodeURIComponent(s.emis || "")}`} />
       <Stats items={[
         { value: s.visits, label: C.visitsCol }, { value: C.daysShort(s.daysSinceVisit), label: C.sinceVisit },
@@ -36,7 +36,7 @@ export function TeacherCard({ t }: { t: CoachTeacher }) {
   const C = useCopy(PEOPLE);
   return (
     <section data-testid="teacher-card" className={CARD}>
-      <HistoryRow lead="person" title={t.name} action={t.teacherExtId ? "chevron" : "none"} to={t.teacherExtId ? `/portal/coach/teacher/${t.teacherExtId}` : undefined} />
+      <HistoryRow lead="person" wrapTitle title={t.name} action={t.teacherExtId ? "chevron" : "none"} to={t.teacherExtId ? `/portal/coach/teacher/${t.teacherExtId}` : undefined} />
       <Stats items={[
         { value: C.daysShort(t.daysSinceVisit), label: C.sinceVisit }, { value: t.hitl, label: C.hitl },
         { value: t.dc, label: C.dc }, { value: C.pct(t.avgHitl), label: C.avgHitl }, { value: C.daysShort(t.daysSinceTraining), label: C.trainingCol },
@@ -58,7 +58,7 @@ export function SchoolGroup({ id, name, teachers, defaultOpen }: { id: string; n
     <section data-testid="school-group" data-school={id} className={CARD}>
       <div className="flex items-stretch bg-white">
         <div className="min-w-0 flex-1">
-          <HistoryRow lead="school" title={name} extra={C.teachersN(teachers.length)} action="none" />
+          <HistoryRow lead="school" wrapTitle title={name} extra={C.teachersN(teachers.length)} action="none" />
         </div>
         <button type="button" data-testid="school-toggle" aria-expanded={open} aria-label={name} onClick={() => setOpen((o) => !o)}
           className="flex min-h-[56px] w-14 shrink-0 items-center justify-center text-[#33374a]">
@@ -69,7 +69,7 @@ export function SchoolGroup({ id, name, teachers, defaultOpen }: { id: string; n
         <div className="border-t border-[#e5e7eb]">
           {shown.map((t, i) => (
             <div key={t.teacherExtId || t.name} data-testid="teacher-row">
-              <HistoryRow lead="person" title={t.name} extra={C.lastVisitDays(t.daysSinceVisit)} first={i === 0}
+              <HistoryRow lead="person" wrapTitle title={t.name} extra={C.lastVisitDays(t.daysSinceVisit)} first={i === 0}
                 action={t.teacherExtId ? "chevron" : "none"} to={t.teacherExtId ? `/portal/coach/teacher/${t.teacherExtId}` : undefined} />
             </div>
           ))}
