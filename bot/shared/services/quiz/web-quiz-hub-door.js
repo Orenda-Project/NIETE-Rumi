@@ -5,14 +5,16 @@
  * web_quiz_hub_door, only with web_quiz_hub on; read fail-closed in web-quiz-hub-flags).
  *
  *   field(s)        finish()'s {hub_door: true} when the card may offer it, else {} (the payload stays today's)
- *   door({st}, Err) {href: '/h/<token>'}: a hub token for THIS session's child only (no name in it), bound to the
+ *   door({st, home}, Err) {href: '/h/<token>'}: a hub token for THIS session's child only (no name in it), bound to the
  *                   phone in the session token — the body's device_ref is never trusted — so a forwarded copy
  *                   meets the hub's lock on any other phone, like a forwarded /quiz hub link.
+ * `home` (the page's Home button, app_settings web_quiz_home_button with the hub on): the same door from any screen
+ *                   of the child's own run, finished or not — its own switch, so it opens with the card's door off.
  * A sibling on the same phone gets their own door from their own card: the token never names the phone's other children.
  * Err is web-quiz.service's WqError, passed in by the route: this module never requires the service (whose finish()
  * requires it), so there is no require cycle.
  */
-const supabase = require('../../config/supabase');
+const { read: dbRead } = require('./web-quiz-db-deadline');   // a deadline + one retry on reads (web_quiz_db_deadline)
 const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const Flags = require('./web-quiz-hub-flags');
@@ -45,16 +47,18 @@ async function door(body = {}, Err = Error) {
   };
   const tok = T.verify(body.st, 's');
   if (!tok || !tok.sid || !tok.d) fail(401, 'bad_token');
-  const { data: s } = await supabase.from('quiz_sessions')
-    .select('id, student_id, user_id, invited_by_student_id, status, share_code_id').eq('id', tok.sid).maybeSingle();
+  const { data: s } = await dbRead('door:quiz_sessions', (db) => db.from('quiz_sessions')
+    .select('id, student_id, user_id, invited_by_student_id, status, share_code_id').eq('id', tok.sid).maybeSingle());
   if (!s || s.share_code_id !== tok.sc) fail(401, 'bad_token');
-  if (!(await isOn())) fail(404, 'no_door', 'off');
-  if (!ownRun(s) || s.status !== 'completed') fail(404, 'no_door', 'not_own_finished_run');
+  const f = await Flags.flags();
+  const home = Boolean(body.home) && f.hub && f.homeButton;
+  if (!home && !(await isOn())) fail(404, 'no_door', 'off');
+  if (!ownRun(s) || (s.status !== 'completed' && !(home && s.status === 'in_progress'))) fail(404, 'no_door', 'not_own_finished_run');
   const token = T.signHub([s.student_id]);
   if (!token) fail(404, 'no_door', 'no_secret');
   const bound = await Device.deviceTrusted(token, tok.d);
   if (!bound.ok) fail(404, 'no_door', bound.why);
-  logEvent('web_quiz.hub_door', { ok: true, sessionId: s.id, reason: bound.why });
+  logEvent('web_quiz.hub_door', { ok: true, sessionId: s.id, reason: bound.why, ...(home ? { home: true } : {}) });
   return { href: `/h/${token}` };
 }
 

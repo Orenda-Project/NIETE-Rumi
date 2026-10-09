@@ -63,6 +63,8 @@ function page(boot, { api = {}, store = {}, search = '' } = {}) {
     localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } },
     setTimeout: () => 0, Date, JSON, Math, String, Number, Array, Object, Promise, isFinite, encodeURIComponent,
   };
+  // wqt: the page-session telemetry (wq-tel.js) as the page sees it, when a test turns it on.
+  if (arguments[1] && arguments[1].wqt) ctx.window.WQT = arguments[1].wqt;
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx);
   return { beacons, doc: docEl.attrs, cookies, store, root, els, toasts, fetches, assigned, html: () => root._h, moment: () => root.attrs['data-m'], win: winL, reloads: () => reloaded };
@@ -72,6 +74,22 @@ const KIDS = [{ chip: '0000000000000001', first: 'ثنا', animal: 'owl', grade:
 const TOKEN = 'eyJrIjoiaCJ9.AbCdEfGhIjKlMnOpQrStUv';
 const BR = { mascot: { en: 'Jugnu', ur: 'جگنو' }, label: { en: 'NIETE', ur: 'NIETE' }, sub: { en: 'FOR STUDENTS', ur: 'FOR STUDENTS' }, name: 'NIETE', mark: { tile: true, svg: '' } };
 const boot = (extra = {}) => ({ lang: 'ur', token: TOKEN, brand: BR, kids: KIDS, kid: null, teacher: null, again: [], recs: [], challenge: null, lib: null, ...extra });
+
+describe('page-session telemetry (wq-tel.js) on', () => {
+  const tel = () => { const pushed = []; return { pushed, wqt: { on: true, push: (e) => { pushed.push(e); return true; } } }; };
+  test("the hub's own events go through wq-tel's queue, not the hub's beacon", () => {
+    const t = tel();
+    const p = page(boot({ kid: KIDS[0].chip }), { wqt: t.wqt });
+    expect(t.pushed.map((e) => e.n)).toContain('hub_view');
+    expect(t.pushed.find((e) => e.n === 'hub_view')).toMatchObject({ lang: 'ur', src: 'hub' });
+    expect(p.beacons.filter((e) => e.n === 'hub_view')).toEqual([]);
+  });
+  test('switched off (push says no): the hub sends its own beacon as before', () => {
+    const p = page(boot({ kid: KIDS[0].chip }), { wqt: { on: false, push: () => false } });
+    expect(p.beacons.filter((e) => e.n === 'hub_view')).toHaveLength(1);
+  });
+});
+
 
 test('Urdu "who is playing" is gender-neutral: «کس کی باری ہے؟», never the masculine «کون کھیل رہا ہے؟»', () => {
   const p = page(boot());
@@ -268,4 +286,82 @@ test('the lock screen first tells the child to open their own quiz and tap the c
   await flush(); await flush();
   expect(u.html()).toContain('«میرے کوئز، ویڈیوز اور چیلنج»');
   expect(u.html()).not.toMatch(/رہا|رہی|بیٹا|بیٹی/);
+});
+
+describe('the home page (boot.home_v: the last quiz on top, then Videos + the Challenge)', () => {
+  const ONE = [KIDS[0]];
+  const LIB = { href: `/lib/${TOKEN}?kid=0000000000000001&l=en` };
+  const home = (extra) => boot({ lang: 'en', kids: ONE, kid: KIDS[0].chip, home_v: 1, lib: LIB, challenge: { on: true }, ...extra });
+  const order = (h, parts) => parts.map((p) => { const i = h.indexOf(p); expect(i).toBeGreaterThan(-1); return i; });
+
+  test('an unfinished last quiz: "Your last quiz", its topic, the answers so far, ONE Continue to its own chip; then Videos, then the Challenge', () => {
+    const p = page(home({ last: { code: 'NEWQ01', topic: 'Shapes', subject: 'maths', k: 'c1', state: 'open', answered: 2 }, teacher: { code: 'OTHR01', topic: 'Plants', subject: 'science', sent_at: new Date().toISOString(), k: 'c2' } }));
+    const h = p.html();
+    const [a, b, c, d] = order(h, ['Your last quiz', 'id="wq-h-last"', 'id="wq-h-lib"', 'id="wq-h-ch"']);
+    expect(a < b && b < c && c < d).toBe(true);
+    expect(h).toContain('Shapes');
+    expect(h).toContain('Continue');
+    expect(p.els['#wq-h-last'].attrs.href).toBe('/q/NEWQ01?k=c1');
+    // the teacher's other new quiz still shows, AFTER the tiles
+    expect(h.indexOf('id="wq-h-teacher"')).toBeGreaterThan(d);
+  });
+
+  test('a finished last quiz: its score and Play again (?again=1 under its chip); no Continue', () => {
+    const p = page(home({ last: { code: 'MATH01', topic: 'Fractions', subject: 'maths', k: 'c1', state: 'done', score: { c: 8, t: 10 }, again: true } }));
+    const h = p.html();
+    expect(h).toMatch(/<bdi dir="ltr">8\/10<\/bdi>/);
+    expect(h).not.toContain('Continue');
+    expect(p.els['#wq-h-last'].attrs.href).toBe('/q/MATH01?again=1&k=c1');
+  });
+
+  test('a finished quiz whose link closed: the score, no button', () => {
+    const p = page(home({ last: { code: 'MATH01', topic: 'Fractions', subject: 'maths', k: 'c1', state: 'done', score: { c: 8, t: 10 }, again: false } }));
+    expect(p.els['#wq-h-last']).toBeUndefined();
+    expect(p.html()).toContain('8/10');
+  });
+
+  test('no last quiz and no teacher quiz: Videos and the Challenge lead, no empty "no quiz" card', () => {
+    const p = page(home({ last: null }));
+    expect(p.html()).not.toContain('wq-hnone');
+    expect(p.els['#wq-h-lib']).toBeDefined();
+  });
+
+  test('a tap on the last-quiz card is counted (hub_pick src=last) and goes to its href', () => {
+    const p = page(home({ last: { code: 'NEWQ01', topic: 'Shapes', subject: 'maths', k: 'c1', state: 'open', answered: 0 } }));
+    p.els['#wq-h-last'].fire('click');
+    expect(p.assigned).toEqual(['/q/NEWQ01?k=c1']);
+  });
+
+  test('Urdu: the copy is Urdu and gender-neutral; the count is isolated', () => {
+    const p = page(home({ lang: 'ur', last: { code: 'NEWQ01', topic: 'شکلیں', subject: 'maths', k: 'c1', state: 'open', answered: 3 } }));
+    const h = p.html();
+    expect(h).toContain('آپ کا پچھلا کوئز');
+    expect(h).toContain('جاری رکھیں');
+    expect(h).toMatch(/<bdi>3<\/bdi>/);
+    expect(h).not.toMatch(/رہا|رہی|بیٹا|بیٹی/);
+  });
+
+  test('without home_v the page is today\'s (no last card even if one is sent)', () => {
+    const p = page(boot({ lang: 'en', kids: ONE, kid: KIDS[0].chip, lib: LIB, last: { code: 'X', topic: 'T', k: 'c', state: 'open' } }));
+    expect(p.html()).not.toContain('Your last quiz');
+  });
+});
+
+describe('the hub and the Home button (boot.nav_home)', () => {
+  const LIB = { href: `/lib/${TOKEN}?kid=0000000000000001&l=en` };
+  test('the library and challenge links carry home=1, so those pages show Home', () => {
+    const p = page(boot({ lang: 'en', kids: [KIDS[0]], kid: KIDS[0].chip, lib: LIB, challenge: { on: true }, teacher: { code: 'AB12CD', topic: 'T', subject: 'maths', sent_at: new Date().toISOString(), k: 'k1' }, nav_home: true }));
+    expect(p.els['#wq-h-lib'].attrs.href).toBe(`/lib/${TOKEN}?kid=0000000000000001&l=en&home=1`);
+    expect(p.els['#wq-h-ch'].attrs.href).toMatch(/[?&]home=1$/);
+  });
+  test('without nav_home the links are today\'s', () => {
+    const p = page(boot({ lang: 'en', kids: [KIDS[0]], kid: KIDS[0].chip, lib: LIB, challenge: { on: true }, teacher: { code: 'AB12CD', topic: 'T', subject: 'maths', sent_at: new Date().toISOString(), k: 'k1' } }));
+    expect(p.els['#wq-h-lib'].attrs.href).toBe(LIB.href);
+    expect(p.els['#wq-h-ch'].attrs.href).not.toContain('home=1');
+  });
+  test('a hub opened by the Home button is counted as such (hub_view src=home)', () => {
+    const p = page(boot({ lang: 'en', kids: [KIDS[0]], kid: KIDS[0].chip }), { search: '?from=home' });
+    p.win.pagehide && p.win.pagehide.forEach((fn) => fn({}));
+    expect(p.beacons.concat([]).some((e) => e.n === 'hub_view' && e.src === 'home') || p.fetches.some((f) => /hub_view/.test(String(f.init && f.init.body)) && /"src":"home"/.test(String(f.init && f.init.body)))).toBe(true);
+  });
 });

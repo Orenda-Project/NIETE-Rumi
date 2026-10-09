@@ -1718,6 +1718,96 @@ exports.run = async ({ api, rec: rec0, sleep, want = () => true }) => {
   rec('T93', 'Asking again within the hour gets no reply at all', 'BLOCKED',
       { reason: APP_REDIRECT_WHY }, 0);
 
+
+  // ══ T692–T695 — a child's /quiz opens their home page; a teacher's /quiz never does ══════════════
+  // Driven on the run's OWN local database (the switches are global): a children's row is seeded for a
+  // second phone (api.as) the way the bot writes one, so the door classifies that phone as a child; the
+  // driver itself is the registered teacher. The Home message is a cta_url, which the mock outbox now
+  // records with its button and URL. T694 (the registration Flow inside the cached verdict) is
+  // @no-mock-driver: registration is not on this lane; the webhook test executes it.
+  if (want('T692', 'T693', 'T695')) {
+    const HOME_TITLE = { T692: 'A child\'s /quiz sends one "Home" button that opens their home page with the last quiz on top',
+      T693: 'A teacher\'s /quiz never opens the child\'s home page, even when children played on the teacher\'s phone',
+      T695: 'With the home switch off, a child\'s /quiz is exactly today\'s' };
+    const { dbCreds, canFlipGlobal } = require('../db-target.cjs');
+    const HOME_RX = /^(🏠 )?(Home|ہوم)$/;
+    const isCta = (x) => x && x.type === 'interactive.cta_url';
+    const isHub = (x) => !!x && ((isCta(x) && /\/h\//.test((x.cta && x.cta.url) || '')) || /\/h\//.test(String(x.txt || '')));
+    const collect = async (actor, ms) => {
+      const t0 = Date.now(); const seen = [];
+      while (Date.now() - t0 < ms) { for (const r of await actor.fresh()) seen.push(r); await sleep(800); }
+      return seen;
+    };
+    const ask = async (actor, text, ms = 12000) => {
+      await actor.freshReset();
+      await actor.sendWait(text);
+      return collect(actor, ms);
+    };
+    const brief = (seen) => seen.map((x) => ({ type: x.type, txt: String(x.txt || '').slice(0, 90), btns: x.btns, url: x.cta ? String(x.cta.url || '').replace(/\/h\/.*/, '/h/<token>') : undefined }));
+    if (!canFlipGlobal()) {
+      for (const id of ['T692', 'T693', 'T695']) if (want(id)) rec(id, HOME_TITLE[id], 'BLOCKED', { reason: 'GLOBAL_SWITCH: web_quiz_child_quiz_home is flipped only on the run\'s own local database (E2E_LOCAL_DB=1)' }, 0);
+    } else {
+      const { url, key } = dbCreds();
+      const H = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
+      const seedChild = async (phone) => {
+        const r = await fetch(`${url}/rest/v1/students`, { method: 'POST', headers: { ...H, Prefer: 'return=representation' },
+          body: JSON.stringify({ student_name: 'Home Testcase', self_reported_class: '4', phone, is_active: true }) });
+        const rows = await r.json().catch(() => []);
+        return r.ok && rows[0] ? rows[0].id : null;
+      };
+      const dropRow = async (id) => { if (id) await fetch(`${url}/rest/v1/students?id=eq.${id}`, { method: 'DELETE', headers: H }).catch(() => {}); };
+      const KID_PHONE = '923009900692';
+      const kid = api.as(KID_PHONE);
+      const seeded = [];
+      // The lane's bot runs without the door's child verdict (STUDENT_MODE_ENABLED) and without a portal to link
+      // to: this block restarts it with both (stack-control, as T72/T73 and child-test do) and puts it back after.
+      const SC = require('../stack-control.cjs');
+      const LANE_ENV = { STUDENT_MODE_ENABLED: 'true', WEB_QUIZ_BASE_URL: 'https://portal.example.test', WEB_QUIZ_TOKEN_SECRET: 'mock-lane-home-secret' };
+      let restarted = null;
+      try {
+        restarted = SC.runDir() ? await SC.restart('bot', LANE_ENV) : { ok: false, err: 'no RUN_DIR' };
+        await api.setAppSetting('web_quiz_hub', true, { settleMs: 0 });
+        await api.setAppSetting('web_quiz_child_quiz_home', true);   // waits out the bot's 30 s switch cache
+        const kidId = await seedChild(KID_PHONE); seeded.push(kidId);
+
+        let on = null;
+        if (want('T692')) {
+          s = t();
+          const seen = await ask(kid, '/quiz');
+          const ctas = seen.filter(isCta);
+          on = { seen: brief(seen) };
+          const home = ctas.length === 1 && (ctas[0].btns || []).some((b) => HOME_RX.test(b)) && isHub(ctas[0])
+            && !/https?:|\/h\//.test(String(ctas[0].txt || ''));
+          if (!kidId) rec('T692', HOME_TITLE.T692, 'BLOCKED', { harness: 'could not seed the child row', ...on }, t() - s);
+          else if (!(restarted && restarted.ok)) rec('T692', HOME_TITLE.T692, 'BLOCKED', { harness: 'could not restart the bot with STUDENT_MODE_ENABLED: ' + JSON.stringify(restarted).slice(0, 120), ...on }, t() - s);
+          else if (!ctas.length && !seen.some(isHub)) rec('T692', HOME_TITLE.T692, 'BLOCKED', { harness: 'no hub link on this lane (PORTAL_URL / token secret unset?)', ...on }, t() - s);
+          else rec('T692', HOME_TITLE.T692, ...V(home, on), t() - s);
+        }
+
+        if (want('T693')) {
+          s = t();
+          const rowId = await seedChild(String(process.env.E2E_DRIVER || '')); seeded.push(rowId);
+          const seen = await ask(api, '/quiz');
+          rec('T693', HOME_TITLE.T693, ...V(seen.length > 0 && !seen.some(isHub), { childRowOnTeacherPhone: Boolean(rowId), studentMode: Boolean(restarted && restarted.ok), seen: brief(seen) }), t() - s);
+        }
+
+        if (want('T695')) {
+          s = t();
+          await api.setAppSetting('web_quiz_child_quiz_home', false);
+          const seen = await ask(kid, '/quiz');
+          const ctas = seen.filter(isCta);
+          const today = ctas.length === 1 && isHub(ctas[0]) && (ctas[0].btns || []).some((b) => /^(Open|کھولیں)$/.test(b));
+          if (!(restarted && restarted.ok)) rec('T695', HOME_TITLE.T695, 'BLOCKED', { harness: 'could not restart the bot with STUDENT_MODE_ENABLED', seen: brief(seen) }, t() - s);
+          else if (!ctas.length && !seen.some(isHub)) rec('T695', HOME_TITLE.T695, 'BLOCKED', { harness: 'no hub link on this lane (PORTAL_URL / token secret unset?)', seen: brief(seen) }, t() - s);
+          else rec('T695', HOME_TITLE.T695, ...V(today, { seen: brief(seen) }), t() - s);
+        }
+      } finally {
+        for (const id of seeded) await dropRow(id);
+        if (restarted && restarted.ok) await SC.restart('bot', {});
+      }
+    }
+  }
+
 };
 
   // ── appended by scaffold-driver.py --sync: these scenarios exist in the .feature

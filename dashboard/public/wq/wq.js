@@ -544,6 +544,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   try { B = JSON.parse(bootEl.textContent); } catch (e) { return; }
   var Q = B.quiz || {};
   var QS = Q.questions || [];
+  // The always-visible Home button (app_settings web_quiz_home_button) and the step-back navigation
+  // (web_quiz_back_nav): the server says which are on in the payload's `nav`; absent = today's page.
+  var NAVF = B.nav || {};
+  var HOME_ON = Boolean(NAVF.home), BACK_ON = Boolean(NAVF.back);
   var N = QS.length;
   var CODE = B.code || Q.code || '';
   var LANG = Q.lang === 'ur' ? 'ur' : 'en';
@@ -601,6 +605,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       cont: function (i, n) { return 'Go on: question ' + i + ' of ' + n; }, contSay: function (n) { return 'Welcome back, ' + n + '! Your answers are saved.'; }, restart: 'Start again', months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
       fbT: 'Send it on WhatsApp', fbSub: 'Tap the WhatsApp button, then pick the chat.', fbWa: 'Send on WhatsApp', fbCopy: 'Copy the message', copied: 'Message copied', saveArt: 'Save the picture',
       backAgain: 'Your answers are saved. Press back again to leave.',
+      homeBtn: 'Home', homeSure: 'Go to your home page? Your answers are saved.', homeSaving: 'Go to your home page? Saving your answers first.',
+      goHome: 'Go home', stay: 'Keep playing',
+      revSay: function (n) { return 'You are looking at question ' + n + ' again. Your first answer is the one that counts.'; },
+      revBack: function (n) { return 'Back to question ' + n; },
       todaySub: 'children played today', myScores: 'My scores',
       sharePlayed: function (w, t) { return w + ' played ' + t + '. Your turn!'; },
       moreBtn: 'Watch another video', moreT: 'More videos for you', moreSay: 'Pick a video. Its quiz comes right after.',
@@ -663,6 +671,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       cont: function (i, n) { return 'جاری رکھیں: سوال ' + i + ' از ' + n; }, contSay: function (n) { return n + '، خوش آمدید! آپ کے جواب محفوظ ہیں۔'; }, restart: 'نئے سرے سے شروع کریں', months: ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'],
       fbT: 'واٹس ایپ پر بھیجیں', fbSub: 'واٹس ایپ والا بٹن دبائیں، پھر چیٹ چنیں۔', fbWa: 'واٹس ایپ پر بھیجیں', fbCopy: 'پیغام کاپی کریں', copied: 'پیغام کاپی ہو گیا', saveArt: 'تصویر محفوظ کریں',
       backAgain: 'آپ کے جواب محفوظ ہیں۔ باہر جانے کے لیے دوبارہ بیک دبائیں۔',
+      homeBtn: 'ہوم', homeSure: 'ہوم پیج پر جائیں؟ آپ کے جواب محفوظ ہیں۔', homeSaving: 'ہوم پیج پر جائیں؟ پہلے آپ کے جواب محفوظ کیے جا رہے ہیں۔',
+      goHome: 'ہوم پر جائیں', stay: 'کھیلتے رہیں',
+      revSay: function (n) { return 'آپ سوال \u2066' + n + '\u2069 دوبارہ دیکھ رہے ہیں۔ پہلا جواب ہی گنا جاتا ہے۔'; },
+      revBack: function (n) { return 'سوال \u2066' + n + '\u2069 پر واپس'; },
       todaySub: 'بچوں نے کھیلا', myScores: 'میرے اسکور',
       sharePlayed: function (w, t) { return w + ' نے ' + t + ' کھیلا۔ اب آپ کی باری!'; },
       moreBtn: 'ایک اور ویڈیو دیکھیں', moreT: 'آپ کے لیے مزید ویڈیوز', moreSay: 'ایک ویڈیو چنیں۔ اس کے بعد اس کا کوئز آئے گا۔',
@@ -724,10 +736,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     if (props) for (var k in props) if (props[k] !== undefined) e[k] = props[k];
     if (n === 'error' && e.src === undefined) e.src = 'h'; // a failure the page caught itself
     e.n = n;
+    // Page-session telemetry on (wq-tel.js): the event joins that page session's queue.
+    if (window.WQT && window.WQT.push(e)) return;
     evq.push(e);
     if (evq.length >= 10) flushEv();
   }
   function flushEv(beacon) {
+    if (window.WQT && window.WQT.on) window.WQT.flush(beacon);
     if (!evq.length) return;
     var body = JSON.stringify({ events: evq.splice(0, 20) });
     try {
@@ -1091,9 +1106,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var sub = teacher && BR.subTeacher ? BR.subTeacher : BR.sub;
     return '<span class="wq-brand" aria-label="' + esc(BR.name) + '">' + markHtml() + '<span class="wq-lock"><b>' + esc(BR.label[LANG]) + '</b><small>' + esc(sub[LANG]) + '</small></span></span>';
   }
+  // Home: a class child's own run (a session, not a friend's challenge, not the teacher's preview); the server's door decides the rest.
+  function homeOk() { return HOME_ON && Boolean(S.st) && !friendRun() && !B.preview; }
   function bar(extra, teacher) {
-    return '<div class="wq-bar">' + lockup(teacher) + (extra || '<span class="wq-grow"></span>') +
-      '<button class="wq-icon" id="wq-snd" aria-label="' + esc(T.sounds) + '" aria-pressed="' + SOUND + '">' + (SOUND ? '🔔' : '🔕') + '</button></div>';
+    var home = homeOk() && !teacher;
+    // With Home in the bar the progress dots get their own row under it, so a long quiz still fits at 360 px.
+    var dotsRow = home && extra && extra.indexOf('wq-dots') >= 0 ? extra : '';
+    return '<div class="wq-bar">' + lockup(teacher) + (dotsRow ? '<span class="wq-grow"></span>' : (extra || '<span class="wq-grow"></span>')) +
+      '<button class="wq-icon" id="wq-snd" aria-label="' + esc(T.sounds) + '" aria-pressed="' + SOUND + '">' + (SOUND ? '🔔' : '🔕') + '</button>' +
+      (home ? '<button class="wq-home" id="wq-home" type="button" aria-label="' + esc(T.homeBtn) + '"><span aria-hidden="true">🏠</span><span class="wq-homet">' + esc(T.homeBtn) + '</span></button>' : '') +
+      '</div>' + (dotsRow ? '<div class="wq-dotrow">' + dotsRow + '</div>' : '');
   }
   function wireBar() {
     on('#wq-snd', function () {
@@ -1101,6 +1123,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       this.setAttribute('aria-pressed', SOUND); this.textContent = SOUND ? '🔔' : '🔕';
       if (!SOUND) stopAll(); // silent at once; nothing starts again until the next screen with sound on
     });
+    on('#wq-home', function () { homeTap(); });
   }
   /* ---------------- mascot (Jugnu): a still pose that comes alive ----------------
    * Each pose has a few short seamless loops (first frame = last frame), one picked at random so it never
@@ -1862,12 +1885,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function question(i, retry) {
     var q = QS[i];
     var shown = Date.now();
+    if (!retry) CURQ = i;
     var h = bar(retry ? '<span class="wq-grow wq-qof">' + esc(T.second) + '</span>' : dots(i)) +
-      (retry ? '' : '<p class="wq-qof">' + esc(T.qof(i + 1, N)) + '</p>') +
+      (retry ? '' : qRow(i, T.qof(i + 1, N))) +
       '<div class="wq-item" data-kind="' + WQI.kind(q) + '">' + WQI.itemHtml(q, T, LANG) + '</div>' +
       '<div id="wq-help">' + hintBtn(q) + '</div><div id="wq-hintbox"></div><div id="wq-fb"></div>' + WQI.rewatchHtml(B.video, T);
     render(h, retry ? 'M9-fix' : 'M6');
     wireBar();
+    if (!retry) wireQBack(i);
     WQI.wireZoom(ROOT, T);
     if (!retry) ahead(i);
     ev(retry ? 'retry_view' : 'question_view', { qid: q.qid, i: i + 1 });
@@ -2000,6 +2025,93 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (retry) return nextRetry();
       nextQuestion();
     });
+  }
+
+  /* ---------------- Back to the previous question: a read-only review (web_quiz_back_nav) ---------------- */
+  // The first answer is the score (one answer per question on the server; finish counts first tries), so a
+  // question seen again is shown exactly as it was left — the child's pick, the marks, the reason they already
+  // heard — with its options locked. Trying again is the end-of-quiz "fix the tricky ones" pass, as today.
+  var CURQ = 0, REVQ = -1;
+  function backTarget(i) { return i > 0 ? 'review' : B.video ? 'video' : ''; }
+  function qRow(i, text) {
+    var to = BACK_ON ? backTarget(i) : '';
+    var p = '<p class="wq-qof">' + esc(text) + '</p>';
+    return to ? '<div class="wq-qrow"><button class="wq-qback" id="wq-qback" type="button"><span aria-hidden="true">' + (LANG === 'ur' ? '→' : '←') + '</span> ' + esc(T.back) + '</button>' + p + '</div>' : p;
+  }
+  function stepBack(i, src) {
+    var to = backTarget(i);
+    stopVoice(); clearTimers();
+    ev('back', { src: src, step: to || 'home' });
+    if (to === 'review') return review(i - 1);
+    if (to === 'video') return video();
+    if (homeOk()) return homeSheet(src);
+    return nextQuestion();
+  }
+  function wireQBack(i) { on('#wq-qback', function () { stepBack(i, ROOT.getAttribute('data-m') === 'M6-review' ? 'm6_review' : 'm6'); }); }
+  function review(j) {
+    var q = QS[j];
+    if (!q) return nextQuestion();
+    REVQ = j;
+    var a = S.answers[q.qid] || {};
+    var picked = (q.options || []).filter(function (o) { return o.slot === a.slot; })[0] || {};
+    var why = WQI.letters(q, a.ok ? (q.why || q.fb_right || '') : (picked.fb || q.why || ''));
+    var nxt = -1;
+    for (var k = 0; k < N; k++) if (!S.answers[QS[k].qid]) { nxt = k; break; }
+    var h = bar(dots(j)) + qRow(j, T.qof(j + 1, N)) +
+      '<div class="wq-revnote" role="note">↩ ' + esc(T.revSay(j + 1)) + '</div>' +
+      '<div class="wq-item wq-review" data-kind="' + WQI.kind(q) + '">' + WQI.itemHtml(q, T, LANG) + '</div>' +
+      (why ? '<div class="wq-fb ' + (a.ok ? 'wq-ok' : 'wq-no') + '"><div class="wq-why">' + WQI.tex(why) + '</div></div>' : '') +
+      '<button class="wq-btn wq-go" id="wq-revnext" type="button">' + esc(nxt >= 0 ? T.revBack(nxt + 1) : T.next) + '</button>';
+    render(h, 'M6-review');
+    wireBar();
+    wireQBack(j);
+    WQI.wireZoom(ROOT, T);
+    if (a.slot) WQI.mark(ROOT, q, a.slot);
+    ev('review_view', { qid: q.qid, i: j + 1 });
+    on('#wq-revnext', function () { ev('back', { src: 'm6_review', step: 'return' }); nextQuestion(); });
+  }
+
+  /* ---------------- the Home button (web_quiz_home_button) ---------------- */
+  // To this child's home (the kid hub) through the results card's door, which now also opens mid-quiz for the
+  // child's own run. During play it asks first (a tap, never automatic); what is still unsent goes first, and
+  // the sheet never says the answers are saved while one is waiting to be sent.
+  var homeGoing = false, SHEET = false;
+  function mSrc(m) { return String(m || '').toLowerCase().replace(/[^a-z0-9_]/g, '_'); }
+  function dropSheet() {
+    SHEET = false;
+    var el = document.getElementById('wq-sheet');
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  }
+  function homeTap() {
+    var m = ROOT.getAttribute('data-m') || '';
+    if (PLAYING[m] || m === 'M6-review') return homeSheet(mSrc(m));
+    homeGo(mSrc(m));
+  }
+  function homeSheet(src) {
+    if (SHEET) return;
+    SHEET = true;
+    ROOT.insertAdjacentHTML('beforeend', '<div class="wq-sheet" id="wq-sheet" role="dialog" aria-modal="true"><div class="wq-sheetbox">' +
+      '<p>🏠 ' + esc(S.queue && S.queue.length ? T.homeSaving : T.homeSure) + '</p>' +
+      '<button class="wq-btn wq-go" id="wq-gohome" type="button">' + esc(T.goHome) + '</button>' +
+      '<button class="wq-btn wq-ghost" id="wq-stay" type="button">' + esc(T.stay) + '</button><!--/wq-sheet--></div></div>');
+    on('#wq-gohome', function () { dropSheet(); homeGo(src); });
+    on('#wq-stay', function () { dropSheet(); ev('home_tap', { src: src, how: 'stay' }); });
+  }
+  function homeGo(src) {
+    if (homeGoing) return;
+    homeGoing = true;
+    flushQueue().then(function () { return api('POST', 'hubdoor', { st: S.st, home: 1 }); }).then(function (r) {
+      var href = r.ok && r.body && typeof r.body.href === 'string' ? r.body.href : '';
+      if (/^\/h\/[A-Za-z0-9._-]+$/.test(href)) {
+        ev('home_tap', { src: src, how: 'door' });
+        flushQueue(true); flushEv(true);
+        location.assign(href + '?from=home');
+        return;
+      }
+      homeGoing = false;
+      ev('home_tap', { src: src, how: 'no_door' });
+      toast(T.oops);
+    }, function () { homeGoing = false; ev('home_tap', { src: src, how: 'offline' }); toast(T.offline); });
   }
 
   /* ---------------- end of the first pass: finish (E5), then fix the tricky ones ---------------- */
@@ -2655,6 +2767,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (!h || !h.pushState) return;
       h.replaceState({ wq: 'base' }, '');
       h.pushState({ wq: 'top' }, '');
+      // Stepping back through questions: a second spare entry during play, so two quick Backs both stay here.
+      var m = ROOT.getAttribute('data-m') || '';
+      if (BACK_ON && (PLAYING[m] || m === 'M6-review')) h.pushState({ wq: 'top2' }, '');
       NAV.armed = true;
     } catch (e) {}
   }
@@ -2663,7 +2778,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var m = ROOT.getAttribute('data-m') || '';
     var to = backTo(m);
     var src = m.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    if (SHEET) { dropSheet(); ev('back', { src: src, step: 'sheet' }); return; }
     if (to) { ev('back', { src: src, step: 'screen' }); to(); return; }
+    // web_quiz_back_nav: Back walks the questions back (review, then the video), and where the page would
+    // close (the first screen of play, the results) it offers Home instead.
+    if (BACK_ON && (m === 'M6' || m === 'M7')) { stepBack(CURQ, src); return; }
+    if (BACK_ON && m === 'M6-review') { stepBack(REVQ, src); return; }
+    if (BACK_ON && homeOk() && /^(M5|M9|M9-tricky|M10)$/.test(m)) { ev('back', { src: src, step: 'home' }); homeSheet(src); return; }
     if (PLAYING[m] && Date.now() - NAV.warnAt > 3000) { NAV.warnAt = Date.now(); ev('back', { src: src, step: 'warn' }); toast(T.backAgain); return; }
     ev('back', { src: src, step: 'leave' });
     flushEv(true);

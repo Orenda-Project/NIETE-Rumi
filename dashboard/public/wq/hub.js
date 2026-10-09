@@ -12,6 +12,8 @@
   var LOCKED_BOOT = Boolean(B.locked);
   // Opened from the quiz results card's door (?from=door): counted as the door's on its first view.
   var FROM_DOOR = /[?&]from=door(&|$)/.test(String((typeof location !== 'undefined' && location.search) || ''));
+  // Opened from the quiz page's Home button (?from=home): counted as Home's.
+  var FROM_HOME = /[?&]from=home(&|$)/.test(String((typeof location !== 'undefined' && location.search) || ''));
   var TOKEN = String(B.token || '');
   var BR = B.brand || null;
   var MASC = (BR && BR.mascot) || { en: 'Jugnu', ur: 'جگنو' };
@@ -39,6 +41,8 @@
       someone: 'Someone else / new player', newT: 'New here?', mineDoor: 'Finish your own quiz, then tap “My quizzes, videos and challenges”.',
       mine: 'Is this your link? Send /quiz on WhatsApp again for a new one.',
       newSay: 'Ask your teacher for a quiz link, or send /quiz on WhatsApp from your family\'s phone.',
+      lastT: 'Your last quiz', cont: 'Continue', soFar: function (n) { return n ? n + (n === 1 ? ' question answered' : ' questions answered') : 'Not started yet'; },
+      done: 'Finished', playAgain: 'Play again', vidT: 'Videos', vidSub: 'Watch one and try its quiz',
       wait: 'Opening…', noClass: 'Play a quiz from your teacher first.', gone: 'No quizzes here yet. Ask your teacher for a quiz link.', mins: function (m) { return m + ' min'; },
     },
     ur: {
@@ -55,6 +59,8 @@
       someone: 'کوئی اور / نیا کھلاڑی', newT: 'پہلی بار؟', mineDoor: 'اپنا کوئز مکمل کریں، پھر «میرے کوئز، ویڈیوز اور چیلنج» دبائیں۔',
       mine: 'کیا یہ آپ کا لنک ہے؟ نیا لنک لینے کے لیے واٹس ایپ پر دوبارہ ⁦/quiz⁩ بھیجیں۔',
       newSay: 'اپنے استاد سے کوئز کا لنک لیں، یا گھر کے فون سے واٹس ایپ پر ⁦/quiz⁩ بھیجیں۔',
+      lastT: 'آپ کا پچھلا کوئز', cont: 'جاری رکھیں', soFar: function (n) { return n ? '<bdi>' + n + '</bdi> سوالوں کے جواب دیے' : 'ابھی شروع نہیں کیا'; },
+      done: 'مکمل', playAgain: 'دوبارہ کھیلیں', vidT: 'ویڈیوز', vidSub: 'ایک دیکھیں اور اس کا کوئز کریں',
       wait: 'کھل رہا ہے…', noClass: 'پہلے استاد کا کوئی کوئز کھیلیں۔', gone: 'ابھی یہاں کوئی کوئز نہیں۔ استاد سے کوئز کا لنک لیں۔', mins: function (m) { return m + ' منٹ'; },
     },
   };
@@ -156,6 +162,8 @@
     var e = { t: Date.now(), lang: LANG };
     if (props) for (var k in props) if (props[k] !== undefined) e[k] = props[k];
     e.n = n;
+    // Page-session telemetry on (wq-tel.js): the event joins that page session's queue.
+    if (window.WQT && window.WQT.push(e)) return;
     try {
       var body = JSON.stringify({ events: [e] });
       if (!(navigator.sendBeacon && navigator.sendBeacon('/api/wq/e', new Blob([body], { type: 'application/json' })))) {
@@ -218,10 +226,12 @@
   }
 
   /* ---------------- H2 the hub ---------------- */
+  // With the Home button on (nav_home), the library and the challenge are told to show it too.
+  function withHome(h) { return B.nav_home ? h + (h.indexOf('?') >= 0 ? '&' : '?') + 'home=1' : h; }
   function teacherCard(t) {
     if (!t) {
       return '<div class="wq-card wq-hcard wq-hnone"><p class="wq-hnonesay">' + esc(T.none) + '</p>' +
-        (B.lib ? '<a class="wq-btn wq-go" id="wq-h-lib2" href="' + esc(B.lib.href) + '">📚 ' + esc(T.libT) + '</a>' : '') + '</div>';
+        (B.lib ? '<a class="wq-btn wq-go" id="wq-h-lib2" href="' + esc(withHome(B.lib.href)) + '">📚 ' + esc(T.libT) + '</a>' : '') + '</div>';
     }
     return '<div class="wq-card wq-hcard"><p class="wq-hlabel">' + esc(T.fromT) + '</p>' +
       '<h2 dir="auto">' + esc(t.topic) + '</h2><p class="wq-sub">' + [esc(subjectName(t.subject)), T.sent(daysSince(t.sent_at))].filter(Boolean).join(' · ') + '</p>' +
@@ -249,16 +259,37 @@
       return '<li><button class="wq-vitem" data-rec="' + i + '">' + pic + '<span class="wq-vtext"><b dir="auto">' + esc(v.title) + '</b><small>' + meta + '</small></span></button></li>';
     }).join('') + '</ul>';
   }
+  // The home page (web_quiz_child_quiz_home): the quiz this child touched last — Continue, or the score and
+  // Play again — above everything else.
+  function lastCard(l) {
+    if (!l) return '';
+    var meta = [esc(subjectName(l.subject)), l.state === 'open' ? T.soFar(Number(l.answered) || 0) : esc(T.done)].filter(Boolean).join(' · ');
+    var score = l.state === 'done' && l.score && l.score.t ? '<p class="wq-hscore">⭐ <bdi dir="ltr">' + esc(l.score.c + '/' + l.score.t) + '</bdi></p>' : '';
+    var href = l.state === 'open' ? quizHref(l.code, { k: l.k }) : l.again ? quizHref(l.code, { again: '1', k: l.k }) : '';
+    var btn = href ? '<a class="wq-btn wq-go" id="wq-h-last" href="' + esc(href) + '">' + (l.state === 'open' ? '▶ ' + esc(T.cont) : '↻ ' + esc(T.playAgain)) + '</a>' : '';
+    return '<div class="wq-card wq-hcard wq-hlast"><p class="wq-hlabel">' + esc(T.lastT) + '</p><h2 dir="auto">' + esc(l.topic) + '</h2>' +
+      '<p class="wq-sub">' + meta + '</p>' + score + btn + '</div>';
+  }
+  function homeTiles() {
+    return '<div class="wq-htiles">' +
+      (B.lib ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(withHome(B.lib.href)) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">🎬</span>') + '<b>' + esc(T.vidT) + '</b><small>' + esc(T.vidSub) + '</small></a>' : '') +
+      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid) + '&lang=' + LANG)) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '') +
+      '</div>';
+  }
   function hub() {
     var me = (B.kids || []).filter(function (k) { return k.chip === B.kid; })[0] || {};
+    var HOME = Boolean(B.home_v);
     // With no teacher quiz the empty card already holds the library button: no second library tile.
-    var tiles = (B.lib && B.teacher ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(B.lib.href) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">📚</span>') + '<b>' + esc(T.libT) + '</b><small>' + esc(T.libSub) + '</small></a>' : '') +
-      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid) + '&lang=' + LANG) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
-    render(bar() + jug('hello', T.hi(me.first || '')) + teacherCard(B.teacher) +
-      (tiles ? '<div class="wq-htiles">' + tiles + '</div>' : '') +
+    var tiles = (B.lib && B.teacher ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(withHome(B.lib.href)) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">📚</span>') + '<b>' + esc(T.libT) + '</b><small>' + esc(T.libSub) + '</small></a>' : '') +
+      (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid) + '&lang=' + LANG)) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
+    var top = HOME
+      ? lastCard(B.last) + homeTiles() + (B.teacher ? teacherCard(B.teacher) : '')
+      : teacherCard(B.teacher) + (tiles ? '<div class="wq-htiles">' + tiles + '</div>' : '');
+    render(bar() + jug('hello', T.hi(me.first || '')) + top +
       againList(B.again || []) + recList(B.recs || []) +
       ((B.kids || []).length > 1 ? '<button class="wq-btn wq-ghost" id="wq-h-switch">' + ani(me.animal) + ' ' + esc(T.switchKid) + '</button>' : ''), 'H2');
     on('#wq-h-teacher', function (e) { e.preventDefault(); go(this.getAttribute('href'), 'teacher'); });
+    on('#wq-h-last', function (e) { e.preventDefault(); go(ROOT.querySelector('#wq-h-last').getAttribute('href'), 'last'); });
     on('#wq-h-lib', function (e) { e.preventDefault(); go(this.getAttribute('href'), 'lib'); });
     on('#wq-h-lib2', function (e) { e.preventDefault(); go(this.getAttribute('href'), 'lib'); });
     on('#wq-h-ch', function (e) { e.preventDefault(); go(this.getAttribute('href'), 'challenge'); });
@@ -292,8 +323,8 @@
 
   /* ---------------- boot ---------------- */
   function boot() {
-    ev('hub_view', { src: FROM_DOOR ? 'door' : B.kid ? 'hub' : 'who', i: (B.kids || []).length });
-    if (FROM_DOOR) { FROM_DOOR = false; try { history.replaceState(null, '', '/h/' + TOKEN); } catch (e) {} }
+    ev('hub_view', { src: FROM_DOOR ? 'door' : FROM_HOME ? 'home' : B.kid ? 'hub' : 'who', i: (B.kids || []).length });
+    if (FROM_DOOR || FROM_HOME) { FROM_DOOR = false; FROM_HOME = false; try { history.replaceState(null, '', '/h/' + TOKEN); } catch (e) {} }
     if (!(B.kids || []).length) render(bar() + jug('sleep', T.gone), 'H0');
     else if (!B.kid) picker();
     else hub();

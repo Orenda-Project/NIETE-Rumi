@@ -380,6 +380,7 @@ html[lang=ur] .wq-hlabel{letter-spacing:0;font-weight:700;font-size:16px;line-he
 .wq-hcard{display:flex;flex-direction:column;gap:10px;border:2px solid var(--brand);box-shadow:0 4px 0 var(--brand-d)}
 .wq-hcard .wq-hlabel{margin:0;color:var(--brand-d)}
 .wq-hnone{border-color:var(--line);box-shadow:0 3px 0 var(--line)}
+.wq-hscore{margin:0;font-weight:900;font-size:28px;color:var(--navy)}
 .wq-hnonesay{margin:0;font-weight:800;font-size:18px;line-height:1.4;color:var(--navy)}
 html[lang=ur] .wq-hnonesay{font-weight:600;font-size:17px;line-height:2}
 .wq-htiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -452,3 +453,21 @@ a.wq-vitem{color:inherit;text-decoration:none}
 /* "Watch the lesson again" from a library question: the video over the question, Close goes back to the same question. */
 .wq-again{margin-top:14px;width:100%}
 .wq-vagain video{width:100%;max-height:82vh;border-radius:12px;background:#000}
+
+/* The Home button (web_quiz_home_button): the bar's end — top right, top left in Urdu (the bar is a flex row
+   under dir=rtl) — a 56 px target; the progress dots move to their own row under the bar. */
+.wq-home{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:56px;min-height:56px;margin-inline-start:8px;padding:6px 8px;border-radius:16px;border:2px solid var(--navy);background:#fff;color:var(--navy);font:inherit;font-weight:800;font-size:13px;line-height:1;box-shadow:0 3px 0 rgba(51,55,72,.2);cursor:pointer;flex:0 0 auto}
+.wq-home>span[aria-hidden]{font-size:22px;line-height:1}
+.wq-homet{white-space:nowrap}
+.wq-dotrow{display:flex;justify-content:center;margin:2px 0 6px}
+/* Back to the previous question: a 48 px pill at the start of the "Question n of N" row. */
+.wq-qrow{display:flex;align-items:center;gap:10px;margin:0 0 8px}
+.wq-qrow .wq-qof{margin:0}
+.wq-qback{display:inline-flex;align-items:center;gap:6px;min-height:48px;padding:0 16px;border-radius:24px;border:2px solid #cfd6d2;background:#fff;color:var(--navy);font:inherit;font-weight:800;font-size:16px;cursor:pointer;flex:0 0 auto}
+.wq-revnote{background:#fff7e0;border:2px solid #efaf22;border-radius:16px;padding:12px 14px;margin:0 0 12px;font-weight:700;font-size:16px;line-height:1.4;color:var(--navy)}
+/* The Home sheet: over the screen, asked by a tap, never automatic. */
+.wq-sheet{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;background:rgba(0,0,0,.45)}
+.wq-sheetbox{width:100%;max-width:520px;margin:0 auto;background:#fff;border-radius:22px 22px 0 0;padding:22px 18px 26px;display:flex;flex-direction:column;gap:12px}
+.wq-sheetbox p{margin:0 0 6px;font-weight:800;font-size:20px;line-height:1.35;color:var(--navy)}
+.wq-hometop{display:flex;justify-content:flex-end;margin:0 0 6px}
+a.wq-home{text-decoration:none}

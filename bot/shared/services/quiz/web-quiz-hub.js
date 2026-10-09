@@ -37,8 +37,10 @@
  * subject, filled to 3 from the grade's other subjects (Flow subject order).
  */
 const supabase = require('../../config/supabase');
+const { read: dbRead } = require('./web-quiz-db-deadline');   // a deadline + one retry on reads (web_quiz_db_deadline)
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
+const Tel = require('./web-quiz-telemetry');
 const T = require('./web-quiz-token');
 const Videos = require('./web-quiz-videos');
 const Order = require('./video-bank-order');
@@ -129,12 +131,12 @@ function firstOfEach(rows, max = RECS_MAX) {
 async function kidClasses(studentId, history) {
   const ids = new Set();
   try {
-    const { data } = await supabase.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true);
+    const { data } = await dbRead('kidClasses:class_enrollments', (db) => db.from('class_enrollments').select('class_id').eq('student_id', studentId).eq('is_active', true));
     (data || []).forEach((r) => r.class_id && ids.add(r.class_id));
   } catch (_) { /* no roster: the played codes only */ }
   const played = history.filter((e) => e.teacherSent && e.shareCodeId).map((e) => e.shareCodeId);
   if (played.length) {
-    const { data, error } = await supabase.from('quiz_share_codes').select('id, class_id').in('id', played.slice(0, 50));
+    const { data, error } = await dbRead('kidClasses:quiz_share_codes', (db) => db.from('quiz_share_codes').select('id, class_id').in('id', played.slice(0, 50)));
     if (!error) (data || []).forEach((r) => r.class_id && ids.add(r.class_id));
   }
   return ids;
@@ -142,10 +144,10 @@ async function kidClasses(studentId, history) {
 
 /** Open teacher-sent codes of these teachers from the last 7 days, newest first; class_id when the column exists. */
 async function recentCodes(teachers) {
-  const q = (cols) => supabase.from('quiz_share_codes').select(cols)
+  const q = (cols) => dbRead('recentCodes:quiz_share_codes', (db) => db.from('quiz_share_codes').select(cols)
     .in('teacher_user_id', teachers.slice(0, 5)).eq('active', true)
     .is('parent_share_code_id', null).is('invited_by_student_id', null)
-    .gte('created_at', daysAgoIso(TEACHER_DAYS)).order('created_at', { ascending: false }).limit(30);
+    .gte('created_at', daysAgoIso(TEACHER_DAYS)).order('created_at', { ascending: false }).limit(30));
   const base = 'id, code, quiz_id, topic, active, expires_at, created_at, teacher_user_id';
   const withClass = await q(`${base}, class_id`);
   if (!withClass.error) return withClass.data || [];
@@ -169,7 +171,7 @@ async function teacherCard(kidRow, list, history, grade) {
   const open = codes.filter((c) => isOpen(c) && !seen.has(c.id));
   if (!open.length) return null;
   const quizIds = [...new Set([...open.map((c) => c.quiz_id), ...history.filter((e) => e.latest && e.quizId).map((e) => e.quizId)])];
-  const { data: quizzes } = await supabase.from('quizzes').select('id, topic, subject, grade, language, lesson_plan_id, coaching_session_id').in('id', quizIds);
+  const { data: quizzes } = await dbRead('teacherCard:quizzes', (db) => db.from('quizzes').select('id, topic, subject, grade, language, lesson_plan_id, coaching_session_id').in('id', quizIds));
   const quizById = new Map((quizzes || []).map((q) => [q.id, q]));
   // The same lesson the child already finished (its twin in the other language) is not "new from your teacher".
   const doneLessons = new Set(history.filter((e) => e.latest).flatMap((e) => lessonRefs(quizById.get(e.quizId))));
@@ -201,6 +203,34 @@ async function teacherCard(kidRow, list, history, grade) {
   const hit = ranked[0];
   if (!hit) return null;
   return { code: hit.c.code, topic: hit.q.topic || hit.c.topic || '', subject: hit.q.subject || '', sent_at: hit.c.created_at, k: T.chipId(hit.c.id, kidRow.id), src: hit.rank === 0 ? 'class' : 'teacher' };
+}
+
+/**
+ * The home page's top card (web_quiz_child_quiz_home): the quiz this child touched last that can still be
+ * continued (an unfinished attempt — a retry included — on an open link) or was finished, with its latest
+ * score. Null when there is none.
+ */
+function lastOf(history, kidId) {
+  const e = history.find((x) => x.code && (x.latest || x.active));
+  if (!e) return null;
+  const base = { code: e.code, topic: e.topic, subject: e.subject, k: T.chipId(e.shareCodeId, kidId) };
+  // Unfinished — or finished once and a newer attempt left unfinished on a still-open link: Continue resumes it.
+  if (!e.latest || (e.openAnswered != null && e.active)) return { ...base, state: 'open', answered: e.openAnswered || 0 };
+  return { ...base, state: 'done', score: { c: e.latest.correct_answers || 0, t: e.latest.total_questions_answered || 0 }, again: Boolean(e.active) };
+}
+
+/**
+ * How many questions an unfinished sitting has answered. A web sitting keeps total_questions_answered at 0 until it
+ * finishes (its answers are quiz_answers rows), so the rows are counted; the larger of the two wins. Never throws.
+ */
+async function answeredSoFar(entry, fallback = 0) {
+  if (!entry || !entry.openSessionId) return fallback;
+  try {
+    const { count, error } = await dbRead('answeredSoFar:quiz_answers', (db) => db.from('quiz_answers').select('id', { count: 'exact', head: true }).eq('session_id', entry.openSessionId));
+    return error ? fallback : Math.max(fallback, count || 0);
+  } catch (_) {
+    return fallback;
+  }
 }
 
 function againOf(history, kidId, teacherCode) {
@@ -241,7 +271,7 @@ async function recsFor(kidId, history, grade) {
   let G = grade;
   if (lastDone) {
     if (lastDone.videoId) {
-      const { data: v } = await supabase.from('student_videos').select('id, grade, subject, clean_chapter').eq('id', lastDone.videoId).maybeSingle();
+      const { data: v } = await dbRead('recsFor:student_videos', (db) => db.from('student_videos').select('id, grade, subject, clean_chapter').eq('id', lastDone.videoId).maybeSingle());
       if (v) { last = { subject: v.subject, chapter: v.clean_chapter, vid: v.id }; G = String(v.grade); }
     }
     if (!last) {
@@ -251,15 +281,15 @@ async function recsFor(kidId, history, grade) {
     }
   }
   if (!G) return [];
-  const { data: vids, error } = await supabase.from('student_videos')
+  const { data: vids, error } = await dbRead('recsFor:student_videos', (db) => db.from('student_videos')
     .select('id, grade, subject, clean_chapter, clean_title, r2_url')
-    .eq('migration_status', 'done').is('superseded_by', null).eq('grade', G).limit(400);
+    .eq('migration_status', 'done').is('superseded_by', null).eq('grade', G).limit(400));
   if (error || !vids || !vids.length) return [];
-  const { data: quizzes } = await supabase.from('quizzes').select('id, video_id')
-    .in('video_id', vids.map((r) => r.id)).eq('quiz_source', 'video').eq('status', 'ready');
+  const { data: quizzes } = await dbRead('recsFor:quizzes', (db) => db.from('quizzes').select('id, video_id')
+    .in('video_id', vids.map((r) => r.id)).eq('quiz_source', 'video').eq('status', 'ready'));
   const quizOf = new Map((quizzes || []).map((q) => [q.video_id, q.id]));
-  const { data: done } = await supabase.from('quiz_sessions').select('quiz_id')
-    .eq('student_id', kidId).eq('status', 'completed').limit(300);
+  const { data: done } = await dbRead('recsFor:quiz_sessions', (db) => db.from('quiz_sessions').select('quiz_id')
+    .eq('student_id', kidId).eq('status', 'completed').limit(300));
   const finished = new Set((done || []).map((r) => r.quiz_id));
   const playable = vids.filter((r) => quizOf.has(r.id) && !finished.has(quizOf.get(r.id)));
   const chosen = last ? recOrder(playable, last) : firstOfEach(playable);
@@ -292,11 +322,11 @@ async function kidFromHub(token, chip, device) {
 }
 
 async function kidContext(studentId) {
-  const { data: row } = await supabase.from('students')
-    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').eq('id', studentId).maybeSingle();
+  const { data: row } = await dbRead('kidContext:students', (db) => db.from('students')
+    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').eq('id', studentId).maybeSingle());
   if (!row || row.is_active === false) return null;
   const { data: list } = row.list_id
-    ? await supabase.from('student_lists').select('id, user_id, class_name, section').eq('id', row.list_id).maybeSingle()
+    ? await dbRead('kidContext:student_lists', (db) => db.from('student_lists').select('id, user_id, class_name, section').eq('id', row.list_id).maybeSingle())
     : { data: null };
   const StudentQuiz = require('./student-quiz.service');
   const history = await StudentQuiz.quizzesForStudents([row]);
@@ -320,7 +350,7 @@ async function brandKey() {
 async function lockedHub(ids, why) {
   let lang = 'en';
   try {
-    const { data: rows } = await supabase.from('students').select('id, is_active').in('id', ids);
+    const { data: rows } = await dbRead('lockedHub:students', (db) => db.from('students').select('id, is_active').in('id', ids));
     const live = (rows || []).filter((r) => r.is_active !== false);
     if (live.length) {
       const StudentQuiz = require('./student-quiz.service');
@@ -334,7 +364,7 @@ async function lockedHub(ids, why) {
 
 // ─── the hub ────────────────────────────────────────────────────────────────
 
-async function hub(token, { kid, device } = {}) {
+async function hubPayload(token, { kid, device } = {}) {
   if (!T.secret()) fail(503, 'web_quiz_off');
   const ids = idsOf(token);
   const f = await Flags.flags();
@@ -344,11 +374,11 @@ async function hub(token, { kid, device } = {}) {
   // Only the children this phone is trusted for: all of them on the bound phone, else the ones it played as.
   const mine = ids.filter((id) => trust.ids.includes(id));
 
-  const { data: rows } = await supabase.from('students')
-    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', mine);
+  const { data: rows } = await dbRead('hubPayload:students', (db) => db.from('students')
+    .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', mine));
   const kidsRows = mine.map((id) => (rows || []).find((r) => r.id === id)).filter((r) => r && r.is_active !== false);
   const { data: lists } = kidsRows.some((r) => r.list_id)
-    ? await supabase.from('student_lists').select('id, user_id, class_name, section').in('id', kidsRows.map((r) => r.list_id).filter(Boolean))
+    ? await dbRead('hubPayload:student_lists', (db) => db.from('student_lists').select('id, user_id, class_name, section').in('id', kidsRows.map((r) => r.list_id).filter(Boolean)))
     : { data: [] };
   const listOf = (r) => (lists || []).find((l) => l.id === r.list_id) || null;
   const gradeOf = (r) => gradeNum((listOf(r) || {}).class_name) || gradeNum(r.self_reported_class) || null;
@@ -375,6 +405,16 @@ async function hub(token, { kid, device } = {}) {
   const grade = ctx.grade;
   out.teacher = await teacherCard(chosen, ctx.list, history, grade);
   out.again = againOf(history, chosen.id, out.teacher && out.teacher.code);
+  // The Home button is on: the library and challenge links from here say so (hub.js adds home=1).
+  if (f.homeButton) out.nav_home = true;
+  // The home page: the last quiz on top; neither the teacher card nor Play again repeats it.
+  if (f.childHome) {
+    out.home_v = 1;
+    out.last = lastOf(history, chosen.id);
+    if (out.last && out.last.state === 'open') out.last.answered = await answeredSoFar(history.find((e) => e.code === out.last.code), out.last.answered);
+    if (out.last && out.teacher && out.teacher.code === out.last.code) out.teacher = null;
+    if (out.last) out.again = out.again.filter((a) => a.code !== out.last.code);
+  }
   try {
     out.recs = await recsFor(chosen.id, history, grade);
   } catch (err) {
@@ -396,6 +436,11 @@ async function hub(token, { kid, device } = {}) {
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
   });
   return out;
+}
+
+/** The hub's boot JSON, with whether the page sends its page-session events (rt, wq-tel.js). */
+async function hub(token, opts = {}) {
+  return { ...(await hubPayload(token, opts)), rt: await Tel.flag() };
 }
 
 module.exports = {

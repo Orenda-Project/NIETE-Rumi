@@ -1300,3 +1300,58 @@ Feature: Web child quiz page on the portal
     Then the voice is given "… = what?" in English and «… = کتنے؟» in Urdu
     And the clip ends on that word, never on made-up words after "equals"
     But an "=" with its value, a blank before the "=", an option that names the "=" sign, or a gap with words after it ("12 − 10 = ? hours") is read as written
+
+  @T650
+  Scenario: An answer's right or wrong reaches the log
+    Given a child answers a question on the web quiz page
+    When the page sends the answer event with right as 1 or wrong as 0
+    Then the logged answer says right or wrong
+    And the logged feedback view says it too
+
+  @T651
+  Scenario: With page-session telemetry on, a page load can be replayed in order without a name
+    Given the app setting web_quiz_rich_telemetry is on
+    When a child opens a quiz page, moves through the screens, puts the phone down, comes back and closes the page
+    Then every event of that page load carries the same random page-session id and a sequence number with no gaps
+    And each screen logs when it was entered and, on leaving, how long it was on and how much of that was visible
+    And hiding and showing the page are logged with how long the other state lasted
+    And while the page is visible and nothing else was sent for 30 seconds, one heartbeat is logged, at most 20 per page
+    And closing the page logs its total and visible time once
+    And the log holds the quiz session's id and a hash of the phone's device ref, never the session token, the device ref or a name
+    But with the setting off the page sends none of these and the server drops any that arrive
+
+  @T696
+  Scenario: A Home button is always at the top of the child's own quiz, and leaving through it loses nothing
+    Given the app settings web_quiz_hub and web_quiz_home_button are on and a child is playing their own class quiz
+    Then every screen of that quiz — the video, each question, the results card — shows a Home button at the top right (top left in Urdu), at least 48 px each way
+    When the child taps Home during a question
+    Then the page asks "Go to your home page?" and waits for a tap, saying the answers are saved only when none is waiting to be sent
+    When the child taps "Go home"
+    Then any unsent answer is sent first and the child's home page (the kid hub) opens, counted as opened from Home
+    But a friend's challenge run, the teacher's own test run and a screen before the child is chosen show no Home button
+    And with the setting off the page is today's
+
+  @T697
+  Scenario: The video library and the Challenge opened from the home page have the same Home button
+    Given web_quiz_home_button is on
+    When the child opens the video library or the Challenge from their home page
+    Then a Home button at the top goes back to that home page
+
+  @T698
+  Scenario: Back on a question shows the previous question as it was answered, and the first answer still counts
+    Given the app setting web_quiz_back_nav is on and a child is on question 3
+    When the child taps "Back"
+    Then question 2 is shown exactly as it was answered — the child's pick, the right answer marked, the reason they already saw — with the options locked
+    And a note says "You are looking at question 2 again. Your first answer is the one that counts."
+    And "Back to question 3" returns to the question waiting for an answer
+    And no answer is sent or changed, so the score is the first tries, as before
+    And on question 1 "Back" goes to the lesson video when the quiz has one, and is not shown when it has none
+
+  @T699
+  Scenario: The phone's Back button steps back through the quiz instead of closing it
+    Given web_quiz_back_nav is on and a child is on question 3
+    When the child presses the phone's Back button twice
+    Then the page shows question 2, then question 1, as answered, and stays open
+    When the child presses Back on the first screen of the quiz or on the results card
+    Then the page offers "Go to your home page?" instead of closing (when a home page exists for this run)
+    And with the setting off the phone's Back is today's: on a question the first press warns, the second leaves

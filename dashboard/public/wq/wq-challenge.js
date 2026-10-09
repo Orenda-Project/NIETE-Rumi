@@ -25,6 +25,7 @@
 
   var T = {
     en: {
+      homeBtn: 'Home',
       title: function (m) { return m + "'s Challenge"; },
       pick: 'Pick one. Each one takes about 2 minutes.',
       mins: function (n) { return n + ' min'; },
@@ -78,6 +79,7 @@
       qaDone: function (c, n) { return 'You got ' + c + ' of ' + n + ' right!'; },
     },
     ur: {
+      homeBtn: 'ہوم',
       title: function (m) { return m + ' کا چیلنج'; },
       pick: 'ایک چنیں۔ ہر ایک تقریباً ۲ منٹ کا ہے۔',
       mins: function (n) { return ud(n) + ' منٹ'; },
@@ -226,6 +228,8 @@
     try {
       var e = { n: n, lang: L };
       for (var k in (props || {})) e[k] = props[k];
+      // Page-session telemetry on (wq-tel.js): the event joins that page session's queue.
+      if (window.WQT && window.WQT.push(e)) return;
       var body = JSON.stringify({ events: [e] });
       fetch('/api/wq/e', { method: 'POST', headers: { 'content-type': 'application/json' }, body: body, keepalive: true }).catch(function () {});
     } catch (e) { /* events never break the page */ }
@@ -266,9 +270,16 @@
   function bindHear(clip) { on('wqc-hear', function () { say(clip); }); }
 
   var S = { screen: null, ex: null, data: null };
+  // The Home button (the hub adds home=1 to its link when web_quiz_home_button is on): back to the hub of this token.
+  var HOME_TOP = /[?&]home=1(&|$)/.test(String((location && location.search) || ''));
+  function homeTop() {
+    if (!HOME_TOP || !boot.token) return '';
+    var href = '/h/' + encodeURIComponent(boot.token) + '?' + (boot.kid ? 'kid=' + encodeURIComponent(boot.kid) + '&' : '') + 'from=home';
+    return '<div class="wq-hometop"><a class="wq-home wq-home-top" id="wq-home" href="' + esc(href) + '" aria-label="' + esc(t.homeBtn) + '"><span aria-hidden="true">🏠</span><span class="wq-homet">' + esc(t.homeBtn) + '</span></a></div>';
+  }
   function show(name, html) {
     S.screen = name;
-    root.innerHTML = '<section class="wq-screen wqc" data-screen="' + name + '">' + html + '</section>';
+    root.innerHTML = '<section class="wq-screen wqc" data-screen="' + name + '">' + homeTop() + html + '</section>';
     try { window.scrollTo(0, 0); } catch (e) {}
   }
 
