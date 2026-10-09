@@ -184,14 +184,17 @@ describe('Paper page', () => {
     question_count: 14, total_marks: 20, ready_at: '2026-10-08T05:00:00Z', version: 2,
   };
 
-  it('Download, Answer key when there is one, Edit and Versions with editing on — and no WhatsApp', async () => {
+  it('Download, Answer key when there is one, Edit and Versions with editing on; the dock is ShareActions (bd-fmf24g.30, superseding "no WhatsApp")', async () => {
     portal.getAssessmentPapers.mockResolvedValue({ success: true, papers: [{ ...paper, has_answer_key: true }], total: 1, page: 1, pageSize: 20 });
     at(paperPath('p-1'), `${ASSESSMENT_V2_BASE}/paper/:paperId`, <PaperPage />);
     expect(await screen.findByRole('button', { name: new RegExp(C.download) })).toBeTruthy();
     expect(await screen.findByRole('button', { name: new RegExp(C.answerKey) })).toBeTruthy();
     expect(screen.getByRole('link', { name: new RegExp(C.edit) })).toBeTruthy();
     expect(screen.getByRole('link', { name: new RegExp(C.versions) })).toBeTruthy();
-    expect(screen.queryByText(/whatsapp/i)).toBeNull();
+    // bd-fmf24g.30: Send on WhatsApp is in the dock, locked while no template is configured; Open in another app is the paper's PDF.
+    const send = await screen.findByTestId('share-send');
+    expect(send.textContent).toContain('Send on WhatsApp');
+    expect(screen.getByTestId('share-open')).toBeTruthy();
   });
 
   it('no Answer key without one; no Edit or Versions with editing off', async () => {
