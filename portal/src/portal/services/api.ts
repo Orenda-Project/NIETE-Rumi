@@ -461,6 +461,12 @@ export const portal = {
     return response.data;
   },
 
+  /** bd-fmf24g.31: the paper's own questions (hers only; not behind the editing switch). */
+  getAssessmentPaperView: async (paperId: string): Promise<PaperView> => {
+    const response = await api.get(`/assessment/paper/${encodeURIComponent(paperId)}/view`);
+    return response.data;
+  },
+
   getAssessmentEditQuestions: async (
     paperId: string
   ): Promise<{ paper: EditPaper; items: EditItem[] }> => {
@@ -696,6 +702,20 @@ export type AssessmentPaperList = {
   total: number;
   page: number;
   pageSize: number;
+};
+
+// ── bd-fmf24g.31: a paper's questions, as the paper page reads them ──
+export type PaperSub = { letter: string; text: string; marks: number | null; options: string[] };
+export type PaperQuestion = {
+  number: number; text: string; marks: number | null;
+  shape: 'options' | 'columns' | 'words' | 'comprehension' | 'passage' | 'standard';
+  options?: string[]; pairs?: { left: string; right: string }[]; words?: string[]; passage?: string; subs?: PaperSub[];
+};
+export type PaperSection = { heading: string | null; lead: string | null; questions: PaperQuestion[] };
+export type PaperView = {
+  success: boolean;
+  paper: { paperId: string; version: number | null; grade: number | null; subject: string; chapterNumber: number | null; rtl: boolean; questionCount: number; marks: number };
+  sections: PaperSection[];
 };
 
 // ── bd-hb8qs: edit-a-paper types ──────────────────────────────────────────
