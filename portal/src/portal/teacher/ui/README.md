@@ -26,11 +26,13 @@ import { FeatureArt, FeatureGlyph, FEATURE_HUE, TEACHER_FEATURES } from '@/porta
 
 | Export | Props | Notes |
 |---|---|---|
-| `FeatureArt` | `feature`, `size` (48), `label?`, `className?`, `motion?` | The D2-refined spot illustrations (Main.dc.html `r-*`). Decorative unless `label`. Digital Coaching is a phone. `motion` opts in to the small movements, only inside a `FeatureMotionProvider` (Home): ONE shared 30–60 s timer plays every opted-in icon together, none under reduced motion, paused while hidden. Menu glyphs never move. |
-| `FeatureGlyph` | `name` (a feature, `home`, `more`), `size` (24), `label?`, `className?` | The menu glyphs (`g-*`), `currentColor`. Knocked-out details use CSS `--cut` (white by default; set it to the tint behind). |
+| `FeatureArt` | `feature` (`AnyFeature`), `size` (48), `label?`, `className?`, `motion?` | The D2-refined spot illustrations (Main.dc.html `r-*`). Decorative unless `label`. Digital Coaching is a phone. `motion` opts in to the small movements, only inside a `FeatureMotionProvider` (Home): ONE shared 30–60 s timer plays every opted-in icon together, none under reduced motion, paused while hidden. Menu glyphs never move. **`schedule`** (a calendar with a clock badge: the badge pops, the hand swings, the dots twinkle) and **`schools`** (a school: the flag swings, the windows twinkle) and **`reports`** (a report page: the three bars rise in turn from their foot, the % badge pops 0.3 s after the first; glyph `reports`) are the coach's, on the same shared timer and the same keyframes (`fm-bdg`, `fm-hnd`, `fm-flg`, `fm-tw`). |
+| `FeatureGlyph` | `name` (an `AnyFeature`, `home`, `more`; the coach's `schedule` and `schools` included), `size` (24), `label?`, `className?` | The menu glyphs (`g-*`), `currentColor`. Knocked-out details use CSS `--cut` (white by default; set it to the tint behind). |
 | `NieteLattice` | `line` (#47ba7d), `strength` (.55), `shift` (0), `className` | The brand book's diamond lattice (Patterns, p9) redrawn as line art: thin 45° lines, never filled, one colour, `aria-hidden`. Fades out toward the start edge (mirrored in Urdu). Size it from outside, e.g. `absolute inset-y-0 end-0 w-[70%]`. |
-| `FEATURE_HUE` | — | `{ fg, bg }` per feature (lessons green, coaching orange, observations red, training violet, assessment blue, attendance indigo, classes teal). |
-| `TEACHER_FEATURES` | — | The seven features in Home's order. |
+| `FEATURE_HUE` | — | `{ fg, bg }` per feature (lessons green, coaching orange, observations red, training violet, assessment blue, attendance indigo, classes teal; the coach's **schedule rose `#be185d`/`#fce7f3`**, **schools teal `#0f766e`/`#ccfbf1`**, **reports olive `#4d7c0f`/`#ecfccb`**). |
+| `TEACHER_FEATURES` | — | The seven teacher features in Home's order. |
+| `COACH_FEATURES` | — | The coach Home's four tiles in order: `schedule`, `observations`, `schools`, `training`. |
+| `TeacherFeature` / `CoachFeature` / `AnyFeature` | types | `FeatureArt`, `FeatureGlyph`, `FEATURE_HUE` and `TeacherPage`'s `feature` take `AnyFeature` (the seven + `schedule`, `schools`, `reports`). A teacher page keeps to `TeacherFeature`. |
 
 ## Components
 
@@ -245,3 +247,55 @@ is the server's: this only draws them. The shell's `teacher/notices/ReadyForYou`
 ### `NoticeIcon`
 `feature` (`lessons` | `assessment`), `size` (`lg` 56 · `md` 52 · `sm` 48), `failed?`. The feature's glyph in its colour on its tint with a
 green tick badge at the end-bottom corner (a red "!" when failed). Decorative: the row names the item.
+
+## Coach build, PR 1 (bd-4404s7.1) — shared pieces the coach screens use
+
+The coach side reuses these; it never re-draws them. Canvas boards: TimeStamp, ChosenSoFar, AttentionBanner, FeatureTile,
+FeatureArt, TeacherNav (COACH.md §0b, §6).
+
+### `TimeStamp`
+| Prop | Type | Default |
+|---|---|---|
+| time | `"14:30"` (24-hour, as the server stores it) or `"8:30 AM"`; anything else (a legacy word) is shown as it came | — |
+| tone | `neutral` · `next` (indigo, the coming visit) · `done` (green) · `overdue` (amber) | `neutral` |
+| size | px of the time; AM/PM is 72% of it | 17 |
+| className | | — |
+
+The ONE time display: the time bold, AM/PM beside it on the same line, smaller ("8:30 AM"). Plain text: no box, no fill, no
+tile (the grade-subject tile is reserved). One accessible name ("8:30 AM"). Urdu reads "8:30 صبح"; the digits stay left-to-right.
+`parseTime(time)` → `{ hm, meridiem } | null` is exported. Words: `copy` is not a prop here; the kit's `am` / `pm`.
+
+### `ChosenSoFar`
+`items: [{ label, value, sub?, to?, onChange? }]`, `heading?` (the group's name for a screen reader, default `copy.chosenSoFar`),
+`copy?` (`change`, `chosenSoFar`), `className?`. What she chose so far in a multi-step flow, as PLAIN TEXT (a 13px label, the 17px
+value, an optional second line): no card, edge or chevron. Each row has a separate bordered **Change** pill inside a 56px target:
+a `to` makes it a link, otherwise a button calling `onChange`. Its accessible name is "Change School".
+
+### `AttentionBanner`
+`text` (already counted: "2 reports waiting"), `to?` (a link), `onPress?` (a button), `testId?`, `className?`. One line for "this
+needs you": amber (the waiting tone), 56px, a clock at the start, a chevron at the end that turns round in Urdu. With neither `to`
+nor `onPress` it is a plain `role="status"` note. Never stack it with the ready banner: the host hides it meanwhile.
+
+### `FeatureTile`
+| Prop | Type | Default |
+|---|---|---|
+| feature | `AnyFeature` | — |
+| label | the screen's word | — |
+| to | the page it opens | — |
+| chip | `ChipData` (`{ text, tone }`, tones `info` · `waiting` · `done`) shown under the label; none or empty text draws none | — |
+| wide | the 132px tile spanning two columns | false |
+| motion | play the shared icon movement (inside a `FeatureMotionProvider`) | true |
+
+Home's tile, now the kit's (teacher Home uses it). 176px, 80px art, 18px/600 label. Lay tiles out in `[display:grid] grid-cols-2 gap-3`
+inside ONE `FeatureMotionProvider`, so they all move together, once on arrival and again at one random 30–60 s gap; nothing under
+reduced motion. Chips use status tones only.
+
+### The frame: role-aware menu and the header action
+- `TeacherNavigation` takes `role?: 'teacher' | 'coach'` (default `teacher`). `coach` shows **Home · Schedule · Observe · Schools ·
+  More** (routes `COACH_MENU_PATHS` in `../menu.ts`: `/portal/coach`, `/scheduling`, `/observe`, `/people`, `/more`), the same still
+  glyphs (`home`, `schedule`, `observations`, `schools`, `more`) and the same bar; `currentCoachMenuItem(pathname)` keeps a feature
+  current on every page inside it. Words: `TEACHER_FRAME.coachNav`. `PortalNavigation` does not choose it yet: the screen that
+  builds the coach Home flips `if (coachV2) return <TeacherNavigation role="coach" />`, and the screen that builds More registers
+  `/portal/coach/more`.
+- `TeacherPage` `action`: a control at the END of the header (right in English, left in Urdu) on a top-level page as well as an
+  inner one. Keep it a 56px target. `feature` takes `AnyFeature`, so a coach page shows the rose Schedule / teal Schools art.

@@ -52,6 +52,9 @@ describe("FeatureArt (the 48px illustrations)", () => {
       assessment: { fg: "#1d6fd8", bg: "#e3eefc" },
       attendance: { fg: "#33374a", bg: "#e8e9f0" },
       classes: { fg: "#0f766e", bg: "#ccfbf1" },
+      schedule: { fg: "#be185d", bg: "#fce7f3" },
+      schools: { fg: "#0f766e", bg: "#ccfbf1" },
+      reports: { fg: "#4d7c0f", bg: "#ecfccb" },
     });
   });
 });
