@@ -28,10 +28,15 @@ import { FeatureArt, FeatureGlyph, FEATURE_HUE, TEACHER_FEATURES } from '@/porta
 |---|---|---|
 | `FeatureArt` | `feature`, `size` (48), `label?`, `className?`, `motion?` | The D2-refined spot illustrations (Main.dc.html `r-*`). Decorative unless `label`. Digital Coaching is a phone. `motion` opts in to the small movements, only inside a `FeatureMotionProvider` (Home): ONE shared 30–60 s timer plays every opted-in icon together, none under reduced motion, paused while hidden. Menu glyphs never move. |
 | `FeatureGlyph` | `name` (a feature, `home`, `more`), `size` (24), `label?`, `className?` | The menu glyphs (`g-*`), `currentColor`. Knocked-out details use CSS `--cut` (white by default; set it to the tint behind). |
+| `NieteLattice` | `line` (#47ba7d), `strength` (.55), `shift` (0), `className` | The brand book's diamond lattice (Patterns, p9) redrawn as line art: thin 45° lines, never filled, one colour, `aria-hidden`. Fades out toward the start edge (mirrored in Urdu). Size it from outside, e.g. `absolute inset-y-0 end-0 w-[70%]`. |
 | `FEATURE_HUE` | — | `{ fg, bg }` per feature (lessons green, coaching orange, observations red, training violet, assessment blue, attendance indigo, classes teal). |
 | `TEACHER_FEATURES` | — | The seven features in Home's order. |
 
 ## Components
+
+### `HomeGreeting`
+`title` ("Salaam, {full name}!", composed by the page), `date` (her language, "Thursday 8 October"), `school` (null shows no row), `brand`, `logoAlt`, `markSrc` (the NIETE logo), `className`.
+The top of Home, option C (chosen 9 Oct 2026): a full-bleed brand navy-slate `#333748` band, the N/ن mark + "NIETE", a faint `NieteLattice` at the far end, the page's h1, then the date and school as PLAIN 17px text (no pills, nothing tappable). Bottom padding leaves 28px for the first thing under it to climb into the band (Home's `-mt-10` body; `TeacherPage`'s `hero` slot gives the full-bleed edges on a phone). Real data only: `firstName`, `schoolName`, the clock. The coach Home takes the same band later (no school, no overlap).
 
 ### `SubjectTile`
 `subject`, `size` (48), `tone` (`neutral` · `selected` · `dim`). Rounded-12 square; icon 46% of the size, English/Urdu as

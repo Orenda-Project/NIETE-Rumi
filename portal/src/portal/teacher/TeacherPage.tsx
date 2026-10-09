@@ -23,9 +23,12 @@ import { FeatureArt, type TeacherFeature } from "./icons";
  * The flag gate is App.tsx's (every registered route is wrapped in TeacherGate).
  */
 export default function TeacherPage({
-  title, crumb, backTo, onBack, feature, chips, action, dock, bare = false, testId, children,
+  title, hero, crumb, backTo, onBack, feature, chips, action, dock, bare = false, testId, children,
 }: {
-  title: ReactNode;
+  /** Not needed when `hero` draws the heading. */
+  title?: ReactNode;
+  /** bd-fmf24g.22 — a top-level page's own heading block (Home's NIETE band) instead of the plain title + chips. Full-bleed on a phone. */
+  hero?: ReactNode;
   /** The page's feature: its illustration sits beside the title. */
   feature?: TeacherFeature;
   crumb?: ReactNode;
@@ -67,6 +70,8 @@ export default function TeacherPage({
             </div>
             {action}
           </header>
+        ) : hero ? (
+          <div data-testid="page-hero" className="-mx-4 -mt-4 min-[576px]:mx-0 min-[576px]:mt-0 min-[576px]:overflow-hidden min-[576px]:rounded-[28px]">{hero}</div>
         ) : (
           <header className="flex flex-col gap-3 px-1 pb-1.5 pt-6">
             <div className="flex items-center gap-3">
