@@ -85,6 +85,25 @@ const BANNED: Ban[] = [
   { lang: "ur", re: /سبق کا منصوبہ/, use: "لیسن پلان" },
   { lang: "ur", re: /اسباق/, use: "لیسن پلان for plans; a count of taught lessons is only the report's journey" },
   { lang: "ur", re: /واٹس ایپ پر بھیجا$/, use: "واٹس ایپ پر بھیجا گیا" },
+  // ---- Urdu review (bd-fmf24g.13, 2026-10-09): the house conventions, so a later draft cannot drift back
+  { lang: "ur", re: /تیار نہیں ہو سکا/, use: "نہیں بن سکا (Failed / Couldn't make it)" },
+  { lang: "ur", re: /(?<!لیسن )پلان(?! #| کی تصویر)/, use: "لیسن پلان (Plan alone only in پلان # and پلان کی تصویر)" },
+  { lang: "ur", re: /پرچہ (میں|پر|سے|کا|کی|کے)(\s|$)/, use: "پرچے before a postposition (پرچے میں)" },
+  { lang: "ur", re: /~/, use: "تقریباً N منٹ: a tilde means nothing to an Urdu reader" },
+  { lang: "ur", re: /\+\d/, use: "مزید N: a leading plus flips to the wrong side in RTL" },
+  { lang: "ur", re: /\d\s+(مزید\s+)?کورسز/, use: "N کورس: a counted noun stays singular, as N سوال, N لیسن پلان" },
+  { lang: "ur", re: /^سب \d/, use: "تمام N" },
+  { lang: "ur", re: /^کلاسیں شامل$/, use: "شامل کلاسیں" },
+  { lang: "ur", re: /کوئی کارکردگی/, use: "ابھی کارکردگی دستیاب نہیں (no band is not 'no performance')" },
+  { lang: "ur", re: /کچھ نہیں لگا/, use: "ابھی حاضری نہیں لگی" },
+  { lang: "ur", re: /تبدیلی بند/, use: "ترمیم بند (Edit = ترمیم)" },
+  { lang: "ur", re: /^جانچیں اور/, use: "دیکھیں اور … (Check and send / Check and make: one verb)" },
+  // Gender: the teacher is addressed with an imperative or an impersonal phrase, never a gendered verb.
+  { lang: "ur", re: /آپ (?!کا|کی|کے)[^،۔]*?(سکتے|سکتی|رہے|رہی|تھے|تھی|چکے|چکی|گئے|گئی)(\s|$|۔)/, use: "an imperative or an impersonal phrase (آپ کی حاضری; انتظار ضروری نہیں)" },
+  // Mechanics: Western digits (as the bot's catalog), Urdu letters (not their Arabic look-alikes), Urdu punctuation.
+  { lang: "ur", re: /[\u0660-\u0669\u06F0-\u06F9]/, use: "Western digits 0-9, as the bot" },
+  { lang: "ur", re: /[\u064A\u0643\u0647\u0629\u0649]/, use: "Urdu ی ک ہ, not Arabic ي ك ه" },
+  { lang: "ur", re: /[\u0600-\u06FF]\s*[,?;]|[\u0600-\u06FF]\.(\s|$)/, use: "Urdu punctuation ، ؟ ۔" },
 ];
 
 /** A leaf exempt from the bans, with the ontology's reason. */
@@ -168,6 +187,16 @@ const PINNED: Pin[] = [
   { screen: "kit (shared components)", path: "locked", en: "Locked", ur: "مقفل" },
   { screen: "kit (shared components)", path: "pickDates", en: "Select dates" },
   { screen: "kit (shared components)", path: "subjectShort.agriculture", en: "Agri" },
+  // Urdu review (bd-fmf24g.13, 2026-10-09)
+  { screen: "kit (shared components)", path: "subjectShort.pakistanStudies", en: "Pak St", ur: "پاکستان" },
+  { screen: "Digital Coaching", path: "picker.failed", en: "Failed", ur: "نہیں بن سکا" },
+  { screen: "Digital Coaching", path: "planNotUsed", ur: "لیسن پلان استعمال نہیں" },
+  { screen: "Assessment", path: "editPaper", ur: "پرچے میں ترمیم کریں" },
+  { screen: "Analytics", path: "youWerePresent", ur: "آپ کی حاضری" },
+  { screen: "Analytics", path: "focus", ur: "توجہ طلب" },
+  { screen: "Lesson Plans", path: "aboutTwoMinutes", ur: "تقریباً 2 منٹ" },
+  { screen: "kit (shared components)", path: "notify.more(4)", ur: "مزید 4" },
+  { screen: "kit (shared components)", path: "notify.timeLeft(4)", ur: "تقریباً 4 منٹ باقی" },
 ];
 
 function find(screen: string, path: string, lang: "en" | "ur") {

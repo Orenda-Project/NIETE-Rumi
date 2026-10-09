@@ -26,6 +26,12 @@ describe("isolateRuns", () => {
     ["p.1-12 · 9 اسباق", `${iso("p.1-12")} · ${iso("9")} اسباق`],
     ["~2 min", iso("~2 min")],
     ["General Science · جماعت 4", `${iso("General Science")} · جماعت ${iso("4")}`],
+    // Urdu review (bd-fmf24g.13): a percent and a signed number belong to their run — "75–89%" would show as "%89–75".
+    ["75–89%", iso("75–89%")],
+    ["90%+", iso("90%+")],
+    ["75% سے کم", `${iso("75%")} سے کم`],
+    ["+3 تیار", `${iso("+3")} تیار`],
+    ["PDF + جوابی کلید", `${iso("PDF")} + جوابی کلید`],
   ])("%s", (input, out) => {
     expect(isolateRuns(input)).toBe(out);
   });
