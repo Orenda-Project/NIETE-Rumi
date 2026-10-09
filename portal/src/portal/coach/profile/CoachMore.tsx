@@ -1,11 +1,9 @@
-import { Award, CircleUserRound, ClipboardCheck, GraduationCap, LogOut } from "lucide-react";
+import { CircleUserRound, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../../hooks/useAuth";
 import { useLogoutGuard } from "../../lib/recordingSession";
-import { useChildTest } from "../../lib/useChildTest";
 import TeacherPage from "../../teacher/TeacherPage";
 import { Card, LanguageRow, ROW, RowLink, Tile } from "../../teacher/pages/More";
-import { FEATURE_HUE } from "../../teacher/icons";
 import { TEACHER_FRAME } from "../../teacher/copy";
 import { useCopy } from "../../teacher/i18n";
 import { formatPhone, fullName, initials } from "../../teacher/format";
@@ -14,9 +12,8 @@ import { COACH_PROFILE } from "./copy";
 import { useCoachCounts } from "./useCoachCounts";
 
 /**
- * bd-4404s7.2 — the coach's More (Coach_More board): who she is, then Training and Certificates, then Language,
- * My profile and Log out. The teacher More's own rows and Language switch (teacher/pages/More), the coach's items.
- * The child test (when its flag is on for her) keeps its row: the old menu held it in Other.
+ * bd-fmf24g.33 — the coach's More: who she is, then Language (English | اردو), My profile and Log out, as the teacher's.
+ * Training is a Home tile, Certificates the Training hub's card, the child test a row on Home when her flag is on.
  * The school count under her name is the API's (`counts.schools`); nothing is shown when it cannot say.
  */
 export default function CoachMore() {
@@ -25,7 +22,6 @@ export default function CoachMore() {
   const { user, logout } = useAuth();
   const guardedLogout = useLogoutGuard(logout);
   const counts = useCoachCounts();
-  const childTest = useChildTest() === true;
   const name = fullName(user);
   const phone = formatPhone(user?.phoneNumber);
 
@@ -48,13 +44,6 @@ export default function CoachMore() {
             )}
           </span>
         </section>
-
-        <Card label={C.nav.training}>
-          <RowLink id="training" to="/portal/training" icon={GraduationCap} hue={FEATURE_HUE.training} label={C.nav.training} />
-          <RowLink id="certificates" to="/portal/training/certificates" icon={Award} hue={FEATURE_HUE.training} label={C.more.certificates} />
-          {/* The child test sat in the old coach menu's Other; it must stay reachable (bd-s1oo0.7: the flag decides). */}
-          {childTest && <RowLink id="child-test" to="/portal/leader/child-test" icon={ClipboardCheck} label={P.childTest} />}
-        </Card>
 
         <Card label={C.more.account}>
           <LanguageRow />

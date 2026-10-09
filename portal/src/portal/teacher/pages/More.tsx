@@ -1,13 +1,12 @@
 import type { ComponentType, CSSProperties, ReactNode, SVGProps } from "react";
 import { Link } from "react-router-dom";
-import {
-  Award, BarChart3, ChevronRight, CircleUserRound, Languages, Loader2, LogOut,
-} from "lucide-react";
+import { ChevronRight, CircleUserRound, Languages, Loader2, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../../hooks/useAuth";
 import { useLogoutGuard } from "../../lib/recordingSession";
 import TeacherPage from "../TeacherPage";
-import { FEATURE_HUE, FeatureGlyph, type GlyphName } from "../icons";
+import { FeatureGlyph, type GlyphName } from "../icons";
+import { Tabs } from "../ui";
 import { TEACHER_FRAME } from "../copy";
 import { useCopy } from "../i18n";
 import { cleanSchool, formatPhone, fullName, initials } from "../format";
@@ -15,12 +14,9 @@ import { teacherPath } from "../routes";
 import { useLanguageSwitch } from "../useLanguageSwitch";
 
 /**
- * bd-fmf24g.1 — teacher v2 More (canvas v28 More, after changes 8 and the wiring): who she
- * is, then the features the menu bar does not hold.
- *   Assessment · Attendance · My Classes · Analytics
- *   Certificates
- *   Language · My profile · Logout
- * No counts on the rows: nothing here shows a number the API does not send.
+ * bd-fmf24g.33 — teacher v2 More (operator, 2026-10-10: "just Language as a toggle between English and Urdu, Profile and
+ * Log Out. Rest are not needed."): who she is, then Language · My profile · Log out. Nothing is stranded: Assessment,
+ * Attendance, My Classes and Analytics are Home tiles; Certificates is the Training hub's card.
  */
 type Glyph = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
 
@@ -65,31 +61,33 @@ export function RowLink({ id, to, icon, glyph, hue, label }: { id: string; to: s
 }
 
 /**
- * The Language row: names the language it switches TO, in that language's own script (the kit's one switch,
- * useLanguageSwitch → the bot's setUserLanguage). Shared with the coach's More (bd-4404s7.2).
+ * The Language row: a two-option toggle, English | اردو, the page's language picked (the kit's Tabs). Picking the other one
+ * is the kit's one switch, useLanguageSwitch → the bot's setUserLanguage; picking the one shown writes nothing.
+ * Shared with the coach's More (bd-4404s7.2).
  */
 export function LanguageRow() {
   const C = useCopy(TEACHER_FRAME);
   const lang = useLanguageSwitch();
+  // `lang.target` is the language she is NOT on, so the picked one is the other of the two.
+  const current = lang.target === "ur" ? "en" : "ur";
   return (
-    <button type="button" data-testid="more-row-language" onClick={lang.toggle} disabled={lang.status === "saving"} className={ROW}>
-      <Tile icon={lang.status === "saving" ? Loader2 : Languages} />
-      <span className="min-w-0 truncate">{C.more.language}</span>
-      {lang.status === "failed" && (
-        <span className="ms-auto inline-flex h-[26px] items-center rounded-full bg-[#fee4e2] px-2.5 text-[12px] font-semibold text-[#c8331f]">
-          {C.more.notSaved}
-        </span>
-      )}
-      <span
-        lang={lang.target}
-        className={cn(
-          "inline-flex h-[26px] items-center rounded-full bg-[#f3f4f6] px-2.5 text-[12px] font-semibold text-[#374151]",
-          lang.status === "failed" ? "" : "ms-auto",
+    <div data-testid="more-row-language" className="flex min-h-[64px] flex-col gap-2.5 px-3 py-3">
+      <div className="flex min-h-[32px] items-center gap-3.5 text-[16px] font-semibold">
+        <Tile icon={lang.status === "saving" ? Loader2 : Languages} />
+        <span className="min-w-0 truncate">{C.more.language}</span>
+        {lang.status === "failed" && (
+          <span className="ms-auto inline-flex h-[26px] items-center rounded-full bg-[#fee4e2] px-2.5 text-[12px] font-semibold text-[#c8331f]">
+            {C.more.notSaved}
+          </span>
         )}
-      >
-        {C.more.switchTo[lang.target]}
-      </span>
-    </button>
+      </div>
+      <Tabs
+        label={C.more.language}
+        value={current}
+        tabs={[{ key: "en", label: C.more.switchTo.en }, { key: "ur", label: C.more.switchTo.ur }]}
+        onChange={(key) => { if (key !== current) void lang.toggle(); }}
+      />
+    </div>
   );
 }
 
@@ -119,17 +117,6 @@ export default function More() {
           )}
         </span>
       </section>
-
-      <Card label={C.more.teaching}>
-        <RowLink id="assessment" to={teacherPath("assessment")} glyph="assessment" hue={FEATURE_HUE.assessment} label={C.more.assessment} />
-        <RowLink id="attendance" to={teacherPath("attendance")} glyph="attendance" hue={FEATURE_HUE.attendance} label={C.more.attendance} />
-        <RowLink id="classes" to={teacherPath("classes")} glyph="classes" hue={FEATURE_HUE.classes} label={C.more.classes} />
-        <RowLink id="analytics" to={teacherPath("analytics")} icon={BarChart3} label={C.more.analytics} />
-      </Card>
-
-      <Card label={C.more.records}>
-        <RowLink id="certificates" to="/portal/training/certificates" icon={Award} hue={FEATURE_HUE.training} label={C.more.certificates} />
-      </Card>
 
       <Card label={C.more.account}>
         <LanguageRow />
