@@ -1,14 +1,14 @@
 import { useAuth } from "../../hooks/useAuth";
 import { coach } from "../../services/api";
 import TeacherPage from "../../teacher/TeacherPage";
-import { AttentionBanner, FeatureTile, HomeGreeting } from "../../teacher/ui";
+import { AttentionBanner, FeatureTile, HistoryList, HomeGreeting } from "../../teacher/ui";
 import { FeatureMotionProvider } from "../../teacher/icons";
 import { TEACHER_FRAME } from "../../teacher/copy";
 import { useCopy, useLang } from "../../teacher/i18n";
 import { fullName, todayLabel } from "../../teacher/format";
 import CoachGate from "../CoachGate";
 import { COACH_HOME } from "../home/copy";
-import { CurrentVisit, VisitRow } from "../home/VisitCards";
+import { CurrentVisit, visitItem } from "../home/VisitCards";
 import { Failed, Loading, SectionLabel, useLoad } from "../ui";
 
 /**
@@ -47,13 +47,18 @@ const CoachHome = () => {
         <SectionLabel count={<span data-testid="todays-visits">{home ? home.today.length : 0}</span>}>{W.todaysVisits}</SectionLabel>
         {failed && <Failed onRetry={reload} message={W.loadFailed} retryLabel={F.tryAgain} />}
         {!home && !failed && <Loading />}
-        {home && (home.today.length === 0
-          ? <p className="mx-1 text-[15px] font-medium text-[#6b7280]">{W.noVisits}</p>
-          : (
+        {home && (() => {
+          const current = home.today.find((v) => v.current);
+          const others = home.today.filter((v) => v !== current).map((v) => visitItem(v, W));
+          return (
             <div className="flex flex-col gap-2">
-              {home.today.map((v) => (v.current ? <CurrentVisit key={v.id} v={v} W={W} /> : <VisitRow key={v.id} v={v} W={W} />))}
+              {current && <CurrentVisit v={current} W={W} />}
+              {(others.length > 0 || !current) && (
+                <HistoryList groups={[{ day: "", items: others }]} showMore={false} emptyLabel={W.noVisits} />
+              )}
             </div>
-          ))}
+          );
+        })()}
 
         <FeatureMotionProvider>
           <nav aria-label={F.home.features} data-testid="feature-tiles" className="mt-2 [display:grid] grid-cols-2 gap-3">
