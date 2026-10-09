@@ -11,6 +11,7 @@ export {
 } from './subjects';
 export { SubjectTile, type SubjectTileProps, type SubjectTileTone } from './SubjectTile';
 export { GradeSubjectButton, type GradeSubjectButtonProps, type GradeSubjectState } from './GradeSubjectButton';
+export { GRADE_COLOURS, NEUTRAL_COLOURS, gradeColoursFor, type GradeColours } from './gradeColours';
 export { HistoryRow, leadColours, type HistoryAction, type HistoryRowProps, type LeadColours } from './HistoryRow';
 export { HistoryList, type HistoryGroup, type HistoryItem, type HistoryListProps } from './HistoryList';
 export { ListRow, type ListRowIcon, type ListRowProps, type ListRowState } from './ListRow';
