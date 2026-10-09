@@ -218,7 +218,7 @@ try {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
     const page = await ctx.newPage();
     page.on('pageerror', (e) => console.error(`[${which}] page error:`, e.message));
-    await page.goto(`${origin}/scripts/urdu-fit/harness.html?lang=${LANG}&case=${which}`, { waitUntil: 'load' });
+    await page.goto(`${origin}/scripts/urdu-fit/harness.html?lang=${LANG}&case=${which}`, { waitUntil: 'load', timeout: 180000 });
     await page.waitForSelector('#root *', { state: 'attached', timeout: 30000 });
     await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}' });
     if (LH) await page.addStyleTag({ content: `html[lang="ur"] body *:not(svg):not(svg *):not(h1):not(h2):not(h3):not(p){line-height:${LH}!important}` });
