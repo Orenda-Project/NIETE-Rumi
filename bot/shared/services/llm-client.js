@@ -647,7 +647,7 @@ function unusableAnswer(res, params, job) {
     return { kind: 'refused', reason: 'refused, or stopped by a content filter', finishReason };
   }
   if (finishReason === 'length' && !labelSurvivesCutOff(job, message && message.content)) {
-    return { kind: 'cut_off', reason: 'cut off at the output limit', finishReason };
+    return { kind: 'cut_off', reason: 'cut off at the output limit', finishReason, ...labelShape(job, message && message.content) };
   }
   const content = message ? message.content : null;
   if (typeof content !== 'string' || !content.trim()) return { kind: 'empty', reason: 'empty answer', finishReason };
@@ -717,15 +717,32 @@ function callerRepairsTo(job, content, shape) {
 
 /**
  * Whether a cut-off answer still holds everything its caller reads (bd-gr4fy.5.15): a job in
- * LABEL_REPLY_JOBS reads only the label its reply starts with, so when that label is complete, the
- * limit cut the sentence after it, not the answer. Any other cut-off answer is not the answer.
+ * LABEL_REPLY_JOBS reads the label its reply starts with, and the marker after it when the label can
+ * carry one. When that decision is complete, the limit cut the sentence after it, not the answer. Any
+ * other cut-off answer is not the answer.
  */
 function labelSurvivesCutOff(job, content) {
   try {
     // eslint-disable-next-line global-require
-    return Boolean(require('../config/model-registry').leadingLabel(job, content));
+    return require('../config/model-registry').labelDecisionComplete(job, content);
   } catch (_) {
     return false;
+  }
+}
+
+/**
+ * What a label job's answer started with, in fixed words only (never the reply): the label, or null,
+ * and whether its marker followed. {} for any other job. Lets a cut-off be measured from the logs.
+ */
+function labelShape(job, content) {
+  try {
+    // eslint-disable-next-line global-require
+    const registry = require('../config/model-registry');
+    if (!registry.LABEL_REPLY_JOBS[job]) return {};
+    const head = registry.leadingLabel(job, content);
+    return { labelHead: head ? head.label : null, labelMarker: Boolean(head && head.marker) };
+  } catch (_) {
+    return {};
   }
 }
 
@@ -784,10 +801,13 @@ async function runWithJobOverride(job, params, options, callSite, declared = nul
     const res = await callModel(first.model, params, { ...(options || {}), maxRetries: 0 }, job, moved);
     failure = unusableAnswer(res, params, job);
     if (!failure) {
-      // A cut-off answer gets here only with its label complete (bd-gr4fy.5.15); counted, so the gain is measured.
+      // A cut-off answer gets here only with its decision complete (bd-gr4fy.5.15); counted, so the gain is measured.
       if (res.choices[0].finish_reason === 'length') {
+        const { labelHead, labelMarker } = labelShape(job, res.choices[0].message.content);
         // eslint-disable-next-line global-require
-        require('../utils/structured-logger').logEvent('llm.cut_off_label_kept', { job, model: first.model, source: first.source });
+        require('../utils/structured-logger').logEvent('llm.cut_off_label_kept', {
+          job, model: first.model, source: first.source, label: labelHead === undefined ? null : labelHead, marker: Boolean(labelMarker),
+        });
       }
       res.usage = { ...(res.usage || {}), job_override: { from: behind, to: first.model, source: first.source } };
       return res;
@@ -812,6 +832,7 @@ async function runWithJobOverride(job, params, options, callSite, declared = nul
     finishReason: failure.finishReason || null, errName: failure.errName || null,
     elapsedMs: Date.now() - startedAt,
     ...(failure.replyShape ? { replyShape: failure.replyShape } : {}),
+    ...('labelHead' in failure ? { labelHead: failure.labelHead, labelMarker: failure.labelMarker } : {}),
   };
   logEvent('llm.job_override_fallback', event);
   logToFile(`llm-client: ${job} could not use ${first.model}, answering on ${behind}`, event, 'warn');
