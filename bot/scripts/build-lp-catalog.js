@@ -237,6 +237,10 @@ const ELECTIVE_MENU = {
     ur: { subject: 'Social Studies (Urdu)', subject_key: 'social_studies_ur' },
     en: { subject: 'Social Studies (English)', subject_key: 'social_studies_en' },
   },
+  // G1-5 Islamiat is Urdu-medium only (bd-6640j.1.8).
+  islamiat: {
+    ur: { subject: 'اسلامیات', subject_key: 'islamiat' },
+  },
 };
 
 /** Menu name, catalog key and reading direction for one book's _meta. */
@@ -392,8 +396,9 @@ const cleanChapterTitle = (t) => String(t || '')
  * @param {string} o.segmentationDir
  * @param {string} o.tocDir
  * @param {string} [o.builtAt] — pass a fixed value to prove determinism
+ * @param {string[]} [o.splits] — lesson ids split in two (default data/lp_splits.json; [] for a partial build)
  */
-function buildCatalog({ segmentationDir, tocDir, builtAt }) {
+function buildCatalog({ segmentationDir, tocDir, builtAt, splits }) {
   const tocs = loadTocs(tocDir);
 
   const files = fs.readdirSync(segmentationDir)
@@ -482,7 +487,7 @@ function buildCatalog({ segmentationDir, tocDir, builtAt }) {
     source: { segmentation: segmentationDir, toc: tocDir, books: books.length },
     counts: { books: books.length, chapters: chapterCount, lessons: lessonCount },
     books,
-  }, loadSplits(), module.exports);
+  }, splits || loadSplits(), module.exports);
 }
 
 /** Stable serialisation — same inputs, byte-identical output. */
