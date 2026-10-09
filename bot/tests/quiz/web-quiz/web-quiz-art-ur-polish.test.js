@@ -13,11 +13,12 @@ const css = (html, sel) => { const m = new RegExp('(?:^|[\\n}])' + sel.replace(/
 describe('renderArt under ui.ur2 (Urdu, wide card)', () => {
   const on = renderArt({ kind: 'card', size: 'og', brand: 'niete', lang: 'ur', d: card, ui: { ur2: true } });
   const off = renderArt({ kind: 'card', size: 'og', brand: 'niete', lang: 'ur', d: card });
-  test('the topic is the headline (44 px), the kicker 32, the CTA pill 40, the points pill 28; a Nastaliq name gets line-height 1.9', () => {
+  test('the topic is the headline (44 px), the kicker 32, the CTA pill 40, the points pill 24 on the wide card / 28 on the square; the wide card Nastaliq name 56/1.7', () => {
     expect(css(on, '.sub')).toMatch(/font-size:44px/);
     expect(css(on, '.kick')).toMatch(/font-size:32px/);
     expect(css(on, '.cta')).toMatch(/font-size:40px/);
-    expect(css(on, '.pts')).toMatch(/font-size:28px/);
+    expect(css(on, '.pts')).toMatch(/font-size:24px/);   // the wide card keeps 24 (height budget); the square gets 28 × 1.08
+    expect(css(renderArt({ kind: 'card', size: 'sq', brand: 'niete', lang: 'ur', d: card, ui: { ur2: true } }), '.pts')).toMatch(/font-size:30px/);
     expect(on).toContain('.name{font-size:56px;line-height:1.7}');   // the wide card's Nastaliq name
     expect(css(on, '.head')).toMatch(/font-size:40px/);   // the wide card keeps 40 (height budget), at line-height 1.9
   });
@@ -29,8 +30,8 @@ describe('renderArt under ui.ur2 (Urdu, wide card)', () => {
     expect(off).toContain('.name{font-size:56px;line-height:1.55}');
   });
   test('the school pill: the school on its own line under the points, never inside the Urdu sentence', () => {
-    expect(on).toMatch(/class="pts"[^>]*>[^<]*<span class="num">\+18<\/span>[^<]*پوائنٹس<br>/);
-    expect(off).not.toContain('پوائنٹس<br>');
+    expect(on).toMatch(/class="pts"[^>]*>[^<]*<span class="num">\+18<\/span>[^<]*پوائنٹس<span class="sch">/);
+    expect(off).not.toContain('class="sch"');
   });
   test('the class picture: class + topic on one line, the average on its own — no middots', () => {
     const cls = renderArt({ kind: 'class', size: 'og', brand: 'niete', lang: 'ur', d: { cls: 'جماعت 3', topic: 'پودے کے حصے', played: 2, of: 5, avgPct: 50, rows: [{ place: 1, first: 'ا', correct: 4, total: 5, animal: 'cat', me: true }] }, ui: { ur2: true } });
@@ -80,7 +81,7 @@ describe('the wide Urdu picture keeps its CTA on the canvas (height budget)', ()
     let total = pad + gap * (blocks.length - 1);
     for (const b of blocks) {
       if (b === 'stars') { total += px(rule(html, '.star'), 'width') || 44; continue; }
-      const css = rule(html, '.' + b.sel);
+      const css = rule(html, '.' + b.sel.split(' ').pop().replace(/^\./, ''));
       const fs = px(css, 'font-size');
       const perLine = Math.max(1, Math.floor(STACK_W / (fs * 0.55)));
       const lines = b.cp ? Math.ceil(b.cp / perLine) : 1;
@@ -95,6 +96,15 @@ describe('the wide Urdu picture keeps its CTA on the canvas (height budget)', ()
     if (/class="kick"/.test(html)) blocks.unshift({ sel: 'kick', cp: 20 });
     expect(budget(html, blocks)).toBeLessThanOrEqual(630);
     expect(html).not.toMatch(/class="kick"/);
+  });
+  test('card og with a school: the points pill (two lines, a long Latin school name) still fits under the switch', () => {
+    const d = { first: 'Sobia', correct: 4, total: 5, topic: 'پودے کے حصے', cls: 'جماعت 3', school: 'Testwala Model School (synthetic)', added: 18 };
+    const html = renderArt({ kind: 'card', size: 'og', brand: 'niete', lang: 'ur', d, ui }, { fonts: false, pictures: false });
+    const pts = rule(html, '.pts'); const sch = rule(html, '.pts .sch');
+    expect(sch).toMatch(/font-size:2[0-2]px/);          // the Latin school line is small on the wide card
+    const blocks = [{ sel: 'name', cp: 5 }, { sel: 'big' }, 'stars', { sel: 'sub', cp: 11 }, { sel: 'pts', cp: 12 }, { sel: 'pts .sch', cp: 33 }];
+    expect(budget(html, blocks)).toBeLessThanOrEqual(630);
+    expect(pts).toMatch(/font-size:24px/);
   });
   test('invite og: a two-line headline, the scored line, stars and the pill fit under the switch', () => {
     const html = renderArt({ kind: 'invite', size: 'og', brand: 'niete', lang: 'ur', d: { first: LONG_NAME, correct: 6, total: 6, topic: LONG_TOPIC }, ui }, { fonts: false, pictures: false });
