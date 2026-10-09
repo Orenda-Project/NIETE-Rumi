@@ -485,3 +485,171 @@ html[lang=ur] .wq-who .wq-kid{font-weight:700;line-height:1.7;font-size:16px}
 .wq-askon img{width:56px!important;height:56px!important}
 .wq-askon .wq-in{gap:4px;padding:10px 14px}
 html[lang=ur] .wq-askon .wq-name,html[lang=ur] .wq-askon .wq-praise{line-height:1.5;margin:0}
+
+/* ===== ur2 ===== the Urdu polish (app_settings web_quiz_ur_polish → <html lang="ur" class="wq-ur2">). Every rule below is scoped to
+   html.wq-ur2[lang=ur]: switch off = the cascade above, untouched; English pages never match. ===== */
+@font-face{font-family:"WQ Nastaliq 2";src:url(fonts/wq-nastaliq-2.woff2) format("woff2");font-weight:400;font-display:swap;unicode-range:U+0020,U+00A0,U+00AB,U+00BB,U+060C,U+061B,U+061F,U+0621-063A,U+0640-0656,U+0658,U+0660-066D,U+0670,U+0679,U+067E,U+0686,U+0688,U+0691,U+0698,U+06A9,U+06AF,U+06BA,U+06BE,U+06C0-06C3,U+06CC,U+06D2-06D4,U+06F0-06F9,U+200C-200F,U+25CC}
+html.wq-ur2[lang=ur]{--fu:"WQ Nastaliq 2","Noto Nastaliq Urdu",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--ulh:2.2;--ulh1:2;--upad-t:.45em;--upad-b:.2em;--upad-s:.3em}
+html.wq-ur2[lang=ur] body{font-family:var(--fu);word-spacing:.12em;font-synthesis-weight:none;line-height:var(--ulh)}
+/* one weight for every Urdu run: the face has one, and a fake bold is the ugliest thing on the old page */
+html.wq-ur2[lang=ur] h1,html.wq-ur2[lang=ur] h2,html.wq-ur2[lang=ur] b,html.wq-ur2[lang=ur] strong,html.wq-ur2[lang=ur] .wq-say,html.wq-ur2[lang=ur] .wq-btn,html.wq-ur2[lang=ur] .wq-qtext,html.wq-ur2[lang=ur] .wq-opt,html.wq-ur2[lang=ur] .wq-fb,html.wq-ur2[lang=ur] .wq-why,html.wq-ur2[lang=ur] .wq-sub,html.wq-ur2[lang=ur] .wq-kid,html.wq-ur2[lang=ur] .wq-htile,html.wq-ur2[lang=ur] .wq-hlabel,html.wq-ur2[lang=ur] .wq-hnonesay,html.wq-ur2[lang=ur] .wq-jhelp,html.wq-ur2[lang=ur] .wq-ml,html.wq-ur2[lang=ur] .wq-mr,html.wq-ur2[lang=ur] .wq-place,html.wq-ur2[lang=ur] .wq-ask h2,html.wq-ur2[lang=ur] .wq-chip,html.wq-ur2[lang=ur] .wq-tag,html.wq-ur2[lang=ur] .wq-banner,html.wq-ur2[lang=ur] .wq-toast,html.wq-ur2[lang=ur] .wq-hint,html.wq-ur2[lang=ur] .wq-how li,html.wq-ur2[lang=ur] .wq-proof,html.wq-ur2[lang=ur] .wq-revnote,html.wq-ur2[lang=ur] .wq-sheetbox p,html.wq-ur2[lang=ur] .wq-praise,html.wq-ur2[lang=ur] .wq-name,html.wq-ur2[lang=ur] .wql-sub,html.wq-ur2[lang=ur] .wql-g,html.wq-ur2[lang=ur] .wql-up,html.wq-ur2[lang=ur] .wql-txt b,html.wq-ur2[lang=ur] .wqc-tile b,html.wq-ur2[lang=ur] .wqc-story,html.wq-ur2[lang=ur] .wqc-opt,html.wq-ur2[lang=ur] .wqc-score,html.wq-ur2[lang=ur] .wqc-badge,html.wq-ur2[lang=ur] .wqc-hear{font-weight:400}
+/* Latin runs, digits, emoji, icons keep the sans and a tight line box (today's rules; restated so a later rule here cannot undo them) */
+html.wq-ur2[lang=ur] .wq-lat,html.wq-ur2[lang=ur] .wq-url,html.wq-ur2[lang=ur] .wq-brand,html.wq-ur2[lang=ur] .wq-roll,html.wq-ur2[lang=ur] .wq-key,html.wq-ur2[lang=ur] .wq-big:not(.wq-jug),html.wq-ur2[lang=ur] .wq-m{font-family:var(--f)}
+html.wq-ur2[lang=ur] .wq-icon,html.wq-ur2[lang=ur] .wq-spk,html.wq-ur2[lang=ur] .wq-emoji,html.wq-ur2[lang=ur] .wq-tfi,html.wq-ur2[lang=ur] .wq-let,html.wq-ur2[lang=ur] .wq-ani,html.wq-ur2[lang=ur] .wq-htic,html.wq-ur2[lang=ur] .wqc-ico,html.wq-ur2[lang=ur] .wq-vtile{font-family:var(--f);line-height:1}
+/* ---- the type scale (px) ---- */
+html.wq-ur2[lang=ur] h1{font-size:26px;line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] h2{font-size:22px;line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wq-closed h1{font-size:24px;line-height:var(--ulh)}
+html.wq-ur2[lang=ur] .wq-sub{font-size:16px;line-height:var(--ulh)}
+html.wq-ur2[lang=ur] .wq-small{font-size:14px;line-height:var(--ulh)}
+html.wq-ur2[lang=ur] .wq-bootsay{font-size:17px;line-height:var(--ulh)}
+/* the mascot's bubble: the words first; a long line wraps under the mascot instead of into a 170 px column */
+html.wq-ur2[lang=ur] .wq-say{font-size:18px;line-height:var(--ulh);padding:12px 16px 8px;padding-inline-start:calc(16px + var(--upad-s))}
+html.wq-ur2[lang=ur] .wq-jug{flex-wrap:wrap;gap:8px 10px}
+html.wq-ur2[lang=ur] .wq-jug>.wq-say{flex:1 1 180px;min-width:0}
+html.wq-ur2[lang=ur] .wq-jug.wq-big .wq-say{line-height:var(--ulh)}
+html.wq-ur2[lang=ur] .wq-jug.wq-big{flex-wrap:wrap;align-items:flex-start}
+html.wq-ur2[lang=ur] .wq-jug.wq-big .wq-jimg{width:112px;height:112px}
+html.wq-ur2[lang=ur] .wq-jug.wq-big>.wq-say{flex:1 1 100%;margin-bottom:12px}
+html.wq-ur2[lang=ur] .wq-jug.wq-big>.wq-say::after{bottom:auto;top:-8px;inset-inline-start:40px;border-top:0;border-bottom:9px solid var(--card)}
+html.wq-ur2[lang=ur] .wq-jug.wq-big>.wq-jimg{order:-1}
+html.wq-ur2[lang=ur] #wq-hintbox .wq-say{font-size:17px}
+/* buttons: one line at 2.0 with room above; a long label wraps and the button grows */
+html.wq-ur2[lang=ur] .wq-btn{font-size:19px;line-height:var(--ulh1);padding:10px 18px 6px;min-height:60px}
+html.wq-ur2[lang=ur] .wq-soft{font-size:17px}
+html.wq-ur2[lang=ur] .wq-ghost{font-size:16px;text-decoration-thickness:2px;text-underline-offset:.3em;text-decoration-skip-ink:all}
+html.wq-ur2[lang=ur] .wq-linkbtn{min-height:44px;font-size:15px;line-height:var(--ulh1);text-underline-offset:.3em}
+html.wq-ur2[lang=ur] .wq-key-go{font-family:var(--fu);font-size:20px;line-height:var(--ulh1);padding-top:.3em}
+/* the question card and its options */
+html.wq-ur2[lang=ur] .wq-qcard{padding:16px 14px 10px;gap:10px}
+html.wq-ur2[lang=ur] .wq-qtext{font-size:22px;line-height:var(--ulh);padding-inline-start:var(--upad-s)}
+html.wq-ur2[lang=ur] .wq-qtext.wq-qsmall{font-size:17px}
+html.wq-ur2[lang=ur] .wq-novoice .wq-qtext{font-size:23px;line-height:var(--ulh)}
+html.wq-ur2[lang=ur] .wq-opts{gap:12px}
+html.wq-ur2[lang=ur] .wq-opt{font-size:20px;line-height:var(--ulh1);padding:8px 12px 6px;padding-inline-start:12px;min-height:66px}
+html.wq-ur2[lang=ur] .wq-opt .wq-lab{padding-top:.25em;padding-inline-start:var(--upad-s)}
+html.wq-ur2[lang=ur] .wq-opt.wq-ptile{padding:40px 8px 12px;gap:4px}
+html.wq-ur2[lang=ur] .wq-pname{font-size:17px;line-height:var(--ulh1);padding-top:.3em}
+html.wq-ur2[lang=ur] .wq-opt.wq-sthis{font-size:17px;line-height:var(--ulh1);padding-top:.45em}
+html.wq-ur2[lang=ur] .wq-shear .wq-stxt{font-size:24px;line-height:var(--ulh1);padding-top:.3em}
+html.wq-ur2[lang=ur] .wq-fb{font-size:18px;line-height:var(--ulh);padding:12px 14px 8px;padding-inline-start:calc(14px + var(--upad-s))}
+html.wq-ur2[lang=ur] .wq-why{font-size:16px;line-height:var(--ulh);margin-top:4px}
+html.wq-ur2[lang=ur] .wq-hint{line-height:var(--ulh);padding:10px 12px 6px}
+html.wq-ur2[lang=ur] .wq-jhelp{font-size:16px;line-height:var(--ulh1);padding:6px 14px 4px 6px}
+html.wq-ur2[lang=ur] .wq-qof{font-size:14px;line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wq-qback{font-size:16px;line-height:var(--ulh1);padding-top:.2em}
+html.wq-ur2[lang=ur] .wq-revnote{font-size:16px;line-height:var(--ulh);padding:12px 14px 8px}
+html.wq-ur2[lang=ur] .wq-how li{line-height:var(--ulh);padding:8px 12px 4px}
+/* order / match / label items */
+html.wq-ur2[lang=ur] .wq-ml,html.wq-ur2[lang=ur] .wq-mr,html.wq-ur2[lang=ur] .wq-place{font-size:18px;line-height:var(--ulh1);padding:8px 10px 6px}
+html.wq-ur2[lang=ur] .wq-mto{font-size:14px;line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wq-glyph{line-height:2.4;min-height:140px;padding:6px 0 14px}
+html.wq-ur2[lang=ur] .wq-mr .wq-glyph{height:auto;min-height:56px;line-height:2.2;padding:2px 0}
+html.wq-ur2[lang=ur] .wq-ptile .wq-glyph{margin-top:22px}
+/* identity: who is playing, name cards, the pad */
+html.wq-ur2[lang=ur] .wq-kid{font-size:18px;line-height:var(--ulh1);padding:8px 14px 6px 8px}
+html.wq-ur2[lang=ur] .wq-kid-big{font-size:20px;min-height:76px;padding:10px 12px 8px 8px}
+html.wq-ur2[lang=ur] .wq-kid-big bdi{white-space:normal;overflow:visible;text-overflow:clip;padding-inline-start:var(--upad-s)}
+html.wq-ur2[lang=ur] .wq-kids-small .wq-kid-big{font-size:18px;min-height:60px}
+html.wq-ur2[lang=ur] .wq-input{font-size:22px;line-height:var(--ulh1);padding:10px 14px 6px;padding-inline-start:calc(14px + var(--upad-s))}
+html.wq-ur2[lang=ur] .wq-chip{font-size:14px;line-height:var(--ulh1);padding:4px 12px 2px}
+html.wq-ur2[lang=ur] .wq-banner{font-size:15px;line-height:var(--ulh);padding:10px 12px 6px}
+html.wq-ur2[lang=ur] .wq-toast{line-height:var(--ulh1);padding:10px 16px 6px}
+html.wq-ur2[lang=ur] .wq-pulse{height:auto;line-height:var(--ulh1);font-size:13px;padding:2px 14px 0;padding-inline-start:calc(14px + var(--upad-s))}
+/* the score card and the after-quiz screens */
+html.wq-ur2[lang=ur] .wq-name{font-size:26px;line-height:1.7}
+html.wq-ur2[lang=ur] .wq-praise{font-size:22px;line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wq-scorecard .wq-ctopic{white-space:normal;overflow:visible;text-overflow:clip}
+html.wq-ur2[lang=ur] .wq-proof{font-size:15px;line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wq-vchip{font-size:13px;line-height:var(--ulh1);padding:3px 10px 1px}
+html.wq-ur2[lang=ur] .wq-hist li{line-height:var(--ulh1);padding:10px 12px 6px}
+html.wq-ur2[lang=ur] .wq-table td{font-size:17px;line-height:var(--ulh1);padding:8px 8px 6px}
+html.wq-ur2[lang=ur] .wq-table td:last-child{white-space:normal}
+html.wq-ur2[lang=ur] .wq-tag{font-size:13px;line-height:var(--ulh1);padding:1px 8px 0;display:inline-block;vertical-align:middle}
+html.wq-ur2[lang=ur] .wq-srow .wq-tag{display:inline-block;line-height:var(--ulh1);margin:0}
+html.wq-ur2[lang=ur] .wq-cmp{line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wq-sname{font-size:16px;line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wq-sname small{line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wq-mycard b{line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wq-zero-list{line-height:var(--ulh);padding:10px 12px 6px}
+html.wq-ur2[lang=ur] .wq-sheetbox p{font-size:19px;line-height:var(--ulh)}
+html.wq-ur2[lang=ur] .wq-ask h2{font-size:19px;line-height:var(--ulh)}
+html.wq-ur2[lang=ur] .wq-who .wq-kid{font-size:16px;line-height:1.9;padding:10px 4px 6px}
+html.wq-ur2[lang=ur] .wq-askon .wq-name,html.wq-ur2[lang=ur] .wq-askon .wq-praise{line-height:1.7}
+/* the share fallback screen: the text block is the message the child will send — read it like prose */
+html.wq-ur2[lang=ur] .wq-sharetext,html.wq-ur2[lang=ur] .wq-card p{line-height:var(--ulh)}
+/* more videos / library rows */
+html.wq-ur2[lang=ur] .wq-vitem{padding:10px 12px 8px 8px;min-height:80px}
+html.wq-ur2[lang=ur] .wq-vtext b{font-size:16px;line-height:var(--ulh1);padding-top:.3em}
+html.wq-ur2[lang=ur] .wq-vtext small{font-size:14px;line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wq-vdone,html.wq-ur2[lang=ur] .wql-done{font-size:13px;line-height:var(--ulh1);padding:2px 8px 0}
+html.wq-ur2[lang=ur] .wql-g{font-size:15px;line-height:var(--ulh1);padding:6px 12px 4px 6px}
+html.wq-ur2[lang=ur] .wql-sub b{font-size:17px;line-height:var(--ulh1);margin-top:4px;padding-top:.3em}
+html.wq-ur2[lang=ur] .wql-sub small{font-size:14px;line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wql-up{font-size:15px;line-height:var(--ulh1);min-height:48px;padding:4px 14px 2px}
+html.wq-ur2[lang=ur] .wql-ch{font-size:17px;line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wql-txt b{font-size:15px;line-height:var(--ulh1);padding-top:.3em;-webkit-line-clamp:2}
+html.wq-ur2[lang=ur] .wql-txt small{font-size:13px;line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wql-dl{min-height:44px;line-height:44px;font-size:14px}
+html.wq-ur2[lang=ur] .wql-dlhelp{font-size:14px;line-height:var(--ulh)}
+/* the kid hub */
+html.wq-ur2[lang=ur] .wq-hlabel{font-size:15px;line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wq-hnonesay{font-size:17px;line-height:var(--ulh)}
+html.wq-ur2[lang=ur] .wq-hscore{line-height:1.6}
+html.wq-ur2[lang=ur] .wq-htile{padding:12px 12px 8px;gap:2px;min-height:116px}
+html.wq-ur2[lang=ur] .wq-htile b{font-size:17px;line-height:var(--ulh1);padding-top:.25em}
+html.wq-ur2[lang=ur] .wq-htile small{font-size:14px;line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wq-home{line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wq-homet{font-size:12px;line-height:1.9;padding-top:.2em}
+/* Jugnu's Challenge (its own rules are injected by wq-challenge.js at html[lang=ur] specificity 0,1,1; these are 0,2,1 and win) */
+html.wq-ur2[lang=ur] .wqc-tile{padding:12px 14px 8px;min-height:88px}
+html.wq-ur2[lang=ur] .wqc-tile b{font-size:19px;line-height:var(--ulh1);padding-top:.2em}
+html.wq-ur2[lang=ur] .wqc-tile small{font-size:14px;line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wqc-badge{font-size:13px;line-height:var(--ulh1);padding:2px 10px 0}
+html.wq-ur2[lang=ur] .wqc-story{font-size:21px;line-height:2.3;padding:16px 16px 10px;padding-inline-start:calc(16px + var(--upad-s))}
+html.wq-ur2[lang=ur] #wqc-live-story{line-height:2.3}
+html.wq-ur2[lang=ur] .wqc-w{display:inline-block;line-height:1.9;padding:0 4px;margin:4px 0}
+html.wq-ur2[lang=ur] .wqc-opt{font-size:19px;line-height:var(--ulh1);padding:10px 12px 6px;min-height:64px}
+html.wq-ur2[lang=ur] .wqc-score{font-size:28px;line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wqc-hear{font-size:15px;line-height:var(--ulh1);text-underline-offset:.3em;min-height:44px}
+html.wq-ur2[lang=ur] .wqc-wpm-top span{font-size:14px;line-height:var(--ulh1)}
+html.wq-ur2[lang=ur] .wqc-wpm-last,html.wq-ur2[lang=ur] .wqc-key{font-size:13px;line-height:var(--ulh1)}
+/* air between things */
+html.wq-ur2[lang=ur] .wq-screen{gap:16px}
+html.wq-ur2[lang=ur] .wq-stack>*+*{margin-top:14px}
+/* The feedback box beside the small mascot held 6 cramped lines: it drops below the mascot at full width when it has more than one line's worth */
+html.wq-ur2[lang=ur] .wq-jug>.wq-fb{flex:1 1 270px;min-width:0}
+html.wq-ur2[lang=ur] #wq-fb .wq-jimg{order:2;align-self:flex-end;margin-top:-26px;margin-inline-start:auto;margin-inline-end:4px}
+/* a ghost (underlined) button: the underline ran through the Nastaliq descenders */
+html.wq-ur2[lang=ur] .wq-ghost{text-decoration:none;border-bottom:2px solid currentColor;border-radius:0;padding-bottom:2px;min-height:48px;align-self:center;width:auto;margin:0 auto}
+/* the brand chrome and the scorecard header are Latin: untouched (font var(--f) already) */
+/* The big mascot alone at the start edge looked stranded: centred, the bubble's tail under it */
+html.wq-ur2[lang=ur] .wq-jug.wq-big{justify-content:center}
+html.wq-ur2[lang=ur] .wq-jug.wq-big>.wq-say::after{inset-inline-start:calc(50% - 9px)}
+/* An option row gave a long Urdu label ~185 px at 320 (badge + gap + 🔊). The row WRAPS: the badge and the option's 🔊 sit
+   first; the label asks for 150 px and takes the whole next row when the phone cannot give it (320), or sits inline
+   at 182 px (360). A 71-code-point option: ≤ 3 lines at 360 (Noto is ~21% narrower), 2–3 on its own row at 320. */
+html.wq-ur2[lang=ur] .wq-opt:not(.wq-ptile):not(.wq-tfy):not(.wq-tfn):not(.wq-sthis){flex-wrap:wrap;row-gap:4px}
+html.wq-ur2[lang=ur] .wq-opt:not(.wq-ptile) .wq-shp{order:1}
+html.wq-ur2[lang=ur] .wq-opt:not(.wq-ptile) .wq-ohear{order:2}
+html.wq-ur2[lang=ur] .wq-opt:not(.wq-ptile) img{order:2}
+html.wq-ur2[lang=ur] .wq-opt:not(.wq-ptile) .wq-lab{order:3;flex:1 1 150px;min-width:0}
+/* An English word inside Urdu never breaks mid-word; the attempt header gets its own row when the pill leaves it < 160 px */
+html.wq-ur2[lang=ur] .wq-lat,html.wq-ur2[lang=ur] .wq-m{overflow-wrap:break-word;word-break:normal;hyphens:none}
+html.wq-ur2[lang=ur] .wq-qrow{flex-wrap:wrap}
+html.wq-ur2[lang=ur] .wq-qrow .wq-qof{flex:1 1 160px}
+/* The praise line was cut by the card's overflow:hidden */
+html.wq-ur2[lang=ur] .wq-scorecard .wq-in{padding-bottom:calc(14px + .3em)}
+/* The Home label is the main navigation word: not the smallest Urdu on the page */
+html.wq-ur2[lang=ur] .wq-homet{font-size:15px;line-height:1.9}
+/* the smallest phone: one step down for the two biggest text sizes so a long option stays ≤ 4 lines */
+@media (max-width:339px){html.wq-ur2[lang=ur] .wq-qtext{font-size:20px}html.wq-ur2[lang=ur] .wq-opt{font-size:18px}html.wq-ur2[lang=ur] .wq-btn{font-size:18px}}
+/* A label over the hub card, a mixed meta line, the zoom button, maths digits */
+html.wq-ur2[lang=ur] .wq-hcard .wq-hlabel{margin-bottom:4px}
+html.wq-ur2[lang=ur] .wq-vtext small bdi{display:inline-block;max-width:100%;vertical-align:top}
+html.wq-ur2[lang=ur] .wq-zoom{width:44px;height:44px}
+html.wq-ur2[lang=ur] .wq-m,html.wq-ur2[lang=ur] math,html.wq-ur2[lang=ur] .wq-m *{font-family:var(--f)}
+/* The polished copy: the landing's teacher line and the class on two lines; a label over 40 code points on its own row, a step smaller (the 360 px case) */
+html.wq-ur2[lang=ur] .wq-sub{white-space:pre-line}
+html.wq-ur2[lang=ur] .wq-opt.wq-long{flex-wrap:wrap}
+html.wq-ur2[lang=ur] .wq-opt.wq-long .wq-lab{flex:1 1 100%;font-size:18px}

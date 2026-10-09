@@ -1516,3 +1516,42 @@ Feature: Web child quiz page on the portal
     When children finish on different phones
     Then each phone always sees the same card: the panel, or today's "Challenge a friend" button (a phone with no saved key gets today's button)
     And the score card and every share tap say which of the two the child saw
+
+  @T760
+  Scenario: The polished Urdu look is one switch and one class on the page root
+    Given the app setting web_quiz_ur_polish is "on"
+    When an Urdu quiz, hub, library or challenge page is opened
+    Then the page root is <html lang="ur" dir="rtl" class="wq-ur2"> and it preloads the second Urdu face (Noto Nastaliq Urdu Regular, self-hosted, ~105 KB, OFL)
+    And every Urdu run draws in that one face at one weight — no synthetic bold, no size-adjust, no extra word spacing
+    And a line that wraps keeps a 2.2 line height, a one-line control a 2.0 line height with room above and below the Nastaliq stacks, so no letter is cut by its box
+    And the mascot's bubble and the feedback box take the full width under the mascot when they have more than a line
+    And a long option keeps its label on its own row at 320 px, and an English word inside Urdu never breaks mid-word
+    But an English page gets no class and no Urdu font, and renders exactly as before
+    And with the setting off every page renders exactly as before, with today's face
+
+  @T761
+  Scenario: On the hub the polish class follows the child's language, not the boot
+    Given web_quiz_ur_polish is "on" and the hub booted in Urdu with the class
+    When a sibling whose hub is English is picked
+    Then <html> loses the class with the language, and gets it back when an Urdu child is picked
+
+  @T762
+  Scenario: Under the polished Urdu look the copy is a child's — shorter, Western digits, the name first
+    Given web_quiz_ur_polish is "on" and an Urdu page carries the class
+    When the landing, a question, the feedback, the results card, the hub or the library renders
+    Then the landing says "السلام علیکم! کوئز کھیلیں؟", "5 سوال، 3 منٹ" with each number on its own left-to-right run, and the teacher line and the class on two lines
+    And the question counter reads "5 میں سے سوال 1", never "از"
+    And an option whose label is over 40 code points takes its own row a step smaller
+    And the feedback's "comes back at the end" line is seven words, "ٹیپ کریں" is "دبائیں" everywhere, "مکمل" is the one word for done, and no adult word ("تقریباً", "جشن", "ہم جماعت") remains
+    And the hub greets "<name>، السلام علیکم! آج کیا کھیلیں؟" with the name first and isolated
+    And the share line to WhatsApp keeps the approved sentence shape with Western digits inside isolates
+    But with the class absent every string is today's, word for word, and English never changes
+
+  @T763
+  Scenario: Under the polished Urdu look the share pictures read at WhatsApp's preview size
+    Given web_quiz_ur_polish is "on"
+    When an Urdu score card, invite, class or school picture is drawn
+    Then the quiz name is the headline (44 px on the 1200 px canvas), the kicker 32, the call-to-action pill 40, the points pill 28, a Nastaliq name at line-height 1.9
+    And the school sits on its own line under the points, and the class picture's average on its own line — no middots inside an Urdu sentence
+    And the picture's cache key carries the switch only when it is on, so every picture already cached is served as before when it is off
+    But an English picture is byte-identical with or without the switch

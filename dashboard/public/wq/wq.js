@@ -324,8 +324,11 @@ var WQI = (function () {
         '<button class="wq-opt wq-sthis" data-slot="' + esc(x.slot) + '">' + esc(T.thisOne || '') + '</button></div>';
     }).join('') + '</div>';
   }
+  function ur2On() { try { return document.documentElement.classList.contains('wq-ur2'); } catch (e) { return false; } }
   function optBtn(o, k, extra) {
-    return '<button class="wq-opt wq-s' + (k % 4 + 1) + '" data-slot="' + esc(o.slot) + '"' + (typeof extra === 'string' ? extra : '') + '><span class="wq-shp">' + SHAPES[k % 4] + (LETTERS ? '<b class="wq-let">' + 'ABCD'.charAt(k) + '</b>' : '') + '</span>' +
+    // over 28 code points a label runs to three lines beside the badge and 🔊 at 360 px (measured on the live quizzes: 32–36 cp)
+    var longLab = ur2On() && Array.from(String(o.text || '')).length > 28 ? ' wq-long' : '';
+    return '<button class="wq-opt wq-s' + (k % 4 + 1) + longLab + '" data-slot="' + esc(o.slot) + '"' + (typeof extra === 'string' ? extra : '') + '><span class="wq-shp">' + SHAPES[k % 4] + (LETTERS ? '<b class="wq-let">' + 'ABCD'.charAt(k) + '</b>' : '') + '</span>' +
       picHtml(o, o.name) + '<span class="wq-lab">' + tex(o.text || o.name || '') + '</span>' + hearHtml(o) + '</button>';
   }
   function itemHtml(q, T, lang) {
@@ -704,6 +707,46 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       }
     }
   }[LANG];
+  // The polished Urdu copy (app_settings web_quiz_ur_polish → the edge's `wq-ur2` class on <html>): a child's words, shorter
+  // lines, Western digits isolated left to right, one word for "done". Off, T is today's map, untouched.
+  var UR2 = LANG === 'ur' && (function () { try { return document.documentElement.classList.contains('wq-ur2'); } catch (e) { return false; } })();
+  if (UR2) {
+    T = Object.assign({}, T, {
+      from: function (t, c) { return [t ? t + ' کی طرف سے' : '', c ? String(c).replace(/ /g, ' ') : ''].filter(Boolean).join('\n'); },
+      meta: function (n) { return '⁦' + n + '⁩ سوال، ⁦' + Math.max(1, Math.round(n * 0.6)) + '⁩ منٹ'; },
+      hello: 'السلام علیکم! کوئز کھیلیں؟',
+      whoSay: 'اپنا نام دبائیں۔', newT: 'آپ کا نام کیا ہے؟', newSay: 'صرف پہلا نام۔', privacy: 'فون نمبر نہیں لگے گا۔',
+      isYouSub: 'یہ آپ ہیں تو «ہاں» دبائیں۔', yesMe: 'ہاں، یہ میں ہوں',
+      vSay: 'پہلے دیکھیں، یا سوال شروع کریں۔',
+      how: [['🔊', 'ہر سوال سنیں'], ['👆', 'رنگ یا تصویر دبائیں'], ['🙋', 'مشکل ہو تو مدد ملے گی']],
+      qof: function (i, n) { return '⁦' + n + '⁩ میں سے سوال ⁦' + i + '⁩'; },
+      hintNudge: 'مشکل ہے؟ مجھے دبائیں۔',
+      orderHelp: 'ترتیب سے دبائیں: پہلا، دوسرا…', matchHelp: 'ایک دبائیں، پھر اس کا جوڑا۔', labelHelp: 'تصویر میں صحیح جگہ دبائیں۔',
+      again: 'یہ سوال آخر میں پھر آئے گا۔',
+      trickySay: 'آئیں، اسے مل کر ٹھیک کریں۔',
+      prac: 'یہ نام پہلے کھیل چکا ہے۔ یہ باری مشق ہے۔ پہلا اسکور ہی گنا جائے گا۔',
+      cardPriv: 'کارڈ پر صرف آپ کا نام ہے۔', hubDoor: 'میرے کوئز اور ویڈیوز',
+      firstOnly: 'صرف پہلے نام۔ برابر اسکور = برابر نمبر۔', noRows: 'ابھی کسی نے مکمل نہیں کیا۔ آپ پہلے بنیں!',
+      rest: 'اب آرام کریں۔ کل پھر ملیں گے!', todayMore: 'شاباش! ایک اور ویڈیو دیکھیں؟',
+      contSay: function (n) { return n + '، واپس آ گئے! جواب محفوظ ہیں۔'; },
+      cont: function (i, n) { return 'جاری رکھیں: ⁦' + n + '⁩ میں سے سوال ⁦' + i + '⁩'; },
+      fbSub: 'واٹس ایپ دبائیں، پھر گروپ چنیں۔',
+      backAgain: 'جواب محفوظ ہیں۔ باہر جانا ہے تو پھر بیک دبائیں۔',
+      homeSure: 'ہوم پر جائیں؟ جواب محفوظ ہیں۔', homeSaving: 'ہوم پر جائیں؟ جواب محفوظ ہو رہے ہیں…',
+      revSay: function (n) { return 'سوال ⁦' + n + '⁩ دوبارہ۔ پہلا جواب ہی گنا جائے گا۔'; },
+      offWait: 'انٹرنیٹ آتے ہی نتیجہ استاد کو مل جائے گا۔', offline: 'انٹرنیٹ نہیں ہے۔ جواب اس فون پر محفوظ ہیں۔',
+      pickAll: 'ہر صحیح جواب دبائیں، پھر «جانچیں»۔',
+      liveNow: function (n) { return 'ابھی ⁦' + n + '⁩ ساتھی کھیل رہے ہیں!'; },
+      moreSay: 'ایک ویڈیو چنیں۔ پھر اس کا کوئز کھیلیں۔', moreNone: 'ابھی اور ویڈیوز نہیں ہیں۔',
+      selfT: 'یہ آپ کی آزمائش ہے۔ کلاس رپورٹ میں نہیں جائے گی۔',
+      vs: { win: 'آپ نے چیلنج جیت لیا!', tie: 'مقابلہ برابر رہا!', lose: 'تھوڑا سا رہ گیا! پھر کھیلیں؟' },
+      ghost: function (s) { return s + ' سے ابھی کسی نے نہیں کھیلا۔ آپ پہلے بنیں!'; },
+      noSchools: 'ابھی کسی اسکول نے نہیں کھیلا۔ آپ کا اسکول پہلا بنے!',
+      // the WhatsApp share prose: Western digits, isolated, the approved sentence shape kept
+      chalLine: function (w, s, n, t) { return 'میں ⁨' + w + '⁩ ہوں! میں نے ⁨' + t + '⁩ کوئز میں ⁦' + n + '⁩ میں سے ⁦' + s + '⁩ ستارے لیے۔ مجھ سے آگے نکل کر دکھائیں! 🏆 کھیلنے کے لیے لنک دبائیں:'; },
+      chalPlayed: function (w, t) { return 'میں ⁨' + w + '⁩ ہوں! میں نے ⁨' + t + '⁩ کوئز کھیلا۔ اب آپ کی باری! کھیلنے کے لیے لنک دبائیں:'; }
+    });
+  }
 
   var CLASS_LABEL = CLS.label || T.yourClass;
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };

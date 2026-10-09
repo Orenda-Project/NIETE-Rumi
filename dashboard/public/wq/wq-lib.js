@@ -48,6 +48,10 @@
   };
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  // The polished Urdu copy (the edge's `wq-ur2` class on <html>, app_settings web_quiz_ur_polish): shorter lines. Off, T.ur is today's.
+  var UR2_COPY = { noClass: 'پہلے استاد کا کوئز کھیلیں، پھر یہ ویڈیو کھلے گی۔', lockSay: 'یہ لنک جس کو ملا تھا، وہی کھولے۔' };
+  function ur2() { try { return document.documentElement.classList.contains('wq-ur2'); } catch (e) { return false; } }
+  function tFor(o) { var t = T[o.lang] || T.en; return o.lang === 'ur' && ur2() ? Object.assign({}, t, UR2_COPY) : t; }
   function now() { return Date.now(); }
   // A list carries one child's data (their grade, their Done ticks): its key names the child's session.
   function hash(x) {
@@ -144,12 +148,12 @@
   /** The Download button: the size when known; in WhatsApp's browser a way out to Chrome appears after the tap. */
   function dlHtml(o, v, big) {
     if (!o.st || !v || !v.vid) return '';
-    var t = T[o.lang] || T.en;
+    var t = tFor(o);
     var size = v.mb ? ' (' + mb(v.mb) + ')' : '';
     return '<a class="' + (big ? 'wq-btn wq-soft wql-dlbig' : 'wql-dl') + '" data-dl="' + esc(v.vid) + '" href="' + esc(dlHref(o, v.vid)) + '" download><span>⬇ ' + esc(t.dl) + size + '</span></a>';
   }
   function helpHtml(o) {
-    var t = T[o.lang] || T.en;
+    var t = tFor(o);
     return o.iab ? '<p class="wql-dlhelp" id="wql-dlhelp" hidden>' + esc(t.dlHelp) + ' <a id="wql-chrome" href="#">' + esc(t.chrome) + '</a></p>' : '';
   }
   function wireDl(o, vids) {
@@ -166,7 +170,7 @@
   }
 
   function subjectsHtml(o, d) {
-    var t = T[o.lang] || T.en;
+    var t = tFor(o);
     var grades = (d.grades || []).map(function (x) {
       var on = x.g === d.grade;
       return '<button class="wql-g' + (on ? ' wql-on' : '') + '" data-g="' + esc(x.g) + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
@@ -184,7 +188,7 @@
   }
 
   function cardHtml(o, d, v, art, row) {
-    var t = T[o.lang] || T.en;
+    var t = tFor(o);
     var meta = [v.secs ? nb(o, t.mins(Math.max(1, Math.round(v.secs / 60)))) : '', mb(v.mb)].filter(Boolean).join(' · ');
     var w = row ? 120 : 160, h = row ? 68 : 90;
     return '<div class="wql-card' + (row ? ' wql-row' : '') + '"><button class="wql-pick" data-v="' + esc(v.vid) + '">' +
@@ -197,7 +201,7 @@
   }
 
   function chaptersHtml(o, d) {
-    var t = T[o.lang] || T.en;
+    var t = tFor(o);
     var art = d.art || null;
     var body = (d.chapters || []).map(function (c) {
       var vids = c.videos || [];
@@ -238,13 +242,13 @@
   var cur = null;   // the open library: { o, g, s }
 
   function waitHtml(o) {
-    var t = T[o.lang] || T.en;
+    var t = tFor(o);
     return '<div class="wq-boot"><img src="/wq/jugnu/thinking.webp" alt="" width="96" height="96"><p class="wq-sub">' + esc(t.wait) + '</p></div>';
   }
   // Leaving the library: nothing still on its way may paint afterwards.
   function leave(o) { seq++; cur = null; o.onBack(); }
   function failed(o, again) {
-    var t = T[o.lang] || T.en;
+    var t = tFor(o);
     o.paint('<p class="wq-sub wq-center">' + esc(t.oops) + '</p><button class="wq-btn wq-go" id="wql-retry">' + esc(t.retry) + '</button>' +
       '<button class="wq-btn wq-ghost" id="wql-back">' + esc(t.back) + '</button>', 'M15-error');
     o.on('#wql-retry', again);
@@ -253,7 +257,7 @@
   }
   // A hub library link opened on another phone: say whose link it is. No retry: it can never work here.
   function lockedOut(o) {
-    var t = T[o.lang] || T.en;
+    var t = tFor(o);
     o.paint('<h2 dir="auto">' + esc(t.lockT) + '</h2><p class="wq-sub">' + esc(t.lockSay) + '</p><p class="wq-sub">' + esc(t.mine) + '</p>' +
       '<button class="wq-btn wq-ghost" id="wql-back">' + esc(t.back) + '</button>', 'M15-lock');
     o.on('#wql-back', function () { leave(o); });

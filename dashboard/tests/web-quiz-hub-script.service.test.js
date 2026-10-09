@@ -44,7 +44,10 @@ function page(boot, { api = {}, store = {}, search = '' } = {}) {
   const toasts = [];
   const fetches = [];
   const cookies = [];
-  const docEl = { attrs: { lang: boot && boot.lang === 'ur' ? 'ur' : 'en', dir: boot && boot.lang === 'ur' ? 'rtl' : 'ltr' }, setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return this.attrs[k]; } };
+  // <html>: lang/dir, and its class list (the Urdu polish class `wq-ur2` rides the boot's `ui.ur2`, as the edge sets it).
+  const classes = new Set(boot && boot.ui && boot.ui.ur2 === true && boot.lang === 'ur' ? ['wq-ur2'] : []);
+  const docEl = { attrs: { lang: boot && boot.lang === 'ur' ? 'ur' : 'en', dir: boot && boot.lang === 'ur' ? 'rtl' : 'ltr' }, setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return this.attrs[k]; },
+    classList: { toggle(c, on) { if (on) classes.add(c); else classes.delete(c); }, contains: (c) => classes.has(c), add: (c) => classes.add(c), remove: (c) => classes.delete(c) }, get className() { return [...classes].join(' '); } };
   const ctx = {
     document: { documentElement: docEl, getElementById: (id) => (id === 'wq' ? root : { textContent: JSON.stringify(boot) }), createElement: () => ({ setAttribute() {}, textContent: '' }),
       set cookie(v) { cookies.push(v); }, get cookie() { return cookies.join('; '); } },
@@ -67,7 +70,7 @@ function page(boot, { api = {}, store = {}, search = '' } = {}) {
   if (arguments[1] && arguments[1].wqt) ctx.window.WQT = arguments[1].wqt;
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx);
-  return { beacons, doc: docEl.attrs, cookies, store, root, els, toasts, fetches, assigned, html: () => root._h, moment: () => root.attrs['data-m'], win: winL, reloads: () => reloaded };
+  return { beacons, doc: docEl.attrs, cls: () => docEl.className, cookies, store, root, els, toasts, fetches, assigned, html: () => root._h, moment: () => root.attrs['data-m'], win: winL, reloads: () => reloaded };
 }
 
 const KIDS = [{ chip: '0000000000000001', first: 'ثنا', animal: 'owl', grade: '3' }, { chip: '0000000000000002', first: 'بلال', animal: 'lion', grade: '5' }];
@@ -231,6 +234,32 @@ test('boot Urdu, pick a sibling whose hub is English: the hub, <html lang> and d
   expect(p.doc).toEqual({ lang: 'en', dir: 'ltr' });
 });
 
+
+test('the Urdu polish class follows the language: an Urdu boot with ui.ur2 drops it for an English sibling and gets it back for an Urdu one', async () => {
+  const api = { '/api/wq/hub/': { lang: 'en', kids: KIDS, kid: KIDS[1].chip, teacher: null, again: [], recs: [], challenge: null, lib: null, ui: { ur2: true } } };
+  const p = page(boot({ lang: 'ur', ui: { ur2: true } }), { store: { wq_d: JSON.stringify(DEV) }, api });
+  expect(p.cls()).toBe('wq-ur2');
+  p.els['[data-chip="0000000000000002"]'].fire('click');
+  await flush(); await flush();
+  expect(p.doc.lang).toBe('en');
+  expect(p.cls()).toBe('');
+  // back to an Urdu child: the class returns with the language
+  api['/api/wq/hub/'] = { lang: 'ur', kids: KIDS, kid: KIDS[0].chip, teacher: null, again: [], recs: [], challenge: null, lib: null, ui: { ur2: true } };
+  p.els['#wq-h-switch'].fire('click');
+  await flush();
+  p.els['[data-chip="0000000000000001"]'].fire('click');
+  await flush(); await flush();
+  expect(p.doc.lang).toBe('ur');
+  expect(p.cls()).toBe('wq-ur2');
+});
+
+test('without ui.ur2 in the boot the class is never added, whatever the language', async () => {
+  const p = page(boot({ lang: 'ur' }), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': { lang: 'ur', kids: KIDS, kid: KIDS[0].chip, teacher: null, again: [], recs: [], challenge: null, lib: null } } });
+  p.els['[data-chip="0000000000000001"]'].fire('click');
+  await flush(); await flush();
+  expect(p.doc.lang).toBe('ur');
+  expect(p.cls()).toBe('');
+});
 test('boot English, pick a sibling whose hub is Urdu: the hub, <html lang> and dir switch to Urdu / rtl', async () => {
   const p = page(boot({ lang: 'en' }), { store: { wq_d: JSON.stringify(DEV) },
     api: { '/api/wq/hub/': { lang: 'ur', kids: KIDS, kid: KIDS[1].chip, teacher: null, again: [], recs: [], challenge: { on: true }, lib: { href: '/lib/t?kid=c&l=ur' } } } });
@@ -364,4 +393,27 @@ describe('the hub and the Home button (boot.nav_home)', () => {
     p.win.pagehide && p.win.pagehide.forEach((fn) => fn({}));
     expect(p.beacons.concat([]).some((e) => e.n === 'hub_view' && e.src === 'home') || p.fetches.some((f) => /hub_view/.test(String(f.init && f.init.body)) && /"src":"home"/.test(String(f.init && f.init.body)))).toBe(true);
   });
+});
+
+/* ---------------- the polished Urdu copy (ui.ur2 + the class): the name first in the greeting, a child's words ---------------- */
+test('with the class: «بلال، السلام علیکم! آج کیا کھیلیں؟» (the name first, isolated) and «اپنا نام دبائیں۔»; without: today\'s lines', async () => {
+  const on = page(boot({ lang: 'ur', ui: { ur2: true } }), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': { lang: 'ur', kids: KIDS, kid: KIDS[1].chip, teacher: null, again: [], recs: [], challenge: null, lib: null, ui: { ur2: true } } } });
+  expect(on.html()).toContain('اپنا نام دبائیں۔');
+  on.els['[data-chip="0000000000000002"]'].fire('click');
+  await flush(); await flush();
+  expect(on.html()).toContain('\u2068بلال\u2069، السلام علیکم! آج کیا کھیلیں؟');
+  expect(on.html()).not.toContain('آج کیا کریں');
+  const off = page(boot({ lang: 'ur' }), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': { lang: 'ur', kids: KIDS, kid: KIDS[1].chip, teacher: null, again: [], recs: [], challenge: null, lib: null } } });
+  expect(off.html()).toContain('اپنے نام پر ٹیپ کریں۔');
+  off.els['[data-chip="0000000000000002"]'].fire('click');
+  await flush(); await flush();
+  expect(off.html()).toContain('السلام علیکم بلال! آج کیا کریں؟');
+});
+
+test('with the class, the Urdu lock screen says whose link it is in seven words', async () => {
+  const p = page(LOCKED({ lang: 'ur', ui: { ur2: true } }), { store: { wq_d: JSON.stringify(DEV) }, api: { '/api/wq/hub/': LOCKED({ lang: 'ur', ui: { ur2: true } }) } });
+  await flush(); await flush();
+  expect(p.moment()).toBe('H-lock');
+  expect(p.html()).toContain('یہ لنک جس کو ملا تھا، وہی کھولے۔');
+  expect(p.html()).not.toMatch(/رہا|رہی|بیٹا|بیٹی/);
 });
