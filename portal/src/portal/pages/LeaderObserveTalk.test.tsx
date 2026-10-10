@@ -12,6 +12,11 @@ vi.mock("../services/api", () => ({
 }));
 vi.mock("../lib/recordingSupport", async (orig) => ({ ...(await orig<any>()), canRecordHere: vi.fn() }));
 vi.mock("../lib/recordingStore", () => ({ deleteRecording: vi.fn().mockResolvedValue(undefined) }));
+const recorderProps = vi.hoisted(() => ({ copy: null as any }));
+vi.mock("../components/coaching/coach/CoachRecorder", async (orig) => ({
+  ...(await orig<any>()),
+  default: ({ label, copy }: any) => ((recorderProps.copy = copy), <div data-testid="recorder">{label}</div>),
+}));
 
 import { leader, portal } from "../services/api";
 import { canRecordHere } from "../lib/recordingSupport";
@@ -69,6 +74,15 @@ describe("LeaderObserveTalk", () => {
     expect(await screen.findByText("observation page")).toBeInTheDocument();
     expect(L.presignObserveUpload).toHaveBeenCalledWith({ filename: "talk.m4a", sizeBytes: 1, kind: "audio" });
     expect(L.startTalk).toHaveBeenCalledWith("cs-1", "classroom_audio/c/2026-10/portal_t.m4a");
+  });
+
+  it("Record your talk: the recorder's Finish sheet gets its words from this page (bd-fmf24g.41: none written into it)", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: /Record your talk/ }));
+    expect(await screen.findByTestId("recorder")).toHaveTextContent("Your talk with Ayesha Bibi");
+    expect(recorderProps.copy).toMatchObject({ finishTitle: "Finish recording?", yesFinish: "Yes, finish", keepRecording: "Keep recording" });
+    expect(recorderProps.copy.recorded(30_000)).toBe("You recorded less than a minute.");
+    expect(recorderProps.copy.shortNote).toBe("That is short. A few minutes of talking gives better feedback.");
   });
 
   it("before the draft is saved, the guide is not offered", async () => {

@@ -16,7 +16,7 @@ import { InnerBar } from '../InnerBar';
 import { List, Row, SectionLabel } from '../List';
 import { Chip } from '../Chip';
 import { BottomActions, BottomButton } from '../BottomButton';
-import { Sheet } from '../Sheet';
+import { ConfirmTray } from '../../teacher/ui/ConfirmTray';
 import { Hero } from '../Hero';
 import { pkDayMonth } from '../range';
 import { LevelBars } from './LevelBars';
@@ -346,14 +346,21 @@ export default function RecordPage() {
         ) : null}
       </Column>
 
-      <Sheet open={confirmFinish} title={COACHING_COPY.finishTitle} onClose={() => setConfirmFinish(false)} testId="record-finish-sheet">
-        <div className="flex flex-wrap justify-center gap-1.5 py-1">
-          <Chip>{COACHING_COPY.minutes(minutes(elapsedNow))}</Chip>
-          {elapsedNow < SHORT_RECORDING_SECONDS * 1000 ? <Chip tone="waiting" icon={TriangleAlert}>{COACHING_COPY.shortLesson}</Chip> : null}
-        </div>
-        <BottomButton icon={Check} onClick={() => { setConfirmFinish(false); void flow.finishRecording(); }}>{COACHING_COPY.yesFinish}</BottomButton>
-        <BottomButton tone="outline" onClick={() => setConfirmFinish(false)}>{COACHING_COPY.keepRecording}</BottomButton>
-      </Sheet>
+      {/* bd-fmf24g.41: every recording's Finish asks in the teacher kit's ConfirmTray, so they all look the same. */}
+      <ConfirmTray
+        open={confirmFinish}
+        title={COACHING_COPY.finishTitle}
+        onClose={() => setConfirmFinish(false)}
+        chips={[
+          { text: COACHING_COPY.minutes(minutes(elapsedNow)) },
+          ...(elapsedNow < SHORT_RECORDING_SECONDS * 1000 ? [{ text: COACHING_COPY.shortLesson, tone: 'waiting' as const }] : []),
+        ]}
+        confirmLabel={COACHING_COPY.yesFinish}
+        confirmIcon={Check}
+        onConfirm={() => { setConfirmFinish(false); void flow.finishRecording(); }}
+        cancelLabel={COACHING_COPY.keepRecording}
+        testId="record-finish-sheet"
+      />
 
       <PlanSheet
         open={planSheet}

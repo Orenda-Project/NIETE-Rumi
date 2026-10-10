@@ -12,8 +12,10 @@ vi.mock("../../services/api", () => ({
 }));
 vi.mock("../../lib/recordingSupport", () => ({ canRecordHere: () => Promise.resolve(true) }));
 vi.mock("../../lib/recordingStore", () => ({ deleteRecording: vi.fn().mockResolvedValue(undefined) }));
+const recorderProps = vi.hoisted(() => ({ copy: null as any }));
 vi.mock("../../components/coaching/coach/CoachRecorder", () => ({
-  default: ({ label, onFinished }: any) => (
+  default: ({ label, onFinished, copy }: any) => (
+    recorderProps.copy = copy,
     <div><span>{label}</span><button type="button" onClick={() => onFinished({ blob: new Blob(["x"], { type: "audio/webm" }), id: "rec-1", type: { ext: ".webm" } })}>finish recording</button></div>
   ),
 }));
@@ -108,6 +110,9 @@ describe("Debrief", () => {
     renderPage();
     fireEvent.click(await screen.findByRole("button", { name: "Start recording" }));
     expect(await screen.findByText("Your debrief with Ayesha")).toBeInTheDocument();
+    // bd-fmf24g.41: the recorder's Finish sheet takes its words from here (English and Urdu), none written into it.
+    expect(recorderProps.copy).toMatchObject({ finishTitle: "Finish recording?", yesFinish: "Yes, finish", keepRecording: "Keep recording" });
+    expect(recorderProps.copy.recorded(12 * 60_000)).toBe("You recorded 12 minutes.");
     fireEvent.click(screen.getByRole("button", { name: "finish recording" }));
     await waitFor(() => expect(L.startTalk).toHaveBeenCalledWith("cs-1", "k/talk.mp3"));
     expect(await screen.findByText("observation page")).toBeInTheDocument();

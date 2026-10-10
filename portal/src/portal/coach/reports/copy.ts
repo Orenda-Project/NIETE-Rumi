@@ -124,6 +124,15 @@ export const REPORTS_EN = {
     hearing: "We can hear you both.",
     keepOpen: "Keep this screen open. Put the phone between the two of you.",
     shortNote: "That is short. A few minutes of talking gives better feedback.",
+    /** The Finish sheet (the kit's ConfirmTray, bd-fmf24g.41). */
+    finishTitle: "Finish recording?",
+    yesFinish: "Yes, finish",
+    keepRecording: "Keep recording",
+    recorded: (ms = 0) => {
+      if (ms < 60_000) return "You recorded less than a minute.";
+      const m = Math.round(ms / 60_000);
+      return `You recorded ${m} minute${m === 1 ? "" : "s"}.`;
+    },
   },
   problems: {
     too_short: "Recording too short",
@@ -259,6 +268,12 @@ export const REPORTS_UR: Words<typeof REPORTS_EN> = {
     hearing: "ہم آپ دونوں کو سن رہے ہیں۔",
     keepOpen: "یہ اسکرین کھلی رکھیں۔ فون دونوں کے بیچ رکھیں۔",
     shortNote: "یہ مختصر ہے۔ چند منٹ کی گفتگو سے بہتر فیڈبیک ملتا ہے۔",
+    // The observation's own Urdu (observe/copy.ts stopAsk, yesStop, keepRecording, recordedFor, minShort, underMinute):
+    // "Finish" and "Stop" are the one word ختم کریں (ontology: End a recording).
+    finishTitle: "ریکارڈنگ ختم کریں؟",
+    yesFinish: "جی، ختم کریں",
+    keepRecording: "ریکارڈنگ جاری رکھیں",
+    recorded: (ms = 0) => `آپ نے ${ms < 60_000 ? "ایک منٹ سے کم" : `${Math.round(ms / 60_000)} منٹ`} ریکارڈ کیا۔`,
   },
   problems: {
     too_short: "ریکارڈنگ بہت چھوٹی",

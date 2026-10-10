@@ -60,6 +60,11 @@ const COPY = {
   hearing: 'We can hear the class.',
   keepOpen: 'Keep this screen open. Put the phone face up, near the teacher.',
   thatIsShort: 'That is short. The report works best on a whole lesson.',
+  /** The recorder's Finish sheet (bd-fmf24g.41: words through CoachRecorder's copy prop). */
+  finishTitle: 'Finish recording?',
+  yesFinish: 'Yes, finish',
+  keepRecording: 'Keep recording',
+  recorded: (ms: number) => `You recorded ${minutesText(ms)}.`,
   checkTitle: 'Check and send',
   lessonOf: (name: string) => `${name}’s lesson`,
   justNow: 'recorded just now',
@@ -468,7 +473,10 @@ const LeaderObserveRecord = () => {
         {stage === 'recording' && teacher && (
           <CoachRecorder
             label={COPY.observing(name)}
-            copy={{ hearing: COPY.hearing, keepOpen: COPY.keepOpen, shortNote: COPY.thatIsShort }}
+            copy={{
+              hearing: COPY.hearing, keepOpen: COPY.keepOpen, shortNote: COPY.thatIsShort,
+              finishTitle: COPY.finishTitle, yesFinish: COPY.yesFinish, keepRecording: COPY.keepRecording, recorded: COPY.recorded,
+            }}
             shortMs={SHORT_RECORDING_SECONDS * 1000}
             onStarted={(id) => rememberRecording(id, { teacherExtId: teacher.teacherExtId, schoolExtId: teacher.schoolExtId, teacherName: teacher.name })}
             onFinished={onRecorded}
