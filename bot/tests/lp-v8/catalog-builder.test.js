@@ -255,12 +255,12 @@ describe('lp-catalog: the committed artifact (bot/data/lp_catalog.json)', () => 
   const ELECTIVE_KEYS = ['general_knowledge', 'general_knowledge_ur', 'social_studies_en', 'social_studies_ur', 'islamiat'];
   const isElective = (b) => ELECTIVE_KEYS.includes(b.subject_key);
 
-  test('covers the whole corpus — 17 core books + 15 elective books, 343 chapters, 3070 lessons', () => {
+  test('covers the whole corpus — 17 core books + 15 elective books, 377 chapters, 3290 lessons (GK ch11-18 added 10 Oct)', () => {
     expect(catalog.catalog_version).toBe('v8');
     expect(catalog.books).toHaveLength(32);
     expect(catalog.books.filter((b) => !isElective(b))).toHaveLength(17);
-    expect(catalog.counts.chapters).toBe(343);
-    expect(catalog.counts.lessons).toBe(3070);
+    expect(catalog.counts.chapters).toBe(377);
+    expect(catalog.counts.lessons).toBe(3290);
     let chapters = 0; let lessons = 0;
     for (const b of catalog.books) { chapters += b.chapters.length; for (const c of b.chapters) lessons += c.lessons.length; }
     expect(chapters).toBe(catalog.counts.chapters);

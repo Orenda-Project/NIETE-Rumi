@@ -81,7 +81,7 @@ describe('the committed catalog', () => {
     const ELECTIVE = ['general_knowledge', 'general_knowledge_ur', 'social_studies_en', 'social_studies_ur', 'islamiat'];
     const core = catalog.books.filter((b) => !ELECTIVE.includes(b.subject_key));
     expect(core.reduce((n, b) => n + b.chapters.reduce((m, ch) => m + ch.lessons.length, 0), 0)).toBe(2049);
-    expect(catalog.counts.lessons).toBe(3070);
+    expect(catalog.counts.lessons).toBe(3290);
     for (const id of SPLITS) {
       const [p1, p2] = [find(catalog, id), find(catalog, `${id}b`)];
       expect([p1 && p1.part, p2 && p2.part]).toEqual([1, 2]);
