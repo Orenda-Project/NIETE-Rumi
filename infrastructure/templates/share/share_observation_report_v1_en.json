@@ -1,0 +1,28 @@
+{
+  "name": "share_observation_report_v1",
+  "category": "UTILITY",
+  "language": "en",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "IMAGE",
+      "example": {
+        "header_handle": [
+          "<SAMPLE PNG HANDLE: submit.js uploads one and fills this in>"
+        ]
+      }
+    },
+    {
+      "type": "BODY",
+      "text": "Here is your observation report: *{{1}}*\n{{2}} class",
+      "example": {
+        "body_text": [
+          [
+            "Fractions",
+            "Grade 3 · Maths"
+          ]
+        ]
+      }
+    }
+  ]
+}

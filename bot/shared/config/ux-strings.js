@@ -2937,6 +2937,20 @@ const UX_STRINGS = {
   wqChTrailBack: { en: 'Back to the trail', ur: 'راستے پر واپس' },
   wqChTrailPractice: { en: 'Practice round. Play as much as you like!', ur: 'مشق کا دور۔ جتنا چاہیں کھیلیں!' },
   wqChTrailStopDone: { en: 'Stop done!', ur: 'پڑاؤ مکمل!' },
+
+  // bd-fmf24g.43 — "Send on WhatsApp" (share-send.service.js): the words that fill a share template's variables when the
+  // item does not name itself. Read RAW, never through resolveUx: they are template parameters, not chat text, so no
+  // direction mark is added. The app's own words: باب (assessment chapterShort), پرچہ, لیسن پلان (planFallback),
+  // ڈیجیٹل کوچنگ مشاہدہ (coaching dcObservation), مشاہدہ, جماعت {g} (kit grade). shareClassFallback fills "{x} class" /
+  // "{x} کی کلاس" when a report names neither grade nor subject: "Your class" / "آپ کی کلاس".
+  shareChapter: { en: 'Chapter {n}', ur: 'باب {n}' },
+  shareSubjectPaper: { en: '{subject} paper', ur: '{subject} کا پرچہ' },
+  sharePaper: { en: 'Paper', ur: 'پرچہ' },
+  shareLessonPlan: { en: 'Lesson plan', ur: 'لیسن پلان' },
+  shareDcObservation: { en: 'DC observation', ur: 'ڈیجیٹل کوچنگ مشاہدہ' },
+  shareObservation: { en: 'Observation', ur: 'مشاہدہ' },
+  shareGrade: { en: 'Grade {grade}', ur: 'جماعت {grade}' },
+  shareClassFallback: { en: 'Your', ur: 'آپ' },
 };
 
 /**
