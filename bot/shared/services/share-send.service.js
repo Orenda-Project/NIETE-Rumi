@@ -129,6 +129,9 @@ function itemResolvers(supabase, { presign } = {}) {
       if (isObs && !['sent', 'awaiting_teacher_tap'].includes(delivery.status)) return null;
       const source = data.report_pdf_url || (delivery.report_key ? delivery.report_key : null);
       if (!source) return null;
+      // The template's header is an IMAGE. report_pdf_url is a PNG on almost every report (the hero renderer), but the
+      // pre-hero ones are real PDFs: Meta would accept the send and then fail to deliver it, a "sent" that did not happen.
+      if (/\.pdf(\?|$)/i.test(String(source))) return { unsupported: 'report_format' };
       return {
         kind: wantObservation ? 'observation' : 'dc', itemRef: `report:${data.id}`,
         title: ad.topic || null, grade: ad.grade || null, subject: ad.subject || null,

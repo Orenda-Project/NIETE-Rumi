@@ -290,6 +290,31 @@ describe('the lesson resolver', () => {
   });
 });
 
+describe('a report goes in an IMAGE header, so an old PDF report is not sendable', () => {
+  const db = (session) => ({
+    from: () => {
+      const c = { select: () => c, eq: () => c, maybeSingle: async () => ({ data: session, error: null }) };
+      return c;
+    },
+  });
+  const presign = async (k) => `https://signed.example/${k}`;
+
+  it('a PNG report resolves with its image', async () => {
+    const item = await Share.itemResolvers(db({ id: 's1', observation_type: null, report_pdf_url: 'https://r2.example/u/s1_report.png', analysis_data: { topic: 'Plants', grade: 4, subject: 'Science' } }), { presign }).dc('u1', 's1');
+    expect(item).toMatchObject({ kind: 'dc', title: 'Plants', grade: 4, subject: 'Science', imageUrl: 'https://signed.example/https://r2.example/u/s1_report.png' });
+  });
+
+  it('a PDF report (the pre-hero ones) → unavailable, never a "sent" that Meta then fails to deliver', async () => {
+    for (const url of ['https://r2.example/u/s1_report.pdf', 'https://r2.example/u/s1_report.PDF?X-Amz-Signature=abc']) {
+      const item = await Share.itemResolvers(db({ id: 's1', observation_type: null, report_pdf_url: url, analysis_data: {} }), { presign }).dc('u1', 's1');
+      expect(item).toEqual({ unsupported: 'report_format' });
+    }
+    const d = deps({ item: async () => ({ unsupported: 'report_format' }) });
+    expect(await Share.sendShare({ userId: 'u1', kind: 'dc', id: 's1' }, d)).toEqual({ status: 'unavailable', reason: 'report_format' });
+    expect(d.calls).toHaveLength(0);
+  });
+});
+
 describe('the item queries are scoped to HER (ownership is the query)', () => {
   it('the paper, lesson and session lookups filter on user_id', async () => {
     const seen = [];
