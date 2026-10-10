@@ -1,6 +1,6 @@
 {
   "catalog_version": "v8",
-  "built_at": "2026-10-09T10:38:01.851Z",
+  "built_at": "2026-10-10T04:36:41.354Z",
   "source": {
     "segmentation": "/Users/haroonyasin/Documents/Projects/April 2026/Rumi 10 April 2026/06_Logs & Misc/Reports/Active/Simulation Week - July 2026/ICT/Curriculum Ingestion (Taleemabad K-5)/02_segmentation",
     "toc": "/Users/haroonyasin/Documents/Projects/April 2026/Rumi 10 April 2026/06_Logs & Misc/Reports/Active/Simulation Week - July 2026/ICT/Curriculum Ingestion (Taleemabad K-5)/01_page_truth",
@@ -11,8 +11,8 @@
   },
   "counts": {
     "books": 32,
-    "chapters": 343,
-    "lessons": 3070
+    "chapters": 377,
+    "lessons": 3290
   },
   "books": [
     {
@@ -4427,6 +4427,287 @@
               }
             }
           ]
+        },
+        {
+          "number": 11,
+          "title": "Motion",
+          "title_short": "Motion",
+          "pages_label": "p.62-66",
+          "lessons": [
+            {
+              "lesson_id": "grade_1_general_knowledge_en_ch11_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "Motion",
+              "section_short": "Motion",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                62,
+                63
+              ],
+              "pages_label": "p.62-63",
+              "row": {
+                "title": "Motion",
+                "description": "Day 1 · p.62-63",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_en_ch11_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "Push and pull around us",
+              "section_short": "Push and pull around us",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                63
+              ],
+              "pages_label": "p.63",
+              "row": {
+                "title": "Push and pull around us",
+                "description": "Day 2 · p.63",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_en_ch11_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "How do cars move?",
+              "section_short": "How do cars move?",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                64
+              ],
+              "pages_label": "p.64",
+              "row": {
+                "title": "How do cars move?",
+                "description": "Day 3 · p.64",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_en_ch11_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "How do cars move?",
+              "section_short": "How do cars move?",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                64
+              ],
+              "pages_label": "p.64",
+              "row": {
+                "title": "How do cars move?",
+                "description": "Day 4 · p.64",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_en_ch11_seg5",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5",
+              "section": "Push or pull? Doors and drawers",
+              "section_short": "Push or pull? Doors and dra…",
+              "topic": "",
+              "topic_short": "Push or pull? Doors and drawers",
+              "pages": [
+                65,
+                66
+              ],
+              "pages_label": "p.65-66",
+              "row": {
+                "title": "Push or pull? Doors and dra…",
+                "description": "Day 5 · p.65-66",
+                "metadata": "Push or pull? Doors and drawers"
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_en_ch11_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "Worksheet: Motion",
+              "section_short": "Worksheet: Motion",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                62,
+                63,
+                64,
+                65,
+                66
+              ],
+              "pages_label": "p.62-66",
+              "row": {
+                "title": "Worksheet: Motion",
+                "description": "Worksheet · p.62-66",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_en_ch11_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "Revision: Motion",
+              "section_short": "Revision: Motion",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                62,
+                63,
+                64,
+                65,
+                66
+              ],
+              "pages_label": "p.62-66",
+              "row": {
+                "title": "Revision: Motion",
+                "description": "Revision · p.62-66",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 12,
+          "title": "Earth and Sky",
+          "title_short": "Earth and Sky",
+          "pages_label": "p.67-70",
+          "lessons": [
+            {
+              "lesson_id": "grade_1_general_knowledge_en_ch12_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "Earth and Sky",
+              "section_short": "Earth and Sky",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                67,
+                68
+              ],
+              "pages_label": "p.67-68",
+              "row": {
+                "title": "Earth and Sky",
+                "description": "Day 1 · p.67-68",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_en_ch12_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "Living on land and in water",
+              "section_short": "Living on land and in water",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                68
+              ],
+              "pages_label": "p.68",
+              "row": {
+                "title": "Living on land and in water",
+                "description": "Day 2 · p.68",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_en_ch12_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "The day sky: the Sun",
+              "section_short": "The day sky: the Sun",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                69
+              ],
+              "pages_label": "p.69",
+              "row": {
+                "title": "The day sky: the Sun",
+                "description": "Day 3 · p.69",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_en_ch12_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "The day sky and the night sky",
+              "section_short": "The day sky and the night s…",
+              "topic": "",
+              "topic_short": "The day sky and the night sky",
+              "pages": [
+                69,
+                70
+              ],
+              "pages_label": "p.69-70",
+              "row": {
+                "title": "The day sky and the night s…",
+                "description": "Day 4 · p.69-70",
+                "metadata": "The day sky and the night sky"
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_en_ch12_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "Worksheet: Earth and Sky",
+              "section_short": "Worksheet: Earth and Sky",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                67,
+                68,
+                69,
+                70
+              ],
+              "pages_label": "p.67-70",
+              "row": {
+                "title": "Worksheet: Earth and Sky",
+                "description": "Worksheet · p.67-70",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_en_ch12_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "Revision: Earth and Sky",
+              "section_short": "Revision: Earth and Sky",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                67,
+                68,
+                69,
+                70
+              ],
+              "pages_label": "p.67-70",
+              "row": {
+                "title": "Revision: Earth and Sky",
+                "description": "Revision · p.67-70",
+                "metadata": ""
+              }
+            }
+          ]
         }
       ]
     },
@@ -6109,6 +6390,273 @@
               "row": {
                 "title": "‏اعادہ: پودے اور جانور",
                 "description": "‏اعادہ · ص ۴۹-۶۰",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 11,
+          "title": "حرکت",
+          "title_short": "حرکت",
+          "pages_label": "p.61-65",
+          "lessons": [
+            {
+              "lesson_id": "grade_1_general_knowledge_ch11_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "چیزیں کیسے حرکت کرتی ہیں",
+              "section_short": "‏چیزیں کیسے حرکت کرتی ہیں",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                61
+              ],
+              "pages_label": "p.61",
+              "row": {
+                "title": "‏چیزیں کیسے حرکت کرتی ہیں",
+                "description": "‏دن ۱ · ص ۶۱",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_ch11_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "دھکیلنا اور کھینچنا: دور اور قریب",
+              "section_short": "‏دھکیلنا اور کھینچنا: دور ا…",
+              "topic": "",
+              "topic_short": "دھکیلنا اور کھینچنا: دور اور قریب",
+              "pages": [
+                62
+              ],
+              "pages_label": "p.62",
+              "row": {
+                "title": "‏دھکیلنا اور کھینچنا: دور ا…",
+                "description": "‏دن ۲ · ص ۶۲",
+                "metadata": "‏دھکیلنا اور کھینچنا: دور اور قریب"
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_ch11_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "آج کی گاڑیاں کیسے چلتی ہیں",
+              "section_short": "‏آج کی گاڑیاں کیسے چلتی ہیں",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                63
+              ],
+              "pages_label": "p.63",
+              "row": {
+                "title": "‏آج کی گاڑیاں کیسے چلتی ہیں",
+                "description": "‏دن ۳ · ص ۶۳",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_ch11_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "پرانے زمانے کی سواریاں",
+              "section_short": "‏پرانے زمانے کی سواریاں",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                64
+              ],
+              "pages_label": "p.64",
+              "row": {
+                "title": "‏پرانے زمانے کی سواریاں",
+                "description": "‏دن ۴ · ص ۶۴",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_ch11_seg5",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5",
+              "section": "سواریاں، دھکیلنا اور کھینچنا: دہرائی",
+              "section_short": "‏سواریاں، دھکیلنا اور کھینچ…",
+              "topic": "",
+              "topic_short": "سواریاں، دھکیلنا اور کھینچنا: دہرائی",
+              "pages": [
+                65
+              ],
+              "pages_label": "p.65",
+              "row": {
+                "title": "‏سواریاں، دھکیلنا اور کھینچ…",
+                "description": "‏دن ۵ · ص ۶۵",
+                "metadata": "‏سواریاں، دھکیلنا اور کھینچنا: دہرائی"
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_ch11_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "تشخیصی ورک شیٹ: حرکت",
+              "section_short": "‏تشخیصی ورک شیٹ: حرکت",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                61,
+                65
+              ],
+              "pages_label": "p.61-65",
+              "row": {
+                "title": "‏تشخیصی ورک شیٹ: حرکت",
+                "description": "‏ورک شیٹ · ص ۶۱-۶۵",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_ch11_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "اعادہ: حرکت",
+              "section_short": "‏اعادہ: حرکت",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                61,
+                65
+              ],
+              "pages_label": "p.61-65",
+              "row": {
+                "title": "‏اعادہ: حرکت",
+                "description": "‏اعادہ · ص ۶۱-۶۵",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 12,
+          "title": "زمین اور آسمان",
+          "title_short": "زمین اور آسمان",
+          "pages_label": "p.66-69",
+          "lessons": [
+            {
+              "lesson_id": "grade_1_general_knowledge_ch12_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "زمین: خشکی اور پانی",
+              "section_short": "‏زمین: خشکی اور پانی",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                66
+              ],
+              "pages_label": "p.66",
+              "row": {
+                "title": "‏زمین: خشکی اور پانی",
+                "description": "‏دن ۱ · ص ۶۶",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_ch12_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "خشکی اور پانی میں رہنے والے",
+              "section_short": "‏خشکی اور پانی میں رہنے والے",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                67
+              ],
+              "pages_label": "p.67",
+              "row": {
+                "title": "‏خشکی اور پانی میں رہنے والے",
+                "description": "‏دن ۲ · ص ۶۷",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_ch12_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "سورج، دن اور رات کا آسمان",
+              "section_short": "‏سورج، دن اور رات کا آسمان",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                68
+              ],
+              "pages_label": "p.68",
+              "row": {
+                "title": "‏سورج، دن اور رات کا آسمان",
+                "description": "‏دن ۳ · ص ۶۸",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_ch12_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "چاند، ستارے اور سیارے",
+              "section_short": "‏چاند، ستارے اور سیارے",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                69
+              ],
+              "pages_label": "p.69",
+              "row": {
+                "title": "‏چاند، ستارے اور سیارے",
+                "description": "‏دن ۴ · ص ۶۹",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_ch12_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "تشخیصی ورک شیٹ: زمین اور آسمان",
+              "section_short": "‏تشخیصی ورک شیٹ: زمین اور آ…",
+              "topic": "",
+              "topic_short": "تشخیصی ورک شیٹ: زمین اور آسمان",
+              "pages": [
+                66,
+                69
+              ],
+              "pages_label": "p.66-69",
+              "row": {
+                "title": "‏تشخیصی ورک شیٹ: زمین اور آ…",
+                "description": "‏ورک شیٹ · ص ۶۶-۶۹",
+                "metadata": "‏تشخیصی ورک شیٹ: زمین اور آسمان"
+              }
+            },
+            {
+              "lesson_id": "grade_1_general_knowledge_ch12_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "اعادہ: زمین اور آسمان",
+              "section_short": "‏اعادہ: زمین اور آسمان",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                66,
+                69
+              ],
+              "pages_label": "p.66-69",
+              "row": {
+                "title": "‏اعادہ: زمین اور آسمان",
+                "description": "‏اعادہ · ص ۶۶-۶۹",
                 "metadata": ""
               }
             }
@@ -17027,6 +17575,1084 @@
               }
             }
           ]
+        },
+        {
+          "number": 11,
+          "title": "Agriculture and Livestock",
+          "title_short": "Agriculture and Livestock",
+          "pages_label": "p.68-75",
+          "lessons": [
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch11_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "Wheat and what we make from it",
+              "section_short": "Wheat and what we make from…",
+              "topic": "",
+              "topic_short": "Wheat and what we make from it",
+              "pages": [
+                69
+              ],
+              "pages_label": "p.69",
+              "row": {
+                "title": "Wheat and what we make from…",
+                "description": "Day 1 · p.69",
+                "metadata": "Wheat and what we make from it"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch11_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "Cotton: from field to clothes",
+              "section_short": "Cotton: from field to cloth…",
+              "topic": "",
+              "topic_short": "Cotton: from field to clothes",
+              "pages": [
+                70
+              ],
+              "pages_label": "p.70",
+              "row": {
+                "title": "Cotton: from field to cloth…",
+                "description": "Day 2 · p.70",
+                "metadata": "Cotton: from field to clothes"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch11_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "Sugarcane: juice, sugar and brown sugar",
+              "section_short": "Sugarcane: juice, sugar and…",
+              "topic": "",
+              "topic_short": "Sugarcane: juice, sugar and brown sugar",
+              "pages": [
+                71
+              ],
+              "pages_label": "p.71",
+              "row": {
+                "title": "Sugarcane: juice, sugar and…",
+                "description": "Day 3 · p.71",
+                "metadata": "Sugarcane: juice, sugar and brown sugar"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch11_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "Livestock",
+              "section_short": "Livestock",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                72
+              ],
+              "pages_label": "p.72",
+              "row": {
+                "title": "Livestock",
+                "description": "Day 4 · p.72",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch11_seg5",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5",
+              "section": "From crop and animal to product",
+              "section_short": "From crop and animal to pro…",
+              "topic": "",
+              "topic_short": "From crop and animal to product",
+              "pages": [
+                72,
+                73
+              ],
+              "pages_label": "p.72-73",
+              "row": {
+                "title": "From crop and animal to pro…",
+                "description": "Day 5 · p.72-73",
+                "metadata": "From crop and animal to product"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch11_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "Worksheet: Agriculture and Livestock",
+              "section_short": "Worksheet: Agriculture and …",
+              "topic": "",
+              "topic_short": "Worksheet: Agriculture and Livestock",
+              "pages": [
+                74,
+                75
+              ],
+              "pages_label": "p.74-75",
+              "row": {
+                "title": "Worksheet: Agriculture and …",
+                "description": "Worksheet · p.74-75",
+                "metadata": "Worksheet: Agriculture and Livestock"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch11_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "Revision: Agriculture and Livestock",
+              "section_short": "Revision: Agriculture and L…",
+              "topic": "",
+              "topic_short": "Revision: Agriculture and Livestock",
+              "pages": [
+                68,
+                69,
+                70,
+                71,
+                72,
+                73,
+                74,
+                75
+              ],
+              "pages_label": "p.68-75",
+              "row": {
+                "title": "Revision: Agriculture and L…",
+                "description": "Revision · p.68-75",
+                "metadata": "Revision: Agriculture and Livestock"
+              }
+            }
+          ]
+        },
+        {
+          "number": 12,
+          "title": "Plants",
+          "title_short": "Plants",
+          "pages_label": "p.76-83",
+          "lessons": [
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch12_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "Parts of a plant and what they do",
+              "section_short": "Parts of a plant and what t…",
+              "topic": "",
+              "topic_short": "Parts of a plant and what they do",
+              "pages": [
+                77
+              ],
+              "pages_label": "p.77",
+              "row": {
+                "title": "Parts of a plant and what t…",
+                "description": "Day 1 · p.77",
+                "metadata": "Parts of a plant and what they do"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch12_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "How a plant grows; shapes of leaves",
+              "section_short": "How a plant grows; shapes o…",
+              "topic": "",
+              "topic_short": "How a plant grows; shapes of leaves",
+              "pages": [
+                78
+              ],
+              "pages_label": "p.78",
+              "row": {
+                "title": "How a plant grows; shapes o…",
+                "description": "Day 2 · p.78",
+                "metadata": "How a plant grows; shapes of leaves"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch12_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "Roots we eat",
+              "section_short": "Roots we eat",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                79
+              ],
+              "pages_label": "p.79",
+              "row": {
+                "title": "Roots we eat",
+                "description": "Day 3 · p.79",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch12_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "Stems, leaves and flowers we eat",
+              "section_short": "Stems, leaves and flowers w…",
+              "topic": "",
+              "topic_short": "Stems, leaves and flowers we eat",
+              "pages": [
+                80
+              ],
+              "pages_label": "p.80",
+              "row": {
+                "title": "Stems, leaves and flowers w…",
+                "description": "Day 4 · p.80",
+                "metadata": "Stems, leaves and flowers we eat"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch12_seg5",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5",
+              "section": "Fruits with seeds; how plants grow",
+              "section_short": "Fruits with seeds; how plan…",
+              "topic": "",
+              "topic_short": "Fruits with seeds; how plants grow",
+              "pages": [
+                81
+              ],
+              "pages_label": "p.81",
+              "row": {
+                "title": "Fruits with seeds; how plan…",
+                "description": "Day 5 · p.81",
+                "metadata": "Fruits with seeds; how plants grow"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch12_seg6",
+              "segment_index": 6,
+              "lp_type": "content",
+              "day_label": "Day 6",
+              "section": "Plants and the environment",
+              "section_short": "Plants and the environment",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                82
+              ],
+              "pages_label": "p.82",
+              "row": {
+                "title": "Plants and the environment",
+                "description": "Day 6 · p.82",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch12_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "Worksheet: Plants",
+              "section_short": "Worksheet: Plants",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                83
+              ],
+              "pages_label": "p.83",
+              "row": {
+                "title": "Worksheet: Plants",
+                "description": "Worksheet · p.83",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch12_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "Revision: Plants",
+              "section_short": "Revision: Plants",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                76,
+                77,
+                78,
+                79,
+                80,
+                81,
+                82,
+                83
+              ],
+              "pages_label": "p.76-83",
+              "row": {
+                "title": "Revision: Plants",
+                "description": "Revision · p.76-83",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 13,
+          "title": "Animals",
+          "title_short": "Animals",
+          "pages_label": "p.84-89",
+          "lessons": [
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch13_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "Animals that live on land",
+              "section_short": "Animals that live on land",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                84
+              ],
+              "pages_label": "p.84",
+              "row": {
+                "title": "Animals that live on land",
+                "description": "Day 1 · p.84",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch13_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "Animals that live in water",
+              "section_short": "Animals that live in water",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                85
+              ],
+              "pages_label": "p.85",
+              "row": {
+                "title": "Animals that live in water",
+                "description": "Day 2 · p.85",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch13_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "Animals and their young",
+              "section_short": "Animals and their young",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                86
+              ],
+              "pages_label": "p.86",
+              "row": {
+                "title": "Animals and their young",
+                "description": "Day 3 · p.86",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch13_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "Where animals live",
+              "section_short": "Where animals live",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                87
+              ],
+              "pages_label": "p.87",
+              "row": {
+                "title": "Where animals live",
+                "description": "Day 4 · p.87",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch13_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "Worksheet: Animals",
+              "section_short": "Worksheet: Animals",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                88,
+                89
+              ],
+              "pages_label": "p.88-89",
+              "row": {
+                "title": "Worksheet: Animals",
+                "description": "Worksheet · p.88-89",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch13_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "Revision: Animals",
+              "section_short": "Revision: Animals",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                84,
+                85,
+                86,
+                87,
+                88,
+                89
+              ],
+              "pages_label": "p.84-89",
+              "row": {
+                "title": "Revision: Animals",
+                "description": "Revision · p.84-89",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 14,
+          "title": "Materials",
+          "title_short": "Materials",
+          "pages_label": "p.90-95",
+          "lessons": [
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch14_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "Common materials",
+              "section_short": "Common materials",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                91
+              ],
+              "pages_label": "p.91",
+              "row": {
+                "title": "Common materials",
+                "description": "Day 1 · p.91",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch14_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "Hard, soft, smooth, rough",
+              "section_short": "Hard, soft, smooth, rough",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                92
+              ],
+              "pages_label": "p.92",
+              "row": {
+                "title": "Hard, soft, smooth, rough",
+                "description": "Day 2 · p.92",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch14_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "Shiny, elastic, magnetic",
+              "section_short": "Shiny, elastic, magnetic",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                93,
+                94
+              ],
+              "pages_label": "p.93-94",
+              "row": {
+                "title": "Shiny, elastic, magnetic",
+                "description": "Day 3 · p.93-94",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch14_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "Float or sink; natural or man-made",
+              "section_short": "Float or sink; natural or m…",
+              "topic": "",
+              "topic_short": "Float or sink; natural or man-made",
+              "pages": [
+                94
+              ],
+              "pages_label": "p.94",
+              "row": {
+                "title": "Float or sink; natural or m…",
+                "description": "Day 4 · p.94",
+                "metadata": "Float or sink; natural or man-made"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch14_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "Worksheet: Materials",
+              "section_short": "Worksheet: Materials",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                95
+              ],
+              "pages_label": "p.95",
+              "row": {
+                "title": "Worksheet: Materials",
+                "description": "Worksheet · p.95",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch14_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "Revision: Materials",
+              "section_short": "Revision: Materials",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                90,
+                91,
+                92,
+                93,
+                94,
+                95
+              ],
+              "pages_label": "p.90-95",
+              "row": {
+                "title": "Revision: Materials",
+                "description": "Revision · p.90-95",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 15,
+          "title": "Light and Heat",
+          "title_short": "Light and Heat",
+          "pages_label": "p.96-101",
+          "lessons": [
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch15_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "Sources of light and heat",
+              "section_short": "Sources of light and heat",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                96,
+                97
+              ],
+              "pages_label": "p.96-97",
+              "row": {
+                "title": "Sources of light and heat",
+                "description": "Day 1 · p.96-97",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch15_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "Making heat: rub your hands",
+              "section_short": "Making heat: rub your hands",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                97
+              ],
+              "pages_label": "p.97",
+              "row": {
+                "title": "Making heat: rub your hands",
+                "description": "Day 2 · p.97",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch15_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "Uses of light and heat",
+              "section_short": "Uses of light and heat",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                98,
+                99
+              ],
+              "pages_label": "p.98-99",
+              "row": {
+                "title": "Uses of light and heat",
+                "description": "Day 3 · p.98-99",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch15_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "Worksheet: Light and Heat",
+              "section_short": "Worksheet: Light and Heat",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                100,
+                101
+              ],
+              "pages_label": "p.100-101",
+              "row": {
+                "title": "Worksheet: Light and Heat",
+                "description": "Worksheet",
+                "metadata": "‎ · p.100-101"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch15_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "Revision: Light and Heat",
+              "section_short": "Revision: Light and Heat",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                96,
+                97,
+                98,
+                99,
+                100,
+                101
+              ],
+              "pages_label": "p.96-101",
+              "row": {
+                "title": "Revision: Light and Heat",
+                "description": "Revision · p.96-101",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 16,
+          "title": "Forces",
+          "title_short": "Forces",
+          "pages_label": "p.102-105",
+          "lessons": [
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch16_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "Push and pull",
+              "section_short": "Push and pull",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                103
+              ],
+              "pages_label": "p.103",
+              "row": {
+                "title": "Push and pull",
+                "description": "Day 1 · p.103",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch16_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "Force changes motion",
+              "section_short": "Force changes motion",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                104
+              ],
+              "pages_label": "p.104",
+              "row": {
+                "title": "Force changes motion",
+                "description": "Day 2 · p.104",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch16_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "Worksheet: Forces",
+              "section_short": "Worksheet: Forces",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                104,
+                105
+              ],
+              "pages_label": "p.104-105",
+              "row": {
+                "title": "Worksheet: Forces",
+                "description": "Worksheet",
+                "metadata": "‎ · p.104-105"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch16_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "Revision: Forces",
+              "section_short": "Revision: Forces",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                102,
+                103,
+                104,
+                105
+              ],
+              "pages_label": "p.102-105",
+              "row": {
+                "title": "Revision: Forces",
+                "description": "Revision · p.102-105",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 17,
+          "title": "Natural Resources",
+          "title_short": "Natural Resources",
+          "pages_label": "p.106-112",
+          "lessons": [
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch17_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "The Earth gives us everything",
+              "section_short": "The Earth gives us everythi…",
+              "topic": "",
+              "topic_short": "The Earth gives us everything",
+              "pages": [
+                107
+              ],
+              "pages_label": "p.107",
+              "row": {
+                "title": "The Earth gives us everythi…",
+                "description": "Day 1 · p.107",
+                "metadata": "The Earth gives us everything"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch17_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "Water and air",
+              "section_short": "Water and air",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                108
+              ],
+              "pages_label": "p.108",
+              "row": {
+                "title": "Water and air",
+                "description": "Day 2 · p.108",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch17_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "The sun and minerals",
+              "section_short": "The sun and minerals",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                109
+              ],
+              "pages_label": "p.109",
+              "row": {
+                "title": "The sun and minerals",
+                "description": "Day 3 · p.109",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch17_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "Things people make from natural resources",
+              "section_short": "Things people make from nat…",
+              "topic": "",
+              "topic_short": "Things people make from natural resources",
+              "pages": [
+                109,
+                110
+              ],
+              "pages_label": "p.109-110",
+              "row": {
+                "title": "Things people make from nat…",
+                "description": "Day 4 · p.109-110",
+                "metadata": "Things people make from natural resources"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch17_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "Worksheet: Natural Resources",
+              "section_short": "Worksheet: Natural Resources",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                110,
+                111,
+                112
+              ],
+              "pages_label": "p.110-112",
+              "row": {
+                "title": "Worksheet: Natural Resources",
+                "description": "Worksheet",
+                "metadata": "‎ · p.110-112"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch17_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "Revision: Natural Resources",
+              "section_short": "Revision: Natural Resources",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                106,
+                107,
+                108,
+                109,
+                110,
+                111,
+                112
+              ],
+              "pages_label": "p.106-112",
+              "row": {
+                "title": "Revision: Natural Resources",
+                "description": "Revision · p.106-112",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 18,
+          "title": "Water",
+          "title_short": "Water",
+          "pages_label": "p.113-124",
+          "lessons": [
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch18_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "Water is life",
+              "section_short": "Water is life",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                114
+              ],
+              "pages_label": "p.114",
+              "row": {
+                "title": "Water is life",
+                "description": "Day 1 · p.114",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch18_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "How we use water every day",
+              "section_short": "How we use water every day",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                115
+              ],
+              "pages_label": "p.115",
+              "row": {
+                "title": "How we use water every day",
+                "description": "Day 2 · p.115",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch18_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "Natural sources and underground water",
+              "section_short": "Natural sources and undergr…",
+              "topic": "",
+              "topic_short": "Natural sources and underground water",
+              "pages": [
+                116,
+                117
+              ],
+              "pages_label": "p.116-117",
+              "row": {
+                "title": "Natural sources and undergr…",
+                "description": "Day 3 · p.116-117",
+                "metadata": "Natural sources and underground water"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch18_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "Water shortage in Pakistan",
+              "section_short": "Water shortage in Pakistan",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                118
+              ],
+              "pages_label": "p.118",
+              "row": {
+                "title": "Water shortage in Pakistan",
+                "description": "Day 4 · p.118",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch18_seg5",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5",
+              "section": "How water is wasted, and how to save it",
+              "section_short": "How water is wasted, and ho…",
+              "topic": "",
+              "topic_short": "How water is wasted, and how to save it",
+              "pages": [
+                119,
+                120
+              ],
+              "pages_label": "p.119-120",
+              "row": {
+                "title": "How water is wasted, and ho…",
+                "description": "Day 5 · p.119-120",
+                "metadata": "How water is wasted, and how to save it"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch18_seg6",
+              "segment_index": 6,
+              "lp_type": "content",
+              "day_label": "Day 6",
+              "section": "Forests, and saving water and trees",
+              "section_short": "Forests, and saving water a…",
+              "topic": "",
+              "topic_short": "Forests, and saving water and trees",
+              "pages": [
+                121,
+                122
+              ],
+              "pages_label": "p.121-122",
+              "row": {
+                "title": "Forests, and saving water a…",
+                "description": "Day 6 · p.121-122",
+                "metadata": "Forests, and saving water and trees"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch18_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "Worksheet: Water",
+              "section_short": "Worksheet: Water",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                123,
+                124
+              ],
+              "pages_label": "p.123-124",
+              "row": {
+                "title": "Worksheet: Water",
+                "description": "Worksheet",
+                "metadata": "‎ · p.123-124"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_en_ch18_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "Revision: Water",
+              "section_short": "Revision: Water",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                113,
+                114,
+                115,
+                116,
+                117,
+                118,
+                119,
+                120,
+                121,
+                122,
+                123,
+                124
+              ],
+              "pages_label": "p.113-124",
+              "row": {
+                "title": "Revision: Water",
+                "description": "Revision · p.113-124",
+                "metadata": ""
+              }
+            }
+          ]
         }
       ]
     },
@@ -18264,6 +19890,1061 @@
               "row": {
                 "title": "‏اعادہ: پیشے",
                 "description": "‏اعادہ · ص ۶۳-۶۸",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 11,
+          "title": "زراعت اور مویشی",
+          "title_short": "زراعت اور مویشی",
+          "pages_label": "p.69-76",
+          "lessons": [
+            {
+              "lesson_id": "grade_2_general_knowledge_ch11_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "فصلیں اور مویشی: باب کا آغاز",
+              "section_short": "‏فصلیں اور مویشی: باب کا آغ…",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                69,
+                70,
+                71
+              ],
+              "pages_label": "p.69-71",
+              "row": {
+                "title": "‏فصلیں اور مویشی: باب کا آغ…",
+                "description": "‏دن ۱ · ص ۶۹-۷۱",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch11_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "گنّے سے گڑ اور چینی",
+              "section_short": "‏گنّے سے گڑ اور چینی",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                72
+              ],
+              "pages_label": "p.72",
+              "row": {
+                "title": "‏گنّے سے گڑ اور چینی",
+                "description": "‏دن ۲ · ص ۷۲",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch11_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "مویشی اور ان سے ملنے والی چیزیں",
+              "section_short": "‏مویشی اور ان سے ملنے والی …",
+              "topic": "",
+              "topic_short": "مویشی اور ان سے ملنے والی چیزیں",
+              "pages": [
+                73,
+                74
+              ],
+              "pages_label": "p.73-74",
+              "row": {
+                "title": "‏مویشی اور ان سے ملنے والی …",
+                "description": "‏دن ۳ · ص ۷۳-۷۴",
+                "metadata": "‏مویشی اور ان سے ملنے والی چیزیں"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch11_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "مشق: فصلیں اور مویشی کی چیزیں",
+              "section_short": "‏مشق: فصلیں اور مویشی کی چی…",
+              "topic": "",
+              "topic_short": "مشق: فصلیں اور مویشی کی چیزیں",
+              "pages": [
+                75,
+                76
+              ],
+              "pages_label": "p.75-76",
+              "row": {
+                "title": "‏مشق: فصلیں اور مویشی کی چی…",
+                "description": "‏دن ۴ · ص ۷۵-۷۶",
+                "metadata": "‏مشق: فصلیں اور مویشی کی چیزیں"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch11_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "تشخیصی ورک شیٹ: زراعت اور مویشی",
+              "section_short": "‏تشخیصی ورک شیٹ: زراعت اور …",
+              "topic": "",
+              "topic_short": "تشخیصی ورک شیٹ: زراعت اور مویشی",
+              "pages": [
+                69,
+                76
+              ],
+              "pages_label": "p.69-76",
+              "row": {
+                "title": "‏تشخیصی ورک شیٹ: زراعت اور …",
+                "description": "‏ورک شیٹ · ص ۶۹-۷۶",
+                "metadata": "‏تشخیصی ورک شیٹ: زراعت اور مویشی"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch11_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "اعادہ: زراعت اور مویشی",
+              "section_short": "‏اعادہ: زراعت اور مویشی",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                69,
+                76
+              ],
+              "pages_label": "p.69-76",
+              "row": {
+                "title": "‏اعادہ: زراعت اور مویشی",
+                "description": "‏اعادہ · ص ۶۹-۷۶",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 12,
+          "title": "پودے",
+          "title_short": "پودے",
+          "pages_label": "p.77-84",
+          "lessons": [
+            {
+              "lesson_id": "grade_2_general_knowledge_ch12_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "پودے کے چار حصے: جڑ، تنا، پتا اور پھول",
+              "section_short": "‏پودے کے چار حصے: جڑ، تنا، …",
+              "topic": "",
+              "topic_short": "پودے کے چار حصے: جڑ، تنا، پتا اور پھول",
+              "pages": [
+                77,
+                78
+              ],
+              "pages_label": "p.77-78",
+              "row": {
+                "title": "‏پودے کے چار حصے: جڑ، تنا، …",
+                "description": "‏دن ۱ · ص ۷۷-۷۸",
+                "metadata": "‏پودے کے چار حصے: جڑ، تنا، پتا اور پھول"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch12_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "پودے کی نشوونما کا پراجیکٹ",
+              "section_short": "‏پودے کی نشوونما کا پراجیکٹ",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                79,
+                80
+              ],
+              "pages_label": "p.79-80",
+              "row": {
+                "title": "‏پودے کی نشوونما کا پراجیکٹ",
+                "description": "‏دن ۲ · ص ۷۹-۸۰",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch12_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "کھائی جانے والی جڑیں",
+              "section_short": "‏کھائی جانے والی جڑیں",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                80,
+                81
+              ],
+              "pages_label": "p.80-81",
+              "row": {
+                "title": "‏کھائی جانے والی جڑیں",
+                "description": "‏دن ۳ · ص ۸۰-۸۱",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch12_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "پودے بیج، جڑ اور تنے سے اُگتے ہیں",
+              "section_short": "‏پودے بیج، جڑ اور تنے سے اُ…",
+              "topic": "",
+              "topic_short": "پودے بیج، جڑ اور تنے سے اُگتے ہیں",
+              "pages": [
+                82
+              ],
+              "pages_label": "p.82",
+              "row": {
+                "title": "‏پودے بیج، جڑ اور تنے سے اُ…",
+                "description": "‏دن ۴ · ص ۸۲",
+                "metadata": "‏پودے بیج، جڑ اور تنے سے اُگتے ہیں"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch12_seg5",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5",
+              "section": "موسمیاتی تبدیلی میں پودوں کا کردار",
+              "section_short": "‏موسمیاتی تبدیلی میں پودوں …",
+              "topic": "",
+              "topic_short": "موسمیاتی تبدیلی میں پودوں کا کردار",
+              "pages": [
+                83,
+                84
+              ],
+              "pages_label": "p.83-84",
+              "row": {
+                "title": "‏موسمیاتی تبدیلی میں پودوں …",
+                "description": "‏دن ۵ · ص ۸۳-۸۴",
+                "metadata": "‏موسمیاتی تبدیلی میں پودوں کا کردار"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch12_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "تشخیصی ورک شیٹ: پودے",
+              "section_short": "‏تشخیصی ورک شیٹ: پودے",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                77,
+                84
+              ],
+              "pages_label": "p.77-84",
+              "row": {
+                "title": "‏تشخیصی ورک شیٹ: پودے",
+                "description": "‏ورک شیٹ · ص ۷۷-۸۴",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch12_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "اعادہ: پودے",
+              "section_short": "‏اعادہ: پودے",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                77,
+                84
+              ],
+              "pages_label": "p.77-84",
+              "row": {
+                "title": "‏اعادہ: پودے",
+                "description": "‏اعادہ · ص ۷۷-۸۴",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 13,
+          "title": "جانور",
+          "title_short": "جانور",
+          "pages_label": "p.85-90",
+          "lessons": [
+            {
+              "lesson_id": "grade_2_general_knowledge_ch13_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "خشکی کے جانور",
+              "section_short": "‏خشکی کے جانور",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                85
+              ],
+              "pages_label": "p.85",
+              "row": {
+                "title": "‏خشکی کے جانور",
+                "description": "‏دن ۱ · ص ۸۵",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch13_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "پانی میں رہنے والے جانور",
+              "section_short": "‏پانی میں رہنے والے جانور",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                86
+              ],
+              "pages_label": "p.86",
+              "row": {
+                "title": "‏پانی میں رہنے والے جانور",
+                "description": "‏دن ۲ · ص ۸۶",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch13_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "جانور اور ان کے بچے",
+              "section_short": "‏جانور اور ان کے بچے",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                87
+              ],
+              "pages_label": "p.87",
+              "row": {
+                "title": "‏جانور اور ان کے بچے",
+                "description": "‏دن ۳ · ص ۸۷",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch13_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "جانور کہاں رہتے ہیں",
+              "section_short": "‏جانور کہاں رہتے ہیں",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                88,
+                89,
+                90
+              ],
+              "pages_label": "p.88-90",
+              "row": {
+                "title": "‏جانور کہاں رہتے ہیں",
+                "description": "‏دن ۴ · ص ۸۸-۹۰",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch13_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "تشخیصی ورک شیٹ: جانور",
+              "section_short": "‏تشخیصی ورک شیٹ: جانور",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                85,
+                90
+              ],
+              "pages_label": "p.85-90",
+              "row": {
+                "title": "‏تشخیصی ورک شیٹ: جانور",
+                "description": "‏ورک شیٹ · ص ۸۵-۹۰",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch13_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "اعادہ: جانور",
+              "section_short": "‏اعادہ: جانور",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                85,
+                90
+              ],
+              "pages_label": "p.85-90",
+              "row": {
+                "title": "‏اعادہ: جانور",
+                "description": "‏اعادہ · ص ۸۵-۹۰",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 14,
+          "title": "مادی اشیا",
+          "title_short": "مادی اشیا",
+          "pages_label": "p.91-96",
+          "lessons": [
+            {
+              "lesson_id": "grade_2_general_knowledge_ch14_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "عام مادی اشیا: کپڑا، لکڑی، دھات، کاغذ، شیشہ",
+              "section_short": "‏عام مادی اشیا: کپڑا، لکڑی،…",
+              "topic": "",
+              "topic_short": "عام مادی اشیا: کپڑا، لکڑی، دھات، کاغذ، شیشہ",
+              "pages": [
+                91
+              ],
+              "pages_label": "p.91",
+              "row": {
+                "title": "‏عام مادی اشیا: کپڑا، لکڑی،…",
+                "description": "‏دن ۱ · ص ۹۱",
+                "metadata": "‏عام مادی اشیا: کپڑا، لکڑی، دھات، کاغذ، شیشہ"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch14_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "اپنے ارد گرد کی اشیا اور ان کا مواد",
+              "section_short": "‏اپنے ارد گرد کی اشیا اور ا…",
+              "topic": "",
+              "topic_short": "اپنے ارد گرد کی اشیا اور ان کا مواد",
+              "pages": [
+                92,
+                93
+              ],
+              "pages_label": "p.92-93",
+              "row": {
+                "title": "‏اپنے ارد گرد کی اشیا اور ا…",
+                "description": "‏دن ۲ · ص ۹۲-۹۳",
+                "metadata": "‏اپنے ارد گرد کی اشیا اور ان کا مواد"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch14_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "چمکدار اور لچکدار اشیا",
+              "section_short": "‏چمکدار اور لچکدار اشیا",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                94,
+                95
+              ],
+              "pages_label": "p.94-95",
+              "row": {
+                "title": "‏چمکدار اور لچکدار اشیا",
+                "description": "‏دن ۳ · ص ۹۴-۹۵",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch14_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "اشیا کس چیز سے بنی ہیں: مشق",
+              "section_short": "‏اشیا کس چیز سے بنی ہیں: مشق",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                96
+              ],
+              "pages_label": "p.96",
+              "row": {
+                "title": "‏اشیا کس چیز سے بنی ہیں: مشق",
+                "description": "‏دن ۴ · ص ۹۶",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch14_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "تشخیصی ورک شیٹ: مادی اشیا",
+              "section_short": "‏تشخیصی ورک شیٹ: مادی اشیا",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                91,
+                96
+              ],
+              "pages_label": "p.91-96",
+              "row": {
+                "title": "‏تشخیصی ورک شیٹ: مادی اشیا",
+                "description": "‏ورک شیٹ · ص ۹۱-۹۶",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch14_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "اعادہ: مادی اشیا",
+              "section_short": "‏اعادہ: مادی اشیا",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                91,
+                96
+              ],
+              "pages_label": "p.91-96",
+              "row": {
+                "title": "‏اعادہ: مادی اشیا",
+                "description": "‏اعادہ · ص ۹۱-۹۶",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 15,
+          "title": "روشنی اور حرارت",
+          "title_short": "روشنی اور حرارت",
+          "pages_label": "p.97-102",
+          "lessons": [
+            {
+              "lesson_id": "grade_2_general_knowledge_ch15_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "قدرتی ذرائع: سورج، چاند اور ستارے",
+              "section_short": "‏قدرتی ذرائع: سورج، چاند او…",
+              "topic": "",
+              "topic_short": "قدرتی ذرائع: سورج، چاند اور ستارے",
+              "pages": [
+                97,
+                98
+              ],
+              "pages_label": "p.97-98",
+              "row": {
+                "title": "‏قدرتی ذرائع: سورج، چاند او…",
+                "description": "‏دن ۱ · ص ۹۷-۹۸",
+                "metadata": "‏قدرتی ذرائع: سورج، چاند اور ستارے"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch15_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "مصنوعی ذرائع: بلب، ٹارچ اور چولہا",
+              "section_short": "‏مصنوعی ذرائع: بلب، ٹارچ او…",
+              "topic": "",
+              "topic_short": "مصنوعی ذرائع: بلب، ٹارچ اور چولہا",
+              "pages": [
+                99
+              ],
+              "pages_label": "p.99",
+              "row": {
+                "title": "‏مصنوعی ذرائع: بلب، ٹارچ او…",
+                "description": "‏دن ۲ · ص ۹۹",
+                "metadata": "‏مصنوعی ذرائع: بلب، ٹارچ اور چولہا"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch15_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "حرارت اور روشنی کے استعمال",
+              "section_short": "‏حرارت اور روشنی کے استعمال",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                100
+              ],
+              "pages_label": "p.100",
+              "row": {
+                "title": "‏حرارت اور روشنی کے استعمال",
+                "description": "‏دن ۳ · ص ۱۰۰",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch15_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "ذریعے سے فاصلہ اور شدت",
+              "section_short": "‏ذریعے سے فاصلہ اور شدت",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                101,
+                102
+              ],
+              "pages_label": "p.101-102",
+              "row": {
+                "title": "‏ذریعے سے فاصلہ اور شدت",
+                "description": "‏دن ۴ · ص ۱۰۱-۱۰۲",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch15_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "تشخیصی ورک شیٹ: روشنی اور حرارت",
+              "section_short": "‏تشخیصی ورک شیٹ: روشنی اور …",
+              "topic": "",
+              "topic_short": "تشخیصی ورک شیٹ: روشنی اور حرارت",
+              "pages": [
+                97,
+                102
+              ],
+              "pages_label": "p.97-102",
+              "row": {
+                "title": "‏تشخیصی ورک شیٹ: روشنی اور …",
+                "description": "‏ورک شیٹ · ص ۹۷-۱۰۲",
+                "metadata": "‏تشخیصی ورک شیٹ: روشنی اور حرارت"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch15_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "اعادہ: روشنی اور حرارت",
+              "section_short": "‏اعادہ: روشنی اور حرارت",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                97,
+                102
+              ],
+              "pages_label": "p.97-102",
+              "row": {
+                "title": "‏اعادہ: روشنی اور حرارت",
+                "description": "‏اعادہ · ص ۹۷-۱۰۲",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 16,
+          "title": "قوتیں",
+          "title_short": "قوتیں",
+          "pages_label": "p.103-106",
+          "lessons": [
+            {
+              "lesson_id": "grade_2_general_knowledge_ch16_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "دھکیلنا اور کھینچنا",
+              "section_short": "‏دھکیلنا اور کھینچنا",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                103,
+                104,
+                105
+              ],
+              "pages_label": "p.103-105",
+              "row": {
+                "title": "‏دھکیلنا اور کھینچنا",
+                "description": "‏دن ۱ · ص ۱۰۳-۱۰۵",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch16_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "قوت کا چیزوں پر اثر",
+              "section_short": "‏قوت کا چیزوں پر اثر",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                106
+              ],
+              "pages_label": "p.106",
+              "row": {
+                "title": "‏قوت کا چیزوں پر اثر",
+                "description": "‏دن ۲ · ص ۱۰۶",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch16_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "تشخیصی ورک شیٹ: قوتیں",
+              "section_short": "‏تشخیصی ورک شیٹ: قوتیں",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                103,
+                106
+              ],
+              "pages_label": "p.103-106",
+              "row": {
+                "title": "‏تشخیصی ورک شیٹ: قوتیں",
+                "description": "‏ورک شیٹ · ص ۱۰۳-۱۰۶",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch16_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "اعادہ: قوتیں",
+              "section_short": "‏اعادہ: قوتیں",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                103,
+                106
+              ],
+              "pages_label": "p.103-106",
+              "row": {
+                "title": "‏اعادہ: قوتیں",
+                "description": "‏اعادہ · ص ۱۰۳-۱۰۶",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 17,
+          "title": "قدرتی وسائل",
+          "title_short": "قدرتی وسائل",
+          "pages_label": "p.107-114",
+          "lessons": [
+            {
+              "lesson_id": "grade_2_general_knowledge_ch17_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "زمین قدرتی وسائل کا ذخیرہ",
+              "section_short": "‏زمین قدرتی وسائل کا ذخیرہ",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                107,
+                108
+              ],
+              "pages_label": "p.107-108",
+              "row": {
+                "title": "‏زمین قدرتی وسائل کا ذخیرہ",
+                "description": "‏دن ۱ · ص ۱۰۷-۱۰۸",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch17_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "خشکی اور پانی کے وسائل کا استعمال",
+              "section_short": "‏خشکی اور پانی کے وسائل کا …",
+              "topic": "",
+              "topic_short": "خشکی اور پانی کے وسائل کا استعمال",
+              "pages": [
+                109
+              ],
+              "pages_label": "p.109",
+              "row": {
+                "title": "‏خشکی اور پانی کے وسائل کا …",
+                "description": "‏دن ۲ · ص ۱۰۹",
+                "metadata": "‏خشکی اور پانی کے وسائل کا استعمال"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch17_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "ہوا ایک قدرتی وسیلہ",
+              "section_short": "‏ہوا ایک قدرتی وسیلہ",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                110
+              ],
+              "pages_label": "p.110",
+              "row": {
+                "title": "‏ہوا ایک قدرتی وسیلہ",
+                "description": "‏دن ۳ · ص ۱۱۰",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch17_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "سورج اور معدنیات",
+              "section_short": "‏سورج اور معدنیات",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                111
+              ],
+              "pages_label": "p.111",
+              "row": {
+                "title": "‏سورج اور معدنیات",
+                "description": "‏دن ۴ · ص ۱۱۱",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch17_seg5",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5",
+              "section": "قدرتی وسائل سے بنی چیزیں",
+              "section_short": "‏قدرتی وسائل سے بنی چیزیں",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                112,
+                113,
+                114
+              ],
+              "pages_label": "p.112-114",
+              "row": {
+                "title": "‏قدرتی وسائل سے بنی چیزیں",
+                "description": "‏دن ۵ · ص ۱۱۲-۱۱۴",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch17_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "تشخیصی ورک شیٹ: قدرتی وسائل",
+              "section_short": "‏تشخیصی ورک شیٹ: قدرتی وسائل",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                107,
+                114
+              ],
+              "pages_label": "p.107-114",
+              "row": {
+                "title": "‏تشخیصی ورک شیٹ: قدرتی وسائل",
+                "description": "‏ورک شیٹ · ص ۱۰۷-۱۱۴",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch17_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "اعادہ: قدرتی وسائل",
+              "section_short": "‏اعادہ: قدرتی وسائل",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                107,
+                114
+              ],
+              "pages_label": "p.107-114",
+              "row": {
+                "title": "‏اعادہ: قدرتی وسائل",
+                "description": "‏اعادہ · ص ۱۰۷-۱۱۴",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 18,
+          "title": "پانی",
+          "title_short": "پانی",
+          "pages_label": "p.115-126",
+          "lessons": [
+            {
+              "lesson_id": "grade_2_general_knowledge_ch18_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "پانی کی اہمیت اور پانی کی جگہیں",
+              "section_short": "‏پانی کی اہمیت اور پانی کی …",
+              "topic": "",
+              "topic_short": "پانی کی اہمیت اور پانی کی جگہیں",
+              "pages": [
+                115,
+                116,
+                117
+              ],
+              "pages_label": "p.115-117",
+              "row": {
+                "title": "‏پانی کی اہمیت اور پانی کی …",
+                "description": "‏دن ۱ · ص ۱۱۵-۱۱۷",
+                "metadata": "‏پانی کی اہمیت اور پانی کی جگہیں"
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch18_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "پانی کے قدرتی ذرائع",
+              "section_short": "‏پانی کے قدرتی ذرائع",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                118,
+                119
+              ],
+              "pages_label": "p.118-119",
+              "row": {
+                "title": "‏پانی کے قدرتی ذرائع",
+                "description": "‏دن ۲ · ص ۱۱۸-۱۱۹",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch18_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "پانی کی قلت",
+              "section_short": "‏پانی کی قلت",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                120
+              ],
+              "pages_label": "p.120",
+              "row": {
+                "title": "‏پانی کی قلت",
+                "description": "‏دن ۳ · ص ۱۲۰",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch18_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "پانی کا ضیاع",
+              "section_short": "‏پانی کا ضیاع",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                121,
+                122
+              ],
+              "pages_label": "p.121-122",
+              "row": {
+                "title": "‏پانی کا ضیاع",
+                "description": "‏دن ۴ · ص ۱۲۱-۱۲۲",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch18_seg5",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5",
+              "section": "جنگلات کا کٹاؤ",
+              "section_short": "‏جنگلات کا کٹاؤ",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                123,
+                124
+              ],
+              "pages_label": "p.123-124",
+              "row": {
+                "title": "‏جنگلات کا کٹاؤ",
+                "description": "‏دن ۵ · ص ۱۲۳-۱۲۴",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch18_seg6",
+              "segment_index": 6,
+              "lp_type": "content",
+              "day_label": "Day 6",
+              "section": "مشق: پانی کی دیکھ بھال",
+              "section_short": "‏مشق: پانی کی دیکھ بھال",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                125,
+                126
+              ],
+              "pages_label": "p.125-126",
+              "row": {
+                "title": "‏مشق: پانی کی دیکھ بھال",
+                "description": "‏دن ۶ · ص ۱۲۵-۱۲۶",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch18_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "تشخیصی ورک شیٹ: پانی",
+              "section_short": "‏تشخیصی ورک شیٹ: پانی",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                115,
+                126
+              ],
+              "pages_label": "p.115-126",
+              "row": {
+                "title": "‏تشخیصی ورک شیٹ: پانی",
+                "description": "‏ورک شیٹ · ص ۱۱۵-۱۲۶",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_2_general_knowledge_ch18_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "اعادہ: پانی",
+              "section_short": "‏اعادہ: پانی",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                115,
+                126
+              ],
+              "pages_label": "p.115-126",
+              "row": {
+                "title": "‏اعادہ: پانی",
+                "description": "‏اعادہ · ص ۱۱۵-۱۲۶",
                 "metadata": ""
               }
             }
@@ -28658,6 +31339,984 @@
               }
             }
           ]
+        },
+        {
+          "number": 11,
+          "title": "Habitat",
+          "title_short": "Habitat",
+          "pages_label": "p.70-82",
+          "lessons": [
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch11_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "Habitat",
+              "section_short": "Habitat",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                70,
+                71,
+                72
+              ],
+              "pages_label": "p.70-72",
+              "row": {
+                "title": "Habitat",
+                "description": "Day 1 · p.70-72",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch11_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "Desert",
+              "section_short": "Desert",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                73
+              ],
+              "pages_label": "p.73",
+              "row": {
+                "title": "Desert",
+                "description": "Day 2 · p.73",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch11_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "Fresh Water",
+              "section_short": "Fresh Water",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                74
+              ],
+              "pages_label": "p.74",
+              "row": {
+                "title": "Fresh Water",
+                "description": "Day 3 · p.74",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch11_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "Marine Habitat",
+              "section_short": "Marine Habitat",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                75,
+                76
+              ],
+              "pages_label": "p.75-76",
+              "row": {
+                "title": "Marine Habitat",
+                "description": "Day 4 · p.75-76",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch11_seg5",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5",
+              "section": "Living things and their habitats",
+              "section_short": "Living things and their hab…",
+              "topic": "",
+              "topic_short": "Living things and their habitats",
+              "pages": [
+                77
+              ],
+              "pages_label": "p.77",
+              "row": {
+                "title": "Living things and their hab…",
+                "description": "Day 5 · p.77",
+                "metadata": "Living things and their habitats"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch11_seg6",
+              "segment_index": 6,
+              "lp_type": "content",
+              "day_label": "Day 6",
+              "section": "Effects of Human Activities on Land Habitat",
+              "section_short": "Effects of Human Activities…",
+              "topic": "",
+              "topic_short": "Effects of Human Activities on Land Habitat",
+              "pages": [
+                78
+              ],
+              "pages_label": "p.78",
+              "row": {
+                "title": "Effects of Human Activities…",
+                "description": "Day 6 · p.78",
+                "metadata": "Effects of Human Activities on Land Habitat"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch11_seg7",
+              "segment_index": 7,
+              "lp_type": "content",
+              "day_label": "Day 7",
+              "section": "Effects of Human Activities on Water Habitat",
+              "section_short": "Effects of Human Activities…",
+              "topic": "",
+              "topic_short": "Effects of Human Activities on Water Habitat",
+              "pages": [
+                79
+              ],
+              "pages_label": "p.79",
+              "row": {
+                "title": "Effects of Human Activities…",
+                "description": "Day 7 · p.79",
+                "metadata": "Effects of Human Activities on Water Habitat"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch11_seg8",
+              "segment_index": 8,
+              "lp_type": "content",
+              "day_label": "Day 8",
+              "section": "How people harm habitats",
+              "section_short": "How people harm habitats",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                77,
+                78,
+                79
+              ],
+              "pages_label": "p.77-79",
+              "row": {
+                "title": "How people harm habitats",
+                "description": "Day 8 · p.77-79",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch11_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "Worksheet: Habitat",
+              "section_short": "Worksheet: Habitat",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                80,
+                81,
+                82
+              ],
+              "pages_label": "p.80-82",
+              "row": {
+                "title": "Worksheet: Habitat",
+                "description": "Worksheet · p.80-82",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch11_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "Revision: Habitat",
+              "section_short": "Revision: Habitat",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                80,
+                81,
+                82
+              ],
+              "pages_label": "p.80-82",
+              "row": {
+                "title": "Revision: Habitat",
+                "description": "Revision · p.80-82",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 12,
+          "title": "Changes in Living Things",
+          "title_short": "Changes in Living Things",
+          "pages_label": "p.83-87",
+          "lessons": [
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch12_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "Life Cycle",
+              "section_short": "Life Cycle",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                83,
+                84
+              ],
+              "pages_label": "p.83-84",
+              "row": {
+                "title": "Life Cycle",
+                "description": "Day 1 · p.83-84",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch12_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "Life Cycle of Insects",
+              "section_short": "Life Cycle of Insects",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                85
+              ],
+              "pages_label": "p.85",
+              "row": {
+                "title": "Life Cycle of Insects",
+                "description": "Day 2 · p.85",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch12_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "Worksheet: Changes in Living Things",
+              "section_short": "Worksheet: Changes in Livin…",
+              "topic": "",
+              "topic_short": "Worksheet: Changes in Living Things",
+              "pages": [
+                86,
+                87
+              ],
+              "pages_label": "p.86-87",
+              "row": {
+                "title": "Worksheet: Changes in Livin…",
+                "description": "Worksheet · p.86-87",
+                "metadata": "Worksheet: Changes in Living Things"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch12_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "Revision: Changes in Living Things",
+              "section_short": "Revision: Changes in Living…",
+              "topic": "",
+              "topic_short": "Revision: Changes in Living Things",
+              "pages": [
+                86,
+                87
+              ],
+              "pages_label": "p.86-87",
+              "row": {
+                "title": "Revision: Changes in Living…",
+                "description": "Revision · p.86-87",
+                "metadata": "Revision: Changes in Living Things"
+              }
+            }
+          ]
+        },
+        {
+          "number": 13,
+          "title": "Energy and its Sources",
+          "title_short": "Energy and its Sources",
+          "pages_label": "p.88-93",
+          "lessons": [
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch13_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "Sources of Energy",
+              "section_short": "Sources of Energy",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                88,
+                89
+              ],
+              "pages_label": "p.88-89",
+              "row": {
+                "title": "Sources of Energy",
+                "description": "Day 1 · p.88-89",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch13_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "Coal",
+              "section_short": "Coal",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                90
+              ],
+              "pages_label": "p.90",
+              "row": {
+                "title": "Coal",
+                "description": "Day 2 · p.90",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch13_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "Forms of energy",
+              "section_short": "Forms of energy",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                91
+              ],
+              "pages_label": "p.91",
+              "row": {
+                "title": "Forms of energy",
+                "description": "Day 3 · p.91",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch13_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "Worksheet: Energy and its Sources",
+              "section_short": "Worksheet: Energy and its S…",
+              "topic": "",
+              "topic_short": "Worksheet: Energy and its Sources",
+              "pages": [
+                92,
+                93
+              ],
+              "pages_label": "p.92-93",
+              "row": {
+                "title": "Worksheet: Energy and its S…",
+                "description": "Worksheet · p.92-93",
+                "metadata": "Worksheet: Energy and its Sources"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch13_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "Revision: Energy and its Sources",
+              "section_short": "Revision: Energy and its So…",
+              "topic": "",
+              "topic_short": "Revision: Energy and its Sources",
+              "pages": [
+                92,
+                93
+              ],
+              "pages_label": "p.92-93",
+              "row": {
+                "title": "Revision: Energy and its So…",
+                "description": "Revision · p.92-93",
+                "metadata": "Revision: Energy and its Sources"
+              }
+            }
+          ]
+        },
+        {
+          "number": 14,
+          "title": "Matter",
+          "title_short": "Matter",
+          "pages_label": "p.94-101",
+          "lessons": [
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch14_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "States of Matter",
+              "section_short": "States of Matter",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                94
+              ],
+              "pages_label": "p.94",
+              "row": {
+                "title": "States of Matter",
+                "description": "Day 1 · p.94",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch14_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "Properties of Different States of Matter",
+              "section_short": "Properties of Different Sta…",
+              "topic": "",
+              "topic_short": "Properties of Different States of Matter",
+              "pages": [
+                95
+              ],
+              "pages_label": "p.95",
+              "row": {
+                "title": "Properties of Different Sta…",
+                "description": "Day 2 · p.95",
+                "metadata": "Properties of Different States of Matter"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch14_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "Changes in states of matter",
+              "section_short": "Changes in states of matter",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                96
+              ],
+              "pages_label": "p.96",
+              "row": {
+                "title": "Changes in states of matter",
+                "description": "Day 3 · p.96",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch14_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "Melting and freezing points",
+              "section_short": "Melting and freezing points",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                97
+              ],
+              "pages_label": "p.97",
+              "row": {
+                "title": "Melting and freezing points",
+                "description": "Day 4 · p.97",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch14_seg5",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5",
+              "section": "Sorting matter; melting wax",
+              "section_short": "Sorting matter; melting wax",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                100,
+                101
+              ],
+              "pages_label": "p.100-101",
+              "row": {
+                "title": "Sorting matter; melting wax",
+                "description": "Day 5 · p.100-101",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch14_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "Worksheet: Matter",
+              "section_short": "Worksheet: Matter",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                98,
+                99,
+                100,
+                101
+              ],
+              "pages_label": "p.98-101",
+              "row": {
+                "title": "Worksheet: Matter",
+                "description": "Worksheet · p.98-101",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch14_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "Revision: Matter",
+              "section_short": "Revision: Matter",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                98,
+                99,
+                100,
+                101
+              ],
+              "pages_label": "p.98-101",
+              "row": {
+                "title": "Revision: Matter",
+                "description": "Revision · p.98-101",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 15,
+          "title": "Electricity",
+          "title_short": "Electricity",
+          "pages_label": "p.102-106",
+          "lessons": [
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch15_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "Electricity",
+              "section_short": "Electricity",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                102
+              ],
+              "pages_label": "p.102",
+              "row": {
+                "title": "Electricity",
+                "description": "Day 1 · p.102",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch15_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "Uses of electricity and staying safe",
+              "section_short": "Uses of electricity and sta…",
+              "topic": "",
+              "topic_short": "Uses of electricity and staying safe",
+              "pages": [
+                103
+              ],
+              "pages_label": "p.103",
+              "row": {
+                "title": "Uses of electricity and sta…",
+                "description": "Day 2 · p.103",
+                "metadata": "Uses of electricity and staying safe"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch15_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "Electricity Current",
+              "section_short": "Electricity Current",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                104
+              ],
+              "pages_label": "p.104",
+              "row": {
+                "title": "Electricity Current",
+                "description": "Day 3 · p.104",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch15_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "Electricity Current",
+              "section_short": "Electricity Current",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                104
+              ],
+              "pages_label": "p.104",
+              "row": {
+                "title": "Electricity Current",
+                "description": "Day 4 · p.104",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch15_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "Worksheet: Electricity",
+              "section_short": "Worksheet: Electricity",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                105,
+                106
+              ],
+              "pages_label": "p.105-106",
+              "row": {
+                "title": "Worksheet: Electricity",
+                "description": "Worksheet",
+                "metadata": "‎ · p.105-106"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch15_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "Revision: Electricity",
+              "section_short": "Revision: Electricity",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                105,
+                106
+              ],
+              "pages_label": "p.105-106",
+              "row": {
+                "title": "Revision: Electricity",
+                "description": "Revision · p.105-106",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 16,
+          "title": "The Sun",
+          "title_short": "The Sun",
+          "pages_label": "p.107-113",
+          "lessons": [
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch16_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "Solar System",
+              "section_short": "Solar System",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                107
+              ],
+              "pages_label": "p.107",
+              "row": {
+                "title": "Solar System",
+                "description": "Day 1 · p.107",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch16_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "Movement of Earth",
+              "section_short": "Movement of Earth",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                108
+              ],
+              "pages_label": "p.108",
+              "row": {
+                "title": "Movement of Earth",
+                "description": "Day 2 · p.108",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch16_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "Sunrise and Sunset",
+              "section_short": "Sunrise and Sunset",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                109
+              ],
+              "pages_label": "p.109",
+              "row": {
+                "title": "Sunrise and Sunset",
+                "description": "Day 3 · p.109",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch16_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "Cardinal Directions",
+              "section_short": "Cardinal Directions",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                109
+              ],
+              "pages_label": "p.109",
+              "row": {
+                "title": "Cardinal Directions",
+                "description": "Day 4 · p.109",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch16_seg5",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5",
+              "section": "Formation of Shadow",
+              "section_short": "Formation of Shadow",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                110
+              ],
+              "pages_label": "p.110",
+              "row": {
+                "title": "Formation of Shadow",
+                "description": "Day 5 · p.110",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch16_seg6",
+              "segment_index": 6,
+              "lp_type": "content",
+              "day_label": "Day 6",
+              "section": "Shadows near and far",
+              "section_short": "Shadows near and far",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                111
+              ],
+              "pages_label": "p.111",
+              "row": {
+                "title": "Shadows near and far",
+                "description": "Day 6 · p.111",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch16_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "Worksheet: The Sun",
+              "section_short": "Worksheet: The Sun",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                112,
+                113
+              ],
+              "pages_label": "p.112-113",
+              "row": {
+                "title": "Worksheet: The Sun",
+                "description": "Worksheet",
+                "metadata": "‎ · p.112-113"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch16_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "Revision: The Sun",
+              "section_short": "Revision: The Sun",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                112,
+                113
+              ],
+              "pages_label": "p.112-113",
+              "row": {
+                "title": "Revision: The Sun",
+                "description": "Revision · p.112-113",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 17,
+          "title": "Conservation of Natural Environment",
+          "title_short": "Conservation of Natural Envir…",
+          "pages_label": "p.114-121",
+          "lessons": [
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch17_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "Changes in Natural Environment",
+              "section_short": "Changes in Natural Environm…",
+              "topic": "",
+              "topic_short": "Changes in Natural Environment",
+              "pages": [
+                114
+              ],
+              "pages_label": "p.114",
+              "row": {
+                "title": "Changes in Natural Environm…",
+                "description": "Day 1 · p.114",
+                "metadata": "Changes in Natural Environment"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch17_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "Pollution",
+              "section_short": "Pollution",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                115
+              ],
+              "pages_label": "p.115",
+              "row": {
+                "title": "Pollution",
+                "description": "Day 2 · p.115",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch17_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "Conserving the Natural Environment",
+              "section_short": "Conserving the Natural Envi…",
+              "topic": "",
+              "topic_short": "Conserving the Natural Environment",
+              "pages": [
+                116,
+                117
+              ],
+              "pages_label": "p.116-117",
+              "row": {
+                "title": "Conserving the Natural Envi…",
+                "description": "Day 3 · p.116-117",
+                "metadata": "Conserving the Natural Environment"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch17_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "Protecting Endangered Animals",
+              "section_short": "Protecting Endangered Anima…",
+              "topic": "",
+              "topic_short": "Protecting Endangered Animals",
+              "pages": [
+                118
+              ],
+              "pages_label": "p.118",
+              "row": {
+                "title": "Protecting Endangered Anima…",
+                "description": "Day 4 · p.118",
+                "metadata": "Protecting Endangered Animals"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch17_seg5",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5",
+              "section": "Extinct Animals",
+              "section_short": "Extinct Animals",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                119
+              ],
+              "pages_label": "p.119",
+              "row": {
+                "title": "Extinct Animals",
+                "description": "Day 5 · p.119",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch17_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "Worksheet: Conservation of Natural Environment",
+              "section_short": "Worksheet: Conservation of …",
+              "topic": "",
+              "topic_short": "Worksheet: Conservation of Natural Environment",
+              "pages": [
+                120,
+                121
+              ],
+              "pages_label": "p.120-121",
+              "row": {
+                "title": "Worksheet: Conservation of …",
+                "description": "Worksheet",
+                "metadata": "Worksheet: Conservation of Natural Environment‎ · p.120-121"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_en_ch17_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "Revision: Conservation of Natural Environment",
+              "section_short": "Revision: Conservation of N…",
+              "topic": "",
+              "topic_short": "Revision: Conservation of Natural Environment",
+              "pages": [
+                120,
+                121
+              ],
+              "pages_label": "p.120-121",
+              "row": {
+                "title": "Revision: Conservation of N…",
+                "description": "Revision · p.120-121",
+                "metadata": "Revision: Conservation of Natural Environment"
+              }
+            }
+          ]
         }
       ]
     },
@@ -29912,6 +33571,991 @@
                 "title": "‏اعادہ: بیماریاں اور ان کی …",
                 "description": "‏اعادہ · ص ۶۵-۷۰",
                 "metadata": "‏اعادہ: بیماریاں اور ان کی روک تھام"
+              }
+            }
+          ]
+        },
+        {
+          "number": 11,
+          "title": "مسکن",
+          "title_short": "مسکن",
+          "pages_label": "p.71-84",
+          "lessons": [
+            {
+              "lesson_id": "grade_3_general_knowledge_ch11_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "مسکن کیا ہے؟ جنگل",
+              "section_short": "‏مسکن کیا ہے؟ جنگل",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                71,
+                72
+              ],
+              "pages_label": "p.71-72",
+              "row": {
+                "title": "‏مسکن کیا ہے؟ جنگل",
+                "description": "‏دن ۱ · ص ۷۱-۷۲",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch11_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "زمینی مسکن: گھاس کا میدان اور صحرا",
+              "section_short": "‏زمینی مسکن: گھاس کا میدان …",
+              "topic": "",
+              "topic_short": "زمینی مسکن: گھاس کا میدان اور صحرا",
+              "pages": [
+                73,
+                74
+              ],
+              "pages_label": "p.73-74",
+              "row": {
+                "title": "‏زمینی مسکن: گھاس کا میدان …",
+                "description": "‏دن ۲ · ص ۷۳-۷۴",
+                "metadata": "‏زمینی مسکن: گھاس کا میدان اور صحرا"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch11_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "آبی مسکن: تازہ پانی",
+              "section_short": "‏آبی مسکن: تازہ پانی",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                75
+              ],
+              "pages_label": "p.75",
+              "row": {
+                "title": "‏آبی مسکن: تازہ پانی",
+                "description": "‏دن ۳ · ص ۷۵",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch11_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "سمندری اور ساحلی مسکن",
+              "section_short": "‏سمندری اور ساحلی مسکن",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                76,
+                77
+              ],
+              "pages_label": "p.76-77",
+              "row": {
+                "title": "‏سمندری اور ساحلی مسکن",
+                "description": "‏دن ۴ · ص ۷۶-۷۷",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch11_seg5",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5",
+              "section": "مسکن میں زندگی کے مددگار عوامل",
+              "section_short": "‏مسکن میں زندگی کے مددگار ع…",
+              "topic": "",
+              "topic_short": "مسکن میں زندگی کے مددگار عوامل",
+              "pages": [
+                78
+              ],
+              "pages_label": "p.78",
+              "row": {
+                "title": "‏مسکن میں زندگی کے مددگار ع…",
+                "description": "‏دن ۵ · ص ۷۸",
+                "metadata": "‏مسکن میں زندگی کے مددگار عوامل"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch11_seg6",
+              "segment_index": 6,
+              "lp_type": "content",
+              "day_label": "Day 6",
+              "section": "زمینی مسکن پر انسانی سرگرمیوں کے اثرات",
+              "section_short": "‏زمینی مسکن پر انسانی سرگرم…",
+              "topic": "",
+              "topic_short": "زمینی مسکن پر انسانی سرگرمیوں کے اثرات",
+              "pages": [
+                79
+              ],
+              "pages_label": "p.79",
+              "row": {
+                "title": "‏زمینی مسکن پر انسانی سرگرم…",
+                "description": "‏دن ۶ · ص ۷۹",
+                "metadata": "‏زمینی مسکن پر انسانی سرگرمیوں کے اثرات"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch11_seg7",
+              "segment_index": 7,
+              "lp_type": "content",
+              "day_label": "Day 7",
+              "section": "آبی مسکن پر انسانی سرگرمیوں کے اثرات",
+              "section_short": "‏آبی مسکن پر انسانی سرگرمیو…",
+              "topic": "",
+              "topic_short": "آبی مسکن پر انسانی سرگرمیوں کے اثرات",
+              "pages": [
+                80
+              ],
+              "pages_label": "p.80",
+              "row": {
+                "title": "‏آبی مسکن پر انسانی سرگرمیو…",
+                "description": "‏دن ۷ · ص ۸۰",
+                "metadata": "‏آبی مسکن پر انسانی سرگرمیوں کے اثرات"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch11_seg8",
+              "segment_index": 8,
+              "lp_type": "content",
+              "day_label": "Day 8",
+              "section": "مسکن کے تحفظ کا منصوبہ",
+              "section_short": "‏مسکن کے تحفظ کا منصوبہ",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                81,
+                82,
+                83,
+                84
+              ],
+              "pages_label": "p.81-84",
+              "row": {
+                "title": "‏مسکن کے تحفظ کا منصوبہ",
+                "description": "‏دن ۸ · ص ۸۱-۸۴",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch11_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "تشخیصی ورک شیٹ: مسکن",
+              "section_short": "‏تشخیصی ورک شیٹ: مسکن",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                71,
+                84
+              ],
+              "pages_label": "p.71-84",
+              "row": {
+                "title": "‏تشخیصی ورک شیٹ: مسکن",
+                "description": "‏ورک شیٹ · ص ۷۱-۸۴",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch11_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "اعادہ: مسکن",
+              "section_short": "‏اعادہ: مسکن",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                71,
+                84
+              ],
+              "pages_label": "p.71-84",
+              "row": {
+                "title": "‏اعادہ: مسکن",
+                "description": "‏اعادہ · ص ۷۱-۸۴",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 12,
+          "title": "جاندار اجسام میں تبدیلیاں",
+          "title_short": "جاندار اجسام میں تبدیلیاں",
+          "pages_label": "p.85-89",
+          "lessons": [
+            {
+              "lesson_id": "grade_3_general_knowledge_ch12_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "جانوروں کے بچے: والدین جیسے یا مختلف",
+              "section_short": "‏جانوروں کے بچے: والدین جیس…",
+              "topic": "",
+              "topic_short": "جانوروں کے بچے: والدین جیسے یا مختلف",
+              "pages": [
+                85,
+                86
+              ],
+              "pages_label": "p.85-86",
+              "row": {
+                "title": "‏جانوروں کے بچے: والدین جیس…",
+                "description": "‏دن ۱ · ص ۸۵-۸۶",
+                "metadata": "‏جانوروں کے بچے: والدین جیسے یا مختلف"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch12_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "حشرات اور مینڈک کا دورِ حیات",
+              "section_short": "‏حشرات اور مینڈک کا دورِ حی…",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                87,
+                88,
+                89
+              ],
+              "pages_label": "p.87-89",
+              "row": {
+                "title": "‏حشرات اور مینڈک کا دورِ حی…",
+                "description": "‏دن ۲ · ص ۸۷-۸۹",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch12_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "تشخیصی ورک شیٹ: جاندار اجسام میں تبدیلیاں",
+              "section_short": "‏تشخیصی ورک شیٹ: جاندار اجس…",
+              "topic": "",
+              "topic_short": "تشخیصی ورک شیٹ: جاندار اجسام میں تبدیلیاں",
+              "pages": [
+                85,
+                89
+              ],
+              "pages_label": "p.85-89",
+              "row": {
+                "title": "‏تشخیصی ورک شیٹ: جاندار اجس…",
+                "description": "‏ورک شیٹ · ص ۸۵-۸۹",
+                "metadata": "‏تشخیصی ورک شیٹ: جاندار اجسام میں تبدیلیاں"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch12_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "اعادہ: جاندار اجسام میں تبدیلیاں",
+              "section_short": "‏اعادہ: جاندار اجسام میں تب…",
+              "topic": "",
+              "topic_short": "اعادہ: جاندار اجسام میں تبدیلیاں",
+              "pages": [
+                85,
+                89
+              ],
+              "pages_label": "p.85-89",
+              "row": {
+                "title": "‏اعادہ: جاندار اجسام میں تب…",
+                "description": "‏اعادہ · ص ۸۵-۸۹",
+                "metadata": "‏اعادہ: جاندار اجسام میں تبدیلیاں"
+              }
+            }
+          ]
+        },
+        {
+          "number": 13,
+          "title": "توانائی اور اس کے ذرائع",
+          "title_short": "توانائی اور اس کے ذرائع",
+          "pages_label": "p.90-96",
+          "lessons": [
+            {
+              "lesson_id": "grade_3_general_knowledge_ch13_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "توانائی کی ضرورت اور سورج",
+              "section_short": "‏توانائی کی ضرورت اور سورج",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                90,
+                91
+              ],
+              "pages_label": "p.90-91",
+              "row": {
+                "title": "‏توانائی کی ضرورت اور سورج",
+                "description": "‏دن ۱ · ص ۹۰-۹۱",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch13_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "کوئلہ، قدرتی گیس اور تیل",
+              "section_short": "‏کوئلہ، قدرتی گیس اور تیل",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                92,
+                93
+              ],
+              "pages_label": "p.92-93",
+              "row": {
+                "title": "‏کوئلہ، قدرتی گیس اور تیل",
+                "description": "‏دن ۲ · ص ۹۲-۹۳",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch13_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "توانائی کی شکلیں اور اہم نکات",
+              "section_short": "‏توانائی کی شکلیں اور اہم ن…",
+              "topic": "",
+              "topic_short": "توانائی کی شکلیں اور اہم نکات",
+              "pages": [
+                94,
+                95,
+                96
+              ],
+              "pages_label": "p.94-96",
+              "row": {
+                "title": "‏توانائی کی شکلیں اور اہم ن…",
+                "description": "‏دن ۳ · ص ۹۴-۹۶",
+                "metadata": "‏توانائی کی شکلیں اور اہم نکات"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch13_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "تشخیصی ورک شیٹ: توانائی اور اس کے ذرائع",
+              "section_short": "‏تشخیصی ورک شیٹ: توانائی او…",
+              "topic": "",
+              "topic_short": "تشخیصی ورک شیٹ: توانائی اور اس کے ذرائع",
+              "pages": [
+                90,
+                96
+              ],
+              "pages_label": "p.90-96",
+              "row": {
+                "title": "‏تشخیصی ورک شیٹ: توانائی او…",
+                "description": "‏ورک شیٹ · ص ۹۰-۹۶",
+                "metadata": "‏تشخیصی ورک شیٹ: توانائی اور اس کے ذرائع"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch13_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "اعادہ: توانائی اور اس کے ذرائع",
+              "section_short": "‏اعادہ: توانائی اور اس کے ذ…",
+              "topic": "",
+              "topic_short": "اعادہ: توانائی اور اس کے ذرائع",
+              "pages": [
+                90,
+                96
+              ],
+              "pages_label": "p.90-96",
+              "row": {
+                "title": "‏اعادہ: توانائی اور اس کے ذ…",
+                "description": "‏اعادہ · ص ۹۰-۹۶",
+                "metadata": "‏اعادہ: توانائی اور اس کے ذرائع"
+              }
+            }
+          ]
+        },
+        {
+          "number": 14,
+          "title": "مادہ",
+          "title_short": "مادہ",
+          "pages_label": "p.97-104",
+          "lessons": [
+            {
+              "lesson_id": "grade_3_general_knowledge_ch14_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "مادہ اور اس کی تین حالتیں",
+              "section_short": "‏مادہ اور اس کی تین حالتیں",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                97
+              ],
+              "pages_label": "p.97",
+              "row": {
+                "title": "‏مادہ اور اس کی تین حالتیں",
+                "description": "‏دن ۱ · ص ۹۷",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch14_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "ٹھوس، مائع اور گیس میں فرق",
+              "section_short": "‏ٹھوس، مائع اور گیس میں فرق",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                98
+              ],
+              "pages_label": "p.98",
+              "row": {
+                "title": "‏ٹھوس، مائع اور گیس میں فرق",
+                "description": "‏دن ۲ · ص ۹۸",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch14_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "پانی کی تین حالتیں اور سرگرمی",
+              "section_short": "‏پانی کی تین حالتیں اور سرگ…",
+              "topic": "",
+              "topic_short": "پانی کی تین حالتیں اور سرگرمی",
+              "pages": [
+                99
+              ],
+              "pages_label": "p.99",
+              "row": {
+                "title": "‏پانی کی تین حالتیں اور سرگ…",
+                "description": "‏دن ۳ · ص ۹۹",
+                "metadata": "‏پانی کی تین حالتیں اور سرگرمی"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch14_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "حالت کی تبدیلی اور درجہ حرارت",
+              "section_short": "‏حالت کی تبدیلی اور درجہ حر…",
+              "topic": "",
+              "topic_short": "حالت کی تبدیلی اور درجہ حرارت",
+              "pages": [
+                100
+              ],
+              "pages_label": "p.100",
+              "row": {
+                "title": "‏حالت کی تبدیلی اور درجہ حر…",
+                "description": "‏دن ۴ · ص ۱۰۰",
+                "metadata": "‏حالت کی تبدیلی اور درجہ حرارت"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch14_seg5",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5",
+              "section": "مشقیں اور عملی کام",
+              "section_short": "‏مشقیں اور عملی کام",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                101,
+                102,
+                103,
+                104
+              ],
+              "pages_label": "p.101-104",
+              "row": {
+                "title": "‏مشقیں اور عملی کام",
+                "description": "‏دن ۵ · ص ۱۰۱-۱۰۴",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch14_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "تشخیصی ورک شیٹ: مادہ",
+              "section_short": "‏تشخیصی ورک شیٹ: مادہ",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                97,
+                104
+              ],
+              "pages_label": "p.97-104",
+              "row": {
+                "title": "‏تشخیصی ورک شیٹ: مادہ",
+                "description": "‏ورک شیٹ · ص ۹۷-۱۰۴",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch14_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "اعادہ: مادہ",
+              "section_short": "‏اعادہ: مادہ",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                97,
+                104
+              ],
+              "pages_label": "p.97-104",
+              "row": {
+                "title": "‏اعادہ: مادہ",
+                "description": "‏اعادہ · ص ۹۷-۱۰۴",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 15,
+          "title": "بجلی",
+          "title_short": "بجلی",
+          "pages_label": "p.105-109",
+          "lessons": [
+            {
+              "lesson_id": "grade_3_general_knowledge_ch15_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "بجلی کے خطرات اور احتیاط",
+              "section_short": "‏بجلی کے خطرات اور احتیاط",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                105
+              ],
+              "pages_label": "p.105",
+              "row": {
+                "title": "‏بجلی کے خطرات اور احتیاط",
+                "description": "‏دن ۱ · ص ۱۰۵",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch15_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "چلتے آلات، حادثے کا نمبر اور بجلی کے استعمال کا جدول",
+              "section_short": "‏چلتے آلات، حادثے کا نمبر ا…",
+              "topic": "",
+              "topic_short": "چلتے آلات، حادثے کا نمبر اور بجلی کے استعمال کا جدول",
+              "pages": [
+                106
+              ],
+              "pages_label": "p.106",
+              "row": {
+                "title": "‏چلتے آلات، حادثے کا نمبر ا…",
+                "description": "‏دن ۲ · ص ۱۰۶",
+                "metadata": "‏چلتے آلات، حادثے کا نمبر اور بجلی کے استعمال کا جدول"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch15_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "بجلی کا سرکٹ اور اس کے تین اجزاء",
+              "section_short": "‏بجلی کا سرکٹ اور اس کے تین…",
+              "topic": "",
+              "topic_short": "بجلی کا سرکٹ اور اس کے تین اجزاء",
+              "pages": [
+                107
+              ],
+              "pages_label": "p.107",
+              "row": {
+                "title": "‏بجلی کا سرکٹ اور اس کے تین…",
+                "description": "‏دن ۳ · ص ۱۰۷",
+                "metadata": "‏بجلی کا سرکٹ اور اس کے تین اجزاء"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch15_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "سرکٹ بنانا اور باب کی مشق",
+              "section_short": "‏سرکٹ بنانا اور باب کی مشق",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                108,
+                109
+              ],
+              "pages_label": "p.108-109",
+              "row": {
+                "title": "‏سرکٹ بنانا اور باب کی مشق",
+                "description": "‏دن ۴ · ص ۱۰۸-۱۰۹",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch15_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "تشخیصی ورک شیٹ: بجلی",
+              "section_short": "‏تشخیصی ورک شیٹ: بجلی",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                105,
+                109
+              ],
+              "pages_label": "p.105-109",
+              "row": {
+                "title": "‏تشخیصی ورک شیٹ: بجلی",
+                "description": "‏ورک شیٹ · ص ۱۰۵-۱۰۹",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch15_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "اعادہ: بجلی",
+              "section_short": "‏اعادہ: بجلی",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                105,
+                109
+              ],
+              "pages_label": "p.105-109",
+              "row": {
+                "title": "‏اعادہ: بجلی",
+                "description": "‏اعادہ · ص ۱۰۵-۱۰۹",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 16,
+          "title": "سورج",
+          "title_short": "سورج",
+          "pages_label": "p.110-116",
+          "lessons": [
+            {
+              "lesson_id": "grade_3_general_knowledge_ch16_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "نظامِ شمسی اور آٹھ سیارے",
+              "section_short": "‏نظامِ شمسی اور آٹھ سیارے",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                110
+              ],
+              "pages_label": "p.110",
+              "row": {
+                "title": "‏نظامِ شمسی اور آٹھ سیارے",
+                "description": "‏دن ۱ · ص ۱۱۰",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch16_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "زمین کی گردش اور دن رات",
+              "section_short": "‏زمین کی گردش اور دن رات",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                111
+              ],
+              "pages_label": "p.111",
+              "row": {
+                "title": "‏زمین کی گردش اور دن رات",
+                "description": "‏دن ۲ · ص ۱۱۱",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch16_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "سورج کا طلوع و غروب اور سمتیں",
+              "section_short": "‏سورج کا طلوع و غروب اور سم…",
+              "topic": "",
+              "topic_short": "سورج کا طلوع و غروب اور سمتیں",
+              "pages": [
+                112
+              ],
+              "pages_label": "p.112",
+              "row": {
+                "title": "‏سورج کا طلوع و غروب اور سم…",
+                "description": "‏دن ۳ · ص ۱۱۲",
+                "metadata": "‏سورج کا طلوع و غروب اور سمتیں"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch16_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "جگہوں کے نام سمتوں سے",
+              "section_short": "‏جگہوں کے نام سمتوں سے",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                112
+              ],
+              "pages_label": "p.112",
+              "row": {
+                "title": "‏جگہوں کے نام سمتوں سے",
+                "description": "‏دن ۴ · ص ۱۱۲",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch16_seg5",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5",
+              "section": "سائے کی بناوٹ",
+              "section_short": "‏سائے کی بناوٹ",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                113,
+                114
+              ],
+              "pages_label": "p.113-114",
+              "row": {
+                "title": "‏سائے کی بناوٹ",
+                "description": "‏دن ۵ · ص ۱۱۳-۱۱۴",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch16_seg6",
+              "segment_index": 6,
+              "lp_type": "content",
+              "day_label": "Day 6",
+              "section": "سائے کی سمت، جسامت اور وقت",
+              "section_short": "‏سائے کی سمت، جسامت اور وقت",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                115,
+                116
+              ],
+              "pages_label": "p.115-116",
+              "row": {
+                "title": "‏سائے کی سمت، جسامت اور وقت",
+                "description": "‏دن ۶ · ص ۱۱۵-۱۱۶",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch16_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "تشخیصی ورک شیٹ: سورج",
+              "section_short": "‏تشخیصی ورک شیٹ: سورج",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                110,
+                116
+              ],
+              "pages_label": "p.110-116",
+              "row": {
+                "title": "‏تشخیصی ورک شیٹ: سورج",
+                "description": "‏ورک شیٹ · ص ۱۱۰-۱۱۶",
+                "metadata": ""
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch16_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "اعادہ: سورج",
+              "section_short": "‏اعادہ: سورج",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                110,
+                116
+              ],
+              "pages_label": "p.110-116",
+              "row": {
+                "title": "‏اعادہ: سورج",
+                "description": "‏اعادہ · ص ۱۱۰-۱۱۶",
+                "metadata": ""
+              }
+            }
+          ]
+        },
+        {
+          "number": 17,
+          "title": "قدرتی ماحول کا تحفظ",
+          "title_short": "قدرتی ماحول کا تحفظ",
+          "pages_label": "p.117-124",
+          "lessons": [
+            {
+              "lesson_id": "grade_3_general_knowledge_ch17_seg1",
+              "segment_index": 1,
+              "lp_type": "content",
+              "day_label": "Day 1",
+              "section": "انسان کے ہاتھوں ماحول میں تبدیلیاں",
+              "section_short": "‏انسان کے ہاتھوں ماحول میں …",
+              "topic": "",
+              "topic_short": "انسان کے ہاتھوں ماحول میں تبدیلیاں",
+              "pages": [
+                117,
+                118
+              ],
+              "pages_label": "p.117-118",
+              "row": {
+                "title": "‏انسان کے ہاتھوں ماحول میں …",
+                "description": "‏دن ۱ · ص ۱۱۷-۱۱۸",
+                "metadata": "‏انسان کے ہاتھوں ماحول میں تبدیلیاں"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch17_seg2",
+              "segment_index": 2,
+              "lp_type": "content",
+              "day_label": "Day 2",
+              "section": "آلودگی کی اقسام اور وسائل کا محدود ہونا",
+              "section_short": "‏آلودگی کی اقسام اور وسائل …",
+              "topic": "",
+              "topic_short": "آلودگی کی اقسام اور وسائل کا محدود ہونا",
+              "pages": [
+                119
+              ],
+              "pages_label": "p.119",
+              "row": {
+                "title": "‏آلودگی کی اقسام اور وسائل …",
+                "description": "‏دن ۲ · ص ۱۱۹",
+                "metadata": "‏آلودگی کی اقسام اور وسائل کا محدود ہونا"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch17_seg3",
+              "segment_index": 3,
+              "lp_type": "content",
+              "day_label": "Day 3",
+              "section": "تین آر اور آلودگی کم کرنے کے طریقے",
+              "section_short": "‏تین آر اور آلودگی کم کرنے …",
+              "topic": "",
+              "topic_short": "تین آر اور آلودگی کم کرنے کے طریقے",
+              "pages": [
+                120
+              ],
+              "pages_label": "p.120",
+              "row": {
+                "title": "‏تین آر اور آلودگی کم کرنے …",
+                "description": "‏دن ۳ · ص ۱۲۰",
+                "metadata": "‏تین آر اور آلودگی کم کرنے کے طریقے"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch17_seg4",
+              "segment_index": 4,
+              "lp_type": "content",
+              "day_label": "Day 4",
+              "section": "خطرے سے دوچار جانور اور ان کا تحفظ",
+              "section_short": "‏خطرے سے دوچار جانور اور ان…",
+              "topic": "",
+              "topic_short": "خطرے سے دوچار جانور اور ان کا تحفظ",
+              "pages": [
+                121,
+                122
+              ],
+              "pages_label": "p.121-122",
+              "row": {
+                "title": "‏خطرے سے دوچار جانور اور ان…",
+                "description": "‏دن ۴ · ص ۱۲۱-۱۲۲",
+                "metadata": "‏خطرے سے دوچار جانور اور ان کا تحفظ"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch17_seg5",
+              "segment_index": 5,
+              "lp_type": "content",
+              "day_label": "Day 5",
+              "section": "ناپید جانور اور تحفظ کا پوسٹر",
+              "section_short": "‏ناپید جانور اور تحفظ کا پو…",
+              "topic": "",
+              "topic_short": "ناپید جانور اور تحفظ کا پوسٹر",
+              "pages": [
+                123,
+                124
+              ],
+              "pages_label": "p.123-124",
+              "row": {
+                "title": "‏ناپید جانور اور تحفظ کا پو…",
+                "description": "‏دن ۵ · ص ۱۲۳-۱۲۴",
+                "metadata": "‏ناپید جانور اور تحفظ کا پوسٹر"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch17_seg995",
+              "segment_index": 995,
+              "lp_type": "assessment",
+              "day_label": "Worksheet",
+              "section": "تشخیصی ورک شیٹ: قدرتی ماحول کا تحفظ",
+              "section_short": "‏تشخیصی ورک شیٹ: قدرتی ماحو…",
+              "topic": "",
+              "topic_short": "تشخیصی ورک شیٹ: قدرتی ماحول کا تحفظ",
+              "pages": [
+                117,
+                124
+              ],
+              "pages_label": "p.117-124",
+              "row": {
+                "title": "‏تشخیصی ورک شیٹ: قدرتی ماحو…",
+                "description": "‏ورک شیٹ · ص ۱۱۷-۱۲۴",
+                "metadata": "‏تشخیصی ورک شیٹ: قدرتی ماحول کا تحفظ"
+              }
+            },
+            {
+              "lesson_id": "grade_3_general_knowledge_ch17_seg990",
+              "segment_index": 990,
+              "lp_type": "revision",
+              "day_label": "Revision",
+              "section": "اعادہ: قدرتی ماحول کا تحفظ",
+              "section_short": "‏اعادہ: قدرتی ماحول کا تحفظ",
+              "topic": "",
+              "topic_short": "",
+              "pages": [
+                117,
+                124
+              ],
+              "pages_label": "p.117-124",
+              "row": {
+                "title": "‏اعادہ: قدرتی ماحول کا تحفظ",
+                "description": "‏اعادہ · ص ۱۱۷-۱۲۴",
+                "metadata": ""
               }
             }
           ]
