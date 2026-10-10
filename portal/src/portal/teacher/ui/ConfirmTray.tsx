@@ -8,7 +8,7 @@ import { FOCUS, OUTLINE_WIDE, PRIMARY_WIDE, type ChipData } from './styles';
 
 /**
  * bd-fmf24g.41 — ConfirmTray: the kit's one "are you sure?" sheet. A recording's Finish / Stop asks here first (the
- * teacher's Digital Coaching, the new UI's record page, the coach v2 visit).
+ * teacher's Digital Coaching, the new UI's record page, the coach v2 visit, the coach and leader recorder).
  *
  * It is the `Tray` (Android Back, Escape, the dim and the round close all close it), with the title, then what she
  * needs to decide (an optional line, the facts as chips, an amber warning), then TWO buttons stacked in one column,
