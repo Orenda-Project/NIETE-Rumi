@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, CalendarDays, MicOff, Pause, Play, Square } from "lucide-react";
+import { AlertTriangle, CalendarDays, Check, MicOff, Pause, Play, Square } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
 import { HistoryRow } from "../../teacher/ui";
 import { StatusChip } from "../../teacher/ui/StatusChip";
-import { Tray } from "../../teacher/ui/Tray";
+import { ConfirmTray } from "../../teacher/ui/ConfirmTray";
 import { TimeStamp } from "../../teacher/ui/TimeStamp";
 import { coach } from "../../services/api";
 import { Card, Loading, Failed, useLoad } from "../ui";
@@ -123,16 +123,18 @@ function Recorder({ visit, onBlocked }: { visit: CoachVisit; onBlocked: () => vo
         </Card>
       </div>
 
-      <Tray open={asking} title={C.stopAsk} onClose={() => setAsking(false)}>
-        <div className="text-[15px]">{C.recordedFor(lengthShort(now, C) || C.underMinute)}</div>
-        {now < SHORT_RECORDING_SECONDS * 1000 && (
-          <div className="rounded-2xl bg-[#fef3c7] px-3.5 py-3 text-[15px] text-[#b45309]">{C.shortNote}</div>
-        )}
-        <div className="flex gap-2.5">
-          <button type="button" onClick={() => setAsking(false)} className="flex h-14 flex-1 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold">{C.keepRecording}</button>
-          <button type="button" onClick={stop} className="flex h-14 flex-1 items-center justify-center rounded-2xl bg-[#c8331f] text-base font-semibold text-white">{C.yesStop}</button>
-        </div>
-      </Tray>
+      {/* bd-fmf24g.41: the kit's ConfirmTray, as every recording's Finish / Stop asks. */}
+      <ConfirmTray
+        open={asking}
+        title={C.stopAsk}
+        onClose={() => setAsking(false)}
+        line={C.recordedFor(lengthShort(now, C) || C.underMinute)}
+        warning={now < SHORT_RECORDING_SECONDS * 1000 ? C.shortNote : undefined}
+        confirmLabel={C.yesStop}
+        confirmIcon={Check}
+        onConfirm={() => { void stop(); }}
+        cancelLabel={C.keepRecording}
+      />
     </ObservePage>
   );
 }

@@ -254,6 +254,15 @@ describe("recording", () => {
     fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     const sheet = await screen.findByRole("dialog", { name: "Finish recording" });
     expect(chipText(sheet)).toEqual(["38 min"]);
+    // bd-fmf24g.41: the kit's ConfirmTray — Yes, finish over Keep recording, both full width and 56px, stacked with a gap.
+    const box = within(sheet).getByTestId("confirm-tray-actions");
+    expect(box.className.split(/\s+/)).toEqual(expect.arrayContaining(["flex", "flex-col", "gap-3"]));
+    const actions = within(box).getAllByRole("button");
+    expect(actions.map((b) => b.textContent)).toEqual(["Yes, finish", "Keep recording"]);
+    for (const b of actions) {
+      expect(b.className.split(/\s+/)).toEqual(expect.arrayContaining(["w-full", "min-h-[56px]"]));
+      expect(b.className.split(/\s+/)).not.toContain("flex-1");
+    }
     fireEvent.click(within(sheet).getByRole("button", { name: "Keep recording" }));
     expect(recorder.stop).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -264,7 +273,9 @@ describe("recording", () => {
     await recording();
     fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     const sheet = await screen.findByRole("dialog", { name: "Finish recording" });
-    expect(within(sheet).getByText("Short lesson").closest("[data-chip]")!.className).toMatch(/bg-nu-chip-warning-bg/);
+    // The kit's waiting tone (amber), as every recording's finish sheet draws it (bd-fmf24g.41).
+    expect(chipText(sheet)).toEqual(["5 min", "Short lesson"]);
+    expect(within(sheet).getByText("Short lesson").closest("[data-chip]")!.className).toMatch(/bg-\[#fef3c7\]/);
   });
 
   it("the screen going off while recording is said, in amber", async () => {

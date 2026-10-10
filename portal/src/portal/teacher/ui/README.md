@@ -159,6 +159,30 @@ Selected: `aria-current="true"` on a link, `aria-pressed` on a button.
 `newui/Sheet`: Android Back (role=dialog + data-state=open), Escape, focus in/trapped/restored, page scroll locked,
 motion-safe rise. Scrolls inside itself, so sticky headings stick.
 
+### `ConfirmTray` (asks first — bd-fmf24g.41)
+| Prop | Type | Default |
+|---|---|---|
+| open, title, onClose | as `Tray` | — |
+| line | one plain line under the title ("You recorded 12 minutes.") | — |
+| chips | `ChipData[]`, drawn as `StatusChip`s ("38 min"; "Short lesson" in `waiting`) | — |
+| warning | an amber note with a warning sign, the screen's sentence | — |
+| confirmLabel / onConfirm / confirmIcon | the main button (indigo) and its icon | — / — / none |
+| cancelLabel / onCancel | the second button (white outline); with no `onCancel` it closes | — / `onClose` |
+| closeLabel, testId | as `Tray` | kit `close` / — |
+
+The ONE "are you sure?" sheet. A `Tray` with the title, what she needs to decide (line, chips, warning; each left out when
+not given), then two buttons STACKED, 12px apart (`confirm-tray-actions`): the main one over the second, both the kit's
+full-width 56px buttons (`PRIMARY_WIDE`, `OUTLINE_WIDE` in `styles.ts`). Never side by side, never `flex-1`: in a column a
+0 flex basis squashes a 56px button to its text (the teacher's "Finish lesson" sheet drew 26px buttons that way). Used by
+the recordings' Finish / Stop on flag-gated screens: the teacher's Digital Coaching (`teacher/coaching/SendPage`), the new
+UI's record page (`newui/coaching/RecordPage`) and the coach v2 visit (`coach/pages/CoachRecord`). The coach and leader
+recorder (`components/coaching/coach/CoachRecorder`) still draws its own sheet: it is live on un-flagged leader pages.
+
+```tsx
+<ConfirmTray open={asking} title={C.finishTitle} onClose={() => setAsking(false)}
+  chips={[{ text: C.minutes(12) }]} confirmLabel={C.yesFinish} confirmIcon={Check} onConfirm={finish} cancelLabel={C.keepRecording} />
+```
+
 ### `ClassPicker` (her class, or any grade and subject — bd-fmf24g.14)
 ONE control wherever a page needs a grade·subject (Lesson Plans, its All page's filter, Digital Coaching, Check and
 send, Assessment New paper 1). It replaced `GradeSubjectPicker` (a long class list under a search box) and
