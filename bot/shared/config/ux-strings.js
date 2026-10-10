@@ -635,11 +635,27 @@ const UX_STRINGS = {
   },
 
   // bd-fmf24g.35 — the pilot's one-tap link: ONE cta_url message (body + button). Button <= 20 code points.
+  // bd-fmf24g.42 — ONE short line per command, nothing she does not need (operator: "Just tell them to open the
+  // app"). app-redirect.service APP_LINK_COPY picks the pair per feature; /menu, and any linkable feature without a
+  // pair of its own, gets this generic one. The Urdu is the teacher app's own words (portal teacher copy.ts); every
+  // verb is an imperative, so nothing assumes her gender. The generic Urdu opens with "NIETE", so it carries U+200F.
   appLinkBody: {
-    en: 'Tap below to open this in the NIETE app. You are already signed in.',
-    ur: 'اسے NIETE ایپ میں کھولنے کے لیے نیچے دیا گیا بٹن دبائیں۔ آپ پہلے سے لاگ اِن ہیں۔',
+    en: 'Open the NIETE app.',
+    ur: '\u200FNIETE ایپ کھولیں۔',
   },
-  appLinkButton: { en: 'Open in app', ur: 'ایپ میں کھولیں' },
+  appLinkButton: { en: 'Open app', ur: 'ایپ کھولیں' },
+  appLinkBodyLessonPlan: { en: 'Open your lesson plans.', ur: 'اپنے لیسن پلان کھولیں۔' },
+  appLinkButtonLessonPlan: { en: 'Lesson plans', ur: 'لیسن پلان' },
+  appLinkBodyAssessment: { en: 'Make a paper in the app.', ur: 'ایپ میں پرچہ بنائیں۔' },
+  appLinkButtonAssessment: { en: 'Make a paper', ur: 'پرچہ بنائیں' },
+  appLinkBodyCoaching: { en: 'Record your lesson in the app.', ur: 'ایپ میں اپنا سبق ریکارڈ کریں۔' },
+  appLinkButtonCoaching: { en: 'Record lesson', ur: 'سبق ریکارڈ کریں' },
+  appLinkBodyTraining: { en: 'Open your training.', ur: 'اپنی ٹریننگ کھولیں۔' },
+  appLinkButtonTraining: { en: 'Training', ur: 'ٹریننگ' },
+  appLinkBodyAttendance: { en: 'Take attendance in the app.', ur: 'ایپ میں حاضری لگائیں۔' },
+  appLinkButtonAttendance: { en: 'Attendance', ur: 'حاضری' },
+  appLinkBodyClasses: { en: 'Open your classes.', ur: 'اپنی کلاسیں کھولیں۔' },
+  appLinkButtonClasses: { en: 'My classes', ur: 'میری کلاسیں' },
 
   assessmentNotReady: {
     en: "We're getting the assessment generator ready for you. I'll tell you the moment it's live.",
