@@ -1,0 +1,29 @@
+{
+  "name": "share_lesson_plan_v1",
+  "category": "UTILITY",
+  "language": "en",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "DOCUMENT",
+      "example": {
+        "header_handle": [
+          "<SAMPLE PDF HANDLE: submit.js uploads one and fills this in>"
+        ]
+      }
+    },
+    {
+      "type": "BODY",
+      "text": "Here is your lesson plan: *{{1}}*\nGrade {{2}} · {{3}} lesson",
+      "example": {
+        "body_text": [
+          [
+            "Transport of Water in Plants",
+            "7",
+            "Science"
+          ]
+        ]
+      }
+    }
+  ]
+}
