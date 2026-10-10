@@ -12,9 +12,10 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
  */
 
 vi.mock("../components/PortalLayout", () => ({ default: ({ children }: any) => <div>{children}</div> }));
+const recorderProps = vi.hoisted(() => ({ copy: null as any }));
 vi.mock("../components/coaching/coach/CoachRecorder", async (orig) => ({
   ...(await orig<any>()),
-  default: ({ label }: any) => <div data-testid="recorder">{label}</div>,
+  default: ({ label, copy }: any) => ((recorderProps.copy = copy), <div data-testid="recorder">{label}</div>),
 }));
 vi.mock("../services/api", () => ({
   portal: { getConfig: vi.fn(), uploadToR2: vi.fn(), getRecentLessonPlans: vi.fn(), getLibraryGrades: vi.fn() },
@@ -69,6 +70,14 @@ describe("LeaderObserveRecord from coach v2", () => {
     renderPage("/portal/leader/observe/new?teacher=923120004471&school=niete:110&way=record");
     expect(await screen.findByTestId("recorder")).toHaveTextContent("Ayesha");
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("the recorder's Finish sheet gets its words from this page (bd-fmf24g.41: none written into the recorder)", async () => {
+    renderPage("/portal/leader/observe/new?teacher=923120004471&school=niete:110&way=record");
+    await screen.findByTestId("recorder");
+    expect(recorderProps.copy).toMatchObject({ finishTitle: "Finish recording?", yesFinish: "Yes, finish", keepRecording: "Keep recording" });
+    expect(recorderProps.copy.recorded(12 * 60_000)).toBe("You recorded 12 minutes.");
+    expect(recorderProps.copy.shortNote).toBe("That is short. The report works best on a whole lesson.");
   });
 
   it("way=upload opens the sheet with Upload Recording", async () => {

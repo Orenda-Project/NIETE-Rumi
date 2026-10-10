@@ -46,5 +46,11 @@ export const CHEVRON = 'shrink-0 text-[#9ca3af] rtl:rotate-180';
 export const ROW_TITLE = 'text-[16px] font-semibold leading-[1.3]';
 export const ROW_SUB = 'text-[13px] leading-[1.3] text-[#6b7280]';
 
-/** The full-width outline button at a list's end (Show more, See all). */
+/** The full-width outline button at a list's end (Show more, See all); ConfirmTray's second choice. */
 export const OUTLINE_WIDE = 'flex min-h-[56px] w-full items-center justify-center gap-1.5 rounded-2xl border border-[#d1d5db] bg-white text-[16px] font-semibold text-[#33374a]';
+
+/**
+ * The full-width main button: indigo, 56px, as ButtonWithReason draws it working. Full width with `w-full`, never
+ * `flex-1`: in a column, `flex-1` sets a 0 flex basis and the button shrinks to its text (bd-fmf24g.41).
+ */
+export const PRIMARY_WIDE = 'flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-[#33374a] px-4 text-[16px] font-semibold text-white';

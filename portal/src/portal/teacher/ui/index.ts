@@ -18,6 +18,7 @@ export {
 export { HistoryList, type HistoryGroup, type HistoryItem, type HistoryListProps } from './HistoryList';
 export { ListRow, type ListRowIcon, type ListRowProps, type ListRowState } from './ListRow';
 export { Tray, type TrayProps } from './Tray';
+export { ConfirmTray, type ConfirmTrayProps } from './ConfirmTray';
 export { ReadyTray, trayHeight, type ReadyTrayProps, type TrayRow } from './ReadyTray';
 export { ReadyBanner, type BannerRow, type ReadyBannerProps } from './ReadyBanner';
 export { LeaveNote } from './LeaveNote';

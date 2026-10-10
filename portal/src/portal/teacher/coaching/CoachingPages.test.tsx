@@ -198,6 +198,42 @@ describe("the send page", () => {
   });
 });
 
+/** The kit's ConfirmTray actions: full width, 56px, stacked in one column with a gap (never flex-1). Their labels, in order. */
+function stackedActions(dialog: HTMLElement) {
+  const box = within(dialog).getByTestId("confirm-tray-actions");
+  expect(box.className.split(/\s+/)).toEqual(expect.arrayContaining(["flex", "flex-col", "gap-3"]));
+  const buttons = within(box).getAllByRole("button");
+  for (const b of buttons) {
+    expect(b.className.split(/\s+/)).toEqual(expect.arrayContaining(["w-full", "min-h-[56px]"]));
+    expect(b.className.split(/\s+/)).not.toContain("flex-1");
+  }
+  return buttons.map((b) => b.textContent);
+}
+
+describe("the send page: Stop asks first (the kit's ConfirmTray)", () => {
+  it("Finish lesson: how long, then Yes, finish over Keep recording, both full size; Keep recording closes and keeps recording", async () => {
+    session.active = true;
+    at(COACHING_SEND);
+    fireEvent.click(await screen.findByRole("button", { name: C.stop }));
+    const sheet = await screen.findByRole("dialog", { name: C.finishTitle });
+    expect(stackedActions(sheet)).toEqual([C.yesFinish, C.keepRecording]);
+    expect([...sheet.querySelectorAll("[data-chip]")].map((c) => c.textContent)).toEqual([C.minutes(1)]);
+    fireEvent.click(within(sheet).getByRole("button", { name: C.keepRecording }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(session.finish).not.toHaveBeenCalled();
+  });
+
+  it("Yes, finish ends the recording", async () => {
+    session.active = true;
+    at(COACHING_SEND);
+    fireEvent.click(await screen.findByRole("button", { name: C.stop }));
+    const sheet = await screen.findByRole("dialog", { name: C.finishTitle });
+    fireEvent.click(within(sheet).getByRole("button", { name: C.yesFinish }));
+    await waitFor(() => expect(session.finish).toHaveBeenCalled());
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+
 describe("routes", () => {
   it("registers the hub as the feature's main page and the send page under it", () => {
     const paths = coachingRoutes.map((r) => r.path);

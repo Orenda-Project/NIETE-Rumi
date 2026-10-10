@@ -28,6 +28,10 @@ curl "https://graph.facebook.com/v20.0/1383233296670749/message_templates?access
 | `registrationv2_schoolname_included.json` | MARKETING | en | ❌ | Teacher onboarding — school-name variant |
 | `rumi_portal_reset_otp.json` | AUTHENTICATION | en | ❌ | Portal password-reset OTP |
 
+**Subfolders:** [`share/`](share/README.md): the teacher app's "Send on WhatsApp" templates (`share_*_v1`, en + ur,
+submitted 2026-10-10 on all three NIETE WABAs with its own `submit.js`). [`drafts/`](drafts/README.md): the ready-fallback
+templates, not submitted. `publish-templates.sh` submits only the `*.json` files in this folder, never a subfolder.
+
 ## Templates deliberately NOT harvested
 
 The PK WABA has ~35 partner-specific and seasonal marketing templates that are **out of scope for NIETE**:
