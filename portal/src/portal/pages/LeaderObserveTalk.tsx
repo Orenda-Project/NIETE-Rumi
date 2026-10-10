@@ -4,7 +4,7 @@ import { AlertTriangle, ChevronLeft, Loader2, MicOff, Smartphone, Upload, WifiOf
 import { Capacitor } from '@capacitor/core';
 import PortalLayout from '../components/PortalLayout';
 import LoadingState from '../components/LoadingState';
-import CoachRecorder from '../components/coaching/coach/CoachRecorder';
+import CoachRecorder, { minutesText } from '../components/coaching/coach/CoachRecorder';
 import RecordIcon from '../components/coaching/RecordIcon';
 import { leader } from '../services/api';
 import type { TalkGuide, TalkGuideSection } from '../services/api';
@@ -40,6 +40,11 @@ const COPY = {
   hearing: 'We can hear you both.',
   keepOpen: 'Keep this screen open. Put the phone between the two of you.',
   shortNote: 'That is short. A few minutes of talking gives better feedback.',
+  /** The recorder's Finish sheet (bd-fmf24g.41: words through CoachRecorder's copy prop). */
+  finishTitle: 'Finish recording?',
+  yesFinish: 'Yes, finish',
+  keepRecording: 'Keep recording',
+  recorded: (ms: number) => `You recorded ${minutesText(ms)}.`,
   sending: 'Sending your talk…',
   notAudio: 'That is not a recording. Choose a sound file from your phone.',
   tooLarge: 'That recording is too large to send.',
@@ -208,7 +213,10 @@ const LeaderObserveTalk = () => {
         {stage === 'recording' && (
           <CoachRecorder
             label={COPY.label(name || first)}
-            copy={{ hearing: COPY.hearing, keepOpen: COPY.keepOpen, shortNote: COPY.shortNote }}
+            copy={{
+              hearing: COPY.hearing, keepOpen: COPY.keepOpen, shortNote: COPY.shortNote,
+              finishTitle: COPY.finishTitle, yesFinish: COPY.yesFinish, keepRecording: COPY.keepRecording, recorded: COPY.recorded,
+            }}
             shortMs={3 * 60_000}
             onFinished={onRecorded}
             onMicBlocked={() => setStage('micBlocked')}

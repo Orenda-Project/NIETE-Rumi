@@ -174,9 +174,10 @@ The ONE "are you sure?" sheet. A `Tray` with the title, what she needs to decide
 not given), then two buttons STACKED, 12px apart (`confirm-tray-actions`): the main one over the second, both the kit's
 full-width 56px buttons (`PRIMARY_WIDE`, `OUTLINE_WIDE` in `styles.ts`). Never side by side, never `flex-1`: in a column a
 0 flex basis squashes a 56px button to its text (the teacher's "Finish lesson" sheet drew 26px buttons that way). Used by
-the recordings' Finish / Stop on flag-gated screens: the teacher's Digital Coaching (`teacher/coaching/SendPage`), the new
-UI's record page (`newui/coaching/RecordPage`) and the coach v2 visit (`coach/pages/CoachRecord`). The coach and leader
-recorder (`components/coaching/coach/CoachRecorder`) still draws its own sheet: it is live on un-flagged leader pages.
+every recording's Finish / Stop: the teacher's Digital Coaching (`teacher/coaching/SendPage`), the new UI's record page
+(`newui/coaching/RecordPage`), the coach v2 visit (`coach/pages/CoachRecord`) and the coach and leader recorder
+(`components/coaching/coach/CoachRecorder`: the leader observe pages and the coach's Debrief; its sheet words come from its
+`copy` prop, English and Urdu).
 
 ```tsx
 <ConfirmTray open={asking} title={C.finishTitle} onClose={() => setAsking(false)}

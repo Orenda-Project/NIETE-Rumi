@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
-import { AlertTriangle, Mic, Pause, Smartphone } from 'lucide-react';
+import { AlertTriangle, Check, Mic, Pause, Smartphone } from 'lucide-react';
 import SoundBars from '../SoundBars';
-import BottomSheet from '../BottomSheet';
+import { ConfirmTray } from '../../../teacher/ui/ConfirmTray';
 import { useRecordingBackGuard } from '../../../lib/useRecordingBackGuard';
 import { type FinishedRecording } from '../../../lib/lessonRecorder';
 import { useCoachRecording } from '../../../lib/useCoachRecording';
@@ -46,6 +46,11 @@ export type CoachRecorderCopy = {
   hearing: string;
   keepOpen: string;
   shortNote: string;
+  /** The Finish sheet (the kit's ConfirmTray, bd-fmf24g.41): its title, its two buttons, and how long. */
+  finishTitle: string;
+  yesFinish: string;
+  keepRecording: string;
+  recorded: (ms: number) => string;
 };
 
 const CoachRecorder = ({
@@ -107,16 +112,17 @@ const CoachRecorder = ({
         {paused ? 'Continue' : 'Pause'}
       </button>
 
-      {confirmFinish && (
-        <BottomSheet label="Finish recording?" onClose={() => setConfirmFinish(false)}>
-          <div className="text-[23px] font-bold">Finish recording?</div>
-          <div className="text-[17px] text-[#3a3f4b]">You recorded {minutesText(now)}.</div>
-          {now < shortMs && <Warning>{copy.shortNote}</Warning>}
-          <button type="button" onClick={finish} className="h-[60px] rounded-[14px] bg-primary text-[19px] font-bold text-white">Yes, finish</button>
-          <button type="button" onClick={() => setConfirmFinish(false)}
-            className="h-14 rounded-[14px] border-2 border-primary bg-white text-lg font-bold text-primary">Keep recording</button>
-        </BottomSheet>
-      )}
+      <ConfirmTray
+        open={confirmFinish}
+        title={copy.finishTitle}
+        onClose={() => setConfirmFinish(false)}
+        line={copy.recorded(now)}
+        warning={now < shortMs ? copy.shortNote : undefined}
+        confirmLabel={copy.yesFinish}
+        confirmIcon={Check}
+        onConfirm={() => { void finish(); }}
+        cancelLabel={copy.keepRecording}
+      />
     </div>
   );
 };
