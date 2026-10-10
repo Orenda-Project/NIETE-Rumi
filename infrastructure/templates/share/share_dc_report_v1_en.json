@@ -1,0 +1,28 @@
+{
+  "name": "share_dc_report_v1",
+  "category": "UTILITY",
+  "language": "en",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "IMAGE",
+      "example": {
+        "header_handle": [
+          "<SAMPLE PNG HANDLE: submit.js uploads one and fills this in>"
+        ]
+      }
+    },
+    {
+      "type": "BODY",
+      "text": "Your Digital Coach report: *{{1}}*\n{{2}} class",
+      "example": {
+        "body_text": [
+          [
+            "Parts of a plant",
+            "Grade 4 · Science"
+          ]
+        ]
+      }
+    }
+  ]
+}

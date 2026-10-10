@@ -635,11 +635,27 @@ const UX_STRINGS = {
   },
 
   // bd-fmf24g.35 — the pilot's one-tap link: ONE cta_url message (body + button). Button <= 20 code points.
+  // bd-fmf24g.42 — ONE short line per command, nothing she does not need (operator: "Just tell them to open the
+  // app"). app-redirect.service APP_LINK_COPY picks the pair per feature; /menu, and any linkable feature without a
+  // pair of its own, gets this generic one. The Urdu is the teacher app's own words (portal teacher copy.ts); every
+  // verb is an imperative, so nothing assumes her gender. The generic Urdu opens with "NIETE", so it carries U+200F.
   appLinkBody: {
-    en: 'Tap below to open this in the NIETE app. You are already signed in.',
-    ur: 'اسے NIETE ایپ میں کھولنے کے لیے نیچے دیا گیا بٹن دبائیں۔ آپ پہلے سے لاگ اِن ہیں۔',
+    en: 'Open the NIETE app.',
+    ur: '\u200FNIETE ایپ کھولیں۔',
   },
-  appLinkButton: { en: 'Open in app', ur: 'ایپ میں کھولیں' },
+  appLinkButton: { en: 'Open app', ur: 'ایپ کھولیں' },
+  appLinkBodyLessonPlan: { en: 'Open your lesson plans.', ur: 'اپنے لیسن پلان کھولیں۔' },
+  appLinkButtonLessonPlan: { en: 'Lesson plans', ur: 'لیسن پلان' },
+  appLinkBodyAssessment: { en: 'Make a paper in the app.', ur: 'ایپ میں پرچہ بنائیں۔' },
+  appLinkButtonAssessment: { en: 'Make a paper', ur: 'پرچہ بنائیں' },
+  appLinkBodyCoaching: { en: 'Record your lesson in the app.', ur: 'ایپ میں اپنا سبق ریکارڈ کریں۔' },
+  appLinkButtonCoaching: { en: 'Record lesson', ur: 'سبق ریکارڈ کریں' },
+  appLinkBodyTraining: { en: 'Open your training.', ur: 'اپنی ٹریننگ کھولیں۔' },
+  appLinkButtonTraining: { en: 'Training', ur: 'ٹریننگ' },
+  appLinkBodyAttendance: { en: 'Take attendance in the app.', ur: 'ایپ میں حاضری لگائیں۔' },
+  appLinkButtonAttendance: { en: 'Attendance', ur: 'حاضری' },
+  appLinkBodyClasses: { en: 'Open your classes.', ur: 'اپنی کلاسیں کھولیں۔' },
+  appLinkButtonClasses: { en: 'My classes', ur: 'میری کلاسیں' },
 
   assessmentNotReady: {
     en: "We're getting the assessment generator ready for you. I'll tell you the moment it's live.",
@@ -2937,6 +2953,20 @@ const UX_STRINGS = {
   wqChTrailBack: { en: 'Back to the trail', ur: 'راستے پر واپس' },
   wqChTrailPractice: { en: 'Practice round. Play as much as you like!', ur: 'مشق کا دور۔ جتنا چاہیں کھیلیں!' },
   wqChTrailStopDone: { en: 'Stop done!', ur: 'پڑاؤ مکمل!' },
+
+  // bd-fmf24g.43 — "Send on WhatsApp" (share-send.service.js): the words that fill a share template's variables when the
+  // item does not name itself. Read RAW, never through resolveUx: they are template parameters, not chat text, so no
+  // direction mark is added. The app's own words: باب (assessment chapterShort), پرچہ, لیسن پلان (planFallback),
+  // ڈیجیٹل کوچنگ مشاہدہ (coaching dcObservation), مشاہدہ, جماعت {g} (kit grade). shareClassFallback fills "{x} class" /
+  // "{x} کی کلاس" when a report names neither grade nor subject: "Your class" / "آپ کی کلاس".
+  shareChapter: { en: 'Chapter {n}', ur: 'باب {n}' },
+  shareSubjectPaper: { en: '{subject} paper', ur: '{subject} کا پرچہ' },
+  sharePaper: { en: 'Paper', ur: 'پرچہ' },
+  shareLessonPlan: { en: 'Lesson plan', ur: 'لیسن پلان' },
+  shareDcObservation: { en: 'DC observation', ur: 'ڈیجیٹل کوچنگ مشاہدہ' },
+  shareObservation: { en: 'Observation', ur: 'مشاہدہ' },
+  shareGrade: { en: 'Grade {grade}', ur: 'جماعت {grade}' },
+  shareClassFallback: { en: 'Your', ur: 'آپ' },
 };
 
 /**

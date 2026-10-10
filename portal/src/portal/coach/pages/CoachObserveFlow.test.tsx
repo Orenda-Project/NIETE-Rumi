@@ -222,11 +222,31 @@ describe("Record observation (Blueprint: Coach_Record)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Stop/ }));
     const ask = await screen.findByRole("dialog", { name: "Stop recording" });
     expect(ask).toHaveTextContent("You recorded 19 min.");
+    // bd-fmf24g.41: the kit's ConfirmTray — Yes, stop over Keep recording, both full width and 56px, stacked with a gap.
+    const box = within(ask).getByTestId("confirm-tray-actions");
+    expect(box.className.split(/\s+/)).toEqual(expect.arrayContaining(["flex", "flex-col", "gap-3"]));
+    const actions = within(box).getAllByRole("button");
+    expect(actions.map((b) => b.textContent)).toEqual(["Yes, stop", "Keep recording"]);
+    for (const b of actions) {
+      expect(b.className.split(/\s+/)).toEqual(expect.arrayContaining(["w-full", "min-h-[56px]"]));
+      expect(b.className.split(/\s+/)).not.toContain("flex-1");
+    }
     fireEvent.click(within(ask).getByRole("button", { name: /Yes, stop/ }));
     await screen.findByText("Ayesha Bibi’s observation");
     expect(screen.getByRole("heading", { level: 1, name: "Check and send" })).toBeInTheDocument();
     expect(getDraft(VISIT_ID)?.recordingId).toBe("rec-1");
     expect(screen.getByText(/19 min · just now/)).toBeInTheDocument();
+  });
+
+  it("Stop: Keep recording closes the sheet and keeps recording; a short recording warns (bd-fmf24g.41)", async () => {
+    rec.state = { ...rec.state, elapsed: 4 * 60_000 };
+    renderAt(`/portal/coach/visit/${VISIT_ID}/record`);
+    fireEvent.click(await screen.findByRole("button", { name: /Stop/ }));
+    const ask = await screen.findByRole("dialog", { name: "Stop recording" });
+    expect(within(ask).getByRole("note")).toHaveTextContent("That is short.");
+    fireEvent.click(within(ask).getByRole("button", { name: "Keep recording" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(rec.finish).not.toHaveBeenCalled();
   });
 
   it("a refused microphone: Try again, or Upload recording instead", async () => {

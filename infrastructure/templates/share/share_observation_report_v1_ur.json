@@ -1,0 +1,28 @@
+{
+  "name": "share_observation_report_v1",
+  "category": "UTILITY",
+  "language": "ur",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "IMAGE",
+      "example": {
+        "header_handle": [
+          "<SAMPLE PNG HANDLE: submit.js uploads one and fills this in>"
+        ]
+      }
+    },
+    {
+      "type": "BODY",
+      "text": "آپ کی مشاہدہ رپورٹ: *{{1}}*\n{{2}} کی کلاس",
+      "example": {
+        "body_text": [
+          [
+            "Fractions",
+            "جماعت 3 · Maths"
+          ]
+        ]
+      }
+    }
+  ]
+}

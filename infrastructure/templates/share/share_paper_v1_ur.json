@@ -1,0 +1,30 @@
+{
+  "name": "share_paper_v1",
+  "category": "UTILITY",
+  "language": "ur",
+  "components": [
+    {
+      "type": "HEADER",
+      "format": "DOCUMENT",
+      "example": {
+        "header_handle": [
+          "<SAMPLE PDF HANDLE: submit.js uploads one and fills this in>"
+        ]
+      }
+    },
+    {
+      "type": "BODY",
+      "text": "یہ رہا آپ کا مانگا ہوا پرچہ: *{{1}}*\nجماعت {{2}} · {{3}} · {{4}} سوال",
+      "example": {
+        "body_text": [
+          [
+            "Plants and food",
+            "4",
+            "Science",
+            "15"
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -22,7 +22,17 @@ vi.mock("../../../lib/lessonRecorder", () => ({ LessonRecorder: vi.fn(function L
 
 import CoachRecorder from "./CoachRecorder";
 
-const copy = { hearing: "We can hear the class.", keepOpen: "Keep this screen open.", shortNote: "That is short." };
+const copy = {
+  hearing: "We can hear the class.", keepOpen: "Keep this screen open.", shortNote: "That is short.",
+  finishTitle: "Finish recording?", yesFinish: "Yes, finish", keepRecording: "Keep recording",
+  recorded: (ms: number) => `You recorded ${Math.round(ms / 60_000)} minutes.`,
+};
+/** The sheet's words come from the copy prop: a screen in Urdu passes these (bd-fmf24g.41). */
+const urdu = {
+  ...copy, shortNote: "یہ مختصر ہے۔",
+  finishTitle: "ریکارڈنگ ختم کریں؟", yesFinish: "جی، ختم کریں", keepRecording: "ریکارڈنگ جاری رکھیں",
+  recorded: (ms: number) => `آپ نے ${Math.round(ms / 60_000)} منٹ ریکارڈ کیا۔`,
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -30,9 +40,9 @@ beforeEach(() => {
   Object.defineProperty(navigator, "mediaDevices", { value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [] }) }, configurable: true });
 });
 
-async function recording() {
+async function recording(words: typeof copy = copy, shortMs = 600_000) {
   const onFinished = vi.fn();
-  render(<CoachRecorder label="Observing: Ayesha Bibi" copy={copy} shortMs={600_000} onFinished={onFinished} onMicBlocked={() => {}} />);
+  render(<CoachRecorder label="Observing: Ayesha Bibi" copy={words} shortMs={shortMs} onFinished={onFinished} onMicBlocked={() => {}} />);
   await screen.findByRole("button", { name: /^finish$/i });
   await vi.waitFor(() => expect(recorder.start).toHaveBeenCalled());
   return { onFinished };
@@ -43,7 +53,9 @@ describe("CoachRecorder — Back while recording", () => {
     await recording();
     await vi.waitFor(() => expect(window.history.state && window.history.state.recordingGuard).toBe(true));
     window.dispatchEvent(new PopStateEvent("popstate"));
-    expect(await screen.findByRole("dialog", { name: /finish recording/i })).toBeInTheDocument();
+    const sheet = await screen.findByRole("dialog", { name: /finish recording/i });
+    // bd-fmf24g.41: the sheet Back opens is the kit's ConfirmTray, Yes over Keep recording, both full size.
+    expect(stackedActions(sheet)).toEqual(["Yes, finish", "Keep recording"]);
     expect(recorder.stop).not.toHaveBeenCalled();
   });
 
@@ -56,5 +68,44 @@ describe("CoachRecorder — Back while recording", () => {
     await vi.waitFor(() => expect(onFinished).toHaveBeenCalled());
     expect(back).toHaveBeenCalled();
     back.mockRestore();
+  });
+});
+
+/** The kit's ConfirmTray actions: full width, 56px, stacked in one column with a gap (never flex-1). Their labels, in order. */
+function stackedActions(dialog: HTMLElement) {
+  const box = within(dialog).getByTestId("confirm-tray-actions");
+  expect(box.className.split(/\s+/)).toEqual(expect.arrayContaining(["flex", "flex-col", "gap-3"]));
+  const buttons = within(box).getAllByRole("button");
+  for (const b of buttons) {
+    expect(b.className.split(/\s+/)).toEqual(expect.arrayContaining(["w-full", "min-h-[56px]"]));
+    expect(b.className.split(/\s+/)).not.toContain("flex-1");
+  }
+  return buttons.map((b) => b.textContent);
+}
+
+describe("CoachRecorder — Finish asks first, in the kit's ConfirmTray (bd-fmf24g.41)", () => {
+  it("the sheet's words are the copy prop's (Urdu here): title, how long, Yes over Keep recording, full size", async () => {
+    await recording(urdu);
+    fireEvent.click(screen.getByRole("button", { name: /^finish$/i }));
+    const sheet = await screen.findByRole("dialog", { name: urdu.finishTitle });
+    expect(sheet).toHaveTextContent(urdu.recorded(31 * 60_000));
+    expect(stackedActions(sheet)).toEqual([urdu.yesFinish, urdu.keepRecording]);
+    expect(within(sheet).queryByRole("note")).toBeNull();
+  });
+
+  it("Keep recording closes the sheet and the recorder keeps running", async () => {
+    await recording();
+    fireEvent.click(screen.getByRole("button", { name: /^finish$/i }));
+    const sheet = await screen.findByRole("dialog", { name: "Finish recording?" });
+    fireEvent.click(within(sheet).getByRole("button", { name: "Keep recording" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(recorder.stop).not.toHaveBeenCalled();
+  });
+
+  it("a short recording still warns, in the sheet, with the screen's words", async () => {
+    await recording(copy, 60 * 60_000);
+    fireEvent.click(screen.getByRole("button", { name: /^finish$/i }));
+    const sheet = await screen.findByRole("dialog", { name: "Finish recording?" });
+    expect(within(sheet).getByRole("note")).toHaveTextContent("That is short.");
   });
 });

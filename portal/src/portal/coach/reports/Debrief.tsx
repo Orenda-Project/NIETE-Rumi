@@ -34,7 +34,8 @@ import { useBackTo } from "./useBackTo";
  * Real routes: POST talk/guide (the first open can take a minute; 409 = the form is not saved yet), observe-upload/presign,
  * POST talk, POST talk/retry. Read back later (the step is past the talk) it shows the guide the observation kept.
  *
- * The recorder is the existing CoachRecorder (its own on-screen words are English only: see the gap list).
+ * The recorder is the existing CoachRecorder: its Finish sheet (the kit's ConfirmTray) takes its words from `C.recorder`, in
+ * English and Urdu; its other on-screen words are still English only (see the gap list).
  */
 type Stage = "guide" | "recording" | "micBlocked" | "sending" | "failed";
 type GuideState = "loading" | "ready" | "failed" | "not_ready";
