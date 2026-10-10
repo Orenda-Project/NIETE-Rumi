@@ -55,6 +55,21 @@ const APP_REDIRECT_FLAGS = Object.freeze({
   menu: 'app_redirect_menu', // bd-fmf24g.35 — /menu; only ever a pilot link (no Play Store notice exists for it)
 });
 
+/**
+ * bd-fmf24g.42 — the app link's words, per feature: [body key, button key] in ux-strings. One short line per command,
+ * nothing else. /menu IS the generic line; a linkable feature (LANDINGS) missing here gets it too, never older copy.
+ */
+const APP_LINK_COPY = Object.freeze({
+  menu: ['appLinkBody', 'appLinkButton'],
+  lesson_plan: ['appLinkBodyLessonPlan', 'appLinkButtonLessonPlan'],
+  assessment_generator: ['appLinkBodyAssessment', 'appLinkButtonAssessment'],
+  ai_coaching: ['appLinkBodyCoaching', 'appLinkButtonCoaching'],
+  teacher_training: ['appLinkBodyTraining', 'appLinkButtonTraining'],
+  attendance: ['appLinkBodyAttendance', 'appLinkButtonAttendance'],
+  classes: ['appLinkBodyClasses', 'appLinkButtonClasses'],
+});
+const APP_LINK_GENERIC = APP_LINK_COPY.menu;
+
 /** The teacher app's own switch (dashboard/lib/feature-flags.js PORTAL_TEACHER_V2_KEY): true, or a list of users.id. */
 const TEACHER_APP_KEY = 'portal_teacher_v2';
 
@@ -205,8 +220,11 @@ async function sendAppLink(feature, { userId, from, language, reason }) {
     return false;
   }
   const url = `${base}/go/${token}`;
-  const body = resolveUx('appLinkBody', { language });
-  const buttonText = resolveUx('appLinkButton', { language });
+  const [bodyKey, buttonKey] = Object.prototype.hasOwnProperty.call(APP_LINK_COPY, feature)
+    ? APP_LINK_COPY[feature]
+    : APP_LINK_GENERIC;
+  const body = resolveUx(bodyKey, { language });
+  const buttonText = resolveUx(buttonKey, { language });
   let sent = false;
   try {
     sent = await WhatsAppService.sendCtaUrl(from, { body, buttonText, url });

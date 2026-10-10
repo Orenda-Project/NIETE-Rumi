@@ -79,6 +79,21 @@ const KEY_FIELD = {
   assessmentRowBackToList: 'navRow',
   assessmentOptionNotSet: 'radioTitle',
   assessmentAnswerHint: 'helperText',
+  // bd-fmf24g.42 — the app link's cta_url button (display_text, 20) and body, one pair per command.
+  appLinkBody: 'body',
+  appLinkButton: 'buttonText',
+  appLinkBodyLessonPlan: 'body',
+  appLinkButtonLessonPlan: 'buttonText',
+  appLinkBodyAssessment: 'body',
+  appLinkButtonAssessment: 'buttonText',
+  appLinkBodyCoaching: 'body',
+  appLinkButtonCoaching: 'buttonText',
+  appLinkBodyTraining: 'body',
+  appLinkButtonTraining: 'buttonText',
+  appLinkBodyAttendance: 'body',
+  appLinkButtonAttendance: 'buttonText',
+  appLinkBodyClasses: 'body',
+  appLinkButtonClasses: 'buttonText',
 };
 
 /**
