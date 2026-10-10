@@ -16,7 +16,7 @@ import { dataOf, useLoad } from '../../newui/lessons/shared';
 import TeacherPage from '../TeacherPage';
 import { openUrl } from '../lessons/paths';
 import { teacherPath } from '../routes';
-import { ClassPicker, Tray, type GradeSubjectPair } from '../ui';
+import { ClassPicker, ConfirmTray, type GradeSubjectPair } from '../ui';
 import { CARD, FOCUS } from '../ui/styles';
 import { useCopy } from '../i18n';
 import { COACHING, type CoachingCopy } from './copy';
@@ -238,12 +238,17 @@ export function SendPage() {
             </Link>
             <span className="text-[13px] font-medium text-[#6b7280]">{C.keepAppOpen}</span>
           </section>
-          <Tray open={confirmFinish} title={C.finishTitle} onClose={() => setConfirmFinish(false)}>
-            <div className="flex flex-col gap-2.5 pb-2">
-              <Action icon={Check} onClick={() => { setConfirmFinish(false); void flow.finishRecording(); }}>{C.yesFinish}</Action>
-              <Action tone="outline" onClick={() => setConfirmFinish(false)}>{C.keepRecording}</Action>
-            </div>
-          </Tray>
+          {/* bd-fmf24g.41: the kit's ConfirmTray (its two buttons were squashed to 26px here by flex-1 in a column). */}
+          <ConfirmTray
+            open={confirmFinish}
+            title={C.finishTitle}
+            onClose={() => setConfirmFinish(false)}
+            chips={[{ text: C.minutes(minutesOf(session.elapsedMs() || elapsed) as number) }]}
+            confirmLabel={C.yesFinish}
+            confirmIcon={Check}
+            onConfirm={() => { setConfirmFinish(false); void flow.finishRecording(); }}
+            cancelLabel={C.keepRecording}
+          />
         </>
       ) : null}
 

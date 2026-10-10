@@ -182,9 +182,19 @@ describe("Digital Coaching in Urdu — record, check and send, sent", () => {
     expect(screen.getByText(U.keepAppOpen)).toBeTruthy();
     expect(screen.getByRole("button", { name: U.pause })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: U.stop }));
-    expect(await screen.findByRole("dialog", { name: U.finishTitle })).toBeTruthy();
+    const sheet = await screen.findByRole("dialog", { name: U.finishTitle });
     expect(screen.getByRole("button", { name: U.yesFinish })).toBeTruthy();
     expect(screen.getByRole("button", { name: U.keepRecording })).toBeTruthy();
+    // The kit's ConfirmTray: Yes over Keep recording, both full width and 56px, stacked with a gap (never flex-1).
+    const box = within(sheet).getByTestId("confirm-tray-actions");
+    expect(box.className.split(/\s+/)).toEqual(expect.arrayContaining(["flex", "flex-col", "gap-3"]));
+    const actions = within(box).getAllByRole("button");
+    expect(actions.map((b) => b.textContent)).toEqual([U.yesFinish, U.keepRecording]);
+    for (const b of actions) {
+      expect(b.className.split(/\s+/)).toEqual(expect.arrayContaining(["w-full", "min-h-[56px]"]));
+      expect(b.className.split(/\s+/)).not.toContain("flex-1");
+    }
+    expect([...sheet.querySelectorAll("[data-chip]")].map((c) => plain(c.textContent))).toEqual([U.minutes(1)]);
     expect(englishLeft(["Record lesson", "Recording", "Pause", "Stop", "Keep app open", "Finish lesson", "Yes, finish", "Lesson plans"])).toEqual([]);
   });
 
