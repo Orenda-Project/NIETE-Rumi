@@ -4,6 +4,7 @@
  *
  *   true (or "true")            → every user
  *   ["<user id>", …]            → only those users (a pilot)
+ *   "teachers"                  → every user whose users.role is teacher (bd-fmf24g.46)
  *   no row, anything else, a failed read, or no session → OFF
  *
  * /api/portal/config carries it to the browser as `features.teacherV2`, answered
@@ -12,20 +13,30 @@
 
 const { isFlagEnabledForUser, PORTAL_TEACHER_V2_KEY } = require('../../dashboard/lib/feature-flags');
 
-/** app_settings rows by key; any other table answers nothing. */
+/** app_settings rows by key, users.role by id (bd-fmf24g.46); any other table answers nothing. */
 let settings;
+let roles = {};
+let usersError = false;
+let userReads = 0;
 
 function settingsByKey() {
   return {
-    from: () => {
+    from: (table) => {
       let key = null;
       const chain = {
         select: () => chain,
         eq: (_col, val) => { key = val; return chain; },
-        maybeSingle: async () => ({
-          data: Object.prototype.hasOwnProperty.call(settings, key) ? { value: settings[key] } : null,
-          error: null,
-        }),
+        maybeSingle: async () => {
+          if (table === 'users') {
+            userReads += 1;
+            if (usersError) return { data: null, error: { message: 'boom' } };
+            return { data: Object.prototype.hasOwnProperty.call(roles, key) ? { role: roles[key] } : null, error: null };
+          }
+          return {
+            data: Object.prototype.hasOwnProperty.call(settings, key) ? { value: settings[key] } : null,
+            error: null,
+          };
+        },
       };
       return chain;
     },
@@ -55,6 +66,66 @@ describe('portal_teacher_v2 — the flag', () => {
   });
 });
 
+/*
+ * bd-fmf24g.46 — "teachers": the teacher app for every TEACHER, not every user. The leader family (principal, coach,
+ * aeo, supervisor, school_leader) keeps its leader views — the teacher app has none of them — and so does role
+ * 'unregistered'. A string, not `true`, so the code before this change reads it as OFF and a rollback cannot turn
+ * the app on for everyone.
+ */
+describe('portal_teacher_v2 = "teachers" (bd-fmf24g.46)', () => {
+  beforeEach(() => { settings = { portal_teacher_v2: 'teachers' }; roles = {}; usersError = false; userReads = 0; });
+
+  test.each([
+    ['teacher', true],
+    [' Teacher ', true],
+    ['principal', false],
+    ['coach', false],
+    ['aeo', false],
+    ['supervisor', false],
+    ['school_leader', false],
+    ['unregistered', false],
+    [null, false],
+    ['', false],
+  ])('role %p → %p', async (role, expected) => {
+    roles.u1 = role;
+    expect(await isFlagEnabledForUser(settingsByKey(), PORTAL_TEACHER_V2_KEY, 'u1')).toBe(expected);
+  });
+
+  test('written as JSON text, or in another case, it reads the same', async () => {
+    roles.u1 = 'teacher';
+    for (const v of ['"teachers"', 'Teachers', ' teachers ']) {
+      settings.portal_teacher_v2 = v;
+      expect(await isFlagEnabledForUser(settingsByKey(), PORTAL_TEACHER_V2_KEY, 'u1')).toBe(true);
+    }
+  });
+
+  test('no users row, a failed read, or no session user: OFF', async () => {
+    expect(await isFlagEnabledForUser(settingsByKey(), PORTAL_TEACHER_V2_KEY, 'u1')).toBe(false);
+    roles.u1 = 'teacher';
+    usersError = true;
+    expect(await isFlagEnabledForUser(settingsByKey(), PORTAL_TEACHER_V2_KEY, 'u1')).toBe(false);
+    usersError = false;
+    userReads = 0;
+    expect(await isFlagEnabledForUser(settingsByKey(), PORTAL_TEACHER_V2_KEY, null)).toBe(false);
+    expect(userReads).toBe(0);
+  });
+
+  test('true and a pilot list never read the users row (no extra query for today\'s values)', async () => {
+    roles.u1 = 'principal';
+    settings.portal_teacher_v2 = true;
+    expect(await isFlagEnabledForUser(settingsByKey(), PORTAL_TEACHER_V2_KEY, 'u1')).toBe(true);
+    settings.portal_teacher_v2 = ['u1'];
+    expect(await isFlagEnabledForUser(settingsByKey(), PORTAL_TEACHER_V2_KEY, 'u1')).toBe(true);
+    expect(userReads).toBe(0);
+  });
+
+  test('the account-wide reader (isFlagEnabled, no user) reads "teachers" as OFF', async () => {
+    const { isFlagEnabled } = require('../../dashboard/lib/feature-flags');
+    roles.u1 = 'teacher';
+    expect(await isFlagEnabled(settingsByKey(), PORTAL_TEACHER_V2_KEY)).toBe(false);
+  });
+});
+
 /* ── GET /config ────────────────────────────────────────────────────────── */
 
 function makeChain(table) {
@@ -68,6 +139,7 @@ function makeChain(table) {
       if (table === 'app_settings') {
         return { data: Object.prototype.hasOwnProperty.call(settings, key) ? { value: settings[key] } : null, error: null };
       }
+      if (table === 'users' && Object.prototype.hasOwnProperty.call(roles, key)) return { data: { role: roles[key] }, error: null };
       return { data: null, error: null };
     },
   };
@@ -147,6 +219,15 @@ describe('GET /config — features.teacherV2', () => {
     const { payload } = await getConfig();
     expect(payload.features.teacherV2).toBe(false);
     expect(payload.features.coachV2).toBe(true);
+  });
+
+  test('"teachers" (bd-fmf24g.46): true for a teacher, false for a principal or a coach', async () => {
+    settings.portal_teacher_v2 = 'teachers';
+    roles = { 'teacher-1': 'teacher', 'principal-1': 'principal', 'coach-1': 'coach' };
+    expect((await getConfig({ userId: 'teacher-1' })).payload.features.teacherV2).toBe(true);
+    expect((await getConfig({ userId: 'principal-1' })).payload.features.teacherV2).toBe(false);
+    expect((await getConfig({ userId: 'coach-1' })).payload.features.teacherV2).toBe(false);
+    roles = {};
   });
 
   test('the error fallback says teacherV2: false', async () => {
