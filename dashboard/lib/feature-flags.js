@@ -15,6 +15,10 @@
  * database hiccup must never expose something unfinished to teachers.
  */
 
+// bd-fmf24g.46 — "teachers" (every users.role teacher) is read through the bot's module, so the portal and the
+// WhatsApp app link give one answer to "is she on the teacher app?". The portal service deploys the whole repo.
+const { isTeachersValue, isTeacherRole } = require('../../bot/shared/services/teacher-audience');
+
 /** app_settings key for the UG_EG-backed Assessment Generator. */
 const ASSESSMENT_GENERATOR_KEY = 'assessment_generator_enabled';
 
@@ -114,6 +118,9 @@ const PORTAL_TEACHER_V2_KEY = 'portal_teacher_v2';
  *
  *   true (or "true")            → on for every user
  *   ["<user id>", …] (or JSON)  → on only for those users.id values
+ *   "teachers"                  → on for every user whose users.role is teacher (bd-fmf24g.46; one more read,
+ *                                 of her users row, and only for this value). The leader family and role
+ *                                 'unregistered' are off. Code before bd-fmf24g.46 reads it as OFF.
  *   anything else, no row, or a failed read → OFF
  *
  * Same fail-closed rule as isFlagEnabled: the only way on is a deliberate,
@@ -140,12 +147,25 @@ async function isFlagEnabledForUser(supabase, key, userId) {
       try { value = JSON.parse(value); } catch (_) { /* fall through to the raw string */ }
     }
     if (value === true) return true;
+    // `await` so a failed read lands in the catch below (OFF), never in the caller.
+    if (isTeachersValue(value)) return await isTeacherUser(supabase, userId);
     if (typeof value === 'string') return value.trim().toLowerCase() === 'true';
     if (Array.isArray(value)) return value.some((id) => typeof id === 'string' && id === userId);
     return false;
   } catch (_) {
     return false;
   }
+}
+
+/** bd-fmf24g.46 — is this user a teacher (users.role)? No row or a failed read is no. */
+async function isTeacherUser(supabase, userId) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error || !data) return false;
+  return isTeacherRole(data.role);
 }
 
 /**
