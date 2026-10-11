@@ -94,6 +94,64 @@ test('only the seven app features have a landing; anything else cannot be signed
   expect(signAppLink('', 'menu')).toBeNull();
 });
 
+/*
+ * bd-fmf24g.40 — INTERNAL_API_KEY is the SAME on staging and production, so a key derived from it alone let a
+ * staging-minted link sign the same users.id into production. The key is bound to the environment's Supabase
+ * project (SUPABASE_URL's host), which every bot, worker and portal service of one environment shares and no two
+ * environments share.
+ */
+describe('bd-fmf24g.40 — the key is bound to the environment', () => {
+  const STAGING = 'https://rpqkekcfvumypldbejhp.supabase.co';
+  const PROD = 'https://ihzciabopbttygxxgrkm.supabase.co';
+
+  test('a token minted on staging is refused by production, though INTERNAL_API_KEY is the same', () => {
+    process.env.SUPABASE_URL = STAGING;
+    const t = load().signAppLink(USER, 'menu');
+    expect(t).toBeTruthy();
+    expect(load().verifyAppLink(t)).not.toBeNull(); // staging itself accepts it
+    jest.resetModules();
+    process.env.SUPABASE_URL = PROD;
+    expect(load().verifyAppLink(t)).toBeNull();
+  });
+
+  test('and the other way round: a production token does not open staging', () => {
+    process.env.SUPABASE_URL = PROD;
+    const t = load().signAppLink(USER, 'lesson_plan');
+    process.env.SUPABASE_URL = STAGING;
+    expect(load().verifyAppLink(t)).toBeNull();
+  });
+
+  test('the same environment written differently (case, trailing slash, a path) is the same environment', () => {
+    process.env.SUPABASE_URL = PROD;
+    const t = load().signAppLink(USER, 'menu');
+    for (const spelling of [`${PROD}/`, PROD.toUpperCase().replace('HTTPS', 'https'), `${PROD}/rest/v1`]) {
+      process.env.SUPABASE_URL = spelling;
+      expect(load().verifyAppLink(t)).toEqual(expect.objectContaining({ u: USER, f: 'menu' }));
+    }
+  });
+
+  test('no SUPABASE_URL (or one that is not a URL): nothing is signed and nothing verifies', () => {
+    process.env.SUPABASE_URL = PROD;
+    const t = load().signAppLink(USER, 'menu');
+    for (const bad of [undefined, '', 'not a url']) {
+      if (bad === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = bad;
+      expect(load().signAppLink(USER, 'menu')).toBeNull();
+      expect(load().verifyAppLink(t)).toBeNull();
+    }
+  });
+
+  test('a link minted under the old derivation (INTERNAL_API_KEY alone, label v1) no longer opens anything', () => {
+    process.env.SUPABASE_URL = PROD;
+    const crypto = require('crypto');
+    const oldKey = crypto.createHmac('sha256', process.env.INTERNAL_API_KEY).update('app-login-link-v1').digest();
+    const iv = crypto.randomBytes(12);
+    const c = crypto.createCipheriv('aes-256-gcm', oldKey, iv);
+    const plain = Buffer.from(JSON.stringify({ k: 'app', u: USER, f: 'menu', exp: Math.floor(Date.now() / 1000) + 3600 }));
+    const old = Buffer.concat([iv, c.update(plain), c.final(), c.getAuthTag()]).toString('base64url');
+    expect(load().verifyAppLink(old)).toBeNull();
+  });
+});
+
 test('no secret on this deployment: nothing is signed and nothing verifies', () => {
   delete process.env.INTERNAL_API_KEY;
   const { signAppLink, verifyAppLink } = load();

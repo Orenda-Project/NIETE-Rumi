@@ -12,8 +12,18 @@
  * Contract:
  *   1. FAIL CLOSED. Absent row, malformed value, or a failed lookup mean OFF,
  *      and OFF is today's behaviour exactly. Redirecting must be deliberate.
- *   2. ON → the teacher gets ONE notice with the Play Store link, in her
+ *   2. ON (true) → the teacher gets ONE notice with the Play Store link, in her
  *      language, and the feature does not run.
+ *   2a. THE APP LINK (bd-fmf24g.35/.46), for the seven features with a teacher-app
+ *      page (app-login-link.js LANDINGS): a LIST of users.id → those teachers (a
+ *      pilot); "teachers" → every REGISTERED TEACHER (users.role teacher, and
+ *      registration-status isRegistered). Either way only for a teacher on the
+ *      teacher app (portal_teacher_v2, read with the portal's own rule), and the
+ *      answer is ONE message with a button that opens the app signed in, on the
+ *      feature's page — no Play Store notice, no quiet hour. Anyone a "teachers"
+ *      switch does not cover (a principal, a coach, a number that never
+ *      registered, a child's handset, an account that cannot be read) keeps
+ *      today's WhatsApp flow. "teachers" on a feature with no page is OFF.
  *   3. QUIET HOUR, per teacher, shared by every switch. A second redirect
  *      inside 60 minutes sends NOTHING — and still reports "handled", so the
  *      caller does not fall through to the feature or to AI chat. After the
@@ -34,6 +44,8 @@ const { appStoreUrl } = require('../config/branding');
 const InboundTyping = require('./inbound-typing');
 const { signAppLink, LANDINGS } = require('./app-login-link');
 const { portalUrl } = require('../config/branding');
+const { isTeachersValue, isTeacherRole } = require('./teacher-audience');
+const { isRegistered } = require('../utils/registration-status');
 
 /** feature → app_settings key. The keys are the contract with whoever flips them. */
 const APP_REDIRECT_FLAGS = Object.freeze({
@@ -70,7 +82,7 @@ const APP_LINK_COPY = Object.freeze({
 });
 const APP_LINK_GENERIC = APP_LINK_COPY.menu;
 
-/** The teacher app's own switch (dashboard/lib/feature-flags.js PORTAL_TEACHER_V2_KEY): true, or a list of users.id. */
+/** The teacher app's own switch (dashboard/lib/feature-flags.js PORTAL_TEACHER_V2_KEY): true, "teachers", or a list of users.id. */
 const TEACHER_APP_KEY = 'portal_teacher_v2';
 
 const NOTICE_FEATURE = 'app_redirect_notice';
@@ -132,19 +144,65 @@ async function isRedirectEnabled(feature, { now = Date.now() } = {}) {
   return isOn((await settingValues(now)).get(key));
 }
 
+/** Her users row — only the columns the link decision reads. Throws on a failed read; null when there is none. */
+async function loadAccount(userId) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, role, name, registration_completed, registration_state')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message || 'users read failed');
+  return data || null;
+}
+
 /**
- * bd-fmf24g.35 — the one-tap link, for a pilot: `feature` has a v2 page, its switch holds a LIST that includes
- * this teacher, and she is on the teacher app (portal_teacher_v2 true, or a list holding her). The pilot gate
- * and the v2 flag must agree, so a teacher who would land on a page she cannot open never gets the link.
+ * Is she on the teacher app? portal_teacher_v2 read with the portal's rule (dashboard/lib/feature-flags.js
+ * isFlagEnabledForUser): a list holding her, true, or "teachers" and her role is teacher. `account` is read only
+ * for "teachers".
  */
-async function isLinkPilot(feature, userId, now) {
+async function onTeacherApp(appValue, userId, account) {
+  if (listHas(appValue, userId) || isOn(appValue)) return true;
+  if (!isTeachersValue(appValue)) return false;
+  const a = await account();
+  return Boolean(a) && isTeacherRole(a.role);
+}
+
+/**
+ * bd-fmf24g.35/.46 — the one-tap link. For a feature with a v2 page:
+ *   'link'      her switch is a LIST holding her (a pilot), or "teachers" and she is a registered teacher —
+ *               and, either way, she is on the teacher app. The pilot gate and the v2 flag must agree, so a
+ *               teacher who would land on a page she cannot open never gets the link.
+ *   'whatsapp'  the switch is "teachers" but it does not cover her: today's flow, never the Play Store notice.
+ *   null        not a link matter (off, a list without her, plain true): the notice path decides.
+ * Her users row is read only when the answer depends on it, so general_chat (every open message) never reads it.
+ */
+async function linkVerdict(feature, userId, now) {
   const key = APP_REDIRECT_FLAGS[feature];
   if (!key) throw new Error(`app-redirect: unknown feature "${feature}"`);
-  if (!Object.prototype.hasOwnProperty.call(LANDINGS, feature)) return false;
+  if (!Object.prototype.hasOwnProperty.call(LANDINGS, feature)) return null;
   const values = await settingValues(now);
-  if (!listHas(values.get(key), userId)) return false;
+  const flag = values.get(key);
+  const pilot = listHas(flag, userId);
+  if (!pilot && !isTeachersValue(flag)) return null;
+
+  let read = null;
+  const account = () => { if (!read) read = loadAccount(userId); return read; };
   const app = values.get(TEACHER_APP_KEY);
-  return isOn(app) || listHas(app, userId);
+  try {
+    if (pilot) return (await onTeacherApp(app, userId, account)) ? 'link' : null;
+    const a = await account();
+    let why = null;
+    if (!a) why = 'no_account';
+    else if (!isTeacherRole(a.role)) why = 'not_a_teacher';
+    else if (!isRegistered(a)) why = 'not_registered';
+    else if (!(await onTeacherApp(app, userId, account))) why = 'not_on_teacher_app';
+    if (!why) return 'link';
+    logToFile('↩️ App link: not for her — the WhatsApp flow runs', { userId, feature, why });
+    return 'whatsapp';
+  } catch (err) {
+    logToFile('⚠️ App link: her account could not be read — the WhatsApp flow runs', { userId, feature, error: err?.message }, 'warn');
+    return pilot ? null : 'whatsapp';
+  }
 }
 
 async function lastNotice(userId) {
@@ -240,8 +298,10 @@ async function sendAppLink(feature, { userId, from, language, reason }) {
 }
 
 async function decideRedirect(feature, { userId, from, language, reason = 'unspecified', now = Date.now() } = {}) {
-  if (userId && from && await isLinkPilot(feature, userId, now)) {
-    return sendAppLink(feature, { userId, from, language, reason });
+  if (userId && from) {
+    const verdict = await linkVerdict(feature, userId, now);
+    if (verdict === 'link') return sendAppLink(feature, { userId, from, language, reason });
+    if (verdict === 'whatsapp') return false;
   }
   if (!(await isRedirectEnabled(feature, { now }))) return false;
   if (!userId || !from) return false;
