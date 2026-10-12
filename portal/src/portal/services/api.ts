@@ -4,7 +4,7 @@ import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, 
   AttendanceResponse } from '../types/portal';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
-import type { CoachHomeData, CoachScheduleData, TeamData, PeopleData, SchoolData, TeacherData, VisitData, ReportsData, ObservationReport } from '../coach/types';
+import type { CoachHomeData, CoachScheduleData, TeamData, PeopleData, SchoolData, TeacherData, VisitData, ReportsData, ObservationReport, SchoolHit, TeacherPlan } from '../coach/types';
 
 // On the web, frontend and backend share a domain, so a relative URL avoids
 // CORS and third-party cookies entirely. In the Capacitor app there is no
@@ -963,6 +963,32 @@ export const coach = {
   /** bd-o15qnr.11 — Remove from school: the /observe teacher admin's commitRemovals. */
   removeTeacher: async (teacherExtId: string): Promise<{ success: boolean; reason?: string }> => {
     const response = await api.post(`/coach/teacher/${encodeURIComponent(teacherExtId)}/remove`, {});
+    return response.data;
+  },
+  // Her school list and its teachers — saved by the /observe school and teacher admin. A refusal arrives as an HTTP
+  // error whose body carries `reason` (not_found, not_my_school, invalid_phone, is_coach, name_required).
+  searchSchools: async (q: string): Promise<{ success: boolean; schools: SchoolHit[] }> => {
+    const response = await api.get('/coach/schools/search', { params: { q } });
+    return response.data;
+  },
+  addSchool: async (schoolExtId: string): Promise<{ success: boolean; schoolName?: string | null; emis?: string | null; teacherCount?: number }> => {
+    const response = await api.post('/coach/schools', { schoolExtId });
+    return response.data;
+  },
+  removeSchool: async (emis: string): Promise<{ success: boolean; schoolName?: string | null }> => {
+    const response = await api.post(`/coach/school/${encodeURIComponent(emis)}/remove`, {});
+    return response.data;
+  },
+  checkTeacher: async (emis: string, phone: string): Promise<{ success: boolean } & TeacherPlan> => {
+    const response = await api.post(`/coach/school/${encodeURIComponent(emis)}/teachers/check`, { phone });
+    return response.data;
+  },
+  addTeacher: async (emis: string, phone: string, name: string): Promise<{ success: boolean } & TeacherPlan> => {
+    const response = await api.post(`/coach/school/${encodeURIComponent(emis)}/teachers`, { phone, name });
+    return response.data;
+  },
+  removeTeachers: async (emis: string, teacherExtIds: string[], reason: string): Promise<{ success: boolean; removed: { name: string | null }[]; skipped: number; visitsCancelled: number }> => {
+    const response = await api.post(`/coach/school/${encodeURIComponent(emis)}/teachers/remove`, { teacherExtIds, reason });
     return response.data;
   },
   getVisit: async (id: string): Promise<{ success: boolean } & VisitData> => {

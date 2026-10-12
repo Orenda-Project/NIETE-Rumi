@@ -37,4 +37,24 @@ const removeTeacher = ({ leaderUserId, userId, schoolExtId }) =>
 const editTeacher = ({ leaderUserId, schoolExtId, userId, edit, value }) =>
   post('teacher-edit', { leaderUserId, schoolExtId, userId, edit, value });
 
-module.exports = { moveTeacher, removeTeacher, editTeacher };
+// The coach app's school list and "manage teachers": the /observe school and
+// teacher admin, the same writers the WhatsApp Flow uses.
+const searchSchools = ({ leaderUserId, term }) => post('school-search', { leaderUserId, term });
+
+const addSchool = ({ leaderUserId, schoolExtId }) => post('school-add', { leaderUserId, schoolExtId });
+
+const removeSchool = ({ leaderUserId, schoolExtId }) => post('school-remove', { leaderUserId, schoolExtId });
+
+const checkTeacher = ({ leaderUserId, schoolExtId, phone }) =>
+  post('teacher-add-check', { leaderUserId, schoolExtId, phone });
+
+const addTeacher = ({ leaderUserId, schoolExtId, phone, name }) =>
+  post('teacher-add', { leaderUserId, schoolExtId, phone, name });
+
+const removeTeachers = ({ leaderUserId, schoolExtId, userIds, reason }) =>
+  post('teacher-remove-many', { leaderUserId, schoolExtId, userIds, reason });
+
+module.exports = {
+  moveTeacher, removeTeacher, editTeacher,
+  searchSchools, addSchool, removeSchool, checkTeacher, addTeacher, removeTeachers,
+};
