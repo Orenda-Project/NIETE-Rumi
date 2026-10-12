@@ -20,6 +20,18 @@ commit
 
 ## One command
 
+To run features by name — always the mock lane, always the local database (`/e2e-mock` in Claude Code):
+
+```bash
+npm run e2e:mock                                  # the safe subset
+npm run e2e:mock -- training                      # every scenario of one feature
+npm run e2e:mock -- training,menu                 # several features at once, one slot each
+npm run e2e:mock -- all                           # every feature at once
+npm run e2e:mock -- coaching --only 'coaching=COA09,COA20'
+```
+
+To test what a commit touched:
+
 ```bash
 bash .claude/qa/shared/commit-e2e.sh HEAD                      # what this commit touched (mock-capable subset)
 bash .claude/qa/shared/commit-e2e.sh <sha> --features menu     # a specific feature
