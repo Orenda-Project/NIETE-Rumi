@@ -13,6 +13,7 @@
 #   bash bot/scripts/e2e/local-db.sh drift [objects.txt]   # does the live sandbox still match schema.sql? exit 10 if not
 #   bash bot/scripts/e2e/local-db.sh status | stop          # the machine's cluster
 #   bash bot/scripts/e2e/local-db.sh demo-seed <run_dir>   # LOCAL PORTAL ONLY: add a made-up school network to this run
+#   bash bot/scripts/e2e/local-db.sh sandbox-copy <run_dir> [--refresh]   # LOCAL PORTAL ONLY: the sandbox's rows into this run
 #
 # Three tiers, the same split the lane already uses for redis and node_modules:
 #   once per machine   a Postgres 17 cluster under $LOCAL_DB_HOME, started on first use and left running
@@ -619,6 +620,110 @@ demo_seed() {
   ' "$HERE/portal-demo-seed.js"
 }
 
+# The SANDBOX's rows, into THIS run's database only (bd-hnhlgn.2) — so a local portal shows what the sandbox shows.
+# Pulled on this machine with this person's own sandbox access (railway login, or LOCAL_DB_SANDBOX_URL), asserted
+# to be the sandbox before connecting, cached under $LOCAL_DB_HOME/sandbox-copy (never in the repo — it holds
+# testers' real numbers). The sandbox pooler drops any single transfer past ~90 s, so each table is its own
+# connection, retried, and a table that still fails comes over in ctid-block chunks of ~8 MB. Rows load by column
+# NAME (the run's schema may lag the sandbox), then every sequence is moved past the copied rows.
+sandbox_copy() {
+  local run_dir="${1:-}" refresh=0
+  [ "${2:-}" = --refresh ] && refresh=1
+  [ -n "$run_dir" ] && [ -f "$run_dir/db.name" ] || { echo "usage: local-db.sh sandbox-copy <run_dir> [--refresh]   (a run_dir from \`up\`)" >&2; exit 2; }
+  need_tools
+  local url; url=$(sandbox_source "${LOCAL_DB_SANDBOX_URL:-}" "sandbox copy") || exit 3
+  # the password goes in PGPASSWORD, not on psql's command line, where `ps` shows it to every user of the machine
+  export PGPASSWORD; PGPASSWORD=$(python3 -c 'import sys, urllib.parse as u; print(u.unquote(u.urlsplit(sys.argv[1]).password or ""))' "$url")
+  url=$(python3 -c 'import sys, urllib.parse as u; p = u.urlsplit(sys.argv[1]); h = p.netloc.rsplit("@", 1); print(u.urlunsplit(p._replace(netloc=(p.username or "") + "@" + h[-1])) if len(h) > 1 else sys.argv[1])' "$url")
+  local db; db=$(cat "$run_dir/db.name")
+  local cache="${LOCAL_DB_COPY_CACHE:-$LOCAL_DB_HOME/sandbox-copy}" bin; bin=$(dump_bin)
+  mkdir -p "$cache"; chmod 700 "$cache"
+  if [ $refresh = 0 ] && [ -f "$cache/complete" ]; then
+    log "sandbox-copy: using the cached copy from $(cat "$cache/complete") (--refresh pulls again)"
+  else
+    sandbox_pull "$url" "$cache" "$bin" || exit 3
+  fi
+  sandbox_load "$cache" "$db" || { log "sandbox-copy: load failed — $cache/load.log"; exit 6; }
+  log "sandbox-copy: $(wc -l <"$cache/tables.txt" | tr -d ' ') tables into $db"
+}
+
+sandbox_pull() {
+  local url="$1" cache="$2" bin="$3" t0=$SECONDS tmp="$2/pulling"
+  rm -rf "$tmp" "$cache/complete"; mkdir -p "$tmp"
+  local q=("$bin/psql" -X -q -At "$url")
+  "${q[@]}" -c "select c.relname||'|'||a.attname from pg_class c join pg_attribute a on a.attrelid=c.oid
+      where c.relnamespace='public'::regnamespace and c.relkind='r' and a.attnum>0 and not a.attisdropped order by c.relname, a.attnum" >"$tmp/columns.txt" \
+    && "${q[@]}" -c "select relname||'|'||pg_relation_size(oid)/8192||'|'||pg_total_relation_size(oid)
+      from pg_class where relnamespace='public'::regnamespace and relkind='r' order by pg_total_relation_size(oid)" >"$tmp/sizes.txt" \
+    || { log "sandbox-copy: could not read the sandbox's table list"; return 1; }
+  local t blocks total n=0 ok try
+  while IFS='|' read -r t blocks total; do
+    n=$((n+1)); ok=0
+    if [ "${LOCAL_DB_COPY_FORCE_CHUNK:-}" != "$t" ]; then
+      for try in 1 2; do "${q[@]}" -c "\copy public.\"$t\" to '$tmp/$t.csv' with csv" 2>/dev/null && { ok=1; break; }; done
+    fi
+    if [ $ok = 0 ]; then
+      # ctid ranges: a tid range scan reads only those heap blocks, however wide the rows' TOAST is
+      [ "$blocks" -lt 1 ] && blocks=1
+      local step=$(( total > 0 ? (8388608 * blocks) / total : 1000 )) b=0 part=0 good
+      [ "$step" -lt 1 ] && step=1
+      : >"$tmp/$t.csv"; ok=1
+      while [ $b -le "$blocks" ]; do
+        good=0
+        for try in 1 2 3; do
+          "${q[@]}" -c "\copy (select * from public.\"$t\" where ctid >= '($b,0)'::tid and ctid < '($((b+step)),0)'::tid) to '$tmp/$t.part' with csv" 2>/dev/null && { good=1; break; }
+        done
+        [ $good = 1 ] || { log "sandbox-copy: $t blocks $b+$step failed 3 times"; ok=0; break; }
+        cat "$tmp/$t.part" >>"$tmp/$t.csv"; b=$((b+step)); part=$((part+1))
+      done
+      rm -f "$tmp/$t.part"
+      log "sandbox-copy: chunked $t ($part chunks)"
+    fi
+    [ $ok = 1 ] || { log "sandbox-copy: gave up on $t — nothing cached"; return 1; }
+    echo "$t" >>"$tmp/tables.txt"
+    [ $((n % 25)) = 0 ] && log "sandbox-copy: $n tables pulled ($((SECONDS - t0))s)"
+  done <"$tmp/sizes.txt"
+  rm -rf "$cache/data"; mv "$tmp" "$cache/data"
+  mv "$cache/data/columns.txt" "$cache/data/tables.txt" "$cache/"
+  date -u +%Y-%m-%dT%H:%MZ >"$cache/complete"
+  log "sandbox-copy: pulled $n tables, $(du -sh "$cache/data" | cut -f1), in $((SECONDS - t0))s"
+}
+
+sandbox_load() {
+  local cache="$1" db="$2"
+  psql_ -d "$db" -At -c "select c.relname||'|'||a.attname||'|'||format_type(a.atttypid,a.atttypmod)||'|'||a.attgenerated::text||'|'||a.attidentity::text
+      from pg_class c join pg_attribute a on a.attrelid=c.oid
+      where c.relnamespace='public'::regnamespace and c.relkind='r' and a.attnum>0 and not a.attisdropped order by c.relname, a.attnum" >"$cache/local-columns.txt" || return 1
+  python3 - "$cache" >"$cache/load.sql" <<'PY' || return 1
+import sys, collections
+cache = sys.argv[1]
+src = collections.OrderedDict()
+for l in open(f"{cache}/columns.txt"):
+    t, c = l.rstrip("\n").split("|", 1); src.setdefault(t, []).append(c)
+loc = collections.defaultdict(dict)
+for l in open(f"{cache}/local-columns.txt"):
+    t, c, ty, gen, ident = l.rstrip("\n").split("|"); loc[t][c] = (ty, gen, ident)
+tables = [t.strip() for t in open(f"{cache}/tables.txt") if t.strip() in loc]
+q = lambda n: '"' + n.replace('"', '""') + '"'
+lit = lambda s: "'" + s.replace("'", "''") + "'"
+print("\\set ON_ERROR_STOP 1\nbegin;\nset local session_replication_role = replica;")
+print(f"truncate {', '.join('public.' + q(t) for t in tables)} restart identity cascade;")
+for t in tables:
+    cols = src[t]; keep = [c for c in cols if c in loc[t] and loc[t][c][1] == ""]
+    if not keep: continue
+    over = " overriding system value" if any(loc[t][c][2] == "a" for c in keep) else ""
+    print(f"create temp table stg ({', '.join(q(c) + ' text' for c in cols)});")
+    print(f"\\copy stg from {lit(cache + '/data/' + t + '.csv')} with csv")
+    print(f"insert into public.{q(t)} ({', '.join(q(c) for c in keep)}){over} select {', '.join('s.' + q(c) + '::' + loc[t][c][0] for c in keep)} from stg s;")
+    print("drop table stg;")
+print("commit;")
+PY
+  psql_ -d "$db" -f "$cache/load.sql" >"$cache/load.log" 2>&1 || { tail -3 "$cache/load.log" >&2; return 1; }
+  # sequences past the copied rows (text codes like 'S-100123' too), then the materialized views
+  psql_ -d "$db" -f "$HERE/sandbox-copy-finish.sql" >>"$cache/load.log" 2>&1 || { tail -3 "$cache/load.log" >&2; return 1; }
+  grep -h "WARNING" "$cache/load.log" >&2 || true
+}
+
 stop() { [ -n "$PGBIN" ] && "$PGBIN/pg_ctl" -D "$PGDATA" stop -m fast >/dev/null 2>&1; return 0; }
 
 CMD="${1:-}"; shift || true
@@ -626,5 +731,6 @@ case "$CMD" in
   up) up "$@";; down) down "$@";; baseline) baseline "$@";; status) status;; stop) stop;;
   seed-pull) seed_pull "$@";; seed-publish) seed_publish;; seed-status) seed_status;; doctor) doctor;; install-tools) install_tools;; drift) drift "$@";;
   demo-seed) demo_seed "$@";;
-  *) sed -n '2,16p' "$0" >&2; exit 2;;
+  sandbox-copy) sandbox_copy "$@";;
+  *) sed -n '2,17p' "$0" >&2; exit 2;;
 esac

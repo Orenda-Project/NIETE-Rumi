@@ -1,28 +1,31 @@
 # Run the teacher + coach portal on your laptop
 
-One command gives you the NIETE portal at `http://localhost:4000`, running on a local database full of made-up
-schools, teachers and a coach. Nothing talks to WhatsApp, the sandbox or production.
+One command gives you the NIETE portal at `http://localhost:4000`, running on a local database holding a copy of
+the **sandbox's** data, plus a few made-up accounts with a known password. Nothing writes to WhatsApp, the sandbox
+or production — the sandbox is only read, once, to fill your local copy.
 
 ## Once per machine
 
 ```bash
 brew install postgresql@17 pgvector postgrest redis node      # macOS (Linux: bash bot/scripts/e2e/local-db.sh install-tools)
 gh auth login                                                 # needs read access to Orenda-Project/niete-e2e-fixtures
+railway login                                                 # needs access to the "NIETE-Rumi Staging" project (the sandbox)
 bash bot/scripts/e2e/local-db.sh doctor                       # prints anything still missing; silent when ready
 ```
 
-No Railway login, no keys file and no `npm ci` by hand: the stack installs the bot's modules from the commit's own
-lockfile, and `up` installs `dashboard/` and `portal/` the first time.
+No keys file and no `npm ci` by hand: the stack installs the bot's modules from the commit's own lockfile, and
+`up` installs `dashboard/` and `portal/` the first time.
 
 ## Every time
 
 ```bash
-bash scripts/dev-portal.sh up        # ~30 s (a few minutes the first time: it builds the portal)
+bash scripts/dev-portal.sh up        # first time ~40 min (copies the sandbox); after that ~1 min, from the cache
 bash scripts/dev-portal.sh status
 bash scripts/dev-portal.sh down      # stops everything and drops the database
 ```
 
-`up` prints the URL and the logins. Password for all of them: **`Demo2026`**.
+`up` prints the URL and the logins. **Every sandbox account works with its sandbox password.** The made-up
+accounts below are added on top so there is always a login you know — password **`Demo2026`**:
 
 | Who | Phone | What you'll see |
 |---|---|---|
@@ -39,9 +42,13 @@ bash scripts/dev-portal.sh down      # stops everything and drops the database
 | Mock WhatsApp API, worker, Redis, file store | 4010, 3201, 6390, 54600 | the same stack |
 | Postgres 17 + PostgREST | 54329, 54321 | `bot/scripts/e2e/local-db.sh` — a fresh database per `up` |
 
-The data is the reference seed (training and lesson-plan catalogues) plus `local-db.sh demo-seed`
-(`bot/scripts/e2e/portal-demo-seed.js`): every person, school and score in it is invented, so it is safe to share.
-Anything you create while clicking around is gone after `down`.
+**The data.** `local-db.sh sandbox-copy` reads every sandbox table into your run's database (asserted to be the
+sandbox project before it connects — it cannot copy production). The pull is cached in
+`~/.cache/niete-e2e-db/sandbox-copy` so the next `up` takes a minute; `SANDBOX_REFRESH=1` pulls a fresh one. The
+copy holds testers' real phone numbers: it stays on your laptop and never goes in the repo. Then
+`local-db.sh demo-seed` adds the made-up network (`bot/scripts/e2e/portal-demo-seed.js`).
+**No sandbox access?** `DATA=demo bash scripts/dev-portal.sh up` gives the made-up data only — ~30 s, nothing to
+pull. Anything you create while clicking around is gone after `down`.
 
 The API is started from `<run_dir>/portal/` with its own `.env`, so **your `dashboard/.env` is never read** and no
 real key reaches a local run. Two settings relax only there: the DB connection skips SSL for a `127.0.0.1` host,
