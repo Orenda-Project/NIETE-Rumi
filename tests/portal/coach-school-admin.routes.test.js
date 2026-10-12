@@ -48,7 +48,7 @@ beforeEach(() => {
     addTeacher: jest.fn().mockResolvedValue({ status: 403, data: { success: false, reason: 'not_my_school' } }),
     removeTeachers: answer({ removed: [] }),
   };
-  jest.doMock('../../dashboard/services/coach-school-admin.service', () => Admin, { virtual: true });
+  jest.doMock('../../dashboard/services/coach-school-admin.service', () => Admin);
 });
 
 afterEach(() => jest.resetModules());
