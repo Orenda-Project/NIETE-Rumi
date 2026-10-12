@@ -72,12 +72,34 @@ async function chapterTitle(grade, subjectCode, chapter) {
   }
 }
 
-/** The portal item for each kind, ONLY if it is hers. Null = not hers / not there. `{ unsupported }` = not covered. */
-function itemResolvers(supabase, { presign } = {}) {
+/**
+ * The portal item for each kind, ONLY if it is hers. Null = not hers / not there. `{ unsupported }` = not covered.
+ * bd-fmf24g.54 — a grades 1-5 (K5) plan is curriculum every teacher can open in the app, so it has no per-teacher row:
+ * it is "hers" because the send goes only to HER number. `k5` is injectable for tests (the catalogue + the signed PDF).
+ */
+function itemResolvers(supabase, { presign, k5 } = {}) {
   const sign = presign || (async (urlOrKey) => {
     const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
     return getPresignedUrl(/^https?:/i.test(String(urlOrKey)) ? urlOrKey : buildR2PublicUrl(urlOrKey));
   });
+  const catalogue = k5 || {
+    lessonById: (id) => require('./lp-v8-catalog.service').lessonById(id),
+    // The same signed asset, in her A/B group, that the app's "Open" serves (lp-v8-browse.lessonPdfUrl).
+    pdfUrl: (id, assetKind, userId) => require('./lp-v8-browse.service').lessonPdfUrl(id, assetKind, userId),
+  };
+  async function k5Lesson(userId, lessonId, assetKind) {
+    const hit = catalogue.lessonById(lessonId);
+    if (!hit) return null;
+    const pdf = await catalogue.pdfUrl(lessonId, assetKind, userId);
+    if (!pdf || !pdf.url) return null;
+    const book = hit.book || {};
+    const lesson = hit.lesson || {};
+    return {
+      kind: 'lesson', itemRef: `lesson:k5:${lessonId}:${assetKind}`,
+      title: lesson.topic || lesson.section || null, grade: book.grade == null ? null : Number(book.grade), subject: book.subject || null,
+      answerKey: assetKind === 'answer_key', pdfUrl: pdf.url,
+    };
+  }
   return {
     async paper(userId, id) {
       const { data, error } = await supabase.from('assessment_requests')
@@ -96,8 +118,10 @@ function itemResolvers(supabase, { presign } = {}) {
       };
     },
     async lesson(userId, id) {
+      const k = /^k5:([^:]+)(?::(lesson|answer_key))?$/.exec(String(id));
+      if (k) return k5Lesson(userId, k[1], k[2] || 'lesson');
       const m = /^g612:(.+)$/.exec(String(id));
-      if (!m) return { unsupported: 'lesson_source' }; // grades 1-5 plans have no per-teacher record to scope a send by
+      if (!m) return { unsupported: 'lesson_source' };
       const { data, error } = await supabase.from('niete_lp612_deliveries')
         .select('render_id, segment_id, lang, niete_lp612_renders!inner(status, r2_key)')
         .eq('user_id', userId).eq('render_id', m[1]).eq('niete_lp612_renders.status', 'ready').limit(1);
@@ -163,7 +187,7 @@ function latin(text) {
 
 /** "Paper - Grade 4 Science - Plants and food.pdf" — what she sees on the document in her chat and her downloads. */
 function fileName(item) {
-  const label = item.kind === 'paper' ? 'Paper' : 'Lesson plan';
+  const label = item.kind === 'paper' ? 'Paper' : (item.answerKey ? 'Answer key' : 'Lesson plan');
   const klass = [item.grade ? `Grade ${item.grade}` : '', latin(item.subject)].filter(Boolean).join(' ');
   return `${[label, klass, latin(item.title).slice(0, 60).trim()].filter(Boolean).join(' - ')}.pdf`;
 }
