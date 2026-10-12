@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, fireEvent } from "@testing-library/react";
 import i18n from "i18next";
-import { ShareActions, intentUrl, clockOf, type ShareResult } from "./ShareActions";
+import { ShareActions, clockOf, type ShareResult } from "./ShareActions";
 
 /**
  * bd-fmf24g.30 — ShareActions (Blueprint: ShareActions). Send on WhatsApp: default · sending · sent ✓ + time · failed +
- * Try again · unavailable. Open in another app: per environment (Android WhatsApp browser: intent:// then Copy link after
- * 2 s; iPhone WhatsApp browser: Copy link; Chrome / the app: hidden for a page, the file for a file).
+ * Try again · unavailable. Open in another app: per environment (WhatsApp's browser, Android or iPhone: Copy link, never a
+ * navigation — bd-fmf24g.53; Chrome / the app: hidden for a page, the file for a file).
  */
 const classes = (el: Element) => (el.getAttribute("class") || "").split(/\s+/);
 const deferred = <T,>() => { let resolve!: (v: T) => void; const promise = new Promise<T>((r) => { resolve = r; }); return { promise, resolve }; };
@@ -105,13 +105,12 @@ describe("Open in another app: by environment", () => {
     render(<ShareActions open={page} env="android-iab" />);
     expect(screen.queryByTestId("share-open")).toBeNull();
   });
-  it("a page, hand-off on: Android WhatsApp browser shows it; iPhone shows Copy link; Chrome and the app hide it", () => {
-    const { unmount } = render(<ShareActions open={page} env="android-iab" pageHandoff />);
-    expect(screen.getByTestId("share-open")).toHaveTextContent("Open in another app");
-    unmount();
-    const ios = render(<ShareActions open={page} env="ios-iab" pageHandoff />);
-    expect(screen.getByTestId("share-open")).toHaveTextContent("Copy link");
-    ios.unmount();
+  it("a page, hand-off on: WhatsApp's browser (Android and iPhone) shows Copy link; Chrome and the app hide it", () => {
+    for (const env of ["android-iab", "ios-iab"] as const) {
+      const r = render(<ShareActions open={page} env={env} pageHandoff />);
+      expect(screen.getByTestId("share-open")).toHaveTextContent("Copy link");
+      r.unmount();
+    }
     for (const env of ["browser", "native"] as const) {
       const r = render(<ShareActions open={page} env={env} pageHandoff />);
       expect(r.container.firstChild).toBeNull();
@@ -119,29 +118,38 @@ describe("Open in another app: by environment", () => {
     }
   });
 
-  it("Android: sets an intent:// link with the page as its fallback, and Copy link follows when nothing happens in 2 s", async () => {
-    vi.useFakeTimers();
+  it("Android WhatsApp browser: a copy that fails says so and stays Copy link (no navigation as a way out)", async () => {
     const assign = vi.fn();
-    Object.defineProperty(window, "location", { configurable: true, value: { get href() { return "https://portal.niete.edu.pk/portal/teacher/lessons"; }, set href(v: string) { assign(v); } } });
-    render(<ShareActions open={{ fileUrl: "https://files.example/p.pdf?sig=1" }} env="android-iab" />);
+    Object.defineProperty(window, "location", { configurable: true, value: { get href() { return "https://portal.niete.edu.pk/x"; }, set href(v: string) { assign(v); } } });
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn(async () => { throw new Error("denied"); }) } });
+    // (jsdom has no document.execCommand, so the old-way fallback fails too, as a locked-down web view would.)
+    render(<ShareActions open={{ fileUrl: "https://files.example/p.pdf" }} env="android-iab" />);
     fireEvent.click(screen.getByTestId("share-open"));
-    await act(async () => { await vi.advanceTimersByTimeAsync(10); });
-    expect(assign).toHaveBeenCalledWith(intentUrl("https://files.example/p.pdf?sig=1"));
-    expect(screen.getByTestId("share-open")).toHaveTextContent("Opening…");
-    await act(async () => { await vi.advanceTimersByTimeAsync(2100); });
+    await act(async () => {});
+    expect(assign).not.toHaveBeenCalled();
     expect(screen.getByTestId("share-open")).toHaveTextContent("Copy link");
     expect(screen.getByTestId("share-open")).toHaveTextContent("Couldn't open it");
   });
 
-  it("Android: if the page was left (hidden / blurred) it is a success and the button goes back to normal", async () => {
-    vi.useFakeTimers();
-    Object.defineProperty(window, "location", { configurable: true, value: { get href() { return "https://portal.niete.edu.pk/x"; }, set href(_v: string) { /* the phone takes over */ } } });
-    render(<ShareActions open={{ fileUrl: "https://files.example/p.pdf" }} env="android-iab" />);
+  // bd-fmf24g.53 — on a teacher's phone (Infinix, Android 15, WhatsApp 2.26.39.79) the intent:// link did NOT leave
+  // WhatsApp: its own browser loaded the PDF link (its bar showed the storage host) and "WhatsApp has stopped" a second
+  // later. So in WhatsApp's browser on Android nothing may navigate that browser: it copies the link, as on iPhone.
+  it("Android WhatsApp browser: never navigates it (no intent://, no window.open), copies the link, says Paste in browser", async () => {
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", { configurable: true, value: { get href() { return "https://portal.niete.edu.pk/portal/teacher/lessons/view"; }, set href(v: string) { assign(v); } } });
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    const pdf = "https://digital-coach-audio.example.r2.cloudflarestorage.com/lp/grade_2_english_ch3_seg3.pdf?X-Amz-Credential=a%2Fb&X-Amz-Signature=1";
+    render(<ShareActions open={{ fileUrl: async () => pdf }} env="android-iab" />);
+    expect(screen.getByTestId("share-open")).toHaveTextContent("Copy link");
     fireEvent.click(screen.getByTestId("share-open"));
-    await act(async () => { await vi.advanceTimersByTimeAsync(10); });
-    window.dispatchEvent(new Event("pagehide"));
-    await act(async () => { await vi.advanceTimersByTimeAsync(2100); });
-    expect(screen.getByTestId("share-open")).toHaveTextContent("Open in another app");
+    await act(async () => {});
+    expect(assign).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
+    expect(writeText).toHaveBeenCalledWith(pdf);
+    expect(screen.getByTestId("share-open")).toHaveTextContent("Link copied");
+    expect(screen.getByTestId("share-open")).toHaveTextContent("Paste in browser");
   });
 
   it("iPhone: Copy link copies the target, then says what to do next", async () => {
@@ -174,10 +182,6 @@ describe("Open in another app: by environment", () => {
 });
 
 describe("helpers", () => {
-  it("intentUrl keeps host, path and query and falls back to the same https link", () => {
-    expect(intentUrl("https://portal.niete.edu.pk/portal/teacher/x?a=1"))
-      .toBe("intent://portal.niete.edu.pk/portal/teacher/x?a=1#Intent;scheme=https;S.browser_fallback_url=https%3A%2F%2Fportal.niete.edu.pk%2Fportal%2Fteacher%2Fx%3Fa%3D1;end");
-  });
   it("clockOf is Pakistan time, 12-hour, with the kit's AM/PM words", () => {
     expect(clockOf("2026-10-10T10:42:00.000Z", "AM", "PM")).toBe("3:42 PM");
     expect(clockOf("2026-10-10T19:05:00.000Z", "صبح", "شام")).toBe("12:05 صبح");
