@@ -78,7 +78,7 @@ function Recorder({ visit, onBlocked }: { visit: CoachVisit; onBlocked: () => vo
       blob: out.blob, filename: lessonFilename(out.type.ext), durationMs: out.durationMs, recordingId: out.id,
       label: C.observationOf(visit.teacherName || C.dash), sub: [lengthShort(out.durationMs, C), C.justNow].filter(Boolean).join(" · "),
     });
-    navigate(`/portal/coach/visit/${visit.id}/check`);
+    navigate(`/portal/coach/visit/${visit.id}/check`, { replace: true }); // a finished recording is not a screen to go Back to
   };
 
   if (micBlocked) return null;

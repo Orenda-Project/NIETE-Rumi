@@ -52,7 +52,7 @@ const CoachAttach = () => {
   const next = () => {
     if (!file || pct < 100) return;
     setDraft(id, file);
-    navigate(`/portal/coach/visit/${id}/check`);
+    navigate(`/portal/coach/visit/${id}/check`, { replace: true }); // the upload step is done: Back from Check and send is the visit, not an empty picker
   };
 
   if (visit && (visit.status !== "upcoming" || !visit.teacherExtId)) return <Navigate to={`/portal/coach/visit/${id}`} replace />;

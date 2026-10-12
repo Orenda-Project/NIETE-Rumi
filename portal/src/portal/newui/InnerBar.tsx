@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { KIT_COPY } from './copy';
 import { FeatureIcon, type Feature } from './FeatureIcon';
 import { FOCUS, TAP_SQUARE } from './styles';
 import { useLatinAttrs } from '@/lib/textDir';
+import { useBack } from '../lib/useBack';
 
 /**
  * bd-5rz1v.19 — the heading of a page INSIDE a flow: a LIGHT bar, white with a 1px bottom line.
@@ -35,16 +35,11 @@ export interface InnerBarProps {
 }
 
 export function InnerBar({ feature, crumb, title, backTo, onBack, backLabel = KIT_COPY.back, right }: InnerBarProps) {
-  const navigate = useNavigate();
-  const location = useLocation();
   // bd-fmf24g.62: an English title or crumb on an Urdu page reads LTR and truncates at its end (src/lib/textDir.ts).
   const ltrOf = useLatinAttrs();
-  const back = () => {
-    if (onBack) return onBack();
-    // React Router gives the first entry of a fresh history the key "default": nothing behind it.
-    if (location.key === 'default' && backTo) navigate(backTo, { replace: true });
-    else navigate(-1);
-  };
+  // bd-fmf24g.68: the one rule for Back (lib/useBack): a step back in history; backTo only with nothing behind.
+  const goBack = useBack(backTo);
+  const back = () => (onBack ? onBack() : goBack());
 
   return (
     <header data-testid="newui-inner-bar" className="mb-3 border-b border-nu-inner-border bg-nu-inner pt-[env(safe-area-inset-top)]">

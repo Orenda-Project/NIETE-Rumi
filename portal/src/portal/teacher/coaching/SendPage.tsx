@@ -7,6 +7,7 @@ import { acceptFor } from '../../lib/coachingUpload';
 import type { TeacherClass } from '../../lib/coachingSend';
 import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
 import { hasHistoryBehind, useMicLevel } from '../../lib/recordFlow';
+import { useBack } from '../../lib/useBack';
 import { useRecordingClock, useRecordingSession, type RecordingSession } from '../../lib/recordingSession';
 import { LevelBars } from '../../newui/coaching/LevelBars';
 import { LibraryStep, type LibraryStepInfo } from '../../newui/coaching/LibraryStep';
@@ -85,6 +86,7 @@ function Status({ title, tone = 'info', children }: { title: string; tone?: 'inf
 export function SendPage() {
   const C = useCopy(COACHING);
   const navigate = useNavigate();
+  const goBack = useBack(COACHING_HOME);
   const location = useLocation();
   const session = useSession();
   const flow = useSendFlow(session, PATHS);
@@ -161,7 +163,7 @@ export function SendPage() {
     }
     // While recording, Back simply goes back: the lesson carries on, and the bar leads here again.
     if (stage === 'recording' && (hasHistoryBehind() || cameFromApp.current)) { navigate(-1); return; }
-    navigate(COACHING_HOME);
+    goBack();
   };
 
   // The lesson plan she chose, opened in the app (the recording carries on); else the plans.
