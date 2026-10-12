@@ -1,5 +1,5 @@
 // @mock-lane — mock-capable driver (uses the mock API, not the browser DOM). Its presence enrols this feature in the mock lane; E2E_MOCK_FEATURES is derived from this marker, so there is no hardcoded list.
-/* menu.feature — all 13 @e2e scenarios, driven in one process.
+/* menu.feature — all @e2e scenarios, driven in one process.
  * Assertions mirror tests/features/whatsapp/niete/menu.feature. */
 const { withRedirect, isStoreNotice, REDIRECT_BLOCKED } = require('../app-redirect-case.cjs');
 // The CORE teacher rows that must always be present. The menu is role-aware (78406d1e): a teacher's
@@ -107,6 +107,30 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
         { matchedPath: (String(r.txt).match(/\/portal\/\w+/) || [null])[0],
           note: /setup/.test(r.txt || '') ? 'setup link — portal not yet activated for this account' : 'login link',
           botWaitMs: r.waitedMs }, t() - s);
+  }
+
+  if (want('M21')) {
+    // M21 — bd-kkpg4t: activated with NO password gets the set-up link, not the login link.
+    // Seeds the driver's own row, then puts both portal columns back exactly as they were.
+    const NAME21 = '/portal sends the set-up link to an activated teacher who has no password';
+    const o = api.db('user-get');
+    const line = String(o.out || '').trim().split('\n').reverse().find((l) => l.trim().startsWith('{'));
+    const before = line ? JSON.parse(line) : null;
+    if (!before || !('portal_activated' in before)) {
+      rec('M21', NAME21, 'BLOCKED', { reason: 'user-get lever unavailable on this lane — cannot seed or restore portal columns' }, 0);
+    } else {
+      s = t();
+      try {
+        await api.setUser({ portal_activated: true, portal_password_hash: null });
+        r = await api.sendWait('/portal');
+        const txt = r.txt || '';
+        rec('M21', NAME21, (/\/portal\/setup\//.test(txt) && !/\/portal\/login/.test(txt)) ? 'PASS' : 'FAIL',
+            { matchedPath: (txt.match(/\/portal\/\w+/) || [null])[0], reply: txt.slice(0, 160), botWaitMs: r.waitedMs }, t() - s);
+      } finally {
+        await api.setUser({ portal_activated: before.portal_activated, portal_password_hash: before.portal_password_hash,
+                            portal_invite_token: before.portal_invite_token, portal_invite_expires_at: before.portal_invite_expires_at });
+      }
+    }
   }
 
   // M11 removed from the mock lane (operator, 2026-09-16): its precondition (Settings Flow UNSET)
