@@ -14,10 +14,13 @@ import type { ShareCopy } from './copy';
  *                         quiet "Send again". States: default · sending · sent ✓ + the time · failed (the whole button is
  *                         Try again) · unavailable (grey, locked, "Not available yet": no template on this deployment).
  *   Open in another app   white, navy outline, same size. Where she is decides what it does:
- *                           WhatsApp's browser (Android    Copy link + a hint ("Paste in browser" / "Open in Safari"). It
- *                           and iPhone)                    NEVER navigates that browser: bd-fmf24g.53, an intent:// link
- *                                                          did not leave WhatsApp on Android — its own browser loaded the
- *                                                          PDF link and "WhatsApp has stopped" a second later.
+ *                           WhatsApp's browser, Android    a FILE goes to the phone's app for it: an intent with action VIEW
+ *                                                          and the file's type, and NO browser_fallback_url (bd-fmf24g.59;
+ *                                                          the operator's phone test opened a PDF app). bd-fmf24g.53: with a
+ *                                                          fallback, WhatsApp's own browser loaded the PDF link and "WhatsApp
+ *                                                          has stopped" — so when no app takes it, nothing loads in WhatsApp.
+ *                                                          A quiet Copy link sits underneath as the way out.
+ *                           WhatsApp's browser, iPhone     Copy link + a hint ("Open in Safari"); a page cannot leave it.
  *                           Chrome, Safari, a desktop      hidden for a page; for a FILE it opens the file
  *                           the NIETE app                  hidden for a page; for a FILE it opens it in the system browser
  *
@@ -67,6 +70,22 @@ export function clockOf(iso: string | undefined, am: string, pm: string): string
   return `${h % 12 === 0 ? 12 : h % 12}:${m} ${h >= 12 ? pm : am}`;
 }
 
+/** bd-fmf24g.59 — the file's type for the intent, from its path (a presigned link keeps the extension). */
+function fileType(url: URL): string | null {
+  const ext = (/\.([a-z0-9]+)$/i.exec(url.pathname) || [])[1]?.toLowerCase();
+  return ({ pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' } as Record<string, string>)[ext ?? ''] ?? null;
+}
+
+/**
+ * bd-fmf24g.59 — Android: "open this file in the app for it". NO S.browser_fallback_url: a fallback is a link WhatsApp's
+ * own browser loads itself, which is what stopped WhatsApp on a teacher's phone (bd-fmf24g.53).
+ */
+export function fileIntentUrl(url: string): string {
+  const u = new URL(url);
+  const type = fileType(u);
+  return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=${u.protocol.replace(':', '')};action=android.intent.action.VIEW;${type ? `type=${type};` : ''}end`;
+}
+
 async function copyText(text: string): Promise<boolean> {
   try {
     if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; }
@@ -98,6 +117,7 @@ export function ShareActions({ onSend, available = true, sendTo, open, copy, tes
   const [send, setSend] = useState<SendState>('default');
   const [at, setAt] = useState<string | undefined>(undefined);
   const [openState, setOpenState] = useState<OpenState>('default');
+  const [copyState, setCopyState] = useState<'copy' | 'copied' | 'failed'>('copy');
   const alive = useRef(true);
   const sending = useRef(false);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
@@ -120,8 +140,10 @@ export function ShareActions({ onSend, available = true, sendTo, open, copy, tes
   const showOpen = !!open && (isPage
     ? pageHandoff && (env === 'android-iab' || env === 'ios-iab')
     : true);
-  // Inside WhatsApp's browser (either phone) the button only ever copies: nothing it can navigate to leaves WhatsApp.
-  const copyMode = (env === 'ios-iab' || env === 'android-iab') && showOpen;
+  // Android, WhatsApp's browser, a FILE: hand it to the phone's app (bd-fmf24g.59), with Copy link underneath.
+  const handOff = env === 'android-iab' && showOpen && !!fileUrl;
+  // Anywhere else inside WhatsApp's browser the button only copies: nothing it can navigate to leaves WhatsApp.
+  const copyMode = (env === 'ios-iab' || env === 'android-iab') && showOpen && !handOff;
 
   const targetUrl = useCallback(async (): Promise<string | null> => {
     if (fileUrl) return typeof fileUrl === 'string' ? fileUrl : fileUrl();
@@ -134,17 +156,29 @@ export function ShareActions({ onSend, available = true, sendTo, open, copy, tes
     if (alive.current) setOpenState(ok ? 'copied' : 'failed');
   }, [targetUrl]);
 
+  const pressCopy = useCallback(async () => {
+    let url: string | null = null;
+    try { url = await targetUrl(); } catch { url = null; }
+    const ok = url ? await copyText(url) : false;
+    if (alive.current) setCopyState(ok ? 'copied' : 'failed');
+  }, [targetUrl]);
+
   const pressOpen = useCallback(async () => {
     if (openState === 'opening') return;
     if (copyMode || openState === 'copy' || openState === 'failed') { await doCopy(); return; }
     setOpenState('opening');
     let url: string | null = null;
     try { url = await targetUrl(); } catch { url = null; }
-    if (!url) { if (alive.current) setOpenState('copy'); return; }
+    if (!url) { if (alive.current) setOpenState(handOff ? 'default' : 'copy'); return; }
+    if (handOff) {
+      window.location.href = fileIntentUrl(url);
+      if (alive.current) setOpenState('default');
+      return;
+    }
     // A file in Chrome, Safari or the app: open it normally (the app hands another host to the system browser).
     window.open(url, '_blank', 'noopener,noreferrer');
     setOpenState('default');
-  }, [copyMode, doCopy, openState, targetUrl]);
+  }, [copyMode, doCopy, handOff, openState, targetUrl]);
 
   if (!onSend && !showOpen) return null;
 
@@ -244,6 +278,16 @@ export function ShareActions({ onSend, available = true, sendTo, open, copy, tes
         </div>
       ) : null}
       {openButton}
+      {handOff ? (
+        <button type="button" data-testid="share-copy" onClick={pressCopy} className={cn('flex min-h-[56px] w-full items-center justify-center gap-2 text-[16px] font-semibold text-[#33374a]', FOCUS)}>
+          {copyState === 'copied'
+            ? <Check className="h-5 w-5 shrink-0" strokeWidth={3} aria-hidden="true" />
+            : <Link2 className="h-5 w-5 shrink-0" strokeWidth={2.4} aria-hidden="true" />}
+          <Label sub={copyState === 'copied' ? words.pasteIt : copyState === 'failed' ? words.couldntOpen : null}>
+            <span className="underline underline-offset-4">{copyState === 'copied' ? words.linkCopied : words.copyLink}</span>
+          </Label>
+        </button>
+      ) : null}
     </div>
   );
 }
