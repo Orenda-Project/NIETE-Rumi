@@ -1073,3 +1073,26 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given a coach is in the portal_coach_v2 pilot
     When the coach tries to edit a teacher who is not in her patch, or at a school that is not hers
     Then the edit is refused and nothing is saved
+
+  # bd-fmf24g.66 — the teacher's own lesson plan, attached by the COACH on Check and send in the portal (behind app_settings.portal_coach_v2).
+  # Unit: tests/observe/bd-5rz1v.6-portal-observe.test.js (observationView lessonPlan); portal CoachOwnPlan.test.tsx.
+  @e2e @config-gated @P1
+  Scenario: A coach attaches the teacher's own plan as a file and sees what became of it
+    Given a coach in the portal_coach_v2 pilot is on Check and send for a visit
+    When the coach picks "Their own plan" and chooses a PDF, a Word file or a photo up to 25 MB
+    Then the file is attached and sent with the recording as the lesson plan, and the teacher is not messaged
+    And the observation page shows a Lesson plan row that moves from Reading to Read with the topic found in the plan
+    And the Feedback Form's lesson-plan part names "Their own plan" and scores each move from it
+
+  @e2e @config-gated @negative @P1
+  Scenario: A file that is not a lesson plan, or cannot be read, shows Couldn't read and messages no one
+    Given a coach in the portal_coach_v2 pilot sent an observation with a leave letter or an unreadable file as the plan
+    When the plan has been read
+    Then the observation page shows "Couldn't read" and the lesson-plan part is not scored
+    And no WhatsApp message goes to the observed teacher or to the coach about it
+
+  @e2e @config-gated @negative @P2
+  Scenario: The plan picker refuses what the reader cannot open
+    Given a coach in the portal_coach_v2 pilot is on Check and send
+    When the coach chooses a ".doc" file, an image type other than JPG or PNG, or a file over 25 MB
+    Then the screen shows "Not a plan file" or "File too large" with what is accepted, and nothing is attached
