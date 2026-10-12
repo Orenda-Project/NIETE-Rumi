@@ -17,7 +17,7 @@
 
 // bd-fmf24g.46 — "teachers" (every users.role teacher) is read through the bot's module, so the portal and the
 // WhatsApp app link give one answer to "is she on the teacher app?". The portal service deploys the whole repo.
-const { isTeachersValue, isTeacherRole } = require('../../bot/shared/services/teacher-audience');
+const { isTeachersValue, isTeacherRole, isCoachRole } = require('../../bot/shared/services/teacher-audience');
 
 /** app_settings key for the UG_EG-backed Assessment Generator. */
 const ASSESSMENT_GENERATOR_KEY = 'assessment_generator_enabled';
@@ -157,6 +157,32 @@ async function isFlagEnabledForUser(supabase, key, userId) {
   }
 }
 
+/**
+ * bd-fmf24g.52 — is this user on the COACH app? What CoachGate (frontend) and requireLeaderRole + requireCoachV2 (API)
+ * let through: portal_coach_v2 on for them (isFlagEnabledForUser) AND users.role coach. The WhatsApp coach link asks
+ * the same question (bot/shared/services/app-redirect.service.js), and /go asks it before landing a coach token on a
+ * coach page. No user, no row, or a failed read is no.
+ *
+ * @param {object} supabase
+ * @param {string|null} userId
+ * @returns {Promise<boolean>}
+ */
+async function isCoachAppUser(supabase, userId) {
+  if (!userId) return false;
+  try {
+    if (!(await isFlagEnabledForUser(supabase, PORTAL_COACH_V2_KEY, userId))) return false;
+    const { data, error } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error || !data) return false;
+    return isCoachRole(data.role);
+  } catch (_) {
+    return false;
+  }
+}
+
 /** bd-fmf24g.46 — is this user a teacher (users.role)? No row or a failed read is no. */
 async function isTeacherUser(supabase, userId) {
   const { data, error } = await supabase
@@ -226,6 +252,7 @@ module.exports = {
   PORTAL_COACH_V2_KEY,
   PORTAL_TEACHER_V2_KEY,
   isFlagEnabledForUser,
+  isCoachAppUser,
   isCoachObservationOn,
   ASSESSMENT_GENERATOR_KEY,
   ASSESSMENT_EDITING_KEY,
