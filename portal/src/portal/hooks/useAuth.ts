@@ -103,11 +103,13 @@ export function useOwnAuth(active: boolean, initialLoading: boolean = active) {
         // to My Patch instead of flashing the teacher dashboard.
         return { success: true, user: response.user };
       }
-      return { success: false, error: response.error || 'Login failed' };
+      return { success: false, error: response.error || 'Login failed', status: 200 };
     } catch (error: any) {
       return {
         success: false,
-        error: error.response?.data?.error || 'Login failed. Please try again.'
+        error: error.response?.data?.error || 'Login failed. Please try again.',
+        // bd-fmf24g.64: the login page words its message from the status (0 = nothing answered), not the server's sentence.
+        status: error.response?.status ?? 0,
       };
     }
   };

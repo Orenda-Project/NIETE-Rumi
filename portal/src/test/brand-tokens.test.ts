@@ -11,7 +11,8 @@ import { resolve } from "node:path";
 const root = resolve(__dirname, "../..");
 const css = readFileSync(resolve(root, "src/index.css"), "utf8");
 const html = readFileSync(resolve(root, "index.html"), "utf8");
-const login = readFileSync(resolve(root, "src/portal/pages/PortalLogin.tsx"), "utf8");
+// bd-fmf24g.64: the login's band (and its lattice) is the shared auth frame now.
+const login = readFileSync(resolve(root, "src/portal/auth/AuthFrame.tsx"), "utf8");
 
 describe("NIETE brand tokens (book navy #333748)", () => {
   it("light-theme --primary is the book navy-slate, not charcoal", () => {
@@ -37,6 +38,6 @@ describe("NIETE brand tokens (book navy #333748)", () => {
   });
 
   it("the login screen carries the lattice pattern layer", () => {
-    expect(login).toMatch(/niete-lattice|lattice-pattern/);
+    expect(login).toMatch(/NieteLattice|niete-lattice|lattice-pattern/);
   });
 });

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { ShellHint } from "../lib/shellHint";
+import nieteLogo from "@/assets/niete-logo.png";
 
 /**
  * bd-fxk3t8 — placeholder blocks, shown where data is still on its way instead of a spinner.
@@ -16,7 +17,7 @@ import type { ShellHint } from "../lib/shellHint";
  *   SkeletonTile   a Home-style tile       SkeletonRow   a list row (icon, two lines)
  *   SkeletonList   n rows                  PageSkeleton  a page's title + tiles or rows
  *   FrameSkeleton  the whole app frame (menu bar, tab bar) around a PageSkeleton
- *   LoginSkeleton  the sign-in card
+ *   LoginSkeleton  the sign-in page: the auth frame's band and card
  */
 
 const SK = "as-sk";
@@ -135,16 +136,31 @@ export function FrameSkeleton({ variant, bare = false, children }: { variant: Sh
   );
 }
 
-/** The sign-in card's outline. */
+/**
+ * The sign-in page's outline (bd-fmf24g.64): the auth frame with placeholder blocks, so the page React draws continues
+ * the one index.html painted (an indigo band with the real N mark, one white card climbing into it). It shows for the
+ * four signed-out pages while their chunk or the session is on its way.
+ */
 export function LoginSkeleton() {
   return (
-    <div data-frame="login" aria-busy="true" className="flex min-h-screen items-center justify-center bg-[#f3f4f6] p-4">
-      <div aria-hidden="true" className="w-full max-w-[400px] rounded-2xl bg-white px-6 py-7 shadow-sm">
-        <Block className="mx-auto mb-5 h-14 w-14 rounded-2xl" />
-        <Block className="mx-auto mb-7 h-5 w-3/5 rounded-lg" />
-        <Block className="mb-3.5 h-11 rounded-lg" />
-        <Block className="mb-3.5 h-11 rounded-lg" />
-        <Block className="mt-6 h-11 rounded-lg bg-[#d1d5db]" />
+    <div data-frame="login" aria-busy="true" className="min-h-screen bg-nu-surface">
+      <div className="bg-nu-ink pb-[72px] pt-[calc(14px+env(safe-area-inset-top))]">
+        <div className="mx-auto w-full max-w-[460px] px-5 md:max-w-[480px]">
+          <div className="flex min-h-[56px] items-center gap-1.5">
+            <img src={nieteLogo} alt="" aria-hidden="true" className="-ms-1.5 h-11 w-11 object-contain" />
+            <Block className="h-3.5 w-24 rounded-full bg-nu-frame-translucent" />
+          </div>
+          <Block className="mt-[30px] h-9 w-1/2 rounded-xl bg-nu-frame-translucent" />
+        </div>
+      </div>
+      <div className="relative -mt-10 px-4">
+        <div aria-hidden="true" className="mx-auto w-full max-w-[460px] rounded-[20px] bg-nu-surface-card px-5 pb-6 pt-[22px] shadow-nu-float md:max-w-[480px]">
+          <Block className="mb-2.5 h-4 w-2/5 rounded-full" />
+          <Block className="mb-5 h-[58px] rounded-2xl" />
+          <Block className="mb-2.5 h-4 w-1/3 rounded-full" />
+          <Block className="mb-6 h-[58px] rounded-2xl" />
+          <Block className="h-[58px] rounded-full bg-nu-button-disabled" />
+        </div>
       </div>
     </div>
   );
