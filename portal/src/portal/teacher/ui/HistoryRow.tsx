@@ -183,8 +183,8 @@ export function HistoryRow({
         {lead === 'grade' && spoken ? <span className="sr-only">{bidi(spoken)}</span> : null}
         {lead !== 'grade' && leadLabel ? <span className="sr-only">{bidi(leadLabel)}</span> : null}
         {time ? <TimeStamp time={time} tone={timeTone ?? (state === 'next' ? 'next' : state === 'done' ? 'done' : 'neutral')} size={15} /> : null}
-        <span className={cn(ROW_TITLE, wrapTitle ? '[overflow-wrap:anywhere]' : 'line-clamp-2', state === 'done' && 'text-[#6b7280]')}>{bidi(title)}</span>
-        {extra ? <span className={ROW_SUB}>{bidi(extra)}</span> : null}
+        <span {...bidi.ltr(title)} className={cn(ROW_TITLE, wrapTitle ? '[overflow-wrap:anywhere]' : 'line-clamp-2', state === 'done' && 'text-[#6b7280]')}>{bidi(title)}</span>
+        {extra ? <span {...bidi.ltr(extra)} className={ROW_SUB}>{bidi(extra)}</span> : null}
       </span>
       {isNew ? <span role="img" aria-label={words.newItem} className="h-[9px] w-[9px] shrink-0 rounded-full bg-[#c8331f]" /> : null}
       {chip?.text ? <StatusChip text={chip.text} tone={chip.tone} /> : null}

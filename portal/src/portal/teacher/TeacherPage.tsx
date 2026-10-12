@@ -5,6 +5,7 @@ import PortalLayout from "../components/PortalLayout";
 import { TEACHER_FRAME } from "./copy";
 import { useCopy } from "./i18n";
 import { FeatureArt, type AnyFeature } from "./icons";
+import { useLatinAttrs } from "@/lib/textDir";
 
 /**
  * bd-fmf24g.1 — the teacher v2 page frame (canvas v28), for every teacher v2 page.
@@ -45,6 +46,8 @@ export default function TeacherPage({
   children: ReactNode;
 }) {
   const C = useCopy(TEACHER_FRAME);
+  // bd-fmf24g.62: an English lesson title or crumb on an Urdu page is its own LTR paragraph (src/lib/textDir.ts).
+  const ltrOf = useLatinAttrs();
   const circle = (
     <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#33374a]">
       <ChevronLeft className="h-[22px] w-[22px] rtl:rotate-180" aria-hidden="true" />
@@ -66,8 +69,8 @@ export default function TeacherPage({
               : <Link to={backTo as string} aria-label={C.back} className="flex h-14 w-14 shrink-0 items-center justify-center">{circle}</Link>}
             {tile}
             <div className={tile ? "ms-2 min-w-0 flex-1" : "min-w-0 flex-1"}>
-              {crumb && <div data-testid="page-crumb" className="break-words text-[13px] font-medium leading-snug text-[#6b7280] [overflow-wrap:anywhere]">{crumb}</div>}
-              <h1 className="break-words text-[26px] font-light leading-tight tracking-[-0.01em] [overflow-wrap:anywhere]">{title}</h1>
+              {crumb && <div data-testid="page-crumb" {...ltrOf(crumb)} className="break-words text-[13px] font-medium leading-snug text-[#6b7280] [overflow-wrap:anywhere]">{crumb}</div>}
+              <h1 {...ltrOf(title)} className="break-words text-[26px] font-light leading-tight tracking-[-0.01em] [overflow-wrap:anywhere]">{title}</h1>
             </div>
             {action}
           </header>
@@ -77,7 +80,7 @@ export default function TeacherPage({
           <header className="flex flex-col gap-3 px-1 pb-1.5 pt-6">
             <div className="flex items-center gap-3">
               {tile}
-              <h1 className="min-w-0 flex-1 break-words text-[32px] font-light leading-[1.15] tracking-[-0.015em] [overflow-wrap:anywhere]">{title}</h1>
+              <h1 {...ltrOf(title)} className="min-w-0 flex-1 break-words text-[32px] font-light leading-[1.15] tracking-[-0.015em] [overflow-wrap:anywhere]">{title}</h1>
               {action}
             </div>
             {chips && <div className="flex flex-wrap gap-2">{chips}</div>}
