@@ -7,6 +7,7 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
+const { sessionCookie } = require('./lib/local-dev');
 const RedisStore = require('connect-redis').default;
 const { createClient } = require('redis');
 const bcrypt = require('bcryptjs');
@@ -275,19 +276,14 @@ if (!sessionStore) {
 // Note this applies to ALL portal sessions, web included — CSRF exposure is
 // bounded by the explicit CORS allowlist above (no wildcard origin) plus
 // httpOnly, but it is a real widening versus 'lax'.
-const _sessionSameSite = process.env.SESSION_COOKIE_SAMESITE || 'none';
+// Cookie options live in lib/local-dev.js: unchanged in production, relaxed only for a local dev run.
 app.use(session({
   store: sessionStore, // Redis store if available, otherwise MemoryStore
   secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
   name: process.env.SESSION_COOKIE_NAME || 'app.sid', // Custom name (hide that it's express-session)
   resave: false,
   saveUninitialized: false,
-  cookie: {
-    secure: true, // HTTPS only
-    httpOnly: true, // Prevents client-side JS from accessing cookie
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    sameSite: _sessionSameSite, // 'none' so the Capacitor app can hold a session; see note above
-  }
+  cookie: sessionCookie(process.env),
 }));
 
 // Rate limiting for login attempts
