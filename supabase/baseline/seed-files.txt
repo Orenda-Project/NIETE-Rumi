@@ -1,0 +1,8 @@
+# Staging R2 files the local lane's runs read (bd-z3ze4.4 measured: 4 files, 0.3 MB, by lesson-plan + language).
+# local-db.sh seed-pull copies them into ~/.cache/niete-e2e-db/seed/files; local-r2.js serves them read-only, so
+# a run needs no staging credential for them. The LIST is committed; the files are not (part is the ICT corpus).
+# A run that needs another one logs it to <run_dir>/r2-reads.log — add it here.
+lp-cache/v8/grade_1_english_ch1_seg1/6d3796b9b333.ogg
+lp-cache/v8/grade_1_english_ch1_seg1/6d3796b9b333.txt
+lp612/page-truth/grade_6_computer_science/figures/pg_005_f0.jpg
+lp612/v9.6/en/grade_6_computer_science.c01.p005-005.lp.json

@@ -1,0 +1,6 @@
+# The small seed of the mock lane's local database (bd-z3ze4.7). The CONTENT is a private release asset;
+# this file only names it. Operators' machines download it with gh when this file changes — no Railway.
+repo=Orenda-Project/niete-e2e-fixtures
+tag=seed-20261008-071211
+asset=niete-e2e-seed.tar.gz
+sha256=e5fb7c84eec0ba4b1ea7352933fe8ba31b29f612fa94dad1984dc925b2ecb2e2

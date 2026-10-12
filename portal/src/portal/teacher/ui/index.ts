@@ -59,4 +59,4 @@ export { RecordUploadPair, type PairAction, type RecordUploadPairProps } from '.
 export { NumberField, type NumberFieldProps } from './NumberField';
 export { ButtonWithReason, type ButtonWithReasonProps } from './ButtonWithReason';
 export { digitsOnly } from './digits';
-export { ShareActions, intentUrl, clockOf, PAGE_HANDOFF, type OpenTarget, type ShareActionsProps, type ShareResult } from './ShareActions';
+export { ShareActions, clockOf, PAGE_HANDOFF, type OpenTarget, type ShareActionsProps, type ShareResult } from './ShareActions';

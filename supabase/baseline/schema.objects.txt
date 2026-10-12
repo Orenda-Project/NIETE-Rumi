@@ -1,0 +1,2101 @@
+# every public column + function in the sandbox schema, from local-db.sh baseline — what local-db.sh drift compares
+_coltypes.column_name:name
+_coltypes.data_type:character varying
+_coltypes.udt_name:name
+ab_test_events.created_at:timestamp with time zone
+ab_test_events.event_data:jsonb
+ab_test_events.event_type:text
+ab_test_events.id:uuid
+ab_test_events.phone_number:text
+ab_test_events.test_id:uuid
+ab_test_events.user_id:uuid
+ab_test_events.variant_name:text
+ab_test_variants.conversions:integer
+ab_test_variants.created_at:timestamp with time zone
+ab_test_variants.failures:integer
+ab_test_variants.id:uuid
+ab_test_variants.impressions:integer
+ab_test_variants.successes:integer
+ab_test_variants.test_id:uuid
+ab_test_variants.updated_at:timestamp with time zone
+ab_test_variants.variant_content:jsonb
+ab_test_variants.variant_name:text
+ab_tests.completed_at:timestamp with time zone
+ab_tests.created_at:timestamp with time zone
+ab_tests.description:text
+ab_tests.id:uuid
+ab_tests.status:text
+ab_tests.test_name:text
+ab_tests.test_type:text
+ab_tests.updated_at:timestamp with time zone
+ab_tests.winner_variant:text
+academic_sessions.code:text
+academic_sessions.created_at:timestamp with time zone
+academic_sessions.ends_on:date
+academic_sessions.is_active:boolean
+academic_sessions.kind:text
+academic_sessions.starts_on:date
+academic_sessions.updated_at:timestamp with time zone
+access_scopes.created_at:timestamp with time zone
+access_scopes.created_by:uuid
+access_scopes.dashboard_user_id:uuid
+access_scopes.id:uuid
+access_scopes.scope_type:character varying
+access_scopes.scope_value:jsonb
+access_scopes.updated_at:timestamp with time zone
+ama_conversations.context_summary:text
+ama_conversations.created_at:timestamp with time zone
+ama_conversations.id:uuid
+ama_conversations.is_archived:boolean
+ama_conversations.message_count:integer
+ama_conversations.title:character varying
+ama_conversations.updated_at:timestamp with time zone
+ama_conversations.user_id:uuid
+ama_messages.chart_data:jsonb
+ama_messages.chart_image_url:text
+ama_messages.chart_type:character varying
+ama_messages.content:text
+ama_messages.conversation_id:uuid
+ama_messages.created_at:timestamp with time zone
+ama_messages.id:uuid
+ama_messages.model_used:character varying
+ama_messages.query_result:jsonb
+ama_messages.response_time_ms:integer
+ama_messages.role:character varying
+ama_messages.sql_query:text
+ama_messages.thinking_content:text
+ama_messages.tokens_used:integer
+ama_messages.tracer_report:jsonb
+ama_messages.tracer_user_id:uuid
+ama_query_audit.created_at:timestamp with time zone
+ama_query_audit.error_message:text
+ama_query_audit.execution_status:character varying
+ama_query_audit.execution_time_ms:integer
+ama_query_audit.generated_sql:text
+ama_query_audit.id:uuid
+ama_query_audit.ip_address:character varying
+ama_query_audit.message_id:uuid
+ama_query_audit.original_question:text
+ama_query_audit.row_count:integer
+ama_query_audit.sql_validated:boolean
+ama_query_audit.user_agent:text
+ama_query_audit.user_id:uuid
+ama_query_audit.validation_errors:ARRAY
+api_usage_log.created_at:timestamp with time zone
+api_usage_log.estimated_cost:numeric
+api_usage_log.id:uuid
+api_usage_log.operation_type:character varying
+api_usage_log.service:character varying
+api_usage_log.units_consumed:numeric
+app_settings.created_at:timestamp with time zone
+app_settings.description:text
+app_settings.key:text
+app_settings.updated_at:timestamp with time zone
+app_settings.value:jsonb
+assessment_papers.answer_key_r2_key:text
+assessment_papers.attempt:smallint
+assessment_papers.created_at:timestamp with time zone
+assessment_papers.edited_at:timestamp with time zone
+assessment_papers.edited_from:uuid
+assessment_papers.error_code:text
+assessment_papers.error_detail:text
+assessment_papers.exam_json:jsonb
+assessment_papers.file_r2_key:text
+assessment_papers.id:uuid
+assessment_papers.input_tokens:integer
+assessment_papers.model:text
+assessment_papers.original_exam_json:jsonb
+assessment_papers.output_tokens:integer
+assessment_papers.question_count:integer
+assessment_papers.ready_at:timestamp with time zone
+assessment_papers.request_id:uuid
+assessment_papers.selected_question_ids:jsonb
+assessment_papers.status:text
+assessment_papers.total_marks:integer
+assessment_papers.updated_at:timestamp with time zone
+assessment_requests.chapter_number:integer
+assessment_requests.content_source:text
+assessment_requests.created_at:timestamp with time zone
+assessment_requests.grade_code:text
+assessment_requests.has_answer_key:boolean
+assessment_requests.has_answer_lines:boolean
+assessment_requests.id:uuid
+assessment_requests.output_format:text
+assessment_requests.page_ranges:text
+assessment_requests.question_count:integer
+assessment_requests.question_types:jsonb
+assessment_requests.subject_code:text
+assessment_requests.surface:text
+assessment_requests.textbook_id:uuid
+assessment_requests.updated_at:timestamp with time zone
+assessment_requests.user_id:uuid
+attendance_records.confidence:numeric
+attendance_records.created_at:timestamp with time zone
+attendance_records.detected_response:text
+attendance_records.id:uuid
+attendance_records.notes:text
+attendance_records.session_id:uuid
+attendance_records.status:character varying
+attendance_records.student_id:uuid
+attendance_records.student_name:character varying
+attendance_records.was_manually_changed:boolean
+attendance_sessions.absent_count:integer
+attendance_sessions.audio_url:text
+attendance_sessions.created_at:timestamp with time zone
+attendance_sessions.excel_url:text
+attendance_sessions.id:uuid
+attendance_sessions.leave_count:integer
+attendance_sessions.list_id:uuid
+attendance_sessions.marking_method:character varying
+attendance_sessions.present_count:integer
+attendance_sessions.session_date:date
+attendance_sessions.session_type:character varying
+attendance_sessions.total_students:integer
+attendance_sessions.transcript:text
+attendance_sessions.transcript_confidence:numeric
+attendance_sessions.user_id:uuid
+attendance_sessions.was_manually_edited:boolean
+audio_sessions.analysis_report:jsonb
+audio_sessions.audio_duration_seconds:integer
+audio_sessions.audio_url:character varying
+audio_sessions.completed_at:timestamp without time zone
+audio_sessions.created_at:timestamp without time zone
+audio_sessions.id:uuid
+audio_sessions.pdf_report_url:character varying
+audio_sessions.status:character varying
+audio_sessions.transcript:text
+audio_sessions.user_id:uuid
+audio_sessions.voice_summary_url:character varying
+broadcast_logs.admin_ip_address:text
+broadcast_logs.admin_user_agent:text
+broadcast_logs.admin_user_id:uuid
+broadcast_logs.admin_username:text
+broadcast_logs.audit_trail:jsonb
+broadcast_logs.cancelled_at:timestamp with time zone
+broadcast_logs.cancelled_by:text
+broadcast_logs.completed_at:timestamp with time zone
+broadcast_logs.created_at:timestamp with time zone
+broadcast_logs.delivered_count:integer
+broadcast_logs.error_message:text
+broadcast_logs.errors:jsonb
+broadcast_logs.failed_count:integer
+broadcast_logs.filters:jsonb
+broadcast_logs.id:uuid
+broadcast_logs.message_content:text
+broadcast_logs.read_count:integer
+broadcast_logs.replied_count:integer
+broadcast_logs.sent_count:integer
+broadcast_logs.started_at:timestamp with time zone
+broadcast_logs.status:text
+broadcast_logs.template_id:text
+broadcast_logs.template_name:text
+broadcast_logs.template_rejected_reason:text
+broadcast_logs.template_status:text
+broadcast_logs.template_submitted_at:timestamp with time zone
+broadcast_logs.total_recipients:integer
+broadcast_messages.broadcast_id:uuid
+broadcast_messages.created_at:timestamp with time zone
+broadcast_messages.delivered_at:timestamp with time zone
+broadcast_messages.error_message:text
+broadcast_messages.id:uuid
+broadcast_messages.message_id:text
+broadcast_messages.phone_number:text
+broadcast_messages.read_at:timestamp with time zone
+broadcast_messages.replied_at:timestamp with time zone
+broadcast_messages.sent_at:timestamp with time zone
+broadcast_messages.status:text
+broadcast_messages.user_id:uuid
+byof_approval_log.action:character varying
+byof_approval_log.created_at:timestamp with time zone
+byof_approval_log.id:uuid
+byof_approval_log.performed_by:uuid
+byof_approval_log.plan_id:uuid
+byof_approval_log.reason:text
+byof_messages.attachments:jsonb
+byof_messages.content:text
+byof_messages.created_at:timestamp with time zone
+byof_messages.id:uuid
+byof_messages.role:character varying
+byof_messages.session_id:uuid
+byof_plans.affected_files:ARRAY
+byof_plans.approved_at:timestamp with time zone
+byof_plans.approved_by:uuid
+byof_plans.completed_at:timestamp with time zone
+byof_plans.content:text
+byof_plans.created_at:timestamp with time zone
+byof_plans.id:uuid
+byof_plans.pr_url:text
+byof_plans.session_id:uuid
+byof_plans.staging_merged_at:timestamp with time zone
+byof_plans.status:character varying
+byof_plans.summary_embedding:USER-DEFINED
+byof_plans.title:text
+byof_plans.updated_at:timestamp with time zone
+byof_sessions.created_at:timestamp with time zone
+byof_sessions.id:uuid
+byof_sessions.status:character varying
+byof_sessions.title:text
+byof_sessions.type:character varying
+byof_sessions.updated_at:timestamp with time zone
+byof_sessions.user_id:uuid
+call_memory.call_count:integer
+call_memory.caller_number:text
+call_memory.summary:text
+call_memory.updated_at:timestamp with time zone
+call_memory.user_id:uuid
+call_recall_docs.caller_number:text
+call_recall_docs.content:text
+call_recall_docs.created_at:timestamp with time zone
+call_recall_docs.embedded_at:timestamp with time zone
+call_recall_docs.embedding:USER-DEFINED
+call_recall_docs.id:text
+call_recall_docs.kind:text
+call_recall_docs.user_id:uuid
+call_trace.args_json:jsonb
+call_trace.created_at:timestamp with time zone
+call_trace.id:bigint
+call_trace.kind:text
+call_trace.latency_ms:integer
+call_trace.result_bytes:integer
+call_trace.result_preview:text
+call_trace.seq:integer
+call_trace.tool_name:text
+call_trace.wa_call_id:text
+calls.caller_name:text
+calls.caller_number:text
+calls.context_snapshot:jsonb
+calls.cost_estimate:numeric
+calls.created_at:timestamp with time zone
+calls.duration_seconds:integer
+calls.ended_at:timestamp with time zone
+calls.id:uuid
+calls.model:text
+calls.started_at:timestamp with time zone
+calls.status:text
+calls.transcript:jsonb
+calls.user_id:uuid
+calls.voice:text
+calls.wa_call_id:text
+chat_sessions.conversation_state:jsonb
+chat_sessions.created_at:timestamp without time zone
+chat_sessions.ended_at:timestamp without time zone
+chat_sessions.id:uuid
+chat_sessions.last_activity_at:timestamp without time zone
+chat_sessions.message_count:integer
+chat_sessions.registration_triggered:boolean
+chat_sessions.session_type:character varying
+chat_sessions.started_at:timestamp without time zone
+chat_sessions.turn_count:integer
+chat_sessions.updated_at:timestamp without time zone
+chat_sessions.user_id:uuid
+chat_starts.created_at:timestamp without time zone
+chat_starts.id:uuid
+chat_starts.phone_number:character varying
+chat_starts.session_id:character varying
+chat_starts.user_id:uuid
+chat_starts.utm_campaign:character varying
+chat_starts.utm_medium:character varying
+chat_starts.utm_source:character varying
+child_test_blocks.ai_marks:jsonb
+child_test_blocks.ai_model_versions:jsonb
+child_test_blocks.ai_reason:text
+child_test_blocks.ai_scored_at:timestamp with time zone
+child_test_blocks.ai_status:text
+child_test_blocks.audio_r2_key:text
+child_test_blocks.block:text
+child_test_blocks.checked_at:timestamp with time zone
+child_test_blocks.coach_edits:jsonb
+child_test_blocks.coach_marks:jsonb
+child_test_blocks.created_at:timestamp with time zone
+child_test_blocks.id:uuid
+child_test_blocks.photo_r2_key:text
+child_test_blocks.session_id:uuid
+child_test_blocks.transcript:jsonb
+child_test_blocks.updated_at:timestamp with time zone
+child_test_draws.algo_version:text
+child_test_draws.attempts:smallint
+child_test_draws.class_id:uuid
+child_test_draws.created_at:timestamp with time zone
+child_test_draws.cycle_id:text
+child_test_draws.draw_rank:integer
+child_test_draws.form:text
+child_test_draws.frame_size:integer
+child_test_draws.grade:smallint
+child_test_draws.history:jsonb
+child_test_draws.id:uuid
+child_test_draws.last_listed_visit_id:uuid
+child_test_draws.list_slot:text
+child_test_draws.outcome_at:timestamp with time zone
+child_test_draws.outcome_note:text
+child_test_draws.region:text
+child_test_draws.roll_number:integer
+child_test_draws.sample_role:text
+child_test_draws.school_id:uuid
+child_test_draws.seed_digest:text
+child_test_draws.source_draw_id:uuid
+child_test_draws.status:text
+child_test_draws.student_id:uuid
+child_test_draws.tested_at:timestamp with time zone
+child_test_draws.updated_at:timestamp with time zone
+child_test_draws.visit_key:text
+child_test_sessions.channel:text
+child_test_sessions.class_id:uuid
+child_test_sessions.coach_user_id:uuid
+child_test_sessions.created_at:timestamp with time zone
+child_test_sessions.draw_id:uuid
+child_test_sessions.finished_at:timestamp with time zone
+child_test_sessions.form:text
+child_test_sessions.frame_size:integer
+child_test_sessions.grade:smallint
+child_test_sessions.id:uuid
+child_test_sessions.item_bank_version:text
+child_test_sessions.school_id:uuid
+child_test_sessions.selection_method:text
+child_test_sessions.started_at:timestamp with time zone
+child_test_sessions.status:text
+child_test_sessions.student_id:uuid
+child_test_sessions.timings:jsonb
+child_test_sessions.updated_at:timestamp with time zone
+child_test_sessions.visit_id:uuid
+child_test_sessions.visit_key:text
+class_enrollments.class_id:uuid
+class_enrollments.created_at:timestamp with time zone
+class_enrollments.enrolled_on:date
+class_enrollments.id:uuid
+class_enrollments.is_active:boolean
+class_enrollments.left_on:date
+class_enrollments.outcome:text
+class_enrollments.roll_number:integer
+class_enrollments.student_id:uuid
+class_enrollments.updated_at:timestamp with time zone
+class_teacher_subjects.class_id:uuid
+class_teacher_subjects.class_teacher_id:uuid
+class_teacher_subjects.created_at:timestamp with time zone
+class_teacher_subjects.subject_code:text
+class_teachers.assigned_on:date
+class_teachers.class_id:uuid
+class_teachers.created_at:timestamp with time zone
+class_teachers.ended_on:date
+class_teachers.id:uuid
+class_teachers.is_active:boolean
+class_teachers.is_class_teacher:boolean
+class_teachers.teacher_user_id:uuid
+class_teachers.updated_at:timestamp with time zone
+classes.created_at:timestamp with time zone
+classes.created_by_user_id:uuid
+classes.grade_code:text
+classes.id:uuid
+classes.is_active:boolean
+classes.merged_into_class_id:uuid
+classes.school_id:uuid
+classes.section:text
+classes.session_code:text
+classes.shift_code:text
+classes.updated_at:timestamp with time zone
+coach_directory.confirmed_at:timestamp with time zone
+coach_directory.created_at:timestamp with time zone
+coach_directory.full_name:text
+coach_directory.hrmis_user_id:integer
+coach_directory.id:uuid
+coach_directory.leader_user_id:uuid
+coach_directory.match_method:text
+coach_directory.updated_at:timestamp with time zone
+coach_directory.work_email:text
+coaching_jobs.attempts:integer
+coaching_jobs.coaching_session_id:uuid
+coaching_jobs.completed_at:timestamp with time zone
+coaching_jobs.created_at:timestamp with time zone
+coaching_jobs.error_message:text
+coaching_jobs.error_stack:text
+coaching_jobs.id:uuid
+coaching_jobs.job_type:text
+coaching_jobs.max_attempts:integer
+coaching_jobs.payload:jsonb
+coaching_jobs.scheduled_for:timestamp with time zone
+coaching_jobs.started_at:timestamp with time zone
+coaching_jobs.status:text
+coaching_jobs.worker_id:text
+coaching_processing_queue.attempts:integer
+coaching_processing_queue.coaching_session_id:uuid
+coaching_processing_queue.completed_at:timestamp with time zone
+coaching_processing_queue.created_at:timestamp with time zone
+coaching_processing_queue.error_message:text
+coaching_processing_queue.error_stack:text
+coaching_processing_queue.failed_at:timestamp with time zone
+coaching_processing_queue.id:uuid
+coaching_processing_queue.job_type:character varying
+coaching_processing_queue.max_attempts:integer
+coaching_processing_queue.next_retry_at:timestamp with time zone
+coaching_processing_queue.payload:jsonb
+coaching_processing_queue.processing_worker_id:text
+coaching_processing_queue.started_at:timestamp with time zone
+coaching_processing_queue.status:character varying
+coaching_quality_metrics.analysis_time_seconds:integer
+coaching_quality_metrics.coaching_session_id:uuid
+coaching_quality_metrics.created_at:timestamp with time zone
+coaching_quality_metrics.diarization_confidence:double precision
+coaching_quality_metrics.had_errors:boolean
+coaching_quality_metrics.id:uuid
+coaching_quality_metrics.processing_time_seconds:integer
+coaching_quality_metrics.report_generation_time_seconds:integer
+coaching_quality_metrics.retry_count:integer
+coaching_quality_metrics.session_cost:numeric
+coaching_quality_metrics.transcription_time_seconds:integer
+coaching_quality_metrics.user_feedback:text
+coaching_quality_metrics.user_satisfaction_rating:integer
+coaching_quality_metrics.worker_id:text
+coaching_sessions.analysis_completed_at:timestamp with time zone
+coaching_sessions.analysis_cost:numeric
+coaching_sessions.analysis_data:jsonb
+coaching_sessions.analysis_started_at:timestamp with time zone
+coaching_sessions.audio_duration_seconds:integer
+coaching_sessions.audio_format:character varying
+coaching_sessions.audio_hash:character
+coaching_sessions.audio_id:character varying
+coaching_sessions.audio_size_bytes:bigint
+coaching_sessions.audio_url:character varying
+coaching_sessions.autofill_analysis_data:jsonb
+coaching_sessions.can_resume:boolean
+coaching_sessions.classroom_photos:jsonb
+coaching_sessions.completed_at:timestamp with time zone
+coaching_sessions.confirmed_at:timestamp with time zone
+coaching_sessions.conversation_state:jsonb
+coaching_sessions.created_at:timestamp with time zone
+coaching_sessions.debrief_status:character varying
+coaching_sessions.diarization_confidence:double precision
+coaching_sessions.diarization_data:jsonb
+coaching_sessions.duplicate_of_session_id:uuid
+coaching_sessions.error_message:text
+coaching_sessions.error_stack:text
+coaching_sessions.failed_step:character varying
+coaching_sessions.framework:text
+coaching_sessions.framework_selection_reason:text
+coaching_sessions.gpt5_cached_tokens:integer
+coaching_sessions.gpt5_input_tokens:integer
+coaching_sessions.gpt5_output_tokens:integer
+coaching_sessions.has_lesson_plan:boolean
+coaching_sessions.id:uuid
+coaching_sessions.last_successful_step:character varying
+coaching_sessions.lesson_plan_excerpt:text
+coaching_sessions.lesson_plan_extraction_error:text
+coaching_sessions.lesson_plan_extraction_status:character varying
+coaching_sessions.lesson_plan_format:character varying
+coaching_sessions.lesson_plan_link_method:character varying
+coaching_sessions.lesson_plan_r2_key:text
+coaching_sessions.lesson_plan_structured:jsonb
+coaching_sessions.lesson_plan_text:text
+coaching_sessions.lesson_plan_url:character varying
+coaching_sessions.lesson_plan_word_count:integer
+coaching_sessions.linked_lesson_plan_id:uuid
+coaching_sessions.observation_type:character varying
+coaching_sessions.observer_user_id:uuid
+coaching_sessions.prioritized_action:jsonb
+coaching_sessions.reminder_sent_at:timestamp with time zone
+coaching_sessions.report_gamma_url:character varying
+coaching_sessions.report_generated_at:timestamp with time zone
+coaching_sessions.report_pdf_url:character varying
+coaching_sessions.session_id:uuid
+coaching_sessions.silence_markers:jsonb
+coaching_sessions.status:character varying
+coaching_sessions.tokens_raw:jsonb
+coaching_sessions.total_cost:numeric
+coaching_sessions.transcript_language:character varying
+coaching_sessions.transcript_text:text
+coaching_sessions.transcription_completed_at:timestamp with time zone
+coaching_sessions.transcription_cost:numeric
+coaching_sessions.transcription_started_at:timestamp with time zone
+coaching_sessions.updated_at:timestamp with time zone
+coaching_sessions.user_id:uuid
+coaching_sessions.voice_debrief_duration_seconds:integer
+coaching_sessions.voice_debrief_language:character varying
+coaching_sessions.voice_debrief_url:character varying
+conversations.content:text
+conversations.created_at:timestamp without time zone
+conversations.current_state:character varying
+conversations.id:uuid
+conversations.input_format:character varying
+conversations.input_language:character varying
+conversations.message_type:character varying
+conversations.output_format:character varying
+conversations.output_language:character varying
+conversations.role:character varying
+conversations.session_id:uuid
+conversations.updated_at:timestamp without time zone
+conversations.user_id:uuid
+cta_clicks.button_location:character varying
+cta_clicks.created_at:timestamp without time zone
+cta_clicks.id:uuid
+cta_clicks.session_id:character varying
+cta_clicks.whatsapp_link:text
+curriculum_lp_ast.chapter_number:integer
+curriculum_lp_ast.chapter_title:text
+curriculum_lp_ast.classroom_setup_instructions:jsonb
+curriculum_lp_ast.conclusion_steps:jsonb
+curriculum_lp_ast.conclusion_time:integer
+curriculum_lp_ast.contains_video:boolean
+curriculum_lp_ast.curriculum_key:text
+curriculum_lp_ast.demo_video_r2_key:text
+curriculum_lp_ast.explain_steps:jsonb
+curriculum_lp_ast.explain_time:integer
+curriculum_lp_ast.grade:integer
+curriculum_lp_ast.grade_label:text
+curriculum_lp_ast.homework_instructions:jsonb
+curriculum_lp_ast.id:uuid
+curriculum_lp_ast.imported_at:timestamp with time zone
+curriculum_lp_ast.independent_practice_steps:jsonb
+curriculum_lp_ast.independent_practice_time:integer
+curriculum_lp_ast.is_enabled:boolean
+curriculum_lp_ast.lp_category:text
+curriculum_lp_ast.lp_index:integer
+curriculum_lp_ast.lp_slo:ARRAY
+curriculum_lp_ast.lp_source:text
+curriculum_lp_ast.lp_type:text
+curriculum_lp_ast.opening_steps:jsonb
+curriculum_lp_ast.opening_time:integer
+curriculum_lp_ast.pdf_r2_key_en:text
+curriculum_lp_ast.pdf_r2_key_ur:text
+curriculum_lp_ast.practice_steps:jsonb
+curriculum_lp_ast.practice_time:integer
+curriculum_lp_ast.publisher:text
+curriculum_lp_ast.rendered_at:timestamp with time zone
+curriculum_lp_ast.review_notes:text
+curriculum_lp_ast.review_status:text
+curriculum_lp_ast.source_book_id:bigint
+curriculum_lp_ast.source_chapter_id:bigint
+curriculum_lp_ast.source_hash:text
+curriculum_lp_ast.source_join_id:bigint
+curriculum_lp_ast.source_lp_uuid:uuid
+curriculum_lp_ast.subject:text
+curriculum_lp_ast.subject_label:text
+curriculum_lp_ast.topic:text
+curriculum_lp_ast.updated_at:timestamp with time zone
+curriculum_lp_ast.videos:ARRAY
+curriculum_lp_ast.voicenote_mp3_r2_key:text
+curriculum_lp_ast.voicenote_ogg_r2_key:text
+dashboard_audit_log.action:character varying
+dashboard_audit_log.affected_user_id:uuid
+dashboard_audit_log.created_at:timestamp with time zone
+dashboard_audit_log.details:jsonb
+dashboard_audit_log.id:uuid
+dashboard_audit_log.ip_address:character varying
+dashboard_audit_log.organization_id:uuid
+dashboard_audit_log.query_filters:jsonb
+dashboard_audit_log.resource_id:uuid
+dashboard_audit_log.resource_type:character varying
+dashboard_audit_log.user_agent:text
+dashboard_audit_log.user_id:uuid
+dashboard_users.access_scope_summary:text
+dashboard_users.byof_role:character varying
+dashboard_users.created_at:timestamp with time zone
+dashboard_users.email:character varying
+dashboard_users.id:uuid
+dashboard_users.invite_expires_at:timestamp with time zone
+dashboard_users.invite_token:character varying
+dashboard_users.invited_by:uuid
+dashboard_users.invited_for_organization:character varying
+dashboard_users.is_active:boolean
+dashboard_users.last_login:timestamp with time zone
+dashboard_users.organization_id:uuid
+dashboard_users.password_hash:character varying
+dashboard_users.password_reset_expires_at:timestamp with time zone
+dashboard_users.password_reset_token:character varying
+dashboard_users.phone_number:character varying
+dashboard_users.role:character varying
+dashboard_users.username:character varying
+evaluation_cycles.created_at:timestamp with time zone
+evaluation_cycles.ends_at:timestamp with time zone
+evaluation_cycles.id:uuid
+evaluation_cycles.name:character varying
+evaluation_cycles.starts_at:timestamp with time zone
+evaluation_cycles.updated_at:timestamp with time zone
+exam_check_sessions.board:character varying
+exam_check_sessions.class_name:character varying
+exam_check_sessions.confirmed_students:ARRAY
+exam_check_sessions.created_at:timestamp with time zone
+exam_check_sessions.detected_questions:jsonb
+exam_check_sessions.detected_students:ARRAY
+exam_check_sessions.error_message:text
+exam_check_sessions.exam_date:date
+exam_check_sessions.id:uuid
+exam_check_sessions.marking_scheme:jsonb
+exam_check_sessions.ocr_confidence:numeric
+exam_check_sessions.ocr_provider:character varying
+exam_check_sessions.original_images:jsonb
+exam_check_sessions.processing_completed_at:timestamp with time zone
+exam_check_sessions.processing_started_at:timestamp with time zone
+exam_check_sessions.retry_count:integer
+exam_check_sessions.status:character varying
+exam_check_sessions.subject:character varying
+exam_check_sessions.updated_at:timestamp with time zone
+exam_check_sessions.user_id:uuid
+exam_grades.answer_bbox:jsonb
+exam_grades.awarded_marks:numeric
+exam_grades.confidence:numeric
+exam_grades.created_at:timestamp with time zone
+exam_grades.edit_reason:text
+exam_grades.edited_at:timestamp with time zone
+exam_grades.edited_by:uuid
+exam_grades.feedback_back:text
+exam_grades.feedback_forward:text
+exam_grades.feedback_up:text
+exam_grades.grading_rationale:text
+exam_grades.id:uuid
+exam_grades.is_correct:boolean
+exam_grades.is_partial:boolean
+exam_grades.max_marks:numeric
+exam_grades.original_marks:numeric
+exam_grades.question_id:character varying
+exam_grades.question_type:character varying
+exam_grades.submission_id:uuid
+exam_question_bank.answer_options:jsonb
+exam_question_bank.bloom_tags:ARRAY
+exam_question_bank.book_chapter_slo:jsonb
+exam_question_bank.category:text
+exam_question_bank.chapter_index:integer
+exam_question_bank.chapter_title:text
+exam_question_bank.correct_answer:text
+exam_question_bank.grade:text
+exam_question_bank.group_ref:uuid
+exam_question_bank.group_type:text
+exam_question_bank.id:uuid
+exam_question_bank.imported_at:timestamp with time zone
+exam_question_bank.index_in_chapter:integer
+exam_question_bank.language:text
+exam_question_bank.marking_scheme:text
+exam_question_bank.ncp_slo_ref:text
+exam_question_bank.question_format:text
+exam_question_bank.question_media:jsonb
+exam_question_bank.question_statement:text
+exam_question_bank.score:real
+exam_question_bank.sub_type:text
+exam_question_bank.subject:text
+exam_question_bank.taleemabad_uuid:uuid
+exam_question_bank.type:text
+exam_question_groups.group_type:text
+exam_question_groups.id:uuid
+exam_question_groups.imported_at:timestamp with time zone
+exam_question_groups.media:jsonb
+exam_question_groups.taleemabad_uuid:uuid
+exam_question_groups.title_text:text
+exam_questions.bloom_tags:ARRAY
+exam_questions.correct_answer_snapshot:text
+exam_questions.exam_id:uuid
+exam_questions.group_ref:uuid
+exam_questions.id:uuid
+exam_questions.marking_scheme_snapshot:text
+exam_questions.media_snapshot:jsonb
+exam_questions.options_snapshot:jsonb
+exam_questions.order_index:integer
+exam_questions.question_format:text
+exam_questions.score:real
+exam_questions.section:text
+exam_questions.source_bank_id:uuid
+exam_questions.statement_snapshot:text
+exam_submissions.annotated_image_urls:ARRAY
+exam_submissions.answer_positions:jsonb
+exam_submissions.created_at:timestamp with time zone
+exam_submissions.error_message:text
+exam_submissions.extracted_answers:jsonb
+exam_submissions.extracted_text:text
+exam_submissions.id:uuid
+exam_submissions.image_urls:ARRAY
+exam_submissions.page_numbers:ARRAY
+exam_submissions.session_id:uuid
+exam_submissions.status:character varying
+exam_submissions.student_id:uuid
+exam_submissions.student_name:character varying
+exam_submissions.thumbnail_urls:ARRAY
+exam_submissions.updated_at:timestamp with time zone
+exam_templates.board:character varying
+exam_templates.class_name:character varying
+exam_templates.created_at:timestamp with time zone
+exam_templates.id:uuid
+exam_templates.last_used_at:timestamp with time zone
+exam_templates.marking_scheme:jsonb
+exam_templates.subject:character varying
+exam_templates.title:character varying
+exam_templates.total_marks:numeric
+exam_templates.updated_at:timestamp with time zone
+exam_templates.usage_count:integer
+exam_templates.user_id:uuid
+exams.chapters:ARRAY
+exams.created_at:timestamp with time zone
+exams.created_by_user_id:uuid
+exams.duration_minutes:integer
+exams.error_reason:text
+exams.grade:text
+exams.id:uuid
+exams.language:text
+exams.paper_docx_url:text
+exams.ready_at:timestamp with time zone
+exams.status:text
+exams.subject:text
+exams.total_marks:integer
+exams.total_questions:integer
+exams.type:text
+failed_operations.context:jsonb
+failed_operations.created_at:timestamp without time zone
+failed_operations.error_message:text
+failed_operations.id:uuid
+failed_operations.operation:character varying
+failed_operations.user_id:character varying
+feature_permissions.can_access:boolean
+feature_permissions.created_at:timestamp with time zone
+feature_permissions.feature_key:character varying
+feature_permissions.id:uuid
+feature_permissions.role:character varying
+feature_suggestions.confidence_score:numeric
+feature_suggestions.created_at:timestamp with time zone
+feature_suggestions.id:uuid
+feature_suggestions.led_to_feature_use:boolean
+feature_suggestions.message_context:text
+feature_suggestions.suggested_feature:text
+feature_suggestions.trigger_type:text
+feature_suggestions.user_id:uuid
+feature_suggestions.was_clicked:boolean
+feature_suggestions.was_shown:boolean
+fn:_bd_a21ks_probe()
+fn:acquire_assessment_lock(p_assessment_id uuid, p_expected_status character varying)
+fn:acquire_broadcast_lock(p_broadcast_id uuid)
+fn:add_soft_delete(p_table text)
+fn:auto_title_conversation()
+fn:backfill_chat_sessions(p_session_timeout_minutes integer)
+fn:calculate_attendance_percentage(p_present_count integer, p_total_students integer)
+fn:calculate_retention(p_feature_type text, p_start_date date, p_end_date date)
+fn:calculate_wcpm(p_words_correct integer, p_time_seconds double precision)
+fn:check_benchmark_status(p_wcpm double precision, p_grade integer, p_language character varying, p_is_l2 boolean)
+fn:check_lcpm_benchmark_status(p_lcpm double precision, p_grade integer, p_language character varying)
+fn:child_test_blocks_keep_marks()
+fn:child_test_draws_keep_rank()
+fn:child_test_draws_name_visit()
+fn:child_test_sessions_name_visit()
+fn:claim_next_coaching_job(p_worker_id text, p_max_attempts integer)
+fn:cleanup_old_coaching_jobs(p_days_old integer)
+fn:complete_coaching_job(p_job_id uuid)
+fn:exec_sql(query text)
+fn:fail_coaching_job(p_job_id uuid, p_error_message text, p_error_stack text, p_retry_delay_seconds integer)
+fn:get_attendance_summary(p_list_id uuid, p_start_date date, p_end_date date)
+fn:get_broadcast_counts(p_broadcast_id uuid)
+fn:get_or_create_session(p_user_id uuid, p_session_timeout_minutes integer)
+fn:get_portal_users(p_portal_user_id uuid)
+fn:get_users_with_last_activity(p_limit integer, p_offset integer)
+fn:increment_broadcast_count(p_broadcast_id uuid, p_column_name text)
+fn:increment_quiz_completions(quiz_id_param uuid)
+fn:increment_replied_count(p_broadcast_id uuid)
+fn:increment_share_code_uses(code_id uuid)
+fn:increment_turn_count()
+fn:increment_variant_impressions(p_test_id uuid, p_variant_name text)
+fn:is_invitation_valid(p_token character varying)
+fn:log_broadcast_changes()
+fn:log_row_changes()
+fn:lp612_claim_waiters(p_render_id uuid)
+fn:lp612_join_waiters(p_render_id uuid, p_entry jsonb)
+fn:lp_latency_stats(p_source text, p_lookback_hours integer)
+fn:observation_field_forms_keep_seal()
+fn:queue_coaching_job(p_session_id uuid, p_job_type text, p_payload jsonb)
+fn:refresh_dashboard_views()
+fn:release_broadcast_lock(p_broadcast_id uuid)
+fn:roster_apply_edits(p_class_id uuid, p_run_id text, p_edited_by uuid, p_updates jsonb, p_moves jsonb, p_adds jsonb, p_removes jsonb)
+fn:roster_change_class_details(p_class_id uuid, p_school_id uuid, p_grade_code text, p_section text, p_shift_code text, p_actor uuid, p_merge boolean)
+fn:roster_class_timeline(p_class_id uuid)
+fn:roster_hand_over_class(p_class_id uuid, p_school_id uuid, p_teacher_user_id uuid, p_actor uuid)
+fn:roster_import_students(p_class_id uuid, p_list_id uuid, p_run_id text, p_enrolled_by uuid, p_students jsonb)
+fn:roster_import_students(p_class_id uuid, p_list_id uuid, p_run_id text, p_enrolled_by uuid, p_students jsonb, p_school_id uuid)
+fn:set_portal_user_context(p_portal_user_id uuid)
+fn:update_access_scopes_updated_at()
+fn:update_assessment_status(p_assessment_id uuid, p_new_status character varying, p_error_message text)
+fn:update_byof_session_timestamp()
+fn:update_conversation_on_message()
+fn:update_exam_checker_updated_at()
+fn:update_qa_updated_at()
+fn:update_session_message_count()
+fn:update_student_count()
+fn:update_student_videos_search_vector()
+fn:update_updated_at_column()
+grade_audit_log.created_at:timestamp with time zone
+grade_audit_log.grade_id:uuid
+grade_audit_log.id:uuid
+grade_audit_log.new_value:numeric
+grade_audit_log.old_value:numeric
+grade_audit_log.reason:text
+grade_audit_log.user_id:uuid
+grade_levels.aliases:ARRAY
+grade_levels.band:text
+grade_levels.code:text
+grade_levels.is_active:boolean
+grade_levels.ordinal:smallint
+grade_levels.sort_order:smallint
+hcp_coaching_actions.action_text:text
+hcp_coaching_actions.created_at:timestamp with time zone
+hcp_coaching_actions.id:bigint
+hcp_coaching_actions.indicator_code:character varying
+hcp_coaching_actions.priority_order:integer
+hcp_feedback_deliveries.coach_id:uuid
+hcp_feedback_deliveries.coaching_session_id:uuid
+hcp_feedback_deliveries.delivered_at:timestamp with time zone
+hcp_feedback_deliveries.feedback_audio_url:text
+hcp_feedback_deliveries.feedback_json:jsonb
+hcp_feedback_deliveries.generated_at:timestamp with time zone
+hcp_feedback_deliveries.id:uuid
+hcp_feedback_deliveries.language:character varying
+hcp_feedback_deliveries.prompt_used:text
+hcp_feedback_deliveries.teacher_id:uuid
+hcp_feedback_deliveries.version:integer
+hcp_feedback_deliveries.wa_audio_msg_id:character varying
+hcp_feedback_deliveries.wa_text_msg_id:character varying
+hcp_visit_schedules.coach_id:uuid
+hcp_visit_schedules.confirmed_at:timestamp with time zone
+hcp_visit_schedules.created_at:timestamp with time zone
+hcp_visit_schedules.id:uuid
+hcp_visit_schedules.notes:text
+hcp_visit_schedules.observation_tool:character varying
+hcp_visit_schedules.principal_wa_msg_id:character varying
+hcp_visit_schedules.rm_wa_msg_id:character varying
+hcp_visit_schedules.scheduled_at:timestamp with time zone
+hcp_visit_schedules.status:character varying
+hcp_visit_schedules.teacher_id:uuid
+hcp_visit_schedules.teacher_wa_msg_id:character varying
+hcp_visit_schedules.updated_at:timestamp with time zone
+homework_chapters.chapter_number:integer
+homework_chapters.chapter_title:character varying
+homework_chapters.created_at:timestamp with time zone
+homework_chapters.grade:integer
+homework_chapters.id:uuid
+homework_chapters.lang:character varying
+homework_chapters.r2_key:text
+homework_chapters.subject:character varying
+homework_chapters.version:character varying
+image_analysis_requests.analysis_result:jsonb
+image_analysis_requests.completed_at:timestamp without time zone
+image_analysis_requests.correlation_id:character varying
+image_analysis_requests.created_at:timestamp without time zone
+image_analysis_requests.id:uuid
+image_analysis_requests.image_metadata:jsonb
+image_analysis_requests.image_url:text
+image_analysis_requests.last_error:text
+image_analysis_requests.retry_count:integer
+image_analysis_requests.started_at:timestamp without time zone
+image_analysis_requests.status:character varying
+image_analysis_requests.tokens_used:integer
+image_analysis_requests.updated_at:timestamp without time zone
+image_analysis_requests.user_id:uuid
+invitations.accepted_at:timestamp with time zone
+invitations.created_at:timestamp with time zone
+invitations.created_user_id:uuid
+invitations.email:character varying
+invitations.expires_at:timestamp with time zone
+invitations.id:uuid
+invitations.invited_by:uuid
+invitations.last_sent_at:timestamp with time zone
+invitations.revoked_at:timestamp with time zone
+invitations.revoked_by:uuid
+invitations.role:character varying
+invitations.scope_config:jsonb
+invitations.send_count:integer
+invitations.status:character varying
+invitations.token:character varying
+lcpm_benchmarks.created_at:timestamp with time zone
+lcpm_benchmarks.grade_level:integer
+lcpm_benchmarks.id:integer
+lcpm_benchmarks.language:character varying
+lcpm_benchmarks.percentile_10:integer
+lcpm_benchmarks.percentile_25:integer
+lcpm_benchmarks.percentile_50:integer
+lcpm_benchmarks.percentile_5:integer
+lcpm_benchmarks.percentile_75:integer
+lcpm_benchmarks.percentile_90:integer
+lcpm_benchmarks.season:character varying
+leader_roster_audit.action:text
+leader_roster_audit.actor_user_id:uuid
+leader_roster_audit.affected_leader_user_id:uuid
+leader_roster_audit.created_at:timestamp with time zone
+leader_roster_audit.detail:jsonb
+leader_roster_audit.from_school_ext_id:text
+leader_roster_audit.id:uuid
+leader_roster_audit.teacher_ext_id:text
+leader_roster_audit.teacher_name:text
+leader_roster_audit.teacher_phone_e164:text
+leader_roster_audit.to_school_ext_id:text
+leader_schools.created_at:timestamp with time zone
+leader_schools.emis:text
+leader_schools.id:uuid
+leader_schools.leader_user_id:uuid
+leader_schools.name_match_quality:text
+leader_schools.school_ext_id:text
+leader_schools.school_id:uuid
+leader_schools.school_name:text
+leader_schools.source:text
+leader_teachers.created_at:timestamp with time zone
+leader_teachers.deleted_at:timestamp with time zone
+leader_teachers.deleted_by:uuid
+leader_teachers.id:uuid
+leader_teachers.leader_user_id:uuid
+leader_teachers.level:text
+leader_teachers.school_ext_id:text
+leader_teachers.school_id:uuid
+leader_teachers.source:text
+leader_teachers.teacher_ext_id:text
+leader_teachers.teacher_name:text
+leader_teachers.teacher_phone:text
+leader_teachers.teacher_phone_e164:text
+lesson_plan_catalog.chapter_title:text
+lesson_plan_catalog.content_html:text
+lesson_plan_catalog.created_at:timestamp with time zone
+lesson_plan_catalog.description:text
+lesson_plan_catalog.grade:text
+lesson_plan_catalog.id:bigint
+lesson_plan_catalog.is_active:boolean
+lesson_plan_catalog.source:character varying
+lesson_plan_catalog.source_created_at:timestamp with time zone
+lesson_plan_catalog.source_modified_at:timestamp with time zone
+lesson_plan_catalog.source_row_id:bigint
+lesson_plan_catalog.source_uuid:uuid
+lesson_plan_catalog.subject:text
+lesson_plan_catalog.updated_at:timestamp with time zone
+lesson_plan_requests.completed_at:timestamp with time zone
+lesson_plan_requests.content_type:character varying
+lesson_plan_requests.created_at:timestamp with time zone
+lesson_plan_requests.error_message:text
+lesson_plan_requests.full_message:text
+lesson_plan_requests.gamma_generation_id:character varying
+lesson_plan_requests.gamma_url:text
+lesson_plan_requests.id:uuid
+lesson_plan_requests.language:character varying
+lesson_plan_requests.last_retry_at:timestamp with time zone
+lesson_plan_requests.pdf_url:text
+lesson_plan_requests.phone_number:character varying
+lesson_plan_requests.processing_started_at:timestamp with time zone
+lesson_plan_requests.retry_count:integer
+lesson_plan_requests.status:character varying
+lesson_plan_requests.topic:character varying
+lesson_plan_requests.user_id:uuid
+lesson_plans.content:jsonb
+lesson_plans.cost_usd:numeric
+lesson_plans.created_at:timestamp without time zone
+lesson_plans.delivery_time_ms:integer
+lesson_plans.gamma_url:character varying
+lesson_plans.grade:character varying
+lesson_plans.id:uuid
+lesson_plans.lp_variant:text
+lesson_plans.pdf_url:text
+lesson_plans.pic_lp_session_id:uuid
+lesson_plans.quiz_id:uuid
+lesson_plans.quiz_nudge_sent:boolean
+lesson_plans.source:text
+lesson_plans.status:character varying
+lesson_plans.subject:character varying
+lesson_plans.textbook_metadata:jsonb
+lesson_plans.topic:character varying
+lesson_plans.type:character varying
+lesson_plans.user_id:uuid
+lp_feedback.chapter_number:integer
+lp_feedback.created_at:timestamp with time zone
+lp_feedback.grade:integer
+lp_feedback.id:uuid
+lp_feedback.lesson_plan_id:uuid
+lp_feedback.lp612_segment_id:text
+lp_feedback.lp_variant:text
+lp_feedback.reason_language:text
+lp_feedback.reason_polarity:text
+lp_feedback.reason_received_at:timestamp with time zone
+lp_feedback.reason_text:text
+lp_feedback.segment_number:integer
+lp_feedback.subject:text
+lp_feedback.topic:text
+lp_feedback.trigger_mode:text
+lp_feedback.used_in_class:text
+lp_feedback.useful:boolean
+lp_feedback.useful_component:text
+lp_feedback.user_id:uuid
+migration_test.created_at:timestamp without time zone
+migration_test.id:integer
+migration_test.test_message:text
+niete_lp612_deliveries.created_at:timestamp with time zone
+niete_lp612_deliveries.delivered_at:timestamp with time zone
+niete_lp612_deliveries.id:uuid
+niete_lp612_deliveries.lang:text
+niete_lp612_deliveries.render_id:uuid
+niete_lp612_deliveries.segment_id:text
+niete_lp612_deliveries.surface:text
+niete_lp612_deliveries.template_version:text
+niete_lp612_deliveries.user_id:uuid
+niete_lp612_renders.checkpoint:jsonb
+niete_lp612_renders.completed_at:timestamp with time zone
+niete_lp612_renders.correlation_id:text
+niete_lp612_renders.created_at:timestamp with time zone
+niete_lp612_renders.error_code:text
+niete_lp612_renders.error_detail:text
+niete_lp612_renders.id:uuid
+niete_lp612_renders.lang:text
+niete_lp612_renders.lint_clean:boolean
+niete_lp612_renders.lint_fails:jsonb
+niete_lp612_renders.model_used:text
+niete_lp612_renders.one_screen:text
+niete_lp612_renders.over_cap:boolean
+niete_lp612_renders.over_time:boolean
+niete_lp612_renders.overlay_dropped:boolean
+niete_lp612_renders.page_count:integer
+niete_lp612_renders.picked_up_at:timestamp with time zone
+niete_lp612_renders.r2_key:text
+niete_lp612_renders.render_degraded:boolean
+niete_lp612_renders.requested_by:uuid
+niete_lp612_renders.rounds_used:integer
+niete_lp612_renders.segment_id:text
+niete_lp612_renders.started_at:timestamp with time zone
+niete_lp612_renders.status:text
+niete_lp612_renders.template_version:text
+niete_lp612_renders.updated_at:timestamp with time zone
+niete_lp612_renders.waiters:jsonb
+niete_lp612_segments.also_grades:ARRAY
+niete_lp612_segments.book_stem:text
+niete_lp612_segments.chapter_key:text
+niete_lp612_segments.chapter_number:integer
+niete_lp612_segments.chapter_title:text
+niete_lp612_segments.corpus_version:text
+niete_lp612_segments.created_at:timestamp with time zone
+niete_lp612_segments.day_number:integer
+niete_lp612_segments.grade:integer
+niete_lp612_segments.is_current:boolean
+niete_lp612_segments.is_religious:boolean
+niete_lp612_segments.language:text
+niete_lp612_segments.lp_type:text
+niete_lp612_segments.medium:text
+niete_lp612_segments.menu_title:text
+niete_lp612_segments.next_segment_id:text
+niete_lp612_segments.notes:text
+niete_lp612_segments.order_index:integer
+niete_lp612_segments.pages_covered:ARRAY
+niete_lp612_segments.part:text
+niete_lp612_segments.part_index:integer
+niete_lp612_segments.prev_segment_id:text
+niete_lp612_segments.printed_page_end:integer
+niete_lp612_segments.printed_page_start:integer
+niete_lp612_segments.revision_source_segments:ARRAY
+niete_lp612_segments.section:text
+niete_lp612_segments.section_ref:text
+niete_lp612_segments.segment_id:text
+niete_lp612_segments.segment_index:integer
+niete_lp612_segments.skill_type:text
+niete_lp612_segments.slo_codes:ARRAY
+niete_lp612_segments.slo_descriptions:ARRAY
+niete_lp612_segments.slo_source:text
+niete_lp612_segments.slo_text:text
+niete_lp612_segments.subject:text
+niete_lp612_segments.subtopic_title:text
+niete_lp612_segments.updated_at:timestamp with time zone
+niete_lp612_segments.yt:jsonb
+niete_lp_ab_assignment.ab_group:text
+niete_lp_ab_assignment.block:text
+niete_lp_ab_assignment.drawn_at:timestamp with time zone
+niete_lp_ab_assignment.school_id:uuid
+niete_lp_ab_assignment.seed:text
+niete_lp_asset_sources.asset_id:uuid
+niete_lp_asset_sources.content_hash:text
+niete_lp_asset_sources.ingested_at:timestamp with time zone
+niete_lp_asset_sources.lesson_id:text
+niete_lp_asset_sources.slide_script:jsonb
+niete_lp_asset_sources.source_url:text
+niete_lp_asset_sources.verified:text
+niete_lp_asset_sources.version_stamp:text
+niete_lp_assets.asset_kind:text
+niete_lp_assets.bytes:bigint
+niete_lp_assets.catalog_version:text
+niete_lp_assets.content_hash:text
+niete_lp_assets.created_at:timestamp with time zone
+niete_lp_assets.id:uuid
+niete_lp_assets.is_current:boolean
+niete_lp_assets.lesson_id:text
+niete_lp_assets.prompt_layer_sha:text
+niete_lp_assets.r2_key:text
+niete_lp_assets.rendered_at:timestamp with time zone
+niete_lp_assets.source_bytes:bigint
+niete_lp_assets.source_sha1:text
+niete_lp_assets.superseded_at:timestamp with time zone
+niete_lp_assets.version_stamp:text
+niete_lp_downloads.asset_id:uuid
+niete_lp_downloads.chapter_number:integer
+niete_lp_downloads.content_hash:text
+niete_lp_downloads.correlation_id:text
+niete_lp_downloads.created_at:timestamp with time zone
+niete_lp_downloads.error_text:text
+niete_lp_downloads.grade:integer
+niete_lp_downloads.id:uuid
+niete_lp_downloads.lesson_id:text
+niete_lp_downloads.phone:text
+niete_lp_downloads.segment_index:integer
+niete_lp_downloads.status:text
+niete_lp_downloads.subject:text
+niete_lp_downloads.user_id:uuid
+niete_lp_downloads.version_stamp:text
+niete_lp_fidelity_moves.brief_sha:text
+niete_lp_fidelity_moves.catalog_version:text
+niete_lp_fidelity_moves.content_hash:text
+niete_lp_fidelity_moves.created_at:timestamp with time zone
+niete_lp_fidelity_moves.id:uuid
+niete_lp_fidelity_moves.lesson_id:text
+niete_lp_fidelity_moves.model:text
+niete_lp_fidelity_moves.moves:jsonb
+niete_lp_fidelity_moves.n_moves:integer
+niete_lp_fidelity_moves.template:text
+niete_lp_fidelity_moves.total_minutes:integer
+niete_lp_fidelity_moves.updated_at:timestamp with time zone
+niete_lp_fidelity_moves.version_stamp:text
+niete_lp_opens.created_at:timestamp with time zone
+niete_lp_opens.id:uuid
+niete_lp_opens.lang:text
+niete_lp_opens.opened_at:timestamp with time zone
+niete_lp_opens.plan_kind:text
+niete_lp_opens.plan_ref:text
+niete_lp_opens.source:text
+niete_lp_opens.user_id:uuid
+nietemigrated_observation_answers.answer_text:text
+nietemigrated_observation_answers.created:timestamp with time zone
+nietemigrated_observation_answers.deleted_at:timestamp with time zone
+nietemigrated_observation_answers.id:bigint
+nietemigrated_observation_answers.is_active:boolean
+nietemigrated_observation_answers.is_lp_followed:boolean
+nietemigrated_observation_answers.migrated_at:timestamp with time zone
+nietemigrated_observation_answers.modified:timestamp with time zone
+nietemigrated_observation_answers.observation_id:uuid
+nietemigrated_observation_answers.question_id:bigint
+nietemigrated_observation_answers.single_choice_option_id:bigint
+nietemigrated_observation_answers.source_system:text
+nietemigrated_observation_answers.student_number:integer
+nietemigrated_observation_answers.student_scores:jsonb
+nietemigrated_observation_answers.uuid:uuid
+nietemigrated_observation_question_groups.created:timestamp with time zone
+nietemigrated_observation_question_groups.deleted_at:timestamp with time zone
+nietemigrated_observation_question_groups.id:bigint
+nietemigrated_observation_question_groups.is_active:boolean
+nietemigrated_observation_question_groups.migrated_at:timestamp with time zone
+nietemigrated_observation_question_groups.modified:timestamp with time zone
+nietemigrated_observation_question_groups.order:integer
+nietemigrated_observation_question_groups.section_id:bigint
+nietemigrated_observation_question_groups.source_system:text
+nietemigrated_observation_question_groups.title:text
+nietemigrated_observation_question_groups.uuid:uuid
+nietemigrated_observation_questions.core_lesson_plan_id:bigint
+nietemigrated_observation_questions.created:timestamp with time zone
+nietemigrated_observation_questions.deleted_at:timestamp with time zone
+nietemigrated_observation_questions.group_id:bigint
+nietemigrated_observation_questions.id:bigint
+nietemigrated_observation_questions.is_active:boolean
+nietemigrated_observation_questions.is_lp_followed:boolean
+nietemigrated_observation_questions.is_scored:boolean
+nietemigrated_observation_questions.lesson_plan_id:bigint
+nietemigrated_observation_questions.migrated_at:timestamp with time zone
+nietemigrated_observation_questions.modified:timestamp with time zone
+nietemigrated_observation_questions.order:integer
+nietemigrated_observation_questions.prompt:text
+nietemigrated_observation_questions.purpose:text
+nietemigrated_observation_questions.required:boolean
+nietemigrated_observation_questions.section_id:bigint
+nietemigrated_observation_questions.source:text
+nietemigrated_observation_questions.source_system:text
+nietemigrated_observation_questions.subject_id:bigint
+nietemigrated_observation_questions.tier:text
+nietemigrated_observation_questions.type:text
+nietemigrated_observation_questions.uuid:uuid
+nietemigrated_observation_sections.created:timestamp with time zone
+nietemigrated_observation_sections.deleted_at:timestamp with time zone
+nietemigrated_observation_sections.id:bigint
+nietemigrated_observation_sections.is_active:boolean
+nietemigrated_observation_sections.is_scored:boolean
+nietemigrated_observation_sections.migrated_at:timestamp with time zone
+nietemigrated_observation_sections.modified:timestamp with time zone
+nietemigrated_observation_sections.order:integer
+nietemigrated_observation_sections.section_type:text
+nietemigrated_observation_sections.source_system:text
+nietemigrated_observation_sections.template_id:bigint
+nietemigrated_observation_sections.title:text
+nietemigrated_observation_sections.uuid:uuid
+nietemigrated_observation_templates.created:timestamp with time zone
+nietemigrated_observation_templates.deleted_at:timestamp with time zone
+nietemigrated_observation_templates.id:bigint
+nietemigrated_observation_templates.is_active:boolean
+nietemigrated_observation_templates.migrated_at:timestamp with time zone
+nietemigrated_observation_templates.modified:timestamp with time zone
+nietemigrated_observation_templates.name:text
+nietemigrated_observation_templates.source_system:text
+nietemigrated_observation_templates.uuid:uuid
+nietemigrated_observations.agreed_with_feedback:boolean
+nietemigrated_observations.audio_url:text
+nietemigrated_observations.book_chapter_id:bigint
+nietemigrated_observations.coach_id:bigint
+nietemigrated_observations.core_lesson_plan_id:bigint
+nietemigrated_observations.created:timestamp with time zone
+nietemigrated_observations.deleted_at:timestamp with time zone
+nietemigrated_observations.feedback:text
+nietemigrated_observations.id:uuid
+nietemigrated_observations.is_active:boolean
+nietemigrated_observations.lesson_plan_id:bigint
+nietemigrated_observations.migrated_at:timestamp with time zone
+nietemigrated_observations.modified:timestamp with time zone
+nietemigrated_observations.number_of_boys:integer
+nietemigrated_observations.number_of_girls:integer
+nietemigrated_observations.observation_date:date
+nietemigrated_observations.school_class_subject_id:bigint
+nietemigrated_observations.source_system:text
+nietemigrated_observations.start_time:time without time zone
+nietemigrated_observations.status:text
+nietemigrated_observations.teacher_response:text
+nietemigrated_observations.template_id:bigint
+nietemigrated_observations.total_duration:interval
+nietemigrated_observations.user_profile_content_type_id:integer
+nietemigrated_observations.user_profile_object_id:integer
+nietemigrated_observations.uuid:uuid
+nietemigrated_observations.visit_id:uuid
+nietemigrated_question_options.created:timestamp with time zone
+nietemigrated_question_options.deleted_at:timestamp with time zone
+nietemigrated_question_options.id:bigint
+nietemigrated_question_options.is_active:boolean
+nietemigrated_question_options.is_correct:boolean
+nietemigrated_question_options.label:text
+nietemigrated_question_options.migrated_at:timestamp with time zone
+nietemigrated_question_options.modified:timestamp with time zone
+nietemigrated_question_options.order:integer
+nietemigrated_question_options.question_id:bigint
+nietemigrated_question_options.score_type:text
+nietemigrated_question_options.source_system:text
+nietemigrated_question_options.uuid:uuid
+nietemigrated_question_options.value:text
+nietemigrated_school_visits.comments:text
+nietemigrated_school_visits.created:timestamp with time zone
+nietemigrated_school_visits.deleted_at:timestamp with time zone
+nietemigrated_school_visits.id:uuid
+nietemigrated_school_visits.is_active:boolean
+nietemigrated_school_visits.migrated_at:timestamp with time zone
+nietemigrated_school_visits.modified:timestamp with time zone
+nietemigrated_school_visits.scheduled_date:date
+nietemigrated_school_visits.school_id:bigint
+nietemigrated_school_visits.source_system:text
+nietemigrated_school_visits.status:text
+nietemigrated_school_visits.type:text
+nietemigrated_school_visits.uuid:uuid
+nietemigrated_school_visits.visit_date:date
+nietemigrated_school_visits.visit_plan_id:uuid
+nietemigrated_teacher_visits.coach_id:bigint
+nietemigrated_teacher_visits.comments:text
+nietemigrated_teacher_visits.created:timestamp with time zone
+nietemigrated_teacher_visits.deleted_at:timestamp with time zone
+nietemigrated_teacher_visits.grade_subject_id:bigint
+nietemigrated_teacher_visits.id:uuid
+nietemigrated_teacher_visits.is_active:boolean
+nietemigrated_teacher_visits.migrated_at:timestamp with time zone
+nietemigrated_teacher_visits.modified:timestamp with time zone
+nietemigrated_teacher_visits.scheduled_date:date
+nietemigrated_teacher_visits.school_id:bigint
+nietemigrated_teacher_visits.school_visit_id:uuid
+nietemigrated_teacher_visits.section:text
+nietemigrated_teacher_visits.source_system:text
+nietemigrated_teacher_visits.status:text
+nietemigrated_teacher_visits.teacher_id:bigint
+nietemigrated_teacher_visits.user_profile_content_type_id:integer
+nietemigrated_teacher_visits.user_profile_object_id:integer
+nietemigrated_teacher_visits.uuid:uuid
+nietemigrated_teacher_visits.visit_date:date
+nietemigrated_teacher_visits.visit_purpose:text
+nietemigrated_visit_plans.created:timestamp with time zone
+nietemigrated_visit_plans.deleted_at:timestamp with time zone
+nietemigrated_visit_plans.from_date:date
+nietemigrated_visit_plans.id:uuid
+nietemigrated_visit_plans.is_active:boolean
+nietemigrated_visit_plans.migrated_at:timestamp with time zone
+nietemigrated_visit_plans.modified:timestamp with time zone
+nietemigrated_visit_plans.name:text
+nietemigrated_visit_plans.regional_manager_id:bigint
+nietemigrated_visit_plans.source_system:text
+nietemigrated_visit_plans.to_date:date
+nietemigrated_visit_plans.user_profile_content_type_id:integer
+nietemigrated_visit_plans.user_profile_object_id:integer
+nietemigrated_visit_plans.uuid:uuid
+observation_field_forms.answers:jsonb
+observation_field_forms.checked_at:timestamp with time zone
+observation_field_forms.coaching_session_id:uuid
+observation_field_forms.created_at:timestamp with time zone
+observation_field_forms.evidence_review:jsonb
+observation_field_forms.final_levels:jsonb
+observation_field_forms.id:uuid
+observation_field_forms.moments_ready_at:timestamp with time zone
+observation_field_forms.observer_user_id:uuid
+observation_field_forms.opened_at:timestamp with time zone
+observation_field_forms.part1_done_at:timestamp with time zone
+observation_field_forms.part2_done_at:timestamp with time zone
+observation_field_forms.period_minutes:smallint
+observation_field_forms.photos:jsonb
+observation_field_forms.rubric_version:text
+observation_field_forms.rumi_levels:jsonb
+observation_field_forms.rumi_moments:jsonb
+observation_field_forms.sealed_at:timestamp with time zone
+observation_field_forms.teacher_user_id:uuid
+observation_field_forms.updated_at:timestamp with time zone
+observation_field_forms.visit_context:jsonb
+observation_schedules.calendar_event_id:text
+observation_schedules.created_at:timestamp with time zone
+observation_schedules.id:uuid
+observation_schedules.leader_user_id:uuid
+observation_schedules.scheduled_for:date
+observation_schedules.scheduled_slot:text
+observation_schedules.school_ext_id:text
+observation_schedules.school_id:uuid
+observation_schedules.school_name:text
+observation_schedules.session_id:uuid
+observation_schedules.status:text
+observation_schedules.teacher_ext_id:text
+observation_schedules.teacher_name:text
+observation_schedules.teacher_user_id:uuid
+observation_schedules.updated_at:timestamp with time zone
+pic_lp_sessions.caption:text
+pic_lp_sessions.correlation_id:text
+pic_lp_sessions.created_at:timestamp with time zone
+pic_lp_sessions.detected:jsonb
+pic_lp_sessions.expires_at:timestamp with time zone
+pic_lp_sessions.flow_token:text
+pic_lp_sessions.id:uuid
+pic_lp_sessions.last_error:text
+pic_lp_sessions.lp_request_id:uuid
+pic_lp_sessions.pages:jsonb
+pic_lp_sessions.status:text
+pic_lp_sessions.updated_at:timestamp with time zone
+pic_lp_sessions.user_id:uuid
+portal_organizations.created_at:timestamp with time zone
+portal_organizations.created_by:uuid
+portal_organizations.default_scope_type:character varying
+portal_organizations.default_scope_value:jsonb
+portal_organizations.description:text
+portal_organizations.id:uuid
+portal_organizations.is_active:boolean
+portal_organizations.name:character varying
+pre_generated_lps.chapter_number:integer
+pre_generated_lps.chapter_title:text
+pre_generated_lps.created_at:timestamp with time zone
+pre_generated_lps.curriculum:text
+pre_generated_lps.days:integer
+pre_generated_lps.gamma_url_en:text
+pre_generated_lps.gamma_url_ur:text
+pre_generated_lps.generated_at:timestamp with time zone
+pre_generated_lps.generation_status:text
+pre_generated_lps.grade:integer
+pre_generated_lps.id:uuid
+pre_generated_lps.is_current:boolean
+pre_generated_lps.page_end:integer
+pre_generated_lps.page_start:integer
+pre_generated_lps.pdf_r2_key_en:text
+pre_generated_lps.pdf_r2_key_ur:text
+pre_generated_lps.prompt_version:text
+pre_generated_lps.subject:text
+pre_generated_lps.textbook_id:uuid
+pre_generated_lps.updated_at:timestamp with time zone
+qa_analyst_proposals.created_at:timestamp with time zone
+qa_analyst_proposals.data_points:jsonb
+qa_analyst_proposals.expected_impact:text
+qa_analyst_proposals.hypothesis:text
+qa_analyst_proposals.id:uuid
+qa_analyst_proposals.implementation_pr:character varying
+qa_analyst_proposals.implemented_at:timestamp with time zone
+qa_analyst_proposals.proposed_changes:jsonb
+qa_analyst_proposals.review_notes:text
+qa_analyst_proposals.reviewed_at:timestamp with time zone
+qa_analyst_proposals.reviewed_by:character varying
+qa_analyst_proposals.status:character varying
+qa_analyst_proposals.title:character varying
+qa_analyst_proposals.updated_at:timestamp with time zone
+qa_bug_patterns.affected_files:ARRAY
+qa_bug_patterns.created_at:timestamp with time zone
+qa_bug_patterns.error_signature:text
+qa_bug_patterns.id:uuid
+qa_bug_patterns.is_resolved:boolean
+qa_bug_patterns.last_seen_at:timestamp with time zone
+qa_bug_patterns.pattern_name:character varying
+qa_bug_patterns.resolution:text
+qa_bug_patterns.root_cause:text
+qa_bug_patterns.severity:character varying
+qa_bug_patterns.times_seen:integer
+qa_bug_patterns.updated_at:timestamp with time zone
+qa_test_runs.completed_at:timestamp with time zone
+qa_test_runs.created_at:timestamp with time zone
+qa_test_runs.error_message:text
+qa_test_runs.evidence:jsonb
+qa_test_runs.id:uuid
+qa_test_runs.results:jsonb
+qa_test_runs.run_number:integer
+qa_test_runs.scenarios:jsonb
+qa_test_runs.started_at:timestamp with time zone
+qa_test_runs.status:character varying
+qa_test_runs.trigger_type:character varying
+qa_test_runs.triggered_by:character varying
+qa_test_runs.updated_at:timestamp with time zone
+quiz_answers.answered_at:timestamp with time zone
+quiz_answers.created_at:timestamp with time zone
+quiz_answers.difficulty_at_time:integer
+quiz_answers.id:uuid
+quiz_answers.is_correct:boolean
+quiz_answers.question_id:uuid
+quiz_answers.response_time_seconds:integer
+quiz_answers.selected_option:text
+quiz_answers.session_id:uuid
+quiz_questions.correct_option:text
+quiz_questions.created_at:timestamp with time zone
+quiz_questions.difficulty_level:integer
+quiz_questions.distractor_misconceptions:jsonb
+quiz_questions.explanation:text
+quiz_questions.external_id:text
+quiz_questions.id:uuid
+quiz_questions.media:jsonb
+quiz_questions.misconception_feedback:text
+quiz_questions.option_a:text
+quiz_questions.option_b:text
+quiz_questions.option_c:text
+quiz_questions.option_d:text
+quiz_questions.option_feedback:jsonb
+quiz_questions.question_text:text
+quiz_questions.quiz_id:uuid
+quiz_questions.render_pattern:text
+quiz_questions.sort_order:integer
+quiz_sessions.completed_at:timestamp with time zone
+quiz_sessions.correct_answers:integer
+quiz_sessions.created_at:timestamp with time zone
+quiz_sessions.current_difficulty:integer
+quiz_sessions.device_ref:text
+quiz_sessions.expires_at:timestamp with time zone
+quiz_sessions.id:uuid
+quiz_sessions.idle_reminder_sent:boolean
+quiz_sessions.invited_by_student_id:uuid
+quiz_sessions.mastery_level:text
+quiz_sessions.mastery_percentage:integer
+quiz_sessions.parent_phone:text
+quiz_sessions.quiz_id:uuid
+quiz_sessions.share_code_id:uuid
+quiz_sessions.source:text
+quiz_sessions.status:text
+quiz_sessions.student_class:text
+quiz_sessions.student_id:uuid
+quiz_sessions.student_name:text
+quiz_sessions.total_questions_answered:integer
+quiz_sessions.user_id:uuid
+quiz_share_codes.active:boolean
+quiz_share_codes.class_id:uuid
+quiz_share_codes.code:text
+quiz_share_codes.created_at:timestamp with time zone
+quiz_share_codes.expires_at:timestamp with time zone
+quiz_share_codes.id:uuid
+quiz_share_codes.invited_by_student_id:uuid
+quiz_share_codes.language:text
+quiz_share_codes.parent_share_code_id:uuid
+quiz_share_codes.quiz_id:uuid
+quiz_share_codes.report_sent_at:timestamp with time zone
+quiz_share_codes.teacher_name:text
+quiz_share_codes.teacher_user_id:uuid
+quiz_share_codes.topic:text
+quiz_share_codes.uses_count:integer
+quiz_share_codes.video_id:uuid
+quizzes.coaching_session_id:uuid
+quizzes.created_at:timestamp with time zone
+quizzes.grade:text
+quizzes.id:uuid
+quizzes.language:text
+quizzes.lesson_plan_id:uuid
+quizzes.list_id:uuid
+quizzes.meta:jsonb
+quizzes.quiz_source:text
+quizzes.report_pdf_url:text
+quizzes.report_scheduled_at:timestamp with time zone
+quizzes.report_sent_at:timestamp with time zone
+quizzes.source_content:text
+quizzes.status:text
+quizzes.subject:text
+quizzes.teacher_id:uuid
+quizzes.topic:text
+quizzes.total_students_completed:integer
+quizzes.total_students_sent:integer
+quizzes.video_id:uuid
+reading_assessments.accuracy_percentage:double precision
+reading_assessments.analysis_cost:numeric
+reading_assessments.assessment_mode:character varying
+reading_assessments.audio_duration_seconds:double precision
+reading_assessments.audio_format:character varying
+reading_assessments.audio_quality_score:double precision
+reading_assessments.audio_size_bytes:bigint
+reading_assessments.audio_uploaded_at:timestamp with time zone
+reading_assessments.audio_url:text
+reading_assessments.audio_validation_warnings:jsonb
+reading_assessments.auto_level_history:jsonb
+reading_assessments.azure_api_calls:integer
+reading_assessments.can_resume:boolean
+reading_assessments.completed_at:timestamp with time zone
+reading_assessments.comprehension_analysis:jsonb
+reading_assessments.comprehension_answers:jsonb
+reading_assessments.comprehension_questions:jsonb
+reading_assessments.comprehension_requested:boolean
+reading_assessments.comprehension_score:double precision
+reading_assessments.concurrent_session_count:integer
+reading_assessments.confirmed_at:timestamp with time zone
+reading_assessments.created_at:timestamp with time zone
+reading_assessments.current_level_attempt:integer
+reading_assessments.detected_language:character varying
+reading_assessments.diagnostic_summary:text
+reading_assessments.error_message:text
+reading_assessments.errors:jsonb
+reading_assessments.failed_at:timestamp with time zone
+reading_assessments.failed_step:character varying
+reading_assessments.final_level:character varying
+reading_assessments.gpt4_input_tokens:integer
+reading_assessments.gpt4_output_tokens:integer
+reading_assessments.grade_benchmark_max:integer
+reading_assessments.grade_benchmark_min:integer
+reading_assessments.grade_level:integer
+reading_assessments.id:uuid
+reading_assessments.is_second_language:boolean
+reading_assessments.language:character varying
+reading_assessments.last_successful_step:character varying
+reading_assessments.level_attempts:jsonb
+reading_assessments.max_attempts_per_level:integer
+reading_assessments.num_speakers_detected:integer
+reading_assessments.on_track:boolean
+reading_assessments.parent_message_generated:text
+reading_assessments.parent_shared:boolean
+reading_assessments.parent_shared_at:timestamp with time zone
+reading_assessments.passage_generated_at:timestamp with time zone
+reading_assessments.passage_image_url:text
+reading_assessments.passage_text:text
+reading_assessments.passage_title:character varying
+reading_assessments.passage_type:character varying
+reading_assessments.passage_word_count:integer
+reading_assessments.percentile_rank:character varying
+reading_assessments.processing_started_at:timestamp with time zone
+reading_assessments.pronunciation_accuracy:double precision
+reading_assessments.pronunciation_cost:numeric
+reading_assessments.pronunciation_data:jsonb
+reading_assessments.prosody_analysis:jsonb
+reading_assessments.redis_session_key:character varying
+reading_assessments.report_cost:numeric
+reading_assessments.report_generated_at:timestamp with time zone
+reading_assessments.report_pdf_url:text
+reading_assessments.self_corrections_count:integer
+reading_assessments.session_id:uuid
+reading_assessments.soniox_duration_seconds:double precision
+reading_assessments.starting_level:character varying
+reading_assessments.status:character varying
+reading_assessments.student_identifier:character varying
+reading_assessments.student_number:integer
+reading_assessments.time_elapsed_seconds:double precision
+reading_assessments.total_cost:numeric
+reading_assessments.total_words_in_passage:integer
+reading_assessments.transcript_confidence:double precision
+reading_assessments.transcript_text:text
+reading_assessments.transcription_cost:numeric
+reading_assessments.updated_at:timestamp with time zone
+reading_assessments.user_id:uuid
+reading_assessments.voice_feedback_cost:numeric
+reading_assessments.voice_feedback_duration_seconds:integer
+reading_assessments.voice_feedback_language:character varying
+reading_assessments.voice_feedback_url:text
+reading_assessments.wcpm:double precision
+reading_assessments.word_timestamps:jsonb
+reading_assessments.words_correct:integer
+reading_assessments.words_read:integer
+record_history.actor:text
+record_history.actor_source:text
+record_history.changed_at:timestamp with time zone
+record_history.changed_cols:ARRAY
+record_history.id:bigint
+record_history.new_vals:jsonb
+record_history.old_vals:jsonb
+record_history.op:text
+record_history.row_id:text
+record_history.table_name:text
+record_history.txid:bigint
+region_features.created_at:timestamp with time zone
+region_features.curriculum_key:text
+region_features.curriculum_lp_enabled:boolean
+region_features.default_framework:text
+region_features.gamma_lp_enabled:boolean
+region_features.has_textbooks:boolean
+region_features.pic_lp_enabled:boolean
+region_features.region:text
+region_features.supported_languages:jsonb
+region_features.supported_subjects:ARRAY
+region_features.updated_at:timestamp with time zone
+release_notes.category:character varying
+release_notes.created_at:timestamp with time zone
+release_notes.created_by:character varying
+release_notes.description:text
+release_notes.details:text
+release_notes.environment:character varying
+release_notes.icon:character varying
+release_notes.id:uuid
+release_notes.is_highlighted:boolean
+release_notes.published_at:timestamp with time zone
+release_notes.title:character varying
+release_notes.version:character varying
+schema_versions.applied_at:timestamp without time zone
+schema_versions.description:text
+schema_versions.version:character varying
+schools.created_at:timestamp with time zone
+schools.emis:text
+schools.id:uuid
+schools.is_active:boolean
+schools.is_probable_test:boolean
+schools.name:character varying
+schools.principal_user_id:uuid
+schools.region:character varying
+schools.source_school_id:bigint
+schools.source_system:text
+schools.updated_at:timestamp with time zone
+sections.code:text
+sections.is_active:boolean
+sections.sort_order:smallint
+shifts.code:text
+shifts.is_active:boolean
+shifts.sort_order:smallint
+student_lists.academic_year:character varying
+student_lists.attendance_frequency:character varying
+student_lists.class_id:uuid
+student_lists.class_name:character varying
+student_lists.created_at:timestamp with time zone
+student_lists.id:uuid
+student_lists.is_active:boolean
+student_lists.section:character varying
+student_lists.student_count:integer
+student_lists.updated_at:timestamp with time zone
+student_lists.user_id:uuid
+student_video_feedback.created_at:timestamp with time zone
+student_video_feedback.delivery_id:uuid
+student_video_feedback.grade:character varying
+student_video_feedback.id:uuid
+student_video_feedback.quiz_session_id:uuid
+student_video_feedback.quiz_useful:boolean
+student_video_feedback.reason_language:text
+student_video_feedback.reason_polarity:text
+student_video_feedback.reason_received_at:timestamp with time zone
+student_video_feedback.reason_text:text
+student_video_feedback.scope:text
+student_video_feedback.subject:character varying
+student_video_feedback.subtopic:character varying
+student_video_feedback.topic:character varying
+student_video_feedback.useful:boolean
+student_video_feedback.user_id:uuid
+student_video_feedback.video_id:uuid
+student_videos.clean_chapter:text
+student_videos.clean_title:text
+student_videos.created_at:timestamp with time zone
+student_videos.grade:character varying
+student_videos.id:uuid
+student_videos.migration_status:text
+student_videos.notes:text
+student_videos.original_filename:text
+student_videos.r2_url:text
+student_videos.search_vector:tsvector
+student_videos.subject:character varying
+student_videos.subtopic:character varying
+student_videos.superseded_by:uuid
+student_videos.topic:character varying
+student_videos.updated_at:timestamp with time zone
+student_videos.video_url:text
+students.admission_no:text
+students.created_at:timestamp with time zone
+students.date_of_birth:date
+students.enrolled_by_user_id:uuid
+students.father_name:character varying
+students.father_name_urdu:text
+students.id:uuid
+students.import_run_id:text
+students.is_active:boolean
+students.list_id:uuid
+students.merged_into:uuid
+students.parent_phone:text
+students.phone:text
+students.roll_number:integer
+students.school_id:uuid
+students.self_reported_class:text
+students.status:text
+students.student_code:text
+students.student_name:character varying
+students.student_name_urdu:text
+students.updated_at:timestamp with time zone
+subjects.aliases:ARRAY
+subjects.code:text
+subjects.is_active:boolean
+subjects.parent_code:text
+subjects.sort_order:smallint
+supervisor_remark_scores.answered_at:timestamp with time zone
+supervisor_remark_scores.id:uuid
+supervisor_remark_scores.indicator_ordinal:smallint
+supervisor_remark_scores.remark_id:uuid
+supervisor_remark_scores.score:smallint
+supervisor_remark_scores.updated_at:timestamp with time zone
+supervisor_remarks.comment_audio_id:character varying
+supervisor_remarks.comment_language:character varying
+supervisor_remarks.comment_text:text
+supervisor_remarks.created_at:timestamp with time zone
+supervisor_remarks.cycle_id:uuid
+supervisor_remarks.id:uuid
+supervisor_remarks.narrative_generated_at:timestamp with time zone
+supervisor_remarks.narrative_sent_at:timestamp with time zone
+supervisor_remarks.narrative_text:text
+supervisor_remarks.principal_user_id:uuid
+supervisor_remarks.school_id:uuid
+supervisor_remarks.submitted_at:timestamp with time zone
+supervisor_remarks.teacher_id:uuid
+supervisor_remarks.updated_at:timestamp with time zone
+teacher_attendance_records.date:date
+teacher_attendance_records.id:uuid
+teacher_attendance_records.leave_type:character varying
+teacher_attendance_records.marked_at:timestamp with time zone
+teacher_attendance_records.marked_by_user_id:uuid
+teacher_attendance_records.school_id:uuid
+teacher_attendance_records.status:character varying
+teacher_attendance_records.teacher_id:uuid
+teacher_attendance_records.updated_at:timestamp with time zone
+teacher_facts.category:character varying
+teacher_facts.confidence:double precision
+teacher_facts.created_at:timestamp without time zone
+teacher_facts.fact:text
+teacher_facts.id:uuid
+teacher_facts.updated_at:timestamp without time zone
+teacher_facts.user_id:uuid
+teacher_nudges.answered_at:timestamp with time zone
+teacher_nudges.choice:text
+teacher_nudges.context:jsonb
+teacher_nudges.created_at:timestamp with time zone
+teacher_nudges.id:uuid
+teacher_nudges.kind:text
+teacher_nudges.nudge_date:date
+teacher_nudges.quiz_id:uuid
+teacher_nudges.scheduled_at:timestamp with time zone
+teacher_nudges.sent_at:timestamp with time zone
+teacher_nudges.status:text
+teacher_nudges.updated_at:timestamp with time zone
+teacher_nudges.user_id:uuid
+teacher_progress.created_at:timestamp without time zone
+teacher_progress.dimension:character varying
+teacher_progress.evidence:text
+teacher_progress.id:uuid
+teacher_progress.score:double precision
+teacher_progress.session_id:uuid
+teacher_progress.user_id:uuid
+teacher_training_assignments.assigned_at:timestamp with time zone
+teacher_training_assignments.assigned_by:character varying
+teacher_training_assignments.id:uuid
+teacher_training_assignments.is_active:boolean
+teacher_training_assignments.program_id:uuid
+teacher_training_assignments.user_id:uuid
+teacher_training_progress.completed_at:timestamp with time zone
+teacher_training_progress.id:uuid
+teacher_training_progress.module_id:bigint
+teacher_training_progress.user_id:uuid
+textbook_pages.content_length:integer
+textbook_pages.created_at:timestamp with time zone
+textbook_pages.exercises:jsonb
+textbook_pages.has_math:boolean
+textbook_pages.has_tables:boolean
+textbook_pages.has_urdu:boolean
+textbook_pages.id:uuid
+textbook_pages.learning_outcomes:jsonb
+textbook_pages.ocr_confidence:double precision
+textbook_pages.page_content:text
+textbook_pages.page_images:jsonb
+textbook_pages.pdf_page_index:integer
+textbook_pages.teaching_points:jsonb
+textbook_pages.textbook_id:uuid
+textbook_pages.textbook_page_number:integer
+textbook_toc.chapter_number:integer
+textbook_toc.chapter_title:text
+textbook_toc.created_at:timestamp with time zone
+textbook_toc.curriculum:text
+textbook_toc.estimated_days:integer
+textbook_toc.grade:integer
+textbook_toc.id:uuid
+textbook_toc.is_manual_override:boolean
+textbook_toc.learning_outcomes:ARRAY
+textbook_toc.page_end:integer
+textbook_toc.page_start:integer
+textbook_toc.subject:text
+textbook_toc.textbook_id:uuid
+textbook_toc.topic_keywords:ARRAY
+textbooks.created_at:timestamp with time zone
+textbooks.curriculum:text
+textbooks.filename:text
+textbooks.grade:integer
+textbooks.id:uuid
+textbooks.ocr_completed_at:timestamp with time zone
+textbooks.ocr_status:text
+textbooks.pdf_page_offset:integer
+textbooks.province:text
+textbooks.r2_key:text
+textbooks.subject:text
+textbooks.total_pages:integer
+textbooks.updated_at:timestamp with time zone
+training_assessment_answers.answer_score:smallint
+training_assessment_answers.answer_text:text
+training_assessment_answers.answered_at:timestamp with time zone
+training_assessment_answers.attempt_id:uuid
+training_assessment_answers.chosen_option:character varying
+training_assessment_answers.feedback_text:text
+training_assessment_answers.id:uuid
+training_assessment_answers.is_correct:boolean
+training_assessment_answers.question_id:bigint
+training_assessment_answers.question_index:integer
+training_assessment_attempts.completed_at:timestamp with time zone
+training_assessment_attempts.cooldown_until:timestamp with time zone
+training_assessment_attempts.current_question_index:integer
+training_assessment_attempts.grand_quiz_id:bigint
+training_assessment_attempts.id:uuid
+training_assessment_attempts.is_passed:boolean
+training_assessment_attempts.last_activity_at:timestamp with time zone
+training_assessment_attempts.level_id:bigint
+training_assessment_attempts.program_id:uuid
+training_assessment_attempts.quiz_kind:character varying
+training_assessment_attempts.score:integer
+training_assessment_attempts.started_at:timestamp with time zone
+training_assessment_attempts.status:USER-DEFINED
+training_assessment_attempts.total_questions:integer
+training_assessment_attempts.total_score:integer
+training_assessment_attempts.training_module_id:bigint
+training_assessment_attempts.user_id:uuid
+training_certificates.attempt_id:uuid
+training_certificates.certificate_code:character varying
+training_certificates.id:uuid
+training_certificates.issued_at:timestamp with time zone
+training_certificates.level_id:bigint
+training_certificates.level_name_snapshot:character varying
+training_certificates.pdf_r2_key:character varying
+training_certificates.program_id:uuid
+training_certificates.teacher_name_snapshot:character varying
+training_certificates.user_id:uuid
+training_content_change_events.actor:character varying
+training_content_change_events.after_json:jsonb
+training_content_change_events.before_json:jsonb
+training_content_change_events.entity_id:character varying
+training_content_change_events.entity_type:character varying
+training_content_change_events.id:uuid
+training_content_change_events.occurred_at:timestamp with time zone
+training_content_change_events.origin:character varying
+training_courses.course_type:character varying
+training_courses.id:bigint
+training_courses.is_active:boolean
+training_courses.level_id:bigint
+training_courses.order_index:integer
+training_courses.source_course_id:bigint
+training_courses.title:character varying
+training_grand_quizzes.id:bigint
+training_grand_quizzes.is_active:boolean
+training_grand_quizzes.level_id:bigint
+training_grand_quizzes.quiz_type:character varying
+training_grand_quizzes.source_quiz_id:bigint
+training_levels.cpd_level:integer
+training_levels.id:bigint
+training_levels.is_active:boolean
+training_levels.name:character varying
+training_levels.order_index:integer
+training_levels.source_level_id:bigint
+training_levels.vendor_id:uuid
+training_modules.audio_url:text
+training_modules.content_html:text
+training_modules.course_id:bigint
+training_modules.duration_seconds:integer
+training_modules.id:bigint
+training_modules.is_active:boolean
+training_modules.order_index:integer
+training_modules.source_media_url:text
+training_modules.source_module_id:bigint
+training_modules.title:character varying
+training_modules.video_url:text
+training_program_scopes.course_ids:ARRAY
+training_program_scopes.id:uuid
+training_program_scopes.level_ids:ARRAY
+training_program_scopes.module_ids:ARRAY
+training_program_scopes.program_id:uuid
+training_program_scopes.vendor_id:uuid
+training_programs.created_at:timestamp with time zone
+training_programs.description:text
+training_programs.id:uuid
+training_programs.is_active:boolean
+training_programs.key:character varying
+training_programs.name:character varying
+training_questions.bloom_level:character varying
+training_questions.correct_option:character varying
+training_questions.grand_quiz_id:bigint
+training_questions.id:bigint
+training_questions.is_active:boolean
+training_questions.option_images:jsonb
+training_questions.options:jsonb
+training_questions.order_index:integer
+training_questions.question_text:text
+training_questions.question_urdu:text
+training_questions.rubric:jsonb
+training_questions.source_question_id:bigint
+training_questions.training_module_id:bigint
+training_vendors.capstone_points_per_question:smallint
+training_vendors.cert_code_prefix:character varying
+training_vendors.cooldown_hours:integer
+training_vendors.created_at:timestamp with time zone
+training_vendors.exam_question_cap:integer
+training_vendors.has_diagnostic:boolean
+training_vendors.has_grand_quiz:boolean
+training_vendors.id:uuid
+training_vendors.is_active:boolean
+training_vendors.key:character varying
+training_vendors.level_unlock_logic:text
+training_vendors.module_passing_pct:smallint
+training_vendors.module_quiz_strategy:character varying
+training_vendors.module_quiz_ungated:boolean
+training_vendors.module_unlock_logic:text
+training_vendors.name:character varying
+training_vendors.passing_pct:integer
+training_vendors.shuffle_options:boolean
+training_vendors.unlock_logic:character varying
+user_feature_first_use.created_at:timestamp with time zone
+user_feature_first_use.feature:text
+user_feature_first_use.feature_used_at:timestamp with time zone
+user_feature_first_use.id:uuid
+user_feature_first_use.intro_shown_count:integer
+user_feature_first_use.user_id:uuid
+user_feature_first_use.video_shown_at:timestamp with time zone
+users.conversation_state:jsonb
+users.conversation_state_expires_at:timestamp with time zone
+users.country:character varying
+users.created_at:timestamp without time zone
+users.deleted_at:timestamp with time zone
+users.deleted_by:text
+users.deleted_reason:text
+users.first_message_at:timestamp without time zone
+users.grades_taught:character varying
+users.id:uuid
+users.is_test_user:boolean
+users.language_locked:boolean
+users.language_nudge_sent:boolean
+users.last_message_at:timestamp with time zone
+users.merged_into:uuid
+users.name:character varying
+users.organization:character varying
+users.password_reset_code:character varying
+users.password_reset_expires_at:timestamp with time zone
+users.phone_number:character varying
+users.portal_activated:boolean
+users.portal_invite_expires_at:timestamp with time zone
+users.portal_invite_token:text
+users.portal_last_login:timestamp with time zone
+users.portal_password_hash:text
+users.preferences:jsonb
+users.preferred_language:character varying
+users.region:character varying
+users.registered_at:timestamp without time zone
+users.registration_completed:boolean
+users.registration_completed_at:timestamp without time zone
+users.registration_pending_name:boolean
+users.registration_started_at:timestamp without time zone
+users.registration_state:text
+users.registration_state_updated_at:timestamp with time zone
+users.role:character varying
+users.school_id:uuid
+users.school_name:character varying
+users.session_id:character varying
+users.source:character varying
+users.subject:text
+users.subjects_taught:jsonb
+users.teacher_level:ARRAY
+users.teacher_level_updated_at:timestamp with time zone
+users.teacher_uuid:uuid
+users.training_bands:ARRAY
+users.training_bands_updated_at:timestamp with time zone
+users.updated_at:timestamp without time zone
+v_exam_bank_chapters.chapter_index:integer
+v_exam_bank_chapters.chapter_title:text
+v_exam_bank_chapters.grade:text
+v_exam_bank_chapters.language:text
+v_exam_bank_chapters.subject:text
+v_exam_bank_grades.grade:text
+v_exam_bank_subjects.subject:text
+v_supervisor_remark_scores.cycle_id:uuid
+v_supervisor_remark_scores.principal_user_id:uuid
+v_supervisor_remark_scores.remark_id:uuid
+v_supervisor_remark_scores.s_pct:numeric
+v_supervisor_remark_scores.s_score:integer
+v_supervisor_remark_scores.school_id:uuid
+v_supervisor_remark_scores.score_collaboration:smallint
+v_supervisor_remark_scores.score_growth:smallint
+v_supervisor_remark_scores.score_leadership:smallint
+v_supervisor_remark_scores.score_parents:smallint
+v_supervisor_remark_scores.score_student_support:smallint
+v_supervisor_remark_scores.submitted_at:timestamp with time zone
+v_supervisor_remark_scores.teacher_id:uuid
+video_quiz_deliveries.correlation_id:text
+video_quiz_deliveries.created_at:timestamp with time zone
+video_quiz_deliveries.delivered_at:timestamp with time zone
+video_quiz_deliveries.grade:character varying
+video_quiz_deliveries.id:uuid
+video_quiz_deliveries.phone:character varying
+video_quiz_deliveries.quiz_offered_at:timestamp with time zone
+video_quiz_deliveries.quiz_responded_at:timestamp with time zone
+video_quiz_deliveries.quiz_response:text
+video_quiz_deliveries.quiz_session_id:uuid
+video_quiz_deliveries.status:text
+video_quiz_deliveries.subject:character varying
+video_quiz_deliveries.title:text
+video_quiz_deliveries.user_id:uuid
+video_quiz_deliveries.video_id:uuid
+video_requests.completed_at:timestamp without time zone
+video_requests.created_at:timestamp without time zone
+video_requests.current_step:integer
+video_requests.customization:text
+video_requests.error_message:text
+video_requests.estimated_cost:numeric
+video_requests.generation_time_seconds:integer
+video_requests.id:uuid
+video_requests.language:character varying
+video_requests.pdf_url:text
+video_requests.retry_count:integer
+video_requests.script_data:jsonb
+video_requests.session_id:uuid
+video_requests.slide_urls:ARRAY
+video_requests.started_at:timestamp without time zone
+video_requests.status:character varying
+video_requests.style:character varying
+video_requests.topic:text
+video_requests.user_id:uuid
+video_requests.video_segment_urls:ARRAY
+video_requests.video_url:text
+video_tasks.completed_at:timestamp with time zone
+video_tasks.created_at:timestamp with time zone
+video_tasks.ephemeral_url:text
+video_tasks.filename:text
+video_tasks.id:uuid
+video_tasks.result_url:text
+video_tasks.status:text
+video_tasks.task_id:text
+video_tasks.task_type:text
+video_tasks.video_request_id:uuid
+videos.created_at:timestamp without time zone
+videos.filename:character varying
+videos.grade:character varying
+videos.id:uuid
+videos.source:character varying
+videos.subject:character varying
+videos.topic:character varying
+videos.url:character varying
+wcpm_percentiles.created_at:timestamp with time zone
+wcpm_percentiles.grade_level:integer
+wcpm_percentiles.id:integer
+wcpm_percentiles.language:character varying
+wcpm_percentiles.percentile:integer
+wcpm_percentiles.season:character varying
+wcpm_percentiles.wcpm_threshold:integer
+web_quiz_challenge_runs.created_at:timestamp with time zone
+web_quiz_challenge_runs.exercise:text
+web_quiz_challenge_runs.grade:smallint
+web_quiz_challenge_runs.id:uuid
+web_quiz_challenge_runs.lang:text
+web_quiz_challenge_runs.meta:jsonb
+web_quiz_challenge_runs.score:jsonb
+web_quiz_challenge_runs.scored_at:timestamp with time zone
+web_quiz_challenge_runs.status:text
+web_quiz_challenge_runs.student_id:uuid
+web_quiz_challenge_runs.wcpm:numeric
+website_visits.created_at:timestamp without time zone
+website_visits.id:uuid
+website_visits.ip_hash:character varying
+website_visits.landing_page:text
+website_visits.referrer:text
+website_visits.session_id:character varying
+website_visits.user_agent:text
