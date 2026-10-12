@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { acceptFor, checkFile } from '../../lib/coachingUpload';
 import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
@@ -17,7 +17,7 @@ import { useCopy } from '../i18n';
 import { LESSONS } from '../lessons/copy';
 import { lessonGroups, loadDcHistory } from './api';
 import { COACHING } from './copy';
-import { holdDraft, planKeyOf, readPrefill, type DraftPlan } from './draft';
+import { holdDraft, peekDraft, planKeyOf, readPrefill, type DraftPlan } from './draft';
 import { PhotoGrid, PlanPicker, SectionHeading } from './parts';
 import { COACHING_ALL, COACHING_SEND } from './paths';
 
@@ -57,11 +57,15 @@ export function CoachingHomePage() {
     [combosLoad],
   );
 
-  const [combo, setCombo] = useState<GradeSubjectPair | null>(null);
-  const [plan, setPlan] = useState<DraftPlan | null>(null);
+  // bd-fmf24g.68: coming BACK here (from the library, from the send page) she finds her class, plan and photos as
+  // she left them (draft.ts holds them when she goes). Opened any other way, the hub starts empty.
+  const cameBack = useNavigationType() === 'POP';
+  const [kept] = useState(() => (cameBack ? peekDraft() : null));
+  const [combo, setCombo] = useState<GradeSubjectPair | null>(kept?.combo ?? null);
+  const [plan, setPlan] = useState<DraftPlan | null>(kept?.plan ?? null);
   const [planProblem, setPlanProblem] = useState<'not_a_plan' | null>(null);
   const [planSheet, setPlanSheet] = useState(false);
-  const [photos, setPhotos] = useState<File[]>([]);
+  const [photos, setPhotos] = useState<File[]>(kept?.photos ?? []);
   const audioInput = useRef<HTMLInputElement>(null);
 
   // Her class: only the one a lesson plan sent her with (?grade=&subject=). Otherwise nothing is chosen for
@@ -73,7 +77,7 @@ export function CoachingHomePage() {
   }, [mine, prefill, combo]);
 
   // The plan a lesson plan sent her with, named from her recent plans (the viewer just opened it).
-  const prefilled = useRef(false);
+  const prefilled = useRef(!!kept);
   useEffect(() => {
     if (prefilled.current || !prefill.pick || recentPlans.status === 'loading' || recentPlans.status === 'idle') return;
     prefilled.current = true;
@@ -171,7 +175,7 @@ export function CoachingHomePage() {
         open={planSheet}
         onClose={() => setPlanSheet(false)}
         onPick={(p) => { setPlan({ kind: 'library', ...p }); setPlanSheet(false); }}
-        onLibrary={() => { setPlanSheet(false); navigate(teacherPath('lessons')); }}
+        onLibrary={() => { setPlanSheet(false); holdDraft({ combo, plan, photos }); navigate(teacherPath('lessons')); }}
         onFile={(file, asPhoto) => {
           setPlanProblem(null);
           if (!file) return false;

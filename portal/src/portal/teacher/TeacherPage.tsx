@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import PortalLayout from "../components/PortalLayout";
 import { TEACHER_FRAME } from "./copy";
 import { useCopy } from "./i18n";
 import { FeatureArt, type AnyFeature } from "./icons";
 import { useLatinAttrs } from "@/lib/textDir";
+import { BackLink } from "../lib/useBack";
 
 /**
  * bd-fmf24g.1 — the teacher v2 page frame (canvas v28), for every teacher v2 page.
@@ -66,7 +66,7 @@ export default function TeacherPage({
           <header className="flex items-start gap-1 pb-1.5 pt-2">
             {onBack
               ? <button type="button" onClick={onBack} aria-label={C.back} className="flex h-14 w-14 shrink-0 items-center justify-center">{circle}</button>
-              : <Link to={backTo as string} aria-label={C.back} className="flex h-14 w-14 shrink-0 items-center justify-center">{circle}</Link>}
+              : <BackLink to={backTo as string} aria-label={C.back} className="flex h-14 w-14 shrink-0 items-center justify-center">{circle}</BackLink>}
             {tile}
             <div className={tile ? "ms-2 min-w-0 flex-1" : "min-w-0 flex-1"}>
               {crumb && <div data-testid="page-crumb" {...ltrOf(crumb)} className="break-words text-[13px] font-medium leading-snug text-[#6b7280] [overflow-wrap:anywhere]">{crumb}</div>}

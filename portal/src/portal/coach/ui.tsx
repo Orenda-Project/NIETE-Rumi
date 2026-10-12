@@ -9,6 +9,7 @@ import { splitSlot } from "./time";
 import { useCopy } from "../teacher/i18n";
 import { AttentionBanner } from "../teacher/ui";
 import { COACH_HOME } from "./home/copy";
+import { BackLink } from "../lib/useBack";
 
 /**
  * bd-o15qnr — the coach app v2's building blocks, in the LIVE portal look (not
@@ -120,7 +121,7 @@ export function CoachPage({
             <header className="flex items-center gap-1 pb-2 pt-2">
               {onBack
                 ? <button type="button" onClick={onBack} aria-label={C.back} className="flex h-14 w-14 shrink-0 items-center justify-center">{circle}</button>
-                : <Link to={backTo as string} aria-label={C.back} className="flex h-14 w-14 shrink-0 items-center justify-center">{circle}</Link>}
+                : <BackLink to={backTo as string} aria-label={C.back} className="flex h-14 w-14 shrink-0 items-center justify-center">{circle}</BackLink>}
               <div className="min-w-0 flex-1">
                 {crumb && <div className="truncate text-[13px] font-medium text-[#6b7280]">{crumb}</div>}
                 <h1 className="truncate text-[26px] font-light leading-tight tracking-[-0.01em]">{title}</h1>
