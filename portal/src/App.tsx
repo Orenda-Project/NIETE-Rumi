@@ -78,6 +78,9 @@ const CoachPeople = page(() => import("./portal/coach/pages/CoachPeople"));
 const CoachAnalytics = page(() => import("./portal/coach/analytics/CoachAnalytics").then((m) => ({ default: m.CoachAnalytics })));
 const CoachTeacherAnalytics = page(() => import("./portal/coach/analytics/CoachAnalytics").then((m) => ({ default: m.CoachTeacherAnalytics })));
 const CoachSchool = page(() => import("./portal/coach/pages/CoachSchool"));
+const CoachAddSchool = page(() => import("./portal/coach/pages/CoachAddSchool"));
+const CoachAddTeacher = page(() => import("./portal/coach/pages/CoachAddTeacher"));
+const CoachRemoveTeachers = page(() => import("./portal/coach/pages/CoachRemoveTeachers"));
 const CoachTeacher = page(() => import("./portal/coach/pages/CoachTeacher"));
 const CoachRecord = page(() => import("./portal/coach/pages/CoachRecord"));
 const CoachAttach = page(() => import("./portal/coach/pages/CoachAttach"));
@@ -264,6 +267,11 @@ const App = () => {
             <Route path="/portal/coach/analytics" element={<CoachAnalytics />} />
             <Route path="/portal/coach/analytics/teacher/:ext" element={<CoachTeacherAnalytics />} />
             <Route path="/portal/coach/school/:emis" element={<CoachSchool />} />
+            {/* Her school list and its teachers: the WhatsApp /observe "Add or remove a school" and "Manage teachers". */}
+            <Route path="/portal/coach/schools/add" element={<CoachAddSchool />} />
+            <Route path="/portal/coach/add-teacher" element={<CoachAddTeacher />} />
+            <Route path="/portal/coach/school/:emis/add-teacher" element={<CoachAddTeacher />} />
+            <Route path="/portal/coach/school/:emis/remove-teachers" element={<CoachRemoveTeachers />} />
             <Route path="/portal/coach/teacher/:ext" element={<CoachTeacher />} />
             {/* bd-o15qnr.10 — one HITL report, from a teacher's History */}
             <Route path="/portal/coach/observation/:id" element={<CoachObservation />} />

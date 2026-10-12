@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
-import { HistoryRow } from "../../teacher/ui";
+import { HistoryRow, StatusChip } from "../../teacher/ui";
 import { useCopy } from "../../teacher/i18n";
 import { Stats } from "../ui";
 import type { CoachSchool, CoachTeacher } from "../types";
@@ -84,3 +85,32 @@ export function SchoolGroup({ id, name, teachers, defaultOpen }: { id: string; n
     </section>
   );
 }
+
+/** "Nothing here yet" as ONE slim row (icon and a few words, ~64px), never a dashed card (12 Oct decision). */
+export function EmptyRow({ icon, children, testId }: { icon: ReactNode; children: ReactNode; testId?: string }) {
+  return (
+    <div data-testid={testId} className="flex min-h-[64px] items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white px-4 text-[16px] font-semibold text-[#6b7280]">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f3f4f6] text-[#9ca3af]" aria-hidden="true">{icon}</span>
+      {children}
+    </div>
+  );
+}
+
+/** What the page that sent her here just did ("Added", "Removed 2 teachers"): `location.state.notice`, a done chip. */
+export type NoticeState = { notice?: string; tellTeam?: boolean };
+
+export function useNotice(): NoticeState {
+  const loc = useLocation();
+  const st = (loc.state || {}) as NoticeState;
+  return { notice: typeof st.notice === "string" ? st.notice : undefined, tellTeam: !!st.tellTeam };
+}
+
+export function Notice({ text }: { text?: string }) {
+  if (!text) return null;
+  return (
+    <div className="flex" data-testid="notice" role="status">
+      <StatusChip text={text} tone="done" tick className="h-auto min-h-[26px] whitespace-normal py-1" />
+    </div>
+  );
+}
+
