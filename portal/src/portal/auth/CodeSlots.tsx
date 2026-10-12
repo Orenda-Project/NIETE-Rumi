@@ -25,7 +25,7 @@ export function CodeSlots({ id, label, value, onChange, error, disabled }: CodeS
   const at = Math.min(value.length, LENGTH - 1);
   return (
     <div className="mb-5">
-      <label htmlFor={id} className="mb-2 block px-0.5 text-base font-semibold rtl:mb-0.5">{label}</label>
+      <label htmlFor={id} className="mb-2 block px-0.5 text-base font-semibold leading-[1.2] rtl:mb-0.5 rtl:leading-normal">{label}</label>
       <div className="relative h-[62px]" dir="ltr">
         <div aria-hidden="true" className="flex h-full gap-2">
           {Array.from({ length: LENGTH }, (_, i) => (

@@ -17,6 +17,12 @@ import { useCopy } from '../teacher/i18n';
  * requirements are chips that turn done as she meets them (red if she tries to continue without), and a link that has
  * died sends her to the login WITH its reason (no toast).
  */
+/** 923000000000 reads as +92 300 0000000 (the shape she writes it in); anything else is shown as it came. */
+const showPhone = (n: string) => {
+  const m = /^92(\d{3})(\d{7})$/.exec(n);
+  return m ? `+92 ${m[1]} ${m[2]}` : `+${n}`;
+};
+
 const PortalSetup = () => {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
@@ -109,7 +115,7 @@ const PortalSetup = () => {
           </div>
           <div className="flex min-h-[48px] items-center gap-2.5 rounded-[14px] bg-nu-surface px-3.5 py-2.5 text-[17px] font-semibold">
             <Smartphone className="h-[22px] w-[22px] shrink-0 text-nu-surface-muted" aria-hidden="true" />
-            <span dir="ltr">+{userInfo.phoneNumber}</span>
+            <span dir="ltr">{showPhone(userInfo.phoneNumber)}</span>
           </div>
         </div>
 

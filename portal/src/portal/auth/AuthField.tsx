@@ -40,7 +40,7 @@ export function AuthField({
   const inputType = type === 'password' && (shown ?? eye?.shown) ? 'text' : type;
   return (
     <div className="mb-5">
-      <label htmlFor={id} className="mb-2 block px-0.5 text-base font-semibold rtl:mb-0.5">{label}</label>
+      <label htmlFor={id} className="mb-2 block px-0.5 text-base font-semibold leading-[1.2] rtl:mb-0.5 rtl:leading-normal">{label}</label>
       <div
         className={cn(
           'flex min-h-[58px] items-center gap-3 rounded-2xl bg-nu-surface-card px-4',
