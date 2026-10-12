@@ -29,6 +29,7 @@ const pickLang = async (api, row) => {
 };
 const canSeed = (api) => !!(api.caps && api.caps.method === 'mock' && api.caps.upload);
 const MEDIA = require('path').resolve(__dirname, '..', '..', 'fixtures', 'whatsapp', 'niete', 'media');
+const { dbCreds } = require('../db-target.cjs');
 const ITEM_CHROME = /^(Open status|Back|Close|Powered by|Done)/i;
 
 /** Read the /status Flow listing: { claimed, items, surface, err }. */
@@ -235,7 +236,7 @@ exports.run = async ({ api, rec, sleep = async (ms) => new Promise((r) => setTim
     } else {
       // A principal with no school is told so and nothing starts. Link the driver to the dedicated E2E
       // school api.setRoster seeds (removed by feature-runner's finally) and put the original back after.
-      const SB = { url: process.env.NIETE_SANDBOX_SUPABASE_URL, key: process.env.NIETE_SANDBOX_SUPABASE_SERVICE_ROLE_KEY, drv: process.env.E2E_DRIVER };
+      const SB = { ...dbCreds(), drv: process.env.E2E_DRIVER };   // sandbox, or this run's local DB (db-target.cjs)
       const H = SB.key ? { apikey: SB.key, Authorization: `Bearer ${SB.key}`, 'Content-Type': 'application/json' } : null;
       const getJson = async (q) => { try { const r = await fetch(`${SB.url}/rest/v1/${q}`, { headers: H }); return r.ok ? r.json() : []; } catch (_) { return []; } };
       const [me8] = H ? await getJson(`users?select=school_id&phone_number=eq.${SB.drv}`) : [];

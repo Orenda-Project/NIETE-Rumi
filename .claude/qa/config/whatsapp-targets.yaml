@@ -78,7 +78,7 @@ profiles:
     number: "local"
     method: mock
     test_driver: "923000000001"
-    notes: "commit-time lane; bot from a pinned commit; sandbox DB; mock Graph API + media; private redis + queue worker; cassette replay-strict (staging R2 mirror); no Flow rendering"
+    notes: "commit-time lane; bot from a pinned commit; per-run LOCAL DB + file store (default; E2E_LOCAL_DB=0 → sandbox DB); mock Graph API + media; private redis + queue worker; cassette replay-strict (staging R2 mirror); no Flow rendering"
 
   # PROD — explicit target only; stateful scenarios mutate real training progress.
   niete-prod:

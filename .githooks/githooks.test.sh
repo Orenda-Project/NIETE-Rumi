@@ -54,6 +54,9 @@ say "--force takes it over" "$(git -C "$R" config core.hooksPath)" ".githooks"
 [ -x "$R/.githooks/pre-push" ]   && ok "pre-push is executable"   || bad "pre-push is not executable"
 
 echo "githooks — post-commit"
+# The keys-file checks below describe the SANDBOX lane (it needs keys/niete-local.env; the hook provisions it).
+# The local lane — the default since bd-z3ze4.2 — needs no keys file at all (bd-z3ze4.5); checked after them.
+export E2E_LOCAL_DB=0
 printf '// change\n' >> "$R/bot/shared/services/menu.service.js"
 git -C "$R" add -A >/dev/null
 err=$(git -C "$R" commit -qm "feat(menu): a mapped change" 2>&1); rc=$?
@@ -89,6 +92,12 @@ err=$(cd "$R" && E2E_AUTOFIX_OFF= PATH="$TMP/rbin:$PATH" git commit -qm "feat(me
 has "post-commit auto-provisioned the keys file" "$err" "auto-provisioned" yes
 [ -f "$R/keys/niete-local.env" ] && ok "…and it exists under the repo's keys/" || bad "keys file not created by the hook"
 has "…so the not-runnable warning is gone" "$err" "railway login" no
+unset E2E_LOCAL_DB
+rm -f "$R/keys/niete-local.env"
+printf '// local lane\n' >> "$R/bot/shared/services/menu.service.js"; git -C "$R" add -A >/dev/null
+err=$(cd "$R" && E2E_AUTOFIX_OFF= PATH="/usr/bin:/bin" git commit -qm "feat(menu): local lane, no keys" 2>&1)
+has "local lane (default): a commit with NO keys file does not ask for railway login (bd-z3ze4.5)" "$err" "railway login" no
+[ -f "$R/keys/niete-local.env" ] && bad "…but the hook provisioned a keys file the local lane does not need" || ok "…and provisions no keys file"
 
 printf 'docs only\n' >> "$R/README.md"; git -C "$R" add -A >/dev/null
 before=$(ls "$PEND" | wc -l | tr -d ' ')

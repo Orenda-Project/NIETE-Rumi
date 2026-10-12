@@ -18,7 +18,9 @@ import argparse, json, sys, os, urllib.request, urllib.error, urllib.parse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import niete_training_db as t   # noqa: E402
 
-ENV = "sandbox"
+# sandbox, or the mock lane's per-run local database when run-suite.sh says so (E2E_ENV=local, bd-z3ze4).
+# Never staging or prod: anything else still means sandbox, and _creds asserts the ref either way.
+ENV = "local" if os.environ.get("E2E_ENV") == "local" else "sandbox"
 
 
 class SupabaseHttpError(Exception):
