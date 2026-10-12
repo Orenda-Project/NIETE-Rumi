@@ -125,6 +125,66 @@ describe("Select grade and subject (one control, no search)", () => {
   });
 });
 
+describe("the other subjects are the catalogue's, as the WhatsApp /lp menu lists them (bd-fmf24g.57)", () => {
+  // What the bot's catalogue answers (lp_catalog.json ∩ niete_lp_assets — the same read the /lp Flow's
+  // SELECT_SUBJECT makes), measured read-only on production 12 Oct 2026. The picker used to show a
+  // 8 Oct snapshot instead: grade 1 = English, Urdu, Math, three of the six.
+  const BY_GRADE: Record<number, Array<[string, string]>> = {
+    1: [["english", "English"], ["urdu", "Urdu"], ["math", "Math"], ["general_knowledge_ur", "واقفیتِ عامہ"],
+      ["general_knowledge", "General Knowledge"], ["islamiat", "اسلامیات"]],
+    4: [["english", "English"], ["urdu", "Urdu"], ["math", "Math"], ["general_science", "General Science"],
+      ["social_studies_en", "Social Studies (English)"], ["social_studies_ur", "Social Studies (Urdu)"], ["islamiat", "اسلامیات"]],
+  };
+  beforeEach(() => {
+    answers["/me/grade-subjects"] = () => ({ success: true, combos: [] });
+    answers["/curriculum/grades"] = () => ({ grades: [{ grade: 1 }, { grade: 4 }] });
+    answers["/lp612/grades"] = () => ({ grades: [{ grade: 9 }] });
+    answers["/curriculum/subjects"] = (p) => ({ subjects: (BY_GRADE[Number(p?.grade)] || [])
+      .map(([subject_key, subject]) => ({ subject_key, subject, lesson_count: 40 })) });
+    answers["/lp612/subjects"] = () => ({ subjects: [{ subject: "Physics", lesson_count: 12 }, { subject: "Biology", lesson_count: 9 }] });
+  });
+  const shown = (sheet: HTMLElement) =>
+    within(within(sheet).getByRole("region")).getAllByRole("button").map((b) => b.getAttribute("aria-label"));
+
+  it("grade 1: all six books the bot offers, not English/Urdu/Math only", async () => {
+    renderAt(LESSONS_HOME, <LessonsHomePage />);
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.selectGradeSubject) }));
+    const sheet = screen.getByRole("dialog", { name: C.selectGradeSubject });
+    fireEvent.click(await within(sheet).findByRole("radio", { name: /^Grade 1$/ }));
+    await waitFor(() => expect(shown(sheet)).toHaveLength(6));
+    expect(new Set(shown(sheet))).toEqual(new Set(BY_GRADE[1].map(([, name]) => `Grade 1 · ${name}`)));
+  });
+
+  it("a grade the catalogue has nothing for is off; 6–12 lists the 6–12 catalogue's subjects", async () => {
+    renderAt(LESSONS_HOME, <LessonsHomePage />);
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.selectGradeSubject) }));
+    const sheet = screen.getByRole("dialog", { name: C.selectGradeSubject });
+    await waitFor(() => expect(within(sheet).getByRole("radio", { name: /^Grade 9$/ })).toBeEnabled());
+    expect(within(sheet).getByRole("radio", { name: /^Grade 2$/ })).toBeDisabled();
+    fireEvent.click(within(sheet).getByRole("radio", { name: /^Grade 9$/ }));
+    expect(new Set(shown(sheet))).toEqual(new Set(["Grade 9 · Physics", "Grade 9 · Biology"]));
+  });
+
+  it("an Urdu-named book opens ITS chapters (اسلامیات → islamiat, not the other Urdu-named book)", async () => {
+    renderAt(LESSONS_HOME, <LessonsHomePage />);
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.selectGradeSubject) }));
+    const sheet = screen.getByRole("dialog", { name: C.selectGradeSubject });
+    fireEvent.click(await within(sheet).findByRole("radio", { name: /^Grade 1$/ }));
+    fireEvent.click(await within(sheet).findByRole("button", { name: "Grade 1 · اسلامیات" }));
+    await waitFor(() => expect(new URLSearchParams(where().dataset.search).get("subject")).toBe("islamiat"));
+  });
+
+  it("grade 4: the two Social Studies books stay two, told apart by their medium", async () => {
+    renderAt(LESSONS_HOME, <LessonsHomePage />);
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.selectGradeSubject) }));
+    const sheet = screen.getByRole("dialog", { name: C.selectGradeSubject });
+    fireEvent.click(await within(sheet).findByRole("radio", { name: /^Grade 4$/ }));
+    await waitFor(() => expect(shown(sheet)).toHaveLength(7));
+    expect(within(sheet).getByText("Social Studies (English)")).toBeTruthy();
+    expect(within(sheet).getByText("Social Studies (Urdu)")).toBeTruthy();
+  });
+});
+
 describe("Recent Lesson Plans", () => {
   it("collapsed at first; open: by day, how she had each, each reopening by its key", async () => {
     renderAt(LESSONS_HOME, <LessonsHomePage />);
