@@ -4,6 +4,8 @@ import { COPY_ENTRY as FRAME_ENTRY } from './copy';
 // Urdu completeness checks when its owner adds the line here (a glob would put every coach area under the gate at once).
 import { COPY_ENTRY as COACH_HOME_ENTRY } from '../coach/home/copy';
 import { COPY_ENTRY as COACH_PROFILE_ENTRY } from '../coach/profile/copy';
+// bd-fmf24g.64 — the four auth pages (login, forgot password, enter code, setup): signed-out, so outside teacher/.
+import { COPY_ENTRY as AUTH_ENTRY } from '../auth/copy';
 
 /**
  * bd-fmf24g.13 — every teacher v2 copy module that is bilingual, with the screen it serves and the keys that
@@ -32,6 +34,7 @@ export const COPY_MODULES: readonly CopyEntry[] = [
   FRAME_ENTRY,
   COACH_HOME_ENTRY,
   COACH_PROFILE_ENTRY,
+  AUTH_ENTRY,
   ...Object.keys(found).sort().flatMap((k) => [found[k].COPY_ENTRY, ...(found[k].COPY_ENTRIES ?? [])])
     .filter((e): e is CopyEntry => !!e),
 ];
