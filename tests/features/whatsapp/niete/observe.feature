@@ -1096,3 +1096,11 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given a coach in the portal_coach_v2 pilot is on Check and send
     When the coach chooses a ".doc" file, an image type other than JPG or PNG, or a file over 25 MB
     Then the screen shows "Not a plan file" or "File too large" with what is accepted, and nothing is attached
+
+  # bd-fmf24g.66 — the plan the coach attached is read by a job that runs at the same time as the analysis.
+  # Unit: tests/coaching/bd-fmf24g.66-late-plan-recompute.test.js (analysis-processor _recomputeIfPlanLanded).
+  @e2e @config-gated @P1
+  Scenario: A plan that finishes being read while the analysis runs still scores the lesson-plan part
+    Given a coach in the portal_coach_v2 pilot sent an observation with a PDF as the teacher's plan
+    When the plan finishes being read before the analysis finishes
+    Then the Feedback Form's lesson-plan part is scored from that plan, not marked "not scored"
