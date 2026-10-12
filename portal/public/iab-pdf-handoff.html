@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>PDF hand-off test</title>
+<!--
+  bd-fmf24g.58 — THROWAWAY phone test page, not product code. Settles one question: can a page inside
+  WhatsApp's Android in-app browser get a PDF opened in another app (Chrome or a PDF viewer) without
+  crashing WhatsApp? bd-fmf24g.53: intent://…;S.browser_fallback_url=<pdf>;end made WhatsApp's own
+  browser load the PDF, then "WhatsApp has stopped". The sample PDF holds no teacher or lesson data.
+-->
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --muted:#5b6475; --line:#d9dde5; --navy:#333748;
+          --green:#2f8f5b; --warn-bg:#fff4e5; --warn-ink:#7a3d00; --bad:#b42318; --ok:#1f7a45; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:560px; margin:0 auto; padding:16px; }
+  h1 { font-size:22px; margin:4px 0 6px; }
+  p { margin:6px 0; }
+  .muted { color:var(--muted); font-size:14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; margin:12px 0; }
+  .kv { font-size:13px; word-break:break-all; }
+  .kv b { display:inline-block; min-width:92px; }
+  .env { font-size:20px; font-weight:700; }
+  .variant { margin:14px 0; }
+  .big { display:flex; gap:12px; align-items:center; width:100%; min-height:72px; padding:12px 14px; border:2px solid var(--navy);
+               border-radius:14px; background:#fff; color:var(--ink); font:inherit; font-size:17px; font-weight:600; text-align:left; text-decoration:none; }
+  .big:active { background:#eef0f4; }
+  .num { flex:0 0 40px; height:40px; border-radius:50%; background:var(--navy); color:#fff; display:flex; align-items:center;
+         justify-content:center; font-size:20px; font-weight:800; }
+  .code { display:block; margin-top:4px; font:12px/1.35 ui-monospace,Menlo,monospace; color:var(--muted); word-break:break-all; }
+  .result { min-height:1.4em; margin:6px 4px 0; font-weight:700; }
+  .result.bad { color:var(--bad); } .result.ok { color:var(--ok); } .result.info { color:var(--muted); }
+  .warn { background:var(--warn-bg); color:var(--warn-ink); border:2px solid #f0b46a; border-radius:12px; padding:12px; font-weight:700; }
+  hr { border:0; border-top:3px dashed var(--line); margin:28px 0 18px; }
+  .danger .big { border-color:var(--bad); }
+  .danger .num { background:var(--bad); }
+  #log { font:12px/1.4 ui-monospace,Menlo,monospace; white-space:pre-wrap; word-break:break-all; max-height:260px; overflow:auto; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; }
+  .small { font-size:13px; padding:6px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; font-family:inherit; }
+</style>
+</head>
+<body>
+<main>
+  <h1>PDF hand-off test</h1>
+  <p class="muted">Test page for WhatsApp's in-app browser (bd-fmf24g.58). Try buttons 1, 2, 3 first. Note which one opened Chrome or a PDF app, which said "nothing happened", and whether WhatsApp crashed.</p>
+
+  <div class="card">
+    <div class="env">Detected: <span id="env">…</span></div>
+    <div class="kv"><b>User agent</b> <span id="ua"></span></div>
+    <div class="kv"><b>PDF link</b> <span id="pdf"></span></div>
+  </div>
+
+  <!-- Hand-off attempts: none of these loads the PDF in WhatsApp's browser itself. -->
+  <div class="variant" data-variant="1">
+    <button class="big" type="button" id="b1"><span class="num">1</span>
+      <span>Open the PDF in another app (Android picks), no fallback
+        <span class="code" id="c1"></span></span></button>
+    <div class="result" id="r1"></div>
+  </div>
+
+  <div class="variant" data-variant="2">
+    <button class="big" type="button" id="b2"><span class="num">2</span>
+      <span>Open the PDF in Chrome specifically, no fallback
+        <span class="code" id="c2"></span></span></button>
+    <div class="result" id="r2"></div>
+  </div>
+
+  <div class="variant" data-variant="3">
+    <button class="big" type="button" id="b3"><span class="num">3</span>
+      <span>Hand the PDF to any PDF viewer app, no fallback
+        <span class="code" id="c3"></span></span></button>
+    <div class="result" id="r3"></div>
+  </div>
+
+  <div class="variant" data-variant="6">
+    <button class="big" type="button" id="b6"><span class="num">6</span>
+      <span>Open Chrome with its own link type (googlechrome://)
+        <span class="code" id="c6"></span></span></button>
+    <div class="result" id="r6"></div>
+  </div>
+
+  <div class="variant" data-variant="7">
+    <button class="big" type="button" id="b7"><span class="num">7</span>
+      <span>Copy the PDF link (then paste it in Chrome yourself)
+        <span class="code">navigator.clipboard.writeText, else execCommand('copy')</span></span></button>
+    <div class="result" id="r7"></div>
+  </div>
+
+  <hr>
+  <div class="warn">Variants 4 and 5 load the PDF inside WhatsApp — this is what crashed WhatsApp before. Try them last.</div>
+
+  <div class="danger">
+    <div class="variant" data-variant="4">
+      <a class="big" id="a4" target="_blank" rel="noopener"><span class="num">4</span>
+        <span>Plain link to the PDF (opens in a new tab)
+          <span class="code">&lt;a href=pdf target="_blank" rel="noopener"&gt;</span></span></a>
+      <div class="result" id="r4"></div>
+    </div>
+
+    <div class="variant" data-variant="5">
+      <button class="big" type="button" id="b5"><span class="num">5</span>
+        <span>Open the PDF with window.open
+          <span class="code">window.open(pdf, '_blank')</span></span></button>
+      <div class="result" id="r5"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <strong>Event log</strong>
+      <button class="small" type="button" id="clear">Clear log</button>
+    </div>
+    <p class="muted">Kept on this phone, so it is still here if WhatsApp closes. A tap with no outcome after it means the page never came back.</p>
+    <div id="log"></div>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var PDF = location.origin + '/iab-pdf-handoff-sample.pdf';
+  var u = new URL(PDF);
+  var hostPath = u.host + u.pathname;
+  var V = {
+    1: 'intent://' + hostPath + '#Intent;scheme=https;end',
+    2: 'intent://' + hostPath + '#Intent;scheme=https;package=com.android.chrome;end',
+    3: 'intent://' + hostPath + '#Intent;scheme=https;type=application/pdf;action=android.intent.action.VIEW;end',
+    6: 'googlechrome://navigate?url=' + encodeURIComponent(PDF)
+  };
+  var LOG_KEY = 'iab-pdf-handoff-log';
+
+  function $(id) { return document.getElementById(id); }
+  function now() { var d = new Date(); return d.toTimeString().slice(0, 8); }
+
+  // ---- event log, kept in localStorage so a crash does not erase it
+  function readLog() { try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch (e) { return []; } }
+  function writeLog(l) { try { localStorage.setItem(LOG_KEY, JSON.stringify(l.slice(-80))); } catch (e) { /* storage blocked */ } }
+  var mem = readLog();
+  function log(msg) {
+    mem.push(new Date().toISOString().slice(0, 10) + ' ' + now() + '  ' + msg);
+    writeLog(mem);
+    $('log').textContent = mem.slice().reverse().join('\n');
+  }
+  $('clear').onclick = function () { mem = []; writeLog(mem); $('log').textContent = ''; };
+
+  // ---- the portal's browserEnv(), copied from portal/src/lib/runtime.ts (classifyBrowser)
+  function isNativeApp() {
+    var cap = window.Capacitor;
+    if (!cap) return false;
+    return typeof cap.isNativePlatform === 'function' ? cap.isNativePlatform() : Boolean(cap.isNative);
+  }
+  function classifyBrowser(ua, native) {
+    if (native) return 'native';
+    ua = String(ua || '');
+    if (/Android/i.test(ua)) return /WhatsApp|WA4A\/|; wv\)/.test(ua) ? 'android-iab' : 'browser';
+    if (/iPhone|iPad|iPod/i.test(ua)) {
+      var other = /CriOS|FxiOS|EdgiOS|OPiOS|GSA\//.test(ua);
+      return !other && (/WhatsApp/.test(ua) || !/Safari\//.test(ua)) ? 'ios-iab' : 'browser';
+    }
+    return 'browser';
+  }
+  var env = classifyBrowser(navigator.userAgent, isNativeApp());
+  var envWords = { 'android-iab': "android-iab (WhatsApp's Android browser)", 'ios-iab': "ios-iab (an iPhone in-app browser)",
+                   'native': 'native (the NIETE app)', 'browser': 'browser (Chrome, Safari or a desktop)' };
+  $('env').textContent = envWords[env] || env;
+  $('ua').textContent = navigator.userAgent;
+  $('pdf').textContent = PDF;
+  [1, 2, 3, 6].forEach(function (n) { $('c' + n).textContent = V[n]; });
+  $('a4').href = PDF;
+
+  function show(n, cls, text) { var r = $('r' + n); r.className = 'result ' + cls; r.textContent = text; }
+
+  // ---- did the page lose focus / get hidden after a tap? That is the sign another app came up.
+  var watch = null;
+  function onLeave(ev) {
+    if (!watch) return;
+    if (ev.type === 'visibilitychange' && document.visibilityState !== 'hidden') return;
+    if (!watch.left) {
+      watch.left = ev.type;
+      watch.leftAt = Date.now();
+      log('#' + watch.n + ' page left: ' + ev.type + ' after ' + (Date.now() - watch.t0) + ' ms');
+    }
+  }
+  function onBack(ev) {
+    if (!watch || !watch.left) return;
+    if (ev.type === 'visibilitychange' && document.visibilityState !== 'visible') return;
+    var secs = ((Date.now() - watch.leftAt) / 1000).toFixed(1);
+    show(watch.n, 'ok', 'Left the page (' + watch.left + '), came back after ' + secs + ' s. Something opened.');
+    log('#' + watch.n + ' back on the page after ' + secs + ' s (' + ev.type + ')');
+    watch = null;
+  }
+  window.addEventListener('pagehide', onLeave);
+  window.addEventListener('blur', onLeave);
+  document.addEventListener('visibilitychange', function (ev) { onLeave(ev); onBack(ev); });
+  window.addEventListener('focus', onBack);
+  window.addEventListener('pageshow', function (ev) { if (ev.persisted) log('page restored from back/forward cache'); });
+
+  function handOff(n) {
+    var url = V[n];
+    if (watch && watch.timer) clearTimeout(watch.timer);
+    watch = { n: n, t0: Date.now(), left: null };
+    var w = watch;
+    show(n, 'info', 'Trying…');
+    log('#' + n + ' tapped: ' + url);
+    w.timer = setTimeout(function () {
+      if (watch === w && !w.left) {
+        show(n, 'bad', 'Nothing happened (no pagehide, blur or visibilitychange in 2 s).');
+        log('#' + n + ' nothing happened in 2 s');
+        watch = null;
+      }
+    }, 2000);
+    try { location.href = url; } catch (e) { show(n, 'bad', 'Error: ' + e.message); log('#' + n + ' threw: ' + e.message); }
+  }
+  [1, 2, 3, 6].forEach(function (n) { $('b' + n).onclick = function () { handOff(n); }; });
+
+  // ---- 7: copy the link
+  $('b7').onclick = function () {
+    log('#7 tapped');
+    function viaExec(why) {
+      var ok = false, err = '';
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = PDF; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, PDF.length);
+        ok = document.execCommand('copy');
+        ta.remove();
+      } catch (e) { err = e.message; }
+      var msg = ok ? 'Copied with execCommand (clipboard API ' + why + '). Paste it in Chrome to check.'
+                   : 'Copy FAILED: clipboard API ' + why + '; execCommand returned false' + (err ? ' (' + err + ')' : '') + '.';
+      show(7, ok ? 'ok' : 'bad', msg);
+      log('#7 ' + msg);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(PDF).then(function () {
+        var m = 'Copied with navigator.clipboard.writeText. Paste it in Chrome to check.';
+        show(7, 'ok', m); log('#7 ' + m);
+      }, function (e) { viaExec('refused: ' + (e && (e.name + ' ' + e.message))); });
+    } else {
+      viaExec('missing');
+    }
+  };
+
+  // ---- 4 and 5: load the PDF inside WhatsApp (the old crash path)
+  $('a4').addEventListener('click', function () { show(4, 'info', 'Tapped. If WhatsApp closes, reopen this page: the log below keeps the tap.'); log('#4 tapped <a target=_blank>'); });
+  $('b5').onclick = function () {
+    log('#5 tapped window.open');
+    var w = null, err = '';
+    try { w = window.open(PDF, '_blank'); } catch (e) { err = e.message; }
+    var m = err ? 'window.open threw: ' + err : (w ? 'window.open returned a window.' : 'window.open returned null (blocked or ignored).');
+    show(5, w ? 'info' : 'bad', m); log('#5 ' + m);
+  };
+
+  log('page opened, detected ' + env);
+})();
+</script>
+</body>
+</html>
