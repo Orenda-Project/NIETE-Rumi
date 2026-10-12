@@ -33,7 +33,7 @@ const SAVE_EN = arg('save-en');
 const COMPARE_EN = arg('compare-en');
 const PNG_DIR = arg('png');
 const LH = arg('lh'); // try another line-height for every Urdu line without editing the CSS (a sweep)
-const CASES = ['main', 'tray', 'nav'];
+const CASES = ['main', 'tray', 'nav', 'auth'];
 const STRIP = 30; // CSS px above and below a box that the ink check looks at
 
 function findChromium() {
