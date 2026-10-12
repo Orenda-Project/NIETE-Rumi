@@ -167,6 +167,7 @@ motion-safe rise. Scrolls inside itself, so sticky headings stick.
 | chips | `ChipData[]`, drawn as `StatusChip`s ("38 min"; "Short lesson" in `waiting`) | — |
 | warning | an amber note with a warning sign, the screen's sentence | — |
 | confirmLabel / onConfirm / confirmIcon | the main button (indigo) and its icon | — / — / none |
+| confirmTone | `primary` (indigo) or `danger` (the error red `#c8331f`, white words) for a step that takes something away (Remove school) | `primary` |
 | cancelLabel / onCancel | the second button (white outline); with no `onCancel` it closes | — / `onClose` |
 | closeLabel, testId | as `Tray` | kit `close` / — |
 
