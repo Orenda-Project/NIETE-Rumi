@@ -25,7 +25,7 @@ export { LeaveNote } from './LeaveNote';
 export { ReadyCard, type ReadyCardProps, type ReadyCardRow } from './ReadyCard';
 export { NoticeIcon } from './NoticeIcon';
 export {
-  ASSESSMENT_SUBJECTS_BY_GRADE, LESSON_SUBJECTS_BY_GRADE, subjectsByGradeFor, type SubjectsByGrade, type TeacherCatalogueFeature,
+  ASSESSMENT_SUBJECTS_BY_GRADE, subjectsByGradeFor, type SubjectsByGrade, type TeacherCatalogueFeature,
 } from './catalogue';
 export {
   ClassPicker, type ClassPick, type ClassPickerProps, type GradeSubjectCombo, type GradeSubjectPair,

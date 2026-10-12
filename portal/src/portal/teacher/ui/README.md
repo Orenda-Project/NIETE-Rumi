@@ -198,7 +198,7 @@ v28 canvas; spec COMPONENTS.md §11.
 | value / defaultValue | `{ grade, subject }` | — / null |
 | onChange | `(pair, { mine, combo })` — `combo` is her combo (keys and all) when the pick is hers, else null | — |
 | to | `(pair, { mine, combo }) => string \| undefined`: a string makes that pair a link (it still reports the pick) | — |
-| feature / subjectsByGrade | the built-in map in `catalogue.ts`, or the live catalogue's names | `lessons` / — |
+| feature / subjectsByGrade | the live catalogue's names (Lesson Plans has no built-in map; Assessment's is in `catalogue.ts`) | `lessons` / — |
 | grades | grades that may be picked (the rest are off) | 1–12 |
 | copy | `{ grade, gradeField, selectGrade, gradeSubjects, yourClass, gradeAndSubject, change, close, selected }` | `TEACHER_UI_COPY` |
 
@@ -214,8 +214,9 @@ subjects; four classes or fewer are plain rows; one grade skips the grade step.
 <ClassPicker label={copy.selectClass} combos={mine} allowOther={false} value={pair} onChange={(v) => setPair(v)} />
 ```
 
-`catalogue.ts`: `LESSON_SUBJECTS_BY_GRADE`, `ASSESSMENT_SUBJECTS_BY_GRADE` (the bot's lists on 2026-10-08; sources in
-the file) and `subjectsByGradeFor(feature, given?)`.
+`catalogue.ts`: `ASSESSMENT_SUBJECTS_BY_GRADE` (the bot's list on 2026-10-08; sources in the file) and
+`subjectsByGradeFor(feature, given?)`. Lesson Plans has NO built-in list (bd-fmf24g.57 — a 2026-10-08 copy hid
+grade 1's General Knowledge and Islamiat): its page passes the live catalogue (`lessonPlansApi.catalogue()`).
 
 ### `DateRangeBar` (top of an All page)
 | Prop | Type | Default |
