@@ -89,6 +89,42 @@
     <div class="result" id="r7"></div>
   </div>
 
+  <h2 style="font-size:17px;margin:18px 0 4px">What prod does differently (tap these in WhatsApp Business)</h2>
+  <div class="variant" data-variant="8">
+    <button class="big" type="button" id="b8"><span class="num">8</span>
+      <span>Like prod: ask the server first, THEN hand the PDF to a PDF app (3)
+        <span class="code" id="c8"></span></span></button>
+    <div class="result" id="r8"></div>
+  </div>
+
+  <div class="variant" data-variant="9">
+    <button class="big" type="button" id="b9"><span class="num">9</span>
+      <span>Long signed-style link, handed to a PDF app at once (3)
+        <span class="code" id="c9"></span></span></button>
+    <div class="result" id="r9"></div>
+  </div>
+
+  <div class="variant" data-variant="12">
+    <button class="big" type="button" id="b12"><span class="num">12</span>
+      <span>Exactly like prod: long signed-style link, server first, then PDF app (3)
+        <span class="code" id="c12"></span></span></button>
+    <div class="result" id="r12"></div>
+  </div>
+
+  <div class="variant" data-variant="10">
+    <button class="big" type="button" id="b10"><span class="num">10</span>
+      <span>Server first, then Android picks (1, no type)
+        <span class="code" id="c10"></span></span></button>
+    <div class="result" id="r10"></div>
+  </div>
+
+  <div class="variant" data-variant="11">
+    <button class="big" type="button" id="b11"><span class="num">11</span>
+      <span>Server first, then Chrome (2)
+        <span class="code" id="c11"></span></span></button>
+    <div class="result" id="r11"></div>
+  </div>
+
   <hr>
   <div class="warn">Variants 4 and 5 load the PDF inside WhatsApp — this is what crashed WhatsApp before. Try them last.</div>
 
@@ -130,6 +166,15 @@
     3: 'intent://' + hostPath + '#Intent;scheme=https;type=application/pdf;action=android.intent.action.VIEW;end',
     6: 'googlechrome://navigate?url=' + encodeURIComponent(PDF)
   };
+  // bd-fmf24g.59 follow-up: prod mints a presigned R2 link first (a network round trip), then navigates; and the link is long.
+  var SIGNED = '?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=0123456789abcdef0123456789abcdef%2F20261012%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20261012T070000Z&X-Amz-Expires=3600&X-Amz-Signature=8f1e3b0c9a7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f&X-Amz-SignedHeaders=host&x-id=GetObject';
+  var TAIL3 = '#Intent;scheme=https;type=application/pdf;action=android.intent.action.VIEW;end';
+  V[8] = V[3];
+  V[9] = 'intent://' + hostPath + SIGNED + TAIL3;
+  V[12] = V[9];
+  V[10] = V[1];
+  V[11] = V[2];
+  var SERVER_FIRST = { 8: true, 12: true, 10: true, 11: true };
   var LOG_KEY = 'iab-pdf-handoff-log';
 
   function $(id) { return document.getElementById(id); }
@@ -168,7 +213,7 @@
   $('env').textContent = envWords[env] || env;
   $('ua').textContent = navigator.userAgent;
   $('pdf').textContent = PDF;
-  [1, 2, 3, 6].forEach(function (n) { $('c' + n).textContent = V[n]; });
+  [1, 2, 3, 6, 8, 9, 10, 11, 12].forEach(function (n) { $('c' + n).textContent = (SERVER_FIRST[n] ? 'fetch, then ' : '') + V[n]; });
   $('a4').href = PDF;
 
   function show(n, cls, text) { var r = $('r' + n); r.className = 'result ' + cls; r.textContent = text; }
@@ -214,7 +259,16 @@
     }, 2000);
     try { location.href = url; } catch (e) { show(n, 'bad', 'Error: ' + e.message); log('#' + n + ' threw: ' + e.message); }
   }
-  [1, 2, 3, 6].forEach(function (n) { $('b' + n).onclick = function () { handOff(n); }; });
+  [1, 2, 3, 6, 9].forEach(function (n) { $('b' + n).onclick = function () { handOff(n); }; });
+  // Server first: the same kind of await prod does (a no-store request), so the navigation happens after the tap's task.
+  [8, 10, 11, 12].forEach(function (n) {
+    $('b' + n).onclick = function () {
+      show(n, 'info', 'Asking the server…');
+      log('#' + n + ' tapped: server first');
+      fetch(PDF + '?probe=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
+        .then(function () { handOff(n); }, function (e) { show(n, 'bad', 'Server request failed: ' + e.message); });
+    };
+  });
 
   // ---- 7: copy the link
   $('b7').onclick = function () {
