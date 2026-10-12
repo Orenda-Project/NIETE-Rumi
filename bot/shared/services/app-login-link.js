@@ -46,6 +46,20 @@ const LANDINGS = Object.freeze({
 /** Where a teacher who is no longer on the teacher app lands instead (today's portal home). */
 const LEGACY_LANDING = '/portal/dashboard';
 
+/**
+ * bd-fmf24g.52 — the COACH app's pages, for a pilot coach (app-redirect.service.js COACH_LINKS): /menu → coach Home,
+ * /observe → the coach app's Observe page. Their own names, so a coach token can never be read as a teacher feature
+ * and /go asks the coach-app question for them only. A coach no longer on the coach app lands on LEGACY_LANDING.
+ */
+const COACH_LANDINGS = Object.freeze({
+  coach_menu: '/portal/coach',
+  coach_observe: '/portal/coach/observe',
+});
+
+/** A feature a token may carry: a teacher page or a coach page. Anything else cannot be signed or verified. */
+const linkable = (f) => typeof f === 'string'
+  && (Object.prototype.hasOwnProperty.call(LANDINGS, f) || Object.prototype.hasOwnProperty.call(COACH_LANDINGS, f));
+
 /** This environment, as its Supabase host (`<ref>.supabase.co`), or null when SUPABASE_URL is missing or not a URL. */
 function environment() {
   const raw = process.env.SUPABASE_URL;
@@ -68,10 +82,10 @@ function key() {
 
 const nowS = () => Math.floor(Date.now() / 1000);
 
-/** A link token for this teacher and feature, or null (no teacher, a feature with no v2 page, or no key here). */
+/** A link token for this user and feature, or null (no user, a feature with no app page, or no key here). */
 function signAppLink(userId, feature) {
   const k = key();
-  if (!k || !userId || !Object.prototype.hasOwnProperty.call(LANDINGS, feature)) return null;
+  if (!k || !userId || !linkable(feature)) return null;
   const iv = crypto.randomBytes(IV_LEN);
   const cipher = crypto.createCipheriv('aes-256-gcm', k, iv);
   const plain = Buffer.from(JSON.stringify({ k: KIND, u: String(userId), f: feature, exp: nowS() + TTL_S }));
@@ -95,7 +109,7 @@ function verifyAppLink(token) {
     const plain = Buffer.concat([decipher.update(raw.subarray(IV_LEN, raw.length - TAG_LEN)), decipher.final()]);
     const p = JSON.parse(plain.toString('utf8'));
     if (!p || p.k !== KIND || typeof p.u !== 'string' || !p.u) return null;
-    if (!Object.prototype.hasOwnProperty.call(LANDINGS, p.f)) return null;
+    if (!linkable(p.f)) return null;
     if (!Number.isFinite(p.exp) || p.exp < nowS()) return null;
     return { u: p.u, f: p.f, exp: p.exp };
   } catch (_) {
@@ -103,4 +117,4 @@ function verifyAppLink(token) {
   }
 }
 
-module.exports = { signAppLink, verifyAppLink, LANDINGS, LEGACY_LANDING, TTL_S };
+module.exports = { signAppLink, verifyAppLink, LANDINGS, COACH_LANDINGS, LEGACY_LANDING, TTL_S };
