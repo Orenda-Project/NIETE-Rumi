@@ -163,6 +163,44 @@ def test_module_answer_key_resolves_the_correct_option_text_per_question():
     assert any("title=ilike" in q for tbl, q in calls if tbl == "training_modules")   # resolved by title prefix, as the picker shows it
 
 
+def test_local_env_is_known_and_only_ever_localhost():
+    """bd-z3ze4: the mock lane's per-run local database. `--env local` resolves ONLY from
+    NIETE_LOCAL_SUPABASE_* (set by run-suite.sh from the run's db.env) and only a 127.0.0.1 /
+    localhost URL passes — a sandbox, staging or prod URL under --env local is refused, and a
+    localhost URL under --env sandbox is refused too."""
+    assert "local" in t.ENV_REFS
+    assert t._project_ref("http://127.0.0.1:54321") == "local"
+    assert t._project_ref("http://localhost:54321/") == "local"
+    assert t._env_candidates("local") == []      # never keys/niete-local.env: that file carries the SANDBOX url
+    t._assert_ref("local", "http://127.0.0.1:54321")   # no raise
+    for env, url in (("local", "https://olvritwoqujtjvwfulbh.supabase.co"),
+                     ("local", "https://ihzciabopbttygxxgrkm.supabase.co"),
+                     ("sandbox", "http://127.0.0.1:54321")):
+        try:
+            t._assert_ref(env, url)
+        except SystemExit:
+            continue
+        raise AssertionError("%s accepted %s" % (env, url))
+
+
+def test_local_env_creds_come_from_env_vars_only():
+    saved = {k: os.environ.pop(k, None) for k in ("NIETE_LOCAL_SUPABASE_URL", "NIETE_LOCAL_SUPABASE_SERVICE_ROLE_KEY")}
+    try:
+        try:
+            t._creds("local")
+            raise AssertionError("resolved local creds with no NIETE_LOCAL_* set")
+        except SystemExit:
+            pass
+        os.environ["NIETE_LOCAL_SUPABASE_URL"] = "http://127.0.0.1:54321/"
+        os.environ["NIETE_LOCAL_SUPABASE_SERVICE_ROLE_KEY"] = "k"
+        assert t._creds("local") == ("http://127.0.0.1:54321", "k")
+    finally:
+        for k, v in saved.items():
+            os.environ.pop(k, None)
+            if v is not None:
+                os.environ[k] = v
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

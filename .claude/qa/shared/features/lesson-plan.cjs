@@ -4,6 +4,7 @@
 // gitignores them) and 2026-08-26-all is EMPTY on a fresh checkout — every upload then fails with
 // NO_SEND_BUTTON and aborts the feature (L05/L06/L07/L09 unrecorded, 2026-09-02, twice).
 const FIX = require('path').resolve(__dirname, '..', '..', 'fixtures', 'whatsapp', 'niete', 'media');
+const { withRedirect, isStoreNotice, REDIRECT_BLOCKED } = require('../app-redirect-case.cjs');
 const V = (c, ev) => [c ? 'PASS' : 'FAIL', ev];
 // If the Flow never opened we learned nothing about the product — BLOCKED, not FAIL.
 // (2026-08-31: a 523s FLOW_READY_TIMEOUT was being reported as two product failures.)
@@ -257,6 +258,13 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
   }
 
   // bd-onxyu — app redirect. Recorded with the reason, not left absent.
-  rec('L11', 'With Lesson Plans moved to the app, asking for a lesson plan sends me to the Play Store instead', 'BLOCKED',
-      { reason: 'needs an app_redirect_* switch turned ON in the target database, and the switch is global: it would redirect every teacher on that environment for the length of the run. Covered by tests/app-redirect/ (the real text handler and menu router, red-first).' }, 0);
+  const L11 = 'With Lesson Plans moved to the app, asking for a lesson plan sends me to the Play Store instead';
+  const r11 = await withRedirect(api, 'app_redirect_lesson_plan', async () => {
+    const t0 = Date.now(), r = await api.sendWait('make me a lesson plan on fractions for grade 4', 90000), txt = r.txt || '';
+    return { storeLink: isStoreNotice(txt), messages: r.freshIds, lpMenu: /Pick (your )?class|جماعت چنیں|Lesson Plans\n/i.test(txt) || r.kind === 'flow',
+             reply: txt.slice(0, 160), ms: Date.now() - t0 };
+  });
+  if (r11.ran) rec('L11', L11, r11.value.storeLink && r11.value.messages === 1 && !r11.value.lpMenu ? 'PASS' : 'FAIL', r11.value, r11.value.ms);
+  else rec('L11', L11, 'BLOCKED',
+      { reason: REDIRECT_BLOCKED, setAppSetting: r11.reason }, 0);
 };
