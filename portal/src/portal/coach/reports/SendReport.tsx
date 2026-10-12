@@ -16,7 +16,7 @@ import ReportsFrame from "./ReportsFrame";
 import { REPORTS } from "./copy";
 import { observationPath } from "./paths";
 import { firstNameOf, teacherNameOf, useObservationView } from "./useObservationView";
-import { useBackTo } from "./useBackTo";
+import { useBack } from "../../lib/useBack";
 
 /**
  * bd-4404s7.5 — Send {name} the report, step 5 of 5 (Blueprint Coach_SendReport). The report exactly as the teacher
@@ -40,7 +40,7 @@ export default function SendReport() {
   const { days } = useCopy(LESSONS);
   const { id = "" } = useParams();
   const { view, status, reload } = useObservationView(id);
-  const back = useBackTo(observationPath(id));
+  const back = useBack(observationPath(id));
   // The observation row: the score and the day, for the preview's header (a failed read just leaves the header out).
   const { data: row } = useLoad(() => coach.getObservation(id), [id]);
   const [busy, setBusy] = useState(false);

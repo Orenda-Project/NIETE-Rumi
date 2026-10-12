@@ -83,7 +83,7 @@ export function AddClassPage() {
     try {
       const res = await classesApi.create(payload);
       if (!res || res.success !== true) throw new Error('not saved');
-      navigate(CLASSES_HOME);
+      navigate(CLASSES_HOME, { replace: true });
     } catch {
       setFailed(true);
       setSaving(false);
