@@ -434,7 +434,7 @@ describe("first-time setup", () => {
   it("shows who she is as plain information, the number left-to-right", async () => {
     await mount();
     expect(screen.getByText("Ayesha Bibi")).toBeInTheDocument();
-    expect(screen.getByText("+923000000000")).toHaveAttribute("dir", "ltr");
+    expect(screen.getByText("+92 300 0000000")).toHaveAttribute("dir", "ltr");
   });
 
   it("the two requirements are chips that turn done as she meets them", async () => {
