@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import { useBack } from "../../lib/useBack";
 import { AlertTriangle, ChevronRight, MapPin } from "lucide-react";
 import { coach, leader } from "../../services/api";
 import type { CoachObservationView } from "../../services/api";
@@ -48,8 +49,6 @@ const CoachObservation = () => {
   const C = useCopy(REPORTS);
   const { days } = useCopy(LESSONS);
   const { id = "" } = useParams();
-  const navigate = useNavigate();
-  const location = useLocation();
   const { data, failed, reload } = useLoad(() => coach.getObservation(id), [id]);
   const [view, setView] = useState<CoachObservationView | null>(null);
   const mine = !!data?.mine;
@@ -63,7 +62,7 @@ const CoachObservation = () => {
     return () => { live = false; };
   }, [mine, id]);
 
-  const back = () => (location.key && location.key !== "default" ? navigate(-1) : navigate("/portal/coach/reports"));
+  const back = useBack("/portal/coach/reports");
   const name = data?.teacher?.name || view?.teacher?.name || C.dash;
   const first = name.split(/\s+/)[0] || name;
   const stopped = view?.step === "stopped";

@@ -111,7 +111,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       forgetRecording(audio.recordingId);
     }
     clearDraft(visit.id);
-    navigate(`/portal/coach/visit/${visit.id}/${audio.recordingId ? "record" : "attach"}`);
+    navigate(`/portal/coach/visit/${visit.id}/${audio.recordingId ? "record" : "attach"}`, { replace: true });
   };
 
   const loadTheirRecent = useCallback(
@@ -156,7 +156,7 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
       plan: plan ? (plan.kind === "library" ? { kind: "library", pick: plan.pick } : { kind: "file", file: plan.file }) : null,
       photos,
     });
-    navigate(sendingPath(visit.id));
+    navigate(sendingPath(visit.id), { replace: true }); // Check and send is done: Back from Sending is never this page (it would bounce straight on)
   };
 
   const crumb = <>{teacherName} · <TimeStamp time={visit.scheduledSlot} size={13} /></>;

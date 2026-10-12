@@ -22,7 +22,7 @@ import { InsightRow } from "./InsightRow";
 import { REPORTS } from "./copy";
 import { observationPath } from "./paths";
 import { firstNameOf, teacherNameOf, useObservationView } from "./useObservationView";
-import { useBackTo } from "./useBackTo";
+import { useBack } from "../../lib/useBack";
 
 /**
  * bd-4404s7.5 — Debrief, step 3 of 5 (Blueprint Coach_Debrief): the guide for her talk with the teacher — the one the
@@ -88,7 +88,7 @@ export default function Debrief() {
   const navigate = useNavigate();
   const { view, status, reload } = useObservationView(id);
   const home = observationPath(id);
-  const back = useBackTo(home);
+  const back = useBack(home);
   const [guide, setGuide] = useState<TalkGuide | null>(null);
   const [guideState, setGuideState] = useState<GuideState>("loading");
   const [canRecord, setCanRecord] = useState(true);
@@ -126,7 +126,7 @@ export default function Debrief() {
     try {
       await sendTalk(id, { blob: audio.blob, filename: audio.filename }, undefined, undefined, setProgress);
       if (audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* already gone */ } }
-      navigate(home);
+      navigate(home, { replace: true });
     } catch (err) {
       setFailure(err instanceof SendError ? err : new SendError("network"));
       setStage("failed");
