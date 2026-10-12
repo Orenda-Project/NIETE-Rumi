@@ -14,12 +14,12 @@ import type { ShareCopy } from './copy';
  *                         quiet "Send again". States: default · sending · sent ✓ + the time · failed (the whole button is
  *                         Try again) · unavailable (grey, locked, "Not available yet": no template on this deployment).
  *   Open in another app   white, navy outline, same size. Where she is decides what it does:
- *                           WhatsApp's browser, Android    a FILE goes to the phone's app for it: an intent with action VIEW
- *                                                          and the file's type, and NO browser_fallback_url (bd-fmf24g.59;
- *                                                          the operator's phone test opened a PDF app). bd-fmf24g.53: with a
- *                                                          fallback, WhatsApp's own browser loaded the PDF link and "WhatsApp
- *                                                          has stopped" — so when no app takes it, nothing loads in WhatsApp.
- *                                                          A quiet Copy link sits underneath as the way out.
+ *                           WhatsApp's browser, Android    a FILE goes to the phone's browser through OUR page
+ *                                                          (public/open-file.html, no .pdf in its link), which forwards to
+ *                                                          the file (bd-fmf24g.60: WhatsApp's own PDF viewer crashes on any
+ *                                                          .pdf link, intent:// included). No browser_fallback_url, so
+ *                                                          nothing loads inside WhatsApp (bd-fmf24g.53). A quiet Copy link
+ *                                                          sits underneath as the way out.
  *                           WhatsApp's browser, iPhone     Copy link + a hint ("Open in Safari"); a page cannot leave it.
  *                           Chrome, Safari, a desktop      hidden for a page; for a FILE it opens the file
  *                           the NIETE app                  hidden for a page; for a FILE it opens it in the system browser
@@ -70,20 +70,30 @@ export function clockOf(iso: string | undefined, am: string, pm: string): string
   return `${h % 12 === 0 ? 12 : h % 12}:${m} ${h >= 12 ? pm : am}`;
 }
 
-/** bd-fmf24g.59 — the file's type for the intent, from its path (a presigned link keeps the extension). */
-function fileType(url: URL): string | null {
-  const ext = (/\.([a-z0-9]+)$/i.exec(url.pathname) || [])[1]?.toLowerCase();
-  return ({ pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' } as Record<string, string>)[ext ?? ''] ?? null;
+/**
+ * bd-fmf24g.60 — the hosts public/open-file.html forwards to (keep the two in step). A file anywhere else is not handed off:
+ * its link is copied instead, so the page can never be used to send someone elsewhere.
+ */
+export const HANDOFF_HOST = /(^|\.)(r2\.cloudflarestorage\.com|r2\.dev|niete\.edu\.pk|up\.railway\.app)$/i;
+
+function b64url(text: string): string {
+  let bin = '';
+  for (const b of new TextEncoder().encode(text)) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 /**
- * bd-fmf24g.59 — Android: "open this file in the app for it". NO S.browser_fallback_url: a fallback is a link WhatsApp's
- * own browser loads itself, which is what stopped WhatsApp on a teacher's phone (bd-fmf24g.53).
+ * bd-fmf24g.60 — Android, WhatsApp's browser: "open this file in the phone's browser". WhatsApp's in-app browser sends any
+ * link whose path ends in .pdf — even inside intent:// — to its own PDF viewer, which throws "unknown protocol: intent"
+ * and takes WhatsApp down (adb, the operator's phone). So the browser gets OUR page, public/open-file.html, which has no
+ * .pdf in its link and forwards to the file. No S.browser_fallback_url: nothing ever loads inside WhatsApp
+ * (bd-fmf24g.53). Null when the file's host is not one that page forwards to.
  */
-export function fileIntentUrl(url: string): string {
-  const u = new URL(url);
-  const type = fileType(u);
-  return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=${u.protocol.replace(':', '')};action=android.intent.action.VIEW;${type ? `type=${type};` : ''}end`;
+export function handoffIntentUrl(fileUrl: string, pageOrigin: string): string | null {
+  let f: URL;
+  try { f = new URL(fileUrl); } catch { return null; }
+  if (f.protocol !== 'https:' || !HANDOFF_HOST.test(f.hostname)) return null;
+  return `intent://${new URL(pageOrigin).host}/open-file.html?f=${b64url(f.href)}#Intent;scheme=https;end`;
 }
 
 async function copyText(text: string): Promise<boolean> {
@@ -171,14 +181,16 @@ export function ShareActions({ onSend, available = true, sendTo, open, copy, tes
     try { url = await targetUrl(); } catch { url = null; }
     if (!url) { if (alive.current) setOpenState(handOff ? 'default' : 'copy'); return; }
     if (handOff) {
-      window.location.href = fileIntentUrl(url);
+      const to = handoffIntentUrl(url, new URL(window.location.href).origin);
       if (alive.current) setOpenState('default');
+      if (to) window.location.href = to;
+      else await pressCopy(); // a host our page does not forward to: copy its link instead of handing it off
       return;
     }
     // A file in Chrome, Safari or the app: open it normally (the app hands another host to the system browser).
     window.open(url, '_blank', 'noopener,noreferrer');
     setOpenState('default');
-  }, [copyMode, doCopy, handOff, openState, targetUrl]);
+  }, [copyMode, doCopy, handOff, openState, pressCopy, targetUrl]);
 
   if (!onSend && !showOpen) return null;
 
