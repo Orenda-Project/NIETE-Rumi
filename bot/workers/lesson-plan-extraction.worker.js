@@ -539,9 +539,16 @@ Return JSON with these fields:
     try {
       const { data, error } = await supabase
         .from('coaching_sessions')
-        .select('id, users:users(name, phone_number, preferred_language)')
+        .select('id, observation_type, users:users(name, phone_number, preferred_language)')
         .eq('id', coachingSessionId)
         .single();
+
+      // bd-fmf24g.66 — a COACH's observation has the TEACHER as its session user; the plan was the coach's
+      // to attach, so the teacher is never told about it. The coach sees "Couldn't read" in the app.
+      if (data && data.observation_type === 'leader_observation') {
+        logToFile('ℹ️ Not-a-lesson-plan notice skipped: the plan was attached by the coach', { coachingSessionId });
+        return;
+      }
 
       if (error || !data?.users?.phone_number) {
         logToFile('⚠️ Unable to notify teacher that the document is not a lesson plan', {
@@ -573,9 +580,15 @@ Return JSON with these fields:
     try {
       const { data, error } = await supabase
         .from('coaching_sessions')
-        .select('id, lesson_plan_format, users:users(name, phone_number)')
+        .select('id, observation_type, lesson_plan_format, users:users(name, phone_number)')
         .eq('id', coachingSessionId)
         .single();
+
+      // bd-fmf24g.66 — see notifyNotLessonPlan: the teacher did not attach this file.
+      if (data && data.observation_type === 'leader_observation') {
+        logToFile('ℹ️ Unreadable-plan notice skipped: the plan was attached by the coach', { coachingSessionId });
+        return;
+      }
 
       if (error || !data?.users?.phone_number) {
         logToFile('⚠️ Unable to notify teacher about LP format issue', {

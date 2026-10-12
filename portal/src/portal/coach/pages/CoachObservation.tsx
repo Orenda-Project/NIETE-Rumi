@@ -17,6 +17,7 @@ import ReportsFrame from "../reports/ReportsFrame";
 import { REPORTS } from "../reports/copy";
 import { pkTime } from "../reports/data";
 import { observationPath } from "../reports/paths";
+import { LessonPlanRow } from "../observe/PlanState";
 
 /**
  * bd-o15qnr.19 / bd-4404s7.5 — the one v2 observation page (Blueprint Coach_Observation and _Sent), opened from
@@ -127,6 +128,8 @@ const CoachObservation = () => {
                 </section>
               );
           })()}
+
+          <LessonPlanRow lp={view?.lessonPlan} />
 
           {stopped ? (
             <Card className="flex gap-2.5 bg-[#fef3c7] p-4 text-[15px] text-[#b45309]">
