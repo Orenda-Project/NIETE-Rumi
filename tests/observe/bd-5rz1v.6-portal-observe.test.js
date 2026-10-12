@@ -579,3 +579,54 @@ describe('bd-gie5ep — she continues her WhatsApp observation in the portal', (
     expect(await Svc.startTalk({ userId: COACH, coachingSessionId: SID, key: TALK }, d)).toEqual({ status: 'ok' });
   });
 });
+
+/**
+ * bd-fmf24g.66 — the observation page says what became of the plan the coach attached:
+ * her own file (a portal upload, or the normalised copy the extraction worker writes), a library
+ * plan, or none; and for her own file Reading / Read / Couldn't read, from the extraction status.
+ * Only real fields: the topic is the one extraction found, never a made-up name.
+ */
+describe('observationView — lessonPlan (bd-fmf24g.66)', () => {
+  const OWN_KEY = `lesson_plans/${COACH}/portal_9f2c.pdf`;
+  const view = (over) => Svc.observationView({ userId: COACH, coachingSessionId: SID }, deps({
+    supabase: fakeSupabase({ users: () => coachRow(), coaching_sessions: () => obsRow(over) }),
+  }));
+
+  test('no plan at all', async () => {
+    expect((await view({ has_lesson_plan: false })).lessonPlan).toEqual({ source: 'none', format: null, state: null, topic: null });
+  });
+
+  test.each([
+    ['pending', 'reading'], [null, 'reading'], ['completed', 'read'],
+    ['not_lesson_plan', 'unreadable'], ['failed', 'unreadable'], ['failed_bad_format', 'unreadable'],
+  ])('her own file, extraction %s → %s', async (status, state) => {
+    const out = await view({
+      has_lesson_plan: status !== 'not_lesson_plan', lesson_plan_r2_key: OWN_KEY, lesson_plan_format: 'pdf',
+      lesson_plan_extraction_status: status,
+      lesson_plan_structured: status === 'completed' ? { topic: 'Place value & counting 4-digit numbers' } : null,
+    });
+    expect(out.lessonPlan).toEqual({
+      source: 'own', format: 'pdf', state, topic: status === 'completed' ? 'Place value & counting 4-digit numbers' : null,
+    });
+  });
+
+  test('the worker\'s normalised copy of her file is still her own file', async () => {
+    const out = await view({
+      has_lesson_plan: true, lesson_plan_r2_key: `lesson_plans/${TEACHER_UID}/${SID}_lesson_plan.docx`, lesson_plan_format: 'docx',
+      lesson_plan_extraction_status: 'completed', lesson_plan_structured: { topic: 'T' },
+    });
+    expect(out.lessonPlan).toMatchObject({ source: 'own', format: 'docx', state: 'read' });
+  });
+
+  test('a library plan (a linked asset, or a written 6-12 lesson) is not her own file', async () => {
+    const linked = await view({ has_lesson_plan: true, lesson_plan_link_method: 'selected_recent', lesson_plan_structured: { _fidelity_ref: { lesson_id: 'x' }, topic: 'Fractions' } });
+    expect(linked.lessonPlan).toMatchObject({ source: 'library', state: null });
+    const written = await view({ has_lesson_plan: true, lesson_plan_r2_key: 'lp612/seg1/en/lesson.pdf', lesson_plan_format: 'pdf', lesson_plan_extraction_status: 'completed' });
+    expect(written.lessonPlan).toMatchObject({ source: 'library', state: null });
+  });
+
+  test('the older fields are untouched', async () => {
+    const out = await view({ has_lesson_plan: true, lesson_plan_r2_key: OWN_KEY, lesson_plan_extraction_status: 'completed' });
+    expect(out.lesson).toMatchObject({ hasLessonPlan: true });
+  });
+});
