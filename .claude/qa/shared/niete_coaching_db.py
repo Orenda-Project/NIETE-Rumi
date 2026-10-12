@@ -188,7 +188,7 @@ def cmd_purge_nudges(creds, uid, a):
     print(_json.dumps({"deleted": len(rows)}))
 
 def cmd_user_get(creds, uid, a):
-    r = (_get(creds, "users", "id=eq.%s&select=id,name,role,region,preferred_language,language_locked,conversation_state,conversation_state_expires_at,last_message_at" % uid) or [{}])[0]
+    r = (_get(creds, "users", "id=eq.%s&select=id,name,role,region,preferred_language,language_locked,conversation_state,conversation_state_expires_at,last_message_at,portal_activated,portal_password_hash,portal_invite_token,portal_invite_expires_at" % uid) or [{}])[0]
     print(_json.dumps(r, ensure_ascii=False))
 
 def cmd_first_use_rows(creds, uid, a):
