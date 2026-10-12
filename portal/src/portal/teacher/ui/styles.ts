@@ -54,3 +54,6 @@ export const OUTLINE_WIDE = 'flex min-h-[56px] w-full items-center justify-cente
  * `flex-1`: in a column, `flex-1` sets a 0 flex basis and the button shrinks to its text (bd-fmf24g.41).
  */
 export const PRIMARY_WIDE = 'flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-[#33374a] px-4 text-[16px] font-semibold text-white';
+
+/** PRIMARY_WIDE for a step that cannot be undone from the screen (Remove school): the error red, white words (5.3:1). */
+export const DANGER_WIDE = 'flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-[#c8331f] px-4 text-[16px] font-semibold text-white';
