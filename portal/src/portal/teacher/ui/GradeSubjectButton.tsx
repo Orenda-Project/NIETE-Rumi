@@ -65,7 +65,7 @@ export function GradeSubjectButton({
       <SubjectTile subject={subject} tone={selected ? 'selected' : disabled ? 'dim' : 'neutral'} />
       <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
         <span className={ROW_TITLE}>{bidi(gradeSubjectLabel(grade, subject, section, words.grade))}</span>
-        {sub ? <span className={ROW_SUB}>{bidi(sub)}</span> : null}
+        {sub ? <span {...bidi.ltr(sub)} className={ROW_SUB}>{bidi(sub)}</span> : null}
       </span>
       {chip?.text ? <StatusChip text={chip.text} tone={chip.tone} /> : null}
       {selected ? (

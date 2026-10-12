@@ -12,7 +12,8 @@ import type { ChildTestCopy } from "../../lib/childTest/copy";
 export type ReadingView = "story" | "fallback" | "after";
 export type MathsView = "numbers" | "sums" | "strip";
 
-const URDU_TEXT = "font-['Noto_Nastaliq_Urdu'] leading-[2.4]";
+// font-urdu: Nastaliq for the Urdu, the English font for any digit or Latin in it (bd-fmf24g.62).
+const URDU_TEXT = "font-urdu leading-[2.4]";
 
 // Inline, on every child-facing element: the portal's global CSS forces
 // `[dir=rtl] .grid > * { direction: rtl }` and right-aligns all text in an Urdu

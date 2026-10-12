@@ -38,11 +38,12 @@ const applyLanguageStyle = (lng: string) => {
   // Set direction
   htmlElement.dir = lng === 'ur' ? 'rtl' : 'ltr';
   
-  // Apply language-specific font with !important to override all styles
+  // Apply language-specific font with !important to override all styles. The stacks live in index.css (:root):
+  // Urdu = Nastaliq for Urdu script only, the English font for every Latin character (bd-fmf24g.62).
   if (lng === 'ur') {
-    htmlElement.style.cssText = 'font-family: "Noto Nastaliq Urdu", serif !important;';
+    htmlElement.style.cssText = 'font-family: var(--font-urdu) !important;';
   } else {
-    htmlElement.style.cssText = 'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;';
+    htmlElement.style.cssText = 'font-family: var(--font-latin) !important;';
   }
 };
 

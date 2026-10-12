@@ -68,7 +68,8 @@ export default {
       // bd-5rz1v.19 — the new UI's button edges and menu-bar shadow: shadow-nu-button, shadow-nu-nav, …
       boxShadow: newUiShadows,
       fontFamily: {
-        'urdu': ['"Noto Nastaliq Urdu"', 'serif'],
+        // bd-fmf24g.62: Nastaliq for Urdu script, the English font for Latin in the same text (index.css --font-urdu).
+        'urdu': ['var(--font-urdu)'],
         'arabic': ['"Noto Sans Arabic"', 'sans-serif'],
       },
       borderRadius: {

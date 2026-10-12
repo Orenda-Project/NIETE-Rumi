@@ -36,6 +36,17 @@ describe("isolateRuns", () => {
     expect(isolateRuns(input)).toBe(out);
   });
 
+  // bd-fmf24g.62 / bd-fmf24g.48 — an all-English string (a lesson title) is ONE isolate: isolated token by token, its "&"
+  // was left outside between two LTR islands and the RTL row swapped them ("ordering numbers up to 9999 & Comparing").
+  it.each([
+    ["Comparing & ordering numbers up to 9999", iso("Comparing & ordering numbers up to 9999")],
+    ["Read & write 4-digit numbers (place value)", iso("Read & write 4-digit numbers (place value)")],
+    ["(3)", iso("(3)")],
+  ])("an Arabic-free string is one isolate: %s", (input, out) => {
+    expect(isolateRuns(input)).toBe(out);
+    expect(isolateRuns(isolateRuns(input))).toBe(out);
+  });
+
   it("pure Urdu is untouched; nothing is isolated twice", () => {
     expect(isolateRuns("آپ کی کلاسیں")).toBe("آپ کی کلاسیں");
     expect(isolateRuns(isolateRuns("صفحات 1 – 12"))).toBe(isolateRuns("صفحات 1 – 12"));
