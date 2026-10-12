@@ -1,21 +1,76 @@
 <!doctype html>
-<html lang="ur" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex"><meta name="referrer" content="no-referrer">
+<html lang="ur" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#333748">
 <title>NIETE</title>
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&family=Noto+Nastaliq+Urdu:wght@500;600&display=swap">
 <!--
-  bd-fmf24g.60 — "Open in another app" from WhatsApp's browser on Android lands here, in the phone's browser.
+  bd-fmf24g.60/.61 — "Open in another app" from WhatsApp's browser on Android lands here, in the phone's browser.
   WhatsApp's in-app browser sends any link ending in .pdf (even inside intent://) to its own PDF viewer, which crashes
-  WhatsApp. This page's link has no .pdf in it; here, outside WhatsApp, it forwards to the file.
-  ?f= is the file's https link, base64url. It forwards ONLY to the hosts ShareActions' HANDOFF_HOST allows (keep in step).
+  WhatsApp. This page's link has no .pdf in it; here, outside WhatsApp, it forwards to the file BY ITSELF, so the
+  "Tap here" fallback only appears after 3 s.
+  ?f= is the file's https link, base64url. It forwards ONLY to the hosts ShareActions' HANDOFF_HOST allows (a test keeps
+  the two in step).
 -->
 <style>
-  body { margin: 0; padding: 32px 20px; font: 18px/1.9 system-ui, sans-serif; color: #333748; background: #fff; text-align: center; }
-  p { margin: 0 0 6px; } .en { direction: ltr; font-size: 16px; color: #555; }
-  a { display: inline-block; margin-top: 18px; padding: 12px 22px; border-radius: 14px; background: #47BA7D; color: #fff; font-weight: 700; text-decoration: none; }
-</style></head>
+  :root { --green: #47BA7D; --green-soft: #e3f3ea; --navy: #333748; --ink: #1d2025; --muted: #6b7280; --bg: #f6f7f9; --line: #e5e7eb; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px 16px; background: var(--bg); color: var(--ink);
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  .card {
+    width: 100%; max-width: 380px; padding: 32px 24px 28px; text-align: center;
+    background: #fff; border: 1px solid var(--line); border-radius: 24px; box-shadow: 0 8px 24px rgba(51, 55, 72, .08);
+  }
+  .logo { display: block; width: 64px; height: 64px; margin: 0 auto 22px; border-radius: 16px; }
+  .spin {
+    width: 44px; height: 44px; margin: 0 auto 18px; border-radius: 50%;
+    border: 4px solid var(--green-soft); border-top-color: var(--green); animation: spin .9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+  .ur { margin: 0; font-family: 'Noto Nastaliq Urdu', serif; font-size: 22px; font-weight: 600; line-height: 2.1; color: var(--navy); }
+  .en { margin: 2px 0 0; direction: ltr; font-size: 15px; font-weight: 500; color: var(--muted); }
+  .btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+    min-height: 64px; width: 100%; margin-top: 24px; padding: 6px 16px;
+    border: 2px solid var(--navy); border-radius: 16px; background: #fff; color: var(--navy); text-decoration: none;
+  }
+  .btn[hidden] { display: none; }
+  .btn .ur { font-size: 17px; line-height: 1.9; }
+  .btn .en { margin: 0; font-size: 14px; font-weight: 700; color: var(--navy); }
+  .foot { margin: 18px 0 0; font-size: 13px; color: var(--muted); }
+  .foot .ur { font-size: 14px; font-weight: 500; color: var(--muted); line-height: 2; }
+  .foot .en { font-size: 12px; }
+  .err .spin, .err .foot { display: none; }
+  .err .ur { color: #7a271a; }
+</style>
+</head>
 <body>
-  <p id="ur">فائل کھل رہی ہے…</p><p class="en" id="en">Opening the file…</p>
-  <a id="go" hidden>یہاں دبائیں / Tap here</a>
+  <main class="card" id="card">
+    <img class="logo" src="/favicon.png" alt="NIETE" width="64" height="64">
+    <div class="spin" aria-hidden="true"></div>
+    <p class="ur" id="ur">فائل کھل رہی ہے…</p>
+    <p class="en" id="en">Opening the file…</p>
+    <a class="btn" id="go" hidden>
+      <span class="ur">نہیں کھلی؟ یہاں دبائیں</span>
+      <span class="en">Didn't open? Tap here</span>
+    </a>
+    <div class="foot">
+      <p class="ur">فائل کھلنے کے بعد یہ صفحہ بند کر سکتے ہیں</p>
+      <p class="en">You can close this page once the file opens</p>
+    </div>
+  </main>
 <script>
 (function () {
   var HOST = /(^|\.)(r2\.cloudflarestorage\.com|r2\.dev|niete\.edu\.pk|up\.railway\.app)$/i;
@@ -28,13 +83,19 @@
     url = new URL(new TextDecoder().decode(bytes));
   } catch (e) { url = null; }
   if (!url || url.protocol !== 'https:' || !HOST.test(url.hostname)) {
+    document.getElementById('card').classList.add('err');
     document.getElementById('ur').textContent = 'یہ لنک کام نہیں کر رہا۔ WhatsApp پر واپس جا کر دوبارہ کھولیں۔';
     document.getElementById('en').textContent = 'This link does not work. Go back to WhatsApp and open it again.';
     return;
   }
-  var a = document.getElementById('go');
-  a.href = url.href; a.hidden = false;
   location.replace(url.href);
+  // The file opens by itself; only if it has not after 3 s does a way to tap appear.
+  setTimeout(function () {
+    var a = document.getElementById('go');
+    a.href = url.href;
+    a.hidden = false;
+  }, 3000);
 })();
 </script>
-</body></html>
+</body>
+</html>
