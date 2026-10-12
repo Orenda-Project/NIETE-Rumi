@@ -290,6 +290,50 @@ describe('the lesson resolver', () => {
   });
 });
 
+describe('bd-fmf24g.54 — a grades 1-5 (K5) plan is sendable: the catalogue PDF the app opens', () => {
+  const db = { from: () => { throw new Error('a K5 plan reads no table here'); } };
+  const presign = async (k) => `https://signed.example/${k}`;
+  const HIT = { book: { grade: 4, subject: 'Mathematics' }, chapter: { number: 4 }, lesson: { topic: 'Adding fractions', segment_index: 5 } };
+  const k5 = (over = {}) => {
+    const asked = [];
+    return {
+      asked,
+      lessonById: (id) => (id === 'grade_4_math_ch4_seg5' ? HIT : null),
+      pdfUrl: async (id, assetKind, userId) => { asked.push([id, assetKind, userId]); return { url: `https://signed.example/k5/${id}/${assetKind}.pdf` }; },
+      ...over,
+    };
+  };
+
+  it('resolves k5:<lessonId> to the lesson PDF, named from the catalogue', async () => {
+    const dep = k5();
+    const item = await Share.itemResolvers(db, { presign, k5: dep }).lesson('u1', 'k5:grade_4_math_ch4_seg5');
+    expect(item).toEqual({
+      kind: 'lesson', itemRef: 'lesson:k5:grade_4_math_ch4_seg5:lesson', title: 'Adding fractions', grade: 4, subject: 'Mathematics',
+      answerKey: false, pdfUrl: 'https://signed.example/k5/grade_4_math_ch4_seg5/lesson.pdf',
+    });
+    expect(dep.asked).toEqual([['grade_4_math_ch4_seg5', 'lesson', 'u1']]); // her A/B group decides the asset, as in the app
+  });
+
+  it('k5:<lessonId>:answer_key sends the answer key, and its file says so', async () => {
+    const dep = k5();
+    const d = deps({ item: (kind, id, userId) => Share.itemResolvers(db, { presign, k5: dep }).lesson(userId, id) });
+    expect((await Share.sendShare({ userId: 'u1', kind: 'lesson', id: 'k5:grade_4_math_ch4_seg5:answer_key' }, d)).status).toBe('sent');
+    expect(dep.asked).toEqual([['grade_4_math_ch4_seg5', 'answer_key', 'u1']]);
+    const doc = d.calls[0].components.find((c) => c.type === 'header').parameters[0].document;
+    expect(doc.link).toBe('https://signed.example/k5/grade_4_math_ch4_seg5/answer_key.pdf');
+    expect(doc.filename).toBe('Answer key - Grade 4 Mathematics - Adding fractions.pdf');
+    expect(bodyOf(d.calls[0].components)).toEqual(['Adding fractions', '4', 'Mathematics']);
+  });
+
+  it('an unknown lesson, or one with no current PDF, is not_found and sends nothing', async () => {
+    for (const [id, dep] of [['k5:nope', k5()], ['k5:grade_4_math_ch4_seg5', k5({ pdfUrl: async () => null })]]) {
+      const d = deps({ item: (kind, i, userId) => Share.itemResolvers(db, { presign, k5: dep }).lesson(userId, i) });
+      expect(await Share.sendShare({ userId: 'u1', kind: 'lesson', id }, d)).toEqual({ status: 'not_found' });
+      expect(d.calls).toHaveLength(0);
+    }
+  });
+});
+
 describe('a report goes in an IMAGE header, so an old PDF report is not sendable', () => {
   const db = (session) => ({
     from: () => {
