@@ -100,9 +100,9 @@ export async function lessonPlanFileUrl(source: LessonPlanSource): Promise<strin
   return data.state === 'ready' && data.url ? (data.url as string) : null;
 }
 
-/** The share route's id for a plan: g612 by its render, k5 by its lesson (the server says unavailable for k5). */
+/** The share route's id for a plan: g612 by its render, k5 by its lesson and asset (bd-fmf24g.54: the plan or its answer key). */
 export function lessonPlanShareId(source: LessonPlanSource): string {
-  return source.lane === 'k5' ? `k5:${source.lessonId}` : `g612:${source.renderId}`;
+  return source.lane === 'k5' ? `k5:${source.lessonId}:${source.assetKind}` : `g612:${source.renderId}`;
 }
 
 /**
