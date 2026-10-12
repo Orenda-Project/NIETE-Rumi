@@ -16,6 +16,7 @@ const read = (p: string) => readFileSync(resolve(root, p), "utf8");
 const SHARED_CHROME = [
   "index.html",
   "src/portal/pages/PortalLogin.tsx",
+  "src/portal/auth/copy.ts",
   "src/pages/NotFound.tsx",
 ];
 
@@ -28,15 +29,18 @@ describe("audience-neutral portal naming (bd-2468)", () => {
   });
 
   it("the login screen and browser title say 'NIETE Portal'", () => {
-    expect(read("src/portal/pages/PortalLogin.tsx")).toContain("NIETE Portal");
+    // bd-fmf24g.64: the login's words moved to auth/copy.ts (the mark's accessible name); the browser title is unchanged.
+    expect(read("src/portal/auth/copy.ts")).toContain("NIETE Portal");
     expect(read("index.html")).toContain("<title>NIETE Portal</title>");
   });
 
-  it("the login subtitle names both audiences", () => {
-    const login = read("src/portal/pages/PortalLogin.tsx");
-    expect(login).toMatch(/teachers and coaches/i);
-    // the old teacher-only line is gone
-    expect(login).not.toMatch(/access your teaching resources/i);
+  it("the login no longer claims an audience at all", () => {
+    // bd-fmf24g.64 (operator decision): "For teachers and coaches — sign in to continue" is a sentence, so it is gone;
+    // coaches and principals sign in here too, and neither the old teacher-only line nor a teacher-only title may return.
+    const words = read("src/portal/auth/copy.ts");
+    expect(words).not.toMatch(/access your teaching resources/i);
+    expect(words).not.toMatch(/Teacher Portal/i);
+    expect(words).not.toMatch(/sign in to continue/i);
   });
 
   it("keeps role-specific copy inside the app (not over-swept)", () => {

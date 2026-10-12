@@ -1,70 +1,45 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Lock, MessageCircle } from 'lucide-react';
 import { isLeader } from '../lib/leaderRole';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { BottomButton } from '../newui';
 import { auth } from '../services/api';
-import nieteLogo from '@/assets/niete-logo.png';
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { AuthFrame, AuthMessage } from '../auth/AuthFrame';
+import { AuthField } from '../auth/AuthField';
+import { CodeSlots } from '../auth/CodeSlots';
+import { AUTH } from '../auth/copy';
+import { statusOf, verifyFailure, type AuthError } from '../auth/errors';
+import { useCopy } from '../teacher/i18n';
 
+/**
+ * bd-fmf24g.64 — enter the WhatsApp code and a new password, on ONE page (operator decision), in the shared auth frame.
+ * The five checks and the two calls are the old ones; the code is one input drawn as six slots; where the code went is
+ * plain information (WhatsApp and the number, left-to-right); one eye shows both passwords.
+ */
 const PortalPasswordResetVerify = () => {
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<AuthError | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast();
+  const c = useCopy(AUTH);
 
   const phoneNumber = location.state?.phoneNumber;
 
-  if (!phoneNumber) {
-    navigate('/portal/reset-password');
-    return null;
-  }
+  if (!phoneNumber) return <Navigate to="/portal/reset-password" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
 
-    if (!code.trim() || !newPassword.trim() || !confirmPassword.trim()) {
-      toast({
-        title: "All Fields Required",
-        description: "Please fill in all fields",
-        variant: "destructive"
-      });
-      return;
-    }
+    if (code.length !== 6) { setError({ field: 'code', key: 'sixDigits' }); return; }
+    if (newPassword.length < 8) { setError({ field: 'password', key: 'tooShort' }); return; }
+    if (newPassword !== confirmPassword) { setError({ field: 'confirm', key: 'differ' }); return; }
 
-    if (code.length !== 6) {
-      toast({
-        title: "Invalid Code",
-        description: "Reset code must be 6 digits",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      toast({
-        title: "Passwords Don't Match",
-        description: "Please ensure both passwords match",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      toast({
-        title: "Password Too Short",
-        description: "Password must be at least 8 characters",
-        variant: "destructive"
-      });
-      return;
-    }
-
+    setError(null);
     setLoading(true);
     try {
       // First verify the code
@@ -75,116 +50,66 @@ const PortalPasswordResetVerify = () => {
       // second login to perform here — we just land the teacher inside.
       const result = await auth.resetPassword(newPassword);
 
-      toast({
-        title: "Password Reset Successful",
-        description: "You're signed in."
-      });
-
       // bd-2434: leaders go to My Patch, everyone else to the dashboard.
       navigate(isLeader(result?.user) ? '/portal/leader' : '/portal/dashboard');
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.response?.data?.error || "Failed to reset password",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
+      return;
+    } catch (err) {
+      setError(verifyFailure(statusOf(err)));
     }
+    setLoading(false);
   };
 
+  const under = (field: AuthError['field']) => (error && error.field === field ? c[error.key] : null);
+  const eye = { shown: showPassword, onToggle: () => setShowPassword(!showPassword), showLabel: c.showPw, hideLabel: c.hidePw };
+
   return (
-    <div className="min-h-screen bg-secondary flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="mb-6 text-center">
-            <img 
-              src={nieteLogo} 
-              alt="NIETE logo" 
-              className="h-12 mx-auto mb-4"
-            />
-            <h1 className="text-2xl font-bold text-foreground mb-2">
-              Verify & Reset
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Enter the 6-digit code sent to {phoneNumber} via WhatsApp
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="code">6-Digit Code</Label>
-              <Input
-                id="code"
-                type="text"
-                placeholder="Enter 6-digit code"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                disabled={loading}
-                className="mt-1 text-center text-lg tracking-widest"
-                maxLength={6}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="newPassword">New Password</Label>
-              <div className="relative">
-                <Input
-                  id="newPassword"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter new password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  disabled={loading}
-                  className="mt-1 pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  // bd-2668: was an icon-only button with no accessible name —
-                  // a screen reader announced just "button".
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Confirm new password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                disabled={loading}
-                className="mt-1"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loading}
-            >
-              {loading ? "Resetting..." : "Reset Password"}
-            </Button>
-
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              onClick={() => navigate('/portal/reset-password')}
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
-          </form>
+    <AuthFrame title={c.codeTitle} onBack={() => navigate('/portal/reset-password')}>
+      <form onSubmit={handleSubmit} noValidate>
+        {/* Where the code went: information, so it is flat (no border, no chevron). */}
+        <div className="mb-[22px] flex min-h-[48px] flex-wrap items-center gap-x-2.5 gap-y-1 rounded-[14px] bg-nu-surface px-3.5 py-2.5 text-[17px] font-semibold">
+          <MessageCircle className="h-[22px] w-[22px] shrink-0 text-nu-surface-muted" aria-hidden="true" />
+          <span>{c.sentOnWhatsapp}</span>
+          <span dir="ltr" className="ms-auto text-nu-surface-muted">{phoneNumber}</span>
         </div>
-      </div>
-    </div>
+
+        <CodeSlots
+          id="code"
+          label={c.code}
+          value={code}
+          onChange={(v) => { setCode(v); if (error?.field === 'code') setError(null); }}
+          error={under('code')}
+          disabled={loading}
+        />
+        <AuthField
+          id="newPassword"
+          label={c.newPw}
+          icon={Lock}
+          type="password"
+          autoComplete="new-password"
+          value={newPassword}
+          onChange={(v) => { setNewPassword(v); if (error?.field === 'password') setError(null); }}
+          error={under('password')}
+          disabled={loading}
+          eye={eye}
+        />
+        <AuthField
+          id="confirmPassword"
+          label={c.confirmPw}
+          icon={Lock}
+          type="password"
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChange={(v) => { setConfirmPassword(v); if (error?.field === 'confirm') setError(null); }}
+          error={under('confirm')}
+          disabled={loading}
+          shown={showPassword}
+        />
+        {error && error.field === 'form' ? <AuthMessage>{c[error.key]}</AuthMessage> : null}
+
+        <BottomButton type="submit" busy={loading}>{loading ? c.resetting : c.resetPw}</BottomButton>
+        <div className="h-3.5" />
+      </form>
+    </AuthFrame>
   );
 };
 

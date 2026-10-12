@@ -1,24 +1,34 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Lock, Smartphone, KeyRound } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useAuth } from '../hooks/useAuth';
 import { isLeader } from '../lib/leaderRole';
-import { isValidPkMobile, PK_MOBILE_HINT } from '../lib/phone';
-import { DELETE_ACCOUNT_PATH, PRIVACY_POLICY_PATH } from '../lib/legalLinks';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff } from 'lucide-react';
-import nieteLogo from '@/assets/niete-logo.png';
+import { isValidPkMobile } from '../lib/phone';
+import { BottomButton } from '../newui';
+import { FOCUS } from '../newui/styles';
 import { FrameSkeleton, LoginSkeleton } from '../components/Skeleton';
 import { readShellHint } from '../lib/shellHint';
+import { AuthFrame, AuthMessage } from '../auth/AuthFrame';
+import { AuthField } from '../auth/AuthField';
+import { AUTH } from '../auth/copy';
+import { loginFailure, type AuthError } from '../auth/errors';
+import { useCopy } from '../teacher/i18n';
 
+/**
+ * bd-fmf24g.64 — the login in the teacher app's look (v36_login-refresh). The handlers, the checks and the API
+ * calls are the ones this page always had; what changed is the frame (auth/AuthFrame), the words (auth/copy, one
+ * bilingual table), and the messages: under the field that is wrong, in her language, chosen from the HTTP status
+ * (auth/errors), kept until she types in that field. No toast.
+ */
 const PortalLogin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const c = useCopy(AUTH);
   // `sessionLoading` is deliberately distinct from the `loading` state below,
   // which tracks the submit button. One is "is there already a session?", the
   // other is "is this form mid-submit".
   const { login, user, loading: sessionLoading } = useAuth();
-  const { toast } = useToast();
 
   // bd-2569: never show a login form to someone who is already signed in.
   //
@@ -36,44 +46,51 @@ const PortalLogin = () => {
     if (sessionLoading || !user) return;
     navigate(isLeader(user) ? '/portal/leader' : '/portal/dashboard', { replace: true });
   }, [user, sessionLoading, navigate]);
-  
+
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  // A setup link that died sends her here with its reason (PortalSetup); it shows until she types.
+  const notice = (location.state as { notice?: 'linkExpired' | 'alreadySetUp' } | null)?.notice;
+  const [error, setError] = useState<(AuthError & { tone?: 'error' | 'done' }) | null>(
+    notice ? { field: 'form', key: notice, tone: notice === 'alreadySetUp' ? 'done' : 'error' } : null,
+  );
+
+  const typePhone = (v: string) => { setPhoneNumber(v); if (error && error.field !== 'password') setError(null); };
+  const typePassword = (v: string) => { setPassword(v); if (error && error.field !== 'phone') setError(null); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!phoneNumber || !password) {
-      toast({ title: "Missing Fields", description: "Please enter both phone number and password.", variant: "destructive" });
-      return;
-    }
+    if (loading) return;
 
     // bd-2511: a wrong-length number otherwise reaches the server, misses the
     // lookup, and comes back as "No portal account found" — which reads as
     // "you have no account" when the teacher just dropped a digit.
-    if (!isValidPkMobile(phoneNumber)) {
-      toast({ title: "Check the phone number", description: PK_MOBILE_HINT, variant: "destructive" });
+    if (!phoneNumber || !isValidPkMobile(phoneNumber)) {
+      setError({ field: 'phone', key: 'checkNum' });
+      return;
+    }
+    if (!password) {
+      setError({ field: 'password', key: 'enterPw' });
       return;
     }
 
+    setError(null);
     setLoading(true);
     try {
       const result = await login(phoneNumber, password);
       if (result.success) {
         // bd-2434: school leaders go straight to My Patch, not the teacher dashboard.
-        const dest = isLeader(result.user) ? '/portal/leader' : '/portal/dashboard';
-        toast({ title: "Welcome back!", description: "Redirecting…" });
-        setTimeout(() => navigate(dest), 1000);
-      } else {
-        toast({ title: "Login Failed", description: result.error, variant: "destructive" });
+        // The button stays on "Logging in" until the page changes.
+        navigate(isLeader(result.user) ? '/portal/leader' : '/portal/dashboard');
+        return;
       }
-    } catch (error) {
-      toast({ title: "Error", description: "An unexpected error occurred.", variant: "destructive" });
-    } finally {
-      setLoading(false);
+      setError(loginFailure(result.status));
+    } catch {
+      setError(loginFailure(0));
     }
+    setLoading(false);
   };
 
   // Render nothing until the session is known, then either the redirect above
@@ -86,99 +103,59 @@ const PortalLogin = () => {
     return hint ? <FrameSkeleton variant={hint} /> : <LoginSkeleton />;
   }
 
+  const under = (field: AuthError['field']) => (error && error.field === field ? c[error.key] : null);
+  const noPassword = error?.key === 'noPw';
+
   return (
-    <div className="min-h-screen bg-primary niete-lattice flex items-center justify-center p-6">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <img src={nieteLogo} alt="NIETE logo" className="w-10 h-10 object-contain" />
-            <h1 className="text-3xl sm:text-4xl font-light text-primary-foreground">NIETE Portal</h1>
-          </div>
-          <p className="text-primary-foreground/80">For teachers and coaches — sign in to continue</p>
-        </div>
+    <AuthFrame title={c.welcome}>
+      <form onSubmit={handleSubmit} noValidate>
+        <AuthField
+          id="phoneNumber"
+          label={c.phone}
+          icon={Smartphone}
+          type="tel"
+          inputMode="tel"
+          autoComplete="username"
+          ltr
+          value={phoneNumber}
+          onChange={typePhone}
+          placeholder={c.phoneHint}
+          error={under('phone')}
+        />
+        <AuthField
+          id="password"
+          label={c.password}
+          icon={Lock}
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={typePassword}
+          error={under('password')}
+          eye={{ shown: showPassword, onToggle: () => setShowPassword(!showPassword), showLabel: c.showPw, hideLabel: c.hidePw }}
+        />
+        {error && error.field === 'form' ? (
+          <AuthMessage tone={error.tone}>{c[error.key]}</AuthMessage>
+        ) : null}
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg p-8 shadow-[var(--shadow-medium)]">
-          <div className="space-y-6">
-            <div>
-              <label htmlFor="phoneNumber" className="block text-sm font-medium text-foreground mb-2">
-                Phone Number
-              </label>
-              <Input
-                id="phoneNumber"
-                type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="03XX XXXXXXX"
-                className="w-full"
-                required
-              />
-              <p className="text-xs text-muted-foreground mt-1">e.g. 0336 1234567</p>
-            </div>
+        <BottomButton type="submit" busy={loading}>{loading ? c.loggingIn : c.login}</BottomButton>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
-                Password
-              </label>
-              {/* bd-2668: relative wrapper so the eye button can sit inside the
-                  field; pr-10 keeps long passwords from running under it. */}
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
-                  className="w-full pr-10"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full bg-accent hover:bg-accent/90"
-              size="lg"
-              disabled={loading}
-            >
-              {loading ? 'Logging in...' : 'Log In'}
-            </Button>
-
-            <div className="text-center mt-6">
-              <button
-                type="button"
-                className="text-sm text-accent hover:text-accent/80 transition-colors"
-                // bd-2512: carry whatever they already typed, so the reset
-                // screen does not ask for the same number a second time.
-                onClick={() => navigate('/portal/reset-password', { state: { phoneNumber } })}
-              >
-                Forgot password?
-              </button>
-            </div>
-          </div>
-        </form>
-
-        {/* bd-3wb0s — Google Play wants the privacy policy and account
-            deletion reachable in the app; this is the one screen everyone
-            sees, including someone who can no longer sign in. */}
-        <p data-testid="login-legal-footer" className="mt-6 text-center text-sm text-primary-foreground/80">
-          <Link to={PRIVACY_POLICY_PATH} className="underline-offset-4 hover:underline hover:text-primary-foreground">
-            Privacy policy
-          </Link>
-          <span aria-hidden="true"> · </span>
-          <Link to={DELETE_ACCOUNT_PATH} className="underline-offset-4 hover:underline hover:text-primary-foreground">
-            Delete account
-          </Link>
-        </p>
-      </div>
-    </div>
+        <button
+          type="button"
+          data-emphasis={noPassword ? 'true' : undefined}
+          className={cn(
+            'mt-1.5 flex min-h-[56px] w-full items-center justify-center gap-2 text-[17px] font-bold text-nu-button',
+            noPassword && 'mt-3.5 rounded-full border-2 border-nu-button',
+            FOCUS,
+          )}
+          // bd-2512: carry whatever they already typed, so the reset
+          // screen does not ask for the same number a second time.
+          onClick={() => navigate('/portal/reset-password', { state: { phoneNumber } })}
+        >
+          <KeyRound className="h-[22px] w-[22px]" aria-hidden="true" />
+          <span>{c.forgot}</span>
+        </button>
+      </form>
+    </AuthFrame>
   );
 };
 
