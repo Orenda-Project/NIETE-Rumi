@@ -191,6 +191,21 @@ export function createLessonPlansApi() {
     });
   }
 
+  /**
+   * bd-fmf24g.57 — every grade with lesson plans and each one's subjects, as the services list them
+   * (grades 1–5: the bot's lp_catalog.json ∩ niete_lp_assets, the read the WhatsApp /lp menu makes).
+   * For a picker that offers any grade and subject: it must never hold its own list — a copy taken on
+   * 8 Oct showed grade 1 as English/Urdu/Math after the bot had added General Knowledge and Islamiat.
+   * A grade whose subjects cannot be read is left out; the grade list failing throws.
+   */
+  async function catalogue(): Promise<{ grades: number[]; byGrade: Record<number, LpSubject[]> }> {
+    const all = await grades();
+    const per = await Promise.allSettled(all.map(async (g) => [g, await subjects(g)] as const));
+    const byGrade: Record<number, LpSubject[]> = {};
+    for (const r of per) if (r.status === 'fulfilled' && r.value[1].length) byGrade[r.value[0]] = r.value[1];
+    return { grades: all.filter((g) => byGrade[g]), byGrade };
+  }
+
   async function chapters(grade: number, subject: string): Promise<LpChapter[]> {
     const lane = await laneOf(grade);
     if (!lane) return [];
@@ -262,7 +277,7 @@ export function createLessonPlansApi() {
     }
   }
 
-  return { grades, subjects, chapters, lessons, open, answerKey, status };
+  return { grades, subjects, catalogue, chapters, lessons, open, answerKey, status };
 }
 
 /** The one the screens use. */
