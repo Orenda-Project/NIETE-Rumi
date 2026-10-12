@@ -359,7 +359,7 @@ router.post('/validate-token', tokenValidationLimiter, async (req, res) => {
     // Query user with this token
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, phone_number, portal_activated, portal_invite_expires_at, name')
+      .select('id, phone_number, portal_activated, portal_password_hash, portal_invite_expires_at, name')
       .eq('portal_invite_token', token)
       .single();
 
@@ -382,8 +382,9 @@ router.post('/validate-token', tokenValidationLimiter, async (req, res) => {
       });
     }
 
-    // Check if already activated
-    if (user.portal_activated) {
+    // Already set up = a password exists. The July 2026 migration flagged thousands of
+    // accounts portal_activated with no password; for them this link is the way in (bd-kkpg4t).
+    if (user.portal_activated && user.portal_password_hash) {
       return res.status(400).json({
         success: false,
         error: 'This portal account is already set up. Please log in instead.',
@@ -437,7 +438,7 @@ router.post('/setup', publicAuthLimiter, async (req, res) => {
     // Get user with token
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('id, portal_activated, portal_invite_expires_at')
+      .select('id, portal_activated, portal_password_hash, portal_invite_expires_at')
       .eq('portal_invite_token', token)
       .single();
 
@@ -460,8 +461,9 @@ router.post('/setup', publicAuthLimiter, async (req, res) => {
       });
     }
 
-    // Check if already activated
-    if (user.portal_activated) {
+    // Already set up = a password exists — never overwrite one here. Activated with no
+    // password (the July 2026 migration) still needs this step (bd-kkpg4t).
+    if (user.portal_activated && user.portal_password_hash) {
       return res.status(400).json({
         success: false,
         error: 'Portal already activated. Please log in instead.'

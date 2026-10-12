@@ -130,6 +130,7 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
   Scenario: /portal points an activated teacher to their portal login
     Given the NIETE bot chat is open
     And my portal account is already activated
+    And I have set a portal password
     When I send "/portal"
     Then the bot reply contains a URL matching "portal.niete.edu.pk/portal/login"
     # Verified live on PROD (2026-08-04): "Your NIETE portal is already active!
@@ -138,6 +139,21 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     # repo .env.template (blank), which is the template, not the prod runtime env.
     # A non-activated teacher instead gets a /portal/setup/<token> link
     # (portal-invite.service.js:62).
+    # UPDATED 2026-10-12 (bd-kkpg4t): "already set up" now means activated AND a
+    # password saved — see @M21 for activated-with-no-password.
+
+  @e2e @portal @P1 @M21
+  Scenario: /portal sends the set-up link to an activated teacher who has no password
+    Given the NIETE bot chat is open
+    And my portal account is already activated
+    And I have never set a portal password
+    When I send "/portal"
+    Then the bot reply contains a URL matching "portal/setup/"
+    And the bot reply does not contain "portal/login"
+    # bd-kkpg4t: the July 2026 migration left 3,350 prod accounts activated with
+    # portal_password_hash NULL. /portal used to tell them to log in "with the
+    # password you created"; now it sends the set-up invite
+    # (portal-command.handler.js — portal_activated && portal_password_hash).
 
   @obsolete @config-gated @P3
   Scenario: /settings degrades gracefully when the Settings Flow is not configured

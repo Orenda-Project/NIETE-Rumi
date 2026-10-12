@@ -18,7 +18,7 @@ const { portalUrl: getPortalUrl } = require('../config/branding');
 /**
  * Handle /portal command
  *
- * @param {object} user - User object from database (must include id, portal_activated, preferred_language)
+ * @param {object} user - User object from database (must include id, portal_activated, portal_password_hash, preferred_language)
  * @param {string} phoneNumber - User's WhatsApp phone number (format: 923001234567)
  * @returns {Promise<string>} - Message to send to user in their language
  */
@@ -65,8 +65,9 @@ async function handlePortalCommand(user, phoneNumber) {
       }
     };
 
-    // Check if portal already activated
-    if (user.portal_activated) {
+    // Already set up = activated AND a password saved. Activated with no password (the
+    // July 2026 migration) gets the set-up link — she has no password to log in with (bd-kkpg4t).
+    if (user.portal_activated && user.portal_password_hash) {
       logToFile('✅ Portal already activated, sending login link', { userId: user.id });
       return messages.alreadyActivated[language] || messages.alreadyActivated.en;
     }
