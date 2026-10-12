@@ -168,7 +168,7 @@ export function ReadyBanner({
             </span>
             {close}
           </div>
-          {failed && reason && <p className="mx-3.5 mt-2.5 rounded-xl bg-[#fef2f1] px-3 py-2.5 text-[14px] leading-snug text-[#7a271a]">{bidi(reason)}</p>}
+          {failed && reason && <p dir={bidi.ltr(reason).dir} className="mx-3.5 mt-2.5 rounded-xl bg-[#fef2f1] px-3 py-2.5 text-[14px] leading-snug text-[#7a271a]">{bidi(reason)}</p>}
           {failed ? (
             <div className="px-3.5 pb-3.5 pt-3">
               <button

@@ -2,12 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+/* bd-fmf24g.62 — Urdu mode keeps the English font for English text (operator: "if there is text in english its font
+   remains the one we use for English"). Google serves Noto Nastaliq Urdu with a LATIN subset too, so a stack that starts
+   with it draws every title, subject, "WhatsApp" and digit in Nastaliq's own Latin glyphs. This face is the same
+   Nastaliq file Google serves for its Arabic subset (index.html's link fetches the same URL, so it is one download),
+   limited to Arabic script: a Latin letter, digit or punctuation mark is not in it, so the browser takes that character
+   from the next family, the English stack. U+0020 stays in: the space's metrics are what set the Urdu line box (the
+   "first available font" is the first whose range holds the space), so every Urdu line keeps its height and baseline
+   (the Urdu leading rules below), and word gaps stay as wide as the 0.15em word-spacing below was tuned for. Guarded by
+   src/lib/urduLatin.test.tsx. */
+@font-face {
+  font-family: "NIETE Nastaliq";
+  src: url(https://fonts.gstatic.com/s/notonastaliqurdu/v23/LhW4MUPbN-oZdNFcBy1-DJYsEoTq5pu3SvoMC9Y.woff2) format("woff2");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  unicode-range: U+0020, U+0600-06FF, U+0750-077F, U+0870-0891, U+0897-08E1, U+08E3-08FF, U+200C-200D, U+204F, U+2E41,
+    U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
+}
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here.
 All colors MUST be HSL.
 */
 
 @layer base {
   :root {
+    /* The English font, ONE stack: English mode's body, and the fallback for every Latin character in Urdu mode. */
+    --font-latin: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    /* Urdu mode: Urdu script in Nastaliq (Arabic only, above), everything else in the English stack. The Google family
+       stays last as a fallback should the face above fail to load. */
+    --font-urdu: "NIETE Nastaliq", var(--font-latin), "Noto Nastaliq Urdu", serif;
+
     --background: 0 0% 100%;
     --foreground: 220 13% 13%;
 
@@ -117,7 +142,7 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-latin);
     font-feature-settings: "kern" 1, "liga" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -129,8 +154,27 @@ All colors MUST be HSL.
     font-family: "Noto Sans Arabic", sans-serif !important;
   }
 
+  /* Urdu script in Nastaliq, every Latin letter, digit and sign in the English font (bd-fmf24g.62; --font-urdu above). */
   html[lang="ur"] * {
-    font-family: "Noto Nastaliq Urdu", serif !important;
+    font-family: var(--font-urdu) !important;
+  }
+
+  /* bd-fmf24g.62 — an English title, subject or name on an Urdu page (src/lib/textDir.ts: dir="ltr" + data-latin) holds
+     no Urdu, so it is set as English: the English font, English word spacing (the 0.15em above makes up for Nastaliq's
+     narrow space), the Urdu line height kept so rows keep their rhythm. It sits on its row's side: shrink-wrapped and
+     pushed against the right edge, next to the tile or avatar like the Urdu rows around it, while its text stays
+     start-aligned (left). A run too long for one line fills the width and wraps as an English paragraph, its clamp or
+     truncate cutting the END with the ellipsis on the right. (text-align: right was tried and dropped: Chromium then
+     clips or drops a line-clamp's ellipsis.) */
+  html[lang="ur"] [data-latin] {
+    font-family: var(--font-latin) !important;
+    word-spacing: normal;
+  }
+
+  html[dir="rtl"] [data-latin] {
+    width: fit-content;
+    max-width: 100%;
+    margin-left: auto;
   }
 
   /* Typography adjustments for Urdu Nastaleeq */

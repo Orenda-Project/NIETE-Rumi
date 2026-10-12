@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Check, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FOCUS, PRESS } from './styles';
+import { useLatinAttrs } from '@/lib/textDir';
 
 /**
  * bd-5rz1v.19 — lists of rows (deep-screens.html `.list`, `.row`).
@@ -75,6 +76,8 @@ export function Row({
   state, ariaLabel, testId,
 }: RowProps) {
   const tappable = Boolean(to || onClick);
+  // bd-fmf24g.62: an English title on an Urdu page reads LTR and truncates at its end (src/lib/textDir.ts).
+  const ltrOf = useLatinAttrs();
   const off = state === 'off';
   const selected = state === 'selected';
   const TileIcon = Icon ?? (tile === 'done' && !lead ? Check : undefined);
@@ -89,7 +92,7 @@ export function Row({
         {TileIcon ? <TileIcon className="h-[22px] w-[22px]" /> : lead}
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="truncate text-[15.5px] font-bold text-nu-surface-text rtl:text-[15px] rtl:font-semibold rtl:leading-[2]">
+        <span {...ltrOf(title)} className="truncate text-[15.5px] font-bold text-nu-surface-text rtl:text-[15px] rtl:font-semibold rtl:leading-[2]">
           {title}
         </span>
         {chips ? <span className="flex flex-wrap gap-[5px]">{chips}</span> : null}

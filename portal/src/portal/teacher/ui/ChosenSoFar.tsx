@@ -46,8 +46,8 @@ export function ChosenSoFar({ items, heading, copy, className }: ChosenSoFarProp
           <div key={`${it.label}-${i}`} className={cn('flex min-h-16 items-center gap-3 px-1 py-1.5', i > 0 && 'border-t border-[#e5e7eb]')}>
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="text-[13px] font-semibold leading-[1.3] text-[#6b7280]">{it.label}</span>
-              <span className="text-[17px] font-semibold leading-[1.3] [overflow-wrap:anywhere]">{bidi(it.value)}</span>
-              {it.sub ? <span className="text-[13px] leading-[1.3] text-[#6b7280]">{bidi(it.sub)}</span> : null}
+              <span {...bidi.ltr(it.value)} className="text-[17px] font-semibold leading-[1.3] [overflow-wrap:anywhere]">{bidi(it.value)}</span>
+              {it.sub ? <span {...bidi.ltr(it.sub)} className="text-[13px] leading-[1.3] text-[#6b7280]">{bidi(it.sub)}</span> : null}
             </span>
             {it.to
               ? <Link to={it.to} aria-label={name} className={TARGET}>{pill}</Link>
