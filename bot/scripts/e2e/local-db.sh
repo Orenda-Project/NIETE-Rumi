@@ -12,6 +12,7 @@
 #   bash bot/scripts/e2e/local-db.sh install-tools         # Linux: Postgres 17 + pgvector + gh via apt, PostgREST as a binary
 #   bash bot/scripts/e2e/local-db.sh drift [objects.txt]   # does the live sandbox still match schema.sql? exit 10 if not
 #   bash bot/scripts/e2e/local-db.sh status | stop          # the machine's cluster
+#   bash bot/scripts/e2e/local-db.sh demo-seed <run_dir>   # LOCAL PORTAL ONLY: add a made-up school network to this run
 #
 # Three tiers, the same split the lane already uses for redis and node_modules:
 #   once per machine   a Postgres 17 cluster under $LOCAL_DB_HOME, started on first use and left running
@@ -600,11 +601,30 @@ install_tools() {
   return $rc
 }
 
+# A made-up school network (schools, coach, principal, teachers, classes, LPs, scored observations, training) for
+# the local teacher + coach portal (bd-hnhlgn). Written into THIS run's database only — never the golden, so every
+# E2E run still starts with no people in it. Synthetic rows from portal-demo-seed.js; safe to run twice.
+demo_seed() {
+  local run_dir="${1:-}"
+  [ -n "$run_dir" ] && [ -f "$run_dir/db.name" ] || { echo "usage: local-db.sh demo-seed <run_dir>   (a run_dir from \`up\`, with db.name)" >&2; exit 2; }
+  need_tools
+  local db; db=$(cat "$run_dir/db.name")
+  node "$HERE/portal-demo-seed.js" | psql_ -d "$db" >"$run_dir/demo-seed.log" 2>&1 || { log "demo-seed failed — $run_dir/demo-seed.log"; tail -5 "$run_dir/demo-seed.log" >&2; exit 6; }
+  node -e '
+    const d = require(process.argv[1]); const p = (n) => "0" + n.slice(2);
+    console.log(`demo portal logins (password ${d.PASSWORD}):`);
+    console.log(`  coach      ${p(d.COACH.phone)}  ${d.COACH.name}`);
+    console.log(`  principal  ${p(d.PRINCIPAL.phone)}  ${d.PRINCIPAL.name}`);
+    d.TEACHERS.forEach(([name], i) => console.log(`  teacher    ${p(d.PHONE_PREFIX + String(11 + i).padStart(2, "0"))}  ${name}`));
+  ' "$HERE/portal-demo-seed.js"
+}
+
 stop() { [ -n "$PGBIN" ] && "$PGBIN/pg_ctl" -D "$PGDATA" stop -m fast >/dev/null 2>&1; return 0; }
 
 CMD="${1:-}"; shift || true
 case "$CMD" in
   up) up "$@";; down) down "$@";; baseline) baseline "$@";; status) status;; stop) stop;;
   seed-pull) seed_pull "$@";; seed-publish) seed_publish;; seed-status) seed_status;; doctor) doctor;; install-tools) install_tools;; drift) drift "$@";;
-  *) sed -n '2,15p' "$0" >&2; exit 2;;
+  demo-seed) demo_seed "$@";;
+  *) sed -n '2,16p' "$0" >&2; exit 2;;
 esac
