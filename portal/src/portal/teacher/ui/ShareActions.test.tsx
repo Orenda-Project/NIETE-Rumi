@@ -129,7 +129,16 @@ describe("Open in another app: by environment", () => {
     return assign;
   }
 
-  it("Android WhatsApp browser: Open hands the PDF to a PDF app (intent, action VIEW, type application/pdf, no fallback)", async () => {
+  // bd-fmf24g.60 — adb on the operator's phone (WhatsApp Business 2.26.39.72): WhatsApp's in-app browser sends ANY link
+  // whose path ends in .pdf — even inside intent://, with or without a type or package — to its own PDF viewer, which
+  // throws "MalformedURLException: unknown protocol: intent" and takes WhatsApp down. A link to a portal page that does
+  // not end in .pdf, which then forwards to the PDF, opened every time. So the hand-off goes to that page.
+  const fromB64url = (f: string) => {
+    const b = f.replace(/-/g, "+").replace(/_/g, "/");
+    return new TextDecoder().decode(Uint8Array.from(atob(b + "===".slice((b.length + 3) % 4)), (c) => c.charCodeAt(0)));
+  };
+
+  it("Android WhatsApp browser: Open hands the browser OUR page (no .pdf anywhere in the link), which forwards to the PDF", async () => {
     const assign = stubLocation();
     const open = vi.spyOn(window, "open").mockReturnValue(null);
     render(<ShareActions open={{ fileUrl: async () => PDF }} env="android-iab" />);
@@ -139,20 +148,22 @@ describe("Open in another app: by environment", () => {
     expect(open).not.toHaveBeenCalled();
     expect(assign).toHaveBeenCalledTimes(1);
     const to = assign.mock.calls[0][0] as string;
-    expect(to.startsWith("intent://digital-coach-audio.example.r2.cloudflarestorage.com/lp/grade_2_english_ch3_seg3.pdf?X-Amz-Credential=a%2Fb&X-Amz-Signature=1#Intent;")).toBe(true);
-    expect(to).toContain(";scheme=https;");
-    expect(to).toContain(";action=android.intent.action.VIEW;");
-    expect(to).toContain(";type=application/pdf;");
+    const m = /^intent:\/\/portal\.niete\.edu\.pk\/open-file\.html\?f=([A-Za-z0-9_-]+)#Intent;scheme=https;end$/.exec(to);
+    expect(m).not.toBeNull();
+    expect(to.toLowerCase()).not.toContain(".pdf"); // what sends a link to WhatsApp's crashing PDF viewer
     expect(to).not.toContain("browser_fallback_url"); // never a link WhatsApp's own browser would load
-    expect(to.endsWith(";end")).toBe(true);
+    expect(fromB64url(m![1])).toBe(PDF);
   });
 
-  it("Android WhatsApp browser: a report image goes to an image app (type image/png)", async () => {
+  it("Android WhatsApp browser: a file on a host the page does not forward to is not handed off; its link is copied", async () => {
     const assign = stubLocation();
-    render(<ShareActions open={{ fileUrl: "https://files.example/u/s1_report.png?sig=1" }} env="android-iab" />);
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    render(<ShareActions open={{ fileUrl: "https://elsewhere.example/p.pdf" }} env="android-iab" />);
     fireEvent.click(screen.getByTestId("share-open"));
     await act(async () => {});
-    expect(assign.mock.calls[0][0]).toContain(";type=image/png;");
+    expect(assign).not.toHaveBeenCalled();
+    expect(writeText).toHaveBeenCalledWith("https://elsewhere.example/p.pdf");
   });
 
   it("Android WhatsApp browser: Copy link sits under Open as the way out; it copies and says Paste in browser", async () => {

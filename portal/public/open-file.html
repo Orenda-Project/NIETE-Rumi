@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ur" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex"><meta name="referrer" content="no-referrer">
+<title>NIETE</title>
+<!--
+  bd-fmf24g.60 — "Open in another app" from WhatsApp's browser on Android lands here, in the phone's browser.
+  WhatsApp's in-app browser sends any link ending in .pdf (even inside intent://) to its own PDF viewer, which crashes
+  WhatsApp. This page's link has no .pdf in it; here, outside WhatsApp, it forwards to the file.
+  ?f= is the file's https link, base64url. It forwards ONLY to the hosts ShareActions' HANDOFF_HOST allows (keep in step).
+-->
+<style>
+  body { margin: 0; padding: 32px 20px; font: 18px/1.9 system-ui, sans-serif; color: #333748; background: #fff; text-align: center; }
+  p { margin: 0 0 6px; } .en { direction: ltr; font-size: 16px; color: #555; }
+  a { display: inline-block; margin-top: 18px; padding: 12px 22px; border-radius: 14px; background: #47BA7D; color: #fff; font-weight: 700; text-decoration: none; }
+</style></head>
+<body>
+  <p id="ur">فائل کھل رہی ہے…</p><p class="en" id="en">Opening the file…</p>
+  <a id="go" hidden>یہاں دبائیں / Tap here</a>
+<script>
+(function () {
+  var HOST = /(^|\.)(r2\.cloudflarestorage\.com|r2\.dev|niete\.edu\.pk|up\.railway\.app)$/i;
+  var url = null;
+  try {
+    var b = (new URLSearchParams(location.search).get('f') || '').replace(/-/g, '+').replace(/_/g, '/');
+    while (b.length % 4) b += '=';
+    var bin = atob(b), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    url = new URL(new TextDecoder().decode(bytes));
+  } catch (e) { url = null; }
+  if (!url || url.protocol !== 'https:' || !HOST.test(url.hostname)) {
+    document.getElementById('ur').textContent = 'یہ لنک کام نہیں کر رہا۔ WhatsApp پر واپس جا کر دوبارہ کھولیں۔';
+    document.getElementById('en').textContent = 'This link does not work. Go back to WhatsApp and open it again.';
+    return;
+  }
+  var a = document.getElementById('go');
+  a.href = url.href; a.hidden = false;
+  location.replace(url.href);
+})();
+</script>
+</body></html>
