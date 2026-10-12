@@ -599,6 +599,8 @@ export type CoachObservationView = {
   portal?: boolean;
   teacher: { name: string | null; phone: string | null } | null;
   lesson: { topic: string | null; subject: string | null; hasLessonPlan: boolean };
+  /** bd-fmf24g.66 — what became of the plan attached: her own file (reading / read / unreadable), a library plan, or none. Absent from an older bot. */
+  lessonPlan?: { source: 'own' | 'library' | 'none'; format: string | null; state: 'reading' | 'read' | 'unreadable' | null; topic: string | null };
   draft: { edited: boolean };
   talk: { guide: TalkGuide | null; recordedAt: string | null; feedback: CoachFeedback | null };
   report: {
