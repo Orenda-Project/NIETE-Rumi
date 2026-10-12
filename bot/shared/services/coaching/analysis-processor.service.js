@@ -534,6 +534,7 @@ class AnalysisProcessorService {
       if (session.observation_type === 'leader_observation') {
         const ObserveDraft = require('../observe/observe-draft.service');
         await ObserveDraft.onAnalysisReady(coachingSessionId, from);
+        await this._recomputeIfPlanLanded(coachingSessionId, session);
         logToFile('✅ Analysis processing complete (observe path — draft flow sent)', { coachingSessionId });
         return;
       }
@@ -560,6 +561,33 @@ class AnalysisProcessorService {
     } catch (error) {
       await this.handleAnalysisError(coachingSessionId, error, payload.from);
       throw error;
+    }
+  }
+
+  /**
+   * bd-fmf24g.66 — a plan the coach attached is read by a job that runs AT THE SAME TIME as this analysis. When it was still
+   * 'pending' when this analysis loaded the session, Section B was graded without it (lp_absent); the extraction's own
+   * late-plan recompute, if it finished while this analysis was running, found the status 'analyzing' and did nothing.
+   * So once the result is written and the draft handed over (status now recomputable), look at the plan again: completed
+   * since, recompute Section B (the same function the extraction calls); still pending, the extraction's recompute will run.
+   * Narrow read (one status column, never lesson_plan_text); never throws into the analysis job.
+   */
+  static async _recomputeIfPlanLanded(coachingSessionId, session) {
+    if (!session || session.lesson_plan_extraction_status !== 'pending') return { recomputed: false, reason: 'not_pending_at_load' };
+    try {
+      const { data } = await supabase
+        .from('coaching_sessions')
+        .select('lesson_plan_extraction_status')
+        .eq('id', coachingSessionId)
+        .maybeSingle();
+      if (!data || data.lesson_plan_extraction_status !== 'completed') return { recomputed: false, reason: 'still_pending' };
+      const { recomputeFidelityForSession } = require('./fidelity/fidelity-recompute.service');
+      const out = await recomputeFidelityForSession(coachingSessionId);
+      logToFile('[lp-fidelity] plan landed during the analysis — Section B recomputed', { coachingSessionId, recomputed: !!(out && out.recomputed), reason: (out && out.reason) || null });
+      return out;
+    } catch (error) {
+      logToFile('⚠️ late-plan recompute after analysis failed (non-blocking)', { coachingSessionId, error: error && error.message }, 'warn');
+      return { recomputed: false, reason: 'error' };
     }
   }
 

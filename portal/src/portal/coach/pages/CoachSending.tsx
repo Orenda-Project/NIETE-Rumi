@@ -5,7 +5,7 @@ import { NOTICES } from "../../teacher/notices/copy";
 import { LeaveNote } from "../../teacher/ui";
 import { StatusChip } from "../../teacher/ui/StatusChip";
 import { OBSERVE } from "../observe/copy";
-import { failureWords, lengthShort } from "../observe/format";
+import { failureWords, lengthShort, planKindLabel } from "../observe/format";
 import ObservePage from "../observe/ObservePage";
 import { retrySend, useSendJob } from "../observe/sender";
 
@@ -61,6 +61,7 @@ const CoachSending = () => {
         <div className="flex flex-wrap justify-center gap-2">
           {length && <StatusChip text={length} tone="info" />}
           <StatusChip text={job.teacherName} tone="info" />
+          {job.planKind && <span data-testid="send-plan"><StatusChip text={C.planChip(planKindLabel(job.planKind, C))} tone="info" /></span>}
         </div>
         {failed && (
           <p role="alert" className="w-full rounded-2xl bg-[#fef2f1] px-3.5 py-3 text-[15px] leading-snug text-[#7a271a]">{failureWords(job.errorCode, C)}</p>

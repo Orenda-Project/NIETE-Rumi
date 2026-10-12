@@ -145,6 +145,26 @@ async function releaseWhatsAppStep(d, userId, coachingSessionId, step) {
 
 const debriefOf = (row) => ((row && row.analysis_data) || {}).observer_debrief || {};
 const deliveryOf = (row) => ((row && row.analysis_data) || {}).teacher_delivery || {};
+// bd-fmf24g.66 — what became of the plan attached to this observation, as the observation page shows it.
+// HER OWN FILE is the one under lesson_plans/<id>/: her portal upload (portal_<id>.<ext>), or the copy the
+// extraction worker re-saves under the detected type (<sessionId>_lesson_plan.<ext>). Any other plan on the
+// row is the library's (a linked asset, or a written 6-12 lesson's PDF). The state comes from the
+// extraction status: nothing read yet / read / not a lesson plan or unreadable. Real fields only.
+const OWN_PLAN_KEY_RX = /^lesson_plans\/[^/]+\/[^/]+$/;
+function planOf(row) {
+  const key = String((row && row.lesson_plan_r2_key) || '');
+  const format = (row && row.lesson_plan_format) || null;
+  if (OWN_PLAN_KEY_RX.test(key)) {
+    const status = row.lesson_plan_extraction_status || null;
+    let state = 'reading';
+    if (status === 'completed') state = 'read';
+    else if (['not_lesson_plan', 'failed', 'failed_bad_format'].includes(status)) state = 'unreadable';
+    const topic = state === 'read' && row.lesson_plan_structured && row.lesson_plan_structured.topic;
+    return { source: 'own', format, state, topic: topic || null };
+  }
+  if (row && (row.has_lesson_plan || key)) return { source: 'library', format, state: null, topic: null };
+  return { source: 'none', format: null, state: null, topic: null };
+}
 const nonce = (seed) => crypto.createHash('sha1').update(String(seed)).digest('hex').slice(0, 16);
 
 async function resolveTeacherSafely(d, userId, teacherExtId, schoolExtId) {
@@ -396,6 +416,7 @@ async function observationView({ userId, coachingSessionId }, deps) {
     portal: isPortalSession(row),
     teacher,
     lesson: { topic: ad.topic || null, subject: ad.subject || null, hasLessonPlan: !!row.has_lesson_plan },
+    lessonPlan: planOf(row),
     draft: { edited: !!ad.observer_edit_summary, summary: ad.observer_edit_summary || null },
     talk: {
       guide: od.guide_snapshot || null,
