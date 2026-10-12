@@ -192,7 +192,7 @@ export function ClassPicker({
     const body = (
       <>
         <SubjectTile subject={c.subject} size={32} tone={on ? 'selected' : c.off ? 'dim' : 'neutral'} />
-        <span className="line-clamp-2 min-w-0 flex-1 text-[16px] font-semibold leading-[1.25]">{bidi(buttonName(c, all))}</span>
+        <span {...bidi.ltr(buttonName(c, all))} className="line-clamp-2 min-w-0 flex-1 text-[16px] font-semibold leading-[1.25]">{bidi(buttonName(c, all))}</span>
         {on ? (
           <span aria-hidden="true" className="absolute end-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#33374a] text-white">
             <Check className="h-3 w-3" strokeWidth={3.4} />

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { KIT_COPY } from './copy';
 import { FeatureIcon, type Feature } from './FeatureIcon';
 import { FOCUS, TAP_SQUARE } from './styles';
+import { useLatinAttrs } from '@/lib/textDir';
 
 /**
  * bd-5rz1v.19 — the heading of a page INSIDE a flow: a LIGHT bar, white with a 1px bottom line.
@@ -36,6 +37,8 @@ export interface InnerBarProps {
 export function InnerBar({ feature, crumb, title, backTo, onBack, backLabel = KIT_COPY.back, right }: InnerBarProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  // bd-fmf24g.62: an English title or crumb on an Urdu page reads LTR and truncates at its end (src/lib/textDir.ts).
+  const ltrOf = useLatinAttrs();
   const back = () => {
     if (onBack) return onBack();
     // React Router gives the first entry of a fresh history the key "default": nothing behind it.
@@ -62,9 +65,9 @@ export function InnerBar({ feature, crumb, title, backTo, onBack, backLabel = KI
             className="flex min-w-0 items-center gap-[5px] truncate text-xs font-bold text-nu-inner-crumb rtl:text-[12.5px] rtl:font-semibold rtl:leading-[1.9]"
           >
             <FeatureIcon feature={feature} className="h-3.5 w-3.5" />
-            <span className="truncate">{crumb}</span>
+            <span {...ltrOf(crumb)} className="truncate">{crumb}</span>
           </p>
-          <h1 className="truncate text-xl font-extrabold text-nu-surface-text rtl:text-[19px] rtl:font-bold rtl:leading-[1.9] md:text-2xl">
+          <h1 {...ltrOf(title)} className="truncate text-xl font-extrabold text-nu-surface-text rtl:text-[19px] rtl:font-bold rtl:leading-[1.9] md:text-2xl">
             {title}
           </h1>
         </div>

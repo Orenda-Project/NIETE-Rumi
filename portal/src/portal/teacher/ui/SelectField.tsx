@@ -62,8 +62,8 @@ export function SelectField({ label, title, value, options, onChange, icon, disa
         {icon ? <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#f3f4f6] text-[#33374a]">{icon}</span> : null}
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="text-[13px] font-semibold leading-[1.3] text-[#6b7280]">{label}</span>
-          <span className={cn('text-[17px] font-semibold leading-[1.3] [overflow-wrap:anywhere]', !chosen && 'text-[#6b7280]')}>{bidi(shown)}</span>
-          {chosen?.sub ? <span className="text-[13px] leading-[1.3] text-[#6b7280]">{bidi(chosen.sub)}</span> : null}
+          <span {...bidi.ltr(shown)} className={cn('text-[17px] font-semibold leading-[1.3] [overflow-wrap:anywhere]', !chosen && 'text-[#6b7280]')}>{bidi(shown)}</span>
+          {chosen?.sub ? <span {...bidi.ltr(chosen.sub)} className="text-[13px] leading-[1.3] text-[#6b7280]">{bidi(chosen.sub)}</span> : null}
         </span>
         <ChevronDown className="h-[22px] w-[22px] shrink-0 text-[#9ca3af]" strokeWidth={2.4} aria-hidden="true" />
       </button>

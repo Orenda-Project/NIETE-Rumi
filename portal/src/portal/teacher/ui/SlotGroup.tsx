@@ -104,8 +104,8 @@ export function SlotGroup({ time, count, people, open, defaultOpen = false, onOp
               <>
                 <Avatar p={p} size="md" you={words.you} />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="text-[15px] font-semibold leading-[1.3] [overflow-wrap:anywhere]">{bidi(p.name)}</span>
-                  {p.sub ? <span className="text-[12px] leading-[1.3] text-[#6b7280]">{bidi(p.sub)}</span> : null}
+                  <span {...bidi.ltr(p.name)} className="text-[15px] font-semibold leading-[1.3] [overflow-wrap:anywhere]">{bidi(p.name)}</span>
+                  {p.sub ? <span {...bidi.ltr(p.sub)} className="text-[12px] leading-[1.3] text-[#6b7280]">{bidi(p.sub)}</span> : null}
                 </span>
                 {p.done ? <Check role="img" aria-label={words.doneWord} className="h-5 w-5 shrink-0 text-[#48b078]" strokeWidth={2.6} /> : null}
               </>

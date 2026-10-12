@@ -59,8 +59,8 @@ export function AudioCard({ title, sub, src, lead, action, copy, className }: Au
     <section className={cn('flex min-h-[84px] items-center gap-3 rounded-2xl border border-[#e5e7eb] bg-white p-3 shadow-[0_1px_2px_rgba(16,24,40,0.05)]', className)}>
       {lead}
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="text-[16px] font-semibold leading-[1.3] [overflow-wrap:anywhere]">{bidi(title)}</span>
-        {sub ? <span className="text-[13px] leading-[1.3] text-[#6b7280]">{bidi(sub)}</span> : null}
+        <span {...bidi.ltr(title)} className="text-[16px] font-semibold leading-[1.3] [overflow-wrap:anywhere]">{bidi(title)}</span>
+        {sub ? <span {...bidi.ltr(sub)} className="text-[13px] leading-[1.3] text-[#6b7280]">{bidi(sub)}</span> : null}
       </span>
       {action}
       <button
