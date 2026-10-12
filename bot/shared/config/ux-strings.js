@@ -798,6 +798,14 @@ const UX_STRINGS = {
   appLinkButtonAttendance: { en: 'Attendance', ur: 'حاضری' },
   appLinkBodyClasses: { en: 'Open your classes.', ur: 'اپنی کلاسیں کھولیں۔' },
   appLinkButtonClasses: { en: 'My classes', ur: 'میری کلاسیں' },
+  // bd-fmf24g.52 — the COACH app link (app-redirect.service COACH_LINKS): /menu → coach Home, /observe → the coach
+  // app's Observe page. Same one-line rule. /menu keeps the /menu words; /observe uses the coach app's own tile
+  // (portal coach copy: "Take observation" / مشاہدہ لیں). Imperatives only, so nothing assumes a gender; the Urdu
+  // that opens with "NIETE" carries U+200F like the generic line.
+  appLinkBodyCoachHome: { en: 'Open the NIETE app.', ur: '\u200FNIETE ایپ کھولیں۔' },
+  appLinkButtonCoachHome: { en: 'Open app', ur: 'ایپ کھولیں' },
+  appLinkBodyCoachObserve: { en: 'Take an observation in the app.', ur: 'ایپ میں مشاہدہ لیں۔' },
+  appLinkButtonCoachObserve: { en: 'Take observation', ur: 'مشاہدہ لیں' },
 
   assessmentNotReady: {
     en: "We're getting the assessment generator ready for you. I'll tell you the moment it's live.",

@@ -7,13 +7,14 @@
  *                    Anything else → the en/ur "get a new link" page and no session.
  *   GET /go          the same page.
  *
- * The bot sends this link (as a cta_url button) only to a pilot teacher on the teacher app. If she is no longer
+ * The bot sends this link (as a cta_url button) only to a teacher on the teacher app, or (bd-fmf24g.52) a pilot coach
+ * on the coach app, whose token lands on the coach app (COACH_LANDINGS). If she is no longer
  * on it by the time she taps, she is still signed in and lands on today's dashboard, never on a page she cannot
  * open. The path is outside the Android app's link list, so WhatsApp opens it in its own browser. The token is
  * the credential: it is never logged, and the response is no-store. Rate limited per IP (60 a minute).
  */
 const express = require('express');
-const { verifyAppLink, LANDINGS, LEGACY_LANDING } = require('../../bot/shared/services/app-login-link');
+const { verifyAppLink, LANDINGS, COACH_LANDINGS, LEGACY_LANDING } = require('../../bot/shared/services/app-login-link');
 // The portal's OWN sink (the bot's loggers need pino, which this service does not install).
 const telemetry = require('../services/telemetry.service');
 
@@ -77,6 +78,13 @@ async function defaultIsTeacherV2(userId) {
   return isFlagEnabledForUser(supabase, PORTAL_TEACHER_V2_KEY, userId);
 }
 
+/** bd-fmf24g.52 — on the coach app: portal_coach_v2 for them AND role coach (dashboard/lib/feature-flags.js). */
+async function defaultIsCoachApp(userId) {
+  const supabase = require('../config/supabase');
+  const { isCoachAppUser } = require('../lib/feature-flags');
+  return isCoachAppUser(supabase, userId);
+}
+
 /** A fixed-window per-IP limiter with no dependency (the root test install has no express-rate-limit). */
 function createLimiter({ windowMs = 60 * 1000, max = 60 } = {}) {
   const hits = new Map(); // ip -> { n, resetAt }
@@ -95,7 +103,9 @@ function createLimiter({ windowMs = 60 * 1000, max = 60 } = {}) {
   };
 }
 
-function createAppLoginRouter({ findUser = defaultFindUser, isTeacherV2 = defaultIsTeacherV2, limiter } = {}) {
+function createAppLoginRouter({
+  findUser = defaultFindUser, isTeacherV2 = defaultIsTeacherV2, isCoachApp = defaultIsCoachApp, limiter,
+} = {}) {
   const router = express.Router();
   // Per IP; a teacher taps a link a handful of times, never 60 times a minute. (Mobile carriers share IPs, so not tighter.)
   const limit = limiter || createLimiter();
@@ -120,9 +130,12 @@ function createAppLoginRouter({ findUser = defaultFindUser, isTeacherV2 = defaul
     }
     if (!user || !user.id) return newLink(req, res, 'unknown_user', { feature: payload.f, userId: payload.u });
 
+    // bd-fmf24g.52 — a coach token (coach_menu, coach_observe) asks the coach-app question and lands on a coach page;
+    // a teacher token asks the teacher-app question, exactly as before. Either way, off the app → today's dashboard.
+    const coach = Object.prototype.hasOwnProperty.call(COACH_LANDINGS, payload.f);
     let onApp = false;
-    try { onApp = Boolean(await isTeacherV2(user.id)); } catch (_) { onApp = false; }
-    const landing = onApp ? LANDINGS[payload.f] : LEGACY_LANDING;
+    try { onApp = Boolean(await (coach ? isCoachApp(user.id) : isTeacherV2(user.id))); } catch (_) { onApp = false; }
+    const landing = onApp ? (coach ? COACH_LANDINGS : LANDINGS)[payload.f] : LEGACY_LANDING;
 
     // A new session id, never the one the browser arrived with (session fixation). No portalScope: the whole app.
     req.session.regenerate((err) => {

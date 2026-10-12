@@ -24,6 +24,14 @@
  *      switch does not cover (a principal, a coach, a number that never
  *      registered, a child's handset, an account that cannot be read) keeps
  *      today's WhatsApp flow. "teachers" on a feature with no page is OFF.
+ *   2b. THE COACH APP LINK (bd-fmf24g.52), for /menu and /observe only (COACH_LINKS): a coach gets ONE message with a
+ *      button that opens the COACH app signed in — /menu on coach Home, /observe on the coach app's Observe page —
+ *      when ALL hold: users.role is coach; they are on the coach app (portal_coach_v2, the portal's rule: true or a
+ *      list holding them); and they are on `coach_app_link`, a JSON LIST of users.id that is SEPARATE from
+ *      portal_coach_v2 (more coaches on the coach app never changes WhatsApp by itself). Any other value of
+ *      coach_app_link — true, "teachers", an object, no row — is OFF, and so is a failed read. It is asked before the
+ *      teacher link and only decides for someone on the list; everyone else goes on exactly as below. Old code never
+ *      reads coach_app_link, so a rollback reads it as OFF: no notice, no link, for anyone.
  *   3. QUIET HOUR, per teacher, shared by every switch. A second redirect
  *      inside 60 minutes sends NOTHING — and still reports "handled", so the
  *      caller does not fall through to the feature or to AI chat. After the
@@ -44,7 +52,7 @@ const { appStoreUrl } = require('../config/branding');
 const InboundTyping = require('./inbound-typing');
 const { signAppLink, LANDINGS } = require('./app-login-link');
 const { portalUrl } = require('../config/branding');
-const { isTeachersValue, isTeacherRole } = require('./teacher-audience');
+const { isTeachersValue, isTeacherRole, isCoachRole } = require('./teacher-audience');
 const { isRegistered } = require('../utils/registration-status');
 
 /** feature → app_settings key. The keys are the contract with whoever flips them. */
@@ -73,6 +81,8 @@ const APP_REDIRECT_FLAGS = Object.freeze({
  */
 const APP_LINK_COPY = Object.freeze({
   menu: ['appLinkBody', 'appLinkButton'],
+  coach_menu: ['appLinkBodyCoachHome', 'appLinkButtonCoachHome'], // bd-fmf24g.52
+  coach_observe: ['appLinkBodyCoachObserve', 'appLinkButtonCoachObserve'], // bd-fmf24g.52
   lesson_plan: ['appLinkBodyLessonPlan', 'appLinkButtonLessonPlan'],
   assessment_generator: ['appLinkBodyAssessment', 'appLinkButtonAssessment'],
   ai_coaching: ['appLinkBodyCoaching', 'appLinkButtonCoaching'],
@@ -81,6 +91,16 @@ const APP_LINK_COPY = Object.freeze({
   classes: ['appLinkBodyClasses', 'appLinkButtonClasses'],
 });
 const APP_LINK_GENERIC = APP_LINK_COPY.menu;
+
+/**
+ * bd-fmf24g.52 — the coach app link. Request → the coach-app page it lands on (app-login-link.js COACH_LANDINGS).
+ * Only these two; any other request a coach makes is today's path.
+ */
+const COACH_LINKS = Object.freeze({ menu: 'coach_menu', observe: 'coach_observe' });
+/** Who gets it: a JSON list of users.id, and nothing else. Not an app_redirect_* key — old code never reads it. */
+const COACH_LINK_KEY = 'coach_app_link';
+/** The coach app's own switch (dashboard/lib/feature-flags.js PORTAL_COACH_V2_KEY): true or a list of users.id. */
+const COACH_APP_KEY = 'portal_coach_v2';
 
 /** The teacher app's own switch (dashboard/lib/feature-flags.js PORTAL_TEACHER_V2_KEY): true, "teachers", or a list of users.id. */
 const TEACHER_APP_KEY = 'portal_teacher_v2';
@@ -125,7 +145,7 @@ async function settingValues(now) {
     const { data, error } = await supabase
       .from('app_settings')
       .select('key,value')
-      .in('key', [...Object.values(APP_REDIRECT_FLAGS), TEACHER_APP_KEY]);
+      .in('key', [...Object.values(APP_REDIRECT_FLAGS), TEACHER_APP_KEY, COACH_LINK_KEY, COACH_APP_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     for (const row of data || []) values.set(row.key, row.value);
   } catch (err) {
@@ -203,6 +223,34 @@ async function linkVerdict(feature, userId, now) {
     logToFile('⚠️ App link: her account could not be read — the WhatsApp flow runs', { userId, feature, error: err?.message }, 'warn');
     return pilot ? null : 'whatsapp';
   }
+}
+
+/**
+ * bd-fmf24g.52 — the coach app link: the coach-app page to land on (COACH_LINKS), or null for today's path. The list
+ * is checked first, so nobody off it pays a users read. On it: their role must be coach and they must be on the coach
+ * app, as the portal reads portal_coach_v2 (isFlagEnabledForUser: true or a list holding them; "teachers" never
+ * covers a coach). A failed read is null — today's flow, never silence.
+ */
+async function coachLink(feature, userId, now) {
+  if (!Object.prototype.hasOwnProperty.call(COACH_LINKS, feature)) return null;
+  const values = await settingValues(now);
+  if (!listHas(values.get(COACH_LINK_KEY), userId)) return null;
+  let why = null;
+  try {
+    const a = await loadAccount(userId);
+    const app = values.get(COACH_APP_KEY);
+    if (!a) why = 'no_account';
+    else if (!isCoachRole(a.role)) why = 'not_a_coach';
+    else if (!(listHas(app, userId) || isOn(app))) why = 'not_on_coach_app';
+  } catch (err) {
+    logToFile('⚠️ Coach app link: the account could not be read — the WhatsApp flow runs', { userId, feature, error: err?.message }, 'warn');
+    return null;
+  }
+  if (why) {
+    logToFile('↩️ Coach app link: not for this user — the WhatsApp flow runs', { userId, feature, why });
+    return null;
+  }
+  return COACH_LINKS[feature];
 }
 
 async function lastNotice(userId) {
@@ -299,6 +347,8 @@ async function sendAppLink(feature, { userId, from, language, reason }) {
 
 async function decideRedirect(feature, { userId, from, language, reason = 'unspecified', now = Date.now() } = {}) {
   if (userId && from) {
+    const coach = await coachLink(feature, userId, now);
+    if (coach) return sendAppLink(coach, { userId, from, language, reason });
     const verdict = await linkVerdict(feature, userId, now);
     if (verdict === 'link') return sendAppLink(feature, { userId, from, language, reason });
     if (verdict === 'whatsapp') return false;

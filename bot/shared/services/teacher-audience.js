@@ -35,4 +35,12 @@ function isTeacherRole(role) {
   return typeof role === 'string' && role.trim().toLowerCase() === 'teacher';
 }
 
-module.exports = { isTeachersValue, isTeacherRole };
+/**
+ * bd-fmf24g.52 — is this users.role a coach? The coach app link asks it, and so does the portal before landing a coach
+ * on the coach app (dashboard/lib/feature-flags.js isCoachAppUser) — the same trim + lowercase as the portal's resolveRole.
+ */
+function isCoachRole(role) {
+  return typeof role === 'string' && role.trim().toLowerCase() === 'coach';
+}
+
+module.exports = { isTeachersValue, isTeacherRole, isCoachRole };
