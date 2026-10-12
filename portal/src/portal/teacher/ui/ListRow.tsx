@@ -121,7 +121,7 @@ export function ListRow({
   );
   const middle = (
     <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
-      <span {...bidi.ltr(label)} className={cn(ROW_TITLE, 'line-clamp-2')}>{bidi(label)}</span>
+      <span {...bidi.ltr(label)} className={cn(ROW_TITLE, 'line-clamp-2 [overflow-wrap:anywhere]')}>{bidi(label)}</span>
       {subtitle ? <span {...bidi.ltr(subtitle)} className={ROW_SUB}>{bidi(subtitle)}</span> : null}
     </span>
   );

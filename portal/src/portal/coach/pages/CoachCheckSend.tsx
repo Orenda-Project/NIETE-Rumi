@@ -1,22 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, Camera, Clock, Library, RotateCcw, Send } from "lucide-react";
+import { AlertTriangle, Camera, ChevronRight, Clock, FolderOpen, Image as ImageIcon, Library, Paperclip, RotateCcw, Send } from "lucide-react";
 import { useCopy } from "../../teacher/i18n";
 import { PhotoGrid, SectionHeading } from "../../teacher/coaching/parts";
 import { AudioCard, ListRow } from "../../teacher/ui";
 import { Tray } from "../../teacher/ui/Tray";
 import { TimeStamp } from "../../teacher/ui/TimeStamp";
+import { StatusChip } from "../../teacher/ui/StatusChip";
 import { coach, leader, type RecentLessonPlan } from "../../services/api";
 import { Card, Loading, Failed, useLoad } from "../ui";
 import { clearDraft, getDraft, setDraft, type DraftAudio } from "../observeDraft";
 import LibraryPicker, { type PickedPlan } from "../../components/coaching/LibraryPicker";
-import { checkFile, MAX_PHOTOS, SHORT_RECORDING_SECONDS } from "../../lib/coachingUpload";
+import { checkPlanFile, formatSize, MAX_PHOTOS, PLAN_FILE_EXTENSIONS, PLAN_MAX_MB, planKindOf, SHORT_RECORDING_SECONDS } from "../../lib/coachingUpload";
 import type { LibraryPick } from "../../lib/coachingSend";
 import { forgetRecording, recordingTeacher } from "../../lib/coachObserve";
 import { deleteRecording, latestUnsent } from "../../lib/recordingStore";
 import { withDuration } from "../../lib/webmDuration";
 import { OBSERVE, type ObserveCopy } from "../observe/copy";
-import { lengthShort } from "../observe/format";
+import { lengthShort, planKindLabel } from "../observe/format";
 import ObservePage from "../observe/ObservePage";
 import { sendingPath, startSend, useSendJob } from "../observe/sender";
 import { lessonFilename } from "./CoachRecord";
@@ -36,11 +37,18 @@ import type { CoachVisit } from "../types";
  * Reused from the teacher's Digital Coaching: the Photos grid and its heading (the same Photos, no faces, up to three),
  * and ListRow for the chosen plan and the recent plans. The library browse is the existing LibraryPicker inside the page.
  * Words about the teacher stay neutral.
+ *
+ * bd-fmf24g.66 — "Their own plan" (the third tile; it was a camera-only "Plan photo"): the teacher often taught from her own
+ * PDF, Word file or photo. One sheet, Camera / Gallery / Files, each its own hidden input (outside the sheet, so a pick
+ * is not lost when the sheet closes). The file is checked on arrival (.pdf .docx .jpg .jpeg .png, 25 MB; no .doc) and goes
+ * up with the recording as the plan; the bot reads it and scores Section B from it.
  */
 
 type Plan =
   | { kind: "library"; pick: LibraryPick; title: string; sub: string }
   | { kind: "file"; file: File; title: string; sub: string };
+
+type PlanSource = "camera" | "gallery" | "files";
 
 type Stage = "check" | "library";
 
@@ -54,11 +62,24 @@ function Tile({ icon, label, onClick }: { icon: ReactNode; label: string; onClic
   );
 }
 
-const Alert = ({ children }: { children: ReactNode }) => (
-  <div role="alert" className="flex gap-2.5 rounded-2xl bg-[#fef3c7] px-3.5 py-3 text-[15px] text-[#b45309]">
-    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" /><span>{children}</span>
+const Alert = ({ children, chips }: { children: ReactNode; chips?: string[] }) => (
+  <div role="alert" className="flex flex-wrap items-center gap-x-2.5 gap-y-2 rounded-2xl bg-[#fef3c7] px-3.5 py-3 text-[15px] text-[#b45309]">
+    <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden="true" /><span className="min-w-0 flex-1">{children}</span>
+    {chips?.map((c) => <StatusChip key={c} text={c} tone="info" className="bg-white" />)}
   </div>
 );
+
+/** A row of the "Their own plan" sheet: a 64px button, a green icon disc, the word, ›. */
+function SheetRow({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick}
+      className="flex min-h-[64px] items-center gap-3.5 rounded-2xl border border-[#e5e7eb] bg-white px-3 text-start text-[17px] font-semibold text-[#1d2025] shadow-[0_1px_3px_rgba(16,24,40,0.08)]">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#eaf6ef] text-[#48b078]" aria-hidden="true">{icon}</span>
+      <span className="flex-1">{label}</span>
+      <ChevronRight className="h-5 w-5 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
+    </button>
+  );
+}
 
 const planSub = (p: RecentLessonPlan, C: ObserveCopy) => [p.grade != null ? C.grade(Number(p.grade)) : null, p.subject].filter(Boolean).join(" · ");
 
@@ -67,13 +88,16 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
   const navigate = useNavigate();
   const [stage, setStage] = useState<Stage>("check");
   const [plan, setPlan] = useState<Plan | null>(null);
-  const [planError, setPlanError] = useState<string | null>(null);
+  const [planError, setPlanError] = useState<"wrong_type" | "too_large" | null>(null);
+  const [ownOpen, setOwnOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
   const [recent, setRecent] = useState<RecentLessonPlan[] | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [libraryLevel, setLibraryLevel] = useState(0);
   const [libraryBack, setLibraryBack] = useState(0);
   const planPhotoInput = useRef<HTMLInputElement>(null);
+  const planGalleryInput = useRef<HTMLInputElement>(null);
+  const planFileInput = useRef<HTMLInputElement>(null);
   const teacherName = visit.teacherName || C.dash;
   const isShort = audio.durationMs != null && audio.durationMs < SHORT_RECORDING_SECONDS * 1000;
 
@@ -102,11 +126,16 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
     }
   };
 
-  const onPlanPhoto = (file: File | undefined) => {
+  const onPlanFile = (file: File | undefined, source: PlanSource) => {
     setPlanError(null);
     if (!file) return;
-    if (checkFile(file, "lesson_plan")) { setPlanError(C.planNotOk); return; }
-    setPlan({ kind: "file", file, title: C.planPhoto, sub: C.takenNow });
+    setOwnOpen(false);
+    const problem = checkPlanFile(file);
+    if (problem) { setPlanError(problem); return; }
+    // A photo just taken has no useful name; a chosen file is shown by its own name and what it is.
+    if (source === "camera") { setPlan({ kind: "file", file, title: C.planPhoto, sub: C.takenNow }); return; }
+    const kind = planKindLabel(planKindOf(file.name), C);
+    setPlan({ kind: "file", file, title: file.name, sub: [kind, formatSize(file.size)].filter(Boolean).join(" · ") });
   };
 
   const onLibraryPick = useCallback((p: PickedPlan) => {
@@ -168,16 +197,32 @@ function CheckSend({ visit, audio }: { visit: CoachVisit; audio: DraftAudio }) {
         <div className="[display:grid] grid-cols-3 gap-2.5">
           <Tile icon={<Clock className="h-[22px] w-[22px]" />} label={C.theirRecentPlans} onClick={openRecent} />
           <Tile icon={<Library className="h-[22px] w-[22px]" />} label={C.library} onClick={() => { setLibraryLevel(0); setStage("library"); }} />
-          <Tile icon={<Camera className="h-[22px] w-[22px]" />} label={C.planPhoto} onClick={() => planPhotoInput.current?.click()} />
+          <Tile icon={<Paperclip className="h-[22px] w-[22px]" />} label={C.ownPlan} onClick={() => setOwnOpen(true)} />
         </div>
       )}
-      {/* accept must be exactly image/*: Capacitor opens the camera only then. The type is still checked on arrival. */}
+      {/* The three pickers live here, outside the sheet, so a pick still arrives after the sheet has closed.
+          Camera: accept must be exactly image/* (Capacitor opens the camera only then). Gallery: the same without capture.
+          Files: the extensions. The type and size are checked on arrival either way. */}
       <input ref={planPhotoInput} data-testid="plan-photo-input" type="file" accept="image/*" capture="environment" className="hidden"
-        onChange={(e) => { onPlanPhoto(e.target.files?.[0]); e.target.value = ""; }} />
-      {planError && <Alert>{planError}</Alert>}
+        onChange={(e) => { onPlanFile(e.target.files?.[0], "camera"); e.target.value = ""; }} />
+      <input ref={planGalleryInput} data-testid="plan-gallery-input" type="file" accept="image/*" className="hidden"
+        onChange={(e) => { onPlanFile(e.target.files?.[0], "gallery"); e.target.value = ""; }} />
+      <input ref={planFileInput} data-testid="plan-file-input" type="file" accept={PLAN_FILE_EXTENSIONS.join(",")} className="hidden"
+        onChange={(e) => { onPlanFile(e.target.files?.[0], "files"); e.target.value = ""; }} />
+      {planError === "wrong_type" && <Alert chips={[C.kindPdf, C.kindWord, C.kindPhoto]}>{C.notPlanFile}</Alert>}
+      {planError === "too_large" && <Alert chips={[C.upToMb(PLAN_MAX_MB)]}>{C.tooLarge}</Alert>}
 
       <SectionHeading chip={[C.upToN(MAX_PHOTOS), C.noFaces]}>{C.photos}</SectionHeading>
       <PhotoGrid photos={photos} onChange={setPhotos} testId="photos-input" />
+
+      <Tray open={ownOpen} title={C.ownPlan} onClose={() => setOwnOpen(false)}>
+        <SheetRow icon={<Camera className="h-[22px] w-[22px]" />} label={C.camera} onClick={() => planPhotoInput.current?.click()} />
+        <SheetRow icon={<ImageIcon className="h-[22px] w-[22px]" />} label={C.gallery} onClick={() => planGalleryInput.current?.click()} />
+        <SheetRow icon={<FolderOpen className="h-[22px] w-[22px]" />} label={C.files} onClick={() => planFileInput.current?.click()} />
+        <div className="flex flex-wrap gap-2">
+          {[C.kindPdf, C.kindWord, C.kindPhoto, C.upToMb(PLAN_MAX_MB)].map((t) => <StatusChip key={t} text={t} tone="info" className="bg-white" />)}
+        </div>
+      </Tray>
 
       <Tray open={recentOpen} title={C.theirRecentPlans} onClose={() => setRecentOpen(false)}>
         {recent == null && <Loading />}

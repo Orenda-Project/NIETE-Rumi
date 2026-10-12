@@ -37,6 +37,12 @@ describe.each([
     expect(WhatsAppService.sendMessage.mock.calls[0][0]).toBe('920000000001');
   });
 
+  test('the query really asks for observation_type (the stub would answer it either way)', async () => {
+    const chain = sessionRow(null);
+    await Worker[method]('cs-1');
+    expect(chain.select.mock.calls[0][0]).toMatch(/\bobservation_type\b/);
+  });
+
   test('a coach observation sends the teacher nothing', async () => {
     sessionRow('leader_observation');
     await Worker[method]('cs-1');

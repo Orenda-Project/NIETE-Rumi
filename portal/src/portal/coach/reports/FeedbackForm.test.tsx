@@ -157,3 +157,26 @@ describe("Feedback Form", () => {
     expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
 });
+
+/** bd-fmf24g.66 — part B names where its moves came from when the coach attached the teacher's own plan. */
+describe("Feedback Form, lesson-plan part: the source of the moves", () => {
+  it("her own plan, read: 'Their own plan · PDF' above the moves", async () => {
+    L.getObservation.mockResolvedValue({ ...VIEW, lessonPlan: { source: "own", format: "pdf", state: "read", topic: "Place value" } });
+    renderPage();
+    await screen.findByText("Start with a story");
+    const src = await screen.findByTestId("plan-source");
+    expect(src).toHaveTextContent("Their own plan");
+    expect(src).toHaveTextContent("PDF");
+  });
+
+  it.each([
+    ["a library plan", { source: "library", format: "pdf", state: null, topic: null }],
+    ["her own plan not read", { source: "own", format: "pdf", state: "unreadable", topic: null }],
+    ["an older bot", undefined],
+  ])("%s: no source line", async (_n, lp) => {
+    L.getObservation.mockResolvedValue({ ...VIEW, ...(lp ? { lessonPlan: lp } : {}) });
+    renderPage();
+    await screen.findByText("Start with a story");
+    expect(screen.queryByTestId("plan-source")).toBeNull();
+  });
+});

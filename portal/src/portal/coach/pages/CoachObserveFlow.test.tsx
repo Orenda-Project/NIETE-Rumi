@@ -292,7 +292,7 @@ describe("Check and send (Blueprint: Coach_Check)", () => {
     expect(await screen.findByText("Ayesha Bibi’s observation")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Redo/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Lesson plan/ })).toHaveTextContent("Optional");
-    for (const t of ["Their recent plans", "Library", "Plan photo"]) expect(screen.getByRole("button", { name: t })).toBeInTheDocument();
+    for (const t of ["Their recent plans", "Library", "Their own plan"]) expect(screen.getByRole("button", { name: t })).toBeInTheDocument();
     const photos = screen.getByRole("heading", { name: /Photos/ });
     expect(photos).toHaveTextContent("Up to 3");
     expect(photos).toHaveTextContent("No faces");
