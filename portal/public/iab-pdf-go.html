@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Opening the PDF</title>
+<!-- bd-fmf24g.58 (throwaway test): a page whose path does NOT end in .pdf. WhatsApp's in-app browser sends any
+     link ending in .pdf (even inside intent://) to its own PDF viewer, which crashes on intent://. Chrome opens
+     this page, and it forwards Chrome to the PDF. -->
+<style>body{font:18px/1.5 sans-serif;margin:24px;color:#333748}a{color:#1d4ed8}</style></head>
+<body><p>Opening the PDF…</p><p><a id="go" href="/iab-pdf-handoff-sample.pdf">Tap here if it does not open</a></p>
+<script>location.replace('/iab-pdf-handoff-sample.pdf');</script></body></html>
