@@ -13,7 +13,9 @@
 #      sandbox or production;
 #   3. gives the bot and the portal one shared INTERNAL_API_KEY (the portal asks the bot for classes, LP
 #      catalogue, assessment, training rules, certificates);
-#   4. loads the demo school network (local-db.sh demo-seed) and populates the dashboard's materialized views;
+#   4. loads the SANDBOX's data (local-db.sh sandbox-copy — your own railway access; cached after the first pull,
+#      SANDBOX_REFRESH=1 pulls again), then the demo school network on top so there are logins with a known password
+#      (local-db.sh demo-seed), and populates the dashboard's materialized views. DATA=demo skips the sandbox;
 #   5. writes the portal API's env into <run_dir>/portal/.env and starts dashboard/index.js FROM THAT FOLDER, so
 #      your own dashboard/.env (and any real key in it) is never read;
 #   6. builds the portal SPA into dashboard/portal-frontend/dist when it is missing (PORTAL_REBUILD=1 to force).
@@ -48,6 +50,12 @@ up() {
   printf '%s' "$key" > "$RUN/internal-key"; chmod 600 "$RUN/internal-key"
   bash "$E2E/local-stack.sh" restart bot "$RUN" "INTERNAL_API_KEY=$key" >/dev/null 2>&1 || { log "bot did not restart with the internal key — $RUN/bot.log"; down; exit 4; }
 
+  if [ "${DATA:-sandbox}" = sandbox ]; then
+    log "copying the sandbox's data (first time ~40 min; then from the cache — SANDBOX_REFRESH=1 pulls again)…"
+    bash "$E2E/local-db.sh" sandbox-copy "$RUN/db" $([ "${SANDBOX_REFRESH:-}" = 1 ] && echo --refresh) || {
+      log "sandbox copy failed — it needs \`railway login\` with access to the NIETE-Rumi Staging project."
+      log "  no sandbox access? run with DATA=demo for made-up data only."; down; exit 5; }
+  fi
   bash "$E2E/local-db.sh" demo-seed "$RUN/db" >"$RUN/logins.txt" || { log "demo seed failed — $RUN/db/demo-seed.log"; down; exit 5; }
   local db; db=$(cat "$RUN/db/db.name")
   local psql; psql=$(dirname "$(command -v pg_ctl 2>/dev/null || echo /opt/homebrew/opt/postgresql@17/bin/pg_ctl)")/psql
@@ -96,6 +104,7 @@ up() {
   echo
   echo "Portal: http://localhost:$PORTAL_PORT/portal/login"
   cat "$RUN/logins.txt"
+  [ "${DATA:-sandbox}" = sandbox ] && echo "  + every sandbox account, with its sandbox password"
   echo "Logs: $RUN/portal.log (API) · $RUN/bot.log (bot) · stop with: bash scripts/dev-portal.sh down \"$RUN\""
 }
 
