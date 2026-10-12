@@ -105,6 +105,22 @@ export type ReportsData = {
 
 export type PeopleData = { teachers: CoachTeacher[]; schools: CoachSchool[] };
 export type SchoolData = { school: CoachSchool; teachers: CoachTeacher[] };
+
+/** One school found by the Add a school search; `alreadyMine` = already on her list. */
+export type SchoolHit = { schoolExtId: string; name: string | null; emis: string | null; alreadyMine: boolean };
+
+/**
+ * What adding a number to one of her schools will do (the /observe planAdd): `new` = nobody on record yet (a name is
+ * needed), `move` = on record at another school (or none) and comes here, `already_here` = nothing to change.
+ */
+export type TeacherPlan = {
+  outcome: "new" | "move" | "already_here";
+  phone: string | null;
+  name: string | null;
+  isPrincipal: boolean;
+  fromSchoolName: string | null;
+  toSchoolName: string | null;
+};
 export type TeacherData = {
   teacher: CoachTeacher;
   /** bd-o15qnr.10 — `open`: 'observe' = her own portal observation's page, 'report' = the v2 report, null = nothing to open. */

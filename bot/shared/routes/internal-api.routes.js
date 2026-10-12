@@ -2220,6 +2220,205 @@ router.post('/observe/teacher-edit', requireInternalKey, async (req, res) => {
 });
 
 /* ------------------------------------------------------------------------- *
+ * The coach app's "own your school list" and "manage teachers": the same
+ * writers the WhatsApp /observe Flow calls (observe-visit-flow.handler.js
+ * add_search / add_school / remove_school / teacher_add_lookup /
+ * teacher_add_commit / teacher_remove_commit), so a coach gets one behaviour
+ * whichever door she uses. No logic here beyond shaping the answer: each
+ * service keeps its own `myschool` authorisation and its own audit rows. The
+ * portal checks the school is hers before it asks, and sends only what its own
+ * records say about the school and the people.
+ *
+ * Writes run as the coach (runAsActor), as Edit teacher's do, so the history
+ * trigger names a person rather than the connection role.
+ * ------------------------------------------------------------------------- */
+
+const SCHOOL_ADMIN_HTTP = { ...TEACHER_ADMIN_HTTP, not_mine: 404, name_required: 400, missing_field: 400 };
+
+function adminRefusal(res, reason) {
+  const key = reason || 'failed';
+  return res.status(SCHOOL_ADMIN_HTTP[key] || 500).json({ success: false, reason: key });
+}
+
+/** Every search is bounded by the whole universe of schools; the portal ranks and trims. */
+const SCHOOL_SEARCH_CAP = 1000;
+
+/**
+ * POST /api/internal/observe/school-search
+ * Body   { leaderUserId, term }
+ * Ok     200 { success: true, schools: [{ schoolExtId, name, emis, alreadyMine }] }
+ */
+router.post('/observe/school-search', requireInternalKey, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const leaderUserId = String(body.leaderUserId || '').trim();
+    if (!leaderUserId) return adminRefusal(res, 'missing_field');
+    const A = require('../services/observe/observe-school-admin.service');
+    const hits = await A.searchUniverse(leaderUserId, String(body.term || ''), SCHOOL_SEARCH_CAP);
+    return res.json({
+      success: true,
+      schools: hits.map((s) => ({
+        schoolExtId: s.school_ext_id, name: s.school_name || null, emis: s.emis == null ? null : String(s.emis),
+        alreadyMine: !!s.alreadyMine,
+      })),
+    });
+  } catch (error) {
+    logToFile('❌ Internal observe school-search failed', { error: error?.message }, 'error');
+    return adminRefusal(res, 'failed');
+  }
+});
+
+/**
+ * POST /api/internal/observe/school-add
+ * Body   { leaderUserId, schoolExtId }
+ * addSchoolForCoach: idempotent; her teachers there come with it.
+ * Ok     200 { success: true, schoolName, emis, alreadyMine, teacherCount }
+ * Errors 400 missing_field, 401, 404 not_found (no such school anywhere)
+ */
+router.post('/observe/school-add', requireInternalKey, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const leaderUserId = String(body.leaderUserId || '').trim();
+    const schoolExtId = String(body.schoolExtId || '').trim();
+    if (!leaderUserId || !schoolExtId) return adminRefusal(res, 'missing_field');
+    const A = require('../services/observe/observe-school-admin.service');
+    const { runAsActor } = require('../utils/actor-context');
+    const out = await runAsActor(leaderUserId, () => A.addSchoolForCoach(leaderUserId, schoolExtId));
+    if (!out || !out.ok) return adminRefusal(res, (out && out.reason) || 'failed');
+    return res.json({
+      success: true, schoolName: out.schoolName || null, emis: schoolExtId.split(':').pop(),
+      alreadyMine: !!out.alreadyMine, teacherCount: Number(out.teacherCount) || 0,
+    });
+  } catch (error) {
+    logToFile('❌ Internal observe school-add failed', { error: error?.message }, 'error');
+    return adminRefusal(res, 'failed');
+  }
+});
+
+/**
+ * POST /api/internal/observe/school-remove
+ * Body   { leaderUserId, schoolExtId }
+ * removeSchoolForCoach: only HER link goes; the teachers stay at the school.
+ * Ok     200 { success: true, schoolName }
+ * Errors 400 missing_field, 401, 404 not_mine
+ */
+router.post('/observe/school-remove', requireInternalKey, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const leaderUserId = String(body.leaderUserId || '').trim();
+    const schoolExtId = String(body.schoolExtId || '').trim();
+    if (!leaderUserId || !schoolExtId) return adminRefusal(res, 'missing_field');
+    const A = require('../services/observe/observe-school-admin.service');
+    const { runAsActor } = require('../utils/actor-context');
+    const out = await runAsActor(leaderUserId, () => A.removeSchoolForCoach(leaderUserId, schoolExtId));
+    if (!out || !out.ok) return adminRefusal(res, (out && out.reason) || 'failed');
+    return res.json({ success: true, schoolName: out.schoolName || null });
+  } catch (error) {
+    logToFile('❌ Internal observe school-remove failed', { error: error?.message }, 'error');
+    return adminRefusal(res, 'failed');
+  }
+});
+
+/** What a teacher plan or result may say about the person: never ids or the school row. */
+function teacherPlanOut(plan) {
+  const person = plan.person || {};
+  return {
+    success: true,
+    outcome: plan.outcome,
+    phone: plan.phone || null,
+    name: person.name || plan.name || null,
+    isPrincipal: !!person.isPrincipal,
+    fromSchoolName: plan.fromSchoolName || null,
+    toSchoolName: plan.toSchoolName || null,
+  };
+}
+
+/**
+ * POST /api/internal/observe/teacher-add-check
+ * Body   { leaderUserId, schoolExtId, phone }
+ * planAdd — READS ONLY: 'new' (ask a name), 'move' (from where, to here) or 'already_here'.
+ * Errors 400 invalid_phone | is_coach | missing_field, 401, 403 not_my_school
+ */
+router.post('/observe/teacher-add-check', requireInternalKey, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const leaderUserId = String(body.leaderUserId || '').trim();
+    const schoolExtId = String(body.schoolExtId || '').trim();
+    if (!leaderUserId || !schoolExtId || !String(body.phone || '').trim()) return adminRefusal(res, 'missing_field');
+    const T = require('../services/observe/observe-teacher-admin.service');
+    const plan = await T.planAdd({ actorLeaderUserId: leaderUserId, schoolExtId, rawPhone: body.phone });
+    if (!['new', 'move', 'already_here'].includes(plan.outcome)) return adminRefusal(res, plan.outcome);
+    return res.json(teacherPlanOut(plan));
+  } catch (error) {
+    logToFile('❌ Internal observe teacher-add-check failed', { error: error?.message }, 'error');
+    return adminRefusal(res, 'failed');
+  }
+});
+
+/**
+ * POST /api/internal/observe/teacher-add
+ * Body   { leaderUserId, schoolExtId, phone, name? }
+ * commitAdd: a new number becomes a teacher here (name required); someone on
+ * record elsewhere is MOVED here; already here writes nothing.
+ * Ok     200 { success: true, outcome: 'new'|'move'|'already_here', name, toSchoolName, ... }
+ * Errors 400 invalid_phone | is_coach | name_required | missing_field, 401, 403 not_my_school
+ */
+router.post('/observe/teacher-add', requireInternalKey, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const leaderUserId = String(body.leaderUserId || '').trim();
+    const schoolExtId = String(body.schoolExtId || '').trim();
+    if (!leaderUserId || !schoolExtId || !String(body.phone || '').trim()) return adminRefusal(res, 'missing_field');
+    const T = require('../services/observe/observe-teacher-admin.service');
+    const { runAsActor } = require('../utils/actor-context');
+    const out = await runAsActor(leaderUserId, () => T.commitAdd({
+      actorLeaderUserId: leaderUserId, schoolExtId, rawPhone: body.phone, name: body.name,
+    }));
+    if (!['new', 'move', 'already_here'].includes(out.outcome)) return adminRefusal(res, out.outcome);
+    return res.json(teacherPlanOut(out));
+  } catch (error) {
+    logToFile('❌ Internal observe teacher-add failed', { error: error?.message }, 'error');
+    return adminRefusal(res, 'failed');
+  }
+});
+
+/**
+ * POST /api/internal/observe/teacher-remove-many
+ * Body   { leaderUserId, schoolExtId, userIds: [..1-30], reason? }
+ * commitRemovals: everyone ticked who is AT that school comes off it (account
+ * and history kept), their upcoming visits there are cancelled, one audit row
+ * each carrying the reason. Anyone not at that school is skipped.
+ * Ok     200 { success: true, schoolName, removed: [{ name }], skipped, visitsCancelled }
+ * Errors 400 missing_field, 401, 403 not_my_school, 404 not_found (nobody ticked is there)
+ */
+router.post('/observe/teacher-remove-many', requireInternalKey, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const leaderUserId = String(body.leaderUserId || '').trim();
+    const schoolExtId = String(body.schoolExtId || '').trim();
+    const userIds = Array.isArray(body.userIds) ? body.userIds.map((x) => String(x || '').trim()).filter(Boolean) : [];
+    if (!leaderUserId || !schoolExtId || !userIds.length) return adminRefusal(res, 'missing_field');
+    const reason = String(body.reason || '').trim().slice(0, 200) || null;
+    const T = require('../services/observe/observe-teacher-admin.service');
+    const { runAsActor } = require('../utils/actor-context');
+    const out = await runAsActor(leaderUserId, () => T.commitRemovals({
+      actorLeaderUserId: leaderUserId, schoolExtId, userIds, reason,
+    }));
+    if (!out || !out.ok) return adminRefusal(res, (out && out.reason) || 'failed');
+    return res.json({
+      success: true,
+      schoolName: out.schoolName || null,
+      removed: (out.removed || []).map((p) => ({ name: p.name || null })),
+      skipped: (out.skipped || []).length,
+      visitsCancelled: Number(out.visitsCancelled) || 0,
+    });
+  } catch (error) {
+    logToFile('❌ Internal observe teacher-remove-many failed', { error: error?.message }, 'error');
+    return adminRefusal(res, 'failed');
+  }
+});
+
+/* ------------------------------------------------------------------------- *
  * bd-lfzoz — a teacher's classroom recording, uploaded from the PORTAL.
  *
  * Same reason as the LP enqueue above: the portal cannot run the coaching

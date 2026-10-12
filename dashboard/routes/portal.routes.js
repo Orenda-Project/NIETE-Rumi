@@ -116,6 +116,8 @@ const ObserveNotice = require('../services/observe-notice.service');
 // bd-o15qnr.11 — Edit teacher: the patch guard here, the /observe teacher admin in the bot.
 const CoachTeacherAdmin = require('../services/coach-teacher-admin.service');
 const ObserveTeacherAdmin = require('../services/observe-teacher-admin.client');
+// The coach app's school list and "manage teachers", saved by the same /observe writers.
+const CoachSchoolAdmin = require('../services/coach-school-admin.service');
 // bd-88krt — coach self-service: edit a visit, own the school list, search by name.
 const {
   editSchedule, searchSchools, addSchool, removeSchool, searchTeachers,
@@ -1972,6 +1974,78 @@ router.post('/coach/teacher/:teacherExtId/remove', ...coachV2, async (req, res) 
     const out = await CoachTeacherAdmin.removeTeacher(pgQuery, ObserveTeacherAdmin, req.session.portalUserId, ext);
     return res.status(out.status).json(out.data);
   } catch (error) { return coachFail(res, 'teacher-remove', error); }
+});
+
+/**
+ * Her school list and its teachers — the WhatsApp /observe "Add or remove a
+ * school" and "Manage teachers", in the app. Saved by the bot's own writers;
+ * coach-school-admin.service checks the school is HERS (by the EMIS in the URL,
+ * in her own records) before it asks, and the bot checks again.
+ *
+ *   GET  /api/portal/coach/schools/search?q=            every school, by name or EMIS
+ *   POST /api/portal/coach/schools                       Body { schoolExtId } (a search result)
+ *   POST /api/portal/coach/school/:emis/remove           her link only; the teachers stay
+ *   POST /api/portal/coach/school/:emis/teachers/check   Body { phone } — reads only
+ *   POST /api/portal/coach/school/:emis/teachers         Body { phone, name? } — new, or a move
+ *   POST /api/portal/coach/school/:emis/teachers/remove  Body { teacherExtIds[1–30], reason? }
+ */
+const EMIS_RX = /^[A-Za-z0-9-]{1,32}$/;
+const coachEmis = (req) => {
+  const emis = String((req.params && req.params.emis) || '');
+  return EMIS_RX.test(emis) ? emis : null;
+};
+
+router.get('/coach/schools/search', ...coachV2, async (req, res) => {
+  try {
+    const q = typeof (req.query || {}).q === 'string' ? req.query.q : '';
+    const out = await CoachSchoolAdmin.searchSchools(ObserveTeacherAdmin, req.session.portalUserId, q);
+    return res.status(out.status).json(out.data);
+  } catch (error) { return coachFail(res, 'school-search', error); }
+});
+
+router.post('/coach/schools', ...coachV2, async (req, res) => {
+  try {
+    const out = await CoachSchoolAdmin.addSchool(ObserveTeacherAdmin, req.session.portalUserId, (req.body || {}).schoolExtId);
+    return res.status(out.status).json(out.data);
+  } catch (error) { return coachFail(res, 'school-add', error); }
+});
+
+router.post('/coach/school/:emis/remove', ...coachV2, async (req, res) => {
+  const emis = coachEmis(req);
+  if (!emis) return res.status(404).json({ success: false, reason: 'not_found' });
+  try {
+    const out = await CoachSchoolAdmin.removeSchool(pgQuery, ObserveTeacherAdmin, req.session.portalUserId, emis);
+    return res.status(out.status).json(out.data);
+  } catch (error) { return coachFail(res, 'school-remove', error); }
+});
+
+router.post('/coach/school/:emis/teachers/check', ...coachV2, async (req, res) => {
+  const emis = coachEmis(req);
+  if (!emis) return res.status(404).json({ success: false, reason: 'not_found' });
+  try {
+    const out = await CoachSchoolAdmin.checkTeacher(pgQuery, ObserveTeacherAdmin, req.session.portalUserId, emis, (req.body || {}).phone);
+    return res.status(out.status).json(out.data);
+  } catch (error) { return coachFail(res, 'teacher-check', error); }
+});
+
+router.post('/coach/school/:emis/teachers', ...coachV2, async (req, res) => {
+  const emis = coachEmis(req);
+  if (!emis) return res.status(404).json({ success: false, reason: 'not_found' });
+  try {
+    const { phone, name } = req.body || {};
+    const out = await CoachSchoolAdmin.addTeacher(pgQuery, ObserveTeacherAdmin, req.session.portalUserId, emis, { phone, name });
+    return res.status(out.status).json(out.data);
+  } catch (error) { return coachFail(res, 'teacher-add', error); }
+});
+
+router.post('/coach/school/:emis/teachers/remove', ...coachV2, async (req, res) => {
+  const emis = coachEmis(req);
+  if (!emis) return res.status(404).json({ success: false, reason: 'not_found' });
+  try {
+    const { teacherExtIds, reason } = req.body || {};
+    const out = await CoachSchoolAdmin.removeTeachers(pgQuery, ObserveTeacherAdmin, req.session.portalUserId, emis, teacherExtIds, reason);
+    return res.status(out.status).json(out.data);
+  } catch (error) { return coachFail(res, 'teachers-remove', error); }
 });
 
 /** GET /api/portal/coach/visit/:id — one of her schedule entries, with the teacher's numbers. */

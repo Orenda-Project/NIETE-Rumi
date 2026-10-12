@@ -1,13 +1,14 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { Plus, School } from "lucide-react";
 import { StatusChip } from "../../teacher/ui";
 import { useCopy } from "../../teacher/i18n";
-import { Tabs, ChoiceChips, Loading, useLoad } from "../ui";
+import { Tabs, ChoiceChips, Loading, useLoad, BottomLink } from "../ui";
 import { coach } from "../../services/api";
 import type { CoachSchool, CoachTeacher } from "../types";
 import { PEOPLE } from "../people/copy";
 import PeopleFrame, { LoadFailed } from "../people/PeopleFrame";
-import { SchoolCard, SchoolGroup } from "../people/rows";
+import { SchoolCard, SchoolGroup, EmptyRow, Notice, useNotice } from "../people/rows";
 
 /**
  * bd-o15qnr + bd-4404s7.6 — Schools & teachers: one page, Schools | Teachers tabs (Schools first), numbers only.
@@ -16,6 +17,10 @@ import { SchoolCard, SchoolGroup } from "../people/rows";
  *             chip on each row in a status tone with a legend.
  *   Teachers  grouped by school (the Blueprint's Coach_TeachersB): a school opens in place to its first two teachers
  *             and "Show all N" shows the rest; no search and no school filter, the groups are the filter.
+ *
+ * The dock is her way to change the list (Blueprint: Coach · Manage schools and teachers): Add a school on the
+ * Schools tab, Add a teacher on the Teachers tab — the WhatsApp /observe "Add or remove a school" and
+ * "Manage teachers". A coach with no schools sees one slim row saying so, above the same Add a school.
  */
 
 /** Never-visited first, then the most days since a visit. */
@@ -60,6 +65,7 @@ const CoachPeople = () => {
   const { data, failed, reload } = useLoad(() => coach.getPeople(), []);
   const [tSort, setTSort] = useState<TeacherSort>("days");
   const [sSort, setSSort] = useState<SchoolSort>("least");
+  const { notice } = useNotice();
 
   const groups = useMemo(() => groupBySchool(data?.teachers || [], tSort), [data, tSort]);
   const schools = useMemo(() => {
@@ -69,7 +75,11 @@ const CoachPeople = () => {
   }, [data, sSort]);
 
   return (
-    <PeopleFrame title={C.title} crumb={C.home} backTo="/portal/coach" feature="schools">
+    <PeopleFrame title={C.title} crumb={C.home} backTo="/portal/coach" feature="schools"
+      dock={tab === "teachers"
+        ? <BottomLink to="/portal/coach/add-teacher"><Plus className="h-5 w-5" aria-hidden="true" />{C.addTeacher}</BottomLink>
+        : <BottomLink to="/portal/coach/schools/add"><Plus className="h-5 w-5" aria-hidden="true" />{C.addSchool}</BottomLink>}>
+      <Notice text={notice} />
       <Tabs label={C.title} items={[
         { to: "/portal/coach/people", label: C.schoolsTab, count: data?.schools.length, active: tab === "schools" },
         { to: "/portal/coach/people?tab=teachers", label: C.teachersTab, count: data?.teachers.length, active: tab === "teachers" },
@@ -95,7 +105,8 @@ const CoachPeople = () => {
               <StatusChip text={C.legendRecent} tone="done" />
             </span>
           </div>
-          <div className="px-1 text-[13px] font-semibold text-[#6b7280]">{C.visitsLast3}</div>
+          {schools.length === 0 && <EmptyRow testId="no-schools" icon={<School className="h-5 w-5" />}>{C.noSchoolsYet}</EmptyRow>}
+          {schools.length > 0 && <div className="px-1 text-[13px] font-semibold text-[#6b7280]">{C.visitsLast3}</div>}
           {schools.map((s) => <SchoolCard key={s.schoolExtId} s={s} />)}
         </>
       )}

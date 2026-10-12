@@ -44,7 +44,7 @@ export const COACH_MENU_PATHS: Record<CoachNavKey, string> = {
 const COACH_SECTIONS: Record<Exclude<CoachNavKey, "home">, readonly string[]> = {
   schedule: ["/portal/coach/scheduling", "/portal/coach/schedule", "/portal/coach/team", "/portal/coach/new-visit"],
   observe: ["/portal/coach/observe", "/portal/coach/visit", "/portal/coach/observation", "/portal/coach/reports"],
-  schools: ["/portal/coach/people", "/portal/coach/school", "/portal/coach/teacher"],
+  schools: ["/portal/coach/people", "/portal/coach/school", "/portal/coach/schools", "/portal/coach/add-teacher", "/portal/coach/teacher"],
   more: ["/portal/coach/more", "/portal/coach/profile", "/portal/account"],
 };
 
