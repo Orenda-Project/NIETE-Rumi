@@ -150,7 +150,9 @@ const PdfPage = ({ doc, pageNumber, width, ratio, onRatio, onFailed }: {
 
   return (
     <div ref={box} data-testid="lp-page" className={VIEWER_STYLE.page} style={{ width, height: Math.round(width * ratio) }}>
-      <canvas ref={canvas} role="img" aria-label={COPY.page(pageNumber)} className="block h-full w-full" />
+      {/* bd-fmf24g.56: dir="ltr". A canvas inherits the page's direction, and in Urdu (rtl) pdf.js then draws each
+          glyph offset by its own width: thin letters vanish and words break apart. A PDF page is always laid out ltr. */}
+      <canvas ref={canvas} dir="ltr" role="img" aria-label={COPY.page(pageNumber)} className="block h-full w-full" />
     </div>
   );
 };
