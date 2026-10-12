@@ -93,7 +93,7 @@ const CoachEditTeacher = () => {
       if (changes.role) await coach.editTeacher(ext, "role", role);
       if (changes.level) await coach.editTeacher(ext, "level", LEVELS.filter((b) => levels.includes(b)));
       if (changes.school) await coach.moveTeacher(ext, school);
-      navigate(`/portal/coach/teacher/${ext}`);
+      navigate(`/portal/coach/teacher/${ext}`, { replace: true });
     } catch (e: any) {
       setError(reasonText(C, e?.response?.data));
       reload();
@@ -119,7 +119,7 @@ const CoachEditTeacher = () => {
     try {
       const r = await coach.editTeacher(ext, "phone", phoneResult.phone);
       // Her id in the app IS her number: open her page at the new one.
-      navigate(`/portal/coach/teacher/${r.phone || phoneResult.phone}`);
+      navigate(`/portal/coach/teacher/${r.phone || phoneResult.phone}`, { replace: true });
     } catch (e: any) {
       const d = e?.response?.data;
       setPhoneResult({ kind: "refused", text: d?.reason === "taken" ? (d?.heading || C.saveFailed) : reasonText(C, d) });
@@ -131,7 +131,7 @@ const CoachEditTeacher = () => {
     setBusy(true); setError(null);
     try {
       await coach.removeTeacher(ext);
-      navigate(t?.emis ? `/portal/coach/school/${t.emis}` : "/portal/coach/people");
+      navigate(t?.emis ? `/portal/coach/school/${t.emis}` : "/portal/coach/people", { replace: true });
     } catch (e: any) { setError(reasonText(C, e?.response?.data)); setConfirmRemove(false); } finally { setBusy(false); }
   };
 

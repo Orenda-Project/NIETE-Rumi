@@ -282,7 +282,7 @@ export function EditQuestionPage({ mode }: { mode: 'edit' | 'add' }) {
         const text = sub !== null ? String(edit.question ?? fields.question ?? '') : r.text;
         setDraft(setEdit(draft, key, { edit: body.edit as Record<string, unknown>, marks: r.marks, text }));
       }
-      navigate(editPath(paperId));
+      navigate(editPath(paperId), { replace: true });
     } catch (e) {
       setError(errorOf(e) ?? C.notSaved);
     } finally {
@@ -317,7 +317,7 @@ export function EditQuestionPage({ mode }: { mode: 'edit' | 'add' }) {
       {mode === 'edit' && item && sub === null && (
         <button
           type="button"
-          onClick={() => { setDraft(toggleRemove(draft, item.id, item.removed)); navigate(editPath(paperId)); }}
+          onClick={() => { setDraft(toggleRemove(draft, item.id, item.removed)); navigate(editPath(paperId), { replace: true }); }}
           className={cn(OUTLINE, 'w-full text-[#c8331f]', FOCUS)}
         >
           <Trash2 className="h-5 w-5" aria-hidden="true" />

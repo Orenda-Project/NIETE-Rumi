@@ -68,7 +68,7 @@ const CoachVisit = () => {
     setCancelling(true);
     try {
       await leader.cancelSchedule(id);
-      navigate("/portal/coach/schedule");
+      navigate("/portal/coach/schedule", { replace: true });
     } catch {
       setCancelling(false);
       setAsking(false);

@@ -91,7 +91,7 @@ export default function FeedbackForm() {
     setProblem(null);
     try {
       await leader.saveObservationDraft(id, values);
-      navigate(home);
+      navigate(home, { replace: true });
     } catch (err) {
       const status = (err as { response?: { status?: number } })?.response?.status;
       setProblem(status === 409 ? C.notEditable : C.saveFailed);

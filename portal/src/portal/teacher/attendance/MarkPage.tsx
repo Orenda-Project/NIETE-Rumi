@@ -128,7 +128,7 @@ export function MarkPage() {
           <button type="button" onClick={() => setSaved(null)} className={cn('flex min-h-[56px] flex-1 items-center justify-center gap-2 rounded-2xl border border-[#e5e7eb] bg-white text-[16px] font-semibold', FOCUS)}>
             <Pencil className="h-[18px] w-[18px]" aria-hidden="true" />{C.edit}
           </button>
-          <button type="button" onClick={() => navigate(nextClass ? markPath(nextClass.listId) : ATTENDANCE_V2_BASE)} className={cn('flex min-h-[56px] flex-1 items-center justify-center rounded-2xl bg-[#33374a] text-[16px] font-semibold text-white', FOCUS)}>
+          <button type="button" onClick={() => navigate(nextClass ? markPath(nextClass.listId) : ATTENDANCE_V2_BASE, { replace: true })} className={cn('flex min-h-[56px] flex-1 items-center justify-center rounded-2xl bg-[#33374a] text-[16px] font-semibold text-white', FOCUS)}>
             {C.nextClass}
           </button>
         </div>
