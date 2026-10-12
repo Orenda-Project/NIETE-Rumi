@@ -38,6 +38,13 @@ const HEAVY = [
   combo(null, "English", { subjectKey: "english" }), // early years: no grade, never offered
 ];
 const LIGHT = [combo(4, "General Science", { subjectKey: "science" }), combo(5, "Math", { subjectKey: "maths" })];
+/** A live Lesson Plans catalogue's names (the page passes lessonPlansApi.catalogue; there is no built-in one). */
+const CATALOGUE = {
+  4: ["English", "Urdu", "Math", "General Science"],
+  6: ["English", "Urdu", "Mathematics", "General Science", "Computer Science", "Geography", "History"],
+  9: ["English", "Urdu", "Mathematics", "Pakistan Studies", "Physics", "Chemistry", "Biology", "Computer Science"],
+  10: ["English", "Urdu", "Mathematics", "Physics"],
+};
 
 const openTray = (name: RegExp | string) => fireEvent.click(screen.getByRole("button", { name }));
 const tray = (title: string) => screen.getByRole("dialog", { name: title });
@@ -94,7 +101,7 @@ describe("ClassPicker — the tray (any grade and subject)", () => {
   });
 
   it("a grade shows its subjects: hers first (starred), then the rest A–Z; one subject once however it is spelled", () => {
-    inRouter(<ClassPicker label="Select grade and subject" combos={HEAVY} />);
+    inRouter(<ClassPicker label="Select grade and subject" combos={HEAVY} subjectsByGrade={CATALOGUE} />);
     openTray(/Select grade and subject/);
     fireEvent.click(screen.getByRole("radio", { name: /^Grade 4/ }));
     expect(screen.getByRole("radio", { name: /^Grade 4/ })).toHaveAttribute("aria-checked", "true");
@@ -116,7 +123,7 @@ describe("ClassPicker — the tray (any grade and subject)", () => {
 
   it("picking reports the pair and whether it is hers (with her combo), and closes", () => {
     const onChange = vi.fn();
-    inRouter(<ClassPicker label="Select grade and subject" combos={HEAVY} onChange={onChange} />);
+    inRouter(<ClassPicker label="Select grade and subject" combos={HEAVY} onChange={onChange} subjectsByGrade={CATALOGUE} />);
     openTray(/Select grade and subject/);
     fireEvent.click(screen.getByRole("radio", { name: /^Grade 6/ }));
     fireEvent.click(screen.getByRole("button", { name: "Grade 6 · Mathematics · Your class" }));
@@ -163,7 +170,7 @@ describe("ClassPicker — the tray (any grade and subject)", () => {
   });
 
   it("to(value, pick) makes a subject a link", () => {
-    inRouter(<ClassPicker label="Pick" combos={HEAVY} to={(v, p) => (p.mine ? `/lessons/${v.grade}/${String(p.combo?.featureKey)}` : undefined)} />);
+    inRouter(<ClassPicker label="Pick" combos={HEAVY} subjectsByGrade={CATALOGUE} to={(v, p) => (p.mine ? `/lessons/${v.grade}/${String(p.combo?.featureKey)}` : undefined)} />);
     openTray(/Pick/);
     fireEvent.click(screen.getByRole("radio", { name: /^Grade 6/ }));
     expect(screen.getByRole("link", { name: "Grade 6 · Mathematics · Your class" })).toHaveAttribute("href", "/lessons/6/Mathematics");

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { useState } from "react";
 import { Tray } from "./Tray";
-import { LESSON_SUBJECTS_BY_GRADE, ASSESSMENT_SUBJECTS_BY_GRADE, subjectsByGradeFor } from "./catalogue";
+import { ASSESSMENT_SUBJECTS_BY_GRADE, subjectsByGradeFor } from "./catalogue";
 
 /**
  * bd-fmf24g.2.2 — Tray: the canvas's bottom sheet (ClassPicker / DateRangeBar):
@@ -72,14 +72,9 @@ describe("Tray", () => {
 });
 
 describe("catalogue: what each feature offers per grade (COMPONENTS.md §4, read from the bot 2026-10-08)", () => {
-  it("Lesson Plans: 1–3 three books, 4–5 add General Science, 6–12 the corpus subjects; no Islamiat by default", () => {
-    expect(LESSON_SUBJECTS_BY_GRADE[1]).toEqual(["English", "Urdu", "Math"]);
-    expect(LESSON_SUBJECTS_BY_GRADE[5]).toEqual(["English", "Urdu", "Math", "General Science"]);
-    expect(LESSON_SUBJECTS_BY_GRADE[6]).toHaveLength(8);
-    expect(LESSON_SUBJECTS_BY_GRADE[8]).not.toContain("Agricultural Education (Zarai Taleem)");
-    expect(LESSON_SUBJECTS_BY_GRADE[11]).not.toContain("Pakistan Studies");
-    expect(LESSON_SUBJECTS_BY_GRADE[12]).toContain("Pakistan Studies");
-    for (let g = 1; g <= 12; g += 1) expect(LESSON_SUBJECTS_BY_GRADE[g]).not.toContain("Islamiat");
+  it("Lesson Plans: no built-in list — the live catalogue or nothing (bd-fmf24g.57: an 8 Oct copy hid grade 1's GK and Islamiat)", () => {
+    const lessons = subjectsByGradeFor("lessons");
+    for (let g = 1; g <= 12; g += 1) expect(lessons[g]).toBeUndefined();
   });
 
   it("Assessment: grades 1–5 only", () => {
@@ -90,7 +85,6 @@ describe("catalogue: what each feature offers per grade (COMPONENTS.md §4, read
 
   it("subjectsByGradeFor: the feature's map unless one is given", () => {
     expect(subjectsByGradeFor("assessment")).toBe(ASSESSMENT_SUBJECTS_BY_GRADE);
-    expect(subjectsByGradeFor("lessons")).toBe(LESSON_SUBJECTS_BY_GRADE);
     const mine = { 4: ["Science"] };
     expect(subjectsByGradeFor("lessons", mine)).toBe(mine);
   });

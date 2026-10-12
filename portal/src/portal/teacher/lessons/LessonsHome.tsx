@@ -6,7 +6,7 @@ import { loadRecentLessonPlans } from '../../lib/recentLessonPlans';
 import { lessonPlans } from '../../newui/lessons/lessonPlansApi';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import { teacherPath } from '../routes';
-import { ClassPicker, HistoryList, type ClassPick, type GradeSubjectPair } from '../ui';
+import { ClassPicker, HistoryList, type ClassPick, type GradeSubjectPair, type SubjectsByGrade } from '../ui';
 import { LESSONS } from './copy';
 import { useCopy } from '../i18n';
 import TeacherPage from '../TeacherPage';
@@ -20,13 +20,17 @@ import { recentGroups } from './recent';
  *                          `available` only) in the kit's picker; a pick goes straight to that subject's
  *                          chapters. No class with plans: no picker, no "or".
  *   Any grade or subject   the kit's selector; Open (off until both) → that subject's chapters, its key
- *                          read from the catalogue (lessonPlansApi.subjects).
+ *                          read from the catalogue (lessonPlansApi.subjects). The grades and subjects on
+ *                          offer are the LIVE catalogue (lessonPlansApi.catalogue — grades 1–5 the bot's
+ *                          lp_catalog.json ∩ niete_lp_assets, the WhatsApp /lp menu's own read), never a
+ *                          list held here (bd-fmf24g.57: a held copy hid grade 1's GK and Islamiat).
  *   Recent Lesson Plans    collapsed by default: her recent plans (lib/recentLessonPlans — opened here or
  *                          received on WhatsApp, every grade, plus 6–12 plans she asked for) by Pakistan
  *                          day; each row reopens its plan by key (OpenPlanPage).
  */
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '');
+const NO_SUBJECTS: SubjectsByGrade = {};
 
 export function LessonsHomePage() {
   const C = useCopy(LESSONS);
@@ -34,6 +38,12 @@ export function LessonsHomePage() {
   const { toast } = useToast();
   const [combos] = useLoad(() => loadGradeSubjects('lessons'), 'gs:lessons');
   const [recent] = useLoad(() => loadRecentLessonPlans(), 'recent');
+  const [cat] = useLoad(() => lessonPlans.catalogue(), 'lp:catalogue');
+  const catalogue = dataOf(cat);
+  // Names, as the picker shows them; until the catalogue answers only her own classes can be picked.
+  const byGrade = useMemo<SubjectsByGrade>(() => (catalogue
+    ? Object.fromEntries(Object.entries(catalogue.byGrade).map(([g, list]) => [g, list.map((s) => s.name)]))
+    : NO_SUBJECTS), [catalogue]);
   const busy = useRef(false);
 
   // Only her classes the lesson-plan catalogue has: a class with none would be a dead end.
@@ -54,8 +64,11 @@ export function LessonsHomePage() {
     busy.current = true;
     try {
       const subjects = await lessonPlans.subjects(v.grade);
+      // The name as shown first: an Urdu name ("اسلامیات") has no Latin letters, so its norm() is ''
+      // and would match the first other Urdu-named book. norm() only for a Latin spelling.
       const want = norm(v.subject);
-      const s = subjects.find((x) => norm(x.name) === want || norm(x.key) === want);
+      const s = subjects.find((x) => x.name === v.subject)
+        ?? (want ? subjects.find((x) => norm(x.name) === want || norm(x.key) === want) : undefined);
       if (s) navigate(lessonsUrl('chapters', { grade: v.grade, subject: s.key }));
       else toast({ title: C.notAvailable });
     } catch {
@@ -73,6 +86,7 @@ export function LessonsHomePage() {
         label={C.selectGradeSubject}
         feature="lessons"
         combos={mine}
+        subjectsByGrade={byGrade}
         to={toChapters}
         onChange={(v, pick) => { void openOther(v, pick); }}
       />

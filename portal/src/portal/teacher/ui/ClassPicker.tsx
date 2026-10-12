@@ -65,7 +65,7 @@ export interface ClassPickerProps {
   onChange?: (value: GradeSubjectPair, pick: ClassPick) => void;
   /** Where a pair goes: a string makes it a link (it still reports the pick); undefined keeps it a button. */
   to?: (value: GradeSubjectPair, pick: ClassPick) => string | undefined;
-  /** Which built-in map (catalogue.ts) lists the other subjects. */
+  /** Which built-in map (catalogue.ts) lists the other subjects — Lesson Plans has none: pass `subjectsByGrade`. */
   feature?: TeacherCatalogueFeature;
   /** The live catalogue, when the page has it: replaces the built-in map. */
   subjectsByGrade?: SubjectsByGrade;
@@ -86,6 +86,12 @@ const slug = (raw: unknown) => {
 };
 /** A catalogue name's trailing note is not shown in a two-across button: "Agricultural Education (Zarai Taleem)". */
 const shortName = (s: string) => s.replace(/\s*\([^)]*\)\s*$/, '') || s;
+/** …unless the note is what tells two books apart: "Social Studies (English)" / "Social Studies (Urdu)" stay whole
+ *  (bd-fmf24g.57 — the WhatsApp menu names elective books by medium, bd-6640j.1.3). */
+const buttonName = (c: { subject: string }, all: readonly { subject: string }[] = []) => {
+  const short = shortName(c.subject);
+  return all.some((o) => o.subject !== c.subject && shortName(o.subject) === short) ? c.subject : short;
+};
 
 interface Choice {
   grade: number;
@@ -170,7 +176,7 @@ export function ClassPicker({
   const choiceName = (c: Choice) =>
     `${gradeSubjectLabel(c.grade, c.subject, '', words.grade)}${c.mine && allowOther ? ` · ${words.yourClass}` : ''}`;
 
-  const cell = (c: Choice) => {
+  const cell = (c: Choice, _i?: number, all?: readonly Choice[]) => {
     const on = isCurrent(c);
     const starred = c.mine && allowOther;
     const box = cn(
@@ -186,7 +192,7 @@ export function ClassPicker({
     const body = (
       <>
         <SubjectTile subject={c.subject} size={32} tone={on ? 'selected' : c.off ? 'dim' : 'neutral'} />
-        <span className="line-clamp-2 min-w-0 flex-1 text-[16px] font-semibold leading-[1.25]">{bidi(shortName(c.subject))}</span>
+        <span className="line-clamp-2 min-w-0 flex-1 text-[16px] font-semibold leading-[1.25]">{bidi(buttonName(c, all))}</span>
         {on ? (
           <span aria-hidden="true" className="absolute end-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#33374a] text-white">
             <Check className="h-3 w-3" strokeWidth={3.4} />
