@@ -21,6 +21,32 @@ export const UPLOAD_RULES: Record<UploadKind, { extensions: string[]; maxBytes: 
   photo: { extensions: [".jpg", ".jpeg", ".png"], maxBytes: 15 * MB },
 };
 
+/**
+ * bd-fmf24g.66 — what the coach's "Their own plan" picker takes: the files the plan reader can read. `.doc` (old binary
+ * Word) is left out on purpose: the server accepts it but the reader only opens `.docx`, so a `.doc` would upload and
+ * then come back "Couldn't read". Size is the server's `lesson_plan` cap.
+ */
+export const PLAN_FILE_EXTENSIONS = [".pdf", ".docx", ".jpg", ".jpeg", ".png"];
+export const PLAN_MAX_BYTES = UPLOAD_RULES.lesson_plan.maxBytes;
+export const PLAN_MAX_MB = PLAN_MAX_BYTES / MB;
+
+export type PlanKind = "pdf" | "word" | "photo";
+
+/** The kind a plan file is shown as ("PDF", "Word", "Photo"); null for a type the picker does not take. */
+export function planKindOf(name: string): PlanKind | null {
+  const ext = extensionOf(name);
+  if (ext === ".pdf") return "pdf";
+  if (ext === ".docx") return "word";
+  if ([".jpg", ".jpeg", ".png"].includes(ext)) return "photo";
+  return null;
+}
+
+export function checkPlanFile(file: File): FileProblem {
+  if (!PLAN_FILE_EXTENSIONS.includes(extensionOf(file.name))) return "wrong_type";
+  if (file.size > PLAN_MAX_BYTES) return "too_large";
+  return null;
+}
+
 /** The WhatsApp photo step's cap (MAX_COACHING_PHOTOS). */
 export const MAX_PHOTOS = 3;
 
