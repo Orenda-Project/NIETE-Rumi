@@ -197,6 +197,17 @@ describe("bd-5rz1v.10 — grades 1-5: the lesson plan opens inside the portal", 
     expect(within(v).getByRole("button", { name: /open in another app/i })).toBeInTheDocument();
   });
 
+  it("bd-fmf24g.56: every PDF page canvas is left-to-right, so an Urdu (rtl) app draws the PDF's text unscrambled", async () => {
+    renderPage();
+    await pickK5();
+    fireEvent.click(screen.getByRole("button", { name: /open lesson plan/i }));
+    const v = await viewer();
+    await waitFor(() => expect(within(v).getAllByTestId("lp-page").length).toBeGreaterThan(0));
+    const canvases = within(v).getAllByTestId("lp-page").map((p) => p.querySelector("canvas"));
+    expect(canvases.length).toBeGreaterThan(0);
+    for (const c of canvases) expect(c?.getAttribute("dir")).toBe("ltr");
+  });
+
   it("the answer key opens the same way", async () => {
     renderPage();
     await pickK5();
