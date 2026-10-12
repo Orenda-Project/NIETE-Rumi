@@ -17,6 +17,13 @@ import { ROW_PX, ROW_PX_UR } from '@/portal/teacher/ui/ReadyTray';
 import { OUTLINE_WIDE } from '@/portal/teacher/ui/styles';
 import TeacherPage, { PageChip } from '@/portal/teacher/TeacherPage';
 import TeacherNavigation from '@/portal/teacher/TeacherNavigation';
+// bd-fmf24g.64 — the signed-out pages' parts (the real components, the real words, every error and the longest labels).
+import { Check, KeyRound, Lock, MessageCircle, Smartphone } from 'lucide-react';
+import { AuthFrame, AuthMessage } from '@/portal/auth/AuthFrame';
+import { AuthField } from '@/portal/auth/AuthField';
+import { CodeSlots } from '@/portal/auth/CodeSlots';
+import { AUTH } from '@/portal/auth/copy';
+import { BottomButton } from '@/portal/newui';
 
 const params = new URLSearchParams(location.search);
 const LANG = params.get('lang') === 'en' ? 'en' : 'ur';
@@ -315,7 +322,47 @@ function NavCase() {
   );
 }
 
-const Body = CASE === 'tray' ? TrayCase : CASE === 'nav' ? NavCase : Main;
+function AuthCase() {
+  const c = AUTH[LANG];
+  const eye = { shown: false, onToggle: noop, showLabel: c.showPw, hideLabel: c.hidePw };
+  const chip = 'inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[15px] font-semibold';
+  return (
+    <div className="mx-auto w-[390px]">
+      <Case name="Login: every error at once">
+        <AuthFrame title={c.welcome}>
+          <AuthField id="p1" label={c.phone} icon={Smartphone} type="tel" ltr value="0300 000000" onChange={noop} error={c.noAccount} />
+          <AuthField id="p2" label={c.password} icon={Lock} type="password" value="madeup123" onChange={noop} error={c.wrongPw} eye={eye} />
+          <AuthMessage>{c.couldntLogin}</AuthMessage>
+          <AuthMessage tone="done">{c.alreadySetUp}</AuthMessage>
+          <BottomButton busy>{c.loggingIn}</BottomButton>
+          <BottomButton>{c.login}</BottomButton>
+          <button type="button" className="mt-3.5 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full border-2 border-nu-button text-[17px] font-bold text-nu-button">
+            <KeyRound className="h-[22px] w-[22px]" aria-hidden="true" /><span>{c.forgot}</span>
+          </button>
+        </AuthFrame>
+      </Case>
+      <Case name="Enter code and setup parts">
+        <AuthFrame title={c.codeTitle} onBack={noop}>
+          <div className="mb-[22px] flex min-h-[48px] items-center gap-2.5 rounded-[14px] bg-nu-surface px-3.5 py-2.5 text-[17px] font-semibold">
+            <MessageCircle className="h-[22px] w-[22px]" aria-hidden="true" /><span>{c.sentOnWhatsapp}</span><span dir="ltr" className="ms-auto">0300 0000000</span>
+          </div>
+          <CodeSlots id="c1" label={c.code} value="482915" onChange={noop} error={c.wrongCode} />
+          <AuthField id="c2" label={c.newPw} icon={Lock} type="password" value="madeup123" onChange={noop} error={c.tooShort} eye={eye} />
+          <AuthField id="c3" label={c.confirmPw} icon={Lock} type="password" value="madeup124" onChange={noop} error={c.differ} />
+          <ul className="-mt-1 mb-[18px] flex flex-wrap gap-2">
+            <li className={`${chip} bg-nu-chip-done-bg text-nu-chip-done`}><Check className="h-4 w-4" aria-hidden="true" /><span>{c.chars}</span></li>
+            <li className={`${chip} bg-nu-chip-error-bg text-nu-chip-error`}><span>{c.oneNum}</span></li>
+          </ul>
+          <BottomButton>{c.resetPw}</BottomButton>
+          <BottomButton busy>{c.creating}</BottomButton>
+          <AuthMessage>{c.couldntSend}</AuthMessage>
+        </AuthFrame>
+      </Case>
+    </div>
+  );
+}
+
+const Body = CASE === 'tray' ? TrayCase : CASE === 'nav' ? NavCase : CASE === 'auth' ? AuthCase : Main;
 
 async function start() {
   await i18n.changeLanguage(LANG);

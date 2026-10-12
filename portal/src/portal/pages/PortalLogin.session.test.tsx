@@ -63,21 +63,21 @@ describe("PortalLogin — an existing session skips the form (bd-2569)", () => {
     // teacher think they had been logged out.
     renderLogin({ user: { firstName: "Ayesha", role: "teacher" }, loading: false });
     await waitFor(() => expect(navigateSpy).toHaveBeenCalled());
-    expect(screen.queryByText("Log In")).toBeNull();
+    expect(screen.queryByText("Log in")).toBeNull();
   });
 
   it("shows nothing while the session is still resolving", async () => {
     // Flashing the form and then yanking it away looks worse than the bug.
     // PortalRoot renders null in this window; do the same here.
     renderLogin({ user: null, loading: true });
-    expect(screen.queryByText("Log In")).toBeNull();
+    expect(screen.queryByText("Log in")).toBeNull();
     expect(navigateSpy).not.toHaveBeenCalled();
   });
 
   it("shows the login form when there is genuinely no session", async () => {
     // The ordinary case must be untouched — this is still the login page.
     renderLogin({ user: null, loading: false });
-    await waitFor(() => expect(screen.getByText("Log In")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Log in")).toBeInTheDocument());
     expect(navigateSpy).not.toHaveBeenCalled();
   });
 });
