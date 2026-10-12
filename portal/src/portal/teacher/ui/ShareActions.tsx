@@ -14,9 +14,10 @@ import type { ShareCopy } from './copy';
  *                         quiet "Send again". States: default · sending · sent ✓ + the time · failed (the whole button is
  *                         Try again) · unavailable (grey, locked, "Not available yet": no template on this deployment).
  *   Open in another app   white, navy outline, same size. Where she is decides what it does:
- *                           WhatsApp's browser on Android  an intent:// link → the phone's browser or the NIETE app;
- *                                                          nothing happened after 2 s → it becomes Copy link
- *                           WhatsApp's browser on iPhone   Copy link + a hint (a page cannot leave that browser)
+ *                           WhatsApp's browser (Android    Copy link + a hint ("Paste in browser" / "Open in Safari"). It
+ *                           and iPhone)                    NEVER navigates that browser: bd-fmf24g.53, an intent:// link
+ *                                                          did not leave WhatsApp on Android — its own browser loaded the
+ *                                                          PDF link and "WhatsApp has stopped" a second later.
  *                           Chrome, Safari, a desktop      hidden for a page; for a FILE it opens the file
  *                           the NIETE app                  hidden for a page; for a FILE it opens it in the system browser
  *
@@ -28,7 +29,6 @@ import type { ShareCopy } from './copy';
  * target is a presigned link and needs no sign-in.
  */
 export const PAGE_HANDOFF = false;
-const INTENT_WAIT_MS = 2000;
 
 export type ShareResult = { status: 'sent'; at?: string } | { status: 'failed' } | { status: 'unavailable' };
 export type OpenTarget =
@@ -55,12 +55,6 @@ type OpenState = 'default' | 'opening' | 'copy' | 'copied' | 'failed';
 
 const WA_GREEN = '#09883F';
 const BASE = 'relative flex min-h-[64px] w-full items-center justify-center gap-3 rounded-2xl border-2 px-[18px] py-1 text-[18px] font-bold leading-tight rtl:leading-[1.9]';
-
-/** The intent link: the phone's own handler for this https URL (the NIETE app if it claims the path, else the default browser). */
-export function intentUrl(url: string): string {
-  const u = new URL(url);
-  return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=${u.protocol.replace(':', '')};S.browser_fallback_url=${encodeURIComponent(url)};end`;
-}
 
 /** "3:42" + the kit's AM/PM word, in Pakistan time (the portal's clock for every stamp). */
 export function clockOf(iso: string | undefined, am: string, pm: string): string | null {
@@ -126,7 +120,8 @@ export function ShareActions({ onSend, available = true, sendTo, open, copy, tes
   const showOpen = !!open && (isPage
     ? pageHandoff && (env === 'android-iab' || env === 'ios-iab')
     : true);
-  const copyMode = env === 'ios-iab' && showOpen;
+  // Inside WhatsApp's browser (either phone) the button only ever copies: nothing it can navigate to leaves WhatsApp.
+  const copyMode = (env === 'ios-iab' || env === 'android-iab') && showOpen;
 
   const targetUrl = useCallback(async (): Promise<string | null> => {
     if (fileUrl) return typeof fileUrl === 'string' ? fileUrl : fileUrl();
@@ -146,28 +141,10 @@ export function ShareActions({ onSend, available = true, sendTo, open, copy, tes
     let url: string | null = null;
     try { url = await targetUrl(); } catch { url = null; }
     if (!url) { if (alive.current) setOpenState('copy'); return; }
-    if (env === 'android-iab') {
-      let left = false;
-      const gone = () => { left = true; };
-      const onVis = () => { if (document.visibilityState === 'hidden') gone(); };
-      window.addEventListener('pagehide', gone);
-      window.addEventListener('blur', gone);
-      document.addEventListener('visibilitychange', onVis);
-      window.location.href = intentUrl(url);
-      window.setTimeout(() => {
-        window.removeEventListener('pagehide', gone);
-        window.removeEventListener('blur', gone);
-        document.removeEventListener('visibilitychange', onVis);
-        if (!alive.current) return;
-        // Nothing happened: WhatsApp kept the link (or there is no handler). Copy link is the way out.
-        setOpenState(left ? 'default' : 'failed');
-      }, INTENT_WAIT_MS);
-      return;
-    }
     // A file in Chrome, Safari or the app: open it normally (the app hands another host to the system browser).
     window.open(url, '_blank', 'noopener,noreferrer');
     setOpenState('default');
-  }, [copyMode, doCopy, env, openState, targetUrl]);
+  }, [copyMode, doCopy, openState, targetUrl]);
 
   if (!onSend && !showOpen) return null;
 
