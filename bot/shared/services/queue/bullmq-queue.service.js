@@ -25,7 +25,14 @@
 
 const { logToFile } = require('../../utils/logger');
 const RedisService = require('../cache/railway-redis.service');
-const { getCurrentCorrelationId, logEvent } = require('../../utils/structured-logger');
+const { getCurrentCorrelationId, getCurrentUserId, logEvent } = require('../../utils/structured-logger');
+
+// bd-b0qwk: same as the SQS driver: the user a job is queued for rides in its envelope so the
+// worker can name them on the job's model spend. Read defensively (suites stub the logger).
+function requesterField() {
+  const userId = typeof getCurrentUserId === 'function' ? getCurrentUserId() : undefined;
+  return userId ? { userId } : {};
+}
 const crypto = require('crypto');
 
 // Logical queue names (Redis key namespaces). Kept stable so a deploy that switches
@@ -186,7 +193,7 @@ class BullMQQueueService {
 
   async queueCoachingJob(sessionId, jobType, payload = {}) {
     const correlationId = getCurrentCorrelationId();
-    const envelope = { sessionId, jobType, payload, correlationId, queuedAt: new Date().toISOString(), version: '1.0' };
+    const envelope = { sessionId, jobType, payload, correlationId, ...requesterField(), queuedAt: new Date().toISOString(), version: '1.0' };
     const id = await this._add('main', envelope, { jobId: `${sessionId}-${jobType}` });
     logToFile('📤 Coaching job queued (bullmq)', { sessionId, jobType, jobId: id });
     return id;
@@ -194,7 +201,7 @@ class BullMQQueueService {
 
   async queueVideoJob(videoRequestId, jobType, payload = {}) {
     const correlationId = getCurrentCorrelationId();
-    const envelope = { videoRequestId, jobType, payload, correlationId, queuedAt: new Date().toISOString(), version: '1.0' };
+    const envelope = { videoRequestId, jobType, payload, correlationId, ...requesterField(), queuedAt: new Date().toISOString(), version: '1.0' };
     const id = await this._add('video', envelope, { jobId: `${videoRequestId}-${jobType}` });
     logToFile('📤 Video job queued (bullmq)', { videoRequestId, jobType, jobId: id });
     return id;
@@ -204,7 +211,7 @@ class BullMQQueueService {
     const isQuizJob = jobType && jobType.startsWith('quiz_');
     const queueKey = isQuizJob ? 'quiz' : 'main';
     const correlationId = getCurrentCorrelationId();
-    const envelope = { groupId, jobType, payload, correlationId, queuedAt: new Date().toISOString(), version: '2.0' };
+    const envelope = { groupId, jobType, payload, correlationId, ...requesterField(), queuedAt: new Date().toISOString(), version: '2.0' };
     // Dedup only when the caller passes an explicit id (matches SQS, whose default
     // deduplicationId embeds Date.now() → effectively unique).
     const id = await this._add(queueKey, envelope, { jobId: opts.deduplicationId, delaySeconds: opts.delaySeconds });
