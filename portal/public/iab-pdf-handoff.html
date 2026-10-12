@@ -89,6 +89,28 @@
     <div class="result" id="r7"></div>
   </div>
 
+<h2 style="font-size:17px;margin:18px 0 4px">NEW: a link that does not end in .pdf (try these first)</h2>
+  <div class="variant" data-variant="13">
+    <button class="big" type="button" id="b13"><span class="num">13</span>
+      <span>Chrome opens our page (no .pdf in the link), which forwards to the PDF
+        <span class="code" id="c13"></span></span></button>
+    <div class="result" id="r13"></div>
+  </div>
+
+  <div class="variant" data-variant="14">
+    <button class="big" type="button" id="b14"><span class="num">14</span>
+      <span>Android picks the browser; our page (no .pdf) forwards to the PDF
+        <span class="code" id="c14"></span></span></button>
+    <div class="result" id="r14"></div>
+  </div>
+
+  <div class="variant" data-variant="15">
+    <button class="big" type="button" id="b15"><span class="num">15</span>
+      <span>Like prod: server first, then Chrome opens our page (no .pdf)
+        <span class="code" id="c15"></span></span></button>
+    <div class="result" id="r15"></div>
+  </div>
+
   <h2 style="font-size:17px;margin:18px 0 4px">What prod does differently (tap these in WhatsApp Business)</h2>
   <div class="variant" data-variant="8">
     <button class="big" type="button" id="b8"><span class="num">8</span>
@@ -174,7 +196,11 @@
   V[12] = V[9];
   V[10] = V[1];
   V[11] = V[2];
-  var SERVER_FIRST = { 8: true, 12: true, 10: true, 11: true };
+  var GO = new URL('/iab-pdf-go.html', location.origin);
+  V[13] = 'intent://' + GO.host + GO.pathname + '#Intent;scheme=https;package=com.android.chrome;end';
+  V[14] = 'intent://' + GO.host + GO.pathname + '#Intent;scheme=https;end';
+  V[15] = V[13];
+  var SERVER_FIRST = { 8: true, 12: true, 10: true, 11: true, 15: true };
   var LOG_KEY = 'iab-pdf-handoff-log';
 
   function $(id) { return document.getElementById(id); }
@@ -213,7 +239,7 @@
   $('env').textContent = envWords[env] || env;
   $('ua').textContent = navigator.userAgent;
   $('pdf').textContent = PDF;
-  [1, 2, 3, 6, 8, 9, 10, 11, 12].forEach(function (n) { $('c' + n).textContent = (SERVER_FIRST[n] ? 'fetch, then ' : '') + V[n]; });
+  [1, 2, 3, 6, 8, 9, 10, 11, 12, 13, 14, 15].forEach(function (n) { $('c' + n).textContent = (SERVER_FIRST[n] ? 'fetch, then ' : '') + V[n]; });
   $('a4').href = PDF;
 
   function show(n, cls, text) { var r = $('r' + n); r.className = 'result ' + cls; r.textContent = text; }
@@ -259,9 +285,9 @@
     }, 2000);
     try { location.href = url; } catch (e) { show(n, 'bad', 'Error: ' + e.message); log('#' + n + ' threw: ' + e.message); }
   }
-  [1, 2, 3, 6, 9].forEach(function (n) { $('b' + n).onclick = function () { handOff(n); }; });
+  [1, 2, 3, 6, 9, 13, 14].forEach(function (n) { $('b' + n).onclick = function () { handOff(n); }; });
   // Server first: the same kind of await prod does (a no-store request), so the navigation happens after the tap's task.
-  [8, 10, 11, 12].forEach(function (n) {
+  [8, 10, 11, 12, 15].forEach(function (n) {
     $('b' + n).onclick = function () {
       show(n, 'info', 'Asking the server…');
       log('#' + n + ' tapped: server first');
