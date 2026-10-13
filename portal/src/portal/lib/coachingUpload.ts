@@ -50,6 +50,13 @@ export function checkPlanFile(file: File): FileProblem {
 /** The WhatsApp photo step's cap (MAX_COACHING_PHOTOS). */
 export const MAX_PHOTOS = 3;
 
+/**
+ * bd-fmf24g.76 — what the teacher v2 Digital Coaching page takes: ten (the operator, 12 Oct). The WhatsApp step, the older
+ * pages and the coach's observation keep MAX_PHOTOS. The server's cap for this path is MAX_DC_PHOTOS in
+ * bot/shared/services/coaching/portal-coaching.service.js: keep the two in step.
+ */
+export const DC_MAX_PHOTOS = 10;
+
 /** Under this the WhatsApp path treats audio as a voice note, not a lesson. */
 export const SHORT_RECORDING_SECONDS = 600;
 

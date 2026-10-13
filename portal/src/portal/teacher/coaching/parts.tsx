@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { BookOpen, Camera, ChevronDown, ImageIcon, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { BookOpen, Camera, ChevronDown, ImageIcon, Pause, Play, RotateCcw, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { acceptFor, checkFile, MAX_PHOTOS } from '../../lib/coachingUpload';
+import type { Audio } from '../../newui/coaching/useSendFlow';
 import { ListRow } from '../ui';
-import { FOCUS, GRID } from '../ui/styles';
+import { CARD, FOCUS, GRID } from '../ui/styles';
 import { useCopy } from '../i18n';
 import { COACHING } from './copy';
 import type { DraftPlan } from './draft';
 
 /**
- * bd-fmf24g.4 — the pieces the hub and Check and send share (v28 canvas Coaching / CoachingCheck).
+ * bd-fmf24g.4 — the pieces the Digital Coaching page and the recording page share (v28 canvas Coaching / CoachingCheck).
  */
 
 /** A section's light 20px heading, with an optional small chip ("Optional", "No faces"). */
@@ -74,8 +76,11 @@ function usePreviews(files: File[]): (string | null)[] {
 
 export type PhotosProblem = 'too_many' | 'not_a_photo' | null;
 
-/** One grid of photos (at most MAX_PHOTOS), each removable, and Add photo while there is room. */
-export function PhotoGrid({ photos, onChange, testId }: { photos: File[]; onChange: (next: File[]) => void; testId: string }) {
+/**
+ * One grid of photos, each removable, and Add photo while there is room: at most `max` (the coach's three by default;
+ * the teacher's Digital Coaching passes ten, DC_MAX_PHOTOS).
+ */
+export function PhotoGrid({ photos, onChange, testId, max = MAX_PHOTOS }: { photos: File[]; onChange: (next: File[]) => void; testId: string; max?: number }) {
   const C = useCopy(COACHING);
   const input = useRef<HTMLInputElement>(null);
   const [problem, setProblem] = useState<PhotosProblem>(null);
@@ -86,7 +91,7 @@ export function PhotoGrid({ photos, onChange, testId }: { photos: File[]; onChan
     const chosen = Array.from(list || []);
     if (!chosen.length) return;
     if (chosen.some((f) => checkFile(f, 'photo'))) { setProblem('not_a_photo'); return; }
-    if (photos.length + chosen.length > MAX_PHOTOS) { setProblem('too_many'); return; }
+    if (photos.length + chosen.length > max) { setProblem('too_many'); return; }
     onChange([...photos, ...chosen]);
   };
 
@@ -110,7 +115,7 @@ export function PhotoGrid({ photos, onChange, testId }: { photos: File[]; onChan
             </button>
           </div>
         ))}
-        {photos.length < MAX_PHOTOS ? (
+        {photos.length < max ? (
           <button
             type="button"
             onClick={() => input.current?.click()}
@@ -131,8 +136,90 @@ export function PhotoGrid({ photos, onChange, testId }: { photos: File[]; onChan
         onChange={(e) => { add(e.target.files); e.target.value = ''; }}
       />
       {problem ? (
-        <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{problem === 'too_many' ? C.upToThree : C.notAPhoto}</p>
+        <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{problem === 'too_many' ? C.upToPhotos(max) : C.notAPhoto}</p>
       ) : null}
     </>
+  );
+}
+
+/** A row of the page's bottom actions (the dock). */
+export function Dock({ children }: { children: ReactNode }) {
+  return <div className="flex w-full gap-2.5">{children}</div>;
+}
+
+/** One 56px action: the page's primary (indigo), an outline, or the red Stop. A `to` makes it a link (with `state`). */
+export function Action({ children, onClick, to, state, tone = 'primary', icon: Icon, disabled }: {
+  children: ReactNode; onClick?: () => void; to?: string; state?: unknown; tone?: 'primary' | 'outline' | 'danger';
+  icon?: typeof Play; disabled?: boolean;
+}) {
+  const cls = cn(
+    'flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl border-[1.5px] text-[16px] font-semibold',
+    tone === 'primary' && 'border-[#33374a] bg-[#33374a] text-white',
+    tone === 'danger' && 'border-[#c8331f] bg-[#c8331f] text-white',
+    tone === 'outline' && 'border-[#c7cad6] bg-white text-[#33374a]',
+    disabled && 'pointer-events-none border-[#e5e7eb] bg-[#e5e7eb] text-[#6b7280]',
+    FOCUS,
+  );
+  const body = <>{Icon ? <Icon className="h-5 w-5" aria-hidden="true" /> : null}{children}</>;
+  return to
+    ? <Link to={to} state={state} className={cls}>{body}</Link>
+    : <button type="button" onClick={onClick} disabled={disabled} className={cls}>{body}</button>;
+}
+
+const minutesOf = (ms: number | null) => (ms != null ? Math.max(1, Math.round(ms / 60_000)) : null);
+
+/**
+ * bd-fmf24g.76 — her recording as attached to the Digital Coaching page: Listen to it, and Redo (one made here: it is
+ * deleted from the phone and she records again) or Change file (one she uploaded: the picker opens). It plays from a url
+ * made once per recording and released with it.
+ */
+export function RecordingCard({ audio, onRedo, onChangeFile }: { audio: Audio; onRedo: () => void; onChangeFile: () => void }) {
+  const C = useCopy(COACHING);
+  const player = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    setPlaying(false);
+    let made: string | null = null;
+    try { made = URL.createObjectURL(audio.blob); } catch { made = null; }
+    setUrl(made);
+    return () => { if (made) URL.revokeObjectURL(made); };
+  }, [audio]);
+  const toggle = () => {
+    const el = player.current;
+    if (!el) return;
+    try {
+      if (playing) { el.pause(); setPlaying(false); } else { void el.play()?.catch(() => setPlaying(false)); setPlaying(true); }
+    } catch {
+      setPlaying(false);
+    }
+  };
+  const minutes = minutesOf(audio.durationMs);
+  const recordedHere = !!audio.recordingId;
+  return (
+    <section aria-label={C.yourRecording} data-testid="dc-recording" className={cn(CARD, 'flex min-h-[84px] items-center gap-3 p-3')}>
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={!url}
+        aria-label={playing ? C.stopListening : C.listen}
+        className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-[2.5px] border-[#2f7a52] bg-white text-[#2f7a52]', FOCUS)}
+      >
+        {playing ? <Pause className="h-[22px] w-[22px]" aria-hidden="true" /> : <Play className="h-[22px] w-[22px] rtl:rotate-180" aria-hidden="true" />}
+      </button>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-[16px] font-semibold">{audio.source === 'file' ? audio.filename : C.yourRecording}</span>
+        {minutes != null ? <span className="text-[13px] text-[#6b7280]">{C.minutes(minutes)}</span> : null}
+      </span>
+      <button
+        type="button"
+        onClick={() => { setPlaying(false); (recordedHere ? onRedo : onChangeFile)(); }}
+        className={cn('flex min-h-14 items-center gap-1.5 rounded-xl bg-[#f3f4f6] px-3.5 text-[14px] font-semibold text-[#33374a]', FOCUS)}
+      >
+        <RotateCcw className="h-4 w-4" aria-hidden="true" />
+        {recordedHere ? C.redo : C.changeFile}
+      </button>
+      {url ? <audio ref={player} src={url} preload="metadata" onEnded={() => setPlaying(false)} className="hidden" /> : null}
+    </section>
   );
 }
