@@ -45,11 +45,11 @@ vi.mock("../../lib/coachingUpload", async (orig) => ({
 // The registry first, as the app loads it.
 import "../routes";
 import api from "../../services/api";
-import { handOffRecording } from "../../lib/lessonHandoff";
+import { LibraryStep } from "../../newui/coaching/LibraryStep";
+import type { Audio } from "../../newui/coaching/useSendFlow";
 import { CoachingHomePage } from "./CoachingHome";
-import { SendPage } from "./SendPage";
 import { clearDraft, holdDraft } from "./draft";
-import { COACHING_HOME, COACHING_SEND } from "./paths";
+import { COACHING_HOME } from "./paths";
 import { COACHING, COACHING_V2_COPY_UR as U } from "./copy";
 import { copyIn } from "../i18n";
 import { PlanSheet } from "../../newui/coaching/PlanSheet";
@@ -85,6 +85,10 @@ beforeEach(async () => {
   });
 });
 
+const audioOf = (): Audio => ({
+  blob: new Blob(["a"]), filename: "lesson.m4a", durationMs: 1_800_000, recordingId: null, source: "file", size: 1, startedAt: null,
+});
+
 function at(path: string, element: React.ReactElement, state?: unknown, search = "") {
   return render(
     <MemoryRouter initialEntries={[{ pathname: path, search, state }]}>
@@ -97,11 +101,12 @@ function at(path: string, element: React.ReactElement, state?: unknown, search =
 }
 
 describe("the lesson-plan picker in Urdu", () => {
-  it("the hub's plan sheet: its title, Recent, From the library, Take a photo, Choose a file, a plan's grade chip", async () => {
-    // Her class is not chosen for her: the link from a lesson plan chooses it (the plan button is off until a class is).
-    at(COACHING_HOME, <CoachingHomePage />, undefined, "?grade=4&subject=science");
-    const open = await screen.findByRole("button", { name: new RegExp(U.selectPlan) }, { timeout: 5000 }) as HTMLButtonElement;
-    await waitFor(() => expect(open.disabled).toBe(false));
+  it("the page's plan sheet: its title, Recent, From the library, Take a photo, Choose a file, a plan's grade chip", async () => {
+    // Her recording is on the page (the lesson plan row comes with it).
+    holdDraft({ audio: audioOf(), plan: null, photos: [] });
+    at(COACHING_HOME, <CoachingHomePage />, { keep: true });
+    const open = await screen.findByRole("button", { name: new RegExp(`^${U.selectPlan}$`) }, { timeout: 5000 }) as HTMLButtonElement;
+    expect(open.disabled).toBe(false);
     fireEvent.click(open);
     const sheet = await screen.findByTestId("coaching-plan-sheet");
     expect(await within(sheet).findByText(/How plants make food/)).toBeTruthy();
@@ -112,14 +117,13 @@ describe("the lesson-plan picker in Urdu", () => {
     expect(englishLeft(["Recent lesson plans", "From the library", "Take a photo", "Choose a file", "Grade 4"])).toEqual([]);
   });
 
-  it("check and send → From the library: the library's Not loaded and Try again in Urdu", async () => {
+  // The library step is the new UI's (newui/coaching/LibraryStep); the v2 pages open the Lessons page for "From the
+  // library", so the step's Urdu words are pinned on the step itself.
+  const library = () => render(<MemoryRouter><LibraryStep words={U.picker} onPick={() => {}} onStepChange={() => {}} backSignal={0} /></MemoryRouter>);
+
+  it("the library: Not loaded and Try again in Urdu", async () => {
     portal.getLibraryGrades.mockRejectedValue(new Error("down"));
-    holdDraft({ combo: { grade: 4, subject: "General Science" }, plan: null, photos: [] });
-    handOffRecording(new File(["a"], "lesson.m4a", { type: "audio/mp4" }));
-    at(COACHING_SEND, <SendPage />, { start: "file" });
-    fireEvent.click(await screen.findByRole("button", { name: new RegExp(U.selectPlan) }, { timeout: 5000 }));
-    const sheet = await screen.findByTestId("coaching-plan-sheet");
-    fireEvent.click(within(sheet).getByText(U.picker.fromLibrary));
+    library();
     expect(await screen.findByText(U.picker.notLoaded)).toBeTruthy();
     expect(screen.getByRole("button", { name: U.picker.retry })).toBeTruthy();
     expect(englishLeft(["Not loaded", "Try again"])).toEqual([]);
@@ -133,11 +137,7 @@ describe("the lesson-plan picker in Urdu", () => {
       { id: "s1", label: "The cell", ready: true, used: true },
       { id: "s2", label: "Tissues", ready: false, used: false },
     ]);
-    holdDraft({ combo: { grade: 4, subject: "General Science" }, plan: null, photos: [] });
-    handOffRecording(new File(["a"], "lesson.m4a", { type: "audio/mp4" }));
-    at(COACHING_SEND, <SendPage />, { start: "file" });
-    fireEvent.click(await screen.findByRole("button", { name: new RegExp(U.selectPlan) }, { timeout: 5000 }));
-    fireEvent.click(within(await screen.findByTestId("coaching-plan-sheet")).getByText(U.picker.fromLibrary));
+    library();
     // The grades grid is labelled with the Urdu step word (a radiogroup of numbers).
     const grid = await screen.findByRole("radiogroup", { name: U.picker.steps.grade });
     fireEvent.click(within(grid).getByRole("radio", { name: /7/ }));

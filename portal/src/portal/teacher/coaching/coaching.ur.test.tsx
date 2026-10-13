@@ -44,11 +44,11 @@ vi.mock("../../lib/coachingUpload", async (orig) => ({
 // The registry first, as the app loads it (a page imported first would be mid-load when its routes render it).
 import "../routes";
 import api from "../../services/api";
-import { handOffRecording } from "../../lib/lessonHandoff";
 import { CoachingHomePage } from "./CoachingHome";
 import { SendPage } from "./SendPage";
 import { ReportPage } from "./ReportPage";
 import { CoachingAllPage } from "./CoachingAll";
+import type { Audio } from "../../newui/coaching/useSendFlow";
 import { clearDraft, holdDraft } from "./draft";
 import { COACHING_ALL, COACHING_HOME, COACHING_REPORT, COACHING_SEND } from "./paths";
 import { COACHING, COACHING_V2_COPY_UR as U } from "./copy";
@@ -66,6 +66,9 @@ const plain = (t: string | null | undefined) => (t || "").replace(/[⁦⁩]/g, "
 const ENGLISH_DAY = /\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d/;
 /** English labels still on the page, read without the isolates (an isolated "⁦Good⁩" is still English). */
 const englishLeft = (words: string[]) => words.filter((w) => plain(document.body.textContent).includes(w));
+const audioOf = (): Audio => ({
+  blob: new Blob(["a"]), filename: "lesson.m4a", durationMs: 1_800_000, recordingId: null, source: "file", size: 1, startedAt: null,
+});
 const ID = "0b4e8f9a-1c2d-4e5f-8a9b-0c1d2e3f4a5b";
 
 const DETAIL = {
@@ -127,21 +130,28 @@ function at(path: string, element: React.ReactElement, pattern = path, state?: u
 }
 
 describe("Digital Coaching in Urdu — the hub", () => {
-  it("title, sections, the Photos hint and chips, Start / Upload, Recent: all in Urdu", async () => {
+  it("title, Record lesson / Upload recording, Recent: all in Urdu, and no class", async () => {
     at(COACHING_HOME, <CoachingHomePage />);
     // The first test of the file also loads the page's module graph: room for a slow, loaded run.
-    expect(await screen.findByRole("button", { name: new RegExp(U.selectClass) }, { timeout: 5000 })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: U.recordTitle }, { timeout: 5000 })).toBeTruthy();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(U.title);
-    expect(screen.getByRole("heading", { name: U.yourClass })).toBeTruthy();
+    expect(screen.getByRole("button", { name: U.uploadRecording })).toBeTruthy();
+    expect(englishLeft(["Record lesson", "Upload recording", "Your class", "Lesson plan", "Optional", "No faces", "Photos", "Board work", "Digital Coaching"])).toEqual([]);
+  });
+
+  it("with her recording: Listen, Change file, Lesson plan, the Photos hint and chips, and Submit, all in Urdu", async () => {
+    holdDraft({ audio: audioOf(), plan: null, photos: [] });
+    at(COACHING_HOME, <CoachingHomePage />, COACHING_HOME, { keep: true });
+    expect(await screen.findByRole("button", { name: U.submit }, { timeout: 5000 })).toBeTruthy();
+    expect(screen.getByRole("button", { name: U.listen })).toBeTruthy();
+    expect(screen.getByRole("button", { name: new RegExp(U.changeFile) })).toBeTruthy();
     expect(screen.getByRole("heading", { name: new RegExp(U.lessonPlan) })).toBeTruthy();
     expect(screen.getByText(U.optional)).toBeTruthy();
-    expect(screen.getByText(U.selectPlan)).toBeTruthy();
     expect(screen.getByText(U.photosHint)).toBeTruthy();
     expect(screen.getByText(U.noFaces)).toBeTruthy();
+    expect(screen.getByText(U.upToPhotos(10))).toBeTruthy();
     expect(screen.getByRole("button", { name: U.addPhoto })).toBeTruthy();
-    expect(screen.getByRole("button", { name: U.startRecording })).toBeTruthy();
-    expect(screen.getByRole("button", { name: U.uploadRecording })).toBeTruthy();
-    expect(englishLeft(["Start recording", "Upload recording", "Your class", "Select lesson plan", "Optional", "No faces", "Photos", "Board work"])).toEqual([]);
+    expect(englishLeft(["Submit", "Listen", "Change file", "Up to 10 photos", "Add photo", "Photos", "Optional"])).toEqual([]);
   });
 
   it("Recent: her lessons with Urdu chips (Analysing, the band) and Urdu day names; data as it is", async () => {
@@ -158,20 +168,21 @@ describe("Digital Coaching in Urdu — the hub", () => {
     expect(body).toContain(UR.minutes(31));
   });
 
-  it("Photos: each photo's remove and the at-most-3 line in Urdu", async () => {
-    at(COACHING_HOME, <CoachingHomePage />);
-    await screen.findByRole("button", { name: new RegExp(U.selectClass) });
+  it("Photos: each photo's remove and the at-most-10 refusal in Urdu", async () => {
+    holdDraft({ audio: audioOf(), plan: null, photos: [] });
+    at(COACHING_HOME, <CoachingHomePage />, COACHING_HOME, { keep: true });
+    await screen.findByRole("button", { name: U.submit }, { timeout: 5000 });
     const input = screen.getByTestId("dc-photos-input") as HTMLInputElement;
     const img = (n: string) => new File(["x"], n, { type: "image/jpeg" });
-    fireEvent.change(input, { target: { files: [img("a.jpg"), img("b.jpg")] } });
+    fireEvent.change(input, { target: { files: Array.from({ length: 10 }, (_, i) => img(`a${i}.jpg`)) } });
     expect(screen.getByRole("button", { name: UR.removePhoto(1) })).toBeTruthy();
-    fireEvent.change(input, { target: { files: [img("c.jpg"), img("d.jpg")] } });
-    expect(screen.getByText(U.upToThree)).toBeTruthy();
-    expect(englishLeft(["Up to 3 photos", "Add photo"])).toEqual([]);
+    fireEvent.change(input, { target: { files: [img("c.jpg")] } });
+    expect(screen.getByRole("alert").textContent).toBe(U.upToPhotos(10));
+    expect(englishLeft(["Up to 10 photos", "Add photo"])).toEqual([]);
   });
 });
 
-describe("Digital Coaching in Urdu — record, check and send, sent", () => {
+describe("Digital Coaching in Urdu — record and sent", () => {
   it("recording: title, the state chip, Pause / Stop, the plan link, Keep app open; Finish lesson in Urdu", async () => {
     session.active = true;
     at(COACHING_SEND, <SendPage />);
@@ -198,23 +209,11 @@ describe("Digital Coaching in Urdu — record, check and send, sent", () => {
     expect(englishLeft(["Record lesson", "Recording", "Pause", "Stop", "Keep app open", "Finish lesson", "Yes, finish", "Lesson plans"])).toEqual([]);
   });
 
-  it("check and send: title, her lesson, Attached, the photos count, Send; then Sent and its ways on", async () => {
+  it("Submit sends; then Sending's result: Sent and its ways on in Urdu", async () => {
     const photo = new File(["x"], "board.jpg", { type: "image/jpeg" });
-    holdDraft({ combo: { grade: 4, subject: "General Science" }, plan: { kind: "library", pick: { lessonId: "L3" }, title: "How plants make food", chips: [] }, photos: [photo] });
-    handOffRecording(new File(["a"], "lesson.m4a", { type: "audio/mp4" }));
-    at(COACHING_SEND, <SendPage />, COACHING_SEND, { start: "file" });
+    holdDraft({ audio: audioOf(), plan: { kind: "library", pick: { lessonId: "L3" }, title: "How plants make food", chips: [] }, photos: [photo] });
+    at(COACHING_SEND, <SendPage />, COACHING_SEND, { start: "submit" });
 
-    expect(await screen.findByRole("heading", { name: U.checkTitle })).toBeTruthy();
-    expect(plain(screen.getByTestId("page-crumb").textContent)).toBe(`${UR.grade(4)} · General Science`);
-    const attached = screen.getByRole("region", { name: U.attached });
-    expect(within(attached).getByText(/How plants make food/)).toBeTruthy();
-    expect(within(attached).getByText(UR.photosCount(1))).toBeTruthy();
-    expect(within(attached).getByText(U.photos)).toBeTruthy();
-    expect(screen.getByRole("button", { name: new RegExp(U.changeFile) })).toBeTruthy();
-    expect(screen.getByRole("button", { name: U.listen })).toBeTruthy();
-    expect(englishLeft(["Check and send", "Attached", "Change file", "1 photo", "Photos"])).toEqual([]);
-
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(U.send) }));
     await waitFor(() => expect(sendLesson).toHaveBeenCalled());
     expect(await screen.findByRole("heading", { name: U.sent })).toBeTruthy();
     expect(screen.getByRole("button", { name: new RegExp(U.openLesson) })).toBeTruthy();

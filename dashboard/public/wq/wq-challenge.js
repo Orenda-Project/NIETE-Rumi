@@ -1002,6 +1002,8 @@
     rec.chunks = [];
     rec.left = d.secs || 60;
     rec.sent = false;
+    // each reading has its own length: Try again in the same page load must not post the last one's
+    rec.ms = 0;
     try {
       rec.mr = rec.type ? new MediaRecorder(rec.stream, { mimeType: rec.type }) : new MediaRecorder(rec.stream);
     } catch (e) {

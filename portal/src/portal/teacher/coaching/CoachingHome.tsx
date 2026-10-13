@@ -1,43 +1,47 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Upload } from 'lucide-react';
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { cn } from '@/lib/utils';
-import { acceptFor, checkFile } from '../../lib/coachingUpload';
-import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
-import { handOffRecording } from '../../lib/lessonHandoff';
+import { acceptFor, checkFile, DC_MAX_PHOTOS, readAudioDuration } from '../../lib/coachingUpload';
 import { useRecordingSession } from '../../lib/recordingSession';
+import { deleteRecording } from '../../lib/recordingStore';
 import { getRecentPlans, planChips, pickOf } from '../../newui/coaching/coachingApi';
 import { PlanSheet } from '../../newui/coaching/PlanSheet';
+import type { Audio } from '../../newui/coaching/useSendFlow';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import TeacherPage from '../TeacherPage';
 import { teacherPath } from '../routes';
-import { ClassPicker, HistoryList, type GradeSubjectPair } from '../ui';
-import { FOCUS } from '../ui/styles';
+import { HistoryList, RecordUploadPair } from '../ui';
 import { useCopy } from '../i18n';
 import { LESSONS } from '../lessons/copy';
 import { lessonGroups, loadDcHistory } from './api';
 import { COACHING } from './copy';
 import { holdDraft, peekDraft, planKeyOf, readPrefill, type DraftPlan } from './draft';
-import { PhotoGrid, PlanPicker, SectionHeading } from './parts';
+import { Action, Dock, PhotoGrid, PlanPicker, RecordingCard, SectionHeading } from './parts';
 import { COACHING_ALL, COACHING_SEND } from './paths';
 
 /**
  * bd-fmf24g.4 — the teacher v2 Digital Coaching page (v28 canvas Coaching): one page to send a lesson.
  *
- *   Your class       her own grade·subject classes only (GET /me/grade-subjects, a grade required — the
- *                    analysis needs one); none chosen until she picks (the picker's own rule: a grade opens
- *                    selected only if she teaches exactly one); opened from a lesson plan, that class.
- *   Lesson plan      optional: her recent plans, a photo of her own plan, or the library (today's plan
- *                    sheet); opened from a lesson plan, that plan, named from her recent plans.
- *   Photos           one grid (board work, charts, the classroom), at most 3, No faces.
- *   Start recording  / Upload recording — off until a class; both hand the plan and photos to the send
- *                    page (draft.ts), which records or takes the file and sends exactly those.
+ * bd-fmf24g.76 — the same order as the WhatsApp flow, and NO class (WhatsApp never asks one; the lesson's subject
+ * comes from its plan and the analysis, as there):
+ *
+ *   Record lesson / Upload recording   first. Record opens the recording page (SendPage) and returns here when she
+ *                    stops; Upload opens the file picker and attaches in place (a bad file is said, not dropped).
+ *   her recording    once there is one: Listen, and Redo / Change file.
+ *   Lesson plan      optional: her recent plans, a photo of her own plan, or the library (today's plan sheet);
+ *                    opened from a lesson plan, that plan, named from her recent plans.
+ *   Photos           one grid (board work, charts, the classroom), at most ten, No faces.
+ *   Submit           the page's one action, on once there is a recording. It sends exactly what the page holds.
  *   Recent DC Observations   collapsed; her Digital Coach lessons (GET /teacher/coaching/history).
+ *
+ * The recording, the plan and the photos are held in memory (draft.ts) so a trip to the recording page, the library
+ * or a lesson plan, and Back, finds them as she left them.
  *
  * bd-fmf24g.13.2 — every word in the page's language (useCopy); Recent's chips and days too.
  */
 
 const RECENT_COUNT = 5;
+
+type AudioProblem = 'too_large' | 'not_audio' | null;
 
 export function CoachingHomePage() {
   const C = useCopy(COACHING);
@@ -47,34 +51,23 @@ export function CoachingHomePage() {
   const session = useRecordingSession();
   const prefill = useMemo(() => readPrefill(location.search), [location.search]);
 
-  const [combosLoad] = useLoad(() => loadGradeSubjects(), 'gs:coaching');
   const [recentPlans] = useLoad(() => getRecentPlans(20), 'dc:recent-plans');
   const [history] = useLoad(() => loadDcHistory({ range: 'all' }), 'dc:history');
 
-  // A class here is a grade AND a subject: the analysis needs the grade.
-  const mine = useMemo(
-    () => (dataOf(combosLoad) ?? []).filter((c): c is GradeSubject & { grade: number } => c.grade != null),
-    [combosLoad],
-  );
-
-  // bd-fmf24g.68: coming BACK here (from the library, from the send page) she finds her class, plan and photos as
-  // she left them (draft.ts holds them when she goes). Opened any other way, the hub starts empty.
-  const cameBack = useNavigationType() === 'POP';
+  // bd-fmf24g.68: coming BACK here (from the library, from the recording page) she finds her recording, plan and photos as
+  // she left them (draft.ts holds them when she goes). Opened any other way, the page starts empty.
+  const cameBack = useNavigationType() === 'POP' || !!(location.state as { keep?: boolean } | null)?.keep;
   const [kept] = useState(() => (cameBack ? peekDraft() : null));
-  const [combo, setCombo] = useState<GradeSubjectPair | null>(kept?.combo ?? null);
+  const [audio, setAudio] = useState<Audio | null>(kept?.audio ?? null);
+  const [audioProblem, setAudioProblem] = useState<AudioProblem>(null);
   const [plan, setPlan] = useState<DraftPlan | null>(kept?.plan ?? null);
   const [planProblem, setPlanProblem] = useState<'not_a_plan' | null>(null);
-  const [planSheet, setPlanSheet] = useState(false);
+  const [planSheet, setPlanSheet] = useState(() => !!(location.state as { openPlan?: boolean } | null)?.openPlan);
   const [photos, setPhotos] = useState<File[]>(kept?.photos ?? []);
   const audioInput = useRef<HTMLInputElement>(null);
 
-  // Her class: only the one a lesson plan sent her with (?grade=&subject=). Otherwise nothing is chosen for
-  // her: she picks, as on every other screen (operator, 9 Oct: "it is fine to let her pick").
-  useEffect(() => {
-    if (combo || !mine.length || prefill.grade == null) return;
-    const fromPlan = mine.find((c) => c.grade === prefill.grade && (!prefill.subjectKey || c.subjectKey === prefill.subjectKey));
-    if (fromPlan) setCombo({ grade: fromPlan.grade, subject: fromPlan.subject });
-  }, [mine, prefill, combo]);
+  // What the page holds is always the draft, so any way out and back finds it.
+  useEffect(() => { holdDraft({ audio, plan, photos }); }, [audio, plan, photos]);
 
   // The plan a lesson plan sent her with, named from her recent plans (the viewer just opened it).
   const prefilled = useRef(!!kept);
@@ -91,15 +84,33 @@ export function CoachingHomePage() {
     });
   }, [prefill, recentPlans, C]);
 
-  const ready = !!combo;
-  const go = (start: 'record' | 'file') => {
-    holdDraft({ combo, plan, photos });
-    navigate(COACHING_SEND, { state: session?.active ? null : { start } });
+  // Record opens the recording page (a lesson already recording is shown there, never a second one).
+  const record = () => {
+    holdDraft({ audio, plan, photos });
+    navigate(COACHING_SEND, { state: session?.active ? null : { start: 'record' } });
   };
-  const pickAudio = (file: File | undefined) => {
+  // A recording file: checked here and attached in place. A bad one is said, and the one she had stays.
+  const pickAudio = async (file: File | undefined) => {
+    setAudioProblem(null);
     if (!file) return;
-    handOffRecording(file);
-    go('file');
+    const problem = checkFile(file, 'audio');
+    if (problem) { setAudioProblem(problem === 'too_large' ? 'too_large' : 'not_audio'); return; }
+    const seconds = await readAudioDuration(file);
+    setAudio({
+      blob: file, filename: file.name, durationMs: seconds != null ? seconds * 1000 : null,
+      recordingId: null, source: 'file', size: file.size, startedAt: null,
+    });
+  };
+  // Redo: the phone copy goes and she records or uploads again.
+  const redo = async () => {
+    const id = audio?.recordingId;
+    if (id) { try { await deleteRecording(id); } catch { /* gone */ } }
+    setAudio(null);
+    setAudioProblem(null);
+  };
+  const submit = () => {
+    holdDraft({ audio, plan, photos });
+    navigate(COACHING_SEND, { state: { start: 'submit' } });
   };
 
   const groups = useMemo(
@@ -108,74 +119,67 @@ export function CoachingHomePage() {
   );
 
   return (
-    <TeacherPage feature="coaching" title={C.title} crumb={C.home} backTo={teacherPath("home")} testId="dc-home">
-      <SectionHeading>{C.yourClass}</SectionHeading>
-      {mine.length ? (
-        <ClassPicker label={C.selectClass} combos={mine} allowOther={false} value={combo} onChange={(v) => setCombo(v)} />
+    <TeacherPage
+      feature="coaching"
+      title={C.title}
+      crumb={C.home}
+      backTo={teacherPath("home")}
+      testId="dc-home"
+      dock={audio ? <Dock><Action onClick={submit}>{C.submit}</Action></Dock> : undefined}
+    >
+      {audio ? (
+        <RecordingCard audio={audio} onRedo={() => { void redo(); }} onChangeFile={() => audioInput.current?.click()} />
+      ) : (
+        <RecordUploadPair
+          onRecord={record}
+          onUpload={() => audioInput.current?.click()}
+          copy={{ startRecording: C.recordTitle, uploadRecording: C.uploadRecording }}
+        />
+      )}
+      <input
+        ref={audioInput}
+        hidden
+        type="file"
+        data-testid="dc-audio-input"
+        accept={acceptFor('audio')}
+        onChange={(e) => { void pickAudio(e.target.files?.[0]); e.target.value = ''; }}
+      />
+      {audioProblem ? (
+        <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{audioProblem === 'too_large' ? C.tooLarge : C.notAudio}</p>
       ) : null}
 
-      <SectionHeading chip={C.optional}>{C.lessonPlan}</SectionHeading>
-      <PlanPicker plan={plan} disabled={!ready} onOpen={() => { setPlanProblem(null); setPlanSheet(true); }} />
+      {audio ? (
+        <>
+          <SectionHeading chip={C.optional}>{C.lessonPlan}</SectionHeading>
+          <PlanPicker plan={plan} onOpen={() => { setPlanProblem(null); setPlanSheet(true); }} />
 
-      <SectionHeading chip={C.noFaces}>{C.photos}</SectionHeading>
-      <p className="mx-1 -mt-1 truncate text-[14px] text-[#6b7280]">{C.photosHint}</p>
-      <PhotoGrid photos={photos} onChange={setPhotos} testId="dc-photos-input" />
+          <SectionHeading chip={[C.upToPhotos(DC_MAX_PHOTOS), C.noFaces]}>{C.photos}</SectionHeading>
+          <p className="mx-1 -mt-1 truncate text-[14px] text-[#6b7280]">{C.photosHint}</p>
+          <PhotoGrid photos={photos} onChange={setPhotos} testId="dc-photos-input" max={DC_MAX_PHOTOS} />
+        </>
+      ) : null}
 
-      <div className="mt-3.5 flex flex-col gap-2.5">
-        <button
-          type="button"
-          disabled={!ready}
-          onClick={() => go('record')}
-          className={cn(
-            'flex h-14 items-center justify-center gap-2.5 rounded-2xl border-[1.5px] text-[16px] font-semibold',
-            ready ? 'border-[#33374a] bg-[#33374a] text-white' : 'border-[#e5e7eb] bg-[#e5e7eb] text-[#6b7280]',
-            FOCUS,
-          )}
-        >
-          <i aria-hidden="true" className={cn('h-3 w-3 rounded-full', ready ? 'bg-[#ff4d3d] shadow-[0_0_0_4px_rgba(255,77,61,0.3)]' : 'bg-[#9ca3af]')} />
-          {C.startRecording}
-        </button>
-        <button
-          type="button"
-          disabled={!ready}
-          onClick={() => audioInput.current?.click()}
-          className={cn(
-            'flex h-14 items-center justify-center gap-2.5 rounded-2xl border-[1.5px] text-[16px] font-semibold',
-            ready ? 'border-[#c7cad6] bg-white text-[#33374a]' : 'border-[#e5e7eb] bg-[#e5e7eb] text-[#6b7280]',
-            FOCUS,
-          )}
-        >
-          <Upload className="h-5 w-5" strokeWidth={2.2} aria-hidden="true" />
-          {C.uploadRecording}
-        </button>
-        <input
-          ref={audioInput}
-          hidden
-          type="file"
-          data-testid="dc-audio-input"
-          accept={acceptFor('audio')}
-          onChange={(e) => { pickAudio(e.target.files?.[0]); e.target.value = ''; }}
-        />
-      </div>
-
-      <div className="mt-3">
-        <HistoryList
-          heading={C.recent}
-          collapsible
-          defaultOpen={false}
-          groups={groups}
-          showMore={false}
-          seeAllTo={COACHING_ALL}
-          emptyLabel={C.noneYet}
-        />
-      </div>
+      {/* While a recording is being sent off, the page is that one task: Recent is back when she has none on it. */}
+      {audio ? null : (
+        <div className="mt-3">
+          <HistoryList
+            heading={C.recent}
+            collapsible
+            defaultOpen={false}
+            groups={groups}
+            showMore={false}
+            seeAllTo={COACHING_ALL}
+            emptyLabel={C.noneYet}
+          />
+        </div>
+      )}
 
       <PlanSheet
         words={C.picker}
         open={planSheet}
         onClose={() => setPlanSheet(false)}
         onPick={(p) => { setPlan({ kind: 'library', ...p }); setPlanSheet(false); }}
-        onLibrary={() => { setPlanSheet(false); holdDraft({ combo, plan, photos }); navigate(teacherPath('lessons')); }}
+        onLibrary={() => { setPlanSheet(false); holdDraft({ audio, plan, photos }); navigate(teacherPath('lessons')); }}
         onFile={(file, asPhoto) => {
           setPlanProblem(null);
           if (!file) return false;

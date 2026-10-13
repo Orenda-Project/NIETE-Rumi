@@ -25,12 +25,11 @@ const BANDS_EN = Object.fromEntries(BAND_THRESHOLDS.map((b) => [b.key, b.label])
 export const COACHING_V2_COPY = {
   title: 'Digital Coaching',
   home: 'Home',
-  /* the hub */
-  yourClass: 'Your class',
-  selectClass: 'Select your class',
+  /* the hub (bd-fmf24g.76: no class; Record lesson and Upload recording first, then the rest once a recording is on the page) */
   lessonPlan: 'Lesson plan',
   optional: 'Optional',
-  selectPlan: 'Select lesson plan',
+  /** The empty lesson plan row: a noun, as every prompt (niete-portal: never "Select ..."). */
+  selectPlan: 'Lesson plan',
   planPhoto: 'Plan photo',
   planFallback: 'Lesson plan',
   change: 'Change',
@@ -39,9 +38,9 @@ export const COACHING_V2_COPY = {
   noFaces: 'No faces',
   addPhoto: 'Add photo',
   removePhoto: (n: number) => `Remove photo ${n}`,
-  upToThree: 'Up to 3 photos',
+  /** The photo cap said aloud: ten here, three for the coach (one grid, parts.tsx PhotoGrid). */
+  upToPhotos: (n: number) => `Up to ${n} photos`,
   notAPhoto: 'Not a photo',
-  startRecording: 'Start recording',
   uploadRecording: 'Upload recording',
   recent: 'Recent DC Observations',
   noneYet: 'No DC observations yet',
@@ -62,8 +61,8 @@ export const COACHING_V2_COPY = {
   keepAppOpen: 'Keep app open',
   micBlocked: 'Microphone blocked',
   tryAgain: 'Try again',
-  /* check and send */
-  checkTitle: 'Check and send',
+  /* the recording on the page, and the page's one Submit */
+  submit: 'Submit',
   /** A DC observation with no topic or subject: its own name. */
   dcObservation: 'DC observation',
   minutes: (n: number) => `${n} min`,
@@ -144,11 +143,9 @@ export const COACHING_V2_COPY = {
 export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   title: 'ڈیجیٹل کوچنگ',
   home: 'ہوم',
-  yourClass: 'آپ کی کلاس',
-  selectClass: 'اپنی کلاس چنیں',
   lessonPlan: 'لیسن پلان',
   optional: 'اختیاری',
-  selectPlan: 'لیسن پلان چنیں',
+  selectPlan: 'لیسن پلان',
   planPhoto: 'پلان کی تصویر',
   planFallback: 'لیسن پلان',
   change: 'تبدیل کریں',
@@ -157,9 +154,8 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   noFaces: 'چہرے نہ دکھائیں',
   addPhoto: 'تصویر شامل کریں',
   removePhoto: (n: number) => `تصویر ${n} ہٹائیں`,
-  upToThree: '3 تصاویر تک',
+  upToPhotos: (n: number) => `${n} تصاویر تک`,
   notAPhoto: 'یہ تصویر نہیں',
-  startRecording: 'ریکارڈنگ شروع کریں',
   uploadRecording: 'ریکارڈنگ اپ لوڈ کریں',
   recent: 'حالیہ ڈیجیٹل کوچنگ مشاہدات',
   noneYet: 'ابھی کوئی ڈیجیٹل کوچنگ مشاہدہ نہیں',
@@ -179,7 +175,8 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   keepAppOpen: 'ایپ کھلی رکھیں',
   micBlocked: 'مائیک کی اجازت نہیں',
   tryAgain: 'دوبارہ کوشش کریں',
-  checkTitle: 'دیکھیں اور بھیجیں',
+  // The training portal's own word for Submit (teacher/training/copy.ts submit).
+  submit: 'جمع کرائیں',
   dcObservation: 'ڈیجیٹل کوچنگ مشاہدہ',
   minutes: (n: number) => `${n} منٹ`,
   listen: 'سنیں',
