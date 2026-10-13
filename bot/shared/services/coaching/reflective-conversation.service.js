@@ -411,6 +411,7 @@ class ReflectiveConversationService {
       } else {
         // All questions answered - proceed to report generation
         let portalAcknowledgement = null;
+        let portalAcknowledgementAudioUrl;
         // Get user's language for thank you message
         const { data: sessionData } = await supabase
           .from('coaching_sessions')
@@ -449,7 +450,29 @@ class ReflectiveConversationService {
           const spokenForm = closingText.replace(/\s*🙏\s*$/u, '');
 
           // bd-7kc2z: silent (portal) — the acknowledgement above is returned
-          // to the caller instead of being voiced. Nothing reaches WhatsApp.
+          // to the caller. Nothing reaches WhatsApp.
+          // bd-ncfml5 — ICT feedback (IAB Experience View, row 7): on WhatsApp this closer is always a voice
+          // note, so the portal plays it too. The SAME synthesis as below; the audio goes to R2 and its URL back
+          // with the words. If it cannot be voiced, the words alone come back (WhatsApp's text fallback).
+          if (silent) {
+            try {
+              const voice = await tts.synthesize({
+                text: spokenForm,
+                language: languageCode,
+                useCase: 'coaching',
+                site: 'closer',
+                deadlineMs: CLOSER_VOICE_DEADLINE_MS,
+              });
+              const { uploadBuffer } = require('../../storage/r2');
+              portalAcknowledgementAudioUrl = await uploadBuffer(
+                voice.audio, `reflection_closers/${sessionData.user_id}/${coachingSessionId}_closer.ogg`, 'audio/ogg',
+              );
+            } catch (voiceError) {
+              logToFile('Reflection closer could not be voiced for the portal — returning the words', {
+                coachingSessionId, error: voiceError.message,
+              }, 'warn');
+            }
+          }
           if (!silent) {
           try {
             // The report is queued only after this closer, so its voice gets a
@@ -499,7 +522,12 @@ class ReflectiveConversationService {
         // for the report. The WhatsApp path returns undefined as it always has.
         if (silent) {
           logToFile('✅ Reflective response handled', { coachingSessionId, questionsAnswered, silent });
-          return { done: true, acknowledgement: portalAcknowledgement, reportStatus: 'generating' };
+          return {
+            done: true,
+            acknowledgement: portalAcknowledgement,
+            ...(portalAcknowledgementAudioUrl ? { acknowledgementAudioUrl: portalAcknowledgementAudioUrl } : {}),
+            reportStatus: 'generating',
+          };
         }
       }
 

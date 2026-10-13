@@ -289,7 +289,7 @@ export const portal = {
   },
 
   submitCoachingReflection: async (id: string, answer: string): Promise<{
-    done?: boolean; acknowledgement?: string | null; reportStatus?: string;
+    done?: boolean; acknowledgement?: string | null; acknowledgementAudioUrl?: string; reportStatus?: string;
   }> => {
     const response = await api.post(`/coaching-session/${id}/reflection`, { answer });
     return response.data;
@@ -300,7 +300,7 @@ export const portal = {
    * it acknowledges, so this waits longer than a typed answer (the dashboard gives the bot 90 s).
    */
   submitCoachingVoiceReflection: async (id: string, audioKey: string): Promise<{
-    done?: boolean; acknowledgement?: string | null; reportStatus?: string;
+    done?: boolean; acknowledgement?: string | null; acknowledgementAudioUrl?: string; reportStatus?: string;
   }> => {
     const response = await api.post(`/coaching-session/${id}/reflection`, { audioKey }, { timeout: 120_000 });
     return response.data;
