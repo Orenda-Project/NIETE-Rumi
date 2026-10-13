@@ -162,7 +162,8 @@ function CourseTileCard({ tile: t }: { tile: CourseTile }) {
         </span>
       </span>
       <span className="flex flex-col items-start gap-1">
-        <b className="text-[18px] font-semibold leading-tight">{t.label}</b>
+        {/* The renamed programmes run to 80 characters (bd-2gia5l): a long name steps down a size. */}
+        <b className={cn('font-semibold leading-tight', Array.from(t.label).length > 32 ? 'text-[15px]' : 'text-[18px]')}>{t.label}</b>
         {t.done ? <StatusChip text={C.done} tone="done" /> : (
           <span className="text-[13px] text-[#6b7280]">{[C.pct(t.pct), sub].filter(Boolean).join(' · ')}</span>
         )}

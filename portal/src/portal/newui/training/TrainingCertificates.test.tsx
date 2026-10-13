@@ -6,7 +6,7 @@ import { CERTIFICATES, trainingGet } from "../../../test/trainingFixtures";
 
 /**
  * bd-5rz1v.25 — Certificates (deep-screens.html, Training 9): FilterChips "All 4" and one per
- * provider ("NIETE 1", "Beacon 2", "Oxbridge 1"; the picked one indigo), then a row each: a
+ * provider ("NIETE 1", "AI Pedagogy 2", "GBTLA 1"; the picked one indigo), then a row each: a
  * neutral award icon, "NIETE · Aspiring", a date chip, a download action.
  *
  * View and Download keep CertificatesPanel's rules (bd-2397, bd-2676):
@@ -66,11 +66,11 @@ afterEach(() => vi.restoreAllMocks());
 const rows = () => within(screen.getByRole("list", { name: "Certificates" })).getAllByRole("listitem");
 
 describe("the list", () => {
-  it("the light bar, title 'Certificates'; filters All 4 / NIETE 1 / Beacon 2 / Oxbridge 1, All picked", async () => {
+  it("the light bar, title 'Certificates'; filters All 4 / NIETE 1 / AI Pedagogy 2 / GBTLA 1, All picked", async () => {
     renderAt();
     expect(await screen.findByRole("heading", { level: 1, name: "Certificates" })).toBeInTheDocument();
     const filters = await screen.findByRole("radiogroup", { name: "Providers" });
-    expect(within(filters).getAllByRole("radio").map((r) => r.textContent)).toEqual(["All 4", "NIETE 1", "Beacon 2", "Oxbridge 1"]);
+    expect(within(filters).getAllByRole("radio").map((r) => r.textContent)).toEqual(["All 4", "NIETE 1", "AI Pedagogy 2", "GBTLA 1"]);
     expect(within(filters).getByRole("radio", { name: "All 4" })).toHaveAttribute("aria-checked", "true");
   });
 
@@ -79,15 +79,15 @@ describe("the list", () => {
     await screen.findByText("NIETE · Aspiring");
     const r = rows();
     expect(r.map((li) => li.querySelector("[data-chip]")?.textContent)).toEqual(["3 Oct", "20 Sep", "11 Sep", "2 Sep"]);
-    expect(within(r[1]).getByText("Beacon · English")).toBeInTheDocument();
+    expect(within(r[1]).getByText("AI Pedagogy · English")).toBeInTheDocument();
     expect(r[0].querySelector("[data-testid=newui-row-tile]")?.className).toContain("bg-nu-neutral-tile");
   });
 
   it("a provider chip filters, and is indigo once picked", async () => {
     renderAt();
-    fireEvent.click(await screen.findByRole("radio", { name: "Beacon 2" }));
-    expect(screen.getByRole("radio", { name: "Beacon 2" })).toHaveAttribute("aria-checked", "true");
-    expect(rows().map((li) => li.textContent)).toEqual([expect.stringContaining("Beacon · English"), expect.stringContaining("Beacon · Maths")]);
+    fireEvent.click(await screen.findByRole("radio", { name: "AI Pedagogy 2" }));
+    expect(screen.getByRole("radio", { name: "AI Pedagogy 2" })).toHaveAttribute("aria-checked", "true");
+    expect(rows().map((li) => li.textContent)).toEqual([expect.stringContaining("AI Pedagogy · English"), expect.stringContaining("AI Pedagogy · Maths")]);
   });
 
   it("none yet: Nothing yet", async () => {
