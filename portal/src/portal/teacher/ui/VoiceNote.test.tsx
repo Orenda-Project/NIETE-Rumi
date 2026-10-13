@@ -83,3 +83,23 @@ describe("VoiceNote", () => {
     expect(screen.getByRole("button", { name: "چلائیں" })).toBeInTheDocument();
   });
 });
+
+/**
+ * bd-phk3v4 — ICT feedback (IAB Experience View, row 8): in Urdu the voice note starts from the LEFT, as WhatsApp's
+ * does — play on the left, the waveform filling left to right — while the sender's name stays in the page's
+ * (right-aligned) direction.
+ */
+describe("VoiceNote in an Urdu page (bd-phk3v4)", () => {
+  it("the player runs left to right; the name keeps the page direction", () => {
+    const { container } = render(
+      <div dir="rtl"><VoiceNote from="ڈیجیٹل کوچ" avatar="dc" duration="1:24" time="10:42" /></div>,
+    );
+    const play = screen.getByRole("button", { name: /play/i });
+    const row = play.parentElement as HTMLElement;
+    expect(row.getAttribute("dir")).toBe("ltr");
+    expect(play.querySelector("svg")?.getAttribute("class") ?? "").not.toMatch(/scale-x/);
+    const name = screen.getByText("ڈیجیٹل کوچ");
+    expect(name.closest("[dir=ltr]")).toBeNull();
+    expect(container.querySelector("[dir=rtl]")).toBeTruthy();
+  });
+});
