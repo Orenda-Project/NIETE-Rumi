@@ -87,7 +87,7 @@ class LessonPlanExtractionWorker {
         }
       }
 
-      const { text: extractedText, parser: parserUsed } = isPaste
+      let { text: extractedText, parser: parserUsed } = isPaste
         ? { text: pastedText.trim(), parser: 'pasted_text' }
         : await this.extractText(fileBuffer, detectedType);
       logToFile('Lesson plan text extracted', {
@@ -96,45 +96,35 @@ class LessonPlanExtractionWorker {
         parserUsed,
         textLength: extractedText?.length || 0
       });
+
+      let structuredData = await this.structureText(extractedText, coachingSessionId, detectedType);
+
+      // bd-fe35j9 — a typed Urdu PDF has a text layer, so pdf-parse "succeeds",
+      // but the Urdu comes out as broken glyphs and NUL bytes and the parser
+      // calls it not-a-lesson-plan. Before telling the teacher that, read the
+      // FILE once through the vision model, which reads the page as rendered.
+      if (isLikelyLessonPlan(structuredData) === false
+          && LessonPlanExtractionWorker.canRetryWithVision({ isPaste, detectedType, parserUsed })) {
+        const retry = await this.readWithVision(fileBuffer, detectedType, coachingSessionId);
+        if (retry) {
+          const retryStructured = await this.structureText(retry.text, coachingSessionId, detectedType);
+          const accepted = isLikelyLessonPlan(retryStructured) === true;
+          logToFile('Lesson plan vision re-read after not-LP verdict', {
+            coachingSessionId,
+            firstParser: parserUsed,
+            textLength: retry.text.length,
+            accepted
+          });
+          if (accepted) {
+            extractedText = retry.text;
+            parserUsed = retry.parser;
+            structuredData = retryStructured;
+          }
+        }
+      }
+
       const excerpt = this.createSafeExcerpt(extractedText, 500);
       const wordCount = extractedText ? extractedText.split(/\s+/).filter(Boolean).length : 0;
-
-      let structuredData = null;
-      if (extractedText && extractedText.length >= 50) {
-        structuredData = await this.parseWithGPT4oMini(extractedText);
-        if (structuredData) {
-          structuredData.objectives = structuredData.objectives || [];
-          structuredData.prior_knowledge = structuredData.prior_knowledge || [];
-          structuredData.materials = structuredData.materials || [];
-          structuredData.resources_detail = structuredData.resources_detail || [];
-          structuredData.assessment_methods = structuredData.assessment_methods || [];
-          structuredData.assessment_protocols = structuredData.assessment_protocols || [];
-          structuredData.activities = structuredData.activities || [];
-          structuredData.annexures = structuredData.annexures || [];
-          structuredData.assessment_sequences = structuredData.assessment_sequences || [];
-          structuredData.textbook_references = structuredData.textbook_references || [];
-          structuredData.planned_questions = structuredData.planned_questions || [];
-          structuredData.resource_pages = structuredData.resource_pages || [];
-          logToFile('Lesson plan structured data parsed', {
-            coachingSessionId,
-            objectiveCount: structuredData.objectives.length,
-            priorKnowledgeEntries: structuredData.prior_knowledge.length,
-            materialsCount: structuredData.materials.length,
-            assessmentSequences: structuredData.assessment_sequences.length
-          });
-        } else {
-          logToFile('⚠️ Lesson plan structured data parsing returned null', {
-            coachingSessionId,
-            textSample: extractedText.substring(0, 200)
-          });
-        }
-      } else {
-        logToFile('⚠️ Lesson plan text insufficient for structured parsing', {
-          coachingSessionId,
-          detectedType,
-          textLength: extractedText?.length || 0
-        });
-      }
 
       // Guard against a non-lesson-plan document (a leave letter, a
       // notice) being silently accepted as a plan. If the parsed content shows
@@ -242,6 +232,69 @@ class LessonPlanExtractionWorker {
         coachingSessionId, error: e.message,
       });
       return { recomputed: false, reason: 'error' };
+    }
+  }
+
+  /** Parse extracted text into the LP schema with every array defaulted; null when too short or unparseable. */
+  static async structureText(text, coachingSessionId, detectedType) {
+    if (!text || text.length < 50) {
+      logToFile('⚠️ Lesson plan text insufficient for structured parsing', {
+        coachingSessionId,
+        detectedType,
+        textLength: text?.length || 0
+      });
+      return null;
+    }
+    const structuredData = await this.parseWithGPT4oMini(text);
+    if (!structuredData) {
+      logToFile('⚠️ Lesson plan structured data parsing returned null', {
+        coachingSessionId,
+        textSample: text.substring(0, 200)
+      });
+      return null;
+    }
+    structuredData.objectives = structuredData.objectives || [];
+    structuredData.prior_knowledge = structuredData.prior_knowledge || [];
+    structuredData.materials = structuredData.materials || [];
+    structuredData.resources_detail = structuredData.resources_detail || [];
+    structuredData.assessment_methods = structuredData.assessment_methods || [];
+    structuredData.assessment_protocols = structuredData.assessment_protocols || [];
+    structuredData.activities = structuredData.activities || [];
+    structuredData.annexures = structuredData.annexures || [];
+    structuredData.assessment_sequences = structuredData.assessment_sequences || [];
+    structuredData.textbook_references = structuredData.textbook_references || [];
+    structuredData.planned_questions = structuredData.planned_questions || [];
+    structuredData.resource_pages = structuredData.resource_pages || [];
+    logToFile('Lesson plan structured data parsed', {
+      coachingSessionId,
+      objectiveCount: structuredData.objectives.length,
+      priorKnowledgeEntries: structuredData.prior_knowledge.length,
+      materialsCount: structuredData.materials.length,
+      assessmentSequences: structuredData.assessment_sequences.length
+    });
+    return structuredData;
+  }
+
+  /** bd-fe35j9 — only a PDF or image file the vision model has not already read gets a second read. */
+  static canRetryWithVision({ isPaste, detectedType, parserUsed }) {
+    if (isPaste) return false;
+    if (String(parserUsed || '').startsWith('vision:')) return false;
+    return ['pdf', 'png', 'jpg', 'jpeg'].includes(String(detectedType || '').toLowerCase());
+  }
+
+  /** bd-fe35j9 — read the file through the vision model; null when it yields nothing. Never throws. */
+  static async readWithVision(buffer, detectedType, coachingSessionId) {
+    const visionOcr = require('../shared/services/lp-vision-ocr.service');
+    const lowerType = String(detectedType || '').toLowerCase();
+    try {
+      const text = lowerType === 'pdf'
+        ? await visionOcr.extractTextFromPdf(buffer)
+        : await visionOcr.extractTextFromImage(buffer, `image/${lowerType === 'jpg' ? 'jpeg' : lowerType}`);
+      const trimmed = (text || '').trim();
+      return trimmed.length >= 20 ? { text: trimmed, parser: 'vision:not_lp_retry' } : null;
+    } catch (err) {
+      logToFile('Lesson plan vision re-read failed (keeping first verdict)', { coachingSessionId, error: err.message });
+      return null;
     }
   }
 
