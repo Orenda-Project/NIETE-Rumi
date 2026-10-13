@@ -227,6 +227,21 @@ describe('a live run is scored as today and keeps the live count beside it', () 
     await expectFail(Ch.submit({ ct, key, ms: 60000 }), 409, 'already_done');
   });
 
+  test('a live run the scorer could not count still keeps its live numbers on the failed row', async () => {
+    db.app_settings.push(LIVE);
+    const ct = await readCt();
+    await Ch.liveKey({ ct });
+    const { key } = await Ch.presignUpload({ ct, type: 'audio/webm', size: 500000 });
+    r2.downloadFromR2.mockResolvedValue(clip(60));
+    AudioService.transcribe.mockResolvedValue(heard(0, 1.3));
+    llm.__create.mockResolvedValue(marks(enTokens().map(() => 'skipped')));
+    const r = await Ch.submit({ ct, key, ms: 60000, live: { correct: 30, attempted: 34, secs: 60 } }, { waitMs: 60000 });
+    expect(r).toMatchObject({ failed: true, reason: 'unheard' });
+    const row = db.web_quiz_challenge_runs.find((x) => x.id === T.verify(ct, 'c').r);
+    expect(row.status).toBe('failed');
+    expect(row.meta.live).toEqual({ correct: 30, attempted: 34, secs: 60, v: 1 });
+  });
+
   test('live numbers that cannot be true are dropped, never stored', async () => {
     db.app_settings.push(LIVE);
     const ct = await readCt();
