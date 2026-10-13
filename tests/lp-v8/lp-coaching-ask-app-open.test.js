@@ -180,6 +180,21 @@ describe('a K-5 plan read in the app books the coaching ask', () => {
     expect(buttons).toContain(`lpask_yes_${row.id}`);
   });
 
+  test('the row records the version the app SERVED at the open — a push after the open does not change it', async () => {
+    // v8-1 was current when she opened; a new version lands a minute later, before the bot is told.
+    const [served] = mockDb.rows('niete_lp_assets');
+    Object.assign(served, { created_at: new Date(NOW.getTime() - 86400e3).toISOString(), is_current: false,
+      superseded_at: new Date(NOW.getTime() + 60_000).toISOString() });
+    mockDb.rows('niete_lp_assets').push({
+      ...asset(LESSON), id: `asset-${LESSON}-new`, version_stamp: 'v8-2', content_hash: 'ccdd', is_current: true,
+      created_at: new Date(NOW.getTime() + 60_000).toISOString(),
+    });
+    jest.setSystemTime(new Date(NOW.getTime() + 2 * 60_000));
+    await postOpen(OPEN_1);
+    const [row] = asks();
+    expect(row.context).toMatchObject({ lesson_id: LESSON, asset_id: `asset-${LESSON}`, version_stamp: 'v8-1', content_hash: 'aabb' });
+  });
+
   test('a plan opened after 14:00 PKT waits for 07:30 on the next school day, as on WhatsApp', async () => {
     const afternoon = new Date('2026-10-13T10:30:00Z'); // 15:30 PKT
     jest.setSystemTime(afternoon);
