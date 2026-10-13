@@ -197,7 +197,9 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
         </>
       ) : null}
 
-      {detail?.lessonAudioUrl ? (
+      {/* bd-kn3m1a — ICT feedback row 10: a DC report does not show her recording (or, below, her Q&A) again; the
+          order is her answer, the audio summary, then the comprehensive report. A coach's visit report keeps it. */}
+      {isVisit && detail?.lessonAudioUrl ? (
         <>
           <SectionHeading>{C.yourRecording}</SectionHeading>
           <AudioPlayer src={detail.lessonAudioUrl} label={C.yourRecording} copy={C.audio} />
@@ -303,7 +305,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
         )
       ) : null}
 
-      {ready && answered.length ? (
+      {ready && isVisit && answered.length ? (
         <>
           <button
             type="button"
@@ -329,6 +331,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
 
       {ready && detail ? (
         <div className="mt-2">
+          {isVisit ? null : <SectionHeading>{C.fullReport}</SectionHeading>}
           <ReportBody data={toReportData(detail, { teacher: fullName(user), journey, words: C, days })} />
         </div>
       ) : null}

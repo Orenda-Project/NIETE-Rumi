@@ -109,6 +109,8 @@ export const COACHING_V2_COPY = {
   /* bd-9d1cmi — ICT feedback (IAB Experience View, row 9), ICT's own words: the debrief is her lesson report's audio summary, not a
      random voice message. Past the 4-word rule on purpose (longOk + the checks' exemption). */
   voiceNote: 'Audio Summary of Your Lesson Report',
+  /* bd-kn3m1a — ICT feedback row 10: the heading over the DC report, after the audio summary. */
+  fullReport: 'Your Comprehensive Lesson Report',
   yourRecording: 'Your recording',
   yourAnswer: 'Your answer',
   answerSent: 'Answer sent',
@@ -227,6 +229,7 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   yourTurn: 'آپ کی باری',
   now: 'ابھی',
   voiceNote: 'آپ کے سبق کی رپورٹ کا آڈیو خلاصہ',
+  fullReport: 'آپ کے سبق کی مکمل رپورٹ',
   yourRecording: 'آپ کی ریکارڈنگ',
   yourAnswer: 'آپ کا جواب',
   answerSent: 'جواب بھیجا گیا',
@@ -285,5 +288,5 @@ export const COPY_ENTRY: CopyEntry = {
   screen: 'Digital Coaching',
   module: COACHING as Bilingual<unknown>,
   // "DC observation" is ڈیجیٹل کوچنگ مشاہدہ (three words, the ontology's own name): it adds to a sentence of three.
-  longOk: ['noneYet', 'notFound', 'openLesson', 'openThat', 'photosHint', 'subReflection', 'voiceNote'],
+  longOk: ['noneYet', 'notFound', 'openLesson', 'openThat', 'photosHint', 'subReflection', 'voiceNote', 'fullReport'],
 };
