@@ -72,6 +72,14 @@ chk "W7d CI ignores --headed" \
 chk "W7e WEB_HEADED=1 in the environment cannot sneak a window into a commit run" \
     "$(E2E_TRIGGER=commit WEB_HEADED=1 bash "$SH" portal-login --print-plan 2>&1 | sed -nE 's/^HEADED=//p')" "0"
 
+# W8 — the WhatsApp half of a round-trip scenario talks to THIS run's mock WhatsApp, on the slot's mock port.
+chk "W8 mock WhatsApp URL is the slot's mock port" \
+    "$(printf '%s\n' "$plan" | sed -nE 's/^MOCK_URL=//p')" "http://127.0.0.1:4013"
+# W9 — the local bot's links point at THIS stack's portal (dev-portal.sh), not the Vite dev port in local-lane.env.
+grep -q 'PORTAL_URL=http://localhost:\$PORTAL_PORT' "$ROOT/scripts/dev-portal.sh" \
+  && ok "W9 dev-portal.sh gives the bot PORTAL_URL=http://localhost:\$PORTAL_PORT" \
+  || no "W9 dev-portal.sh gives the bot PORTAL_URL=http://localhost:\$PORTAL_PORT"
+
 # W5 — wired into npm, like e2e:mock.
 chk "W5 npm run e2e:web" "$(node -p "require('$ROOT/package.json').scripts['e2e:web']" 2>/dev/null)" "bash scripts/qa/e2e-web.sh"
 

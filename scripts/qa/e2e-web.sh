@@ -126,7 +126,7 @@ export WEB_HEADED="$HEADED"
 if [ "$HEADED" = 1 ]; then export WEB_SLOWMO="${WEB_SLOWMO:-600}"; else export WEB_SLOWMO=0; fi
 
 if [ -n "$PLAN" ]; then
-  slot_ports "$SLOT"; echo "DATA=$DATA"; echo "RUN_DIR=$RUN_DIR"; echo "EVIDENCE=$EVIDENCE_REL"; echo "FEATURE=$FEATURE"; echo "BASE_URL=$BASE_URL"; echo "HEADED=$HEADED"
+  slot_ports "$SLOT"; echo "DATA=$DATA"; echo "RUN_DIR=$RUN_DIR"; echo "EVIDENCE=$EVIDENCE_REL"; echo "FEATURE=$FEATURE"; echo "BASE_URL=$BASE_URL"; echo "HEADED=$HEADED"; echo "MOCK_URL=http://127.0.0.1:$((4010+SLOT))"
   exit 0
 fi
 
@@ -158,6 +158,8 @@ printf '%s' "$want" > "$DIST/.portal-tree" 2>/dev/null || true
 # --- drive -------------------------------------------------------------------------------------------------------
 EVIDENCE="$REPO/$EVIDENCE_REL"; mkdir -p "$EVIDENCE"
 PGB="$(pg_bin)"
+read -r RUN_MOCK_PORT _rest < "$RUN_DIR/ports" 2>/dev/null || RUN_MOCK_PORT="$MOCK_PORT"
+WEB_MOCK_URL="http://127.0.0.1:$RUN_MOCK_PORT" \
 WEB_FEATURE="$FEATURE" WEB_BASE_URL="$BASE_URL" WEB_EVIDENCE="$EVIDENCE" WEB_ONLY="$ONLY" \
 WEB_PSQL="${PGB:+$PGB/}psql" WEB_PG_PORT="${LOCAL_DB_PG_PORT:-54329}" WEB_DB_NAME="$(cat "$RUN_DIR/db/db.name" 2>/dev/null)" \
   node "$REPO/.claude/qa/web/web-runner.cjs"
