@@ -24,15 +24,17 @@
  *   grade, subject, chapter_number, segment_index   from the v8 catalogue (lessonById) — the
  *       very fields lp-v8-delivery writes on a download (book.grade, book.subject_key), so a
  *       teacher who took one lesson on each surface gets ONE class, not two.
- *   asset_id, version_stamp, content_hash           the LESSON asset the app's Open picks for
- *       her (lp-v8-browse lessonPdfUrl → lp-ab-ch310): her A/B group's August version, else
- *       the current one. Picked with lp-ab-ch310's pickAsset over a batch read — no presigning,
- *       no per-lesson query. An answer key is never resolved (the portal records an answer-key
+ *   asset_id, version_stamp, content_hash           the LESSON asset the app's Open picked for
+ *       her AT opened_at (lp-v8-browse lessonPdfUrl → lp-ab-ch310): her A/B group's August
+ *       version, else the row current at that moment (created_at ≤ opened_at, not superseded
+ *       by then — niete_lp_assets.superseded_at). Picked with lp-ab-ch310's pickAsset over a
+ *       batch read — no presigning, no per-lesson query. An answer key is never resolved (the portal records an answer-key
  *       open under the same plan_ref, and an answer key is never a quiz source); a lesson with
  *       no lesson asset for her is dropped, as the app could not have served it.
  *   created_at                                      opened_at, the moment she took it.
- * The pick is made at read time. If a new version became current between her open and the
- * read, the newer one is named — the same version the app would serve her now.
+ * A version pushed between her open and the 15:00 read does not replace the one she saw (pushes
+ * do land inside school hours). The assets read covers every row of the opened lessons, so it
+ * is resolved over the whole window before the caller's `keep` runs; the window is small.
  *
  * ONE LESSON, ONE ROW (switch on). Per (teacher, lesson): the WhatsApp row if there is one
  * (it records the exact version delivered), dated by the EARLIEST surface time. `surface` says
@@ -57,7 +59,7 @@ const LpAb = require('../lp-ab-ch310.service');
 const SWITCH_KEY = 'lp_quiz_app_lessons';
 const IN_CHUNK = 200;
 const OPEN_SELECT = 'id, user_id, plan_ref, opened_at';
-const ASSET_SELECT = 'id, lesson_id, asset_kind, version_stamp, content_hash, is_current, created_at';
+const ASSET_SELECT = 'id, lesson_id, asset_kind, version_stamp, content_hash, is_current, superseded_at, created_at';
 /** What the 15:00 cohort has always read from a download — unchanged. */
 const WINDOW_DOWNLOAD_SELECT = 'user_id, lesson_id, asset_id, version_stamp, content_hash, grade, subject, chapter_number, segment_index, created_at';
 /** What the /quiz list has always read from a download — unchanged. */
@@ -163,7 +165,9 @@ async function resolveOpens(opens) {
   const out = [];
   let unserved = 0;
   for (const h of hits) {
-    const a = LpAb.pickAsset({ group: groupOf(h), lessonId: h.open.plan_ref, assetKind: 'lesson', assets });
+    const a = LpAb.pickAsset({
+      group: groupOf(h), lessonId: h.open.plan_ref, assetKind: 'lesson', assets, at: h.open.opened_at,
+    });
     if (!a) { unserved += 1; continue; }
     out.push({
       id: h.open.id,

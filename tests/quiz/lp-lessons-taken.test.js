@@ -212,7 +212,8 @@ describe('15:00 cohort: a lesson taken in the app counts (switch on)', () => {
       download({ lesson_id: L2, asset_id: `asset-${L2}`, content_hash: `hash-${L2}`, segment_index: 2,
         created_at: pkt(NUDGE_DATE, 11, 0).toISOString() }),
     ];
-    const strip = (rows) => rows.map((r) => ({ ...r, context: { ...r.context, built_at: null } }));
+    // built_at / created_at are wall-clock stamps of the build itself, not cohort content.
+    const strip = (rows) => rows.map((r) => ({ ...r, created_at: null, context: { ...r.context, built_at: null } }));
 
     install({ niete_lp_downloads: downloads, niete_lp_opens: [] });
     await build();
@@ -255,6 +256,25 @@ describe('15:00 cohort: a lesson taken in the app counts (switch on)', () => {
     expect(lessons[0]).toEqual(expect.objectContaining({
       lesson_id: L1, asset_id: 'asset-aug', version_stamp: 'v8-20260820',
       delivered_at: pkt(NUDGE_DATE, 9, 0).toISOString(),
+    }));
+  });
+
+  test('a version pushed between her open and the build does not replace the version she saw', async () => {
+    // She opened L1 at 10:00 PKT while the 15 Sep render was current; a new render landed at
+    // 12:00 PKT and superseded it. The quiz must come from what the app showed her at 10:00.
+    const seen = asset(L1, { id: 'asset-seen', version_stamp: 'v9-20260915', content_hash: 'hash-seen',
+      is_current: false, created_at: '2026-09-15T00:00:00Z', superseded_at: pkt(NUDGE_DATE, 12, 0).toISOString() });
+    const pushed = asset(L1, { id: 'asset-pushed', version_stamp: 'v10-20260922', content_hash: 'hash-pushed',
+      is_current: true, created_at: pkt(NUDGE_DATE, 12, 0).toISOString() });
+    install({
+      niete_lp_opens: [open({ opened_at: pkt(NUDGE_DATE, 10, 0).toISOString() })],
+      niete_lp_assets: [seen, pushed],
+      niete_lp_asset_sources: [source(seen), source(pushed)],
+      app_settings: [SWITCH_ON],
+    });
+    await build();
+    expect(rowOf(T1).context.classes[0].lessons[0]).toEqual(expect.objectContaining({
+      asset_id: 'asset-seen', version_stamp: 'v9-20260915', content_hash: 'hash-seen',
     }));
   });
 
@@ -365,5 +385,21 @@ describe('the A/B picker the reader shares with the app', () => {
     expect(LpAb.pickAsset({ group: 'A', lessonId: 'x_seg4b', assets: rows }).id).toBe('aug-new');
     expect(LpAb.pickAsset({ group: 'A', lessonId: 'y_seg1', assets: rows })).toBeNull();
     expect(LpAb.pickAsset({ group: null, lessonId: 'x_seg4', assetKind: 'answer_key', assets: rows })).toBeNull();
+  });
+
+  test('pickAsset at a moment: the row current then, by created_at and superseded_at; group A ignores rows made later', () => {
+    const rows = [
+      asset('x_seg4', { id: 'old', is_current: false, version_stamp: 'v9-20260901', created_at: '2026-09-01T00:00:00Z', superseded_at: '2026-09-20T00:00:00Z' }),
+      asset('x_seg4', { id: 'cur', is_current: true, version_stamp: 'v9-20260920', created_at: '2026-09-20T00:00:00Z' }),
+      asset('x_seg4', { id: 'aug', is_current: false, version_stamp: 'v8-20260820', created_at: '2026-08-20T00:00:00Z', superseded_at: '2026-09-01T00:00:00Z' }),
+      asset('x_seg4', { id: 'aug-late', is_current: false, version_stamp: 'v8u-20260825', created_at: '2026-09-25T00:00:00Z', superseded_at: '2026-09-25T00:00:00Z' }),
+    ];
+    const at = (iso) => ({ lessonId: 'x_seg4', assets: rows, at: iso });
+    expect(LpAb.pickAsset({ group: null, ...at('2026-09-10T00:00:00Z') }).id).toBe('old');
+    expect(LpAb.pickAsset({ group: 'B', ...at('2026-09-21T00:00:00Z') }).id).toBe('cur');
+    expect(LpAb.pickAsset({ group: null, ...at('2026-08-25T00:00:00Z') }).id).toBe('aug');
+    expect(LpAb.pickAsset({ group: 'A', ...at('2026-09-21T00:00:00Z') }).id).toBe('aug');
+    // Nothing existed yet at that moment (clock skew): the row current now, never nothing.
+    expect(LpAb.pickAsset({ group: null, ...at('2026-01-01T00:00:00Z') }).id).toBe('cur');
   });
 });

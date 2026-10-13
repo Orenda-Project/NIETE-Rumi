@@ -112,16 +112,28 @@ async function assetFor({ group, lessonId, assetKind = 'lesson', current }) {
 /**
  * assetFor over asset rows already in hand — for a reader that resolves many opens at once and
  * must not query per lesson. `assets` holds the lesson's rows (and, for group A, its day-1
- * twin's), each with lesson_id, asset_kind, version_stamp, is_current, created_at. Same rule as
- * assetFor: not A → the current row; A → the newest August row, then the day-1 twin's, else null.
+ * twin's), each with lesson_id, asset_kind, version_stamp, is_current, superseded_at, created_at.
+ * Same rule as assetFor: not A → the current row; A → the newest August row, then the day-1
+ * twin's, else null.
+ *
+ * `at` (optional): the rule as it stood at that moment — the row current THEN (created at or
+ * before it, not yet superseded), and for group A only August rows that existed then. A lesson
+ * with no row at that moment (clock skew) falls back to the rule now.
  */
-function pickAsset({ group, lessonId, assetKind = 'lesson', assets }) {
+function pickAsset({ group, lessonId, assetKind = 'lesson', assets, at = null }) {
+  const t = at ? new Date(at).getTime() : null;
+  const existed = (a) => t === null || new Date(a.created_at).getTime() <= t;
+  const currentAt = (a) => (t === null
+    ? a.is_current
+    : existed(a) && (!a.superseded_at || new Date(a.superseded_at).getTime() > t));
   const of = (id) => (assets || []).filter((a) => a.lesson_id === id && a.asset_kind === assetKind);
-  if (group !== 'A') return of(lessonId).find((a) => a.is_current) || null;
-  const own = newestAugust(of(lessonId));
-  if (own) return own;
   const day1 = day1Of(lessonId);
-  return day1 !== lessonId ? newestAugust(of(day1)) : null;
+  const pick = (strict) => {
+    const keep = (rows) => (strict ? rows.filter(existed) : rows);
+    if (group !== 'A') return of(lessonId).find(strict ? currentAt : (a) => a.is_current) || null;
+    return newestAugust(keep(of(lessonId))) || (day1 !== lessonId ? newestAugust(keep(of(day1))) : null);
+  };
+  return pick(true) || (t !== null ? pick(false) : null);
 }
 
 /**
