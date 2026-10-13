@@ -7,7 +7,8 @@
  */
 import type { SchoolsAnalyticsCounts, SchoolsAnalyticsResponse, SchoolsAnalyticsSchool } from '../types/portal';
 
-export const REGION_ORDER = ['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol', 'Unassigned'] as const;
+// The six ICT regions, the only ones the server counts (bd-s6qbts.4): a school outside them is in no row and no total.
+export const REGION_ORDER = ['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol'] as const;
 
 type Row = [id: string, emis: string | null, name: string, region: string, teachers: number,
   lpsOpened: number, teachersOpenedLp: number, lpsGenerated: number,
@@ -17,7 +18,6 @@ type Row = [id: string, emis: string | null, name: string, region: string, teach
 const ROWS: Row[] = [
   ['s-01', '84980', 'IMCB (VI-XII) Bhatta Jabbar Khurd', 'B.K', 20, 31, 9, 44, 6, 4, 1, 2, 59.2, 6, 61.0, 1],
   ['s-02', '20594', 'IMCB (VI-XII) Chak Jabbar', 'Sihala', 30, 52, 14, 71, 17, 9, 6, 3, 68.4, 17, 55.5, 6],
-  ['s-03', '86871', 'IMSG (I-V) Chak Jalal Kalan', 'Unassigned', 27, 12, 5, 20, 3, 2, 0, 0, 71.0, 3, null, 0],
   ['s-04', '87434', 'IMCB (VI-XII) Dhok Jabbar', 'Sihala', 29, 0, 0, 0, 0, 0, 0, 0, null, 0, null, 0],
   ['s-05', '52845', 'IMCG (VI-XII) F-10/3', 'Urban-II', 35, 88, 21, 120, 27, 15, 6, 4, 62.3, 27, 45.1, 6],
   ['s-06', '75573', 'IMCB (VI-XII) F-5/3', 'Urban-I', 30, 40, 11, 55, 20, 10, 6, 2, 62.0, 20, 51.2, 6],
@@ -29,9 +29,8 @@ const ROWS: Row[] = [
   ['s-12', '31149', 'IMSB (VI-X) Humak', 'Nilore', 38, 44, 15, 60, 8, 3, 9, 2, 82.0, 8, 73.3, 9],
   ['s-13', '40211', 'IMSG (I-V) Nilore', 'Nilore', 18, 19, 7, 25, 4, 2, 1, 0, 64.5, 4, 60.0, 1],
   ['s-14', '55120', 'IMCB (VI-XII) Tarnol', 'Tarnol', 41, 102, 22, 140, 30, 14, 12, 5, 61.8, 30, 57.7, 12],
-  ['s-15', '55188', 'IMSB (I-VIII) Sangjani', 'Tarnol', 15, 4, 2, 6, 1, 1, 0, 0, 49.0, 1, null, 0],
+  ['s-15', null, 'IMSB (I-VIII) Sangjani', 'Tarnol', 15, 4, 2, 6, 1, 1, 0, 0, 49.0, 1, null, 0],
   ['s-16', '61022', 'IMSG (I-X) Kirpa', 'B.K', 22, 28, 8, 33, 9, 4, 2, 1, 57.4, 9, 48.5, 2],
-  ['s-17', null, 'Durbeen', 'Unassigned', 11, 6, 2, 7, 4, 3, 4, 0, 48.0, 4, 44.0, 4],
   ['s-18', '36620', 'IMCG (VI-XII) Sihala', 'Sihala', 33, 57, 16, 80, 15, 8, 3, 2, 66.1, 15, 59.9, 3],
 ];
 
@@ -77,7 +76,7 @@ export function fixtureResponse(opts: { from?: string | null; to?: string | null
     range: { from: opts.from ?? null, to: opts.to ?? null },
     lpOpensLoggedSince: '2026-10-04',
     overview: rollUp(inScope),
-    // Every bucket, whatever the filter (v3 §3), so the chips always carry their counts.
+    // Every region, whatever the filter (v3 §3), so the chips always carry their counts.
     regions: REGION_ORDER.map((region) => ({ region, ...rollUp(FIXTURE_SCHOOLS.filter((s) => s.region === region)) })),
     schools: inScope,
   };

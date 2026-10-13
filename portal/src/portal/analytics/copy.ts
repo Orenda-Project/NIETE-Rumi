@@ -108,7 +108,7 @@ const EN = {
   how: {
     title: 'How these numbers are worked out',
     items: [
-      { term: 'Schools', text: 'Active NIETE schools. Test schools are left out. A school with no region on record is under Unassigned.' },
+      { term: 'Schools', text: 'Active NIETE schools in the six ICT regions: B.K, Sihala, Urban-I, Nilore, Urban-II and Tarnol. Test schools are left out. A school with no region on record, or with a region outside these six, is not shown and not counted in any number.' },
       { term: 'Teachers', text: "Teachers registered at the school today; test accounts are left out. A teacher's activity counts for the school she is at now, so a teacher who moved takes her earlier activity with her." },
       { term: 'LPs opened', text: 'Different lesson plans the school\'s teachers opened in the period: opening the same plan again counts once per teacher. "x of N" is how many of the school\'s N teachers opened at least one. Opens are recorded from 4 Oct 2026, so a period that starts earlier shows fewer than really happened.' },
       { term: 'LPs generated', text: 'Lesson plans the teachers made in the period that came out successfully. Failed attempts are left out.' },
