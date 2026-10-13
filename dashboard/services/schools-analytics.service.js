@@ -9,7 +9,8 @@
  *   loadSchoolsAnalyticsRows(query, range)  two set-based reads (+ one score read), no
  *                                           per-school loop — portal outages have been
  *                                           pool exhaustion, so the cost must not grow
- *                                           with the number of schools.
+ *                                           with the number of schools. Training rides
+ *                                           in the schools read (bd-9vkl9x): no third.
  *   summarizeSchoolsAnalytics(rows, opts)   PURE: rows in, response shape out.
  *
  * No "LPs generated" and no "Coach visits" (operator, 2026-10-13, bd-wfl8oz): human
@@ -34,6 +35,11 @@
  *                     different plans opened; re-opening one counts once per teacher.
  *                     Logged only since LP_OPENS_LOGGED_SINCE.
  *   teachersOpenedLp  distinct teachers among those opens ("x of N").
+ *   trainingModules   distinct (user, module) in teacher_training_progress with completed_at
+ *                     in the window — modules finished; each counted once per teacher, the
+ *                     leader roster's rule (leader-patch.service). History runs from
+ *                     2025-09-15 (migrated), so All time needs no special case (bd-9vkl9x).
+ *   teachersTrained   distinct teachers among those completions ("x of N").
  *   dcObservations    coaching_sessions observation_type IS NULL, status 'completed'.
  *   teachersWithDc    distinct teachers among them ("x of N").
  *   humanObservations observation_type 'leader_observation', status terminal (TERMINAL).
@@ -124,8 +130,8 @@ function sessionPct(scores) {
 // ── the pure summariser ──────────────────────────────────────────────────────
 
 const COUNT_FIELDS = Object.freeze([
-  'teachers', 'lpsOpened', 'teachersOpenedLp', 'dcObservations', 'teachersWithDc',
-  'humanObservations', 'ficoN', 'hitlN',
+  'teachers', 'lpsOpened', 'teachersOpenedLp', 'trainingModules', 'teachersTrained',
+  'dcObservations', 'teachersWithDc', 'humanObservations', 'ficoN', 'hitlN',
 ]);
 
 function emptyAcc() {
@@ -147,6 +153,8 @@ function metrics(a) {
     teachers: a.teachers,
     lpsOpened: a.lpsOpened,
     teachersOpenedLp: a.teachersOpenedLp,
+    trainingModules: a.trainingModules,
+    teachersTrained: a.teachersTrained,
     dcObservations: a.dcObservations,
     teachersWithDc: a.teachersWithDc,
     humanObservations: a.humanObservations,
@@ -162,7 +170,8 @@ const rollup = (acc) => ({ schools: acc.schools, ...metrics(acc) });
 /**
  * @param {{
  *   schools?: Array<{id, name, emis, region, is_active, is_probable_test,
- *                    teachers, lps_opened, teachers_opened_lp}>,
+ *                    teachers, lps_opened, teachers_opened_lp,
+ *                    training_modules, teachers_trained}>,
  *   sessions?: Array<{school_id, user_id, is_test, observation_type, pct}>
  * }} rows  a school row carries its own roster numbers, test teachers already left out
  *          by the read; a missing number is 0
@@ -184,6 +193,9 @@ function summarizeSchoolsAnalytics(rows = {}, opts = {}) {
     acc.teachers = count(s.teachers);
     acc.lpsOpened = count(s.lps_opened);
     acc.teachersOpenedLp = count(s.teachers_opened_lp);
+    // Distinct per teacher, and a teacher belongs to one school: these sum to the region's.
+    acc.trainingModules = count(s.training_modules);
+    acc.teachersTrained = count(s.teachers_trained);
     bySchool.set(s.id, { school: s, bucket, acc, dcTeacherIds: new Set() });
   }
 
@@ -277,17 +289,37 @@ function windowClause(col, ends) {
 
 const present = (...xs) => xs.filter(Boolean);
 
+/**
+ * Today's roster, the teacher base of every roster number: teachers with a school, test
+ * accounts out. One spelling, used by the roster and by training alike.
+ */
+const ROSTER_TEACHER = `u.role = 'teacher'
+         AND u.school_id IS NOT NULL
+         AND u.is_test_user IS NOT TRUE`;
+
 function schoolsSql(bounds) {
   // Every school, each with its roster in the same read: today's teachers (test accounts
-  // out) and their LP opens in the window. Opens count DIFFERENT plans per teacher; summed
-  // over teachers that is distinct (user, kind, ref). A school with no teachers still
-  // comes back, with zeros.
+  // out), their LP opens and their training completions in the window. Opens count
+  // DIFFERENT plans per teacher; summed over teachers that is distinct (user, kind, ref).
+  // Training counts DIFFERENT modules per teacher, so the sum is distinct (user, module).
+  // A school with no teachers still comes back, with zeros.
+  //
+  // Training is grouped per teacher over the window, then rolled up per school with users
+  // reached by primary key (bd-9vkl9x, EXPLAIN ANALYZE on prod, 721,497 rows):
+  //   - not a per-teacher LATERAL: with no index on completed_at it walks each teacher's
+  //     whole history through (user_id, module_id) — 2.45 s for 1–13 Oct 2026;
+  //   - not joined per teacher into the roster: completed_at only grows, so a recent window
+  //     always lies past its statistics and is estimated at 1 row, and the planner then
+  //     filter-joins every teacher against every trained one (3.2 M comparisons, ~0.7 s);
+  //   - this shape: 0.08 s for 1–13 Oct, 0.28 s for all time, the same numbers.
   const ends = [bounds.fromTs, bounds.toTs];
   return `
   SELECT sch.id, sch.name, sch.emis, sch.region, sch.is_active, sch.is_probable_test,
          COALESCE(r.teachers, 0)::int AS teachers,
          COALESCE(r.lps_opened, 0)::int AS lps_opened,
-         COALESCE(r.teachers_opened_lp, 0)::int AS teachers_opened_lp
+         COALESCE(r.teachers_opened_lp, 0)::int AS teachers_opened_lp,
+         COALESCE(trn.training_modules, 0)::int AS training_modules,
+         COALESCE(trn.teachers_trained, 0)::int AS teachers_trained
     FROM schools sch
     LEFT JOIN (
       SELECT u.school_id,
@@ -300,11 +332,24 @@ function schoolsSql(bounds) {
            WHERE o.user_id = u.id
              AND ${windowClause('o.opened_at', ends)}
         ) op ON TRUE
-       WHERE u.role = 'teacher'
-         AND u.school_id IS NOT NULL
-         AND u.is_test_user IS NOT TRUE
+       WHERE ${ROSTER_TEACHER}
        GROUP BY u.school_id
-    ) r ON r.school_id = sch.id`;
+    ) r ON r.school_id = sch.id
+    LEFT JOIN (
+      SELECT u.school_id,
+             sum(t.modules)::int AS training_modules,
+             count(*)::int AS teachers_trained
+        FROM (
+          SELECT tp.user_id, count(DISTINCT tp.module_id) AS modules
+            FROM teacher_training_progress tp
+           WHERE tp.completed_at IS NOT NULL
+             AND ${windowClause('tp.completed_at', ends)}
+           GROUP BY tp.user_id
+        ) t
+        JOIN users u ON u.id = t.user_id
+       WHERE ${ROSTER_TEACHER}
+       GROUP BY u.school_id
+    ) trn ON trn.school_id = sch.id`;
 }
 
 function sessionsSql(bounds) {
@@ -328,8 +373,9 @@ const SCORES_SQL = `
    WHERE id = ANY($1::uuid[])`;
 
 /**
- * At most three reads: schools (each with its roster and LP opens) and counted sessions —
- * in parallel — then the scores of only those sessions the memo does not already hold.
+ * At most three reads: schools (each with its roster, LP opens and training) and counted
+ * sessions — in parallel — then the scores of only those sessions the memo does not
+ * already hold.
  *
  * @param {(sql: string, params?: any[]) => Promise<{rows: any[]}>} query
  * @param {{from: string|null, to: string|null}} range

@@ -8,6 +8,9 @@
  *
  * bd-wfl8oz (operator, 2026-10-13): "LPs generated" and "Coach visits" are gone — human
  * observations already are the coach's visits — so neither is read, summed or sent.
+ *
+ * bd-9vkl9x (operator, 2026-10-13): training — modules the school's teachers completed in the
+ * window (distinct user × module) and how many teachers completed at least one ("x of N").
  */
 
 const {
@@ -22,8 +25,8 @@ const {
 } = require('../../dashboard/services/schools-analytics.service');
 
 const METRIC_KEYS = [
-  'teachers', 'lpsOpened', 'teachersOpenedLp', 'dcObservations', 'teachersWithDc',
-  'humanObservations', 'avgFico', 'ficoN', 'avgHitl', 'hitlN',
+  'teachers', 'lpsOpened', 'teachersOpenedLp', 'trainingModules', 'teachersTrained',
+  'dcObservations', 'teachersWithDc', 'humanObservations', 'avgFico', 'ficoN', 'avgHitl', 'hitlN',
 ];
 const REMOVED = /lpsGenerated|coachVisits|lps_generated|coach_visits/i;
 const COUNT_KEYS = METRIC_KEYS.filter((k) => !k.startsWith('avg'));
@@ -32,24 +35,24 @@ const REGION_KEYS = ['region', 'schools', ...METRIC_KEYS].sort();
 const OVERVIEW_KEYS = ['schools', ...METRIC_KEYS].sort();
 
 // One row per school, its (non-test) roster summed by the same read: teachers, different
-// plans opened, teachers who opened one.
-const school = (id, region, [teachers, lps_opened, teachers_opened_lp] = [0, 0, 0], extra = {}) => ({
+// plans opened, teachers who opened one, training modules completed, teachers who completed one.
+const school = (id, region, [teachers, lps_opened, teachers_opened_lp, training_modules = 0, teachers_trained = 0] = [0, 0, 0], extra = {}) => ({
   id, name: `School ${id}`, emis: `E-${id}`, region, is_active: true, is_probable_test: false,
-  teachers, lps_opened, teachers_opened_lp, ...extra,
+  teachers, lps_opened, teachers_opened_lp, training_modules, teachers_trained, ...extra,
 });
 
 function fixture() {
   return {
     schools: [
       // s1 also carries the two removed fields, as a stale row might: neither may come back out.
-      school('s1', 'B.K', [10, 7, 4], { coach_visits: 3, lps_generated: 25 }),
-      school('s2', 'B.K', [2, 3, 2]),
-      school('s3', 'Sihala', [4, 0, 0]),
-      school('s4', null, [1, 1, 1]),
-      school('s5', '   ', [1, 0, 0]),
-      school('s6', 'Durbeen', [2, 2, 1]),
-      school('s7', 'B.K', [50, 50, 50], { is_probable_test: true }),
-      school('s8', 'Tarnol', [7, 7, 7], { is_active: false }),
+      school('s1', 'B.K', [10, 7, 4, 12, 3], { coach_visits: 3, lps_generated: 25 }),
+      school('s2', 'B.K', [2, 3, 2, 5, 2]),
+      school('s3', 'Sihala', [4, 0, 0, 1, 1]),
+      school('s4', null, [1, 1, 1, 9, 1]),
+      school('s5', '   ', [1, 0, 0, 4, 1]),
+      school('s6', 'Durbeen', [2, 2, 1, 6, 2]),
+      school('s7', 'B.K', [50, 50, 50, 99, 40], { is_probable_test: true }),
+      school('s8', 'Tarnol', [7, 7, 7, 8, 3], { is_active: false }),
       // No roster numbers at all (a driver that left them out): read as 0, never NaN.
       { id: 's9', name: 'School s9', emis: 'E-s9', region: 'Nilore', is_active: true, is_probable_test: false },
     ],
@@ -131,6 +134,7 @@ describe('summarizeSchoolsAnalytics', () => {
     // ...and none of its teachers, LP opens or observations reach a total (bd-s6qbts.4).
     expect(out.overview).toEqual({
       schools: 4, teachers: 16, lpsOpened: 10, teachersOpenedLp: 6,
+      trainingModules: 18, teachersTrained: 6,
       dcObservations: 4, teachersWithDc: 3, humanObservations: 3,
       avgFico: 60, ficoN: 3, avgHitl: 70, hitlN: 3,
     });
@@ -140,7 +144,7 @@ describe('summarizeSchoolsAnalytics', () => {
       sessions: fixture().sessions,
     });
     expect(outside.schools).toEqual([]);
-    expect(outside.overview).toMatchObject({ schools: 0, teachers: 0, lpsOpened: 0, dcObservations: 0, humanObservations: 0, ficoN: 0, hitlN: 0 });
+    expect(outside.overview).toMatchObject({ schools: 0, teachers: 0, lpsOpened: 0, trainingModules: 0, teachersTrained: 0, dcObservations: 0, humanObservations: 0, ficoN: 0, hitlN: 0 });
     for (const r of outside.regions) expect(r.schools).toBe(0);
   });
 
@@ -153,13 +157,13 @@ describe('summarizeSchoolsAnalytics', () => {
   it('per school: every field, sessions of test teachers excluded, DC vs human split', () => {
     expect(bySchool.s1).toEqual({
       schoolId: 's1', emis: 'E-s1', name: 'School s1', region: 'B.K', teachers: 10,
-      lpsOpened: 7, teachersOpenedLp: 4,
+      lpsOpened: 7, teachersOpenedLp: 4, trainingModules: 12, teachersTrained: 3,
       dcObservations: 3, teachersWithDc: 2, humanObservations: 1,
       avgFico: 70, ficoN: 2, avgHitl: 50, hitlN: 1,
     });
     expect(bySchool.s2).toEqual({
       schoolId: 's2', emis: 'E-s2', name: 'School s2', region: 'B.K', teachers: 2,
-      lpsOpened: 3, teachersOpenedLp: 2,
+      lpsOpened: 3, teachersOpenedLp: 2, trainingModules: 5, teachersTrained: 2,
       dcObservations: 1, teachersWithDc: 1, humanObservations: 2,
       avgFico: 40, ficoN: 1, avgHitl: 80, hitlN: 2,
     });
@@ -168,7 +172,7 @@ describe('summarizeSchoolsAnalytics', () => {
   it('counts are never null; only averages are null, and only when their n is 0', () => {
     expect(bySchool.s9).toEqual({
       schoolId: 's9', emis: 'E-s9', name: 'School s9', region: 'Nilore', teachers: 0,
-      lpsOpened: 0, teachersOpenedLp: 0,
+      lpsOpened: 0, teachersOpenedLp: 0, trainingModules: 0, teachersTrained: 0,
       dcObservations: 0, teachersWithDc: 0, humanObservations: 0,
       avgFico: null, ficoN: 0, avgHitl: null, hitlN: 0,
     });
@@ -182,7 +186,7 @@ describe('summarizeSchoolsAnalytics', () => {
   it('a bucket with no schools is all zeros and null averages', () => {
     expect(byRegion['Urban-I']).toEqual({
       region: 'Urban-I', schools: 0, teachers: 0, lpsOpened: 0, teachersOpenedLp: 0,
-      dcObservations: 0, teachersWithDc: 0, humanObservations: 0,
+      trainingModules: 0, teachersTrained: 0, dcObservations: 0, teachersWithDc: 0, humanObservations: 0,
       avgFico: null, ficoN: 0, avgHitl: null, hitlN: 0,
     });
     expect(byRegion.Tarnol.schools).toBe(0); // its only school is inactive
@@ -191,7 +195,7 @@ describe('summarizeSchoolsAnalytics', () => {
   it('region roll-ups are sums, and averages are POOLED, not a mean of school means', () => {
     expect(byRegion['B.K']).toEqual({
       region: 'B.K', schools: 2, teachers: 12, lpsOpened: 10, teachersOpenedLp: 6,
-      dcObservations: 4, teachersWithDc: 3, humanObservations: 3,
+      trainingModules: 17, teachersTrained: 5, dcObservations: 4, teachersWithDc: 3, humanObservations: 3,
       avgFico: 60, ficoN: 3,    // (60+80+40)/3 — school means would give 55
       avgHitl: 70, hitlN: 3,    // (50+90+70)/3 — school means would give 65
     });
@@ -221,12 +225,12 @@ describe('summarizeSchoolsAnalytics', () => {
 
   it('an empty window gives zero counts and null averages, never a 0 score', () => {
     const empty = summarizeSchoolsAnalytics({
-      schools: fixture().schools.map((s) => ({ ...s, lps_opened: 0, teachers_opened_lp: 0 })),
+      schools: fixture().schools.map((s) => ({ ...s, lps_opened: 0, teachers_opened_lp: 0, training_modules: 0, teachers_trained: 0 })),
       sessions: [],
     });
     expect(empty.overview).toEqual({
       schools: 4, teachers: 16, lpsOpened: 0, teachersOpenedLp: 0,
-      dcObservations: 0, teachersWithDc: 0, humanObservations: 0,
+      trainingModules: 0, teachersTrained: 0, dcObservations: 0, teachersWithDc: 0, humanObservations: 0,
       avgFico: null, ficoN: 0, avgHitl: null, hitlN: 0,
     });
   });
@@ -235,7 +239,25 @@ describe('summarizeSchoolsAnalytics', () => {
     const none = summarizeSchoolsAnalytics({});
     expect(none.schools).toEqual([]);
     expect(none.regions).toHaveLength(6);
-    expect(none.overview).toMatchObject({ schools: 0, teachers: 0, lpsOpened: 0, avgFico: null });
+    expect(none.overview).toMatchObject({ schools: 0, teachers: 0, lpsOpened: 0, trainingModules: 0, teachersTrained: 0, avgFico: null });
+  });
+
+  it('training (bd-9vkl9x): modules completed and teachers who completed one are the read\'s own per-school numbers, summed', () => {
+    // Per school as the read sends them; a school row without them (s9) is 0, never NaN.
+    expect([bySchool.s1, bySchool.s2, bySchool.s3, bySchool.s9].map((s) => [s.trainingModules, s.teachersTrained]))
+      .toEqual([[12, 3], [5, 2], [1, 1], [0, 0]]);
+    // A teacher belongs to one school, so the per-school distinct counts add up to the region's and the overview's.
+    expect([byRegion['B.K'].trainingModules, byRegion['B.K'].teachersTrained]).toEqual([17, 5]);
+    expect([byRegion.Sihala.trainingModules, byRegion.Sihala.teachersTrained]).toEqual([1, 1]);
+    expect([out.overview.trainingModules, out.overview.teachersTrained]).toEqual([18, 6]);
+    // Never more teachers trained than teachers.
+    for (const row of [...out.schools, ...out.regions, out.overview]) expect(row.teachersTrained).toBeLessThanOrEqual(row.teachers);
+    // Test, inactive and out-of-region schools add nothing (s4 9, s5 4, s6 6, s7 99, s8 8 modules).
+    const filtered = summarizeSchoolsAnalytics(fixture(), { region: 'B.K' });
+    expect([filtered.overview.trainingModules, filtered.overview.teachersTrained]).toEqual([17, 5]);
+    // A string count from the driver reads as a number.
+    const str = summarizeSchoolsAnalytics({ schools: [school('z', 'Tarnol', [3, 0, 0, '7', '2'])] });
+    expect([str.overview.trainingModules, str.overview.teachersTrained]).toEqual([7, 2]);
   });
 
   it('LP opens are logged from 4 Oct 2026 — the contract says so', () => {
@@ -345,6 +367,17 @@ describe('loadSchoolsAnalyticsRows — set-based, at most three queries, scores 
     const { query, calls } = makeQuery();
     await loadSchoolsAnalyticsRows(query, { from: null, to: null }, { memo: createScoreMemo() });
     for (const c of calls.filter((x) => kind(x) !== 'scores')) expect(c.params).toEqual([]);
+    // Training still reads (all completions ever), with no bound left dangling.
+    const schoolsSql = calls.find((c) => kind(c) === 'schools').sql;
+    expect(schoolsSql).toMatch(/teacher_training_progress/);
+    expect(schoolsSql).not.toMatch(/\$\d/);
+  });
+
+  it('training adds no query: still two set-based reads plus at most one score read (bd-9vkl9x)', async () => {
+    const { query, calls } = makeQuery();
+    await loadSchoolsAnalyticsRows(query, { from: '2026-10-01', to: '2026-10-13' }, { memo: createScoreMemo() });
+    expect(calls).toHaveLength(3);
+    expect(calls.filter((c) => /teacher_training_progress/.test(c.sql))).toHaveLength(1);
   });
 
   it('reads each source by its v3 rule', async () => {
@@ -359,6 +392,21 @@ describe('loadSchoolsAnalyticsRows — set-based, at most three queries, scores 
     expect(sql('schools')).toMatch(/count\(DISTINCT \(o\.plan_kind, o\.plan_ref\)\)/);
     expect(sql('schools')).toMatch(/o\.opened_at >= \$1::timestamptz/);
     expect(sql('schools')).toMatch(/o\.opened_at < \$2::timestamptz/);
+    // Training (bd-9vkl9x), in the SAME read: completed modules counted DISTINCT per teacher
+    // (the leader roster's rule), by completed_at inside the window.
+    expect(sql('schools')).toMatch(/FROM teacher_training_progress tp/);
+    expect(sql('schools')).toMatch(/count\(DISTINCT tp\.module_id\)/);
+    expect(sql('schools')).toMatch(/tp\.completed_at IS NOT NULL/);
+    expect(sql('schools')).toMatch(/tp\.completed_at >= \$1::timestamptz/);
+    expect(sql('schools')).toMatch(/tp\.completed_at < \$2::timestamptz/);
+    expect(sql('schools')).toMatch(/AS training_modules/);
+    expect(sql('schools')).toMatch(/AS teachers_trained/);
+    // The same teacher base as the roster (role teacher, a school, test accounts out), and
+    // users reached by primary key from the per-teacher completions.
+    expect(sql('schools').match(/u\.role = 'teacher'/g)).toHaveLength(2);
+    expect(sql('schools').match(/u\.is_test_user IS NOT TRUE/g)).toHaveLength(2);
+    expect(sql('schools')).toMatch(/JOIN users u ON u\.id = t\.user_id/);
+    for (const c of calls.filter((x) => kind(x) !== 'schools')) expect(c.sql).not.toMatch(/teacher_training_progress/);
     // Sessions: DC completed, human terminal.
     expect(sql('sessions')).toMatch(/observation_type IS NULL AND c\.status = 'completed'/);
     expect(sql('sessions')).toMatch(/observation_type = 'leader_observation' AND c\.status IN \('completed', 'observer_review_complete'\)/);
