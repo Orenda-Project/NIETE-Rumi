@@ -778,6 +778,24 @@ def test_shared_portal_plumbing_runs_the_smoke_everywhere():
         assert "portal-smoke" in _sel([path]).web_features, path
 
 
+def test_a_checkout_without_web_drivers_still_selects_whatsapp_features():
+    # The web lane must never break the WhatsApp selection: a partial copy of .claude/qa (CI fixtures,
+    # test_impact.py) has the map but no .claude/qa/web/ — the web block is skipped, menu still selects.
+    import tempfile, shutil
+    tmp = tempfile.mkdtemp()
+    try:
+        shutil.copytree(AGENTS_DIR, os.path.join(tmp, "qa", "agents"))
+        os.makedirs(os.path.join(tmp, "qa", "config"))
+        shutil.copy(MAP_PATH, os.path.join(tmp, "qa", "config", "feature-map.yaml"))
+        fmap = se.load_map(os.path.join(tmp, "qa", "config", "feature-map.yaml"), os.path.join(tmp, "qa", "agents"))
+        assert fmap.web_features == [], fmap.web_features
+        s = se.select(["bot/shared/services/menu.service.js", "portal/src/App.tsx"], fmap,
+                      se.load_feature_order(os.path.join(tmp, "qa", "agents")))
+        assert "menu" in s.features and s.web_features == [], (s.features, s.web_features)
+    finally:
+        shutil.rmtree(tmp)
+
+
 def test_map_rejects_a_web_feature_with_no_driver():
     import tempfile
     with open(MAP_PATH) as fh:

@@ -52,6 +52,7 @@ if SHARED not in sys.path:
 
 COMMENT_MARKER = "<!-- niete-qa-impact -->"
 SPEC_DIR = os.path.join("tests", "features", "whatsapp", "niete")
+WEB_SPEC_DIR = os.path.join("tests", "features", "web")   # the portal's web lane (bd-hnhlgn.9)
 LEDGER = os.path.join(".claude", "qa", "ledgers", "runs.jsonl")
 TRAILER_RE = re.compile(r"^[ \t]*Spec-Sync:[ \t]*(.+?)[ \t]*$", re.M | re.I)
 MODES = ("off", "warn", "block")
@@ -116,6 +117,31 @@ def ledger_rows_added(repo, rng):
     return out
 
 
+def web_rows_added(repo, rng):
+    """{web feature: row} for runs.jsonl rows ADDED in the range with surface "web" — the web lane's proof, kept
+    apart from the WhatsApp proof so a portal row can never stand in for a WhatsApp run (or the reverse)."""
+    r = _git(repo, "diff", rng, "--", LEDGER)
+    out = {}
+    for line in r.stdout.splitlines():
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        try:
+            row = json.loads(line[1:])
+        except ValueError:
+            continue
+        if isinstance(row, dict) and row.get("surface") == "web" and row.get("feature"):
+            out[row["feature"]] = row
+    return out
+
+
+def _web_scenario_count(repo, name):
+    path = os.path.join(repo, WEB_SPEC_DIR, name + ".feature")
+    try:
+        return len(re.findall(r"^\s*@[A-Z]{2}\d+\b", open(path).read(), re.M))
+    except OSError:
+        return 0
+
+
 def ledger_reasons(repo, rng):
     """{feature: why its latest added row has that status}. Rows written before ledger_row stamped
     `status_reason` get it derived from their own counts, so old rows read the same way."""
@@ -178,7 +204,8 @@ def _empty(base, head, error=""):
     return {"base": base, "head": head, "range": None, "error": error, "paths": [],
             "features": [], "commands": [], "fallback": False, "unmapped": [],
             "full_suite": None, "per_feature": {}, "cassette_misses": {},
-            "verdict": {"spec_freshness": "n/a", "e2e_proof": "n/a"}}
+            "web_features": [], "web_per_feature": {},
+            "verdict": {"spec_freshness": "n/a", "e2e_proof": "n/a", "web_e2e_proof": "n/a"}}
 
 
 def analyse(repo, base, head, pr_body="", target_branch=""):
@@ -242,6 +269,24 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
             "e2e_reason": why.get(name, "") if name in proof else "",
             "regression": regr.get(name),
         }
+    # The web lane (bd-hnhlgn.9): portal features, reported beside the WhatsApp ones. Never gates the spec check —
+    # web specs are not authored by the sync pipeline; the E2E proof follows the same --proof mode.
+    web = web_rows_added(repo, rng)
+    res["web_features"] = list(seld.get("web_features") or [])
+    for name in res["web_features"]:
+        spec_rel = "%s/%s.feature" % (WEB_SPEC_DIR.replace(os.sep, "/"), name)
+        row = web.get(name)
+        summ = (row or {}).get("summary") or {}
+        res["web_per_feature"][name] = {
+            "changed_files": list((seld.get("web_reasons") or {}).get(name) or []),
+            "spec": spec_rel, "spec_changed": spec_rel in paths,
+            "scenario_count": _web_scenario_count(repo, name),
+            "e2e_proof": (row.get("status") or "recorded") if row else "missing",
+            "passed": summ.get("passed"), "total": summ.get("total"),
+        }
+    if res["web_features"]:
+        res["verdict"]["web_e2e_proof"] = "recorded" if all(
+            w["e2e_proof"] != "missing" for w in res["web_per_feature"].values()) else "missing"
     pf = res["per_feature"]
     if pf:
         res["verdict"]["spec_freshness"] = "stale" if any(v["spec_status"] == "stale" for v in pf.values()) else "synced"
@@ -257,6 +302,8 @@ def exit_code(res, freshness="warn", proof="warn"):
     if freshness == "block" and res["verdict"]["spec_freshness"] == "stale":
         return 1
     if proof == "block" and res["verdict"]["e2e_proof"] == "missing":
+        return 1
+    if proof == "block" and res["verdict"].get("web_e2e_proof") == "missing":
         return 1
     return 0
 
@@ -367,13 +414,45 @@ def _drive_block(res):
     return L
 
 
+def _web_markdown(res, proof="warn"):
+    """The 'Portal — web lane' section: which portal features this range touched, their spec, and whether a
+    web-lane run (runs.jsonl, surface web) was recorded for it. [] when the range touched no portal feature."""
+    feats = res.get("web_features") or []
+    if not feats:
+        return []
+    wp = res["web_per_feature"]
+    L = ["### Portal — web lane (headless browser, local stack)", "",
+         "| Web feature | Pulled in by | Gherkin spec | E2E run recorded |", "|---|---|---|---|"]
+    for name in feats:
+        w = wp[name]
+        files = w["changed_files"]
+        via = ", ".join("`%s`" % os.path.basename(p) for p in files[:3]) + (" +%d" % (len(files) - 3) if len(files) > 3 else "")
+        spec = "`%s.feature`%s" % (name, " — changed in this range" if w["spec_changed"] else "")
+        cell = "%s %s" % (_icon(w["e2e_proof"]), w["e2e_proof"])
+        if w.get("total"):
+            cell += " — %s/%s" % (w.get("passed"), w["total"])
+        L.append("| **%s** (%d scenarios) | %s | %s | %s |" % (name, w["scenario_count"], via or "—", spec, cell))
+    v = res["verdict"].get("web_e2e_proof", "n/a")
+    L += ["", "**Web E2E proof: %s** (mode: %s)" % (v, proof), ""]
+    if v == "missing":
+        head = (res.get("head") or "HEAD")[:12]
+        L += ["Drive it (tests THIS commit, headless, on a local stack — no deploy, no WhatsApp number):", "", "```",
+              "bash .claude/qa/shared/commit-e2e.sh %s" % head, "```",
+              "or one feature: `npm run e2e:web -- %s` (add `--headed` to watch). Commit the `runs.jsonl` row it appends."
+              % feats[0], ""]
+    return L
+
+
 def render_markdown(res, freshness="warn", proof="warn"):
     L = [COMMENT_MARKER, "## QA impact — Gherkin sync + targeted E2E", ""]
     if res.get("error"):
         L += ["⚠️ Could not analyse this range: %s" % res["error"], ""]
         return "\n".join(L)
     if not res["features"]:
-        L += ["No WhatsApp-bot feature is affected by this range (docs, portal, infra, tests, or ignored paths only).",
+        if res.get("web_features"):
+            L += ["Range `%s` — no WhatsApp-bot feature affected." % res["range"], ""]
+            return "\n".join(L + _web_markdown(res, proof))
+        L += ["No WhatsApp-bot or portal feature is affected by this range (docs, infra, tests, or ignored paths only).",
               "Nothing to sync, nothing to drive.", ""]
         return "\n".join(L)
     v = res["verdict"]
@@ -439,6 +518,7 @@ def render_markdown(res, freshness="warn", proof="warn"):
         L += ["> ⚠️ Unmapped in-scope files pulled in the SAFE subset: %s — add them to `feature-map.yaml`." % ", ".join("`%s`" % u for u in res["unmapped"]), ""]
     if res["full_suite"]:
         L += ["> This range targets a promotion branch: the map asks for `%s` (the whole suite)." % res["full_suite"], ""]
+    L += _web_markdown(res, proof)
     return "\n".join(L)
 
 
@@ -446,10 +526,11 @@ def render_text(res, freshness="warn", proof="warn"):
     """Terminal form for the pre-push hook. Empty when there is nothing to say."""
     if res.get("error"):
         return "qa: could not analyse the pushed range — %s" % res["error"]
-    if not res["features"]:
+    if not res["features"] and not res.get("web_features"):
         return ""
     v = res["verdict"]
-    L = ["┌ QA · pushing %s → touches: %s" % (res["range"], ", ".join(res["features"]))]
+    L = ["┌ QA · pushing %s → touches: %s" % (res["range"], ", ".join(
+        res["features"] + ["portal: %s" % f for f in res.get("web_features") or []]))]
     for name in res["features"]:
         f = res["per_feature"][name]
         extra = " (%s.feature unchanged)" % name if f["spec_status"] == "stale" else ""
@@ -486,6 +567,12 @@ def render_text(res, freshness="warn", proof="warn"):
             "%s(%s)" % (n, ",".join(res["per_feature"][n]["regression"]["new_failures"] or ["?"])) for n in regressed))
     elif _any_regression_verdict(res):
         L.append("│ ✅ no new regressions — recorded FAILs are all documented known findings")
+    for name in res.get("web_features") or []:
+        w = res["web_per_feature"][name]
+        L.append("│   %-18s web lane  e2e: %s" % (name, w["e2e_proof"]))
+    if res["verdict"].get("web_e2e_proof") == "missing":
+        L.append("│ web lane (portal, headless — tests this commit):")
+        L.append("│   bash .claude/qa/shared/commit-e2e.sh %s" % (res.get("head") or "HEAD")[:12])
     L.append("└ re-run any time: npm run qa:impact")
     return "\n".join(L)
 

@@ -24,7 +24,11 @@ name: qa-impact
 #                            cannot precede the merge it tests, so this is
 #                            reported, never blocking (yet)
 #
-# A PR touching no mapped bot feature (docs, portal, tests, infra) succeeds quietly
+# The comment also carries a "Portal — web lane" table (bd-hnhlgn.9): portal features this PR touched, their
+# spec, and whether a web-lane run (`npm run e2e:web` / commit-e2e.sh, runs.jsonl surface "web") was recorded.
+# Web rows are reported under the same --proof mode and never fail the Gherkin freshness gate.
+#
+# A PR touching no mapped bot or portal feature (docs, tests, infra) succeeds quietly
 # and posts nothing — so this is safe to mark as a REQUIRED check.
 #
 # WHAT IT CANNOT DO. Author a scenario or drive WhatsApp. It tells the author, in
@@ -75,11 +79,13 @@ jobs:
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
           features=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1])).get("features") or []))' "$RUNNER_TEMP/impact.json" 2>/dev/null || echo 0)
           echo "features=$features" >> "$GITHUB_OUTPUT"
-          echo "impact.py exit $rc, $features feature(s) affected"
+          web=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1])).get("web_features") or []))' "$RUNNER_TEMP/impact.json" 2>/dev/null || echo 0)
+          echo "web=$web" >> "$GITHUB_OUTPUT"
+          echo "impact.py exit $rc, $features WhatsApp feature(s), $web portal (web lane) feature(s) affected"
           cat "$RUNNER_TEMP/impact.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Post or update the PR comment
-        if: github.event_name == 'pull_request' && steps.impact.outputs.features != '0'
+        if: github.event_name == 'pull_request' && (steps.impact.outputs.features != '0' || steps.impact.outputs.web != '0')
         uses: actions/github-script@v7
         env:
           MD_PATH: ${{ runner.temp }}/impact.md
