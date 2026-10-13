@@ -1231,6 +1231,24 @@ say  "--clear removes the sync brief"            "$(sync_exists)"        no
 
 cleanup
 
+# ── web lane (bd-hnhlgn.6) ─────────────────────────────────────────────────────
+# A commit that touches ONLY the portal selects no WhatsApp feature. It used to arm nothing; it must arm the web
+# lane, carry web_features in the marker, and the order (PostToolUse + Stop) must name commit-e2e.sh for it.
+echo " web lane"
+OUT=$(arm "$G $C -m 'portal login'" "portal/src/portal/pages/PortalLogin.tsx")
+say  "portal-only commit arms a marker"           "$(marker_exists)"      yes
+say  "…marker carries web_features"               "$(jq -r '(.web_features // []) | join(",")' "$PENDING" 2>/dev/null)" "portal-login"
+has  "…the order names the web lane"              "$OUT" "WEB LANE"        yes
+has  "…and the command for this commit"           "$OUT" "commit-e2e.sh $(git rev-parse HEAD)" yes
+SOUT=$(stop_hook)
+has  "Stop holds the turn for a web-only marker"  "$SOUT" '"block"'        yes
+has  "…with the web lane in its order"            "$SOUT" "WEB LANE"       yes
+cleanup
+OUT=$(arm "$G $C -m 'menu + portal'" "bot/shared/services/menu.service.js
+portal/src/portal/auth/errors.ts")
+has  "mixed commit: web rides on the mock command" "$OUT" "ALSO drives: portal-login" yes
+cleanup
+
 echo "  ---"
 if [ "$FAILED" = "0" ]; then
   echo "  all cases pass"

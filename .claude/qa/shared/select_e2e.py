@@ -39,6 +39,9 @@ import subprocess
 import sys
 
 SPEC_DIR = "tests/features/whatsapp/niete"
+# The web lane (bd-hnhlgn.6): portal features live beside the WhatsApp ones but are driven by `npm run e2e:web`
+# in a headless browser, not by an agent. A web feature exists when .claude/qa/web/features/<name>.cjs does.
+WEB_SPEC_DIR = "tests/features/web"
 SPEC_SUFFIX = ".feature"
 
 # Features whose scenarios are drafts: `/niete-e2e` never picks them up by default
@@ -169,7 +172,10 @@ class Rule(object):
 
 
 class FeatureMap(object):
-    def __init__(self, features, rules, ignore, scope, not_covered, full_suite_on=None):
+    def __init__(self, features, rules, ignore, scope, not_covered, full_suite_on=None,
+                 web_features=None, web_rules=None):
+        self.web_features = web_features or []   # web lane names (from .claude/qa/web/features/*.cjs)
+        self.web_rules = web_rules or []         # [Rule] — portal/dashboard paths → web features
         self.features = features          # canonical name list (from the agents)
         self.rules = rules                # [Rule]
         self.ignore = ignore              # [glob]
@@ -189,6 +195,19 @@ class FeatureMap(object):
 
     def matching_rules(self, path):
         return [r for r in self.rules if glob_match(r.pattern, path)]
+
+    def web_match(self, path):
+        """Web features selected by `path`: its own spec, or a `web:` rule. [] when none."""
+        if path.startswith(WEB_SPEC_DIR + "/") and path.endswith(SPEC_SUFFIX):
+            name = os.path.basename(path)[: -len(SPEC_SUFFIX)]
+            return [name] if name in self.web_features else []
+        hits = []
+        for rule in self.web_rules:
+            if glob_match(rule.pattern, path):
+                for f in rule.features:
+                    if f not in hits:
+                        hits.append(f)
+        return hits
 
     def is_ignored(self, path):
         return any(glob_match(g, path) for g in self.ignore)
@@ -251,6 +270,20 @@ def load_map(map_path, agents_dir):
         raise MapError("%s declares no scope: — refusing to treat the whole "
                        "monorepo as E2E-relevant" % map_path)
 
+    # The web lane: `web: features: {name: [globs]}`. A name must have a driver, or the map is wrong — the same rule
+    # the WhatsApp side applies to agents, so a renamed driver fails loudly here instead of selecting nothing.
+    web_dir = os.path.join(os.path.dirname(os.path.abspath(agents_dir)), "web", "features")
+    web_known = sorted(f[: -len(".cjs")] for f in (os.listdir(web_dir) if os.path.isdir(web_dir) else [])
+                       if f.endswith(".cjs"))
+    web_features, web_rules = [], []
+    for name, globs in (((raw.get("web") or {}).get("features")) or {}).items():
+        if name not in web_known:
+            raise MapError("web: features: references %r, which has no driver %s/%s.cjs (known: %s)"
+                           % (name, web_dir, name, ", ".join(web_known) or "none"))
+        web_features.append(name)
+        for g in globs or []:
+            web_rules.append(Rule(g, [name], shared=False))
+
     full_suite = []
     for rule in (raw.get("full_suite_on") or []):
         for k in ("repo_match", "branches", "command"):
@@ -259,7 +292,7 @@ def load_map(map_path, agents_dir):
         full_suite.append(rule)
 
     return FeatureMap(known, rules, list(raw.get("ignore") or []), scope,
-                      not_covered, full_suite)
+                      not_covered, full_suite, web_features, web_rules)
 
 
 def wants_full_suite(fmap, repo_remote, branch):
@@ -310,6 +343,8 @@ class Selection(object):
         self.draft = draft                      # selected ∩ DRAFT_FEATURES
         self.considered = considered            # every path we looked at
         self.full_suite = None                  # set to override with the whole suite
+        self.web_features = []                  # web lane: portal features, in map order (bd-hnhlgn.6)
+        self.web_reasons = {}                   # {web feature: [path]}
 
     @property
     def by_path(self):
@@ -339,8 +374,16 @@ class Selection(object):
         cmds = ["/niete-e2e"] if self.fallback else []
         return cmds + ["/niete-e2e %s" % f for f in self.features]
 
+    @property
+    def web_commands(self):
+        """The web lane's commands: one headless browser run per selected portal feature."""
+        return ["npm run e2e:web -- %s" % f for f in self.web_features]
+
     def to_dict(self):
         return {
+            "web_features": list(self.web_features),
+            "web_commands": list(self.web_commands),
+            "web_reasons": {f: list(ps) for f, ps in self.web_reasons.items()},
             "features": list(self.features),
             "commands": list(self.commands),
             "full_suite": self.full_suite,
@@ -365,6 +408,7 @@ def select(paths, fmap, order, range_unknown=False):
     otherwise-inert directory (`bot/docs/flows/*.json`) still selects.
     """
     reasons, unmapped, ignored, out_of_scope, considered = {}, [], [], [], []
+    web_reasons = {}
     not_covered = []
     seen = set()
 
@@ -374,6 +418,11 @@ def select(paths, fmap, order, range_unknown=False):
             continue
         seen.add(path)
         considered.append(path)
+
+        # The web lane looks at EVERY path, before and independently of the WhatsApp scope below: a portal file is
+        # out of the bot's scope by design (it must never pull the WhatsApp SAFE subset) and in the web lane's.
+        for wf in fmap.web_match(path):
+            web_reasons.setdefault(wf, []).append(path)
 
         # 0. outside the suite's remit entirely (portal, dashboard, infra). NOT
         #    unmapped — these must never pull the SAFE subset.
@@ -433,9 +482,12 @@ def select(paths, fmap, order, range_unknown=False):
             % (n, "file is" if n == 1 else "files are",
                "it" if n == 1 else "them", "it may" if n == 1 else "they may"))
 
-    return Selection(features, reasons, unmapped, ignored, out_of_scope, not_covered,
-                     fallback, fallback_reason,
-                     [f for f in features if f in DRAFT_FEATURES], considered)
+    sel = Selection(features, reasons, unmapped, ignored, out_of_scope, not_covered,
+                    fallback, fallback_reason,
+                    [f for f in features if f in DRAFT_FEATURES], considered)
+    sel.web_features = [f for f in fmap.web_features if f in web_reasons]
+    sel.web_reasons = {f: web_reasons[f] for f in sel.web_features}
+    return sel
 
 
 # ───────────────────────────────────────────────────────────────── rendering ──
@@ -446,7 +498,7 @@ def render_text(sel, repo="", map_rel=".claude/qa/config/feature-map.yaml"):
     Silence is the point when a push is docs-only: a gate that prints on every
     push is a gate people learn to scroll past.
     """
-    if not (sel.commands or sel.not_covered):
+    if not (sel.commands or sel.not_covered or sel.web_features):
         return ""
 
     L = []
@@ -493,8 +545,14 @@ def render_text(sel, repo="", map_rel=".claude/qa/config/feature-map.yaml"):
         L.append("  SKIPPED: %s" % "; ".join(skipped))
         L.append("")
 
+    if sel.web_features:
+        L.append("  WEB LANE (portal, headless browser on a local stack — runs THIS commit, no deploy needed):")
+        for f in sel.web_features:
+            L.append("    npm run e2e:web -- %-16s # %s" % (f, ", ".join(sel.web_reasons[f][:3])))
+        L.append("")
+
     if not sel.commands:
-        L.append("  SELECTED: nothing to run.")
+        L.append("  SELECTED: nothing to run on WhatsApp." if sel.web_features else "  SELECTED: nothing to run.")
         return "\n".join(L)
 
     L.append("  SELECTED: %s" % (", ".join(sel.features) if sel.features

@@ -683,6 +683,66 @@ def test_render_text_is_quiet_when_nothing_is_selected():
     assert out == "", repr(out)
 
 
+
+# ── the web lane (bd-hnhlgn.6): portal changes select a web feature, driven by `npm run e2e:web` ──────────────────
+WEB_DIR = os.path.join(QA, "web", "features")
+
+
+def test_web_features_are_the_web_drivers():
+    fmap = se.load_map(MAP_PATH, AGENTS_DIR)
+    drivers = sorted(f[:-4] for f in os.listdir(WEB_DIR) if f.endswith(".cjs"))
+    assert fmap.web_features and set(fmap.web_features) <= set(drivers), (fmap.web_features, drivers)
+
+
+def test_web_login_page_change_selects_portal_login_and_no_whatsapp_feature():
+    s = _sel(["portal/src/portal/pages/PortalLogin.tsx"])
+    assert s.web_features == ["portal-login"], s.web_features
+    assert s.features == [] and not s.fallback, (s.features, s.fallback)
+    d = s.to_dict()
+    assert d["web_features"] == ["portal-login"], d
+    assert d["web_commands"] == ["npm run e2e:web -- portal-login"], d["web_commands"]
+
+
+def test_web_login_server_route_selects_portal_login():
+    s = _sel(["dashboard/routes/portal.routes.js"])
+    assert "portal-login" in s.web_features, s.web_features
+
+
+def test_web_spec_change_selects_its_own_web_feature():
+    s = _sel(["tests/features/web/portal-login.feature"])
+    assert s.web_features == ["portal-login"], s.web_features
+
+
+def test_web_and_whatsapp_changes_together_select_both_lanes():
+    s = _sel(["bot/shared/services/menu.service.js", "portal/src/portal/auth/errors.ts"])
+    assert s.features and s.web_features == ["portal-login"], (s.features, s.web_features)
+
+
+def test_a_portal_file_no_web_feature_claims_selects_nothing_and_is_not_fallback():
+    s = _sel(["portal/src/portal/pages/NotFound.tsx"])
+    assert s.web_features == [] and s.features == [] and not s.fallback, (s.web_features, s.features)
+
+
+def test_map_rejects_a_web_feature_with_no_driver():
+    import tempfile
+    with open(MAP_PATH) as fh:
+        base = fh.read()
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
+        fh.write(base + "\nweb_extra_guard: true\n")
+        fh.write("")
+        path = fh.name
+    # rewrite the web block to name a feature with no driver
+    txt = open(path).read().replace("  portal-login:", "  no-such-web-feature:", 1)
+    open(path, "w").write(txt)
+    try:
+        se.load_map(path, AGENTS_DIR)
+    except se.MapError as e:
+        assert "no-such-web-feature" in str(e), e
+        return
+    finally:
+        os.unlink(path)
+    raise AssertionError("a web feature with no .claude/qa/web/features/<name>.cjs must raise MapError")
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

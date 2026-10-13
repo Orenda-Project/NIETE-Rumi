@@ -200,7 +200,8 @@ else
   [ -z "$SEL" ] && exit 0
 
   # Nothing selected (docs-only change) is the common case. Say nothing.
-  COUNT=$(printf '%s' "$SEL" | jq -r '.commands | length' 2>/dev/null)
+  # WhatsApp commands + web-lane commands: a portal-only commit is a run too (bd-hnhlgn.6).
+  COUNT=$(printf '%s' "$SEL" | jq -r '(.commands | length) + ((.web_commands // []) | length)' 2>/dev/null)
   case "$COUNT" in ''|0) exit 0 ;; esac
 fi
 
@@ -259,7 +260,7 @@ printf '%s' "$SEL" | jq \
   '{session: $session, repo: $repo, branch: $branch, commit_sha: $commit_sha, trigger: $trigger, mode: $mode,
     armed_at: $armed, nudged: false, spec_sync: $spec_sync,
     spec_hashes: $spec_hashes, spec_declared: {}, phase1_blocks: 0,
-    commands: .commands, features: .features,
+    commands: .commands, features: .features, web_features: (.web_features // []),
     fallback: .fallback, unmapped: .unmapped}' \
   > "$PENDING_DIR/$SESSION.json" 2>/dev/null || exit 0
 
@@ -284,6 +285,11 @@ if [ "$TRIGGER" = "commit" ] && [ -n "$COMMIT_SHA" ] && type e2e_split_lanes >/d
     MOCK_BLOCK=$(e2e_mock_block "$COMMIT_SHA" "$E2E_LANE_MOCK")
     CMDS=$(e2e_filter_chrome_cmds "$CMDS" "$E2E_LANE_MOCK")
   fi
+fi
+WEB_FEATS=$(printf '%s' "$SEL" | jq -r '(.web_features // []) | join(",")' 2>/dev/null)
+WEB_BLOCK=""
+if [ "$TRIGGER" = "commit" ] && [ -n "$COMMIT_SHA" ] && type e2e_web_block >/dev/null 2>&1; then
+  WEB_BLOCK=$(e2e_web_block "$COMMIT_SHA" "$WEB_FEATS" "$MOCK_BLOCK")
 fi
 if [ "$TRIGGER" = "commit" ] && [ -n "$MOCK_BLOCK" ] && [ -z "$CMDS" ]; then
   read -r -d '' WHICH_BUILD <<EOF
@@ -401,10 +407,11 @@ EOF
 fi
 
 read -r -d '' CONTEXT <<EOF
-EXECUTE THE TARGETED E2E NOW — $TRIGGER on \`$BRANCH\` ($REPO_NAME) touched code covered by: ${FEATS:-the SAFE subset}
+EXECUTE THE TARGETED E2E NOW — $TRIGGER on \`$BRANCH\` ($REPO_NAME) touched code covered by: ${FEATS:-${WEB_FEATS:+portal: }${WEB_FEATS:-the SAFE subset}}
 
 $PHASE1
 $MOCK_BLOCK
+$WEB_BLOCK
 
 $CHROME_PART
 

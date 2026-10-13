@@ -177,7 +177,9 @@ FALLBACK=$(jq -r '.fallback // false' "$MARKER" 2>/dev/null)
 TRIGGER=$(jq -r '.trigger // "change"' "$MARKER" 2>/dev/null)
 [ -z "$TRIGGER" ] || [ "$TRIGGER" = "null" ] && TRIGGER=change
 [ "$TRIGGER" = "git-commit" ] && TRIGGER=commit     # same build note as any commit
-[ -z "$CMDS" ] && exit 0
+# No WhatsApp command AND no web feature → nothing armed. A portal-only commit has no WhatsApp command but is a
+# web-lane run (bd-hnhlgn.6), so it must reach the lane logic below instead of leaving here silently.
+[ -z "$CMDS" ] && [ "$(jq -r '(.web_features // []) | length' "$MARKER" 2>/dev/null)" = "0" ] && exit 0
 
 # PHASE 3 — the lane split. A COMMIT can now be tested AS the commit: the mock lane
 # (lib/mock-lane.sh) starts the bot from a worktree at the marker's sha. Features it
@@ -193,6 +195,11 @@ if [ "$TRIGGER" = "commit" ] && [ -n "$SHA" ] && type e2e_split_lanes >/dev/null
     MOCK_BLOCK=$(e2e_mock_block "$SHA" "$E2E_LANE_MOCK")
     CMDS=$(e2e_filter_chrome_cmds "$CMDS" "$E2E_LANE_MOCK")
   fi
+fi
+WEB_FEATS=$(jq -r '(.web_features // []) | join(",")' "$MARKER" 2>/dev/null)
+WEB_BLOCK=""
+if [ "$TRIGGER" = "commit" ] && [ -n "$SHA" ] && type e2e_web_block >/dev/null 2>&1; then
+  WEB_BLOCK=$(e2e_web_block "$SHA" "$WEB_FEATS" "$MOCK_BLOCK")
 fi
 # Chrome lane PAUSED (mock is layer 1; operator 2026-09-15): drop the chrome /niete-e2e nudge so a
 # commit drives ONLY the mock lane. Chrome-only features are not auto-run for now. E2E_CHROME_ON=1 re-enables.
@@ -340,7 +347,7 @@ fi
 
 # Chrome paused and nothing else to nudge: this commit touched only chrome-only features (no mock
 # lane for them) and no spec sync is pending. Don't wedge the turn — there is nothing to run now.
-if [ -z "$MOCK_BLOCK" ] && [ -z "$CMDS" ] && [ -z "$PHASE1" ]; then exit 0; fi
+if [ -z "$MOCK_BLOCK" ] && [ -z "$WEB_BLOCK" ] && [ -z "$CMDS" ] && [ -z "$PHASE1" ]; then exit 0; fi
 
 read -r -d '' REASON <<EOF
 EXECUTE NOW — the E2E for $WHOSE has not
@@ -348,6 +355,7 @@ been driven:
 
 $PHASE1
 $MOCK_BLOCK
+$WEB_BLOCK
 
 $CHROME_PART
 
