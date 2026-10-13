@@ -19,10 +19,18 @@
  * the steps. No search, no name-matching, no LLM. Recency picks the order;
  * ambiguity is the model's to resolve by asking her, never by guessing.
  *
+ * APP OPENS. Most K-5 plans are now read in the teacher app's viewer, which writes
+ * niete_lp_opens and never touches the shelf or niete_lp_downloads. Her recent
+ * VIEWER opens (lp-app-opens.store — the one app-open source, version-resolved to
+ * the asset the app served her) join both tiers: one entry per lesson, at the
+ * newest time she had it on either surface, at the WhatsApp row's version when
+ * both exist (that row records what she was given). Own switch,
+ * LP_CONTEXT_COUNT_APP_OPENS, default on; off = WhatsApp deliveries only.
+ *
  * TRUST BOUNDARY (RT-4): this block lands in the system position, so only
  * corpus-authored content may feed it — the shelf (written by our own
- * delivery path), niete_lp_downloads, niete_lp_assets, and the corpus move
- * lists. The teacher-uploaded-LP path (lp-upload-extractor) must NEVER reach
+ * delivery path), niete_lp_downloads, niete_lp_opens (our own viewer's log of
+ * a catalogue lesson), niete_lp_assets, and the corpus move lists. The teacher-uploaded-LP path (lp-upload-extractor) must NEVER reach
  * this builder. Fetched content is wrapped in <lesson_reference> and framed
  * as reference material, not instructions.
  *
@@ -38,6 +46,8 @@ const LPShelfService = require('./lp-shelf.service');
 const V8Catalog = require('./lp-v8-catalog.service');
 const { getVoicenoteScript } = require('./lp-voicenote-script.service');
 const { resolveMoveList } = require('./coaching/fidelity/lp-fidelity-store');
+const AppOpens = require('./quiz/lp-app-opens.store');
+const { onUnlessOff } = require('./nudges/flags');
 const { logToFile } = require('../utils/logger');
 const { logEvent } = require('../utils/structured-logger');
 
@@ -47,6 +57,11 @@ const MOVES_MAX = 14;
 const DETAIL_ENTRIES = 2;              // script+steps for the 2 most recent only
 const STALE_AFTER_MS = 6 * 3600 * 1000;
 const DOWNLOADS_WINDOW_DAYS = 7;
+const RECENT_ROWS = 6;                 // the last 6 deliveries / the last 6 app opens
+const SHELF_ENTRIES_MAX = 5;           // the shelf's own cap (lp-shelf.service)
+
+/** LP_CONTEXT_COUNT_APP_OPENS, read at call time. Default on. */
+const countAppOpens = () => onUnlessOff('LP_CONTEXT_COUNT_APP_OPENS');
 
 function agoLabel(iso) {
   const ms = Date.now() - new Date(iso).getTime();
@@ -81,7 +96,8 @@ function renderMoves(moves) {
 /** Render one entry. Detailed entries get script + steps inside <lesson_reference>. */
 async function renderEntry(entry, { detailed }) {
   const parts = [`### ${headingFor(entry)}`];
-  if (entry._fromDownloads) parts.push('(from her download history)');
+  if (entry._viaApp) parts.push('(opened in the teacher app)');
+  else if (entry._fromDownloads) parts.push('(from her download history)');
   if (Date.now() - new Date(entry.delivered_at).getTime() > STALE_AFTER_MS) {
     parts.push('(older — confirm which lesson she means before assuming)');
   }
@@ -118,8 +134,90 @@ async function renderEntry(entry, { detailed }) {
   return parts.join('\n');
 }
 
-/** Shelf empty → her recent deliveries still mean something (7-day window). */
-async function entriesFromDownloads(userId) {
+/**
+ * Her recent K-5 viewer opens as download-shaped rows (newest first, at most 6, 7 days), or []
+ * when the switch is off. One read on idx_lp_opens_user_recent; a failed read costs only the app
+ * lessons — the WhatsApp ones still ground the answer.
+ */
+async function appOpenRows(userId) {
+  if (!countAppOpens()) return [];
+  try {
+    const sinceIso = new Date(Date.now() - DOWNLOADS_WINDOW_DAYS * 86400 * 1000).toISOString();
+    return await AppOpens.teacherViewerOpens(userId, sinceIso, RECENT_ROWS);
+  } catch (err) {
+    logToFile('LP context: app opens read failed — WhatsApp lessons only this turn', { userId, error: err.message }, 'error');
+    return [];
+  }
+}
+
+/**
+ * Deliveries + app opens → one row per lesson, newest first. A lesson on both surfaces keeps the
+ * WhatsApp row (its version is what she was sent) at the newer of the two times.
+ */
+function mergeByLesson(downloads, appRows) {
+  const byLesson = new Map();
+  for (const row of [...downloads, ...appRows]) {
+    const cur = byLesson.get(row.lesson_id);
+    if (!cur) { byLesson.set(row.lesson_id, { ...row }); continue; }
+    const newer = new Date(row.created_at) > new Date(cur.created_at);
+    if (cur.via !== 'app' && row.via === 'app') {
+      if (newer) cur.created_at = row.created_at;
+    } else if (newer) {
+      byLesson.set(row.lesson_id, { ...row });
+    }
+  }
+  return [...byLesson.values()].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+}
+
+/** One download-shaped row → a context entry; null for a lesson the catalogue does not know. */
+async function entryFromRow(row) {
+  const hit = V8Catalog.lessonById(row.lesson_id);
+  if (!hit) return null;
+  const { lesson, chapter, book } = hit;
+
+  // The r2_key of the VERSION she was sent — resolved by content_hash so a
+  // re-rendered lesson never swaps her script out from under her. An app open
+  // already names the exact asset the app served (A/B August pick included).
+  let r2Key = null;
+  if (row.via === 'app' && row.asset_id) {
+    const { data: asset } = await supabase
+      .from('niete_lp_assets')
+      .select('r2_key')
+      .eq('id', row.asset_id)
+      .maybeSingle();
+    r2Key = (asset && asset.r2_key) || null;
+  } else if (row.content_hash) {
+    const { data: asset } = await supabase
+      .from('niete_lp_assets')
+      .select('r2_key')
+      .eq('lesson_id', row.lesson_id)
+      .eq('asset_kind', 'lesson')
+      .eq('content_hash', row.content_hash)
+      .maybeSingle();
+    r2Key = (asset && asset.r2_key) || null;
+  }
+
+  const entry = {
+    lesson_id: row.lesson_id,
+    grade: row.grade != null ? row.grade : book.grade,
+    subject: row.subject || book.subject_key,
+    subject_label: book.subject,
+    chapter_number: row.chapter_number != null ? row.chapter_number : chapter.number,
+    chapter_title: chapter.title,
+    topic: lesson.topic_short || lesson.topic,
+    pages_label: lesson.pages_label,
+    r2_key: r2Key,
+    content_hash: row.content_hash,
+    version_stamp: row.version_stamp,
+    delivered_at: row.created_at,
+    _fromDownloads: true,
+  };
+  if (row.via === 'app') entry._viaApp = true;
+  return entry;
+}
+
+/** Shelf empty → her recent deliveries (and app opens) still mean something (7-day window). */
+async function entriesFromDownloads(userId, appRows = []) {
   const sinceIso = new Date(Date.now() - DOWNLOADS_WINDOW_DAYS * 86400 * 1000).toISOString();
   const { data } = await supabase
     .from('niete_lp_downloads')
@@ -128,51 +226,52 @@ async function entriesFromDownloads(userId) {
     .eq('status', 'sent')
     .gte('created_at', sinceIso)
     .order('created_at', { ascending: false })
-    .limit(6);
+    .limit(RECENT_ROWS);
 
-  const rows = data || [];
+  const rows = appRows.length ? mergeByLesson(data || [], appRows) : (data || []);
   const entries = [];
   const seen = new Set();
   for (const row of rows) {
     if (seen.has(row.lesson_id)) continue;
     seen.add(row.lesson_id);
 
-    const hit = V8Catalog.lessonById(row.lesson_id);
-    if (!hit) continue;
-    const { lesson, chapter, book } = hit;
-
-    // The r2_key of the VERSION she was sent — resolved by content_hash so a
-    // re-rendered lesson never swaps her script out from under her.
-    let r2Key = null;
-    if (row.content_hash) {
-      const { data: asset } = await supabase
-        .from('niete_lp_assets')
-        .select('r2_key')
-        .eq('lesson_id', row.lesson_id)
-        .eq('asset_kind', 'lesson')
-        .eq('content_hash', row.content_hash)
-        .maybeSingle();
-      r2Key = (asset && asset.r2_key) || null;
-    }
-
-    entries.push({
-      lesson_id: row.lesson_id,
-      grade: row.grade != null ? row.grade : book.grade,
-      subject: row.subject || book.subject_key,
-      subject_label: book.subject,
-      chapter_number: row.chapter_number != null ? row.chapter_number : chapter.number,
-      chapter_title: chapter.title,
-      topic: lesson.topic_short || lesson.topic,
-      pages_label: lesson.pages_label,
-      r2_key: r2Key,
-      content_hash: row.content_hash,
-      version_stamp: row.version_stamp,
-      delivered_at: row.created_at,
-      _fromDownloads: true,
-    });
+    // eslint-disable-next-line no-await-in-loop
+    const entry = await entryFromRow(row);
+    if (!entry) continue;
+    entries.push(entry);
     if (entries.length >= DETAIL_ENTRIES) break;
   }
   return entries;
+}
+
+/**
+ * Shelf (newest first) + app opens → newest first, at most the shelf's cap. A shelf lesson she
+ * then opened in the app keeps its shelf entry (the version she was sent) at the open's time. The
+ * shelf itself is never written here.
+ */
+async function withAppLessons(shelfEntries, appRows) {
+  const entries = shelfEntries.map((e) => ({ ...e }));
+  const extra = [];
+  for (const row of appRows) {
+    const on = entries.find((e) => e.lesson_id && e.lesson_id === row.lesson_id);
+    if (on) {
+      if (new Date(row.created_at) > new Date(on.delivered_at)) on.delivered_at = row.created_at;
+    } else if (!extra.some((r) => r.lesson_id === row.lesson_id)) {
+      extra.push(row);
+    }
+  }
+  const merged = [
+    ...entries.map((entry) => ({ at: entry.delivered_at, entry })),
+    ...extra.map((row) => ({ at: row.created_at, row })),
+  ].sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, SHELF_ENTRIES_MAX);
+
+  const out = [];
+  for (const m of merged) {
+    // eslint-disable-next-line no-await-in-loop
+    const entry = m.entry || await entryFromRow(m.row);
+    if (entry) out.push(entry);
+  }
+  return out;
 }
 
 const FRAMING = [
@@ -250,9 +349,12 @@ async function buildLpContext(userId) {
     let source = 'shelf';
     // Shelf holds oldest→newest; render newest first.
     let entries = [...(await LPShelfService.getShelf(userId))].reverse();
+    const appRows = await appOpenRows(userId);
     if (!entries.length) {
       source = 'downloads';
-      entries = await entriesFromDownloads(userId);
+      entries = await entriesFromDownloads(userId, appRows);
+    } else if (appRows.length) {
+      entries = await withAppLessons(entries, appRows);
     }
     if (!entries.length) return null;
 
@@ -291,7 +393,10 @@ async function buildLpContext(userId) {
 
     const lessonIds = entries.map((e) => e.lesson_id);
     const referenceTerms = referenceTermsFor(entries);
-    logEvent('lp_context.built', { userId, source, lessonIds, blockChars: fullBlock.length });
+    const appLessons = entries.filter((e) => e._viaApp).length;
+    logEvent('lp_context.built', {
+      userId, source, lessonIds, blockChars: fullBlock.length, ...(appRows.length ? { appLessons } : {}),
+    });
     // `entries` rides along so the follow-up resolver can see delivered_at
     // without a second query (bd-wpupy).
     return { identityLine, fullBlock, lessonIds, source, referenceTerms, entries };
@@ -569,9 +674,12 @@ function deliveryHint(entries = []) {
     e.chapter_number != null ? `Chapter ${e.chapter_number}` : null,
   ].filter(Boolean).join(', ');
 
+  const happened = e._viaApp
+    ? `this teacher opened a lesson plan in the teacher app ${mins} minute(s) ago`
+    : `a lesson plan PDF was sent to this teacher ${mins} minute(s) ago`;
   return `
 
-RECENT DELIVERY: a lesson plan PDF was sent to this teacher ${mins} minute(s) ago${what ? ` (${what})` : ''}.
+RECENT DELIVERY: ${happened}${what ? ` (${what})` : ''}.
 
 She has JUST been given a lesson plan, so resolve what she is pointing at:
 

@@ -24,9 +24,10 @@
  * the app served her the August version (lp-v8-browse lessonPdfUrl → lp-ab-ch310), so the newest
  * August row that existed at the open (lp-ab-ch310 pickAsset, groupsForUsers + inScope).
  *
- * TWO READERS. The 15:00 offer (viewerOpensAsDownloads, a time window over every teacher) and the
+ * THREE READERS. The 15:00 offer (viewerOpensAsDownloads, a time window over every teacher), the
  * /quiz "from my lesson plan" list (viewerOpensForTeacher / viewerOpenById, one teacher, on
- * idx_lp_opens_user_recent). Both shape rows the same way, behind the same switch.
+ * idx_lp_opens_user_recent), and the chat's lesson context (teacherViewerOpens, the same per-teacher
+ * read behind the chat's own switch). All three shape rows the same way.
  *
  * Grades 6-12 are not here: the 15:00 offer has never covered them (its WhatsApp side reads
  * niete_lp_downloads only).
@@ -174,7 +175,16 @@ async function shape(opens) {
  * [] when off. Throws on a read error (the caller lists the WhatsApp lessons regardless).
  */
 async function viewerOpensForTeacher(userId, sinceIso, limit = 200) {
-  if (!enabled() || !userId) return [];
+  if (!enabled()) return [];
+  return teacherViewerOpens(userId, sinceIso, limit);
+}
+
+/**
+ * The same read and shape, without this module's switch — for a reader with a switch of its own
+ * (the chat's lesson context, LP_CONTEXT_COUNT_APP_OPENS). Throws on a read error.
+ */
+async function teacherViewerOpens(userId, sinceIso, limit = 200) {
+  if (!userId) return [];
   const { data, error } = await supabase.from(OPENS)
     .select('id, user_id, plan_ref, opened_at')
     .eq('user_id', userId)
@@ -223,5 +233,5 @@ async function readOpens(fromIso, toIso) {
 }
 
 module.exports = {
-  viewerOpensAsDownloads, viewerOpensForTeacher, viewerOpenById, servedAsset, enabled,
+  viewerOpensAsDownloads, viewerOpensForTeacher, teacherViewerOpens, viewerOpenById, servedAsset, enabled,
 };
