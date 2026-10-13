@@ -352,6 +352,16 @@ Feature: NIETE (ICT) Teacher Training
     # Only lessons whose served version has a slide script are listed (niete_lp_asset_sources). In Urdu the
     # labels read «سبق کے منصوبے سے» and «کلاس کی ریکارڈنگ سے». @wip.
 
+  @e2e @quiz @wip @draft @config-gated @P1
+  Scenario: /quiz lists a lesson plan I read in the teacher app
+    Given app_settings lp_quiz_app_lessons is on
+    And the NIETE bot chat is open on a teacher who opened a Grade 1-5 lesson plan in the teacher app this week and never received it on WhatsApp
+    When I send "quiz"
+    Then that lesson plan is listed with "From lesson plan", like one delivered on WhatsApp
+    When I tap its row
+    Then its quiz is made exactly as for a delivered lesson plan
+    # lp-v8-lesson-provider reads quiz/lessons-taken.store; the row id carries the app open's id. Switch off: not listed.
+
   @e2e @quiz @wip @draft @P1 @T65
   Scenario: Tapping the same lesson plan twice makes one quiz
     Given the NIETE bot chat is open and /quiz lists a lesson plan with no quiz yet

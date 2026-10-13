@@ -641,6 +641,20 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # count — a quiz from it would ask about a page the teacher does not hold. A teacher with one lesson
     # that has a script and one that does not is still offered, for the lesson that has one.
 
+  @e2e @quiz @wip @draft @config-gated @P1
+  Scenario: A lesson I read in the teacher app earns the same afternoon quiz offer as one delivered on WhatsApp
+    Given app_settings lp_quiz_app_lessons is on
+    And the NIETE bot chat is open on a teacher who opened one K-5 lesson plan in the teacher app today before 14:00 PKT
+    And that lesson was not delivered to the teacher on WhatsApp
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the bot offers a short quiz on that lesson, exactly as it would for a lesson delivered on WhatsApp
+    And when I tap "Make the quiz" the quiz is written from the version of the lesson the app showed me
+    # quiz/lessons-taken.store: niete_lp_downloads 'sent' plus niete_lp_opens plan_kind 'k5' (any source — the
+    # app's viewer or a link opened in another app), resolved through the catalogue and the app's own A/B pick.
+    # One lesson taken on both surfaces is one lesson, dated by the earlier. An app open after 14:00 counts for the
+    # next school day. The day's lp_quiz_offer.cohort event says how many teachers came from each surface.
+    # Switch off (or absent): only WhatsApp deliveries count, as before.
+
   @e2e @quiz @wip @draft @config-gated @P2
   Scenario: A teacher who planned lessons for two classes gets a list to pick from
     Given the NIETE bot chat is open on a teacher who took lesson plans for Grade 4 Maths and Grade 5 Urdu today

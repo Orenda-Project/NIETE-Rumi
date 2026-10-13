@@ -46,6 +46,7 @@ const { normalizeSubject, SUBJECT_NAMES_UR } = require('../../config/lp612-subje
 const { teacherLanguageFor, needsLanguageAsk, quizLanguageFor } = require('../quiz/transcript-quiz-language');
 const Catalog = require('../lp-v8-catalog.service');
 const SourceStore = require('../quiz/lp-asset-source.store');
+const LessonsTaken = require('../quiz/lessons-taken.store');
 const { LP_V8 } = require('../quiz/quiz-sources');
 const Funnel = require('../quiz/quiz-funnel');
 const LessonClaim = require('../quiz/lp-lesson-claim');
@@ -275,17 +276,20 @@ async function alreadyBuilt(nudgeDate) {
   return (count || 0) > 0;
 }
 
-/** Every `sent` v8 download whose rule date could be `nudgeDate`. */
+/**
+ * Every lesson a teacher took whose rule date is `nudgeDate` (D2 — the 14:00 cutoff applies to
+ * an app open's time exactly as to a delivery's). WhatsApp deliveries always; lessons taken in
+ * the teacher app too while app_settings `lp_quiz_app_lessons` is on (quiz/lessons-taken.store,
+ * the same reader /quiz lists from). Switch off: exactly the `sent` v8 downloads read before.
+ */
 async function downloadsFor(nudgeDate) {
   const upper = PktTime.atPkt(nudgeDate, cutoffHour(), 0);
   const lower = new Date(PktTime.atPkt(nudgeDate, 0, 0).getTime() - WINDOW_DAYS * 86400000);
-  const rows = await pagedRows('lp quiz offer: downloads', () => supabase
-    .from('niete_lp_downloads')
-    .select('user_id, lesson_id, asset_id, version_stamp, content_hash, grade, subject, chapter_number, segment_index, created_at')
-    .eq('status', 'sent')
-    .gte('created_at', lower.toISOString())
-    .lt('created_at', upper.toISOString()));
-  return rows.filter((r) => r.asset_id && cohortRuleDate(r.created_at) === nudgeDate);
+  const { rows, appLessons } = await LessonsTaken.takenInWindow({
+    from: lower, to: upper, keep: (r) => cohortRuleDate(r.created_at) === nudgeDate,
+  });
+  logEvent('lp_quiz_offer.cohort', { nudgeDate, ...LessonsTaken.surfaceMix(rows), switch: appLessons });
+  return rows;
 }
 
 /** The asset ids that are a LESSON — an answer key is never a quiz source. */
