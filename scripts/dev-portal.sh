@@ -58,11 +58,8 @@ up() {
   fi
   bash "$E2E/local-db.sh" demo-seed "$RUN/db" >"$RUN/logins.txt" || { log "demo seed failed — $RUN/db/demo-seed.log"; down; exit 5; }
   local db; db=$(cat "$RUN/db/db.name")
-  local psql; psql=$(dirname "$(command -v pg_ctl 2>/dev/null || echo /opt/homebrew/opt/postgresql@17/bin/pg_ctl)")/psql
-  [ -x "$psql" ] || psql=/opt/homebrew/opt/postgresql@17/bin/psql
-  "$psql" -X -q -h 127.0.0.1 -p "$PG_PORT" -U postgres -d "$db" -At \
-    -c "select format('refresh materialized view %I.%I;', schemaname, matviewname) from pg_matviews where schemaname='public'" \
-    | "$psql" -X -q -h 127.0.0.1 -p "$PG_PORT" -U postgres -d "$db" >"$RUN/mv-refresh.log" 2>&1 || log "warning: a materialized view did not refresh — $RUN/mv-refresh.log"
+  bash "$E2E/local-db.sh" refresh-views "$RUN/db" >"$RUN/mv-refresh.log" 2>&1 \
+    || log "warning: the dashboard's summary views did not refresh — $RUN/mv-refresh.log"
 
   local bot_port mock_port redis_port _rest; read -r mock_port bot_port redis_port _rest <"$RUN/ports"
   mkdir -p "$RUN/portal"
