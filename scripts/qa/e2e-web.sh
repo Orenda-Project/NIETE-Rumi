@@ -88,10 +88,10 @@ PY
 }
 
 # --- args ------------------------------------------------------------------------------------------------------
-FEATURE="" SLOT="" ONLY="" KEEP="" PLAN="" ROW_FROM="" RUN_ID="" COMMIT=""
+FEATURE="" SLOT="" ONLY="" REQ_HEADED="" KEEP="" PLAN="" ROW_FROM="" RUN_ID="" COMMIT=""
 while [ $# -gt 0 ]; do case "$1" in
   --slot) SLOT="$2"; shift 2;; --only) ONLY="$2"; shift 2;; --keep) KEEP=1; shift;;
-  --headed) export WEB_HEADED=1 WEB_SLOWMO="${WEB_SLOWMO:-600}"; shift;;
+  --headed) REQ_HEADED=1; shift;;
   --print-plan) PLAN=1; shift;;
   --row-from) ROW_FROM="$2"; shift 2;; --run-id) RUN_ID="$2"; shift 2;; --commit) COMMIT="$2"; shift 2;;
   -h|--help) sed -n '2,24p' "$0"; exit 0;;
@@ -112,9 +112,21 @@ DATA="${DATA:-demo}"
 RUN_ID="$(date +%Y%m%d-%H%M%S)-$FEATURE"
 RUN_DIR="$HOME/.cache/niete-e2e-web/$RUN_ID"
 EVIDENCE_REL=".claude/qa/results/web/niete/$RUN_ID"
+BASE_URL="http://localhost:$((4100+SLOT))"   # the address a person opens (and dev-portal.sh prints) — not 127.0.0.1,
+                                             # which the browser treats as a different site with its own cookies
+
+# A visible browser is for a person watching (--headed, or WEB_HEADED=1). A run started by a commit hook or in CI is
+# ALWAYS headless: no window may pop up on someone's screen in the middle of a commit, and CI has no screen.
+HEADED=0
+{ [ -n "$REQ_HEADED" ] || [ "${WEB_HEADED:-}" = 1 ]; } && HEADED=1
+if [ "$HEADED" = 1 ] && { [ "${E2E_TRIGGER:-manual}" != manual ] || [ -n "${CI:-}" ]; }; then
+  HEADED=0; log "headless: --headed is ignored for a ${CI:+CI }${E2E_TRIGGER:-} run"
+fi
+export WEB_HEADED="$HEADED"
+if [ "$HEADED" = 1 ]; then export WEB_SLOWMO="${WEB_SLOWMO:-600}"; else export WEB_SLOWMO=0; fi
 
 if [ -n "$PLAN" ]; then
-  slot_ports "$SLOT"; echo "DATA=$DATA"; echo "RUN_DIR=$RUN_DIR"; echo "EVIDENCE=$EVIDENCE_REL"; echo "FEATURE=$FEATURE"
+  slot_ports "$SLOT"; echo "DATA=$DATA"; echo "RUN_DIR=$RUN_DIR"; echo "EVIDENCE=$EVIDENCE_REL"; echo "FEATURE=$FEATURE"; echo "BASE_URL=$BASE_URL"; echo "HEADED=$HEADED"
   exit 0
 fi
 
@@ -146,7 +158,7 @@ printf '%s' "$want" > "$DIST/.portal-tree" 2>/dev/null || true
 # --- drive -------------------------------------------------------------------------------------------------------
 EVIDENCE="$REPO/$EVIDENCE_REL"; mkdir -p "$EVIDENCE"
 PGB="$(pg_bin)"
-WEB_FEATURE="$FEATURE" WEB_BASE_URL="http://127.0.0.1:$PORTAL_PORT" WEB_EVIDENCE="$EVIDENCE" WEB_ONLY="$ONLY" \
+WEB_FEATURE="$FEATURE" WEB_BASE_URL="$BASE_URL" WEB_EVIDENCE="$EVIDENCE" WEB_ONLY="$ONLY" \
 WEB_PSQL="${PGB:+$PGB/}psql" WEB_PG_PORT="${LOCAL_DB_PG_PORT:-54329}" WEB_DB_NAME="$(cat "$RUN_DIR/db/db.name" 2>/dev/null)" \
   node "$REPO/.claude/qa/web/web-runner.cjs"
 rc=$?
