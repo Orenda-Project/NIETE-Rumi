@@ -33,12 +33,31 @@ const MAX_BODY = '8kb';
 const MAX_EVENTS = 25;
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const MAX_DWELL_MS = 6 * 60 * 60 * 1000;
-const BROWSERS = new Set(['native', 'android-iab', 'ios-iab', 'browser']);
 const HOW = new Set(['nav', 'hidden', 'pagehide']);
 const KINDS = { view: 'app_funnel.page_view', leave: 'app_funnel.page_leave', resume: 'app_funnel.page_resume' };
 
 function emit(event, props) {
   try { telemetry.logEvent(event, props); } catch (_) { /* logging never decides the response */ }
+}
+
+/**
+ * Which kind of browser this is, from the request itself — the page does not get to say it is "in WhatsApp"
+ * (in-app-browser-whatsapp: classify server-side from the UA). WhatsApp's own browser carries `WA4A/<version>` (or
+ * announces itself in X-Requested-With), NOT `; wv)`: a bare WebView is another app's, so it is its own class.
+ * The only claim believed is the Android app's own 'native' — a label, not a permission. The user agent is read, never
+ * stored: only the class is logged.
+ */
+function browserClass(req, claimed) {
+  if (claimed === 'native') return 'native';
+  const ua = String(req.get('user-agent') || '').slice(0, 300);
+  const xrw = String(req.get('x-requested-with') || '').slice(0, 80);
+  if (/WhatsApp|WA4A\//.test(ua) || /^com\.whatsapp/.test(xrw)) return 'whatsapp-iab';
+  if (/Android/i.test(ua)) return /; wv\)/.test(ua) ? 'webview' : 'browser';
+  if (/iPhone|iPad|iPod/i.test(ua)) {
+    const otherBrowser = /CriOS|FxiOS|EdgiOS|OPiOS|GSA\//.test(ua);
+    return !otherBrowser && !/Safari\//.test(ua) ? 'webview' : 'browser';
+  }
+  return 'browser';
 }
 
 /** A stable, non-reversible label for this session — the same on every row she makes until she signs in again. */
@@ -147,7 +166,7 @@ function createAppFunnelRouter({ limiter } = {}) {
       const allowed = limits.take(req.funnelKey, events.length, now);
       if (!allowed && events.length) return res.status(429).end();
 
-      const browser = BROWSERS.has(body.b) ? body.b : 'unknown';
+      const browser = browserClass(req, body.b);
       const base = who(req, now);
       for (const ev of events.slice(0, allowed)) {
         const row = toRow(ev, browser, base, now);
