@@ -68,6 +68,13 @@ function isAugust(stamp) {
   return AUGUST.test(String(stamp || ''));
 }
 
+/** The newest August row of a set, in any order. Pure: the one August rule assetFor and pickAsset share. */
+function newestAugust(rows) {
+  return (rows || [])
+    .filter((a) => isAugust(a.version_stamp))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] || null;
+}
+
 async function latestAugust(lessonId, assetKind) {
   const { data } = await supabase
     .from('niete_lp_assets')
@@ -75,8 +82,10 @@ async function latestAugust(lessonId, assetKind) {
     .eq('lesson_id', lessonId)
     .eq('asset_kind', assetKind)
     .order('created_at', { ascending: false });
-  return (data || []).find((a) => isAugust(a.version_stamp)) || null;
+  return newestAugust(data);
 }
+
+const day1Of = (lessonId) => lessonId.replace(/(seg\d+)b$/, '$1');
 
 /**
  * The asset this group gets. B (and null) get `current`; A gets the latest August row, and
@@ -88,7 +97,7 @@ async function assetFor({ group, lessonId, assetKind = 'lesson', current }) {
   try {
     const own = await latestAugust(lessonId, assetKind);
     if (own) return own;
-    const day1 = lessonId.replace(/(seg\d+)b$/, '$1');
+    const day1 = day1Of(lessonId);
     if (day1 !== lessonId) {
       const twin = await latestAugust(day1, assetKind);
       if (twin) return twin;
@@ -98,6 +107,75 @@ async function assetFor({ group, lessonId, assetKind = 'lesson', current }) {
   }
   logToFile('LP A/B: no August version for group A — nothing sent', { lessonId, assetKind });
   return null;
+}
+
+/**
+ * assetFor over asset rows already in hand — for a reader that resolves many opens at once and
+ * must not query per lesson. `assets` holds the lesson's rows (and, for group A, its day-1
+ * twin's), each with lesson_id, asset_kind, version_stamp, is_current, superseded_at, created_at.
+ * Same rule as assetFor: not A → the current row; A → the newest August row, then the day-1
+ * twin's, else null.
+ *
+ * `at` (optional): the rule as it stood at that moment — the row current THEN (created at or
+ * before it, not yet superseded), and for group A only August rows that existed then. A lesson
+ * with no row at that moment (clock skew) falls back to the rule now.
+ */
+function pickAsset({ group, lessonId, assetKind = 'lesson', assets, at = null }) {
+  const t = at ? new Date(at).getTime() : null;
+  const existed = (a) => t === null || new Date(a.created_at).getTime() <= t;
+  const currentAt = (a) => (t === null
+    ? a.is_current
+    : existed(a) && (!a.superseded_at || new Date(a.superseded_at).getTime() > t));
+  const of = (id) => (assets || []).filter((a) => a.lesson_id === id && a.asset_kind === assetKind);
+  const day1 = day1Of(lessonId);
+  const pick = (strict) => {
+    const keep = (rows) => (strict ? rows.filter(existed) : rows);
+    if (group !== 'A') {
+      // Newest first, so the pick never depends on the order rows arrive in.
+      const rows = of(lessonId).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      return rows.find(strict ? currentAt : (a) => a.is_current) || null;
+    }
+    return newestAugust(keep(of(lessonId))) || (day1 !== lessonId ? newestAugust(keep(of(day1))) : null);
+  };
+  return pick(true) || (t !== null ? pick(false) : null);
+}
+
+/**
+ * groupFor for many teachers at once: userId → 'A' | 'B' | null, before the per-lesson scope
+ * (inScope) is applied. Flag off: every teacher null, and nothing else is read. Never throws —
+ * a read that fails leaves everyone null (today's delivery), exactly as groupFor does.
+ */
+async function groupsForUsers(userIds, { chunk = 200 } = {}) {
+  const out = new Map();
+  const ids = [...new Set((userIds || []).filter(Boolean))];
+  ids.forEach((id) => out.set(id, null));
+  if (!ids.length || !(await flagOn())) return out;
+  try {
+    const schoolOf = new Map();
+    for (let i = 0; i < ids.length; i += chunk) {
+      // eslint-disable-next-line no-await-in-loop
+      const { data, error } = await supabase
+        .from('users').select('id, school_id').in('id', ids.slice(i, i + chunk));
+      if (error) throw new Error(error.message);
+      (data || []).forEach((u) => { if (u.school_id) schoolOf.set(u.id, u.school_id); });
+    }
+    const schools = [...new Set(schoolOf.values())];
+    const groupOf = new Map();
+    for (let i = 0; i < schools.length; i += chunk) {
+      // eslint-disable-next-line no-await-in-loop
+      const { data, error } = await supabase
+        .from('niete_lp_ab_assignment').select('school_id, ab_group').in('school_id', schools.slice(i, i + chunk));
+      if (error) throw new Error(error.message);
+      (data || []).forEach((r) => {
+        if (r.ab_group === 'A' || r.ab_group === 'B') groupOf.set(r.school_id, r.ab_group);
+      });
+    }
+    ids.forEach((id) => out.set(id, groupOf.get(schoolOf.get(id)) || null));
+  } catch (err) {
+    logToFile('LP A/B: batch group lookup failed — today\'s delivery', { users: ids.length, error: err.message });
+    ids.forEach((id) => out.set(id, null));
+  }
+  return out;
 }
 
 /**
@@ -124,4 +202,6 @@ async function augustListable(group, lessonIds) {
 
 function __resetForTests() { flagCache = null; }
 
-module.exports = { FLAG_KEY, groupFor, assetFor, augustListable, isAugust, __resetForTests };
+module.exports = {
+  FLAG_KEY, groupFor, groupsForUsers, inScope, assetFor, pickAsset, augustListable, isAugust, __resetForTests,
+};
