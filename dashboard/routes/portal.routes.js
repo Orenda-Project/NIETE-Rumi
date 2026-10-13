@@ -7211,12 +7211,13 @@ router.get('/coaching-session/:id/progress', requirePortalAuth, requireSelfObser
 
 /**
  * POST /api/portal/coaching-session/:id/reflection
- * Body { answer } → { done, acknowledgement, reportStatus }
+ * Body { answer } or { audioKey } (bd-eygg2f: her spoken answer, uploaded via /coaching-upload/presign with
+ * kind reflection_audio) → { done, acknowledgement, reportStatus }
  */
 router.post('/coaching-session/:id/reflection', requirePortalAuth, requireSelfObservation, (req, res) => {
-  const { answer } = req.body || {};
+  const { answer, audioKey } = req.body || {};
   return relayToBot(res, 'reflection', () => PortalCoachingClient.submitReflection({
-    userId: req.session.portalUserId, coachingSessionId: req.params.id, answer,
+    userId: req.session.portalUserId, coachingSessionId: req.params.id, answer, audioKey,
   }));
 });
 
