@@ -292,7 +292,10 @@ def load_map(map_path, agents_dir):
     web_known = sorted(f[: -len(".cjs")] for f in (os.listdir(web_dir) if os.path.isdir(web_dir) else [])
                        if f.endswith(".cjs"))
     web_features, web_rules = [], []
-    web_raw = raw.get("web") or {}
+    # No web drivers in this checkout at all (a partial copy of .claude/qa — CI fixtures, test_impact.py): the web
+    # lane cannot run here, so its block is skipped. It must never take the WhatsApp selection down with it. A web
+    # key with no driver WHERE drivers exist is still a map error, below.
+    web_raw = (raw.get("web") or {}) if os.path.isdir(web_dir) else {}
     web_scope = list(web_raw.get("scope") or [])
     web_fallback = web_raw.get("fallback") or None
     if web_fallback and web_fallback not in web_known:

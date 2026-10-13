@@ -405,6 +405,60 @@ def test_a_critical_run_says_why():
     assert "1 of 19 blocked" in ci.render_text(res, "warn", "warn")
     shutil.rmtree(r)
 
+# ── the web lane on the PR comment (bd-hnhlgn.9) ─────────────────────────────────────────────────────────────────
+def make_web_repo():
+    """make_repo() plus the web lane: its drivers and specs, so portal paths select web features."""
+    r = make_repo()
+    for rel in (".claude/qa/web", "tests/features/web"):
+        shutil.copytree(os.path.join(ROOT, rel), os.path.join(r, rel))
+    git(r, "add", "-A"); git(r, "commit", "-qm", "web lane")
+    return r
+
+
+def test_web_portal_only_range_reports_its_web_feature():
+    r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "feat(portal): login copy", **{"portal/src/portal/pages/PortalLogin.tsx": "// c\n"})
+    res = ci.analyse(r, base, head)
+    assert res["features"] == [], res["features"]
+    assert res["web_features"] == ["portal-login"], res.get("web_features")
+    w = res["web_per_feature"]["portal-login"]
+    assert w["e2e_proof"] == "missing" and w["scenario_count"] >= 11, w
+    assert "PortalLogin.tsx" in " ".join(w["changed_files"]), w
+    md = ci.render_markdown(res)
+    assert "Portal — web lane" in md and "**portal-login**" in md, md
+    assert "commit-e2e.sh %s" % head[:12] in md, md
+    # a portal range never fails the WhatsApp spec gate
+    assert ci.exit_code(res, freshness="block", proof="warn") == 0
+    shutil.rmtree(r)
+
+
+def test_web_run_row_in_the_range_is_recorded_proof():
+    r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    commit(r, "feat(portal): login copy", **{"portal/src/portal/pages/PortalLogin.tsx": "// c\n"})
+    row = {"run_id": "x", "surface": "web", "method": "browser", "feature": "portal-login", "status": "HEALTHY",
+           "summary": {"total": 11, "passed": 11, "failed": 0, "blocked": 0}}
+    head = commit(r, "qa: web row", **{".claude/qa/ledgers/runs.jsonl": json.dumps(row) + "\n"})
+    res = ci.analyse(r, base, head)
+    w = res["web_per_feature"]["portal-login"]
+    assert w["e2e_proof"] == "HEALTHY", w
+    assert res["verdict"]["web_e2e_proof"] == "recorded", res["verdict"]
+    md = ci.render_markdown(res)
+    assert "✅ HEALTHY" in md and "11/11" in md, md
+    shutil.rmtree(r)
+
+
+def test_web_and_whatsapp_range_shows_both_tables():
+    r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "feat: both", **{"bot/shared/services/menu.service.js": "// c\n",
+                                      "portal/src/portal/pages/PortalLogin.tsx": "// c\n"})
+    res = ci.analyse(r, base, head)
+    md = ci.render_markdown(res)
+    assert "**menu**" in md and "Portal — web lane" in md and "**portal-login**" in md, md
+    txt = ci.render_text(res)
+    assert "portal-login" in txt and "web" in txt, txt
+    shutil.rmtree(r)
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
