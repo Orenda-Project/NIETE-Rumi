@@ -10,6 +10,7 @@ import { LoadState } from './LoadState';
 import TeacherPage from '../TeacherPage';
 import { lessonsUrl, readAt, type LessonsAt } from './paths';
 import { useOpenLesson } from './useOpenLesson';
+import { Steps } from './Steps';
 
 /**
  * bd-fmf24g.3 — a chapter's lesson plans (v28 canvas LessonsList): "LP #" over the number, the title,
@@ -45,6 +46,7 @@ function Lessons({ at }: { at: LessonsAt & { chapter: string } }) {
 
   return (
     <TeacherPage feature="lessons" crumb={subject ?? undefined} title={chapter?.title ?? ''} backTo={lessonsUrl('chapters', at)}>
+      <Steps n={3} />
       <LoadState status={lessons.status} empty={!list.length} onRetry={retry} />
       {list.length ? (
         <div className={LIST_CARD}>

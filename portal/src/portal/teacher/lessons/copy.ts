@@ -25,6 +25,11 @@ export const LESSONS_V2_COPY = {
   home: 'Home',
   /** The one grade·subject control (bd-fmf24g.14): any grade and subject, so not "your class". */
   selectGradeSubject: 'Select grade and subject',
+  /* bd-fgj73x — the Assessment flow: + New lesson plan, then step 1 of 3, Grade and subject */
+  newLessonPlan: 'New lesson plan',
+  allGrades: 'Grades 1–12',
+  gradeAndSubject: 'Grade and subject',
+  stepOf: (n: number, of: number) => `Step ${n} of ${of}`,
   recent: 'Recent Lesson Plans',
   noLessonPlansYet: 'No lesson plans yet',
   ready: 'Ready',
@@ -91,6 +96,11 @@ export const LESSONS_V2_COPY_UR: Words<typeof LESSONS_V2_COPY> = {
   back: 'واپس',
   home: 'ہوم',
   selectGradeSubject: 'جماعت اور مضمون چنیں',
+  newLessonPlan: 'نیا لیسن پلان',
+  allGrades: 'جماعت 1 تا 12',
+  gradeAndSubject: 'جماعت اور مضمون',
+  // Assessment's own step words (assessment/copy.ts step).
+  stepOf: (n: number, of: number) => `مرحلہ ${n} از ${of}`,
   recent: 'حالیہ لیسن پلان',
   noLessonPlansYet: 'کوئی لیسن پلان نہیں',
   ready: 'تیار',

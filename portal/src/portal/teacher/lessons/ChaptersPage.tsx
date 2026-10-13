@@ -8,12 +8,14 @@ import { LESSONS } from './copy';
 import { useCopy } from '../i18n';
 import { LoadState } from './LoadState';
 import TeacherPage from '../TeacherPage';
-import { lessonsUrl, readAt, type LessonsAt } from './paths';
+import { LESSONS_NEW, lessonsUrl, readAt, type LessonsAt } from './paths';
+import { Steps } from './Steps';
 
 /**
  * bd-fmf24g.3 — the subject's chapters (v28 canvas LessonsChapters): one row each, "Chap" over its
  * number, its title, "p.x-y · N lessons", to that chapter's lessons. The catalogue is the shared
  * lesson-plan client's (grades 1–12, one model): this page never asks which grade band it is in.
+ * bd-fgj73x — step 2 of 3 of a new lesson plan: Back is step 1, Grade and subject.
  */
 
 export function ChaptersPage() {
@@ -30,7 +32,8 @@ function Chapters({ at }: { at: LessonsAt }) {
   const list = dataOf(chapters) ?? [];
 
   return (
-    <TeacherPage feature="lessons" crumb={C.grade(at.grade)} title={name} backTo={teacherPath('lessons')}>
+    <TeacherPage feature="lessons" crumb={C.grade(at.grade)} title={name} backTo={LESSONS_NEW}>
+      <Steps n={2} />
       <LoadState status={chapters.status} empty={!list.length} onRetry={retry} />
       {list.length ? (
         <div className={LIST_CARD}>
