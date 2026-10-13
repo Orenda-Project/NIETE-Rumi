@@ -533,3 +533,30 @@ describe("the browser report matches the WhatsApp report (bd-foyqpc)", () => {
     expect(within(scores).getByText("جانچ نہیں ہوئی")).toBeTruthy();
   });
 });
+
+/**
+ * bd-ymavij — the question's voice note sometimes would not play again (sandbox). The page polls while it waits for
+ * her answer, and every poll brings the audio link signed again; the player's src must not change with it.
+ */
+describe("the question's voice note keeps its link while the page polls (bd-ymavij)", () => {
+  it("a re-signed link for the same file does not reload the player", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let n = 0;
+    portal.getCoachingProgress.mockImplementation(async () => {
+      n += 1;
+      return { id: ID, status: "conducting_conversation", stage: "reflection", source: "portal",
+        reflection: { questionNumber: 1, question: "Which children answered?",
+          audioUrl: `https://r2.example/b/reflection_questions/u/cs_q1.ogg?X-Amz-Date=${n}` } };
+    });
+    open();
+    const section = await screen.findByRole("region", { name: C.stepReflection });
+    const audio = () => section.querySelector("audio")?.getAttribute("src");
+    await waitFor(() => expect(audio()).toBeTruthy());
+    const first = audio();
+    await vi.advanceTimersByTimeAsync(5_100);
+    await vi.advanceTimersByTimeAsync(5_100);
+    await waitFor(() => expect(n).toBeGreaterThanOrEqual(3));
+    expect(audio()).toBe(first);
+    vi.useRealTimers();
+  });
+});

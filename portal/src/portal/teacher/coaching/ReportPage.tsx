@@ -18,6 +18,7 @@ import { CARD, FOCUS } from '../ui/styles';
 import { COACHING } from './copy';
 import { SectionHeading } from './parts';
 import { goTo } from './navigate';
+import { useStableSignedUrl } from '../../lib/stableSignedUrl';
 import { COACHING_HOME } from './paths';
 import { dcSteps, loadJourney, toReportData, type JourneyPoint } from './report';
 
@@ -136,6 +137,8 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
   // bd-fmf24g.30 — the same report, to her WhatsApp as a template (grey until one is configured), or out of this browser.
   const canSend = useShareAvailable(isVisit ? 'observation' : 'dc');
   const asked = progress?.stage === 'reflection' && !sent ? progress.reflection : null;
+  // bd-ymavij — every poll re-signs the question's audio; keep one link under the player so a tap is never thrown away.
+  const askedAudio = useStableSignedUrl(asked?.audioUrl);
   const answered = (detail?.reflection ?? []).filter((r) => r.question && r.answer);
   // bd-foyqpc — as her WhatsApp report: the narrative's topic (her language) first.
   const title = detail?.reportNarrative?.topic || detail?.topic || detail?.subject || C.dcObservation;
@@ -228,8 +231,8 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
           <section aria-label={C.stepReflection} className="flex flex-col gap-3 overflow-hidden rounded-[18px] border border-[#e5e7eb] bg-[#eceef1] p-2.5">
             {/* bd-czmyoh — ICT feedback row 6: the question comes as the Digital Coach's voice note, as on WhatsApp;
                 the words show only when it could not be voiced (WhatsApp's own fallback). */}
-            {asked.audioUrl ? (
-              <VoiceNote from={C.title} avatar="dc" duration="" time="" src={asked.audioUrl} copy={C.audio} className="max-w-[320px]" />
+            {askedAudio ? (
+              <VoiceNote from={C.title} avatar="dc" duration="" time="" src={askedAudio} copy={C.audio} className="max-w-[320px]" />
             ) : (
               <div className="max-w-[290px] rounded-[18px] rounded-es-md border border-[#e5e7eb] bg-white px-3.5 pb-2 pt-2.5 shadow-[0_1px_2px_rgba(16,24,40,0.06)]">
                 <div className="mb-1 text-[12px] font-bold text-[#c2410c]">{C.title}</div>
