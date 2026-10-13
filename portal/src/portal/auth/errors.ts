@@ -10,7 +10,13 @@ import type { AuthKey } from './copy';
 
 export type AuthError = { field: 'phone' | 'password' | 'confirm' | 'code' | 'form'; key: AuthKey };
 
-export function loginFailure(status?: number): AuthError {
+/**
+ * `byName`: she signed in with an account NAME (bd-s6qbts.5). The server answers every way that can be wrong with the
+ * wrong-password 401 so it never says whether a name exists; "Wrong password" would point someone who mistyped the
+ * NAME at the wrong field, so a name's 401 is the plain "Couldn't log in". Everything else maps as for a phone.
+ */
+export function loginFailure(status?: number, byName = false): AuthError {
+  if (byName && status === 401) return { field: 'form', key: 'couldntLogin' };
   switch (status) {
     case 401: return { field: 'password', key: 'wrongPw' };
     case 403: return { field: 'password', key: 'noPw' };
