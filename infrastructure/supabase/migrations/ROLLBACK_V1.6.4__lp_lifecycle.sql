@@ -1,5 +1,5 @@
--- Rollback migration for V1.6.4. Removes the lifecycle columns, their CHECKs, the request link and the
--- two indexes.
+-- Rollback migration for V1.6.4. Removes the lifecycle columns, their CHECKs, the request links on
+-- lesson_plans and the two delivery ledgers, and the two indexes.
 -- destructive: reviewed — the columns hold only lifecycle bookkeeping (path, stage times, error code,
 -- correlation id, the plan's request link); nothing a teacher sees is read from them.
 -- SAFE ONLY after LP_LIFECYCLE_PATHS is unset on every service (bot, sqs-worker, sqs-worker-video,
@@ -10,11 +10,16 @@ DROP INDEX IF EXISTS idx_lp_requests_source_created;
 DROP INDEX IF EXISTS idx_lesson_plans_request_id;
 
 ALTER TABLE lesson_plans         DROP CONSTRAINT IF EXISTS lesson_plans_request_id_fkey;
-ALTER TABLE lesson_plans         DROP CONSTRAINT IF EXISTS lesson_plans_source_check;
+ALTER TABLE niete_lp612_deliveries DROP CONSTRAINT IF EXISTS niete_lp612_deliveries_request_id_fkey;
+ALTER TABLE niete_lp_downloads     DROP CONSTRAINT IF EXISTS niete_lp_downloads_request_id_fkey;
 ALTER TABLE lesson_plan_requests DROP CONSTRAINT IF EXISTS lesson_plan_requests_channel_check;
 ALTER TABLE lesson_plan_requests DROP CONSTRAINT IF EXISTS lesson_plan_requests_source_check;
 ALTER TABLE lesson_plan_requests DROP CONSTRAINT IF EXISTS lesson_plan_requests_status_check;
 
+-- destructive: reviewed (rollback of V1.6.4)
+ALTER TABLE niete_lp612_deliveries DROP COLUMN IF EXISTS request_id;
+-- destructive: reviewed (rollback of V1.6.4)
+ALTER TABLE niete_lp_downloads     DROP COLUMN IF EXISTS request_id;
 -- destructive: reviewed (rollback of V1.6.4)
 ALTER TABLE lesson_plans         DROP COLUMN IF EXISTS request_id;
 -- destructive: reviewed (rollback of V1.6.4)

@@ -123,7 +123,7 @@ const ALLOWLIST = {
   // is a destructured result var from the neighbouring select, not a column.
   training_assessment_attempts: ['onconflict', 'data'],
   // Same options-object artifact: the lesson-plan lifecycle writer upserts a built `row` variable
-  // on the ask's id — `.upsert(row, { onConflict: 'id' })` in lesson-plan-queue.service.js
+  // on the ask's id — `.upsert(row, { onConflict: 'id' })` in lesson-plan-lifecycle.service.js
   // recordOutcome — so the first object literal after `.upsert(` is the OPTIONS object. Every
   // column the row carries is declared in the reference schema (migration V1.6.4).
   lesson_plan_requests: ['onconflict'],

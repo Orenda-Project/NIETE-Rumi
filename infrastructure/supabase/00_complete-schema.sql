@@ -6687,8 +6687,9 @@ COMMENT ON COLUMN niete_lp_opens.source IS
   'Internal. viewer = the portal''s own PDF viewer; external = handed to another app by a presigned link.';
 
 -- ─── lesson-plan lifecycle (migration V1.6.4) — every ask's path, stage times, outcome, log id ──
--- One row per lesson-plan ask in lesson_plan_requests, on every path; each plan row names its ask.
--- Written only by LessonPlanQueueService's lifecycle methods, switched by LP_LIFECYCLE_PATHS.
+-- One row per lesson-plan ask in lesson_plan_requests, on every path; each plan row and each row of
+-- the two delivery ledgers the portal lists names its ask.
+-- Written only by bot/shared/services/lesson-plan-lifecycle.service.js, switched by LP_LIFECYCLE_PATHS.
 ALTER TABLE lesson_plan_requests ADD COLUMN IF NOT EXISTS source         text;
 ALTER TABLE lesson_plan_requests ADD COLUMN IF NOT EXISTS channel        text;
 ALTER TABLE lesson_plan_requests ADD COLUMN IF NOT EXISTS region         text;
@@ -6699,7 +6700,9 @@ ALTER TABLE lesson_plan_requests ADD COLUMN IF NOT EXISTS generated_at   timesta
 ALTER TABLE lesson_plan_requests ADD COLUMN IF NOT EXISTS delivered_at   timestamptz;
 ALTER TABLE lesson_plan_requests ADD COLUMN IF NOT EXISTS error_code     text;
 ALTER TABLE lesson_plan_requests ADD COLUMN IF NOT EXISTS correlation_id text;
-ALTER TABLE lesson_plans         ADD COLUMN IF NOT EXISTS request_id     uuid;
+ALTER TABLE lesson_plans           ADD COLUMN IF NOT EXISTS request_id   uuid;
+ALTER TABLE niete_lp_downloads     ADD COLUMN IF NOT EXISTS request_id   uuid;
+ALTER TABLE niete_lp612_deliveries ADD COLUMN IF NOT EXISTS request_id   uuid;
 
 DO $$ BEGIN
   ALTER TABLE lesson_plan_requests ADD CONSTRAINT lesson_plan_requests_status_check
@@ -6720,15 +6723,17 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 DO $$ BEGIN
-  ALTER TABLE lesson_plans ADD CONSTRAINT lesson_plans_source_check
-    CHECK (source IS NULL OR source IN (
-      'gamma_standard', 'gamma_enriched', 'ug_lp', 'ps_pregen', 'v7_segment', 'v7_chapter',
-      'gamma_chapter', 'pre_gen_chapter', 'homework_bundle', 'pic_to_lp_kieai', 'kenya_browse',
-      'multigrade_lp', 'niete_grounded', 'niete_v8_segment', 'niete_lp612'));
+  ALTER TABLE lesson_plans ADD CONSTRAINT lesson_plans_request_id_fkey
+    FOREIGN KEY (request_id) REFERENCES lesson_plan_requests(id) ON DELETE SET NULL;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 DO $$ BEGIN
-  ALTER TABLE lesson_plans ADD CONSTRAINT lesson_plans_request_id_fkey
+  ALTER TABLE niete_lp_downloads ADD CONSTRAINT niete_lp_downloads_request_id_fkey
+    FOREIGN KEY (request_id) REFERENCES lesson_plan_requests(id) ON DELETE SET NULL;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE niete_lp612_deliveries ADD CONSTRAINT niete_lp612_deliveries_request_id_fkey
     FOREIGN KEY (request_id) REFERENCES lesson_plan_requests(id) ON DELETE SET NULL;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
@@ -6760,6 +6765,10 @@ COMMENT ON COLUMN lesson_plan_requests.correlation_id IS
   'Internal. The correlationId of the request''s log lines in Axiom; joins this row to its logs.';
 COMMENT ON COLUMN lesson_plans.request_id IS
   'Internal. The lesson_plan_requests row this plan was delivered for. NULL on rows written before the lifecycle writer was switched on for their path.';
+COMMENT ON COLUMN niete_lp_downloads.request_id IS
+  'Internal. The lesson_plan_requests row of the ask this grade 1-5 delivery attempt answered. NULL before the lifecycle writer was switched on for niete_v8_segment.';
+COMMENT ON COLUMN niete_lp612_deliveries.request_id IS
+  'Internal. The lesson_plan_requests row of the ask this grade 6-12 delivery answered. NULL before the lifecycle writer was switched on for niete_lp612, and on portal/backfill rows.';
 
 -- ─── web quiz Challenge runs (bot/database/migrations/web_quiz_challenge.sql) ──
 -- One row per finished self-run Challenge exercise (bigger, read, …) a child played on the web quiz.

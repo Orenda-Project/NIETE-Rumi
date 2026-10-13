@@ -1,5 +1,5 @@
 /**
- * The lesson-plan lifecycle writer — LessonPlanQueueService.recordOutcome and its switch.
+ * The lesson-plan lifecycle writer — Lifecycle.recordOutcome and its switch.
  *
  * WHAT IT IS FOR. Every lesson-plan ask must leave one row in lesson_plan_requests: which path served
  * it, when each stage happened, how it ended, and the correlation id of its logs — so an analyst can
@@ -25,7 +25,6 @@ jest.mock('../../bot/shared/utils/structured-logger', () => ({
   logEvent: (...a) => mockEvent(...a),
   getCurrentCorrelationId: () => mockCorrelationId,
 }));
-jest.mock('../../bot/shared/services/queue', () => ({ queueCoachingJob: jest.fn() }));
 
 const { createMemorySupabase } = require('../quiz/helpers/memory-supabase');
 
@@ -46,7 +45,7 @@ jest.mock('../../bot/shared/config/supabase', () => ({
   },
 }));
 
-const LessonPlanQueueService = require('../../bot/shared/services/lesson-plan-queue.service');
+const Lifecycle = require('../../bot/shared/services/lesson-plan-lifecycle.service');
 
 const TEACHER = '11111111-1111-4111-8111-111111111111';
 const ASK = {
@@ -79,7 +78,7 @@ beforeEach(() => {
   mockCorrelationId = 'corr-from-context';
   mockLog.mockClear();
   mockEvent.mockClear();
-  LessonPlanQueueService.__resetLifecycleForTests();
+  Lifecycle.__resetForTests();
 });
 
 afterEach(() => {
@@ -101,11 +100,11 @@ describe('the switch — LP_LIFECYCLE_PATHS', () => {
     ['all', 'not_a_path', false],
   ])('LP_LIFECYCLE_PATHS=%p → %s enabled: %p', (value, source, expected) => {
     if (value === undefined) delete process.env.LP_LIFECYCLE_PATHS; else process.env.LP_LIFECYCLE_PATHS = value;
-    expect(LessonPlanQueueService.lifecycleEnabled(source)).toBe(expected);
+    expect(Lifecycle.enabled(source)).toBe(expected);
   });
 
   test('switched off, recordOutcome makes no database call and returns null', async () => {
-    const id = await LessonPlanQueueService.recordOutcome(ASK);
+    const id = await Lifecycle.recordOutcome(ASK);
     expect(id).toBeNull();
     expect(mockCalls).toBe(0);
     expect(mockDb.table('lesson_plan_requests')).toHaveLength(0);
@@ -114,7 +113,7 @@ describe('the switch — LP_LIFECYCLE_PATHS', () => {
 
   test('switched on for a different path only, it still makes no call', async () => {
     process.env.LP_LIFECYCLE_PATHS = 'niete_v8_segment';
-    expect(await LessonPlanQueueService.recordOutcome(ASK)).toBeNull();
+    expect(await Lifecycle.recordOutcome(ASK)).toBeNull();
     expect(mockCalls).toBe(0);
   });
 });
@@ -123,7 +122,7 @@ describe('recordOutcome — one row per ask, with its path, stage times and log 
   beforeEach(() => { process.env.LP_LIFECYCLE_PATHS = 'all'; });
 
   test('a delivered ask writes one completed row carrying every lifecycle field', async () => {
-    const id = await LessonPlanQueueService.recordOutcome(ASK);
+    const id = await Lifecycle.recordOutcome(ASK);
     expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     const rows = mockDb.table('lesson_plan_requests');
     expect(rows).toHaveLength(1);
@@ -154,14 +153,14 @@ describe('recordOutcome — one row per ask, with its path, stage times and log 
   });
 
   test('the caller can name the id up front, and a retried call rewrites that row instead of adding one', async () => {
-    const id = LessonPlanQueueService.newRequestId();
-    expect(await LessonPlanQueueService.recordOutcome({ ...ASK, id })).toBe(id);
-    expect(await LessonPlanQueueService.recordOutcome({ ...ASK, id })).toBe(id);
+    const id = Lifecycle.newRequestId();
+    expect(await Lifecycle.recordOutcome({ ...ASK, id })).toBe(id);
+    expect(await Lifecycle.recordOutcome({ ...ASK, id })).toBe(id);
     expect(mockDb.table('lesson_plan_requests')).toHaveLength(1);
   });
 
   test('a failed ask writes a failed row with its error code and no delivery time', async () => {
-    const id = await LessonPlanQueueService.recordOutcome({
+    const id = await Lifecycle.recordOutcome({
       ...ASK, status: 'failed', deliveredAt: undefined, errorCode: 'DELIVERY_FAILED', errorMessage: 'document send failed',
     });
     const [row] = mockDb.table('lesson_plan_requests');
@@ -173,16 +172,16 @@ describe('recordOutcome — one row per ask, with its path, stage times and log 
   });
 
   test('a correlation id passed in wins over the one in context; none at all is stored as null', async () => {
-    await LessonPlanQueueService.recordOutcome({ ...ASK, correlationId: 'corr-explicit' });
+    await Lifecycle.recordOutcome({ ...ASK, correlationId: 'corr-explicit' });
     mockCorrelationId = undefined;
-    await LessonPlanQueueService.recordOutcome(ASK);
+    await Lifecycle.recordOutcome(ASK);
     const rows = mockDb.table('lesson_plan_requests');
     expect(rows.map((r) => r.correlation_id)).toEqual(['corr-explicit', null]);
   });
 
   test('inputs are validated at the point of entry: grade 1-12 only, topic cut to the column, phone digits only', async () => {
-    await LessonPlanQueueService.recordOutcome({ ...ASK, grade: '13', topic: 'x'.repeat(600), phone: '+92 300 1234567' });
-    await LessonPlanQueueService.recordOutcome({ ...ASK, grade: '5' });
+    await Lifecycle.recordOutcome({ ...ASK, grade: '13', topic: 'x'.repeat(600), phone: '+92 300 1234567' });
+    await Lifecycle.recordOutcome({ ...ASK, grade: '5' });
     const [a, b] = mockDb.table('lesson_plan_requests');
     expect(a.grade).toBeNull();
     expect(a.topic).toHaveLength(500);
@@ -190,30 +189,38 @@ describe('recordOutcome — one row per ask, with its path, stage times and log 
     expect(b.grade).toBe(5);
   });
 
+  test.each(['pending', 'processing'])(
+    'TERMINAL ONLY: a %s outcome is refused — an in-flight row would surface in /status, the busy probe and the stale sweeper',
+    async (status) => {
+      expect(await Lifecycle.recordOutcome({ ...ASK, status })).toBeNull();
+      expect(mockDb.table('lesson_plan_requests')).toHaveLength(0);
+    },
+  );
+
   test('an unknown path, status or channel is refused before any write', async () => {
-    expect(await LessonPlanQueueService.recordOutcome({ ...ASK, source: 'gamma' })).toBeNull();
-    expect(await LessonPlanQueueService.recordOutcome({ ...ASK, status: 'extracting' })).toBeNull();
-    expect(await LessonPlanQueueService.recordOutcome({ ...ASK, channel: 'sms' })).toBeNull();
+    expect(await Lifecycle.recordOutcome({ ...ASK, source: 'gamma' })).toBeNull();
+    expect(await Lifecycle.recordOutcome({ ...ASK, status: 'extracting' })).toBeNull();
+    expect(await Lifecycle.recordOutcome({ ...ASK, channel: 'sms' })).toBeNull();
     expect(mockDb.table('lesson_plan_requests')).toHaveLength(0);
   });
 
   test('no teacher or no phone (nothing the table can key or must hold) writes nothing and does not throw', async () => {
-    expect(await LessonPlanQueueService.recordOutcome({ ...ASK, userId: null })).toBeNull();
-    expect(await LessonPlanQueueService.recordOutcome({ ...ASK, phone: '' })).toBeNull();
+    expect(await Lifecycle.recordOutcome({ ...ASK, userId: null })).toBeNull();
+    expect(await Lifecycle.recordOutcome({ ...ASK, phone: '' })).toBeNull();
     expect(mockDb.table('lesson_plan_requests')).toHaveLength(0);
   });
 
   test('every recorded outcome emits the canonical event with the ids an analyst joins on', async () => {
-    const id = await LessonPlanQueueService.recordOutcome(ASK);
+    const id = await Lifecycle.recordOutcome(ASK);
     expect(mockEvent).toHaveBeenCalledWith('lesson_plan.delivery.sent', expect.objectContaining({
       requestId: id, userId: TEACHER, source: 'niete_lp612', channel: 'whatsapp', region: 'niete',
       correlationId: 'corr-from-context',
     }));
     mockEvent.mockClear();
-    const failed = await LessonPlanQueueService.recordOutcome({ ...ASK, status: 'failed', errorCode: 'RENDER_FAILED', generatedAt: undefined, deliveredAt: undefined });
+    const failed = await Lifecycle.recordOutcome({ ...ASK, status: 'failed', errorCode: 'RENDER_FAILED', generatedAt: undefined, deliveredAt: undefined });
     expect(mockEvent).toHaveBeenCalledWith('lesson_plan.generation.failed', expect.objectContaining({ requestId: failed, errorCode: 'RENDER_FAILED' }));
     mockEvent.mockClear();
-    await LessonPlanQueueService.recordOutcome({ ...ASK, status: 'failed', errorCode: 'DELIVERY_FAILED', deliveredAt: undefined });
+    await Lifecycle.recordOutcome({ ...ASK, status: 'failed', errorCode: 'DELIVERY_FAILED', deliveredAt: undefined });
     expect(mockEvent).toHaveBeenCalledWith('lesson_plan.delivery.failed', expect.objectContaining({ errorCode: 'DELIVERY_FAILED' }));
   });
 });
@@ -223,15 +230,15 @@ describe('soft-fail — the record is never the reason a lesson does not reach t
 
   test('a database error returns null and does not throw', async () => {
     mockFail = { code: '57014', message: 'canceling statement due to statement timeout' };
-    await expect(LessonPlanQueueService.recordOutcome(ASK)).resolves.toBeNull();
+    await expect(Lifecycle.recordOutcome(ASK)).resolves.toBeNull();
     expect(mockEvent).toHaveBeenCalledWith('lesson_plan.lifecycle.write_failed', expect.objectContaining({ code: '57014' }));
   });
 
   test('a missing column (migration not applied yet) is said at error level ONCE per ten minutes, not per delivery', async () => {
     mockFail = { code: 'PGRST204', message: "Could not find the 'source' column of 'lesson_plan_requests' in the schema cache" };
-    await LessonPlanQueueService.recordOutcome(ASK);
-    await LessonPlanQueueService.recordOutcome(ASK);
-    await LessonPlanQueueService.recordOutcome(ASK);
+    await Lifecycle.recordOutcome(ASK);
+    await Lifecycle.recordOutcome(ASK);
+    await Lifecycle.recordOutcome(ASK);
     const loud = mockLog.mock.calls.filter((c) => c[2] === 'error' && /lesson_plan_requests/.test(JSON.stringify(c)));
     expect(loud).toHaveLength(1);
   });
@@ -239,7 +246,7 @@ describe('soft-fail — the record is never the reason a lesson does not reach t
   test('a throw from the client itself is caught too', async () => {
     const realFrom = mockDb.from;
     mockDb.from = () => { throw new Error('socket hang up'); };
-    await expect(LessonPlanQueueService.recordOutcome(ASK)).resolves.toBeNull();
+    await expect(Lifecycle.recordOutcome(ASK)).resolves.toBeNull();
     mockDb.from = realFrom;
   });
 });
