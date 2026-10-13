@@ -14,6 +14,7 @@
 #   bash bot/scripts/e2e/local-db.sh status | stop          # the machine's cluster
 #   bash bot/scripts/e2e/local-db.sh demo-seed <run_dir>   # LOCAL PORTAL ONLY: add a made-up school network to this run
 #   bash bot/scripts/e2e/local-db.sh sandbox-copy <run_dir> [--refresh]   # LOCAL PORTAL ONLY: the sandbox's rows into this run
+#   bash bot/scripts/e2e/local-db.sh refresh-views <run_dir>             # populate the run's materialized views (dashboard numbers)
 #
 # Three tiers, the same split the lane already uses for redis and node_modules:
 #   once per machine   a Postgres 17 cluster under $LOCAL_DB_HOME, started on first use and left running
@@ -605,6 +606,19 @@ install_tools() {
 # A made-up school network (schools, coach, principal, teachers, classes, LPs, scored observations, training) for
 # the local teacher + coach portal (bd-hnhlgn). Written into THIS run's database only — never the golden, so every
 # E2E run still starts with no people in it. Synthetic rows from portal-demo-seed.js; safe to run twice.
+# refresh-views — populate every materialized view in a run's database (bd-hnhlgn.3). The dashboard's summary
+# numbers (mv_dashboard_stats …) read these; callers come here so Postgres is found one way, on a Mac or on Linux.
+refresh_views() {
+  local run_dir="${1:-}"
+  [ -n "$run_dir" ] && [ -f "$run_dir/db.name" ] || { echo "usage: local-db.sh refresh-views <run_dir>" >&2; exit 2; }
+  [ -n "$PGBIN" ] || { log "Postgres 17 not found — $(hint 'postgresql@17 pgvector')"; exit 4; }
+  local db sql; db=$(cat "$run_dir/db.name")
+  sql=$(psql_ -d "$db" -At -c "select format('refresh materialized view public.%I;', matviewname) from pg_matviews where schemaname='public'") \
+    && { [ -z "$sql" ] || printf '%s\n' "$sql" | psql_ -d "$db"; } \
+    || { log "refresh-views: failed for $db"; exit 6; }
+  log "refresh-views: $(printf '%s' "$sql" | grep -c . || true) views in $db"
+}
+
 demo_seed() {
   local run_dir="${1:-}"
   [ -n "$run_dir" ] && [ -f "$run_dir/db.name" ] || { echo "usage: local-db.sh demo-seed <run_dir>   (a run_dir from \`up\`, with db.name)" >&2; exit 2; }
@@ -732,5 +746,6 @@ case "$CMD" in
   seed-pull) seed_pull "$@";; seed-publish) seed_publish;; seed-status) seed_status;; doctor) doctor;; install-tools) install_tools;; drift) drift "$@";;
   demo-seed) demo_seed "$@";;
   sandbox-copy) sandbox_copy "$@";;
+  refresh-views) refresh_views "$@";;
   *) sed -n '2,17p' "$0" >&2; exit 2;;
 esac
