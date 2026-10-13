@@ -16,8 +16,10 @@ test('the entry file parses', () => {
   expect(() => execFileSync(process.execPath, ['--check', INDEX])).not.toThrow();
 });
 
-test('actionLogger is mounted before the portal routers, after the link-area scope', () => {
-  const scope = at("app.use('/api/portal', portalLinkRoutes.portalLinkScope);");
+test('actionLogger is mounted before the portal routers, after the link-area scope (where that scope exists)', () => {
+  // The template-button link area (portal-link.routes.js) is on sandbox but not yet on staging/main (13 Oct 2026).
+  const scopeLine = "app.use('/api/portal', portalLinkRoutes.portalLinkScope);";
+  const scope = src.includes(scopeLine) ? at(scopeLine) : -1;
   const logger = at("app.use('/api/portal', appFunnelRoutes.actionLogger);");
   const portal = at("app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, portalRoutes);");
   const lessons = at('teacherLessonsRoutes);');
