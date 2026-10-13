@@ -550,6 +550,7 @@ not_covered:
 
   bot/shared/utils/logger.js: "logging plumbing — no teacher-visible surface"
   bot/shared/utils/structured-logger.js: "logging plumbing — no teacher-visible surface"
+  bot/shared/utils/model-cost.js: "model-spend log event, never throws — no teacher-visible surface"
   bot/shared/utils/tracing.js: "correlation-id plumbing — no teacher-visible surface"
   bot/shared/utils/version-check.js: "startup version guard — no teacher-visible surface"
   bot/shared/utils/setup-validator.js: "startup env guard — no teacher-visible surface"
