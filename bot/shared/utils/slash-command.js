@@ -17,10 +17,12 @@
  */
 
 // Every command a teacher-facing door matches on. `reading test` is the one two-word command.
+// NOT quiz: its bare-text door (quiz-menu-request.js) already reads "quiz/" and "/ quiz", behind
+// its own kill switch QUIZ_BARE_TEXT_TO_MENU, which a rewrite here would bypass.
 const COMMANDS = new Set([
   'menu', 'register', 'language', 'settings', 'portal', 'training', 'trainings', 'roster',
   'reading', 'readingtest', 'reading test', 'exam', 'exams', 'assess', 'assessment', 'assessments',
-  'observe', 'observe2', 'quiz', 'video', 'videos', 'status', 'cancel', 'class', 'classes',
+  'observe', 'observe2', 'video', 'videos', 'status', 'cancel', 'class', 'classes',
   'certificate', 'certificates', 'remark',
 ]);
 

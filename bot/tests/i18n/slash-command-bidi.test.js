@@ -90,7 +90,6 @@ describe('bd-5ls6qy.7 — the catalogs the bot sends from', () => {
     observeStrings: () => require('../../shared/services/observe/observe-strings').observeStrings('ur'),
     observe2Strings: () => require('../../shared/services/observe/observe2/strings').observe2Strings('ur'),
     capabilities: () => require('../../shared/config/capabilities.config'),
-    SYSTEM_MESSAGES: () => require('../../shared/config/system-messages').SYSTEM_MESSAGES,
   };
 
   test.each(Object.keys(catalogs))('%s: no bare slash command in any RTL string', (name) => {
@@ -112,6 +111,7 @@ describe('bd-5ls6qy.7 — ratchet: no bare command in an RTL string literal anyw
     /\/quiz\/web-quiz-/,                            // HTML quiz pages
     /\/openai\.service\.js$/,                       // LLM prompt text, not sent to a teacher
     /\/transcript-enhancer\.service\.js$/,          // LLM prompt text
+    /\/config\/system-messages\.js$/,              // orphaned: nothing requires it (tests/setup/orphan-modules)
   ];
   const LIT = /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/gs;
 
