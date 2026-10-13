@@ -1,10 +1,13 @@
 /**
  * Schools analytics (FDE / AEO view) — the pure summariser and the row loader (Plan v3).
  *
- * Objective counts only: LPs opened / generated, Digital Coach and human observations,
- * coach visits, each "x of N teachers" where it applies, and the average FICO / HITL score
- * with its n. No percentages, no bands, no thresholds. No teacher-level data leaves the
- * server, and every roll-up is a SUM (averages pooled), never a mean of school means.
+ * Objective counts only: LPs opened, Digital Coach and human observations, each "x of N
+ * teachers" where it applies, and the average FICO / HITL score with its n. No percentages,
+ * no bands, no thresholds. No teacher-level data leaves the server, and every roll-up is a
+ * SUM (averages pooled), never a mean of school means.
+ *
+ * bd-wfl8oz (operator, 2026-10-13): "LPs generated" and "Coach visits" are gone — human
+ * observations already are the coach's visits — so neither is read, summed or sent.
  */
 
 const {
@@ -19,45 +22,36 @@ const {
 } = require('../../dashboard/services/schools-analytics.service');
 
 const METRIC_KEYS = [
-  'teachers', 'lpsOpened', 'teachersOpenedLp', 'lpsGenerated', 'dcObservations', 'teachersWithDc',
-  'humanObservations', 'coachVisits', 'avgFico', 'ficoN', 'avgHitl', 'hitlN',
+  'teachers', 'lpsOpened', 'teachersOpenedLp', 'dcObservations', 'teachersWithDc',
+  'humanObservations', 'avgFico', 'ficoN', 'avgHitl', 'hitlN',
 ];
+const REMOVED = /lpsGenerated|coachVisits|lps_generated|coach_visits/i;
 const COUNT_KEYS = METRIC_KEYS.filter((k) => !k.startsWith('avg'));
 const SCHOOL_KEYS = ['schoolId', 'emis', 'name', 'region', ...METRIC_KEYS].sort();
 const REGION_KEYS = ['region', 'schools', ...METRIC_KEYS].sort();
 const OVERVIEW_KEYS = ['schools', ...METRIC_KEYS].sort();
 
-const school = (id, region, extra = {}) => ({
-  id, name: `School ${id}`, emis: `E-${id}`, region, is_active: true, is_probable_test: false, coach_visits: 0, ...extra,
-});
-const roster = (school_id, is_test, teachers, lps_generated, lps_opened, teachers_opened_lp) => ({
-  school_id, is_test, teachers, lps_generated, lps_opened, teachers_opened_lp,
+// One row per school, its (non-test) roster summed by the same read: teachers, different
+// plans opened, teachers who opened one.
+const school = (id, region, [teachers, lps_opened, teachers_opened_lp] = [0, 0, 0], extra = {}) => ({
+  id, name: `School ${id}`, emis: `E-${id}`, region, is_active: true, is_probable_test: false,
+  teachers, lps_opened, teachers_opened_lp, ...extra,
 });
 
 function fixture() {
   return {
     schools: [
-      school('s1', 'B.K', { coach_visits: 3 }),
-      school('s2', 'B.K'),
-      school('s3', 'Sihala', { coach_visits: 1 }),
-      school('s4', null, { coach_visits: 2 }),
-      school('s5', '   ', { coach_visits: undefined }),
-      school('s6', 'Durbeen'),
-      school('s7', 'B.K', { is_probable_test: true, coach_visits: 5 }),
-      school('s8', 'Tarnol', { is_active: false, coach_visits: 4 }),
-      school('s9', 'Nilore'),
-    ],
-    teachers: [
-      roster('s1', false, 10, 25, 7, 4),
-      roster('s1', true, 3, 9, 9, 3),
-      roster('s2', false, 2, 4, 3, 2),
-      roster('s3', false, 4, 0, 0, 0),
-      roster('s4', false, 1, 2, 1, 1),
-      roster('s5', false, 1, 0, 0, 0),
-      roster('s6', false, 2, 1, 2, 1),
-      roster('s7', false, 50, 50, 50, 50),
-      roster('s8', false, 7, 7, 7, 7),
-      roster('ghost', false, 5, 5, 5, 5),
+      // s1 also carries the two removed fields, as a stale row might: neither may come back out.
+      school('s1', 'B.K', [10, 7, 4], { coach_visits: 3, lps_generated: 25 }),
+      school('s2', 'B.K', [2, 3, 2]),
+      school('s3', 'Sihala', [4, 0, 0]),
+      school('s4', null, [1, 1, 1]),
+      school('s5', '   ', [1, 0, 0]),
+      school('s6', 'Durbeen', [2, 2, 1]),
+      school('s7', 'B.K', [50, 50, 50], { is_probable_test: true }),
+      school('s8', 'Tarnol', [7, 7, 7], { is_active: false }),
+      // No roster numbers at all (a driver that left them out): read as 0, never NaN.
+      { id: 's9', name: 'School s9', emis: 'E-s9', region: 'Nilore', is_active: true, is_probable_test: false },
     ],
     sessions: [
       { id: 'c1', school_id: 's1', user_id: 't1', is_test: false, observation_type: null, pct: 60 },
@@ -84,11 +78,17 @@ describe('summarizeSchoolsAnalytics', () => {
   const bySchool = Object.fromEntries(out.schools.map((s) => [s.schoolId, s]));
   const byRegion = Object.fromEntries(out.regions.map((r) => [r.region, r]));
 
-  it('returns exactly overview / regions / schools, with the v3 key sets', () => {
+  it('returns exactly overview / regions / schools, with the v3 key sets less the two removed metrics', () => {
     expect(Object.keys(out).sort()).toEqual(['overview', 'regions', 'schools']);
     expect(Object.keys(out.overview).sort()).toEqual(OVERVIEW_KEYS);
     for (const r of out.regions) expect(Object.keys(r).sort()).toEqual(REGION_KEYS);
     for (const s of out.schools) expect(Object.keys(s).sort()).toEqual(SCHOOL_KEYS);
+  });
+
+  it('carries neither LPs generated nor coach visits — anywhere, even when a row still has them (bd-wfl8oz)', () => {
+    expect(JSON.stringify(out)).not.toMatch(REMOVED);
+    expect(JSON.stringify(summarizeSchoolsAnalytics(fixture(), { region: 'B.K' }))).not.toMatch(REMOVED);
+    expect(JSON.stringify(summarizeSchoolsAnalytics({}))).not.toMatch(REMOVED);
   });
 
   it('carries no percentage, band, threshold or rate — anywhere', () => {
@@ -113,31 +113,34 @@ describe('summarizeSchoolsAnalytics', () => {
     expect(JSON.stringify(out)).not.toMatch(/unassigned/i);
   });
 
-  it('excludes probable-test and inactive schools, and roster rows attached to no known school', () => {
+  it('excludes probable-test and inactive schools, and sessions attached to no known school', () => {
     expect(Object.keys(bySchool).sort()).toEqual(['s1', 's2', 's3', 's9']);
     expect(out.overview.schools).toBe(4);
-    expect(out.overview.teachers).toBe(10 + 2 + 4 + 0);
-    expect(out.overview.coachVisits).toBe(3 + 0 + 1 + 0); // s7 (test) and s8 (inactive) excluded
+    expect(out.overview.teachers).toBe(10 + 2 + 4 + 0); // s7 (test) and s8 (inactive) excluded
+    const ghost = summarizeSchoolsAnalytics({
+      schools: fixture().schools,
+      sessions: [...fixture().sessions, { id: 'g1', school_id: 'ghost', user_id: 'tg', is_test: false, observation_type: null, pct: 1 }],
+    });
+    expect(ghost.overview).toEqual(out.overview);
   });
 
   it('a school with no region, a blank one, or one outside the six (Durbeen) is left out of everything', () => {
     // Not a row, not a bucket...
     for (const id of ['s4', 's5', 's6']) expect(bySchool[id]).toBeUndefined();
     expect(JSON.stringify(out)).not.toMatch(/School s[456]"|E-s[456]|Durbeen/);
-    // ...and none of its teachers, LPs, visits or observations reach a total (bd-s6qbts.4).
+    // ...and none of its teachers, LP opens or observations reach a total (bd-s6qbts.4).
     expect(out.overview).toEqual({
-      schools: 4, teachers: 16, lpsOpened: 10, teachersOpenedLp: 6, lpsGenerated: 29,
-      dcObservations: 4, teachersWithDc: 3, humanObservations: 3, coachVisits: 4,
+      schools: 4, teachers: 16, lpsOpened: 10, teachersOpenedLp: 6,
+      dcObservations: 4, teachersWithDc: 3, humanObservations: 3,
       avgFico: 60, ficoN: 3, avgHitl: 70, hitlN: 3,
     });
     // The same holds with the leak sources alone: they add nothing.
     const outside = summarizeSchoolsAnalytics({
       schools: fixture().schools.filter((s) => ['s4', 's5', 's6'].includes(s.id)),
-      teachers: fixture().teachers,
       sessions: fixture().sessions,
     });
     expect(outside.schools).toEqual([]);
-    expect(outside.overview).toMatchObject({ schools: 0, teachers: 0, lpsOpened: 0, lpsGenerated: 0, dcObservations: 0, humanObservations: 0, coachVisits: 0, ficoN: 0, hitlN: 0 });
+    expect(outside.overview).toMatchObject({ schools: 0, teachers: 0, lpsOpened: 0, dcObservations: 0, humanObservations: 0, ficoN: 0, hitlN: 0 });
     for (const r of outside.regions) expect(r.schools).toBe(0);
   });
 
@@ -147,17 +150,17 @@ describe('summarizeSchoolsAnalytics', () => {
     }
   });
 
-  it('per school: every field, test teachers and their sessions excluded, DC vs human split', () => {
+  it('per school: every field, sessions of test teachers excluded, DC vs human split', () => {
     expect(bySchool.s1).toEqual({
       schoolId: 's1', emis: 'E-s1', name: 'School s1', region: 'B.K', teachers: 10,
-      lpsOpened: 7, teachersOpenedLp: 4, lpsGenerated: 25,
-      dcObservations: 3, teachersWithDc: 2, humanObservations: 1, coachVisits: 3,
+      lpsOpened: 7, teachersOpenedLp: 4,
+      dcObservations: 3, teachersWithDc: 2, humanObservations: 1,
       avgFico: 70, ficoN: 2, avgHitl: 50, hitlN: 1,
     });
     expect(bySchool.s2).toEqual({
       schoolId: 's2', emis: 'E-s2', name: 'School s2', region: 'B.K', teachers: 2,
-      lpsOpened: 3, teachersOpenedLp: 2, lpsGenerated: 4,
-      dcObservations: 1, teachersWithDc: 1, humanObservations: 2, coachVisits: 0,
+      lpsOpened: 3, teachersOpenedLp: 2,
+      dcObservations: 1, teachersWithDc: 1, humanObservations: 2,
       avgFico: 40, ficoN: 1, avgHitl: 80, hitlN: 2,
     });
   });
@@ -165,8 +168,8 @@ describe('summarizeSchoolsAnalytics', () => {
   it('counts are never null; only averages are null, and only when their n is 0', () => {
     expect(bySchool.s9).toEqual({
       schoolId: 's9', emis: 'E-s9', name: 'School s9', region: 'Nilore', teachers: 0,
-      lpsOpened: 0, teachersOpenedLp: 0, lpsGenerated: 0,
-      dcObservations: 0, teachersWithDc: 0, humanObservations: 0, coachVisits: 0,
+      lpsOpened: 0, teachersOpenedLp: 0,
+      dcObservations: 0, teachersWithDc: 0, humanObservations: 0,
       avgFico: null, ficoN: 0, avgHitl: null, hitlN: 0,
     });
     for (const row of [...out.schools, ...out.regions, out.overview]) {
@@ -178,8 +181,8 @@ describe('summarizeSchoolsAnalytics', () => {
 
   it('a bucket with no schools is all zeros and null averages', () => {
     expect(byRegion['Urban-I']).toEqual({
-      region: 'Urban-I', schools: 0, teachers: 0, lpsOpened: 0, teachersOpenedLp: 0, lpsGenerated: 0,
-      dcObservations: 0, teachersWithDc: 0, humanObservations: 0, coachVisits: 0,
+      region: 'Urban-I', schools: 0, teachers: 0, lpsOpened: 0, teachersOpenedLp: 0,
+      dcObservations: 0, teachersWithDc: 0, humanObservations: 0,
       avgFico: null, ficoN: 0, avgHitl: null, hitlN: 0,
     });
     expect(byRegion.Tarnol.schools).toBe(0); // its only school is inactive
@@ -187,8 +190,8 @@ describe('summarizeSchoolsAnalytics', () => {
 
   it('region roll-ups are sums, and averages are POOLED, not a mean of school means', () => {
     expect(byRegion['B.K']).toEqual({
-      region: 'B.K', schools: 2, teachers: 12, lpsOpened: 10, teachersOpenedLp: 6, lpsGenerated: 29,
-      dcObservations: 4, teachersWithDc: 3, humanObservations: 3, coachVisits: 3,
+      region: 'B.K', schools: 2, teachers: 12, lpsOpened: 10, teachersOpenedLp: 6,
+      dcObservations: 4, teachersWithDc: 3, humanObservations: 3,
       avgFico: 60, ficoN: 3,    // (60+80+40)/3 — school means would give 55
       avgHitl: 70, hitlN: 3,    // (50+90+70)/3 — school means would give 65
     });
@@ -218,13 +221,12 @@ describe('summarizeSchoolsAnalytics', () => {
 
   it('an empty window gives zero counts and null averages, never a 0 score', () => {
     const empty = summarizeSchoolsAnalytics({
-      schools: fixture().schools.map((s) => ({ ...s, coach_visits: 0 })),
-      teachers: fixture().teachers.map((t) => ({ ...t, lps_generated: 0, lps_opened: 0, teachers_opened_lp: 0 })),
+      schools: fixture().schools.map((s) => ({ ...s, lps_opened: 0, teachers_opened_lp: 0 })),
       sessions: [],
     });
     expect(empty.overview).toEqual({
-      schools: 4, teachers: 16, lpsOpened: 0, teachersOpenedLp: 0, lpsGenerated: 0,
-      dcObservations: 0, teachersWithDc: 0, humanObservations: 0, coachVisits: 0,
+      schools: 4, teachers: 16, lpsOpened: 0, teachersOpenedLp: 0,
+      dcObservations: 0, teachersWithDc: 0, humanObservations: 0,
       avgFico: null, ficoN: 0, avgHitl: null, hitlN: 0,
     });
   });
@@ -285,7 +287,7 @@ describe('windowBounds — Pakistan days to UTC instants, inclusive of the last 
   });
 });
 
-describe('loadSchoolsAnalyticsRows — set-based, at most four queries, scores memoised', () => {
+describe('loadSchoolsAnalyticsRows — set-based, at most three queries, scores memoised', () => {
   const SESSIONS = [
     { id: 'c1', updated_at: '2026-10-02T10:00:00Z', user_id: 't1', school_id: 's1', is_test: false, observation_type: null },
     { id: 'c2', updated_at: '2026-10-03T10:00:00Z', user_id: 't3', school_id: 's1', is_test: false, observation_type: 'leader_observation' },
@@ -294,7 +296,7 @@ describe('loadSchoolsAnalyticsRows — set-based, at most four queries, scores m
     c1: { overall_marks: 60, overall_max_marks: 100 },
     c2: { overall_marks: 45, overall_max_marks: 90, overall_percentage: 50 },
   };
-  const ROSTER = [roster('s1', false, 4, 6, 3, 2)];
+  const SCHOOLS = [school('s1', 'B.K', [4, 3, 2])];
 
   function makeQuery(sessions = SESSIONS) {
     const calls = [];
@@ -303,34 +305,40 @@ describe('loadSchoolsAnalyticsRows — set-based, at most four queries, scores m
       if (/'scores'/.test(sql)) {
         return { rows: params[0].map((id) => ({ id, updated_at: sessions.find((s) => s.id === id).updated_at, scores: SCORES[id] })) };
       }
-      if (/FROM schools/i.test(sql)) return { rows: [school('s1', 'B.K', { coach_visits: 2 })] };
-      if (/lesson_plans/i.test(sql)) return { rows: ROSTER };
+      if (/FROM schools/i.test(sql)) return { rows: SCHOOLS };
       if (/FROM coaching_sessions/i.test(sql)) return { rows: sessions };
       throw new Error(`unexpected SQL: ${sql}`);
     });
     return { query, calls };
   }
-  const kind = (c) => (/'scores'/.test(c.sql) ? 'scores' : /FROM schools/i.test(c.sql) ? 'schools'
-    : /lesson_plans/i.test(c.sql) ? 'roster' : 'sessions');
+  const kind = (c) => (/'scores'/.test(c.sql) ? 'scores' : /FROM schools/i.test(c.sql) ? 'schools' : 'sessions');
 
-  it('runs schools(+visits), roster(+LPs), sessions as three set-based reads plus one score read', async () => {
+  it('runs schools(+roster) and sessions as two set-based reads plus one score read', async () => {
     const { query, calls } = makeQuery();
     const rows = await loadSchoolsAnalyticsRows(query, { from: '2026-10-01', to: '2026-10-13' }, { memo: createScoreMemo() });
-    expect(calls.map(kind).sort()).toEqual(['roster', 'schools', 'scores', 'sessions']);
+    expect(calls.map(kind).sort()).toEqual(['schools', 'scores', 'sessions']);
     // No per-school loop: no query is parameterised by a school id.
     for (const c of calls) expect(JSON.stringify(c.params || [])).not.toContain('"s1"');
     expect(rows.sessions.map((s) => [s.id, s.pct])).toEqual([['c1', 60], ['c2', 50]]);
-    expect(rows.teachers).toEqual(ROSTER);
-    expect(rows.schools[0].coach_visits).toBe(2);
+    expect(rows.schools).toEqual(SCHOOLS);
   });
 
-  it('timestamps get UTC instants; the visit date gets the Pakistan days themselves', async () => {
+  it('reads no lesson_plans and no observation_schedules — the two removed metrics cost nothing (bd-wfl8oz)', async () => {
+    for (const range of [{ from: '2026-10-01', to: '2026-10-13' }, { from: null, to: null }]) {
+      const { query, calls } = makeQuery();
+      // eslint-disable-next-line no-await-in-loop
+      await loadSchoolsAnalyticsRows(query, range, { memo: createScoreMemo() });
+      expect(calls.length).toBeLessThanOrEqual(3);
+      for (const c of calls) expect(c.sql).not.toMatch(/lesson_plans|observation_schedules|coach_visits|lps_generated/i);
+    }
+  });
+
+  it('every dated read gets the UTC instants of the Pakistan days', async () => {
     const { query, calls } = makeQuery();
     await loadSchoolsAnalyticsRows(query, { from: '2026-10-01', to: '2026-10-13' }, { memo: createScoreMemo() });
-    for (const c of calls.filter((x) => ['roster', 'sessions'].includes(kind(x)))) {
+    for (const c of calls.filter((x) => kind(x) !== 'scores')) {
       expect(c.params).toEqual(['2026-09-30T19:00:00.000Z', '2026-10-13T19:00:00.000Z']);
     }
-    expect(calls.find((x) => kind(x) === 'schools').params).toEqual(['2026-10-01', '2026-10-13']);
   });
 
   it('an open window passes no bounds at all', async () => {
@@ -343,17 +351,14 @@ describe('loadSchoolsAnalyticsRows — set-based, at most four queries, scores m
     const { query, calls } = makeQuery();
     await loadSchoolsAnalyticsRows(query, { from: '2026-10-01', to: '2026-10-13' }, { memo: createScoreMemo() });
     const sql = (k) => calls.find((c) => kind(c) === k).sql;
-    // Visits: done only, the school by id or else by 'niete:'||emis, dated by the visit's own date.
-    expect(sql('schools')).toMatch(/observation_schedules/);
-    expect(sql('schools')).toMatch(/status = 'done'/);
-    expect(sql('schools')).toMatch(/'niete:' \|\| \w+\.emis/);
-    expect(sql('schools')).toMatch(/scheduled_for >= \$1::date/);
-    expect(sql('schools')).not.toMatch(/updated_at/);
-    // Roster: teachers with a school; LPs generated = successful rows; opens = distinct plans by opened_at.
-    expect(sql('roster')).toMatch(/u\.role = 'teacher'/);
-    expect(sql('roster')).toMatch(/l\.status = 'completed'/);
-    expect(sql('roster')).toMatch(/count\(DISTINCT \(o\.plan_kind, o\.plan_ref\)\)/);
-    expect(sql('roster')).toMatch(/o\.opened_at >= \$1::timestamptz/);
+    // Schools: every school, its roster joined on (a school with no teachers still comes back).
+    expect(sql('schools')).toMatch(/FROM schools sch\s+LEFT JOIN \(/);
+    // Roster: teachers with a school, test accounts out; opens = distinct plans by opened_at.
+    expect(sql('schools')).toMatch(/u\.role = 'teacher'/);
+    expect(sql('schools')).toMatch(/u\.is_test_user IS NOT TRUE/);
+    expect(sql('schools')).toMatch(/count\(DISTINCT \(o\.plan_kind, o\.plan_ref\)\)/);
+    expect(sql('schools')).toMatch(/o\.opened_at >= \$1::timestamptz/);
+    expect(sql('schools')).toMatch(/o\.opened_at < \$2::timestamptz/);
     // Sessions: DC completed, human terminal.
     expect(sql('sessions')).toMatch(/observation_type IS NULL AND c\.status = 'completed'/);
     expect(sql('sessions')).toMatch(/observation_type = 'leader_observation' AND c\.status IN \('completed', 'observer_review_complete'\)/);
@@ -374,10 +379,10 @@ describe('loadSchoolsAnalyticsRows — set-based, at most four queries, scores m
     expect(third.calls.find((c) => kind(c) === 'scores').params[0]).toEqual(['c2']);
   });
 
-  it('no sessions in the window means no score read at all', async () => {
+  it('no sessions in the window means no score read at all: two queries', async () => {
     const { query, calls } = makeQuery([]);
     const rows = await loadSchoolsAnalyticsRows(query, { from: null, to: null }, { memo: createScoreMemo() });
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(2);
     expect(rows.sessions).toEqual([]);
   });
 });
