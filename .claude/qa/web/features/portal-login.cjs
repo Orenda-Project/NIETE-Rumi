@@ -7,6 +7,7 @@
 const PASSWORD = 'Demo2026';
 const TEACHER = '03000000911';
 const PRINCIPAL = '03000000902';
+const COACH = '03000000901';
 const NO_PW_TEACHER = '03000000919';
 
 function expect(cond, msg) { if (!cond) throw new Error(msg); }
@@ -22,11 +23,32 @@ async function signIn(page, phone, password) {
   await page.click('button[type="submit"]');
 }
 
+// Where she ENDS UP. Login goes /portal/dashboard → (a leader) /portal/leader → (teacher app v2) /portal/teacher, so
+// the first URL is not the answer: wait until the path has stopped changing for SETTLE_MS, then compare. Checking the
+// first stop passed headless by winning a race and failed the moment the browser was slowed down (--headed).
+const SETTLE_MS = 1500;
 async function landsOn(page, path) {
-  await page.waitForURL((u) => new URL(u).pathname.startsWith(path), { timeout: 20000 })
-    .catch(() => { throw new Error('expected ' + path + ', still on ' + new URL(page.url()).pathname); });
-  return new URL(page.url()).pathname;
+  const deadline = Date.now() + 20000;
+  let last = new URL(page.url()).pathname, since = Date.now();
+  while (Date.now() < deadline) {
+    await page.waitForTimeout(100);
+    const now = new URL(page.url()).pathname;
+    if (now !== last) { last = now; since = Date.now(); continue; }
+    if (now !== '/portal/login' && Date.now() - since >= SETTLE_MS) break;
+  }
+  expect(last.startsWith(path), 'expected to settle on ' + path + ', settled on ' + last);
+  return last;
 }
+
+// The portal's app switches (app_settings, read per request — dashboard/lib/feature-flags.js). A home scenario sets
+// the ones that decide where she lands, on THIS run's database, so it never depends on what the seed copied.
+async function setFlags(ctx, flags) {
+  for (const [key, on] of Object.entries(flags)) {
+    await ctx.sql("insert into app_settings (key, value) values ('" + key + "', '" + (on ? 'true' : 'false') + "'::jsonb) "
+      + "on conflict (key) do update set value = excluded.value, updated_at = now()");
+  }
+}
+const CLASSIC = { portal_teacher_v2: false, portal_coach_v2: false };
 
 // The field message: the input is aria-invalid and aria-describedby points at its role="alert" text (AuthField.tsx).
 async function fieldError(page, id) {
@@ -39,12 +61,12 @@ async function fieldError(page, id) {
 }
 
 const scenarios = [
-  { id: 'PL01', title: 'A teacher signs in and lands on her dashboard', run: async (page, ctx) => {
-    await open(page, ctx); await signIn(page, TEACHER, PASSWORD);
+  { id: 'PL01', title: 'Classic portal: a teacher signs in and lands on her dashboard', run: async (page, ctx) => {
+    await setFlags(ctx, CLASSIC); await open(page, ctx); await signIn(page, TEACHER, PASSWORD);
     return { landed: await landsOn(page, '/portal/dashboard') };
   } },
-  { id: 'PL02', title: 'A principal signs in and lands on the leader portal', run: async (page, ctx) => {
-    await open(page, ctx); await signIn(page, PRINCIPAL, PASSWORD);
+  { id: 'PL02', title: 'Classic portal: a principal signs in and lands on the leader portal', run: async (page, ctx) => {
+    await setFlags(ctx, CLASSIC); await open(page, ctx); await signIn(page, PRINCIPAL, PASSWORD);
     return { landed: await landsOn(page, '/portal/leader') };
   } },
   { id: 'PL03', title: 'A wrong password is named under the password box', run: async (page, ctx) => {
@@ -83,6 +105,21 @@ const scenarios = [
     await page.fill('#phoneNumber', TEACHER);
     await page.getByRole('button', { name: /forgot password/i }).click();
     return { landed: await landsOn(page, '/portal/reset-password') };
+  } },
+  { id: 'PL08', title: 'Teacher app v2: a teacher signs in and lands on the teacher home', run: async (page, ctx) => {
+    await setFlags(ctx, { portal_teacher_v2: true, portal_coach_v2: false }); await open(page, ctx);
+    await signIn(page, TEACHER, PASSWORD);
+    return { landed: await landsOn(page, '/portal/teacher') };
+  } },
+  { id: 'PL09', title: 'Teacher app v2: a principal lands on the teacher home too (the teacher app plus her school)', run: async (page, ctx) => {
+    await setFlags(ctx, { portal_teacher_v2: true, portal_coach_v2: false }); await open(page, ctx);
+    await signIn(page, PRINCIPAL, PASSWORD);
+    return { landed: await landsOn(page, '/portal/teacher') };
+  } },
+  { id: 'PL10', title: 'Coach app v2: a coach signs in and lands on the coach home', run: async (page, ctx) => {
+    await setFlags(ctx, { portal_teacher_v2: false, portal_coach_v2: true }); await open(page, ctx);
+    await signIn(page, COACH, PASSWORD);
+    return { landed: await landsOn(page, '/portal/coach') };
   } },
 ];
 

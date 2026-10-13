@@ -6,6 +6,7 @@
 //   WEB_EVIDENCE  directory for results.json + one PNG per failed scenario
 //   WEB_PSQL / WEB_PG_PORT / WEB_DB_NAME   this run's OWN local database, for scenario set-up (ctx.sql)
 //   WEB_ONLY      optional comma list of scenario ids
+//   WEB_HEADED=1 / WEB_SLOWMO=<ms>   watch it: a visible browser, every action slowed down
 // Exit 0 when every scenario passed, 1 otherwise; results.json is written either way.
 'use strict';
 const fs = require('fs');
@@ -39,7 +40,8 @@ async function main() {
 
   const started = Date.now();
   const results = [];
-  const browser = await loadChromium().launch({ headless: env.WEB_HEADED !== '1' });
+  // --headed (e2e-web.sh) → a visible window, each action slowed by WEB_SLOWMO ms so a person can follow it.
+  const browser = await loadChromium().launch({ headless: env.WEB_HEADED !== '1', slowMo: Number(env.WEB_SLOWMO || 0) });
   try {
     for (const s of picked) {
       const t0 = Date.now();
