@@ -53,6 +53,7 @@ const { signAppLink, LANDINGS } = require('./app-login-link');
 const { portalUrl } = require('../config/branding');
 const { isTeachersValue, isTeacherRole, isCoachRole } = require('./teacher-audience');
 const { isRegistered } = require('../utils/registration-status');
+const { newJourneyId } = require('./app-journey');
 
 /** feature → app_settings key. The keys are the contract with whoever flips them. */
 const APP_REDIRECT_FLAGS = Object.freeze({
@@ -90,6 +91,26 @@ const APP_LINK_COPY = Object.freeze({
   classes: ['appLinkBodyClasses', 'appLinkButtonClasses'],
 });
 const APP_LINK_GENERIC = APP_LINK_COPY.menu;
+
+/**
+ * bd-4r3rei — the funnel's bot rows. Each is a semantic event (the `event` column) carrying the journey id (a core
+ * Axiom column, structured-logger AXIOM_CORE_FIELDS), so one query joins them to the portal's page rows:
+ *   app_funnel.command      she asked, and the app link is in play for her: feature, door, verdict (link | whatsapp), why
+ *   app_funnel.link_sent    the link went out: via cta_url (the button) or text (Meta refused the button)
+ *   app_funnel.link_failed  it did not, and why — she is on the WhatsApp flow instead
+ * No phone, no name, no token: ids only (the user id is the key the portal logs too). Never throws — a log line must
+ * not decide what a teacher receives.
+ */
+function funnelEvent(name, props) {
+  try { logToFile(name, { event: name, ...props }); } catch (_) { /* logging never decides the answer */ }
+}
+
+/** Mint the journey and log what she asked for. `verdict` is 'link' (a link goes out) or 'whatsapp' (she keeps the flow). */
+function startJourney({ userId, feature, door, verdict, why, audience = 'teacher' }) {
+  const journeyId = newJourneyId();
+  funnelEvent('app_funnel.command', { journeyId, userId, feature, door, verdict, ...(why ? { why } : {}), audience });
+  return { journeyId, feature, door, userId };
+}
 
 /**
  * bd-fmf24g.52 — the coach app link. Request → the coach-app page it lands on (app-login-link.js COACH_LANDINGS).
@@ -194,8 +215,9 @@ async function onTeacherApp(appValue, userId, account) {
  *   'whatsapp'  the switch is "teachers" but it does not cover her: today's flow, never the Play Store notice.
  *   null        not a link matter (off, a list without her, plain true): the notice path decides.
  * Her users row is read only when the answer depends on it, so general_chat (every open message) never reads it.
+ * `note.why` is filled with the reason when the answer is 'whatsapp' (the funnel's command row says why).
  */
-async function linkVerdict(feature, userId, now) {
+async function linkVerdict(feature, userId, now, note = {}) {
   const key = APP_REDIRECT_FLAGS[feature];
   if (!key) throw new Error(`app-redirect: unknown feature "${feature}"`);
   if (!Object.prototype.hasOwnProperty.call(LANDINGS, feature)) return null;
@@ -216,10 +238,12 @@ async function linkVerdict(feature, userId, now) {
     else if (!isRegistered(a)) why = 'not_registered';
     else if (!(await onTeacherApp(app, userId, account))) why = 'not_on_teacher_app';
     if (!why) return 'link';
+    note.why = why;
     logToFile('↩️ App link: not for her — the WhatsApp flow runs', { userId, feature, why });
     return 'whatsapp';
   } catch (err) {
     logToFile('⚠️ App link: her account could not be read — the WhatsApp flow runs', { userId, feature, error: err?.message }, 'warn');
+    note.why = 'account_unreadable';
     return pilot ? null : 'whatsapp';
   }
 }
@@ -309,11 +333,14 @@ async function recordNotice(userId, previous, now) {
  * No quiet hour: she asked for this, and each ask (menu, then lessons) is a different page. Failing closed means
  * false — the caller runs the WhatsApp flow — never silence.
  */
-async function sendAppLink(feature, { userId, from, language, reason }) {
+async function sendAppLink(feature, { userId, from, language, reason, journey }) {
   const base = String(portalUrl() || '').replace(/\/+$/, '');
-  const token = base ? signAppLink(userId, feature) : null;
+  const token = base ? signAppLink(userId, feature, journey && journey.journeyId) : null;
+  // The funnel names the request she made (menu, observe…), not the page the token lands on (coach_menu…).
+  const fx = { journeyId: journey && journey.journeyId, userId, feature: (journey && journey.feature) || feature, door: reason };
   if (!token) {
     logToFile('⚠️ App link: no portal url or signing key on this deployment — the flow runs', { userId, feature }, 'warn');
+    funnelEvent('app_funnel.link_failed', { ...fx, reason: 'no_portal_or_key' });
     return false;
   }
   const url = `${base}/go/${token}`;
@@ -323,26 +350,44 @@ async function sendAppLink(feature, { userId, from, language, reason }) {
   const body = resolveUx(bodyKey, { language });
   const buttonText = resolveUx(buttonKey, { language });
   let sent = false;
+  let via = 'cta_url';
+  let threw = false;
   try {
     sent = await WhatsAppService.sendCtaUrl(from, { body, buttonText, url });
     // The button is the nicer form; if Meta refuses it the same link goes as plain text.
-    if (!sent) sent = await WhatsAppService.sendMessage(from, `${body}\n${url}`);
+    if (!sent) { via = 'text'; sent = await WhatsAppService.sendMessage(from, `${body}\n${url}`); }
   } catch (err) {
+    threw = true;
     logToFile('❌ App link: send threw', { userId, feature, error: err?.message }, 'error');
   }
   // The token is the credential: it is never logged.
-  if (sent) logToFile('🔗 App link sent', { userId, feature, reason });
-  else logToFile('❌ App link not delivered — the flow runs', { userId, feature, reason }, 'error');
+  if (sent) {
+    logToFile('🔗 App link sent', { userId, feature, reason });
+    funnelEvent('app_funnel.link_sent', { ...fx, via });
+  } else {
+    logToFile('❌ App link not delivered — the flow runs', { userId, feature, reason }, 'error');
+    funnelEvent('app_funnel.link_failed', { ...fx, reason: threw ? 'send_threw' : 'send_refused' });
+  }
   return Boolean(sent);
 }
 
 async function redirectIfFlagged(feature, { userId, from, language, reason = 'unspecified', now = Date.now() } = {}) {
   if (userId && from) {
     const coach = await coachLink(feature, userId, now);
-    if (coach) return sendAppLink(coach, { userId, from, language, reason });
-    const verdict = await linkVerdict(feature, userId, now);
-    if (verdict === 'link') return sendAppLink(feature, { userId, from, language, reason });
-    if (verdict === 'whatsapp') return false;
+    if (coach) {
+      const journey = startJourney({ userId, feature, door: reason, verdict: 'link', audience: 'coach' });
+      return sendAppLink(coach, { userId, from, language, reason, journey });
+    }
+    const note = {};
+    const verdict = await linkVerdict(feature, userId, now, note);
+    if (verdict === 'link') {
+      const journey = startJourney({ userId, feature, door: reason, verdict: 'link' });
+      return sendAppLink(feature, { userId, from, language, reason, journey });
+    }
+    if (verdict === 'whatsapp') {
+      startJourney({ userId, feature, door: reason, verdict: 'whatsapp', why: note.why });
+      return false;
+    }
   }
   if (!(await isRedirectEnabled(feature, { now }))) return false;
   if (!userId || !from) return false;

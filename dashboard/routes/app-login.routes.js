@@ -121,14 +121,17 @@ function createAppLoginRouter({
   router.get('/go/:token', limit, async (req, res) => {
     const payload = verifyAppLink(req.params.token);
     if (!payload) return newLink(req, res, 'invalid');
+    // bd-4r3rei — the journey the bot minted when it sent this link (null for a link sent before it existed). Every
+    // row from here on carries it, so the open joins the WhatsApp message and the pages that follow.
+    const journeyId = payload.j || null;
 
     let user = null;
     try {
       user = await findUser(payload.u);
     } catch (err) {
-      return newLink(req, res, 'error', { feature: payload.f, userId: payload.u, err: String(err && err.message).slice(0, 120) });
+      return newLink(req, res, 'error', { feature: payload.f, userId: payload.u, journeyId, err: String(err && err.message).slice(0, 120) });
     }
-    if (!user || !user.id) return newLink(req, res, 'unknown_user', { feature: payload.f, userId: payload.u });
+    if (!user || !user.id) return newLink(req, res, 'unknown_user', { feature: payload.f, userId: payload.u, journeyId });
 
     // bd-fmf24g.52 — a coach token (coach_menu, coach_observe) asks the coach-app question and lands on a coach page;
     // a teacher token asks the teacher-app question, exactly as before. Either way, off the app → today's dashboard.
@@ -139,13 +142,16 @@ function createAppLoginRouter({
 
     // A new session id, never the one the browser arrived with (session fixation). No portalScope: the whole app.
     req.session.regenerate((err) => {
-      if (err) return newLink(req, res, 'error', { feature: payload.f, userId: user.id, err: 'session_regenerate' });
+      if (err) return newLink(req, res, 'error', { feature: payload.f, userId: user.id, journeyId, err: 'session_regenerate' });
       req.session.portalUserId = user.id;
       req.session.isPortalAuth = true;
       req.session.portalUserName = user.name;
+      // The session carries the journey (and when it began) so the funnel endpoint and action logger read it from the
+      // server's own record — never from the browser (dashboard/routes/app-funnel.routes.js).
+      if (journeyId) req.session.appJourney = { id: journeyId, at: Date.now(), feature: payload.f };
       req.session.save((saveErr) => {
-        if (saveErr) return newLink(req, res, 'error', { feature: payload.f, userId: user.id, err: 'session_save' });
-        log({ outcome: 'ok', feature: payload.f, userId: user.id, v2: onApp });
+        if (saveErr) return newLink(req, res, 'error', { feature: payload.f, userId: user.id, journeyId, err: 'session_save' });
+        log({ outcome: 'ok', feature: payload.f, userId: user.id, journeyId, v2: onApp });
         res.set('Cache-Control', 'no-store');
         return res.redirect(303, landing);
       });
