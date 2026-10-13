@@ -144,6 +144,7 @@ describe("the page: no class, the recording first", () => {
     expect(within(card).getByRole("button", { name: C.listen })).toBeTruthy();
     expect(within(card).getByRole("button", { name: C.changeFile })).toBeTruthy();
     expect(screen.queryByRole("button", { name: C.recordTitle })).toBeNull(); // Record / Upload are replaced by her recording
+    expect(screen.queryByRole("button", { name: new RegExp(C.recent) })).toBeNull(); // Recent steps aside while she sends one off
 
     const plan = screen.getByRole("heading", { name: new RegExp(C.lessonPlan) });
     const photos = screen.getByRole("heading", { name: new RegExp(C.photos) });
