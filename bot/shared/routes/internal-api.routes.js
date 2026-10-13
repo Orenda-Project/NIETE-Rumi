@@ -2519,7 +2519,10 @@ router.post('/coaching/recent-plans', requireInternalKey, portalCoachingRoute('r
  * acknowledgement and queues the report before this returns.
  */
 router.post('/coaching/reflection', requireInternalKey, portalCoachingRoute('reflection',
-  (Svc, b) => Svc.submitReflection({ userId: b.userId, coachingSessionId: b.coachingSessionId, answer: b.answer })));
+  // bd-eygg2f: or audioKey — her spoken answer, uploaded to R2 (kind reflection_audio), transcribed by the service.
+  (Svc, b) => Svc.submitReflection({
+    userId: b.userId, coachingSessionId: b.coachingSessionId, answer: b.answer, audioKey: b.audioKey,
+  })));
 
 // bd-s1oo0.7 — the coach app's child test (portal → bot). Its own file; the
 // router checks the internal key itself.

@@ -21,6 +21,9 @@ const portal = vi.hoisted(() => ({
   getCoachingProgress: vi.fn(),
   getCoachingSession: vi.fn(),
   submitCoachingReflection: vi.fn(),
+  presignCoachingUpload: vi.fn(),
+  uploadToR2: vi.fn(),
+  submitCoachingVoiceReflection: vi.fn(),
 }));
 vi.mock("../../services/api", () => ({ default: { get: vi.fn(), post: vi.fn() }, portal }));
 
@@ -30,7 +33,7 @@ import { resetShareAvailability } from "../share/api";
 import { ReportPage } from "./ReportPage";
 import { toReportData } from "./report";
 import { COACHING_REPORT } from "./paths";
-import { COACHING_V2_COPY as C } from "./copy";
+import { COACHING_V2_COPY as C, COACHING_V2_COPY_UR as U } from "./copy";
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
 const ID = "0b4e8f9a-1c2d-4e5f-8a9b-0c1d2e3f4a5b";
@@ -206,5 +209,84 @@ describe("the report page — a Digital Coach lesson", () => {
     open();
     expect(await screen.findByText(C.stopped)).toBeTruthy();
     expect(portal.getCoachingSession).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * bd-eygg2f — ICT feedback (IAB Experience View, row 5): teachers answer the reflection question by writing
+ * OR by speaking, so the page offers both, and the step's line says so in both languages.
+ */
+describe("the reflection answer by voice (bd-eygg2f)", () => {
+  class FakeRecorder {
+    static isTypeSupported = (t: string) => t.startsWith("audio/webm");
+    state = "inactive";
+    ondataavailable: ((e: { data: Blob }) => void) | null = null;
+    onstop: (() => void) | null = null;
+    constructor(public stream: unknown, public options: unknown) {}
+    start() { this.state = "recording"; }
+    stop() { this.state = "inactive"; this.ondataavailable?.({ data: new Blob(["voice"], { type: "audio/webm" }) }); this.onstop?.(); }
+  }
+  const asking = () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "conducting_conversation", stage: "reflection", source: "portal",
+      reflection: { questionNumber: 1, question: "Which children answered?" } });
+  };
+  beforeEach(() => {
+    vi.stubGlobal("MediaRecorder", FakeRecorder);
+    Object.defineProperty(navigator, "mediaDevices", { value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] }) }, configurable: true });
+    URL.createObjectURL = vi.fn(() => "blob:answer");
+    URL.revokeObjectURL = vi.fn();
+  });
+
+  it("the step's line is 'write or speak', in English and Urdu", () => {
+    expect(C.subReflection).toBe("Write or speak");
+    expect(U.subReflection).toBe("لکھ کر یا بول کر جواب دیں");
+  });
+
+  it("record, stop, send: the clip goes up as reflection_audio and the answer is the key", async () => {
+    asking();
+    portal.presignCoachingUpload.mockResolvedValue({ key: "reflection_audio/u/2026-10/portal_a.webm", uploadUrl: "https://r2/put", contentType: "audio/webm" });
+    portal.uploadToR2.mockResolvedValue(undefined);
+    portal.submitCoachingVoiceReflection.mockResolvedValue({ done: true, acknowledgement: "Thank you." });
+    open();
+
+    fireEvent.click(await screen.findByRole("button", { name: C.recordAnswer }));
+    fireEvent.click(await screen.findByRole("button", { name: C.stop }));
+    expect(await screen.findByRole("button", { name: C.removeRecording })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: C.send }));
+
+    await waitFor(() => expect(portal.submitCoachingVoiceReflection).toHaveBeenCalledWith(ID, "reflection_audio/u/2026-10/portal_a.webm"));
+    expect(portal.presignCoachingUpload).toHaveBeenCalledWith(expect.objectContaining({ kind: "reflection_audio", filename: "answer.webm" }));
+    expect(portal.submitCoachingReflection).not.toHaveBeenCalled();
+    expect(await screen.findByText("Thank you.")).toBeTruthy();
+  });
+
+  it("typing still sends text; the mic gives way to Send once she types", async () => {
+    asking();
+    portal.submitCoachingReflection.mockResolvedValue({ done: true, acknowledgement: "Thank you." });
+    open();
+    expect(await screen.findByRole("button", { name: C.recordAnswer })).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox", { name: C.yourAnswer }), { target: { value: "Only the front rows." } });
+    expect(screen.queryByRole("button", { name: C.recordAnswer })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: C.send }));
+    await waitFor(() => expect(portal.submitCoachingReflection).toHaveBeenCalledWith(ID, "Only the front rows."));
+  });
+
+  it("remove throws the clip away and brings the box back", async () => {
+    asking();
+    open();
+    fireEvent.click(await screen.findByRole("button", { name: C.recordAnswer }));
+    fireEvent.click(await screen.findByRole("button", { name: C.stop }));
+    fireEvent.click(await screen.findByRole("button", { name: C.removeRecording }));
+    expect(await screen.findByRole("textbox", { name: C.yourAnswer })).toBeTruthy();
+    expect(portal.presignCoachingUpload).not.toHaveBeenCalled();
+  });
+
+  it("a refused mic says so and leaves typing open", async () => {
+    asking();
+    Object.defineProperty(navigator, "mediaDevices", { value: { getUserMedia: vi.fn().mockRejectedValue(new Error("denied")) }, configurable: true });
+    open();
+    fireEvent.click(await screen.findByRole("button", { name: C.recordAnswer }));
+    expect(await screen.findByText(C.micBlocked)).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: C.yourAnswer })).toBeTruthy();
   });
 });

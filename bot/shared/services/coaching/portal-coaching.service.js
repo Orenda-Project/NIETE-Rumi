@@ -63,6 +63,9 @@ const MAX_DC_PHOTOS = 10;
  *   lesson_plan  lesson_plans/<uid>/portal_<id>                — r2.uploadLessonPlanBuffer's tree.
  *                The formats lesson-plan-processor.detectFileType recognises.
  *   photo        images/<uid>/portal_<id>                      — r2.uploadImageWithRetry's tree.
+ *   reflection_audio  reflection_audio/<uid>/<YYYY-MM>/portal_<id> — bd-eygg2f: her spoken answer to the
+ *                reflection question. Its own tree, NOT classroom_audio: a classroom_audio portal_ key is
+ *                what marks a session as portal-started (PORTAL_KEY_RX). A few minutes of speech is <2 MB.
  */
 const KINDS = Object.freeze({
   audio: {
@@ -91,6 +94,14 @@ const KINDS = Object.freeze({
     maxBytes: 15 * 1024 * 1024,
     key: (uid, ym, id, ext) => `images/${uid}/portal_${id}${ext}`,
     rx: (uid) => new RegExp(`^images/${escapeRx(uid)}/portal_[A-Za-z0-9-]+(\\.[a-z0-9]+)$`),
+  },
+  reflection_audio: {
+    types: {
+      '.m4a': 'audio/mp4', '.mp4': 'audio/mp4', '.ogg': 'audio/ogg', '.opus': 'audio/ogg', '.webm': 'audio/webm',
+    },
+    maxBytes: 10 * 1024 * 1024,
+    key: (uid, ym, id, ext) => `reflection_audio/${uid}/${ym}/portal_${id}${ext}`,
+    rx: (uid) => new RegExp(`^reflection_audio/${escapeRx(uid)}/\\d{4}-\\d{2}/portal_[A-Za-z0-9-]+(\\.[a-z0-9]+)$`),
   },
 });
 
@@ -173,6 +184,7 @@ function withDefaults(deps = {}) {
     queue: () => require('./coaching-job-queue.service'),
     reflective: () => require('./reflective-conversation.service'),
     getUserLanguage: () => require('../../utils/language-cache').getUserLanguage,
+    transcribe: () => transcribeFromR2,
     library: () => require('./portal-lesson-plan-library.service'),
     log: () => require('../../utils/logger').logToFile,
     now: () => () => new Date(),
@@ -456,9 +468,10 @@ async function afterTranscription(session, coachingSessionId, from, deps) {
  * @returns {{status:'ok', done, acknowledgement, ...}
  *         | {status:'not_found'|'not_ready'|'invalid'}}
  */
-async function submitReflection({ userId, coachingSessionId, answer }, deps) {
-  const text = String(answer == null ? '' : answer).trim();
-  if (!text) return { status: 'invalid', reason: 'empty_answer' };
+async function submitReflection({ userId, coachingSessionId, answer, audioKey }, deps) {
+  const typed = String(answer == null ? '' : answer).trim();
+  const key = typed ? '' : String(audioKey == null ? '' : audioKey).trim();
+  if (!typed && !key) return { status: 'invalid', reason: 'empty_answer' };
   const d = withDefaults(deps);
 
   const { data: row } = await d.supabase
@@ -476,10 +489,47 @@ async function submitReflection({ userId, coachingSessionId, answer }, deps) {
   // Same language the WhatsApp text path passes: her current language.
   const language = await d.getUserLanguage(userId);
 
+  // bd-eygg2f — a spoken answer: her own upload, in R2, transcribed with the same language-aware ASR a
+  // WhatsApp voice reply gets; the transcript then takes the typed answer's path, marked 'voice'.
+  let text = typed;
+  let format = 'text';
+  let answerLanguage = language;
+  if (key) {
+    if (!isOwnPortalKey(userId, key, 'reflection_audio')) return { status: 'invalid', reason: 'not_own_upload' };
+    const missing = await checkUploaded(d, [{ key, kind: 'reflection_audio' }]);
+    if (missing) return missing;
+    const heard = await d.transcribe(key, language);
+    text = String((heard && heard.text) || '').trim();
+    if (!text) return { status: 'invalid', reason: 'empty_transcript' };
+    format = 'voice';
+    answerLanguage = (heard && heard.language) || language;
+  }
+
   const result = await d.reflective.handleReflectiveResponse(
-    coachingSessionId, user && user.phone_number, text, 'text', language, { silent: true },
+    coachingSessionId, user && user.phone_number, text, format, answerLanguage, { silent: true },
   );
   return { status: 'ok', ...(result || {}) };
+}
+
+/**
+ * bd-eygg2f — download her reflection recording from R2 to a private temp file and transcribe it with
+ * AudioService.transcribeWithLanguagePreference, exactly as voice-message.handler does a WhatsApp voice
+ * reply. Soniox takes webm/ogg/m4a as they are. Required lazily: signing an upload must not load ASR.
+ */
+async function transcribeFromR2(key, language) {
+  const fs = require('fs');
+  const { TEMP_DIR } = require('../../utils/constants');
+  const { privateTempPath, removePrivateTemp } = require('../../utils/private-temp');
+  const AudioService = require('../audio.service');
+  const { downloadFromR2 } = require('../../storage/r2');
+  const buffer = await downloadFromR2(key);
+  const tmp = privateTempPath(TEMP_DIR, `reflection${extOf(key) || '.webm'}`, 'voice-');
+  try {
+    fs.writeFileSync(tmp.filePath, buffer);
+    return await AudioService.transcribeWithLanguagePreference(tmp.filePath, language);
+  } finally {
+    removePrivateTemp(tmp);
+  }
 }
 
 /**

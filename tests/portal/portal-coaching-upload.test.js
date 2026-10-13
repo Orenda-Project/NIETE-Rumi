@@ -216,6 +216,15 @@ describe('POST /coaching-session/:id/reflection', () => {
     expect(client.submitReflection).toHaveBeenCalledWith({ userId: 'teacher-1', coachingSessionId: 'cs-1', answer: 'I waited.' });
   });
 
+  it('bd-eygg2f — forwards a voice answer\'s R2 key, for the SESSION user', async () => {
+    const { statusCode } = await invoke('post', '/coaching-session/:id/reflection', {
+      params: { id: 'cs-1' }, body: { audioKey: 'reflection_audio/teacher-1/2026-10/portal_a.webm', userId: 'someone-else' },
+    });
+    expect(statusCode).toBe(200);
+    expect(client.submitReflection).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'teacher-1', coachingSessionId: 'cs-1', audioKey: 'reflection_audio/teacher-1/2026-10/portal_a.webm' }));
+  });
+
   it('requires a portal session', async () => {
     const { statusCode } = await invoke('post', '/coaching-session/:id/reflection', { userId: null, params: { id: 'cs-1' }, body: { answer: 'x' } });
     expect(statusCode).toBe(401);
