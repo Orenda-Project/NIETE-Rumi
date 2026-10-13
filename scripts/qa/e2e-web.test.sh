@@ -55,6 +55,23 @@ ids_code=$(node -e "console.log(require('$ROOT/.claude/qa/web/features/portal-lo
 [ -n "$ids_spec" ] && ok "W4 portal-login.feature has tagged scenarios" || no "W4 portal-login.feature has tagged scenarios"
 chk "W4b every spec scenario has code and vice versa" "$ids_code" "$ids_spec"
 
+# W6 — the browser opens the portal the way a person does: localhost, not 127.0.0.1 (a different site to the
+#      browser — separate cookies — and not the address dev-portal.sh prints).
+chk "W6 base URL is localhost on the slot's portal port" \
+    "$(printf '%s\n' "$plan" | sed -nE 's/^BASE_URL=//p')" "http://localhost:4103"
+
+# W7 — --headed is for a person watching. A run started by a commit or in CI is ALWAYS headless.
+chk "W7 manual --headed opens a window" \
+    "$(bash "$SH" portal-login --headed --print-plan 2>&1 | sed -nE 's/^HEADED=//p')" "1"
+chk "W7b plain run is headless" \
+    "$(bash "$SH" portal-login --print-plan 2>&1 | sed -nE 's/^HEADED=//p')" "0"
+chk "W7c a commit-triggered run ignores --headed" \
+    "$(E2E_TRIGGER=commit bash "$SH" portal-login --headed --print-plan 2>&1 | sed -nE 's/^HEADED=//p')" "0"
+chk "W7d CI ignores --headed" \
+    "$(CI=true bash "$SH" portal-login --headed --print-plan 2>&1 | sed -nE 's/^HEADED=//p')" "0"
+chk "W7e WEB_HEADED=1 in the environment cannot sneak a window into a commit run" \
+    "$(E2E_TRIGGER=commit WEB_HEADED=1 bash "$SH" portal-login --print-plan 2>&1 | sed -nE 's/^HEADED=//p')" "0"
+
 # W5 — wired into npm, like e2e:mock.
 chk "W5 npm run e2e:web" "$(node -p "require('$ROOT/package.json').scripts['e2e:web']" 2>/dev/null)" "bash scripts/qa/e2e-web.sh"
 
