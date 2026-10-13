@@ -187,6 +187,20 @@ describe('GET /coaching-session/:id/progress', () => {
     expect(payload.reflection).toEqual({ questionNumber: 1, question: 'What did you notice when the room went quiet?' });
   });
 
+  // bd-czmyoh — ICT feedback (IAB Experience View, row 6): the question is a voice note, as on WhatsApp.
+  it('bd-czmyoh — gives the question\'s voice note, presigned, when the bot voiced it', async () => {
+    require('../../dashboard/services/r2.service').generatePresignedUrl.mockResolvedValue('https://signed.example/q1.ogg');
+    tableRows.coaching_sessions = [row({
+      status: 'conducting_conversation',
+      conversation_state: { current_state: 'REFLECTIVE_QUESTION_1', questions: [
+        { question_number: 1, question: 'What did you notice?', answer: null,
+          audio_url: 'https://r2.example/bucket/reflection_questions/teacher-1/cs-1_q1.ogg' },
+      ] },
+    })];
+    const { payload } = await invoke('get', '/coaching-session/:id/progress', { params: { id: 'cs-1' } });
+    expect(payload.reflection).toEqual({ questionNumber: 1, question: 'What did you notice?', audioUrl: 'https://signed.example/q1.ogg' });
+  });
+
   it('never surfaces the question of a WhatsApp session — that debrief belongs to her chat', async () => {
     tableRows.coaching_sessions = [row({
       status: 'conducting_conversation', audio_url: WA_URL,

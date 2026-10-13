@@ -195,6 +195,30 @@ class ReflectiveConversationService {
       // rather than claiming a voice note went out. Everything AFTER this block
       // (the conversation_state write, the language lock, the status update) is
       // the same code on both paths.
+      // bd-czmyoh — ICT feedback (IAB Experience View, row 6): on WhatsApp the question always arrives as a
+      // voice note, so the portal plays it too. The SAME synthesis as below; the audio goes to R2 and its URL
+      // onto the question, where the portal reads it. A question that cannot be voiced reaches the portal as
+      // text — WhatsApp's own fallback — and the debrief carries on either way.
+      let questionAudioUrl;
+      if (silent) {
+        try {
+          const voice = await tts.synthesize({
+            text: question,
+            language: clampLanguage(languageCode),
+            useCase: 'coaching',
+            site: 'question',
+            deadlineMs: QUESTION_VOICE_DEADLINE_MS,
+          });
+          const { uploadBuffer } = require('../../storage/r2');
+          questionAudioUrl = await uploadBuffer(
+            voice.audio, `reflection_questions/${session.user_id}/${coachingSessionId}_q${questionNumber}.ogg`, 'audio/ogg',
+          );
+        } catch (error) {
+          logToFile('Reflective question could not be voiced for the portal — showing it as text', {
+            coachingSessionId, questionNumber, error: error.message,
+          }, 'warn');
+        }
+      }
       if (!silent) {
       try {
         const voice = await tts.synthesize({
@@ -235,6 +259,7 @@ class ReflectiveConversationService {
         // Update existing question entry
         updatedQuestions[existingQuestionIndex].question = question;
         updatedQuestions[existingQuestionIndex].asked_at = new Date().toISOString();
+        if (questionAudioUrl) updatedQuestions[existingQuestionIndex].audio_url = questionAudioUrl;
       } else {
         // Add new question entry
         updatedQuestions.push({
@@ -244,7 +269,8 @@ class ReflectiveConversationService {
           answer: null,  // Will be filled in when teacher responds
           format: null,
           language: null,
-          answered_at: null
+          answered_at: null,
+          ...(questionAudioUrl ? { audio_url: questionAudioUrl } : {}),
         });
       }
 
@@ -272,7 +298,7 @@ class ReflectiveConversationService {
       // chat thread to read it from. The WhatsApp path's return value is
       // unchanged (undefined): no existing caller reads it.
       if (silent) {
-        return { question, questionNumber, language: languageCode };
+        return { question, questionNumber, language: languageCode, ...(questionAudioUrl ? { audioUrl: questionAudioUrl } : {}) };
       }
     } catch (error) {
       logToFile('❌ Error in conductReflectiveConversation', {
