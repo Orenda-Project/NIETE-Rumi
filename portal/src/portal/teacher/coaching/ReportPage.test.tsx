@@ -493,3 +493,43 @@ describe("Download and Open get a fresh link when she taps (bd-oawrlt)", () => {
     win.mockRestore();
   });
 });
+
+/**
+ * bd-foyqpc — ICT feedback (IAB Experience View, row 15): the report in the browser must match the one she gets on
+ * WhatsApp. Rows 11 and 13 fixed the reasoning language, the letters and the order; these two were still different:
+ * the lesson's topic (WhatsApp: the narrative's, in her language; the page: the analysis topic, always English), and
+ * the "not assessed" words (WhatsApp: the breakdown's, in her language).
+ */
+describe("the browser report matches the WhatsApp report (bd-foyqpc)", () => {
+  const WITH_NARRATIVE = {
+    ...DETAIL,
+    topic: "Mercy of Prophet Muhammad",
+    reportNarrative: { headline: "h", identity: "", moments: [], strength: null, horizon: null, domainWhys: {}, language: "ur", topic: "رحمتِ رسول" },
+    breakdown: { ...DETAIL.breakdown, groups: [
+      { key: "B", domainKey: "lesson_plan_fidelity", name: "Lesson Plan Fidelity", score: null, max: null, pct: null,
+        notAssessed: true, notAssessedWords: "جانچ نہیں ہوئی", why: "No plan.", indicators: [] },
+      ...DETAIL.breakdown.groups.filter((g) => g.key !== "B"),
+    ] },
+  };
+
+  it("the lesson's topic is the narrative's (her language), as on WhatsApp — the analysis topic only as a fallback", () => {
+    expect(toReportData(WITH_NARRATIVE as never, { teacher: "Ayesha Bibi", journey: [] }).topic).toBe("رحمتِ رسول");
+    expect(toReportData(DETAIL as never, { teacher: "Ayesha Bibi", journey: [] }).topic).toBe("Provinces of Pakistan");
+  });
+
+  it("the page title is the narrative's topic too", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "completed", stage: "done", reflection: null, reportReady: true });
+    portal.getCoachingSession.mockResolvedValue({ session: WITH_NARRATIVE });
+    open();
+    expect(await screen.findByRole("heading", { level: 1, name: "رحمتِ رسول" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 1, name: "Mercy of Prophet Muhammad" })).toBeNull();
+  });
+
+  it("a section that was not assessed says the breakdown's words, as on WhatsApp", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "completed", stage: "done", reflection: null, reportReady: true });
+    portal.getCoachingSession.mockResolvedValue({ session: WITH_NARRATIVE });
+    open();
+    const scores = await screen.findByRole("region", { name: /scores/i });
+    expect(within(scores).getByText("جانچ نہیں ہوئی")).toBeTruthy();
+  });
+});

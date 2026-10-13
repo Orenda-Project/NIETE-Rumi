@@ -137,7 +137,8 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
   const canSend = useShareAvailable(isVisit ? 'observation' : 'dc');
   const asked = progress?.stage === 'reflection' && !sent ? progress.reflection : null;
   const answered = (detail?.reflection ?? []).filter((r) => r.question && r.answer);
-  const title = detail?.topic || detail?.subject || C.dcObservation;
+  // bd-foyqpc — as her WhatsApp report: the narrative's topic (her language) first.
+  const title = detail?.reportNarrative?.topic || detail?.topic || detail?.subject || C.dcObservation;
 
   // bd-oawrlt — ICT feedback row 14: the link is asked for when she taps, signed then — never the one signed at page
   // load, which expires after an hour (R2's "ExpiredRequest" XML page).
