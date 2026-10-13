@@ -147,11 +147,26 @@ describe("Digital Coaching in Urdu — the hub", () => {
     expect(screen.getByRole("button", { name: new RegExp(U.changeFile) })).toBeTruthy();
     expect(screen.getByRole("heading", { name: new RegExp(U.lessonPlan) })).toBeTruthy();
     expect(screen.getByText(U.optional)).toBeTruthy();
-    expect(screen.getByText(U.photosHint)).toBeTruthy();
+    expect(screen.getByText(U.photosHint.replace(/\s+/g, " "))).toBeTruthy();
     expect(screen.getByText(U.noFaces)).toBeTruthy();
     expect(screen.getByText(U.upToPhotos(10))).toBeTruthy();
     expect(screen.getByRole("button", { name: U.addPhoto })).toBeTruthy();
     expect(englishLeft(["Submit", "Listen", "Change file", "Up to 10 photos", "Add photo", "Photos", "Optional"])).toEqual([]);
+  });
+
+  it("bd-r5ckgn — the Urdu Photos hint is ICT's three photos, each on its own line and never cut off", async () => {
+    holdDraft({ audio: audioOf(), plan: null, photos: [] });
+    at(COACHING_HOME, <CoachingHomePage />, COACHING_HOME, { keep: true });
+    await screen.findByRole("button", { name: U.submit }, { timeout: 5000 });
+    const hint = screen.getByText((_, el) => el?.tagName === "P" && (el.textContent ?? "").includes("بورڈ کی تصویر"));
+    expect(hint.textContent!.split("\n")).toEqual([
+      "(1) بورڈ کی تصویر جس پر آج کا مقصد یا کام لکھا ہو",
+      "(2) کسی طالب علم کی کاپی یا ورک شیٹ کی تصویر",
+      "(3) تدریسی معاون مواد، مثلاً ڈرائنگ، چارٹ یا کارڈز کی تصویر",
+    ]);
+    expect(hint.className).not.toMatch(/\btruncate\b/);
+    expect(hint.className).toMatch(/\bwhitespace-pre-line\b/);
+    expect(screen.queryByText("بورڈ، چارٹ، کلاس روم")).toBeNull();
   });
 
   it("Recent: her lessons with Urdu chips (Analysing, the band) and Urdu day names; data as it is", async () => {
