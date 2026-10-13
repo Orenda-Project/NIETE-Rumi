@@ -3,6 +3,7 @@ const { firstNameOf } = require('../utils/person-name');
 const { verifyOutputLanguage } = require('../utils/output-language-check');
 const { decideChildReplyLanguage } = require('../utils/child-reply-language');
 const { resolveResponseLanguage } = require('../utils/resolve-response-language');
+const { canonicalizeSlashCommand } = require('../utils/slash-command');
 const OpenAIService = require('../services/openai.service');
 const ContentService = require('../services/content.service');
 const LanguageDetectorService = require('../services/language-detector.service');
@@ -359,6 +360,14 @@ function holdTypingWhileReasonPending(user) {
 
 async function handleTextMessage(message, from, messageBody, user = null) {
   logToFile(`Processing TEXT message: ${messageBody}`);
+
+  // bd-5ls6qy.7 — "Menu/" (a command typed back as RTL text displayed it), "/ menu", or a copied
+  // isolated command is the command. Rewritten once, here, so every door below sees `/menu`.
+  const canonicalCommand = canonicalizeSlashCommand(messageBody);
+  if (canonicalCommand.form) {
+    logToFile('inbound.slash_command_canonicalized', { raw: messageBody, command: canonicalCommand.text, form: canonicalCommand.form, userId: user?.id });
+    messageBody = canonicalCommand.text;
+  }
 
   // Start continuous typing indicator immediately
   const typingController = WhatsAppService.startContinuousTypingIndicator(from, message.id);
@@ -2165,7 +2174,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
     // Guide user to use a feature instead (only for users with 0 features)
     const guideMessages = {
       en: "I'll ask for your name after you try one of my features! You can:\n\n• Request a *lesson plan* - just tell me a topic\n• Start a *reading assessment* - type /reading test\n• Get *coaching feedback* - send me your classroom audio\n• Create a *video* - type /video\n\nWhat would you like to try?",
-      ur: "میں آپ کا نام پوچھوں گی جب آپ میری کوئی feature استعمال کریں گے!\n\n• *لیسن پلان* کی درخواست کریں - بس موضوع بتائیں\n• *ریڈنگ ٹیسٹ* شروع کریں - /reading test ٹائپ کریں\n• *کوچنگ فیڈبیک* حاصل کریں - اپنی کلاس کی آڈیو بھیجیں\n• *ویڈیو* بنائیں - /video ٹائپ کریں\n\nآپ کیا آزمانا چاہیں گے؟"
+      ur: "میں آپ کا نام پوچھوں گی جب آپ میری کوئی feature استعمال کریں گے!\n\n• *لیسن پلان* کی درخواست کریں - بس موضوع بتائیں\n• *ریڈنگ ٹیسٹ* شروع کریں - \u2066/reading test\u2069 ٹائپ کریں\n• *کوچنگ فیڈبیک* حاصل کریں - اپنی کلاس کی آڈیو بھیجیں\n• *ویڈیو* بنائیں - \u2066/video\u2069 ٹائپ کریں\n\nآپ کیا آزمانا چاہیں گے؟"
     };
 
     await WhatsAppService.sendMessage(from, guideMessages[responseLanguage] || guideMessages.en);
@@ -2407,7 +2416,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
         return;
       }
       await WhatsAppService.sendMessage(from, ({
-        ur: 'براہ کرم پہلے رجسٹریشن مکمل کریں۔ /register ٹائپ کریں۔',
+        ur: 'براہ کرم پہلے رجسٹریشن مکمل کریں۔ \u2066/register\u2069 ٹائپ کریں۔',
       })[responseLanguage] || 'Please complete registration first. Type /register to get started.');
       return;
     }
@@ -2518,7 +2527,7 @@ async function handleTextMessage(message, from, messageBody, user = null) {
 
     const guideMessages = {
       en: "I'll ask for your name after you try one of my features! You can:\n\n• Request a *lesson plan* - just tell me a topic\n• Start a *reading assessment* - type /reading test\n• Get *coaching feedback* - send me your classroom audio\n• Create a *video* - type /video\n\nWhat would you like to try?",
-      ur: "میں آپ کا نام پوچھوں گی جب آپ میری کوئی feature استعمال کریں گے!\n\n• *لیسن پلان* کی درخواست کریں - بس موضوع بتائیں\n• *ریڈنگ ٹیسٹ* شروع کریں - /reading test ٹائپ کریں\n• *کوچنگ فیڈبیک* حاصل کریں - اپنی کلاس کی آڈیو بھیجیں\n• *ویڈیو* بنائیں - /video ٹائپ کریں\n\nآپ کیا آزمانا چاہیں گے؟"
+      ur: "میں آپ کا نام پوچھوں گی جب آپ میری کوئی feature استعمال کریں گے!\n\n• *لیسن پلان* کی درخواست کریں - بس موضوع بتائیں\n• *ریڈنگ ٹیسٹ* شروع کریں - \u2066/reading test\u2069 ٹائپ کریں\n• *کوچنگ فیڈبیک* حاصل کریں - اپنی کلاس کی آڈیو بھیجیں\n• *ویڈیو* بنائیں - \u2066/video\u2069 ٹائپ کریں\n\nآپ کیا آزمانا چاہیں گے؟"
     };
 
     await WhatsAppService.sendMessage(from, guideMessages[responseLanguage] || guideMessages.en);

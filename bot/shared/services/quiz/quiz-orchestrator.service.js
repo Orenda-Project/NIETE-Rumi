@@ -289,7 +289,7 @@ class QuizOrchestrator {
     } catch (err) {
       logToFile('❌ QuizOrchestrator.initiateFromLessonPlan error', { error: err.message });
       await WhatsAppService.sendMessage(from,
-        'Sorry, something went wrong creating the quiz. Please try /quiz to start again.\n\nمعذرت، کوئز بنانے میں کچھ غلط ہو گیا۔'
+        'Sorry, something went wrong creating the quiz. Please try \u2066/quiz\u2069 to start again.\n\nمعذرت، کوئز بنانے میں کچھ غلط ہو گیا۔'
       );
     }
   }

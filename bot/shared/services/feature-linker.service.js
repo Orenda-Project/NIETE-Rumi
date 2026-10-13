@@ -43,8 +43,8 @@ const FEATURE_LINKS = {
       probability: 0.25,
       messages: {
         en: "📚 After this lesson, want to test if your students can read the key vocabulary? Type /reading test to assess their reading fluency!",
-        ur: "📚 اس سبق کے بعد، کیا آپ چیک کرنا چاہتے ہیں کہ طلباء اہم الفاظ پڑھ سکتے ہیں؟ /reading test ٹائپ کریں!",
-        ar: "📚 بعد هذا الدرس، هل تريد اختبار ما إذا كان طلابك يستطيعون قراءة المفردات الأساسية؟ اكتب /reading test لتقييم طلاقتهم في القراءة!",
+        ur: "📚 اس سبق کے بعد، کیا آپ چیک کرنا چاہتے ہیں کہ طلباء اہم الفاظ پڑھ سکتے ہیں؟ \u2066/reading test\u2069 ٹائپ کریں!",
+        ar: "📚 بعد هذا الدرس، هل تريد اختبار ما إذا كان طلابك يستطيعون قراءة المفردات الأساسية؟ اكتب \u2066/reading test\u2069 لتقييم طلاقتهم في القراءة!",
         es: "📚 Después de esta lección, ¿quieres probar si tus estudiantes pueden leer el vocabulario clave? ¡Escribe /reading test para evaluar su fluidez lectora!"
       }
     }
@@ -56,8 +56,8 @@ const FEATURE_LINKS = {
       messages: {
         // FYI-style introduction - not implying coaching reveals reading needs
         en: "📖 By the way, I can also assess your students' reading fluency! Want to try it? Type /reading test",
-        ur: "📖 ویسے، میں آپ کے طلباء کی ریڈنگ روانی بھی جانچ سکتی ہوں! آزمانا چاہتے ہیں؟ /reading test ٹائپ کریں",
-        ar: "📖 بالمناسبة، يمكنني أيضاً تقييم طلاقة القراءة لدى طلابك! هل تريد تجربتها؟ اكتب /reading test",
+        ur: "📖 ویسے، میں آپ کے طلباء کی ریڈنگ روانی بھی جانچ سکتی ہوں! آزمانا چاہتے ہیں؟ \u2066/reading test\u2069 ٹائپ کریں",
+        ar: "📖 بالمناسبة، يمكنني أيضاً تقييم طلاقة القراءة لدى طلابك! هل تريد تجربتها؟ اكتب \u2066/reading test\u2069",
         es: "📖 Por cierto, ¡también puedo evaluar la fluidez lectora de tus estudiantes! ¿Quieres probarlo? Escribe /reading test"
       }
     },

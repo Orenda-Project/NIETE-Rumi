@@ -461,8 +461,8 @@ class ReadingAssessmentService {
         // Send user-friendly error message
         const errorMessages = {
           en: "This reading assessment is already being processed or has expired. Please start a new assessment with /reading test",
-          ur: "یہ reading assessment پہلے سے پروسیس ہو رہی ہے یا ختم ہو گئی ہے۔ براہ کرم /reading test کے ساتھ نیا assessment شروع کریں",
-          ar: "هذا التقييم القرائي قيد المعالجة بالفعل أو انتهت صلاحيته. يرجى بدء تقييم جديد باستخدام /reading test",
+          ur: "یہ reading assessment پہلے سے پروسیس ہو رہی ہے یا ختم ہو گئی ہے۔ براہ کرم \u2066/reading test\u2069 کے ساتھ نیا assessment شروع کریں",
+          ar: "هذا التقييم القرائي قيد المعالجة بالفعل أو انتهت صلاحيته. يرجى بدء تقييم جديد باستخدام \u2066/reading test\u2069",
           es: "Esta evaluación de lectura ya está siendo procesada o ha caducado. Por favor, inicia una nueva evaluación con /reading test"
         };
 

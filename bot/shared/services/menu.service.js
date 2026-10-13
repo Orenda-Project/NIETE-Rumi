@@ -25,11 +25,11 @@ const openai = getClient();
 const ROLE_REFUSAL = Object.freeze({
   dc: Object.freeze({
     en: 'Classroom Coaching gives feedback on your OWN lesson. To record a visit to another teacher, choose "Observe a Teacher" from /menu.',
-    ur: 'کلاس روم کوچنگ آپ کے اپنے سبق پر رائے کے لیے ہے۔ کسی اور استاد کے مشاہدے کے لیے /menu سے "Observe a Teacher" چنیں۔',
+    ur: 'کلاس روم کوچنگ آپ کے اپنے سبق پر رائے کے لیے ہے۔ کسی اور استاد کے مشاہدے کے لیے \u2066/menu\u2069 سے "Observe a Teacher" چنیں۔',
   }),
   observe: Object.freeze({
     en: 'Observing a teacher is for coaches and principals. For feedback on your own lesson, choose "Classroom Coaching" from /menu.',
-    ur: 'کسی استاد کا مشاہدہ کوچز اور پرنسپل کے لیے ہے۔ اپنے سبق پر رائے کے لیے /menu سے "Classroom Coaching" چنیں۔',
+    ur: 'کسی استاد کا مشاہدہ کوچز اور پرنسپل کے لیے ہے۔ اپنے سبق پر رائے کے لیے \u2066/menu\u2069 سے "Classroom Coaching" چنیں۔',
   }),
 });
 
