@@ -256,18 +256,17 @@ describe("Digital Coaching in Urdu — the lesson's report page", () => {
     expect(englishLeft(["Reflection question", "Your turn", "Lesson received", "Answer by text", "Progress", "Digital Coaching"])).toEqual([]);
   });
 
-  it("ready: voice note, her recording (its player too), Download, her answer folded — in Urdu", async () => {
+  // bd-kn3m1a — ICT feedback row 10: the audio summary, then the comprehensive report; no recording, no Q&A again.
+  it("ready: the audio summary, then 'آپ کے سبق کی مکمل رپورٹ', Download — no recording or answer again — in Urdu", async () => {
     portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "completed", stage: "done", reflection: null, reportReady: true });
     portal.getCoachingSession.mockResolvedValue({ session: DETAIL });
     openReport();
     expect(await screen.findByRole("heading", { name: U.voiceNote })).toBeTruthy();
     expect(screen.getByRole("group", { name: new RegExp(U.title) })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: U.yourRecording })).toBeTruthy();
-    // Her recording's player (newui AudioPlayer, named by the recording) — the voice note has a play button too.
-    const player = screen.getByRole("group", { name: U.yourRecording });
-    expect(within(player).getByRole("button", { name: U.audio.play })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: U.fullReport })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: U.yourRecording })).toBeNull();
     expect(screen.getByRole("link", { name: U.download })).toBeTruthy();
-    expect(screen.getByRole("button", { name: new RegExp(U.yourAnswer) })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: new RegExp(U.yourAnswer) })).toBeNull();
     expect(screen.getByText(/Lesson Plan Fidelity/)).toBeTruthy();
     expect(englishLeft(["Voice note", "Your lesson", "Your answer", "Download"])).toEqual([]);
     for (const en of ["Play", "Download"]) {

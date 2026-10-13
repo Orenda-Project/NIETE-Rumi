@@ -152,7 +152,10 @@ describe("the report page — a Digital Coach lesson", () => {
     await waitFor(() => expect(portal.submitCoachingReflection).toHaveBeenCalledWith(ID, "Only the front rows."));
   });
 
-  it("ready: Done line, voice note, her recording, the report, Download; her answer folded", async () => {
+  // bd-kn3m1a — ICT feedback (IAB Experience View, row 10): after her answer the page goes straight to the audio
+  // summary, then "Your Comprehensive Lesson Report". Her lesson recording and the reflection question (with her
+  // answer) no longer appear again in between.
+  it("ready: Done line, the audio summary, then the comprehensive report, Download — no recording, no Q&A again", async () => {
     portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "completed", stage: "done", reflection: null, reportReady: true });
     portal.getCoachingSession.mockResolvedValue({ session: DETAIL });
     open();
@@ -165,10 +168,39 @@ describe("the report page — a Digital Coach lesson", () => {
     expect(screen.queryByText(/transcript/i)).toBeNull();
     expect(screen.queryByText(/rubric/i)).toBeNull();
 
-    const fold = screen.getByRole("button", { name: new RegExp(C.yourAnswer) });
-    expect(fold.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(fold);
-    expect(screen.getByText("Only the front rows.")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: C.yourRecording })).toBeNull();
+    expect(screen.queryByRole("group", { name: C.yourRecording })).toBeNull();
+    expect(screen.queryByRole("button", { name: new RegExp(C.yourAnswer) })).toBeNull();
+    expect(screen.queryByText("Which children answered?")).toBeNull();
+
+    const summary = screen.getByRole("heading", { name: C.voiceNote });
+    const report = screen.getByRole("heading", { name: C.fullReport });
+    const scores = screen.getByRole("region", { name: /scores/i });
+    expect(summary.compareDocumentPosition(report) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(report.compareDocumentPosition(scores) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("bd-kn3m1a — while it is worked on, her recording is not shown again either", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "conducting_conversation", stage: "reflection", source: "portal",
+      reflection: { questionNumber: 1, question: "Which children answered?" } });
+    portal.getCoachingSession.mockResolvedValue({ session: DETAIL });
+    open();
+    await screen.findByRole("textbox", { name: C.yourAnswer });
+    expect(screen.queryByRole("heading", { name: C.yourRecording })).toBeNull();
+  });
+
+  it("bd-kn3m1a — a coach's visit report is unchanged: it still has her recording and no DC report heading", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "completed", stage: "done", reflection: null, reportReady: true });
+    portal.getCoachingSession.mockResolvedValue({ session: { ...DETAIL, observation: { observerName: "Hataf Atif", observedAt: DETAIL.date,
+      sentAt: null, reportImageUrl: "https://r2/visit.png", caption: null, companionText: null } } });
+    open();
+    expect(await screen.findByRole("heading", { name: C.yourRecording })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: C.fullReport })).toBeNull();
+  });
+
+  it("bd-kn3m1a — 'Your Comprehensive Lesson Report' in English and Urdu", () => {
+    expect(C.fullReport).toBe("Your Comprehensive Lesson Report");
+    expect(U.fullReport).toBe("آپ کے سبق کی مکمل رپورٹ");
   });
 
   it("bd-fmf24g.30 — the dock: Send on WhatsApp is locked (no template configured), and Open is the report image", async () => {
