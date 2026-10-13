@@ -42,6 +42,20 @@ async function probeDuration(file) {
   return m ? (+m[1]) * 3600 + (+m[2]) * 60 + parseFloat(m[3]) : null;
 }
 
+/**
+ * Duration in seconds by decoding the whole file (the last "time=" ffmpeg reports), for a file whose header has
+ * none — a browser's MediaRecorder webm. Slower than probeDuration; null when nothing decodes.
+ */
+async function decodedDuration(file) {
+  let stderr = '';
+  try { ({ stderr } = await run(['-hide_banner', '-nostdin', '-i', file, '-vn', '-f', 'null', '-'])); } catch (e) { stderr = e.stderr || ''; }
+  const all = [...String(stderr).matchAll(/time=(\d+):(\d+):(\d+(?:\.\d+)?)/g)];
+  if (!all.length) return null;
+  const m = all[all.length - 1];
+  const sec = (+m[1]) * 3600 + (+m[2]) * 60 + parseFloat(m[3]);
+  return sec > 0 ? sec : null;
+}
+
 /** Cut [start, end] seconds to a 16 kHz mono clip; returns { path, base64 }. */
 async function cutClip(file, start, end, format = 'mp3') {
   const out = tmpFile(format);
@@ -58,4 +72,4 @@ function cleanup(...files) {
   for (const f of files.flat()) { try { if (f && fs.existsSync(f)) fs.unlinkSync(f); } catch (_) { /* best effort */ } }
 }
 
-module.exports = { downloadToTemp, probeDuration, cutClip, cleanup, tmpFile };
+module.exports = { downloadToTemp, probeDuration, decodedDuration, cutClip, cleanup, tmpFile };

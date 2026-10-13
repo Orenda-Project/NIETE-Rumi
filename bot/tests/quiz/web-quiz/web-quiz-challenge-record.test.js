@@ -365,3 +365,48 @@ describe('record: a reading the child ended is never scored, whatever the scorer
     expect(hidden.r).toMatchObject({ failed: true, reason: 'abandoned' });
   });
 });
+
+// A browser recording carries no Duration header (ffmpeg: "Duration: N/A"), so the server cannot read the audio's
+// length from it. The page's own number is not the reading's length either: a Try again in the same page load
+// posted the previous reading's length. The decoded audio decides.
+describe('a recording with no duration header is measured by decoding it, never by the page\'s number', () => {
+  const NO_HEADER = fs.readFileSync(path.join(__dirname, 'fixtures', 'read-40s-no-duration.webm'));
+
+  test('the fixture really has no duration header', () => {
+    const f = path.join(dir, 'no-header.webm');
+    fs.writeFileSync(f, NO_HEADER);
+    let err = '';
+    try { execFileSync(FF, ['-hide_banner', '-i', f], { stdio: 'pipe' }); } catch (e) { err = String(e.stderr); }
+    expect(err).toMatch(/Duration: N\/A/);
+  });
+
+  test('40 s read, the page says 10 s (the last reading\'s): not abandoned; the window and the stored length are 40 s', async () => {
+    on(RECORD, GUARD);
+    const { ct } = await Ch.exercise(hub(), 'read', { ...D, lang: 'en' });
+    const { key } = await Ch.presignUpload({ ct, type: 'audio/webm', size: 500000 });
+    r2.downloadFromR2.mockResolvedValue(NO_HEADER);
+    AudioService.transcribe.mockResolvedValue(heard(36, 1.0, 2));
+    llm.__create.mockResolvedValue(marks(verdicts(33, 36)));
+    const r = await Ch.submit({ ct, key, ms: 10000, lang: 'en', ended: 'stuck', read_s: 10, mic_check: 'pass' }, { waitMs: 60000 });
+    const row = db.web_quiz_challenge_runs.find((x) => x.id === T.verify(ct, 'c').r);
+    expect(r.reason).not.toBe('abandoned');
+    expect(r).toEqual({ failed: true, reason: 'incomplete', words: 33 });
+    expect(row.meta.duration_s).toBeGreaterThanOrEqual(39);
+    expect(row.meta.read_s).toBeGreaterThanOrEqual(39);
+    expect(row.meta.duration_source).toBe('decoded');
+    expect(row.meta.ms).toBe(10000);
+    expect(logEvent).toHaveBeenCalledWith('web_quiz.ch_read_len', expect.objectContaining({
+      run: T.verify(ct, 'c').r, page_ms: 10000, probe_s: null, decoded_s: expect.any(Number), blob_bytes: NO_HEADER.length, mismatch: true,
+    }));
+    const len = logEvent.mock.calls.find((x) => x[0] === 'web_quiz.ch_read_len')[1];
+    expect(len.decoded_s).toBeGreaterThanOrEqual(39);
+  });
+
+  test('a recording with a header keeps the probe and logs no mismatch when the page agrees', async () => {
+    on(RECORD, GUARD);
+    await read({ secs: 60, n: 45, right: 42, tried: 45, body: { ended: 'timer', read_s: 60, mic_check: 'pass' } });
+    const len = logEvent.mock.calls.find((x) => x[0] === 'web_quiz.ch_read_len')[1];
+    expect(len).toMatchObject({ page_ms: 60000, decoded_s: null, mismatch: false });
+    expect(len.probe_s).toBeGreaterThanOrEqual(59);
+  });
+});
