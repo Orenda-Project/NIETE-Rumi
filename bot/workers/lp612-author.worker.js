@@ -554,10 +554,23 @@ function withTimeout(promise, ms, code) {
 }
 
 /**
+ * bd-b0qwk.6: every model call this job makes is spent on ONE lesson, which is written once and
+ * served to every teacher who asks for it. Naming it on the job's context puts the render and the
+ * segment on each cost record, so the spend can be spread over the teachers it reaches. Logging only:
+ * nothing sent to the model changes, and a failure here must never cost the job anything.
+ */
+function nameTheLesson(renderId, segmentId) {
+  try {
+    require('../shared/utils/structured-logger').setCorrelationLesson?.({ renderId, segmentId });
+  } catch (_) { /* the cost record goes without the lesson; the lesson is still written */ }
+}
+
+/**
  * @param {object} payload {renderId, segmentId, lang, templateVersion, correlationId}
  */
 async function process(payload) {
   const { renderId, segmentId, lang, templateVersion, correlationId } = payload || {};
+  nameTheLesson(renderId, segmentId);
   const startedAt = Date.now();
 
   const render = await loadRender(renderId);

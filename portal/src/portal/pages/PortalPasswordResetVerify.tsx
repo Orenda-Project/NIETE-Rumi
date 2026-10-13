@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Lock, MessageCircle } from 'lucide-react';
-import { isLeader } from '../lib/leaderRole';
+import { homeFor } from '../lib/homeRoute';
 import { BottomButton } from '../newui';
 import { auth } from '../services/api';
 import { AuthFrame, AuthMessage } from '../auth/AuthFrame';
@@ -51,7 +51,8 @@ const PortalPasswordResetVerify = () => {
       const result = await auth.resetPassword(newPassword);
 
       // bd-2434: leaders go to My Patch, everyone else to the dashboard.
-      navigate(isLeader(result?.user) ? '/portal/leader' : '/portal/dashboard');
+      // bd-s6qbts.3: an analytics-only account to its analytics page (lib/homeRoute).
+      navigate(homeFor(result?.user));
       return;
     } catch (err) {
       setError(verifyFailure(statusOf(err)));

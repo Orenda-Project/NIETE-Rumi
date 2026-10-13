@@ -18,6 +18,26 @@ describe("login failures, by status", () => {
   });
 });
 
+/**
+ * bd-s6qbts.5 — signing in with an account NAME. The server answers every way a name sign-in can be wrong with the
+ * wrong-password 401 (so it never says whether the name exists). "Wrong password" under the password would point an
+ * official who mistyped the NAME at the wrong field, so a name's 401 is the plain "Couldn't log in". Every other
+ * status, and every phone, maps as before.
+ */
+describe("login failures for an account name", () => {
+  it("a 401 is 'Couldn't log in' under the button, not 'Wrong password'", () => {
+    expect(loginFailure(401, true)).toEqual({ field: "form", key: "couldntLogin" });
+  });
+
+  it.each([429, 0, 500])("%s maps as it does for a phone", (status) => {
+    expect(loginFailure(status, true)).toEqual(loginFailure(status));
+  });
+
+  it("a phone's 401 is still 'Wrong password'", () => {
+    expect(loginFailure(401, false)).toEqual({ field: "password", key: "wrongPw" });
+  });
+});
+
 describe("reset failures", () => {
   it.each([
     [404, { field: "phone", key: "noAccount" }],

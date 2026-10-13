@@ -76,10 +76,19 @@ const {
   PORTAL_COACH_V2_KEY,
   PORTAL_TEACHER_V2_KEY,
   isCoachObservationOn,
+  PORTAL_ANALYTICS_ONLY_KEY,
+  readUserListFlag,
+  isAnalyticsOnlyUser,
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
 const { publicUserPayload, makeRequireLeaderRole } = require('../lib/leader-role');
+// Analytics-only accounts (federal / sector officials): one app_settings list decides who
+// they are, and they see the school-wise analytics page and nothing else.
+const { makeRequireAnalyticsViewer } = require('../lib/analytics-viewer');
+// bd-s6qbts.5 — such an account signs in with an account NAME; users.phone_number holds analytics:<name>.
+const { isAccountNameInput, normaliseAccountName, storedPhoneFor } = require('../lib/analytics-account-name');
+const SchoolsAnalytics = require('../services/schools-analytics.service');
 const { resolveUserSchoolName } = require('../lib/user-school-name');
 // A coach's observation of her is the teacher's to see only once it is SENT to her.
 const TeacherObservation = require('../lib/teacher-observation');
@@ -310,6 +319,73 @@ async function getUserById(userId) {
 // nav gating is UX; this is the real access control.
 const requireLeaderRole = makeRequireLeaderRole({ getUser: getUserById });
 
+// Server-side gate for the analytics-only page: the session user must be on the
+// portal_analytics_only list. Not on it is 403; a failed read of the list is 500.
+const requireAnalyticsViewer = makeRequireAnalyticsViewer({
+  getViewerIds: () => readUserListFlag(supabase, PORTAL_ANALYTICS_ONLY_KEY),
+});
+
+/**
+ * The answer to a wrong password — and, for an account name, to EVERY way the sign-in can be wrong. One object, so
+ * the phone path and the name path cannot drift apart.
+ */
+const WRONG_PASSWORD = Object.freeze({
+  success: false,
+  error: 'Incorrect password. Please try again.'
+});
+
+/**
+ * A bcrypt hash (cost 10, the cost the setup and reset handlers write) of a random secret that was thrown away. A
+ * name sign-in with no real hash to check is compared against this instead, so it costs the same bcrypt time as a
+ * real one and the response time does not say whether the account exists. Its result is never trusted.
+ */
+const NO_ACCOUNT_HASH = '$2a$10$M8dFrLRU4srUDoTdVvEq4OIPA926Xo6Cwpfg1QYe.OKJt19Hd6YUm';
+
+/**
+ * bd-s6qbts.5 — sign in by account name. Returns the users row when ALL of these hold, else null:
+ *   - the name is well formed (lower-cased + trimmed, ^[a-z][a-z0-9-]{2,39}$);
+ *   - an activated account holds users.phone_number = analytics:<name> — a value no phone can be;
+ *   - that account's id is on app_settings.portal_analytics_only. Fail closed: a list that is absent, malformed
+ *     (a broadcast true, "teachers", an object, bad JSON) or unreadable admits nobody;
+ *   - it has a password and this is it.
+ * bcrypt.compare runs exactly once on every path that reaches the lookups (against NO_ACCOUNT_HASH when there is no
+ * real hash), and the caller answers every null with WRONG_PASSWORD, so a refusal never tells which check failed.
+ * The reason goes to telemetry; the name and the password never do.
+ */
+async function loginByAccountName(rawName, password) {
+  const name = normaliseAccountName(rawName);
+  let found = null;
+  let account = null;
+  let reason = 'bad_format';
+  if (name) {
+    const [lookup, listedIds] = await Promise.all([
+      supabase
+        .from('users')
+        .select('id, portal_password_hash, portal_activated, name')
+        .eq('phone_number', storedPhoneFor(name))
+        .eq('portal_activated', true)
+        .maybeSingle(),
+      readUserListFlag(supabase, PORTAL_ANALYTICS_ONLY_KEY).catch((err) => {
+        telemetry.logEvent('portal.login.name_list_unreadable', { err: err && err.message });
+        return null;
+      }),
+    ]);
+    found = lookup && !lookup.error ? lookup.data : null;
+    if (!found) reason = 'no_account';
+    else if (!Array.isArray(listedIds)) reason = 'list_unreadable';
+    else if (!listedIds.includes(found.id)) reason = 'not_listed';
+    else if (!found.portal_password_hash) reason = 'no_password';
+    else account = found;
+  }
+  const passwordMatches = await bcrypt.compare(password, account ? account.portal_password_hash : NO_ACCOUNT_HASH);
+  if (account && passwordMatches) return account;
+  telemetry.logEvent('portal.login.name_rejected', {
+    reason: account ? 'wrong_password' : reason,
+    userId: found ? found.id : undefined,
+  });
+  return null;
+}
+
 // ============================================================================
 // AUTHENTICATION ENDPOINTS
 // ============================================================================
@@ -536,48 +612,57 @@ router.post('/login', publicAuthLimiter, async (req, res) => {
       });
     }
 
-    phoneNumber = sanitizePhoneNumber(phoneNumber);
-    if (!validatePhoneNumber(phoneNumber)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Please enter a valid phone number.'
-      });
-    }
+    let user;
+    let analyticsOnly;
+    if (isAccountNameInput(phoneNumber)) {
+      // bd-s6qbts.5 — an account name (it holds a letter; no phone does). Only an analytics-only account signs
+      // in this way, and every refusal is the wrong-password answer (loginByAccountName).
+      user = await loginByAccountName(phoneNumber, password);
+      if (!user) return res.status(401).json(WRONG_PASSWORD);
+      // Membership was just checked against the list; no second read that could disagree.
+      analyticsOnly = true;
+    } else {
+      phoneNumber = sanitizePhoneNumber(phoneNumber);
+      if (!validatePhoneNumber(phoneNumber)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Please enter a valid phone number.'
+        });
+      }
 
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, portal_password_hash, portal_activated, name')
-      .eq('phone_number', phoneNumber)
-      .eq('portal_activated', true)
-      .maybeSingle();
+      const { data: found, error } = await supabase
+        .from('users')
+        .select('id, portal_password_hash, portal_activated, name')
+        .eq('phone_number', phoneNumber)
+        .eq('portal_activated', true)
+        .maybeSingle();
+      user = found;
 
-    if (error || !user) {
-      return res.status(404).json({
-        success: false,
-        error: 'No portal account found for this phone number.'
-      });
-    }
+      if (error || !user) {
+        return res.status(404).json({
+          success: false,
+          error: 'No portal account found for this phone number.'
+        });
+      }
 
-    // Activated but no password saved (thousands of accounts were flagged this way outside
-    // the setup flow). bcrypt.compare throws on a NULL hash, which used to surface as a 500
-    // whatever she typed. There is nothing to check her password against — send her to
-    // Forgot password, which writes the hash.
-    if (!user.portal_password_hash) {
-      telemetry.logEvent('portal.login.no_password', { userId: user.id });
-      return res.status(403).json({
-        success: false,
-        code: 'PASSWORD_NOT_SET',
-        error: 'You have not set a portal password yet. Please use "Forgot password" to set one.'
-      });
-    }
+      // Activated but no password saved (thousands of accounts were flagged this way outside
+      // the setup flow). bcrypt.compare throws on a NULL hash, which used to surface as a 500
+      // whatever she typed. There is nothing to check her password against — send her to
+      // Forgot password, which writes the hash.
+      if (!user.portal_password_hash) {
+        telemetry.logEvent('portal.login.no_password', { userId: user.id });
+        return res.status(403).json({
+          success: false,
+          code: 'PASSWORD_NOT_SET',
+          error: 'You have not set a portal password yet. Please use "Forgot password" to set one.'
+        });
+      }
 
-    const validPassword = await bcrypt.compare(password, user.portal_password_hash);
+      const validPassword = await bcrypt.compare(password, user.portal_password_hash);
 
-    if (!validPassword) {
-      return res.status(401).json({
-        success: false,
-        error: 'Incorrect password. Please try again.'
-      });
+      if (!validPassword) {
+        return res.status(401).json(WRONG_PASSWORD);
+      }
     }
 
     // Update last login
@@ -587,6 +672,10 @@ router.post('/login', publicAuthLimiter, async (req, res) => {
         portal_last_login: new Date().toISOString()
       })
       .eq('id', user.id);
+
+    // Analytics-only accounts land on the schools analytics page; the client routes by
+    // this, so it rides on the login answer. Fail-closed: an unreadable list is false.
+    if (analyticsOnly === undefined) analyticsOnly = await isAnalyticsOnlyUser(supabase, user.id);
 
     // SECURITY: Regenerate session ID (prevent session fixation)
     req.session.regenerate((err) => {
@@ -607,7 +696,7 @@ router.post('/login', publicAuthLimiter, async (req, res) => {
         success: true,
         message: 'Login successful',
         // bd-2434: includes `role` so the frontend can gate the leader nav / My Patch.
-        user: publicUserPayload(user)
+        user: publicUserPayload(user, { analyticsOnly })
       });
     });
   } catch (error) {
@@ -654,6 +743,16 @@ router.post('/request-reset', publicAuthLimiter, async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'Phone number is required'
+      });
+    }
+
+    // bd-s6qbts.5 — an account name is never a phone: no WhatsApp code for it, and its digits are never
+    // read out as a number ("fde-03001234567" must not reach 923001234567). The invalid-number answer,
+    // the same for every name, says nothing about whether one exists.
+    if (isAccountNameInput(phoneNumber)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please enter a valid phone number.'
       });
     }
 
@@ -711,6 +810,14 @@ router.post('/verify-reset-code', publicAuthLimiter, async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'Phone number and code are required'
+      });
+    }
+
+    // bd-s6qbts.5 — an account name never verifies a code (see /request-reset). Same generic answer.
+    if (isAccountNameInput(phoneNumber)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or expired code. Please request a new reset code.'
       });
     }
 
@@ -828,6 +935,9 @@ router.post('/reset-password', async (req, res) => {
     // after checking the WhatsApp code. We already proved who this is — the
     // old behaviour just threw that proof away.
     //
+    // Same routing hint as /login: an analytics-only account goes to its one page.
+    const analyticsOnly = await isAnalyticsOnlyUser(supabase, user.id);
+
     // SECURITY: Regenerate session ID (prevent session fixation) — same
     // pattern as the /login handler above.
     req.session.regenerate((regenErr) => {
@@ -849,7 +959,7 @@ router.post('/reset-password', async (req, res) => {
         success: true,
         message: 'Password reset successful.',
         // bd-2434: carries `role` so the client can route a leader to My Patch.
-        user: publicUserPayload(user)
+        user: publicUserPayload(user, { analyticsOnly })
       });
     });
   } catch (error) {
@@ -869,9 +979,9 @@ router.post('/reset-password', async (req, res) => {
  * The signed-in user as the app holds her: /dashboard and /me answer exactly this.
  * bd-2434: includes `role` (+ contact fields) via the shared shaper.
  */
-function sessionUserPayload(req, user, schoolName) {
+function sessionUserPayload(req, user, schoolName, analyticsOnly = false) {
   return {
-    ...publicUserPayload(user, { includeContact: true }),
+    ...publicUserPayload(user, { includeContact: true, analyticsOnly }),
     schoolName,
   };
 }
@@ -886,7 +996,13 @@ function sessionUserPayload(req, user, schoolName) {
 router.get('/me', requirePortalAuth, async (req, res) => {
   try {
     const user = await getUserById(req.session.portalUserId);
-    res.json({ success: true, user: sessionUserPayload(req, user, await resolveUserSchoolName(supabase, user)) });
+    // Two independent single-row reads, side by side. Neither rejects: an unknown school
+    // is null, an unreadable analytics list is false.
+    const [schoolName, analyticsOnly] = await Promise.all([
+      resolveUserSchoolName(supabase, user),
+      isAnalyticsOnlyUser(supabase, user.id),
+    ]);
+    res.json({ success: true, user: sessionUserPayload(req, user, schoolName, analyticsOnly) });
   } catch (error) {
     console.error('portal/me error:', error);
     res.status(500).json({ success: false, error: 'Failed to load your account' });
@@ -910,6 +1026,8 @@ router.get('/dashboard', requirePortalAuth, async (req, res) => {
     // Her own school, for the My account page. Started now so it runs alongside
     // the counts below; it never rejects (null when unknown or unreadable).
     const schoolNamePromise = resolveUserSchoolName(supabase, user);
+    // Same answer /me gives, so the two payloads never disagree. Never rejects.
+    const analyticsOnlyPromise = isAnalyticsOnlyUser(supabase, user.id);
 
     // Counts, gathered with allSettled so one dead table cannot blank the page.
     //
@@ -1013,7 +1131,7 @@ router.get('/dashboard', requirePortalAuth, async (req, res) => {
     // Return partial data even if some queries failed
     res.json({
       success: true,
-      user: sessionUserPayload(req, user, await schoolNamePromise),
+      user: sessionUserPayload(req, user, await schoolNamePromise, await analyticsOnlyPromise),
       stats: {
         totalCoachingSessions: coachingSessionsResult.status === 'fulfilled' ? (coachingSessionsResult.value.count || 0) : 0,
         totalAssessments: assessmentsResult.status === 'fulfilled' ? (assessmentsResult.value.count || 0) : 0,
@@ -1498,6 +1616,51 @@ function countOutputs(userIds, [from, to]) {
     [userIds, from, to]
   );
 }
+
+// Whole answers for ten minutes, keyed from|to|region. The expensive part (each session's
+// score) is also memoised per session inside the service, so a new window or region only
+// reads the scores it has not seen.
+const schoolsAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 * 60 * 1000 });
+
+/**
+ * GET /api/portal/analytics/schools?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|all>
+ *
+ * School-wise analytics for the analytics-only accounts — objective counts only: per
+ * school, LPs opened and generated, Digital Coach and human observations, coach visits,
+ * "x of N teachers" where it applies, and Avg FICO / Avg HITL with their n; the same summed
+ * per region (the six ICT sectors, whatever the filter) and overall. Only schools in those
+ * six are counted: one with no region or another region is in no number (bd-s6qbts.4), and
+ * any other ?region= ("unassigned" included) is a 400. No percentages, no bands.
+ * School-level only — no teacher appears in the answer. Definitions:
+ * services/schools-analytics.service.js.
+ *
+ * Guarded by the portal_analytics_only list, checked on EVERY request (the cache sits
+ * behind the gate). The window is analyticsRange's: blank is all time, junk is dropped.
+ */
+router.get('/analytics/schools', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
+  try {
+    const region = SchoolsAnalytics.parseRegionFilter(req.query.region);
+    if (!region.ok) {
+      return res.status(400).json({ success: false, error: 'Unknown region.' });
+    }
+    const range = analyticsRange(req.query);
+    const key = `${range.from || ''}|${range.to || ''}|${region.key}`;
+    const body = await schoolsAnalyticsCache.getOrLoad(key, async () => {
+      const rows = await SchoolsAnalytics.loadSchoolsAnalyticsRows(dbQuery, range);
+      return {
+        success: true,
+        range,
+        // LP opens are logged from this day on; the page says so for an earlier window.
+        lpOpensLoggedSince: SchoolsAnalytics.LP_OPENS_LOGGED_SINCE,
+        ...SchoolsAnalytics.summarizeSchoolsAnalytics(rows, { region: region.region }),
+      };
+    });
+    res.json(body);
+  } catch (error) {
+    console.error('analytics/schools error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load school analytics.' });
+  }
+});
 
 /**
  * GET /api/portal/my-analytics

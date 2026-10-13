@@ -119,12 +119,14 @@ describe('GET /me', () => {
     expect(me.payload.user.schoolName).toBe('IMSG (I-V) G-7/2');
   });
 
-  it('reads no counts — only the user and her school', async () => {
+  it('reads no counts — only the user, her school, and the one analytics-only flag row', async () => {
     tableStates.users = { rows: [{ ...USER, school_id: 'sch-7' }] };
     tableStates.schools = { rows: [{ id: 'sch-7', name: 'X' }] };
     await call('/me', 'u-1');
     const tables = supabaseFrom.mock.calls.map((c) => c[0]);
-    expect([...new Set(tables)].sort()).toEqual(['schools', 'users']);
+    expect([...new Set(tables)].sort()).toEqual(['app_settings', 'schools', 'users']);
+    // The flag read is ONE keyed row (portal_analytics_only), never a scan or a count.
+    expect(tables.filter((t) => t === 'app_settings')).toHaveLength(1);
   });
 
   it('signed out: 401, like every protected route', async () => {

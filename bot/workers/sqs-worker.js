@@ -98,6 +98,32 @@ async function withVisibilityHeartbeat(receiptHandle, sessionId, jobType, run) {
   }
 }
 
+// bd-b0qwk.3: a coaching job can arrive naming no user. The portal's upload queues `{ from, audioId }`
+// and never passes the webhook, so a whole portal-started chain spent with no teacher on its cost
+// events. These jobs are keyed by the coaching session, and the session row has its teacher: look
+// them up once, before the job runs, and name them on the job's context, so the job's model spend and
+// every job it queues carry them. Never for a job that already names a user or is not keyed by a
+// coaching session. A failed, empty or slow lookup (capped) names nobody and changes nothing else.
+const COACHING_SESSION_JOBS = new Set(['transcription', 'analysis', 'lesson_plan_extraction', 'report_generation']);
+const SESSION_TEACHER_LOOKUP_MS = 2000;
+
+async function nameSessionTeacher(jobType, sessionId) {
+  if (!COACHING_SESSION_JOBS.has(jobType) || !sessionId) return;
+  const sl = require('../shared/utils/structured-logger');
+  if (typeof sl.getCurrentUserId !== 'function' || sl.getCurrentUserId()) return;
+  let timer;
+  try {
+    const lookup = supabase.from('coaching_sessions').select('user_id').eq('id', sessionId).maybeSingle();
+    const capped = new Promise((resolve) => { timer = setTimeout(() => resolve({ data: null }), SESSION_TEACHER_LOOKUP_MS); });
+    const { data } = (await Promise.race([lookup, capped])) || {};
+    if (data && data.user_id) sl.setCorrelationUser?.(data.user_id); // a non-uuid is dropped there
+  } catch (_) {
+    // Naming the teacher is for the cost record; it must never cost the job anything.
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * SQS Coaching Worker Class
  * Processes coaching jobs from AWS SQS queue
@@ -407,6 +433,7 @@ class SQSCoachingWorker {
     // Create job promise wrapped with correlation context
     // All logs within the job will automatically include correlationId
     const jobPromise = runWithCorrelation(correlationId, async () => {
+      await nameSessionTeacher(jobType, sessionId);
       return this.executeJob(sessionId, jobType, payload, receiptHandle, sourceQueue, body)
         .then(async () => {
           // Job succeeded - delete from queue using correct completion method

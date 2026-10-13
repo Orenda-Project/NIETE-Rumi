@@ -195,6 +195,62 @@ function isAssessmentEditingEnabled(supabase) {
   return isFlagEnabled(supabase, ASSESSMENT_EDITING_KEY);
 }
 
+/**
+ * app_settings key: the accounts that see ONLY the schools analytics page (federal
+ * and sector officials). The value is a JSON array of users.id — nothing else.
+ */
+const PORTAL_ANALYTICS_ONLY_KEY = 'portal_analytics_only';
+
+/**
+ * The users.id list a LIST-ONLY flag names.
+ *
+ * Unlike isFlagEnabledForUser, a broadcast value (true, "true", "teachers") is NOT
+ * "everyone" here — it is nobody. For portal_analytics_only "everyone" would lock every
+ * teacher out of her own portal and show every teacher every school's numbers, so the
+ * only way onto the list is to be named on it. An object, a number, unparseable JSON or
+ * a non-string entry is ignored the same way.
+ *
+ * An absent row is an empty list. A failed READ throws, so a gate can tell "you are not
+ * on the list" (403) from "we could not check" (500); both deny.
+ *
+ * @param {object} supabase
+ * @param {string} key app_settings.key
+ * @returns {Promise<string[]>}
+ */
+async function readUserListFlag(supabase, key) {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', key)
+    .maybeSingle();
+  if (error) throw new Error(`app_settings read failed for ${key}: ${error.message || error}`);
+  if (!data) return [];
+  let value = data.value;
+  if (typeof value === 'string') {
+    try { value = JSON.parse(value); } catch (_) { return []; }
+  }
+  if (!Array.isArray(value)) return [];
+  return value.filter((id) => typeof id === 'string' && id.trim() !== '');
+}
+
+/**
+ * Is this user named on a list-only flag? Fail-closed: no user, no row, a broadcast or
+ * malformed value, or a failed read are all "no".
+ */
+async function isUserListedInFlag(supabase, key, userId) {
+  if (!userId) return false;
+  try {
+    return (await readUserListFlag(supabase, key)).includes(userId);
+  } catch (_) {
+    return false;
+  }
+}
+
+/** Is this an analytics-only account? What the portal routes by (user.analyticsOnly). */
+function isAnalyticsOnlyUser(supabase, userId) {
+  return isUserListedInFlag(supabase, PORTAL_ANALYTICS_ONLY_KEY, userId);
+}
+
 /** bd-6faz8m — app_settings key for editing a generated paper from the PORTAL only. */
 const PORTAL_ASSESSMENT_EDITING_KEY = 'portal_assessment_editing_enabled';
 
@@ -240,6 +296,9 @@ async function isCoachObservationOn(supabase, userId) {
 }
 
 module.exports = {
+  PORTAL_ANALYTICS_ONLY_KEY,
+  readUserListFlag,
+  isAnalyticsOnlyUser,
   PORTAL_ASSESSMENT_EDITING_KEY,
   isPortalAssessmentEditingEnabled,
   PORTAL_SELF_OBSERVATION_KEY,
