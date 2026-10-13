@@ -70,6 +70,11 @@ function fixture() {
       { id: 'c8', school_id: 's2', user_id: 't4', is_test: false, observation_type: 'leader_observation', pct: 70 },
       { id: 'c9', school_id: 's7', user_id: 't9', is_test: false, observation_type: null, pct: 10 },
       { id: 'c10', school_id: 's2', user_id: 't4', is_test: false, observation_type: 'something_else', pct: 5 },
+      // Activity at schools outside the six regions (no region, blank, Durbeen): must not reach any total.
+      { id: 'c11', school_id: 's4', user_id: 't6', is_test: false, observation_type: null, pct: 99 },
+      { id: 'c12', school_id: 's5', user_id: 't7', is_test: false, observation_type: 'leader_observation', pct: 11 },
+      { id: 'c13', school_id: 's6', user_id: 't8', is_test: false, observation_type: null, pct: 13 },
+      { id: 'c14', school_id: 's6', user_id: 't8', is_test: false, observation_type: 'leader_observation', pct: 14 },
     ],
   };
 }
@@ -98,27 +103,48 @@ describe('summarizeSchoolsAnalytics', () => {
 
   it('carries no teacher-level data', () => {
     const text = JSON.stringify(out);
-    for (const teacherId of ['t1', 't2', 't3', 't4', 't5', 'tx']) expect(text).not.toContain(`"${teacherId}"`);
+    for (const teacherId of ['t1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 'tx']) expect(text).not.toContain(`"${teacherId}"`);
     expect(text).not.toMatch(/user_?id|teacherName|phone/i);
   });
 
-  it('lists all seven region buckets, in order, whatever the data holds', () => {
-    expect(REGION_BUCKETS).toEqual(['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol', 'Unassigned']);
+  it('lists exactly the six ICT regions, in order, whatever the data holds — no Unassigned bucket', () => {
+    expect(REGION_BUCKETS).toEqual(['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol']);
     expect(out.regions.map((r) => r.region)).toEqual(REGION_BUCKETS);
+    expect(JSON.stringify(out)).not.toMatch(/unassigned/i);
   });
 
   it('excludes probable-test and inactive schools, and roster rows attached to no known school', () => {
-    expect(Object.keys(bySchool).sort()).toEqual(['s1', 's2', 's3', 's4', 's5', 's6', 's9']);
-    expect(out.overview.schools).toBe(7);
-    expect(out.overview.teachers).toBe(10 + 2 + 4 + 1 + 1 + 2 + 0);
-    expect(out.overview.coachVisits).toBe(3 + 0 + 1 + 2 + 0 + 0 + 0); // s7 (test) and s8 (inactive) excluded
+    expect(Object.keys(bySchool).sort()).toEqual(['s1', 's2', 's3', 's9']);
+    expect(out.overview.schools).toBe(4);
+    expect(out.overview.teachers).toBe(10 + 2 + 4 + 0);
+    expect(out.overview.coachVisits).toBe(3 + 0 + 1 + 0); // s7 (test) and s8 (inactive) excluded
   });
 
-  it('NULL, blank and unknown regions all land in Unassigned', () => {
-    for (const id of ['s4', 's5', 's6']) expect(bySchool[id].region).toBe('Unassigned');
-    expect(byRegion.Unassigned).toMatchObject({
-      schools: 3, teachers: 4, lpsOpened: 3, teachersOpenedLp: 2, lpsGenerated: 3, coachVisits: 2,
+  it('a school with no region, a blank one, or one outside the six (Durbeen) is left out of everything', () => {
+    // Not a row, not a bucket...
+    for (const id of ['s4', 's5', 's6']) expect(bySchool[id]).toBeUndefined();
+    expect(JSON.stringify(out)).not.toMatch(/School s[456]"|E-s[456]|Durbeen/);
+    // ...and none of its teachers, LPs, visits or observations reach a total (bd-s6qbts.4).
+    expect(out.overview).toEqual({
+      schools: 4, teachers: 16, lpsOpened: 10, teachersOpenedLp: 6, lpsGenerated: 29,
+      dcObservations: 4, teachersWithDc: 3, humanObservations: 3, coachVisits: 4,
+      avgFico: 60, ficoN: 3, avgHitl: 70, hitlN: 3,
     });
+    // The same holds with the leak sources alone: they add nothing.
+    const outside = summarizeSchoolsAnalytics({
+      schools: fixture().schools.filter((s) => ['s4', 's5', 's6'].includes(s.id)),
+      teachers: fixture().teachers,
+      sessions: fixture().sessions,
+    });
+    expect(outside.schools).toEqual([]);
+    expect(outside.overview).toMatchObject({ schools: 0, teachers: 0, lpsOpened: 0, lpsGenerated: 0, dcObservations: 0, humanObservations: 0, coachVisits: 0, ficoN: 0, hitlN: 0 });
+    for (const r of outside.regions) expect(r.schools).toBe(0);
+  });
+
+  it('Σ over the six region cards = the overview, for every count field', () => {
+    for (const k of ['schools', ...COUNT_KEYS]) {
+      expect(out.regions.reduce((n, r) => n + r[k], 0)).toBe(out.overview[k]);
+    }
   });
 
   it('per school: every field, test teachers and their sessions excluded, DC vs human split', () => {
@@ -197,7 +223,7 @@ describe('summarizeSchoolsAnalytics', () => {
       sessions: [],
     });
     expect(empty.overview).toEqual({
-      schools: 7, teachers: 20, lpsOpened: 0, teachersOpenedLp: 0, lpsGenerated: 0,
+      schools: 4, teachers: 16, lpsOpened: 0, teachersOpenedLp: 0, lpsGenerated: 0,
       dcObservations: 0, teachersWithDc: 0, humanObservations: 0, coachVisits: 0,
       avgFico: null, ficoN: 0, avgHitl: null, hitlN: 0,
     });
@@ -206,7 +232,7 @@ describe('summarizeSchoolsAnalytics', () => {
   it('copes with no rows at all', () => {
     const none = summarizeSchoolsAnalytics({});
     expect(none.schools).toEqual([]);
-    expect(none.regions).toHaveLength(7);
+    expect(none.regions).toHaveLength(6);
     expect(none.overview).toMatchObject({ schools: 0, teachers: 0, lpsOpened: 0, avgFico: null });
   });
 
@@ -236,13 +262,12 @@ describe('parseRegionFilter', () => {
       expect(parseRegionFilter(v)).toEqual({ ok: true, region: null, key: 'all' });
     }
   });
-  it('accepts a sector (any case) or unassigned, as the canonical bucket name', () => {
+  it('accepts one of the six sectors (any case), as the canonical name', () => {
     expect(parseRegionFilter('b.k')).toEqual({ ok: true, region: 'B.K', key: 'B.K' });
     expect(parseRegionFilter('Urban-II')).toEqual({ ok: true, region: 'Urban-II', key: 'Urban-II' });
-    expect(parseRegionFilter('unassigned')).toEqual({ ok: true, region: 'Unassigned', key: 'Unassigned' });
   });
-  it('refuses anything else rather than guessing', () => {
-    for (const v of ['Durbeen', "B.K'; drop table users", 'Lahore', ['B.K'], 42]) {
+  it('refuses anything else rather than guessing — "unassigned" included, like any unknown region', () => {
+    for (const v of ['unassigned', 'Unassigned', ' UNASSIGNED ', 'Durbeen', "B.K'; drop table users", 'Lahore', ['B.K'], 42]) {
       expect(parseRegionFilter(v).ok).toBe(false);
     }
   });

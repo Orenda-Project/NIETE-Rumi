@@ -1533,13 +1533,15 @@ function countOutputs(userIds, [from, to]) {
 const schoolsAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 * 60 * 1000 });
 
 /**
- * GET /api/portal/analytics/schools?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|unassigned|all>
+ * GET /api/portal/analytics/schools?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|all>
  *
  * School-wise analytics for the analytics-only accounts — objective counts only: per
  * school, LPs opened and generated, Digital Coach and human observations, coach visits,
  * "x of N teachers" where it applies, and Avg FICO / Avg HITL with their n; the same summed
- * per region (all seven buckets, whatever the filter) and overall. No percentages, no
- * bands. School-level only — no teacher appears in the answer. Definitions:
+ * per region (the six ICT sectors, whatever the filter) and overall. Only schools in those
+ * six are counted: one with no region or another region is in no number (bd-s6qbts.4), and
+ * any other ?region= ("unassigned" included) is a 400. No percentages, no bands.
+ * School-level only — no teacher appears in the answer. Definitions:
  * services/schools-analytics.service.js.
  *
  * Guarded by the portal_analytics_only list, checked on EVERY request (the cache sits

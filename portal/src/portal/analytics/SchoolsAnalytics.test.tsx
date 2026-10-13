@@ -123,14 +123,28 @@ describe("the frame", () => {
   });
 });
 
+const SIX = ["B.K", "Sihala", "Urban-I", "Nilore", "Urban-II", "Tarnol"];
+const testIds = (prefix: string) =>
+  Array.from(document.querySelectorAll(`[data-testid^="${prefix}"]`)).map((el) => el.getAttribute("data-testid")!.slice(prefix.length));
+
 describe("regions", () => {
   it("every region is a chip with its school count", async () => {
     renderPage();
     await screen.findByTestId("schools-table");
-    expect(screen.getByTestId("region-chip-all")).toHaveTextContent("All regions18");
+    expect(screen.getByTestId("region-chip-all")).toHaveTextContent("All regions16");
     expect(screen.getByTestId("region-chip-all")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("region-chip-Urban-I")).toHaveTextContent("Urban-I5");
-    expect(screen.getByTestId("region-chip-Unassigned")).toHaveTextContent("Unassigned2");
+  });
+
+  it("only the six ICT regions: six chips and six cards, no Unassigned anywhere on the page (bd-s6qbts.4)", async () => {
+    renderPage();
+    await screen.findByTestId("region-cards");
+    expect(testIds("region-chip-")).toEqual(["all", ...SIX]);
+    expect(within(screen.getByTestId("region-cards")).getAllByRole("button")).toHaveLength(6);
+    expect(SIX.map((r) => screen.getByTestId(`region-card-${r}`))).toHaveLength(6);
+    expect(screen.queryByTestId("region-chip-Unassigned")).toBeNull();
+    expect(screen.queryByTestId("region-card-Unassigned")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/unassigned/i);
   });
 
   it("choosing a region asks again for that region, and the region cards go", async () => {
@@ -143,11 +157,11 @@ describe("regions", () => {
     expect(screen.getByTestId("region-chip-Sihala")).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("Unassigned is asked for as 'unassigned'", async () => {
-    renderPage();
-    await screen.findByTestId("schools-table");
-    await userEvent.setup().click(screen.getByTestId("region-chip-Unassigned"));
-    await waitFor(() => expect(h.getSchools).toHaveBeenLastCalledWith({ from: "2026-10-01", to: "2026-10-13", region: "unassigned" }));
+  it("an old ?region=Unassigned link is no longer special: asked for as written, and the server refuses it like any unknown region", async () => {
+    h.getSchools.mockRejectedValue({ response: { status: 400 } });
+    renderPage("?region=Unassigned");
+    expect(await screen.findByTestId("analytics-error")).toBeInTheDocument();
+    expect(h.getSchools).toHaveBeenCalledWith({ from: "2026-10-01", to: "2026-10-13", region: "Unassigned" });
   });
 
   it("tapping a region card chooses that region", async () => {
@@ -172,22 +186,22 @@ describe("overview tiles", () => {
   it("show the summed counts with x of N and averages with n", async () => {
     renderPage();
     const overview = await screen.findByTestId("overview");
-    expect(within(overview).getByTestId("tile-schools")).toHaveTextContent("18");
-    expect(within(overview).getByTestId("tile-teachers")).toHaveTextContent("480");
-    expect(within(overview).getByTestId("tile-lpsOpened")).toHaveTextContent("679");
-    expect(within(overview).getByTestId("tile-lpsOpened")).toHaveTextContent("192 of 480 teachers");
-    expect(within(overview).getByTestId("tile-dcObservations")).toHaveTextContent("195");
-    expect(within(overview).getByTestId("tile-dcObservations")).toHaveTextContent("98 of 480 teachers");
-    expect(within(overview).getByTestId("tile-lpsGenerated")).toHaveTextContent("940");
-    expect(within(overview).getByTestId("tile-humanObservations")).toHaveTextContent("81");
+    expect(within(overview).getByTestId("tile-schools")).toHaveTextContent("16");
+    expect(within(overview).getByTestId("tile-teachers")).toHaveTextContent("442");
+    expect(within(overview).getByTestId("tile-lpsOpened")).toHaveTextContent("661");
+    expect(within(overview).getByTestId("tile-lpsOpened")).toHaveTextContent("185 of 442 teachers");
+    expect(within(overview).getByTestId("tile-dcObservations")).toHaveTextContent("188");
+    expect(within(overview).getByTestId("tile-dcObservations")).toHaveTextContent("93 of 442 teachers");
+    expect(within(overview).getByTestId("tile-lpsGenerated")).toHaveTextContent("913");
+    expect(within(overview).getByTestId("tile-humanObservations")).toHaveTextContent("77");
     expect(within(overview).getByTestId("tile-coachVisits")).toHaveTextContent("32");
-    expect(within(overview).getByTestId("tile-avgFico")).toHaveTextContent("64.5");
-    expect(within(overview).getByTestId("tile-avgFico")).toHaveTextContent("195");
+    expect(within(overview).getByTestId("tile-avgFico")).toHaveTextContent("64.8");
+    expect(within(overview).getByTestId("tile-avgFico")).toHaveTextContent("188");
   });
 
   it("the scope line names the region, schools and window", async () => {
     renderPage();
-    expect(await screen.findByTestId("scope-line")).toHaveTextContent("All regions · 18 schools · 1 Oct – 13 Oct 2026");
+    expect(await screen.findByTestId("scope-line")).toHaveTextContent("All regions · 16 schools · 1 Oct – 13 Oct 2026");
   });
 });
 
@@ -222,7 +236,7 @@ describe("the school table", () => {
     for (const h of ["School", "Region", "Teachers", "LPs opened", "LPs generated", "DC observations", "Human observations", "Coach visits", "Avg FICO", "Avg HITL"]) {
       expect(headers.some((t) => t.startsWith(h))).toBe(true);
     }
-    expect(rowNames()).toHaveLength(18);
+    expect(rowNames()).toHaveLength(16);
   });
 
   it("x of N for LPs opened and DC observations", async () => {
@@ -255,25 +269,25 @@ describe("the school table", () => {
   it("a school with no EMIS shows its name alone", async () => {
     renderPage();
     await screen.findByTestId("schools-table");
-    expect(within(screen.getByTestId("school-row-s-17")).queryByTestId("school-emis")).toBeNull();
+    expect(within(screen.getByTestId("school-row-s-15")).queryByTestId("school-emis")).toBeNull();
     expect(within(screen.getByTestId("school-row-s-01")).getByTestId("school-emis")).toHaveTextContent("84980");
   });
 
   it("sorts: by name first; a number column biggest first, then flips; no score always last", async () => {
     renderPage();
     await screen.findByTestId("schools-table");
-    expect(rowNames()[0]).toBe("Durbeen");
+    expect(rowNames()[0]).toBe("IMCB (VI-XII) Bhatta Jabbar Khurd");
     const user = userEvent.setup();
     await user.click(screen.getByTestId("sort-teachers"));
     expect(rowNames()[0]).toBe("IMCB (VI-XII) Tarnol");
     await user.click(screen.getByTestId("sort-teachers"));
-    expect(rowNames()[0]).toBe("Durbeen");
+    expect(rowNames()[0]).toBe("IMSB (I-VIII) Sangjani");
     await user.click(screen.getByTestId("sort-avgFico"));
     expect(rowNames()[0]).toBe("IMSB (VI-X) Humak");
-    expect(rowNames()[17]).toBe("IMCB (VI-XII) Dhok Jabbar");
+    expect(rowNames()[15]).toBe("IMCB (VI-XII) Dhok Jabbar");
     await user.click(screen.getByTestId("sort-avgFico"));
-    expect(rowNames()[0]).toBe("Durbeen");
-    expect(rowNames()[17]).toBe("IMCB (VI-XII) Dhok Jabbar");
+    expect(rowNames()[0]).toBe("IMSB (I-VIII) Sangjani");
+    expect(rowNames()[15]).toBe("IMCB (VI-XII) Dhok Jabbar");
     expect(screen.getByTestId("sort-avgFico").closest("th")).toHaveAttribute("aria-sort", "ascending");
   });
 
@@ -283,7 +297,7 @@ describe("the school table", () => {
     const user = userEvent.setup();
     await user.type(screen.getByTestId("school-search"), "f-7");
     expect(rowNames()).toEqual(["IMCG (VI-XII) F-7/2", "IMSB (I-X) F-7/3"]);
-    expect(screen.getByTestId("search-count")).toHaveTextContent("2 of 18 schools");
+    expect(screen.getByTestId("search-count")).toHaveTextContent("2 of 16 schools");
     await user.clear(screen.getByTestId("school-search"));
     await user.type(screen.getByTestId("school-search"), "84980");
     expect(rowNames()).toEqual(["IMCB (VI-XII) Bhatta Jabbar Khurd"]);
@@ -359,6 +373,14 @@ describe("the How these numbers are worked out panel", () => {
       expect(panel).toHaveTextContent(term);
     }
   });
+
+  it("says plainly that only schools in the six regions are shown, and never mentions Unassigned (bd-s6qbts.4)", async () => {
+    renderPage();
+    const panel = await screen.findByTestId("how-counted");
+    expect(panel).toHaveTextContent("B.K, Sihala, Urban-I, Nilore, Urban-II and Tarnol");
+    expect(panel).toHaveTextContent(/not shown and not counted/);
+    expect(panel.textContent).not.toMatch(/unassigned/i);
+  });
 });
 
 describe("on a phone", () => {
@@ -366,9 +388,9 @@ describe("on a phone", () => {
     setWidth(390);
     renderPage();
     const cards = await screen.findAllByTestId("school-card");
-    expect(cards).toHaveLength(18);
+    expect(cards).toHaveLength(16);
     expect(screen.queryByTestId("schools-table")).toBeNull();
-    expect(within(cards[0]).getByTestId("school-name")).toHaveTextContent("Durbeen");
+    expect(within(cards[0]).getByTestId("school-name")).toHaveTextContent("IMCB (VI-XII) Bhatta Jabbar Khurd");
     await userEvent.setup().selectOptions(screen.getByTestId("sort-menu"), "teachers");
     expect(within(screen.getAllByTestId("school-card")[0]).getByTestId("school-name")).toHaveTextContent("IMCB (VI-XII) Tarnol");
   });

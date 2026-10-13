@@ -759,8 +759,8 @@ export type EditChanges = {
 export type EditError = { id?: string; subIndex?: number; addedIndex?: number; message: string };
 
 // bd-s6qbts.3 — the schools analytics page, for analytics-only accounts (the server 403s everyone else).
-// `from`/`to` are inclusive days (YYYY-MM-DD); null leaves that end open. `region` is a sector name,
-// 'unassigned' or 'all' (null = all).
+// `from`/`to` are inclusive days (YYYY-MM-DD); null leaves that end open. `region` is one of the six sector
+// names or 'all' (null = all).
 export const analytics = {
   getSchools: async (q: { from: string | null; to: string | null; region: string | null }): Promise<SchoolsAnalyticsResponse> => {
     const params: Record<string, string> = {};
