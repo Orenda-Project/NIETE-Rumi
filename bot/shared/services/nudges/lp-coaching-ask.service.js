@@ -288,10 +288,16 @@ async function onAppOpen({ openId, now = new Date() } = {}) {
 
     if (!(await claimAppOpen(openId))) return appOpenDecision('skipped', 'already_handled', at);
 
-    // Provenance only — which version of the lesson she can read. A failed lookup must not cost
-    // her the ask, so it may be absent.
+    // Provenance only — the version the app SERVED her at the open, from the one app-open reader
+    // (lp-app-opens.store: the asset current at opened_at, or group A's August plan). A failed or
+    // switched-off read must not cost her the ask, so it may be absent.
     let asset = null;
-    try { asset = await require('../lp-v8-delivery.service').currentAssetFor(row.plan_ref); } catch (_) { /* provenance */ }
+    try {
+      const served = await require('../quiz/lp-app-opens.store').viewerOpenById(row.user_id, row.id);
+      if (served) asset = { id: served.asset_id, version_stamp: served.version_stamp, content_hash: served.content_hash };
+    } catch (err) {
+      logToFile('lp coaching ask: served version unreadable — booking without it', { ...at, error: err.message });
+    }
 
     const out = await onLessonDelivered({
       userId: row.user_id,
