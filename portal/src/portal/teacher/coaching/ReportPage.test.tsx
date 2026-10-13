@@ -366,3 +366,22 @@ describe("the answer box in Urdu (bd-phk3v4)", () => {
     expect(box.getAttribute("dir")).toBe("auto");
   });
 });
+
+/**
+ * bd-9d1cmi — ICT feedback (IAB Experience View, row 9): the debrief's heading said "Voice note"; it now says what
+ * it is — her lesson report's audio summary, not a random voice message — in English and Urdu.
+ */
+describe("the debrief's heading (bd-9d1cmi)", () => {
+  it("is 'Audio Summary of Your Lesson Report' / 'آپ کے سبق کی رپورٹ کا آڈیو خلاصہ'", () => {
+    expect(C.voiceNote).toBe("Audio Summary of Your Lesson Report");
+    expect(U.voiceNote).toBe("آپ کے سبق کی رپورٹ کا آڈیو خلاصہ");
+  });
+
+  it("heads the Digital Coach's spoken debrief on the ready report", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "completed", stage: "done", reflection: null, reportReady: true });
+    portal.getCoachingSession.mockResolvedValue({ session: DETAIL });
+    open();
+    expect(await screen.findByRole("heading", { name: "Audio Summary of Your Lesson Report" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Voice note" })).toBeNull();
+  });
+});
