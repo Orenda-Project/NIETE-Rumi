@@ -11,7 +11,7 @@ export const VENDORS: Vendor[] = [
   { vendor_key: "BEACONHOUSE", vendor_name: "Beacon House", level_count: 2, course_count: 8, module_count: 80, completed_module_count: 1, certificate_count: 0, avg_score_pct: null },
   { vendor_key: "ISAPS", vendor_name: "I-SAPS", level_count: 1, course_count: 9, module_count: 54, completed_module_count: 6, certificate_count: 0, avg_score_pct: null },
   { vendor_key: "OXBRIDGE", vendor_name: "Oxbridge", level_count: 1, course_count: 1, module_count: 7, completed_module_count: 7, certificate_count: 1, avg_score_pct: 90 },
-  { vendor_key: "TALEEMABAD", vendor_name: "Taleemabad", level_count: 4, course_count: 20, module_count: 100, completed_module_count: 24, certificate_count: 1, avg_score_pct: 80 },
+  { vendor_key: "TALEEMABAD", vendor_name: "NIETE", level_count: 4, course_count: 20, module_count: 100, completed_module_count: 24, certificate_count: 1, avg_score_pct: 80 },
 ];
 
 type LevelInit = {
@@ -73,7 +73,7 @@ export const ATTEMPTS: Record<string, unknown[]> = {
 };
 
 export const CERTIFICATES = [
-  { id: "a", certificate_code: "NIETE-ASP-1", level_name: "Aspiring", vendor_key: "TALEEMABAD", vendor_name: "Taleemabad", teacher_name: "Ayesha Khan", issued_at: "2026-10-03T00:00:00Z", has_pdf: true, download_url: "/api/portal/training/certificates/NIETE-ASP-1/download" },
+  { id: "a", certificate_code: "NIETE-ASP-1", level_name: "Aspiring", vendor_key: "TALEEMABAD", vendor_name: "NIETE", teacher_name: "Ayesha Khan", issued_at: "2026-10-03T00:00:00Z", has_pdf: true, download_url: "/api/portal/training/certificates/NIETE-ASP-1/download" },
   { id: "b", certificate_code: "BH-EN-1", level_name: "English", vendor_key: "BEACONHOUSE", vendor_name: "Beacon House", teacher_name: "Ayesha Khan", issued_at: "2026-09-20T00:00:00Z", has_pdf: true, download_url: "/api/portal/training/certificates/BH-EN-1/download" },
   { id: "c", certificate_code: "BH-MA-1", level_name: "Maths", vendor_key: "BEACONHOUSE", vendor_name: "Beacon House", teacher_name: "Ayesha Khan", issued_at: "2026-09-11T00:00:00Z", has_pdf: false, download_url: "/api/portal/training/certificates/BH-MA-1/download" },
   { id: "d", certificate_code: "OX-1", level_name: "Game-Based Teaching", vendor_key: "OXBRIDGE", vendor_name: "Oxbridge", teacher_name: "Ayesha Khan", issued_at: "2026-09-02T00:00:00Z", has_pdf: true, download_url: "/api/portal/training/certificates/OX-1/download" },

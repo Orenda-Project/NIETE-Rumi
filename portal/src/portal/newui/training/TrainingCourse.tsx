@@ -10,7 +10,7 @@ import { TRAINING_COPY } from '../copy';
 import { Loading, NotLoaded, TrainingActions, TrainingInner } from './frame';
 import {
   courseName,
-  bestAttempt, isLadder, nextPart, providerLabel, trainingBase, trainingPaths, useAttempts, useGet,
+  bestAttempt, isLadder, nextPart, providerLabel, providerShort, trainingBase, trainingPaths, useAttempts, useGet,
   type Course, type ExamGate, type Level, type ModuleSummary, type ReadingItem, type ReadingList, type Vendor,
 } from './trainingApi';
 
@@ -47,7 +47,8 @@ export function useTrainingCourse() {
 
   const level = levels.data?.find((l) => String(l.id) === String(levelId)) ?? null;
   const course = courses.data?.find((c) => String(c.id) === String(courseId)) ?? null;
-  const provider = providerLabel(vendorKey, vendors.data);
+  // Only the breadcrumb names the provider, and the full names run to 80 characters (bd-2gia5l).
+  const provider = providerShort(vendorKey, providerLabel(vendorKey, vendors.data));
   const levelWord = level ? (isLadder(level) ? TRAINING_COPY.levelN(level.order_index + 1) : level.name) : null;
   const list = modules.data?.modules ?? [];
   const next = nextPart(list);

@@ -13,7 +13,7 @@ import { KIT_COPY, TRAINING_COPY } from '../copy';
 import { findContinue, type ContinueTarget } from './continue';
 import { Loading, NotLoaded, TrainingActions, TrainingBody } from './frame';
 import {
-  percent, providerInitials, providerLabel, sortVendors, trainingBase, trainingPaths, useGet,
+  percent, providerInitials, providerLabel, providerShort, sortVendors, trainingBase, trainingPaths, useGet,
   type Level, type Vendor,
 } from './trainingApi';
 
@@ -69,7 +69,7 @@ export default function TrainingHome() {
           <>
             {continuing ? (
               <Chip surface="band">
-                {TRAINING_COPY.providerPct(providerLabel(continuing.vendor_key, vendors.data), percent(continuing.completed_module_count, continuing.module_count))}
+                {TRAINING_COPY.providerPct(providerShort(continuing.vendor_key, continuing.vendor_name), percent(continuing.completed_module_count, continuing.module_count))}
               </Chip>
             ) : null}
             <Chip surface="band" icon={Award}>{certCount}</Chip>
@@ -121,7 +121,7 @@ export default function TrainingHome() {
           <TrainingActions>
             {target ? (
               <BottomButton icon={Play} to={target.to} testId="training-continue">
-                {TRAINING_COPY.continueTo(providerLabel(target.vendorKey, vendors.data))}
+                {TRAINING_COPY.continueTo(providerShort(target.vendorKey, continuing?.vendor_name))}
               </BottomButton>
             ) : (
               <BottomButton icon={Play} disabled>{TRAINING_COPY.continue}</BottomButton>

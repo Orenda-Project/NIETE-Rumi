@@ -22,6 +22,11 @@ export const COPY_ALLOWLIST: ReadonlyArray<{ text: string; why: string }> = [
     why: "Logout while a lesson records (bd-5rz1v.10, kept in the kit by bd-5rz1v.26.4): the operator's title for the "
       + 'one question the portal asks before it would end a lesson; its two buttons (Keep recording, Stop & log out) answer it.',
   },
+  {
+    text: 'Smart Schools Project: Game-Based Teaching, Learning and Assessment (GBTLA), 6-10',
+    why: "A programme's official name, set by NIETE (bd-2gia5l), not a label of ours: trainingApi's fallback for "
+      + "training_vendors.name. Its tight places use the short label 'GBTLA'.",
+  },
 ];
 
 /** Words, not punctuation: "Training · NIETE · Level 2" is 4 words, "—" is none. */
