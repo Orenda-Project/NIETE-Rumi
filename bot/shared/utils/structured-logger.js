@@ -196,6 +196,9 @@ const AXIOM_CORE_FIELDS = new Set([
   // as a cheap call rather than a missing one. Tokens are kept so a price discovered later
   // can be applied to calls already made.
   'model', 'job', 'estimatedCostUsd', 'tokensIn', 'tokensOut', 'durationMs',
+  // The key that joins one teacher's journey across the bot's WhatsApp rows and the portal's page rows
+  // (bd-4r3rei). A column, not data_json, so `where journeyId == "j_…"` works and `summarize by journeyId` is cheap.
+  'journeyId',
 ]);
 
 /**
