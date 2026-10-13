@@ -76,6 +76,8 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # behave the same (survey keyed by segment + language). Needs the portal AND a teacher-app session,
     # so it cannot run on the WhatsApp-only mock lane or the Chrome lane alone.
     # Unit: tests/lp-v8/app-open-survey.test.js, tests/portal/lp-open-survey-trigger.test.js.
+    # The same open also books the coaching ask a WhatsApp-delivered Grades 1–5 plan books (coaching.feature
+    # @COA80/@COA81; tests/lp-v8/lp-coaching-ask-app-open.test.js).
 
   # ─────────────────────── Business rules / valid variations ───────────────────────
 

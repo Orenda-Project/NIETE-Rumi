@@ -697,6 +697,30 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And nothing else about coaching is sent to me today
     And my answer is stored as "no" on today's ask
 
+  @e2e @config-gated @no-mock-driver @lp-ask @P1 @COA80
+  Scenario: A Grades 1–5 lesson plan read in the teacher app brings the same coaching ask
+    Given the NIETE bot chat is open on a teacher with "Open in app" on for Lesson Plans
+    And no coaching ask has been sent to me today
+    And my last message to the bot was under 24 hours ago
+    When I open a Grades 1–5 lesson plan in the teacher app before 14:00 PKT
+    And I wait for the coaching-ask delay plus one sweep
+    Then the bot sends a message that begins "You planned a lesson with me today"
+    And it has the buttons "Record my lesson" and "Not today"
+    # The portal's viewer already tells the bot about each recorded open (POST /api/internal/lp/
+    # open-survey); the same call books the SAME ask through lp-coaching-ask onLessonDelivered, with
+    # the open time as the delivery time. Kill switch COACHING_ASK_COUNT_APP_OPENS=off. Event
+    # coaching_ask.app_open {outcome, reason}. Unit: tests/lp-v8/lp-coaching-ask-app-open.test.js.
+
+  @e2e @config-gated @no-mock-driver @lp-ask @negative @P1 @COA81
+  Scenario: A lesson plan taken in the app and on WhatsApp the same day brings one coaching ask
+    Given the NIETE bot chat is open on a teacher with "Open in app" on for Lesson Plans
+    And I opened a Grades 1–5 lesson plan in the teacher app this morning and the coaching ask was booked
+    When a lesson plan is delivered to me on WhatsApp the same day, or I open another plan in the app
+    And I wait for the coaching-ask delay plus one sweep
+    Then no second coaching ask arrives today
+    # One ask per teacher per PKT day, whichever surface came first: the teacher_nudges UNIQUE
+    # (user_id, nudge_date, kind). External-link opens and Grades 6–12 opens never book.
+
   @e2e @wip @draft @lp-ask @P1 @COA43
   Scenario: Yes asks for a 20–45 minute mic recording, with the how-to clip the first two times
     Given the coaching ask is on screen
