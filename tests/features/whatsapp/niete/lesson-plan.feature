@@ -490,6 +490,26 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And the message says "planned", never "taught" or "recorded"
 
   @e2e @quiz @wip @draft @config-gated @P1
+  Scenario: A lesson plan read in the teacher app earns the same afternoon quiz offer as one received on WhatsApp
+    Given the NIETE bot chat is open on a teacher who asked for a K-5 lesson plan today before 14:00 PKT and read it in the teacher app
+    And the plan was NOT also delivered as a WhatsApp document
+    And the teacher has not recorded a lesson or made a quiz today
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the bot sends the same offer a WhatsApp-delivered plan gets: that lesson's topic, "Make the quiz" and "No thanks"
+    And the teacher gets at most one offer today
+    # A viewer open (niete_lp_opens, source 'viewer', plan_kind k5) counts as "took this plan" exactly like a
+    # niete_lp_downloads 'sent' row (lp-app-opens.store, read by lp-quiz-offer downloadsFor). The version is the lesson
+    # asset current when she opened it, and the same exact-version slide-script rule applies. A plan both delivered and
+    # opened is one lesson. LP_QUIZ_COUNT_APP_OPENS=off puts back WhatsApp-only. No new message, string or button.
+
+  @e2e @quiz @wip @draft @config-gated @negative @P2
+  Scenario: A link opened in another app (not the teacher app's own viewer) earns no afternoon quiz offer
+    Given the NIETE bot chat is open on a teacher whose only plan today was a link minted for another app (source external)
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the bot sends the teacher no afternoon quiz offer
+    # source 'external' means the link was minted, not that the plan was read — the same rule as the app-open survey.
+
+  @e2e @quiz @wip @draft @config-gated @P1
   Scenario: A lesson with no quiz source is not offered
     Given the NIETE bot chat is open on a teacher who took one K-5 lesson plan today before 14:00 PKT
     And the version of that lesson the teacher received has no slide script in the lesson source store
