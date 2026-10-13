@@ -223,9 +223,9 @@ describe('bd-lfzoz — portal coaching upload (bot side)', () => {
       expect(out).toMatchObject({ status: 'invalid', reason: 'too_large' });
     });
 
-    test('more than three photos is refused (MAX_COACHING_PHOTOS)', async () => {
-      const four = [1, 2, 3, 4].map((i) => `images/${USER}/portal_p${i}.jpg`);
-      const out = await Svc.startPortalSession({ userId: USER, key, photoKeys: four }, deps());
+    test('more than ten photos is refused (MAX_DC_PHOTOS, bd-fmf24g.76; it was three)', async () => {
+      const eleven = Array.from({ length: 11 }, (_, i) => `images/${USER}/portal_p${i}.jpg`);
+      const out = await Svc.startPortalSession({ userId: USER, key, photoKeys: eleven }, deps());
       expect(out).toMatchObject({ status: 'invalid', reason: 'too_many_photos' });
     });
 

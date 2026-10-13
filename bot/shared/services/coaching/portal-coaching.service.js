@@ -41,8 +41,15 @@ const PRESIGN_TTL_SECONDS = 15 * 60;
 // warns that a short recording makes a thin report.
 const SHORT_RECORDING_SECONDS = 600;
 
-// MAX_COACHING_PHOTOS in photo-capture-routing.js — the WhatsApp photo step's cap.
+// MAX_COACHING_PHOTOS in photo-capture-routing.js — the WhatsApp photo step's cap. It is also the cap of the coach's
+// portal observation (portal-observe.service imports it), so it stays 3.
 const MAX_PHOTOS = 3;
+
+// bd-fmf24g.76 — the teacher app's Digital Coaching takes ten photos (the operator, 12 Oct), its own cap so the two
+// paths above keep theirs. The analysis reads every photo it is given (analysis-processor.service.js photo channel),
+// one vision call each, so this is also a cost and latency decision: see that block. Keep in step with
+// DC_MAX_PHOTOS in portal/src/portal/lib/coachingUpload.ts.
+const MAX_DC_PHOTOS = 10;
 
 /**
  * One entry per thing a teacher can upload. Types are keyed by EXTENSION because
@@ -278,7 +285,7 @@ async function startPortalSession({ userId, key, lessonPlanKey = null, lessonPla
   if (lessonPlanKey && !isOwnPortalKey(userId, lessonPlanKey, 'lesson_plan')) {
     return { status: 'invalid', reason: 'not_your_upload' };
   }
-  if (photos.length > MAX_PHOTOS) return { status: 'invalid', reason: 'too_many_photos' };
+  if (photos.length > MAX_DC_PHOTOS) return { status: 'invalid', reason: 'too_many_photos' };
   if (photos.some((k) => !isOwnPortalKey(userId, k, 'photo'))) return { status: 'invalid', reason: 'not_your_upload' };
   const { pick, bad } = libraryPick(picked);
   if (bad) return { status: 'invalid', reason: 'bad_lesson_plan' };
@@ -506,6 +513,7 @@ module.exports = {
   AUDIO_TYPES,
   MAX_UPLOAD_BYTES,
   MAX_PHOTOS,
+  MAX_DC_PHOTOS,
   SHORT_RECORDING_SECONDS,
   PRESIGN_TTL_SECONDS,
   isPortalSession,
