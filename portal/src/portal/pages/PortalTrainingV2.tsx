@@ -77,6 +77,7 @@ import niteLogo from '@/assets/vendors/niete.png';
 import beaconhouseLogo from '@/assets/vendors/beaconhouse.png';
 import isapsLogo from '@/assets/vendors/isaps.png';
 import oxbridgeLogo from '@/assets/vendors/oxbridge.png';
+import { providerLabel, providerShort } from '../newui/training/trainingApi';
 
 /**
  * Vendor identity — the real logo plus the accent the card is tinted with.
@@ -95,12 +96,15 @@ import oxbridgeLogo from '@/assets/vendors/oxbridge.png';
  * `tint` is the provider's own brand colour, used only as a wash on the card
  * header and its selected ring, so a row of four cards is scannable by colour
  * before a single word is read.
+ *
+ * bd-2gia5l — no name here: the name is the server's (`training_vendors.name`), read through
+ * trainingApi's providerLabel / providerShort like every other Training page.
  */
-const VENDOR_BRAND: Record<string, { logo: string; tint: string; label: string }> = {
-  TALEEMABAD:  { logo: niteLogo,         tint: '#47ba7d', label: 'NIETE' },
-  BEACONHOUSE: { logo: beaconhouseLogo,  tint: '#1b3a6b', label: 'Beacon House' },
-  ISAPS:       { logo: isapsLogo,        tint: '#42307d', label: 'I-SAPS' },
-  OXBRIDGE:    { logo: oxbridgeLogo,     tint: '#24477f', label: 'Oxbridge' },
+const VENDOR_BRAND: Record<string, { logo: string; tint: string }> = {
+  TALEEMABAD:  { logo: niteLogo,         tint: '#47ba7d' },
+  BEACONHOUSE: { logo: beaconhouseLogo,  tint: '#1b3a6b' },
+  ISAPS:       { logo: isapsLogo,        tint: '#42307d' },
+  OXBRIDGE:    { logo: oxbridgeLogo,     tint: '#24477f' },
 };
 
 type Vendor = {
@@ -1024,8 +1028,9 @@ const PortalTrainingV2 = () => {
     : selectedLevel;
   const crumbLevelObj = levels.find(l => String(l.id) === crumbLevelId) ?? null;
   const crumbVendorKey = (onSubPage ? crumbLevelObj?.vendor_key : null) || selectedVendor || null;
+  // The breadcrumb and the certificate filter: tight places, so the short label (bd-2gia5l).
   const vendorLabel = (key: string | null) =>
-    key ? (VENDOR_BRAND[key]?.label ?? vendors.find(v => v.vendor_key === key)?.vendor_name ?? key) : null;
+    key ? providerShort(key, providerLabel(key, vendors)) : null;
   const crumbVendor = vendorLabel(crumbVendorKey) ?? 'Training';
   const crumbLevelName = crumbLevelObj?.name ?? moduleDetail?.level?.name ?? null;
   // On the EXAM page the module is the middle crumb and "Module exam" is the

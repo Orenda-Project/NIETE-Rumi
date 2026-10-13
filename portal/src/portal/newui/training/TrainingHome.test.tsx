@@ -82,7 +82,7 @@ describe("the providers", () => {
     renderAt("/portal/training");
     await screen.findByText("Beacon House");
     const r = rows();
-    expect(r.map((li) => li.querySelector("[data-testid=newui-row-tile]")?.textContent)).toEqual(["N", "IS", "BH", "OX"]);
+    expect(r.map((li) => li.querySelector("[data-testid=newui-row-tile]")?.textContent)).toEqual(["N", "TD", "AI", "GB"]);
     ["NIETE", "I-SAPS", "Beacon House", "Oxbridge"].forEach((name, i) => expect(within(r[i]).getByText(name)).toBeInTheDocument());
     expect(r.map((li) => within(li).getByRole("progressbar").getAttribute("aria-valuenow"))).toEqual(["24", "11", "1", "100"]);
     expect(within(r[0]).getByText("24%")).toBeInTheDocument();

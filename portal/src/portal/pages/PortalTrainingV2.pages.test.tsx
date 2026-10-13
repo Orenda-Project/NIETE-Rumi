@@ -483,7 +483,7 @@ describe("Certificates page", () => {
   it("labels each certificate with its provider under All", async () => {
     renderAt("/portal/training/certificates");
     const rows = await screen.findAllByTestId("certificate-row");
-    expect(rows[2]).toHaveTextContent("Oxbridge");
+    expect(rows[2]).toHaveTextContent("GBTLA");
   });
 
   it("says none are earned yet when there are none", async () => {
