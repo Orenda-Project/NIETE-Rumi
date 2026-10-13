@@ -76,7 +76,7 @@ function cleanOpen({ userId, kind, ref, lang = null, source } = {}) {
 }
 
 /**
- * Record one open. Resolves { recorded: true } when stored, { recorded: false } when it was a
+ * Record one open. Resolves { recorded: true, id, open } when stored, { recorded: false } when it was a
  * repeat inside the window, { recorded: false, reason: 'invalid' } when there is nothing valid to
  * record. Rejects on a database error — callers on the open path use logOpen instead.
  *
@@ -86,7 +86,10 @@ async function recordOpen(query, open) {
   const o = cleanOpen(open);
   if (!o) return { recorded: false, reason: 'invalid' };
   const { rows } = await query(INSERT_OPEN_SQL, [o.userId, o.kind, o.ref, o.lang, o.source, DEDUPE_MINUTES]);
-  return { recorded: (rows || []).length > 0 };
+  const row = (rows || [])[0];
+  // `id` and the cleaned `open` ride along for the one caller that continues from a stored open: the
+  // lesson-plan survey is requested from the row's id (lp-open-survey.client, bd-qvevax.2).
+  return row ? { recorded: true, id: row.id, open: o } : { recorded: false };
 }
 
 /**

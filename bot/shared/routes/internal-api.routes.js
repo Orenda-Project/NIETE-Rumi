@@ -1298,6 +1298,26 @@ router.post('/lp/describe', requireInternalKey, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/internal/lp/open-survey
+ * Body { openId } → { success, outcome: 'scheduled' | 'skipped', reason? }
+ *
+ * bd-qvevax.2 — the portal's own viewer served a lesson plan whole and recorded a niete_lp_opens
+ * row; this asks the bot to give her the SAME "was this plan useful?" survey a WhatsApp-delivered
+ * plan gets (lp-app-open-survey.service: the guards, then the existing survey services). The body
+ * is only the row's id — the bot reads who and which plan from the row, never from the request.
+ * The portal calls it fire-and-forget, so a skip is a 200 with its reason, not an error.
+ */
+router.post('/lp/open-survey', requireInternalKey, async (req, res) => {
+  const openId = String((req.body || {}).openId || '').trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(openId)) {
+    return res.status(400).json({ success: false, error: 'openId is required' });
+  }
+  const AppSurvey = require('../services/lp-app-open-survey.service');
+  const result = await AppSurvey.onViewerOpen({ openId });
+  return res.json({ success: true, ...result });
+});
+
 // ─── assessment generator ───────────────────────────────────────────────────
 //
 // The portal's Assessment Generator tab has been rendering a real form against

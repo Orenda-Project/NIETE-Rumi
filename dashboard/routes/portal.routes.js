@@ -47,6 +47,9 @@ const { relayLessonPlanPdf } = require('../lib/lesson-plan-file');
 // bd-5rz1v.15 — every lesson plan she opens here is recorded (niete_lp_opens), fire-and-forget,
 // and read back as her recent plans; bd-5rz1v.17 — the Home's counts for a Pakistan-time range.
 const LpActivity = require('../services/lp-activity.service');
+// bd-qvevax.2 — a plan she read in the portal's own viewer asks the bot for the lesson-plan survey,
+// exactly as one delivered on WhatsApp does (the bot decides; this only says the open happened).
+const LpOpenSurvey = require('../services/lp-open-survey.client');
 const Progress = require('../services/progress.service');
 const { resolveRange, RangeInputError } = require('../lib/pk-range');
 // bd-2469 — the portal's single source of training decisions. Asks the bot;
@@ -2463,7 +2466,7 @@ router.get('/curriculum/lp/:lesson_id/file', requirePortalAuth, async (req, res)
   if (res.statusCode === 200 && res.writableFinished) {
     LpActivity.logOpen(dbQuery, {
       userId: req.session.portalUserId, kind: 'k5', ref: lessonId, source: 'viewer',
-    });
+    }).then(LpOpenSurvey.afterOpen);
   }
   return undefined;
 });
@@ -2652,7 +2655,7 @@ router.get('/lp612/file/:render_id', requirePortalAuth, async (req, res) => {
   if (res.statusCode === 200 && res.writableFinished) {
     LpActivity.logOpen(dbQuery, {
       userId: req.session.portalUserId, kind: 'g612', ref: out.segmentId, lang: out.lang, source: 'viewer',
-    });
+    }).then(LpOpenSurvey.afterOpen);
   }
   return undefined;
 });
