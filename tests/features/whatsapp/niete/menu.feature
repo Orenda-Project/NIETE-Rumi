@@ -54,6 +54,24 @@ Feature: NIETE (ICT) WhatsApp bot — the /menu surface
     # text-message.handler.js:1495 matches messageBody.toLowerCase() === '/menu',
     # so "/MENU" / "/Menu" open the menu too.
 
+  @e2e @menu @edge @P1 @M21
+  Scenario: /menu typed back the way Urdu text showed it ("Menu/") still opens the menu
+    Given the NIETE bot chat is open
+    When I send "Menu/"
+    Then the "See what I do" menu is shown with the core teacher rows
+    # ADDED 2026-10-13 (bd-5ls6qy.7): an Urdu line showed a bare "/menu" as "menu/"
+    # (right-to-left paragraph), and teachers typed what they saw — 43 such messages
+    # in 10–13 Oct, none reached the menu. shared/utils/slash-command.js rewrites a
+    # whole-message reversed command to "/menu" before any door runs.
+
+  @e2e @menu @edge @P2 @M22
+  Scenario: "/ menu" (a space after the slash) opens the menu
+    Given the NIETE bot chat is open
+    When I send "/ menu"
+    Then the "See what I do" menu is shown with the core teacher rows
+    # ADDED 2026-10-13 (bd-5ls6qy.7): 76 "/ menu" messages in 10–13 Oct went to the
+    # general chat. Same canonicaliser as M21. A bare "menu" stays a non-command (M06).
+
   @e2e @menu @edge @P2 @M03
   Scenario: /menu re-opens the menu from inside a feature flow (escape hatch)
     Given the NIETE bot chat is open
