@@ -80,6 +80,7 @@ function sayMissing(where, error) {
  */
 async function record({
   userId, renderId = null, segmentId, lang, templateVersion, surface = 'whatsapp', deliveredAt = null,
+  requestId = null,
 }, opts = {}) {
   if (!userId || !segmentId || !lang || !templateVersion) return false;
   if (Date.now() < missingUntil) return false;
@@ -92,6 +93,8 @@ async function record({
       template_version: templateVersion,
       surface: SURFACES.includes(surface) ? surface : 'whatsapp',
       delivered_at: deliveredAt || new Date().toISOString(),
+      // The ask this delivery answered (lesson_plan_requests), when its lifecycle row was written.
+      ...(requestId ? { request_id: requestId } : {}),
     });
     if (error) {
       if (isMissingTable(error)) { sayMissing('record', error); return false; }

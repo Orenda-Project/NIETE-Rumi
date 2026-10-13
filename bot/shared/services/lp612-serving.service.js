@@ -40,6 +40,7 @@ const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
 const { subjectNameFor } = require('../config/lp612-subject-order');
 const Catalog = require('./lp612-catalog.service');
+const Lp612Lifecycle = require('./lp612-lifecycle.service');
 // The shelf `buildLpContext` reads. Required at module scope deliberately: it pulls in the Redis
 // wrapper, which the root suites already stub, and a lazy require here would hide a missing
 // dependency until the first real delivery.
@@ -754,6 +755,10 @@ async function sendDocumentWithRetry({
 async function deliverRender({
   phone, userId, r2Key, segment, lang, oneScreen, overlayDropped, renderDegraded, renderId = null,
   sendMaxAttempts, sendRetryDelaysMs, sendDeadlineAt,
+  // The lesson-plan lifecycle row of this ask (lp612-lifecycle.service): when she asked, when the
+  // document was ready, the log id of her ask. All optional; with LP_LIFECYCLE_PATHS off nothing
+  // reads them.
+  askedAt, generatedAt, correlationId,
 }) {
   const url = await getPresignedUrl(buildR2PublicUrl(r2Key));
 
@@ -816,6 +821,11 @@ async function deliverRender({
       attempts: sent.attempts,
       error: sent.error,
     });
+    await Lp612Lifecycle.recordAsk({
+      userId, phone, segment, lang, status: 'failed', askedAt,
+      generatedAt: generatedAt || new Date().toISOString(),
+      errorCode: 'DELIVERY_FAILED', errorMessage: sent.error, correlationId,
+    });
     // THROW, deliberately. Both existing callers already have a catch around this call:
     // `requestLessonImpl`'s cache-hit branch turns it into `outcome: 'deliver_failed'` (and the
     // wrapping `requestLesson` emits `lp612.serve.deliver_failed`); the worker's per-waiter loop
@@ -839,6 +849,11 @@ async function deliverRender({
   // quiz from (lp612-deliveries.store). The shelf above is Redis for 24 hours; this is the row.
   // Soft, like the shelf: the store never throws, and says a missing table once.
   if (userId) {
+    const deliveredAt = new Date().toISOString();
+    const requestId = await Lp612Lifecycle.recordAsk({
+      userId, phone, segment, lang, status: 'completed', askedAt,
+      generatedAt: generatedAt || deliveredAt, deliveredAt, correlationId,
+    });
     const Deliveries = require('./lp612-deliveries.store');
     await Deliveries.record({
       userId,
@@ -847,6 +862,7 @@ async function deliverRender({
       lang,
       templateVersion: templateVersionOfKey(r2Key),
       surface: 'whatsapp',
+      requestId,
     });
   }
 
@@ -884,8 +900,11 @@ async function deliverRender({
 /** `ui_lang` is the language SHE is spoken to in — recorded per waiter, because
  *  two teachers waiting on one render need not share one. The document's own
  *  language is on the row; this is the other territory. */
-function waiterEntry({ userId, phone, uiLang, surface }) {
+function waiterEntry({ userId, phone, uiLang, surface, correlationId }) {
   return {
+    // The log id of HER ask, for the lifecycle row the worker writes when the render ends. Only
+    // with LP_LIFECYCLE_PATHS on for niete_lp612; off, the entry is exactly the old shape.
+    ...Lp612Lifecycle.waiterFields({ correlationId }),
     user_id: userId,
     // `null`, never `undefined` — this object is serialised into a jsonb column, and an
     // undefined value would be dropped from the JSON entirely. The worker's skip below tests
@@ -1080,7 +1099,8 @@ async function enqueueOrFail({ renderId, segmentId, lang, tv, correlationId }) {
  */
 async function requestLesson(req) {
   const startedAt = Date.now();
-  const result = await requestLessonImpl(req, 0);
+  const askedAt = new Date(startedAt).toISOString();
+  const result = await requestLessonImpl(req && typeof req === 'object' ? { ...req, askedAt } : req, 0);
   const outcome = (result && result.outcome) || 'error';
   logEvent(`lp612.serve.${outcome}`, {
     outcome,
@@ -1099,11 +1119,14 @@ async function requestLesson(req) {
     elapsedMs: Date.now() - startedAt,
     error: (result && result.error) || null,
   });
+  // An outcome that ends a WhatsApp ask here (not found, held, error) is its lifecycle row's
+  // outcome; deliveries record inside deliverRender, queued asks when the worker finishes.
+  await Lp612Lifecycle.recordRequestOutcome({ req, outcome, result, askedAt });
   return result;
 }
 
 async function requestLessonImpl(
-  { segmentId, userId, phone, lang, uiLang, correlationId, surface }, depth = 0,
+  { segmentId, userId, phone, lang, uiLang, correlationId, surface, askedAt }, depth = 0,
 ) {
   const language = clampLanguage(lang);
   const voice = clampLanguage(uiLang || lang);
@@ -1139,11 +1162,11 @@ async function requestLessonImpl(
     return { outcome: 'held' };
   }
 
-  const req = { userId, phone, uiLang: voice, surface };
+  const req = { userId, phone, uiLang: voice, surface, correlationId };
   // The INNER function, deliberately: a re-decide is one request, not two, and re-entering the
   // wrapper would emit a second event for the same tap.
   const retry = () => requestLessonImpl(
-    { segmentId, userId, phone, lang, uiLang, correlationId, surface }, depth + 1,
+    { segmentId, userId, phone, lang, uiLang, correlationId, surface, askedAt }, depth + 1,
   );
 
   const { render: existing, readFailed } = await findRender(segmentId, language, tv);
@@ -1217,6 +1240,10 @@ async function requestLessonImpl(
         // the ten who tapped later are not, about the identical file.
         renderDegraded: existing.render_degraded === true,
         renderId: existing.id,
+        // A cache hit: the document was ready when she asked.
+        askedAt,
+        generatedAt: askedAt,
+        correlationId,
       });
       logToFile('LP 6-12: served from cache', { segmentId, lang: language, tv, correlationId });
       return { outcome: 'cache_hit', renderId: existing.id };
