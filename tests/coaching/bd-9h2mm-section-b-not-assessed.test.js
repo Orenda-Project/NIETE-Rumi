@@ -228,6 +228,28 @@ describe('the portal and app drill-down', () => {
     expect(bd.max).toBe(EXCL_MAX);
   });
 
+  // bd-inzpzl — ICT feedback (IAB Experience View, row 11): an Urdu teacher's portal report showed the Section B
+  // reasoning (and the section names) in English. buildBreakdown was handed 'ur' but passed it on as a bare string
+  // where buildScoreViewModel reads { language }, so every portal breakdown was built in English.
+  test('bd-inzpzl — in Urdu the breakdown is Urdu: the not-assessed why and the section names', () => {
+    const a = noPlanAnalysis();
+    fico.applyLpFidelity(a, { status: 'lp_absent' });
+    const bd = buildBreakdown(a, 'ur');
+    expect(bd.language).toBe('ur');
+    const b = bd.groups.find((g) => g.domainKey === 'lesson_plan_fidelity');
+    expect(b.why).toBe('اس سبق کے لیے کوئی لیسن پلان فراہم نہیں کیا گیا، اس لیے لیسن پلان پر عمل کا جائزہ نہیں لیا جا سکا اور یہ اسکور میں شامل نہیں ہے۔');
+    expect(b.name).toBe('Lesson Plan Fidelity (سبق کے منصوبے پر عمل درآمد)');
+  });
+
+  test('bd-inzpzl — English is unchanged, and a junk language label falls back rather than reaching the adapter', () => {
+    const a = noPlanAnalysis();
+    fico.applyLpFidelity(a, { status: 'lp_absent' });
+    const en = buildBreakdown(a, 'en').groups.find((g) => g.domainKey === 'lesson_plan_fidelity');
+    expect(en.why).toContain('No lesson plan was provided');
+    expect(en.name).toBe('Lesson Plan Fidelity');
+    expect(['ur', 'en']).toContain(buildBreakdown(a, 'hindi').language);
+  });
+
   test('a measured session still ranks all four sections', () => {
     const a = noPlanAnalysis();
     fico.applyLpFidelity(a, { status: 'ok', fidelity_pct: 20 });
