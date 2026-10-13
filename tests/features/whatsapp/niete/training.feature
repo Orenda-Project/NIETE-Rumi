@@ -354,13 +354,13 @@ Feature: NIETE (ICT) Teacher Training
 
   @e2e @quiz @wip @draft @config-gated @P1
   Scenario: /quiz lists a lesson plan I read in the teacher app
-    Given app_settings lp_quiz_app_lessons is on
-    And the NIETE bot chat is open on a teacher who opened a Grade 1-5 lesson plan in the teacher app this week and never received it on WhatsApp
+    Given the NIETE bot chat is open on a teacher who read a Grade 1-5 lesson plan in the teacher app this week and never received it on WhatsApp
     When I send "quiz"
     Then that lesson plan is listed with "From lesson plan", like one delivered on WhatsApp
     When I tap its row
     Then its quiz is made exactly as for a delivered lesson plan
-    # lp-v8-lesson-provider reads quiz/lessons-taken.store; the row id carries the app open's id. Switch off: not listed.
+    # lp-v8-lesson-provider reads lp-app-opens.store (viewer opens only, the version served at the open — the
+    # same rule as the 15:00 offer); the row id carries the open's id. LP_QUIZ_COUNT_APP_OPENS=off: not listed.
 
   @e2e @quiz @wip @draft @P1 @T65
   Scenario: Tapping the same lesson plan twice makes one quiz

@@ -130,7 +130,11 @@ function pickAsset({ group, lessonId, assetKind = 'lesson', assets, at = null })
   const day1 = day1Of(lessonId);
   const pick = (strict) => {
     const keep = (rows) => (strict ? rows.filter(existed) : rows);
-    if (group !== 'A') return of(lessonId).find(strict ? currentAt : (a) => a.is_current) || null;
+    if (group !== 'A') {
+      // Newest first, so the pick never depends on the order rows arrive in.
+      const rows = of(lessonId).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      return rows.find(strict ? currentAt : (a) => a.is_current) || null;
+    }
     return newestAugust(keep(of(lessonId))) || (day1 !== lessonId ? newestAugust(keep(of(day1))) : null);
   };
   return pick(true) || (t !== null ? pick(false) : null);

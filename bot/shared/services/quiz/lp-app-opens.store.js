@@ -17,9 +17,16 @@
  * (= opened_at) — so the offer's own rules (14:00 rule, assessment/answer-key exclusion, exact
  * slide-script check, grouping and de-duplication by lesson) run on them unchanged. grade/subject
  * come from the catalogue exactly as lp-v8-delivery writes them, so a plan delivered AND opened
- * falls in the same class. The version is the lesson asset that was current when she opened it
- * (created <= opened_at, not yet superseded) — never a later push: a quiz written from a script of
- * a different version would ask about a page she did not read.
+ * falls in the same class. The version is the lesson asset the app's Open served her when she
+ * opened it — never a later push: a quiz written from a script of a different version would ask
+ * about a page she did not read. That is the asset current then (created <= opened_at, not yet
+ * superseded), except for a teacher in A/B group A on an in-scope chapter while the A/B flag is on:
+ * the app served her the August version (lp-v8-browse lessonPdfUrl → lp-ab-ch310), so the newest
+ * August row that existed at the open (lp-ab-ch310 pickAsset, groupsForUsers + inScope).
+ *
+ * TWO READERS. The 15:00 offer (viewerOpensAsDownloads, a time window over every teacher) and the
+ * /quiz "from my lesson plan" list (viewerOpensForTeacher / viewerOpenById, one teacher, on
+ * idx_lp_opens_user_recent). Both shape rows the same way, behind the same switch.
  *
  * Grades 6-12 are not here: the 15:00 offer has never covered them (its WhatsApp side reads
  * niete_lp_downloads only).
@@ -33,6 +40,7 @@ const { pagedRows } = require('../../utils/postgrest-paged');
 const { logToFile } = require('../../utils/logger');
 const Flags = require('./quiz-menu-flags');
 const Catalog = require('../lp-v8-catalog.service');
+const LpAb = require('../lp-ab-ch310.service');
 
 const OPENS = 'niete_lp_opens';
 const ASSETS = 'niete_lp_assets';
@@ -68,13 +76,16 @@ function servedAsset(assets, at) {
   return live[0] || assets.find((a) => a.is_current) || null;
 }
 
+/** A split day-2 lesson (…seg4b) → its day 1 (…seg4), whose August plan group A is served. */
+const day1Of = (lessonId) => String(lessonId).replace(/(seg\d+)b$/, '$1');
+
 /** lesson_id -> its lesson assets (every version), IN-chunked. Throws on a read error. */
 async function assetsByLesson(lessonIds) {
   const byLesson = new Map();
   for (const part of chunks([...new Set(lessonIds)])) {
     // eslint-disable-next-line no-await-in-loop
     const { data, error } = await supabase.from(ASSETS)
-      .select('id, lesson_id, version_stamp, content_hash, is_current, superseded_at, created_at')
+      .select('id, lesson_id, asset_kind, version_stamp, content_hash, is_current, superseded_at, created_at')
       .eq('asset_kind', 'lesson')
       .in('lesson_id', part);
     if (error) throw new Error(`lp app opens: assets: ${error.message || error}`);
@@ -108,13 +119,36 @@ async function viewerOpensAsDownloads(fromIso, toIso) {
     }
     throw err;
   }
-  if (!opens.length) return [];
+  return shape(opens);
+}
 
-  const assets = await assetsByLesson(opens.map((o) => o.plan_ref));
+/**
+ * Opens → download-shaped rows: catalogue fields + the asset the app served her at the open.
+ * An unknown lesson, or one with nothing served, is left out (never a quiz source).
+ */
+async function shape(opens) {
+  if (!opens.length) return [];
+  const hits = new Map(opens.map((o) => [o.plan_ref, Catalog.lessonById(o.plan_ref)]));
+  // A/B: the group per teacher (one flag read; nothing more when the flag is off), then the
+  // per-lesson scope groupFor applies — only an in-scope group-A open differs from today's rule.
+  const groups = await LpAb.groupsForUsers([...new Set(opens.map((o) => o.user_id))]);
+  const groupOf = (o) => {
+    const hit = hits.get(o.plan_ref);
+    const inScope = hit && LpAb.inScope({ grade: Number(hit.book.grade), chapter: Number(hit.chapter.number) });
+    return inScope ? groups.get(o.user_id) || null : null;
+  };
+  const lessonIds = new Set(opens.map((o) => o.plan_ref));
+  opens.filter((o) => groupOf(o) === 'A').forEach((o) => lessonIds.add(day1Of(o.plan_ref)));
+  const assets = await assetsByLesson([...lessonIds]);
   const out = [];
   for (const o of opens) {
-    const hit = Catalog.lessonById(o.plan_ref);
-    const asset = servedAsset(assets.get(o.plan_ref) || [], o.opened_at);
+    const hit = hits.get(o.plan_ref);
+    const asset = groupOf(o) === 'A'
+      ? LpAb.pickAsset({
+        group: 'A', lessonId: o.plan_ref, at: o.opened_at,
+        assets: [...(assets.get(o.plan_ref) || []), ...(assets.get(day1Of(o.plan_ref)) || [])],
+      })
+      : servedAsset(assets.get(o.plan_ref) || [], o.opened_at);
     if (!hit || !asset) continue;           // unknown lesson / nothing served: never a quiz source
     out.push({
       id: o.id,
@@ -133,6 +167,40 @@ async function viewerOpensAsDownloads(fromIso, toIso) {
     });
   }
   return out;
+}
+
+/**
+ * One teacher's viewer opens since `sinceIso`, newest first, at most `limit` — the /quiz list.
+ * [] when off. Throws on a read error (the caller lists the WhatsApp lessons regardless).
+ */
+async function viewerOpensForTeacher(userId, sinceIso, limit = 200) {
+  if (!enabled() || !userId) return [];
+  const { data, error } = await supabase.from(OPENS)
+    .select('id, user_id, plan_ref, opened_at')
+    .eq('user_id', userId)
+    .eq('plan_kind', 'k5')
+    .eq('source', 'viewer')
+    .gte('opened_at', sinceIso)
+    .order('opened_at', { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`lp app opens: teacher opens: ${error.message || error}`);
+  return shape(data || []);
+}
+
+/** One of her viewer opens by id, shaped — owner-filtered in the query. null when off or not hers. */
+async function viewerOpenById(userId, openId) {
+  if (!enabled() || !userId || !openId) return null;
+  const { data, error } = await supabase.from(OPENS)
+    .select('id, user_id, plan_ref, opened_at')
+    .eq('id', openId)
+    .eq('user_id', userId)
+    .eq('plan_kind', 'k5')
+    .eq('source', 'viewer')
+    .maybeSingle();
+  if (error) throw new Error(`lp app opens: open: ${error.message || error}`);
+  if (!data) return null;
+  const [row] = await shape([data]);
+  return row || null;
 }
 
 async function readOpens(fromIso, toIso) {
@@ -154,4 +222,6 @@ async function readOpens(fromIso, toIso) {
     .order('id', { ascending: true }));
 }
 
-module.exports = { viewerOpensAsDownloads, servedAsset, enabled };
+module.exports = {
+  viewerOpensAsDownloads, viewerOpensForTeacher, viewerOpenById, servedAsset, enabled,
+};
