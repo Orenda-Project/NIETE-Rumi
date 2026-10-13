@@ -1,8 +1,8 @@
 /**
  * School-wise analytics across every region, for the analytics-only accounts (federal and
- * sector officials). One page, filterable by region: per school, how many teachers made a
- * lesson plan, how many used the Digital Coach, how many observations of each kind, and
- * the average FICO (Digital Coach) and HITL (human observation) score.
+ * sector officials). One page, filterable by region. OBJECTIVE COUNTS only — things that
+ * happened, "x of N teachers" where it applies, and score averages with their n. No
+ * percentages, no bands, no thresholds (operator, 2026-10-13).
  *
  * Two halves, same contract style as school-analytics.service:
  *
@@ -14,27 +14,38 @@
  *
  * WHY THE SCORES ARE MEMOISED. The overall score lives only inside
  * coaching_sessions.analysis_data, a ~23 KB (compressed, out-of-line) JSONB per session.
- * Reading it for one month of sessions measured 9.2 s cold and 0.76 s warm on NIETE prod
+ * Reading it for a fortnight of sessions measured 9.2 s cold and 0.76 s warm on NIETE prod
  * (2026-10-13, 4,404 sessions), against 0.03 s for the same rows without it. A terminal
  * session's score rarely changes, and when it does its updated_at moves (a BEFORE UPDATE
  * trigger maintains it), so each process remembers {updated_at, pct} per session id and
  * only reads the score of a session it has not seen in that state.
  *
  * Definitions (window = Pakistan days, both ends inclusive, either end open):
- *   school    schools.is_active and not is_probable_test. A region that is not one of the
- *             six sectors (NULL, blank, or anything else) is "Unassigned".
- *   teacher   users.role = 'teacher' with that school_id, not is_test_user.
- *   LP eng.   teachers with >= 1 lesson_plans row in the window / teachers.
- *   DC eng.   teachers with >= 1 completed Digital Coach session in the window / teachers.
- *   DC        coaching_sessions.observation_type IS NULL and status = 'completed'.
- *   human     observation_type = 'leader_observation' and status terminal (TERMINAL).
- *   FICO      mean overall percentage over scored DC sessions.
- *   HITL      mean overall percentage over scored human observations. That is the score
- *             AFTER the observer's review: applying her edits re-scores analysis_data
- *             (the AI draft is kept separately in autofill_analysis_data), and a field-form
- *             visit is scored from the observer's own levels.
- * Region and overview figures are POOLED over teachers and sessions — a 3-teacher school
- * never weighs the same as a 40-teacher one. No denominator means null, never 0.
+ *   school            schools.is_active and not is_probable_test. A region that is not one
+ *                     of the six sectors (NULL, blank, anything else) is "Unassigned".
+ *   teachers (N)      today's roster: users.role = 'teacher' with that school_id, not
+ *                     is_test_user. Activity follows the teacher's CURRENT school.
+ *   lpsOpened         distinct (user, plan_kind, plan_ref) in niete_lp_opens by opened_at —
+ *                     different plans opened; re-opening one counts once per teacher.
+ *                     Logged only since LP_OPENS_LOGGED_SINCE.
+ *   teachersOpenedLp  distinct teachers among those opens ("x of N").
+ *   lpsGenerated      lesson_plans rows by created_at with status 'completed' — the only
+ *                     status a row is written with (failures live in lesson_plan_requests).
+ *   dcObservations    coaching_sessions observation_type IS NULL, status 'completed'.
+ *   teachersWithDc    distinct teachers among them ("x of N").
+ *   humanObservations observation_type 'leader_observation', status terminal (TERMINAL).
+ *   coachVisits       observation_schedules status 'done' for the school (school_id, else
+ *                     school_ext_id = 'niete:' || emis, as the coach roster resolves it),
+ *                     dated by scheduled_for — the visit's own date (an after-the-fact visit
+ *                     is recorded with scheduled_for = the day it happened).
+ *   avgFico / ficoN   mean overall percentage over scored DC observations, and how many.
+ *   avgHitl / hitlN   the same over human observations. That is the score AFTER the
+ *                     observer's review: applying her edits re-scores analysis_data (the AI
+ *                     draft is kept separately in autofill_analysis_data), and a field-form
+ *                     visit is scored from the observer's own levels.
+ * Region cards and the overview SUM every count; averages are pooled (sum of scores / n),
+ * so a 3-teacher school never weighs the same as a 40-teacher one. A count is never null;
+ * an average is null exactly when its n is 0.
  */
 
 const { getOverall } = require('./coaching-frameworks.service');
@@ -48,6 +59,9 @@ const UNASSIGNED = 'Unassigned';
 const REGION_BUCKETS = Object.freeze([...SECTORS, UNASSIGNED]);
 
 const SECTOR_BY_LOWER = new Map(SECTORS.map((s) => [s.toLowerCase(), s]));
+
+/** niete_lp_opens has rows from this Pakistan day on; earlier windows undercount opens. */
+const LP_OPENS_LOGGED_SINCE = '2026-10-04';
 
 /** schools.region → its bucket. */
 function bucketOf(region) {
@@ -112,11 +126,15 @@ function sessionPct(scores) {
 
 // ── the pure summariser ──────────────────────────────────────────────────────
 
+const COUNT_FIELDS = Object.freeze([
+  'teachers', 'lpsOpened', 'teachersOpenedLp', 'lpsGenerated', 'dcObservations', 'teachersWithDc',
+  'humanObservations', 'coachVisits', 'ficoN', 'hitlN',
+]);
+
 function emptyAcc() {
-  return {
-    schools: 0, teachers: 0, lpTeachers: 0, dcTeachers: 0,
-    dcSessions: 0, humanObservations: 0, ficoSum: 0, ficoN: 0, hitlSum: 0, hitlN: 0,
-  };
+  const acc = { schools: 0, ficoSum: 0, hitlSum: 0 };
+  for (const k of COUNT_FIELDS) acc[k] = 0;
+  return acc;
 }
 
 function addInto(into, a) {
@@ -124,30 +142,32 @@ function addInto(into, a) {
   return into;
 }
 
-/** The metric block shared by a school row, a region card and the overview. */
+const count = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+
+/** The metric block shared by a school row, a region card and the overview — counts and averages only. */
 function metrics(a) {
   return {
     teachers: a.teachers,
-    lpEngagementPct: a.teachers > 0 ? round1((a.lpTeachers / a.teachers) * 100) : null,
-    dcEngagementPct: a.teachers > 0 ? round1((a.dcTeachers / a.teachers) * 100) : null,
-    dcSessions: a.dcSessions,
+    lpsOpened: a.lpsOpened,
+    teachersOpenedLp: a.teachersOpenedLp,
+    lpsGenerated: a.lpsGenerated,
+    dcObservations: a.dcObservations,
+    teachersWithDc: a.teachersWithDc,
     humanObservations: a.humanObservations,
+    coachVisits: a.coachVisits,
     avgFico: a.ficoN > 0 ? round1(a.ficoSum / a.ficoN) : null,
-    avgHitl: a.hitlN > 0 ? round1(a.hitlSum / a.hitlN) : null,
     ficoN: a.ficoN,
+    avgHitl: a.hitlN > 0 ? round1(a.hitlSum / a.hitlN) : null,
     hitlN: a.hitlN,
   };
 }
 
-function rollup(acc) {
-  const { teachers, ...rest } = metrics(acc);
-  return { schools: acc.schools, teachers, ...rest };
-}
+const rollup = (acc) => ({ schools: acc.schools, ...metrics(acc) });
 
 /**
  * @param {{
- *   schools?: Array<{id, name, emis, region, is_active, is_probable_test}>,
- *   teachers?: Array<{school_id, is_test, teachers, lp_teachers}>,
+ *   schools?: Array<{id, name, emis, region, is_active, is_probable_test, coach_visits}>,
+ *   teachers?: Array<{school_id, is_test, teachers, lps_generated, lps_opened, teachers_opened_lp}>,
  *   sessions?: Array<{school_id, user_id, is_test, observation_type, pct}>
  * }} rows
  * @param {{region?: string|null}} [opts] a bucket name from parseRegionFilter, or null for all
@@ -156,19 +176,25 @@ function rollup(acc) {
 function summarizeSchoolsAnalytics(rows = {}, opts = {}) {
   const filter = opts.region || null;
 
-  // Included schools only: active and not a probable test school.
+  // Included schools only: active and not a probable test school. Visits belong to the
+  // school itself, so they arrive on the school row.
   const bySchool = new Map();
   for (const s of rows.schools || []) {
     if (!s || s.is_active !== true || s.is_probable_test === true) continue;
-    bySchool.set(s.id, { school: s, bucket: bucketOf(s.region), acc: emptyAcc(), dcTeacherIds: new Set() });
+    const acc = emptyAcc();
+    acc.coachVisits = count(s.coach_visits);
+    bySchool.set(s.id, { school: s, bucket: bucketOf(s.region), acc, dcTeacherIds: new Set() });
   }
 
+  // The roster, one row per (school, test flag): test teachers and their activity are out.
   for (const t of rows.teachers || []) {
     if (!t || t.is_test === true) continue;
     const entry = bySchool.get(t.school_id);
     if (!entry) continue; // a test/inactive school, or a school_id that names no school
-    entry.acc.teachers += Number(t.teachers) || 0;
-    entry.acc.lpTeachers += Number(t.lp_teachers) || 0;
+    entry.acc.teachers += count(t.teachers);
+    entry.acc.lpsGenerated += count(t.lps_generated);
+    entry.acc.lpsOpened += count(t.lps_opened);
+    entry.acc.teachersOpenedLp += count(t.teachers_opened_lp);
   }
 
   for (const s of rows.sessions || []) {
@@ -177,7 +203,7 @@ function summarizeSchoolsAnalytics(rows = {}, opts = {}) {
     if (!entry) continue;
     const pct = typeof s.pct === 'number' && Number.isFinite(s.pct) ? s.pct : null;
     if (s.observation_type === null || s.observation_type === undefined) {
-      entry.acc.dcSessions += 1;
+      entry.acc.dcObservations += 1;
       if (s.user_id) entry.dcTeacherIds.add(s.user_id);
       if (pct !== null) { entry.acc.ficoSum += pct; entry.acc.ficoN += 1; }
     } else if (s.observation_type === HUMAN_OBSERVATION) {
@@ -192,7 +218,7 @@ function summarizeSchoolsAnalytics(rows = {}, opts = {}) {
 
   for (const entry of bySchool.values()) {
     // A teacher belongs to one school, so distinct-per-school sums to distinct-per-region.
-    entry.acc.dcTeachers = entry.dcTeacherIds.size;
+    entry.acc.teachersWithDc = entry.dcTeacherIds.size;
     entry.acc.schools = 1;
     addInto(regionAcc.get(entry.bucket), entry.acc);
     if (filter && entry.bucket !== filter) continue;
@@ -246,36 +272,67 @@ function stamp(v) {
   return v == null ? '' : String(v);
 }
 
-/** `col` inside the window; $1/$2 are timestamptz instants. `naiveUtc` for a timestamp-without-zone column stored in UTC. */
-function windowClause(col, bounds, { naiveUtc = false } = {}) {
-  const cast = (p) => (naiveUtc ? `(${p}::timestamptz AT TIME ZONE 'UTC')` : `${p}::timestamptz`);
+/**
+ * `col` inside the window, either end open. Timestamps take the UTC instants from
+ * windowBounds ($1/$2 timestamptz); `naiveUtc` is for a timestamp-WITHOUT-zone column that
+ * holds UTC. A `date` column (the visit's own day) takes the Pakistan days themselves.
+ */
+function windowClause(col, ends, { naiveUtc = false, date = false } = {}) {
+  const cast = (p) => (date ? `${p}::date` : naiveUtc ? `(${p}::timestamptz AT TIME ZONE 'UTC')` : `${p}::timestamptz`);
+  const [lo, hi] = ends;
   const parts = [];
-  if (bounds.fromTs) parts.push(`${col} >= ${cast('$1')}`);
-  if (bounds.toTs) parts.push(`${col} < ${cast(bounds.fromTs ? '$2' : '$1')}`);
+  if (lo) parts.push(`${col} >= ${cast('$1')}`);
+  if (hi) parts.push(date ? `${col} <= ${cast(lo ? '$2' : '$1')}` : `${col} < ${cast(lo ? '$2' : '$1')}`);
   return parts.length ? parts.join(' AND ') : 'TRUE';
 }
 
-function windowParams(bounds) {
-  return [bounds.fromTs, bounds.toTs].filter(Boolean);
+const present = (...xs) => xs.filter(Boolean);
+
+function schoolsSql(range) {
+  // Every school, with its coach visits in the window. A visit names its school by
+  // school_id, or (every row on prod, 2026-10-13) only by school_ext_id 'niete:<emis>' —
+  // the same resolution the coach roster uses (leader-patch.service). EMIS is unique, so a
+  // visit resolves to at most one school; one that resolves to none is not counted.
+  const ends = [range.from, range.to];
+  return `
+  SELECT sch.id, sch.name, sch.emis, sch.region, sch.is_active, sch.is_probable_test,
+         COALESCE(v.coach_visits, 0)::int AS coach_visits
+    FROM schools sch
+    LEFT JOIN (
+      SELECT COALESCE(s.school_id, byemis.id) AS school_id, count(*)::int AS coach_visits
+        FROM observation_schedules s
+        LEFT JOIN schools byemis
+          ON s.school_id IS NULL AND byemis.emis IS NOT NULL AND s.school_ext_id = 'niete:' || byemis.emis
+       WHERE s.status = 'done'
+         AND ${windowClause('s.scheduled_for', ends, { date: true })}
+       GROUP BY 1
+    ) v ON v.school_id = sch.id`;
 }
 
-const SCHOOLS_SQL = `
-  SELECT id, name, emis, region, is_active, is_probable_test
-    FROM schools`;
-
-function teachersSql(bounds) {
+function rosterSql(bounds) {
   // One row per (school, test flag). lesson_plans.created_at is a timestamp WITHOUT time
-  // zone holding UTC, so the instants are converted to UTC wall time for the comparison.
+  // zone holding UTC, so the instants are converted to UTC wall time for it. Opens count
+  // DIFFERENT plans per teacher; summed over teachers that is distinct (user, kind, ref).
+  const ends = [bounds.fromTs, bounds.toTs];
   return `
   SELECT u.school_id,
          (u.is_test_user IS TRUE) AS is_test,
          count(*)::int AS teachers,
-         count(*) FILTER (WHERE EXISTS (
-           SELECT 1 FROM lesson_plans l
-            WHERE l.user_id = u.id
-              AND ${windowClause('l.created_at', bounds, { naiveUtc: true })}
-         ))::int AS lp_teachers
+         COALESCE(sum(gen.n), 0)::int AS lps_generated,
+         COALESCE(sum(op.plans), 0)::int AS lps_opened,
+         count(*) FILTER (WHERE op.plans > 0)::int AS teachers_opened_lp
     FROM users u
+    LEFT JOIN LATERAL (
+      SELECT count(*) AS n FROM lesson_plans l
+       WHERE l.user_id = u.id
+         AND l.status = 'completed'
+         AND ${windowClause('l.created_at', ends, { naiveUtc: true })}
+    ) gen ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT count(DISTINCT (o.plan_kind, o.plan_ref)) AS plans FROM niete_lp_opens o
+       WHERE o.user_id = u.id
+         AND ${windowClause('o.opened_at', ends)}
+    ) op ON TRUE
    WHERE u.role = 'teacher'
      AND u.school_id IS NOT NULL
    GROUP BY u.school_id, (u.is_test_user IS TRUE)`;
@@ -293,7 +350,7 @@ function sessionsSql(bounds) {
      AND u.school_id IS NOT NULL
      AND ((c.observation_type IS NULL AND c.status = 'completed')
           OR (c.observation_type = '${HUMAN_OBSERVATION}' AND c.status IN ${TERMINAL}))
-     AND ${windowClause('c.created_at', bounds)}`;
+     AND ${windowClause('c.created_at', [bounds.fromTs, bounds.toTs])}`;
 }
 
 const SCORES_SQL = `
@@ -302,8 +359,9 @@ const SCORES_SQL = `
    WHERE id = ANY($1::uuid[])`;
 
 /**
- * At most four reads: schools, teachers (with LP engagement), counted sessions — in
- * parallel — then the scores of only those sessions the memo does not already hold.
+ * At most four reads: schools (with coach visits), the teacher roster (with LPs generated
+ * and opened), counted sessions — in parallel — then the scores of only those sessions the
+ * memo does not already hold.
  *
  * @param {(sql: string, params?: any[]) => Promise<{rows: any[]}>} query
  * @param {{from: string|null, to: string|null}} range
@@ -312,11 +370,11 @@ const SCORES_SQL = `
  */
 async function loadSchoolsAnalyticsRows(query, range, { memo = defaultMemo } = {}) {
   const bounds = windowBounds(range);
-  const params = windowParams(bounds);
-  const [schoolRes, teacherRes, sessionRes] = await Promise.all([
-    query(SCHOOLS_SQL, []),
-    query(teachersSql(bounds), params),
-    query(sessionsSql(bounds), params),
+  const instants = present(bounds.fromTs, bounds.toTs);
+  const [schoolRes, rosterRes, sessionRes] = await Promise.all([
+    query(schoolsSql(range), present(range.from, range.to)),
+    query(rosterSql(bounds), instants),
+    query(sessionsSql(bounds), instants),
   ]);
 
   const sessions = (sessionRes.rows || []).map((r) => ({ ...r, updated_at: stamp(r.updated_at) }));
@@ -328,7 +386,7 @@ async function loadSchoolsAnalyticsRows(query, range, { memo = defaultMemo } = {
 
   return {
     schools: schoolRes.rows || [],
-    teachers: teacherRes.rows || [],
+    teachers: rosterRes.rows || [],
     sessions: sessions.map((s) => {
       const hit = memo.get(s.id, s.updated_at);
       return {
@@ -375,10 +433,8 @@ function createResponseCache({ ttlMs = 10 * 60 * 1000, maxEntries = 100, now = (
 }
 
 module.exports = {
+  LP_OPENS_LOGGED_SINCE,
   REGION_BUCKETS,
-  SECTORS,
-  UNASSIGNED,
-  bucketOf,
   parseRegionFilter,
   windowBounds,
   sessionPct,

@@ -1540,10 +1540,12 @@ const schoolsAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 *
 /**
  * GET /api/portal/analytics/schools?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|unassigned|all>
  *
- * School-wise analytics for the analytics-only accounts: per school, LP and Digital Coach
- * engagement, observations (Digital Coach / human), Avg FICO and Avg HITL; the same rolled
- * up per region (all seven buckets, whatever the filter) and overall. School-level only —
- * no teacher appears in the answer. Definitions: services/schools-analytics.service.js.
+ * School-wise analytics for the analytics-only accounts — objective counts only: per
+ * school, LPs opened and generated, Digital Coach and human observations, coach visits,
+ * "x of N teachers" where it applies, and Avg FICO / Avg HITL with their n; the same summed
+ * per region (all seven buckets, whatever the filter) and overall. No percentages, no
+ * bands. School-level only — no teacher appears in the answer. Definitions:
+ * services/schools-analytics.service.js.
  *
  * Guarded by the portal_analytics_only list, checked on EVERY request (the cache sits
  * behind the gate). The window is analyticsRange's: blank is all time, junk is dropped.
@@ -1561,6 +1563,8 @@ router.get('/analytics/schools', requirePortalAuth, requireAnalyticsViewer, asyn
       return {
         success: true,
         range,
+        // LP opens are logged from this day on; the page says so for an earlier window.
+        lpOpensLoggedSince: SchoolsAnalytics.LP_OPENS_LOGGED_SINCE,
         ...SchoolsAnalytics.summarizeSchoolsAnalytics(rows, { region: region.region }),
       };
     });

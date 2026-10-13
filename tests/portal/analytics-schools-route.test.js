@@ -83,20 +83,20 @@ const TEACHER = 'bbbbbbbb-0000-4000-8000-000000000002';
 const flag = (value) => ({ rows: [{ key: 'portal_analytics_only', value }] });
 
 function poolRows(sql, params) {
+  if (/'scores'/.test(sql)) {
+    return params[0].map((id) => ({ id, updated_at: '2026-10-02T00:00:00Z', scores: { overall_marks: 70, overall_max_marks: 100 } }));
+  }
   if (/FROM schools/i.test(sql)) {
     return [
-      { id: 's1', name: 'IMSG B.K 1', emis: '101', region: 'B.K', is_active: true, is_probable_test: false },
-      { id: 's2', name: 'IMCG Sihala', emis: '202', region: 'Sihala', is_active: true, is_probable_test: false },
+      { id: 's1', name: 'IMSG B.K 1', emis: '101', region: 'B.K', is_active: true, is_probable_test: false, coach_visits: 3 },
+      { id: 's2', name: 'IMCG Sihala', emis: '202', region: 'Sihala', is_active: true, is_probable_test: false, coach_visits: 1 },
     ];
   }
   if (/lesson_plans/i.test(sql)) {
     return [
-      { school_id: 's1', is_test: false, teachers: 8, lp_teachers: 4 },
-      { school_id: 's2', is_test: false, teachers: 2, lp_teachers: 1 },
+      { school_id: 's1', is_test: false, teachers: 8, lps_generated: 12, lps_opened: 5, teachers_opened_lp: 3 },
+      { school_id: 's2', is_test: false, teachers: 2, lps_generated: 1, lps_opened: 1, teachers_opened_lp: 1 },
     ];
-  }
-  if (/'scores'/.test(sql)) {
-    return params[0].map((id) => ({ id, updated_at: '2026-10-02T00:00:00Z', scores: { overall_marks: 70, overall_max_marks: 100 } }));
   }
   if (/FROM coaching_sessions/i.test(sql)) {
     return [
@@ -245,11 +245,17 @@ describe('GET /analytics/schools', () => {
       userId: VIEWER, query: { from: '2026-10-01', to: '2026-10-13' },
     });
     expect(statusCode).toBe(200);
-    expect(Object.keys(payload).sort()).toEqual(['overview', 'range', 'regions', 'schools', 'success']);
+    expect(Object.keys(payload).sort()).toEqual(['lpOpensLoggedSince', 'overview', 'range', 'regions', 'schools', 'success']);
     expect(payload.success).toBe(true);
     expect(payload.range).toEqual({ from: '2026-10-01', to: '2026-10-13' });
+    expect(payload.lpOpensLoggedSince).toBe('2026-10-04');
     expect(payload.regions).toHaveLength(7);
-    expect(payload.overview).toMatchObject({ schools: 2, teachers: 10, dcSessions: 1, humanObservations: 1, avgFico: 70, avgHitl: 70 });
+    expect(payload.overview).toEqual({
+      schools: 2, teachers: 10, lpsOpened: 6, teachersOpenedLp: 4, lpsGenerated: 13,
+      dcObservations: 1, teachersWithDc: 1, humanObservations: 1, coachVisits: 4,
+      avgFico: 70, ficoN: 1, avgHitl: 70, hitlN: 1,
+    });
+    expect(JSON.stringify(payload)).not.toMatch(/Pct|percent|band|threshold/i);
     expect(JSON.stringify(payload)).not.toMatch(/"t1"|"t2"|user_id|userId|teacherName|phone/);
     expect(queries.length).toBeLessThanOrEqual(4);
   });

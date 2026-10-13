@@ -301,7 +301,6 @@ async function isPortalAssessmentEditingEnabled(supabase) {
 module.exports = {
   PORTAL_ANALYTICS_ONLY_KEY,
   readUserListFlag,
-  isUserListedInFlag,
   isAnalyticsOnlyUser,
   PORTAL_ASSESSMENT_EDITING_KEY,
   isPortalAssessmentEditingEnabled,
