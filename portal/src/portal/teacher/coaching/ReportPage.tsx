@@ -80,6 +80,8 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
   const [answer, setAnswer] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState<string | null>(null);
+  // bd-ncfml5 — the follow-up as a voice note (ICT feedback row 7), when the bot could voice it.
+  const [sentAudio, setSentAudio] = useState<string | null>(null);
   const [sendError, setSendError] = useState(false);
   const sendAnswer = async () => {
     const text = answer.trim();
@@ -89,6 +91,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
     try {
       const r = await portal.submitCoachingReflection(id, text);
       setSent(r?.acknowledgement || C.answerSent);
+      setSentAudio(r?.acknowledgementAudioUrl || null);
       if (timer.current) clearTimeout(timer.current);
       void check();
     } catch {
@@ -113,6 +116,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
     try {
       const r = await sendVoiceAnswer(id, voice.clip);
       setSent(r?.acknowledgement || C.answerSent);
+      setSentAudio(r?.acknowledgementAudioUrl || null);
       voice.discard();
       if (timer.current) clearTimeout(timer.current);
       void check();
@@ -288,7 +292,13 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
       ) : null}
 
       {sent && !ready ? (
-        <section aria-live="polite" className={cn(CARD, 'px-4 py-3 text-[15px] leading-[1.45]')}>{sent}</section>
+        sentAudio ? (
+          <section aria-live="polite">
+            <VoiceNote from={C.title} avatar="dc" duration="" time="" src={sentAudio} copy={C.audio} className="max-w-[320px]" />
+          </section>
+        ) : (
+          <section aria-live="polite" className={cn(CARD, 'px-4 py-3 text-[15px] leading-[1.45]')}>{sent}</section>
+        )
       ) : null}
 
       {ready && answered.length ? (

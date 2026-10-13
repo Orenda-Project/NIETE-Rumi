@@ -7222,9 +7222,20 @@ router.get('/coaching-session/:id/progress', requirePortalAuth, requireSelfObser
  */
 router.post('/coaching-session/:id/reflection', requirePortalAuth, requireSelfObservation, (req, res) => {
   const { answer, audioKey } = req.body || {};
-  return relayToBot(res, 'reflection', () => PortalCoachingClient.submitReflection({
-    userId: req.session.portalUserId, coachingSessionId: req.params.id, answer, audioKey,
-  }));
+  return relayToBot(res, 'reflection', async () => {
+    const out = await PortalCoachingClient.submitReflection({
+      userId: req.session.portalUserId, coachingSessionId: req.params.id, answer, audioKey,
+    });
+    // bd-ncfml5 — the follow-up's voice note (ICT feedback row 7): the bot returns the private R2 URL; the page
+    // gets it presigned, as every other coaching recording. Unsignable → dropped, and the page shows the words.
+    if (out && out.body && out.body.acknowledgementAudioUrl) {
+      const signed = await _resolveMediaUrl(out.body.acknowledgementAudioUrl);
+      const body = { ...out.body };
+      if (signed) body.acknowledgementAudioUrl = signed; else delete body.acknowledgementAudioUrl;
+      return { ...out, body };
+    }
+    return out;
+  });
 });
 
 /* ------------------------------------------------------------------------- *

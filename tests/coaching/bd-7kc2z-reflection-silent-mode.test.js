@@ -184,6 +184,35 @@ describe('bd-7kc2z — reflective debrief in silent (portal) mode', () => {
       expect(sendMessage).not.toHaveBeenCalled();
     });
 
+    // bd-ncfml5 — ICT feedback (IAB Experience View, row 7): on WhatsApp the follow-up after her answer is
+    // always a voice note, so the portal plays it too. Same synthesis as WhatsApp's closer; stored in R2.
+    test('bd-ncfml5 — silent mode VOICES the follow-up like WhatsApp and returns its URL with the words', async () => {
+      const Svc = arrange(answeringRow());
+      uploadBuffer.mockResolvedValue('https://r2.example/bucket/reflection_closers/u-1/cs-1_closer.ogg');
+
+      const result = await Svc.handleReflectiveResponse('cs-1', null, 'Her thought mattered.', 'text', 'ur', { silent: true });
+
+      expect(generateSpeech).toHaveBeenCalledWith(expect.objectContaining({ text: ACK, language: 'ur', site: 'closer' }));
+      expect(uploadBuffer).toHaveBeenCalledWith(Buffer.from('spoken'), 'reflection_closers/u-1/cs-1_closer.ogg', 'audio/ogg');
+      expect(result).toMatchObject({
+        done: true, acknowledgement: ACK, acknowledgementAudioUrl: 'https://r2.example/bucket/reflection_closers/u-1/cs-1_closer.ogg',
+      });
+      expect(queueReport).toHaveBeenCalledTimes(1);
+      expect(sendAudio).not.toHaveBeenCalled();
+      expect(sendMessage).not.toHaveBeenCalled();
+    });
+
+    test('bd-ncfml5 — a follow-up that cannot be voiced still comes back as words, and the report is still queued', async () => {
+      const Svc = arrange(answeringRow());
+      generateSpeech.mockRejectedValue(new Error('tts down'));
+
+      const result = await Svc.handleReflectiveResponse('cs-1', null, 'Her thought mattered.', 'text', 'ur', { silent: true });
+
+      expect(result).toMatchObject({ done: true, acknowledgement: ACK });
+      expect(result.acknowledgementAudioUrl).toBeUndefined();
+      expect(queueReport).toHaveBeenCalledTimes(1);
+    });
+
     test('silent mode records the answer in the SAME shape as WhatsApp', async () => {
       const Svc = arrange(answeringRow());
 

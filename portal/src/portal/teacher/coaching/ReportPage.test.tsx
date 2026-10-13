@@ -319,3 +319,36 @@ describe("the reflection question as a voice note (bd-czmyoh)", () => {
     expect(within(section).queryByRole("group", { name: new RegExp(C.title) })).toBeNull();
   });
 });
+
+/**
+ * bd-ncfml5 — ICT feedback (IAB Experience View, row 7): after she answers, the Digital Coach's follow-up on
+ * WhatsApp is always a voice note, never text. The portal plays it the same way; the words show only when it
+ * could not be voiced.
+ */
+describe("the follow-up after her answer as a voice note (bd-ncfml5)", () => {
+  const asking = () => portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "conducting_conversation", stage: "reflection",
+    source: "portal", reflection: { questionNumber: 1, question: "Which children answered?" } });
+
+  it("plays the follow-up as the Digital Coach's voice note and does not print it", async () => {
+    asking();
+    portal.submitCoachingReflection.mockResolvedValue({ done: true, acknowledgement: "That pause gave her room.",
+      acknowledgementAudioUrl: "https://signed.example/closer.ogg" });
+    open();
+    fireEvent.change(await screen.findByRole("textbox", { name: C.yourAnswer }), { target: { value: "Only the front rows." } });
+    fireEvent.click(screen.getByRole("button", { name: C.send }));
+
+    const note = await screen.findByRole("group", { name: new RegExp(C.title) });
+    expect(note.querySelector("audio")?.getAttribute("src")).toBe("https://signed.example/closer.ogg");
+    expect(screen.queryByText("That pause gave her room.")).toBeNull();
+  });
+
+  it("with no voice the follow-up shows as words, as WhatsApp falls back", async () => {
+    asking();
+    portal.submitCoachingReflection.mockResolvedValue({ done: true, acknowledgement: "That pause gave her room." });
+    open();
+    fireEvent.change(await screen.findByRole("textbox", { name: C.yourAnswer }), { target: { value: "Only the front rows." } });
+    fireEvent.click(screen.getByRole("button", { name: C.send }));
+
+    expect(await screen.findByText("That pause gave her room.")).toBeTruthy();
+  });
+});
