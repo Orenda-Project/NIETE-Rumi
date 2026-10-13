@@ -17,6 +17,7 @@ import { shareToWhatsApp, useShareAvailable } from '../share/api';
 import { CARD, FOCUS } from '../ui/styles';
 import { COACHING } from './copy';
 import { SectionHeading } from './parts';
+import { goTo } from './navigate';
 import { COACHING_HOME } from './paths';
 import { dcSteps, loadJourney, toReportData, type JourneyPoint } from './report';
 
@@ -138,17 +139,31 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
   const answered = (detail?.reflection ?? []).filter((r) => r.question && r.answer);
   const title = detail?.topic || detail?.subject || C.dcObservation;
 
+  // bd-oawrlt — ICT feedback row 14: the link is asked for when she taps, signed then — never the one signed at page
+  // load, which expires after an hour (R2's "ExpiredRequest" XML page).
+  const [downloading, setDownloading] = useState(false);
+  const download = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const url = await portal.getCoachingReportFile(id, 'attachment');
+      if (url) goTo(url);
+    } catch {
+      /* nothing to open: she can tap again */
+    } finally {
+      setDownloading(false);
+    }
+  };
   const action = ready && reportImage ? (
-    <a
-      href={reportImage}
-      target="_blank"
-      rel="noreferrer"
-      download
+    <button
+      type="button"
+      onClick={() => { void download(); }}
+      disabled={downloading}
       aria-label={C.download}
       className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-[#33374a]', FOCUS)}
     >
       <Download className="h-5 w-5" aria-hidden="true" />
-    </a>
+    </button>
   ) : undefined;
 
   if (missing) {
@@ -171,7 +186,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
         <ShareActions
           available={canSend}
           onSend={() => shareToWhatsApp(isVisit ? 'observation' : 'dc', id)}
-          open={{ fileUrl: reportImage }}
+          open={{ fileUrl: () => portal.getCoachingReportFile(id, 'inline') }}
         />
       ) : undefined}
     >
