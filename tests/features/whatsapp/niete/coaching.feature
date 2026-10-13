@@ -888,6 +888,18 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     # COACHING_MESSAGES.duplicateRecording. Checked by the quiz lane's own addressForms / genderedTeacherForms
     # in tests/language/urdu-gender-neutral-copy.test.js, which also holds the WHOLE ux catalog to it. @wip.
 
+  @e2e @config-gated @no-mock-driver @P1 @COA82
+  Scenario: A lesson plan I read in the teacher app is in my recent lesson plans after I record
+    Given the NIETE bot chat is open on a teacher with "Open in app" on for Lesson Plans
+    And I read a Grades 1–5 lesson plan in the teacher app today, and my last WhatsApp lesson plan is a week old
+    When I send a classroom recording and the bot asks which lesson plan I taught
+    Then the plan I read in the app is first in the recent lesson-plan list
+    And picking it links the version the app showed me
+    And the app's Coaching Home "Recent lesson plans" lists it the same way
+    # getRecentFidelityLps merges her WhatsApp deliveries with her app VIEWER opens (lp-app-opens.store,
+    # the asset served at the open), newest use first, one row per lesson. Kill switch
+    # COACHING_ASK_COUNT_APP_OPENS=off → deliveries only. Unit: tests/coaching/fidelity/recent-fidelity-lps-app-opens.test.js.
+
   @e2e @wip @draft @P1 @COA59
   Scenario: Picking my lesson plan from the list asks me to confirm before it is used
     Given the NIETE bot chat is open
