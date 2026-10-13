@@ -743,9 +743,51 @@ def test_web_and_whatsapp_changes_together_select_both_lanes():
     assert s.features and s.web_features == ["portal-login"], (s.features, s.web_features)
 
 
-def test_a_portal_file_no_web_feature_claims_selects_nothing_and_is_not_fallback():
+def test_a_portal_file_no_area_claims_selects_portal_smoke_not_the_whatsapp_fallback():
+    # bd-hnhlgn.8: no portal change is silent. An unclaimed portal/dashboard file runs the portal-wide smoke —
+    # the web lane's SAFE subset — and still never drags in the WhatsApp fallback.
     s = _sel(["portal/src/portal/pages/NotFound.tsx"])
-    assert s.web_features == [] and s.features == [] and not s.fallback, (s.web_features, s.features)
+    assert s.web_features == ["portal-smoke"], s.web_features
+    assert s.features == [] and not s.fallback, (s.features, s.fallback)
+
+
+def test_every_portal_area_selects_its_own_web_feature():
+    cases = {
+        "portal/src/portal/teacher/lessons/LessonsHome.tsx": "teacher-lessons",
+        "portal/src/portal/pages/PortalCurriculum.tsx": "teacher-lessons",
+        "dashboard/routes/portal-teacher-lessons.routes.js": "teacher-lessons",
+        "portal/src/portal/teacher/coaching/CoachingHome.tsx": "teacher-coaching",
+        "portal/src/portal/pages/PortalCoaching.tsx": "teacher-coaching",
+        "portal/src/portal/teacher/training/TrainingHome.tsx": "teacher-training",
+        "portal/src/portal/pages/PortalVideos.tsx": "teacher-training",
+        "portal/src/portal/teacher/classes/ClassesHome.tsx": "teacher-classes",
+        "portal/src/portal/teacher/attendance/AttendanceHub.tsx": "teacher-classes",
+        "dashboard/routes/portal-teacher-attendance.routes.js": "teacher-classes",
+        "portal/src/portal/teacher/assessment/AssessmentHome.tsx": "teacher-assessment",
+        "portal/src/portal/pages/PortalAssessment.tsx": "teacher-assessment",
+        "portal/src/portal/teacher/TeacherPage.tsx": "teacher-home",
+        "portal/src/portal/pages/PortalDashboard.tsx": "teacher-home",
+        "portal/src/portal/coach/home/CoachHome.tsx": "coach-portal",
+        "portal/src/portal/pages/LeaderTeachers.tsx": "leader-portal",
+        "portal/src/portal/pages/PortalAccount.tsx": "portal-account",
+        "portal/src/portal/pages/PortalPrivacy.tsx": "portal-account",
+    }
+    for path, want in cases.items():
+        s = _sel([path])
+        assert want in s.web_features, (path, s.web_features)
+        assert "portal-smoke" not in s.web_features, (path, "a claimed file must not also pull the smoke", s.web_features)
+
+
+def test_the_big_portal_routes_file_runs_sign_in_and_the_smoke():
+    # portal.routes.js serves /login AND most areas' data (/lesson-plans/recent, /lp612/mine, /curriculum/grades).
+    s = _sel(["dashboard/routes/portal.routes.js"])
+    assert "portal-login" in s.web_features and "portal-smoke" in s.web_features, s.web_features
+
+
+def test_shared_portal_plumbing_runs_the_smoke_everywhere():
+    # App.tsx, the shared UI kit and the API client sit under every page: a change there runs the smoke.
+    for path in ["portal/src/App.tsx", "portal/src/portal/services/api.ts", "portal/src/portal/newui/Panel.tsx"]:
+        assert "portal-smoke" in _sel([path]).web_features, path
 
 
 def test_map_rejects_a_web_feature_with_no_driver():

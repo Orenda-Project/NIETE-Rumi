@@ -173,7 +173,9 @@ class Rule(object):
 
 class FeatureMap(object):
     def __init__(self, features, rules, ignore, scope, not_covered, full_suite_on=None,
-                 web_features=None, web_rules=None):
+                 web_features=None, web_rules=None, web_scope=None, web_fallback=None):
+        self.web_scope = web_scope or []         # [glob] — paths the web lane has an opinion about
+        self.web_fallback = web_fallback         # feature for an in-scope path no web rule claims (no silent change)
         self.web_features = web_features or []   # web lane names (from .claude/qa/web/features/*.cjs)
         self.web_rules = web_rules or []         # [Rule] — portal/dashboard paths → web features
         self.features = features          # canonical name list (from the agents)
@@ -197,16 +199,21 @@ class FeatureMap(object):
         return [r for r in self.rules if glob_match(r.pattern, path)]
 
     def web_match(self, path):
-        """Web features selected by `path`: its own spec, or a `web:` rule. [] when none."""
+        """Web features selected by `path`: its own spec, a `web:` rule, else — inside the web scope — the fallback
+        (portal-smoke), so no portal change is silent. [] for a path the web lane has no opinion about."""
+        hits = []
         if path.startswith(WEB_SPEC_DIR + "/") and path.endswith(SPEC_SUFFIX):
             name = os.path.basename(path)[: -len(SPEC_SUFFIX)]
-            return [name] if name in self.web_features else []
-        hits = []
-        for rule in self.web_rules:
-            if glob_match(rule.pattern, path):
-                for f in rule.features:
-                    if f not in hits:
-                        hits.append(f)
+            if name in self.web_features:
+                hits.append(name)
+        else:
+            for rule in self.web_rules:
+                if glob_match(rule.pattern, path):
+                    for f in rule.features:
+                        if f not in hits:
+                            hits.append(f)
+        if not hits and self.web_fallback and any(glob_match(g, path) for g in self.web_scope):
+            hits.append(self.web_fallback)
         return hits
 
     def is_ignored(self, path):
@@ -276,7 +283,12 @@ def load_map(map_path, agents_dir):
     web_known = sorted(f[: -len(".cjs")] for f in (os.listdir(web_dir) if os.path.isdir(web_dir) else [])
                        if f.endswith(".cjs"))
     web_features, web_rules = [], []
-    for name, globs in (((raw.get("web") or {}).get("features")) or {}).items():
+    web_raw = raw.get("web") or {}
+    web_scope = list(web_raw.get("scope") or [])
+    web_fallback = web_raw.get("fallback") or None
+    if web_fallback and web_fallback not in web_known:
+        raise MapError("web: fallback: %r has no driver %s/%s.cjs" % (web_fallback, web_dir, web_fallback))
+    for name, globs in ((web_raw.get("features")) or {}).items():
         if name not in web_known:
             raise MapError("web: features: references %r, which has no driver %s/%s.cjs (known: %s)"
                            % (name, web_dir, name, ", ".join(web_known) or "none"))
@@ -292,7 +304,7 @@ def load_map(map_path, agents_dir):
         full_suite.append(rule)
 
     return FeatureMap(known, rules, list(raw.get("ignore") or []), scope,
-                      not_covered, full_suite, web_features, web_rules)
+                      not_covered, full_suite, web_features, web_rules, web_scope, web_fallback)
 
 
 def wants_full_suite(fmap, repo_remote, branch):

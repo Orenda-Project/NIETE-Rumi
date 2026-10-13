@@ -1,55 +1,15 @@
-// portal-login — the web lane's scenarios for tests/features/web/portal-login.feature (bd-hnhlgn.5).
+// portal-login — the web lane's scenarios for tests/features/web/portal-login.feature (bd-hnhlgn.5/.7).
 // One entry per @PLxx in the spec; scripts/qa/e2e-web.test.sh fails if the two lists drift apart.
 // Each run(page, ctx) gets a fresh browser context on ctx.baseUrl, throws on a broken expectation and
 // returns its evidence. ctx.sql(text) runs against THIS run's own local database (never a shared one).
 'use strict';
+const { PASSWORD, DEMO, MODES, expect, open, signIn, landsOn, setSetting, setFlags, sendUntilLink } = require('../lib.cjs');
 
-const PASSWORD = 'Demo2026';
-const TEACHER = '03000000911';
-const PRINCIPAL = '03000000902';
-const COACH = '03000000901';
-const NO_PW_TEACHER = '03000000919';
-
-function expect(cond, msg) { if (!cond) throw new Error(msg); }
-
-async function open(page, ctx) {
-  await page.goto(ctx.baseUrl + '/portal/login', { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('#phoneNumber', { state: 'visible', timeout: 20000 });
-}
-
-async function signIn(page, phone, password) {
-  await page.fill('#phoneNumber', phone);
-  await page.fill('#password', password);
-  await page.click('button[type="submit"]');
-}
-
-// Where she ENDS UP. Login goes /portal/dashboard → (a leader) /portal/leader → (teacher app v2) /portal/teacher, so
-// the first URL is not the answer: wait until the path has stopped changing for SETTLE_MS, then compare. Checking the
-// first stop passed headless by winning a race and failed the moment the browser was slowed down (--headed).
-const SETTLE_MS = 1500;
-async function landsOn(page, path) {
-  const deadline = Date.now() + 20000;
-  let last = new URL(page.url()).pathname, since = Date.now();
-  while (Date.now() < deadline) {
-    await page.waitForTimeout(100);
-    const now = new URL(page.url()).pathname;
-    if (now !== last) { last = now; since = Date.now(); continue; }
-    if (now !== '/portal/login' && Date.now() - since >= SETTLE_MS) break;
-  }
-  // a sign-in token in the path never reaches a log or results.json
-  expect(last.startsWith(path), 'expected to settle on ' + path + ', settled on ' + last.replace(/\/go\/.+/, '/go/<token>'));
-  return last;
-}
-
-// The portal's app switches (app_settings, read per request — dashboard/lib/feature-flags.js). A home scenario sets
-// the ones that decide where she lands, on THIS run's database, so it never depends on what the seed copied.
-async function setFlags(ctx, flags) {
-  for (const [key, on] of Object.entries(flags)) {
-    await ctx.sql("insert into app_settings (key, value) values ('" + key + "', '" + (on ? 'true' : 'false') + "'::jsonb) "
-      + "on conflict (key) do update set value = excluded.value, updated_at = now()");
-  }
-}
-const CLASSIC = { portal_teacher_v2: false, portal_coach_v2: false };
+const TEACHER = DEMO.teacher;
+const PRINCIPAL = DEMO.principal;
+const COACH = DEMO.coach;
+const NO_PW_TEACHER = DEMO.noPwTeacher;
+const CLASSIC = MODES.classic;
 
 // The field message: the input is aria-invalid and aria-describedby points at its role="alert" text (AuthField.tsx).
 async function fieldError(page, id) {
@@ -59,44 +19,6 @@ async function fieldError(page, id) {
   const errId = await box.getAttribute('aria-describedby');
   // React's useId ids look like ":r2:-err" — not a valid #selector, so match the attribute instead.
   return (await page.locator('[id="' + errId + '"]').innerText()).trim();
-}
-
-
-// ── the mock WhatsApp (bot/scripts/e2e/mock-graph-api.js): POST /inject a message FROM a phone, GET /outbox the
-// bot's replies TO it. The WhatsApp half of a WhatsApp → portal scenario; ctx.mockUrl is this run's mock.
-async function mock(ctx, method, p, body) {
-  expect(ctx.mockUrl, 'no mock WhatsApp for this run (WEB_MOCK_URL)');
-  const r = await fetch(ctx.mockUrl + p, { method, headers: { 'content-type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined });
-  return r.json();
-}
-async function setSetting(ctx, key, json) {
-  await ctx.sql("insert into app_settings (key, value) values ('" + key + "', '" + json + "'::jsonb) "
-    + "on conflict (key) do update set value = excluded.value, updated_at = now()");
-}
-// Send `text` from `phone` and wait for a reply whose text or button URL matches `re`. The bot caches its app
-// switches for 30 s (app-redirect.service.js FLAG_TTL_MS), so a switch just set may not be seen yet: re-send until
-// it is, for up to `forMs`. Returns { url, item, tries }.
-async function sendUntilLink(ctx, phone, text, re, forMs) {
-  const deadline = Date.now() + forMs;
-  let tries = 0;
-  while (Date.now() < deadline) {
-    const { last } = await mock(ctx, 'GET', '/outbox?to=' + phone);
-    tries += 1;
-    await mock(ctx, 'POST', '/inject', { kind: 'text', from: phone, text });
-    const until = Date.now() + 8000;
-    while (Date.now() < until) {
-      const { items } = await mock(ctx, 'GET', '/outbox?to=' + phone + '&after=' + last);
-      for (const it of items || []) {
-        const hay = ((it.cta && it.cta.url) || '') + ' ' + (it.txt || '');
-        const m = hay.match(re);
-        if (m) return { url: m[0], item: it, tries };
-      }
-      await new Promise((r) => setTimeout(r, 400));
-    }
-    await new Promise((r) => setTimeout(r, 4000));
-  }
-  throw new Error('no reply matching ' + re + ' to "' + text + '" from ' + phone + ' within ' + forMs + ' ms (' + tries + ' tries)');
 }
 
 const scenarios = [

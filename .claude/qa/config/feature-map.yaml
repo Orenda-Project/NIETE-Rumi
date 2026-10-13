@@ -640,17 +640,35 @@ scenarios:
     # edit to it ran all eleven.
     bot/shared/utils/lp-intent.js: [L02, L08, L04]
 
-# ── web lane (bd-hnhlgn.6) ───────────────────────────────────────────────────
+# ── web lane (bd-hnhlgn.6 / .8) ─────────────────────────────────────────────
 # The teacher + coach PORTAL, driven in a headless browser on a local stack started at the commit itself:
 # `npm run e2e:web -- <feature>` (scripts/qa/e2e-web.sh). Separate from everything above on purpose — the WhatsApp
 # `scope:` keeps portal/** out so a portal edit never drags in the WhatsApp SAFE subset; this block is where those
-# paths ARE claimed. Each key must have a driver at .claude/qa/web/features/<key>.cjs (load_map raises otherwise),
-# and a change to tests/features/web/<key>.feature selects <key> on its own, no entry needed.
+# paths ARE claimed. Each feature key must have a driver at .claude/qa/web/features/<key>.cjs (load_map raises
+# otherwise), and a change to tests/features/web/<key>.feature selects <key> on its own, no entry needed.
+#
+# scope + fallback: NO portal change is silent. A path inside `scope:` that no feature claims selects `fallback:`
+# (portal-smoke — every main page, every role), the web lane's SAFE subset. Shared plumbing that sits under every page
+# (App.tsx, the API client, the UI kit, auth hooks) is mapped to portal-smoke on purpose.
 # Same discipline as above: add a path here in the same pass as the code it guards.
 web:
+  scope:
+    - portal/src/**
+    - portal/index.html
+    - portal/vite.config.ts
+    - portal/package.json
+    - dashboard/routes/**
+    - dashboard/lib/**
+    - dashboard/services/**
+    - dashboard/index.js
+    - dashboard/config/**
+    - tests/features/web/**
+  fallback: portal-smoke
   features:
     portal-login:
       - portal/src/portal/pages/PortalLogin.tsx        # the page
+      - portal/src/portal/pages/PortalPasswordReset*.tsx
+      - portal/src/portal/pages/PortalSetup.tsx
       - portal/src/portal/auth/**                      # AuthField, AuthFrame, copy, the status → message map
       - portal/src/portal/hooks/AuthProvider.tsx       # login(), the session the app holds
       - portal/src/portal/hooks/authContext.ts
@@ -658,10 +676,84 @@ web:
       - portal/src/portal/lib/homeRoute.ts             # where a sign-in lands
       - portal/src/portal/lib/leaderRole.ts
       - portal/src/portal/lib/phone.ts                 # the number check that stops a request (PL05)
-      - portal/src/portal/pages/PortalDashboard.tsx    # landing pages that redirect onward (PL01/02/08/09/10)
-      - portal/src/portal/pages/LeaderHome.tsx
-      - portal/src/App.tsx                             # the routes themselves
+      - portal/src/portal/lib/linkSession.ts
+      - portal/src/portal/pages/PortalRoot.tsx
       - dashboard/routes/portal.routes.js              # POST /login, /me — 401/403/404/400 (PL03/04/06)
+      - dashboard/routes/app-login.routes.js           # GET /go/:token — WhatsApp one-tap sign-in (PL11)
+      - dashboard/routes/portal-link.routes.js
       - dashboard/lib/feature-flags.js                 # portal_teacher_v2 / portal_coach_v2
       - dashboard/lib/local-dev.js                     # the session cookie
       - dashboard/index.js                             # session middleware
+    teacher-home:
+      - portal/src/portal/teacher/TeacherPage.tsx
+      - portal/src/portal/teacher/TeacherGate.tsx
+      - portal/src/portal/teacher/TeacherNavigation.tsx
+      - portal/src/portal/teacher/pages/**
+      - portal/src/portal/teacher/menu.ts
+      - portal/src/portal/teacher/notices/**
+      - portal/src/portal/teacher/analytics/**
+      - portal/src/portal/teacher/useTeacherV2.ts
+      - portal/src/portal/pages/PortalDashboard.tsx
+      - portal/src/portal/pages/PortalHomeList.tsx
+      - portal/src/portal/newui/home/**
+      - dashboard/routes/portal-teacher-notices.routes.js
+    teacher-lessons:
+      - portal/src/portal/teacher/lessons/**
+      - portal/src/portal/pages/PortalCurriculum.tsx
+      - portal/src/portal/pages/PortalLessonPlans.tsx
+      - portal/src/portal/newui/lessons/**
+      - portal/src/portal/components/LessonPlanViewer.tsx
+      - dashboard/routes/portal-teacher-lessons.routes.js
+    teacher-coaching:
+      - portal/src/portal/teacher/coaching/**
+      - portal/src/portal/teacher/observations/**
+      - portal/src/portal/pages/PortalCoaching*.tsx
+      - portal/src/portal/newui/coaching/**
+      - portal/src/portal/components/RecordingBar.tsx
+      - portal/src/portal/components/coaching/**
+      - dashboard/routes/portal-teacher-coaching.routes.js
+    teacher-training:
+      - portal/src/portal/teacher/training/**
+      - portal/src/portal/pages/PortalTraining*.tsx
+      - portal/src/portal/pages/PortalVideo*.tsx
+      - portal/src/portal/newui/training/**
+    teacher-classes:
+      - portal/src/portal/teacher/classes/**
+      - portal/src/portal/teacher/attendance/**
+      - portal/src/portal/pages/PortalClasses.tsx
+      - dashboard/routes/portal-teacher-attendance.routes.js
+      - dashboard/routes/attendance.routes.js
+    teacher-assessment:
+      - portal/src/portal/teacher/assessment/**
+      - portal/src/portal/pages/PortalAssessment.tsx
+      - portal/src/portal/pages/ClassicAssessment.tsx
+      - portal/src/portal/pages/PortalReadingAssessment*.tsx
+      - portal/src/portal/newui/assessment/**
+    coach-portal:
+      - portal/src/portal/coach/**
+      - dashboard/services/coach-v2.service.js
+    leader-portal:
+      - portal/src/portal/pages/Leader*.tsx
+      - portal/src/portal/pages/SchoolAnalytics.tsx
+      - portal/src/portal/pages/SchoolLessons.tsx
+      - dashboard/routes/portal-child-test.routes.js
+    portal-account:
+      - portal/src/portal/pages/PortalAccount.tsx
+      - portal/src/portal/pages/PortalPrivacy.tsx
+      - portal/src/portal/pages/PortalDeleteAccount.tsx
+      - portal/src/portal/lib/legalLinks.ts
+    portal-smoke:
+      - portal/src/App.tsx                             # every route
+      - dashboard/routes/portal.routes.js              # ONE file serves most areas' data (lessons, curriculum, …) — a
+                                                       # change here checks every page, not just sign-in (bd-hnhlgn.8)
+      - portal/src/main.tsx
+      - portal/src/portal/services/**                  # the API client every page calls
+      - portal/src/portal/newui/*.tsx                  # the shared UI kit (Panel, Hero, Sheet, …)
+      - portal/src/portal/newui/*.ts
+      - portal/src/portal/components/*.tsx
+      - portal/src/portal/hooks/**
+      - portal/src/components/**
+      - portal/src/index.css
+      - portal/index.html
+      - portal/vite.config.ts
+      - portal/package.json
