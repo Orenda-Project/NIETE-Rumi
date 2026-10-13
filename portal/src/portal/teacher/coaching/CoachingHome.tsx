@@ -154,7 +154,7 @@ export function CoachingHomePage() {
           <PlanPicker plan={plan} onOpen={() => { setPlanProblem(null); setPlanSheet(true); }} />
 
           <SectionHeading chip={[C.upToPhotos(DC_MAX_PHOTOS), C.noFaces]}>{C.photos}</SectionHeading>
-          <p className="mx-1 -mt-1 truncate text-[14px] text-[#6b7280]">{C.photosHint}</p>
+          <p className="mx-1 -mt-1 whitespace-pre-line text-[14px] text-[#6b7280]">{C.photosHint}</p>
           <PhotoGrid photos={photos} onChange={setPhotos} testId="dc-photos-input" max={DC_MAX_PHOTOS} />
         </>
       ) : null}
