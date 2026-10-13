@@ -19,6 +19,8 @@ import TeacherGate from "./portal/teacher/TeacherGate";
 import LegacyAttendanceRedirect from "./portal/components/LegacyAttendanceRedirect";
 import AppLinkListener from "./portal/components/AppLinkListener";
 import BackButtonHandler from "./portal/components/BackButtonHandler";
+// bd-s6qbts.3 — analytics-only accounts see one page; everyone else never sees it (portal/lib/homeRoute).
+import AnalyticsOnlyGuard from "./portal/analytics/AnalyticsOnlyGuard";
 // bd-5rz1v.10 — a lesson recording that outlives the page it started on.
 import { RecordingSessionProvider } from "./portal/lib/recordingSession";
 // bd-fxk3t8 — the signed-in user, read once per visit above every route.
@@ -101,6 +103,8 @@ const CoachProfile = page(() => import("./portal/coach/profile/CoachProfile"));
 const SchoolAnalytics = page(() => import("./portal/pages/SchoolAnalytics"));
 // bd-60121 — every observed lesson, its own page.
 const SchoolLessons = page(() => import("./portal/pages/SchoolLessons"));
+// bd-s6qbts.3 — school-wise analytics for analytics-only accounts (FDE / AEO).
+const SchoolsAnalytics = page(() => import("./portal/analytics/SchoolsAnalytics"));
 
 /** While a page's chunk arrives on a cold start at that page: its outline, never a spinner. */
 function RouteFallback() {
@@ -163,6 +167,9 @@ const App = () => {
           {/* Android app only: the hardware back key (close / back / leave). */}
           <BackButtonHandler />
           <Suspense fallback={<RouteFallback />}>
+          {/* bd-s6qbts.3 — one guard over every route: an analytics-only account is sent to its page from any
+              other portal page (before that page mounts), and anyone else who opens it goes to their own home. */}
+          <AnalyticsOnlyGuard>
           <Routes>
             {/* bd-2394: for the portal audience "/" resolves against the
                 session (PortalRoot), not straight to the login form — the
@@ -297,10 +304,12 @@ const App = () => {
             <Route path="/portal/attendance" element={<LegacyAttendanceRedirect to="/portal/coaching/analytics" />} />
             <Route path="/portal/leader/lessons" element={<SchoolLessons />} />
             <Route path="/portal/leader/teacher/:id" element={<LeaderTeacherDetail />} />
+            <Route path="/portal/analytics/schools" element={<SchoolsAnalytics />} />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </AnalyticsOnlyGuard>
           </Suspense>
           </RecordingSessionProvider>
           </AuthProvider>
