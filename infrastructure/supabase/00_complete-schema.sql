@@ -6690,6 +6690,8 @@ COMMENT ON COLUMN niete_lp_opens.source IS
 -- One row per lesson-plan ask in lesson_plan_requests, on every path; each plan row and each row of
 -- the two delivery ledgers the portal lists names its ask.
 -- Written only by bot/shared/services/lesson-plan-lifecycle.service.js, switched by LP_LIFECYCLE_PATHS.
+-- The CHECKs are NOT VALID here on purpose: they bind every new write, and a re-run of bootstrap over
+-- an older populated database (whose rows predate them) must never stop on them.
 ALTER TABLE lesson_plan_requests ADD COLUMN IF NOT EXISTS source         text;
 ALTER TABLE lesson_plan_requests ADD COLUMN IF NOT EXISTS channel        text;
 ALTER TABLE lesson_plan_requests ADD COLUMN IF NOT EXISTS region         text;
@@ -6706,7 +6708,7 @@ ALTER TABLE niete_lp612_deliveries ADD COLUMN IF NOT EXISTS request_id   uuid;
 
 DO $$ BEGIN
   ALTER TABLE lesson_plan_requests ADD CONSTRAINT lesson_plan_requests_status_check
-    CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'cancelled'));
+    CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')) NOT VALID;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 DO $$ BEGIN
@@ -6714,12 +6716,12 @@ DO $$ BEGIN
     CHECK (source IS NULL OR source IN (
       'gamma_standard', 'gamma_enriched', 'ug_lp', 'ps_pregen', 'v7_segment', 'v7_chapter',
       'gamma_chapter', 'pre_gen_chapter', 'homework_bundle', 'pic_to_lp_kieai', 'kenya_browse',
-      'multigrade_lp', 'niete_grounded', 'niete_v8_segment', 'niete_lp612'));
+      'multigrade_lp', 'niete_grounded', 'niete_v8_segment', 'niete_lp612')) NOT VALID;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 DO $$ BEGIN
   ALTER TABLE lesson_plan_requests ADD CONSTRAINT lesson_plan_requests_channel_check
-    CHECK (channel IS NULL OR channel IN ('whatsapp', 'portal'));
+    CHECK (channel IS NULL OR channel IN ('whatsapp', 'portal')) NOT VALID;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 DO $$ BEGIN

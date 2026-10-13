@@ -98,6 +98,11 @@ describe('the switch — LP_LIFECYCLE_PATHS', () => {
     [' niete_v8_segment , niete_lp612 ', 'niete_lp612', true],
     ['niete_lp612', 'not_a_path', false],
     ['all', 'not_a_path', false],
+    ['1', 'niete_v8_segment', true],
+    ['true', 'niete_lp612', true],
+    ['ALL', 'niete_lp612', true],
+    ['0', 'niete_lp612', false],
+    ['false', 'niete_lp612', false],
   ])('LP_LIFECYCLE_PATHS=%p → %s enabled: %p', (value, source, expected) => {
     if (value === undefined) delete process.env.LP_LIFECYCLE_PATHS; else process.env.LP_LIFECYCLE_PATHS = value;
     expect(Lifecycle.enabled(source)).toBe(expected);
@@ -109,6 +114,15 @@ describe('the switch — LP_LIFECYCLE_PATHS', () => {
     expect(mockCalls).toBe(0);
     expect(mockDb.table('lesson_plan_requests')).toHaveLength(0);
     expect(mockEvent).not.toHaveBeenCalled();
+  });
+
+  test('the first switch read in a process says once what it resolved to', () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_lp612';
+    Lifecycle.enabled('niete_lp612');
+    Lifecycle.enabled('niete_v8_segment');
+    const said = mockLog.mock.calls.filter((c) => /lifecycle switch resolved/.test(c[0]));
+    expect(said).toHaveLength(1);
+    expect(said[0][1]).toEqual({ LP_LIFECYCLE_PATHS: 'niete_lp612', pathsOn: ['niete_lp612'] });
   });
 
   test('switched on for a different path only, it still makes no call', async () => {
@@ -153,7 +167,7 @@ describe('recordOutcome — one row per ask, with its path, stage times and log 
   });
 
   test('the caller can name the id up front, and a retried call rewrites that row instead of adding one', async () => {
-    const id = Lifecycle.newRequestId();
+    const id = require('crypto').randomUUID();
     expect(await Lifecycle.recordOutcome({ ...ASK, id })).toBe(id);
     expect(await Lifecycle.recordOutcome({ ...ASK, id })).toBe(id);
     expect(mockDb.table('lesson_plan_requests')).toHaveLength(1);
@@ -241,6 +255,15 @@ describe('soft-fail — the record is never the reason a lesson does not reach t
     await Lifecycle.recordOutcome(ASK);
     const loud = mockLog.mock.calls.filter((c) => c[2] === 'error' && /lesson_plan_requests/.test(JSON.stringify(c)));
     expect(loud).toHaveLength(1);
+  });
+
+  test('a structured-logger stub without getCurrentCorrelationId (183 suites use one) does not break the write', async () => {
+    jest.resetModules();
+    jest.doMock('../../bot/shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
+    const Fresh = require('../../bot/shared/services/lesson-plan-lifecycle.service');
+    const id = await Fresh.recordOutcome(ASK);
+    expect(id).not.toBeNull();
+    jest.dontMock('../../bot/shared/utils/structured-logger');
   });
 
   test('a throw from the client itself is caught too', async () => {

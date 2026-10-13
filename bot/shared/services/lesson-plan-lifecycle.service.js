@@ -33,7 +33,13 @@
 const crypto = require('crypto');
 const supabase = require('../config/supabase');
 const { logToFile } = require('../utils/logger');
-const { logEvent, getCurrentCorrelationId } = require('../utils/structured-logger');
+const structuredLogger = require('../utils/structured-logger');
+
+const { logEvent } = structuredLogger;
+// Read defensively: many suites replace the structured logger with a stub that has only logEvent.
+const currentCorrelationId = () => (typeof structuredLogger.getCurrentCorrelationId === 'function'
+  ? structuredLogger.getCurrentCorrelationId()
+  : undefined);
 
 const LIFECYCLE = Object.freeze({
   STATUSES: Object.freeze(['pending', 'processing', 'completed', 'failed', 'cancelled']),
@@ -74,6 +80,9 @@ const TERMINAL = new Set(['completed', 'failed', 'cancelled']);
 const SCHEMA_MISSING_CODES = new Set(['PGRST204', 'PGRST205', '42703', '42P01']);
 const LOUD_EVERY_MS = 10 * 60 * 1000;
 let lastSchemaWarningAt = 0;
+let switchAnnounced = false;
+// A boolean-shaped value switches every path on — sandbox sets its flags to `1`.
+const ALL_VALUES = new Set(['all', '1', 'true', 'yes', 'on']);
 
 function isoOrNull(value) {
   if (value === undefined || value === null || value === '') return null;
@@ -92,23 +101,32 @@ function textOrNull(value, max) {
   return s ? s.slice(0, max) : null;
 }
 
+/** The paths LP_LIFECYCLE_PATHS switches on: 'all' (or 1/true/yes/on), or a comma list of sources. */
+function switchedOnPaths() {
+  const raw = String(process.env.LP_LIFECYCLE_PATHS || '').trim().toLowerCase();
+  if (!raw) return new Set();
+  const parts = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  if (parts.some((s) => ALL_VALUES.has(s))) return new Set(SOURCE_SET);
+  return new Set(parts.filter((s) => SOURCE_SET.has(s)));
+}
+
 /**
- * Is the lifecycle writer switched on for this path? LP_LIFECYCLE_PATHS is 'all' or a comma list
- * of SOURCES values. Read on every call, so a test (or a restart) sees the current value.
+ * Is the lifecycle writer switched on for this path? Read on every call, so a test (or a restart)
+ * sees the current value. The first call in a process says once what the switch resolved to —
+ * a gate that is off must say so, not stay silent.
  * @param {string} source
  * @returns {boolean}
  */
 function enabled(source) {
-  if (!SOURCE_SET.has(source)) return false;
-  const raw = String(process.env.LP_LIFECYCLE_PATHS || '').trim();
-  if (!raw) return false;
-  const paths = raw.split(',').map((s) => s.trim()).filter(Boolean);
-  return paths.includes('all') || paths.includes(source);
-}
-
-/** A fresh id for an ask, for a caller that must name the ask before its row is written. */
-function newRequestId() {
-  return crypto.randomUUID();
+  const on = switchedOnPaths();
+  if (!switchAnnounced) {
+    switchAnnounced = true;
+    logToFile('Lesson-plan lifecycle switch resolved', {
+      LP_LIFECYCLE_PATHS: process.env.LP_LIFECYCLE_PATHS || '(unset)',
+      pathsOn: [...on].sort(),
+    });
+  }
+  return SOURCE_SET.has(source) && on.has(source);
 }
 
 /**
@@ -126,7 +144,7 @@ function askColumns({ source, channel, grade, subject, artifactRef, correlationI
     grade: gradeOrNull(grade),
     subject: textOrNull(subject, 100),
     artifact_ref: textOrNull(artifactRef, 300),
-    correlation_id: textOrNull(correlationId || getCurrentCorrelationId(), 200),
+    correlation_id: textOrNull(correlationId || currentCorrelationId(), 200),
   };
 }
 
@@ -140,7 +158,7 @@ function askColumns({ source, channel, grade, subject, artifactRef, correlationI
  * one of those cases the caller carries on delivering exactly as before.
  *
  * @param {Object} o
- * @param {string} [o.id]            the ask's id when the caller named it up front (newRequestId)
+ * @param {string} [o.id]            the ask's id, when the caller has one (a retry rewrites that row)
  * @param {string} o.userId
  * @param {string} o.phone
  * @param {string} o.topic
@@ -169,7 +187,7 @@ async function recordOutcome(o = {}) {
     if (!row) return null;
     const { error } = await supabase
       .from('lesson_plan_requests')
-      .upsert(row, { onConflict: 'id' });
+      .upsert({ ...row }, { onConflict: 'id' });
     if (error) {
       writeFailed(error, row);
       return null;
@@ -221,7 +239,7 @@ function outcomeRow(o) {
     completed_at: deliveredAt,
     error_code: failed ? (textOrNull(o.errorCode, 40) || LIFECYCLE.ERROR_CODES.GENERATION_FAILED) : null,
     error_message: failed ? textOrNull(o.errorMessage, 1000) : null,
-    correlation_id: textOrNull(o.correlationId || getCurrentCorrelationId(), 200),
+    correlation_id: textOrNull(o.correlationId || currentCorrelationId(), 200),
   };
 }
 
@@ -281,12 +299,12 @@ function isSchemaMissing(error) {
 /** Test seam: forget the once-per-ten-minutes state between tests. */
 function __resetForTests() {
   lastSchemaWarningAt = 0;
+  switchAnnounced = false;
 }
 
 module.exports = {
   LIFECYCLE,
   enabled,
-  newRequestId,
   askColumns,
   recordOutcome,
   isSchemaMissing,

@@ -1,6 +1,7 @@
 -- V1.6.4 — lesson-plan lifecycle: every lesson-plan ask leaves one row in lesson_plan_requests that
 -- says which path served it, when each stage happened, how it ended, and the correlation id of its
 -- logs; and every plan row, and every row of the two delivery ledgers the portal lists, names its ask.
+-- Versioned migration in infrastructure/supabase/migrations (applied per environment, in order). Follows V1.6.3.
 --
 -- WHY. A data analyst cannot trace a lesson plan seen in the portal back to its ask, its outcome or
 -- its logs. On production (BigQuery mirror, 13 Oct 2026): 109,103 lesson_plans rows since July, of
@@ -31,15 +32,22 @@
 -- Sep-Oct 2026): ~1,100 inserts and ~2,000 single-row updates a day, each by primary key. Reads are by
 -- id, by user_id (existing index) and by (source, created_at) (new index) for the health check.
 --
--- LOCKS. ADD COLUMN without a default is a catalog change. Each CHECK and the foreign key are added
--- NOT VALID (no scan, brief lock) and then VALIDATED only when no existing row would fail it, which
--- takes SHARE UPDATE EXCLUSIVE and lets writes continue. The partial index on lesson_plans(request_id)
--- is built non-concurrently, because migrate.js runs the file through exec_sql inside a transaction:
--- it scans lesson_plans once (~110k rows on production, under a second) and blocks writes to that
--- table for that time. Apply outside school hours.
+-- LOCKS. One RPC call from the migration runner = one transaction (no BEGIN/COMMIT here), so every
+-- lock taken below is held until it commits: ADD COLUMN and ADD CONSTRAINT take ACCESS EXCLUSIVE on
+-- lesson_plan_requests, lesson_plans, niete_lp_downloads and niete_lp612_deliveries, and keep it
+-- through the VALIDATE scans and the index build. At production sizes (~110k lesson_plans rows, ~9k
+-- requests, small ledgers) the whole file runs in about a second. lock_timeout is set to 5s first:
+-- if a long transaction is holding one of these tables, the migration fails fast and is re-run,
+-- rather than queueing every lesson-plan write behind it. Apply outside school hours. migrate.js
+-- does not print RAISE NOTICE; after applying, read pg_constraint.convalidated (the rollout says how).
 --
 -- IDEMPOTENT. Every statement is IF NOT EXISTS or guarded by a catalog check, so re-running the file
 -- changes nothing. Reverse: ROLLBACK_V1.6.4__lp_lifecycle.sql.
+
+DO $$ BEGIN
+  -- Never wait behind a long transaction with ACCESS EXCLUSIVE queued: fail fast and be re-run.
+  PERFORM set_config('lock_timeout', '5s', true);
+END $$;
 
 -- ─── lesson_plan_requests: the lifecycle columns ────────────────────────────────────────────────
 ALTER TABLE lesson_plan_requests ADD COLUMN IF NOT EXISTS source         text;
