@@ -47,6 +47,7 @@ const V8Catalog = require('./lp-v8-catalog.service');
 const { getVoicenoteScript } = require('./lp-voicenote-script.service');
 const { resolveMoveList } = require('./coaching/fidelity/lp-fidelity-store');
 const AppOpens = require('./quiz/lp-app-opens.store');
+const { onUnlessOff } = require('./nudges/flags');
 const { logToFile } = require('../utils/logger');
 const { logEvent } = require('../utils/structured-logger');
 
@@ -59,12 +60,8 @@ const DOWNLOADS_WINDOW_DAYS = 7;
 const RECENT_ROWS = 6;                 // the last 6 deliveries / the last 6 app opens
 const SHELF_ENTRIES_MAX = 5;           // the shelf's own cap (lp-shelf.service)
 
-const OFF = new Set(['false', '0', 'off', 'no']);
 /** LP_CONTEXT_COUNT_APP_OPENS, read at call time. Default on. */
-function countAppOpens() {
-  const raw = process.env.LP_CONTEXT_COUNT_APP_OPENS;
-  return !OFF.has(String(raw == null ? '' : raw).trim().toLowerCase());
-}
+const countAppOpens = () => onUnlessOff('LP_CONTEXT_COUNT_APP_OPENS');
 
 function agoLabel(iso) {
   const ms = Date.now() - new Date(iso).getTime();
