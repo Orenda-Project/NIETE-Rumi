@@ -609,7 +609,7 @@ class AnalysisProcessorService {
    * together and this analysis graded Section B from the row it loaded before the plan was saved (lp_absent). The
    * late-plan recompute below only covers coach visits. Production: 7 of 7 portal file uploads since 29 Sep.
    *
-   * So a PORTAL row whose plan is still 'pending' waits for the read to finish — completed or failed — then the row
+   * So a PORTAL row whose plan is still 'pending' waits (up to 3 min) for the read to finish — completed or failed — then the row
    * is reloaded and graded with the plan. Bounded: past maxWaitMs it carries on as before (never stuck). WhatsApp
    * rows are untouched. Never throws into the analysis job.
    *
@@ -633,7 +633,9 @@ class AnalysisProcessorService {
     });
     const sleep = deps.sleep || ((ms) => new Promise((r) => setTimeout(r, ms)));
     const now = deps.now || Date.now;
-    const maxWaitMs = deps.maxWaitMs || 120_000;
+    // bd-cdxv3a — 3 min: 30 days of production plan reads ran p50 15 s / p99 75 s; 0.38% took over 2 min, 0.30% over
+    // 3 min. The wait ends as soon as the read does, so only a slow or stuck read ever reaches this.
+    const maxWaitMs = deps.maxWaitMs || 180_000;
     const everyMs = deps.everyMs || 3_000;
 
     try {
