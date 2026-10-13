@@ -12,8 +12,8 @@
  */
 
 export type SortKey =
-  | 'name' | 'region' | 'teachers' | 'lpsOpened' | 'lpsGenerated' | 'dcObservations'
-  | 'humanObservations' | 'coachVisits' | 'avgFico' | 'avgHitl';
+  | 'name' | 'region' | 'teachers' | 'lpsOpened' | 'dcObservations'
+  | 'humanObservations' | 'avgFico' | 'avgHitl';
 
 export type PeriodPreset = 'week' | 'month' | 'quarter' | 'year';
 
@@ -61,10 +61,8 @@ const EN = {
   metrics: {
     teachers: 'Teachers',
     lpsOpened: 'LPs opened',
-    lpsGenerated: 'LPs generated',
     dcObservations: 'DC observations',
     humanObservations: 'Human observations',
-    coachVisits: 'Coach visits',
     avgFico: 'Avg FICO',
     avgHitl: 'Avg HITL',
   },
@@ -83,8 +81,8 @@ const EN = {
   schools: {
     title: 'Schools',
     columns: {
-      name: 'School', region: 'Region', teachers: 'Teachers', lpsOpened: 'LPs opened', lpsGenerated: 'LPs generated',
-      dcObservations: 'DC observations', humanObservations: 'Human observations', coachVisits: 'Coach visits',
+      name: 'School', region: 'Region', teachers: 'Teachers', lpsOpened: 'LPs opened',
+      dcObservations: 'DC observations', humanObservations: 'Human observations',
       avgFico: 'Avg FICO', avgHitl: 'Avg HITL',
     } as Record<SortKey, string>,
     /** The small line under a column's name. */
@@ -111,10 +109,8 @@ const EN = {
       { term: 'Schools', text: 'Active NIETE schools in the six ICT regions: B.K, Sihala, Urban-I, Nilore, Urban-II and Tarnol. Test schools are left out. A school with no region on record, or with a region outside these six, is not shown and not counted in any number.' },
       { term: 'Teachers', text: "Teachers registered at the school today; test accounts are left out. A teacher's activity counts for the school she is at now, so a teacher who moved takes her earlier activity with her." },
       { term: 'LPs opened', text: 'Different lesson plans the school\'s teachers opened in the period: opening the same plan again counts once per teacher. "x of N" is how many of the school\'s N teachers opened at least one. Opens are recorded from 4 Oct 2026, so a period that starts earlier shows fewer than really happened.' },
-      { term: 'LPs generated', text: 'Lesson plans the teachers made in the period that came out successfully. Failed attempts are left out.' },
       { term: 'DC observations', text: 'Finished Digital Coach (AI) observations of the teachers\' lessons in the period. "x of N" is how many of the N teachers had at least one.' },
       { term: 'Human observations', text: 'Finished observations of the teachers by a school leader or coach in the period, including ones the observer has reviewed.' },
-      { term: 'Coach visits', text: 'Visits to the school that a coach marked done, counted on the day of the visit. Cancelled and upcoming visits are left out.' },
       { term: 'Avg FICO', text: 'The average Digital Coach observation score, out of 100, over the observations in the period that have a score. The number in brackets is how many were scored.' },
       { term: 'Avg HITL', text: "The average score of human observations, out of 100, after the observer's review. The number in brackets is how many were scored." },
       { term: 'Grey and —', text: 'An average from fewer than 3 scored observations is shown in grey: one or two lessons say little about a school. — means nothing was scored. A 0 is a real 0: none happened.' },

@@ -108,7 +108,8 @@ const SchoolsAnalytics = () => {
     return frame(
       <div aria-busy="true" aria-label={c.states.loading} className="flex flex-col gap-4">
         <Skeleton className="h-36 w-full rounded-2xl" />
-        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+        {/* The overview's eight cells (seven tiles, LPs opened two wide), laid out as the tiles will be. */}
+        <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
           {Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-[104px] rounded-[18px]" />)}
         </div>
         <Skeleton className="h-72 w-full rounded-2xl" />
