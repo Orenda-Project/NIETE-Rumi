@@ -7,14 +7,20 @@ Feature: Portal sign-in
   Background:
     Given the portal is open at /portal/login
 
+  # Where a sign-in LANDS depends on the app switches (app_settings portal_teacher_v2 / portal_coach_v2), so every
+  # home scenario sets them first, on the run's own database. "Lands on" = where the URL settles, not its first stop:
+  # login goes /portal/dashboard -> /portal/leader (a leader) -> /portal/teacher (teacher app v2).
+
   @PL01
-  Scenario: A teacher signs in and lands on her dashboard
+  Scenario: Classic portal: a teacher signs in and lands on her dashboard
+    Given the teacher app v2 and the coach app v2 are off
     When she enters demo teacher 03000000911 and the password Demo2026
     And she taps Log in
     Then she is on /portal/dashboard
 
   @PL02
-  Scenario: A principal signs in and lands on the leader portal
+  Scenario: Classic portal: a principal signs in and lands on the leader portal
+    Given the teacher app v2 and the coach app v2 are off
     When he enters demo principal 03000000902 and the password Demo2026
     And he taps Log in
     Then he is on /portal/leader
@@ -52,3 +58,24 @@ Feature: Portal sign-in
     When she enters demo teacher 03000000911
     And she taps Forgot password
     Then she is on /portal/reset-password
+
+  @PL08
+  Scenario: Teacher app v2: a teacher signs in and lands on the teacher home
+    Given the teacher app v2 is on and the coach app v2 is off
+    When she enters demo teacher 03000000911 and the password Demo2026
+    And she taps Log in
+    Then she settles on /portal/teacher
+
+  @PL09
+  Scenario: Teacher app v2: a principal lands on the teacher home too (the teacher app plus her school)
+    Given the teacher app v2 is on and the coach app v2 is off
+    When he enters demo principal 03000000902 and the password Demo2026
+    And he taps Log in
+    Then he settles on /portal/teacher
+
+  @PL10
+  Scenario: Coach app v2: a coach signs in and lands on the coach home
+    Given the teacher app v2 is off and the coach app v2 is on
+    When she enters demo coach 03000000901 and the password Demo2026
+    And she taps Log in
+    Then she settles on /portal/coach

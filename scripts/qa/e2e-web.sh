@@ -5,6 +5,7 @@
 #   npm run e2e:web -- portal-login                    # every scenario of one feature
 #   npm run e2e:web -- portal-login --only PL03,PL06   # some of them
 #   npm run e2e:web -- portal-login --keep             # leave the stack up afterwards (URL + logins printed)
+#   npm run e2e:web -- portal-login --headed           # watch it: a visible Chrome, each action slowed (WEB_SLOWMO, default 600ms)
 #   npm run e2e:web -- portal-login --slot 6           # pick the port slot (default: the first free of 5-9)
 #   bash scripts/qa/e2e-web.sh portal-login --print-plan   # what it would do; starts nothing
 #
@@ -90,6 +91,7 @@ PY
 FEATURE="" SLOT="" ONLY="" KEEP="" PLAN="" ROW_FROM="" RUN_ID="" COMMIT=""
 while [ $# -gt 0 ]; do case "$1" in
   --slot) SLOT="$2"; shift 2;; --only) ONLY="$2"; shift 2;; --keep) KEEP=1; shift;;
+  --headed) export WEB_HEADED=1 WEB_SLOWMO="${WEB_SLOWMO:-600}"; shift;;
   --print-plan) PLAN=1; shift;;
   --row-from) ROW_FROM="$2"; shift 2;; --run-id) RUN_ID="$2"; shift 2;; --commit) COMMIT="$2"; shift 2;;
   -h|--help) sed -n '2,24p' "$0"; exit 0;;
