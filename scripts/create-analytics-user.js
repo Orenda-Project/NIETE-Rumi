@@ -206,8 +206,6 @@ async function run({ supabase, invite, phone, name, commit, portalUrl, log = con
 
 module.exports = {
   ANALYTICS_ACCOUNT_DEFAULTS,
-  ANALYTICS_FLAG_KEY,
-  ENVS,
   normalisePkPhone,
   assertProjectRef,
   appendUserId,
