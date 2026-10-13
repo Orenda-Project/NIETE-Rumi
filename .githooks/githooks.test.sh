@@ -99,6 +99,25 @@ err=$(cd "$R" && E2E_AUTOFIX_OFF= PATH="/usr/bin:/bin" git commit -qm "feat(menu
 has "local lane (default): a commit with NO keys file does not ask for railway login (bd-z3ze4.5)" "$err" "railway login" no
 [ -f "$R/keys/niete-local.env" ] && bad "…but the hook provisioned a keys file the local lane does not need" || ok "…and provisions no keys file"
 
+# WEB LANE (bd-hnhlgn.6): a commit that touches ONLY the portal used to arm nothing — the portal is outside the
+# WhatsApp scope by design. It must arm a marker that carries the web features and name the one command.
+mkdir -p "$R/portal/src/portal/pages"; printf '// login\n' > "$R/portal/src/portal/pages/PortalLogin.tsx"
+git -C "$R" add -A >/dev/null
+err=$(cd "$R" && git commit -qm "feat(portal): a login-page change only" 2>&1)
+wsha=$(git -C "$R" rev-parse --short=12 HEAD)
+[ -f "$PEND/git-$wsha.json" ] && ok "portal-only commit arms a marker (web lane)" || bad "portal-only commit armed nothing"
+say "…marker carries web_features" "$(python3 -c "import json;print(','.join(json.load(open('$PEND/git-$wsha.json')).get('web_features') or []))" 2>/dev/null)" "portal-login"
+say "…and no WhatsApp feature" "$(python3 -c "import json;print(len(json.load(open('$PEND/git-$wsha.json')).get('features') or []))" 2>/dev/null)" "0"
+has "…terminal names the web lane" "$err" "Web lane" yes
+has "…and the command that drives it headless for this commit" "$err" "commit-e2e.sh $wsha" yes
+# …and that command really drives the web lane for this commit: headless, commit-triggered, the selected feature.
+# E2E_WEB_PLAN=1 makes commit-e2e.sh print each web run's plan instead of starting a stack.
+out=$(cd "$R" && E2E_WEB_PLAN=1 bash .claude/qa/shared/commit-e2e.sh "$wsha" 2>&1); rc=$?
+say "commit-e2e.sh on a portal-only commit exits 0" "$rc" "0"
+has "…drives the web lane" "$out" "web lane:  portal-login" yes
+has "…headless (commit-triggered)" "$out" "HEADED=0" yes
+has "…does not claim a mock-lane run" "$out" "driving:   " no
+
 printf 'docs only\n' >> "$R/README.md"; git -C "$R" add -A >/dev/null
 before=$(ls "$PEND" | wc -l | tr -d ' ')
 err=$(git -C "$R" commit -qm "docs: readme" 2>&1)

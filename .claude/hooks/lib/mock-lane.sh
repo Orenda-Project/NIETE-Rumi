@@ -92,6 +92,31 @@ rendered here — Flow scenarios record BLOCKED, not PASS. Read the rows it prin
 EOF
 }
 
+# e2e_web_block "<sha>" "<web features csv>" "<mock block or empty>" -> the WEB LANE part of an execute order
+# (bd-hnhlgn.6). commit-e2e.sh drives both lanes from the commit's own selection, so when a mock block is already in
+# the order the web lane rides along on that command; on its own it is the same command with no --features.
+e2e_web_block() {
+  local sha="$1" web="$2" mock="$3"
+  [ -n "$web" ] || return 0
+  if [ -n "$mock" ]; then
+    cat <<WEB
+━━ WEB LANE — the portal, headless browser, THIS commit ━━━━━━━━━━━━━━━━━━━━━━
+The commit-e2e.sh command above ALSO drives: $web — no second command. Its rows land in
+runs.jsonl as surface "web", method "browser". Always headless on a commit.
+WEB
+  else
+    cat <<WEB
+━━ WEB LANE — the portal, headless browser, tests THIS commit ━━━━━━━━━━━━━━━━━
+
+  bash .claude/qa/shared/commit-e2e.sh $sha
+
+It starts bot + portal on a local stack at the checkout (DATA=demo, own ports, never :4000),
+drives $web in headless Chromium, and appends one runs.jsonl row per feature (surface "web").
+Always headless on a commit. Read the rows it prints; a failure leaves a screenshot.
+WEB
+  fi
+}
+
 # ── Machine readiness (2026-09-18) ────────────────────────────────────────────────────────────
 # The lane is "part of the hook" only if the hook can SAY, before an agent's turn, whether this
 # machine can run it. Until now the first signal was exit 14 deep inside local-stack.sh — after the

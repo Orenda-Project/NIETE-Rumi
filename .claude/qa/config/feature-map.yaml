@@ -639,3 +639,29 @@ scenarios:
     # or goes on to the LLM (L04). No lesson-plan scenario names the file, so without this pin every
     # edit to it ran all eleven.
     bot/shared/utils/lp-intent.js: [L02, L08, L04]
+
+# ── web lane (bd-hnhlgn.6) ───────────────────────────────────────────────────
+# The teacher + coach PORTAL, driven in a headless browser on a local stack started at the commit itself:
+# `npm run e2e:web -- <feature>` (scripts/qa/e2e-web.sh). Separate from everything above on purpose — the WhatsApp
+# `scope:` keeps portal/** out so a portal edit never drags in the WhatsApp SAFE subset; this block is where those
+# paths ARE claimed. Each key must have a driver at .claude/qa/web/features/<key>.cjs (load_map raises otherwise),
+# and a change to tests/features/web/<key>.feature selects <key> on its own, no entry needed.
+# Same discipline as above: add a path here in the same pass as the code it guards.
+web:
+  features:
+    portal-login:
+      - portal/src/portal/pages/PortalLogin.tsx        # the page
+      - portal/src/portal/auth/**                      # AuthField, AuthFrame, copy, the status → message map
+      - portal/src/portal/hooks/AuthProvider.tsx       # login(), the session the app holds
+      - portal/src/portal/hooks/authContext.ts
+      - portal/src/portal/hooks/useAuth.ts
+      - portal/src/portal/lib/homeRoute.ts             # where a sign-in lands
+      - portal/src/portal/lib/leaderRole.ts
+      - portal/src/portal/lib/phone.ts                 # the number check that stops a request (PL05)
+      - portal/src/portal/pages/PortalDashboard.tsx    # landing pages that redirect onward (PL01/02/08/09/10)
+      - portal/src/portal/pages/LeaderHome.tsx
+      - portal/src/App.tsx                             # the routes themselves
+      - dashboard/routes/portal.routes.js              # POST /login, /me — 401/403/404/400 (PL03/04/06)
+      - dashboard/lib/feature-flags.js                 # portal_teacher_v2 / portal_coach_v2
+      - dashboard/lib/local-dev.js                     # the session cookie
+      - dashboard/index.js                             # session middleware
