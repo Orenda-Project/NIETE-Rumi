@@ -3,10 +3,11 @@ import { ChaptersPage } from './ChaptersPage';
 import { LessonsAllPage } from './LessonsAll';
 import { LessonsHomePage } from './LessonsHome';
 import { LessonsPage } from './LessonsPage';
+import { NewLessonPage } from './NewLessonPage';
 import { OpenPlanPage } from './OpenPlanPage';
 import { PreparingPage } from './PreparingPage';
 import { ViewerPage } from './ViewerPage';
-import { LESSONS_ALL, LESSONS_HOME, LESSONS_OPEN, LESSONS_VIEWER } from './paths';
+import { LESSONS_ALL, LESSONS_HOME, LESSONS_NEW, LESSONS_OPEN, LESSONS_VIEWER } from './paths';
 
 /**
  * bd-fmf24g.3 — the teacher v2 Lesson Plans pages (each one flag-gated by App's TeacherGate). The main
@@ -15,6 +16,7 @@ import { LESSONS_ALL, LESSONS_HOME, LESSONS_OPEN, LESSONS_VIEWER } from './paths
  */
 const routes: TeacherRoute[] = [
   { path: LESSONS_HOME, element: <LessonsHomePage /> },
+  { path: LESSONS_NEW, element: <NewLessonPage /> },
   { path: `${LESSONS_HOME}/chapters`, element: <ChaptersPage /> },
   { path: `${LESSONS_HOME}/lessons`, element: <LessonsPage /> },
   { path: `${LESSONS_HOME}/preparing`, element: <PreparingPage /> },

@@ -18,11 +18,12 @@ vi.mock("../../services/api", () => ({ default: { get: vi.fn(), post: vi.fn() },
 import api from "../../services/api";
 import { resetLessonPlans } from "../../newui/lessons/lessonPlansApi";
 import { LessonsHomePage } from "./LessonsHome";
+import { NewLessonPage } from "./NewLessonPage";
 import { ChaptersPage } from "./ChaptersPage";
 import { LessonsPage } from "./LessonsPage";
 import { PreparingPage } from "./PreparingPage";
 import { ViewerPage } from "./ViewerPage";
-import { LESSONS_HOME, LESSONS_VIEWER, lessonsUrl } from "./paths";
+import { LESSONS_HOME, LESSONS_NEW, LESSONS_VIEWER, lessonsUrl } from "./paths";
 import { LESSONS_V2_COPY_UR as U } from "./copy";
 import { kpiItems, groupByDay } from "./lessonHistory";
 import { copyIn } from "../i18n";
@@ -64,11 +65,20 @@ function renderAt(path: string, element: React.ReactElement, state?: unknown) {
 }
 
 describe("Lesson Plans in Urdu", () => {
-  it("the main page: title, Select grade and subject, Recent", async () => {
+  it("the main page: title, New lesson plan, Recent", async () => {
     renderAt(LESSONS_HOME, <LessonsHomePage />);
-    expect(await screen.findByRole("button", { name: new RegExp(U.selectGradeSubject) })).toBeTruthy();
+    expect(await screen.findByRole("link", { name: new RegExp(U.newLessonPlan) })).toBeTruthy();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(U.title);
+    expect(screen.getByText(U.allGrades)).toBeTruthy();
     expect(screen.getByText(U.recent)).toBeTruthy();
+    expect(screen.queryByText("New lesson plan")).toBeNull();
+  });
+
+  it("step 1 (bd-fgj73x): Grade and subject, its step bar and Select grade and subject in Urdu", async () => {
+    renderAt(LESSONS_NEW, <NewLessonPage />);
+    expect(await screen.findByRole("button", { name: new RegExp(U.selectGradeSubject) })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(U.gradeAndSubject);
+    expect(screen.getByRole("progressbar", { name: U.stepOf(1, 3) })).toBeTruthy();
     expect(screen.queryByText("Select grade and subject")).toBeNull();
   });
 
