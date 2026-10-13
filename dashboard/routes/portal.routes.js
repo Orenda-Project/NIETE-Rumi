@@ -76,10 +76,17 @@ const {
   PORTAL_COACH_V2_KEY,
   PORTAL_TEACHER_V2_KEY,
   isCoachObservationOn,
+  PORTAL_ANALYTICS_ONLY_KEY,
+  readUserListFlag,
+  isAnalyticsOnlyUser,
 } = require('../lib/feature-flags');
 // bd-2434 — Leader Portal (NIETE port of upstream bd-2385..2388):
 // role gate (school-leader family only) + framework-agnostic overall score.
 const { publicUserPayload, makeRequireLeaderRole } = require('../lib/leader-role');
+// Analytics-only accounts (federal / sector officials): one app_settings list decides who
+// they are, and they see the school-wise analytics page and nothing else.
+const { makeRequireAnalyticsViewer } = require('../lib/analytics-viewer');
+const SchoolsAnalytics = require('../services/schools-analytics.service');
 const { resolveUserSchoolName } = require('../lib/user-school-name');
 // A coach's observation of her is the teacher's to see only once it is SENT to her.
 const TeacherObservation = require('../lib/teacher-observation');
@@ -309,6 +316,12 @@ async function getUserById(userId) {
 // bd-2434 — server-side gate for the leader-only endpoints below. Client-side
 // nav gating is UX; this is the real access control.
 const requireLeaderRole = makeRequireLeaderRole({ getUser: getUserById });
+
+// Server-side gate for the analytics-only page: the session user must be on the
+// portal_analytics_only list. Not on it is 403; a failed read of the list is 500.
+const requireAnalyticsViewer = makeRequireAnalyticsViewer({
+  getViewerIds: () => readUserListFlag(supabase, PORTAL_ANALYTICS_ONLY_KEY),
+});
 
 // ============================================================================
 // AUTHENTICATION ENDPOINTS
@@ -588,6 +601,10 @@ router.post('/login', publicAuthLimiter, async (req, res) => {
       })
       .eq('id', user.id);
 
+    // Analytics-only accounts land on the schools analytics page; the client routes by
+    // this, so it rides on the login answer. Fail-closed: an unreadable list is false.
+    const analyticsOnly = await isAnalyticsOnlyUser(supabase, user.id);
+
     // SECURITY: Regenerate session ID (prevent session fixation)
     req.session.regenerate((err) => {
       if (err) {
@@ -607,7 +624,7 @@ router.post('/login', publicAuthLimiter, async (req, res) => {
         success: true,
         message: 'Login successful',
         // bd-2434: includes `role` so the frontend can gate the leader nav / My Patch.
-        user: publicUserPayload(user)
+        user: publicUserPayload(user, { analyticsOnly })
       });
     });
   } catch (error) {
@@ -828,6 +845,9 @@ router.post('/reset-password', async (req, res) => {
     // after checking the WhatsApp code. We already proved who this is — the
     // old behaviour just threw that proof away.
     //
+    // Same routing hint as /login: an analytics-only account goes to its one page.
+    const analyticsOnly = await isAnalyticsOnlyUser(supabase, user.id);
+
     // SECURITY: Regenerate session ID (prevent session fixation) — same
     // pattern as the /login handler above.
     req.session.regenerate((regenErr) => {
@@ -849,7 +869,7 @@ router.post('/reset-password', async (req, res) => {
         success: true,
         message: 'Password reset successful.',
         // bd-2434: carries `role` so the client can route a leader to My Patch.
-        user: publicUserPayload(user)
+        user: publicUserPayload(user, { analyticsOnly })
       });
     });
   } catch (error) {
@@ -869,9 +889,9 @@ router.post('/reset-password', async (req, res) => {
  * The signed-in user as the app holds her: /dashboard and /me answer exactly this.
  * bd-2434: includes `role` (+ contact fields) via the shared shaper.
  */
-function sessionUserPayload(req, user, schoolName) {
+function sessionUserPayload(req, user, schoolName, analyticsOnly = false) {
   return {
-    ...publicUserPayload(user, { includeContact: true }),
+    ...publicUserPayload(user, { includeContact: true, analyticsOnly }),
     schoolName,
   };
 }
@@ -886,7 +906,13 @@ function sessionUserPayload(req, user, schoolName) {
 router.get('/me', requirePortalAuth, async (req, res) => {
   try {
     const user = await getUserById(req.session.portalUserId);
-    res.json({ success: true, user: sessionUserPayload(req, user, await resolveUserSchoolName(supabase, user)) });
+    // Two independent single-row reads, side by side. Neither rejects: an unknown school
+    // is null, an unreadable analytics list is false.
+    const [schoolName, analyticsOnly] = await Promise.all([
+      resolveUserSchoolName(supabase, user),
+      isAnalyticsOnlyUser(supabase, user.id),
+    ]);
+    res.json({ success: true, user: sessionUserPayload(req, user, schoolName, analyticsOnly) });
   } catch (error) {
     console.error('portal/me error:', error);
     res.status(500).json({ success: false, error: 'Failed to load your account' });
@@ -910,6 +936,8 @@ router.get('/dashboard', requirePortalAuth, async (req, res) => {
     // Her own school, for the My account page. Started now so it runs alongside
     // the counts below; it never rejects (null when unknown or unreadable).
     const schoolNamePromise = resolveUserSchoolName(supabase, user);
+    // Same answer /me gives, so the two payloads never disagree. Never rejects.
+    const analyticsOnlyPromise = isAnalyticsOnlyUser(supabase, user.id);
 
     // Counts, gathered with allSettled so one dead table cannot blank the page.
     //
@@ -1013,7 +1041,7 @@ router.get('/dashboard', requirePortalAuth, async (req, res) => {
     // Return partial data even if some queries failed
     res.json({
       success: true,
-      user: sessionUserPayload(req, user, await schoolNamePromise),
+      user: sessionUserPayload(req, user, await schoolNamePromise, await analyticsOnlyPromise),
       stats: {
         totalCoachingSessions: coachingSessionsResult.status === 'fulfilled' ? (coachingSessionsResult.value.count || 0) : 0,
         totalAssessments: assessmentsResult.status === 'fulfilled' ? (assessmentsResult.value.count || 0) : 0,
@@ -1498,6 +1526,45 @@ function countOutputs(userIds, [from, to]) {
     [userIds, from, to]
   );
 }
+
+// Whole answers for ten minutes, keyed from|to|region. The expensive part (each session's
+// score) is also memoised per session inside the service, so a new window or region only
+// reads the scores it has not seen.
+const schoolsAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 * 60 * 1000 });
+
+/**
+ * GET /api/portal/analytics/schools?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|unassigned|all>
+ *
+ * School-wise analytics for the analytics-only accounts: per school, LP and Digital Coach
+ * engagement, observations (Digital Coach / human), Avg FICO and Avg HITL; the same rolled
+ * up per region (all seven buckets, whatever the filter) and overall. School-level only —
+ * no teacher appears in the answer. Definitions: services/schools-analytics.service.js.
+ *
+ * Guarded by the portal_analytics_only list, checked on EVERY request (the cache sits
+ * behind the gate). The window is analyticsRange's: blank is all time, junk is dropped.
+ */
+router.get('/analytics/schools', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
+  try {
+    const region = SchoolsAnalytics.parseRegionFilter(req.query.region);
+    if (!region.ok) {
+      return res.status(400).json({ success: false, error: 'Unknown region.' });
+    }
+    const range = analyticsRange(req.query);
+    const key = `${range.from || ''}|${range.to || ''}|${region.key}`;
+    const body = await schoolsAnalyticsCache.getOrLoad(key, async () => {
+      const rows = await SchoolsAnalytics.loadSchoolsAnalyticsRows(dbQuery, range);
+      return {
+        success: true,
+        range,
+        ...SchoolsAnalytics.summarizeSchoolsAnalytics(rows, { region: region.region }),
+      };
+    });
+    res.json(body);
+  } catch (error) {
+    console.error('analytics/schools error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load school analytics.' });
+  }
+});
 
 /**
  * GET /api/portal/my-analytics
