@@ -714,7 +714,7 @@ export interface SchoolsAnalyticsOverview extends SchoolsAnalyticsCounts {
   schools: number;
 }
 
-/** One of the seven region buckets (six sectors + "Unassigned"); all seven are listed whatever the filter. */
+/** One of the six ICT regions; all six are listed whatever the filter. Schools outside them are not counted anywhere. */
 export interface SchoolsAnalyticsRegion extends SchoolsAnalyticsCounts {
   region: string;
   schools: number;

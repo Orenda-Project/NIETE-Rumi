@@ -90,18 +90,25 @@ function poolRows(sql, params) {
     return [
       { id: 's1', name: 'IMSG B.K 1', emis: '101', region: 'B.K', is_active: true, is_probable_test: false, coach_visits: 3 },
       { id: 's2', name: 'IMCG Sihala', emis: '202', region: 'Sihala', is_active: true, is_probable_test: false, coach_visits: 1 },
+      // Outside the six regions: left out of every number (bd-s6qbts.4).
+      { id: 's3', name: 'No Region School', emis: '303', region: null, is_active: true, is_probable_test: false, coach_visits: 7 },
+      { id: 's4', name: 'Durbeen', emis: null, region: 'Durbeen', is_active: true, is_probable_test: false, coach_visits: 5 },
     ];
   }
   if (/lesson_plans/i.test(sql)) {
     return [
       { school_id: 's1', is_test: false, teachers: 8, lps_generated: 12, lps_opened: 5, teachers_opened_lp: 3 },
       { school_id: 's2', is_test: false, teachers: 2, lps_generated: 1, lps_opened: 1, teachers_opened_lp: 1 },
+      { school_id: 's3', is_test: false, teachers: 31, lps_generated: 40, lps_opened: 20, teachers_opened_lp: 9 },
+      { school_id: 's4', is_test: false, teachers: 11, lps_generated: 7, lps_opened: 6, teachers_opened_lp: 2 },
     ];
   }
   if (/FROM coaching_sessions/i.test(sql)) {
     return [
       { id: 'c1', updated_at: '2026-10-02T00:00:00Z', user_id: 't1', school_id: 's1', is_test: false, observation_type: null },
       { id: 'c2', updated_at: '2026-10-02T00:00:00Z', user_id: 't2', school_id: 's2', is_test: false, observation_type: 'leader_observation' },
+      { id: 'c3', updated_at: '2026-10-02T00:00:00Z', user_id: 't3', school_id: 's3', is_test: false, observation_type: null },
+      { id: 'c4', updated_at: '2026-10-02T00:00:00Z', user_id: 't4', school_id: 's4', is_test: false, observation_type: 'leader_observation' },
     ];
   }
   return [];
@@ -249,7 +256,7 @@ describe('GET /analytics/schools', () => {
     expect(payload.success).toBe(true);
     expect(payload.range).toEqual({ from: '2026-10-01', to: '2026-10-13' });
     expect(payload.lpOpensLoggedSince).toBe('2026-10-04');
-    expect(payload.regions).toHaveLength(7);
+    expect(payload.regions.map((r) => r.region)).toEqual(['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol']);
     expect(payload.overview).toEqual({
       schools: 2, teachers: 10, lpsOpened: 6, teachersOpenedLp: 4, lpsGenerated: 13,
       dcObservations: 1, teachersWithDc: 1, humanObservations: 1, coachVisits: 4,
@@ -257,6 +264,13 @@ describe('GET /analytics/schools', () => {
     });
     expect(JSON.stringify(payload)).not.toMatch(/Pct|percent|band|threshold/i);
     expect(JSON.stringify(payload)).not.toMatch(/"t1"|"t2"|user_id|userId|teacherName|phone/);
+    // A school with no region and one outside the six (Durbeen) are in no row, no card, no total.
+    expect(payload.schools.map((x) => x.name)).toEqual(['IMSG B.K 1', 'IMCG Sihala']);
+    expect(JSON.stringify(payload)).not.toMatch(/unassigned|Durbeen|No Region School/i);
+    for (const k of Object.keys(payload.overview)) {
+      if (k.startsWith('avg')) continue;
+      expect(payload.regions.reduce((n, r) => n + r[k], 0)).toBe(payload.overview[k]);
+    }
     expect(queries.length).toBeLessThanOrEqual(4);
   });
 
@@ -273,6 +287,17 @@ describe('GET /analytics/schools', () => {
     const { statusCode, payload } = await call('get', '/analytics/schools', { userId: VIEWER, query: { region: 'Lahore' } });
     expect(statusCode).toBe(400);
     expect(payload.success).toBe(false);
+    expect(queries).toHaveLength(0);
+  });
+
+  it('region=unassigned is refused like any unknown region: 400, and no database read', async () => {
+    tableStates.app_settings = flag([VIEWER]);
+    for (const region of ['unassigned', 'Unassigned']) {
+      // eslint-disable-next-line no-await-in-loop
+      const { statusCode, payload } = await call('get', '/analytics/schools', { userId: VIEWER, query: { region } });
+      expect(statusCode).toBe(400);
+      expect(payload).toEqual({ success: false, error: 'Unknown region.' });
+    }
     expect(queries).toHaveLength(0);
   });
 

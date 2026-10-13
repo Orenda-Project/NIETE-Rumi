@@ -44,10 +44,9 @@ export function presetOf(from: string | null, to: string | null, today: string):
   }) ?? null;
 }
 
-/** The region as the API takes it: null → 'all', "Unassigned" → 'unassigned', a sector as written. */
+/** The region as the API takes it: null → 'all', a sector as written (the server refuses any other name). */
 export function regionParam(region: string | null): string {
-  if (!region) return 'all';
-  return region.toLowerCase() === 'unassigned' ? 'unassigned' : region;
+  return region || 'all';
 }
 
 export function useSchoolsView() {

@@ -21,8 +21,10 @@
  * only reads the score of a session it has not seen in that state.
  *
  * Definitions (window = Pakistan days, both ends inclusive, either end open):
- *   school            schools.is_active and not is_probable_test. A region that is not one
- *                     of the six sectors (NULL, blank, anything else) is "Unassigned".
+ *   school            schools.is_active and not is_probable_test, and schools.region one of
+ *                     the six sectors. A school with no region (NULL, blank) or any other
+ *                     region is left out of EVERYTHING — no row, no card, no total — and so
+ *                     are its teachers and their activity (operator, 2026-10-13, bd-s6qbts.4).
  *   teachers (N)      today's roster: users.role = 'teacher' with that school_id, not
  *                     is_test_user. Activity follows the teacher's CURRENT school.
  *   lpsOpened         distinct (user, plan_kind, plan_ref) in niete_lp_opens by opened_at —
@@ -53,25 +55,24 @@ const { HUMAN_OBSERVATION } = require('./steps-grid.service');
 // Imported, never respelled: two spellings of "finished" is how observations went missing once.
 const { TERMINAL } = require('./leader-patch.service');
 
-/** The six ICT sectors as schools.region stores them, then everything else. */
+/** The six ICT sectors as schools.region stores them — the only regions counted. */
 const SECTORS = Object.freeze(['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol']);
-const UNASSIGNED = 'Unassigned';
-const REGION_BUCKETS = Object.freeze([...SECTORS, UNASSIGNED]);
+const REGION_BUCKETS = SECTORS;
 
 const SECTOR_BY_LOWER = new Map(SECTORS.map((s) => [s.toLowerCase(), s]));
 
 /** niete_lp_opens has rows from this Pakistan day on; earlier windows undercount opens. */
 const LP_OPENS_LOGGED_SINCE = '2026-10-04';
 
-/** schools.region → its bucket. */
+/** schools.region → its sector, or null for a school outside the six (it is not counted). */
 function bucketOf(region) {
-  if (typeof region !== 'string') return UNASSIGNED;
-  return SECTOR_BY_LOWER.get(region.trim().toLowerCase()) || UNASSIGNED;
+  if (typeof region !== 'string') return null;
+  return SECTOR_BY_LOWER.get(region.trim().toLowerCase()) || null;
 }
 
 /**
- * The ?region= filter. Blank or "all" is every region; a sector or "unassigned" in any
- * case is that bucket; anything else is refused rather than guessed at.
+ * The ?region= filter. Blank or "all" is every region; a sector in any case is that
+ * sector; anything else ("unassigned" included) is refused rather than guessed at.
  * @returns {{ok: true, region: string|null, key: string} | {ok: false}}
  */
 function parseRegionFilter(raw) {
@@ -79,7 +80,6 @@ function parseRegionFilter(raw) {
   if (typeof raw !== 'string') return { ok: false };
   const v = raw.trim().toLowerCase();
   if (v === '' || v === 'all') return { ok: true, region: null, key: 'all' };
-  if (v === UNASSIGNED.toLowerCase()) return { ok: true, region: UNASSIGNED, key: UNASSIGNED };
   const sector = SECTOR_BY_LOWER.get(v);
   return sector ? { ok: true, region: sector, key: sector } : { ok: false };
 }
@@ -176,21 +176,24 @@ const rollup = (acc) => ({ schools: acc.schools, ...metrics(acc) });
 function summarizeSchoolsAnalytics(rows = {}, opts = {}) {
   const filter = opts.region || null;
 
-  // Included schools only: active and not a probable test school. Visits belong to the
-  // school itself, so they arrive on the school row.
+  // Included schools only: active, not a probable test school, and in one of the six
+  // sectors. Visits belong to the school itself, so they arrive on the school row; an
+  // excluded school is never in bySchool, so its roster and sessions fall out below.
   const bySchool = new Map();
   for (const s of rows.schools || []) {
     if (!s || s.is_active !== true || s.is_probable_test === true) continue;
+    const bucket = bucketOf(s.region);
+    if (!bucket) continue;
     const acc = emptyAcc();
     acc.coachVisits = count(s.coach_visits);
-    bySchool.set(s.id, { school: s, bucket: bucketOf(s.region), acc, dcTeacherIds: new Set() });
+    bySchool.set(s.id, { school: s, bucket, acc, dcTeacherIds: new Set() });
   }
 
   // The roster, one row per (school, test flag): test teachers and their activity are out.
   for (const t of rows.teachers || []) {
     if (!t || t.is_test === true) continue;
     const entry = bySchool.get(t.school_id);
-    if (!entry) continue; // a test/inactive school, or a school_id that names no school
+    if (!entry) continue; // a test/inactive/out-of-sector school, or a school_id that names no school
     entry.acc.teachers += count(t.teachers);
     entry.acc.lpsGenerated += count(t.lps_generated);
     entry.acc.lpsOpened += count(t.lps_opened);
