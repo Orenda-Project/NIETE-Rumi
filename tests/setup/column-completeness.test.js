@@ -122,6 +122,11 @@ const ALLOWLIST = {
   // one row literal plus `{ onConflict: 'attempt_id,question_index' }`; `data`
   // is a destructured result var from the neighbouring select, not a column.
   training_assessment_attempts: ['onconflict', 'data'],
+  // Same options-object artifact: the lesson-plan lifecycle writer upserts a built `row` variable
+  // on the ask's id — `.upsert(row, { onConflict: 'id' })` in lesson-plan-queue.service.js
+  // recordOutcome — so the first object literal after `.upsert(` is the OPTIONS object. Every
+  // column the row carries is declared in the reference schema (migration V1.6.4).
+  lesson_plan_requests: ['onconflict'],
   // ── hcp.routes.js parser artifacts ────────────────────────────────────────
   // The 6-box feedback + schedule endpoints follow the pattern:
   //   .from('hcp_visit_schedules').insert(insertRow).select('...').single()
