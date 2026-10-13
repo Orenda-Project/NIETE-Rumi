@@ -6833,7 +6833,10 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
     // exact failure this change removes.
     const breakdown = await CoachingBreakdown.breakdown(
       session.analysis_data,
-      session.voice_debrief_language || session.transcript_language || 'en',
+      // bd-inzpzl — the language her report was WRITTEN in (the narrative follows her preference), so the
+      // breakdown matches the rest of the page; transcript_language is an ASR label ('hindi') and only a last resort.
+      (session.analysis_data && session.analysis_data.report_narrative && session.analysis_data.report_narrative._language)
+        || session.voice_debrief_language || session.transcript_language || 'en',
     );
 
     // Extract narrative arrays from analysis_data
