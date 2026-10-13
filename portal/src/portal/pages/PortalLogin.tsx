@@ -4,7 +4,7 @@ import { Lock, Smartphone, KeyRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../hooks/useAuth';
 import { homeFor } from '../lib/homeRoute';
-import { isValidPkMobile } from '../lib/phone';
+import { isAccountName, isValidPkMobile } from '../lib/phone';
 import { BottomButton } from '../newui';
 import { FOCUS } from '../newui/styles';
 import { FrameSkeleton, LoginSkeleton } from '../components/Skeleton';
@@ -58,6 +58,8 @@ const PortalLogin = () => {
   );
 
   const typePhone = (v: string) => { setPhoneNumber(v); if (error && error.field !== 'password') setError(null); };
+  // bd-s6qbts.5 — an analytics-only account's NAME in place of a phone (lib/phone).
+  const byName = isAccountName(phoneNumber);
   const typePassword = (v: string) => { setPassword(v); if (error && error.field !== 'phone') setError(null); };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,7 +69,9 @@ const PortalLogin = () => {
     // bd-2511: a wrong-length number otherwise reaches the server, misses the
     // lookup, and comes back as "No portal account found" — which reads as
     // "you have no account" when the teacher just dropped a digit.
-    if (!phoneNumber || !isValidPkMobile(phoneNumber)) {
+    // bd-s6qbts.5: an account name (it holds a letter) is not a phone, so it is
+    // not held to a phone's length; it goes as typed and the server decides.
+    if (!phoneNumber || (!byName && !isValidPkMobile(phoneNumber))) {
       setError({ field: 'phone', key: 'checkNum' });
       return;
     }
@@ -87,7 +91,7 @@ const PortalLogin = () => {
         navigate(homeFor(result.user));
         return;
       }
-      setError(loginFailure(result.status));
+      setError(loginFailure(result.status, byName));
     } catch {
       setError(loginFailure(0));
     }
@@ -140,21 +144,24 @@ const PortalLogin = () => {
 
         <BottomButton type="submit" busy={loading}>{loading ? c.loggingIn : c.login}</BottomButton>
 
-        <button
-          type="button"
-          data-emphasis={noPassword ? 'true' : undefined}
-          className={cn(
-            'mt-1.5 flex min-h-[56px] w-full items-center justify-center gap-2 text-[17px] font-bold text-nu-button',
-            noPassword && 'mt-3.5 rounded-full border-2 border-nu-button',
-            FOCUS,
-          )}
-          // bd-2512: carry whatever they already typed, so the reset
-          // screen does not ask for the same number a second time.
-          onClick={() => navigate('/portal/reset-password', { state: { phoneNumber } })}
-        >
-          <KeyRound className="h-[22px] w-[22px]" aria-hidden="true" />
-          <span>{c.forgot}</span>
-        </button>
+        {/* bd-s6qbts.5: an account name has no WhatsApp to send a code to, so it is not offered Forgot password. */}
+        {byName ? null : (
+          <button
+            type="button"
+            data-emphasis={noPassword ? 'true' : undefined}
+            className={cn(
+              'mt-1.5 flex min-h-[56px] w-full items-center justify-center gap-2 text-[17px] font-bold text-nu-button',
+              noPassword && 'mt-3.5 rounded-full border-2 border-nu-button',
+              FOCUS,
+            )}
+            // bd-2512: carry whatever they already typed, so the reset
+            // screen does not ask for the same number a second time.
+            onClick={() => navigate('/portal/reset-password', { state: { phoneNumber } })}
+          >
+            <KeyRound className="h-[22px] w-[22px]" aria-hidden="true" />
+            <span>{c.forgot}</span>
+          </button>
+        )}
       </form>
     </AuthFrame>
   );
