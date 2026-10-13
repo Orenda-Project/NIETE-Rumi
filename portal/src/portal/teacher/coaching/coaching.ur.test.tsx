@@ -265,7 +265,7 @@ describe("Digital Coaching in Urdu — the lesson's report page", () => {
     expect(screen.getByRole("group", { name: new RegExp(U.title) })).toBeTruthy();
     expect(screen.getByRole("heading", { name: U.fullReport })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: U.yourRecording })).toBeNull();
-    expect(screen.getByRole("link", { name: U.download })).toBeTruthy();
+    expect(screen.getByRole("button", { name: U.download })).toBeTruthy();
     expect(screen.queryByRole("button", { name: new RegExp(U.yourAnswer) })).toBeNull();
     expect(screen.getByText(/Lesson Plan Fidelity/)).toBeTruthy();
     expect(englishLeft(["Voice note", "Your lesson", "Your answer", "Download"])).toEqual([]);

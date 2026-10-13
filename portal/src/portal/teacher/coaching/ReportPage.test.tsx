@@ -24,8 +24,11 @@ const portal = vi.hoisted(() => ({
   presignCoachingUpload: vi.fn(),
   uploadToR2: vi.fn(),
   submitCoachingVoiceReflection: vi.fn(),
+  getCoachingReportFile: vi.fn(),
 }));
 vi.mock("../../services/api", () => ({ default: { get: vi.fn(), post: vi.fn() }, portal }));
+const nav = vi.hoisted(() => ({ goTo: vi.fn() }));
+vi.mock("./navigate", () => nav);
 
 import "../routes";
 import api from "../../services/api";
@@ -145,7 +148,7 @@ describe("the report page — a Digital Coach lesson", () => {
     expect(within(steps).getByText(C.yourTurn)).toBeTruthy();
     expect(screen.getByText("Which children answered?")).toBeTruthy();
     expect(screen.queryByRole("region", { name: /scores/i })).toBeNull();
-    expect(screen.queryByRole("link", { name: C.download })).toBeNull();
+    expect(screen.queryByRole("button", { name: C.download })).toBeNull();
 
     fireEvent.change(screen.getByRole("textbox", { name: C.yourAnswer }), { target: { value: "Only the front rows." } });
     fireEvent.click(screen.getByRole("button", { name: C.send }));
@@ -164,7 +167,9 @@ describe("the report page — a Digital Coach lesson", () => {
     expect(screen.getByText("Lesson Plan Fidelity")).toBeTruthy();
     expect(screen.getByRole("button", { name: new RegExp(C.done) })).toBeTruthy();
     expect(screen.getByRole("group", { name: /Digital Coach/ })).toBeTruthy();
-    expect(screen.getByRole("link", { name: C.download }).getAttribute("href")).toBe("https://r2/report.png");
+    // bd-oawrlt — Download is a button that asks for a fresh link when she taps, never a link signed at load.
+    expect(screen.getByRole("button", { name: C.download })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: C.download })).toBeNull();
     expect(screen.queryByText(/transcript/i)).toBeNull();
     expect(screen.queryByText(/rubric/i)).toBeNull();
 
@@ -455,5 +460,36 @@ describe("the report's sections (bd-wxtin8)", () => {
     expect(text.indexOf("Lesson Plan Fidelity")).toBeLessThan(text.indexOf("High-Leverage Practices"));
     expect(text.indexOf("High-Leverage Practices")).toBeLessThan(text.indexOf("Student Engagement"));
     expect(text.indexOf("Student Engagement")).toBeLessThan(text.indexOf("Teacher Subject Knowledge"));
+  });
+});
+
+/**
+ * bd-oawrlt — ICT feedback (IAB Experience View, row 14): Download opened R2's XML "ExpiredRequest". The link was
+ * signed for an hour when the page loaded; she tapped later. Download and Open now ask for a fresh link at tap time.
+ */
+describe("Download and Open get a fresh link when she taps (bd-oawrlt)", () => {
+  const ready = () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "completed", stage: "done", reflection: null, reportReady: true });
+    portal.getCoachingSession.mockResolvedValue({ session: DETAIL });
+  };
+
+  it("Download asks for an attachment link at tap time, then goes to it", async () => {
+    ready();
+    portal.getCoachingReportFile.mockResolvedValue("https://signed.example/report.png?fresh=1");
+    open();
+    expect(portal.getCoachingReportFile).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole("button", { name: C.download }));
+    await waitFor(() => expect(portal.getCoachingReportFile).toHaveBeenCalledWith(ID, "attachment"));
+    await waitFor(() => expect(nav.goTo).toHaveBeenCalledWith("https://signed.example/report.png?fresh=1"));
+  });
+
+  it("Open asks for an inline link at tap time", async () => {
+    ready();
+    portal.getCoachingReportFile.mockResolvedValue("https://signed.example/report.png");
+    const win = vi.spyOn(window, "open").mockImplementation(() => null);
+    open();
+    fireEvent.click(await screen.findByTestId("share-open"));
+    await waitFor(() => expect(portal.getCoachingReportFile).toHaveBeenCalledWith(ID, "inline"));
+    win.mockRestore();
   });
 });

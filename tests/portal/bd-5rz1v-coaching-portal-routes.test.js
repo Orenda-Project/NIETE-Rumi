@@ -287,3 +287,40 @@ describe('GET /coaching-sessions/active', () => {
     expect(statusCode).toBe(401);
   });
 });
+
+/**
+ * bd-oawrlt — ICT feedback (IAB Experience View, row 14): Download on the report opened R2's XML
+ * "ExpiredRequest — Request has expired". The page embeds a link signed for one hour when it loads, and
+ * stops polling once the report is ready, so a click an hour later — easy inside WhatsApp's browser, which
+ * keeps the page alive — hits a dead link. The page now asks for a FRESH link at the moment she taps.
+ */
+describe('GET /coaching-session/:id/report-file — a fresh link at tap time (bd-oawrlt)', () => {
+  const REPORT = 'https://r2.example/digital-coach-audio/reports/teacher-1/cs-1_report.png';
+  const r2 = () => require('../../dashboard/services/r2.service');
+
+  it('signs her DC report image NOW, as an attachment for Download', async () => {
+    r2().generatePresignedUrl.mockResolvedValue('https://signed.example/report.png?X-Amz-Date=now');
+    tableRows.coaching_sessions = [{ id: 'cs-1', user_id: 'teacher-1', status: 'completed', created_at: hoursAgo(3),
+      audio_url: PORTAL('a'), report_pdf_url: REPORT }];
+    const { statusCode, payload } = await invoke('get', '/coaching-session/:id/report-file',
+      { params: { id: 'cs-1' }, query: { disposition: 'attachment' } });
+    expect(statusCode).toBe(200);
+    expect(payload).toMatchObject({ success: true, url: 'https://signed.example/report.png?X-Amz-Date=now' });
+    expect(r2().generatePresignedUrl).toHaveBeenCalledWith(REPORT, expect.any(Number), expect.objectContaining({ disposition: 'attachment' }));
+  });
+
+  it('inline for Open', async () => {
+    r2().generatePresignedUrl.mockResolvedValue('https://signed.example/report.png');
+    tableRows.coaching_sessions = [{ id: 'cs-1', user_id: 'teacher-1', status: 'completed', created_at: hoursAgo(3),
+      audio_url: PORTAL('a'), report_pdf_url: REPORT }];
+    await invoke('get', '/coaching-session/:id/report-file', { params: { id: 'cs-1' }, query: { disposition: 'inline' } });
+    expect(r2().generatePresignedUrl).toHaveBeenCalledWith(REPORT, expect.any(Number), expect.objectContaining({ disposition: 'inline' }));
+  });
+
+  it('another teacher\'s session, or one with no report yet, is not found', async () => {
+    tableRows.coaching_sessions = [{ id: 'cs-1', user_id: 'someone-else', status: 'completed', created_at: hoursAgo(3), report_pdf_url: REPORT }];
+    expect((await invoke('get', '/coaching-session/:id/report-file', { params: { id: 'cs-1' } })).statusCode).toBe(404);
+    tableRows.coaching_sessions = [{ id: 'cs-1', user_id: 'teacher-1', status: 'analyzing', created_at: hoursAgo(1), audio_url: PORTAL('a'), report_pdf_url: null }];
+    expect((await invoke('get', '/coaching-session/:id/report-file', { params: { id: 'cs-1' } })).statusCode).toBe(404);
+  });
+});
