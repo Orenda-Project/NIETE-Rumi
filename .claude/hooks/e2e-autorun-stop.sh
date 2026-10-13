@@ -337,6 +337,12 @@ chrome-devtools-mcp@latest\`), say a restart is needed, and re-run after it.
 Name the one that failed, plainly, and clear the marker. A skipped run reported
 honestly is fine; reported as a pass it is not.
 EOF
+elif [ -z "$MOCK_BLOCK" ] && [ -n "$WEB_BLOCK" ]; then
+  read -r -d '' CHROME_PRE <<EOF
+The web lane needs no WhatsApp number and no keys file: the local stack (dev-portal.sh,
+DATA=demo) and headless Chromium, installed on first use. If it cannot start, say which
+step failed (the e2e-web.sh exit code names it), plainly, and clear the marker.
+EOF
 else
   read -r -d '' CHROME_PRE <<EOF
 The mock lane needs no browser and no WhatsApp number: keys/niete-local.env and

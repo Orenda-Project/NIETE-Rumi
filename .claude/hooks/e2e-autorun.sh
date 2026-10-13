@@ -291,7 +291,13 @@ WEB_BLOCK=""
 if [ "$TRIGGER" = "commit" ] && [ -n "$COMMIT_SHA" ] && type e2e_web_block >/dev/null 2>&1; then
   WEB_BLOCK=$(e2e_web_block "$COMMIT_SHA" "$WEB_FEATS" "$MOCK_BLOCK")
 fi
-if [ "$TRIGGER" = "commit" ] && [ -n "$MOCK_BLOCK" ] && [ -z "$CMDS" ]; then
+if [ "$TRIGGER" = "commit" ] && [ -z "$MOCK_BLOCK" ] && [ -z "$CMDS" ] && [ -n "$WEB_BLOCK" ]; then
+  # A portal-only commit: there is no /niete-e2e part and nothing deployed to wait for (bd-hnhlgn.6).
+  read -r -d '' WHICH_BUILD <<EOF
+Every feature this commit touched is on the web lane, which starts the portal from
+this checkout — it tests the commit itself. There is no WhatsApp Web run for it.
+EOF
+elif [ "$TRIGGER" = "commit" ] && [ -n "$MOCK_BLOCK" ] && [ -z "$CMDS" ]; then
   read -r -d '' WHICH_BUILD <<EOF
 Every feature this commit touched runs on the mock lane, so there is no
 WhatsApp Web run for this commit; /niete-e2e tests it after the develop deploy.
@@ -367,7 +373,13 @@ fi
 # WhatsApp Web preconditions belong to the chrome lane only; an all-mock order says what the
 # mock lane needs instead (a demo run sent the agent hunting for a browser it did not need).
 CHROME_PRE=""
-if [ -n "$CMDS" ]; then
+if [ -z "$CMDS" ] && [ -z "$MOCK_BLOCK" ] && [ -n "$WEB_BLOCK" ]; then
+  read -r -d '' CHROME_PRE <<EOF
+The web lane needs no WhatsApp number and no keys file: the local stack (dev-portal.sh,
+DATA=demo) and headless Chromium, installed on first use. If it cannot start, say which
+step failed (the e2e-web.sh exit code names it), plainly, and clear the marker.
+EOF
+elif [ -n "$CMDS" ]; then
   read -r -d '' CHROME_PRE <<EOF
 
 Preconditions for the WhatsApp Web lane — check, do not skip:

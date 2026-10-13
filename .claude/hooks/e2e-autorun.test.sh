@@ -1240,9 +1240,12 @@ say  "portal-only commit arms a marker"           "$(marker_exists)"      yes
 say  "…marker carries web_features"               "$(jq -r '(.web_features // []) | join(",")' "$PENDING" 2>/dev/null)" "portal-login"
 has  "…the order names the web lane"              "$OUT" "WEB LANE"        yes
 has  "…and the command for this commit"           "$OUT" "commit-e2e.sh $(git rev-parse HEAD)" yes
+has  "…without the stale-build warning (it tests the commit itself)" "$OUT" "CANNOT TEST WHAT YOU JUST COMMITTED" no
+has  "…nor the mock-lane keys preamble"           "$OUT" "keys/niete-local.env" no
 SOUT=$(stop_hook)
 has  "Stop holds the turn for a web-only marker"  "$SOUT" '"block"'        yes
 has  "…with the web lane in its order"            "$SOUT" "WEB LANE"       yes
+has  "…and no mock-lane keys preamble"           "$SOUT" "keys/niete-local.env" no
 cleanup
 OUT=$(arm "$G $C -m 'menu + portal'" "bot/shared/services/menu.service.js
 portal/src/portal/auth/errors.ts")
