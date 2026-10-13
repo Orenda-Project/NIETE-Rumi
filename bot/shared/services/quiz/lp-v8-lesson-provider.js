@@ -11,7 +11,9 @@
  * door it came through except by `meta.source` ('list' | 'flow').
  *
  * WHAT IS LISTED — a lesson is offered only if a quiz can really be made from it:
- *   - the teacher's own `niete_lp_downloads` with status 'sent', last 30 days;
+ *   - a lesson the teacher TOOK in the last 30 days: her `niete_lp_downloads` with status 'sent'
+ *     (WhatsApp), and a K-5 plan she read in the teacher app (lp-app-opens.store — the same
+ *     reader, version rule and switch the 15:00 offer uses; its row ref is the open's id);
  *   - whose asset is a LESSON (an answer key is never a quiz source);
  *   - not an assessment day (`_seg995`, D9);
  *   - whose EXACT served version (lesson_id, version_stamp, content_hash) has a
@@ -23,8 +25,8 @@
  * level (on production the source table does not exist until V1.5.2).
  *
  * Load (Class R): one indexed read of the teacher's downloads
- * (idx_lp_downloads_user_time), then three IN reads over at most 200 ids, on a
- * command a teacher sends by hand.
+ * (idx_lp_downloads_user_time) and one of her app opens (idx_lp_opens_user_recent), each capped
+ * at 200, then a few IN reads over at most 200 ids, on a command a teacher sends by hand.
  */
 
 const supabase = require('../../config/supabase');
@@ -51,6 +53,7 @@ function offer() {
 }
 
 const SourceStore = require('./lp-asset-source.store');
+const AppOpens = require('./lp-app-opens.store');
 
 const { versionKey } = SourceStore;
 
@@ -119,6 +122,19 @@ async function coveredLessonIds(teacherId, sinceIso) {
   return out;
 }
 
+/**
+ * Her app-read lessons as download-shaped rows. A read that fails costs only these rows — the
+ * WhatsApp lessons are still listed — and is said at error level.
+ */
+async function appOpened(teacherId, from) {
+  try {
+    return await AppOpens.viewerOpensForTeacher(teacherId, from, MAX_DOWNLOADS);
+  } catch (err) {
+    logToFile('❌ quiz menu: app-read lesson plans could not be listed — WhatsApp ones only', { userId: teacherId, error: err.message }, 'error');
+    return [];
+  }
+}
+
 /** A PKT school day as the instant /quiz sorts and prints it (noon PKT, as lessonSessionFor pins it). */
 function lessonDateIso(deliveredAt) {
   return `${offer().cohortRuleDate(deliveredAt)}T12:00:00+05:00`;
@@ -176,11 +192,12 @@ async function list(teacherId, { since = null, limit = 20 } = {}) {
   if (!teacherId) return [];
   const from = sinceIso(since);
   try {
-    const rows = mustRead('lp lesson provider: downloads', await supabase.from('niete_lp_downloads')
+    const delivered = mustRead('lp lesson provider: downloads', await supabase.from('niete_lp_downloads')
       .select(DOWNLOAD_SELECT)
       .eq('user_id', teacherId).eq('status', 'sent').gte('created_at', from)
       .order('created_at', { ascending: false })
       .limit(MAX_DOWNLOADS));
+    const rows = [...delivered, ...await appOpened(teacherId, from)];
     const ready = await makeable(rows);
     const covered = ready.length ? await coveredLessonIds(teacherId, from) : new Set();
     const items = ready.filter((r) => !covered.has(r.lesson_id)).map(toItem)
@@ -205,8 +222,8 @@ async function list(teacherId, { since = null, limit = 20 } = {}) {
 }
 
 /**
- * One of the teacher's lessons by its delivery id — only if a quiz can be made
- * from it. Owner-filtered in the query, never afterwards.
+ * One of the teacher's lessons by its delivery id, or by the id of a plan she read in the app —
+ * only if a quiz can be made from it. Owner-filtered in the query, never afterwards.
  * @returns {Promise<object|null>}
  */
 async function get(teacherId, lessonRef) {
@@ -216,8 +233,10 @@ async function get(teacherId, lessonRef) {
     .eq('id', lessonRef).eq('user_id', teacherId).eq('status', 'sent')
     .maybeSingle();
   if (error) throw new Error(`lp lesson provider: download read failed — ${error.message || error}`);
-  if (!data) return null;
-  const [ok] = await makeable([data]);
+  // Not a delivery: an app open of hers (the row ref a listed app-read lesson carries).
+  const row = data || await AppOpens.viewerOpenById(teacherId, lessonRef);
+  if (!row) return null;
+  const [ok] = await makeable([row]);
   return ok ? toItem(ok) : null;
 }
 

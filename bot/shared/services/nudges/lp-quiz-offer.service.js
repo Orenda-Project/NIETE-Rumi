@@ -293,7 +293,28 @@ async function downloadsFor(nudgeDate) {
     .gte('created_at', lower.toISOString())
     .lt('created_at', upper.toISOString()));
   const opened = await AppOpens.viewerOpensAsDownloads(lower.toISOString(), upper.toISOString());
-  return [...rows, ...opened].filter((r) => r.asset_id && cohortRuleDate(r.created_at) === nudgeDate);
+  const taken = [...rows, ...opened].filter((r) => r.asset_id && cohortRuleDate(r.created_at) === nudgeDate);
+  logEvent('lp_quiz_offer.cohort', { nudgeDate, ...surfaceMix(taken), switch: AppOpens.enabled() });
+  return taken;
+}
+
+/**
+ * Teachers by where the day's lessons came from: WhatsApp only, the app only, or both. For the
+ * production watcher (Axiom lp_quiz_offer.cohort) — the mix moved from WhatsApp to the app on
+ * 12 Oct 2026, and this is the line that shows it.
+ */
+function surfaceMix(rows) {
+  const byTeacher = new Map();
+  for (const r of rows) {
+    if (!r.user_id) continue;
+    if (!byTeacher.has(r.user_id)) byTeacher.set(r.user_id, new Set());
+    byTeacher.get(r.user_id).add(r.via === 'app' ? 'app' : 'wa');
+  }
+  const mix = { wa: 0, app: 0, both: 0, teachers: byTeacher.size };
+  for (const s of byTeacher.values()) {
+    if (s.size > 1) mix.both += 1; else if (s.has('app')) mix.app += 1; else mix.wa += 1;
+  }
+  return mix;
 }
 
 /** The asset ids that are a LESSON — an answer key is never a quiz source. */

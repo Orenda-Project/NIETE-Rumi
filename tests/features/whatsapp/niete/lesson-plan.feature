@@ -662,6 +662,18 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # that has a script and one that does not is still offered, for the lesson that has one.
 
   @e2e @quiz @wip @draft @config-gated @P2
+  Scenario: A teacher in the A/B trial's August group is quizzed on the August plan the app showed them
+    Given the lesson-plan A/B trial is on and my school is in the group that reads the August plans
+    And the NIETE bot chat is open on that teacher, who read a Grade 1-5 chapter 3-8 lesson in the teacher app today before 14:00 PKT
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the afternoon quiz offer names that lesson
+    And when I tap "Make the quiz" the quiz is written from the August version of the lesson, the one the app showed me
+    # lp-app-opens.store: the app's Open (lp-v8-browse lessonPdfUrl) serves group A the August asset
+    # (lp-ab-ch310); an open resolves to the newest August row that existed when it was opened. Out-of-scope
+    # chapters, group B and no group read the version current at the open, as before. The day's
+    # lp_quiz_offer.cohort event counts teachers by surface: wa, app, both.
+
+  @e2e @quiz @wip @draft @config-gated @P2
   Scenario: A teacher who planned lessons for two classes gets a list to pick from
     Given the NIETE bot chat is open on a teacher who took lesson plans for Grade 4 Maths and Grade 5 Urdu today
     When the send hour passes and the teacher-nudge sweep runs
