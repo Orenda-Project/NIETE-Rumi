@@ -79,3 +79,15 @@ Feature: Portal sign-in
     When she enters demo coach 03000000901 and the password Demo2026
     And she taps Log in
     Then she settles on /portal/coach
+
+  @PL11
+  Scenario: One-tap sign-in from WhatsApp: /menu sends a link that opens her teacher home, signed in
+    # The whole round trip on one local stack (bd-hnhlgn.7): the bot behind the mock WhatsApp (Graph API), the portal,
+    # one database. Link: bot/shared/services/app-redirect.service.js sendAppLink → <PORTAL_URL>/go/<token>;
+    # consumed by dashboard/routes/app-login.routes.js GET /go/:token (session, then 303 to her home).
+    Given "Open the NIETE app" from /menu is on for teachers (app_redirect_menu = "teachers")
+    And the teacher app v2 is on
+    When demo teacher 923000000911 sends /menu on the mock WhatsApp
+    Then the bot replies with a link to this run's portal at /go/<token>
+    When she opens that link in the browser
+    Then she settles on /portal/teacher, signed in, without typing a password

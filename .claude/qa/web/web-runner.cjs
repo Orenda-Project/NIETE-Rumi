@@ -2,11 +2,12 @@
 // web-runner — drive one web feature's scenarios in headless Chromium (bd-hnhlgn.5).
 // Started by scripts/qa/e2e-web.sh once the local stack is up; reads everything from the environment:
 //   WEB_FEATURE   feature module under .claude/qa/web/features/<name>.cjs
-//   WEB_BASE_URL  the run's portal, e.g. http://127.0.0.1:4103
+//   WEB_BASE_URL  the run's portal, e.g. http://localhost:4105
 //   WEB_EVIDENCE  directory for results.json + one PNG per failed scenario
 //   WEB_PSQL / WEB_PG_PORT / WEB_DB_NAME   this run's OWN local database, for scenario set-up (ctx.sql)
 //   WEB_ONLY      optional comma list of scenario ids
 //   WEB_HEADED=1 / WEB_SLOWMO=<ms>   watch it: a visible browser, every action slowed down
+//   WEB_MOCK_URL  this run's mock WhatsApp (Graph API stand-in): POST /inject, GET /outbox — WhatsApp → portal scenarios
 // Exit 0 when every scenario passed, 1 otherwise; results.json is written either way.
 'use strict';
 const fs = require('fs');
@@ -36,7 +37,8 @@ async function main() {
     execFileSync(env.WEB_PSQL || 'psql', ['-h', '127.0.0.1', '-p', env.WEB_PG_PORT, '-U', 'postgres',
       '-d', env.WEB_DB_NAME, '-v', 'ON_ERROR_STOP=1', '-qAtc', text], { stdio: ['ignore', 'pipe', 'pipe'] });
   };
-  const ctx = { baseUrl: env.WEB_BASE_URL.replace(/\/$/, ''), sql };
+  const ctx = { baseUrl: env.WEB_BASE_URL.replace(/\/$/, ''), sql,
+    mockUrl: (env.WEB_MOCK_URL || '').replace(/\/$/, ''), headed: env.WEB_HEADED === '1' };
 
   const started = Date.now();
   const results = [];

@@ -36,7 +36,8 @@ async function landsOn(page, path) {
     if (now !== last) { last = now; since = Date.now(); continue; }
     if (now !== '/portal/login' && Date.now() - since >= SETTLE_MS) break;
   }
-  expect(last.startsWith(path), 'expected to settle on ' + path + ', settled on ' + last);
+  // a sign-in token in the path never reaches a log or results.json
+  expect(last.startsWith(path), 'expected to settle on ' + path + ', settled on ' + last.replace(/\/go\/.+/, '/go/<token>'));
   return last;
 }
 
@@ -58,6 +59,44 @@ async function fieldError(page, id) {
   const errId = await box.getAttribute('aria-describedby');
   // React's useId ids look like ":r2:-err" — not a valid #selector, so match the attribute instead.
   return (await page.locator('[id="' + errId + '"]').innerText()).trim();
+}
+
+
+// ── the mock WhatsApp (bot/scripts/e2e/mock-graph-api.js): POST /inject a message FROM a phone, GET /outbox the
+// bot's replies TO it. The WhatsApp half of a WhatsApp → portal scenario; ctx.mockUrl is this run's mock.
+async function mock(ctx, method, p, body) {
+  expect(ctx.mockUrl, 'no mock WhatsApp for this run (WEB_MOCK_URL)');
+  const r = await fetch(ctx.mockUrl + p, { method, headers: { 'content-type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined });
+  return r.json();
+}
+async function setSetting(ctx, key, json) {
+  await ctx.sql("insert into app_settings (key, value) values ('" + key + "', '" + json + "'::jsonb) "
+    + "on conflict (key) do update set value = excluded.value, updated_at = now()");
+}
+// Send `text` from `phone` and wait for a reply whose text or button URL matches `re`. The bot caches its app
+// switches for 30 s (app-redirect.service.js FLAG_TTL_MS), so a switch just set may not be seen yet: re-send until
+// it is, for up to `forMs`. Returns { url, item, tries }.
+async function sendUntilLink(ctx, phone, text, re, forMs) {
+  const deadline = Date.now() + forMs;
+  let tries = 0;
+  while (Date.now() < deadline) {
+    const { last } = await mock(ctx, 'GET', '/outbox?to=' + phone);
+    tries += 1;
+    await mock(ctx, 'POST', '/inject', { kind: 'text', from: phone, text });
+    const until = Date.now() + 8000;
+    while (Date.now() < until) {
+      const { items } = await mock(ctx, 'GET', '/outbox?to=' + phone + '&after=' + last);
+      for (const it of items || []) {
+        const hay = ((it.cta && it.cta.url) || '') + ' ' + (it.txt || '');
+        const m = hay.match(re);
+        if (m) return { url: m[0], item: it, tries };
+      }
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    await new Promise((r) => setTimeout(r, 4000));
+  }
+  throw new Error('no reply matching ' + re + ' to "' + text + '" from ' + phone + ' within ' + forMs + ' ms (' + tries + ' tries)');
 }
 
 const scenarios = [
@@ -120,6 +159,21 @@ const scenarios = [
     await setFlags(ctx, { portal_teacher_v2: false, portal_coach_v2: true }); await open(page, ctx);
     await signIn(page, COACH, PASSWORD);
     return { landed: await landsOn(page, '/portal/coach') };
+  } },
+  { id: 'PL11', title: 'One-tap sign-in from WhatsApp: /menu sends a link that opens her teacher home, signed in', run: async (page, ctx) => {
+    await setSetting(ctx, 'app_redirect_menu', '"teachers"');
+    await setFlags(ctx, { portal_teacher_v2: true, portal_coach_v2: false });
+    const phone = '92' + TEACHER.slice(1);
+    if (ctx.headed) {   // watching? show the WhatsApp side too: the mock's chat console, beside the portal
+      const chat = await page.context().newPage();
+      await chat.goto(ctx.mockUrl + '/console').catch(() => {});
+    }
+    const { url, item, tries } = await sendUntilLink(ctx, phone, '/menu', /https?:\/\/[^\s"']+\/go\/[A-Za-z0-9._~-]+/, 60000);
+    expect(url.startsWith(ctx.baseUrl + '/go/'), 'the link points at ' + url.split('/go/')[0] + ', not this run\'s portal ' + ctx.baseUrl);
+    await page.bringToFront();
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    const landed = await landsOn(page, '/portal/teacher');
+    return { replyType: item.type, link: url.replace(/\/go\/.*/, '/go/<token>'), tries, landed };
   } },
 ];
 
