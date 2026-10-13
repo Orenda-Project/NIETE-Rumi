@@ -34,7 +34,12 @@ export const COACHING_V2_COPY = {
   planFallback: 'Lesson plan',
   change: 'Change',
   photos: 'Photos',
-  photosHint: 'Board work, charts or your classroom',
+  /* bd-r5ckgn — ICT feedback (IAB Experience View, row 4): the three photos to take, one per line, as the Urdu
+     and the bot's coachingPhotoOffer. */
+  photosHint:
+    "(1) A photo of the board with today's objective or task\n" +
+    "(2) A photo of a student's notebook or worksheet\n" +
+    '(3) A photo of teaching aids, e.g. drawings, charts or cards',
   noFaces: 'No faces',
   addPhoto: 'Add photo',
   removePhoto: (n: number) => `Remove photo ${n}`,
