@@ -556,8 +556,8 @@ const UX_STRINGS = {
    * headroom, so the next edit here cannot repeat it.
    */
   languagePickerFooter: {
-    en: '/language — change anytime · کسی بھی وقت تبدیل کریں',
-    ur: '/language — کسی بھی وقت تبدیل کریں · change anytime',
+    en: '\u2066/language\u2069 — change anytime · کسی بھی وقت تبدیل کریں',
+    ur: '\u2066/language\u2069 — کسی بھی وقت تبدیل کریں · change anytime',
   },
 
   /**
@@ -707,7 +707,7 @@ const UX_STRINGS = {
    */
   menuTextFallback: {
     en: "Hi! I'm your NIETE Teaching Assistant.\n\nI can help you with:\n📚 Lesson plans\n🎓 Classroom coaching\n📗 Teacher training\n\nType /menu for the full list, or just tell me what you need.",
-    ur: 'السلام علیکم! میں آپ کی NIETE ٹیچنگ اسسٹنٹ ہوں۔\n\nمیں ان کاموں میں مدد کر سکتی ہوں:\n📚 لیسن پلان\n🎓 کلاس روم کوچنگ\n📗 ٹیچر ٹریننگ\n\nپوری فہرست کے لیے /menu ٹائپ کریں، یا بتائیں کیا چاہیے۔',
+    ur: 'السلام علیکم! میں آپ کی NIETE ٹیچنگ اسسٹنٹ ہوں۔\n\nمیں ان کاموں میں مدد کر سکتی ہوں:\n📚 لیسن پلان\n🎓 کلاس روم کوچنگ\n📗 ٹیچر ٹریننگ\n\nپوری فہرست کے لیے \u2066/menu\u2069 ٹائپ کریں، یا بتائیں کیا چاہیے۔',
   },
 
   /**
@@ -972,7 +972,7 @@ const UX_STRINGS = {
 
   attendanceSetUpClass: {
     en: '{message} Send /class to set one up.',
-    ur: '{message} ایک بنانے کے لیے /class بھیجیں۔',
+    ur: '{message} ایک بنانے کے لیے \u2066/class\u2069 بھیجیں۔',
   },
 
   attendanceSomethingWrong: {
@@ -1077,7 +1077,7 @@ const UX_STRINGS = {
    */
   featureNotAvailableHere: {
     en: 'That one is not switched on here yet. Type /menu to see what is ready now.',
-    ur: 'یہ سہولت یہاں ابھی چالو نہیں ہے۔ جو ابھی دستیاب ہے دیکھنے کے لیے /menu ٹائپ کریں۔',
+    ur: 'یہ سہولت یہاں ابھی چالو نہیں ہے۔ جو ابھی دستیاب ہے دیکھنے کے لیے \u2066/menu\u2069 ٹائپ کریں۔',
   },
 
   /** The class-roster door, moved out of the handler with its command. */
@@ -1170,12 +1170,12 @@ const UX_STRINGS = {
 
   menuUnknownOption: {
     en: "I didn't recognise that option. Type /menu to see the list again.",
-    ur: 'یہ آپشن پہچانا نہیں گیا۔ فہرست دوبارہ دیکھنے کے لیے /menu ٹائپ کریں۔',
+    ur: 'یہ آپشن پہچانا نہیں گیا۔ فہرست دوبارہ دیکھنے کے لیے \u2066/menu\u2069 ٹائپ کریں۔',
   },
 
   menuError: {
     en: 'Something went wrong there. Type /menu to try again.',
-    ur: 'کچھ مسئلہ ہو گیا۔ دوبارہ کوشش کے لیے /menu ٹائپ کریں۔',
+    ur: 'کچھ مسئلہ ہو گیا۔ دوبارہ کوشش کے لیے \u2066/menu\u2069 ٹائپ کریں۔',
   },
 
   /**
@@ -1748,14 +1748,14 @@ const UX_STRINGS = {
 
   resumeDiscarded: {
     en: 'No problem, that one is closed. Send /menu whenever you want something else.',
-    ur: 'کوئی مسئلہ نہیں، وہ بند کر دیا۔ کچھ اور چاہیں تو /menu بھیجیں۔',
+    ur: 'کوئی مسئلہ نہیں، وہ بند کر دیا۔ کچھ اور چاہیں تو \u2066/menu\u2069 بھیجیں۔',
   },
 
   // The offer arrived, she tapped, but the task had already been cleared in the
   // meantime. Says so plainly rather than pretending to resume nothing.
   resumeGone: {
     en: 'That one has already been closed. Send /menu to start something new.',
-    ur: 'وہ پہلے ہی بند ہو چکا ہے۔ نیا کام شروع کرنے کے لیے /menu بھیجیں۔',
+    ur: 'وہ پہلے ہی بند ہو چکا ہے۔ نیا کام شروع کرنے کے لیے \u2066/menu\u2069 بھیجیں۔',
   },
 
   /**
@@ -1774,7 +1774,7 @@ const UX_STRINGS = {
    */
   statusNothingRunning: {
     en: "Nothing's running right now. Send /menu to start something.",
-    ur: 'اس وقت کچھ نہیں چل رہا۔ کچھ شروع کرنے کے لیے /menu بھیجیں۔',
+    ur: 'اس وقت کچھ نہیں چل رہا۔ کچھ شروع کرنے کے لیے \u2066/menu\u2069 بھیجیں۔',
   },
 
   /**
@@ -1785,7 +1785,7 @@ const UX_STRINGS = {
    */
   statusCheckFailed: {
     en: "I couldn't check what's running just now. Please send /status again in a moment.",
-    ur: 'میں اس وقت یہ نہیں دیکھ سکا کہ کیا چل رہا ہے۔ تھوڑی دیر بعد دوبارہ /status بھیجیں۔',
+    ur: 'میں اس وقت یہ نہیں دیکھ سکا کہ کیا چل رہا ہے۔ تھوڑی دیر بعد دوبارہ \u2066/status\u2069 بھیجیں۔',
   },
 
   /**
@@ -2983,11 +2983,11 @@ const UX_STRINGS = {
   vqMoreNo: { en: 'No thanks', ur: 'ابھی نہیں' },
   vqMoreDeclined: {
     en: 'No problem! You can watch more videos and take quizzes anytime — send /video and I’ll show you the menu.',
-    ur: 'کوئی بات نہیں! کسی بھی وقت /video بھیج کر مزید ویڈیوز اور quiz حاصل کریں۔',
+    ur: 'کوئی بات نہیں! کسی بھی وقت \u2066/video\u2069 بھیج کر مزید ویڈیوز اور quiz حاصل کریں۔',
   },
   vqMoreUnavailable: {
     en: 'Sorry — picking more videos isn’t available right now. Send /video in a bit and I’ll show you the menu.',
-    ur: 'معذرت — ابھی مزید ویڈیوز دستیاب نہیں۔ تھوڑی دیر میں /video بھیجیں۔',
+    ur: 'معذرت — ابھی مزید ویڈیوز دستیاب نہیں۔ تھوڑی دیر میں \u2066/video\u2069 بھیجیں۔',
   },
   vqMoreFlowHeader: { en: '🎬 More videos', ur: '🎬 مزید ویڈیوز' },
   vqMoreFlowBody: {

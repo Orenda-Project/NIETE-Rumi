@@ -208,9 +208,9 @@ ${PLATFORM_KNOWLEDGE}
       // Fallback guidance based on language
       const fallbackMessages = {
         en: "I'm here to help! Try typing /menu to see all available services, or send me classroom audio for AI coaching.",
-        ur: "میں مدد کے لیے حاضر ہوں! تمام خدمات دیکھنے کے لیے /menu ٹائپ کریں، یا AI کوچنگ کے لیے کلاس روم آڈیو بھیجیں۔",
+        ur: "میں مدد کے لیے حاضر ہوں! تمام خدمات دیکھنے کے لیے \u2066/menu\u2069 ٹائپ کریں، یا AI کوچنگ کے لیے کلاس روم آڈیو بھیجیں۔",
         es: "¡Estoy aquí para ayudar! Escribe /menu para ver todos los servicios disponibles, o envíame audio de clase para coaching con IA.",
-        ar: "أنا هنا للمساعدة! اكتب /menu لرؤية جميع الخدمات المتاحة، أو أرسل لي تسجيل صوتي للفصل للحصول على التدريب بالذكاء الاصطناعي."
+        ar: "أنا هنا للمساعدة! اكتب \u2066/menu\u2069 لرؤية جميع الخدمات المتاحة، أو أرسل لي تسجيل صوتي للفصل للحصول على التدريب بالذكاء الاصطناعي."
       };
 
       return fallbackMessages[language] || fallbackMessages.en;
@@ -314,20 +314,20 @@ Respond with just one word, nothing else.`;
       // teachers who did the right thing and typed /menu were still stuck.
       CONDUCTING_CONVERSATION: {
         en: "💬 I'm waiting for your reflection on the lesson.\n\nTake your time — or type /menu to leave this and do something else.",
-        ur: '💬 میں سبق پر آپ کے تاثرات کا انتظار کر رہا ہوں۔\n\nاطمینان سے جواب دیں — یا اسے چھوڑ کر کچھ اور کرنے کے لیے /menu لکھیں۔',
+        ur: '💬 میں سبق پر آپ کے تاثرات کا انتظار کر رہا ہوں۔\n\nاطمینان سے جواب دیں — یا اسے چھوڑ کر کچھ اور کرنے کے لیے \u2066/menu\u2069 لکھیں۔',
       },
       AWAITING_MENU_CHOICE: {
         en: "📋 Please choose an option (1-4) from the menu above.\n\nOr type /menu to see the menu again.",
-        ur: "📋 براہ کرم اوپر مینو سے ایک آپشن (1-4) منتخب کریں۔\n\nیا دوبارہ مینو دیکھنے کے لیے /menu ٹائپ کریں۔",
+        ur: "📋 براہ کرم اوپر مینو سے ایک آپشن \u2066(1-4)\u2069 منتخب کریں۔\n\nیا دوبارہ مینو دیکھنے کے لیے \u2066/menu\u2069 ٹائپ کریں۔",
         es: "📋 Por favor elige una opción (1-4) del menú de arriba.\n\nO escribe /menu para ver el menú nuevamente.",
-        ar: "📋 يرجى اختيار خيار (1-4) من القائمة أعلاه.\n\nأو اكتب /menu لرؤية القائمة مرة أخرى."
+        ar: "📋 يرجى اختيار خيار \u2066(1-4)\u2069 من القائمة أعلاه.\n\nأو اكتب \u2066/menu\u2069 لرؤية القائمة مرة أخرى."
       },
       // Issue #28: Renamed from AWAITING_MEDIA_LIBRARY_QUERY to AWAITING_VIDEO_TOPIC
       AWAITING_VIDEO_TOPIC: {
         en: "🎬 What topic would you like a video about?\n\nExample: 'photosynthesis' or 'basics of algebra'\n\nType /menu to return to the main menu.",
-        ur: "🎬 آپ کس موضوع پر ویڈیو بنوانا چاہتے ہیں؟\n\nمثال: 'فوٹو سنتھیسز' یا 'الجبرا'\n\nمین مینو پر واپس جانے کے لیے /menu ٹائپ کریں۔",
+        ur: "🎬 آپ کس موضوع پر ویڈیو بنوانا چاہتے ہیں؟\n\nمثال: 'فوٹو سنتھیسز' یا 'الجبرا'\n\nمین مینو پر واپس جانے کے لیے \u2066/menu\u2069 ٹائپ کریں۔",
         es: "🎬 ¿Sobre qué tema te gustaría un video?\n\nEjemplo: 'fotosíntesis' o 'bases del álgebra'\n\nEscribe /menu para volver al menú principal.",
-        ar: "🎬 ما الموضوع الذي تريد فيديو عنه؟\n\nمثال: 'التمثيل الضوئي' أو 'أساسيات الجبر'\n\nاكتب /menu للعودة إلى القائمة الرئيسية."
+        ar: "🎬 ما الموضوع الذي تريد فيديو عنه؟\n\nمثال: 'التمثيل الضوئي' أو 'أساسيات الجبر'\n\nاكتب \u2066/menu\u2069 للعودة إلى القائمة الرئيسية."
       },
       AWAITING_LESSON_PLAN: {
         en: "📄 Please send your lesson plan as a PDF or Word document.\n\nOr type 'skip' to continue without a lesson plan.",
@@ -337,9 +337,9 @@ Respond with just one word, nothing else.`;
       },
       AWAITING_CLASSROOM_AUDIO: {
         en: "🎙️ Please send your classroom audio or video for AI coaching.\n\nType /menu to explore other services.",
-        ur: "🎙️ براہ کرم AI کوچنگ کے لیے اپنی کلاس روم آڈیو یا ویڈیو بھیجیں۔\n\nدیگر خدمات دیکھنے کے لیے /menu ٹائپ کریں۔",
+        ur: "🎙️ براہ کرم AI کوچنگ کے لیے اپنی کلاس روم آڈیو یا ویڈیو بھیجیں۔\n\nدیگر خدمات دیکھنے کے لیے \u2066/menu\u2069 ٹائپ کریں۔",
         es: "🎙️ Por favor envía tu audio o video de clase para coaching con IA.\n\nEscribe /menu para explorar otros servicios.",
-        ar: "🎙️ يرجى إرسال تسجيل صوتي أو فيديو للفصل للحصول على التدريب بالذكاء الاصطناعي.\n\nاكتب /menu لاستكشاف الخدمات الأخرى."
+        ar: "🎙️ يرجى إرسال تسجيل صوتي أو فيديو للفصل للحصول على التدريب بالذكاء الاصطناعي.\n\nاكتب \u2066/menu\u2069 لاستكشاف الخدمات الأخرى."
       }
     };
 
@@ -351,9 +351,9 @@ Respond with just one word, nothing else.`;
     // Default escape path
     const defaultMessages = {
       en: "Type /menu to see all available services, or send classroom audio for AI coaching.",
-      ur: "تمام دستیاب خدمات دیکھنے کے لیے /menu ٹائپ کریں، یا AI کوچنگ کے لیے کلاس روم آڈیو بھیجیں۔",
+      ur: "تمام دستیاب خدمات دیکھنے کے لیے \u2066/menu\u2069 ٹائپ کریں، یا AI کوچنگ کے لیے کلاس روم آڈیو بھیجیں۔",
       es: "Escribe /menu para ver todos los servicios disponibles, o envía audio de clase para coaching con IA.",
-      ar: "اكتب /menu لرؤية جميع الخدمات المتاحة، أو أرسل تسجيل صوتي للفصل للحصول على التدريب بالذكاء الاصطناعي."
+      ar: "اكتب \u2066/menu\u2069 لرؤية جميع الخدمات المتاحة، أو أرسل تسجيل صوتي للفصل للحصول على التدريب بالذكاء الاصطناعي."
     };
 
     return defaultMessages[language] || defaultMessages.en;
