@@ -644,6 +644,10 @@ app.post('/webhook', async (req, res) => {
     try {
       user = await getOrCreateUser(from);
       logToFile('User retrieved/created', { userId: user.id, phoneNumber: from });
+      // bd-b0qwk: name the requester on this request's context, so the cost of every model call it
+      // makes, here or in any job it queues, says whom it was for. Optional call: suites that stub
+      // the logger do not carry it.
+      require('./shared/utils/structured-logger').setCorrelationUser?.(user.id);
     } catch (error) {
       // `error`, not `info` — an outage, not a routine miss. Downstream handlers must not read the null as "no account".
       logError('❌ User lookup failed — database unreachable', { phoneNumber: from, error: error.message });

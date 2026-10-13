@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { CapstoneRow, hoursLeft, LevelCertificate } from '../../newui/training/TrainingLevel';
 import {
   courseName,
-  courseDone, isExamless, isLadder, lockedBehind, providerLabel, statusOf, trainingPaths, useGet,
+  courseDone, isExamless, isLadder, lockedBehind, providerLabel, providerShort, statusOf, trainingPaths, useGet,
   type Course, type GrandQuizGate, type Level, type Vendor,
 } from '../../newui/training/trainingApi';
 import { ListRow, StatusChip, type ChipData } from '../ui';
@@ -53,7 +53,7 @@ export function TrainingLevelPage() {
   const next = list.find((c) => !courseDone(c));
 
   return (
-    <TrainingPageV2 crumb={C.crumb(provider)} title={title} backTo={paths.home}>
+    <TrainingPageV2 crumb={C.crumb(providerShort(vendorKey, provider))} title={title} backTo={paths.home}>
       {path ? <Journey nodes={path.nodes} fill={path.fill} /> : null}
 
       {gate.data && level ? <ExamRow gate={gate.data} level={level} to={paths.levelExam(vendorKey, levelId)} /> : null}

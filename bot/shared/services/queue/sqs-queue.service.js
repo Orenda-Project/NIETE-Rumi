@@ -20,7 +20,15 @@
 const AWS = require('aws-sdk');
 const { logToFile } = require('../../utils/logger');
 const RedisService = require('../cache/railway-redis.service');
-const { getCurrentCorrelationId, logEvent } = require('../../utils/structured-logger');
+const { getCurrentCorrelationId, getCurrentUserId, logEvent } = require('../../utils/structured-logger');
+
+// bd-b0qwk: the user a job is queued for rides in its envelope, beside the correlation id, so the
+// worker can name them on the cost of every model call the job makes. A users.id or nothing (the
+// logger keeps only those); read defensively because many suites stub the logger without it.
+function requesterField() {
+  const userId = typeof getCurrentUserId === 'function' ? getCurrentUserId() : undefined;
+  return userId ? { userId } : {};
+}
 
 /**
  * The FIFO dedup key. Extracted so it can be tested directly — the previous
@@ -135,6 +143,7 @@ class SQSQueueService {
         jobType,
         payload,
         correlationId, // Pass correlation ID to worker for tracing
+        ...requesterField(),
         queuedAt: new Date().toISOString(),
         version: '1.0'
       };
@@ -267,6 +276,7 @@ class SQSQueueService {
         jobType,
         payload,
         correlationId,
+        ...requesterField(),
         queuedAt: new Date().toISOString(),
         version: '1.0'
       };
@@ -840,6 +850,7 @@ class SQSQueueService {
       jobType,
       payload,
       correlationId,
+      ...requesterField(),
       queuedAt: new Date().toISOString(),
       version: '2.0',  // generic envelope; coaching/video are still v1.0
     };

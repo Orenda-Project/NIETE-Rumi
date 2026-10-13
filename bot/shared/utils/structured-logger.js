@@ -340,15 +340,26 @@ const { AsyncLocalStorage } = require('async_hooks');
  */
 const correlationStorage = new AsyncLocalStorage();
 
+// bd-b0qwk: the user a request or queued job is FOR, carried beside the correlation id so the cost
+// of each model call can say whom it was spent for (spend per teacher, and from there per child).
+// Only a users.id is kept: a phone number, a name or any other string is dropped, never stored,
+// because whatever sits here is written to the logs.
+const USER_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const asUserId = (value) => (typeof value === 'string' && USER_ID_RE.test(value) ? value.toLowerCase() : undefined);
+
 /**
  * Run a function with a correlation ID in context
  * All logs within this function (and async calls) will include the correlationId
  * @param {string} correlationId - The correlation ID to use
  * @param {Function} fn - The function to run
+ * @param {{userId?: string}} [attrs] - The user the work is for, when the caller already knows it
+ *   (a worker restoring a queued job). A context opened inside another keeps the outer one's user.
  * @returns {Promise} Result of the function
  */
-function runWithCorrelation(correlationId, fn) {
-  return correlationStorage.run({ correlationId }, fn);
+function runWithCorrelation(correlationId, fn, attrs = {}) {
+  const parent = correlationStorage.getStore();
+  const userId = asUserId(attrs && attrs.userId) || (parent && parent.userId);
+  return correlationStorage.run(userId ? { correlationId, userId } : { correlationId }, fn);
 }
 
 /**
@@ -358,6 +369,30 @@ function runWithCorrelation(correlationId, fn) {
 function getCurrentCorrelationId() {
   const store = correlationStorage.getStore();
   return store?.correlationId;
+}
+
+/**
+ * Name the user the current request is for, once it is known (the webhook opens its context before
+ * it has looked the sender up). The first user named is kept, so nothing later in the same request
+ * can re-attribute what was already spent. Not a users.id, or no context: nothing is set.
+ * @param {string} userId - users.id
+ * @returns {boolean} true when the user was set
+ */
+function setCorrelationUser(userId) {
+  const store = correlationStorage.getStore();
+  const id = asUserId(userId);
+  if (!store || !id || store.userId) return false;
+  store.userId = id;
+  return true;
+}
+
+/**
+ * The users.id the current request or job is for, if one was named.
+ * @returns {string|undefined}
+ */
+function getCurrentUserId() {
+  const store = correlationStorage.getStore();
+  return store?.userId;
 }
 
 // ============================================================
@@ -517,6 +552,8 @@ module.exports = {
   generateCorrelationId,
   runWithCorrelation,      // Wrap async operations with correlation context
   getCurrentCorrelationId, // Get current correlation ID from context
+  setCorrelationUser,      // Name the users.id the current request is for (bd-b0qwk)
+  getCurrentUserId,        // The users.id the current request or job is for, if named
   originalConsole,         // In case you need unmodified console
   axiomBatcher,            // For manual flush if needed
   // Exported so a test can assert WHICH fields survive into Axiom columns. The allowlist is
