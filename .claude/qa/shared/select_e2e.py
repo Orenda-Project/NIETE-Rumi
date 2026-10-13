@@ -42,6 +42,8 @@ SPEC_DIR = "tests/features/whatsapp/niete"
 # The web lane (bd-hnhlgn.6): portal features live beside the WhatsApp ones but are driven by `npm run e2e:web`
 # in a headless browser, not by an agent. A web feature exists when .claude/qa/web/features/<name>.cjs does.
 WEB_SPEC_DIR = "tests/features/web"
+WEB_DRIVER_DIR = ".claude/qa/web/features"
+WEB_MACHINERY = (".claude/qa/web/lib.cjs", ".claude/qa/web/web-runner.cjs", "scripts/qa/e2e-web.sh")
 SPEC_SUFFIX = ".feature"
 
 # Features whose scenarios are drafts: `/niete-e2e` never picks them up by default
@@ -202,6 +204,13 @@ class FeatureMap(object):
         """Web features selected by `path`: its own spec, a `web:` rule, else — inside the web scope — the fallback
         (portal-smoke), so no portal change is silent. [] for a path the web lane has no opinion about."""
         hits = []
+        # The web lane's own code: a driver re-runs its feature; the shared machinery (lib, runner, e2e-web.sh)
+        # sits under every web scenario, so a change there re-runs them all.
+        if path.startswith(WEB_DRIVER_DIR + "/") and path.endswith(".cjs"):
+            name = os.path.basename(path)[: -len(".cjs")]
+            return [name] if name in self.web_features else []
+        if path in WEB_MACHINERY:
+            return list(self.web_features)
         if path.startswith(WEB_SPEC_DIR + "/") and path.endswith(SPEC_SUFFIX):
             name = os.path.basename(path)[: -len(SPEC_SUFFIX)]
             if name in self.web_features:

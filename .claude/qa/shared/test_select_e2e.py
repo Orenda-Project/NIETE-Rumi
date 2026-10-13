@@ -784,6 +784,19 @@ def test_the_big_portal_routes_file_runs_sign_in_and_the_smoke():
     assert "portal-login" in s.web_features and "portal-smoke" in s.web_features, s.web_features
 
 
+def test_a_web_driver_change_selects_its_own_feature():
+    # A driver IS the test: changing portal-login.cjs must re-run portal-login (seen missing on 95c5e037b).
+    assert _sel([".claude/qa/web/features/portal-login.cjs"]).web_features == ["portal-login"]
+    assert _sel([".claude/qa/web/features/coach-portal.cjs"]).web_features == ["coach-portal"]
+
+
+def test_the_web_lane_machinery_runs_every_web_feature():
+    # lib.cjs / the runner / e2e-web.sh sit under every web scenario: a change there re-runs them all.
+    fmap = se.load_map(MAP_PATH, AGENTS_DIR)
+    for path in [".claude/qa/web/lib.cjs", ".claude/qa/web/web-runner.cjs", "scripts/qa/e2e-web.sh"]:
+        assert sorted(_sel([path]).web_features) == sorted(fmap.web_features), (path, _sel([path]).web_features)
+
+
 def test_shared_portal_plumbing_runs_the_smoke_everywhere():
     # App.tsx, the shared UI kit and the API client sit under every page: a change there runs the smoke.
     for path in ["portal/src/App.tsx", "portal/src/portal/services/api.ts", "portal/src/portal/newui/Panel.tsx"]:
