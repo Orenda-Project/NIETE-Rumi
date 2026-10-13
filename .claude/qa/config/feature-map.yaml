@@ -140,6 +140,10 @@ features:
     - bot/shared/services/lesson-plan-template.service.js
     - bot/shared/services/lesson-planning.service.js
     - bot/shared/services/lp-feedback.service.js
+    # bd-qvevax.2 — the survey for a plan she read in the app (decides whether to ask, then hands to the
+    # two feedback services), and the v8 delivery whose lesson_plans row writer it shares.
+    - bot/shared/services/lp-app-open-survey.service.js
+    - bot/shared/services/lp-v8-delivery.service.js
     - bot/shared/services/lp-shelf.service.js
     - bot/shared/services/curriculum-lp-ast.service.js
     - bot/shared/services/grounded-lp-render.service.js
