@@ -216,7 +216,7 @@ async function _handleShowInChat(user, from, intent) {
   } catch (err) {
     logToFile('❌ in_chat_preview quiz generation failed', { userId: user.id, topic, error: err.message });
     await WhatsAppService.sendMessage(from,
-      ({ ur: 'معذرت، کوئز بنانے میں مسئلہ ہوا۔ دوبارہ کوشش کریں یا /quiz لکھیں۔', en: "Sorry, the preview quiz failed to generate. Try again or type /quiz." })[lang] || "Sorry, the preview quiz failed to generate. Try again or type /quiz.");
+      ({ ur: 'معذرت، کوئز بنانے میں مسئلہ ہوا۔ دوبارہ کوشش کریں یا \u2066/quiz\u2069 لکھیں۔', en: "Sorry, the preview quiz failed to generate. Try again or type /quiz." })[lang] || "Sorry, the preview quiz failed to generate. Try again or type /quiz.");
     return;
   }
 
