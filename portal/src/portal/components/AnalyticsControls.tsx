@@ -7,7 +7,12 @@ import { Eye, UserCheck, ClipboardCheck, CalendarDays } from 'lucide-react';
  * a time — and one From / To window over the whole page.
  *
  * Both live in the ADDRESS, not in component state — see lib/analyticsView.
+ *
+ * bd-s6qbts.3 — the schools analytics page reuses the window without the tabs (it has none): leave `tab`/`onTab` out
+ * and no tab row renders. `labels` lets that page's words come from its own copy table; the defaults are the words
+ * the two Analytics pages always had.
  */
+const DEFAULT_LABELS = { from: 'From', to: 'To', allTime: 'All time' };
 
 const TABS: Array<{ key: AnalyticsTab; label: string; icon: typeof Eye }> = [
   { key: 'observations', label: 'Observations', icon: Eye },
@@ -15,12 +20,14 @@ const TABS: Array<{ key: AnalyticsTab; label: string; icon: typeof Eye }> = [
   { key: 'remarks', label: 'Principal Remarks', icon: ClipboardCheck },
 ];
 
-export const AnalyticsControls = ({ tab, onTab, from, to, onRange }: {
-  tab: AnalyticsTab; onTab: (t: AnalyticsTab) => void;
+export const AnalyticsControls = ({ tab, onTab, from, to, onRange, labels = DEFAULT_LABELS }: {
+  tab?: AnalyticsTab; onTab?: (t: AnalyticsTab) => void;
   from: string | null; to: string | null;
   onRange: (r: { from?: string | null; to?: string | null }) => void;
+  labels?: { from: string; to: string; allTime: string };
 }) => (
   <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    {tab && onTab && (
     <div role="tablist" aria-label="Analytics" className="flex flex-wrap gap-2">
       {TABS.map(({ key, label, icon: Icon }) => {
         const on = tab === key;
@@ -42,11 +49,12 @@ export const AnalyticsControls = ({ tab, onTab, from, to, onRange }: {
         );
       })}
     </div>
+    )}
 
     <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-white p-3 shadow-sm">
       <CalendarDays className="w-5 h-5 text-accent mb-2" />
       <div className="flex flex-col gap-1">
-        <label htmlFor="analytics-from" className="text-xs text-muted-foreground">From</label>
+        <label htmlFor="analytics-from" className="text-xs text-muted-foreground">{labels.from}</label>
         <input
           id="analytics-from" data-testid="analytics-from" type="date" value={from || ''} max={to || undefined}
           onChange={(e) => onRange({ from: e.target.value || null })}
@@ -54,7 +62,7 @@ export const AnalyticsControls = ({ tab, onTab, from, to, onRange }: {
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor="analytics-to" className="text-xs text-muted-foreground">To</label>
+        <label htmlFor="analytics-to" className="text-xs text-muted-foreground">{labels.to}</label>
         <input
           id="analytics-to" data-testid="analytics-to" type="date" value={to || ''} min={from || undefined}
           onChange={(e) => onRange({ to: e.target.value || null })}
@@ -68,7 +76,7 @@ export const AnalyticsControls = ({ tab, onTab, from, to, onRange }: {
         disabled={!from && !to}
         className="rounded-md px-3 py-2 text-sm font-medium text-accent hover:bg-accent/10 disabled:text-muted-foreground disabled:hover:bg-transparent"
       >
-        All time
+        {labels.allTime}
       </button>
     </div>
   </div>

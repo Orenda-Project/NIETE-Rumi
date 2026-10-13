@@ -18,6 +18,12 @@ export interface User {
    * when unknown — a coach who covers many schools has none.
    */
   schoolName?: string | null;
+  /**
+   * bd-s6qbts.3 — an analytics-only account (app_settings.portal_analytics_only lists her users.id): she sees the
+   * schools analytics page and nothing else (lib/homeRoute.ts). Sent on /login, /me and /dashboard; absent in older
+   * API responses, which means false. Only a literal true counts.
+   */
+  analyticsOnly?: boolean;
 }
 
 /**
@@ -674,4 +680,54 @@ export interface CoachingProgress {
   hasLessonPlan?: boolean;
   photoCount?: number;
   createdAt?: string;
+}
+
+/* ── bd-s6qbts.3 — GET /api/portal/analytics/schools (PLAN v3 §3) ──────────────────────────────────────────────── */
+
+/**
+ * The numbers for one school, one region or the whole selection. Counts of things that happened in the window;
+ * `teachersOpenedLp` and `teachersWithDc` are read as "x of `teachers`". An average is null when nothing was scored
+ * (its n is 0); a count is never null — 0 is a real 0. No percentages.
+ */
+export interface SchoolsAnalyticsCounts {
+  teachers: number;
+  lpsOpened: number;
+  teachersOpenedLp: number;
+  lpsGenerated: number;
+  dcObservations: number;
+  teachersWithDc: number;
+  humanObservations: number;
+  coachVisits: number;
+  avgFico: number | null;
+  ficoN: number;
+  avgHitl: number | null;
+  hitlN: number;
+}
+
+export interface SchoolsAnalyticsOverview extends SchoolsAnalyticsCounts {
+  schools: number;
+}
+
+/** One of the six ICT regions; all six are listed whatever the filter. Schools outside them are not counted anywhere. */
+export interface SchoolsAnalyticsRegion extends SchoolsAnalyticsCounts {
+  region: string;
+  schools: number;
+}
+
+export interface SchoolsAnalyticsSchool extends SchoolsAnalyticsCounts {
+  schoolId: string;
+  emis: string | null;
+  name: string;
+  region: string;
+}
+
+export interface SchoolsAnalyticsResponse {
+  success: boolean;
+  /** The window the numbers cover, both days inclusive; null = open at that end. */
+  range: { from: string | null; to: string | null };
+  /** LP opens are recorded from this day (YYYY-MM-DD) only; a window starting earlier undercounts them. */
+  lpOpensLoggedSince: string;
+  overview: SchoolsAnalyticsOverview;
+  regions: SchoolsAnalyticsRegion[];
+  schools: SchoolsAnalyticsSchool[];
 }

@@ -4,6 +4,7 @@ import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, 
   AttendanceResponse } from '../types/portal';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
+import type { SchoolsAnalyticsResponse } from '../types/portal';
 import type { CoachHomeData, CoachScheduleData, TeamData, PeopleData, SchoolData, TeacherData, VisitData, ReportsData, ObservationReport, SchoolHit, TeacherPlan } from '../coach/types';
 
 // On the web, frontend and backend share a domain, so a relative URL avoids
@@ -756,6 +757,20 @@ export type EditChanges = {
   added?: { kind: string; edit: Record<string, unknown> }[];
 };
 export type EditError = { id?: string; subIndex?: number; addedIndex?: number; message: string };
+
+// bd-s6qbts.3 — the schools analytics page, for analytics-only accounts (the server 403s everyone else).
+// `from`/`to` are inclusive days (YYYY-MM-DD); null leaves that end open. `region` is one of the six sector
+// names or 'all' (null = all).
+export const analytics = {
+  getSchools: async (q: { from: string | null; to: string | null; region: string | null }): Promise<SchoolsAnalyticsResponse> => {
+    const params: Record<string, string> = {};
+    if (q.from) params.from = q.from;
+    if (q.to) params.to = q.to;
+    params.region = q.region || 'all';
+    const response = await api.get('/analytics/schools', { params });
+    return response.data;
+  },
+};
 
 // Leader Portal endpoints (bd-2434) — school-leader family only.
 // The backend gate 403s non-leaders; the frontend also hides these via isLeader.

@@ -288,6 +288,46 @@ describe("login: errors sit under the field, map from the status, and stay until
     expect(screen.queryByText(/e\.g\./i)).toBeNull();
   });
 
+  // bd-s6qbts.5 — an analytics-only account signs in with an account NAME in the same field.
+  it("an account name goes to the server as typed: no 'Check the number', no phone rewrite", async () => {
+    h.login.mockResolvedValue({ success: true, user: { role: "unregistered", analyticsOnly: true } });
+    const user = userEvent.setup();
+    at(<PortalLogin />);
+    await fill(user, "FDE-Islamabad");
+    await waitFor(() => expect(h.login).toHaveBeenCalledWith("FDE-Islamabad", "madeup123"));
+    expect(screen.queryByText("Check the number")).toBeNull();
+    await waitFor(() => expect(h.navigate).toHaveBeenCalledWith("/portal/analytics/schools"));
+  });
+
+  it("a name the server refuses says 'Couldn't log in', not 'Wrong password'", async () => {
+    h.login.mockResolvedValue({ success: false, status: 401, error: "Incorrect password. Please try again." });
+    const user = userEvent.setup();
+    at(<PortalLogin />);
+    await fill(user, "fde-islamabad");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Couldn't log in");
+    expect(alert).not.toHaveTextContent("Wrong password");
+  });
+
+  it("a short phone is still caught here, a name or no name", async () => {
+    const user = userEvent.setup();
+    at(<PortalLogin />);
+    await fill(user, "0300 123");
+    expect(h.login).not.toHaveBeenCalled();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Check the number");
+  });
+
+  it("Forgot password is not offered for an account name (it has no WhatsApp), and comes back for a phone", async () => {
+    const user = userEvent.setup();
+    at(<PortalLogin />);
+    const field = screen.getByLabelText("Phone number");
+    await user.type(field, "fde-islamabad");
+    expect(screen.queryByRole("button", { name: "Forgot password" })).toBeNull();
+    await user.clear(field);
+    await user.type(field, "0300 0000000");
+    expect(screen.getByRole("button", { name: "Forgot password" })).toBeInTheDocument();
+  });
+
   it("a setup link that died shows its reason on the login page, and keeps showing it", () => {
     at(<PortalLogin />, { notice: "linkExpired" });
     expect(screen.getByRole("alert")).toHaveTextContent("Link expired");
@@ -435,6 +475,14 @@ describe("first-time setup", () => {
     await mount();
     expect(screen.getByText("Ayesha Bibi")).toBeInTheDocument();
     expect(screen.getByText("+92 300 0000000")).toHaveAttribute("dir", "ltr");
+  });
+
+  it("an analytics account sees the name it signs in with, not '+analytics:…' (bd-s6qbts.5)", async () => {
+    h.api.validateToken.mockResolvedValue({ success: true, user: { firstName: "FDE Islamabad", lastName: null, phoneNumber: "analytics:fde-islamabad" } });
+    render(<MemoryRouter initialEntries={["/portal/setup/tok-123"]}><Routes><Route path="/portal/setup/:token" element={<PortalSetup />} /></Routes></MemoryRouter>);
+    await screen.findByLabelText("Password");
+    expect(screen.getByText("fde-islamabad")).toHaveAttribute("dir", "ltr");
+    expect(screen.queryByText(/analytics:/)).toBeNull();
   });
 
   it("the two requirements are chips that turn done as she meets them", async () => {

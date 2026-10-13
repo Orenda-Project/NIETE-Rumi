@@ -10,6 +10,7 @@ import { AuthField } from '../auth/AuthField';
 import { AUTH } from '../auth/copy';
 import { statusOf, type AuthError } from '../auth/errors';
 import { useCopy } from '../teacher/i18n';
+import { accountNameOf } from '../lib/phone';
 
 /**
  * bd-fmf24g.64 — first-time setup from an invitation link, in the shared auth frame. The calls, the 8-characters-and-a-
@@ -17,8 +18,13 @@ import { useCopy } from '../teacher/i18n';
  * requirements are chips that turn done as she meets them (red if she tries to continue without), and a link that has
  * died sends her to the login WITH its reason (no toast).
  */
-/** 923000000000 reads as +92 300 0000000 (the shape she writes it in); anything else is shown as it came. */
+/**
+ * 923000000000 reads as +92 300 0000000 (the shape she writes it in); anything else is shown as it came. An analytics
+ * account (bd-s6qbts.5) shows the account NAME it signs in with, not its stored `analytics:<name>`.
+ */
 const showPhone = (n: string) => {
+  const name = accountNameOf(n);
+  if (name) return name;
   const m = /^92(\d{3})(\d{7})$/.exec(n);
   return m ? `+92 ${m[1]} ${m[2]}` : `+${n}`;
 };
