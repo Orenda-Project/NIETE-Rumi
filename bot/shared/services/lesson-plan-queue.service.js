@@ -11,6 +11,11 @@
 const { logToFile } = require('../utils/logger');
 const supabase = require('../config/supabase');
 const SQSQueueService = require('./queue');
+const Lifecycle = require('./lesson-plan-lifecycle.service');
+
+// The lifecycle path of every request row this service writes (lesson-plan-lifecycle.service);
+// with LP_LIFECYCLE_PATHS off for it, every insert and update below is exactly the old one.
+const LIFECYCLE_SOURCE = Lifecycle.LIFECYCLE.SOURCES.NIETE_GROUNDED;
 
 class LessonPlanQueueService {
   // createAndQueue (freeform LP / presentation via Gamma) was removed with
@@ -34,6 +39,9 @@ class LessonPlanQueueService {
    * @param {string} params.topic
    * @param {string} [params.chapterTitle]
    * @param {'en'|'ur'} [params.language]
+   * @param {number} [params.grade]     — for the lifecycle row only
+   * @param {string} [params.subject]   — for the lifecycle row only
+   * @param {'whatsapp'|'portal'} [params.channel] — where she asked; defaults to whatsapp
    * @returns {Promise<string>} Request ID
    */
   static async createAndQueueGrounded(params) {
@@ -41,6 +49,7 @@ class LessonPlanQueueService {
       userId, phoneNumber,
       sourceLpUuid, topic, chapterTitle,
       language = 'en',
+      grade, subject, channel,
     } = params;
 
     if (!sourceLpUuid) throw new Error('createAndQueueGrounded: sourceLpUuid is required');
@@ -56,6 +65,9 @@ class LessonPlanQueueService {
         language,
         content_type: 'lesson_plan',
         status: 'pending',
+        ...Lifecycle.askColumns({
+          source: LIFECYCLE_SOURCE, channel, grade, subject, artifactRef: sourceLpUuid,
+        }),
       })
       .select('id')
       .single();
@@ -63,6 +75,9 @@ class LessonPlanQueueService {
 
     const requestId = request.id;
     logToFile('Grounded LP request created', { requestId, userId, sourceLpUuid, topic, language });
+    Lifecycle.queueEvent(LIFECYCLE_SOURCE, 'lesson_plan.request.created', {
+      requestId, userId, artifactRef: sourceLpUuid, grade, subject,
+    });
 
     // 2. Queue to SQS. Payload carries sourceLpUuid — worker routes on that.
     try {
@@ -108,7 +123,8 @@ class LessonPlanQueueService {
   /**
    * Mark request as completed with results
    * @param {string} requestId - Request UUID
-   * @param {Object} result - { gammaUrl, pdfUrl }
+   * @param {Object} result - { gammaUrl, pdfUrl, generatedAt?, sent? } — generatedAt (when the PDF
+   *   existed) and sent (did WhatsApp accept it) feed the lifecycle columns only
    */
   static async markCompleted(requestId, result) {
     await supabase
@@ -117,11 +133,15 @@ class LessonPlanQueueService {
         status: 'completed',
         gamma_url: result.gammaUrl,
         pdf_url: result.pdfUrl,
-        completed_at: new Date().toISOString()
+        completed_at: new Date().toISOString(),
+        ...Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'completed', { generatedAt: result.generatedAt, sent: result.sent }),
       })
       .eq('id', requestId);
 
     logToFile('Lesson plan request completed', { requestId });
+    Lifecycle.queueEvent(LIFECYCLE_SOURCE, result.sent === false
+      ? 'lesson_plan.delivery.failed'
+      : (result.sent === true ? 'lesson_plan.delivery.sent' : 'lesson_plan.generation.completed'), { requestId });
   }
 
   /**
@@ -142,11 +162,13 @@ class LessonPlanQueueService {
         status: 'failed',
         error_message: errorMessage,
         retry_count: (request?.retry_count || 0) + 1,
-        last_retry_at: new Date().toISOString()
+        last_retry_at: new Date().toISOString(),
+        ...Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'failed'),
       })
       .eq('id', requestId);
 
     logToFile('Lesson plan request failed', { requestId, errorMessage });
+    Lifecycle.queueEvent(LIFECYCLE_SOURCE, 'lesson_plan.generation.failed', { requestId, errorCode: 'GENERATION_FAILED' });
   }
 
   /**

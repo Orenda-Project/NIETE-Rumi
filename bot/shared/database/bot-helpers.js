@@ -396,9 +396,10 @@ async function storeAudioSession(userId, audioUrl, duration, transcript) {
  * @param {string} type - 'lesson_plan' or 'presentation'
  * @param {string} gammaUrl - Gamma.app URL
  * @param {object} content - Lesson plan structure
+ * @param {object} [extraColumns] - additional columns for the inserted row (e.g. { request_id })
  * @returns {Promise<object>} Lesson plan record
  */
-async function storeLessonPlan(userId, topic, type, gammaUrl, pdfUrl = null, content = null) {
+async function storeLessonPlan(userId, topic, type, gammaUrl, pdfUrl = null, content = null, extraColumns = null) {
   try {
     // DUPLICATE CHECK: Prevent storing same lesson plan twice within 10 minutes
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
@@ -428,6 +429,8 @@ async function storeLessonPlan(userId, topic, type, gammaUrl, pdfUrl = null, con
         pdf_url: pdfUrl,
         content,
         created_at: new Date().toISOString(),
+        // e.g. { request_id } — the lesson-plan lifecycle link; absent, the row is the old one.
+        ...(extraColumns || {}),
       })
       .select()
       .single();

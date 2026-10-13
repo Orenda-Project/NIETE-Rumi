@@ -149,6 +149,38 @@ function askColumns({ source, channel, grade, subject, artifactRef, correlationI
 }
 
 /**
+ * The lifecycle columns a QUEUE path adds to one of its existing stage updates. `{}` when the path is
+ * switched off, so the update is byte-identical to before. The queue keeps its own status (its
+ * worker's retry and idempotency read it); these columns only add what happened:
+ *   'completed' — generated_at, and delivered_at when the send was accepted (sent === true) or
+ *                 error_code DELIVERY_FAILED when WhatsApp refused it (sent === false); a stale
+ *                 error_code from an earlier failed attempt is cleared unless the send failed;
+ *   'failed'    — error_code (GENERATION_FAILED unless the caller names another).
+ */
+function queueColumns(source, stage, { generatedAt, sent, errorCode } = {}) {
+  if (!enabled(source)) return {};
+  const now = new Date().toISOString();
+  if (stage === 'completed') {
+    if (sent === false) return { generated_at: isoOrNull(generatedAt) || now, error_code: LIFECYCLE.ERROR_CODES.DELIVERY_FAILED };
+    return {
+      generated_at: isoOrNull(generatedAt) || now,
+      ...(sent === true ? { delivered_at: now } : {}),
+      error_code: null,
+    };
+  }
+  if (stage === 'failed') {
+    return { error_code: textOrNull(errorCode, 40) || LIFECYCLE.ERROR_CODES.GENERATION_FAILED };
+  }
+  return {};
+}
+
+/** The canonical event for a queue-path stage, emitted only when the path is switched on. */
+function queueEvent(source, eventName, fields = {}) {
+  if (!enabled(source)) return;
+  logEvent(eventName, { source, region: textOrNull(process.env.REGION, 40), correlationId: currentCorrelationId(), ...fields });
+}
+
+/**
  * Record a lesson-plan ask that has reached its end — delivered, failed or cancelled — on a path
  * that keeps no queue row of its own. ONE upsert on the ask's id: a retried call rewrites the same
  * row, never adds a second.
@@ -290,12 +322,6 @@ function writeFailed(error, row) {
   { code, message }, 'error');
 }
 
-/** Is this write error "the migration is not applied yet"? Exposed for callers that fall back. */
-function isSchemaMissing(error) {
-  if (!error) return false;
-  return SCHEMA_MISSING_CODES.has(error.code) || /schema cache|column .* does not exist/i.test(error.message || '');
-}
-
 /** Test seam: forget the once-per-ten-minutes state between tests. */
 function __resetForTests() {
   lastSchemaWarningAt = 0;
@@ -306,7 +332,8 @@ module.exports = {
   LIFECYCLE,
   enabled,
   askColumns,
+  queueColumns,
+  queueEvent,
   recordOutcome,
-  isSchemaMissing,
   __resetForTests,
 };

@@ -21,6 +21,7 @@ const CurriculumLpAstService = require('../shared/services/curriculum-lp-ast.ser
 const { renderAndServeGrounded } = require('../shared/services/grounded-lp-render.service');
 const LpFeedbackService = require('../shared/services/lp-feedback.service');
 const { storeLessonPlan } = require('../shared/database/bot-helpers');
+const Lifecycle = require('../shared/services/lesson-plan-lifecycle.service');
 const { isLp612RouteAll } = require('../shared/config/lp612-flags');
 const { openLpBrowseFlow } = require('../shared/services/lp-browse-entry.service');
 const { resolveUx } = require('../shared/config/ux-strings');
@@ -219,6 +220,8 @@ class LessonPlanGenerationWorker {
       await LessonPlanQueueService.markCompleted(requestId, {
         gammaUrl: null,
         pdfUrl: result.r2Key,
+        generatedAt: result.generatedAt,
+        sent: result.sent,
       });
 
       // 4. Store in lesson_plans + schedule feedback prompt (both non-fatal)
@@ -235,7 +238,9 @@ class LessonPlanGenerationWorker {
           language,
           trigger_mode: 'after_pdf_only',
         };
-        const lpRow = await storeLessonPlan(userId, topic, 'lesson_plan', null, result.r2Key, content);
+        // The plan row names the request it was delivered for, when the lifecycle switch is on.
+        const linked = Lifecycle.enabled(Lifecycle.LIFECYCLE.SOURCES.NIETE_GROUNDED) ? { request_id: requestId } : null;
+        const lpRow = await storeLessonPlan(userId, topic, 'lesson_plan', null, result.r2Key, content, linked);
         if (lpRow?.id) {
           LpFeedbackService.scheduleFeedbackPrompt({
             lessonPlanId: lpRow.id,
