@@ -19,6 +19,8 @@ import TeacherGate from "./portal/teacher/TeacherGate";
 import LegacyAttendanceRedirect from "./portal/components/LegacyAttendanceRedirect";
 import AppLinkListener from "./portal/components/AppLinkListener";
 import BackButtonHandler from "./portal/components/BackButtonHandler";
+// bd-4r3rei — which pages she opens and when she leaves them (the teacher-app funnel). Renders nothing.
+import AppFunnelTracker from "./portal/components/AppFunnelTracker";
 // bd-s6qbts.3 — analytics-only accounts see one page; everyone else never sees it (portal/lib/homeRoute).
 import AnalyticsOnlyGuard from "./portal/analytics/AnalyticsOnlyGuard";
 // bd-5rz1v.10 — a lesson recording that outlives the page it started on.
@@ -164,6 +166,7 @@ const App = () => {
           <RecordingSessionProvider>
           {/* Android app only: routes a tapped portal link to its page. */}
           <AppLinkListener />
+          <AppFunnelTracker />
           {/* Android app only: the hardware back key (close / back / leave). */}
           <BackButtonHandler />
           <Suspense fallback={<RouteFallback />}>

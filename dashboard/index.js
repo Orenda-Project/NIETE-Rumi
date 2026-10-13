@@ -133,6 +133,7 @@ const wordCloudRoutes = require('./routes/wordcloud');
 const portalRoutes = require('./routes/portal.routes');
 const portalLinkRoutes = require('./routes/portal-link.routes');
 const appLoginRoutes = require('./routes/app-login.routes');
+const appFunnelRoutes = require('./routes/app-funnel.routes'); // bd-4r3rei — the teacher app's funnel (pages + key actions)
 const hcpRoutes = require('./routes/hcp.routes');
 const attendanceRoutes = require('./routes/attendance.routes');
 const childTestRoutes = require('./routes/portal-child-test.routes');
@@ -2803,6 +2804,10 @@ app.use(portalLinkRoutes.createPortalLinkRouter());
 // bd-fmf24g.35 — /go/:token: the one-tap login a pilot teacher gets on WhatsApp (the WHOLE teacher app, no area scope).
 app.use(appLoginRoutes.createAppLoginRouter());
 app.use('/api/portal', portalLinkRoutes.portalLinkScope);
+// bd-4r3rei — the teacher app's funnel: key actions are logged here once their response has gone out (no feature route
+// is touched), and the pages report where she is to POST /funnel/events. Both write events to Axiom, never a table.
+app.use('/api/portal', appFunnelRoutes.actionLogger);
+app.use('/api/portal', cors(portalCorsOptions), appFunnelRoutes.createAppFunnelRouter());
 
 // Teacher Portal API routes (with CORS, rate limiting, NO auth middleware - routes handle auth internally)
 app.use('/api/portal', cors(portalCorsOptions), portalAuthLimiter, portalDataLimiter, portalRoutes);

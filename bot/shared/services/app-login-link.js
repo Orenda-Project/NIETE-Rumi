@@ -25,6 +25,7 @@
  *     The label moved to v2 with it, so a link minted before the change no longer opens anything.
  */
 const crypto = require('crypto');
+const { isJourneyId } = require('./app-journey');
 
 const DERIVE_LABEL = 'app-login-link-v2';
 const KIND = 'app';
@@ -82,18 +83,24 @@ function key() {
 
 const nowS = () => Math.floor(Date.now() / 1000);
 
-/** A link token for this user and feature, or null (no user, a feature with no app page, or no key here). */
-function signAppLink(userId, feature) {
+/**
+ * A link token for this user and feature, or null (no user, a feature with no app page, or no key here).
+ * bd-4r3rei: `journeyId` (app-journey.js) rides inside the encrypted payload so the portal can join her page views to
+ * the WhatsApp message that sent her. Optional; anything that is not a journey id is not carried.
+ */
+function signAppLink(userId, feature, journeyId) {
   const k = key();
   if (!k || !userId || !linkable(feature)) return null;
   const iv = crypto.randomBytes(IV_LEN);
   const cipher = crypto.createCipheriv('aes-256-gcm', k, iv);
-  const plain = Buffer.from(JSON.stringify({ k: KIND, u: String(userId), f: feature, exp: nowS() + TTL_S }));
+  const body = { k: KIND, u: String(userId), f: feature, exp: nowS() + TTL_S };
+  if (isJourneyId(journeyId)) body.j = journeyId;
+  const plain = Buffer.from(JSON.stringify(body));
   const enc = Buffer.concat([cipher.update(plain), cipher.final()]);
   return Buffer.concat([iv, enc, cipher.getAuthTag()]).toString('base64url');
 }
 
-/** {u, f, exp} when the token is genuine, for a linkable feature, and unexpired; else null. Never throws. */
+/** {u, f, exp, j} when the token is genuine, for a linkable feature, and unexpired; else null. `j` is the journey id, or null for a link sent before bd-4r3rei. Never throws. */
 function verifyAppLink(token) {
   try {
     const k = key();
@@ -111,7 +118,7 @@ function verifyAppLink(token) {
     if (!p || p.k !== KIND || typeof p.u !== 'string' || !p.u) return null;
     if (!linkable(p.f)) return null;
     if (!Number.isFinite(p.exp) || p.exp < nowS()) return null;
-    return { u: p.u, f: p.f, exp: p.exp };
+    return { u: p.u, f: p.f, exp: p.exp, j: isJourneyId(p.j) ? p.j : null };
   } catch (_) {
     return null;
   }

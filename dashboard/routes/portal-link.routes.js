@@ -77,6 +77,8 @@ const AREAS = {
 const FRAME = [
   { method: 'GET', test: (p) => p === '/dashboard' || p === '/auth/verify' || p === '/config' || p === '/me/language' },
   { method: 'POST', test: (p) => p === '/logout' },
+  // bd-4r3rei — the page-view report (app-funnel.routes.js): a link session's pages are part of the journey too.
+  { method: 'POST', test: (p) => p === '/funnel/events' },
 ];
 
 function allowed(area, method, path) {
