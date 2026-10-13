@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Lock, Smartphone, KeyRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../hooks/useAuth';
-import { isLeader } from '../lib/leaderRole';
+import { homeFor } from '../lib/homeRoute';
 import { isValidPkMobile } from '../lib/phone';
 import { BottomButton } from '../newui';
 import { FOCUS } from '../newui/styles';
@@ -41,10 +41,10 @@ const PortalLogin = () => {
   // The session cookie is httpOnly, so this page cannot inspect a token
   // itself; useAuth already asks the server on mount, and this waits for that
   // answer. Same rule as PortalRoot: leaders go to My Patch, teachers to the
-  // dashboard.
+  // dashboard (bd-s6qbts.3: an analytics-only account to its analytics page — lib/homeRoute).
   useEffect(() => {
     if (sessionLoading || !user) return;
-    navigate(isLeader(user) ? '/portal/leader' : '/portal/dashboard', { replace: true });
+    navigate(homeFor(user), { replace: true });
   }, [user, sessionLoading, navigate]);
 
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -82,8 +82,9 @@ const PortalLogin = () => {
       const result = await login(phoneNumber, password);
       if (result.success) {
         // bd-2434: school leaders go straight to My Patch, not the teacher dashboard.
+        // bd-s6qbts.3: an analytics-only account to its analytics page (lib/homeRoute).
         // The button stays on "Logging in" until the page changes.
-        navigate(isLeader(result.user) ? '/portal/leader' : '/portal/dashboard');
+        navigate(homeFor(result.user));
         return;
       }
       setError(loginFailure(result.status));

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { isLeader } from '../lib/leaderRole';
+import { homeFor } from '../lib/homeRoute';
 import PortalLogin from './PortalLogin';
 import { FrameSkeleton, LoginSkeleton } from '../components/Skeleton';
 import { readShellHint } from '../lib/shellHint';
@@ -39,7 +39,8 @@ const PortalRoot = () => {
   useEffect(() => {
     if (loading || !user) return;
     // bd-2434 parity: leaders belong on My Patch, not the teacher dashboard.
-    navigate(isLeader(user) ? '/portal/leader' : '/portal/dashboard', { replace: true });
+    // bd-s6qbts.3: an analytics-only account on its analytics page (lib/homeRoute).
+    navigate(homeFor(user), { replace: true });
   }, [user, loading, navigate]);
 
   // An outline until the session is known (bd-fxk3t8: it was a white screen on every
