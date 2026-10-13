@@ -127,6 +127,11 @@ const SIX = ["B.K", "Sihala", "Urban-I", "Nilore", "Urban-II", "Tarnol"];
 const testIds = (prefix: string) =>
   Array.from(document.querySelectorAll(`[data-testid^="${prefix}"]`)).map((el) => el.getAttribute("data-testid")!.slice(prefix.length));
 
+/** bd-wfl8oz (operator, 2026-10-13): "LP Generated" and "Coach visits" are off the page — human observations are the visits. */
+const REMOVED_WORDS = /LPs? generated|Coach visits/i;
+const REMOVED_KEYS = ["lpsGenerated", "coachVisits"];
+const COLUMNS = ["School", "Region", "Teachers", "LPs opened", "DC observations", "Human observations", "Avg FICO", "Avg HITL"];
+
 describe("regions", () => {
   it("every region is a chip with its school count", async () => {
     renderPage();
@@ -180,6 +185,18 @@ describe("regions", () => {
     expect(within(card).getByTestId("region-avgFico")).toHaveTextContent("65.3");
     expect(within(card).getByTestId("region-avgFico")).toHaveTextContent("(64)");
   });
+
+  it("a region card lists LPs opened, the two observation counts and the two averages — nothing generated, no visits", async () => {
+    renderPage();
+    await screen.findByTestId("region-cards");
+    for (const r of SIX) {
+      const card = screen.getByTestId(`region-card-${r}`);
+      const keys = within(card).getAllByTestId(/^region-/).map((el) => el.getAttribute("data-testid")!.slice("region-".length));
+      expect(keys).toEqual(["lpsOpened", "dcObservations", "humanObservations", "avgFico", "avgHitl"]);
+      for (const k of REMOVED_KEYS) expect(within(card).queryByTestId(`region-${k}`)).toBeNull();
+      expect(card.textContent).not.toMatch(REMOVED_WORDS);
+    }
+  });
 });
 
 describe("overview tiles", () => {
@@ -192,11 +209,37 @@ describe("overview tiles", () => {
     expect(within(overview).getByTestId("tile-lpsOpened")).toHaveTextContent("185 of 442 teachers");
     expect(within(overview).getByTestId("tile-dcObservations")).toHaveTextContent("188");
     expect(within(overview).getByTestId("tile-dcObservations")).toHaveTextContent("93 of 442 teachers");
-    expect(within(overview).getByTestId("tile-lpsGenerated")).toHaveTextContent("913");
     expect(within(overview).getByTestId("tile-humanObservations")).toHaveTextContent("77");
-    expect(within(overview).getByTestId("tile-coachVisits")).toHaveTextContent("32");
     expect(within(overview).getByTestId("tile-avgFico")).toHaveTextContent("64.8");
     expect(within(overview).getByTestId("tile-avgFico")).toHaveTextContent("188");
+  });
+
+  it("are exactly seven: schools, teachers, LPs opened, the two observation counts and the two averages", async () => {
+    renderPage();
+    await screen.findByTestId("overview");
+    expect(testIds("tile-")).toEqual(["schools", "teachers", "lpsOpened", "dcObservations", "humanObservations", "avgFico", "avgHitl"]);
+    for (const k of REMOVED_KEYS) expect(screen.queryByTestId(`tile-${k}`)).toBeNull();
+    expect(screen.getByTestId("overview").textContent).not.toMatch(REMOVED_WORDS);
+  });
+
+  it("fill their rows with no tile left alone: four across on a desktop, two on a phone, LPs opened two wide", async () => {
+    renderPage();
+    const overview = await screen.findByTestId("overview");
+    const classes = overview.className.split(/\s+/);
+    expect(classes).toContain("grid-cols-2");
+    expect(classes).toContain("lg:grid-cols-4");
+    expect(classes.some((c) => /^(sm|md|xl):grid-cols-/.test(c))).toBe(false);
+    // Each grid cell's span, in order, laid out the way CSS grid auto-places them (no dense packing).
+    const spans = Array.from(overview.children).map((el) => (el.className.split(/\s+/).includes("col-span-2") ? 2 : 1));
+    expect(spans).toEqual([1, 1, 2, 1, 1, 1, 1]);
+    for (const cols of [2, 4]) {
+      let at = 0;
+      for (const span of spans) {
+        expect(at + span).toBeLessThanOrEqual(cols); // a tile that does not fit would wrap and leave a hole
+        at = (at + span) % cols;
+      }
+      expect(at).toBe(0); // the last row is full: no orphan
+    }
   });
 
   it("the scope line names the region, schools and window", async () => {
@@ -229,13 +272,17 @@ describe("the LP-opens note", () => {
 });
 
 describe("the school table", () => {
-  it("has the v3 columns, one row per school", async () => {
+  it("has the v3 columns less LPs generated and Coach visits, in order, one row per school", async () => {
     renderPage();
     const table = await screen.findByTestId("schools-table");
     const headers = within(table).getAllByRole("columnheader").map((th) => th.textContent || "");
-    for (const h of ["School", "Region", "Teachers", "LPs opened", "LPs generated", "DC observations", "Human observations", "Coach visits", "Avg FICO", "Avg HITL"]) {
-      expect(headers.some((t) => t.startsWith(h))).toBe(true);
+    expect(headers).toHaveLength(COLUMNS.length);
+    COLUMNS.forEach((h, i) => expect(headers[i].startsWith(h)).toBe(true));
+    for (const k of REMOVED_KEYS) {
+      expect(screen.queryByTestId(`sort-${k}`)).toBeNull();
+      expect(within(table).queryAllByTestId(`cell-${k}`)).toHaveLength(0);
     }
+    expect(table.textContent).not.toMatch(REMOVED_WORDS);
     expect(rowNames()).toHaveLength(16);
   });
 
@@ -369,9 +416,19 @@ describe("the How these numbers are worked out panel", () => {
     renderPage();
     const panel = await screen.findByTestId("how-counted");
     expect(panel).toHaveTextContent("How these numbers are worked out");
-    for (const term of ["Teachers", "LPs opened", "LPs generated", "DC observations", "Human observations", "Coach visits", "Avg FICO", "Avg HITL"]) {
+    for (const term of ["Teachers", "LPs opened", "DC observations", "Human observations", "Avg FICO", "Avg HITL"]) {
       expect(panel).toHaveTextContent(term);
     }
+  });
+
+  it("no longer explains LPs generated or Coach visits — they are not on the page", async () => {
+    renderPage();
+    const panel = await screen.findByTestId("how-counted");
+    expect(Array.from(panel.querySelectorAll("dt")).map((dt) => dt.textContent)).not.toEqual(
+      expect.arrayContaining(["LPs generated"]),
+    );
+    expect(panel.textContent).not.toMatch(REMOVED_WORDS);
+    expect(document.body.textContent).not.toMatch(REMOVED_WORDS);
   });
 
   it("says plainly that only schools in the six regions are shown, and never mentions Unassigned (bd-s6qbts.4)", async () => {
@@ -402,6 +459,19 @@ describe("on a phone", () => {
     const card = screen.getByTestId("school-card-s-02");
     expect(within(card).getByTestId("cell-lpsOpened")).toHaveTextContent("14 of 30");
     expect(within(card).getByTestId("cell-avgFico")).toHaveTextContent("68.4 (17)");
-    expect(within(card).getByTestId("cell-coachVisits")).toHaveTextContent("3");
+    expect(within(card).getByTestId("cell-humanObservations")).toHaveTextContent("6");
+  });
+
+  it("a card and the sort menu carry neither LPs generated nor Coach visits", async () => {
+    setWidth(390);
+    renderPage();
+    await screen.findAllByTestId("school-card");
+    const card = screen.getByTestId("school-card-s-02");
+    expect(Array.from(card.querySelectorAll("[data-testid^='cell-']")).map((el) => el.getAttribute("data-testid"))).toEqual(
+      ["cell-teachers", "cell-lpsOpened", "cell-dcObservations", "cell-humanObservations", "cell-avgFico", "cell-avgHitl"],
+    );
+    const options = Array.from((screen.getByTestId("sort-menu") as HTMLSelectElement).options).map((o) => o.textContent);
+    expect(options).toEqual(COLUMNS);
+    expect(document.body.textContent).not.toMatch(REMOVED_WORDS);
   });
 });

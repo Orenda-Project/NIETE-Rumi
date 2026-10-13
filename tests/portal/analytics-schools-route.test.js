@@ -86,21 +86,14 @@ function poolRows(sql, params) {
   if (/'scores'/.test(sql)) {
     return params[0].map((id) => ({ id, updated_at: '2026-10-02T00:00:00Z', scores: { overall_marks: 70, overall_max_marks: 100 } }));
   }
+  // One row per school with its (non-test) roster summed by the same read (bd-wfl8oz).
   if (/FROM schools/i.test(sql)) {
     return [
-      { id: 's1', name: 'IMSG B.K 1', emis: '101', region: 'B.K', is_active: true, is_probable_test: false, coach_visits: 3 },
-      { id: 's2', name: 'IMCG Sihala', emis: '202', region: 'Sihala', is_active: true, is_probable_test: false, coach_visits: 1 },
+      { id: 's1', name: 'IMSG B.K 1', emis: '101', region: 'B.K', is_active: true, is_probable_test: false, teachers: 8, lps_opened: 5, teachers_opened_lp: 3 },
+      { id: 's2', name: 'IMCG Sihala', emis: '202', region: 'Sihala', is_active: true, is_probable_test: false, teachers: 2, lps_opened: 1, teachers_opened_lp: 1 },
       // Outside the six regions: left out of every number (bd-s6qbts.4).
-      { id: 's3', name: 'No Region School', emis: '303', region: null, is_active: true, is_probable_test: false, coach_visits: 7 },
-      { id: 's4', name: 'Durbeen', emis: null, region: 'Durbeen', is_active: true, is_probable_test: false, coach_visits: 5 },
-    ];
-  }
-  if (/lesson_plans/i.test(sql)) {
-    return [
-      { school_id: 's1', is_test: false, teachers: 8, lps_generated: 12, lps_opened: 5, teachers_opened_lp: 3 },
-      { school_id: 's2', is_test: false, teachers: 2, lps_generated: 1, lps_opened: 1, teachers_opened_lp: 1 },
-      { school_id: 's3', is_test: false, teachers: 31, lps_generated: 40, lps_opened: 20, teachers_opened_lp: 9 },
-      { school_id: 's4', is_test: false, teachers: 11, lps_generated: 7, lps_opened: 6, teachers_opened_lp: 2 },
+      { id: 's3', name: 'No Region School', emis: '303', region: null, is_active: true, is_probable_test: false, teachers: 31, lps_opened: 20, teachers_opened_lp: 9 },
+      { id: 's4', name: 'Durbeen', emis: null, region: 'Durbeen', is_active: true, is_probable_test: false, teachers: 11, lps_opened: 6, teachers_opened_lp: 2 },
     ];
   }
   if (/FROM coaching_sessions/i.test(sql)) {
@@ -258,8 +251,8 @@ describe('GET /analytics/schools', () => {
     expect(payload.lpOpensLoggedSince).toBe('2026-10-04');
     expect(payload.regions.map((r) => r.region)).toEqual(['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol']);
     expect(payload.overview).toEqual({
-      schools: 2, teachers: 10, lpsOpened: 6, teachersOpenedLp: 4, lpsGenerated: 13,
-      dcObservations: 1, teachersWithDc: 1, humanObservations: 1, coachVisits: 4,
+      schools: 2, teachers: 10, lpsOpened: 6, teachersOpenedLp: 4,
+      dcObservations: 1, teachersWithDc: 1, humanObservations: 1,
       avgFico: 70, ficoN: 1, avgHitl: 70, hitlN: 1,
     });
     expect(JSON.stringify(payload)).not.toMatch(/Pct|percent|band|threshold/i);
@@ -271,7 +264,24 @@ describe('GET /analytics/schools', () => {
       if (k.startsWith('avg')) continue;
       expect(payload.regions.reduce((n, r) => n + r[k], 0)).toBe(payload.overview[k]);
     }
-    expect(queries.length).toBeLessThanOrEqual(4);
+    expect(queries.length).toBeLessThanOrEqual(3);
+  });
+
+  it('sends exactly the remaining metrics — no LPs generated, no coach visits — and reads neither source (bd-wfl8oz)', async () => {
+    tableStates.app_settings = flag([VIEWER]);
+    const { statusCode, payload } = await call('get', '/analytics/schools', {
+      userId: VIEWER, query: { from: '2026-10-01', to: '2026-10-13' },
+    });
+    expect(statusCode).toBe(200);
+    const METRICS = ['teachers', 'lpsOpened', 'teachersOpenedLp', 'dcObservations', 'teachersWithDc', 'humanObservations', 'avgFico', 'ficoN', 'avgHitl', 'hitlN'];
+    expect(Object.keys(payload.overview).sort()).toEqual(['schools', ...METRICS].sort());
+    for (const r of payload.regions) expect(Object.keys(r).sort()).toEqual(['region', 'schools', ...METRICS].sort());
+    for (const x of payload.schools) expect(Object.keys(x).sort()).toEqual(['schoolId', 'emis', 'name', 'region', ...METRICS].sort());
+    expect(JSON.stringify(payload)).not.toMatch(/lpsGenerated|coachVisits|lps_generated|coach_visits/i);
+    // Two set-based reads (schools with their roster, sessions) and at most one score read.
+    expect(queries.length).toBeGreaterThan(0);
+    expect(queries.length).toBeLessThanOrEqual(3);
+    for (const q of queries) expect(q.sql).not.toMatch(/lesson_plans|observation_schedules/i);
   });
 
   it('a region filter scopes the overview to that region card', async () => {
