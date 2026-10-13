@@ -57,10 +57,22 @@ export type PhotosProblem = 'not_a_photo' | 'too_many' | null;
  * (teacher/coaching/SendPage, bd-fmf24g.4) passes its own, so the bar's Return and every way out land
  * on v2 pages for a flagged teacher.
  */
-export type SendFlowPaths = { record: string; hub: string };
+export type SendFlowPaths = {
+  record: string;
+  hub: string;
+  /** The route state a way back to the hub carries (today's hub opens its Send a lesson sheet; the v2 page keeps its draft). */
+  hubState?: object;
+};
 const TODAY_PATHS: SendFlowPaths = { record: RECORD_PATH, hub: '/portal/coaching' };
 
-export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TODAY_PATHS) {
+/**
+ * bd-fmf24g.76 — what the teacher v2 Digital Coaching page hands over to be sent: the page holds the recording, the
+ * lesson plan and the photos (teacher/coaching/draft.ts) and the send page only sends them. Today's pages pass none.
+ */
+export type SendDraft = { audio: Audio | null; plan: Plan | null; photos: File[] };
+export type SendFlowOptions = { adopt?: () => SendDraft | null };
+
+export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TODAY_PATHS, options: SendFlowOptions = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [stage, setStage] = useState<Stage>(() => (session.active ? 'recording' : 'starting'));
@@ -78,8 +90,8 @@ export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TO
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   const toCoaching = useCallback(
-    () => navigate(paths.hub, { replace: true, state: { sendSheet: true } }),
-    [navigate, paths.hub],
+    () => navigate(paths.hub, { replace: true, state: paths.hubState ?? { sendSheet: true } }),
+    [navigate, paths.hub, paths.hubState],
   );
 
   const startRecording = async () => {
@@ -115,10 +127,18 @@ export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TO
   useEffect(() => {
     if (begun.current) return;
     begun.current = true;
-    const start = (location.state as Partial<RecordStart> | null)?.start;
+    const start = (location.state as { start?: RecordStart['start'] | 'submit' } | null)?.start;
     navigate(location.pathname, { replace: true, state: null });
     // A lesson already recording (Return, Send a lesson, Back) is shown, never a second one.
     if (session.active) { setStage('recording'); return; }
+    // bd-fmf24g.76: the teacher v2 page's Submit: send what its page holds, with no class.
+    if (start === 'submit') {
+      const held = options.adopt?.();
+      if (!held || !held.audio) { toCoaching(); return; }
+      setAudio(held.audio); setPlan(held.plan); setPhotos(held.photos);
+      void sendDraft(held, null);
+      return;
+    }
     if (start === 'record') { void startRecording(); return; }
     if (start === 'file') {
       const file = takeHandedOffRecording();
@@ -192,20 +212,21 @@ export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TO
 
   const removePhoto = (i: number) => { setPhotosProblem(null); setPhotos((p) => p.filter((_, j) => j !== i)); };
 
-  /** `teacherClass`: the class she picked (teacher app v2); today's pages send none. */
-  const send = async (teacherClass?: TeacherClass | null) => {
-    if (!audio) return;
+  /** The files go, then the analysis. `teacherClass`: a class when the caller has one; the teacher app v2 sends none. */
+  const sendDraft = async (d: SendDraft, teacherClass?: TeacherClass | null) => {
+    if (!d.audio) return;
+    const { audio: sending, plan: sendingPlan, photos: sendingPhotos } = d;
     setFailure(null);
     setProgress(0);
     setStage('sending');
     try {
       const { coachingSessionId } = await sendLesson({
-        audio: { blob: audio.blob, filename: audio.filename },
-        plan: plan ? (plan.kind === 'library' ? { kind: 'library', pick: plan.pick } : { kind: 'file', file: plan.file }) : null,
-        photos,
+        audio: { blob: sending.blob, filename: sending.filename },
+        plan: sendingPlan ? (sendingPlan.kind === 'library' ? { kind: 'library', pick: sendingPlan.pick } : { kind: 'file', file: sendingPlan.file }) : null,
+        photos: sendingPhotos,
         teacherClass: teacherClass ?? null,
       }, portal, setProgress);
-      if (audio.recordingId) { try { await deleteRecording(audio.recordingId); } catch { /* gone */ } }
+      if (sending.recordingId) { try { await deleteRecording(sending.recordingId); } catch { /* gone */ } }
       setSessionId(coachingSessionId);
       setStage('sent');
     } catch (err) {
@@ -213,6 +234,12 @@ export function useSendFlow(session: RecordingSession, paths: SendFlowPaths = TO
       setFailure(e);
       setStage(e.kind === 'in_progress' ? 'busy' : 'failed');
     }
+  };
+
+  /** What this page holds, sent. `teacherClass`: the class she picked (today's v2 check page); today's pages send none. */
+  const send = async (teacherClass?: TeacherClass | null) => {
+    if (!audio) return;
+    await sendDraft({ audio, plan, photos }, teacherClass);
   };
 
   /** The plan was refused: drop it and go back to choose another. */

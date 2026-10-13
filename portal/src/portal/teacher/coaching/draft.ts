@@ -1,19 +1,21 @@
 import type { LibraryPick } from '../../lib/coachingSend';
+import type { Audio } from '../../newui/coaching/useSendFlow';
 
 /**
- * bd-fmf24g.4 — what the hub hands to the send page: her class, the lesson plan and the photos she chose.
- * Held in memory (a File cannot ride in the URL) until the lesson is sent: she may leave the recording to
- * open her lesson plan and come back by the recording bar, and the send page must still have them. The
- * hub replaces it on every Start; the send page clears it once sent. The recording itself goes the way
- * it always has (useSendFlow: the recording session, or lessonHandoff for an uploaded file).
+ * bd-fmf24g.4 — what the Digital Coaching page holds: the recording, the lesson plan and the photos she chose.
+ * Held in memory (a File cannot ride in the URL) until the lesson is sent: she may leave for the recording page, her
+ * lesson plan or the library and come back, and the page must find them as she left them.
+ *
+ * bd-fmf24g.76 — no class (the WhatsApp flow asks for none), and the RECORDING is part of it: Record opens the recording page
+ * (SendPage), which puts the finished recording here and returns to the page; Upload attaches in place. Submit sends
+ * exactly what is held (SendPage, start 'submit'); the send page clears it once sent.
  */
-export type Combo = { grade: number; subject: string };
 
 export type DraftPlan =
   | { kind: 'library'; pick: LibraryPick; title: string; chips: string[] }
   | { kind: 'file'; file: File; asPhoto: boolean };
 
-export type Draft = { combo: Combo | null; plan: DraftPlan | null; photos: File[] };
+export type Draft = { audio: Audio | null; plan: DraftPlan | null; photos: File[] };
 
 let held: Draft | null = null;
 
