@@ -4,7 +4,7 @@ import beaconhouseLogo from '@/assets/vendors/beaconhouse.png';
 import oxbridgeLogo from '@/assets/vendors/oxbridge.png';
 import { featurePath } from '../paths';
 import {
-  isLadder, percent, providerInitials, providerLabel, sortVendors, trainingPaths,
+  isLadder, percent, providerInitials, providerLabel, providerShort, sortVendors, trainingPaths,
   type Level, type Vendor,
 } from '../../newui/training/trainingApi';
 import type { ContinueTarget } from '../../newui/training/continue';
@@ -105,7 +105,7 @@ export function certificateSummary(certs: CertLike[] | null | undefined): CertSu
   const asVendors = [...keys.keys()].map((k) => ({ vendor_key: k } as Vendor));
   const providers = sortVendors(asVendors).map(({ vendor_key: key }) => ({
     key,
-    label: providerLabel(key),
+    label: providerLabel(key, [{ vendor_key: key, vendor_name: keys.get(key) }]),
     initials: providerInitials(key, keys.get(key)),
     logo: providerLogo(key),
   }));
@@ -135,7 +135,7 @@ export function continueCard(target: ContinueTarget | null | undefined, vendors:
   const partsTotal = lvl?.module_count || 0;
   return {
     vendorKey: target.vendorKey,
-    provider: providerLabel(target.vendorKey, vendors),
+    provider: providerShort(target.vendorKey, vendors.find((v) => v.vendor_key === target.vendorKey)?.vendor_name),
     logo: providerLogo(target.vendorKey),
     initials: providerInitials(target.vendorKey, vendors.find((v) => v.vendor_key === target.vendorKey)?.vendor_name),
     levelNumber: lvl && isLadder(lvl) ? lvl.order_index + 1 : null,

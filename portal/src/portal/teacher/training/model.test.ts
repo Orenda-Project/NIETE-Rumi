@@ -9,8 +9,12 @@ import {
  * new UI already makes (vendors, levels, certificates, bands); these mappers only shape it.
  */
 
+// training_vendors.name as the server sends it (bd-2gia5l: the page shows the server's name).
+const DB_NAME: Record<string, string> = {
+  TALEEMABAD: 'NIETE', ISAPS: 'Teacher Development Programme, 9-12', OXBRIDGE: 'Smart Schools Project: GBTLA',
+};
 const vendor = (vendor_key: string, done: number, total: number, extra: Partial<Vendor> = {}): Vendor => ({
-  vendor_key, vendor_name: vendor_key, level_count: 1, course_count: 1, module_count: total,
+  vendor_key, vendor_name: DB_NAME[vendor_key] ?? vendor_key, level_count: 1, course_count: 1, module_count: total,
   completed_module_count: done, certificate_count: 0, avg_score_pct: null, ...extra,
 });
 
@@ -76,7 +80,7 @@ describe('courseTiles', () => {
     const tiles = courseTiles(vendors, levels, paths);
     expect(tiles.map((t) => t.key)).toEqual(['TALEEMABAD', 'ISAPS', 'OXBRIDGE']);
     expect(tiles.map((t) => t.pct)).toEqual([24, 11, 100]);
-    expect(tiles.map((t) => t.label)).toEqual(['NIETE', 'I-SAPS', 'Oxbridge']);
+    expect(tiles.map((t) => t.label)).toEqual(['NIETE', 'Teacher Development Programme, 9-12', 'Smart Schools Project: GBTLA']);
     expect(tiles.every((t) => !!t.logo)).toBe(true);
     expect(tiles.map((t) => t.done)).toEqual([false, false, true]);
   });

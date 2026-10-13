@@ -89,21 +89,33 @@ export type GrandQuizGate = {
 /* ── providers ────────────────────────────────────────────────────────────── */
 
 /**
- * The providers' names as teachers know them, and the order the main page lists them in
- * (deep-screens.html: NIETE, I-SAPS, Beacon House, Oxbridge). The server's vendor_name for
- * TALEEMABAD is not what she calls it; PortalTrainingV2's VENDOR_BRAND makes the same mapping.
- * `short` is for tight places: a certificate row, a filter chip.
+ * The order the main page lists the providers in (deep-screens.html: NIETE, I-SAPS, Beacon House,
+ * Oxbridge), with a short label and badge for each.
+ *
+ * bd-2gia5l — the NAME is the server's (`training_vendors.name`), so renaming a programme is a DB
+ * edit. `label` is only the fallback for a page that has no vendor row to hand, and must match the
+ * DB (scripts/migrations/2026-10-13-rename-training-vendors.sql). `short` is for tight places: a
+ * chip, a certificate row, the Continue button — the full names run to 80 characters.
  */
 const PROVIDERS: Record<string, { label: string; short: string; initials: string; rank: number }> = {
   TALEEMABAD: { label: 'NIETE', short: 'NIETE', initials: 'N', rank: 0 },
-  ISAPS: { label: 'I-SAPS', short: 'I-SAPS', initials: 'IS', rank: 1 },
-  BEACONHOUSE: { label: 'Beacon House', short: 'Beacon', initials: 'BH', rank: 2 },
-  OXBRIDGE: { label: 'Oxbridge', short: 'Oxbridge', initials: 'OX', rank: 3 },
+  ISAPS: { label: 'Teacher Development Programme, 9-12', short: 'Teacher Development', initials: 'TD', rank: 1 },
+  BEACONHOUSE: { label: 'AI-Powered Subject Pedagogy, 6-10', short: 'AI Pedagogy', initials: 'AI', rank: 2 },
+  OXBRIDGE: {
+    label: 'Smart Schools Project: Game-Based Teaching, Learning and Assessment (GBTLA), 6-10',
+    short: 'GBTLA',
+    initials: 'GB',
+    rank: 3,
+  },
 };
 
-export function providerLabel(key: string | null | undefined, vendors?: Vendor[] | null): string {
+export function providerLabel(
+  key: string | null | undefined,
+  vendors?: ReadonlyArray<Pick<Vendor, 'vendor_key'> & { vendor_name?: string | null }> | null,
+): string {
   const k = String(key || '');
-  return PROVIDERS[k]?.label ?? vendors?.find((v) => v.vendor_key === k)?.vendor_name ?? k;
+  const fromServer = vendors?.find((v) => v.vendor_key === k)?.vendor_name?.trim();
+  return fromServer || PROVIDERS[k]?.label || k;
 }
 
 export function providerShort(key: string | null | undefined, vendorName?: string | null): string {
@@ -111,7 +123,7 @@ export function providerShort(key: string | null | undefined, vendorName?: strin
   return PROVIDERS[k]?.short ?? vendorName ?? k;
 }
 
-/** "N", "IS", "BH" — the badge in a provider's row. */
+/** "N", "TD", "AI" — the badge in a provider's row. */
 export function providerInitials(key: string, name?: string | null): string {
   if (PROVIDERS[key]) return PROVIDERS[key].initials;
   return String(name || key).trim().split(/\s+/).slice(0, 2).map((w) => Array.from(w)[0] || '').join('').toUpperCase();

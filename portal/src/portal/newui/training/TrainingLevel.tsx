@@ -11,7 +11,7 @@ import { Loading, NotLoaded, TrainingInner } from './frame';
 import { certificateUrl, downloadCertificate } from './certificateFile';
 import {
   courseName,
-  courseDone, isExamless, isLadder, lockedBehind, percent, providerLabel, statusOf, trainingBase, trainingPaths, useGet,
+  courseDone, isExamless, isLadder, lockedBehind, percent, providerLabel, providerShort, statusOf, trainingBase, trainingPaths, useGet,
   type Course, type GrandQuizGate, type Level, type Vendor,
 } from './trainingApi';
 
@@ -63,7 +63,7 @@ export default function TrainingLevel() {
   const doneCount = (courses.data || []).filter(courseDone).length;
 
   return (
-    <TrainingInner crumb={TRAINING_COPY.crumb(provider)} title={title} backTo={backTo}>
+    <TrainingInner crumb={TRAINING_COPY.crumb(providerShort(vendorKey, provider))} title={title} backTo={backTo}>
       {gate.data && level ? <ExamRow gate={gate.data} level={level} to={paths.levelExam(vendorKey, levelId)} /> : null}
 
       {courses.loading ? <Loading /> : null}

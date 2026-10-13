@@ -12,7 +12,7 @@ import { TRAINING_COPY } from '../copy';
 import { Loading, NotLoaded, TrainingActions, TrainingInner } from './frame';
 import { CertificateCard, WrittenAnswer, WrittenField } from './examParts';
 import {
-  isLadder, percent, providerLabel, statusOf, trainingBase, trainingPaths, useGet,
+  isLadder, percent, providerLabel, providerShort, statusOf, trainingBase, trainingPaths, useGet,
   type GrandQuizGate, type Level, type Vendor,
 } from './trainingApi';
 
@@ -62,7 +62,8 @@ export function useLevelExam() {
     (d) => (d as { grand_quiz?: GrandQuizGate })?.grand_quiz ?? null);
 
   const level = levels.data?.find((l) => String(l.id) === String(levelId)) ?? null;
-  const provider = providerLabel(vendorKey, vendors.data);
+  // Only the breadcrumb names the provider, and the full names run to 80 characters (bd-2gia5l).
+  const provider = providerShort(vendorKey, providerLabel(vendorKey, vendors.data));
   const title = level ? (isLadder(level) ? TRAINING_COPY.levelExamTitle(level.order_index + 1) : TRAINING_COPY.examOf(level.name)) : TRAINING_COPY.levelExam;
   const levelUrl = paths.level(vendorKey, levelId);
 
