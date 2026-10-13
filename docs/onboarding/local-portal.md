@@ -19,7 +19,7 @@ No keys file and no `npm ci` by hand: the stack installs the bot's modules from 
 ## Every time
 
 ```bash
-bash scripts/dev-portal.sh up        # first time ~40 min (copies the sandbox); after that ~1 min, from the cache
+bash scripts/dev-portal.sh up        # first time ~15 min (copies the sandbox, ~1.4 GB); after that ~1 min, from the cache
 bash scripts/dev-portal.sh status
 bash scripts/dev-portal.sh down      # stops everything and drops the database
 ```
