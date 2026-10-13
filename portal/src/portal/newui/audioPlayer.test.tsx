@@ -209,14 +209,18 @@ describe("seeking: a tap or a drag on the track", () => {
     expect(clock.time).toBe(90);
   });
 
-  it("in Urdu the track runs right to left: a tap near the right edge is near the start", () => {
+  // bd-phk3v4 — ICT feedback (IAB Experience View, row 8): in Urdu a voice note still starts from the LEFT, as
+  // WhatsApp's does; only the words around it are right-aligned. (It used to mirror: a tap near the right edge
+  // was near the start.)
+  it("in Urdu the track still runs left to right: a tap near the right edge is near the end", () => {
     const { root, audio, slider } = setup({}, (ui) => <div dir="rtl">{ui}</div>);
     const clock = media(audio, 120);
     fireEvent(audio, new Event("loadedmetadata"));
     rectOf(within(root).getByTestId("newui-audio-track"), 100, 200);
     fireEvent.pointerDown(slider, { clientX: 250, pointerId: 1 });
     fireEvent.pointerUp(slider, { clientX: 250, pointerId: 1 });
-    expect(clock.time).toBe(30);
+    expect(clock.time).toBe(90);
+    expect(root.getAttribute("dir")).toBe("ltr");
   });
 });
 
@@ -252,14 +256,14 @@ describe("the keyboard", () => {
     expect(timeText(root)).toBe("00:00 / 02:00");
   });
 
-  it("in Urdu the left arrow goes forward (the reading direction)", () => {
+  it("bd-phk3v4 — in Urdu the right arrow still goes forward (the track runs left to right)", () => {
     const { audio, slider, fire } = setup({}, (ui) => <div dir="rtl">{ui}</div>);
     const clock = media(audio, 120);
     fire("loadedmetadata");
     clock.at(30);
-    fireEvent.keyDown(slider, { key: "ArrowLeft" });
-    expect(clock.time).toBe(35);
     fireEvent.keyDown(slider, { key: "ArrowRight" });
+    expect(clock.time).toBe(35);
+    fireEvent.keyDown(slider, { key: "ArrowLeft" });
     expect(clock.time).toBe(30);
   });
 });
