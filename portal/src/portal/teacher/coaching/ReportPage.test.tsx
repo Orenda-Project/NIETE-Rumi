@@ -290,3 +290,32 @@ describe("the reflection answer by voice (bd-eygg2f)", () => {
     expect(screen.getByRole("textbox", { name: C.yourAnswer })).toBeTruthy();
   });
 });
+
+/**
+ * bd-czmyoh — ICT feedback (IAB Experience View, row 6): on WhatsApp the reflection question always comes as a
+ * voice note, never as text. The portal now plays it the same way; the words show only when the bot could not
+ * voice it (WhatsApp's own fallback). She answers by typing or speaking (bd-eygg2f).
+ */
+describe("the reflection question as a voice note (bd-czmyoh)", () => {
+  it("plays the question as the Digital Coach's voice note and does not print it", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "conducting_conversation", stage: "reflection", source: "portal",
+      reflection: { questionNumber: 1, question: "Which children answered?", audioUrl: "https://signed.example/q1.ogg" } });
+    open();
+
+    const section = await screen.findByRole("region", { name: C.stepReflection });
+    const note = within(section).getByRole("group", { name: new RegExp(C.title) });
+    expect(note.querySelector("audio")?.getAttribute("src")).toBe("https://signed.example/q1.ogg");
+    expect(within(section).queryByText("Which children answered?")).toBeNull();
+    expect(within(section).getByRole("textbox", { name: C.yourAnswer })).toBeTruthy();
+  });
+
+  it("with no voice (TTS failed) the question shows as text, as WhatsApp falls back", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "conducting_conversation", stage: "reflection", source: "portal",
+      reflection: { questionNumber: 1, question: "Which children answered?" } });
+    open();
+
+    const section = await screen.findByRole("region", { name: C.stepReflection });
+    expect(within(section).getByText("Which children answered?")).toBeTruthy();
+    expect(within(section).queryByRole("group", { name: new RegExp(C.title) })).toBeNull();
+  });
+});

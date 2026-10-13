@@ -41,6 +41,7 @@ describe('bd-7kc2z — reflective debrief in silent (portal) mode', () => {
   let generateSpeech;
   let queueReport;
   let stateWrites;
+  let uploadBuffer;
 
   function arrange(row) {
     jest.resetModules();
@@ -50,8 +51,10 @@ describe('bd-7kc2z — reflective debrief in silent (portal) mode', () => {
     sendMessage = jest.fn().mockResolvedValue(undefined);
     generateSpeech = jest.fn().mockResolvedValue({ audio: Buffer.from('spoken') });
     queueReport = jest.fn().mockResolvedValue(undefined);
+    uploadBuffer = jest.fn().mockResolvedValue('https://r2.example/bucket/reflection_questions/u-1/cs-1_q1.ogg');
 
     jest.doMock('../../bot/shared/config/supabase', () => supabaseFor(row));
+    jest.doMock('../../bot/shared/storage/r2', () => ({ uploadBuffer }));
     jest.doMock('../../bot/shared/services/whatsapp.service', () => ({
       sendAudio, sendMessage, downloadMedia: jest.fn(),
     }));
@@ -112,7 +115,35 @@ describe('bd-7kc2z — reflective debrief in silent (portal) mode', () => {
       expect(result).toMatchObject({ question: QUESTION, questionNumber: 1 });
       expect(sendAudio).not.toHaveBeenCalled();
       expect(sendMessage).not.toHaveBeenCalled();
-      expect(generateSpeech).not.toHaveBeenCalled();
+    });
+
+    // bd-czmyoh — ICT feedback (IAB Experience View, row 6): on WhatsApp the question always arrives as a
+    // voice note, so the portal must play it the same way. Same TTS call as the WhatsApp path; the audio is
+    // stored in R2 and its URL kept on the question, instead of being sent to a chat.
+    test('bd-czmyoh — silent mode VOICES the question like WhatsApp, stores it, and keeps its URL on the question', async () => {
+      const Svc = arrange(freshRow());
+
+      const result = await Svc.conductReflectiveConversation('cs-1', null, 1, { silent: true });
+
+      expect(generateSpeech).toHaveBeenCalledWith(expect.objectContaining({ text: QUESTION, language: 'ur', site: 'question' }));
+      expect(uploadBuffer).toHaveBeenCalledWith(Buffer.from('spoken'), 'reflection_questions/u-1/cs-1_q1.ogg', 'audio/ogg');
+      const last = stateWrites[stateWrites.length - 1];
+      expect(last.questions[0]).toMatchObject({ question: QUESTION, audio_url: 'https://r2.example/bucket/reflection_questions/u-1/cs-1_q1.ogg' });
+      expect(result).toMatchObject({ audioUrl: 'https://r2.example/bucket/reflection_questions/u-1/cs-1_q1.ogg' });
+      expect(sendAudio).not.toHaveBeenCalled();
+    });
+
+    test('bd-czmyoh — a question that cannot be voiced still reaches the portal as text (as WhatsApp falls back)', async () => {
+      const Svc = arrange(freshRow());
+      generateSpeech.mockRejectedValue(new Error('tts down'));
+
+      const result = await Svc.conductReflectiveConversation('cs-1', null, 1, { silent: true });
+
+      expect(result).toMatchObject({ question: QUESTION, questionNumber: 1 });
+      expect(result.audioUrl).toBeUndefined();
+      const last = stateWrites[stateWrites.length - 1];
+      expect(last.questions[0].audio_url).toBeUndefined();
+      expect(last.current_state).toBe('REFLECTIVE_QUESTION_1');
     });
 
     test('silent mode still writes the SAME conversation_state the WhatsApp path does', async () => {

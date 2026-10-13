@@ -7182,7 +7182,13 @@ router.get('/coaching-session/:id/progress', requirePortalAuth, requireSelfObser
       const asked = ((row.conversation_state && row.conversation_state.questions) || [])
         .filter((q) => q && q.question && !q.answer)
         .pop();
-      if (asked) reflection = { questionNumber: asked.question_number, question: asked.question };
+      if (asked) {
+        reflection = { questionNumber: asked.question_number, question: asked.question };
+        // bd-czmyoh — the question as a voice note, as on WhatsApp (ICT feedback row 6). Absent when the bot
+        // could not voice it: the page then shows the words, WhatsApp's own fallback.
+        const audioUrl = await _resolveMediaUrl(asked.audio_url);
+        if (audioUrl) reflection.audioUrl = audioUrl;
+      }
     }
     const seconds = Number(row.audio_duration_seconds);
 
