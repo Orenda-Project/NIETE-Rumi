@@ -107,6 +107,21 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # checked when the survey is about to send. A different lesson is still surveyed; after 10
     # minutes the same lesson is surveyed again. Unit: tests/lp-v8/meta-bill-nl4-survey-dedupe.test.js.
 
+  @e2e @config-gated @no-mock-driver @slow @P1
+  Scenario: A plan I read in the teacher app gets the same "Was it useful?" survey on WhatsApp
+    Given the NIETE bot chat is open on a teacher with "Open in app" on for Lesson Plans
+    And I messaged the bot within the last 24 hours to ask for a Grades 1–5 lesson plan
+    And that lesson plan has not been delivered to me on WhatsApp
+    When I open it from the "Open in app" button and the plan opens in the teacher app
+    Then about 30 seconds later the chat receives the same "Was it useful?" survey, with the same "👍 Yes, useful" and "👎 Not really" buttons, that a WhatsApp-delivered plan gets
+    And tapping 👍 is acknowledged by a 🙏 reaction on my tap, and my answer is stored against that lesson plan
+    # bd-qvevax.2: since 12 Oct the app link replaced the WhatsApp delivery, and only deliveries asked
+    # the survey (lp_feedback 613/day → 49/day). The portal's viewer tells the bot an open happened
+    # (POST /api/internal/lp/open-survey); the bot hands over to the SAME survey services. Grades 6–12
+    # behave the same (survey keyed by segment + language). Needs the portal AND a teacher-app session,
+    # so it cannot run on the WhatsApp-only mock lane or the Chrome lane alone.
+    # Unit: tests/lp-v8/app-open-survey.test.js, tests/portal/lp-open-survey-trigger.test.js.
+
   # ─────────────────────── Business rules / valid variations ───────────────────────
 
   @e2e @i18n @P2
@@ -414,6 +429,32 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And the spoken reply does not promise a lesson plan it will not deliver
 
   # ─────────────────────────────── Negative ───────────────────────────────
+
+  @e2e @config-gated @no-mock-driver @negative @P1
+  Scenario: Opening the same plan in the app a second time asks nothing
+    Given the NIETE bot chat is open on a teacher with "Open in app" on for Lesson Plans
+    And I opened a lesson plan in the teacher app and its "Was it useful?" survey has arrived
+    When I open the same lesson plan in the teacher app again an hour later
+    Then no second "Was it useful?" survey arrives for it
+    # One survey per teacher per plan: an earlier viewer open of the plan (either language for 6–12)
+    # is the guard (skip reason earlier_open). Another plan is still surveyed.
+
+  @e2e @config-gated @no-mock-driver @negative @P1
+  Scenario: A plan that was already delivered to me on WhatsApp is not asked about again when I open it in the app
+    Given the NIETE bot chat is open on a teacher with "Open in app" on for Lesson Plans
+    And a lesson plan was delivered to me on WhatsApp and its survey was asked there
+    When I open that same lesson plan in the teacher app
+    Then no "Was it useful?" survey arrives for it
+    # Skip reason delivered_on_whatsapp (niete_lp_downloads 'sent' / niete_lp612_deliveries surface 'whatsapp').
+
+  @e2e @config-gated @no-mock-driver @negative @P1
+  Scenario: Outside my 24-hour WhatsApp window a plan opened in the app sends nothing, not even a template
+    Given the NIETE bot chat is open on a teacher who has not messaged the bot for more than 24 hours
+    When I open a lesson plan in the teacher app
+    Then the chat receives no "Was it useful?" survey and no template message
+    # Skip reason window_closed: a survey is never worth a paid template to someone who has not spoken
+    # for a day. She normally IS inside the window, because she asked for the link on WhatsApp.
+
 
   @e2e @negative @P2
   Scenario: A thumbs-down asks why, and never asks whether I taught it
