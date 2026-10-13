@@ -150,7 +150,12 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   planFallback: 'لیسن پلان',
   change: 'تبدیل کریں',
   photos: 'تصاویر',
-  photosHint: 'بورڈ، چارٹ، کلاس روم',
+  /* bd-r5ckgn — ICT feedback (IAB Experience View, row 4): the three photos to take, one per line (CoachingHome
+     renders it whitespace-pre-line). Human-written Urdu, not machine-drafted. */
+  photosHint:
+    '(1) بورڈ کی تصویر جس پر آج کا مقصد یا کام لکھا ہو\n' +
+    '(2) کسی طالب علم کی کاپی یا ورک شیٹ کی تصویر\n' +
+    '(3) تدریسی معاون مواد، مثلاً ڈرائنگ، چارٹ یا کارڈز کی تصویر',
   noFaces: 'چہرے نہ دکھائیں',
   addPhoto: 'تصویر شامل کریں',
   removePhoto: (n: number) => `تصویر ${n} ہٹائیں`,
@@ -268,5 +273,5 @@ export const COPY_ENTRY: CopyEntry = {
   screen: 'Digital Coaching',
   module: COACHING as Bilingual<unknown>,
   // "DC observation" is ڈیجیٹل کوچنگ مشاہدہ (three words, the ontology's own name): it adds to a sentence of three.
-  longOk: ['noneYet', 'notFound', 'openLesson', 'openThat'],
+  longOk: ['noneYet', 'notFound', 'openLesson', 'openThat', 'photosHint'],
 };
