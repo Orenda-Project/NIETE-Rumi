@@ -65,6 +65,19 @@ describe('a portal analysis waits for her plan to be read', () => {
     expect(c.now()).toBeLessThan(40_000);
   });
 
+  // bd-cdxv3a — the default limit is 3 minutes: 30 days of production plan reads (13 Sep–13 Oct, 3,662) ran p50 15 s,
+  // p99 75 s; 0.38% took over 2 min, 0.30% over 3 min. The wait ends as soon as the read does, so only a slow or
+  // stuck read ever reaches the limit.
+  test('bd-cdxv3a — by default it waits up to 3 minutes, not longer', async () => {
+    const c = clock();
+    const readStatus = jest.fn().mockResolvedValue('pending');
+    const s = row();
+    const out = await Svc._awaitPortalPlan('cs-1', s, { readStatus, reload: jest.fn(), sleep: c.sleep, now: c.now });
+    expect(out).toBe(s);
+    expect(c.now()).toBeGreaterThanOrEqual(180_000);
+    expect(c.now()).toBeLessThan(190_000);
+  });
+
   test('nothing to wait for: a WhatsApp row, no plan, or a plan already read', async () => {
     for (const s of [
       row({ audio_url: WA_URL }),
