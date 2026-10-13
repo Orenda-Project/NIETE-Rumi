@@ -33,9 +33,9 @@ async function app({ session = { id: 'sess-1', portalUserId: USER }, limiter } =
   servers.push(srv);
   return srv;
 }
-const post = (srv, body, { type = 'text/plain;charset=UTF-8', path = '/api/portal/funnel/events' } = {}) => new Promise((resolve, reject) => {
+const post = (srv, body, { type = 'text/plain;charset=UTF-8', path = '/api/portal/funnel/events', headers = {} } = {}) => new Promise((resolve, reject) => {
   const data = typeof body === 'string' ? body : JSON.stringify(body);
-  const req = http.request({ host: '127.0.0.1', port: srv.address().port, path, method: 'POST', headers: { 'Content-Type': type, 'Content-Length': Buffer.byteLength(data) } }, (res) => {
+  const req = http.request({ host: '127.0.0.1', port: srv.address().port, path, method: 'POST', headers: { 'Content-Type': type, 'Content-Length': Buffer.byteLength(data), ...headers } }, (res) => {
     let out = ''; res.on('data', (c) => { out += c; }); res.on('end', () => resolve({ status: res.statusCode, body: out }));
   });
   req.on('error', reject); req.write(data); req.end();
@@ -72,7 +72,7 @@ describe('what a good batch becomes', () => {
     expect(e).toBe('app_funnel.page_view');
     expect(d).toEqual(expect.objectContaining({
       userId: USER, journeyId: null, route: '/portal/teacher/lessons', prevRoute: '/portal/teacher', feature: 'lesson_plan',
-      browser: 'android-iab', entry: 'session',
+      browser: 'browser', entry: 'session',
     }));
     expect(d.appSessionId).toMatch(/^[0-9a-f]{12}$/);
     expect(d.appSessionId).not.toContain('sess-1');
@@ -143,10 +143,10 @@ describe('what is refused or cleaned', () => {
     expect(res.status).toBe(204);
     expect(rows().map((r) => r.d.route)).toEqual(['/portal/teacher/classes']);
   });
-  test('unknown browser / how values and absurd numbers are clamped, not logged raw', async () => {
+  test('absurd numbers and unknown how values are clamped, not logged raw', async () => {
     await post(await app(), { v: 1, b: '<script>', ev: [{ k: 'leave', r: '/portal/teacher', d: 9e12, why: 'because', age: -5 }] });
     const d = rows()[0].d;
-    expect(d.browser).toBe('unknown');
+    expect(d.browser).toBe('browser');
     expect(d.how).toBe('unknown');
     expect(d.dwellMs).toBeLessThanOrEqual(6 * 3600 * 1000);
     expect(Date.parse(d._time)).toBe(NOW);
@@ -172,6 +172,41 @@ describe('what is refused or cleaned', () => {
     await post(await app(), batch([{ k: 'view', r: '/portal/teacher', note: 'Ayesha Bibi 0300', name: 'Ayesha', q: 'hello' }]));
     const dump = JSON.stringify(rows());
     expect(dump).not.toMatch(/Ayesha|0300|hello/);
+  });
+});
+
+describe('the browser class is the SERVER\'s call from the user agent (in-app-browser-whatsapp: the page does not decide "in-app")', () => {
+  const ANDROID_WA = 'Mozilla/5.0 (Linux; Android 13; SM-A135F Build/TP1A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/118.0.0.0 Mobile Safari/537.36 WA4A/2.24.10.7';
+  const ANDROID_WV = 'Mozilla/5.0 (Linux; Android 13; SM-A135F; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/118.0.0.0 Mobile Safari/537.36 SomeOtherApp/1.0';
+  const ANDROID_CHROME = 'Mozilla/5.0 (Linux; Android 13; SM-A135F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Mobile Safari/537.36';
+  const IOS_SAFARI = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+  const IOS_WEBVIEW = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148';
+  const IOS_CHROME = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/118.0 Mobile/15E148 Safari/604.1';
+  const one = async (headers, b = 'browser') => {
+    emitted.length = 0;
+    await post(await app(), batch([{ k: 'view', r: '/portal/teacher' }], { b }), { headers });
+    return rows()[0].d.browser;
+  };
+  test.each([
+    ['WhatsApp on Android (WA4A token)', { 'User-Agent': ANDROID_WA }, 'whatsapp-iab'],
+    ['X-Requested-With com.whatsapp', { 'User-Agent': ANDROID_CHROME, 'X-Requested-With': 'com.whatsapp' }, 'whatsapp-iab'],
+    ['another app\'s WebView on Android (wv but not WhatsApp)', { 'User-Agent': ANDROID_WV }, 'webview'],
+    ['Chrome on Android', { 'User-Agent': ANDROID_CHROME }, 'browser'],
+    ['Safari on iPhone', { 'User-Agent': IOS_SAFARI }, 'browser'],
+    ['Chrome on iPhone', { 'User-Agent': IOS_CHROME }, 'browser'],
+    ['an iPhone web view (no Safari token)', { 'User-Agent': IOS_WEBVIEW }, 'webview'],
+    ['no user agent at all', {}, 'browser'],
+  ])('%s → %s', async (_n, headers, want) => expect(await one(headers)).toBe(want));
+
+  test('the page cannot claim to be in-app: "android-iab" from Chrome is just Chrome', async () => {
+    expect(await one({ 'User-Agent': ANDROID_CHROME }, 'android-iab')).toBe('browser');
+  });
+  test('only the app\'s own claim "native" is believed (a label, never a way past anything)', async () => {
+    expect(await one({ 'User-Agent': ANDROID_WV }, 'native')).toBe('native');
+  });
+  test('the user agent itself is never logged', async () => {
+    await one({ 'User-Agent': ANDROID_WA });
+    expect(JSON.stringify(rows())).not.toMatch(/Mozilla|SM-A135F|WA4A/);
   });
 });
 

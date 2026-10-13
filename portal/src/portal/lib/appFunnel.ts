@@ -6,8 +6,8 @@ import type { BrowserEnv } from '@/lib/runtime';
  * bd-4r3rei — where she is in the app, reported to the portal so a drop-off has a last page.
  *
  * WHAT IT SENDS, and nothing else: the page's shape ('/portal/teacher/lessons', never an id or a query), that she
- * arrived / left / came back, how long she was looking (time hidden does not count), and which kind of browser this
- * is (WhatsApp's in-app browser, the app, Chrome). Who she is, and which WhatsApp message sent her, are the SERVER's
+ * arrived / left / came back, how long she was looking (time hidden does not count), and whether this is the native
+ * app. Which browser it is (WhatsApp's, another app's, Chrome) is the SERVER's call from the user agent. Who she is, and which WhatsApp message sent her, are the SERVER's
  * to say — from her session (dashboard/routes/app-funnel.routes.js) — so this file carries no user, no journey, no
  * token, and nothing a screen shows.
  *
