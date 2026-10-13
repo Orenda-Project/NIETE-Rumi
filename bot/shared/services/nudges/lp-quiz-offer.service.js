@@ -46,6 +46,7 @@ const { normalizeSubject, SUBJECT_NAMES_UR } = require('../../config/lp612-subje
 const { teacherLanguageFor, needsLanguageAsk, quizLanguageFor } = require('../quiz/transcript-quiz-language');
 const Catalog = require('../lp-v8-catalog.service');
 const SourceStore = require('../quiz/lp-asset-source.store');
+const AppOpens = require('../quiz/lp-app-opens.store');
 const { LP_V8 } = require('../quiz/quiz-sources');
 const Funnel = require('../quiz/quiz-funnel');
 const LessonClaim = require('../quiz/lp-lesson-claim');
@@ -275,7 +276,13 @@ async function alreadyBuilt(nudgeDate) {
   return (count || 0) > 0;
 }
 
-/** Every `sent` v8 download whose rule date could be `nudgeDate`. */
+/**
+ * Every plan a teacher TOOK whose rule date could be `nudgeDate`: a `sent` v8 download (it reached
+ * her on WhatsApp) and — bd-qvevax.3 — a plan she read in the teacher app (a viewer open in
+ * niete_lp_opens, shaped as a download by lp-app-opens.store). Since 12 Oct 2026 the app is how
+ * most plans are read; counting only downloads left those teachers out of the offer. The same
+ * lesson taken both ways is one lesson (groupLessons de-duplicates by lesson_id within a class).
+ */
 async function downloadsFor(nudgeDate) {
   const upper = PktTime.atPkt(nudgeDate, cutoffHour(), 0);
   const lower = new Date(PktTime.atPkt(nudgeDate, 0, 0).getTime() - WINDOW_DAYS * 86400000);
@@ -285,7 +292,8 @@ async function downloadsFor(nudgeDate) {
     .eq('status', 'sent')
     .gte('created_at', lower.toISOString())
     .lt('created_at', upper.toISOString()));
-  return rows.filter((r) => r.asset_id && cohortRuleDate(r.created_at) === nudgeDate);
+  const opened = await AppOpens.viewerOpensAsDownloads(lower.toISOString(), upper.toISOString());
+  return [...rows, ...opened].filter((r) => r.asset_id && cohortRuleDate(r.created_at) === nudgeDate);
 }
 
 /** The asset ids that are a LESSON — an answer key is never a quiz source. */
