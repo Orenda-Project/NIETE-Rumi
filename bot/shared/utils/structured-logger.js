@@ -359,7 +359,10 @@ const asUserId = (value) => (typeof value === 'string' && USER_ID_RE.test(value)
 function runWithCorrelation(correlationId, fn, attrs = {}) {
   const parent = correlationStorage.getStore();
   const userId = asUserId(attrs && attrs.userId) || (parent && parent.userId);
-  return correlationStorage.run(userId ? { correlationId, userId } : { correlationId }, fn);
+  const store = userId ? { correlationId, userId } : { correlationId };
+  // bd-b0qwk.6: a context opened inside a job that is writing a lesson still spends on that lesson.
+  if (parent && parent.lesson) store.lesson = parent.lesson;
+  return correlationStorage.run(store, fn);
 }
 
 /**
@@ -393,6 +396,41 @@ function setCorrelationUser(userId) {
 function getCurrentUserId() {
   const store = correlationStorage.getStore();
   return store?.userId;
+}
+
+// bd-b0qwk.6: the lesson a job is writing, when its spend belongs to a lesson rather than to one
+// teacher. A 6-12 lesson is written once and served to every teacher who asks for it, so its cost
+// records name the render and the segment: joined to the lesson, the spend can be spread over the
+// teachers it reaches instead of being charged to whoever asked first. Only a short string is kept
+// for either id; anything else is dropped, never stored, because whatever sits here is logged.
+const LESSON_ID_MAX = 200;
+const asLessonId = (value) => (typeof value === 'string' && value.length > 0 && value.length <= LESSON_ID_MAX ? value : undefined);
+
+/**
+ * Name the lesson the current job is writing, so each model call it makes records the lesson its
+ * spend was for. Each id is checked on its own; with neither left, or no context, nothing is set.
+ * A later call replaces the lesson: a job names the lesson it is writing now.
+ * @param {{renderId?: string, segmentId?: string}} lesson
+ * @returns {boolean} true when a lesson was set
+ */
+function setCorrelationLesson(lesson) {
+  const store = correlationStorage.getStore();
+  const { renderId, segmentId } = lesson && typeof lesson === 'object' ? lesson : {};
+  const named = {};
+  if (asLessonId(renderId)) named.renderId = renderId;
+  if (asLessonId(segmentId)) named.segmentId = segmentId;
+  if (!store || !Object.keys(named).length) return false;
+  store.lesson = named;
+  return true;
+}
+
+/**
+ * The lesson the current job is writing, if one was named.
+ * @returns {{renderId?: string, segmentId?: string}|undefined} a copy
+ */
+function getCurrentLesson() {
+  const store = correlationStorage.getStore();
+  return store?.lesson ? { ...store.lesson } : undefined;
 }
 
 // ============================================================
@@ -554,6 +592,8 @@ module.exports = {
   getCurrentCorrelationId, // Get current correlation ID from context
   setCorrelationUser,      // Name the users.id the current request is for (bd-b0qwk)
   getCurrentUserId,        // The users.id the current request or job is for, if named
+  setCorrelationLesson,    // Name the lesson the current job is writing (bd-b0qwk.6)
+  getCurrentLesson,        // The lesson the current job is writing, if named
   originalConsole,         // In case you need unmodified console
   axiomBatcher,            // For manual flush if needed
   // Exported so a test can assert WHICH fields survive into Axiom columns. The allowlist is
