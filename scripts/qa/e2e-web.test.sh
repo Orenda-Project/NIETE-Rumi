@@ -80,6 +80,20 @@ grep -q 'PORTAL_URL=http://localhost:\$PORTAL_PORT' "$ROOT/scripts/dev-portal.sh
   && ok "W9 dev-portal.sh gives the bot PORTAL_URL=http://localhost:\$PORTAL_PORT" \
   || no "W9 dev-portal.sh gives the bot PORTAL_URL=http://localhost:\$PORTAL_PORT"
 
+# W10 — EVERY web driver has its spec, and the two name the same scenarios (bd-hnhlgn.8).
+for drv in "$ROOT"/.claude/qa/web/features/*.cjs; do
+  f=$(basename "$drv" .cjs); spec="$ROOT/tests/features/web/$f.feature"
+  if [ ! -f "$spec" ]; then no "W10 $f has tests/features/web/$f.feature"; continue; fi
+  s_ids=$(grep -oE '^\s*@[A-Z]{2}[0-9]+' "$spec" | tr -d ' @' | sort -u | tr '\n' ' ')
+  c_ids=$(node -e "console.log(require('$drv').scenarios.map(s=>s.id).sort().join(' ')+' ')" 2>/dev/null)
+  [ -n "$s_ids" ] && [ "$s_ids" = "$c_ids" ] && ok "W10 $f: spec and driver name the same scenarios" \
+    || no "W10 $f: spec and driver name the same scenarios" "spec [$s_ids] code [$c_ids]"
+done
+# W11 — the portal is covered area by area: at least these drivers exist.
+for f in portal-login portal-smoke teacher-home teacher-lessons teacher-coaching teacher-training teacher-classes teacher-assessment coach-portal leader-portal portal-account; do
+  [ -f "$ROOT/.claude/qa/web/features/$f.cjs" ] && ok "W11 driver $f" || no "W11 driver $f"
+done
+
 # W5 — wired into npm, like e2e:mock.
 chk "W5 npm run e2e:web" "$(node -p "require('$ROOT/package.json').scripts['e2e:web']" 2>/dev/null)" "bash scripts/qa/e2e-web.sh"
 
