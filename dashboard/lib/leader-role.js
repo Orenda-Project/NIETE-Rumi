@@ -44,14 +44,20 @@ function isLeaderRole(role) {
  * Always carries `role` (defaulting to null) — that is the field the client
  * gates the leader nav on. Contact fields are opt-in (the /dashboard response
  * includes them; /login does not).
+ *
+ * `analyticsOnly` is always present as a boolean: true only for an account on the
+ * portal_analytics_only list (the caller looks that up — this shaper stays pure), so the
+ * client can send that account straight to the schools analytics page without asking
+ * again.
  * @param {object} user users row
- * @param {{includeContact?: boolean}} [opts]
+ * @param {{includeContact?: boolean, analyticsOnly?: boolean}} [opts]
  */
 function publicUserPayload(user, opts = {}) {
   const payload = {
     firstName: user.name,
     country: user.country || null,
     role: user.role || null,
+    analyticsOnly: opts.analyticsOnly === true,
   };
   if (opts.includeContact) {
     // No surname column since V1.4.4 dropped it: `firstName` already carries
