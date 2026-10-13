@@ -49,7 +49,7 @@ const FeatureIntro = require('../feature-intro.service');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const { canSelfCoach } = require('../../config/role-features');
 const Caps = require('./caps');
-const { flagOn } = require('./flags');
+const { flagOn, onUnlessOff } = require('./flags');
 const { shouldDeferNewClassroomAudio } = require('../coaching/coaching-inflight-guard');
 const { formatLessonDate } = require('../quiz/transcript-quiz-language');
 
@@ -206,6 +206,117 @@ async function onLessonDelivered({
     nudgeDate,
     scheduledAt: new Date(scheduledAt).toISOString(),
   };
+}
+
+// ─── a plan read in the app ──────────────────────────────────────────────────
+//
+// Since the teacher app took over plan reading (12 Oct 2026), most K-5 plans are read in the app's
+// viewer and never delivered on WhatsApp, so the hook above never runs for them. The portal already
+// tells the bot about every RECORDED viewer open (POST /api/internal/lp/open-survey with the
+// niete_lp_opens row id, for the lesson-plan survey); the same call books THIS ask, through
+// onLessonDelivered above — same row, same once-a-day UNIQUE, same 14:00 rule on the OPEN time,
+// same send. A plan taken both ways the same day collides on the UNIQUE and is asked about once.
+//
+// Each decision is one `coaching_ask.app_open` event {outcome, reason}. The skips:
+//   switch_off         COACHING_ASK_COUNT_APP_OPENS=off — the behaviour before this, exactly.
+//   open_not_found     no such open row.
+//   not_viewer_open    a link minted for another app ('external') may never have been read.
+//   not_k5             the WhatsApp ask is K-5 only.
+//   stale_open         an open older than STALE_OPEN_MS (a late retry): the day has moved on.
+//   no_user / not_self_coach   the role rule onLessonDelivered applies, read here failing CLOSED.
+//   unknown_plan       the catalogue no longer knows the lesson.
+//   already_handled    this open id was already handled (a portal retry).
+//   disabled / already_asked_today   onLessonDelivered's own answers.
+//   guard_unavailable  a read or the insert failed: nobody is asked, logged at error level.
+
+const APP_OPEN_SWITCH = 'COACHING_ASK_COUNT_APP_OPENS';
+const STALE_OPEN_MS = 6 * 60 * 60 * 1000;
+const APP_OPEN_HANDLED_TTL_SECS = 24 * 60 * 60;
+const APP_OPEN_HANDLED_KEY = (openId) => `lp_app_coaching_ask_handled:${openId}`;
+
+function appOpenDecision(outcome, reason, fields = {}) {
+  logEvent('coaching_ask.app_open', { outcome, reason: reason || null, ...fields });
+  return reason ? { outcome, reason } : { outcome };
+}
+
+/** Claim "this open is handled". False = it already was. Fails OPEN: the day's UNIQUE still holds. */
+async function claimAppOpen(openId) {
+  try {
+    const redis = require('../cache/railway-redis.service');
+    if (typeof redis.setNX !== 'function') return true;
+    return (await redis.setNX(APP_OPEN_HANDLED_KEY(openId), { at: Date.now() }, APP_OPEN_HANDLED_TTL_SECS)) !== false;
+  } catch (err) {
+    logToFile('lp coaching ask: app-open handled-claim unavailable — continuing', { openId, error: err.message });
+    return true;
+  }
+}
+
+/**
+ * She read K-5 plan <open row> in the app's viewer: book the coaching ask, if the guards pass.
+ * Never throws. Resolves { outcome: 'scheduled' } or { outcome: 'skipped', reason }.
+ *
+ * @param {{ openId: string, now?: Date }} p  the niete_lp_opens row the portal just recorded
+ */
+async function onAppOpen({ openId, now = new Date() } = {}) {
+  const ids = { openId: openId || null };
+  if (!onUnlessOff(APP_OPEN_SWITCH)) return appOpenDecision('skipped', 'switch_off', ids);
+  try {
+    if (!openId || typeof openId !== 'string') return appOpenDecision('skipped', 'open_not_found', ids);
+
+    const { data: row, error: rowError } = await supabase
+      .from('niete_lp_opens').select('id, user_id, plan_kind, plan_ref, source, opened_at')
+      .eq('id', openId).maybeSingle();
+    if (rowError) throw new Error(rowError.message);
+    if (!row) return appOpenDecision('skipped', 'open_not_found', ids);
+
+    const at = { ...ids, userId: row.user_id, lessonId: row.plan_ref };
+    if (row.source !== 'viewer') return appOpenDecision('skipped', 'not_viewer_open', at);
+    if (row.plan_kind !== 'k5') return appOpenDecision('skipped', 'not_k5', at);
+
+    const openedAt = new Date(row.opened_at);
+    const age = new Date(now).getTime() - openedAt.getTime();
+    if (!Number.isFinite(age) || age > STALE_OPEN_MS) return appOpenDecision('skipped', 'stale_open', at);
+
+    const { data: user, error: userError } = await supabase
+      .from('users').select('id, role').eq('id', row.user_id).maybeSingle();
+    if (userError) throw new Error(`user lookup failed: ${userError.message}`);
+    if (!user) return appOpenDecision('skipped', 'no_user', at);
+    if (!canSelfCoach(user)) return appOpenDecision('skipped', 'not_self_coach', at);
+
+    const V8Catalog = require('../lp-v8-catalog.service');
+    if (!V8Catalog.lessonById(row.plan_ref)) return appOpenDecision('skipped', 'unknown_plan', at);
+
+    if (!(await claimAppOpen(openId))) return appOpenDecision('skipped', 'already_handled', at);
+
+    // Provenance only — the version the app SERVED her at the open, from the one app-open reader
+    // (lp-app-opens.store: the asset current at opened_at, or group A's August plan). A failed or
+    // switched-off read must not cost her the ask, so it may be absent.
+    let asset = null;
+    try {
+      const served = await require('../quiz/lp-app-opens.store').viewerOpenById(row.user_id, row.id);
+      if (served) asset = { id: served.asset_id, version_stamp: served.version_stamp, content_hash: served.content_hash };
+    } catch (err) {
+      logToFile('lp coaching ask: served version unreadable — booking without it', { ...at, error: err.message });
+    }
+
+    const out = await onLessonDelivered({
+      userId: row.user_id,
+      lessonId: row.plan_ref,
+      assetId: asset ? asset.id : null,
+      versionStamp: asset ? asset.version_stamp : null,
+      contentHash: asset ? asset.content_hash : null,
+      deliveredAt: openedAt.toISOString(),
+      assetKind: 'lesson',
+    });
+    if (out.scheduled) {
+      return appOpenDecision('scheduled', null, { ...at, nudgeId: out.nudgeId, nudgeDate: out.nudgeDate, scheduledAt: out.scheduledAt });
+    }
+    return appOpenDecision('skipped', out.reason || 'not_scheduled', { ...at, nudgeId: out.nudgeId || null });
+  } catch (err) {
+    // A guard, a read or the insert could not be answered: ask nobody, and say so at error level.
+    logToFile('❌ lp coaching ask: app open could not be decided — not asked', { ...ids, error: err && err.message }, 'error');
+    return appOpenDecision('skipped', 'guard_unavailable', { ...ids, error: err && err.message });
+  }
 }
 
 // ─── send ────────────────────────────────────────────────────────────────────
@@ -588,6 +699,8 @@ module.exports = {
   hasCoachedBefore,
   selfCoaches,
   onLessonDelivered,
+  onAppOpen,
+  STALE_OPEN_MS,
   send,
   markIgnored,
   handleButton,
