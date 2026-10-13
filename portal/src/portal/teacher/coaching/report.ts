@@ -60,7 +60,9 @@ export function toReportData(s: SessionDetail, {
     marks,
     max,
     teacher,
-    topic: s.topic || s.subject || '',
+    // bd-foyqpc — the WhatsApp report's own order (hero-report heroTopic): the narrative's topic (her language), then
+    // the analysis topic (always English).
+    topic: n?.topic || s.topic || s.subject || '',
     date: dateLabel(s.date, days),
     // bd-wxtin8 — ICT feedback (IAB Experience View, row 13): the framework's own order (B, C, D, F), as on her
     // WhatsApp report — not the breakdown's strongest-first order, which the older page relies on.
@@ -70,6 +72,7 @@ export function toReportData(s: SessionDetail, {
       score: g.score,
       max: g.max,
       na: !g.max,
+      ...(g.notAssessed && g.notAssessedWords ? { naWords: g.notAssessedWords } : {}),
       // A section that was not assessed carries the bot's own line; every other one, the narrative's.
       why: (g.notAssessed ? g.why : n?.domainWhys?.[g.domainKey] ?? g.why) || undefined,
     })),
