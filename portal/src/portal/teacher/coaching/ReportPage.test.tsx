@@ -417,3 +417,43 @@ describe("the debrief's heading (bd-9d1cmi)", () => {
     expect(screen.queryByRole("heading", { name: "Voice note" })).toBeNull();
   });
 });
+
+/**
+ * bd-wxtin8 — ICT feedback (IAB Experience View, row 13): the sections showed their rubric letters (B, C, D, F) and
+ * came in score order (the bot's breakdown sorts strongest first for the older page). The report she gets on WhatsApp
+ * shows the names only, in the framework's own order — Lesson Plan Fidelity, High-Leverage Practices, Student
+ * Engagement, Teacher Subject Knowledge — and the portal now matches it.
+ */
+describe("the report's sections (bd-wxtin8)", () => {
+  const scored = (key: string, domainKey: string, name: string, score: number, max: number) =>
+    ({ key, domainKey, name, score, max, pct: Math.round((100 * score) / max), indicators: [] });
+  const SHUFFLED = {
+    ...DETAIL,
+    breakdown: { ...DETAIL.breakdown, groups: [
+      { key: "B", domainKey: "lesson_plan_fidelity", name: "Lesson Plan Fidelity", score: null, max: null, pct: null, notAssessed: true, why: "No plan.", indicators: [] },
+      scored("F", "teacher_subject_knowledge", "Teacher Subject Knowledge", 18, 24),
+      scored("D", "student_engagement", "Student Engagement", 15, 28),
+      scored("C", "high_leverage_practices", "High-Leverage Practices", 25, 48),
+    ] },
+  };
+
+  it("come in the framework's order B, C, D, F, whatever order the breakdown sends", () => {
+    const d = toReportData(SHUFFLED as never, { teacher: "Ayesha Bibi", journey: [] });
+    expect(d.sections.map((s) => s.label)).toEqual([
+      "Lesson Plan Fidelity", "High-Leverage Practices", "Student Engagement", "Teacher Subject Knowledge",
+    ]);
+  });
+
+  it("show the section names only — no letter chips", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "completed", stage: "done", reflection: null, reportReady: true });
+    portal.getCoachingSession.mockResolvedValue({ session: SHUFFLED });
+    open();
+    const scores = await screen.findByRole("region", { name: /scores/i });
+    expect(within(scores).getByText("High-Leverage Practices")).toBeTruthy();
+    for (const letter of ["B", "C", "D", "F"]) expect(within(scores).queryByText(letter, { exact: true })).toBeNull();
+    const text = scores.textContent ?? "";
+    expect(text.indexOf("Lesson Plan Fidelity")).toBeLessThan(text.indexOf("High-Leverage Practices"));
+    expect(text.indexOf("High-Leverage Practices")).toBeLessThan(text.indexOf("Student Engagement"));
+    expect(text.indexOf("Student Engagement")).toBeLessThan(text.indexOf("Teacher Subject Knowledge"));
+  });
+});
