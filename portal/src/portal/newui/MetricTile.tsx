@@ -16,6 +16,10 @@ import { FOCUS, PRESS } from './styles';
  * 104px minimum, 14px padding, 18px corners, a 1.5px grey border: a tile, so it looks tappable.
  * `wide` spans the whole row (the icon beside the number and label, chips under them).
  * No number (loading, or the API failed) shows "—", never a blank or a 0 that is not true.
+ *
+ * bd-s6qbts.3 — a tile with nowhere to go (no `to`, no `onClick`) is a plain box, not a button that does nothing,
+ * and a normal-width tile shows its `chips` under the label too (the schools analytics page's "x of N teachers").
+ * Every tile before this has somewhere to go and no chips unless wide, so none of them changes.
  */
 export interface MetricTileProps {
   feature: Feature;
@@ -32,10 +36,11 @@ export interface MetricTileProps {
 
 export function MetricTile({ feature, value, label, to, onClick, wide, chips, emptyValue = KIT_COPY.noValue, testId }: MetricTileProps) {
   const shown = value === null || value === undefined || value === '' ? emptyValue : value;
+  const tappable = !!to || !!onClick;
   const className = cn(
     'flex w-full min-w-0 rounded-[18px] border-[1.5px] border-nu-surface-line bg-nu-surface-card p-3.5 text-start',
-    PRESS,
-    FOCUS,
+    tappable && PRESS,
+    tappable && FOCUS,
     wide ? 'col-span-2 min-h-[72px] flex-row items-center gap-1.5 md:col-span-4' : 'min-h-[104px] flex-col items-start gap-1.5',
   );
   const icon = (
@@ -63,9 +68,11 @@ export function MetricTile({ feature, value, label, to, onClick, wide, chips, em
       {icon}
       {number}
       {name}
+      {chips ? <span className="flex flex-wrap gap-1.5">{chips}</span> : null}
     </>
   );
 
+  if (!tappable) return <div data-testid={testId} className={className}>{content}</div>;
   if (to) return <Link to={to} data-testid={testId} className={className}>{content}</Link>;
   return <button type="button" onClick={onClick} data-testid={testId} className={className}>{content}</button>;
 }
