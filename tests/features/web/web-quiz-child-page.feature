@@ -767,6 +767,14 @@ Feature: Web child quiz page on the portal
     Then the reading ends itself as "silent" and is stored as stopped with 0 words per minute
     And the page says "Good try! Reading gets easier every day you practise." with no "Try again"
 
+  @T764
+  Scenario: A reading's length is its own audio, never the last reading's
+    Given a child's first reading ended after 10 seconds and the child taps "Try again" in the same page
+    When the child reads for 40 seconds
+    Then the page reports 40 seconds for the second reading, not 10
+    And the server measures a recording that has no duration header by decoding it, and scores the whole 40 seconds
+    And the run keeps the page's number beside the measured one, and logs when the two differ
+
   @T708
   Scenario: With items on, the row keeps per-item verdicts and timings, numbers only
     Given app settings "web_quiz_challenge_record" and "web_quiz_challenge_items" are on

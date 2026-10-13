@@ -742,11 +742,22 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = 
   try {
     file = media.tmpFile(ext);
     require('fs').writeFileSync(file, await r2.downloadFromR2(key, { bucket: childVoiceBucket() }));
-    // Chrome's MediaRecorder webm has no duration header (ffmpeg reads "Duration: N/A"): the page's own
-    // recorded length stands in, so the STT cost and the stored duration are not lost.
+    // Chrome's MediaRecorder webm has no duration header (ffmpeg reads "Duration: N/A"): the audio is decoded to
+    // measure it. The page's own number is kept on the row but only stands in when nothing decodes — it is not the
+    // audio (a Try again in the same page load once posted the previous reading's length, and the scorer then cut
+    // the reading to it).
     const pageSec = Number(ms) > 0 ? Math.min(READ_SECS + 1, Number(ms) / 1000) : null;
     const probedSec = await media.probeDuration(file);
-    const durationSec = probedSec || pageSec;
+    const decodedSec = probedSec ? null : await media.decodedDuration(file);
+    const durationSec = probedSec || decodedSec || pageSec;
+    const source = probedSec ? 'probe' : (decodedSec ? 'decoded' : 'page');
+    const audioSec = probedSec || decodedSec;
+    const mismatch = !!(audioSec && pageSec && Math.abs(audioSec - pageSec) > 2);
+    let blobBytes = null;
+    try { blobBytes = require('fs').statSync(file).size; } catch (_) { /* unreadable: null */ }
+    const r1 = (x) => (x == null ? null : Math.round(x * 10) / 10);
+    logEvent('web_quiz.ch_read_len', { run: ctx.runId || null, page_ms: Number(ms) > 0 ? Number(ms) : null, probe_s: r1(probedSec), decoded_s: r1(decodedSec), blob_bytes: blobBytes, source, mismatch });
+    if (mismatch) logToFile('⚠️ web quiz challenge: the page\'s reading length is not the audio\'s', { run: ctx.runId || null, page_s: r1(pageSec), audio_s: r1(audioSec), source });
     const spec = Bank.getTaskSpec({ grade: Number(run.form), set: 'A', task: run.task });
     // The comprehension questions are not part of the Challenge: the kid only reads.
     // Under the record rule the scorer's clock starts at the child's first word (EGRA's timer), not at the recording.
@@ -759,7 +770,7 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = 
     const durationS = Math.round(durationSec * 10) / 10;
     // What the record rule keeps beside the numbers: how the reading ended, the scorer's own clock and doubt.
     const extra = rules.record ? {
-      ended: ctx.ended || null, mic_check: ctx.micCheck || null, read_s: Math.round(durationSec), duration_source: probedSec ? 'probe' : 'page',
+      ended: ctx.ended || null, mic_check: ctx.micCheck || null, read_s: Math.round(durationSec), duration_source: source,
       clock: t.clock || null, begin_at_s: t.begin_at_s == null ? null : t.begin_at_s, end_at_s: t.end_at_s == null ? null : t.end_at_s,
       count_flag: m.count_flag || null, story_confidence: m.story_confidence == null ? null : m.story_confidence,
       ...(rules.items ? { items: (m.items || []).map((x) => ({ i: x.i, v: x.verdict })) } : {}),
@@ -1112,7 +1123,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
     if (stored === 'duplicate') await refuse(409, 'already_done');
   }
   const ext = key.split('.').pop();
-  const promise = scoreRead(run, key, ext, body.ms, CT, rules, { ended: guardIn.ended, micCheck: guardIn.mic_check, readS: guardIn.read_s }).then(async (r) => {
+  const promise = scoreRead(run, key, ext, body.ms, CT, rules, { ended: guardIn.ended, micCheck: guardIn.mic_check, readS: guardIn.read_s, runId: c.r }).then(async (r) => {
     const result = r.failed
       ? { failed: true, reason: r.reason, ...(r.words != null ? { words: r.words } : {}) }
       : { score: r.score, wcpm: r.wcpm, previous, ...(rules.record ? { ended: r.ended || null } : {}) };
@@ -1125,7 +1136,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
     await updateRunMeta(c.r, (cur) => {
       const comp = cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {};
       return r.failed
-        ? { status: 'failed', meta: { ...r.meta, ...stamp, ...audio, ...comp, reason: r.reason }, scored_at: nowIso() }
+        ? { status: 'failed', meta: { ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...comp, reason: r.reason }, scored_at: nowIso() }
         : { status: 'scored', score: r.score, wcpm: r.wcpm, meta: { ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() };
     }, { force: true });
     if (r.failed) logError('web_quiz.ch_read_failed', { runId: c.r, reason: r.reason, run: c.r });

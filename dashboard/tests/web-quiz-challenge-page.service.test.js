@@ -479,3 +479,48 @@ describe('the Home button on the Challenge (the hub passes home=1 when web_quiz_
     expect(p.root.innerHTML).not.toContain('id="wq-home"');
   });
 });
+
+describe('Try again records the new reading\'s own length', () => {
+  const H = require('./wqc-page-harness');
+  let results = 0;
+  const routes = {
+    'ch/HUB.TOKEN/read': H.ok(H.READ_GUARD),
+    'ch/upload': H.ok({ put_url: 'https://r2.test/put/abc', key: 'challenge/sandbox/r/read-1.webm', content_type: 'audio/webm' }),
+    'r2.test/put': () => ({ status: 200, body: {} }),
+    'ch/result$': () => {
+      results += 1;
+      return { status: 200, body: results === 1 ? { failed: true, reason: 'abandoned' } : { score: { correct: 40, stopped: false }, wcpm: 40, ended: 'stuck' } };
+    },
+  };
+
+  test('a 10 s reading, then Try again and a 40 s reading: the second result posts 40 s, not the first reading\'s 10 s', async () => {
+    const clock = { t: 1700000000000 };
+    const p = H.page({ routes, micLevel: 170, clock, freshEls: true });
+    // first reading: the microphone check passes, the child stops reading and the minute ends itself as silent at 10 s
+    await p.click('wqc-ex-read');
+    await p.click('wqc-go');
+    await p.runTimers((x) => x.ms === 3000);
+    expect(p.recs).toHaveLength(1);
+    clock.t += 10000;
+    p.mic.level = 128;
+    await p.runTimers((x) => x.ms === 10000);
+    const bodies = () => p.fetches.filter((f) => f.url === '/api/wq/ch/result').map((f) => JSON.parse(f.init.body));
+    expect(bodies()).toHaveLength(1);
+    expect(bodies()[0]).toMatchObject({ ms: 10000, read_s: 10 });
+    // the server answers abandoned: Try again, in the same page load
+    expect(p.html()).toContain('id="wqc-again"');
+    await p.click('wqc-again');
+    await p.click('wqc-go');
+    p.mic.level = 170;
+    await p.runTimers((x) => x.ms === 3000);
+    expect(p.recs).toHaveLength(2);
+    expect(p.recs[1].state).toBe('recording');
+    // second reading: 40 s, then "the rest is too hard"
+    clock.t += 40000;
+    await p.runTimers((x) => x.ms === 20000);
+    await p.click('wqc-stuck');
+    await p.flush();
+    expect(bodies()).toHaveLength(2);
+    expect(bodies()[1]).toMatchObject({ ended: 'stuck', ms: 40000, read_s: 40 });
+  });
+});
