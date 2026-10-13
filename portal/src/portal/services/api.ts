@@ -299,6 +299,15 @@ export const portal = {
    * bd-eygg2f — her spoken answer, already in R2 (presign kind reflection_audio). The bot transcribes it before
    * it acknowledges, so this waits longer than a typed answer (the dashboard gives the bot 90 s).
    */
+  /**
+   * bd-oawrlt — her report image, signed NOW (Download: attachment, Open: inline). A link signed when the page loaded
+   * expires after an hour; this is asked for at tap time. null when there is no report.
+   */
+  getCoachingReportFile: async (id: string, disposition: 'attachment' | 'inline'): Promise<string | null> => {
+    const response = await api.get(`/coaching-session/${id}/report-file`, { params: { disposition } });
+    return response.data?.url || null;
+  },
+
   submitCoachingVoiceReflection: async (id: string, audioKey: string): Promise<{
     done?: boolean; acknowledgement?: string | null; acknowledgementAudioUrl?: string; reportStatus?: string;
   }> => {

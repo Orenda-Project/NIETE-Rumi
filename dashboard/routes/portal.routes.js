@@ -4416,6 +4416,20 @@ router.post('/training/level/:id/capstone/attempts', requirePortalAuth, async (r
  * Externally-hosted public URLs are passed through as-is, so a download
  * control over one of those must fall back to the browser's own behaviour.
  */
+/**
+ * bd-oawrlt — the R2 URL of the report image she was sent: a coach's visit keeps it at
+ * analysis_data.teacher_delivery.report_key; a Digital Coach lesson at report_pdf_url (the PNG). Unsigned.
+ */
+function _reportImageRawUrl(session) {
+  if (TeacherObservation.isObservation(session)) {
+    const delivery = (session.analysis_data && session.analysis_data.teacher_delivery) || {};
+    return delivery.report_key && process.env.R2_ENDPOINT && process.env.R2_BUCKET_NAME
+      ? `${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${delivery.report_key}`
+      : null;
+  }
+  return session.report_pdf_url || null;
+}
+
 async function _resolveMediaUrl(url, expiresIn = 3600, options) {
   if (!url) return null;
   if (isValidR2Url(url)) return generatePresignedUrl(url, expiresIn, options);
@@ -6788,6 +6802,37 @@ router.get('/coaching-sessions', requirePortalAuth, async (req, res) => {
  * - criterion_scores: [{ criterion, points, max_points, percentage }]
  * - strengths, growth_opportunities, recommendations: arrays of strings
  */
+/**
+ * GET /api/portal/coaching-session/:id/report-file?disposition=attachment|inline
+ *
+ * bd-oawrlt — ICT feedback (IAB Experience View, row 14): Download opened R2's XML "ExpiredRequest". The page
+ * used a link signed for an hour when it loaded and stops polling once the report is ready, so a tap an hour
+ * later (WhatsApp's browser keeps the page alive) hit a dead link. Download and Open now ask here at tap time
+ * and get a link signed NOW. Same ownership and visibility rule as the session itself.
+ * → { success, url }
+ */
+router.get('/coaching-session/:id/report-file', requirePortalAuth, async (req, res) => {
+  try {
+    const { data: session, error } = await supabase
+      .from('coaching_sessions')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('user_id', req.session.portalUserId)
+      .single();
+    if (error || !session || session.user_id !== req.session.portalUserId || !TeacherObservation.teacherMaySee(session)) {
+      return res.status(404).json({ success: false, error: 'Report not found' });
+    }
+    const raw = _reportImageRawUrl(session);
+    const disposition = req.query && req.query.disposition === 'inline' ? 'inline' : 'attachment';
+    const url = raw ? await _resolveMediaUrl(raw, 3600, { disposition }) : null;
+    if (!url) return res.status(404).json({ success: false, error: 'Report not found' });
+    return res.json({ success: true, url });
+  } catch (err) {
+    console.error('Coaching report file error:', err.message);
+    return res.status(500).json({ success: false, error: 'Failed to load the report' });
+  }
+});
+
 router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
   try {
     const userId = req.session.portalUserId;
@@ -6889,9 +6934,7 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
     if (TeacherObservation.isObservation(session)) {
       const delivery = (session.analysis_data && session.analysis_data.teacher_delivery) || {};
       const names = await TeacherObservation.observerNames(supabase, [session]);
-      const reportImageUrl = delivery.report_key && process.env.R2_ENDPOINT && process.env.R2_BUCKET_NAME
-        ? await _resolveMediaUrl(`${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${delivery.report_key}`)
-        : null;
+      const reportImageUrl = await _resolveMediaUrl(_reportImageRawUrl(session));
       observation = {
         observerName: names[session.observer_user_id] || null,
         observedAt: session.created_at,
