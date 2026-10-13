@@ -159,17 +159,20 @@ export function CoachingHomePage() {
         </>
       ) : null}
 
-      <div className="mt-3">
-        <HistoryList
-          heading={C.recent}
-          collapsible
-          defaultOpen={false}
-          groups={groups}
-          showMore={false}
-          seeAllTo={COACHING_ALL}
-          emptyLabel={C.noneYet}
-        />
-      </div>
+      {/* While a recording is being sent off, the page is that one task: Recent is back when she has none on it. */}
+      {audio ? null : (
+        <div className="mt-3">
+          <HistoryList
+            heading={C.recent}
+            collapsible
+            defaultOpen={false}
+            groups={groups}
+            showMore={false}
+            seeAllTo={COACHING_ALL}
+            emptyLabel={C.noneYet}
+          />
+        </div>
+      )}
 
       <PlanSheet
         words={C.picker}
