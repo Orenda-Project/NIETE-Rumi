@@ -51,7 +51,7 @@ up() {
   bash "$E2E/local-stack.sh" restart bot "$RUN" "INTERNAL_API_KEY=$key" >/dev/null 2>&1 || { log "bot did not restart with the internal key — $RUN/bot.log"; down; exit 4; }
 
   if [ "${DATA:-sandbox}" = sandbox ]; then
-    log "copying the sandbox's data (first time ~40 min; then from the cache — SANDBOX_REFRESH=1 pulls again)…"
+    log "copying the sandbox's data (first time ~15 min; then from the cache — SANDBOX_REFRESH=1 pulls again)…"
     bash "$E2E/local-db.sh" sandbox-copy "$RUN/db" $([ "${SANDBOX_REFRESH:-}" = 1 ] && echo --refresh) || {
       log "sandbox copy failed — it needs \`railway login\` with access to the NIETE-Rumi Staging project."
       log "  no sandbox access? run with DATA=demo for made-up data only."; down; exit 5; }
