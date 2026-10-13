@@ -34,6 +34,22 @@ exports.run = async ({ api, rec, sleep, want = () => true }) => {
         { header: head(r.txt), botWaitMs: r.waitedMs })), t() - s);
   }
 
+  if (want('M21')) {
+    // M21 — "/menu" typed back reversed, as an Urdu line displayed it (bd-5ls6qy.7)
+    s = t(); r = await api.sendWait('Menu/');
+    rec('M21', '/menu typed back the way Urdu text showed it ("Menu/") still opens the menu',
+        ...Object.values(V(head(r.txt) === "Here's what I can do" && r.btns.includes('See what I do'),
+        { header: head(r.txt), botWaitMs: r.waitedMs })), t() - s);
+  }
+
+  if (want('M22')) {
+    // M22 — a space after the slash (bd-5ls6qy.7)
+    s = t(); r = await api.sendWait('/ menu');
+    rec('M22', '"/ menu" (a space after the slash) opens the menu',
+        ...Object.values(V(head(r.txt) === "Here's what I can do" && r.btns.includes('See what I do'),
+        { header: head(r.txt), botWaitMs: r.waitedMs })), t() - s);
+  }
+
   if (want('M04')) {
     // M04 — idempotent across repeats
     s = t();

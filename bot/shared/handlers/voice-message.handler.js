@@ -451,8 +451,8 @@ async function handleVoiceMessage(message, from, user = null) {
               // Send error message to user
               const errorMessages = {
                 en: "I've recorded all your answers but encountered an error generating the report. Please try /reading test again.",
-                ur: "میں نے آپ کے تمام جوابات ریکارڈ کر لیے ہیں لیکن رپورٹ بناتے وقت خرابی آگئی۔ براہ کرم /reading test دوبارہ کریں۔",
-                ar: "لقد سجلت جميع إجاباتك ولكن حدث خطأ عند إنشاء التقرير. يرجى المحاولة مرة أخرى باستخدام /reading test",
+                ur: "میں نے آپ کے تمام جوابات ریکارڈ کر لیے ہیں لیکن رپورٹ بناتے وقت خرابی آگئی۔ براہ کرم \u2066/reading test\u2069 دوبارہ کریں۔",
+                ar: "لقد سجلت جميع إجاباتك ولكن حدث خطأ عند إنشاء التقرير. يرجى المحاولة مرة أخرى باستخدام \u2066/reading test\u2069",
                 es: "He registrado todas tus respuestas pero ocurrió un error al generar el informe. Por favor intenta /reading test nuevamente."
               };
 
@@ -549,8 +549,8 @@ async function handleVoiceMessage(message, from, user = null) {
             // Notify user in their preferred language
             const errorMessages = {
               en: "I found an assessment that's no longer active. Please start a new reading assessment with /reading test",
-              ur: "مجھے ایک تشخیص ملا جو اب فعال نہیں ہے۔ براہ کرم /reading test کے ساتھ نیا reading assessment شروع کریں",
-              ar: "وجدت تقييمًا لم يعد نشطًا. يرجى بدء تقييم قراءة جديد باستخدام /reading test",
+              ur: "مجھے ایک تشخیص ملا جو اب فعال نہیں ہے۔ براہ کرم \u2066/reading test\u2069 کے ساتھ نیا reading assessment شروع کریں",
+              ar: "وجدت تقييمًا لم يعد نشطًا. يرجى بدء تقييم قراءة جديد باستخدام \u2066/reading test\u2069",
               es: "Encontré una evaluación que ya no está activa. Por favor, inicia una nueva evaluación de lectura con /reading test"
             };
 
@@ -688,8 +688,8 @@ async function handleVoiceMessage(message, from, user = null) {
             // Send error message to user
             const errorMessages = {
               en: "Sorry, there was an error processing the reading assessment. Please try again with /reading test",
-              ur: "معذرت، reading assessment پر کارروائی کرتے وقت خرابی آ گئی۔ براہ کرم /reading test کے ساتھ دوبارہ کوشش کریں",
-              ar: "عذراً، حدث خطأ أثناء معالجة تقييم القراءة. يرجى المحاولة مرة أخرى باستخدام /reading test",
+              ur: "معذرت، reading assessment پر کارروائی کرتے وقت خرابی آ گئی۔ براہ کرم \u2066/reading test\u2069 کے ساتھ دوبارہ کوشش کریں",
+              ar: "عذراً، حدث خطأ أثناء معالجة تقييم القراءة. يرجى المحاولة مرة أخرى باستخدام \u2066/reading test\u2069",
               es: "Lo siento, hubo un error al procesar la evaluación de lectura. Por favor, inténtalo de nuevo con /reading test"
             };
 
