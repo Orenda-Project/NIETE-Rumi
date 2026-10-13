@@ -101,16 +101,19 @@ class AnalysisProcessorService {
       logToFile('🔄 Starting pedagogical analysis', { coachingSessionId });
 
       // Get session data
-      const { data: session, error: sessionError } = await supabase
+      const { data: loaded, error: sessionError } = await supabase
         .from('coaching_sessions')
         .select('*, users!inner(name, phone_number)')
         .eq('id', coachingSessionId)
         .single();
 
-      if (sessionError || !session) {
+      if (sessionError || !loaded) {
         logToFile('❌ Session query error', { sessionError, coachingSessionId });
         throw new Error('Coaching session not found');
       }
+
+      // bd-809g50 — a portal plan still being read: wait for it (bounded), so Section B is graded with it.
+      const session = await this._awaitPortalPlan(coachingSessionId, loaded);
 
       const from = payload.from || session.users.phone_number;
 
@@ -596,6 +599,61 @@ class AnalysisProcessorService {
     } catch (error) {
       await this.handleAnalysisError(coachingSessionId, error, payload.from);
       throw error;
+    }
+  }
+
+  /**
+   * bd-809g50 — ICT feedback (IAB Experience View, row 12): a plan she uploaded in the PORTAL never reached her report.
+   * After transcription the portal queues the plan's extraction and this analysis back to back; both sit in the
+   * session's FIFO group, but the worker receives them in one batch and runs a batch concurrently, so both start
+   * together and this analysis graded Section B from the row it loaded before the plan was saved (lp_absent). The
+   * late-plan recompute below only covers coach visits. Production: 7 of 7 portal file uploads since 29 Sep.
+   *
+   * So a PORTAL row whose plan is still 'pending' waits for the read to finish — completed or failed — then the row
+   * is reloaded and graded with the plan. Bounded: past maxWaitMs it carries on as before (never stuck). WhatsApp
+   * rows are untouched. Never throws into the analysis job.
+   *
+   * @param {string} coachingSessionId
+   * @param {object} session  the row as loaded
+   * @param {{readStatus?, reload?, sleep?, now?, maxWaitMs?, everyMs?}} [deps] test seams
+   * @returns {Promise<object>} the row to analyse (reloaded when the plan landed)
+   */
+  static async _awaitPortalPlan(coachingSessionId, session, deps = {}) {
+    const { isPortalSession } = require('./portal-coaching.service');
+    if (!session || !session.has_lesson_plan || session.lesson_plan_extraction_status !== 'pending'
+      || !isPortalSession(session)) return session;
+
+    const readStatus = deps.readStatus || (async (id) => {
+      const { data } = await supabase.from('coaching_sessions').select('lesson_plan_extraction_status').eq('id', id).maybeSingle();
+      return data ? data.lesson_plan_extraction_status : null;
+    });
+    const reload = deps.reload || (async (id) => {
+      const { data } = await supabase.from('coaching_sessions').select('*, users!inner(name, phone_number)').eq('id', id).single();
+      return data;
+    });
+    const sleep = deps.sleep || ((ms) => new Promise((r) => setTimeout(r, ms)));
+    const now = deps.now || Date.now;
+    const maxWaitMs = deps.maxWaitMs || 120_000;
+    const everyMs = deps.everyMs || 3_000;
+
+    try {
+      const started = now();
+      for (;;) {
+        const status = await readStatus(coachingSessionId);
+        if (status !== 'pending') {
+          const fresh = await reload(coachingSessionId);
+          logToFile('[lp-fidelity] portal plan read before grading', { coachingSessionId, status, waitedMs: now() - started });
+          return fresh || session;
+        }
+        if (now() - started >= maxWaitMs) {
+          logToFile('[lp-fidelity] portal plan still being read — grading without it', { coachingSessionId, waitedMs: now() - started }, 'warn');
+          return session;
+        }
+        await sleep(everyMs);
+      }
+    } catch (error) {
+      logToFile('⚠️ waiting for the portal plan failed (non-blocking)', { coachingSessionId, error: error && error.message }, 'warn');
+      return session;
     }
   }
 
