@@ -24,8 +24,15 @@ const { resolveUx } = require('../config/ux-strings');
 const { logToFile } = require('../utils/logger');
 const { recordDeliveryMarker } = require('./lp-delivery-marker.service');
 const LpAb = require('./lp-ab-ch310.service');
+const Lifecycle = require('./lesson-plan-lifecycle.service');
 
 const LP_VARIANT = 'niete_v8_segment';
+const { ERROR_CODES } = Lifecycle.LIFECYCLE;
+
+/** `{ request_id }` for a row that names its ask — `{}` when there is no ask row (switch off, or the
+ *  lifecycle write failed), so the row is written exactly as before. */
+const linkedTo = (requestId) => (requestId ? { request_id: requestId } : {});
+
 const FILENAME_MAX = 64;
 
 /** WhatsApp-safe filename that names the lesson a teacher just asked for. */
@@ -235,13 +242,17 @@ async function sendVoicenoteIfAny({ userId, lessonId, phone, asset }) {
  * Never throws; resolves the new row's id, or null.
  *
  * @param {{ userId: string, lessonId: string, hit: {lesson, chapter, book}, asset?: object|null,
- *           voicenoteSent?: boolean, surface?: 'whatsapp'|'app' }} p
+ *           voicenoteSent?: boolean, surface?: 'whatsapp'|'app', requestId?: string|null }} p
+ *   `requestId` — the ask's lifecycle row (lesson-plan-lifecycle); absent, the row is exactly the old one.
  * @returns {Promise<string|null>}
  */
-async function recordLessonPlanRow({ userId, lessonId, hit, asset = null, voicenoteSent = false, surface = 'whatsapp' }) {
+async function recordLessonPlanRow({
+  userId, lessonId, hit, asset = null, voicenoteSent = false, surface = 'whatsapp', requestId = null,
+}) {
   const { lesson, chapter, book } = hit;
   try {
     const { data } = await supabase.from('lesson_plans').insert({
+      ...linkedTo(requestId),
       user_id: userId,
       topic: lessonPlanTopic(lesson, lessonId),
       grade: String(book.grade),
@@ -290,6 +301,7 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
     return { ok: false, reason: 'unknown lesson' };
   }
   const { lesson, chapter, book } = hit;
+  const askedAt = new Date().toISOString();
 
   const context = {
     lesson_id: lessonId,
@@ -308,21 +320,44 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
     return { ok: false, reason: 'no phone' };
   }
 
+  // The lifecycle row of this ask, written once it has reached its outcome (soft-fail; null when
+  // LP_LIFECYCLE_PATHS is off for this path). The rows written after it name it via linkedTo().
+  const recordAsk = (outcome) => Lifecycle.recordOutcome({
+    userId,
+    phone,
+    topic: lessonPlanTopic(lesson, lessonId),
+    language: (user && user.preferred_language) || 'en',
+    source: LP_VARIANT,
+    channel: 'whatsapp',
+    grade: book.grade,
+    subject: book.subject_key,
+    artifactRef: lessonId,
+    askedAt,
+    correlationId,
+    ...outcome,
+  });
+
   // ch3-10 A/B (bd-5o0ay.10.1): group A gets the August v8 PDF; null = not in the test.
   const abGroup = await LpAb.groupFor(userId, { grade: book.grade, chapter: chapter.number });
   const asset = await LpAb.assetFor({ group: abGroup, lessonId, current: currentAssetFor });
   if ((!asset || !asset.r2_key) && abGroup === 'A') {
     // A/B group A with no August plan: silence. None is coming, so "still preparing" would
     // keep her waiting for nothing (Amena, 2 Oct).
-    await recordDownload({ ...context, user_id: userId, phone, status: 'failed', error_text: 'ab group A: no August version' });
+    const requestId = await recordAsk({
+      status: 'failed', errorCode: ERROR_CODES.NOT_ELIGIBLE, errorMessage: 'ab group A: no August version',
+    });
+    await recordDownload({ ...context, user_id: userId, phone, status: 'failed', error_text: 'ab group A: no August version', ...linkedTo(requestId) });
     return { ok: false, reason: 'no august version' };
   }
   if (!asset || !asset.r2_key) {
     logToFile('LP v8: no current asset', { userId, lessonId });
-    await recordDownload({ ...context, user_id: userId, phone, status: 'failed', error_text: 'no current asset' });
+    const requestId = await recordAsk({ status: 'failed', errorCode: ERROR_CODES.NO_ASSET, errorMessage: 'no current asset' });
+    await recordDownload({ ...context, user_id: userId, phone, status: 'failed', error_text: 'no current asset', ...linkedTo(requestId) });
     await WhatsAppService.sendMessage(phone, resolveUx('lpV8StillPreparing', { user }));
     return { ok: false, reason: 'no current asset' };
   }
+  // The plan exists (a rendered catalogue asset): from here on, only the send can fail.
+  const generatedAt = new Date().toISOString();
 
   // Staging feedback round 1: presign + Meta's document fetch take several
   // seconds after the Flow has already closed — tell her it is coming before
@@ -348,6 +383,10 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
     logToFile('LP v8: send threw', { userId, lessonId, error: err.message });
   }
 
+  const requestId = await recordAsk(ok
+    ? { status: 'completed', generatedAt, deliveredAt: new Date().toISOString() }
+    : { status: 'failed', generatedAt, errorCode: ERROR_CODES.DELIVERY_FAILED, errorMessage: errorText });
+
   await recordDownload({
     ...context,
     user_id: userId,
@@ -357,6 +396,7 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
     phone,
     status: ok ? 'sent' : 'failed',
     error_text: errorText,
+    ...linkedTo(requestId),
   });
 
   // ── The coaching ask ──────────────────────────────────────────
@@ -439,13 +479,14 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
   // key should simply get the worksheet, not an apology for a thing she never
   // knew was coming. It is sent AFTER the worksheet and can never gate it.
   if (lesson.lp_type === 'assessment') {
-    await sendAnswerKeyIfAny({ userId, lessonId, phone, book, chapter, lesson, context, abGroup });
+    await sendAnswerKeyIfAny({ userId, lessonId, phone, book, chapter, lesson, context: { ...context, ...linkedTo(requestId) }, abGroup });
   }
 
   // A lesson_plans row is what the feedback survey hangs off (lp_feedback
-  // FK-references it) — written by recordLessonPlanRow, the one place that knows the shape.
+  // FK-references it) — written by recordLessonPlanRow, the one place that knows the shape. It names
+  // this ask's lifecycle row (switch on), so the survey's plan leads back to the ask and its logs.
   const lessonPlanId = await recordLessonPlanRow({
-    userId, lessonId, hit, asset, voicenoteSent,
+    userId, lessonId, hit, asset, voicenoteSent, requestId,
   });
 
   // ── The shelf entry (bd-njn7u) ────────────────────────────────────────────
