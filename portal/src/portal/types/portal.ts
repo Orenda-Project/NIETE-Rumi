@@ -680,7 +680,8 @@ export interface CoachingProgress {
   status: string;
   stage: CoachingStage;
   source?: 'portal' | 'whatsapp';
-  reflection: { questionNumber: number; question: string } | null;
+  /** audioUrl (bd-czmyoh): the question as a voice note, as on WhatsApp; absent when it could not be voiced. */
+  reflection: { questionNumber: number; question: string; audioUrl?: string } | null;
   reportReady?: boolean;
   shortRecording?: boolean | null;
   hasLessonPlan?: boolean;

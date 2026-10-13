@@ -204,10 +204,16 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
         <>
           <SectionHeading>{C.stepReflection}</SectionHeading>
           <section aria-label={C.stepReflection} className="flex flex-col gap-3 overflow-hidden rounded-[18px] border border-[#e5e7eb] bg-[#eceef1] p-2.5">
-            <div className="max-w-[290px] rounded-[18px] rounded-es-md border border-[#e5e7eb] bg-white px-3.5 pb-2 pt-2.5 shadow-[0_1px_2px_rgba(16,24,40,0.06)]">
-              <div className="mb-1 text-[12px] font-bold text-[#c2410c]">{C.title}</div>
-              <p className="m-0 text-[17px] font-medium leading-[1.5]">{asked.question}</p>
-            </div>
+            {/* bd-czmyoh — ICT feedback row 6: the question comes as the Digital Coach's voice note, as on WhatsApp;
+                the words show only when it could not be voiced (WhatsApp's own fallback). */}
+            {asked.audioUrl ? (
+              <VoiceNote from={C.title} avatar="dc" duration="" time="" src={asked.audioUrl} copy={C.audio} className="max-w-[320px]" />
+            ) : (
+              <div className="max-w-[290px] rounded-[18px] rounded-es-md border border-[#e5e7eb] bg-white px-3.5 pb-2 pt-2.5 shadow-[0_1px_2px_rgba(16,24,40,0.06)]">
+                <div className="mb-1 text-[12px] font-bold text-[#c2410c]">{C.title}</div>
+                <p className="m-0 text-[17px] font-medium leading-[1.5]">{asked.question}</p>
+              </div>
+            )}
             {voice.state === 'recording' ? (
               <div className="flex items-center gap-3 bg-white p-2.5">
                 <span className="h-3 w-3 shrink-0 rounded-full bg-[#c8331f] motion-safe:animate-pulse" aria-hidden="true" />
