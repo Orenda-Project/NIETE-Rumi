@@ -1634,7 +1634,8 @@ const schoolsAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 *
  * GET /api/portal/analytics/schools?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|all>
  *
  * School-wise analytics for the analytics-only accounts — objective counts only: per
- * school, LPs opened, Digital Coach and human observations (no LPs generated, no coach
+ * school, LPs opened, training modules completed (bd-9vkl9x), Digital Coach and human
+ * observations (no LPs generated, no coach
  * visits: bd-wfl8oz), "x of N teachers" where it applies, and Avg FICO / Avg HITL with
  * their n; the same summed per region (the six ICT sectors, whatever the filter) and
  * overall. Two set-based reads plus at most one score read. Only schools in those

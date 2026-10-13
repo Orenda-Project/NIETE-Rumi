@@ -7,12 +7,14 @@ import type { MetricKey } from './metrics';
 
 /**
  * bd-s6qbts.3 — the overview tiles: PLAN v3 §2's fields added up for the selection (all regions, or one). Counts,
- * "x of N teachers" under LPs opened and DC observations, averages with how many were scored. Not tappable — there
- * is nothing behind a tile; the table below is the detail. bd-wfl8oz: no LPs generated, no coach visits.
+ * "x of N teachers" under LPs opened, training and DC observations, averages with how many were scored. Not
+ * tappable — there is nothing behind a tile; the table below is the detail. bd-wfl8oz: no LPs generated, no coach
+ * visits. bd-9vkl9x: training modules completed.
  */
 const ICON: Record<MetricKey, Feature> = {
   teachers: 'attendance',
   lpsOpened: 'lessonPlans',
+  trainingModules: 'training',
   dcObservations: 'coaching',
   humanObservations: 'assessment',
   avgFico: 'coaching',
@@ -30,12 +32,13 @@ export function Overview({ c, overview, lpOpensNote }: {
   const scored = (n: number) => (n > 0 ? <Chip>{c.scored(count(n, c))}</Chip> : null);
   const note = lpOpensNote ? <span data-testid="lp-opens-note"><Chip>{lpOpensNote}</Chip></span> : null;
 
-  // `twoWide`: LPs opened carries two chips ("x of N teachers" and, for an early window, "logged since"), so it takes
-  // two columns — which is also what lets seven tiles fill every row.
-  const tiles: Array<{ k: MetricKey | 'schools'; value: string | null; chips?: ReactNode; twoWide?: boolean }> = [
+  // Every tile one cell wide (bd-9vkl9x): eight tiles are two full rows of four. LPs opened's two chips ("x of N
+  // teachers" and, for an early window, "logged since") wrap under its label instead of taking a second cell.
+  const tiles: Array<{ k: MetricKey | 'schools'; value: string | null; chips?: ReactNode }> = [
     { k: 'schools', value: count(overview.schools, c) },
     { k: 'teachers', value: teachers },
-    { k: 'lpsOpened', value: count(overview.lpsOpened, c), chips: <>{of(overview.teachersOpenedLp)}{note}</>, twoWide: true },
+    { k: 'lpsOpened', value: count(overview.lpsOpened, c), chips: <>{of(overview.teachersOpenedLp)}{note}</> },
+    { k: 'trainingModules', value: count(overview.trainingModules, c), chips: of(overview.teachersTrained) },
     { k: 'dcObservations', value: count(overview.dcObservations, c), chips: of(overview.teachersWithDc) },
     { k: 'humanObservations', value: count(overview.humanObservations, c) },
     { k: 'avgFico', value: average(overview.avgFico, c), chips: scored(overview.ficoN) },
@@ -43,23 +46,20 @@ export function Overview({ c, overview, lpOpensNote }: {
   ];
 
   return (
-    // Seven tiles and no row left part-empty. Desktop, four across: Schools · Teachers · LPs opened (two wide), then
-    // DC observations · Human observations · Avg FICO · Avg HITL. Phone, two across: LPs opened gets a row of its own.
+    // Eight tiles and no row left part-empty. Desktop, four across, two rows: what the schools' teachers did
+    // (Schools · Teachers · LPs opened · Training modules completed), then the observations and their scores
+    // (DC observations · Human observations · Avg FICO · Avg HITL). Phone, two across: four full rows.
     <div data-testid="overview" role="group" aria-label={c.overviewLabel} className="mb-8 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-      {tiles.map(({ k, value, chips, twoWide }) => {
-        const tile = (
-          <MetricTile
-            key={k}
-            testId={`tile-${k}`}
-            feature={k === 'schools' ? 'home' : ICON[k]}
-            value={value}
-            label={k === 'schools' ? c.schoolsTile : c.metrics[k]}
-            chips={chips}
-          />
-        );
-        // The kit's `wide` is a whole row with the icon beside the number; this is the normal tile, two cells wide.
-        return twoWide ? <div key={k} className="col-span-2 flex">{tile}</div> : tile;
-      })}
+      {tiles.map(({ k, value, chips }) => (
+        <MetricTile
+          key={k}
+          testId={`tile-${k}`}
+          feature={k === 'schools' ? 'home' : ICON[k]}
+          value={value}
+          label={k === 'schools' ? c.schoolsTile : c.metrics[k]}
+          chips={chips}
+        />
+      ))}
     </div>
   );
 }

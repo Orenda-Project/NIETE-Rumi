@@ -166,7 +166,9 @@ function Table({ c, schools, sort, onSort, lpOpensNote }: {
   );
 }
 
-const CARD_KEYS: readonly MetricKey[] = METRIC_KEYS;
+// The card's grid, two across: LPs opened | Training, DC | Human observations, Avg FICO | Avg HITL — no cell alone.
+// Teachers sits in the card's header beside the region, as on a region card (bd-9vkl9x).
+const CARD_KEYS: readonly MetricKey[] = METRIC_KEYS.filter((k) => k !== 'teachers');
 
 function PhoneCards({ c, schools, sort, onSort, lpOpensNote }: {
   c: AnalyticsWords;
@@ -213,7 +215,12 @@ function PhoneCards({ c, schools, sort, onSort, lpOpensNote }: {
             <div data-testid={`school-card-${s.schoolId}`}>
               <div className="mb-3 flex items-start justify-between gap-3">
                 <Name s={s} c={c} />
-                <RegionTag region={s.region} />
+                <span className="flex shrink-0 flex-col items-end gap-1">
+                  <RegionTag region={s.region} />
+                  <span data-testid="cell-teachers" className="text-xs tabular-nums text-muted-foreground">
+                    {c.scope.teachers(count(s.teachers, c))}
+                  </span>
+                </span>
               </div>
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
                 {CARD_KEYS.map((k) => (
