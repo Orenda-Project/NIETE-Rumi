@@ -8,15 +8,13 @@ import type { MetricKey } from './metrics';
 /**
  * bd-s6qbts.3 — the overview tiles: PLAN v3 §2's fields added up for the selection (all regions, or one). Counts,
  * "x of N teachers" under LPs opened and DC observations, averages with how many were scored. Not tappable — there
- * is nothing behind a tile; the table below is the detail.
+ * is nothing behind a tile; the table below is the detail. bd-wfl8oz: no LPs generated, no coach visits.
  */
 const ICON: Record<MetricKey, Feature> = {
   teachers: 'attendance',
   lpsOpened: 'lessonPlans',
-  lpsGenerated: 'lessonPlans',
   dcObservations: 'coaching',
   humanObservations: 'assessment',
-  coachVisits: 'training',
   avgFico: 'coaching',
   avgHitl: 'assessment',
 };
@@ -32,31 +30,36 @@ export function Overview({ c, overview, lpOpensNote }: {
   const scored = (n: number) => (n > 0 ? <Chip>{c.scored(count(n, c))}</Chip> : null);
   const note = lpOpensNote ? <span data-testid="lp-opens-note"><Chip>{lpOpensNote}</Chip></span> : null;
 
-  const tiles: Array<{ k: MetricKey | 'schools'; value: string | null; chips?: ReactNode }> = [
+  // `twoWide`: LPs opened carries two chips ("x of N teachers" and, for an early window, "logged since"), so it takes
+  // two columns — which is also what lets seven tiles fill every row.
+  const tiles: Array<{ k: MetricKey | 'schools'; value: string | null; chips?: ReactNode; twoWide?: boolean }> = [
     { k: 'schools', value: count(overview.schools, c) },
     { k: 'teachers', value: teachers },
-    { k: 'lpsOpened', value: count(overview.lpsOpened, c), chips: <>{of(overview.teachersOpenedLp)}{note}</> },
-    { k: 'lpsGenerated', value: count(overview.lpsGenerated, c) },
+    { k: 'lpsOpened', value: count(overview.lpsOpened, c), chips: <>{of(overview.teachersOpenedLp)}{note}</>, twoWide: true },
     { k: 'dcObservations', value: count(overview.dcObservations, c), chips: of(overview.teachersWithDc) },
     { k: 'humanObservations', value: count(overview.humanObservations, c) },
-    { k: 'coachVisits', value: count(overview.coachVisits, c) },
     { k: 'avgFico', value: average(overview.avgFico, c), chips: scored(overview.ficoN) },
     { k: 'avgHitl', value: average(overview.avgHitl, c), chips: scored(overview.hitlN) },
   ];
 
   return (
-    // Nine tiles: three across on a desktop (the design's 3 × 3), two on a phone — the kit's MetricGrid is four across.
-    <div data-testid="overview" role="group" aria-label={c.overviewLabel} className="mb-8 grid grid-cols-2 gap-2.5 lg:grid-cols-3">
-      {tiles.map(({ k, value, chips }) => (
-        <MetricTile
-          key={k}
-          testId={`tile-${k}`}
-          feature={k === 'schools' ? 'home' : ICON[k]}
-          value={value}
-          label={k === 'schools' ? c.schoolsTile : c.metrics[k]}
-          chips={chips}
-        />
-      ))}
+    // Seven tiles and no row left part-empty. Desktop, four across: Schools · Teachers · LPs opened (two wide), then
+    // DC observations · Human observations · Avg FICO · Avg HITL. Phone, two across: LPs opened gets a row of its own.
+    <div data-testid="overview" role="group" aria-label={c.overviewLabel} className="mb-8 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+      {tiles.map(({ k, value, chips, twoWide }) => {
+        const tile = (
+          <MetricTile
+            key={k}
+            testId={`tile-${k}`}
+            feature={k === 'schools' ? 'home' : ICON[k]}
+            value={value}
+            label={k === 'schools' ? c.schoolsTile : c.metrics[k]}
+            chips={chips}
+          />
+        );
+        // The kit's `wide` is a whole row with the icon beside the number; this is the normal tile, two cells wide.
+        return twoWide ? <div key={k} className="col-span-2 flex">{tile}</div> : tile;
+      })}
     </div>
   );
 }
