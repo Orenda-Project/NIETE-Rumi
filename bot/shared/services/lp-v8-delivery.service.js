@@ -219,6 +219,69 @@ async function sendVoicenoteIfAny({ userId, lessonId, phone, asset }) {
   }
 }
 
+/**
+ * The lesson_plans row a v8 lesson's feedback survey hangs off (lp_feedback FK-references it).
+ * Base-schema columns ONLY — nothing here may depend on a column migration 018 does not itself
+ * create, so this insert works on the 10-column schema a fresh clone gets as well as on NIETE's
+ * drifted 19-column live table. The v8 detail rides in `content`.
+ *
+ * ONE writer for both doors: a plan DELIVERED on WhatsApp (deliverV8Lesson) and a plan OPENED in
+ * the app (lp-app-open-survey.service, bd-qvevax.2) — the survey stores the same context either
+ * way, because the two must never describe a delivery differently. `surface` is written into the
+ * `v8` provenance block only for the app door, so a WhatsApp row stays byte-identical to what it
+ * was before the second door existed.
+ *
+ * Never throws; resolves the new row's id, or null.
+ *
+ * @param {{ userId: string, lessonId: string, hit: {lesson, chapter, book}, asset?: object|null,
+ *           voicenoteSent?: boolean, surface?: 'whatsapp'|'app' }} p
+ * @returns {Promise<string|null>}
+ */
+async function recordLessonPlanRow({ userId, lessonId, hit, asset = null, voicenoteSent = false, surface = 'whatsapp' }) {
+  const { lesson, chapter, book } = hit;
+  try {
+    const { data } = await supabase.from('lesson_plans').insert({
+      user_id: userId,
+      topic: lessonPlanTopic(lesson, lessonId),
+      grade: String(book.grade),
+      subject: book.subject_key,
+      type: 'lesson_plan',
+      content: {
+        // TOP LEVEL: exactly the keys lp-feedback.service.handleFeedbackButton
+        // snapshots onto the lp_feedback row. Nesting these only under `v8`
+        // would land every v8 feedback row with NULL context — the service
+        // being "ported" says nothing about the two agreeing on a shape.
+        chapter_number: chapter.number,
+        segment_number: lesson.segment_index,
+        lp_variant: LP_VARIANT,
+        grade: book.grade,
+        subject: book.subject_key,
+        // Derived from what actually reached her, never assumed (bd-vw0aj). The
+        // survey asks a different question when a voice note landed, so a wrong
+        // value here asks her about audio she never heard.
+        trigger_mode: voicenoteSent ? 'after_voice_note' : 'after_pdf_only',
+        // Provenance detail, v8-specific.
+        v8: {
+          lesson_id: lessonId,
+          version_stamp: asset ? asset.version_stamp : null,
+          content_hash: asset ? asset.content_hash : null,
+          r2_key: asset ? asset.r2_key : null,
+          chapter_number: chapter.number,
+          segment_index: lesson.segment_index,
+          section: lesson.section,
+          pages: lesson.pages,
+          lp_variant: LP_VARIANT,
+          ...(surface === 'app' ? { surface } : {}),
+        },
+      },
+    }).select('id').single();
+    return (data && data.id) || null;
+  } catch (err) {
+    logToFile('LP v8: lesson_plans insert failed (non-fatal)', { userId, lessonId, error: err.message });
+    return null;
+  }
+}
+
 async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
   const hit = V8Catalog.lessonById(lessonId);
   if (!hit) {
@@ -364,50 +427,10 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
   }
 
   // A lesson_plans row is what the feedback survey hangs off (lp_feedback
-  // FK-references it). Base-schema columns ONLY — nothing here may depend on a
-  // column migration 018 does not itself create, so this insert works on the
-  // 10-column schema a fresh clone gets as well as on NIETE's drifted 19-column
-  // live table. The v8 detail rides in `content`.
-  let lessonPlanId = null;
-  try {
-    const { data } = await supabase.from('lesson_plans').insert({
-      user_id: userId,
-      topic: lessonPlanTopic(lesson, lessonId),
-      grade: String(book.grade),
-      subject: book.subject_key,
-      type: 'lesson_plan',
-      content: {
-        // TOP LEVEL: exactly the keys lp-feedback.service.handleFeedbackButton
-        // snapshots onto the lp_feedback row. Nesting these only under `v8`
-        // would land every v8 feedback row with NULL context — the service
-        // being "ported" says nothing about the two agreeing on a shape.
-        chapter_number: chapter.number,
-        segment_number: lesson.segment_index,
-        lp_variant: LP_VARIANT,
-        grade: book.grade,
-        subject: book.subject_key,
-        // Derived from what actually reached her, never assumed (bd-vw0aj). The
-        // survey asks a different question when a voice note landed, so a wrong
-        // value here asks her about audio she never heard.
-        trigger_mode: voicenoteSent ? 'after_voice_note' : 'after_pdf_only',
-        // Provenance detail, v8-specific.
-        v8: {
-          lesson_id: lessonId,
-          version_stamp: asset.version_stamp,
-          content_hash: asset.content_hash,
-          r2_key: asset.r2_key,
-          chapter_number: chapter.number,
-          segment_index: lesson.segment_index,
-          section: lesson.section,
-          pages: lesson.pages,
-          lp_variant: LP_VARIANT,
-        },
-      },
-    }).select('id').single();
-    lessonPlanId = data && data.id;
-  } catch (err) {
-    logToFile('LP v8: lesson_plans insert failed (non-fatal)', { userId, lessonId, error: err.message });
-  }
+  // FK-references it) — written by recordLessonPlanRow, the one place that knows the shape.
+  const lessonPlanId = await recordLessonPlanRow({
+    userId, lessonId, hit, asset, voicenoteSent,
+  });
 
   // ── The shelf entry (bd-njn7u) ────────────────────────────────────────────
   //
@@ -468,6 +491,7 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
 
 module.exports = {
   deliverV8Lesson,
+  recordLessonPlanRow,
   availableLessonIds,
   downloadedLessonIds,
   currentAssetFor,
