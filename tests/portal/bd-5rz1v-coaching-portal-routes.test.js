@@ -224,6 +224,19 @@ describe('GET /coaching-session/:id — the lesson page names the lesson', () =>
     expect(payload.session).toMatchObject({ id: 'cs-1', topic: 'Provinces of Pakistan', subject: 'Social Studies' });
   });
 
+  // bd-inzpzl — ICT feedback (IAB Experience View, row 11): the portal report must be in the language her report
+  // was written in (the narrative's _language, which follows her preference), not an ASR label like 'hindi'.
+  it('bd-inzpzl — asks for the breakdown in her report\'s language, not the transcript label', async () => {
+    tableRows.coaching_sessions = [{
+      id: 'cs-1', user_id: 'teacher-1', status: 'completed', created_at: hoursAgo(3), audio_url: PORTAL('a'),
+      voice_debrief_language: null, transcript_language: 'hindi',
+      analysis_data: { framework: 'fico', report_narrative: { _language: 'ur', moment: 'x' } },
+    }];
+    await invoke('get', '/coaching-session/:id', { params: { id: 'cs-1' } });
+    const { breakdown } = require('../../dashboard/services/coaching-breakdown.service');
+    expect(breakdown).toHaveBeenCalledWith(expect.anything(), 'ur');
+  });
+
   it('leaves them null when the analysis named neither', async () => {
     tableRows.coaching_sessions = [{
       id: 'cs-1', user_id: 'teacher-1', status: 'completed', created_at: hoursAgo(3), analysis_data: null,
