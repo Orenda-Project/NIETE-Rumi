@@ -12,6 +12,8 @@ import { featurePath } from '../paths';
  */
 
 export const LESSONS_HOME = featurePath('lessons');
+/** bd-fgj73x — step 1 of 3 of a new lesson plan: Grade and subject (then Chapter, then Lesson). */
+export const LESSONS_NEW = `${LESSONS_HOME}/new`;
 export const LESSONS_VIEWER = `${LESSONS_HOME}/plan`;
 export const LESSONS_ALL = `${LESSONS_HOME}/all`;
 /** Reopen a plan by its key (Recent, All lesson plans): `?plan=k5:<id>|g612:<segment>&lang=&title=&grade=`. */

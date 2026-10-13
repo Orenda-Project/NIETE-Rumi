@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 /**
  * bd-fmf24g.3 — the teacher v2 Lesson Plans main page (v28 canvas Lessons) and the reopen-by-key page.
  *
+ *   (bd-fgj73x: the picker is now step 1 of a new lesson plan, NewLessonPage; Recent is open at first.)
  *   Select grade and subject   ONE control (the kit's ClassPicker, bd-fmf24g.14 option A): her classes that HAVE
  *                          lesson plans (GET /me/grade-subjects?feature=lessons, `available` only) starred, each a
  *                          link to its chapters with the catalogue's own key and the one subject key; any other
@@ -24,9 +25,10 @@ vi.mock("../../services/api", () => ({ default: { get: vi.fn(), post: vi.fn() } 
 import api from "../../services/api";
 import { resetLessonPlans } from "../../newui/lessons/lessonPlansApi";
 import { LessonsHomePage } from "./LessonsHome";
+import { NewLessonPage } from "./NewLessonPage";
 import { OpenPlanPage } from "./OpenPlanPage";
 import lessonRoutes from "./routes";
-import { LESSONS_ALL, LESSONS_HOME, LESSONS_OPEN, LESSONS_VIEWER, lessonsUrl } from "./paths";
+import { LESSONS_ALL, LESSONS_HOME, LESSONS_NEW, LESSONS_OPEN, LESSONS_VIEWER, lessonsUrl } from "./paths";
 import { LESSONS_V2_COPY as C } from "./copy";
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
@@ -80,9 +82,9 @@ function renderAt(path: string, element: React.ReactElement) {
 }
 const where = () => screen.getByTestId("where");
 
-describe("Select grade and subject (one control, no search)", () => {
+describe("step 1, Select grade and subject (one control, no search; bd-fgj73x moved it off the main page)", () => {
   it("her classes WITH lesson plans are starred; each is a link to its chapters with the catalogue key and the subject key", async () => {
-    renderAt(LESSONS_HOME, <LessonsHomePage />);
+    renderAt(LESSONS_NEW, <NewLessonPage />);
     // Starred once her classes have loaded.
     await waitFor(() => expect(http.get).toHaveBeenCalledWith("/me/grade-subjects", { params: { feature: "lessons" } }));
     fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.selectGradeSubject) }));
@@ -104,7 +106,7 @@ describe("Select grade and subject (one control, no search)", () => {
       { subject_key: "math", subject: "Math", lesson_count: 80 },
       { subject_key: "urdu", subject: "Urdu", lesson_count: 40 },
     ] });
-    renderAt(LESSONS_HOME, <LessonsHomePage />);
+    renderAt(LESSONS_NEW, <NewLessonPage />);
     fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.selectGradeSubject) }));
     fireEvent.click(screen.getByRole("radio", { name: /^Grade 4/ }));
     fireEvent.click(screen.getByRole("button", { name: "Grade 4 · Urdu" }));
@@ -114,7 +116,7 @@ describe("Select grade and subject (one control, no search)", () => {
 
   it("no class with lesson plans: the same one control, nothing starred; no 'or', no second selector, no Open", async () => {
     answers["/me/grade-subjects"] = () => ({ success: true, combos: [] });
-    renderAt(LESSONS_HOME, <LessonsHomePage />);
+    renderAt(LESSONS_NEW, <NewLessonPage />);
     await waitFor(() => expect(http.get).toHaveBeenCalledWith("/me/grade-subjects", { params: { feature: "lessons" } }));
     fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.selectGradeSubject) }));
     expect(screen.getAllByRole("radio").some((r) => /Your class/.test(r.getAttribute("aria-label") || ""))).toBe(false);
@@ -147,7 +149,7 @@ describe("the other subjects are the catalogue's, as the WhatsApp /lp menu lists
     within(within(sheet).getByRole("region")).getAllByRole("button").map((b) => b.getAttribute("aria-label"));
 
   it("grade 1: all six books the bot offers, not English/Urdu/Math only", async () => {
-    renderAt(LESSONS_HOME, <LessonsHomePage />);
+    renderAt(LESSONS_NEW, <NewLessonPage />);
     fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.selectGradeSubject) }));
     const sheet = screen.getByRole("dialog", { name: C.selectGradeSubject });
     fireEvent.click(await within(sheet).findByRole("radio", { name: /^Grade 1$/ }));
@@ -156,7 +158,7 @@ describe("the other subjects are the catalogue's, as the WhatsApp /lp menu lists
   });
 
   it("a grade the catalogue has nothing for is off; 6–12 lists the 6–12 catalogue's subjects", async () => {
-    renderAt(LESSONS_HOME, <LessonsHomePage />);
+    renderAt(LESSONS_NEW, <NewLessonPage />);
     fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.selectGradeSubject) }));
     const sheet = screen.getByRole("dialog", { name: C.selectGradeSubject });
     await waitFor(() => expect(within(sheet).getByRole("radio", { name: /^Grade 9$/ })).toBeEnabled());
@@ -166,7 +168,7 @@ describe("the other subjects are the catalogue's, as the WhatsApp /lp menu lists
   });
 
   it("an Urdu-named book opens ITS chapters (اسلامیات → islamiat, not the other Urdu-named book)", async () => {
-    renderAt(LESSONS_HOME, <LessonsHomePage />);
+    renderAt(LESSONS_NEW, <NewLessonPage />);
     fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.selectGradeSubject) }));
     const sheet = screen.getByRole("dialog", { name: C.selectGradeSubject });
     fireEvent.click(await within(sheet).findByRole("radio", { name: /^Grade 1$/ }));
@@ -175,7 +177,7 @@ describe("the other subjects are the catalogue's, as the WhatsApp /lp menu lists
   });
 
   it("grade 4: the two Social Studies books stay two, told apart by their medium", async () => {
-    renderAt(LESSONS_HOME, <LessonsHomePage />);
+    renderAt(LESSONS_NEW, <NewLessonPage />);
     fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.selectGradeSubject) }));
     const sheet = screen.getByRole("dialog", { name: C.selectGradeSubject });
     fireEvent.click(await within(sheet).findByRole("radio", { name: /^Grade 4$/ }));
@@ -186,11 +188,10 @@ describe("the other subjects are the catalogue's, as the WhatsApp /lp menu lists
 });
 
 describe("Recent Lesson Plans", () => {
-  it("collapsed at first; open: by day, how she had each, each reopening by its key", async () => {
+  it("open at first (bd-fgj73x, as Assessment's Recent papers): by day, how she had each, each reopening by its key", async () => {
     renderAt(LESSONS_HOME, <LessonsHomePage />);
     const toggle = await screen.findByRole("button", { name: new RegExp(C.recent) });
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
     const roots = await screen.findByRole("link", { name: /Roots and stems/ });
     expect(roots.textContent).toContain(C.all.opened);
     const r = new URL(roots.getAttribute("href") as string, "https://x");
