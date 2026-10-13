@@ -256,7 +256,9 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
               </div>
             ) : (
               <div className="flex items-end gap-2 bg-white p-2.5">
+                {/* bd-phk3v4 — dir=auto: the cursor starts on the left, and Urdu she types runs right to left (row 8). */}
                 <textarea
+                  dir="auto"
                   aria-label={C.yourAnswer}
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}

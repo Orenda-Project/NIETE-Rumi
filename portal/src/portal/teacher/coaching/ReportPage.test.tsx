@@ -352,3 +352,17 @@ describe("the follow-up after her answer as a voice note (bd-ncfml5)", () => {
     expect(await screen.findByText("That pause gave her room.")).toBeTruthy();
   });
 });
+
+/**
+ * bd-phk3v4 — ICT feedback (IAB Experience View, row 8): in Urdu the answer box's cursor starts on the LEFT and
+ * what she types in Urdu still runs right to left — the box follows what is typed (dir="auto"), like WhatsApp's.
+ */
+describe("the answer box in Urdu (bd-phk3v4)", () => {
+  it("follows what she types: dir=auto", async () => {
+    portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "conducting_conversation", stage: "reflection", source: "portal",
+      reflection: { questionNumber: 1, question: "Which children answered?" } });
+    open();
+    const box = await screen.findByRole("textbox", { name: C.yourAnswer });
+    expect(box.getAttribute("dir")).toBe("auto");
+  });
+});
