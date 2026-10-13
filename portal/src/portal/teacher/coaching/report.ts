@@ -62,7 +62,9 @@ export function toReportData(s: SessionDetail, {
     teacher,
     topic: s.topic || s.subject || '',
     date: dateLabel(s.date, days),
-    sections: (b?.groups ?? []).map((g) => ({
+    // bd-wxtin8 — ICT feedback (IAB Experience View, row 13): the framework's own order (B, C, D, F), as on her
+    // WhatsApp report — not the breakdown's strongest-first order, which the older page relies on.
+    sections: [...(b?.groups ?? [])].sort((x, y) => codeOf(x.key, x.name).localeCompare(codeOf(y.key, y.name))).map((g) => ({
       code: codeOf(g.key, g.name),
       label: g.name,
       score: g.score,
