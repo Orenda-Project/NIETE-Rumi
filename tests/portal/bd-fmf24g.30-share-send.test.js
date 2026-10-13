@@ -387,3 +387,36 @@ describe('the share needs nothing from the unreleased ready-notice work', () => 
     for (const mod of ['portal-ready-templates', 'portal-ready-whatsapp', 'portal-link-token']) expect(src).not.toContain(mod);
   });
 });
+
+describe('share_send events name the item that was shared', () => {
+  // The events carried kind/template/lang/code only, so logs could not say WHICH plan a share was
+  // of — per-lesson coverage of shares by lesson-open rows was unmeasurable. itemRef rides along.
+  const { logEvent } = require('../../bot/shared/utils/structured-logger');
+  const K5 = { kind: 'lesson', itemRef: 'lesson:k5:g3_sci_ch01_d1:lesson', title: 'Plants', grade: 3, subject: 'Science', pdfUrl: 'https://r2.example/k.pdf' };
+
+  beforeEach(() => logEvent.mockClear());
+
+  it('sent: share_send.sent carries itemRef', async () => {
+    const out = await Share.sendShare({ userId: 'u1', kind: 'lesson', id: 'k5:g3_sci_ch01_d1' }, deps({ item: async () => K5 }));
+    expect(out.status).toBe('sent');
+    const ev = logEvent.mock.calls.find((c) => c[0] === 'share_send.sent');
+    expect(ev).toBeDefined();
+    expect(ev[1]).toMatchObject({ kind: 'lesson', template: 'share_lesson_plan_v1', itemRef: 'lesson:k5:g3_sci_ch01_d1:lesson' });
+  });
+
+  it('refused: share_send.refused carries itemRef and the code', async () => {
+    const d = deps({ item: async () => K5, sendTemplate: async (to, name, lang, components, opts) => { opts.report.code = 131026; return false; } });
+    const out = await Share.sendShare({ userId: 'u1', kind: 'lesson', id: 'k5:g3_sci_ch01_d1' }, d);
+    expect(out.status).toBe('failed');
+    const ev = logEvent.mock.calls.find((c) => c[0] === 'share_send.refused');
+    expect(ev).toBeDefined();
+    expect(ev[1]).toMatchObject({ kind: 'lesson', code: 131026, itemRef: 'lesson:k5:g3_sci_ch01_d1:lesson' });
+  });
+
+  it('answer key: the itemRef says so', async () => {
+    const AK = { ...K5, itemRef: 'lesson:k5:g3_sci_ch01_d1:answer_key', answerKey: true };
+    await Share.sendShare({ userId: 'u1', kind: 'lesson', id: 'k5:g3_sci_ch01_d1:answer_key' }, deps({ item: async () => AK }));
+    const ev = logEvent.mock.calls.find((c) => c[0] === 'share_send.sent');
+    expect(ev[1].itemRef).toBe('lesson:k5:g3_sci_ch01_d1:answer_key');
+  });
+});
