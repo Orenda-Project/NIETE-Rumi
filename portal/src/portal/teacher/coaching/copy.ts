@@ -34,7 +34,12 @@ export const COACHING_V2_COPY = {
   planFallback: 'Lesson plan',
   change: 'Change',
   photos: 'Photos',
-  photosHint: 'Board work, charts or your classroom',
+  /* bd-r5ckgn — ICT feedback (IAB Experience View, row 4): the three photos to take, one per line, as the Urdu
+     and the bot's coachingPhotoOffer. */
+  photosHint:
+    "(1) A photo of the board with today's objective or task\n" +
+    "(2) A photo of a student's notebook or worksheet\n" +
+    '(3) A photo of teaching aids, e.g. drawings, charts or cards',
   noFaces: 'No faces',
   addPhoto: 'Add photo',
   removePhoto: (n: number) => `Remove photo ${n}`,
@@ -94,7 +99,10 @@ export const COACHING_V2_COPY = {
   reportReady: 'Report ready',
   stepReflection: 'Reflection question',
   stepReport: 'Report ready',
-  subReflection: 'Answer by text',
+  /* bd-eygg2f — ICT feedback (IAB Experience View, row 5): she answers by writing or by speaking. */
+  subReflection: 'Write or speak',
+  recordAnswer: 'Record answer',
+  removeRecording: 'Remove recording',
   subReport: 'Report and voice note',
   yourTurn: 'Your turn',
   now: 'Now',
@@ -210,7 +218,9 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   reportReady: 'رپورٹ تیار',
   stepReflection: 'غور کا سوال',
   stepReport: 'رپورٹ تیار',
-  subReflection: 'لکھ کر جواب دیں',
+  subReflection: 'لکھ کر یا بول کر جواب دیں',
+  recordAnswer: 'جواب ریکارڈ کریں',
+  removeRecording: 'ریکارڈنگ ہٹائیں',
   subReport: 'رپورٹ اور وائس نوٹ',
   yourTurn: 'آپ کی باری',
   now: 'ابھی',
@@ -273,5 +283,5 @@ export const COPY_ENTRY: CopyEntry = {
   screen: 'Digital Coaching',
   module: COACHING as Bilingual<unknown>,
   // "DC observation" is ڈیجیٹل کوچنگ مشاہدہ (three words, the ontology's own name): it adds to a sentence of three.
-  longOk: ['noneYet', 'notFound', 'openLesson', 'openThat', 'photosHint'],
+  longOk: ['noneYet', 'notFound', 'openLesson', 'openThat', 'photosHint', 'subReflection'],
 };

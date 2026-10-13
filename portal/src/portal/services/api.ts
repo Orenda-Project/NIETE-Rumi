@@ -158,9 +158,9 @@ export const portal = {
 
   // ── bd-7hyj7: teacher self-observation from the portal ───────────────────
 
-  /** Sign a direct-to-R2 upload for one file. */
+  /** Sign a direct-to-R2 upload for one file. reflection_audio (bd-eygg2f): her spoken answer to the question. */
   presignCoachingUpload: async (args: {
-    filename: string; sizeBytes: number; kind: 'audio' | 'lesson_plan' | 'photo';
+    filename: string; sizeBytes: number; kind: 'audio' | 'lesson_plan' | 'photo' | 'reflection_audio';
   }): Promise<{ key: string; uploadUrl: string; contentType: string }> => {
     const response = await api.post('/coaching-upload/presign', args);
     return response.data;
@@ -300,6 +300,17 @@ export const portal = {
     done?: boolean; acknowledgement?: string | null; reportStatus?: string;
   }> => {
     const response = await api.post(`/coaching-session/${id}/reflection`, { answer });
+    return response.data;
+  },
+
+  /**
+   * bd-eygg2f — her spoken answer, already in R2 (presign kind reflection_audio). The bot transcribes it before
+   * it acknowledges, so this waits longer than a typed answer (the dashboard gives the bot 90 s).
+   */
+  submitCoachingVoiceReflection: async (id: string, audioKey: string): Promise<{
+    done?: boolean; acknowledgement?: string | null; reportStatus?: string;
+  }> => {
+    const response = await api.post(`/coaching-session/${id}/reflection`, { audioKey }, { timeout: 120_000 });
     return response.data;
   },
 

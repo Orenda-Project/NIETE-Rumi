@@ -85,6 +85,14 @@ describe('bd-lfzoz — /api/internal/coaching/*', () => {
     expect(svc.submitReflection).toHaveBeenCalledWith({ userId: 'u1', coachingSessionId: 'cs-1', answer: 'x' });
   });
 
+  test('bd-eygg2f — reflection forwards her voice answer\'s R2 key', async () => {
+    const out = await invoke(router, '/coaching/reflection',
+      { body: { userId: 'u1', coachingSessionId: 'cs-1', audioKey: 'reflection_audio/u1/2026-10/portal_a.webm' } });
+    expect(out.status).toBe(200);
+    expect(svc.submitReflection).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'u1', coachingSessionId: 'cs-1', audioKey: 'reflection_audio/u1/2026-10/portal_a.webm' }));
+  });
+
   test.each([
     ['invalid', 400], ['not_found', 404], ['not_ready', 409], ['in_progress', 409], ['queue_failed', 502],
   ])('service status %s → HTTP %i', async (status, http) => {

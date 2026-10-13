@@ -184,7 +184,7 @@ describe("the page: no class, the recording first", () => {
     const heading = screen.getByRole("heading", { name: new RegExp(C.photos) });
     expect(within(heading).getByText(C.upToPhotos(10))).toBeTruthy();
     expect(within(heading).getByText(C.noFaces)).toBeTruthy();
-    expect(screen.getByText(C.photosHint)).toBeTruthy();
+    expect(screen.getByText(C.photosHint.replace(/\s+/g, " "))).toBeTruthy();
     const input = screen.getByTestId("dc-photos-input") as HTMLInputElement;
     fireEvent.change(input, { target: { files: Array.from({ length: 4 }, (_, i) => jpg(`a${i}.jpg`)) } });
     fireEvent.change(input, { target: { files: Array.from({ length: 4 }, (_, i) => jpg(`b${i}.jpg`)) } });

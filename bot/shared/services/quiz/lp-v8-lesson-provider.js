@@ -11,9 +11,7 @@
  * door it came through except by `meta.source` ('list' | 'flow').
  *
  * WHAT IS LISTED — a lesson is offered only if a quiz can really be made from it:
- *   - a lesson the teacher TOOK in the last 30 days (quiz/lessons-taken.store — the same
- *     reader the 15:00 offer uses): her `niete_lp_downloads` with status 'sent', and, while
- *     app_settings `lp_quiz_app_lessons` is on, the K-5 lessons she opened in the teacher app;
+ *   - the teacher's own `niete_lp_downloads` with status 'sent', last 30 days;
  *   - whose asset is a LESSON (an answer key is never a quiz source);
  *   - not an assessment day (`_seg995`, D9);
  *   - whose EXACT served version (lesson_id, version_stamp, content_hash) has a
@@ -25,8 +23,8 @@
  * level (on production the source table does not exist until V1.5.2).
  *
  * Load (Class R): one indexed read of the teacher's downloads
- * (idx_lp_downloads_user_time) and, switch on, of her opens (idx_lp_opens_user_recent), each
- * capped at 200, then a few IN reads over at most 200 ids, on a command a teacher sends by hand.
+ * (idx_lp_downloads_user_time), then three IN reads over at most 200 ids, on a
+ * command a teacher sends by hand.
  */
 
 const supabase = require('../../config/supabase');
@@ -45,6 +43,7 @@ const WINDOW_DAYS = 30;
 const MAX_DOWNLOADS = 200;
 const IN_CHUNK = 200;
 const ASSESSMENT_SUFFIX = '_seg995';
+const DOWNLOAD_SELECT = 'id, user_id, lesson_id, asset_id, version_stamp, content_hash, grade, subject, status, created_at';
 
 /** The 15:00 offer owns the lesson-date rule (D2), the catalog topic and the subject names. */
 function offer() {
@@ -52,7 +51,6 @@ function offer() {
 }
 
 const SourceStore = require('./lp-asset-source.store');
-const LessonsTaken = require('./lessons-taken.store');
 
 const { versionKey } = SourceStore;
 
@@ -62,10 +60,17 @@ function chunks(list, size = IN_CHUNK) {
   return out;
 }
 
+/** PostgREST's answer for a table this database does not have (PGRST205 / 42P01). */
+function isMissingTable(error) {
+  const code = String((error && error.code) || '');
+  return code === 'PGRST205' || code === '42P01'
+    || /does not exist|schema cache/i.test(String((error && error.message) || ''));
+}
+
 function mustRead(label, { data, error }) {
   if (error) {
     const err = new Error(`${label}: ${error.message || error}`);
-    err.missingTable = LessonsTaken.isMissingTable(error);
+    err.missingTable = isMissingTable(error);
     throw err;
   }
   return data || [];
@@ -142,8 +147,7 @@ function toItem(row) {
 
 /** Keep the rows a quiz can be made from (kind, day, source), newest delivery per lesson. */
 async function makeable(rows) {
-  // A download counts when it was sent; a lesson taken in the app (surface 'app') has no status.
-  const candidates = rows.filter((r) => r.asset_id && (r.status === 'sent' || r.surface === 'app')
+  const candidates = rows.filter((r) => r.asset_id && r.status === 'sent'
     && !String(r.lesson_id || '').endsWith(ASSESSMENT_SUFFIX));
   if (!candidates.length) return [];
   const lessons = await lessonAssetIds(candidates.map((r) => r.asset_id));
@@ -172,7 +176,11 @@ async function list(teacherId, { since = null, limit = 20 } = {}) {
   if (!teacherId) return [];
   const from = sinceIso(since);
   try {
-    const rows = await LessonsTaken.takenByTeacher(teacherId, { since: from, limit: MAX_DOWNLOADS });
+    const rows = mustRead('lp lesson provider: downloads', await supabase.from('niete_lp_downloads')
+      .select(DOWNLOAD_SELECT)
+      .eq('user_id', teacherId).eq('status', 'sent').gte('created_at', from)
+      .order('created_at', { ascending: false })
+      .limit(MAX_DOWNLOADS));
     const ready = await makeable(rows);
     const covered = ready.length ? await coveredLessonIds(teacherId, from) : new Set();
     const items = ready.filter((r) => !covered.has(r.lesson_id)).map(toItem)
@@ -197,13 +205,17 @@ async function list(teacherId, { since = null, limit = 20 } = {}) {
 }
 
 /**
- * One of the teacher's lessons by its row id (a delivery, or an app open while the switch is
- * on) — only if a quiz can be made from it. Owner-filtered in the query, never afterwards.
+ * One of the teacher's lessons by its delivery id — only if a quiz can be made
+ * from it. Owner-filtered in the query, never afterwards.
  * @returns {Promise<object|null>}
  */
 async function get(teacherId, lessonRef) {
   if (!teacherId || !lessonRef) return null;
-  const data = await LessonsTaken.takenById(teacherId, lessonRef);
+  const { data, error } = await supabase.from('niete_lp_downloads')
+    .select(DOWNLOAD_SELECT)
+    .eq('id', lessonRef).eq('user_id', teacherId).eq('status', 'sent')
+    .maybeSingle();
+  if (error) throw new Error(`lp lesson provider: download read failed — ${error.message || error}`);
   if (!data) return null;
   const [ok] = await makeable([data]);
   return ok ? toItem(ok) : null;
