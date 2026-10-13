@@ -1,4 +1,5 @@
 import type { ObserveCopy } from './copy';
+import type { PlanKind } from '../../lib/coachingUpload';
 
 /**
  * bd-4404s7.4 — small helpers for what the Observe screens say about a visit and a recording. They take the words
@@ -50,4 +51,21 @@ export function daysShort(d: number | null | undefined): string {
 export function dayMonth(day: string | null | undefined, words: Pick<ObserveCopy, 'months'>): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(day || ''));
   return m ? `${Number(m[3])} ${words.months[Number(m[2]) - 1]}` : '';
+}
+
+/** "PDF", "Word" or "Photo" for a plan kind; empty when there is none. */
+export function planKindLabel(kind: PlanKind | null | undefined, words: Pick<ObserveCopy, 'kindPdf' | 'kindWord' | 'kindPhoto'>): string {
+  if (kind === 'pdf') return words.kindPdf;
+  if (kind === 'word') return words.kindWord;
+  if (kind === 'photo') return words.kindPhoto;
+  return '';
+}
+
+/** The kind of a plan from the row's `lesson_plan_format` (pdf, docx, doc, jpg, jpeg, png); null for anything else. */
+export function planKindOfFormat(format: string | null | undefined): PlanKind | null {
+  const f = String(format || '').toLowerCase();
+  if (f === 'pdf') return 'pdf';
+  if (f === 'docx' || f === 'doc') return 'word';
+  if (f === 'jpg' || f === 'jpeg' || f === 'png') return 'photo';
+  return null;
 }

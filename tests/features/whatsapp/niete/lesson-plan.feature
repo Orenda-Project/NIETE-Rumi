@@ -923,3 +923,13 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When I ask for a lesson plan
     Then I get the lesson-plan catalogue Flow exactly as before, and no template
     And when the template failed after the textbook line was sent, the line is not repeated in the Flow
+
+  # bd-fmf24g.66 — extraction of a plan the COACH attached to an observation. The session's user is the observed teacher.
+  # Unit: tests/observe/bd-fmf24g.66-coach-plan-no-teacher-whatsapp.test.js (lesson-plan-extraction.worker notify*).
+  @e2e @config-gated @negative @P1
+  Scenario: A plan a coach attached that is not a lesson plan, or is unreadable, never messages the teacher
+    Given a coach observation of a teacher whose attached plan the extraction worker reads as not a lesson plan or as unreadable
+    When the extraction worker finishes
+    Then the session records not_lesson_plan or a failed status for the app to show
+    And no "doesn't look like a lesson plan" or "couldn't read the file" message is sent to the teacher
+    And a teacher who uploaded her own plan on WhatsApp is still told, as before

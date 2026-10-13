@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { SendError, type PlanChoice } from '../../lib/coachingSend';
+import { planKindOf, type PlanKind } from '../../lib/coachingUpload';
 import { forgetRecording, sendObservation } from '../../lib/coachObserve';
 import { deleteRecording } from '../../lib/recordingStore';
 import { itemId } from '../../teacher/notices/model';
@@ -39,6 +40,8 @@ export interface SendJob {
   state: SendState;
   /** 0..100 */
   pct: number;
+  /** The kind of her own plan file that goes up with it (PDF, Word, Photo); null for no plan or a library plan. */
+  planKind: PlanKind | null;
   /** The observation the server started, once it has accepted it. */
   observationId: string | null;
   /** Why it failed: a SendError's kind, or the server's own reason (`not_your_teacher`). */
@@ -146,6 +149,7 @@ export function startSend(args: SendArgs): SendJob {
   const job: SendJob = {
     visitId: args.visitId, teacherExtId: args.teacherExtId, schoolExtId: args.schoolExtId, teacherName: args.teacherName,
     visitDay: args.visitDay, durationMs: args.durationMs, recordingId: args.recordingId,
+    planKind: args.plan && args.plan.kind === 'file' ? planKindOf(args.plan.file.name) : null,
     state: 'sending', pct: 0, observationId: null, errorCode: null,
   };
   held.set(args.visitId, { job, args });

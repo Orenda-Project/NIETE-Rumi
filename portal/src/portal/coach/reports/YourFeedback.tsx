@@ -9,7 +9,7 @@ import { InsightRow } from "./InsightRow";
 import { REPORTS } from "./copy";
 import { observationPath } from "./paths";
 import { teacherNameOf, useObservationView } from "./useObservationView";
-import { useBackTo } from "./useBackTo";
+import { useBack } from "../../lib/useBack";
 
 /**
  * bd-4404s7.5 — Your feedback, step 4 of 5 (Blueprint Coach_Feedback): what her Digital Coach says about HER debrief
@@ -24,7 +24,7 @@ export default function YourFeedback() {
   const C = useCopy(REPORTS);
   const { id = "" } = useParams();
   const { view, status, reload } = useObservationView(id);
-  const back = useBackTo(observationPath(id));
+  const back = useBack(observationPath(id));
   const name = teacherNameOf(view);
   const fb = view?.talk.feedback ?? null;
   const hers = view?.step === "feedback";

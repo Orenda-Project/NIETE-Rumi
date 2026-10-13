@@ -5,7 +5,7 @@ import { NOTICES } from "../../teacher/notices/copy";
 import { LeaveNote } from "../../teacher/ui";
 import { StatusChip } from "../../teacher/ui/StatusChip";
 import { OBSERVE } from "../observe/copy";
-import { failureWords, lengthShort } from "../observe/format";
+import { failureWords, lengthShort, planKindLabel } from "../observe/format";
 import ObservePage from "../observe/ObservePage";
 import { retrySend, useSendJob } from "../observe/sender";
 
@@ -35,7 +35,7 @@ const CoachSending = () => {
   return (
     <ObservePage banner={false} title={C.observationOf(job.teacherName)} crumb={C.checkAndSend} backTo={`/portal/coach/visit/${id}`} feature="observations"
       dock={sent ? (
-        <Link to={`/portal/coach/observation/${job.observationId}`}
+        <Link replace to={`/portal/coach/observation/${job.observationId}`}
           className="flex h-14 flex-1 items-center justify-center rounded-2xl bg-[#33374a] text-base font-semibold text-white">{C.openObservation}</Link>
       ) : failed ? (
         <button type="button" onClick={() => retrySend(id)}
@@ -43,7 +43,7 @@ const CoachSending = () => {
           <RotateCcw className="h-5 w-5" aria-hidden="true" />{C.tryAgain}
         </button>
       ) : (
-        <Link to="/portal/coach/reports"
+        <Link replace to="/portal/coach/reports"
           className="flex h-14 flex-1 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-base font-semibold text-[#1d2025]">{C.goToReports}</Link>
       )}>
       <div className="flex flex-col items-center gap-[22px] pt-6">
@@ -61,6 +61,7 @@ const CoachSending = () => {
         <div className="flex flex-wrap justify-center gap-2">
           {length && <StatusChip text={length} tone="info" />}
           <StatusChip text={job.teacherName} tone="info" />
+          {job.planKind && <span data-testid="send-plan"><StatusChip text={C.planChip(planKindLabel(job.planKind, C))} tone="info" /></span>}
         </div>
         {failed && (
           <p role="alert" className="w-full rounded-2xl bg-[#fef2f1] px-3.5 py-3 text-[15px] leading-snug text-[#7a271a]">{failureWords(job.errorCode, C)}</p>

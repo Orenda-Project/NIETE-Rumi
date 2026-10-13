@@ -13,6 +13,7 @@ import { REPORTS } from "./copy";
 import { countChanges, initialValues, rungName, titleOf, type Values } from "./formModel";
 import { observationPath } from "./paths";
 import { teacherNameOf, useObservationView } from "./useObservationView";
+import { PlanSource } from "../observe/PlanState";
 
 /**
  * bd-4404s7.5 — Feedback Form, step 2 of 5 (Blueprint Coach_FeedbackForm): the WhatsApp review form, in the portal, on the
@@ -91,7 +92,7 @@ export default function FeedbackForm() {
     setProblem(null);
     try {
       await leader.saveObservationDraft(id, values);
-      navigate(home);
+      navigate(home, { replace: true });
     } catch (err) {
       const status = (err as { response?: { status?: number } })?.response?.status;
       setProblem(status === 409 ? C.notEditable : C.saveFailed);
@@ -162,6 +163,7 @@ export default function FeedbackForm() {
           <h2 className="mx-1 mt-1 text-[22px] font-semibold leading-[1.2]" dir="auto">{section.letter}. {section.title}</h2>
           {section.kind === "moves" ? (
             <>
+              <PlanSource lp={view?.lessonPlan} />
               {section.header && <p className="whitespace-pre-line rounded-2xl bg-[#eaf6ef] p-3.5 text-[14px] leading-relaxed text-[#2f7a52]" dir="auto">{section.header}</p>}
               {section.moves.length === 0 && section.fallback && <p className={cn(LIST_CARD, "p-3.5 text-[15px] leading-relaxed")} dir="auto">{section.fallback}</p>}
               {section.moves.map((m) => moveCard(m, section.moves.length, draft.fidelityScale))}

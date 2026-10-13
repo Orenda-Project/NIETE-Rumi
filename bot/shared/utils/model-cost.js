@@ -15,7 +15,8 @@
  * Tokens are always recorded even when cost is not, so a price added later can be applied
  * retrospectively to calls already made.
  */
-const { logEvent } = require('./structured-logger');
+// getCurrentUserId is read defensively: many suites stub this module with only logEvent.
+const { logEvent, getCurrentUserId } = require('./structured-logger');
 
 /**
  * @param {string} model     the model id as sent, provider prefix included
@@ -27,7 +28,11 @@ function recordModelCost(model, response, startedAt, extra = {}) {
   try {
     const u = (response && response.usage) || {};
     const cost = Number.isFinite(u.cost) ? u.cost : null;
+    // bd-b0qwk: whom the spend was for, so a day's cost can be divided by teacher and by child. A
+    // users.id only, and only when the request or job named one (structured-logger keeps nothing else).
+    const userId = typeof getCurrentUserId === 'function' ? getCurrentUserId() : undefined;
     logEvent('api.cost.incurred', {
+      ...(userId ? { userId } : {}),
       service: 'llm',
       model: (response && response.model) || model || 'unknown',
       tokensIn: u.prompt_tokens ?? u.input_tokens ?? 0,

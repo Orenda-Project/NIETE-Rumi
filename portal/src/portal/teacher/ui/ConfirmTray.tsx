@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { useBidi } from './bidi';
 import { StatusChip } from './StatusChip';
 import { Tray } from './Tray';
-import { FOCUS, OUTLINE_WIDE, PRIMARY_WIDE, type ChipData } from './styles';
+import { DANGER_WIDE, FOCUS, OUTLINE_WIDE, PRIMARY_WIDE, type ChipData } from './styles';
 
 /**
  * bd-fmf24g.41 — ConfirmTray: the kit's one "are you sure?" sheet. A recording's Finish / Stop asks here first (the
@@ -30,6 +30,8 @@ export interface ConfirmTrayProps {
   confirmLabel: string;
   onConfirm: () => void;
   confirmIcon?: LucideIcon;
+  /** `danger` draws the main button in the error red, for a step that takes something away (Remove school). */
+  confirmTone?: 'primary' | 'danger';
   cancelLabel: string;
   /** The second button; closes the tray when left out. */
   onCancel?: () => void;
@@ -38,7 +40,7 @@ export interface ConfirmTrayProps {
 }
 
 export function ConfirmTray({
-  open, title, onClose, line, chips, warning, confirmLabel, onConfirm, confirmIcon: Icon, cancelLabel, onCancel, closeLabel, testId,
+  open, title, onClose, line, chips, warning, confirmLabel, onConfirm, confirmIcon: Icon, confirmTone = 'primary', cancelLabel, onCancel, closeLabel, testId,
 }: ConfirmTrayProps) {
   const bidi = useBidi();
   const hasChips = Boolean(chips && chips.length);
@@ -64,7 +66,7 @@ export function ConfirmTray({
         </div>
       ) : null}
       <div data-testid="confirm-tray-actions" className="flex shrink-0 flex-col gap-3 pb-1">
-        <button type="button" onClick={onConfirm} className={cn(PRIMARY_WIDE, FOCUS)}>
+        <button type="button" onClick={onConfirm} className={cn(confirmTone === 'danger' ? DANGER_WIDE : PRIMARY_WIDE, FOCUS)}>
           {Icon ? <Icon className="h-5 w-5 shrink-0" aria-hidden="true" /> : null}
           {confirmLabel}
         </button>

@@ -16,6 +16,8 @@ import { FOCUS, TAP } from './styles';
  *   dangerOutline  the outline button with red words: a destructive SECOND choice next to a
  *            green primary (Delete under Continue; the account sheet's Logout look)
  *   disabled grey, no edge, no press
+ *   busy     disabled, with a spinner (the sign-in's "Logging in"): grey like disabled, the logo-green ring turning
+ *            under motion-safe only. It keeps its words.
  * A 58px pill (outline 56px), 17.5px/800 label, a 23px icon. The press only ANIMATES under
  * motion-safe; with reduced motion it still moves, instantly.
  *
@@ -46,6 +48,8 @@ export interface BottomButtonProps {
   /** The icon points somewhere (›, →): turn it round in RTL. */
   iconFlips?: boolean;
   disabled?: boolean;
+  /** Waiting for the server: disabled, with a spinner before the words. */
+  busy?: boolean;
   onClick?: () => void;
   /** Goes somewhere: a link with the same look. */
   to?: string;
@@ -54,18 +58,19 @@ export interface BottomButtonProps {
 }
 
 export function BottomButton({
-  children, tone = 'primary', icon: Icon, iconFlips, disabled, onClick, to, type = 'button', testId,
+  children, tone = 'primary', icon: Icon, iconFlips, disabled, busy, onClick, to, type = 'button', testId,
 }: BottomButtonProps) {
   const className = cn(
     'flex w-full items-center justify-center gap-2.5 rounded-full text-[17.5px] font-extrabold',
     'motion-safe:transition-transform motion-safe:duration-75 rtl:font-bold',
     TAP,
     FOCUS,
-    disabled ? DISABLED : TONE[tone],
+    disabled || busy ? DISABLED : TONE[tone],
   );
   const content = (
     <>
-      {Icon ? <Icon className={cn('h-[23px] w-[23px] shrink-0', iconFlips && 'rtl:-scale-x-100')} aria-hidden="true" /> : null}
+      {busy ? <span data-spinner="" aria-hidden="true" className="h-[22px] w-[22px] shrink-0 rounded-full border-[3px] border-nu-leaf-light border-t-accent motion-safe:animate-spin" /> : null}
+      {Icon && !busy ? <Icon className={cn('h-[23px] w-[23px] shrink-0', iconFlips && 'rtl:-scale-x-100')} aria-hidden="true" /> : null}
       <span className="rtl:pt-1 rtl:leading-[2]">{children}</span>
     </>
   );
@@ -73,7 +78,7 @@ export function BottomButton({
     return <Link to={to} data-testid={testId} className={className}>{content}</Link>;
   }
   return (
-    <button type={type} onClick={onClick} disabled={disabled} data-testid={testId} className={className}>
+    <button type={type} onClick={onClick} disabled={disabled || busy} aria-busy={busy || undefined} data-testid={testId} className={className}>
       {content}
     </button>
   );

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import { useBack } from "../../lib/useBack";
 import { AlertTriangle, ChevronRight, MapPin } from "lucide-react";
 import { coach, leader } from "../../services/api";
 import type { CoachObservationView } from "../../services/api";
@@ -17,6 +18,7 @@ import ReportsFrame from "../reports/ReportsFrame";
 import { REPORTS } from "../reports/copy";
 import { pkTime } from "../reports/data";
 import { observationPath } from "../reports/paths";
+import { LessonPlanRow } from "../observe/PlanState";
 
 /**
  * bd-o15qnr.19 / bd-4404s7.5 — the one v2 observation page (Blueprint Coach_Observation and _Sent), opened from
@@ -47,8 +49,6 @@ const CoachObservation = () => {
   const C = useCopy(REPORTS);
   const { days } = useCopy(LESSONS);
   const { id = "" } = useParams();
-  const navigate = useNavigate();
-  const location = useLocation();
   const { data, failed, reload } = useLoad(() => coach.getObservation(id), [id]);
   const [view, setView] = useState<CoachObservationView | null>(null);
   const mine = !!data?.mine;
@@ -62,7 +62,7 @@ const CoachObservation = () => {
     return () => { live = false; };
   }, [mine, id]);
 
-  const back = () => (location.key && location.key !== "default" ? navigate(-1) : navigate("/portal/coach/reports"));
+  const back = useBack("/portal/coach/reports");
   const name = data?.teacher?.name || view?.teacher?.name || C.dash;
   const first = name.split(/\s+/)[0] || name;
   const stopped = view?.step === "stopped";
@@ -127,6 +127,8 @@ const CoachObservation = () => {
                 </section>
               );
           })()}
+
+          <LessonPlanRow lp={view?.lessonPlan} />
 
           {stopped ? (
             <Card className="flex gap-2.5 bg-[#fef3c7] p-4 text-[15px] text-[#b45309]">

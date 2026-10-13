@@ -389,6 +389,10 @@ class SQSCoachingWorker {
 
     // Use correlation ID from message or generate new one
     const correlationId = incomingCorrelationId || generateCorrelationId();
+    // bd-b0qwk: the user the job was queued for (the envelope's userId; a payload.userId / user_id on
+    // envelopes queued before it existed), so the job's model spend names its user. Anything that is
+    // not a users.id is dropped by runWithCorrelation, so a phone in a payload never reaches the logs.
+    const requester = body.userId || (payload && (payload.userId || payload.user_id));
 
     logToFile('📋 Job claimed from SQS', {
       workerId: this.workerId,
@@ -442,7 +446,7 @@ class SQSCoachingWorker {
           this.activeJobs.delete(receiptHandle);
           this.stats.lastJobTime = new Date();
         });
-    });
+    }, { userId: requester });
 
     // Add to active jobs.
     // bd-yd2kb: store sourceQueue alongside the promise so graceful shutdown can

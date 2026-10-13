@@ -112,6 +112,21 @@ export const OBSERVE_COPY = {
   noRecentPlans: 'No recent plans',
   removePlan: 'Remove plan',
   planNotOk: 'Not a plan photo',
+  /* bd-fmf24g.66 — the teacher's own plan as a file: the tile, its sheet, the bar, the observation page's row */
+  ownPlan: 'Their own plan',
+  camera: 'Camera',
+  gallery: 'Gallery',
+  files: 'Files',
+  kindPdf: 'PDF',
+  kindWord: 'Word',
+  kindPhoto: 'Photo',
+  upToMb: (n = 0) => `Up to ${n} MB`,
+  notPlanFile: 'Not a plan file',
+  planChip: (kind = '') => `Plan · ${kind}`.trim(),
+  lpReading: 'Reading',
+  lpRead: 'Read',
+  lpCantRead: "Couldn't read",
+  lpNotScored: 'Not scored',
   photos: 'Photos',
   upToN: (n = 0) => `Up to ${n}`,
   noFaces: 'No faces',
@@ -233,6 +248,20 @@ export const OBSERVE_COPY_UR: Words<typeof OBSERVE_COPY> = {
   noRecentPlans: 'کوئی حالیہ پلان نہیں',
   removePlan: 'پلان ہٹائیں',
   planNotOk: 'پلان کی تصویر نہیں',
+  ownPlan: 'ان کا اپنا پلان',
+  camera: 'کیمرا',
+  gallery: 'گیلری',
+  files: 'فائلیں',
+  kindPdf: 'PDF',
+  kindWord: 'ورڈ',
+  kindPhoto: 'تصویر',
+  upToMb: (n = 0) => `${n} MB تک`,
+  notPlanFile: 'پلان کی فائل نہیں',
+  planChip: (kind = '') => `پلان · ${kind}`.trim(),
+  lpReading: 'پڑھا جا رہا ہے',
+  lpRead: 'پڑھ لیا',
+  lpCantRead: 'پڑھ نہیں سکے',
+  lpNotScored: 'اسکور نہیں',
   photos: 'تصاویر',
   upToN: (n = 0) => `${n} تک`,
   noFaces: 'چہرے نہ دکھائیں',
@@ -268,4 +297,4 @@ export type ObserveCopy = Words<typeof OBSERVE_COPY>;
 /** Paths that are rightly a sentence (more than 4 words) — the real reasons and the notes the design names. */
 export const SENTENCES = ['recordedFor', 'shortNote', 'screenOff', 'micAllow', 'shortWarning', 'leaveSub', 'failure'] as const;
 /** Paths that are rightly the same in both languages. */
-export const SAME = ['dash', 'hitl', 'dc', 'hitlBy'] as const;
+export const SAME = ['dash', 'hitl', 'dc', 'hitlBy', 'kindPdf'] as const;
