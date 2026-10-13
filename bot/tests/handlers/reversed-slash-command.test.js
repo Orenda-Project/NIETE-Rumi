@@ -132,7 +132,13 @@ jest.mock('../../shared/services/redis-comprehension.service', () => ({
   findActiveFlowByUser: jest.fn().mockResolvedValue(null),
 }));
 
+// The teacher-app redirect (bd-fmf24g): off unless a test turns it on.
+jest.mock('../../shared/services/app-redirect.service', () => ({
+  redirectIfFlagged: jest.fn().mockResolvedValue(false),
+}));
+
 const WhatsAppService = require('../../shared/services/whatsapp.service');
+const { redirectIfFlagged } = require('../../shared/services/app-redirect.service');
 const MenuService = require('../../shared/services/menu.service');
 const { handleObserveCommand } = require('../../shared/handlers/observe-command.handler');
 const { handleTextMessage } = require('../../shared/handlers/text-message.handler');
@@ -149,7 +155,7 @@ const teacher = () => ({
   registration_pending_name: false,
 });
 
-beforeEach(() => { jest.clearAllMocks(); });
+beforeEach(() => { jest.clearAllMocks(); redirectIfFlagged.mockResolvedValue(false); });
 
 describe('bd-5ls6qy.7 — /menu typed the way RTL text displayed it opens the menu', () => {
   test('control: "/menu" opens the menu (unchanged)', async () => {
@@ -171,6 +177,14 @@ describe('bd-5ls6qy.7 — /menu typed the way RTL text displayed it opens the me
     await handleTextMessage(MESSAGE, FROM, typed, teacher());
     expect(MenuService.sendMenu).toHaveBeenCalledTimes(1);
     expect(MenuService.sendMenu.mock.calls[0][0]).toBe(FROM);
+  });
+
+  test('a pilot teacher on the app: "Menu/" gets the app link, the same door as "/menu"', async () => {
+    // Since 11–12 Oct most /menu taps answer with the teacher-app link (12 Oct: 541 of 570).
+    redirectIfFlagged.mockResolvedValue(true);
+    await handleTextMessage(MESSAGE, FROM, 'Menu/', teacher());
+    expect(redirectIfFlagged).toHaveBeenCalledWith('menu', expect.objectContaining({ reason: 'menu_command' }));
+    expect(MenuService.sendMenu).not.toHaveBeenCalled();
   });
 
   test('"observe/" reaches the /observe door as "/observe"', async () => {
