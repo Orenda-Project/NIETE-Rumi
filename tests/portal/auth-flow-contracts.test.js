@@ -184,15 +184,39 @@ describe('bd-2513 — a successful reset lands the teacher inside, not back at l
     expect(body).toMatch(/delete req\.session\.resetUserId/);
   });
 
+  // bd-s6qbts.3 moved "where does a signed-in user belong" into ONE function, homeFor (lib/homeRoute.ts), shared
+  // by the sign-in form, "/", this page and the route guard. So these follow the route THROUGH homeFor instead of
+  // looking for a literal '/portal/dashboard' or `isLeader` in this page (bd-s6qbts.5). The behaviour itself —
+  // homeFor(leader) is '/portal/leader', homeFor(teacher) '/portal/dashboard' — is executed by the portal's own
+  // suite (lib/homeRoute.test.ts); this runner has no TS transform.
+  const HOME = 'portal/src/portal/lib/homeRoute.ts';
+  const homeForBody = () => {
+    const src = code(HOME);
+    const start = src.indexOf('export function homeFor(');
+    expect(start).toBeGreaterThanOrEqual(0);
+    return src.slice(start, src.indexOf('\n}', start) + 2);
+  };
+
   it('the client stops sending the user back to an empty login form', () => {
     const src = code(VERIFY);
     const submit = src.slice(src.indexOf('const handleSubmit'), src.indexOf('return ('));
     expect(submit).not.toMatch(/navigate\(\s*['"]\/portal\/login['"]\s*\)/);
-    expect(submit).toMatch(/\/portal\/(dashboard|leader)/);
+    // It goes wherever homeFor says the user the SERVER returned belongs …
+    expect(src).toMatch(/import\s*\{[^}]*\bhomeFor\b[^}]*\}\s*from\s*['"]\.\.\/lib\/homeRoute['"]/);
+    expect(submit).toMatch(/navigate\(\s*homeFor\(\s*result\?\.user\s*\)\s*\)/);
+    // … and homeFor's answer for anyone who is not analytics-only is inside the app, never the login.
+    expect(homeForBody()).toMatch(/'\/portal\/dashboard'/);
+    expect(homeForBody()).not.toMatch(/\/portal\/login/);
   });
 
   it('a leader still lands on My Patch, per bd-2434', () => {
-    expect(code(VERIFY)).toMatch(/isLeader/);
+    // Through homeFor: a leader-family user goes to /portal/leader …
+    expect(homeForBody()).toMatch(/isLeader\(\s*user\s*\)\s*\?\s*'\/portal\/leader'/);
+    expect(code(HOME)).toMatch(/import\s*\{[^}]*\bisLeader\b[^}]*\}\s*from\s*['"]\.\/leaderRole['"]/);
+    // … and the portal suite that executes it really pins that case.
+    const behaviour = read('portal/src/portal/lib/homeRoute.test.ts');
+    expect(behaviour).toMatch(/expect\(homeFor\(coach\)\)\.toBe\("\/portal\/leader"\)/);
+    expect(behaviour).toMatch(/expect\(homeFor\(principal\)\)\.toBe\("\/portal\/leader"\)/);
   });
 
   it('the old "now log in" copy is gone from the API response', () => {

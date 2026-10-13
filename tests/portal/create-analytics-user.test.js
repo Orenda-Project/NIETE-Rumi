@@ -211,3 +211,146 @@ describe('run()', () => {
     await expect(run({ ...base, supabase: sb.client, invite: inv, commit: true })).rejects.toThrow(/token/i);
   });
 });
+
+// ── bd-s6qbts.5: an account NAME instead of a phone ─────────────────────────────
+//
+//   node scripts/create-analytics-user.js --env prod --name fde-islamabad --display "FDE Islamabad" [--commit]
+//
+// users.phone_number = 'analytics:<name>' (non-numeric: no teacher can hold it, WhatsApp cannot reach it), and
+// --reset-password re-opens an existing one for a new password through a fresh setup link.
+describe('parseArgs — which flag means what', () => {
+  const { parseArgs } = require('../../scripts/create-analytics-user');
+
+  it('--name is the account name and --display the label it is greeted by', () => {
+    expect(parseArgs(['--env', 'prod', '--name', 'fde-islamabad', '--display', 'FDE Islamabad'])).toMatchObject({
+      env: 'prod', account: 'fde-islamabad', name: 'FDE Islamabad', phone: null, commit: false, resetPassword: false,
+    });
+  });
+
+  it('--phone keeps working, with --display or (as before) --name as the label', () => {
+    expect(parseArgs(['--env', 'sandbox', '--phone', '03001234567', '--display', 'Analytics Test']))
+      .toMatchObject({ phone: '03001234567', name: 'Analytics Test', account: null });
+    expect(parseArgs(['--env', 'sandbox', '--phone', '03001234567', '--name', 'Analytics Test']))
+      .toMatchObject({ phone: '03001234567', name: 'Analytics Test', account: null });
+  });
+
+  it('--commit and --reset-password are switches', () => {
+    expect(parseArgs(['--env', 'prod', '--name', 'fde-islamabad', '--reset-password', '--commit']))
+      .toMatchObject({ account: 'fde-islamabad', resetPassword: true, commit: true });
+  });
+
+  it('refuses an ambiguous --phone + --name + --display', () => {
+    expect(() => parseArgs(['--env', 'prod', '--phone', '03001234567', '--name', 'fde', '--display', 'FDE']))
+      .toThrow(/REFUSED/);
+  });
+});
+
+describe('run() with an account name', () => {
+  const base = { account: 'fde-islamabad', name: 'FDE Islamabad', portalUrl: 'https://portal.example', log: quiet };
+
+  it('commit: creates analytics:<name> with the display name, unregistered, no school; lists it; mints the link', async () => {
+    const sb = fakeSupabase({ flagValue: ['other'] });
+    const inv = invite();
+    const out = await run({ ...base, supabase: sb.client, invite: inv, commit: true });
+    const ins = sb.writes.find((w) => w.op === 'insert');
+    expect(ins.table).toBe('users');
+    expect(ins.row).toMatchObject({
+      phone_number: 'analytics:fde-islamabad', name: 'FDE Islamabad', role: 'unregistered', school_id: null,
+      ...ANALYTICS_ACCOUNT_DEFAULTS,
+    });
+    expect(sb.db.app_settings[0].value).toEqual(['other', out.userId]);
+    expect(inv.generatePortalToken).toHaveBeenCalledWith(out.userId);
+    expect(out.setupUrl).toBe('https://portal.example/portal/setup/tok-123');
+    expect(out.signInAs).toBe('fde-islamabad');
+  });
+
+  it('lower-cases the name, as the login does', async () => {
+    const sb = fakeSupabase({ flagValue: [] });
+    await run({ ...base, account: '  FDE-Islamabad ', supabase: sb.client, invite: invite(), commit: true });
+    expect(sb.writes.find((w) => w.op === 'insert').row.phone_number).toBe('analytics:fde-islamabad');
+  });
+
+  it('dry run: writes nothing, mints nothing', async () => {
+    const sb = fakeSupabase({ flagValue: [] });
+    const inv = invite();
+    const out = await run({ ...base, supabase: sb.client, invite: inv, commit: false });
+    expect(out.committed).toBe(false);
+    expect(sb.writes).toEqual([]);
+    expect(inv.generatePortalToken).not.toHaveBeenCalled();
+  });
+
+  it.each(['ab', 'fde islamabad', '9fde', 'analytics:fde', 'fde_islamabad', '', 'fde-03001234567'])('refuses the name %p and writes nothing', async (bad) => {
+    const sb = fakeSupabase({ flagValue: [] });
+    await expect(run({ ...base, account: bad, supabase: sb.client, invite: invite(), commit: true })).rejects.toThrow(/REFUSED/);
+    expect(sb.writes).toEqual([]);
+  });
+
+  it('needs a display name', async () => {
+    const sb = fakeSupabase({ flagValue: [] });
+    await expect(run({ ...base, name: ' ', supabase: sb.client, invite: invite(), commit: true })).rejects.toThrow(/REFUSED/);
+    expect(sb.writes).toEqual([]);
+  });
+
+  it('refuses both a phone and a name, and neither', async () => {
+    const sb = fakeSupabase({ flagValue: [] });
+    await expect(run({ ...base, phone: '03001234567', supabase: sb.client, invite: invite(), commit: true })).rejects.toThrow(/REFUSED/);
+    await expect(run({ ...base, account: null, supabase: sb.client, invite: invite(), commit: true })).rejects.toThrow(/REFUSED/);
+    expect(sb.writes).toEqual([]);
+  });
+
+  it('a re-run reuses the account and leaves the list as it was', async () => {
+    const existing = { id: 'acct-fde', phone_number: 'analytics:fde-islamabad', role: 'unregistered', school_id: null, name: 'FDE Islamabad' };
+    const sb = fakeSupabase({ users: [existing], flagValue: ['acct-fde'] });
+    const out = await run({ ...base, supabase: sb.client, invite: invite(), commit: true });
+    expect(out.plan.action).toBe('reuse');
+    expect(sb.writes.filter((w) => w.op === 'insert' || w.table === 'app_settings')).toEqual([]);
+  });
+});
+
+describe('run() --reset-password — a fresh setup link for an analytics account that has lost its password', () => {
+  const base = { account: 'fde-islamabad', name: null, resetPassword: true, portalUrl: 'https://portal.example', log: quiet };
+  const acct = (over) => ({
+    id: 'acct-fde', phone_number: 'analytics:fde-islamabad', role: 'unregistered', school_id: null, name: 'FDE Islamabad',
+    portal_activated: true, portal_password_hash: '$2a$10$x', ...over,
+  });
+
+  it('commit: clears the password and the activation (so setup will take a new one), then mints a link', async () => {
+    const sb = fakeSupabase({ users: [acct()], flagValue: ['acct-fde'] });
+    const inv = invite();
+    const out = await run({ ...base, supabase: sb.client, invite: inv, commit: true });
+    expect(sb.writes).toEqual([{
+      table: 'users', op: 'update', row: { portal_password_hash: null, portal_activated: false }, where: { id: 'acct-fde' },
+    }]);
+    expect(inv.generatePortalToken).toHaveBeenCalledWith('acct-fde');
+    expect(out.setupUrl).toBe('https://portal.example/portal/setup/tok-123');
+  });
+
+  it('dry run: writes nothing, mints nothing', async () => {
+    const sb = fakeSupabase({ users: [acct()], flagValue: ['acct-fde'] });
+    const inv = invite();
+    await run({ ...base, supabase: sb.client, invite: inv, commit: false });
+    expect(sb.writes).toEqual([]);
+    expect(inv.generatePortalToken).not.toHaveBeenCalled();
+  });
+
+  it('refuses an account that does not exist', async () => {
+    const sb = fakeSupabase({ flagValue: ['acct-fde'] });
+    await expect(run({ ...base, supabase: sb.client, invite: invite(), commit: true })).rejects.toThrow(/REFUSED/);
+    expect(sb.writes).toEqual([]);
+  });
+
+  it('refuses an account that is not on portal_analytics_only', async () => {
+    const sb = fakeSupabase({ users: [acct()], flagValue: ['someone-else'] });
+    const inv = invite();
+    await expect(run({ ...base, supabase: sb.client, invite: inv, commit: true })).rejects.toThrow(/REFUSED/);
+    expect(sb.writes).toEqual([]);
+    expect(inv.generatePortalToken).not.toHaveBeenCalled();
+  });
+
+  it('refuses a phone: a teacher resets her own password on WhatsApp', async () => {
+    const sb = fakeSupabase({ users: [{ ...acct(), phone_number: '923001234567' }], flagValue: ['acct-fde'] });
+    await expect(run({ ...base, account: null, phone: '03001234567', supabase: sb.client, invite: invite(), commit: true }))
+      .rejects.toThrow(/REFUSED/);
+    expect(sb.writes).toEqual([]);
+  });
+});

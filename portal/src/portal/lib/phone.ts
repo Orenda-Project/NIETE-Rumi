@@ -50,3 +50,19 @@ export function isValidPkMobile(input: string): boolean {
 /** The one message shown when `isValidPkMobile` says no. */
 export const PK_MOBILE_HINT =
   'Enter an 11-digit mobile number starting with 03 — for example 0336 1234567.';
+
+/**
+ * bd-s6qbts.5 — an analytics-only account signs in with an account NAME in the same field. A name holds an ASCII
+ * letter; no phone form above does. Mirrors isAccountNameInput in dashboard/lib/analytics-account-name.js — keep the
+ * two in step. The client only stops holding a name to the phone length; whether the name is real, well formed and
+ * allowed to sign in is the server's decision alone.
+ */
+export function isAccountName(input: string): boolean {
+  return /[a-z]/i.test(input);
+}
+
+/** The account name inside a stored `analytics:<name>` (users.phone_number of such an account), else null. */
+export function accountNameOf(stored: string): string | null {
+  const m = /^analytics:(.+)$/.exec(stored);
+  return m ? m[1] : null;
+}
