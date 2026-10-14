@@ -27,7 +27,7 @@ function Page({ name }: { name: string }) {
 }
 
 const PATHS: Array<[string, string]> = [
-  ["/portal/analytics/schools", "analytics"],
+  ["/portal/analytics/schools/:tab?", "analytics"],
   ["/portal/dashboard", "dashboard"],
   ["/portal/curriculum", "curriculum"],
   ["/portal/account", "account"],
@@ -82,9 +82,18 @@ describe("an analytics-only account", () => {
     ["/portal/setup/abc123", "setup"],
     ["/portal/login", "login"],
     ["/portal/analytics/schools", "analytics"],
+    ["/portal/analytics/schools/lp", "analytics"],
+    ["/portal/analytics/schools/observations", "analytics"],
+    ["/portal/analytics/schools/coaching", "analytics"],
+    ["/portal/analytics/schools/info", "analytics"],
   ])("stays on %s", (p, name) => {
     renderAt(p, analyticsUser);
     expect(screen.getByTestId("page")).toHaveTextContent(name);
+  });
+
+  it("an unknown tab is not a page of hers: back to the analytics page (bd-97x22y.2)", () => {
+    renderAt("/portal/analytics/schools/bogus", analyticsUser);
+    expect(screen.getByTestId("where")).toHaveTextContent(/^\/portal\/analytics\/schools$/);
   });
 
   it("a tap to another portal page comes back to the analytics page", async () => {
@@ -98,6 +107,12 @@ describe("an analytics-only account", () => {
 describe("everyone else", () => {
   it("a teacher who opens the analytics page goes to the dashboard", () => {
     renderAt("/portal/analytics/schools", teacher);
+    expect(screen.getByTestId("page")).toHaveTextContent("dashboard");
+    expect(mounted).not.toContain("analytics");
+  });
+
+  it("a teacher who opens one of its tabs goes to the dashboard (bd-97x22y.2)", () => {
+    renderAt("/portal/analytics/schools/coaching", teacher);
     expect(screen.getByTestId("page")).toHaveTextContent("dashboard");
     expect(mounted).not.toContain("analytics");
   });
@@ -142,8 +157,10 @@ describe("App.tsx", () => {
     expect(app).toMatch(/<AnalyticsOnlyGuard>\s*<Routes>[\s\S]*<\/Routes>\s*<\/AnalyticsOnlyGuard>/);
   });
 
-  it("serves the analytics page at /portal/analytics/schools, as its own chunk", () => {
-    expect(app).toMatch(/<Route path="\/portal\/analytics\/schools" element=\{<SchoolsAnalytics \/>\} \/>/);
+  it("serves the analytics page and each of its tabs (/portal/analytics/schools[/<tab>]) from ONE route, as its own chunk", () => {
+    // One route with an optional tab: moving between tabs keeps the page mounted, so its numbers are not read again.
+    expect(app).toMatch(/<Route path="\/portal\/analytics\/schools\/:tab\?" element=\{<SchoolsAnalytics \/>\} \/>/);
+    expect(app.match(/path="\/portal\/analytics\/schools/g)).toHaveLength(1);
     expect(app).toMatch(/^const SchoolsAnalytics = page\(\(\) => import\("\.\/portal\/analytics\/SchoolsAnalytics"\)\);$/m);
   });
 });

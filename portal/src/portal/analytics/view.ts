@@ -1,6 +1,6 @@
 import { useAnalyticsView } from '../lib/analyticsView';
 import { pkToday } from '../newui/range';
-import type { PeriodPreset } from './copy';
+import type { ObservationKind, PeriodPreset } from './copy';
 
 /**
  * bd-s6qbts.3 — what the schools analytics page is showing, kept in the ADDRESS like the other Analytics pages
@@ -10,6 +10,9 @@ import type { PeriodPreset } from './copy';
  *   from/to in the address   that window
  *   ?period=all              all time (no window)
  *   neither                  this month, to today (PLAN v2 §1's default)
+ *
+ * bd-97x22y.2 — the tab is the path (/portal/analytics/schools/<tab>, tabs.ts); the query goes with every tab, so the
+ * region and the period stay as she moves between them. ?obs=human is the Observations tab's Human toggle.
  */
 
 export const PRESETS: readonly PeriodPreset[] = ['week', 'month', 'quarter', 'year'];
@@ -66,6 +69,8 @@ export function useSchoolsView() {
   };
   const setPreset = (p: PeriodPreset) => setParams({ ...presetRange(p, today), period: null });
   const setRegion = (next: string | null) => setParams({ region: next });
+  const obs: ObservationKind = searchParams.get('obs') === 'human' ? 'human' : 'dc';
+  const setObs = (next: ObservationKind) => setParams({ obs: next === 'dc' ? null : next });
 
-  return { from, to, allTime, preset: allTime ? null : presetOf(from, to, today), region, today, setRange, setPreset, setRegion };
+  return { from, to, allTime, preset: allTime ? null : presetOf(from, to, today), region, today, setRange, setPreset, setRegion, obs, setObs };
 }

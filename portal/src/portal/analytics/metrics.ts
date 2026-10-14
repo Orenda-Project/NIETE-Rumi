@@ -9,3 +9,11 @@ export type MetricKey =
 export const METRIC_KEYS: readonly MetricKey[] = [
   'teachers', 'lpsOpened', 'trainingModules', 'dcObservations', 'humanObservations', 'avgFico', 'avgHitl',
 ];
+
+/** bd-97x22y.2 — a column of a sector's school table: one of the seven, or the Coaching tab's coach visits. */
+export type ColumnKey = MetricKey | 'coachVisits';
+
+/** The two scores: the only numbers shown as % (operator, 2026-10-14). */
+export const SCORE_KEYS = ['avgFico', 'avgHitl'] as const;
+export type ScoreKey = (typeof SCORE_KEYS)[number];
+export const isScoreKey = (k: string): k is ScoreKey => (SCORE_KEYS as readonly string[]).includes(k);
