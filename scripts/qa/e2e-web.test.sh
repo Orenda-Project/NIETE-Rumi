@@ -114,6 +114,19 @@ chk "W15 test runs cap the portal's DB pool" "$(bash "$SH" portal-login --print-
 grep -q "too many clients" "$ROOT/.claude/qa/web/web-runner.cjs" && ok "W15b set-up SQL retries a full connection table" \
   || no "W15b set-up SQL retries a full connection table"
 
+# W13 — /e2e-web, the portal's /e2e-mock: no feature runs the fallback, `all` runs every web feature at once.
+chk "W13 no feature → portal-smoke (the fallback)" \
+    "$(bash "$SH" --print-plan 2>&1 | sed -nE 's/^FEATURE=//p')" "portal-smoke"
+nfeat=$(ls "$ROOT/.claude/qa/web/features/"*.cjs | wc -l | tr -d ' ')
+pa=$(bash "$SH" all --print-plan 2>&1)
+chk "W13b all → one plan per web feature" "$(printf '%s\n' "$pa" | grep -c '^FEATURE=')" "$nfeat"
+chk "W13c all runs in parallel" "$(printf '%s\n' "$pa" | grep -c '^PARALLEL=')" "1"
+chk "W13d all keeps --only per feature" \
+    "$(bash "$SH" all --only 'portal-login=PL01' --print-plan 2>&1 | sed -nE 's/^ONLY=(.+)$/\1/p')" "PL01"
+CMD="$ROOT/.claude/commands/e2e-web.md"
+grep -q 'bash scripts/qa/e2e-web.sh \$ARGUMENTS' "$CMD" 2>/dev/null && ok "W13e /e2e-web command runs e2e-web.sh with its arguments" \
+  || no "W13e /e2e-web command" "missing or not wired: $CMD"
+
 # W5 — wired into npm, like e2e:mock.
 chk "W5 npm run e2e:web" "$(node -p "require('$ROOT/package.json').scripts['e2e:web']" 2>/dev/null)" "bash scripts/qa/e2e-web.sh"
 
