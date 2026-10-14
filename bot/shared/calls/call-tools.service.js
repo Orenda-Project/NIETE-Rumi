@@ -111,7 +111,7 @@ const DEFINITIONS = [
     type: 'function',
     name: 'lookup_lesson',
     description:
-      'Look up a lesson plan that was actually delivered to this caller — its topic, its script '
+      'Look up a lesson plan that was actually delivered to this caller, or that she read in the teacher app — its topic, its script '
       + 'and its steps. Use this when she asks about a lesson she received and the details are not '
       + 'already in your context. Do not use this to invent or design a new lesson, and do not use '
       + 'it for coaching feedback. Preamble sample (vary it): "میں وہ سبق دیکھتی ہوں".',
@@ -214,7 +214,7 @@ function createCallTools({ callerUserId, callerNumber, repo, onTrace, logger }) 
     if (!rows || !rows.length) return NOTHING.lesson;
 
     const label = (r) => `Grade ${r.grade} ${r.subject} — Ch ${r.chapter_number} "${r.chapter_title}"`
-      + ` (sent ${day(r.created_at)})`;
+      + ` (${r.via === 'app' ? 'opened in the app' : 'sent'} ${day(r.created_at)})`;
 
     const which = String(args.which || '').trim().toLowerCase();
     let matches = rows;
@@ -233,7 +233,7 @@ function createCallTools({ callerUserId, callerNumber, repo, onTrace, logger }) 
 
     const lesson = matches[0];
     const detail = await repo.readLessonScript({
-      userId: callerUserId, lessonId: lesson.lesson_id, contentHash: lesson.content_hash,
+      userId: callerUserId, lessonId: lesson.lesson_id, contentHash: lesson.content_hash, assetId: lesson.asset_id,
     }).catch(() => null);
 
     const out = [label(lesson)];
