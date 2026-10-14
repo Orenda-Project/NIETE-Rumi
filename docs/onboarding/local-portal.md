@@ -71,5 +71,7 @@ and the session cookie drops `Secure` when `PORTAL_LOCAL_DEV=1` *and* the databa
   needs Railway access) the file store reads the rest through from staging, read-only.
 - **Generate anything new with AI** (a new lesson plan, an assessment paper, a coaching report): the lane has no
   vendor keys on purpose, so nothing leaves the laptop.
+  A classroom recording **does upload** (Digital Coaching → Send), but its analysis stops at transcription with
+  `E2E_CASSETTE_MISS` and the session shows as failed — the three scored reports per demo teacher are the ones to look at.
 - **`npm run dev` in `portal/`** (the Vite dev server) — `up` serves a production build instead; use
   `PORTAL_REBUILD=1` after frontend changes.
