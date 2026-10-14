@@ -305,6 +305,27 @@ skipped run reported honestly is fine; reported as a pass it is not.
 
 ---
 
+## 10. Portal features — `lane: "web"`
+
+Every brief entry carries `lane`: `whatsapp` or `web`. A web entry is a portal feature (the teacher + coach web
+app), and it gets exactly this procedure — §1–§9 apply unchanged — with four differences:
+
+1. **Where things live.** Spec: `tests/features/web/<f>.feature`. Driver: `.claude/qa/web/features/<f>.cjs`
+   (the brief's `driver_path`). Shared helpers: `.claude/qa/web/lib.cjs`.
+2. **What a scenario is.** A portal scenario is a person in a browser: sign in as a role under an app mode, open a
+   page, and assert what they see. Write steps in that language ("Given the teacher app v2 is on", "When she opens
+   /portal/teacher/lessons", "Then … shows Recent Lesson Plans with at least one"). Assert content a user would
+   notice missing, not markup: a page that renders its heading over an empty list is a failure.
+3. **The driver (§7) is written differently.** Page areas are generated: add or change the row in
+   `.claude/qa/web/gen_page_features.py` and re-run it — the spec and the driver come out of one table, so they
+   cannot disagree. Flows (sign-in, reset, WhatsApp → portal) are hand-written scenarios in the driver using
+   `lib.cjs`. Either way `validate_specs.py --only <f>` must pass: `E-WEB-NOCODE` means a scenario has no code,
+   `E-WEB-NOSPEC` means code runs a scenario the spec lacks.
+4. **`portal-smoke` is the fan-out.** It is selected for shared plumbing and for any portal file no area claims,
+   always with `only_shared: true` — §3 applies: change it only if a main page was added or removed.
+
+Prove it ran before releasing phase 2: `npm run e2e:web -- <f>` (headless) must pass, or report plainly why not.
+
 ## What this skill will not do
 
 - **Author a scenario without `gherkin-test-cases`.** Free-handing one skips the

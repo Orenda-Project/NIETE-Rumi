@@ -126,7 +126,8 @@ if [ "$NUDGED" = "true" ]; then
   if [ "$KIND" = "stale" ]; then
     WHY="$(for f in $DETAIL; do printf '  %s.feature is byte-identical (as committed) to when this run was armed\n' "$f"; done)"
   elif [ "$KIND" = "uncommitted" ]; then
-    WHY="$(for f in $DETAIL; do printf '  %s.feature is edited and valid but NOT COMMITTED — the PR check reads commits, not your working tree.\n  Commit it now, in its own commit:\n    git add tests/features/whatsapp/niete/%s.feature .claude/commands/niete-e2e.md\n    git commit -m "test(gherkin): sync %s.feature to %s"\n' "$f" "$f" "$f" "${ARMED_SHA:-<sha>}"; done)"
+    # the spec's real path from the marker: a portal feature's spec lives in tests/features/web/ (bd-hnhlgn.10)
+    WHY="$(for f in $DETAIL; do sp=$(jq -r --arg f "$f" '.spec_hashes[$f].path // ("tests/features/whatsapp/niete/" + $f + ".feature")' "$MARKER" 2>/dev/null); printf '  %s.feature is edited and valid but NOT COMMITTED — the PR check reads commits, not your working tree.\n  Commit it now, in its own commit:\n    git add %s\n    git commit -m "test(gherkin): sync %s.feature to %s"\n' "$f" "$sp" "$f" "${ARMED_SHA:-<sha>}"; done)"
   else
     WHY="  the spec changed but does not pass the validator:
 $(printf '%s' "$DETAIL" | sed 's/^/    /')"

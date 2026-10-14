@@ -70,6 +70,15 @@ run_web() {
     echo "│ web lane:  NOT driven — it runs the checkout, and HEAD is not $SHORT. Check that commit out, then re-run."
     return 3
   fi
+  # The same gate as the mock lane (bd-hnhlgn.10): a portal spec that fails validate_specs — e.g. a scenario with no
+  # driver code (E-WEB-NOCODE) — is NOT driven. Driving a spec that cannot run proves nothing.
+  python3 "$QA/validate_specs.py" --only "$SEL_WEB" >"$PEND/web-$SHORT.validate.log" 2>&1; local vexit=$?
+  if [ "$vexit" -ne 0 ]; then
+    echo "│ validate_specs: exit $vexit for $SEL_WEB — NOT driving the web lane:"
+    grep -E '^ERROR' "$PEND/web-$SHORT.validate.log" | head -8 | sed 's/^/│   /'
+    return 1
+  fi
+  echo "│ validate_specs: exit 0 for $SEL_WEB"
   local f wrc=0
   IFS=',' read -r -a _web <<< "$SEL_WEB"
   for f in "${_web[@]}"; do

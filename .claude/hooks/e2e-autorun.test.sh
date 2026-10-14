@@ -1242,10 +1242,16 @@ has  "…the order names the web lane"              "$OUT" "WEB LANE"        yes
 has  "…and the command for this commit"           "$OUT" "commit-e2e.sh $(git rev-parse HEAD)" yes
 has  "…without the stale-build warning (it tests the commit itself)" "$OUT" "CANNOT TEST WHAT YOU JUST COMMITTED" no
 has  "…nor the mock-lane keys preamble"           "$OUT" "keys/niete-local.env" no
+has  "…PHASE 1 (sync the Gherkin) comes first"    "$OUT" "PHASE 1" yes
+has  "…with the brief for the portal spec"        "$(cat "$SYNC" 2>/dev/null)" "tests/features/web/portal-login.feature" yes
 SOUT=$(stop_hook)
 has  "Stop holds the turn for a web-only marker"  "$SOUT" '"block"'        yes
 has  "…with the web lane in its order"            "$SOUT" "WEB LANE"       yes
 has  "…and no mock-lane keys preamble"           "$SOUT" "keys/niete-local.env" no
+# phase 2 has been ordered (nudged); the portal spec is still untouched → Stop must keep HOLDING, like WhatsApp
+SOUT2=$(stop_hook)
+has  "Stop re-holds while the portal spec is unchanged" "$SOUT2" "PHASE 1 IS NOT DONE" yes
+has  "…naming the portal spec"                    "$SOUT2" "portal-login" yes
 cleanup
 OUT=$(arm "$G $C -m 'menu + portal'" "bot/shared/services/menu.service.js
 portal/src/portal/auth/errors.ts")

@@ -427,8 +427,9 @@ def test_web_portal_only_range_reports_its_web_feature():
     md = ci.render_markdown(res)
     assert "Portal — web lane" in md and "**portal-login**" in md, md
     assert "commit-e2e.sh %s" % head[:12] in md, md
-    # a portal range never fails the WhatsApp spec gate
-    assert ci.exit_code(res, freshness="block", proof="warn") == 0
+    # Same process as WhatsApp (bd-hnhlgn.10, operator 2026-10-14): code changed, spec did not → STALE → blocks.
+    assert w["spec_status"] == "stale", w
+    assert ci.exit_code(res, freshness="block", proof="warn") == 1
     shutil.rmtree(r)
 
 
@@ -456,6 +457,45 @@ def test_web_and_whatsapp_range_shows_both_tables():
     assert "**menu**" in md and "Portal — web lane" in md and "**portal-login**" in md, md
     txt = ci.render_text(res)
     assert "portal-login" in txt and "web" in txt, txt
+    shutil.rmtree(r)
+
+
+def test_web_spec_changed_with_the_code_is_synced_and_passes():
+    r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "feat(portal): login + spec", **{"portal/src/portal/pages/PortalLogin.tsx": "// c\n",
+                                                      "tests/features/web/portal-login.feature": "\n"})
+    res = ci.analyse(r, base, head)
+    assert res["web_per_feature"]["portal-login"]["spec_status"] == "synced", res["web_per_feature"]
+    assert res["verdict"]["spec_freshness"] == "synced", res["verdict"]
+    assert ci.exit_code(res, freshness="block", proof="warn") == 0
+    shutil.rmtree(r)
+
+
+def test_web_none_needed_declaration_passes():
+    r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "refactor(portal): rename a variable", **{"portal/src/portal/pages/PortalLogin.tsx": "// c\n"})
+    res = ci.analyse(r, base, head, pr_body="Spec-Sync: portal-login=none-needed (pure rename, nothing a user sees)")
+    w = res["web_per_feature"]["portal-login"]
+    assert w["spec_status"] == "none-needed" and "rename" in w["spec_reason"], w
+    assert ci.exit_code(res, freshness="block", proof="warn") == 0
+    shutil.rmtree(r)
+
+
+def test_web_stale_spec_tells_the_author_how_to_sync():
+    r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "feat(portal): login copy", **{"portal/src/portal/pages/PortalLogin.tsx": "// c\n"})
+    md = ci.render_markdown(ci.analyse(r, base, head))
+    assert "❌ stale" in md and "/sync-specs portal-login" in md, md
+    assert "Spec-Sync: portal-login=none-needed" in md, md
+    shutil.rmtree(r)
+
+
+def test_portal_smoke_fan_out_is_never_stale():
+    r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "chore(portal): App.tsx", **{"portal/src/App.tsx": "// c\n"})
+    res = ci.analyse(r, base, head)
+    assert res["web_per_feature"]["portal-smoke"]["spec_status"] == "only-shared", res["web_per_feature"]
+    assert ci.exit_code(res, freshness="block", proof="warn") == 0
     shutil.rmtree(r)
 
 

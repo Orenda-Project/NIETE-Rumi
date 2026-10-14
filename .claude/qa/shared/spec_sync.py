@@ -58,6 +58,14 @@ sys.path.insert(0, HERE)
 
 CANNOT_DECIDE = 3
 SPEC_DIR = os.path.join("tests", "features", "whatsapp", "niete")
+# The portal's web lane (bd-hnhlgn.10): same Phase 1, its own spec + driver locations. portal-smoke is the web lane's
+# fan-out (selected for shared plumbing / any unclaimed portal file), so it is flagged only_shared like "*" rules.
+WEB_SPEC_DIR = "tests/features/web"
+WEB_DRIVER_DIR = ".claude/qa/web/features"
+WEB_FALLBACK = "portal-smoke"
+WEB_MACHINERY = (".claude/qa/web/lib.cjs", ".claude/qa/web/web-runner.cjs", "scripts/qa/e2e-web.sh")
+# Scenario ids a web driver implements: `{ id: 'PL01', …}` or `pagesScenario("TL01", …)`.
+_WEB_ID_RE = re.compile(r"""(?:\bid:\s*|pagesScenario\(\s*)['"]([A-Z]{2}\d{1,3})['"]""")
 DEFAULT_MAX_DIFF_LINES = 400
 
 # Actions the agent can be handed for one feature.
@@ -135,6 +143,60 @@ def driver_facts(repo, feature):
             "driver_ids": sorted(set(_RECORDED_ID_RE.findall(src)))}
 
 
+def web_driver_facts(repo, feature):
+    """The web lane's driver for `feature` and the scenario ids it implements (same role as driver_facts)."""
+    rel = os.path.join(WEB_DRIVER_DIR, feature + ".cjs")
+    path = os.path.join(repo or ".", rel)
+    try:
+        src = open(path, encoding="utf-8").read()
+    except OSError:
+        return {"driver_path": rel, "driver_exists": False, "driver_ids": []}
+    return {"driver_path": rel, "driver_exists": True, "driver_ids": sorted(set(_WEB_ID_RE.findall(src)))}
+
+
+def web_entries(selection, differ, max_diff_lines, repo):
+    """One brief entry per selected WEB feature — the same shape as a WhatsApp entry plus `lane: "web"`, so the hook,
+    the Stop gate and the gherkin-spec-sync skill handle both lanes with one code path."""
+    out = []
+    web_reasons = selection.get("web_reasons") or {}
+    for feature in selection.get("web_features") or []:
+        paths = list(web_reasons.get(feature) or [])
+        spec_rel = WEB_SPEC_DIR + "/" + feature + ".feature"
+        fan_out = feature == WEB_FALLBACK
+        changed = []
+        for pth in paths:
+            if pth == spec_rel:
+                kind = "spec"
+            elif pth.startswith(WEB_DRIVER_DIR + "/") or pth in WEB_MACHINERY:
+                kind = "driver"
+            else:
+                kind = "map"
+            changed.append({"path": pth, "pattern": "web", "shared": fan_out, "kind": kind})
+        source_paths = [c["path"] for c in changed if c["kind"] == "map"]
+        edits = [c for c in changed if c["kind"] in ("spec", "driver")]
+        exists, scenarios = read_spec(os.path.join(repo or ".", WEB_SPEC_DIR), feature)
+        if not exists:
+            action = CREATE
+        elif not source_paths and edits:
+            # the spec or the test code IS the change: re-authoring would churn it; it still has to pass the gate
+            action = VALIDATE_ONLY
+        else:
+            action = UPDATE
+        diff, truncated = truncate(differ(source_paths) if source_paths else "", max_diff_lines)
+        out.append({
+            "feature": feature, "lane": "web",
+            "spec_path": spec_rel, "spec_exists": exists, "action": action,
+            "scenario_count": len(scenarios), "scenarios": scenarios,
+            "changed_files": changed,
+            "only_shared": fan_out,
+            "diff": diff, "diff_truncated": truncated,
+            # page areas are rows in gen_page_features.py (re-run it); flows are hand-written in the driver
+            "generator": ".claude/qa/web/gen_page_features.py",
+            **web_driver_facts(repo, feature),
+        })
+    return out
+
+
 def build_brief(selection, spec_dir, differ, max_diff_lines=DEFAULT_MAX_DIFF_LINES,
                 repo="", rev_range=""):
     """Turn a select_e2e Selection dict into the agent's working brief.
@@ -182,7 +244,7 @@ def build_brief(selection, spec_dir, differ, max_diff_lines=DEFAULT_MAX_DIFF_LIN
                                    max_diff_lines)
 
         out.append({
-            "feature": feature,
+            "feature": feature, "lane": "whatsapp",
             "spec_path": os.path.join(SPEC_DIR, feature + ".feature"),
             "spec_exists": exists,
             "action": action,
@@ -223,6 +285,8 @@ def build_brief(selection, spec_dir, differ, max_diff_lines=DEFAULT_MAX_DIFF_LIN
     # agent, or validate_specs raises E-NOAGENT). Guessing that here — from a
     # path and a diff, with no view of the nine specs' contents — is exactly the
     # judgement this module exists not to make.
+    out += web_entries(selection, differ, max_diff_lines, repo)
+
     gaps = []
     for path in (selection.get("unmapped") or []):
         gap_diff, gap_truncated = truncate(differ([path]), max_diff_lines)
@@ -249,6 +313,9 @@ def build_brief(selection, spec_dir, differ, max_diff_lines=DEFAULT_MAX_DIFF_LIN
             os.path.basename(p)[:-len(".feature")]
             for p in os.listdir(spec_dir) if p.endswith(".feature")
         ) if os.path.isdir(spec_dir) else [],
+        "existing_web_features": sorted(
+            f[: -len(".feature")] for f in os.listdir(os.path.join(repo or ".", WEB_SPEC_DIR)) if f.endswith(".feature")
+        ) if os.path.isdir(os.path.join(repo or ".", WEB_SPEC_DIR)) else [],
         # The flat list stays: the hook and the skill already read it.
         "map_gaps": [g["path"] for g in gaps],
         "fallback": bool(selection.get("fallback")),
