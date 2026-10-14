@@ -12,6 +12,7 @@ const WhatsAppService = require('../../whatsapp.service');
 const { resolveUx } = require('../../../config/ux-strings');
 const { logToFile } = require('../../../utils/logger');
 const { reactInstead } = require('../ack-reaction');
+const { v10Enabled } = require('../ab-v10-switch');
 
 // `card_<yes|later|no>_<session uuid>` — the ids report-generator sends with the
 // commit prompt. Anchored: a foreign prefix or a non-uuid tail is not ours.
@@ -78,10 +79,14 @@ async function handleCoachingCardResponse(coachingSessionId, response) {
  * @param {string} phone - the teacher's WhatsApp number
  * @param {string} [language] - the teacher's preferred_language (catalog-clamped)
  * @param {string} [inboundMessageId] - the tap's wamid (Meta bill cut N2-C11)
+ *
+ * Behind the v10 test's switch (ab_v10_enabled): off, the tap is left as it was
+ * before this fix — nothing recorded, nothing sent.
  */
 async function handleCardButton(buttonId, phone, language, inboundMessageId = null) {
   const m = BUTTON_RX.exec(typeof buttonId === 'string' ? buttonId : '');
   if (!m) return false;
+  if (!(await v10Enabled())) return false;
   const [, response, coachingSessionId] = m;
   await handleCoachingCardResponse(coachingSessionId, response);
   // Meta bill cut (N2-C11): the answer is recorded above; the acknowledgement is a
