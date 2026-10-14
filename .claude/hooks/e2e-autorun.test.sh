@@ -1253,6 +1253,19 @@ SOUT2=$(stop_hook)
 has  "Stop re-holds while the portal spec is unchanged" "$SOUT2" "PHASE 1 IS NOT DONE" yes
 has  "…naming the portal spec"                    "$SOUT2" "portal-login" yes
 cleanup
+# ONE commit, ONE order (bd-hnhlgn.12). A Claude commit also fires .githooks/post-commit, which writes
+# git-<sha>.json for the same commit. Once the session's own marker is done and cleared, Stop must NOT adopt that
+# git marker and order the same E2E a second time — the session marker absorbs it at arming.
+GSHA=$(git rev-parse --short=12 HEAD)
+printf '{"session":"git","sha":"%s","commit_sha":"%s","trigger":"git-commit","mode":"execute","nudged":false,"spec_sync":false,"commands":[],"features":[],"web_features":["portal-login"]}' \
+  "$GSHA" "$(git rev-parse HEAD)" > ".claude/.e2e-pending/git-$GSHA.json"
+arm "$G $C -m 'portal login'" "portal/src/portal/pages/PortalLogin.tsx" >/dev/null
+[ -f ".claude/.e2e-pending/git-$GSHA.json" ] && say "Claude's arming absorbs the git marker for the same commit" yes no \
+  || say "Claude's arming absorbs the git marker for the same commit" yes yes
+bash "$ARM" --clear --session "$SESSION" >/dev/null 2>&1
+has  "…so after the session clears, Stop orders nothing twice" "$(stop_hook)" '"block"' no
+rm -f ".claude/.e2e-pending/git-$GSHA.json" ".claude/.e2e-pending/git-$GSHA.sync.json"
+cleanup
 OUT=$(arm "$G $C -m 'menu + portal'" "bot/shared/services/menu.service.js
 portal/src/portal/auth/errors.ts")
 has  "mixed commit: web rides on the mock command" "$OUT" "ALSO drives: portal-login" yes
