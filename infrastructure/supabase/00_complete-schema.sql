@@ -6805,4 +6805,64 @@ ALTER TABLE students ADD COLUMN IF NOT EXISTS self_reported_class text;
 ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS student_class text;
 
 
+-- ─── niete_lp_taken (migration V1.6.8) — the one definition of "this teacher took this lesson plan" ──
+-- Mirrors infrastructure/supabase/migrations/V1.6.8__niete_lp_taken.sql (bd-2wgr3d.22.2): every route
+-- (WhatsApp send, app viewer open, app hand-off), grades 1-12. Needs niete_lp_downloads,
+-- niete_lp612_deliveries and niete_lp_opens, all defined above.
+CREATE OR REPLACE VIEW public.niete_lp_taken WITH (security_invoker = true) AS
+-- grades 1-5, sent on WhatsApp
+SELECT d.user_id AS user_id,
+       'k5'::text AS plan_kind,
+       d.lesson_id AS plan_ref,
+       NULL::text AS lang,
+       'whatsapp'::text AS route,
+       NULL::text AS app_source,
+       d.created_at AS taken_at,
+       d.asset_id AS asset_id,
+       d.version_stamp AS version_stamp,
+       d.content_hash AS content_hash,
+       'niete_lp_downloads'::text AS source_table,
+       d.id AS source_id
+  FROM public.niete_lp_downloads d
+ WHERE d.status = 'sent'
+   AND d.user_id IS NOT NULL
+UNION ALL
+-- grades 6-12, sent on WhatsApp (render claims made for the app are excluded: see the header)
+SELECT g.user_id AS user_id,
+       'g612'::text AS plan_kind,
+       g.segment_id AS plan_ref,
+       g.lang AS lang,
+       'whatsapp'::text AS route,
+       NULL::text AS app_source,
+       g.delivered_at AS taken_at,
+       NULL::uuid AS asset_id,
+       g.template_version AS version_stamp,
+       NULL::text AS content_hash,
+       'niete_lp612_deliveries'::text AS source_table,
+       g.id AS source_id
+  FROM public.niete_lp612_deliveries g
+ WHERE g.surface IN ('whatsapp', 'backfill')
+UNION ALL
+-- every plan opened in the teacher app, in its viewer or handed to another app
+SELECT o.user_id AS user_id,
+       o.plan_kind AS plan_kind,
+       o.plan_ref AS plan_ref,
+       o.lang AS lang,
+       'app'::text AS route,
+       o.source AS app_source,
+       o.opened_at AS taken_at,
+       NULL::uuid AS asset_id,
+       NULL::text AS version_stamp,
+       NULL::text AS content_hash,
+       'niete_lp_opens'::text AS source_table,
+       o.id AS source_id
+  FROM public.niete_lp_opens o;
+
+COMMENT ON VIEW public.niete_lp_taken IS
+  'One row per lesson plan a teacher TOOK, by any route (WhatsApp send, app viewer open, app hand-off), grades 1-12. The one definition the bot, portal and RDF read (bd-2wgr3d.22.2). See V1.6.8.';
+
+REVOKE ALL ON public.niete_lp_taken FROM anon, authenticated;
+GRANT SELECT ON public.niete_lp_taken TO service_role;
+
+
 NOTIFY pgrst, 'reload schema';
