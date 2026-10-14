@@ -1379,6 +1379,17 @@ app.post('/webhook', async (req, res) => {
           logToFile('⚠️ unrouted tq_ button', { buttonId, from });
         }
       }
+      // Commitment-card buttons ("Will you commit to trying this in your next
+      // class?" → Yes / Maybe later / Not for me) — sent after every self-serve
+      // coaching report. They were registered nowhere: every tap fell through to
+      // the unknown-button log and was lost. Id parsing, the record merge and the ack
+      // live in the service.
+      else if (buttonId.startsWith('card_')) {
+        const { handleCardButton } = require('./shared/services/coaching/coaching-card/card-response.service');
+        if (!(await handleCardButton(buttonId, from, user && user.preferred_language))) {
+          logToFile('⚠️ unrouted card_ button', { buttonId, from });
+        }
+      }
       // The coaching ask on the first lesson plan of the day (lpask_yes_/lpask_no_).
       // Its own prefix: "yes" opens the menu's Classroom Coaching door.
       else if (buttonId.startsWith('lpask_')) {

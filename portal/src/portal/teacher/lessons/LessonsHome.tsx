@@ -1,100 +1,78 @@
-import { useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
-import { loadGradeSubjects, type GradeSubject } from '../../lib/gradeSubjects';
+import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { ChevronRight, Plus } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { loadRecentLessonPlans } from '../../lib/recentLessonPlans';
-import { lessonPlans } from '../../newui/lessons/lessonPlansApi';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
+import { FEATURE_HUE } from '../icons';
 import { teacherPath } from '../routes';
-import { ClassPicker, HistoryList, type ClassPick, type GradeSubjectPair, type SubjectsByGrade } from '../ui';
+import { HistoryList, HistoryRow } from '../ui';
+import { CARD, FOCUS, LIST_CARD } from '../ui/styles';
 import { LESSONS } from './copy';
 import { useCopy } from '../i18n';
 import TeacherPage from '../TeacherPage';
-import { LESSONS_ALL, lessonsUrl } from './paths';
+import { LESSONS_ALL, LESSONS_NEW } from './paths';
 import { recentGroups } from './recent';
 
 /**
- * bd-fmf24g.3 — the teacher v2 Lesson Plans main page (v28 canvas Lessons).
+ * bd-fmf24g.3 — the teacher v2 Lesson Plans main page. bd-fgj73x — in the Assessment flow (AssessmentHub), the
+ * pattern every teacher feature takes:
  *
- *   Select your class      her classes that HAVE lesson plans (GET /me/grade-subjects?feature=lessons,
- *                          `available` only) in the kit's picker; a pick goes straight to that subject's
- *                          chapters. No class with plans: no picker, no "or".
- *   Any grade or subject   the kit's selector; Open (off until both) → that subject's chapters, its key
- *                          read from the catalogue (lessonPlansApi.subjects). The grades and subjects on
- *                          offer are the LIVE catalogue (lessonPlansApi.catalogue — grades 1–5 the bot's
- *                          lp_catalog.json ∩ niete_lp_assets, the WhatsApp /lp menu's own read), never a
- *                          list held here (bd-fmf24g.57: a held copy hid grade 1's GK and Islamiat).
- *   Recent Lesson Plans    collapsed by default: her recent plans (lib/recentLessonPlans — opened here or
- *                          received on WhatsApp, every grade, plus 6–12 plans she asked for) by Pakistan
- *                          day; each row reopens its plan by key (OpenPlanPage).
+ *   New lesson plan        the + card → step 1 of 3, Grade and subject (NewLessonPage), then Chapter, then Lesson.
+ *   Being made             only while a grades 6–12 plan she asked for is still being written (lib/recentLessonPlans
+ *                          tag 'preparing'); each row opens it (Preparing until it is written).
+ *   Recent Lesson Plans    open, with See all: her recent plans (opened here or received on WhatsApp, every grade, plus
+ *                          6–12 plans she asked for) by Pakistan day; each row reopens its plan by key (OpenPlanPage).
  */
-
-const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '');
-const NO_SUBJECTS: SubjectsByGrade = {};
 
 export function LessonsHomePage() {
   const C = useCopy(LESSONS);
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [combos] = useLoad(() => loadGradeSubjects('lessons'), 'gs:lessons');
   const [recent] = useLoad(() => loadRecentLessonPlans(), 'recent');
-  const [cat] = useLoad(() => lessonPlans.catalogue(), 'lp:catalogue');
-  const catalogue = dataOf(cat);
-  // Names, as the picker shows them; until the catalogue answers only her own classes can be picked.
-  const byGrade = useMemo<SubjectsByGrade>(() => (catalogue
-    ? Object.fromEntries(Object.entries(catalogue.byGrade).map(([g, list]) => [g, list.map((s) => s.name)]))
-    : NO_SUBJECTS), [catalogue]);
-  const busy = useRef(false);
+  const plans = useMemo(() => dataOf(recent) ?? [], [recent]);
 
-  // Only her classes the lesson-plan catalogue has: a class with none would be a dead end.
-  const mine = useMemo(
-    () => (dataOf(combos) ?? []).filter((c): c is GradeSubject & { grade: number; featureKey: string } =>
-      c.available === true && c.grade != null && !!c.featureKey),
-    [combos],
+  const making = useMemo(
+    () => recentGroups(plans.filter((p) => p.tag === 'preparing'), undefined, C).flatMap((g) => g.items),
+    [plans, C],
   );
-  // Hers: straight to its chapters, with the catalogue's own key and the one subject key.
-  const toChapters = (_v: GradeSubjectPair, pick: ClassPick) => {
-    const c = pick.combo as (GradeSubject & { featureKey: string }) | null;
-    return pick.mine && c && c.grade != null ? lessonsUrl('chapters', { grade: c.grade, subject: c.featureKey, key: c.subjectKey }) : undefined;
-  };
-
-  // Any other pair: the catalogue's key for it, then its chapters.
-  const openOther = async (v: GradeSubjectPair, pick: ClassPick) => {
-    if (pick.mine || busy.current) return;
-    busy.current = true;
-    try {
-      const subjects = await lessonPlans.subjects(v.grade);
-      // The name as shown first: an Urdu name ("اسلامیات") has no Latin letters, so its norm() is ''
-      // and would match the first other Urdu-named book. norm() only for a Latin spelling.
-      const want = norm(v.subject);
-      const s = subjects.find((x) => x.name === v.subject)
-        ?? (want ? subjects.find((x) => norm(x.name) === want || norm(x.key) === want) : undefined);
-      if (s) navigate(lessonsUrl('chapters', { grade: v.grade, subject: s.key }));
-      else toast({ title: C.notAvailable });
-    } catch {
-      toast({ title: C.couldNotOpen, variant: 'destructive' });
-    } finally {
-      busy.current = false;
-    }
-  };
-
-  const groups = useMemo(() => recentGroups(dataOf(recent) ?? [], undefined, C), [recent, C]);
+  const groups = useMemo(() => recentGroups(plans.filter((p) => p.tag !== 'preparing'), undefined, C), [plans, C]);
 
   return (
     <TeacherPage feature="lessons" crumb={C.home} title={C.title} backTo={teacherPath('home')}>
-      <ClassPicker
-        label={C.selectGradeSubject}
-        feature="lessons"
-        combos={mine}
-        subjectsByGrade={byGrade}
-        to={toChapters}
-        onChange={(v, pick) => { void openOther(v, pick); }}
-      />
+      <Link to={LESSONS_NEW} className={cn('flex min-h-[112px] items-center gap-4 p-4', CARD, FOCUS)}>
+        <span
+          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full"
+          style={{ background: FEATURE_HUE.lessons.bg, color: FEATURE_HUE.lessons.fg }}
+        >
+          <Plus className="h-[30px] w-[30px]" aria-hidden="true" />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col items-start gap-2">
+          <b className="text-[20px] font-semibold leading-tight">{C.newLessonPlan}</b>
+          <span className="inline-flex h-[26px] shrink-0 items-center whitespace-nowrap rounded-full bg-[#e5e7eb] px-2.5 text-[12px] font-semibold text-[#374151]">
+            {C.allGrades}
+          </span>
+        </span>
+        <ChevronRight className="h-6 w-6 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />
+      </Link>
+
+      {making.length > 0 && (
+        <>
+          <h2 className="mx-1 mt-3 flex items-center gap-2 text-[20px] font-light">
+            {C.preparing}
+            <span className="inline-flex h-[26px] shrink-0 items-center rounded-full bg-[#fef3c7] px-2.5 text-[12px] font-semibold text-[#b45309]">
+              {making.length}
+            </span>
+          </h2>
+          <section aria-label={C.preparing} className={LIST_CARD}>
+            {making.map(({ id, ...row }, i) => <HistoryRow key={id ?? i} first={i === 0} {...row} />)}
+          </section>
+        </>
+      )}
+
       <div className="mt-3.5">
         <HistoryList
           heading={C.recent}
           collapsible
-          defaultOpen={false}
+          defaultOpen
           groups={groups}
           showMore={false}
           seeAllTo={LESSONS_ALL}
