@@ -307,6 +307,11 @@ def load_map(map_path, agents_dir):
         web_features.append(name)
         for g in globs or []:
             web_rules.append(Rule(g, [name], shared=False))
+    # a scenario pin for a feature that does not exist is a typo that would silently pin nothing
+    for name in ((web_raw.get("scenarios")) or {}):
+        if name not in web_features:
+            raise MapError("web: scenarios: pins %r, which is not a web: features: key (known: %s)"
+                           % (name, ", ".join(web_features)))
 
     full_suite = []
     for rule in (raw.get("full_suite_on") or []):

@@ -126,7 +126,7 @@ export WEB_HEADED="$HEADED"
 if [ "$HEADED" = 1 ]; then export WEB_SLOWMO="${WEB_SLOWMO:-600}"; else export WEB_SLOWMO=0; fi
 
 if [ -n "$PLAN" ]; then
-  slot_ports "$SLOT"; echo "DATA=$DATA"; echo "RUN_DIR=$RUN_DIR"; echo "EVIDENCE=$EVIDENCE_REL"; echo "FEATURE=$FEATURE"; echo "BASE_URL=$BASE_URL"; echo "HEADED=$HEADED"; echo "MOCK_URL=http://127.0.0.1:$((4010+SLOT))"
+  slot_ports "$SLOT"; echo "DATA=$DATA"; echo "RUN_DIR=$RUN_DIR"; echo "EVIDENCE=$EVIDENCE_REL"; echo "FEATURE=$FEATURE"; echo "BASE_URL=$BASE_URL"; echo "HEADED=$HEADED"; echo "MOCK_URL=http://127.0.0.1:$((4010+SLOT))"; echo "ONLY=$ONLY"
   exit 0
 fi
 

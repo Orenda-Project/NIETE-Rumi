@@ -126,6 +126,10 @@ has "…drives the web lane" "$out" "web lane:  portal-login" yes
 has "…headless (commit-triggered)" "$out" "HEADED=0" yes
 has "…does not claim a mock-lane run" "$out" "driving:   " no
 has "…validates the portal spec before driving (phase 2 gate)" "$out" "validate_specs: exit 0 for portal-login" yes
+# PHASE 2 runs only the SELECTED portal scenarios (bd-hnhlgn.11): the login page changed → the form scenarios,
+# not PL11 (the WhatsApp /go link), exactly like the mock lane narrows a WhatsApp feature.
+has "…selects the login-form scenarios for this commit" "$out" "scenarios: portal-login 10 of 11" yes
+has "…and hands exactly those to the run" "$out" "ONLY=PL01,PL02,PL03,PL04,PL05,PL06,PL07,PL08,PL09,PL10" yes
 # a broken portal spec (a scenario with no code) stops the web lane, like a broken WhatsApp spec stops the mock lane
 printf '\n  @PL99\n  Scenario: nobody wrote code for this\n    When x\n    Then y\n' >> "$R/tests/features/web/portal-login.feature"
 out=$(cd "$R" && E2E_WEB_PLAN=1 bash .claude/qa/shared/commit-e2e.sh "$wsha" 2>&1); rc=$?
