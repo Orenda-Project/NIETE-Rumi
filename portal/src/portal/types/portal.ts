@@ -698,8 +698,9 @@ export interface CoachingProgress {
 /**
  * The numbers for one school, one region or the whole selection. Counts of things that happened in the window;
  * `teachersOpenedLp`, `teachersTrained` and `teachersWithDc` are read as "x of `teachers`". An average is null when
- * nothing was scored (its n is 0); a count is never null — 0 is a real 0. No percentages. No LPs generated and no
- * coach visits (bd-wfl8oz: human observations are the coach's visits).
+ * nothing was scored (its n is 0); a count is never null — 0 is a real 0. No LPs generated (bd-wfl8oz). The page
+ * shows avgFico / avgHitl (out of 100) as "64.8%" and nothing else as a percentage (bd-97x22y.2); coach visits come
+ * from their own read (CoachingAnalyticsResponse).
  */
 export interface SchoolsAnalyticsCounts {
   teachers: number;
@@ -744,4 +745,37 @@ export interface SchoolsAnalyticsResponse {
   overview: SchoolsAnalyticsOverview;
   regions: SchoolsAnalyticsRegion[];
   schools: SchoolsAnalyticsSchool[];
+}
+
+/**
+ * bd-97x22y.2 — GET /api/portal/analytics/coaching (PLAN v6 §3; served by bd-97x22y.1). Same guards, window and six
+ * regions as /analytics/schools, its own endpoint so the Coaching tab's cost never slows the other tabs.
+ *   coaches         coaches (not test accounts) with at least one school in the region; not window-dependent
+ *   coachVisits     observation_schedules marked done, scheduled on a Pakistan day in the window
+ *   schoolsVisited  schools with at least one counted visit
+ */
+export interface CoachingAnalyticsCounts {
+  coaches: number;
+  coachVisits: number;
+  schoolsVisited: number;
+}
+
+export interface CoachingAnalyticsRegion extends CoachingAnalyticsCounts {
+  region: string;
+}
+
+export interface CoachingAnalyticsSchool {
+  schoolId: string;
+  emis: string | null;
+  name: string;
+  region: string;
+  coachVisits: number;
+}
+
+export interface CoachingAnalyticsResponse {
+  success: boolean;
+  range: { from: string | null; to: string | null };
+  overview: CoachingAnalyticsCounts;
+  regions: CoachingAnalyticsRegion[];
+  schools: CoachingAnalyticsSchool[];
 }

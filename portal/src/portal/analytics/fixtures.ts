@@ -5,7 +5,10 @@
  * PLAN v3 §2 says the server does (counts and "x of N" summed, averages pooled as Σ score ÷ Σ n), so the fixture can
  * never disagree with itself.
  */
-import type { SchoolsAnalyticsCounts, SchoolsAnalyticsResponse, SchoolsAnalyticsSchool } from '../types/portal';
+import type {
+  CoachingAnalyticsCounts, CoachingAnalyticsResponse, CoachingAnalyticsSchool,
+  SchoolsAnalyticsCounts, SchoolsAnalyticsResponse, SchoolsAnalyticsSchool,
+} from '../types/portal';
 
 // The six ICT regions, the only ones the server counts (bd-s6qbts.4): a school outside them is in no row and no total.
 export const REGION_ORDER = ['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol'] as const;
@@ -79,5 +82,55 @@ export function fixtureResponse(opts: { from?: string | null; to?: string | null
     // Every region, whatever the filter (v3 §3), so the chips always carry their counts.
     regions: REGION_ORDER.map((region) => ({ region, ...rollUp(FIXTURE_SCHOOLS.filter((s) => s.region === region)) })),
     schools: inScope,
+  };
+}
+
+/**
+ * bd-97x22y.2 — a GET /api/portal/analytics/coaching answer (PLAN v6 §3), FICTIONAL, for the same schools.
+ *
+ * Coach visits are written per school; coaches by the regions their schools are in. A coach covering two regions
+ * counts in both region cards and once in the overview, as the server counts them (coaches are not window-dependent).
+ */
+const VISITS: Record<string, number> = {
+  's-01': 4, 's-16': 2, 's-02': 6, 's-04': 0, 's-18': 3, 's-05': 5, 's-10': 1, 's-06': 3,
+  's-07': 0, 's-08': 4, 's-09': 2, 's-11': 1, 's-12': 3, 's-13': 0, 's-14': 7, 's-15': 1,
+};
+
+const COACHES: Array<{ id: string; regions: string[] }> = [
+  { id: 'c-1', regions: ['B.K'] },
+  { id: 'c-2', regions: ['B.K', 'Sihala'] },
+  { id: 'c-3', regions: ['Sihala'] },
+  { id: 'c-4', regions: ['Urban-I'] },
+  { id: 'c-5', regions: ['Urban-I'] },
+  { id: 'c-6', regions: ['Urban-I', 'Urban-II'] },
+  { id: 'c-7', regions: ['Nilore'] },
+  { id: 'c-8', regions: ['Tarnol'] },
+  { id: 'c-9', regions: ['Tarnol'] },
+];
+
+export const FIXTURE_COACHING_SCHOOLS: CoachingAnalyticsSchool[] = FIXTURE_SCHOOLS.map(({ schoolId, emis, name, region }) => ({
+  schoolId, emis, name, region, coachVisits: VISITS[schoolId] ?? 0,
+}));
+
+function coachingRollUp(regions: readonly string[]): CoachingAnalyticsCounts {
+  const wanted = new Set(regions.map((r) => r.toLowerCase()));
+  const schools = FIXTURE_COACHING_SCHOOLS.filter((s) => wanted.has(s.region.toLowerCase()));
+  return {
+    coaches: COACHES.filter((c) => c.regions.some((r) => wanted.has(r.toLowerCase()))).length,
+    coachVisits: schools.reduce((t, s) => t + s.coachVisits, 0),
+    schoolsVisited: schools.filter((s) => s.coachVisits > 0).length,
+  };
+}
+
+/** The coaching answer for one window and region filter ('all' or a region name), shaped as the server sends it. */
+export function fixtureCoaching(opts: { from?: string | null; to?: string | null; region?: string | null } = {}): CoachingAnalyticsResponse {
+  const wanted = opts.region && opts.region.toLowerCase() !== 'all' ? opts.region.toLowerCase() : null;
+  const scope = wanted ? REGION_ORDER.filter((r) => r.toLowerCase() === wanted) : [...REGION_ORDER];
+  return {
+    success: true,
+    range: { from: opts.from ?? null, to: opts.to ?? null },
+    overview: coachingRollUp(scope),
+    regions: REGION_ORDER.map((region) => ({ region, ...coachingRollUp([region]) })),
+    schools: FIXTURE_COACHING_SCHOOLS.filter((s) => !wanted || s.region.toLowerCase() === wanted),
   };
 }
