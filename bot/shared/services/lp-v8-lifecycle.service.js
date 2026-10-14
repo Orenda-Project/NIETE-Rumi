@@ -114,4 +114,4 @@ async function portalAskFor({ userId, lessonId, openedAt } = {}) {
   }
 }
 
-module.exports = { recordPortalLesson, portalAskFor, SAME_ASK_MS };
+module.exports = { recordPortalLesson, portalAskFor };
