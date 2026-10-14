@@ -30,12 +30,14 @@ const { createMemorySupabase } = require('../quiz/helpers/memory-supabase');
 
 let mockDb;
 let mockFail = null; // null | { code, message } — the next lesson_plan_requests write returns this error
+let mockHang = false; // true: a lesson_plan_requests write never answers (a database that has stalled)
 let mockCalls = 0;
 let mockTables = []; // every table recordOutcome touched, in order
 jest.mock('../../bot/shared/config/supabase', () => ({
   from: (t) => {
     mockCalls += 1;
     mockTables.push(t);
+    if (t === 'lesson_plan_requests' && mockHang) return { upsert: () => new Promise(() => {}) };
     if (t === 'lesson_plan_requests' && mockFail) {
       const err = { data: null, error: mockFail };
       const b = new Proxy({}, {
@@ -76,6 +78,7 @@ beforeEach(() => {
   process.env.REGION = 'niete';
   mockDb = createMemorySupabase({ lesson_plan_requests: [] });
   mockFail = null;
+  mockHang = false;
   mockCalls = 0;
   mockTables = [];
   mockCorrelationId = 'corr-from-context';
@@ -401,5 +404,93 @@ describe('a path whose own recorder throws while describing its ask — reported
     process.env.LP_LIFECYCLE_PATHS = 'all';
     expect(() => Lifecycle.recorderThrew(undefined, 'niete_oxbridge')).not.toThrow();
     expect(() => Lifecycle.recorderThrew('a string', undefined)).not.toThrow();
+  });
+});
+
+describe('the record never holds up the teacher, and never blames itself for a write it did not break', () => {
+  beforeEach(() => { process.env.LP_LIFECYCLE_PATHS = 'all'; });
+
+  test('a lifecycle write the database does not answer is abandoned after 2 seconds — the caller gets null and carries on, and it is counted', async () => {
+    jest.useFakeTimers();
+    try {
+      mockHang = true;
+      const pending = Lifecycle.recordOutcome(ASK);
+      await jest.advanceTimersByTimeAsync(2100);
+      const winner = await Promise.race([pending, Promise.resolve('still waiting')]);
+      expect(winner).toBeNull();
+      expect(mockEvent).toHaveBeenCalledWith('lesson_plan.lifecycle.write_failed', expect.objectContaining({ code: 'TIMEOUT', source: ASK.source }));
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('a path\'s own write that fails for its own reason is retried as before but NOT blamed on the lifecycle', async () => {
+    const fk = { code: '23503', message: 'insert or update on table "lesson_plan_requests" violates foreign key constraint "lesson_plan_requests_user_id_fkey"' };
+    const write = jest.fn(async () => ({ data: null, error: fk }));
+    const out = await Lifecycle.writeWithFallback(write, { source: 'niete_grounded' }, { source: 'niete_grounded', table: 'lesson_plan_requests' });
+    expect(write).toHaveBeenCalledTimes(2); // still retried without the additions — the teacher's write is what matters
+    expect(out.error).toEqual(fk); // and the path gets its own error back, exactly as before
+    expect(mockEvent).not.toHaveBeenCalledWith('lesson_plan.lifecycle.write_failed', expect.anything());
+    expect(mockLog.mock.calls.filter((c) => c[2] === 'error')).toHaveLength(0);
+  });
+
+  test('a write the lifecycle DID break — refused with its additions, fine without them — is still reported', async () => {
+    const write = jest.fn(async (extra) => (Object.keys(extra).length
+      ? { data: null, error: { code: 'PGRST204', message: "Could not find the 'source' column of 'lesson_plan_requests' in the schema cache" } }
+      : { data: [{ id: 'r1' }], error: null }));
+    const out = await Lifecycle.writeWithFallback(write, { source: 'niete_grounded' }, { source: 'niete_grounded', table: 'lesson_plan_requests' });
+    expect(out.error).toBeNull();
+    expect(mockEvent).toHaveBeenCalledWith('lesson_plan.lifecycle.write_failed', expect.objectContaining({ code: 'PGRST204', fellBack: true }));
+  });
+
+  test('an error code the vocabulary does not know is said and stored as the default — the ask is never lost', async () => {
+    await Lifecycle.recordOutcome({ ...ASK, status: 'failed', errorCode: 'DELIVERY_FAILD' });
+    const [row] = mockDb.table('lesson_plan_requests');
+    expect(row).toEqual(expect.objectContaining({ status: 'failed', error_code: 'GENERATION_FAILED' }));
+    expect(mockEvent).toHaveBeenCalledWith('lesson_plan.lifecycle.refused', expect.objectContaining({ reason: 'error_code', errorCode: 'DELIVERY_FAILD' }));
+  });
+
+  test('the same on a queue path: an unknown code is said, and the stage update carries the default', () => {
+    expect(Lifecycle.queueColumns('niete_grounded', 'failed', { errorCode: 'RENDERFAIL' })).toEqual(expect.objectContaining({ error_code: 'GENERATION_FAILED' }));
+    expect(mockEvent).toHaveBeenCalledWith('lesson_plan.lifecycle.refused', expect.objectContaining({ reason: 'error_code', errorCode: 'RENDERFAIL' }));
+  });
+});
+
+describe('what the record says about itself', () => {
+  beforeEach(() => { process.env.LP_LIFECYCLE_PATHS = 'all'; });
+
+  test.each(['NO_ASSET', 'NOT_ELIGIBLE'])('a content answer (%s) emits lesson_plan.delivery.unavailable — not a generation failure', async (code) => {
+    await Lifecycle.recordOutcome({ ...ASK, status: 'failed', errorCode: code, generatedAt: undefined, deliveredAt: undefined });
+    expect(mockEvent).toHaveBeenCalledWith('lesson_plan.delivery.unavailable', expect.objectContaining({ errorCode: code }));
+    expect(mockEvent).not.toHaveBeenCalledWith('lesson_plan.generation.failed', expect.anything());
+  });
+
+  test('a users read that fails loses the portal ask — and that loss is COUNTED, not only said', async () => {
+    mockDb.tables.users = [{ id: '33333333-3333-4333-8333-333333333333', phone_number: '923005550000', preferred_language: 'ur' }];
+    const realFrom = mockDb.from;
+    mockDb.from = (t) => (t === 'users'
+      ? { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: { code: '57014', message: 'statement timeout' } }) }) }) }
+      : realFrom(t));
+    try {
+      await Lifecycle.recordOutcome({ ...ASK, userId: '33333333-3333-4333-8333-333333333333', phone: null, channel: 'portal' });
+    } finally {
+      mockDb.from = realFrom;
+    }
+    expect(mockEvent).toHaveBeenCalledWith('lesson_plan.lifecycle.write_failed', expect.objectContaining({ code: '57014', table: 'users' }));
+  });
+
+  test('queueEvent never throws into a delivery, whatever the logger does', () => {
+    mockEvent.mockImplementationOnce(() => { throw new Error('logger down'); });
+    expect(() => Lifecycle.queueEvent('niete_grounded', 'lesson_plan.generation.completed', { requestId: 'r1' })).not.toThrow();
+  });
+
+  test('a write failure whose report itself throws still resolves null — the reporting can never reach the teacher', async () => {
+    mockFail = { code: '57014', message: 'statement timeout' };
+    mockEvent.mockImplementation(() => { throw new Error('logger down'); });
+    try {
+      await expect(Lifecycle.recordOutcome(ASK)).resolves.toBeNull();
+    } finally {
+      mockEvent.mockReset();
+    }
   });
 });

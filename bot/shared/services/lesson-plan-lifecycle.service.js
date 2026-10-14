@@ -11,7 +11,7 @@
  * Two ways a path records:
  *   · a path that already keeps a queue row (the grounded Gamma path) adds `askColumns()` to its
  *     insert and the stage columns to its existing updates;
- *   · every other path (grade 1-5 v8, grade 6-12, pic-to-LP) calls `recordOutcome()` ONCE, when
+ *   · every other path (grade 1-5 v8, grade 6-12, Oxbridge, share, the Flow lanes) calls `recordOutcome()` ONCE, when
  *     the ask has reached its end — so it never leaves a pending/processing row behind for the
  *     queue's stale sweeper or the in-flight check in teacher-state to find.
  *
@@ -79,6 +79,10 @@ const LIFECYCLE = Object.freeze({
   }),
 });
 const SOURCE_SET = new Set(Object.values(LIFECYCLE.SOURCES));
+const ERROR_CODE_SET = new Set(Object.values(LIFECYCLE.ERROR_CODES));
+/** The longest a lifecycle record may hold up its caller: past this the caller carries on (the write may still land). */
+const WRITE_TIMEOUT_MS = 2000;
+const TIMED_OUT = Symbol('lifecycle write timed out');
 const CHANNEL_SET = new Set(Object.values(LIFECYCLE.CHANNELS));
 const TERMINAL = new Set(['completed', 'failed', 'cancelled']);
 
@@ -193,7 +197,7 @@ function queueColumns(source, stage, { generatedAt, sent, errorCode } = {}) {
     const generated = isoOrNull(generatedAt);
     return {
       ...(generated ? { generated_at: generated } : {}),
-      error_code: textOrNull(errorCode, 40) || LIFECYCLE.ERROR_CODES.GENERATION_FAILED,
+      error_code: knownCode(errorCode, source),
     };
   }
   if (stage === 'queue_failed') return { error_code: LIFECYCLE.ERROR_CODES.QUEUE_FAILED };
@@ -202,8 +206,10 @@ function queueColumns(source, stage, { generatedAt, sent, errorCode } = {}) {
 
 /** The canonical event for a queue-path stage, emitted only when the path is switched on. */
 function queueEvent(source, eventName, fields = {}) {
-  if (!enabled(source)) return;
-  logEvent(eventName, { source, region: textOrNull(process.env.REGION, 40), correlationId: currentCorrelationId(), ...fields });
+  safely(() => {
+    if (!enabled(source)) return;
+    logEvent(eventName, { source, region: textOrNull(process.env.REGION, 40), correlationId: currentCorrelationId(), ...fields });
+  });
 }
 
 /**
@@ -239,6 +245,23 @@ function queueEvent(source, eventName, fields = {}) {
  * @returns {Promise<string|null>}
  */
 async function recordOutcome(o = {}) {
+  let timer = null;
+  const timedOut = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(TIMED_OUT), WRITE_TIMEOUT_MS);
+    if (timer && typeof timer.unref === 'function') timer.unref();
+  });
+  try {
+    const out = await Promise.race([recordOutcomeNow(o), timedOut]);
+    if (out !== TIMED_OUT) return out;
+    // The database did not answer in time: the caller carries on (the write may still land). Counted.
+    writeFailed({ code: 'TIMEOUT', message: `no answer within ${WRITE_TIMEOUT_MS} ms — the caller carried on` }, { source: o.source }, { table: 'lesson_plan_requests' });
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function recordOutcomeNow(o) {
   let row = null;
   try {
     row = outcomeRow(await withContact(o));
@@ -275,9 +298,11 @@ async function withContact(o) {
       .eq('id', o.userId)
       .maybeSingle();
     if (error) {
-      // Not a teacher without a phone: the read failed. Said, so an outage is not mistaken for one.
+      // Not a teacher without a phone: the read failed. Said, so an outage is not mistaken for one, and
+      // counted, because this ask is lost.
       logToFile('⚠️ Lesson-plan lifecycle: could not read the teacher\'s phone from users — this ask is not recorded',
         { code: error.code, message: error.message, source: o.source }, 'warn');
+      safely(() => logEvent('lesson_plan.lifecycle.write_failed', { code: error.code || 'USERS_READ_FAILED', message: String(error.message || '').slice(0, 300), source: o.source, table: 'users' }));
       return o;
     }
     if (!data) return o;
@@ -287,6 +312,20 @@ async function withContact(o) {
       { error: err && err.message, source: o.source }, 'warn');
     return o;
   }
+}
+
+/** A code the vocabulary knows, or the default (GENERATION_FAILED) — an unknown one is said, never stored as is. */
+function knownCode(errorCode, source) {
+  const code = textOrNull(errorCode, 40);
+  if (!code) return LIFECYCLE.ERROR_CODES.GENERATION_FAILED;
+  if (ERROR_CODE_SET.has(code)) return code;
+  safely(() => logEvent('lesson_plan.lifecycle.refused', { reason: 'error_code', errorCode: code, source }));
+  return LIFECYCLE.ERROR_CODES.GENERATION_FAILED;
+}
+
+/** Run a reporting call that must never reach a teacher's delivery: a broken logger is swallowed here. */
+function safely(fn) {
+  try { fn(); } catch (_) { /* reporting is best-effort; the caller is a delivery */ }
 }
 
 /** The row recordOutcome writes, or null (switched off / not recordable). Pure: no I/O. */
@@ -334,7 +373,7 @@ function outcomeRow(o) {
     generated_at: isoOrNull(o.generatedAt),
     delivered_at: deliveredAt,
     completed_at: deliveredAt,
-    error_code: failed ? (textOrNull(o.errorCode, 40) || LIFECYCLE.ERROR_CODES.GENERATION_FAILED) : null,
+    error_code: failed ? knownCode(o.errorCode, o.source) : null,
     error_message: failed ? textOrNull(o.errorMessage, 1000) : null,
     correlation_id: textOrNull(o.correlationId || currentCorrelationId(), 200),
   };
@@ -344,6 +383,10 @@ function outcomeRow(o) {
 function outcomeEvent(row) {
   if (row.status === 'completed') return 'lesson_plan.delivery.sent';
   if (row.status === 'cancelled') return 'lesson_plan.request.cancelled';
+  // A content answer (the plan is not there, or not for her) is not a failure of ours — the main bot's name.
+  if (row.error_code === LIFECYCLE.ERROR_CODES.NO_ASSET || row.error_code === LIFECYCLE.ERROR_CODES.NOT_ELIGIBLE) {
+    return 'lesson_plan.delivery.unavailable';
+  }
   return row.generated_at ? 'lesson_plan.delivery.failed' : 'lesson_plan.generation.failed';
 }
 
@@ -373,6 +416,10 @@ function eventFields(row) {
  * minutes per kind of failure (code + path), so a path whose every write fails is seen, not drowned.
  */
 function writeFailed(error, row, ctx = {}) {
+  safely(() => reportWriteFailed(error, row, ctx));
+}
+
+function reportWriteFailed(error, row, ctx) {
   const code = (error && error.code) || 'UNKNOWN';
   const message = (error && error.message) || '';
   const source = row && row.source;
@@ -430,8 +477,11 @@ async function writeWithFallback(write, additions, ctx = {}) {
   const extra = additions && typeof additions === 'object' ? additions : {};
   const first = await write(extra);
   if (!Object.keys(extra).length || !first || !first.error || !refusedByLifecycle(first.error)) return first;
-  writeFailed(first.error, { id: ctx.requestId, source: ctx.source }, { table: ctx.table, fellBack: true });
-  return write({});
+  const second = await write({});
+  // Only a write that lands WITHOUT the additions was refused because of them. One that fails again failed
+  // for its own reason: its own error goes back to the path, exactly as before, and the lifecycle is not blamed.
+  if (second && !second.error) writeFailed(first.error, { id: ctx.requestId, source: ctx.source }, { table: ctx.table, fellBack: true });
+  return second;
 }
 
 /** Test seam: forget the once-per-ten-minutes state between tests. */

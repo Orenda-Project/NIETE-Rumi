@@ -93,7 +93,10 @@ function recordPortalReady({ userId, segment, segmentId, lang, askedAt, generate
 
 /** The lifecycle code for a render the worker failed with this error code. */
 function codeForRenderError(code) {
-  return code === 'RENDER_FAILED' ? ERROR_CODES.RENDER_FAILED : ERROR_CODES.GENERATION_FAILED;
+  if (code === 'RENDER_FAILED') return ERROR_CODES.RENDER_FAILED;
+  // The segment left the catalogue between her ask and the render: a content answer, not our failure.
+  if (code === 'SEGMENT_MISSING') return ERROR_CODES.NO_ASSET;
+  return ERROR_CODES.GENERATION_FAILED;
 }
 
 /**

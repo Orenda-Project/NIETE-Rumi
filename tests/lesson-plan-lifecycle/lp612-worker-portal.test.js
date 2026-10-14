@@ -130,3 +130,48 @@ describe('the worker finishes a lesson a PORTAL teacher is waiting for', () => {
     expect(claim).not.toHaveProperty('request_id');
   });
 });
+
+describe('the worker gives up on a render — driven through Worker.process, fail() and its waiters', () => {
+  const WA_TEACHER = '55555555-5555-4555-8555-555555555555';
+  const WA_WAITER = {
+    user_id: WA_TEACHER, phone: '923001234567', ui_lang: 'en', surface: 'whatsapp',
+    requested_at: '2026-10-13T05:00:30.000Z', correlation_id: 'wa-ask-1',
+  };
+  const seed = (segments) => {
+    mockDb = createMemorySupabase({
+      niete_lp612_renders: [{
+        id: RENDER, segment_id: SEGMENT.segment_id, lang: 'en', template_version: 'v9.7', status: 'authoring', waiters: [WAITER, WA_WAITER],
+      }],
+      niete_lp612_segments: segments,
+      users: [{ id: PORTAL_TEACHER, phone_number: '923005550000', preferred_language: 'en' }],
+      niete_lp612_deliveries: [],
+      lesson_plan_requests: [],
+    }, {
+      rpc: { lp612_claim_waiters: () => ({ data: [WAITER, WA_WAITER], error: null }) },
+    });
+  };
+
+  test('switched ON: the WhatsApp waiter is TOLD FIRST, then one failed row per waiter (RENDER_FAILED, both channels)', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_lp612';
+    seed([SEGMENT]);
+    mockRenderLessonPlan.mockRejectedValue(Object.assign(new Error('chromium died'), { code: 'RENDER_FAILED' }));
+    let rowsWhenTold = null;
+    mockSendMessage.mockImplementation(async () => { rowsWhenTold = rows('lesson_plan_requests').length; return true; });
+    await Worker.process(JOB);
+    expect(mockSendMessage).toHaveBeenCalledWith('923001234567', expect.any(String));
+    expect(rowsWhenTold).toBe(0); // nobody waits on the record before she hears
+    const asks = rows('lesson_plan_requests');
+    expect(asks).toHaveLength(2);
+    expect(asks.map((r) => r.channel).sort()).toEqual(['portal', 'whatsapp']);
+    asks.forEach((r) => expect(r).toEqual(expect.objectContaining({ status: 'failed', error_code: 'RENDER_FAILED', source: 'niete_lp612' })));
+  });
+
+  test('switched ON: a segment that vanished before the render is a content answer — NO_ASSET, not a generation failure', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_lp612';
+    seed([]);
+    await Worker.process(JOB);
+    const asks = rows('lesson_plan_requests');
+    expect(asks).toHaveLength(2);
+    asks.forEach((r) => expect(r).toEqual(expect.objectContaining({ status: 'failed', error_code: 'NO_ASSET' })));
+  });
+});

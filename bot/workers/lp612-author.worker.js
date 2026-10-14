@@ -529,14 +529,18 @@ async function fail(renderId, snapshot, lang, code, detail, model = null, ctx = 
   // joined during a run that then died was getting no message at all, just silence on a lesson
   // that had already given up.
   const waiters = await claimWaiters(renderId, snapshot);
-  // Each WhatsApp waiter's ask ends here: one failed lifecycle row each (switch on only; never throws).
-  await Lp612Lifecycle.recordWaitersFailed({
-    waiters, segment: ctx.segment, segmentId: ctx.segmentId, lang, code, detail,
-  });
   const copyKey = NO_RETRY_CODES.has(code)
     ? 'lp612TooLong'
     : (UNRENDERABLE_CODES.has(code) ? 'lp612Unrenderable' : 'lp612Failed');
-  await tellAll(waiters, copyKey, lang);
+  try {
+    // Tell them first: nobody waits on the record before she hears.
+    await tellAll(waiters, copyKey, lang);
+  } finally {
+    // Each waiter's ask ends here: one failed lifecycle row each (switch on only; never throws).
+    await Lp612Lifecycle.recordWaitersFailed({
+      waiters, segment: ctx.segment, segmentId: ctx.segmentId, lang, code, detail,
+    });
+  }
   return { status: 'failed', errorCode: code || 'UNKNOWN' };
 }
 

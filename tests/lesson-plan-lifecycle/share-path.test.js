@@ -148,3 +148,16 @@ describe('a recorder that throws while describing the share — reported, never 
     expect(mockCalls).toBe(0);
   });
 });
+
+describe('a lifecycle writer that cannot even load never reaches the share', () => {
+  test('the share answers exactly as it would, and nothing throws', async () => {
+    let out;
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock('../../bot/shared/services/lesson-plan-lifecycle.service', () => { throw new Error('module broken'); });
+      const FreshShare = require('../../bot/shared/services/share-send.service');
+      process.env.LP_LIFECYCLE_PATHS = 'niete_portal_share';
+      out = await FreshShare.sendShare({ userId: TEACHER, kind: 'lesson', id: 'k5:grade_1_english_ch1_seg3' }, deps());
+    });
+    expect(out).toEqual({ status: 'sent', at: SENT_AT.toISOString() });
+  });
+});
