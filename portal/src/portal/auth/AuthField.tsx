@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, type Ref } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -25,6 +25,12 @@ export interface AuthFieldProps {
   ltr?: boolean;
   inputMode?: 'text' | 'tel' | 'numeric';
   autoComplete?: string;
+  /** bd-gmuk5s — for a typed name (the login's account name): no capital first letter, no autocorrect, no spell marks. */
+  autoCapitalize?: 'none' | 'off' | 'sentences' | 'words' | 'characters';
+  autoCorrect?: 'on' | 'off';
+  spellCheck?: boolean;
+  /** The input itself, so a page can move focus to it (the login's name/phone links reopen the keyboard). */
+  inputRef?: Ref<HTMLInputElement>;
   disabled?: boolean;
   maxLength?: number;
   /** Follow the page's eye without a button of its own (the confirm box): the same flag as `eye.shown`. */
@@ -35,6 +41,7 @@ export interface AuthFieldProps {
 
 export function AuthField({
   id, label, icon: Icon, value, onChange, type = 'text', placeholder, error, ltr, inputMode, autoComplete, disabled, maxLength, eye, shown,
+  autoCapitalize, autoCorrect, spellCheck, inputRef,
 }: AuthFieldProps) {
   const errId = `${useId()}-err`;
   const inputType = type === 'password' && (shown ?? eye?.shown) ? 'text' : type;
@@ -51,6 +58,7 @@ export function AuthField({
       >
         <Icon className="h-[22px] w-[22px] shrink-0 text-nu-surface-muted" aria-hidden="true" />
         <input
+          ref={inputRef}
           id={id}
           type={inputType}
           value={value}
@@ -59,6 +67,9 @@ export function AuthField({
           dir={ltr ? 'ltr' : undefined}
           inputMode={inputMode}
           autoComplete={autoComplete}
+          autoCapitalize={autoCapitalize}
+          autoCorrect={autoCorrect}
+          spellCheck={spellCheck}
           disabled={disabled}
           maxLength={maxLength}
           aria-invalid={error ? true : undefined}

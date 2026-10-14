@@ -20,6 +20,12 @@ export const AUTH_EN = {
   loggingIn: 'Logging in',
   phone: 'Phone number',
   phoneHint: '03XX XXXXXXX',
+  // bd-gmuk5s — an analytics-only account's NAME in the same field: the link that opens a normal keyboard for it, the
+  // field's label while it holds a name, and the link back to the phone keypad. The two links are one pair ("Use …"),
+  // and neither says "Sign in": the page's verb is "Log in" (its button).
+  byName: 'Use a name instead',
+  accountName: 'Account name',
+  byPhone: 'Use phone number',
   password: 'Password',
   forgot: 'Forgot password',
   privacy: 'Privacy policy',
@@ -45,6 +51,7 @@ export const AUTH_EN = {
   // errors and notices: 1-3 words, shown under the field that is wrong
   wrongPw: 'Wrong password',
   enterPw: 'Enter password',
+  enterName: 'Enter name',
   checkNum: 'Check the number',
   noAccount: 'No account found',
   noPw: 'No password yet',
@@ -70,6 +77,9 @@ export const AUTH_UR: Words<typeof AUTH_EN> = {
   loggingIn: 'لاگ اِن جاری',
   phone: 'فون نمبر',
   phoneHint: '03XX XXXXXXX',
+  byName: 'نام استعمال کریں',
+  accountName: 'اکاؤنٹ کا نام',
+  byPhone: 'فون نمبر استعمال کریں',
   password: 'پاس ورڈ',
   forgot: 'پاس ورڈ بھول گئے',
   privacy: 'پرائیویسی پالیسی',
@@ -94,6 +104,7 @@ export const AUTH_UR: Words<typeof AUTH_EN> = {
   oneNum: 'ایک نمبر',
   wrongPw: 'غلط پاس ورڈ',
   enterPw: 'پاس ورڈ لکھیں',
+  enterName: 'نام لکھیں',
   checkNum: 'نمبر چیک کریں',
   noAccount: 'اکاؤنٹ نہیں ملا',
   noPw: 'ابھی پاس ورڈ نہیں',
