@@ -6538,6 +6538,23 @@ CREATE TABLE IF NOT EXISTS niete_coaching_ab_assignment (
   drawn_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ─── coach_visit_requests (migration V1.6.7) — a C/D teacher asked her coach to observe ──
+-- Mirrors infrastructure/supabase/migrations/V1.6.7__coach_visit_requests.sql: one row per report;
+-- status pending -> sent | failed, or no_coach. Transitional.
+CREATE TABLE IF NOT EXISTS coach_visit_requests (
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  coaching_session_id  UUID NOT NULL UNIQUE REFERENCES coaching_sessions (id),
+  teacher_user_id      UUID NOT NULL REFERENCES users (id),
+  coach_user_id        UUID REFERENCES users (id),
+  school_id            UUID REFERENCES schools (id),
+  ab_group             TEXT NOT NULL CHECK (ab_group IN ('C', 'D')),
+  status               TEXT NOT NULL CHECK (status IN ('pending', 'sent', 'failed', 'no_coach')),
+  wa_message_id        TEXT,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE coach_visit_requests ENABLE ROW LEVEL SECURITY;
+
 -- ─── niete_lp_opens (migration V1.6.1) — lesson plans a teacher opened in the portal ──
 -- Mirrors infrastructure/supabase/migrations/V1.6.1__niete_lp_opens.sql. One row per portal open
 -- (same teacher + plan + lang within 5 minutes stored once). Written by the portal service after the
