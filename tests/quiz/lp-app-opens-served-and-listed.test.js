@@ -203,16 +203,17 @@ describe('the 15:00 cohort', () => {
     });
     await build();
     expect(logEvent).toHaveBeenCalledWith('lp_quiz_offer.cohort', {
-      nudgeDate: NUDGE_DATE, wa: 1, app: 0, both: 1, teachers: 2, switch: true,
+      nudgeDate: NUDGE_DATE, wa: 1, app: 0, both: 1, teachers: 2,
     });
   });
 
-  test('the surface line says switch:false and counts no app teacher when app opens are off', async () => {
+  // bd-2wgr3d.22.1 — no switch on the fix: the line no longer carries one, and the old env var is inert.
+  test('LP_QUIZ_COUNT_APP_OPENS=off changes nothing: the app teacher is still counted', async () => {
     process.env.LP_QUIZ_COUNT_APP_OPENS = 'off';
     install({ niete_lp_opens: [open()] });
     await build();
     expect(logEvent).toHaveBeenCalledWith('lp_quiz_offer.cohort', {
-      nudgeDate: NUDGE_DATE, wa: 0, app: 0, both: 0, teachers: 0, switch: false,
+      nudgeDate: NUDGE_DATE, wa: 0, app: 1, both: 0, teachers: 1,
     });
   });
 });
@@ -244,15 +245,18 @@ describe('/quiz "from my lesson plan"', () => {
     expect(item.lesson.asset_id).toBe(`aug-${L_IN}`);
   });
 
-  test('a link minted for another app (external) is not listed; nor is anything with app opens off', async () => {
-    install({ niete_lp_opens: [open({ opened_at: recent(), source: 'external' })] });
-    expect(await Provider.list(T1)).toEqual([]);
+  // bd-2wgr3d.22.1 — operator 14 Oct: a hand-off is a plan taken, and the fix has no switch.
+  test('a plan handed to another app (external) is listed; LP_QUIZ_COUNT_APP_OPENS=off changes nothing', async () => {
+    const ext = open({ opened_at: recent(), source: 'external' });
+    install({ niete_lp_opens: [ext] });
+    expect((await Provider.list(T1)).map((i) => i.lessonId)).toEqual([L_IN]);
+    expect((await Provider.get(T1, ext.id)).lessonId).toBe(L_IN);
 
     const o = open({ opened_at: recent() });
     install({ niete_lp_opens: [o] });
     process.env.LP_QUIZ_COUNT_APP_OPENS = 'off';
-    expect(await Provider.list(T1)).toEqual([]);
-    expect(await Provider.get(T1, o.id)).toBeNull();
+    expect((await Provider.list(T1)).map((i) => i.lessonId)).toEqual([L_IN]);
+    expect((await Provider.get(T1, o.id)).lessonId).toBe(L_IN);
   });
 
   test('a lesson taken both ways is listed once', async () => {
