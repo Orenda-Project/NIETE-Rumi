@@ -162,10 +162,22 @@ async function generateHeroReport(session, analysis, opts = {}) {
     classroomPhotos, // bd-pv2tl: up to 2 framed classroom photos under the scorecard
   };
 
-  const png = await htmlToImage(buildHeroReportHtml(vm), { selector: '.report', width: 794, deviceScaleFactor: 2 });
+  const shot = { selector: '.report', width: 794, deviceScaleFactor: 2 };
+  const png = await htmlToImage(buildHeroReportHtml(vm), shot);
   // bd-fmf24g.10: the narrative travels back with the image so the caller can keep it
   // (narrative-store) — the app's report page reads the session, not the PNG.
-  return { png, caption: buildReportCaption(vm), narrative: narrative || null };
+  const out = { png, caption: buildReportCaption(vm), narrative: narrative || null };
+
+  // bd-v0toag.57: groups C and D are sent a slim image (slim-report.js); the full one above is still the stored
+  // report. A failed slim render sends the full image.
+  if (opts.slim) {
+    try {
+      out.slimPng = await htmlToImage(buildHeroReportHtml({ ...vm, slim: true, tryNext: opts.slim.tryNext || vm.tryNext }), shot);
+    } catch (e) {
+      logToFile('hero-report: slim render failed (the full image is sent)', { error: e.message });
+    }
+  }
+  return out;
 }
 
 module.exports = { generateHeroReport, attachDomainWhys, attachSubjectNote };
