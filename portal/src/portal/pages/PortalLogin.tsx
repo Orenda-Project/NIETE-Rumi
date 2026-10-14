@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Lock, Smartphone, KeyRound } from 'lucide-react';
+import { Lock, Smartphone, KeyRound, UserRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../hooks/useAuth';
 import { homeFor } from '../lib/homeRoute';
@@ -58,8 +59,28 @@ const PortalLogin = () => {
   );
 
   const typePhone = (v: string) => { setPhoneNumber(v); if (error && error.field !== 'password') setError(null); };
-  // bd-s6qbts.5 — an analytics-only account's NAME in place of a phone (lib/phone).
+  // bd-s6qbts.5 — an analytics-only account's NAME in place of a phone (lib/phone). What she TYPED decides the check and
+  // the server's answer, exactly as before.
   const byName = isAccountName(phoneNumber);
+
+  // bd-gmuk5s — on a phone the field opens the number keypad (type tel), so a name could only be typed from a PC.
+  // Teachers keep the keypad; "Use a name instead" under the field turns it into a name field (a normal keyboard, no
+  // capitals or autocorrect, its own label, no Forgot password), and "Use phone number" turns it back. A value that
+  // already holds a letter (pasted, autofilled) is a name without the tap.
+  const [nameChosen, setNameChosen] = useState(false);
+  const nameMode = nameChosen || byName;
+  const fieldRef = useRef<HTMLInputElement>(null);
+  const switchTo = (toName: boolean) => {
+    // flushSync: the field has its new type BEFORE focus moves to it, inside her tap, so the phone opens the right
+    // keyboard (a focus after the tap does not open one on iOS).
+    flushSync(() => {
+      setNameChosen(toName);
+      // A name cannot sit in the phone field: the keypad starts on a clean field.
+      if (!toName && isAccountName(phoneNumber)) setPhoneNumber('');
+      if (error && error.field === 'phone') setError(null);
+    });
+    fieldRef.current?.focus();
+  };
   const typePassword = (v: string) => { setPassword(v); if (error && error.field !== 'phone') setError(null); };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,8 +92,9 @@ const PortalLogin = () => {
     // "you have no account" when the teacher just dropped a digit.
     // bd-s6qbts.5: an account name (it holds a letter) is not a phone, so it is
     // not held to a phone's length; it goes as typed and the server decides.
+    // bd-gmuk5s: an empty NAME field asks for the name, not "Check the number".
     if (!phoneNumber || (!byName && !isValidPkMobile(phoneNumber))) {
-      setError({ field: 'phone', key: 'checkNum' });
+      setError({ field: 'phone', key: !phoneNumber && nameMode ? 'enterName' : 'checkNum' });
       return;
     }
     if (!password) {
@@ -116,17 +138,33 @@ const PortalLogin = () => {
       <form onSubmit={handleSubmit} noValidate>
         <AuthField
           id="phoneNumber"
-          label={c.phone}
-          icon={Smartphone}
-          type="tel"
-          inputMode="tel"
+          inputRef={fieldRef}
+          label={nameMode ? c.accountName : c.phone}
+          icon={nameMode ? UserRound : Smartphone}
+          type={nameMode ? 'text' : 'tel'}
+          inputMode={nameMode ? 'text' : 'tel'}
           autoComplete="username"
+          autoCapitalize={nameMode ? 'none' : undefined}
+          autoCorrect={nameMode ? 'off' : undefined}
+          spellCheck={nameMode ? false : undefined}
           ltr
           value={phoneNumber}
           onChange={typePhone}
-          placeholder={c.phoneHint}
+          placeholder={nameMode ? undefined : c.phoneHint}
           error={under('phone')}
         />
+        {/* bd-gmuk5s: the small link that swaps the keyboard (a name or the phone keypad); a 56px tap, start-aligned. */}
+        <button
+          type="button"
+          onClick={() => switchTo(!nameMode)}
+          className={cn(
+            '-mt-4 mb-1 flex min-h-[56px] items-center gap-2 px-0.5 text-base font-semibold text-nu-button underline underline-offset-4',
+            FOCUS,
+          )}
+        >
+          {nameMode ? <Smartphone className="h-5 w-5 shrink-0" aria-hidden="true" /> : <UserRound className="h-5 w-5 shrink-0" aria-hidden="true" />}
+          <span>{nameMode ? c.byPhone : c.byName}</span>
+        </button>
         <AuthField
           id="password"
           label={c.password}
@@ -144,8 +182,9 @@ const PortalLogin = () => {
 
         <BottomButton type="submit" busy={loading}>{loading ? c.loggingIn : c.login}</BottomButton>
 
-        {/* bd-s6qbts.5: an account name has no WhatsApp to send a code to, so it is not offered Forgot password. */}
-        {byName ? null : (
+        {/* bd-s6qbts.5: an account name has no WhatsApp to send a code to, so it is not offered Forgot password
+            (bd-gmuk5s: nor is the name field, before anything is typed in it). */}
+        {nameMode ? null : (
           <button
             type="button"
             data-emphasis={noPassword ? 'true' : undefined}
