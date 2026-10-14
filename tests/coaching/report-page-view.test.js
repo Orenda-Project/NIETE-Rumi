@@ -39,7 +39,7 @@ test('date is the PKT day: 20:30Z on the 19th is the 20th in Pakistan', () => {
 test('card: name, grade · subject · topic · date, score, what went well', () => {
   const html = renderReportPage(v(), ENV, LINKS);
   expect(html).toContain('Sadia');
-  expect(html).toContain('Grade 1 · English · Vowels &quot;a&quot; &amp; &#39;e&#39; · 20 Oct 2026');
+  expect(html).toContain('Grade 1 · English · Vowels &quot;a&quot; &amp; &#39;e&#39; · <bdi>20 Oct 2026</bdi>');
   expect(html).toContain('61%');
   expect(html).toContain(COPY.en.well);
   expect(html).toContain('Clear &lt;i&gt;board&lt;/i&gt; work');
@@ -122,4 +122,25 @@ test('message pages carry both languages and no data', () => {
   expect(err).toContain('Something went wrong');
   expect(err).toContain(COPY.ur.errorTitle);
   expect(renderMessagePage('anything')).toContain('This link is not complete');
+});
+
+// bd-v0toag.62: the three phone-check findings (v12_iab_check).
+test('date sits in <bdi> so an English date reads in order inside Urdu (card and detail)', () => {
+  const ur = v({ language: 'ur' });
+  expect(renderReportPage(ur, ENV, LINKS)).toMatch(/<bdi>20 Oct 2026<\/bdi>/);
+  expect(renderDetailPage(ur, LINKS)).toMatch(/<bdi>20 Oct 2026<\/bdi>/);
+});
+
+test('after the coach ask, "Was this useful?" is not asked again', () => {
+  const links = { ...LINKS, useful: '/cr/T/useful', coach: '/cr/T/coach' };
+  for (const s of ['sent', 'already', 'failed', 'invalid', 'no_coach']) {
+    const html = renderReportPage(v(), ENV, links, undefined, s);
+    expect(html).not.toMatch(/name="useful"/);
+    expect(html).not.toMatch(/<textarea/);
+  }
+  expect(renderReportPage(v(), ENV, links)).toMatch(/name="useful" value="yes"/);
+});
+
+test('Urdu links carry no ‹ › arrow: Nastaliq draws it like a comma (bd-v0toag.62)', () => {
+  for (const k of ['open', 'more', 'back']) expect(COPY.ur[k]).not.toMatch(/[‹›]/);
 });

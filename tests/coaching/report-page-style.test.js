@@ -33,3 +33,10 @@ test('shell: the template\'s five step colours, three bar colours and a dark mod
   }
   expect(html).toContain('prefers-color-scheme: dark');
 });
+
+test('coach choices are full-width rows at least 44px tall (bd-v0toag.62)', () => {
+  const css = shell('en', 't', '').match(/\.useful \.pick \{[^}]*\}/)[0];
+  expect(css).toMatch(/display:flex/);
+  expect(css).toMatch(/min-height:44px/);
+  expect(css).toMatch(/padding:/);
+});
