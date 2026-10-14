@@ -67,6 +67,10 @@ export const COACHING_V2_COPY = {
   micBlocked: 'Microphone blocked',
   /* bd-idkgm2 — ICT feedback (IAB Experience View, row 18): what to do, under the title (operator-approved mockup). */
   micBlockedHint: 'Tap Try again and allow the microphone to record your lesson.',
+  /* bd-qccbrv — the same card, when the browser reports the mic blocked, and when Try again was refused again. */
+  micBrowserBlocked: 'Your browser has blocked the microphone. Click the 🔒 icon next to the web address, allow the microphone, then tap Try again.',
+  micStillBlockedWhatsApp: 'Still blocked? Allow the microphone for WhatsApp in your phone’s settings, or upload a recording instead.',
+  micStillBlocked: 'Still blocked? Allow the microphone in your browser or phone settings, or upload a recording instead.',
   tryAgain: 'Try again',
   /* the recording on the page, and the page's one Submit */
   submit: 'Submit',
@@ -194,6 +198,9 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   keepAppOpen: 'ایپ کھلی رکھیں',
   micBlocked: 'مائیک کی اجازت نہیں',
   micBlockedHint: '«دوبارہ کوشش کریں» دبائیں اور مائیک کی اجازت دیں، تاکہ آپ کا سبق ریکارڈ ہو سکے۔',
+  micBrowserBlocked: 'آپ کے براؤزر نے مائیک بند کر دیا ہے۔ ویب ایڈریس کے ساتھ 🔒 پر کلک کریں، مائیک کی اجازت دیں، پھر «دوبارہ کوشش کریں» دبائیں۔',
+  micStillBlockedWhatsApp: 'اب بھی بند ہے؟ فون کی سیٹنگز میں WhatsApp کو مائیک کی اجازت دیں، یا ریکارڈنگ اپ لوڈ کریں۔',
+  micStillBlocked: 'اب بھی بند ہے؟ براؤزر یا فون کی سیٹنگز میں مائیک کی اجازت دیں، یا ریکارڈنگ اپ لوڈ کریں۔',
   tryAgain: 'دوبارہ کوشش کریں',
   // The training portal's own word for Submit (teacher/training/copy.ts submit).
   submit: 'جمع کرائیں',
@@ -291,5 +298,5 @@ export const COPY_ENTRY: CopyEntry = {
   screen: 'Digital Coaching',
   module: COACHING as Bilingual<unknown>,
   // "DC observation" is ڈیجیٹل کوچنگ مشاہدہ (three words, the ontology's own name): it adds to a sentence of three.
-  longOk: ['noneYet', 'notFound', 'openLesson', 'openThat', 'photosHint', 'subReflection', 'voiceNote', 'fullReport', 'micBlockedHint'],
+  longOk: ['noneYet', 'notFound', 'openLesson', 'openThat', 'photosHint', 'subReflection', 'voiceNote', 'fullReport', 'micBlockedHint', 'micBrowserBlocked', 'micStillBlockedWhatsApp', 'micStillBlocked'],
 };
