@@ -26,6 +26,7 @@ const { recordDeliveryMarker } = require('./lp-delivery-marker.service');
 const LpAb = require('./lp-ab-ch310.service');
 const Lifecycle = require('./lesson-plan-lifecycle.service');
 const AppOpens = require('./quiz/lp-app-opens.store');
+const ThingToTry = require('./coaching/thing-to-try');
 
 const LP_VARIANT = 'niete_v8_segment';
 const { ERROR_CODES } = Lifecycle.LIFECYCLE;
@@ -393,7 +394,14 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
   } catch (_) { /* best effort */ }
 
   const filename = buildFilename({ book, chapter, lesson });
-  const caption = buildCaption({ book, chapter, lesson });
+  // v10 coaching test (bd-v0toag.8): C and D get the one thing to try under the caption;
+  // everyone else, and any failure, gets today's caption unchanged.
+  const caption = await ThingToTry.planCaption({
+    userId,
+    lessonId,
+    caption: buildCaption({ book, chapter, lesson }),
+    lang: (user && user.preferred_language) || 'en',
+  });
 
   let ok = false;
   let errorText = null;
