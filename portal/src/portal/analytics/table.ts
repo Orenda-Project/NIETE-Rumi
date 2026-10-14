@@ -10,7 +10,7 @@ export type SortDir = 'asc' | 'desc';
 export interface SortState { key: SortKey; dir: SortDir }
 
 export const SORT_KEYS: readonly SortKey[] = [
-  'name', 'region', 'teachers', 'lpsOpened', 'dcObservations', 'humanObservations', 'avgFico', 'avgHitl',
+  'name', 'region', 'teachers', 'lpsOpened', 'trainingModules', 'dcObservations', 'humanObservations', 'avgFico', 'avgHitl',
 ];
 
 export const DEFAULT_SORT: SortState = { key: 'name', dir: 'asc' };

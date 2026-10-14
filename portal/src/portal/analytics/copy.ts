@@ -12,7 +12,7 @@
  */
 
 export type SortKey =
-  | 'name' | 'region' | 'teachers' | 'lpsOpened' | 'dcObservations'
+  | 'name' | 'region' | 'teachers' | 'lpsOpened' | 'trainingModules' | 'dcObservations'
   | 'humanObservations' | 'avgFico' | 'avgHitl';
 
 export type PeriodPreset = 'week' | 'month' | 'quarter' | 'year';
@@ -61,6 +61,7 @@ const EN = {
   metrics: {
     teachers: 'Teachers',
     lpsOpened: 'LPs opened',
+    trainingModules: 'Training modules completed',
     dcObservations: 'DC observations',
     humanObservations: 'Human observations',
     avgFico: 'Avg FICO',
@@ -82,11 +83,11 @@ const EN = {
     title: 'Schools',
     columns: {
       name: 'School', region: 'Region', teachers: 'Teachers', lpsOpened: 'LPs opened',
-      dcObservations: 'DC observations', humanObservations: 'Human observations',
+      trainingModules: 'Training modules completed', dcObservations: 'DC observations', humanObservations: 'Human observations',
       avgFico: 'Avg FICO', avgHitl: 'Avg HITL',
     } as Record<SortKey, string>,
     /** The small line under a column's name. */
-    columnHints: { lpsOpened: 'x of N teachers', dcObservations: 'x of N teachers', avgFico: '(n scored)', avgHitl: '(n scored)' } as Partial<Record<SortKey, string>>,
+    columnHints: { lpsOpened: 'x of N teachers', trainingModules: 'x of N teachers', dcObservations: 'x of N teachers', avgFico: '(n scored)', avgHitl: '(n scored)' } as Partial<Record<SortKey, string>>,
     emis: (code: string) => `EMIS ${code}`,
     search: 'Search schools',
     searchHint: 'School name or EMIS code',
@@ -109,6 +110,7 @@ const EN = {
       { term: 'Schools', text: 'Active NIETE schools in the six ICT regions: B.K, Sihala, Urban-I, Nilore, Urban-II and Tarnol. Test schools are left out. A school with no region on record, or with a region outside these six, is not shown and not counted in any number.' },
       { term: 'Teachers', text: "Teachers registered at the school today; test accounts are left out. A teacher's activity counts for the school she is at now, so a teacher who moved takes her earlier activity with her." },
       { term: 'LPs opened', text: 'Different lesson plans the school\'s teachers opened in the period: opening the same plan again counts once per teacher. "x of N" is how many of the school\'s N teachers opened at least one. Opens are recorded from 4 Oct 2026, so a period that starts earlier shows fewer than really happened.' },
+      { term: 'Training modules completed', text: 'Training modules the school\'s teachers finished in the period, each module counted once per teacher. "x of N" is how many teachers finished at least one.' },
       { term: 'DC observations', text: 'Finished Digital Coach (AI) observations of the teachers\' lessons in the period. "x of N" is how many of the N teachers had at least one.' },
       { term: 'Human observations', text: 'Finished observations of the teachers by a school leader or coach in the period, including ones the observer has reviewed.' },
       { term: 'Avg FICO', text: 'The average Digital Coach observation score, out of 100, over the observations in the period that have a score. The number in brackets is how many were scored.' },
