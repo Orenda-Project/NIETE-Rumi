@@ -596,7 +596,7 @@ class WhatsAppService {
    * @param {string} tempDir - Temporary directory for files
    * @returns {Promise<boolean>}
    */
-  static async sendAudio(to, audioBuffer, tempDir) {
+  static async sendAudio(to, audioBuffer, tempDir, opts = {}) {
     let mediaId = null;
     let tmp = null;
 
@@ -670,6 +670,7 @@ class WhatsAppService {
         contentType,
         response: sendResponse.data,
       });
+      WhatsAppService._reportMessageId(opts, sendResponse.data);
       return true;
     } catch (error) {
       // The media id survives a refused send: the voice note was uploaded, and
@@ -734,7 +735,7 @@ class WhatsAppService {
    * @param {string} audioUrl - URL of the audio file in R2 storage
    * @returns {Promise<boolean>}
    */
-  static async sendAudioFromUrl(to, audioUrl) {
+  static async sendAudioFromUrl(to, audioUrl, opts) {
     const path = require('path');
     const tempDir = path.join(__dirname, '../../temp');
 
@@ -746,7 +747,7 @@ class WhatsAppService {
       logToFile('Audio downloaded from R2, sending to WhatsApp', { audioSize: audioBuffer.length });
 
       // Use existing sendAudio method
-      return await this.sendAudio(to, audioBuffer, tempDir);
+      return await this.sendAudio(to, audioBuffer, tempDir, opts);
     } catch (error) {
       logToFile('❌ Error sending audio from URL', {
         error: error.message,
@@ -1196,6 +1197,7 @@ class WhatsAppService {
       );
 
       logToFile('Image sent successfully', { response: sendResponse.data });
+      WhatsAppService._reportMessageId(opts, sendResponse.data);
       return true;
     } catch (error) {
       logToFile('❌ Error sending image', {
