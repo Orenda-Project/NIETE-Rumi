@@ -39,6 +39,7 @@ describe('bd-0wws3e · LP extraction: corpus link, NUL text, safe saves', () => 
           _filters: {},
           select: () => b, order: () => b, limit: () => b,
           eq: (col, val) => { b._filters[col] = val; return b; },
+          neq: (col, val) => { b._filters[`${col}!=`] = val; return b; },
           single: async () => ({ data: { user_id: 'teacher-1', lesson_plan_url: 'u', lesson_plan_r2_key: 'k.pdf', lesson_plan_format: 'pdf' }, error: null }),
           maybeSingle: async () => ({ data: null, error: null }),
           update: (payload) => { updates.push({ table, payload }); return b; },
@@ -101,13 +102,13 @@ describe('bd-0wws3e · LP extraction: corpus link, NUL text, safe saves', () => 
     expect(recompute).toHaveBeenCalledWith('sess-1');
   });
 
-  it('links to the lesson row only, never a newer v10 card or answer key (bd-v0toag.50.1)', async () => {
+  it('links as before the v10 test, only never to a v10 card (bd-v0toag.50.1; the ch3-8 read stays unchanged)', async () => {
     const { Worker } = load({
       subject: OUR_SUBJECT,
       assets: [{ id: 'a1', lesson_id: 'grade_1_urdu_ch6_seg6', version_stamp: 'title_9Oct', content_hash: 'h1' }],
     });
     await run(Worker);
-    expect(assetQueries[0]).toMatchObject({ lesson_id: 'grade_1_urdu_ch6_seg6', asset_kind: 'lesson' });
+    expect(assetQueries[0]).toEqual({ lesson_id: 'grade_1_urdu_ch6_seg6', 'asset_kind!=': 'card' });
   });
 
   it('falls back to reading the file when the lesson_id is not in the library', async () => {
