@@ -1248,6 +1248,8 @@ SOUT=$(stop_hook)
 has  "Stop holds the turn for a web-only marker"  "$SOUT" '"block"'        yes
 has  "…with the web lane in its order"            "$SOUT" "WEB LANE"       yes
 has  "…and no mock-lane keys preamble"           "$SOUT" "keys/niete-local.env" no
+has  "…nor the stale-build warning (bd-hnhlgn.14)" "$SOUT" "CANNOT TEST WHAT WAS JUST COMMITTED" no
+has  "…it says the web lane tests the commit"     "$SOUT" "tests the commit itself" yes
 # phase 2 has been ordered (nudged); the portal spec is still untouched → Stop must keep HOLDING, like WhatsApp
 SOUT2=$(stop_hook)
 has  "Stop re-holds while the portal spec is unchanged" "$SOUT2" "PHASE 1 IS NOT DONE" yes
