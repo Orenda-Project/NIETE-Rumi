@@ -65,6 +65,8 @@ export const LESSONS_V2_COPY = {
   startDc: 'Start DC observation',
   answerKey: 'Answer key',
   openOutside: 'Open in another app',
+  /** v10 coaching test (bd-v0toag.8): the strip above a grade 1–5 plan; the thing itself is DATA. */
+  thingToTry: 'Thing to try today',
   all: {
     title: 'All Lesson Plans',
     filterLabel: 'Filter by class',
@@ -127,6 +129,7 @@ export const LESSONS_V2_COPY_UR: Words<typeof LESSONS_V2_COPY> = {
   startDc: 'ڈیجیٹل کوچنگ مشاہدہ شروع کریں',
   answerKey: 'جوابی کلید',
   openOutside: 'دوسری ایپ میں کھولیں',
+  thingToTry: 'آج آزمانے کی بات',
   all: {
     title: 'تمام لیسن پلان',
     filterLabel: 'کلاس سے چھانٹیں',
