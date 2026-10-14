@@ -7,7 +7,9 @@
  *   regions  [{ region, coaches, coachVisits, schoolsVisited }]  — the six ICT sectors, in order
  *   schools  [{ schoolId, emis, name, region, coachVisits }]
  *
- *   coachVisits    observation_schedules status 'done', dated by scheduled_for (a date: the
+ *   coachVisits    observation_schedules status 'done', OWNED BY A COACH (leader_user_id is a
+ *                  users.role 'coach', not a test user — a principal's or teacher's visit is
+ *                  not a coach visit; operator, 2026-10-14), dated by scheduled_for (a date: the
  *                  Pakistan day) in the window, school by school_id else school_ext_id =
  *                  'niete:'||emis; a visit that resolves to no counted school is not counted.
  *   coaches        users.role 'coach', not a test user, with >=1 leader_schools school in the
@@ -213,6 +215,24 @@ describe('loadCoachingAnalyticsRows — two set-based reads, no per-school loop'
     expect(sql).toMatch(/sch\.is_active/);
     expect(sql).toMatch(/sch\.is_probable_test/);
     expect(sql).toMatch(/sch\.region/);
+  });
+
+  it('visits: only a COACH\'s visit counts — a done visit owned by a principal, a teacher or a test coach is not (operator, 2026-10-14)', async () => {
+    const { query, calls } = makeQuery();
+    await loadCoachingAnalyticsRows(query, OCT);
+    const sql = calls.find((c) => kind(c) === 'schools').sql;
+    // The visit's owner (leader_user_id), reached by primary key INSIDE the visits subquery —
+    // before the GROUP BY — so an excluded owner's visit never reaches a school's count, and
+    // so schoolsVisited (a school with >=1 counted visit) follows it.
+    const sub = sql.slice(sql.indexOf('FROM observation_schedules s'), sql.indexOf('GROUP BY'));
+    expect(sub).toMatch(/JOIN users ob ON ob\.id = s\.leader_user_id/);
+    expect(sub).toMatch(/ob\.role = 'coach'/);
+    expect(sub).toMatch(/ob\.is_test_user IS NOT TRUE/);
+    expect(sub).not.toMatch(/LEFT JOIN users ob/);
+    // The same "counted coach" as the coaches read — one spelling, two aliases.
+    const c = calls.find((x) => kind(x) === 'coaches').sql;
+    expect(c).toMatch(/u\.role = 'coach'\s+AND u\.is_test_user IS NOT TRUE/);
+    expect(sub).toMatch(/ob\.role = 'coach'\s+AND ob\.is_test_user IS NOT TRUE/);
   });
 
   it('an open window passes no bounds at all; a half-open one passes only its end', async () => {
