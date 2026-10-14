@@ -1525,6 +1525,18 @@ async function process(payload) {
         // poll answered "No such lesson request". The WhatsApp waiters get their delivery row from
         // deliverRender; this is hers. Never throws, so it cannot cost anyone below her a send.
         if (w.surface === 'portal' && w.user_id) {
+          // Her portal ask's lifecycle row (switch on only): ready in her portal is delivered. Written
+          // before the claim that names it; never throws, and null leaves the claim as it always was.
+          const requestId = await Lp612Lifecycle.recordPortalReady({
+            userId: w.user_id,
+            segment,
+            segmentId,
+            lang,
+            askedAt: w.requested_at,
+            generatedAt: readyAt,
+            readyAt,
+            correlationId: w.correlation_id,
+          });
           await Deliveries.record({
             userId: w.user_id,
             renderId,
@@ -1532,6 +1544,8 @@ async function process(payload) {
             lang,
             templateVersion,
             surface: 'portal',
+            // Only when there is one: switched off, the call is exactly the old one.
+            ...(requestId ? { requestId } : {}),
           });
         }
         continue;

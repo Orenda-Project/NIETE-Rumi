@@ -192,10 +192,10 @@ function queueEvent(source, eventName, fields = {}) {
  * @param {Object} o
  * @param {string} [o.id]            the ask's id, when the caller has one (a retry rewrites that row)
  * @param {string} o.userId
- * @param {string} o.phone
+ * @param {string} [o.phone]         absent on a portal / app ask: read from users (switch on only)
  * @param {string} o.topic
  * @param {string} [o.fullMessage]   defaults to the topic
- * @param {string} [o.language]      'en' | 'ur'
+ * @param {string} [o.language]      'en' | 'ur'; absent with no phone → her preferred_language
  * @param {string} [o.contentType]   defaults to 'lesson_plan'
  * @param {string} o.source          a LIFECYCLE.SOURCES value
  * @param {string} [o.channel]       a LIFECYCLE.CHANNELS value; defaults to whatsapp
@@ -215,7 +215,7 @@ function queueEvent(source, eventName, fields = {}) {
 async function recordOutcome(o = {}) {
   let row = null;
   try {
-    row = outcomeRow(o);
+    row = outcomeRow(await withContact(o));
     if (!row) return null;
     const { error } = await supabase
       .from('lesson_plan_requests')
@@ -229,6 +229,27 @@ async function recordOutcome(o = {}) {
   } catch (err) {
     writeFailed({ code: 'THROWN', message: err && err.message }, row);
     return null;
+  }
+}
+
+/**
+ * An ask that arrives without the teacher's phone — the portal and the teacher app name her by her id
+ * alone — takes it from users, and her language with it when the caller gave none. One read by primary
+ * key, made only when the path is switched on and the phone is missing. Never throws: a read that fails
+ * or finds no phone leaves the ask as it came, and outcomeRow refuses it ('no_phone').
+ */
+async function withContact(o) {
+  if (o.phone || !o.userId || !enabled(o.source)) return o;
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('phone_number, preferred_language')
+      .eq('id', o.userId)
+      .maybeSingle();
+    if (error || !data) return o;
+    return { ...o, phone: data.phone_number, language: o.language || data.preferred_language };
+  } catch (_) {
+    return o;
   }
 }
 

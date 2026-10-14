@@ -6,9 +6,10 @@
  * niete_lp612_deliveries row with nothing tying it to its ask or its logs, and an ask that FAILS
  * (send refused, render failed, segment gone, religious hold) leaves no row at all.
  *
- * THE FIX. With LP_LIFECYCLE_PATHS on for `niete_lp612`, every WhatsApp ask that reaches an
- * outcome writes ONE lifecycle row, and the delivery-ledger row names it. Three places see an
- * outcome, and all three go through lp612-lifecycle.service.js:
+ * THE FIX. With LP_LIFECYCLE_PATHS on for `niete_lp612`, every ask that reaches an outcome — on
+ * WhatsApp, and in the portal / teacher app (channel 'portal', her phone read from users) — writes
+ * ONE lifecycle row, and the delivery-ledger row (her WhatsApp delivery, or her portal claim) names
+ * it. The places that see an outcome all go through lp612-lifecycle.service.js:
  *   · deliverRender — the ONE function the cache hit and the worker's waiter loop both call:
  *     completed after a confirmed send, failed (DELIVERY_FAILED) before it throws;
  *   · the requestLesson wrapper — outcomes that end the ask there (not_found, held, error);
@@ -78,6 +79,12 @@ const OTHER = '33333333-3333-4333-8333-333333333333';
 const RENDER = '22222222-2222-4222-8222-222222222222';
 const R2_KEY = Serving.r2KeyFor(SEGMENT.segment_id, 'ur', 'v9.6');
 const CORR = `lp612:${SEGMENT.segment_id}:${TEACHER}`;
+const PORTAL_TEACHER = '44444444-4444-4444-8444-444444444444';
+// The portal and the app name a teacher by her id alone; the writer reads her phone from users.
+const USERS = [
+  { id: TEACHER, phone_number: '923001234567', preferred_language: 'ur' },
+  { id: PORTAL_TEACHER, phone_number: '923005550000', preferred_language: 'en' },
+];
 
 const deliver = (over = {}) => Serving.deliverRender({
   phone: '923001234567', userId: TEACHER, r2Key: R2_KEY, segment: SEGMENT, lang: 'ur', oneScreen: 'x',
@@ -98,7 +105,7 @@ beforeEach(() => {
   mockFailRequests = false;
   mockJoined = [];
   mockDb = createMemorySupabase(
-    { niete_lp612_deliveries: [], lesson_plan_requests: [] },
+    { niete_lp612_deliveries: [], lesson_plan_requests: [], niete_lp612_renders: [], users: USERS },
     { rpc: { lp612_join_waiters: (args) => { mockJoined.push(args.p_entry); return 'joined'; } } },
   );
   Serving.__resetDeliveryLedgerForTests && Serving.__resetDeliveryLedgerForTests();
@@ -193,13 +200,75 @@ describe('requestLesson — outcomes that end the ask then and there', () => {
     expect(rows('lesson_plan_requests')[0]).toEqual(expect.objectContaining({ status: 'failed', error_code: 'NOT_ELIGIBLE' }));
   });
 
-  test('a PORTAL ask (no phone) writes nothing — the table needs a phone; switched off writes nothing at all', async () => {
+  test('a PORTAL ask that ends here writes ONE failed row, channel portal, her phone read from users', async () => {
     process.env.LP_LIFECYCLE_PATHS = 'niete_lp612';
     mockSegmentById.mockResolvedValue(null);
-    await ask({ surface: 'portal', phone: null });
-    delete process.env.LP_LIFECYCLE_PATHS;
+    const res = await ask({ surface: 'portal', phone: null, userId: PORTAL_TEACHER, correlationId: null });
+    expect(res.outcome).toBe('not_found');
+    const asks = rows('lesson_plan_requests');
+    expect(asks).toHaveLength(1);
+    expect(asks[0]).toEqual(expect.objectContaining({
+      user_id: PORTAL_TEACHER, phone_number: '923005550000', channel: 'portal', status: 'failed',
+      error_code: 'NO_ASSET', source: 'niete_lp612', artifact_ref: SEGMENT.segment_id,
+    }));
+  });
+
+  test('switched off, neither a WhatsApp nor a portal ask writes anything', async () => {
+    mockSegmentById.mockResolvedValue(null);
+    await ask({ surface: 'portal', phone: null, userId: PORTAL_TEACHER });
     await ask();
     expect(rows('lesson_plan_requests')).toHaveLength(0);
+  });
+});
+
+describe('a PORTAL cache hit — the lesson is ready in her portal the moment she asks', () => {
+  const { templateVersion } = require('../../bot/shared/config/lp612-flags');
+  const READY = () => ({
+    id: RENDER, segment_id: SEGMENT.segment_id, lang: 'en', template_version: templateVersion(), status: 'ready',
+    r2_key: Serving.r2KeyFor(SEGMENT.segment_id, 'en', templateVersion()), one_screen: 'x', waiters: [],
+  });
+  const portalAsk = () => Serving.requestLesson({
+    segmentId: SEGMENT.segment_id, userId: PORTAL_TEACHER, lang: 'en', surface: 'portal', correlationId: null,
+  });
+  beforeEach(() => {
+    mockSegmentById.mockResolvedValue(SEGMENT);
+    mockDb.tables.niete_lp612_renders = [READY()];
+  });
+
+  test('switched ON: ONE completed row, channel portal, written BEFORE her claim — and the claim names it', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_lp612';
+    const res = await portalAsk();
+    expect(res.outcome).toBe('cache_hit');
+    const asks = rows('lesson_plan_requests');
+    expect(asks).toHaveLength(1);
+    expect(asks[0]).toEqual(expect.objectContaining({
+      user_id: PORTAL_TEACHER, phone_number: '923005550000', channel: 'portal', status: 'completed',
+      source: 'niete_lp612', artifact_ref: SEGMENT.segment_id, grade: 8, error_code: null, language: 'en',
+    }));
+    expect(asks[0].generated_at).toBe(asks[0].created_at);
+    expect(asks[0].delivered_at).toBeTruthy();
+    const [claim] = rows('niete_lp612_deliveries');
+    expect(claim).toEqual(expect.objectContaining({ user_id: PORTAL_TEACHER, surface: 'portal', request_id: asks[0].id }));
+    expect(mockSendDocumentByLink).not.toHaveBeenCalled();
+  });
+
+  test('switched OFF: her claim is exactly the old row (no request_id key), and no lifecycle row', async () => {
+    const res = await portalAsk();
+    expect(res.outcome).toBe('cache_hit');
+    expect(rows('lesson_plan_requests')).toHaveLength(0);
+    const [claim] = rows('niete_lp612_deliveries');
+    expect(claim).toEqual(expect.objectContaining({ user_id: PORTAL_TEACHER, surface: 'portal' }));
+    expect(claim).not.toHaveProperty('request_id');
+  });
+
+  test('a lifecycle write that fails still leaves her claim (unlinked) — her next poll is answered', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_lp612';
+    mockFailRequests = true;
+    const res = await portalAsk();
+    expect(res.outcome).toBe('cache_hit');
+    const [claim] = rows('niete_lp612_deliveries');
+    expect(claim).toEqual(expect.objectContaining({ user_id: PORTAL_TEACHER, surface: 'portal' }));
+    expect(claim).not.toHaveProperty('request_id');
   });
 });
 
@@ -216,19 +285,24 @@ describe('a waiter carries the log id of her own ask (switch on only)', () => {
   });
 });
 
-describe('a failed render — one failed row per WhatsApp waiter told so', () => {
+describe('a failed render — one failed row per waiter, WhatsApp or portal', () => {
   const WAITERS = [
     { user_id: TEACHER, phone: '923001234567', ui_lang: 'ur', surface: 'whatsapp', requested_at: '2026-10-13T05:00:00.000Z', correlation_id: CORR },
     { user_id: OTHER, phone: '923009999999', ui_lang: 'en', surface: 'whatsapp', requested_at: '2026-10-13T05:01:00.000Z' },
-    { user_id: '44444444-4444-4444-8444-444444444444', phone: null, ui_lang: 'en', surface: 'portal', requested_at: '2026-10-13T05:02:00.000Z' },
+    { user_id: PORTAL_TEACHER, phone: null, ui_lang: 'en', surface: 'portal', requested_at: '2026-10-13T05:02:00.000Z' },
   ];
 
-  test('switched ON: RENDER_FAILED → two rows (the portal waiter has no phone), each with her own ask time and log id', async () => {
+  test('switched ON: RENDER_FAILED → a row per waiter — the portal waiter too (channel portal) — each with her own ask time and log id', async () => {
     process.env.LP_LIFECYCLE_PATHS = 'niete_lp612';
     const n = await Lp612Lifecycle.recordWaitersFailed({
       waiters: WAITERS, segment: SEGMENT, segmentId: SEGMENT.segment_id, lang: 'ur', code: 'RENDER_FAILED', detail: 'pages missing',
     });
-    expect(n).toBe(2);
+    expect(n).toBe(3);
+    const portal = rows('lesson_plan_requests').find((r) => r.user_id === PORTAL_TEACHER);
+    expect(portal).toEqual(expect.objectContaining({
+      channel: 'portal', status: 'failed', error_code: 'RENDER_FAILED', phone_number: '923005550000',
+      created_at: '2026-10-13T05:02:00.000Z',
+    }));
     const byUser = Object.fromEntries(rows('lesson_plan_requests').map((r) => [r.user_id, r]));
     expect(byUser[TEACHER]).toEqual(expect.objectContaining({
       status: 'failed', error_code: 'RENDER_FAILED', created_at: '2026-10-13T05:00:00.000Z', correlation_id: CORR, generated_at: null,

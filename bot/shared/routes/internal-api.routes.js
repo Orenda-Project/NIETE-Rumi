@@ -1257,6 +1257,9 @@ router.post('/lp/v8/lessons', requireInternalKey, lpBrowseRoute('lessons', async
  * `available: false` (with HTTP 200) is a real answer — the lesson exists in
  * the catalogue but has no current asset yet. Only a genuine failure is a 5xx,
  * so the portal can tell "not rendered" apart from "we are broken".
+ *
+ * A lesson (not an answer key) handed out for a named teacher is her ask on the portal channel:
+ * lp-v8-lifecycle records it after the answer has gone (LP_LIFECYCLE_PATHS).
  */
 router.post('/lp/v8/pdf', requireInternalKey, lpBrowseRoute('pdf', async (Browse, req, res) => {
   const body = req.body || {};
@@ -1264,9 +1267,16 @@ router.post('/lp/v8/pdf', requireInternalKey, lpBrowseRoute('pdf', async (Browse
   const assetKind = body.assetKind === 'answer_key' ? 'answer_key' : 'lesson';
   if (!lessonId) return res.status(400).json({ success: false, error: 'lessonId is required' });
 
+  const askedAt = new Date().toISOString();
   const hit = await Browse.lessonPdfUrl(lessonId, assetKind, body.userId || null);
-  if (!hit) return res.json({ success: true, available: false });
-  return res.json({ success: true, available: true, ...hit });
+  if (!hit) res.json({ success: true, available: false });
+  else res.json({ success: true, available: true, ...hit });
+  // Her ask's lifecycle row — AFTER the answer, so the portal's open never waits on it (switch on
+  // only; never throws). The portal and the teacher app are where most grade 1-5 plans are read.
+  await require('../services/lp-v8-lifecycle.service').recordPortalLesson({
+    userId: body.userId || null, lessonId, assetKind, available: Boolean(hit), askedAt,
+  });
+  return undefined;
 }));
 
 /**

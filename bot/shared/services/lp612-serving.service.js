@@ -862,7 +862,8 @@ async function deliverRender({
       lang,
       templateVersion: templateVersionOfKey(r2Key),
       surface: 'whatsapp',
-      requestId,
+      // Only when there is one: switched off, the call is exactly the old one.
+      ...(requestId ? { requestId } : {}),
     });
   }
 
@@ -1119,8 +1120,9 @@ async function requestLesson(req) {
     elapsedMs: Date.now() - startedAt,
     error: (result && result.error) || null,
   });
-  // An outcome that ends a WhatsApp ask here (not found, held, error) is its lifecycle row's
-  // outcome; deliveries record inside deliverRender, queued asks when the worker finishes.
+  // An outcome that ends an ask here (not found, held, error) — WhatsApp or portal — is its lifecycle
+  // row's outcome; deliveries record inside deliverRender / at the portal cache hit, queued asks when
+  // the worker finishes.
   await Lp612Lifecycle.recordRequestOutcome({ req, outcome, result, askedAt });
   return result;
 }
@@ -1208,6 +1210,12 @@ async function requestLessonImpl(
       // was before this fix, and the store says why at error level.
       if (surface === 'portal' && userId) {
         const Deliveries = require('./lp612-deliveries.store');
+        // Her ask's lifecycle row FIRST (switch on only): the claim names it, and the claim's foreign
+        // key needs the row to exist before it points at it. Never throws; null leaves the claim
+        // exactly as it was before the lifecycle existed.
+        const requestId = await Lp612Lifecycle.recordPortalReady({
+          userId, segment, segmentId, lang: language, askedAt, generatedAt: askedAt, correlationId,
+        });
         await Deliveries.record({
           userId,
           renderId: existing.id,
@@ -1215,6 +1223,8 @@ async function requestLessonImpl(
           lang: language,
           templateVersion: templateVersionOfKey(existing.r2_key) || tv,
           surface: 'portal',
+          // Only when there is one: switched off, the call is exactly the old one.
+          ...(requestId ? { requestId } : {}),
         });
       }
       return {

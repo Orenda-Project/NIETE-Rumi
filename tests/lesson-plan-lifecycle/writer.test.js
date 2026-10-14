@@ -31,9 +31,11 @@ const { createMemorySupabase } = require('../quiz/helpers/memory-supabase');
 let mockDb;
 let mockFail = null; // null | { code, message } — the next lesson_plan_requests write returns this error
 let mockCalls = 0;
+let mockTables = []; // every table recordOutcome touched, in order
 jest.mock('../../bot/shared/config/supabase', () => ({
   from: (t) => {
     mockCalls += 1;
+    mockTables.push(t);
     if (t === 'lesson_plan_requests' && mockFail) {
       const err = { data: null, error: mockFail };
       const b = new Proxy({}, {
@@ -75,6 +77,7 @@ beforeEach(() => {
   mockDb = createMemorySupabase({ lesson_plan_requests: [] });
   mockFail = null;
   mockCalls = 0;
+  mockTables = [];
   mockCorrelationId = 'corr-from-context';
   mockLog.mockClear();
   mockEvent.mockClear();
@@ -271,5 +274,65 @@ describe('soft-fail — the record is never the reason a lesson does not reach t
     mockDb.from = () => { throw new Error('socket hang up'); };
     await expect(Lifecycle.recordOutcome(ASK)).resolves.toBeNull();
     mockDb.from = realFrom;
+  });
+});
+
+describe('an ask that arrives without a phone — a portal or teacher-app ask carries only her id', () => {
+  // The portal and the app name the teacher by users.id alone; lesson_plan_requests.phone_number is
+  // NOT NULL. Before this, every such ask was refused ('no_phone') — so the asks made where most NIETE
+  // teachers now read their plans left no row at all.
+  const PORTAL_ASK = { ...ASK, phone: undefined, language: undefined, channel: 'portal' };
+  const seedTeacher = (over = {}) => {
+    mockDb = createMemorySupabase({
+      lesson_plan_requests: [],
+      users: [{ id: TEACHER, phone_number: '+92 300 1234567', preferred_language: 'ur', ...over }],
+    });
+  };
+  beforeEach(() => { process.env.LP_LIFECYCLE_PATHS = 'all'; });
+
+  test('her phone — and her language, when the caller gave none — come from users, in one read by id', async () => {
+    seedTeacher();
+    const id = await Lifecycle.recordOutcome(PORTAL_ASK);
+    expect(id).not.toBeNull();
+    const [row] = mockDb.table('lesson_plan_requests');
+    expect(row).toEqual(expect.objectContaining({
+      id, user_id: TEACHER, phone_number: '923001234567', language: 'ur', channel: 'portal', status: 'completed',
+    }));
+    expect(mockTables.filter((t) => t === 'users')).toHaveLength(1);
+  });
+
+  test('a language the caller did give is kept', async () => {
+    seedTeacher();
+    await Lifecycle.recordOutcome({ ...PORTAL_ASK, language: 'en' });
+    expect(mockDb.table('lesson_plan_requests')[0].language).toBe('en');
+  });
+
+  test('a teacher with no phone on file is refused — no row, no throw, the refusal said', async () => {
+    seedTeacher({ phone_number: null });
+    await expect(Lifecycle.recordOutcome(PORTAL_ASK)).resolves.toBeNull();
+    expect(mockDb.table('lesson_plan_requests')).toHaveLength(0);
+    expect(mockEvent).toHaveBeenCalledWith('lesson_plan.lifecycle.refused', expect.objectContaining({ reason: 'no_phone' }));
+  });
+
+  test('a users read that fails is refused, never thrown', async () => {
+    seedTeacher();
+    const realFrom = mockDb.from;
+    mockDb.from = (t) => { if (t === 'users') throw new Error('socket hang up'); return realFrom(t); };
+    await expect(Lifecycle.recordOutcome(PORTAL_ASK)).resolves.toBeNull();
+    mockDb.from = realFrom;
+    expect(mockDb.table('lesson_plan_requests')).toHaveLength(0);
+  });
+
+  test('a caller that already has the phone makes no users read', async () => {
+    seedTeacher();
+    await Lifecycle.recordOutcome(ASK);
+    expect(mockTables).not.toContain('users');
+  });
+
+  test('switched off: no read of users either — the phone lookup is part of the switched-on write', async () => {
+    delete process.env.LP_LIFECYCLE_PATHS;
+    seedTeacher();
+    expect(await Lifecycle.recordOutcome(PORTAL_ASK)).toBeNull();
+    expect(mockCalls).toBe(0);
   });
 });
