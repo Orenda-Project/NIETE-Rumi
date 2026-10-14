@@ -90,4 +90,14 @@ async function sendsPriorReminder(userId) {
   }
 }
 
-module.exports = { thingToTryOf, replacesReminder, captionLine, planCaption, sendsPriorReminder };
+/**
+ * The prior action the report's commitment card is built with (bd-v0toag.63). A "Yes" on it opens the action
+ * with "Building on your last commitment:"; for C and D the thing to try replaces that, so null. Today's
+ * prior action for everyone else, including on any failure.
+ */
+async function cardPriorAction(userId, priorAction) {
+  if (!priorAction) return null;
+  return (await sendsPriorReminder(userId)) ? priorAction : null;
+}
+
+module.exports = { thingToTryOf, replacesReminder, captionLine, planCaption, sendsPriorReminder, cardPriorAction };

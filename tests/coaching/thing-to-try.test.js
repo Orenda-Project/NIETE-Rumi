@@ -159,3 +159,26 @@ describe('sendsPriorReminder', () => {
     expect(await T.sendsPriorReminder('u-1')).toBe(true);
   });
 });
+
+// bd-v0toag.63: the report's action opens "Building on your last commitment:" when the prior action was
+// a "Yes" tap. For C and D the thing to try replaces the old commitment, so the card is built without it.
+describe('cardPriorAction', () => {
+  const PRIOR = { action: 'Focus on wait time', teacher_response: 'yes' };
+  test.each([['A', PRIOR], ['B', PRIOR], ['C', null], ['D', null]])('%s', async (g, want) => {
+    mockArms.groupFor.mockResolvedValue(GROUPS[g]);
+    expect(await T.cardPriorAction('u-1', PRIOR)).toBe(want);
+  });
+  test('outside the draw / switch off: the prior action (today)', async () => {
+    mockArms.groupFor.mockResolvedValue(null);
+    expect(await T.cardPriorAction('u-1', PRIOR)).toBe(PRIOR);
+  });
+  test('groupFor throwing: the prior action (today)', async () => {
+    mockArms.groupFor.mockRejectedValue(new Error('x'));
+    expect(await T.cardPriorAction('u-1', PRIOR)).toBe(PRIOR);
+  });
+  test('no prior action: null, and no group read', async () => {
+    mockArms.groupFor.mockClear();
+    expect(await T.cardPriorAction('u-1', null)).toBeNull();
+    expect(mockArms.groupFor).not.toHaveBeenCalled();
+  });
+});
