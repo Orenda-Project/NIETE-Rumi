@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { CalendarDays, School } from "lucide-react";
 import { cn } from "@/lib/utils";
 import nieteLogo from "@/assets/niete-logo.png";
@@ -14,6 +15,10 @@ import { NieteLattice } from "../icons/NieteLattice";
  * `schoolName`) and the clock. The bottom padding (52px) leaves room for the first thing under the band to climb 28px
  * into it; Home does that with a `-mt-10` body (TeacherPage's `hero` slot supplies the full-bleed edges).
  * Start/end spacing only, so it mirrors for Urdu. Canvas: the `HomeGreeting` component board, variant `brand`.
+ *
+ * `footer`: one control at the foot of the band, under the date and school: Home's English | اردو switch (operator,
+ * 2026-10-14, design doc option B). It sits inside the band, so the tiles still climb into it. The band's own lines
+ * stay plain text; only what is passed here is tappable.
  */
 export interface HomeGreetingProps {
   title: string;
@@ -25,10 +30,12 @@ export interface HomeGreetingProps {
   logoAlt: string;
   /** The mark; the NIETE logo by default. */
   markSrc?: string;
+  /** A control under the date and school, inside the band (Home's language switch). */
+  footer?: ReactNode;
   className?: string;
 }
 
-export function HomeGreeting({ title, date, school, brand, logoAlt, markSrc = nieteLogo, className }: HomeGreetingProps) {
+export function HomeGreeting({ title, date, school, brand, logoAlt, markSrc = nieteLogo, footer, className }: HomeGreetingProps) {
   return (
     <header
       data-testid="home-greeting"
@@ -53,6 +60,7 @@ export function HomeGreeting({ title, date, school, brand, logoAlt, markSrc = ni
             </p>
           ) : null}
         </div>
+        {footer ? <div data-testid="home-greeting-footer" className="mt-1">{footer}</div> : null}
       </div>
     </header>
   );

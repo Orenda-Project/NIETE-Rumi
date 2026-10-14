@@ -6,7 +6,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useLogoutGuard } from "../../lib/recordingSession";
 import TeacherPage from "../TeacherPage";
 import { FeatureGlyph, type GlyphName } from "../icons";
-import { Tabs } from "../ui";
+import { LanguageToggle } from "../LanguageTabs";
 import { TEACHER_FRAME } from "../copy";
 import { useCopy } from "../i18n";
 import { cleanSchool, formatPhone, fullName, initials } from "../format";
@@ -63,13 +63,12 @@ export function RowLink({ id, to, icon, glyph, hue, label }: { id: string; to: s
 /**
  * The Language row: a two-option toggle, English | اردو, the page's language picked (the kit's Tabs). Picking the other one
  * is the kit's one switch, useLanguageSwitch → the bot's setUserLanguage; picking the one shown writes nothing.
- * Shared with the coach's More (bd-4404s7.2).
+ * Shared with the coach's More (bd-4404s7.2). The toggle itself is LanguageToggle (../LanguageTabs), the same one the
+ * top of Home draws (operator, 2026-10-14).
  */
 export function LanguageRow() {
   const C = useCopy(TEACHER_FRAME);
   const lang = useLanguageSwitch();
-  // `lang.target` is the language she is NOT on, so the picked one is the other of the two.
-  const current = lang.target === "ur" ? "en" : "ur";
   return (
     <div data-testid="more-row-language" className="flex min-h-[64px] flex-col gap-2.5 px-3 py-3">
       <div className="flex min-h-[32px] items-center gap-3.5 text-[16px] font-semibold">
@@ -81,12 +80,7 @@ export function LanguageRow() {
           </span>
         )}
       </div>
-      <Tabs
-        label={C.more.language}
-        value={current}
-        tabs={[{ key: "en", label: C.more.switchTo.en }, { key: "ur", label: C.more.switchTo.ur }]}
-        onChange={(key) => { if (key !== current) void lang.toggle(); }}
-      />
+      <LanguageToggle lang={lang} />
     </div>
   );
 }
