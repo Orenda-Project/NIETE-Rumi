@@ -1615,7 +1615,12 @@ const LP_HEALTH_FIRST_MS = 3 * 60 * 1000;
 async function runLessonPlanHealth({ health } = {}) {
   try {
     const h = health || require('../shared/services/monitoring/lesson-plan-health.service');
-    return await h.run();
+    const result = await h.run();
+    // One line per tick, whatever the check decided: a tick that returned early is never mistaken for a
+    // timer that never fired (this service redeploys several times a day).
+    const { outcome, reason, verdict, error: failure } = result || {};
+    logToFile('Lesson-plan health tick', { outcome, reason, verdict, error: failure });
+    return result;
   } catch (error) {
     logToFile('Error in lesson-plan health check (non-fatal)', { error: error.message }, 'error');
     return null;
@@ -1638,7 +1643,10 @@ function scheduleLessonPlanHealth({ worker: w = null, setIntervalFn = setInterva
     return null;
   }
   const tick = () => {
-    if (w && w.isShuttingDown) return undefined;
+    if (w && w.isShuttingDown) {
+      logToFile('Lesson-plan health tick', { outcome: 'skipped', reason: 'shutting_down' });
+      return undefined;
+    }
     return runLessonPlanHealth();
   };
   const first = setTimeoutFn(tick, LP_HEALTH_FIRST_MS);

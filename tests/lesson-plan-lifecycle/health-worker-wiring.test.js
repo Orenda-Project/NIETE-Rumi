@@ -74,3 +74,34 @@ test('a video-only replica does not schedule it', () => {
   expect(scheduleLessonPlanHealth({ setTimeoutFn: jest.fn(), setIntervalFn })).toBeNull();
   expect(setIntervalFn).not.toHaveBeenCalled();
 });
+
+describe('every tick says what it did', () => {
+  // NIETE has no Railway Cron: this check rides the worker, which redeploys several times a day. A tick
+  // that returned early in silence would look exactly like a timer that never fired.
+  test('a tick with no path switched on logs one line naming its outcome (the real check)', async () => {
+    await runLessonPlanHealth();
+    expect(mockLogToFile).toHaveBeenCalledWith('Lesson-plan health tick', expect.objectContaining({ outcome: 'off' }));
+  });
+
+  test('a skipped tick names why', async () => {
+    const health = { run: jest.fn(async () => ({ outcome: 'skipped', reason: 'other' })) };
+    await runLessonPlanHealth({ health });
+    expect(mockLogToFile).toHaveBeenCalledWith('Lesson-plan health tick', expect.objectContaining({ outcome: 'skipped', reason: 'other' }));
+  });
+
+  test('a checked tick names its verdict', async () => {
+    const health = { run: jest.fn(async () => ({ outcome: 'checked', verdict: 'healthy', reasons: [], stuck: 0, sources: [] })) };
+    await expect(runLessonPlanHealth({ health })).resolves.toEqual(expect.objectContaining({ outcome: 'checked' }));
+    expect(mockLogToFile).toHaveBeenCalledWith('Lesson-plan health tick', expect.objectContaining({ outcome: 'checked', verdict: 'healthy' }));
+  });
+
+  test('a tick that lands while the worker shuts down says so', () => {
+    process.env.WORKER_QUEUES = 'main';
+    const scheduled = scheduleLessonPlanHealth({
+      worker: { isShuttingDown: true }, setTimeoutFn: jest.fn(() => ({ unref() {} })), setIntervalFn: jest.fn(() => 'timer'),
+    });
+    mockLogToFile.mockClear();
+    scheduled.tick();
+    expect(mockLogToFile).toHaveBeenCalledWith('Lesson-plan health tick', expect.objectContaining({ outcome: 'skipped', reason: 'shutting_down' }));
+  });
+});

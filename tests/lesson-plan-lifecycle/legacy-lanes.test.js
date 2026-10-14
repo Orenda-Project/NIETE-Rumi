@@ -157,3 +157,35 @@ describe('the Oxbridge lane', () => {
     expect(mockSendDocument).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('a recorder that throws while describing the ask — reported, never silent, the delivery untouched', () => {
+  const { logEvent } = require('../../bot/shared/utils/structured-logger');
+  const thrownFor = (source) => logEvent.mock.calls.filter((c) => c[0] === 'lesson_plan.lifecycle.write_failed'
+    && c[1].code === 'THROWN' && c[1].source === source);
+
+  test('the pre-generated lane, a chapter row whose title is not text: the delivery fails as it always did, and the recorder throw is counted', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'pre_gen_chapter';
+    mockDb.tables.pre_generated_lps = [{ ...PREGEN, chapter_title: 42 }];
+    await pickPregen().catch(() => null);
+    await settle();
+    expect(mockSendDocumentByLink).not.toHaveBeenCalled();
+    expect(asks()).toHaveLength(0);
+    expect(thrownFor('pre_gen_chapter')).toHaveLength(1);
+  });
+
+  test('the Oxbridge lane, a context the recorder cannot read: the same answer and send, and the throw is counted', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_oxbridge';
+    const ctx = { userId: TEACHER, get correlationId() { throw new TypeError('context unreadable'); } };
+    await expect(Oxbridge.deliverOxbridgeLp('923001234567', OX, 'en', ctx)).resolves.toBe(true);
+    expect(mockSendDocument).toHaveBeenCalledTimes(1);
+    expect(asks()).toHaveLength(0);
+    expect(thrownFor('niete_oxbridge')).toHaveLength(1);
+  });
+
+  test('switched off, the same Oxbridge context: the same answer and send, and nothing is said', async () => {
+    const ctx = { userId: TEACHER, get correlationId() { throw new TypeError('context unreadable'); } };
+    await expect(Oxbridge.deliverOxbridgeLp('923001234567', OX, 'en', ctx)).resolves.toBe(true);
+    expect(mockSendDocument).toHaveBeenCalledTimes(1);
+    expect(thrownFor('niete_oxbridge')).toHaveLength(0);
+  });
+});

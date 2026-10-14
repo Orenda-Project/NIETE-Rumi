@@ -335,10 +335,10 @@ function planRefOf(id, item) {
  * recorded once the share has its outcome. An answer key is not a lesson-plan ask. Never throws.
  */
 async function recordLessonShare({ userId, id, seen, out, askedAt }) {
+  const Lifecycle = require('./lesson-plan-lifecycle.service');
+  const { SOURCES, CHANNELS } = Lifecycle.LIFECYCLE;
   try {
     if (/:answer_key$/.test(String(id)) || (seen.item && seen.item.answerKey)) return null;
-    const Lifecycle = require('./lesson-plan-lifecycle.service');
-    const { SOURCES, CHANNELS } = Lifecycle.LIFECYCLE;
     if (!Lifecycle.enabled(SOURCES.NIETE_PORTAL_SHARE)) return null;
     const outcome = shareOutcome(out);
     if (!outcome) return null;
@@ -359,7 +359,9 @@ async function recordLessonShare({ userId, id, seen, out, askedAt }) {
       deliveredAt: out && out.at,
       ...outcome,
     });
-  } catch (_) {
+  } catch (err) {
+    // Describing the ask threw (recordOutcome itself never does): reported, never thrown into the share's answer.
+    Lifecycle.recorderThrew(err, SOURCES.NIETE_PORTAL_SHARE);
     return null;
   }
 }

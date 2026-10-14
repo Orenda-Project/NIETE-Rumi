@@ -362,3 +362,33 @@ describe('an ask that arrives without a phone — a portal or teacher-app ask ca
     expect(mockCalls).toBe(0);
   });
 });
+
+describe('a path whose own recorder throws while describing its ask — reported, never silent', () => {
+  // recordOutcome itself never throws. The three paths that build their own row (the Flow's pre-generated
+  // lane, the Oxbridge lane, the portal's Send on WhatsApp) guard that description so it can never reach
+  // the teacher's delivery; the guard reports through the same channel as a failed write — the
+  // write_failed event every time, error level at most once per ten minutes per path.
+  test('switched on: counted every time, paged once per ten minutes per path', () => {
+    process.env.LP_LIFECYCLE_PATHS = 'all';
+    const boom = new TypeError("Cannot read properties of undefined (reading 'answerKey')");
+    Lifecycle.recorderThrew(boom, 'niete_portal_share');
+    Lifecycle.recorderThrew(boom, 'niete_portal_share');
+    const failed = mockEvent.mock.calls.filter((c) => c[0] === 'lesson_plan.lifecycle.write_failed');
+    expect(failed).toHaveLength(2);
+    expect(failed[0][1]).toEqual(expect.objectContaining({ code: 'THROWN', source: 'niete_portal_share', table: 'lesson_plan_requests' }));
+    expect(mockLog.mock.calls.filter((c) => c[2] === 'error')).toHaveLength(1);
+  });
+
+  test('switched off for that path: nothing is said — a path that is off stays exactly as it was', () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_lp612';
+    Lifecycle.recorderThrew(new Error('x'), 'niete_portal_share');
+    expect(mockEvent).not.toHaveBeenCalledWith('lesson_plan.lifecycle.write_failed', expect.anything());
+    expect(mockLog.mock.calls.filter((c) => c[2] === 'error')).toHaveLength(0);
+  });
+
+  test('never throws, whatever it is handed', () => {
+    process.env.LP_LIFECYCLE_PATHS = 'all';
+    expect(() => Lifecycle.recorderThrew(undefined, 'niete_oxbridge')).not.toThrow();
+    expect(() => Lifecycle.recorderThrew('a string', undefined)).not.toThrow();
+  });
+});

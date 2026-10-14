@@ -391,6 +391,23 @@ function writeFailed(error, row, ctx = {}) {
     { code, message, source, table: ctx.table, stack: error && error.stack }, 'error');
 }
 
+/**
+ * A path's own recorder threw while describing an ask, before recordOutcome ran (recordOutcome itself never
+ * throws). Switched on for that path, reported like a failed write — the write_failed event every time,
+ * error level at most once per ten minutes; switched off, nothing, as before. Never throws.
+ *
+ * @param {*} error what the recorder threw
+ * @param {string} source the path's LIFECYCLE.SOURCES value
+ */
+function recorderThrew(error, source) {
+  try {
+    if (!enabled(source)) return;
+    writeFailed({ code: 'THROWN', message: error && error.message, stack: error && error.stack }, { source }, { table: 'lesson_plan_requests' });
+  } catch (_) {
+    // Reporting is best-effort by contract: the recorder's caller is a teacher's delivery.
+  }
+}
+
 /** True when the database refused a write because of the lifecycle's additions (see the code list). */
 function refusedByLifecycle(error) {
   if (!error) return false;
@@ -429,5 +446,6 @@ module.exports = {
   queueEvent,
   writeWithFallback,
   recordOutcome,
+  recorderThrew,
   __resetForTests,
 };

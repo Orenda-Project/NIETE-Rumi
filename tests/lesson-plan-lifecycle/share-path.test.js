@@ -112,3 +112,30 @@ describe('switched off', () => {
     expect(mockCalls).toBe(0);
   });
 });
+
+describe('a recorder that throws while describing the share — reported, never silent, the answer untouched', () => {
+  // An item whose answer-key flag cannot be read: the send itself already fails on it (the file name reads
+  // the flag), and the recorder reads the same flag. The share's answer is what the send made of it.
+  const unreadableItem = () => new Proxy({ ...K5_ITEM }, {
+    get: (target, key) => {
+      if (key === 'answerKey') throw new TypeError('answerKey unreadable');
+      return target[key];
+    },
+  });
+
+  test('switched on: the same answer, no row, and the recorder throw is counted', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_portal_share';
+    const out = await Share.sendShare({ userId: TEACHER, kind: 'lesson', id: 'k5:grade_1_english_ch1_seg3' }, deps({ item: async () => unreadableItem() }));
+    expect(out).toEqual({ status: 'failed', reason: 'error' });
+    expect(asks()).toHaveLength(0);
+    expect(mockEvent).toHaveBeenCalledWith('lesson_plan.lifecycle.write_failed',
+      expect.objectContaining({ code: 'THROWN', source: 'niete_portal_share' }));
+  });
+
+  test('switched off: the same answer, and nothing is said', async () => {
+    const out = await Share.sendShare({ userId: TEACHER, kind: 'lesson', id: 'k5:grade_1_english_ch1_seg3' }, deps({ item: async () => unreadableItem() }));
+    expect(out).toEqual({ status: 'failed', reason: 'error' });
+    expect(mockEvent).not.toHaveBeenCalledWith('lesson_plan.lifecycle.write_failed', expect.anything());
+    expect(mockCalls).toBe(0);
+  });
+});

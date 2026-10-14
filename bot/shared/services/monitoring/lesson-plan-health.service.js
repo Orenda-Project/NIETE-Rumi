@@ -103,8 +103,10 @@ async function tickWindow(redis, now) {
     if (Number.isFinite(at) && at < end.getTime()) {
       start = new Date(Math.max(at, end.getTime() - MAX_CATCHUP_MIN * 60 * 1000));
     }
-  } catch (_) {
-    // No readable watermark: the hour before the lag. The claim already proved the cache answers.
+  } catch (error) {
+    // No readable watermark: the hour before the lag (the claim already proved the cache answers). Said,
+    // because a watermark that stays unreadable means every tick reads the last hour, not from the last one.
+    logToFile('⚠️ Lesson-plan health: watermark unreadable — summarising the last hour', { error: error && error.message }, 'warn');
   }
   return { start, end };
 }

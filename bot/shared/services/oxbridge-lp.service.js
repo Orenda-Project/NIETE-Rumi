@@ -342,10 +342,10 @@ function gradeFromWord(word) {
  * is nothing to record. Switched by LP_LIFECYCLE_PATHS; never throws.
  */
 async function recordOxbridgeAsk(ctx, phone, row, language, askedAt, outcome) {
+  const Lifecycle = require('./lesson-plan-lifecycle.service');
+  const { SOURCES, CHANNELS } = Lifecycle.LIFECYCLE;
   try {
     if (!ctx || !ctx.userId) return null;
-    const Lifecycle = require('./lesson-plan-lifecycle.service');
-    const { SOURCES, CHANNELS } = Lifecycle.LIFECYCLE;
     return await Lifecycle.recordOutcome({
       userId: ctx.userId,
       phone,
@@ -360,7 +360,9 @@ async function recordOxbridgeAsk(ctx, phone, row, language, askedAt, outcome) {
       correlationId: ctx.correlationId,
       ...outcome,
     });
-  } catch (_) {
+  } catch (err) {
+    // Describing the ask threw (recordOutcome itself never does): reported, never thrown into her delivery.
+    Lifecycle.recorderThrew(err, SOURCES.NIETE_OXBRIDGE);
     return null;
   }
 }

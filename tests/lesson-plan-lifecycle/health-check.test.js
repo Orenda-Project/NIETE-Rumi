@@ -215,3 +215,21 @@ describe('switched on', () => {
     expect(checked()).toHaveLength(0);
   });
 });
+
+describe('the watermark', () => {
+  beforeEach(() => { process.env.LP_LIFECYCLE_PATHS = 'all'; });
+
+  test('a watermark that cannot be read is said at warn level, and the tick still summarises the last hour', async () => {
+    const redis = fakeRedis();
+    const realGet = redis.get;
+    redis.get = jest.fn(async (k) => {
+      if (k === 'lp_health:watermark') throw new Error('READONLY replica');
+      return realGet(k);
+    });
+    mockDb.tables.lesson_plan_requests = [ask({ created_at: ago(30), delivered_at: ago(29) })];
+    const out = await Health.run({ now: NOW, redis });
+    expect(out).toEqual(expect.objectContaining({ outcome: 'checked' }));
+    expect(checked()[0]).toEqual(expect.objectContaining({ windowStart: ago(75), windowMin: 60 }));
+    expect(mockLog).toHaveBeenCalledWith(expect.stringMatching(/watermark/i), expect.objectContaining({ error: 'READONLY replica' }), 'warn');
+  });
+});
