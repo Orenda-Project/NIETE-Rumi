@@ -43,7 +43,7 @@ async function loadReport(supabase, sessionId, userId) {
   ]);
   const u = (user && user.data) || {};
   const language = u.preferred_language === 'ur' ? 'ur' : 'en';
-  const firstName = firstNameOf(u) || null; // `name` only: first_name/last_name were dropped (bd-60092)
+  const firstName = firstNameOf(u) || null; // `name` only: first_name/last_name were dropped
   const meta = (quiz && quiz.data && quiz.data.meta) || {};
   const quizMessage = typeof meta.student_message === 'string' && meta.student_message.trim() ? meta.student_message : null;
   // Oldest first; a session with no overall score is left out of the line, never drawn as zero.
