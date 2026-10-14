@@ -61,6 +61,8 @@ const LIFECYCLE = Object.freeze({
     NIETE_GROUNDED: 'niete_grounded',
     NIETE_V8_SEGMENT: 'niete_v8_segment',
     NIETE_LP612: 'niete_lp612',
+    NIETE_OXBRIDGE: 'niete_oxbridge',           // the Oxbridge catalogue (typed-topic picker + Flow)
+    NIETE_PORTAL_SHARE: 'niete_portal_share',   // the portal's "Send on WhatsApp" for a lesson plan
   }),
   CHANNELS: Object.freeze({ WHATSAPP: 'whatsapp', PORTAL: 'portal' }),
   // Short machine codes for a failed ask. error_message keeps the human detail.
@@ -155,7 +157,10 @@ function askColumns({ source, channel, grade, subject, artifactRef, correlationI
  *   'completed' — generated_at, and delivered_at when the send was accepted (sent === true) or
  *                 error_code DELIVERY_FAILED when WhatsApp refused it (sent === false); a stale
  *                 error_code from an earlier failed attempt is cleared unless the send failed;
- *   'failed'    — error_code (GENERATION_FAILED unless the caller names another).
+ *   'failed'    — error_code (GENERATION_FAILED unless the caller names another), and generated_at
+ *                 when the artefact existed before it failed (a refused send);
+ *   'queue_failed' — error_code QUEUE_FAILED: the job could not be queued (the request stays pending
+ *                 for the recovery sweep, exactly as before).
  */
 function queueColumns(source, stage, { generatedAt, sent, errorCode } = {}) {
   if (!enabled(source)) return {};
@@ -169,8 +174,13 @@ function queueColumns(source, stage, { generatedAt, sent, errorCode } = {}) {
     };
   }
   if (stage === 'failed') {
-    return { error_code: textOrNull(errorCode, 40) || LIFECYCLE.ERROR_CODES.GENERATION_FAILED };
+    const generated = isoOrNull(generatedAt);
+    return {
+      ...(generated ? { generated_at: generated } : {}),
+      error_code: textOrNull(errorCode, 40) || LIFECYCLE.ERROR_CODES.GENERATION_FAILED,
+    };
   }
+  if (stage === 'queue_failed') return { error_code: LIFECYCLE.ERROR_CODES.QUEUE_FAILED };
   return {};
 }
 

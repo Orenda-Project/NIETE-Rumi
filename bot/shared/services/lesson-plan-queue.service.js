@@ -96,8 +96,13 @@ class LessonPlanQueueService {
     } catch (sqsError) {
       await supabase
         .from('lesson_plan_requests')
-        .update({ status: 'pending', error_message: `SQS queue failed: ${sqsError.message}` })
+        .update({
+          status: 'pending',
+          error_message: `SQS queue failed: ${sqsError.message}`,
+          ...Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'queue_failed'),
+        })
         .eq('id', requestId);
+      Lifecycle.queueEvent(LIFECYCLE_SOURCE, 'lesson_plan.queue.failed', { requestId, errorCode: 'QUEUE_FAILED' });
       logToFile('Failed to queue grounded LP to SQS, marked for retry', { requestId, error: sqsError.message });
     }
 

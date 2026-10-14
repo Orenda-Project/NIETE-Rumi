@@ -65,6 +65,8 @@ router.post('/queue-lesson-plan', requireInternalKey, async (req, res) => {
       topic,
       chapterTitle: chapterTitle || null,
       language,
+      // The portal's door: its lifecycle row (when switched on) says where she asked.
+      channel: 'portal',
     });
     logToFile('🧾 Grounded LP queued via internal API', { requestId, sourceLpUuid, userId, language });
     return res.status(202).json({ success: true, requestId, language });

@@ -82,7 +82,8 @@ DO $$ BEGIN
       CHECK (source IS NULL OR source IN (
         'gamma_standard', 'gamma_enriched', 'ug_lp', 'ps_pregen', 'v7_segment', 'v7_chapter',
         'gamma_chapter', 'pre_gen_chapter', 'homework_bundle', 'pic_to_lp_kieai', 'kenya_browse',
-        'multigrade_lp', 'niete_grounded', 'niete_v8_segment', 'niete_lp612')) NOT VALID;
+        'multigrade_lp', 'niete_grounded', 'niete_v8_segment', 'niete_lp612', 'niete_oxbridge',
+        'niete_portal_share')) NOT VALID;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'lesson_plan_requests_channel_check') THEN
     ALTER TABLE lesson_plan_requests ADD CONSTRAINT lesson_plan_requests_channel_check

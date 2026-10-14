@@ -6716,7 +6716,8 @@ DO $$ BEGIN
     CHECK (source IS NULL OR source IN (
       'gamma_standard', 'gamma_enriched', 'ug_lp', 'ps_pregen', 'v7_segment', 'v7_chapter',
       'gamma_chapter', 'pre_gen_chapter', 'homework_bundle', 'pic_to_lp_kieai', 'kenya_browse',
-      'multigrade_lp', 'niete_grounded', 'niete_v8_segment', 'niete_lp612')) NOT VALID;
+      'multigrade_lp', 'niete_grounded', 'niete_v8_segment', 'niete_lp612', 'niete_oxbridge',
+      'niete_portal_share')) NOT VALID;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 DO $$ BEGIN

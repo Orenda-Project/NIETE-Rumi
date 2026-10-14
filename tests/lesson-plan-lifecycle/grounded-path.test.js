@@ -114,6 +114,30 @@ describe('the queued render — its own request row gains the lifecycle columns'
     expect(mockEvent).toHaveBeenCalledWith('lesson_plan.request.created', expect.objectContaining({ requestId: id, source: 'niete_grounded' }));
   });
 
+  test('an SQS enqueue that fails: OFF the old update; ON it adds QUEUE_FAILED — status stays pending, as before', async () => {
+    const Queue = require('../../bot/shared/services/queue');
+    Queue.queueCoachingJob.mockRejectedValueOnce(new Error('SQS down'));
+    const offId = await enqueue();
+    const off = rows('lesson_plan_requests').find((r) => r.id === offId);
+    expect(off).toEqual(expect.objectContaining({ status: 'pending', error_message: 'SQS queue failed: SQS down' }));
+    expect(off).not.toHaveProperty('error_code');
+
+    process.env.LP_LIFECYCLE_PATHS = 'niete_grounded';
+    Queue.queueCoachingJob.mockRejectedValueOnce(new Error('SQS down'));
+    const onId = await enqueue();
+    expect(rows('lesson_plan_requests').find((r) => r.id === onId)).toEqual(expect.objectContaining({
+      status: 'pending', error_message: 'SQS queue failed: SQS down', error_code: 'QUEUE_FAILED',
+    }));
+  });
+
+  test('a portal ask (the internal queue route) is labelled channel portal', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_grounded';
+    await LessonPlanQueueService.createAndQueueGrounded({
+      userId: TEACHER, phoneNumber: PHONE, sourceLpUuid: AST.source_lp_uuid, topic: AST.topic, language: 'en', channel: 'portal',
+    });
+    expect(rows('lesson_plan_requests')[0]).toEqual(expect.objectContaining({ channel: 'portal', source: 'niete_grounded' }));
+  });
+
   test('markCompleted, switched OFF: the update is exactly the old one', async () => {
     const id = await enqueue();
     await LessonPlanQueueService.markCompleted(id, { gammaUrl: null, pdfUrl: 'k.pdf', generatedAt: '2026-10-13T05:01:00.000Z', sent: true });

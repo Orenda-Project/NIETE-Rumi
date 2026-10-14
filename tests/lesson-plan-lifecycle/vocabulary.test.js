@@ -70,6 +70,15 @@ describe('lesson-plan lifecycle vocabulary — code and database are one list', 
     expect(REFERENCE).not.toMatch(/lesson_plans_source_check/);
   });
 
+  test('every NIETE path that hands a teacher a lesson plan has a source the database accepts', () => {
+    // A path with no source cannot record its asks at all. The two found after the first cut: the
+    // Oxbridge catalogue lane (typed-topic picker + Flow) and the portal's "Send on WhatsApp".
+    expect(Object.values(LIFECYCLE.SOURCES)).toEqual(expect.arrayContaining([
+      'niete_grounded', 'pre_gen_chapter', 'niete_v8_segment', 'niete_lp612', 'homework_bundle',
+      'niete_oxbridge', 'niete_portal_share',
+    ]));
+  });
+
   test('error codes are short machine words, never free text', () => {
     for (const code of Object.values(LIFECYCLE.ERROR_CODES)) {
       expect(code).toMatch(/^[A-Z][A-Z0-9_]{2,40}$/);
