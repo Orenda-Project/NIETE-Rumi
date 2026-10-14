@@ -96,19 +96,31 @@ class CoachingHelpersService {
       const transcriptionTime = new Date(session.transcription_completed_at) - new Date(session.transcription_started_at);
       const analysisTime = new Date(session.analysis_completed_at) - new Date(session.analysis_started_at);
 
-      await supabase
+      const metrics = {
+        diarization_confidence: session.diarization_confidence,
+        processing_time_seconds: Math.round(processingTime / 1000),
+        transcription_time_seconds: Math.round(transcriptionTime / 1000),
+        analysis_time_seconds: Math.round(analysisTime / 1000),
+        session_cost: session.total_cost,
+        had_errors: false,
+        retry_count: 0,
+      };
+
+      // bd-v0toag.49: a "Was this useful?" tap may already have created this session's row.
+      // Update it rather than add a second one, and leave the teacher's answer untouched.
+      const { data: existing } = await supabase
         .from('coaching_quality_metrics')
-        .insert({
-          coaching_session_id: session.id,
-          diarization_confidence: session.diarization_confidence,
-          processing_time_seconds: Math.round(processingTime / 1000),
-          transcription_time_seconds: Math.round(transcriptionTime / 1000),
-          analysis_time_seconds: Math.round(analysisTime / 1000),
-          session_cost: session.total_cost,
-          had_errors: false,
-          retry_count: 0,
-          created_at: new Date().toISOString()
-        });
+        .select('id')
+        .eq('coaching_session_id', session.id)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase.from('coaching_quality_metrics').update(metrics).eq('coaching_session_id', session.id);
+      } else {
+        await supabase
+          .from('coaching_quality_metrics')
+          .insert({ coaching_session_id: session.id, ...metrics, created_at: new Date().toISOString() });
+      }
 
       logToFile('Quality metrics recorded', { coachingSessionId: session.id });
     } catch (error) {

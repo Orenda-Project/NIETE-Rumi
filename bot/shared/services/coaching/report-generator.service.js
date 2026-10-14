@@ -337,7 +337,7 @@ class ReportGeneratorService {
           await this.sendHeroImageReport(
             from,
             coachingSessionId,
-            reportResult.png,
+            reportResult.slimPng || reportResult.png, // bd-v0toag.57: C/D get the slim image; R2 keeps the full one
             reportResult.caption || '',
             session.users.name,
             session.created_at,
@@ -348,6 +348,12 @@ class ReportGeneratorService {
           throw error;
         }
         await track.record('image', true);
+
+        // v10 coaching test (bd-v0toag.19): C and D get the link to their report page. Off or
+        // undrawn, or A and B: nothing is sent. Never throws.
+        await require('./report-link-send').sendReportLinkIfNew({
+          coachingSessionId, userId: session.user_id, phone: from, language: outputLanguage, track,
+        });
       } else {
         await this.sendPDFReport(from, coachingSessionId, reportResult, session.users.name, session.created_at);
       }
@@ -355,6 +361,16 @@ class ReportGeneratorService {
       // Generate and send voice debrief (optional, won't fail entire process)
       if (!isRetry) {
         await this.generateAndSendVoiceDebrief(session, from, coachingSessionId, enhancedAnalysis, track);
+
+        // v10 coaching test (bd-v0toag.49): "Was this coaching report useful to you?" — groups A
+        // and B only, and only while ab_v10_enabled is on. Off or undrawn: nothing is sent.
+        try {
+          await require('./coaching-feedback.service').askIfInTest({
+            coachingSessionId, userId: session.user_id, phone: from, language: outputLanguage,
+          });
+        } catch (fbErr) {
+          logToFile('Coaching Feedback: ask failed (non-fatal)', { coachingSessionId, error: fbErr.message });
+        }
       }
 
       // Phase 3: Commitment Card — Q3-derived commitment + lesson-rooted action.
@@ -414,6 +430,15 @@ class ReportGeneratorService {
             { teacherName: teacherFirstName, priorAction }
           );
         }
+
+        // bd-v0toag.20: v10 test only (ab_v10_enabled), otherwise actionData comes back as it was.
+        const { withThingToTry } = require('./thing-to-try-pick');
+        actionData = await withThingToTry({
+          userId: session.user_id,
+          coachingSessionId,
+          lpFidelity: (enhancedAnalysis && enhancedAnalysis.lp_fidelity) || (session.analysis_data && session.analysis_data.lp_fidelity) || null,
+          actionData,
+        });
 
         if (actionData) {
           // The "one thing to try next class" action already renders INSIDE the
@@ -818,6 +843,13 @@ class ReportGeneratorService {
       { language: session?.users?.preferred_language }, analysisForTransformer, session
     );
     const commitmentAction = (precomputedCommitment && precomputedCommitment.action) || '';
+    // bd-v0toag.57: C and D are sent a slim image (null for everyone else, and the report renders as today).
+    const slim = await require('./slim-report').slimReportFor({
+      userId: session.user_id,
+      sessionId: session.id,
+      lpFidelity: (enhancedAnalysis && enhancedAnalysis.lp_fidelity) || (session.analysis_data && session.analysis_data.lp_fidelity) || null,
+      commitmentAction,
+    });
 
     reportData._heroInput = {
       session,
@@ -829,6 +861,7 @@ class ReportGeneratorService {
         // (single source of next-step truth). Empty string → hero omits the
         // tryNext callout gracefully (template guards on truthiness).
         commitmentAction,
+        slim,
       },
     };
 

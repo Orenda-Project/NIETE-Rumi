@@ -80,9 +80,10 @@ export function toReportData(s: SessionDetail, {
     journey: points.length > 1
       ? { points: points.map((p) => p.pct), first: dateLabel(points[0].date, days), last: dateLabel(points[points.length - 1].date, days) }
       : null,
-    // A Digital Coach lesson: the one thing to try, from her commitment card. A coach's visit: what they
-    // agreed is in the coach's note below.
-    tryNext: !s.observation ? (s.prioritizedAction?.action || null) : null,
+    // A Digital Coach lesson: the one thing to try (bd-v0toag.58: the stored v10 pick, the same text as her slim
+    // image and the next plan's caption), else her commitment card. A coach's visit: what they agreed is in the
+    // coach's note below.
+    tryNext: !s.observation ? (s.prioritizedAction?.thing_to_try?.text?.trim() || s.prioritizedAction?.action || null) : null,
     debrief: s.observation && (s.observation.companionText || coach)
       ? { heading: C.fromCoach(coach || C.title), initials: coach ? initials(coach) : undefined, note: s.observation.companionText || undefined }
       : null,

@@ -261,6 +261,14 @@ const COACHING_MESSAGES = {
     ur: '💡 *مختصر یاد دہانی:* پچھلی بار آپ نے یہ عہد کیا تھا:\n\n_"{{action}}"_\n\nآئیے دیکھیں اس بار کیا ہوا!',
   },
 
+  // v10 coaching test (bd-v0toag.8), groups C and D only: the one thing to try, added
+  // under the next plan's caption. Replaces priorActionReminder for those groups.
+  // {{thing}} is substituted at the call site (thing-to-try.js), capped to fit 1024.
+  thingToTryCaption: {
+    ...en('★ *One thing to try today:* {{thing}}'),
+    ur: '★ *آج آزمانے کی ایک بات:* {{thing}}',
+  },
+
   // bd-7beiz — sent when the teacher submits a recording we have already
   // scored (identical bytes, same teacher, any time — bd-hr97y). She gets the report
   // she already has rather than a second, differently-sampled score for the

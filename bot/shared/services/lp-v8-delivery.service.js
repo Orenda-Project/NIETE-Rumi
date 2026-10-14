@@ -23,6 +23,8 @@ const V8Catalog = require('./lp-v8-catalog.service');
 const { resolveUx } = require('../config/ux-strings');
 const { logToFile } = require('../utils/logger');
 const LpAb = require('./lp-ab-ch310.service');
+const V10Card = require('./lp-v10-card.service');
+const ThingToTry = require('./coaching/thing-to-try');
 
 const LP_VARIANT = 'niete_v8_segment';
 const FILENAME_MAX = 64;
@@ -331,14 +333,26 @@ async function deliverV8Lesson({ userId, lessonId, correlationId = null }) {
     await WhatsAppService.sendMessage(phone, resolveUx('lpV8Preparing', { user }));
   } catch (_) { /* best effort */ }
 
+  // v10 coaching test (bd-v0toag.50.1): plan-arm v10 schools get the card; the download row
+  // below stays on `asset`, the v9 plan of record. ch3-8 group A keeps its August plan.
+  const sent = (abGroup === 'A' ? null
+    : await V10Card.servedFor({ userId, lessonId, lesson: asset, channel: 'whatsapp' })) || asset;
+
   const filename = buildFilename({ book, chapter, lesson });
-  const caption = buildCaption({ book, chapter, lesson });
+  // v10 coaching test (bd-v0toag.8): C and D get the one thing to try under the caption;
+  // everyone else, and any failure, gets today's caption unchanged.
+  const caption = await ThingToTry.planCaption({
+    userId,
+    lessonId,
+    caption: buildCaption({ book, chapter, lesson }),
+    lang: (user && user.preferred_language) || 'en',
+  });
 
   let ok = false;
   let errorText = null;
   try {
     // Presign, always. The raw public URL 400s for Meta.
-    const presigned = await getPresignedUrl(buildR2PublicUrl(asset.r2_key));
+    const presigned = await getPresignedUrl(buildR2PublicUrl(sent.r2_key));
     const resp = await WhatsAppService.sendDocumentByLink(phone, presigned, filename, caption);
     ok = !!resp;
     if (!ok) errorText = 'sendDocumentByLink returned falsy';

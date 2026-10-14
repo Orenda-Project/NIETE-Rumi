@@ -768,6 +768,16 @@ app.post('/webhook', async (req, res) => {
         return;
       }
 
+      // Coaching survey buttons (👍 Yes / 👎 Not really) — v10 test groups A and B, right after
+      // the voice debrief (bd-v0toag.49). Must be registered here: an unrecognised prefix
+      // falls through to generic text handling and the tap is silently lost.
+      if (buttonId.startsWith('coaching_fb_yes_') || buttonId.startsWith('coaching_fb_no_')) {
+        const CoachingFeedbackService = require('./shared/services/coaching/coaching-feedback.service');
+        // The tap's wamid — the thank-you is a 🙏 reaction on it.
+        await CoachingFeedbackService.handleFeedbackButton(buttonId, from, { messageId: message.id });
+        return;
+      }
+
       // LP feedback survey buttons (👍 Yes / 👎 Not really) — 30s after LP delivery
       if (buttonId.startsWith('lp_feedback_yes_') || buttonId.startsWith('lp_feedback_no_')) {
         const LpFeedbackService = require('./shared/services/lp-feedback.service');
