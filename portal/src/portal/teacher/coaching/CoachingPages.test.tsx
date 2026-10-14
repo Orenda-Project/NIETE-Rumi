@@ -414,3 +414,29 @@ describe("Microphone blocked says what to do (bd-idkgm2)", () => {
     expect(COACHING_V2_COPY_UR.micBlockedHint).toBe("«دوبارہ کوشش کریں» دبائیں اور مائیک کی اجازت دیں، تاکہ آپ کا سبق ریکارڈ ہو سکے۔");
   });
 });
+
+/**
+ * bd-qccbrv — the record page picks the line from what happened: a Try again that is refused again shows the
+ * "Still blocked?" line (so the button never looks dead); a browser that reports the mic blocked shows where to unblock.
+ */
+describe("Microphone blocked follows what happened (bd-qccbrv)", () => {
+  it("Try again refused again → the 'Still blocked?' line (a browser, not WhatsApp's)", async () => {
+    session.start.mockImplementation(async () => "blocked" as never);
+    at(COACHING_SEND, { start: "record" });
+    expect(await screen.findByText(C.micBlockedHint)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: C.tryAgain }));
+    expect(await screen.findByText(C.micStillBlocked)).toBeTruthy();
+    expect(session.start).toHaveBeenCalledTimes(2);
+    session.start.mockReset().mockImplementation(async () => "recording");
+  });
+
+  it("the browser reports the microphone blocked → where to unblock it", async () => {
+    const query = vi.fn().mockResolvedValue({ state: "denied" });
+    Object.defineProperty(navigator, "permissions", { value: { query }, configurable: true });
+    session.start.mockImplementationOnce(async () => "blocked" as never);
+    at(COACHING_SEND, { start: "record" });
+    expect(await screen.findByText(C.micBrowserBlocked)).toBeTruthy();
+    expect(query).toHaveBeenCalledWith({ name: "microphone" });
+    Object.defineProperty(navigator, "permissions", { value: undefined, configurable: true });
+  });
+});
