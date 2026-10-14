@@ -23,6 +23,8 @@ const V8Catalog = require('./lp-v8-catalog.service');
 const { resolveUx } = require('../config/ux-strings');
 const { logToFile } = require('../utils/logger');
 const LpAb = require('./lp-ab-ch310.service');
+const AppOpens = require('./quiz/lp-app-opens.store');
+const { onUnlessOff } = require('./nudges/flags');
 
 const LP_VARIANT = 'niete_v8_segment';
 const FILENAME_MAX = 64;
@@ -109,9 +111,22 @@ async function availableLessonIds(catalogVersion = 'v8') {
   }
 }
 
-/** Lessons this teacher has already received, in ANY version — the ✓ tick. */
+/**
+ * Lessons this teacher has already received, in ANY version — the ✓ tick on the WhatsApp Flow's
+ * lesson list and on the teacher app's (lp-v8-browse). Received = delivered on WhatsApp
+ * (niete_lp_downloads 'sent') OR opened in the teacher app's viewer (lp-app-opens.store): since the
+ * app became where a plan is read, most lessons a teacher has were never sent on WhatsApp.
+ * LP_TICK_COUNT_APP_OPENS=off → WhatsApp deliveries only, as before. A failed opens read keeps
+ * every WhatsApp tick.
+ */
 async function downloadedLessonIds(userId) {
   if (!userId) return new Set();
+  const [sent, opened] = await Promise.all([sentLessonIds(userId), appOpenedLessonIds(userId)]);
+  for (const id of opened) sent.add(id);
+  return sent;
+}
+
+async function sentLessonIds(userId) {
   try {
     return await pagedIdSet('downloadedLessonIds', () => supabase
       .from('niete_lp_downloads')
@@ -120,6 +135,16 @@ async function downloadedLessonIds(userId) {
       .eq('status', 'sent'));
   } catch (err) {
     logToFile('LP v8: downloadedLessonIds threw', { error: err.message });
+    return new Set();
+  }
+}
+
+async function appOpenedLessonIds(userId) {
+  if (!onUnlessOff('LP_TICK_COUNT_APP_OPENS')) return new Set();
+  try {
+    return await AppOpens.viewerOpenedLessonIds(userId);
+  } catch (err) {
+    logToFile('LP v8: tick app opens read failed — WhatsApp ticks only', { error: err.message }, 'error');
     return new Set();
   }
 }
