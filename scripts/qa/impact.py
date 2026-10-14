@@ -250,6 +250,8 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
                 "fallback": seld["fallback"], "unmapped": seld["unmapped"], "full_suite": seld["full_suite"],
                 "cassette_misses": ledger_misses(repo, rng)})
     for f in brief["features"]:
+        if f.get("lane") == "web":
+            continue   # reported in web_per_feature below
         name = f["feature"]
         spec_changed = "%s/%s.feature" % (SPEC_DIR.replace(os.sep, "/"), name) in paths
         reason = ""
@@ -273,11 +275,26 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
     # web specs are not authored by the sync pipeline; the E2E proof follows the same --proof mode.
     web = web_rows_added(repo, rng)
     res["web_features"] = list(seld.get("web_features") or [])
+    web_brief = {f["feature"]: f for f in brief["features"] if f.get("lane") == "web"}
     for name in res["web_features"]:
         spec_rel = "%s/%s.feature" % (WEB_SPEC_DIR.replace(os.sep, "/"), name)
         row = web.get(name)
         summ = (row or {}).get("summary") or {}
+        # Phase 1 for the portal is the WhatsApp rule exactly (bd-hnhlgn.10): a fan-out is only-shared; the spec (or
+        # the test code) being the change, or the spec changing with the code, is synced; a Spec-Sync declaration is
+        # none-needed; otherwise the code moved under an unchanged spec — stale.
+        b = web_brief.get(name) or {}
+        spec_reason = ""
+        if b.get("only_shared"):
+            spec_status = "only-shared"
+        elif b.get("action") == ss.VALIDATE_ONLY or spec_rel in paths:
+            spec_status = "synced"
+        elif name in tr or "*" in tr:
+            spec_status, spec_reason = "none-needed", tr.get(name) or tr.get("*")
+        else:
+            spec_status = "stale"
         res["web_per_feature"][name] = {
+            "spec_status": spec_status, "spec_reason": spec_reason, "only_shared": bool(b.get("only_shared")),
             "changed_files": list((seld.get("web_reasons") or {}).get(name) or []),
             "spec": spec_rel, "spec_changed": spec_rel in paths,
             "scenario_count": _web_scenario_count(repo, name),
@@ -288,8 +305,10 @@ def analyse(repo, base, head, pr_body="", target_branch=""):
         res["verdict"]["web_e2e_proof"] = "recorded" if all(
             w["e2e_proof"] != "missing" for w in res["web_per_feature"].values()) else "missing"
     pf = res["per_feature"]
+    statuses = [v["spec_status"] for v in pf.values()] + [w["spec_status"] for w in res["web_per_feature"].values()]
+    if statuses:
+        res["verdict"]["spec_freshness"] = "stale" if "stale" in statuses else "synced"
     if pf:
-        res["verdict"]["spec_freshness"] = "stale" if any(v["spec_status"] == "stale" for v in pf.values()) else "synced"
         required = [v for v in pf.values() if not v["only_shared"]]
         if required:
             res["verdict"]["e2e_proof"] = "recorded" if all(v["e2e_proof"] != "missing" for v in required) else "missing"
@@ -427,13 +446,26 @@ def _web_markdown(res, proof="warn"):
         w = wp[name]
         files = w["changed_files"]
         via = ", ".join("`%s`" % os.path.basename(p) for p in files[:3]) + (" +%d" % (len(files) - 3) if len(files) > 3 else "")
-        spec = "`%s.feature`%s" % (name, " — changed in this range" if w["spec_changed"] else "")
+        spec = "%s %s" % (_icon(w["spec_status"]), w["spec_status"])
+        if w.get("spec_reason"):
+            spec += " — _%s_" % w["spec_reason"]
+        elif w["spec_status"] == "stale":
+            spec += " — `%s.feature` unchanged" % name
         cell = "%s %s" % (_icon(w["e2e_proof"]), w["e2e_proof"])
         if w.get("total"):
             cell += " — %s/%s" % (w.get("passed"), w["total"])
         L.append("| **%s** (%d scenarios) | %s | %s | %s |" % (name, w["scenario_count"], via or "—", spec, cell))
     v = res["verdict"].get("web_e2e_proof", "n/a")
     L += ["", "**Web E2E proof: %s** (mode: %s)" % (v, proof), ""]
+    stale = [n for n in feats if wp[n]["spec_status"] == "stale"]
+    if stale:
+        L += ["#### Sync the portal specs first",
+              "Own files of **%s** changed but the matching `tests/features/web/*.feature` did not. In Claude Code, in this clone:"
+              % ", ".join(stale), "", "```", "/sync-specs %s" % " ".join(stale), "```",
+              "Then `python3 .claude/qa/shared/validate_specs.py --only %s` — a new scenario also needs its driver code "
+              "(a page area: a row in `.claude/qa/web/gen_page_features.py`, re-run it)." % ",".join(stale), "",
+              "If the change genuinely alters nothing a user sees, declare it in a commit trailer or the PR body:", "",
+              "```", "Spec-Sync: %s=none-needed (<why>)" % ",".join(stale), "```", ""]
     if v == "missing":
         head = (res.get("head") or "HEAD")[:12]
         L += ["Drive it (tests THIS commit, headless, on a local stack — no deploy, no WhatsApp number):", "", "```",
@@ -450,7 +482,8 @@ def render_markdown(res, freshness="warn", proof="warn"):
         return "\n".join(L)
     if not res["features"]:
         if res.get("web_features"):
-            L += ["Range `%s` — no WhatsApp-bot feature affected." % res["range"], ""]
+            L += ["Range `%s` — no WhatsApp-bot feature affected." % res["range"], "",
+                  "**Spec freshness: %s** (mode: %s)" % (res["verdict"]["spec_freshness"], freshness), ""]
             return "\n".join(L + _web_markdown(res, proof))
         L += ["No WhatsApp-bot or portal feature is affected by this range (docs, infra, tests, or ignored paths only).",
               "Nothing to sync, nothing to drive.", ""]
@@ -569,7 +602,10 @@ def render_text(res, freshness="warn", proof="warn"):
         L.append("│ ✅ no new regressions — recorded FAILs are all documented known findings")
     for name in res.get("web_features") or []:
         w = res["web_per_feature"][name]
-        L.append("│   %-18s web lane  e2e: %s" % (name, w["e2e_proof"]))
+        L.append("│   %-18s web lane  spec: %-12s e2e: %s" % (name, w["spec_status"], w["e2e_proof"]))
+    wstale = [n for n in res.get("web_features") or [] if res["web_per_feature"][n]["spec_status"] == "stale"]
+    if wstale:
+        L.append("│ portal specs STALE for %s → in Claude Code: /sync-specs %s" % (", ".join(wstale), " ".join(wstale)))
     if res["verdict"].get("web_e2e_proof") == "missing":
         L.append("│ web lane (portal, headless — tests this commit):")
         L.append("│   bash .claude/qa/shared/commit-e2e.sh %s" % (res.get("head") or "HEAD")[:12])

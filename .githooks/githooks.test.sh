@@ -29,6 +29,7 @@ cp -R "$ROOT/.githooks"    "$R/.githooks"
 mkdir -p "$R/.claude/hooks"; cp -R "$ROOT/.claude/hooks/lib" "$R/.claude/hooks/lib"
 cp -R "$ROOT/scripts/qa"   "$R/scripts/qa"
 cp -R "$ROOT/tests/features/whatsapp/niete" "$R/tests/features/whatsapp/niete"
+mkdir -p "$R/tests/features/web"; cp "$ROOT"/tests/features/web/*.feature "$R/tests/features/web/"
 rm -rf "$R/.claude/qa/results" "$R/.claude/.e2e-pending"
 printf 'module.exports = { ROWS: ["Teacher Training"] };\n' > "$R/bot/shared/services/menu.service.js"
 printf 'module.exports = { send: () => {} };\n' > "$R/bot/shared/services/whatsapp.service.js"
@@ -110,6 +111,13 @@ say "…marker carries web_features" "$(python3 -c "import json;print(','.join(j
 say "…and no WhatsApp feature" "$(python3 -c "import json;print(len(json.load(open('$PEND/git-$wsha.json')).get('features') or []))" 2>/dev/null)" "0"
 has "…terminal names the web lane" "$err" "Web lane" yes
 has "…and the command that drives it headless for this commit" "$err" "commit-e2e.sh $wsha" yes
+# PHASE 1 for the portal, same as WhatsApp (bd-hnhlgn.10): the brief is written, the marker arms the sync and
+# fingerprints the PORTAL spec, and the terminal says /sync-specs before anything is driven.
+[ -f "$PEND/git-$wsha.sync.json" ] && ok "portal-only commit writes the spec-sync brief" || bad "no sync brief for the portal commit"
+say "…the brief names the web spec" "$(python3 -c "import json;print([f['spec_path'] for f in json.load(open('$PEND/git-$wsha.sync.json'))['features'] if f.get('lane')=='web'][0])" 2>/dev/null)" "tests/features/web/portal-login.feature"
+say "…marker arms phase 1" "$(python3 -c "import json;print(json.load(open('$PEND/git-$wsha.json'))['spec_sync'])" 2>/dev/null)" "True"
+say "…and fingerprints the portal spec" "$(python3 -c "import json;print(json.load(open('$PEND/git-$wsha.json'))['spec_hashes']['portal-login']['path'])" 2>/dev/null)" "tests/features/web/portal-login.feature"
+has "…terminal says sync the Gherkin first" "$err" "/sync-specs --brief" yes
 # …and that command really drives the web lane for this commit: headless, commit-triggered, the selected feature.
 # E2E_WEB_PLAN=1 makes commit-e2e.sh print each web run's plan instead of starting a stack.
 out=$(cd "$R" && E2E_WEB_PLAN=1 bash .claude/qa/shared/commit-e2e.sh "$wsha" 2>&1); rc=$?
@@ -117,6 +125,13 @@ say "commit-e2e.sh on a portal-only commit exits 0" "$rc" "0"
 has "…drives the web lane" "$out" "web lane:  portal-login" yes
 has "…headless (commit-triggered)" "$out" "HEADED=0" yes
 has "…does not claim a mock-lane run" "$out" "driving:   " no
+has "…validates the portal spec before driving (phase 2 gate)" "$out" "validate_specs: exit 0 for portal-login" yes
+# a broken portal spec (a scenario with no code) stops the web lane, like a broken WhatsApp spec stops the mock lane
+printf '\n  @PL99\n  Scenario: nobody wrote code for this\n    When x\n    Then y\n' >> "$R/tests/features/web/portal-login.feature"
+out=$(cd "$R" && E2E_WEB_PLAN=1 bash .claude/qa/shared/commit-e2e.sh "$wsha" 2>&1); rc=$?
+say "…a portal spec with no code for a scenario is NOT driven (exit 1)" "$rc" "1"
+has "…and says why" "$out" "E-WEB-NOCODE" yes
+git -C "$R" checkout -- tests/features/web/portal-login.feature 2>/dev/null
 
 printf 'docs only\n' >> "$R/README.md"; git -C "$R" add -A >/dev/null
 before=$(ls "$PEND" | wc -l | tr -d ' ')

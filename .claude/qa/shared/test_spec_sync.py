@@ -415,6 +415,50 @@ def test_driver_facts_is_honest_when_there_is_no_driver():
     assert got["driver_exists"] is False, got
     assert got["driver_ids"] == [], got
 
+
+# ── Phase 1 for the portal (bd-hnhlgn.10): web features get the same brief as WhatsApp ones ─────────────────────────
+_REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+
+
+def _web_sel(web_reasons):
+    return {"features": [], "reasons": {}, "unmapped": [], "fallback": False,
+            "web_features": list(web_reasons), "web_reasons": web_reasons}
+
+
+def test_web_feature_gets_a_brief_entry_with_its_spec_and_driver():
+    sel = _web_sel({"portal-login": ["portal/src/portal/pages/PortalLogin.tsx"]})
+    brief = ss.build_brief(sel, os.path.join(_REPO, ss.SPEC_DIR), _differ({}), repo=_REPO)
+    assert brief["sync_needed"] is True, brief
+    w = [f for f in brief["features"] if f["feature"] == "portal-login"]
+    assert w, brief["features"]
+    w = w[0]
+    assert w["lane"] == "web", w
+    assert w["spec_path"] == "tests/features/web/portal-login.feature", w["spec_path"]
+    assert w["driver_path"] == ".claude/qa/web/features/portal-login.cjs" and w["driver_exists"], w
+    assert w["action"] == ss.UPDATE and not w["only_shared"], w
+    assert "PL01" in w["driver_ids"] and w["scenario_count"] >= 11, w
+    assert w["changed_files"][0]["path"] == "portal/src/portal/pages/PortalLogin.tsx", w
+
+
+def test_web_spec_only_edit_is_validate_only():
+    sel = _web_sel({"portal-login": ["tests/features/web/portal-login.feature"]})
+    w = ss.build_brief(sel, os.path.join(_REPO, ss.SPEC_DIR), _differ({}), repo=_REPO)["features"][0]
+    assert w["action"] == ss.VALIDATE_ONLY, w["action"]
+
+
+def test_portal_smoke_is_a_fan_out_not_a_spec_to_rewrite():
+    sel = _web_sel({"portal-smoke": ["portal/src/App.tsx"]})
+    w = ss.build_brief(sel, os.path.join(_REPO, ss.SPEC_DIR), _differ({}), repo=_REPO)["features"][0]
+    assert w["only_shared"] is True, w
+
+
+def test_whatsapp_entries_are_lane_whatsapp():
+    d = _specs({"menu": FEATURE_TEXT}) if "FEATURE_TEXT" in globals() else None
+    sel = {"features": ["menu"], "reasons": {"menu": [{"path": "bot/shared/services/menu.service.js", "pattern": "x",
+                                                       "shared": False, "kind": "map"}]}, "unmapped": []}
+    brief = ss.build_brief(sel, os.path.join(_REPO, ss.SPEC_DIR), _differ({}), repo=_REPO)
+    assert brief["features"][0]["lane"] == "whatsapp", brief["features"][0]
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

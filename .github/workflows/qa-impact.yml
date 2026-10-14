@@ -123,6 +123,6 @@ jobs:
         run: |
           rc="${{ steps.impact.outputs.rc }}"
           if [ "$rc" != "0" ]; then
-            echo "::error::A mapped bot feature changed but its Gherkin spec did not (and no Spec-Sync: none-needed declaration). See the PR comment for the exact /sync-specs command."
+            echo "::error::A mapped bot or portal feature changed but its Gherkin spec did not (and no Spec-Sync: none-needed declaration). See the PR comment for the exact /sync-specs command."
           fi
           exit "$rc"
