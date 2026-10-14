@@ -20,6 +20,9 @@ const { logToFile } = require('../utils/logger');
 const { logEvent } = require('../utils/structured-logger');
 const SQSQueueService = require('../services/queue');
 const HomeworkLookup = require('../services/homework-lookup.service');
+const Lifecycle = require('../services/lesson-plan-lifecycle.service');
+
+const LIFECYCLE_SOURCE = Lifecycle.LIFECYCLE.SOURCES.HOMEWORK_BUNDLE;
 
 // Soft cap = 12 chapters/request (~36 MB) — validated client + server. Over →
 // friendly "request fewer" screen; NOT a hard block.
@@ -200,6 +203,20 @@ async function handleSelectChapters(userId, screenData, flowToken) {
   }
   const groupList = Array.from(groups.values());
 
+  // The ask's lifecycle columns (LP_LIFECYCLE_PATHS on; `{}` off): one grade / one subject when the
+  // selection has just one, and the selection itself — `grade_3:maths:1,2;grade_3:english:4`.
+  const one = (values) => (new Set(values).size === 1 ? values[0] : null);
+  const selection = groupList
+    .map((g) => `grade_${g.grade}:${g.subject}:${g.chapters.map((c) => c.chapter).join(',')}`)
+    .join(';');
+  const lifecycleColumns = Lifecycle.askColumns({
+    source: LIFECYCLE_SOURCE,
+    channel: Lifecycle.LIFECYCLE.CHANNELS.WHATSAPP,
+    grade: one(groupList.map((g) => g.grade)),
+    subject: one(groupList.map((g) => g.subject)),
+    artifactRef: selection,
+  });
+
   // Tracking row: one lesson_plan_requests per request. The selection detail
   // travels in the SQS job payload; the row only needs to carry status.
   let requestId = null;
@@ -214,6 +231,7 @@ async function handleSelectChapters(userId, screenData, flowToken) {
         language: 'en',
         content_type: 'homework',
         status: 'pending',
+        ...lifecycleColumns,
       })
       .select('id')
       .single();
@@ -221,6 +239,9 @@ async function handleSelectChapters(userId, screenData, flowToken) {
       logToFile('Homework: lesson_plan_requests insert error', { error: lprErr.message });
     } else {
       requestId = lprRow?.id || null;
+      Lifecycle.queueEvent(LIFECYCLE_SOURCE, 'lesson_plan.request.created', {
+        requestId, userId, artifactRef: selection, grade: lifecycleColumns.grade, subject: lifecycleColumns.subject,
+      });
     }
   } catch (e) {
     logToFile('Homework: lesson_plan_requests insert threw', { error: e.message });
