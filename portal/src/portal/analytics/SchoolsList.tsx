@@ -1,27 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { SchoolsAnalyticsSchool } from '../types/portal';
 import type { AnalyticsWords, SortKey } from './copy';
 import { count } from './format';
-import { METRIC_KEYS, type MetricKey } from './metrics';
+import { isScoreKey, type ColumnKey } from './metrics';
 import { MetricValue } from './Numbers';
-import { DEFAULT_SORT, SORT_KEYS, firstDir, nextSort, searchSchools, sortSchools, type SortState } from './table';
+import { DEFAULT_SORT, firstDir, nextSort, searchSchools, sortKeysFor, sortSchools, type SchoolRow, type SortState } from './table';
 
 /**
- * bd-s6qbts.3 — every school in the selection, the page's primary unit (PLAN v3 §4). Desktop: a table, every column
- * sortable. Phone: one card per school and a sort menu. Both searchable by name or EMIS code, both in the same
- * order (table.ts).
+ * bd-s6qbts.3 — every school in the selection (PLAN v3 §4). Desktop: a table, every column sortable. Phone: one card
+ * per school and a sort menu. Both searchable by name or EMIS code, both in the same order (table.ts).
+ *
+ * bd-97x22y.2 — a sector's school breakdown (PLAN v6 §2): the schools of one region, with the tab's own `columns`
+ * (LP Engagement: teachers and LPs opened; Coaching: coach visits; …). The region is the breakdown's title, so no
+ * region column.
  */
 /** Schools drawn at a time (465 in all): a phone gets a short page, and the search still looks through every one. */
 export const PAGE_SIZE = 25;
 
-export function SchoolsList({ c, schools, phone, lpOpensNote }: {
+export function SchoolsList({ c, schools, phone, lpOpensNote, columns }: {
   c: AnalyticsWords;
-  schools: SchoolsAnalyticsSchool[];
+  schools: SchoolRow[];
   phone: boolean;
   lpOpensNote: string | null;
+  columns: readonly ColumnKey[];
 }) {
+  const sortKeys = sortKeysFor(columns);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -31,14 +35,8 @@ export function SchoolsList({ c, schools, phone, lpOpensNote }: {
   const visible = shown.slice(0, limit);
 
   return (
-    <section aria-labelledby="schools-heading" className="mb-8">
-      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 id="schools-heading" className="text-lg font-semibold">{c.schools.title}</h2>
-        <p data-testid="search-count" className="text-sm text-muted-foreground">
-          {c.schools.count(count(shown.length, c), count(schools.length, c))}
-        </p>
-      </div>
-
+    // The breakdown around it (Breakdown.tsx) carries the heading: "School breakdown — <region>" and Back.
+    <div>
       <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <label className="relative block w-full md:max-w-sm">
           <span className="sr-only">{c.schools.search}</span>
@@ -52,15 +50,16 @@ export function SchoolsList({ c, schools, phone, lpOpensNote }: {
             className="h-11 w-full rounded-xl border border-border bg-white ps-9 pe-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
         </label>
-        <p className="text-xs text-muted-foreground">
-          {c.schools.legendLowN} · {c.schools.legendNone}
+        <p className="flex flex-col gap-0.5 text-xs text-muted-foreground md:items-end">
+          <span data-testid="search-count" className="text-sm">{c.schools.count(count(shown.length, c), count(schools.length, c))}</span>
+          {columns.some(isScoreKey) ? <span>{c.schools.legendLowN} · {c.schools.legendNone}</span> : null}
         </p>
       </div>
 
       {phone ? (
-        <PhoneCards c={c} schools={visible} sort={sort} onSort={setSort} lpOpensNote={lpOpensNote} />
+        <PhoneCards c={c} schools={visible} sort={sort} onSort={setSort} lpOpensNote={lpOpensNote} columns={columns} sortKeys={sortKeys} />
       ) : (
-        <Table c={c} schools={visible} sort={sort} onSort={(k) => setSort((s) => nextSort(s, k))} lpOpensNote={lpOpensNote} />
+        <Table c={c} schools={visible} sort={sort} onSort={(k) => setSort((s) => nextSort(s, k))} lpOpensNote={lpOpensNote} columns={columns} sortKeys={sortKeys} />
       )}
 
       {shown.length > PAGE_SIZE && (
@@ -86,11 +85,11 @@ export function SchoolsList({ c, schools, phone, lpOpensNote }: {
           {schools.length === 0 ? c.schools.empty : c.schools.none}
         </p>
       )}
-    </section>
+    </div>
   );
 }
 
-function Name({ s, c }: { s: SchoolsAnalyticsSchool; c: AnalyticsWords }) {
+function Name({ s, c }: { s: SchoolRow; c: AnalyticsWords }) {
   return (
     <span className="flex min-w-0 flex-col">
       <span data-testid="school-name" className="font-semibold text-foreground">{s.name}</span>
@@ -99,24 +98,22 @@ function Name({ s, c }: { s: SchoolsAnalyticsSchool; c: AnalyticsWords }) {
   );
 }
 
-function RegionTag({ region }: { region: string }) {
-  return <span className="inline-block whitespace-nowrap rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-foreground">{region}</span>;
-}
-
-function Table({ c, schools, sort, onSort, lpOpensNote }: {
+function Table({ c, schools, sort, onSort, lpOpensNote, columns, sortKeys }: {
   c: AnalyticsWords;
-  schools: SchoolsAnalyticsSchool[];
+  schools: SchoolRow[];
   sort: SortState;
   onSort: (k: SortKey) => void;
   lpOpensNote: string | null;
+  columns: readonly ColumnKey[];
+  sortKeys: readonly SortKey[];
 }) {
   const numeric = (k: SortKey) => k !== 'name' && k !== 'region';
   return (
     <div className="overflow-x-auto rounded-2xl border border-border bg-white shadow-sm">
-      <table data-testid="schools-table" className="w-full min-w-[1100px] border-collapse text-sm">
+      <table data-testid="schools-table" className="w-full min-w-[34rem] border-collapse text-sm">
         <thead>
           <tr className="border-b border-border bg-secondary/60">
-            {SORT_KEYS.map((k) => {
+            {sortKeys.map((k) => {
               const on = sort.key === k;
               const Icon = on ? (sort.dir === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
               return (
@@ -152,8 +149,7 @@ function Table({ c, schools, sort, onSort, lpOpensNote }: {
               <th scope="row" data-testid="school-row" className="min-w-[15rem] px-3 py-2.5 text-start align-top font-normal">
                 <Name s={s} c={c} />
               </th>
-              <td className="px-3 py-2.5 align-top"><RegionTag region={s.region} /></td>
-              {METRIC_KEYS.map((k) => (
+              {columns.map((k) => (
                 <td key={k} className="px-3 py-2.5 text-end align-top">
                   <MetricValue k={k} row={s} c={c} testId={`cell-${k}`} className="items-end" />
                 </td>
@@ -166,17 +162,17 @@ function Table({ c, schools, sort, onSort, lpOpensNote }: {
   );
 }
 
-// The card's grid, two across: LPs opened | Training, DC | Human observations, Avg FICO | Avg HITL — no cell alone.
-// Teachers sits in the card's header beside the region, as on a region card (bd-9vkl9x).
-const CARD_KEYS: readonly MetricKey[] = METRIC_KEYS.filter((k) => k !== 'teachers');
-
-function PhoneCards({ c, schools, sort, onSort, lpOpensNote }: {
+// Teachers sits in the card's header beside the name (bd-9vkl9x); the tab's other columns two across under it.
+function PhoneCards({ c, schools, sort, onSort, lpOpensNote, columns, sortKeys }: {
   c: AnalyticsWords;
-  schools: SchoolsAnalyticsSchool[];
+  schools: SchoolRow[];
   sort: SortState;
   onSort: (s: SortState) => void;
   lpOpensNote: string | null;
+  columns: readonly ColumnKey[];
+  sortKeys: readonly SortKey[];
 }) {
+  const cardKeys = columns.filter((k) => k !== 'teachers');
   return (
     <>
       <div className="mb-3 flex items-end gap-2">
@@ -191,7 +187,7 @@ function PhoneCards({ c, schools, sort, onSort, lpOpensNote }: {
             }}
             className="h-11 rounded-xl border border-border bg-white px-3 text-sm text-foreground"
           >
-            {SORT_KEYS.map((k) => <option key={k} value={k}>{c.schools.columns[k]}</option>)}
+            {sortKeys.map((k) => <option key={k} value={k}>{c.schools.columns[k]}</option>)}
           </select>
         </label>
         <button
@@ -206,7 +202,7 @@ function PhoneCards({ c, schools, sort, onSort, lpOpensNote }: {
           {sort.dir === 'asc' ? c.schools.sortAsc : c.schools.sortDesc}
         </button>
       </div>
-      {lpOpensNote ? (
+      {lpOpensNote && columns.includes('lpsOpened') ? (
         <p data-testid="lp-opens-note" className="mb-3 text-xs text-muted-foreground">{c.metrics.lpsOpened}: {lpOpensNote}</p>
       ) : null}
       <ul className="flex flex-col gap-3">
@@ -215,15 +211,14 @@ function PhoneCards({ c, schools, sort, onSort, lpOpensNote }: {
             <div data-testid={`school-card-${s.schoolId}`}>
               <div className="mb-3 flex items-start justify-between gap-3">
                 <Name s={s} c={c} />
-                <span className="flex shrink-0 flex-col items-end gap-1">
-                  <RegionTag region={s.region} />
-                  <span data-testid="cell-teachers" className="text-xs tabular-nums text-muted-foreground">
+                {columns.includes('teachers') ? (
+                  <span data-testid="cell-teachers" className="shrink-0 text-xs tabular-nums text-muted-foreground">
                     {c.scope.teachers(count(s.teachers, c))}
                   </span>
-                </span>
+                ) : null}
               </div>
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
-                {CARD_KEYS.map((k) => (
+                {cardKeys.map((k) => (
                   <div key={k} className="flex flex-col">
                     <dt className="text-xs text-muted-foreground">{c.metrics[k]}</dt>
                     <dd><MetricValue k={k} row={s} c={c} long testId={`cell-${k}`} /></dd>

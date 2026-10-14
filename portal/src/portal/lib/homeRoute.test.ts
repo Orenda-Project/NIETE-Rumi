@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { ANALYTICS_HOME, homeFor, redirectFor } from "./homeRoute";
+import { SCHOOLS_TABS } from "../analytics/tabs";
 
 /**
  * bd-s6qbts.3 — where a signed-in user belongs, decided in ONE place.
@@ -27,6 +28,10 @@ describe("homeFor", () => {
     expect(homeFor(analyticsUser)).toBe(ANALYTICS_HOME);
   });
 
+  it("the page's six tabs, in the ICT dashboard's order (bd-97x22y.2)", () => {
+    expect(SCHOOLS_TABS).toEqual(["overview", "lp", "training", "observations", "coaching", "info"]);
+  });
+
   it("only a literal true makes an account analytics-only", () => {
     expect(homeFor({ role: "teacher", analyticsOnly: false })).toBe("/portal/dashboard");
     expect(homeFor({ role: "teacher", analyticsOnly: "true" as unknown as boolean })).toBe("/portal/dashboard");
@@ -46,6 +51,9 @@ describe("redirectFor — an analytics-only account", () => {
     "/portal/teacher/lessons",
     "/portal/account",
     "/portal/analytics/somewhere-else",
+    "/portal/analytics/schools/bogus",
+    "/portal/analytics/schools/lp/extra",
+    "/portal/analytics/schoolsx",
     "/portal",
   ])("is sent from %s to the analytics page", (path) => {
     expect(redirectFor(analyticsUser, path)).toBe(ANALYTICS_HOME);
@@ -53,6 +61,15 @@ describe("redirectFor — an analytics-only account", () => {
 
   it.each([
     "/portal/analytics/schools",
+    "/portal/analytics/schools/",
+    // bd-97x22y.2 — every tab of the page is the page (PLAN v6 §1).
+    "/portal/analytics/schools/overview",
+    "/portal/analytics/schools/lp",
+    "/portal/analytics/schools/training",
+    "/portal/analytics/schools/observations",
+    "/portal/analytics/schools/coaching",
+    "/portal/analytics/schools/info",
+    "/portal/analytics/schools/lp/",
     "/portal/login",
     "/portal/setup/abc123",
     "/portal/reset-password",
@@ -75,6 +92,14 @@ describe("redirectFor — everyone else", () => {
     expect(redirectFor(coach, "/portal/analytics/schools")).toBe("/portal/leader");
     expect(redirectFor(principal, "/portal/analytics/schools/")).toBe("/portal/leader");
   });
+
+  it.each(["/portal/analytics/schools/lp", "/portal/analytics/schools/coaching", "/portal/analytics/schools/info", "/portal/analytics/schools/bogus"])(
+    "a teacher or a coach who opens a tab of it (%s) goes to their own home too (bd-97x22y.2)",
+    (path) => {
+      expect(redirectFor(teacher, path)).toBe("/portal/dashboard");
+      expect(redirectFor(coach, path)).toBe("/portal/leader");
+    },
+  );
 
   it.each(["/portal/dashboard", "/portal/leader", "/portal/coach", "/portal/account", "/portal/privacy"])(
     "is never moved off %s",

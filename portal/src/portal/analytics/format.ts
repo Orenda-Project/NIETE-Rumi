@@ -3,7 +3,10 @@ import type { AnalyticsWords } from './copy';
 
 /**
  * bd-s6qbts.3 — how a number reads on the schools analytics page. A count is a count (0 is a real 0); an average is
- * one decimal with its n; no average is "—". Never a percentage.
+ * one decimal with its n; no average is "—".
+ *
+ * bd-97x22y.2 — scores as %, usage as counts (operator, 2026-10-14): a FICO / HITL average reads "64.8%" (`score`).
+ * Nothing else is ever a percentage.
  */
 
 /** An average from fewer scored observations than this is shown muted (one or two lessons say little about a school). */
@@ -18,6 +21,12 @@ export function count(n: number | null | undefined, c: AnalyticsWords): string {
 export function average(v: number | null | undefined, c: AnalyticsWords): string | null {
   if (typeof v !== 'number' || !Number.isFinite(v)) return null;
   return v.toLocaleString(c.numberLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+/** A FICO / HITL score, out of 100: "64.8%". No score → null (the caller shows "—"). */
+export function score(v: number | null | undefined, c: AnalyticsWords): string | null {
+  const shown = average(v, c);
+  return shown === null ? null : c.percent(shown);
 }
 
 export const isLowN = (n: number) => n > 0 && n < LOW_N;

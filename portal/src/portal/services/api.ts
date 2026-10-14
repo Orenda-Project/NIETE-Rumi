@@ -6,7 +6,7 @@ import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, 
 import type { ChildTestVisit, ChildTestList, ChildTestCard, ChildTestSession, ChildTestBlockName } from '../types/childTest';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
-import type { SchoolsAnalyticsResponse } from '../types/portal';
+import type { CoachingAnalyticsResponse, SchoolsAnalyticsResponse } from '../types/portal';
 import type { CoachHomeData, CoachScheduleData, TeamData, PeopleData, SchoolData, TeacherData, VisitData, ReportsData, ObservationReport, SchoolHit, TeacherPlan } from '../coach/types';
 
 // On the web, frontend and backend share a domain, so a relative URL avoids
@@ -799,6 +799,16 @@ export const analytics = {
     if (q.to) params.to = q.to;
     params.region = q.region || 'all';
     const response = await api.get('/analytics/schools', { params });
+    return response.data;
+  },
+  // bd-97x22y.2 — the Coaching tab's numbers (PLAN v6 §3, served by bd-97x22y.1): same window and region as the
+  // schools read, its own endpoint so its cost never slows the other tabs.
+  getCoaching: async (q: { from: string | null; to: string | null; region: string | null }): Promise<CoachingAnalyticsResponse> => {
+    const params: Record<string, string> = {};
+    if (q.from) params.from = q.from;
+    if (q.to) params.to = q.to;
+    params.region = q.region || 'all';
+    const response = await api.get('/analytics/coaching', { params });
     return response.data;
   },
 };

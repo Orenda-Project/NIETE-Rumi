@@ -1,4 +1,5 @@
 import { isLeader, type RoleUserLike } from './leaderRole';
+import { SCHOOLS_PATH, isSchoolsTab } from '../analytics/tabs';
 
 /**
  * bd-s6qbts.3 — where a signed-in user belongs. ONE place, used by the sign-in form, "/", the password-reset login
@@ -8,7 +9,7 @@ import { isLeader, type RoleUserLike } from './leaderRole';
  * page and nothing else of the portal. Everyone else keeps exactly the home they had: the school-leader family on
  * My Patch, anyone else on the dashboard — and the analytics page is not theirs.
  */
-export const ANALYTICS_HOME = '/portal/analytics/schools';
+export const ANALYTICS_HOME = SCHOOLS_PATH;
 
 export interface HomeUserLike extends RoleUserLike {
   analyticsOnly?: boolean | null;
@@ -40,7 +41,23 @@ const OPEN_TO_ANALYTICS_ONLY = [
   /^\/portal\/delete-account\/?$/,
 ];
 
-const isAnalyticsPage = (pathname: string) => pathname.replace(/\/+$/, '') === ANALYTICS_HOME;
+const trimmed = (pathname: string) => pathname.replace(/\/+$/, '');
+
+/**
+ * bd-97x22y.2 — the page and each of its tabs (/portal/analytics/schools/<tab>, analytics/tabs.ts). An address under
+ * it that is not a tab is not her page: the gate sends her to the page itself.
+ */
+const isAnalyticsPage = (pathname: string) => {
+  const p = trimmed(pathname);
+  if (p === ANALYTICS_HOME) return true;
+  return p.startsWith(`${ANALYTICS_HOME}/`) && isSchoolsTab(p.slice(ANALYTICS_HOME.length + 1));
+};
+
+/** The page, a tab of it, or any other address under it: none of it is anyone else's. */
+const isUnderAnalyticsPage = (pathname: string) => {
+  const p = trimmed(pathname);
+  return p === ANALYTICS_HOME || p.startsWith(`${ANALYTICS_HOME}/`);
+};
 const isPortalPath = (pathname: string) => pathname === '/portal' || pathname.startsWith('/portal/');
 
 /**
@@ -54,5 +71,5 @@ export function redirectFor(user: HomeUserLike | null | undefined, pathname: str
     if (isAnalyticsPage(pathname) || OPEN_TO_ANALYTICS_ONLY.some((re) => re.test(pathname))) return null;
     return ANALYTICS_HOME;
   }
-  return isAnalyticsPage(pathname) ? homeFor(user) : null;
+  return isUnderAnalyticsPage(pathname) ? homeFor(user) : null;
 }
