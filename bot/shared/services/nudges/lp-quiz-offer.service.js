@@ -293,7 +293,7 @@ async function downloadsFor(nudgeDate) {
     .lt('created_at', upper.toISOString()));
   const opened = await AppOpens.viewerOpensAsDownloads(lower.toISOString(), upper.toISOString());
   const taken = [...rows, ...opened].filter((r) => r.asset_id && cohortRuleDate(r.created_at) === nudgeDate);
-  logEvent('lp_quiz_offer.cohort', { nudgeDate, ...surfaceMix(taken), switch: AppOpens.enabled() });
+  logEvent('lp_quiz_offer.cohort', { nudgeDate, ...surfaceMix(taken) });
   return taken;
 }
 

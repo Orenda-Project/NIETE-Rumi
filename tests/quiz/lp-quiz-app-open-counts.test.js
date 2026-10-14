@@ -145,11 +145,12 @@ describe('15:00 cohort: a plan opened in the teacher app is a plan taken', () =>
     })]);
   });
 
-  test('an open of a link minted for another app (source external) is not a plan read', async () => {
+  // bd-2wgr3d.22.1 — operator 14 Oct: a hand-off only ever starts inside the app; it is a plan taken.
+  test('a plan handed from the app to another app (source external) is a plan taken', async () => {
     install({ niete_lp_opens: [appOpen({ source: 'external' })] });
     const res = await build();
-    expect(res.inserted).toBe(0);
-    expect(mockStore.rows).toHaveLength(0);
+    expect(res.inserted).toBe(1);
+    expect(mockStore.rows).toHaveLength(1);
   });
 
   test('a g612 open is not a K-5 lesson (the cohort is K-5 only)', async () => {
@@ -262,10 +263,11 @@ describe('15:00 cohort: a plan opened in the teacher app is a plan taken', () =>
     expect(mockStore.rows).toHaveLength(1);
   });
 
-  test('LP_QUIZ_COUNT_APP_OPENS=off puts the cohort back to WhatsApp-delivered plans only', async () => {
+  // bd-2wgr3d.22.1 — no switch on the fix: the app link is the only on/off.
+  test('LP_QUIZ_COUNT_APP_OPENS=off changes nothing: a plan opened in the app is still offered', async () => {
     process.env.LP_QUIZ_COUNT_APP_OPENS = 'off';
     install({ niete_lp_opens: [appOpen()] });
     const res = await build();
-    expect(res.inserted).toBe(0);
+    expect(res.inserted).toBe(1);
   });
 });

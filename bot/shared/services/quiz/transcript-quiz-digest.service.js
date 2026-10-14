@@ -28,7 +28,6 @@ const { normalisePeople, peopleDigestRule } = require('./transcript-quiz-people'
 const { pupilTokens, scrubPupils, PUPILS_DIGEST_RULE } = require('./transcript-quiz-pupils');
 const { summaryTruthEnabled } = require('./transcript-quiz-contract');
 const AppOpens = require('./lp-app-opens.store');
-const { onUnlessOff } = require('../nudges/flags');
 
 /** The lesson hint reads at most this many rows per surface (downloads; app opens). */
 const LP_HINT_ROWS = 10;
@@ -166,11 +165,10 @@ function normaliseDigest(raw, { storedSubject } = {}) {
  * The lesson plan the teacher downloaded the same or previous day for this subject,
  * if any: a HINT of what was planned. The quiz tests what was taught.
  *
- * A K-5 plan read in the teacher app's viewer counts as one she had (lp-app-opens.store,
- * the one app-open source): her viewer opens in the same window join her downloads, one
- * entry per lesson, newest first, the WhatsApp row kept when a lesson is on both surfaces.
- * Behind the chat-grounding switch LP_CONTEXT_COUNT_APP_OPENS (default on); off = downloads
- * only, exactly as before. A failed opens read costs only the app lessons.
+ * A K-5 plan taken in the teacher app counts as one she had (lp-app-opens.store, the one
+ * app-open source): her app opens, viewer or hand-off, in the same window join her downloads,
+ * one entry per lesson, newest first, the WhatsApp row kept when a lesson is on both surfaces.
+ * No switch (bd-2wgr3d.22.1). A failed opens read costs only the app lessons.
  */
 async function lpHintFor({ userId, sessionCreatedAt, subject }) {
   if (!userId || !sessionCreatedAt) return null;
@@ -187,15 +185,13 @@ async function lpHintFor({ userId, sessionCreatedAt, subject }) {
       .order('created_at', { ascending: false })
       .limit(LP_HINT_ROWS);
     let data = error ? null : downloads;
-    if (onUnlessOff('LP_CONTEXT_COUNT_APP_OPENS')) {
-      let opened = [];
-      try {
-        opened = await AppOpens.teacherViewerOpensBetween(userId, from, to, LP_HINT_ROWS);
-      } catch (err) {
-        logToFile('transcript quiz: lp hint app-open lookup failed — downloads only', { userId, error: err.message }, 'error');
-      }
-      if (opened.length) data = AppOpens.mergeByLesson(data || [], opened).slice(0, LP_HINT_ROWS);
+    let opened = [];
+    try {
+      opened = await AppOpens.teacherViewerOpensBetween(userId, from, to, LP_HINT_ROWS);
+    } catch (err) {
+      logToFile('transcript quiz: lp hint app-open lookup failed — downloads only', { userId, error: err.message }, 'error');
     }
+    if (opened.length) data = AppOpens.mergeByLesson(data || [], opened).slice(0, LP_HINT_ROWS);
     if (!data || !data.length) return null;
     const canon = canonicalSubject(subject);
     const match = data.find((r) => canonicalSubject(r.subject) === canon) || (canon === 'other' ? data[0] : null);

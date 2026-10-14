@@ -192,6 +192,26 @@ describe('grades 1-5 — the plan she opened in the app', () => {
     expect(surveys()).toHaveLength(1);
   });
 
+  // bd-2wgr3d.22.1 — operator 14 Oct: a plan she took counts whatever the route. A hand-off to
+  // another app only ever starts from inside the app, so it is an open like any other.
+  test('a plan handed from the app to another app (external) is surveyed like an open in the viewer', async () => {
+    mockDb.rows('niete_lp_opens')[0].source = 'external';
+    const out = await AppSurvey.onViewerOpen({ openId: 'open-1' });
+    await seconds(31);
+    expect(out).toMatchObject({ outcome: 'scheduled' });
+    expect(surveys()).toHaveLength(1);
+  });
+
+  test('an earlier HAND-OFF of the same plan already had its chance: a later viewer open is not surveyed', async () => {
+    mockDb.rows('niete_lp_opens').unshift(open('open-0', {
+      source: 'external', opened_at: new Date(NOW.getTime() - 3600_000).toISOString(),
+    }));
+    const out = await AppSurvey.onViewerOpen({ openId: 'open-1' });
+    await seconds(31);
+    expect(out).toMatchObject({ outcome: 'skipped', reason: 'earlier_open' });
+    expect(surveys()).toHaveLength(0);
+  });
+
   test('a plan already DELIVERED on WhatsApp was surveyed there — not asked again', async () => {
     mockDb.rows('niete_lp_downloads').push({ id: 'd1', user_id: USER.id, lesson_id: LESSON, status: 'sent' });
     const out = await AppSurvey.onViewerOpen({ openId: 'open-1' });
@@ -233,14 +253,6 @@ describe('the 24-hour window — never a template, never outside it', () => {
 });
 
 describe('what is never surveyed', () => {
-  test('an external open (a link handed to another app) is not an open she read', async () => {
-    mockDb.rows('niete_lp_opens')[0].source = 'external';
-    const out = await AppSurvey.onViewerOpen({ openId: 'open-1' });
-    expect(out).toMatchObject({ outcome: 'skipped', reason: 'not_viewer_open' });
-    await seconds(60);
-    expect(everythingSent()).toHaveLength(0);
-  });
-
   test('an open id that does not exist', async () => {
     const out = await AppSurvey.onViewerOpen({ openId: 'nope' });
     expect(out).toMatchObject({ outcome: 'skipped', reason: 'open_not_found' });

@@ -244,13 +244,25 @@ describe('asks once — never twice for one teacher-day, whichever surface came 
   });
 });
 
-describe('who is never asked from an app open', () => {
-  test("an 'external' open (a link minted for another app) never books", async () => {
+// bd-2wgr3d.22.1 — operator 14 Oct: a plan she took counts whatever the route, and the fixes carry
+// no switch of their own (the app link is the only on/off).
+describe('a hand-off counts, and there is no switch', () => {
+  test("a plan handed from the app to another app ('external') books the same ask", async () => {
     mockDb.rows('niete_lp_opens')[0].source = 'external';
     const out = await postOpen(OPEN_1);
-    expect(asks()).toHaveLength(0);
-    expect(out.body.coachingAsk).toMatchObject({ outcome: 'skipped', reason: 'not_viewer_open' });
+    expect(asks()).toHaveLength(1);
+    expect(out.body.coachingAsk).toMatchObject({ outcome: 'scheduled' });
   });
+
+  test('COACHING_ASK_COUNT_APP_OPENS=off changes nothing: the open still books', async () => {
+    process.env.COACHING_ASK_COUNT_APP_OPENS = 'off';
+    const out = await postOpen(OPEN_1);
+    expect(asks()).toHaveLength(1);
+    expect(out.body.coachingAsk).toMatchObject({ outcome: 'scheduled' });
+  });
+});
+
+describe('who is never asked from an app open', () => {
 
   test('a grade 6-12 open never books (the WhatsApp ask is K-5 only)', async () => {
     Object.assign(mockDb.rows('niete_lp_opens')[0], { plan_kind: 'g612', plan_ref: 'grade_9_physics.c02.p010', lang: 'en' });
@@ -285,14 +297,6 @@ describe('who is never asked from an app open', () => {
     const out = await postOpen(OPEN_1);
     expect(asks()).toHaveLength(0);
     expect(out.body.coachingAsk).toMatchObject({ outcome: 'skipped', reason: 'disabled' });
-  });
-
-  test('kill switch COACHING_ASK_COUNT_APP_OPENS=off restores today: nothing is booked, the survey still runs', async () => {
-    process.env.COACHING_ASK_COUNT_APP_OPENS = 'off';
-    const out = await postOpen(OPEN_1);
-    expect(asks()).toHaveLength(0);
-    expect(out.body).toMatchObject({ success: true, outcome: 'scheduled' }); // the survey's own answer
-    expect(out.body.coachingAsk).toMatchObject({ outcome: 'skipped', reason: 'switch_off' });
   });
 });
 
