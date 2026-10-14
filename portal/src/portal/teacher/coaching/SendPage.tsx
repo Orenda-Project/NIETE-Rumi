@@ -18,6 +18,8 @@ import { useCopy } from '../i18n';
 import { COACHING } from './copy';
 import { clearDraft, holdDraft, peekDraft, planKeyOf } from './draft';
 import { Action, Dock } from './parts';
+import { micBlockedLine, micPermissionDenied } from './micBlocked';
+import { isInAppBrowser } from '@/lib/runtime';
 import { COACHING_HOME, COACHING_SEND, lessonPath } from './paths';
 
 /**
@@ -86,6 +88,22 @@ export function SendPage() {
   }, [stage, audio, navigate]);
   useEffect(() => { if (stage === 'sent') clearDraft(); }, [stage]);
 
+  // bd-qccbrv — "Microphone blocked" says what to do for what happened: Try again refused again, or a browser that
+  // reports the mic blocked (where Try again cannot bring the prompt back).
+  const [micTries, setMicTries] = useState(0);
+  const [browserBlocked, setBrowserBlocked] = useState(false);
+  useEffect(() => {
+    if (stage !== 'micBlocked') return undefined;
+    let live = true;
+    void micPermissionDenied().then((d) => { if (live) setBrowserBlocked(d); });
+    return () => { live = false; };
+  }, [stage, micTries]);
+  const retryMic = async () => {
+    setMicTries((n) => n + 1);
+    await flow.startRecording();
+  };
+  const micLine = micBlockedLine({ browserBlocked, retried: micTries > 0, inApp: isInAppBrowser() }, C);
+
   const [confirmFinish, setConfirmFinish] = useState(false);
   const audioInput = useRef<HTMLInputElement>(null);
   const pickAudio = () => audioInput.current?.click();
@@ -141,10 +159,13 @@ export function SendPage() {
 
       {stage === 'micBlocked' ? (
         <>
-          <Status title={C.micBlocked} tone="error" />
+          <Status title={C.micBlocked} tone="error">
+            {/* bd-idkgm2 — ICT feedback row 18: what to do, in her language. */}
+            <p className="m-0 text-[15px] leading-[1.5] text-[#4b5563]">{micLine}</p>
+          </Status>
           {flow.fileProblem ? <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{flow.fileProblem === 'too_large' ? C.tooLarge : C.notAudio}</p> : null}
           <Dock>
-            <Action icon={RotateCcw} onClick={() => { void flow.startRecording(); }}>{C.tryAgain}</Action>
+            <Action icon={RotateCcw} onClick={() => { void retryMic(); }}>{C.tryAgain}</Action>
             <Action tone="outline" icon={Upload} onClick={pickAudio}>{C.uploadRecording}</Action>
           </Dock>
         </>

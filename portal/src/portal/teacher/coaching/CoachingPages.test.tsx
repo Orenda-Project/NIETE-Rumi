@@ -44,7 +44,7 @@ import type { Audio } from "../../newui/coaching/useSendFlow";
 import { SendError } from "../../lib/coachingSend";
 import { clearDraft, holdDraft, peekDraft, readPrefill } from "./draft";
 import { COACHING_HOME, COACHING_SEND } from "./paths";
-import { COACHING_V2_COPY as C } from "./copy";
+import { COACHING_V2_COPY as C, COACHING_V2_COPY_UR } from "./copy";
 
 const http = api as unknown as { get: ReturnType<typeof vi.fn> };
 
@@ -391,5 +391,52 @@ describe("routes", () => {
     expect(paths).toContain(COACHING_HOME);
     expect(paths).toContain(COACHING_SEND);
     expect(paths.every((p) => p.startsWith("/portal/teacher/coaching"))).toBe(true);
+  });
+});
+
+/**
+ * bd-idkgm2 — ICT feedback (IAB Experience View, row 18): with the microphone refused, the record page said only
+ * "Microphone blocked" over Try again / Upload recording; a teacher did not know what to do. One line under it now
+ * says it: tap Try again and allow the microphone. In her language (copy.ts en + ur).
+ */
+describe("Microphone blocked says what to do (bd-idkgm2)", () => {
+  it("the blocked card has the one-line how-to under its title, with Try again and Upload below", async () => {
+    session.start.mockImplementationOnce(async () => "blocked" as never);
+    at(COACHING_SEND, { start: "record" });
+    expect(await screen.findByText(C.micBlocked)).toBeTruthy();
+    expect(screen.getByText(C.micBlockedHint)).toBeTruthy();
+    expect(screen.getByRole("button", { name: C.tryAgain })).toBeTruthy();
+    expect(screen.getByRole("button", { name: C.uploadRecording })).toBeTruthy();
+  });
+
+  it("the words, in English and Urdu", () => {
+    expect(C.micBlockedHint).toBe("Tap Try again and allow the microphone to record your lesson.");
+    expect(COACHING_V2_COPY_UR.micBlockedHint).toBe("«دوبارہ کوشش کریں» دبائیں اور مائیک کی اجازت دیں، تاکہ آپ کا سبق ریکارڈ ہو سکے۔");
+  });
+});
+
+/**
+ * bd-qccbrv — the record page picks the line from what happened: a Try again that is refused again shows the
+ * "Still blocked?" line (so the button never looks dead); a browser that reports the mic blocked shows where to unblock.
+ */
+describe("Microphone blocked follows what happened (bd-qccbrv)", () => {
+  it("Try again refused again → the 'Still blocked?' line (a browser, not WhatsApp's)", async () => {
+    session.start.mockImplementation(async () => "blocked" as never);
+    at(COACHING_SEND, { start: "record" });
+    expect(await screen.findByText(C.micBlockedHint)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: C.tryAgain }));
+    expect(await screen.findByText(C.micStillBlocked)).toBeTruthy();
+    expect(session.start).toHaveBeenCalledTimes(2);
+    session.start.mockReset().mockImplementation(async () => "recording");
+  });
+
+  it("the browser reports the microphone blocked → where to unblock it", async () => {
+    const query = vi.fn().mockResolvedValue({ state: "denied" });
+    Object.defineProperty(navigator, "permissions", { value: { query }, configurable: true });
+    session.start.mockImplementationOnce(async () => "blocked" as never);
+    at(COACHING_SEND, { start: "record" });
+    expect(await screen.findByText(C.micBrowserBlocked)).toBeTruthy();
+    expect(query).toHaveBeenCalledWith({ name: "microphone" });
+    Object.defineProperty(navigator, "permissions", { value: undefined, configurable: true });
   });
 });
