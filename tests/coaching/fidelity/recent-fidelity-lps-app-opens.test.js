@@ -114,10 +114,11 @@ describe('the recent list includes a plan read in the app', () => {
     expect(out.map((r) => r.lesson_id)).toEqual([L5, L3, L4]);
   });
 
-  test("an 'external' open (a link minted for another app) is not listed", async () => {
+  // bd-2wgr3d.22.1 — operator 14 Oct: a hand-off only ever starts inside the app; it is a plan taken.
+  test("a plan handed from the app to another app ('external') is listed like a viewer open", async () => {
     mockDb.rows('niete_lp_opens')[0].source = 'external';
     const out = await getRecentFidelityLps(TEACHER);
-    expect(out.map((r) => r.lesson_id)).toEqual([L4]);
+    expect(out.map((r) => r.lesson_id)).toEqual([L3, L4]);
   });
 
   test('the row budget still holds across both sources', async () => {
@@ -127,10 +128,11 @@ describe('the recent list includes a plan read in the app', () => {
 });
 
 describe('switches and failures', () => {
-  test('COACHING_ASK_COUNT_APP_OPENS=off: WhatsApp deliveries only, as before', async () => {
+  // bd-2wgr3d.22.1 — no switch on the fix: the app link is the only on/off.
+  test('COACHING_ASK_COUNT_APP_OPENS=off changes nothing: app-read plans are still listed', async () => {
     process.env.COACHING_ASK_COUNT_APP_OPENS = 'off';
     const out = await getRecentFidelityLps(TEACHER);
-    expect(out.map((r) => r.lesson_id)).toEqual([L4]);
+    expect(out.map((r) => r.lesson_id)).toEqual([L3, L4]);
   });
 
   test('the quiz offer\'s own switch (LP_QUIZ_COUNT_APP_OPENS=off) does not empty this list', async () => {

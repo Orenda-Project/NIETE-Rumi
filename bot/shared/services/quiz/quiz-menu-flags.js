@@ -11,11 +11,10 @@
  *   QUIZ_MENU_LESSON_ROWS      lesson plans with no quiz yet are listed in /quiz and made
  *                              on a tap; the 15:00 offer claims each lesson once
  *   QUIZ_MENU_SOURCE_LABELS    every row says "From lesson plan" / "From transcript"
- *   LP_QUIZ_COUNT_APP_OPENS    a K-5 lesson plan read in the teacher app counts as a plan TAKEN for
- *                              the 15:00 offer (bd-qvevax.3, lp-app-opens.store). Off = WhatsApp-
- *                              delivered plans only. Default on, so no service needs a variable set
- *                              for it to work; to switch it off set it on the SQS worker (the offer
- *                              is built there) and, for consistency, the web service.
+ *
+ * Not here on purpose: a plan read in the teacher app always counts as a plan TAKEN (bd-2wgr3d.22.1
+ * removed LP_QUIZ_COUNT_APP_OPENS). Counting it is part of the app-link feature, whose own switch is
+ * the only on/off.
  */
 
 const OFF = new Set(['false', '0', 'off', 'no']);
@@ -29,5 +28,4 @@ module.exports = {
   handsetRouting: () => on('QUIZ_MENU_HANDSET_ROUTING'),
   lessonRows: () => on('QUIZ_MENU_LESSON_ROWS'),
   sourceLabels: () => on('QUIZ_MENU_SOURCE_LABELS'),
-  appOpens: () => on('LP_QUIZ_COUNT_APP_OPENS'),
 };

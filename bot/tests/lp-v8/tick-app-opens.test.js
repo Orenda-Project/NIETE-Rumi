@@ -143,15 +143,16 @@ describe('a lesson known only from a viewer open is ✓', () => {
   });
 });
 
-describe('only her own K-5 viewer opens count', () => {
-  test('an external-app link, a 6-12 open and another teacher\'s open do not tick', async () => {
+describe('only her own K-5 opens count', () => {
+  // bd-2wgr3d.22.1 — operator 14 Oct: a hand-off only ever starts inside the app; it ticks too.
+  test('a plan handed to another app ticks; a 6-12 open and another teacher\'s open do not', async () => {
     mockTables.niete_lp_opens = [
       open(USER, ID(1), { source: 'external' }),
       open(USER, ID(4), { plan_kind: 'g612' }),
       open(OTHER, ID(2)),
     ];
     const t = await appTicks();
-    expect(t[ID(1)]).toBe(false);
+    expect(t[ID(1)]).toBe(true);
     expect(t[ID(4)]).toBe(false);
     expect(t[ID(2)]).toBe(false);
     expect(t[ID(3)]).toBe(true);
@@ -167,14 +168,15 @@ describe('only her own K-5 viewer opens count', () => {
 });
 
 describe('the read (Class R): one capped, indexed per-teacher read per render', () => {
-  test('one niete_lp_opens query per list render: her id, k5, viewer, newest first, capped', async () => {
+  test('one niete_lp_opens query per list render: her id, k5, any source, newest first, capped', async () => {
     await flowTicks();
     expect(opensQueries()).toHaveLength(1);
     const q = opensQueries()[0];
     expect(q.select).toBe('plan_ref');
     expect(q.filters).toEqual(expect.arrayContaining([
-      ['eq', 'user_id', USER], ['eq', 'plan_kind', 'k5'], ['eq', 'source', 'viewer'],
+      ['eq', 'user_id', USER], ['eq', 'plan_kind', 'k5'],
     ]));
+    expect(q.filters.some(([, col]) => col === 'source')).toBe(false);
     expect(q.orders[0]).toEqual(['opened_at', { ascending: false }]);
     expect(q.limit).toBe(1000);
   });
@@ -188,25 +190,10 @@ describe('the read (Class R): one capped, indexed per-teacher read per render', 
   });
 });
 
-describe(`kill switch ${ENV}`, () => {
-  test.each(['false', '0', 'off', 'no'])('%s → byte-identical to WhatsApp deliveries only, and no opens read', async (v) => {
-    const opens = mockTables.niete_lp_opens;
-    mockTables.niete_lp_opens = [];
-    process.env[ENV] = 'false';
-    const flowBaseline = await EP.handlePakistanLpDataExchange(TOKEN, 'SELECT_CHAPTER', { step: 'chapter', grade: '1', subject: 'english', chapter: '1' });
-    const appBaseline = await Browse.listLessons(1, 'english', 1, USER);
-
-    mockTables.niete_lp_opens = opens;
-    mockQueries.length = 0;
+// bd-2wgr3d.22.1 — no switch on the fix: the app link is the only on/off.
+describe(`${ENV} is gone`, () => {
+  test.each(['false', '0', 'off', 'no'])('%s changes nothing: a plan read in the app still ticks', async (v) => {
     process.env[ENV] = v;
-    const flowOff = await EP.handlePakistanLpDataExchange(TOKEN, 'SELECT_CHAPTER', { step: 'chapter', grade: '1', subject: 'english', chapter: '1' });
-    const appOff = await Browse.listLessons(1, 'english', 1, USER);
-    expect(JSON.stringify(flowOff)).toBe(JSON.stringify(flowBaseline));
-    expect(JSON.stringify(appOff)).toBe(JSON.stringify(appBaseline));
-    expect(opensQueries()).toHaveLength(0);
-  });
-
-  test('unset is on', async () => {
     expect((await appTicks())[ID(2)]).toBe(true);
   });
 });

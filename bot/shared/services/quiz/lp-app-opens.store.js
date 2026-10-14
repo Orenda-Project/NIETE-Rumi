@@ -8,9 +8,14 @@
  * offer built its cohort from `niete_lp_downloads` (status 'sent') alone, so a plan read in the app
  * never earned its teacher an offer: lp_v8 quizzes fell from 34-64 a day to 9 and 6.
  *
- * WHAT COUNTS. A `niete_lp_opens` row with plan_kind 'k5' and source 'viewer' — the portal's own
- * viewer served the plan WHOLE (a link minted for another app, source 'external', may never have
- * been read: the same rule as the app-open survey). One viewer open == one delivery.
+ * WHAT COUNTS. Every `niete_lp_opens` row with plan_kind 'k5', whatever its source: the portal's
+ * own viewer ('viewer') or a hand-off to another app ('external'). A hand-off only ever starts
+ * inside the app, so it is a plan taken like any other (operator, 14 Oct 2026; bd-2wgr3d.22.1).
+ * One open == one delivery. The function names still say "viewer" — they predate that rule and are
+ * kept so the callers' diffs stay small; niete_lp_taken (bd-2wgr3d.22.3) replaces this module.
+ *
+ * NO SWITCH. App opens always count: the fixes are part of the app-link feature, and the app link
+ * (portal_teacher_v2 + app_redirect_*) is the only on/off. LP_QUIZ_COUNT_APP_OPENS is gone.
  *
  * WHAT IT RETURNS. Rows with the columns the offer reads from a download — lesson_id, asset_id,
  * version_stamp, content_hash, grade, subject, chapter_number, segment_index, created_at
@@ -26,9 +31,8 @@
  *
  * READERS. The 15:00 offer (viewerOpensAsDownloads, a time window over every teacher), the
  * /quiz "from my lesson plan" list (viewerOpensForTeacher / viewerOpenById, one teacher, on
- * idx_lp_opens_user_recent), the chat's lesson context (teacherViewerOpens, the same per-teacher
- * read behind the chat's own switch), and — behind that same chat switch — the coaching subject's
- * recent-plan tier (teacherViewerOpens) and the transcript quiz's lesson hint
+ * idx_lp_opens_user_recent), the chat's lesson context and the coaching subject's recent-plan tier
+ * (teacherViewerOpens, the same per-teacher read) and the transcript quiz's lesson hint
  * (teacherViewerOpensBetween). All shape rows the same way; mergeByLesson joins them to the
  * WhatsApp deliveries, one entry per lesson.
  *
@@ -45,18 +49,12 @@
 const supabase = require('../../config/supabase');
 const { pagedRows } = require('../../utils/postgrest-paged');
 const { logToFile } = require('../../utils/logger');
-const Flags = require('./quiz-menu-flags');
 const Catalog = require('../lp-v8-catalog.service');
 const LpAb = require('../lp-ab-ch310.service');
 
 const OPENS = 'niete_lp_opens';
 const ASSETS = 'niete_lp_assets';
 const IN_CHUNK = 200;
-
-/** Read at call time; default on (quiz-menu-flags). */
-function enabled() {
-  return Flags.appOpens();
-}
 
 function chunks(list, size = IN_CHUNK) {
   const out = [];
@@ -105,8 +103,8 @@ async function assetsByLesson(lessonIds) {
 }
 
 /**
- * Viewer opens in [fromIso, toIso) as download-shaped rows. [] when off, when the table is not on
- * this database, or when there are none. Throws on any other read error: a cohort built without
+ * App opens in [fromIso, toIso) as download-shaped rows. [] when the table is not on this
+ * database, or when there are none. Throws on any other read error: a cohort built without
  * its app-open teachers would never be rebuilt that day (alreadyBuilt), so the build fails and the
  * next tick retries.
  *
@@ -115,7 +113,6 @@ async function assetsByLesson(lessonIds) {
  * @returns {Promise<Array<object>>}
  */
 async function viewerOpensAsDownloads(fromIso, toIso) {
-  if (!enabled()) return [];
   let opens;
   try {
     opens = await readOpens(fromIso, toIso);
@@ -177,17 +174,16 @@ async function shape(opens) {
 }
 
 /**
- * One teacher's viewer opens since `sinceIso`, newest first, at most `limit` — the /quiz list.
- * [] when off. Throws on a read error (the caller lists the WhatsApp lessons regardless).
+ * One teacher's app opens since `sinceIso`, newest first, at most `limit` — the /quiz list.
+ * Throws on a read error (the caller lists the WhatsApp lessons regardless).
  */
 async function viewerOpensForTeacher(userId, sinceIso, limit = 200) {
-  if (!enabled()) return [];
   return teacherViewerOpens(userId, sinceIso, limit);
 }
 
 /**
- * The same read and shape, without this module's switch — for a reader with a switch of its own
- * (the chat's lesson context, LP_CONTEXT_COUNT_APP_OPENS). Throws on a read error.
+ * The same read and shape, for the chat's lesson context, the coaching subject and the coaching
+ * plan pick. Throws on a read error.
  */
 async function teacherViewerOpens(userId, sinceIso, limit = 200) {
   if (!userId) return [];
@@ -195,7 +191,6 @@ async function teacherViewerOpens(userId, sinceIso, limit = 200) {
     .select('id, user_id, plan_ref, opened_at')
     .eq('user_id', userId)
     .eq('plan_kind', 'k5')
-    .eq('source', 'viewer')
     .gte('opened_at', sinceIso)
     .order('opened_at', { ascending: false })
     .limit(limit);
@@ -206,8 +201,7 @@ async function teacherViewerOpens(userId, sinceIso, limit = 200) {
 /**
  * The same per-teacher read, bounded on both sides: opens in [fromIso, toIso], newest first, at
  * most `limit`. For a reader whose window sits around a past moment (the transcript quiz's lesson
- * hint, -36 h..+6 h around the recording) rather than reaching to now. No switch of its own — the
- * caller's switch gates it. Throws on a read error.
+ * hint, -36 h..+6 h around the recording) rather than reaching to now. Throws on a read error.
  */
 async function teacherViewerOpensBetween(userId, fromIso, toIso, limit = 50) {
   if (!userId) return [];
@@ -215,7 +209,6 @@ async function teacherViewerOpensBetween(userId, fromIso, toIso, limit = 50) {
     .select('id, user_id, plan_ref, opened_at')
     .eq('user_id', userId)
     .eq('plan_kind', 'k5')
-    .eq('source', 'viewer')
     .gte('opened_at', fromIso)
     .lte('opened_at', toIso)
     .order('opened_at', { ascending: false })
@@ -246,15 +239,14 @@ function mergeByLesson(downloads, appRows) {
   return [...byLesson.values()].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
-/** One of her viewer opens by id, shaped — owner-filtered in the query. null when off or not hers. */
+/** One of her app opens by id, shaped — owner-filtered in the query. null when not hers. */
 async function viewerOpenById(userId, openId) {
-  if (!enabled() || !userId || !openId) return null;
+  if (!userId || !openId) return null;
   const { data, error } = await supabase.from(OPENS)
     .select('id, user_id, plan_ref, opened_at')
     .eq('id', openId)
     .eq('user_id', userId)
     .eq('plan_kind', 'k5')
-    .eq('source', 'viewer')
     .maybeSingle();
   if (error) throw new Error(`lp app opens: open: ${error.message || error}`);
   if (!data) return null;
@@ -262,13 +254,13 @@ async function viewerOpenById(userId, openId) {
   return row || null;
 }
 
-/** Most viewer opens read per tick render; at it, the oldest opens' ticks are left out (logged). */
+/** Most app opens read per tick render; at it, the oldest opens' ticks are left out (logged). */
 const TICK_OPENS_CAP = 1000;
 
 /**
- * The K-5 lesson ids she opened in the app's viewer — the ✓ tick on the WhatsApp Flow's lesson list
- * and on the app's. Ids only: no asset, no version (a tick is any version). No switch of its own
- * (the caller has LP_TICK_COUNT_APP_OPENS). One read per render on idx_lp_opens_user_recent,
+ * The K-5 lesson ids she opened in the app, by any route — the ✓ tick on the WhatsApp Flow's lesson
+ * list and on the app's. Ids only: no asset, no version (a tick is any version). One read per render
+ * on idx_lp_opens_user_recent,
  * newest first, at most `limit` rows. Throws on a read error.
  *
  * @returns {Promise<Set<string>>}
@@ -279,7 +271,6 @@ async function viewerOpenedLessonIds(userId, limit = TICK_OPENS_CAP) {
     .select('plan_ref')
     .eq('user_id', userId)
     .eq('plan_kind', 'k5')
-    .eq('source', 'viewer')
     .order('opened_at', { ascending: false })
     .limit(limit);
   if (error) throw new Error(`lp app opens: opened lesson ids: ${error.message || error}`);
@@ -302,7 +293,6 @@ async function readOpens(fromIso, toIso) {
   return pagedRows('lp app opens: viewer opens', () => supabase.from(OPENS)
     .select('id, user_id, plan_ref, opened_at')
     .eq('plan_kind', 'k5')
-    .eq('source', 'viewer')
     .gte('opened_at', fromIso)
     .lt('opened_at', toIso)
     .order('opened_at', { ascending: true })
@@ -311,5 +301,5 @@ async function readOpens(fromIso, toIso) {
 
 module.exports = {
   viewerOpensAsDownloads, viewerOpensForTeacher, teacherViewerOpens, teacherViewerOpensBetween,
-  viewerOpenById, viewerOpenedLessonIds, mergeByLesson, servedAsset, enabled,
+  viewerOpenById, viewerOpenedLessonIds, mergeByLesson, servedAsset,
 };

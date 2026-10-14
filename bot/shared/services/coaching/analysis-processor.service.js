@@ -24,7 +24,6 @@ const { isUptakeLoopEnabled } = require('../../config/uptake-loop-flags');
 const { clampLanguage } = require('../../config/ux-strings');
 const { offerDefaultLanguage } = require('../../config/languages');
 const AppOpens = require('../quiz/lp-app-opens.store');
-const { onUnlessOff } = require('../nudges/flags');
 
 /** Tier 3's read cap per surface (downloads; app opens). */
 const RECENT_PLANS_MAX = 50;
@@ -65,12 +64,12 @@ class AnalysisProcessorService {
    * than about this lesson, and it must never be able to fail the coaching job —
    * a query error simply leaves the chain at "not confirmed".
    *
-   * APP OPENS. Most K-5 plans are now read in the teacher app's viewer and never
-   * delivered on WhatsApp, so her recent VIEWER opens (lp-app-opens.store, the one
-   * app-open source) join her downloads in the same window: one entry per lesson,
-   * newest first, the WhatsApp row kept when a lesson is on both surfaces. Behind the
-   * chat-grounding switch LP_CONTEXT_COUNT_APP_OPENS (default on); off = downloads
-   * only, exactly as before. A failed opens read costs only the app lessons.
+   * APP OPENS. Most K-5 plans are now read in the teacher app and never delivered
+   * on WhatsApp, so her recent app opens, viewer or hand-off (lp-app-opens.store, the
+   * one app-open source) join her downloads in the same window: one entry per lesson,
+   * newest first, the WhatsApp row kept when a lesson is on both surfaces. No switch
+   * (bd-2wgr3d.22.1): the app link is the only on/off. A failed opens read costs only
+   * the app lessons.
    *
    * @param {object} session coaching_sessions row
    * @returns {Promise<object>} see subject-resolution.resolveLessonSubject
@@ -82,13 +81,12 @@ class AnalysisProcessorService {
     if (fromRow.confidence !== 'none' || fromRow.source !== 'no_signal') return fromRow;
     if (!session || !session.user_id) return fromRow;
 
-    const withAppOpens = onUnlessOff('LP_CONTEXT_COUNT_APP_OPENS');
     const since = new Date(Date.now() - DOWNLOAD_WINDOW_HOURS * 3600 * 1000).toISOString();
     let downloads = null;
     try {
       const { data } = await supabase
         .from('niete_lp_downloads')
-        .select(withAppOpens ? 'lesson_id, subject, grade, created_at' : 'subject, grade, created_at')
+        .select('lesson_id, subject, grade, created_at')
         .eq('user_id', session.user_id)
         .eq('status', 'sent')
         .gte('created_at', since)
@@ -99,15 +97,13 @@ class AnalysisProcessorService {
       logToFile('[subject] recent-download lookup failed (non-blocking)', { error: err.message });
       return fromRow;
     }
-    if (withAppOpens) {
-      let opened = [];
-      try {
-        opened = await AppOpens.teacherViewerOpens(session.user_id, since, RECENT_PLANS_MAX);
-      } catch (err) {
-        logToFile('[subject] recent app-open lookup failed (non-blocking) — downloads only', { error: err.message }, 'error');
-      }
-      if (opened.length) downloads = AppOpens.mergeByLesson(downloads || [], opened);
+    let opened = [];
+    try {
+      opened = await AppOpens.teacherViewerOpens(session.user_id, since, RECENT_PLANS_MAX);
+    } catch (err) {
+      logToFile('[subject] recent app-open lookup failed (non-blocking) — downloads only', { error: err.message }, 'error');
     }
+    if (opened.length) downloads = AppOpens.mergeByLesson(downloads || [], opened);
     if (!downloads || !downloads.length) return fromRow;
     return resolveLessonSubject(session, { downloads });
   }

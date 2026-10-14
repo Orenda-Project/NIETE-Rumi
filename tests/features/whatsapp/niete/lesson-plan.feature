@@ -116,7 +116,8 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then about 30 seconds later the chat receives the same "Was it useful?" survey, with the same "👍 Yes, useful" and "👎 Not really" buttons, that a WhatsApp-delivered plan gets
     And tapping 👍 is acknowledged by a 🙏 reaction on my tap, and my answer is stored against that lesson plan
     # bd-qvevax.2: since 12 Oct the app link replaced the WhatsApp delivery, and only deliveries asked
-    # the survey (lp_feedback 613/day → 49/day). The portal's viewer tells the bot an open happened
+    # the survey (lp_feedback 613/day → 49/day). The portal tells the bot an open happened — its viewer, or a
+    # hand-off to another app, which only ever starts inside the app (bd-2wgr3d.22.1)
     # (POST /api/internal/lp/open-survey); the bot hands over to the SAME survey services. Grades 6–12
     # behave the same (survey keyed by segment + language). Needs the portal AND a teacher-app session,
     # so it cannot run on the WhatsApp-only mock lane or the Chrome lane alone.
@@ -438,8 +439,8 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     And I opened a lesson plan in the teacher app and its "Was it useful?" survey has arrived
     When I open the same lesson plan in the teacher app again an hour later
     Then no second "Was it useful?" survey arrives for it
-    # One survey per teacher per plan: an earlier viewer open of the plan (either language for 6–12)
-    # is the guard (skip reason earlier_open). Another plan is still surveyed.
+    # One survey per teacher per plan: an earlier open of the plan, viewer or hand-off (either language for
+    # 6–12), is the guard (skip reason earlier_open). Another plan is still surveyed.
 
   @e2e @config-gated @no-mock-driver @negative @P1
   Scenario: A plan that was already delivered to me on WhatsApp is not asked about again when I open it in the app
@@ -638,17 +639,17 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When the send hour passes and the teacher-nudge sweep runs
     Then the bot sends the same offer a WhatsApp-delivered plan gets: that lesson's topic, "Make the quiz" and "No thanks"
     And the teacher gets at most one offer today
-    # A viewer open (niete_lp_opens, source 'viewer', plan_kind k5) counts as "took this plan" exactly like a
+    # An app open (niete_lp_opens, plan_kind k5, viewer or hand-off) counts as "took this plan" exactly like a
     # niete_lp_downloads 'sent' row (lp-app-opens.store, read by lp-quiz-offer downloadsFor). The version is the lesson
     # asset current when she opened it, and the same exact-version slide-script rule applies. A plan both delivered and
-    # opened is one lesson. LP_QUIZ_COUNT_APP_OPENS=off puts back WhatsApp-only. No new message, string or button.
+    # opened is one lesson. No switch (bd-2wgr3d.22.1). No new message, string or button.
 
-  @e2e @quiz @wip @draft @config-gated @negative @P2
-  Scenario: A link opened in another app (not the teacher app's own viewer) earns no afternoon quiz offer
-    Given the NIETE bot chat is open on a teacher whose only plan today was a link minted for another app (source external)
+  @e2e @quiz @wip @draft @config-gated @P2
+  Scenario: A plan handed from the teacher app to another app earns the afternoon quiz offer too
+    Given the NIETE bot chat is open on a teacher whose only plan today was opened from the teacher app in another app (source external)
     When the send hour passes and the teacher-nudge sweep runs
-    Then the bot sends the teacher no afternoon quiz offer
-    # source 'external' means the link was minted, not that the plan was read — the same rule as the app-open survey.
+    Then the bot sends the same offer a WhatsApp-delivered plan gets
+    # A hand-off only ever starts inside the app, so it is a plan taken (operator, 14 Oct 2026; bd-2wgr3d.22.1).
 
   @e2e @lesson-plan @wip @draft @P2
   Scenario: A lesson read in the teacher app shows the received tick on both lesson lists
@@ -657,10 +658,10 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     When the teacher opens the lesson plan Flow and picks that lesson's grade, subject and chapter
     Then that lesson's row starts with ✓ and the chapter's other untaken lessons start with ○
     And the teacher app's lesson list for that chapter marks the same lesson as received
-    # The tick reads niete_lp_downloads 'sent' OR a K-5 niete_lp_opens row with source 'viewer' (lp-v8-delivery
+    # The tick reads niete_lp_downloads 'sent' OR any K-5 niete_lp_opens row, viewer or hand-off (lp-v8-delivery
     # downloadedLessonIds -> lp-app-opens.store viewerOpenedLessonIds, one capped read per list). Any version counts.
     # An answer key opened in the viewer logs the assessment's own lesson id, as a WhatsApp delivery of the
-    # assessment does. LP_TICK_COUNT_APP_OPENS=off puts back WhatsApp-only. No new string; title lengths unchanged.
+    # assessment does. No switch (bd-2wgr3d.22.1). No new string; title lengths unchanged.
 
   @e2e @quiz @wip @draft @config-gated @P1
   Scenario: A lesson with no quiz source is not offered

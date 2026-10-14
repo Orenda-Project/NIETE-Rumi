@@ -19,13 +19,13 @@
  * the steps. No search, no name-matching, no LLM. Recency picks the order;
  * ambiguity is the model's to resolve by asking her, never by guessing.
  *
- * APP OPENS. Most K-5 plans are now read in the teacher app's viewer, which writes
+ * APP OPENS. Most K-5 plans are now read in the teacher app, which writes
  * niete_lp_opens and never touches the shelf or niete_lp_downloads. Her recent
- * VIEWER opens (lp-app-opens.store — the one app-open source, version-resolved to
+ * app opens, viewer or hand-off (lp-app-opens.store — the one app-open source, version-resolved to
  * the asset the app served her) join both tiers: one entry per lesson, at the
  * newest time she had it on either surface, at the WhatsApp row's version when
- * both exist (that row records what she was given). Own switch,
- * LP_CONTEXT_COUNT_APP_OPENS, default on; off = WhatsApp deliveries only.
+ * both exist (that row records what she was given). No switch (bd-2wgr3d.22.1):
+ * the app link is the only on/off.
  *
  * TRUST BOUNDARY (RT-4): this block lands in the system position, so only
  * corpus-authored content may feed it — the shelf (written by our own
@@ -47,7 +47,6 @@ const V8Catalog = require('./lp-v8-catalog.service');
 const { getVoicenoteScript } = require('./lp-voicenote-script.service');
 const { resolveMoveList } = require('./coaching/fidelity/lp-fidelity-store');
 const AppOpens = require('./quiz/lp-app-opens.store');
-const { onUnlessOff } = require('./nudges/flags');
 const { logToFile } = require('../utils/logger');
 const { logEvent } = require('../utils/structured-logger');
 
@@ -59,9 +58,6 @@ const STALE_AFTER_MS = 6 * 3600 * 1000;
 const DOWNLOADS_WINDOW_DAYS = 7;
 const RECENT_ROWS = 6;                 // the last 6 deliveries / the last 6 app opens
 const SHELF_ENTRIES_MAX = 5;           // the shelf's own cap (lp-shelf.service)
-
-/** LP_CONTEXT_COUNT_APP_OPENS, read at call time. Default on. */
-const countAppOpens = () => onUnlessOff('LP_CONTEXT_COUNT_APP_OPENS');
 
 function agoLabel(iso) {
   const ms = Date.now() - new Date(iso).getTime();
@@ -135,12 +131,11 @@ async function renderEntry(entry, { detailed }) {
 }
 
 /**
- * Her recent K-5 viewer opens as download-shaped rows (newest first, at most 6, 7 days), or []
- * when the switch is off. One read on idx_lp_opens_user_recent; a failed read costs only the app
+ * Her recent K-5 app opens as download-shaped rows (newest first, at most 6, 7 days). One read
+ * on idx_lp_opens_user_recent; a failed read costs only the app
  * lessons — the WhatsApp ones still ground the answer.
  */
 async function appOpenRows(userId) {
-  if (!countAppOpens()) return [];
   try {
     const sinceIso = new Date(Date.now() - DOWNLOADS_WINDOW_DAYS * 86400 * 1000).toISOString();
     return await AppOpens.teacherViewerOpens(userId, sinceIso, RECENT_ROWS);

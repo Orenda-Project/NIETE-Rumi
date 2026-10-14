@@ -26,7 +26,6 @@ const { recordDeliveryMarker } = require('./lp-delivery-marker.service');
 const LpAb = require('./lp-ab-ch310.service');
 const Lifecycle = require('./lesson-plan-lifecycle.service');
 const AppOpens = require('./quiz/lp-app-opens.store');
-const { onUnlessOff } = require('./nudges/flags');
 
 const LP_VARIANT = 'niete_v8_segment';
 const { ERROR_CODES } = Lifecycle.LIFECYCLE;
@@ -122,10 +121,9 @@ async function availableLessonIds(catalogVersion = 'v8') {
 /**
  * Lessons this teacher has already received, in ANY version — the ✓ tick on the WhatsApp Flow's
  * lesson list and on the teacher app's (lp-v8-browse). Received = delivered on WhatsApp
- * (niete_lp_downloads 'sent') OR opened in the teacher app's viewer (lp-app-opens.store): since the
- * app became where a plan is read, most lessons a teacher has were never sent on WhatsApp.
- * LP_TICK_COUNT_APP_OPENS=off → WhatsApp deliveries only, as before. A failed opens read keeps
- * every WhatsApp tick.
+ * (niete_lp_downloads 'sent') OR taken in the teacher app, viewer or hand-off (lp-app-opens.store):
+ * since the app became where a plan is read, most lessons a teacher has were never sent on WhatsApp.
+ * No switch (bd-2wgr3d.22.1). A failed opens read keeps every WhatsApp tick.
  */
 async function downloadedLessonIds(userId) {
   if (!userId) return new Set();
@@ -148,7 +146,6 @@ async function sentLessonIds(userId) {
 }
 
 async function appOpenedLessonIds(userId) {
-  if (!onUnlessOff('LP_TICK_COUNT_APP_OPENS')) return new Set();
   try {
     return await AppOpens.viewerOpenedLessonIds(userId);
   } catch (err) {
