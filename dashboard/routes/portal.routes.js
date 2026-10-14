@@ -92,6 +92,7 @@ const { makeRequireAnalyticsViewer } = require('../lib/analytics-viewer');
 // bd-s6qbts.5 — such an account signs in with an account NAME; users.phone_number holds analytics:<name>.
 const { isAccountNameInput, normaliseAccountName, storedPhoneFor } = require('../lib/analytics-account-name');
 const SchoolsAnalytics = require('../services/schools-analytics.service');
+const CoachingAnalytics = require('../services/coaching-analytics.service'); // bd-97x22y.1
 const { resolveUserSchoolName } = require('../lib/user-school-name');
 // A coach's observation of her is the teacher's to see only once it is SENT to her.
 const TeacherObservation = require('../lib/teacher-observation');
@@ -1664,6 +1665,41 @@ router.get('/analytics/schools', requirePortalAuth, requireAnalyticsViewer, asyn
   } catch (error) {
     console.error('analytics/schools error:', error);
     res.status(500).json({ success: false, error: 'Failed to load school analytics.' });
+  }
+});
+
+// Its own ten-minute cache, keyed from|to|region like the schools one.
+const coachingAnalyticsCache = SchoolsAnalytics.createResponseCache({ ttlMs: 10 * 60 * 1000 });
+
+/**
+ * GET /api/portal/analytics/coaching?from=YYYY-MM-DD&to=YYYY-MM-DD&region=<sector|all>
+ *
+ * The schools-analytics Coaching tab (bd-97x22y.1, PLAN v6 §3): coaches assigned, coach
+ * visits and schools visited — overall, per region (the six ICT sectors, whatever the
+ * filter) and per school (visits). A separate endpoint so this tab's reads never slow the
+ * others. Same gate, window, regions and school rule as /analytics/schools; definitions in
+ * services/coaching-analytics.service.js. Two set-based reads, no per-school loop.
+ */
+router.get('/analytics/coaching', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
+  try {
+    const region = SchoolsAnalytics.parseRegionFilter(req.query.region);
+    if (!region.ok) {
+      return res.status(400).json({ success: false, error: 'Unknown region.' });
+    }
+    const range = analyticsRange(req.query);
+    const key = `${range.from || ''}|${range.to || ''}|${region.key}`;
+    const body = await coachingAnalyticsCache.getOrLoad(key, async () => {
+      const rows = await CoachingAnalytics.loadCoachingAnalyticsRows(dbQuery, range);
+      return {
+        success: true,
+        range,
+        ...CoachingAnalytics.summarizeCoachingAnalytics(rows, { region: region.region }),
+      };
+    });
+    res.json(body);
+  } catch (error) {
+    console.error('analytics/coaching error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load coaching analytics.' });
   }
 });
 
