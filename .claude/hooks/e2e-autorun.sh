@@ -264,6 +264,14 @@ printf '%s' "$SEL" | jq \
     fallback: .fallback, unmapped: .unmapped}' \
   > "$PENDING_DIR/$SESSION.json" 2>/dev/null || exit 0
 
+# ONE commit, ONE order (bd-hnhlgn.12). The same commit also fired .githooks/post-commit, which wrote
+# git-<sha>.json — for a terminal commit that is the only marker, but here the session's marker covers this commit.
+# Absorb it now, or once this session clears its own marker the Stop hook adopts the git one and orders the same
+# E2E a second time. (post-commit runs inside `git commit`, so it has always finished before this PostToolUse.)
+if [ "$TRIGGER" = "commit" ] && [ -n "$COMMIT_SHA" ]; then
+  rm -f "$PENDING_DIR/git-${COMMIT_SHA:0:12}.json" "$PENDING_DIR/git-${COMMIT_SHA:0:12}.sync.json" 2>/dev/null
+fi
+
 # The order the agent acts on. It is an ORDER, not a hand-off: the expected
 # response to this text is a driven suite, not a message repeating the commands
 # back to the operator and waiting for a "go". Staging is pre-authorised
