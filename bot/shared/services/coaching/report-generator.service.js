@@ -348,6 +348,12 @@ class ReportGeneratorService {
           throw error;
         }
         await track.record('image', true);
+
+        // v10 coaching test (bd-v0toag.19): C and D get the link to their report page. Off or
+        // undrawn, or A and B: nothing is sent. Never throws.
+        await require('./report-link-send').sendReportLinkIfNew({
+          coachingSessionId, userId: session.user_id, phone: from, language: outputLanguage, track,
+        });
       } else {
         await this.sendPDFReport(from, coachingSessionId, reportResult, session.users.name, session.created_at);
       }

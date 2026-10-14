@@ -195,6 +195,17 @@ const UX_STRINGS = {
     ur: 'سمجھ گئی، شکریہ — اس سے اگلی رپورٹ بہتر ہوگی۔',
   },
 
+  // ─── v10 test: link to the report page (groups C and D, bd-v0toag.19) ─────
+  // Sent right after the report image. The button title is capped at 20 CODE POINTS.
+  coachingReportLinkBody: {
+    en: 'Your full report: what went well, your one thing to try next class, and your marks.',
+    ur: 'آپ کی پوری رپورٹ: کیا اچھا رہا، اگلی کلاس میں آزمانے کی ایک بات، اور آپ کے نمبر۔',
+  },
+  coachingReportLinkButton: {
+    en: 'Open my report',
+    ur: 'میری رپورٹ کھولیں',
+  },
+
   // ─── commitment-card acks (card_yes/later/no taps) ───────────────────────
   coachingCardAckYes: {
     en: 'Noted — we will look for it in your next lesson. Good luck!',
