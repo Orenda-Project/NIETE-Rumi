@@ -405,6 +405,100 @@ def test_a_critical_run_says_why():
     assert "1 of 19 blocked" in ci.render_text(res, "warn", "warn")
     shutil.rmtree(r)
 
+# ── the web lane on the PR comment (bd-hnhlgn.9) ─────────────────────────────────────────────────────────────────
+def make_web_repo():
+    """make_repo() plus the web lane: its drivers and specs, so portal paths select web features."""
+    r = make_repo()
+    for rel in (".claude/qa/web", "tests/features/web"):
+        shutil.copytree(os.path.join(ROOT, rel), os.path.join(r, rel))
+    git(r, "add", "-A"); git(r, "commit", "-qm", "web lane")
+    return r
+
+
+def test_web_portal_only_range_reports_its_web_feature():
+    r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "feat(portal): login copy", **{"portal/src/portal/pages/PortalLogin.tsx": "// c\n"})
+    res = ci.analyse(r, base, head)
+    assert res["features"] == [], res["features"]
+    assert res["web_features"] == ["portal-login"], res.get("web_features")
+    w = res["web_per_feature"]["portal-login"]
+    assert w["e2e_proof"] == "missing" and w["scenario_count"] >= 11, w
+    assert "PortalLogin.tsx" in " ".join(w["changed_files"]), w
+    md = ci.render_markdown(res)
+    assert "Portal — web lane" in md and "**portal-login**" in md, md
+    assert "commit-e2e.sh %s" % head[:12] in md, md
+    # Same process as WhatsApp (bd-hnhlgn.10, operator 2026-10-14): code changed, spec did not → STALE → blocks.
+    assert w["spec_status"] == "stale", w
+    assert ci.exit_code(res, freshness="block", proof="warn") == 1
+    shutil.rmtree(r)
+
+
+def test_web_run_row_in_the_range_is_recorded_proof():
+    r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    commit(r, "feat(portal): login copy", **{"portal/src/portal/pages/PortalLogin.tsx": "// c\n"})
+    row = {"run_id": "x", "surface": "web", "method": "browser", "feature": "portal-login", "status": "HEALTHY",
+           "summary": {"total": 11, "passed": 11, "failed": 0, "blocked": 0}}
+    head = commit(r, "qa: web row", **{".claude/qa/ledgers/runs.jsonl": json.dumps(row) + "\n"})
+    res = ci.analyse(r, base, head)
+    w = res["web_per_feature"]["portal-login"]
+    assert w["e2e_proof"] == "HEALTHY", w
+    assert res["verdict"]["web_e2e_proof"] == "recorded", res["verdict"]
+    md = ci.render_markdown(res)
+    assert "✅ HEALTHY" in md and "11/11" in md, md
+    shutil.rmtree(r)
+
+
+def test_web_and_whatsapp_range_shows_both_tables():
+    r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "feat: both", **{"bot/shared/services/menu.service.js": "// c\n",
+                                      "portal/src/portal/pages/PortalLogin.tsx": "// c\n"})
+    res = ci.analyse(r, base, head)
+    md = ci.render_markdown(res)
+    assert "**menu**" in md and "Portal — web lane" in md and "**portal-login**" in md, md
+    txt = ci.render_text(res)
+    assert "portal-login" in txt and "web" in txt, txt
+    shutil.rmtree(r)
+
+
+def test_web_spec_changed_with_the_code_is_synced_and_passes():
+    r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "feat(portal): login + spec", **{"portal/src/portal/pages/PortalLogin.tsx": "// c\n",
+                                                      "tests/features/web/portal-login.feature": "\n"})
+    res = ci.analyse(r, base, head)
+    assert res["web_per_feature"]["portal-login"]["spec_status"] == "synced", res["web_per_feature"]
+    assert res["verdict"]["spec_freshness"] == "synced", res["verdict"]
+    assert ci.exit_code(res, freshness="block", proof="warn") == 0
+    shutil.rmtree(r)
+
+
+def test_web_none_needed_declaration_passes():
+    r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "refactor(portal): rename a variable", **{"portal/src/portal/pages/PortalLogin.tsx": "// c\n"})
+    res = ci.analyse(r, base, head, pr_body="Spec-Sync: portal-login=none-needed (pure rename, nothing a user sees)")
+    w = res["web_per_feature"]["portal-login"]
+    assert w["spec_status"] == "none-needed" and "rename" in w["spec_reason"], w
+    assert ci.exit_code(res, freshness="block", proof="warn") == 0
+    shutil.rmtree(r)
+
+
+def test_web_stale_spec_tells_the_author_how_to_sync():
+    r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "feat(portal): login copy", **{"portal/src/portal/pages/PortalLogin.tsx": "// c\n"})
+    md = ci.render_markdown(ci.analyse(r, base, head))
+    assert "❌ stale" in md and "/sync-specs portal-login" in md, md
+    assert "Spec-Sync: portal-login=none-needed" in md, md
+    shutil.rmtree(r)
+
+
+def test_portal_smoke_fan_out_is_never_stale():
+    r = make_web_repo(); base = git(r, "rev-parse", "HEAD").stdout.strip()
+    head = commit(r, "chore(portal): App.tsx", **{"portal/src/App.tsx": "// c\n"})
+    res = ci.analyse(r, base, head)
+    assert res["web_per_feature"]["portal-smoke"]["spec_status"] == "only-shared", res["web_per_feature"]
+    assert ci.exit_code(res, freshness="block", proof="warn") == 0
+    shutil.rmtree(r)
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

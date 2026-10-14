@@ -1231,6 +1231,48 @@ say  "--clear removes the sync brief"            "$(sync_exists)"        no
 
 cleanup
 
+# ── web lane (bd-hnhlgn.6) ─────────────────────────────────────────────────────
+# A commit that touches ONLY the portal selects no WhatsApp feature. It used to arm nothing; it must arm the web
+# lane, carry web_features in the marker, and the order (PostToolUse + Stop) must name commit-e2e.sh for it.
+echo " web lane"
+OUT=$(arm "$G $C -m 'portal login'" "portal/src/portal/pages/PortalLogin.tsx")
+say  "portal-only commit arms a marker"           "$(marker_exists)"      yes
+say  "…marker carries web_features"               "$(jq -r '(.web_features // []) | join(",")' "$PENDING" 2>/dev/null)" "portal-login"
+has  "…the order names the web lane"              "$OUT" "WEB LANE"        yes
+has  "…and the command for this commit"           "$OUT" "commit-e2e.sh $(git rev-parse HEAD)" yes
+has  "…without the stale-build warning (it tests the commit itself)" "$OUT" "CANNOT TEST WHAT YOU JUST COMMITTED" no
+has  "…nor the mock-lane keys preamble"           "$OUT" "keys/niete-local.env" no
+has  "…PHASE 1 (sync the Gherkin) comes first"    "$OUT" "PHASE 1" yes
+has  "…with the brief for the portal spec"        "$(cat "$SYNC" 2>/dev/null)" "tests/features/web/portal-login.feature" yes
+SOUT=$(stop_hook)
+has  "Stop holds the turn for a web-only marker"  "$SOUT" '"block"'        yes
+has  "…with the web lane in its order"            "$SOUT" "WEB LANE"       yes
+has  "…and no mock-lane keys preamble"           "$SOUT" "keys/niete-local.env" no
+has  "…nor the stale-build warning (bd-hnhlgn.14)" "$SOUT" "CANNOT TEST WHAT WAS JUST COMMITTED" no
+has  "…it says the web lane tests the commit"     "$SOUT" "tests the commit itself" yes
+# phase 2 has been ordered (nudged); the portal spec is still untouched → Stop must keep HOLDING, like WhatsApp
+SOUT2=$(stop_hook)
+has  "Stop re-holds while the portal spec is unchanged" "$SOUT2" "PHASE 1 IS NOT DONE" yes
+has  "…naming the portal spec"                    "$SOUT2" "portal-login" yes
+cleanup
+# ONE commit, ONE order (bd-hnhlgn.12). A Claude commit also fires .githooks/post-commit, which writes
+# git-<sha>.json for the same commit. Once the session's own marker is done and cleared, Stop must NOT adopt that
+# git marker and order the same E2E a second time — the session marker absorbs it at arming.
+GSHA=$(git rev-parse --short=12 HEAD)
+printf '{"session":"git","sha":"%s","commit_sha":"%s","trigger":"git-commit","mode":"execute","nudged":false,"spec_sync":false,"commands":[],"features":[],"web_features":["portal-login"]}' \
+  "$GSHA" "$(git rev-parse HEAD)" > ".claude/.e2e-pending/git-$GSHA.json"
+arm "$G $C -m 'portal login'" "portal/src/portal/pages/PortalLogin.tsx" >/dev/null
+[ -f ".claude/.e2e-pending/git-$GSHA.json" ] && say "Claude's arming absorbs the git marker for the same commit" yes no \
+  || say "Claude's arming absorbs the git marker for the same commit" yes yes
+bash "$ARM" --clear --session "$SESSION" >/dev/null 2>&1
+has  "…so after the session clears, Stop orders nothing twice" "$(stop_hook)" '"block"' no
+rm -f ".claude/.e2e-pending/git-$GSHA.json" ".claude/.e2e-pending/git-$GSHA.sync.json"
+cleanup
+OUT=$(arm "$G $C -m 'menu + portal'" "bot/shared/services/menu.service.js
+portal/src/portal/auth/errors.ts")
+has  "mixed commit: web rides on the mock command" "$OUT" "ALSO drives: portal-login" yes
+cleanup
+
 echo "  ---"
 if [ "$FAILED" = "0" ]; then
   echo "  all cases pass"

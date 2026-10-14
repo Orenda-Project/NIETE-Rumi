@@ -48,7 +48,9 @@ up() {
 
   local key; key=$(openssl rand -hex 24)
   printf '%s' "$key" > "$RUN/internal-key"; chmod 600 "$RUN/internal-key"
-  bash "$E2E/local-stack.sh" restart bot "$RUN" "INTERNAL_API_KEY=$key" >/dev/null 2>&1 || { log "bot did not restart with the internal key — $RUN/bot.log"; down; exit 4; }
+  # PORTAL_URL: the bot's portal links (/menu's one-tap /go link, /portal) must open THIS stack's portal, not the
+  # Vite dev port local-lane.env names — or a WhatsApp → portal round trip leaves the stack (bd-hnhlgn.7).
+  bash "$E2E/local-stack.sh" restart bot "$RUN" "INTERNAL_API_KEY=$key" "PORTAL_URL=http://localhost:$PORTAL_PORT" >/dev/null 2>&1 || { log "bot did not restart with the internal key — $RUN/bot.log"; down; exit 4; }
 
   if [ "${DATA:-sandbox}" = sandbox ]; then
     log "copying the sandbox's data (first time ~15 min; then from the cache — SANDBOX_REFRESH=1 pulls again)…"
@@ -100,6 +102,7 @@ up() {
 
   echo
   echo "Portal: http://localhost:$PORTAL_PORT/portal/login"
+  echo "Mock WhatsApp (chat with the local bot): http://127.0.0.1:$mock_port/console"
   cat "$RUN/logins.txt"
   [ "${DATA:-sandbox}" = sandbox ] && echo "  + every sandbox account, with its sandbox password"
   echo "Logs: $RUN/portal.log (API) · $RUN/bot.log (bot) · stop with: bash scripts/dev-portal.sh down \"$RUN\""

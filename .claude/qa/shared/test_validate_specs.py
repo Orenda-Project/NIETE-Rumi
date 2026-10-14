@@ -392,6 +392,34 @@ def test_the_id_shape_does_not_swallow_a_gating_typo():
     assert "E-TAGTYPO" in _tag_codes("e2ee"), "a gating typo slipped through the id allowance"
 
 
+
+# ── the portal's specs pass the same gate (bd-hnhlgn.10) ────────────────────────────────────────────────────────────
+_REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+
+
+def test_web_feature_is_validated_by_name():
+    import subprocess, sys
+    r = subprocess.run([sys.executable, os.path.join(_REPO, ".claude/qa/shared/validate_specs.py"), "--only", "portal-login"],
+                       capture_output=True, text=True, cwd=_REPO)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "portal-login" in (r.stdout + r.stderr), r.stdout + r.stderr
+
+
+def test_web_scenario_with_no_driver_code_is_an_error():
+    import tempfile
+    d = tempfile.mkdtemp()
+    spec = os.path.join(d, "portal-login.feature")
+    open(spec, "w").write(open(os.path.join(_REPO, "tests/features/web/portal-login.feature")).read()
+                          + "\n  @PL99\n  Scenario: A scenario nobody wrote code for\n    When she does a thing\n    Then it works\n")
+    probs = vs.validate_web_file(spec, os.path.join(_REPO, ".claude/qa/web/features"))
+    assert "E-WEB-NOCODE" in _codes(probs, "error"), probs
+
+
+def test_web_specs_without_a_driver_are_not_enrolled_not_errors():
+    probs = vs.validate_web_dir(os.path.join(_REPO, "tests/features/web"), os.path.join(_REPO, ".claude/qa/web/features"))
+    assert not _codes(probs, "error"), [p for p in probs if p["level"] == "error"][:3]
+    assert any(p["code"] == "I-NOTENROLLED" and "web-quiz" in p["path"] for p in probs), "web-quiz should be reported not enrolled"
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

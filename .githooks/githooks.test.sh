@@ -29,6 +29,7 @@ cp -R "$ROOT/.githooks"    "$R/.githooks"
 mkdir -p "$R/.claude/hooks"; cp -R "$ROOT/.claude/hooks/lib" "$R/.claude/hooks/lib"
 cp -R "$ROOT/scripts/qa"   "$R/scripts/qa"
 cp -R "$ROOT/tests/features/whatsapp/niete" "$R/tests/features/whatsapp/niete"
+mkdir -p "$R/tests/features/web"; cp "$ROOT"/tests/features/web/*.feature "$R/tests/features/web/"
 rm -rf "$R/.claude/qa/results" "$R/.claude/.e2e-pending"
 printf 'module.exports = { ROWS: ["Teacher Training"] };\n' > "$R/bot/shared/services/menu.service.js"
 printf 'module.exports = { send: () => {} };\n' > "$R/bot/shared/services/whatsapp.service.js"
@@ -98,6 +99,52 @@ printf '// local lane\n' >> "$R/bot/shared/services/menu.service.js"; git -C "$R
 err=$(cd "$R" && E2E_AUTOFIX_OFF= PATH="/usr/bin:/bin" git commit -qm "feat(menu): local lane, no keys" 2>&1)
 has "local lane (default): a commit with NO keys file does not ask for railway login (bd-z3ze4.5)" "$err" "railway login" no
 [ -f "$R/keys/niete-local.env" ] && bad "…but the hook provisioned a keys file the local lane does not need" || ok "…and provisions no keys file"
+
+# WEB LANE (bd-hnhlgn.6): a commit that touches ONLY the portal used to arm nothing — the portal is outside the
+# WhatsApp scope by design. It must arm a marker that carries the web features and name the one command.
+mkdir -p "$R/portal/src/portal/pages"; printf '// login\n' > "$R/portal/src/portal/pages/PortalLogin.tsx"
+git -C "$R" add -A >/dev/null
+err=$(cd "$R" && git commit -qm "feat(portal): a login-page change only" 2>&1)
+wsha=$(git -C "$R" rev-parse --short=12 HEAD)
+[ -f "$PEND/git-$wsha.json" ] && ok "portal-only commit arms a marker (web lane)" || bad "portal-only commit armed nothing"
+say "…marker carries web_features" "$(python3 -c "import json;print(','.join(json.load(open('$PEND/git-$wsha.json')).get('web_features') or []))" 2>/dev/null)" "portal-login"
+say "…and no WhatsApp feature" "$(python3 -c "import json;print(len(json.load(open('$PEND/git-$wsha.json')).get('features') or []))" 2>/dev/null)" "0"
+has "…terminal names the web lane" "$err" "Web lane" yes
+has "…and the command that drives it headless for this commit" "$err" "commit-e2e.sh $wsha" yes
+# PHASE 1 for the portal, same as WhatsApp (bd-hnhlgn.10): the brief is written, the marker arms the sync and
+# fingerprints the PORTAL spec, and the terminal says /sync-specs before anything is driven.
+[ -f "$PEND/git-$wsha.sync.json" ] && ok "portal-only commit writes the spec-sync brief" || bad "no sync brief for the portal commit"
+say "…the brief names the web spec" "$(python3 -c "import json;print([f['spec_path'] for f in json.load(open('$PEND/git-$wsha.sync.json'))['features'] if f.get('lane')=='web'][0])" 2>/dev/null)" "tests/features/web/portal-login.feature"
+say "…marker arms phase 1" "$(python3 -c "import json;print(json.load(open('$PEND/git-$wsha.json'))['spec_sync'])" 2>/dev/null)" "True"
+say "…and fingerprints the portal spec" "$(python3 -c "import json;print(json.load(open('$PEND/git-$wsha.json'))['spec_hashes']['portal-login']['path'])" 2>/dev/null)" "tests/features/web/portal-login.feature"
+has "…terminal says sync the Gherkin first" "$err" "/sync-specs --brief" yes
+# …and that command really drives the web lane for this commit: headless, commit-triggered, the selected feature.
+# E2E_WEB_PLAN=1 makes commit-e2e.sh print each web run's plan instead of starting a stack.
+out=$(cd "$R" && E2E_WEB_PLAN=1 bash .claude/qa/shared/commit-e2e.sh "$wsha" 2>&1); rc=$?
+say "commit-e2e.sh on a portal-only commit exits 0" "$rc" "0"
+has "…drives the web lane" "$out" "web lane:  portal-login" yes
+has "…headless (commit-triggered)" "$out" "HEADED=0" yes
+has "…does not claim a mock-lane run" "$out" "driving:   " no
+has "…validates the portal spec before driving (phase 2 gate)" "$out" "validate_specs: exit 0 for portal-login" yes
+# PHASE 2 runs only the SELECTED portal scenarios (bd-hnhlgn.11): the login page changed → the form scenarios,
+# not PL11 (the WhatsApp /go link), exactly like the mock lane narrows a WhatsApp feature.
+has "…selects the login-form scenarios for this commit" "$out" "scenarios: portal-login 10 of 11" yes
+has "…and hands exactly those to the run" "$out" "ONLY=PL01,PL02,PL03,PL04,PL05,PL06,PL07,PL08,PL09,PL10" yes
+# a broken portal spec (a scenario with no code) stops the web lane, like a broken WhatsApp spec stops the mock lane
+printf '\n  @PL99\n  Scenario: nobody wrote code for this\n    When x\n    Then y\n' >> "$R/tests/features/web/portal-login.feature"
+out=$(cd "$R" && E2E_WEB_PLAN=1 bash .claude/qa/shared/commit-e2e.sh "$wsha" 2>&1); rc=$?
+say "…a portal spec with no code for a scenario is NOT driven (exit 1)" "$rc" "1"
+has "…and says why" "$out" "E-WEB-NOCODE" yes
+git -C "$R" checkout -- tests/features/web/portal-login.feature 2>/dev/null
+# PARALLEL (bd-hnhlgn.13): a commit touching TWO portal features runs them side by side, each with its own selection
+mkdir -p "$R/portal/src/portal/pages"; printf '// curriculum\n' >> "$R/portal/src/portal/pages/PortalCurriculum.tsx"
+printf '// login again\n' >> "$R/portal/src/portal/pages/PortalLogin.tsx"
+git -C "$R" add -A >/dev/null; (cd "$R" && QA_HOOKS_QUIET=1 git commit -qm "feat(portal): login + curriculum" >/dev/null 2>&1)
+psha=$(git -C "$R" rev-parse --short=12 HEAD)
+out=$(cd "$R" && E2E_WEB_PLAN=1 bash .claude/qa/shared/commit-e2e.sh "$psha" 2>&1)
+has "two portal features run in parallel" "$out" "PARALLEL=" yes
+has "…curriculum drives only the classic scenario" "$out" "scenarios: teacher-lessons 1 of 2 — TL02" yes
+has "…each child gets its own ids" "$out" "ONLY=TL02" yes
 
 printf 'docs only\n' >> "$R/README.md"; git -C "$R" add -A >/dev/null
 before=$(ls "$PEND" | wc -l | tr -d ' ')

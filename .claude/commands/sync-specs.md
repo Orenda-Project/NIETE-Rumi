@@ -69,3 +69,22 @@ Full procedure: [`gherkin-spec-sync`](../skills/gherkin-spec-sync/SKILL.md).
 
 Report what changed per feature, the validator result, the commit, and every
 `@obsolete` you added. Then run phase 2.
+
+## Portal features — brief entries with `lane: "web"`
+
+The portal goes through the SAME two phases: a portal commit arms this sync first, the Stop hook holds the turn
+until the spec changed (or `none-needed` is declared), and the PR check blocks a stale portal spec. Steps 1–7 and 10
+apply as written; what differs for a `lane: "web"` entry:
+
+| | WhatsApp entry | Portal (`lane: "web"`) entry |
+|---|---|---|
+| Spec | `tests/features/whatsapp/niete/<f>.feature` | `tests/features/web/<f>.feature` |
+| Scenario id | `@COA16` style | two letters + number, the feature's own prefix (`@PL12`, `@TL03`, `@CP05`) on its own line |
+| Driver | `.claude/qa/shared/features/<f>.cjs` via `scaffold-driver.py` | `.claude/qa/web/features/<f>.cjs` |
+| Adding the code | stub, then implement | **a page area** (teacher-*, coach-portal, leader-portal, portal-account, portal-smoke): add a row to the table in `.claude/qa/web/gen_page_features.py` and re-run `python3 .claude/qa/web/gen_page_features.py .` — it rewrites the driver AND the spec together. **A flow** (portal-login, anything with steps): write the scenario in the driver with `.claude/qa/web/lib.cjs` (`asRole`, `visit`, `landsOn`, `setFlags`, `sendUntilLink` for WhatsApp → portal) |
+| Gate | `validate_specs.py --only <f>` | the same command — it also fails `E-WEB-NOCODE` (a scenario with no code) and `E-WEB-NOSPEC` (code with no scenario) |
+| Run it | `/niete-e2e <f>` or the mock lane | `npm run e2e:web -- <f>` (headless; `--headed` to watch) |
+| Commit | `git add tests/features/whatsapp/niete/<f>.feature …` | `git add tests/features/web/<f>.feature .claude/qa/web/` |
+
+Step 8 (`niete-e2e.md` counts) does not apply to portal features. `portal-smoke` is the web lane's fan-out
+(`only_shared: true`): leave it alone unless the change added or removed a main page.
