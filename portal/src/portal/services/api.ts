@@ -1138,3 +1138,12 @@ export const childTest = {
 };
 
 export default api;
+
+// bd-97x22y.4 — the Trainings tab's level progress (PLAN v7): its own read, all time (no window, as hers); the region
+// as the other analytics reads ('all' when none), and her Primary / Mid-High toggle as `band`.
+export const trainingLevelsAnalytics = {
+  get: async (q: { region: string | null; band: import('../types/portal').TrainingBand }): Promise<import('../types/portal').TrainingLevelsResponse> => {
+    const response = await api.get('/analytics/training-levels', { params: { region: q.region || 'all', band: q.band } });
+    return response.data;
+  },
+};
