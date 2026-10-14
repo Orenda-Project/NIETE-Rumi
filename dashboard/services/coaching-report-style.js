@@ -35,6 +35,7 @@ const CSS = `
   img, audio { width:100%; border-radius:12px; display:block; }
   a.btn, button.btn { display:inline-block; background:var(--accent); color:#fff; text-decoration:none; padding:10px 16px; border-radius:10px; font-weight:600; border:0; font:inherit; cursor:pointer; margin:4px 4px 0 0; }
   .useful label { display:block; margin-bottom:8px; }
+  .useful .pick { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
   .useful textarea { width:100%; box-sizing:border-box; font:inherit; padding:8px; border-radius:8px; border:1px solid currentColor; background:transparent; color:inherit; margin-bottom:8px; }
   a.more { display:block; text-align:center; font-weight:600; color:var(--s3); text-decoration:none; padding:12px; }
   html[lang="ur"] body { font-family:"Noto Nastaliq Urdu","Noto Naskh Arabic",system-ui,sans-serif; line-height:2.1; }
