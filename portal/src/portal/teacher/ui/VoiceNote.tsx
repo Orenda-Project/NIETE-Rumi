@@ -14,7 +14,9 @@ import { claimSound, releaseSound } from './sounding';
  * came, and a 48px avatar with a mic badge (green; blue once heard).
  *
  * With `src` it really plays — preload none (nothing is fetched before she taps: her data), and only one voice note
- * sounds at a time. The bubble mirrors in Urdu (the waveform fills from the reading start).
+ * sounds at a time. bd-phk3v4 (ICT feedback, IAB Experience View row 8): in Urdu the PLAYER stays left to right, as a
+ * WhatsApp voice note does — play on the left, the waveform filling left to right — while the sender's name and the
+ * bubble's place keep the page's direction.
  */
 
 export interface VoiceNoteProps {
@@ -90,7 +92,7 @@ export function VoiceNote({ from, avatar = 'dc', initials = '', duration, time, 
         className="flex min-w-0 flex-1 flex-col rounded-[18px] rounded-es-[6px] border border-[#e5e7eb] bg-white pb-1.5 pe-3 ps-1 pt-2 shadow-[0_1px_2px_rgba(16,24,40,0.06)]"
       >
         <div className={cn('ps-2.5 text-[12px] font-bold', isDc ? 'text-[#c2410c]' : 'text-[#33374a]')}>{from}</div>
-        <div className="flex items-center gap-1.5">
+        <div dir="ltr" className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={toggle}
@@ -103,7 +105,7 @@ export function VoiceNote({ from, avatar = 'dc', initials = '', duration, time, 
                 <rect x="13.8" y="4.5" width="4.2" height="15" rx="1.2" />
               </svg>
             ) : (
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="rtl:-scale-x-100">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M7 4.5v15l12.5-7.5z" />
               </svg>
             )}

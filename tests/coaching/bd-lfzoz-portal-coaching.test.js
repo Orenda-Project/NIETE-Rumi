@@ -65,6 +65,7 @@ function deps(overrides = {}) {
     queue: { queueTranscription: jest.fn().mockResolvedValue('msg-1'), ...(overrides.queue || {}) },
     reflective: overrides.reflective || { handleReflectiveResponse: jest.fn() },
     getUserLanguage: overrides.getUserLanguage || jest.fn().mockResolvedValue('ur'),
+    transcribe: overrides.transcribe || jest.fn().mockResolvedValue({ text: 'I paused on purpose.', language: 'ur', engine: 'soniox' }),
     now: () => new Date('2026-10-01T10:00:00Z'),
     newId: () => 'abc123',
   };
@@ -319,6 +320,86 @@ describe('bd-lfzoz — portal coaching upload (bot side)', () => {
       const d = deps({ supabase: fakeSupabase({ coaching_sessions: portalRow() }) });
       const out = await Svc.submitReflection({ userId: USER, coachingSessionId: 'cs-9', answer: '   ' }, d);
       expect(out.status).toBe('invalid');
+    });
+  });
+
+  // bd-eygg2f — ICT feedback (IAB Experience View, row 5): she can answer by speaking as well as by writing.
+  // The voice answer is uploaded to R2 (kind reflection_audio), transcribed here, and the transcript goes
+  // through the SAME engine as typed text, marked 'voice' — as a WhatsApp voice note reply does.
+  describe('reflection answer by voice (bd-eygg2f)', () => {
+    const portalRow = (over = {}) => ({
+      id: 'cs-9', user_id: USER, audio_url: 'https://r2.example/digital-coach-audio/classroom_audio/u/2026-10/portal_abc123.m4a', status: 'conducting_conversation', ...over,
+    });
+    const voiceKey = `reflection_audio/${USER}/2026-10/portal_abc123.webm`;
+
+    test('presign: reflection_audio is its own kind — own tree, short cap, never the classroom_audio marker tree', async () => {
+      const d = deps();
+      const out = await Svc.presignUpload({ userId: USER, filename: 'answer.webm', sizeBytes: 200_000, kind: 'reflection_audio' }, d);
+      expect(out).toMatchObject({ status: 'ok', key: voiceKey, contentType: 'audio/webm' });
+      expect(out.maxBytes).toBeLessThanOrEqual(10 * 1024 * 1024);
+      expect(Svc.isPortalSession({ audio_url: `https://r2.example/b/${voiceKey}` })).toBe(false);
+      const big = await Svc.presignUpload({ userId: USER, filename: 'a.webm', sizeBytes: 50 * 1024 * 1024, kind: 'reflection_audio' }, d);
+      expect(big).toMatchObject({ status: 'invalid', reason: 'too_large' });
+    });
+
+    test('transcribes her recording and runs the SAME engine, marked voice, silent', async () => {
+      const handleReflectiveResponse = jest.fn().mockResolvedValue({ done: true, acknowledgement: 'Thank you.' });
+      const d = deps({
+        supabase: fakeSupabase({ coaching_sessions: portalRow(), users: { id: USER, phone_number: '923006657687' } }),
+        reflective: { handleReflectiveResponse },
+      });
+
+      const out = await Svc.submitReflection({ userId: USER, coachingSessionId: 'cs-9', audioKey: voiceKey }, d);
+
+      expect(out).toMatchObject({ status: 'ok', done: true, acknowledgement: 'Thank you.' });
+      expect(d.r2.headObject).toHaveBeenCalledWith(voiceKey);
+      expect(d.transcribe).toHaveBeenCalledWith(voiceKey, 'ur');
+      expect(handleReflectiveResponse).toHaveBeenCalledWith(
+        'cs-9', '923006657687', 'I paused on purpose.', 'voice', 'ur', { silent: true },
+      );
+    });
+
+    test('refuses a key that is not her own reflection upload (another teacher\'s, or a lesson recording)', async () => {
+      for (const key of [`reflection_audio/${OTHER}/2026-10/portal_abc123.webm`, `classroom_audio/${USER}/2026-10/portal_abc123.webm`]) {
+        const d = deps({ supabase: fakeSupabase({ coaching_sessions: portalRow(), users: { id: USER, phone_number: '9230' } }) });
+        const out = await Svc.submitReflection({ userId: USER, coachingSessionId: 'cs-9', audioKey: key }, d);
+        expect(out).toMatchObject({ status: 'invalid', reason: 'not_own_upload' });
+        expect(d.transcribe).not.toHaveBeenCalled();
+        expect(d.reflective.handleReflectiveResponse).not.toHaveBeenCalled();
+      }
+    });
+
+    test('refuses when the upload never reached R2', async () => {
+      const d = deps({
+        supabase: fakeSupabase({ coaching_sessions: portalRow(), users: { id: USER, phone_number: '9230' } }),
+        r2: { headObject: jest.fn().mockResolvedValue({ exists: false }) },
+      });
+      const out = await Svc.submitReflection({ userId: USER, coachingSessionId: 'cs-9', audioKey: voiceKey }, d);
+      expect(out).toMatchObject({ status: 'invalid', reason: 'upload_missing' });
+      expect(d.transcribe).not.toHaveBeenCalled();
+    });
+
+    test('a recording with no words in it is refused, not sent to the engine as an empty answer', async () => {
+      const d = deps({
+        supabase: fakeSupabase({ coaching_sessions: portalRow(), users: { id: USER, phone_number: '9230' } }),
+        transcribe: jest.fn().mockResolvedValue({ text: '  ', language: 'ur' }),
+      });
+      const out = await Svc.submitReflection({ userId: USER, coachingSessionId: 'cs-9', audioKey: voiceKey }, d);
+      expect(out).toMatchObject({ status: 'invalid', reason: 'empty_transcript' });
+      expect(d.reflective.handleReflectiveResponse).not.toHaveBeenCalled();
+    });
+
+    test('the session checks still come first: no transcription for a session that is not hers or not ready', async () => {
+      const d = deps({ supabase: fakeSupabase({ coaching_sessions: portalRow({ status: 'analyzing' }) }) });
+      const out = await Svc.submitReflection({ userId: USER, coachingSessionId: 'cs-9', audioKey: voiceKey }, d);
+      expect(out.status).toBe('not_ready');
+      expect(d.transcribe).not.toHaveBeenCalled();
+    });
+
+    test('neither text nor a recording is still an empty answer', async () => {
+      const d = deps({ supabase: fakeSupabase({ coaching_sessions: portalRow() }) });
+      const out = await Svc.submitReflection({ userId: USER, coachingSessionId: 'cs-9' }, d);
+      expect(out).toMatchObject({ status: 'invalid', reason: 'empty_answer' });
     });
   });
 

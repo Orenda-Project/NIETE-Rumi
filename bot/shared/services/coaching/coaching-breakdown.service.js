@@ -27,6 +27,7 @@
  */
 
 const { buildScoreViewModel } = require('./report-v2/score-adapter.service');
+const { resolveReportLanguage } = require('./report-v2/report-language');
 const { logToFile } = require('../../utils/logger');
 
 /**
@@ -117,7 +118,10 @@ function buildBreakdown(analysisData, language = 'en') {
 
   let vm;
   try {
-    vm = buildScoreViewModel(analysisData, language);
+    // bd-inzpzl — ICT feedback (IAB Experience View, row 11): buildScoreViewModel reads { language }. Handed the
+    // bare string it saw no language and built EVERY portal breakdown in English (section names, the code-written
+    // Section B why) for Urdu teachers too. Clamped to the offer, as the WhatsApp report's own call is.
+    vm = buildScoreViewModel(analysisData, { language: resolveReportLanguage({ language }, analysisData, null) });
   } catch (err) {
     logToFile('[coaching-breakdown] score adapter failed', { error: err.message });
     return null;

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { ChevronDown, Download, Send } from 'lucide-react';
+import { ChevronDown, Download, Mic, Send, Square, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 import { AudioPlayer } from '../../newui/AudioPlayer';
 import { portal } from '../../services/api';
+import { sendVoiceAnswer, useVoiceAnswer } from '../../lib/voiceAnswer';
 import type { CoachingProgress, SessionDetail } from '../../types/portal';
 import TeacherPage from '../TeacherPage';
 import { fullName } from '../format';
@@ -16,6 +17,8 @@ import { shareToWhatsApp, useShareAvailable } from '../share/api';
 import { CARD, FOCUS } from '../ui/styles';
 import { COACHING } from './copy';
 import { SectionHeading } from './parts';
+import { goTo } from './navigate';
+import { useStableSignedUrl } from '../../lib/stableSignedUrl';
 import { COACHING_HOME } from './paths';
 import { dcSteps, loadJourney, toReportData, type JourneyPoint } from './report';
 
@@ -27,8 +30,9 @@ import { dcSteps, loadJourney, toReportData, type JourneyPoint } from './report'
  *   progress      ProgressSteps from the pipeline's stage; a small "Done" line once ready
  *   voice note    the Digital Coach's spoken debrief, when the bot sent one
  *   recording     her lesson
- *   reflection    the one question, answered here by text (the portal's answer endpoint); answered, it
- *                 folds into "Your answer"
+ *   reflection    the one question, answered here by text or by voice (bd-eygg2f, ICT feedback row 5: a mic
+ *                 where Send is while the box is empty; tap, speak, Stop, listen, Send — the bot transcribes it);
+ *                 answered, it folds into "Your answer"
  *   report        ReportBody — the report's own scores, photos, journey, next step, the coach's note
  *
  * Polled as today's lesson page polls (5 s for two minutes, then 15 s) until ready or stopped.
@@ -78,6 +82,8 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
   const [answer, setAnswer] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState<string | null>(null);
+  // bd-ncfml5 — the follow-up as a voice note (ICT feedback row 7), when the bot could voice it.
+  const [sentAudio, setSentAudio] = useState<string | null>(null);
   const [sendError, setSendError] = useState(false);
   const sendAnswer = async () => {
     const text = answer.trim();
@@ -87,6 +93,33 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
     try {
       const r = await portal.submitCoachingReflection(id, text);
       setSent(r?.acknowledgement || C.answerSent);
+      setSentAudio(r?.acknowledgementAudioUrl || null);
+      if (timer.current) clearTimeout(timer.current);
+      void check();
+    } catch {
+      setSendError(true);
+    } finally {
+      setSending(false);
+    }
+  };
+  // bd-eygg2f — or her spoken answer: recorded here, uploaded to R2, transcribed by the bot.
+  const voice = useVoiceAnswer();
+  const [clipUrl, setClipUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!voice.clip) { setClipUrl(null); return undefined; }
+    const url = URL.createObjectURL(voice.clip.blob);
+    setClipUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [voice.clip]);
+  const sendVoice = async () => {
+    if (!voice.clip) return;
+    setSending(true);
+    setSendError(false);
+    try {
+      const r = await sendVoiceAnswer(id, voice.clip);
+      setSent(r?.acknowledgement || C.answerSent);
+      setSentAudio(r?.acknowledgementAudioUrl || null);
+      voice.discard();
       if (timer.current) clearTimeout(timer.current);
       void check();
     } catch {
@@ -104,20 +137,37 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
   // bd-fmf24g.30 — the same report, to her WhatsApp as a template (grey until one is configured), or out of this browser.
   const canSend = useShareAvailable(isVisit ? 'observation' : 'dc');
   const asked = progress?.stage === 'reflection' && !sent ? progress.reflection : null;
+  // bd-ymavij — every poll re-signs the question's audio; keep one link under the player so a tap is never thrown away.
+  const askedAudio = useStableSignedUrl(asked?.audioUrl);
   const answered = (detail?.reflection ?? []).filter((r) => r.question && r.answer);
-  const title = detail?.topic || detail?.subject || C.dcObservation;
+  // bd-foyqpc — as her WhatsApp report: the narrative's topic (her language) first.
+  const title = detail?.reportNarrative?.topic || detail?.topic || detail?.subject || C.dcObservation;
 
+  // bd-oawrlt — ICT feedback row 14: the link is asked for when she taps, signed then — never the one signed at page
+  // load, which expires after an hour (R2's "ExpiredRequest" XML page).
+  const [downloading, setDownloading] = useState(false);
+  const download = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const url = await portal.getCoachingReportFile(id, 'attachment');
+      if (url) goTo(url);
+    } catch {
+      /* nothing to open: she can tap again */
+    } finally {
+      setDownloading(false);
+    }
+  };
   const action = ready && reportImage ? (
-    <a
-      href={reportImage}
-      target="_blank"
-      rel="noreferrer"
-      download
+    <button
+      type="button"
+      onClick={() => { void download(); }}
+      disabled={downloading}
       aria-label={C.download}
       className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#e5e7eb] bg-white text-[#33374a]', FOCUS)}
     >
       <Download className="h-5 w-5" aria-hidden="true" />
-    </a>
+    </button>
   ) : undefined;
 
   if (missing) {
@@ -140,7 +190,7 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
         <ShareActions
           available={canSend}
           onSend={() => shareToWhatsApp(isVisit ? 'observation' : 'dc', id)}
-          open={{ fileUrl: reportImage }}
+          open={{ fileUrl: () => portal.getCoachingReportFile(id, 'inline') }}
         />
       ) : undefined}
     >
@@ -166,7 +216,9 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
         </>
       ) : null}
 
-      {detail?.lessonAudioUrl ? (
+      {/* bd-kn3m1a — ICT feedback row 10: a DC report does not show her recording (or, below, her Q&A) again; the
+          order is her answer, the audio summary, then the comprehensive report. A coach's visit report keeps it. */}
+      {isVisit && detail?.lessonAudioUrl ? (
         <>
           <SectionHeading>{C.yourRecording}</SectionHeading>
           <AudioPlayer src={detail.lessonAudioUrl} label={C.yourRecording} copy={C.audio} />
@@ -177,38 +229,102 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
         <>
           <SectionHeading>{C.stepReflection}</SectionHeading>
           <section aria-label={C.stepReflection} className="flex flex-col gap-3 overflow-hidden rounded-[18px] border border-[#e5e7eb] bg-[#eceef1] p-2.5">
-            <div className="max-w-[290px] rounded-[18px] rounded-es-md border border-[#e5e7eb] bg-white px-3.5 pb-2 pt-2.5 shadow-[0_1px_2px_rgba(16,24,40,0.06)]">
-              <div className="mb-1 text-[12px] font-bold text-[#c2410c]">{C.title}</div>
-              <p className="m-0 text-[17px] font-medium leading-[1.5]">{asked.question}</p>
-            </div>
-            <div className="flex items-end gap-2 bg-white p-2.5">
-              <textarea
-                aria-label={C.yourAnswer}
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                rows={2}
-                className={cn('min-h-14 flex-1 resize-none rounded-[22px] border-[1.5px] border-[#d1d5db] px-4 py-3 text-[16px]', FOCUS)}
-              />
-              <button
-                type="button"
-                aria-label={C.send}
-                disabled={sending || !answer.trim()}
-                onClick={() => { void sendAnswer(); }}
-                className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#33374a] text-white disabled:bg-[#d1d5db] disabled:text-[#6b7280]', FOCUS)}
-              >
-                <Send className="h-[22px] w-[22px] rtl:-scale-x-100" aria-hidden="true" />
-              </button>
-            </div>
+            {/* bd-czmyoh — ICT feedback row 6: the question comes as the Digital Coach's voice note, as on WhatsApp;
+                the words show only when it could not be voiced (WhatsApp's own fallback). */}
+            {askedAudio ? (
+              <VoiceNote from={C.title} avatar="dc" duration="" time="" src={askedAudio} copy={C.audio} className="max-w-[320px]" />
+            ) : (
+              <div className="max-w-[290px] rounded-[18px] rounded-es-md border border-[#e5e7eb] bg-white px-3.5 pb-2 pt-2.5 shadow-[0_1px_2px_rgba(16,24,40,0.06)]">
+                <div className="mb-1 text-[12px] font-bold text-[#c2410c]">{C.title}</div>
+                <p className="m-0 text-[17px] font-medium leading-[1.5]">{asked.question}</p>
+              </div>
+            )}
+            {voice.state === 'recording' ? (
+              <div className="flex items-center gap-3 bg-white p-2.5">
+                <span className="h-3 w-3 shrink-0 rounded-full bg-[#c8331f] motion-safe:animate-pulse" aria-hidden="true" />
+                <span className="flex-1 text-[16px] font-semibold">{C.recording}</span>
+                <span className="text-[16px] tabular-nums text-[#6b7280]" dir="ltr">{clock(voice.elapsedMs)}</span>
+                <button
+                  type="button"
+                  aria-label={C.stop}
+                  onClick={voice.stop}
+                  className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#c8331f] text-white', FOCUS)}
+                >
+                  <Square className="h-[20px] w-[20px] fill-current" aria-hidden="true" />
+                </button>
+              </div>
+            ) : voice.state === 'recorded' && clipUrl ? (
+              <div className="flex items-center gap-2 bg-white p-2.5">
+                <div className="min-w-0 flex-1"><AudioPlayer src={clipUrl} label={C.yourAnswer} copy={C.audio} /></div>
+                <button
+                  type="button"
+                  aria-label={C.removeRecording}
+                  disabled={sending}
+                  onClick={voice.discard}
+                  className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#33374a] disabled:text-[#9ca3af]', FOCUS)}
+                >
+                  <Trash2 className="h-[22px] w-[22px]" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={C.send}
+                  disabled={sending}
+                  onClick={() => { void sendVoice(); }}
+                  className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#33374a] text-white disabled:bg-[#d1d5db] disabled:text-[#6b7280]', FOCUS)}
+                >
+                  <Send className="h-[22px] w-[22px] rtl:-scale-x-100" aria-hidden="true" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-end gap-2 bg-white p-2.5">
+                {/* bd-phk3v4 — dir=auto: the cursor starts on the left, and Urdu she types runs right to left (row 8). */}
+                <textarea
+                  dir="auto"
+                  aria-label={C.yourAnswer}
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  rows={2}
+                  className={cn('min-h-14 flex-1 resize-none rounded-[22px] border-[1.5px] border-[#d1d5db] px-4 py-3 text-[16px]', FOCUS)}
+                />
+                {voice.available && !answer.trim() ? (
+                  <button
+                    type="button"
+                    aria-label={C.recordAnswer}
+                    onClick={() => { void voice.start(); }}
+                    className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#33374a] text-white', FOCUS)}
+                  >
+                    <Mic className="h-[22px] w-[22px]" aria-hidden="true" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={C.send}
+                    disabled={sending || !answer.trim()}
+                    onClick={() => { void sendAnswer(); }}
+                    className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#33374a] text-white disabled:bg-[#d1d5db] disabled:text-[#6b7280]', FOCUS)}
+                  >
+                    <Send className="h-[22px] w-[22px] rtl:-scale-x-100" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            )}
+            {voice.state === 'blocked' ? <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{C.micBlocked}</p> : null}
             {sendError ? <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{C.couldNotSend}</p> : null}
           </section>
         </>
       ) : null}
 
       {sent && !ready ? (
-        <section aria-live="polite" className={cn(CARD, 'px-4 py-3 text-[15px] leading-[1.45]')}>{sent}</section>
+        sentAudio ? (
+          <section aria-live="polite">
+            <VoiceNote from={C.title} avatar="dc" duration="" time="" src={sentAudio} copy={C.audio} className="max-w-[320px]" />
+          </section>
+        ) : (
+          <section aria-live="polite" className={cn(CARD, 'px-4 py-3 text-[15px] leading-[1.45]')}>{sent}</section>
+        )
       ) : null}
 
-      {ready && answered.length ? (
+      {ready && isVisit && answered.length ? (
         <>
           <button
             type="button"
@@ -234,11 +350,18 @@ export function ReportPage({ backTo = COACHING_HOME, crumb: crumbProp }: { backT
 
       {ready && detail ? (
         <div className="mt-2">
+          {isVisit ? null : <SectionHeading>{C.fullReport}</SectionHeading>}
           <ReportBody data={toReportData(detail, { teacher: fullName(user), journey, words: C, days })} />
         </div>
       ) : null}
     </TeacherPage>
   );
+}
+
+/** m:ss for the recording's running clock (bd-eygg2f). */
+function clock(ms: number): string {
+  const sec = Math.floor(ms / 1000);
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 }
 
 /** The time of day a report came, for the voice note's corner (Pakistan time). */

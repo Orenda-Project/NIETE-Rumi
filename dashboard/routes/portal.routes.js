@@ -4416,6 +4416,20 @@ router.post('/training/level/:id/capstone/attempts', requirePortalAuth, async (r
  * Externally-hosted public URLs are passed through as-is, so a download
  * control over one of those must fall back to the browser's own behaviour.
  */
+/**
+ * bd-oawrlt — the R2 URL of the report image she was sent: a coach's visit keeps it at
+ * analysis_data.teacher_delivery.report_key; a Digital Coach lesson at report_pdf_url (the PNG). Unsigned.
+ */
+function _reportImageRawUrl(session) {
+  if (TeacherObservation.isObservation(session)) {
+    const delivery = (session.analysis_data && session.analysis_data.teacher_delivery) || {};
+    return delivery.report_key && process.env.R2_ENDPOINT && process.env.R2_BUCKET_NAME
+      ? `${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${delivery.report_key}`
+      : null;
+  }
+  return session.report_pdf_url || null;
+}
+
 async function _resolveMediaUrl(url, expiresIn = 3600, options) {
   if (!url) return null;
   if (isValidR2Url(url)) return generatePresignedUrl(url, expiresIn, options);
@@ -6788,6 +6802,37 @@ router.get('/coaching-sessions', requirePortalAuth, async (req, res) => {
  * - criterion_scores: [{ criterion, points, max_points, percentage }]
  * - strengths, growth_opportunities, recommendations: arrays of strings
  */
+/**
+ * GET /api/portal/coaching-session/:id/report-file?disposition=attachment|inline
+ *
+ * bd-oawrlt — ICT feedback (IAB Experience View, row 14): Download opened R2's XML "ExpiredRequest". The page
+ * used a link signed for an hour when it loaded and stops polling once the report is ready, so a tap an hour
+ * later (WhatsApp's browser keeps the page alive) hit a dead link. Download and Open now ask here at tap time
+ * and get a link signed NOW. Same ownership and visibility rule as the session itself.
+ * → { success, url }
+ */
+router.get('/coaching-session/:id/report-file', requirePortalAuth, async (req, res) => {
+  try {
+    const { data: session, error } = await supabase
+      .from('coaching_sessions')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('user_id', req.session.portalUserId)
+      .single();
+    if (error || !session || session.user_id !== req.session.portalUserId || !TeacherObservation.teacherMaySee(session)) {
+      return res.status(404).json({ success: false, error: 'Report not found' });
+    }
+    const raw = _reportImageRawUrl(session);
+    const disposition = req.query && req.query.disposition === 'inline' ? 'inline' : 'attachment';
+    const url = raw ? await _resolveMediaUrl(raw, 3600, { disposition }) : null;
+    if (!url) return res.status(404).json({ success: false, error: 'Report not found' });
+    return res.json({ success: true, url });
+  } catch (err) {
+    console.error('Coaching report file error:', err.message);
+    return res.status(500).json({ success: false, error: 'Failed to load the report' });
+  }
+});
+
 router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
   try {
     const userId = req.session.portalUserId;
@@ -6830,7 +6875,10 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
     // exact failure this change removes.
     const breakdown = await CoachingBreakdown.breakdown(
       session.analysis_data,
-      session.voice_debrief_language || session.transcript_language || 'en',
+      // bd-inzpzl — the language her report was WRITTEN in (the narrative follows her preference), so the
+      // breakdown matches the rest of the page; transcript_language is an ASR label ('hindi') and only a last resort.
+      (session.analysis_data && session.analysis_data.report_narrative && session.analysis_data.report_narrative._language)
+        || session.voice_debrief_language || session.transcript_language || 'en',
     );
 
     // Extract narrative arrays from analysis_data
@@ -6886,9 +6934,7 @@ router.get('/coaching-session/:id', requirePortalAuth, async (req, res) => {
     if (TeacherObservation.isObservation(session)) {
       const delivery = (session.analysis_data && session.analysis_data.teacher_delivery) || {};
       const names = await TeacherObservation.observerNames(supabase, [session]);
-      const reportImageUrl = delivery.report_key && process.env.R2_ENDPOINT && process.env.R2_BUCKET_NAME
-        ? await _resolveMediaUrl(`${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${delivery.report_key}`)
-        : null;
+      const reportImageUrl = await _resolveMediaUrl(_reportImageRawUrl(session));
       observation = {
         observerName: names[session.observer_user_id] || null,
         observedAt: session.created_at,
@@ -7182,7 +7228,13 @@ router.get('/coaching-session/:id/progress', requirePortalAuth, requireSelfObser
       const asked = ((row.conversation_state && row.conversation_state.questions) || [])
         .filter((q) => q && q.question && !q.answer)
         .pop();
-      if (asked) reflection = { questionNumber: asked.question_number, question: asked.question };
+      if (asked) {
+        reflection = { questionNumber: asked.question_number, question: asked.question };
+        // bd-czmyoh — the question as a voice note, as on WhatsApp (ICT feedback row 6). Absent when the bot
+        // could not voice it: the page then shows the words, WhatsApp's own fallback.
+        const audioUrl = await _resolveMediaUrl(asked.audio_url);
+        if (audioUrl) reflection.audioUrl = audioUrl;
+      }
     }
     const seconds = Number(row.audio_duration_seconds);
 
@@ -7208,13 +7260,25 @@ router.get('/coaching-session/:id/progress', requirePortalAuth, requireSelfObser
 
 /**
  * POST /api/portal/coaching-session/:id/reflection
- * Body { answer } → { done, acknowledgement, reportStatus }
+ * Body { answer } or { audioKey } (bd-eygg2f: her spoken answer, uploaded via /coaching-upload/presign with
+ * kind reflection_audio) → { done, acknowledgement, reportStatus }
  */
 router.post('/coaching-session/:id/reflection', requirePortalAuth, requireSelfObservation, (req, res) => {
-  const { answer } = req.body || {};
-  return relayToBot(res, 'reflection', () => PortalCoachingClient.submitReflection({
-    userId: req.session.portalUserId, coachingSessionId: req.params.id, answer,
-  }));
+  const { answer, audioKey } = req.body || {};
+  return relayToBot(res, 'reflection', async () => {
+    const out = await PortalCoachingClient.submitReflection({
+      userId: req.session.portalUserId, coachingSessionId: req.params.id, answer, audioKey,
+    });
+    // bd-ncfml5 — the follow-up's voice note (ICT feedback row 7): the bot returns the private R2 URL; the page
+    // gets it presigned, as every other coaching recording. Unsignable → dropped, and the page shows the words.
+    if (out && out.body && out.body.acknowledgementAudioUrl) {
+      const signed = await _resolveMediaUrl(out.body.acknowledgementAudioUrl);
+      const body = { ...out.body };
+      if (signed) body.acknowledgementAudioUrl = signed; else delete body.acknowledgementAudioUrl;
+      return { ...out, body };
+    }
+    return out;
+  });
 });
 
 /* ------------------------------------------------------------------------- *

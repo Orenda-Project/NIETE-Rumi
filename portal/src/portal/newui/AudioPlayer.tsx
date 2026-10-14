@@ -18,8 +18,10 @@ import { FOCUS, isRtl } from './styles';
  * seeks, then elapsed / total in tabular numbers, left to right even in Urdu. No volume: a phone
  * has buttons for that.
  *
- *   RTL       the track fills from the start side, so it runs right to left in Urdu, and a tap or
- *             the arrow keys follow the reading direction
+ *   RTL       bd-phk3v4 (ICT feedback, IAB Experience View row 8): the player is LEFT TO RIGHT in Urdu
+ *             too, as WhatsApp's voice notes are — play on the left, the track filling left to right,
+ *             taps and the arrow keys with it (dir="ltr" on the player; isRtl reads it). Only the words
+ *             around the player follow the page.
  *   keyboard  the track is a slider: Space plays and pauses, the arrows (and Up/Down) seek 5s,
  *             Home and End jump; the button is a button
  *   loading   after Play, until the sound starts (and while it buffers): a spinner in the button
@@ -210,6 +212,7 @@ export function AudioPlayer({
   return (
     <div
       role="group"
+      dir="ltr"
       aria-label={label}
       aria-busy={status === 'loading'}
       data-testid={testId}

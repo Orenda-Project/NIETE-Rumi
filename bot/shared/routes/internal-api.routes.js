@@ -2529,7 +2529,10 @@ router.post('/coaching/recent-plans', requireInternalKey, portalCoachingRoute('r
  * acknowledgement and queues the report before this returns.
  */
 router.post('/coaching/reflection', requireInternalKey, portalCoachingRoute('reflection',
-  (Svc, b) => Svc.submitReflection({ userId: b.userId, coachingSessionId: b.coachingSessionId, answer: b.answer })));
+  // bd-eygg2f: or audioKey — her spoken answer, uploaded to R2 (kind reflection_audio), transcribed by the service.
+  (Svc, b) => Svc.submitReflection({
+    userId: b.userId, coachingSessionId: b.coachingSessionId, answer: b.answer, audioKey: b.audioKey,
+  })));
 
 /* ------------------------------------------------------------------------- *
  * bd-5rz1v.6 — a COACH's /observe observation, run from the portal.
