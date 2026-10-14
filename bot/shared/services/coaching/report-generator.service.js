@@ -415,6 +415,15 @@ class ReportGeneratorService {
           );
         }
 
+        // bd-v0toag.20: v10 test only (ab_v10_enabled), otherwise actionData comes back as it was.
+        const { withThingToTry } = require('./thing-to-try-pick');
+        actionData = await withThingToTry({
+          userId: session.user_id,
+          coachingSessionId,
+          lpFidelity: (enhancedAnalysis && enhancedAnalysis.lp_fidelity) || (session.analysis_data && session.analysis_data.lp_fidelity) || null,
+          actionData,
+        });
+
         if (actionData) {
           // The "one thing to try next class" action already renders INSIDE the
           // hero feedback card (hero-report.template `tryNext` callout). We used
