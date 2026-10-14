@@ -76,6 +76,7 @@ function download(lessonId, createdAt, extra = {}) {
 const hint = (subject) => lpHintFor({ userId: 'user-1', sessionCreatedAt: AT.toISOString(), subject });
 
 const ENV_KEYS = ['LP_CONTEXT_COUNT_APP_OPENS', 'LP_QUIZ_COUNT_APP_OPENS'];
+const GONE = 'LP_CONTEXT_COUNT_APP_OPENS'; // bd-2wgr3d.22.1: no longer read by any code
 const savedEnv = {};
 beforeAll(() => { ENV_KEYS.forEach((k) => { savedEnv[k] = process.env[k]; }); });
 afterAll(() => { ENV_KEYS.forEach((k) => { if (savedEnv[k] === undefined) delete process.env[k]; else process.env[k] = savedEnv[k]; }); });
@@ -110,9 +111,10 @@ describe('the only plan she had is an app open', () => {
     expect(await hint('Urdu')).toBeNull();
   });
 
-  test('an external (non-viewer) open is not a hint', async () => {
+  // bd-2wgr3d.22.1 — operator 14 Oct: a hand-off only ever starts inside the app; it is a plan taken.
+  test('a plan handed from the app to another app (external) is a hint like a viewer open', async () => {
     mockTables.niete_lp_opens = [open(URDU, hoursFrom(-2), { source: 'external' })];
-    expect(await hint('Urdu')).toBeNull();
+    expect(await hint('Urdu')).toMatchObject({ lesson_id: URDU });
   });
 
   test('the subject must match, as for a download', async () => {
@@ -138,9 +140,10 @@ describe('the only plan she had is an app open', () => {
     const q = mockQueries.find((x) => x.table === 'niete_lp_opens');
     expect(q).toBeDefined();
     expect(q.filters).toEqual(expect.arrayContaining([
-      ['eq', 'user_id', 'user-1'], ['eq', 'plan_kind', 'k5'], ['eq', 'source', 'viewer'],
+      ['eq', 'user_id', 'user-1'], ['eq', 'plan_kind', 'k5'],
       ['gte', 'opened_at', hoursFrom(-36)], ['lte', 'opened_at', hoursFrom(6)],
     ]));
+    expect(q.filters.some(([, col]) => col === 'source')).toBe(false);
     expect(q.limit).toBeLessThanOrEqual(10);
   });
 
@@ -151,22 +154,11 @@ describe('the only plan she had is an app open', () => {
   });
 });
 
-describe('LP_CONTEXT_COUNT_APP_OPENS off', () => {
-  test.each(['false', 'off', '0'])('%s → byte-identical to WhatsApp-only, and no opens read', async (v) => {
-    const run = async () => {
-      ENV_KEYS.forEach((k) => delete process.env[k]);
-      process.env.LP_CONTEXT_COUNT_APP_OPENS = v;
-      mockQueries.length = 0;
-      return JSON.stringify(await hint('Urdu'));
-    };
+// bd-2wgr3d.22.1 — no switch on the fix: the app link is the only on/off.
+describe('LP_CONTEXT_COUNT_APP_OPENS is gone', () => {
+  test.each(['false', 'off', '0'])('%s changes nothing: an app open is still the hint', async (v) => {
+    process.env[GONE] = v; // the removed switch, set to show it no longer matters
     mockTables.niete_lp_opens = [open(URDU, hoursFrom(-2))];
-    expect(await run()).toBe('null');
-    mockTables.niete_lp_downloads = [download(URDU, hoursFrom(-30), { lesson_id: 'grade_2_urdu_ch1_seg1', chapter_number: 1, segment_index: 1 })];
-    const off = await run();
-    expect(JSON.parse(off)).toMatchObject({ lesson_id: 'grade_2_urdu_ch1_seg1' });
-    expect(mockQueries.some((q) => q.table === 'niete_lp_opens')).toBe(false);
-    const dq = mockQueries.find((q) => q.table === 'niete_lp_downloads');
-    expect(dq.select).toBe('lesson_id, grade, subject, chapter_number, segment_index, created_at');
-    expect(dq.limit).toBe(10);
+    expect(await hint('Urdu')).toMatchObject({ lesson_id: URDU });
   });
 });

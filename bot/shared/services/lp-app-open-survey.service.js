@@ -9,8 +9,10 @@
  * 12 Oct) while plan use held at ~800 teachers a day, and the daily ICT report's plan-quality
  * panel reads that table.
  *
- * WHAT IT DOES. The portal's own viewer served a plan whole → it recorded a niete_lp_opens row
- * (source 'viewer') → it tells the bot the row's id (POST /api/internal/lp/open-survey). The bot
+ * WHAT IT DOES. She took a plan in the app — its own viewer served it whole (source 'viewer'), or
+ * the app handed it to another app (source 'external'; a hand-off only ever starts inside the app,
+ * so it is a plan taken: operator, 14 Oct 2026, bd-2wgr3d.22.1) → the portal recorded a
+ * niete_lp_opens row → it tells the bot the row's id (POST /api/internal/lp/open-survey). The bot
  * reads the open from that row — the portal's word is only "this id" — and, if the guards below
  * pass, schedules THE survey the WhatsApp path schedules: the same two services, the same message,
  * the same two buttons, the same 30 s delay, the same lp_feedback row on the tap. There is NO
@@ -27,11 +29,9 @@
  * .lesson_id holds) and niete_lp612_segments.segment_id for g612.
  *
  * THE GUARDS (each a skip with a reason, each logged as lp.app_open_survey):
- *   not_viewer_open        only a plan the portal's viewer served whole was READ; a link minted for
- *                          another app (source 'external') may never have been opened.
  *   already_handled        this open id was already handled (a retry from the portal).
- *   earlier_open           ONE survey per teacher per PLAN: an earlier viewer open of the plan
- *                          (either language) already had its chance. "A second open" never asks.
+ *   earlier_open           ONE survey per teacher per PLAN: an earlier open of the plan, viewer or
+ *                          hand-off (either language), already had its chance. "A second open" never asks.
  *   delivered_on_whatsapp  the plan reached her on WhatsApp (niete_lp_downloads 'sent' / niete_lp612_
  *                          deliveries surface 'whatsapp') — that path scheduled its own survey.
  *                          The bot's 'portal' claim rows on a render are NOT a delivery.
@@ -79,12 +79,11 @@ async function firstRow(query) {
  * @returns {Promise<'earlier_open'|'delivered_on_whatsapp'|null>}
  */
 async function alreadyHadItsChance(row) {
-  // An EARLIER viewer open of the same plan (either document language). Strictly earlier: two
+  // An EARLIER open of the same plan, viewer or hand-off (either document language). Strictly earlier: two
   // concurrent first opens must leave exactly one of them standing, not both skipped.
   const earlier = await firstRow(supabase
     .from(OPENS).select('id')
     .eq('user_id', row.user_id).eq('plan_kind', row.plan_kind).eq('plan_ref', row.plan_ref)
-    .eq('source', 'viewer')
     .neq('id', row.id)
     .lt('opened_at', row.opened_at));
   if (earlier) return 'earlier_open';
@@ -133,7 +132,6 @@ async function onViewerOpen({ openId } = {}) {
     if (!row) return skip('open_not_found', ids);
 
     const at = { ...ids, userId: row.user_id, kind: row.plan_kind, ref: row.plan_ref };
-    if (row.source !== 'viewer') return skip('not_viewer_open', at);
     if (!(await claimOpen(openId))) return skip('already_handled', at);
 
     const { data: user, error: userError } = await supabase

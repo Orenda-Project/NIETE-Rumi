@@ -49,7 +49,7 @@ const FeatureIntro = require('../feature-intro.service');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const { canSelfCoach } = require('../../config/role-features');
 const Caps = require('./caps');
-const { flagOn, onUnlessOff } = require('./flags');
+const { flagOn } = require('./flags');
 const { shouldDeferNewClassroomAudio } = require('../coaching/coaching-inflight-guard');
 const { groupFor } = require('../coaching/ab-v10-arms');
 const { formatLessonDate } = require('../quiz/transcript-quiz-language');
@@ -213,15 +213,15 @@ async function onLessonDelivered({
 //
 // Since the teacher app took over plan reading (12 Oct 2026), most K-5 plans are read in the app's
 // viewer and never delivered on WhatsApp, so the hook above never runs for them. The portal already
-// tells the bot about every RECORDED viewer open (POST /api/internal/lp/open-survey with the
+// tells the bot about every RECORDED app open, viewer or hand-off (POST /api/internal/lp/open-survey with the
 // niete_lp_opens row id, for the lesson-plan survey); the same call books THIS ask, through
 // onLessonDelivered above — same row, same once-a-day UNIQUE, same 14:00 rule on the OPEN time,
 // same send. A plan taken both ways the same day collides on the UNIQUE and is asked about once.
 //
 // Each decision is one `coaching_ask.app_open` event {outcome, reason}. The skips:
-//   switch_off         COACHING_ASK_COUNT_APP_OPENS=off — the behaviour before this, exactly.
 //   open_not_found     no such open row.
-//   not_viewer_open    a link minted for another app ('external') may never have been read.
+// A hand-off to another app ('external') is a plan taken like a viewer open, and there is no switch:
+// the app link is the only on/off (operator, 14 Oct 2026; bd-2wgr3d.22.1).
 //   not_k5             the WhatsApp ask is K-5 only.
 //   stale_open         an open older than STALE_OPEN_MS (a late retry): the day has moved on.
 //   no_user / not_self_coach   the role rule onLessonDelivered applies, read here failing CLOSED.
@@ -230,7 +230,6 @@ async function onLessonDelivered({
 //   disabled / already_asked_today   onLessonDelivered's own answers.
 //   guard_unavailable  a read or the insert failed: nobody is asked, logged at error level.
 
-const APP_OPEN_SWITCH = 'COACHING_ASK_COUNT_APP_OPENS';
 const STALE_OPEN_MS = 6 * 60 * 60 * 1000;
 const APP_OPEN_HANDLED_TTL_SECS = 24 * 60 * 60;
 const APP_OPEN_HANDLED_KEY = (openId) => `lp_app_coaching_ask_handled:${openId}`;
@@ -253,14 +252,13 @@ async function claimAppOpen(openId) {
 }
 
 /**
- * She read K-5 plan <open row> in the app's viewer: book the coaching ask, if the guards pass.
+ * She took K-5 plan <open row> in the app (its viewer, or handed to another app): book the coaching ask, if the guards pass.
  * Never throws. Resolves { outcome: 'scheduled' } or { outcome: 'skipped', reason }.
  *
  * @param {{ openId: string, now?: Date }} p  the niete_lp_opens row the portal just recorded
  */
 async function onAppOpen({ openId, now = new Date() } = {}) {
   const ids = { openId: openId || null };
-  if (!onUnlessOff(APP_OPEN_SWITCH)) return appOpenDecision('skipped', 'switch_off', ids);
   try {
     if (!openId || typeof openId !== 'string') return appOpenDecision('skipped', 'open_not_found', ids);
 
@@ -271,7 +269,6 @@ async function onAppOpen({ openId, now = new Date() } = {}) {
     if (!row) return appOpenDecision('skipped', 'open_not_found', ids);
 
     const at = { ...ids, userId: row.user_id, lessonId: row.plan_ref };
-    if (row.source !== 'viewer') return appOpenDecision('skipped', 'not_viewer_open', at);
     if (row.plan_kind !== 'k5') return appOpenDecision('skipped', 'not_k5', at);
 
     const openedAt = new Date(row.opened_at);

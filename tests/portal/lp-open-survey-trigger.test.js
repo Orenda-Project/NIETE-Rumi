@@ -6,7 +6,7 @@
  * the portal POSTs the open's id to the bot's internal API. Nothing else triggers it:
  *
  *   viewer open, recorded          → one call, { openId } only (the bot reads the rest from the row)
- *   external open (a minted link)  → none
+ *   external open, recorded        → the same (bd-2wgr3d.22.1: a hand-off is a plan taken)
  *   a repeat inside the 5-min window (nothing inserted) → none
  *   a failed / refused open        → none
  *
@@ -142,10 +142,25 @@ describe('a viewer open that was recorded asks the bot for the survey', () => {
   });
 });
 
-describe('what does NOT ask for a survey', () => {
-  test('an external open (a link minted for another app)', async () => {
+// bd-2wgr3d.22.1 — operator 14 Oct: a plan handed from the app to another app is a plan taken.
+// A hand-off only ever starts inside the app, so it asks for the survey like a viewer open; the
+// bot's once-per-plan guard keeps it to one survey whichever came first.
+describe('a hand-off to another app that was recorded asks the bot for the survey too', () => {
+  test('grades 1-5: the minted link is an open, one call with only the open id', async () => {
     await invoke('/curriculum/lp/:lesson_id/pdf', { params: { lesson_id: 'grade_4_english_ch1_seg2' } });
     expect(poolQuery).toHaveBeenCalled();
+    expect(botCalls().map(([, b]) => b)).toEqual([{ openId: 'open-1' }]);
+  });
+
+  test('grades 6-12: a status call marked as an open (?open=1) of a ready lesson', async () => {
+    await invoke('/lp612/status/:render_id', { params: { render_id: 'R1' }, query: { open: '1' } });
+    expect(botCalls().map(([, b]) => b)).toEqual([{ openId: 'open-1' }]);
+  });
+});
+
+describe('what does NOT ask for a survey', () => {
+  test('the 6-12 poll that waits for a lesson to be written (no ?open=1) is not an open', async () => {
+    await invoke('/lp612/status/:render_id', { params: { render_id: 'R1' } });
     expect(botCalls()).toHaveLength(0);
   });
 

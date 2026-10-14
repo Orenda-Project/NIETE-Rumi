@@ -706,9 +706,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     And I wait for the coaching-ask delay plus one sweep
     Then the bot sends a message that begins "You planned a lesson with me today"
     And it has the buttons "Record my lesson" and "Not today"
-    # The portal's viewer already tells the bot about each recorded open (POST /api/internal/lp/
+    # The portal already tells the bot about each recorded open, viewer or hand-off (POST /api/internal/lp/
     # open-survey); the same call books the SAME ask through lp-coaching-ask onLessonDelivered, with
-    # the open time as the delivery time. Kill switch COACHING_ASK_COUNT_APP_OPENS=off. Event
+    # the open time as the delivery time. No switch (bd-2wgr3d.22.1). Event
     # coaching_ask.app_open {outcome, reason}. Unit: tests/lp-v8/lp-coaching-ask-app-open.test.js.
 
   @e2e @config-gated @no-mock-driver @lp-ask @negative @P1 @COA81
@@ -896,9 +896,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
     Then the plan I read in the app is first in the recent lesson-plan list
     And picking it links the version the app showed me
     And the app's Coaching Home "Recent lesson plans" lists it the same way
-    # getRecentFidelityLps merges her WhatsApp deliveries with her app VIEWER opens (lp-app-opens.store,
-    # the asset served at the open), newest use first, one row per lesson. Kill switch
-    # COACHING_ASK_COUNT_APP_OPENS=off → deliveries only. Unit: tests/coaching/fidelity/recent-fidelity-lps-app-opens.test.js.
+    # getRecentFidelityLps merges her WhatsApp deliveries with her app opens, viewer or hand-off (lp-app-opens.store,
+    # the asset served at the open), newest use first, one row per lesson. No switch (bd-2wgr3d.22.1).
+    # Unit: tests/coaching/fidelity/recent-fidelity-lps-app-opens.test.js.
 
   @e2e @wip @draft @P1 @COA59
   Scenario: Picking my lesson plan from the list asks me to confirm before it is used
