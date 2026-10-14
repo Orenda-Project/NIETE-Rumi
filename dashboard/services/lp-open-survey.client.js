@@ -4,7 +4,8 @@
  *
  * The lesson-plan survey ("was this plan useful?") is the bot's: it owns her WhatsApp window, the
  * two buttons and lp_feedback. The portal's whole part is to say that an open happened. After the
- * portal's own viewer served a plan whole and the open was RECORDED (niete_lp_opens), `afterOpen`
+ * portal's own viewer served a plan whole, or the app handed it to another app, and the open was
+ * RECORDED (niete_lp_opens), `afterOpen`
  * sends the bot that row's id over its internal API; the bot reads who and which plan from the row
  * and decides — the guards (one per plan, the 24-hour window, …) are all its own.
  *
@@ -43,13 +44,13 @@ async function requestSurvey(openId) {
 }
 
 /**
- * The continuation of LpActivity.logOpen for a plan opened in the portal's viewer: only an open
- * that was actually STORED (not a repeat inside the de-dupe window, not a failed write) and whose
- * source is the viewer asks for a survey. Never throws.
+ * The continuation of LpActivity.logOpen for a plan taken in the app — its viewer, or handed to
+ * another app (a hand-off only ever starts inside the app; bd-2wgr3d.22.1). Only an open that was
+ * actually STORED (not a repeat inside the de-dupe window, not a failed write) asks for a survey;
+ * the bot's own once-per-plan guard keeps it to one. Never throws.
  */
 function afterOpen(result) {
   if (!result || result.recorded !== true || !result.id) return result;
-  if (!result.open || result.open.source !== 'viewer') return result;
   requestSurvey(result.id);
   return result;
 }

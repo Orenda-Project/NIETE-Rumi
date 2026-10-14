@@ -359,8 +359,9 @@ Feature: NIETE (ICT) Teacher Training
     Then that lesson plan is listed with "From lesson plan", like one delivered on WhatsApp
     When I tap its row
     Then its quiz is made exactly as for a delivered lesson plan
-    # lp-v8-lesson-provider reads lp-app-opens.store (viewer opens only, the version served at the open — the
-    # same rule as the 15:00 offer); the row id carries the open's id. LP_QUIZ_COUNT_APP_OPENS=off: not listed.
+    # lp-v8-lesson-provider reads lp-app-opens.store (every app open, viewer or hand-off to another app; the
+    # version served at the open — the same rule as the 15:00 offer); the row id carries the open's id. No switch
+    # (bd-2wgr3d.22.1): the app link is the only on/off.
 
   @e2e @quiz @wip @draft @P1 @T65
   Scenario: Tapping the same lesson plan twice makes one quiz

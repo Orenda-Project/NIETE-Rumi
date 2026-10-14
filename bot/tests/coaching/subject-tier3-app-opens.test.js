@@ -75,6 +75,7 @@ function download(lessonId, subject, grade, createdAt) {
 const SESSION = { id: 'session-1', user_id: 'user-1', conversation_state: {}, lesson_plan_structured: null };
 
 const ENV_KEYS = ['LP_CONTEXT_COUNT_APP_OPENS', 'LP_QUIZ_COUNT_APP_OPENS'];
+const GONE = 'LP_CONTEXT_COUNT_APP_OPENS'; // bd-2wgr3d.22.1: no longer read by any code
 const savedEnv = {};
 beforeAll(() => { ENV_KEYS.forEach((k) => { savedEnv[k] = process.env[k]; }); });
 afterAll(() => { ENV_KEYS.forEach((k) => { if (savedEnv[k] === undefined) delete process.env[k]; else process.env[k] = savedEnv[k]; }); });
@@ -105,10 +106,11 @@ describe('tier 3 — the only recent plan is an app open', () => {
     expect(r).toMatchObject({ code: null, confidence: 'none', source: 'no_signal' });
   });
 
-  test('an external (non-viewer) open is not a signal', async () => {
+  // bd-2wgr3d.22.1 — operator 14 Oct: a hand-off only ever starts inside the app; it is a plan taken.
+  test('a plan handed from the app to another app (external) is a signal like a viewer open', async () => {
     mockTables.niete_lp_opens = [open(URDU, minsAgo(30), { source: 'external' })];
     const r = await AnalysisProcessorService.resolveSessionSubject(SESSION);
-    expect(r).toMatchObject({ confidence: 'none', source: 'no_signal' });
+    expect(r).toMatchObject({ code: 'urdu', grade: '2', source: 'recent_download' });
   });
 
   test('an app open of a different subject next to a download is ambiguous, as two downloads are', async () => {
@@ -131,8 +133,9 @@ describe('tier 3 — the only recent plan is an app open', () => {
     const q = mockQueries.find((x) => x.table === 'niete_lp_opens');
     expect(q).toBeDefined();
     expect(q.filters).toEqual(expect.arrayContaining([
-      ['eq', 'user_id', 'user-1'], ['eq', 'plan_kind', 'k5'], ['eq', 'source', 'viewer'],
+      ['eq', 'user_id', 'user-1'], ['eq', 'plan_kind', 'k5'],
     ]));
+    expect(q.filters.some(([, col]) => col === 'source')).toBe(false);
     expect(q.filters.find((f) => f[0] === 'gte' && f[1] === 'opened_at')).toBeDefined();
     expect(q.limit).toBeLessThanOrEqual(50);
   });
@@ -146,30 +149,12 @@ describe('tier 3 — the only recent plan is an app open', () => {
   });
 });
 
-describe('LP_CONTEXT_COUNT_APP_OPENS off', () => {
-  test.each(['false', 'off', '0'])('%s → byte-identical to WhatsApp-only, and no opens read', async (v) => {
-    const run = async (env) => {
-      ENV_KEYS.forEach((k) => delete process.env[k]);
-      Object.assign(process.env, env);
-      mockQueries.length = 0;
-      return JSON.stringify(await AnalysisProcessorService.resolveSessionSubject(SESSION));
-    };
-    // Only an app open: off = exactly what WhatsApp-only gives (no signal).
+// bd-2wgr3d.22.1 — no switch on the fix: the app link is the only on/off.
+describe('LP_CONTEXT_COUNT_APP_OPENS is gone', () => {
+  test.each(['false', 'off', '0'])('%s changes nothing: an app open is still a signal', async (v) => {
+    process.env[GONE] = v; // the removed switch, set to show it no longer matters
     mockTables.niete_lp_opens = [open(URDU, minsAgo(30))];
-    const offOnlyOpen = await run({ LP_CONTEXT_COUNT_APP_OPENS: v });
-    mockTables.niete_lp_opens = [];
-    const noOpens = await run({ LP_CONTEXT_COUNT_APP_OPENS: v });
-    expect(offOnlyOpen).toBe(noOpens);
-    expect(JSON.parse(offOnlyOpen)).toMatchObject({ source: 'no_signal' });
-
-    // With a download: off ignores a conflicting open entirely, and the download query is unchanged.
-    mockTables.niete_lp_downloads = [download(ENGLISH, 'english', '2', minsAgo(60))];
-    mockTables.niete_lp_opens = [open(URDU, minsAgo(30))];
-    const off = await run({ LP_CONTEXT_COUNT_APP_OPENS: v });
-    expect(JSON.parse(off)).toMatchObject({ code: 'english', source: 'recent_download' });
-    expect(mockQueries.some((q) => q.table === 'niete_lp_opens')).toBe(false);
-    const dq = mockQueries.find((q) => q.table === 'niete_lp_downloads');
-    expect(dq.select).toBe('subject, grade, created_at');
-    expect(dq.limit).toBe(50);
+    const r = await AnalysisProcessorService.resolveSessionSubject(SESSION);
+    expect(r).toMatchObject({ code: 'urdu', grade: '2', source: 'recent_download' });
   });
 });

@@ -2467,7 +2467,7 @@ router.get('/curriculum/lp/:lesson_id/pdf', requirePortalAuth, async (req, res) 
     // Not awaited: logging never delays or fails the open.
     LpActivity.logOpen(dbQuery, {
       userId: req.session.portalUserId, kind: 'k5', ref: lessonId, source: 'external',
-    });
+    }).then(LpOpenSurvey.afterOpen);
     res.json({ success: true, available: true, ...hit });
   } catch (error) {
     console.error('❌ Portal curriculum/lp/pdf failed', { error: error?.message });
@@ -2657,7 +2657,7 @@ router.get('/lp612/status/:render_id', requirePortalAuth, async (req, res) => {
     if (isOpenHint(req.query.open) && out.state === 'ready' && out.url) {
       LpActivity.logOpen(dbQuery, {
         userId: req.session.portalUserId, kind: 'g612', ref: out.segmentId, lang: out.lang, source: 'external',
-      });
+      }).then(LpOpenSurvey.afterOpen);
     }
     res.json({ success: true, ...out });
   } catch (error) {

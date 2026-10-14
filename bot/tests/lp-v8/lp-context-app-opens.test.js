@@ -153,14 +153,17 @@ describe('a lesson read only in the app', () => {
     expect(opensReads).toHaveLength(1);
     expect(opensReads[0].limit).toBe(6);
     expect(opensReads[0].filters).toEqual(expect.arrayContaining([
-      ['eq', 'user_id', 'user-1'], ['eq', 'plan_kind', 'k5'], ['eq', 'source', 'viewer'],
+      ['eq', 'user_id', 'user-1'], ['eq', 'plan_kind', 'k5'],
     ]));
+    expect(opensReads[0].filters.some(([, col]) => col === 'source')).toBe(false);
   });
 
-  test('an external open (a link minted for another app) is not a lesson she read', async () => {
+  // bd-2wgr3d.22.1 — operator 14 Oct: a hand-off only ever starts inside the app; it is a plan taken.
+  test('a plan handed from the app to another app (external) is a lesson she has', async () => {
     mockTables.niete_lp_assets = [asset(LESSON, 'h1', daysAgo(20))];
     mockTables.niete_lp_opens = [open(LESSON, minsAgo(20), { source: 'external' })];
-    expect(await buildLpContext('user-1')).toBeNull();
+    const ctx = await buildLpContext('user-1');
+    expect(ctx && ctx.lessonIds).toEqual([LESSON]);
   });
 
   test('an open older than 7 days is not recent', async () => {
@@ -238,38 +241,31 @@ describe('both surfaces', () => {
   });
 });
 
-describe('the switch and failure', () => {
+describe('no switch, and failure', () => {
   async function runWith(env) {
     ENV_KEYS.forEach((k) => delete process.env[k]);
     Object.assign(process.env, env);
     return buildLpContext('user-1');
   }
 
-  test('LP_CONTEXT_COUNT_APP_OPENS=false → byte-identical to WhatsApp-only, and no opens read', async () => {
+  // bd-2wgr3d.22.1 — no switch on the fix: the app link is the only on/off.
+  test('LP_CONTEXT_COUNT_APP_OPENS=false changes nothing: app lessons are still in the context', async () => {
     mockTables.niete_lp_downloads = [download(LESSON, 'h1', minsAgo(180))];
     mockTables.niete_lp_assets = [asset(LESSON, 'h1', daysAgo(20)), asset(OTHER, 'o1', daysAgo(20))];
     mockMoveLists[`${LESSON}:h1`] = MOVES;
-    const opens = [open(OTHER, minsAgo(5)), open(LESSON, minsAgo(2))];
+    mockTables.niete_lp_opens = [open(OTHER, minsAgo(5)), open(LESSON, minsAgo(2))];
 
-    mockTables.niete_lp_opens = [];
-    const whatsappOnly = await runWith({ LP_CONTEXT_COUNT_APP_OPENS: 'false' });
-    mockTables.niete_lp_opens = opens;
-    mockQueries.length = 0;
     const off = await runWith({ LP_CONTEXT_COUNT_APP_OPENS: 'false' });
-
-    expect(off.identityLine).toBe(whatsappOnly.identityLine);
-    expect(off.fullBlock).toBe(whatsappOnly.fullBlock);
-    expect(off.entries).toEqual(whatsappOnly.entries);
-    expect(mockQueries.some((q) => q.table === 'niete_lp_opens')).toBe(false);
-
-    const on = await runWith({});
-    expect(on.lessonIds).toEqual([LESSON, OTHER]);
+    const unset = await runWith({});
+    expect(off.lessonIds).toEqual([LESSON, OTHER]);
+    expect(off.fullBlock).toBe(unset.fullBlock);
   });
 
-  test('switch off and only an app open → null, as today', async () => {
+  test('LP_CONTEXT_COUNT_APP_OPENS=off and only an app open → that lesson, not null', async () => {
     mockTables.niete_lp_assets = [asset(LESSON, 'h1', daysAgo(20))];
     mockTables.niete_lp_opens = [open(LESSON, minsAgo(20))];
-    expect(await runWith({ LP_CONTEXT_COUNT_APP_OPENS: 'off' })).toBeNull();
+    const ctx = await runWith({ LP_CONTEXT_COUNT_APP_OPENS: 'off' });
+    expect(ctx && ctx.lessonIds).toEqual([LESSON]);
   });
 
   test('the quiz offer\'s own switch does not turn chat grounding off', async () => {
