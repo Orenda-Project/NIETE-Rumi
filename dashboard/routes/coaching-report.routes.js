@@ -16,6 +16,7 @@ const rateLimit = require('express-rate-limit');
 const { verifyReportLink, REPORT_PATH } = require('../../bot/shared/services/coaching/report-link-token');
 const { renderReportPage, renderDetailPage, renderMessagePage } = require('../services/coaching-report-page');
 const { buildReportView } = require('../services/coaching-report-view');
+const { firstNameOf } = require('../../bot/shared/utils/person-name');
 // The portal's OWN sink (the bot's loggers need pino, which this service does not install).
 const telemetry = require('../services/telemetry.service');
 
@@ -34,7 +35,7 @@ async function loadReport(supabase, sessionId, userId) {
   if (error) throw new Error(error.message || 'coaching_sessions read failed');
   if (!session) return null;
   const [user, quiz, past] = await Promise.all([
-    supabase.from('users').select('preferred_language, first_name').eq('id', userId).maybeSingle(),
+    supabase.from('users').select('preferred_language, name').eq('id', userId).maybeSingle(),
     supabase.from('quizzes').select('meta').eq('coaching_session_id', sessionId)
       .order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('coaching_sessions').select('created_at, analysis_data').eq('user_id', userId).eq('status', 'completed')
@@ -42,7 +43,7 @@ async function loadReport(supabase, sessionId, userId) {
   ]);
   const u = (user && user.data) || {};
   const language = u.preferred_language === 'ur' ? 'ur' : 'en';
-  const firstName = typeof u.first_name === 'string' && u.first_name.trim() ? u.first_name.trim() : null;
+  const firstName = firstNameOf(u) || null; // `name` only: first_name/last_name were dropped (bd-60092)
   const meta = (quiz && quiz.data && quiz.data.meta) || {};
   const quizMessage = typeof meta.student_message === 'string' && meta.student_message.trim() ? meta.student_message : null;
   // Oldest first; a session with no overall score is left out of the line, never drawn as zero.

@@ -187,17 +187,18 @@ test('an open is logged with the session and teacher, never the token', async ()
 describe('default loader', () => {
   function supa(tables) {
     const calls = [];
+    const selects = [];
     const from = (t) => {
       const filters = [];
       const c = {
-        select: () => c, order: () => c, limit: () => c,
+        select: (cols) => { selects.push([t, cols]); return c; }, order: () => c, limit: () => c,
         eq: (k, v) => { filters.push([k, v]); return c; },
         maybeSingle: async () => { calls.push([t, filters]); return { data: tables[t] === undefined ? null : tables[t], error: null }; },
         then: (ok, bad) => { calls.push([`${t}[]`, filters]); return Promise.resolve({ data: tables[`${t}[]`] || [], error: null }).then(ok, bad); },
       };
       return c;
     };
-    return { from, calls };
+    return { from, calls, selects };
   }
 
   test('reads the session only for its own teacher, her name, language, past scores and the session\'s quiz', async () => {
@@ -208,7 +209,7 @@ describe('default loader', () => {
         { created_at: '2026-10-10T05:30:00Z', analysis_data: {} },
         { created_at: '2026-10-01T05:30:00Z', analysis_data: { scores: { overall_percentage: '72.4' } } },
       ],
-      users: { preferred_language: 'ur', first_name: 'Sadia' },
+      users: { preferred_language: 'ur', name: 'Sadia  Bibi' },
       quizzes: { meta: { share_code_id: 'x', student_message: 'hello class' } },
     });
     const { loadReport } = require('../../dashboard/routes/coaching-report.routes');
@@ -220,6 +221,9 @@ describe('default loader', () => {
     expect(db.calls[0]).toEqual(['coaching_sessions', [['id', S], ['user_id', U]]]);
     expect(db.calls).toContainEqual(['coaching_sessions[]', [['user_id', U], ['status', 'completed']]]);
     expect(db.calls).toContainEqual(['quizzes', [['coaching_session_id', S]]]);
+    // users.first_name / last_name were dropped (bd-60092): the first name comes from `name`.
+    expect(db.selects).toContainEqual(['users', 'preferred_language, name']);
+    expect(JSON.stringify(db.selects)).not.toMatch(/first_name|last_name/);
   });
 
   test('no session: null; a missing quiz or language is fine', async () => {
