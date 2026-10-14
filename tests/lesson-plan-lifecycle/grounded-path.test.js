@@ -327,3 +327,28 @@ describe('cache hit and pre-generated — served there and then, one finished ro
     expect(on).toEqual(off);
   });
 });
+
+describe('the worker\'s own failure codes reach the row (driven through processGrounded, the queue\'s entry point)', () => {
+  const job = (id, over = {}) => ({
+    requestId: id, userId: TEACHER, phoneNumber: PHONE, sourceLpUuid: AST.source_lp_uuid,
+    topic: AST.topic, chapterTitle: AST.chapter_title, language: 'en', lp: AST, ...over,
+  });
+  const queued = () => LessonPlanQueueService.createAndQueueGrounded({
+    userId: TEACHER, phoneNumber: PHONE, sourceLpUuid: AST.source_lp_uuid, topic: AST.topic, language: 'en',
+  });
+
+  test('a catalogue row that is gone → the request fails NO_ASSET (a content answer, not a generation failure)', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_grounded';
+    const id = await queued();
+    await expect(Worker.processGrounded(job(id, { lp: null }))).rejects.toThrow(/not found/);
+    expect(rows('lesson_plan_requests')[0]).toEqual(expect.objectContaining({ status: 'failed', error_code: 'NO_ASSET' }));
+  });
+
+  test('a render that fails → the request fails RENDER_FAILED', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_grounded';
+    require('../../bot/shared/services/content.service').generateLessonPlan.mockResolvedValueOnce({ pdfUrl: null });
+    const id = await queued();
+    await expect(Worker.processGrounded(job(id))).rejects.toThrow(/Grounded render failed/);
+    expect(rows('lesson_plan_requests')[0]).toEqual(expect.objectContaining({ status: 'failed', error_code: 'RENDER_FAILED' }));
+  });
+});

@@ -238,15 +238,23 @@ describe('requestLesson — outcomes that end the ask then and there', () => {
 
   test('a PORTAL ask that ends here writes ONE failed row, channel portal, her phone read from users', async () => {
     process.env.LP_LIFECYCLE_PATHS = 'niete_lp612';
-    mockSegmentById.mockResolvedValue(null);
+    mockSegmentById.mockResolvedValue({ ...SEGMENT, is_religious: true });
     const res = await ask({ surface: 'portal', phone: null, userId: PORTAL_TEACHER, correlationId: null });
-    expect(res.outcome).toBe('not_found');
+    expect(res.outcome).toBe('held');
     const asks = rows('lesson_plan_requests');
     expect(asks).toHaveLength(1);
     expect(asks[0]).toEqual(expect.objectContaining({
       user_id: PORTAL_TEACHER, phone_number: '923005550000', channel: 'portal', status: 'failed',
-      error_code: 'NO_ASSET', source: 'niete_lp612', artifact_ref: SEGMENT.segment_id,
+      error_code: 'NOT_ELIGIBLE', source: 'niete_lp612', artifact_ref: SEGMENT.segment_id,
     }));
+  });
+
+  test('a PORTAL ask for a segment the catalogue does not know is not an ask — no row (the portal endpoint takes any id)', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_lp612';
+    mockSegmentById.mockResolvedValue(null);
+    const res = await ask({ surface: 'portal', phone: null, userId: PORTAL_TEACHER, correlationId: null });
+    expect(res.outcome).toBe('not_found');
+    expect(rows('lesson_plan_requests')).toHaveLength(0);
   });
 
   test('switched off, neither a WhatsApp nor a portal ask writes anything', async () => {

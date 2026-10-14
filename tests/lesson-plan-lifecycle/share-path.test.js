@@ -88,12 +88,21 @@ describe('a lesson plan she sends to her own WhatsApp from the portal', () => {
   test.each([
     ['Meta refused it', { sendTemplate: jest.fn().mockResolvedValue(false) }, { status: 'failed', reason: 'refused' }, 'DELIVERY_FAILED'],
     ['the template is not configured', { templateName: () => null }, { status: 'unavailable', reason: 'not_configured' }, 'DELIVERY_FAILED'],
-    ['the plan is not hers / not there', { item: async () => null }, { status: 'not_found' }, 'NO_ASSET'],
   ])('%s → ONE failed row; the answer is unchanged', async (_label, over, answer, code) => {
     const out = await Share.sendShare({ userId: TEACHER, kind: 'lesson', id: 'k5:grade_1_english_ch1_seg3' }, deps(over));
     expect(out).toEqual(answer);
     expect(asks()).toHaveLength(1);
     expect(asks()[0]).toEqual(expect.objectContaining({ status: 'failed', error_code: code, source: 'niete_portal_share', delivered_at: null }));
+  });
+
+  test.each([
+    ['the plan is not hers / not there', { item: async () => null }, { status: 'not_found' }],
+    ['the id is no lesson the portal can name (no k5: / g612: prefix)', { item: async () => ({ unsupported: 'lesson_source' }) },
+      { status: 'unavailable', reason: 'lesson_source' }],
+  ])('%s → NO row: an id that names no plan of hers is not an ask; the answer is unchanged', async (_label, over, answer) => {
+    const out = await Share.sendShare({ userId: TEACHER, kind: 'lesson', id: 'k5:grade_1_english_ch1_seg3' }, deps(over));
+    expect(out).toEqual(answer);
+    expect(asks()).toHaveLength(0);
   });
 
   test('an answer key, a paper, or a malformed request is not a lesson-plan ask', async () => {
@@ -137,5 +146,18 @@ describe('a recorder that throws while describing the share — reported, never 
     expect(out).toEqual({ status: 'failed', reason: 'error' });
     expect(mockEvent).not.toHaveBeenCalledWith('lesson_plan.lifecycle.write_failed', expect.anything());
     expect(mockCalls).toBe(0);
+  });
+});
+
+describe('a lifecycle writer that cannot even load never reaches the share', () => {
+  test('the share answers exactly as it would, and nothing throws', async () => {
+    let out;
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock('../../bot/shared/services/lesson-plan-lifecycle.service', () => { throw new Error('module broken'); });
+      const FreshShare = require('../../bot/shared/services/share-send.service');
+      process.env.LP_LIFECYCLE_PATHS = 'niete_portal_share';
+      out = await FreshShare.sendShare({ userId: TEACHER, kind: 'lesson', id: 'k5:grade_1_english_ch1_seg3' }, deps());
+    });
+    expect(out).toEqual({ status: 'sent', at: SENT_AT.toISOString() });
   });
 });

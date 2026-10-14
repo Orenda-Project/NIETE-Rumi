@@ -85,3 +85,37 @@ describe('lesson-plan lifecycle vocabulary — code and database are one list', 
     }
   });
 });
+
+describe('every error code the bot writes is one the vocabulary knows', () => {
+  test('each errorCode / lifecycleCode literal in the bot source is one of the six codes', () => {
+    const root = path.join(ROOT, 'bot');
+    const known = new Set(Object.values(Lifecycle.LIFECYCLE.ERROR_CODES));
+    const offenders = [];
+    let seen = 0;
+    const walk = (dir) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (e.name === 'node_modules' || e.name.startsWith('.')) continue;
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) walk(p);
+        else if (e.name.endsWith('.js')) {
+          const src = fs.readFileSync(p, 'utf8');
+          for (const m of src.matchAll(/\b(?:errorCode|lifecycleCode)\s*[:=]\s*['"]([A-Z_]+)['"]/g)) {
+            seen += 1;
+            if (!known.has(m[1])) offenders.push(`${path.relative(root, p)}: ${m[1]}`);
+          }
+        }
+      }
+    };
+    walk(root);
+    // Positive control: the scan really reads the call sites (a regex that matched nothing would pass in silence).
+    expect(seen).toBeGreaterThanOrEqual(8);
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe('the rollback can be undone', () => {
+  test('the rollback removes its own schema_versions row, so the runner applies V1.6.4 again after a rollback', () => {
+    const rollback = fs.readFileSync(path.join(ROOT, 'infrastructure/supabase/migrations/ROLLBACK_V1.6.4__lp_lifecycle.sql'), 'utf8');
+    expect(rollback).toMatch(/DELETE FROM schema_versions WHERE version = '1\.6\.4'/);
+  });
+});
