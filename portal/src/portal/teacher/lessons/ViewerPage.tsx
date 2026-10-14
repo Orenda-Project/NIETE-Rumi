@@ -15,6 +15,7 @@ import { LESSONS } from './copy';
 import { useCopy } from '../i18n';
 import TeacherPage from '../TeacherPage';
 import { LESSONS_VIEWER, dcHref, type DcPrefill } from './paths';
+import { ThingToTryStrip } from './ThingToTryStrip';
 
 /**
  * bd-fmf24g.3 — a lesson plan, open (v28 canvas LessonViewer): the plan under its title, and above it
@@ -22,6 +23,7 @@ import { LESSONS_VIEWER, dcHref, type DcPrefill } from './paths';
  *   Start DC observation  option A, the light action card with the Digital Coaching art → Digital
  *                         Coaching with her grade, subject and THIS plan prefilled (paths.dcHref)
  *   Answer key            grades 1–5, in this same viewer
+ *   Thing to try          grades 1–5, v10 coaching test groups C and D only (ThingToTryStrip; nothing for anyone else)
  *   ShareActions          the dock: Send on WhatsApp (a template; grey "Not available yet" until one is configured) and
  *                         Open in another app (the plan's presigned PDF link, opened the way her browser allows)
  *
@@ -91,6 +93,7 @@ export function ViewerPage() {
           <ChevronRight className={cn('h-[22px] w-[22px]', CHEVRON)} strokeWidth={2.4} aria-hidden="true" />
         </Link>
       )}
+      {answerKey ? <ThingToTryStrip lessonId={source.lessonId} /> : null}
       <div className="flex flex-wrap gap-2">
         {answerKey ? (
           <button
