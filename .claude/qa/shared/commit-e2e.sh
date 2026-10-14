@@ -79,13 +79,35 @@ run_web() {
     return 1
   fi
   echo "│ validate_specs: exit 0 for $SEL_WEB"
-  local f wrc=0
+  # Which SCENARIOS of each portal feature this commit drives — select_scenarios.py, the same rules as the mock lane
+  # (spec lines edited, web: scenarios: pins, scenario text naming the file; an unmatched path runs the whole feature
+  # and says why; phase 1's new scenarios always run). E2E_SCENARIO_SELECT=0 runs whole features.
+  local wsel="" f wrc=0 scope ids
+  if [ "${E2E_SCENARIO_SELECT:-1}" != 0 ] && [ -f "$QA/select_scenarios.py" ]; then
+    wsel=$(printf '%s' "$SEL" | python3 "$QA/select_scenarios.py" --selection - --repo "$ROOT" --range "$SHA~1...$SHA" \
+      --spec-base "$SHA~1" --json 2>/dev/null) || wsel=""
+  fi
   IFS=',' read -r -a _web <<< "$SEL_WEB"
   for f in "${_web[@]}"; do
+    scope=all; ids=""
+    if [ -n "$wsel" ]; then
+      read -r scope ids <<< "$(printf '%s' "$wsel" | F="$f" python3 -c '
+import json,os,sys
+v=(json.load(sys.stdin).get("web") or {}).get("features",{}).get(os.environ["F"]) or {}
+print(v.get("scope","all"), ",".join(v.get("ids") or []))' 2>/dev/null)"
+      printf '%s' "$wsel" | F="$f" python3 -c '
+import json,os,sys
+v=(json.load(sys.stdin).get("web") or {}).get("features",{}).get(os.environ["F"]) or {}
+f=os.environ["F"]
+if v.get("scope")=="subset": print("│ scenarios: %s %d of %d — %s" % (f, len(v["ids"]), v.get("of",0), ", ".join(v["ids"])))
+elif v.get("scope")=="none": print("│ scenarios: %s none — %s" % (f, v.get("note","")))
+else: print("│ scenarios: %s ALL — %s" % (f, "; ".join(v.get("whole_feature_because") or ["selector could not narrow it"])[:150]))' 2>/dev/null
+    fi
+    [ "$scope" = none ] && continue
     if [ -n "${E2E_WEB_PLAN:-}" ]; then
-      E2E_TRIGGER=commit bash "$ROOT/scripts/qa/e2e-web.sh" "$f" --print-plan 2>&1 | sed 's/^/│   /'
+      E2E_TRIGGER=commit bash "$ROOT/scripts/qa/e2e-web.sh" "$f" ${ids:+--only "$ids"} --print-plan 2>&1 | sed 's/^/│   /'
     else
-      E2E_TRIGGER="${E2E_TRIGGER:-commit}" bash "$ROOT/scripts/qa/e2e-web.sh" "$f" || wrc=1
+      E2E_TRIGGER="${E2E_TRIGGER:-commit}" bash "$ROOT/scripts/qa/e2e-web.sh" "$f" ${ids:+--only "$ids"} || wrc=1
     fi
   done
   return $wrc

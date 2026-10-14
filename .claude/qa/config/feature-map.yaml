@@ -664,6 +664,93 @@ web:
     - dashboard/config/**
     - tests/features/web/**
   fallback: portal-smoke
+  # Which SCENARIOS a changed file drives (select_scenarios.py, the WhatsApp rules): a path pinned here runs exactly
+  # these ids; a path in a feature with no pin runs that WHOLE feature, and the run says which path forced it. The
+  # main split is the two apps: files of the new teacher/coach app drive its scenarios, the classic pages drive theirs.
+  scenarios:
+    portal-login:
+      portal/src/portal/pages/PortalLogin.tsx: [PL01, PL02, PL03, PL04, PL05, PL06, PL07, PL08, PL09, PL10]
+      portal/src/portal/auth/**: [PL01, PL02, PL03, PL04, PL05, PL06, PL07, PL08, PL09, PL10]
+      portal/src/portal/pages/PortalPasswordReset*.tsx: [PL07]
+      portal/src/portal/lib/phone.ts: [PL04, PL05]
+      portal/src/portal/lib/homeRoute.ts: [PL01, PL02, PL08, PL09, PL10]
+      portal/src/portal/lib/leaderRole.ts: [PL02, PL09]
+      portal/src/portal/pages/PortalDashboard.tsx: [PL01, PL08, PL09]
+      portal/src/portal/pages/LeaderHome.tsx: [PL02, PL09]
+      portal/src/portal/pages/PortalRoot.tsx: [PL01, PL02, PL08, PL09, PL10, PL11]
+      portal/src/portal/lib/linkSession.ts: [PL11]
+      dashboard/routes/app-login.routes.js: [PL11]
+      dashboard/routes/portal-link.routes.js: [PL11]
+      dashboard/lib/feature-flags.js: [PL01, PL02, PL08, PL09, PL10, PL11]
+    teacher-home:
+      portal/src/portal/teacher/TeacherPage.tsx: [TH01, TH02]
+      portal/src/portal/teacher/TeacherGate.tsx: [TH01, TH02]
+      portal/src/portal/teacher/TeacherNavigation.tsx: [TH01, TH02]
+      portal/src/portal/teacher/pages/**: [TH01, TH02]
+      portal/src/portal/teacher/menu.ts: [TH02]
+      portal/src/portal/teacher/notices/**: [TH01]
+      portal/src/portal/teacher/analytics/**: [TH02]
+      portal/src/portal/teacher/useTeacherV2.ts: [TH01, TH02]
+      portal/src/portal/newui/home/**: [TH01]
+      portal/src/portal/pages/PortalDashboard.tsx: [TH03]
+      portal/src/portal/pages/PortalHomeList.tsx: [TH03]
+      dashboard/routes/portal-teacher-notices.routes.js: [TH01]
+    teacher-lessons:
+      portal/src/portal/teacher/lessons/**: [TL01]
+      portal/src/portal/newui/lessons/**: [TL01]
+      portal/src/portal/pages/PortalCurriculum.tsx: [TL02]
+      portal/src/portal/pages/PortalLessonPlans.tsx: [TL02]
+      portal/src/portal/components/LessonPlanViewer.tsx: [TL01, TL02]
+      dashboard/routes/portal-teacher-lessons.routes.js: [TL01, TL02]
+    teacher-coaching:
+      portal/src/portal/teacher/coaching/**: [TC01]
+      portal/src/portal/newui/coaching/**: [TC01]
+      portal/src/portal/teacher/observations/**: [TC02]
+      portal/src/portal/pages/PortalCoaching*.tsx: [TC03]
+      portal/src/portal/components/RecordingBar.tsx: [TC01, TC03]
+      portal/src/portal/components/coaching/**: [TC01, TC03]
+      dashboard/routes/portal-teacher-coaching.routes.js: [TC01, TC02, TC03]
+    teacher-training:
+      portal/src/portal/teacher/training/**: [TT01]
+      portal/src/portal/newui/training/**: [TT01]
+      portal/src/portal/pages/PortalTraining*.tsx: [TT02]
+      portal/src/portal/pages/PortalVideo*.tsx: [TT02]
+    teacher-classes:
+      portal/src/portal/teacher/classes/**: [TK01]
+      portal/src/portal/teacher/attendance/**: [TK01]
+      portal/src/portal/pages/PortalClasses.tsx: [TK02]
+      dashboard/routes/portal-teacher-attendance.routes.js: [TK01, TK02]
+      dashboard/routes/attendance.routes.js: [TK01, TK02]
+    teacher-assessment:
+      portal/src/portal/teacher/assessment/**: [TA01]
+      portal/src/portal/newui/assessment/**: [TA01]
+      portal/src/portal/pages/PortalAssessment.tsx: [TA02]
+      portal/src/portal/pages/ClassicAssessment.tsx: [TA02]
+      portal/src/portal/pages/PortalReadingAssessment*.tsx: [TA02]
+    coach-portal:
+      portal/src/portal/coach/home/**: [CP01]
+      portal/src/portal/coach/people/**: [CP02]
+      portal/src/portal/coach/schedule/**: [CP02]
+      portal/src/portal/coach/reports/**: [CP03]
+      portal/src/portal/coach/analytics/**: [CP03]
+      portal/src/portal/coach/observe/**: [CP04]
+      portal/src/portal/coach/profile/**: [CP04]
+    leader-portal:
+      portal/src/portal/pages/LeaderHome.tsx: [LP01]
+      portal/src/portal/pages/LeaderTeacher*.tsx: [LP02]
+      portal/src/portal/pages/LeaderObserv*.tsx: [LP02]
+      portal/src/portal/pages/SchoolAnalytics.tsx: [LP03]
+      portal/src/portal/pages/SchoolLessons.tsx: [LP03]
+      portal/src/portal/pages/LeaderChildTest.tsx: [LP04]
+      dashboard/routes/portal-child-test.routes.js: [LP04]
+    portal-account:
+      portal/src/portal/pages/PortalAccount.tsx: [PA01]
+      portal/src/portal/pages/PortalPrivacy.tsx: [PA02]
+      portal/src/portal/pages/PortalDeleteAccount.tsx: [PA02]
+      portal/src/portal/lib/legalLinks.ts: [PA02]
+    portal-smoke:
+      portal/src/portal/teacher/**: [PS01]
+      portal/src/portal/coach/**: [PS03]
   features:
     portal-login:
       - portal/src/portal/pages/PortalLogin.tsx        # the page

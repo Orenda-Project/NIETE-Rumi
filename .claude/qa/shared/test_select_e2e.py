@@ -821,6 +821,21 @@ def test_a_checkout_without_web_drivers_still_selects_whatsapp_features():
         shutil.rmtree(tmp)
 
 
+def test_map_rejects_a_scenario_pin_for_an_unknown_web_feature():
+    import tempfile
+    txt = open(MAP_PATH).read().replace("  scenarios:\n    portal-login:", "  scenarios:\n    portal-lgoin:", 1)
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
+        fh.write(txt); path = fh.name
+    try:
+        se.load_map(path, AGENTS_DIR)
+    except se.MapError as e:
+        assert "portal-lgoin" in str(e), e
+        return
+    finally:
+        os.unlink(path)
+    raise AssertionError("a web: scenarios: pin for a feature that does not exist must raise MapError")
+
+
 def test_map_rejects_a_web_feature_with_no_driver():
     import tempfile
     with open(MAP_PATH) as fh:
@@ -830,7 +845,7 @@ def test_map_rejects_a_web_feature_with_no_driver():
         fh.write("")
         path = fh.name
     # rewrite the web block to name a feature with no driver
-    txt = open(path).read().replace("  portal-login:", "  no-such-web-feature:", 1)
+    txt = open(path).read().replace("  features:\n    portal-login:", "  features:\n    no-such-web-feature:", 1)
     open(path, "w").write(txt)
     try:
         se.load_map(path, AGENTS_DIR)
