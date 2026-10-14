@@ -108,17 +108,20 @@ async function searchChats({ userId, query, onDate }) {
 }
 
 /**
- * Lessons actually delivered to her.
+ * Lessons actually delivered to her, or read by her in the teacher app.
  *
  * Deliberately the SAME resolution the chat pipeline uses (`lp-context`):
- * `niete_lp_downloads` → v8 catalog for the human heading → `niete_lp_assets`
- * for the `r2_key` of the exact version she was sent, keyed by `content_hash`
- * so a re-rendered lesson can never swap her script out from under her.
- * Version-exact, no name-matching, no search.
+ * `niete_lp_downloads` plus her K-5 app viewer opens (lp-context's own
+ * `appOpenRows`: same switch, window and failure policy, each open shaped as
+ * the asset the app served her), one row per lesson → v8 catalog for the human
+ * heading → `niete_lp_assets` for the `r2_key` of the exact version she was
+ * sent (by `content_hash`) or served (by `asset_id`), so a re-rendered lesson
+ * can never swap her script out from under her. Version-exact, no
+ * name-matching, no search.
  */
 async function findLessons({ userId }) {
   requireCaller(userId, 'findLessons');
-  const data = await readWithFallback(async (db) => {
+  const downloads = await readWithFallback(async (db) => {
     const res = await db
       .from('niete_lp_downloads')
       .select('lesson_id, content_hash, version_stamp, grade, subject, chapter_number, created_at')
@@ -129,6 +132,10 @@ async function findLessons({ userId }) {
     if (res.error) throw new Error(res.error.message);
     return res.data;
   });
+  const { appOpenRows } = require('../services/lp-context.service');
+  const { mergeByLesson } = require('../services/quiz/lp-app-opens.store');
+  const appRows = await appOpenRows(userId);
+  const data = appRows.length ? mergeByLesson(downloads || [], appRows) : downloads;
 
   const V8Catalog = require('../services/lp-v8-catalog.service');
   const seen = new Set();
@@ -152,6 +159,7 @@ async function findLessons({ userId }) {
       chapter_title: chapter.title,
       topic: lesson.topic_short || lesson.topic,
       created_at: row.created_at,
+      ...(row.via === 'app' ? { via: 'app', asset_id: row.asset_id } : {}),
     });
   }
   return out;
@@ -162,13 +170,24 @@ async function findLessons({ userId }) {
  * Signatures here are the real ones: `getVoicenoteScript` takes an entry
  * carrying `r2_key`, and `resolveMoveList` takes `{lesson_id, content_hash}`.
  */
-async function readLessonScript({ lessonId, contentHash }) {
+async function readLessonScript({ lessonId, contentHash, assetId }) {
   const { getVoicenoteScript } = require('../services/lp-voicenote-script.service');
   const { resolveMoveList } = require('../services/coaching/fidelity/lp-fidelity-store');
 
-  // The r2_key of the exact version she received.
+  // The r2_key of the exact version she received. A lesson read in the app
+  // names the asset the app served her (the A/B pick included), as lp-context does.
   let r2Key = null;
-  if (contentHash) {
+  if (assetId) {
+    const asset = await readWithFallback(async (db) => {
+      const { data } = await db
+        .from('niete_lp_assets')
+        .select('r2_key')
+        .eq('id', assetId)
+        .maybeSingle();
+      return data;
+    });
+    r2Key = (asset && asset.r2_key) || null;
+  } else if (contentHash) {
     const asset = await readWithFallback(async (db) => {
       const { data } = await db
         .from('niete_lp_assets')

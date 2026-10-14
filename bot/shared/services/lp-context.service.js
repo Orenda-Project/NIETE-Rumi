@@ -137,7 +137,8 @@ async function renderEntry(entry, { detailed }) {
 /**
  * Her recent K-5 viewer opens as download-shaped rows (newest first, at most 6, 7 days), or []
  * when the switch is off. One read on idx_lp_opens_user_recent; a failed read costs only the app
- * lessons — the WhatsApp ones still ground the answer.
+ * lessons — the WhatsApp ones still ground the answer. Also the call's lesson lookup
+ * (call-tools.repo findLessons), so the two cannot disagree on which app lessons count.
  */
 async function appOpenRows(userId) {
   if (!countAppOpens()) return [];
@@ -148,25 +149,6 @@ async function appOpenRows(userId) {
     logToFile('LP context: app opens read failed — WhatsApp lessons only this turn', { userId, error: err.message }, 'error');
     return [];
   }
-}
-
-/**
- * Deliveries + app opens → one row per lesson, newest first. A lesson on both surfaces keeps the
- * WhatsApp row (its version is what she was sent) at the newer of the two times.
- */
-function mergeByLesson(downloads, appRows) {
-  const byLesson = new Map();
-  for (const row of [...downloads, ...appRows]) {
-    const cur = byLesson.get(row.lesson_id);
-    if (!cur) { byLesson.set(row.lesson_id, { ...row }); continue; }
-    const newer = new Date(row.created_at) > new Date(cur.created_at);
-    if (cur.via !== 'app' && row.via === 'app') {
-      if (newer) cur.created_at = row.created_at;
-    } else if (newer) {
-      byLesson.set(row.lesson_id, { ...row });
-    }
-  }
-  return [...byLesson.values()].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
 /** One download-shaped row → a context entry; null for a lesson the catalogue does not know. */
@@ -228,7 +210,7 @@ async function entriesFromDownloads(userId, appRows = []) {
     .order('created_at', { ascending: false })
     .limit(RECENT_ROWS);
 
-  const rows = appRows.length ? mergeByLesson(data || [], appRows) : (data || []);
+  const rows = appRows.length ? AppOpens.mergeByLesson(data || [], appRows) : (data || []);
   const entries = [];
   const seen = new Set();
   for (const row of rows) {
@@ -765,6 +747,7 @@ async function injectLpContext({ userId, message, intent, existingContext = null
 
 module.exports = {
   buildLpContext,
+  appOpenRows,
   messageReferencesLp,
   injectLpContext,
   resolveFollowUp,
