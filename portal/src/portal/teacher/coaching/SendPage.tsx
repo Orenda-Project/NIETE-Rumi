@@ -141,7 +141,10 @@ export function SendPage() {
 
       {stage === 'micBlocked' ? (
         <>
-          <Status title={C.micBlocked} tone="error" />
+          <Status title={C.micBlocked} tone="error">
+            {/* bd-idkgm2 — ICT feedback row 18: what to do, in her language. */}
+            <p className="m-0 text-[15px] leading-[1.5] text-[#4b5563]">{C.micBlockedHint}</p>
+          </Status>
           {flow.fileProblem ? <p role="alert" className="mx-1 text-[14px] font-semibold text-[#c8331f]">{flow.fileProblem === 'too_large' ? C.tooLarge : C.notAudio}</p> : null}
           <Dock>
             <Action icon={RotateCcw} onClick={() => { void flow.startRecording(); }}>{C.tryAgain}</Action>

@@ -326,3 +326,13 @@ describe("Digital Coaching in Urdu — the helpers take the words given", () => 
     expect(tiles[1].value).toBe(U.bands.good);
   });
 });
+
+describe("Microphone blocked, in Urdu (bd-idkgm2)", () => {
+  it("the title and the how-to line are Urdu", async () => {
+    session.start.mockImplementationOnce(async () => "blocked" as never);
+    at(COACHING_SEND, <SendPage />, COACHING_SEND, { start: "record" });
+    expect(await screen.findByText(U.micBlocked)).toBeTruthy();
+    expect(screen.getByText(U.micBlockedHint)).toBeTruthy();
+    expect(englishLeft(["Microphone blocked", "Tap Try again and allow the microphone to record your lesson."])).toEqual([]);
+  });
+});
