@@ -53,9 +53,9 @@ const COPY = {
     well: 'آپ نے یہ اچھا کیا',
     tryh: '★ کل ایک کام آزمائیں',
     check: 'اگلی ریکارڈنگ میں ہم یہی دیکھیں گے۔',
-    open: 'کل کا سبق کھولیں ›',
-    more: 'اپنے سبق کا تفصیلی تجزیہ دیکھیں ‹',
-    back: '› اپنے کارڈ پر واپس',
+    open: 'کل کا سبق کھولیں',
+    more: 'اپنے سبق کا تفصیلی تجزیہ دیکھیں',
+    back: 'اپنے کارڈ پر واپس',
     made: 'حصہ وار کارکردگی',
     journey: 'آپ کا سفر',
     first: 'پہلا سبق',
@@ -89,8 +89,9 @@ const head = (v) => (v && v.header) || {};
 const botDigits = (env) => String((env && (env.WHATSAPP_BOT_NUMBER || env.REFERRAL_BOT_NUMBER)) || '').replace(/\D/g, '');
 
 function top(h, extra = '') {
-  const meta = [h.meta, h.date].filter(Boolean).join(' · ');
-  return `<header><section>${h.name ? `<h1>${esc(h.name)}</h1>` : ''}${meta ? `<p class="muted">${esc(meta)}</p>` : ''}`
+  // The date sits in <bdi> so "19 Oct 2026" keeps its order inside Urdu (right to left) text.
+  const meta = [h.meta && esc(h.meta), h.date && `<bdi>${esc(h.date)}</bdi>`].filter(Boolean).join(' · ');
+  return `<header><section>${h.name ? `<h1>${esc(h.name)}</h1>` : ''}${meta ? `<p class="muted">${meta}</p>` : ''}`
     + `${h.pct != null ? `<p class="big">${esc(h.pct)}%</p>` : ''}${extra}</section></header>`;
 }
 
@@ -173,7 +174,8 @@ function renderReportPage(view, env = process.env, links = {}, usefulState, coac
     const share = `https://wa.me/?text=${encodeURIComponent(v.quizMessage)}`;
     parts.push(`<section><h2>${esc(c.quiz)}</h2><p>${esc(v.quizMessage)}</p><a class="btn" href="${esc(share)}">${esc(c.sendQuiz)}</a></section>`);
   }
-  parts.push(usefulSection(links.useful, usefulState, l));
+  // Once she has asked her coach (only reachable after a 👎), the question is answered: don't ask again.
+  if (!COACH_SAID[coachState]) parts.push(usefulSection(links.useful, usefulState, l));
   parts.push(coachSection(links.coach, usefulState, coachState, c));
   return shell(l, c.title, parts.filter(Boolean).join('\n'));
 }
