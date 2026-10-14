@@ -13,6 +13,9 @@ const mockWhatsApp = { sendMessage: jest.fn(async () => true), sendInteractiveBu
 jest.mock('../../bot/shared/config/supabase', () => mockSupabase);
 jest.mock('../../bot/shared/services/whatsapp.service', () => mockWhatsApp);
 jest.mock('../../bot/shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
+// Behind the v10 test's master switch: off, a tap is left exactly as before.
+const mockSwitch = { v10Enabled: jest.fn(async () => true) };
+jest.mock('../../bot/shared/services/coaching/ab-v10-switch', () => mockSwitch);
 
 const svc = require('../../bot/shared/services/coaching/coaching-card/card-response.service');
 
@@ -34,7 +37,7 @@ function stubSessions(existing) {
   });
 }
 
-beforeEach(() => { jest.clearAllMocks(); stubSessions({ commitment: 'c', action: 'a', _source: 'llm' }); });
+beforeEach(() => { jest.clearAllMocks(); mockSwitch.v10Enabled.mockResolvedValue(true); stubSessions({ commitment: 'c', action: 'a', _source: 'llm' }); });
 
 describe('handleCardButton — the router entry', () => {
   test('a yes tap records teacher_response=yes on the existing record and acks in the teacher\'s language', async () => {
@@ -68,6 +71,15 @@ describe('handleCardButton — the router entry', () => {
   test('an unset language falls to the catalog floor, never throws', async () => {
     expect(await svc.handleCardButton(`card_yes_${SESSION}`, PHONE, undefined)).toBe(true);
     expect(mockWhatsApp.sendMessage).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('behind ab_v10_enabled', () => {
+  test('switch off: the tap is not ours — returns false, writes nothing, sends nothing', async () => {
+    mockSwitch.v10Enabled.mockResolvedValue(false);
+    expect(await svc.handleCardButton(`card_yes_${SESSION}`, PHONE, 'en')).toBe(false);
+    expect(updates).toHaveLength(0);
+    expect(mockWhatsApp.sendMessage).not.toHaveBeenCalled();
   });
 });
 

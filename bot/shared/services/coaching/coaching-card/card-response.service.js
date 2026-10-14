@@ -8,9 +8,9 @@
  */
 
 const supabase = require('../../../config/supabase');
-const WhatsAppService = require('../../whatsapp.service');
 const { resolveUx } = require('../../../config/ux-strings');
 const { logToFile } = require('../../../utils/logger');
+const { v10Enabled } = require('../ab-v10-switch');
 
 // `card_<yes|later|no>_<session uuid>` — the ids report-generator sends with the
 // commit prompt. Anchored: a foreign prefix or a non-uuid tail is not ours.
@@ -69,12 +69,19 @@ async function handleCoachingCardResponse(coachingSessionId, response) {
  * @param {string} buttonId - interactive button id
  * @param {string} phone - the teacher's WhatsApp number
  * @param {string} [language] - the teacher's preferred_language (catalog-clamped)
+ *
+ * Behind the v10 test's switch (ab_v10_enabled): off, the tap is left as it was
+ * before this fix — nothing recorded, nothing sent.
  */
 async function handleCardButton(buttonId, phone, language) {
   const m = BUTTON_RX.exec(typeof buttonId === 'string' ? buttonId : '');
   if (!m) return false;
+  if (!(await v10Enabled())) return false;
   const [, response, coachingSessionId] = m;
   await handleCoachingCardResponse(coachingSessionId, response);
+  // Required here, not at load: whatsapp.service pulls in storage, and the card's
+  // store-only callers (and their tests) should not need it.
+  const WhatsAppService = require('../../whatsapp.service');
   await WhatsAppService.sendMessage(phone, resolveUx(ACK_KEY[response], { language }));
   return true;
 }
