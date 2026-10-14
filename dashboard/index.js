@@ -171,6 +171,10 @@ app.use(createWebQuizRouter());
 // Not /t: that is the training link, mounted further down.
 const { createTeacherReportRouter } = require('./routes/teacher-report.routes');
 app.use(createTeacherReportRouter());
+// Group C and D's coaching report page /cr/:token (v10 coaching test, bd-v0toag.18). Read-only,
+// signs nobody in; ahead of the SPA catch-all so it never serves index.html for a report link.
+const { createCoachingReportRouter } = require('./routes/coaching-report.routes');
+app.use(createCoachingReportRouter());
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));
