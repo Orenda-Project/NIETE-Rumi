@@ -447,6 +447,8 @@ function createResponseCache({ ttlMs = 10 * 60 * 1000, maxEntries = 100, now = (
 module.exports = {
   LP_OPENS_LOGGED_SINCE,
   REGION_BUCKETS,
+  // Shared with coaching-analytics.service (bd-97x22y.1): one spelling of "which sector".
+  bucketOf,
   parseRegionFilter,
   windowBounds,
   sessionPct,
