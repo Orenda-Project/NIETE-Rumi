@@ -50,6 +50,7 @@ const { pageCapsFor } = require('../vendor/lp-v9/render_lp.js');
 const { oneScreenShapeDefects, overlayChromeGaps, overlayObjectiveGaps } = require('../vendor/lp-v9/lint_lp.js');
 const { refsFromDoc, stageFigures } = require('../shared/services/lp612-pagetruth.service');
 const Serving = require('../shared/services/lp612-serving.service');
+const Lp612Lifecycle = require('../shared/services/lp612-lifecycle.service');
 // bd-5rz1v.21 — a portal waiter's claim on the render she waited for (see the waiter loop).
 const Deliveries = require('../shared/services/lp612-deliveries.store');
 const {
@@ -510,7 +511,7 @@ const UNRENDERABLE_CODES = new Set(['RENDER_FAILED']);
  * could name a model this run never used. `null` when the run died before a segment was loaded —
  * there was no family, so there was no model, and a guess on the row would be worse than a NULL.
  */
-async function fail(renderId, snapshot, lang, code, detail, model = null) {
+async function fail(renderId, snapshot, lang, code, detail, model = null, ctx = {}) {
   // Status FIRST, then claim. From the moment this write lands, `lp612_join_waiters` refuses the
   // row and a teacher mid-tap is re-decided by the serving path (a failed row is retried, which
   // is what she is owed) rather than being parked on a list about to be emptied.
@@ -528,6 +529,10 @@ async function fail(renderId, snapshot, lang, code, detail, model = null) {
   // joined during a run that then died was getting no message at all, just silence on a lesson
   // that had already given up.
   const waiters = await claimWaiters(renderId, snapshot);
+  // Each WhatsApp waiter's ask ends here: one failed lifecycle row each (switch on only; never throws).
+  await Lp612Lifecycle.recordWaitersFailed({
+    waiters, segment: ctx.segment, segmentId: ctx.segmentId, lang, code, detail,
+  });
   const copyKey = NO_RETRY_CODES.has(code)
     ? 'lp612TooLong'
     : (UNRENDERABLE_CODES.has(code) ? 'lp612Unrenderable' : 'lp612Failed');
@@ -628,7 +633,7 @@ async function process(payload) {
   const segment = await loadSegment(segmentId);
   if (!segment) {
     return fail(renderId, snapshot, lang, 'SEGMENT_MISSING',
-      `segment ${segmentId} not found`);
+      `segment ${segmentId} not found`, null, { segmentId });
   }
 
   // The slow tail gets a second message rather than silence. Cleared on every
@@ -1482,6 +1487,8 @@ async function process(payload) {
     // locked statement, and it runs AFTER the status flip so a join arriving now is refused
     // ('not_authoring') and re-decided into a cache hit rather than dropped.
     const waiters = await claimWaiters(renderId, snapshot);
+    // When the document became ready — the generated_at of every waiter's lifecycle row.
+    const readyAt = new Date().toISOString();
 
     // bd-m1xyt: ONE deadline for the WHOLE loop, not one per waiter. This send runs after the
     // `withTimeout(...)` above, so it is unbounded by LP612_AUTHOR_TIMEOUT_MS — a lesson with many
@@ -1518,6 +1525,18 @@ async function process(payload) {
         // poll answered "No such lesson request". The WhatsApp waiters get their delivery row from
         // deliverRender; this is hers. Never throws, so it cannot cost anyone below her a send.
         if (w.surface === 'portal' && w.user_id) {
+          // Her portal ask's lifecycle row (switch on only): ready in her portal is delivered. Written
+          // before the claim that names it; never throws, and null leaves the claim as it always was.
+          const requestId = await Lp612Lifecycle.recordPortalReady({
+            userId: w.user_id,
+            segment,
+            segmentId,
+            lang,
+            askedAt: w.requested_at,
+            generatedAt: readyAt,
+            readyAt,
+            correlationId: w.correlation_id,
+          });
           await Deliveries.record({
             userId: w.user_id,
             renderId,
@@ -1525,6 +1544,8 @@ async function process(payload) {
             lang,
             templateVersion,
             surface: 'portal',
+            // Only when there is one: switched off, the call is exactly the old one.
+            ...(requestId ? { requestId } : {}),
           });
         }
         continue;
@@ -1545,6 +1566,10 @@ async function process(payload) {
           renderDegraded: degraded === true,
           renderId,
           sendDeadlineAt: deliveryDeadline,
+          // Her ask's lifecycle row: when she asked, when it was ready, her own ask's log id.
+          askedAt: w.requested_at,
+          generatedAt: readyAt,
+          correlationId: w.correlation_id,
         });
         delivered += 1;
       } catch (err) {
@@ -1642,7 +1667,7 @@ async function process(payload) {
       elapsedMs: Date.now() - startedAt,
     });
     await keepFailedDoc({ doc: authoredDoc, segmentId, lang, templateVersion, renderId, correlationId });
-    return fail(renderId, snapshot, lang, err.code, err.message, model);
+    return fail(renderId, snapshot, lang, err.code, err.message, model, { segment, segmentId });
   } finally {
     stopFollowup();
     if (tmpDir) {

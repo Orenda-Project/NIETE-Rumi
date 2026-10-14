@@ -645,6 +645,7 @@ async function selectTopic(flowToken, screenData) {
 
 // --- Pakistan delivery path (existing) ---
 async function selectTopicPakistan(flowToken, rowId) {
+  const askedAt = new Date().toISOString();
   const { data: row, error } = await supabase
     .from('pre_generated_lps')
     .select('id,grade,subject,chapter_number,chapter_title,pdf_r2_key_en,pdf_r2_key_ur')
@@ -658,7 +659,7 @@ async function selectTopicPakistan(flowToken, rowId) {
     flowToken, rowId, chapter: row.chapter_number, subject: row.subject, grade: row.grade,
   });
   await sendPreDeliveryAck(flowToken, row);
-  deliverPakistanLpAsync(flowToken, row);
+  deliverPakistanLpAsync(flowToken, row, askedAt);
   const cleanTitle = (row.chapter_title || `Chapter ${row.chapter_number}`).replace(/\s*\(chapter reading — full LP pending\)\s*$/, '');
   return {
     screen: 'SUCCESS',
@@ -670,6 +671,7 @@ async function selectTopicPakistan(flowToken, rowId) {
 
 // --- Oxbridge delivery path ---
 async function selectTopicOxbridge(flowToken, rowId) {
+  const askedAt = new Date().toISOString();
   const row = await OxbridgeLpService.getById(parseInt(rowId, 10));
   if (!row || !row.content_html) {
     logToFile('Oxbridge LP: row lookup failed', { rowId });
@@ -695,7 +697,7 @@ async function selectTopicOxbridge(flowToken, rowId) {
         user.phone_number,
         `📖 Sending your Oxbridge lesson plan: ${row.grade} ${row.subject} — ${row.chapter_title}…`
       );
-      const ok = await OxbridgeLpService.deliverOxbridgeLp(user.phone_number, row, language);
+      const ok = await OxbridgeLpService.deliverOxbridgeLp(user.phone_number, row, language, { userId, askedAt });
       if (!ok) {
         logToFile('Oxbridge LP (Flow): delivery returned false', { userId, rowId });
       }
@@ -739,10 +741,11 @@ async function sendPreDeliveryAck(flowToken, row) {
 
 // Fire-and-forget deliver — presigned-URL pattern:
 // presigned R2 URL + sendDocumentByLink, no tmpfile, no buffer-as-path bug.
-function deliverPakistanLpAsync(flowToken, row) {
+function deliverPakistanLpAsync(flowToken, row, askedAt) {
   const userId = (flowToken || '').split(':')[0];
   (async () => {
     let phone;
+    let language;
     try {
       const user = await getPhoneForUser(userId);
       phone = user?.phone_number;
@@ -750,7 +753,7 @@ function deliverPakistanLpAsync(flowToken, row) {
         logToFile('Pakistan LP: no phone for user', { userId });
         return;
       }
-      const language = clampLanguage(user?.preferred_language);
+      language = clampLanguage(user?.preferred_language);
       const r2Key = (language === 'ur' && row.pdf_r2_key_ur)
         ? row.pdf_r2_key_ur
         : (row.pdf_r2_key_en || row.pdf_r2_key_ur);
@@ -766,6 +769,7 @@ function deliverPakistanLpAsync(flowToken, row) {
         throw new Error('sendDocumentByLink returned falsy');
       }
       logToFile('Pakistan LP: PDF delivered', { userId, rowId: row.id, r2Key, phone });
+      await recordPreGenAsk({ userId, phone, row, language, askedAt, outcome: { status: 'completed' } });
 
       // Optional voicenote at convention path <same-stem>.ogg
       const voicenoteKey = r2Key.replace(/\.pdf$/i, '.ogg');
@@ -778,8 +782,45 @@ function deliverPakistanLpAsync(flowToken, row) {
       }
     } catch (err) {
       logToFile('Pakistan LP: delivery failed', { userId, rowId: row.id, error: err.message, stack: err.stack });
+      if (phone) {
+        await recordPreGenAsk({
+          userId, phone, row, language, askedAt,
+          outcome: { status: 'failed', errorCode: 'DELIVERY_FAILED', errorMessage: err.message },
+        });
+      }
     }
   })();
+}
+
+/**
+ * Her pre-generated chapter ask's lifecycle row — source pre_gen_chapter, the same source the typed
+ * handler's pre-generated hit writes, naming the pre_generated_lps row — once the send has its
+ * outcome. Switched by LP_LIFECYCLE_PATHS; never throws.
+ */
+async function recordPreGenAsk({ userId, phone, row, language, askedAt, outcome }) {
+  const Lifecycle = require('../services/lesson-plan-lifecycle.service');
+  const { SOURCES, CHANNELS } = Lifecycle.LIFECYCLE;
+  try {
+    return await Lifecycle.recordOutcome({
+      userId,
+      phone,
+      topic: (row.chapter_title || `Chapter ${row.chapter_number}`).replace(/\s*\(chapter reading — full LP pending\)\s*$/, ''),
+      language,
+      source: SOURCES.PRE_GEN_CHAPTER,
+      channel: CHANNELS.WHATSAPP,
+      grade: row.grade,
+      subject: row.subject,
+      artifactRef: row.id,
+      askedAt,
+      // Pre-generated: the PDF existed when she asked.
+      generatedAt: askedAt,
+      ...outcome,
+    });
+  } catch (err) {
+    // Describing the ask threw (recordOutcome itself never does): reported, never thrown into her delivery.
+    Lifecycle.recorderThrew(err, SOURCES.PRE_GEN_CHAPTER);
+    return null;
+  }
 }
 
 // ─── the 6-12 runtime lane ──────────────────────────────────────────────

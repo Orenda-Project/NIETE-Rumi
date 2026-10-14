@@ -65,6 +65,8 @@ router.post('/queue-lesson-plan', requireInternalKey, async (req, res) => {
       topic,
       chapterTitle: chapterTitle || null,
       language,
+      // The portal's door: its lifecycle row (when switched on) says where she asked.
+      channel: 'portal',
     });
     logToFile('🧾 Grounded LP queued via internal API', { requestId, sourceLpUuid, userId, language });
     return res.status(202).json({ success: true, requestId, language });
@@ -1257,6 +1259,9 @@ router.post('/lp/v8/lessons', requireInternalKey, lpBrowseRoute('lessons', async
  * `available: false` (with HTTP 200) is a real answer — the lesson exists in
  * the catalogue but has no current asset yet. Only a genuine failure is a 5xx,
  * so the portal can tell "not rendered" apart from "we are broken".
+ *
+ * A lesson (not an answer key) handed out for a named teacher is her ask on the portal channel:
+ * lp-v8-lifecycle records it after the answer has gone (LP_LIFECYCLE_PATHS).
  */
 router.post('/lp/v8/pdf', requireInternalKey, lpBrowseRoute('pdf', async (Browse, req, res) => {
   const body = req.body || {};
@@ -1264,10 +1269,39 @@ router.post('/lp/v8/pdf', requireInternalKey, lpBrowseRoute('pdf', async (Browse
   const assetKind = body.assetKind === 'answer_key' ? 'answer_key' : 'lesson';
   if (!lessonId) return res.status(400).json({ success: false, error: 'lessonId is required' });
 
-  const hit = await Browse.lessonPdfUrl(lessonId, assetKind, body.userId || null);
-  if (!hit) return res.json({ success: true, available: false });
-  return res.json({ success: true, available: true, ...hit });
+  const askedAt = new Date().toISOString();
+  const LpV8Lifecycle = require('../services/lp-v8-lifecycle.service');
+  let hit;
+  try {
+    hit = await Browse.lessonPdfUrl(lessonId, assetKind, body.userId || null);
+  } catch (error) {
+    // Her ask ended in a failure we caused: recorded (switch on only), then the 500 she always got.
+    await LpV8Lifecycle.recordPortalLesson({ userId: body.userId || null, lessonId, assetKind, available: false, askedAt, error });
+    throw error;
+  }
+  if (!hit) res.json({ success: true, available: false });
+  else res.json({ success: true, available: true, ...hit });
+  // Her ask's lifecycle row — AFTER the answer, so the portal's open never waits on it (switch on
+  // only; never throws). The portal and the teacher app are where most grade 1-5 plans are read.
+  await LpV8Lifecycle.recordPortalLesson({
+    userId: body.userId || null, lessonId, assetKind, available: Boolean(hit), askedAt,
+  });
+  return undefined;
 }));
+
+/**
+ * GET /api/internal/lp/health → the lesson-plan health numbers on demand: the last hour per path and
+ * channel from the lifecycle rows (monitoring/lesson-plan-health.service — the same summary the hourly
+ * check emits). { success, status: 'off' } until LP_LIFECYCLE_PATHS switches a path on; 503 when the
+ * read fails, so a monitor can tell broken from quiet. Read-only, bounded; behind the internal key
+ * because per-path counts are not for the open internet.
+ */
+router.get('/lp/health', requireInternalKey, async (req, res) => {
+  const Health = require('../services/monitoring/lesson-plan-health.service');
+  const out = await Health.onDemand();
+  if (out.status === 'read_failed') return res.status(503).json({ success: false, ...out });
+  return res.json({ success: true, ...out });
+});
 
 /**
  * POST /api/internal/lp/describe

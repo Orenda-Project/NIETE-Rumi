@@ -160,8 +160,13 @@ async function onViewerOpen({ openId } = {}) {
       let asset = null;
       try { asset = await Delivery.currentAssetFor(row.plan_ref); } catch (_) { /* provenance only */ }
 
+      // The portal ask that served this plan (LP_LIFECYCLE_PATHS on), so the survey's plan row leads
+      // back to the ask and its timeline. Null leaves the row exactly as it was.
+      const requestId = await require('./lp-v8-lifecycle.service').portalAskFor({
+        userId: user.id, lessonId: row.plan_ref, openedAt: row.opened_at,
+      });
       const lessonPlanId = await Delivery.recordLessonPlanRow({
-        userId: user.id, lessonId: row.plan_ref, hit, asset, voicenoteSent: false, surface: 'app',
+        userId: user.id, lessonId: row.plan_ref, hit, asset, voicenoteSent: false, surface: 'app', requestId,
       });
       if (!lessonPlanId) {
         logToFile('LP app-open survey: no lesson_plans row, survey not scheduled', at, 'error');

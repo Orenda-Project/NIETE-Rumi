@@ -33,13 +33,14 @@ const { storeLessonPlan } = require('../database/bot-helpers');
 const { downloadFromR2 } = require('../storage/r2');
 const WhatsAppService = require('../services/whatsapp.service');
 const { logToFile } = require('../utils/logger');
+const Lifecycle = require('../services/lesson-plan-lifecycle.service');
 
 // After a cache-hit synchronous delivery, insert a lesson_plans row (so the
 // feedback survey has an FK target) + schedule the 30s "was this useful?"
 // prompt. Requires userDbId — a cache-hit for a caller without a UUID (e.g.
 // pre-user smoke) is still delivered, just without a feedback prompt.
 async function _scheduleFeedbackForCacheHit({
-  userDbId, phone, topic, grade, subject, chapterNumber, lpVariant, language, r2Key,
+  userDbId, phone, topic, grade, subject, chapterNumber, lpVariant, language, r2Key, requestId = null,
 }) {
   if (!userDbId) return;
   try {
@@ -54,7 +55,9 @@ async function _scheduleFeedbackForCacheHit({
       language: language || 'en',
       trigger_mode: 'after_pdf_only',
     };
-    const lpRow = await storeLessonPlan(userDbId, topic, 'lesson_plan', null, r2Key, content);
+    // The plan row names its lifecycle row, when one was written for this ask.
+    const lpRow = await storeLessonPlan(userDbId, topic, 'lesson_plan', null, r2Key, content,
+      requestId ? { request_id: requestId } : null);
     if (!lpRow?.id) return;
     LpFeedbackService.scheduleFeedbackPrompt({
       lessonPlanId: lpRow.id,
@@ -81,11 +84,36 @@ async function serveR2Pdf(userId, r2Key, filename) {
     const pdfBuffer = await downloadFromR2(r2Key);
     tmpPath = path.join(os.tmpdir(), `curriculum_lp_${Date.now()}_${Math.random().toString(36).slice(2)}.pdf`);
     fs.writeFileSync(tmpPath, pdfBuffer);
-    await WhatsAppService.sendDocument(userId, tmpPath, filename);
+    const sent = await WhatsAppService.sendDocument(userId, tmpPath, filename);
     logToFile('Curriculum LP: served from R2', { r2Key });
+    // Reported for the lesson-plan lifecycle row only; no caller branches on it.
+    return sent === true;
   } finally {
     if (tmpPath) { try { fs.unlinkSync(tmpPath); } catch (_) { /* best-effort */ } }
   }
+}
+
+// The lifecycle row of an ask served there and then (cache hit / pre-generated): one finished row,
+// written before the plan row so the plan row can name it. Soft-fail; null when switched off.
+function recordServedAsk({
+  userDbId, phone, source, topic, grade, subject, language, artifactRef, askedAt, sent, errorMessage,
+}) {
+  return Lifecycle.recordOutcome({
+    userId: userDbId,
+    phone,
+    topic,
+    grade,
+    subject,
+    language,
+    source,
+    channel: Lifecycle.LIFECYCLE.CHANNELS.WHATSAPP,
+    artifactRef,
+    askedAt,
+    generatedAt: askedAt, // the PDF was already rendered when she asked
+    ...(sent
+      ? { status: 'completed' }
+      : { status: 'failed', errorCode: Lifecycle.LIFECYCLE.ERROR_CODES.DELIVERY_FAILED, errorMessage: errorMessage || 'sendDocument returned falsy' }),
+  });
 }
 
 // ─── ASYNC UX ──────────────────────────────────────────────────────────────
@@ -123,6 +151,8 @@ async function sendAckAndQueue({ phoneNumber, userDbId, lp, language }) {
     topic: lp.topic,
     chapterTitle: lp.chapter_title,
     language,
+    grade: lp.grade,
+    subject: lp.subject,
   });
   return { queued: true };
 }
@@ -140,6 +170,7 @@ async function sendAckAndQueue({ phoneNumber, userDbId, lp, language }) {
  * @returns {Promise<{ source: 'pre_generated'|'ast_cached'|'ast_queued'|'oxbridge_picker'|'page_prompt', promptedForPage: boolean }>}
  */
 async function handleCurriculumLessonPlan({ userId, userDbId, topic, grade, subject, curriculum, language }) {
+  const askedAt = new Date().toISOString();
   try {
     if (!topic || !curriculum) return { source: 'page_prompt', promptedForPage: true };
 
@@ -185,19 +216,36 @@ async function handleCurriculumLessonPlan({ userId, userDbId, topic, grade, subj
       const filename = `${astLp.chapter_title} — ${astLp.topic} - Lesson Plan.pdf`.replace(/["<>?*|\\/]/g, '');
 
       if (cachedR2Key) {
-        await serveR2Pdf(userId, cachedR2Key, filename);
+        let sent;
+        try {
+          sent = await serveR2Pdf(userId, cachedR2Key, filename);
+        } catch (err) {
+          // The cached PDF could not be read or sent: her ask ends here — recorded (switch on only),
+          // then the same throw as before.
+          await recordServedAsk({
+            userDbId, phone: userId, source: Lifecycle.LIFECYCLE.SOURCES.NIETE_GROUNDED,
+            topic: astLp.topic, grade: astLp.grade, subject: astLp.subject, language,
+            artifactRef: astLp.source_lp_uuid, askedAt, sent: false, errorMessage: err && err.message,
+          });
+          throw err;
+        }
         if (servedFallback) {
           logToFile('Curriculum LP: language fallback served', {
             requested: language, served: language === 'ur' ? 'en' : 'ur',
             source_lp_uuid: astLp.source_lp_uuid,
           });
         }
+        const requestId = await recordServedAsk({
+          userDbId, phone: userId, source: Lifecycle.LIFECYCLE.SOURCES.NIETE_GROUNDED,
+          topic: astLp.topic, grade: astLp.grade, subject: astLp.subject, language,
+          artifactRef: astLp.source_lp_uuid, askedAt, sent,
+        });
         await _scheduleFeedbackForCacheHit({
           userDbId, phone: userId,
           topic: astLp.topic, grade: astLp.grade, subject: astLp.subject,
           chapterNumber: astLp.chapter_number,
           lpVariant: astLp.publisher === 'NBF' ? 'nbf_ast' : 'taleemabad_ast',
-          language, r2Key: cachedR2Key,
+          language, r2Key: cachedR2Key, requestId,
         });
         return { source: 'ast_cached', promptedForPage: false };
       }
@@ -218,13 +266,26 @@ async function handleCurriculumLessonPlan({ userId, userDbId, topic, grade, subj
       const langCol = language === 'ur' ? 'pdf_r2_key_ur' : 'pdf_r2_key_en';
       const r2Key = preGen && preGen[langCol];
       if (r2Key) {
-        await serveR2Pdf(userId, r2Key, `${chapter.chapter_title} - Lesson Plan.pdf`);
+        let sent;
+        try {
+          sent = await serveR2Pdf(userId, r2Key, `${chapter.chapter_title} - Lesson Plan.pdf`);
+        } catch (err) {
+          await recordServedAsk({
+            userDbId, phone: userId, source: Lifecycle.LIFECYCLE.SOURCES.PRE_GEN_CHAPTER,
+            topic, grade, subject, language, artifactRef: preGen && preGen.id, askedAt, sent: false, errorMessage: err && err.message,
+          });
+          throw err;
+        }
+        const requestId = await recordServedAsk({
+          userDbId, phone: userId, source: Lifecycle.LIFECYCLE.SOURCES.PRE_GEN_CHAPTER,
+          topic, grade, subject, language, artifactRef: preGen && preGen.id, askedAt, sent,
+        });
         await _scheduleFeedbackForCacheHit({
           userDbId, phone: userId,
           topic, grade, subject,
           chapterNumber: chapter.chapter_number,
           lpVariant: 'punjab_pregen',
-          language, r2Key,
+          language, r2Key, requestId,
         });
         return { source: 'pre_generated', promptedForPage: false };
       }

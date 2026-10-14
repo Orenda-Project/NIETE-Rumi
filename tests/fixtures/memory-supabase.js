@@ -49,10 +49,28 @@ function createMemorySupabase(seed = {}, { unique = {} } = {}) {
     let order = null;
     let lim = null;
     let rng = null;
+    let conflictKeys = null;
 
     const test = (r) => filters.every((f) => f(r));
 
     const exec = () => {
+      // `.upsert(p, { onConflict: 'a,b' })`: a row matching on the conflict columns is updated in
+      // place, anything else is inserted — PostgREST's merge-duplicates. Without onConflict, the
+      // primary key `id` is the conflict target.
+      if (op === 'upsert') {
+        const list = Array.isArray(payload) ? payload : [payload];
+        const keys = conflictKeys && conflictKeys.length ? conflictKeys : ['id'];
+        const made = [];
+        for (const p of list) {
+          const hit = rows.find((r) => keys.every((k) => p[k] !== undefined && r[k] === p[k]));
+          if (hit) { Object.assign(hit, p); made.push({ ...hit }); continue; }
+          seq += 1;
+          const row = { id: `${table}-${seq}`, ...p };
+          rows.push(row);
+          made.push({ ...row });
+        }
+        return { data: made, error: null };
+      }
       if (op === 'insert') {
         const list = Array.isArray(payload) ? payload : [payload];
         const made = [];
@@ -103,6 +121,12 @@ function createMemorySupabase(seed = {}, { unique = {} } = {}) {
     const c = {
       select: (_cols, opts) => { if (opts && opts.head) head = true; return c; },
       insert: (p) => { op = 'insert'; payload = p; return c; },
+      upsert: (p, opts) => {
+        op = 'upsert';
+        payload = p;
+        conflictKeys = opts && opts.onConflict ? String(opts.onConflict).split(',').map((k) => k.trim()) : null;
+        return c;
+      },
       update: (p) => { op = 'update'; payload = p; return c; },
       delete: () => { op = 'delete'; return c; },
       eq: (col, v) => { filters.push((r) => r[col] === v); return c; },
