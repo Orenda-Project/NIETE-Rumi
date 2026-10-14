@@ -6527,6 +6527,17 @@ CREATE TABLE IF NOT EXISTS niete_lp_ab_assignment (
   drawn_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ─── niete_coaching_ab_assignment (migration V1.6.5) — v10 coaching test group per school ──
+-- Mirrors infrastructure/supabase/migrations/V1.6.5__niete_coaching_ab_assignment.sql: written once at
+-- the draw; A = v9 + today's report, B = v10 card + today's, C = v9 + new, D = card + new. Transitional.
+CREATE TABLE IF NOT EXISTS niete_coaching_ab_assignment (
+  school_id  UUID PRIMARY KEY REFERENCES schools (id),
+  ab_group   TEXT NOT NULL CHECK (ab_group IN ('A', 'B', 'C', 'D')),
+  block      TEXT,
+  seed       TEXT NOT NULL,
+  drawn_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ─── niete_lp_opens (migration V1.6.1) — lesson plans a teacher opened in the portal ──
 -- Mirrors infrastructure/supabase/migrations/V1.6.1__niete_lp_opens.sql. One row per portal open
 -- (same teacher + plan + lang within 5 minutes stored once). Written by the portal service after the
