@@ -489,6 +489,13 @@ class ReportGeneratorService {
         if (heroSent !== false) await track.record('image', true);
         // bd-v0toag.106 — window closed: the report went as the share template; the free-form follow-ups would be refused.
         followUps = require('./report-window-send').followUpsAllowed(heroSent);
+        // v10 coaching test (bd-v0toag.19): C and D get the link to their report page. Off or
+        // undrawn, or A and B: nothing is sent. Never throws.
+        if (followUps) {
+          await require('./report-link-send').sendReportLinkIfNew({
+            coachingSessionId, userId: session.user_id, phone: from, language: outputLanguage, track,
+          });
+        }
         voiceStepAnnounced = heroSent !== false && fitted.some((l) => l.key === 'step5');
         if (heroSent !== false) ReportEvents.reportSent({ userId: session.user_id, sessionId: coachingSessionId, format: reportFormat });
       } else {
