@@ -35,6 +35,7 @@ const { isUptakeLoopEnabled } = require('../../config/uptake-loop-flags');
 const { clampLanguage } = require('../../config/ux-strings');
 const { persistReportNarrative } = require('./report-v2/narrative-store');
 const { offerDefaultLanguage } = require('../../config/languages');
+const { createReportTracker } = require('./report-tracking');
 
 /**
  * The language the coaching STEP messages are sent in.
@@ -154,6 +155,8 @@ class ReportGeneratorService {
       }
 
       const from = payload.from || session.users.phone_number;
+      // v10 test (bd-v0toag.12): logs each part sent with its wamid; a no-op while the switch is off.
+      const track = createReportTracker({ coachingSessionId, userId: session.user_id });
       // Filter Boolean protects against a null last_name concatenating literally
       // as "First null" and against both names being null (renders as empty
       // string that hero-report.service.js maps to 'Teacher' fallback).
@@ -458,15 +461,22 @@ class ReportGeneratorService {
         for (const line of overflow) {
           if (line.key !== 'step5') await WhatsAppService.sendMessage(from, line.text);
         }
-        const heroSent = await this.sendHeroImageReport(
-          from,
-          coachingSessionId,
-          reportResult.png,
-          caption,
-          session.users.name,
-          session.created_at,
-          { userId: session.user_id }
-        );
+        let heroSent;
+        try {
+          heroSent = await this.sendHeroImageReport(
+            from,
+            coachingSessionId,
+            reportResult.png,
+            caption,
+            session.users.name,
+            session.created_at,
+            { ...track.opts('image'), userId: session.user_id }
+          );
+        } catch (error) {
+          await track.record('image', false, error);
+          throw error;
+        }
+        if (heroSent !== false) await track.record('image', true);
         // bd-v0toag.106 — window closed: the report went as the share template; the free-form follow-ups would be refused.
         followUps = require('./report-window-send').followUpsAllowed(heroSent);
         voiceStepAnnounced = heroSent !== false && fitted.some((l) => l.key === 'step5');
@@ -481,7 +491,7 @@ class ReportGeneratorService {
 
       // Generate and send voice debrief (optional, won't fail entire process)
       if (!isRetry && followUps) {
-        await this.generateAndSendVoiceDebrief(session, from, coachingSessionId, enhancedAnalysis, { stepAnnounced: voiceStepAnnounced });
+        await this.generateAndSendVoiceDebrief(session, from, coachingSessionId, enhancedAnalysis, { stepAnnounced: voiceStepAnnounced, track });
       }
 
       // "Was this coaching report useful to you?" — RIGHT after the voice debrief, before
@@ -603,7 +613,8 @@ class ReportGeneratorService {
                 { id: `card_later_${coachingSessionId}`, title: cardCopy.commitButtons.later },
                 { id: `card_no_${coachingSessionId}`, title: cardCopy.commitButtons.no },
               ],
-            });
+            }, track.opts('buttons'));
+            await track.record('buttons', promptSent !== false);
             if (promptSent === false) await releasePiece(coachingSessionId, 'commit_prompt');
             completionAnnounced = Boolean(lead);
           } else {
@@ -1625,7 +1636,7 @@ class ReportGeneratorService {
    * @returns {Promise<void>}
    * @private
    */
-  static async sendHeroImageReport(phoneNumber, coachingSessionId, pngBuffer, caption, teacherFirstName = 'Teacher', observationDate = null, { userId } = {}) {
+  static async sendHeroImageReport(phoneNumber, coachingSessionId, pngBuffer, caption, teacherFirstName = 'Teacher', observationDate = null, { userId, ...sendOpts } = {}) {
     // Meta bill cut NC5 (N1-13): once per session. Returns false (no throw) when
     // this run is a duplicate; a failed send gives the claim back below so the
     // retry can still deliver the report.
@@ -1658,7 +1669,7 @@ class ReportGeneratorService {
       });
 
       // sendImage handles the Meta media upload + the messages send.
-      const ok = await WhatsAppService.sendImage(phoneNumber, tempImagePath, caption);
+      const ok = await WhatsAppService.sendImage(phoneNumber, tempImagePath, caption, sendOpts);
       if (!ok) {
         // sendImage returns false on failure and swallows the error internally;
         // treat that as a hard failure here — report delivery IS critical.
@@ -1902,7 +1913,8 @@ class ReportGeneratorService {
       // between the two (586 sessions, 18 Sep 2026; p95 55s, max 242s), so
       // dropping it instead would leave the teacher waiting in silence. The audio
       // arriving after it needs no caption.
-      await WhatsAppService.sendAudioFromUrl(phoneNumber, voiceUrl);
+      const voiceSent = await WhatsAppService.sendAudioFromUrl(phoneNumber, voiceUrl, opts.track ? opts.track.opts('voice') : undefined);
+      if (opts.track) await opts.track.record('voice', voiceSent !== false);
 
       logToFile('✅ Voice debrief sent successfully', { coachingSessionId });
     } catch (voiceError) {
