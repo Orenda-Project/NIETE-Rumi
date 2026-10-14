@@ -16,7 +16,10 @@
  *   school          schools.is_active and not is_probable_test, and schools.region one of the
  *                   six sectors — the /analytics/schools rule (bd-s6qbts.4). Any other school
  *                   is in no row, no card, no total, and neither are its visits or coaches.
- *   coachVisits     observation_schedules with status 'done', dated by scheduled_for (a DATE —
+ *   coachVisits     observation_schedules with status 'done' OWNED BY A COACH — leader_user_id
+ *                   is a users.role 'coach', not is_test_user, the same "coach" as below; a
+ *                   visit logged by a principal or a teacher is not a coach visit (operator,
+ *                   2026-10-14: the tile is "Coach visits") — dated by scheduled_for (a DATE —
  *                   the visit's own Pakistan day; an after-the-fact visit is recorded with the
  *                   day it happened), matched to a school by school_id, else by school_ext_id =
  *                   'niete:' || emis (every done row on prod carries only the ext id, 2026-10-14).
@@ -127,8 +130,14 @@ function dateWindowClause(col, range) {
   return parts.length ? parts.join(' AND ') : 'TRUE';
 }
 
+/** A counted coach, as `alias` (a users row): one spelling for the coaches and the visits. */
+const countedCoach = (alias) => `${alias}.role = 'coach'
+     AND ${alias}.is_test_user IS NOT TRUE`;
+
 function schoolsSql(range) {
   // Every school, with its coach visits in the window — the shape PR #2196 measured on prod.
+  // Only a coach's visit: its owner (leader_user_id) is a counted coach, filtered before the
+  // GROUP BY so a principal's or teacher's visit never reaches a school's count.
   // A visit names its school by school_id or (every done row on prod) only by school_ext_id
   // 'niete:<emis>'. A visit resolving to no school groups under NULL and joins to nothing.
   return `
@@ -138,6 +147,7 @@ function schoolsSql(range) {
     LEFT JOIN (
       SELECT COALESCE(s.school_id, byemis.id) AS school_id, count(*)::int AS coach_visits
         FROM observation_schedules s
+        JOIN users ob ON ob.id = s.leader_user_id AND ${countedCoach('ob')}
         LEFT JOIN schools byemis
           ON s.school_id IS NULL AND byemis.emis IS NOT NULL AND s.school_ext_id = 'niete:' || byemis.emis
        WHERE s.status = 'done'
@@ -153,8 +163,7 @@ function schoolsSql(range) {
 // joins (4.5 ms) and returned the same 469 pairs (2026-10-14). UNION, not UNION ALL, also
 // de-duplicates a school matched both ways or by two of a coach's ext ids. No window:
 // coaches are "assigned", not active.
-const COACH_WHERE = `u.role = 'coach'
-     AND u.is_test_user IS NOT TRUE`;
+const COACH_WHERE = countedCoach('u');
 const COACH_SCHOOLS_SQL = `
   SELECT lsch.leader_user_id AS coach_id, sch.id AS school_id
     FROM leader_schools lsch
