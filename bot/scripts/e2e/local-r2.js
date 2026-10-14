@@ -175,9 +175,28 @@ async function list(res, bucket, u) {
     + '</ListBucketResult>');
 }
 
+// A browser uploads here too: the local portal's recorder PUTs to a presigned URL from http://localhost:<port>, so
+// Chrome sends a CORS preflight first (bd-hnhlgn.17). Real R2 answers it from the bucket's CORS rules; this binds
+// 127.0.0.1 only, so it simply allows the asking origin.
+function cors(req, res) {
+  const origin = req.headers.origin;
+  if (!origin) return;
+  res.setHeader('access-control-allow-origin', origin);
+  res.setHeader('vary', 'Origin');
+  res.setHeader('access-control-expose-headers', 'ETag');
+}
+
 http.createServer(async (req, res) => {
   try {
     if (req.url === '/__health') { res.writeHead(200); return res.end('ok'); }
+    cors(req, res);
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'access-control-allow-methods': 'GET, HEAD, PUT, DELETE',
+        'access-control-allow-headers': req.headers['access-control-request-headers'] || '*',
+        'access-control-max-age': '3000' });
+      return res.end();
+    }
     const { u, bucket, key } = parse(req);
     if (req.method === 'GET' && !key && u.searchParams.has('list-type')) return list(res, bucket, u);
     if (!bucket || !key) { res.writeHead(400); return res.end(); }
