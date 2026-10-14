@@ -94,6 +94,26 @@ for f in portal-login portal-smoke teacher-home teacher-lessons teacher-coaching
   [ -f "$ROOT/.claude/qa/web/features/$f.cjs" ] && ok "W11 driver $f" || no "W11 driver $f"
 done
 
+# W12 — PARALLEL (bd-hnhlgn.13): several features at once, each in its own slot (own ports, own run dir).
+pp=$(bash "$SH" portal-login,teacher-lessons,coach-portal --parallel --print-plan 2>&1)
+chk "W12 one plan per feature" "$(printf '%s\n' "$pp" | grep -c '^FEATURE=')" "3"
+chk "W12b three different portal ports" "$(printf '%s\n' "$pp" | sed -nE 's/^PORTAL_PORT=//p' | sort -u | wc -l | tr -d ' ')" "3"
+chk "W12c three different run dirs" "$(printf '%s\n' "$pp" | sed -nE 's/^RUN_DIR=//p' | sort -u | wc -l | tr -d ' ')" "3"
+printf '%s\n' "$pp" | sed -nE 's/^PORTAL_PORT=//p' | grep -qx 4000 && no "W12d never :4000" || ok "W12d never :4000"
+chk "W12e at most E2E_WEB_PARALLEL at once" "$(E2E_WEB_PARALLEL=2 bash "$SH" portal-login,teacher-lessons,coach-portal --parallel --print-plan 2>&1 | sed -nE 's/^PARALLEL=//p' | head -1)" "2"
+# W13 — per-feature scenarios in one call, the run-suite form: feature=ID,ID;feature=ID
+po=$(bash "$SH" portal-login,teacher-lessons --parallel --only "portal-login=PL03,PL06;teacher-lessons=TL02" --print-plan 2>&1)
+chk "W13 portal-login gets its own ids" "$(printf '%s\n' "$po" | awk '/^FEATURE=portal-login/{f=1} f&&/^ONLY=/{print;exit}')" "ONLY=PL03,PL06"
+chk "W13b teacher-lessons gets its own ids" "$(printf '%s\n' "$po" | awk '/^FEATURE=teacher-lessons/{f=1} f&&/^ONLY=/{print;exit}')" "ONLY=TL02"
+# W14 — an unknown feature anywhere in the list is refused before anything starts
+bash "$SH" portal-login,nope --parallel --print-plan >/dev/null 2>&1; chk "W14 unknown feature in a list exits 2" "$?" "2"
+
+# W15 — a test stack keeps its portal DB pool small: four parallel stacks at the default 20 exhausted the local
+#       Postgres (max_connections 100: "sorry, too many clients already") and failed a scenario's set-up SQL.
+chk "W15 test runs cap the portal's DB pool" "$(bash "$SH" portal-login --print-plan 2>&1 | sed -nE 's/^DB_POOL_SIZE=//p')" "5"
+grep -q "too many clients" "$ROOT/.claude/qa/web/web-runner.cjs" && ok "W15b set-up SQL retries a full connection table" \
+  || no "W15b set-up SQL retries a full connection table"
+
 # W5 — wired into npm, like e2e:mock.
 chk "W5 npm run e2e:web" "$(node -p "require('$ROOT/package.json').scripts['e2e:web']" 2>/dev/null)" "bash scripts/qa/e2e-web.sh"
 

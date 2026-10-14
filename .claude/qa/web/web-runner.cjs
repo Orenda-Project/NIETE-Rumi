@@ -34,8 +34,20 @@ async function main() {
 
   const sql = async (text) => {
     if (!env.WEB_DB_NAME) throw new Error('no run database (WEB_DB_NAME) — set-up SQL refused');
-    execFileSync(env.WEB_PSQL || 'psql', ['-h', '127.0.0.1', '-p', env.WEB_PG_PORT, '-U', 'postgres',
-      '-d', env.WEB_DB_NAME, '-v', 'ON_ERROR_STOP=1', '-qAtc', text], { stdio: ['ignore', 'pipe', 'pipe'] });
+    // Parallel stacks share one local Postgres; while they start up its connection table can be full for a moment
+    // ("sorry, too many clients already"). That is retried — any other SQL error fails the scenario at once.
+    for (let attempt = 1; ; attempt++) {
+      try {
+        execFileSync(env.WEB_PSQL || 'psql', ['-h', '127.0.0.1', '-p', env.WEB_PG_PORT, '-U', 'postgres',
+          '-d', env.WEB_DB_NAME, '-v', 'ON_ERROR_STOP=1', '-qAtc', text], { stdio: ['ignore', 'pipe', 'pipe'] });
+        return;
+      } catch (e) {
+        // keep Postgres's own words — "Command failed" alone says nothing about why
+        const why = String((e.stderr && e.stderr.toString()) || e.message).trim().split('\n').slice(-2).join(' | ');
+        if (/too many clients/i.test(why) && attempt < 4) { await new Promise((r) => setTimeout(r, 1500 * attempt)); continue; }
+        throw new Error('set-up SQL failed on the run database: ' + why);
+      }
+    }
   };
   const ctx = { baseUrl: env.WEB_BASE_URL.replace(/\/$/, ''), sql,
     mockUrl: (env.WEB_MOCK_URL || '').replace(/\/$/, ''), headed: env.WEB_HEADED === '1' };
