@@ -101,6 +101,15 @@ describe('bd-0wws3e · LP extraction: corpus link, NUL text, safe saves', () => 
     expect(recompute).toHaveBeenCalledWith('sess-1');
   });
 
+  it('links to the lesson row only, never a newer v10 card or answer key (bd-v0toag.50.1)', async () => {
+    const { Worker } = load({
+      subject: OUR_SUBJECT,
+      assets: [{ id: 'a1', lesson_id: 'grade_1_urdu_ch6_seg6', version_stamp: 'title_9Oct', content_hash: 'h1' }],
+    });
+    await run(Worker);
+    expect(assetQueries[0]).toMatchObject({ lesson_id: 'grade_1_urdu_ch6_seg6', asset_kind: 'lesson' });
+  });
+
   it('falls back to reading the file when the lesson_id is not in the library', async () => {
     const { Worker } = load({ subject: OUR_SUBJECT, assets: [] });
     await run(Worker);

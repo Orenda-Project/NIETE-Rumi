@@ -356,6 +356,7 @@ class LessonPlanExtractionWorker {
         .from('niete_lp_assets')
         .select('id, lesson_id, version_stamp, content_hash')
         .eq('lesson_id', lessonId)
+        .eq('asset_kind', 'lesson') // the plan of record; a v10 card or answer key is newer but not graded
         .order('created_at', { ascending: false })
         .limit(1);
       const row = !error && Array.isArray(data) ? data[0] : null;
