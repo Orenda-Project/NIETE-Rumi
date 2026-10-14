@@ -126,6 +126,13 @@ describe("toReportData", () => {
     expect(d.max).toBeNull();
   });
 
+  it("bd-v0toag.58 — v10 C/D: the stored thing to try (the slim image's and caption's), else her commitment action", () => {
+    const pick = { ...DETAIL, prioritizedAction: { action: "Ask the back rows first.", thing_to_try: { move_id: "m2", text: "Children read the word aloud together" } } };
+    expect(toReportData(pick as never, { teacher: "Ayesha Bibi", journey: [] }).tryNext).toBe("Children read the word aloud together");
+    const blank = { ...DETAIL, prioritizedAction: { action: "Ask the back rows first.", thing_to_try: { text: "  " } } };
+    expect(toReportData(blank as never, { teacher: "Ayesha Bibi", journey: [] }).tryNext).toBe("Ask the back rows first.");
+  });
+
   it("a coach's visit: her debrief from the coach as the last section", () => {
     const d = toReportData({ ...DETAIL, prioritizedAction: null, observation: {
       observerName: "Hataf Atif", observedAt: null, sentAt: null, reportImageUrl: "https://r2/hero.png", caption: null,

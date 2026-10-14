@@ -156,6 +156,8 @@ export interface PrioritizedAction {
   language?: string | null;
   /** Her yes/no, when she answered it on WhatsApp. */
   teacher_response?: string | null;
+  /** v10 test (C/D): the one move picked from the plan, as on her slim image and the next plan's caption. */
+  thing_to_try?: { move_id?: string | null; text?: string | null; tag?: string | null } | null;
 }
 
 export interface AnalysisData {
