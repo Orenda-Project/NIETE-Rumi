@@ -11,7 +11,7 @@
  *
  *   node scripts/upload-lp-v8-to-r2.js \
  *     --manifest "<…>/out/v8/MANIFEST.jsonl" --root "<…>/niete-nbpro" \
- *     [--only grade_1_english] [--limit 20] [--kind lesson|answer_key] [--commit]
+ *     [--only grade_1_english] [--limit 20] [--kind lesson|answer_key|card] [--commit]
  *
  * DRY RUN IS THE DEFAULT. Nothing is written to R2 or the DB without --commit.
  *
@@ -40,7 +40,7 @@ function contentHash(buffer) {
 }
 
 function r2KeyFor(lessonId, hash, assetKind = 'lesson') {
-  const suffix = assetKind === 'answer_key' ? '.answer_key.pdf' : '.pdf';
+  const suffix = { answer_key: '.answer_key.pdf', card: '.card.pdf' }[assetKind] || '.pdf';
   return `${KEY_PREFIX}${lessonId}/${hash}${suffix}`;
 }
 
@@ -91,6 +91,9 @@ function parseManifest(text, knownLessonIds, opts = {}) {
       prompt_layer_sha: row.prompt_layer_sha_at_render || null,
       rendered_at: row.rendered_at || null,
     };
+    // v10 coaching test (bd-v0toag.50.1): the manifest PDF as a 'card' row beside the current
+    // lesson, which it never supersedes (planFor is per kind). Only on request; no answer key.
+    if (wantKind === 'card') { items.push({ ...item, asset_kind: 'card' }); continue; }
     if (!wantKind || wantKind === 'lesson') items.push(item);
 
     if (row.files.answer_key_pdf && (!wantKind || wantKind === 'answer_key')) {
