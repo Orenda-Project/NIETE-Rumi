@@ -24,6 +24,9 @@ const cat = (lessonId) => {
   return m[lessonId] || null;
 };
 
+// These cases are about the WhatsApp downloads; app opens have their own file
+// (recent-fidelity-lps-app-opens.test.js).
+const noAppOpens = async () => [];
 const dl = (lesson_id, over = {}) => ({ asset_id: `a_${lesson_id}`, lesson_id, version_stamp: 'v8', content_hash: 'h', grade: '5', subject: 'urdu', chapter_number: 1, created_at: '2026-08-20T09:00:00Z', ...over });
 
 describe('recent-fidelity-lps', () => {
@@ -33,7 +36,7 @@ describe('recent-fidelity-lps', () => {
       dl('grade_5_urdu_ch1_seg8', { created_at: '2026-08-20T08:00:00Z' }), // dup, older
       dl('grade_5_urdu_ch1_seg995', { created_at: '2026-08-19T10:00:00Z' }),
     ];
-    const out = await getRecentFidelityLps('u1', { client: mockSb({ data: rows, error: null }), lessonById: cat });
+    const out = await getRecentFidelityLps('u1', { client: mockSb({ data: rows, error: null }), lessonById: cat, appOpens: noAppOpens });
     expect(out).toHaveLength(2); // deduped
     const first = out[0];
     expect(first.lesson_id).toBe('grade_5_urdu_ch1_seg8');
@@ -48,7 +51,7 @@ describe('recent-fidelity-lps', () => {
 
   test('queries only this user\'s SENT downloads', async () => {
     const sb = mockSb({ data: [], error: null });
-    await getRecentFidelityLps('u9', { client: sb, lessonById: cat });
+    await getRecentFidelityLps('u9', { client: sb, lessonById: cat, appOpens: noAppOpens });
     expect(sb.calls.table).toBe('niete_lp_downloads');
     expect(sb.calls.eq.user_id).toBe('u9');
     expect(sb.calls.eq.status).toBe('sent');
@@ -60,18 +63,18 @@ describe('recent-fidelity-lps', () => {
   // our own send helper and the session stranded at awaiting_lesson_plan.
   test('caps the list at the LP-selection row budget (default 8)', async () => {
     const many = Array.from({ length: 25 }, (_, i) => dl(`grade_5_urdu_ch1_seg${i}`));
-    const out = await getRecentFidelityLps('u1', { client: mockSb({ data: many, error: null }), lessonById: () => null });
+    const out = await getRecentFidelityLps('u1', { client: mockSb({ data: many, error: null }), lessonById: () => null, appOpens: noAppOpens });
     expect(out.length).toBe(8);
   });
 
   test('an explicit limit still wins over the default', async () => {
     const many = Array.from({ length: 25 }, (_, i) => dl(`grade_5_urdu_ch1_seg${i}`));
-    const out = await getRecentFidelityLps('u1', { client: mockSb({ data: many, error: null }), lessonById: () => null, limit: 3 });
+    const out = await getRecentFidelityLps('u1', { client: mockSb({ data: many, error: null }), lessonById: () => null, limit: 3, appOpens: noAppOpens });
     expect(out.length).toBe(3);
   });
 
   test('a lesson missing from the catalog still appears (structural fields from the download row)', async () => {
-    const out = await getRecentFidelityLps('u1', { client: mockSb({ data: [dl('unknown_lesson')], error: null }), lessonById: () => null });
+    const out = await getRecentFidelityLps('u1', { client: mockSb({ data: [dl('unknown_lesson')], error: null }), lessonById: () => null, appOpens: noAppOpens });
     expect(out).toHaveLength(1);
     expect(out[0].lesson_id).toBe('unknown_lesson');
     expect(out[0].topic).toBeNull(); // no catalog topic → formatter falls back to day/segment
@@ -79,6 +82,6 @@ describe('recent-fidelity-lps', () => {
   });
 
   test('a DB error surfaces (caller falls back to the Yes/No path)', async () => {
-    await expect(getRecentFidelityLps('u1', { client: mockSb({ data: null, error: new Error('boom') }), lessonById: cat })).rejects.toThrow('boom');
+    await expect(getRecentFidelityLps('u1', { client: mockSb({ data: null, error: new Error('boom') }), lessonById: cat, appOpens: noAppOpens })).rejects.toThrow('boom');
   });
 });

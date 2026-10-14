@@ -118,6 +118,8 @@ export interface BreakdownGroup {
   indicators: BreakdownIndicator[];
   /** A section the paper could not assess (no bar). The bot writes its `why` in code, never the model. */
   notAssessed?: boolean;
+  /** bd-foyqpc — the bot's words for a not-assessed section, in her language (what the WhatsApp report says). */
+  notAssessedWords?: string;
   why?: string;
 }
 
@@ -186,6 +188,8 @@ export interface ReportNarrative {
   /** The per-section "why" lines, by the section's domainKey. */
   domainWhys: Record<string, string>;
   language: string | null;
+  /** bd-foyqpc — the lesson's topic as her WhatsApp report names it (her language); null on older sessions. */
+  topic?: string | null;
 }
 
 export interface SessionDetail extends CoachingSession {
@@ -674,7 +678,8 @@ export interface CoachingProgress {
   status: string;
   stage: CoachingStage;
   source?: 'portal' | 'whatsapp';
-  reflection: { questionNumber: number; question: string } | null;
+  /** audioUrl (bd-czmyoh): the question as a voice note, as on WhatsApp; absent when it could not be voiced. */
+  reflection: { questionNumber: number; question: string; audioUrl?: string } | null;
   reportReady?: boolean;
   shortRecording?: boolean | null;
   hasLessonPlan?: boolean;

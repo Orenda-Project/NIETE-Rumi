@@ -34,6 +34,8 @@ const axios = require('axios');
 
 // The reflection call runs the acknowledgement model before it answers.
 const TIMEOUT_MS = 45_000;
+// bd-eygg2f — a spoken answer is transcribed first (Soniox, with its fallbacks), then acknowledged.
+const REFLECTION_TIMEOUT_MS = 90_000;
 
 function config() {
   return {
@@ -70,9 +72,9 @@ function startSession({ userId, key, lessonPlanKey, photoKeys, lessonPlan, teach
   return post('start', { userId, key, lessonPlanKey, photoKeys, lessonPlan, teacherClass });
 }
 
-/** @param {{userId, coachingSessionId, answer}} args */
-function submitReflection({ userId, coachingSessionId, answer }) {
-  return post('reflection', { userId, coachingSessionId, answer });
+/** @param {{userId, coachingSessionId, answer?, audioKey?}} args — audioKey: her spoken answer (bd-eygg2f) */
+function submitReflection({ userId, coachingSessionId, answer, audioKey }) {
+  return post('reflection', { userId, coachingSessionId, answer, audioKey }, REFLECTION_TIMEOUT_MS);
 }
 
 /** bd-5rz1v — her recent plans, from the WhatsApp list's source. @param {{userId}} args */

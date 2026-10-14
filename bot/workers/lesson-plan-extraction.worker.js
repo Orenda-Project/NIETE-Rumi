@@ -7,13 +7,24 @@ const { getClient } = require('../shared/services/llm-client');
 const { jsonrepair } = require('jsonrepair');
 
 const supabase = require('../shared/config/supabase');
-const { logToFile } = require('../shared/utils/logger');
+const { logToFile, logError } = require('../shared/utils/logger');
 const { downloadFromR2, uploadLessonPlanBuffer, buildR2PublicUrl } = require('../shared/storage/r2');
 const { AWSTextractService } = require('../shared/services/aws-textract.service');
 const { OPENAI_API_KEY } = require('../shared/utils/constants');
 const WhatsAppService = require('../shared/services/whatsapp.service');
 const { isLikelyLessonPlan } = require('../shared/services/coaching/lesson-plan-classifier');
 const { getCoachingMessage } = require('../shared/config/coaching-messages');
+
+// bd-0wws3e — Postgres cannot store \u0000 in text or jsonb; one NUL fails the whole row update.
+const stripNul = (s) => (typeof s === 'string' ? s.replace(/\u0000/g, '') : s);
+function stripNulDeep(v) {
+  if (typeof v === 'string') return stripNul(v);
+  if (Array.isArray(v)) return v.map(stripNulDeep);
+  if (v && typeof v === 'object') {
+    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, stripNulDeep(x)]));
+  }
+  return v;
+}
 
 class LessonPlanExtractionWorker {
   static openai = null;
@@ -87,7 +98,34 @@ class LessonPlanExtractionWorker {
         }
       }
 
-      const { text: extractedText, parser: parserUsed } = isPaste
+      // bd-0wws3e — our own LP: link the library lesson it names and stop. Fidelity
+      // then scores it exactly as if the coach had picked it from the list.
+      const corpusRef = !isPaste && String(detectedType).toLowerCase() === 'pdf'
+        ? await this.corpusRefFromPdf(fileBuffer, coachingSessionId)
+        : null;
+      if (corpusRef) {
+        const corpusPayload = {
+          has_lesson_plan: true,
+          lesson_plan_structured: { _fidelity_ref: corpusRef },
+          lesson_plan_extraction_status: 'completed',
+          lesson_plan_extraction_error: null,
+          lesson_plan_format: normalizedFormat
+        };
+        if (normalized) {
+          corpusPayload.lesson_plan_r2_key = normalizedKey;
+          corpusPayload.lesson_plan_url = normalizedUrl;
+        } else if (!sessionRecord?.lesson_plan_r2_key) {
+          corpusPayload.lesson_plan_r2_key = normalizedKey;
+        }
+        await this.saveSession(coachingSessionId, corpusPayload, 'corpus_link');
+        logToFile('✅ Lesson plan linked to corpus lesson from PDF metadata', {
+          coachingSessionId, lessonId: corpusRef.lesson_id, versionStamp: corpusRef.version_stamp
+        });
+        await LessonPlanExtractionWorker.maybeRecomputeFidelity(coachingSessionId);
+        return;
+      }
+
+      let { text: extractedText, parser: parserUsed } = isPaste
         ? { text: pastedText.trim(), parser: 'pasted_text' }
         : await this.extractText(fileBuffer, detectedType);
       logToFile('Lesson plan text extracted', {
@@ -96,63 +134,50 @@ class LessonPlanExtractionWorker {
         parserUsed,
         textLength: extractedText?.length || 0
       });
+
+      let structuredData = await this.structureText(extractedText, coachingSessionId, detectedType);
+
+      // bd-fe35j9 — a typed Urdu PDF has a text layer, so pdf-parse "succeeds",
+      // but the Urdu comes out as broken glyphs and NUL bytes and the parser
+      // calls it not-a-lesson-plan. Before telling the teacher that, read the
+      // FILE once through the vision model, which reads the page as rendered.
+      if (isLikelyLessonPlan(structuredData) === false
+          && LessonPlanExtractionWorker.canRetryWithVision({ isPaste, detectedType, parserUsed })) {
+        const retry = await this.readWithVision(fileBuffer, detectedType, coachingSessionId);
+        if (retry) {
+          const retryStructured = await this.structureText(retry.text, coachingSessionId, detectedType);
+          const accepted = isLikelyLessonPlan(retryStructured) === true;
+          logToFile('Lesson plan vision re-read after not-LP verdict', {
+            coachingSessionId,
+            firstParser: parserUsed,
+            textLength: retry.text.length,
+            accepted
+          });
+          if (accepted) {
+            extractedText = retry.text;
+            parserUsed = retry.parser;
+            structuredData = retryStructured;
+          }
+        }
+      }
+
       const excerpt = this.createSafeExcerpt(extractedText, 500);
       const wordCount = extractedText ? extractedText.split(/\s+/).filter(Boolean).length : 0;
-
-      let structuredData = null;
-      if (extractedText && extractedText.length >= 50) {
-        structuredData = await this.parseWithGPT4oMini(extractedText);
-        if (structuredData) {
-          structuredData.objectives = structuredData.objectives || [];
-          structuredData.prior_knowledge = structuredData.prior_knowledge || [];
-          structuredData.materials = structuredData.materials || [];
-          structuredData.resources_detail = structuredData.resources_detail || [];
-          structuredData.assessment_methods = structuredData.assessment_methods || [];
-          structuredData.assessment_protocols = structuredData.assessment_protocols || [];
-          structuredData.activities = structuredData.activities || [];
-          structuredData.annexures = structuredData.annexures || [];
-          structuredData.assessment_sequences = structuredData.assessment_sequences || [];
-          structuredData.textbook_references = structuredData.textbook_references || [];
-          structuredData.planned_questions = structuredData.planned_questions || [];
-          structuredData.resource_pages = structuredData.resource_pages || [];
-          logToFile('Lesson plan structured data parsed', {
-            coachingSessionId,
-            objectiveCount: structuredData.objectives.length,
-            priorKnowledgeEntries: structuredData.prior_knowledge.length,
-            materialsCount: structuredData.materials.length,
-            assessmentSequences: structuredData.assessment_sequences.length
-          });
-        } else {
-          logToFile('⚠️ Lesson plan structured data parsing returned null', {
-            coachingSessionId,
-            textSample: extractedText.substring(0, 200)
-          });
-        }
-      } else {
-        logToFile('⚠️ Lesson plan text insufficient for structured parsing', {
-          coachingSessionId,
-          detectedType,
-          textLength: extractedText?.length || 0
-        });
-      }
 
       // Guard against a non-lesson-plan document (a leave letter, a
       // notice) being silently accepted as a plan. If the parsed content shows
       // no lesson-plan signal, tell the teacher quickly and don't attach it —
       // the classroom-audio analysis still proceeds without an LP.
       if (isLikelyLessonPlan(structuredData) === false) {
-        await supabase
-          .from('coaching_sessions')
-          .update({
-            lesson_plan_excerpt: excerpt,
-            lesson_plan_structured: null,
-            lesson_plan_word_count: wordCount,
-            has_lesson_plan: false,
-            lesson_plan_extraction_status: 'not_lesson_plan',
-            lesson_plan_extraction_error: null,
-            lesson_plan_format: normalizedFormat
-          })
-          .eq('id', coachingSessionId);
+        await this.saveSession(coachingSessionId, {
+          lesson_plan_excerpt: excerpt,
+          lesson_plan_structured: null,
+          lesson_plan_word_count: wordCount,
+          has_lesson_plan: false,
+          lesson_plan_extraction_status: 'not_lesson_plan',
+          lesson_plan_extraction_error: null,
+          lesson_plan_format: normalizedFormat
+        }, 'not_lesson_plan');
         await this.notifyNotLessonPlan(coachingSessionId);
         logToFile('🚫 Uploaded document is not a lesson plan — skipped attaching', {
           coachingSessionId,
@@ -181,10 +206,7 @@ class LessonPlanExtractionWorker {
         updatePayload.lesson_plan_r2_key = normalizedKey;
       }
 
-      await supabase
-        .from('coaching_sessions')
-        .update(updatePayload)
-        .eq('id', coachingSessionId);
+      await this.saveSession(coachingSessionId, updatePayload, 'completed');
 
       logToFile('✅ Lesson plan extraction complete', {
         coachingSessionId,
@@ -207,13 +229,10 @@ class LessonPlanExtractionWorker {
         /unsupported document format/i.test(error.message || '') ||
         /invalid pdf structure/i.test(error.message || '');
 
-      await supabase
-        .from('coaching_sessions')
-        .update({
-          lesson_plan_extraction_status: isFormatError ? 'failed_bad_format' : 'failed',
-          lesson_plan_extraction_error: sanitizedError
-        })
-        .eq('id', coachingSessionId);
+      await this.saveSession(coachingSessionId, {
+        lesson_plan_extraction_status: isFormatError ? 'failed_bad_format' : 'failed',
+        lesson_plan_extraction_error: sanitizedError
+      }, 'failed');
 
       if (isFormatError) {
         await this.notifyFormatIssue(coachingSessionId);
@@ -242,6 +261,118 @@ class LessonPlanExtractionWorker {
         coachingSessionId, error: e.message,
       });
       return { recomputed: false, reason: 'error' };
+    }
+  }
+
+  /** Parse extracted text into the LP schema with every array defaulted; null when too short or unparseable. */
+  static async structureText(text, coachingSessionId, detectedType) {
+    if (!text || text.length < 50) {
+      logToFile('⚠️ Lesson plan text insufficient for structured parsing', {
+        coachingSessionId,
+        detectedType,
+        textLength: text?.length || 0
+      });
+      return null;
+    }
+    const structuredData = await this.parseWithGPT4oMini(text);
+    if (!structuredData) {
+      logToFile('⚠️ Lesson plan structured data parsing returned null', {
+        coachingSessionId,
+        textSample: text.substring(0, 200)
+      });
+      return null;
+    }
+    structuredData.objectives = structuredData.objectives || [];
+    structuredData.prior_knowledge = structuredData.prior_knowledge || [];
+    structuredData.materials = structuredData.materials || [];
+    structuredData.resources_detail = structuredData.resources_detail || [];
+    structuredData.assessment_methods = structuredData.assessment_methods || [];
+    structuredData.assessment_protocols = structuredData.assessment_protocols || [];
+    structuredData.activities = structuredData.activities || [];
+    structuredData.annexures = structuredData.annexures || [];
+    structuredData.assessment_sequences = structuredData.assessment_sequences || [];
+    structuredData.textbook_references = structuredData.textbook_references || [];
+    structuredData.planned_questions = structuredData.planned_questions || [];
+    structuredData.resource_pages = structuredData.resource_pages || [];
+    logToFile('Lesson plan structured data parsed', {
+      coachingSessionId,
+      objectiveCount: structuredData.objectives.length,
+      priorKnowledgeEntries: structuredData.prior_knowledge.length,
+      materialsCount: structuredData.materials.length,
+      assessmentSequences: structuredData.assessment_sequences.length
+    });
+    return structuredData;
+  }
+
+  /** bd-fe35j9 — only a PDF or image file the vision model has not already read gets a second read. */
+  static canRetryWithVision({ isPaste, detectedType, parserUsed }) {
+    if (isPaste) return false;
+    if (String(parserUsed || '').startsWith('vision:')) return false;
+    return ['pdf', 'png', 'jpg', 'jpeg'].includes(String(detectedType || '').toLowerCase());
+  }
+
+  /** bd-fe35j9 — read the file through the vision model; null when it yields nothing. Never throws. */
+  static async readWithVision(buffer, detectedType, coachingSessionId) {
+    const visionOcr = require('../shared/services/lp-vision-ocr.service');
+    const lowerType = String(detectedType || '').toLowerCase();
+    try {
+      const text = lowerType === 'pdf'
+        ? await visionOcr.extractTextFromPdf(buffer)
+        : await visionOcr.extractTextFromImage(buffer, `image/${lowerType === 'jpg' ? 'jpeg' : lowerType}`);
+      const trimmed = (text || '').trim();
+      return trimmed.length >= 20 ? { text: trimmed, parser: 'vision:not_lp_retry' } : null;
+    } catch (err) {
+      logToFile('Lesson plan vision re-read failed (keeping first verdict)', { coachingSessionId, error: err.message });
+      return null;
+    }
+  }
+
+  /** bd-0wws3e — the worker's one coaching_sessions writer: strips NUL bytes and logs a failed save. */
+  static async saveSession(coachingSessionId, payload, step) {
+    const { error } = await supabase
+      .from('coaching_sessions')
+      .update(stripNulDeep(payload))
+      .eq('id', coachingSessionId);
+    if (error) {
+      logError('❌ Lesson plan save failed', {
+        coachingSessionId, step, code: error.code || null, error: error.message || String(error)
+      });
+    }
+    return error || null;
+  }
+
+  /**
+   * bd-0wws3e — our own NIETE LP PDFs carry `lesson_id=…` in their Subject. When that
+   * lesson is in niete_lp_assets, return the corpus ref the list-pick path writes, so
+   * fidelity scores it from the library: no parse, no vision. Null otherwise. Never throws.
+   */
+  static async corpusRefFromPdf(buffer, coachingSessionId) {
+    try {
+      const { info } = await pdf(buffer, { max: 1 });
+      const m = String((info && info.Subject) || '').match(/lesson_id=([A-Za-z0-9_]+)/);
+      if (!m) return null;
+      const lessonId = m[1].toLowerCase();
+      const { data, error } = await supabase
+        .from('niete_lp_assets')
+        .select('id, lesson_id, version_stamp, content_hash')
+        .eq('lesson_id', lessonId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      const row = !error && Array.isArray(data) ? data[0] : null;
+      logToFile('Lesson plan PDF carries a corpus lesson_id', { coachingSessionId, lessonId, inLibrary: !!row });
+      if (!row) return null;
+      const { parseCorpusLessonId } = require('../shared/services/coaching/subject-resolution');
+      const parsed = parseCorpusLessonId(row.lesson_id);
+      return {
+        lesson_id: row.lesson_id,
+        version_stamp: row.version_stamp,
+        content_hash: row.content_hash,
+        subject: parsed ? parsed.subject : null,
+        grade: parsed ? parsed.grade : null,
+      };
+    } catch (err) {
+      logToFile('Lesson plan corpus lookup skipped', { coachingSessionId, error: err.message });
+      return null;
     }
   }
 
@@ -296,6 +427,13 @@ class LessonPlanExtractionWorker {
       try {
         const result = await pdf(buffer);
         const text = (result.text || '').trim();
+        // bd-0wws3e — Urdu PDFs come back from pdf-parse as broken glyphs laced with
+        // NUL bytes. That text is unreadable (and unsavable), so read the page instead.
+        if (text.includes('\u0000')) {
+          const viaVision = await textractFallback('pdf_nul_text');
+          if (viaVision.text) return viaVision;
+          return { text: stripNul(text).trim(), parser: 'pdf-parse:nul_stripped' };
+        }
         if (text.length >= 50) {
           logToFile('Lesson plan PDF parsed via pdf-parse', { textLength: text.length });
           return { text, parser: 'pdf-parse' };

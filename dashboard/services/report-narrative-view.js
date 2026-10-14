@@ -41,6 +41,8 @@ function narrativeView(analysisData) {
   if (!headline && !identity && !moments.length && !strength && !horizon) return null;
   return {
     headline, identity, moments, strength, horizon, domainWhys,
+    // bd-foyqpc — the WhatsApp report heads itself with this topic (written in her language) before the analysis one.
+    topic: text(n.topic) || null,
     language: typeof n._language === 'string' ? n._language : null,
   };
 }

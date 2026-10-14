@@ -147,11 +147,26 @@ describe("Digital Coaching in Urdu — the hub", () => {
     expect(screen.getByRole("button", { name: new RegExp(U.changeFile) })).toBeTruthy();
     expect(screen.getByRole("heading", { name: new RegExp(U.lessonPlan) })).toBeTruthy();
     expect(screen.getByText(U.optional)).toBeTruthy();
-    expect(screen.getByText(U.photosHint)).toBeTruthy();
+    expect(screen.getByText(U.photosHint.replace(/\s+/g, " "))).toBeTruthy();
     expect(screen.getByText(U.noFaces)).toBeTruthy();
     expect(screen.getByText(U.upToPhotos(10))).toBeTruthy();
     expect(screen.getByRole("button", { name: U.addPhoto })).toBeTruthy();
     expect(englishLeft(["Submit", "Listen", "Change file", "Up to 10 photos", "Add photo", "Photos", "Optional"])).toEqual([]);
+  });
+
+  it("bd-r5ckgn — the Urdu Photos hint is ICT's three photos, each on its own line and never cut off", async () => {
+    holdDraft({ audio: audioOf(), plan: null, photos: [] });
+    at(COACHING_HOME, <CoachingHomePage />, COACHING_HOME, { keep: true });
+    await screen.findByRole("button", { name: U.submit }, { timeout: 5000 });
+    const hint = screen.getByText((_, el) => el?.tagName === "P" && (el.textContent ?? "").includes("بورڈ کی تصویر"));
+    expect(hint.textContent!.split("\n")).toEqual([
+      "(1) بورڈ کی تصویر جس پر آج کا مقصد یا کام لکھا ہو",
+      "(2) کسی طالب علم کی کاپی یا ورک شیٹ کی تصویر",
+      "(3) تدریسی معاون مواد، مثلاً ڈرائنگ، چارٹ یا کارڈز کی تصویر",
+    ]);
+    expect(hint.className).not.toMatch(/\btruncate\b/);
+    expect(hint.className).toMatch(/\bwhitespace-pre-line\b/);
+    expect(screen.queryByText("بورڈ، چارٹ، کلاس روم")).toBeNull();
   });
 
   it("Recent: her lessons with Urdu chips (Analysing, the band) and Urdu day names; data as it is", async () => {
@@ -241,18 +256,17 @@ describe("Digital Coaching in Urdu — the lesson's report page", () => {
     expect(englishLeft(["Reflection question", "Your turn", "Lesson received", "Answer by text", "Progress", "Digital Coaching"])).toEqual([]);
   });
 
-  it("ready: voice note, her recording (its player too), Download, her answer folded — in Urdu", async () => {
+  // bd-kn3m1a — ICT feedback row 10: the audio summary, then the comprehensive report; no recording, no Q&A again.
+  it("ready: the audio summary, then 'آپ کے سبق کی مکمل رپورٹ', Download — no recording or answer again — in Urdu", async () => {
     portal.getCoachingProgress.mockResolvedValue({ id: ID, status: "completed", stage: "done", reflection: null, reportReady: true });
     portal.getCoachingSession.mockResolvedValue({ session: DETAIL });
     openReport();
     expect(await screen.findByRole("heading", { name: U.voiceNote })).toBeTruthy();
     expect(screen.getByRole("group", { name: new RegExp(U.title) })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: U.yourRecording })).toBeTruthy();
-    // Her recording's player (newui AudioPlayer, named by the recording) — the voice note has a play button too.
-    const player = screen.getByRole("group", { name: U.yourRecording });
-    expect(within(player).getByRole("button", { name: U.audio.play })).toBeTruthy();
-    expect(screen.getByRole("link", { name: U.download })).toBeTruthy();
-    expect(screen.getByRole("button", { name: new RegExp(U.yourAnswer) })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: U.fullReport })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: U.yourRecording })).toBeNull();
+    expect(screen.getByRole("button", { name: U.download })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: new RegExp(U.yourAnswer) })).toBeNull();
     expect(screen.getByText(/Lesson Plan Fidelity/)).toBeTruthy();
     expect(englishLeft(["Voice note", "Your lesson", "Your answer", "Download"])).toEqual([]);
     for (const en of ["Play", "Download"]) {
@@ -310,5 +324,15 @@ describe("Digital Coaching in Urdu — the helpers take the words given", () => 
     const tiles = dcKpiItems(HISTORY as never, UR);
     expect(tiles.map((t) => t.label)).toEqual([U.kpiSessions, U.kpiLatestBand, U.kpiMinutes, U.kpiReports]);
     expect(tiles[1].value).toBe(U.bands.good);
+  });
+});
+
+describe("Microphone blocked, in Urdu (bd-idkgm2)", () => {
+  it("the title and the how-to line are Urdu", async () => {
+    session.start.mockImplementationOnce(async () => "blocked" as never);
+    at(COACHING_SEND, <SendPage />, COACHING_SEND, { start: "record" });
+    expect(await screen.findByText(U.micBlocked)).toBeTruthy();
+    expect(screen.getByText(U.micBlockedHint)).toBeTruthy();
+    expect(englishLeft(["Microphone blocked", "Tap Try again and allow the microphone to record your lesson."])).toEqual([]);
   });
 });

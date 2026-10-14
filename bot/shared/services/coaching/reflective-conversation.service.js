@@ -180,6 +180,30 @@ class ReflectiveConversationService {
       // rather than claiming a voice note went out. Everything AFTER this block
       // (the conversation_state write, the language lock, the status update) is
       // the same code on both paths.
+      // bd-czmyoh — ICT feedback (IAB Experience View, row 6): on WhatsApp the question always arrives as a
+      // voice note, so the portal plays it too. The SAME synthesis as below; the audio goes to R2 and its URL
+      // onto the question, where the portal reads it. A question that cannot be voiced reaches the portal as
+      // text — WhatsApp's own fallback — and the debrief carries on either way.
+      let questionAudioUrl;
+      if (silent) {
+        try {
+          const voice = await tts.synthesize({
+            text: question,
+            language: clampLanguage(languageCode),
+            useCase: 'coaching',
+            site: 'question',
+            deadlineMs: QUESTION_VOICE_DEADLINE_MS,
+          });
+          const { uploadBuffer } = require('../../storage/r2');
+          questionAudioUrl = await uploadBuffer(
+            voice.audio, `reflection_questions/${session.user_id}/${coachingSessionId}_q${questionNumber}.ogg`, 'audio/ogg',
+          );
+        } catch (error) {
+          logToFile('Reflective question could not be voiced for the portal — showing it as text', {
+            coachingSessionId, questionNumber, error: error.message,
+          }, 'warn');
+        }
+      }
       if (!silent) {
       try {
         const voice = await tts.synthesize({
@@ -219,6 +243,7 @@ class ReflectiveConversationService {
         // Update existing question entry
         updatedQuestions[existingQuestionIndex].question = question;
         updatedQuestions[existingQuestionIndex].asked_at = new Date().toISOString();
+        if (questionAudioUrl) updatedQuestions[existingQuestionIndex].audio_url = questionAudioUrl;
       } else {
         // Add new question entry
         updatedQuestions.push({
@@ -228,7 +253,8 @@ class ReflectiveConversationService {
           answer: null,  // Will be filled in when teacher responds
           format: null,
           language: null,
-          answered_at: null
+          answered_at: null,
+          ...(questionAudioUrl ? { audio_url: questionAudioUrl } : {}),
         });
       }
 
@@ -256,7 +282,7 @@ class ReflectiveConversationService {
       // chat thread to read it from. The WhatsApp path's return value is
       // unchanged (undefined): no existing caller reads it.
       if (silent) {
-        return { question, questionNumber, language: languageCode };
+        return { question, questionNumber, language: languageCode, ...(questionAudioUrl ? { audioUrl: questionAudioUrl } : {}) };
       }
     } catch (error) {
       logToFile('❌ Error in conductReflectiveConversation', {
@@ -385,6 +411,7 @@ class ReflectiveConversationService {
       } else {
         // All questions answered - proceed to report generation
         let portalAcknowledgement = null;
+        let portalAcknowledgementAudioUrl;
         // Get user's language for thank you message
         const { data: sessionData } = await supabase
           .from('coaching_sessions')
@@ -423,7 +450,29 @@ class ReflectiveConversationService {
           const spokenForm = closingText.replace(/\s*🙏\s*$/u, '');
 
           // bd-7kc2z: silent (portal) — the acknowledgement above is returned
-          // to the caller instead of being voiced. Nothing reaches WhatsApp.
+          // to the caller. Nothing reaches WhatsApp.
+          // bd-ncfml5 — ICT feedback (IAB Experience View, row 7): on WhatsApp this closer is always a voice
+          // note, so the portal plays it too. The SAME synthesis as below; the audio goes to R2 and its URL back
+          // with the words. If it cannot be voiced, the words alone come back (WhatsApp's text fallback).
+          if (silent) {
+            try {
+              const voice = await tts.synthesize({
+                text: spokenForm,
+                language: languageCode,
+                useCase: 'coaching',
+                site: 'closer',
+                deadlineMs: CLOSER_VOICE_DEADLINE_MS,
+              });
+              const { uploadBuffer } = require('../../storage/r2');
+              portalAcknowledgementAudioUrl = await uploadBuffer(
+                voice.audio, `reflection_closers/${sessionData.user_id}/${coachingSessionId}_closer.ogg`, 'audio/ogg',
+              );
+            } catch (voiceError) {
+              logToFile('Reflection closer could not be voiced for the portal — returning the words', {
+                coachingSessionId, error: voiceError.message,
+              }, 'warn');
+            }
+          }
           if (!silent) {
           try {
             // The report is queued only after this closer, so its voice gets a
@@ -473,7 +522,12 @@ class ReflectiveConversationService {
         // for the report. The WhatsApp path returns undefined as it always has.
         if (silent) {
           logToFile('✅ Reflective response handled', { coachingSessionId, questionsAnswered, silent });
-          return { done: true, acknowledgement: portalAcknowledgement, reportStatus: 'generating' };
+          return {
+            done: true,
+            acknowledgement: portalAcknowledgement,
+            ...(portalAcknowledgementAudioUrl ? { acknowledgementAudioUrl: portalAcknowledgementAudioUrl } : {}),
+            reportStatus: 'generating',
+          };
         }
       }
 

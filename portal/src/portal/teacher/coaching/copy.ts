@@ -34,7 +34,12 @@ export const COACHING_V2_COPY = {
   planFallback: 'Lesson plan',
   change: 'Change',
   photos: 'Photos',
-  photosHint: 'Board work, charts or your classroom',
+  /* bd-r5ckgn — ICT feedback (IAB Experience View, row 4): the three photos to take, one per line, as the Urdu
+     and the bot's coachingPhotoOffer. */
+  photosHint:
+    "(1) A photo of the board with today's objective or task\n" +
+    "(2) A photo of a student's notebook or worksheet\n" +
+    '(3) A photo of teaching aids, e.g. drawings, charts or cards',
   noFaces: 'No faces',
   addPhoto: 'Add photo',
   removePhoto: (n: number) => `Remove photo ${n}`,
@@ -60,6 +65,12 @@ export const COACHING_V2_COPY = {
   lessonPlans: 'Lesson Plans',
   keepAppOpen: 'Keep app open',
   micBlocked: 'Microphone blocked',
+  /* bd-idkgm2 — ICT feedback (IAB Experience View, row 18): what to do, under the title (operator-approved mockup). */
+  micBlockedHint: 'Tap Try again and allow the microphone to record your lesson.',
+  /* bd-qccbrv — the same card, when the browser reports the mic blocked, and when Try again was refused again. */
+  micBrowserBlocked: 'Your browser has blocked the microphone. Click the 🔒 icon next to the web address, allow the microphone, then tap Try again.',
+  micStillBlockedWhatsApp: 'Still blocked? Allow the microphone for WhatsApp in your phone’s settings, or upload a recording instead.',
+  micStillBlocked: 'Still blocked? Allow the microphone in your browser or phone settings, or upload a recording instead.',
   tryAgain: 'Try again',
   /* the recording on the page, and the page's one Submit */
   submit: 'Submit',
@@ -94,11 +105,18 @@ export const COACHING_V2_COPY = {
   reportReady: 'Report ready',
   stepReflection: 'Reflection question',
   stepReport: 'Report ready',
-  subReflection: 'Answer by text',
+  /* bd-eygg2f — ICT feedback (IAB Experience View, row 5): she answers by writing or by speaking. */
+  subReflection: 'Write or speak',
+  recordAnswer: 'Record answer',
+  removeRecording: 'Remove recording',
   subReport: 'Report and voice note',
   yourTurn: 'Your turn',
   now: 'Now',
-  voiceNote: 'Voice note',
+  /* bd-9d1cmi — ICT feedback (IAB Experience View, row 9), ICT's own words: the debrief is her lesson report's audio summary, not a
+     random voice message. Past the 4-word rule on purpose (longOk + the checks' exemption). */
+  voiceNote: 'Audio Summary of Your Lesson Report',
+  /* bd-kn3m1a — ICT feedback row 10: the heading over the DC report, after the audio summary. */
+  fullReport: 'Your Comprehensive Lesson Report',
   yourRecording: 'Your recording',
   yourAnswer: 'Your answer',
   answerSent: 'Answer sent',
@@ -150,7 +168,12 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   planFallback: 'لیسن پلان',
   change: 'تبدیل کریں',
   photos: 'تصاویر',
-  photosHint: 'بورڈ، چارٹ، کلاس روم',
+  /* bd-r5ckgn — ICT feedback (IAB Experience View, row 4): the three photos to take, one per line (CoachingHome
+     renders it whitespace-pre-line). Human-written Urdu, not machine-drafted. */
+  photosHint:
+    '(1) بورڈ کی تصویر جس پر آج کا مقصد یا کام لکھا ہو\n' +
+    '(2) کسی طالب علم کی کاپی یا ورک شیٹ کی تصویر\n' +
+    '(3) تدریسی معاون مواد، مثلاً ڈرائنگ، چارٹ یا کارڈز کی تصویر',
   noFaces: 'چہرے نہ دکھائیں',
   addPhoto: 'تصویر شامل کریں',
   removePhoto: (n: number) => `تصویر ${n} ہٹائیں`,
@@ -174,6 +197,10 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   lessonPlans: 'لیسن پلان',
   keepAppOpen: 'ایپ کھلی رکھیں',
   micBlocked: 'مائیک کی اجازت نہیں',
+  micBlockedHint: '«دوبارہ کوشش کریں» دبائیں اور مائیک کی اجازت دیں، تاکہ آپ کا سبق ریکارڈ ہو سکے۔',
+  micBrowserBlocked: 'آپ کے براؤزر نے مائیک بند کر دیا ہے۔ ویب ایڈریس کے ساتھ 🔒 پر کلک کریں، مائیک کی اجازت دیں، پھر «دوبارہ کوشش کریں» دبائیں۔',
+  micStillBlockedWhatsApp: 'اب بھی بند ہے؟ فون کی سیٹنگز میں WhatsApp کو مائیک کی اجازت دیں، یا ریکارڈنگ اپ لوڈ کریں۔',
+  micStillBlocked: 'اب بھی بند ہے؟ براؤزر یا فون کی سیٹنگز میں مائیک کی اجازت دیں، یا ریکارڈنگ اپ لوڈ کریں۔',
   tryAgain: 'دوبارہ کوشش کریں',
   // The training portal's own word for Submit (teacher/training/copy.ts submit).
   submit: 'جمع کرائیں',
@@ -205,11 +232,14 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   reportReady: 'رپورٹ تیار',
   stepReflection: 'غور کا سوال',
   stepReport: 'رپورٹ تیار',
-  subReflection: 'لکھ کر جواب دیں',
+  subReflection: 'لکھ کر یا بول کر جواب دیں',
+  recordAnswer: 'جواب ریکارڈ کریں',
+  removeRecording: 'ریکارڈنگ ہٹائیں',
   subReport: 'رپورٹ اور وائس نوٹ',
   yourTurn: 'آپ کی باری',
   now: 'ابھی',
-  voiceNote: 'وائس نوٹ',
+  voiceNote: 'آپ کے سبق کی رپورٹ کا آڈیو خلاصہ',
+  fullReport: 'آپ کے سبق کی مکمل رپورٹ',
   yourRecording: 'آپ کی ریکارڈنگ',
   yourAnswer: 'آپ کا جواب',
   answerSent: 'جواب بھیجا گیا',
@@ -268,5 +298,5 @@ export const COPY_ENTRY: CopyEntry = {
   screen: 'Digital Coaching',
   module: COACHING as Bilingual<unknown>,
   // "DC observation" is ڈیجیٹل کوچنگ مشاہدہ (three words, the ontology's own name): it adds to a sentence of three.
-  longOk: ['noneYet', 'notFound', 'openLesson', 'openThat'],
+  longOk: ['noneYet', 'notFound', 'openLesson', 'openThat', 'photosHint', 'subReflection', 'voiceNote', 'fullReport', 'micBlockedHint', 'micBrowserBlocked', 'micStillBlockedWhatsApp', 'micStillBlocked'],
 };

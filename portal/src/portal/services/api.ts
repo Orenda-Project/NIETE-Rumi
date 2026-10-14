@@ -150,9 +150,9 @@ export const portal = {
 
   // ── bd-7hyj7: teacher self-observation from the portal ───────────────────
 
-  /** Sign a direct-to-R2 upload for one file. */
+  /** Sign a direct-to-R2 upload for one file. reflection_audio (bd-eygg2f): her spoken answer to the question. */
   presignCoachingUpload: async (args: {
-    filename: string; sizeBytes: number; kind: 'audio' | 'lesson_plan' | 'photo';
+    filename: string; sizeBytes: number; kind: 'audio' | 'lesson_plan' | 'photo' | 'reflection_audio';
   }): Promise<{ key: string; uploadUrl: string; contentType: string }> => {
     const response = await api.post('/coaching-upload/presign', args);
     return response.data;
@@ -289,9 +289,29 @@ export const portal = {
   },
 
   submitCoachingReflection: async (id: string, answer: string): Promise<{
-    done?: boolean; acknowledgement?: string | null; reportStatus?: string;
+    done?: boolean; acknowledgement?: string | null; acknowledgementAudioUrl?: string; reportStatus?: string;
   }> => {
     const response = await api.post(`/coaching-session/${id}/reflection`, { answer });
+    return response.data;
+  },
+
+  /**
+   * bd-eygg2f — her spoken answer, already in R2 (presign kind reflection_audio). The bot transcribes it before
+   * it acknowledges, so this waits longer than a typed answer (the dashboard gives the bot 90 s).
+   */
+  /**
+   * bd-oawrlt — her report image, signed NOW (Download: attachment, Open: inline). A link signed when the page loaded
+   * expires after an hour; this is asked for at tap time. null when there is no report.
+   */
+  getCoachingReportFile: async (id: string, disposition: 'attachment' | 'inline'): Promise<string | null> => {
+    const response = await api.get(`/coaching-session/${id}/report-file`, { params: { disposition } });
+    return response.data?.url || null;
+  },
+
+  submitCoachingVoiceReflection: async (id: string, audioKey: string): Promise<{
+    done?: boolean; acknowledgement?: string | null; acknowledgementAudioUrl?: string; reportStatus?: string;
+  }> => {
+    const response = await api.post(`/coaching-session/${id}/reflection`, { audioKey }, { timeout: 120_000 });
     return response.data;
   },
 

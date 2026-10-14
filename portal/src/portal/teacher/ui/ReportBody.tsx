@@ -17,8 +17,11 @@ import { useKitCopy } from './useKitCopy';
  */
 
 export interface ReportScore {
+  /** The rubric letter (B, C, D, F): the row's identity, NOT shown — bd-wxtin8, as the WhatsApp report shows names only. */
   code: string;
   label: string;
+  /** bd-foyqpc — the bot's own words for a not-assessed section (as on WhatsApp); the kit's copy otherwise. */
+  naWords?: string;
   score?: number;
   max?: number;
   why?: string;
@@ -118,10 +121,9 @@ export function ReportBody({ data: d, copy, className }: ReportBodyProps) {
             return (
               <div key={s.code}>
                 <div className="flex items-baseline gap-2">
-                  <span className="inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[6px] bg-[#eceef2] text-[12px] font-extrabold text-[#33374a]">{s.code}</span>
                   <span className="flex-1 text-[15px] font-semibold">{s.label}</span>
                   {s.na
-                    ? <span className="text-[13px] font-semibold text-[#6b7280]">{words.notAssessed}</span>
+                    ? <span className="text-[13px] font-semibold text-[#6b7280]">{s.naWords || words.notAssessed}</span>
                     : <span className="text-[15px] font-bold tabular-nums">{`${s.score}/${s.max}`}</span>}
                 </div>
                 {!s.na ? (

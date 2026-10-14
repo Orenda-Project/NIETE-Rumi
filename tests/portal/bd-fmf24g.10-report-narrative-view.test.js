@@ -28,7 +28,16 @@ describe('narrativeView', () => {
       horizon: { title: 'Name one moment', note: 'Quote it.' },
       domainWhys: { teacher_subject_knowledge: 'Clear examples.' },
       language: 'ur',
+      topic: 'Fractions', // bd-foyqpc
     });
+  });
+
+  // bd-foyqpc — ICT feedback (IAB Experience View, row 15): the WhatsApp report heads itself with the NARRATIVE's topic
+  // (written in her language — رحمتِ رسول) before the analysis topic (always English). The page needs it to match.
+  test('bd-foyqpc — carries the narrative\'s topic, in her language', () => {
+    const v = narrativeView({ report_narrative: { topic: 'رحمتِ رسول', affirmation: 'x', _language: 'ur' } });
+    expect(v.topic).toBe('رحمتِ رسول');
+    expect(narrativeView({ report_narrative: { affirmation: 'x' } }).topic).toBeNull();
   });
 
   test('absent, empty or malformed → null (an older session, or one whose narrative failed)', () => {

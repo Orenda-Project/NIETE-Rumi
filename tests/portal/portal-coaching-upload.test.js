@@ -187,6 +187,20 @@ describe('GET /coaching-session/:id/progress', () => {
     expect(payload.reflection).toEqual({ questionNumber: 1, question: 'What did you notice when the room went quiet?' });
   });
 
+  // bd-czmyoh — ICT feedback (IAB Experience View, row 6): the question is a voice note, as on WhatsApp.
+  it('bd-czmyoh — gives the question\'s voice note, presigned, when the bot voiced it', async () => {
+    require('../../dashboard/services/r2.service').generatePresignedUrl.mockResolvedValue('https://signed.example/q1.ogg');
+    tableRows.coaching_sessions = [row({
+      status: 'conducting_conversation',
+      conversation_state: { current_state: 'REFLECTIVE_QUESTION_1', questions: [
+        { question_number: 1, question: 'What did you notice?', answer: null,
+          audio_url: 'https://r2.example/bucket/reflection_questions/teacher-1/cs-1_q1.ogg' },
+      ] },
+    })];
+    const { payload } = await invoke('get', '/coaching-session/:id/progress', { params: { id: 'cs-1' } });
+    expect(payload.reflection).toEqual({ questionNumber: 1, question: 'What did you notice?', audioUrl: 'https://signed.example/q1.ogg' });
+  });
+
   it('never surfaces the question of a WhatsApp session — that debrief belongs to her chat', async () => {
     tableRows.coaching_sessions = [row({
       status: 'conducting_conversation', audio_url: WA_URL,
@@ -214,6 +228,30 @@ describe('POST /coaching-session/:id/reflection', () => {
     expect(statusCode).toBe(200);
     expect(payload).toMatchObject({ done: true, acknowledgement: 'Thank you.' });
     expect(client.submitReflection).toHaveBeenCalledWith({ userId: 'teacher-1', coachingSessionId: 'cs-1', answer: 'I waited.' });
+  });
+
+  it('bd-eygg2f — forwards a voice answer\'s R2 key, for the SESSION user', async () => {
+    const { statusCode } = await invoke('post', '/coaching-session/:id/reflection', {
+      params: { id: 'cs-1' }, body: { audioKey: 'reflection_audio/teacher-1/2026-10/portal_a.webm', userId: 'someone-else' },
+    });
+    expect(statusCode).toBe(200);
+    expect(client.submitReflection).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'teacher-1', coachingSessionId: 'cs-1', audioKey: 'reflection_audio/teacher-1/2026-10/portal_a.webm' }));
+  });
+
+  // bd-ncfml5 — ICT feedback (IAB Experience View, row 7): the follow-up is a voice note, as on WhatsApp. The
+  // bot returns the private R2 URL; the browser gets it presigned, like every other coaching recording.
+  it('bd-ncfml5 — presigns the follow-up\'s voice note before it reaches the page', async () => {
+    require('../../dashboard/services/r2.service').generatePresignedUrl.mockResolvedValue('https://signed.example/closer.ogg');
+    client.submitReflection.mockResolvedValueOnce({ httpStatus: 200, body: {
+      success: true, status: 'ok', done: true, acknowledgement: 'Thank you.',
+      acknowledgementAudioUrl: 'https://r2.example/bucket/reflection_closers/teacher-1/cs-1_closer.ogg',
+    } });
+    const { statusCode, payload } = await invoke('post', '/coaching-session/:id/reflection', {
+      params: { id: 'cs-1' }, body: { answer: 'I waited.' },
+    });
+    expect(statusCode).toBe(200);
+    expect(payload).toMatchObject({ acknowledgement: 'Thank you.', acknowledgementAudioUrl: 'https://signed.example/closer.ogg' });
   });
 
   it('requires a portal session', async () => {
