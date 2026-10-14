@@ -24,10 +24,13 @@
  * the app served her the August version (lp-v8-browse lessonPdfUrl → lp-ab-ch310), so the newest
  * August row that existed at the open (lp-ab-ch310 pickAsset, groupsForUsers + inScope).
  *
- * THREE READERS. The 15:00 offer (viewerOpensAsDownloads, a time window over every teacher), the
+ * READERS. The 15:00 offer (viewerOpensAsDownloads, a time window over every teacher), the
  * /quiz "from my lesson plan" list (viewerOpensForTeacher / viewerOpenById, one teacher, on
- * idx_lp_opens_user_recent), and the chat's lesson context (teacherViewerOpens, the same per-teacher
- * read behind the chat's own switch). All three shape rows the same way.
+ * idx_lp_opens_user_recent), the chat's lesson context (teacherViewerOpens, the same per-teacher
+ * read behind the chat's own switch), and — behind that same chat switch — the coaching subject's
+ * recent-plan tier (teacherViewerOpens) and the transcript quiz's lesson hint
+ * (teacherViewerOpensBetween). All shape rows the same way; mergeByLesson joins them to the
+ * WhatsApp deliveries, one entry per lesson.
  *
  * Grades 6-12 are not here: the 15:00 offer has never covered them (its WhatsApp side reads
  * niete_lp_downloads only).
@@ -197,6 +200,49 @@ async function teacherViewerOpens(userId, sinceIso, limit = 200) {
   return shape(data || []);
 }
 
+/**
+ * The same per-teacher read, bounded on both sides: opens in [fromIso, toIso], newest first, at
+ * most `limit`. For a reader whose window sits around a past moment (the transcript quiz's lesson
+ * hint, -36 h..+6 h around the recording) rather than reaching to now. No switch of its own — the
+ * caller's switch gates it. Throws on a read error.
+ */
+async function teacherViewerOpensBetween(userId, fromIso, toIso, limit = 50) {
+  if (!userId) return [];
+  const { data, error } = await supabase.from(OPENS)
+    .select('id, user_id, plan_ref, opened_at')
+    .eq('user_id', userId)
+    .eq('plan_kind', 'k5')
+    .eq('source', 'viewer')
+    .gte('opened_at', fromIso)
+    .lte('opened_at', toIso)
+    .order('opened_at', { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`lp app opens: teacher opens: ${error.message || error}`);
+  return shape(data || []);
+}
+
+/**
+ * WhatsApp deliveries + app opens (download-shaped) → one row per lesson, newest first. A lesson on
+ * both surfaces keeps the WhatsApp row (its version is what she was sent) at the newer of the two
+ * times. A row with no lesson_id is never merged with another.
+ */
+function mergeByLesson(downloads, appRows) {
+  const byLesson = new Map();
+  let anon = 0;
+  for (const row of [...(downloads || []), ...(appRows || [])]) {
+    const key = row.lesson_id || `__no_lesson_${anon++}`;
+    const cur = byLesson.get(key);
+    if (!cur) { byLesson.set(key, { ...row }); continue; }
+    const newer = new Date(row.created_at) > new Date(cur.created_at);
+    if (cur.via !== 'app' && row.via === 'app') {
+      if (newer) cur.created_at = row.created_at;
+    } else if (newer) {
+      byLesson.set(key, { ...row });
+    }
+  }
+  return [...byLesson.values()].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+}
+
 /** One of her viewer opens by id, shaped — owner-filtered in the query. null when off or not hers. */
 async function viewerOpenById(userId, openId) {
   if (!enabled() || !userId || !openId) return null;
@@ -233,5 +279,6 @@ async function readOpens(fromIso, toIso) {
 }
 
 module.exports = {
-  viewerOpensAsDownloads, viewerOpensForTeacher, teacherViewerOpens, viewerOpenById, servedAsset, enabled,
+  viewerOpensAsDownloads, viewerOpensForTeacher, teacherViewerOpens, teacherViewerOpensBetween,
+  viewerOpenById, mergeByLesson, servedAsset, enabled,
 };
