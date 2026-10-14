@@ -363,8 +363,8 @@ const LEVELS_SQL = `
    ORDER BY l.order_index`;
 
 const SCHOOLS_SQL = `
-  SELECT sch.id, sch.name, sch.emis, sch.region, sch.is_active, sch.is_probable_test
-    FROM schools sch`;
+  SELECT id, name, emis, region, is_active, is_probable_test
+    FROM schools`;
 
 /** Her two Mid/High partner programmes, as NIETE's vendors are keyed. */
 const OXBRIDGE_KEY = 'OXBRIDGE';
