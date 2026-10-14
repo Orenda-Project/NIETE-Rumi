@@ -65,6 +65,8 @@ export const COACHING_V2_COPY = {
   lessonPlans: 'Lesson Plans',
   keepAppOpen: 'Keep app open',
   micBlocked: 'Microphone blocked',
+  /* bd-idkgm2 — ICT feedback (IAB Experience View, row 18): what to do, under the title (operator-approved mockup). */
+  micBlockedHint: 'Tap Try again and allow the microphone to record your lesson.',
   tryAgain: 'Try again',
   /* the recording on the page, and the page's one Submit */
   submit: 'Submit',
@@ -191,6 +193,7 @@ export const COACHING_V2_COPY_UR: Words<typeof COACHING_V2_COPY> = {
   lessonPlans: 'لیسن پلان',
   keepAppOpen: 'ایپ کھلی رکھیں',
   micBlocked: 'مائیک کی اجازت نہیں',
+  micBlockedHint: '«دوبارہ کوشش کریں» دبائیں اور مائیک کی اجازت دیں، تاکہ آپ کا سبق ریکارڈ ہو سکے۔',
   tryAgain: 'دوبارہ کوشش کریں',
   // The training portal's own word for Submit (teacher/training/copy.ts submit).
   submit: 'جمع کرائیں',
@@ -288,5 +291,5 @@ export const COPY_ENTRY: CopyEntry = {
   screen: 'Digital Coaching',
   module: COACHING as Bilingual<unknown>,
   // "DC observation" is ڈیجیٹل کوچنگ مشاہدہ (three words, the ontology's own name): it adds to a sentence of three.
-  longOk: ['noneYet', 'notFound', 'openLesson', 'openThat', 'photosHint', 'subReflection', 'voiceNote', 'fullReport'],
+  longOk: ['noneYet', 'notFound', 'openLesson', 'openThat', 'photosHint', 'subReflection', 'voiceNote', 'fullReport', 'micBlockedHint'],
 };

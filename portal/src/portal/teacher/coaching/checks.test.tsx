@@ -32,7 +32,8 @@ describe("coaching: copy", () => {
   // The Photos hint and the debrief's heading (bd-9d1cmi, ICT's exact words, row 9) are the two longer lines.
   it("every word is a label: at most 4 words, never a sentence (the Photos hint and the debrief heading excepted)", () => {
     const bad = collectCopy(COACHING_V2_COPY)
-      .filter((c) => c.path !== "photosHint" && c.path !== "voiceNote")
+      // bd-idkgm2: and the one-line how-to under "Microphone blocked" (operator-approved, ICT row 18).
+      .filter((c) => c.path !== "photosHint" && c.path !== "voiceNote" && c.path !== "micBlockedHint")
       .filter((c) => copyProblem(c.text))
       .map((c) => `${c.path}: ${c.text}`);
     expect(bad).toEqual([]);
