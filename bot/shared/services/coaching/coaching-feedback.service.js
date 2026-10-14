@@ -32,6 +32,8 @@ const redisService = require('../cache/railway-redis.service');
 const WhatsAppService = require('../whatsapp.service');
 const { logToFile } = require('../../utils/logger');
 const { clampLanguage, resolveUx } = require('../../config/ux-strings');
+const { logEvent } = require('../../utils/structured-logger');
+const { groupFor } = require('./ab-v10-arms');
 
 // Default delay for scheduleFeedbackPrompt. The coaching report no longer uses it — the
 // survey is sent inline right after the voice debrief — but the scheduler stays available.
@@ -170,6 +172,25 @@ async function sendFeedbackPrompt({ coachingSessionId, userId, phone, language }
   return sent;
 }
 
+/**
+ * v10 coaching test (bd-v0toag.49): ask only a teacher in group A or B (today's WhatsApp report);
+ * C and D answer on the report page. Switch off or school not drawn → nothing is sent.
+ * Returns true when the question went out. Never throws into the report pipeline.
+ */
+async function askIfInTest({ coachingSessionId, userId, phone, language }) {
+  try {
+    if (!coachingSessionId || !userId || !phone) return false;
+    const g = await groupFor(userId);
+    if (!g || g.report !== 'today') return false;
+    await sendFeedbackPrompt({ coachingSessionId, userId, phone, language });
+    logEvent('coaching.useful.asked', { coachingSessionId, userId, group: g.group });
+    return true;
+  } catch (err) {
+    logToFile('Coaching Feedback: ask failed (the report is unaffected)', { coachingSessionId, error: err.message });
+    return false;
+  }
+}
+
 // ─── 3. Button router entry ───────────────────────────────────────────────
 
 /**
@@ -200,6 +221,9 @@ async function handleFeedbackButton(buttonId, phone, opts = {}) {
   });
 
   logToFile('Coaching Feedback: button tapped', { coachingSessionId, userId, useful });
+  let group = null;
+  try { const g = userId ? await groupFor(userId) : null; group = g ? g.group : null; } catch (_) { /* logged as null */ }
+  logEvent('coaching.useful.answered', { coachingSessionId, userId, useful, group });
 
   // Transcript quiz: the survey is answered, so the quiz offer no longer has
   // to wait out its window — bring it forward. Idempotent with the delayed
@@ -267,6 +291,7 @@ async function handlePendingReason(userId, phone, text, opts = {}) {
 }
 
 module.exports = {
+  askIfInTest,
   scheduleFeedbackPrompt,
   sendFeedbackPrompt,
   handleFeedbackButton,

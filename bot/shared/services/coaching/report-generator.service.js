@@ -36,6 +36,7 @@ const { clampLanguage } = require('../../config/ux-strings');
 const { persistReportNarrative } = require('./report-v2/narrative-store');
 const { offerDefaultLanguage } = require('../../config/languages');
 const { createReportTracker } = require('./report-tracking');
+const { v10Enabled } = require('./ab-v10-switch');
 
 /**
  * The language the coaching STEP messages are sent in.
@@ -514,12 +515,13 @@ class ReportGeneratorService {
           const CoachingFeedbackService = require('./coaching-feedback.service');
           let surveySent = false;
           try {
-            surveySent = await CoachingFeedbackService.sendFeedbackPrompt({
-              coachingSessionId,
-              userId: session.user_id,
-              phone: from,
-              language: outputLanguage,
-            });
+            // v10 coaching test (bd-v0toag.49): while ab_v10_enabled is on, only groups A and B
+            // are asked here (C and D answer on the report page) — askIfInTest. Switch off:
+            // every teacher, as before.
+            const ask = { coachingSessionId, userId: session.user_id, phone: from, language: outputLanguage };
+            surveySent = (await v10Enabled().catch(() => false))
+              ? await CoachingFeedbackService.askIfInTest(ask)
+              : await CoachingFeedbackService.sendFeedbackPrompt(ask);
           } finally {
             if (surveySent === false) await releasePiece(coachingSessionId, 'survey');
           }
