@@ -1378,8 +1378,8 @@ async function recoverStaleVideoRequests() {
           if (user?.phone_number) {
             const apologyMessages = {
               en: "I'm sorry, there was a problem creating your video about \"" + request.topic + "\". Please try again by sending /video.",
-              ur: "معذرت، آپ کی ویڈیو \"" + request.topic + "\" بنانے میں مسئلہ ہوا۔ براہ کرم /video بھیج کر دوبارہ کوشش کریں۔",
-              ar: "عذراً، حدثت مشكلة في إنشاء الفيديو عن \"" + request.topic + "\". يرجى المحاولة مرة أخرى بإرسال /video.",
+              ur: "معذرت، آپ کی ویڈیو \"" + request.topic + "\" بنانے میں مسئلہ ہوا۔ براہ کرم \u2066/video\u2069 بھیج کر دوبارہ کوشش کریں۔",
+              ar: "عذراً، حدثت مشكلة في إنشاء الفيديو عن \"" + request.topic + "\". يرجى المحاولة مرة أخرى بإرسال \u2066/video\u2069.",
               es: "Lo siento, hubo un problema al crear tu video sobre \"" + request.topic + "\". Por favor intenta de nuevo enviando /video."
             };
             await WhatsAppService.sendMessage(

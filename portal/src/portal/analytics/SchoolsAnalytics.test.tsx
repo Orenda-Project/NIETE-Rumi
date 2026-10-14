@@ -130,7 +130,7 @@ const testIds = (prefix: string) =>
 /** bd-wfl8oz (operator, 2026-10-13): "LP Generated" and "Coach visits" are off the page — human observations are the visits. */
 const REMOVED_WORDS = /LPs? generated|Coach visits/i;
 const REMOVED_KEYS = ["lpsGenerated", "coachVisits"];
-const COLUMNS = ["School", "Region", "Teachers", "LPs opened", "DC observations", "Human observations", "Avg FICO", "Avg HITL"];
+const COLUMNS = ["School", "Region", "Teachers", "LPs opened", "Training modules completed", "DC observations", "Human observations", "Avg FICO", "Avg HITL"];
 
 describe("regions", () => {
   it("every region is a chip with its school count", async () => {
@@ -186,13 +186,21 @@ describe("regions", () => {
     expect(within(card).getByTestId("region-avgFico")).toHaveTextContent("(64)");
   });
 
-  it("a region card lists LPs opened, the two observation counts and the two averages — nothing generated, no visits", async () => {
+  it("a region card carries training modules completed with x of N teachers (bd-9vkl9x)", async () => {
+    renderPage();
+    const card = await screen.findByTestId("region-card-Urban-I");
+    expect(card).toHaveTextContent("Training modules completed");
+    expect(within(card).getByTestId("region-trainingModules")).toHaveTextContent("94");
+    expect(within(card).getByTestId("region-trainingModules")).toHaveTextContent("45 of 135 teachers");
+  });
+
+  it("a region card lists LPs opened, training, the two observation counts and the two averages — nothing generated, no visits", async () => {
     renderPage();
     await screen.findByTestId("region-cards");
     for (const r of SIX) {
       const card = screen.getByTestId(`region-card-${r}`);
       const keys = within(card).getAllByTestId(/^region-/).map((el) => el.getAttribute("data-testid")!.slice("region-".length));
-      expect(keys).toEqual(["lpsOpened", "dcObservations", "humanObservations", "avgFico", "avgHitl"]);
+      expect(keys).toEqual(["lpsOpened", "trainingModules", "dcObservations", "humanObservations", "avgFico", "avgHitl"]);
       for (const k of REMOVED_KEYS) expect(within(card).queryByTestId(`region-${k}`)).toBeNull();
       expect(card.textContent).not.toMatch(REMOVED_WORDS);
     }
@@ -214,15 +222,24 @@ describe("overview tiles", () => {
     expect(within(overview).getByTestId("tile-avgFico")).toHaveTextContent("188");
   });
 
-  it("are exactly seven: schools, teachers, LPs opened, the two observation counts and the two averages", async () => {
+  it("show training modules completed, with x of N teachers (bd-9vkl9x)", async () => {
+    renderPage();
+    const tile = within(await screen.findByTestId("overview")).getByTestId("tile-trainingModules");
+    expect(tile).toHaveTextContent("Training modules completed");
+    expect(tile).toHaveTextContent("322");
+    expect(tile).toHaveTextContent("145 of 442 teachers");
+    expect(tile.textContent).not.toMatch(/%/);
+  });
+
+  it("are exactly eight: schools, teachers, LPs opened, training, the two observation counts and the two averages", async () => {
     renderPage();
     await screen.findByTestId("overview");
-    expect(testIds("tile-")).toEqual(["schools", "teachers", "lpsOpened", "dcObservations", "humanObservations", "avgFico", "avgHitl"]);
+    expect(testIds("tile-")).toEqual(["schools", "teachers", "lpsOpened", "trainingModules", "dcObservations", "humanObservations", "avgFico", "avgHitl"]);
     for (const k of REMOVED_KEYS) expect(screen.queryByTestId(`tile-${k}`)).toBeNull();
     expect(screen.getByTestId("overview").textContent).not.toMatch(REMOVED_WORDS);
   });
 
-  it("fill their rows with no tile left alone: four across on a desktop, two on a phone, LPs opened two wide", async () => {
+  it("fill their rows with no tile left alone: four across on a desktop, two on a phone, every tile one wide", async () => {
     renderPage();
     const overview = await screen.findByTestId("overview");
     const classes = overview.className.split(/\s+/);
@@ -231,7 +248,9 @@ describe("overview tiles", () => {
     expect(classes.some((c) => /^(sm|md|xl):grid-cols-/.test(c))).toBe(false);
     // Each grid cell's span, in order, laid out the way CSS grid auto-places them (no dense packing).
     const spans = Array.from(overview.children).map((el) => (el.className.split(/\s+/).includes("col-span-2") ? 2 : 1));
-    expect(spans).toEqual([1, 1, 2, 1, 1, 1, 1]);
+    // Eight tiles, two full rows of four: what teachers did (schools, teachers, LPs opened, training), then the
+    // observations and their scores.
+    expect(spans).toEqual([1, 1, 1, 1, 1, 1, 1, 1]);
     for (const cols of [2, 4]) {
       let at = 0;
       for (const span of spans) {
@@ -286,12 +305,14 @@ describe("the school table", () => {
     expect(rowNames()).toHaveLength(16);
   });
 
-  it("x of N for LPs opened and DC observations", async () => {
+  it("x of N for LPs opened, training and DC observations", async () => {
     renderPage();
     await screen.findByTestId("schools-table");
     const row = screen.getByTestId("school-row-s-02");
     expect(within(row).getByTestId("cell-lpsOpened")).toHaveTextContent("52");
     expect(within(row).getByTestId("cell-lpsOpened")).toHaveTextContent("14 of 30");
+    expect(within(row).getByTestId("cell-trainingModules")).toHaveTextContent("23");
+    expect(within(row).getByTestId("cell-trainingModules")).toHaveTextContent("11 of 30");
     expect(within(row).getByTestId("cell-dcObservations")).toHaveTextContent("17");
     expect(within(row).getByTestId("cell-dcObservations")).toHaveTextContent("9 of 30");
     expect(within(row).getByTestId("cell-avgFico")).toHaveTextContent("68.4 (17)");
@@ -311,6 +332,7 @@ describe("the school table", () => {
     expect(one).toHaveAttribute("data-low-n", "true");
     // A real 0 is a 0, not a dash.
     expect(within(none).getByTestId("cell-lpsOpened")).toHaveTextContent(/^0/);
+    expect(within(none).getByTestId("cell-trainingModules")).toHaveTextContent(/^0/);
   });
 
   it("a school with no EMIS shows its name alone", async () => {
@@ -336,6 +358,17 @@ describe("the school table", () => {
     expect(rowNames()[0]).toBe("IMSB (I-VIII) Sangjani");
     expect(rowNames()[15]).toBe("IMCB (VI-XII) Dhok Jabbar");
     expect(screen.getByTestId("sort-avgFico").closest("th")).toHaveAttribute("aria-sort", "ascending");
+  });
+
+  it("sorts on training modules completed: most first, then fewest", async () => {
+    renderPage();
+    await screen.findByTestId("schools-table");
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("sort-trainingModules"));
+    expect(rowNames()[0]).toBe("IMCB (VI-XII) Tarnol");
+    expect(screen.getByTestId("sort-trainingModules").closest("th")).toHaveAttribute("aria-sort", "descending");
+    await user.click(screen.getByTestId("sort-trainingModules"));
+    expect(rowNames()[0]).toBe("IMCB (VI-XII) Dhok Jabbar");
   });
 
   it("searches by school name or EMIS code", async () => {
@@ -416,9 +449,20 @@ describe("the How these numbers are worked out panel", () => {
     renderPage();
     const panel = await screen.findByTestId("how-counted");
     expect(panel).toHaveTextContent("How these numbers are worked out");
-    for (const term of ["Teachers", "LPs opened", "DC observations", "Human observations", "Avg FICO", "Avg HITL"]) {
+    for (const term of ["Teachers", "LPs opened", "Training modules completed", "DC observations", "Human observations", "Avg FICO", "Avg HITL"]) {
       expect(panel).toHaveTextContent(term);
     }
+  });
+
+  it("says how training is counted, in plain words (bd-9vkl9x)", async () => {
+    renderPage();
+    const panel = await screen.findByTestId("how-counted");
+    const terms = Array.from(panel.querySelectorAll("dt"));
+    const dt = terms.find((d) => d.textContent === "Training modules completed");
+    expect(dt).toBeTruthy();
+    expect(dt!.nextElementSibling).toHaveTextContent(
+      'Training modules the school\'s teachers finished in the period, each module counted once per teacher. "x of N" is how many teachers finished at least one.',
+    );
   });
 
   it("no longer explains LPs generated or Coach visits — they are not on the page", async () => {
@@ -460,6 +504,20 @@ describe("on a phone", () => {
     expect(within(card).getByTestId("cell-lpsOpened")).toHaveTextContent("14 of 30");
     expect(within(card).getByTestId("cell-avgFico")).toHaveTextContent("68.4 (17)");
     expect(within(card).getByTestId("cell-humanObservations")).toHaveTextContent("6");
+    expect(within(card).getByTestId("cell-trainingModules")).toHaveTextContent("23");
+    expect(within(card).getByTestId("cell-trainingModules")).toHaveTextContent("11 of 30 teachers");
+  });
+
+  it("a card names its teachers beside the region, and pairs the rest: LPs | training, DC | human, FICO | HITL (bd-9vkl9x)", async () => {
+    setWidth(390);
+    renderPage();
+    await screen.findAllByTestId("school-card");
+    const card = screen.getByTestId("school-card-s-02");
+    expect(within(card).getByTestId("cell-teachers")).toHaveTextContent(/^30 teachers$/);
+    expect(within(card).getByTestId("cell-teachers").closest("dl")).toBeNull();
+    const grid = Array.from(card.querySelectorAll("dl [data-testid^='cell-']")).map((el) => el.getAttribute("data-testid"));
+    expect(grid).toEqual(["cell-lpsOpened", "cell-trainingModules", "cell-dcObservations", "cell-humanObservations", "cell-avgFico", "cell-avgHitl"]);
+    expect(grid.length % 2).toBe(0); // two across, no cell alone on the last row
   });
 
   it("a card and the sort menu carry neither LPs generated nor Coach visits", async () => {
@@ -468,7 +526,7 @@ describe("on a phone", () => {
     await screen.findAllByTestId("school-card");
     const card = screen.getByTestId("school-card-s-02");
     expect(Array.from(card.querySelectorAll("[data-testid^='cell-']")).map((el) => el.getAttribute("data-testid"))).toEqual(
-      ["cell-teachers", "cell-lpsOpened", "cell-dcObservations", "cell-humanObservations", "cell-avgFico", "cell-avgHitl"],
+      ["cell-teachers", "cell-lpsOpened", "cell-trainingModules", "cell-dcObservations", "cell-humanObservations", "cell-avgFico", "cell-avgHitl"],
     );
     const options = Array.from((screen.getByTestId("sort-menu") as HTMLSelectElement).options).map((o) => o.textContent);
     expect(options).toEqual(COLUMNS);

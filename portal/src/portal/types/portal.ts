@@ -686,14 +686,18 @@ export interface CoachingProgress {
 
 /**
  * The numbers for one school, one region or the whole selection. Counts of things that happened in the window;
- * `teachersOpenedLp` and `teachersWithDc` are read as "x of `teachers`". An average is null when nothing was scored
- * (its n is 0); a count is never null — 0 is a real 0. No percentages. No LPs generated and no coach visits
- * (bd-wfl8oz: human observations are the coach's visits).
+ * `teachersOpenedLp`, `teachersTrained` and `teachersWithDc` are read as "x of `teachers`". An average is null when
+ * nothing was scored (its n is 0); a count is never null — 0 is a real 0. No percentages. No LPs generated and no
+ * coach visits (bd-wfl8oz: human observations are the coach's visits).
  */
 export interface SchoolsAnalyticsCounts {
   teachers: number;
   lpsOpened: number;
   teachersOpenedLp: number;
+  /** bd-9vkl9x — training modules completed in the window, each counted once per teacher. */
+  trainingModules: number;
+  /** bd-9vkl9x — teachers who completed at least one module in the window. */
+  teachersTrained: number;
   dcObservations: number;
   teachersWithDc: number;
   humanObservations: number;

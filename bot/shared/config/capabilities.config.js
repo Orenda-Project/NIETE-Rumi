@@ -136,8 +136,8 @@ module.exports = {
       },
       howToUse: {
         en: 'Type /video or say "make a video about [topic]"',
-        ur: '/video ٹائپ کریں یا کہیں "ویڈیو بنائیں [موضوع] کے بارے میں"',
-        ar: 'اكتب /video أو قل "اصنع فيديو عن [الموضوع]"',
+        ur: '\u2066/video\u2069 ٹائپ کریں یا کہیں "ویڈیو بنائیں [موضوع] کے بارے میں"',
+        ar: 'اكتب \u2066/video\u2069 أو قل "اصنع فيديو عن [الموضوع]"',
         es: 'Escribe /video o di "haz un video sobre [tema]"'
       },
       keywords: ['video', 'generate', 'create video', 'make video', 'ویڈیو', 'بنانا', 'فيديو', 'إنشاء', 'crear', 'generar']
@@ -158,8 +158,8 @@ module.exports = {
       },
       howToUse: {
         en: 'Type /reading test to start a reading assessment',
-        ur: '/reading test ٹائپ کریں',
-        ar: 'اكتب /reading test لبدء التقييم',
+        ur: '\u2066/reading test\u2069 ٹائپ کریں',
+        ar: 'اكتب \u2066/reading test\u2069 لبدء التقييم',
         es: 'Escribe /reading test para iniciar'
       },
       keywords: ['reading', 'fluency', 'pronunciation', 'wcpm', 'assessment', 'ریڈنگ', 'پڑھنا', 'تلفظ', 'قراءة', 'lectura']

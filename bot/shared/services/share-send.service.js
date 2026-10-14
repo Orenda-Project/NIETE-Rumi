@@ -279,7 +279,9 @@ async function sendShare({ userId, kind, id } = {}, deps) {
     const components = componentsFor(item, { lang });
     const report = {};
     const ok = (await d.sendTemplate(user.phone_number, name, lang, components, { report })) === true;
-    try { logEvent(ok ? 'share_send.sent' : 'share_send.refused', { kind, userId, template: name, lang, code: report.code || null }); } catch (_) { /* logging never decides */ }
+    // itemRef names WHAT was shared (lesson:k5:<lessonId>:<assetKind> / lesson:<segmentId>:<lang> / paper:<id> / report:<id>), so a
+    // share can be matched to the lesson-open or delivery record of the same item. Ids only, never a title or a phone.
+    try { logEvent(ok ? 'share_send.sent' : 'share_send.refused', { kind, userId, itemRef: item.itemRef || null, template: name, lang, code: report.code || null }); } catch (_) { /* logging never decides */ }
     if (ok) return { status: 'sent', at: d.now().toISOString() };
     if (TEMPLATE_GONE.includes(Number(report.code))) return { status: 'unavailable', reason: 'template_missing' };
     return { status: 'failed', reason: 'refused' };

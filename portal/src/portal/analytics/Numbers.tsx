@@ -6,12 +6,14 @@ import type { MetricKey } from './metrics';
 
 /**
  * bd-s6qbts.3 — one number as the school table, the phone cards and the region cards all show it:
- *   a count       "52", and for LPs opened / DC observations "14 of 30" under it (x of the school's N teachers);
+ *   a count       "52", and for LPs opened / training / DC observations "14 of 30" under it (x of the school's N
+ *                 teachers);
  *   an average    "68.4 (17)"; fewer than 3 scored → grey (data-low-n); nothing scored → "—" alone.
  */
 /** Which teachers-count goes with a count, if any ("x of N teachers"). */
 const OF_TEACHERS: Partial<Record<MetricKey, keyof SchoolsAnalyticsCounts>> = {
   lpsOpened: 'teachersOpenedLp',
+  trainingModules: 'teachersTrained',
   dcObservations: 'teachersWithDc',
 };
 

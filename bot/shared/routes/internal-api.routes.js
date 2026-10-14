@@ -1307,6 +1307,9 @@ router.post('/lp/describe', requireInternalKey, async (req, res) => {
  * plan gets (lp-app-open-survey.service: the guards, then the existing survey services). The body
  * is only the row's id — the bot reads who and which plan from the row, never from the request.
  * The portal calls it fire-and-forget, so a skip is a 200 with its reason, not an error.
+ *
+ * The same open also books the coaching ask ("record this lesson?") a WhatsApp-delivered K-5 plan
+ * books (lp-coaching-ask.service onAppOpen); its decision is returned as `coachingAsk`.
  */
 router.post('/lp/open-survey', requireInternalKey, async (req, res) => {
   const openId = String((req.body || {}).openId || '').trim();
@@ -1315,7 +1318,11 @@ router.post('/lp/open-survey', requireInternalKey, async (req, res) => {
   }
   const AppSurvey = require('../services/lp-app-open-survey.service');
   const result = await AppSurvey.onViewerOpen({ openId });
-  return res.json({ success: true, ...result });
+  // The same open books the coaching ask a WhatsApp-delivered K-5 plan books (its own guards,
+  // its own once-a-day row). Never throws; its answer rides along for the logs.
+  const LpCoachingAsk = require('../services/nudges/lp-coaching-ask.service');
+  const coachingAsk = await LpCoachingAsk.onAppOpen({ openId });
+  return res.json({ success: true, ...result, coachingAsk });
 });
 
 // ─── assessment generator ───────────────────────────────────────────────────

@@ -86,14 +86,15 @@ function poolRows(sql, params) {
   if (/'scores'/.test(sql)) {
     return params[0].map((id) => ({ id, updated_at: '2026-10-02T00:00:00Z', scores: { overall_marks: 70, overall_max_marks: 100 } }));
   }
-  // One row per school with its (non-test) roster summed by the same read (bd-wfl8oz).
+  // One row per school with its (non-test) roster summed by the same read (bd-wfl8oz), training
+  // included (bd-9vkl9x).
   if (/FROM schools/i.test(sql)) {
     return [
-      { id: 's1', name: 'IMSG B.K 1', emis: '101', region: 'B.K', is_active: true, is_probable_test: false, teachers: 8, lps_opened: 5, teachers_opened_lp: 3 },
-      { id: 's2', name: 'IMCG Sihala', emis: '202', region: 'Sihala', is_active: true, is_probable_test: false, teachers: 2, lps_opened: 1, teachers_opened_lp: 1 },
+      { id: 's1', name: 'IMSG B.K 1', emis: '101', region: 'B.K', is_active: true, is_probable_test: false, teachers: 8, lps_opened: 5, teachers_opened_lp: 3, training_modules: 11, teachers_trained: 4 },
+      { id: 's2', name: 'IMCG Sihala', emis: '202', region: 'Sihala', is_active: true, is_probable_test: false, teachers: 2, lps_opened: 1, teachers_opened_lp: 1, training_modules: 3, teachers_trained: 1 },
       // Outside the six regions: left out of every number (bd-s6qbts.4).
-      { id: 's3', name: 'No Region School', emis: '303', region: null, is_active: true, is_probable_test: false, teachers: 31, lps_opened: 20, teachers_opened_lp: 9 },
-      { id: 's4', name: 'Durbeen', emis: null, region: 'Durbeen', is_active: true, is_probable_test: false, teachers: 11, lps_opened: 6, teachers_opened_lp: 2 },
+      { id: 's3', name: 'No Region School', emis: '303', region: null, is_active: true, is_probable_test: false, teachers: 31, lps_opened: 20, teachers_opened_lp: 9, training_modules: 40, teachers_trained: 12 },
+      { id: 's4', name: 'Durbeen', emis: null, region: 'Durbeen', is_active: true, is_probable_test: false, teachers: 11, lps_opened: 6, teachers_opened_lp: 2, training_modules: 7, teachers_trained: 3 },
     ];
   }
   if (/FROM coaching_sessions/i.test(sql)) {
@@ -252,6 +253,7 @@ describe('GET /analytics/schools', () => {
     expect(payload.regions.map((r) => r.region)).toEqual(['B.K', 'Sihala', 'Urban-I', 'Nilore', 'Urban-II', 'Tarnol']);
     expect(payload.overview).toEqual({
       schools: 2, teachers: 10, lpsOpened: 6, teachersOpenedLp: 4,
+      trainingModules: 14, teachersTrained: 5,
       dcObservations: 1, teachersWithDc: 1, humanObservations: 1,
       avgFico: 70, ficoN: 1, avgHitl: 70, hitlN: 1,
     });
@@ -273,7 +275,7 @@ describe('GET /analytics/schools', () => {
       userId: VIEWER, query: { from: '2026-10-01', to: '2026-10-13' },
     });
     expect(statusCode).toBe(200);
-    const METRICS = ['teachers', 'lpsOpened', 'teachersOpenedLp', 'dcObservations', 'teachersWithDc', 'humanObservations', 'avgFico', 'ficoN', 'avgHitl', 'hitlN'];
+    const METRICS = ['teachers', 'lpsOpened', 'teachersOpenedLp', 'trainingModules', 'teachersTrained', 'dcObservations', 'teachersWithDc', 'humanObservations', 'avgFico', 'ficoN', 'avgHitl', 'hitlN'];
     expect(Object.keys(payload.overview).sort()).toEqual(['schools', ...METRICS].sort());
     for (const r of payload.regions) expect(Object.keys(r).sort()).toEqual(['region', 'schools', ...METRICS].sort());
     for (const x of payload.schools) expect(Object.keys(x).sort()).toEqual(['schoolId', 'emis', 'name', 'region', ...METRICS].sort());
@@ -282,6 +284,29 @@ describe('GET /analytics/schools', () => {
     expect(queries.length).toBeGreaterThan(0);
     expect(queries.length).toBeLessThanOrEqual(3);
     for (const q of queries) expect(q.sql).not.toMatch(/lesson_plans|observation_schedules/i);
+  });
+
+  it('training (bd-9vkl9x): per school, per region and overall, from the schools read — no extra query', async () => {
+    tableStates.app_settings = flag([VIEWER]);
+    const { statusCode, payload } = await call('get', '/analytics/schools', {
+      userId: VIEWER, query: { from: '2026-10-01', to: '2026-10-13' },
+    });
+    expect(statusCode).toBe(200);
+    expect(payload.schools.map((x) => [x.name, x.trainingModules, x.teachersTrained])).toEqual([
+      ['IMSG B.K 1', 11, 4], ['IMCG Sihala', 3, 1],
+    ]);
+    const card = (r) => payload.regions.find((x) => x.region === r);
+    expect([card('B.K').trainingModules, card('B.K').teachersTrained]).toEqual([11, 4]);
+    expect([card('Sihala').trainingModules, card('Sihala').teachersTrained]).toEqual([3, 1]);
+    expect([card('Tarnol').trainingModules, card('Tarnol').teachersTrained]).toEqual([0, 0]);
+    // The no-region school (40) and Durbeen (7) add nothing.
+    expect([payload.overview.trainingModules, payload.overview.teachersTrained]).toEqual([14, 5]);
+    // One read carries it, bounded by the same Pakistan-day instants as the rest.
+    const training = queries.filter((q) => /teacher_training_progress/.test(q.sql));
+    expect(training).toHaveLength(1);
+    expect(training[0].sql).toMatch(/FROM schools/);
+    expect(training[0].params).toEqual(['2026-09-30T19:00:00.000Z', '2026-10-13T19:00:00.000Z']);
+    expect(queries.length).toBeLessThanOrEqual(3);
   });
 
   it('a region filter scopes the overview to that region card', async () => {
