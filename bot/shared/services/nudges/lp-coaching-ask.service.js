@@ -51,6 +51,7 @@ const { canSelfCoach } = require('../../config/role-features');
 const Caps = require('./caps');
 const { flagOn, onUnlessOff } = require('./flags');
 const { shouldDeferNewClassroomAudio } = require('../coaching/coaching-inflight-guard');
+const { groupFor } = require('../coaching/ab-v10-arms');
 const { formatLessonDate } = require('../quiz/transcript-quiz-language');
 
 /** The `teacher_nudges.kind` this service owns. */
@@ -484,7 +485,12 @@ async function send(row, { now = new Date() } = {}) {
   const context = row.context || {};
 
   const { key: bodyKey, params: bodyParams } = askBody(context, today, language);
-  const body = resolveUx(bodyKey, { language, params: bodyParams });
+  // v10 coaching test: drawn schools get one more line, the same in every group. groupFor is
+  // null outside the test, so everyone else gets today's ask unchanged.
+  const ab = await groupFor(userId).catch(() => null);
+  const abGroup = (ab && ab.group) || null;
+  const ask = resolveUx(bodyKey, { language, params: bodyParams });
+  const body = abGroup ? `${ask}\n\n${resolveUx('lpAskRecordLine', { language })}` : ask;
   const buttons = [
     { id: `lpask_yes_${row.id}`, title: resolveUx('lpAskYes', { language }) },
     { id: `lpask_no_${row.id}`, title: resolveUx('lpAskNo', { language }) },
@@ -531,7 +537,7 @@ async function send(row, { now = new Date() } = {}) {
 
   logEvent('lp_ask.sent', {
     nudgeId: row.id, userId, language, firstTime: Boolean(context.first_time), howto,
-    lessonId: context.lesson_id || null,
+    lessonId: context.lesson_id || null, abGroup,
   });
   return { sent: true, messageIds, context: { language, howto, body: bodyKey } };
 }

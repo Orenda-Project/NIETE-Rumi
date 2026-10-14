@@ -290,6 +290,13 @@ const UX_STRINGS = {
   lpAskWhenOnDate: { en: 'on {date}', ur: '⁨{date}⁩ کو' },
   lpAskYes: { en: 'Record my lesson', ur: 'سبق ریکارڈ کروں' },
   lpAskNo: { en: 'Not today', ur: 'آج نہیں' },
+  // v10 coaching test only: added under any of the four bodies above for a teacher whose
+  // school is in the draw, the same in every group. Imperatives, and the last verb agrees
+  // with تجزیہ, never with the teacher.
+  lpAskRecordLine: {
+    en: 'Record as usual. If you can, record the whole lesson, start to end: it gives a fuller analysis.',
+    ur: 'ہمیشہ کی طرح ریکارڈ کریں۔ اگر ہو سکے تو پورا سبق، شروع سے آخر تک، ریکارڈ کریں: اس سے تجزیہ زیادہ مکمل ہوتا ہے۔',
+  },
   // Sent on a tap of yes, and ALSO the copy the /menu Classroom Coaching entry
   // now uses — one door, one instruction. The old menu line asked
   // for "at least 15 minutes", which is the routing threshold, not an ask a
