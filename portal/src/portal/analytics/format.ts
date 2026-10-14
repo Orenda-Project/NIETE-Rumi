@@ -48,3 +48,22 @@ export function startsBeforeLpOpens(from: string | null, loggedSince: string | n
   if (!loggedSince) return false;
   return !from || from < loggedSince;
 }
+
+/**
+ * bd-97x22y.4 (PLAN v7, her presentation 1 to 1) — the Trainings tab's "% passed", whole numbers as hers are
+ * (Math.round(passed / total × 100)), from the counts so it is exactly her rounding. No teachers → null ("—").
+ */
+export function wholePercent(x: number, n: number, c: AnalyticsWords): string | null {
+  if (!Number.isFinite(x) || !Number.isFinite(n) || n <= 0) return null;
+  return c.percent(Math.round((x / n) * 100).toLocaleString(c.numberLocale));
+}
+
+/** When a snapshot was read, in Pakistan time (UTC+5, no DST): "14 Oct 2026, 3:51 PM". */
+export function pakistanTime(iso: string | null | undefined, c: AnalyticsWords): string | null {
+  const t = iso ? Date.parse(iso) : NaN;
+  if (!Number.isFinite(t)) return null;
+  const d = new Date(t + 5 * 60 * 60 * 1000);
+  const h = d.getUTCHours();
+  const clock = `${h % 12 === 0 ? 12 : h % 12}:${String(d.getUTCMinutes()).padStart(2, '0')} ${h < 12 ? c.trainingLevels.clock.am : c.trainingLevels.clock.pm}`;
+  return `${d.getUTCDate()} ${c.months[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${clock}`;
+}

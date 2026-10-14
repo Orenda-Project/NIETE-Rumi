@@ -1708,6 +1708,60 @@ router.get('/analytics/coaching', requirePortalAuth, requireAnalyticsViewer, asy
   }
 });
 
+// bd-97x22y.4 — the Trainings tab's level progress. One in-memory snapshot of the states read per process,
+// refreshed at most every 30 minutes and never waited on once it exists; every band and region is
+// summarised from it per request (cheap, pure).
+const TrainingLevels = require('../services/training-levels-analytics.service');
+
+const trainingLevelsSnapshot = TrainingLevels.createSnapshot({
+  load: () => TrainingLevels.loadTrainingLevelRows(dbQuery),
+  maxAgeMs: 30 * 60 * 1000,
+});
+
+/**
+ * GET /api/portal/analytics/training-levels?region=<sector|all>&band=<primary|midhigh|all>
+ *
+ * The schools-analytics v7 Trainings tab (bd-97x22y.4, PLAN v7 "Trainings"): the ICT dashboard's training
+ * level progress 1 to 1, on NIETE's own level rule. All time, as hers (no window; from/to are ignored).
+ * band: primary (default; levels 1-4 over teachers whose teacher_level holds PRIMARY) or midhigh (levels 3-4
+ * over MIDDLE or HIGH teachers); all = every teacher, band or none. Anything else is a 400, like an unknown
+ * region. Same gate and six regions as /analytics/schools.
+ *
+ * Answer:
+ *   { success, band, computedAt,                                   computedAt: when the snapshot's read began
+ *     overview: { teachers, passedAll, levels: [L] },
+ *     regions:  [{ region, teachers, passedAll, levels: [L without name] }],
+ *     schools:  [{ schoolId, emis, name, region, teachers, passedAll, levels: [{ levelOrder, passed, teachers, pctPassed }] }] }
+ *   L = { levelId, levelOrder (0-3), name, passed, inProgress, notStarted, teachers, pctPassed }
+ * passed = certified; inProgress = in_progress + ready_for_quiz; notStarted = not_started + locked; teachers =
+ * the band's teachers whose programme shows the level; pctPassed = passed / teachers × 100, one decimal, null
+ * when teachers is 0. passedAll = passed Teacher Leader, of its teachers. Regions are always the six; the
+ * overview and the schools follow ?region= (a school with none of the band's teachers is left out). No teacher
+ * appears. Definitions: services/training-levels-analytics.service.js.
+ */
+router.get('/analytics/training-levels', requirePortalAuth, requireAnalyticsViewer, async (req, res) => {
+  try {
+    const region = SchoolsAnalytics.parseRegionFilter(req.query.region);
+    if (!region.ok) {
+      return res.status(400).json({ success: false, error: 'Unknown region.' });
+    }
+    const band = TrainingLevels.parseBandFilter(req.query.band);
+    if (!band.ok) {
+      return res.status(400).json({ success: false, error: 'Unknown band.' });
+    }
+    const snap = await trainingLevelsSnapshot.get();
+    res.json({
+      success: true,
+      band: band.band,
+      computedAt: snap.computedAt,
+      ...TrainingLevels.summarizeTrainingLevels(snap.rows, { band: band.band, region: region.region }),
+    });
+  } catch (error) {
+    console.error('analytics/training-levels error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load training analytics.' });
+  }
+});
+
 /**
  * GET /api/portal/my-analytics
  * A TEACHER's own Analytics page: the same sections her principal sees when
