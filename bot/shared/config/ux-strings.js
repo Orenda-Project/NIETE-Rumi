@@ -164,6 +164,20 @@ const UX_STRINGS = {
     ur: 'اسے کھولنے میں مسئلہ آ گیا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
   },
 
+  // ─── commitment-card acks (card_yes/later/no taps) ───────────────────────
+  coachingCardAckYes: {
+    en: 'Noted — we will look for it in your next lesson. Good luck!',
+    ur: 'نوٹ کر لیا — اگلے سبق میں ہم اسے دیکھیں گے۔ بہت خوب!',
+  },
+  coachingCardAckLater: {
+    en: 'No problem — it will be here whenever you are ready.',
+    ur: 'کوئی بات نہیں — یہ یہیں موجود رہے گا، جب بھی وقت ہو۔',
+  },
+  coachingCardAckNo: {
+    en: 'Thanks for telling us — we will suggest something different next time.',
+    ur: 'بتانے کا شکریہ — اگلی بار ہم کچھ مختلف تجویز کریں گے۔',
+  },
+
   // ─── short-recording length guidance ──────────────────────────────────────
   // Sent BEFORE the chat answer, never instead of it: a recording that is too
   // short for an analysis still gets answered. The wording says so explicitly,
