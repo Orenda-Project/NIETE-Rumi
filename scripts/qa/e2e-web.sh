@@ -7,6 +7,7 @@
 #   npm run e2e:web -- portal-login --keep             # leave the stack up afterwards (URL + logins printed)
 #   npm run e2e:web -- portal-login --headed           # watch it: a visible Chrome, each action slowed (WEB_SLOWMO, default 600ms)
 #   npm run e2e:web -- portal-login --slot 6           # pick the port slot (default: the first free of 5-9)
+#   npm run e2e:web -- portal-login,teacher-lessons,coach-portal --parallel   # several at once (E2E_WEB_PARALLEL, default 4)
 #   bash scripts/qa/e2e-web.sh portal-login --print-plan   # what it would do; starts nothing
 #
 # What a run is, in order:
@@ -88,11 +89,12 @@ PY
 }
 
 # --- args ------------------------------------------------------------------------------------------------------
-FEATURE="" SLOT="" ONLY="" REQ_HEADED="" KEEP="" PLAN="" ROW_FROM="" RUN_ID="" COMMIT=""
+FEATURE="" SLOT="" ONLY="" REQ_HEADED="" KEEP="" PLAN="" ROW_FROM="" RUN_ID="" COMMIT="" PARALLEL=""
 while [ $# -gt 0 ]; do case "$1" in
   --slot) SLOT="$2"; shift 2;; --only) ONLY="$2"; shift 2;; --keep) KEEP=1; shift;;
   --headed) REQ_HEADED=1; shift;;
   --print-plan) PLAN=1; shift;;
+  --parallel) PARALLEL=1; shift;;
   --row-from) ROW_FROM="$2"; shift 2;; --run-id) RUN_ID="$2"; shift 2;; --commit) COMMIT="$2"; shift 2;;
   -h|--help) sed -n '2,24p' "$0"; exit 0;;
   -*) log "unknown option $1"; exit 2;;
@@ -100,6 +102,88 @@ while [ $# -gt 0 ]; do case "$1" in
 esac; done
 
 if [ -n "$ROW_FROM" ]; then row_from "$ROW_FROM" "${RUN_ID:-manual}" "${COMMIT:-$(git -C "$REPO" rev-parse HEAD)}"; exit $?; fi
+
+# --- PARALLEL (bd-hnhlgn.13): several features at once, each a child run of THIS script in its own slot ----------------
+#   e2e-web.sh portal-login,teacher-lessons,coach-portal --parallel [--only "portal-login=PL01,PL02;teacher-lessons=TL02"]
+# Every child already has its own ports, run dir and database; what they share is the built portal, so the parent
+# builds it ONCE before fanning out (four children rebuilding one dist/ at once would overwrite each other). At most
+# E2E_WEB_PARALLEL (default 4) run at once: each is a whole stack — database, bot, worker, portal and a browser.
+# --only takes the run-suite form (feature=ID,ID;feature=ID); a bare id list applies to a single feature.
+case "$FEATURE" in *,*) PARALLEL=1;; esac
+if [ -n "$PARALLEL" ]; then
+  IFS=',' read -r -a FEATS <<< "$FEATURE"
+  for f in "${FEATS[@]}"; do
+    [ -f "$FEATURES_DIR/$f.cjs" ] || { log "no web feature '$f'. Known: $(known_features)"; exit 2; }
+  done
+  NPAR="${E2E_WEB_PARALLEL:-4}"; case "$NPAR" in ''|*[!0-9]*|0) NPAR=4;; esac
+  only_for() {   # $1 feature → its ids from --only, "" = every scenario
+    case "$ONLY" in
+      *=*) printf '%s' "$ONLY" | tr ';' '\n' | sed -n "s/^$1=//p" | head -1;;
+      *) [ "${#FEATS[@]}" -eq 1 ] && printf '%s' "$ONLY";;
+    esac
+  }
+  child_args() { local ids; ids="$(only_for "$1")"; printf '%s' "${ids:+--only $ids}"; }
+  passthru=""; [ -n "$REQ_HEADED" ] && passthru="--headed"; [ -n "$KEEP" ] && passthru="$passthru --keep"
+
+  if [ -n "$PLAN" ]; then
+    echo "PARALLEL=$NPAR"
+    i=0
+    for f in "${FEATS[@]}"; do
+      # shellcheck disable=SC2046
+      bash "$0" "$f" --slot $((5 + i)) $(child_args "$f") $passthru --print-plan
+      i=$((i + 1))
+    done
+    exit 0
+  fi
+
+  # the browser + ONE build for every child (the same steps a single run takes, done here once)
+  [ -d "$REPO/portal/node_modules/playwright-core" ] || { log "installing portal dependencies…"; npm ci --prefix "$REPO/portal" --no-audit --no-fund >&2 || exit 6; }
+  if ! (cd "$REPO/portal" && node -e "require('fs').accessSync(require('playwright-core').chromium.executablePath())") 2>/dev/null; then
+    log "installing headless Chromium (once per machine)…"
+    (cd "$REPO/portal" && npx --no-install playwright-core install chromium >&2) || { log "Chromium install failed"; exit 6; }
+  fi
+  DIST="$REPO/dashboard/portal-frontend/dist"
+  want="$(git -C "$REPO" rev-parse HEAD:portal 2>/dev/null)"
+  [ -n "$(git -C "$REPO" status --porcelain -- portal 2>/dev/null)" ] && want="dirty-$(date +%s)"
+  if [ "$(cat "$DIST/.portal-tree" 2>/dev/null)" != "$want" ]; then
+    log "building the portal SPA once for ${#FEATS[@]} parallel runs…"
+    (cd "$REPO" && npm ci --prefix portal --no-audit --no-fund >&2 && npm run build --prefix portal >&2 \
+      && rm -rf dashboard/portal-frontend/dist && cp -r portal/dist dashboard/portal-frontend/dist) || { log "portal build failed"; exit 6; }
+    printf '%s' "$want" > "$DIST/.portal-tree"
+  fi
+  [ -d "$REPO/dashboard/node_modules" ] || { (cd "$REPO/dashboard" && npm ci --no-audit --no-fund >&2) || exit 6; }
+
+  LOGDIR="$HOME/.cache/niete-e2e-web/parallel-$(date +%Y%m%d-%H%M%S)"; mkdir -p "$LOGDIR"
+  PIDS=(); NAMES=(); SLOTS=(); started=$(date +%s)
+  # a slot is busy while the child given it is still running (a finished child tore its stack down: reusable)
+  slot_busy() { local i=0 x; for x in ${SLOTS[@]+"${SLOTS[@]}"}; do
+    [ "$x" = "$1" ] && kill -0 "${PIDS[$i]}" 2>/dev/null && return 0; i=$((i + 1)); done; return 1; }
+  running() { local n=0 pid; for pid in ${PIDS[@]+"${PIDS[@]}"}; do kill -0 "$pid" 2>/dev/null && n=$((n + 1)); done; echo "$n"; }
+  log "${#FEATS[@]} features, up to $NPAR at once"
+  for f in "${FEATS[@]}"; do
+    while [ "$(running)" -ge "$NPAR" ]; do sleep 1; done
+    s=""; for n in 5 6 7 8 9 10 11 12 13 14 15 16; do
+      slot_busy "$n" && continue
+      slot_free "$n" && { s=$n; break; }
+    done
+    [ -n "$s" ] || { log "no free port slot for $f"; continue; }
+    # shellcheck disable=SC2046
+    bash "$0" "$f" --slot "$s" $(child_args "$f") $passthru >"$LOGDIR/$f.log" 2>&1 &
+    PIDS+=($!); NAMES+=("$f"); SLOTS+=("$s")
+    log "  started $f (slot $s, portal :$((4100 + s)))"
+    sleep 2   # stagger stack start-ups: each one clones a database from the same template
+  done
+  rc=0; i=0
+  for pid in "${PIDS[@]}"; do
+    wait "$pid"; frc=$?; [ "$frc" -ne 0 ] && rc=1
+    f="${NAMES[$i]}"
+    echo "── $f (slot ${SLOTS[$i]}, exit $frc)"
+    grep -E '^  (ok|FAIL) |^ {7}|row appended|did not start|NOT' "$LOGDIR/$f.log" | sed 's/^\[e2e-web\] //'
+    i=$((i + 1))
+  done
+  log "parallel run done in $(( $(date +%s) - started ))s — per-feature logs: $LOGDIR"
+  exit $rc
+fi
 
 if [ -z "$FEATURE" ] || [ ! -f "$FEATURES_DIR/$FEATURE.cjs" ]; then
   log "no web feature '${FEATURE}'. Known: $(known_features)"; exit 2; fi
@@ -109,6 +193,9 @@ if [ -z "$SLOT" ]; then
 fi
 case "$SLOT" in ''|*[!0-9]*) log "--slot must be a number"; exit 2;; esac
 DATA="${DATA:-demo}"
+# A test stack needs a handful of portal DB connections, not the production pool of 20 (dashboard/config/database.js):
+# four parallel stacks at 20 exhausted the local Postgres (max_connections 100, "sorry, too many clients already").
+export DB_POOL_SIZE="${DB_POOL_SIZE:-5}" DB_POOL_MIN="${DB_POOL_MIN:-1}"
 RUN_ID="$(date +%Y%m%d-%H%M%S)-$FEATURE"
 RUN_DIR="$HOME/.cache/niete-e2e-web/$RUN_ID"
 EVIDENCE_REL=".claude/qa/results/web/niete/$RUN_ID"
@@ -126,7 +213,7 @@ export WEB_HEADED="$HEADED"
 if [ "$HEADED" = 1 ]; then export WEB_SLOWMO="${WEB_SLOWMO:-600}"; else export WEB_SLOWMO=0; fi
 
 if [ -n "$PLAN" ]; then
-  slot_ports "$SLOT"; echo "DATA=$DATA"; echo "RUN_DIR=$RUN_DIR"; echo "EVIDENCE=$EVIDENCE_REL"; echo "FEATURE=$FEATURE"; echo "BASE_URL=$BASE_URL"; echo "HEADED=$HEADED"; echo "MOCK_URL=http://127.0.0.1:$((4010+SLOT))"; echo "ONLY=$ONLY"
+  slot_ports "$SLOT"; echo "DATA=$DATA"; echo "RUN_DIR=$RUN_DIR"; echo "EVIDENCE=$EVIDENCE_REL"; echo "FEATURE=$FEATURE"; echo "BASE_URL=$BASE_URL"; echo "HEADED=$HEADED"; echo "MOCK_URL=http://127.0.0.1:$((4010+SLOT))"; echo "ONLY=$ONLY"; echo "DB_POOL_SIZE=$DB_POOL_SIZE"
   exit 0
 fi
 

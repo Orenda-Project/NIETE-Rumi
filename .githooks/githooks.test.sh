@@ -136,6 +136,15 @@ out=$(cd "$R" && E2E_WEB_PLAN=1 bash .claude/qa/shared/commit-e2e.sh "$wsha" 2>&
 say "…a portal spec with no code for a scenario is NOT driven (exit 1)" "$rc" "1"
 has "…and says why" "$out" "E-WEB-NOCODE" yes
 git -C "$R" checkout -- tests/features/web/portal-login.feature 2>/dev/null
+# PARALLEL (bd-hnhlgn.13): a commit touching TWO portal features runs them side by side, each with its own selection
+mkdir -p "$R/portal/src/portal/pages"; printf '// curriculum\n' >> "$R/portal/src/portal/pages/PortalCurriculum.tsx"
+printf '// login again\n' >> "$R/portal/src/portal/pages/PortalLogin.tsx"
+git -C "$R" add -A >/dev/null; (cd "$R" && QA_HOOKS_QUIET=1 git commit -qm "feat(portal): login + curriculum" >/dev/null 2>&1)
+psha=$(git -C "$R" rev-parse --short=12 HEAD)
+out=$(cd "$R" && E2E_WEB_PLAN=1 bash .claude/qa/shared/commit-e2e.sh "$psha" 2>&1)
+has "two portal features run in parallel" "$out" "PARALLEL=" yes
+has "…curriculum drives only the classic scenario" "$out" "scenarios: teacher-lessons 1 of 2 — TL02" yes
+has "…each child gets its own ids" "$out" "ONLY=TL02" yes
 
 printf 'docs only\n' >> "$R/README.md"; git -C "$R" add -A >/dev/null
 before=$(ls "$PEND" | wc -l | tr -d ' ')

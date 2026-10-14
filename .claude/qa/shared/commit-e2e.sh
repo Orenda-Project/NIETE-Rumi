@@ -82,7 +82,7 @@ run_web() {
   # Which SCENARIOS of each portal feature this commit drives — select_scenarios.py, the same rules as the mock lane
   # (spec lines edited, web: scenarios: pins, scenario text naming the file; an unmatched path runs the whole feature
   # and says why; phase 1's new scenarios always run). E2E_SCENARIO_SELECT=0 runs whole features.
-  local wsel="" f wrc=0 scope ids
+  local wsel="" f wrc=0 scope ids runf="" only=""
   if [ "${E2E_SCENARIO_SELECT:-1}" != 0 ] && [ -f "$QA/select_scenarios.py" ]; then
     wsel=$(printf '%s' "$SEL" | python3 "$QA/select_scenarios.py" --selection - --repo "$ROOT" --range "$SHA~1...$SHA" \
       --spec-base "$SHA~1" --json 2>/dev/null) || wsel=""
@@ -104,12 +104,30 @@ elif v.get("scope")=="none": print("│ scenarios: %s none — %s" % (f, v.get("
 else: print("│ scenarios: %s ALL — %s" % (f, "; ".join(v.get("whole_feature_because") or ["selector could not narrow it"])[:150]))' 2>/dev/null
     fi
     [ "$scope" = none ] && continue
-    if [ -n "${E2E_WEB_PLAN:-}" ]; then
-      E2E_TRIGGER=commit bash "$ROOT/scripts/qa/e2e-web.sh" "$f" ${ids:+--only "$ids"} --print-plan 2>&1 | sed 's/^/│   /'
-    else
-      E2E_TRIGGER="${E2E_TRIGGER:-commit}" bash "$ROOT/scripts/qa/e2e-web.sh" "$f" ${ids:+--only "$ids"} || wrc=1
-    fi
+    runf="${runf:+$runf,}$f"
+    [ -n "$ids" ] && only="${only:+$only;}$f=$ids"
   done
+  [ -n "$runf" ] || { echo "│ web lane:  no selected portal scenario to drive"; return 0; }
+  # Two or more portal features run side by side (e2e-web.sh --parallel: one slot each, one portal build, each with
+  # its own selection). E2E_PARALLEL=0 runs them one after another, as the mock lane does.
+  local par=""; case "$runf" in *,*) [ "${E2E_PARALLEL:-1}" != 0 ] && par="--parallel";; esac
+  if [ -n "$par" ]; then
+    echo "│ parallel:  one slot per portal feature (E2E_PARALLEL=0 to run them one after another)"
+    if [ -n "${E2E_WEB_PLAN:-}" ]; then
+      E2E_TRIGGER=commit bash "$ROOT/scripts/qa/e2e-web.sh" "$runf" --parallel ${only:+--only "$only"} --print-plan 2>&1 | sed 's/^/│   /'
+    else
+      E2E_TRIGGER="${E2E_TRIGGER:-commit}" bash "$ROOT/scripts/qa/e2e-web.sh" "$runf" --parallel ${only:+--only "$only"} || wrc=1
+    fi
+  else
+    for f in $(printf '%s' "$runf" | tr ',' ' '); do
+      ids=$(printf '%s' "$only" | tr ';' '\n' | sed -n "s/^$f=//p")
+      if [ -n "${E2E_WEB_PLAN:-}" ]; then
+        E2E_TRIGGER=commit bash "$ROOT/scripts/qa/e2e-web.sh" "$f" ${ids:+--only "$ids"} --print-plan 2>&1 | sed 's/^/│   /'
+      else
+        E2E_TRIGGER="${E2E_TRIGGER:-commit}" bash "$ROOT/scripts/qa/e2e-web.sh" "$f" ${ids:+--only "$ids"} || wrc=1
+      fi
+    done
+  fi
   return $wrc
 }
 
