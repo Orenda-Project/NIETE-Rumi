@@ -275,6 +275,7 @@ class ReportGeneratorService {
       let precomputedCommitment = null;
       try {
         const { generateCommitmentCard } = require('./coaching-card/commitment-card.service');
+        const { cardPriorAction } = require('./thing-to-try');
         const cardLanguage = heroLanguage;
         const { data: priorSessionsForCard } = await supabase
           .from('coaching_sessions')
@@ -290,7 +291,7 @@ class ReportGeneratorService {
           enhancedAnalysis,
           session.conversation_state,
           cardLanguage,
-          { teacherName: teacherFirstNameForCard, priorAction: priorActionForCard }
+          { teacherName: teacherFirstNameForCard, priorAction: await cardPriorAction(session.user_id, priorActionForCard) }
         );
       } catch (e) {
         logToFile('⚠️  Pre-compute commitment card failed (non-fatal; hero renders without tryNext)', {
@@ -393,6 +394,7 @@ class ReportGeneratorService {
       let completionAnnounced = false;
       try {
         const { generateCommitmentCard } = require('./coaching-card/commitment-card.service');
+        const { cardPriorAction } = require('./thing-to-try');
         const { getCoachingCardCopy } = require('../../config/coaching-card.config');
         // card-image render + R2 upload are no longer needed here — the standalone
         // commitment-card image is no longer sent (the action lives inside the hero
@@ -427,7 +429,7 @@ class ReportGeneratorService {
             enhancedAnalysis,
             session.conversation_state,
             cardLanguage,
-            { teacherName: teacherFirstName, priorAction }
+            { teacherName: teacherFirstName, priorAction: await cardPriorAction(session.user_id, priorAction) }
           );
         }
 

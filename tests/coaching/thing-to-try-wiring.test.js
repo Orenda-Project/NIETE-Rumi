@@ -134,3 +134,15 @@ describe('prior commitment reminder after a recording', () => {
     await expect(Processor.sendPriorActionReminder(SESSION, '923001234567')).resolves.toBeUndefined();
   });
 });
+
+// bd-v0toag.63: both places the report builds its commitment card hand it the prior action through
+// thing-to-try.cardPriorAction, so C and D never get "Building on your last commitment:".
+describe('report commitment card prior action', () => {
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '../../bot/shared/services/coaching/report-generator.service.js'), 'utf8');
+  test('every generateCommitmentCard call takes its priorAction from cardPriorAction', () => {
+    const calls = src.split('await generateCommitmentCard(').slice(1).map((s) => s.slice(0, s.indexOf(');')));
+    expect(calls).toHaveLength(2);
+    for (const c of calls) expect(c).toMatch(/priorAction: await cardPriorAction\(session\.user_id, /);
+  });
+});
