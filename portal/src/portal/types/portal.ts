@@ -773,3 +773,96 @@ export interface CoachingAnalyticsResponse {
   regions: CoachingAnalyticsRegion[];
   schools: CoachingAnalyticsSchool[];
 }
+
+/* ── bd-97x22y.4 — GET /api/portal/analytics/training-levels (PLAN v7 "Trainings") ──────────────────────────────── */
+
+/**
+ * Her Primary / Mid-High toggle: the teacher's training band (users.teacher_level). Primary shows levels 1-4 (order
+ * 0-3), Mid/High levels 3-4 (order 2-3) — her two tabs. A teacher in both bands counts in both.
+ */
+export type TrainingBand = 'primary' | 'midhigh';
+
+/**
+ * One NIETE training level for a school, a region or the selection, all time. The state is the bot's own level rule,
+ * in her three states: passed = certified; inProgress = in progress or ready for the exam; notStarted = not started or
+ * locked. teachers = the band's teachers whose programme shows the level (= passed + inProgress + notStarted);
+ * pctPassed = passed ÷ teachers × 100, one decimal, null when teachers is 0.
+ */
+export interface TrainingLevelCounts {
+  levelId: number;
+  /** 0 Aspiring Teacher · 1 Emerging Practitioner · 2 Skilled Practitioner · 3 Teacher Leader. */
+  levelOrder: number;
+  passed: number;
+  inProgress: number;
+  notStarted: number;
+  teachers: number;
+  pctPassed: number | null;
+}
+
+/** "N of M teachers have passed all levels": passedAll = passed Teacher Leader, teachers = its teachers. */
+export interface TrainingLevelsBlock {
+  teachers: number;
+  passedAll: number;
+}
+
+/**
+ * Her Mid/High partner cards, over the Mid/High cohort (every teacher holding Middle or High): Oxbridge passed = all
+ * sessions passed, in progress = at least one; Beaconhouse passed = at least one subject (level) passed, in progress
+ * = activity without a pass. teachers = the cohort; pctPassed = passed ÷ teachers × 100, one decimal.
+ */
+export interface TrainingPartnerCard {
+  passed: number;
+  inProgress: number;
+  notStarted: number;
+  teachers: number;
+  pctPassed: number | null;
+}
+
+/** Teachers by grade band: a teacher teaching both counts in both columns and once in the total. */
+export interface TrainingBandSplit {
+  middle: number;
+  high: number;
+  total: number;
+}
+
+export interface TrainingPartners {
+  oxbridge: TrainingPartnerCard;
+  beaconhouse: TrainingPartnerCard;
+}
+
+/** The overview's panels: her Oxbridge session funnel and her Beaconhouse per-subject table. */
+export interface TrainingPartnersDetail {
+  oxbridge: TrainingPartnerCard & { sessions: Array<TrainingBandSplit & { name: string }>; completedAll: TrainingBandSplit };
+  beaconhouse: TrainingPartnerCard & { levels: Array<TrainingBandSplit & { name: string }> };
+}
+
+export interface TrainingLevelsRegion extends TrainingLevelsBlock {
+  region: string;
+  levels: TrainingLevelCounts[];
+  /** Mid/High only. */
+  partners?: TrainingPartners;
+}
+
+export interface TrainingLevelsSchool extends TrainingLevelsBlock {
+  schoolId: string;
+  emis: string | null;
+  name: string;
+  region: string;
+  levels: Array<Pick<TrainingLevelCounts, 'levelOrder' | 'passed' | 'teachers' | 'pctPassed'>>;
+}
+
+export interface TrainingLevelsResponse {
+  success: boolean;
+  band: TrainingBand | 'all';
+  /** When the server's snapshot was read (ISO); the numbers are as of then. */
+  computedAt: string;
+  /**
+   * On Mid/High, teachers = the Mid/High cohort and passedAll = hers: NIETE Skilled Practitioner + Teacher Leader +
+   * Oxbridge + Beaconhouse all passed; partners carry her panels. On Primary, passedAll = passed Teacher Leader.
+   */
+  overview: TrainingLevelsBlock & { levels: Array<TrainingLevelCounts & { name: string }>; partners?: TrainingPartnersDetail };
+  /** The six regions, whatever the filter. */
+  regions: TrainingLevelsRegion[];
+  /** The chosen region's schools (all regions' when none is chosen); a school with none of the band's teachers is left out. */
+  schools: TrainingLevelsSchool[];
+}

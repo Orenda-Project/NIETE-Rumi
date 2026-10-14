@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { fixtureCoaching, fixtureResponse, REGION_ORDER } from "./fixtures";
+import { fixtureTrainingLevels } from "./trainingLevelsFixture";
 
 /**
  * bd-97x22y.2 — the schools analytics page in the ICT dashboard's structure (PLAN v6): six tabs (a sidebar on a
@@ -16,6 +17,8 @@ import { fixtureCoaching, fixtureResponse, REGION_ORDER } from "./fixtures";
 const h = vi.hoisted(() => ({
   getSchools: vi.fn(),
   getCoaching: vi.fn(),
+  // bd-97x22y.4 — the Trainings tab's own read (views/TrainingTab.test.tsx covers the tab)
+  getTrainingLevels: vi.fn(),
   logout: vi.fn(),
 }));
 
@@ -29,6 +32,7 @@ vi.mock("../hooks/useAuth", () => ({
 vi.mock("../services/api", async (orig) => ({
   ...(await orig<typeof import("../services/api")>()),
   analytics: { getSchools: h.getSchools, getCoaching: h.getCoaching },
+  trainingLevelsAnalytics: { get: h.getTrainingLevels },
 }));
 
 import SchoolsAnalytics from "./SchoolsAnalytics";
@@ -78,6 +82,7 @@ beforeEach(() => {
   setWidth(1440);
   h.getSchools.mockImplementation(async (p: Params) => fixtureResponse(p));
   h.getCoaching.mockImplementation(async (p: Params) => fixtureCoaching(p));
+  h.getTrainingLevels.mockImplementation(async (p: { region: string | null; band: "primary" | "midhigh" }) => fixtureTrainingLevels(p));
 });
 afterEach(() => vi.useRealTimers());
 
@@ -177,7 +182,7 @@ describe("the frame: six tabs, her order", () => {
       expect(href).toBe(`/portal/analytics/schools${id === "overview" ? "" : `/${id}`}${search}`);
     });
     await userEvent.setup().click(within(sidebar()).getByTestId("tab-link-training"));
-    expect(await screen.findByTestId("tile-teachersTrained")).toBeInTheDocument();
+    expect(await screen.findByTestId("level-card-0")).toBeInTheDocument();
     expect(where()).toBe(`/portal/analytics/schools/training${search}`);
     expect(screen.getByTestId("region-chip-Sihala")).toHaveAttribute("aria-pressed", "true");
     expect(h.getSchools).toHaveBeenCalledTimes(1);
@@ -185,7 +190,7 @@ describe("the frame: six tabs, her order", () => {
 
   it("choosing a region or a period on a tab stays on that tab", async () => {
     renderPage("/training");
-    await screen.findByTestId("tile-trainingModules");
+    await screen.findByTestId("level-card-0");
     const user = userEvent.setup();
     await user.click(screen.getByTestId("region-chip-B.K"));
     await waitFor(() => expect(where()).toMatch(/^\/portal\/analytics\/schools\/training\?/));
@@ -416,39 +421,12 @@ describe("LP Engagement", () => {
 });
 
 describe("Trainings", () => {
-  it("her sections, in her order", async () => {
+  // bd-97x22y.4 (PLAN v7) — her page 1 to 1, from its own read; the tab's own tests: views/TrainingTab.test.tsx.
+  it("her sections, in her order, from the training-levels read", async () => {
     renderPage("/training");
-    await screen.findByTestId("tile-trainingModules");
-    expect(eyebrows()).toEqual(["Training overview", "Modules completed by sector", "Sectors — click to view school breakdown"]);
-  });
-
-  it("modules completed and teachers trained (x of N)", async () => {
-    renderPage("/training");
-    await screen.findByTestId("tile-trainingModules");
-    expect(testIds("tile-")).toEqual(["trainingModules", "teachersTrained"]);
-    expect(screen.getByTestId("tile-trainingModules")).toHaveTextContent("322");
-    expect(screen.getByTestId("tile-teachersTrained")).toHaveTextContent("145");
-    expect(screen.getByTestId("tile-teachersTrained")).toHaveTextContent("of 442 teachers");
-  });
-
-  it("a bar chart of modules completed per sector, and a card per sector", async () => {
-    renderPage("/training");
-    const chart = await screen.findByTestId("chart-trainingModules");
-    expect(SIX.map((r) => within(within(chart).getByTestId(`column-${r}`)).getByTestId("bar-value").textContent)).toEqual(["26", "51", "94", "53", "44", "54"]);
-    const card = screen.getByTestId("sector-card-Urban-I");
-    expect(card).toHaveTextContent("94");
-    expect(card).toHaveTextContent("45 of 135 teachers");
-  });
-
-  it("a sector card opens its schools: modules completed, x of N", async () => {
-    renderPage("/training");
-    await userEvent.setup().click(await screen.findByTestId("sector-card-Urban-I"));
-    await waitFor(() => expect(rowNames()).toHaveLength(5));
-    const headers = within(screen.getByTestId("schools-table")).getAllByRole("columnheader").map((th) => (th.textContent || "").split("x of N")[0]);
-    expect(headers).toEqual(["School", "Teachers", "Modules completed"]);
-    const cell = within(screen.getByTestId("school-row-s-08")).getByTestId("cell-trainingModules");
-    expect(cell).toHaveTextContent("26");
-    expect(cell).toHaveTextContent("12 of 23");
+    await screen.findByTestId("level-card-0");
+    expect(eyebrows()).toEqual(["Training level progress", "Training completion — sector comparison", "Sectors"]);
+    expect(h.getTrainingLevels).toHaveBeenCalledWith({ region: null, band: "primary" });
   });
 });
 
@@ -673,8 +651,6 @@ describe("% only on scores (operator, 2026-10-14: scores as %, usage as counts)"
     ["", "tile-avgFico"],
     ["/lp", "chart-lpsOpened"],
     ["/lp?region=Urban-I", "schools-table"],
-    ["/training", "chart-trainingModules"],
-    ["/training?region=Urban-I", "schools-table"],
     ["/observations", "chart-avgFico"],
     ["/observations?region=Urban-I", "schools-table"],
     ["/observations?obs=human", "chart-avgHitl"],
@@ -704,7 +680,8 @@ describe("% only on scores (operator, 2026-10-14: scores as %, usage as counts)"
   });
 
   it("the usage tabs carry no % at all", async () => {
-    for (const rest of ["/lp", "/training", "/coaching"]) {
+    // (Trainings shows her % passed since v7 — its own % rule is in views/TrainingTab.test.tsx)
+    for (const rest of ["/lp", "/coaching"]) {
       const { unmount } = renderPage(rest);
       await screen.findByTestId(rest === "/coaching" ? "tile-coaches" : "sector-card-B.K");
       expect(document.body.textContent).not.toMatch(/%/);
