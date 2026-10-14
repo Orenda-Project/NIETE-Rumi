@@ -7,9 +7,8 @@
  * logger, which this service does not install, so the four FICO sections are read here.
  */
 const { practiceWhy } = require('../../bot/shared/services/coaching/practice-why');
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const PKT_MS = 5 * 3600 * 1000;
+// The card's header, steps and what she did well are shared with the slim WhatsApp image (bd-v0toag.57).
+const { stepOf, cardHeader, wells, pktDate } = require('../../bot/shared/services/coaching/report-card');
 
 // fico-framework.js DOMAINS, in its order; the Urdu name in brackets as on the template.
 const SECTIONS = [
@@ -18,21 +17,6 @@ const SECTIONS = [
   ['student_engagement', 'Student Engagement', 'طلبہ کی شمولیت'],
   ['teacher_subject_knowledge', 'Teacher Subject Knowledge', 'استاد کا مضمون سے متعلق علم'],
 ];
-
-// The plan's move phases (practice-tag.js BY_PHASE and the grader's phases) → the template's five steps.
-const STEPS = ['Opening', 'Explanation', 'We Do', 'You Do', 'Check'];
-const PHASE_STEP = {
-  warm_up: 1, recall: 1, hook: 1, announce: 1,
-  explain: 2,
-  guided: 3, grouping: 3,
-  independent: 4,
-  exit: 5, peer_review: 5,
-};
-
-const COPY = {
-  en: { grade: (g) => `Grade ${g}`, swap: (t) => `You did “${t}” your own way, and it worked better.` },
-  ur: { grade: (g) => `جماعت ${g}`, swap: (t) => `آپ نے «${t}» اپنے طریقے سے کیا، اور وہ بہتر رہا۔` },
-};
 
 function https(url) {
   if (typeof url !== 'string') return null;
@@ -43,42 +27,13 @@ function https(url) {
   }
 }
 
-function pktDate(iso) {
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return '';
-  const d = new Date(t + PKT_MS);
-  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
-}
-
 const num = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
 const text = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
-
-function stepOf(phase) {
-  const i = PHASE_STEP[String(phase || '').toLowerCase()];
-  return i ? { name: STEPS[i - 1], index: i } : null;
-}
 
 function colourOf(pct) {
   if (pct == null) return null;
   if (pct >= 75) return 'green';
   return pct >= 60 ? 'amber' : 'red';
-}
-
-function header(s, a, firstName, l) {
-  const meta = [num(a.grade) != null ? COPY[l].grade(num(a.grade)) : null, text(a.subject), text(a.topic)].filter(Boolean).join(' · ');
-  const sc = a.scores || {};
-  const pct = num(sc.overall_percentage);
-  return {
-    name: text(firstName) || '', meta, date: pktDate(s.created_at),
-    pct: pct == null ? null : Math.round(pct), marks: num(sc.overall_marks), max: num(sc.overall_max_marks),
-  };
-}
-
-function wells(a, l) {
-  const lf = a.lp_fidelity || {};
-  const swaps = (Array.isArray(lf.strengths) ? lf.strengths : []).map((x) => text(x && x.text)).filter(Boolean).map(COPY[l].swap);
-  const own = (Array.isArray(a.strengths) ? a.strengths : []).map((x) => text(typeof x === 'string' ? x : x && x.title)).filter(Boolean);
-  return [...swaps, ...own].slice(0, 3);
 }
 
 function thing(s, a, l) {
@@ -122,7 +77,7 @@ function buildReportView(input = {}) {
   const a = s.analysis_data || {};
   return {
     language: l,
-    header: header(s, a, input.firstName, l),
+    header: cardHeader(s, a, input.firstName, l),
     wells: wells(a, l),
     thing: thing(s, a, l),
     sections: sections(a, l),

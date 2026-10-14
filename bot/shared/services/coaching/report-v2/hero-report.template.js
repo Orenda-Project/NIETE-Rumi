@@ -78,7 +78,7 @@ const MARKS_WORD = { sw: ' alama', en: ' marks', ur: ' نمبر', ar: ' درجة
 // Last resort only — the adapter supplies the localised wording with the row.
 const NOT_ASSESSED_FALLBACK = 'not assessed';
 const CHROME = {
-  en: { celebrate: 'A celebration of your teaching', signature: 'The signature of your classroom', scores: 'Your scores · this lesson', classroom: 'From your classroom', moments: 'Moments worth remembering', strength: 'Your strength', horizon: 'Your next horizon', journey: (k) => `Your journey — ${k} lessons together`, trynext: 'One thing to try next class', full: 'Your full report is one tap below', made: (n) => `Made just for you, ${n}`, caption: (d, t) => `📋 Your coaching report${t ? ` · ${t}` : ''}${d ? ` · ${d}` : ''}` },
+  en: { celebrate: 'A celebration of your teaching', signature: 'The signature of your classroom', scores: 'Your scores · this lesson', classroom: 'From your classroom', moments: 'Moments worth remembering', strength: 'Your strength', horizon: 'Your next horizon', journey: (k) => `Your journey — ${k} lessons together`, trynext: 'One thing to try next class', made: (n) => `Made just for you, ${n}`, caption: (d, t) => `📋 Your coaching report${t ? ` · ${t}` : ''}${d ? ` · ${d}` : ''}` },
   sw: { celebrate: 'Sherehe ya ufundishaji wako', signature: 'Alama ya darasa lako', scores: 'Alama kwa kila eneo · somo hili', moments: 'Matukio ya kukumbukwa', strength: 'Nguvu yako', horizon: 'Hatua yako inayofuata', journey: (k) => `Safari yako — ${k} masomo pamoja`, trynext: 'Jambo moja la kujaribu darasa lijalo', made: (n) => `Imeandaliwa kwa ajili yako, ${n}`, caption: (d, t) => `📋 Ripoti yako ya ufundishaji${t ? ` · ${t}` : ''}${d ? ` · ${d}` : ''}` },
   ur: { celebrate: 'آپ کی تدریس کا جشن', signature: 'آپ کی کلاس کی پہچان', scores: 'اس سبق کے اسکور', moments: 'یادگار لمحے', strength: 'آپ کی خوبی', horizon: 'آپ کا اگلا اُفق', journey: (k) => `آپ کا سفر — ${k} اسباق ایک ساتھ`, trynext: 'اگلی کلاس میں آزمانے کے لیے ایک بات', made: (n) => `خاص آپ کے لیے، ${n}`, caption: (d, t) => `📋 آپ کی کوچنگ رپورٹ${t ? ` · ${t}` : ''}${d ? ` · ${d}` : ''}` },
   ar: { celebrate: 'احتفاء بتدريسك', signature: 'بصمة صفّك', scores: 'درجاتك · هذا الدرس', moments: 'لحظات تستحق التذكر', strength: 'قوتك', horizon: 'أفقك التالي', journey: (k) => `رحلتك — ${k} دروس معًا`, trynext: 'أمر واحد لتجربته في الحصة القادمة', made: (n) => `أُعدّ خصيصًا لك، ${n}`, caption: (d, t) => `📋 تقرير التدريب الخاص بك${t ? ` · ${t}` : ''}${d ? ` · ${d}` : ''}` },
@@ -274,7 +274,6 @@ function buildHeroReportHtml(vm) {
   .try{margin:16px 42px 0;background:${P.tryGrad};color:#fff;border-radius:16px;padding:18px 24px}
   .try .label{color:${P.tryLabel};opacity:1;margin-bottom:6px}
   .try-text{font-family:${headFam};font-size:17px;line-height:${RTL ? '1.7' : '1.4'}}
-  .full-note{margin:14px 42px 0;text-align:center;font-family:'Lexend';font-size:15px;font-weight:700;color:${P.mid};direction:ltr;unicode-bidi:isolate} /* bd-v0toag.57: C/D slim image */
   .foot{display:flex;align-items:center;justify-content:space-between;padding:16px 42px 24px;margin-top:14px;border-top:1px solid ${P.footBorder};color:${P.faint};font-size:12px}
   .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:${P.deep};font-size:15px;font-family:'Lexend'}.brand img{width:30px}
   </style></head><body>
@@ -289,7 +288,7 @@ function buildHeroReportHtml(vm) {
         <div class="who"><b>${esc(vm.teacherName || '')}</b>${vm.topic ? ` &nbsp;·&nbsp; ${T(vm.topic)}` : ''}${vm.date ? ` &nbsp;·&nbsp; ${esc(vm.date)}` : ''}</div>
       </div>
     </div>
-    ${vm.slim ? '' : `${n.identity ? `<div class="pad" style="padding-bottom:0"><div class="identity">${T(n.identity)}</div></div>` : ''}
+    ${n.identity ? `<div class="pad" style="padding-bottom:0"><div class="identity">${T(n.identity)}</div></div>` : ''}
     <div class="cols">
       <div class="col-l">
         <div class="label">${T(C.scores)} &nbsp; <span class="ov">${score.overall}%</span></div>
@@ -302,12 +301,12 @@ function buildHeroReportHtml(vm) {
       </div>
     </div>
     ${(vm.classroomPhotos && vm.classroomPhotos.length) ? `<div class="photos"><div class="label">${T(C.classroom)}</div><div class="pgrid">${vm.classroomPhotos.slice(0, 2).map((p) => `<div class="pframe"><img src="${p.src}" alt="classroom photo">${p.caption ? `<div class="pcap">${esc(p.caption)}</div>` : ''}</div>`).join('')}</div></div>` : ''}
-    ${(vm.trend && vm.trend.length >= 2) ? `<div class="journey"><div class="label">${T(C.journey(vm.trend.length))}</div>${ltrTrend(vm.trend, peak, P)}<div class="j-cap">${T(n.journey_note || '')}</div></div>` : ''}`}
+    ${(vm.trend && vm.trend.length >= 2) ? `<div class="journey"><div class="label">${T(C.journey(vm.trend.length))}</div>${ltrTrend(vm.trend, peak, P)}<div class="j-cap">${T(n.journey_note || '')}</div></div>` : ''}
     ${vm.tryNext ? `<div class="try"><div class="label">${T(C.trynext)}</div><div class="try-text">${T(vm.tryNext)}</div></div>` : ''}
-    ${vm.slim ? `<div class="full-note">${T(C.full)} &darr;</div>` : ''}
     <div class="foot"><div class="brand">${logo(A.logoNavy, '')}NIETE</div><div>${T(C.made(vm.teacherName || ''))}</div></div>
   </div>
   </body></html>`;
 }
 
-module.exports = { buildHeroReportHtml, buildReportCaption };
+// fontFaces + esc are shared with the slim C/D card (slim-card.template.js, bd-v0toag.57).
+module.exports = { buildHeroReportHtml, buildReportCaption, fontFaces, esc };
