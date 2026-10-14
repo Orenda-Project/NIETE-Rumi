@@ -308,4 +308,5 @@ function buildHeroReportHtml(vm) {
   </body></html>`;
 }
 
-module.exports = { buildHeroReportHtml, buildReportCaption };
+// fontFaces + esc are shared with the slim C/D card (slim-card.template.js, bd-v0toag.57).
+module.exports = { buildHeroReportHtml, buildReportCaption, fontFaces, esc };

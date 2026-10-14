@@ -337,7 +337,7 @@ class ReportGeneratorService {
           await this.sendHeroImageReport(
             from,
             coachingSessionId,
-            reportResult.png,
+            reportResult.slimPng || reportResult.png, // bd-v0toag.57: C/D get the slim image; R2 keeps the full one
             reportResult.caption || '',
             session.users.name,
             session.created_at,
@@ -843,6 +843,13 @@ class ReportGeneratorService {
       { language: session?.users?.preferred_language }, analysisForTransformer, session
     );
     const commitmentAction = (precomputedCommitment && precomputedCommitment.action) || '';
+    // bd-v0toag.57: C and D are sent a slim image (null for everyone else, and the report renders as today).
+    const slim = await require('./slim-report').slimReportFor({
+      userId: session.user_id,
+      sessionId: session.id,
+      lpFidelity: (enhancedAnalysis && enhancedAnalysis.lp_fidelity) || (session.analysis_data && session.analysis_data.lp_fidelity) || null,
+      commitmentAction,
+    });
 
     reportData._heroInput = {
       session,
@@ -854,6 +861,7 @@ class ReportGeneratorService {
         // (single source of next-step truth). Empty string → hero omits the
         // tryNext callout gracefully (template guards on truthiness).
         commitmentAction,
+        slim,
       },
     };
 

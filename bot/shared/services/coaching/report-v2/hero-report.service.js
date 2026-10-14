@@ -12,6 +12,9 @@
 const { buildScoreViewModel } = require('./score-adapter.service');
 const { generateReportNarrative } = require('./narrative.service');
 const { buildHeroReportHtml, buildReportCaption } = require('./hero-report.template');
+const { buildSlimCardHtml } = require('./slim-card.template');
+const { cardHeader, wells } = require('../report-card');
+const { practiceWhy } = require('../practice-why');
 const { buildClassroomPhotoVm, excludedPhotoNumbers } = require('./classroom-photo-vm');
 const { applyPhotoCaptions } = require('./photo-note');
 const { resolveReportLanguage } = require('./report-language');
@@ -162,10 +165,32 @@ async function generateHeroReport(session, analysis, opts = {}) {
     classroomPhotos, // bd-pv2tl: up to 2 framed classroom photos under the scorecard
   };
 
-  const png = await htmlToImage(buildHeroReportHtml(vm), { selector: '.report', width: 794, deviceScaleFactor: 2 });
+  const shot = { selector: '.report', width: 794, deviceScaleFactor: 2 };
+  const png = await htmlToImage(buildHeroReportHtml(vm), shot);
   // bd-fmf24g.10: the narrative travels back with the image so the caller can keep it
   // (narrative-store) — the app's report page reads the session, not the PNG.
-  return { png, caption: buildReportCaption(vm), narrative: narrative || null };
+  const out = { png, caption: buildReportCaption(vm), narrative: narrative || null };
+
+  // bd-v0toag.57: groups C and D are sent a slim image, the /cr page's card (slim-report.js, slim-card.template.js);
+  // the full one above is still the stored report. With no strengths stored, the narrative's strength is what she
+  // did well. A failed slim render sends the full image.
+  if (opts.slim) {
+    try {
+      const n = narrative || {};
+      const well = wells(analysis, lang);
+      const own = n.strength_note || n.strength_name;
+      const card = {
+        language: lang,
+        header: cardHeader(session, analysis, teacherName, lang),
+        wells: well.length ? well : (own ? [own] : []),
+        thing: { text: opts.slim.tryNext || vm.tryNext, step: opts.slim.step || null, why: practiceWhy(opts.slim.tag, lang) },
+      };
+      out.slimPng = await htmlToImage(buildSlimCardHtml(card), { selector: '.report', width: 480, deviceScaleFactor: 2 });
+    } catch (e) {
+      logToFile('hero-report: slim render failed (the full image is sent)', { error: e.message });
+    }
+  }
+  return out;
 }
 
 module.exports = { generateHeroReport, attachDomainWhys, attachSubjectNote };
