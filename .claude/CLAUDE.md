@@ -11,7 +11,7 @@
 | `hooks/data-standards-warn.sh` | Warns (never blocks) when a `git commit`/`push` stages a schema change with standards findings. Ours; wraps the vendored validator |
 | `hooks/e2e-autorun.sh` · `e2e-autorun-stop.sh` · `e2e-pending-banner.sh` | The QA auto-run: a commit arms the Gherkin sync + targeted E2E for the features it touched; Stop holds the turn once; SessionStart announces markers left by terminal commits (`.githooks/`). See [docs/qa-automation.md](../docs/qa-automation.md) |
 | `qa/` | The E2E system: feature map, selector, spec-sync brief builder, validator, runner, one executor agent per feature, fixtures, ledgers — [qa/README.md](qa/README.md) |
-| `commands/` | `/niete-e2e` (drive the suite) · `/sync-specs` (phase 1) · `/testcases` (author Gherkin from a ticket) · `/apply-discoveries` |
+| `commands/` | `/niete-e2e` (drive the suite) · `/e2e-mock` (WhatsApp bot on the mock lane, local) · `/e2e-web` (the portal in a browser, local) · `/sync-specs` (phase 1) · `/testcases` (author Gherkin from a ticket) · `/apply-discoveries` |
 | `skills/data-standards/` | **Vendored verbatim from the Data Team's own repo — never edit anything in it.** `scripts/data-standards-verify.sh` fails CI if it is modified. Adaptation lives in `.data-standards.json` at the repo root. See [../docs/data-standards.md](../docs/data-standards.md) |
 
 ## Skills
