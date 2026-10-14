@@ -52,6 +52,7 @@ async function app(view = VIEW) {
   const a = express();
   a.use(require('../../dashboard/routes/coaching-report.routes').createCoachingReportRouter({
     load: async (sessionId, userId) => { loads.push([sessionId, userId]); return typeof view === 'function' ? view() : view; },
+    groupOf: async () => null, // the "Was this useful?" question (bd-v0toag.49) has its own test
   }));
   a.use((_q, res) => res.status(418).send('fell through'));
   const srv = await new Promise((r) => { const s = a.listen(0, () => r(s)); });
@@ -180,7 +181,7 @@ test('detailed screen with a bad or expired link: same answers as the card', asy
 test('an open is logged with the session and teacher, never the token', async () => {
   const t = tok();
   await get(await app(), `/cr/${t}`);
-  expect(emitted).toEqual([{ e: 'coaching.report_page.open', d: { outcome: 'ok', sessionId: S, userId: U, language: 'en', screen: 'card' } }]);
+  expect(emitted.filter((x) => x.e === 'coaching.report_page.open')).toEqual([{ e: 'coaching.report_page.open', d: { outcome: 'ok', sessionId: S, userId: U, language: 'en', screen: 'card' } }]);
   expect(JSON.stringify(emitted)).not.toContain(t.split('.')[1]);
 });
 

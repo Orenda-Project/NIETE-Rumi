@@ -10,6 +10,8 @@
  */
 const { esc, shell } = require('./coaching-report-style');
 const { pktDate } = require('./coaching-report-view');
+// The survey's words come from the bot's catalog, so the page asks exactly what A and B are asked on WhatsApp.
+const { resolveUx } = require('../../bot/shared/config/ux-strings');
 
 const COPY = {
   en: {
@@ -82,8 +84,31 @@ function trySection(t, c, bot) {
   return `<section class="try"><h2>${esc(c.tryh)}</h2>${chip}<p>${esc(t.text)}</p>${why}<p class="muted">${esc(c.check)}</p>${plan}</section>`;
 }
 
-/** The card screen. links = { detail, card }; env gives the bot number (defaults to process.env). */
-function renderReportPage(view, env = process.env, links = {}) {
+/**
+ * "Was this coaching report useful to you?" (bd-v0toag.49). A POST form, so a link preview never answers it.
+ * state: undefined = ask; 'yes' = thanks; 'no' = ask for the reason; 'done' = thanks for the reason.
+ */
+function usefulSection(action, state, language) {
+  if (!action) return '';
+  const ux = (key) => esc(resolveUx(key, { language }));
+  if (state === 'yes') return `<section class="useful"><p>${ux('coachingSurveyThanks')}</p></section>`;
+  if (state === 'done') return `<section class="useful"><p>${ux('coachingSurveyReasonThanks')}</p></section>`;
+  const form = `<form method="post" action="${esc(action)}">`;
+  if (state === 'no') {
+    return `<section class="useful">${form}<label for="reason">${ux('coachingSurveyAskReason')}</label>`
+      + '<textarea id="reason" name="reason" rows="3" maxlength="1000" required></textarea>'
+      + `<button class="btn" type="submit">✓</button></form></section>`;
+  }
+  return `<section class="useful"><h2>${ux('coachingSurveyAsk')}</h2>${form}`
+    + `<button class="btn" type="submit" name="useful" value="yes">${ux('coachingSurveyYesButton')}</button> `
+    + `<button class="btn" type="submit" name="useful" value="no">${ux('coachingSurveyNoButton')}</button></form></section>`;
+}
+
+/**
+ * The card screen. links = { detail, card, useful }; env gives the bot number (defaults to process.env).
+ * usefulState is the survey's step after an answer (see usefulSection).
+ */
+function renderReportPage(view, env = process.env, links = {}, usefulState) {
   const v = view || {};
   const l = lang(v);
   const c = COPY[l];
@@ -103,6 +128,7 @@ function renderReportPage(view, env = process.env, links = {}) {
     const share = `https://wa.me/?text=${encodeURIComponent(v.quizMessage)}`;
     parts.push(`<section><h2>${esc(c.quiz)}</h2><p>${esc(v.quizMessage)}</p><a class="btn" href="${esc(share)}">${esc(c.sendQuiz)}</a></section>`);
   }
+  parts.push(usefulSection(links.useful, usefulState, l));
   return shell(l, c.title, parts.filter(Boolean).join('\n'));
 }
 
