@@ -459,6 +459,26 @@ def test_whatsapp_entries_are_lane_whatsapp():
     brief = ss.build_brief(sel, os.path.join(_REPO, ss.SPEC_DIR), _differ({}), repo=_REPO)
     assert brief["features"][0]["lane"] == "whatsapp", brief["features"][0]
 
+def test_hook_style_repo_name_still_finds_specs_and_drivers():
+    # The CLI (and so every hook) passes repo as a DISPLAY NAME — the folder's basename — not a path. Files must
+    # be found from the real root regardless. Seen live: every portal spec came out action=create (missing) and
+    # every WhatsApp driver driver_exists=False, from a session whose cwd was not the repo.
+    sel = _web_sel({"portal-login": ["portal/src/portal/pages/PortalLogin.tsx"]})
+    sel.update({"features": ["menu"], "reasons": {"menu": [{"path": "bot/shared/services/menu.service.js",
+                                                             "pattern": "x", "shared": False, "kind": "map"}]}})
+    old = os.getcwd()
+    os.chdir("/")
+    try:
+        brief = ss.build_brief(sel, os.path.join(_REPO, ss.SPEC_DIR), _differ({}), repo=os.path.basename(_REPO))
+    finally:
+        os.chdir(old)
+    by = {f["feature"]: f for f in brief["features"]}
+    assert by["portal-login"]["spec_exists"] and by["portal-login"]["action"] == ss.UPDATE, by["portal-login"]
+    assert by["portal-login"]["driver_exists"], by["portal-login"]
+    assert by["menu"]["driver_exists"], by["menu"]
+    assert "portal-login" in brief["existing_web_features"], brief["existing_web_features"]
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):
