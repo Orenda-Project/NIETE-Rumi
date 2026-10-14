@@ -10,6 +10,10 @@
  *   POST /cr/:token/useful  "Was this coaching report useful to you?" (bd-v0toag.49): useful=yes|no, or the 👎
  *                    reason, stored on the session's metrics row, then 303 back to the card. POST only, so a
  *                    link preview never answers; the reason text is stored, never logged.
+ *   GET|POST /cr/:token/coach  "If you disagree and want a person to observe instead" (bd-v0toag.45), groups C and D
+ *                    only (404 for anyone else, and while ab_v10_enabled is off): her school's coaches, then the
+ *                    one she confirms is asked to visit (dashboard/services/coach-visit-request.js) and she goes
+ *                    back to the card (303, ?coach=<status>).
  *
  * No link is sent until the report arm sends one (.19), so nothing changes for teachers when this ships.
  * The token is the credential: never logged; every answer is private and no-store. Rate limited per IP.
@@ -17,10 +21,11 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { verifyReportLink, REPORT_PATH } = require('../../bot/shared/services/coaching/report-link-token');
-const { renderReportPage, renderDetailPage, renderMessagePage } = require('../services/coaching-report-page');
+const { renderReportPage, renderDetailPage, renderMessagePage, renderCoachPage } = require('../services/coaching-report-page');
 const { buildReportView } = require('../services/coaching-report-view');
 const { firstNameOf } = require('../../bot/shared/utils/person-name');
 const useful = require('../services/coaching-useful');
+const coachVisit = require('../services/coach-visit-request');
 // The portal's OWN sink (the bot's loggers need pino, which this service does not install).
 const telemetry = require('../services/telemetry.service');
 
@@ -32,6 +37,8 @@ function log(props, event = 'coaching.report_page.open') {
   try { telemetry.logEvent(event, props); } catch (_) { /* logging never decides the response */ }
 }
 const USEFUL_STATES = new Set(['yes', 'no', 'done']);
+const COACH_STATES = new Set(['sent', 'already', 'failed', 'invalid', 'no_coach']);
+const COACH_GROUPS = new Set(['C', 'D']);
 
 /** The report, only for its own teacher, with her first name, language, last scores and the session's student quiz. */
 async function loadReport(supabase, sessionId, userId) {
@@ -65,6 +72,9 @@ function createCoachingReportRouter(opts = {}) {
   const lookup = opts.groupOf || ((userId) => useful.groupOf(db(), userId));
   const groupOf = async (userId) => { try { return await lookup(userId); } catch (_) { return null; } };
   const recordUseful = opts.recordUseful || ((args) => useful.recordUseful(db(), args));
+  const listCoaches = opts.coachesFor || ((userId) => coachVisit.coachesFor(db(), userId));
+  const coachesFor = async (userId) => { try { return (await listCoaches(userId)) || []; } catch (_) { return []; } };
+  const requestVisit = opts.requestVisit || ((args) => coachVisit.requestVisit(db(), args));
   const router = express.Router();
   const limiter = rateLimit({
     windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false, validate: false,
@@ -112,8 +122,11 @@ function createCoachingReportRouter(opts = {}) {
     log({ outcome: 'ok', sessionId, userId, language: view.language, screen });
     if (screen === 'detail') return res.status(200).type('html').send(renderDetailPage(view, links));
     const state = USEFUL_STATES.has(req.query.useful) ? req.query.useful : undefined;
-    if (!state) log({ coachingSessionId: sessionId, userId, group: await groupOf(userId), channel: 'page' }, 'coaching.useful.asked');
-    return res.status(200).type('html').send(renderReportPage(view, process.env, links, state));
+    const group = await groupOf(userId);
+    if (COACH_GROUPS.has(group)) links.coach = `${REPORT_PATH}/${token}/coach`;
+    const coachState = COACH_STATES.has(req.query.coach) ? req.query.coach : undefined;
+    if (!state) log({ coachingSessionId: sessionId, userId, group, channel: 'page' }, 'coaching.useful.asked');
+    return res.status(200).type('html').send(renderReportPage(view, process.env, links, state, coachState));
   };
 
   const answer = async (req, res) => {
@@ -133,9 +146,51 @@ function createCoachingReportRouter(opts = {}) {
     return res.redirect(303, `${card}?useful=${thumb ? 'yes' : 'no'}`);
   };
 
+  /** The link's session, teacher and group when she is in C or D, or null once the 404 has been sent. */
+  const coachGate = async (req, res) => {
+    const v = verified(String(req.params.token || ''), res);
+    if (!v) return null;
+    const group = await groupOf(v.userId);
+    if (COACH_GROUPS.has(group)) return { ...v, group };
+    res.status(404).type('html').send(renderMessagePage('not_found'));
+    return null;
+  };
+
+  const coachPage = async (req, res) => {
+    const g = await coachGate(req, res);
+    if (!g) return undefined;
+    let data;
+    try {
+      data = await load(g.sessionId, g.userId);
+    } catch (_) {
+      return res.status(503).type('html').send(renderMessagePage('error'));
+    }
+    if (!data) return res.status(404).type('html').send(renderMessagePage('not_found'));
+    const coaches = await coachesFor(g.userId);
+    log({ coachingSessionId: g.sessionId, userId: g.userId, group: g.group, coaches: coaches.length }, 'coaching.coach_ping.asked');
+    const action = `${REPORT_PATH}/${req.params.token}/coach`;
+    return res.status(200).type('html').send(renderCoachPage(buildReportView(data), coaches, action));
+  };
+
+  const coachAnswer = async (req, res) => {
+    const g = await coachGate(req, res);
+    if (!g) return undefined;
+    const token = String(req.params.token);
+    const pick = typeof (req.body || {}).coach === 'string' ? req.body.coach.trim().slice(0, 64) : '';
+    if (!pick) return res.redirect(303, `${REPORT_PATH}/${token}/coach`);
+    const coachId = pick === 'none' ? null : pick;
+    const { sessionId, userId, group } = g;
+    const out = await requestVisit({ sessionId, userId, group, coachId }).catch(() => null);
+    const status = out && COACH_STATES.has(out.status) ? out.status : 'failed';
+    log({ coachingSessionId: sessionId, userId, group }, `coaching.coach_ping.${status}`);
+    return res.redirect(303, `${REPORT_PATH}/${token}?coach=${status}`);
+  };
+
   router.get(`${REPORT_PATH}/:token`, privateHeaders, limiter, serve('card'));
   router.get(`${REPORT_PATH}/:token/detail`, privateHeaders, limiter, serve('detail'));
   router.post(`${REPORT_PATH}/:token/useful`, privateHeaders, limiter, express.urlencoded({ extended: false, limit: '8kb' }), answer);
+  router.get(`${REPORT_PATH}/:token/coach`, privateHeaders, limiter, coachPage);
+  router.post(`${REPORT_PATH}/:token/coach`, privateHeaders, limiter, express.urlencoded({ extended: false, limit: '8kb' }), coachAnswer);
   return router;
 }
 

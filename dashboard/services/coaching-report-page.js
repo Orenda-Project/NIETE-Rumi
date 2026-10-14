@@ -38,6 +38,15 @@ const COPY = {
     notFoundBody: 'Open the report from your WhatsApp message again.',
     errorTitle: 'Something went wrong',
     errorBody: 'Please try again in a few minutes.',
+    disagree: 'If you disagree and want a person to observe instead, tap here',
+    coachTitle: 'Ask a coach to observe your class',
+    coachPick: 'Which coach should we ask?',
+    coachNone: 'None of these',
+    coachNoneFound: 'We could not find a coach for your school.',
+    coachSend: 'Ask for a visit',
+    coachAsked: 'Your coach has been asked to visit your class.',
+    coachFailed: 'We could not reach your coach just now. Your request is saved.',
+    coachNoted: 'Thank you. We have noted that you want a person to observe your class.',
   },
   ur: {
     title: 'آپ کی کوچنگ رپورٹ',
@@ -63,6 +72,15 @@ const COPY = {
     notFoundBody: 'رپورٹ اپنے واٹس ایپ پیغام سے دوبارہ کھولیں۔',
     errorTitle: 'کچھ غلط ہو گیا',
     errorBody: 'براہ کرم چند منٹ بعد دوبارہ کوشش کریں۔',
+    disagree: 'اگر آپ اس رپورٹ سے متفق نہیں ہیں اور چاہتی ہیں کہ کوئی شخص آ کر آپ کی کلاس کا مشاہدہ کرے تو یہاں ٹیپ کریں',
+    coachTitle: 'کوچ سے اپنی کلاس کا مشاہدہ کروائیں',
+    coachPick: 'ہم کس کوچ سے درخواست کریں؟',
+    coachNone: 'ان میں سے کوئی نہیں',
+    coachNoneFound: 'ہمیں آپ کے اسکول کا کوئی کوچ نہیں ملا۔',
+    coachSend: 'دورے کی درخواست کریں',
+    coachAsked: 'آپ کے کوچ سے آپ کی کلاس کا دورہ کرنے کی درخواست کر دی گئی ہے۔',
+    coachFailed: 'ہم ابھی آپ کے کوچ تک نہیں پہنچ سکے۔ آپ کی درخواست محفوظ ہے۔',
+    coachNoted: 'شکریہ۔ ہم نے نوٹ کر لیا ہے کہ آپ چاہتی ہیں کوئی شخص آپ کی کلاس کا مشاہدہ کرے۔',
   },
 };
 
@@ -105,10 +123,37 @@ function usefulSection(action, state, language) {
 }
 
 /**
- * The card screen. links = { detail, card, useful }; env gives the bot number (defaults to process.env).
- * usefulState is the survey's step after an answer (see usefulSection).
+ * "Ask my coach to visit" (bd-v0toag.45), C and D only (links.coach is set only for them). After a 👎 it
+ * offers the coach page; once she has answered it says what happened (coachState from ?coach=).
  */
-function renderReportPage(view, env = process.env, links = {}, usefulState) {
+const COACH_SAID = { sent: 'coachAsked', already: 'coachAsked', failed: 'coachFailed', invalid: 'coachFailed', no_coach: 'coachNoted' };
+function coachSection(href, usefulState, coachState, c) {
+  if (!href) return '';
+  if (COACH_SAID[coachState]) return `<section class="useful"><p>${esc(c[COACH_SAID[coachState]])}</p></section>`;
+  if (usefulState !== 'no' && usefulState !== 'done') return '';
+  return `<a class="more" href="${esc(href)}">${esc(c.disagree)}</a>`;
+}
+
+/** Her school's coaches and "None of these", one POST form. */
+function renderCoachPage(view, coaches, action) {
+  const l = lang(view);
+  const c = COPY[l];
+  const list = Array.isArray(coaches) ? coaches : [];
+  const pick = (value, label, i) => `<label class="pick"><input type="radio" name="coach" id="c${i}" value="${esc(value)}" required>`
+    + `<span>${esc(label)}</span></label>`;
+  const body = `<section class="useful"><h2>${esc(c.coachTitle)}</h2>`
+    + `${list.length ? '' : `<p class="muted">${esc(c.coachNoneFound)}</p>`}`
+    + `<form method="post" action="${esc(action)}"><p>${esc(c.coachPick)}</p>`
+    + `${list.map((x, i) => pick(x.id, x.name, i)).join('')}${pick('none', c.coachNone, list.length)}`
+    + `<button class="btn" type="submit">${esc(c.coachSend)}</button></form></section>`;
+  return shell(l, c.coachTitle, body);
+}
+
+/**
+ * The card screen. links = { detail, card, useful, coach }; env gives the bot number (defaults to process.env).
+ * usefulState is the survey's step after an answer (see usefulSection); coachState is ?coach= (coachSection).
+ */
+function renderReportPage(view, env = process.env, links = {}, usefulState, coachState) {
   const v = view || {};
   const l = lang(v);
   const c = COPY[l];
@@ -129,6 +174,7 @@ function renderReportPage(view, env = process.env, links = {}, usefulState) {
     parts.push(`<section><h2>${esc(c.quiz)}</h2><p>${esc(v.quizMessage)}</p><a class="btn" href="${esc(share)}">${esc(c.sendQuiz)}</a></section>`);
   }
   parts.push(usefulSection(links.useful, usefulState, l));
+  parts.push(coachSection(links.coach, usefulState, coachState, c));
   return shell(l, c.title, parts.filter(Boolean).join('\n'));
 }
 
@@ -176,4 +222,4 @@ function renderMessagePage(kind) {
   return shell('en', COPY.en[`${k}Title`], body);
 }
 
-module.exports = { renderReportPage, renderDetailPage, renderMessagePage, pktDate, COPY };
+module.exports = { renderReportPage, renderDetailPage, renderMessagePage, renderCoachPage, pktDate, COPY };
