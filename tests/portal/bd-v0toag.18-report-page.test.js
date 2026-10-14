@@ -28,7 +28,9 @@ const VIEW = {
 beforeEach(() => {
   jest.resetModules();
   emitted = [];
-  jest.doMock('../../dashboard/services/telemetry.service', () => ({ logEvent: (e, d) => emitted.push({ e, d }), flush() {}, isEnabled: () => true }));
+  // CI installs the root and bot packages only; the dashboard's limiter is mocked, as the other portal tests do.
+  jest.doMock('express-rate-limit', () => jest.fn(() => (_req, _res, next) => next()), { virtual: true });
+  jest.doMock('../../dashboard/services/telemetry.service',() => ({ logEvent: (e, d) => emitted.push({ e, d }), flush() {}, isEnabled: () => true }));
   process.env = { ...ENV, INTERNAL_API_KEY: 'k1', SUPABASE_URL: 'https://abc.supabase.co', WHATSAPP_BOT_NUMBER: '+92 322 2482222' };
   jest.useFakeTimers({ doNotFake: ['setImmediate', 'setTimeout', 'nextTick'] }).setSystemTime(new Date('2026-10-19T08:00:00Z'));
 });
