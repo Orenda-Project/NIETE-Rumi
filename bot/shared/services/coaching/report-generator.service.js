@@ -355,6 +355,16 @@ class ReportGeneratorService {
       // Generate and send voice debrief (optional, won't fail entire process)
       if (!isRetry) {
         await this.generateAndSendVoiceDebrief(session, from, coachingSessionId, enhancedAnalysis, track);
+
+        // v10 coaching test (bd-v0toag.49): "Was this coaching report useful to you?" — groups A
+        // and B only, and only while ab_v10_enabled is on. Off or undrawn: nothing is sent.
+        try {
+          await require('./coaching-feedback.service').askIfInTest({
+            coachingSessionId, userId: session.user_id, phone: from, language: outputLanguage,
+          });
+        } catch (fbErr) {
+          logToFile('Coaching Feedback: ask failed (non-fatal)', { coachingSessionId, error: fbErr.message });
+        }
       }
 
       // Phase 3: Commitment Card — Q3-derived commitment + lesson-rooted action.

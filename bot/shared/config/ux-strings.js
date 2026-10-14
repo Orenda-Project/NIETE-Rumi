@@ -164,6 +164,37 @@ const UX_STRINGS = {
     ur: 'اسے کھولنے میں مسئلہ آ گیا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
   },
 
+  // ─── post-coaching survey ─────────────────────────────────────────────────
+  // Sent right after the voice debrief, to groups A and B of the v10 test only
+  // (bd-v0toag.49). The negative path is the point of the whole survey: an
+  // unexplained thumbs-down tells us nothing, so it asks one plain question.
+  // The two button titles are capped by WhatsApp at 20 CODE POINTS and an
+  // emoji costs two, so they are deliberately short in both languages.
+  coachingSurveyAsk: {
+    en: 'Was this coaching report useful to you?',
+    ur: 'کیا یہ کوچنگ رپورٹ آپ کے لیے مفید رہی؟',
+  },
+  coachingSurveyYesButton: {
+    en: '👍 Yes, useful',
+    ur: '👍 جی ہاں',
+  },
+  coachingSurveyNoButton: {
+    en: '👎 Not really',
+    ur: '👎 نہیں',
+  },
+  coachingSurveyThanks: {
+    en: 'Thanks — glad it was useful.',
+    ur: 'شکریہ — خوشی ہے کہ یہ کام آئی۔',
+  },
+  coachingSurveyAskReason: {
+    en: 'Thanks for telling us. What could we do better? (one line is enough)',
+    ur: 'بتانے کا شکریہ۔ ہم اسے بہتر کیسے بنا سکتے ہیں؟ (ایک سطر کافی ہے)',
+  },
+  coachingSurveyReasonThanks: {
+    en: 'Got it, thank you — this makes the next report better.',
+    ur: 'سمجھ گئی، شکریہ — اس سے اگلی رپورٹ بہتر ہوگی۔',
+  },
+
   // ─── commitment-card acks (card_yes/later/no taps) ───────────────────────
   coachingCardAckYes: {
     en: 'Noted — we will look for it in your next lesson. Good luck!',

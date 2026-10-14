@@ -505,6 +505,28 @@ async function handleTextMessage(message, from, messageBody, user = null) {
   const quizMenuRequest = QuizMenuFlags.bareTextToMenu() && isQuizMenuRequest(messageBody);
 
   // ============================================================
+  // COACHING FEEDBACK — REASON CAPTURE (bd-v0toag.49)
+  // After a 👎 on "Was this coaching report useful?", her next text within 10 minutes
+  // answers "what could we do better?" and must not reach intent detection.
+  // ============================================================
+  if (user?.id && !quizMenuRequest) {
+    try {
+      const CoachingFeedbackService = require('../services/coaching/coaching-feedback.service');
+      const tookIt = await CoachingFeedbackService.handlePendingReason(user.id, from, messageBody, { messageId: message && message.id });
+      if (tookIt) {
+        logToFile('Coaching Feedback: reason captured, short-circuiting text handler', {
+          userId: user.id, from,
+        });
+        return;
+      }
+    } catch (coachingFbErr) {
+      logToFile('Coaching Feedback: handlePendingReason error (non-fatal)', {
+        error: coachingFbErr.message, userId: user.id,
+      });
+    }
+  }
+
+  // ============================================================
   // LP FEEDBACK — REASON CAPTURE
   // If the teacher tapped 👎 on a recent LP within the last 10 minutes,
   // treat their next free-text message as the reason (Redis flag set by
