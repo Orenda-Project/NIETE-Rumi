@@ -98,6 +98,7 @@ function createMemorySupabase(seed = {}, { rpc: rpcHandlers = {}, defaults = {},
     let rangeAB = null;
     let head = false;
     let onConflict = null;
+    let ignoreDuplicates = false;
 
     const matches = (r) => filters.every((f) => f(r));
 
@@ -125,6 +126,7 @@ function createMemorySupabase(seed = {}, { rpc: rpcHandlers = {}, defaults = {},
           if (op === 'upsert' && onConflict) {
             const keys = onConflict.split(',').map((k) => k.trim());
             const hit = rows.find((r) => keys.every((k) => r[k] === row[k]));
+            if (hit && ignoreDuplicates) return; // resolution=ignore-duplicates: ON CONFLICT DO NOTHING
             if (hit) { Object.assign(hit, row); made.push(hit); return; }
           }
           const full = { id: newId(), created_at: now().toISOString(), ...clone(defaults[t] || {}), ...row };
@@ -156,7 +158,7 @@ function createMemorySupabase(seed = {}, { rpc: rpcHandlers = {}, defaults = {},
         return b;
       },
       insert(rows) { op = 'insert'; payload = rows; return b; },
-      upsert(rows, opts) { op = 'upsert'; payload = rows; onConflict = opts && opts.onConflict; return b; },
+      upsert(rows, opts) { op = 'upsert'; payload = rows; onConflict = opts && opts.onConflict; ignoreDuplicates = Boolean(opts && opts.ignoreDuplicates); return b; },
       update(patch) { op = 'update'; payload = patch; return b; },
       delete() { op = 'delete'; return b; },
       eq(f, v) { filters.push((r) => r[f] === v); return b; },

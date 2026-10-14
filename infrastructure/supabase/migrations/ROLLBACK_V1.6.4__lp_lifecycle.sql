@@ -2,8 +2,8 @@
 -- lesson_plans and the two delivery ledgers, and the two indexes.
 -- destructive: reviewed — the columns hold only lifecycle bookkeeping (path, stage times, error code,
 -- correlation id, the plan's request link); nothing a teacher sees is read from them.
--- SAFE ONLY after LP_LIFECYCLE_PATHS is unset on every service (bot, sqs-worker, sqs-worker-video,
--- portal) and those services have restarted, or the code is rolled back: with the key set, the
+-- SAFE ONLY after LP_LIFECYCLE_PATHS is unset on every service that loads the writer (bot, sqs-worker,
+-- sqs-worker-video) and those services have restarted, or the code is rolled back: with the key set, the
 -- lifecycle writer writes these columns. A missing column is not an outage — every write that carries
 -- them falls back to its pre-lifecycle form and the refusal is logged at error level — but it is noise
 -- on every lesson plan. Unset the key FIRST.
@@ -43,5 +43,10 @@ ALTER TABLE lesson_plan_requests DROP COLUMN IF EXISTS region;
 ALTER TABLE lesson_plan_requests DROP COLUMN IF EXISTS channel;
 -- destructive: reviewed (rollback of V1.6.4)
 ALTER TABLE lesson_plan_requests DROP COLUMN IF EXISTS source;
+
+-- The runner (migrate.js) applies only V* files and skips a version it has recorded: run this file by hand
+-- (owner role), and forget the version so that a later migrate.js run applies V1.6.4 again.
+-- destructive: reviewed (rollback of V1.6.4)
+DELETE FROM schema_versions WHERE version = '1.6.4';
 
 NOTIFY pgrst, 'reload schema';

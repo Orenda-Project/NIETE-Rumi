@@ -164,6 +164,25 @@ describe('a grade 1-5 lesson PDF handed to the portal', () => {
     }));
   });
 
+  test('switched ON: a lesson id the catalogue does not know is not an ask — no row, and not even a read of the lifecycle table', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_v8_segment';
+    const { statusCode, payload } = await fetchPdf({ lessonId: 'grade_1_english_ch9_seg99', userId: USER.id });
+    expect(statusCode).toBe(200);
+    expect(payload).toEqual({ success: true, available: false });
+    expect(asks()).toHaveLength(0);
+    expect(touched('lesson_plan_requests')).toBe(0);
+  });
+
+  test('switched ON: a lesson that was not ready, fetched again once it is (within 5 minutes), is DELIVERED — a failure never hides a later success', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_v8_segment';
+    await fetchPdf({ lessonId: OTHER_LESSON, userId: USER.id });
+    mockDb.rows('niete_lp_assets').push(asset(OTHER_LESSON));
+    jest.setSystemTime(new Date(NOW.getTime() + 2 * 60_000));
+    const { payload } = await fetchPdf({ lessonId: OTHER_LESSON, userId: USER.id });
+    expect(payload).toEqual(expect.objectContaining({ success: true, available: true }));
+    expect(asks().map((r) => r.status)).toEqual(['failed', 'completed']);
+  });
+
   test('switched ON: the same lesson fetched again within 5 minutes is the same ask — after that it is a new one', async () => {
     process.env.LP_LIFECYCLE_PATHS = 'niete_v8_segment';
     await fetchPdf({ lessonId: LESSON, userId: USER.id });

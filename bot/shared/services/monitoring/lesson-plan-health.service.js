@@ -53,7 +53,11 @@ const LAG_MIN = 15;
 const MAX_CATCHUP_MIN = 3 * 60;
 const MIN_WINDOW_MIN = 5;
 const STUCK_HOURS = 6;
-const MAX_ROWS = 5000;
+// PostgREST answers at most db-max-rows (1,000 on NIETE) whatever .limit() asks for: a full page is a
+// truncated read, never a complete one.
+const MAX_ROWS = 1000;
+/** The grounded queue's attempts (MAX_RETRIES in workers/lesson-plan-generation.worker): fewer = a retry follows. */
+const GROUNDED_MAX_RETRIES = 3;
 const FAIL_RATE = 0.2;
 const MIN_FINISHED = 10;
 const ABS_FAILURES = 5;
@@ -70,8 +74,19 @@ let skipsInARow = 0;
 const anyPathOn = () => Object.values(Lifecycle.LIFECYCLE.SOURCES).some((s) => Lifecycle.enabled(s));
 
 /** The check's own kill switch: LP_HEALTH_CHECK=off (or false / 0 / no) stops it with the lifecycle on. */
+const HEALTH_OFF_WORDS = ['off', 'false', '0', 'no', 'none'];
+const HEALTH_ON_WORDS = ['', 'on', 'true', '1', 'yes'];
+let unknownSwitchSaid = false;
 function healthCheckOff(env = process.env) {
-  return ['off', 'false', '0', 'no'].includes(String(env.LP_HEALTH_CHECK || '').trim().toLowerCase());
+  const v = String(env.LP_HEALTH_CHECK || '').trim().toLowerCase();
+  if (HEALTH_OFF_WORDS.includes(v)) return true;
+  if (!HEALTH_ON_WORDS.includes(v) && !unknownSwitchSaid) {
+    // Not a word this switch knows: the check keeps running (as before), and says so once.
+    unknownSwitchSaid = true;
+    logToFile('⚠️ LP_HEALTH_CHECK has a value it does not know — the lesson-plan health check keeps running; use off to stop it',
+      { value: v.slice(0, 40) }, 'warn');
+  }
+  return false;
 }
 
 /**
@@ -130,9 +145,14 @@ function summarize(rows) {
     }
     const s = by.get(key);
     s.asks += 1;
-    const inFlight = IN_FLIGHT.has(r.status);
+    // A job that never reached the queue is finished (and ours); a grounded render that failed with
+    // attempts left is still in flight (the queue retries it).
+    const neverQueued = r.status === 'pending' && r.error_code === 'QUEUE_FAILED';
+    const retrying = r.status === 'failed' && r.source === Lifecycle.LIFECYCLE.SOURCES.NIETE_GROUNDED
+      && Number(r.retry_count || 0) < GROUNDED_MAX_RETRIES;
+    const inFlight = (IN_FLIGHT.has(r.status) && !neverQueued) || retrying;
     if (inFlight) s.inFlight += 1;
-    if (r.status === 'failed') s.failed += 1;
+    if ((r.status === 'failed' && !retrying) || neverQueued) s.failed += 1;
     if (r.error_code) {
       s.codes[r.error_code] = (s.codes[r.error_code] || 0) + 1;
       if (!inFlight && SYSTEM_FAILURES.has(r.error_code)) s.systemFailures += 1;
@@ -155,8 +175,10 @@ function summarize(rows) {
   });
 }
 
-function verdictFor(sources, stuck) {
+function verdictFor(sources, stuck, truncated = false) {
   const reasons = [];
+  // A read that hit MAX_ROWS has not seen the whole window: whatever it did not read could be failing.
+  if (truncated) reasons.push('truncated');
   if (stuck > 0) reasons.push('stuck');
   for (const s of sources) {
     const finished = s.asks - s.inFlight;
@@ -176,7 +198,7 @@ async function snapshot({ start, end, db = supabase }) {
   const stuckTo = new Date(end.getTime() - STUCK_HOURS * 60 * 60 * 1000).toISOString();
   const [win, stuckRead] = await Promise.all([
     db.from('lesson_plan_requests')
-      .select('source, channel, status, error_code, created_at, delivered_at')
+      .select('source, channel, status, error_code, retry_count, created_at, delivered_at')
       .not('source', 'is', null)
       .gte('created_at', start.toISOString())
       .lt('created_at', end.toISOString())
@@ -195,11 +217,14 @@ async function snapshot({ start, end, db = supabase }) {
   const rows = (win && win.data) || [];
   const stuck = Number((stuckRead && stuckRead.count) || 0);
   const sources = summarize(rows);
-  const { verdict, reasons } = verdictFor(sources, stuck);
-  return { ok: true, verdict, reasons, stuck, rowsRead: rows.length, truncated: rows.length >= MAX_ROWS, sources };
+  const truncated = rows.length >= MAX_ROWS;
+  const { verdict, reasons } = verdictFor(sources, stuck, truncated);
+  return { ok: true, verdict, reasons, stuck, rowsRead: rows.length, truncated, sources };
 }
 
 function skipped(reason) {
+  // Another replica holds the tick: the cache answered, so a run of cache failures is broken.
+  if (reason === 'other') skipsInARow = 0;
   if (reason === 'unavailable') {
     skipsInARow += 1;
     const level = skipsInARow >= SKIPS_BEFORE_ERROR ? 'error' : 'warn';
@@ -239,7 +264,10 @@ async function run({ now = new Date(), redis, db = supabase } = {}) {
       logToFile(`⚠️ Lesson-plan health: ${reasons.join(', ')}`, { verdict, reasons, stuck, sources }, 'error');
     }
     try {
-      await cache.set(WATERMARK_KEY, end.toISOString(), WATERMARK_TTL_S);
+      // The real wrapper answers false (it never throws) when it could not store the key.
+      if ((await cache.set(WATERMARK_KEY, end.toISOString(), WATERMARK_TTL_S)) === false) {
+        logToFile('⚠️ Lesson-plan health: could not move the watermark — the next tick re-reads this window', { end: end.toISOString() }, 'warn');
+      }
     } catch (error) {
       logToFile('⚠️ Lesson-plan health: could not move the watermark — the next tick re-reads this window', { error: error && error.message }, 'warn');
     }
@@ -262,7 +290,8 @@ async function onDemand({ now = new Date(), db = supabase } = {}) {
     const snap = await snapshot({ start, end: now, db });
     if (!snap.ok) {
       logToFile('❌ Lesson-plan health (on demand): read failed', { error: snap.error, code: snap.code }, 'error');
-      return { status: 'read_failed', error: snap.error };
+      // The detail is in the log; the answer goes to a caller, and a database message is schema detail.
+      return { status: 'read_failed' };
     }
     const { ok, verdict, ...rest } = snap;
     return {
@@ -271,13 +300,14 @@ async function onDemand({ now = new Date(), db = supabase } = {}) {
     };
   } catch (error) {
     logToFile('❌ Lesson-plan health (on demand) failed', { error: error && error.message }, 'error');
-    return { status: 'read_failed', error: error && error.message };
+    return { status: 'read_failed' };
   }
 }
 
 /** Test seam: forget the consecutive-skip count. */
 function __resetForTests() {
   skipsInARow = 0;
+  unknownSwitchSaid = false;
 }
 
 module.exports = { run, onDemand, healthCheckOff, __resetForTests };
