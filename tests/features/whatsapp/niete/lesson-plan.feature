@@ -650,6 +650,18 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     Then the bot sends the teacher no afternoon quiz offer
     # source 'external' means the link was minted, not that the plan was read — the same rule as the app-open survey.
 
+  @e2e @lesson-plan @wip @draft @P2
+  Scenario: A lesson read in the teacher app shows the received tick on both lesson lists
+    Given the NIETE bot chat is open on a teacher who opened one K-5 lesson plan in the teacher app's viewer
+    And that lesson was never delivered to the teacher as a WhatsApp document
+    When the teacher opens the lesson plan Flow and picks that lesson's grade, subject and chapter
+    Then that lesson's row starts with ✓ and the chapter's other untaken lessons start with ○
+    And the teacher app's lesson list for that chapter marks the same lesson as received
+    # The tick reads niete_lp_downloads 'sent' OR a K-5 niete_lp_opens row with source 'viewer' (lp-v8-delivery
+    # downloadedLessonIds -> lp-app-opens.store viewerOpenedLessonIds, one capped read per list). Any version counts.
+    # An answer key opened in the viewer logs the assessment's own lesson id, as a WhatsApp delivery of the
+    # assessment does. LP_TICK_COUNT_APP_OPENS=off puts back WhatsApp-only. No new string; title lengths unchanged.
+
   @e2e @quiz @wip @draft @config-gated @P1
   Scenario: A lesson with no quiz source is not offered
     Given the NIETE bot chat is open on a teacher who took one K-5 lesson plan today before 14:00 PKT
