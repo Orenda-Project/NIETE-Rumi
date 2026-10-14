@@ -8,6 +8,7 @@ import { cleanSchool, fullName, todayLabel } from "../format";
 import { teacherPath } from "../routes";
 import type { TeacherFeature } from "../paths";
 import { ReadyForYou } from "../notices/ReadyForYou";
+import { LanguageTabs } from "../LanguageTabs";
 
 /**
  * bd-fmf24g.1 — teacher v2 Home (canvas v28 Main, after the operator's changes 1–3):
@@ -15,6 +16,7 @@ import { ReadyForYou } from "../notices/ReadyForYou";
  * tile per feature in a 2-column grid (eight tiles, Analytics last). No numbers on
  * the tiles ("remove the pills… we will figure that out later"). Order is fixed in both
  * languages (most-used first), never alphabetical.
+ * The band ends with More's English | اردو switch, full width (operator, 2026-10-14: design doc option B); More keeps its row.
  */
 const TILES: HomeTile[] = [
   { key: "lessons", art: "lessons" }, { key: "coaching", art: "coaching" }, { key: "observations", art: "observations" },
@@ -43,6 +45,7 @@ export default function Home() {
           school={school}
           brand={C.brand}
           logoAlt={C.logoAlt}
+          footer={<LanguageTabs testId="home-language" />}
         />
       )}
     >
