@@ -35,6 +35,7 @@ const { coachRoleLabelForRegion } = require('../../config/region-config');
 const { clampLanguage } = require('../../config/ux-strings');
 const { persistReportNarrative } = require('./report-v2/narrative-store');
 const { offerDefaultLanguage } = require('../../config/languages');
+const { createReportTracker } = require('./report-tracking');
 
 /**
  * The language the coaching STEP messages are sent in.
@@ -154,6 +155,8 @@ class ReportGeneratorService {
       }
 
       const from = payload.from || session.users.phone_number;
+      // v10 test (bd-v0toag.12): logs each part sent with its wamid; a no-op while the switch is off.
+      const track = createReportTracker({ coachingSessionId, userId: session.user_id });
       // Filter Boolean protects against a null last_name concatenating literally
       // as "First null" and against both names being null (renders as empty
       // string that hero-report.service.js maps to 'Teacher' fallback).
@@ -330,21 +333,28 @@ class ReportGeneratorService {
       // Deliver to WhatsApp — image+caption path (hero renderer) or document
       // path (PDFKit/HTML renderers).
       if (isHeroImage) {
-        await this.sendHeroImageReport(
-          from,
-          coachingSessionId,
-          reportResult.png,
-          reportResult.caption || '',
-          session.users.name,
-          session.created_at
-        );
+        try {
+          await this.sendHeroImageReport(
+            from,
+            coachingSessionId,
+            reportResult.png,
+            reportResult.caption || '',
+            session.users.name,
+            session.created_at,
+            track.opts('image')
+          );
+        } catch (error) {
+          await track.record('image', false, error);
+          throw error;
+        }
+        await track.record('image', true);
       } else {
         await this.sendPDFReport(from, coachingSessionId, reportResult, session.users.name, session.created_at);
       }
 
       // Generate and send voice debrief (optional, won't fail entire process)
       if (!isRetry) {
-        await this.generateAndSendVoiceDebrief(session, from, coachingSessionId, enhancedAnalysis);
+        await this.generateAndSendVoiceDebrief(session, from, coachingSessionId, enhancedAnalysis, track);
       }
 
       // Phase 3: Commitment Card — Q3-derived commitment + lesson-rooted action.
@@ -416,14 +426,15 @@ class ReportGeneratorService {
 
           // Response buttons follow regardless of which renderer ran.
           const lead = cardCopy.sessionCompleteLead;
-          await WhatsAppService.sendInteractiveButtons(from, {
+          const buttonsSent = await WhatsAppService.sendInteractiveButtons(from, {
             body: lead ? `${lead}\n\n${cardCopy.commitPrompt}` : cardCopy.commitPrompt,
             buttons: [
               { id: `card_yes_${coachingSessionId}`, title: cardCopy.commitButtons.yes },
               { id: `card_later_${coachingSessionId}`, title: cardCopy.commitButtons.later },
               { id: `card_no_${coachingSessionId}`, title: cardCopy.commitButtons.no },
             ],
-          });
+          }, track.opts('buttons'));
+          await track.record('buttons', buttonsSent !== false);
           completionAnnounced = Boolean(lead);
 
           await supabase
@@ -1451,7 +1462,7 @@ class ReportGeneratorService {
    * @returns {Promise<void>}
    * @private
    */
-  static async sendHeroImageReport(phoneNumber, coachingSessionId, pngBuffer, caption, teacherFirstName = 'Teacher', observationDate = null) {
+  static async sendHeroImageReport(phoneNumber, coachingSessionId, pngBuffer, caption, teacherFirstName = 'Teacher', observationDate = null, sendOpts = undefined) {
     let tempImagePath = null;
     try {
       // Ensure temp directory exists
@@ -1474,7 +1485,7 @@ class ReportGeneratorService {
       });
 
       // sendImage handles the Meta media upload + the messages send.
-      const ok = await WhatsAppService.sendImage(phoneNumber, tempImagePath, caption);
+      const ok = await WhatsAppService.sendImage(phoneNumber, tempImagePath, caption, sendOpts);
       if (!ok) {
         // sendImage returns false on failure and swallows the error internally;
         // treat that as a hard failure here — report delivery IS critical.
@@ -1551,7 +1562,7 @@ class ReportGeneratorService {
    * @returns {Promise<void>}
    * @private
    */
-  static async generateAndSendVoiceDebrief(session, phoneNumber, coachingSessionId, enhancedAnalysis) {
+  static async generateAndSendVoiceDebrief(session, phoneNumber, coachingSessionId, enhancedAnalysis, track = null) {
     try {
       const lang = _languageFromSession(session);
       await WhatsAppService.sendMessage(phoneNumber, getCoachingMessage('step5_voiceDebrief', lang));
@@ -1657,7 +1668,8 @@ class ReportGeneratorService {
       // between the two (586 sessions, 18 Sep 2026; p95 55s, max 242s), so
       // dropping it instead would leave the teacher waiting in silence. The audio
       // arriving after it needs no caption.
-      await WhatsAppService.sendAudioFromUrl(phoneNumber, voiceUrl);
+      const voiceSent = await WhatsAppService.sendAudioFromUrl(phoneNumber, voiceUrl, track ? track.opts('voice') : undefined);
+      if (track) await track.record('voice', voiceSent !== false);
 
       logToFile('✅ Voice debrief sent successfully', { coachingSessionId });
     } catch (voiceError) {
