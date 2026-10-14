@@ -7,6 +7,9 @@
  *                    Expired → 302 to the portal sign-in, never a dead page (Amena, 14 Oct).
  *                    Bad, or not her session → a "link not complete" page, 404, no data.
  *   GET /cr/:token/detail   the same report's detailed screen (sections, journey); the same checks and answers.
+ *   POST /cr/:token/useful  "Was this coaching report useful to you?" (bd-v0toag.49): useful=yes|no, or the 👎
+ *                    reason, stored on the session's metrics row, then 303 back to the card. POST only, so a
+ *                    link preview never answers; the reason text is stored, never logged.
  *
  * No link is sent until the report arm sends one (.19), so nothing changes for teachers when this ships.
  * The token is the credential: never logged; every answer is private and no-store. Rate limited per IP.
@@ -17,6 +20,7 @@ const { verifyReportLink, REPORT_PATH } = require('../../bot/shared/services/coa
 const { renderReportPage, renderDetailPage, renderMessagePage } = require('../services/coaching-report-page');
 const { buildReportView } = require('../services/coaching-report-view');
 const { firstNameOf } = require('../../bot/shared/utils/person-name');
+const useful = require('../services/coaching-useful');
 // The portal's OWN sink (the bot's loggers need pino, which this service does not install).
 const telemetry = require('../services/telemetry.service');
 
@@ -24,9 +28,10 @@ const SIGN_IN = '/portal/login';
 const SESSION_SELECT = 'id, user_id, created_at, analysis_data, prioritized_action, report_pdf_url, voice_debrief_url';
 const TREND_LIMIT = 10;
 
-function log(props) {
-  try { telemetry.logEvent('coaching.report_page.open', props); } catch (_) { /* logging never decides the response */ }
+function log(props, event = 'coaching.report_page.open') {
+  try { telemetry.logEvent(event, props); } catch (_) { /* logging never decides the response */ }
 }
+const USEFUL_STATES = new Set(['yes', 'no', 'done']);
 
 /** The report, only for its own teacher, with her first name, language, last scores and the session's student quiz. */
 async function loadReport(supabase, sessionId, userId) {
@@ -55,7 +60,11 @@ async function loadReport(supabase, sessionId, userId) {
 }
 
 function createCoachingReportRouter(opts = {}) {
-  const load = opts.load || ((sessionId, userId) => loadReport(require('../config/supabase'), sessionId, userId));
+  const db = () => require('../config/supabase');
+  const load = opts.load || ((sessionId, userId) => loadReport(db(), sessionId, userId));
+  const lookup = opts.groupOf || ((userId) => useful.groupOf(db(), userId));
+  const groupOf = async (userId) => { try { return await lookup(userId); } catch (_) { return null; } };
+  const recordUseful = opts.recordUseful || ((args) => useful.recordUseful(db(), args));
   const router = express.Router();
   const limiter = rateLimit({
     windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false, validate: false,
@@ -66,17 +75,26 @@ function createCoachingReportRouter(opts = {}) {
     next();
   };
 
-  const serve = (screen) => async (req, res) => {
-    const token = String(req.params.token || '');
+  /** The link's session and teacher, or null once the bad/expired answer has been sent. */
+  const verified = (token, res) => {
     const v = verifyReportLink(token);
     if (!v.ok && v.reason === 'expired') {
       log({ outcome: 'expired' });
-      return res.redirect(302, SIGN_IN);
+      res.redirect(302, SIGN_IN);
+      return null;
     }
     if (!v.ok) {
       log({ outcome: 'bad' });
-      return res.status(404).type('html').send(renderMessagePage('not_found'));
+      res.status(404).type('html').send(renderMessagePage('not_found'));
+      return null;
     }
+    return v;
+  };
+
+  const serve = (screen) => async (req, res) => {
+    const token = String(req.params.token || '');
+    const v = verified(token, res);
+    if (!v) return undefined;
     const { sessionId, userId } = v;
     let data;
     try {
@@ -90,14 +108,34 @@ function createCoachingReportRouter(opts = {}) {
       return res.status(404).type('html').send(renderMessagePage('not_found'));
     }
     const view = buildReportView(data);
-    const links = { card: `${REPORT_PATH}/${token}`, detail: `${REPORT_PATH}/${token}/detail` };
+    const links = { card: `${REPORT_PATH}/${token}`, detail: `${REPORT_PATH}/${token}/detail`, useful: `${REPORT_PATH}/${token}/useful` };
     log({ outcome: 'ok', sessionId, userId, language: view.language, screen });
-    const html = screen === 'detail' ? renderDetailPage(view, links) : renderReportPage(view, process.env, links);
-    return res.status(200).type('html').send(html);
+    if (screen === 'detail') return res.status(200).type('html').send(renderDetailPage(view, links));
+    const state = USEFUL_STATES.has(req.query.useful) ? req.query.useful : undefined;
+    if (!state) log({ coachingSessionId: sessionId, userId, group: await groupOf(userId), channel: 'page' }, 'coaching.useful.asked');
+    return res.status(200).type('html').send(renderReportPage(view, process.env, links, state));
+  };
+
+  const answer = async (req, res) => {
+    const token = String(req.params.token || '');
+    const v = verified(token, res);
+    if (!v) return undefined;
+    const { sessionId, userId } = v;
+    const card = `${REPORT_PATH}/${token}`;
+    const body = req.body || {};
+    const thumb = body.useful === 'yes' || body.useful === 'no' ? body.useful === 'yes' : undefined;
+    const reason = typeof body.reason === 'string' && body.reason.trim() ? body.reason.trim().slice(0, useful.REASON_MAX) : undefined;
+    if (thumb === undefined && reason === undefined) return res.redirect(303, card);
+    const args = thumb !== undefined ? { sessionId, userId, useful: thumb } : { sessionId, userId, reason };
+    if (!(await recordUseful(args))) return res.status(503).type('html').send(renderMessagePage('error'));
+    if (thumb === undefined) return res.redirect(303, `${card}?useful=done`);
+    log({ coachingSessionId: sessionId, userId, useful: thumb, group: await groupOf(userId), channel: 'page' }, 'coaching.useful.answered');
+    return res.redirect(303, `${card}?useful=${thumb ? 'yes' : 'no'}`);
   };
 
   router.get(`${REPORT_PATH}/:token`, privateHeaders, limiter, serve('card'));
   router.get(`${REPORT_PATH}/:token/detail`, privateHeaders, limiter, serve('detail'));
+  router.post(`${REPORT_PATH}/:token/useful`, privateHeaders, limiter, express.urlencoded({ extended: false, limit: '8kb' }), answer);
   return router;
 }
 
