@@ -4,7 +4,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 /**
  * v10 coaching test (bd-v0toag.8, PR2) — the thing to try, as a strip above a grade 1–5 plan.
  *
- *   GET  /teacher/thing-to-try?lessonId=   → { thing: { text, tag } | null }  (null for all but C and D)
+ *   GET  /teacher/thing-to-try?lessonId=   → { thing: { text, tag, step } | null }  (null for all but C and D;
+ *                                            step = { name, index } of the plan step the move belongs to, or null)
  *   POST /teacher/thing-to-try/tap         { lessonId, step }  — fire-and-forget
  *
  * No thing, a failed read or an odd answer: no strip, nothing else on the page changes. A tap opens
@@ -54,7 +55,7 @@ describe("ThingToTryStrip", () => {
     expect(container.innerHTML).toBe("");
   });
 
-  it("a tap opens the full text and logs the tap with the lesson (no step yet)", async () => {
+  it("a tap with no step logs step null", async () => {
     render(<ThingToTryStrip lessonId="grade_1_english_ch8_seg6" />);
     const strip = await screen.findByRole("button", { name: new RegExp(C.thingToTry) });
     expect(strip.getAttribute("aria-expanded")).toBe("false");
@@ -76,5 +77,57 @@ describe("ThingToTryStrip", () => {
     render(<ThingToTryStrip lessonId="a" />);
     const strip = await screen.findByRole("button", { name: new RegExp(C.thingToTry) });
     expect(strip.className).toMatch(/min-h-\[(5[6-9]|[6-9]\d)px\]/);
+  });
+
+  describe("the step (PR3)", () => {
+    const STEP = { name: "We Do", index: 3 };
+    beforeEach(() => {
+      http.get.mockResolvedValue({ data: { success: true, thing: { text: TEXT, tag: "hlp_peer_talk", step: STEP } } });
+    });
+
+    it("shows the step's name beside the label", async () => {
+      render(<ThingToTryStrip lessonId="a" />);
+      const strip = await screen.findByRole("button", { name: new RegExp(C.thingToTry) });
+      expect(strip.textContent).toContain("We Do");
+    });
+
+    it("tells the page the step once the thing is read", async () => {
+      const onStep = vi.fn();
+      render(<ThingToTryStrip lessonId="a" onStep={onStep} />);
+      await waitFor(() => expect(onStep).toHaveBeenCalledWith(3));
+    });
+
+    it("no thing: tells the page there is no step", async () => {
+      http.get.mockResolvedValue({ data: { success: true, thing: null } });
+      const onStep = vi.fn();
+      render(<ThingToTryStrip lessonId="a" onStep={onStep} />);
+      await waitFor(() => expect(onStep).toHaveBeenCalledWith(null));
+    });
+
+    it("an odd step is no step", async () => {
+      http.get.mockResolvedValue({ data: { success: true, thing: { text: TEXT, tag: null, step: { name: "x", index: "3" } } } });
+      const onStep = vi.fn();
+      render(<ThingToTryStrip lessonId="a" onStep={onStep} />);
+      await screen.findByRole("button", { name: new RegExp(C.thingToTry) });
+      expect(onStep).toHaveBeenLastCalledWith(null);
+    });
+
+    it("a tap logs the step's number and takes her to it; closing does not", async () => {
+      const onShowStep = vi.fn();
+      render(<ThingToTryStrip lessonId="a" onShowStep={onShowStep} />);
+      const strip = await screen.findByRole("button", { name: new RegExp(C.thingToTry) });
+      fireEvent.click(strip);
+      expect(http.post).toHaveBeenCalledWith("/teacher/thing-to-try/tap", { lessonId: "a", step: 3 });
+      expect(onShowStep).toHaveBeenCalledTimes(1);
+      fireEvent.click(strip);
+      expect(onShowStep).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("no step: a tap does not ask to take her anywhere", async () => {
+    const onShowStep = vi.fn();
+    render(<ThingToTryStrip lessonId="a" onShowStep={onShowStep} />);
+    fireEvent.click(await screen.findByRole("button", { name: new RegExp(C.thingToTry) }));
+    expect(onShowStep).not.toHaveBeenCalled();
   });
 });
