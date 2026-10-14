@@ -27,6 +27,12 @@ const WhatsAppService = require('../shared/services/whatsapp.service');
 const { downloadFromR2 } = require('../shared/storage/r2');
 const { logToFile } = require('../shared/utils/logger');
 const { logEvent } = require('../shared/utils/structured-logger');
+const Lifecycle = require('../shared/services/lesson-plan-lifecycle.service');
+
+const LIFECYCLE_SOURCE = Lifecycle.LIFECYCLE.SOURCES.HOMEWORK_BUNDLE;
+const { ERROR_CODES } = Lifecycle.LIFECYCLE;
+/** What a refused lifecycle write is reported against. */
+const LCTX = (requestId) => ({ source: LIFECYCLE_SOURCE, table: 'lesson_plan_requests', requestId });
 
 const SUBJECT_DISPLAY = { maths: 'Maths', english: 'English', urdu: 'Urdu' };
 
@@ -99,6 +105,9 @@ async function process(args) {
   } = args;
   const t0 = Date.now();
   let tempPath = null;
+  // Lifecycle facts (switch on only): when the bundle existed, and whether WhatsApp was asked to take it.
+  let generatedAt = null;
+  let sendAttempted = false;
 
   if (!phone) {
     logEvent('homework.bundle.failed', { userId, requestId, grade, subject, error: 'no_phone' });
@@ -112,13 +121,18 @@ async function process(args) {
       logEvent('homework.bundle.empty', { userId, requestId, grade, subject });
       if (requestId && isLastGroup) {
         try {
-          await supabase.from('lesson_plan_requests').update({ status: 'failed' }).eq('id', requestId);
+          await Lifecycle.writeWithFallback((extra) => supabase.from('lesson_plan_requests').update({
+            status: 'failed',
+            ...extra,
+          }).eq('id', requestId), Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'failed', { errorCode: ERROR_CODES.NO_ASSET }), LCTX(requestId));
         } catch (_) { /* best-effort */ }
+        Lifecycle.queueEvent(LIFECYCLE_SOURCE, 'lesson_plan.generation.failed', { requestId, errorCode: ERROR_CODES.NO_ASSET });
       }
       return { success: false, error: 'all_chapters_missing' };
     }
 
     const chapterNumbers = included.map((c) => c.chapter);
+    generatedAt = new Date().toISOString();
 
     // Teacher's system-message language for the caption.
     let language = 'en';
@@ -137,6 +151,7 @@ async function process(args) {
     tempPath = path.join(os.tmpdir(), `homework_${userId}_${grade}_${subject}_${Date.now()}.pdf`);
     fs.writeFileSync(tempPath, buffer);
 
+    sendAttempted = true;
     const sendResult = await WhatsAppService.sendDocument(phone, tempPath, filename, caption);
     if (!sendResult) throw new Error('WhatsApp returned false from sendDocument');
 
@@ -157,9 +172,12 @@ async function process(args) {
     };
     let lessonPlanId = null;
     try {
-      const { data: lpRow, error: insertError } = await supabase
+      // The request this bundle belongs to (switch on only; absent — or refused — the row is the old one).
+      const link = Lifecycle.enabled(LIFECYCLE_SOURCE) && requestId ? { request_id: requestId } : {};
+      const { data: lpRow, error: insertError } = await Lifecycle.writeWithFallback((extra) => supabase
         .from('lesson_plans')
         .insert({
+          ...extra,
           user_id: userId,
           topic: `Homework - Grade ${grade} ${SUBJECT_DISPLAY[subject] || subject}`,
           grade: String(grade),
@@ -168,7 +186,7 @@ async function process(args) {
           content: bundleManifest,
         })
         .select('id')
-        .single();
+        .single(), link, { source: LIFECYCLE_SOURCE, table: 'lesson_plans', requestId });
       if (insertError) {
         logToFile('Homework bundle: lesson_plans insert error', { error: insertError.message });
       } else {
@@ -212,8 +230,12 @@ async function process(args) {
     // Mark the request completed when the last group ships.
     if (requestId && isLastGroup) {
       try {
-        await supabase.from('lesson_plan_requests').update({ status: 'completed' }).eq('id', requestId);
+        await Lifecycle.writeWithFallback((extra) => supabase.from('lesson_plan_requests').update({
+          status: 'completed',
+          ...extra,
+        }).eq('id', requestId), Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'completed', { generatedAt, sent: true }), LCTX(requestId));
       } catch (_) { /* best-effort — delivery already happened */ }
+      Lifecycle.queueEvent(LIFECYCLE_SOURCE, 'lesson_plan.delivery.sent', { requestId });
     }
 
     return { success: true, lessonPlanId, deliveredChapters: chapterNumbers };
@@ -221,9 +243,15 @@ async function process(args) {
     logToFile('Homework bundle worker threw', { userId, requestId, error: e.message });
     logEvent('homework.bundle.failed', { userId, requestId, grade, subject, error: e.message });
     if (requestId && isLastGroup) {
+      // A file WhatsApp refused existed; anything that failed before the send did not reach it.
+      const errorCode = sendAttempted ? ERROR_CODES.DELIVERY_FAILED : ERROR_CODES.GENERATION_FAILED;
       try {
-        await supabase.from('lesson_plan_requests').update({ status: 'failed' }).eq('id', requestId);
+        await Lifecycle.writeWithFallback((extra) => supabase.from('lesson_plan_requests').update({
+          status: 'failed',
+          ...extra,
+        }).eq('id', requestId), Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'failed', { errorCode, generatedAt: sendAttempted ? generatedAt : null }), LCTX(requestId));
       } catch (_) { /* best-effort */ }
+      Lifecycle.queueEvent(LIFECYCLE_SOURCE, sendAttempted ? 'lesson_plan.delivery.failed' : 'lesson_plan.generation.failed', { requestId, errorCode });
     }
     throw e; // SQS DLQ handles retry for transient errors
   } finally {

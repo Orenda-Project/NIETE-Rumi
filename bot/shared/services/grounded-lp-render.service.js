@@ -45,7 +45,7 @@ function astFilename(lp) {
  * @param {string} input.userId
  * @param {object} input.lp  — curriculum_lp_ast row (must have source_lp_uuid, topic, chapter_title)
  * @param {'en'|'ur'} [input.language]
- * @returns {Promise<{ok: true, r2Key: string} | {ok: false, error: string}>}
+ * @returns {Promise<{ok: true, r2Key: string, generatedAt: string, sent: boolean} | {ok: false, error: string}>}
  */
 async function renderAndServeGrounded({ userId, lp, language = 'en' }) {
   const filename = astFilename(lp);
@@ -74,13 +74,16 @@ async function renderAndServeGrounded({ userId, lp, language = 'en' }) {
     // 4. Update AST row so future hits skip Gamma
     await CurriculumLpAstService.setRenderedPdfKey(lp.source_lp_uuid, r2Key, clampLanguage(language));
     logToFile('Grounded LP: cached in R2', { source_lp_uuid: lp.source_lp_uuid, r2Key });
+    const generatedAt = new Date().toISOString();
 
     // 5. Send the freshly rendered PDF
     tmpPath = path.join(os.tmpdir(), `grounded_lp_${Date.now()}_${Math.random().toString(36).slice(2)}.pdf`);
     fs.writeFileSync(tmpPath, pdfBuffer);
-    await WhatsAppService.sendDocument(userId, tmpPath, filename);
+    const sent = await WhatsAppService.sendDocument(userId, tmpPath, filename);
 
-    return { ok: true, r2Key };
+    // `ok` is unchanged — it means "rendered and handed to WhatsApp", as it always has. `sent` and
+    // `generatedAt` are reported for the lesson-plan lifecycle row; no caller branches on them.
+    return { ok: true, r2Key, generatedAt, sent: sent === true };
   } catch (error) {
     logToFile('Grounded LP: render failed', {
       source_lp_uuid: lp.source_lp_uuid, error: error.message,

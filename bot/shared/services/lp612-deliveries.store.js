@@ -80,11 +80,12 @@ function sayMissing(where, error) {
  */
 async function record({
   userId, renderId = null, segmentId, lang, templateVersion, surface = 'whatsapp', deliveredAt = null,
+  requestId = null,
 }, opts = {}) {
   if (!userId || !segmentId || !lang || !templateVersion) return false;
   if (Date.now() < missingUntil) return false;
   try {
-    const { error } = await client(opts).from(TABLE).insert({
+    const insertRow = (extra) => client(opts).from(TABLE).insert({
       user_id: userId,
       render_id: renderId,
       segment_id: segmentId,
@@ -92,7 +93,14 @@ async function record({
       template_version: templateVersion,
       surface: SURFACES.includes(surface) ? surface : 'whatsapp',
       delivered_at: deliveredAt || new Date().toISOString(),
+      ...extra,
     });
+    // The ask this delivery answered (lesson_plan_requests), when its lifecycle row was written. A table that
+    // refuses the link gets the old row — never a lost delivery, and never "table missing" for a missing column.
+    const { error } = requestId
+      ? await require('./lesson-plan-lifecycle.service').writeWithFallback(insertRow, { request_id: requestId },
+        { source: 'niete_lp612', table: TABLE, requestId })
+      : await insertRow({});
     if (error) {
       if (isMissingTable(error)) { sayMissing('record', error); return false; }
       logToFile(`❌ ${TABLE}: could not record a delivered 6-12 lesson`, { segmentId, renderId, code: error.code, error: error.message }, 'error');

@@ -396,9 +396,10 @@ async function storeAudioSession(userId, audioUrl, duration, transcript) {
  * @param {string} type - 'lesson_plan' or 'presentation'
  * @param {string} gammaUrl - Gamma.app URL
  * @param {object} content - Lesson plan structure
+ * @param {object} [extraColumns] - additional columns for the inserted row (e.g. { request_id })
  * @returns {Promise<object>} Lesson plan record
  */
-async function storeLessonPlan(userId, topic, type, gammaUrl, pdfUrl = null, content = null) {
+async function storeLessonPlan(userId, topic, type, gammaUrl, pdfUrl = null, content = null, extraColumns = null) {
   try {
     // DUPLICATE CHECK: Prevent storing same lesson plan twice within 10 minutes
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
@@ -417,8 +418,9 @@ async function storeLessonPlan(userId, topic, type, gammaUrl, pdfUrl = null, con
       return existing;
     }
 
-    // No duplicate found, proceed with insert
-    const { data, error } = await supabase
+    // No duplicate found, proceed with insert. `extraColumns` is e.g. { request_id } — the lesson-plan
+    // lifecycle link; absent, the row is the old one, and a database that refuses it gets the old row too.
+    const insertRow = (extra) => supabase
       .from('lesson_plans')
       .insert({
         user_id: userId,
@@ -428,9 +430,13 @@ async function storeLessonPlan(userId, topic, type, gammaUrl, pdfUrl = null, con
         pdf_url: pdfUrl,
         content,
         created_at: new Date().toISOString(),
+        ...extra,
       })
       .select()
       .single();
+    const { data, error } = extraColumns && Object.keys(extraColumns).length
+      ? await require('../services/lesson-plan-lifecycle.service').writeWithFallback(insertRow, extraColumns, { table: 'lesson_plans' })
+      : await insertRow({});
 
     if (error) {
       console.error('Error storing lesson plan:', error);
