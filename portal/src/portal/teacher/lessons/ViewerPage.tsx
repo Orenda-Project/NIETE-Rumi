@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Check, ChevronRight, KeyRound } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -24,7 +24,8 @@ import { ThingToTryStrip } from './ThingToTryStrip';
  *   Start DC observation  option A, the light action card with the Digital Coaching art → Digital
  *                         Coaching with her grade, subject and THIS plan prefilled (paths.dcHref)
  *   Answer key            grades 1–5, in this same viewer
- *   Thing to try          grades 1–5, v10 coaching test groups C and D only (ThingToTryStrip; nothing for anyone else)
+ *   Thing to try          grades 1–5, v10 coaching test groups C and D only (ThingToTryStrip; nothing for anyone else).
+ *                         Its plan step is outlined in the viewer, and the tap that opens it takes her there (bd-v0toag.8)
  *   ShareActions          the dock: Send on WhatsApp (a template; grey "Not available yet" until one is configured) and
  *                         Open in another app (the plan's presigned PDF link, opened the way her browser allows)
  *
@@ -55,6 +56,9 @@ export function ViewerPage() {
   const dc = state?.dc ?? null;
   const pick = state?.pick ?? null;
   const inDc = !!pick || !!state?.fromDc;
+  // The strip's plan step and her taps on it, for the plan they were read for only: another plan opened from here
+  // (the answer key) gets no highlight.
+  const [step, setStep] = useState<{ key: string; index: number | null; jump: number }>({ key: '', index: null, jump: 0 });
 
   const close = useCallback(() => {
     if (location.key !== 'default') navigate(-1);
@@ -110,7 +114,13 @@ export function ViewerPage() {
           <ChevronRight className={cn('h-[22px] w-[22px]', CHEVRON)} strokeWidth={2.4} aria-hidden="true" />
         </Link>
       )}
-      {answerKey ? <ThingToTryStrip lessonId={source.lessonId} /> : null}
+      {answerKey ? (
+        <ThingToTryStrip
+          lessonId={source.lessonId}
+          onStep={(index) => setStep({ key, index, jump: 0 })}
+          onShowStep={() => setStep((s) => ({ ...s, jump: s.jump + 1 }))}
+        />
+      ) : null}
       <div className="flex flex-wrap gap-2">
         {answerKey ? (
           <button
@@ -129,6 +139,7 @@ export function ViewerPage() {
         key={key}
         view={view}
         recording={recording}
+        highlight={step.key === key && step.index ? { step: step.index, jump: step.jump } : undefined}
         chrome="none"
         onClose={close}
         onNotReady={() => {

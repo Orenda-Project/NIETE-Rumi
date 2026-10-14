@@ -3,6 +3,8 @@ import { AlertTriangle, ChevronLeft, ExternalLink, Loader2, ZoomIn, ZoomOut } fr
 import { useToast } from '@/hooks/use-toast';
 import { loadPdfjs } from '../lib/pdfjs';
 import { RecordingContinuesChip } from './RecordingBar';
+import { StepOutline, useStepJump, useStepMark } from './stepMark';
+import type { StepMark } from '../lib/planSteps';
 import {
   fetchLessonPlanPdf, LessonPlanNotReady, openLessonPlanOutside, sourceKey, type LessonPlanView,
 } from '../lib/lessonPlanOpen';
@@ -40,6 +42,9 @@ import {
  * and its toolbar's outside button, and its zoom buttons sit in 56px targets (the new UI's tap
  * rule). Everything else — loading, the fallback, recording — is the same viewer. The default
  * ("own") is the viewer exactly as it was.
+ *
+ * bd-v0toag.8 (v10 coaching test, PR3) — `highlight`: the step her thing to try belongs to is outlined on the
+ * plan, and each new `jump` (her tap on the strip) takes her to it (components/stepMark). No highlight: as before.
  */
 
 const COPY = {
@@ -86,6 +91,7 @@ const DEFAULT_RATIO = 297 / 210;
 type PdfPageLike = {
   getViewport: (o: { scale: number }) => { width: number; height: number };
   render: (o: { canvas: HTMLCanvasElement; viewport: { width: number; height: number } }) => { promise: Promise<unknown>; cancel: () => void };
+  getTextContent: () => Promise<{ items: unknown[] }>;
   cleanup?: () => void;
 };
 type PdfDocLike = { numPages: number; getPage: (n: number) => Promise<PdfPageLike>; destroy: () => Promise<void> | void };
@@ -94,13 +100,14 @@ function isCancel(err: unknown): boolean {
   return (err as { name?: string } | null)?.name === 'RenderingCancelledException';
 }
 
-const PdfPage = ({ doc, pageNumber, width, ratio, onRatio, onFailed }: {
+const PdfPage = ({ doc, pageNumber, width, ratio, onRatio, onFailed, mark }: {
   doc: PdfDocLike;
   pageNumber: number;
   width: number;
   ratio: number;
   onRatio: (page: number, ratio: number) => void;
   onFailed: (page: number) => void;
+  mark?: StepMark | null;
 }) => {
   const box = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -149,10 +156,11 @@ const PdfPage = ({ doc, pageNumber, width, ratio, onRatio, onFailed }: {
   }, [near, width, doc, pageNumber, onRatio, onFailed]);
 
   return (
-    <div ref={box} data-testid="lp-page" className={VIEWER_STYLE.page} style={{ width, height: Math.round(width * ratio) }}>
+    <div ref={box} data-testid="lp-page" data-page={pageNumber} className={`relative ${VIEWER_STYLE.page}`} style={{ width, height: Math.round(width * ratio) }}>
       {/* bd-fmf24g.56: dir="ltr". A canvas inherits the page's direction, and in Urdu (rtl) pdf.js then draws each
           glyph offset by its own width: thin letters vanish and words break apart. A PDF page is always laid out ltr. */}
       <canvas ref={canvas} dir="ltr" role="img" aria-label={COPY.page(pageNumber)} className="block h-full w-full" />
+      {mark && mark.page === pageNumber ? <StepOutline mark={mark} /> : null}
     </div>
   );
 };
@@ -166,9 +174,11 @@ type Props = {
   onClose: () => void;
   /** Nothing to open yet (not published / still being written). */
   onNotReady: () => void;
+  /** v10 coaching test: the plan step (1–5) to outline, and her taps so far (a new one takes her there). */
+  highlight?: { step: number; jump: number };
 };
 
-const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own' }: Props) => {
+const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own', highlight }: Props) => {
   const { toast } = useToast();
   const { source, title } = view;
   const key = sourceKey(source);
@@ -179,6 +189,8 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own'
   const [ratios, setRatios] = useState<Record<number, number>>({});
   const [boxWidth, setBoxWidth] = useState(0);
   const scroller = useRef<HTMLDivElement>(null);
+  const mark = useStepMark(state === 'ready' ? doc : null, highlight?.step);
+  useStepJump(scroller, mark, highlight?.jump);
 
   // Read at the moment it fails, not when the viewer opened.
   const recordingRef = useRef(recording);
@@ -353,7 +365,7 @@ const LessonPlanViewer = ({ view, recording, onClose, onNotReady, chrome = 'own'
             <div className={VIEWER_STYLE.pages} style={{ width: pageWidth }}>
               {Array.from({ length: doc.numPages }, (_, i) => i + 1).map((n) => (
                 <PdfPage key={n} doc={doc} pageNumber={n} width={pageWidth}
-                  ratio={ratios[n] ?? defaultRatio} onRatio={onRatio} onFailed={onFailed} />
+                  ratio={ratios[n] ?? defaultRatio} onRatio={onRatio} onFailed={onFailed} mark={mark} />
               ))}
             </div>
           )}
