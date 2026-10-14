@@ -143,6 +143,19 @@ def driver_facts(repo, feature):
             "driver_ids": sorted(set(_RECORDED_ID_RE.findall(src)))}
 
 
+def fs_root(repo, spec_dir):
+    """The repo root ON DISK. `repo` is usually a display name (the CLI and so every hook pass the folder's basename),
+    which resolves to nothing unless the cwd happens to be its parent — so every portal spec looked missing
+    (action=create) and every WhatsApp driver driver_exists=False. The spec dir is always a real path; walk up."""
+    if repo and os.path.isdir(os.path.join(repo, ".claude")):
+        return os.path.abspath(repo)
+    sd = os.path.abspath(spec_dir)
+    suffix = os.path.normpath(SPEC_DIR)
+    if sd.endswith(suffix):
+        return sd[: -len(suffix)].rstrip(os.sep) or os.sep
+    return os.path.abspath(repo or ".")
+
+
 def web_driver_facts(repo, feature):
     """The web lane's driver for `feature` and the scenario ids it implements (same role as driver_facts)."""
     rel = os.path.join(WEB_DRIVER_DIR, feature + ".cjs")
@@ -204,6 +217,7 @@ def build_brief(selection, spec_dir, differ, max_diff_lines=DEFAULT_MAX_DIFF_LIN
     `differ(paths) -> str` is injected so this stays pure and testable; the CLI
     passes a git-backed one.
     """
+    root = fs_root(repo, spec_dir)
     reasons = selection.get("reasons") or {}
     features = list(selection.get("features") or [])
     full_suite = selection.get("full_suite")
@@ -255,7 +269,7 @@ def build_brief(selection, spec_dir, differ, max_diff_lines=DEFAULT_MAX_DIFF_LIN
             "diff": diff,
             "diff_truncated": truncated,
             # The driver is half the deliverable: a scenario with no driver code never runs.
-            **driver_facts(repo, feature),
+            **driver_facts(root, feature),
         })
 
     # ── map gaps ─────────────────────────────────────────────────────────────
@@ -285,7 +299,7 @@ def build_brief(selection, spec_dir, differ, max_diff_lines=DEFAULT_MAX_DIFF_LIN
     # agent, or validate_specs raises E-NOAGENT). Guessing that here — from a
     # path and a diff, with no view of the nine specs' contents — is exactly the
     # judgement this module exists not to make.
-    out += web_entries(selection, differ, max_diff_lines, repo)
+    out += web_entries(selection, differ, max_diff_lines, root)
 
     gaps = []
     for path in (selection.get("unmapped") or []):
@@ -314,8 +328,8 @@ def build_brief(selection, spec_dir, differ, max_diff_lines=DEFAULT_MAX_DIFF_LIN
             for p in os.listdir(spec_dir) if p.endswith(".feature")
         ) if os.path.isdir(spec_dir) else [],
         "existing_web_features": sorted(
-            f[: -len(".feature")] for f in os.listdir(os.path.join(repo or ".", WEB_SPEC_DIR)) if f.endswith(".feature")
-        ) if os.path.isdir(os.path.join(repo or ".", WEB_SPEC_DIR)) else [],
+            f[: -len(".feature")] for f in os.listdir(os.path.join(root, WEB_SPEC_DIR)) if f.endswith(".feature")
+        ) if os.path.isdir(os.path.join(root, WEB_SPEC_DIR)) else [],
         # The flat list stays: the hook and the skill already read it.
         "map_gaps": [g["path"] for g in gaps],
         "fallback": bool(selection.get("fallback")),
