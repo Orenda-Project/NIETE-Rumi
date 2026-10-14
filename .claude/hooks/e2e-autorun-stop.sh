@@ -257,7 +257,13 @@ fi
 # A commit deploys nothing, so the run hits the build that was already live. That
 # is a legitimate regression check; it is NOT evidence about the commit. Saying so
 # here is what keeps an honest pass from being reported as a false one.
-if [ "$TRIGGER" = "commit" ] && [ -n "$MOCK_BLOCK" ] && [ -z "$CMDS" ]; then
+if [ "$TRIGGER" = "commit" ] && [ -z "$MOCK_BLOCK" ] && [ -z "$CMDS" ] && [ -n "$WEB_BLOCK" ]; then
+  # A portal-only commit: no /niete-e2e part, nothing deployed to wait for (bd-hnhlgn.14).
+  read -r -d '' BUILD_NOTE <<EOF
+Every feature this commit touched is on the web lane, which starts the portal from
+this checkout — it tests the commit itself. There is no WhatsApp Web run for it.
+EOF
+elif [ "$TRIGGER" = "commit" ] && [ -n "$MOCK_BLOCK" ] && [ -z "$CMDS" ]; then
   read -r -d '' BUILD_NOTE <<EOF
 Every feature this commit touched runs on the mock lane above, so there is no
 WhatsApp Web run for this commit. The chrome lane (/niete-e2e) tests it
