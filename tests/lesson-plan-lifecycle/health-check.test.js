@@ -58,6 +58,8 @@ function fakeRedis({ available = true, holder = null } = {}) {
     isAvailable: () => available,
     setNX: jest.fn(async (k, v) => { if (holder) store.set(k, holder); else if (!store.has(k)) store.set(k, v); return true; }),
     get: jest.fn(async (k) => (store.has(k) ? store.get(k) : null)),
+    set: jest.fn(async (k, v) => { store.set(k, v); return true; }),
+    del: (k) => store.delete(k),
   };
 }
 const checked = () => mockEvent.mock.calls.filter((c) => c[0] === 'lesson_plan.health.checked').map((c) => c[1]);
@@ -74,6 +76,7 @@ beforeEach(() => {
   mockCalls = 0;
   mockFailReads = false;
   mockDb = createMemorySupabase({ lesson_plan_requests: [] });
+  Health.__resetForTests();
 });
 afterEach(() => {
   for (const k of ENV_KEYS) {
@@ -134,11 +137,63 @@ describe('switched on', () => {
   test('a request stuck pending or processing for more than 6 hours is DEGRADED', async () => {
     mockDb.tables.lesson_plan_requests = [
       ask({ source: 'niete_grounded', status: 'pending', delivered_at: null, created_at: ago(7 * 60) }),
-      ask({ source: 'niete_grounded', status: 'processing', delivered_at: null, created_at: ago(5) }), // in flight, not stuck
+      ask({ source: 'niete_grounded', status: 'processing', delivered_at: null, created_at: ago(20) }), // in flight, not stuck
     ];
     const out = await Health.run({ now: NOW, redis: fakeRedis() });
     expect(out).toEqual(expect.objectContaining({ verdict: 'degraded', reasons: ['stuck'], stuck: 1 }));
     expect(checked()[0].sources.find((s) => s.source === 'niete_grounded')).toEqual(expect.objectContaining({ asks: 1, inFlight: 1 }));
+  });
+
+  test('a stuck request is reported ONCE — in the window it crosses six hours, not every hour after', async () => {
+    mockDb.tables.lesson_plan_requests = [
+      ask({ source: 'homework_bundle', status: 'pending', delivered_at: null, created_at: ago(6 * 60 + 30) }), // crossed in this window
+      ask({ source: 'homework_bundle', status: 'pending', delivered_at: null, created_at: ago(30 * 60) }), // crossed long ago
+    ];
+    const out = await Health.run({ now: NOW, redis: fakeRedis() });
+    expect(out).toEqual(expect.objectContaining({ stuck: 1, reasons: ['stuck'] }));
+  });
+
+  test('a failure code on a request still in flight is not counted against the rate', async () => {
+    mockDb.tables.lesson_plan_requests = [
+      ...Array.from({ length: 10 }, () => ask({ source: 'niete_grounded' })),
+      ...Array.from({ length: 4 }, () => ask({ source: 'niete_grounded', status: 'pending', error_code: 'QUEUE_FAILED', delivered_at: null })),
+    ];
+    const out = await Health.run({ now: NOW, redis: fakeRedis() });
+    expect(out.sources[0]).toEqual(expect.objectContaining({ inFlight: 4, systemFailures: 0, systemFailureRate: 0 }));
+    expect(out.verdict).toBe('healthy');
+  });
+
+  test('five system failures in the window are DEGRADED even below ten finished asks', async () => {
+    mockDb.tables.lesson_plan_requests = [
+      ...Array.from({ length: 5 }, () => ask({ source: 'niete_oxbridge', status: 'failed', error_code: 'RENDER_FAILED', delivered_at: null })),
+      ask({ source: 'niete_oxbridge' }),
+    ];
+    const out = await Health.run({ now: NOW, redis: fakeRedis() });
+    expect(out).toEqual(expect.objectContaining({ verdict: 'degraded', reasons: ['failure_rate:niete_oxbridge/whatsapp'] }));
+  });
+
+  test('each tick reads from where the last one stopped — no overlap, no gap — 15 minutes behind, so outcomes have landed', async () => {
+    const redis = fakeRedis();
+    mockDb.tables.lesson_plan_requests = [
+      ask({ created_at: ago(20), delivered_at: ago(19) }), // in the first window
+      ask({ created_at: ago(10), delivered_at: ago(9) }), // too recent for the first; in the second
+    ];
+    const first = await Health.run({ now: NOW, redis });
+    expect(first.sources[0].asks).toBe(1);
+    redis.store.delete('lp_health:tick'); // the next hour's claim
+    const later = new Date(NOW.getTime() + 60 * 60_000);
+    const second = await Health.run({ now: later, redis });
+    expect(second.sources[0].asks).toBe(1);
+    expect(checked()[1]).toEqual(expect.objectContaining({ windowStart: ago(15) }));
+  });
+
+  test('a cache that cannot answer warns each time, and pages at error level on the third tick in a row', async () => {
+    const redis = fakeRedis({ available: false });
+    await Health.run({ now: NOW, redis });
+    await Health.run({ now: NOW, redis });
+    expect(errorLogs()).toHaveLength(0);
+    await Health.run({ now: NOW, redis });
+    expect(errorLogs()).toHaveLength(1);
   });
 
   test('another replica holds this tick: no read, no report', async () => {

@@ -95,7 +95,9 @@ async function serveR2Pdf(userId, r2Key, filename) {
 
 // The lifecycle row of an ask served there and then (cache hit / pre-generated): one finished row,
 // written before the plan row so the plan row can name it. Soft-fail; null when switched off.
-function recordServedAsk({ userDbId, phone, source, topic, grade, subject, language, artifactRef, askedAt, sent }) {
+function recordServedAsk({
+  userDbId, phone, source, topic, grade, subject, language, artifactRef, askedAt, sent, errorMessage,
+}) {
   return Lifecycle.recordOutcome({
     userId: userDbId,
     phone,
@@ -110,7 +112,7 @@ function recordServedAsk({ userDbId, phone, source, topic, grade, subject, langu
     generatedAt: askedAt, // the PDF was already rendered when she asked
     ...(sent
       ? { status: 'completed' }
-      : { status: 'failed', errorCode: Lifecycle.LIFECYCLE.ERROR_CODES.DELIVERY_FAILED, errorMessage: 'sendDocument returned falsy' }),
+      : { status: 'failed', errorCode: Lifecycle.LIFECYCLE.ERROR_CODES.DELIVERY_FAILED, errorMessage: errorMessage || 'sendDocument returned falsy' }),
   });
 }
 
@@ -214,7 +216,19 @@ async function handleCurriculumLessonPlan({ userId, userDbId, topic, grade, subj
       const filename = `${astLp.chapter_title} — ${astLp.topic} - Lesson Plan.pdf`.replace(/["<>?*|\\/]/g, '');
 
       if (cachedR2Key) {
-        const sent = await serveR2Pdf(userId, cachedR2Key, filename);
+        let sent;
+        try {
+          sent = await serveR2Pdf(userId, cachedR2Key, filename);
+        } catch (err) {
+          // The cached PDF could not be read or sent: her ask ends here — recorded (switch on only),
+          // then the same throw as before.
+          await recordServedAsk({
+            userDbId, phone: userId, source: Lifecycle.LIFECYCLE.SOURCES.NIETE_GROUNDED,
+            topic: astLp.topic, grade: astLp.grade, subject: astLp.subject, language,
+            artifactRef: astLp.source_lp_uuid, askedAt, sent: false, errorMessage: err && err.message,
+          });
+          throw err;
+        }
         if (servedFallback) {
           logToFile('Curriculum LP: language fallback served', {
             requested: language, served: language === 'ur' ? 'en' : 'ur',
@@ -252,7 +266,16 @@ async function handleCurriculumLessonPlan({ userId, userDbId, topic, grade, subj
       const langCol = language === 'ur' ? 'pdf_r2_key_ur' : 'pdf_r2_key_en';
       const r2Key = preGen && preGen[langCol];
       if (r2Key) {
-        const sent = await serveR2Pdf(userId, r2Key, `${chapter.chapter_title} - Lesson Plan.pdf`);
+        let sent;
+        try {
+          sent = await serveR2Pdf(userId, r2Key, `${chapter.chapter_title} - Lesson Plan.pdf`);
+        } catch (err) {
+          await recordServedAsk({
+            userDbId, phone: userId, source: Lifecycle.LIFECYCLE.SOURCES.PRE_GEN_CHAPTER,
+            topic, grade, subject, language, artifactRef: preGen && preGen.id, askedAt, sent: false, errorMessage: err && err.message,
+          });
+          throw err;
+        }
         const requestId = await recordServedAsk({
           userDbId, phone: userId, source: Lifecycle.LIFECYCLE.SOURCES.PRE_GEN_CHAPTER,
           topic, grade, subject, language, artifactRef: preGen && preGen.id, askedAt, sent,

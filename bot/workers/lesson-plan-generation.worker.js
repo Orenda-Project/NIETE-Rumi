@@ -207,11 +207,11 @@ class LessonPlanGenerationWorker {
 
       // 1. Hydrate the AST row (skip if inline provided by tests)
       const lp = jobData.lp || await CurriculumLpAstService.findByUuid(sourceLpUuid);
-      if (!lp) throw new Error(`curriculum_lp_ast row not found: ${sourceLpUuid}`);
+      if (!lp) throw Object.assign(new Error(`curriculum_lp_ast row not found: ${sourceLpUuid}`), { lifecycleCode: 'NO_ASSET' });
 
       // 2. Render + cache + send in one shot via the shared service
       const result = await renderAndServeGrounded({ userId: phoneNumber || userId, lp, language });
-      if (!result.ok) throw new Error(`Grounded render failed: ${result.error}`);
+      if (!result.ok) throw Object.assign(new Error(`Grounded render failed: ${result.error}`), { lifecycleCode: 'RENDER_FAILED' });
 
       logToFile('Grounded LP delivered', { requestId, sourceLpUuid, r2Key: result.r2Key });
 
@@ -278,7 +278,7 @@ class LessonPlanGenerationWorker {
 
       const req = await LessonPlanQueueService.getRequest(requestId);
       const retryCount = (req?.retry_count || 0) + 1;
-      await LessonPlanQueueService.markFailed(requestId, error.message);
+      await LessonPlanQueueService.markFailed(requestId, error.message, error.lifecycleCode);
 
       if (retryCount >= MAX_RETRIES) {
         try {

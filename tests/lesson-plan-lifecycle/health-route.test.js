@@ -95,7 +95,7 @@ test('switched on: the last hour per path and channel, and the verdict', async (
 
 test('a stuck request makes it degraded', async () => {
   process.env.LP_LIFECYCLE_PATHS = 'all';
-  mockDb.tables.lesson_plan_requests.push(ask({ source: 'homework_bundle', channel: 'whatsapp', status: 'pending', delivered_at: null, created_at: ago(8 * 60) }));
+  mockDb.tables.lesson_plan_requests.push(ask({ source: 'homework_bundle', channel: 'whatsapp', status: 'pending', delivered_at: null, created_at: ago(6 * 60 + 30) }));
   const { payload } = await getHealth();
   expect(payload).toEqual(expect.objectContaining({ status: 'degraded', reasons: ['stuck'], stuck: 1 }));
 });

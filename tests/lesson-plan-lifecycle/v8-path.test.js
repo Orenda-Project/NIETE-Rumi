@@ -205,6 +205,27 @@ describe('switched ON for niete_v8_segment', () => {
   });
 });
 
+describe('switched ON, a plan or download table that refuses the link (request_id) — the row still lands, as before', () => {
+  const { withoutV164 } = require('./helpers/pre-migration');
+  let original;
+  beforeEach(() => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_v8_segment';
+    original = mockDb.from.getMockImplementation();
+    mockDb.from.mockImplementation(withoutV164(original, { tables: ['lesson_plans', 'niete_lp_downloads'] }));
+  });
+  afterEach(() => { mockDb.from.mockImplementation(original); });
+
+  test('the lifecycle row is written; the download and plan rows land without the link', async () => {
+    await tap();
+    await settle();
+    expect(rows('lesson_plan_requests')).toHaveLength(1);
+    expect(rows('niete_lp_downloads')).toHaveLength(1);
+    expect(rows('niete_lp_downloads')[0]).not.toHaveProperty('request_id');
+    expect(rows('lesson_plans')).toHaveLength(1);
+    expect(rows('lesson_plans')[0]).not.toHaveProperty('request_id');
+  });
+});
+
 describe('nothing the teacher sees changes', () => {
   test('the exact same WhatsApp sends, in the same order, with the switch off and on', async () => {
     await tap();

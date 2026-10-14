@@ -221,7 +221,7 @@ async function handleSelectChapters(userId, screenData, flowToken) {
   // travels in the SQS job payload; the row only needs to carry status.
   let requestId = null;
   try {
-    const { data: lprRow, error: lprErr } = await supabase
+    const { data: lprRow, error: lprErr } = await Lifecycle.writeWithFallback((extra) => supabase
       .from('lesson_plan_requests')
       .insert({
         user_id: userId,
@@ -231,10 +231,10 @@ async function handleSelectChapters(userId, screenData, flowToken) {
         language: 'en',
         content_type: 'homework',
         status: 'pending',
-        ...lifecycleColumns,
+        ...extra,
       })
       .select('id')
-      .single();
+      .single(), lifecycleColumns, { source: LIFECYCLE_SOURCE, table: 'lesson_plan_requests' });
     if (lprErr) {
       logToFile('Homework: lesson_plan_requests insert error', { error: lprErr.message });
     } else {

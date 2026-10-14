@@ -760,7 +760,19 @@ async function deliverRender({
   // reads them.
   askedAt, generatedAt, correlationId,
 }) {
-  const url = await getPresignedUrl(buildR2PublicUrl(r2Key));
+  let url;
+  try {
+    url = await getPresignedUrl(buildR2PublicUrl(r2Key));
+  } catch (err) {
+    // The document exists but its link could not be signed: her ask ends here, so it is recorded
+    // before the throw both callers already handle (switch on only; never throws).
+    await Lp612Lifecycle.recordAsk({
+      userId, phone, segment, lang, status: 'failed', askedAt,
+      generatedAt: generatedAt || new Date().toISOString(),
+      errorCode: 'DELIVERY_FAILED', errorMessage: `document link could not be signed: ${err && err.message}`, correlationId,
+    });
+    throw err;
+  }
 
   // The body goes FIRST: she is on a phone, and the summary is readable in the
   // seconds before a multi-megabyte PDF has finished downloading.

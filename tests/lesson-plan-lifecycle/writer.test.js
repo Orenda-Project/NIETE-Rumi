@@ -128,6 +128,21 @@ describe('the switch — LP_LIFECYCLE_PATHS', () => {
     expect(said[0][1]).toEqual({ LP_LIFECYCLE_PATHS: 'niete_lp612', pathsOn: ['niete_lp612'] });
   });
 
+  test('a name in LP_LIFECYCLE_PATHS that is not a path is said, once, at warn level — a typo is not silence', () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_lp612,niete_lp6l2';
+    Lifecycle.enabled('niete_lp612');
+    const said = mockLog.mock.calls.filter((c) => /lifecycle switch resolved/.test(c[0]));
+    expect(said).toHaveLength(1);
+    expect(said[0][1]).toEqual(expect.objectContaining({ unknown: ['niete_lp6l2'] }));
+    expect(said[0][2]).toBe('warn');
+  });
+
+  test('switched on, an outcome for a path the vocabulary does not know is REFUSED (said), not dropped in silence', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'all';
+    expect(await Lifecycle.recordOutcome({ ...ASK, source: 'not_a_path' })).toBeNull();
+    expect(mockEvent).toHaveBeenCalledWith('lesson_plan.lifecycle.refused', expect.objectContaining({ reason: 'source', source: 'not_a_path' }));
+  });
+
   test('switched on for a different path only, it still makes no call', async () => {
     process.env.LP_LIFECYCLE_PATHS = 'niete_v8_segment';
     expect(await Lifecycle.recordOutcome(ASK)).toBeNull();
@@ -312,6 +327,17 @@ describe('an ask that arrives without a phone — a portal or teacher-app ask ca
     await expect(Lifecycle.recordOutcome(PORTAL_ASK)).resolves.toBeNull();
     expect(mockDb.table('lesson_plan_requests')).toHaveLength(0);
     expect(mockEvent).toHaveBeenCalledWith('lesson_plan.lifecycle.refused', expect.objectContaining({ reason: 'no_phone' }));
+  });
+
+  test('a users read that returns an error is said at warn level (it is not a teacher without a phone)', async () => {
+    seedTeacher();
+    const realFrom = mockDb.from;
+    mockDb.from = (t) => (t === 'users'
+      ? { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: { code: '57014', message: 'statement timeout' } }) }) }) }
+      : realFrom(t));
+    await expect(Lifecycle.recordOutcome(PORTAL_ASK)).resolves.toBeNull();
+    mockDb.from = realFrom;
+    expect(mockLog.mock.calls.some((c) => /phone/i.test(c[0]) && c[2] === 'warn')).toBe(true);
   });
 
   test('a users read that fails is refused, never thrown', async () => {

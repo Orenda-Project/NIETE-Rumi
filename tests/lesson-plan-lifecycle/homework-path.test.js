@@ -122,6 +122,33 @@ describe('the Flow endpoint — the request row it writes', () => {
   });
 });
 
+describe('switched ON against a database that has NOT had V1.6.4 — every write still lands as it always did', () => {
+  const { withoutV164 } = require('./helpers/pre-migration');
+  let original;
+  beforeEach(() => {
+    process.env.LP_LIFECYCLE_PATHS = 'all';
+    original = mockDb.from.getMockImplementation();
+    mockDb.from.mockImplementation(withoutV164(original));
+  });
+  afterEach(() => { mockDb.from.mockImplementation(original); });
+
+  test('the endpoint still writes its request row and queues the jobs with its id', async () => {
+    const res = await pick([{ grade: 3, subject: 'maths', chapters: [1, 2] }]);
+    expect(res.screen).toBe('SUCCESS');
+    const req = newRequest();
+    expect(Object.keys(req).sort()).toEqual(['content_type', 'full_message', 'id', 'language', 'phone_number', 'status', 'topic', 'user_id']);
+    expect(mockQueueJob.mock.calls[0][2]).toEqual(expect.objectContaining({ requestId: req.id }));
+  });
+
+  test('the worker still marks the request completed and writes its plan row', async () => {
+    const res = await Worker.process(job());
+    expect(res.success).toBe(true);
+    expect(theRequest()).toEqual({ id: REQ, user_id: TEACHER, phone_number: PHONE, topic: 'Homework', status: 'completed' });
+    expect(rows('lesson_plans')).toHaveLength(1);
+    expect(rows('lesson_plans')[0]).not.toHaveProperty('request_id');
+  });
+});
+
 describe('the bundle worker — the request\'s outcome and the plan rows', () => {
   test('switched ON, the last group delivered: generated_at + delivered_at, no error, and the plan row names the request', async () => {
     process.env.LP_LIFECYCLE_PATHS = 'homework_bundle';

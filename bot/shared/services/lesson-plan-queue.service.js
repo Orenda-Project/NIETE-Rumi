@@ -54,8 +54,9 @@ class LessonPlanQueueService {
 
     if (!sourceLpUuid) throw new Error('createAndQueueGrounded: sourceLpUuid is required');
 
-    // 1. Create the tracking row (same table as the freeform path)
-    const { data: request, error } = await supabase
+    // 1. Create the tracking row (same table as the freeform path). The lifecycle columns ride along
+    // when switched on; a database that refuses them gets the old row instead (writeWithFallback).
+    const { data: request, error } = await Lifecycle.writeWithFallback((extra) => supabase
       .from('lesson_plan_requests')
       .insert({
         user_id: userId,
@@ -65,12 +66,12 @@ class LessonPlanQueueService {
         language,
         content_type: 'lesson_plan',
         status: 'pending',
-        ...Lifecycle.askColumns({
-          source: LIFECYCLE_SOURCE, channel, grade, subject, artifactRef: sourceLpUuid,
-        }),
+        ...extra,
       })
       .select('id')
-      .single();
+      .single(), Lifecycle.askColumns({
+      source: LIFECYCLE_SOURCE, channel, grade, subject, artifactRef: sourceLpUuid,
+    }), { source: LIFECYCLE_SOURCE, table: 'lesson_plan_requests' });
     if (error) throw new Error(`Failed to create grounded LP request: ${error.message}`);
 
     const requestId = request.id;
@@ -94,14 +95,14 @@ class LessonPlanQueueService {
       });
       logToFile('Grounded LP job queued to SQS', { requestId, sourceLpUuid });
     } catch (sqsError) {
-      await supabase
+      await Lifecycle.writeWithFallback((extra) => supabase
         .from('lesson_plan_requests')
         .update({
           status: 'pending',
           error_message: `SQS queue failed: ${sqsError.message}`,
-          ...Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'queue_failed'),
+          ...extra,
         })
-        .eq('id', requestId);
+        .eq('id', requestId), Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'queue_failed'), { source: LIFECYCLE_SOURCE, table: 'lesson_plan_requests', requestId });
       Lifecycle.queueEvent(LIFECYCLE_SOURCE, 'lesson_plan.queue.failed', { requestId, errorCode: 'QUEUE_FAILED' });
       logToFile('Failed to queue grounded LP to SQS, marked for retry', { requestId, error: sqsError.message });
     }
@@ -132,16 +133,17 @@ class LessonPlanQueueService {
    *   existed) and sent (did WhatsApp accept it) feed the lifecycle columns only
    */
   static async markCompleted(requestId, result) {
-    await supabase
+    await Lifecycle.writeWithFallback((extra) => supabase
       .from('lesson_plan_requests')
       .update({
         status: 'completed',
         gamma_url: result.gammaUrl,
         pdf_url: result.pdfUrl,
         completed_at: new Date().toISOString(),
-        ...Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'completed', { generatedAt: result.generatedAt, sent: result.sent }),
+        ...extra,
       })
-      .eq('id', requestId);
+      .eq('id', requestId), Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'completed', { generatedAt: result.generatedAt, sent: result.sent }),
+    { source: LIFECYCLE_SOURCE, table: 'lesson_plan_requests', requestId });
 
     logToFile('Lesson plan request completed', { requestId });
     Lifecycle.queueEvent(LIFECYCLE_SOURCE, result.sent === false
@@ -153,27 +155,31 @@ class LessonPlanQueueService {
    * Mark request as failed
    * @param {string} requestId - Request UUID
    * @param {string} errorMessage - Error description
+   * @param {string} [errorCode] - the lifecycle error code (NO_ASSET, RENDER_FAILED, …); default GENERATION_FAILED
    */
-  static async markFailed(requestId, errorMessage) {
+  static async markFailed(requestId, errorMessage, errorCode) {
     const { data: request } = await supabase
       .from('lesson_plan_requests')
       .select('retry_count')
       .eq('id', requestId)
       .single();
 
-    await supabase
+    const failed = Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'failed', { errorCode });
+    await Lifecycle.writeWithFallback((extra) => supabase
       .from('lesson_plan_requests')
       .update({
         status: 'failed',
         error_message: errorMessage,
         retry_count: (request?.retry_count || 0) + 1,
         last_retry_at: new Date().toISOString(),
-        ...Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'failed'),
+        ...extra,
       })
-      .eq('id', requestId);
+      .eq('id', requestId), failed, { source: LIFECYCLE_SOURCE, table: 'lesson_plan_requests', requestId });
 
     logToFile('Lesson plan request failed', { requestId, errorMessage });
-    Lifecycle.queueEvent(LIFECYCLE_SOURCE, 'lesson_plan.generation.failed', { requestId, errorCode: 'GENERATION_FAILED' });
+    Lifecycle.queueEvent(LIFECYCLE_SOURCE, 'lesson_plan.generation.failed', {
+      requestId, errorCode: failed.error_code || errorCode || 'GENERATION_FAILED',
+    });
   }
 
   /**

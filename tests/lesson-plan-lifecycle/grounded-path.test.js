@@ -206,6 +206,53 @@ describe('the worker — stage times reach the row, and the plan row names its r
   });
 });
 
+describe('switched ON against a database that has NOT had V1.6.4 — every write still lands as it always did', () => {
+  const { withoutV164 } = require('./helpers/pre-migration');
+  const { logToFile } = require('../../bot/shared/utils/logger');
+  let original;
+  beforeEach(() => {
+    process.env.LP_LIFECYCLE_PATHS = 'all';
+    original = mockDb.from.getMockImplementation();
+    mockDb.from.mockImplementation(withoutV164(original));
+  });
+  afterEach(() => { mockDb.from.mockImplementation(original); });
+
+  test('the queued render still queues, completes and stores its plan row — the old rows exactly; the refusal is said at error level', async () => {
+    const id = await LessonPlanQueueService.createAndQueueGrounded({
+      userId: TEACHER, phoneNumber: PHONE, sourceLpUuid: AST.source_lp_uuid, topic: AST.topic, language: 'en',
+    });
+    expect(id).toBeTruthy();
+    await Worker.processGrounded({
+      requestId: id, userId: TEACHER, phoneNumber: PHONE, sourceLpUuid: AST.source_lp_uuid,
+      topic: AST.topic, chapterTitle: AST.chapter_title, language: 'en', lp: AST,
+    });
+    const [req] = rows('lesson_plan_requests');
+    expect(req).toEqual(expect.objectContaining({ id, status: 'completed' }));
+    expect(req).not.toHaveProperty('source');
+    expect(req).not.toHaveProperty('generated_at');
+    expect(rows('lesson_plans')).toHaveLength(1);
+    expect(rows('lesson_plans')[0]).not.toHaveProperty('request_id');
+    expect(WhatsAppService.sendDocument).toHaveBeenCalledTimes(1);
+    expect(logToFile.mock.calls.some((c) => c[2] === 'error' && /V1\.6\.4/.test(c[0]))).toBe(true);
+  });
+
+  test('a failed render and an SQS outage still write their old updates', async () => {
+    const id = await LessonPlanQueueService.createAndQueueGrounded({
+      userId: TEACHER, phoneNumber: PHONE, sourceLpUuid: AST.source_lp_uuid, topic: AST.topic, language: 'en',
+    });
+    await LessonPlanQueueService.markFailed(id, 'gamma 403');
+    expect(rows('lesson_plan_requests')[0]).toEqual(expect.objectContaining({ status: 'failed', error_message: 'gamma 403' }));
+    const Queue = require('../../bot/shared/services/queue');
+    Queue.queueCoachingJob.mockRejectedValueOnce(new Error('SQS down'));
+    const id2 = await LessonPlanQueueService.createAndQueueGrounded({
+      userId: TEACHER, phoneNumber: PHONE, sourceLpUuid: AST.source_lp_uuid, topic: AST.topic, language: 'en',
+    });
+    expect(rows('lesson_plan_requests').find((r) => r.id === id2)).toEqual(expect.objectContaining({
+      status: 'pending', error_message: 'SQS queue failed: SQS down',
+    }));
+  });
+});
+
 describe('cache hit and pre-generated — served there and then, one finished row each', () => {
   const ask = () => handleCurriculumLessonPlan({
     userId: PHONE, userDbId: TEACHER, topic: 'Plants', grade: 3, subject: 'Science', curriculum: 'nbf', language: 'en',
@@ -229,6 +276,21 @@ describe('cache hit and pre-generated — served there and then, one finished ro
       subject: 'Science', topic: 'Plants', correlation_id: 'corr-webhook-1',
     }));
     expect(rows('lesson_plans')[0].request_id).toBe(row.id);
+  });
+
+  test('switched ON: a cached PDF that cannot be read (R2 throws) → ONE failed row (DELIVERY_FAILED); the handler answers as before', async () => {
+    const R2 = require('../../bot/shared/storage/r2');
+    mockFindByTopic.mockResolvedValue(AST);
+    R2.downloadFromR2.mockRejectedValueOnce(new Error('R2 503'));
+    const off = await ask();
+    expect(rows('lesson_plan_requests')).toHaveLength(0);
+    process.env.LP_LIFECYCLE_PATHS = 'niete_grounded';
+    R2.downloadFromR2.mockRejectedValueOnce(new Error('R2 503'));
+    const on = await ask();
+    expect(on).toEqual(off);
+    const [row] = rows('lesson_plan_requests');
+    expect(row).toEqual(expect.objectContaining({ status: 'failed', error_code: 'DELIVERY_FAILED', source: 'niete_grounded' }));
+    expect(row.error_message).toMatch(/R2 503/);
   });
 
   test('switched ON: a cache-hit send WhatsApp refused → FAILED (DELIVERY_FAILED); the plan row and survey are as before', async () => {

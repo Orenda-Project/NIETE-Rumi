@@ -152,7 +152,10 @@ async function getUser(userId) {
 
 async function recordDownload(fields) {
   try {
-    await supabase.from('niete_lp_downloads').insert(fields);
+    // The lifecycle link rides along when there is one; a table that refuses it gets the old row.
+    const { request_id: requestId, ...row } = fields || {};
+    await Lifecycle.writeWithFallback((extra) => supabase.from('niete_lp_downloads').insert({ ...row, ...extra }),
+      requestId ? { request_id: requestId } : {}, { source: LP_VARIANT, table: 'niete_lp_downloads', requestId });
   } catch (err) {
     logToFile('LP v8: download insert failed', { lessonId: fields.lesson_id, error: err.message });
   }
@@ -251,8 +254,8 @@ async function recordLessonPlanRow({
 }) {
   const { lesson, chapter, book } = hit;
   try {
-    const { data } = await supabase.from('lesson_plans').insert({
-      ...linkedTo(requestId),
+    const { data } = await Lifecycle.writeWithFallback((extra) => supabase.from('lesson_plans').insert({
+      ...extra,
       user_id: userId,
       topic: lessonPlanTopic(lesson, lessonId),
       grade: String(book.grade),
@@ -286,7 +289,7 @@ async function recordLessonPlanRow({
           ...(surface === 'app' ? { surface } : {}),
         },
       },
-    }).select('id').single();
+    }).select('id').single(), linkedTo(requestId), { source: LP_VARIANT, table: 'lesson_plans', requestId });
     return (data && data.id) || null;
   } catch (err) {
     logToFile('LP v8: lesson_plans insert failed (non-fatal)', { userId, lessonId, error: err.message });

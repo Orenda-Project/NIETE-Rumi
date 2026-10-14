@@ -31,6 +31,8 @@ const Lifecycle = require('../shared/services/lesson-plan-lifecycle.service');
 
 const LIFECYCLE_SOURCE = Lifecycle.LIFECYCLE.SOURCES.HOMEWORK_BUNDLE;
 const { ERROR_CODES } = Lifecycle.LIFECYCLE;
+/** What a refused lifecycle write is reported against. */
+const LCTX = (requestId) => ({ source: LIFECYCLE_SOURCE, table: 'lesson_plan_requests', requestId });
 
 const SUBJECT_DISPLAY = { maths: 'Maths', english: 'English', urdu: 'Urdu' };
 
@@ -119,10 +121,10 @@ async function process(args) {
       logEvent('homework.bundle.empty', { userId, requestId, grade, subject });
       if (requestId && isLastGroup) {
         try {
-          await supabase.from('lesson_plan_requests').update({
+          await Lifecycle.writeWithFallback((extra) => supabase.from('lesson_plan_requests').update({
             status: 'failed',
-            ...Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'failed', { errorCode: ERROR_CODES.NO_ASSET }),
-          }).eq('id', requestId);
+            ...extra,
+          }).eq('id', requestId), Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'failed', { errorCode: ERROR_CODES.NO_ASSET }), LCTX(requestId));
         } catch (_) { /* best-effort */ }
         Lifecycle.queueEvent(LIFECYCLE_SOURCE, 'lesson_plan.generation.failed', { requestId, errorCode: ERROR_CODES.NO_ASSET });
       }
@@ -170,11 +172,12 @@ async function process(args) {
     };
     let lessonPlanId = null;
     try {
-      const { data: lpRow, error: insertError } = await supabase
+      // The request this bundle belongs to (switch on only; absent — or refused — the row is the old one).
+      const link = Lifecycle.enabled(LIFECYCLE_SOURCE) && requestId ? { request_id: requestId } : {};
+      const { data: lpRow, error: insertError } = await Lifecycle.writeWithFallback((extra) => supabase
         .from('lesson_plans')
         .insert({
-          // The request this bundle belongs to (switch on only; absent, the row is the old one).
-          ...(Lifecycle.enabled(LIFECYCLE_SOURCE) && requestId ? { request_id: requestId } : {}),
+          ...extra,
           user_id: userId,
           topic: `Homework - Grade ${grade} ${SUBJECT_DISPLAY[subject] || subject}`,
           grade: String(grade),
@@ -183,7 +186,7 @@ async function process(args) {
           content: bundleManifest,
         })
         .select('id')
-        .single();
+        .single(), link, { source: LIFECYCLE_SOURCE, table: 'lesson_plans', requestId });
       if (insertError) {
         logToFile('Homework bundle: lesson_plans insert error', { error: insertError.message });
       } else {
@@ -227,10 +230,10 @@ async function process(args) {
     // Mark the request completed when the last group ships.
     if (requestId && isLastGroup) {
       try {
-        await supabase.from('lesson_plan_requests').update({
+        await Lifecycle.writeWithFallback((extra) => supabase.from('lesson_plan_requests').update({
           status: 'completed',
-          ...Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'completed', { generatedAt, sent: true }),
-        }).eq('id', requestId);
+          ...extra,
+        }).eq('id', requestId), Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'completed', { generatedAt, sent: true }), LCTX(requestId));
       } catch (_) { /* best-effort — delivery already happened */ }
       Lifecycle.queueEvent(LIFECYCLE_SOURCE, 'lesson_plan.delivery.sent', { requestId });
     }
@@ -243,10 +246,10 @@ async function process(args) {
       // A file WhatsApp refused existed; anything that failed before the send did not reach it.
       const errorCode = sendAttempted ? ERROR_CODES.DELIVERY_FAILED : ERROR_CODES.GENERATION_FAILED;
       try {
-        await supabase.from('lesson_plan_requests').update({
+        await Lifecycle.writeWithFallback((extra) => supabase.from('lesson_plan_requests').update({
           status: 'failed',
-          ...Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'failed', { errorCode, generatedAt: sendAttempted ? generatedAt : null }),
-        }).eq('id', requestId);
+          ...extra,
+        }).eq('id', requestId), Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'failed', { errorCode, generatedAt: sendAttempted ? generatedAt : null }), LCTX(requestId));
       } catch (_) { /* best-effort */ }
       Lifecycle.queueEvent(LIFECYCLE_SOURCE, sendAttempted ? 'lesson_plan.delivery.failed' : 'lesson_plan.generation.failed', { requestId, errorCode });
     }

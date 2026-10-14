@@ -175,6 +175,28 @@ describe('a grade 1-5 lesson PDF handed to the portal', () => {
     expect(asks()).toHaveLength(2);
   });
 
+  test('switched ON: a PDF that cannot be signed → 500 as before, and ONE failed row (DELIVERY_FAILED)', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_v8_segment';
+    require('../../bot/shared/storage/r2').getPresignedUrl.mockRejectedValueOnce(new Error('R2 sign failed'));
+    const { statusCode, payload } = await fetchPdf({ lessonId: LESSON, userId: USER.id });
+    expect(statusCode).toBe(500);
+    expect(payload).toEqual(expect.objectContaining({ success: false }));
+    expect(asks()).toHaveLength(1);
+    expect(asks()[0]).toEqual(expect.objectContaining({ status: 'failed', error_code: 'DELIVERY_FAILED', channel: 'portal' }));
+  });
+
+  test('switched ON: a catalogue lookup that throws while recording never reaches the route', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_v8_segment';
+    const Lookup = require('../../bot/shared/services/lp-v8-lifecycle.service');
+    const spy = jest.spyOn(V8Catalog, 'lessonById');
+    // the route's own lookup (inside the browse service) succeeds; the recorder's lookup throws
+    spy.mockImplementationOnce((...a) => jest.requireActual('../../bot/shared/services/lp-v8-catalog.service').lessonById(...a));
+    spy.mockImplementationOnce(() => { throw new Error('catalogue corrupt'); });
+    await expect(Lookup.recordPortalLesson({ userId: USER.id, lessonId: LESSON, available: true, askedAt: NOW.toISOString() }))
+      .resolves.toBeNull();
+    spy.mockRestore();
+  });
+
   test('switched ON: an answer key, or a fetch with no teacher named, is not a lesson-plan ask', async () => {
     process.env.LP_LIFECYCLE_PATHS = 'niete_v8_segment';
     await fetchPdf({ lessonId: LESSON, userId: USER.id, assetKind: 'answer_key' });

@@ -418,8 +418,9 @@ async function storeLessonPlan(userId, topic, type, gammaUrl, pdfUrl = null, con
       return existing;
     }
 
-    // No duplicate found, proceed with insert
-    const { data, error } = await supabase
+    // No duplicate found, proceed with insert. `extraColumns` is e.g. { request_id } — the lesson-plan
+    // lifecycle link; absent, the row is the old one, and a database that refuses it gets the old row too.
+    const insertRow = (extra) => supabase
       .from('lesson_plans')
       .insert({
         user_id: userId,
@@ -429,11 +430,13 @@ async function storeLessonPlan(userId, topic, type, gammaUrl, pdfUrl = null, con
         pdf_url: pdfUrl,
         content,
         created_at: new Date().toISOString(),
-        // e.g. { request_id } — the lesson-plan lifecycle link; absent, the row is the old one.
-        ...(extraColumns || {}),
+        ...extra,
       })
       .select()
       .single();
+    const { data, error } = extraColumns && Object.keys(extraColumns).length
+      ? await require('../services/lesson-plan-lifecycle.service').writeWithFallback(insertRow, extraColumns, { table: 'lesson_plans' })
+      : await insertRow({});
 
     if (error) {
       console.error('Error storing lesson plan:', error);

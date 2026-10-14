@@ -154,6 +154,15 @@ describe('deliverRender — the one function every 6-12 WhatsApp delivery goes t
     expect(rows('niete_lp612_deliveries')).toHaveLength(0);
   });
 
+  test('switched ON: a document link that cannot be signed → a FAILED row (DELIVERY_FAILED), and it still throws, as before', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_lp612';
+    require('../../bot/shared/storage/r2').getPresignedUrl.mockRejectedValueOnce(new Error('R2 sign failed'));
+    await expect(deliver()).rejects.toThrow(/R2 sign failed/);
+    const [ask] = rows('lesson_plan_requests');
+    expect(ask).toEqual(expect.objectContaining({ status: 'failed', error_code: 'DELIVERY_FAILED', delivered_at: null }));
+    expect(mockSendDocumentByLink).not.toHaveBeenCalled();
+  });
+
   test('switched ON: a lifecycle write that fails costs her nothing — delivered, ledger written without a link', async () => {
     process.env.LP_LIFECYCLE_PATHS = 'niete_lp612';
     mockFailRequests = true;
@@ -175,6 +184,24 @@ describe('deliverRender — the one function every 6-12 WhatsApp delivery goes t
   });
 });
 
+describe('switched ON, a delivery ledger that refuses the link (request_id) — the ledger row still lands', () => {
+  test('her delivery row is written without the link, and the store keeps recording afterwards', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_lp612';
+    const { withoutV164 } = require('./helpers/pre-migration');
+    const realFrom = mockDb.from;
+    mockDb.from = withoutV164((t) => realFrom(t), { tables: ['niete_lp612_deliveries'] });
+    try {
+      await deliver();
+      await deliver({ renderId: '55555555-5555-4555-8555-555555555555' });
+    } finally {
+      mockDb.from = realFrom;
+    }
+    expect(rows('lesson_plan_requests')).toHaveLength(2);
+    expect(rows('niete_lp612_deliveries')).toHaveLength(2);
+    expect(rows('niete_lp612_deliveries')[0]).not.toHaveProperty('request_id');
+  });
+});
+
 describe('requestLesson — outcomes that end the ask then and there', () => {
   const ask = (over = {}) => Serving.requestLesson({
     segmentId: SEGMENT.segment_id, userId: TEACHER, phone: '923001234567', lang: 'en', uiLang: 'en',
@@ -190,6 +217,15 @@ describe('requestLesson — outcomes that end the ask then and there', () => {
     expect(row).toEqual(expect.objectContaining({
       status: 'failed', error_code: 'NO_ASSET', grade: 8, artifact_ref: SEGMENT.segment_id, correlation_id: CORR,
     }));
+  });
+
+  test('a job that could not be queued ends the ask as QUEUE_FAILED, not a generation failure', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_lp612';
+    await Lp612Lifecycle.recordRequestOutcome({
+      req: { segmentId: SEGMENT.segment_id, userId: TEACHER, phone: '923001234567', lang: 'en', surface: 'whatsapp' },
+      outcome: 'error', result: { outcome: 'error', error: 'enqueue failed' }, askedAt: '2026-10-13T05:00:00.000Z',
+    });
+    expect(rows('lesson_plan_requests')[0]).toEqual(expect.objectContaining({ status: 'failed', error_code: 'QUEUE_FAILED' }));
   });
 
   test('a religious segment held by the operator → one FAILED row (NOT_ELIGIBLE)', async () => {

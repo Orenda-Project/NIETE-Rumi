@@ -19,9 +19,12 @@
  * function here touches the database and every caller writes exactly what it wrote before.
  *
  * SOFT-FAIL. Nothing here throws into a delivery. A failed write returns null and is counted
- * (`lesson_plan.lifecycle.write_failed`); a missing column — the migration not applied yet — is
- * said at error level at most once per ten minutes and retried every time, so applying it needs no
- * restart. The lesson is the thing the teacher asked for; the record is ours.
+ * (`lesson_plan.lifecycle.write_failed`) and said at error level at most once per ten minutes per kind
+ * of failure; it is retried every time, so applying the migration needs no restart. A path that adds
+ * lifecycle columns to its OWN write (the queue paths, the plan and ledger links) goes through
+ * writeWithFallback: if the database refuses the write because of them — a column it does not have yet,
+ * a value its CHECK will not take — the same write runs again exactly as it was before the lifecycle.
+ * The lesson is the thing the teacher asked for; the record is ours.
  *
  * DEPENDENCIES ON PURPOSE: only the database client and the two loggers — never the queue — so any
  * module can require this one without changing what its process loads.
@@ -80,8 +83,12 @@ const CHANNEL_SET = new Set(Object.values(LIFECYCLE.CHANNELS));
 const TERMINAL = new Set(['completed', 'failed', 'cancelled']);
 
 const SCHEMA_MISSING_CODES = new Set(['PGRST204', 'PGRST205', '42703', '42P01']);
+/** The database refused a write BECAUSE of what the lifecycle added: a column it does not have yet (V1.6.4
+ *  not applied), or a value its CHECK / foreign key / type will not take. */
+const REFUSED_BY_LIFECYCLE_CODES = new Set(['PGRST204', '42703', '23514', '23503', '22P02', '22001']);
 const LOUD_EVERY_MS = 10 * 60 * 1000;
-let lastSchemaWarningAt = 0;
+/** When each kind of write failure (code + path) was last said at error level. */
+const loudAt = new Map();
 let switchAnnounced = false;
 // A boolean-shaped value switches every path on — sandbox sets its flags to `1`.
 const ALL_VALUES = new Set(['all', '1', 'true', 'yes', 'on']);
@@ -103,11 +110,17 @@ function textOrNull(value, max) {
   return s ? s.slice(0, max) : null;
 }
 
+function switchParts() {
+  const raw = String(process.env.LP_LIFECYCLE_PATHS || '').trim().toLowerCase();
+  return raw ? raw.split(',').map((s) => s.trim()).filter(Boolean) : [];
+}
+
+/** Words that mean "off" — known, not typos. */
+const OFF_VALUES = new Set(['0', 'false', 'no', 'off', 'none']);
+
 /** The paths LP_LIFECYCLE_PATHS switches on: 'all' (or 1/true/yes/on), or a comma list of sources. */
 function switchedOnPaths() {
-  const raw = String(process.env.LP_LIFECYCLE_PATHS || '').trim().toLowerCase();
-  if (!raw) return new Set();
-  const parts = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  const parts = switchParts();
   if (parts.some((s) => ALL_VALUES.has(s))) return new Set(SOURCE_SET);
   return new Set(parts.filter((s) => SOURCE_SET.has(s)));
 }
@@ -123,10 +136,13 @@ function enabled(source) {
   const on = switchedOnPaths();
   if (!switchAnnounced) {
     switchAnnounced = true;
+    // A name that is not a path (a typo) switches nothing on — said at warn level, never silently.
+    const unknown = switchParts().filter((s) => !ALL_VALUES.has(s) && !OFF_VALUES.has(s) && !SOURCE_SET.has(s));
     logToFile('Lesson-plan lifecycle switch resolved', {
       LP_LIFECYCLE_PATHS: process.env.LP_LIFECYCLE_PATHS || '(unset)',
       pathsOn: [...on].sort(),
-    });
+      ...(unknown.length ? { unknown } : {}),
+    }, unknown.length ? 'warn' : undefined);
   }
   return SOURCE_SET.has(source) && on.has(source);
 }
@@ -237,7 +253,7 @@ async function recordOutcome(o = {}) {
     logEvent(outcomeEvent(row), eventFields(row));
     return row.id;
   } catch (err) {
-    writeFailed({ code: 'THROWN', message: err && err.message }, row);
+    writeFailed({ code: 'THROWN', message: err && err.message, stack: err && err.stack }, row);
     return null;
   }
 }
@@ -256,15 +272,31 @@ async function withContact(o) {
       .select('phone_number, preferred_language')
       .eq('id', o.userId)
       .maybeSingle();
-    if (error || !data) return o;
+    if (error) {
+      // Not a teacher without a phone: the read failed. Said, so an outage is not mistaken for one.
+      logToFile('⚠️ Lesson-plan lifecycle: could not read the teacher\'s phone from users — this ask is not recorded',
+        { code: error.code, message: error.message, source: o.source }, 'warn');
+      return o;
+    }
+    if (!data) return o;
     return { ...o, phone: data.phone_number, language: o.language || data.preferred_language };
-  } catch (_) {
+  } catch (err) {
+    logToFile('⚠️ Lesson-plan lifecycle: reading the teacher\'s phone threw — this ask is not recorded',
+      { error: err && err.message, source: o.source }, 'warn');
     return o;
   }
 }
 
 /** The row recordOutcome writes, or null (switched off / not recordable). Pure: no I/O. */
 function outcomeRow(o) {
+  if (!SOURCE_SET.has(o.source)) {
+    // Switched on for any path, an outcome for a path the vocabulary does not know is a caller's
+    // mistake: refused out loud (the event), never dropped in silence.
+    if (switchedOnPaths().size) {
+      logEvent('lesson_plan.lifecycle.refused', { reason: 'source', source: o.source, status: o.status, channel: o.channel });
+    }
+    return null;
+  }
   if (!enabled(o.source)) return null;
   const refuse = (reason) => {
     logEvent('lesson_plan.lifecycle.refused', { reason, source: o.source, status: o.status, channel: o.channel });
@@ -333,29 +365,59 @@ function eventFields(row) {
   };
 }
 
-/** A lifecycle write failed: counted every time, said loudly at most once per ten minutes. */
-function writeFailed(error, row) {
+/**
+ * A lifecycle write — or the lifecycle part of a path's own write — failed. Counted every time (the
+ * write_failed event); said at ERROR level, which the error monitor pages on, at most once per ten
+ * minutes per kind of failure (code + path), so a path whose every write fails is seen, not drowned.
+ */
+function writeFailed(error, row, ctx = {}) {
   const code = (error && error.code) || 'UNKNOWN';
   const message = (error && error.message) || '';
+  const source = row && row.source;
   logEvent('lesson_plan.lifecycle.write_failed', {
-    code, message: message.slice(0, 300), requestId: row && row.id, source: row && row.source,
+    code, message: message.slice(0, 300), requestId: row && row.id, source, table: ctx.table, fellBack: Boolean(ctx.fellBack),
   });
-  const schemaMissing = SCHEMA_MISSING_CODES.has(code) || /schema cache/i.test(message);
-  if (!schemaMissing) {
-    logToFile('Lesson-plan lifecycle write failed (the lesson was still delivered)', { code, message }, 'warn');
+  const key = `${code}|${source || ''}`;
+  const now = Date.now();
+  if (now - (loudAt.get(key) || 0) < LOUD_EVERY_MS) return;
+  loudAt.set(key, now);
+  if (SCHEMA_MISSING_CODES.has(code) || /schema cache/i.test(message)) {
+    logToFile('Lesson-plan lifecycle columns are missing — apply migration V1.6.4. Every lesson-plan path '
+      + 'carries on exactly as before; the lifecycle record is not written until it is applied.',
+    { code, message, source, table: ctx.table }, 'error');
     return;
   }
-  const now = Date.now();
-  if (now - lastSchemaWarningAt < LOUD_EVERY_MS) return;
-  lastSchemaWarningAt = now;
-  logToFile('lesson_plan_requests is missing the lifecycle columns — apply migration V1.6.4. '
-    + 'Lessons are still delivered; their lifecycle rows are not written until it is applied.',
-  { code, message }, 'error');
+  logToFile('❌ Lesson-plan lifecycle write failed — the teacher\'s flow is unaffected; this lifecycle record is lost',
+    { code, message, source, table: ctx.table, stack: error && error.stack }, 'error');
+}
+
+/** True when the database refused a write because of the lifecycle's additions (see the code list). */
+function refusedByLifecycle(error) {
+  if (!error) return false;
+  return REFUSED_BY_LIFECYCLE_CODES.has(error.code) || /schema cache/i.test(String(error.message || ''));
+}
+
+/**
+ * Run one of a path's OWN writes with the lifecycle's additions spread in — and if the database refuses it
+ * BECAUSE of them, run it again exactly as it was before the lifecycle existed. A lesson-plan path's write
+ * can never fail because of the lifecycle; the refusal is reported (writeFailed). Switched off, the
+ * additions are {} and this is exactly one write. Any other error is returned untouched, as before.
+ *
+ * @param {(extra: object) => PromiseLike<{data?: any, error?: any}>} write  runs the write with `extra` spread in
+ * @param {object} additions  what the lifecycle adds (askColumns / queueColumns / a request_id link)
+ * @param {{ source?: string, table?: string, requestId?: string }} [ctx]  for the report
+ */
+async function writeWithFallback(write, additions, ctx = {}) {
+  const extra = additions && typeof additions === 'object' ? additions : {};
+  const first = await write(extra);
+  if (!Object.keys(extra).length || !first || !first.error || !refusedByLifecycle(first.error)) return first;
+  writeFailed(first.error, { id: ctx.requestId, source: ctx.source }, { table: ctx.table, fellBack: true });
+  return write({});
 }
 
 /** Test seam: forget the once-per-ten-minutes state between tests. */
 function __resetForTests() {
-  lastSchemaWarningAt = 0;
+  loudAt.clear();
   switchAnnounced = false;
 }
 
@@ -365,6 +427,7 @@ module.exports = {
   askColumns,
   queueColumns,
   queueEvent,
+  writeWithFallback,
   recordOutcome,
   __resetForTests,
 };

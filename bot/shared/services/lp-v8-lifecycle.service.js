@@ -19,6 +19,7 @@
 const supabase = require('../config/supabase');
 const Lifecycle = require('./lesson-plan-lifecycle.service');
 const V8Catalog = require('./lp-v8-catalog.service');
+const { logToFile } = require('../utils/logger');
 
 const { SOURCES, CHANNELS, ERROR_CODES } = Lifecycle.LIFECYCLE;
 const SOURCE = SOURCES.NIETE_V8_SEGMENT;
@@ -59,32 +60,45 @@ async function askedJustNow(userId, lessonId) {
  * @param {{ userId: string|null, lessonId: string, assetKind?: 'lesson'|'answer_key',
  *           available: boolean, askedAt?: string }} p
  */
-async function recordPortalLesson({ userId, lessonId, assetKind = 'lesson', available, askedAt } = {}) {
-  if (!Lifecycle.enabled(SOURCE)) return null;
-  if (assetKind !== 'lesson' || !userId || !lessonId) return null;
+async function recordPortalLesson({ userId, lessonId, assetKind = 'lesson', available, askedAt, error = null } = {}) {
   try {
-    if (await askedJustNow(userId, lessonId)) return null;
-  } catch (_) {
-    // Cannot tell whether she asked a moment ago: record it. One extra row is recoverable in a query;
-    // a lost ask is not.
+    if (!Lifecycle.enabled(SOURCE)) return null;
+    if (assetKind !== 'lesson' || !userId || !lessonId) return null;
+    try {
+      if (await askedJustNow(userId, lessonId)) return null;
+    } catch (err) {
+      // Cannot tell whether she asked a moment ago: record it. One extra row is recoverable in a query;
+      // a lost ask is not. Said, so a failing read is not invisible.
+      logToFile('⚠️ LP v8 portal lifecycle: same-ask check failed — recording this fetch anyway', { lessonId, error: err.message }, 'warn');
+    }
+    const hit = V8Catalog.lessonById(lessonId);
+    const book = hit && hit.book;
+    // `error`: the PDF exists in the catalogue but could not be handed over (the link failed) — a failed
+    // delivery, not a missing plan.
+    let outcome;
+    if (error) {
+      outcome = { status: 'failed', generatedAt: askedAt, errorCode: ERROR_CODES.DELIVERY_FAILED, errorMessage: `PDF link failed: ${error.message || error}` };
+    } else if (available) {
+      // The PDF is pre-rendered: it existed when she asked.
+      outcome = { status: 'completed', generatedAt: askedAt };
+    } else {
+      outcome = { status: 'failed', generatedAt: null, errorCode: ERROR_CODES.NO_ASSET, errorMessage: 'no current PDF for this lesson' };
+    }
+    return await Lifecycle.recordOutcome({
+      userId,
+      topic: topicOf(hit, lessonId),
+      source: SOURCE,
+      channel: CHANNELS.PORTAL,
+      grade: book ? book.grade : null,
+      subject: book ? book.subject_key : null,
+      artifactRef: lessonId,
+      askedAt,
+      ...outcome,
+    });
+  } catch (err) {
+    logToFile('⚠️ LP v8 portal lifecycle: recording threw — the portal was answered; this ask is not recorded', { lessonId, error: err && err.message }, 'warn');
+    return null;
   }
-  const hit = V8Catalog.lessonById(lessonId);
-  const book = hit && hit.book;
-  return Lifecycle.recordOutcome({
-    userId,
-    topic: topicOf(hit, lessonId),
-    source: SOURCE,
-    channel: CHANNELS.PORTAL,
-    grade: book ? book.grade : null,
-    subject: book ? book.subject_key : null,
-    artifactRef: lessonId,
-    askedAt,
-    status: available ? 'completed' : 'failed',
-    // The PDF is pre-rendered: it existed when she asked, or not at all.
-    generatedAt: available ? askedAt : null,
-    errorCode: available ? undefined : ERROR_CODES.NO_ASSET,
-    errorMessage: available ? undefined : 'no current PDF for this lesson',
-  });
 }
 
 /**
@@ -109,7 +123,8 @@ async function portalAskFor({ userId, lessonId, openedAt } = {}) {
       .limit(1);
     if (error || !Array.isArray(data) || !data.length) return null;
     return data[0].id || null;
-  } catch (_) {
+  } catch (err) {
+    logToFile('⚠️ LP v8 portal lifecycle: could not find the ask behind an app open — the plan row is written without it', { lessonId, error: err && err.message }, 'warn');
     return null;
   }
 }

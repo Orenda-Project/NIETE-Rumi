@@ -4,8 +4,9 @@
 -- correlation id, the plan's request link); nothing a teacher sees is read from them.
 -- SAFE ONLY after LP_LIFECYCLE_PATHS is unset on every service (bot, sqs-worker, sqs-worker-video,
 -- portal) and those services have restarted, or the code is rolled back: with the key set, the
--- lifecycle writer writes these columns (soft-fail — a missing column is logged, never thrown, and
--- the lesson is still delivered). Unset the key FIRST.
+-- lifecycle writer writes these columns. A missing column is not an outage — every write that carries
+-- them falls back to its pre-lifecycle form and the refusal is logged at error level — but it is noise
+-- on every lesson plan. Unset the key FIRST.
 DROP INDEX IF EXISTS idx_lp_requests_source_created;
 DROP INDEX IF EXISTS idx_lesson_plans_request_id;
 

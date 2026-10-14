@@ -1270,12 +1270,20 @@ router.post('/lp/v8/pdf', requireInternalKey, lpBrowseRoute('pdf', async (Browse
   if (!lessonId) return res.status(400).json({ success: false, error: 'lessonId is required' });
 
   const askedAt = new Date().toISOString();
-  const hit = await Browse.lessonPdfUrl(lessonId, assetKind, body.userId || null);
+  const LpV8Lifecycle = require('../services/lp-v8-lifecycle.service');
+  let hit;
+  try {
+    hit = await Browse.lessonPdfUrl(lessonId, assetKind, body.userId || null);
+  } catch (error) {
+    // Her ask ended in a failure we caused: recorded (switch on only), then the 500 she always got.
+    await LpV8Lifecycle.recordPortalLesson({ userId: body.userId || null, lessonId, assetKind, available: false, askedAt, error });
+    throw error;
+  }
   if (!hit) res.json({ success: true, available: false });
   else res.json({ success: true, available: true, ...hit });
   // Her ask's lifecycle row — AFTER the answer, so the portal's open never waits on it (switch on
   // only; never throws). The portal and the teacher app are where most grade 1-5 plans are read.
-  await require('../services/lp-v8-lifecycle.service').recordPortalLesson({
+  await LpV8Lifecycle.recordPortalLesson({
     userId: body.userId || null, lessonId, assetKind, available: Boolean(hit), askedAt,
   });
   return undefined;

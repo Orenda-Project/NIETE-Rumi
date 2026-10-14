@@ -144,6 +144,8 @@ async function recordRequestOutcome({ req, outcome, result, askedAt } = {}) {
   const surface = req.surface || 'whatsapp';
   const portal = isPortal(surface);
   if (portal ? !req.userId : (surface !== 'whatsapp' || !req.phone)) return null;
+  // A job that could not be queued is not a generation failure: it never reached the writer.
+  const queueFailed = outcome === 'error' && /enqueue failed/i.test(String((result && result.error) || ''));
   return recordAsk({
     userId: req.userId,
     phone: portal ? null : req.phone,
@@ -152,7 +154,7 @@ async function recordRequestOutcome({ req, outcome, result, askedAt } = {}) {
     lang: req.lang,
     status: 'failed',
     askedAt,
-    errorCode,
+    errorCode: queueFailed ? ERROR_CODES.QUEUE_FAILED : errorCode,
     errorMessage: (result && result.error) || outcome,
     correlationId: req.correlationId,
   });
