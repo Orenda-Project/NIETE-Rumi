@@ -156,7 +156,8 @@ describe('switched on', () => {
   test('a failure code on a request still in flight is not counted against the rate', async () => {
     mockDb.tables.lesson_plan_requests = [
       ...Array.from({ length: 10 }, () => ask({ source: 'niete_grounded' })),
-      ...Array.from({ length: 4 }, () => ask({ source: 'niete_grounded', status: 'pending', error_code: 'QUEUE_FAILED', delivered_at: null })),
+      // a retry in progress still carries the code of its last attempt
+      ...Array.from({ length: 4 }, () => ask({ source: 'niete_grounded', status: 'processing', error_code: 'RENDER_FAILED', delivered_at: null })),
     ];
     const out = await Health.run({ now: NOW, redis: fakeRedis() });
     expect(out.sources[0]).toEqual(expect.objectContaining({ inFlight: 4, systemFailures: 0, systemFailureRate: 0 }));
@@ -208,6 +209,15 @@ describe('switched on', () => {
     expect(mockCalls).toBe(0);
   });
 
+  test('a read that hit the row cap is DEGRADED (truncated) — a flood can never hide failures behind "healthy"', async () => {
+    // PostgREST answers at most 1,000 rows (db-max-rows): a full page means the read did not see everything.
+    mockDb.tables.lesson_plan_requests = Array.from({ length: 1000 }, () => ask());
+    const out = await Health.run({ now: NOW, redis: fakeRedis() });
+    expect(out).toEqual(expect.objectContaining({ outcome: 'checked', verdict: 'degraded', reasons: expect.arrayContaining(['truncated']) }));
+    expect(checked()[0]).toEqual(expect.objectContaining({ truncated: true, verdict: 'degraded' }));
+    expect(errorLogs()).toHaveLength(1);
+  });
+
   test('a read that fails is said at error level and resolves — it never reaches the worker', async () => {
     mockFailReads = true;
     await expect(Health.run({ now: NOW, redis: fakeRedis() })).resolves.toEqual(expect.objectContaining({ outcome: 'read_failed' }));
@@ -231,5 +241,75 @@ describe('the watermark', () => {
     expect(out).toEqual(expect.objectContaining({ outcome: 'checked' }));
     expect(checked()[0]).toEqual(expect.objectContaining({ windowStart: ago(75), windowMin: 60 }));
     expect(mockLog).toHaveBeenCalledWith(expect.stringMatching(/watermark/i), expect.objectContaining({ error: 'READONLY replica' }), 'warn');
+  });
+});
+
+describe('the kill switch reads only what it knows', () => {
+  test('an LP_HEALTH_CHECK value that is neither off nor on is said once at warn level, and the check keeps running', () => {
+    expect(Health.healthCheckOff({ LP_HEALTH_CHECK: 'disabled' })).toBe(false);
+    expect(Health.healthCheckOff({ LP_HEALTH_CHECK: 'disabled' })).toBe(false);
+    const warns = mockLog.mock.calls.filter((c) => c[2] === 'warn' && /LP_HEALTH_CHECK/.test(String(c[0])));
+    expect(warns).toHaveLength(1);
+  });
+
+  test('off words stop it and on words or empty run it, all in silence', () => {
+    for (const v of ['off', 'false', '0', 'no']) expect(Health.healthCheckOff({ LP_HEALTH_CHECK: v })).toBe(true);
+    for (const v of ['', 'on', 'true', '1', 'yes']) expect(Health.healthCheckOff({ LP_HEALTH_CHECK: v })).toBe(false);
+    expect(mockLog.mock.calls.filter((c) => /LP_HEALTH_CHECK/.test(String(c[0])))).toHaveLength(0);
+  });
+});
+
+describe('what counts as finished, and what the cache says', () => {
+  beforeEach(() => { process.env.LP_LIFECYCLE_PATHS = 'all'; });
+
+  test('a curriculum ask whose job never reached the queue (pending + QUEUE_FAILED) is a finished SYSTEM failure, not in flight', async () => {
+    mockDb.tables.lesson_plan_requests = Array.from({ length: 5 }, () => ask({
+      source: 'niete_grounded', status: 'pending', error_code: 'QUEUE_FAILED', delivered_at: null,
+    }));
+    const out = await Health.run({ now: NOW, redis: fakeRedis() });
+    expect(out.sources[0]).toEqual(expect.objectContaining({ inFlight: 0, systemFailures: 5 }));
+    expect(out).toEqual(expect.objectContaining({ verdict: 'degraded', reasons: ['failure_rate:niete_grounded/whatsapp'] }));
+  });
+
+  test('a curriculum render that failed with retries left is in flight (the queue retries it); the final failure counts', async () => {
+    mockDb.tables.lesson_plan_requests = [
+      ...Array.from({ length: 5 }, () => ask({ source: 'niete_grounded', status: 'failed', error_code: 'RENDER_FAILED', delivered_at: null, retry_count: 1 })),
+    ];
+    const retrying = await Health.run({ now: NOW, redis: fakeRedis() });
+    expect(retrying.sources[0]).toEqual(expect.objectContaining({ inFlight: 5, systemFailures: 0 }));
+    expect(retrying.verdict).toBe('healthy');
+    mockDb.tables.lesson_plan_requests.forEach((r) => { r.retry_count = 3; });
+    const final = await Health.run({ now: NOW, redis: fakeRedis() });
+    expect(final.sources[0]).toEqual(expect.objectContaining({ inFlight: 0, systemFailures: 5 }));
+    expect(final.verdict).toBe('degraded');
+  });
+
+  test('a watermark the cache would not store is said at warn level — the next tick re-reads that window', async () => {
+    const redis = fakeRedis();
+    redis.set = jest.fn(async () => false); // the real wrapper answers false, it never throws
+    mockDb.tables.lesson_plan_requests = [ask()];
+    await Health.run({ now: NOW, redis });
+    expect(mockLog).toHaveBeenCalledWith(expect.stringMatching(/watermark/i), expect.anything(), 'warn');
+  });
+
+  test('a tick another replica holds breaks a run of skips — only consecutive cache failures page', async () => {
+    const down = fakeRedis({ available: false });
+    await Health.run({ now: NOW, redis: down });
+    await Health.run({ now: NOW, redis: down });
+    await Health.run({ now: NOW, redis: fakeRedis({ holder: 'tick:someone-else' }) });
+    await Health.run({ now: NOW, redis: down });
+    expect(errorLogs()).toHaveLength(0);
+  });
+
+  test('a tick within five minutes of the last reads nothing (too soon)', async () => {
+    const redis = fakeRedis();
+    redis.store.set('lp_health:watermark', ago(17)); // the lag is 15 min, so the window would be 2 min
+    const out = await Health.run({ now: NOW, redis });
+    expect(out).toEqual({ outcome: 'skipped', reason: 'too_soon' });
+    expect(mockCalls).toBe(0);
+  });
+
+  test('none switches the check off, like the lifecycle switch', () => {
+    expect(Health.healthCheckOff({ LP_HEALTH_CHECK: 'none' })).toBe(true);
   });
 });

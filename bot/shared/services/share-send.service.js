@@ -310,13 +310,14 @@ function shareOutcome(out) {
   switch (out && out.status) {
     case 'sent': return { status: 'completed' };
     case 'failed': return { status: 'failed', errorCode: 'DELIVERY_FAILED', errorMessage: `share ${out.reason || 'failed'}` };
-    case 'not_found': return { status: 'failed', errorCode: 'NO_ASSET', errorMessage: 'share: not hers, or not there' };
+    // Not hers, not there, or not a lesson id the portal can name: an id that names no plan of hers is not
+    // an ask (the endpoint takes any id, so recording one would let a caller fill the table).
+    case 'not_found': return null;
     case 'unavailable':
-      if (out.reason === 'no_phone') return null; // no number it could have reached
       if (out.reason === 'not_configured' || out.reason === 'template_missing') {
         return { status: 'failed', errorCode: 'DELIVERY_FAILED', errorMessage: `share ${out.reason}` };
       }
-      return { status: 'failed', errorCode: 'NO_ASSET', errorMessage: `share ${out.reason}` };
+      return null; // no_phone (no number it could have reached), or an unsupported id
     default: return null; // bad_request
   }
 }
@@ -335,9 +336,10 @@ function planRefOf(id, item) {
  * recorded once the share has its outcome. An answer key is not a lesson-plan ask. Never throws.
  */
 async function recordLessonShare({ userId, id, seen, out, askedAt }) {
-  const Lifecycle = require('./lesson-plan-lifecycle.service');
-  const { SOURCES, CHANNELS } = Lifecycle.LIFECYCLE;
+  let Lifecycle = null;
   try {
+    Lifecycle = require('./lesson-plan-lifecycle.service');
+    const { SOURCES, CHANNELS } = Lifecycle.LIFECYCLE;
     if (/:answer_key$/.test(String(id)) || (seen.item && seen.item.answerKey)) return null;
     if (!Lifecycle.enabled(SOURCES.NIETE_PORTAL_SHARE)) return null;
     const outcome = shareOutcome(out);
@@ -361,7 +363,7 @@ async function recordLessonShare({ userId, id, seen, out, askedAt }) {
     });
   } catch (err) {
     // Describing the ask threw (recordOutcome itself never does): reported, never thrown into the share's answer.
-    Lifecycle.recorderThrew(err, SOURCES.NIETE_PORTAL_SHARE);
+    if (Lifecycle) Lifecycle.recorderThrew(err, Lifecycle.LIFECYCLE.SOURCES.NIETE_PORTAL_SHARE);
     return null;
   }
 }

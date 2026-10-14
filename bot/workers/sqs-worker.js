@@ -1636,6 +1636,19 @@ async function runLessonPlanHealth({ health } = {}) {
  * replicas only; among them, exactly one reads per tick (the check's own read-back claim). A no-op
  * until LP_LIFECYCLE_PATHS switches a path on.
  */
+/**
+ * The boot step that schedules the worker's periodic checks — what startWorker calls. Each check is
+ * guarded: a broken monitor is said at error level and never stops the boot or the checks after it.
+ */
+function schedulePeriodicChecks({ worker: w = null } = {}) {
+  scheduleChallengeVoiceSweep({ worker: w });
+  try {
+    scheduleLessonPlanHealth({ worker: w });
+  } catch (error) {
+    logToFile('Error scheduling the lesson-plan health check (non-fatal)', { error: error && error.message }, 'error');
+  }
+}
+
 function scheduleLessonPlanHealth({ worker: w = null, setIntervalFn = setInterval, setTimeoutFn = setTimeout } = {}) {
   if (!SQSCoachingWorker._enabledQueues().has('main')) {
     logToFile('Lesson-plan health check not scheduled on this replica', { reason: 'no main queue' });
@@ -1766,8 +1779,7 @@ function startWorker() {
 
     logToFile('Periodic Soniox storage cleanup enabled (every 15 minutes)');
 
-    scheduleChallengeVoiceSweep({ worker });
-    scheduleLessonPlanHealth({ worker });
+    schedulePeriodicChecks({ worker });
 
     // bd-2417: NIETE has no Railway Cron, so drive stale-session recovery from
     // this always-on worker too — auto-complete abandoned reflection sessions
@@ -1944,5 +1956,5 @@ if (require.main === module) {
 module.exports = {
   SQSCoachingWorker, WORKER_ID, startWorker, runDebriefRetrySweep, resolveWorkerQueuesBootStatus,
   exitAfterFlush, runQuizFunnelWatch, scheduleChallengeVoiceSweep, challengeVoiceSweepEnabled,
-  runLessonPlanHealth, scheduleLessonPlanHealth,
+  runLessonPlanHealth, scheduleLessonPlanHealth, schedulePeriodicChecks,
 };

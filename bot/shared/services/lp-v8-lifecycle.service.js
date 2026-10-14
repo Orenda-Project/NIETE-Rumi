@@ -36,9 +36,9 @@ function topicOf(hit, lessonId) {
   return raw.length <= TOPIC_MAX ? raw : `${raw.slice(0, TOPIC_MAX - 1).trim()}…`;
 }
 
-/** Her ask for this lesson in the portal inside the last SAME_ASK_MS, if there is one. Throws on a
- *  failed read (the caller decides what an unanswerable check means). */
-async function askedJustNow(userId, lessonId) {
+/** Her ask for this lesson in the portal inside the last SAME_ASK_MS that ended the same way, if there is
+ *  one — a failure never hides a later success. Throws on a failed read (the caller decides). */
+async function askedJustNow(userId, lessonId, status) {
   const { data, error } = await supabase
     .from('lesson_plan_requests')
     .select('id')
@@ -46,6 +46,7 @@ async function askedJustNow(userId, lessonId) {
     .eq('source', SOURCE)
     .eq('channel', CHANNELS.PORTAL)
     .eq('artifact_ref', lessonId)
+    .eq('status', status)
     .gte('created_at', new Date(Date.now() - SAME_ASK_MS).toISOString())
     .limit(1);
   if (error) throw new Error(error.message || 'lifecycle read failed');
@@ -64,15 +65,11 @@ async function recordPortalLesson({ userId, lessonId, assetKind = 'lesson', avai
   try {
     if (!Lifecycle.enabled(SOURCE)) return null;
     if (assetKind !== 'lesson' || !userId || !lessonId) return null;
-    try {
-      if (await askedJustNow(userId, lessonId)) return null;
-    } catch (err) {
-      // Cannot tell whether she asked a moment ago: record it. One extra row is recoverable in a query;
-      // a lost ask is not. Said, so a failing read is not invisible.
-      logToFile('⚠️ LP v8 portal lifecycle: same-ask check failed — recording this fetch anyway', { lessonId, error: err.message }, 'warn');
-    }
+    // A lesson the catalogue does not know is not an ask about a plan: the portal endpoint takes any id,
+    // and recording one would let a caller fill the table. Checked first, so it costs no read either.
     const hit = V8Catalog.lessonById(lessonId);
-    const book = hit && hit.book;
+    if (!hit) return null;
+    const book = hit.book;
     // `error`: the PDF exists in the catalogue but could not be handed over (the link failed) — a failed
     // delivery, not a missing plan.
     let outcome;
@@ -83,6 +80,13 @@ async function recordPortalLesson({ userId, lessonId, assetKind = 'lesson', avai
       outcome = { status: 'completed', generatedAt: askedAt };
     } else {
       outcome = { status: 'failed', generatedAt: null, errorCode: ERROR_CODES.NO_ASSET, errorMessage: 'no current PDF for this lesson' };
+    }
+    try {
+      if (await askedJustNow(userId, lessonId, outcome.status)) return null;
+    } catch (err) {
+      // Cannot tell whether she asked a moment ago: record it. One extra row is recoverable in a query;
+      // a lost ask is not. Said, so a failing read is not invisible.
+      logToFile('⚠️ LP v8 portal lifecycle: same-ask check failed — recording this fetch anyway', { lessonId, error: err.message }, 'warn');
     }
     return await Lifecycle.recordOutcome({
       userId,

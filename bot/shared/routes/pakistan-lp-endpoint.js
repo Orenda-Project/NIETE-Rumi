@@ -741,9 +741,10 @@ function deliverPakistanLpAsync(flowToken, row, askedAt) {
  * outcome. Switched by LP_LIFECYCLE_PATHS; never throws.
  */
 async function recordPreGenAsk({ userId, phone, row, language, askedAt, outcome }) {
-  const Lifecycle = require('../services/lesson-plan-lifecycle.service');
-  const { SOURCES, CHANNELS } = Lifecycle.LIFECYCLE;
+  let Lifecycle = null;
   try {
+    Lifecycle = require('../services/lesson-plan-lifecycle.service');
+    const { SOURCES, CHANNELS } = Lifecycle.LIFECYCLE;
     return await Lifecycle.recordOutcome({
       userId,
       phone,
@@ -761,7 +762,7 @@ async function recordPreGenAsk({ userId, phone, row, language, askedAt, outcome 
     });
   } catch (err) {
     // Describing the ask threw (recordOutcome itself never does): reported, never thrown into her delivery.
-    Lifecycle.recorderThrew(err, SOURCES.PRE_GEN_CHAPTER);
+    if (Lifecycle) Lifecycle.recorderThrew(err, Lifecycle.LIFECYCLE.SOURCES.PRE_GEN_CHAPTER);
     return null;
   }
 }

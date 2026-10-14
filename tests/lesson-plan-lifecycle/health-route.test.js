@@ -107,3 +107,11 @@ test('a read that fails answers 503 — broken is not the same as quiet', async 
   expect(statusCode).toBe(503);
   expect(payload).toEqual(expect.objectContaining({ success: false, status: 'read_failed' }));
 });
+
+test('a 503 never echoes the database\'s own error text — the detail is logged, the answer says read_failed', async () => {
+  process.env.LP_LIFECYCLE_PATHS = 'all';
+  mockFailReads = true;
+  const { statusCode, payload } = await getHealth();
+  expect(statusCode).toBe(503);
+  expect(payload).toEqual({ success: false, status: 'read_failed' });
+});

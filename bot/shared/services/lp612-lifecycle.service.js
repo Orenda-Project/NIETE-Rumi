@@ -93,7 +93,10 @@ function recordPortalReady({ userId, segment, segmentId, lang, askedAt, generate
 
 /** The lifecycle code for a render the worker failed with this error code. */
 function codeForRenderError(code) {
-  return code === 'RENDER_FAILED' ? ERROR_CODES.RENDER_FAILED : ERROR_CODES.GENERATION_FAILED;
+  if (code === 'RENDER_FAILED') return ERROR_CODES.RENDER_FAILED;
+  // The segment left the catalogue between her ask and the render: a content answer, not our failure.
+  if (code === 'SEGMENT_MISSING') return ERROR_CODES.NO_ASSET;
+  return ERROR_CODES.GENERATION_FAILED;
 }
 
 /**
@@ -144,6 +147,9 @@ async function recordRequestOutcome({ req, outcome, result, askedAt } = {}) {
   const surface = req.surface || 'whatsapp';
   const portal = isPortal(surface);
   if (portal ? !req.userId : (surface !== 'whatsapp' || !req.phone)) return null;
+  // On WhatsApp the segment came from a menu the bot offered, so a missing one is a real ask for a plan
+  // that has gone. The portal endpoint takes any id: one the catalogue does not know is not an ask.
+  if (portal && outcome === 'not_found') return null;
   // A job that could not be queued is not a generation failure: it never reached the writer.
   const queueFailed = outcome === 'error' && /enqueue failed/i.test(String((result && result.error) || ''));
   return recordAsk({

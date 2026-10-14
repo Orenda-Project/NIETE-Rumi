@@ -105,3 +105,37 @@ describe('every tick says what it did', () => {
     expect(mockLogToFile).toHaveBeenCalledWith('Lesson-plan health tick', expect.objectContaining({ outcome: 'skipped', reason: 'shutting_down' }));
   });
 });
+
+describe('the boot step that schedules the worker\'s periodic checks', () => {
+  test('schedules the lesson-plan health check on a main-queue replica', () => {
+    jest.useFakeTimers();
+    try {
+      process.env.WORKER_QUEUES = 'main';
+      const { schedulePeriodicChecks } = require('../../bot/workers/sqs-worker');
+      schedulePeriodicChecks({ worker: { isShuttingDown: false } });
+      expect(mockLogToFile).toHaveBeenCalledWith(expect.stringMatching(/^Lesson-plan health check scheduled/));
+    } finally {
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    }
+  });
+
+  test('a health module that throws never stops the boot — it is said, and the step returns', () => {
+    jest.isolateModules(() => {
+      jest.doMock('../../bot/shared/services/monitoring/lesson-plan-health.service', () => ({
+        healthCheckOff: () => { throw new Error('health module broken'); },
+        run: jest.fn(),
+      }));
+      process.env.WORKER_QUEUES = 'main';
+      const { schedulePeriodicChecks } = require('../../bot/workers/sqs-worker');
+      jest.useFakeTimers();
+      try {
+        expect(() => schedulePeriodicChecks({ worker: { isShuttingDown: false } })).not.toThrow();
+        expect(mockLogToFile).toHaveBeenCalledWith(expect.stringMatching(/lesson-plan health/i), expect.objectContaining({ error: 'health module broken' }), 'error');
+      } finally {
+        jest.clearAllTimers();
+        jest.useRealTimers();
+      }
+    });
+  });
+});
