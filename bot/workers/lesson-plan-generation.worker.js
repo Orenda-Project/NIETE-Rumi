@@ -53,8 +53,8 @@ async function openLpBrowseFlowForCutover({ from, userId, language, topic, reque
 // Temp directory for PDF downloads
 const TEMP_DIR = process.env.TEMP_DIR || '/tmp';
 
-// Max retries before sending apology
-const MAX_RETRIES = 3;
+// Attempts before the apology — the one limit the queue service and the health check share.
+const { MAX_ATTEMPTS: MAX_RETRIES } = require('../shared/config/lesson-plan-generation');
 
 /**
  * Bilingual messages for user communication
@@ -118,6 +118,8 @@ class LessonPlanGenerationWorker {
         await LessonPlanQueueService.markFailed(
           requestId,
           'freeform LP generation is retired; only grounded AST jobs are processed',
+          undefined,
+          { final: true },   // the message is consumed, not retried
         );
       } catch (markErr) {
         logToFile('markFailed after freeform-drop errored (non-fatal)', { error: markErr.message });
@@ -278,7 +280,7 @@ class LessonPlanGenerationWorker {
 
       const req = await LessonPlanQueueService.getRequest(requestId);
       const retryCount = (req?.retry_count || 0) + 1;
-      await LessonPlanQueueService.markFailed(requestId, error.message, error.lifecycleCode);
+      await LessonPlanQueueService.markFailed(requestId, error.message, error.lifecycleCode, { final: retryCount >= MAX_RETRIES });
 
       if (retryCount >= MAX_RETRIES) {
         try {
