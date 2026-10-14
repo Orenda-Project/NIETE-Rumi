@@ -40,17 +40,20 @@ function pickThingToTry(lpFidelity) {
   };
 }
 
-/** Did this recording show the prior thing's practice? { outcome, matched }, null with no prior tag. Pure. */
+/**
+ * Did this recording show the prior thing's practice? { outcome, matched, moveIds }, null with no prior
+ * tag. moveIds are the moves judged, so a coach can review the call. Pure.
+ */
 function checkThing(prior, lpFidelity) {
   if (!prior || !prior.tag) return null;
   const moves = gradedMoves(lpFidelity);
-  if (!moves) return { outcome: 'not_graded', matched: 0 };
+  if (!moves) return { outcome: 'not_graded', matched: 0, moveIds: [] };
   const same = moves.filter((m) => m.verdict !== 'not_adjudicable' && practiceTag(m) === prior.tag);
   let outcome = 'no_matching_move';
   if (same.some((m) => DONE.has(m.verdict))) outcome = 'did';
   else if (same.some((m) => m.verdict === 'partial')) outcome = 'partly';
   else if (same.length) outcome = 'not_done';
-  return { outcome, matched: same.length };
+  return { outcome, matched: same.length, moveIds: same.map((m) => m.move_id) };
 }
 
 async function priorSession(userId, coachingSessionId) {

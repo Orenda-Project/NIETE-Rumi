@@ -82,28 +82,28 @@ describe('checkThing', () => {
   test('did: a same-practice move was done (or substituted)', () => {
     for (const verdict of ['executed', 'substituted_equivalent', 'substituted_better']) {
       const lp = graded([row('m1', 'guided', 'In groups, sort the cards.', verdict), row('m2', 'guided', 'Partners read.', 'not_done')]);
-      expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'did', matched: 2 });
+      expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'did', matched: 2, moveIds: ['m1', 'm2'] });
     }
   });
 
   test('partly: the best same-practice move was partial', () => {
     const lp = graded([row('m1', 'guided', 'In groups, sort the cards.', 'partial'), row('m2', 'guided', 'Partners read.', 'not_done')]);
-    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'partly', matched: 2 });
+    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'partly', matched: 2, moveIds: ['m1', 'm2'] });
   });
 
   test('not_done: every same-practice move was missed', () => {
     const lp = graded([row('m1', 'guided', 'In groups, sort the cards.', 'not_done')]);
-    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'not_done', matched: 1 });
+    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'not_done', matched: 1, moveIds: ['m1'] });
   });
 
   test('no_matching_move: this plan had no move with that practice', () => {
     const lp = graded([row('m1', 'exit', 'Exit ticket.', 'executed')]);
-    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'no_matching_move', matched: 0 });
+    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'no_matching_move', matched: 0, moveIds: [] });
   });
 
   test('not_adjudicable moves are left out', () => {
     const lp = graded([row('m1', 'guided', 'In groups, sort the cards.', 'not_adjudicable')]);
-    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'no_matching_move', matched: 0 });
+    expect(P.checkThing(PRIOR, lp)).toEqual({ outcome: 'no_matching_move', matched: 0, moveIds: [] });
   });
 
   test('optional moves count too: she may try it anywhere in the lesson', () => {
@@ -112,8 +112,8 @@ describe('checkThing', () => {
   });
 
   test('not_graded when this recording has no grading', () => {
-    expect(P.checkThing(PRIOR, { status: 'lp_absent' })).toEqual({ outcome: 'not_graded', matched: 0 });
-    expect(P.checkThing(PRIOR, null)).toEqual({ outcome: 'not_graded', matched: 0 });
+    expect(P.checkThing(PRIOR, { status: 'lp_absent' })).toEqual({ outcome: 'not_graded', matched: 0, moveIds: [] });
+    expect(P.checkThing(PRIOR, null)).toEqual({ outcome: 'not_graded', matched: 0, moveIds: [] });
   });
 
   test('null when there is no prior thing or it has no tag', () => {
@@ -173,7 +173,7 @@ describe('withThingToTry', () => {
     expect(logEvent).toHaveBeenCalledWith('coaching.thing_to_try.checked', {
       userId: 'u1', sessionId: 's2', priorSessionId: 's1', group: 'C',
       moveId: 'm5', setOnLessonId: 'grade_2_maths_ch4_seg2', lessonId: 'grade_2_maths_ch4_seg3',
-      tag: 'C3', outcome: 'not_done', matched: 1,
+      tag: 'C3', outcome: 'not_done', matched: 1, moveIds: ['m5'],
     });
   });
 
