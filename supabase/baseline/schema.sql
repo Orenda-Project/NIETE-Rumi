@@ -1,12 +1,12 @@
 -- NIETE sandbox schema baseline (project olvritwoqujtjvwfulbh), schema only — no rows.
--- Regenerate: bash bot/scripts/e2e/local-db.sh baseline · dumped 2026-10-07T06:20Z
+-- Regenerate: bash bot/scripts/e2e/local-db.sh baseline · dumped 2026-10-14T07:32Z
 --
 -- PostgreSQL database dump
 --
 
 
 -- Dumped from database version 17.6
--- Dumped by pg_dump version 18.6
+-- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg13+2)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -2516,6 +2516,102 @@ END;
 $$;
 
 
+--
+-- Name: web_quiz_merge_student(uuid, uuid, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.web_quiz_merge_student(p_from uuid, p_to uuid, p_actor text DEFAULT 'web_quiz'::text) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public', 'pg_temp'
+    AS $_$
+DECLARE
+  v_from students%ROWTYPE;
+  v_to   students%ROWTYPE;
+  v_fk   record;
+  v_ids  text[];
+  v_moved jsonb := '{}'::jsonb;
+  v_n    int;
+  -- Every FK column to students this function was reviewed for (live sandbox, 7 Oct 2026).
+  v_known text[] := ARRAY[
+    'attendance_records.student_id', 'class_enrollments.student_id', 'exam_submissions.student_id',
+    'quiz_sessions.student_id', 'quiz_sessions.invited_by_student_id', 'quiz_share_codes.invited_by_student_id',
+    'child_test_draws.student_id', 'child_test_sessions.student_id', 'web_quiz_challenge_runs.student_id',
+    'students.merged_into'
+  ];
+BEGIN
+  IF p_from IS NULL OR p_to IS NULL OR p_from = p_to THEN
+    RETURN jsonb_build_object('refused', 'same_or_null');
+  END IF;
+  SELECT * INTO v_from FROM students WHERE id = p_from FOR UPDATE;
+  SELECT * INTO v_to   FROM students WHERE id = p_to   FOR UPDATE;
+  IF v_from.id IS NULL OR v_to.id IS NULL THEN RETURN jsonb_build_object('refused', 'unknown'); END IF;
+  IF v_from.status = 'merged' OR v_to.status = 'merged' THEN RETURN jsonb_build_object('refused', 'already_merged'); END IF;
+  IF v_from.list_id IS NOT NULL THEN RETURN jsonb_build_object('refused', 'listed'); END IF;
+  IF EXISTS (SELECT 1 FROM class_enrollments WHERE student_id = p_from AND is_active) THEN
+    RETURN jsonb_build_object('refused', 'enrolled');
+  END IF;
+  IF EXISTS (SELECT 1 FROM quiz_sessions WHERE student_id = p_from AND status = 'in_progress' AND expires_at > now()) THEN
+    RETURN jsonb_build_object('refused', 'open_sitting');
+  END IF;
+  IF to_regclass('public.web_quiz_challenge_runs') IS NOT NULL AND EXISTS (
+       SELECT 1 FROM web_quiz_challenge_runs WHERE student_id = p_from AND status = 'scoring' AND created_at > now() - interval '1 hour') THEN
+    RETURN jsonb_build_object('refused', 'open_run');
+  END IF;
+
+  -- Fail closed on FK drift: a column this function was not reviewed for stops the merge.
+  FOR v_fk IN
+    SELECT c.conrelid::regclass::text AS tbl, a.attname AS col
+    FROM pg_constraint c
+    JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)
+    WHERE c.contype = 'f' AND c.confrelid = 'public.students'::regclass
+  LOOP
+    IF NOT (regexp_replace(v_fk.tbl, '^public\.', '') || '.' || v_fk.col) = ANY (v_known) THEN
+      RAISE EXCEPTION 'web_quiz_merge_student: unreviewed FK %.% to students', v_fk.tbl, v_fk.col
+        USING ERRCODE = 'check_violation';
+    END IF;
+  END LOOP;
+
+  -- Move every live FK column, the tombstone's own merged_into excluded (set last, below).
+  FOR v_fk IN
+    SELECT regexp_replace(c.conrelid::regclass::text, '^public\.', '') AS tbl, a.attname AS col
+    FROM pg_constraint c
+    JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)
+    WHERE c.contype = 'f' AND c.confrelid = 'public.students'::regclass
+    ORDER BY 1, 2
+  LOOP
+    EXECUTE format('SELECT array_agg(id::text) FROM %I WHERE %I = $1', v_fk.tbl, v_fk.col) INTO v_ids USING p_from;
+    IF v_ids IS NULL OR array_length(v_ids, 1) IS NULL THEN CONTINUE; END IF;
+    IF v_fk.tbl = 'students' AND v_fk.col = 'merged_into' THEN
+      -- children already merged INTO p_from now point at p_to
+      EXECUTE format('UPDATE %I SET %I = $1 WHERE %I = $2 AND id <> $2', v_fk.tbl, v_fk.col, v_fk.col) USING p_to, p_from;
+    ELSE
+      EXECUTE format('UPDATE %I SET %I = $1 WHERE %I = $2', v_fk.tbl, v_fk.col, v_fk.col) USING p_to, p_from;
+    END IF;
+    GET DIAGNOSTICS v_n = ROW_COUNT;
+    v_moved := v_moved || jsonb_build_object(v_fk.tbl || '.' || v_fk.col, to_jsonb(v_ids));
+    -- record_history allows the row ops only (INSERT/UPDATE/DELETE): the merge is an UPDATE of the
+    -- listed rows; `old_vals.merge = true` and the actor mark it as a merge move, undone by id.
+    INSERT INTO record_history (table_name, row_id, op, changed_cols, old_vals, new_vals, actor, actor_source, txid, changed_at)
+    VALUES (v_fk.tbl, p_from::text, 'UPDATE', ARRAY[v_fk.col],
+            jsonb_build_object(v_fk.col, p_from, 'ids', to_jsonb(v_ids), 'merge', true),
+            jsonb_build_object(v_fk.col, p_to, 'n', v_n),
+            coalesce(p_actor, 'web_quiz'), 'sql', txid_current(), now());
+  END LOOP;
+
+  -- A child who "invited" themself after the move is nobody's friend.
+  UPDATE quiz_sessions SET invited_by_student_id = NULL WHERE student_id = p_to AND invited_by_student_id = p_to;
+  UPDATE quiz_share_codes c SET invited_by_student_id = NULL
+    WHERE c.invited_by_student_id = p_to
+      AND EXISTS (SELECT 1 FROM quiz_sessions s WHERE s.share_code_id = c.id AND s.student_id = p_to AND s.invited_by_student_id IS NULL)
+      AND NOT EXISTS (SELECT 1 FROM quiz_sessions s WHERE s.share_code_id = c.id AND s.student_id <> p_to);
+
+  -- The tombstone, last (students has its own history trigger).
+  UPDATE students SET status = 'merged', merged_into = p_to, is_active = false, updated_at = now() WHERE id = p_from;
+  RETURN jsonb_build_object('from', p_from, 'to', p_to, 'moved', v_moved);
+END;
+$_$;
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -4117,7 +4213,20 @@ CREATE TABLE public.lesson_plan_requests (
     completed_at timestamp with time zone,
     error_message text,
     retry_count integer DEFAULT 0,
-    last_retry_at timestamp with time zone
+    last_retry_at timestamp with time zone,
+    source text,
+    channel text,
+    region text,
+    grade integer,
+    subject text,
+    artifact_ref text,
+    generated_at timestamp with time zone,
+    delivered_at timestamp with time zone,
+    error_code text,
+    correlation_id text,
+    CONSTRAINT lesson_plan_requests_channel_check CHECK (((channel IS NULL) OR (channel = ANY (ARRAY['whatsapp'::text, 'portal'::text])))),
+    CONSTRAINT lesson_plan_requests_source_check CHECK (((source IS NULL) OR (source = ANY (ARRAY['gamma_standard'::text, 'gamma_enriched'::text, 'ug_lp'::text, 'ps_pregen'::text, 'v7_segment'::text, 'v7_chapter'::text, 'gamma_chapter'::text, 'pre_gen_chapter'::text, 'homework_bundle'::text, 'pic_to_lp_kieai'::text, 'kenya_browse'::text, 'multigrade_lp'::text, 'niete_grounded'::text, 'niete_v8_segment'::text, 'niete_lp612'::text, 'niete_oxbridge'::text, 'niete_portal_share'::text])))),
+    CONSTRAINT lesson_plan_requests_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'processing'::character varying, 'completed'::character varying, 'failed'::character varying, 'cancelled'::character varying])::text[])))
 );
 
 
@@ -4144,7 +4253,8 @@ CREATE TABLE public.lesson_plans (
     delivery_time_ms integer,
     cost_usd numeric(8,4),
     pic_lp_session_id uuid,
-    textbook_metadata jsonb
+    textbook_metadata jsonb,
+    request_id uuid
 );
 
 
@@ -4654,6 +4764,7 @@ CREATE TABLE public.niete_lp612_deliveries (
     notice_seen_at timestamp with time zone,
     notice_opened_at timestamp with time zone,
     notice_whatsapp_at timestamp with time zone,
+    request_id uuid,
     CONSTRAINT niete_lp612_deliveries_lang_check CHECK ((lang = ANY (ARRAY['en'::text, 'ur'::text]))),
     CONSTRAINT niete_lp612_deliveries_surface_check CHECK ((surface = ANY (ARRAY['whatsapp'::text, 'portal'::text, 'backfill'::text])))
 );
@@ -4819,6 +4930,7 @@ CREATE TABLE public.niete_lp_downloads (
     segment_index integer,
     correlation_id text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    request_id uuid,
     CONSTRAINT niete_lp_downloads_status_check CHECK ((status = ANY (ARRAY['sent'::text, 'failed'::text])))
 );
 
@@ -8268,17 +8380,17 @@ CREATE INDEX idx_assessment_papers_request ON public.assessment_papers USING btr
 
 
 --
--- Name: idx_assessment_requests_user_time; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_assessment_requests_user_time ON public.assessment_requests USING btree (user_id, created_at DESC);
-
-
---
 -- Name: idx_assessment_requests_notice_waiting; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_assessment_requests_notice_waiting ON public.assessment_requests USING btree (created_at) WHERE ((surface = 'portal'::text) AND (notice_seen_at IS NULL) AND (notice_opened_at IS NULL) AND (notice_whatsapp_at IS NULL));
+
+
+--
+-- Name: idx_assessment_requests_user_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_assessment_requests_user_time ON public.assessment_requests USING btree (user_id, created_at DESC);
 
 
 --
@@ -9297,6 +9409,13 @@ CREATE INDEX idx_lesson_plans_pdf_url ON public.lesson_plans USING btree (pdf_ur
 
 
 --
+-- Name: idx_lesson_plans_request_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lesson_plans_request_id ON public.lesson_plans USING btree (request_id) WHERE (request_id IS NOT NULL);
+
+
+--
 -- Name: idx_lesson_plans_user_created; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -9304,17 +9423,17 @@ CREATE INDEX idx_lesson_plans_user_created ON public.lesson_plans USING btree (u
 
 
 --
--- Name: idx_lp612_deliveries_user_recent; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_lp612_deliveries_user_recent ON public.niete_lp612_deliveries USING btree (user_id, delivered_at DESC);
-
-
---
 -- Name: idx_lp612_deliveries_notice_waiting; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_lp612_deliveries_notice_waiting ON public.niete_lp612_deliveries USING btree (delivered_at) WHERE ((surface = 'portal'::text) AND (notice_seen_at IS NULL) AND (notice_opened_at IS NULL) AND (notice_whatsapp_at IS NULL));
+
+
+--
+-- Name: idx_lp612_deliveries_user_recent; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lp612_deliveries_user_recent ON public.niete_lp612_deliveries USING btree (user_id, delivered_at DESC);
 
 
 --
@@ -9434,6 +9553,13 @@ CREATE INDEX idx_lp_feedback_user_time ON public.lp_feedback USING btree (user_i
 --
 
 CREATE INDEX idx_lp_opens_user_recent ON public.niete_lp_opens USING btree (user_id, opened_at DESC);
+
+
+--
+-- Name: idx_lp_requests_source_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lp_requests_source_created ON public.lesson_plan_requests USING btree (source, created_at DESC) WHERE (source IS NOT NULL);
 
 
 --
@@ -9742,6 +9868,13 @@ CREATE UNIQUE INDEX idx_quiz_questions_external_id ON public.quiz_questions USIN
 --
 
 CREATE INDEX idx_quiz_questions_quiz_id ON public.quiz_questions USING btree (quiz_id);
+
+
+--
+-- Name: idx_quiz_sessions_device_ref; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_quiz_sessions_device_ref ON public.quiz_sessions USING btree (device_ref) WHERE (device_ref IS NOT NULL);
 
 
 --
@@ -11989,6 +12122,14 @@ ALTER TABLE ONLY public.lesson_plan_requests
 
 
 --
+-- Name: lesson_plans lesson_plans_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lesson_plans
+    ADD CONSTRAINT lesson_plans_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.lesson_plan_requests(id) ON DELETE SET NULL;
+
+
+--
 -- Name: lesson_plans lesson_plans_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -12026,6 +12167,14 @@ ALTER TABLE ONLY public.lp_feedback
 
 ALTER TABLE ONLY public.niete_lp612_deliveries
     ADD CONSTRAINT niete_lp612_deliveries_render_id_fkey FOREIGN KEY (render_id) REFERENCES public.niete_lp612_renders(id) ON DELETE SET NULL;
+
+
+--
+-- Name: niete_lp612_deliveries niete_lp612_deliveries_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_lp612_deliveries
+    ADD CONSTRAINT niete_lp612_deliveries_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.lesson_plan_requests(id) ON DELETE SET NULL;
 
 
 --
@@ -12082,6 +12231,14 @@ ALTER TABLE ONLY public.niete_lp_asset_sources
 
 ALTER TABLE ONLY public.niete_lp_downloads
     ADD CONSTRAINT niete_lp_downloads_asset_id_fkey FOREIGN KEY (asset_id) REFERENCES public.niete_lp_assets(id) ON DELETE SET NULL;
+
+
+--
+-- Name: niete_lp_downloads niete_lp_downloads_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.niete_lp_downloads
+    ADD CONSTRAINT niete_lp_downloads_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.lesson_plan_requests(id) ON DELETE SET NULL;
 
 
 --
@@ -14238,6 +14395,14 @@ GRANT ALL ON FUNCTION public.update_student_videos_search_vector() TO service_ro
 --
 
 GRANT ALL ON FUNCTION public.update_updated_at_column() TO service_role;
+
+
+--
+-- Name: FUNCTION web_quiz_merge_student(p_from uuid, p_to uuid, p_actor text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.web_quiz_merge_student(p_from uuid, p_to uuid, p_actor text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.web_quiz_merge_student(p_from uuid, p_to uuid, p_actor text) TO service_role;
 
 
 --
