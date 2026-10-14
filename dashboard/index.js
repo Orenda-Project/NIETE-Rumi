@@ -186,6 +186,10 @@ app.use(createTeacherStoriesRouter());
 // the body parsers, so it reads every upload as bytes under its own size cap.
 const { createIabProbeRouter } = require('./routes/iab-probe.routes');
 app.use(createIabProbeRouter());
+// Group C and D's coaching report page /cr/:token (v10 coaching test, bd-v0toag.18). Read-only,
+// signs nobody in; ahead of the SPA catch-all so it never serves index.html for a report link.
+const { createCoachingReportRouter } = require('./routes/coaching-report.routes');
+app.use(createCoachingReportRouter());
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));
