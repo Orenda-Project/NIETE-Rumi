@@ -4483,7 +4483,7 @@ CREATE TABLE IF NOT EXISTS niete_lp_assets (
   rendered_at      TIMESTAMPTZ,            -- MANIFEST rendered_at
 
   asset_kind       TEXT        NOT NULL DEFAULT 'lesson'
-                   CHECK (asset_kind IN ('lesson', 'answer_key')),
+                   CHECK (asset_kind IN ('lesson', 'answer_key', 'card')),  -- card: V1.6.6
 
   is_current       BOOLEAN     NOT NULL DEFAULT TRUE,
   superseded_at    TIMESTAMPTZ,

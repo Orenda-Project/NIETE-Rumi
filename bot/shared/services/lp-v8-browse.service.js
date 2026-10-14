@@ -167,8 +167,13 @@ async function lessonPdfUrl(lessonId, assetKind = 'lesson', userId = null) {
   const asset = await LpAb.assetFor({ group, lessonId, assetKind, current: V8Delivery.currentAssetFor });
   if (!asset || !asset.r2_key) return null;
 
+  // v10 coaching test (bd-v0toag.50.1): plan-arm v10 schools open the card; keys never have one.
+  const V10Card = require('./lp-v10-card.service');
+  const sent = (assetKind !== 'lesson' || group === 'A' ? null
+    : await V10Card.servedFor({ userId, lessonId, lesson: asset, channel: 'app' })) || asset;
+
   const { buildR2PublicUrl, getPresignedUrl } = require('../storage/r2');
-  const url = await getPresignedUrl(buildR2PublicUrl(asset.r2_key));
+  const url = await getPresignedUrl(buildR2PublicUrl(sent.r2_key));
   return {
     url,
     asset_kind: assetKind,
