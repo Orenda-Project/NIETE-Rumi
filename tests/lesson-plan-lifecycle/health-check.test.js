@@ -208,6 +208,14 @@ describe('switched on', () => {
     expect(mockCalls).toBe(0);
   });
 
+  test('a read that hit the row cap is DEGRADED (truncated) — a flood can never hide failures behind "healthy"', async () => {
+    mockDb.tables.lesson_plan_requests = Array.from({ length: 5000 }, () => ask());
+    const out = await Health.run({ now: NOW, redis: fakeRedis() });
+    expect(out).toEqual(expect.objectContaining({ outcome: 'checked', verdict: 'degraded', reasons: expect.arrayContaining(['truncated']) }));
+    expect(checked()[0]).toEqual(expect.objectContaining({ truncated: true, verdict: 'degraded' }));
+    expect(errorLogs()).toHaveLength(1);
+  });
+
   test('a read that fails is said at error level and resolves — it never reaches the worker', async () => {
     mockFailReads = true;
     await expect(Health.run({ now: NOW, redis: fakeRedis() })).resolves.toEqual(expect.objectContaining({ outcome: 'read_failed' }));
@@ -231,5 +239,20 @@ describe('the watermark', () => {
     expect(out).toEqual(expect.objectContaining({ outcome: 'checked' }));
     expect(checked()[0]).toEqual(expect.objectContaining({ windowStart: ago(75), windowMin: 60 }));
     expect(mockLog).toHaveBeenCalledWith(expect.stringMatching(/watermark/i), expect.objectContaining({ error: 'READONLY replica' }), 'warn');
+  });
+});
+
+describe('the kill switch reads only what it knows', () => {
+  test('an LP_HEALTH_CHECK value that is neither off nor on is said once at warn level, and the check keeps running', () => {
+    expect(Health.healthCheckOff({ LP_HEALTH_CHECK: 'disabled' })).toBe(false);
+    expect(Health.healthCheckOff({ LP_HEALTH_CHECK: 'disabled' })).toBe(false);
+    const warns = mockLog.mock.calls.filter((c) => c[2] === 'warn' && /LP_HEALTH_CHECK/.test(String(c[0])));
+    expect(warns).toHaveLength(1);
+  });
+
+  test('off words stop it and on words or empty run it, all in silence', () => {
+    for (const v of ['off', 'false', '0', 'no']) expect(Health.healthCheckOff({ LP_HEALTH_CHECK: v })).toBe(true);
+    for (const v of ['', 'on', 'true', '1', 'yes']) expect(Health.healthCheckOff({ LP_HEALTH_CHECK: v })).toBe(false);
+    expect(mockLog.mock.calls.filter((c) => /LP_HEALTH_CHECK/.test(String(c[0])))).toHaveLength(0);
   });
 });

@@ -164,6 +164,15 @@ describe('a grade 1-5 lesson PDF handed to the portal', () => {
     }));
   });
 
+  test('switched ON: a lesson id the catalogue does not know is not an ask — no row, and not even a read of the lifecycle table', async () => {
+    process.env.LP_LIFECYCLE_PATHS = 'niete_v8_segment';
+    const { statusCode, payload } = await fetchPdf({ lessonId: 'grade_1_english_ch9_seg99', userId: USER.id });
+    expect(statusCode).toBe(200);
+    expect(payload).toEqual({ success: true, available: false });
+    expect(asks()).toHaveLength(0);
+    expect(touched('lesson_plan_requests')).toBe(0);
+  });
+
   test('switched ON: the same lesson fetched again within 5 minutes is the same ask — after that it is a new one', async () => {
     process.env.LP_LIFECYCLE_PATHS = 'niete_v8_segment';
     await fetchPdf({ lessonId: LESSON, userId: USER.id });

@@ -64,6 +64,10 @@ async function recordPortalLesson({ userId, lessonId, assetKind = 'lesson', avai
   try {
     if (!Lifecycle.enabled(SOURCE)) return null;
     if (assetKind !== 'lesson' || !userId || !lessonId) return null;
+    // A lesson the catalogue does not know is not an ask about a plan: the portal endpoint takes any id,
+    // and recording one would let a caller fill the table. Checked first, so it costs no read either.
+    const hit = V8Catalog.lessonById(lessonId);
+    if (!hit) return null;
     try {
       if (await askedJustNow(userId, lessonId)) return null;
     } catch (err) {
@@ -71,8 +75,7 @@ async function recordPortalLesson({ userId, lessonId, assetKind = 'lesson', avai
       // a lost ask is not. Said, so a failing read is not invisible.
       logToFile('⚠️ LP v8 portal lifecycle: same-ask check failed — recording this fetch anyway', { lessonId, error: err.message }, 'warn');
     }
-    const hit = V8Catalog.lessonById(lessonId);
-    const book = hit && hit.book;
+    const book = hit.book;
     // `error`: the PDF exists in the catalogue but could not be handed over (the link failed) — a failed
     // delivery, not a missing plan.
     let outcome;

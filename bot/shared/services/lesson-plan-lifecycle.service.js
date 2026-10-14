@@ -243,9 +243,11 @@ async function recordOutcome(o = {}) {
   try {
     row = outcomeRow(await withContact(o));
     if (!row) return null;
+    // Insert or ignore: a retried call that names its id adds no second row, and no call can rewrite a
+    // row that is already there (another teacher's ask included).
     const { error } = await supabase
       .from('lesson_plan_requests')
-      .upsert({ ...row }, { onConflict: 'id' });
+      .upsert({ ...row }, { onConflict: 'id', ignoreDuplicates: true });
     if (error) {
       writeFailed(error, row);
       return null;

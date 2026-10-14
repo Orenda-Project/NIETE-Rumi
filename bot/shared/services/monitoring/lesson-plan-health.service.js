@@ -70,8 +70,19 @@ let skipsInARow = 0;
 const anyPathOn = () => Object.values(Lifecycle.LIFECYCLE.SOURCES).some((s) => Lifecycle.enabled(s));
 
 /** The check's own kill switch: LP_HEALTH_CHECK=off (or false / 0 / no) stops it with the lifecycle on. */
+const HEALTH_OFF_WORDS = ['off', 'false', '0', 'no'];
+const HEALTH_ON_WORDS = ['', 'on', 'true', '1', 'yes'];
+let unknownSwitchSaid = false;
 function healthCheckOff(env = process.env) {
-  return ['off', 'false', '0', 'no'].includes(String(env.LP_HEALTH_CHECK || '').trim().toLowerCase());
+  const v = String(env.LP_HEALTH_CHECK || '').trim().toLowerCase();
+  if (HEALTH_OFF_WORDS.includes(v)) return true;
+  if (!HEALTH_ON_WORDS.includes(v) && !unknownSwitchSaid) {
+    // Not a word this switch knows: the check keeps running (as before), and says so once.
+    unknownSwitchSaid = true;
+    logToFile('⚠️ LP_HEALTH_CHECK has a value it does not know — the lesson-plan health check keeps running; use off to stop it',
+      { value: v.slice(0, 40) }, 'warn');
+  }
+  return false;
 }
 
 /**
@@ -155,8 +166,10 @@ function summarize(rows) {
   });
 }
 
-function verdictFor(sources, stuck) {
+function verdictFor(sources, stuck, truncated = false) {
   const reasons = [];
+  // A read that hit MAX_ROWS has not seen the whole window: whatever it did not read could be failing.
+  if (truncated) reasons.push('truncated');
   if (stuck > 0) reasons.push('stuck');
   for (const s of sources) {
     const finished = s.asks - s.inFlight;
@@ -195,8 +208,9 @@ async function snapshot({ start, end, db = supabase }) {
   const rows = (win && win.data) || [];
   const stuck = Number((stuckRead && stuckRead.count) || 0);
   const sources = summarize(rows);
-  const { verdict, reasons } = verdictFor(sources, stuck);
-  return { ok: true, verdict, reasons, stuck, rowsRead: rows.length, truncated: rows.length >= MAX_ROWS, sources };
+  const truncated = rows.length >= MAX_ROWS;
+  const { verdict, reasons } = verdictFor(sources, stuck, truncated);
+  return { ok: true, verdict, reasons, stuck, rowsRead: rows.length, truncated, sources };
 }
 
 function skipped(reason) {
@@ -262,7 +276,8 @@ async function onDemand({ now = new Date(), db = supabase } = {}) {
     const snap = await snapshot({ start, end: now, db });
     if (!snap.ok) {
       logToFile('❌ Lesson-plan health (on demand): read failed', { error: snap.error, code: snap.code }, 'error');
-      return { status: 'read_failed', error: snap.error };
+      // The detail is in the log; the answer goes to a caller, and a database message is schema detail.
+      return { status: 'read_failed' };
     }
     const { ok, verdict, ...rest } = snap;
     return {
@@ -271,13 +286,14 @@ async function onDemand({ now = new Date(), db = supabase } = {}) {
     };
   } catch (error) {
     logToFile('❌ Lesson-plan health (on demand) failed', { error: error && error.message }, 'error');
-    return { status: 'read_failed', error: error && error.message };
+    return { status: 'read_failed' };
   }
 }
 
 /** Test seam: forget the consecutive-skip count. */
 function __resetForTests() {
   skipsInARow = 0;
+  unknownSwitchSaid = false;
 }
 
 module.exports = { run, onDemand, healthCheckOff, __resetForTests };

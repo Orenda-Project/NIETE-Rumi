@@ -144,6 +144,9 @@ async function recordRequestOutcome({ req, outcome, result, askedAt } = {}) {
   const surface = req.surface || 'whatsapp';
   const portal = isPortal(surface);
   if (portal ? !req.userId : (surface !== 'whatsapp' || !req.phone)) return null;
+  // On WhatsApp the segment came from a menu the bot offered, so a missing one is a real ask for a plan
+  // that has gone. The portal endpoint takes any id: one the catalogue does not know is not an ask.
+  if (portal && outcome === 'not_found') return null;
   // A job that could not be queued is not a generation failure: it never reached the writer.
   const queueFailed = outcome === 'error' && /enqueue failed/i.test(String((result && result.error) || ''));
   return recordAsk({

@@ -184,7 +184,18 @@ describe('recordOutcome — one row per ask, with its path, stage times and log 
     }));
   });
 
-  test('the caller can name the id up front, and a retried call rewrites that row instead of adding one', async () => {
+  test('a call naming an id that already exists NEVER overwrites that row — insert or ignore (no caller can rewrite another teacher\'s ask)', async () => {
+    const id = require('crypto').randomUUID();
+    expect(await Lifecycle.recordOutcome({ ...ASK, id })).toBe(id);
+    await Lifecycle.recordOutcome({
+      ...ASK, id, userId: '22222222-2222-4222-8222-222222222222', phone: '923009999999', status: 'failed', errorCode: 'GENERATION_FAILED',
+    });
+    const rows = mockDb.table('lesson_plan_requests');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual(expect.objectContaining({ user_id: TEACHER, phone_number: '923001234567', status: 'completed', error_code: null }));
+  });
+
+  test('the caller can name the id up front, and a retried call with that id adds no second row', async () => {
     const id = require('crypto').randomUUID();
     expect(await Lifecycle.recordOutcome({ ...ASK, id })).toBe(id);
     expect(await Lifecycle.recordOutcome({ ...ASK, id })).toBe(id);
