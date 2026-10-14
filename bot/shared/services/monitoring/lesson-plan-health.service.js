@@ -23,7 +23,8 @@
  * answers TRUE when Redis is down (right for de-dup elsewhere, wrong for a monitor: every replica
  * would report). A cache that cannot answer is a skip, logged.
  *
- * SWITCHES. A no-op until LP_LIFECYCLE_PATHS switches a path on; LP_HEALTH_CHECK=off stops the check alone.
+ * SWITCHES. A no-op until LP_LIFECYCLE_PATHS switches a path on; LP_HEALTH_CHECK=off stops the hourly tick
+ * alone. The on-demand view (onDemand, GET /api/internal/lp/health) answers whenever a path is on.
  *
  * LOAD. Off (no path switched on): nothing at all. On: one claim, one read of the last hour's rows
  * that carry a path (newest first, at most MAX_ROWS; idx_lp_requests_source_created), and one head
@@ -122,6 +123,37 @@ function verdictFor(sources, stuck) {
 }
 
 /**
+ * The last hour, read and summarised: { ok: true, verdict, reasons, stuck, rowsRead, truncated, sources }
+ * or { ok: false, error } when a read failed. Two reads; no claim, no event — the tick and the on-demand
+ * route both use it.
+ */
+async function snapshot({ now = new Date(), db = supabase } = {}) {
+  const since = new Date(now.getTime() - WINDOW_MIN * 60 * 1000).toISOString();
+  const stuckBefore = new Date(now.getTime() - STUCK_HOURS * 60 * 60 * 1000).toISOString();
+  const [hour, stuckRead] = await Promise.all([
+    db.from('lesson_plan_requests')
+      .select('source, channel, status, error_code, created_at, delivered_at')
+      .not('source', 'is', null)
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(MAX_ROWS),
+    db.from('lesson_plan_requests')
+      .select('id', { count: 'exact', head: true })
+      .in('status', [...IN_FLIGHT])
+      .not('source', 'is', null)
+      .lt('created_at', stuckBefore),
+  ]);
+  const failedRead = (hour && hour.error) || (stuckRead && stuckRead.error);
+  if (failedRead) return { ok: false, error: failedRead.message, code: failedRead.code };
+
+  const rows = (hour && hour.data) || [];
+  const stuck = Number((stuckRead && stuckRead.count) || 0);
+  const sources = summarize(rows);
+  const { verdict, reasons } = verdictFor(sources, stuck);
+  return { ok: true, verdict, reasons, stuck, rowsRead: rows.length, truncated: rows.length >= MAX_ROWS, sources };
+}
+
+/**
  * One tick. Resolves { outcome: 'off' | 'skipped' | 'read_failed' | 'checked' | 'error', ... }.
  *
  * @param {{ now?: Date, redis?: object, db?: object }} deps injectable for the suite
@@ -136,33 +168,14 @@ async function run({ now = new Date(), redis, db = supabase } = {}) {
       return { outcome: 'skipped', reason: claim };
     }
 
-    const since = new Date(now.getTime() - WINDOW_MIN * 60 * 1000).toISOString();
-    const stuckBefore = new Date(now.getTime() - STUCK_HOURS * 60 * 60 * 1000).toISOString();
-    const [hour, stuckRead] = await Promise.all([
-      db.from('lesson_plan_requests')
-        .select('source, channel, status, error_code, created_at, delivered_at')
-        .not('source', 'is', null)
-        .gte('created_at', since)
-        .order('created_at', { ascending: false })
-        .limit(MAX_ROWS),
-      db.from('lesson_plan_requests')
-        .select('id', { count: 'exact', head: true })
-        .in('status', [...IN_FLIGHT])
-        .not('source', 'is', null)
-        .lt('created_at', stuckBefore),
-    ]);
-    const failedRead = (hour && hour.error) || (stuckRead && stuckRead.error);
-    if (failedRead) {
-      logToFile('❌ Lesson-plan health: read failed — no summary this hour', { error: failedRead.message, code: failedRead.code }, 'error');
-      return { outcome: 'read_failed', error: failedRead.message };
+    const snap = await snapshot({ now, db });
+    if (!snap.ok) {
+      logToFile('❌ Lesson-plan health: read failed — no summary this hour', { error: snap.error, code: snap.code }, 'error');
+      return { outcome: 'read_failed', error: snap.error };
     }
-
-    const rows = (hour && hour.data) || [];
-    const stuck = Number((stuckRead && stuckRead.count) || 0);
-    const sources = summarize(rows);
-    const { verdict, reasons } = verdictFor(sources, stuck);
+    const { verdict, reasons, stuck, sources } = snap;
     logEvent('lesson_plan.health.checked', {
-      windowMin: WINDOW_MIN, verdict, reasons, stuck, rowsRead: rows.length, truncated: rows.length >= MAX_ROWS, sources,
+      windowMin: WINDOW_MIN, verdict, reasons, stuck, rowsRead: snap.rowsRead, truncated: snap.truncated, sources,
     });
     if (verdict !== 'healthy') {
       logToFile(`⚠️ Lesson-plan health: ${reasons.join(', ')}`, { verdict, reasons, stuck, sources }, 'error');
@@ -174,4 +187,25 @@ async function run({ now = new Date(), redis, db = supabase } = {}) {
   }
 }
 
-module.exports = { run, healthCheckOff };
+/**
+ * The on-demand view (GET /api/internal/lp/health): { status: 'off' } until a path is switched on;
+ * otherwise { status: verdict, windowMin, reasons, stuck, rowsRead, truncated, sources, checkedAt }, or
+ * { status: 'read_failed', error }. Never throws.
+ */
+async function onDemand({ now = new Date(), db = supabase } = {}) {
+  try {
+    if (!anyPathOn()) return { status: 'off' };
+    const snap = await snapshot({ now, db });
+    if (!snap.ok) {
+      logToFile('❌ Lesson-plan health (on demand): read failed', { error: snap.error, code: snap.code }, 'error');
+      return { status: 'read_failed', error: snap.error };
+    }
+    const { ok, verdict, ...rest } = snap;
+    return { status: verdict, windowMin: WINDOW_MIN, ...rest, checkedAt: now.toISOString() };
+  } catch (error) {
+    logToFile('❌ Lesson-plan health (on demand) failed', { error: error && error.message }, 'error');
+    return { status: 'read_failed', error: error && error.message };
+  }
+}
+
+module.exports = { run, onDemand, healthCheckOff };

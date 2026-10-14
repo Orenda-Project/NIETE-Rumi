@@ -1282,6 +1282,20 @@ router.post('/lp/v8/pdf', requireInternalKey, lpBrowseRoute('pdf', async (Browse
 }));
 
 /**
+ * GET /api/internal/lp/health → the lesson-plan health numbers on demand: the last hour per path and
+ * channel from the lifecycle rows (monitoring/lesson-plan-health.service — the same summary the hourly
+ * check emits). { success, status: 'off' } until LP_LIFECYCLE_PATHS switches a path on; 503 when the
+ * read fails, so a monitor can tell broken from quiet. Read-only, bounded; behind the internal key
+ * because per-path counts are not for the open internet.
+ */
+router.get('/lp/health', requireInternalKey, async (req, res) => {
+  const Health = require('../services/monitoring/lesson-plan-health.service');
+  const out = await Health.onDemand();
+  if (out.status === 'read_failed') return res.status(503).json({ success: false, ...out });
+  return res.json({ success: true, ...out });
+});
+
+/**
  * POST /api/internal/lp/describe
  * Body { plans: [{ kind: 'k5'|'g612', ref, lang? }] } (at most 200)
  *   → { success, plans: [{ kind, ref, lang, found, title, grade, subject, chapterNumber,
