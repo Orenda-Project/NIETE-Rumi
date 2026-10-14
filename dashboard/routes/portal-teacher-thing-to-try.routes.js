@@ -3,7 +3,7 @@
  * v10 coaching test (bd-v0toag.8, PR2): the thing to try on the teacher app's lesson plan. Mounted
  * at /api/portal by dashboard/index.js (one line), on the portal's CORS / rate-limit / session stack.
  *
- *   GET  /api/portal/teacher/thing-to-try?lessonId=   → { success, thing: { text, tag } | null }
+ *   GET  /api/portal/teacher/thing-to-try?lessonId=   → { success, thing: { text, tag, step } | null }
  *   POST /api/portal/teacher/thing-to-try/tap         { lessonId, step } → 204
  *
  * thing is null for everyone but groups C and D while ab_v10_enabled is on (rules in
@@ -52,8 +52,9 @@ router.get('/teacher/thing-to-try', requirePortalAuth, requireTeacherV2, async (
   const found = await ThingToTry.thingFor(supabase, userId);
   if (!found) return res.json({ success: true, thing: null });
   const { lessonId } = ThingToTry.cleanTap({ lessonId: req.query.lessonId });
-  emit('coaching.thing_to_try.portal_shown', userId, found, { lessonId });
-  return res.json({ success: true, thing: { text: found.thing.text, tag: found.thing.tag } });
+  const step = found.thing.step || null;
+  emit('coaching.thing_to_try.portal_shown', userId, found, { lessonId, step: step && step.index });
+  return res.json({ success: true, thing: { text: found.thing.text, tag: found.thing.tag, step } });
 });
 
 router.post('/teacher/thing-to-try/tap', requirePortalAuth, requireTeacherV2, async (req, res) => {

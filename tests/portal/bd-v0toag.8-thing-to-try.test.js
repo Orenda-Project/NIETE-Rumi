@@ -10,6 +10,8 @@
  *   - the group comes from niete_coaching_ab_assignment (by her school) — never the ch3-8 LP test's
  *     niete_lp_ab_assignment;
  *   - the thing to try is the latest session's prioritized_action.thing_to_try (bd-v0toag.20);
+ *   - PR3: thing.step is the step (Opening … Check) of the move it was picked from, from that session's
+ *     lp_fidelity via report-card stepOf; null when the move or its phase cannot be found;
  *   - any failed read is thing null — the plan still opens, the strip just is not there;
  *   - a shown strip and a tap are logged with the group, the move and the step; a tap from anyone
  *     outside C and D is not logged;
@@ -49,7 +51,11 @@ function world(group = 'C', over = {}) {
     app_settings: [{ key: 'ab_v10_enabled', value: 'true' }],
     users: [{ id: TEACHER, school_id: 's1' }],
     niete_coaching_ab_assignment: group ? [{ school_id: 's1', ab_group: group }] : [],
-    coaching_sessions: [{ user_id: TEACHER, prioritized_action: { action: 'old', teacher_response: 'yes', thing_to_try: THING } }],
+    coaching_sessions: [{
+      user_id: TEACHER,
+      prioritized_action: { action: 'old', teacher_response: 'yes', thing_to_try: THING },
+      lp_fidelity: { status: 'ok', moves: [{ move_id: 'm1', phase: 'warm_up' }, { move_id: 'm4', phase: 'guided' }] },
+    }],
     ...over,
   };
 }
@@ -64,7 +70,11 @@ describe('thingFor', () => {
   test.each([['C'], ['D']])('%s: the stored thing to try, trimmed, with the group', async (g) => {
     const sb = fakeSupabase(world(g));
     expect(await S().thingFor(sb, TEACHER)).toEqual({
-      group: g, thing: { text: 'Ask one child to explain to a neighbour.', tag: 'hlp_peer_talk', moveId: 'm4', setOnLessonId: THING.lesson_id },
+      group: g,
+      thing: {
+        text: 'Ask one child to explain to a neighbour.', tag: 'hlp_peer_talk', moveId: 'm4', setOnLessonId: THING.lesson_id,
+        step: { name: 'We Do', index: 3 },
+      },
     });
   });
 
@@ -180,7 +190,8 @@ async function invoke(method, path, { userId = TEACHER, query = {}, body = {} } 
 
 describe('routes', () => {
   let v2On; let found; let telemetry; let thingFor;
-  const SHOWN = { group: 'D', thing: { text: 'Wait five seconds.', tag: 'hlp_wait_time', moveId: 'm2', setOnLessonId: 'grade_1_english_ch8_seg5' } };
+  const STEP = { name: 'You Do', index: 4 };
+  const SHOWN = { group: 'D', thing: { text: 'Wait five seconds.', tag: 'hlp_wait_time', moveId: 'm2', setOnLessonId: 'grade_1_english_ch8_seg5', step: STEP } };
   beforeEach(() => {
     v2On = true;
     found = SHOWN;
@@ -218,13 +229,13 @@ describe('routes', () => {
     },
   );
 
-  test('GET: the text and tag only, for the session\'s user, and the showing is logged', async () => {
+  test('GET: the text, tag and step only, for the session\'s user, and the showing is logged', async () => {
     const { statusCode, payload } = await invoke('get', '/teacher/thing-to-try', { query: { lessonId: LESSON } });
     expect(statusCode).toBe(200);
-    expect(payload).toEqual({ success: true, thing: { text: 'Wait five seconds.', tag: 'hlp_wait_time' } });
+    expect(payload).toEqual({ success: true, thing: { text: 'Wait five seconds.', tag: 'hlp_wait_time', step: STEP } });
     expect(thingFor.mock.calls[0][1]).toBe(TEACHER);
     expect(telemetry.logEvent).toHaveBeenCalledWith('coaching.thing_to_try.portal_shown', {
-      userId: TEACHER, group: 'D', lessonId: LESSON, moveId: 'm2', setOnLessonId: 'grade_1_english_ch8_seg5', tag: 'hlp_wait_time',
+      userId: TEACHER, group: 'D', lessonId: LESSON, moveId: 'm2', setOnLessonId: 'grade_1_english_ch8_seg5', tag: 'hlp_wait_time', step: 4,
     });
   });
 
@@ -245,7 +256,7 @@ describe('routes', () => {
     telemetry.logEvent.mockImplementation(() => { throw new Error('axiom'); });
     const { statusCode, payload } = await invoke('get', '/teacher/thing-to-try');
     expect(statusCode).toBe(200);
-    expect(payload.thing).toEqual({ text: 'Wait five seconds.', tag: 'hlp_wait_time' });
+    expect(payload.thing).toEqual({ text: 'Wait five seconds.', tag: 'hlp_wait_time', step: STEP });
   });
 
   test('POST tap: 204, logged with the group, the move and the step', async () => {
@@ -254,6 +265,12 @@ describe('routes', () => {
     expect(telemetry.logEvent).toHaveBeenCalledWith('coaching.thing_to_try.tap', {
       userId: TEACHER, group: 'D', lessonId: LESSON, step: 4, moveId: 'm2', setOnLessonId: 'grade_1_english_ch8_seg5', tag: 'hlp_wait_time',
     });
+  });
+
+  test('GET: a thing with no step answers step null', async () => {
+    found = { ...SHOWN, thing: { ...SHOWN.thing, step: null } };
+    const { payload } = await invoke('get', '/teacher/thing-to-try');
+    expect(payload.thing.step).toBeNull();
   });
 
   test('POST tap from someone outside C and D: 204, not logged', async () => {
