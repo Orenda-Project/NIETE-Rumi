@@ -281,6 +281,7 @@ export function NewObservationPage() {
           ) : null}
           {cls && !audio && phase === 'idle' ? (
             <RecordUploadPair
+              compact
               onRecord={() => { void startRecording(); }}
               onUpload={() => audioInput.current?.click()}
               copy={{ startRecording: C.recordTitle, uploadRecording: C.uploadRecording }}

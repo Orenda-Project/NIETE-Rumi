@@ -200,3 +200,14 @@ describe("the one screen", () => {
     await waitFor(() => expect(portal.submitCoachingReflection).toHaveBeenCalledWith("sess-1", "More group work"));
   });
 });
+
+describe("compact record / upload (operator, 15 Oct: all steps share one screen)", () => {
+  it("Start recording and Upload recording are 88px buttons with the art beside the words, not 176px squares", async () => {
+    at(COACHING_NEW);
+    await pickClass();
+    const rec = await screen.findByRole("button", { name: C.recordTitle });
+    expect(rec.className).toContain("min-h-[88px]");
+    expect(rec.className).not.toContain("min-h-[176px]");
+    expect(rec.className).toContain("flex-row");
+  });
+});
