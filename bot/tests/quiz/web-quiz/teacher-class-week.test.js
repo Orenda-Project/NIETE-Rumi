@@ -82,7 +82,7 @@ function missingTable(t) {
   return b;
 }
 
-// The class-week line is not in the copy deck yet (c-copy owes jg.week.forward): tests supply it under the key the page reads.
+// The class-week line is not in the copy deck yet (jg.week.forward is still to come): tests supply it under the key the page reads.
 const WEEK = {
   en: 'This week our class reads with Jugnu at home. Open our class link:',
   ur: 'اس ہفتے ہماری کلاس گھر پر جگنو کے ساتھ پڑھے گی۔ ہماری کلاس کا لنک کھولیں:',

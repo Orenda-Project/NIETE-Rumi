@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The class week (SAMPLING_RULING §0.2, §7 row 2): a "Forward the week" card on the teacher's Jugnu tab for a
+ * The class week: a "Forward the week" card on the teacher's Jugnu tab for a
  * class the term's draw picked, shown only inside that class's week window. Switch web_quiz_class_week
  * (web-quiz-class-week-flags; parents web_quiz_class_round, web_quiz_class_link, web_quiz_challenge_v2,
  * web_quiz_challenge).
