@@ -139,6 +139,10 @@ describe('the queue rows (Mock M4)', () => {
 });
 
 describe('decide: only a tap writes', () => {
+  // These taps are on pairs of both tiers, so both are served here; the gate itself is tested below.
+  beforeEach(() => { Queue._serveForTest(Queue.TIERS); });
+  afterEach(() => { Queue._serveForTest(null); });
+
   test('"same" merges the loose row, logs the decision and emits id_confirmed{by:merged, w:s}', async () => {
     const out = await Queue.decide({ teacherUserId: T1, looseId: c(7), candidateId: r(5), decision: 'same' });
     expect(out).toEqual({ ok: true, decision: 'same' });
@@ -158,7 +162,8 @@ describe('decide: only a tap writes', () => {
   test('a loose row that is no longer loose is not merged twice and logs nothing', async () => {
     Object.assign(student(c(7)), { status: 'merged', merged_into: r(2), is_active: false });
     const out = await Queue.decide({ teacherUserId: T1, looseId: c(7), candidateId: r(5), decision: 'same' });
-    expect(out).toEqual({ ok: false, reason: 'not_loose' });
+    // a merged row is no longer in the served queue, so the tap stops there (the update's own loose guard is second)
+    expect(out).toEqual({ ok: false, reason: 'not_served' });
     expect(fake.db.merge_log).toEqual([]);
     expect(student(c(7)).merged_into).toBe(r(2));
   });
@@ -205,6 +210,28 @@ describe('decide: only a tap writes', () => {
   test('computing the queue writes nothing', async () => {
     await Queue.computeCandidates(T1);
     expect(writes()).toEqual([]);
+  });
+});
+
+describe('decide("same") only for a served pair', () => {
+  afterEach(() => { Queue._serveForTest(null); });
+  test('with no tier served (the truth-set gate), "same" on a valid pair is refused and nothing is written', async () => {
+    expect(Queue.TIERS_SERVED).toEqual([]);
+    expect(await Queue.decide({ teacherUserId: T1, looseId: c(7), candidateId: r(5), decision: 'same' })).toEqual({ ok: false, reason: 'not_served' });
+    expect(writes()).toEqual([]);
+    expect(student(c(7))).toMatchObject({ merged_into: null, status: 'active' });
+  });
+  test('with the tier served, "same" merges as before; a pair of a tier still held out is refused', async () => {
+    Queue._serveForTest(['probable']);
+    expect(await Queue.decide({ teacherUserId: T1, looseId: c(3), candidateId: r(6), decision: 'same' })).toEqual({ ok: false, reason: 'not_served' });
+    expect(await Queue.decide({ teacherUserId: T1, looseId: c(7), candidateId: r(5), decision: 'same' })).toEqual({ ok: true, decision: 'same' });
+    expect(student(c(7))).toMatchObject({ merged_into: r(5), status: 'merged' });
+  });
+  test('"no" and "undo" keep their checks with no tier served', async () => {
+    expect(await Queue.decide({ teacherUserId: T1, looseId: c(3), candidateId: r(6), decision: 'no' })).toEqual({ ok: true, decision: 'no' });
+    Object.assign(student(c(7)), { status: 'merged', merged_into: r(5), is_active: false });
+    fake.db.merge_log.push({ id: 9, loose_id: c(7), candidate_id: r(5), teacher_id: T1, decision: 'same', source: 'queue', decided_at: '2026-10-15T09:00:00Z' });
+    expect(await Queue.decide({ teacherUserId: T1, looseId: c(7), candidateId: r(5), decision: 'undo' })).toEqual({ ok: true, decision: 'undo' });
   });
 });
 
@@ -277,7 +304,7 @@ describe('the internal routes', () => {
     await new Promise((res) => { server = app.listen(0, '127.0.0.1', res); });
     base = `http://127.0.0.1:${server.address().port}/api/internal/wq`;
   });
-  afterEach(async () => { await new Promise((res) => server.close(res)); });
+  afterEach(async () => { Queue._serveForTest(null); await new Promise((res) => server.close(res)); });
   const H = { 'x-api-key': 'test-key', 'content-type': 'application/json' };
   const post = (p, body) => fetch(`${base}${p}`, { method: 'POST', headers: H, body: JSON.stringify(body) });
 
@@ -288,6 +315,9 @@ describe('the internal routes', () => {
   });
   test('POST /teacher/queue/decide and /teacher/queue/link-codes', async () => {
     let res = await post('/teacher/queue/decide', { teacher: T1, loose_id: c(7), candidate_id: r(5), decision: 'same' });
+    expect(await res.json()).toEqual({ ok: false, reason: 'not_served' });
+    Queue._serveForTest(Queue.TIERS);
+    res = await post('/teacher/queue/decide', { teacher: T1, loose_id: c(7), candidate_id: r(5), decision: 'same' });
     expect(await res.json()).toEqual({ ok: true, decision: 'same' });
     res = await post('/teacher/queue/link-codes', { teacher: T1, class_id: C1 });
     expect(await res.json()).toEqual({ linked: 1 });

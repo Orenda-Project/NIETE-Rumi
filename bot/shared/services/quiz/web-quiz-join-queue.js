@@ -37,6 +37,7 @@ const TIERS = Object.freeze(['roster_unique_with_loose', 'probable']);
 // AND a Wilson 95% lower bound >= 0.85. Measured: roster_unique_with_loose n=11 (0.741), probable n=12 (0.646), so both
 // are held out and the queue serves nothing. Lead review flips this constant when a truth set passes.
 const TIERS_SERVED = Object.freeze([]);
+let served = TIERS_SERVED; // tests only (_serveForTest); production always serves TIERS_SERVED
 const DECISIONS = new Set(['same', 'no', 'undo']);
 const CAP = 5000;
 const JOB_PAGE = 1000;
@@ -243,11 +244,11 @@ async function computeCandidates(teacherUserId) {
   }
 }
 
-const serveTiers = (list, tiers = TIERS_SERVED) => list.filter((x) => tiers.includes(x.evidence.tier));
+const serveTiers = (list, tiers = served) => list.filter((x) => tiers.includes(x.evidence.tier));
 
 /** The queue the teacher is shown: only the tiers that passed the truth-set gate. */
 async function candidatesFor(teacherUserId) {
-  if (!TIERS_SERVED.length) {
+  if (!served.length) {
     await canonOn(); // the switch is still read, so the off path's reads are the same either way
     return [];
   }
@@ -256,7 +257,8 @@ async function candidatesFor(teacherUserId) {
 
 // ─── the tap ─────────────────────────────────────────────────────────────────
 /**
- * → {ok:true, decision, already?} | {ok:false, reason} | {off:true}. Writes only on a valid tap of THIS teacher; the same
+ * → {ok:true, decision, already?} | {ok:false, reason} | {off:true}. Writes only on a valid tap of THIS teacher
+ * ('same' only on a pair in the served queue, else reason 'not_served'); the same
  * tap twice writes once ({already:true}). Pure of HTTP: the caller supplies the teacher from its own signed session.
  */
 async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
@@ -275,6 +277,12 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
       if (decision !== 'same') return { ok: true, decision, already: true };
       const cur = await rows(supabase.from('students').select('id').eq('id', looseId).eq('merged_into', candidateId));
       if (cur.length) return { ok: true, decision, already: true };
+    }
+    // "Same child" only for a pair the teacher is actually shown: the served (truth-set gated) queue. A held-out tier
+    // can never be written through any caller. 'no' and 'undo' keep their own checks (an undo stays possible).
+    if (decision === 'same') {
+      const shown = served.length ? serveTiers(await compute(teacherUserId)) : [];
+      if (!shown.some((x) => x.loose_id === looseId && x.candidate_id === candidateId)) return { ok: false, reason: 'not_served' };
     }
     if (decision === 'undo') {
       if (last !== 'same') return { ok: false, reason: 'nothing_to_undo' };
@@ -406,5 +414,6 @@ async function runBackwardJoin({ dryRun = true } = {}) {
 
 module.exports = {
   computeCandidates, candidatesFor, serveTiers, decide, linkClassCodes, runBackwardJoin,
-  TIERS, TIERS_SERVED, norm, tokset, words, canonFirst, gradeOf, firstName, route,
+  TIERS, TIERS_SERVED, norm,
+  _serveForTest: (tiers) => { served = tiers ? Object.freeze([...tiers]) : TIERS_SERVED; }, tokset, words, canonFirst, gradeOf, firstName, route,
 };
