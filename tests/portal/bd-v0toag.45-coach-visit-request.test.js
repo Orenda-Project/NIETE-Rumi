@@ -127,7 +127,7 @@ describe('her answer', () => {
     expect(res.headers.location).toBe(`/cr/${t}?coach=sent`);
     expect(asks).toEqual([{ sessionId: S, userId: U, group: 'C', coachId: C1 }]);
     expect(emitted).toContainEqual({ e: 'coaching.coach_ping.sent', d: { coachingSessionId: S, userId: U, group: 'C' } });
-    expect((await req(srv, 'GET', res.headers.location)).body).toContain('Your coach has been asked to visit your class.');
+    expect((await req(srv, 'GET', res.headers.location)).body).toContain('We have told your coach. They will try to visit your class when they can.');
     expect(JSON.stringify(emitted)).not.toContain(t);
   });
 
@@ -139,7 +139,7 @@ describe('her answer', () => {
     expect(emitted).toContainEqual({ e: 'coaching.coach_ping.no_coach', d: { coachingSessionId: S, userId: U, group: 'C' } });
   });
 
-  test.each([['failed', 'We could not reach your coach just now'], ['already', 'Your coach has been asked to visit your class.']])(
+  test.each([['failed', 'We could not reach your coach just now'], ['already', 'We have told your coach. They will try to visit your class when they can.']])(
     'outcome %s: the card says so', async (outcome, text) => {
       const t = tok();
       const srv = await app({ outcome });

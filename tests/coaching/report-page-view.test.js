@@ -144,3 +144,15 @@ test('after the coach ask, "Was this useful?" is not asked again', () => {
 test('Urdu links carry no ‹ › arrow: Nastaliq draws it like a comma (bd-v0toag.62)', () => {
   for (const k of ['open', 'more', 'back']) expect(COPY.ur[k]).not.toMatch(/[‹›]/);
 });
+
+// bd-v0toag.66: the coach ask must not promise a visit the coach may not make.
+test('after a coach is asked, the page says they will try to visit, never that a visit is coming', () => {
+  const links = { ...LINKS, coach: '/cr/T/coach' };
+  for (const s of ['sent', 'already']) {
+    expect(renderReportPage(v(), ENV, links, undefined, s))
+      .toContain('We have told your coach. They will try to visit your class when they can.');
+    expect(renderReportPage(v({ language: 'ur' }), ENV, links, undefined, s))
+      .toContain('ہم نے آپ کے کوچ کو بتا دیا ہے۔ وہ جب ممکن ہو آپ کی کلاس کا دورہ کرنے کی کوشش کریں گے۔');
+  }
+  for (const lang of ['en', 'ur']) expect(COPY[lang].coachAsked).not.toMatch(/asked to visit|درخواست کر دی گئی/);
+});
