@@ -9,7 +9,7 @@
  *   - on the first PKT day of a month, the calibration job's runMonthly({ period_id: the month just ended, now }).
  *     That module carries its own switches; the daily job only schedules it.
  * Faked boundaries only: Supabase (the in-memory fake), the logger, the event transport, Redis. The keyed-id module and
- * the calibration module are mocked (absent in a fresh registry); the binding expiry is not on the base yet: a VIRTUAL mock.
+ * the calibration module are mocked (absent in a fresh registry); the binding expiry is mocked as absent.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
@@ -28,7 +28,7 @@ jest.mock('../../../shared/services/quiz/web-quiz-challenge-calibration', () => 
   if (global.__absent === 'web-quiz-challenge-calibration') throw new Error("Cannot find module './web-quiz-challenge-calibration'");
   return { runMonthly: jest.fn(async () => ({ ran: false, reason: 'off' })) };
 });
-jest.mock('../../../shared/services/quiz/web-quiz-bind-expiry', () => { throw new Error("Cannot find module './web-quiz-bind-expiry'"); }, { virtual: true });
+jest.mock('../../../shared/services/quiz/web-quiz-bind-expiry', () => { throw new Error("Cannot find module './web-quiz-bind-expiry'"); });
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 
 const { makeFake } = require('./fake-supabase');

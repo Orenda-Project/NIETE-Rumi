@@ -8,7 +8,7 @@
  * job still claims the day and runs the expiry, and nothing else.
  *
  * Faked boundaries only: Supabase (the in-memory fake), R2, the logger, the event transport. The binding expiry
- * module (`web-quiz-bind-expiry`, not on the base yet) is a VIRTUAL mock.
+ * module (`web-quiz-bind-expiry`) is mocked: its own tests cover what it does; here, that the daily job calls it.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
@@ -18,9 +18,8 @@ jest.mock('../../../shared/storage/r2', () => ({
   listKeys: jest.fn(async () => []),
   getPresignedUploadUrl: jest.fn(),
 }));
-// held here, not required from the test: the module is not on the base yet, so nothing in this file require()s it
 const mockExpireBindings = jest.fn(async () => ({ expired: 0, deleted: 0 }));
-jest.mock('../../../shared/services/quiz/web-quiz-bind-expiry', () => ({ expireBindings: mockExpireBindings }), { virtual: true });
+jest.mock('../../../shared/services/quiz/web-quiz-bind-expiry', () => ({ expireBindings: mockExpireBindings }));
 // The daily reply-cap snapshot (sweeper switch) reads the Redis service: faked as down here (one skip line).
 jest.mock('../../../shared/services/cache/railway-redis.service', () => ({ isAvailable: jest.fn(() => false), scanValues: jest.fn(async () => null) }));
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));

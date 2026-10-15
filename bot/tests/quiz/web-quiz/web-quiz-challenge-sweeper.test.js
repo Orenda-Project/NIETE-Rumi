@@ -20,7 +20,7 @@ jest.mock('../../../shared/storage/r2', () => ({
 jest.mock('../../../shared/services/quiz/web-quiz-measure-events', () => ({
   mLost: jest.fn((row, o = {}) => ({ run: row.id, mode: row.mode, reason: o.reason, ...(o.ageMin != null ? { age_min: o.ageMin } : {}) })),
 }));
-jest.mock('../../../shared/services/quiz/web-quiz-bind-expiry', () => { throw new Error("Cannot find module './web-quiz-bind-expiry'"); }, { virtual: true });
+jest.mock('../../../shared/services/quiz/web-quiz-bind-expiry', () => { throw new Error("Cannot find module './web-quiz-bind-expiry'"); });
 // The weekly numbers' identity lines read the Redis service and the join queue (both mocked);
 // the golden below proves neither is touched with every switch off.
 jest.mock('../../../shared/services/cache/railway-redis.service', () => ({ isAvailable: jest.fn(() => true), scanValues: jest.fn(async () => []), get: jest.fn(), incr: jest.fn() }));
