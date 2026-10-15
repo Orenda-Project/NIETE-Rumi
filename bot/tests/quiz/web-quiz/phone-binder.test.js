@@ -388,6 +388,48 @@ describe('one set at the door and at /quiz open', () => {
   });
 });
 
+describe('the /quiz Home reply is on the ledger and under the cap (phone bind on)', () => {
+  const Ledger = () => require('../../../shared/services/quiz/message-ledger');
+  const Repo = () => require('../../../shared/services/quiz/child-phone-bindings.repo');
+
+  test('a known child\'s /quiz → ONE hub reply, recorded as home_reply{reason:home} with the phone BEFORE the send', async () => {
+    seed({ students: [chatKid(0)] });
+    expect(await StudentQuiz.open(PHONE, { language: 'en' })).toBe(true);
+    expect(WhatsApp.sendCtaUrl).toHaveBeenCalledTimes(1);
+    expect(fake.db.message_ledger).toEqual([expect.objectContaining({ trigger: 'home_reply', recipient: 'family', count: 1 })]);
+    expect(events('web_quiz.msg_sent')).toEqual([expect.objectContaining({ trigger: 'home_reply', reason: 'home', w: 's' })]);
+    const day = Ledger().pktDay(new Date());
+    expect([...redisService.__keys.keys()].filter((k) => String(k).startsWith('wq:reply_cap:'))).toEqual([`wq:reply_cap:${day}:${Repo().ukeyOf(PHONE)}`]);
+  });
+
+  test('a phone at its daily cap: /quiz is handled, nothing is sent, reply_capped{home_reply}', async () => {
+    seed({ students: [chatKid(0)] });
+    redisService.__keys.set(`wq:reply_cap:${Ledger().pktDay(new Date())}:${Repo().ukeyOf(PHONE)}`, 8);
+    expect(await StudentQuiz.open(PHONE, { language: 'en' })).toBe(true);
+    expect(WhatsApp.sendCtaUrl).not.toHaveBeenCalled();
+    expect(fake.db.message_ledger).toEqual([]);
+    expect(events('web_quiz.reply_capped')).toEqual([{ trigger: 'home_reply', w: 's' }]);
+  });
+
+  test('switch off → no ledger row, no cap key: the reply is exactly today\'s', async () => {
+    seed({ on: false, students: [chatKid(0)] });
+    await StudentQuiz.open(PHONE, { language: 'en' });
+    expect(WhatsApp.sendCtaUrl).toHaveBeenCalledTimes(1);
+    expect(fake.db.message_ledger).toEqual([]);
+    expect([...redisService.__keys.keys()].filter((k) => String(k).startsWith('wq:reply_cap:'))).toEqual([]);
+  });
+
+  test('WQ_TOMB_SALT unset → phoneBind reads false: a JUGNU- code is not taken, nothing is sent, nothing written', async () => {
+    seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0])] });
+    delete process.env.WQ_TOMB_SALT;
+    require('../../../shared/services/quiz/web-quiz-identity-flags')._resetCache();
+    expect((await require('../../../shared/services/quiz/web-quiz-identity-flags').flags()).phoneBind).toBe(false);
+    expect(await say('JUGNU-AB2CD')).toBe(false);
+    expect(sends()).toBe(0);
+    expect(inserts('child_phone_bindings')).toHaveLength(0);
+  });
+});
+
 describe('the token slice and the ledger', () => {
   test('token_ids_dropped{n:1} at 5 ids; the slice is unchanged', () => {
     const t = T.signHub(KIDS.slice(0, 5));

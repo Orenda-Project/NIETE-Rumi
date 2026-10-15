@@ -193,6 +193,9 @@ async function open(phone, { language = 'en' } = {}) {
 async function sendHub(phone, known, lang, { home = false, trueCount = false } = {}) {
   const url = await require('./web-quiz-hub-flags').hubLink(known.map((s) => s.id));
   if (!url) return false;
+  // family phone binding on: the Home reply is counted on the ledger with the phone BEFORE it is sent (the per-phone
+  // daily reply cap); over the cap nothing is sent and the /quiz is still handled. Off: today's path, uncounted.
+  if (trueCount && !(await require('./message-ledger').record({ trigger: 'home_reply', phone, reason: 'home' }))) return true;
   const body = resolveUx(home ? 'sqHomeBody' : 'sqHubBody', { language: lang });
   const labels = home ? ['sqHomeBtn', 'sqHomeBtnPlain'] : ['sqHubBtn'];
   let sent = false;
