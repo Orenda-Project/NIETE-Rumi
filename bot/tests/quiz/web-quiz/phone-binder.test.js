@@ -608,31 +608,35 @@ describe('the reply cap: 8 replies per phone per PKT day, counted when the bot d
     expect(events('web_quiz.reply_capped')).toEqual([]);
   });
 
-  test('no kid key → the tombstone hash keys the count; neither → no cap, "reply cap unkeyed" logged once', async () => {
+  test('no kid key → the tombstone hash keys the count; neither secret → a per-boot salt keys it and the cap STILL holds (never a phone, never uncapped)', async () => {
     seed({ students: [chatKid(0)] });
     delete process.env.WEB_QUIZ_KID_KEY;
     await stops(1);
     expect(capKeys()).toEqual([`wq:reply_cap:${Ledger().pktDay(new Date())}:${Repo().tombOf(PHONE)}`]);
     redisService.__keys.clear();
     delete process.env.WQ_TOMB_SALT;
-    await stops(10);
-    expect(capKeys()).toEqual([]);
-    expect(WhatsApp.sendMessage).toHaveBeenCalledTimes(11);
+    await stops(9);
+    const keys = capKeys();
+    expect(keys).toHaveLength(1);
+    expect(keys[0]).toMatch(/^wq:reply_cap:\d{4}-\d{2}-\d{2}:[0-9a-f]{16}$/);
+    for (let i = 0; i + 5 <= PHONE.length; i += 1) expect(keys[0]).not.toContain(PHONE.slice(i, i + 5));
+    expect(WhatsApp.sendMessage).toHaveBeenCalledTimes(1 + 8);          // the 10th stop of the day is the 9th on this key: capped
+    expect(events('web_quiz.reply_capped')).toEqual([{ trigger: 'bind_reply', w: 's' }]);
     expect(logged('reply cap unkeyed')).toHaveLength(1);
-    expect(events('web_quiz.reply_capped')).toEqual([]);
-    // the fail-open is visible in Axiom, once per process (the go package reads it)
-    expect(events('web_quiz.reply_cap_unavailable')).toEqual([{ why: 'unkeyed', w: 's' }]);
+    expect(events('web_quiz.reply_cap_unavailable')).toEqual([{ why: 'boot_salt', w: 's' }]);
   });
 
-  test('Redis incr failing → the fail-open is an event too: reply_cap_unavailable{why:redis}, once', async () => {
+  test('Redis incr failing → a process-local counter keeps the cap; reply_cap_unavailable{why:redis_local} once', async () => {
     seed({ students: [chatKid(0)] });
     const incr = redisService.incr.getMockImplementation();
     redisService.incr.mockResolvedValue(null);
     try {
-      await stops(2);
-      expect(WhatsApp.sendMessage).toHaveBeenCalledTimes(2);
-      expect(events('web_quiz.reply_cap_unavailable')).toEqual([{ why: 'redis', w: 's' }]);
-    } finally { redisService.incr.mockImplementation(incr); }
+      await stops(9);
+      expect(WhatsApp.sendMessage).toHaveBeenCalledTimes(8);
+      expect(events('web_quiz.reply_capped')).toEqual([{ trigger: 'bind_reply', w: 's' }]);
+      expect(events('web_quiz.reply_cap_unavailable')).toEqual([{ why: 'redis_local', w: 's' }]);
+      expect(capKeys()).toEqual([]);                                     // nothing reached Redis
+    } finally { redisService.incr.mockImplementation(incr); Ledger()._resetCap(); }
   });
 
   test('app_settings web_quiz_reply_cap_per_phone = 3 → the 4th reply is capped', async () => {
@@ -650,21 +654,6 @@ describe('the reply cap: 8 replies per phone per PKT day, counted when the bot d
     const out = [];
     for (let i = 0; i <= cap; i += 1) out.push(await Ledger().record({ trigger: 'bind_reply', phone: PHONE }));
     expect(out).toEqual([...Array(cap).fill(true), false]);
-  });
-
-  test('Redis incr fails (null) → fail open: every reply sent and counted, logged once', async () => {
-    seed({ students: [chatKid(0)] });
-    const real = redisService.incr.getMockImplementation();
-    redisService.incr.mockImplementation(async () => null);
-    try {
-      await stops(10);
-    } finally {
-      redisService.incr.mockImplementation(real);
-    }
-    expect(WhatsApp.sendMessage).toHaveBeenCalledTimes(10);
-    expect(fake.db.message_ledger[0].count).toBe(10);
-    expect(events('web_quiz.reply_capped')).toEqual([]);
-    expect(logged('reply cap: redis')).toHaveLength(1);
   });
 
   test('no phone → no cap: the ledger\'s other callers are unchanged', async () => {
