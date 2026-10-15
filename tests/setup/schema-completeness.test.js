@@ -93,7 +93,7 @@ function extractRpcReferences(content) {
  */
 function extractCreateTables(sqlContent) {
   const tables = new Set();
-  const createPattern = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)/gi;
+  const createPattern = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?(\w+)/gi;
   let match;
   while ((match = createPattern.exec(sqlContent)) !== null) {
     tables.add(match[1].toLowerCase());

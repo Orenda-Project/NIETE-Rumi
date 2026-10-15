@@ -31,6 +31,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const T = require('./web-quiz-token');
 const Identity = require('./web-quiz-identity');
 const Flags = require('./web-quiz-class-link-flags');
+const { clampLanguage } = require('../../config/ux-strings');
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LEN = 10;
@@ -194,7 +195,7 @@ async function teacherRow(teacherId) {
   const { data } = await supabase.from('users').select('id, name, school_id, preferred_language').eq('id', teacherId).maybeSingle();
   return data || null;
 }
-const langOf = (t) => (t && t.preferred_language === 'ur' ? 'ur' : 'en');
+const langOf = (t) => clampLanguage(t && t.preferred_language);
 
 /** The roster children of the link's class, each with its chip, shown first name and canon first name. */
 async function rosterKids(link) {

@@ -364,7 +364,7 @@ describe('the teacher card and (j) the forward link', () => {
     expect(extra).toBeNull();
     const html = renderPage({ class: { ...CLASS_DATA } }, { lang: 'en', tab: 'class', tokens: { self: 'tok.sig' }, now: Date.UTC(2026, 9, 15, 7) });
     const htmlUr = renderPage({ class: { ...CLASS_DATA } }, { lang: 'ur', tab: 'class', tokens: { self: 'tok.sig' }, now: Date.UTC(2026, 9, 15, 7) });
-    if (process.env.GOLDEN_CAPTURE === '1') fs.writeFileSync(GOLDEN, `${JSON.stringify({ html, htmlUr }, null, 2)}\n`);
+    if (process.env.GOLDEN_WRITE === '1') fs.writeFileSync(GOLDEN, `${JSON.stringify({ html, htmlUr }, null, 2)}\n`);
     const want = JSON.parse(fs.readFileSync(GOLDEN, 'utf8'));
     expect(html).toBe(want.html);
     expect(htmlUr).toBe(want.htmlUr);

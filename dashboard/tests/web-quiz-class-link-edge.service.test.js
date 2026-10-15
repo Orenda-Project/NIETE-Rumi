@@ -3,7 +3,7 @@
  * /q/<code> page left byte-identical.
  *
  * The bot is the network boundary (a fake fetch). The goldens in __golden__/class-link-edge-off.json were written
- * by running this file on the ORIGINAL origin/sandbox router with GOLDEN_CAPTURE=1.
+ * by running this file on the ORIGINAL origin/sandbox router with GOLDEN_WRITE=1.
  */
 const fs = require('fs');
 const path = require('path');
@@ -78,7 +78,7 @@ describe('golden: /q/<code> is byte-identical (the class link touches nothing on
     const quiz = await req(srv, 'GET', '/q/AB12CD');
     const unknown = await req(srv, 'GET', '/q/ZZ99ZZ99');
     const got = { quiz: { status: quiz.status, body: quiz.body }, unknown: { status: unknown.status, body: unknown.body } };
-    if (process.env.GOLDEN_CAPTURE === '1') fs.writeFileSync(GOLDEN, `${JSON.stringify(got, null, 2)}\n`);
+    if (process.env.GOLDEN_WRITE === '1') fs.writeFileSync(GOLDEN, `${JSON.stringify(got, null, 2)}\n`);
     const want = JSON.parse(fs.readFileSync(GOLDEN, 'utf8'));
     expect(got).toEqual(want);
   });

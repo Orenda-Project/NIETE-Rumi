@@ -7,7 +7,7 @@
  *
  * Goldens: a hub token WITHOUT the class link's claim (every token minted today) gives the same run row and the same
  * hub_open event as the original code. The snapshot in __golden__/class-link-run-off.json was written by running
- * this file on the ORIGINAL origin/sandbox code with GOLDEN_CAPTURE=1.
+ * this file on the ORIGINAL origin/sandbox code with GOLDEN_WRITE=1.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(), logInfo: jest.fn() }));
@@ -105,7 +105,7 @@ describe('golden: a hub token without the class link claim (every token today)',
   test('the run row and the hub_open event are byte-identical to the original code', async () => {
     const row = shape(await playBigger(plainHub()));
     const events = await hubOpenArgs(plainHub());
-    if (process.env.GOLDEN_CAPTURE === '1') {
+    if (process.env.GOLDEN_WRITE === '1') {
       fs.writeFileSync(GOLDEN, `${JSON.stringify({ row, events }, null, 2)}\n`);
     }
     const want = JSON.parse(fs.readFileSync(GOLDEN, 'utf8'));

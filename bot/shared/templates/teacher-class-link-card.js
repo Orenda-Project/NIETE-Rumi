@@ -9,6 +9,8 @@
  * the no-count, no-name forward rule); Copy answers 303 back to the class tab with this card's link open as selectable text. Strings are copy.v2.json keys, EN and UR.
  */
 
+const { clampLanguage } = require('../config/ux-strings');
+
 const COPY = {
   en: {
     title: "Your class's Jugnu link", // jg.t.link_title
@@ -40,7 +42,7 @@ function esc(s) {
 function renderClassLinkCard(data, { lang = 'en', base = '', print = false } = {}) {
   const cards = data && Array.isArray(data.cards) ? data.cards : [];
   if (!cards.length || print) return '';
-  const C = COPY[lang === 'ur' ? 'ur' : 'en'];
+  const C = COPY[clampLanguage(lang)] || COPY.en;
   const one = (c) => {
     const link = (how) => `${base}/jlink?class=${encodeURIComponent(c.classId)}&how=${how}`;
     // The link itself is the teacher's own preview (plays as practice); copying the text copies the plain link.
