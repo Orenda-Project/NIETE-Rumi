@@ -435,6 +435,7 @@
   }
 
   function menu() {
+    g1Name();
     if (TR && TR.menu()) return;
     if (trailOn()) { trailMap(); return; }
     var tiles = (menuData.exercises || []).map(function (x) {
@@ -465,6 +466,7 @@
   function open(ex) {
     S.ex = ex;
     api('ch/' + encodeURIComponent(boot.token) + '/' + ex + kidQs()).then(function (d) {
+      if (g1Take(ex, d)) return;
       if (TR) { TR.opened(ex, d, intro); return; }
       S.data = d;
       ev('ch_start', { step: ex });
@@ -484,6 +486,38 @@
       else if (d.ex === 'missing') missing.practice(0);
       else bigger.practice(0);
     });
+  }
+
+  // ── grade 1, "how many dots?" (exercise `numbers`, served only by the grade-1 form): wq-g1.js plays it ────
+  // Loaded on first use at this file's own ?v=. Any other exercise never reaches this section.
+  var G1_TITLE = { en: 'Find the number', ur: 'نمبر ڈھونڈیں' };
+  function g1Name() { (menuData.exercises || []).forEach(function (x) { if (x.id === 'numbers' && !x.name) x.name = G1_TITLE[L]; }); }
+  function g1Take(ex, d) {
+    if (!d || d.ex !== 'numbers') return false;
+    S.data = d;
+    ev('ch_start', { step: ex });
+    var retry = function () { open(ex); };
+    var go = function () {
+      if (!window.WQG1) { errorScreen(null, retry); return; }
+      window.WQG1.run({ L: L, data: d, show: show, on: on, q: q, jug: jug, api: api, withHelped: withHelped, startLabel: t.start, fail: errorScreen, end: g1End });
+    };
+    if (window.WQG1) { go(); return true; }
+    try {
+      var me = document.querySelector('script[src*="/wq/wq-challenge.js"]');
+      var v = me && /[?&]v=([A-Za-z0-9]+)/.exec(me.getAttribute('src') || '');
+      var s = document.createElement('script');
+      s.src = '/wq/wq-g1.js' + (v ? '?v=' + v[1] : '');
+      s.addEventListener('load', go);
+      s.addEventListener('error', function () { errorScreen(null, retry); });
+      document.head.appendChild(s);
+    } catch (e) { errorScreen(null, retry); }
+    return true;
+  }
+  // the end card: what was done, never a number (the stop's badge on the trail, then back)
+  function g1End() {
+    show('numbers-result', '<div class="wq-g1">' + jug('celebrate', t.done, true) + medal('numbers')
+      + '<div class="wq-stack"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button></div></div>');
+    on('wqc-menu', refreshMenu);
   }
 
   // ── Listen and answer: the story twice from its clip (its text is never on the page), then the questions ────

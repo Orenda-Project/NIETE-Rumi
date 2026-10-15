@@ -1,0 +1,84 @@
+{
+ "en": {
+  "html": [
+   "<section class=\"wq-screen wqc\" data-screen=\"menu\"><div class=\"wq-jug wq-big\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/hello.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">Jugnu's Challenge</div></div><p class=\"wq-sub\">Pick one. Each one takes about 2 minutes.</p><div class=\"wqc-tiles\"><button class=\"wqc-tile\" type=\"button\" id=\"wqc-ex-bigger\"><span class=\"wqc-ico\" aria-hidden=\"true\">🔢</span><span><b>Which is bigger?</b><small>2 min</small><span class=\"wqc-badge\">✓ 7 / 10</span></span></button><button class=\"wqc-tile\" type=\"button\" id=\"wqc-ex-read\"><span class=\"wqc-ico\" aria-hidden=\"true\">📖</span><span><b>Read aloud</b><small>2 min</small></span></button></div></section>",
+   "<section class=\"wq-screen wqc\" data-screen=\"intro\"><div class=\"wq-jug wq-big\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/hello.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">Intro line</div></div><div class=\"wqc-sticky\"><button class=\"wq-btn wq-go\" id=\"wqc-go\" type=\"button\">Start</button></div></section>",
+   "<section class=\"wq-screen wqc\" data-screen=\"bigger-practice\"><p class=\"wq-sub\">Let's practise first</p><div class=\"wq-jug\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/thinking.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">Tap the bigger number</div></div><div class=\"wqc-pair\"><button class=\"wqc-num\" type=\"button\" id=\"wqc-a\">8</button><button class=\"wqc-num\" type=\"button\" id=\"wqc-b\">4</button></div></section>",
+   "<section class=\"wq-screen wqc\" data-screen=\"bigger-go\"><div class=\"wq-jug wq-big\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/hello.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">Now on your own!</div></div></section>",
+   "<section class=\"wq-screen wqc\" data-screen=\"bigger-play\"><div class=\"wq-jug\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/thinking.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">Tap the bigger number</div></div><p class=\"wq-small\">1 of 3</p><div class=\"wqc-timer\"><i id=\"wqc-bar\"></i></div><div class=\"wqc-pair\"><button class=\"wqc-num\" type=\"button\" id=\"wqc-a\">7</button><button class=\"wqc-num\" type=\"button\" id=\"wqc-b\">5</button></div></section>",
+   "<section class=\"wq-screen wqc\" data-screen=\"bigger-play\"><div class=\"wq-jug\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/thinking.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">Tap the bigger number</div></div><p class=\"wq-small\">2 of 3</p><div class=\"wqc-timer\"><i id=\"wqc-bar\"></i></div><div class=\"wqc-pair\"><button class=\"wqc-num\" type=\"button\" id=\"wqc-a\">11</button><button class=\"wqc-num\" type=\"button\" id=\"wqc-b\">24</button></div></section>",
+   "<section class=\"wq-screen wqc\" data-screen=\"bigger-play\"><div class=\"wq-jug\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/thinking.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">Tap the bigger number</div></div><p class=\"wq-small\">3 of 3</p><div class=\"wqc-timer\"><i id=\"wqc-bar\"></i></div><div class=\"wqc-pair\"><button class=\"wqc-num\" type=\"button\" id=\"wqc-a\">39</button><button class=\"wqc-num\" type=\"button\" id=\"wqc-b\">23</button></div></section>",
+   "<section class=\"wq-screen wqc\" data-screen=\"bigger-result\"><div class=\"wq-jug wq-big\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/celebrate.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">Great reading! Well done.</div></div><p class=\"wqc-score\" id=\"wqc-score\">You got 2 out of 3!</p><div class=\"wq-stack\"><button class=\"wq-btn wq-go\" id=\"wqc-menu\" type=\"button\">More challenges</button><button class=\"wq-btn wq-soft\" id=\"wqc-again\" type=\"button\">Try again</button></div></section>",
+   "<section class=\"wq-screen wqc\" data-screen=\"menu\"><div class=\"wq-jug wq-big\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/hello.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">Jugnu's Challenge</div></div><p class=\"wq-sub\">Pick one. Each one takes about 2 minutes.</p><div class=\"wqc-tiles\"><button class=\"wqc-tile\" type=\"button\" id=\"wqc-ex-bigger\"><span class=\"wqc-ico\" aria-hidden=\"true\">🔢</span><span><b>Which is bigger?</b><small>2 min</small><span class=\"wqc-badge\">✓ 2 / 3</span></span></button></div></section>"
+  ],
+  "requests": [
+   {
+    "url": "/api/wq/e",
+    "method": "POST",
+    "body": "{\"events\":[{\"n\":\"ch_open\",\"lang\":\"en\"}]}"
+   },
+   {
+    "url": "/api/wq/ch/HUB.TOKEN/bigger?lang=en",
+    "method": "GET",
+    "body": null
+   },
+   {
+    "url": "/api/wq/e",
+    "method": "POST",
+    "body": "{\"events\":[{\"n\":\"ch_start\",\"lang\":\"en\",\"step\":\"bigger\"}]}"
+   },
+   {
+    "url": "/api/wq/ch/result",
+    "method": "POST",
+    "body": "{\"ct\":\"CT2\",\"taps\":[{\"i\":0,\"pick\":5,\"ms\":700},{\"i\":1,\"pick\":24,\"ms\":700},{\"i\":2,\"pick\":23,\"ms\":700}],\"ms\":2100}"
+   },
+   {
+    "url": "/api/wq/ch/HUB.TOKEN?lang=en",
+    "method": "GET",
+    "body": null
+   }
+  ],
+  "loaded": []
+ },
+ "ur": {
+  "html": [
+   "<section class=\"wq-screen wqc\" data-screen=\"menu\"><div class=\"wq-jug wq-big\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/hello.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">جگنو کا چیلنج</div></div><p class=\"wq-sub\">ایک چنیں۔ ہر ایک تقریباً ۲ منٹ کا ہے۔</p><div class=\"wqc-tiles\"><button class=\"wqc-tile\" type=\"button\" id=\"wqc-ex-bigger\"><span class=\"wqc-ico\" aria-hidden=\"true\">🔢</span><span><b>Which is bigger?</b><small>۲ منٹ</small><span class=\"wqc-badge\">✓ ۱۰ میں سے ۷</span></span></button><button class=\"wqc-tile\" type=\"button\" id=\"wqc-ex-read\"><span class=\"wqc-ico\" aria-hidden=\"true\">📖</span><span><b>Read aloud</b><small>۲ منٹ</small></span></button></div></section>",
+   "<section class=\"wq-screen wqc\" data-screen=\"intro\"><div class=\"wq-jug wq-big\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/hello.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">Intro line</div></div><div class=\"wqc-sticky\"><button class=\"wq-btn wq-go\" id=\"wqc-go\" type=\"button\">شروع کریں</button></div></section>",
+   "<section class=\"wq-screen wqc\" data-screen=\"bigger-practice\"><p class=\"wq-sub\">پہلے مشق کریں</p><div class=\"wq-jug\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/thinking.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">بڑے نمبر کو چھوئیں</div></div><div class=\"wqc-pair\"><button class=\"wqc-num\" type=\"button\" id=\"wqc-a\">8</button><button class=\"wqc-num\" type=\"button\" id=\"wqc-b\">4</button></div></section>",
+   "<section class=\"wq-screen wqc\" data-screen=\"bigger-go\"><div class=\"wq-jug wq-big\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/hello.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">اب خود کریں!</div></div></section>",
+   "<section class=\"wq-screen wqc\" data-screen=\"bigger-play\"><div class=\"wq-jug\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/thinking.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">بڑے نمبر کو چھوئیں</div></div><p class=\"wq-small\">۳ میں سے ۱</p><div class=\"wqc-timer\"><i id=\"wqc-bar\"></i></div><div class=\"wqc-pair\"><button class=\"wqc-num\" type=\"button\" id=\"wqc-a\">7</button><button class=\"wqc-num\" type=\"button\" id=\"wqc-b\">5</button></div></section>",
+   "<section class=\"wq-screen wqc\" data-screen=\"bigger-play\"><div class=\"wq-jug\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/thinking.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">بڑے نمبر کو چھوئیں</div></div><p class=\"wq-small\">۳ میں سے ۲</p><div class=\"wqc-timer\"><i id=\"wqc-bar\"></i></div><div class=\"wqc-pair\"><button class=\"wqc-num\" type=\"button\" id=\"wqc-a\">11</button><button class=\"wqc-num\" type=\"button\" id=\"wqc-b\">24</button></div></section>",
+   "<section class=\"wq-screen wqc\" data-screen=\"bigger-play\"><div class=\"wq-jug\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/thinking.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">بڑے نمبر کو چھوئیں</div></div><p class=\"wq-small\">۳ میں سے ۳</p><div class=\"wqc-timer\"><i id=\"wqc-bar\"></i></div><div class=\"wqc-pair\"><button class=\"wqc-num\" type=\"button\" id=\"wqc-a\">39</button><button class=\"wqc-num\" type=\"button\" id=\"wqc-b\">23</button></div></section>",
+   "<section class=\"wq-screen wqc\" data-screen=\"bigger-result\"><div class=\"wq-jug wq-big\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/celebrate.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">Great reading! Well done.</div></div><p class=\"wqc-score\" id=\"wqc-score\">۳ میں سے ۲ صحیح!</p><div class=\"wq-stack\"><button class=\"wq-btn wq-go\" id=\"wqc-menu\" type=\"button\">مزید چیلنج</button><button class=\"wq-btn wq-soft\" id=\"wqc-again\" type=\"button\">دوبارہ کریں</button></div></section>",
+   "<section class=\"wq-screen wqc\" data-screen=\"menu\"><div class=\"wq-jug wq-big\"><span class=\"wq-jimg\"><img src=\"/wq/jugnu/hello.webp\" alt=\"\" width=\"92\" height=\"92\"></span><div class=\"wq-say\" id=\"wqc-say\">جگنو کا چیلنج</div></div><p class=\"wq-sub\">ایک چنیں۔ ہر ایک تقریباً ۲ منٹ کا ہے۔</p><div class=\"wqc-tiles\"><button class=\"wqc-tile\" type=\"button\" id=\"wqc-ex-bigger\"><span class=\"wqc-ico\" aria-hidden=\"true\">🔢</span><span><b>Which is bigger?</b><small>۲ منٹ</small><span class=\"wqc-badge\">✓ ۳ میں سے ۲</span></span></button></div></section>"
+  ],
+  "requests": [
+   {
+    "url": "/api/wq/e",
+    "method": "POST",
+    "body": "{\"events\":[{\"n\":\"ch_open\",\"lang\":\"ur\"}]}"
+   },
+   {
+    "url": "/api/wq/ch/HUB.TOKEN/bigger?lang=ur",
+    "method": "GET",
+    "body": null
+   },
+   {
+    "url": "/api/wq/e",
+    "method": "POST",
+    "body": "{\"events\":[{\"n\":\"ch_start\",\"lang\":\"ur\",\"step\":\"bigger\"}]}"
+   },
+   {
+    "url": "/api/wq/ch/result",
+    "method": "POST",
+    "body": "{\"ct\":\"CT2\",\"taps\":[{\"i\":0,\"pick\":5,\"ms\":700},{\"i\":1,\"pick\":24,\"ms\":700},{\"i\":2,\"pick\":23,\"ms\":700}],\"ms\":2100}"
+   },
+   {
+    "url": "/api/wq/ch/HUB.TOKEN?lang=ur",
+    "method": "GET",
+    "body": null
+   }
+  ],
+  "loaded": []
+ }
+}
