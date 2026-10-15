@@ -150,8 +150,10 @@ describe('after transcription', () => {
     const id = await linkedSession({ sealed_at: '2026-09-30T05:39:00.000Z' });
     const llm = llmReturning(MODEL_OUT);
     const out = await Moments.runForSession('sess-1', '923000000001', { llm });
-    expect(llm).toHaveBeenCalledTimes(1);
+    // The moments call, then the label check on the same seam (label-check.js, bd-eal7zn.8).
+    expect(llm).toHaveBeenCalledTimes(2);
     expect(llm.mock.calls[0][0]).toContain('[05:10] Teacher (UR): No, that is wrong.');
+    expect(llm.mock.calls[1][0]).toMatch(/checking the labels on moments/);
     const f = formRow(id);
     expect(f.rumi_moments.moments).toHaveLength(4);
     expect(f.rumi_moments.counts).toEqual({ closed_q: 4, praise_generic: 2 });

@@ -1065,6 +1065,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     And a question moment shows the question with its answer
     And no moment is a name, a roll-call, discipline, admin, "understood?", a bid to answer or the class chanting together
     And an instruction to work in pairs or groups is not shown as "a real choice" or "children led a part"
+    And a moment whose words don't show what its label says is relabelled or left out before I see it
+    # bd-eal7zn.8: label-check.js, one call per visit on the moments call's own model; keep, relabel or drop,
+    # enforced in code and counted in rumi_moments.verified.labels. A failed check leaves the moments as they were.
     # Pilot sheet R5, R15 (14 Oct). moments.js prompt observe2-moments-v2 (bd-eal7zn.3); the
     # why is in each slot's description (observe2-check-endpoint.js describe), within 300 code points.
 
