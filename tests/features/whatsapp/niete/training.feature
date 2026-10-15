@@ -2490,3 +2490,26 @@ Feature: NIETE (ICT) Teacher Training
     When the phone sends a JUGNU- code or "stop"
     Then the door's decision log line carries no phone key
     But the same phone sending /quiz is logged exactly as before
+  @quiz @config-gated @wip @draft @P2 @T754
+  Scenario: With web_quiz_identity_canon on, my "same child?" queue pairs a chat child with one child on my class list
+    Given web_quiz_hub and web_quiz_identity_canon are on
+    And a child who played from a family phone is not on my class list, but one child on my list has the same name or every word of it
+    When my queue is computed
+    Then the pair shows first names, the grade and the class only, never a phone, a surname or a device
+    And a same-name record of mine on another phone or device stops the automatic join and puts the pair in my queue instead
+    But a kind of pair whose checked accuracy has not passed is not shown to me, and with the switch off my queue is empty
+
+  @quiz @config-gated @wip @draft @P2 @T755
+  Scenario: Only my tap joins a child, once, and I can undo it
+    Given web_quiz_hub and web_quiz_identity_canon are on and a pair is in my queue
+    When I tap "Same child"
+    Then the chat child's record is joined to the class-list child and my decision is logged
+    And tapping again writes nothing more, and "Undo" separates them again
+    But a child on another teacher's class list is refused and nothing is written
+
+  @quiz @config-gated @wip @draft @P2 @T756
+  Scenario: "Link this class's quiz codes" binds only my unbound codes to my own class
+    Given web_quiz_hub and web_quiz_identity_canon are on
+    When I link my quiz codes to one of my classes
+    Then each of my codes with no class gets that class, and a second tap links none
+    But a code that already has a class, another teacher's code, or a class that is not mine is never changed
