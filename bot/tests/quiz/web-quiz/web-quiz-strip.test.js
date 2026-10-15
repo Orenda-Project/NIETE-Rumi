@@ -1,0 +1,183 @@
+'use strict';
+/**
+ * The weekly health numbers of the web quiz Challenge (web-quiz-strip.js): the lines computable from the tables,
+ * written to web_quiz_strip_weekly(week, line, cell, value, n). Lost readings use ATTEMPTED (scored + failed, swept
+ * included) as the denominator; a practice row never enters a cell; writing a week twice gives the same rows.
+ * Faked boundaries only: Supabase (the in-memory fake that applies filters) and the logger.
+ */
+jest.mock('../../../shared/config/supabase', () => ({}));
+jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
+jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
+
+const { makeFake } = require('./fake-supabase');
+const supabase = require('../../../shared/config/supabase');
+const Strip = require('../../../shared/services/quiz/web-quiz-strip');
+
+const WEEK = '2026-W42';                       // Mon 12 Oct – Sun 18 Oct 2026, PKT
+const IN = '2026-10-14T08:00:00Z';
+const NOW = Date.parse('2026-10-19T06:00:00Z');
+const RUNS = 'web_quiz_challenge_runs';
+const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const C = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const CLS = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+const KEY = (r) => `child-voice/sandbox/kept/2026-10-01/${r}/read-1.webm`;
+
+let n = 0;
+const v2 = (extra) => {
+  n += 1;
+  return {
+    id: `run-${n}`, student_id: extra.canonical_id || A, exercise: 'read', grade: 3, lang: 'ur', status: 'scored', created_at: IN,
+    mode: 'check', bank_version: 'v3', form: 'G3', period_id: '2026-10', exposure_no: 1, band: 2, canonical_id: A,
+    id_src: 'roster_pick', id_confidence: 'high', homonym_in_list: false, helped: 'self', record: true, meta: {}, score: { correct: 30 },
+    ...extra,
+  };
+};
+const checkRows = () => [
+  v2({ canonical_id: A, class_id: CLS, helped: 'helped' }),
+  v2({ canonical_id: B }),
+  v2({ canonical_id: C }),
+  v2({ canonical_id: A, status: 'failed', exposure_no: 2, record: false, meta: { reason: 'unheard' } }),
+  v2({ canonical_id: B, status: 'failed', exposure_no: 2, record: false, meta: { fail_reason: 'stt_timeout', swept_at: IN } }),
+  // a legacy row (no mode) this week: a play, nothing else
+  { id: 'legacy-1', student_id: C, exercise: 'bigger', grade: 3, lang: 'ur', status: 'scored', created_at: IN, meta: {}, score: { correct: 8 } },
+  // outside the week: ignored
+  v2({ canonical_id: C, created_at: '2026-10-11T18:59:59Z', status: 'failed' }),
+];
+const practiceRows = () => [
+  v2({ canonical_id: C, mode: 'practice', helped: 'helped', status: 'scored' }),
+  v2({ canonical_id: C, mode: 'practice', status: 'failed', meta: { fail_reason: 'unknown' } }),
+  v2({ canonical_id: C, mode: 'practice', status: 'scored', anchor_exposure_no: 1, anchor_block: 'A1' }),
+];
+
+let db;
+const install = (runs, extra = {}) => {
+  db = { [RUNS]: runs, web_quiz_strip_weekly: [], child_rungs: [], message_ledger: [], ...extra };
+  Object.assign(supabase, makeFake(db, { uniques: { web_quiz_strip_weekly: ['week', 'line', 'cell'] } }));
+};
+const line = (name, cell = '') => db.web_quiz_strip_weekly.find((r) => r.line === name && r.cell === cell);
+
+afterEach(() => { jest.clearAllMocks(); n = 0; });
+
+test('week bounds are PKT Monday 00:00 to the next Monday (19:00Z the Sunday before)', () => {
+  expect(Strip.weekBounds(WEEK)).toEqual({ start: '2026-10-11T19:00:00.000Z', end: '2026-10-18T19:00:00.000Z' });
+  expect(Strip.isoWeekOf(Date.parse('2026-10-18T18:59:59Z'))).toBe('2026-W42');
+  expect(Strip.isoWeekOf(Date.parse('2026-10-18T19:00:00Z'))).toBe('2026-W43');
+});
+
+test('lost readings = failed (swept included) ÷ attempted (scored + failed) per fixed band × language', async () => {
+  install(checkRows());
+  await Strip.weeklyStrip({ week: WEEK, now: NOW });
+  expect(line('lost_readings', 'G23|ur')).toMatchObject({ value: 0.4, n: 5 });
+  expect(line('lost_readings_swept', 'G23|ur')).toMatchObject({ value: 0.2, n: 5 });   // 1 swept of 5 attempted
+});
+
+test('plays by mode; % roster-bound; % helped per cell; provenance complete', async () => {
+  install(checkRows());
+  await Strip.weeklyStrip({ week: WEEK, now: NOW });
+  expect(line('plays', 'check')).toMatchObject({ value: 3, n: 3 });
+  expect(line('plays', 'legacy')).toMatchObject({ value: 1, n: 1 });
+  expect(line('roster_bound_pct')).toMatchObject({ value: 1 / 3, n: 3 });
+  expect(line('helped_pct', 'G23|ur|read')).toMatchObject({ value: 1 / 3, n: 3 });
+  expect(line('provenance_incomplete')).toMatchObject({ value: 0, n: 5 });
+});
+
+test('a v2 row missing a provenance column is counted', async () => {
+  install([...checkRows(), v2({ canonical_id: C, homonym_in_list: null })]);
+  await Strip.weeklyStrip({ week: WEEK, now: NOW });
+  expect(line('provenance_incomplete')).toMatchObject({ value: 1, n: 6 });
+});
+
+test('a practice row never enters any cell (every band/lang cell is the same with or without practice rows)', async () => {
+  install(checkRows());
+  await Strip.weeklyStrip({ week: WEEK, now: NOW });
+  const cells = (rows) => rows.filter((r) => r.cell.includes('|') || ['roster_bound_pct', 'no_class_first_finishes'].includes(r.line))
+    .map((r) => `${r.line}/${r.cell}=${r.value}/${r.n}`).sort();
+  const without = cells(db.web_quiz_strip_weekly);
+  n = 0;
+  install([...checkRows(), ...practiceRows()]);
+  await Strip.weeklyStrip({ week: WEEK, now: NOW });
+  expect(cells(db.web_quiz_strip_weekly)).toEqual(without);
+  expect(without.length).toBeGreaterThan(3);
+  expect(line('plays', 'practice')).toMatchObject({ value: 2 });
+});
+
+test('B3: share of attempted counted reads from rung ≤ 1 children (no lamp yet counts as the bottom)', async () => {
+  install(checkRows(), {
+    child_rungs: [
+      { canonical_id: A, ladder: 'reading', rung: 1, set_at: '2026-10-01T00:00:00Z' },
+      { canonical_id: B, ladder: 'reading', rung: 3, set_at: '2026-10-01T00:00:00Z' },
+      { canonical_id: B, ladder: 'reading', rung: 1, set_at: '2026-09-01T00:00:00Z' },
+      { canonical_id: C, ladder: 'numbers', rung: 4, set_at: '2026-10-01T00:00:00Z' },
+    ],
+  });
+  await Strip.weeklyStrip({ week: WEEK, now: NOW });
+  // attempted reads: A×2 (rung 1), B×2 (rung 3), C×1 (no reading lamp) → bottom 3 of 5
+  expect(line('b3_bottom_share', 'G23|ur')).toMatchObject({ value: 0.6, n: 5 });
+});
+
+test('kept audio: count(audio_key) = count(kept_ok) and the oldest kept age', async () => {
+  const kept = (id, extra) => v2({ id, created_at: '2026-09-01T00:00:00Z', ...extra });
+  install([
+    kept('k1', { audio_consent: 'kept_ok', scored_at: '2026-09-19T06:00:00Z', audio_keep_until: '2026-12-18T06:00:00Z', meta: { audio_key: KEY('k1') } }),
+    kept('k2', { audio_consent: 'kept_ok', scored_at: '2026-10-09T06:00:00Z', audio_keep_until: '2027-01-07T06:00:00Z', meta: { audio_key: KEY('k2') } }),
+    kept('k3', { audio_consent: 'kept_no' }),
+    kept('k4', { audio_consent: 'not_asked' }),
+  ]);
+  await Strip.weeklyStrip({ week: WEEK, now: NOW });
+  expect(line('kept_audio_keys')).toMatchObject({ value: 2, n: 2 });
+  expect(line('kept_audio_match')).toMatchObject({ value: 1 });
+  expect(line('kept_audio_oldest_d')).toMatchObject({ value: 30 });
+});
+
+test('kept audio mismatch: a kept_ok row inside its window without its reading shows 0', async () => {
+  install([
+    v2({ id: 'k1', audio_consent: 'kept_ok', scored_at: '2026-10-09T06:00:00Z', audio_keep_until: '2027-01-07T06:00:00Z', meta: { audio_key: KEY('k1') } }),
+    v2({ id: 'k2', audio_consent: 'kept_ok', scored_at: '2026-10-09T06:00:00Z', audio_keep_until: '2027-01-07T06:00:00Z', meta: {} }),
+  ]);
+  await Strip.weeklyStrip({ week: WEEK, now: NOW });
+  expect(line('kept_audio_keys')).toMatchObject({ value: 1, n: 2 });
+  expect(line('kept_audio_match')).toMatchObject({ value: 0 });
+});
+
+test('sends by trigger, bot-to-family and the door-mix numerator come from message_ledger', async () => {
+  install([], {
+    message_ledger: [
+      { day: '2026-10-12', trigger: 'home_reply', class_id: null, initiated: 'user', recipient: 'family', count: 3, usd: 0.045 },
+      { day: '2026-10-18', trigger: 'guest_reply', class_id: null, initiated: 'user', recipient: 'family', count: 1, usd: 0.015 },
+      { day: '2026-10-14', trigger: 'class_round', class_id: CLS, initiated: 'bot', recipient: 'teacher', count: 2, usd: 0.03 },
+      { day: '2026-10-19', trigger: 'home_reply', class_id: null, initiated: 'user', recipient: 'family', count: 9, usd: 0.135 },
+    ],
+  });
+  await Strip.weeklyStrip({ week: WEEK, now: NOW });
+  expect(line('sends', 'home_reply')).toMatchObject({ value: 3 });
+  expect(line('sends', 'class_round')).toMatchObject({ value: 2 });
+  expect(line('sends_total')).toMatchObject({ value: 6 });
+  expect(Number(line('sends_usd').value.toFixed(3))).toBe(0.09);
+  expect(line('bot_to_family')).toMatchObject({ value: 0 });
+  expect(line('door_mix_numerator')).toMatchObject({ value: 4 });
+});
+
+test('anchor retest gap: (returners − first-timers) ÷ pooled SD, same cell and month; check rows only', async () => {
+  const anc = (k, ok) => v2({ anchor_block: 'A1', anchor_exposure_no: k, score: { correct: ok } });
+  install([anc(1, 10), anc(1, 12), anc(2, 14), anc(2, 16), ...practiceRows()]);
+  await Strip.weeklyStrip({ week: WEEK, now: NOW });
+  // means 11 vs 15, each sd √2 → pooled √2 → gap 4/√2
+  expect(line('anchor_retest_gap', 'G23|ur|read|A1').value).toBeCloseTo(4 / Math.SQRT2, 6);
+  expect(line('anchor_retest_gap', 'G23|ur|read|A1').n).toBe(4);
+});
+
+test('writing the same week twice is idempotent (one row per week × line × cell, same values)', async () => {
+  install(checkRows());
+  await Strip.weeklyStrip({ week: WEEK, now: NOW });
+  const first = JSON.stringify(db.web_quiz_strip_weekly.map(({ computed_at, ...r }) => r));
+  const count = db.web_quiz_strip_weekly.length;
+  await Strip.weeklyStrip({ week: WEEK, now: NOW });
+  expect(db.web_quiz_strip_weekly.length).toBe(count);
+  expect(JSON.stringify(db.web_quiz_strip_weekly.map(({ computed_at, ...r }) => r))).toBe(first);
+});
+
+test('a malformed week is refused before any query', async () => {
+  install([]);
+  await expect(Strip.weeklyStrip({ week: '2026-42', now: NOW })).rejects.toThrow(/week/);
+});

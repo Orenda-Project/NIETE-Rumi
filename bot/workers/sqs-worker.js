@@ -1702,6 +1702,7 @@ function scheduleChallengeVoiceSweep({ worker: w = null, setIntervalFn = setInte
     } catch (error) {
       logToFile('Error in challenge clip warm (non-fatal)', { error: error.message }, 'error');
     }
+    await require('../shared/services/quiz/web-quiz-challenge-sweeper').tick(); // stuck runs + daily kept-audio purge; each behind its own switch, never throws
   };
   const first = setTimeoutFn(tick, CHALLENGE_VOICE_SWEEP_FIRST_MS);
   if (first && typeof first.unref === 'function') first.unref();
