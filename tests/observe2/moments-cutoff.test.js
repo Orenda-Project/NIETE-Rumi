@@ -41,6 +41,8 @@ const MODEL_OUT = {
 };
 const reply = (out, used) => ({ result: out, usage: { completion_tokens: used } });
 const CUT = reply({ moments: [] }, 16000);
+// The label check (bd-eal7zn.8) has its own seam here, so these tests count the moments call only.
+const keepAll = () => Promise.resolve(reply({ verdicts: [] }, 100));
 
 const formRow = (id) => mockFake.__tables.observation_field_forms.find((r) => r.id === id);
 const session = () => mockFake.__tables.coaching_sessions[0];
@@ -67,7 +69,7 @@ describe('a reply that used the whole output limit', () => {
   test('is asked for once more, and the second reply is what the coach checks', async () => {
     const id = await linked();
     const llm = jest.fn().mockResolvedValueOnce(CUT).mockResolvedValueOnce(reply(MODEL_OUT, 9000));
-    const out = await Moments.runForSession('sess-1', '923000000001', { llm });
+    const out = await Moments.runForSession('sess-1', '923000000001', { llm, labelLlm: keepAll });
     expect(llm).toHaveBeenCalledTimes(2);
     expect(llm.mock.calls[0][1]).toEqual(expect.objectContaining({ maxTokens: 16000 }));
     expect(formRow(id).rumi_moments.moments).toHaveLength(2);
@@ -78,7 +80,7 @@ describe('a reply that used the whole output limit', () => {
   test('cut off twice: the failure path with its own log line, never a check with no moment', async () => {
     const id = await linked();
     const llm = jest.fn().mockResolvedValue(CUT);
-    const out = await Moments.runForSession('sess-1', '923000000001', { llm });
+    const out = await Moments.runForSession('sess-1', '923000000001', { llm, labelLlm: keepAll });
     expect(llm).toHaveBeenCalledTimes(2);
     expect(out).toMatchObject({ action: 'failed' });
     expect(session().status).toBe('observe2_failed');
@@ -91,7 +93,7 @@ describe('a reply that used the whole output limit', () => {
   test('a reply under the limit is read once', async () => {
     await linked();
     const llm = jest.fn().mockResolvedValue(reply(MODEL_OUT, 15999));
-    await Moments.runForSession('sess-1', '923000000001', { llm });
+    await Moments.runForSession('sess-1', '923000000001', { llm, labelLlm: keepAll });
     expect(llm).toHaveBeenCalledTimes(1);
   });
 });
@@ -103,9 +105,11 @@ describe('the default reader (completeJson, the LLM client mocked)', () => {
     const id = await linked();
     mockCreate
       .mockResolvedValueOnce(choice('{"moments":[', 'length'))
-      .mockResolvedValueOnce(choice(JSON.stringify(MODEL_OUT), 'stop'));
+      .mockResolvedValueOnce(choice(JSON.stringify(MODEL_OUT), 'stop'))
+      .mockResolvedValueOnce(choice(JSON.stringify({ verdicts: [{ n: 1, verdict: 'keep' }, { n: 2, verdict: 'keep' }] }), 'stop'));
     const out = await Moments.runForSession('sess-1', '923000000001');
-    expect(mockCreate).toHaveBeenCalledTimes(2);
+    // the moments call twice (cut off, then asked again), then the label check once
+    expect(mockCreate).toHaveBeenCalledTimes(3);
     expect(mockCreate.mock.calls[0][0]).toMatchObject({ max_completion_tokens: 16000, job: 'coaching.completeJson' });
     expect(formRow(id).rumi_moments.moments).toHaveLength(2);
     expect(out).toMatchObject({ action: 'check_sent' });

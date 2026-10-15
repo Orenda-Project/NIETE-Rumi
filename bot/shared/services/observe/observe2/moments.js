@@ -29,6 +29,7 @@ const WhatsAppService = require('../../whatsapp.service');
 const Store = require('./field-form.store');
 const { heardLevels } = require('./rules');
 const { checkQuotes } = require('./quote-check');
+const { checkLabels } = require('./label-check');
 const { observe2Strings } = require('./strings');
 const { clampLanguage } = require('../../../config/ux-strings');
 const { getLanguage } = require('../../../config/languages');
@@ -42,28 +43,7 @@ const QUOTE_MAX = 280;
 const WHY_MAX = 120;
 const TIMED_RX = /\[\d{1,3}:\d{2}\]/;
 
-// Type → the short label the check shows after the minute ("12:41 · open question"); each fits the
-// 30-code-point radio label with the minute in front.
-const TYPES = {
-  ask: {
-    open_q_one: 'open question', open_q_choral: 'answered in chorus', probe: "'why' follow-up",
-    reasoning: 'child explained why', long_answer: 'longer answer', beyond: 'went beyond the ask',
-    content_q: "child's own question", proc_q: "'which page' question", beyond_q: 'question beyond lesson',
-  },
-  wrong: {
-    wrong_reason: 'reason for the error', wrong_fixed: 'child fixed it', wrong_ignored: 'wrong answer left',
-    strategy: 'tried a new way', praise_effort: 'praise for effort', praise_generic: "'well done' only",
-    mistake_useful: 'mistake put to use', disagree: 'disagreement welcomed', hedged: 'tried while unsure',
-    unprompted: 'tried without asking',
-  },
-  work: { choice: 'a real choice', handover: 'children led a part' },
-  explain: {
-    content_error: 'content error', term_defined: 'word explained', why_explained: 'why it works',
-    life_link: 'link to real life',
-  },
-};
-const GROUPS = Object.keys(TYPES);
-const GROUP_OF = Object.fromEntries(GROUPS.flatMap((g) => Object.keys(TYPES[g]).map((t) => [t, g])));
+const { TYPES, GROUPS, GROUP_OF, TYPE_GUIDE } = require('./moment-types');
 
 const seconds = (mmss) => { const [m, s] = String(mmss).split(':').map(Number); return m * 60 + s; };
 const clip = (text, max) => { const cps = [...text]; return cps.length > max ? `${cps.slice(0, max - 1).join('')}…` : text; };
@@ -144,53 +124,7 @@ function buildPrompt(transcript, form, { lang } = {}) {
     'TYPES. Use a type only when the words clearly show exactly that. Most lessons have none of several types:',
     'return none rather than stretch a type to fit.',
     '',
-    'ASKING — the teacher\'s questions, the children\'s answers and questions:',
-    '- open_q_one: the teacher asks a question with more than one good answer (why, how, what do you think, give an',
-    '  example, make a sentence) and one child answers. "What is a noun?", "how many?", "which is bigger?", "what did',
-    '  we read yesterday?" have one right answer: they are NOT open.',
-    '  TEST: could two children give two different answers that are both right? If not, it is closed:',
-    '  do not pick it as a moment; count it in closed_q. Most questions in these lessons are closed.',
-    '- open_q_choral: the same kind of open question, answered by the class together',
-    '- probe: right after a child\'s answer, the teacher asks that child (or the class) why or how ("why do you think',
-    '  so?", "how did you find it?"). A new question, a question the teacher answers, or "understood?" is NOT a probe.',
-    '- reasoning: a child gives a reason ("because ...") in their own words',
-    '- long_answer: a child answers in a full sentence of their own, without a reason. Reading from the book or the',
-    '  board is NOT an answer.',
-    '- beyond: a child goes beyond what was asked with a link or example of their own',
-    '- content_q: a child asks a question about the content',
-    '- proc_q: a child asks only about procedure ("which page?", "in the copy?")',
-    '- beyond_q: a child asks a question that goes beyond the lesson',
-    '',
-    'WRONG ANSWERS — what happens when a child is wrong, and how safe it is to be wrong:',
-    '- wrong_reason: after a child\'s wrong answer, the teacher explains why it is wrong',
-    '- wrong_fixed: a child corrects their own wrong answer (quote the wrong answer — the correction)',
-    '- wrong_ignored: a wrong answer is passed over with no reason ("no, anyone else?")',
-    '- strategy: after a wrong answer, the teacher tries a new way (an example, a picture, a simpler question).',
-    '  Moving on to the next exercise is NOT a strategy.',
-    '- praise_effort: specific praise for effort or thinking ("you checked your work and found the mistake")',
-    '- praise_generic: general praise ("good", "shabash", "well done")',
-    '- mistake_useful: the teacher uses a child\'s mistake to teach the class',
-    '- disagree: the teacher welcomes a child disagreeing',
-    '- hedged: a child answers while openly unsure ("maybe", "I think", "shayad")',
-    '- unprompted: a child tries without being asked, or keeps trying after a wrong answer',
-    '',
-    'WORKING — while the children work:',
-    '- choice: the children decide something that matters (which task, how to show their work, who to work with)',
-    '  and act on it. An instruction to work in pairs or groups is NOT a choice; picking which of two words to say',
-    '  is NOT a real choice.',
-    '- handover: a child runs part of the lesson: leads the class, asks the class questions, explains to the class,',
-    '  leads a group\'s report. Answering, reading aloud or writing on the board when called is NOT a handover.',
-    '  TEST: is a child doing the teacher\'s job for the whole class? A child doing the task they were given is not.',
-    '',
-    'EXPLAINING — the teacher\'s content:',
-    '- content_error: the teacher says something factually wrong and it is not corrected',
-    '- term_defined: the teacher explains or defines a subject word (not only names it)',
-    '- why_explained: the teacher explains why a method or fact works, not only how. A moral lesson or a plain',
-    '  definition is NOT this.',
-    '  TEST: does the teacher give the reason ("because", "so that", "that is why") about the content?',
-    '  The steps of a method, a definition or a general remark are not a reason.',
-    '- life_link: the teacher links the content to the children\'s daily life or to another subject. The story in',
-    '  the lesson, a moral or a memory trick is NOT a life link.',
+    ...TYPE_GUIDE,
     '',
     `HOW MANY: at most ${SLOTS} per part, and only the clearest. Fewer clear moments are better than many weak ones.`,
     'If a part has no clear moment, return none for it.',
@@ -237,9 +171,9 @@ function normalise(raw) {
 // tokens, the median call uses ~12,000 (prod, 5-15 Oct).
 const MAX_TOKENS = 16000;
 
-async function defaultLlm(prompt, { maxTokens = MAX_TOKENS } = {}) {
+async function defaultLlm(prompt, { maxTokens = MAX_TOKENS, label = 'observe2.moments' } = {}) {
   const GPT5MiniService = require('../../gpt5-mini.service');
-  return GPT5MiniService.completeJson(prompt, { maxTokens, label: 'observe2.moments' });
+  return GPT5MiniService.completeJson(prompt, { maxTokens, label });
 }
 
 // A reply as completeJson gives it ({result, usage}); a seam that hands back the bare JSON has no usage.
@@ -487,8 +421,9 @@ async function runForSession(sessionId, from, deps = {}) {
     // (onSealed): graded now, it would miss a plan attached after it (Riffat, 4 Oct).
     const sealed = Boolean(form.sealed_at);
     const lang = await coachLanguage(form);
+    const llm = deps.llm || defaultLlm;
     const [raw, fidelity] = await Promise.all([
-      readMoments(buildPrompt(transcript, form, { lang }), form, deps.llm || defaultLlm),
+      readMoments(buildPrompt(transcript, form, { lang }), form, llm),
       sealed ? gradeFidelity(form, transcript, row && row.audio_duration_seconds, deps.fidelityDeps, deps.planDeps, deps.photoDeps) : null,
     ]);
     // Every quote is checked against the transcript before the coach sees it (quote-check.js); what was
@@ -499,7 +434,15 @@ async function runForSession(sessionId, from, deps = {}) {
     logToFile('[observe2] moments checked against the transcript', {
       sessionId, formId: form.id, ...stats,
     }, stats.returned && stats.kept * 2 < stats.returned ? 'warn' : 'info');
-    const { moments, counts } = normalise({ ...(raw || {}), moments: checked.moments });
+    // A second look at each label against its words (label-check.js, bd-eal7zn.8), on the moments call's
+    // own seam: the same job and model. A failed check leaves the moments as the quote check left them.
+    const labelLlm = deps.labelLlm || (deps.llm ? llm : (p, o) => defaultLlm(p, { ...o, label: 'observe2.moments.labels' }));
+    const labelled = await checkLabels(checked.moments, { transcript, lang, llm: labelLlm });
+    stats.labels = labelled.stats;
+    logToFile('[observe2] moment labels checked', {
+      sessionId, formId: form.id, ...labelled.stats,
+    }, labelled.stats.status === 'failed' ? 'error' : 'info');
+    const { moments, counts } = normalise({ ...(raw || {}), moments: labelled.moments });
     const stored = await Store.setMoments(form.id, {
       moments, counts, prompt_version: PROMPT_VERSION, verified: stats, fidelity, ...(sealed ? {} : { fidelity_at_seal: true }),
     }, heardLevels(moments, counts));
