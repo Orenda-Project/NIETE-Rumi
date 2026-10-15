@@ -12,13 +12,14 @@ jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logErro
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
 jest.mock('../../../shared/utils/html-to-pdf', () => ({ htmlToPdf: jest.fn(async () => Buffer.from('%PDF-1.4 fake')) }));
 jest.mock('../../../shared/services/whatsapp.service', () => ({ sendMessage: jest.fn(), sendTextMessage: jest.fn(), sendInteractiveMessage: jest.fn() }), { virtual: true });
-jest.mock('../../../shared/services/quiz/web-quiz-ledger', () => ({ recordSend: jest.fn() }), { virtual: true });
+jest.mock('../../../shared/services/quiz/message-ledger', () => ({ record: jest.fn() }));
 jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({
   kid: (id) => `kid(${String(id).slice(-2)})`, cls: (id) => `cls(${String(id).slice(-2)})`, envelope: (f) => ({ w: 's', ev_v: 2, kid_v: '2026', ...f }),
 }), { virtual: true });
 
 const express = require('express');
 const { makeFake } = require('./fake-supabase');
+const { strictFrom } = require('./class-round-strict-fake');
 
 const TEACHER = '11111111-1111-4111-8111-111111111111';
 const CLASS = 'c0000000-0000-4000-8000-0000000000c1';
@@ -54,7 +55,7 @@ function seed({ settings = ON, n = NAMES.length, draw = {} } = {}) {
     web_quiz_challenge_runs: [],
   };
   const fake = makeFake(DB);
-  Object.assign(require('../../../shared/config/supabase'), { from: fake.from, rpc: fake.rpc });
+  Object.assign(require('../../../shared/config/supabase'), { from: strictFrom(fake), rpc: fake.rpc });
 }
 
 let server; let base; let Token; let logEvent; let Round; let Page;
@@ -85,8 +86,10 @@ const first = (id) => NAMES[Number(id.slice(-2)) - 1].split(' ')[0];
 describe('§6(a) declined: a child\'s "not today", on the teacher\'s screen only', () => {
   test('the control renders only when its copy key exists (jg.round.t_declined)', async () => {
     await Round.start(TEACHER, { rng: () => 0.3 });
+    const key = Page.T.en.tDeclined;
+    delete Page.T.en.tDeclined;
     expect(await (await get(`/round/${tok()}`)).text()).not.toMatch(/\/round\/[^"]+\/declined/);
-    Page.T.en.tDeclined = 'Not today';
+    Page.T.en.tDeclined = key;
     expect(await (await get(`/round/${tok()}`)).text()).toMatch(/action="\/r\/[^"]+\/round\/declined/);
   });
 
@@ -137,12 +140,14 @@ describe('§6(b) pause and resume; no self-close', () => {
     await post(`/round/${tok()}/next`, { act: 'tap' });
     expect(draw().finished_at).toBeNull();
     const res = await post(`/round/${tok()}/next`, HOLD);
-    expect(res.status).toBe(303);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain(Page.T.en.tThanks);
     expect(draw().finished_at).toBeTruthy();
     const fin = events('class_round_finished');
     expect(fin).toHaveLength(1);
     expect(Object.keys(fin[0]).sort()).toEqual(['absent_k', 'cls', 'counted_k', 'declined_k', 'done_k', 'ev_v', 'mins', 'present_k', 'roster_k', 'round', 'w']);
-    expect(fin[0]).toMatchObject({ roster_k: 6, present_k: 5, done_k: 4, absent_k: 1, declined_k: 1, counted_k: 4 });
+    // counted_k: the counted positions (k = 10, or the 6 positions at Start), not the children done in them
+    expect(fin[0]).toMatchObject({ roster_k: 6, present_k: 5, done_k: 4, absent_k: 1, declined_k: 1, counted_k: 6 });
     expect(draw().children_present).toBe(5);
     expect(draw().children_played).toBe(4);
   });
@@ -153,10 +158,12 @@ describe('§6(b) pause and resume; no self-close', () => {
     await post(`/round/${tok()}/next`, HOLD);
     await Round.childFinished(ROUND, order[0], 'run-0');
     await post(`/round/${tok()}/teacher`, HOLD);
+    const keys = [Page.T.en.tPause, Page.T.en.tResume];
+    delete Page.T.en.tPause;
+    delete Page.T.en.tResume;
     let html = await (await get(`/round/${tok()}`)).text();
     expect(html).not.toMatch(/round\/pause|round\/resume/);
-    Page.T.en.tPause = 'Pause for today';
-    Page.T.en.tResume = 'Carry on';
+    [Page.T.en.tPause, Page.T.en.tResume] = keys;
     html = await (await get(`/round/${tok()}`)).text();
     expect(html).toMatch(/action="\/r\/[^"]+\/round\/pause/);
     await post(`/round/${tok()}/pause`);
@@ -182,7 +189,7 @@ describe('§6(g) the window: closed or outside it, nothing opens', () => {
     expect(await Round.entryOf(require('../../../shared/services/quiz/web-quiz-token').verify(t, 'r'))).toBeTruthy();
     draw().window_end = iso(Date.now() - 1000);
     expect(await Round.entryOf(require('../../../shared/services/quiz/web-quiz-token').verify(t, 'r'))).toBeNull();
-    expect(await Round.runColumns(ROUND, id, 'bigger')).toBeNull();
+    expect(await Round.claimFor(ROUND, id, 'bigger')).toBeNull();
     expect((await get(`/round/${tok()}`)).status).toBe(404);
     expect(draw().finished_at).toBeTruthy();
     expect(events('class_round_finished')).toHaveLength(1);
@@ -190,9 +197,11 @@ describe('§6(g) the window: closed or outside it, nothing opens', () => {
     expect(events('class_round_finished')).toHaveLength(1);
   });
 
-  test('before window_start: no card, no round page, no start', async () => {
+  test('before window_start: the card offers only "Not this term" (no Start), no round page, no start', async () => {
     seed({ draw: { window_start: iso(Date.now() + DAY), window_end: iso(Date.now() + 29 * DAY) } });
-    expect(await Round.cardFor(TEACHER, { lang: 'en', token: 'x' })).toBe('');
+    const card = await Round.cardFor(TEACHER, { lang: 'en', token: 'x' });
+    expect(card).toMatch(/action="\/r\/x\/round\/not-this-term/);
+    expect(card).not.toMatch(/round\/start/);
     expect((await get(`/round/${tok()}`)).status).toBe(404);
     expect(await Round.start(TEACHER)).toBeNull();
   });
@@ -206,15 +215,14 @@ describe('§6(e) k = 10 counted positions, decided by the server', () => {
     expect(order).toHaveLength(12);
     for (let i = 0; i < 12; i += 1) {
       await post(`/round/${tok()}/next`, HOLD);
-      const cols = await Round.runColumns(ROUND, order[i], 'bigger');
-      expect(cols).toMatchObject({ mode: i < 10 ? 'class_round' : 'practice', via: 'class_round' });
-      expect(Object.keys(cols)).not.toEqual(expect.arrayContaining(['pos']));
-      expect(JSON.stringify(cols)).not.toMatch(/"pos"|"position"/);
+      const cols = await Round.claimFor(ROUND, order[i], 'bigger');
+      expect(cols).toEqual({ mode: i < 10 ? 'class_round' : 'practice' });
       await Round.childFinished(ROUND, order[i], `run-${i}`);
       await post(`/round/${tok()}/teacher`, HOLD);
     }
     await post(`/round/${tok()}/next`, HOLD);
     expect(events('class_round_finished')[0]).toMatchObject({ done_k: 12, counted_k: 10 });
+    expect(draw()).toMatchObject({ counted_k: 10, present_counted_k: 10 });
   });
 
   test('k comes from the draw row (k_counted)', async () => {
@@ -223,18 +231,21 @@ describe('§6(e) k = 10 counted positions, decided by the server', () => {
     const order = draw().state.order.map((p) => p.id);
     await post(`/round/${tok()}/absent`, { pos: '0' });
     await post(`/round/${tok()}/next`, HOLD);
-    expect((await Round.runColumns(ROUND, order[1], 'bigger')).mode).toBe('class_round');
+    expect((await Round.claimFor(ROUND, order[1], 'bigger')).mode).toBe('class_round');
     await Round.childFinished(ROUND, order[1], 'r1');
     await post(`/round/${tok()}/teacher`, HOLD);
     await post(`/round/${tok()}/next`, HOLD);
-    expect((await Round.runColumns(ROUND, order[2], 'bigger')).mode).toBe('practice');
+    // positions are fixed at Start: the absent child's slot stays empty and the third child does not move up
+    expect((await Round.claimFor(ROUND, order[2], 'bigger')).mode).toBe('practice');
   });
 });
 
 describe('§6(f) "Not this term" on the card', () => {
   test('the control renders only when jg.round.t_not_this_term exists; one tap sets declined_at, one event, no message, no card after', async () => {
+    const key = Page.T.en.tNotThisTerm;
+    delete Page.T.en.tNotThisTerm;
     expect(await Round.cardFor(TEACHER, { lang: 'en', token: 'tk' })).not.toMatch(/not-this-term/);
-    Page.T.en.tNotThisTerm = 'Not this term';
+    Page.T.en.tNotThisTerm = key;
     expect(await Round.cardFor(TEACHER, { lang: 'en', token: 'tk' })).toMatch(/action="\/r\/tk\/round\/not-this-term/);
     const res = await post(`/round/${tok()}/not-this-term`);
     expect(res.status).toBe(303);
@@ -245,7 +256,7 @@ describe('§6(f) "Not this term" on the card', () => {
     expect(await Round.cardFor(TEACHER, { lang: 'en', token: 'tk' })).toBe('');
     expect((await get(`/round/${tok()}`)).status).toBe(404);
     Object.values(require('../../../shared/services/whatsapp.service')).forEach((fn) => expect(fn).not.toHaveBeenCalled());
-    expect(require('../../../shared/services/quiz/web-quiz-ledger').recordSend).not.toHaveBeenCalled();
+    expect(require('../../../shared/services/quiz/message-ledger').record).not.toHaveBeenCalled();
   });
 
   test('once started, "Not this term" changes nothing', async () => {

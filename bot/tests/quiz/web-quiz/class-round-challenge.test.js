@@ -1,7 +1,8 @@
 'use strict';
 /**
- * A child called in the class round plays the existing Challenge with a round turn token: the runs carry
- * mode/via/id_src = 'class_round', id_confidence 'high' and the round's class_id; the claim is honoured ONLY with
+ * A child called in the class round plays the existing Challenge with a round turn token: the Challenge's serve
+ * writes the run row (mode = the mode the round chose for the position, via 'class_round', the round's class, and its
+ * own admin_mode / sample_arm); the round passes the mode and writes nothing on the row. The claim is honoured ONLY with
  * the switch on, the round open (started, not finished) and THIS child's turn open. A teacher's phone outside the
  * round keeps today's behaviour (no round columns on any run). The real Challenge service, tokens, item bank and
  * round service run; faked: Supabase (in-memory), the logger, R2 and speech/LLM clients, the hashed-key module.
@@ -27,6 +28,7 @@ jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({
 }), { virtual: true });
 
 const { makeFake } = require('./fake-supabase');
+const { strictFrom } = require('./class-round-strict-fake');
 
 const TEACHER = '11111111-1111-4111-8111-111111111111';
 const CLASS = 'c0000000-0000-4000-8000-0000000000c1';
@@ -60,7 +62,7 @@ function seed(settings = ON) {
     web_quiz_challenge_runs: [],
   };
   const fake = makeFake(DB);
-  Object.assign(require('../../../shared/config/supabase'), { from: fake.from, rpc: fake.rpc });
+  Object.assign(require('../../../shared/config/supabase'), { from: strictFrom(fake), rpc: fake.rpc });
 }
 beforeEach(() => {
   jest.resetModules();
@@ -89,11 +91,34 @@ async function playBigger(token) {
   return out;
 }
 
-test('a round run carries the round columns: class_round, high, the round\'s class', async () => {
+test('a round run: the serve writes mode and via class_round, the round\'s class, teacher_present and the class_round arm', async () => {
   const { id, token } = await openTurn();
   await playBigger(token);
+  expect(DB.web_quiz_challenge_runs).toHaveLength(1);
   const row = DB.web_quiz_challenge_runs[0];
-  expect(row).toMatchObject({ student_id: id, mode: 'class_round', via: 'class_round', id_src: 'class_round', id_confidence: 'high', class_id: CLASS, canonical_id: id, homonym_in_list: false });
+  expect(row).toMatchObject({ student_id: id, status: 'scored', mode: 'class_round', via: 'class_round', class_id: CLASS, canonical_id: id,
+    admin_mode: 'teacher_present', sample_arm: 'class_round' });
+});
+
+test('a round turn\'s page: no practice banner and no mode at any position, and the same warm line after every item', async () => {
+  seed([...ON, { key: 'web_quiz_challenge_record', value: true }, { key: 'web_quiz_challenge_trail', value: true }]);
+  Object.assign(draw(), { k_counted: 1 });
+  // the child has a home run of the game already (a second home play would be a practice round)
+  DB.web_quiz_challenge_runs.push({ id: 'home', student_id: kid(1), exercise: 'bigger', status: 'scored', score: { correct: 5, n: 10 }, mode: 'check', via: 'hub', created_at: new Date(Date.now() - 86400000).toISOString() });
+  await Round.start(TEACHER, { rng: () => 0 });
+  for (let i = 0; i < 2; i += 1) {
+    await Round.next(TEACHER, HOLD);
+    const st = draw().state;
+    const out = await Ch.exercise(Round.turnToken(ROUND, st.order[st.cur].id), 'bigger', { lang: i ? 'ur' : 'en' });
+    expect(out).not.toHaveProperty('practice_round');
+    expect(out).not.toHaveProperty('mode');
+    expect(out.round_say).toBe(require('../../../shared/templates/class-round.page').T[i ? 'ur' : 'en'].cNextSay);
+    await Round.childFinished(ROUND, st.order[st.cur].id, `r${i}`);
+    await Round.toTeacher(TEACHER, HOLD);
+  }
+  // a home play keeps its payload: no round line
+  const st = T.signSession({ sessionId: SESSION, deviceRef: 'DeviceRefGolden_000001', shareCodeId: SC });
+  expect(await Ch.exercise(st, 'bigger', { lang: 'en' })).not.toHaveProperty('round_say');
 });
 
 test('the menu offers the round\'s tap games only; the read-aloud is refused on a round token', async () => {
@@ -131,7 +156,8 @@ test('the claim is refused: switch off, round not started, round finished, anoth
   const out = await Ch.exercise(t2, 'bigger', { lang: 'en' });
   await Round.toTeacher(TEACHER, HOLD);
   await expect(Ch.submit({ ct: out.ct, taps: [], ms: 1 }, { now: Date.now() + 1000 })).rejects.toMatchObject({ status: 401 });
-  expect(DB.web_quiz_challenge_runs).toEqual([]);
+  // only the serve's own row, never finished
+  expect(DB.web_quiz_challenge_runs.map((r) => r.status)).toEqual(['served']);
   // the switch off
   await Round.next(TEACHER, HOLD);
   const st2 = draw().state;
@@ -155,7 +181,7 @@ test('the teacher\'s phone outside the round: a session run carries no round col
   const st = T.signSession({ sessionId: SESSION, deviceRef: 'DeviceRefGolden_000001', shareCodeId: SC });
   await playBigger(st);
   const row = DB.web_quiz_challenge_runs[0];
-  ['mode', 'via', 'id_src', 'id_confidence', 'class_id', 'canonical_id', 'homonym_in_list'].forEach((k) => expect(row).not.toHaveProperty(k));
+  expect(row).toMatchObject({ mode: 'check', via: 'quiz_card', admin_mode: 'self_run', sample_arm: null });
   expect(T.verify((await Ch.exercise(st, 'bigger', { lang: 'en' })).ct, 'c')).not.toHaveProperty('cr');
 });
 
@@ -202,10 +228,14 @@ describe('the sampling ruling on the Challenge side', () => {
     await Round.next(TEACHER, HOLD);
     const st = draw().state;
     const id = st.order[st.cur].id;
-    DB.web_quiz_challenge_runs.push({ id: 'old', student_id: id, exercise: 'bigger', via: 'class_round', mode: 'class_round', created_at: later(-3600000) });
-    const out = await Ch.exercise(Round.turnToken(ROUND, id), 'bigger', { lang: 'en' });
-    await expect(Ch.submit({ ct: out.ct, taps: [], ms: 1 }, { now: Date.now() + 1000 })).rejects.toMatchObject({ status: 401 });
+    DB.web_quiz_challenge_runs.push({ id: 'old', student_id: id, exercise: 'bigger', status: 'scored', via: 'class_round', mode: 'class_round', created_at: later(-3600000) });
+    await expect(Ch.exercise(Round.turnToken(ROUND, id), 'bigger', { lang: 'en' })).rejects.toMatchObject({ status: 409 });
     expect(DB.web_quiz_challenge_runs).toHaveLength(1);
+    // a finished round run that appears after the serve (another device) refuses the submit too
+    DB.web_quiz_challenge_runs.pop();
+    const out = await Ch.exercise(Round.turnToken(ROUND, id), 'bigger', { lang: 'en' });
+    DB.web_quiz_challenge_runs.push({ id: 'other', student_id: id, exercise: 'bigger', status: 'scored', via: 'class_round', mode: 'class_round', created_at: later(-1000) });
+    await expect(Ch.submit({ ct: out.ct, taps: [], ms: 1 }, { now: Date.now() + 1000 })).rejects.toMatchObject({ status: 401 });
   });
 
   test('§6(g) outside the window the turn token opens nothing', async () => {

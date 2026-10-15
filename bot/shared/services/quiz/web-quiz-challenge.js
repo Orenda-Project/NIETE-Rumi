@@ -685,9 +685,9 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   // the measurement envelope reads the run's v2 fields (kid from canonical_id) over the event's: the run as served
   await emitChStart(startEv, v2 ? { ...RUNS.get(runId), ...v2.event, canonical_id: v2.top.canonical_id } : RUNS.get(runId), w.studentId);
   // On the trail a stop already played (its first counted run exists) is a practice round: the page says so.
-  const practiceRound = (rules.trail ? (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).attempt_no > 1 : false) || !!(v2 && rules.trail && v2.mem.mode === 'practice');
+  const practiceRound = !w.round && ((rules.trail ? (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).attempt_no > 1 : false) || !!(v2 && rules.trail && v2.mem.mode === 'practice'));
   const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await clipsFor(ex, w.lang), ...ruleFlags(rules), ...(rules.guard ? { copy: copyFor(w.lang) } : {}),
-    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? v2.payload : {}), ...(await TrailPage.bits()) };
+    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? roundPayload(w, v2.payload) : {}), ...(await TrailPage.bits()) };
   if (ex === 'missing' && v2 && v2.items) {
     // the A1 warm-up: the same 10 items in the same order on both forms, no 4-error stop; the try-out after item 10
     const p3 = Bank.getTaskSpec({ grade: 3, set: 'A', task: 'ma.missing' });
@@ -1199,6 +1199,13 @@ async function roundGame(c, rules) {
   } catch (err) {
     logToFile('⚠️ class round: game not recorded on the round', { run: c.r, error: err.message }, 'warn');
   }
+}
+// A round turn's page: nothing on it marks the counted cut (no practice banner, no mode), and it carries the same
+// warm line for after every item.
+function roundPayload(w, payload) {
+  if (!w.round) return payload;
+  const { practice_round: _p, mode: _m, ...rest } = payload;
+  return { ...rest, round_say: require('../../templates/class-round.page').T[clampLanguage(w.lang, ['en', 'ur'])].cNextSay };
 }
 // ── end class round ──
 

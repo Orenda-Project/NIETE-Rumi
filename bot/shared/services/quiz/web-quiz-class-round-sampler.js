@@ -1,15 +1,17 @@
 'use strict';
 /**
  * The class round's term sampler: once a term, ~40 classes (DRAW_K) drawn at random, stratified by sector × grade
- * band, from the classes that have an active roster (class_enrollments). Never a class twice in a term (a second run
- * in the same term only tops the term up to DRAW_K; the table's UNIQUE (term_code, class_id) backs it).
+ * band, from the classes that have an active roster (class_enrollments). One draw per term, never topped up or
+ * replaced; a class drawn in either term of an academic year is out of the frame for the whole year (the table's
+ * unique index on (class_id, left(term_code, 7)) backs it).
  *
  *   drawClasses(candidates, {k, rng})   pure: proportional allocation per stratum (largest remainder), then a
  *                                       uniform draw without replacement inside each stratum
- *   runTermDraw({now, rng, k})          the job: reads the classes, writes class_round_draws, emits
+ *   runTermDraw({now, seed, planSha256, window, k})
+ *                                       the job: reads the classes, writes class_round_draws, emits
  *                                       class_round_drawn{round, cls, term, stratum, roster_k}. Runs only with
  *                                       web_quiz_class_round on. NOT scheduled anywhere: an operator runs it.
- *   inviteTeacher(draw)                 the teacher's one invitation per term: a stub until its copy exists
+ *   inviteTeacher(draw)                 the teacher's one invitation per term: a stub until its template is approved
  *                                       (bot.round.invite); the card on the teacher's report is the way in.
  *
  * Sector = schools.region (as web-quiz-schools.js reads it); grade band from classes.grade_code: grades 2–3 → G23,
@@ -19,6 +21,7 @@
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
+const { clampLanguage, UX_STRINGS } = require('../../config/ux-strings');
 const Flags = require('./web-quiz-class-round-flags');
 const Events = require('./web-quiz-class-round-events');
 
@@ -35,6 +38,12 @@ function termCode(now = Date.now()) {
   const start = m >= 4 ? y : y - 1;
   const half = m >= 4 && m <= 9 ? 'a' : 'b';
   return `${start}-${String((start + 1) % 100).padStart(2, '0')}${half}`;
+}
+
+/** The grade band of a stratum '<sector>|G23' / '<sector>|G45' (null for anything else). */
+function bandOf(stratum) {
+  const b = String(stratum || '').split('|').pop();
+  return b === 'G23' || b === 'G45' ? b : null;
 }
 
 function gradeBand(gradeCode) {
@@ -95,8 +104,8 @@ async function readAll(table, cols, filter = (q) => q) {
   }
 }
 
-/** The eligible classes: { class_id, stratum, roster_k }. */
-async function candidates() {
+/** The eligible classes: { class_id, stratum, roster_k }, less any class already drawn this academic year. */
+async function candidates(term) {
   const classes = await readAll('classes', 'id, school_id, grade_code, is_active', (q) => q.eq('is_active', true));
   const enr = await readAll('class_enrollments', 'id, class_id, is_active', (q) => q.eq('is_active', true));
   const schoolIds = [...new Set(classes.map((c) => c.school_id).filter(Boolean))];
@@ -106,13 +115,18 @@ async function candidates() {
     if (error) throw new Error(`schools: ${error.message}`);
     (data || []).forEach((s) => schools.set(s.id, s));
   }
+  // a class at most once an academic year: '2027-28a' and '2027-28b' share left(term_code, 7)
+  const year = String(term).slice(0, 7);
+  const { data: drawnThisYear, error: yErr } = await supabase.from('class_round_draws').select('id, class_id, term_code').in('term_code', [`${year}a`, `${year}b`]);
+  if (yErr) throw new Error(`class_round_draws: ${yErr.message}`);
+  const out = new Set((drawnThisYear || []).map((d) => d.class_id));
   const roster = new Map();
   enr.forEach((e) => roster.set(e.class_id, (roster.get(e.class_id) || 0) + 1));
   return classes.flatMap((c) => {
     const band = gradeBand(c.grade_code);
     const school = schools.get(c.school_id);
     const k = roster.get(c.id) || 0;
-    if (!band || !school || school.is_active === false || school.is_probable_test || k < MIN_ROSTER) return [];
+    if (!band || !school || school.is_active === false || school.is_probable_test || k < MIN_ROSTER || out.has(c.id)) return [];
     return [{ class_id: c.id, stratum: `${school.region || 'none'}|${band}`, roster_k: k }];
   });
 }
@@ -121,7 +135,9 @@ const DAY_MS = 86400000;
 const K_COUNTED = 10;
 const WEEK_DAYS = 7;
 const GAP_DAYS = 21;
-const WEIGHTS_VERSION = 'v1';
+// The signed analysis plan's weights version (its §4.1); the plan's sha256 is passed in and stored on every row.
+const WEIGHTS_VERSION = 'cr-2026-27b.1';
+const SHA256_RX = /^[0-9a-f]{64}$/;
 // Template category rates (US$ per message), passed to the ledger as usd_each when the invitation is built.
 const RATE = Object.freeze({ utility: 0.015, marketing: 0.0473 });
 
@@ -167,13 +183,17 @@ function weekFor(arm, ws, we, term) {
 }
 
 /**
- * The term's draw: one stored, seeded, frozen object made before any window opens (the sampling rules: one frame, no replacement draws).
- * Off → { drawn: 0, skipped: 'off' }; a bad round window → 'bad_window'; any draw already in the term →
- * 'already_drawn' (no replacement draws, ever). Each row: stratum, N_h, n_h, p_incl = n_h / N_h, seed,
- * weights_version, the round's window, k_counted, order_arm (randomised by class) and the class week's window.
+ * The term's draw: one stored, seeded, frozen object made before any window opens (one frame, one draw; no
+ * replacement draws). Off → { drawn: 0, skipped: 'off' }; no signed analysis plan hash (64 lower-case hex) →
+ * 'no_plan'; a bad round window → 'bad_window'; any draw already in the term → 'already_drawn'; a draw whose
+ * earliest window (the round's, or a class week placed before it) has already opened → 'window_open', nothing
+ * written. Each row: stratum, N_h, n_h, p_incl = n_h / N_h, the stored seed, the plan's weights_version and
+ * plan_sha256, the round's window, k_counted, order_arm (randomised by class) and the class week's window.
+ * `rng` replaces the seeded generator in tests only; the seed is stored either way.
  */
-async function runTermDraw({ now = Date.now(), seed = null, rng = null, k = DRAW_K, window = null } = {}) {
+async function runTermDraw({ now = Date.now(), seed = null, rng = null, k = DRAW_K, window = null, planSha256 = null } = {}) {
   if (!(await Flags.roundOn())) return { drawn: 0, skipped: 'off' };
+  if (!SHA256_RX.test(String(planSha256 || ''))) return { drawn: 0, skipped: 'no_plan' };
   const term = termCode(now);
   const ws = window ? Date.parse(window.start) : NaN;
   const we = window ? Date.parse(window.end) : NaN;
@@ -181,15 +201,15 @@ async function runTermDraw({ now = Date.now(), seed = null, rng = null, k = DRAW
   const { data: already, error } = await supabase.from('class_round_draws').select('id, class_id').eq('term_code', term).limit(1);
   if (error) throw new Error(`class_round_draws: ${error.message}`);
   if (already && already.length) return { drawn: 0, skipped: 'already_drawn' };
-  const theSeed = seed != null ? Number(seed) : (rng ? null : crypto.randomInt(0, 2 ** 31));
+  const theSeed = seed != null && Number.isSafeInteger(Number(seed)) ? Number(seed) : crypto.randomInt(0, 2 ** 31);
   const gen = rng || seededRng(theSeed);
-  const all = await candidates();
+  const all = await candidates(term);
   const N = all.reduce((m, c) => ({ ...m, [c.stratum]: (m[c.stratum] || 0) + 1 }), {});
   const drawnSet = drawClasses(all, { k, rng: gen });
   const n = drawnSet.reduce((m, c) => ({ ...m, [c.stratum]: (m[c.stratum] || 0) + 1 }), {});
   const drawnAt = new Date(now).toISOString();
   const iso = (t) => (t == null ? null : new Date(t).toISOString());
-  let drawn = 0;
+  const rows = [];
   for (const c of drawnSet) {
     let arm = gen() < 0.5 ? 'round_first' : 'week_first';
     let week = weekFor(arm, ws, we, term);
@@ -199,10 +219,16 @@ async function runTermDraw({ now = Date.now(), seed = null, rng = null, k = DRAW
       if (w2) { arm = other; week = w2; }
     }
     const row = { id: crypto.randomUUID(), round: crypto.randomBytes(8).toString('hex'), term_code: term, class_id: c.class_id, stratum: c.stratum,
-      N_h: N[c.stratum], n_h: n[c.stratum], p_incl: n[c.stratum] / N[c.stratum], seed: theSeed, weights_version: WEIGHTS_VERSION,
+      N_h: N[c.stratum], n_h: n[c.stratum], p_incl: n[c.stratum] / N[c.stratum], seed: theSeed, weights_version: WEIGHTS_VERSION, plan_sha256: planSha256,
       window_start: iso(ws), window_end: iso(we), k_counted: K_COUNTED, order_arm: arm, week_start: iso(week && week.start), week_end: iso(week && week.end),
       roster_k: c.roster_k, drawn_at: drawnAt, accepted_at: null, declined_at: null, started_at: null, ran_at: null, finished_at: null,
       children_present: null, children_played: null, state: null };
+    rows.push(row);
+  }
+  // too late: a draw is made before any of its windows opens, or not at all
+  if (rows.some((r) => Math.min(ws, r.week_start ? Date.parse(r.week_start) : Infinity) <= now)) return { drawn: 0, skipped: 'window_open' };
+  let drawn = 0;
+  for (const row of rows) {
     const { error: insErr } = await supabase.from('class_round_draws').insert(row);
     if (insErr) { logToFile('⚠️ class round: draw row not written', { term, error: insErr.message }, 'warn'); continue; }
     drawn += 1;
@@ -218,10 +244,12 @@ async function runTermDraw({ now = Date.now(), seed = null, rng = null, k = DRAW
  * to the ledger until the template exists.
  */
 async function inviteTeacher(draw, { lang = 'en', category = 'utility' } = {}) {
-  const template = `jugnu_round_invite_${lang === 'ur' ? 'ur' : 'en'}`;
+  const l = clampLanguage(lang);
+  const template = `jugnu_round_invite_${l}`;
   const usdEach = category === 'marketing' ? RATE.marketing : RATE.utility;
   logToFile('class round: invitation not sent — template not yet approved', { template, round: draw && draw.round });
-  return { sent: false, reason: 'stub', template, trigger: 'class_round', usd_each: usdEach };
+  // the template's body (bot.round.invite), read raw: what Meta reviews; nothing is sent from here yet
+  return { sent: false, reason: 'stub', template, body: UX_STRINGS.roundInvite[l], trigger: 'class_round', usd_each: usdEach };
 }
 
-module.exports = { termCode, termBounds, windowOk, gradeBand, drawClasses, runTermDraw, inviteTeacher, shuffle, cryptoRng, seededRng, DRAW_K, MIN_ROSTER, K_COUNTED, RATE };
+module.exports = { termCode, termBounds, windowOk, gradeBand, bandOf, drawClasses, WEIGHTS_VERSION, runTermDraw, inviteTeacher, shuffle, cryptoRng, seededRng, DRAW_K, MIN_ROSTER, K_COUNTED, RATE };

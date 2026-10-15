@@ -13,9 +13,10 @@ jest.mock('../../../shared/services/whatsapp.service', () => ({ sendMessage: jes
 jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({
   kid: (id) => `kid(${id})`, cls: (id) => `cls(${String(id).slice(-4)})`, envelope: (f) => ({ w: 's', ev_v: 2, kid_v: '2026', ...f }),
 }), { virtual: true });
-jest.mock('../../../shared/services/quiz/web-quiz-ledger', () => ({ recordSend: jest.fn() }), { virtual: true });
+jest.mock('../../../shared/services/quiz/message-ledger', () => ({ record: jest.fn() }));
 
 const { makeFake } = require('./fake-supabase');
+const { strictFrom } = require('./class-round-strict-fake');
 
 const ON = [
   { key: 'web_quiz_challenge', value: true }, { key: 'web_quiz_challenge_v2', value: true }, { key: 'web_quiz_class_round', value: true },
@@ -26,6 +27,8 @@ const NOW = Date.parse('2026-10-15T06:00:00Z');
 const WIN_B = { start: '2027-01-18T00:00:00+05:00', end: '2027-02-15T00:00:00+05:00' };
 const WIN_A = { start: '2027-05-03T00:00:00+05:00', end: '2027-05-31T00:00:00+05:00' };
 const seeded = (s) => () => { s |= 0; s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+// the signed analysis plan's sha256 (the draw stores it on every row)
+const PLAN = 'c971d4d956f5b0f1e0cc297b04696b20e1985a0a4b7161ddbefac40e4079c2bb';
 const uuid = (p, n) => `${p}0000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
 // 4 sectors × 2 grade bands, uneven: 120 eligible classes; plus classes that must never be drawn.
@@ -66,7 +69,7 @@ function seed(settings = ON) {
   });
   DB = { app_settings: settings.map((s) => ({ ...s })), schools, classes, class_enrollments: enr, class_round_draws: [] };
   const fake = makeFake(DB);
-  Object.assign(require('../../../shared/config/supabase'), { from: fake.from, rpc: fake.rpc });
+  Object.assign(require('../../../shared/config/supabase'), { from: strictFrom(fake), rpc: fake.rpc });
   return { bad: bad.map((b) => b.id) };
 }
 
@@ -99,7 +102,7 @@ test('pure draw: 40 by default, proportional per stratum, seeded and repeatable'
 
 test('the job: 40 draws stratified by sector × grade band, only eligible classes, rows + class_round_drawn exactly; no send', async () => {
   const { bad } = seed();
-  const out = await Sampler.runTermDraw({ now: NOW, rng: seeded(7), window: WIN_B });
+  const out = await Sampler.runTermDraw({ planSha256: PLAN, now: NOW, rng: seeded(7), window: WIN_B });
   expect(out.drawn).toBe(40);
   const rows = DB.class_round_draws;
   expect(rows).toHaveLength(40);
@@ -121,18 +124,18 @@ test('the job: 40 draws stratified by sector × grade band, only eligible classe
   expect(JSON.stringify(ev)).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-/);
   const WA = require('../../../shared/services/whatsapp.service');
   Object.values(WA).forEach((fn) => expect(fn).not.toHaveBeenCalled());
-  expect(require('../../../shared/services/quiz/web-quiz-ledger').recordSend).not.toHaveBeenCalled();
+  expect(require('../../../shared/services/quiz/message-ledger').record).not.toHaveBeenCalled();
 });
 
 test('never a class twice in a term: a second run adds nothing; the next term may draw again', async () => {
   seed();
-  await Sampler.runTermDraw({ now: NOW, rng: seeded(7), window: WIN_B });
-  const again = await Sampler.runTermDraw({ now: NOW + 86400000, rng: seeded(8), window: WIN_B });
+  await Sampler.runTermDraw({ planSha256: PLAN, now: NOW, rng: seeded(7), window: WIN_B });
+  const again = await Sampler.runTermDraw({ planSha256: PLAN, now: NOW + 86400000, rng: seeded(8), window: WIN_B });
   expect(again.drawn).toBe(0);
   expect(DB.class_round_draws).toHaveLength(40);
   const ids = DB.class_round_draws.map((r) => r.class_id);
   expect(new Set(ids).size).toBe(ids.length);
-  const next = await Sampler.runTermDraw({ now: Date.parse('2027-04-10T06:00:00Z'), rng: seeded(9), window: WIN_A });
+  const next = await Sampler.runTermDraw({ planSha256: PLAN, now: Date.parse('2027-04-01T20:00:00Z'), rng: seeded(9), window: WIN_A });
   expect(next.drawn).toBe(40);
   expect(DB.class_round_draws.filter((r) => r.term_code === '2027-28a')).toHaveLength(40);
 });
@@ -142,7 +145,7 @@ test('switch off (or a parent off): the job draws nothing and writes nothing', a
     jest.resetModules();
     Sampler = require('../../../shared/services/quiz/web-quiz-class-round-sampler');
     seed(settings);
-    const out = await Sampler.runTermDraw({ now: NOW, rng: seeded(7), window: WIN_B });
+    const out = await Sampler.runTermDraw({ planSha256: PLAN, now: NOW, rng: seeded(7), window: WIN_B });
     expect(out).toEqual({ drawn: 0, skipped: 'off' });
     expect(DB.class_round_draws).toEqual([]);
   }
@@ -152,7 +155,7 @@ describe('the draw object (windows, strata, no replacement draws)', () => {
   const WIN = { start: '2027-01-18T00:00:00+05:00', end: '2027-02-15T00:00:00+05:00' };
   test('every row carries the stratum sizes, p_incl, the seed, the windows ≥ 21 days apart, k_counted 10 and an order arm; same seed, same draw', async () => {
     seed();
-    const out = await Sampler.runTermDraw({ now: NOW, seed: 4242, window: WIN });
+    const out = await Sampler.runTermDraw({ planSha256: PLAN, now: NOW, seed: 4242, window: WIN });
     expect(out.drawn).toBe(40);
     const rows = DB.class_round_draws;
     const N = { 'Sector A|G23': 30, 'Sector A|G45': 10, 'Sector B|G23': 20, 'Sector B|G45': 20, 'Sector C|G23': 15, 'Sector C|G45': 5, 'Sector D|G23': 10, 'Sector D|G45': 10 };
@@ -162,7 +165,8 @@ describe('the draw object (windows, strata, no replacement draws)', () => {
       expect(r.n_h).toBe(n[r.stratum]);
       expect(r.p_incl).toBeCloseTo(n[r.stratum] / N[r.stratum], 6);
       expect(r.seed).toBe(4242);
-      expect(r.weights_version).toBe('v1');
+      expect(r.weights_version).toBe('cr-2026-27b.1');
+      expect(r.plan_sha256).toBe(PLAN);
       expect(r.k_counted).toBe(10);
       expect(Date.parse(r.window_start)).toBe(Date.parse(WIN.start));
       expect(Date.parse(r.window_end)).toBe(Date.parse(WIN.end));
@@ -176,16 +180,16 @@ describe('the draw object (windows, strata, no replacement draws)', () => {
     expect(new Set(rows.map((r) => r.order_arm)).size).toBe(2);
     const first = rows.map((r) => [r.class_id, r.order_arm]);
     seed();
-    await Sampler.runTermDraw({ now: NOW, seed: 4242, window: WIN });
+    await Sampler.runTermDraw({ planSha256: PLAN, now: NOW, seed: 4242, window: WIN });
     expect(DB.class_round_draws.map((r) => [r.class_id, r.order_arm])).toEqual(first);
   });
 
   test('no replacement draws: once a term has a draw, a second run adds nothing, even after a class declines', async () => {
     seed();
-    await Sampler.runTermDraw({ now: NOW, seed: 1, window: WIN });
+    await Sampler.runTermDraw({ planSha256: PLAN, now: NOW, seed: 1, window: WIN });
     DB.class_round_draws[0].declined_at = new Date(NOW).toISOString();
     DB.class_round_draws.splice(1, 1);
-    const again = await Sampler.runTermDraw({ now: NOW + 86400000, seed: 2, window: WIN });
+    const again = await Sampler.runTermDraw({ planSha256: PLAN, now: NOW + 86400000, seed: 2, window: WIN });
     expect(again).toEqual({ drawn: 0, skipped: 'already_drawn' });
     expect(DB.class_round_draws).toHaveLength(39);
   });
@@ -198,7 +202,7 @@ describe('the draw object (windows, strata, no replacement draws)', () => {
       null,
     ]) {
       seed();
-      const out = await Sampler.runTermDraw({ now: NOW, seed: 1, window: w });
+      const out = await Sampler.runTermDraw({ planSha256: PLAN, now: NOW, seed: 1, window: w });
       expect(out).toEqual({ drawn: 0, skipped: 'bad_window' });
       expect(DB.class_round_draws).toEqual([]);
     }
@@ -206,10 +210,75 @@ describe('the draw object (windows, strata, no replacement draws)', () => {
 
   test('the invitation stays a stub: template jugnu_round_invite_<lang>, the category rate as usd_each, trigger class_round; nothing sent', async () => {
     const d = { class_id: uuid('c', 1), round: '0123456789abcdef' };
-    expect(await Sampler.inviteTeacher(d, { lang: 'ur', category: 'marketing' })).toEqual({ sent: false, reason: 'stub', template: 'jugnu_round_invite_ur', trigger: 'class_round', usd_each: 0.0473 });
-    expect(await Sampler.inviteTeacher(d)).toEqual({ sent: false, reason: 'stub', template: 'jugnu_round_invite_en', trigger: 'class_round', usd_each: 0.015 });
+    const { UX_STRINGS } = require('../../../shared/config/ux-strings');
+    expect(await Sampler.inviteTeacher(d, { lang: 'ur', category: 'marketing' })).toEqual({ sent: false, reason: 'stub', template: 'jugnu_round_invite_ur', body: UX_STRINGS.roundInvite.ur, trigger: 'class_round', usd_each: 0.0473 });
+    expect(await Sampler.inviteTeacher(d)).toEqual({ sent: false, reason: 'stub', template: 'jugnu_round_invite_en', body: UX_STRINGS.roundInvite.en, trigger: 'class_round', usd_each: 0.015 });
     const WA = require('../../../shared/services/whatsapp.service');
     Object.values(WA).forEach((fn) => expect(fn).not.toHaveBeenCalled());
-    expect(require('../../../shared/services/quiz/web-quiz-ledger').recordSend).not.toHaveBeenCalled();
+    expect(require('../../../shared/services/quiz/message-ledger').record).not.toHaveBeenCalled();
+  });
+});
+
+describe('the draw names its plan, keeps a class to once an academic year, and is never late', () => {
+  const WIN = { start: '2027-01-18T00:00:00+05:00', end: '2027-02-15T00:00:00+05:00' };
+  test('refused without the signed plan\'s sha256 (64 lower-case hex): nothing drawn', async () => {
+    for (const planSha256 of [undefined, null, '', PLAN.toUpperCase(), PLAN.slice(1), `${PLAN}0`, 'g'.repeat(64)]) {
+      seed();
+      const out = await Sampler.runTermDraw({ now: NOW, seed: 5, window: WIN, planSha256 });
+      expect(out).toEqual({ drawn: 0, skipped: 'no_plan' });
+      expect(DB.class_round_draws).toEqual([]);
+    }
+  });
+
+  test('every row stores the plan\'s sha256, the plan\'s weights version and the seed, even when a test generator is injected', async () => {
+    seed();
+    await Sampler.runTermDraw({ planSha256: PLAN, now: NOW, rng: seeded(3), window: WIN });
+    expect(DB.class_round_draws).toHaveLength(40);
+    DB.class_round_draws.forEach((r) => {
+      expect(r.plan_sha256).toBe(PLAN);
+      expect(r.weights_version).toBe('cr-2026-27b.1');
+      expect(Number.isSafeInteger(r.seed)).toBe(true);
+    });
+    expect(new Set(DB.class_round_draws.map((r) => r.seed)).size).toBe(1);
+  });
+
+  test('a class drawn in 2027-28a is not in the frame for 2027-28b; 2028-29a may draw it again', async () => {
+    seed();
+    const a = await Sampler.runTermDraw({ planSha256: PLAN, now: Date.parse('2027-04-01T20:00:00Z'), seed: 9, window: { start: '2027-05-03T00:00:00+05:00', end: '2027-05-31T00:00:00+05:00' } });
+    expect(a.drawn).toBe(40);
+    const drawnA = new Set(DB.class_round_draws.map((r) => r.class_id));
+    const b = await Sampler.runTermDraw({ planSha256: PLAN, now: Date.parse('2027-10-05T06:00:00Z'), seed: 9, window: { start: '2028-01-17T00:00:00+05:00', end: '2028-02-14T00:00:00+05:00' } });
+    expect(b.drawn).toBe(40);
+    const rowsB = DB.class_round_draws.filter((r) => r.term_code === '2027-28b');
+    expect(rowsB).toHaveLength(40);
+    rowsB.forEach((r) => expect(drawnA.has(r.class_id)).toBe(false));
+    // N_h counts the year's frame: the classes drawn in 2027-28a are out of it
+    expect(rowsB.reduce((m, r) => ({ ...m, [r.stratum]: r.N_h }), {})).toEqual({ 'Sector A|G23': 20, 'Sector A|G45': 7, 'Sector B|G23': 13, 'Sector B|G45': 13, 'Sector C|G23': 10, 'Sector C|G45': 3, 'Sector D|G23': 7, 'Sector D|G45': 7 });
+    const c = await Sampler.runTermDraw({ planSha256: PLAN, now: Date.parse('2028-04-01T20:00:00Z'), seed: 9, window: { start: '2028-05-01T00:00:00+05:00', end: '2028-05-29T00:00:00+05:00' } });
+    expect(c.drawn).toBe(40);
+  });
+
+  test('late: a draw whose round window has opened is refused, nothing written', async () => {
+    seed();
+    const out = await Sampler.runTermDraw({ planSha256: PLAN, now: Date.parse('2027-01-20T06:00:00Z'), seed: 5, window: WIN });
+    expect(out).toEqual({ drawn: 0, skipped: 'window_open' });
+    expect(DB.class_round_draws).toEqual([]);
+  });
+
+  test('late: a draw whose earliest class week (placed before the round) has opened is refused, nothing written', async () => {
+    seed();
+    // the round window opens in 10 days; a week_first class week would have opened 18 days ago
+    const now = Date.parse(WIN.start) - 10 * 86400000;
+    const out = await Sampler.runTermDraw({ planSha256: PLAN, now, rng: () => 0.9, window: WIN });
+    expect(out).toEqual({ drawn: 0, skipped: 'window_open' });
+    expect(DB.class_round_draws).toEqual([]);
+  });
+
+  test('the frame reads the draw table through its own columns only (a misspelt column would fail here)', async () => {
+    seed();
+    const { DRAW_COLS } = require('./class-round-strict-fake');
+    ['plan_sha256', 'seed', 'weights_version', 'counted_k', 'present_counted_k', 'position_aggregates', 'week_forwarded_at'].forEach((c) => expect(DRAW_COLS.has(c)).toBe(true));
+    await Sampler.runTermDraw({ planSha256: PLAN, now: NOW, seed: 5, window: WIN });
+    expect(DB.class_round_draws).toHaveLength(40);
   });
 });

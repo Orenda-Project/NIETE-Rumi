@@ -1842,7 +1842,7 @@ Feature: Web child quiz page on the portal
     Given app_settings "web_quiz_class_round", "web_quiz_challenge_v2" and "web_quiz_challenge" are true
     And the teacher's class has an open class round draw this term
     When the teacher opens "All my classes" from their report link
-    Then the first card says "This term's class round" with "Start the round"
+    Then the first card says "This term's class round", "Your class was drawn this term. About a minute per child, one at a time, on your phone. You can continue another day." and "Nothing about this class is ever reported by name.", with "Start the round"
     When the teacher taps "Start the round"
     Then the server fixes a random order of the class's children once, and the round page lists each child by first name
     And only the teacher's screen says "4 of 30 done, 1 absent"
@@ -1862,8 +1862,9 @@ Feature: Web child quiz page on the portal
     Given a child's turn is open on the teacher's phone
     When the child presses Back, or the teacher's screen is asked for
     Then the child's screen stays, listing "Still to play:" and the children already "Done ✓", with no count
-    And after the games it says "Give the phone back to your teacher", the ticks kept
-    And only holding the button returns to the teacher's screen
+    And under "<name>'s turn" it says "Two games, just tapping. If you'd rather not, that's fine."
+    And after the games it says "Thanks for playing! Hand the phone to your teacher.", the ticks kept
+    And only holding "Give the phone back" returns to the teacher's screen
     And no round screen writes local storage, session storage or a cookie, or offers to keep a place
 
   @T837
@@ -1883,5 +1884,8 @@ Feature: Web child quiz page on the portal
     And the first ten turns in the order count and later children play the same games as practice, with nothing on screen showing the difference
     And the round closes only when I hold "next" with nobody left, or at the window's end, never by itself
     But a claim outside the window, after the round closed, or a second round run for the same child in the term stores nothing
-    And on the card, before starting, "Not this term" closes the round for the term with one tap and sends no message
-    # the "not today", pause/resume and "Not this term" controls render only once their strings exist (jg.round.t_declined, t_pause, t_resume, t_not_this_term)
+    And from the draw until the window's end, before starting, "Not this term" on the card closes the round for the term with one tap and sends no message
+    And before the window opens the card offers "Not this term" but not "Start the round"; after the window's end it offers neither
+    And when the round closes my screen says "Your class took part. Thank you!" with no count
+    And the draw row then holds the counted positions, the present ones among them and, per position bin only, how many played, scored none or were rapid
+    # every control renders only while its string exists in the page's copy (jg.round.t_declined, t_pause, t_resume, t_not_this_term)

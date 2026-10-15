@@ -2603,9 +2603,10 @@ Feature: NIETE (ICT) Teacher Training
     And my class was drawn for this term's class round and I have started it on my phone
     When I hold "Hold to call the next child" and the child called taps their turn
     Then the child gets "Which is bigger?" (and "Missing number" when it is on), never the read-aloud
-    And each run they finish is stored as theirs with mode, via and id_src "class_round", id_confidence "high" and my class
+    And each run they play is stored as theirs by the Challenge's serve, with via "class_round", my class, and mode "class_round" for the first ten positions or "practice" after
+    And their game screens carry no practice banner and say "Not sure? That's fine. Tap the arrow." under every item
     And once their round games are stored they are ticked "Done ✓" and their identity is confirmed by the class round
-    # web-quiz-class-round.js entryOf/runColumns/gameStored; web-quiz-challenge.js round claim (cr); unit: class-round-challenge.test.js
+    # web-quiz-class-round.js entryOf/claimFor/gameStored; web-quiz-challenge.js round claim (cr); unit: class-round-challenge.test.js
 
   @quiz @config-gated @negative @wip @draft @P1 @T840
   Scenario: Outside an open round turn a round link or claim stores nothing, and my phone stays practice

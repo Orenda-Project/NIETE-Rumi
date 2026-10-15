@@ -17,53 +17,79 @@
  * Copy: copy.v2.json keys jg.round.* and jg.who.turn_of only (EN + UR; the Urdu name isolate kept).
  */
 const { PALETTE } = require('./niete-brand');
+const { clampLanguage } = require('../config/ux-strings');
 
 // copy.v2.json → the page's T object (key in the comment)
 const T = {
   en: {
     cardTitle: "This term's class round", // jg.round.card_title
-    cardSub: 'Your class has been picked. On your phone, each child present plays two tap games. About 35 to 45 minutes.', // jg.round.card_sub
+    cardSub: "Your class was drawn this term. About a minute per child, one at a time, on your phone. You can continue another day.", // jg.round.card_sub (the ruled wording)
     start: 'Start the round', // jg.round.start
     tCount: (done, total, absent) => `${done} of ${total} done, ${absent} absent`, // jg.round.t_count
     tAbsent: 'Mark absent', // jg.round.t_absent
     tNext: 'Hold to call the next child', // jg.round.t_next
     cStill: 'Still to play:', // jg.round.c_still
     cDone: 'Done ✓', // jg.round.c_done
-    cHandback: 'Give the phone back to your teacher', // jg.round.c_handback
+    cHandback: "Thanks for playing! Hand the phone to your teacher.", // jg.round.c_handback
     turnOf: (name) => `${name}'s turn`, // jg.who.turn_of
-    // jg.round.t_declined, t_pause, t_resume, t_not_this_term: not in copy.v2.json yet; each control renders only
-    // once its string is here (never invented).
+    cBack: "Give the phone back", // jg.round.c_back
+    cAssent: "Two games, just tapping. If you'd rather not, that's fine.", // jg.round.c_assent
+    cNextSay: "Not sure? That's fine. Tap the arrow.", // jg.round.c_next_say
+    tDeclined: "Not today", // jg.round.t_declined
+    tPause: "Pause", // jg.round.t_pause
+    tResume: "Continue", // jg.round.t_resume
+    tNotThisTerm: "Not this term", // jg.round.t_not_this_term
+    tDnd: "Turn on Do Not Disturb. Give the class some seatwork, then call each child to your phone for about a minute.", // jg.round.t_dnd
+    tNeverReported: "Nothing about this class is ever reported by name.", // jg.round.t_never_reported
+    tThanks: "Your class took part. Thank you!", // jg.round.t_thanks
+    // each optional control or line renders only while its string is here (never invented)
   },
   ur: {
     cardTitle: 'اس ٹرم کا کلاس راؤنڈ',
-    cardSub: 'آپ کی کلاس چنی گئی ہے۔ اپنے فون پر کلاس میں موجود ہر بچے سے ٹیپ والے دو کھیل کروائیں۔ تقریباً ۳۵ سے ۴۵ منٹ۔',
+    cardSub: "اس ٹرم قرعہ اندازی میں آپ کی کلاس نکلی ہے۔ ہر بچے کے لیے تقریباً ایک منٹ، آپ کے فون پر۔ چاہیں تو کسی اور دن جاری رکھیں۔",
     start: 'راؤنڈ شروع کریں',
     tCount: (done, total, absent) => `${total} میں سے ${done} مکمل، ${absent} غیر حاضر`,
     tAbsent: 'غیر حاضر لگائیں',
     tNext: 'اگلے بچے کے لیے دبا کر رکھیں',
     cStill: 'ابھی باری آنی ہے:',
     cDone: 'ہو گیا ✓',
-    cHandback: 'فون واپس ٹیچر کو دے دیں',
+    cHandback: "کھیلنے کا شکریہ! اب فون ٹیچر کو دے دیں۔",
     turnOf: (name) => `⁨${name}⁩ کی باری`,
+    cBack: "فون واپس دے دیں",
+    cAssent: "دو کھیل ہیں، بس دبانا ہے۔ نہ کھیلنا چاہیں تو کوئی بات نہیں۔",
+    cNextSay: "نہیں پتہ؟ کوئی بات نہیں۔ آگے کا تیر دبائیں۔",
+    tDeclined: "آج نہیں",
+    tPause: "روکیں",
+    tResume: "جاری رکھیں",
+    tNotThisTerm: "اس ٹرم نہیں",
+    tDnd: "فون پر ڈو ناٹ ڈسٹرب لگا دیں۔ کلاس کو کچھ لکھنے کا کام دیں، پھر باری باری ہر بچے کو تقریباً ایک منٹ کے لیے اپنے فون پر بلائیں۔",
+    tNeverReported: "اس کلاس کی کوئی بات کبھی نام کے ساتھ رپورٹ نہیں کی جاتی۔",
+    tThanks: "آپ کی کلاس نے حصہ لیا۔ شکریہ!",
   },
 };
 
 const HOLD_MS = 600;
 // Every attribute here is double-quoted, so an apostrophe ("This term's") stays as typed.
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const langOf = (l) => (l === 'ur' ? 'ur' : 'en');
+const langOf = (l) => clampLanguage(l, ['en', 'ur']);
 const q = (lang) => `?lang=${langOf(lang)}`;
 const base = (token) => `/r/${encodeURIComponent(token || '')}/round`;
 
-/** The card on the teacher's class tab (no script: a plain form). */
-function renderCard({ lang, token, started = false }) {
+/**
+ * The card on the teacher's class tab (no script: a plain form). `early`: the class is drawn and its window has not
+ * opened, so the card offers only "Not this term" (Start works inside the window).
+ */
+function renderCard({ lang, token, started = false, early = false }) {
   const C = T[langOf(lang)];
   // "Not this term" (jg.round.t_not_this_term): one tap, before the round starts, only once its string exists
   const notThisTerm = !started && C.tNotThisTerm
     ? `<form method="post" action="${base(token)}/not-this-term${q(lang)}" style="margin-top:8px"><button class="btn btn-ghost" type="submit" style="width:100%;font:inherit;cursor:pointer">${esc(C.tNotThisTerm)}</button></form>`
     : '';
-  return `<section class="card cr-card" style="margin-top:16px"><h2>${esc(C.cardTitle)}</h2><p class="muted">${esc(C.cardSub)}</p>`
-    + `<form method="post" action="${base(token)}/start${q(lang)}"><button class="btn btn-primary" type="submit" style="width:100%;border:0;font:inherit;font-weight:700;cursor:pointer">${esc(C.start)}</button></form>${notThisTerm}</section>`;
+  const never = C.tNeverReported ? `<p class="muted">${esc(C.tNeverReported)}</p>` : '';
+  const startForm = early ? ''
+    : `<form method="post" action="${base(token)}/start${q(lang)}"><button class="btn btn-primary" type="submit" style="width:100%;border:0;font:inherit;font-weight:700;cursor:pointer">${esc(C.start)}</button></form>`;
+  return `<section class="card cr-card" style="margin-top:16px"><h2>${esc(C.cardTitle)}</h2><p class="muted">${esc(C.cardSub)}</p>${never}`
+    + `${startForm}${notThisTerm}</section>`;
 }
 
 const CSS = `
@@ -92,6 +118,8 @@ form{margin:0}
 .turn .pl{display:block;font-size:2rem;line-height:1}
 .handback{text-align:center;background:var(--card);border:2px solid var(--green);border-radius:18px;padding:28px 16px;margin:8px 0 18px}
 .foot{margin-top:22px}
+.assent{text-align:center;font-size:1.05rem;margin:-6px 0 18px}
+.dnd{background:var(--wash);border-radius:12px;padding:10px 14px}
 `;
 
 // The long-press: the form posts only after HOLD_MS of pressing (the server checks act=hold and hold ≥ 600).
@@ -142,6 +170,7 @@ function renderRound(view, { lang, token, turnHref = null }) {
   const rows = view.rows || [];
   if (view.mode === 'start') {
     const body = `<h1>${esc(C.cardTitle)}</h1><p class="muted">${esc(C.cardSub)}</p>`
+      + `${C.tNeverReported ? `<p class="muted">${esc(C.tNeverReported)}</p>` : ''}${C.tDnd ? `<p class="dnd">${esc(C.tDnd)}</p>` : ''}`
       + `<form method="post" action="${b}/start${q(l)}"><button class="go" type="submit">${esc(C.start)}</button></form>`;
     return shell({ lang: l, title: C.cardTitle, body, script: '' });
   }
@@ -168,11 +197,19 @@ function renderRound(view, { lang, token, turnHref = null }) {
   const doneRows = rows.filter((r) => r.s === 'done');
   const top = view.mode === 'handback'
     ? `<div class="handback"><h1>${esc(C.cHandback)}</h1></div>`
-    : `<a class="turn" href="${esc(turnHref || '#')}"><span class="pl" aria-hidden="true">▶</span>${C.turnOf(esc(cur.name))}</a>`;
+    : `<a class="turn" href="${esc(turnHref || '#')}"><span class="pl" aria-hidden="true">▶</span>${C.turnOf(esc(cur.name))}</a>`
+      + `${C.cAssent ? `<p class="assent">${esc(C.cAssent)}</p>` : ''}`;
   const body = `${top}${still.length ? `<h2>${esc(C.cStill)}</h2><ul class="still">${still.map((r) => `<li class="todo"><span class="nm">${esc(r.name)}</span></li>`).join('')}</ul>` : ''}`
     + `${doneRows.length ? `<ul class="done-list">${doneRows.map((r) => `<li class="done"><span class="nm">${esc(r.name)}</span><span class="tick">${esc(C.cDone)}</span></li>`).join('')}</ul>` : ''}`
-    + `<div class="foot">${holdForm(`${b}/teacher${q(l)}`, C.tNext)}</div>`;
+    + `<div class="foot">${holdForm(`${b}/teacher${q(l)}`, C.cBack || C.tNext)}</div>`;
   return shell({ lang: l, title: view.mode === 'handback' ? C.cHandback : C.cardTitle, body, script: `${TRAP_JS}\n${HOLD_JS}` });
 }
 
-module.exports = { renderCard, renderRound, T, HOLD_MS };
+/** The teacher's screen after the round closes: thanks, no count and no result. */
+function renderThanks({ lang }) {
+  const l = langOf(lang);
+  const C = T[l];
+  return shell({ lang: l, title: C.cardTitle, body: `<div class="handback"><h1>${esc(C.tThanks || C.cardTitle)}</h1></div>`, script: '' });
+}
+
+module.exports = { renderCard, renderRound, renderThanks, T, HOLD_MS };

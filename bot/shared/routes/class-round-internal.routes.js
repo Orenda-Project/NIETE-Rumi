@@ -11,8 +11,9 @@
  *   POST /round/:token/teacher {act,hold} the long-press: back to the teacher's screen
  *   POST /round/:token/declined {pos}  a child's "not today" (teacher's screen only)
  *   POST /round/:token/pause | resume  pause for today / carry on (the order kept)
- *   POST /round/:token/not-this-term   the card's "Not this term" (before the round starts; no message)
- * The round closes on the "next" long-press with nobody left to call, or at the window's end.
+ *   POST /round/:token/not-this-term   the card's "Not this term" (from the draw to the window's end, before the round
+ *                                      starts; no message)
+ * The round closes on the "next" long-press with nobody left to call (the thanks screen), or at the window's end.
  * Every answer is private and never stored; nothing is set on the browser.
  */
 const express = require('express');
@@ -24,6 +25,7 @@ const Token = require('../services/quiz/teacher-report-token');
 const Flags = require('../services/quiz/web-quiz-class-round-flags');
 const Round = require('../services/quiz/web-quiz-class-round');
 const { REPORT_PATH } = require('../templates/teacher-report.page');
+const Page = require('../templates/class-round.page');
 
 /** @param {{page: Function, noStore: Function, queryLang: Function}} h  the report router's helpers */
 module.exports = function classRoundRouter({ page, noStore, queryLang }) {
@@ -91,7 +93,12 @@ module.exports = function classRoundRouter({ page, noStore, queryLang }) {
   const action = (fn) => gate(async (req, res, v) => {
     const out = await fn(v.teacherId, req.body || {});
     if (!out.draw) { page(res, 404, 'missing', queryLang(req)); return; }
-    if (out.closed || out.toReport) { await toReport(req, res, v); return; }
+    if (out.closed) {   // the teacher's close screen: thanks, no count
+      noStore(res);
+      res.status(200).type('html').send(Page.renderThanks({ lang: await langOf(req, v.teacherId) }));
+      return;
+    }
+    if (out.toReport) { await toReport(req, res, v); return; }
     await backToRound(req, res, v);
   });
 

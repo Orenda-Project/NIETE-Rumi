@@ -22,6 +22,7 @@ jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({
 
 const express = require('express');
 const { makeFake } = require('./fake-supabase');
+const { strictFrom } = require('./class-round-strict-fake');
 
 const TEACHER = '11111111-1111-4111-8111-111111111111';
 const OTHER_TEACHER = '11111111-1111-4111-8111-1111111111ff';
@@ -54,7 +55,7 @@ function seed(settings = ON, { drawState = null, started = null } = {}) {
     web_quiz_challenge_runs: [],
   };
   const fake = makeFake(DB);
-  Object.assign(require('../../../shared/config/supabase'), { from: fake.from, rpc: fake.rpc });
+  Object.assign(require('../../../shared/config/supabase'), { from: strictFrom(fake), rpc: fake.rpc });
 }
 
 let server; let base; let Token; let logEvent; let Round;
@@ -210,7 +211,7 @@ describe('the child view', () => {
     await post(`/round/${tok()}/next`, HOLD);
     await Round.childFinished(ROUND, order[0], 'run-0');
     const html = await (await get(`/round/${tok()}`)).text();
-    expect(html).toContain('Give the phone back to your teacher');
+    expect(html).toContain('Thanks for playing! Hand the phone to your teacher.');
     expect(html).toMatch(/<li class="done/);
   });
 

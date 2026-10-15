@@ -4,8 +4,12 @@
  * only with web_quiz_challenge_v2 and web_quiz_challenge on). Server state only: the round's order, each position's
  * status and the open turn live in class_round_draws.state; nothing is kept on the teacher's browser.
  *
- *   state = { order: [{ id, s: 'todo'|'absent'|'done', g?: [games stored], run?, h?: 1 (first name shared) }],
- *             cur: index of the child called last | null, turn: 'child' | null }
+ *   state = { order: [{ id, s: 'todo'|'absent'|'declined'|'done', g?: [games stored], runs?: {game: run id}, run?,
+ *                       h?: 1 (first name shared) }],
+ *             cur: index of the child called last | null, turn: 'child' | null, paused,
+ *             k?: { present, absent, declined, done } (the counts, written at the close) }
+ *   Positions are fixed at Start: an absent or declined child's slot stays where it is and nobody moves up past it, so
+ *   positions 1..k_counted are the counted ones whatever happens later in the room.
  *
  *   start(teacherId)              fixes a server-random order (crypto, or an injected generator in tests) of the
  *                                 class's active roster, once; class_round_started{round, cls, present_k}
@@ -15,40 +19,59 @@
  *                                 round closes here (or at the last absent) when no position is left to play
  *   childFinished(round, id, run) the child's round games are stored: done (ticked), class_round_child_done + kid,
  *                                 child_identity.confirmed_at / confirmed_by = 'class_round'
- *   entryOf / runColumns          the Challenge's side: a round turn token plays as the called child only while the
- *                                 switch is on, the round open and THIS child's turn open
+ *   entryOf / claimFor            the Challenge's side: a round turn token plays as the called child only while the
+ *                                 switch is on, the round open and THIS child's turn open; the Challenge's serve is
+ *                                 the one writer of the run row (it gets the turn's mode and the round's class)
+ *   closeRound                    writes the counts and the position-only aggregates the term's statement reads
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const T = require('./web-quiz-token');
 const Flags = require('./web-quiz-class-round-flags');
 const Events = require('./web-quiz-class-round-events');
-const { termCode, termBounds, shuffle, cryptoRng, K_COUNTED } = require('./web-quiz-class-round-sampler');
+const { clampLanguage } = require('../../config/ux-strings');
+const { termCode, termBounds, shuffle, cryptoRng, K_COUNTED, bandOf } = require('./web-quiz-class-round-sampler');
 const Page = require('../../templates/class-round.page');
 
 const HOLD_MS = Page.HOLD_MS;
 const TURN_TTL_S = 2 * 3600;
 const ROUND_RX = /^[0-9a-f]{16}$/;
-const DRAW_COLS = 'id, round, term_code, class_id, stratum, roster_k, k_counted, window_start, window_end, drawn_at, accepted_at, declined_at, started_at, ran_at, finished_at, children_present, children_played, state';
+const DRAW_COLS = 'id, round, term_code, class_id, stratum, roster_k, k_counted, window_start, window_end, drawn_at, accepted_at, declined_at, started_at, ran_at, finished_at, children_present, children_played, counted_k, present_counted_k, state';
 // The round's games: the two tap games (no microphone on the teacher's phone, no read-aloud).
 const GAMES = Object.freeze(['bigger', 'missing']);
 
 const clone = (s) => JSON.parse(JSON.stringify(s));
 const held = (body) => !!body && body.act === 'hold' && Number(body.hold) >= HOLD_MS;
 
-/** The teacher's open draw this term (drawn, not finished), or null. */
-async function openDrawFor(teacherId, { now = Date.now() } = {}) {
-  if (!teacherId) return null;
+/** The teacher's draws this term that are not finished, oldest first. */
+async function termDrawsFor(teacherId, now) {
+  if (!teacherId) return [];
   const { data: links, error } = await supabase.from('class_teachers').select('id, class_id, is_active')
     .eq('teacher_user_id', teacherId).eq('is_active', true);
   if (error) throw new Error(`class_teachers: ${error.message}`);
   const classIds = [...new Set((links || []).map((l) => l.class_id).filter(Boolean))];
-  if (!classIds.length) return null;
+  if (!classIds.length) return [];
   const { data: draws, error: dErr } = await supabase.from('class_round_draws').select(DRAW_COLS)
     .in('class_id', classIds).eq('term_code', termCode(now)).is('finished_at', null).order('drawn_at', { ascending: true });
   if (dErr) throw new Error(`class_round_draws: ${dErr.message}`);
-  for (const d of draws || []) {
+  return draws || [];
+}
+
+/** The teacher's open draw this term (inside its window, not declined, not finished), or null. */
+async function openDrawFor(teacherId, { now = Date.now() } = {}) {
+  for (const d of await termDrawsFor(teacherId, now)) {
     if (await live(d, now)) return d;
+  }
+  return null;
+}
+
+/**
+ * The teacher's draw that can still be declined: drawn this term, not started, not declined, before its window's
+ * end (the window need not have opened: a teacher may say "Not this term" as soon as the class is drawn).
+ */
+async function declinableDrawFor(teacherId, { now = Date.now() } = {}) {
+  for (const d of await termDrawsFor(teacherId, now)) {
+    if (!d.started_at && !d.declined_at && Number.isFinite(msOf(d.window_end)) && now < msOf(d.window_end)) return d;
   }
   return null;
 }
@@ -127,26 +150,69 @@ async function start(teacherId, { rng = cryptoRng, now = Date.now() } = {}) {
   return draw;
 }
 
+// The position bins of the statement's zero-score / rapid share by position (1-based positions).
+const POS_BINS = Object.freeze([['1-5', 1, 5], ['6-10', 6, 10], ['11-20', 11, 20], ['21-30', 21, 30], ['31+', 31, Infinity]]);
+const binOf = (pos1) => POS_BINS.find(([, lo, hi]) => pos1 >= lo && pos1 <= hi)[0];
+const ANCHOR_GAME = 'missing';
+
+/**
+ * The close-time aggregates, by position only: counted_k = the counted positions (k, or the roster at Start when
+ * smaller); present_counted_k = those positions whose child was not marked absent; position_aggregates = one row per
+ * position bin the roster reaches, { band, pos_bin, n, zero_k, rapid_k } over the children with an anchor-block run
+ * (n), of whom zero_k got none right and rapid_k were flagged rapid. No child key, id, name or single position.
+ */
+async function aggregatesOf(draw) {
+  const order = draw.state.order;
+  const k = Number(draw.k_counted) || K_COUNTED;
+  const countedK = Math.min(k, order.length);
+  const presentCountedK = order.slice(0, countedK).filter((p) => p.s !== 'absent').length;
+  const runIds = order.map((p) => (p.runs && p.runs[ANCHOR_GAME]) || null);
+  const ids = runIds.filter(Boolean);
+  const runs = new Map();
+  if (ids.length) {
+    const { data, error } = await supabase.from('web_quiz_challenge_runs').select('id, status, score, meta').in('id', ids);
+    if (error) throw new Error(`web_quiz_challenge_runs: ${error.message}`);
+    (data || []).forEach((r) => runs.set(r.id, r));
+  }
+  const band = bandOf(draw.stratum);
+  const bins = new Map();
+  order.forEach((p, i) => {
+    const b = binOf(i + 1);
+    if (!bins.has(b)) bins.set(b, { band, pos_bin: b, n: 0, zero_k: 0, rapid_k: 0 });
+    const r = runIds[i] ? runs.get(runIds[i]) : null;
+    if (!r || r.status === 'served') return;
+    const t = bins.get(b);
+    t.n += 1;
+    if (!Number((r.score || {}).correct)) t.zero_k += 1;
+    if (r.meta && r.meta.rapid === true) t.rapid_k += 1;
+  });
+  return { countedK, presentCountedK, aggregates: [...bins.values()] };
+}
+
 /**
  * Close the round: on the teacher's long-press with nobody left to call, or at the window's end. Never by itself when
- * the last child finishes. Writes ran_at / children_present / children_played; class_round_finished once.
+ * the last child finishes. Writes ran_at, children_present / children_played, counted_k, present_counted_k and the
+ * position-only aggregates (positions not reached by the window's end are nonresponse, never carried over);
+ * class_round_finished once.
  */
 async function closeRound(draw, { now = Date.now() } = {}) {
   const st = draw.state;
   if (!st || draw.finished_at) return false;
-  const k = Number(draw.k_counted) || K_COUNTED;
   const doneK = st.order.filter((p) => p.s === 'done').length;
   const absentK = st.order.filter((p) => p.s === 'absent').length;
   const declinedK = st.order.filter((p) => p.s === 'declined').length;
-  const countedK = st.order.filter((p, i) => p.s === 'done' && i < k).length;
   const presentK = st.order.length - absentK;
+  const { countedK, presentCountedK, aggregates } = await aggregatesOf(draw);
   const startedMs = Date.parse(draw.started_at) || now;
-  const { data: won, error } = await supabase.from('class_round_draws')
-    .update({ finished_at: new Date(now).toISOString(), ran_at: draw.started_at, children_present: presentK, children_played: doneK })
-    .eq('id', draw.id).is('finished_at', null).select('id');
+  const patch = { finished_at: new Date(now).toISOString(), ran_at: draw.started_at, children_present: presentK, children_played: doneK };
+  patch.counted_k = countedK;
+  patch.present_counted_k = presentCountedK;
+  patch.position_aggregates = aggregates;
+  patch.state = { ...st, turn: null, k: { present: presentK, absent: absentK, declined: declinedK, done: doneK } };
+  const { data: won, error } = await supabase.from('class_round_draws').update(patch).eq('id', draw.id).is('finished_at', null).select('id');
   if (error) throw new Error(`class_round_draws: ${error.message}`);
   if (!won || !won.length) return false;
-  draw.finished_at = new Date(now).toISOString();
+  Object.assign(draw, patch);
   await Events.emit('class_round_finished', {
     round: draw.round, roster_k: Number(draw.roster_k) || st.order.length, present_k: presentK, done_k: doneK, absent_k: absentK,
     declined_k: declinedK, counted_k: countedK, mins: Math.max(0, Math.round((now - startedMs) / 60000)),
@@ -187,12 +253,12 @@ async function pause(teacherId, on) {
   return { ok: true, draw };
 }
 
-/** "Not this term": one tap on the card, before the round starts; no message is sent. */
-async function notThisTerm(teacherId) {
+/** "Not this term": one tap on the card, from the draw to the window's end, before the round starts; no message. */
+async function notThisTerm(teacherId, { now = Date.now() } = {}) {
   if (!(await Flags.roundOn())) return { ok: false, draw: null };
-  const draw = await openDrawFor(teacherId);
-  if (!draw || draw.started_at) return { ok: false, draw };
-  const { data: won, error } = await supabase.from('class_round_draws').update({ declined_at: new Date().toISOString() })
+  const draw = await declinableDrawFor(teacherId, { now });
+  if (!draw) return { ok: false, draw };
+  const { data: won, error } = await supabase.from('class_round_draws').update({ declined_at: new Date(now).toISOString() })
     .eq('id', draw.id).is('started_at', null).is('declined_at', null).select('id');
   if (error) throw new Error(`class_round_draws: ${error.message}`);
   if (!won || !won.length) return { ok: false, draw };
@@ -235,12 +301,12 @@ async function openTurn(round, studentId) {
 }
 
 /** The called child is done: ticked, the event with the hashed key, the identity promotion. */
-async function childFinished(round, studentId, runId, { now = Date.now() } = {}) {
+async function childFinished(round, studentId, runId, { now = Date.now(), runs = null } = {}) {
   const t = await openTurn(round, studentId);
   if (!t) return false;
   const { draw } = t;
   const st = clone(draw.state);
-  Object.assign(st.order[st.cur], { s: 'done', run: runId || null });
+  Object.assign(st.order[st.cur], { s: 'done', run: runId || null, runs: { ...(st.order[st.cur].runs || {}), ...(runs || {}) } });
   await save(draw, { state: st });
   await Events.emit('class_round_child_done', { round: draw.round, run: runId || null }, { classId: draw.class_id, childId: studentId });
   try {
@@ -259,7 +325,8 @@ async function gameStored(round, studentId, ex, runId, { games = ['bigger'] } = 
   const st = clone(t.draw.state);
   const p = st.order[st.cur];
   p.g = [...new Set([...(p.g || []), ex])];
-  if (games.every((g) => p.g.includes(g))) return childFinished(round, studentId, runId);
+  p.runs = { ...(p.runs || {}), [ex]: runId || null };
+  if (games.every((g) => p.g.includes(g))) return childFinished(round, studentId, runId, { runs: p.runs });
   await save(t.draw, { state: st });
   return false;
 }
@@ -277,21 +344,22 @@ async function entryOf(claims) {
   return { studentId: claims.sid, via: 'class_round', round: t.draw.round, classId: t.draw.class_id, roundMode: t.mode };
 }
 
-/** The run row's round columns for a challenge token's round claim, or null (refused: nothing is stored). */
-async function runColumns(round, studentId, ex = null) {
+/**
+ * The Challenge's round claim for one game: { mode } (the mode the server chose for the open turn's position) or null
+ * (refused). One round run per child per game per term (NC4): a game already stored in this turn, or a finished round
+ * run of the same game in any round this term (other than `runId` itself, the row the serve wrote), refuses it.
+ * Nothing is written on the run row here: the Challenge's serve writes it, with this mode and the round's class.
+ */
+async function claimFor(round, studentId, ex, runId = null) {
   const t = await openTurn(round, studentId);
   if (!t) return null;
-  // One round run per child per game per term (NC4): an earlier one, in any round of this term, refuses this one.
-  if (ex) {
-    if ((t.p.g || []).includes(ex)) return null;
-    const b = termBounds(t.draw.term_code);
-    const { data: prior, error } = await supabase.from('web_quiz_challenge_runs').select('id, student_id, exercise, via, created_at')
-      .eq('student_id', studentId).eq('via', 'class_round').eq('exercise', ex).gte('created_at', new Date(b ? b.start : 0).toISOString()).limit(1);
-    if (error) throw new Error(`web_quiz_challenge_runs: ${error.message}`);
-    if (prior && prior.length) return null;
-  }
-  return { mode: t.mode, via: 'class_round', id_src: 'class_round', id_confidence: 'high', class_id: t.draw.class_id,
-    canonical_id: studentId, homonym_in_list: !!t.p.h };
+  if ((t.p.g || []).includes(ex)) return null;
+  const b = termBounds(t.draw.term_code);
+  const { data: prior, error } = await supabase.from('web_quiz_challenge_runs').select('id, status')
+    .eq('student_id', studentId).eq('via', 'class_round').eq('exercise', ex).gte('created_at', new Date(b ? b.start : 0).toISOString()).limit(20);
+  if (error) throw new Error(`web_quiz_challenge_runs: ${error.message}`);
+  if ((prior || []).some((r) => r.id !== runId && r.status !== 'served')) return null;
+  return { mode: t.mode };
 }
 
 /** The card on the teacher's class tab: '' unless the switch is on and the teacher's class has an open draw. */
@@ -299,7 +367,10 @@ async function cardFor(teacherId, { lang, token } = {}) {
   try {
     if (!(await Flags.roundOn())) return '';
     const draw = await openDrawFor(teacherId);
-    return draw && !draw.started_at ? Page.renderCard({ lang, token }) : (draw ? Page.renderCard({ lang, token, started: true }) : '');
+    if (draw) return Page.renderCard({ lang, token, started: !!draw.started_at });
+    // drawn, the window not open yet: the card says what it is and offers "Not this term" only (no Start)
+    const early = await declinableDrawFor(teacherId);
+    return early ? Page.renderCard({ lang, token, early: true }) : '';
   } catch (err) {
     logToFile('⚠️ class round: card not shown', { error: err.message }, 'warn');
     return '';
@@ -318,7 +389,7 @@ async function screen(teacherId, { lang, token } = {}) {
   if (st.turn === 'child') {
     const cur = st.order[st.cur];
     const mode = cur.s === 'done' ? 'handback' : 'child';
-    const l = lang === 'ur' ? 'ur' : 'en';
+    const l = clampLanguage(lang);
     const tt = mode === 'child' ? turnToken(draw.round, cur.id) : null;
     return Page.renderRound({ mode, rows, current: { name: rows[st.cur].name } }, { lang, token, turnHref: tt ? `/c/${tt}?lang=${l}` : null });
   }
@@ -326,6 +397,7 @@ async function screen(teacherId, { lang, token } = {}) {
 }
 
 module.exports = {
-  start, absent, declined, pause, notThisTerm, closeRound, next, toTeacher, childFinished, gameStored, turnToken, entryOf, runColumns, cardFor, screen, openDrawFor,
+  start, absent, declined, pause, notThisTerm, closeRound, next, toTeacher, childFinished, gameStored, turnToken, entryOf, claimFor, cardFor, screen, openDrawFor,
+  declinableDrawFor, aggregatesOf, POS_BINS,
   shuffle, held, GAMES, HOLD_MS, TURN_TTL_S,
 };
