@@ -461,7 +461,7 @@ async function updateRun(id, patch) {
  * read back from the row as written. Only a v2 row (mode set) has one; with the switch off nothing is read. Never throws.
  */
 async function measureOutcome(id) {
-  await require('./web-quiz-rungs').onRecordFinal(id).catch(() => null); // the lamps (web_quiz_challenge_rungs; off ⇒ no query)
+  await require('./web-quiz-rungs').onRecordFinal(id, { questionsLeft: readQuestionsLeft }).catch(() => null); // the lamps (web_quiz_challenge_rungs; off ⇒ no query)
   try {
     if (!(await Flags.eventsV2On())) return;
     const { data: row, error } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle();
@@ -1800,7 +1800,7 @@ async function answer({ ct, q, pick, lang, helped } = {}) {
     });
     if (written) numbers = written.meta.comp;
     // the lamps once the answers are in (web_quiz_challenge_rungs; a scored v2 reading only; off ⇒ no query)
-    if (c.ex === 'read' && written && written.status === 'scored' && isV2Meta(written.meta)) await require('./web-quiz-rungs').onRecordFinal(c.r).catch(() => null);
+    if (c.ex === 'read' && written && written.status === 'scored' && isV2Meta(written.meta)) await require('./web-quiz-rungs').onRecordFinal(c.r, { questionsLeft: readQuestionsLeft }).catch(() => null);
   }
   // listening: the last answer scores the run ({correct, n}, as "Which is bigger?")
   const n = row && row.meta && Number(row.meta.n);

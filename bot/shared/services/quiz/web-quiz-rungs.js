@@ -134,12 +134,18 @@ const ageMs = (row, now) => now - Date.parse(row.scored_at || row.created_at || 
  * R3 / R5 live on this same row, so the rung waits for the answers (the answer hook calls the job again) or for
  * settleDeferred. Any other row: not waiting.
  */
-async function waiting(row, now) {
+async function waiting(row, now, questionsLeft) {
+  if (typeof questionsLeft !== 'function') return false;
   if (row.exercise !== 'read' || row.status !== 'scored' || !pastLine1(row) || ageMs(row, now) >= SETTLE_MS) return false;
-  return (await require('./web-quiz-challenge').readQuestionsLeft(row)) > 0;
+  return (await questionsLeft(row)) > 0;
 }
 
-async function onRecordFinal(input, { now = Date.now(), settle = true } = {}) {
+/**
+ * opts.questionsLeft(row) → how many of a scored reading's questions the child can still answer (the Challenge passes
+ * its readQuestionsLeft; given here, not required, so the two modules never require each other). opts.settle false:
+ * the window is ignored (settleDeferred).
+ */
+async function onRecordFinal(input, { now = Date.now(), settle = true, questionsLeft = null } = {}) {
   try {
     if (!(await Flags.rungsOn())) return null;
     const id = typeof input === 'string' ? input : input && input.id;
@@ -153,7 +159,7 @@ async function onRecordFinal(input, { now = Date.now(), settle = true } = {}) {
     if (!eligible(row)) return null;
     const ladder = ladderOf(row);
     if (!ladder) return null;
-    if (settle && (await waiting(row, now))) return { deferred: true };
+    if (settle && (await waiting(row, now, questionsLeft))) return { deferred: true };
 
     const { data: rows, error: rErr } = await supabase.from(RUNS).select(ROW_COLS)
       .eq('canonical_id', row.canonical_id).eq('mode', 'check').eq('record', true).in('status', FINAL)
