@@ -151,6 +151,8 @@ const scenarios = [
       await asRole(page, ctx, 'teacher', 'teacherV2');
       const r = await api(page, ctx, 'POST', '/assessment/generate', { grade: 5, subject: 'maths', chapterNumbers: [1],
         contentSource: 'unseen', questionCount: 5, questionTypes: [{ type: 'mcq', count: 5 }], answerLines: true, outputFormat: 'pdf' });
+      // A request the bot accepted is ours to remove too (its paper rows go with it: ON DELETE CASCADE).
+      if (r.json && typeof r.json.requestId === 'string') ids.push(r.json.requestId);
       expect(r.status !== 429 && !(r.json && r.json.errorCode === 'RATE_LIMITED'), 'refused for the limit with the limit off');
       return { status: r.status };
     } finally {
