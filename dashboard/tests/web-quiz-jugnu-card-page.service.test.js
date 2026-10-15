@@ -1,6 +1,6 @@
 /**
  * The Jugnu card on the scorecard (wq-card.js, app_settings web_quiz_challenge_card): when finish says so
- * (result.jugnu_card) a class child's card offers Jugnu's challenge first under the score; a tap asks "<name>'s turn"
+ * (result.jugnu_card) a class child's card offers Jugnu's game first under the score; a tap asks "<name>'s turn"
  * on one screen (never straight into a run), Play asks the server for this child's challenge link
  * (POST hubdoor {st, jugnu:1}) and opens it; "Not my turn? Go back" returns to the card. The door events
  * (door_shown / door_tap {door:'card', surface:'scorecard', slot:1}) ride the page's own event batch when finish
@@ -30,18 +30,20 @@ const evs = (p) => { p.fireWin('pagehide'); return p.fetches.filter((f) => f.url
 const doors = (p, n) => evs(p).filter((e) => e.n === n);
 
 describe('the card: first under the score, above the shares', () => {
-  test('EN: the challenge tile with the hub\'s own words', () => {
+  test('EN: Jugnu\'s card in its own words, with a visible Play button', () => {
     const h = withCard({ lang: 'en', store: store(JC) }).html();
     expect(h).toContain('id="wq-jc-go"');
-    expect(h).toContain('Jugnu&#39;s Challenge');
-    expect(h).toContain('Short games for reading and numbers');
+    expect(h).toContain('Jugnu has a game for you');
+    expect(h).toContain('2 minutes, no microphone');
+    expect(h).toMatch(/<button class="wq-btn wq-go" id="wq-jc-go">▶ Play<\/button>/);
     expect(h.indexOf('wq-scorecard')).toBeLessThan(h.indexOf('id="wq-jc-go"'));
     expect(h.indexOf('id="wq-jc-go"')).toBeLessThan(h.indexOf('id="wq-share"'));
   });
   test('UR: in Urdu', () => {
     const h = withCard({ lang: 'ur', store: store(JC) }).html();
-    expect(h).toContain('جگنو کا چیلنج');
-    expect(h).toContain('پڑھنے اور گنتی کے چھوٹے کھیل');
+    expect(h).toContain('جگنو کے پاس آپ کے لیے ایک کھیل ہے');
+    expect(h).toContain('۲ منٹ، مائیک کی ضرورت نہیں');
+    expect(h).toContain('کھیلیں</button>');
   });
   test('not on a friend\'s challenge run, nor when finish did not offer it', () => {
     expect(withCard({ lang: 'en', store: store(JC), challenge: { code: 'CHAL12', first: 'Omar' } }).html()).not.toContain('wq-jc');

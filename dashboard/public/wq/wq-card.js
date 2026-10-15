@@ -14,11 +14,11 @@
  */
 (function () {
   'use strict';
-  // Copy: the hub tile's shipped strings (hub.js chT / chSub) and copy.v2.json jg.who.turn_of / not_me / turn.
+  // Copy: copy.addendum.v1.json jg.card.title / sub / btn and copy.v2.json jg.who.turn_of / not_me / turn.
   var W = {
-    en: { chT: function (m) { return m + '\'s Challenge'; }, chSub: 'Short games for reading and numbers',
+    en: { cardTitle: 'Jugnu has a game for you', cardSub: '2 minutes, no microphone', cardBtn: 'Play',
       whoTurnOf: function (n) { return n + '\'s turn'; }, whoNotMe: 'Not my turn? Go back', whoTurn: 'Whose turn?' },
-    ur: { chT: function (m) { return m + ' کا چیلنج'; }, chSub: 'پڑھنے اور گنتی کے چھوٹے کھیل',
+    ur: { cardTitle: 'جگنو کے پاس آپ کے لیے ایک کھیل ہے', cardSub: '۲ منٹ، مائیک کی ضرورت نہیں', cardBtn: 'کھیلیں',
       whoTurnOf: function (n) { return '⁨' + n + '⁩ کی باری'; }, whoNotMe: 'میری باری نہیں؟ واپس جائیں', whoTurn: 'کس کی باری ہے؟' }
   };
   var DOOR = { door: 'card', surface: 'scorecard', slot: 1 };
@@ -34,9 +34,10 @@
 
   function html(c) {
     var w = words(c);
-    var m = (c.mascot && c.mascot[lang(c)]) || (lang(c) === 'ur' ? 'جگنو' : 'Jugnu');
-    return '<div class="wq-htiles wq-jc"><button type="button" class="wq-htile" id="wq-jc-go" style="font:inherit;text-align:start;width:100%;cursor:pointer">' +
-      '<span class="wq-htic" aria-hidden="true">⭐</span><b>' + c.esc(w.chT(m)) + '</b><small>' + c.esc(w.chSub) + '</small></button></div>';
+    return '<div class="wq-card wq-jc" style="display:grid;gap:10px"><p class="wq-name" style="font-size:22px;margin:0"><span aria-hidden="true">⭐</span> ' + c.esc(w.cardTitle) + '</p>' +
+      // Nastaliq stays >= 20 px on the card's subline.
+      '<p class="wq-sub" style="margin:0' + (lang(c) === 'ur' ? ';font-size:20px' : '') + '">' + c.esc(w.cardSub) + '</p>' +
+      '<button class="wq-btn wq-go" id="wq-jc-go">▶ ' + c.esc(w.cardBtn) + '</button></div>';
   }
 
   function show(c) {
