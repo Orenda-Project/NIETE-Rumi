@@ -30,33 +30,38 @@ export interface RecordUploadPairProps {
   onUpload?: () => void;
   actions?: readonly PairAction[];
   copy?: Partial<Pick<TeacherUiCopy, 'startRecording' | 'uploadRecording'>>;
+  /** Two 88px buttons with the 44px art beside the words (a screen where more steps follow: Digital Coaching's one screen). */
+  compact?: boolean;
   className?: string;
 }
 
 const SQUARE = 'flex min-h-[176px] flex-col items-center justify-center gap-3 rounded-[20px] px-2.5 py-4 text-center text-[16px] font-semibold leading-[1.2]';
+const COMPACT = 'flex min-h-[88px] flex-row items-center justify-center gap-2.5 rounded-2xl px-3 py-2.5 text-start text-[16px] font-semibold leading-[1.2]';
 
-function Square({ to, onPress, className, children, name }: { to?: string; onPress?: () => void; className: string; children: ReactNode; name: string }) {
+function Square({ to, onPress, className, children, name, compact }: { to?: string; onPress?: () => void; className: string; children: ReactNode; name: string; compact?: boolean }) {
+  const shape = compact ? COMPACT : SQUARE;
   return to
-    ? <Link to={to} aria-label={name} className={cn(SQUARE, className, FOCUS)}>{children}</Link>
-    : <button type="button" onClick={onPress} aria-label={name} className={cn(SQUARE, className, FOCUS)}>{children}</button>;
+    ? <Link to={to} aria-label={name} className={cn(shape, className, FOCUS)}>{children}</Link>
+    : <button type="button" onClick={onPress} aria-label={name} className={cn(shape, className, FOCUS)}>{children}</button>;
 }
 
-export function RecordUploadPair({ recordTo, onRecord, uploadTo, onUpload, actions, copy, className }: RecordUploadPairProps) {
+export function RecordUploadPair({ recordTo, onRecord, uploadTo, onUpload, actions, copy, compact = false, className }: RecordUploadPairProps) {
   const words = { ...useKitCopy(), ...copy };
+  const art = compact ? 'h-11 w-11' : 'h-[84px] w-[84px]';
   return (
-    <section className={cn('flex flex-col gap-3 rounded-3xl border border-[#e5e7eb] bg-[#f9fafb] p-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.06)]', className)}>
+    <section className={cn('flex flex-col gap-3 border border-[#e5e7eb] bg-[#f9fafb] shadow-[0_1px_3px_rgba(16,24,40,0.06)]', compact ? 'rounded-[20px] p-2.5' : 'rounded-3xl p-3.5', className)}>
       <div className={cn(GRID, 'grid-cols-2 gap-3')}>
-        <Square to={recordTo} onPress={onRecord} name={words.startRecording} className="bg-[#33374a] text-white">
-          <span aria-hidden="true" className="relative flex h-[84px] w-[84px] items-center justify-center">
-            <i className="rup-ring absolute inset-2.5 rounded-full border-[2.5px] border-[rgba(255,77,61,0.6)]" />
-            <i className="rup-ring rup-ring2 absolute inset-2.5 rounded-full border-[2.5px] border-[rgba(255,77,61,0.6)]" />
-            <i className="rup-core h-8 w-8 rounded-full bg-[#ff4d3d] shadow-[0_0_0_8px_rgba(255,77,61,0.25)]" />
+        <Square to={recordTo} onPress={onRecord} name={words.startRecording} compact={compact} className="bg-[#33374a] text-white">
+          <span aria-hidden="true" className={cn('relative flex shrink-0 items-center justify-center', art)}>
+            <i className={cn('rup-ring absolute rounded-full border-[2.5px] border-[rgba(255,77,61,0.6)]', compact ? 'inset-1.5' : 'inset-2.5')} />
+            <i className={cn('rup-ring rup-ring2 absolute rounded-full border-[2.5px] border-[rgba(255,77,61,0.6)]', compact ? 'inset-1.5' : 'inset-2.5')} />
+            <i className={cn('rup-core rounded-full bg-[#ff4d3d]', compact ? 'h-4 w-4 shadow-[0_0_0_4px_rgba(255,77,61,0.25)]' : 'h-8 w-8 shadow-[0_0_0_8px_rgba(255,77,61,0.25)]')} />
           </span>
           <span aria-hidden="true">{words.startRecording}</span>
         </Square>
-        <Square to={uploadTo} onPress={onUpload} name={words.uploadRecording} className="border border-[#e5e7eb] bg-white text-[#1d2025] shadow-[0_1px_3px_rgba(16,24,40,0.08)]">
-          <span aria-hidden="true" className="flex h-[84px] w-[84px] items-center justify-center rounded-full bg-[#e8e9f0] text-[#33374a]">
-            <Upload className="h-8 w-8" strokeWidth={2.2} />
+        <Square to={uploadTo} onPress={onUpload} name={words.uploadRecording} compact={compact} className="border border-[#e5e7eb] bg-white text-[#1d2025] shadow-[0_1px_3px_rgba(16,24,40,0.08)]">
+          <span aria-hidden="true" className={cn('flex shrink-0 items-center justify-center rounded-full bg-[#e8e9f0] text-[#33374a]', art)}>
+            <Upload className={compact ? 'h-5 w-5' : 'h-8 w-8'} strokeWidth={2.2} />
           </span>
           <span aria-hidden="true">{words.uploadRecording}</span>
         </Square>
