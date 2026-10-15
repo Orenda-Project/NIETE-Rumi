@@ -364,7 +364,7 @@ async function lockedHub(ids, why) {
 
 // ─── the hub ────────────────────────────────────────────────────────────────
 
-async function hubPayload(token, { kid, device } = {}) {
+async function hubPayload(token, { kid, device, src } = {}) {
   if (!T.secret()) fail(503, 'web_quiz_off');
   const ids = idsOf(token);
   const f = await Flags.flags();
@@ -398,8 +398,11 @@ async function hubPayload(token, { kid, device } = {}) {
     // Which brand the page wears: a key only; the edge owns the look (as getQuiz).
     brand: await brandKey(),
   };
+  // Events v2 (web_quiz_events_v2): hub_open gains the envelope and the phone's key (kid only once a child is picked).
+  // src is the route the caller passed (the hub URL's from=), only from the known set; the return mark (ret) is not known here.
+  const openEv = (base, studentId) => (f.hub && f.eventsV2 ? require('./web-quiz-measure-events').hubOpen(base, { studentId, device, src }) : base);
   if (!chosen) {
-    logEvent('web_quiz.hub_open', { kids: kidsRows.length, picked: false });
+    logEvent('web_quiz.hub_open', openEv({ kids: kidsRows.length, picked: false }, null));
     return out;
   }
   const grade = ctx.grade;
@@ -431,10 +434,10 @@ async function hubPayload(token, { kid, device } = {}) {
   else if (newest) out.lib = { href: `/q/${newest.code}?k=${T.chipId(newest.shareCodeId, chosen.id)}` };
   // The Library tile wears the child's grade picture (the library opens on that grade).
   if (out.lib && grade && artOf('grade', grade)) out.lib.art = artOf('grade', grade);
-  logEvent('web_quiz.hub_open', {
+  logEvent('web_quiz.hub_open', openEv({
     kids: kidsRows.length, has_teacher: Boolean(out.teacher), teacher_src: out.teacher ? out.teacher.src : null,
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
-  });
+  }, chosen.id));
   return out;
 }
 
