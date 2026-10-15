@@ -1,6 +1,7 @@
 'use strict';
 /**
- * The registry rows for the passage stock: one draft challenge_passages row per passage file, printed by
+ * The registry rows for the passage stock: one draft challenge_passages row per passage file (the Set A pointer
+ * files excepted: the registry seed owns those reference rows), printed by
  * scripts/challenge-stock-seed.js. The committed SQL must be exactly what the script prints today (a passage file
  * added or changed without re-running the script fails here). Pure: reads the files on disk, no database.
  */
@@ -17,7 +18,8 @@ describe('passage stock seed', () => {
   });
 
   test('one draft row per passage file: not released, no reviewer, idempotent', () => {
-    const files = fs.readdirSync(PASSAGES).filter((f) => f.endsWith('.json'));
+    const files = fs.readdirSync(PASSAGES).filter((f) => f.endsWith('.json'))
+      .filter((f) => !JSON.parse(fs.readFileSync(path.join(PASSAGES, f), 'utf8')).v3_ref);
     const r = rows();
     expect(r.map((x) => `${x.passage_id}.json`).sort()).toEqual(files.sort());
     for (const x of r) {
@@ -39,8 +41,16 @@ describe('passage stock seed', () => {
       readability_list: 'fed-cum-g2-2026', q_reach_1: p.q_reach_1, q_reach_2: p.q_reach_2, q_n: p.q_n,
       text_hash: p.text_hash, twin_of: null, bank_version: 'child-test-items-v4',
     });
-    const setA = rows().find((x) => x.passage_id === 'en.read.2.setA');
-    expect(setA).toMatchObject({ band: 2, is_reference: true, bank_version: 'child-test-items-v3', readability_list: 'fed-cum-g3-2026' });
-    expect(setA.tokens).toBe(60);
+  });
+
+  test('the Set A pointer files get no row here (the registry seed owns their reference rows)', () => {
+    const pointers = fs.readdirSync(PASSAGES).filter((f) => f.endsWith('.json'))
+      .map((f) => JSON.parse(fs.readFileSync(path.join(PASSAGES, f), 'utf8'))).filter((p) => p.v3_ref);
+    expect(pointers.map((p) => p.passage_id).sort()).toEqual(['en.listen.2.setA', 'en.read.2.setA']);
+    const sql = fs.readFileSync(SQL, 'utf8');
+    for (const p of pointers) {
+      expect([p.passage_id, sql.includes(`'${p.passage_id}'`)]).toEqual([p.passage_id, false]);
+      expect(rows().some((x) => x.passage_id === p.passage_id)).toBe(false);
+    }
   });
 });
