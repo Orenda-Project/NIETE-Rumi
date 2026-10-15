@@ -802,13 +802,15 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   Scenario: Going back to Part 1 does not empty Part 2
     Given I saved Part 1 and Part 2 of the live form, with a note in Part 2's "Anything else"
     When I go back to Part 1 and tap "Part 1 done" again
-    Then Part 2 opens with my counts, my choices and my note already in it
+    Then Part 2 opens with my choices, my ticks and my note already in it
+    And I type the two counts again
     # Prod 6-15 Oct: 13 forms re-sent Part 1 and got an empty Part 2 each time; one filled Part 2 twice.
     # PART_TWO's init-values come from the saved answers, only for a form opened on the Flow that carries
-    # the `prefill` marker; a form opened before it keeps today's screens. The counts, "Did each child have
-    # a task?", "What children's work showed", the switch and "Anything else" come back; what sits inside
-    # an If ("While they worked, the teacher", "When the work got hard", "How did the switch go?") is not
-    # pre-filled (it stays saved).
+    # the `prefill` marker; a form opened before it keeps today's screens. "Did each child have a task?",
+    # "What children's work showed", the switch and "Anything else" come back. The counts do not: Meta
+    # takes a number there and has no empty number (null fails, '' is a string, 0 is a wrong count); it
+    # refused the string counts on 15 Oct. What sits inside an If ("While they worked, the teacher",
+    # "When the work got hard", "How did the switch go?") is not pre-filled (it stays saved).
 
   @e2e @flow @config-gated @wip @draft @P1
   Scenario: After Part 2 the coach picks the lesson plan from the teacher's own plans
