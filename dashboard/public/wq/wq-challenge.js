@@ -285,7 +285,7 @@
   // ── the trail (the menu says trail:true and brings its copy): the stops, the badge, the practice banner ────
   function trailOn() { return !!(menuData.trail && menuData.trail_copy); }
   function tc(k, p) {
-    var c = (menuData.trail_copy && menuData.trail_copy[k]) || (S.data && S.data.trail_copy && S.data.trail_copy[k]) || '';
+    var c = (TR && TR.trailCopy(k)) || (menuData.trail_copy && menuData.trail_copy[k]) || (S.data && S.data.trail_copy && S.data.trail_copy[k]) || '';
     // a number filled into Urdu copy is isolated left to right (Western digits, as the keypad)
     for (var key in (p || {})) {
       var v = p[key];
@@ -325,7 +325,11 @@
     on('wqc-help-no', function () { helped = false; ev('ch_helped', { v: 0 }); then(); });
     on('wqc-help-yes', function () { helped = true; ev('ch_helped', { v: 1 }); then(); });
   }
-  function withHelped(b) { if (helped != null) b.helped = helped; return b; }
+  function withHelped(b) { if (TR) return TR.withHelped(b); if (helped != null) b.helped = helped; return b; }
+  // the grown-up's keep answer rides the upload under v2 (wq-trail.js); without v2 the body is today's
+  function cons(b) { return TR ? TR.consent(b) : b; }
+  // Missing number's stop: under v2 the warm-up's stop_after 0 means it never stops; else today's rule
+  function stopAfter(d) { return TR && d.stop_after === 0 ? Infinity : (d.stop_after || 4); }
   function noteMic() {
     micRefused = false;
     try { window.localStorage.removeItem(NOMIC_KEY); } catch (e) { /* nothing kept */ }
@@ -371,6 +375,8 @@
   function bindHear(clip) { on('wqc-hear', function () { say(clip); }); }
 
   var S = { screen: null, ex: null, data: null };
+  // The Trail page v2 (wq-trail.js, loaded only when the menu says v2): its screens; null ⇒ today's page.
+  var TR = menuData.v2 && window.WQTRAIL ? window.WQTRAIL.init({ L: L, t: t, tc: tc, boot: boot, S: S, esc: esc, on: on, q: q, show: show, jug: jug, ev: ev, open: function (x) { open(x); }, refreshMenu: function () { return refreshMenu(); }, md: function () { return menuData; }, backLabel: function () { return backLabel(); }, qa: function () { return qa; }, qaButtons: function () { return qaButtons(); } }) : null;
   // The Home button (the hub adds home=1 to its link when web_quiz_home_button is on): back to the hub of this token.
   var HOME_TOP = /[?&]home=1(&|$)/.test(String((location && location.search) || ''));
   function homeTop() {
@@ -388,14 +394,14 @@
 
   // ── menu ────────────────────────────────────────────────────────────────────────────────────────────
   function lastLine(x) {
-    if (!x.last) return '';
+    if (!x.last || TR) return '';
     // A read is ticked only for a real result: words per minute above 0 (a stopped or empty reading is not praise).
     if (x.id === 'read') return x.last.wcpm > 0 && !x.last.stopped ? t.lastRead(x.last.wcpm) : '';
     return x.last.n ? t.lastBigger(x.last.correct, x.last.n) : t.done;
   }
   function trailMap() {
     S.data = null;
-    var xs = menuData.exercises || [];
+    var xs = TR ? TR.stops(menuData.exercises || []) : (menuData.exercises || []);
     var playable = xs.filter(function (x) { return !(x.mic && micAbsent()); });
     var done = xs.filter(function (x) { return x.badge; }).length;
     var allDone = playable.length > 0 && playable.every(function (x) { return x.badge; });
@@ -409,10 +415,10 @@
           : (x.id === next ? '<span class="wqc-pill wqc-pnext">' + esc(tc('next')) + '</span>' : ''));
       return '<li><button class="wqc-stop' + cls + '" type="button" id="wqc-ex-' + esc(x.id) + '" data-badge="' + (x.badge ? '1' : '0') + '"' + (wait ? ' data-wait="1"' : '') + '>'
         + '<span class="wqc-dotc" aria-hidden="true">' + (ICON[x.id] || '⭐') + '</span>'
-        + '<span class="wqc-stxt"><b>' + esc(x.name) + '</b><small>' + esc(t.mins(x.mins)) + (x.mic && !wait ? ' · 🎤 ' + esc(tc('mic')) : '') + '</small>' + pill + '</span></button></li>';
+        + '<span class="wqc-stxt"><b>' + esc(x.name) + '</b><small>' + (TR ? TR.stopLine(x, wait, tc('mic')) : esc(t.mins(x.mins)) + (x.mic && !wait ? ' · 🎤 ' + esc(tc('mic')) : '')) + '</small>' + pill + '</span></button></li>';
     }).join('');
-    var sub = allDone ? tc('allDone', { name: MASCOT }) : tc('sub', { done: done, total: xs.length });
-    show('trail', jug(allDone ? 'celebrate' : 'hello', tc('title', { name: MASCOT }), true) + '<p class="wq-sub" id="wqc-trail-sub">' + esc(sub) + '</p><ol class="wqc-trail">' + stops + '</ol>');
+    var sub = TR ? TR.trailSub(xs) : (allDone ? tc('allDone', { name: MASCOT }) : tc('sub', { done: done, total: xs.length }));
+    show('trail', jug(allDone ? 'celebrate' : 'hello', tc('title', { name: MASCOT }), true) + (TR && !sub ? '' : '<p class="wq-sub" id="wqc-trail-sub">' + esc(sub) + '</p>') + '<ol class="wqc-trail">' + stops + '</ol>');
     xs.forEach(function (x) {
       on('wqc-ex-' + x.id, function () { if (x.mic && micAbsent()) micWait(); else open(x.id); });
     });
@@ -429,6 +435,7 @@
   }
 
   function menu() {
+    if (TR && TR.menu()) return;
     if (trailOn()) { trailMap(); return; }
     var tiles = (menuData.exercises || []).map(function (x) {
       return '<button class="wqc-tile" type="button" id="wqc-ex-' + esc(x.id) + '"><span class="wqc-ico" aria-hidden="true">' + (ICON[x.id] || '⭐') + '</span>'
@@ -458,10 +465,11 @@
   function open(ex) {
     S.ex = ex;
     api('ch/' + encodeURIComponent(boot.token) + '/' + ex + kidQs()).then(function (d) {
+      if (TR) { TR.opened(ex, d, intro); return; }
       S.data = d;
       ev('ch_start', { step: ex });
       if (d.trail && helped == null && d.trail_copy && d.trail_copy.helpAsk) helpAsk(intro); else intro();
-    }).catch(function (e) { errorScreen(e, function () { open(ex); }); });
+    }).catch(function (e) { if (TR && TR.openFailed(ex, e)) return; errorScreen(e, function () { open(ex); }); });
   }
 
   function intro() {
@@ -555,7 +563,7 @@
     },
     item: function (i) {
       var d = S.data;
-      if (i >= d.items.length || bigger.miss >= (d.stop_after || 4)) { bigger.finish(); return; }
+      if (i >= d.items.length || bigger.miss >= stopAfter(d)) { bigger.finish(); return; }
       bigger.i = i;
       var p = d.items[i];
       show('bigger-play', bigger.pairHtml(p, t.tapBigger, i + 1, d.items.length));
@@ -594,6 +602,7 @@
         .catch(function (e) { errorScreen(e, bigger.finish); });
     },
     result: function (s) {
+      if (TR) { TR.tapEnd('bigger-result', s); return; }
       var d = S.data;
       var good = !s.stopped;
       // on the trail the stop's badge comes on the first play whatever the score; "again" is the practice round
@@ -673,7 +682,7 @@
     item: function (i) {
       var d = S.data;
       clearTimeout(missing.skipT);
-      if (i >= d.items.length || missing.miss >= (d.stop_after || 4)) { missing.finish(); return; }
+      if (i >= d.items.length || missing.miss >= stopAfter(d)) { missing.finish(); return; }
       var it = d.items[i];
       missing.screen('missing-play', it, tc('missAsk'), i + 1, d.items.length);
       var over = false;
@@ -701,6 +710,7 @@
         .catch(function (e) { errorScreen(e, missing.finish); });
     },
     result: function (s) {
+      if (TR) { TR.tapEnd('missing-result', s); return; }
       var d = S.data;
       var good = !s.stopped;
       show('missing-result', jug(good ? 'celebrate' : 'notyet', good ? d.clips.done.text : t.stoppedBigger, true) + medal('missing')
@@ -987,6 +997,7 @@
   }
 
   function readStart() {
+    if (TR && TR.keepAsk(readStart)) return;
     var d = S.data;
     // under the read guard the story is revealed when the clock starts, not while the cue plays
     show('read-ready', jug('hello', d.clips.start.text) + (guardOn() ? '' : storyHtml(d.story)));
@@ -1137,6 +1148,7 @@
   }
 
   function liveResult(w) {
+    if (TR) { qa.attempted = live.v.attempted; TR.readEnd({ score: { attempted: live.v.attempted } }); return; }
     var d = S.data;
     var good = w > 0;
     show('read-result', jug(good ? 'celebrate' : 'notyet', good ? d.clips.done.text : t.readStopped, true)
@@ -1225,6 +1237,7 @@
       });
     },
     done: function () {
+      if (TR) { TR.tapEnd('qa-done'); return; }
       var good = qa.right > 0;
       show('qa-done', jug(good ? 'celebrate' : 'hello', t.qaDone(qa.right, qa.list.length), true)
         + '<div class="wq-stack"><button class="wq-btn wq-go" id="wqc-menu" type="button">' + esc(backLabel()) + '</button></div>');
@@ -1237,6 +1250,7 @@
   function liveChecked(r) {
     if (!r || r.pending || r.later) return;
     if ((r.failed && r.reason === 'unheard') || (r.score && r.score.stopped)) { readResult(r); return; }
+    if (TR) return;
     if (r.failed || !(r.wcpm >= 0)) return;
     if (!(r.wcpm > 0)) { readResult(r); return; }
     var sc = q('wqc-score');
@@ -1253,7 +1267,7 @@
     // the questions wait for this reading's result call (qa.open), so no answer can be written before it
     var settle;
     live.submitted = new Promise(function (res) { settle = res; });
-    api('ch/upload', { ct: d.ct, type: type, size: blob.size }).then(function (u) {
+    api('ch/upload', cons({ ct: d.ct, type: type, size: blob.size })).then(function (u) {
       return fetch(u.put_url, { method: 'PUT', headers: { 'content-type': u.content_type }, body: blob }).then(function (r) {
         if (!r.ok) { var e = new Error('put_' + r.status); e.status = r.status; throw e; }
         return u.key;
@@ -1281,7 +1295,7 @@
     var blob = new Blob(rec.chunks, { type: type });
     rec.blob = blob;
     show('read-send', jug('thinking', t.sending, true));
-    api('ch/upload', { ct: d.ct, type: type, size: blob.size }).then(function (u) {
+    api('ch/upload', cons({ ct: d.ct, type: type, size: blob.size })).then(function (u) {
       return fetch(u.put_url, { method: 'PUT', headers: { 'content-type': u.content_type }, body: blob }).then(function (r) {
         if (!r.ok) { var e = new Error('put_' + r.status); e.status = r.status; throw e; }
         return u.key;
@@ -1311,6 +1325,7 @@
   }
 
   function readResult(r) {
+    if (TR) { if (r && r.score) qa.attempted = r.score.attempted; TR.readEnd(r); return; }
     var d = S.data;
     var line; var pose = 'celebrate'; var score = ''; var growth = '';
     if (r.later) { line = t.later; pose = 'hello'; }
