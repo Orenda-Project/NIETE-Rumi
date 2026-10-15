@@ -1,0 +1,46 @@
+{
+ "payload": {
+  "lang": "en",
+  "kids": [
+   {
+    "chip": "b65cedb38c38a985",
+    "first": "Zara",
+    "animal": "fish",
+    "grade": "3"
+   }
+  ],
+  "kid": "b65cedb38c38a985",
+  "teacher": null,
+  "again": [],
+  "recs": [],
+  "challenge": {
+   "on": true,
+   "exercises": [
+    {
+     "id": "bigger",
+     "done": false
+    },
+    {
+     "id": "read",
+     "done": false
+    }
+   ]
+  },
+  "lib": null,
+  "brand": "niete",
+  "rt": false
+ },
+ "events": [
+  [
+   "web_quiz.hub_open",
+   {
+    "kids": 1,
+    "has_teacher": false,
+    "teacher_src": null,
+    "again_n": 0,
+    "recs_n": 0,
+    "challenge": true
+   }
+  ]
+ ]
+}

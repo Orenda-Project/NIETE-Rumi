@@ -94,6 +94,8 @@ router.post('/who', handle((req) => WebQuiz.whoPlayed(req.body || {})));
 router.post('/who/fix', handle((req) => WebQuiz.fixWho(req.body || {})));
 // The teacher binds an unbound hand-out to one of their classes (identity v2).
 router.post('/who/class', handle((req) => WebQuiz.whoClass(req.body || {})));
+// Jugnu's Book for the child a hub chip names on this phone (web-quiz-book.js; web_quiz_challenge_book, fails closed)
+router.get('/book/h/:token', handle((req) => require('../services/quiz/web-quiz-book').bookFor({ hub: req.params.token, kid: typeof req.query.kid === 'string' ? req.query.kid.slice(0, 64) : undefined, device: req.get('x-wq-device'), lang: require('../config/ux-strings').clampLanguage(req.query.l) })));
 // ── keep my place ── (web-quiz-bind-page.js; web_quiz_phone_bind, off -> {off:true}). The device is x-wq-device, never the body.
 const BindPage = () => require('../services/quiz/web-quiz-bind-page');
 router.post('/bind/mint', handle((req) => BindPage().mint({ hub: (req.body || {}).hub, kid: (req.body || {}).kid, lang: (req.body || {}).lang, device: req.get('x-wq-device') || undefined })));
