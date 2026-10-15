@@ -1749,6 +1749,33 @@ const TEL_PROPS = Object.freeze({
   state: /^(hidden|visible)$/, page: /^(quiz|hub|lib|ch)$/,
 });
 const TEL_NUMS = ['pseq', 'sm', 'total_ms', 'vis_ms', 'count'];
+// Events v2 (app_settings web_quiz_events_v2), applied only with it on:
+//   w           the writer's mark: the relay stamps p on every page event (SERVER_ONLY below)
+//   NAME_PROPS  props scoped to ONE event name: {name: {prop: rule}}; a rule is a regex for a string, or a function
+//               (value → kept value | null). For that name it replaces the general rule for the prop (ch_helped's
+//               `v` is the help answer, three-valued, and the page sends 0 = on their own, 1 = with help; every
+//               other name keeps the A/B arm's /^a[01]$/). A new name-scoped prop is one entry here.
+// With v2 on the relay writes `w: 'p'` on every page event (the page never marks itself 's'), and drops a name only
+// the server writes (one ev_dropped{why:'server_only', n} per batch), so a console cannot forge a measurement.
+// Doors are scoped by (name, door): only quiz_reply, class_link and link_home-shown are server-written.
+const SERVER_ONLY = new Set(['m_result', 'm_lost', 'ch_swept', 'lamp_lit', 'light_lit', 'identity_reused', 'sample_window',
+  'sample_drawn', 'class_week_forwarded', 'ev_dropped', 'reply_capped']);
+const PAGE_BIND = new Set(['bind_offered', 'bind_sent']);
+const SERVER_DOORS = new Set(['quiz_reply', 'class_link']);
+function serverOnly(e) {
+  const n = String((e && e.n) || '');
+  if (SERVER_ONLY.has(n) || n.startsWith('class_round_') || (n.startsWith('bind_') && !PAGE_BIND.has(n))) return true;
+  if (n === 'door_shown' || n === 'door_tap') return SERVER_DOORS.has(e.door) || (n === 'door_shown' && e.door === 'link_home');
+  return false;
+}
+const HELPED_V = /^(self|helped|not_asked)$/;
+const helpedV = (v) => (v === 0 ? 'self' : v === 1 ? 'helped' : (typeof v === 'string' && HELPED_V.test(v) ? v : null));
+const NAME_PROPS = Object.freeze({
+  ch_helped: Object.freeze({ v: helpedV }),
+  bind_offered: Object.freeze({ surface: /^(trail|hub|book|end_card)$/ }),
+});
+const nameProp = (rule, value) => (typeof rule === 'function' ? rule(value) : (typeof value === 'string' && rule.test(value) ? value : null));
+const BATCH_MAX = 20;
 const SHARE_PATHS = ['native', 'wa', 'copy', 'file', 'save'];
 const SHARE_CODE_RX = /^[A-Z0-9]{4,12}$/i;
 
@@ -1813,14 +1840,27 @@ function uaApp(ua) {
 
 /**
  * Keep only allow-listed props of the right shape: no names, no free text, no phone. `rich`: the page-session
- * telemetry switch (TEL_NAMES / TEL_PROPS / TEL_NUMS are dropped while it is off). Pure.
+ * telemetry switch (TEL_NAMES / TEL_PROPS / TEL_NUMS are dropped while it is off). `v2`: web_quiz_events_v2
+ * (ch_helped keeps its three-valued answer). Pure.
  */
-function cleanEvent(e, { rich = false } = {}) {
+function cleanEvent(e, { rich = false, v2 = false } = {}) {
   if (!e || typeof e !== 'object' || !EVENT_NAME_RX.test(String(e.n || ''))) return null;
   if (!rich && TEL_NAMES.has(e.n)) return null;
   const props = {};
   for (const [k, rx] of Object.entries(EVENT_PROPS)) {
     if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
+  }
+  if (v2 && serverOnly(e)) return null;
+  if (v2) {
+    props.w = 'p';
+    const scoped = Object.prototype.hasOwnProperty.call(NAME_PROPS, e.n) ? NAME_PROPS[e.n] : null;
+    if (scoped) {
+      for (const [k, rule] of Object.entries(scoped)) {
+        delete props[k];
+        const kept = nameProp(rule, e[k]);
+        if (kept != null) props[k] = kept;
+      }
+    }
   }
   if (rich) {
     for (const [k, rx] of Object.entries(TEL_PROPS)) if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
@@ -1886,13 +1926,19 @@ function cleanProbe(p) {
 }
 
 function events(body = {}) {
-  const list = Array.isArray(body.events) ? body.events.slice(0, 20) : [];
+  const all = Array.isArray(body.events) ? body.events : [];
+  const list = all.slice(0, BATCH_MAX);
   const rich = Tel.on();
+  const v2 = require('./web-quiz-hub-flags').eventsV2Now();
+  // the slice is never silent (events v2)
+  if (v2 && all.length > BATCH_MAX) logEvent('web_quiz.ev_dropped', require('./web-quiz-kid').envelope({ n: all.length - BATCH_MAX, where: 'batch_slice' }));
   // The batch's own ids (never logged raw): the session from its signed token, the phone as a hash.
   const ids = rich ? Tel.batchIds(body) : {};
+  const forged = v2 ? list.filter(serverOnly).length : 0;
+  if (forged) logEvent('web_quiz.ev_dropped', require('./web-quiz-kid').envelope({ n: forged, why: 'server_only' }));
   let logged = 0;
   for (const e of list) {
-    const c = cleanEvent(e, { rich });
+    const c = cleanEvent(e, { rich, v2 });
     if (!c) continue;
     logEvent(`web_quiz.${c.name}`, { ...c.props, ...ids });
     // The old-link re-offer stands down once the page has opened on that code (web-quiz-old-link.js).
@@ -1946,7 +1992,7 @@ async function media(code, qid, { k, z } = {}) {
 module.exports = {
   getQuiz, startSession, recordAnswers, finishSession, board, me, events, media, _resetQuizCache: () => quizMediaCache.clear(),
   // exported for tests and the router
-  WqError, rankRows, cleanEvent, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, whoClass, challengeOutcome,
+  WqError, rankRows, cleanEvent, NAME_PROPS, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, whoClass, challengeOutcome,
   // the render matrix (scripts/qa/render-matrix) turns synthetic rows into page items with it
   questionPayload,
   // the share pictures (web-quiz-art.js) name the child and the challenger exactly as the page does
