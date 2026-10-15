@@ -1488,6 +1488,15 @@ function chapterPages(chapters, picked) {
 }
 
 /**
+ * The refusals a board-pattern request can get, in one place. The app reads `errorCode` and holds
+ * the Urdu; these are the assessment generator's own codes, not the lesson-plan lifecycle's.
+ */
+const PATTERN_CODE = Object.freeze({
+  OFF: 'PATTERN_OFF', INELIGIBLE: 'PATTERN_INELIGIBLE', SCOPE_CONFLICT: 'SCOPE_CONFLICT',
+  NO_BUDGET: 'PATTERN_NO_BUDGET', ALREADY_GENERATING: 'ALREADY_GENERATING',
+});
+
+/**
  * The request for a board-pattern paper, once /assessment/create has accepted it.
  *
  * What the teacher chose is only WHERE the questions come from: the FDE
@@ -1606,7 +1615,7 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
       return res.status(400).json({
         success: false,
         error: 'Board-pattern papers are off right now. Make your own paper or try later.',
-        errorCode: 'PATTERN_OFF',
+        errorCode: PATTERN_CODE.OFF,
       });
     }
     const Patterns = require('../services/assessment/patterns');
@@ -1616,13 +1625,13 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
       return res.status(400).json({
         success: false,
         error: 'That board pattern is not available for this grade and subject.',
-        errorCode: 'PATTERN_INELIGIBLE',
+        errorCode: PATTERN_CODE.INELIGIBLE,
       });
     }
     const fdeScope = body.scope === 'fde';
     if (fdeScope && (picked.length || pageRanges)) {
       return res.status(400).json({
-        success: false, error: 'Send either the FDE syllabus or chapters, not both.', errorCode: 'SCOPE_CONFLICT',
+        success: false, error: 'Send either the FDE syllabus or chapters, not both.', errorCode: PATTERN_CODE.SCOPE_CONFLICT,
       });
     }
     if (!fdeScope && picked.length === 0 && !pageRanges) {
@@ -1632,14 +1641,14 @@ router.post('/assessment/create', requireInternalKey, assessmentRoute('create', 
     // board's, and a number from the form could only ever disagree with them.
     if (body.totalMarks != null && body.totalMarks !== '') {
       return res.status(400).json({
-        success: false, error: 'Board-pattern papers fix their marks.', errorCode: 'PATTERN_NO_BUDGET',
+        success: false, error: 'Board-pattern papers fix their marks.', errorCode: PATTERN_CODE.NO_BUDGET,
       });
     }
     const AssessmentRequest = require('../services/assessment/assessment-request.service');
     const busy = await AssessmentRequest.findGenerating({ userId, grade, subject, pattern, withinMinutes: 10 });
     if (busy) {
       return res.status(409).json({
-        success: false, error: 'A paper for this class is being made.', errorCode: 'ALREADY_GENERATING', requestId: busy.id,
+        success: false, error: 'A paper for this class is being made.', errorCode: PATTERN_CODE.ALREADY_GENERATING, requestId: busy.id,
       });
     }
     return createPatternRequest({
