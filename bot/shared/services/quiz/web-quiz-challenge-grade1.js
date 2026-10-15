@@ -18,12 +18,18 @@
  *     period, decided at serve (`record` true/false; a served row holds it, finished or not); a replay is `practice`;
  *   otherwise: `record` NULL and `period_id` NULL; a replay after a scored run is `practice` (today's first-attempt rule).
  * `anchor_exposure_no` = 1 + this child's earlier `mode='check'` G1A rows (practice never increments it);
- * `exposure_no` = `meta.anchor_serves_any` = 1 + every earlier G1A row. No challenge_draws row: nothing is drawn (the
- * block is fixed) and that table's `stop` CHECK has no `numbers`. Grade-1 rows are their own statement line (form G1),
- * never pooled with G3/G5.
+ * `exposure_no` = `meta.anchor_serves_any` = 1 + every earlier G1A row. Every serve logs its challenge_draws row as
+ * the A1 warm-up does (ITEMS §1.5: `stop='numbers'`, `fixed_grade_band='G1'`, `band_reason='anchor'`, `p=1`,
+ * `served_id='G1A'`); the run row carries `draw_seed` and `meta.draw`. A serve whose row is not stored is refused
+ * (503 unavailable): a counted run never exists only in this process. At the first counted play the year's fixed
+ * grade is written (child_identity); `class_id` is the active enrolment's; a finished first exposure in a class lights
+ * the class light. Rows, the pick, the fixed grade, periods and the record rule are all the draw module's
+ * (web-quiz-challenge-draw.js): one implementation. Grade-1 rows are their own statement line (form G1), never pooled.
  *
  * Wired from web-quiz-challenge.js through `withDeps` (its switch reader, its row insert, its error type), so this
- * module never requires that one (no cycle) and the switch cache is the one `__reset` clears.
+ * module never requires that one (no cycle) and the switch cache is the one `__reset` clears. This module logs no
+ * ch_open / ch_start: the base's menu() and exercise() emit them (one writer per event); exercise() here returns the
+ * ch_start fields for that call site.
  */
 const crypto = require('crypto');
 const supabase = require('../../config/supabase');
@@ -48,7 +54,6 @@ const isMissingTable = (e) => !!e && (e.code === '42P01' || /does not exist|sche
 const helpedCol = (v) => (v === true ? 'helped' : v === false ? 'self' : 'not_asked');
 // The Challenge v2 rules (periods, record at serve, exposure counts) are the draw module's; required on use.
 const Draw = () => require('./web-quiz-challenge-draw');
-const ROW_COLS = 'id, student_id, exercise, status, mode, period_id, anchor_block, record, created_at';
 
 /**
  * "How many?" from the phone's taps [{i, pick, ms, first_tap_ms}] against the served items ({n} each): a pick equal to
@@ -98,7 +103,6 @@ function recordAtServe(rows, periodId) {
 function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null }) {
   const on = async () => (await settingOn(V2_FLAG_KEY)) && (await settingOn(G1_FLAG_KEY));
   const items = () => bank().anchorBlock(BLOCK).map((i) => ({ item_id: i.item_id, n: i.n, layout: i.layout, tiles: i.tiles.slice() }));
-  const MEM = new Map();   // runId → { status } for a run whose row could not be stored (the table not migrated yet)
 
   // The period holding now (challenge_periods via the draw module, 30-s cache); none ⇒ the period rule's OFF path.
   async function periodId(now) {
@@ -109,58 +113,22 @@ function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null }
     return id;
   }
 
-  // The canonical child's `numbers` rows: by canonical_id, and by the raw student id for rows written before it.
-  async function childRows(canonicalId, studentId) {
-    const ids = [...new Set([canonicalId, studentId].filter(Boolean).map(String))];
-    const [a, b] = await Promise.all([
-      supabase.from(TABLE).select(ROW_COLS).eq('canonical_id', canonicalId).eq('exercise', EXERCISE).limit(5000),
-      supabase.from(TABLE).select(ROW_COLS).in('student_id', ids).eq('exercise', EXERCISE).limit(5000),
-    ]);
-    const err = a.error || b.error;
-    if (err) logError('web_quiz.ch_rows_read_failed', { form: 'G1', missing: isMissingTable(err), code: err.code || null });
-    const byId = new Map();
-    for (const r of [...(a.data || []), ...(b.data || [])]) byId.set(r.id, r);
-    return [...byId.values()].sort((x, y) => String(x.created_at || '').localeCompare(String(y.created_at || '')));
-  }
-
-  // The fixed grade's source (child_identity when it is deployed); the form itself is who()'s, from the visit's grade.
-  async function fixedGradeSrc(canonicalId) {
-    const { data, error } = await supabase.from('child_identity').select('canonical_id, fixed_grade').eq('canonical_id', canonicalId).maybeSingle();
-    if (!error && data && Number(data.fixed_grade) === 1) return 'child_identity';
-    return error && isMissingTable(error) ? 'visit_grade_no_table' : 'visit_grade';
-  }
-
   async function canonicalOf(studentId) {
     try { return await require('./web-quiz-identity-roster').canonicalStudentId(studentId); } catch (_) { return studentId; }
-  }
-
-  // The identity pick fields come from the identity module when it is deployed; until then NULL, and the row says so.
-  async function pickOf({ sessionId = null, canonicalId = null, device = null } = {}) {
-    const none = { cols: { id_src: null, id_confidence: null, homonym_in_list: null }, src: 'absent' };
-    let mod = null;
-    try { mod = require('./web-quiz-bind-page'); } catch (_) { mod = null; }
-    if (!mod || typeof mod.pickFor !== 'function') return none;
-    try {
-      const p = await mod.pickFor({ sessionId, canonicalId, device });
-      if (!p || typeof p !== 'object') return none;
-      return { cols: { id_src: p.id_src == null ? null : p.id_src, id_confidence: p.id_confidence == null ? null : p.id_confidence,
-        homonym_in_list: typeof p.homonym_in_list === 'boolean' ? p.homonym_in_list : null }, src: 'pick' };
-    } catch (e) {
-      logError('web_quiz.ch_pick_read_failed', { error: String(e && e.message || e).slice(0, 120) });
-      return { ...none, src: 'failed' };
-    }
   }
 
   /** The G1 child's menu: the one stop, done once this period's (or, period rule off, the) record row is final. */
   async function menu(w) {
     const now = Date.now();
+    const D = Draw();
     const pid = await periodId(now);
-    const rows = await childRows(await canonicalOf(w.studentId), w.studentId);
-    // with a period: this period's record row is final; without: a scored run (today's first-attempt rule)
+    const rows = await D.childRows(await canonicalOf(w.studentId), [w.studentId]);
+    // with a period: this period's record row is final (trailState's rule; its STOPS list has no 'numbers', so it is
+    // applied to this stop's rows here); without: a scored run (today's first-attempt rule)
+    const mine = rows.filter((r) => r.exercise === EXERCISE);
     const done = pid
-      ? rows.some((r) => r.period_id === pid && r.record === true && (r.status === 'scored' || r.status === 'failed'))
-      : rows.some((r) => r.status === 'scored');
-    logEvent('web_quiz.ch_open', { via: w.via, grade: w.grade });
+      ? mine.some((r) => r.period_id === pid && r.record === true && (r.status === 'scored' || r.status === 'failed'))
+      : mine.some((r) => r.status === 'scored');
     return {
       form: 'G1',
       lang: w.lang,
@@ -171,41 +139,57 @@ function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null }
     };
   }
 
-  /** Serve the G1A block: insert the run row (served), decide mode and record now, mint the run token. */
+  /**
+   * Serve the G1A block: decide mode and record now, insert the run row (served; refused 503 when not stored), log
+   * the draw row, write the year's fixed grade at a first counted play, mint the run token. Returns the page payload
+   * and the ch_start fields (`startEv`, `run`) for the base exercise()'s one ch_start call site.
+   */
   async function exercise(w, ex, { device = null } = {}) {
     if (w.form !== FORM || ex !== EXERCISE) fail(404, 'not_found');
+    const D = Draw();
     const now = Date.now();
     const Bank = bank();
     const served = items();
     const pid = await periodId(now);
     const canonicalId = await canonicalOf(w.studentId);
-    const rec = recordAtServe(await childRows(canonicalId, w.studentId), pid);
-    const pick = await pickOf({ sessionId: w.sessionId || null, canonicalId, device });
-    const gradeSrc = await fixedGradeSrc(canonicalId);
+    const [rows, pick, fixed, classId] = await Promise.all([D.childRows(canonicalId, [w.studentId]),
+      D.pickOf({ sessionId: w.sessionId || null, canonicalId, device }), D.fixedGradeOf(canonicalId, w.grade), D.activeClassOf([canonicalId, w.studentId])]);
+    const rec = recordAtServe(rows, pid);
     const via = viaOf(w.via);
     const runId = crypto.randomUUID();
-    const ct = T.signChallenge({ studentId: w.studentId, ex: EXERCISE, runId });
+    const seed = crypto.randomBytes(16).toString('hex');
     const at = new Date(now).toISOString();
+    const drawLog = { draw_id: crypto.randomUUID(), canonical_id: canonicalId, period_id: pid, stop: EXERCISE, lang: w.lang, fixed_grade_band: 'G1',
+      drawn_at: at, weights_v: 'w1', open_band: null, band: null, band_reason: 'anchor', eligible: [{ id: BLOCK, w: 1 }], eligible_n: 1,
+      ref_eligible: false, p: 1, served_id: BLOCK, outcome: 'served', seed };
     const row = {
       id: runId, student_id: w.studentId, exercise: EXERCISE, grade: w.grade, lang: w.lang, status: 'served', created_at: at,
       started_at: at, bank_version: Bank.versionV4, set: 'A', form: 'G1', passage_id: null, item_set_id: null,
       mode: rec.mode, period_id: pid, exposure_no: rec.exposure_no, band: null, anchor_block: BLOCK,
-      anchor_exposure_no: rec.anchor_exposure_no, draw_seed: null, canonical_id: canonicalId, ...pick.cols,
-      via, share_code_id: w.shareCodeId || null, record: rec.record,
-      meta: { fixed_band: 'G1', grade_fixed_src: gradeSrc, grade_source: w.gradeSource || null, test: !!w.test, pick_src: pick.src,
-        anchor_serves_any: rec.exposure_no, items: served.map((i) => i.item_id) },
+      anchor_exposure_no: rec.anchor_exposure_no, draw_seed: seed, canonical_id: canonicalId,
+      id_src: pick.id_src, id_confidence: pick.id_confidence, homonym_in_list: pick.homonym_in_list,
+      via, share_code_id: w.shareCodeId || null, record: rec.record, class_id: classId,
+      meta: { fixed_band: 'G1', grade_fixed_src: fixed.src, grade_source: w.gradeSource || null, test: !!w.test, pick_src: pick.pick_src,
+        anchor_serves_any: rec.exposure_no, items: served.map((i) => i.item_id),
+        draw: { draw_id: drawLog.draw_id, outcome: 'served', eligible: drawLog.eligible, eligible_n: 1, ref_eligible: false, p: 1, band_reason: 'anchor', weights_v: 'w1', seed } },
     };
-    const stored = await insertRun(row);
-    if (stored !== 'stored') MEM.set(runId, { status: 'open', row });
-    logEvent('web_quiz.ch_start', {
-      step: EXERCISE, grade: w.grade, run: runId, w: 's', mode: rec.mode, period_id: pid, form: 'G1', band: null, rung: null, item_set_id: null,
-      exposure_no: rec.exposure_no, anchor_exposure_no: rec.anchor_exposure_no, anchor_serves_any: rec.exposure_no, anchor_block: BLOCK, record: rec.record, via,
-    });
+    // ⛔ M5: a counted run exists only as a stored row; never a run kept in this process
+    if ((await insertRun(row)) !== 'stored') fail(503, 'unavailable');
+    await D.logDraw({ ...drawLog, run_id: runId });
+    // IDENTITY §16: the year's fixed grade at the first counted play (the visit's grade; never changed after)
+    if (rec.record === true && rec.mode === 'check') await D.writeChildIdentity({ canonicalId, grade: w.grade, gradeSource: w.gradeSource, now: new Date(now) });
+    const ct = T.signChallenge({ studentId: w.studentId, ex: EXERCISE, runId });
+    const event = { w: 's', mode: rec.mode, period_id: pid, form: 'G1', band: null, rung: null, item_set_id: null,
+      exposure_no: rec.exposure_no, anchor_exposure_no: rec.anchor_exposure_no, anchor_serves_any: rec.exposure_no, anchor_block: BLOCK, record: rec.record, via };
     return {
-      ex: EXERCISE, form: 'G1', lang: w.lang, ct, copy_keys: COPY_KEYS,
-      items: served, anchor_block: BLOCK, stop_after: 0, per_item_s: PER_ITEM_S, show_timer: false, sound_off_safe: true,
-      mode: rec.mode, record: rec.record, period_id: pid, passage_id: null, item_set_id: null, exposure_no: rec.exposure_no, band: null,
-      anchor_exposure_no: rec.anchor_exposure_no, draw: null,
+      payload: {
+        ex: EXERCISE, form: 'G1', lang: w.lang, ct, copy_keys: COPY_KEYS,
+        items: served, anchor_block: BLOCK, stop_after: 0, per_item_s: PER_ITEM_S, show_timer: false, sound_off_safe: true,
+        mode: rec.mode, record: rec.record, period_id: pid, passage_id: null, item_set_id: null, exposure_no: rec.exposure_no, band: null,
+        anchor_exposure_no: rec.anchor_exposure_no, draw: { outcome: 'served' },
+      },
+      startEv: { step: EXERCISE, grade: w.grade, run: runId, ...event },
+      run: { ...event, canonical_id: canonicalId },
     };
   }
 
@@ -219,27 +203,35 @@ function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null }
   async function submit(c, body = {}) {
     if (!(await on())) fail(403, 'not_eligible');
     const { data: row, error } = await supabase.from(TABLE).select('id, status, meta').eq('id', c.r).maybeSingle();
-    const mem = MEM.get(c.r);
-    if (error && !isMissingTable(error)) fail(502, 'db_unavailable');
-    if (!row && !mem) fail(404, 'not_found');
-    if ((row && row.status !== 'served') || (mem && mem.status !== 'open')) fail(409, 'already_done');
+    if (error) fail(isMissingTable(error) ? 503 : 502, isMissingTable(error) ? 'unavailable' : 'db_unavailable');
+    if (!row) fail(404, 'not_found');
+    if (row.status !== 'served') fail(409, 'already_done');
     const { score, rows } = scoreNumberId(items(), body.taps);
-    const meta = { ...((row && row.meta) || (mem && mem.row.meta) || {}), ms: Number(body.ms) || null,
-      ...((await settingOn(ITEMS_FLAG_KEY)) ? { items: rows } : {}) };
+    const meta = { ...(row.meta || {}), ms: Number(body.ms) || null, ...((await settingOn(ITEMS_FLAG_KEY)) ? { items: rows } : {}) };
     const at = new Date(Date.now()).toISOString();
     const patch = { status: 'scored', score, scored_at: at, helped: helpedCol(body.helped), meta };
-    if (row) {
-      const { data: hit, error: upErr } = await supabase.from(TABLE).update(patch).eq('id', c.r).eq('status', 'served').select('id');
-      if (upErr) logError('web_quiz.challenge_store_failed', { runId: c.r, missingTable: isMissingTable(upErr), error: String(upErr.message || '').slice(0, 200) });
-      else if (!hit || !hit.length) fail(409, 'already_done');
-    } else {
-      MEM.set(c.r, { status: 'done', row: { ...mem.row, ...patch } });
+    const { data: hit, error: upErr } = await supabase.from(TABLE).update(patch).eq('id', c.r).eq('status', 'served').select('id');
+    if (upErr) {
+      logError('web_quiz.challenge_store_failed', { runId: c.r, missingTable: isMissingTable(upErr), error: String(upErr.message || '').slice(0, 200) });
+      fail(503, 'unavailable');
     }
+    if (!hit || !hit.length) fail(409, 'already_done');
+    await lightIfFirst(c.r);
     logEvent('web_quiz.ch_done', { step: EXERCISE, count: score.correct, n: score.n, stopped: false, run: c.r });
     return { score };
   }
 
-  function reset() { MEM.clear(); }
+  // A finished first exposure in a class lights the class light (the draw module's lightLit). Never throws.
+  async function lightIfFirst(id) {
+    try {
+      const { data, error } = await supabase.from(TABLE).select('id, exercise, status, mode, exposure_no, class_id, anchor_block, canonical_id').eq('id', id).maybeSingle();
+      if (!error && data && data.mode != null) Draw().lightLit(data);
+    } catch (e) {
+      logError('web_quiz.ch_light_failed', { error: String(e && e.message || e).slice(0, 120) });
+    }
+  }
+
+  function reset() { /* nothing kept in this process */ }
 
   return { on, menu, exercise, submit, challengeOf, reset, FORM, EXERCISE, BLOCK };
 }

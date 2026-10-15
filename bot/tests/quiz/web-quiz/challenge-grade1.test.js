@@ -242,9 +242,9 @@ describe('its own statement row, never pooled with G2-5', () => {
       form: 'G1', anchor_block: 'G1A', anchor_exposure_no: 1, band: null, mode: 'check', record: true, period_id: '2026-11',
       exposure_no: 1, bank_version: 'child-test-items-v4', set: 'A', canonical_id: KID, passage_id: null, item_set_id: null,
     });
-    expect(row).toMatchObject({ via: 'hub', id_src: null, id_confidence: null, homonym_in_list: null, draw_seed: null });
+    expect(row).toMatchObject({ via: 'hub', id_src: null, id_confidence: null, homonym_in_list: null, draw_seed: expect.stringMatching(/^[0-9a-f]{32}$/) });
     expect(row.meta).toMatchObject({ fixed_band: 'G1', grade_fixed_src: 'visit_grade', pick_src: 'absent', anchor_serves_any: 1 });
-    expect(ex).toMatchObject({ mode: 'check', record: true, period_id: '2026-11', anchor_exposure_no: 1, exposure_no: 1, passage_id: null, item_set_id: null, draw: null });
+    expect(ex).toMatchObject({ mode: 'check', record: true, period_id: '2026-11', anchor_exposure_no: 1, exposure_no: 1, passage_id: null, item_set_id: null, draw: { outcome: 'served' } });
     const start = logEvent.mock.calls.find(([n]) => n === 'web_quiz.ch_start')[1];
     expect(start).toEqual({
       step: 'numbers', grade: 1, run: row.id, w: 's', mode: 'check', period_id: '2026-11', form: 'G1', band: null, rung: null, item_set_id: null,
@@ -341,5 +341,84 @@ describe('bank and registry: the G1A block and its practice layouts', () => {
       expect(check.has(Bank.paramsHash(it.params))).toBe(false);
       expect(it.params.tiles).toContain(it.n);
     }
+  });
+});
+
+describe('as the v2 serve does: identity, class, light, the draw log, one event writer, no unstored counted run', () => {
+  const CLS = 'c1a55000-0000-4000-8000-000000000011';
+  const HUB = { key: 'web_quiz_hub', value: true };
+  const CANON = { key: 'web_quiz_identity_canon', value: true };
+  const EV2 = { key: 'web_quiz_events_v2', value: true };
+  const FLAG_MODS = ['../../../shared/services/quiz/web-quiz-identity-flags', '../../../shared/services/quiz/web-quiz-hub-flags'];
+  const resetFlags = () => { for (const m of FLAG_MODS) { const x = require(m); if (x._resetCache) x._resetCache(); } };
+  const Draw = require('../../../shared/services/quiz/web-quiz-challenge-draw');
+  const named = (n) => logEvent.mock.calls.filter(([e]) => e === n).map(([, d]) => d);
+  beforeEach(resetFlags);
+  afterEach(resetFlags);
+
+  test('child_identity is written at the first counted play (fixed grade 1), never by a practice play', async () => {
+    on(V2, G1, PERIOD, HUB, CANON);
+    db.child_identity = [];
+    await Ch.exercise(hub(), 'numbers', D);
+    expect(db.child_identity).toEqual([expect.objectContaining({ canonical_id: KID, year_code: Draw.yearCode(new Date(NOV)), fixed_grade: 1, grade_source: 'roster_class' })]);
+    const again = await Ch.exercise(hub(), 'numbers', D);
+    expect(again.mode).toBe('practice');
+    expect(db.child_identity).toHaveLength(1);
+  });
+
+  test('class_id on the row from the active enrolment; one light_lit at the finished first exposure, none on exposure 2', async () => {
+    on(V2, G1, PERIOD);
+    db.classes = [{ id: CLS, grade_code: 'grade_1', is_active: true }];
+    db.class_enrollments = [{ id: 'e1', class_id: CLS, student_id: KID, is_active: true }];
+    const first = await play();
+    expect(first.row).toMatchObject({ class_id: CLS, exposure_no: 1, status: 'scored' });
+    expect(named('web_quiz.light_lit')).toHaveLength(1);
+    expect(JSON.stringify(named('web_quiz.light_lit'))).not.toContain(CLS);
+    const second = await play();
+    expect(second.row).toMatchObject({ class_id: CLS, exposure_no: 2 });
+    expect(named('web_quiz.light_lit')).toHaveLength(1);
+  });
+
+  test('the G1A serve logs its challenge_draws row (anchor, p 1), and the row and meta.draw carry it', async () => {
+    on(V2, G1, PERIOD);
+    db.challenge_draws = [];
+    const ex = await Ch.exercise(hub(), 'numbers', D);
+    const row = runs()[0];
+    expect(db.challenge_draws).toEqual([expect.objectContaining({
+      run_id: row.id, canonical_id: KID, period_id: '2026-11', stop: 'numbers', lang: 'en', fixed_grade_band: 'G1', open_band: null, band: null,
+      band_reason: 'anchor', eligible: [{ id: 'G1A', w: 1 }], eligible_n: 1, ref_eligible: false, p: 1, weights_v: 'w1', served_id: 'G1A', outcome: 'served',
+    })]);
+    const d = db.challenge_draws[0];
+    expect(row.draw_seed).toBe(d.seed);
+    expect(row.meta.draw).toMatchObject({ draw_id: d.draw_id, band_reason: 'anchor', p: 1, seed: d.seed });
+    expect(ex.draw).toEqual({ outcome: 'served' });
+  });
+
+  test('one ch_open and one ch_start each, and with events v2 on ch_start goes through the measurement envelope (kid rides)', async () => {
+    process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(48);
+    process.env.WEB_QUIZ_KID_KEY_V = '1';
+    on(V2, G1, PERIOD, HUB, EV2);
+    await Ch.menu(hub(), D);
+    expect(named('web_quiz.ch_open')).toHaveLength(1);
+    await Ch.exercise(hub(), 'numbers', D);
+    const starts = named('web_quiz.ch_start');
+    expect(starts).toHaveLength(1);
+    expect(starts[0]).toMatchObject({ step: 'numbers', kid: require('../../../shared/services/quiz/web-quiz-kid').kid(KID), form: 'G1', anchor_block: 'G1A', mode: 'check', record: true, period_id: '2026-11' });
+    expect(typeof starts[0].kid).toBe('string');
+    expect(JSON.stringify(starts[0])).not.toContain(KID);
+    delete process.env.WEB_QUIZ_KID_KEY;
+    delete process.env.WEB_QUIZ_KID_KEY_V;
+  });
+
+  test('a serve whose row is not stored is refused: no token, no second first exposure', async () => {
+    on(V2, G1, PERIOD);
+    const from = supabase.from;
+    supabase.from = (t) => {
+      const b = from(t);
+      if (t === 'web_quiz_challenge_runs') b.insert = () => ({ then: (res, rej) => Promise.resolve({ data: null, error: { code: '42703', message: 'column "form" does not exist' } }).then(res, rej) });
+      return b;
+    };
+    await expect(Ch.exercise(hub(), 'numbers', D)).rejects.toMatchObject({ status: 503, body: { error: 'unavailable' } });
+    expect(runs()).toEqual([]);
   });
 });
