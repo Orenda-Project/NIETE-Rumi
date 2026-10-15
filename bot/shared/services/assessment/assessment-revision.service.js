@@ -100,6 +100,17 @@ async function _loadOwnedPaper(paperId, userId) {
   return { paper: data };
 }
 
+/**
+ * A board-pattern paper keeps its shape: its sections, choice lines and marking scheme are laid
+ * out from the pattern, and an edit made here would re-render it without them. Refused at every
+ * way into a version, before anything is written or rendered.
+ */
+const PATTERN_NO_EDIT = 'PATTERN_NO_EDIT';
+const PATTERN_NO_EDIT_MESSAGE = 'Board-pattern papers keep their shape.';
+function isPatternPaper(paper) {
+  return Boolean(paper && paper.exam_json && paper.exam_json._layout);
+}
+
 /** Everything she could tick, for the screen that asks. */
 async function listQuestions({ paperId, userId }) {
   const { paper, code } = await _loadOwnedPaper(paperId, userId);
@@ -139,6 +150,7 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone, budge
     return { status: 'failed', code: loaded.code };
   }
   const { paper } = loaded;
+  if (isPatternPaper(paper)) return { status: 'failed', code: PATTERN_NO_EDIT };
   const req = paper.assessment_requests || {};
   const { grade, subject, pageRanges, format, answerLines } = coverageOf(req);
 
@@ -286,6 +298,7 @@ async function saveEdit({ paperId, userId, questionId, edit }) {
   if (!paper) {
     return { status: 'rejected', code, message: TEACHER_MESSAGE[code] || FALLBACK_MESSAGE };
   }
+  if (isPatternPaper(paper)) return { status: 'rejected', code: PATTERN_NO_EDIT, message: PATTERN_NO_EDIT_MESSAGE };
 
   const tree = paper.exam_json;
   const target = Selection.indexQuestions(tree).find((q) => q.id === questionId);
@@ -468,6 +481,7 @@ async function buildVersion({ parentId, userId, tree, schoolName: knownSchool })
   const loaded = await loadVersion({ paperId: parentId, userId });
   if (!loaded.paper) return { status: 'failed', code: loaded.code };
   const parent = loaded.paper;
+  if (isPatternPaper(parent)) return { status: 'failed', code: PATTERN_NO_EDIT };
   const req = parent.assessment_requests || {};
   const { grade, subject, pageRanges, format, answerLines } = coverageOf(req);
 
@@ -664,4 +678,5 @@ async function resendVersion({ paperId, userId, phone: knownPhone, user = null, 
 module.exports = {
   rerender, listQuestions, saveEdit, fileName, TEACHER_MESSAGE,
   loadVersion, versionNumberOf, listVersionItems, listFamily, buildVersion, createVersion, resendVersion,
+  isPatternPaper, PATTERN_NO_EDIT, PATTERN_NO_EDIT_MESSAGE,
 };
