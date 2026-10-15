@@ -1,0 +1,184 @@
+{
+  "passage_id": "ur.read.1.story02",
+  "lang": "ur",
+  "kind": "read",
+  "band": 1,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "tokens": 38,
+  "sentences": 6,
+  "mean_sent_len": 6.3,
+  "max_word_len": 5,
+  "readability": 0.958,
+  "readability_list": "fed-cum-g2-2026",
+  "readability_band_above": 1.0,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 4,
+  "text_hash": "646bf4bfbe1482d051c55cedaeae4629",
+  "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "سمیر کا بلا",
+  "text": "سمیر کا پیارا بلا ٹوٹ گیا۔ سمیر بہت اداس ہو گیا۔ وہ بلا لے کر دادا کے پاس گیا۔ دادا نے بلا جوڑ دیا۔ اب بلا پھر سے ٹھیک ہو گیا۔ سمیر نے دادا کا شکریہ ادا کیا۔",
+  "lines": [
+    [
+      0,
+      5
+    ],
+    [
+      6,
+      10
+    ],
+    [
+      11,
+      18
+    ],
+    [
+      19,
+      23
+    ],
+    [
+      24,
+      30
+    ],
+    [
+      31,
+      37
+    ]
+  ],
+  "tokens_list": [
+    "سمیر",
+    "کا",
+    "پیارا",
+    "بلا",
+    "ٹوٹ",
+    "گیا",
+    "سمیر",
+    "بہت",
+    "اداس",
+    "ہو",
+    "گیا",
+    "وہ",
+    "بلا",
+    "لے",
+    "کر",
+    "دادا",
+    "کے",
+    "پاس",
+    "گیا",
+    "دادا",
+    "نے",
+    "بلا",
+    "جوڑ",
+    "دیا",
+    "اب",
+    "بلا",
+    "پھر",
+    "سے",
+    "ٹھیک",
+    "ہو",
+    "گیا",
+    "سمیر",
+    "نے",
+    "دادا",
+    "کا",
+    "شکریہ",
+    "ادا",
+    "کیا"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "سمیر کا کیا ٹوٹ گیا؟",
+      "right": "بلا",
+      "wrong": [
+        "کھلونا",
+        "پتنگ"
+      ],
+      "accept": [
+        "بلا",
+        "پیارا بلا"
+      ],
+      "reject": [
+        "کھلونا",
+        "پتنگ"
+      ],
+      "rubric": "Correct if the child says the (cricket) bat (بلا)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "سمیر کا کیسا بلا ٹوٹ گیا؟",
+      "right": "پیارا",
+      "wrong": [
+        "نیا",
+        "بڑا"
+      ],
+      "accept": [
+        "پیارا"
+      ],
+      "reject": [
+        "نیا",
+        "بڑا"
+      ],
+      "rubric": "Correct if the child says his dear or favourite bat (پیارا)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "بلا ٹوٹنے پر سمیر کیسا ہو گیا؟",
+      "right": "اداس",
+      "wrong": [
+        "خوش",
+        "ناراض"
+      ],
+      "accept": [
+        "اداس",
+        "بہت اداس"
+      ],
+      "reject": [
+        "خوش",
+        "ناراض"
+      ],
+      "rubric": "Correct if the child says sad (اداس)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "سمیر بلا لے کر کس کے پاس گیا؟",
+      "right": "دادا کے پاس",
+      "wrong": [
+        "امی کے پاس",
+        "چچا کے پاس"
+      ],
+      "accept": [
+        "دادا کے پاس",
+        "دادا"
+      ],
+      "reject": [
+        "امی کے پاس",
+        "چچا کے پاس"
+      ],
+      "rubric": "Correct if the child says to his grandfather (دادا)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "سمیر"
+  ]
+}

@@ -1,0 +1,183 @@
+{
+  "passage_id": "ur.listen.1.story01",
+  "lang": "ur",
+  "kind": "listen",
+  "band": 1,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "tokens": 38,
+  "sentences": 6,
+  "mean_sent_len": 6.3,
+  "max_word_len": 4,
+  "readability": 1.0,
+  "readability_list": "fed-cum-g2-2026",
+  "readability_band_above": 1.0,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 4,
+  "text_hash": "d36d07963c682870ae487485edee109a",
+  "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "ایمن کی گڑیا",
+  "text": "ایمن کے پاس ایک چھوٹی گڑیا ہے۔ ایک صبح گڑیا پر مٹی لگ گئی۔ ایمن اداس ہو گئی۔ امی نے گڑیا کو صاف کیا۔ اب گڑیا پہلے سے اچھی لگ رہی تھی۔ ایمن نے گڑیا کو پیار کیا۔",
+  "lines": [
+    [
+      0,
+      6
+    ],
+    [
+      7,
+      13
+    ],
+    [
+      14,
+      17
+    ],
+    [
+      18,
+      23
+    ],
+    [
+      24,
+      31
+    ],
+    [
+      32,
+      37
+    ]
+  ],
+  "tokens_list": [
+    "ایمن",
+    "کے",
+    "پاس",
+    "ایک",
+    "چھوٹی",
+    "گڑیا",
+    "ہے",
+    "ایک",
+    "صبح",
+    "گڑیا",
+    "پر",
+    "مٹی",
+    "لگ",
+    "گئی",
+    "ایمن",
+    "اداس",
+    "ہو",
+    "گئی",
+    "امی",
+    "نے",
+    "گڑیا",
+    "کو",
+    "صاف",
+    "کیا",
+    "اب",
+    "گڑیا",
+    "پہلے",
+    "سے",
+    "اچھی",
+    "لگ",
+    "رہی",
+    "تھی",
+    "ایمن",
+    "نے",
+    "گڑیا",
+    "کو",
+    "پیار",
+    "کیا"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ایمن کے پاس کیا ہے؟",
+      "right": "گڑیا",
+      "wrong": [
+        "مرغی",
+        "پتنگ"
+      ],
+      "accept": [
+        "گڑیا",
+        "چھوٹی گڑیا"
+      ],
+      "reject": [
+        "مرغی",
+        "پتنگ"
+      ],
+      "rubric": "Correct if the child says a doll (گڑیا)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "گڑیا کیسی ہے؟",
+      "right": "چھوٹی",
+      "wrong": [
+        "بڑی",
+        "موٹی"
+      ],
+      "accept": [
+        "چھوٹی"
+      ],
+      "reject": [
+        "بڑی",
+        "موٹی"
+      ],
+      "rubric": "Correct if the child says small (چھوٹی)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "گڑیا پر کیا لگ گئی؟",
+      "right": "مٹی",
+      "wrong": [
+        "سیاہی",
+        "مہندی"
+      ],
+      "accept": [
+        "مٹی"
+      ],
+      "reject": [
+        "سیاہی",
+        "مہندی"
+      ],
+      "rubric": "Correct if the child says dirt or mud (مٹی)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 4,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "گڑیا کو کس نے صاف کیا؟",
+      "right": "امی نے",
+      "wrong": [
+        "دادی نے",
+        "خالہ نے"
+      ],
+      "accept": [
+        "امی نے",
+        "امی"
+      ],
+      "reject": [
+        "دادی نے",
+        "خالہ نے"
+      ],
+      "rubric": "Correct if the child says her mother (امی)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "ایمن"
+  ]
+}

@@ -1,0 +1,166 @@
+{
+  "passage_id": "ur.read.1.story03",
+  "lang": "ur",
+  "kind": "read",
+  "band": 1,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "tokens": 40,
+  "sentences": 6,
+  "mean_sent_len": 6.7,
+  "max_word_len": 5,
+  "readability": 0.957,
+  "readability_list": "fed-cum-g2-2026",
+  "readability_band_above": 0.957,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 3,
+  "text_hash": "8e461eaf4b7ff1c448b8987a7b439123",
+  "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "ماہا کی نظم",
+  "text": "ماہا جماعت میں نظم سنانے والی تھی۔ دادی نے اس کی مدد کی۔ ماہا کو نظم یاد نہیں ہو رہی تھی۔ دونوں نے نظم بار بار پڑھی۔ آخر ماہا کو نظم یاد ہو گئی۔ سب نے اس کی تعریف کی۔",
+  "lines": [
+    [
+      0,
+      6
+    ],
+    [
+      7,
+      12
+    ],
+    [
+      13,
+      20
+    ],
+    [
+      21,
+      26
+    ],
+    [
+      27,
+      33
+    ],
+    [
+      34,
+      39
+    ]
+  ],
+  "tokens_list": [
+    "ماہا",
+    "جماعت",
+    "میں",
+    "نظم",
+    "سنانے",
+    "والی",
+    "تھی",
+    "دادی",
+    "نے",
+    "اس",
+    "کی",
+    "مدد",
+    "کی",
+    "ماہا",
+    "کو",
+    "نظم",
+    "یاد",
+    "نہیں",
+    "ہو",
+    "رہی",
+    "تھی",
+    "دونوں",
+    "نے",
+    "نظم",
+    "بار",
+    "بار",
+    "پڑھی",
+    "آخر",
+    "ماہا",
+    "کو",
+    "نظم",
+    "یاد",
+    "ہو",
+    "گئی",
+    "سب",
+    "نے",
+    "اس",
+    "کی",
+    "تعریف",
+    "کی"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ماہا کیا سنانے والی تھی؟",
+      "right": "نظم",
+      "wrong": [
+        "کہانی",
+        "پہیلی"
+      ],
+      "accept": [
+        "نظم",
+        "ایک نظم"
+      ],
+      "reject": [
+        "کہانی",
+        "پہیلی"
+      ],
+      "rubric": "Correct if the child says a poem (نظم)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ماہا نظم کہاں سنانے والی تھی؟",
+      "right": "جماعت میں",
+      "wrong": [
+        "محلے میں",
+        "پارک میں"
+      ],
+      "accept": [
+        "جماعت میں",
+        "جماعت"
+      ],
+      "reject": [
+        "محلے میں",
+        "پارک میں"
+      ],
+      "rubric": "Correct if the child says in class (جماعت میں)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ماہا کی مدد کس نے کی؟",
+      "right": "دادی نے",
+      "wrong": [
+        "امی نے",
+        "خالہ نے"
+      ],
+      "accept": [
+        "دادی نے",
+        "دادی"
+      ],
+      "reject": [
+        "امی نے",
+        "خالہ نے"
+      ],
+      "rubric": "Correct if the child says her grandmother (دادی)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "ماہا"
+  ]
+}

@@ -1,0 +1,213 @@
+{
+  "passage_id": "ur.read.2.story02",
+  "lang": "ur",
+  "kind": "read",
+  "band": 2,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "tokens": 58,
+  "sentences": 8,
+  "mean_sent_len": 7.2,
+  "max_word_len": 5,
+  "readability": 0.875,
+  "readability_list": "fed-cum-g3-2026",
+  "readability_band_above": 0.825,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 4,
+  "text_hash": "80c4e7761a4c629ce219e0fbd307d95d",
+  "source_ref": "generated brief v1 (band-2 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "جھولے کی باری",
+  "text": "ہانیہ امی کے ساتھ پارک میں جھولا لینے گئی۔ وہاں جھولے کے لیے لمبی قطار تھی۔ ہانیہ بھی قطار میں لگ گئی۔ آخر اس کی باری آ گئی۔ پیچھے ایک بہت چھوٹی لڑکی بھی تھی۔ وہ بہت دیر سے جھولا دیکھ رہی تھی۔ ہانیہ نے اپنی باری اسے دے دی۔ پھر دونوں نے باری باری خوب جھولا لیا۔",
+  "lines": [
+    [
+      0,
+      8
+    ],
+    [
+      9,
+      15
+    ],
+    [
+      16,
+      21
+    ],
+    [
+      22,
+      27
+    ],
+    [
+      28,
+      34
+    ],
+    [
+      35,
+      42
+    ],
+    [
+      43,
+      49
+    ],
+    [
+      50,
+      57
+    ]
+  ],
+  "tokens_list": [
+    "ہانیہ",
+    "امی",
+    "کے",
+    "ساتھ",
+    "پارک",
+    "میں",
+    "جھولا",
+    "لینے",
+    "گئی",
+    "وہاں",
+    "جھولے",
+    "کے",
+    "لیے",
+    "لمبی",
+    "قطار",
+    "تھی",
+    "ہانیہ",
+    "بھی",
+    "قطار",
+    "میں",
+    "لگ",
+    "گئی",
+    "آخر",
+    "اس",
+    "کی",
+    "باری",
+    "آ",
+    "گئی",
+    "پیچھے",
+    "ایک",
+    "بہت",
+    "چھوٹی",
+    "لڑکی",
+    "بھی",
+    "تھی",
+    "وہ",
+    "بہت",
+    "دیر",
+    "سے",
+    "جھولا",
+    "دیکھ",
+    "رہی",
+    "تھی",
+    "ہانیہ",
+    "نے",
+    "اپنی",
+    "باری",
+    "اسے",
+    "دے",
+    "دی",
+    "پھر",
+    "دونوں",
+    "نے",
+    "باری",
+    "باری",
+    "خوب",
+    "جھولا",
+    "لیا"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ہانیہ کس کے ساتھ گئی؟",
+      "right": "امی کے ساتھ",
+      "wrong": [
+        "ابو کے ساتھ",
+        "نانی کے ساتھ"
+      ],
+      "accept": [
+        "امی کے ساتھ",
+        "امی"
+      ],
+      "reject": [
+        "ابو کے ساتھ",
+        "نانی کے ساتھ"
+      ],
+      "rubric": "Correct if the child says with her mother (امی)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ہانیہ کہاں گئی؟",
+      "right": "پارک میں",
+      "wrong": [
+        "جھیل پر",
+        "شہر میں"
+      ],
+      "accept": [
+        "پارک میں",
+        "پارک"
+      ],
+      "reject": [
+        "جھیل پر",
+        "شہر میں"
+      ],
+      "rubric": "Correct if the child says to the park (پارک)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "جھولے کے لیے کیسی قطار تھی؟",
+      "right": "لمبی",
+      "wrong": [
+        "چھوٹی",
+        "خالی"
+      ],
+      "accept": [
+        "لمبی",
+        "لمبی قطار"
+      ],
+      "reject": [
+        "چھوٹی",
+        "خالی"
+      ],
+      "rubric": "Correct if the child says a long queue (لمبی)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 7,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ہانیہ نے اپنی باری کس کو دے دی؟",
+      "right": "چھوٹی لڑکی کو",
+      "wrong": [
+        "بڑی لڑکی کو",
+        "چھوٹے لڑکے کو"
+      ],
+      "accept": [
+        "چھوٹی لڑکی کو",
+        "لڑکی کو"
+      ],
+      "reject": [
+        "بڑی لڑکی کو",
+        "چھوٹے لڑکے کو"
+      ],
+      "rubric": "Correct if the child says the little girl (چھوٹی لڑکی)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "ہانیہ"
+  ]
+}

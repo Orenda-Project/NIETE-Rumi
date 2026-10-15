@@ -1,0 +1,186 @@
+{
+  "passage_id": "ur.read.1.story01",
+  "lang": "ur",
+  "kind": "read",
+  "band": 1,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "tokens": 38,
+  "sentences": 6,
+  "mean_sent_len": 6.3,
+  "max_word_len": 4,
+  "readability": 1.0,
+  "readability_list": "fed-cum-g2-2026",
+  "readability_band_above": 0.966,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 4,
+  "text_hash": "562e82db9de5e095e91a868bcbd510ff",
+  "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "گاجر کا حلوہ",
+  "text": "آج حرا گاجر کا حلوہ بنا رہی تھی۔ ابو بھی اس کے ساتھ تھے۔ پھر شکر ختم ہو گئی۔ ابو جا کر شکر لے آئے۔ حلوہ بہت مزے کا بنا۔ پھر سب نے مل کر حلوہ کھا لیا۔",
+  "lines": [
+    [
+      0,
+      7
+    ],
+    [
+      8,
+      13
+    ],
+    [
+      14,
+      18
+    ],
+    [
+      19,
+      24
+    ],
+    [
+      25,
+      29
+    ],
+    [
+      30,
+      37
+    ]
+  ],
+  "tokens_list": [
+    "آج",
+    "حرا",
+    "گاجر",
+    "کا",
+    "حلوہ",
+    "بنا",
+    "رہی",
+    "تھی",
+    "ابو",
+    "بھی",
+    "اس",
+    "کے",
+    "ساتھ",
+    "تھے",
+    "پھر",
+    "شکر",
+    "ختم",
+    "ہو",
+    "گئی",
+    "ابو",
+    "جا",
+    "کر",
+    "شکر",
+    "لے",
+    "آئے",
+    "حلوہ",
+    "بہت",
+    "مزے",
+    "کا",
+    "بنا",
+    "پھر",
+    "سب",
+    "نے",
+    "مل",
+    "کر",
+    "حلوہ",
+    "کھا",
+    "لیا"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "حرا کیا بنا رہی تھی؟",
+      "right": "حلوہ",
+      "wrong": [
+        "کھیر",
+        "سالن"
+      ],
+      "accept": [
+        "حلوہ",
+        "گاجر کا حلوہ"
+      ],
+      "reject": [
+        "کھیر",
+        "سالن"
+      ],
+      "rubric": "Correct if the child says halwa (حلوہ)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "حلوہ کس چیز کا تھا؟",
+      "right": "گاجر کا",
+      "wrong": [
+        "سوجی کا",
+        "چاول کا"
+      ],
+      "accept": [
+        "گاجر کا",
+        "گاجر"
+      ],
+      "reject": [
+        "سوجی کا",
+        "چاول کا"
+      ],
+      "rubric": "Correct if the child says carrot (گاجر)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "حرا کے ساتھ کون تھے؟",
+      "right": "ابو",
+      "wrong": [
+        "دادا",
+        "چچا"
+      ],
+      "accept": [
+        "ابو",
+        "ابا",
+        "والد"
+      ],
+      "reject": [
+        "دادا",
+        "چچا"
+      ],
+      "rubric": "Correct if the child says her father (ابو)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "پھر کیا ختم ہو گیا؟",
+      "right": "شکر",
+      "wrong": [
+        "گھی",
+        "آٹا"
+      ],
+      "accept": [
+        "شکر",
+        "چینی"
+      ],
+      "reject": [
+        "گھی",
+        "آٹا"
+      ],
+      "rubric": "Correct if the child says the sugar (شکر)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "حرا"
+  ]
+}

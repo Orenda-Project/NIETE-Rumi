@@ -1,0 +1,261 @@
+{
+  "passage_id": "ur.read.3.ref01",
+  "lang": "ur",
+  "kind": "read",
+  "band": 3,
+  "pool": "check",
+  "status_at_authoring": "draft",
+  "is_reference": true,
+  "tokens": 65,
+  "sentences": 9,
+  "mean_sent_len": 7.2,
+  "max_word_len": 5,
+  "readability": 0.953,
+  "readability_list": "fed-cum-g5-2026",
+  "readability_band_above": null,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "text_hash": "70eb6afdb210a24391f0b32dfeb77b44",
+  "source_ref": "generated brief v1 (band-3 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "چھوٹا چوہا",
+  "text": "ریان چھٹیوں میں دادا کے گاؤں گیا۔ دادا کے کمرے میں ایک چھوٹا چوہا رہتا تھا۔ وہ روز دادا کے کاغذ کھا جاتا تھا۔ دادا اس سے خوش نہیں تھے۔ ریان کو ایک خیال آیا۔ اس نے ڈبے میں کچھ کھانا رکھا۔ چوہا کھانے کے لیے ڈبے میں آ گیا۔ ریان نے ڈبے کو بند کر دیا۔ پھر دونوں اسے دور جنگل میں لے گئے۔",
+  "lines": [
+    [
+      0,
+      6
+    ],
+    [
+      7,
+      15
+    ],
+    [
+      16,
+      23
+    ],
+    [
+      24,
+      29
+    ],
+    [
+      30,
+      34
+    ],
+    [
+      35,
+      41
+    ],
+    [
+      42,
+      49
+    ],
+    [
+      50,
+      56
+    ],
+    [
+      57,
+      64
+    ]
+  ],
+  "tokens_list": [
+    "ریان",
+    "چھٹیوں",
+    "میں",
+    "دادا",
+    "کے",
+    "گاؤں",
+    "گیا",
+    "دادا",
+    "کے",
+    "کمرے",
+    "میں",
+    "ایک",
+    "چھوٹا",
+    "چوہا",
+    "رہتا",
+    "تھا",
+    "وہ",
+    "روز",
+    "دادا",
+    "کے",
+    "کاغذ",
+    "کھا",
+    "جاتا",
+    "تھا",
+    "دادا",
+    "اس",
+    "سے",
+    "خوش",
+    "نہیں",
+    "تھے",
+    "ریان",
+    "کو",
+    "ایک",
+    "خیال",
+    "آیا",
+    "اس",
+    "نے",
+    "ڈبے",
+    "میں",
+    "کچھ",
+    "کھانا",
+    "رکھا",
+    "چوہا",
+    "کھانے",
+    "کے",
+    "لیے",
+    "ڈبے",
+    "میں",
+    "آ",
+    "گیا",
+    "ریان",
+    "نے",
+    "ڈبے",
+    "کو",
+    "بند",
+    "کر",
+    "دیا",
+    "پھر",
+    "دونوں",
+    "اسے",
+    "دور",
+    "جنگل",
+    "میں",
+    "لے",
+    "گئے"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ریان کس کے گاؤں گیا؟",
+      "right": "دادا کے",
+      "wrong": [
+        "نانا کے",
+        "چچا کے"
+      ],
+      "accept": [
+        "دادا کے",
+        "دادا"
+      ],
+      "reject": [
+        "نانا کے",
+        "چچا کے"
+      ],
+      "rubric": "Correct if the child says his grandfather's (دادا)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ریان دادا کے گاؤں کب گیا؟",
+      "right": "چھٹیوں میں",
+      "wrong": [
+        "شادی پر",
+        "بارش میں"
+      ],
+      "accept": [
+        "چھٹیوں میں",
+        "چھٹیوں"
+      ],
+      "reject": [
+        "شادی پر",
+        "بارش میں"
+      ],
+      "rubric": "Correct if the child says in the holidays (چھٹیوں میں)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "دادا کے کمرے میں کون رہتا تھا؟",
+      "right": "چوہا",
+      "wrong": [
+        "طوطا",
+        "مینڈک"
+      ],
+      "accept": [
+        "چوہا",
+        "چھوٹا چوہا"
+      ],
+      "reject": [
+        "طوطا",
+        "مینڈک"
+      ],
+      "rubric": "Correct if the child says a mouse (چوہا)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "چوہا روز کیا کھا جاتا تھا؟",
+      "right": "کاغذ",
+      "wrong": [
+        "چینی",
+        "گاجر"
+      ],
+      "accept": [
+        "کاغذ",
+        "دادا کے کاغذ"
+      ],
+      "reject": [
+        "چینی",
+        "گاجر"
+      ],
+      "rubric": "Correct if the child says the papers (کاغذ)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 6,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ریان نے ڈبے میں کیا رکھا؟",
+      "right": "کھانا",
+      "wrong": [
+        "کھلونا",
+        "پتھر"
+      ],
+      "accept": [
+        "کھانا",
+        "کچھ کھانا"
+      ],
+      "reject": [
+        "کھلونا",
+        "پتھر"
+      ],
+      "rubric": "Correct if the child says some food (کھانا)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 9,
+      "type": "inferential",
+      "tap_ok": false,
+      "prompt": "ریان اور دادا چوہے کو دور جنگل میں کیوں لے گئے؟",
+      "right": null,
+      "wrong": [],
+      "accept": [
+        "تاکہ وہ واپس نہ آئے",
+        "تاکہ وہ کاغذ نہ کھائے",
+        "تاکہ دادا خوش رہیں"
+      ],
+      "reject": [],
+      "rubric": "Inferential. Correct if the child says so that the mouse would not come back or would not eat the papers again; the story does not say this outright."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "ریان"
+  ]
+}

@@ -1,0 +1,257 @@
+{
+  "passage_id": "ur.read.2.prov01",
+  "lang": "ur",
+  "kind": "read",
+  "band": 2,
+  "pool": "check",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "tokens": 65,
+  "sentences": 8,
+  "mean_sent_len": 8.1,
+  "max_word_len": 5,
+  "readability": 0.977,
+  "readability_list": "fed-cum-g3-2026",
+  "readability_band_above": 0.953,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "text_hash": "52817512b4a07d1cbbdc3e88b1bc37b8",
+  "source_ref": "generated brief v1 (band-2 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "ابو کے لیے کارڈ",
+  "text": "زویا کے ابو کل شہر سے آنے والے تھے۔ زویا نے ان کے لیے ایک رنگین کارڈ بنایا۔ اس پر اس نے ایک چڑیا اور بادل بنائے۔ باہر جاتے ہوئے کارڈ مٹی میں گر گیا۔ کارڈ خراب ہو گیا اور زویا اداس ہو گئی۔ امی نے اسے نیا کاغذ دیا۔ زویا نے پھر سے کارڈ بنایا۔ ابو نے کارڈ دیکھ کر زویا کو پیار کیا۔",
+  "lines": [
+    [
+      0,
+      8
+    ],
+    [
+      9,
+      17
+    ],
+    [
+      18,
+      26
+    ],
+    [
+      27,
+      34
+    ],
+    [
+      35,
+      43
+    ],
+    [
+      44,
+      49
+    ],
+    [
+      50,
+      55
+    ],
+    [
+      56,
+      64
+    ]
+  ],
+  "tokens_list": [
+    "زویا",
+    "کے",
+    "ابو",
+    "کل",
+    "شہر",
+    "سے",
+    "آنے",
+    "والے",
+    "تھے",
+    "زویا",
+    "نے",
+    "ان",
+    "کے",
+    "لیے",
+    "ایک",
+    "رنگین",
+    "کارڈ",
+    "بنایا",
+    "اس",
+    "پر",
+    "اس",
+    "نے",
+    "ایک",
+    "چڑیا",
+    "اور",
+    "بادل",
+    "بنائے",
+    "باہر",
+    "جاتے",
+    "ہوئے",
+    "کارڈ",
+    "مٹی",
+    "میں",
+    "گر",
+    "گیا",
+    "کارڈ",
+    "خراب",
+    "ہو",
+    "گیا",
+    "اور",
+    "زویا",
+    "اداس",
+    "ہو",
+    "گئی",
+    "امی",
+    "نے",
+    "اسے",
+    "نیا",
+    "کاغذ",
+    "دیا",
+    "زویا",
+    "نے",
+    "پھر",
+    "سے",
+    "کارڈ",
+    "بنایا",
+    "ابو",
+    "نے",
+    "کارڈ",
+    "دیکھ",
+    "کر",
+    "زویا",
+    "کو",
+    "پیار",
+    "کیا"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "کل کون آنے والے تھے؟",
+      "right": "ابو",
+      "wrong": [
+        "چچا",
+        "دادا"
+      ],
+      "accept": [
+        "ابو",
+        "زویا کے ابو",
+        "ابا",
+        "والد"
+      ],
+      "reject": [
+        "چچا",
+        "دادا"
+      ],
+      "rubric": "Correct if the child says her father (ابو)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ابو کہاں سے آنے والے تھے؟",
+      "right": "شہر سے",
+      "wrong": [
+        "گاؤں سے",
+        "پہاڑ سے"
+      ],
+      "accept": [
+        "شہر سے",
+        "شہر"
+      ],
+      "reject": [
+        "گاؤں سے",
+        "پہاڑ سے"
+      ],
+      "rubric": "Correct if the child says from the city (شہر)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "زویا نے ابو کے لیے کیا بنایا؟",
+      "right": "کارڈ",
+      "wrong": [
+        "گڑیا",
+        "پتنگ"
+      ],
+      "accept": [
+        "کارڈ",
+        "رنگین کارڈ"
+      ],
+      "reject": [
+        "گڑیا",
+        "پتنگ"
+      ],
+      "rubric": "Correct if the child says a card (کارڈ)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "زویا نے کارڈ پر چڑیا اور کیا بنایا؟",
+      "right": "بادل",
+      "wrong": [
+        "تارے",
+        "پہاڑ"
+      ],
+      "accept": [
+        "بادل"
+      ],
+      "reject": [
+        "تارے",
+        "پہاڑ"
+      ],
+      "rubric": "Correct if the child says clouds (بادل)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 4,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "کارڈ کہاں گر گیا؟",
+      "right": "مٹی میں",
+      "wrong": [
+        "نالی میں",
+        "ریت میں"
+      ],
+      "accept": [
+        "مٹی میں",
+        "مٹی"
+      ],
+      "reject": [
+        "نالی میں",
+        "ریت میں"
+      ],
+      "rubric": "Correct if the child says in the mud or dirt (مٹی)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": false,
+      "prompt": "زویا اداس کیوں ہو گئی؟",
+      "right": null,
+      "wrong": [],
+      "accept": [
+        "کارڈ خراب ہو گیا",
+        "کارڈ مٹی میں گر گیا"
+      ],
+      "reject": [],
+      "rubric": "Correct if the child says the card was spoiled (کارڈ خراب ہو گیا)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "زویا"
+  ]
+}

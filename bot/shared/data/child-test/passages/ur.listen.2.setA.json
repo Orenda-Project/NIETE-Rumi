@@ -1,0 +1,14 @@
+{
+  "passage_id": "ur.listen.2.setA",
+  "lang": "ur",
+  "kind": "listen",
+  "band": 2,
+  "pool": "check",
+  "is_reference": true,
+  "v3_ref": {
+    "lang": "ur",
+    "kind": "listening"
+  },
+  "questions_extra": [],
+  "bank_version": "child-test-items-v3"
+}
