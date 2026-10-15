@@ -1367,7 +1367,10 @@ class WhatsAppService {
       logToFile('❌ Error sending interactive button message', {
         error: error.message,
         errorDetails: error.response?.data
-      });
+      }, 'error');
+      // Still a boolean for every caller. `onError` is the opt-in seam (as on sendMessage) for a caller
+      // that must act on which refusal this was: the observe send flow retries, then falls back to text.
+      WhatsAppService._reportSendError(opts, error);
       return false;
     }
   }
@@ -1756,7 +1759,10 @@ class WhatsAppService {
       logToFile('❌ Error sending interactive list message', {
         error: error.message,
         errorDetails: error.response?.data
-      });
+      }, 'error');
+      // Still a boolean for every caller. `onError` is the opt-in seam (as on sendMessage) for a caller
+      // that must act on which refusal this was: the observe send flow retries, then falls back to text.
+      WhatsAppService._reportSendError(opts, error);
       return false;
     }
   }
