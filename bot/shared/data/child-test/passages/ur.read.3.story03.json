@@ -187,7 +187,7 @@
       "needs_line": 3,
       "type": "literal",
       "tap_ok": true,
-      "prompt": "دادا نے سب کو کیا بتائیں؟",
+      "prompt": "دادا نے سب کو کیا بتایا؟",
       "right": "پہیلیاں",
       "wrong": [
         "کہانیاں",

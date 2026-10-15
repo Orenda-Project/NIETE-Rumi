@@ -20,7 +20,7 @@
   "source_ref": "generated brief v1 (band-3 spec, ITEMS §2.2)",
   "licence": "generated",
   "title_en": null,
-  "title_ur": "دادا کا خط",
+  "title_ur": "دادا کے نام خط",
   "text": "دانیال نے کوئٹہ میں رہنے والے دادا کو خط لکھا۔ اس نے خط میں اپنی جماعت کے بارے میں لکھا۔ ابو نے وہ خط بھیج دیا۔ کچھ وقت بعد خط واپس آ گیا۔ ابو نے دیکھا کہ خط پر پتا ہی نہیں تھا۔ دانیال نے خط پر صاف پتا لکھا۔ اس بار خط دادا تک پہنچ گیا۔ دادا نے خوش ہو کر جواب لکھا۔",
   "lines": [
     [
@@ -192,16 +192,18 @@
       "needs_line": 5,
       "type": "inferential",
       "tap_ok": false,
-      "prompt": "خط واپس کیوں آ گیا؟",
+      "prompt": "خط پر کیا لکھنا رہ گیا تھا؟",
       "right": null,
       "wrong": [],
       "accept": [
-        "اس پر پتا نہیں تھا",
-        "پتا نہیں لکھا تھا",
-        "پتا نہیں تھا"
+        "پتا",
+        "گھر کا پتا",
+        "دادا کا پتا"
       ],
-      "reject": [],
-      "rubric": "Inferential turn. Correct if the child says the address was missing (پتا نہیں تھا)."
+      "reject": [
+        "پتا نہیں"
+      ],
+      "rubric": "Inferential turn. Correct if the child says the address (پتا) had not been written on the letter."
     }
   ],
   "params": {

@@ -6,22 +6,22 @@
   "pool": "practice",
   "status_at_authoring": "draft",
   "is_reference": false,
-  "tokens": 38,
+  "tokens": 37,
   "sentences": 6,
-  "mean_sent_len": 6.3,
+  "mean_sent_len": 6.2,
   "max_word_len": 4,
-  "readability": 1.0,
+  "readability": 0.96,
   "readability_list": "fed-cum-g2-2026",
-  "readability_band_above": 1.0,
+  "readability_band_above": 0.96,
   "q_reach_1": 2,
   "q_reach_2": 3,
   "q_n": 4,
-  "text_hash": "d36d07963c682870ae487485edee109a",
+  "text_hash": "bfa1ec5782557e0e5dba3abb8539373d",
   "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
   "licence": "generated",
   "title_en": null,
   "title_ur": "ایمن کی گڑیا",
-  "text": "ایمن کے پاس ایک چھوٹی گڑیا ہے۔ ایک صبح گڑیا پر مٹی لگ گئی۔ ایمن اداس ہو گئی۔ امی نے گڑیا کو صاف کیا۔ اب گڑیا پہلے سے اچھی لگ رہی تھی۔ ایمن نے گڑیا کو پیار کیا۔",
+  "text": "ایمن کے پاس ایک چھوٹی گڑیا ہے۔ ایک صبح گڑیا پر مٹی لگ گئی۔ ایمن اداس ہو گئی۔ امی نے گڑیا کو صاف کیا۔ گڑیا پہلے سے بھی اچھی لگنے لگی۔ ایمن نے گڑیا کو پیار کیا۔",
   "lines": [
     [
       0,
@@ -41,11 +41,11 @@
     ],
     [
       24,
-      31
+      30
     ],
     [
-      32,
-      37
+      31,
+      36
     ]
   ],
   "tokens_list": [
@@ -73,14 +73,13 @@
     "کو",
     "صاف",
     "کیا",
-    "اب",
     "گڑیا",
     "پہلے",
     "سے",
+    "بھی",
     "اچھی",
-    "لگ",
-    "رہی",
-    "تھی",
+    "لگنے",
+    "لگی",
     "ایمن",
     "نے",
     "گڑیا",
