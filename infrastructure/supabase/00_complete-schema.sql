@@ -6792,6 +6792,31 @@ CREATE TABLE IF NOT EXISTS web_quiz_challenge_runs (
 );
 CREATE INDEX IF NOT EXISTS web_quiz_challenge_runs_student_idx
   ON web_quiz_challenge_runs (student_id, exercise, created_at DESC);
+-- which sample a run belongs to, how it was administered, anchor serves in any mode (bot/database/migrations/web_quiz_challenge_runs_sampling.sql)
+ALTER TABLE web_quiz_challenge_runs
+  ADD COLUMN IF NOT EXISTS sample_arm        text,
+  ADD COLUMN IF NOT EXISTS admin_mode        text,
+  ADD COLUMN IF NOT EXISTS anchor_serves_any smallint;
+
+DO $$
+DECLARE c record;
+BEGIN
+  FOR c IN SELECT * FROM (VALUES
+    ('wqcr_sample_arm_chk',      'sample_arm IN (''class_round'',''class_week'',''coach'',''ping'')'),
+    ('wqcr_admin_mode_chk',      'admin_mode IN (''self_run'',''teacher_present'',''coach_present'')'),
+    ('wqcr_arm_needs_admin_chk', 'sample_arm IS NULL OR admin_mode IS NOT NULL'),
+    ('wqcr_serves_any_chk',      'anchor_serves_any >= 1')
+  ) AS t(name, expr) LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = c.name AND conrelid = 'web_quiz_challenge_runs'::regclass) THEN
+      EXECUTE format('ALTER TABLE web_quiz_challenge_runs ADD CONSTRAINT %I CHECK (%s)', c.name, c.expr);
+    END IF;
+  END LOOP;
+END $$;
+
+COMMENT ON COLUMN web_quiz_challenge_runs.sample_arm IS
+  'Internal. NULL = self-chosen play; else the drawn sample the run belongs to. Arms are separate lines, never pooled.';
+COMMENT ON COLUMN web_quiz_challenge_runs.anchor_serves_any IS
+  'Internal. Serves of the anchor items to this child in any mode, this one included; a home first-time line requires 1.';
 ALTER TABLE web_quiz_challenge_runs ENABLE ROW LEVEL SECURITY;
 COMMENT ON TABLE web_quiz_challenge_runs IS
   'Internal. Web quiz Challenge: one row per finished self-run exercise of a child (bigger, read aloud). Numbers only — the read-aloud recording is deleted after scoring and never referenced. Written only by the bot. Owner: Digital Coach team.';
