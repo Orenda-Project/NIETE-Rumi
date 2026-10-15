@@ -25,7 +25,8 @@ jest.mock('../../bot/shared/services/observe/observe-debrief.service', () => ({
   displayTimeZone: () => 'Asia/Karachi',
   acknowledgeFormSubmitted: jest.fn(() => Promise.resolve()),
 }));
-jest.mock('../../bot/shared/services/child-test/conversation/offer', () => ({ sendOffer: jest.fn(() => Promise.resolve(false)) }));
+// Virtual: the child-test offer exists on sandbox and staging, not yet on main; the suite runs on all three.
+jest.mock('../../bot/shared/services/child-test/conversation/offer', () => ({ sendOffer: jest.fn(() => Promise.resolve(false)) }), { virtual: true });
 
 const Store = require('../../bot/shared/services/observe/observe2/field-form.store');
 const Check = require('../../bot/shared/routes/observe2-check-endpoint');
