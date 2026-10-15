@@ -216,6 +216,8 @@ async function _buildPatternPaper({ job, user, paperId }) {
   // `totalMarks` on the job is not read: the pattern's total is the paper's.
   const generated = await Generation.generatePatternExam({
     grade, subject, pattern, scope, pageRanges, chapterNumber,
+    // A write per section: the duplicate guard reads ten minutes without one as a stopped run.
+    onSection: () => _patchPaper(paperId, { status: 'generating' }),
   });
 
   const versioned = await isAssessmentVersionsEnabled();
