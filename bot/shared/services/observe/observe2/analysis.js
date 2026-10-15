@@ -20,7 +20,7 @@
  * Nothing in here calls a model; the record and the brief are data.
  */
 
-const { CODES, PLAIN, ROW, PRIORITY, FOCUS, PLAN_FOCUS, pickAlso } = require('./fico17');
+const { CODES, PLAIN, ROW, PRIORITY, FOCUS, PLAN_FOCUS, THINKING, pickAlso } = require('./fico17');
 const { buildBrief, TYPE_CODE } = require('./brief');
 const { seenNotes } = require('./rules');
 
@@ -58,7 +58,9 @@ function section(letter, form) {
   const indicators = CODES.filter((c) => c[0] === letter).map((code) => {
     const level = numeric(finals[code]);
     const evidence = evidenceFor(code, level, finals[code], form);
-    return { id: code, name: ROW[code], score: level, applicable: level != null, evidence, evidence_summary: evidence };
+    // `group: 'thinking'` marks the six that score children's thinking (R16); the section sum is unchanged.
+    const group = THINKING.codes.includes(code) ? { group: 'thinking' } : {};
+    return { id: code, name: ROW[code], score: level, applicable: level != null, evidence, evidence_summary: evidence, ...group };
   });
   const judged = indicators.filter((i) => i.applicable);
   return {
@@ -186,6 +188,7 @@ function buildAnalysis(form, opts = {}) {
       final_levels: form.final_levels || {},
       priority,
       also,
+      thinking: { teacher: THINKING.teacher, children: THINKING.children, seen: (Array.isArray(a.p2_think) ? a.p2_think : []).map(String) },
       why: review.why || null,
       brief: opts.brief || buildBrief(form),
     },

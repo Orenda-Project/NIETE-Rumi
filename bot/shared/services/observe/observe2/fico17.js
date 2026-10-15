@@ -62,6 +62,15 @@ const PRIORITY = {
   F3: 'Explaining why it works', F4: 'Linking to real life',
 };
 
+// Thinking (FICO pilot sheet R16, the ICT lead, 14 Oct: critical thinking was not explicit). No new scored
+// indicator: six of the 17 already score it, by the workbook's descriptors. What the teacher does: C1
+// (a question needing reasoning, probed), F3 (why it works; children reason it out), F4 (links;
+// children make their own). What the children do: D1 (reasoning, not restating), D4 (trying when
+// unsure), D5 (their own content questions). Grouped under this name where the coach and the record
+// read them; the sections and their sums are unchanged.
+const THINKING = { name: 'Thinking', teacher: ['C1', 'F3', 'F4'], children: ['D1', 'D4', 'D5'] };
+THINKING.codes = [...THINKING.teacher, ...THINKING.children];
+
 // "Work on first" may also be the lesson plan's own steps (FICO pilot sheet R14, the ICT lead, 14 Oct:
 // "Follow the Lesson Plan Structure" was missing). That is Section B, the plan fidelity, not a C, D
 // or F indicator, so its id is no code and nothing reads it as one (analysis.js, brief.js and the
@@ -88,6 +97,6 @@ function pickAlso(ids, first) {
 }
 
 module.exports = {
-  CODES, CORE, MOMENTS, PLAIN, EXTRA, ROW, PRIORITY,
+  CODES, CORE, MOMENTS, PLAIN, EXTRA, ROW, PRIORITY, THINKING,
   PLAN_FOCUS, FOCUS, FOCUS_ORDER, ALSO_NONE, MAX_ALSO, pickAlso,
 };

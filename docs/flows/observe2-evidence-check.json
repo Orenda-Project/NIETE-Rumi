@@ -2167,11 +2167,11 @@
             "children": [
               {
                 "type": "TextCaption",
-                "text": "Each level is what your answers and the moments you confirmed add up to. Change any you disagree with."
+                "text": "Each level is what your answers and the moments you confirmed add up to. Change any you disagree with. Rows marked \"Thinking\" show whether children reasoned, or only recalled."
               },
               {
                 "type": "TextSubheading",
-                "text": "The teacher's questions"
+                "text": "Thinking: The teacher's questions"
               },
               {
                 "type": "TextCaption",
@@ -2251,7 +2251,7 @@
               },
               {
                 "type": "TextSubheading",
-                "text": "Children's reasoning"
+                "text": "Thinking: Children's reasoning"
               },
               {
                 "type": "TextCaption",
@@ -2331,7 +2331,7 @@
               },
               {
                 "type": "TextSubheading",
-                "text": "Children's own questions"
+                "text": "Thinking: Children's own questions"
               },
               {
                 "type": "TextCaption",
@@ -2451,7 +2451,7 @@
               },
               {
                 "type": "TextSubheading",
-                "text": "Trying when unsure"
+                "text": "Thinking: Trying when unsure"
               },
               {
                 "type": "TextCaption",
@@ -2609,7 +2609,7 @@
             "children": [
               {
                 "type": "TextCaption",
-                "text": "Each level is what your answers and the moments you confirmed add up to. Change any you disagree with."
+                "text": "Each level is what your answers and the moments you confirmed add up to. Change any you disagree with. Rows marked \"Thinking\" show whether children reasoned, or only recalled."
               },
               {
                 "type": "TextSubheading",
@@ -2893,7 +2893,7 @@
               },
               {
                 "type": "TextSubheading",
-                "text": "Explaining why"
+                "text": "Thinking: Explaining why"
               },
               {
                 "type": "TextCaption",
@@ -2933,7 +2933,7 @@
               },
               {
                 "type": "TextSubheading",
-                "text": "Links to real life"
+                "text": "Thinking: Links to real life"
               },
               {
                 "type": "TextCaption",

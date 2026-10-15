@@ -866,6 +866,25 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # rules.js: "When the work got hard" is D4's level (the titles are PLAIN.D4); "Helped those who were
     # stuck" makes C2 at least 2. Both are named on the check's "because" lines and in the record.
 
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: Part 2 asks what the children's work showed: repeating, or reasoning
+    Given the live form is open on Part 2
+    Then it asks "What children's work showed" with "Repeated or copied it", "Explained why or how", "Solved a new problem", "Asked a question about it" and "Their own example or link"
+    When I tick nothing there and tap "Part 2 done"
+    Then the form stays on Part 2 with "Tick what you saw, or "Repeated or copied it"." under it
+    # FICO pilot sheet R16 (the ICT lead, 14 Oct): critical thinking was not explicit. No new scored indicator:
+    # the ticks count toward D1 (reasoning) and D5 (own questions) as a confirmed moment does, and are
+    # named on F3 and F4, which the coach picks.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The check and the brief group the thinking indicators as "Thinking"
+    Given I ticked "Explained why or how" and "Asked a question about it" in Part 2 and sealed the record
+    When I reach the levels in the check
+    Then "Thinking: The teacher's questions", "Thinking: Children's reasoning", "Thinking: Trying when unsure", "Thinking: Children's own questions", "Thinking: Explaining why" and "Thinking: Links to real life" head their rows
+    And "Children's own questions" is pre-filled with "A question about the content", saying I saw a child ask one
+    When I submit the check
+    Then the brief has a "Children's thinking:" block with what I saw, what the teacher did and what the children did
+
   @e2e @flow @config-gated @wip @draft @P2
   Scenario: A form opened before the parts changed keeps its own Part 2
     Given I opened the live form before form version 5 was published, and saved Part 1
