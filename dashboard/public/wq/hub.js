@@ -296,9 +296,12 @@
     // With no teacher quiz the empty card already holds the library button: no second library tile.
     var tiles = (B.lib && B.teacher ? '<a class="wq-htile" id="wq-h-lib" href="' + esc(withHome(B.lib.href)) + '">' + (B.lib.art ? '<img class="wq-htimg" src="' + esc(B.lib.art) + '" alt="" width="64" height="64">' : '<span class="wq-htic" aria-hidden="true">📚</span>') + '<b>' + esc(T.libT) + '</b><small>' + esc(T.libSub) + '</small></a>' : '') +
       (B.challenge && B.challenge.on ? '<a class="wq-htile" id="wq-h-ch" href="/c/' + esc(withHome(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid) + '&lang=' + LANG)) + '"><span class="wq-htic" aria-hidden="true">⭐</span><b>' + esc(T.chT(MASC[LANG])) + '</b><small>' + esc(T.chSub) + '</small></a>' : '');
-    var top = HOME
-      ? lastCard(B.last) + homeTiles() + (B.teacher ? teacherCard(B.teacher) : '')
-      : teacherCard(B.teacher) + (tiles ? '<div class="wq-htiles">' + tiles + '</div>' : '');
+    // The Jugnu corner (hub-play.js, loaded only when the server sent `play`): it may put the Jugnu card first.
+    var top = B.play && window.WQPLAY
+      ? window.WQPLAY.top(B, T, { HOME: HOME, lastCard: lastCard(B.last), homeTiles: homeTiles(), teacher: B.teacher ? teacherCard(B.teacher) : '', teacherAny: teacherCard(B.teacher), tiles: tiles, LANG: LANG, MASC: MASC, chHref: '/c/' + withHome(encodeURIComponent(TOKEN) + '?kid=' + encodeURIComponent(B.kid) + '&lang=' + LANG), ROOT: ROOT, ev: ev })
+      : HOME
+        ? lastCard(B.last) + homeTiles() + (B.teacher ? teacherCard(B.teacher) : '')
+        : teacherCard(B.teacher) + (tiles ? '<div class="wq-htiles">' + tiles + '</div>' : '');
     render(bar() + jug('hello', T.hi(me.first || '')) + (B.bind && window.WQBIND ? '<div id="wq-bind-slot"></div>' : '') + top +
       againList(B.again || []) + recList(B.recs || []) +
       ((B.kids || []).length > 1 ? '<button class="wq-btn wq-ghost" id="wq-h-switch">' + ani(me.animal) + ' ' + esc(T.switchKid) + '</button>' : ''), 'H2');

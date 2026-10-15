@@ -451,6 +451,7 @@ async function hubPayload(token, { kid, device, src } = {}) {
   else if (newest) out.lib = { href: `/q/${newest.code}?k=${T.chipId(newest.shareCodeId, chosen.id)}` };
   // The Library tile wears the child's grade picture (the library opens on that grade).
   if (out.lib && grade && artOf('grade', grade)) out.lib.art = artOf('grade', grade);
+  Object.assign(out, await require('./web-quiz-hub-play').playField({ chosenId: chosen.id, last: out.last, lang: out.lang, challenge: out.challenge, grade })); // Jugnu first, lantern, shelf, install: no `play` key with their switches off
   logEvent('web_quiz.hub_open', openEv({
     kids: kidsRows.length, has_teacher: Boolean(out.teacher), teacher_src: out.teacher ? out.teacher.src : null,
     again_n: out.again.length, recs_n: out.recs.length, challenge: Boolean(out.challenge),
