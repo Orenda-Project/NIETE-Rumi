@@ -509,10 +509,10 @@ describe('admin_mode and sample_arm under _v2', () => {
     expect(rowOf(ex.ct)).not.toHaveProperty('admin_mode');
   });
 
-  test('the class round (mode from the caller): mode class_round, admin_mode teacher_present, never a record', async () => {
+  test('the class round (mode from the caller): mode class_round, admin_mode teacher_present, sample_arm class_round, never a record', async () => {
     on(V2, PERIOD, POOL);
     const ex = await Ch.exercise(hub(), 'missing', { ...D, mode: 'class_round' });
-    expect(rowOf(ex.ct)).toMatchObject({ mode: 'class_round', record: false, meta: expect.objectContaining({ admin_mode: 'teacher_present', sample_arm: null }) });
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'class_round', record: false, meta: expect.objectContaining({ admin_mode: 'teacher_present', sample_arm: 'class_round' }) });
   });
 
   test('web_quiz_class_week on but the class-week module absent: nothing more is written, the serve goes on', async () => {
@@ -550,8 +550,19 @@ describe('the class-week sample arm (web-quiz-challenge-draw.adminFields)', () =
     expect(openWindowFor).not.toHaveBeenCalled();
   });
 
-  test('a class round is teacher_present with no arm', async () => {
-    expect(await Draw.adminFields({ mode: 'class_round', via: 'class_link', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'teacher_present', sample_arm: null });
+  test('a class round turn (mode class_round) is teacher_present in the class_round arm', async () => {
+    expect(await Draw.adminFields({ mode: 'class_round', via: 'class_link', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'teacher_present', sample_arm: 'class_round' });
+  });
+
+  test('a round turn at position 11+ (mode practice, via the round) writes admin_mode teacher_present and sample_arm null', async () => {
+    openWindowFor = jest.fn(async () => ({ id: 'w1' }));
+    expect(await Draw.adminFields({ mode: 'practice', via: 'class_round', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'teacher_present', sample_arm: null });
+    expect(openWindowFor).not.toHaveBeenCalled();
+  });
+
+  test('an ordinary home run (mode check or practice, via hub): self_run, null', async () => {
+    expect(await Draw.adminFields({ mode: 'check', via: 'hub', canonicalId: 'c1' })).toEqual({ admin_mode: 'self_run', sample_arm: null });
+    expect(await Draw.adminFields({ mode: 'practice', via: 'hub', canonicalId: 'c1' })).toEqual({ admin_mode: 'self_run', sample_arm: null });
   });
 });
 

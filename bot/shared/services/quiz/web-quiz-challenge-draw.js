@@ -368,13 +368,15 @@ async function pickOf({ sessionId = null, canonicalId = null, device = null } = 
 }
 
 /**
- * How the run was administered and which sample it belongs to (the sampling ruling): the class round is
- * 'teacher_present'; a run that came by the class link inside an OPEN class-week window of the child's class is the
+ * How the run was administered and which sample it belongs to (the sampling ruling): every turn of a class round is
+ * 'teacher_present', keyed on the round (via 'class_round', the round token's entry) as well as the mode, because
+ * positions 11+ of a round are served mode 'practice' with the teacher still there; only the round's own
+ * mode='class_round' turns are the 'class_round' sample arm. A run that came by the class link inside an OPEN class-week window of the child's class is the
  * 'class_week' arm (web-quiz-class-week, required lazily under web_quiz_class_week: absent → no arm); every other
  * run is 'self_run' with no arm.
  */
 async function adminFields({ mode, via, canonicalId, at = new Date(), classWeekOn = false } = {}) {
-  if (mode === 'class_round') return { admin_mode: 'teacher_present', sample_arm: null };
+  if (via === 'class_round' || mode === 'class_round') return { admin_mode: 'teacher_present', sample_arm: mode === 'class_round' ? 'class_round' : null };
   if (via === 'class_link' && classWeekOn) {
     let mod = null;
     try { mod = require('./web-quiz-class-week'); } catch (_) { mod = null; }
