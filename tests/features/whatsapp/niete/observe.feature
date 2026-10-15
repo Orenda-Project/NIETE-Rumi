@@ -791,10 +791,26 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given I opened the visit planner from /observe2 and picked a school and a teacher
     When I tap "Start observation" in the brief
     Then the bot asks "How long is this period?" naming the teacher
-    And it offers exactly three buttons: "30 minutes", "35 minutes", "40 minutes"
+    And it offers a "Pick a period" list of exactly four rows: "25 minutes", "30 minutes", "35 minutes", "40 minutes"
     And no "record it and send me the audio" message is sent
     # flow-response.handler handleObserveVisitFlow: the observe2 marker → Observe2Start.afterStart
     # (record created in observation_field_forms; the teacher is bound exactly as for /observe).
+    # A list, not buttons, since 25 joined (FICO pilot sheet R18, 14 Oct): WhatsApp allows three buttons.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: A Friday period of 25 minutes runs the form to minute 25
+    Given I was asked how long the period is
+    When I choose "25 minutes" from the list
+    Then the bot sends a message starting "Before the lesson starts:" with an "Open the form" CTA
+    And it says to carry on with Part 2 until minute 25
+    # The ICT lead, 14 Oct: "classes on Fridays are conducted for 25 minutes". The list row arrives as a
+    # list_reply with the same obs2_period:<form>:<minutes> id the buttons used; both branches route it.
+
+  @e2e @flow @config-gated @wip @draft @P2
+  Scenario: A period button sent before the list still opens the form
+    Given an older "How long is this period?" message with the three period buttons is in my chat
+    When I tap "30 minutes" on it
+    Then the bot sends the live form for a 30-minute period
 
   @e2e @flow @config-gated @wip @draft @P1
   Scenario: The period button sends the live form with the steps before the lesson
