@@ -664,13 +664,23 @@ class SQSCoachingWorker {
       }
 
       case 'assessment_generate': {
-        // Load the chapter, write the questions, render the paper, send it.
-        // The model call alone runs ~25s and the print adds a few more, so five
-        // minutes is headroom rather than an estimate: a job that times out
-        // mid-flight sends the teacher nothing at all.
-        await SQSQueueService.extendJobTimeout(receiptHandle, 300);
+        // Load the chapter, write the questions, render the paper, and — if the
+        // payload's `deliver` says so — send it. ONE job type for both
+        // surfaces: the WhatsApp Flow queues deliver:'whatsapp' and the portal
+        // queues deliver:'none', so there is no second queue, no second
+        // consumer, and nothing here to keep in step with them.
+        //
+        // A fixed five-minute window was a bet a long paper could lose (two
+        // attempts at the model's timeout, an empty-reply retry, two renders), and
+        // a lost bet handed the same paper to a second worker mid-write. It now
+        // runs under the heartbeat, for as long as it actually runs. The up-front
+        // window is the heartbeat's own size, so a worker killed in its first
+        // minute hands the job back only once the paper's row reads as stale and
+        // the next delivery can take it over.
+        await SQSQueueService.extendJobTimeout(receiptHandle, HEARTBEAT_EXTEND_SECONDS);
         const AssessmentOrchestrator = require('../shared/services/assessment/assessment-orchestrator.service');
-        await AssessmentOrchestrator.process(payload);
+        await withVisibilityHeartbeat(receiptHandle, payload && payload.requestId, 'assessment_generate',
+          () => AssessmentOrchestrator.process(payload));
         break;
       }
 
@@ -905,8 +915,12 @@ class SQSCoachingWorker {
    * mid-run buys nothing, because the render row is still `authoring`, so whichever replica claims
    * the redelivered message authors the same lesson again from round 0 — another ~$0.30-0.60 and
    * another 2.5-7 minutes on a teacher who is already waiting.
+   *
+   * A paper (`assessment_generate`) is the same case: its row is `generating`, and a delivery that
+   * finds a row written moments ago leaves it to the run that owns it. Handed back at a deploy, the
+   * paper would wait for that row to go stale instead of being finished here, under its heartbeat.
    */
-  static LONG_JOB_TYPES = new Set(['lp612_author']);
+  static LONG_JOB_TYPES = new Set(['lp612_author', 'assessment_generate']);
 
   _partitionInFlight() {
     const long = [];
