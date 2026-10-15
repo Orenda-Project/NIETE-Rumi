@@ -40,6 +40,14 @@ const ALLOWLIST = new Set([
   'exam_question_groups',
   'exams',
   'exam_questions',
+
+  // Web quiz Challenge read-side tables, created with the runs provenance
+  // columns so the schema lands in one migration. Their writers ship in the
+  // follow-up PRs that use them: the weekly strip job fills
+  // web_quiz_strip_weekly and the rung job fills child_rungs. Remove each entry
+  // when its writer lands.
+  'child_rungs',
+  'web_quiz_strip_weekly',
 ]);
 
 function collectFiles(dir, exts) {

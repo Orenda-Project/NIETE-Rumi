@@ -75,6 +75,9 @@ const QA_MAX = 3;
 const NOT_AN_ANSWER = /معلوم نہیں|نہیں معلوم|پتا نہیں|پتہ نہیں|\bdon'?t know\b|\bnot sure\b/i;
 const NO_TEST_WORDS = /\b(test|tests|testing|egra|egma|assessment|exam)\b|ٹیسٹ|امتحان|جائزہ|اسیسمنٹ/i;
 const TABLE = 'web_quiz_challenge_runs';
+// The states a run reaches once the child has played it. 'served' (written when an exercise is served) and 'abandoned'
+// (served, never played) are not plays: the counts below never see them (migration web_quiz_challenge_runs_v2.sql).
+const PLAYED = ['scoring', 'scored', 'failed'];
 const FLAG_TTL_MS = 30 * 1000;
 const PER_ITEM_S = 10;
 const READ_SECS = 60;
@@ -520,7 +523,7 @@ async function countedRuns(studentId) {
 
 /** attempt_no = 1 + this child's scored runs of the task (a reading: in this language); exposure_no counts every row. */
 async function attemptInfo(studentId, exercise, lang, { except = null } = {}) {
-  let qb = supabase.from(TABLE).select('id, status, lang').eq('student_id', studentId).eq('exercise', exercise);
+  let qb = supabase.from(TABLE).select('id, status, lang').eq('student_id', studentId).eq('exercise', exercise).in('status', PLAYED);
   if (exercise === 'read' && lang) qb = qb.eq('lang', lang);
   const { data, error } = await qb.order('created_at', { ascending: true }).limit(5000);
   const rows = (error ? [] : data || []).filter((r) => r.id !== except);
@@ -531,7 +534,7 @@ async function attemptInfo(studentId, exercise, lang, { except = null } = {}) {
 // Which run of the child's day this is (any exercise, any status, last 24 h), for order effects.
 async function sequenceNo(studentId, except = null) {
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  const { data, error } = await supabase.from(TABLE).select('id').eq('student_id', studentId).gte('created_at', since);
+  const { data, error } = await supabase.from(TABLE).select('id').eq('student_id', studentId).in('status', PLAYED).gte('created_at', since);
   return (error ? [] : data || []).filter((r) => r.id !== except).length + 1;
 }
 
@@ -972,7 +975,7 @@ async function previousRun(studentId, exercise, lang = null) {
 // The child's readings in the last 24 h, not counting `except` (a live run's own row, made at its mint).
 async function readsToday(studentId, except = null) {
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  const { data, error } = await supabase.from('web_quiz_challenge_runs').select('id').eq('student_id', studentId).eq('exercise', 'read').gte('created_at', since);
+  const { data, error } = await supabase.from('web_quiz_challenge_runs').select('id').eq('student_id', studentId).eq('exercise', 'read').in('status', PLAYED).gte('created_at', since);
   return error ? 0 : (data || []).filter((r) => r.id !== except).length;
 }
 
