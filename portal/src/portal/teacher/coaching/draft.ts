@@ -15,7 +15,10 @@ export type DraftPlan =
   | { kind: 'library'; pick: LibraryPick; title: string; chips: string[] }
   | { kind: 'file'; file: File; asPhoto: boolean };
 
-export type Draft = { audio: Audio | null; plan: DraftPlan | null; photos: File[] };
+/** The class she picked on the one screen (sent as teacherClass); subjectKey when it is one of her own classes. */
+export type DraftClass = { grade: number; subject: string; subjectKey: string | null };
+
+export type Draft = { audio: Audio | null; plan: DraftPlan | null; photos: File[]; cls?: DraftClass | null };
 
 let held: Draft | null = null;
 
