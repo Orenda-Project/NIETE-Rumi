@@ -1726,6 +1726,8 @@ const TEL_PROPS = Object.freeze({
   state: /^(hidden|visible)$/, page: /^(quiz|hub|lib|ch)$/,
 });
 const TEL_NUMS = ['pseq', 'sm', 'total_ms', 'vis_ms', 'count'];
+// Jugnu's Book: a class lights count on class_wall_shown (NAME_PROPS below), a finite number or dropped.
+const wallNum = (v) => (Number.isFinite(v) ? v : null);
 // Events v2 (app_settings web_quiz_events_v2), applied only with it on:
 //   w           the writer's mark: the relay stamps p on every page event (SERVER_ONLY below)
 //   NAME_PROPS  props scoped to ONE event name: {name: {prop: rule}}; a rule is a regex for a string, or a function
@@ -1760,6 +1762,8 @@ const NAME_PROPS = Object.freeze({
   door_tap: DOOR_PROPS,
   ch_helped: Object.freeze({ v: helpedV }),
   bind_offered: Object.freeze({ surface: /^(trail|hub|book|end_card)$/ }),
+  // Jugnu's Book: class_wall_shown {shown, term_total?, week_n?} (the class lights line; no class id from the page).
+  class_wall_shown: Object.freeze({ shown: /^(total|hidden_under5)$/, term_total: wallNum, week_n: wallNum }),
 });
 const nameProp = (rule, value) => (typeof rule === 'function' ? rule(value) : (typeof value === 'string' && rule.test(value) ? value : null));
 const BATCH_MAX = 20;
