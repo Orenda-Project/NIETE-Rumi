@@ -343,3 +343,15 @@ describe('slot details the engine and renderer read', () => {
     expect(text).not.toMatch(/مسودہ|اسی طرح/);
   });
 });
+
+describe('the operator\'s Urdu rule: a pattern is a "pattern", not a طرز', () => {
+  it('no Urdu string says طرز; the paper titles read «FDE pattern کا مشقی پرچہ»', () => {
+    const mod = require('../../bot/shared/services/assessment/patterns/fde-g5-2027');
+    expect(JSON.stringify(mod)).not.toContain('طرز');
+    const subjects = require('../../bot/shared/services/assessment/patterns').get('fde_g5_2027').subjects;
+    for (const key of Object.keys(subjects)) {
+      const t = subjects[key].header && subjects[key].header.title_ur;
+      if (t) expect(t).toMatch(/FDE pattern کا مشقی پرچہ$/);
+    }
+  });
+});

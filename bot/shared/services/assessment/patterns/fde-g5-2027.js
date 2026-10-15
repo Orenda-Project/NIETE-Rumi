@@ -51,7 +51,7 @@ const COMMON_EN = {
 // Every value below needs fluent-Urdu review (drafts, none transcribed).
 const COMMON_UR = {
   school_line: 'اسکول: ____________', // needs fluent-Urdu review
-  disclaimer: 'یہ مشق کا پرچہ ہے جو FDE کے جماعت پنجم کے مرکزی سالانہ امتحان (فروری 2027) کے طرز پر بنایا گیا ہے۔ یہ سرکاری پرچہ نہیں ہے۔', // needs fluent-Urdu review
+  disclaimer: 'یہ مشق کا پرچہ ہے جو FDE کے جماعت پنجم کے مرکزی سالانہ امتحان (فروری 2027) کے pattern پر بنایا گیا ہے۔ یہ سرکاری پرچہ نہیں ہے۔', // operator rule 15 Oct: «pattern» in Latin, never طرز; rest needs fluent-Urdu review
   student_box: ['نام طالب علم', 'رول نمبر', 'تاریخ', 'کل نمبر', 'حاصل کردہ نمبر'], // needs fluent-Urdu review
   footer: 'یہ سرکاری FDE پرچہ نہیں ہے', // needs fluent-Urdu review
   footer_page: 'صفحہ {n} از {N}', // needs fluent-Urdu review
@@ -149,7 +149,7 @@ const YOU_ADD = {
 };
 
 const FILES = { en: 'Paper + marking scheme · two PDFs', ur: 'پرچہ + مارکنگ اسکیم · دو PDF' }; // ur: needs fluent-Urdu review
-const NAME = { en: 'FDE board pattern', ur: 'FDE بورڈ طرز' }; // ur: needs fluent-Urdu review
+const NAME = { en: 'FDE board pattern', ur: 'FDE بورڈ pattern' }; // operator rule 15 Oct: «pattern» in Latin, never طرز; rest needs fluent-Urdu review
 const WAIT = { en: '~3 min', ur: 'تقریباً 3 منٹ' }; // ur: needs fluent-Urdu review
 const TIME3 = { en: '3 hrs', ur: '3 گھنٹے' }; // ur: needs fluent-Urdu review
 
@@ -167,7 +167,7 @@ const MATHS = {
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
     title_en: 'Grade 5 · Mathematics · FDE pattern practice paper',
-    title_ur: 'جماعت پنجم · ریاضی · FDE طرز کا مشقی پرچہ', // needs fluent-Urdu review
+    title_ur: 'جماعت پنجم · ریاضی · FDE pattern کا مشقی پرچہ', // operator rule 15 Oct: «pattern» in Latin, never طرز; rest needs fluent-Urdu review
     time_line_en: 'Time Allowed: 3 Hrs.',
     total_line_en: 'Total Marks: {t:100}',
     note_en: 'Note: This paper consists of THREE Sections. Section – A needs to be solved on the Question Paper. Section B, C to be solved on the Answer Sheet. Cutting, erasing and overwriting is not allowed.',
@@ -313,7 +313,7 @@ const SCIENCE = {
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
     title_en: 'Grade 5 · Science · FDE pattern practice paper',
-    title_ur: 'جماعت پنجم · سائنس · FDE طرز کا مشقی پرچہ', // needs fluent-Urdu review
+    title_ur: 'جماعت پنجم · سائنس · FDE pattern کا مشقی پرچہ', // operator rule 15 Oct: «pattern» in Latin, never طرز; rest needs fluent-Urdu review
     time_line_en: 'Time Allowed: 3 Hours',
     total_line_en: 'Total Marks: {t:100}',
     note_en: 'Note: This paper consists of THREE Sections. Section – A needs to be solved on the Question Paper. Section B&C to be solved on the Answer Sheet. Cutting, erasing and overwriting is not allowed.',
@@ -469,7 +469,7 @@ const ENGLISH = {
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
     title_en: 'Grade 5 · English · FDE pattern practice paper',
-    title_ur: 'جماعت پنجم · انگریزی · FDE طرز کا مشقی پرچہ', // needs fluent-Urdu review
+    title_ur: 'جماعت پنجم · انگریزی · FDE pattern کا مشقی پرچہ', // operator rule 15 Oct: «pattern» in Latin, never طرز; rest needs fluent-Urdu review
     time_line_en: 'Time Allowed: 3 Hours',
     total_line_en: 'Total Marks: {t:100}',
     note_en: 'Note: This paper consists of THREE Sections. Section – A needs to be solved on the Question Paper. Sections B & C are to be solved on the Answer Sheet. Cutting, erasing and overwriting is not allowed.',
@@ -683,7 +683,7 @@ const URDU = {
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
     title_en: 'Grade 5 · Urdu · FDE pattern practice paper',
-    title_ur: 'جماعت پنجم · اردو · FDE طرز کا مشقی پرچہ', // needs fluent-Urdu review
+    title_ur: 'جماعت پنجم · اردو · FDE pattern کا مشقی پرچہ', // operator rule 15 Oct: «pattern» in Latin, never طرز; rest needs fluent-Urdu review
     // FDE's Urdu paper prints no overall time, total or note; these are ours.
     time_line_ur: 'وقت: 3 گھنٹے', // needs fluent-Urdu review
     total_line_ur: 'کل نمبر: {t:100}', // needs fluent-Urdu review
@@ -919,7 +919,7 @@ const SST = {
   total_time_ur: '3 گھنٹے', // needs fluent-Urdu review
   header: {
     title_en: 'Grade 5 · Social Studies · FDE pattern practice paper',
-    title_ur: 'جماعت پنجم · معاشرتی علوم · FDE طرز کا مشقی پرچہ', // needs fluent-Urdu review
+    title_ur: 'جماعت پنجم · معاشرتی علوم · FDE pattern کا مشقی پرچہ', // operator rule 15 Oct: «pattern» in Latin, never طرز; rest needs fluent-Urdu review
     time_line_ur: 'وقت: 3 گھنٹے', // needs fluent-Urdu review
     total_line_ur: 'کل نمبر {t:100}', // transcribed (FDE p.75)
     note_ur: 'نوٹ: اس پرچے کے چار حصے ہیں۔ حصہ اول سوالیہ پرچے پر حل کریں۔ باقی حصے جوابی کاپی پر حل کریں۔ کاٹ چھانٹ، مٹانا اور اوور رائٹنگ کی اجازت نہیں۔', // needs fluent-Urdu review
