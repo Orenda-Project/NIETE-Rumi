@@ -1636,7 +1636,7 @@ Feature: Web child quiz page on the portal
   Scenario: The confirm sheet names the child, says what is kept and how to remove it, with nothing preselected
     Given the card is shown for Zara in Urdu at 360 px
     When "Keep my place" is tapped
-    Then the sheet asks "Zara, is this you?" with the name isolated, the notice says the phone number is kept with Zara's name until 31 March and that STOP removes it and the kept readings, at 20 px or more
+    Then the sheet asks "Zara, is this you?" with the name isolated, the notice says the phone number is kept with Zara's name until 31 March and that a grown-up can remove it by sending STOP, with no claim about readings, at 20 px or more
     And neither "Yes, it's me" nor "No, it's not me" is preselected, and the STOP sentence and both buttons are fully visible
     When "Yes, it's me" is tapped
     Then a JUGNU- code is minted for that child, kept for this session only, and "Send on WhatsApp" opens wa.me with the code last in the message
@@ -1674,4 +1674,4 @@ Feature: Web child quiz page on the portal
     Then the hub, its quizzes and the challenge are that child's only, and the pick record is kept for the quiz start with id_src "hub_chip" and id_confidence "high"
     And id_pick is logged with w "s" and no session id, device or code
     And a play opened from the hub keeps the pick for that child on this phone for 24 hours: "hub_chip" from a WhatsApp /quiz link, "remembered" otherwise
-    But a child already kept on three phones sees no message and the card stays hidden for the session
+    But a child already kept on three phones sees "This child's place is already saved on three phones." and the card stays hidden for the session

@@ -137,14 +137,54 @@ test('focus return: pending shows nothing new; expired asks again', async () => 
   expect(m.innerHTML).toContain('That took too long. Tap Keep my place again.');
 });
 
-test('max_phones: no page string yet -> nothing shown, the card hidden for this session', async () => {
-  const p = load({ api: { 'POST /api/wq/bind/mint': { ok: false, refused: 'max_phones' } } });
-  const m = mount();
-  p.B.card(m, ctxOf().c);
-  m.els.keep.click();
-  m.els.yes.click();
+test('the notice says the phone link only: STOP removes the number, no readings or deletion claim (EN, UR)', () => {
+  const NOTICE = {
+    en: 'A grown-up can undo this any time by sending STOP on WhatsApp.',
+    ur: 'گھر کے بڑے کسی بھی وقت واٹس ایپ پر ⁦STOP⁩ بھیج کر یہ نمبر ہٹا سکتے ہیں۔',
+  };
+  for (const lang of ['en', 'ur']) {
+    const p = load();
+    const m = mount();
+    p.B.card(m, ctxOf({ lang }).c);
+    m.els.keep.click();
+    const html = m.innerHTML;
+    for (const w of ['readings', 'deleted', 'ریکارڈنگ', 'مٹا', '90']) expect([lang, w, html.includes(w)]).toEqual([lang, w, false]);
+    expect(p.B.t(lang).noticeStopPhoneOnly).toBe(NOTICE[lang]);
+    expect(html).toContain(NOTICE[lang].replace(/⁦?STOP⁩?/, '⁦<bdi dir="ltr" class="wqb-chip">STOP</bdi>⁩'));
+  }
+});
+
+test('max_phones: the three-phones sentence (EN, UR), the card hidden for this session; max_kids keeps its own line', async () => {
+  const html = (s) => s.replace(/'/g, '&#39;'); // the page escapes text before it draws it
+  const LINE = {
+    en: "This child's place is already saved on three phones.",
+    ur: 'اس بچے کی جگہ پہلے ہی تین فونوں پر محفوظ ہے۔',
+  };
+  for (const lang of ['en', 'ur']) {
+    const p = load({ api: { 'POST /api/wq/bind/mint': { ok: false, refused: 'max_phones' } } });
+    const m = mount();
+    p.B.card(m, ctxOf({ lang }).c);
+    m.els.keep.click();
+    m.els.yes.click();
+    await flush(); await flush();
+    expect(m.innerHTML).toContain(html(LINE[lang]));
+    expect(m.innerHTML).toContain('class="wqb-msg"');
+    expect(p.session.wq_bind_hide).toBe('1');
+    expect(p.B.card(mount(), ctxOf({ lang }).c)).toBe(false);
+  }
+  // the same line when the binder refuses the code for max_phones (focus return)
+  const q = load({ session: { wq_bind: JSON.stringify({ code: 'JUGNU-7KQ2X', kid: 'k' }) },
+    api: { 'GET /api/wq/bind/status': { state: 'refused', reason: 'max_phones' } } });
+  const n = mount();
+  q.B.card(n, ctxOf({ lang: 'en' }).c);
+  q.focus(); await flush(); await flush();
+  expect(n.innerHTML).toContain(html(LINE.en));
+  // refused_full is unchanged
+  const r = load({ api: { 'POST /api/wq/bind/mint': { ok: false, refused: 'max_kids' } } });
+  const o = mount();
+  r.B.card(o, ctxOf({ lang: 'en' }).c);
+  o.els.keep.click(); o.els.yes.click();
   await flush(); await flush();
-  expect(m.innerHTML).toBe('');
-  expect(p.session.wq_bind_hide).toBe('1');
-  expect(p.B.card(mount(), ctxOf().c)).toBe(false);
+  expect(o.innerHTML).toContain(html("This phone already keeps four children's places."));
+  expect(o.innerHTML).not.toContain('three phones');
 });

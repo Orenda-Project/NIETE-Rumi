@@ -76,7 +76,7 @@ async function mint({ hub, kid, device, lang } = {}) {
     const canonicalId = (await require('./web-quiz-identity-roster').canonicalStudentId(c.studentId)) || c.studentId;
     const active = await require('./child-phone-bindings.repo').activeForChild(canonicalId);
     if ((active || []).length >= MAX_PHONES_PER_CHILD) {
-      // The page shows nothing for this refusal yet (copy key pending); the server logs it.
+      // The page shows its three-phones line for this refusal; the server logs it.
       logEvent('web_quiz.bind_refused_page', { w: 's', reason: 'max_phones' });
       return { ok: false, refused: 'max_phones' };
     }

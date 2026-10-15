@@ -25,7 +25,7 @@
       yes: "Yes, it's me",
       no: "No, it's not me",
       noticeSave: function (name) { return "Jugnu will save this phone number with " + name + "'s name until the end of the school year (31 March), longer only if you keep playing."; },
-      noticeStop: "To remove it, send STOP from this phone any time. That also deletes any kept readings of the children on this phone.",
+      noticeStopPhoneOnly: "A grown-up can undo this any time by sending STOP on WhatsApp.",
       whoSends: "A grown-up sends one WhatsApp message from this phone.",
       sendBtn: "Send on WhatsApp",
       saved: "Saved ✓",
@@ -34,6 +34,7 @@
       undone: "Removed. This phone number is not kept.",
       refusedTeacher: "This is a teacher's phone, so a child's place is not saved on it.",
       refusedFull: "This phone already keeps four children's places.",
+      refusedPhones: "This child's place is already saved on three phones.",
       codeExpired: "That took too long. Tap Keep my place again.",
       whoPlaying: "Who is playing?",
       whoPlayedHere: "Played on this phone before",
@@ -47,7 +48,7 @@
       yes: "جی ہاں، یہ میں ہوں",
       no: "یہ میں نہیں ہوں",
       noticeSave: function (name) { return "جگنو یہ فون نمبر \u2068" + name + "\u2069 کے نام کے ساتھ محفوظ کرے گا، اسکول کا سال ختم ہونے تک (۳۱ مارچ)۔ اس کے بعد صرف اس صورت میں، اگر آپ کھیلنا جاری رکھیں۔"; },
-      noticeStop: "یہ نمبر ہٹانے کے لیے کسی بھی وقت اس فون سے \u2066STOP\u2069 بھیجیں۔ اس سے اس فون کے بچوں کی رکھی گئی ریکارڈنگز بھی مٹ جائیں گی۔",
+      noticeStopPhoneOnly: "گھر کے بڑے کسی بھی وقت واٹس ایپ پر \u2066STOP\u2069 بھیج کر یہ نمبر ہٹا سکتے ہیں۔",
       whoSends: "پھر گھر کے بڑے اس فون سے واٹس ایپ پر ایک پیغام بھیجیں۔",
       sendBtn: "واٹس ایپ پر بھیجیں",
       saved: "محفوظ ہو گیا ✓",
@@ -56,6 +57,7 @@
       undone: "ہٹا دیا گیا۔ یہ فون نمبر اب محفوظ نہیں۔",
       refusedTeacher: "یہ ٹیچر کا فون ہے، اس لیے اس پر بچے کی جگہ محفوظ نہیں ہوتی۔",
       refusedFull: "اس فون پر پہلے ہی چار بچوں کی جگہ محفوظ ہے۔",
+      refusedPhones: "اس بچے کی جگہ پہلے ہی تین فونوں پر محفوظ ہے۔",
       codeExpired: "اس میں دیر ہو گئی۔ دوبارہ «میری جگہ محفوظ کریں» دبائیں۔",
       whoPlaying: "کھیلنے کے لیے اپنا نام چنیں",
       whoPlayedHere: "پہلے بھی اسی فون پر",
@@ -108,7 +110,7 @@
     var t = L(view.ctx.lang);
     var name = esc(view.ctx.first || '');
     draw('<h3 class="wqb-title">' + t.isYou(name) + '</h3>' +
-      '<div class="wqb-notice"><p>' + t.noticeSave(name) + '</p><p>' + chips(esc(t.noticeStop)) + '</p></div>' +
+      '<div class="wqb-notice"><p>' + t.noticeSave(name) + '</p><p>' + chips(esc(t.noticeStopPhoneOnly)) + '</p></div>' +
       '<p class="wqb-sub">' + esc(t.whoSends) + '</p>' +
       '<div class="wqb-row wqb-stack"><button type="button" class="wqb-btn wqb-go" data-b="yes">' + esc(t.yes) + '</button>' +
       '<button type="button" class="wqb-btn wqb-ghost" data-b="no">' + esc(t.no) + '</button></div>');
@@ -119,6 +121,7 @@
     var t = L(view.ctx.lang);
     if (why === 'teacher_phone') return t.refusedTeacher;
     if (why === 'max_kids') return t.refusedFull;
+    if (why === 'max_phones') return t.refusedPhones;
     if (why === 'code_expired' || why === 'expired') return t.codeExpired;
     return null;
   }
@@ -132,8 +135,8 @@
         on('send', function () { ev('bind_sent', { w: 'p' }); });
         return;
       }
-      // max_phones: no page string yet (copy key pending: jg.bind.refused_phones) -> nothing shown, card hidden this session.
-      if (r && r.refused === 'max_phones') { sset(sessionStorage, HIDE_KEY, '1'); draw(''); return; }
+      // max_phones: the child is already kept on three phones -> its line, and no card again this session.
+      if (r && r.refused === 'max_phones') sset(sessionStorage, HIDE_KEY, '1');
       var m = r && refusal(r.refused);
       if (m) msg(m); else draw('');
     }).catch(function () { draw(''); });
@@ -163,6 +166,7 @@
       if (st === 'bound') banner();
       else if (st === 'refused' || st === 'expired') {
         sset(sessionStorage, CODE_KEY, null);
+        if (r.reason === 'max_phones') sset(sessionStorage, HIDE_KEY, '1');
         var m = refusal(st === 'expired' ? 'expired' : r.reason);
         if (m) msg(m);
       }
