@@ -560,10 +560,10 @@ function legacyIncomplete(r) {
 const notHomeAttempt = (r) => !!r && (r.via === 'class_round' || r.mode === 'practice' || r.mode === 'class_round');
 
 // A runs read that names a column this tier does not have (PostgREST 42703: web_quiz_challenge_runs_v2.sql not applied)
-// fails CLOSED: the caller refuses instead of reading "no runs" and claiming a first attempt. Logged once per read, w =
-// the step (s serve, m menu, f finish). The missing-table path (isMissingTable) is unchanged.
+// fails CLOSED: the caller refuses instead of reading "no runs" and claiming a first attempt. Logged once per read with
+// step (s serve, m menu, f finish) and the server's writer mark w 's'. The missing-table path (isMissingTable) is unchanged.
 const isMissingColumn = (e) => !!e && e.code === '42703';
-const runsReadFailed = (error, w) => { logError('web_quiz.ch_runs_read_failed', { code: error.code, w }); return true; };
+const runsReadFailed = (error, step) => { logError('web_quiz.ch_runs_read_failed', { code: error.code, step, w: 's' }); return true; };
 
 // The child's runs oldest first, by their own query (storedRuns keeps the newest 50: the first attempt would fall
 // out of it). Counted here = a scored run, or an incomplete reading (the minute was begun and the window passed),
@@ -581,11 +581,11 @@ async function countedRuns(studentId) {
 
 /** attempt_no = 1 + this child's own scored runs of the task (a reading: in this language; no round turn or practice
  * play, notHomeAttempt); exposure_no counts every row. */
-async function attemptInfo(studentId, exercise, lang, { except = null, w = 's' } = {}) {
+async function attemptInfo(studentId, exercise, lang, { except = null, step = 's' } = {}) {
   let qb = supabase.from(TABLE).select('id, status, lang, via, mode').eq('student_id', studentId).eq('exercise', exercise).in('status', PLAYED);
   if (exercise === 'read' && lang) qb = qb.eq('lang', lang);
   const { data, error } = await qb.order('created_at', { ascending: true }).limit(5000);
-  if (isMissingColumn(error)) return { attempt_no: null, exposure_no: null, readFailed: runsReadFailed(error, w) };
+  if (isMissingColumn(error)) return { attempt_no: null, exposure_no: null, readFailed: runsReadFailed(error, step) };
   const rows = (error ? [] : data || []).filter((r) => r.id !== except);
   const scored = rows.filter((r) => r.status === 'scored' && !notHomeAttempt(r)).length;
   return { attempt_no: scored + 1, exposure_no: rows.length + 1 };
@@ -600,7 +600,7 @@ async function sequenceNo(studentId, except = null) {
 
 /** What the record rule stamps on a row at insert: attempt, exposure, counted, where the grade came from, test. */
 async function provenance(studentId, exercise, lang, run, { except = null } = {}) {
-  const { readFailed, ...a } = await attemptInfo(studentId, exercise, lang, { except, w: 'f' });
+  const { readFailed, ...a } = await attemptInfo(studentId, exercise, lang, { except, step: 'f' });
   return { ...a, ...(readFailed ? { runs_read_failed: true } : {}), counted: a.attempt_no === 1, grade_source: run.gradeSource || null, test: !!run.test, sequence_n: await sequenceNo(studentId, except) };
 }
 

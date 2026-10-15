@@ -87,14 +87,14 @@ describe('every new switch off: the runs read fails with 42703', () => {
     broken = true;
     await expect(Ch.exercise(hub(), 'bigger', D)).rejects.toMatchObject({ status: 503, body: { error: 'unavailable' } });
     expect(db.web_quiz_challenge_runs).toEqual([]);
-    expect(readFailedLogs()).toEqual([['web_quiz.ch_runs_read_failed', { code: '42703', w: 's' }]]);
+    expect(readFailedLogs()).toEqual([['web_quiz.ch_runs_read_failed', { code: '42703', step: 's', w: 's' }]]);
   });
 
   test('the menu refuses too (it would show every stop not done)', async () => {
     reset(BASE);
     broken = true;
     await expect(Ch.menu(hub(), D)).rejects.toMatchObject({ status: 503, body: { error: 'unavailable' } });
-    expect(readFailedLogs()).toEqual([['web_quiz.ch_runs_read_failed', { code: '42703', w: 'm' }]]);
+    expect(readFailedLogs()).toEqual([['web_quiz.ch_runs_read_failed', { code: '42703', step: 'm', w: 's' }]]);
   });
 
   test('a run served before the read broke and finished after: stored, never counted, attempt unknown', async () => {
@@ -104,7 +104,7 @@ describe('every new switch off: the runs read fails with 42703', () => {
     await Ch.submit({ ct: ex.ct, taps: taps(ex.items), ms: 25000 });
     expect(db.web_quiz_challenge_runs).toHaveLength(1);
     expect(db.web_quiz_challenge_runs[0].meta).toMatchObject({ counted: false, attempt_no: null, runs_read_failed: true });
-    expect(readFailedLogs()).toEqual([['web_quiz.ch_runs_read_failed', { code: '42703', w: 'f' }]]);
+    expect(readFailedLogs()).toEqual([['web_quiz.ch_runs_read_failed', { code: '42703', step: 'f', w: 's' }]]);
   });
 });
 
@@ -117,7 +117,7 @@ describe('_v2 and _period on: the runs read fails with 42703', () => {
     expect(ex).not.toHaveProperty('ct');
     expect(db.web_quiz_challenge_runs).toEqual([]);
     expect(db.challenge_draws).toEqual([]);
-    expect(readFailedLogs()).toEqual([['web_quiz.ch_runs_read_failed', { code: '42703', w: 's' }]]);
+    expect(readFailedLogs()).toEqual([['web_quiz.ch_runs_read_failed', { code: '42703', step: 's', w: 's' }]]);
   });
 });
 
