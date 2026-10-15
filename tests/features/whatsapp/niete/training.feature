@@ -2294,3 +2294,27 @@ Feature: NIETE (ICT) Teacher Training
     # Server: isOpenEndedQuestion (nothing to pick from = written); submitModuleExamPaper / saveModuleExamDraft store answer_text.
     # Portal: TrainingModuleExam isWritten(). Unit: tests/training/portal-exam-no-options-is-written.test.js,
     # portal TrainingModuleExam.test.tsx.
+
+  @quiz @config-gated @wip @draft @P2 @T698
+  Scenario: With web_quiz_identity_canon on, a child merged into a class-list child is known by that child's id
+    Given web_quiz_hub and web_quiz_identity_canon are on
+    And a loose child record was merged into a class-list child
+    When the server folds the ids a hub link or a session carries
+    Then the merged record's id becomes the class-list child's id, following one merge only
+    But with web_quiz_identity_canon off every id folds exactly as before
+
+  @quiz @config-gated @wip @draft @P2 @T699
+  Scenario: With web_quiz_identity_canon on, a new name typed again on the same phone for the same teacher is the same child
+    Given web_quiz_hub and web_quiz_identity_canon are on and identity v2 is on
+    And a child typed a name that is not on the class list on one phone for one of my codes
+    When the same phone types the same name on another of my codes
+    Then the quiz is recorded for the same child, and no second child record is made
+    But another phone, another teacher's code, or two matching records make a new record as today
+
+  @quiz @config-gated @wip @draft @P2 @T700
+  Scenario: A family phone binding is erased, never kept, when it is undone, stopped or expires
+    Given a child's binding to a family phone exists
+    When it is undone on the page, stopped, or expires
+    Then the phone number is erased from the binding and only a salted fingerprint stays, so a later re-bind is recognised as one
+    And with no fingerprint salt configured no binding is written at all
+    And a "JUGNU-" code in a message is recognised only as the message's last word, and never as a quiz share code

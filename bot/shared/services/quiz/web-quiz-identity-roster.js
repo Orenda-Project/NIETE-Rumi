@@ -136,9 +136,11 @@ async function canonicalStudentIds(studentIds) {
   const out = new Map(ids.map((id) => [id, id]));
   if (!ids.length) return out;
   try {
+    // child identity store (web_quiz_identity_canon): the same read also carries merged_into, status.
+    const canon = Boolean((await require('./web-quiz-identity-flags').flags()).canon);
     const [{ data: enr }, { data: st }] = await Promise.all([
       supabase.from('class_enrollments').select('student_id, class_id').in('student_id', ids).eq('is_active', true),
-      supabase.from('students').select('id, list_id').in('id', ids),
+      supabase.from('students').select(canon ? 'id, list_id, merged_into, status' : 'id, list_id').in('id', ids),
     ]);
     const listIds = [...new Set((st || []).map((s) => s.list_id).filter(Boolean))];
     const { data: lists } = listIds.length
@@ -150,6 +152,8 @@ async function canonicalStudentIds(studentIds) {
       const kids = (await loadClassRoster(classId)) || [];
       kids.forEach((k) => k.ids.forEach((id) => { if (out.has(id)) out.set(id, k.id); }));
     }
+    // child identity store: a merged record maps to its merged_into target, ONE hop (a merged target is not followed).
+    if (canon) (st || []).forEach((s) => { if (s.status === 'merged' && s.merged_into && out.has(String(s.id))) out.set(String(s.id), String(s.merged_into)); });
   } catch (err) {
     logToFile('⚠️ web quiz identity: canonical id lookup failed — ids kept as given', { error: err.message });
   }
