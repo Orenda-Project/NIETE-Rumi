@@ -78,7 +78,7 @@
       '<div class="wq-card wq-center"><div class="wq-name">' + c.ani(card.animal) + '</div>' +
       '<h2>' + c.esc(first ? w.whoTurnOf(first) : w.whoTurn) + '</h2></div>' +
       '<button class="wq-btn wq-go" id="wq-jc-play">▶ ' + c.esc(c.T.play) + '</button>' +
-      '<button class="wq-btn wq-ghost" id="wq-jc-back">' + c.esc(w.whoNotMe) + '</button>';
+      '<button class="wq-btn wq-soft" id="wq-jc-back">' + c.esc(w.whoNotMe) + '</button>';
     c.render(h, 'M10-jc');
     c.wireBar();
     c.on('#wq-jc-play', function () { play(c); });
