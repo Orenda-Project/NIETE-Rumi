@@ -188,6 +188,27 @@ describe('cleanEvent: v is name-scoped', () => {
   });
 });
 
+describe('cleanEvent: the name-scoped allow-list (v2 on only)', () => {
+  test('w is admitted as s | p on any name with v2 on, dropped otherwise and with v2 off', () => {
+    expect(Svc.cleanEvent({ n: 'answer', w: 'p' }, { v2: true }).props.w).toBe('p');
+    expect(Svc.cleanEvent({ n: 'bind_offered', w: 's' }, { v2: true }).props.w).toBe('s');
+    expect(Svc.cleanEvent({ n: 'answer', w: 'x' }, { v2: true }).props).not.toHaveProperty('w');
+    expect(Svc.cleanEvent({ n: 'answer', w: 'p' }).props).not.toHaveProperty('w');
+  });
+
+  test('surface is admitted for bind_offered only, as trail | hub | book | end_card, and only with v2 on', () => {
+    for (const v of ['trail', 'hub', 'book', 'end_card']) expect(Svc.cleanEvent({ n: 'bind_offered', surface: v }, { v2: true }).props.surface).toBe(v);
+    expect(Svc.cleanEvent({ n: 'bind_offered', surface: 'scorecard' }, { v2: true }).props).not.toHaveProperty('surface');
+    expect(Svc.cleanEvent({ n: 'answer', surface: 'trail' }, { v2: true }).props).not.toHaveProperty('surface');
+    expect(Svc.cleanEvent({ n: 'bind_offered', surface: 'trail' }).props).not.toHaveProperty('surface');
+  });
+
+  test('the map is one place: a new name-scoped rule is one entry (NAME_PROPS), checked only for its own name', () => {
+    expect(Object.keys(Svc.NAME_PROPS)).toEqual(expect.arrayContaining(['ch_helped', 'bind_offered']));
+    expect(Object.isFrozen(Svc.NAME_PROPS)).toBe(true);
+  });
+});
+
 describe('events(): the 20-per-batch slice is not silent with v2 on', () => {
   test('23 events: 20 logged and one ev_dropped{n:3, where:batch_slice}', async () => {
     on(V2);
@@ -225,7 +246,28 @@ describe('ch_start server copy with v2 on', () => {
 });
 
 describe('hub_open with v2 on', () => {
-  test('the picked copy gains dk and kid; the unpicked copy dk only; counts unchanged; no src/ret (not known here)', async () => {
+  test('src is the route the caller passed (opts.src), only from the allowed set; anything else is omitted', async () => {
+    on(V2);
+    await Hub.hub(T.signHub([KID]), { device: DEV, src: 'wa' });
+    await Hub.hub(T.signHub([KID, SIB]), { device: DEV, src: 'class_link' });
+    await Hub.hub(T.signHub([KID]), { device: DEV, src: 'evil<script>' });
+    await Hub.hub(T.signHub([KID]), { device: DEV, src: 'page' });
+    const [a, b, c, d] = named('web_quiz.hub_open');
+    expect(a.src).toBe('wa');
+    expect(b).toMatchObject({ picked: false, src: 'class_link' });
+    expect(c).not.toHaveProperty('src');
+    expect(d).not.toHaveProperty('src');
+  });
+
+  test('src passed with v2 off: hub_open is today\'s, byte for byte (no src)', async () => {
+    await Hub.hub(T.signHub([KID]), { device: DEV, src: 'wa' });
+    await Hub.hub(T.signHub([KID, SIB]), { device: DEV, src: 'wa' });
+    const [picked, unpicked] = named('web_quiz.hub_open');
+    expect(Object.keys(picked).sort()).toEqual(['again_n', 'challenge', 'has_teacher', 'kids', 'recs_n', 'teacher_src']);
+    expect(unpicked).toEqual({ kids: 2, picked: false });
+  });
+
+  test('the picked copy gains dk and kid; the unpicked copy dk only; counts unchanged; no src when none is passed', async () => {
     on(V2);
     await Hub.hub(T.signHub([KID]), { device: DEV });
     await Hub.hub(T.signHub([KID, SIB]), { device: DEV });

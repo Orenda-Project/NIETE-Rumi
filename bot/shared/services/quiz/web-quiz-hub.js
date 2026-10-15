@@ -364,7 +364,7 @@ async function lockedHub(ids, why) {
 
 // ─── the hub ────────────────────────────────────────────────────────────────
 
-async function hubPayload(token, { kid, device } = {}) {
+async function hubPayload(token, { kid, device, src } = {}) {
   if (!T.secret()) fail(503, 'web_quiz_off');
   const ids = idsOf(token);
   const f = await Flags.flags();
@@ -399,8 +399,8 @@ async function hubPayload(token, { kid, device } = {}) {
     brand: await brandKey(),
   };
   // Events v2 (web_quiz_events_v2): hub_open gains the envelope and the phone's key (kid only once a child is picked).
-  // The route (src) and the return mark (ret) are not known here.
-  const openEv = (base, studentId) => (f.hub && f.eventsV2 ? require('./web-quiz-measure-events').hubOpen(base, { studentId, device }) : base);
+  // src is the route the caller passed (the hub URL's from=), only from the known set; the return mark (ret) is not known here.
+  const openEv = (base, studentId) => (f.hub && f.eventsV2 ? require('./web-quiz-measure-events').hubOpen(base, { studentId, device, src }) : base);
   if (!chosen) {
     logEvent('web_quiz.hub_open', openEv({ kids: kidsRows.length, picked: false }, null));
     return out;

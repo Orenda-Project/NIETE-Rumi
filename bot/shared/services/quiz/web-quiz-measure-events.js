@@ -11,7 +11,8 @@
  *
  * Also the v2 additions to two existing server events (each added only with the switch on; off ⇒ today's payload):
  *   ch_start  gains the envelope (w:'s', ev_v, kid_v, kid) and, when the run has them, its v2 fields
- *   hub_open  gains the envelope and dk (the phone's key); kid only on the copy with a picked child
+ *   hub_open  gains the envelope, dk (the phone's key) and src (the caller's route, when known); kid only on the copy
+ *             with a picked child
  *
  * The builders are pure apart from the key (and its once-a-day missing-key event). Callers check the switch.
  */
@@ -19,6 +20,8 @@ const { logEvent } = require('../../utils/structured-logger');
 const K = require('./web-quiz-kid');
 
 const LOST_REASONS = new Set(['failed', 'swept']);
+// hub_open.src: the route that brought the child (EVENTS §1 row 3).
+const HUB_SRC = new Set(['door', 'home', 'card', 'link', 'hs', 'wa', 'class_link', 'guest', 'friend']);
 const nul = (v) => (v === undefined ? null : v);
 
 /** The fixed reporting band of a run: G1 for the grade-1 form, G23 for grades 2-3 (G3), G45 for 4-5 (G5). */
@@ -114,9 +117,9 @@ function chStart(base, run = {}, studentId = null) {
   return K.envelope({ ...base, kid: K.kid(r.canonical_id || studentId), ...v2 });
 }
 
-/** hub_open with v2 on: today's fields, the envelope, dk; kid only when a child is picked. */
-function hubOpen(base, { studentId = null, device = null } = {}) {
-  return K.envelope({ ...base, kid: studentId ? K.kid(studentId) : null, dk: K.dk(device) });
+/** hub_open with v2 on: today's fields, the envelope, dk, src when known; kid only when a child is picked. */
+function hubOpen(base, { studentId = null, device = null, src = null } = {}) {
+  return K.envelope({ ...base, kid: studentId ? K.kid(studentId) : null, dk: K.dk(device), ...(HUB_SRC.has(src) ? { src } : {}) });
 }
 
 module.exports = { mResult, mLost, emitOutcome, chStart, hubOpen, fixedBand, compOf };

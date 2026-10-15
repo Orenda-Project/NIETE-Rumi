@@ -1746,10 +1746,20 @@ const TEL_PROPS = Object.freeze({
   state: /^(hidden|visible)$/, page: /^(quiz|hub|lib|ch)$/,
 });
 const TEL_NUMS = ['pseq', 'sm', 'total_ms', 'vis_ms', 'count'];
-// Events v2 (app_settings web_quiz_events_v2): `v` is name-scoped. ch_helped's v is the help answer, three-valued
-// (the page sends 0 = on their own, 1 = with help); every other name keeps the A/B arm's /^a[01]$/.
+// Events v2 (app_settings web_quiz_events_v2), applied only with it on:
+//   V2_PROPS    props admitted on any name: `w`, the writer's mark (s = server, p = page)
+//   NAME_PROPS  props scoped to ONE event name: {name: {prop: rule}}; a rule is a regex for a string, or a function
+//               (value → kept value | null). For that name it replaces the general rule for the prop (ch_helped's
+//               `v` is the help answer, three-valued, and the page sends 0 = on their own, 1 = with help; every
+//               other name keeps the A/B arm's /^a[01]$/). A new name-scoped prop is one entry here.
+const V2_PROPS = Object.freeze({ w: /^[sp]$/ });
 const HELPED_V = /^(self|helped|not_asked)$/;
 const helpedV = (v) => (v === 0 ? 'self' : v === 1 ? 'helped' : (typeof v === 'string' && HELPED_V.test(v) ? v : null));
+const NAME_PROPS = Object.freeze({
+  ch_helped: Object.freeze({ v: helpedV }),
+  bind_offered: Object.freeze({ surface: /^(trail|hub|book|end_card)$/ }),
+});
+const nameProp = (rule, value) => (typeof rule === 'function' ? rule(value) : (typeof value === 'string' && rule.test(value) ? value : null));
 const BATCH_MAX = 20;
 const SHARE_PATHS = ['native', 'wa', 'copy', 'file', 'save'];
 const SHARE_CODE_RX = /^[A-Z0-9]{4,12}$/i;
@@ -1825,10 +1835,16 @@ function cleanEvent(e, { rich = false, v2 = false } = {}) {
   for (const [k, rx] of Object.entries(EVENT_PROPS)) {
     if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
   }
-  if (v2 && e.n === 'ch_helped') {
-    delete props.v;
-    const h = helpedV(e.v);
-    if (h) props.v = h;
+  if (v2) {
+    for (const [k, rx] of Object.entries(V2_PROPS)) if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
+    const scoped = Object.prototype.hasOwnProperty.call(NAME_PROPS, e.n) ? NAME_PROPS[e.n] : null;
+    if (scoped) {
+      for (const [k, rule] of Object.entries(scoped)) {
+        delete props[k];
+        const kept = nameProp(rule, e[k]);
+        if (kept != null) props[k] = kept;
+      }
+    }
   }
   if (rich) {
     for (const [k, rx] of Object.entries(TEL_PROPS)) if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
@@ -1958,7 +1974,7 @@ async function media(code, qid, { k, z } = {}) {
 module.exports = {
   getQuiz, startSession, recordAnswers, finishSession, board, me, events, media, _resetQuizCache: () => quizMediaCache.clear(),
   // exported for tests and the router
-  WqError, rankRows, cleanEvent, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, whoClass, challengeOutcome,
+  WqError, rankRows, cleanEvent, NAME_PROPS, pktMidnightIso, resolveCode, classChips, whoPlayed, fixWho, whoClass, challengeOutcome,
   // the render matrix (scripts/qa/render-matrix) turns synthetic rows into page items with it
   questionPayload,
   // the share pictures (web-quiz-art.js) name the child and the challenger exactly as the page does
