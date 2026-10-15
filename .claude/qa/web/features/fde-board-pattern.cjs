@@ -1,7 +1,8 @@
 // fde-board-pattern — web-lane driver for tests/features/web/fde-board-pattern.feature. Runs the @FBnn scenarios: the
 // ones the local stack can prove without a model call (the switch, the door, Check and make, the refusals, the soft
 // limit). The @sandbox scenarios need a real paper and are run on sandbox by .claude/qa/agents/niete-fde-board-pattern-agent.md.
-// Screens are found by their visible words (the copy deck), so a renamed label fails here, not silently.
+// Controls are found by the app's data-testids (fde-door, fde-side-door, fde-row-inside, fde-inside-tray, step-next);
+// what the teacher reads is asserted by its visible words (the copy deck).
 'use strict';
 const crypto = require('crypto');
 const { DEMO, expect, asRole, visit, setSetting } = require('../lib.cjs');
@@ -40,16 +41,14 @@ const unseed = (ctx, ids) => ctx.sql('delete from assessment_requests where id i
 
 async function bodyText(page) { return page.evaluate(() => document.body.innerText); }
 
-async function waitForText(page, text, ms) {
-  await page.getByText(text, { exact: false }).first().waitFor({ state: 'visible', timeout: ms || 15000 });
-}
 
 const scenarios = [
   { id: 'FB01', title: 'The hub offers FDE pattern papers when the switch is on', run: async (page, ctx) => {
     await patternSwitch(ctx, true);
     await asRole(page, ctx, 'teacher', 'teacherV2');
     await visit(page, ctx, HUB, { heading: /^Assessment$/ });
-    await waitForText(page, 'FDE pattern papers');
+    await page.getByTestId('fde-door').waitFor({ state: 'visible', timeout: 15000 });
+    expect((await page.getByTestId('fde-door').innerText()).includes('FDE pattern papers'), 'the door does not say FDE pattern papers');
     const o = await api(page, ctx, 'GET', '/assessment/options?grade=5&subject=maths');
     expect(o.status === 200, 'options answered ' + o.status);
     expect(Array.isArray(o.json.patternGrades) && o.json.patternGrades.includes(5), 'no patternGrades [5] in options');
@@ -61,12 +60,12 @@ const scenarios = [
     await patternSwitch(ctx, true);
     await asRole(page, ctx, 'teacher', 'teacherV2');
     await visit(page, ctx, HUB, { heading: /^Assessment$/ });
-    await page.getByText('FDE pattern papers').first().click();
+    await page.getByTestId('fde-door').click();
     await page.getByText('Science', { exact: true }).first().click();
-    await waitForText(page, 'Make my paper');
+    await page.getByTestId('step-next').waitFor({ state: 'visible', timeout: 15000 });
     // Words above Make my paper: everything the teacher reads before the button.
     const above = await page.evaluate(() => {
-      const btn = [...document.querySelectorAll('button')].find((b) => /Make my paper/.test(b.innerText));
+      const btn = document.querySelector('[data-testid="step-next"]');
       if (!btn) return null;
       const top = btn.getBoundingClientRect().top;
       const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
@@ -80,8 +79,10 @@ const scenarios = [
     });
     expect(above !== null, 'no Make my paper button on Check and make');
     expect(above <= 40, above + ' words above Make my paper (at most 40)');
-    await page.getByText('Inside', { exact: false }).first().click();
-    const text = await bodyText(page);
+    await page.getByTestId('fde-row-inside').click();
+    const tray = page.getByTestId('fde-inside-tray');
+    await tray.waitFor({ state: 'visible', timeout: 15000 });
+    const text = await tray.innerText();
     for (const want of ['3 sections', '100 marks', '3 hrs', 'You add']) expect(text.includes(want), 'Inside tray lacks "' + want + '"');
     expect(/diagram to label/i.test(text), 'Inside tray lacks "the diagram to label"');
     return { wordsAboveMake: above };
@@ -94,11 +95,12 @@ const scenarios = [
     await page.getByText('New paper').first().click();
     await page.getByText('Grade 5', { exact: false }).first().click();
     await page.getByText('English', { exact: true }).first().click();
-    await waitForText(page, 'FDE board pattern');
-    await page.getByText('FDE board pattern').first().click();
-    await page.getByRole('button', { name: /^Next/ }).click();
-    await waitForText(page, 'Step 2 of 2');
-    await waitForText(page, 'Make my paper');
+    const card = page.getByTestId('fde-side-door');
+    await card.waitFor({ state: 'visible', timeout: 15000 });
+    await card.getByRole('radio').first().click();
+    await page.getByTestId('step-next').click();
+    await page.getByLabel('Step 2 of 2').first().waitFor({ state: 'attached', timeout: 15000 });
+    await page.getByTestId('fde-row-inside').waitFor({ state: 'visible', timeout: 15000 });
     return { landed: 'check' };
   } },
 
@@ -106,7 +108,10 @@ const scenarios = [
     await patternSwitch(ctx, false);
     await asRole(page, ctx, 'teacher', 'teacherV2');
     await visit(page, ctx, HUB, { heading: /^Assessment$/ });
-    expect(!(await bodyText(page)).includes('FDE pattern papers'), 'the hub shows FDE pattern papers with the switch off');
+    expect(!(await page.getByTestId('fde-door').count()), 'the hub shows the FDE door with the switch off');
+    expect(!(await bodyText(page)).includes('FDE pattern papers'), 'the hub says FDE pattern papers with the switch off');
+    // The side-door card renders only from options' `patterns` (the app's own tests pin that), so options without
+    // the keys is the proof that Chapters or pages shows no card.
     const o = await api(page, ctx, 'GET', '/assessment/options?grade=5&subject=maths');
     expect(!('patterns' in (o.json || {})) && !('patternGrades' in (o.json || {})), 'options carry pattern keys with the switch off');
     const r = await api(page, ctx, 'POST', '/assessment/generate', fdeBody(5, 'maths'));
