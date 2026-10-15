@@ -85,7 +85,7 @@ async function mint({ hub, kid, device, lang } = {}) {
     if (!minted || !minted.code) return { ok: false, error: 'unavailable' };
     logEvent('web_quiz.bind_confirm', { w: 's' });
     const prefill = { en: PREFILL.en.replace('{code}', minted.code), ur: PREFILL.ur.replace('{code}', minted.code) };
-    const l = lang === 'ur' ? 'ur' : 'en';
+    const l = require('../../config/ux-strings').clampLanguage(lang);
     return { ok: true, code: minted.code, expires_at: minted.expires_at || null, prefill, href: `https://wa.me/${n}?text=${encodeURIComponent(prefill[l])}` };
   } catch (err) {
     logToFile('⚠️ keep my place: mint failed', { error: err.message });
