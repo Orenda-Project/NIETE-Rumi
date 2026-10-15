@@ -559,12 +559,19 @@ function legacyIncomplete(r) {
 // stop; a row written before the runs provenance columns (mode and via null) counts as it always did.
 const notHomeAttempt = (r) => !!r && (r.via === 'class_round' || r.mode === 'practice' || r.mode === 'class_round');
 
+// A runs read that names a column this tier does not have (PostgREST 42703: web_quiz_challenge_runs_v2.sql not applied)
+// fails CLOSED: the caller refuses instead of reading "no runs" and claiming a first attempt. Logged once per read, w =
+// the step (s serve, m menu, f finish). The missing-table path (isMissingTable) is unchanged.
+const isMissingColumn = (e) => !!e && e.code === '42703';
+const runsReadFailed = (error, w) => { logError('web_quiz.ch_runs_read_failed', { code: error.code, w }); return true; };
+
 // The child's runs oldest first, by their own query (storedRuns keeps the newest 50: the first attempt would fall
 // out of it). Counted here = a scored run, or an incomplete reading (the minute was begun and the window passed),
 // that is the child's own attempt (notHomeAttempt).
 async function countedRuns(studentId) {
   const { data, error } = await supabase.from(TABLE).select('id, exercise, status, score, wcpm, lang, meta, created_at, scored_at, via, mode')
     .eq('student_id', studentId).order('created_at', { ascending: true }).limit(5000);
+  if (isMissingColumn(error)) return Object.assign([], { readFailed: runsReadFailed(error, 'm') });
   if (error) {
     if (!isMissingTable(error)) logToFile('⚠️ web quiz challenge: runs read failed', { error: error.message });
     return [];
@@ -574,10 +581,11 @@ async function countedRuns(studentId) {
 
 /** attempt_no = 1 + this child's own scored runs of the task (a reading: in this language; no round turn or practice
  * play, notHomeAttempt); exposure_no counts every row. */
-async function attemptInfo(studentId, exercise, lang, { except = null } = {}) {
+async function attemptInfo(studentId, exercise, lang, { except = null, w = 's' } = {}) {
   let qb = supabase.from(TABLE).select('id, status, lang, via, mode').eq('student_id', studentId).eq('exercise', exercise).in('status', PLAYED);
   if (exercise === 'read' && lang) qb = qb.eq('lang', lang);
   const { data, error } = await qb.order('created_at', { ascending: true }).limit(5000);
+  if (isMissingColumn(error)) return { attempt_no: null, exposure_no: null, readFailed: runsReadFailed(error, w) };
   const rows = (error ? [] : data || []).filter((r) => r.id !== except);
   const scored = rows.filter((r) => r.status === 'scored' && !notHomeAttempt(r)).length;
   return { attempt_no: scored + 1, exposure_no: rows.length + 1 };
@@ -592,8 +600,8 @@ async function sequenceNo(studentId, except = null) {
 
 /** What the record rule stamps on a row at insert: attempt, exposure, counted, where the grade came from, test. */
 async function provenance(studentId, exercise, lang, run, { except = null } = {}) {
-  const a = await attemptInfo(studentId, exercise, lang, { except });
-  return { ...a, counted: a.attempt_no === 1, grade_source: run.gradeSource || null, test: !!run.test, sequence_n: await sequenceNo(studentId, except) };
+  const { readFailed, ...a } = await attemptInfo(studentId, exercise, lang, { except, w: 'f' });
+  return { ...a, ...(readFailed ? { runs_read_failed: true } : {}), counted: a.attempt_no === 1, grade_source: run.gradeSource || null, test: !!run.test, sequence_n: await sequenceNo(studentId, except) };
 }
 
 async function menu(token, { kid, lang, device } = {}) {
@@ -604,6 +612,7 @@ async function menu(token, { kid, lang, device } = {}) {
   if (w.form === Grade1.FORM) return Grade1.menu(w);   // grade-1 form: its one stop
   const rules = await rulesOf();
   const runs = rules.record ? await countedRuns(w.studentId) : (await storedRuns(w.studentId)).filter((r) => r.status === 'scored');
+  if (runs.readFailed) fail(503, 'unavailable');   // fail closed: a missing provenance column (isMissingColumn)
   // Today's read-aloud cap reached (web-quiz-challenge-budget.js): "Which is bigger?" only until Pakistan midnight.
   const readOk = await Budget.readOpen();
   // "Listen and answer" only once its story is recorded (asking for it starts the recording): never silence to listen to
@@ -647,6 +656,9 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   if (ex === 'listen' && !(await listenOn())) fail(503, 'listen_off');
   const rules = await rulesOf();
   if (ex === 'missing' && !rules.missing) fail(503, 'missing_off');
+  // fail closed before anything is served: the runs read names a column this tier lacks (isMissingColumn); under _v2
+  // the serve's own read answers "on its way" instead (serveV2)
+  if (!rules.v2 && (rules.record || rules.trail) && (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).readFailed) fail(503, 'unavailable');
   const { Bank } = childTest();
   const task = def.task(w.lang);
   let spec = Bank.getTaskSpec({ grade: Number(w.form), set: 'A', task });
@@ -871,6 +883,8 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
   const now = Date.now();
   const canonicalId = await require('./web-quiz-identity-roster').canonicalStudentId(w.studentId);
   const [rows, periodRows, fixed, pick] = await Promise.all([D.childRows(canonicalId, [w.studentId]), D.periods(), D.fixedGradeOf(canonicalId, w.grade), D.pickOf({ sessionId: w.sessionId || null, canonicalId, device })]);
+  // fail closed: the child's runs could not be read (a provenance column missing): nothing drawn, written or recorded
+  if (rows.readFailed) return { on_its_way: true };
   const periodNow = D.periodIdFor(new Date(now), periodRows);
   if (!periodNow && (rules.period || rules.pool)) D.notePeriodMissing(now);
   const periodRule = rules.period && !!periodNow;
