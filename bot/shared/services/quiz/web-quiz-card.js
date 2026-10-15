@@ -13,6 +13,7 @@
  * The page asks "<name>'s turn" before it calls go(): never straight into a run (the identity step).
  * Err is web-quiz.service's WqError, passed in by the route (no require cycle).
  */
+const crypto = require('crypto');
 const supabase = require('../../config/supabase');
 const { read: dbRead } = require('./web-quiz-db-deadline');
 const { logToFile } = require('../../utils/logger');
@@ -73,6 +74,30 @@ async function canonicalId(studentId) {
   }
 }
 
+// The identity pick for a play opened from this card. The challenge's serve asks pickFor({sessionId, canonicalId,
+// device}); a hub token has no quiz session, so it falls back to the hub key
+// wq:idpick:h:<canonical id>:<sha256(device)[0:16]> (web-quiz-bind-page.js, 24 h), which only a hub render writes.
+// The card never renders the hub, so THIS quiz session's pick is copied there for the same child and the session
+// token's phone. The pick module is required lazily: absent, or no pick (its switch off) -> nothing written. Never throws.
+const PICK_TTL_S = 24 * 3600;
+async function carryPick(sessionId, canonicalId, device) {
+  try {
+    let Bind = null;
+    try { Bind = require('./web-quiz-bind-page'); } catch (_) { return null; }
+    if (!Bind || typeof Bind.pickFor !== 'function') return null;
+    const d = T.cleanDeviceRef(device);
+    if (!d || !canonicalId || !sessionId) return null;
+    const rec = await Bind.pickFor(String(sessionId));
+    if (!rec || typeof rec !== 'object') return null;
+    const key = `wq:idpick:h:${canonicalId}:${crypto.createHash('sha256').update(d).digest('hex').slice(0, 16)}`;
+    await require('../cache/railway-redis.service').set(key, rec, PICK_TTL_S);
+    return key;
+  } catch (err) {
+    logToFile('⚠️ web quiz card: pick not carried to the hub key', { error: err.message });
+    return null;
+  }
+}
+
 async function field(s) {
   try {
     // finish() calls this for the run it has just completed (as the hub door's field does).
@@ -105,6 +130,7 @@ async function go(body = {}, Err = Error) {
   if (!token) fail(404, 'no_door');
   const bound = await Device.deviceTrusted(token, tok.d);
   if (!bound.ok) fail(404, 'no_door');
+  await carryPick(s.id, id, tok.d);
   // The hub's own chip for this child (hub.js B.kid): the challenge page resolves it against the token's ids.
   const kid = T.chipId('h', id);
   return { href: `/c/${token}?kid=${encodeURIComponent(kid)}&via=quiz_card`, animal: T.animalFor(id) };

@@ -162,6 +162,42 @@ describe('POST /hubdoor {st, jugnu:1}: the Jugnu card\'s link', () => {
   });
 });
 
+// A play opened from the card has no quiz session on its hub token: the challenge's serve reads the pick from the hub
+// key (wq:idpick:h:<canonical id>:<sha256(device)[0:16]>, the identity pick module's record). go() copies THIS quiz
+// session's pick there for the same child and phone; with the pick module absent it writes nothing and never throws.
+describe('go() carries the quiz session\'s pick to the hub key', () => {
+  const BIND = '../../../shared/services/quiz/web-quiz-bind-page';
+  const REC = { id_src: 'roster_pick', id_confidence: 'high', homonym_in_list: false, canonical_id: KID };
+  const hubKey = (id, d) => `wq:idpick:h:${id}:${require('crypto').createHash('sha256').update(d).digest('hex').slice(0, 16)}`;
+  // The absent case runs first (the module is not on this base); then one virtual mock whose pickFor each test sets.
+  let impl = async () => null;
+  const pickFor = jest.fn((...a) => impl(...a));
+  test('the pick module absent: no pick write, no throw, the link as before', async () => {
+    seed();
+    const out = await cardModule().go({ st: st() }, WQ.WqError);
+    expect(out.href).toMatch(/^\/c\//);
+    expect(redis.set.mock.calls.filter(([k]) => String(k).startsWith('wq:idpick:'))).toEqual([]);
+  });
+  test('the session\'s pick is written under the hub key for (canonical id, the session token\'s phone)', async () => {
+    impl = async (arg) => (arg === 's1' ? REC : null);
+    jest.doMock(BIND, () => ({ pickFor }), { virtual: true });
+    seed();
+    await cardModule().go({ st: st(), device_ref: D2 }, WQ.WqError);
+    expect(pickFor).toHaveBeenCalledWith('s1');
+    expect(redis._store.get(hubKey(KID, D1))).toEqual(REC);
+    expect(redis.set).toHaveBeenCalledWith(hubKey(KID, D1), REC, 24 * 3600);
+  });
+  test('no pick for the session (switch off), or the module throws: nothing written, the link still opens', async () => {
+    impl = async () => null;
+    seed();
+    expect((await cardModule().go({ st: st() }, WQ.WqError)).href).toMatch(/^\/c\//);
+    impl = async () => { throw new Error('down'); };
+    redis._store.clear(); cardModule()._resetCache(); seed();
+    expect((await cardModule().go({ st: st() }, WQ.WqError)).href).toMatch(/^\/c\//);
+    expect(redis.set.mock.calls.filter(([k]) => String(k).startsWith('wq:idpick:'))).toEqual([]);
+  });
+});
+
 describe('the allow-list carries the doors (door_shown / door_tap only)', () => {
   test('door, surface, a numeric slot, pid, nx are kept on the two door names', () => {
     expect(WQ.cleanEvent({ n: 'door_shown', door: 'card', surface: 'scorecard', slot: 1 })).toEqual({ name: 'door_shown', props: { door: 'card', surface: 'scorecard', slot: 1 } });
