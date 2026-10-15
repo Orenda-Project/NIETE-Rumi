@@ -270,9 +270,14 @@ async function sendPicker(phone, matches, ctx = {}) {
  * Deliver the Oxbridge LP content: a text message with the plain-text body
  * AND a PDF attachment rendered from content_html. NO LLM rewrite.
  */
-async function deliverOxbridgeLp(phone, row, language) {
+async function deliverOxbridgeLp(phone, row, language, ctx = {}) {
+  // ctx: { userId, askedAt?, correlationId? } — whose ask this is, for its lifecycle row (both callers pass it).
+  const askedAt = ctx.askedAt || new Date().toISOString();
   if (!row || !row.content_html) {
     logToFile('Oxbridge LP: no content_html on row', { rowId: row && row.id });
+    await recordOxbridgeAsk(ctx, phone, row, language, askedAt, {
+      status: 'failed', errorCode: 'NO_ASSET', errorMessage: 'catalogue row has no content',
+    });
     return false;
   }
   const isUrdu = language === 'ur';
@@ -292,6 +297,7 @@ async function deliverOxbridgeLp(phone, row, language) {
     const { htmlToPdf } = require('../utils/html-to-pdf');
     const fullHtml = wrapAsStandaloneHtml(row);
     const pdfBuffer = await htmlToPdf(fullHtml, { timeout: 30000 });
+    const generatedAt = new Date().toISOString();
     tmpPath = path.join(
       os.tmpdir(),
       `oxbridge_lp_${row.id}_${Date.now()}.pdf`
@@ -299,10 +305,14 @@ async function deliverOxbridgeLp(phone, row, language) {
     fs.writeFileSync(tmpPath, pdfBuffer);
     const safeChapter = (row.chapter_title || 'lesson-plan').replace(/["<>?*|\\/]/g, '');
     const filename = `Oxbridge — ${safeChapter} — Lesson Plan.pdf`;
-    await WhatsAppService.sendDocument(phone, tmpPath, filename);
+    // The send's result, for the lifecycle row only — this function's own answer is unchanged.
+    const sent = await WhatsAppService.sendDocument(phone, tmpPath, filename);
     logToFile('Oxbridge LP: delivered', {
       phone, rowId: row.id, sizeKB: (pdfBuffer.length / 1024).toFixed(1),
     });
+    await recordOxbridgeAsk(ctx, phone, row, language, askedAt, sent === false
+      ? { status: 'failed', errorCode: 'DELIVERY_FAILED', generatedAt, errorMessage: 'WhatsApp refused the document' }
+      : { status: 'completed', generatedAt });
     return true;
   } catch (err) {
     // Customer-visible failure — must page Axiom (level='error'), not hide
@@ -311,9 +321,50 @@ async function deliverOxbridgeLp(phone, row, language) {
     logToFile('Oxbridge LP: PDF render/send failed', {
       error: err.message, rowId: row.id, phone,
     }, 'error');
+    await recordOxbridgeAsk(ctx, phone, row, language, askedAt, {
+      status: 'failed', errorCode: 'RENDER_FAILED', errorMessage: err.message,
+    });
     return false;
   } finally {
     if (tmpPath) { try { fs.unlinkSync(tmpPath); } catch (_) { /* best-effort */ } }
+  }
+}
+
+/** "Grade Seven" → 7 (the catalogue stores the grade as a word). */
+function gradeFromWord(word) {
+  const hit = Object.entries(GRADE_WORDS).find(([, w]) => w === word);
+  return hit ? Number(hit[0]) : null;
+}
+
+/**
+ * Her Oxbridge ask's lifecycle row (source niete_oxbridge), once the delivery has its outcome. Both
+ * callers — the typed-topic picker tap and the Flow — say whose ask it was; without a teacher id there
+ * is nothing to record. Switched by LP_LIFECYCLE_PATHS; never throws.
+ */
+async function recordOxbridgeAsk(ctx, phone, row, language, askedAt, outcome) {
+  let Lifecycle = null;
+  try {
+    if (!ctx || !ctx.userId) return null;
+    Lifecycle = require('./lesson-plan-lifecycle.service');
+    const { SOURCES, CHANNELS } = Lifecycle.LIFECYCLE;
+    return await Lifecycle.recordOutcome({
+      userId: ctx.userId,
+      phone,
+      topic: (row && row.chapter_title) || 'Oxbridge lesson plan',
+      language,
+      source: SOURCES.NIETE_OXBRIDGE,
+      channel: CHANNELS.WHATSAPP,
+      grade: gradeFromWord(row && row.grade),
+      subject: row && row.subject,
+      artifactRef: row && row.id != null ? String(row.id) : null,
+      askedAt,
+      correlationId: ctx.correlationId,
+      ...outcome,
+    });
+  } catch (err) {
+    // Describing the ask threw (recordOutcome itself never does): reported, never thrown into her delivery.
+    if (Lifecycle) Lifecycle.recorderThrew(err, Lifecycle.LIFECYCLE.SOURCES.NIETE_OXBRIDGE);
+    return null;
   }
 }
 

@@ -1250,6 +1250,9 @@ const WhatsAppService = require('../shared/services/whatsapp.service');
  * Re-queues requests that were stuck in 'processing' state
  * Called on startup AND periodically to catch jobs stuck after deployment
  */
+// The queued render's attempt limit — the same one the generation worker and the health check read.
+const { MAX_ATTEMPTS: MAX_LP_ATTEMPTS } = require('../shared/config/lesson-plan-generation');
+
 async function recoverStaleLessonPlanRequests() {
   try {
     logToFile('Checking for stale lesson plan requests...');
@@ -1277,7 +1280,7 @@ async function recoverStaleLessonPlanRequests() {
         continue;
       }
 
-      if (request.retry_count >= 3) {
+      if (request.retry_count >= MAX_LP_ATTEMPTS) {
         // Max retries exceeded - send apology and mark failed
         logToFile('Stale request exceeded max retries, sending apology', {
           requestId: request.id,
@@ -1285,7 +1288,7 @@ async function recoverStaleLessonPlanRequests() {
         });
 
         // Mark as failed FIRST to prevent race conditions
-        await LessonPlanQueueService.markFailed(request.id, 'Exceeded max retries during recovery');
+        await LessonPlanQueueService.markFailed(request.id, 'Exceeded max retries during recovery', undefined, { final: true });
 
         try {
           const apologyMessages = {
@@ -1605,6 +1608,73 @@ function challengeVoiceSweepEnabled(env = process.env) {
   if (raw === 'off' || raw === 'false' || raw === '0' || raw === 'no') return false;
   return SQSCoachingWorker._enabledQueues().has('main');
 }
+/**
+ * One tick of the lesson-plan health check — what the boot timer and the hourly interval call. The
+ * check decides everything else (switched on or not, which replica reads, the verdict); this only
+ * guarantees that a monitor can never take down the worker it runs in.
+ *
+ * @param {{health?: {run: Function}}} deps the check, injectable for the suite
+ * @returns {Promise<Object|null>} the check's outcome, or null when it threw
+ */
+const LP_HEALTH_TICK_MS = 60 * 60 * 1000;
+const LP_HEALTH_FIRST_MS = 3 * 60 * 1000;
+async function runLessonPlanHealth({ health } = {}) {
+  try {
+    const h = health || require('../shared/services/monitoring/lesson-plan-health.service');
+    const result = await h.run();
+    // One line per tick, whatever the check decided: a tick that returned early is never mistaken for a
+    // timer that never fired (this service redeploys several times a day).
+    const { outcome, reason, verdict, error: failure } = result || {};
+    logToFile('Lesson-plan health tick', { outcome, reason, verdict, error: failure });
+    return result;
+  } catch (error) {
+    logToFile('Error in lesson-plan health check (non-fatal)', { error: error.message }, 'error');
+    return null;
+  }
+}
+
+/**
+ * The lesson-plan health check (monitoring/lesson-plan-health.service): an hourly tick plus a boot run,
+ * because this service redeploys several times a day and each restart resets the timer. Main-queue
+ * replicas only; among them, exactly one reads per tick (the check's own read-back claim). A no-op
+ * until LP_LIFECYCLE_PATHS switches a path on.
+ */
+/**
+ * The boot step that schedules the worker's periodic checks — what startWorker calls. Each check is
+ * guarded: a broken monitor is said at error level and never stops the boot or the checks after it.
+ */
+function schedulePeriodicChecks({ worker: w = null } = {}) {
+  scheduleChallengeVoiceSweep({ worker: w });
+  try {
+    scheduleLessonPlanHealth({ worker: w });
+  } catch (error) {
+    logToFile('Error scheduling the lesson-plan health check (non-fatal)', { error: error && error.message }, 'error');
+  }
+}
+
+function scheduleLessonPlanHealth({ worker: w = null, setIntervalFn = setInterval, setTimeoutFn = setTimeout } = {}) {
+  if (!SQSCoachingWorker._enabledQueues().has('main')) {
+    logToFile('Lesson-plan health check not scheduled on this replica', { reason: 'no main queue' });
+    return null;
+  }
+  if (require('../shared/services/monitoring/lesson-plan-health.service').healthCheckOff()) {
+    logToFile('Lesson-plan health check not scheduled', { reason: 'LP_HEALTH_CHECK=off' });
+    return null;
+  }
+  const tick = () => {
+    if (w && w.isShuttingDown) {
+      logToFile('Lesson-plan health tick', { outcome: 'skipped', reason: 'shutting_down' });
+      return undefined;
+    }
+    return runLessonPlanHealth();
+  };
+  const first = setTimeoutFn(tick, LP_HEALTH_FIRST_MS);
+  if (first && typeof first.unref === 'function') first.unref();
+  const timer = setIntervalFn(tick, LP_HEALTH_TICK_MS);
+  logToFile('Lesson-plan health check scheduled (hourly + boot, main-queue replicas; a no-op until LP_LIFECYCLE_PATHS is set)');
+  return { tick, timer };
+}
+
 function scheduleChallengeVoiceSweep({ worker: w = null, setIntervalFn = setInterval, setTimeoutFn = setTimeout } = {}) {
   if (!challengeVoiceSweepEnabled()) {
     logToFile('Challenge voice orphan sweep not scheduled on this replica', { reason: 'no main queue, or WEB_QUIZ_VOICE_SWEEP=off' });
@@ -1712,7 +1782,7 @@ function startWorker() {
 
     logToFile('Periodic Soniox storage cleanup enabled (every 15 minutes)');
 
-    scheduleChallengeVoiceSweep({ worker });
+    schedulePeriodicChecks({ worker });
 
     // bd-2417: NIETE has no Railway Cron, so drive stale-session recovery from
     // this always-on worker too — auto-complete abandoned reflection sessions
@@ -1889,4 +1959,5 @@ if (require.main === module) {
 module.exports = {
   SQSCoachingWorker, WORKER_ID, startWorker, runDebriefRetrySweep, resolveWorkerQueuesBootStatus,
   exitAfterFlush, runQuizFunnelWatch, scheduleChallengeVoiceSweep, challengeVoiceSweepEnabled,
+  runLessonPlanHealth, scheduleLessonPlanHealth, schedulePeriodicChecks, recoverStaleLessonPlanRequests,
 };

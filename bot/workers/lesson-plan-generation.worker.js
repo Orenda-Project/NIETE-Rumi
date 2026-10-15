@@ -21,12 +21,13 @@ const CurriculumLpAstService = require('../shared/services/curriculum-lp-ast.ser
 const { renderAndServeGrounded } = require('../shared/services/grounded-lp-render.service');
 const LpFeedbackService = require('../shared/services/lp-feedback.service');
 const { storeLessonPlan } = require('../shared/database/bot-helpers');
+const Lifecycle = require('../shared/services/lesson-plan-lifecycle.service');
 
 // Temp directory for PDF downloads
 const TEMP_DIR = process.env.TEMP_DIR || '/tmp';
 
-// Max retries before sending apology
-const MAX_RETRIES = 3;
+// Attempts before the apology — the one limit the queue service and the health check share.
+const { MAX_ATTEMPTS: MAX_RETRIES } = require('../shared/config/lesson-plan-generation');
 
 /**
  * Bilingual messages for user communication
@@ -327,11 +328,11 @@ class LessonPlanGenerationWorker {
 
       // 1. Hydrate the AST row (skip if inline provided by tests)
       const lp = jobData.lp || await CurriculumLpAstService.findByUuid(sourceLpUuid);
-      if (!lp) throw new Error(`curriculum_lp_ast row not found: ${sourceLpUuid}`);
+      if (!lp) throw Object.assign(new Error(`curriculum_lp_ast row not found: ${sourceLpUuid}`), { lifecycleCode: 'NO_ASSET' });
 
       // 2. Render + cache + send in one shot via the shared service
       const result = await renderAndServeGrounded({ userId: phoneNumber || userId, lp, language });
-      if (!result.ok) throw new Error(`Grounded render failed: ${result.error}`);
+      if (!result.ok) throw Object.assign(new Error(`Grounded render failed: ${result.error}`), { lifecycleCode: 'RENDER_FAILED' });
 
       logToFile('Grounded LP delivered', { requestId, sourceLpUuid, r2Key: result.r2Key });
 
@@ -340,6 +341,8 @@ class LessonPlanGenerationWorker {
       await LessonPlanQueueService.markCompleted(requestId, {
         gammaUrl: null,
         pdfUrl: result.r2Key,
+        generatedAt: result.generatedAt,
+        sent: result.sent,
       });
 
       // 4. Store in lesson_plans + schedule feedback prompt (both non-fatal)
@@ -356,7 +359,9 @@ class LessonPlanGenerationWorker {
           language,
           trigger_mode: 'after_pdf_only',
         };
-        const lpRow = await storeLessonPlan(userId, topic, 'lesson_plan', null, result.r2Key, content);
+        // The plan row names the request it was delivered for, when the lifecycle switch is on.
+        const linked = Lifecycle.enabled(Lifecycle.LIFECYCLE.SOURCES.NIETE_GROUNDED) ? { request_id: requestId } : null;
+        const lpRow = await storeLessonPlan(userId, topic, 'lesson_plan', null, result.r2Key, content, linked);
         if (lpRow?.id) {
           LpFeedbackService.scheduleFeedbackPrompt({
             lessonPlanId: lpRow.id,
@@ -394,7 +399,7 @@ class LessonPlanGenerationWorker {
 
       const req = await LessonPlanQueueService.getRequest(requestId);
       const retryCount = (req?.retry_count || 0) + 1;
-      await LessonPlanQueueService.markFailed(requestId, error.message);
+      await LessonPlanQueueService.markFailed(requestId, error.message, error.lifecycleCode, { final: retryCount >= MAX_RETRIES });
 
       if (retryCount >= MAX_RETRIES) {
         try {

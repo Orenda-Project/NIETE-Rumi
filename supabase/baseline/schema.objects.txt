@@ -952,21 +952,31 @@ lesson_plan_catalog.source_row_id:bigint
 lesson_plan_catalog.source_uuid:uuid
 lesson_plan_catalog.subject:text
 lesson_plan_catalog.updated_at:timestamp with time zone
+lesson_plan_requests.artifact_ref:text
+lesson_plan_requests.channel:text
 lesson_plan_requests.completed_at:timestamp with time zone
 lesson_plan_requests.content_type:character varying
+lesson_plan_requests.correlation_id:text
 lesson_plan_requests.created_at:timestamp with time zone
+lesson_plan_requests.delivered_at:timestamp with time zone
+lesson_plan_requests.error_code:text
 lesson_plan_requests.error_message:text
 lesson_plan_requests.full_message:text
 lesson_plan_requests.gamma_generation_id:character varying
 lesson_plan_requests.gamma_url:text
+lesson_plan_requests.generated_at:timestamp with time zone
+lesson_plan_requests.grade:integer
 lesson_plan_requests.id:uuid
 lesson_plan_requests.language:character varying
 lesson_plan_requests.last_retry_at:timestamp with time zone
 lesson_plan_requests.pdf_url:text
 lesson_plan_requests.phone_number:character varying
 lesson_plan_requests.processing_started_at:timestamp with time zone
+lesson_plan_requests.region:text
 lesson_plan_requests.retry_count:integer
+lesson_plan_requests.source:text
 lesson_plan_requests.status:character varying
+lesson_plan_requests.subject:text
 lesson_plan_requests.topic:character varying
 lesson_plan_requests.user_id:uuid
 lesson_plans.content:jsonb
@@ -981,6 +991,7 @@ lesson_plans.pdf_url:text
 lesson_plans.pic_lp_session_id:uuid
 lesson_plans.quiz_id:uuid
 lesson_plans.quiz_nudge_sent:boolean
+lesson_plans.request_id:uuid
 lesson_plans.source:text
 lesson_plans.status:character varying
 lesson_plans.subject:character varying
@@ -1015,6 +1026,7 @@ niete_lp612_deliveries.delivered_at:timestamp with time zone
 niete_lp612_deliveries.id:uuid
 niete_lp612_deliveries.lang:text
 niete_lp612_deliveries.render_id:uuid
+niete_lp612_deliveries.request_id:uuid
 niete_lp612_deliveries.segment_id:text
 niete_lp612_deliveries.surface:text
 niete_lp612_deliveries.template_version:text
@@ -1122,6 +1134,7 @@ niete_lp_downloads.grade:integer
 niete_lp_downloads.id:uuid
 niete_lp_downloads.lesson_id:text
 niete_lp_downloads.phone:text
+niete_lp_downloads.request_id:uuid
 niete_lp_downloads.segment_index:integer
 niete_lp_downloads.status:text
 niete_lp_downloads.subject:text

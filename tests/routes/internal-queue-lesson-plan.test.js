@@ -147,6 +147,12 @@ describe('bd-2461 — POST /api/internal/queue-lesson-plan behaviour', () => {
     }));
   });
 
+  it('says the ask was made in the portal, so its lifecycle row (when switched on) reads channel portal', async () => {
+    await invoke({ headers: auth, body: VALID });
+
+    expect(createAndQueueGrounded).toHaveBeenCalledWith(expect.objectContaining({ channel: 'portal' }));
+  });
+
   it('rejects a payload with no sourceLpUuid before touching the queue', async () => {
     const { statusCode } = await invoke({ headers: auth, body: { ...VALID, sourceLpUuid: undefined } });
 
