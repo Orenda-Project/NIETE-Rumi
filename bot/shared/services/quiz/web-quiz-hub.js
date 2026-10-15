@@ -417,7 +417,7 @@ async function hubPayload(token, { kid, device, src } = {}) {
   // src is the route the caller passed (the hub URL's from=), only from the known set; the return mark (ret) is not known here.
   const openEv = (base, studentId) => (f.hub && f.eventsV2 ? require('./web-quiz-measure-events').hubOpen(base, { studentId, device, src }) : base);
   // keep my place (web_quiz_phone_bind): the card's ticket for a chosen child, the picker chips' line2/played. Off: untouched.
-  await require('./web-quiz-bind-page').hubExtras(out, { token, chosen, rows: kidsRows, trust, lang, device, src: (arguments[1] || {}).src });
+  await require('./web-quiz-bind-page').hubExtras(out, { token, chosen, rows: kidsRows, trust, lang, device, src });
   if (!chosen) {
     logEvent('web_quiz.hub_open', openEv({ kids: kidsRows.length, picked: false }, null));
     return out;
