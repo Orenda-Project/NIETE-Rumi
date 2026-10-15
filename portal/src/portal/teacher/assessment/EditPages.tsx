@@ -46,7 +46,7 @@ const FDE_EDIT_EN = {
   section: (letter: string) => `Section ${letter}`,
 };
 const UR_LETTERS: Record<string, string> = { A: 'الف', B: 'ب', C: 'ج', D: 'د' };
-export const FDE_EDIT = bilingual(FDE_EDIT_EN, {
+const FDE_EDIT = bilingual(FDE_EDIT_EN, {
   editBoth: 'پرچہ اور مارکنگ اسکیم دونوں بدلیں گے',
   willSay: (slot: string, n: number, of: number) => `${slot} پھر کہے گا: ${of} میں سے کوئی ${n}`,
   willSayAll: (slot: string, of: number) => `${slot} پھر کہے گا: ${of === 2 ? 'دونوں' : `تمام ${of}`} حل کریں`,
@@ -129,7 +129,7 @@ export function EditPaperPage() {
     `edit-choices:${paperId}:${fde && !pp.choices}`,
   );
   const choices: Choice[] = pp.choices
-    ?? ((dataOf(opts)?.patterns as Array<{ id?: string; choices?: Choice[] }> | undefined) ?? [])
+    ?? (((dataOf(opts) as { patterns?: unknown } | null | undefined)?.patterns as Array<{ id?: string; choices?: Choice[] }> | undefined) ?? [])
       .find((x) => !pp.pattern || !x.id || x.id === pp.pattern)?.choices
     ?? [];
   const items = useMemo(() => (d?.items ?? []).map((it: EditItem) => ({
