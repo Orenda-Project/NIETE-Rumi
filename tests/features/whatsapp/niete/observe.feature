@@ -820,6 +820,51 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # moments.js: the plan is locked by the seal, so a recording that comes first leaves the grading to
     # onSealed (4 Oct: Riffat's PDF was attached after the recording and never checked).
 
+  @e2e @audio @config-gated @destructive @wip @draft @P0
+  Scenario: Record first: a lesson recording sent with no form open is saved as its own visit
+    Given my latest observation was an /observe2 visit
+    And no /observe2 form is waiting for a recording
+    When I send a 34-minute lesson recording from the recorder app as a file
+    Then the bot says the 34-minute recording is saved as one visit with its own form, to fill whenever I'm ready
+    And the message has a "Fill the form" button and a "Cancel observation" button
+    And the bot asks which teacher I observed, with my teachers listed
+    When I pick the teacher
+    Then the bot says it noted the teacher
+    # Pilot sheet R19 (the ICT lead, 14 Oct). observe-audio-router.js holds the recording instead of the
+    # "whose observation is this?" list: observe2/capture-link.js holdRecording makes the visit's form
+    # at capture (visit_context.recorded_first, period from the recording's length) and the capture
+    # links it; the who-answer names the teacher on the form and as the observation's owner.
+
+  @e2e @audio @config-gated @destructive @wip @draft @P0
+  Scenario: Record first: two lessons back to back, each saved and named on its own
+    Given my latest observation was an /observe2 visit
+    When I send the recording of my first lesson and then the recording of my second lesson
+    Then each recording is saved as its own visit, each with its own "which teacher" list
+    When I pick the first teacher on the first list and the second teacher on the second list
+    Then each visit is under its own teacher in "Complete the form"
+    # The who-list rows carry the recording's own session id: an exact link, never "the oldest first".
+
+  @e2e @flow @config-gated @destructive @wip @draft @P0
+  Scenario: Record first: the form is filled later, from the saved message or "Complete the form"
+    Given a lesson recording of mine is saved as a visit and its teacher is named
+    When I send "/observe2" and open "Complete the form"
+    Then the visit shows the teacher's name and "recorded lesson - fill the form"
+    When I continue it
+    Then the bot sends the field form, saying the lesson is recorded and the parts follow the lesson's steps
+    And Part 1 says "The first part of the lesson: up to and including guided practice" with no minutes
+    And Part 2 says "The second part of the lesson: independent practice and the wrap-up" with no minutes
+    When I fill the form, attach the plan and seal it
+    Then the "Check the moments" message arrives, and the debrief and the report follow as for any visit
+    # observe-debrief.listUnfinished (resume kind observe2_form), observe-resume, observe2/start.js
+    # handleFillButton and sendLiveForm afterLesson, observe2-form-endpoint.js afterLesson. Only screen
+    # data changes, so a form opened on the published Flow keeps working (no FORM_VERSION change).
+
+  @e2e @audio @config-gated @wip @draft @P1
+  Scenario: Record first is for /observe2 coaches; a coach on classic /observe still gets "whose observation is this?"
+    Given my latest observation was a classic /observe one
+    When I send a 30-minute lesson recording with nothing armed
+    Then the bot asks "Whose observation is this?" with my scheduled teachers at the top, as before
+
   @e2e @flow @config-gated @destructive @wip @draft @P1
   Scenario: With a picked plan, the check shows each step of the plan pre-rated from the recording
     Given I picked a lesson plan before sealing, and the "Check the moments" form is open
