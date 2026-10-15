@@ -165,6 +165,37 @@ function find(quote, lines, near) {
   return { parts: found };
 }
 
+// Who said the words a quote was found in.
+function rolesFound(found, lines) {
+  return new Set(found.parts.flatMap(({ hit }) => (hit.span === 2 ? [lines[hit.line], lines[hit.line + 1]] : [lines[hit.line]]).map((l) => l.role)));
+}
+
+/**
+ * The speaker rule: a type a child does needs a child's words, a type the teacher does the teacher's.
+ * A transcript whose speakers are neither (none known) cannot rule a moment out.
+ */
+function speakerAllows(type, roles) {
+  if (![...roles].some(Boolean)) return true;
+  if (CHILD_TYPES.has(type) && !roles.has('child')) return false;
+  if (TEACHER_TYPES.has(type) && !roles.has('teacher')) return false;
+  return true;
+}
+
+/** Who said a quote's words in this transcript ('teacher', 'child'); empty when the quote is not found. */
+function rolesOf(quote, lines) {
+  const found = find(quote, lines, null);
+  return found ? rolesFound(found, lines) : new Set();
+}
+
+/** The transcript lines around where a quote was found, for a reader who needs the context. */
+function contextOf(quote, lines, around = 2) {
+  const found = find(quote, lines, null);
+  if (!found) return [];
+  const first = found.parts[0].hit.line;
+  const last = found.parts[found.parts.length - 1].hit.line + (found.parts[found.parts.length - 1].hit.span === 2 ? 1 : 0);
+  return lines.slice(Math.max(0, first - around), Math.min(lines.length, last + around + 1));
+}
+
 /**
  * @param {Array<{moment,type,minute,quote}>} moments  what the model returned
  * @param {string} transcript                          the timed transcript the model read
@@ -184,9 +215,7 @@ function checkQuotes(moments, transcript) {
     const found = find(quote, lines, seconds(m && m.minute));
     if (!found) { stats.dropped.not_in_transcript += 1; continue; }
 
-    const roles = new Set(found.parts.flatMap(({ hit }) => (hit.span === 2 ? [lines[hit.line], lines[hit.line + 1]] : [lines[hit.line]]).map((l) => l.role)));
-    const known = [...roles].filter(Boolean);
-    if (known.length && ((CHILD_TYPES.has(type) && !roles.has('child')) || (TEACHER_TYPES.has(type) && !roles.has('teacher')))) {
+    if (!speakerAllows(type, rolesFound(found, lines))) {
       stats.dropped.speaker += 1;
       continue;
     }
@@ -210,4 +239,7 @@ function checkQuotes(moments, transcript) {
   return { moments: kept, stats };
 }
 
-module.exports = { checkQuotes, norm, parseTranscript, MATCH_KEEP, MATCH_EXACT, MIN_WORDS, CHILD_TYPES, TEACHER_TYPES };
+module.exports = {
+  checkQuotes, norm, parseTranscript, speakerAllows, rolesOf, contextOf, clock,
+  MATCH_KEEP, MATCH_EXACT, MIN_WORDS, CHILD_TYPES, TEACHER_TYPES,
+};

@@ -103,7 +103,8 @@ describe('what the model returns is checked against the transcript before it is 
       returned: 9, kept: 5, repaired: 1, minute_fixed: 1,
       dropped: { not_in_transcript: 1, too_short: 1, speaker: 1, duplicate: 1 },
     };
-    expect(formRow(id).rumi_moments.verified).toEqual(verified);
+    // the label check's own counters sit beside these (moments-label-check.test.js)
+    expect(formRow(id).rumi_moments.verified).toMatchObject(verified);
     expect(logToFile).toHaveBeenCalledWith('[observe2] moments checked against the transcript', expect.objectContaining({ formId: id, ...verified }), 'info');
   });
 
