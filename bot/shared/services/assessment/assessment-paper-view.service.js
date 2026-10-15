@@ -145,7 +145,7 @@ async function view({ userId, paperId }) {
     questionCount: active.length, marks: Renderer.totalMarks(active),
   };
   const L = p.exam_json && p.exam_json._layout;
-  if (L) {
+  if (L && Array.isArray(L.sections)) {
     // The pattern's total, never the sum of every generated item (a choice slot prints 12 and counts 8).
     const total = require('./assessment-paper-fde.renderer').totalMarks(p.exam_json);
     Object.assign(paper, {

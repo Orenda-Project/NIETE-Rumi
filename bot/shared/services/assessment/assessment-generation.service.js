@@ -738,7 +738,7 @@ const SECTION_TIMEOUT_MS = 240000;
 
 /**
  * The marks split FDE's table of specification asks for, per subject, by
- * marks (PEDAGOGY v2, from the FDE pattern document). Not yet in the pattern
+ * marks (from the FDE pattern document). Not yet in the pattern
  * data, so it lives here until the pattern carries it.
  */
 const TOS = {
@@ -750,7 +750,7 @@ const TOS = {
 };
 
 // The rule sentences every section is given. Copied exactly from the engine's
-// contract with the panel and the red team; a reviewer compares them by text.
+// contract with the paper's reviewers; they compare them by text.
 const RULE = {
   bookOnly: 'Set every item from the book text above. Never set an item on \'Create and Connect\' or \'Discovery Playground\' activities.',
   held: 'Urdu: never lessons 1, 2 or 3 (حمد، نعت، ایفائے عہد).',
@@ -1020,6 +1020,10 @@ function _textsOf(q) {
   return out;
 }
 
+function _inRanges(page, ranges) {
+  return Patterns.parseRanges(ranges).some(([a, b]) => page >= a && page <= b);
+}
+
 /**
  * Urdu only: drop every item that quotes lessons 1–3 (book pp 1–27: the Hamd,
  * the Naat and the third lesson). The prompt already says so; this makes it
@@ -1027,10 +1031,6 @@ function _textsOf(q) {
  * from those pages, whitespace collapsed. The pages are loaded once per paper.
  * Mutates the tree; returns what was dropped, [{ slot, reason }].
  */
-function _inRanges(page, ranges) {
-  return Patterns.parseRanges(ranges).some(([a, b]) => page >= a && page <= b);
-}
-
 async function religiousFilter(examJson, P, { grade, subject, allowedText = '' } = {}) {
   const key = (P && P.key) || Patterns.normalise(subject);
   if (key !== 'urdu') return [];

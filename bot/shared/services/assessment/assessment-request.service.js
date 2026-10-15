@@ -162,6 +162,13 @@ async function createAndQueue(spec) {
 const BUSY_STATUSES = ['queued', 'generating'];
 
 /**
+ * How long a request with no paper row yet still counts as waiting in the queue. A worker opens
+ * the row within seconds of picking the job up; one with no row after this long never reached a
+ * worker (its enqueue failed after the row was written), and must not lock her out.
+ */
+const QUEUED_BUSY_MS = 3 * 60 * 1000;
+
+/**
  * The board-pattern request this teacher already has in flight for this class,
  * if any: `{ id }` or null. One paper per class at a time — a second tap on
  * Make while the first is still being written would otherwise queue a second
@@ -172,7 +179,8 @@ const BUSY_STATUSES = ['queued', 'generating'];
  * table already has — for this grade and subject over the last few minutes,
  * with each request's papers embedded. In JS, a request is a PATTERN request
  * when its question_types carry a `slot` (only pattern requests write them),
- * and it is busy when it has no generated paper yet (still queued) or its
+ * and it is busy when it has no generated paper yet and was asked for in the last
+ * three minutes (still queued), or its
  * generated paper (edited_from null; later versions are edits, not the
  * original job) is queued or generating. A ready or failed paper never blocks.
  *
@@ -185,7 +193,8 @@ const BUSY_STATUSES = ['queued', 'generating'];
 // eslint-disable-next-line no-unused-vars
 async function findGenerating({ userId, grade, subject, pattern = null, withinMinutes = 10, now = Date.now() } = {}) {
   try {
-    const since = new Date(Number(now instanceof Date ? now.getTime() : now) - withinMinutes * 60 * 1000).toISOString();
+    const nowMs = Number(now instanceof Date ? now.getTime() : now);
+    const since = new Date(nowMs - withinMinutes * 60 * 1000).toISOString();
     const { data, error } = await supabase
       .from('assessment_requests')
       .select('id, question_types, created_at, assessment_papers(status, edited_from)')
@@ -202,7 +211,9 @@ async function findGenerating({ userId, grade, subject, pattern = null, withinMi
       if (!types.some((t) => t && t.slot)) continue;
       const papers = [].concat(row.assessment_papers || []);
       const generated = papers.find((p) => p && p.edited_from == null);
-      if (!generated || BUSY_STATUSES.includes(generated.status)) return { id: row.id };
+      if (generated && BUSY_STATUSES.includes(generated.status)) return { id: row.id };
+      const age = nowMs - new Date(row.created_at).getTime();
+      if (!generated && Number.isFinite(age) && age < QUEUED_BUSY_MS) return { id: row.id };
     }
     return null;
   } catch (err) {
