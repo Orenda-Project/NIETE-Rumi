@@ -158,13 +158,14 @@ function suppliesFor(P, bySlot) {
 
 const VERSES_NEEDED = 4;
 
+// The lines of a piece of text, and how they were joined (to put a remainder back the same way).
 function verseLines(text) {
   const s = typeof text === 'string' ? text.trim() : '';
-  if (!s) return [];
+  if (!s) return { lines: [], joiner: '\n' };
   const byLine = s.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  if (byLine.length > 1) return byLine;
+  if (byLine.length > 1) return { lines: byLine, joiner: '\n' };
   // One line of text: verses run on, each ending in «۔», «؟» or «،».
-  return s.split(/(?<=[۔؟،])\s+/).map((l) => l.trim()).filter(Boolean);
+  return { lines: s.split(/(?<=[۔؟،])\s+/).map((l) => l.trim()).filter(Boolean), joiner: ' ' };
 }
 
 /**
@@ -175,11 +176,13 @@ function verseLines(text) {
  */
 function settleVerses(slot, q) {
   if (!Array.isArray(slot.alternatives) || !slot.alternatives.some((a) => a && a.kind === 'seen_verses')) return true;
-  if (verseLines(q.passage).length >= VERSES_NEEDED) return true;
-  const lines = verseLines(q.question);
+  if (verseLines(q.passage).lines.length >= VERSES_NEEDED) return true;
+  const { lines, joiner } = verseLines(q.question);
   if (lines.length < VERSES_NEEDED) return false;
-  q.passage = lines.join('\n');
-  q.question = typeof q.main_question === 'string' && q.main_question.trim() ? q.main_question : '';
+  // The verses are the last four lines; anything above them is the instruction.
+  const lead = lines.slice(0, lines.length - VERSES_NEEDED).join(joiner);
+  q.passage = lines.slice(-VERSES_NEEDED).join('\n');
+  q.question = lead || (typeof q.main_question === 'string' && q.main_question.trim() ? q.main_question : '');
   return true;
 }
 
@@ -225,9 +228,35 @@ function numberOf(text) {
   return NaN;
 }
 
-// Numbers printed in order (ascending or descending) are an order of their own.
+// Words with a natural order of their own: roman numerals, ordinals, weekdays, months.
+const ORDINAL_WORDS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
+const URDU_ORDINALS = ['پہلا', 'دوسرا', 'تیسرا', 'چوتھا', 'پانچواں', 'چھٹا', 'ساتواں', 'آٹھواں', 'نواں', 'دسواں'];
+const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+const ROMAN = { i: 1, v: 5, x: 10, l: 50, c: 100 };
+
+function romanOf(t) {
+  if (!/^(?:x{0,3})(?:ix|iv|v?i{0,3})$/i.test(t) || !t) return NaN;
+  const d = [...t.toLowerCase()].map((c) => ROMAN[c]);
+  return d.reduce((sum, v, i) => sum + (v < (d[i + 1] || 0) ? -v : v), 0);
+}
+
+const SCALES = [
+  (t) => romanOf(t),
+  (t) => { const m = /^(\d+)(?:st|nd|rd|th)$/i.exec(t); return m ? Number(m[1]) : NaN; },
+  (t) => { const i = ORDINAL_WORDS.indexOf(t.toLowerCase().replace(/[.!]$/, '')); return i < 0 ? NaN : i; },
+  (t) => { const i = URDU_ORDINALS.indexOf(t.replace(/[۔.]$/, '')); return i < 0 ? NaN : i; },
+  (t) => { const i = WEEKDAYS.indexOf(t.toLowerCase().replace(/[.!]$/, '')); return i < 0 ? NaN : i; },
+  (t) => { const i = MONTHS.indexOf(t.toLowerCase().replace(/[.!]$/, '')); return i < 0 ? NaN : i; },
+  numberOf,
+];
+
+// Numbers, or words with an order of their own, printed in order (either way).
 function inNumberOrder(texts) {
-  const v = texts.map(numberOf);
+  return SCALES.some((scale) => monotonic(texts.map((t) => scale(t.trim()))));
+}
+
+function monotonic(v) {
   if (v.some(Number.isNaN)) return false;
   const up = v.every((x, i) => i === 0 || x > v[i - 1]);
   const down = v.every((x, i) => i === 0 || x < v[i - 1]);

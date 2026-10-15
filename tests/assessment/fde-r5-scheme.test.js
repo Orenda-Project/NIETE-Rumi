@@ -172,3 +172,49 @@ describe('spare pick words are kept up to the number needed (item 5)', () => {
     expect(run.ns.shortfall).toEqual([{ slot: 'english.B.Q2', kind: 'Verbs', have: 2, need: 3 }]);
   });
 });
+
+describe('round 2: a key is never "corrected" across a unit change or a rounding', () => {
+  // Keys written as a board-pattern paper writes them, checked through the real chain.
+  const paperOf = (answers) => ({
+    unseen: {
+      subjective: {
+        'Word Problems': answers.map((answer, i) => ({
+          slot: 'maths.B.Q2', question: `Word problem number ${i + 1} about a shop.`, answer, blooms: 'Apply',
+        })),
+      },
+    },
+  });
+  const verdicts = (answers) => {
+    const run = chain(paperOf(answers), 'maths');
+    return run.exam.unseen.subjective['Word Problems'].map((q) => [q.answer, q.scheme.checked]);
+  };
+
+  it('a unit conversion in the working leaves a correct key as written (null, never replaced)', () => {
+    expect(verdicts([
+      '500 g + 250 g = 750 g = 0.75 kg',
+      '4 x 25 = 100 cm = 1 m',
+      '2 x 30 = 60 minutes = 1 hour',
+    ])).toEqual([
+      ['500 g + 250 g = 750 g = 0.75 kg', null],
+      ['4 x 25 = 100 cm = 1 m', null],
+      ['2 x 30 = 60 minutes = 1 hour', null],
+    ]);
+  });
+
+  it('the same unit on both sides is still checked, and a wrong key still corrected', () => {
+    expect(verdicts(['Rs. 500 - Rs. 120 = Rs. 380', '3 x 4 litres = 12 litres', '3 x 4 litres = 13 litres'])).toEqual([
+      ['Rs. 500 - Rs. 120 = Rs. 380', 'ok'],
+      ['3 x 4 litres = 12 litres', 'ok'],
+      ['3 x 4 litres = 12 litres', 'replaced'],
+    ]);
+  });
+
+  it('a rounded result: recurring and correctly rounded is ok; terminating but rounded is left alone; a wrong rounding is corrected', () => {
+    expect(verdicts(['10 ÷ 3 = 3.3', '10 ÷ 3 = 3.33', '7 ÷ 8 = 0.88', '10 ÷ 3 = 3.4'])).toEqual([
+      ['10 ÷ 3 = 3.3', 'ok'],
+      ['10 ÷ 3 = 3.33', 'ok'],
+      ['7 ÷ 8 = 0.88', null],
+      ['10 ÷ 3 = 3.3', 'replaced'],
+    ]);
+  });
+});
