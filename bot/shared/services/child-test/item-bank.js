@@ -189,8 +189,9 @@ module.exports = {
 // G3 rotating missing items), the periods, the draw weights and the clone templates; passages live one file per
 // id under data/child-test/passages/ (immutable per id: a fix is a new id). The registry tables
 // (web_quiz_challenge_registry.sql) hold status, release and sign-off; the text lives here.
-// Pure and deep-frozen: no database, no environment. Nothing in the serve path calls this section yet; the draw
-// reads it only under web_quiz_challenge_pool (parent web_quiz_challenge_v2), in a later change.
+// Pure and deep-frozen: no database, no environment. The serve path calls this section only for the grade-1 form
+// (anchorBlock('G1A') under web_quiz_challenge_g1); the draw reads it only under web_quiz_challenge_pool (parent
+// web_quiz_challenge_v2), in a later change.
 // The code above this section is untouched; these exports are added to the object above.
 const fsV4 = require('fs');
 const pathV4 = require('path');
@@ -278,6 +279,7 @@ function listItemsV4() {
 }
 
 function shownV4(task, params) {
+  if (task === 'number_id') return { n: params.n, layout: params.layout, tiles: params.tiles };
   return task === 'missing' ? { seq: params.seq } : { a: params.a, b: params.b };
 }
 
@@ -287,7 +289,7 @@ function anchorBlock(block) {
   if (!def) throw new Error(`child-test item bank v4: unknown anchor block "${block}"`);
   return deepFreeze([...def.items]
     .sort((x, y) => x.anchor_pos - y.anchor_pos)
-    .map((it) => ({ item_id: it.item_id, task: it.task, anchor_pos: it.anchor_pos, ...shownV4(it.task, it.params), answer: it.params.ans, band: it.band })));
+    .map((it) => ({ item_id: it.item_id, task: it.task, anchor_pos: it.anchor_pos, ...shownV4(it.task, it.params), answer: it.task === 'number_id' ? it.params.n : it.params.ans, band: it.band })));
 }
 
 /** The anchor blocks a period serves: ['A1'] before A2's first period, ['A1', 'A2'] from it ('YYYY-MM' compare). */
@@ -382,3 +384,17 @@ Object.assign(module.exports, {
   listPassages,
   _loadPassagesFrom,
 });
+
+// ------------------------------------------------------------------ grade-1 number identification (v4)
+// Anchor block G1A (k dots -> the numeral, numid.G1.A.*) is read with anchorBlock('G1A') above: each item gives
+// { item_id, task: 'number_id', anchor_pos, n, layout, tiles, answer: n }. The practice layouts (scatter, line) are
+// Story Time stock: pool practice, never on the Trail, not in the registry seed.
+const NUMID_PRACTICE = deepFreeze(((BANK_V4.practice_items || {})['numid.practice'] || { items: [] }).items
+  .map((it) => ({ item_id: it.item_id, task: it.task, form: it.form, pool: it.pool, status: it.status, n: it.params.n, layout: it.params.layout, params: it.params })));
+
+/** The grade-1 practice layouts: [{ item_id, task, form, pool, status, n, layout, params }]. */
+function numberIdPractice() {
+  return NUMID_PRACTICE;
+}
+
+Object.assign(module.exports, { numberIdPractice });

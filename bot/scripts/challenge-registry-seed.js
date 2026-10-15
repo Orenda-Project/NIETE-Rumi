@@ -3,7 +3,8 @@
 /**
  * Prints the Challenge content registry seed (bot/database/migrations/web_quiz_challenge_registry_seed.sql)
  * from the banks: the two launch periods, the Set A passage rows (band 2 references) and the maths item rows
- * (anchor block A1, the A2 draft, bigger.G3.A / bigger.G5.A, missing.G3.A.07-10).
+ * (anchor block A1, the A2 draft, bigger.G3.A / bigger.G5.A, missing.G3.A.07-10, the grade-1 block G1A and
+ * numid.G1.A.05).
  *
  *   node bot/scripts/challenge-registry-seed.js > bot/database/migrations/web_quiz_challenge_registry_seed.sql
  *
@@ -123,7 +124,9 @@ function buildSeedSql() {
     '--   read by a native reviewer (never an English placeholder in a child-facing field).',
     '-- Items: anchor block A1 (operational, both forms), the A2 draft (provisional; anchor=false and anchor_block NULL at',
     '--   launch because an anchor row must be operational; the bank marks them anchor_block_candidate A2), the bigger',
-    '--   sets for G3 and G5 and missing.G3.A.07-10. params_hash = first 16 hex of sha256 over the sorted-key JSON.',
+    '--   sets for G3 and G5, missing.G3.A.07-10, and the grade-1 numerals: block G1A (numid.G1.A.*, ten anchors, form G1)',
+    '--   plus numid.G1.A.05 (operational, not in the block). The grade-1 practice layouts are Story Time stock, not seeded.',
+    '--   params_hash = first 16 hex of sha256 over the sorted-key JSON.',
     '',
     'BEGIN;',
     '',

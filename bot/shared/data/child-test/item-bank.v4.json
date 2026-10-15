@@ -1,6 +1,6 @@
 {
   "version": "child-test-items-v4",
-  "note": "The Challenge content registry bank. Maths ids over the v3 Set A content (params verified against item-bank.v3.json), the anchor blocks, the period list, the draw weights and the clone templates. Passage text is NOT in this file: each passage lives in passages/<passage_id>.json, immutable per id (a fix is a new id). Nothing in the serve path reads this file yet.",
+  "note": "The Challenge content registry bank. Maths ids over the v3 Set A content (params verified against item-bank.v3.json), the anchor blocks, the period list, the draw weights and the clone templates. Passage text is NOT in this file: each passage lives in passages/<passage_id>.json, immutable per id (a fix is a new id). Only the grade-1 form (anchor block G1A, behind web_quiz_challenge_g1) is served from this file; nothing else in the serve path reads it yet.",
   "conventions": {
     "passage_id": "<lang>.<kind>.<band>.<slug>",
     "item_id": "<task>.<form>.<set>.<nn> | anchor.<block>.<nn> | <task>.<template>.<hash8>",
@@ -267,6 +267,176 @@
             "a": 1.25,
             "b": 1.3,
             "ans": 1.3
+          }
+        }
+      ]
+    },
+    "G1A": {
+      "form": "G1",
+      "task": "number_id",
+      "serve": "the only counted stop of the grade-1 Trail (exercise numbers): k dots in a ten-frame, three numeral tiles, one tap; sound-off safe; no mic, no typing, no timer shown; fixed order; no consecutive-error stop; the same items in both languages",
+      "pool": "check",
+      "status": "operational",
+      "tiles_rule": "the answer and two distractors from {k-1, k+1, k-2, k+2, 0, 10} within 0..10; never a letter, never a word",
+      "items": [
+        {
+          "item_id": "numid.G1.A.03",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "anchor_pos": 1,
+          "params": {
+            "n": 3,
+            "layout": "tenframe",
+            "tiles": [
+              3,
+              2,
+              4
+            ]
+          }
+        },
+        {
+          "item_id": "numid.G1.A.07",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "anchor_pos": 2,
+          "params": {
+            "n": 7,
+            "layout": "tenframe",
+            "tiles": [
+              8,
+              7,
+              6
+            ]
+          }
+        },
+        {
+          "item_id": "numid.G1.A.01",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "anchor_pos": 3,
+          "params": {
+            "n": 1,
+            "layout": "tenframe",
+            "tiles": [
+              1,
+              0,
+              2
+            ]
+          }
+        },
+        {
+          "item_id": "numid.G1.A.09",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "anchor_pos": 4,
+          "params": {
+            "n": 9,
+            "layout": "tenframe",
+            "tiles": [
+              10,
+              8,
+              9
+            ]
+          }
+        },
+        {
+          "item_id": "numid.G1.A.04",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "anchor_pos": 5,
+          "params": {
+            "n": 4,
+            "layout": "tenframe",
+            "tiles": [
+              4,
+              5,
+              3
+            ]
+          }
+        },
+        {
+          "item_id": "numid.G1.A.10",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "anchor_pos": 6,
+          "params": {
+            "n": 10,
+            "layout": "tenframe",
+            "tiles": [
+              9,
+              10,
+              8
+            ]
+          }
+        },
+        {
+          "item_id": "numid.G1.A.02",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "anchor_pos": 7,
+          "params": {
+            "n": 2,
+            "layout": "tenframe",
+            "tiles": [
+              3,
+              1,
+              2
+            ]
+          }
+        },
+        {
+          "item_id": "numid.G1.A.06",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "anchor_pos": 8,
+          "params": {
+            "n": 6,
+            "layout": "tenframe",
+            "tiles": [
+              6,
+              7,
+              5
+            ]
+          }
+        },
+        {
+          "item_id": "numid.G1.A.00",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "anchor_pos": 9,
+          "params": {
+            "n": 0,
+            "layout": "tenframe",
+            "tiles": [
+              1,
+              0,
+              2
+            ]
+          }
+        },
+        {
+          "item_id": "numid.G1.A.08",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "anchor_pos": 10,
+          "params": {
+            "n": 8,
+            "layout": "tenframe",
+            "tiles": [
+              8,
+              9,
+              7
+            ]
           }
         }
       ]
@@ -564,8 +734,409 @@
         "ans": 13
       },
       "v3": "missing G3 pos 9"
+    },
+    {
+      "item_id": "numid.G1.A.05",
+      "task": "number_id",
+      "form": "G1",
+      "band": 1,
+      "pool": "check",
+      "status": "operational",
+      "params": {
+        "n": 5,
+        "layout": "tenframe",
+        "tiles": [
+          6,
+          5,
+          4
+        ]
+      },
+      "note": "authored, kept out of the G1A block (numerals 0-10 minus 5)"
     }
   ],
+  "practice_items": {
+    "numid.practice": {
+      "template": "numid.practice",
+      "pool": "practice",
+      "note": "Story Time only; never served on the Trail; not in the registry seed",
+      "items": [
+        {
+          "item_id": "numid.practice.e8affcdc",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 0,
+            "layout": "scatter",
+            "tiles": [
+              1,
+              0,
+              2
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.e045cc01",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 1,
+            "layout": "scatter",
+            "tiles": [
+              2,
+              1,
+              0
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.a915ceeb",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 2,
+            "layout": "scatter",
+            "tiles": [
+              3,
+              2,
+              1
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.57d45712",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 3,
+            "layout": "scatter",
+            "tiles": [
+              4,
+              3,
+              2
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.4e0138d9",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 4,
+            "layout": "scatter",
+            "tiles": [
+              5,
+              4,
+              3
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.175df9f4",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 5,
+            "layout": "scatter",
+            "tiles": [
+              6,
+              5,
+              4
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.76aff756",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 6,
+            "layout": "scatter",
+            "tiles": [
+              7,
+              6,
+              5
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.29cbb477",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 7,
+            "layout": "scatter",
+            "tiles": [
+              8,
+              7,
+              6
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.08ba5caf",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 8,
+            "layout": "scatter",
+            "tiles": [
+              9,
+              8,
+              7
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.a5cf03ca",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 9,
+            "layout": "scatter",
+            "tiles": [
+              10,
+              9,
+              8
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.ec94e8af",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 10,
+            "layout": "scatter",
+            "tiles": [
+              9,
+              10,
+              8
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.89dd87e3",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 0,
+            "layout": "line",
+            "tiles": [
+              2,
+              1,
+              0
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.76487144",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 1,
+            "layout": "line",
+            "tiles": [
+              0,
+              2,
+              1
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.4d94a5d4",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 2,
+            "layout": "line",
+            "tiles": [
+              1,
+              3,
+              2
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.e76d5095",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 3,
+            "layout": "line",
+            "tiles": [
+              2,
+              4,
+              3
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.f30573b4",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 4,
+            "layout": "line",
+            "tiles": [
+              3,
+              5,
+              4
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.5f26aca9",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 5,
+            "layout": "line",
+            "tiles": [
+              4,
+              6,
+              5
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.becdc589",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 6,
+            "layout": "line",
+            "tiles": [
+              5,
+              7,
+              6
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.3bf2458b",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 7,
+            "layout": "line",
+            "tiles": [
+              6,
+              8,
+              7
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.d6e1e43e",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 8,
+            "layout": "line",
+            "tiles": [
+              7,
+              9,
+              8
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.32218ebd",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 9,
+            "layout": "line",
+            "tiles": [
+              8,
+              10,
+              9
+            ]
+          }
+        },
+        {
+          "item_id": "numid.practice.cedb0c87",
+          "task": "number_id",
+          "form": "G1",
+          "band": 1,
+          "pool": "practice",
+          "status": "reviewed",
+          "params": {
+            "n": 10,
+            "layout": "line",
+            "tiles": [
+              8,
+              9,
+              10
+            ]
+          }
+        }
+      ]
+    }
+  },
   "templates": {
     "check": {
       "missing.seq.check": {

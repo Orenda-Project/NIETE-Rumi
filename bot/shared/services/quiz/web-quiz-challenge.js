@@ -197,6 +197,20 @@ const optionAudioOn = () => settingOn(OPTION_AUDIO_FLAG_KEY);
 // The payload says only which rules are on (nothing when none is: today's payload).
 const ruleFlags = (rules) => ({ ...(rules.record ? { record: true } : {}), ...(rules.guard ? { guard: true } : {}), ...(rules.items ? { items: true } : {}), ...(rules.v2 ? { v2: true } : {}) });
 
+// ── grade-1 form (web_quiz_challenge_g1 under web_quiz_challenge_v2; both off ⇒ grade 1 is not_eligible, as today) ──
+// One counted stop, 'numbers' (dots → numeral, anchor block G1A). Its serve, served row, record rule and scoring live in
+// web-quiz-challenge-grade1.js; this file only routes a grade-1 child there (formFor, who, menu, exercise, submit).
+// `viaOf`, `notHomeAttempt` and `classWeekOn` read the v2 section's VIA map, round/practice rule and class-week key at
+// call time (they are declared further down).
+const Grade1 = require('./web-quiz-challenge-grade1').withDeps({ settingOn, insertRun: (row) => insertRun(row), fail, bank: () => childTest().Bank,
+  viaOf: (v) => VIA[v] || v || null, notHomeAttempt: (r) => notHomeAttempt(r), classWeekOn: () => settingOn(CLASS_WEEK_FLAG_KEY),
+  afterFinish: async (runId, studentId) => { await measureOutcome(runId); await renewBindings(studentId); } });
+// The one ch_start writer (every stop, the grade-1 form included): through the measurement envelope under events v2.
+async function emitChStart(startEv, run, studentId) {
+  logEvent('web_quiz.ch_start', (await Flags.eventsV2On()) ? Measure.chStart(startEv, run, studentId) : startEv);
+}
+// ── end grade-1 form ──
+
 // The read guard's page copy, from the catalog (both languages). The page fills `{words}` with the words read.
 const COPY_KEYS = { stuck: 'wqChStuck', incomplete: 'wqChIncomplete', micSay: 'wqChMicSay', micHeard: 'wqChMicHeard', micSilent: 'wqChMicSilent', stopAsk: 'wqChStopAsk', wholeMinute: 'wqChWholeMinute' };
 const copyFor = (lang) => Object.fromEntries(Object.entries(COPY_KEYS).map(([k, key]) => [k, resolveUx(key, { language: lang, params: { words: '{words}' } })]));
@@ -347,8 +361,9 @@ async function gradeOf(entry) {
   return (await gradeInfo(entry)).grade;
 }
 
-/** The maths form for a grade: 2-3 ⇒ '3', 4-5 ⇒ '5'; anything else is not eligible. */
-function formFor(grade) {
+/** The maths form for a grade: 2-3 ⇒ '3', 4-5 ⇒ '5', 1 ⇒ '1' only with `g1` (the grade-1 switches on); else not eligible. */
+function formFor(grade, { g1 = false } = {}) {
+  if (grade === 1 && g1 === true) return '1';
   if (grade === 2 || grade === 3) return '3';
   if (grade === 4 || grade === 5) return '5';
   return null;
@@ -374,7 +389,8 @@ async function who(token, { kid, lang, device } = {}) {
   if (!(await challengeOn())) fail(503, 'challenge_off');
   const entry = await entryOf(token, kid, device);
   const gi = await gradeInfo(entry);
-  const form = formFor(gi.grade);
+  // grade-1 form: the switches are read only for a grade-1 child (off ⇒ formFor(1) is null ⇒ not_eligible, as today)
+  const form = formFor(gi.grade, { g1: gi.grade === 1 && (await Grade1.on()) });
   if (!form) fail(403, 'not_eligible');
   return { ...entry, grade: gi.grade, gradeSource: gi.source, test: isTestName(gi.name), form, lang: await languageOf(entry, lang) };
 }
@@ -584,9 +600,10 @@ async function menu(token, { kid, lang, device } = {}) {
   // keep my place: a deep link with >= 2 children on this phone and no tap asks "Whose turn?" first (identity canon switch).
   { const B = require('./web-quiz-bind-page'); if (await B.canonOn()) { const ask = await B.whoseTurn({ hub: token, kid, device, lang }); if (ask) return ask; } }
   const w = await who(token, { kid, lang, device });
+  logEvent('web_quiz.ch_open', { via: w.via, grade: w.grade });
+  if (w.form === Grade1.FORM) return Grade1.menu(w);   // grade-1 form: its one stop
   const rules = await rulesOf();
   const runs = rules.record ? await countedRuns(w.studentId) : (await storedRuns(w.studentId)).filter((r) => r.status === 'scored');
-  logEvent('web_quiz.ch_open', { via: w.via, grade: w.grade });
   // Today's read-aloud cap reached (web-quiz-challenge-budget.js): "Which is bigger?" only until Pakistan midnight.
   const readOk = await Budget.readOpen();
   // "Listen and answer" only once its story is recorded (asking for it starts the recording): never silence to listen to
@@ -618,8 +635,14 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   // keep my place: a deep link with >= 2 children on this phone and no tap asks "Whose turn?" first (identity canon switch).
   { const B = require('./web-quiz-bind-page'); if (await B.canonOn()) { const ask = await B.whoseTurn({ hub: token, kid, device, lang }); if (ask) return ask; } }
   const def = byId(ex);
-  if (!def) fail(404, 'not_found');
+  // grade-1 form: 'numbers' exists only with its switches on; a grade-1 child gets only that stop (else 404 as today)
+  if (!def && !(ex === Grade1.EXERCISE && (await Grade1.on()))) fail(404, 'not_found');
   const w = await who(token, { kid, lang, device });
+  if (w.form === Grade1.FORM || !def) {   // grade-1 form: served there; its ch_start leaves by the one call site below
+    const g1 = await Grade1.exercise(w, ex, { device, mode: (arguments[2] || {}).mode });
+    await emitChStart(g1.startEv, g1.run, w.studentId);
+    return g1.payload;
+  }
   if (ex === 'read' && !(await Budget.readOpen())) fail(429, 'enough_for_today');
   if (ex === 'listen' && !(await listenOn())) fail(503, 'listen_off');
   const rules = await rulesOf();
@@ -637,7 +660,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   if (v2) await v2.store();
   const startEv = { step: ex, grade: w.grade, run: runId, ...(v2 ? v2.event : {}) };
   // the measurement envelope reads the run's v2 fields (kid from canonical_id) over the event's: the run as served
-  logEvent('web_quiz.ch_start', (await Flags.eventsV2On()) ? Measure.chStart(startEv, v2 ? { ...RUNS.get(runId), ...v2.event, canonical_id: v2.top.canonical_id } : RUNS.get(runId), w.studentId) : startEv);
+  await emitChStart(startEv, v2 ? { ...RUNS.get(runId), ...v2.event, canonical_id: v2.top.canonical_id } : RUNS.get(runId), w.studentId);
   // On the trail a stop already played (its first counted run exists) is a practice round: the page says so.
   const practiceRound = (rules.trail ? (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).attempt_no > 1 : false) || !!(v2 && rules.trail && v2.mem.mode === 'practice');
   const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await clipsFor(ex, w.lang), ...ruleFlags(rules), ...(rules.guard ? { copy: copyFor(w.lang) } : {}),
@@ -1370,6 +1393,8 @@ function liveCount(v, passageLen) {
 }
 
 async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
+  const g1Run = Grade1.challengeOf(body.ct);   // grade-1 form: its run token scores there
+  if (g1Run) return Grade1.submit(g1Run, body);
   const c = runOf(body.ct);
   const rules = await rulesOf();
   let CT;
