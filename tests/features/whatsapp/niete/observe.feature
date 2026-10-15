@@ -957,6 +957,16 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # capture-link.js links the recording to the open form; moments.js reads the timed transcript
     # (one model call) and opens the check because the record is sealed.
 
+  @e2e @audio @config-gated @destructive @wip @draft @P1
+  Scenario: Every moment's words are in the recording, at the minute they were said
+    Given my /observe2 record is sealed
+    When I send the lesson recording and the moments come back to check
+    Then each moment's words are found in the transcript, at the minute of the line they start in
+    And no moment is a lone word, no moment repeats another's words, and no "child" moment quotes the teacher
+    And if no moment is left, the message says no clear moment was found and the check still opens for the levels
+    # Pilot sheet R5 (14 Oct). quote-check.js (bd-eal7zn.3): what was dropped, repaired or re-timed
+    # is stored in rumi_moments.verified and logged as "[observe2] moments checked against the transcript".
+
   @e2e @audio @config-gated @destructive @wip @draft @P0
   Scenario: A recording sent while the form waits for it always reaches the form, never general chat
     Given my /observe2 record is sealed and has no recording yet

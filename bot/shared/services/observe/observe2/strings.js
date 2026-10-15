@@ -62,7 +62,9 @@ const STRINGS = {
     recording_received: (sealed) => (sealed
       ? '🎧 Recording received, thank you. I\'m listening to it now; the moments I find come to you here to check. A full lesson takes a few minutes.'
       : '🎧 Recording received, thank you. Your form isn\'t sealed yet: open it and tap *Seal and send*. The moments I find open only after the seal.'),
-    check_body: (n) => `🎧 I've listened to the recording and found ${n} moment${n === 1 ? '' : 's'}. Check each one against what you saw. Your sealed answers are already in, and they don't change.`,
+    check_body: (n) => (n
+      ? `🎧 I've listened to the recording and found ${n} moment${n === 1 ? '' : 's'}. Check each one against what you saw. Your sealed answers are already in, and they don't change.`
+      : '🎧 I\'ve listened to the recording but found no clear moment to check. Open the check anyway: your sealed answers are already in, and you confirm the levels there.'),
     check_cta: 'Check the moments',
     moments_untimed: 'The recording came through without timings, so I can\'t point to moments in it. Your sealed record is safe. Please send the recording again from the recorder app, as a *Document* (📎 → *Document*).',
     moments_failed: 'I couldn\'t read the moments in this recording just now. Your sealed record is safe, and the team has been told.',
@@ -120,7 +122,9 @@ const STRINGS = {
     recording_received: (sealed) => (sealed
       ? '🎧 ریکارڈنگ مل گئی، شکریہ۔ اسے سنا جا رہا ہے؛ جو لمحات ملیں گے وہ چیک کرنے کے لیے یہیں آئیں گے۔ پورے سبق میں چند منٹ لگتے ہیں۔'
       : '🎧 ریکارڈنگ مل گئی، شکریہ۔ فارم ابھی سیل نہیں ہوا: فارم کھولیں اور *Seal and send* دبائیں۔ لمحات سیل کے بعد ہی کھلیں گے۔'),
-    check_body: (n) => `🎧 ریکارڈنگ سن لی گئی ہے اور اس میں ${n} لمحات ملے۔ ہر لمحے کو اپنے مشاہدے سے ملا کر دیکھیں۔ آپ کے سیل شدہ جوابات پہلے سے شامل ہیں اور بدلتے نہیں۔`,
+    check_body: (n) => (n
+      ? `🎧 ریکارڈنگ سن لی گئی ہے اور اس میں ${n} لمحات ملے۔ ہر لمحے کو اپنے مشاہدے سے ملا کر دیکھیں۔ آپ کے سیل شدہ جوابات پہلے سے شامل ہیں اور بدلتے نہیں۔`
+      : '🎧 ریکارڈنگ سن لی گئی ہے، لیکن اس میں چیک کرنے کے لیے کوئی واضح لمحہ نہیں ملا۔ پھر بھی چیک کھولیں: آپ کے سیل شدہ جوابات پہلے سے شامل ہیں، اور لیولز کی تصدیق وہیں ہوتی ہے۔'),
     check_cta: 'لمحات چیک کریں',
     moments_untimed: 'ریکارڈنگ وقت کے نشانات کے بغیر آئی، اس لیے اس میں لمحات کی نشاندہی نہیں ہو سکتی۔ آپ کا سیل شدہ ریکارڈ محفوظ ہے۔ ریکارڈر ایپ سے ریکارڈنگ دوبارہ *Document* کے طور پر بھیجیں (📎، پھر *Document*)۔',
     moments_failed: 'ابھی اس ریکارڈنگ کے لمحات نہیں پڑھے جا سکے۔ آپ کا سیل شدہ ریکارڈ محفوظ ہے اور ٹیم کو بتا دیا گیا ہے۔',
