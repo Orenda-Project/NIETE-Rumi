@@ -18,7 +18,9 @@ jest.mock('../../../shared/storage/r2', () => ({
   listKeys: jest.fn(async () => []),
   getPresignedUploadUrl: jest.fn(),
 }));
-jest.mock('../../../shared/services/quiz/web-quiz-bind-expiry', () => ({ expireBindings: jest.fn(async () => ({ expired: 0, deleted: 0 })) }), { virtual: true });
+// held here, not required from the test: the module is not on the base yet, so nothing in this file require()s it
+const mockExpireBindings = jest.fn(async () => ({ expired: 0, deleted: 0 }));
+jest.mock('../../../shared/services/quiz/web-quiz-bind-expiry', () => ({ expireBindings: mockExpireBindings }), { virtual: true });
 // The daily reply-cap snapshot (sweeper switch) reads the Redis service: faked as down here (one skip line).
 jest.mock('../../../shared/services/cache/railway-redis.service', () => ({ isAvailable: jest.fn(() => false), scanValues: jest.fn(async () => null) }));
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
@@ -27,7 +29,6 @@ const { makeFake } = require('./fake-supabase');
 const supabase = require('../../../shared/config/supabase');
 const r2 = require('../../../shared/storage/r2');
 const { logEvent } = require('../../../shared/utils/structured-logger');
-const Bind = require('../../../shared/services/quiz/web-quiz-bind-expiry');
 const S = require('../../../shared/services/quiz/web-quiz-challenge-sweeper');
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -96,19 +97,19 @@ test('once per PKT day: a second run the same day (any process) is a no-op; the 
   expect(again).toMatchObject({ ran: false, reason: 'already_ran_today' });
   expect(r2.deleteKey).toHaveBeenCalledTimes(1);
   expect(events('web_quiz.ch_audio_purged')).toHaveLength(1);
-  expect(Bind.expireBindings).toHaveBeenCalledTimes(1);
+  expect(mockExpireBindings).toHaveBeenCalledTimes(1);
   // 19:00Z is 00:00 PKT the next day
   await S.dailyJob({ now: Date.parse('2026-10-15T19:00:00Z') });
   expect(events('web_quiz.ch_audio_purged')).toHaveLength(2);
-  expect(Bind.expireBindings).toHaveBeenCalledTimes(2);
+  expect(mockExpireBindings).toHaveBeenCalledTimes(2);
   expect(db.web_quiz_strip_weekly.filter((r) => r.line === 'daily_job').map((r) => r.cell)).toEqual(['2026-10-15', '2026-10-16']);
 });
 
 test('expireBindings is called once per daily run, with the run\'s time; nothing about bindings is logged here', async () => {
   install([...PURGE(), ...BIND()], []);
   await S.dailyJob({ now: NOW });
-  expect(Bind.expireBindings).toHaveBeenCalledTimes(1);
-  expect(Bind.expireBindings.mock.calls[0][0]).toEqual(new Date(NOW));
+  expect(mockExpireBindings).toHaveBeenCalledTimes(1);
+  expect(mockExpireBindings.mock.calls[0][0]).toEqual(new Date(NOW));
   expect(logEvent.mock.calls.map((c) => c[0])).toEqual(['web_quiz.ch_audio_purged']);
 });
 
@@ -134,8 +135,8 @@ test('golden: every switch off, the expiry module present: the job claims the da
   expect(out).toMatchObject({ ran: true, bindings: true, purged: null, strip: null, replyCap: null });
   await S.tick({ now: NOW });                            // the same PKT day: the claim holds
   await S.tick({ now: NOW + 60 * 60 * 1000 });
-  expect(Bind.expireBindings).toHaveBeenCalledTimes(1);
-  expect(Bind.expireBindings.mock.calls[0][0]).toEqual(new Date(NOW));
+  expect(mockExpireBindings).toHaveBeenCalledTimes(1);
+  expect(mockExpireBindings.mock.calls[0][0]).toEqual(new Date(NOW));
   expect(fake.calls.filter((c) => c.table === RUNS)).toEqual([]);
   expect(fake.calls.filter((c) => !['app_settings', 'web_quiz_strip_weekly'].includes(c.table))).toEqual([]);
   expect(db.web_quiz_strip_weekly.map((r) => [r.line, r.cell])).toEqual([['daily_job', '2026-10-15']]);
@@ -150,7 +151,7 @@ test('golden: every switch off, the expiry module present: the job claims the da
 test('a tier where phone binding was on and is now off: the expiry still runs (no settings at all)', async () => {
   install([], []);
   await S.tick({ now: NOW });
-  expect(Bind.expireBindings).toHaveBeenCalledTimes(1);
+  expect(mockExpireBindings).toHaveBeenCalledTimes(1);
   expect(logEvent).not.toHaveBeenCalled();
 });
 
@@ -160,8 +161,8 @@ test('phone binding on, sweeper and purge off: the tick runs expireBindings once
   const before = JSON.stringify(db[RUNS]);
   await S.tick({ now: NOW });
   await S.tick({ now: NOW + 60 * 60 * 1000 });          // the next hourly tick, same PKT day
-  expect(Bind.expireBindings).toHaveBeenCalledTimes(1);
-  expect(Bind.expireBindings.mock.calls[0][0]).toEqual(new Date(NOW));
+  expect(mockExpireBindings).toHaveBeenCalledTimes(1);
+  expect(mockExpireBindings.mock.calls[0][0]).toEqual(new Date(NOW));
   expect(fake.calls.filter((c) => c.table === RUNS)).toEqual([]);
   expect(r2.deleteKey).not.toHaveBeenCalled();
   expect(r2.listKeys).not.toHaveBeenCalled();
@@ -185,7 +186,7 @@ test('golden: purge switch off while the daily job runs (sweeper on) and rows ar
 test('binding expiry runs without the purge: sweeper + phone binding on, purge off → expireBindings once, no R2, no purge event', async () => {
   install([ON('web_quiz_challenge'), ON('web_quiz_challenge_sweeper'), ...BIND()], fixture());
   await S.dailyJob({ now: NOW });
-  expect(Bind.expireBindings).toHaveBeenCalledTimes(1);
+  expect(mockExpireBindings).toHaveBeenCalledTimes(1);
   expect(r2.deleteKey).not.toHaveBeenCalled();
   expect(logEvent).not.toHaveBeenCalled();
 });
@@ -194,12 +195,12 @@ test('the purge with phone binding off: the purge runs and the binding expiry st
   install(PURGE(), fixture());
   await S.dailyJob({ now: NOW });
   expect(r2.deleteKey).toHaveBeenCalledTimes(1);
-  expect(Bind.expireBindings).toHaveBeenCalledTimes(1);
+  expect(mockExpireBindings).toHaveBeenCalledTimes(1);
 });
 
 test('a throwing binding expiry is logged and the rest of the daily job still runs', async () => {
   const { logError } = require('../../../shared/utils/logger');
-  Bind.expireBindings.mockImplementationOnce(async () => { throw new Error('pooler down'); });
+  mockExpireBindings.mockImplementationOnce(async () => { throw new Error('pooler down'); });
   install(PURGE(), fixture());
   const out = await S.dailyJob({ now: NOW });
   expect(out).toMatchObject({ ran: true, bindings: false, purged: 1 });

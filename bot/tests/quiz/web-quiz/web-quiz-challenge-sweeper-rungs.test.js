@@ -10,9 +10,11 @@ jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
 // global.__absent names the module an isolated registry must not find (the module not deployed)
+// held here, not required from the test: the module is not on the base yet, so nothing in this file require()s it
+const mockOnRecordFinal = jest.fn(async () => ({ lit: [] }));
 jest.mock('../../../shared/services/quiz/web-quiz-rungs', () => {
   if (global.__absent === 'web-quiz-rungs') throw new Error("Cannot find module './web-quiz-rungs'");
-  return ({ onRecordFinal: jest.fn(async () => ({ lit: [] })) });
+  return ({ onRecordFinal: mockOnRecordFinal });
 }, { virtual: true });
 jest.mock('../../../shared/storage/r2', () => ({ deleteKey: jest.fn(async () => true), listKeys: jest.fn(async () => []), getPresignedUploadUrl: jest.fn() }));
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
@@ -20,7 +22,6 @@ jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.
 const { makeFake } = require('./fake-supabase');
 const supabase = require('../../../shared/config/supabase');
 const { logError } = require('../../../shared/utils/logger');
-const Rungs = require('../../../shared/services/quiz/web-quiz-rungs');
 const S = require('../../../shared/services/quiz/web-quiz-challenge-sweeper');
 
 const NOW = Date.parse('2026-10-15T06:00:00Z');
@@ -47,13 +48,13 @@ test('onRecordFinal is called once per swept run, with the run id; a run not swe
   installOn(supabase);
   const out = await S.sweepStuck({ now: NOW });
   expect(out).toMatchObject({ swept: 2, abandoned: 1 });
-  expect(Rungs.onRecordFinal).toHaveBeenCalledTimes(2);
-  expect(Rungs.onRecordFinal.mock.calls.map((c) => c[0]).sort()).toEqual(['r-a', 'r-b']);
+  expect(mockOnRecordFinal).toHaveBeenCalledTimes(2);
+  expect(mockOnRecordFinal.mock.calls.map((c) => c[0]).sort()).toEqual(['r-a', 'r-b']);
 });
 
 test('a throwing rung job never stops the sweep (logged, the next run still swept)', async () => {
   installOn(supabase);
-  Rungs.onRecordFinal.mockImplementationOnce(async () => { throw new Error('rungs table missing'); });
+  mockOnRecordFinal.mockImplementationOnce(async () => { throw new Error('rungs table missing'); });
   const out = await S.sweepStuck({ now: NOW });
   expect(out).toMatchObject({ swept: 2 });
   expect(db[RUNS].filter((r) => r.status === 'failed').map((r) => r.id).sort()).toEqual(['r-a', 'r-b']);
@@ -65,7 +66,7 @@ test('the rung module absent: the sweep is unchanged (same rows, same result)', 
   const withRungs = await S.sweepStuck({ now: NOW });
   const rowsWith = strip(db[RUNS]);
 
-  Rungs.onRecordFinal.mockClear();
+  mockOnRecordFinal.mockClear();
   // a fresh registry where the rung module cannot be found
   global.__absent = 'web-quiz-rungs';
   jest.resetModules();
@@ -77,5 +78,5 @@ test('the rung module absent: the sweep is unchanged (same rows, same result)', 
     expect(without).toEqual(withRungs);
     expect(strip(db[RUNS])).toEqual(rowsWith);
   } finally { delete global.__absent; jest.resetModules(); }
-  expect(Rungs.onRecordFinal).not.toHaveBeenCalled();
+  expect(mockOnRecordFinal).not.toHaveBeenCalled();
 });
