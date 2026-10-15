@@ -91,6 +91,10 @@ const STRINGS = {
     who_ack: 'Asante — nimeandika {name}.',
     who_other_ack: 'Sawa. Utaweza kuandika jina wakati wa kutuma ripoti.',
     who_stale: 'Orodha hii imepitwa na wakati. Utaweza kuandika jina wakati wa kutuma ripoti.',
+    who_type_name: 'Andika jina la mwalimu kwa herufi za Kiingereza, nitamtafuta katika shule zako.',
+    who_name_matches_body: 'Zaidi ya mwalimu mmoja katika shule zako analingana na "{name}". Chagua uliyemchunguza, au bonyeza "Mtu mwingine" kuandika zaidi ya jina.',
+    who_name_none_retry: 'Sikumpata "{name}" kati ya walimu wa shule zako. Angalia tahajia na uandike jina tena kwa herufi za Kiingereza.',
+    who_name_none_final: 'Bado hakuna mwalimu anayeitwa "{name}" katika shule zako. Hakuna shida: utaweza kuandika jina wakati wa kutuma ripoti.',
     list_send_desc_prefix: 'Tuma ripoti kwa',
     list_send_default_desc: 'Tuma ripoti kwa mwalimu',
     // ── bd-22: guided debrief ────────────────────────────────────────
@@ -301,6 +305,10 @@ const STRINGS = {
     who_ack: 'شکریہ — {name} محفوظ کر لیا۔',
     who_other_ack: 'ٹھیک ہے۔ رپورٹ بھیجتے وقت نام لکھ سکتے ہیں۔',
     who_stale: 'یہ فہرست پرانی ہو چکی ہے۔ رپورٹ بھیجتے وقت نام لکھ سکتے ہیں۔',
+    who_type_name: 'ٹیچر کا نام انگریزی حروف میں لکھ کر بھیجیں، اسے آپ کے اسکولوں کی فہرست میں تلاش کیا جائے گا۔',
+    who_name_matches_body: 'آپ کے اسکولوں میں ایک سے زیادہ ٹیچرز کا نام \u2068{name}\u2069 سے ملتا ہے۔ جن کا مشاہدہ کیا، انہیں چنیں، یا «کوئی اور» دبا کر نام کا مزید حصہ لکھیں۔',
+    who_name_none_retry: 'آپ کے اسکولوں کے ٹیچرز میں \u2068{name}\u2069 نہیں ملا۔ ہجے دیکھ کر نام دوبارہ انگریزی حروف میں لکھیں۔',
+    who_name_none_final: 'آپ کے اسکولوں میں اب بھی \u2068{name}\u2069 نام کا کوئی ٹیچر نہیں ملا۔ کوئی بات نہیں: نام رپورٹ بھیجتے وقت لکھا جا سکتا ہے۔',
     list_send_desc_prefix: 'رپورٹ بھیجنا باقی: ',
     list_send_default_desc: 'استاد کو رپورٹ بھیجیں',
     debrief_record_instruction:
@@ -519,6 +527,10 @@ const STRINGS = {
     who_ack: 'Thanks — noted {name}.',
     who_other_ack: 'No problem. You can type the name when you send the report.',
     who_stale: 'That list has expired. You can type the name when you send the report.',
+    who_type_name: "Type the teacher's name, as it's written in English, and I'll find them in your schools.",
+    who_name_matches_body: 'More than one teacher in your schools matches "{name}". Pick the one you observed, or tap "Someone else" to type more of the name.',
+    who_name_none_retry: 'I couldn\'t find "{name}" among the teachers in your schools. Check the spelling and type the name again, in English letters.',
+    who_name_none_final: 'Still no teacher called "{name}" in your schools. No problem: you can type the name when you send the report.',
     list_send_desc_prefix: 'Send report to',
     list_send_default_desc: 'Send the report to the teacher',
     // ── bd-22: guided debrief ────────────────────────────────────────

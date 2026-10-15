@@ -816,12 +816,6 @@
     "occurrence": 0
   },
   {
-    "file": "bot/shared/services/observe/observe-who.service.js",
-    "line": 233,
-    "snippet": "logToFile('❌ observe-who: failed to record observed teacher', {",
-    "occurrence": 0
-  },
-  {
     "file": "bot/shared/services/pdf-report.service.js",
     "line": 189,
     "snippet": "logToFile('❌ Error generating PDF report', {",
