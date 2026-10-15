@@ -74,6 +74,8 @@ function seed({ on = true, students = [], codes = [], bindings = [], ledger } = 
   fake = makeFake(db, { uniques: { child_bind_codes: ['code'] } });
   supabase.from = (t) => { const b = fake.from(t); b.or = () => b; return b; };
   supabase.rpc = fake.rpc;
+  // the ledger's rpc (message_ledger_add) is absent unless a test scripts it: 42883 → the select-then-write path
+  fake.rpcResult = { data: null, error: { code: '42883', message: 'function message_ledger_add does not exist' } };
   IdFlags._resetCache();
   HubFlags._resetCache();
 }
@@ -128,7 +130,7 @@ describe('bind, then the door', () => {
     expect(T.verify(token, 'h').ids).toEqual([KIDS[0]]);
     expect(events('web_quiz.bind_bound')).toEqual([{ via: 'save', kids_n: 1, renewed: false, rebind: false, w: 's' }]);
     expect(fake.db.message_ledger).toEqual([expect.objectContaining({ trigger: 'bind_reply', initiated: 'user', recipient: 'family', count: 1, usd: 0.015, class_id: null })]);
-    expect(events('web_quiz.msg_sent')).toEqual([{ trigger: 'bind_reply', initiated: 'user', to: 'family', usd: 0.015, w: 's' }]);
+    expect(events('web_quiz.msg_sent')).toEqual([{ trigger: 'bind_reply', initiated: 'user', recipient: 'family', usd: 0.015, cls: null, w: 's' }]);
   });
 
   test('already bound → renewed, not refused; the same one reply', async () => {
@@ -360,6 +362,34 @@ describe('the token slice and the ledger', () => {
     expect(fake.db.message_ledger).toHaveLength(1);
     expect(fake.db.message_ledger[0]).toMatchObject({ trigger: 'bind_reply', count: 2, usd: 0.03, class_id: null, initiated: 'user', recipient: 'family' });
     expect(events('web_quiz.msg_sent')).toHaveLength(2);
+  });
+
+  test('with message_ledger_add present: ONE rpc, no select/update/insert on the table; msg_sent carries recipient and cls', async () => {
+    const Ledger = require('../../../shared/services/quiz/message-ledger');
+    fake.rpcResult = { data: 3, error: null };
+    const now = new Date('2026-10-15T20:30:00Z');                   // 01:30 PKT on 16 Oct
+    expect(await Ledger.record({ trigger: 'home_reply', count: 2, now })).toBe(true);
+    expect(fake.rpcs).toEqual([{ name: 'message_ledger_add', args: { p_day: '2026-10-16', p_trigger: 'home_reply', p_class_id: null, p_initiated: 'user', p_recipient: 'family', p_n: 2 } }]);
+    expect(fake.calls.filter((c) => c.table === 'message_ledger')).toEqual([]);
+    expect(events('web_quiz.msg_sent')).toEqual([{ trigger: 'home_reply', initiated: 'user', recipient: 'family', usd: 0.03, cls: null, w: 's' }]);
+  });
+
+  test('42883 (function missing) → today\'s select-then-write path', async () => {
+    const Ledger = require('../../../shared/services/quiz/message-ledger');
+    expect(await Ledger.record({ trigger: 'bind_reply' })).toBe(true);
+    expect(fake.rpcs.map((r) => r.name)).toEqual(['message_ledger_add']);
+    expect(fake.db.message_ledger).toEqual([expect.objectContaining({ trigger: 'bind_reply', count: 1 })]);
+  });
+
+  test('a client without rpc → today\'s path; any other rpc error → false, nothing written twice', async () => {
+    const Ledger = require('../../../shared/services/quiz/message-ledger');
+    supabase.rpc = undefined;
+    expect(await Ledger.record({ trigger: 'bind_reply' })).toBe(true);
+    expect(fake.db.message_ledger).toHaveLength(1);
+    supabase.rpc = fake.rpc;
+    fake.rpcResult = { data: null, error: { code: '57014', message: 'timeout' } };
+    expect(await Ledger.record({ trigger: 'bind_reply' })).toBe(false);
+    expect(fake.db.message_ledger[0].count).toBe(1);
   });
 
   test('an unknown trigger, or bot → family, is never recorded; a missing table returns false', async () => {

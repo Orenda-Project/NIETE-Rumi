@@ -4,8 +4,10 @@
  * `count` sends and `usd` = 0.015 × count. Every counted send writes its row AND the `web_quiz.msg_sent`
  * event in the same call, so the table's count equals the event count per trigger per PKT day.
  *
- * A bot-initiated send to a family is never recorded (it must not exist). A missing table (42P01) is logged
- * once and the call returns false. Never throws.
+ * The write is ONE call to the database function message_ledger_add (INSERT … ON CONFLICT DO UPDATE
+ * count = count + n). Only when that function is missing (42883) or the client has no rpc does it fall back to
+ * select-then-write. A bot-initiated send to a family is never recorded (it must not exist). A missing table
+ * (42P01) is logged once and the call returns false. Never throws.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -30,6 +32,29 @@ function missingTable(error) {
   return true;
 }
 
+/** The keyed class (`cls`) when the kid-key module exists; else null. Never throws. */
+function clsFor(classId) {
+  if (!classId) return null;
+  try {
+    const Kid = require('./web-quiz-kid');
+    return (Kid && typeof Kid.clsOf === 'function' && Kid.clsOf(classId)) || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** ONE atomic add through message_ledger_add → true (written) | false (failed) | null (no function: fall back). */
+async function addByRpc({ day, trigger, classId, initiated, recipient, n }) {
+  if (typeof supabase.rpc !== 'function') return null;
+  const { error } = await supabase.rpc('message_ledger_add', {
+    p_day: day, p_trigger: trigger, p_class_id: classId ? String(classId) : null, p_initiated: initiated, p_recipient: recipient, p_n: n,
+  });
+  if (!error) return true;
+  if (error.code === '42883') return null;
+  if (missingTable(error)) return false;
+  throw new Error(error.message || 'rpc failed');
+}
+
 /**
  * Count `count` sends of `trigger` today (PKT) → true when the row was written.
  * @param {{trigger:string, classId?:string|null, initiated?:'user'|'bot', recipient?:'family'|'teacher', count?:number, now?:Date}} p
@@ -40,7 +65,9 @@ async function record({ trigger, classId = null, initiated = 'user', recipient =
   const n = Number.isInteger(count) && count > 0 ? count : 1;
   const day = pktDay(now);
   try {
-    let written = false;
+    const viaRpc = await addByRpc({ day, trigger, classId, initiated, recipient, n });
+    if (viaRpc === false) return false;
+    let written = viaRpc === true;
     for (let attempt = 0; attempt < 2 && !written; attempt += 1) {
       let q = supabase.from(TABLE).select('count').eq('day', day).eq('trigger', trigger)
         .eq('initiated', initiated).eq('recipient', recipient);
@@ -68,7 +95,7 @@ async function record({ trigger, classId = null, initiated = 'user', recipient =
       }
     }
     if (!written) return false;
-    logEvent('web_quiz.msg_sent', { trigger, initiated, to: recipient, usd: usdOf(n), w: 's' });
+    logEvent('web_quiz.msg_sent', { trigger, initiated, recipient, usd: usdOf(n), cls: clsFor(classId), w: 's' });
     return true;
   } catch (err) {
     logToFile('⚠️ message ledger: record failed', { error: err.message });
