@@ -61,7 +61,9 @@ const scenarios = [
     await asRole(page, ctx, 'teacher', 'teacherV2');
     await visit(page, ctx, HUB, { heading: /^Assessment$/ });
     await page.getByTestId('fde-door').click();
-    await page.getByText('Science', { exact: true }).first().click();
+    // The door's picker opens straight on Grade 5's subjects (no grade step).
+    await page.getByRole('button', { name: /Select grade and subject/ }).click();
+    await page.getByRole('button', { name: /^Grade 5 · Science/ }).click();
     await page.getByTestId('step-next').waitFor({ state: 'visible', timeout: 15000 });
     // Words above Make my paper: everything the teacher reads before the button.
     const above = await page.evaluate(() => {
@@ -93,8 +95,10 @@ const scenarios = [
     await asRole(page, ctx, 'teacher', 'teacherV2');
     await visit(page, ctx, HUB, { heading: /^Assessment$/ });
     await page.getByText('New paper').first().click();
-    await page.getByText('Grade 5', { exact: false }).first().click();
-    await page.getByText('English', { exact: true }).first().click();
+    // The class picker is a collapsed trigger; its tray holds the grade radios and the subject buttons.
+    await page.getByRole('button', { name: /Select grade and subject/ }).click();
+    await page.getByRole('radio', { name: /^Grade 5/ }).click();
+    await page.getByRole('button', { name: /^Grade 5 · English/ }).click();
     const card = page.getByTestId('fde-side-door');
     await card.waitFor({ state: 'visible', timeout: 15000 });
     await card.getByRole('radio').first().click();
@@ -171,8 +175,10 @@ const scenarios = [
       await asRole(page, ctx, 'teacher', 'teacherV2');
       await visit(page, ctx, HUB, { heading: /^Assessment$/ });
       await page.getByText('New paper').first().click();
-      await page.getByText('Grade 5', { exact: false }).first().click();
-      await page.getByText('English', { exact: true }).first().click();
+      // The class picker is a collapsed trigger; its tray holds the grade radios and the subject buttons.
+      await page.getByRole('button', { name: /Select grade and subject/ }).click();
+      await page.getByRole('radio', { name: /^Grade 5/ }).click();
+      await page.getByRole('button', { name: /^Grade 5 · English/ }).click();
       const card = page.getByTestId('fde-side-door');
       await card.waitFor({ state: 'visible', timeout: 15000 });
       await card.getByRole('radio').first().click();
