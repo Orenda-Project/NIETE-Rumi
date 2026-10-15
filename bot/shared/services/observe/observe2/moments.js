@@ -20,7 +20,8 @@
  *   observe2_checking       the check was sent
  *   (then)                  the check hands the visit to /observe's debrief: observer_review_complete
  *   observe2_no_timestamps  the transcript has no [MM:SS] timings, so no moment can be placed
- *   observe2_failed         the model call or the write failed (logged at error)
+ *   observe2_failed         the model call or the write failed, or the reply was cut off at the output
+ *                           limit twice (logged at error)
  */
 
 const supabase = require('../../../config/supabase');
@@ -146,10 +147,38 @@ function normalise(raw) {
   return { moments, counts: { closed_q: whole(counts.closed_q), praise_generic: whole(counts.praise_generic) } };
 }
 
-async function defaultLlm(prompt) {
+// The moments reply's output budget. Almost all of it is the model's reasoning: the JSON is ~2,000
+// tokens, the median call uses ~12,000 (prod, 5-15 Oct).
+const MAX_TOKENS = 16000;
+
+async function defaultLlm(prompt, { maxTokens = MAX_TOKENS } = {}) {
   const GPT5MiniService = require('../../gpt5-mini.service');
-  const { result } = await GPT5MiniService.completeJson(prompt, { maxTokens: 16000, label: 'observe2.moments' });
-  return result;
+  return GPT5MiniService.completeJson(prompt, { maxTokens, label: 'observe2.moments' });
+}
+
+// A reply as completeJson gives it ({result, usage}); a seam that hands back the bare JSON has no usage.
+function unwrap(reply) {
+  if (reply && typeof reply === 'object' && 'result' in reply && 'usage' in reply) return reply;
+  return { result: reply, usage: null };
+}
+
+/**
+ * The model's moments, asked for once more when the reply used the whole output budget. A cut-off
+ * reply is not "Rumi heard nothing": on 12, 13 and 15 Oct three replies spent all 16,000 tokens, came
+ * back with no moment, and were sent to the coach as four empty screens (bd-eal7zn.3). Cut off twice
+ * is a failure, with the existing failure path.
+ */
+async function readMoments(prompt, form, llm) {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    const { result, usage } = unwrap(await llm(prompt, { maxTokens: MAX_TOKENS }));
+    const used = usage ? Number(usage.completion_tokens) : NaN;
+    if (!(used >= MAX_TOKENS)) return result;
+    logToFile('[observe2] moments reply cut off at the output limit', {
+      formId: form.id, attempt, maxTokens: MAX_TOKENS, ...(attempt === 1 ? { next: 'asking once more' } : {}),
+    }, attempt === 1 ? 'warn' : 'error');
+  }
+  throw new Error('moments reply cut off at the output limit twice');
 }
 
 async function setStatus(sessionId, status) {
@@ -364,7 +393,7 @@ async function runForSession(sessionId, from, deps = {}) {
     // (onSealed): graded now, it would miss a plan attached after it (Riffat, 4 Oct).
     const sealed = Boolean(form.sealed_at);
     const [raw, fidelity] = await Promise.all([
-      (deps.llm || defaultLlm)(buildPrompt(transcript, form)),
+      readMoments(buildPrompt(transcript, form), form, deps.llm || defaultLlm),
       sealed ? gradeFidelity(form, transcript, row && row.audio_duration_seconds, deps.fidelityDeps, deps.planDeps, deps.photoDeps) : null,
     ]);
     const { moments, counts } = normalise(raw);
