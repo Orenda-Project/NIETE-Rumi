@@ -63,7 +63,7 @@ const chatKid = (i) => student(i, { phone: PHONE, list_id: null });
 const code = (c, kid, extra = {}) => ({ code: c, canonical_id: kid, minted_at: iso(Date.now() - 60000),
   expires_at: iso(Date.now() + 59 * 60000), used_at: null, outcome: null, ...extra });
 const binding = (kid, phone = PHONE, extra = {}) => ({ id: `b-${kid.slice(-2)}-${phone.slice(-3)}`, canonical_id: kid, phone_norm: phone,
-  phone_tomb: 'tomb', via: 'save', bound_at: iso(Date.now() - 172800000), expires_at: '2027-03-31T18:59:59.000Z',
+  phone_tomb: 'tomb', via: 'save', bound_at: iso(Date.now() - 86400000), expires_at: '2027-03-31T18:59:59.000Z',
   revoked_at: null, revoked_by: null, ...extra });
 
 function seed({ on = true, students = [], codes = [], bindings = [], ledger, classTeachers = [] } = {}) {
