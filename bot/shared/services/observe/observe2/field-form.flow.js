@@ -3,9 +3,14 @@
 /**
  * /observe2 — the live field form, as a WhatsApp Flow.
  *
- * The coach opens it when the lesson starts and fills it in while watching:
- *   PART_ONE     the first half of the period   (numbers + a few taps; "Part 1 done" saves it)
- *   PART_TWO     the second half                (the same questions, plus children speaking for the first time)
+ * The coach opens it when the lesson starts and fills it in while watching. The parts follow the
+ * 5-step lesson plan (warm-up, explanation, guided practice, independent practice, wrap-up), not the
+ * clock (FICO pilot sheet R4/R10, 14 Oct; form version 5):
+ *   PART_ONE     warm-up to guided practice     (numbers + a few taps; "Part 1 done" is tapped when the
+ *                children start working on their own, and saves it)
+ *   PART_TWO     independent practice and the wrap-up: the children working on their own (a task each?
+ *                what the teacher did meanwhile, what children did when stuck), children speaking for the
+ *                first time, the switches
  *   LESSON_PLAN  which plan the lesson followed  (picked from the teacher's own recent plans, so the
  *                recording can be checked against it; go-live call, 2 Oct 2026). "Upload new" adds a plan
  *                the bot didn't give the teacher, the way /observe takes one:
@@ -37,10 +42,12 @@
 const { FOCUS, FOCUS_ORDER, ALSO_NONE, PLAIN } = require('./fico17');
 
 const FLOW_VERSION = '7.3';
-// This form's own version, sent by the footers whose next screen changed with the photo step. A form
-// opened before it was published sends none, and the endpoint keeps that form on the old routes.
-const FORM_VERSION = '4';
-const VERSIONED = new Set(['LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'PHOTO_TAKE', 'PHOTO_FILES']);
+// This form's own version, sent by the footers whose answer depends on it: 4 brought the photo step
+// (the plan screens' next screen), 5 the parts by the lesson's steps (the parts' questions and checks).
+// A form opened before a version was published sends an older one, or none, and the endpoint keeps it
+// on its own routes and checks.
+const FORM_VERSION = '5';
+const VERSIONED = new Set(['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'PHOTO_TAKE', 'PHOTO_FILES']);
 // Coaches photograph what helps the analysis, without the teachers' cap of three (2 Oct call).
 const MAX_PHOTOS = 10;
 // An added lesson plan: pages photographed, a file, or typed. The typed floor is the uploaded-plan
@@ -90,6 +97,27 @@ const SWITCHED = [
   opt('clear', PLAIN.C5[2], 'The teacher said it was time to change, and nearly every child was on the new task within about a minute.'),
   opt('ahead', PLAIN.C5[3], 'The children already knew the routine and moved to the next task on their own, without being told one by one.'),
 ];
+// Part 2: the children working on their own. The ids are rules.js's TASK, TEACHER_SAID and STUCK.
+const TASK = [
+  opt('all', 'Every child had a task', 'Each child worked on their own: in a notebook, on a sheet or at the board.'),
+  opt('some', 'Only some children', 'Some had a task of their own; others waited, watched or copied.'),
+  opt('none', 'No work on their own', 'The class only listened, answered together or copied from the board.'),
+];
+const TEACHER_WHILE = [
+  opt('round', 'Went round the room'),
+  opt('checked', 'Looked at their work', 'Read what children wrote or did, not only asked "Done?"'),
+  opt('helped', 'Helped those who were stuck', 'Explained again, or gave a hint or a smaller step, to a child who was stuck.'),
+  opt('more', 'Gave more to early finishers', 'A harder or extra task for children who finished.'),
+  opt('front', 'Stayed at the front', 'At the desk or the board while the children worked.'),
+];
+// The four titles are PLAIN.D4, word for word, so the level the coach later reviews reads the same.
+const STUCK = [
+  opt('waited', PLAIN.D4[0], 'Children stopped, copied a neighbour, or waited for the teacher to give the answer.'),
+  opt('sure', PLAIN.D4[1], 'Those who knew it worked on; the ones who were not sure sat and waited.'),
+  opt('unsure', PLAIN.D4[2], 'Two or more children who were not sure still had a go.'),
+  opt('kept', PLAIN.D4[3], 'As well as that, a child carried on after a wrong answer, or started without being told.'),
+  opt('easy', 'Nobody got stuck', 'The work was easy for everyone, so no one had to try while unsure.'),
+];
 const INCIDENT = [
   opt('none', 'Nothing to report'),
   opt('sarcastic', 'Praise that sounded mocking', "Words like 'well done' said in a way that made fun of a child."),
@@ -126,6 +154,22 @@ const radio = (name, label, options, description) => ({
 });
 const number = (name, label, helper) => ({ type: 'TextInput', name, label, 'input-type': 'number', required: true, 'helper-text': helper });
 
+// The switch question, in both parts.
+function switchQuestions(p, description) {
+  return [
+    radio(`${p}_change`, 'Did the class switch activity?', YES_NO, description),
+    {
+      type: 'If',
+      condition: `\${form.${p}_change} == 'yes'`,
+      then: [radio(`${p}_change_how`, 'How did the switch go?', SWITCHED, 'If the class switched more than once, pick what happened most often.')],
+      else: [],
+    },
+  ];
+}
+
+const notes = (p) => ({ type: 'TextArea', name: `${p}_notes`, label: 'Anything else', required: false, 'max-length': 600, 'helper-text': 'The minute and what you saw, e.g. 8 min: board wiped before copying' });
+
+// Part 1: warm-up, explanation and guided practice, while the teacher leads.
 function partQuestions(p) {
   return [
     radio(`${p}_picked`, 'Who did the teacher ask?', WHO_ASKED),
@@ -146,21 +190,35 @@ function partQuestions(p) {
       else: [],
     },
     radio(`${p}_materials`, 'Who used books or materials?', MATERIALS, 'Books, the board, charts, cards or objects.'),
-    radio(`${p}_change`, 'Did the class switch activity?', YES_NO, 'For example: from listening to the teacher to writing, or from the whole class into groups.'),
+    ...switchQuestions(p, 'For example: from listening to the teacher to writing, or from the whole class into groups.'),
+    notes(p),
+    ERR_LINE,
+  ];
+}
+
+// Part 2: independent practice and the wrap-up. Every question is about the children working on their
+// own (R4/R10); who was picked, group work and materials are Part 1's.
+function workAloneQuestions() {
+  return [
+    radio('p2_task', 'Did each child have a task?', TASK, 'A task of their own, to do without the teacher.'),
     {
       type: 'If',
-      condition: `\${form.${p}_change} == 'yes'`,
-      then: [radio(`${p}_change_how`, 'How did the switch go?', SWITCHED, 'If the class switched more than once, pick what happened most often.')],
+      condition: "${form.p2_task} != 'none'",
+      then: [
+        { type: 'CheckboxGroup', name: 'p2_teacher', label: 'While they worked, the teacher', description: 'Tick everything you saw', required: true, 'data-source': TEACHER_WHILE },
+        radio('p2_stuck', 'When the work got hard', STUCK, 'What did the children do when they were not sure?'),
+      ],
       else: [],
     },
-    { type: 'TextArea', name: `${p}_notes`, label: 'Anything else', required: false, 'max-length': 600, 'helper-text': 'The minute and what you saw, e.g. 8 min: board wiped before copying' },
+    ...switchQuestions('p2', 'For example: from group practice to working alone, or from working alone to the wrap-up.'),
+    notes('p2'),
     ERR_LINE,
   ];
 }
 
 const FIELDS = {
   PART_ONE: ['present', 'p1_spoke', 'p1_picked', 'p1_groups', 'p1_listen', 'p1_listen_other', 'p1_materials', 'p1_change', 'p1_change_how', 'p1_notes'],
-  PART_TWO: ['p2_spoke', 'p2_new', 'p2_picked', 'p2_groups', 'p2_listen', 'p2_listen_other', 'p2_materials', 'p2_change', 'p2_change_how', 'p2_notes'],
+  PART_TWO: ['p2_spoke', 'p2_new', 'p2_task', 'p2_teacher', 'p2_stuck', 'p2_change', 'p2_change_how', 'p2_notes'],
   LESSON_PLAN: ['lp', 'lp_pick', 'lp_how'],
   LP_PHOTOS: [],
   LP_FILE: [],
@@ -169,6 +227,12 @@ const FIELDS = {
   PHOTO_TAKE: [],
   PHOTO_FILES: [],
   AFTER: ['incident', 'detail', 'note', 'priority', 'also_1', 'also_2', 'seal_ok'],
+};
+
+// What the parts posted before form version 5: a form still on that Flow keeps sending these, and the
+// endpoint keeps them (Store.pick takes the two lists together).
+const FIELDS_V4 = {
+  PART_TWO: ['p2_spoke', 'p2_new', 'p2_picked', 'p2_groups', 'p2_listen', 'p2_listen_other', 'p2_materials', 'p2_change', 'p2_change_how', 'p2_notes'],
 };
 
 function screen(id, title, children, footerLabel, extraData) {
@@ -210,11 +274,11 @@ function buildFieldFormFlow() {
     ...partQuestions('p1'),
   ];
   const part2 = [
-    { type: 'TextHeading', text: 'Part 2: keep going' },
+    { type: 'TextHeading', text: 'Part 2: working on their own' },
     { type: 'TextCaption', text: '${data.part_hint}' },
     number('p2_spoke', 'Children who spoke', 'Count each child once, including those from Part 1'),
     number('p2_new', 'First time speaking', "Of these, how many hadn't spoken in Part 1?"),
-    ...partQuestions('p2'),
+    ...workAloneQuestions(),
   ];
   const after = [
     { type: 'TextHeading', text: 'Before you seal' },
@@ -372,10 +436,10 @@ function buildFieldFormFlow() {
     screens: [
       screen('PART_ONE', 'Part 1', part1, 'Part 1 done', {
         teacher_line: { type: 'string', __example__: "Rabia's lesson · Grade 4 · Maths" },
-        part_hint: { type: 'string', __example__: 'Minutes 0 to 20. Tap "Part 1 done" at minute 20; your answers are saved then.' },
+        part_hint: { type: 'string', __example__: 'Warm-up, explanation and guided practice. When the children start working on their own, tap "Part 1 done": your answers are saved then.' },
       }),
       screen('PART_TWO', 'Part 2', part2, 'Part 2 done', {
-        part_hint: { type: 'string', __example__: 'Minutes 20 to 40. Answer only for what happens in this part.' },
+        part_hint: { type: 'string', __example__: 'The children working on their own, then the wrap-up, to minute 40. Answer only for this part.' },
       }),
       screen('LESSON_PLAN', 'Lesson plan', plan, 'Next', {
         lp_hint: { type: 'string', __example__: "Rabia's most recent plans from the bot. If the plan isn't here, pick \"Upload new\" to add it." },
@@ -404,4 +468,4 @@ function buildFieldFormFlow() {
   };
 }
 
-module.exports = { buildFieldFormFlow, FIELDS, FLOW_VERSION, FORM_VERSION, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES, LP_TEXT_MIN };
+module.exports = { buildFieldFormFlow, FIELDS, FIELDS_V4, FLOW_VERSION, FORM_VERSION, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES, LP_TEXT_MIN };

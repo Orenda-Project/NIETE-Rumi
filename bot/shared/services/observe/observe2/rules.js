@@ -10,6 +10,12 @@
  *
  * Three kinds of row:
  * - SEEN   (D2, C3, C5, C7, C8, D3): from the coach's live form, combined across Part 1 and Part 2.
+ *          Since form version 5 the parts follow the lesson's steps (FICO pilot sheet R4/R10): Part 1
+ *          is warm-up to guided practice, Part 2 the children working on their own and the wrap-up,
+ *          which no longer asks C3, C7, D3 or C8; those come from Part 1 alone. Part 2's own answers
+ *          add what the coach saw at the desks to two HEARD rows: C2 (the teacher helping the stuck)
+ *          and D4 (what children did when the work got hard). A form on the older Flow keeps the
+ *          older answers, and they add up as before.
  * - HEARD  (C1, C2, C4, C6, D1, D4, D5): from the moments Rumi found in the recording that the coach
  *          confirmed, plus Rumi's summary counts (e.g. closed questions) that decide no level alone.
  * - PICK   (F1-F4): no counting rule yet (Section F is unreviewed); the coach picks.
@@ -35,6 +41,15 @@ const LISTEN_SAID = {
 const MATERIALS = { none: 1, teacher: 2, children: 3, explain: 4, nofit: 'NA' };
 const SWITCH = { stalled: 1, slow: 2, clear: 3, ahead: 4 };
 const PARTS = ['p1', 'p2'];
+// Part 2 since form version 5: the children working on their own.
+const TASK = { all: 'every child had a task of their own', some: 'only some children had a task of their own', none: 'no work on their own' };
+const TEACHER_SAID = {
+  round: 'went round the room', checked: 'looked at their work', helped: 'helped those who were stuck',
+  more: 'gave more to early finishers', front: 'stayed at the front',
+};
+// "When the work got hard": the four D4 levels, word for word (the form's titles are PLAIN.D4), and
+// "Nobody got stuck", which shows no level.
+const STUCK = { waited: 1, sure: 2, unsure: 3, kept: 4, easy: null };
 
 const num = (v) => (v === '' || v == null || Number.isNaN(Number(v)) ? null : Number(v));
 const whole = (v) => { const n = num(v); return n != null && Number.isInteger(n) && n >= 0 ? n : null; };
@@ -121,6 +136,59 @@ function seenLevels(form) {
   const out = {};
   for (const [code, r] of Object.entries(all)) if (r) out[code] = r;
   return out;
+}
+
+// ---------------------------------------------------------------- seen at the desks (Part 2)
+
+const workedAlone = (a) => Boolean(a.p2_task) && a.p2_task !== 'none';
+
+// What the coach saw while the children worked on their own, for the HEARD rows it speaks to:
+// { code: { level|null, note } }. `note` reads after "you saw " (the check) or "Seen " (the record).
+function desk(a) {
+  const out = {};
+  if (!a.p2_task) return out;
+  const some = a.p2_task === 'some' ? ` (${TASK.some})` : '';
+  if (!workedAlone(a)) {
+    out.D4 = { level: null, note: `${TASK.none} in Part 2` };
+    return out;
+  }
+  if (Object.prototype.hasOwnProperty.call(STUCK, a.p2_stuck)) {
+    const lv = STUCK[a.p2_stuck];
+    out.D4 = lv == null
+      ? { level: null, note: `nobody got stuck while they worked alone${some}` }
+      : { level: lv, note: `while they worked alone: ${phrase('D4', lv)}${some}` };
+  }
+  const ticks = (a.p2_teacher || []).filter((k) => TEACHER_SAID[k]);
+  if (ticks.length) {
+    // C2 level 1 reads "does not respond to wrong answers or visible confusion": a teacher who helped
+    // the children who were stuck did respond, so C2 is at least 2. Every tick is named.
+    out.C2 = {
+      level: ticks.includes('helped') ? 2 : null,
+      note: `while they worked alone, the teacher ${ticks.map((k) => TEACHER_SAID[k]).join('; ')}`,
+    };
+  }
+  return out;
+}
+
+/**
+ * What the coach saw on the live form beyond a level, per indicator, for the record's evidence (the
+ * teacher's portal shows it under each indicator): { code: phrase }. Each phrase reads after "Seen ".
+ */
+function seenNotes(answers) {
+  const out = {};
+  for (const [code, s] of Object.entries(desk(answers || {}))) out[code] = s.note;
+  return out;
+}
+
+// A HEARD row with what was seen at the desks: the higher level counts (did it happen at all), and
+// what was seen is always named. A failed recording leaves what was seen standing.
+function withSeen(r, s) {
+  const lv = typeof r.level === 'number' ? r.level : null;
+  if (s.level != null && (lv == null || s.level > lv)) {
+    const heard = lv != null ? `; the recording: ${r.because}` : '';
+    return { level: s.level, because: `you saw ${s.note}${heard}`, source: 'seen' };
+  }
+  return { ...r, because: [r.because, `you saw ${s.note}`].filter(Boolean).join('; ') };
 }
 
 // ---------------------------------------------------------------- heard rows
@@ -217,6 +285,7 @@ function addUp({ form, confirmed, heardCounts } = {}) {
       ? { level: 'IE', because: 'the recording failed, so nothing could be heard', source: 'heard' }
       : heard[code];
   }
+  for (const [code, s] of Object.entries(desk(a))) out[code] = withSeen(out[code], s);
   for (const code of PICK_CODES) out[code] = { level: null, because: "no counting rule yet: pick from the recording's moments", source: 'pick' };
   const seen = seenLevels(a);
   for (const code of SEEN_CODES) out[code] = seen[code] || { level: null, because: 'not answered in the form', source: 'seen' };
@@ -230,20 +299,39 @@ function addUp({ form, confirmed, heardCounts } = {}) {
 
 const need = (e, a, k, msg) => { if (a[k] == null || a[k] === '' || a[k] === false) e[k] = msg; };
 
-function partChecks(e, a, p) {
+function spokeCheck(e, a, p) {
   const present = whole(a.present);
   const spoke = a[`${p}_spoke`];
   if (spoke === '' || spoke == null) e[`${p}_spoke`] = 'Type how many children spoke, 0 if none.';
   else if (whole(spoke) == null) e[`${p}_spoke`] = 'A whole number, please.';
   else if (present != null && whole(spoke) > present) e[`${p}_spoke`] = `Can't be more than the ${present} children present.`;
+}
+
+function switchCheck(e, a, p) {
+  need(e, a, `${p}_change`, 'Yes or no.');
+  if (a[`${p}_change`] === 'yes') need(e, a, `${p}_change_how`, 'Choose what happened at the switch.');
+}
+
+function partChecks(e, a, p) {
+  spokeCheck(e, a, p);
   need(e, a, `${p}_picked`, 'Choose who the teacher asked.');
   need(e, a, `${p}_groups`, 'Choose one, or "No".');
   if (hasGroups(a[`${p}_groups`]) && !(a[`${p}_listen`] || []).length && !String(a[`${p}_listen_other`] || '').trim()) {
     e[`${p}_listen`] = 'Tick what you saw, or write it in "Something else".';
   }
   need(e, a, `${p}_materials`, 'Choose one.');
-  need(e, a, `${p}_change`, 'Yes or no.');
-  if (a[`${p}_change`] === 'yes') need(e, a, `${p}_change_how`, 'Choose what happened at the switch.');
+  switchCheck(e, a, p);
+}
+
+// Part 2 since form version 5: the children working on their own.
+function workAloneChecks(e, a) {
+  spokeCheck(e, a, 'p2');
+  need(e, a, 'p2_task', 'Choose one, or "No work on their own".');
+  if (workedAlone(a)) {
+    if (!(a.p2_teacher || []).length) e.p2_teacher = 'Tick what the teacher did, or "Stayed at the front".';
+    need(e, a, 'p2_stuck', 'Choose what the children did when the work got hard.');
+  }
+  switchCheck(e, a, 'p2');
 }
 
 // "Also work on" (R14): optional, but never the first pick again and never twice.
@@ -254,16 +342,22 @@ function alsoChecks(e, a) {
   else if (real(a.also_2) && a.also_2 === a.also_1) e.also_2 = 'Already picked above. Choose another, or "Nothing else".';
 }
 
-function validate(screen, answers) {
+/**
+ * @param {string} screen
+ * @param {object} answers the record's answers with this screen's on top
+ * @param {{version?: string|number}} [opts] the form's version (`fv`); the parts' questions changed in 5
+ */
+function validate(screen, answers, { version } = {}) {
   const a = answers || {};
   const e = {};
+  const byPhase = Number(version) >= 5;
   if (screen === 'PART_ONE') {
     const present = whole(a.present);
     if (a.present === '' || a.present == null) e.present = 'Type how many children are in class today.';
     else if (present == null || present < 1 || present > 120) e.present = 'A whole number between 1 and 120.';
     partChecks(e, a, 'p1');
   } else if (screen === 'PART_TWO') {
-    partChecks(e, a, 'p2');
+    if (byPhase) workAloneChecks(e, a); else partChecks(e, a, 'p2');
     const fresh = a.p2_new, n = whole(fresh), p2 = whole(a.p2_spoke), present = whole(a.present), p1 = whole(a.p1_spoke);
     if (fresh === '' || fresh == null) e.p2_new = 'Type how many, 0 if none.';
     else if (n == null) e.p2_new = 'A whole number, please.';
@@ -299,6 +393,6 @@ function validate(screen, answers) {
 
 module.exports = {
   SEEN_CODES, HEARD_CODES, PICK_CODES,
-  PICKED, GROUPS, LISTEN, MATERIALS, SWITCH, ADDS, LEVEL4,
-  seenLevels, heardLevels, addUp, validate,
+  PICKED, GROUPS, LISTEN, MATERIALS, SWITCH, TASK, TEACHER_SAID, STUCK, ADDS, LEVEL4,
+  seenLevels, heardLevels, addUp, validate, seenNotes,
 };

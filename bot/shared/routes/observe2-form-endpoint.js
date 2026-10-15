@@ -8,8 +8,11 @@
  *
  *   INIT      a new form → PART_ONE; a reopened one → CONTINUE, saying where the record stands
  *             (INIT may only answer with an entry screen, so Part 2 cannot be opened directly).
- *   PART_ONE    checked (rules.validate) → refused under the field, or saved with the server time → PART_TWO
- *   PART_TWO    checked against Part 1 (children who had not spoken yet) → saved → LESSON_PLAN
+ *   PART_ONE    warm-up to guided practice: checked (rules.validate) → refused under the field, or saved
+ *               with the server time (the switch to the children working on their own) → PART_TWO
+ *   PART_TWO    the children working on their own and the wrap-up: checked against Part 1 (children who
+ *               had not spoken yet) → saved → LESSON_PLAN. The parts' questions changed with form
+ *               version 5 (R4/R10); a form on the older Flow posts no `fv` there and keeps its own.
  *   LESSON_PLAN the teacher's own recent plans from the bot, named as /observe's picker names them, plus
  *               /observe's "Upload new"; a pick is saved with the keys the fidelity grader resolves the
  *               plan's moves by → AFTER, which names it (the coach goes back to change it; the plan is
@@ -34,7 +37,7 @@
 const supabase = require('../config/supabase');
 const Store = require('../services/observe/observe2/field-form.store');
 const { validate } = require('../services/observe/observe2/rules');
-const { FIELDS, FORM_VERSION, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES } = require('../services/observe/observe2/field-form.flow');
+const { FIELDS, FIELDS_V4, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES } = require('../services/observe/observe2/field-form.flow');
 const { observe2Strings } = require('../services/observe/observe2/strings');
 const { logToFile } = require('../utils/logger');
 
@@ -69,10 +72,12 @@ function clock(iso) {
   }
 }
 
-const halves = (form) => {
-  const period = Number(form && form.period_minutes) || DEFAULT_PERIOD;
-  return { period, half: Math.round(period / 2) };
-};
+const periodOf = (form) => Number(form && form.period_minutes) || DEFAULT_PERIOD;
+
+// The parts follow the lesson plan's steps, not the clock (R4/R10): Part 1 ends when the children
+// start working on their own, and that tap is the part1_done_at stamp.
+const PART_1_HINT = 'Warm-up, explanation and guided practice. When the children start working on their own, tap "Part 1 done": your answers are saved then.';
+const part2Hint = (period) => `The children working on their own, then the wrap-up, to minute ${period}. Answer only for this part.`;
 
 // "After the lesson": the recording is already in (held at capture, or sent before Part 1 was saved),
 // so the lesson is over and the coach fills the form from what they saw and heard. The parts are
@@ -108,7 +113,7 @@ async function loadForm(flowToken) {
 // ------------------------------------------------------------------ screens
 
 async function renderPart1(form, extra = {}) {
-  const { period, half } = halves(form);
+  const period = periodOf(form);
   const name = await teacherName(form);
   const after = afterLesson(form);
   const lesson = after ? 'recorded lesson' : `${period}-minute period`;
@@ -116,9 +121,7 @@ async function renderPart1(form, extra = {}) {
     screen: 'PART_ONE',
     data: {
       teacher_line: name ? `Teacher: ${name} · ${lesson}` : `${lesson[0].toUpperCase()}${lesson.slice(1)}`,
-      part_hint: after
-        ? AFTER_HINT.part1
-        : `Minute 0 to ${half}. At minute ${half}, tap "Part 1 done": your answers are saved then.`,
+      part_hint: after ? AFTER_HINT.part1 : PART_1_HINT,
       ...NO_ERRORS,
       ...extra,
     },
@@ -126,13 +129,10 @@ async function renderPart1(form, extra = {}) {
 }
 
 function renderPart2(form, extra = {}) {
-  const { period, half } = halves(form);
   return {
     screen: 'PART_TWO',
     data: {
-      part_hint: afterLesson(form)
-        ? AFTER_HINT.part2
-        : `From minute ${half} to ${period}. Answer only for what happens in this part.`,
+      part_hint: afterLesson(form) ? AFTER_HINT.part2 : part2Hint(periodOf(form)),
       ...NO_ERRORS,
       ...extra,
     },
@@ -239,7 +239,9 @@ function renderAfterOld(form, extra = {}) {
   return { screen: 'AFTER', data: { lp_line: planLine(form && form.answers), ...NO_ERRORS, ...extra } };
 }
 
-const newForm = (screenData) => Boolean(screenData && screenData.fv === FORM_VERSION);
+// The form's version (`fv`): 4 brought the photo step, 5 the parts by the lesson's steps.
+const formVersion = (screenData) => Number((screenData && screenData.fv) || 0);
+const newForm = (screenData) => formVersion(screenData) >= 4;
 
 // After the plan: the photo step, unless it was already answered (the coach went back to the plan);
 // straight to the seal screen on a form still running the old Flow.
@@ -257,9 +259,9 @@ function renderSealed(form, lines) {
 }
 
 function renderContinue(kind, form) {
-  const { period, half } = halves(form);
+  const period = periodOf(form);
   const text = {
-    part1: ['Part 1 is saved', afterLesson(form) ? AFTER_HINT.continue : `Carry on with Part 2, from minute ${half} to ${period}.`],
+    part1: ['Part 1 is saved', afterLesson(form) ? AFTER_HINT.continue : `Carry on with Part 2: the children working on their own, then the wrap-up, to minute ${period}.`],
     plan: ['Parts 1 and 2 are saved', 'Next: the lesson plan, then seal the record.'],
     part2: ['Parts 1 and 2 and the plan are saved', 'Carry on to the last screen and seal the record.'],
     sealed: ['This record is sealed', `It was sealed at ${clock(form && form.sealed_at)} and can't change. Send the recording in the chat as a document if you haven't yet.`],
@@ -396,8 +398,9 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
 
   if (step === 'PART_ONE' || step === 'PART_TWO') {
     const part = step === 'PART_ONE' ? 'p1' : 'p2';
-    const answers = Store.pick(screenData, FIELDS[step]);
-    const errors = validate(step, { ...(form.answers || {}), ...answers });
+    // Today's fields and those a form on the older Flow still sends (FIELDS_V4); its checks by its version.
+    const answers = Store.pick(screenData, [...FIELDS[step], ...(FIELDS_V4[step] || [])]);
+    const errors = validate(step, { ...(form.answers || {}), ...answers }, { version: formVersion(screenData) });
     const render = step === 'PART_ONE' ? (extra) => renderPart1(form, extra) : (extra) => renderPart2(form, extra);
     if (Object.keys(errors).length) return render(refused(errors));
     const saved = await Store.savePart(form, part, answers);
