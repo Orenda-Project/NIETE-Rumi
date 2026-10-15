@@ -76,6 +76,12 @@ async function createAndQueue(spec) {
     questionTypes = [],
     answerLines = true,
     outputFormat = 'pdf',
+    // A board-pattern paper: the pattern id and where its pages came from
+    // ({ kind: 'fde'|'chapters'|'pages', chapters, pages }). Job payload ONLY —
+    // the row already says everything a pattern changes (the slot-tagged
+    // question_types, the pages, the count), and no column is added for it.
+    pattern = null,
+    scope = null,
   } = spec;
 
   // Every paper gets an answer key, and she is no longer asked (bd-bfnsk). A
@@ -138,14 +144,73 @@ async function createAndQueue(spec) {
     answerLines: answerLines !== false,
     outputFormat,
     deliver: deliveryFor(surface),
+    // Spread in only when set: an ordinary paper's payload must not gain even
+    // an undefined key, so it stays byte-for-byte the job it was before.
+    ...(pattern ? { pattern, scope } : {}),
   });
 
   logToFile('[assessment] queued', {
     userId, requestId: request.id, surface,
     grade, subject, chapter: chapterNumber, chapters: chapterNumbers,
+    ...(pattern ? { pattern, scopeKind: scope ? scope.kind : null } : {}),
   });
 
   return { requestId: request.id };
 }
 
-module.exports = { createAndQueue, deliveryFor, DELIVER, SURFACES };
+/** Paper statuses that mean "still being made". */
+const BUSY_STATUSES = ['queued', 'generating'];
+
+/**
+ * The board-pattern request this teacher already has in flight for this class,
+ * if any: `{ id }` or null. One paper per class at a time — a second tap on
+ * Make while the first is still being written would otherwise queue a second
+ * three-minute job for the same paper.
+ *
+ * assessment_requests carries neither a status (that lives on the paper row)
+ * nor a pattern column, so: one read on (user_id, created_at) — the index the
+ * table already has — for this grade and subject over the last few minutes,
+ * with each request's papers embedded. In JS, a request is a PATTERN request
+ * when its question_types carry a `slot` (only pattern requests write them),
+ * and it is busy when it has no generated paper yet (still queued) or its
+ * generated paper (edited_from null; later versions are edits, not the
+ * original job) is queued or generating. A ready or failed paper never blocks.
+ *
+ * FAILS OPEN: a read error returns null and is logged. A database hiccup must
+ * never stop a teacher making a paper; the worst case is the duplicate this
+ * guard exists to prevent, which the worker's own duplicate check still bounds.
+ * `pattern` is accepted for the caller's clarity; with one pattern in the
+ * registry a slot identifies it.
+ */
+// eslint-disable-next-line no-unused-vars
+async function findGenerating({ userId, grade, subject, pattern = null, withinMinutes = 10, now = Date.now() } = {}) {
+  try {
+    const since = new Date(Number(now instanceof Date ? now.getTime() : now) - withinMinutes * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+      .from('assessment_requests')
+      .select('id, question_types, created_at, assessment_papers(status, edited_from)')
+      .eq('user_id', userId)
+      .eq('grade_code', `grade_${grade}`)
+      .eq('subject_code', subject)
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    if (error) throw new Error(error.message);
+
+    for (const row of data || []) {
+      const types = Array.isArray(row.question_types) ? row.question_types : [];
+      if (!types.some((t) => t && t.slot)) continue;
+      const papers = [].concat(row.assessment_papers || []);
+      const generated = papers.find((p) => p && p.edited_from == null);
+      if (!generated || BUSY_STATUSES.includes(generated.status)) return { id: row.id };
+    }
+    return null;
+  } catch (err) {
+    logToFile('⚠️ [assessment] generating check failed — allowing the request', {
+      userId, grade, subject, error: err?.message,
+    });
+    return null;
+  }
+}
+
+module.exports = { createAndQueue, findGenerating, deliveryFor, DELIVER, SURFACES };
