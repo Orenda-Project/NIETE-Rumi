@@ -1675,3 +1675,45 @@ Feature: Web child quiz page on the portal
     And id_pick is logged with w "s" and no session id, device or code
     And a play opened from the hub keeps the pick for that child on this phone for 24 hours: "hub_chip" from a WhatsApp /quiz link, "remembered" otherwise
     But a child already kept on three phones sees "This child's place is already saved on three phones." and the card stays hidden for the session
+
+  @T775
+  Scenario: Jugnu's Book lamps come only from the child's rung rows
+    Given web_quiz_challenge_book and its parents are "on"
+    And a child has a counted read that would meet a reading rung but no rung row
+    When the child opens Jugnu's Book from the hub
+    Then no lamp is lit and each ladder shows exactly one unlabelled dashed outline
+    And a ladder lit to its fifth lamp shows no outline, and a grade 1 child sees no outline at all
+
+  @T776
+  Scenario: The class lights stay hidden until five children of the class have lit one this term
+    Given web_quiz_class_wall is "on" under the Book
+    When three children of the class have lights this term
+    Then the line reads "Your class is playing too" with no number
+    And with twelve children and 41 lights, 7 of them this week from 4 children, it reads the term total and "+7 this week"
+    But 6 lights this week from 2 children shows the term total only
+
+  @T777
+  Scenario: Days this week are lit dots only and a new week starts empty
+    Given the child finished a stop on Monday and Wednesday this week and one last week
+    When the Book opens
+    Then 7 dots show with Monday and Wednesday lit and no digit or streak word
+    And a served or abandoned run lights no dot, no sticker and no class light
+
+  @T778
+  Scenario: A new lamp is shown once, only when the server says one was lit this period
+    Given the server returns a reading lamp lit this period that opened longer stories
+    When the Book opens
+    Then "A new lamp is lit!" and "New for you: longer stories" show with "Let's go" opening Story Time
+    And the next time the Book opens on this phone it is not shown again
+
+  @T779
+  Scenario: A 0-word first read still earns the read stop's Trail sticker
+    Given a child's first counted read this month scored 0 words
+    When the Book opens
+    Then the read stop's Trail sticker is there and no reading lamp beyond what the rung rows say
+
+  @T780
+  Scenario: With the Book off the hub is today's, byte for byte
+    Given web_quiz_challenge_book is "off" (or its parent web_quiz_challenge_v2 is "off")
+    When a child opens the hub
+    Then the hub payload deep-equals today's and the hub page has no Book tile, script or stylesheet
