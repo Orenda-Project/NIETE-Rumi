@@ -2405,6 +2405,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // The door to this child's own hub (their quizzes, the video library, the challenge), when finish offered it:
     // the second action, right under "Share to class group".
     var doorBtn = res.hub_door && !friend && !(S.queue && S.queue.length) ? '<button class="wq-btn wq-soft" id="wq-hubdoor">' + esc(T.hubDoor) + '</button>' : '';
+    // The Jugnu card (wq-card.js, sent only when finish offers it): first under the score, above the shares.
+    var jc = res.jugnu_card && !friend ? jugnuCard() : '';
     // With the door, a class child's first screen is the score, "Share to class group" and the door (a 360x740 phone,
     // Urdu included): the practice note and the two-line place-in-class note come after them. A video quiz card keeps its own order
     // ("Next in this chapter", "Watch more" first).
@@ -2435,13 +2437,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<p class="wq-sub wq-ctopic">' + esc(Q.topic) + '</p>' +
       '<div class="wq-big">' + esc(c.correct) + '/' + esc(total) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
       '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
-      notes + (firstTwo ? shareBtn + panel + doorBtn + practice + place : '') +
+      jc + notes + (firstTwo ? shareBtn + panel + doorBtn + practice + place : '') +
       (isVideo ? moreBtn() + shares : shares + moreBtn()) +
       // One phone, many children: the next child starts from the landing. Not while answers wait to be sent.
       (S.queue && S.queue.length ? '' : '<button class="wq-btn wq-ghost" id="wq-turn">' + esc(T.nextTurn) + '</button>');
     render(h, 'M10');
     libPrefetch();
     wireBar();
+    if (jc) window.WQCARD.wire(jcCtx());
     // How the child did (the share ask may depend on it) and whether this was a friend's challenge run.
     var pct = res.score && res.score.pct != null ? res.score.pct : (total ? Math.round(100 * (c.correct || 0) / total) : 0);
     // Once per finished session: the card re-renders on Back from the share screen, the class table or the league,
@@ -2641,6 +2644,28 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       if (b && b.parentNode) b.parentNode.removeChild(b);
       toast(T.oops);
     }, function () { hubGoing = false; ev('hub_door_tap', { ok: false, err: 'net' }); toast(T.offline); });
+  }
+
+  /* ---------------- the Jugnu card (wq-card.js; app_settings web_quiz_challenge_card) ---------------- */
+  // Its script is asked for the first time finish offers the card; it draws the card again once it arrives.
+  var jcAsked = false;
+  function jugnuCard() {
+    if (window.WQCARD) return window.WQCARD.html(jcCtx());
+    if (jcAsked) return '';
+    jcAsked = true;
+    try {
+      var own = document.querySelector && document.querySelector('script[src*="/wq/wq.js"]');
+      var v = own && /[?&]v=([A-Za-z0-9_-]+)/.exec(own.getAttribute('src') || '');
+      var el = document.createElement('script');
+      el.src = '/wq/wq-card.js' + (v ? '?v=' + v[1] : '');
+      el.onload = function () { if (window.WQCARD && ROOT.getAttribute('data-m') === 'M10') card(); };
+      (document.head || document.body).appendChild(el);
+    } catch (e) {}
+    return '';
+  }
+  function jcCtx() {
+    return { res: S.result || {}, lang: LANG, mascot: MASC, first: S.child && S.child.first, T: { play: T.play, oops: T.oops, offline: T.offline },
+      esc: esc, ani: ani, bar: bar, wireBar: wireBar, render: render, on: on, ev: ev, flushEv: flushEv, api: api, toast: toast, st: S.st, back: card };
   }
 
   /* ---------------- M11 league table ---------------- */
