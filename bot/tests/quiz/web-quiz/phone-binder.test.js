@@ -17,6 +17,8 @@ jest.mock('../../../shared/services/cache/railway-redis.service', () => {
     setNX: jest.fn(async (k, v) => { if (keys.has(k)) return false; keys.set(k, v); return true; }),
     delete: jest.fn(async (k) => keys.delete(k)),
     isAvailable: () => true,
+    // the raw client some readers use (quiz-session getActiveState): JSON strings in the same Map
+    redis: { get: jest.fn(async (k) => (keys.has(k) ? JSON.stringify(keys.get(k)) : null)) },
   };
 });
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
@@ -137,6 +139,39 @@ describe('bind, then the door', () => {
     expect(sends()).toBe(1);
   });
 
+  test('re-bind prefers the newest erased row of the SAME child on this tombstone over a newer row of another child', async () => {
+    const tomb = require('../../../shared/services/quiz/child-phone-bindings.repo').tombOf(PHONE);
+    const erased = (kid, id, agoMs, by) => binding(kid, PHONE, { id, phone_norm: null, phone_tomb: tomb, revoked_at: iso(Date.now() - agoMs), revoked_by: by });
+    seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0])],
+      bindings: [erased(KIDS[0], 'same-old', 7200000, 'page_undo'), erased(KIDS[0], 'same-new', 3600000, 'expiry'), erased(KIDS[1], 'other-newest', 60000, 'stop')] });
+    await say('JUGNU-AB2CD');
+    expect(fake.db.child_phone_bindings.find((b) => b.phone_norm === PHONE).rebind_of).toBe('same-new');
+    expect(events('web_quiz.bind_bound')).toEqual([{ via: 'save', kids_n: 1, renewed: false, rebind: true, rebind_prior: 'expiry', w: 's' }]);
+  });
+
+  test('no erased row of the same child → the newest erased row of any child on the phone', async () => {
+    const tomb = require('../../../shared/services/quiz/child-phone-bindings.repo').tombOf(PHONE);
+    seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0])],
+      bindings: [binding(KIDS[1], PHONE, { id: 'other-1', phone_norm: null, phone_tomb: tomb, revoked_at: iso(Date.now() - 60000), revoked_by: 'teacher' })] });
+    await say('JUGNU-AB2CD');
+    expect(fake.db.child_phone_bindings.find((b) => b.phone_norm === PHONE).rebind_of).toBe('other-1');
+    expect(events('web_quiz.bind_bound')[0]).toMatchObject({ rebind: true, rebind_prior: 'teacher' });
+  });
+
+  test.each([
+    ['no_salt', () => { delete process.env.WQ_TOMB_SALT; }],
+    ['db_error', () => { const from = supabase.from; supabase.from = (t) => { const b = from(t); if (t === 'child_phone_bindings') { b.insert = () => ({ select: () => ({ single: async () => ({ data: null, error: { message: 'down' } }) }) }); } return b; }; }],
+  ])('a binding that cannot be written (%s) → code unspent, bind_write_failed at error level, nothing sent', async (reason, breakIt) => {
+    seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0])] });
+    breakIt();
+    expect(await say('JUGNU-AB2CD')).toBe(true);
+    expect(fake.db.child_bind_codes[0]).toMatchObject({ used_at: null, outcome: null });
+    expect(events('web_quiz.bind_write_failed')).toEqual([{ reason, w: 's' }]);
+    expect(require('../../../shared/utils/logger').logToFile).toHaveBeenCalledWith(expect.stringContaining('binding not written'), expect.anything(), 'error');
+    expect(sends()).toBe(0);
+    expect(events('web_quiz.bind_bound')).toEqual([]);
+  });
+
   test('the phone\'s tombstone matches → a re-bind with rebind_of and rebind_prior', async () => {
     const tomb = require('../../../shared/services/quiz/child-phone-bindings.repo').tombOf(PHONE);
     seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0])],
@@ -243,6 +278,22 @@ describe('STOP', () => {
     expect(Bind.isStop(word)).toBe(true);
     expect(Bind.isStop(`please ${word} now`)).toBe(false);
     expect(Bind.isStop('ختم')).toBe(false);
+  });
+
+  test('a chat child with an adaptive quiz in flight types "stop" → bindings untouched, route false (the quiz handler ends the quiz)', async () => {
+    seed({ students: [chatKid(0)], bindings: [binding(KIDS[1])] });
+    redisService.__keys.set(`quiz:student:${PHONE}:active`, { quizId: 'q-1', currentQuestion: 2 });
+    expect(await say('stop')).toBe(false);
+    expect(fake.db.child_phone_bindings[0]).toMatchObject({ phone_norm: PHONE, revoked_at: null });
+    expect(sends()).toBe(0);
+    expect(events('web_quiz.bind_undo')).toEqual([]);
+  });
+
+  test('the same chat child with no quiz in flight types "stop" → erased, ONE stopped line', async () => {
+    seed({ students: [chatKid(0)], bindings: [binding(KIDS[1])] });
+    expect(await say('stop')).toBe(true);
+    expect(fake.db.child_phone_bindings[0]).toMatchObject({ phone_norm: null, revoked_by: 'stop' });
+    expect(WhatsApp.sendMessage.mock.calls).toEqual([[PHONE, UX_STRINGS.jugnuBindStopped.en]]);
   });
 
   test('a chat child with nothing saved: STOP → ONE "nothing was saved" line', async () => {

@@ -76,6 +76,22 @@ async function liveChild(canonicalId) {
   return { id: String(data.id), name: data.student_name };
 }
 
+/**
+ * The erased row a re-bind points at: the newest erased row of THIS child on the phone's tombstone; else the
+ * newest erased row of any child on it; else null.
+ */
+async function priorOnPhone(norm, childId) {
+  const tomb = BindRepo.tombOf(norm);
+  if (!tomb) return null;
+  try {
+    const { data, error } = await supabase.from(BindRepo.TABLE).select('id, canonical_id, revoked_at, revoked_by')
+      .eq('phone_tomb', tomb).eq('canonical_id', String(childId)).not('revoked_at', 'is', null)
+      .order('revoked_at', { ascending: false }).limit(1);
+    if (!error && data && data[0]) return data[0];
+  } catch (_) { /* any child's */ }
+  return BindRepo.findByTomb(tomb);
+}
+
 /** The child's language (their quizzes', skipping lesson codes), else the user's, else English. */
 async function languageFor(child, user) {
   try {
@@ -166,7 +182,7 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
       binding = await BindRepo.renew(mine.id, BindRepo.expiresAtFor(now), now);
       renewed = Boolean(binding);
     } else {
-      const prior = await BindRepo.findByTomb(BindRepo.tombOf(norm));
+      const prior = await priorOnPhone(norm, child.id);
       binding = await BindRepo.insert({
         canonicalId: child.id, phoneNorm: norm, via: 'save', confirmedAt: now,
         expiresAt: BindRepo.expiresAtFor(now), rebindOf: prior ? prior.id : null,
@@ -174,8 +190,11 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
       if (binding && prior) { rebind = true; rebindPrior = prior.revoked_by || null; }
     }
     if (!binding) {
-      logToFile('⚠️ phone binder: binding not written — the code stays unspent');
-      return { ok: false, outcome: 'error' };
+      // nothing happened, so nothing is promised: no reply, the code stays unspent for a retry
+      const reason = BindRepo.tombOf(norm) ? 'db_error' : 'no_salt';
+      logToFile('❌ phone binder: binding not written — the code stays unspent', { reason }, 'error');
+      logEvent('web_quiz.bind_write_failed', { reason, w: 's' });
+      return { ok: false, outcome: 'error', reason };
     }
     await Codes.markUsed(code, 'bound', now);
     await forgetPhone(phone, norm, 'bind');

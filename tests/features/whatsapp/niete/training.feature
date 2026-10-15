@@ -2457,6 +2457,7 @@ Feature: NIETE (ICT) Teacher Training
     Then every child's place saved on that phone is erased and the phone gets one "Done" reply
     And a phone with nothing saved gets one "Nothing was saved for this phone" reply
     But a teacher's phone with nothing saved that sends "stop" is answered exactly as before
+    And a child in the middle of a quiz who sends "stop" ends the quiz as before, and nothing saved is erased
 
   @quiz @config-gated @wip @draft @P2 @T704
   Scenario: With web_quiz_phone_bind on, /quiz opens the same children the door counts

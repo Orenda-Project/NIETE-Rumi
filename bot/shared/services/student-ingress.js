@@ -351,7 +351,11 @@ async function bindingWords({ message, messageType, messageBody, from, user }) {
     if (!isCode && !Bind.isStop(body)) return false;
     if (!(await phoneBindOn())) return false;
     if (isCode) return (await Bind.handleCode({ phone: from, body, user, mode: await doorMode(user) })) !== null;
-    if (user.persona === 'student') return (await Bind.handleStop({ phone: from, user, persona: 'student' })) !== null;
+    if (user.persona === 'student') {
+      // a quiz, a join or a post-quiz chat in flight keeps its own "stop" (it ends the quiz)
+      if (await quizInFlight(from)) return false;
+      return (await Bind.handleStop({ phone: from, user, persona: 'student' })) !== null;
+    }
     const persona = (user.personaReason === 'identity' || user.personaReason === 'activity') ? 'teacher' : null;
     return Bind.stopForBoundNonChild({ from, body, user, persona });
   } catch (err) {
