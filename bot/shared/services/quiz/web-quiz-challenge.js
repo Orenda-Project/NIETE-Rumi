@@ -914,7 +914,7 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
   const clipUrl = ex === 'listen' ? await storyClip(w.lang, story && story.text) : undefined;
   if (ex === 'listen' && !clipUrl) fail(503, 'getting_ready');
 
-  const servesAny = anchorBlock ? D.anchorServesAny(rows, anchorBlock) : null;   // no runs column for it: meta.anchor_serves_any
+  const servesAny = anchorBlock ? D.anchorServesAny(rows, anchorBlock) : null;   // the anchor_serves_any column (and meta, kept one period)
   const prev2 = anchorBlock ? D.anchorPrev2(rows, anchorBlock) : null;   // of which before the provenance columns: meta.draw.anchor_prev2
   const exposure = anchorBlock ? servesAny : D.exposureNo(rows, passageId || itemSetId);
   // M7: a passage or set already met is never a record; the anchor block is the exception
@@ -935,6 +935,8 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     exposure_no: exposure, band, anchor_exposure_no: anchorExp, anchor_block: anchorBlock, draw_seed: drawSeed, canonical_id: canonicalId,
     id_src: pick.id_src, id_confidence: pick.id_confidence, homonym_in_list: pick.homonym_in_list, via, share_code_id: w.shareCodeId || null,
     record, started_at: new Date(now).toISOString(), class_id: classId,
+    // the sampling columns (web_quiz_challenge_runs_sampling.sql); meta keeps the same three for one period
+    admin_mode: admin.admin_mode, sample_arm: admin.sample_arm, anchor_serves_any: servesAny,
   };
   const rung = (ex === 'read' || ex === 'listen') ? ob.rungs.reading : ob.rungs.numbers;
   const isPassage = ex === 'read' || ex === 'listen';

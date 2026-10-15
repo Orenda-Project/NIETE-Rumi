@@ -125,7 +125,22 @@ const hub = (id = K3) => T.sign({ k: 'h', ids: [id], exp: Math.floor(Date.now() 
 const runOf = (ct) => T.verify(ct, 'c').r;
 const rowOf = (ct) => db.web_quiz_challenge_runs.find((r) => r.id === runOf(ct));
 const starts = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.ch_start').map(([, d]) => d);
-const V2_COLS = ['bank_version', 'set', 'form', 'passage_id', 'item_set_id', 'mode', 'period_id', 'exposure_no', 'band', 'anchor_exposure_no', 'anchor_block', 'draw_seed', 'canonical_id', 'id_src', 'id_confidence', 'homonym_in_list', 'via', 'share_code_id', 'record', 'started_at'];
+const V2_COLS = ['bank_version', 'set', 'form', 'passage_id', 'item_set_id', 'mode', 'period_id', 'exposure_no', 'band', 'anchor_exposure_no', 'anchor_block', 'draw_seed', 'canonical_id', 'id_src', 'id_confidence', 'homonym_in_list', 'via', 'share_code_id', 'record', 'started_at', 'admin_mode', 'sample_arm', 'anchor_serves_any'];
+
+// Every run row a test leaves behind holds the runs CHECKs (web_quiz_challenge_runs_v2.sql, _sampling.sql); NULL passes.
+const RUN_CHECKS = {
+  wqcr_sample_arm_chk: (r) => r.sample_arm == null || ['class_round', 'class_week', 'coach', 'ping'].includes(r.sample_arm),
+  wqcr_admin_mode_chk: (r) => r.admin_mode == null || ['self_run', 'teacher_present', 'coach_present'].includes(r.admin_mode),
+  wqcr_arm_needs_admin_chk: (r) => r.sample_arm == null || r.admin_mode != null,
+  wqcr_serves_any_chk: (r) => r.anchor_serves_any == null || r.anchor_serves_any >= 1,
+  wqcr_record_is_check_chk: (r) => r.record !== true || r.mode === 'check',
+  wqcr_record_first_exposure_chk: (r) => r.record !== true || r.anchor_block != null || r.exposure_no == null || r.exposure_no === 1,
+  wqcr_mode_chk: (r) => r.mode == null || ['check', 'practice', 'class_round'].includes(r.mode),
+};
+afterEach(() => {
+  const broken = (db.web_quiz_challenge_runs || []).flatMap((r) => Object.keys(RUN_CHECKS).filter((k) => !RUN_CHECKS[k](r)).map((k) => `${r.id}: ${k}`));
+  expect(broken).toEqual([]);
+});
 
 // Read aloud: a silent clip of `secs` seconds, the speech service heard `n` words, the LLM marked `right` of `tried`.
 const FF = require('@ffmpeg-installer/ffmpeg').path;
@@ -415,11 +430,11 @@ describe('11 · the A1 warm-up', () => {
 
   test('anchor_serves_any counts every serve of the block (any mode, any status): a practice warm-up then a counted one → 1 and 2', async () => {
     const p = await Ch.exercise(hub(K3), 'missing', { ...D, mode: 'practice' });
-    expect(rowOf(p.ct)).toMatchObject({ mode: 'practice', anchor_exposure_no: 1, meta: expect.objectContaining({ anchor_serves_any: 1 }) });
+    expect(rowOf(p.ct)).toMatchObject({ mode: 'practice', anchor_exposure_no: 1, anchor_serves_any: 1, meta: expect.objectContaining({ anchor_serves_any: 1 }) });
     rowOf(p.ct).status = 'abandoned';
     const c = await Ch.exercise(hub(K3), 'missing', D);
     expect(rowOf(c.ct)).toMatchObject({ mode: 'check', record: true, anchor_exposure_no: 1, meta: expect.objectContaining({ anchor_serves_any: 2 }) });
-    expect(rowOf(c.ct)).not.toHaveProperty('anchor_serves_any');   // no such column on the runs table: meta only
+    expect(rowOf(c.ct)).toMatchObject({ anchor_serves_any: 2, admin_mode: 'self_run', sample_arm: null });   // the column, and meta kept one period
     expect(starts()[1]).toMatchObject({ anchor_exposure_no: 1, anchor_serves_any: 2 });
   });
 
@@ -500,20 +515,21 @@ describe('questions reached by the stop line', () => {
   });
 });
 
-// ── the sampling fields: admin_mode and sample_arm (no runs columns for them on this base: meta) ─────────────
+// ── the sampling fields: admin_mode, sample_arm, anchor_serves_any (the columns, and meta kept one period) ─────────────
 
 describe('admin_mode and sample_arm under _v2', () => {
-  test('an ordinary home run: meta.admin_mode self_run, meta.sample_arm null', async () => {
+  test('an ordinary home run: admin_mode self_run, sample_arm null, no anchor_serves_any off the anchor block (columns and meta)', async () => {
     on(V2, PERIOD);
     const ex = await Ch.exercise(hub(), 'bigger', D);
     expect(rowOf(ex.ct).meta).toMatchObject({ admin_mode: 'self_run', sample_arm: null });
-    expect(rowOf(ex.ct)).not.toHaveProperty('admin_mode');
+    expect(rowOf(ex.ct)).toMatchObject({ admin_mode: 'self_run', sample_arm: null, anchor_serves_any: null });
   });
 
   test('the class round (mode from the caller): mode class_round, admin_mode teacher_present, sample_arm class_round, never a record', async () => {
     on(V2, PERIOD, POOL);
     const ex = await Ch.exercise(hub(), 'missing', { ...D, mode: 'class_round' });
     expect(rowOf(ex.ct)).toMatchObject({ mode: 'class_round', record: false, meta: expect.objectContaining({ admin_mode: 'teacher_present', sample_arm: 'class_round' }) });
+    expect(rowOf(ex.ct)).toMatchObject({ admin_mode: 'teacher_present', sample_arm: 'class_round', anchor_serves_any: 1 });
   });
 
   test('web_quiz_class_week on but the class-week module absent: nothing more is written, the serve goes on', async () => {
@@ -894,7 +910,7 @@ describe('anchor_serves_any counts a pre-v2 missing row as an A1 serve', () => {
     on(V2, PERIOD, POOL);
     preV2Missing(K5, 5);
     const ex = await Ch.exercise(hub(K5), 'missing', D);
-    expect(rowOf(ex.ct)).toMatchObject({ anchor_block: 'A1', anchor_exposure_no: 1, meta: expect.objectContaining({ anchor_serves_any: 2 }) });
+    expect(rowOf(ex.ct)).toMatchObject({ anchor_block: 'A1', anchor_exposure_no: 1, anchor_serves_any: 2, meta: expect.objectContaining({ anchor_serves_any: 2 }) });
     expect(rowOf(ex.ct).meta.draw.anchor_prev2).toEqual({ full: 1, partial: 0 });
     expect(starts()[0]).toMatchObject({ anchor_serves_any: 2, anchor_exposure_no: 1 });
   });
@@ -910,7 +926,7 @@ describe('anchor_serves_any counts a pre-v2 missing row as an A1 serve', () => {
   test('no pre-v2 row: serves_any 1, prev2 {full 0, partial 0}', async () => {
     on(V2, PERIOD, POOL);
     const ex = await Ch.exercise(hub(K5), 'missing', D);
-    expect(rowOf(ex.ct)).toMatchObject({ anchor_exposure_no: 1, meta: expect.objectContaining({ anchor_serves_any: 1 }) });
+    expect(rowOf(ex.ct)).toMatchObject({ anchor_exposure_no: 1, anchor_serves_any: 1, admin_mode: 'self_run', sample_arm: null, meta: expect.objectContaining({ anchor_serves_any: 1 }) });
     expect(rowOf(ex.ct).meta.draw.anchor_prev2).toEqual({ full: 0, partial: 0 });
   });
 });
