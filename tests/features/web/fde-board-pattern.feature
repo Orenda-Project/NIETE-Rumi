@@ -58,8 +58,15 @@ Feature: FDE board-pattern paper for Grade 5
   @sandbox @real-paper
   Scenario: Removing a question from a choice group keeps the choice honest
     Given a ready board-pattern Maths paper
-    When the teacher removes one Q2 question and saves version 2
-    Then the editor said "Q2 will then say: any eight of eleven" and version 2 prints "Attempt any eight of the following eleven" with "(8×5=40)" and Total Marks 100
+    When the teacher removes one Q2 question and makes version 2
+    Then the editor said "Q2 will then say: any eight of eleven" and version 2 prints "Attempt any eight of the following eleven questions" with "(8×5=40)" and Total Marks 100
+    And version 2 comes as two files, "Grade5_Maths_FDE_v2.pdf" and its marking scheme, and the scheme's box names the version 2 paper and its page count
+
+  @sandbox @real-paper
+  Scenario: Removing more questions than the choice allows lowers the attempt count and the total
+    Given a ready board-pattern Maths paper
+    When the teacher removes five Q2 questions and makes version 2
+    Then version 2 prints "(7×5=35)" for Q2, Section B is worth 35 marks and Total Marks is 95
 
   # ── Negative ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -95,7 +102,7 @@ Feature: FDE board-pattern paper for Grade 5
   Scenario: Adding a question to a board-pattern paper is refused with a reason
     Given a ready board-pattern paper
     When the teacher tries to add a question
-    Then the editor says "Board-pattern papers keep their shape" and nothing is added
+    Then the editor says "Board-pattern papers keep their shape" and no new version is made
 
   # ── Edge cases ────────────────────────────────────────────────────────────────────────────────────────────────────
 
