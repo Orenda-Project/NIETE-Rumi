@@ -149,7 +149,7 @@ function pickWeakestDomain(analysis) {
   }
 }
 
-function buildPrompt(analysis, { transcript, trend = [], language, teacherName }) {
+function buildPrompt(analysis, { transcript, trend = [], language, teacherName, target = null }) {
   const a = analysis || {};
   const fw = (a.framework || 'hots').toUpperCase();
   const pct = Math.round(parseFloat(a.scores?.overall_percentage || 0));
@@ -264,7 +264,10 @@ ${domainScoresBlock}` : ''}
 ${throughline ? `THIS LESSON'S THROUGHLINE (from prior analysis): ${throughline}\n` : ''}${corpusMoments ? `MOMENTS ALREADY SURFACED (hints — prefer these, but pull the verbatim quote from the transcript):\n${corpusMoments}\n` : ''}LESSON TOPIC: ${a.topic || ''}
 ${fw} summary: ${(a.executive_summary_sw || a.executive_summary || '').slice(0, 700)}
 Strengths: ${(a.strengths || []).map((s) => s.title_sw || s.title || s).filter(Boolean).join('; ')}
-${weakest
+${target && target.indicator
+  // /observe2 (pilot sheet R3): the coach's "Work on first" is the horizon, never the lowest section.
+  ? `MANDATORY horizon focus — the indicator to grow next is "${target.name}" (${target.indicator}) inside "${FICO_DOMAIN_LABELS[target.domain] || target.domain}".${target.rationale ? ` Why: ${target.rationale}` : ''} Your "horizon_title" (2-5 words) MUST name a concrete sub-skill of THAT indicator — nothing from any other area. The "horizon_note" must reference it in plain words. Do not fall back to a generic aspirational phrase.`
+  : weakest
   ? `MANDATORY horizon focus — the LOWEST-SCORING domain this lesson is "${weakest.name}" at ${weakest.score}/${weakest.max} (${weakest.pct}%). Your "horizon_title" (2-5 words) MUST name a concrete sub-skill inside "${weakest.name}" — nothing from any other domain. The "horizon_note" must reference "${weakest.name}" or one of its indicators. Do not fall back to a generic aspirational phrase.`
   : `Growth signals from rubric analysis: ${a.growth_opportunities?.[0]?.area_sw || a.growth_opportunities?.[0]?.area || ''} — ${(a.growth_opportunities?.[0]?.rationale_sw || a.growth_opportunities?.[0]?.rationale || '').slice(0, 250)}`}
 TRANSCRIPT:
@@ -289,9 +292,9 @@ async function generateReportNarrative(analysis, opts = {}) {
 }
 
 async function narrativeAttempt(analysis, opts, attempt) {
-  const { transcript = '', trend = [], language = 'en', teacherName = 'Teacher' } = opts;
+  const { transcript = '', trend = [], language = 'en', teacherName = 'Teacher', target = null } = opts;
   try {
-    const prompt = buildPrompt(analysis, { transcript, trend, language, teacherName });
+    const prompt = buildPrompt(analysis, { transcript, trend, language, teacherName, target });
     const response = await GPT5MiniService.openai.chat.completions.create({
       model: modelFor('coaching.narrative'),
       job: 'coaching.narrative',
