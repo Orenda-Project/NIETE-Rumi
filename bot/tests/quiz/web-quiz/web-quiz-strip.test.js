@@ -225,3 +225,62 @@ test('cells at n = 30 count CHILDREN (distinct canonical id), not rows: usable =
   await Strip.weeklyStrip({ week: WEEK, now: NOW });
   expect(line('cells_n30', 'G23|ur|numbers')).toMatchObject({ value: 1, n: 1 });
 });
+
+describe('replies per bound child (D3): home_reply + bind_reply sends ÷ children with an active phone binding at the cut', () => {
+  const END = '2026-10-18T19:00:00.000Z';                 // the week's cut
+  const bind = (id, canonical_id, extra = {}) => ({
+    id, canonical_id, phone_norm: '923001234567', phone_tomb: 'f'.repeat(32), via: 'save', confirmed_at: '2026-10-01T00:00:00Z',
+    bound_at: '2026-10-01T00:00:00Z', expires_at: '2027-03-31T18:59:59Z', revoked_at: null, revoked_by: null, ...extra,
+  });
+  const ledger = () => [
+    { day: '2026-10-12', trigger: 'home_reply', initiated: 'user', recipient: 'family', count: 3, usd: 0.045 },
+    { day: '2026-10-16', trigger: 'bind_reply', initiated: 'user', recipient: 'family', count: 2, usd: 0.03 },
+    { day: '2026-10-16', trigger: 'guest_reply', initiated: 'user', recipient: 'family', count: 4, usd: 0.06 },
+    { day: '2026-10-19', trigger: 'home_reply', initiated: 'user', recipient: 'family', count: 7, usd: 0.105 },
+  ];
+
+  test('active at the cut = bound before it, not erased before it, not expired by it; a child counts once', async () => {
+    install([], {
+      message_ledger: ledger(),
+      child_phone_bindings: [
+        bind('b1', A), bind('b2', A, { phone_norm: '923009999999' }),                          // one child, two phones
+        bind('b3', B, { phone_norm: null, revoked_at: '2026-10-15T00:00:00Z', revoked_by: 'stop' }),   // erased before the cut
+        bind('b4', C, { bound_at: '2026-10-19T08:00:00Z' }),                                   // bound after the cut
+        bind('b5', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', { expires_at: '2026-10-10T00:00:00Z' }),   // expired before the cut
+        bind('b6', CLS, { phone_norm: null, revoked_at: '2026-10-19T03:00:00Z', revoked_by: 'page_undo' }),   // erased after the cut: active at it
+      ],
+    });
+    await Strip.weeklyStrip({ week: WEEK, now: NOW });
+    expect(line('replies_per_bound_child')).toMatchObject({ value: 2.5, n: 2 });   // (3 + 2) ÷ {A, CLS-child}
+    expect(END).toBe(Strip.weekBounds(WEEK).end);
+  });
+
+  test('no bound child: the share is empty (null, n 0)', async () => {
+    install([], { message_ledger: ledger(), child_phone_bindings: [] });
+    await Strip.weeklyStrip({ week: WEEK, now: NOW });
+    expect(line('replies_per_bound_child')).toMatchObject({ value: null, n: 0 });
+  });
+
+  test('child_phone_bindings not there yet: the line is skipped and the skip is logged; the send lines stay', async () => {
+    const { logToFile } = require('../../../shared/utils/logger');
+    install([], { message_ledger: ledger() });
+    const realFrom = supabase.from;
+    supabase.from = (t) => (t === 'child_phone_bindings'
+      ? { select: () => { const q = { gte: () => q, lt: () => q, order: () => q, limit: async () => ({ data: null, error: { code: '42P01', message: 'relation "child_phone_bindings" does not exist' } }) }; return q; } }
+      : realFrom(t));
+    await Strip.weeklyStrip({ week: WEEK, now: NOW });
+    expect(line('replies_per_bound_child')).toBeUndefined();
+    expect(line('sends_total')).toMatchObject({ value: 9 });
+    expect(logToFile).toHaveBeenCalledWith(expect.stringMatching(/skipped/), expect.objectContaining({ skipped: expect.arrayContaining(['replies_per_bound_child']) }));
+  });
+
+  test('message_ledger not there yet: no replies-per-child line either', async () => {
+    install([], { child_phone_bindings: [bind('b1', A)] });
+    const realFrom = supabase.from;
+    supabase.from = (t) => (t === 'message_ledger'
+      ? { select: () => { const q = { gte: () => q, lt: async () => ({ data: null, error: { code: '42P01', message: 'relation "message_ledger" does not exist' } }) }; return q; } }
+      : realFrom(t));
+    await Strip.weeklyStrip({ week: WEEK, now: NOW });
+    expect(line('replies_per_bound_child')).toBeUndefined();
+  });
+});

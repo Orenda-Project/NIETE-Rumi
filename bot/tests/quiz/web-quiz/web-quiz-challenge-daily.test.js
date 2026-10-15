@@ -3,7 +3,9 @@
  * The Challenge's daily job (app_settings `web_quiz_challenge_audio_purge`, under `web_quiz_challenge`), once per PKT
  * day across every replica (the claim is a row in web_quiz_strip_weekly, so a second process or a second tick the
  * same day does nothing): the kept readings past `audio_keep_until` are deleted from R2 and their rows stop pointing
- * at them; one `web_quiz.ch_audio_purged{n, oldest_age_d, reason:'age'}`; the binding expiry is called once.
+ * at them; one `web_quiz.ch_audio_purged{n, oldest_age_d, reason:'age', w:'s'}`; the binding expiry is called once,
+ * whatever the switches say (retention outlives every switch): with every switch off and the expiry module present the
+ * job still claims the day and runs the expiry, and nothing else.
  *
  * Faked boundaries only: Supabase (the in-memory fake), R2, the logger, the event transport. The binding expiry
  * module (`web-quiz-bind-expiry`, not on the base yet) is a VIRTUAL mock.
@@ -74,7 +76,7 @@ test('the purge deletes only readings past audio_keep_until, clears their rows, 
   const by = Object.fromEntries(db[RUNS].map((r) => [r.id, r.meta.audio_key]));
   expect(by).toEqual({ 'k-past': null, 'k-live': keyOf('2026-09-25', 'k-live'), 'k-no': undefined, 'k-na': undefined, 'k-old': keyOf('2026-06-01', 'k-old'), 'k-done': null });
   expect(db[RUNS].find((r) => r.id === 'k-past').meta.audio_purged_on).toBe('2026-10-15');
-  expect(events('web_quiz.ch_audio_purged')).toEqual([{ n: 1, oldest_age_d: 100, reason: 'age' }]);
+  expect(events('web_quiz.ch_audio_purged')).toEqual([{ n: 1, oldest_age_d: 100, reason: 'age', w: 's' }]);
   expect(out).toMatchObject({ ran: true, purged: 1 });
 });
 
@@ -83,7 +85,7 @@ test('kept_no / not_asked rows: no object exists and R2 is never called for them
   await S.dailyJob({ now: NOW });
   expect(r2.deleteKey).not.toHaveBeenCalled();
   expect(r2.listKeys).not.toHaveBeenCalled();
-  expect(events('web_quiz.ch_audio_purged')).toEqual([{ n: 0, oldest_age_d: null, reason: 'age' }]);
+  expect(events('web_quiz.ch_audio_purged')).toEqual([{ n: 0, oldest_age_d: null, reason: 'age', w: 's' }]);
 });
 
 test('once per PKT day: a second run the same day (any process) is a no-op; the next PKT day runs again', async () => {
@@ -115,7 +117,7 @@ test('a reading R2 refuses to delete stays on its row and is not counted', async
   r2.deleteKey.mockResolvedValueOnce(false);
   await S.dailyJob({ now: NOW });
   expect(db[RUNS].find((r) => r.id === 'k-past').meta.audio_key).toBe(keyOf('2026-07-07', 'k-past'));
-  expect(events('web_quiz.ch_audio_purged')).toEqual([{ n: 0, oldest_age_d: null, reason: 'age' }]);
+  expect(events('web_quiz.ch_audio_purged')).toEqual([{ n: 0, oldest_age_d: null, reason: 'age', w: 's' }]);
 });
 
 test('a key outside this env\'s kept prefix is never deleted, even past its keep date', async () => {
@@ -124,15 +126,32 @@ test('a key outside this env\'s kept prefix is never deleted, even past its keep
   expect(r2.deleteKey).not.toHaveBeenCalled();
 });
 
-test('every daily switch off (sweeper, purge, phone binding): no daily job (no claim row, no R2, no event, no binding expiry)', async () => {
+test('golden: every switch off, the expiry module present: the job claims the day and runs the binding expiry ONLY (no sweep, no purge, no strip, no Redis, no event)', async () => {
+  const Redis = require('../../../shared/services/cache/railway-redis.service');
   install([ON('web_quiz_challenge')], fixture());
+  const before = JSON.stringify(db[RUNS]);
   const out = await S.dailyJob({ now: NOW });
-  expect(out).toMatchObject({ ran: false });
-  await S.tick({ now: NOW });
+  expect(out).toMatchObject({ ran: true, bindings: true, purged: null, strip: null, replyCap: null });
+  await S.tick({ now: NOW });                            // the same PKT day: the claim holds
+  await S.tick({ now: NOW + 60 * 60 * 1000 });
+  expect(Bind.expireBindings).toHaveBeenCalledTimes(1);
+  expect(Bind.expireBindings.mock.calls[0][0]).toEqual(new Date(NOW));
+  expect(fake.calls.filter((c) => c.table === RUNS)).toEqual([]);
+  expect(fake.calls.filter((c) => !['app_settings', 'web_quiz_strip_weekly'].includes(c.table))).toEqual([]);
+  expect(db.web_quiz_strip_weekly.map((r) => [r.line, r.cell])).toEqual([['daily_job', '2026-10-15']]);
   expect(r2.deleteKey).not.toHaveBeenCalled();
+  expect(r2.listKeys).not.toHaveBeenCalled();
+  expect(Redis.isAvailable).not.toHaveBeenCalled();
+  expect(Redis.scanValues).not.toHaveBeenCalled();
   expect(logEvent).not.toHaveBeenCalled();
-  expect(Bind.expireBindings).not.toHaveBeenCalled();
-  expect(db.web_quiz_strip_weekly).toEqual([]);
+  expect(JSON.stringify(db[RUNS])).toBe(before);
+});
+
+test('a tier where phone binding was on and is now off: the expiry still runs (no settings at all)', async () => {
+  install([], []);
+  await S.tick({ now: NOW });
+  expect(Bind.expireBindings).toHaveBeenCalledTimes(1);
+  expect(logEvent).not.toHaveBeenCalled();
 });
 
 // The operator's keep-all state with phone binding live: the 31 March erase must still run.
@@ -171,17 +190,20 @@ test('binding expiry runs without the purge: sweeper + phone binding on, purge o
   expect(logEvent).not.toHaveBeenCalled();
 });
 
-test('the purge without binding expiry: purge on, phone binding off → the purge runs, expireBindings is never called', async () => {
+test('the purge with phone binding off: the purge runs and the binding expiry still runs once (unconditional)', async () => {
   install(PURGE(), fixture());
   await S.dailyJob({ now: NOW });
   expect(r2.deleteKey).toHaveBeenCalledTimes(1);
-  expect(Bind.expireBindings).not.toHaveBeenCalled();
+  expect(Bind.expireBindings).toHaveBeenCalledTimes(1);
 });
 
-test('phone binding on under its parent only: web_quiz_phone_bind without web_quiz_identity_canon never calls expireBindings', async () => {
-  install([ON('web_quiz_challenge'), ON('web_quiz_challenge_sweeper'), ON('web_quiz_phone_bind')], []);
-  await S.dailyJob({ now: NOW });
-  expect(Bind.expireBindings).not.toHaveBeenCalled();
+test('a throwing binding expiry is logged and the rest of the daily job still runs', async () => {
+  const { logError } = require('../../../shared/utils/logger');
+  Bind.expireBindings.mockImplementationOnce(async () => { throw new Error('pooler down'); });
+  install(PURGE(), fixture());
+  const out = await S.dailyJob({ now: NOW });
+  expect(out).toMatchObject({ ran: true, bindings: false, purged: 1 });
+  expect(logError).toHaveBeenCalledWith('web_quiz.ch_daily_bind_expiry_failed', expect.any(Object));
 });
 
 describe('the daily reply-cap snapshot (sweeper switch)', () => {

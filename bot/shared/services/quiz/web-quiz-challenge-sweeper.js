@@ -6,7 +6,7 @@
  *   web_quiz_challenge_sweeper     (read-side) the stuck-run sweep, every tick:
  *                                  - a run left in 'scoring' more than 10 minutes becomes 'failed' with meta.fail_reason
  *                                    (stt_timeout | llm_timeout | page_gone | store_failed | unknown) and one
- *                                    web_quiz.ch_swept{run, age_min, reason}; a v2 row (mode set) also logs
+ *                                    web_quiz.ch_swept{run, age_min, reason, w:'s'}; a v2 row (mode set) also logs
  *                                    web_quiz.m_lost{reason:'swept'} when web_quiz_events_v2 is on
  *                                  - each swept run goes to the rung job (web-quiz-rungs.js onRecordFinal, when
  *                                    present): a failed record row can light a rung
@@ -18,13 +18,22 @@
  *                                  kept reading until the operator says otherwise; this switch must stay off. When on:
  *                                  each kept reading past its audio_keep_until is deleted from R2 and its row stops
  *                                  pointing at it (forgetAudioKey); one web_quiz.ch_audio_purged{n, oldest_age_d,
- *                                  reason:'age'} a day, also when n is 0 (it proves the purge ran)
+ *                                  reason:'age', w:'s'} a day, also when n is 0 (it proves the purge ran)
  *
- * The daily job runs once per PKT day across every replica when ANY of the sweeper, the purge or the phone-binding
- * switch is on (phone binding alone still erases expired bindings: the keep-all state). Inside it, each part has
- * its own switch: the purge (web_quiz_challenge_audio_purge), the phone-binding expiry (web-quiz-bind-expiry.js
- * expireBindings, when present) only with web_quiz_phone_bind on (under web_quiz_identity_canon), and the Monday
- * weekly numbers and the daily reply-cap snapshot (web_quiz_challenge_sweeper).
+ * The daily job runs once per PKT day across every replica. The binding expiry (web-quiz-bind-expiry.js
+ * expireBindings, when present) runs UNCONDITIONALLY: retention is a promise that outlives every switch, so it runs
+ * on a tier where web_quiz_phone_bind was on and is later off, and with every switch off (the job then claims the
+ * day and runs the expiry only). With every switch off and the expiry module absent, nothing happens at all.
+ * The other parts each have their own switch:
+ *   - the purge (web_quiz_challenge_audio_purge, off);
+ *   - the daily reply-cap snapshot and, on Mondays, the weekly numbers (web_quiz_challenge_sweeper);
+ *   - web_quiz.sample_window{arm, unit:'class', cls, opens_at, closes_at, w:'s'} for every drawn class whose round
+ *     window (arm 'class_round') or week window (arm 'class_week', when set) opens that PKT day, from
+ *     class_round_draws; this job is the event's one writer. Under web_quiz_class_round (with its parents
+ *     web_quiz_challenge_v2 and web_quiz_challenge) and, as a v2 event, web_quiz_events_v2 (under web_quiz_hub).
+ *     The class is keyed (web-quiz-kid.js cls); a raw class id never rides the event;
+ *   - on the first PKT day of a month, web-quiz-challenge-calibration.js runMonthly({ period_id: the month just
+ *     ended, now }), when present: the job only schedules it; the calibration carries its own switches.
  *
  * Every write to a run's meta goes through the Challenge's compare-and-set (updateRunMeta): a scorer that lands its
  * result while the sweeper looks at the row wins, and the sweeper leaves the row alone. A row is never touched unless
@@ -43,9 +52,9 @@ const PURGE_KEY = 'web_quiz_challenge_audio_purge';
 // m_lost is a v2 event: only with web_quiz_events_v2 on (itself under web_quiz_hub), EVENTS §0.6.
 const EVENTS_V2_KEY = 'web_quiz_events_v2';
 const HUB_KEY = 'web_quiz_hub';
-// The binding expiry belongs to the phone binding: only with web_quiz_phone_bind on (its parent web_quiz_identity_canon).
-const BIND_KEY = 'web_quiz_phone_bind';
-const IDENTITY_KEY = 'web_quiz_identity_canon';
+// sample_window: the class round's switch and its parent (SPEC §1)
+const V2_KEY = 'web_quiz_challenge_v2';
+const CLASS_ROUND_KEY = 'web_quiz_class_round';
 const TABLE = 'web_quiz_challenge_runs';
 const STRIP_TABLE = 'web_quiz_strip_weekly';
 const STUCK_MS = 10 * 60 * 1000;
@@ -67,7 +76,7 @@ function isTrue(v) {
 async function switches() {
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value')
-      .in('key', [PARENT_KEY, SWEEPER_KEY, PURGE_KEY, EVENTS_V2_KEY, HUB_KEY, BIND_KEY, IDENTITY_KEY]);
+      .in('key', [PARENT_KEY, SWEEPER_KEY, PURGE_KEY, EVENTS_V2_KEY, HUB_KEY, V2_KEY, CLASS_ROUND_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, isTrue(r.value)]));
     const parent = !!by[PARENT_KEY];
@@ -75,11 +84,11 @@ async function switches() {
       sweeper: parent && !!by[SWEEPER_KEY],
       purge: parent && !!by[PURGE_KEY],
       eventsV2: !!by[HUB_KEY] && !!by[EVENTS_V2_KEY],
-      phoneBind: !!by[IDENTITY_KEY] && !!by[BIND_KEY],
+      classRound: parent && !!by[V2_KEY] && !!by[CLASS_ROUND_KEY],
     };
   } catch (e) {
     logToFile('⚠️ web quiz challenge housekeeping: settings lookup failed — off', { error: String(e && e.message || e).slice(0, 120) });
-    return { sweeper: false, purge: false, eventsV2: false, phoneBind: false };
+    return { sweeper: false, purge: false, eventsV2: false, classRound: false };
   }
 }
 
@@ -145,7 +154,7 @@ async function sweepStuck({ now = Date.now(), max = MAX_PER_TICK, flags = null }
       : { meta: cur.meta }));
     if (!written || written.status !== 'failed' || !written.meta || written.meta.swept_at !== new Date(now).toISOString()) continue;
     out.swept += 1;
-    logEvent('web_quiz.ch_swept', { run: row.id, age_min: ageMin, reason });
+    logEvent('web_quiz.ch_swept', { run: row.id, age_min: ageMin, reason, w: 's' });
     if (row.mode && f.eventsV2) emitLost({ ...row, ...written }, ageMin);
     await rungFinal(row.id);
   }
@@ -206,33 +215,102 @@ async function purgeKept(now, max) {
   return out;
 }
 
+const errText = (e) => String(e && e.message || e).slice(0, 120);
+const isMissingTable = (e) => !!e && (e.code === '42P01' || /does not exist|schema cache/i.test(String(e.message || '')));
+
+/** The PKT day's bounds in UTC: [00:00 PKT, the next 00:00 PKT). */
+function pktDayBounds(now) {
+  const start = Date.parse(`${pktDay(now)}T00:00:00Z`) - PKT_MS;
+  return { start: new Date(start).toISOString(), end: new Date(start + DAY_MS).toISOString() };
+}
+
 /**
- * The daily job. Off (the sweeper, the purge and the phone-binding switch) ⇒ nothing at all. Otherwise, once per PKT day:
- * the purge and its one event (purge switch only), the binding expiry (web_quiz_phone_bind only), and on a Monday
- * (PKT) the weekly numbers for the week just ended (sweeper switch only).
+ * sample_window for every drawn class whose round or week window opens this PKT day. Counts what it emitted; a
+ * missing table or the keyed-id module absent → nothing, one log line. Never a raw class id on the event.
+ */
+async function emitSampleWindows(now) {
+  const Kid = optional('./web-quiz-kid');
+  if (!Kid || typeof Kid.envelope !== 'function' || typeof Kid.cls !== 'function') {
+    logToFile('Challenge daily job: sample_window skipped (keyed ids not available)', { day: pktDay(now) });
+    return null;
+  }
+  const { start, end } = pktDayBounds(now);
+  const ARMS = [['class_round', 'window_start', 'window_end'], ['class_week', 'week_start', 'week_end']];
+  let n = 0;
+  for (const [arm, opens, closes] of ARMS) {
+    const { data, error } = await supabase.from('class_round_draws').select(`class_id, ${opens}, ${closes}`)
+      .gte(opens, start).lt(opens, end);
+    if (error) {
+      if (isMissingTable(error)) logToFile('Challenge daily job: sample_window skipped (class_round_draws not there yet)', { day: pktDay(now) });
+      else logError('web_quiz.ch_sample_window_read_failed', { code: error.code || null, error: errText(error) });
+      return n;
+    }
+    for (const r of data || []) {
+      if (!r[opens] || !r[closes]) continue;
+      logEvent('web_quiz.sample_window', Kid.envelope({
+        arm, unit: 'class', cls: Kid.cls(r.class_id),
+        opens_at: new Date(r[opens]).toISOString(), closes_at: new Date(r[closes]).toISOString(), w: 's',
+      }));
+      n += 1;
+    }
+  }
+  return n;
+}
+
+/** On the first PKT day of a month: the month just ended (YYYY-MM); else null. */
+function monthJustEnded(now) {
+  const d = pktDay(now);
+  if (d.slice(8) !== '01') return null;
+  const y = Number(d.slice(0, 4)); const m = Number(d.slice(5, 7));
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
+}
+
+/**
+ * The daily job, once per PKT day. The binding expiry runs whatever the switches say (when its module is present);
+ * every other part only under its own switch (the module header). Every switch off and no expiry module ⇒ nothing.
  */
 async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } = {}) {
   const f = flags || await switches();
-  if (!f.purge && !f.sweeper && !f.phoneBind) return { ran: false, reason: 'off' };
+  const Bind = optional('./web-quiz-bind-expiry');
+  const hasExpiry = !!Bind && typeof Bind.expireBindings === 'function';
+  const anyOn = !!(f.purge || f.sweeper || f.classRound);
+  if (!anyOn && !hasExpiry) return { ran: false, reason: 'off' };
   const claim = await claimDay(now);
   if (!claim.ok) return { ran: false, reason: claim.reason };
-  const out = { ran: true, day: claim.day, purged: null, bindings: false, strip: null, replyCap: null };
+  const out = { ran: true, day: claim.day, purged: null, bindings: false, strip: null, replyCap: null, windows: null, calibration: null };
+
+  // Retention outlives every switch: the expiry runs whenever its module is deployed.
+  if (hasExpiry) {
+    try { await Bind.expireBindings(new Date(now)); out.bindings = true; } catch (e) {
+      logError('web_quiz.ch_daily_bind_expiry_failed', { error: String(e && e.message || e).slice(0, 80) });
+    }
+  } else {
+    logToFile('Challenge daily job: binding expiry not available, skipped', { day: claim.day });
+  }
+  if (!anyOn) return out;
 
   if (f.purge) {
     const p = await purgeKept(now, max);
     out.purged = p.n;
-    logEvent('web_quiz.ch_audio_purged', { n: p.n, oldest_age_d: p.oldest_age_d, reason: 'age' });
+    logEvent('web_quiz.ch_audio_purged', { n: p.n, oldest_age_d: p.oldest_age_d, reason: 'age', w: 's' });
     await supabase.from(STRIP_TABLE).update({ value: p.n, n: p.n }).eq('week', claim.week).eq('line', 'daily_job').eq('cell', claim.day);
   }
 
-  if (f.phoneBind) {
-    const Bind = optional('./web-quiz-bind-expiry');
-    if (Bind && typeof Bind.expireBindings === 'function') {
-      try { await Bind.expireBindings(new Date(now)); out.bindings = true; } catch (e) {
-        logError('web_quiz.ch_daily_bind_expiry_failed', { error: String(e && e.message || e).slice(0, 80) });
+  // The class windows opening today (the event's one writer). A v2 event: also needs events v2.
+  if (f.classRound && f.eventsV2) {
+    try { out.windows = await emitSampleWindows(now); } catch (e) {
+      logError('web_quiz.ch_sample_window_failed', { error: errText(e) });
+    }
+  }
+
+  // The first PKT day of a month: schedule the calibration of the month just ended (its own switches decide).
+  const period = monthJustEnded(now);
+  if (period) {
+    const Cal = optional('./web-quiz-challenge-calibration');
+    if (Cal && typeof Cal.runMonthly === 'function') {
+      try { out.calibration = await Cal.runMonthly({ period_id: period, now: new Date(now) }); } catch (e) {
+        logError('web_quiz.ch_calibration_call_failed', { period_id: period, error: errText(e) });
       }
-    } else {
-      logToFile('Challenge daily job: binding expiry not available, skipped', { day: claim.day });
     }
   }
 
@@ -240,7 +318,7 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
   // On a Monday this runs first, so the weekly numbers below include Sunday.
   if (f.sweeper) {
     try { out.replyCap = await require('./web-quiz-strip').replyCapSnapshot({ now }); } catch (e) {
-      logError('web_quiz.strip_reply_cap_failed', { error: String(e && e.message || e).slice(0, 120) });
+      logError('web_quiz.strip_reply_cap_failed', { error: errText(e) });
     }
   }
 
@@ -249,19 +327,19 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
     const Strip = require('./web-quiz-strip');
     const week = Strip.isoWeekOf(now - 7 * DAY_MS);
     try { out.strip = await Strip.weeklyStrip({ week, now }); } catch (e) {
-      logError('web_quiz.strip_failed', { week, error: String(e && e.message || e).slice(0, 120) });
+      logError('web_quiz.strip_failed', { week, error: errText(e) });
     }
   }
   return out;
 }
 
-/** One housekeeping tick (the worker's hourly Challenge tick). Never throws. */
+/** One housekeeping tick (the worker's hourly Challenge tick): the sweep under its switch, then the daily job. Never throws. */
 async function tick({ now = Date.now() } = {}) {
   try {
     const flags = await switches();
-    if (!flags.sweeper && !flags.purge && !flags.phoneBind) return { off: true };
-    const sweep = await sweepStuck({ now, flags });
+    const sweep = flags.sweeper ? await sweepStuck({ now, flags }) : null;
     const daily = await dailyJob({ now, flags });
+    if (!sweep && !daily.ran && daily.reason === 'off') return { off: true };
     return { sweep, daily };
   } catch (e) {
     logToFile('Error in challenge housekeeping tick (non-fatal)', { error: String(e && e.message || e).slice(0, 120) });

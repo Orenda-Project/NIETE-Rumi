@@ -71,7 +71,7 @@ describe('sweepStuck', () => {
     expect(old.meta).toEqual({ ms: 1, fail_reason: 'unknown', swept_at: new Date(NOW).toISOString() });
     expect(fresh.status).toBe('scoring');
     expect(fresh.meta).toEqual({ ms: 1 });
-    expect(events('web_quiz.ch_swept')).toEqual([{ run: 'r-old', age_min: 11, reason: 'unknown' }]);
+    expect(events('web_quiz.ch_swept')).toEqual([{ run: 'r-old', age_min: 11, reason: 'unknown', w: 's' }]);
     expect(events('web_quiz.m_lost')).toEqual([]);   // a pre-v2 row (no mode) logs no m_lost
     expect(out).toMatchObject({ swept: 1, abandoned: 0 });
   });
@@ -95,7 +95,7 @@ describe('sweepStuck', () => {
     expect(ME.mLost.mock.calls[0][0]).toMatchObject({ id: 'r-v2', mode: 'check', status: 'failed' });
     expect(ME.mLost.mock.calls[0][1]).toEqual({ reason: 'swept', ageMin: 15 });
     expect(events('web_quiz.m_lost')).toEqual([{ run: 'r-v2', mode: 'check', reason: 'swept', age_min: 15 }]);
-    expect(events('web_quiz.ch_swept')).toEqual([{ run: 'r-v2', age_min: 15, reason: 'unknown' }]);
+    expect(events('web_quiz.ch_swept')).toEqual([{ run: 'r-v2', age_min: 15, reason: 'unknown', w: 's' }]);
   });
 
   test('m_lost waits for events v2: with web_quiz_events_v2 off the v2 row is still swept but no m_lost is logged', async () => {

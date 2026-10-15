@@ -1703,7 +1703,7 @@ function scheduleChallengeVoiceSweep({ worker: w = null, setIntervalFn = setInte
       logToFile('Error in challenge clip warm (non-fatal)', { error: error.message }, 'error');
     }
     try {
-      await require('../shared/services/quiz/web-quiz-challenge-sweeper').tick(); // stuck runs, the daily job; each part behind its own switch
+      await require('../shared/services/quiz/web-quiz-challenge-sweeper').tick(); // stuck runs, the daily job (binding expiry always; every other part behind its own switch)
     } catch (error) {
       logToFile('Error in challenge housekeeping tick (non-fatal)', { error: error.message });
     }

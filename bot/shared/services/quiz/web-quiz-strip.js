@@ -27,6 +27,9 @@
  *   kept_audio_oldest_d                     days since the oldest kept reading was scored (reported only: the
  *                                           operator keeps every kept reading for now, so age is no red line)
  *   sends / <trigger>, sends_total, sends_usd, bot_to_family, door_mix_numerator   from message_ledger
+ *   replies_per_bound_child                 (home_reply + bind_reply sends) ÷ children (distinct canonical id) with a
+ *                                           phone binding active at the week's cut (child_phone_bindings: bound
+ *                                           before it, not erased before it, not expired by it); n = those children
  *   reply_cap_phones / <bin>                phone-days of the week by replies counted that PKT day: 1, 2, 3-4, 5-8
  *                                           (9+ only when the cap is above 8) and capped (> the cap); n = phone-days
  *   reply_cap_hits                          phone-days over the cap (the red line: > 0 is investigated); n = phone-days
@@ -34,7 +37,7 @@
  *   teacher_accepted_share / <tier>         the teacher-accepted share of the join queue's tier (its Wilson 95% lower
  *                                           bound; a teacher's tap is a judgement, not a label, so never "precision")
  *   teacher_accepted_held / <tier>          1 when the tier is auto-held on that share, else 0
- * A table that is not there yet (child_rungs, message_ledger) skips its lines, logged.
+ * A table that is not there yet (child_rungs, message_ledger, child_phone_bindings) skips its lines, logged.
  *
  * The reply cap counts in Redis, `wq:reply_cap:<PKT day>:<hash>` = the day's replies for one phone, 24-h TTL from
  * the day's first reply. Counts only: the keys never leave the Redis service (scanValues), and nothing here writes or
@@ -107,15 +110,15 @@ const childOf = (r) => r.canonical_id || r.student_id || null;
 const cellOf = (r, ...more) => [fixedBand(r), r.lang || 'unknown', ...more].join('|');
 const share = (a, b) => (b ? a / b : null);
 
-/** Every row a query gives, a page at a time on created_at (no silent cap). `build()` returns a fresh query. */
-async function allRows(build, what) {
+/** Every row a query gives, a page at a time on `col` (created_at; no silent cap). `build()` returns a fresh query. */
+async function allRows(build, what, col = 'created_at') {
   const out = [];
   const seen = new Set();
   let cursor = null;
   for (;;) {
     let q = build();
-    if (cursor) q = q.gte('created_at', cursor);
-    const { data, error } = await q.order('created_at', { ascending: true }).limit(PAGE);
+    if (cursor) q = q.gte(col, cursor);
+    const { data, error } = await q.order(col, { ascending: true }).limit(PAGE);
     if (error) {
       if (!isMissingTable(error)) logError('web_quiz.strip_read_failed', { what, code: error.code || null, error: String(error.message || error).slice(0, 120) });
       return { rows: out, error };
@@ -123,7 +126,7 @@ async function allRows(build, what) {
     const fresh = (data || []).filter((r) => !seen.has(r.id));
     fresh.forEach((r) => { seen.add(r.id); out.push(r); });
     if (!data || data.length < PAGE || !fresh.length) return { rows: out, error: null };
-    cursor = data[data.length - 1].created_at;
+    cursor = data[data.length - 1][col];
   }
 }
 
@@ -398,6 +401,19 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
     put('bot_to_family', '', botFamily, total);
     const door = (by.get('home_reply') || 0) + (by.get('guest_reply') || 0);
     put('door_mix_numerator', '', door, door);
+
+    // D3 replies per bound child: home_reply + bind_reply sends ÷ children with a phone binding active at the cut
+    // (bound before it, not erased before it, not expired by it). Counts only: no phone column is read.
+    const bound = await allRows(() => supabase.from('child_phone_bindings').select('id, canonical_id, bound_at, expires_at, revoked_at')
+      .lt('bound_at', end), 'child_phone_bindings', 'bound_at');
+    if (bound.error) skipped.push('replies_per_bound_child');
+    else {
+      const cut = Date.parse(end);
+      const kids = new Set(bound.rows.filter((r) => (r.revoked_at == null || Date.parse(r.revoked_at) >= cut) && Date.parse(r.expires_at) > cut)
+        .map((r) => r.canonical_id));
+      const replies = (by.get('home_reply') || 0) + (by.get('bind_reply') || 0);
+      put('replies_per_bound_child', '', share(replies, kids.size), kids.size);
+    }
   }
 
   // ── identity: the reply cap and the teacher-accepted share (each only when its input exists) ──
