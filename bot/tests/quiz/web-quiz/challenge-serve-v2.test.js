@@ -271,7 +271,7 @@ describe('3 · every draw is logged in challenge_draws AND meta.draw', () => {
     expect(b).toEqual(a);
     expect(db.web_quiz_challenge_runs).toHaveLength(2);
     expect(starts()).toEqual([]);
-    expect(db.challenge_draws).toHaveLength(2);
+    expect(db.challenge_draws).toHaveLength(1);   // one on-its-way log per child × stop × period an hour
     expect(db.challenge_draws[0]).toMatchObject({ run_id: null, outcome: 'on_its_way', eligible: [], eligible_n: 0, p: null, served_id: null, band: 1 });
   });
 });

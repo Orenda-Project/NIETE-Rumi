@@ -280,3 +280,34 @@ describe('swap two children: a hub that remembers more than one child serves ?ki
     expect(rowOf(ex.ct)).toMatchObject({ student_id: K5 });
   });
 });
+
+describe('one "on its way" draw log per child, stop and period an hour', () => {
+  const seenBand1 = () => {
+    for (const id of ['en.read.1.ref01', 'en.read.1.kite']) {
+      db.web_quiz_challenge_runs.push({ id: crypto.randomUUID(), student_id: K3, canonical_id: K3, exercise: 'read', lang: 'en', status: 'scored', mode: 'practice', record: false, passage_id: id, created_at: '2026-10-20T00:00:00Z' });
+    }
+  };
+
+  test('a second on-its-way open within the hour writes no second draw row; after the hour it is logged again', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    seenBand1();
+    const a = await Ch.exercise(hub(K3), 'read', D);
+    const b = await Ch.exercise(hub(K3), 'read', D);
+    expect(a).toMatchObject({ on_its_way: true });
+    expect(b).toEqual(a);
+    expect(db.challenge_draws).toHaveLength(1);
+    expect(db.challenge_draws[0]).toMatchObject({ outcome: 'on_its_way', run_id: null, stop: 'read', canonical_id: K3 });
+    db.challenge_draws[0].drawn_at = new Date(Date.now() - 61 * 60 * 1000).toISOString();
+    await Ch.exercise(hub(K3), 'read', D);
+    expect(db.challenge_draws).toHaveLength(2);
+  });
+
+  test('another stop on its way is its own log', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    seenBand1();
+    await Ch.exercise(hub(K3), 'read', D);
+    db.challenge_draws.push({ draw_id: crypto.randomUUID(), canonical_id: K3, period_id: '2026-11', stop: 'listen', lang: 'en', fixed_grade_band: 'G23', band_reason: 'entry_grade', outcome: 'on_its_way', weights_v: 'w1', drawn_at: new Date().toISOString() });
+    await Ch.exercise(hub(K3), 'read', D);
+    expect(db.challenge_draws.filter((d) => d.stop === 'read')).toHaveLength(1);
+  });
+});

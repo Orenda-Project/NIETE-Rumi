@@ -369,9 +369,19 @@ async function childRows(canonicalId, studentIds = [], { step = 's' } = {}) {
 // to the column gate as challenge_draws columns).
 const drawLogFailure = (code, message) => ({ code: code || null, error: String(message || '').slice(0, 160) });
 
+// An "on its way" outcome is logged once per child × stop × period an hour (a child reopening the stop is not news).
+const ON_ITS_WAY_LOG_MS = 60 * 60 * 1000;
+async function onItsWayLoggedRecently(row) {
+  const since = new Date((Date.parse(row.drawn_at || '') || Date.now()) - ON_ITS_WAY_LOG_MS).toISOString();
+  const { data, error } = await supabase.from('challenge_draws').select('draw_id').eq('canonical_id', row.canonical_id).eq('stop', row.stop)
+    .eq('period_id', row.period_id).eq('outcome', 'on_its_way').gte('drawn_at', since).limit(1);
+  return !error && Array.isArray(data) && data.length > 0;
+}
+
 /** One challenge_draws row; never throws (the run row's meta.draw is the second copy). */
 async function logDraw(row) {
   try {
+    if (row && row.outcome === 'on_its_way' && row.canonical_id && row.period_id && (await onItsWayLoggedRecently(row))) return false;
     const { error } = await supabase.from('challenge_draws').insert(row);
     if (!error) return true;
     logError('web_quiz.ch_draw_log_failed', drawLogFailure(error.code, error.message));
