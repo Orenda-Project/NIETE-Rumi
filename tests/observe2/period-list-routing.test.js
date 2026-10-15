@@ -10,6 +10,10 @@
  */
 const http = require('http');
 
+// The first require of whatsapp-bot.js loads the whole bot; on a loaded machine running the full suite
+// in parallel that has taken over a minute, past the 30 s default.
+jest.setTimeout(180000);
+
 const PHONE = '923001234567';
 
 function webhookBody(id, kind) {
