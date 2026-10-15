@@ -1755,9 +1755,17 @@ const TEL_NUMS = ['pseq', 'sm', 'total_ms', 'vis_ms', 'count'];
 const V2_PROPS = Object.freeze({ w: /^[sp]$/ });
 const HELPED_V = /^(self|helped|not_asked)$/;
 const helpedV = (v) => (v === 0 ? 'self' : v === 1 ? 'helped' : (typeof v === 'string' && HELPED_V.test(v) ? v : null));
+const ISO_AT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/;
 const NAME_PROPS = Object.freeze({
   ch_helped: Object.freeze({ v: helpedV }),
   bind_offered: Object.freeze({ surface: /^(trail|hub|book|end_card)$/ }),
+  // A stored child id handed back for a name typed again on the same device: its one route.
+  identity_reused: Object.freeze({ via: /^device_name$/ }),
+  // A sampled class's window: the arm, the unit, the keyed class (12 hex, never the class id) and the window.
+  sample_window: Object.freeze({
+    arm: /^(class_round|class_week)$/, unit: /^class$/, cls: /^[0-9a-f]{12}$/,
+    opens_at: ISO_AT, closes_at: ISO_AT,
+  }),
 });
 const nameProp = (rule, value) => (typeof rule === 'function' ? rule(value) : (typeof value === 'string' && rule.test(value) ? value : null));
 const BATCH_MAX = 20;

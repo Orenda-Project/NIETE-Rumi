@@ -207,6 +207,31 @@ describe('cleanEvent: the name-scoped allow-list (v2 on only)', () => {
     expect(Object.keys(Svc.NAME_PROPS)).toEqual(expect.arrayContaining(['ch_helped', 'bind_offered']));
     expect(Object.isFrozen(Svc.NAME_PROPS)).toBe(true);
   });
+
+  test('identity_reused keeps via = device_name (its only value); every other name keeps the share-funnel via', () => {
+    expect(Svc.cleanEvent({ n: 'identity_reused', w: 's', via: 'device_name' }, { v2: true }).props).toEqual({ w: 's', via: 'device_name' });
+    expect(Svc.cleanEvent({ n: 'identity_reused', via: 'card' }, { v2: true }).props).not.toHaveProperty('via');
+    expect(Svc.cleanEvent({ n: 'card_view', via: 'card' }, { v2: true }).props.via).toBe('card');
+    expect(Svc.cleanEvent({ n: 'card_view', via: 'device_name' }, { v2: true }).props).not.toHaveProperty('via');
+    expect(Svc.cleanEvent({ n: 'identity_reused', via: 'device_name' }).props).not.toHaveProperty('via');
+  });
+
+  test('sample_window keeps arm, unit, the keyed cls and the window; a raw class id or a free date never passes', () => {
+    const cls = K.cls('00000000-0000-4000-8000-0000000000c1');
+    expect(cls).toMatch(/^[0-9a-f]{12}$/);
+    const ev = {
+      n: 'sample_window', w: 's', arm: 'class_week', unit: 'class', cls,
+      opens_at: '2026-11-02T03:00:00.000Z', closes_at: '2026-11-08T18:59:59.000Z',
+    };
+    expect(Svc.cleanEvent(ev, { v2: true }).props).toEqual({
+      w: 's', arm: 'class_week', unit: 'class', cls, opens_at: '2026-11-02T03:00:00.000Z', closes_at: '2026-11-08T18:59:59.000Z',
+    });
+    expect(Svc.cleanEvent({ ...ev, arm: 'class_round' }, { v2: true }).props.arm).toBe('class_round');
+    const bad = Svc.cleanEvent({ ...ev, arm: 'all', unit: 'Zara', cls: '00000000-0000-4000-8000-0000000000c1', opens_at: 'Monday' }, { v2: true }).props;
+    for (const k of ['arm', 'unit', 'cls', 'opens_at']) expect(bad).not.toHaveProperty(k);
+    expect(Svc.cleanEvent({ ...ev, n: 'answer' }, { v2: true }).props).not.toHaveProperty('cls');
+    expect(Svc.cleanEvent(ev).props).toEqual({});
+  });
 });
 
 describe('events(): the 20-per-batch slice is not silent with v2 on', () => {
