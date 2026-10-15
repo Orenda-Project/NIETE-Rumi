@@ -173,3 +173,46 @@ describe('a served-and-left row never consumes the month\'s record', () => {
     expect(rowOf(again.ct)).toMatchObject({ mode: 'practice', record: false, passage_id: rowOf(first.ct).passage_id });
   });
 });
+
+describe('a second record of the same stop this period (a concurrent serve, the record unique index) is kept as practice', () => {
+  // the runs table answers a record insert with a unique violation once, as the partial unique index would
+  const duplicateOnce = () => {
+    let left = 1;
+    const from = fake.from;
+    fake.from = (t) => {
+      const b = from(t);
+      if (t !== 'web_quiz_challenge_runs') return b;
+      const insert = b.insert;
+      b.insert = (row) => {
+        if (left > 0 && row && row.record === true) {
+          left -= 1;
+          return { then: (ok, no) => Promise.resolve({ data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint' } }).then(ok, no) };
+        }
+        return insert(row);
+      };
+      return b;
+    };
+    supabase.from = fake.from;
+  };
+  const dupEvents = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.ch_record_duplicate');
+
+  test('the record insert answers 23505: the same row is stored as practice, no throw, one event', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    duplicateOnce();
+    const ex = await Ch.exercise(hub(), 'bigger', D);
+    expect(db.web_quiz_challenge_runs).toHaveLength(1);
+    expect(rowOf(ex.ct)).toMatchObject({ status: 'served', mode: 'practice', record: false, meta: expect.objectContaining({ record_lost: 'duplicate' }) });
+    expect(ex).toMatchObject({ mode: 'practice', practice_round: true });
+    expect(starts()[0]).toMatchObject({ mode: 'practice', record: false });
+    expect(dupEvents()).toEqual([['web_quiz.ch_record_duplicate', expect.objectContaining({ w: 's' })]]);
+    expect(db.challenge_draws.map((d) => d.run_id)).toEqual([runOf(ex.ct)]);
+  });
+
+  test('no duplicate: the record as today, no event', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    const ex = await Ch.exercise(hub(), 'bigger', D);
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'check', record: true });
+    expect(rowOf(ex.ct).meta).not.toHaveProperty('record_lost');
+    expect(dupEvents()).toEqual([]);
+  });
+});

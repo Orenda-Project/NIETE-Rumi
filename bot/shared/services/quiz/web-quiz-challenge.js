@@ -993,10 +993,19 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
       exposure_no: exposure, ...(anchorBlock ? { anchor_exposure_no: anchorExp, anchor_serves_any: servesAny, anchor_block: anchorBlock } : {}), record, via },
     items, tryout, story, dir, clipUrl,
     async store() {
-      const stored = await insertRun(row);
+      let stored = await insertRun(row);
+      // a second record of this stop this period (a concurrent serve; the record unique index answers 23505): the same
+      // row is kept as practice, and what the page, the in-process run and ch_start say follows it
+      const lost = stored === 'duplicate' && row.record === true;
+      if (lost) {
+        stored = await insertRun({ ...row, record: false, mode: 'practice', meta: { ...row.meta, record_lost: 'duplicate' } });
+        logEvent('web_quiz.ch_record_duplicate', { w: 's', stop: ex, period_id: periodId, stored });
+        for (const o of [this.mem, this.top, this.event, RUNS.get(runId)]) if (o) Object.assign(o, { record: false, mode: 'practice' });
+        Object.assign(this.payload, { mode: 'practice', practice_round: true });
+      }
       if (drawLog) await D.logDraw({ ...drawLog, run_id: stored === 'stored' ? runId : null });
       // IDENTITY §16: the year's fixed grade at the first counted play (the visit's grade; never changed after)
-      if (record === true && mode === 'check') await D.writeChildIdentity({ canonicalId, grade: w.grade, gradeSource: w.gradeSource, now: new Date(now) });
+      if (!lost && record === true && mode === 'check') await D.writeChildIdentity({ canonicalId, grade: w.grade, gradeSource: w.gradeSource, now: new Date(now) });
     },
   };
 }
