@@ -8,6 +8,16 @@
  * count = count + n). Only when that function is missing (42883) or the client has no rpc does it fall back to
  * select-then-write. A bot-initiated send to a family is never recorded (it must not exist). A missing table
  * (42P01) is logged once and the call returns false. Never throws.
+ *
+ * A counted reply is one the bot DECIDED to send (an attempt), not a delivery: callers record first and send
+ * only when record() returned true, so a send that fails afterwards is still counted.
+ *
+ * The per-phone daily reply cap (app_settings web_quiz_reply_cap_per_phone, default 8, never below 1): when the
+ * caller passes `phone`, the cap runs before anything else. The count lives in Redis under
+ * wq:reply_cap:<PKT day>:<keyed hash of the phone> (24-hour TTL; the key never holds the phone). Over the cap →
+ * web_quiz.reply_capped{trigger} and false, with no ledger row and no msg_sent. With a phone, the return value is
+ * the send decision: false ONLY when capped (a ledger write that fails is logged and the reply still goes out).
+ * No hash key (neither secret set) or a Redis failure → no cap (fail open), logged once.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -19,8 +29,15 @@ const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
 const TRIGGERS = Object.freeze(['home_reply', 'bind_reply', 'guest_reply', 'teacher_refusal', 'class_link', 'class_round', 'teacher_queue']);
 const INITIATED = Object.freeze(['user', 'bot']);
 const RECIPIENTS = Object.freeze(['family', 'teacher']);
+const CAP_KEY = 'web_quiz_reply_cap_per_phone';
+const CAP_DEFAULT = 8;
+const CAP_TTL_MS = 30 * 1000;
+const CAP_WINDOW_SECS = 24 * 60 * 60;
 
 let missingLogged = false;
+let capCache = null; // { at, cap }
+let unkeyedLogged = false;
+let redisFailLogged = false;
 
 /** The PKT calendar day of `now` as 'YYYY-MM-DD'. */
 const pktDay = (now = new Date()) => new Date(new Date(now).getTime() + PKT_OFFSET_MS).toISOString().slice(0, 10);
@@ -43,6 +60,70 @@ function clsFor(classId) {
   }
 }
 
+// ── the per-phone daily reply cap ──
+
+/** An app_settings value → an integer cap ≥ 1; anything that is not an integer → the default. */
+function capOf(value) {
+  let v = value;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (_) { /* plain string */ } }
+  if (v === null || v === undefined || v === '' || typeof v === 'boolean') return CAP_DEFAULT;
+  const n = Number(v);
+  return Number.isInteger(n) ? Math.max(1, n) : CAP_DEFAULT;
+}
+
+/** The cap, read like the identity switches (30 s cache); a failed read → the default. Never throws. */
+async function capPerPhone(now = Date.now()) {
+  if (capCache && now - capCache.at < CAP_TTL_MS) return capCache.cap;
+  try {
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [CAP_KEY]);
+    if (error) throw new Error(error.message || 'app_settings read failed');
+    const row = (data || []).find((r) => r.key === CAP_KEY);
+    capCache = { at: now, cap: capOf(row ? row.value : null) };
+    return capCache.cap;
+  } catch (err) {
+    logToFile('⚠️ message ledger: reply cap lookup failed — the default applies', { error: err.message });
+    return CAP_DEFAULT;
+  }
+}
+
+/** The phone's keyed hash: ukey (WEB_QUIZ_KID_KEY), else the tombstone HMAC (WQ_TOMB_SALT), else null. */
+function phoneHash(phone) {
+  try {
+    const ukey = require('./web-quiz-bind.service').ukeyOf(phone);
+    if (ukey) return ukey;
+  } catch (_) { /* the tombstone */ }
+  try {
+    return require('./child-phone-bindings.repo').tombOf(phone) || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** → true when this reply may go out (counted under the cap, or no cap could run); false when over the cap. */
+async function underCap(phone, trigger, now) {
+  const hash = phoneHash(phone);
+  if (!hash) {
+    if (!unkeyedLogged) { unkeyedLogged = true; logToFile('⚠️ message ledger: reply cap unkeyed — no phone hash secret, replies not capped'); }
+    return true;
+  }
+  const redisService = require('../cache/railway-redis.service');
+  const key = `wq:reply_cap:${pktDay(now)}:${hash}`;
+  let count = null;
+  try { count = await redisService.incr(key); } catch (_) { count = null; }
+  if (count === null || count === undefined || !Number.isFinite(Number(count))) {
+    if (!redisFailLogged) { redisFailLogged = true; logToFile('⚠️ message ledger: reply cap: redis unavailable — reply sent uncapped'); }
+    return true;
+  }
+  if (Number(count) === 1) {
+    try { await redisService.expire(key, CAP_WINDOW_SECS); } catch (_) { /* the count still holds */ }
+  }
+  if (Number(count) > await capPerPhone()) {
+    logEvent('web_quiz.reply_capped', { trigger, w: 's' });
+    return false;
+  }
+  return true;
+}
+
 /** ONE atomic add through message_ledger_add → true (written) | false (failed) | null (no function: fall back). */
 async function addByRpc({ day, trigger, classId, initiated, recipient, n, usdEach }) {
   if (typeof supabase.rpc !== 'function') return null;
@@ -56,12 +137,22 @@ async function addByRpc({ day, trigger, classId, initiated, recipient, n, usdEac
 }
 
 /**
- * Count `count` sends of `trigger` today (PKT) → true when the row was written.
- * @param {{trigger:string, classId?:string|null, initiated?:'user'|'bot', recipient?:'family'|'teacher', count?:number, usdEach?:number, now?:Date}} p
+ * Count `count` sends of `trigger` today (PKT). Without `phone` → true when the row was written. With `phone`
+ * (raw or normalised) → the send decision: false only when the phone is over today's reply cap.
+ * @param {{trigger:string, phone?:string, classId?:string|null, initiated?:'user'|'bot', recipient?:'family'|'teacher', count?:number, usdEach?:number, now?:Date}} p
  */
-async function record({ trigger, classId = null, initiated = 'user', recipient = 'family', count = 1, usdEach = USD_PER_SEND, now = new Date() } = {}) {
+async function record({ trigger, phone = null, classId = null, initiated = 'user', recipient = 'family', count = 1, usdEach = USD_PER_SEND, now = new Date() } = {}) {
   if (!TRIGGERS.includes(trigger) || !INITIATED.includes(initiated) || !RECIPIENTS.includes(recipient)) return false;
   if (initiated === 'bot' && recipient === 'family') return false;
+  if (phone) {
+    if (!(await underCap(phone, trigger, now))) return false;
+    await write({ trigger, classId, initiated, recipient, count, usdEach, now });   // a failed write is logged there
+    return true;
+  }
+  return write({ trigger, classId, initiated, recipient, count, usdEach, now });
+}
+
+async function write({ trigger, classId, initiated, recipient, count, usdEach, now }) {
   const n = Number.isInteger(count) && count > 0 ? count : 1;
   const day = pktDay(now);
   const each = Number.isFinite(usdEach) && usdEach >= 0 ? usdEach : USD_PER_SEND;
@@ -104,4 +195,8 @@ async function record({ trigger, classId = null, initiated = 'user', recipient =
   }
 }
 
-module.exports = { record, pktDay, TRIGGERS, USD_PER_SEND, TABLE, _resetMissing: () => { missingLogged = false; } };
+module.exports = {
+  record, pktDay, capPerPhone, TRIGGERS, USD_PER_SEND, TABLE, CAP_KEY, CAP_DEFAULT,
+  _resetMissing: () => { missingLogged = false; },
+  _resetCap: () => { capCache = null; unkeyedLogged = false; redisFailLogged = false; },
+};

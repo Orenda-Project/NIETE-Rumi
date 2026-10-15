@@ -16,6 +16,8 @@ jest.mock('../../../shared/services/cache/railway-redis.service', () => {
     set: jest.fn(async (k, v) => { keys.set(k, v); return true; }),
     setNX: jest.fn(async (k, v) => { if (keys.has(k)) return false; keys.set(k, v); return true; }),
     delete: jest.fn(async (k) => keys.delete(k)),
+    incr: jest.fn(async (k) => { const v = (Number(keys.get(k)) || 0) + 1; keys.set(k, v); return v; }),
+    expire: jest.fn(async () => true),
     isAvailable: () => true,
     // the raw client some readers use (quiz-session getActiveState): JSON strings in the same Map
     redis: { get: jest.fn(async (k) => (keys.has(k) ? JSON.stringify(keys.get(k)) : null)) },
@@ -78,13 +80,15 @@ function seed({ on = true, students = [], codes = [], bindings = [], ledger, cla
   fake.rpcResult = { data: null, error: { code: '42883', message: 'function message_ledger_add does not exist' } };
   IdFlags._resetCache();
   HubFlags._resetCache();
+  const Ledger = require('../../../shared/services/quiz/message-ledger');
+  if (typeof Ledger._resetCap === 'function') Ledger._resetCap();
 }
 const events = (name) => logEvent.mock.calls.filter(([n]) => n === name).map(([, d]) => d);
 const inserts = (table) => fake.calls.filter((c) => c.table === table && c.op === 'insert');
 const reads = (table) => fake.calls.filter((c) => c.table === table);
 const sends = () => WhatsApp.sendMessage.mock.calls.length + WhatsApp.sendCtaUrl.mock.calls.length;
 const say = async (body, user = { ...UNKNOWN_USER }) => {
-  await Ingress.attach(user, PHONE);
+  await Ingress.attach(user, PHONE, { body });
   return Ingress.route({ messageType: 'text', messageBody: body, from: PHONE, user });
 };
 
@@ -509,5 +513,199 @@ describe('goldens: switch off → the original path (snapshots taken from the co
     expect(await say('stop', { ...TEACHER_USER })).toBe(false);
     expect(sends()).toBe(0);
     expect(fake.calls.filter((c) => c.op !== 'select')).toEqual([]);
+  });
+});
+
+describe('the STOP reply says the phone link only (STOP deletes no reading, so no reply may claim one)', () => {
+  const PHONE_ONLY = {
+    en: 'Done. Jugnu has removed this phone number from the children\'s names it was saved with. Send /quiz any time to start again.',
+    ur: 'ہو گیا۔ جگنو نے یہ فون نمبر بچوں کے ناموں سے ہٹا دیا ہے۔ دوبارہ شروع کرنے کے لیے کسی بھی وقت ⁦/quiz⁩ بھیجیں۔',
+  };
+
+  test.each(['en', 'ur'])('the STOP reply (%s) contains none of deleted / readings / ریکارڈنگ / مٹا', async (lang) => {
+    seed({ students: [], bindings: [binding(KIDS[0])] });
+    expect(await say('stop', { ...TEACHER_USER, preferred_language: lang })).toBe(true);
+    const [[, text]] = WhatsApp.sendMessage.mock.calls;
+    expect(text).toBe(resolveUx('jugnuBindStopped', { language: lang }));
+    ['deleted', 'readings', 'ریکارڈنگ', 'مٹا'].forEach((w) => expect(text).not.toContain(w));
+  });
+
+  test('the STOP line is the phone-only line, word for word, isolates included', () => {
+    expect(UX_STRINGS.jugnuBindStopped.en).toBe(PHONE_ONLY.en);
+    expect(UX_STRINGS.jugnuBindStopped.ur).toBe(PHONE_ONLY.ur);
+  });
+});
+
+describe('the reply cap: 8 replies per phone per PKT day, counted when the bot decides to send', () => {
+  const Ledger = () => require('../../../shared/services/quiz/message-ledger');
+  const Bind = () => require('../../../shared/services/quiz/web-quiz-bind.service');
+  const Repo = () => require('../../../shared/services/quiz/child-phone-bindings.repo');
+  const capKeys = () => [...redisService.__keys.keys()].filter((k) => String(k).startsWith('wq:reply_cap:'));
+  const setCap = (value) => fake.db.app_settings.push({ key: 'web_quiz_reply_cap_per_phone', value });
+  const logged = (text) => require('../../../shared/utils/logger').logToFile.mock.calls.filter(([m]) => String(m).includes(text));
+  const stops = async (n) => { for (let i = 0; i < n; i += 1) expect(await say('stop')).toBe(true); };
+
+  test('8 replies on one phone in one PKT day are sent and counted; the 9th is not sent, not counted; reply_capped once', async () => {
+    seed({ students: [chatKid(0)] });
+    await stops(9);
+    expect(WhatsApp.sendMessage).toHaveBeenCalledTimes(8);
+    expect(fake.db.message_ledger).toEqual([expect.objectContaining({ trigger: 'bind_reply', count: 8 })]);
+    expect(events('web_quiz.msg_sent')).toHaveLength(8);
+    expect(events('web_quiz.reply_capped')).toEqual([{ trigger: 'bind_reply', w: 's' }]);
+  });
+
+  test('the Redis key holds the keyed hash, never the phone; the first count sets a 24-hour TTL', async () => {
+    seed({ students: [chatKid(0)] });
+    await stops(2);
+    const keys = capKeys();
+    expect(keys).toEqual([`wq:reply_cap:${Ledger().pktDay(new Date())}:${Bind().ukeyOf(PHONE)}`]);
+    for (let i = 0; i + 5 <= PHONE.length; i += 1) expect(keys[0]).not.toContain(PHONE.slice(i, i + 5));
+    expect(redisService.expire.mock.calls).toEqual([[keys[0], 86400]]);
+    expect(events('web_quiz.reply_capped')).toEqual([]);
+  });
+
+  test('no kid key → the tombstone hash keys the count; neither → no cap, "reply cap unkeyed" logged once', async () => {
+    seed({ students: [chatKid(0)] });
+    delete process.env.WEB_QUIZ_KID_KEY;
+    await stops(1);
+    expect(capKeys()).toEqual([`wq:reply_cap:${Ledger().pktDay(new Date())}:${Repo().tombOf(PHONE)}`]);
+    redisService.__keys.clear();
+    delete process.env.WQ_TOMB_SALT;
+    await stops(10);
+    expect(capKeys()).toEqual([]);
+    expect(WhatsApp.sendMessage).toHaveBeenCalledTimes(11);
+    expect(logged('reply cap unkeyed')).toHaveLength(1);
+    expect(events('web_quiz.reply_capped')).toEqual([]);
+  });
+
+  test('app_settings web_quiz_reply_cap_per_phone = 3 → the 4th reply is capped', async () => {
+    seed({ students: [chatKid(0)] });
+    setCap(3);
+    await stops(4);
+    expect(WhatsApp.sendMessage).toHaveBeenCalledTimes(3);
+    expect(fake.db.message_ledger[0].count).toBe(3);
+    expect(events('web_quiz.reply_capped')).toEqual([{ trigger: 'bind_reply', w: 's' }]);
+  });
+
+  test.each([['3', 3], ['"2"', 2], ['x', 8], [null, 8], [2.5, 8], [0, 1], [-2, 1]])('cap value %p → %i replies, then false', async (value, cap) => {
+    seed();
+    setCap(value);
+    const out = [];
+    for (let i = 0; i <= cap; i += 1) out.push(await Ledger().record({ trigger: 'bind_reply', phone: PHONE }));
+    expect(out).toEqual([...Array(cap).fill(true), false]);
+  });
+
+  test('Redis incr fails (null) → fail open: every reply sent and counted, logged once', async () => {
+    seed({ students: [chatKid(0)] });
+    const real = redisService.incr.getMockImplementation();
+    redisService.incr.mockImplementation(async () => null);
+    try {
+      await stops(10);
+    } finally {
+      redisService.incr.mockImplementation(real);
+    }
+    expect(WhatsApp.sendMessage).toHaveBeenCalledTimes(10);
+    expect(fake.db.message_ledger[0].count).toBe(10);
+    expect(events('web_quiz.reply_capped')).toEqual([]);
+    expect(logged('reply cap: redis')).toHaveLength(1);
+  });
+
+  test('no phone → no cap: the ledger\'s other callers are unchanged', async () => {
+    seed();
+    setCap(1);
+    for (let i = 0; i < 3; i += 1) expect(await Ledger().record({ trigger: 'home_reply' })).toBe(true);
+    expect(redisService.incr).not.toHaveBeenCalled();
+    expect(fake.db.message_ledger[0].count).toBe(3);
+  });
+
+  test('the count comes before the send; a send that fails after a counted record is still counted', async () => {
+    seed({ students: [chatKid(0)] });
+    WhatsApp.sendMessage.mockImplementationOnce(async () => false);
+    expect(await say('stop')).toBe(true);
+    expect(redisService.incr.mock.invocationCallOrder[0]).toBeLessThan(WhatsApp.sendMessage.mock.invocationCallOrder[0]);
+    expect(fake.db.message_ledger).toEqual([expect.objectContaining({ trigger: 'bind_reply', count: 1 })]);
+  });
+
+  test('with a phone, a ledger that cannot write never silences an uncapped reply', async () => {
+    seed({ students: [chatKid(0)] });
+    fake.rpcResult = { data: null, error: { code: '57014', message: 'timeout' } };
+    expect(await say('stop')).toBe(true);
+    expect(WhatsApp.sendMessage).toHaveBeenCalledTimes(1);
+    expect(events('web_quiz.msg_sent')).toEqual([]);
+  });
+
+  test('a JUGNU- code on a phone at its cap: the place is saved, no reply is sent, reply_capped{bind_reply}', async () => {
+    seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0])] });
+    setCap(1);
+    expect(await Ledger().record({ trigger: 'home_reply', phone: PHONE })).toBe(true);
+    expect(await say('JUGNU-AB2CD')).toBe(true);
+    expect(fake.db.child_phone_bindings).toEqual([expect.objectContaining({ canonical_id: KIDS[0], phone_norm: PHONE })]);
+    expect(sends()).toBe(0);
+    expect(events('web_quiz.reply_capped')).toEqual([{ trigger: 'bind_reply', w: 's' }]);
+  });
+
+  test('a teacher phone at its cap: refused, no line sent, reply_capped{teacher_refusal}', async () => {
+    seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0])] });
+    setCap(1);
+    await Ledger().record({ trigger: 'home_reply', phone: PHONE });
+    expect(await say('JUGNU-AB2CD', { ...TEACHER_USER })).toBe(true);
+    expect(events('web_quiz.bind_refused')).toEqual([{ reason: 'teacher_phone', w: 's' }]);
+    expect(sends()).toBe(0);
+    expect(events('web_quiz.reply_capped')).toEqual([{ trigger: 'teacher_refusal', w: 's' }]);
+  });
+
+  test('a fifth-child code on a phone at its cap: refused, no full line sent', async () => {
+    seed({ students: [0, 1, 2, 3].map(chatKid).concat(student(4)), codes: [code('JUGNU-AB2CD', KIDS[4])] });
+    setCap(1);
+    await Ledger().record({ trigger: 'home_reply', phone: PHONE });
+    expect(await say('JUGNU-AB2CD')).toBe(true);
+    expect(events('web_quiz.bind_refused')).toEqual([{ reason: 'max_kids', kids_n: 4, w: 's' }]);
+    expect(sends()).toBe(0);
+    expect(events('web_quiz.reply_capped')).toEqual([{ trigger: 'bind_reply', w: 's' }]);
+  });
+});
+
+describe('no ukey on a decision whose request carries a binding event', () => {
+  const ukey = () => require('crypto').createHmac('sha256', 'unit-kid-key-not-a-secret').update(`ukey|${PHONE}`).digest('hex').slice(0, 16);
+
+  test.each(['JUGNU-ABCDE', 'Keep my place JUGNU-ABCDE'])('unknown phone + %p → decided carries no ukey and no correlationId', async (body) => {
+    seed({ students: [] });
+    await Ingress.attach({ ...UNKNOWN_USER }, PHONE, { body });
+    expect(events('student_ingress.decided')).toEqual([{ mode: 'unknown', reason: 'no_student_row', userId: 'u-family' }]);
+  });
+
+  test.each(['STOP', ' بند '])('unknown phone + %p → decided carries no ukey and no correlationId', async (body) => {
+    seed({ students: [] });
+    await Ingress.attach({ ...UNKNOWN_USER }, PHONE, { body });
+    expect(events('student_ingress.decided')).toEqual([{ mode: 'unknown', reason: 'no_student_row', userId: 'u-family' }]);
+  });
+
+  test('unknown phone + /quiz → ukey present, correlationId null (unchanged)', async () => {
+    seed({ students: [] });
+    await Ingress.attach({ ...UNKNOWN_USER }, PHONE, { body: '/quiz' });
+    expect(events('student_ingress.decided')).toEqual([{ mode: 'unknown', reason: 'no_student_row', userId: 'u-family', ukey: ukey(), correlationId: null }]);
+  });
+
+  test('golden: attach(user, phone) with no body → the decision event and the verdict exactly as before', async () => {
+    seed({ students: [] });
+    const user = await Ingress.attach({ ...UNKNOWN_USER }, PHONE);
+    expect(events('student_ingress.decided')).toEqual([{ mode: 'unknown', reason: 'no_student_row', userId: 'u-family', ukey: ukey(), correlationId: null }]);
+    expect(user).toMatchObject({ persona: null, personaLanguage: null, personaClass: null, personaReason: 'no_student_row' });
+  });
+
+  test('a code body changes only the event: the same verdict, and it is cached', async () => {
+    seed({ students: [] });
+    const user = await Ingress.attach({ ...UNKNOWN_USER }, PHONE, { body: 'JUGNU-ABCDE' });
+    expect(user).toMatchObject({ persona: null, personaReason: 'no_student_row' });
+    expect(redisService.__keys.get(Ingress.CACHE_KEY(PHONE))).toEqual({ persona: null, mode: 'unknown', reason: 'no_student_row', language: null, studentClass: null });
+  });
+});
+
+describe('the binder\'s page link names its builder', () => {
+  test('a drop from the saved reply\'s link logs caller "bind"', async () => {
+    seed({ students: [0, 1, 2, 3, 4].map(chatKid), codes: [code('JUGNU-AB2CD', KIDS[2])] });
+    await say('JUGNU-AB2CD');
+    expect(events('web_quiz.bind_bound')[0]).toMatchObject({ kids_n: 5 });
+    expect(events('web_quiz.token_ids_dropped')).toEqual([{ n: 1, kept: 4, caller: 'bind', w: 's' }]);
   });
 });

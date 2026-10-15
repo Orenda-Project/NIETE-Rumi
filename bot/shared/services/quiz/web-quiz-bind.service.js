@@ -8,6 +8,8 @@
  *   teacher_phone · code_unknown · code_used · code_expired · child_unknown · max_phones · max_kids
  *   A teacher's phone gets ONE refusal line (ledger teacher_refusal); a full phone gets ONE line (ledger bind_reply);
  *   the other refusals have no bot copy, so the binder stays silent (the page shows the state).
+ *   Every reply is counted on the ledger BEFORE it is sent, with the phone (the per-phone daily reply cap): a
+ *   reply over the cap is not sent.
  * Bound (new, renewed or a re-bind): the code is spent, the door's cached verdict is dropped, and ONE reply is
  * sent: the saved line with a button to the phone's children's page.
  *
@@ -106,7 +108,7 @@ async function languageFor(child, user) {
 async function sendSaved(phone, kids, child, language) {
   const WhatsAppService = require('../whatsapp.service');
   const body = resolveUx('jugnuBindSaved', { language, params: { name: firstName(child.name) } });
-  const url = await require('./web-quiz-hub-flags').hubLink(kids.map((k) => k.id));
+  const url = await require('./web-quiz-hub-flags').hubLink(kids.map((k) => k.id), 'bind');
   let sent = false;
   if (url) {
     try {
@@ -138,8 +140,9 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
       await Codes.markUsed(code, 'teacher_phone', now);
       const out = refused('teacher_phone');
       const lang = clampLanguage((user && user.preferred_language) || 'en');
-      if (await sendText(phone, 'jugnuBindTeacherRefused', lang)) {
-        await Ledger.record({ trigger: 'teacher_refusal', recipient: 'teacher', now });
+      // counted first (the per-phone reply cap); sent only when the ledger says so
+      if (await Ledger.record({ trigger: 'teacher_refusal', recipient: 'teacher', phone, now })) {
+        await sendText(phone, 'jugnuBindTeacherRefused', lang);
       }
       return out;
     }
@@ -168,7 +171,7 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
       await Codes.markUsed(code, 'max_kids', now);
       const out = refused('max_kids', { kids_n: set.length });
       const lang = await languageFor(child, user);
-      if (await sendText(phone, 'jugnuBindFullRefused', lang)) await Ledger.record({ trigger: 'bind_reply', now });
+      if (await Ledger.record({ trigger: 'bind_reply', phone, now })) await sendText(phone, 'jugnuBindFullRefused', lang);
       return out;
     }
 
@@ -204,7 +207,7 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
     logEvent('web_quiz.bind_bound', ev);
 
     const lang = await languageFor(child, user);
-    if (await sendSaved(phone, kids.length ? kids : [{ id: child.id }], child, lang)) await Ledger.record({ trigger: 'bind_reply', now });
+    if (await Ledger.record({ trigger: 'bind_reply', phone, now })) await sendSaved(phone, kids.length ? kids : [{ id: child.id }], child, lang);
     return { ok: true, outcome: 'bound', bindingId: binding.id, canonicalId: child.id, renewed, rebind };
   } catch (err) {
     logToFile('⚠️ phone binder: code handling threw (silent)', { error: err.message });
@@ -230,8 +233,8 @@ async function handleStop({ phone, user = null, persona = null, now = new Date()
     perChild.forEach((n) => logEvent('web_quiz.bind_undo', { via: 'stop', n, audio_n: 0, w: 's' }));
     const lang = clampLanguage((user && (user.personaLanguage || user.preferred_language)) || 'en');
     const key = erased.length ? 'jugnuBindStopped' : 'jugnuBindStopNothing';
-    if (await sendText(phone, key, lang)) {
-      await Ledger.record({ trigger: 'bind_reply', recipient: persona === 'teacher' ? 'teacher' : 'family', now });
+    if (await Ledger.record({ trigger: 'bind_reply', recipient: persona === 'teacher' ? 'teacher' : 'family', phone, now })) {
+      await sendText(phone, key, lang);
     }
     return { n: erased.length, children: perChild.size };
   } catch (err) {

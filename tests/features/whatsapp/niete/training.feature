@@ -2466,3 +2466,27 @@ Feature: NIETE (ICT) Teacher Training
     When the phone sends /quiz
     Then the home button opens a page for the phone's children, four at most, and the dropped child is logged
     But with web_quiz_phone_bind off the /quiz reply is exactly as before
+
+  @quiz @config-gated @wip @draft @P2 @T705
+  Scenario: With web_quiz_phone_bind on, a family phone gets at most 8 service replies in one Pakistan day
+    Given web_quiz_phone_bind is on
+    And a phone has already been sent 8 binder replies today
+    When the phone sends "stop" or a JUGNU- code again
+    Then the binder does its work but sends no reply, and the capped reply is logged without the phone
+    But when the number of replies allowed today cannot be counted, the reply is still sent
+
+  @quiz @config-gated @wip @draft @P2 @T706
+  Scenario: With web_quiz_phone_bind on, the STOP reply says only that the phone was removed
+    Given web_quiz_phone_bind is on
+    And a phone holds a child's saved place
+    When the phone sends "stop"
+    Then the one "Done" reply says the phone number was removed from the children's names
+    And it never says that any recording was deleted, in English or in Urdu
+
+  @quiz @config-gated @wip @draft @P2 @T707
+  Scenario: With web_quiz_phone_bind on, a JUGNU- code or STOP from an unknown phone keeps the phone key off the decision log
+    Given web_quiz_phone_bind is on
+    And a phone that is not known to Rumi
+    When the phone sends a JUGNU- code or "stop"
+    Then the door's decision log line carries no phone key
+    But the same phone sending /quiz is logged exactly as before

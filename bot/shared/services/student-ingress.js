@@ -163,10 +163,16 @@ async function boundVerdict(phone) {
   };
 }
 
-/** `ukey` (and a nulled correlationId) on an unknown phone's decision only, with the switch on. */
-async function unknownPhoneKey(verdict, phone) {
+/**
+ * `ukey` (and a nulled correlationId) on an unknown phone's decision only, with the switch on — and never when
+ * the message is a JUGNU- code or a STOP: that request will carry a binding event, and one request never joins a
+ * phone key to a child key. Only the event's extras change; the verdict and its cache do not.
+ */
+async function unknownPhoneKey(verdict, phone, body) {
   if (verdict.reason !== 'no_student_row' || !(await phoneBindOn())) return {};
-  const ukey = require('./quiz/web-quiz-bind.service').ukeyOf(phone);
+  const Bind = require('./quiz/web-quiz-bind.service');
+  if (body && (require('./quiz/child-bind-codes.repo').parseCode(body) || Bind.isStop(body))) return {};
+  const ukey = Bind.ukeyOf(phone);
   return ukey ? { ukey, correlationId: null } : {};
 }
 // ── end family phone binding ──
@@ -178,7 +184,7 @@ async function unknownPhoneKey(verdict, phone) {
  * @returns {Promise<{persona:'student'|null, mode:'teacher'|'student'|'unknown', reason:string,
  *                    language:string|null, studentClass:string|null}>}
  */
-async function classify({ user, phone } = {}) {
+async function classify({ user, phone, body } = {}) {
   if (!StudentMode.isEnabled()) return NONE('unknown', 'flag_off');
   if (!user) return NONE('unknown', 'no_user');
   try {
@@ -211,7 +217,7 @@ async function classify({ user, phone } = {}) {
       }
     }
     await VerdictCache.set(phone, verdict);
-    logEvent('student_ingress.decided', { mode: verdict.mode, reason: verdict.reason, userId: full.id, ...(await unknownPhoneKey(verdict, phone)) });
+    logEvent('student_ingress.decided', { mode: verdict.mode, reason: verdict.reason, userId: full.id, ...(await unknownPhoneKey(verdict, phone, body)) });
     return verdict;
   } catch (err) {
     logToFile('⚠️ student-ingress: classify threw (non-fatal, towards teacher)', { error: err.message });
@@ -221,10 +227,10 @@ async function classify({ user, phone } = {}) {
 
 const { forget } = VerdictCache;
 
-/** Attach the verdict to the users row so every handler reads one answer. */
-async function attach(user, phone) {
+/** Attach the verdict to the users row so every handler reads one answer. `body`: the message's text, if any. */
+async function attach(user, phone, { body } = {}) {
   if (!user) return user;
-  const v = await classify({ user, phone });
+  const v = await classify({ user, phone, body });
   user.persona = v.persona;                 // 'student' | null
   user.personaLanguage = v.language;
   user.personaClass = v.studentClass;

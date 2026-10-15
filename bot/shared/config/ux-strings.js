@@ -4444,8 +4444,8 @@ const STUDENT_TUTOR_STRINGS = {
     ur: "اس فون پر پہلے ہی چار بچوں کی جگہ محفوظ ہے، جو جگنو میں سب سے زیادہ ہے۔ کھیلنے کے لیے \u2066/quiz\u2069 بھیجیں اور نام دبائیں۔",
   },
   jugnuBindStopped: {
-    en: "Done. Jugnu has removed this phone number from the children's names it was saved with, and deleted their kept readings. Send /quiz any time to start again.",
-    ur: "ہو گیا۔ جگنو نے یہ فون نمبر بچوں کے ناموں سے ہٹا دیا ہے، اور ان کی رکھی گئی ریکارڈنگز مٹا دی ہیں۔ دوبارہ شروع کرنے کے لیے کسی بھی وقت \u2066/quiz\u2069 بھیجیں۔",
+    en: "Done. Jugnu has removed this phone number from the children's names it was saved with. Send /quiz any time to start again.",
+    ur: "ہو گیا۔ جگنو نے یہ فون نمبر بچوں کے ناموں سے ہٹا دیا ہے۔ دوبارہ شروع کرنے کے لیے کسی بھی وقت \u2066/quiz\u2069 بھیجیں۔",
   },
   jugnuBindStopNothing: {
     en: "Nothing was saved for this phone.",
