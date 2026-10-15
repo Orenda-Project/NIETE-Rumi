@@ -168,6 +168,87 @@ async function _storeAnswerKey({
 }
 
 /**
+ * How long a paper may go unwritten in `generating` before a redelivered job
+ * takes it over. A live run writes the row as it goes; ten minutes of silence
+ * is a run that was stopped, and the teacher is still waiting for its paper.
+ */
+const PAPER_STALE_MS = 10 * 60 * 1000;
+const UNIQUE_VIOLATION = '23505';
+
+/**
+ * The generated paper this request already has (version 1, never an edit of
+ * it), or null — also null when it cannot be read, which the caller treats as
+ * "build as before".
+ */
+async function _existingPaperFor(requestId) {
+  try {
+    const { data, error } = await supabase.from('assessment_papers')
+      .select('id, status, file_r2_key, question_count, total_marks, error_code, created_at, updated_at')
+      .eq('request_id', requestId)
+      .is('edited_from', null)
+      .order('attempt', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      logToFile('[assessment] could not read the existing paper', { requestId, error: error.message });
+      return null;
+    }
+    return data || null;
+  } catch (err) {
+    logToFile('[assessment] could not read the existing paper', { requestId, error: err.message });
+    return null;
+  }
+}
+
+/**
+ * The queue delivered a job whose request already has a paper. SQS delivers at
+ * least once: a deploy hands an in-flight job back, and a job that outlives its
+ * visibility window reaches a second worker. Before this was read, the second
+ * run called the model again and recorded the result nowhere.
+ *
+ * Returns `{ result }` when this delivery must not build (the paper exists, or
+ * another run is writing it), or `{ paperId }` to build — into the stale row
+ * it took over, or with no row at all when the existing one cannot be read,
+ * which is what happened before and never leaves a teacher worse off.
+ */
+async function _onDuplicate(requestId) {
+  const existing = await _existingPaperFor(requestId);
+  if (!existing) {
+    logToFile('[assessment] could not open paper row — continuing', { requestId, error: 'duplicate request, existing paper unreadable' });
+    return { paperId: null };
+  }
+  const skipped = (extra) => {
+    logToFile('[assessment] duplicate delivery skipped', { requestId, paperId: existing.id, status: existing.status, ...extra });
+  };
+
+  if (existing.status === 'ready') {
+    skipped();
+    return {
+      result: {
+        status: 'ready', duplicate: true, paperId: existing.id, key: existing.file_r2_key || null,
+        questionCount: existing.question_count ?? null, marks: existing.total_marks ?? null,
+      },
+    };
+  }
+  if (existing.status === 'failed') {
+    skipped();
+    return { result: { status: 'failed', duplicate: true, code: existing.error_code || 'UNKNOWN', paperId: existing.id } };
+  }
+
+  const lastWrite = Date.parse(existing.updated_at || existing.created_at);
+  const silentMs = Number.isFinite(lastWrite) ? Date.now() - lastWrite : 0;
+  if (silentMs < PAPER_STALE_MS) {
+    skipped({ silentMs });
+    return { result: { status: 'skipped', duplicate: true, paperId: existing.id } };
+  }
+
+  logToFile('[assessment] taking over a stale paper', { requestId, paperId: existing.id, silentMs });
+  // Written now, so a further delivery sees a run in progress and skips it.
+  await _patchPaper(existing.id, { status: 'generating' });
+  return { paperId: existing.id };
+}
+
+/**
  * Everything between a queued request and a finished document — and nothing
  * about handing it over.
  *
@@ -185,6 +266,13 @@ async function _storeAnswerKey({
  *   { status:'ready',  paperId, key, examJson, questionCount, marks, filename }
  *   { status:'failed', code, paperId }
  *
+ * and, when the queue delivered this request a second time (`duplicate: true`,
+ * no model call, nothing to hand over again):
+ *
+ *   { status:'ready',   duplicate, paperId, key, questionCount, marks }
+ *   { status:'failed',  duplicate, code, paperId }
+ *   { status:'skipped', duplicate, paperId }      another run is writing it
+ *
  * `user` is passed in rather than looked up here. The lookup belongs to
  * whoever needs to reach her: WhatsApp cannot deliver without a phone number,
  * the portal never needs one, and making this function demand a phone would
@@ -201,12 +289,26 @@ async function buildPaper(job, user = {}) {
 
   // Open the record before doing any work, so a job that dies mid-flight leaves
   // a row the watchdog can find rather than nothing at all.
+  //
+  // The insert's error is read. The index is unique on a request's generated
+  // paper, so an insert that succeeds proves this is the first delivery and
+  // nothing else is looked up; one that hits the index is a second delivery of
+  // the same job, and must not call the model again (see _onDuplicate).
   let paperId = null;
   try {
-    const { data } = await supabase.from('assessment_papers')
+    const { data, error } = await supabase.from('assessment_papers')
       .insert({ request_id: requestId, status: 'generating' })
       .select('id').single();
-    paperId = data?.id || null;
+    if (error && String(error.code) === UNIQUE_VIOLATION) {
+      const dup = await _onDuplicate(requestId);
+      if (dup.result) return dup.result;
+      paperId = dup.paperId;
+    } else {
+      if (error) {
+        logToFile('[assessment] could not open paper row — continuing', { requestId, error: error.message });
+      }
+      paperId = data?.id || null;
+    }
   } catch (err) {
     logToFile('[assessment] could not open paper row — continuing', { requestId, error: err.message });
   }
@@ -351,6 +453,17 @@ async function process(job) {
   const phone = user?.phone_number || null;
 
   const built = await buildPaper(job, user || {});
+
+  // A second delivery of a request that already has its paper (or is having it
+  // written). Whatever the first run made, sent and said stands: nothing is sent
+  // again, no second key is built, no apology repeats, and the worker acks.
+  if (built.duplicate) {
+    return {
+      status: built.status, paperId: built.paperId, duplicate: true,
+      ...(built.code ? { code: built.code } : {}),
+      ...(built.key ? { key: built.key } : {}),
+    };
+  }
 
   // Nothing to hand over and nobody to hand it to. The paper is built, the row
   // says so, and whoever asked for it is polling — which is the entire contract
@@ -530,4 +643,8 @@ async function _apologise(phone, code, { userId } = {}) {
   }
 }
 
-module.exports = { process, buildPaper, fileName, TEACHER_MESSAGE };
+module.exports = {
+  process, buildPaper, fileName, TEACHER_MESSAGE,
+  // For the board-pattern branch, which runs inside buildPaper after this guard.
+  _existingPaperFor, PAPER_STALE_MS,
+};

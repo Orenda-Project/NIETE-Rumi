@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Grade 5 · Mathematics</title>
+<style>
+  @page { size: A4; margin: 14mm 12mm; }
+  @font-face{font-family:'PaperLatin';font-weight:400;font-style:normal;src:url(data:font/ttf;base64,<sha256:827bb7ceb0d744d56b4e62febbb36768d8d21be63a879054814d294afa3584ac>) format('truetype');}
+@font-face{font-family:'PaperLatin';font-weight:700;font-style:normal;src:url(data:font/ttf;base64,<sha256:4076c0ea1c671e17cb1f25f52c0cbb81c164b42d3259cad798d44fdbc4826efc>) format('truetype');}
+@font-face{font-family:'PaperUrdu';font-weight:400;font-style:normal;src:url(data:font/ttf;base64,<sha256:7ab6206e85b6a8cee58d79a5051e2fa55beb476d46943398d58ac05838eec03a>) format('truetype');}
+@font-face{font-family:'PaperUrdu';font-weight:700;font-style:normal;src:url(data:font/ttf;base64,<sha256:ff9136eea187a90c1a08c4d108e9725e16f713552f63166dce3ba9d8b180cdfe>) format('truetype');}
+  body { font-family: 'PaperLatin',Arial,sans-serif; font-size: 12pt;
+    color: #000; line-height: 1.5; margin: 0; }
+  /* Latin runs inside an RTL paper need BOTH halves: isolation stops the run
+     reordering its Urdu neighbours, and an explicit ltr direction stops the run
+     itself laying out right-to-left. Isolation alone was the 5 Sep defect:
+     "[1 mark]" printed as "[mark 1]" and every instruction lost its full stop
+     to the front of the line, while the Urdu around them was perfectly correct. */
+  .marks, .num { direction: ltr; unicode-bidi: isolate; }
+  .school { text-align: center; font-weight: 700; font-size: 13pt; letter-spacing: .01em; }
+  .class-line { text-align: center; font-size: 11.5pt; margin: 2px 0 10px; }
+  .chapter { text-align: center; font-size: 10.5pt; color: #333; margin-bottom: 10px; }
+  table.marks-header { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11pt;
+    direction: ltr; unicode-bidi: isolate; text-align: left; }
+  table.marks-header td { border: 1px solid #333; padding: 5px 7px; height: 22px; text-align: left; }
+  table.marks-header td.k { background: #f2f2f2; font-weight: 600; white-space: nowrap; width: 22%; }
+  .instructions { border: 1px solid #999; padding: 7px 10px; font-size: 10.5pt; margin-bottom: 14px;
+    direction: ltr; unicode-bidi: isolate; text-align: left; }
+  .instructions ol { margin: 4px 0 0; padding-left: 18px; }
+  h3.type { font-size: 11.5pt; text-transform: uppercase; letter-spacing: .04em;
+            border-bottom: 1.5px solid #000; padding-bottom: 3px; margin: 16px 0 9px;
+            direction: ltr; unicode-bidi: isolate; text-align: left; }
+  .lead { font-weight: 600; margin: 8px 0 6px; }
+  .q { margin-bottom: 11px; page-break-inside: avoid; }
+  .q p { margin: 0 0 4px; }
+  .marks { font-size: 10pt; color: #444; float: right; }
+  .options { margin-left: 18px; }
+  .opt { margin: 2px 0; }
+  .words { margin-left: 18px; }
+  .word { margin: 5px 0; }
+  .word .rule { display: inline-block; border-bottom: 1px solid #999; width: 190px; margin-left: 10px; }
+  .passage { border: 1px solid #bbb; background: #fafafa; padding: 8px 10px; margin: 6px 0 8px; }
+  .subs { margin-left: 18px; }
+  .sub { margin: 6px 0 3px; }
+  table.match { border-collapse: collapse; margin: 6px 0 0 18px; width: 70%; }
+  table.match th, table.match td { border: 1px solid #666; padding: 5px 8px; text-align: left; }
+  table.match th { background: #f2f2f2; }
+  .answer-space { margin: 5px 0 0 18px; }
+  .answer-line { border-bottom: 1px solid #aaa; height: 6.5mm; }
+  .answer { background: #eef7ee; border-left: 3px solid #4a4; padding: 3px 7px; margin-top: 4px; font-size: 10.5pt; }
+</style></head>
+<body>
+<div class="school">Model School Example</div>
+<div class="class-line">Grade 5 · Mathematics</div>
+<div class="chapter">Fractions · Pages 12-40</div>
+<table class="marks-header">
+  <tr><td class="k">Student Name</td><td colspan="3"></td></tr>
+  <tr><td class="k">Roll No</td><td></td><td class="k">Date</td><td></td></tr>
+  <tr><td class="k">Total Marks</td><td>29</td><td class="k">Obtained Marks</td><td></td></tr>
+</table>
+<div class="instructions"><b>Instructions</b>
+  <ol><li>Read all questions carefully before answering.</li><li>Answer all questions in the space provided.</li><li>Write clearly and legibly.</li><li>Time allowed: as specified by your teacher.</li></ol>
+</div>
+<h3 class="type">MCQs</h3>
+<p class="lead">Choose the correct answer.</p>
+<div class="q">
+<p><b>1.</b> What is the place value of 7 in 4,72,315? <span class="marks">[1 mark]</span></p>
+<div class="options">
+<div class="opt">a) 7,000</div>
+<div class="opt">b) 70,000</div>
+<div class="opt">c) 700</div>
+<div class="opt">d) 7,00,000</div>
+</div>
+</div>
+<div class="q">
+<p><b>2.</b> Which fraction is equal to 2/4? <span class="marks">[1 mark]</span></p>
+<div class="options">
+<div class="opt">a) 1/2</div>
+<div class="opt">b) 1/4</div>
+<div class="opt">c) 3/4</div>
+<div class="opt">d) 2/3</div>
+</div>
+</div>
+<div class="q">
+<p><b>3.</b> The HCF of 12 and 18 is: <span class="marks">[1 mark]</span></p>
+<div class="options">
+<div class="opt">a) 3</div>
+<div class="opt">b) 6</div>
+<div class="opt">c) 9</div>
+<div class="opt">d) 36</div>
+</div>
+</div>
+<h3 class="type">Fill in the Blanks</h3>
+<p class="lead">Fill in the blanks.</p>
+<div class="q">
+<p><b>4.</b> A triangle has ____ sides. <span class="marks">[1 mark]</span></p>
+
+</div>
+<div class="q">
+<p><b>5.</b> 0.5 written as a fraction is ____. <span class="marks">[1 mark]</span></p>
+
+</div>
+<h3 class="type">True/False</h3>
+<p class="lead">Write True or False.</p>
+<div class="q">
+<p><b>6.</b> Every square is a rectangle. <span class="marks">[1 mark]</span></p>
+
+</div>
+<div class="q">
+<p><b>7.</b> The sum of the angles of a triangle is 360 degrees. <span class="marks">[1 mark]</span></p>
+
+</div>
+<h3 class="type">Match the Column</h3>
+<div class="q">
+<p><b>8.</b> Match each shape with the number of its sides. <span class="marks">[4 marks]</span></p>
+<table class="match"><tr><th>Column A</th><th>Column B</th></tr>
+<tr><td>Triangle</td><td>5</td></tr>
+<tr><td>Square</td><td>3</td></tr>
+<tr><td>Pentagon</td><td>6</td></tr>
+<tr><td>Hexagon</td><td>4</td></tr>
+</table>
+</div>
+<h3 class="type">Short Questions</h3>
+<div class="q">
+<p><b>9.</b> Find the LCM of 8 and 12. <span class="marks">[2 marks]</span></p>
+<div class="answer-space"><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div></div>
+</div>
+<div class="q">
+<p><b>10.</b> Write 3 2/5 as an improper fraction. <span class="marks">[2 marks]</span></p>
+<div class="answer-space"><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div></div>
+</div>
+<div class="q">
+<p><b>11.</b> Round 6,483 to the nearest hundred. <span class="marks">[2 marks]</span></p>
+<div class="answer-space"><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div></div>
+</div>
+<h3 class="type">Word Problems</h3>
+<div class="q">
+<p><b>12.</b> A shop sold 1,245 pencils on Monday and 2,380 pencils on Tuesday. How many pencils did it sell in the two days? <span class="marks">[5 marks]</span></p>
+<div class="answer-space"><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div></div>
+</div>
+<h3 class="type">Graphs &amp; Geometric Problems</h3>
+<div class="q">
+<p><b>13.</b> The table shows books read: Monday 12, Tuesday 8, Wednesday 15. Draw a bar graph of this data. <span class="marks">[4 marks]</span></p>
+<div class="answer-space"><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div></div>
+</div>
+<div class="q">
+<p><b>14.</b> Show that 45 ÷ 1.5 = 30 by multiplying. <span class="marks">[3 marks]</span></p>
+<div class="answer-space"><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div></div>
+</div>
+</body></html>
