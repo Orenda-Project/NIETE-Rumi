@@ -1,6 +1,6 @@
 'use strict';
 /**
- * The class round under the sampling ruling (SAMPLING_RULING §2, §3, §5, §6): the draw object's columns and windows,
+ * The class round under the sampling ruling: the draw object's columns and windows,
  * a child's "not today" (declined) on the teacher's screen only, pause and resume with the order kept and no
  * self-close, k = 10 counted positions as a server flag, the teacher's "Not this term", the window on every claim,
  * the invitation stub with its template name and rate, no second round run for a child in a term.

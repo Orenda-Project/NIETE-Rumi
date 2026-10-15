@@ -148,7 +148,7 @@ test('switch off (or a parent off): the job draws nothing and writes nothing', a
   }
 });
 
-describe('the draw object (SAMPLING_RULING §2, §5; NC6, NC7)', () => {
+describe('the draw object (windows, strata, no replacement draws)', () => {
   const WIN = { start: '2027-01-18T00:00:00+05:00', end: '2027-02-15T00:00:00+05:00' };
   test('every row carries the stratum sizes, p_incl, the seed, the windows ≥ 21 days apart, k_counted 10 and an order arm; same seed, same draw', async () => {
     seed();

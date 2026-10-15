@@ -167,7 +167,7 @@ function weekFor(arm, ws, we, term) {
 }
 
 /**
- * The term's draw: one stored, seeded, frozen object made before any window opens (SAMPLING_RULING §2, NC1, NC7).
+ * The term's draw: one stored, seeded, frozen object made before any window opens (the sampling rules: one frame, no replacement draws).
  * Off → { drawn: 0, skipped: 'off' }; a bad round window → 'bad_window'; any draw already in the term →
  * 'already_drawn' (no replacement draws, ever). Each row: stratum, N_h, n_h, p_incl = n_h / N_h, seed,
  * weights_version, the round's window, k_counted, order_arm (randomised by class) and the class week's window.
