@@ -1,0 +1,79 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`switches off: one child picked -> the hub JSON is the snapshot (no bind key) 1`] = `
+{
+  "again": [],
+  "brand": "niete",
+  "challenge": {
+    "exercises": [
+      {
+        "done": false,
+        "id": "bigger",
+      },
+      {
+        "done": false,
+        "id": "read",
+      },
+    ],
+    "on": true,
+  },
+  "kid": "00d3ff6ae1ddb6ad",
+  "kids": [
+    {
+      "animal": "fish",
+      "chip": "72083b6e8883ac45",
+      "first": "Zara",
+      "grade": "3",
+    },
+    {
+      "animal": "dog",
+      "chip": "00d3ff6ae1ddb6ad",
+      "first": "Zara",
+      "grade": "3",
+    },
+  ],
+  "lang": "en",
+  "lib": null,
+  "recs": [],
+  "rt": false,
+  "teacher": null,
+}
+`;
+
+exports[`switches off: one child picked -> the hub JSON is the snapshot (no bind key) 2`] = `"{"lang":"en","kids":[{"chip":"72083b6e8883ac45","first":"Zara","animal":"fish","grade":"3"},{"chip":"00d3ff6ae1ddb6ad","first":"Zara","animal":"dog","grade":"3"}],"kid":"00d3ff6ae1ddb6ad","teacher":null,"again":[],"recs":[],"challenge":{"on":true,"exercises":[{"id":"bigger","done":false},{"id":"read","done":false}]},"lib":null,"brand":"niete","rt":false}"`;
+
+exports[`switches off: the redis calls and events of a hub open are the snapshot 1`] = `
+[
+  "web_quiz.hub_open",
+]
+`;
+
+exports[`switches off: two children, no pick -> the hub JSON is the snapshot (no bind key, no line2/played) 1`] = `
+{
+  "again": [],
+  "brand": "niete",
+  "challenge": null,
+  "kid": null,
+  "kids": [
+    {
+      "animal": "fish",
+      "chip": "72083b6e8883ac45",
+      "first": "Zara",
+      "grade": "3",
+    },
+    {
+      "animal": "dog",
+      "chip": "00d3ff6ae1ddb6ad",
+      "first": "Zara",
+      "grade": "3",
+    },
+  ],
+  "lang": "en",
+  "lib": null,
+  "recs": [],
+  "rt": false,
+  "teacher": null,
+}
+`;
+
+exports[`switches off: two children, no pick -> the hub JSON is the snapshot (no bind key, no line2/played) 2`] = `"{"lang":"en","kids":[{"chip":"72083b6e8883ac45","first":"Zara","animal":"fish","grade":"3"},{"chip":"00d3ff6ae1ddb6ad","first":"Zara","animal":"dog","grade":"3"}],"kid":null,"teacher":null,"again":[],"recs":[],"challenge":null,"lib":null,"brand":"niete","rt":false}"`;

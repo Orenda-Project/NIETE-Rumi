@@ -67,6 +67,10 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/who', limiter: 'read' },
   { method: 'post', path: '/api/wq/who/fix', limiter: 'session' },
   { method: 'post', path: '/api/wq/who/class', limiter: 'session' },
+  // keep my place (the bot answers {off:true} with web_quiz_phone_bind off)
+  { method: 'post', path: '/api/wq/bind/mint', limiter: 'session' },
+  { method: 'get', path: '/api/wq/bind/status', limiter: 'read' },
+  { method: 'post', path: '/api/wq/bind/undo', limiter: 'session' },
   { method: 'get', path: '/api/wq/videos/:code', limiter: 'read' },
   { method: 'post', path: '/api/wq/videos/start', limiter: 'session' },
   { method: 'post', path: '/api/wq/e', limiter: ['events', 'eventsPs'] },
@@ -115,7 +119,7 @@ function bootJson(obj) {
 
 function assetVersion() {
   const h = crypto.createHash('sha256');
-  for (const f of ['wq.js', 'wq.css', 'wq-identity.js', 'hub.js', 'wq-lib.js']) {
+  for (const f of ['wq.js', 'wq.css', 'wq-identity.js', 'hub.js', 'wq-lib.js', 'wq-bind.js', 'wq-bind.css']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   return h.digest('hex').slice(0, 10);
@@ -269,6 +273,12 @@ function renderPreviewPage({ facts, code, view, origin, assetV, url, a, v }) {
 const HUB_TITLE = { en: 'Your quizzes and videos', ur: 'آپ کے کوئز اور ویڈیوز' };
 const HUB_BOOT = { en: 'Opening…', ur: 'کھل رہا ہے…' };
 
+// keep my place: the card's script and styles, only when the bot's hub JSON carries `bind` (web_quiz_phone_bind on).
+function bindTags(payload, assetV) {
+  if (!payload || !payload.bind) return '';
+  return `<link rel="stylesheet" href="/wq/wq-bind.css?v=${assetV}">\n<script src="/wq/wq-bind.js?v=${assetV}" defer></script>\n`;
+}
+
 function renderHubPage({ payload, token, origin, assetV }) {
   const lang = payload && payload.lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(payload && payload.brand);
@@ -279,7 +289,7 @@ function renderHubPage({ payload, token, origin, assetV }) {
 <main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/wq-tel.js?v=${assetV}" defer></script>
-<script src="/wq/hub.js?v=${assetV}" defer></script>
+${bindTags(payload, assetV)}<script src="/wq/hub.js?v=${assetV}" defer></script>
 </body>
 </html>`;
 }
