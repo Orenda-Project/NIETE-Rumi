@@ -59,6 +59,19 @@ const OLD_PART_2 = {
 };
 const NEW = { prefill: PREFILL };
 const initKeys = (data) => Object.keys(data).filter((k) => k.startsWith('init_')).sort();
+const { metaInitType, jsonType, namedComponents } = require('./helpers/meta-init-types');
+
+// Each init value in a Part 2 response, against the type Meta takes for its field (Meta refused string
+// counts on 15 Oct 2026: "Expected property 'p2_spoke' to be of type 'number' but found 'string'").
+function initTypeProblems(data) {
+  const part2 = buildFieldFormFlow().screens.find((s) => s.id === 'PART_TWO');
+  const comps = namedComponents(part2.layout.children);
+  return Object.entries(data).filter(([k]) => k.startsWith('init_')).map(([k, v]) => {
+    const comp = comps.find((c) => c.name === k.slice('init_'.length));
+    const want = comp ? metaInitType(comp) : 'no such field';
+    return jsonType(v) === want ? null : `${k}: ${jsonType(v)} ${JSON.stringify(v)}, Meta takes ${want}`;
+  }).filter(Boolean);
+}
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -78,10 +91,21 @@ describe('Part 2 comes back with what was saved for it', () => {
     const out = await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_ONE', { ...PART_1, ...NEW });
     expect(out.screen).toBe('PART_TWO');
     expect(out.data).toMatchObject({
-      init_p2_spoke: '10', init_p2_new: '5', init_p2_task: 'all', init_p2_think: ['why', 'new'],
-      init_p2_change: 'no', init_p2_notes: PART_2.p2_notes,
+      init_p2_task: 'all', init_p2_think: ['why', 'new'], init_p2_change: 'no', init_p2_notes: PART_2.p2_notes,
     });
     expect(initKeys(out.data)).toEqual(PREFILLED.PART_TWO.map((f) => `init_${f}`).sort());
+    expect(initTypeProblems(out.data)).toEqual([]);
+  });
+
+  // The counts have no empty value Meta accepts (null fails, '' is a string, 0 is a wrong count): they are
+  // not pre-filled, and the coach types them again on a revisited Part 2.
+  test('the two counts are never sent as init values', async () => {
+    const id = await newForm();
+    await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_ONE', { ...PART_1, ...NEW });
+    await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_TWO', { ...PART_2, ...NEW });
+    const again = await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_ONE', { ...PART_1, ...NEW });
+    expect(again.data).not.toHaveProperty('init_p2_spoke');
+    expect(again.data).not.toHaveProperty('init_p2_new');
   });
 
   test('a first Part 2 is empty, as strings (Meta refuses null)', async () => {
@@ -89,6 +113,7 @@ describe('Part 2 comes back with what was saved for it', () => {
     const out = await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_ONE', { ...PART_1, ...NEW });
     expect(out.screen).toBe('PART_TWO');
     for (const f of PREFILLED.PART_TWO) expect(out.data[`init_${f}`]).toEqual(PREFILLED_ARRAYS.has(f) ? [] : '');
+    expect(initTypeProblems(out.data)).toEqual([]);
   });
 
   test('Part 2 refused under a field keeps what the coach just typed', async () => {
@@ -98,7 +123,8 @@ describe('Part 2 comes back with what was saved for it', () => {
     const out = await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_TWO', bad);
     expect(out.screen).toBe('PART_TWO');
     expect(out.data.has_error).toBe(true);
-    expect(out.data).toMatchObject({ init_p2_new: '30', init_p2_notes: PART_2.p2_notes, init_p2_task: 'all', init_p2_think: ['why', 'new'] });
+    expect(out.data).toMatchObject({ init_p2_notes: PART_2.p2_notes, init_p2_task: 'all', init_p2_think: ['why', 'new'] });
+    expect(initTypeProblems(out.data)).toEqual([]);
   });
 
   test('a reopened form continued to Part 2 opens it with the new Flow\'s fields', async () => {
@@ -107,6 +133,7 @@ describe('Part 2 comes back with what was saved for it', () => {
     const out = await Endpoint.handleObserve2FormDataExchange(token(id), 'CONTINUE', { screen: 'CONTINUE', fv: FORM_VERSION, ...NEW });
     expect(out.screen).toBe('PART_TWO');
     expect(initKeys(out.data)).toEqual(PREFILLED.PART_TWO.map((f) => `init_${f}`).sort());
+    expect(initTypeProblems(out.data)).toEqual([]);
   });
 
   test("a form opened on today's Flow (no marker) gets today's answers, unchanged", async () => {
@@ -159,23 +186,24 @@ describe('the Flow: Part 2 is pre-filled, safely', () => {
   const formOf = (s) => s.layout.children.find((c) => c.type === 'Form');
   const named = (list, nested = false, out = []) => {
     for (const c of list || []) {
-      if (c.name) out.push({ name: c.name, nested, type: c.type });
+      if (c.name) out.push({ ...c, nested });
       for (const k of ['then', 'else', 'children']) if (Array.isArray(c[k])) named(c[k], nested || c.type === 'If' || c.type === 'Switch', out);
     }
     return out;
   };
 
-  test("Part 2's init-values are its top-level fields, each from its own declared value of the field's type", () => {
+  test("Part 2's init-values are its top-level fields but the counts, each from a declared field of Meta's type", () => {
     const s = screen('PART_TWO');
     const form = formOf(s);
-    const top = named(form.children).filter((c) => !c.nested && c.type !== 'Footer');
+    // Counts (number inputs) are not pre-filled: Meta has no empty number (field-form.flow.js prefillable).
+    const top = named(form.children).filter((c) => !c.nested && c.type !== 'Footer' && !(c.type === 'TextInput' && c['input-type'] === 'number'));
     const names = top.map((c) => c.name).sort();
+    expect(names).toEqual(['p2_change', 'p2_notes', 'p2_task', 'p2_think']);
     expect(Object.keys(form['init-values'] || {}).sort()).toEqual(names);
     expect([...PREFILLED.PART_TWO].sort()).toEqual(names);
     for (const c of top) {
       expect(form['init-values'][c.name]).toBe(`\${data.init_${c.name}}`);
-      // Meta: the init value's type must be the component's (a CheckboxGroup takes an array).
-      expect(s.data[`init_${c.name}`]).toMatchObject({ type: c.type === 'CheckboxGroup' ? 'array' : 'string' });
+      expect(s.data[`init_${c.name}`]).toMatchObject({ type: metaInitType(c) });
     }
   });
 

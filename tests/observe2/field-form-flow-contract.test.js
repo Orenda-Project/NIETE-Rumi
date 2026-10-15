@@ -225,3 +225,28 @@ describe('the form agrees with the endpoint', () => {
     expect(footer('AFTER')['on-click-action'].payload.photos).toBeUndefined();
   });
 });
+
+// Meta refused this Flow on 15 Oct 2026 (sandbox WABA): "Expected property 'p2_spoke' to be of type
+// 'number' but found 'string'" at Part 2's init-values, and the same for 'p2_new'. Meta's reference
+// lists a TextInput's init value as a string; its validator wants a number for a number input.
+describe("init-values follow Meta's type for each field", () => {
+  const { initValueProblems, namedComponents } = require('./helpers/meta-init-types');
+
+  test('every init-values entry references a declared field of the type Meta takes for its component', () => {
+    expect(initValueProblems(flow)).toEqual([]);
+  });
+
+  // A number field has no empty value Meta accepts: null fails validation, '' is a string, and 0 would put
+  // a wrong count in front of the coach on every first Part 2. So the counts are not pre-filled.
+  test('a count box (a number TextInput) is never pre-filled', () => {
+    const prefilledCounts = [];
+    for (const s of flow.screens) {
+      const form = s.layout.children.find((c) => c.type === 'Form');
+      if (!form || !form['init-values']) continue;
+      for (const c of namedComponents(form.children)) {
+        if (c.type === 'TextInput' && c['input-type'] === 'number' && c.name in form['init-values']) prefilledCounts.push(`${s.id}.${c.name}`);
+      }
+    }
+    expect(prefilledCounts).toEqual([]);
+  });
+});
