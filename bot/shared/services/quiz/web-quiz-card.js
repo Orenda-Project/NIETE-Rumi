@@ -64,6 +64,15 @@ async function challengeGrade(studentId) {
   }
 }
 
+async function canonicalId(studentId) {
+  try {
+    const out = await require('./web-quiz-identity-roster').canonicalStudentId(studentId);
+    return out ? String(out) : studentId;
+  } catch (_) {
+    return studentId;
+  }
+}
+
 async function field(s) {
   try {
     // finish() calls this for the run it has just completed (as the hub door's field does).
@@ -90,13 +99,15 @@ async function go(body = {}, Err = Error) {
   if (!(await flags()).card) fail(404, 'no_door');
   if (!ownRun(s) || s.status !== 'completed') fail(404, 'no_door');
   if (!(await challengeGrade(s.student_id))) fail(404, 'no_door');
-  const token = T.signHub([s.student_id]);
+  // The one id this child is known by (web-quiz-identity-roster, the one fold writer); the raw id on any failure.
+  const id = await canonicalId(s.student_id);
+  const token = T.signHub([id]);
   if (!token) fail(404, 'no_door');
   const bound = await Device.deviceTrusted(token, tok.d);
   if (!bound.ok) fail(404, 'no_door');
   // The hub's own chip for this child (hub.js B.kid): the challenge page resolves it against the token's ids.
-  const kid = T.chipId('h', s.student_id);
-  return { href: `/c/${token}?kid=${encodeURIComponent(kid)}&via=quiz_card`, animal: T.animalFor(s.student_id) };
+  const kid = T.chipId('h', id);
+  return { href: `/c/${token}?kid=${encodeURIComponent(kid)}&via=quiz_card`, animal: T.animalFor(id) };
 }
 
 module.exports = { field, go, flags, ownRun, CARD_KEY, _resetCache: () => { cache = null; } };

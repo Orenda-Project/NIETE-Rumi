@@ -128,6 +128,21 @@ describe('POST /hubdoor {st, jugnu:1}: the Jugnu card\'s link', () => {
     expect((await Device.deviceTrusted(m[1], D1)).ok).toBe(true);
     expect((await Device.deviceTrusted(m[1], D2)).ok).toBe(false);
   });
+  test('the link carries the child\'s one folded id (identity roster); no fold: the same href as the raw id', async () => {
+    const Roster = require('../../../shared/services/quiz/web-quiz-identity-roster');
+    const FOLDED = '44444444-4444-4444-8444-666666666666';
+    seed();
+    const raw = await cardModule().go({ st: st() }, WQ.WqError);
+    expect(raw.href).toBe(`/c/${T.signHub([KID])}?kid=${T.chipId('h', KID)}&via=quiz_card`);
+    redis._store.clear(); cardModule()._resetCache(); seed();
+    const spy = jest.spyOn(Roster, 'canonicalStudentId').mockResolvedValue(FOLDED);
+    const out = await cardModule().go({ st: st() }, WQ.WqError);
+    spy.mockRestore();
+    const m = /^\/c\/([A-Za-z0-9._-]+)\?kid=([A-Za-z0-9_-]+)&via=quiz_card$/.exec(out.href);
+    expect(T.verify(m[1], 'h').ids).toEqual([FOLDED]);
+    expect(m[2]).toBe(T.chipId('h', FOLDED));
+    expect(out.animal).toBe(T.animalFor(FOLDED));
+  });
   test('refuses an in-progress run, a teacher\'s run, a friend\'s run, a foreign phone, the card switched off', async () => {
     const go = (body) => err(cardModule().go({ st: st(), ...body }, WQ.WqError));
     seed({ sess: { status: 'in_progress' } });
