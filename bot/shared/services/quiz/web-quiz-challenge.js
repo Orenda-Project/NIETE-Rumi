@@ -417,7 +417,7 @@ function storeFailed(runId, error) {
 async function insertRun(row) {
   // Standing class link (web_quiz_class_link): a run started from a class-link pick writes its v2 columns; else none.
   const open = RUNS.get(row.id);
-  if (open && open.cl) Object.assign(row, require('./web-quiz-class-link').runColumns(open.cl, row.student_id));
+  if (open && open.cl) Object.assign(row, require('./web-quiz-class-link').runColumns(open.cl, row.student_id), row.canonical_id ? { canonical_id: row.canonical_id } : {});
   const { error } = await supabase.from('web_quiz_challenge_runs').insert(row);
   if (!error) return 'stored';
   if (error.code === '23505') return 'duplicate';
@@ -670,7 +670,9 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   const task = def.task(w.lang);
   let spec = Bank.getTaskSpec({ grade: Number(w.form), set: 'A', task });
   // challenge v2: what is served (drawn under _pool) and its row, decided before the token; "on its way" serves nothing
-  const v2 = rules.v2 ? await serveV2(w, ex, rules, { mode: (arguments[2] || {}).mode, classId: (arguments[2] || {}).classId, device }) : null;   // mode: 'practice' from a caller (Story Time)
+  // standing class link (web_quiz_class_link): a class-link pick is served via 'class_link' in the link's class, the teacher's own visit as practice
+  const asked = w.cl ? require('./web-quiz-class-link').serveArgs(w, arguments[2]) : { w, mode: (arguments[2] || {}).mode, classId: (arguments[2] || {}).classId };
+  const v2 = rules.v2 ? await serveV2(asked.w, ex, rules, { mode: asked.mode, classId: asked.classId, device }) : null;   // mode: 'practice' from a caller (Story Time)
   if (v2 && v2.on_its_way) return { ex, on_its_way: true, draw: { outcome: 'on_its_way' }, copy: { ...Draw().ON_ITS_WAY_COPY } };
   if (v2 && v2.formNum !== w.form) spec = Bank.getTaskSpec({ grade: Number(v2.formNum), set: 'A', task });   // M8: the fixed grade's form
   const runId = v2 ? v2.runId : crypto.randomUUID();

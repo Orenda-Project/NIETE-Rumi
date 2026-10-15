@@ -9,6 +9,7 @@
  *   GET /pdf/:token[?lang=&tab=class]                  the same page, print mode, as a PDF
  *   GET /remind/:token?quiz=<id>                       logs the tap, 302 -> wa.me with the reminder
  *   GET /jlink/:token?class=<id>&how=forward|copy      the class link card: 302 -> wa.me with the link only / 303 back, card open
+ *   POST /jnew/:token {class}                          the class link card's "Make a new link": 303 back to the class tab
  *   GET /data/:token                                   the report as JSON (tests, QA)
  *   POST /class/:token {quiz, key}                     "Which class was this for?" -> identity v2 whoClass
  *   POST /fix/:token {quiz, ref, add|studentId}        a typed child: add to the class / who it really is -> fixWho
@@ -171,6 +172,15 @@ router.get('/jlink/:token', handle(async (req, res) => {
   if (!href) { notFound(req, res, v); return; }
   noStore(res);
   res.redirect(how === 'copy' ? 303 : 302, href);
+}));
+// "Make a new link": the class's own teacher only (the signed report token), switch on; anything else 404, no change.
+router.post('/jnew/:token', handle(async (req, res) => {
+  const v = authorise(req, res);
+  if (!v) return;
+  const made = await require('../services/quiz/web-quiz-class-link').renew({ teacherId: v.teacherId, classId: uuidOr((req.body || {}).class) });
+  if (!made) { notFound(req, res, v); return; }
+  noStore(res);
+  res.redirect(303, `${REPORT_PATH}/${encodeURIComponent(req.params.token)}?tab=class#class-link`);
 }));
 // ── end standing class link ──
 

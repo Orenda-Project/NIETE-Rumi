@@ -3,7 +3,8 @@
  * "Your class's Jugnu link" — the standing class link's card on the teacher report's class tab
  * (switch web_quiz_class_link; the data comes from web-quiz-class-link.js forTeacher, null when off).
  *
- * NO JAVASCRIPT, like the rest of the report. Forward and Copy are server links (/r/<token>/jlink?class=<id>&how=)
+ * NO JAVASCRIPT, like the rest of the report. "Open" is the teacher's own preview link; "Make a new link" is a POST
+ * form (/r/<token>/jnew) that revokes this link and mints a new one. Forward and Copy are server links (/r/<token>/jlink?class=<id>&how=)
  * that log class_link_forwarded{cls, how}: Forward answers 302 to wa.me with the URL ONLY (no count, no name,
  * the no-count, no-name forward rule); Copy answers 303 back to the class tab with this card's link open as selectable text. Strings are copy.v2.json keys, EN and UR.
  */
@@ -14,12 +15,16 @@ const COPY = {
     sub: 'Forward it once a term and pin it. It always opens this week\'s story.', // jg.t.link_sub
     copy: 'Copy', // jg.t.link_copy
     forward: 'Forward to the class group', // jg.t.fwd_btn
+    open: 'Open', // jg.t.link_open
+    make: 'Make a new link', // jg.t.link_make
   },
   ur: {
     title: 'آپ کی کلاس کا جگنو لنک',
     sub: 'ہر ٹرم میں ایک بار فارورڈ کریں اور پِن کر دیں۔ یہ ہمیشہ اس ہفتے کی کہانی کھولتا ہے۔',
     copy: 'کاپی کریں',
     forward: 'کلاس گروپ میں فارورڈ کریں',
+    open: 'کھولیں',
+    make: 'نیا لنک بنائیں',
   },
 };
 
@@ -44,9 +49,15 @@ function renderClassLinkCard(data, { lang = 'en', base = '', print = false } = {
     const copy = data.open && data.open === c.classId
       ? `<details class="act" open><summary>${esc(C.copy)}</summary><textarea readonly rows="2" dir="ltr">${esc(c.url)}</textarea></details>`
       : `<a class="btn btn-ghost act" href="${esc(link('copy'))}">${esc(C.copy)}</a>`;
+    // Open: the teacher's own preview (plays as practice, not counted as opened). Make a new link: a POST form that
+    // revokes this link (it then opens nothing) and mints a new one, then comes back here.
+    const openBtn = c.preview ? `<a class="btn btn-ghost act" href="${esc(c.preview)}">${esc(C.open)}</a>` : '';
+    const make = `<form method="post" action="${esc(`${base}/jnew`)}" class="act"><input type="hidden" name="class" value="${esc(c.classId)}"><button type="submit" class="btn btn-ghost">${esc(C.make)}</button></form>`;
     return `<p class="small">${open}</p>
 <a class="btn btn-primary act" href="${esc(link('forward'))}">${esc(C.forward)}</a>
-${copy}`;
+${copy}
+${openBtn}
+${make}`;
   };
   return `<section class="card" id="class-link"><h2>${esc(C.title)}</h2><p class="small muted">${esc(C.sub)}</p>
 ${cards.map(one).join('\n')}</section>`;

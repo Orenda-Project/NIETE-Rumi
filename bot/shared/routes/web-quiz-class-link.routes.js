@@ -4,7 +4,8 @@
  * page and its /api/wq/cl/* forwards. Mounted inside web-quiz-internal.routes.js, behind requireInternalKey.
  * Every answer with the switch off (or a parent off) is 404 not_found, the same as an unknown code.
  *
- *   GET  /cl/:code[?pv=1]   the landing: {lang} for a live link (pv=1: a link-preview fetch, no door_shown)
+ *   GET  /cl/:code[?pv=1][&jt=]  the landing: {lang} for a live link (no door_shown for pv=1, a link-preview fetch,
+ *                           or jt, the teacher card's signed token for this code)
  *   POST /cl/arrive         {code, device_ref, jt?}      → "Whose turn?" (played here) or the teacher step
  *   POST /cl/teacher        {code, s, tk}                → the letter step, or the teacher step again
  *   POST /cl/letter         {code, s, letter}            → the first-name chips under that letter
@@ -31,6 +32,6 @@ router.post('/arrive', serve((req) => CL.arrive(req.body || {})));
 router.post('/teacher', serve((req) => CL.teacher(req.body || {})));
 router.post('/letter', serve((req) => CL.letter(req.body || {})));
 router.post('/pick', serve((req) => CL.pick(req.body || {})));
-router.get('/:code', serve((req) => CL.resolve(req.params.code, { preview: req.query.pv === '1' })));
+router.get('/:code', serve((req) => CL.resolve(req.params.code, { preview: req.query.pv === '1', jt: typeof req.query.jt === 'string' ? req.query.jt : null })));
 
 module.exports = router;

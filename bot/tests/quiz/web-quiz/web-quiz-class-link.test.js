@@ -5,7 +5,7 @@
  * the pick's hub hand-off, the teacher's card and its forward link.
  *
  * Faked boundaries only: Supabase (in memory, filters applied), Redis (a Map), the loggers, and the event
- * key module (absent on this base: mocked as a virtual module). Fixture names are invented.
+ * key module (web-quiz-kid.js, mocked to fixed keys). Fixture names are invented.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(), logInfo: jest.fn() }));
@@ -26,11 +26,12 @@ jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({
   dk: () => 'dk',
   cls: () => 'clshash00000',
   envelope: (f) => ({ ev_v: 2, ...f }),
-}), { virtual: true });
+}));
 
 const fs = require('fs');
 const path = require('path');
 const { makeFake } = require('./fake-supabase');
+const { strictColumns } = require('./schema-columns');
 const supabase = require('../../../shared/config/supabase');
 const { logEvent } = require('../../../shared/utils/structured-logger');
 const redis = require('../../../shared/services/cache/railway-redis.service');
@@ -57,6 +58,8 @@ const OUT = 'c0000001-0000-4000-8000-000000000009';
 const DEV_PLAYED = 'PlayedInClassDevice_01';
 const DEV_FRESH = 'FreshStrangerDevice_02';
 const ROSTER_NAMES = ['Zara', 'Bilal', 'Ayaan', 'Khan', 'Malik', 'Ahmed', 'Tariq', 'Muhammad', 'Sana'];
+
+const STRICT_TABLES = ['class_links', 'users', 'classes', 'class_teachers', 'class_enrollments', 'quiz_sessions'];
 
 let db;
 function seed() {
@@ -96,7 +99,8 @@ function seed() {
     ],
     class_links: [],
   };
-  Object.assign(supabase, makeFake(db, { uniques: { class_links: ['code'] } }));
+  // A column outside the schema's set answers 42703 (a misspelt column fails here, not on the live database).
+  Object.assign(supabase, strictColumns(makeFake(db, { uniques: { class_links: ['code'] } }), STRICT_TABLES));
 }
 
 beforeAll(() => { process.env.INTERNAL_API_KEY = 'test-internal-key'; process.env.WEB_QUIZ_BASE_URL = 'https://quiz.example.org'; });
@@ -441,5 +445,119 @@ describe('GET /api/internal/tr/jlink/:token (the card\'s Forward and Copy)', () 
     expect(r.headers.get('location')).toBe(`https://wa.me/?text=${encodeURIComponent(`https://quiz.example.org/j/${db.class_links[0].code}`)}`);
     expect(logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.class_link_forwarded').map((e) => e[1].how)).toEqual(['forward']);
     expect((await get(`/jlink/${tok}?class=${C2}&how=copy`)).status).toBe(404);
+  });
+});
+
+// ── "Make a new link": the teacher closes a link that went to the wrong group ─────────────────────────
+describe('POST /api/internal/tr/jnew/:token ("Make a new link")', () => {
+  const express = require('express');
+  const Token = require('../../../shared/services/quiz/teacher-report-token');
+  let server;
+  let base;
+  beforeEach(async () => {
+    const app = express();
+    app.use('/api/internal/tr', require('../../../shared/routes/teacher-report-internal.routes'));
+    const cl = express.Router();
+    cl.use(express.json());
+    cl.use('/cl', require('../../../shared/routes/web-quiz-class-link.routes'));
+    app.use('/api/internal/wq', cl);
+    await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
+    base = `http://127.0.0.1:${server.address().port}/api/internal`;
+  });
+  afterEach(() => new Promise((r) => server.close(r)));
+  const post = (tok, body) => fetch(`${base}/tr/jnew/${tok}`, {
+    method: 'POST', headers: { 'x-api-key': 'test-internal-key', 'content-type': 'application/json' }, body: JSON.stringify(body), redirect: 'manual',
+  });
+  const snapshot = () => JSON.parse(JSON.stringify(db.class_links));
+
+  test('(a) the class\'s teacher → 303 back to the class tab; the old row revoked, one new active row', async () => {
+    const old = await linkFor();
+    const tok = Token.signTeacherReport({ teacherId: T1 });
+    const r = await post(tok, { class: C1 });
+    expect(r.status).toBe(303);
+    expect(r.headers.get('location')).toBe(`/r/${encodeURIComponent(tok)}?tab=class#class-link`);
+    const oldRow = db.class_links.find((x) => x.code === old);
+    expect(typeof oldRow.revoked_at).toBe('string');
+    const active = db.class_links.filter((x) => x.class_id === C1 && x.revoked_at == null);
+    expect(active).toHaveLength(1);
+    expect(active[0].code).not.toBe(old);
+    expect(active[0].teacher_id).toBe(T1);
+    expect(CL.CODE_RX.test(active[0].code)).toBe(true);
+    // nothing is sent: the teacher forwards the new link from their own WhatsApp
+    expect(logEvent.mock.calls.map((c) => c[0]).filter((n) => /send|msg_sent|ledger/.test(n))).toEqual([]);
+  });
+
+  test('(b) the old /j/ code then answers not_found: the page an unknown code gets', async () => {
+    const old = await linkFor();
+    expect((await fetch(`${base}/wq/cl/${old}`)).status).toBe(200);
+    await post(Token.signTeacherReport({ teacherId: T1 }), { class: C1 });
+    const r = await fetch(`${base}/wq/cl/${old}`);
+    expect(r.status).toBe(404);
+    expect(await r.json()).toEqual({ error: 'not_found' });
+    const fresh = db.class_links.find((x) => x.class_id === C1 && x.revoked_at == null).code;
+    expect((await fetch(`${base}/wq/cl/${fresh}`)).status).toBe(200);
+  });
+
+  test('(c) another teacher\'s token is refused (404) and no row changes', async () => {
+    await linkFor();
+    const before = snapshot();
+    const r = await post(Token.signTeacherReport({ teacherId: T2 }), { class: C1 });
+    expect(r.status).toBe(404);
+    expect(db.class_links).toEqual(before);
+    const bad = await post(Token.signTeacherReport({ teacherId: T1 }), { class: 'not-a-class' });
+    expect(bad.status).toBe(404);
+    expect(db.class_links).toEqual(before);
+  });
+
+  test('(d) switch off (or its parent off) → 404 and no row changes', async () => {
+    await linkFor();
+    const before = snapshot();
+    db.app_settings.find((x) => x.key === 'web_quiz_class_link').value = false;
+    Flags._resetCache();
+    expect((await post(Token.signTeacherReport({ teacherId: T1 }), { class: C1 })).status).toBe(404);
+    db.app_settings.find((x) => x.key === 'web_quiz_class_link').value = true;
+    db.app_settings.find((x) => x.key === 'web_quiz_challenge_v2').value = false;
+    Flags._resetCache();
+    expect((await post(Token.signTeacherReport({ teacherId: T1 }), { class: C1 })).status).toBe(404);
+    expect(db.class_links).toEqual(before);
+  });
+});
+
+describe('the card\'s "Make a new link" and "Open" (EN + UR, no script)', () => {
+  const CLASS_DATA = { cells: [{ grade: '3', subject: 'maths', avg: 70, played: 4, quizzes: 1 }], weeks: [], quizzes: [] };
+  test('a no-JS POST form to /jnew with the class, and Open on the teacher\'s own preview link', async () => {
+    const extra = await CL.forTeacher(T1);
+    const { preview } = extra.cards[0];
+    const en = renderPage({ class: { ...CLASS_DATA, classLink: extra } }, { lang: 'en', tab: 'class', tokens: { self: 'tok.sig' } });
+    expect(en).toContain(`<form method="post" action="/r/tok.sig/jnew" class="act"><input type="hidden" name="class" value="${C1}"><button type="submit" class="btn btn-ghost">Make a new link</button></form>`);
+    expect(en).toContain(`<a class="btn btn-ghost act" href="${preview.replace(/&/g, '&amp;')}">Open</a>`);
+    expect(en).not.toContain('<script');
+    const ur = renderPage({ class: { ...CLASS_DATA, classLink: extra } }, { lang: 'ur', tab: 'class', tokens: { self: 'tok.sig' } });
+    expect(ur).toContain('>نیا لنک بنائیں</button>');
+    expect(ur).toContain('>کھولیں</a>');
+  });
+});
+
+// ── the teacher's own visit is not a child's door ───────────────────────────────────────────────────
+describe('the teacher\'s own /j/ visit (from the card) does not count as "opened"', () => {
+  test('GET /cl/:code with the card\'s signed teacher token → no door_shown; another code\'s token → door_shown', async () => {
+    const express = require('express');
+    const app = express();
+    app.use('/cl', require('../../../shared/routes/web-quiz-class-link.routes'));
+    const server = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
+    try {
+      const code = await linkFor();
+      const other = 'KZ7QW3MNPX';
+      const at = (q) => fetch(`http://127.0.0.1:${server.address().port}/cl/${code}${q}`);
+      const shown = () => logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.door_shown').length;
+      expect((await at(`?jt=${encodeURIComponent(CL.signTeacherPreview(code))}`)).status).toBe(200);
+      expect(shown()).toBe(0);
+      expect((await at(`?jt=${encodeURIComponent(CL.signTeacherPreview(other))}`)).status).toBe(200);
+      expect(shown()).toBe(1);
+      expect((await at('')).status).toBe(200);
+      expect(shown()).toBe(2);
+    } finally {
+      await new Promise((r) => server.close(r));
+    }
   });
 });

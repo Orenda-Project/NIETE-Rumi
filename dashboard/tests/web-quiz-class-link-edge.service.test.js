@@ -198,3 +198,65 @@ describe('the teacher card\'s Copy and Forward at the report edge (/r/:token/jli
     expect(r.status).toBe(502);
   });
 });
+
+describe('the card\'s "Make a new link" at the report edge (POST /r/:token/jnew)', () => {
+  const { createTeacherReportRouter } = require('../routes/teacher-report.routes');
+  const TOK = `${'a'.repeat(40)}.${'b'.repeat(22)}`;
+  const CLS = 'c1a55000-0000-4000-8000-000000000001';
+  let srv;
+  afterEach(() => new Promise((r) => srv.close(r)));
+  const answering = (status, location = null) => {
+    const calls = [];
+    const fetchImpl = async (url, opts) => {
+      calls.push({ url, opts });
+      return { status, ok: status < 300, headers: { get: (h) => (h.toLowerCase() === 'location' ? location : (h.toLowerCase() === 'content-type' ? 'text/html; charset=utf-8' : null)) },
+        arrayBuffer: async () => new ArrayBuffer(0), text: async () => '' };
+    };
+    return { calls, fetchImpl };
+  };
+  const buildTr = (fetchImpl) => { const app = express(); app.use(createTeacherReportRouter({ botUrl: BOT, apiKey: KEY, fetchImpl })); return app; };
+  const postForm = (p, form) => new Promise((resolve, reject) => {
+    const r = http.request({ host: '127.0.0.1', port: srv.address().port, method: 'POST', path: p,
+      headers: { 'content-type': 'application/x-www-form-urlencoded', 'content-length': Buffer.byteLength(form) } }, (res) => {
+      let out = '';
+      res.on('data', (c) => { out += c; });
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: out }));
+    });
+    r.on('error', reject);
+    r.write(form);
+    r.end();
+  });
+
+  it('the form\'s class reaches the bot as a POST; its 303 back to the class tab is followed', async () => {
+    const back = `/r/${TOK}?tab=class#class-link`;
+    const b = answering(303, back);
+    srv = await start(buildTr(b.fetchImpl));
+    const r = await postForm(`/r/${TOK}/jnew`, `class=${CLS}&extra=dropped`);
+    expect(r.status).toBe(303);
+    expect(r.headers.location).toBe(back);
+    expect(b.calls[0].url).toBe(`${BOT}/api/internal/tr/jnew/${TOK}`);
+    expect(b.calls[0].opts.method).toBe('POST');
+    expect(JSON.parse(b.calls[0].opts.body)).toEqual({ class: CLS });
+  });
+
+  it('the bot\'s 404 (switch off, not this teacher\'s class) is passed through as 404', async () => {
+    const b = answering(404);
+    srv = await start(buildTr(b.fetchImpl));
+    const r = await postForm(`/r/${TOK}/jnew`, `class=${CLS}`);
+    expect(r.status).toBe(404);
+  });
+});
+
+describe('the teacher\'s own visit from the card (/j/<code>?t=<signed>)', () => {
+  let srv;
+  afterEach(() => new Promise((r) => srv.close(r)));
+  it('the signed teacher token reaches the bot\'s landing call, so the bot can leave door_shown out', async () => {
+    const b = bot(jsonRes(200, { lang: 'en' }));
+    srv = await start(build(b.fetchImpl));
+    const jt = `${'x'.repeat(40)}.${'y'.repeat(22)}`;
+    await req(srv, 'GET', `/j/${CODE}?t=${jt}`);
+    expect(b.calls[0].url).toBe(`${BOT}/api/internal/wq/cl/${CODE}?jt=${jt}`);
+    await req(srv, 'GET', `/j/${CODE}?t=not-a-token`);
+    expect(b.calls[1].url).toBe(`${BOT}/api/internal/wq/cl/${CODE}`);
+  });
+});

@@ -7,6 +7,7 @@
  *   GET /r/:token/pdf      the same page as a PDF attachment (the bot renders it)
  *   GET /r/:token/remind   the bot logs the tap and answers 302 -> wa.me; passed through
  *   GET /r/:token/jlink    the class link card: Forward → 302 wa.me (the link only); Copy → 303 back to the report
+ *   POST /r/:token/jnew    the class link card's "Make a new link" (303 back to the report)
  *   POST /r/:token/class   the page's no-JS "Which class was this for?" form
  *   POST /r/:token/fix     the page's no-JS forms for a typed child not on the list
  *   GET /r/:token/fwd      the Jugnu tab's "Forward to the class group": the bot's 302 -> wa.me
@@ -60,6 +61,8 @@ const FORM = {
   queue: { loose_id: (v) => UUID_RX.test(v), candidate_id: (v) => UUID_RX.test(v), decision: (v) => ['same', 'no', 'unsure', 'undo', 'link'].includes(v), class: (v) => UUID_RX.test(v) },
   // "Saved on WhatsApp ✓ · Undo": one binding of a child on the teacher's list (the bot checks it is theirs).
   unbind: { binding: (v) => UUID_RX.test(v), class: (v) => UUID_RX.test(v) },
+  // The class link card's "Make a new link" (web_quiz_class_link): the class whose link is renewed.
+  jnew: { class: (v) => UUID_RX.test(v) },
 };
 function formBody(kind, body) {
   const out = {};
@@ -151,6 +154,8 @@ function createTeacherReportRouter(opts = {}) {
   router.get(`${REPORT_PATH}/:token/wfwd`, privateHeaders, limiter, forward('wfwd'));
   // The standing class link card's Forward (web_quiz_class_link): the bot logs it and answers 302 -> wa.me.
   router.get(`${REPORT_PATH}/:token/jlink`, privateHeaders, limiter, forward('jlink'));
+  // Its "Make a new link" form: the bot revokes the old link, mints a new one and answers 303 back to the class tab.
+  router.post(`${REPORT_PATH}/:token/jnew`, privateHeaders, limiter, form, forwardForm('jnew'));
   return router;
 }
 

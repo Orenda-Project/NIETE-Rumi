@@ -1880,6 +1880,9 @@ Feature: Web child quiz page on the portal
     Then "Your class's Jugnu link" shows the link as selectable text and a Forward button, with no script on the page
     When Forward is tapped
     Then WhatsApp opens with the link alone as the text: no count and no name
-    When the teacher opens the link from the card and picks a child
-    Then the run is practice and is never counted
-    But with the switch off the class tab is byte-identical to today's
+    When the teacher opens the link from the card with "Open" and picks a child
+    Then the visit is not counted as the link being opened, and the run is practice and is never counted
+    When "Make a new link" is tapped
+    Then the class tab comes back with a new link, and the old link opens only the page an unknown code gets
+    And another teacher cannot make a new link for this class, and no message is sent
+    But with the switch off the class tab is byte-identical to today's and "Make a new link" changes nothing

@@ -73,9 +73,12 @@ function registerClassLink(router, d) {
     if (!CL_CODE_RX.test(code)) return d.closedPage(req, res, 404, 'closed');
     if (!d.ready()) return d.closedPage(req, res, 503, 'off');
     const preview = d.isPreviewFetch(req);
+    const jt = typeof req.query.t === 'string' && JT_RX.test(req.query.t) ? req.query.t : null;
+    // The teacher card's signed token goes to the bot, which checks it: the teacher's own visit is not counted as opened.
+    const q = [preview ? 'pv=1' : null, jt ? `jt=${encodeURIComponent(jt)}` : null].filter(Boolean).join('&');
     let out;
     try {
-      out = await d.callBot('GET', `/api/internal/wq/cl/${code}${preview ? '?pv=1' : ''}`, req, null, { route: '/api/internal/wq/cl/:code' });
+      out = await d.callBot('GET', `/api/internal/wq/cl/${code}${q ? `?${q}` : ''}`, req, null, { route: '/api/internal/wq/cl/:code' });
     } catch (_) {
       return d.closedPage(req, res, 502, 'off');
     }
@@ -83,7 +86,6 @@ function registerClassLink(router, d) {
       // Off, unknown, revoked, expired: exactly an unknown /q/ code's page.
       return d.closedPage(req, res, out.status === 404 || out.status === 410 ? 404 : 502, out.status === 404 || out.status === 410 ? 'closed' : 'off');
     }
-    const jt = typeof req.query.t === 'string' && JT_RX.test(req.query.t) ? req.query.t : null;
     return res.status(200).type('html').send(renderClassLinkPage({
       lang: out.body.lang, code, jt, origin, assetV: d.version(), jsV: d.jsVersion(), brand: d.brand(), ui: d.ui(),
       head: d.head, esc: d.esc, bootJson: d.bootJson, preview,

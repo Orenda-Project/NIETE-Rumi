@@ -6,8 +6,9 @@
  * enrolled roster (class_enrollments). The teacher forwards it once a term; a child who opens it is placed by the
  * SERVER, and the page never receives the class list before the gate:
  *
- *   resolve(code)                   the landing: the link is live? → {lang}; else not_found (the edge renders exactly
- *                                   an unknown /q/ code's page). door_shown{class_link} (not for a link-preview fetch).
+ *   resolve(code, {preview, jt})    the landing: the link is live? → {lang}; else not_found (the edge renders exactly
+ *                                   an unknown /q/ code's page). door_shown{class_link}, except for a link-preview
+ *                                   fetch or the teacher's own visit from the card (jt, its signed preview token).
  *   arrive({code, device_ref, jt})  a device that played as a child enrolled in this class → "Whose turn?" with ONLY
  *                                   those children; any other device → "Tap your teacher's name" (2–3 teacher chips)
  *   teacher({code, s, tk})          the right teacher → the letter step (the script's whole alphabet, never only the
@@ -17,6 +18,7 @@
  *                                   (`cl`: class, id_src, id_confidence, homonym_in_list, practice) to the run row
  *   runColumns(cl, studentId)       the run-row columns a class-link pick writes (web-quiz-challenge insertRun)
  *   mint / forTeacher / forwardHref the teacher's side: the card on the report's class tab and its Forward link
+ *   renew({teacherId, classId})     "Make a new link": revokes the class's live link and mints a new one
  *
  * Step tokens (`s`) are signed by web-quiz-token (kind 'cl', 10 minutes) and name the step the device reached; a
  * chip is HMAC(secret, "cl:<code>" | studentId), never reversible. Events go through the event key module
@@ -144,6 +146,16 @@ function runColumns(cl, studentId) {
   return out;
 }
 
+/**
+ * What the Challenge's v2 serve is asked for a class-link pick: the route 'class_link', the link's class, and
+ * 'practice' for the teacher's own visit (a caller's own mode wins). `w` is the challenge's entry, `opts` its options.
+ */
+function serveArgs(w, opts = {}) {
+  const cl = (w && w.cl) || {};
+  const o = opts || {};
+  return { w: { ...w, via: 'class_link' }, mode: o.mode || (cl.m === 'practice' ? 'practice' : undefined), classId: o.classId || cl.c };
+}
+
 // ── events (lazily through the event key module) ────────────────────────────────────────────────
 
 let warnedNoKid = false;
@@ -235,11 +247,12 @@ async function teacherChips(link) {
 
 // ── the child's side ───────────────────────────────────────────────────────────────────────────────
 
-async function resolve(code, { preview = false } = {}) {
+async function resolve(code, { preview = false, jt = null } = {}) {
   const link = await liveLink(code);
   if (!link) return notFound();
   const lang = langOf(await teacherRow(link.teacher_id));
-  if (!preview) emit('door_shown', { door: 'class_link', surface: 'landing' }, { classId: link.class_id, studentId: null });
+  // Not a child's door: a link-preview fetch, or the teacher's own visit from the card (its signed token for this code).
+  if (!preview && !isTeacherPreview(code, jt)) emit('door_shown', { door: 'class_link', surface: 'landing' }, { classId: link.class_id, studentId: null });
   return { lang };
 }
 
@@ -421,8 +434,19 @@ async function forwardHref({ teacherId, classId, how = 'forward', reportBase = n
   return `https://wa.me/?text=${encodeURIComponent(url)}`;
 }
 
+/**
+ * "Make a new link" (the card's POST form): the class's live link is revoked (its code then gets the unknown-code
+ * page) and a new one minted. Only the class's own teacher, only with the switch on; null otherwise, and then no
+ * row changes. Nothing is sent.
+ */
+async function renew({ teacherId, classId } = {}) {
+  if (!teacherId || !classId || !(await Flags.classLinkOn())) return null;
+  const m = await mint({ teacherId, classId, renew: true });
+  return m.ok ? { code: m.code } : null;
+}
+
 module.exports = {
   ClassLinkError, ALPHABET, CODE_LEN, CODE_RX, LETTERS,
-  termOf, newCode, firstNameOf, letterOf, runColumns, signTeacherPreview, isTeacherPreview, stripTitle,
-  resolve, arrive, teacher, letter, pick, mint, forTeacher, forwardHref, linkUrl,
+  termOf, newCode, firstNameOf, letterOf, runColumns, serveArgs, signTeacherPreview, isTeacherPreview, stripTitle,
+  resolve, arrive, teacher, letter, pick, mint, renew, forTeacher, forwardHref, linkUrl,
 };
