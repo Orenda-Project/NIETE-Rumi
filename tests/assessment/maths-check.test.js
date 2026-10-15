@@ -299,6 +299,33 @@ describe('lastNumber', () => {
 });
 
 describe('mathsCheck', () => {
+  describe('a terminating answer must be exact (no ±1/200 window)', () => {
+    it.each([
+      ['Add: 23.291 + 80.414', '103.709', '103.705'],
+      ['Add: 23.291 + 80.414', '103.701', '103.705'],
+      ['Add: 23.291 + 80.414', '103.7', '103.705'],
+      ['Divide 52.8 by 1.2.', '44.004', '44'],
+      ['Divide 52.8 by 1.2.', '44.005', '44'],
+      ['Multiply: 3.5 × 20.50', '71.754', '71.75'],
+      ['Multiply: 3.5 × 20.50', '71.745', '71.75'],
+    ])('%s with key %s is replaced by %s', (question, key, exact) => {
+      const { item, result } = checkOne(question, key);
+      expect(item.scheme.checked).toBe('replaced');
+      expect(result.replaced).toBe(1);
+      expect(Number(String(item.answer).replace(/,/g, ''))).toBe(Number(exact));
+    });
+
+    it.each([
+      ['Divide 52.8 by 1.2.', '44'],
+      ['Divide 52.8 by 1.2.', '44.0'],
+      ['Divide 64.55 by 4.5.', '14.34'],
+      ['Add: 23.291 + 80.414', '103.705'],
+      ['Multiply: 3.5 × 20.50', '71.75'],
+    ])('%s with key %s stays ok', (question, key) => {
+      expect(checkOne(question, key).item.scheme.checked).toBe('ok');
+    });
+  });
+
   it('a written item the model gave no scheme is still checked, and a wrong key replaced', () => {
     const bare = q('Multiply 25 by 4.', '90');
     delete bare.scheme;
