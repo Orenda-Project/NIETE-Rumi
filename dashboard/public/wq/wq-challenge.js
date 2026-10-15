@@ -376,7 +376,7 @@
 
   var S = { screen: null, ex: null, data: null };
   // The Trail page v2 (wq-trail.js, loaded only when the menu says v2): its screens; null ⇒ today's page.
-  var TR = menuData.v2 && window.WQTRAIL ? window.WQTRAIL.init({ L: L, t: t, tc: tc, boot: boot, S: S, esc: esc, on: on, q: q, show: show, jug: jug, ev: ev, open: function (x) { open(x); }, refreshMenu: function () { return refreshMenu(); }, md: function () { return menuData; }, backLabel: function () { return backLabel(); }, qa: function () { return qa; }, qaButtons: function () { return qaButtons(); } }) : null;
+  var TR = menuData.v2 && window.WQTRAIL ? window.WQTRAIL.init({ L: L, t: t, tc: tc, boot: boot, S: S, esc: esc, on: on, q: q, show: show, jug: jug, ev: ev, open: function (x) { open(x); }, refreshMenu: function () { return refreshMenu(); }, md: function () { return menuData; }, read: function () { micStart(); }, backLabel: function () { return backLabel(); }, qa: function () { return qa; }, qaButtons: function () { return qaButtons(); } }) : null;
   // The Home button (the hub adds home=1 to its link when web_quiz_home_button is on): back to the hub of this token.
   var HOME_TOP = /[?&]home=1(&|$)/.test(String((location && location.search) || ''));
   function homeTop() {
@@ -465,7 +465,8 @@
 
   function open(ex) {
     S.ex = ex;
-    api('ch/' + encodeURIComponent(boot.token) + '/' + ex + kidQs()).then(function (d) {
+    // Story Time's one request carries its room and story id (wq-trail.js); every other request is today's
+    api('ch/' + encodeURIComponent(boot.token) + '/' + ex + kidQs() + (TR ? TR.storyQs(ex) : '')).then(function (d) {
       if (g1Take(ex, d)) return;
       if (TR) { TR.opened(ex, d, intro); return; }
       S.data = d;
@@ -1108,7 +1109,8 @@
         + stickyHtml());
       livePaint();
     } else {
-      show('read-rec', (g ? '' : '<div class="wqc-clock"><span class="wqc-dot" aria-hidden="true"></span><span id="wqc-left">' + clock(rec.left) + '</span></div>')
+      // Story Time shows no clock (no number on a story screen)
+      show('read-rec', (g || (TR && TR.isStory()) ? '' : '<div class="wqc-clock"><span class="wqc-dot" aria-hidden="true"></span><span id="wqc-left">' + clock(rec.left) + '</span></div>')
         + '<p class="wq-sub">' + esc(t.readNow) + '</p>' + storyHtml(d.story)
         + stickyHtml());
     }
@@ -1229,7 +1231,7 @@
         var c = oc[i];
         return '<div class="wqc-orow">' + (c && c.url ? '<button class="wqc-ohear" type="button" id="wqc-oh' + i + '" data-src="' + esc(c.url) + '" aria-label="' + esc(t.hearOption) + '">🔊</button>' : '<span class="wqc-ohear wqc-ohear-none" aria-hidden="true"></span>') + opt(o, i) + '</div>';
       }).join('');
-      show('qa', '<p class="wq-small">' + esc(t.of(k + 1, qa.list.length)) + '</p>' + jug('thinking', x.prompt) + hearBtn(x.clip)
+      show('qa', (TR && TR.isStory() ? '' : '<p class="wq-small">' + esc(t.of(k + 1, qa.list.length)) + '</p>') + jug('thinking', x.prompt) + hearBtn(x.clip)
         + '<div class="wqc-opts">' + opts + '</div>');
       bindHear(x.clip);
       var picked = false;

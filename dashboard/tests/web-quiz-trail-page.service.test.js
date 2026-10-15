@@ -299,9 +299,9 @@ describe('end cards under v2: what was done, never a number', () => {
   });
 });
 
-describe('Story Time room (no story payload from the serve yet)', () => {
-  test('?room=story with the story switch → the banner and "on its way"; nothing is requested', async () => {
-    const p = v2page({ menu: TRAIL({ ...V2, story: true }), href: 'https://portal.test/c/HUB.TOKEN?room=story&pid=en.read.1.kite' });
+describe('Story Time room with no story id (a story id is played: web-quiz-story-time-page)', () => {
+  test('?room=story with the story switch and no pid → the banner and "on its way"; nothing is requested', async () => {
+    const p = v2page({ menu: TRAIL({ ...V2, story: true }), href: 'https://portal.test/c/HUB.TOKEN?room=story' });
     expect(p.screen()).toBe('story');
     expect(p.html()).toContain('Story Time: just for fun');
     expect(p.html()).toContain('A new story is on its way.');
