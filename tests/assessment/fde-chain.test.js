@@ -27,6 +27,7 @@ function fakeDb() {
         return { data: row, error: null };
       }
       if (st.op === 'update') {
+        state.updates.push({ table, payload: st.payload });
         rows().filter((r) => Object.entries(st.eq).every(([k, v]) => r[k] === v))
           .forEach((r) => Object.assign(r, JSON.parse(JSON.stringify(st.payload))));
         return { data: null, error: null };
@@ -120,7 +121,7 @@ const LABEL = { maths: 'Maths', science: 'Science', urdu: 'Urdu' };
 
 describe.each(['maths', 'science', 'urdu'])('%s: tap → job → two stored files', (subject) => {
   beforeEach(() => {
-    state = { subject, rows: {}, seq: 0, settings: { assessment_fde_pattern_enabled: true }, queued: [], calls: [], sections: [], pdfs: [], uploads: [], logs: [] };
+    state = { subject, rows: {}, seq: 0, settings: { assessment_fde_pattern_enabled: true }, queued: [], calls: [], sections: [], pdfs: [], uploads: [], logs: [], updates: [] };
   });
 
   test('the job the route queues builds a ready paper and marking scheme, with page counts', async () => {
@@ -144,13 +145,17 @@ describe.each(['maths', 'science', 'urdu'])('%s: tap → job → two stored file
     expect(row.exam_json._layout.preset_id).toBe('fde_g5_2027');
     expect(row.exam_json._layout.pages).toEqual({ paper: 4, scheme: 5 });
     expect(state.uploads).toEqual([`Grade5_${LABEL[subject]}_FDE.pdf`, `Grade5_${LABEL[subject]}_FDE_MarkingScheme.pdf`]);
+    // The row is written as each section comes back, so a long live run never looks dead to the
+    // duplicate guard (it reads "ten minutes since the row's last write" as a stopped run).
+    const touches = state.updates.filter((u) => u.table === 'assessment_papers' && u.payload.status === 'generating');
+    expect(touches.length).toBe(P.subjects[subject].sections.length);
     // Both documents with their own footer.
     expect(state.pdfs.every((o) => o && o.pdfOptions && o.pdfOptions.displayHeaderFooter)).toBe(true);
   });
 });
 
 test('without a pattern the same route queues today\'s job and buildPaper never reaches the pattern generator', async () => {
-  state = { subject: 'maths', rows: {}, seq: 0, settings: { assessment_fde_pattern_enabled: true }, queued: [], calls: [], sections: [], pdfs: [], uploads: [], logs: [] };
+  state = { subject: 'maths', rows: {}, seq: 0, settings: { assessment_fde_pattern_enabled: true }, queued: [], calls: [], sections: [], pdfs: [], uploads: [], logs: [], updates: [] };
   const { router } = load();
   const Generation = require('../../bot/shared/services/assessment/assessment-generation.service');
   const spy = jest.spyOn(Generation, 'generatePatternExam');
