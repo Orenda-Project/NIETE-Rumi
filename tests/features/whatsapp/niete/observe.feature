@@ -1034,6 +1034,42 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # at capture (visit_context.recorded_first, period from the recording's length) and the capture
     # links it; the who-answer names the teacher on the form and as the observation's owner.
 
+  @e2e @config-gated @destructive @wip @draft @P0
+  Scenario: The teacher is not on "Which teacher did you observe?": the coach types the name
+    Given a lesson recording of mine was saved and the bot asked "Which teacher did you observe?"
+    And the teacher I observed is not among the teachers listed
+    When I tap "Someone else"
+    Then the bot asks me to type the teacher's name, as it's written in English
+    When I type the teacher's name, even with a title, extra spaces or another common spelling
+    Then the bot says it noted that teacher
+    And the visit is under that teacher in "Complete the form", and the form's lesson plan list is that teacher's
+    # Round 6 E2E, 15 Oct: the list holds nine; every /observe2 coach has more than nine people in their
+    # schools (median 122). observe-who.handleTypedTeacherName matches the derived roster
+    # (patch-resolver) and records the match exactly as a tap (schedule row, the /observe2 form's
+    # teacher, the observation's owner). The wait is its own Redis key, 15 minutes, never the observe state.
+
+  @e2e @config-gated @destructive @wip @draft @P1
+  Scenario: A typed name that fits more than one teacher, or none
+    Given I tapped "Someone else" on "Which teacher did you observe?"
+    When I type a first name that two teachers in my schools share
+    Then the bot lists the teachers with that name, and "Someone else"
+    When I pick one
+    Then the bot says it noted that teacher
+    Given I tapped "Someone else" again on another recording's list
+    When I type a name that is not in my schools
+    Then the bot says it couldn't find it and asks me to type it again
+    When I type a name that is still not in my schools
+    Then the bot says I can type the name when I send the report
+    And my next message is answered as usual chat
+
+  @e2e @config-gated @wip @draft @P1
+  Scenario: A command typed while the bot waits for a name is not taken as a name
+    Given I tapped "Someone else" on "Which teacher did you observe?"
+    When I send "/observe2"
+    Then the visit planner opens, as for any "/observe2"
+    # The same list is asked after a classic /observe capture with no teacher, so classic /observe gets
+    # the typed name too; a recording with no /observe2 form only gets the schedule row, as a tap does.
+
   @e2e @audio @config-gated @destructive @wip @draft @P0
   Scenario: Record first: two lessons back to back, each saved and named on its own
     Given my latest observation was an /observe2 visit
