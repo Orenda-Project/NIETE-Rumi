@@ -5,14 +5,16 @@
  * record only (no model call): questions that let the teacher reflect first (2 Oct call: "make the
  * debrief more reflective"), two things that went well, how much of the lesson plan was taught, the
  * thing to work on first with what was seen and the next step up, and one confirmed moment to bring
- * up with a question about it. A level the rule only fills in "for now" (a gap in the rubric) is
+ * up with a question about it, then up to two more things to work on (R14); the first pick may be the
+ * lesson plan's own steps. A level the rule only fills in "for now" (a gap in the rubric) is
  * described by what was seen, never by the level's label.
  *
  * The indicator phrases come from fico17 (English for the pilot); the frame around them is in the
  * coach's language. Urdu addresses the coach with imperatives only.
  */
 
-const { CODES, MOMENTS, PLAIN, ROW, PRIORITY } = require('./fico17');
+const { CODES, MOMENTS, PLAIN, ROW, PRIORITY, FOCUS, PLAN_FOCUS, THINKING, pickAlso } = require('./fico17');
+const { THINK_SAID, usedPhrase } = require('./rules');
 const { clampLanguage } = require('../../../config/ux-strings');
 
 // Which indicator a moment type speaks to, so the moment offered is about the thing to work on.
@@ -45,6 +47,16 @@ const FRAME = {
     now: (x) => `What you saw: ${x}`,
     next: (x) => `The next step: ${x}`,
     moment: (minute, quote) => `A moment to bring up (${minute}): "${quote}"`,
+    also: (p, seen) => `Also work on: *${p}*${seen ? ` (what you saw: ${seen})` : ''}`,
+    plan_missed: 'Steps not done, or only partly:',
+    plan_none: 'there was no lesson plan for this lesson',
+    plan_notfollowed: 'the teacher had a plan and did not follow it',
+    plan_unchecked: "the plan's steps could not be checked this time",
+    plan_done: (done, total) => `${done} of ${total} planned steps done`,
+    thinking: "Children's thinking:",
+    think_seen: (x) => `• You saw: ${x}`,
+    think_teacher: (x) => `• The teacher: ${x}`,
+    think_children: (x) => `• The children: ${x}`,
     saved: 'Your full record, all 17 levels, is saved.',
   },
   ur: {
@@ -63,6 +75,16 @@ const FRAME = {
     now: (x) => `جو دیکھا: ${x}`,
     next: (x) => `اگلا قدم: ${x}`,
     moment: (minute, quote) => `بات کرنے کے لیے ایک لمحہ (${minute}): "${quote}"`,
+    also: (p, seen) => `اس پر بھی کام: *${p}*${seen ? ` (جو دیکھا: ${seen})` : ''}`,
+    plan_missed: 'جو مراحل نہیں ہوئے، یا جزوی ہوئے:',
+    plan_none: 'اس سبق کا کوئی منصوبہ نہیں تھا',
+    plan_notfollowed: 'منصوبہ موجود تھا، مگر اس پر عمل نہیں ہوا',
+    plan_unchecked: 'اس بار منصوبے کے مراحل نہیں جانچے جا سکے',
+    plan_done: (done, total) => `${total} میں سے ${done} مراحل مکمل`,
+    thinking: 'بچوں کی سوچ:',
+    think_seen: (x) => `• جو دیکھا: ${x}`,
+    think_teacher: (x) => `• استاد: ${x}`,
+    think_children: (x) => `• بچے: ${x}`,
     saved: 'آپ کا پورا ریکارڈ، تمام 17 درجے، محفوظ ہے۔',
   },
 };
@@ -82,7 +104,51 @@ function planResult(form) {
     partly: counted.filter((m) => m.verdict === 'partial').length,
     total: lp.prescribed_count != null ? lp.prescribed_count : counted.length,
     pct: Math.round(lp.fidelity_pct),
+    missed: counted.filter((m) => m.verdict === 'not_done' || m.verdict === 'partial').map((m) => String(m.text || '').trim()).filter(Boolean),
   };
+}
+
+const clip = (text, n) => { const c = [...String(text)]; return c.length <= n ? c.join('') : `${c.slice(0, n - 1).join('')}…`; };
+
+// The plan as the thing to work on (R14): the steps that were not done, or why there is no count.
+function planFocusLines(form, F) {
+  const plan = planResult(form);
+  if (plan) {
+    if (!plan.missed.length) return [F.now(F.plan_done(plan.done, plan.total))];
+    return [F.plan_missed, ...plan.missed.slice(0, 2).map((t) => `• ${clip(t, 160)}`)];
+  }
+  const lp = (form.answers || {}).lp;
+  return [F.now(lp === 'none' ? F.plan_none : lp === 'notfollowed' ? F.plan_notfollowed : F.plan_unchecked)];
+}
+
+// Children's thinking (R16): what the coach saw of it in Part 2, then the levels of the six indicators
+// that score it, the teacher's practice and the children's responses. Nothing when there is neither.
+function thinkingLines(form, F) {
+  const finals = form.final_levels || {};
+  const ticks = Object.keys(THINK_SAID).filter((k) => ((form.answers || {}).p2_think || []).includes(k));
+  const phrases = (codes) => codes.filter((c) => numeric(finals[c])).map((c) => PLAIN[c][numeric(finals[c]) - 1].toLowerCase()).join(' · ');
+  const teacher = phrases(THINKING.teacher);
+  const children = phrases(THINKING.children);
+  if (!ticks.length && !teacher && !children) return [];
+  return [
+    F.thinking,
+    ...(ticks.length ? [F.think_seen(ticks.map((k) => THINK_SAID[k]).join('; '))] : []),
+    ...(teacher ? [F.think_teacher(teacher)] : []),
+    ...(children ? [F.think_children(children)] : []),
+  ];
+}
+
+// What was seen for one of the "also work on" picks, in a few words.
+function alsoSeen(form, id, F) {
+  if (id === PLAN_FOCUS) {
+    const plan = planResult(form);
+    if (plan) return F.plan_done(plan.done, plan.total);
+    const lp = (form.answers || {}).lp;
+    return lp === 'none' ? F.plan_none : lp === 'notfollowed' ? F.plan_notfollowed : '';
+  }
+  const level = numeric((form.final_levels || {})[id]);
+  const used = id === 'C8' ? usedPhrase(form.answers) : '';
+  return level ? [PLAIN[id][level - 1].toLowerCase(), used].filter(Boolean).join(': ') : '';
 }
 
 /**
@@ -103,8 +169,11 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
     .filter((c) => c !== priority && numeric(finals[c]) >= 3)
     .sort((a, b) => numeric(finals[b]) - numeric(finals[a]))
     .slice(0, 2);
+  // The materials used are named wherever C8 appears (R17).
+  const used = usedPhrase(form.answers);
+  const withUsed = (c, text) => (c === 'C8' && used ? `${text} (${used})` : text);
   if (strengths.length) {
-    for (const c of strengths) lines.push(`• ${ROW[c]}: ${PLAIN[c][numeric(finals[c]) - 1]}`);
+    for (const c of strengths) lines.push(`• ${ROW[c]}: ${withUsed(c, PLAIN[c][numeric(finals[c]) - 1])}`);
   } else {
     lines.push(F.find_one);
   }
@@ -121,19 +190,29 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
     }
   }
 
-  if (priority && PRIORITY[priority]) {
+  const think = thinkingLines(form, F);
+  if (think.length) lines.push('', ...think);
+
+  if (priority === PLAN_FOCUS) {
+    lines.push('', F.work_on(FOCUS[PLAN_FOCUS]), ...planFocusLines(form, F));
+  } else if (priority && PRIORITY[priority]) {
     const level = numeric(finals[priority]);
     lines.push('', F.work_on(PRIORITY[priority]));
     const hole = (review.added_hole || {})[priority];
     const kept = String(finals[priority]) === String((review.added || {})[priority]);
     if (hole && kept) lines.push(F.now(hole));
-    else if (level) lines.push(F.now(PLAIN[priority][level - 1]));
+    else if (level) lines.push(F.now(withUsed(priority, PLAIN[priority][level - 1])));
     if (level && level < 4) lines.push(F.next(PLAIN[priority][level]));
     const group = (MOMENTS.find((m) => m.codes.includes(priority)) || {}).id;
     const moment = confirmed.find((m) => TYPE_CODE[m.type] === priority)
       || confirmed.find((m) => m.moment === group);
     if (moment) lines.push(F.moment(moment.minute, moment.quote), F.moment_ask);
   }
+
+  // "Also work on" (R14): after the first pick, one line each.
+  const a = form.answers || {};
+  const also = Array.isArray(review.also_final) ? pickAlso(review.also_final, priority) : pickAlso([a.also_1, a.also_2], priority);
+  if (also.length) lines.push('', ...also.map((id) => F.also(FOCUS[id], alsoSeen(form, id, F))));
 
   lines.push('', F.saved);
   return lines.join('\n');

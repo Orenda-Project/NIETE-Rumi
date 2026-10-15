@@ -13,8 +13,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const { buildEvidenceCheckFlow, SLOTS, HEARD_SCREENS, ADDED_SCREENS } = require('../../bot/shared/services/observe/observe2/evidence-check.flow');
-const { CODES, MOMENTS, PLAIN, PRIORITY } = require('../../bot/shared/services/observe/observe2/fico17');
+const { buildEvidenceCheckFlow, SLOTS, HEARD_SCREENS, ADDED_SCREENS, CHECK_VERSION } = require('../../bot/shared/services/observe/observe2/evidence-check.flow');
+const { CODES, MOMENTS, PLAIN, FOCUS, PLAN_FOCUS } = require('../../bot/shared/services/observe/observe2/fico17');
 
 const FLOW_PATH = path.join(__dirname, '../../docs/flows/observe2-evidence-check.json');
 const flow = buildEvidenceCheckFlow();
@@ -69,7 +69,12 @@ describe('every screen sends what the coach answered', () => {
     const action = footerOf(screens[id])['on-click-action'];
     expect(action.name).toBe('data_exchange');
     expect(action.payload.screen).toBe(id);
-    expect(Object.keys(action.payload).filter((k) => k !== 'screen').sort()).toEqual(fieldsShown(screens[id]));
+    // cv: the check's version, sent where the next screen's data changed (ADDED_TWO → PRIORITY).
+    expect(Object.keys(action.payload).filter((k) => k !== 'screen' && k !== 'cv').sort()).toEqual(fieldsShown(screens[id]));
+  });
+  test.each(['ADDED_TWO', 'PRIORITY'])('%s says which check it is, so a check opened on an older Flow is answered in its own shape', (id) => {
+    expect(CHECK_VERSION).toMatch(/^\d+$/);
+    expect(footerOf(screens[id])['on-click-action'].payload.cv).toBe(CHECK_VERSION);
   });
 });
 
@@ -107,11 +112,19 @@ describe('levels: pre-filled from the rule, every option in plain words', () => 
       expect(radio['data-source'].map((o) => o.id)).toEqual(['1', '2', '3', '4', 'NA', 'IE']);
     }
   });
-  test('the priority keeps the pre-seal pick and lists the 17 in plain words', () => {
+  test('the priority keeps the pre-seal picks and lists the 17 and the plan\'s steps in plain words', () => {
     const form = screens.PRIORITY.layout.children.find((c) => c.type === 'Form');
-    expect(form['init-values'].priority_final).toBe('${data.priority_level}');
+    expect(form['init-values']).toEqual({
+      priority_final: '${data.priority_level}', also_final_1: '${data.also_level_1}', also_final_2: '${data.also_level_2}',
+    });
     const dd = components(screens.PRIORITY).find((c) => c.name === 'priority_final');
-    for (const o of dd['data-source']) expect(o.title).toBe(PRIORITY[o.id]);
+    expect(dd['data-source'].map((o) => o.id).sort()).toEqual([...CODES, PLAN_FOCUS].sort());
+    for (const o of dd['data-source']) expect(o.title).toBe(FOCUS[o.id]);
+    for (const name of ['also_final_1', 'also_final_2']) {
+      const also = components(screens.PRIORITY).find((c) => c.name === name);
+      expect(also.required).toBe(false);
+      expect(also['data-source'].map((o) => o.id)).toEqual(['none', ...dd['data-source'].map((o) => o.id)]);
+    }
   });
 });
 

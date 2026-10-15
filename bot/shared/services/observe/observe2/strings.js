@@ -6,7 +6,7 @@
  *
  * Urdu addresses the coach with imperatives and impersonal forms only: coaches are women and men,
  * so no "آپ ... رہی/رہے ہیں" (tests/observe2/start.test.js checks it).
- * Button titles stay within WhatsApp's 20 code points.
+ * Button titles stay within WhatsApp's 20 code points; list row titles within 24.
  *
  * Sending the recording: as a DOCUMENT (📎 → Document), never "Share → WhatsApp". Shared that way a
  * recorder-app file goes as an audio attachment, which WhatsApp refuses over 16 MB on the phone, and a
@@ -26,17 +26,19 @@ const STRINGS = {
     visit_cta: 'Plan my visit',
     launch_failed: 'I couldn\'t open the visit planner just now. Please send /observe2 again in a minute.',
     record_failed: 'I couldn\'t start the field form just now. Please send /observe2 again.',
-    period_failed: 'I couldn\'t show the period buttons. Please send /observe2 again.',
+    period_failed: 'I couldn\'t show the period choices. Please send /observe2 again.',
     period_body: (name) => (name
-      ? `You're observing *${name}*. How long is this period? The form has two parts, one for each half.`
-      : 'How long is this period? The form has two parts, one for each half.'),
+      ? `You're observing *${name}*. How long is this period? The form has two parts: up to and including guided practice, then independent practice and the wrap-up.`
+      : 'How long is this period? The form has two parts: up to and including guided practice, then independent practice and the wrap-up.'),
     period_button: (minutes) => `${minutes} minutes`,
+    period_list_button: 'Pick a period',
+    // The parts follow the lesson's steps (FICO pilot sheet R4/R10), named as form_body_after names
+    // them: Part 1 is saved when independent practice starts.
     form_body: (minutes) => {
-      const half = Math.round(minutes / 2);
       return [
         'Before the lesson starts:',
         '1️⃣ Open your phone\'s *voice recorder app* (not WhatsApp) and start recording. Leave it running for the whole lesson. It keeps recording while you take photos; a WhatsApp voice note stops when the camera opens.',
-        `2️⃣ Tap *Open the form* and fill it in as you watch. Save Part 1 at minute ${half}, then carry on with Part 2 until minute ${minutes}. Take photos with the phone's camera as you go, and add them in the form with *Upload saved photos*.`,
+        `2️⃣ Tap *Open the form* and fill it in as you watch. Part 1 is up to and including guided practice: save it when the children start independent practice. Then Part 2, independent practice and the wrap-up, until minute ${minutes}. Take photos with the phone's camera as you go, and add them in the form with *Upload saved photos*.`,
         '3️⃣ When the lesson ends: stop the recorder, tap *Seal and send* in the form, then send the recording here as a *Document* (📎 → *Document*), not as audio.',
       ].join('\n');
     },
@@ -84,17 +86,17 @@ const STRINGS = {
     visit_cta: 'دورہ چنیں',
     launch_failed: 'ابھی وزٹ پلانر نہیں کھل سکا۔ ایک منٹ بعد دوبارہ \u2066/observe2\u2069 بھیجیں۔',
     record_failed: 'ابھی فیلڈ فارم شروع نہیں ہو سکا۔ دوبارہ \u2066/observe2\u2069 بھیجیں۔',
-    period_failed: 'پیریڈ کے بٹن نہیں دکھ سکے۔ دوبارہ \u2066/observe2\u2069 بھیجیں۔',
+    period_failed: 'پیریڈ کے انتخاب نہیں دکھ سکے۔ دوبارہ \u2066/observe2\u2069 بھیجیں۔',
     period_body: (name) => (name
-      ? `*${name}* کا مشاہدہ۔ یہ پیریڈ کتنے منٹ کا ہے؟ فارم کے دو حصے ہیں، پیریڈ کے ہر نصف کے لیے ایک۔`
-      : 'یہ پیریڈ کتنے منٹ کا ہے؟ فارم کے دو حصے ہیں، پیریڈ کے ہر نصف کے لیے ایک۔'),
-    period_button: (minutes) => `${minutes} منٹ`,
+      ? `*${name}* کا مشاہدہ۔ یہ پیریڈ کتنے منٹ کا ہے؟ فارم کے دو حصے ہیں: رہنمائی کے ساتھ مشق تک، پھر انفرادی مشق اور اختتام۔`
+      : 'یہ پیریڈ کتنے منٹ کا ہے؟ فارم کے دو حصے ہیں: رہنمائی کے ساتھ مشق تک، پھر انفرادی مشق اور اختتام۔'),
+    period_button: (minutes) => `${urDigits(minutes)} منٹ`,
+    period_list_button: 'پیریڈ چنیں',
     form_body: (minutes) => {
-      const half = Math.round(minutes / 2);
       return [
         'سبق شروع ہونے سے پہلے:',
         '1️⃣ فون کی *وائس ریکارڈر ایپ* (واٹس ایپ نہیں) کھولیں اور ریکارڈنگ شروع کریں۔ پورے سبق میں ریکارڈنگ چلتی رہے۔ تصویر لیتے وقت بھی یہ ریکارڈ کرتی رہتی ہے؛ واٹس ایپ کا وائس نوٹ کیمرہ کھلتے ہی رک جاتا ہے۔',
-        `2️⃣ *فارم کھولیں* دبائیں اور دیکھتے ہوئے بھرتے جائیں۔ منٹ ${half} پر حصہ 1 محفوظ کریں، پھر منٹ ${minutes} تک حصہ 2۔ سبق کے دوران تصویریں فون کے کیمرے سے لیں، اور فارم میں *Upload saved photos* سے شامل کریں۔`,
+        `2️⃣ *فارم کھولیں* دبائیں اور دیکھتے ہوئے بھرتے جائیں۔ حصہ ۱ رہنمائی کے ساتھ مشق تک ہے: جب بچے انفرادی مشق شروع کریں تو اسے محفوظ کریں۔ پھر حصہ ۲، انفرادی مشق اور اختتام، منٹ ${urDigits(minutes)} تک۔ سبق کے دوران تصویریں فون کے کیمرے سے لیں، اور فارم میں *Upload saved photos* سے شامل کریں۔`,
         '3️⃣ سبق ختم ہو تو ریکارڈنگ روکیں، فارم میں *Seal and send* دبائیں، پھر ریکارڈنگ اسی چیٹ میں *Document* کے طور پر بھیجیں (📎، پھر *Document*)، آڈیو کے طور پر نہیں۔',
       ].join('\n');
     },

@@ -11,9 +11,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const { buildFieldFormFlow, FIELDS } = require('../../bot/shared/services/observe/observe2/field-form.flow');
-const { PICKED, GROUPS, LISTEN, MATERIALS, SWITCH } = require('../../bot/shared/services/observe/observe2/rules');
-const { PRIORITY, CODES } = require('../../bot/shared/services/observe/observe2/fico17');
+const { buildFieldFormFlow, FIELDS, FORM_VERSION } = require('../../bot/shared/services/observe/observe2/field-form.flow');
+const { PICKED, GROUPS, LISTEN, MATERIALS, SWITCH, TASK, TEACHER_SAID, STUCK } = require('../../bot/shared/services/observe/observe2/rules');
+const { CODES, FOCUS, PLAN_FOCUS, PLAIN } = require('../../bot/shared/services/observe/observe2/fico17');
 
 const FLOW_PATH = path.join(__dirname, '../../docs/flows/observe2-field-form.json');
 const flow = buildFieldFormFlow();
@@ -78,7 +78,7 @@ describe('the flow is internally consistent', () => {
     const incoming = new Set(Object.values(flow.routing_model).flat());
     expect(flow.screens.map((s) => s.id).filter((id) => !incoming.has(id))).toEqual(['PART_ONE', 'CONTINUE']);
     const footer = components(screens.CONTINUE).find((c) => c.type === 'Footer');
-    expect(footer['on-click-action']).toEqual({ name: 'data_exchange', payload: { screen: 'CONTINUE', fv: '4' } });
+    expect(footer['on-click-action']).toEqual({ name: 'data_exchange', payload: { screen: 'CONTINUE', fv: FORM_VERSION } });
     expect(Object.keys(screens.CONTINUE.data).sort()).toEqual(['continue_heading', 'continue_line']);
   });
 
@@ -138,18 +138,52 @@ describe('WhatsApp caps, measured in code points', () => {
 
 describe('the form agrees with the rules module', () => {
   const ids = (screen, name) => byName(screens[screen], name)['data-source'].map((o) => o.id).sort();
-  test.each(['p1', 'p2'])('%s answer ids all have a level', (p) => {
-    const S = p === 'p1' ? 'PART_ONE' : 'PART_TWO';
-    expect(ids(S, `${p}_picked`)).toEqual(Object.keys(PICKED).sort());
-    expect(ids(S, `${p}_groups`)).toEqual(Object.keys(GROUPS).sort());
-    expect(ids(S, `${p}_listen`)).toEqual(Object.keys(LISTEN).sort());
-    expect(ids(S, `${p}_materials`)).toEqual(Object.keys(MATERIALS).sort());
-    expect(ids(S, `${p}_change_how`)).toEqual(Object.keys(SWITCH).sort());
+  test('Part 1 answer ids all have a level', () => {
+    expect(ids('PART_ONE', 'p1_picked')).toEqual(Object.keys(PICKED).sort());
+    expect(ids('PART_ONE', 'p1_groups')).toEqual(Object.keys(GROUPS).sort());
+    expect(ids('PART_ONE', 'p1_listen')).toEqual(Object.keys(LISTEN).sort());
+    expect(ids('PART_ONE', 'p1_materials')).toEqual(Object.keys(MATERIALS).sort());
+    expect(ids('PART_ONE', 'p1_change_how')).toEqual(Object.keys(SWITCH).sort());
   });
-  test('the priority list is the 17, in plain words', () => {
+  // R4/R10 (FICO pilot sheet): Part 2 is the children working on their own and the wrap-up. It no
+  // longer asks who was picked, about group work or materials (those are Part 1's), and every answer
+  // it has feeds an indicator through rules.js.
+  test('Part 2 asks only about the children working on their own, and every answer has a rule', () => {
+    const names = components(screens.PART_TWO).map((c) => c.name).filter(Boolean);
+    for (const gone of ['p2_picked', 'p2_groups', 'p2_listen', 'p2_listen_other', 'p2_materials']) expect(names).not.toContain(gone);
+    expect(ids('PART_TWO', 'p2_task')).toEqual(Object.keys(TASK).sort());
+    expect(ids('PART_TWO', 'p2_teacher')).toEqual(Object.keys(TEACHER_SAID).sort());
+    expect(ids('PART_TWO', 'p2_stuck')).toEqual(Object.keys(STUCK).sort());
+    expect(ids('PART_TWO', 'p2_change_how')).toEqual(Object.keys(SWITCH).sort());
+  });
+  test('"When the work got hard" reads as D4\'s four levels, word for word', () => {
+    const levelled = byName(screens.PART_TWO, 'p2_stuck')['data-source'].filter((o) => typeof STUCK[o.id] === 'number');
+    expect(levelled.map((o) => o.title)).toEqual(levelled.map((o) => PLAIN.D4[STUCK[o.id] - 1]));
+    expect(levelled.map((o) => STUCK[o.id])).toEqual([1, 2, 3, 4]);
+  });
+  test('the part screens say which form version they are', () => {
+    for (const id of ['PART_ONE', 'PART_TWO']) {
+      const footer = components(screens[id]).find((c) => c.type === 'Footer');
+      expect(footer['on-click-action'].payload.fv).toBe(FORM_VERSION);
+    }
+    expect(Number(FORM_VERSION)).toBeGreaterThanOrEqual(5);
+  });
+  // R14 (FICO pilot sheet): one required "Work on first", up to two optional more, and the lesson
+  // plan's own steps (Section B) as a choice in all three.
+  test('the priority list is the 17 and the plan\'s steps, in plain words', () => {
     const pri = byName(screens.AFTER, 'priority')['data-source'];
-    expect(pri.map((o) => o.id).sort()).toEqual([...CODES].sort());
-    for (const o of pri) expect(o.title).toBe(PRIORITY[o.id]);
+    expect(pri.map((o) => o.id).sort()).toEqual([...CODES, PLAN_FOCUS].sort());
+    for (const o of pri) expect(o.title).toBe(FOCUS[o.id]);
+    expect(byName(screens.AFTER, 'priority').required).toBe(true);
+  });
+  test('"Also work on" is two optional lists of the same choices, each with "Nothing else"', () => {
+    const pri = byName(screens.AFTER, 'priority')['data-source'].map((o) => o.id);
+    for (const name of ['also_1', 'also_2']) {
+      const dd = byName(screens.AFTER, name);
+      expect(dd.type).toBe('Dropdown');
+      expect(dd.required).toBe(false);
+      expect(dd['data-source'].map((o) => o.id)).toEqual(['none', ...pri]);
+    }
   });
   test('no indicator code or level name reaches the coach during the lesson', () => {
     const text = JSON.stringify([screens.PART_ONE.layout, screens.PART_TWO.layout]);

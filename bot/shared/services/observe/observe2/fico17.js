@@ -8,7 +8,8 @@
  *   shown in this order.
  * - PLAIN gives each indicator's four levels as short phrases read off the workbook descriptors,
  *   each within WhatsApp's 30-code-point option-title cap.
- * - ROW is the indicator's plain name; PRIORITY is how it reads as "work on first".
+ * - ROW is the indicator's plain name; PRIORITY is how it reads as "work on first"; FOCUS adds the
+ *   lesson plan's steps to those choices (Section B, R14).
  */
 
 const CODES = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'D1', 'D2', 'D3', 'D4', 'D5', 'F1', 'F2', 'F3', 'F4'];
@@ -61,4 +62,41 @@ const PRIORITY = {
   F3: 'Explaining why it works', F4: 'Linking to real life',
 };
 
-module.exports = { CODES, CORE, MOMENTS, PLAIN, EXTRA, ROW, PRIORITY };
+// Thinking (FICO pilot sheet R16, the ICT lead, 14 Oct: critical thinking was not explicit). No new scored
+// indicator: six of the 17 already score it, by the workbook's descriptors. What the teacher does: C1
+// (a question needing reasoning, probed), F3 (why it works; children reason it out), F4 (links;
+// children make their own). What the children do: D1 (reasoning, not restating), D4 (trying when
+// unsure), D5 (their own content questions). Grouped under this name where the coach and the record
+// read them; the sections and their sums are unchanged.
+const THINKING = { name: 'Thinking', teacher: ['C1', 'F3', 'F4'], children: ['D1', 'D4', 'D5'] };
+THINKING.codes = [...THINKING.teacher, ...THINKING.children];
+
+// "Work on first" may also be the lesson plan's own steps (FICO pilot sheet R14, the ICT lead, 14 Oct:
+// "Follow the Lesson Plan Structure" was missing). That is Section B, the plan fidelity, not a C, D
+// or F indicator, so its id is no code and nothing reads it as one (analysis.js, brief.js and the
+// target resolver handle it by name). Its title fits the 30-code-point option cap.
+const PLAN_FOCUS = 'plan';
+const FOCUS = { ...PRIORITY, [PLAN_FOCUS]: "Following the plan's steps" };
+// The list follows the four moments, so related choices sit together; the plan comes last.
+const FOCUS_ORDER = [...MOMENTS.flatMap((m) => m.codes), PLAN_FOCUS];
+
+// Up to two more beside the first pick, optional. "Nothing else" lets a coach undo a pick: a
+// WhatsApp Dropdown cannot be cleared once chosen.
+const ALSO_NONE = 'none';
+const MAX_ALSO = 2;
+
+/** The "also work on" picks as kept: known choices, none repeated, never the first pick, at most two. */
+function pickAlso(ids, first) {
+  const out = [];
+  for (const id of ids || []) {
+    const v = String(id || '');
+    if (!FOCUS[v] || v === first || out.includes(v)) continue;
+    out.push(v);
+  }
+  return out.slice(0, MAX_ALSO);
+}
+
+module.exports = {
+  CODES, CORE, MOMENTS, PLAIN, EXTRA, ROW, PRIORITY, THINKING,
+  PLAN_FOCUS, FOCUS, FOCUS_ORDER, ALSO_NONE, MAX_ALSO, pickAlso,
+};

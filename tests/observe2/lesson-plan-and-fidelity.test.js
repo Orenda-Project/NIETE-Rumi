@@ -31,7 +31,7 @@ const Store = require('../../bot/shared/services/observe/observe2/field-form.sto
 const Form = require('../../bot/shared/routes/observe2-form-endpoint');
 const Check = require('../../bot/shared/routes/observe2-check-endpoint');
 const Moments = require('../../bot/shared/services/observe/observe2/moments');
-const { buildFieldFormFlow } = require('../../bot/shared/services/observe/observe2/field-form.flow');
+const { buildFieldFormFlow, FORM_VERSION } = require('../../bot/shared/services/observe/observe2/field-form.flow');
 const { buildEvidenceCheckFlow } = require('../../bot/shared/services/observe/observe2/evidence-check.flow');
 const { buildBrief } = require('../../bot/shared/services/observe/observe2/brief');
 const { PLAIN } = require('../../bot/shared/services/observe/observe2/fico17');
@@ -146,7 +146,7 @@ describe('the field form: a lesson-plan screen before the seal', () => {
     expect(conditional).toContain("${form.lp} != 'none'");
     expect(conditional).toContain('lp_pick');
     const footer = c.find((x) => x.type === 'Footer');
-    expect(footer['on-click-action'].payload).toEqual({ screen: 'LESSON_PLAN', fv: '4', lp: '${form.lp}', lp_pick: '${form.lp_pick}', lp_how: '${form.lp_how}' });
+    expect(footer['on-click-action'].payload).toEqual({ screen: 'LESSON_PLAN', fv: FORM_VERSION, lp: '${form.lp}', lp_pick: '${form.lp_pick}', lp_how: '${form.lp_how}' });
   });
 
   test('the seal screen no longer asks about the plan; it shows the plan that was picked', () => {

@@ -2063,6 +2063,16 @@ app.post('/webhook', async (req, res) => {
         if (await handleLpListSelection(listId, from, { userId: user?.id })) return;
       }
 
+      // /observe2 — "How long is this period?" is a list since 25 minutes joined it (four periods do
+      // not fit three reply buttons). The same ids as the old buttons, which the button branch still routes.
+      if (listId.startsWith('obs2_period:')) {
+        const Observe2Start = require('./shared/services/observe/observe2/start');
+        const claimed = user ? await Observe2Start.handlePeriodButton(user, from, listId) : false;
+        if (!claimed) logToFile('⚠️ /observe2 period row not handled', { listId, hasUser: !!user }, 'warn');
+        ack();
+        return;
+      }
+
       // CRITICAL: Get the CURRENT session first, then query conversations in THAT session
       const { getOrCreateSession } = require('./shared/database/bot-helpers');
       const currentSessionId = await getOrCreateSession(user.id);

@@ -678,10 +678,26 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given I opened the visit planner from /observe2 and picked a school and a teacher
     When I tap "Start observation" in the brief
     Then the bot asks "How long is this period?" naming the teacher
-    And it offers exactly three buttons: "30 minutes", "35 minutes", "40 minutes"
+    And it offers a "Pick a period" list of exactly four rows: "25 minutes", "30 minutes", "35 minutes", "40 minutes"
     And no "record it and send me the audio" message is sent
     # flow-response.handler handleObserveVisitFlow: the observe2 marker → Observe2Start.afterStart
     # (record created in observation_field_forms; the teacher is bound exactly as for /observe).
+    # A list, not buttons, since 25 joined (FICO pilot sheet R18, 14 Oct): WhatsApp allows three buttons.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: A Friday period of 25 minutes runs the form to minute 25
+    Given I was asked how long the period is
+    When I choose "25 minutes" from the list
+    Then the bot sends a message starting "Before the lesson starts:" with an "Open the form" CTA
+    And it says to carry on with Part 2 until minute 25
+    # The ICT lead, 14 Oct: "classes on Fridays are conducted for 25 minutes". The list row arrives as a
+    # list_reply with the same obs2_period:<form>:<minutes> id the buttons used; both branches route it.
+
+  @e2e @flow @config-gated @wip @draft @P2
+  Scenario: A period button sent before the list still opens the form
+    Given an older "How long is this period?" message with the three period buttons is in my chat
+    When I tap "30 minutes" on it
+    Then the bot sends the live form for a 30-minute period
 
   @e2e @flow @config-gated @wip @draft @P1
   Scenario: The period button sends the live form with the steps before the lesson
@@ -690,7 +706,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the bot sends a message starting "Before the lesson starts:" with an "Open the form" CTA
     And it tells me to start my phone's voice recorder app, not WhatsApp
     And it says why: the recorder app keeps recording while I take photos, and a WhatsApp voice note stops when the camera opens
-    And it says to save Part 1 at minute 20 and carry on with Part 2 until minute 40
+    And it says Part 1 is up to and including guided practice, to save it when the children start independent practice, and to carry on with Part 2 until minute 40
     And it says to take photos with the phone's camera as I go and add them in the form with "Upload saved photos"
     And its last step says to send the recording here as a Document (📎 → Document), not as audio
     # Pilot sheet R2 (12 Oct): shared to WhatsApp as audio, a recorder-app lesson is refused on the
@@ -710,7 +726,69 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the form opens on Part 2
     # WhatsApp restores a form reopened shortly after from the phone (no request reaches the bot; seen on
     # the sandbox E2E, 30 Sep). A form WhatsApp starts afresh opens on "Part 1 is saved" with "Carry on
-    # with Part 2, from minute 20 to 40." and "Continue" opens Part 2.
+    # with Part 2: independent practice and the wrap-up, to minute 40." and "Continue" opens Part 2.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: Part 1 is up to and including guided practice, and Part 2 is independent practice and the wrap-up
+    Given the live form is open on Part 1
+    Then it says "Up to and including guided practice. When the children start independent practice, tap "Part 1 done""
+    When I fill Part 1 and tap "Part 1 done"
+    Then Part 2 is headed "Part 2: independent practice"
+    And it says "Independent practice and the wrap-up"
+    And it asks "Did each child have a task?" with "Every child had a task", "Only some children" and "No work on their own"
+    And it does not ask who the teacher asked, about group work, or who used materials
+    # FICO pilot sheet R4 (a coach) and R10 (the ICT lead), 14 Oct: both parts asked about group practice; the
+    # 5-step plan is warm-up, explanation, guided practice, independent practice, wrap-up. Form version 5.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: With work of their own, Part 2 asks what the teacher did and what children did when stuck
+    Given the live form is open on Part 2
+    When I choose "Every child had a task"
+    Then it asks "While they worked, the teacher" with "Went round the room", "Looked at their work", "Helped those who were stuck", "Gave more to early finishers" and "Stayed at the front"
+    And it asks "When the work got hard" with "No one tried", "Tried only when sure", "2+ tried while unsure", "Tried unasked, kept going" and "Nobody got stuck"
+    When I leave both unanswered and tap "Part 2 done"
+    Then the form stays on Part 2 and asks for both
+    When I choose "No work on their own" instead
+    Then neither is asked, and "Part 2 done" saves the part
+    # rules.js: "When the work got hard" is D4's level (the titles are PLAIN.D4); "Helped those who were
+    # stuck" makes C2 at least 2. Both are named on the check's "because" lines and in the record.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: Part 1 asks what materials were used, and they are named, not scored
+    Given the live form is open on Part 1
+    When I choose "The children used them" under "Who used books or materials?"
+    Then it asks "What was used?" with "Textbook or board", "Charts or pictures", "Objects or manipulatives" and "Materials the teacher made"
+    When I tick "Charts or pictures" and "Materials the teacher made", fill the rest, seal and reach the levels in the check
+    Then "Books and materials" is pre-filled with "Children used them", saying "Used: charts or pictures; materials the teacher made"
+    # FICO pilot sheet R17 (the ICT lead, 14 Oct): a textbook-only lesson and one with the teacher's own aids
+    # scored alike. C8's level is still who used them (its descriptors are the rubric owner's); the kinds
+    # are named on the check, in the record (the teacher's portal) and in the brief.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: Part 2 asks what the children's work showed: repeating, or reasoning
+    Given the live form is open on Part 2
+    Then it asks "What children's work showed" with "Repeated or copied it", "Explained why or how", "Solved a new problem", "Asked a question about it" and "Their own example or link"
+    When I tick nothing there and tap "Part 2 done"
+    Then the form stays on Part 2 with "Tick what you saw, or "Repeated or copied it"." under it
+    # FICO pilot sheet R16 (the ICT lead, 14 Oct): critical thinking was not explicit. No new scored indicator:
+    # the ticks count toward D1 (reasoning) and D5 (own questions) as a confirmed moment does, and are
+    # named on F3 and F4, which the coach picks.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The check and the brief group the thinking indicators as "Thinking"
+    Given I ticked "Explained why or how" and "Asked a question about it" in Part 2 and sealed the record
+    When I reach the levels in the check
+    Then "Thinking: The teacher's questions", "Thinking: Children's reasoning", "Thinking: Trying when unsure", "Thinking: Children's own questions", "Thinking: Explaining why" and "Thinking: Links to real life" head their rows
+    And "Children's own questions" is pre-filled with "A question about the content", saying I saw a child ask one
+    When I submit the check
+    Then the brief has a "Children's thinking:" block with what I saw, what the teacher did and what the children did
+
+  @e2e @flow @config-gated @wip @draft @P2
+  Scenario: A form opened before the parts changed keeps its own Part 2
+    Given I opened the live form before form version 5 was published, and saved Part 1
+    When I fill Part 2's older questions and tap "Part 2 done"
+    Then the part is saved and the lesson plan screen opens
+    # observe2-form-endpoint.js: a part posted with no fv keeps the older fields (FIELDS_V4) and checks.
 
   @e2e @flow @config-gated @wip @draft @P1
   Scenario: After Part 2 the coach picks the lesson plan from the teacher's own plans
@@ -835,6 +913,39 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe2-form-endpoint.js: seal is a compare-and-set; the database trigger refuses any later
     # change to what was sealed. The photos were added on the step before (2 Oct: up to ten, no cap of
     # three for coaches).
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The coach picks one thing to work on first, up to two more, and can pick the plan's steps
+    Given I filled Part 1 and Part 2 of the live form
+    When I choose "Following the plan's steps" under "Work on first"
+    And I choose "Real group work" under "Also work on" and leave "And also" as it is
+    And I tick the seal box and tap "Seal and send"
+    Then the form shows "Sealed at" and the time
+    # FICO pilot sheet R14 (the ICT lead, 14 Oct): one pick only, and "Follow the Lesson Plan Structure" was
+    # missing. One "Work on first" still drives the brief, the record and the teacher's report;
+    # "Also work on" and "And also" are optional and include "Nothing else". The plan's steps are
+    # Section B, not a C, D or F indicator (observe2/fico17.js PLAN_FOCUS).
+
+  @e2e @flow @config-gated @wip @draft @negative @P2
+  Scenario: The same thing cannot be picked twice
+    Given the live form is open on "Before you seal"
+    When I choose "Real group work" under both "Work on first" and "Also work on", tick the seal box and tap "Seal and send"
+    Then the form stays on "Before you seal" with "That is already your first pick. Choose another, or "Nothing else"." at the bottom
+    And nothing is sealed
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The check keeps all three picks, and the brief and the report follow the first
+    Given I sealed with "Following the plan's steps" first and "Real group work" under "Also work on"
+    And the "Check the moments" form is open
+    When I tap through to "Work on first"
+    Then "Work on first" shows "Following the plan's steps", "Also work on" shows "Real group work" and "And also" shows "Nothing else"
+    When I tap "Submit"
+    Then the brief says "Work on first: Following the plan's steps" and lists the plan's steps that were not done
+    And the brief says "Also work on: Real group work"
+    And the teacher's report names following the plan's steps as the next step, and nothing else as its focus
+    # observe2-check-endpoint.js renderPriority (the check posts cv=2 from ADDED_TWO); a check opened on
+    # the Flow published before this keeps its own screen. analysis.js focus_area for "plan" is Section B;
+    # target-resolver.js resolves it for the report's one target.
 
   @e2e @audio @config-gated @destructive @wip @draft @P1
   Scenario: The recording joins the sealed record and its moments come back to check
