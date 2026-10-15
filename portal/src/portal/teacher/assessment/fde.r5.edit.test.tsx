@@ -32,7 +32,7 @@ vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 
 import { ASSESSMENT_V2_COPY as C, ASSESSMENT_V2_COPY_UR as U } from './copy';
 import { EditPaperPage, EditQuestionPage } from './EditPages';
-import { FDE_EDITING } from './PaperPage';
+import { FDE_EDITING } from './model';
 import { VersionsPage } from './VersionsPage';
 import { forgetPapers } from './paperCache';
 import { ASSESSMENT_V2_BASE as B, addQuestionPath, editPath, versionsPath } from './paths';
