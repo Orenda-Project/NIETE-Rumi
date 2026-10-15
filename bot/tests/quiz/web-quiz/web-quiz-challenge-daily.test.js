@@ -59,6 +59,8 @@ beforeAll(() => { process.env.CHILD_TEST_R2_ENV = 'sandbox'; process.env.R2_BUCK
 afterEach(() => { jest.clearAllMocks(); S.__reset(); });
 
 const PURGE = () => [ON('web_quiz_challenge'), ON('web_quiz_challenge_audio_purge')];
+// The binding expiry has its own switch (web_quiz_phone_bind, under web_quiz_identity_canon), never the purge's.
+const BIND = () => [ON('web_quiz_identity_canon'), ON('web_quiz_phone_bind')];
 
 test('the purge deletes only readings past audio_keep_until, clears their rows, and logs ch_audio_purged once', async () => {
   install(PURGE(), fixture());
@@ -81,7 +83,7 @@ test('kept_no / not_asked rows: no object exists and R2 is never called for them
 });
 
 test('once per PKT day: a second run the same day (any process) is a no-op; the next PKT day runs again', async () => {
-  install(PURGE(), fixture());
+  install([...PURGE(), ...BIND()], fixture());
   await S.dailyJob({ now: NOW });
   S.__reset();                                   // a second process: no memory of the first
   const again = await S.dailyJob({ now: NOW + 3 * 60 * 60 * 1000 });
@@ -97,7 +99,7 @@ test('once per PKT day: a second run the same day (any process) is a no-op; the 
 });
 
 test('expireBindings is called once per daily run, with the run\'s time; nothing about bindings is logged here', async () => {
-  install(PURGE(), []);
+  install([...PURGE(), ...BIND()], []);
   await S.dailyJob({ now: NOW });
   expect(Bind.expireBindings).toHaveBeenCalledTimes(1);
   expect(Bind.expireBindings.mock.calls[0][0]).toEqual(new Date(NOW));
@@ -118,12 +120,45 @@ test('a key outside this env\'s kept prefix is never deleted, even past its keep
   expect(r2.deleteKey).not.toHaveBeenCalled();
 });
 
-test('purge switch off: no daily job (no claim row, no R2, no event, no binding expiry)', async () => {
-  install([ON('web_quiz_challenge')], fixture());
+test('purge and sweeper switches off: no daily job (no claim row, no R2, no event, no binding expiry), even with phone binding on', async () => {
+  install([ON('web_quiz_challenge'), ...BIND()], fixture());
   const out = await S.dailyJob({ now: NOW });
   expect(out).toMatchObject({ ran: false });
   expect(r2.deleteKey).not.toHaveBeenCalled();
   expect(logEvent).not.toHaveBeenCalled();
   expect(Bind.expireBindings).not.toHaveBeenCalled();
   expect(db.web_quiz_strip_weekly).toEqual([]);
+});
+
+// Operator decision (keep every kept reading for now): the purge is a designed option behind a switch that stays off.
+test('golden: purge switch off while the daily job runs (sweeper on) and rows are past audio_keep_until: zero R2 deletes, rows untouched', async () => {
+  install([ON('web_quiz_challenge'), ON('web_quiz_challenge_sweeper')], fixture());
+  const before = JSON.stringify(fixture().map((r) => [r.id, r.meta]));
+  const out = await S.dailyJob({ now: NOW });
+  expect(out).toMatchObject({ ran: true, purged: null });
+  expect(r2.deleteKey).not.toHaveBeenCalled();
+  expect(r2.listKeys).not.toHaveBeenCalled();
+  expect(events('web_quiz.ch_audio_purged')).toEqual([]);
+  expect(JSON.stringify(db[RUNS].map((r) => [r.id, r.meta]))).toBe(before);
+});
+
+test('binding expiry runs without the purge: sweeper + phone binding on, purge off → expireBindings once, no R2, no purge event', async () => {
+  install([ON('web_quiz_challenge'), ON('web_quiz_challenge_sweeper'), ...BIND()], fixture());
+  await S.dailyJob({ now: NOW });
+  expect(Bind.expireBindings).toHaveBeenCalledTimes(1);
+  expect(r2.deleteKey).not.toHaveBeenCalled();
+  expect(logEvent).not.toHaveBeenCalled();
+});
+
+test('the purge without binding expiry: purge on, phone binding off → the purge runs, expireBindings is never called', async () => {
+  install(PURGE(), fixture());
+  await S.dailyJob({ now: NOW });
+  expect(r2.deleteKey).toHaveBeenCalledTimes(1);
+  expect(Bind.expireBindings).not.toHaveBeenCalled();
+});
+
+test('phone binding on under its parent only: web_quiz_phone_bind without web_quiz_identity_canon never calls expireBindings', async () => {
+  install([ON('web_quiz_challenge'), ON('web_quiz_challenge_sweeper'), ON('web_quiz_phone_bind')], []);
+  await S.dailyJob({ now: NOW });
+  expect(Bind.expireBindings).not.toHaveBeenCalled();
 });

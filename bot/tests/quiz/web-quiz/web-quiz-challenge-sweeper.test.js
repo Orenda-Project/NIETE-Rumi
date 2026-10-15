@@ -176,7 +176,7 @@ describe('golden: every new switch off', () => {
 
 describe('daily job: binding expiry absent', () => {
   test('without web-quiz-bind-expiry the daily job logs one skip and nothing about bindings', async () => {
-    install([ON('web_quiz_challenge'), ON('web_quiz_challenge_audio_purge')], []);
+    install([ON('web_quiz_challenge'), ON('web_quiz_challenge_audio_purge'), ON('web_quiz_identity_canon'), ON('web_quiz_phone_bind')], []);
     await S.dailyJob({ now: NOW });
     expect(logToFile).toHaveBeenCalledWith('Challenge daily job: binding expiry not available, skipped', expect.any(Object));
     expect(logEvent.mock.calls.map((c) => c[0])).toEqual(['web_quiz.ch_audio_purged']);

@@ -10,11 +10,16 @@
  *                                    web_quiz.m_lost{reason:'swept'} when web_quiz_events_v2 is on
  *                                  - a 'served' run never played for 24 hours becomes 'abandoned' (a count only)
  *                                  and, on Mondays, the weekly health numbers for the week just ended (web-quiz-strip.js)
- *   web_quiz_challenge_audio_purge (read-side) the daily job, once per PKT day across every replica:
- *                                  - each kept reading past its audio_keep_until is deleted from R2 and its row stops
- *                                    pointing at it (forgetAudioKey); one web_quiz.ch_audio_purged{n, oldest_age_d,
- *                                    reason:'age'} a day, also when n is 0 (it proves the purge ran)
- *                                  - the phone-binding expiry (web-quiz-bind-expiry.js expireBindings), when present
+ *   web_quiz_challenge_audio_purge (read-side) a DESIGNED OPTION, kept OFF: the operator's decision is to keep every
+ *                                  kept reading until the operator says otherwise; this switch must stay off. When on:
+ *                                  each kept reading past its audio_keep_until is deleted from R2 and its row stops
+ *                                  pointing at it (forgetAudioKey); one web_quiz.ch_audio_purged{n, oldest_age_d,
+ *                                  reason:'age'} a day, also when n is 0 (it proves the purge ran)
+ *
+ * The daily job runs once per PKT day across every replica when EITHER switch above is on. Inside it, each part has
+ * its own switch: the purge (web_quiz_challenge_audio_purge), the phone-binding expiry (web-quiz-bind-expiry.js
+ * expireBindings, when present) only with web_quiz_phone_bind on (under web_quiz_identity_canon), and the Monday
+ * weekly numbers (web_quiz_challenge_sweeper).
  *
  * Every write to a run's meta goes through the Challenge's compare-and-set (updateRunMeta): a scorer that lands its
  * result while the sweeper looks at the row wins, and the sweeper leaves the row alone. A row is never touched unless
@@ -33,6 +38,9 @@ const PURGE_KEY = 'web_quiz_challenge_audio_purge';
 // m_lost is a v2 event: only with web_quiz_events_v2 on (itself under web_quiz_hub), EVENTS §0.6.
 const EVENTS_V2_KEY = 'web_quiz_events_v2';
 const HUB_KEY = 'web_quiz_hub';
+// The binding expiry belongs to the phone binding: only with web_quiz_phone_bind on (its parent web_quiz_identity_canon).
+const BIND_KEY = 'web_quiz_phone_bind';
+const IDENTITY_KEY = 'web_quiz_identity_canon';
 const TABLE = 'web_quiz_challenge_runs';
 const STRIP_TABLE = 'web_quiz_strip_weekly';
 const STUCK_MS = 10 * 60 * 1000;
@@ -54,7 +62,7 @@ function isTrue(v) {
 async function switches() {
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value')
-      .in('key', [PARENT_KEY, SWEEPER_KEY, PURGE_KEY, EVENTS_V2_KEY, HUB_KEY]);
+      .in('key', [PARENT_KEY, SWEEPER_KEY, PURGE_KEY, EVENTS_V2_KEY, HUB_KEY, BIND_KEY, IDENTITY_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, isTrue(r.value)]));
     const parent = !!by[PARENT_KEY];
@@ -62,10 +70,11 @@ async function switches() {
       sweeper: parent && !!by[SWEEPER_KEY],
       purge: parent && !!by[PURGE_KEY],
       eventsV2: !!by[HUB_KEY] && !!by[EVENTS_V2_KEY],
+      phoneBind: !!by[IDENTITY_KEY] && !!by[BIND_KEY],
     };
   } catch (e) {
     logToFile('⚠️ web quiz challenge housekeeping: settings lookup failed — off', { error: String(e && e.message || e).slice(0, 120) });
-    return { sweeper: false, purge: false, eventsV2: false };
+    return { sweeper: false, purge: false, eventsV2: false, phoneBind: false };
   }
 }
 
@@ -180,29 +189,33 @@ async function purgeKept(now, max) {
 }
 
 /**
- * The daily job. Off (both switches) ⇒ nothing at all. With the purge switch: the purge, its one event, and the
- * binding expiry. With the sweeper switch on a Monday (PKT): the weekly numbers for the week just ended.
+ * The daily job. Off (both the sweeper and the purge switch) ⇒ nothing at all. Otherwise, once per PKT day:
+ * the purge and its one event (purge switch only), the binding expiry (web_quiz_phone_bind only), and on a Monday
+ * (PKT) the weekly numbers for the week just ended (sweeper switch only).
  */
 async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } = {}) {
   const f = flags || await switches();
   if (!f.purge && !f.sweeper) return { ran: false, reason: 'off' };
   const claim = await claimDay(now);
   if (!claim.ok) return { ran: false, reason: claim.reason };
-  const out = { ran: true, day: claim.day, purged: null, strip: null };
+  const out = { ran: true, day: claim.day, purged: null, bindings: false, strip: null };
 
   if (f.purge) {
     const p = await purgeKept(now, max);
     out.purged = p.n;
     logEvent('web_quiz.ch_audio_purged', { n: p.n, oldest_age_d: p.oldest_age_d, reason: 'age' });
+    await supabase.from(STRIP_TABLE).update({ value: p.n, n: p.n }).eq('week', claim.week).eq('line', 'daily_job').eq('cell', claim.day);
+  }
+
+  if (f.phoneBind) {
     const Bind = optional('./web-quiz-bind-expiry');
     if (Bind && typeof Bind.expireBindings === 'function') {
-      try { await Bind.expireBindings(new Date(now)); } catch (e) {
+      try { await Bind.expireBindings(new Date(now)); out.bindings = true; } catch (e) {
         logError('web_quiz.ch_daily_bind_expiry_failed', { error: String(e && e.message || e).slice(0, 80) });
       }
     } else {
       logToFile('Challenge daily job: binding expiry not available, skipped', { day: claim.day });
     }
-    await supabase.from(STRIP_TABLE).update({ value: p.n, n: p.n }).eq('week', claim.week).eq('line', 'daily_job').eq('cell', claim.day);
   }
 
   // Monday (PKT): last week's numbers. Read-side, under the sweeper switch (one switch fewer).

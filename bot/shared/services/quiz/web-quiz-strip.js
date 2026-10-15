@@ -21,7 +21,8 @@
  *   no_class_first_finishes                 scored first exposures with no class
  *   kept_audio_keys                         value = runs naming a kept reading; n = kept_ok runs inside their 90 days
  *   kept_audio_match                        1 when the two are equal, else 0
- *   kept_audio_oldest_d                     days since the oldest kept reading was scored
+ *   kept_audio_oldest_d                     days since the oldest kept reading was scored (reported only: the
+ *                                           operator keeps every kept reading for now, so age is no red line)
  *   sends / <trigger>, sends_total, sends_usd, bot_to_family, door_mix_numerator   from message_ledger
  * A table that is not there yet (child_rungs, message_ledger) skips its lines, logged.
  */
