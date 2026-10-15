@@ -27,6 +27,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { clampLanguage } = require('../../config/ux-strings');
 
 // ── fonts ──────────────────────────────────────────────────────────────────
 
@@ -659,7 +660,7 @@ ${H[`note_${lang}`] ? `<div class="note">${textOf(H[`note_${lang}`], ctx)}</div>
 
 function contextFor(L, subject, answerLines) {
   const key = String(L.subject || subject || '').toLowerCase();
-  return { medium: L.medium === 'ur' ? 'ur' : 'en', maths: key === 'maths' || key === 'math' || key === 'mathematics', answerLines };
+  return { medium: clampLanguage(L.medium), maths: key === 'maths' || key === 'math' || key === 'mathematics', answerLines };
 }
 
 /**
