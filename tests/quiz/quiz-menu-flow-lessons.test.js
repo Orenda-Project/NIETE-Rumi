@@ -78,7 +78,7 @@ function seedWith(downloads, assets, { sessions = [], language = 'en' } = {}) {
 }
 
 const A_MATH = asset('a-math', 'grade_4_math_ch1_seg1');
-const A_URDU = asset('a-urdu', 'grade_4_urdu_ch2_seg3');
+const A_URDU = asset('a-urdu', 'grade_4_urdu_ch5_seg3');
 const REC = {
   id: 'cs-1', user_id: T, status: 'completed', observation_type: null, created_at: pkt(5, 9),
   transcript_text: 'x'.repeat(4000), analysis_data: { topic: 'Photosynthesis', subject: 'science' },

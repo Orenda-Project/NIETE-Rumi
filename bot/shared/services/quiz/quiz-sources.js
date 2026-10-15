@@ -20,6 +20,8 @@
  * historical default and rows carrying it are not R8 quizzes.
  */
 
+const ReligiousHold = require('./lp-religious-hold');
+
 /** A quiz written from a coaching recording's transcript. */
 const TRANSCRIPT = 'transcript';
 
@@ -275,8 +277,22 @@ const LP_REMAKE_REASONS = new Set([
   'daily_cap',
 ]);
 const MAX_LP_REMAKES = 2;
+
+/**
+ * Is this plan quiz in a subject held out of machine-written quizzes
+ * (lp-religious-hold)? Read from the row's own class and lessons, so a quiz that
+ * failed before the hold existed is not made again.
+ */
+function heldForReview(meta) {
+  const m = meta || {};
+  const subject = m.class ? m.class.subject : null;
+  const lessons = Array.isArray(m.lessons) && m.lessons.length ? m.lessons : [{}];
+  return lessons.some((l) => ReligiousHold.isHeldLesson({ subject, lesson_id: l && l.lesson_id }));
+}
+
 function lpRemakeable(meta, { sourceBack = false } = {}) {
   const m = meta || {};
+  if (heldForReview(m)) return false;
   const reason = failureReasonOf(m);
   if (!LP_REMAKE_REASONS.has(reason)) return false;
   if (reason === 'source_off' && !lp612SourceOn()) return false;
@@ -307,5 +323,5 @@ function handoffIntroKey(quizSource) {
 
 module.exports = {
   TRANSCRIPT, LP_V8, LP612, LESSON_SOURCES, PLAN_SOURCES, isLessonQuiz, isPlanQuiz, lp612SourceOn, lessonSessionFor, failureCopyKey, handoffIntroKey,
-  SOURCE_UNUSABLE_CODE, digestFailureReason, failureReasonOf, lpRemakeable, lpRemakeableQuiz,
+  SOURCE_UNUSABLE_CODE, digestFailureReason, failureReasonOf, lpRemakeable, lpRemakeableQuiz, heldForReview,
 };
