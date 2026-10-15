@@ -244,6 +244,30 @@ function opensOf(ladder, rung, grade) {
   return null;
 }
 
+// The Story Time band a reading lamp opens (BADGES §2.4): R3 -> U = the entry band + 1 (grades 2-3: 2, grades 4-5: 3);
+// R5 for grades 2-3 -> 3. Null for anything else (numbers rooms are not served yet, so a numbers lamp names none).
+function openedBand(ladder, rung, grade) {
+  if (ladder !== 'reading' || !grade) return null;
+  if (rung === 3) return grade <= 3 ? 2 : grade <= 5 ? 3 : null;
+  if (rung === 5 && grade <= 3) return 3;
+  return null;
+}
+const RESERVE_ID = /\.reserve\d+$/;
+// Whether at least one released, reviewed practice story exists in that band and language (the registry; never the
+// reserve story, never a withdrawn one). Any read failure is false: a lamp never promises a room it cannot show.
+async function storyStock(band, lang, now) {
+  try {
+    const { data, error } = await supabase.from('challenge_passages')
+      .select('passage_id, lang, band, pool, status, released_at, withdrawn_at')
+      .eq('pool', 'practice').eq('lang', require('../../config/ux-strings').clampLanguage(lang)).eq('band', band);
+    if (error || !Array.isArray(data)) return false;
+    return data.some((r) => r && r.pool === 'practice' && Number(r.band) === band && r.status === 'reviewed' && !r.withdrawn_at
+      && Number.isFinite(Date.parse(r.released_at)) && Date.parse(r.released_at) <= now && !RESERVE_ID.test(String(r.passage_id)));
+  } catch (_) {
+    return false;
+  }
+}
+
 /** The newest lamp lit this period, or null (the page shows it once). */
 function levelupOf(rungs, period, grade, storyOn = false) {
   const mine = rungs.filter((r) => r.period_id === period).sort((a, b) => String(b.set_at || '').localeCompare(String(a.set_at || '')) || Number(b.rung) - Number(a.rung));
@@ -285,6 +309,11 @@ async function bookFor({ hub, kid, device, lang } = {}, now = Date.now()) {
     grade_band: bandOf(grade),
   };
   const up = levelupOf(rungs, period, grade, f.story);
+  // RULING #59: the room is named only when its shelf has a released story in that band and the child's language.
+  if (up && up.opens) {
+    const band = openedBand(up.ladder, up.rung, grade);
+    if (!band || !(await storyStock(band, lang, now))) delete up.opens;
+  }
   if (up) out.levelup = up;
   return out;
 }
