@@ -132,6 +132,6 @@ describe.each(Object.keys(OFF_CASES))('round off (%s): a Challenge run is byte-i
     expect(spec.items.length).toBeGreaterThan(0);
     const row = DB.web_quiz_challenge_runs[0];
     expect(Object.keys(row).sort()).toMatchSnapshot('stored row columns');
-    expect({ ...row, id: '<run>', created_at: '<t>', scored_at: '<t>' }).toMatchSnapshot('stored row');
+    expect({ ...row, id: '<run>', created_at: '<t>', scored_at: '<t>', ...('started_at' in row ? { started_at: '<t>' } : {}) }).toMatchSnapshot('stored row');
   });
 });
