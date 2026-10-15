@@ -123,13 +123,13 @@ async function undo({ code } = {}) {
       .filter((b) => new Date(b.bound_at || 0).getTime() >= since)
       .sort((a, b) => String(b.bound_at).localeCompare(String(a.bound_at)))[0];
     if (!mine) return { ok: false, error: 'not_bound' };
-    const erased = await Bindings.eraseOne(mine.id, 'page_undo');
-    // The phone is erased in the same statement; the repo hands back the phone_norm it erased so the door forgets it.
-    if (erased && erased.phone_norm) {
-      const Sid = require('./student-identity.service');
-      if (typeof Sid.forgetDoorVerdict === 'function') await Sid.forgetDoorVerdict(erased.phone_norm, erased.phone_norm);
+    // The repo returns the erased rows, each with the phone_norm it held before the erase, so the door forgets each.
+    const erased = (await Bindings.eraseOne(mine.id, 'page_undo')) || [];
+    const Sid = require('./student-identity.service');
+    for (const e of erased) {
+      if (e && e.phone_norm && typeof Sid.forgetDoorVerdict === 'function') await Sid.forgetDoorVerdict(e.phone_norm, e.phone_norm);
     }
-    logEvent('web_quiz.bind_undo', { w: 's', via: 'page', n: 1 });
+    logEvent('web_quiz.bind_undo', { w: 's', via: 'page', n: erased.length });
     return { ok: true };
   } catch (err) {
     logToFile('⚠️ keep my place: undo failed', { error: err.message });

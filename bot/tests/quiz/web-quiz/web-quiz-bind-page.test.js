@@ -155,7 +155,8 @@ describe('undo', () => {
       { id: 'b-old', canonical_id: KID, bound_at: '2026-09-01T00:00:00Z' },
       { id: 'b-new', canonical_id: KID, bound_at: '2026-10-15T10:05:00Z' },
     ]);
-    Bindings.eraseOne.mockResolvedValue({ id: 'b-new', phone_norm: '+92300FIXTURE1' });
+    // the repo's real shape: an array of the erased rows, each with the phone it held before the erase
+    Bindings.eraseOne.mockResolvedValue([{ id: 'b-new', canonical_id: KID, phone_norm: '+92300FIXTURE1' }]);
     const forget = jest.spyOn(Sid, 'forgetDoorVerdict');
     expect(await Bind.undo({ code: 'JUGNU-7KQ2X', device: DEV })).toEqual({ ok: true });
     expect(Bindings.eraseOne).toHaveBeenCalledWith('b-new', 'page_undo');
