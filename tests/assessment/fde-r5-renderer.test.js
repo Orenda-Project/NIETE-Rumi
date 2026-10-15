@@ -161,7 +161,7 @@ describe('4. the Maths-only legend lines stay on the Maths scheme', () => {
     const html = schemeOf(laid('r5-science-q2b', 'science'), 'science');
     const legend = /<div class="box legend">[\s\S]*?<\/div><ul>[\s\S]*?<\/ul><\/div>/.exec(html)[0];
     expect(legend).not.toMatch(MATHS_LINES);
-    expect(legend).toContain('Grades (FDE p.115)');
+    expect(legend).toContain('Grades (FDE p.113)');
     // Only the chips this scheme prints are keyed: Science Q2(b) prints A only.
     expect(legend).toContain('A = answer');
     expect(legend).not.toContain('M = method');
@@ -313,5 +313,19 @@ describe('B. a partial scope names the subject\'s own unit word', () => {
     expect(covers('urdu', [3, 4]).covers_ur).toBe('احاطہ: اسباق 3–4؛ ہر حصہ انہی اسباق سے۔');
     expect(covers('urdu', [3]).covers_ur).toBe('احاطہ: سبق 3؛ ہر حصہ اسی سبق سے۔');
     expect(covers('science', [3]).covers_ur).toBe('احاطہ: باب 3؛ ہر حصہ اسی باب سے۔');
+  });
+});
+
+// ── 6. the grade line cites the page a teacher can turn to ──────────────────
+// FDE's booklet prints page 113 on the grade table (it is the PDF's 115th page).
+
+describe('6. the grade line names the printed booklet page', () => {
+  it('English and Urdu schemes cite p.113, never the PDF page 115', () => {
+    const en = schemeOf(laid('r5-science-q2b', 'science'), 'science');
+    expect(en).toContain('Grades (FDE p.113)');
+    expect(en).not.toContain('p.115');
+    const L = P.subjects.urdu.legend;
+    expect(L.bands_lead_ur).toContain('113');
+    expect(L.bands_lead_ur).not.toContain('115');
   });
 });
