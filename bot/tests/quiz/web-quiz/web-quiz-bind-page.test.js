@@ -23,7 +23,13 @@ jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(
 jest.mock('../../../shared/services/quiz/web-quiz-identity-flags', () => ({ flags: jest.fn() }), { virtual: true });
 jest.mock('../../../shared/services/quiz/child-bind-codes.repo', () => ({ mint: jest.fn(), get: jest.fn() }), { virtual: true });
 jest.mock('../../../shared/services/quiz/child-phone-bindings.repo', () => ({ eraseOne: jest.fn(), activeForChild: jest.fn() }), { virtual: true });
-jest.mock('../../../shared/services/quiz/web-quiz-identity-roster', () => ({ canonicalStudentId: jest.fn(async (id) => id) }));
+// The whole roster module stays real except the two canonical-id helpers, which map every id to itself
+// (the hub reads canonicalStudentIds, this module canonicalStudentId).
+jest.mock('../../../shared/services/quiz/web-quiz-identity-roster', () => ({
+  ...jest.requireActual('../../../shared/services/quiz/web-quiz-identity-roster'),
+  canonicalStudentId: jest.fn(async (id) => id),
+  canonicalStudentIds: jest.fn(async (ids) => new Map((ids || []).map((id) => [String(id), String(id)]))),
+}));
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 
 const { makeFake } = require('./fake-supabase');
