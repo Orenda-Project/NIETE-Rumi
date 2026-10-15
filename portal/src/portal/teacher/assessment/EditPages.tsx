@@ -43,7 +43,9 @@ const sectionOf = (it: EditItem) => /\.([A-Z])\./.exec(slotOf(it) ?? '')?.[1] ??
 
 const errorOf = (e: unknown, noAdd?: string): string | null => {
   const data = (e as { response?: { data?: { error?: string; errorCode?: string; code?: string; errors?: Array<{ message?: string }> } } })?.response?.data;
-  if (noAdd && (data?.errorCode === 'PATTERN_NO_ADD' || data?.code === 'PATTERN_NO_ADD')) return noAdd;
+  // A board-pattern paper's refusals (no Add; and no edit at all while the server cannot edit one) in the deck's words.
+  const codes = [data?.errorCode, data?.code];
+  if (noAdd && codes.some((c) => c === 'PATTERN_NO_ADD' || c === 'PATTERN_NO_EDIT')) return noAdd;
   const listed = (data?.errors ?? []).map((x) => x?.message).filter(Boolean) as string[];
   return listed.length ? listed.join(' ') : (data?.error ?? null);
 };
@@ -325,6 +327,10 @@ export function EditQuestionPage({ mode }: { mode: 'edit' | 'add' }) {
   const slotCap = dataOf(kinds)?.slotCap ?? 6;
   const ready = mode === 'edit' ? !!fields : !!kind;
 
+  // Add on a board-pattern paper, opened by a typed or stale link: the server refuses its kinds; the editor says why.
+  if (mode === 'add' && kinds.status === 'error' && (d?.paper as PatternPaper | undefined)?.pattern) {
+    return <Navigate to={editPath(paperId)} replace />;
+  }
   if (data.status !== 'ok' || (mode === 'add' && kinds.status !== 'ok')) {
     return (
       <TeacherPage crumb={C.editPaper} title={mode === 'add' ? C.newQuestion : C.question} backTo={editPath(paperId)}>

@@ -29,6 +29,7 @@ Feature: Teacher assessment
     And a Grade 5 teacher is signed in to the teacher app v2
     When the teacher taps "FDE pattern papers" on Assessment
     Then the Class step says "Step 1 of 2"
+    And its picker offers only Grade 5's subjects, with no grade to choose
     When the teacher picks Grade 5 Maths
     Then Check and make opens at "Step 2 of 2" with the rows Paper style, Class, Syllabus and Inside
     And the hint over Make my paper reads "Ready in about 3 min · practice paper, not FDE's own"
@@ -71,7 +72,7 @@ Feature: Teacher assessment
     Given the board-pattern flag is off, or the class is Grade 3 Science, or Grade 5 Islamiat
     When the teacher opens the Chapters step
     Then there is no FDE card and the screen is pixel-identical to today's
-    And on the FDE door's Class step Islamiat shows "FDE pattern for Islamiat: after review" and goes on to today's steps
+    And on the FDE door's Class step Islamiat shows "FDE pattern for Islamiat: after review" and its row is off
 
   @TA09 @fde
   Scenario: Editing an FDE paper keeps its shape
@@ -89,3 +90,12 @@ Feature: Teacher assessment
     When the teacher opens Versions
     Then the page shows the FDE pattern chip and a "Marking scheme" row under each ready version that opens its key file
     And a plain paper's Versions and Edit paper screens are pixel-identical to today's
+
+  # The soft paper limit (dashboard flag assessment_rate_limit_enabled) counts plain papers too. Run on sandbox by the QA
+  # agent with a teacher's ten requests of the last hour seeded and the flag on for the run only.
+  @sandbox
+  Scenario: A plain paper refused for the hour's limit says so above the rows
+    Given the soft paper limit is on
+    And the teacher has asked for 10 papers in the last hour
+    When the teacher taps Make my paper on a plain Check and make
+    Then the screen says "Paper limit reached · try again at" with the time, above the rows, in the teacher's language

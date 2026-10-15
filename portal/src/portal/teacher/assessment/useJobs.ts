@@ -27,7 +27,8 @@ function follow(job: PaperJob, subject: string | null): void {
     title: job.label,
     grade: spec.grade ?? null,
     subject,
-    questions: spec.questionCount ?? null,
+    // A board-pattern request is sent with questionCount 0 (the pattern fixes it): no count rather than "0 questions".
+    questions: (job.spec as { pattern?: string | null }).pattern ? null : spec.questionCount ?? null,
     waitHref: requestPath(job.requestId),
     spec: job.spec,
   });

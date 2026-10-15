@@ -1221,6 +1221,9 @@ async function newChildV2(ctx, body, idn) {
       step('provisional_reused', 1);
       return { student: again, resolved: { via: 'new', classBound: bound, provisional: true } };
     }
+    // child identity store (web_quiz_identity_canon): this teacher's other code, same device, same name → the same loose child.
+    const reused = await require('./child-identity-reuse').looseOnDevice({ teacherUserId: ctx.teacherUserId, deviceRef: T.cleanDeviceRef(body.device_ref), name });
+    if (reused) return { student: reused, resolved: { via: 'new', classBound: bound, provisional: true } };
     step('provisional', 0);
     const { data: created, error } = await supabase.from('students').insert({
       student_name: name, self_reported_class: label || null, enrolled_by_user_id: ctx.teacherUserId || null, phone: null, list_id: null,

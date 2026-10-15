@@ -142,21 +142,22 @@ describe('Class on the door path', () => {
     at(newPaperPath('class'), newPaperPath('class'), <ClassStep />);
     expect(await screen.findByRole('progressbar', { name: C.step(1, 2) })).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.selectGradeSubject) }));
-    fireEvent.click(await screen.findByRole('radio', { name: /^Grade 5/ }));
-    fireEvent.click(screen.getByRole('button', { name: /^Grade 5 · Maths/ }));
+    // The door's picker opens straight on Grade 5's subjects (no grade step: the grade is fixed).
+    fireEvent.click(await screen.findByRole('button', { name: /^Grade 5 · Maths/ }));
     await waitFor(() => expect(where().path).toBe(newPaperPath('check')));
     expect(where()).toMatchObject({ grade: 5, subject: 'maths', style: 'fde', pattern: 'fde_g5_2027', patternIntent: 'fde_g5_2027', coverBy: 'fde' });
   });
 
-  it('Islamiat on the door path: the note says after review, and the pick falls back to today\'s steps', async () => {
+  it('Islamiat on the door path: the note says after review, and its row is off (DESIGN 2.2)', async () => {
     setPicks(fdePicks({ subject: null, subjectName: null }));
     at(newPaperPath('class'), newPaperPath('class'), <ClassStep />);
     expect(await screen.findByText(C.islamiatHeld)).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.selectGradeSubject) }));
-    fireEvent.click(await screen.findByRole('radio', { name: /^Grade 5/ }));
-    fireEvent.click(screen.getByRole('button', { name: /^Grade 5 · Islamiat/ }));
-    await waitFor(() => expect(where().path).toBe(newPaperPath('cover')));
-    expect(where()).toMatchObject({ subject: 'islamiat', style: null, pattern: null, coverBy: 'chapters' });
+    const islamiat = await screen.findByRole('button', { name: /^Grade 5 · Islamiat/ });
+    expect(islamiat.hasAttribute('disabled')).toBe(true);
+    fireEvent.click(islamiat);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByTestId('where')).toBeNull();
   });
 
   it('golden: a plain New paper\'s Class step shows no note and counts six steps', async () => {
