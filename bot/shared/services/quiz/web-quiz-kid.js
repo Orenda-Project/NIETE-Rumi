@@ -102,4 +102,5 @@ function envelope(fields = {}) {
   return out;
 }
 
-module.exports = { kid, dk, cls, ukey, kidV, envelope, pktDay, KEY_ENV, KEY_V_ENV, _reset: () => { missingDay = null; } };
+// kidOf / dkOf / clsOf / ukeyOf: the names the callers use (the same functions).
+module.exports = { kid, dk, cls, ukey, kidOf: kid, dkOf: dk, clsOf: cls, ukeyOf: ukey, kidV, envelope, pktDay, KEY_ENV, KEY_V_ENV, _reset: () => { missingDay = null; } };

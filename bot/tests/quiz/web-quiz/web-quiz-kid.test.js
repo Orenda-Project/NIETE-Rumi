@@ -93,6 +93,16 @@ describe('the keys', () => {
   });
 });
 
+describe('the *Of aliases callers use', () => {
+  test('kidOf, dkOf, clsOf, ukeyOf are the same functions as kid, dk, cls, ukey', () => {
+    expect(K.kidOf).toBe(K.kid);
+    expect(K.dkOf).toBe(K.dk);
+    expect(K.clsOf).toBe(K.cls);
+    expect(K.ukeyOf).toBe(K.ukey);
+    expect(K.clsOf(CLASS)).toBe(hmac(`cls|${CLASS}`).slice(0, 12));
+  });
+});
+
 describe('envelope', () => {
   test('carries w, ev_v 2, kid_v and kid (null when not given)', () => {
     expect(K.envelope({ n: 3 })).toEqual({ w: 's', ev_v: 2, kid_v: '2026', kid: null, n: 3 });
