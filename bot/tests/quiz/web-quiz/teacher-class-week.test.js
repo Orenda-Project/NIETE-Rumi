@@ -5,8 +5,9 @@
  * web_quiz_class_link, web_quiz_challenge_v2 and web_quiz_challenge all on).
  *
  * The routes run for real on an ephemeral port over the real data module, page and token. Faked: Supabase
- * (in-memory, filters applied), Redis (a Map), the loggers, and the event-key module (a later module, mocked
- * virtually to the shape it will export). Children are invented "Testwala" fixtures.
+ * (in-memory, filters applied; a select, filter or write naming a column the schema mirror lacks answers 42703),
+ * Redis (a Map), the loggers, and the event-key module (its keyed hash needs a secret: a stand-in of the same
+ * shape, cls = 12 hex). Children are invented "Testwala" fixtures.
  *
  * GOLDEN: with the class week off (or any parent off) the Jugnu tab is the page it was before the card existed,
  * byte for byte. The baselines in __goldens__/teacher-class-week-off.json were written by THIS test from the code
@@ -21,16 +22,20 @@ jest.mock('../../../shared/services/cache/railway-redis.service', () => ({
   setNX: jest.fn(async (k, v) => { if (mockRedis.has(k)) return false; mockRedis.set(k, v); return true; }),
 }));
 jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({
-  cls: (id) => `c_${require('crypto').createHash('sha256').update(`cls|${id}`).digest('hex').slice(0, 12)}`,
-  kid: (id) => `k_${id.slice(0, 4)}`,
+  cls: (id) => require('crypto').createHash('sha256').update(`cls|${id}`).digest('hex').slice(0, 12),
+  kid: (id) => require('crypto').createHash('sha256').update(`kid|${id}`).digest('hex').slice(0, 16),
   envelope: (f) => ({ ev_v: 2, kid_v: 1, ...f }),
-}), { virtual: true });
+}));
 
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
 const { makeFake } = require('./fake-supabase');
+const { strictFrom } = require('./strict-columns');
+
+const CHECKED = ['student_lists', 'class_enrollments', 'students', 'web_quiz_challenge_runs', 'child_rungs', 'child_phone_bindings',
+  'class_links', 'challenge_passages', 'class_round_draws', 'app_settings'];
 
 const NOW = Date.parse('2026-10-15T09:30:00Z'); // term 2026-27b (1 Oct – 31 Mar, PKT)
 const TEACHER = '11111111-1111-4111-8111-111111111111';
@@ -71,10 +76,10 @@ function seed({ settings = settingsWith(), draws = [DRAW], classLinks = true } =
     child_phone_bindings: [],
     challenge_passages: [],
   };
-  if (draws) DB.class_round_draws = draws;
+  if (draws) DB.class_round_draws = draws.map((d) => ({ ...d })); // a fresh row per test: the forward stamps it
   if (classLinks) DB.class_links = [{ code: CODE, class_id: CLASS, teacher_id: TEACHER, term_code: '2026-27b', expires_at: at('2027-03-31T18:59:59Z'), revoked_at: null }];
   const fake = makeFake(DB);
-  const from = (t) => (DB[t] === undefined ? missingTable(t) : fake.from(t));
+  const from = strictFrom((t) => (DB[t] === undefined ? missingTable(t) : fake.from(t)), CHECKED);
   Object.assign(require('../../../shared/config/supabase'), { from, rpc: fake.rpc });
 }
 function missingTable(t) {
@@ -82,17 +87,22 @@ function missingTable(t) {
   return b;
 }
 
-// The class-week line is not in the copy deck yet (jg.week.forward is still to come): tests supply it under the key the page reads.
+// The copy deck's jg.week.* words, byte for byte: the page must carry exactly these.
 const WEEK = {
-  en: 'This week our class reads with Jugnu at home. Open our class link:',
-  ur: 'اس ہفتے ہماری کلاس گھر پر جگنو کے ساتھ پڑھے گی۔ ہماری کلاس کا لنک کھولیں:',
+  en: 'This week Jugnu is for everyone in our class. Open the pinned link and play at home.',
+  ur: 'اس ہفتے جگنو ہماری کلاس کے سب بچوں کے لیے ہے۔ پِن کیا ہوا لنک کھولیں اور گھر پر کھیلیں۔',
+};
+const TITLE = { en: 'Forward the week', ur: 'اس ہفتے کا پیغام فارورڈ کریں' };
+const SUB = {
+  en: 'One fixed message for the class group, with no names and no numbers. The link is added for you.',
+  ur: 'کلاس گروپ کے لیے ایک طے شدہ پیغام: نہ کوئی نام، نہ اعداد و شمار۔ لنک خود ساتھ لگ جاتا ہے۔',
 };
 let server;
 let base;
 let Token;
 let Page;
 let logEvent;
-async function boot(opts, { copy = true } = {}) {
+async function boot(opts) {
   jest.resetModules();
   process.env.INTERNAL_API_KEY = 'test-key';
   process.env.WEB_QUIZ_BASE_URL = BASE_URL;
@@ -100,7 +110,6 @@ async function boot(opts, { copy = true } = {}) {
   seed(opts);
   Token = require('../../../shared/services/quiz/teacher-report-token');
   Page = require('../../../shared/templates/teacher-jugnu.page');
-  if (copy) { Page.T.en.weekForward = WEEK.en; Page.T.ur.weekForward = WEEK.ur; }
   ({ logEvent } = require('../../../shared/utils/structured-logger'));
   const app = express();
   app.use('/api/internal/tr', require('../../../shared/routes/teacher-report-internal.routes'));
@@ -154,12 +163,29 @@ describe('GOLDEN: class week off (or any parent off) → the Jugnu tab is byte-i
 });
 
 describe('the card shows only for a drawn class inside its week window', () => {
-  test('drawn class, now inside [week_start, week_end) → the card, with the fixed line and a forward link', async () => {
+  test('every switch on, EN: the card carries the deck\'s title, sub-line and forward line, and a forward link', async () => {
     await boot();
     const h = await tab('en');
     expect(hasCard(h)).toBe(true);
-    expect(h).toContain(`/wfwd?class=${LIST}`);
-    expect(h).toContain(WEEK.en);
+    const card = (h.match(/<section class="card" id="jwk"[^>]*>[\s\S]*?<\/section>/) || [''])[0];
+    expect(card).toContain(`/wfwd?class=${LIST}`);
+    expect(card).toContain(`>${WEEK.en}<`);
+    expect(card).toContain(`>${TITLE.en}<`);
+    expect(card).toContain(`>${SUB.en}<`);
+    expect(card).toMatch(/^<section class="card" id="jwk" dir="ltr" lang="en">/);
+  });
+
+  test('every switch on, UR: the card in the deck\'s Urdu, dir="rtl" lang="ur", set in the report\'s Nastaliq stack', async () => {
+    await boot();
+    const h = await tab('ur');
+    const card = (h.match(/<section class="card" id="jwk"[^>]*>[\s\S]*?<\/section>/) || [''])[0];
+    expect(card).toMatch(/^<section class="card" id="jwk" dir="rtl" lang="ur">/);
+    expect(card).toContain(WEEK.ur);
+    expect(card).toContain(TITLE.ur);
+    expect(card).toContain(SUB.ur);
+    const { FONTS } = require('../../../shared/templates/niete-brand');
+    expect(h).toContain(`#jwk[lang="ur"]{font-family:${FONTS.bodyUrdu}`);
+    expect(h).toContain("@font-face{font-family:'NastaliqUrdu'");
   });
 
   test.each([
@@ -184,7 +210,8 @@ describe('the card shows only for a drawn class inside its week window', () => {
   });
 
   test('jg.week.forward absent from the page copy → no card (never an invented line)', async () => {
-    await boot({}, { copy: false });
+    await boot();
+    delete Page.T.en.weekForward; delete Page.T.ur.weekForward;
     expect(hasCard(await tab('en'))).toBe(false);
     expect(hasCard(await tab('ur'))).toBe(false);
     expect((await get(`/wfwd/${tok()}?class=${LIST}`)).status).toBe(404);
@@ -227,27 +254,52 @@ describe('events', () => {
     expect(v).toBe(2);
     expect(kv).toBe(1);
     expect(Object.keys(fields).sort()).toEqual(['cls', 'term', 'w']);
-    expect(fields).toEqual({ w: 's', cls: expect.stringMatching(/^c_[0-9a-f]{12}$/), term: '2026-27b' });
+    expect(fields).toEqual({ w: 's', cls: expect.stringMatching(/^[0-9a-f]{12}$/), term: '2026-27b' });
     expect(JSON.stringify(ev[0])).not.toContain(CLASS);
     expect(JSON.stringify(ev[0])).not.toContain(CODE);
   });
 
-  test('sample_window once per class per window: the first view emits it, a second view (even a fresh process) does not', async () => {
+  test('a card view writes no sample_window (the daily job is its one writer)', async () => {
     await boot();
-    await tab('en');
-    await tab('ur');
-    let ev = eventsNamed('sample_window');
-    expect(ev).toHaveLength(1);
-    expect(ev[0]).toEqual({ ev_v: 2, kid_v: 1, w: 's', arm: 'class_week', unit: 'class', opens_at: DRAW.week_start, closes_at: DRAW.week_end, cls: expect.stringMatching(/^c_[0-9a-f]{12}$/) });
-    await new Promise((r) => server.close(r)); server = null;
+    expect(hasCard(await tab('en'))).toBe(true);
+    expect(hasCard(await tab('ur'))).toBe(true);
+    expect(eventsNamed('sample_window')).toEqual([]);
+    expect(logEvent.mock.calls.map(([n]) => n)).not.toContain('web_quiz.sample_window');
+  });
+
+  test('class_week_forwarded once per class per window: two taps → two redirects, one event, week_forwarded_at set once', async () => {
     await boot();
-    await tab('en');
-    ev = eventsNamed('sample_window');
-    expect(ev).toHaveLength(0);
+    expect(await forwardText('en')).toBe(`${WEEK.en} ${BASE_URL}/j/${CODE}`);
+    const stamped = DB.class_round_draws[0].week_forwarded_at;
+    expect(typeof stamped).toBe('string');
+    expect(await forwardText('ur')).toBe(`${WEEK.ur} ${BASE_URL}/j/${CODE}`);
+    expect(eventsNamed('class_week_forwarded')).toHaveLength(1);
+    expect(DB.class_round_draws[0].week_forwarded_at).toBe(stamped);
+  });
+
+  test('already forwarded this window (a row stamped earlier) → the redirect, no event', async () => {
+    await boot({ draws: [{ ...DRAW, week_forwarded_at: at('2026-10-13T08:00:00Z') }] });
+    expect(await forwardText('en')).toBe(`${WEEK.en} ${BASE_URL}/j/${CODE}`);
+    expect(eventsNamed('class_week_forwarded')).toEqual([]);
+  });
+
+  test('week_forwarded_at missing on this environment (42703 on the update) → the redirect still works, no event, one log line', async () => {
+    await boot();
+    const sb = require('../../../shared/config/supabase');
+    const inner = sb.from;
+    const refused = { data: null, error: { code: '42703', message: 'column class_round_draws.week_forwarded_at does not exist' } };
+    const chain = new Proxy({}, { get: (_, k) => (k === 'then' ? (res) => res(refused) : () => chain) });
+    sb.from = (t) => (t === 'class_round_draws' ? new Proxy(inner(t), { get: (b, k) => (k === 'update' ? () => chain : b[k]) }) : inner(t));
+    const { logToFile } = require('../../../shared/utils/logger');
+    logToFile.mockClear();
+    expect(await forwardText('en')).toBe(`${WEEK.en} ${BASE_URL}/j/${CODE}`);
+    expect(await forwardText('en')).toBe(`${WEEK.en} ${BASE_URL}/j/${CODE}`);
+    expect(eventsNamed('class_week_forwarded')).toEqual([]);
+    expect(logToFile.mock.calls.filter(([m]) => /class week/.test(m) && /forward/.test(m))).toHaveLength(1);
   });
 
   test('the event-key module absent → the card still works, no event written', async () => {
-    jest.doMock('../../../shared/services/quiz/web-quiz-kid', () => { throw new Error("Cannot find module 'web-quiz-kid'"); }, { virtual: true });
+    jest.doMock('../../../shared/services/quiz/web-quiz-kid', () => { throw new Error("Cannot find module 'web-quiz-kid'"); });
     await boot();
     expect(hasCard(await tab('en'))).toBe(true);
     await forwardText('en');

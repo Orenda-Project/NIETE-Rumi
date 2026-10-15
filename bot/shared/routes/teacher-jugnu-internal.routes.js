@@ -48,7 +48,7 @@ async function pageExtras(req, v, lang) {
   const tab = (await tabFor(v.teacherId, listId, lang)) || { list: null, kids: [], coverage: null };
   // ── class week (web_quiz_class_week): the "Forward the week" card; null while off ──
   const week = await ClassWeek.cardForTab(tab, lang, Page.T);
-  if (week) { tab.week = week; await ClassWeek.windowShown(week); } // sample_window, once per class per window
+  if (week) tab.week = week;
   // ── end class week ──
   const queue = Page.queueReady(lang) && tab.list ? await Data.confirmQueue(v.teacherId, tab, lang) : null;
   out.view = Page.renderJugnu(tab, {

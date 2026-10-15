@@ -45,6 +45,10 @@ const T = {
     tQUndo: 'Undo',
     tQLink: "Link this class's quiz codes to the class list",
     tQSub: 'Nothing is ever deleted, and Undo is always here.',
+    // the class week card (jg.week.forward, card_title, card_sub)
+    weekForward: 'This week Jugnu is for everyone in our class. Open the pinned link and play at home.',
+    weekCardTitle: 'Forward the week',
+    weekCardSub: 'One fixed message for the class group, with no names and no numbers. The link is added for you.',
     rungR1: 'Starting a story',
     rungR2: 'Reading a short story',
     rungR3: 'Understanding a short story',
@@ -78,6 +82,10 @@ const T = {
     tQUndo: 'واپس لیں',
     tQLink: 'اس کلاس کے کوئز کوڈ کلاس کی فہرست سے جوڑیں',
     tQSub: 'اس سے کبھی کچھ نہیں مٹتا، اور «واپس لیں» ہمیشہ یہیں ہے۔',
+    // the class week card (jg.week.forward, card_title, card_sub)
+    weekForward: 'اس ہفتے جگنو ہماری کلاس کے سب بچوں کے لیے ہے۔ پِن کیا ہوا لنک کھولیں اور گھر پر کھیلیں۔',
+    weekCardTitle: 'اس ہفتے کا پیغام فارورڈ کریں',
+    weekCardSub: 'کلاس گروپ کے لیے ایک طے شدہ پیغام: نہ کوئی نام، نہ اعداد و شمار۔ لنک خود ساتھ لگ جاتا ہے۔',
     rungR1: 'کہانی شروع کرنا',
     rungR2: 'چھوٹی کہانی پڑھنا',
     rungR3: 'چھوٹی کہانی سمجھنا',
@@ -208,7 +216,9 @@ ${topBar({ C, L, langHref: here([['lang', C.switchLang]]), print: false })}
   }
 
   // ── class week (web_quiz_class_week): drawn only when the route attached a card ──
-  const week = tab && tab.week ? WeekCard.renderWeekCard(tab.week, { L, label: S.tFwdBtn, href: `${base}/wfwd${qs([['class', listId], ['lang', lang]])}` }) : '';
+  const week = tab && tab.week ? WeekCard.renderWeekCard(tab.week, {
+    L, lang, title: S.weekCardTitle, sub: S.weekCardSub, label: S.tFwdBtn, href: `${base}/wfwd${qs([['class', listId], ['lang', lang]])}`,
+  }) : '';
   // ── end class week ──
   const main = `<div style="height:16px"></div>${failed}<section class="card"><p class="muted small">${L(S.tSort)}</p><ul class="jl">${rows}</ul></section>
 ${queueHtml}${week}<section class="card"><p class="muted small">${L(S.tPractice)}</p>${fwd}

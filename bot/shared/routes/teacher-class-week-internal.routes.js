@@ -3,9 +3,11 @@
  * The class week card's forward on /api/internal/tr (switch web_quiz_class_week; the card lives on the Jugnu
  * tab, so web_quiz_teacher_jugnu must be on too). Mounted by teacher-jugnu-internal.routes' attach().
  *
- *   GET /wfwd/:token?class=&lang=   302 → wa.me/?text=<jg.week.forward> <the class link>, and
- *                                   class_week_forwarded{cls, term}; 404 when off, when the class is not
- *                                   drawn, outside its week window, has no live link, or the line is absent.
+ *   GET /wfwd/:token?class=&lang=   302 → wa.me/?text=<jg.week.forward> <the class link> on every tap; the
+ *                                   first tap of the class's week stamps class_round_draws.week_forwarded_at
+ *                                   and writes class_week_forwarded{cls, term} (once per class per window);
+ *                                   404 when off, when the class is not drawn, outside its week window, has
+ *                                   no live link, or the line is absent.
  *
  * WHO is asking comes from the signed token; the class list must be the teacher's own (jugnuTab picks
  * from the teacher's lists only). 0 messages: the teacher forwards from their own phone.
@@ -35,10 +37,10 @@ function attach(router, { authorise, handle, notFound, noStore, languageFor }) {
     const T = require('../templates/teacher-jugnu.page').T; // eslint-disable-line global-require
     const card = tab && tab.list && tab.list.id === listId ? await cardForTab(tab, lang, T) : null;
     if (!card) { notFound(req, res, v); return; }
-    Week.forwarded(card);
+    if (await Week.markForwarded(card)) Week.forwarded(card); // once per class per window
     noStore(res);
     res.redirect(302, `https://wa.me/?text=${encodeURIComponent(card.text)}`);
   }));
 }
 
-module.exports = { attach, cardForTab, windowShown: Week.windowShown };
+module.exports = { attach, cardForTab };

@@ -5,21 +5,23 @@
  * (web-quiz-class-week-flags; parents web_quiz_class_round, web_quiz_class_link, web_quiz_challenge_v2,
  * web_quiz_challenge).
  *
- *   cardFor({ list, names, lang, T, now })  null, or { text, line, termCode, opensAt, closesAt, classId } when
+ *   cardFor({ list, names, lang, T, now })  null, or { text, line, termCode, round, opensAt, closesAt, classId } when
  *       the class has a class_round_draws row for the current term_code with week_start <= now < week_end,
  *       a live class_links row for that term, and the page copy has jg.week.forward (T.<lang>.weekForward).
  *   forwardLine(line, url, names)           the ONE fixed line + the class link, or null when the line carries
  *       a digit, a class first name or a word that marks a child out (en or ur). Never invents a line.
- *   windowShown(card)                       sample_window{arm:'class_week', unit:'class', opens_at, closes_at, cls},
- *       once per class per window (Redis SET NX until the window closes, and a per-process set).
- *   forwarded(card)                         class_week_forwarded{cls, term}.
+ *   markForwarded(card, now)                the first forward of the class's week: stamps class_round_draws
+ *       .week_forwarded_at where it is still null; true only when this call stamped the row.
+ *   forwarded(card)                         class_week_forwarded{cls, term} (the route calls it only when
+ *       markForwarded stamped the row: once per class per window).
  *
- * Reads only (class_round_draws, class_links), defensively: a missing table or column → no card, one
- * logToFile line. No message is sent, no ledger row, no DB write. Events carry w:'s', the keyed class hash
- * and the term — never a phone, a name, a class id or the link code; through web-quiz-kid's envelope,
+ * The card writes no sample_window: the daily job is that event's one writer.
+ * Reads class_round_draws and class_links defensively: a missing table or column → no card, one logToFile
+ * line. The one write is week_forwarded_at; if it fails (column or table absent) the forward still works,
+ * with no event and one log line. No message is sent, no ledger row. Events carry w:'s', the keyed class
+ * hash and the term — never a phone, a name, a class id or the link code; through web-quiz-kid's envelope,
  * required lazily (absent → no event).
  */
-const crypto = require('crypto');
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
@@ -60,7 +62,7 @@ function termOf(now = Date.now()) {
 /** The class's week window this term, when it is open now; else null. */
 async function openWeek(classId, termCode, now) {
   const draws = await rowsOr('class_round_draws', supabase.from('class_round_draws')
-    .select('class_id, term_code, week_start, week_end').eq('class_id', classId).eq('term_code', termCode));
+    .select('round, class_id, term_code, week_start, week_end').eq('class_id', classId).eq('term_code', termCode));
   if (!draws) return null;
   const d = draws.find((r) => r.class_id === classId && r.term_code === termCode);
   if (!d) return null;
@@ -71,7 +73,7 @@ async function openWeek(classId, termCode, now) {
     return null;
   }
   if (!(from <= now && now < to)) return null;
-  return { opensAt: new Date(from).toISOString(), closesAt: new Date(to).toISOString() };
+  return { round: d.round || null, opensAt: new Date(from).toISOString(), closesAt: new Date(to).toISOString() };
 }
 
 /** The class's live standing link code for the term, or null. */
@@ -136,23 +138,25 @@ function emit(name, fields, classId) {
   }
 }
 
-const shownHere = new Set();
-/** sample_window once per class per window. */
-async function windowShown(card) {
-  if (!card) return;
-  const key = `wq:cw:sw:${crypto.createHash('sha256').update(`${card.classId}|${card.termCode}|${card.opensAt}`).digest('hex').slice(0, 32)}`;
-  if (shownHere.has(key)) return;
-  shownHere.add(key);
-  let first = true;
+let warnedStamp = false;
+/**
+ * Stamp the class's week as forwarded, once: update class_round_draws set week_forwarded_at = now where round = …
+ * and week_forwarded_at is null. → true only when this call changed the row. A failed write (the column or the
+ * table absent on this environment) → false and one log line; the caller's redirect does not depend on it.
+ */
+async function markForwarded(card, now = Date.now()) {
+  if (!card || !card.round) return false;
   try {
-    const redis = require('../cache/railway-redis.service'); // eslint-disable-line global-require
-    const ttl = Math.max(60, Math.ceil((Date.parse(card.closesAt) - Date.now()) / 1000));
-    first = await redis.setNX(key, '1', ttl);
+    const patch = {};
+    patch.week_forwarded_at = new Date(now).toISOString();
+    const { data, error } = await supabase.from('class_round_draws').update(patch)
+      .eq('round', card.round).is('week_forwarded_at', null).select('round');
+    if (error) throw new Error(error.message || 'update failed');
+    return Array.isArray(data) && data.length > 0;
   } catch (err) {
-    logToFile('⚠️ class week: window de-dup unavailable — this process only', { error: err.message });
+    if (!warnedStamp) { warnedStamp = true; logToFile('⚠️ class week: the forward was not stamped — no event written', { error: err.message }, 'warn'); }
+    return false;
   }
-  if (!first) return;
-  emit('sample_window', { arm: 'class_week', unit: 'class', opens_at: card.opensAt, closes_at: card.closesAt }, card.classId);
 }
 
 function forwarded(card) {
@@ -160,5 +164,5 @@ function forwarded(card) {
 }
 
 module.exports = {
-  cardFor, forwardLine, windowShown, forwarded, termOf, MARKED, _resetWarnings: () => { warned.clear(); shownHere.clear(); warnedNoKid = false; },
+  cardFor, forwardLine, markForwarded, forwarded, termOf, MARKED, _resetWarnings: () => { warned.clear(); warnedNoKid = false; warnedStamp = false; },
 };
