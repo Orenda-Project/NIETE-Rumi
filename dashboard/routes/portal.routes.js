@@ -2745,6 +2745,12 @@ function assessmentFailure(res, error, fallback) {
 }
 
 /**
+ * The soft per-teacher limit on making papers (10 an hour, 30 a day): 429 RATE_LIMITED with retryAt.
+ * A no-op unless assessment_rate_limit_enabled is on; a failed count never blocks (the lib fails open).
+ */
+const assessmentRateLimit = AssessmentRateLimit.middleware({ supabase, dbQuery });
+
+/**
  * GET /api/portal/assessment/options?grade=4&subject=science
  * → { success, grades, subjects?, types?, maxQuestions, defaultQuestions }
  *
@@ -2791,12 +2797,9 @@ router.get('/assessment/chapters', requirePortalAuth, async (req, res) => {
  * 202 because the paper does not exist yet — generation is a queued job of
  * about a minute and the page polls /status.
  */
-router.post('/assessment/generate', requirePortalAuth, async (req, res) => {
+router.post('/assessment/generate', requirePortalAuth, assessmentRateLimit, async (req, res) => {
   try {
     const body = req.body || {};
-    // The soft per-teacher limit; off unless assessment_rate_limit_enabled is on.
-    const limited = await AssessmentRateLimit.guard({ supabase, dbQuery, userId: req.session.portalUserId });
-    if (limited) return res.status(429).json(limited);
     const { requestId } = await Assessment.create({
       // Never from the body. The session is the only thing that says who she is.
       userId: req.session.portalUserId,
