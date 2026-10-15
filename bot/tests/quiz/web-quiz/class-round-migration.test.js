@@ -133,6 +133,8 @@ d('class_round_draws and class_round_lines_v on a real Postgres', () => {
     ]);
     expect(rows[0]).toMatchObject({ school_id: SCHOOL, class_id: CLS(1), term_code: '2026-27b', N_h: 10, n_h: 3, p_incl: 0.3, weights_version: 'cr-2026-27b.1',
       plan_sha256: PLAN, order_arm: 'round_first', position_aggregates: agg, roster_k: 30 });
+    // windows as Pakistan days, both ends inclusive: [18 Jan 00:00, 15 Feb 00:00) PKT is 18 Jan to 14 Feb
+    expect(rows[0]).toMatchObject({ window_start: '2027-01-18', window_end: '2027-02-14', week_start: '2027-03-08', week_end: '2027-03-14' });
     // the view carries no state jsonb, no child id, no name
     expect(JSON.stringify(rows)).not.toMatch(/"order"|"id":"a"/);
   });
