@@ -39,6 +39,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const { makeFake } = require('./fake-supabase');
+const { guardColumns } = require('./registry-columns');   // a select naming a column the table lacks is 42703
 const supabase = require('../../../shared/config/supabase');
 const r2 = require('../../../shared/storage/r2');
 const AudioService = require('../../../shared/services/audio.service');
@@ -114,7 +115,7 @@ beforeEach(() => {
     challenge_passages: REGISTRY(),
     challenge_draws: [],
   };
-  Object.assign(supabase, makeFake(db));
+  Object.assign(supabase, guardColumns(makeFake(db)));
   Ch.__reset();
   jest.clearAllMocks();
   r2.headObject.mockImplementation(async () => ({ exists: true, sizeBytes: 400000, contentType: 'audio/webm' }));

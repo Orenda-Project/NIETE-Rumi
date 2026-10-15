@@ -345,34 +345,43 @@ async function fixedGradeOf(canonicalId, visitGrade) {
 const ROW_COLS = 'id, student_id, exercise, grade, form, lang, status, score, meta, mode, via, period_id, passage_id, item_set_id, anchor_block, record, created_at';
 
 /** The canonical child's run rows (by canonical_id, and by the raw ids for rows written before it), oldest first. */
-async function childRows(canonicalId, studentIds = []) {
+async function childRows(canonicalId, studentIds = [], { step = 's' } = {}) {
   const ids = [...new Set([canonicalId, ...studentIds].filter(Boolean).map(String))];
   const [a, b] = await Promise.all([
     supabase.from('web_quiz_challenge_runs').select(ROW_COLS).eq('canonical_id', canonicalId).limit(5000),
     supabase.from('web_quiz_challenge_runs').select(ROW_COLS).in('student_id', ids).limit(5000),
   ]);
   const err = a.error || b.error;
+  // a provenance column missing on this tier (42703): fail closed, the caller serves nothing (readFailed)
+  if (err && err.code === '42703') {
+    logError('web_quiz.ch_runs_read_failed', { code: err.code, step, w: 's' });
+    return Object.assign([], { readFailed: true });
+  }
   if (err) logError('web_quiz.ch_rows_read_failed', { missing: isMissingTable(err), code: err.code || null });
   const byId = new Map();
   for (const r of [...((a && a.data) || []), ...((b && b.data) || [])]) byId.set(r.id, r);
   return [...byId.values()].sort((x, y) => String(x.created_at || '').localeCompare(String(y.created_at || '')));
 }
 
+// The failed draw-log write's log fields, built apart from logDraw's insert (an object literal after that insert reads
+// to the column gate as challenge_draws columns).
+const drawLogFailure = (code, message) => ({ code: code || null, error: String(message || '').slice(0, 160) });
+
 /** One challenge_draws row; never throws (the run row's meta.draw is the second copy). */
 async function logDraw(row) {
   try {
     const { error } = await supabase.from('challenge_draws').insert(row);
     if (!error) return true;
-    logError('web_quiz.ch_draw_log_failed', { code: error.code || null, error: String(error.message || '').slice(0, 160) });
+    logError('web_quiz.ch_draw_log_failed', drawLogFailure(error.code, error.message));
   } catch (e) {
-    logError('web_quiz.ch_draw_log_failed', { code: null, error: String(e && e.message || e).slice(0, 160) });
+    logError('web_quiz.ch_draw_log_failed', drawLogFailure(null, e && e.message || e));
   }
   return false;
 }
 
 /** trailState from the canonical child's rows (the menu's `done` under web_quiz_challenge_period uses this). */
 async function trailStateFor(canonicalId, periodId, studentIds = []) {
-  return trailState(await childRows(canonicalId, studentIds), periodId);
+  return trailState(await childRows(canonicalId, studentIds, { step: 'm' }), periodId);
 }
 
 /**
