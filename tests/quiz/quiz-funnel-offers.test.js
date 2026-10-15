@@ -157,7 +157,7 @@ describe('the coaching offer (transcript stream)', () => {
 // ── the afternoon lesson-plan offer ─────────────────────────────────────────
 
 const lesson = (over = {}) => ({
-  lesson_id: 'grade_4_urdu_ch2_seg1', asset_id: 'asset-1', version_stamp: 'v8.2026-09-01', content_hash: 'hash-a',
+  lesson_id: 'grade_4_urdu_ch5_seg1', asset_id: 'asset-1', version_stamp: 'v8.2026-09-01', content_hash: 'hash-a',
   delivered_at: pkt(NUDGE_DATE, 9, 30).toISOString(), topic: 'Pyasa Kawwa', ...over,
 });
 const klass = (over = {}) => ({ key: 'g4_urdu', grade: 4, subject: 'urdu', lessons: [lesson()], ...over });

@@ -48,6 +48,7 @@ const Catalog = require('../lp-v8-catalog.service');
 const SourceStore = require('../quiz/lp-asset-source.store');
 const AppOpens = require('../quiz/lp-app-opens.store');
 const { LP_V8 } = require('../quiz/quiz-sources');
+const ReligiousHold = require('../quiz/lp-religious-hold');
 const Funnel = require('../quiz/quiz-funnel');
 const LessonClaim = require('../quiz/lp-lesson-claim');
 const QuizMenuFlags = require('../quiz/quiz-menu-flags');
@@ -87,6 +88,9 @@ const SKIP_REASONS_USED = [
   // Build time only: lessons were taken, but none has a slide script for the
   // exact version served, so no quiz can be made (the /quiz source rule).
   'no_quiz_source',
+  // Build time only: every lesson taken is in a subject held out of
+  // machine-written quizzes until its religious review (quiz/lp-religious-hold).
+  'religious_review_pending',
   'coaching_yes_today',
   'coached_today',
   'offered_today',
@@ -469,8 +473,21 @@ async function buildCohort({ nudgeDate, now }) {
   }
 
   const lessonAssets = await lessonAssetIds(downloads.map((r) => r.asset_id));
-  const lessons = downloads.filter((r) => lessonAssets.has(r.asset_id)
+  const planned = downloads.filter((r) => lessonAssets.has(r.asset_id)
     && !String(r.lesson_id || '').endsWith(ASSESSMENT_SUFFIX));
+  // A held subject (Islamiyat, until its religious review) is never offered. A
+  // teacher whose every lesson was held is skipped under that reason, so the
+  // funnel can tell the hold from a teacher with no lesson.
+  const held = planned.filter((r) => ReligiousHold.isHeldLesson(r));
+  const lessons = planned.filter((r) => !ReligiousHold.isHeldLesson(r));
+  const heldOnly = new Set(held.map((r) => r.user_id));
+  lessons.forEach((r) => heldOnly.delete(r.user_id));
+  if (held.length) {
+    logEvent('lp_quiz.lesson_held', {
+      nudgeDate, reason: ReligiousHold.HELD_REASON, at: 'cohort',
+      lessons: held.length, teachers: new Set(held.map((r) => r.user_id)).size,
+    });
+  }
   // The same exact-version source check /quiz uses: a lesson whose served
   // version has no slide script cannot be made into a quiz, so it is never
   // offered. A teacher left with none is skipped as `no_quiz_source`, not
@@ -522,7 +539,9 @@ async function buildCohort({ nudgeDate, now }) {
       coachedToday: coached.has(userId),
       offeredToday: offered.has(userId),
     });
-    const reason = check === 'no_lesson' && noQuizSource.has(userId) ? 'no_quiz_source' : check;
+    let reason = check;
+    if (check === 'no_lesson' && noQuizSource.has(userId)) reason = 'no_quiz_source';
+    else if (check === 'no_lesson' && heldOnly.has(userId)) reason = ReligiousHold.HELD_REASON;
 
     // eslint-disable-next-line no-await-in-loop
     const { row, created } = await Store.schedule({
@@ -950,6 +969,16 @@ async function accept(nudgeId, key, from, user, at) {
       nudge_id: nudgeId, teacher_id: user && user.id, source: QUIZ_SOURCE, channel: 'lp_offer', choice: 'expired',
     });
     await reply(from, 'lpQuizExpired', language);
+    return true;
+  }
+
+  // A class in a held subject makes no quiz, whenever the offer naming it was
+  // built. The offer stays open, so another class on the same list can be picked.
+  if (cls.lessons.some((l) => ReligiousHold.isHeldLesson({ subject: cls.subject, lesson_id: l.lesson_id }))) {
+    logEvent('lp_quiz.lesson_held', {
+      nudgeId, userId: row.user_id, class: cls.key, reason: ReligiousHold.HELD_REASON, at: 'tap',
+    });
+    await reply(from, 'tqLpLessonUnavailable', language);
     return true;
   }
 
