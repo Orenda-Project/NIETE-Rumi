@@ -167,13 +167,18 @@ describe('the queued render — its own request row gains the lifecycle columns'
     expect(row).not.toHaveProperty('delivered_at');
   });
 
-  test('markFailed: OFF the old update; ON it adds GENERATION_FAILED', async () => {
-    const id = await enqueue();
-    await LessonPlanQueueService.markFailed(id, 'gamma 403');
-    expect(rows('lesson_plan_requests')[0]).not.toHaveProperty('error_code');
+  test('markFailed: OFF the old update; ON it adds GENERATION_FAILED to a row the path recorded, and only to one', async () => {
+    const byId = (id) => rows('lesson_plan_requests').find((r) => r.id === id);
+    const offId = await enqueue();
+    await LessonPlanQueueService.markFailed(offId, 'gamma 403');
+    expect(byId(offId)).not.toHaveProperty('error_code');
     process.env.LP_LIFECYCLE_PATHS = 'niete_grounded';
-    await LessonPlanQueueService.markFailed(id, 'gamma 403');
-    expect(rows('lesson_plan_requests')[0]).toEqual(expect.objectContaining({ status: 'failed', error_code: 'GENERATION_FAILED' }));
+    const onId = await enqueue();
+    await LessonPlanQueueService.markFailed(onId, 'gamma 403');
+    expect(byId(onId)).toEqual(expect.objectContaining({ status: 'failed', error_code: 'GENERATION_FAILED' }));
+    // a row asked while the path was off has no source: switched on now, it is still updated as before
+    await LessonPlanQueueService.markFailed(offId, 'gamma 403');
+    expect(byId(offId)).not.toHaveProperty('error_code');
   });
 });
 
