@@ -138,7 +138,9 @@ function holdForm(action, label) {
 }
 
 // The teacher's screen only: an absent or declined child stays in place, struck (never on a child's screen).
-const TEACHER_CSS = 'li.absent .nm,li.declined .nm{text-decoration:line-through;color:var(--muted);font-weight:400}li.absent,li.declined{background:transparent;border-style:dashed}.row-acts{display:flex;gap:6px}';
+// In Urdu a line through Nastaliq hides the name's dots, so the name is dimmed there instead of struck.
+const TEACHER_CSS = 'li.absent .nm,li.declined .nm{text-decoration:line-through;color:var(--muted);font-weight:400}li.absent,li.declined{background:transparent;border-style:dashed}.row-acts{display:flex;gap:6px}'
+  + 'body[lang=ur] li.absent .nm,body[lang=ur] li.declined .nm{text-decoration:none;opacity:.55}';
 
 function shell({ lang, title, body, script, css = '' }) {
   const l = langOf(lang);
