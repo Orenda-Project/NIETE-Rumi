@@ -258,6 +258,47 @@
                 "description": "Books, the board, charts, cards or objects."
               },
               {
+                "type": "If",
+                "condition": "${form.p1_materials} != 'none'",
+                "then": [
+                  {
+                    "type": "If",
+                    "condition": "${form.p1_materials} != 'nofit'",
+                    "then": [
+                      {
+                        "type": "CheckboxGroup",
+                        "name": "p1_used",
+                        "label": "What was used?",
+                        "description": "Tick everything used.",
+                        "required": true,
+                        "data-source": [
+                          {
+                            "id": "book",
+                            "title": "Textbook or board"
+                          },
+                          {
+                            "id": "pictures",
+                            "title": "Charts or pictures"
+                          },
+                          {
+                            "id": "objects",
+                            "title": "Objects or manipulatives",
+                            "description": "Things to hold and move: counters, blocks, sticks, cards."
+                          },
+                          {
+                            "id": "made",
+                            "title": "Materials the teacher made",
+                            "description": "Prepared or adapted by the teacher for this lesson."
+                          }
+                        ]
+                      }
+                    ],
+                    "else": []
+                  }
+                ],
+                "else": []
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "p1_change",
                 "label": "Did the class switch activity?",
@@ -338,6 +379,7 @@
                     "p1_listen": "${form.p1_listen}",
                     "p1_listen_other": "${form.p1_listen_other}",
                     "p1_materials": "${form.p1_materials}",
+                    "p1_used": "${form.p1_used}",
                     "p1_change": "${form.p1_change}",
                     "p1_change_how": "${form.p1_change_how}",
                     "p1_notes": "${form.p1_notes}"
