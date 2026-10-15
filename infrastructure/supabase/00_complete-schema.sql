@@ -7355,7 +7355,7 @@ comment on table public.message_ledger is
 
 -- message_ledger: teacher minutes (bot/database/migrations/web_quiz_message_ledger_minutes.sql)
 -- After the send ledger's table and its seven-argument function above: the eight-argument function replaces it.
-alter table if exists public.message_ledger
+alter table if exists message_ledger
   add column if not exists minutes numeric(10,2) not null default 0 check (minutes >= 0);
 
 drop function if exists public.message_ledger_add(date, text, uuid, text, text, integer, numeric);
