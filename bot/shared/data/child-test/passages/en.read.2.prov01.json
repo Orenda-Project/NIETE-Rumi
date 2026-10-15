@@ -1,0 +1,265 @@
+{
+  "passage_id": "en.read.2.prov01",
+  "lang": "en",
+  "kind": "read",
+  "band": 2,
+  "pool": "check",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "names": [
+    "Saad"
+  ],
+  "tokens": 63,
+  "sentences": 8,
+  "mean_sent_len": 7.9,
+  "max_word_len": 6,
+  "readability": 0.975,
+  "readability_list": "fed-cum-g3-2026",
+  "readability_band_above": 0.975,
+  "source_ref": "generated brief v1 (band-2 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "The Paper Boat",
+  "title_ur": null,
+  "text": "After the rain, the street was full of water. Saad put a paper boat on the water. But the boat took in water very fast. Saad looked for a strong piece of paper. He used an old card this time. The new boat did not take in water. It went to the end of the street. Saad was very happy with his boat.",
+  "lines": [
+    [
+      0,
+      8
+    ],
+    [
+      9,
+      16
+    ],
+    [
+      17,
+      24
+    ],
+    [
+      25,
+      32
+    ],
+    [
+      33,
+      39
+    ],
+    [
+      40,
+      47
+    ],
+    [
+      48,
+      55
+    ],
+    [
+      56,
+      62
+    ]
+  ],
+  "tokens_list": [
+    "After",
+    "the",
+    "rain",
+    "the",
+    "street",
+    "was",
+    "full",
+    "of",
+    "water",
+    "Saad",
+    "put",
+    "a",
+    "paper",
+    "boat",
+    "on",
+    "the",
+    "water",
+    "But",
+    "the",
+    "boat",
+    "took",
+    "in",
+    "water",
+    "very",
+    "fast",
+    "Saad",
+    "looked",
+    "for",
+    "a",
+    "strong",
+    "piece",
+    "of",
+    "paper",
+    "He",
+    "used",
+    "an",
+    "old",
+    "card",
+    "this",
+    "time",
+    "The",
+    "new",
+    "boat",
+    "did",
+    "not",
+    "take",
+    "in",
+    "water",
+    "It",
+    "went",
+    "to",
+    "the",
+    "end",
+    "of",
+    "the",
+    "street",
+    "Saad",
+    "was",
+    "very",
+    "happy",
+    "with",
+    "his",
+    "boat"
+  ],
+  "text_hash": "eb9b5905e37cc1aad712ef009a46bd96",
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What was the street full of?",
+      "right": "water",
+      "wrong": [
+        "cars",
+        "people"
+      ],
+      "accept": [
+        "water",
+        "rain water",
+        "rain"
+      ],
+      "reject": [
+        "cars",
+        "people"
+      ],
+      "rubric": "Right if the child says water (or rain water / rain)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "When was the street full of water?",
+      "right": "after the rain",
+      "wrong": [
+        "after lunch",
+        "after school"
+      ],
+      "accept": [
+        "after the rain",
+        "after rain"
+      ],
+      "reject": [
+        "after lunch",
+        "after school"
+      ],
+      "rubric": "Right if the child says after the rain (or after rain)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Saad put on the water?",
+      "right": "a paper boat",
+      "wrong": [
+        "a toy car",
+        "a ball"
+      ],
+      "accept": [
+        "a paper boat",
+        "a boat",
+        "boat"
+      ],
+      "reject": [
+        "a toy car",
+        "a ball"
+      ],
+      "rubric": "Right if the child says a paper boat (or a boat / boat)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What went wrong with the first boat?",
+      "right": "it took in water",
+      "wrong": [
+        "it was lost",
+        "it went too far"
+      ],
+      "accept": [
+        "it took in water",
+        "water got in",
+        "it got wet"
+      ],
+      "reject": [
+        "it was lost",
+        "it went too far"
+      ],
+      "rubric": "Right if the child says it took in water (or water got in / it got wet)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Saad use for the new boat?",
+      "right": "an old card",
+      "wrong": [
+        "a big leaf",
+        "a plastic bag"
+      ],
+      "accept": [
+        "an old card",
+        "a card",
+        "card"
+      ],
+      "reject": [
+        "a big leaf",
+        "a plastic bag"
+      ],
+      "rubric": "Right if the child says an old card (or a card / card)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 8,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "Why was Saad happy at the end?",
+      "right": "the new boat did well",
+      "wrong": [
+        "the rain was over",
+        "he got a new toy"
+      ],
+      "accept": [
+        "the new boat did well",
+        "the boat did not take in water",
+        "his boat went to the end of the street"
+      ],
+      "reject": [
+        "the rain was over",
+        "he got a new toy"
+      ],
+      "rubric": "Right if the child says the new boat did well (or the boat did not take in water / his boat went to the end of the street)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}

@@ -1,0 +1,39 @@
+{
+  "passage_id": "en.read.2.setA",
+  "lang": "en",
+  "kind": "read",
+  "band": 2,
+  "pool": "check",
+  "is_reference": true,
+  "names": [
+    "Imran"
+  ],
+  "v3_ref": {
+    "lang": "en",
+    "kind": "story"
+  },
+  "questions_extra": [
+    {
+      "id": "q7",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "When was the class planting trees?",
+      "right": "today",
+      "wrong": [
+        "yesterday",
+        "tomorrow"
+      ],
+      "accept": [
+        "today"
+      ],
+      "reject": [
+        "yesterday",
+        "tomorrow",
+        "last week"
+      ],
+      "rubric": "Right if the child says today (the second line: \"Today his class was planting trees.\")."
+    }
+  ],
+  "bank_version": "child-test-items-v3"
+}

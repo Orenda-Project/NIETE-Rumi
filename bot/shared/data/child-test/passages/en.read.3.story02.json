@@ -1,0 +1,265 @@
+{
+  "passage_id": "en.read.3.story02",
+  "lang": "en",
+  "kind": "read",
+  "band": 3,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "names": [
+    "Faraz"
+  ],
+  "tokens": 62,
+  "sentences": 8,
+  "mean_sent_len": 7.8,
+  "max_word_len": 7,
+  "readability": 1,
+  "readability_list": "fed-cum-g5-2026",
+  "readability_band_above": null,
+  "source_ref": "generated brief v1 (band-3 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "The Bag of Coins",
+  "title_ur": null,
+  "text": "Faraz found a small bag of coins near his school. He looked around, but no one was there. Faraz did not keep the bag. He gave it to his teacher. The next morning, a young woman walked into the class. She was looking for her lost coins. The teacher gave the bag back to her. The woman was very happy with Faraz.",
+  "lines": [
+    [
+      0,
+      9
+    ],
+    [
+      10,
+      17
+    ],
+    [
+      18,
+      23
+    ],
+    [
+      24,
+      29
+    ],
+    [
+      30,
+      39
+    ],
+    [
+      40,
+      46
+    ],
+    [
+      47,
+      54
+    ],
+    [
+      55,
+      61
+    ]
+  ],
+  "tokens_list": [
+    "Faraz",
+    "found",
+    "a",
+    "small",
+    "bag",
+    "of",
+    "coins",
+    "near",
+    "his",
+    "school",
+    "He",
+    "looked",
+    "around",
+    "but",
+    "no",
+    "one",
+    "was",
+    "there",
+    "Faraz",
+    "did",
+    "not",
+    "keep",
+    "the",
+    "bag",
+    "He",
+    "gave",
+    "it",
+    "to",
+    "his",
+    "teacher",
+    "The",
+    "next",
+    "morning",
+    "a",
+    "young",
+    "woman",
+    "walked",
+    "into",
+    "the",
+    "class",
+    "She",
+    "was",
+    "looking",
+    "for",
+    "her",
+    "lost",
+    "coins",
+    "The",
+    "teacher",
+    "gave",
+    "the",
+    "bag",
+    "back",
+    "to",
+    "her",
+    "The",
+    "woman",
+    "was",
+    "very",
+    "happy",
+    "with",
+    "Faraz"
+  ],
+  "text_hash": "217801258caa7e17dc6aeebc58a98564",
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Faraz find?",
+      "right": "a bag of coins",
+      "wrong": [
+        "a box of pens",
+        "a pair of shoes"
+      ],
+      "accept": [
+        "a bag of coins",
+        "coins",
+        "a small bag of coins"
+      ],
+      "reject": [
+        "a box of pens",
+        "a pair of shoes"
+      ],
+      "rubric": "Right if the child says a bag of coins (or coins / a small bag of coins)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where did Faraz find it?",
+      "right": "near his school",
+      "wrong": [
+        "in the park",
+        "on a bus"
+      ],
+      "accept": [
+        "near his school",
+        "near school",
+        "by his school"
+      ],
+      "reject": [
+        "in the park",
+        "on a bus"
+      ],
+      "rubric": "Right if the child says near his school (or near school / by his school)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Who was there when Faraz looked around?",
+      "right": "no one",
+      "wrong": [
+        "his friend",
+        "a shopkeeper"
+      ],
+      "accept": [
+        "no one",
+        "nobody"
+      ],
+      "reject": [
+        "his friend",
+        "a shopkeeper"
+      ],
+      "rubric": "Right if the child says no one (or nobody)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 4,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Who did Faraz give the bag to?",
+      "right": "his teacher",
+      "wrong": [
+        "his mother",
+        "his friend"
+      ],
+      "accept": [
+        "his teacher",
+        "teacher",
+        "the teacher"
+      ],
+      "reject": [
+        "his mother",
+        "his friend"
+      ],
+      "rubric": "Right if the child says his teacher (or teacher / the teacher)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 6,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What was the young woman looking for?",
+      "right": "her lost coins",
+      "wrong": [
+        "her lost pen",
+        "her lost keys"
+      ],
+      "accept": [
+        "her lost coins",
+        "coins",
+        "her coins",
+        "her bag"
+      ],
+      "reject": [
+        "her lost pen",
+        "her lost keys"
+      ],
+      "rubric": "Right if the child says her lost coins (or coins / her coins / her bag)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 8,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "Why was the woman happy with Faraz?",
+      "right": "he gave the coins back",
+      "wrong": [
+        "he drew her a picture",
+        "he carried her bags"
+      ],
+      "accept": [
+        "he gave the coins back",
+        "he did not keep the coins",
+        "he was honest"
+      ],
+      "reject": [
+        "he drew her a picture",
+        "he carried her bags"
+      ],
+      "rubric": "Right if the child says he gave the coins back (or he did not keep the coins / he was honest)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}
