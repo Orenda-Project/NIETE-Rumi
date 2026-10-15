@@ -16,7 +16,8 @@
  *   lost_readings_draw / b<draw band>|lang  lost readings by the draw band, beside the fixed band
  *   b3_bottom_share / band|lang             attempted check readings by children on reading rung ≤ 1 at serve
  *                                           (child_rungs; a child with no reading lamp yet is on the bottom)
- *   cells_n30 / band|lang|ladder            this month's usable first exposures (self, high confidence, exposure 1)
+ *   cells_n30 / band|lang|ladder            this month's CHILDREN (distinct canonical id) with a usable check row:
+ *                                           scored, self, high confidence, record, first exposure or an anchor row
  *   anchor_retest_gap / band|lang|ex|block  (mean anchor score of returners − first-timers) ÷ pooled SD, the month
  *   no_class_first_finishes                 scored first exposures with no class
  *   kept_audio_keys                         value = runs naming a kept reading; n = kept_ok runs inside their 90 days
@@ -196,10 +197,16 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
   // ── this month's scored check runs (the month of the week's last day): cells at n = 30, the anchor retest gap ──
   const month = pktDay(new Date(Date.parse(end) - 1).toISOString()).slice(0, 7);
   const mo = await allRows(() => supabase.from(TABLE).select(COLS).eq('period_id', month).eq('mode', 'check').eq('status', 'scored'), 'month_runs');
+  // children, not rows: a child with usable self-run, high-confidence, record first exposures (or anchor rows) counts once
   const usable = new Map();
-  mo.rows.filter((r) => Number(r.exposure_no) === 1 && r.helped === 'self' && r.id_confidence === 'high')
-    .forEach((r) => count(usable, cellOf(r, r.exercise === 'read' ? 'reading' : 'numbers')));
-  for (const [c, k] of usable) put('cells_n30', c, k, k);
+  mo.rows.filter((r) => r.helped === 'self' && r.id_confidence === 'high' && r.record === true
+    && (Number(r.exposure_no) === 1 || r.anchor_block != null))
+    .forEach((r) => {
+      const c = cellOf(r, r.exercise === 'read' ? 'reading' : 'numbers');
+      if (!usable.has(c)) usable.set(c, new Set());
+      usable.get(c).add(childOf(r));
+    });
+  for (const [c, kids] of usable) put('cells_n30', c, kids.size, kids.size);
   const anchors = new Map();
   mo.rows.filter((r) => r.anchor_exposure_no != null && r.anchor_block && okOf(r) != null).forEach((r) => {
     const c = cellOf(r, r.exercise, r.anchor_block);

@@ -181,3 +181,18 @@ test('a malformed week is refused before any query', async () => {
   install([]);
   await expect(Strip.weeklyStrip({ week: '2026-42', now: NOW })).rejects.toThrow(/week/);
 });
+
+test('cells at n = 30 count CHILDREN (distinct canonical id), not rows: usable = self, high confidence, record, first exposure or an anchor row', async () => {
+  install([
+    // one child, two usable scored rows in the same cell (a passage first exposure and an anchor row) → 1 child
+    v2({ canonical_id: A, exercise: 'bigger' }),
+    v2({ canonical_id: A, exercise: 'bigger', exposure_no: 2, anchor_block: 'A1', anchor_exposure_no: 1 }),
+    // other children whose rows are not usable: helped, low confidence, not the record, a later exposure
+    v2({ canonical_id: B, exercise: 'bigger', helped: 'helped' }),
+    v2({ canonical_id: C, exercise: 'bigger', id_confidence: 'low' }),
+    v2({ canonical_id: C, exercise: 'bigger', record: false }),
+    v2({ canonical_id: B, exercise: 'bigger', exposure_no: 2 }),
+  ]);
+  await Strip.weeklyStrip({ week: WEEK, now: NOW });
+  expect(line('cells_n30', 'G23|ur|numbers')).toMatchObject({ value: 1, n: 1 });
+});
