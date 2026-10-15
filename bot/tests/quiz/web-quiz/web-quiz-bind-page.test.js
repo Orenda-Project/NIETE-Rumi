@@ -20,9 +20,9 @@ jest.mock('../../../shared/services/cache/railway-redis.service', () => {
 });
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn(), logInfo: jest.fn() }));
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
-jest.mock('../../../shared/services/quiz/web-quiz-identity-flags', () => ({ flags: jest.fn() }), { virtual: true });
-jest.mock('../../../shared/services/quiz/child-bind-codes.repo', () => ({ mint: jest.fn(), get: jest.fn() }), { virtual: true });
-jest.mock('../../../shared/services/quiz/child-phone-bindings.repo', () => ({ eraseOne: jest.fn(), activeForChild: jest.fn() }), { virtual: true });
+jest.mock('../../../shared/services/quiz/web-quiz-identity-flags', () => ({ flags: jest.fn() }));   // the module is on sandbox now: a plain mock
+jest.mock('../../../shared/services/quiz/child-bind-codes.repo', () => ({ mint: jest.fn(), get: jest.fn() }));
+jest.mock('../../../shared/services/quiz/child-phone-bindings.repo', () => ({ eraseOne: jest.fn(), activeForChild: jest.fn() }));
 // The whole roster module stays real except the two canonical-id helpers, which map every id to itself
 // (the hub reads canonicalStudentIds, this module canonicalStudentId).
 jest.mock('../../../shared/services/quiz/web-quiz-identity-roster', () => ({
