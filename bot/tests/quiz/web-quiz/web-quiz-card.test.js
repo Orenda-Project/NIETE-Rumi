@@ -231,7 +231,7 @@ describe('the allow-list carries the doors (door_shown / door_tap, NAME_PROPS)',
 });
 
 // Golden (SPEC §5.1): with the card switch off the finish payload is the base's, byte for byte. The base payload was
-// written from origin/sandbox (CARD_GOLDEN_WRITE=1) with the same seed; the random challenge code is masked.
+// written once from origin/sandbox with the same seed and is never rewritten by the test; the random challenge code is masked.
 describe('golden: the card switch off', () => {
   const FIX = path.join(__dirname, 'fixtures', 'card-finish-golden.json');
   // The challenge code is minted at random per finish: masked wherever it appears (the code and the invite picture's id).
@@ -239,7 +239,6 @@ describe('golden: the card switch off', () => {
   test('finish() payload is deep-equal to the base\'s', async () => {
     seed({ on: { web_quiz_hub: true, web_quiz_challenge: true, web_quiz_challenge_card: false, web_quiz_events_v2: true, web_quiz_hub_door: true } });
     const out = mask(await WQ.finishSession({ st: st() }));
-    if (process.env.CARD_GOLDEN_WRITE === '1') { fs.mkdirSync(path.dirname(FIX), { recursive: true }); fs.writeFileSync(FIX, JSON.stringify(out, null, 2)); }
     expect(out).toEqual(JSON.parse(fs.readFileSync(FIX, 'utf8')));
   });
 });
