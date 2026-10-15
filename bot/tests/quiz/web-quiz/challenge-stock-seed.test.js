@@ -46,7 +46,7 @@ describe('passage stock seed', () => {
   test('the Set A pointer files get no row here (the registry seed owns their reference rows)', () => {
     const pointers = fs.readdirSync(PASSAGES).filter((f) => f.endsWith('.json'))
       .map((f) => JSON.parse(fs.readFileSync(path.join(PASSAGES, f), 'utf8'))).filter((p) => p.v3_ref);
-    expect(pointers.map((p) => p.passage_id).sort()).toEqual(['en.listen.2.setA', 'en.read.2.setA']);
+    expect(pointers.map((p) => p.passage_id).sort()).toEqual(['en.listen.2.setA', 'en.read.2.setA', 'ur.listen.2.setA', 'ur.read.2.setA']);
     const sql = fs.readFileSync(SQL, 'utf8');
     for (const p of pointers) {
       expect([p.passage_id, sql.includes(`'${p.passage_id}'`)]).toEqual([p.passage_id, false]);
