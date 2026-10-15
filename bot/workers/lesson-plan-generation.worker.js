@@ -26,8 +26,8 @@ const Lifecycle = require('../shared/services/lesson-plan-lifecycle.service');
 // Temp directory for PDF downloads
 const TEMP_DIR = process.env.TEMP_DIR || '/tmp';
 
-// Max retries before sending apology
-const MAX_RETRIES = 3;
+// Attempts before the apology — the one limit the queue service and the health check share.
+const { MAX_ATTEMPTS: MAX_RETRIES } = require('../shared/config/lesson-plan-generation');
 
 /**
  * Bilingual messages for user communication
@@ -399,7 +399,7 @@ class LessonPlanGenerationWorker {
 
       const req = await LessonPlanQueueService.getRequest(requestId);
       const retryCount = (req?.retry_count || 0) + 1;
-      await LessonPlanQueueService.markFailed(requestId, error.message, error.lifecycleCode);
+      await LessonPlanQueueService.markFailed(requestId, error.message, error.lifecycleCode, { final: retryCount >= MAX_RETRIES });
 
       if (retryCount >= MAX_RETRIES) {
         try {

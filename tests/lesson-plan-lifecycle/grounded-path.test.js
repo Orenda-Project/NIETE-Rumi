@@ -303,16 +303,8 @@ describe('cache hit and pre-generated — served there and then, one finished ro
     expect(rows('lesson_plans')).toHaveLength(1);
   });
 
-  test('switched ON: a pre-generated chapter writes ONE completed pre_gen_chapter row naming the pre-gen id', async () => {
-    process.env.LP_LIFECYCLE_PATHS = 'all';
-    mockFindChapter.mockResolvedValue({ chapter_number: 4, chapter_title: 'Water' });
-    mockFindPreGen.mockResolvedValue({ id: 'pregen-9', pdf_r2_key_en: 'lps/pregen/9.en.pdf' });
-    const res = await ask();
-    expect(res.source).toBe('pre_generated');
-    expect(rows('lesson_plan_requests')[0]).toEqual(expect.objectContaining({
-      status: 'completed', source: 'pre_gen_chapter', artifact_ref: 'pregen-9', grade: 3,
-    }));
-  });
+  // The pre-generated chapter case runs the REAL lookup in pregen-artifact-ref.test.js: a mocked row
+  // here handed the handler an id the real query never selected, so artifact_ref was NULL live.
 
   test('the WhatsApp sends are identical with the switch off and on', async () => {
     mockFindByTopic.mockResolvedValue(AST);

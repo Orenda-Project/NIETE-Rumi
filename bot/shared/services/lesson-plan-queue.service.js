@@ -12,6 +12,7 @@ const { logToFile } = require('../utils/logger');
 const supabase = require('../config/supabase');
 const SQSQueueService = require('./queue');
 const Lifecycle = require('./lesson-plan-lifecycle.service');
+const { MAX_ATTEMPTS } = require('../config/lesson-plan-generation');
 
 // The lifecycle path of every request row this service writes (lesson-plan-lifecycle.service);
 // with LP_LIFECYCLE_PATHS off for it, every insert and update below is exactly the old one.
@@ -237,12 +238,16 @@ class LessonPlanQueueService {
    * @param {string} errorMessage - Error description
    * @param {string} [errorCode] - the lifecycle error code (NO_ASSET, RENDER_FAILED, …); default GENERATION_FAILED
    */
-  static async markFailed(requestId, errorMessage, errorCode) {
+  static async markFailed(requestId, errorMessage, errorCode, { final } = {}) {
     const { data: request } = await supabase
       .from('lesson_plan_requests')
       .select('retry_count')
       .eq('id', requestId)
       .single();
+    // This failure's attempt number, and whether the queue will try again. The caller knows when a
+    // failure is the last one (a dropped job is final on its first attempt); otherwise the limit says.
+    const attempt = (request?.retry_count || 0) + 1;
+    const isFinal = typeof final === 'boolean' ? final : attempt >= MAX_ATTEMPTS;
 
     const failed = Lifecycle.queueColumns(LIFECYCLE_SOURCE, 'failed', { errorCode });
     await Lifecycle.writeWithFallback((extra) => supabase
@@ -250,7 +255,7 @@ class LessonPlanQueueService {
       .update({
         status: 'failed',
         error_message: errorMessage,
-        retry_count: (request?.retry_count || 0) + 1,
+        retry_count: attempt,
         last_retry_at: new Date().toISOString(),
         ...extra,
       })
@@ -258,7 +263,7 @@ class LessonPlanQueueService {
 
     logToFile('Lesson plan request failed', { requestId, errorMessage });
     Lifecycle.queueEvent(LIFECYCLE_SOURCE, 'lesson_plan.generation.failed', {
-      requestId, errorCode: failed.error_code || errorCode || 'GENERATION_FAILED',
+      requestId, errorCode: failed.error_code || errorCode || 'GENERATION_FAILED', attempt, final: isFinal,
     });
   }
 
