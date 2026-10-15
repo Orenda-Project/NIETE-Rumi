@@ -84,7 +84,7 @@ const LEGEND = {
     'A correct answer with no working earns the A mark(s) only (Q1(b): both marks).',
     'A method step with an arithmetic slip keeps half its M marks (round down) if the method is right; later steps that use the slipped number correctly earn full marks, including the final A.',
     '"Attempt any N": tell children to answer exactly N. If more are answered, mark all and keep the best N.',
-    'Grades (FDE p.115): A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F below 40. Pass = 40%.',
+    'Grades (FDE p.113): A+ 90–100 · A 80–89 · B 70–79 · C 60–69 · D 50–59 · E 40–49 · F below 40. Pass = 40%.',
   ],
   // needs fluent-Urdu review (all six)
   lines_ur: [
@@ -97,7 +97,7 @@ const LEGEND = {
   ],
   // The grade bands print as one left-to-right line inside an Urdu page.
   bands_line: 5,
-  bands_lead_ur: 'گریڈ (FDE ص 115)؛ پاس = 40٪', // needs fluent-Urdu review
+  bands_lead_ur: 'گریڈ (FDE ص 113)؛ پاس = 40٪', // needs fluent-Urdu review
   // The chip key, and the two lines that only mean something on a Maths scheme.
   key_line: 1,
   maths_lines: [2, 3],
