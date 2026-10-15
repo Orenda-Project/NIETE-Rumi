@@ -14,7 +14,7 @@ jest.mock('../../../shared/services/quiz/web-quiz-join-queue', () => ({
 const BINDINGS = { ['b0000000-0000-4000-8000-000000000002']: [{ id: 'e0000000-0000-4000-8000-000000000001', canonical_id: 'b0000000-0000-4000-8000-000000000002' }] };
 jest.mock('../../../shared/services/quiz/child-phone-bindings.repo', () => ({
   activeForChild: jest.fn(async (id) => BINDINGS[id] || []),
-  eraseOne: jest.fn(async (id) => [{ id, canonical_id: 'b0000000-0000-4000-8000-000000000002', phone_norm: '+920000000001' }]),
+  eraseOne: jest.fn(async (id) => [{ id, canonical_id: 'b0000000-0000-4000-8000-000000000002', phone_norm: '+92300FIXTURE1' }]),
 }));
 // EVENTS §1: kid = the per-child hash from the event key module (mocked: its keyed hash needs a secret).
 jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({ kid: jest.fn((id) => `k_${String(id).slice(-4)}`) }));
@@ -184,9 +184,9 @@ describe('after an erase: the door forgets the phone, and bind_undo is counted',
     await boot();
     await post(`/unbind/${tok()}`, { binding: BIND, class: LIST });
     expect(Identity.forgetDoorVerdict).toHaveBeenCalledTimes(1);
-    expect(Identity.forgetDoorVerdict).toHaveBeenCalledWith('+920000000001');
+    expect(Identity.forgetDoorVerdict).toHaveBeenCalledWith('+92300FIXTURE1');
     expect(undoEvents()).toEqual([['web_quiz.bind_undo', { via: 'teacher', n: 1, audio_n: 0, w: 's', kid: 'k_0002' }]]);
-    expect(JSON.stringify(Events.logEvent.mock.calls)).not.toContain('920000000001');
+    expect(JSON.stringify(Events.logEvent.mock.calls)).not.toContain('FIXTURE');
   });
 
   test('nothing erased (empty answer): no forget, no event', async () => {

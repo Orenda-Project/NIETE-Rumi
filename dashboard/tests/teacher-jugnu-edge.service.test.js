@@ -91,7 +91,7 @@ test('GET /r/:token/fwd: the bot\'s 404 (switch off, no story) stays a 404', asy
 
 test('POST /r/:token/queue: the form becomes JSON with the pair, the decision and the class only; the 303 back passes', async () => {
   await boot(() => botRes(303, { location: `/r/${TOK}?tab=jugnu&class=${LIST}` }));
-  const res = await postForm(srv, `/r/${TOK}/queue`, { loose_id: LOOSE, candidate_id: KID, decision: 'same', class: LIST, phone: '+920000000000' });
+  const res = await postForm(srv, `/r/${TOK}/queue`, { loose_id: LOOSE, candidate_id: KID, decision: 'same', class: LIST, phone: '+92300FIXTURE0' });
   expect(res.status).toBe(303);
   expect(res.headers.location).toBe(`/r/${TOK}?tab=jugnu&class=${LIST}`);
   expect(calls[0].url).toBe(`${BOT}/api/internal/tr/queue/${TOK}`);
@@ -103,7 +103,7 @@ test('POST /r/:token/queue: the form becomes JSON with the pair, the decision an
 test('POST /r/:token/unbind ("Saved on WhatsApp ✓ · Undo"): the binding id and the class only reach the bot; the 303 back passes', async () => {
   const BIND = 'e0000000-0000-4000-8000-000000000001';
   await boot(() => botRes(303, { location: `/r/${TOK}?tab=jugnu&class=${LIST}` }));
-  const res = await postForm(srv, `/r/${TOK}/unbind`, { binding: BIND, class: LIST, phone: '+920000000000', revoked_by: 'page_undo' });
+  const res = await postForm(srv, `/r/${TOK}/unbind`, { binding: BIND, class: LIST, phone: '+92300FIXTURE0', revoked_by: 'page_undo' });
   expect(res.status).toBe(303);
   expect(res.headers.location).toBe(`/r/${TOK}?tab=jugnu&class=${LIST}`);
   expect(calls[0].url).toBe(`${BOT}/api/internal/tr/unbind/${TOK}`);

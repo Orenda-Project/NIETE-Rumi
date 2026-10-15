@@ -39,7 +39,7 @@ const LIST = 'a0000000-0000-4000-8000-00000000003b';
 const CLASS = 'c1a55000-0000-4000-8000-000000000001';
 const r = (n) => `b0000000-0000-4000-8000-0000000000${String(n).padStart(2, '0')}`;
 const c = (n) => `d0000000-0000-4000-8000-0000000000${String(n).padStart(2, '0')}`;
-const P = (n) => `92000000${String(600 + n).padStart(4, '0')}`;
+const P = (n) => `+92300FIXTURE${n}`;
 const at = (iso) => new Date(Date.parse(iso)).toISOString();
 
 const SWITCHES = ['web_quiz_teacher_jugnu', 'web_quiz_challenge_v2', 'web_quiz_challenge', 'web_quiz_hub', 'web_quiz_identity_canon', 'web_quiz_class_link'];

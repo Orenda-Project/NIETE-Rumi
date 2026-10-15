@@ -277,7 +277,7 @@ describe('the tab', () => {
 
 describe('the teacher-confirm queue', () => {
   const ROWS = [
-    { loose_id: LOOSE(1), candidate_id: id(3), first: 'Ayesha', candidate_first: 'Ayesha', father_first: null, candidate_father_first: null, class_id: CLASS, grade: 3, phone: '+920000000000',
+    { loose_id: LOOSE(1), candidate_id: id(3), first: 'Ayesha', candidate_first: 'Ayesha', father_first: null, candidate_father_first: null, class_id: CLASS, grade: 3, phone: '+92300FIXTURE0',
       evidence: { tier: 'probable', name_words_matched: 2, same_grade: true, other_same_name_loose: false } },
     { loose_id: LOOSE(2), candidate_id: id(2), first: 'Bilal', candidate_first: 'Bilal', father_first: 'Kamran', candidate_father_first: null, class_id: CLASS, grade: 3,
       evidence: { tier: 'roster_unique_with_loose', name_words_matched: 1, same_grade: true, other_same_name_loose: false } },
