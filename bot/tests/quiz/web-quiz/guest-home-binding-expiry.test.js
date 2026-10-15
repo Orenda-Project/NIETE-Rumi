@@ -15,6 +15,8 @@ jest.mock('../../../shared/services/cache/railway-redis.service', () => {
     set: jest.fn(async (k, v) => { keys.set(k, v); return true; }),
     setNX: jest.fn(async (k, v) => { if (keys.has(k)) return false; keys.set(k, v); return true; }),
     delete: jest.fn(async (k) => keys.delete(k)),
+    incr: jest.fn(async (k) => { const v = (Number(keys.get(k)) || 0) + 1; keys.set(k, v); return v; }),
+    expire: jest.fn(async () => true),
     isAvailable: () => true,
   };
 });
@@ -235,6 +237,22 @@ describe('guest home (web_quiz_guest_home on)', () => {
     expect(events('web_quiz.bind_bound')).toEqual([]);
     // no loose child, no binding, no run row: the guest page that creates them is not built
     expect(writes().map((c) => c.table)).toEqual(['message_ledger']);
+  });
+
+  test('the guest reply is counted on the ledger with the phone BEFORE it is sent: a phone at its daily reply cap gets no guest reply, no row, reply_capped', async () => {
+    seed({ settings: GUEST_ON });
+    withStandInCopy();
+    const Ledger = require('../../../shared/services/quiz/message-ledger');
+    if (Ledger._resetCap) Ledger._resetCap();
+    // the phone has already had 8 replies today: the cap counter sits at 8 under its keyed hash
+    const day = Ledger.pktDay(new Date());
+    const hash = require('../../../shared/services/quiz/web-quiz-bind.service').ukeyOf(PHONE) || BindRepo.tombOf(PHONE); // the ledger's hash: the kid key when set, else the tombstone
+    redisService.__keys.set(`wq:reply_cap:${day}:${hash}`, 8);
+    expect(await say('/quiz')).toBe(true);           // handled (silence is the binder's choice), but
+    expect(sends()).toBe(0);                          // nothing sent
+    expect(fake.db.message_ledger).toEqual([]);       // nothing counted
+    expect(events('web_quiz.reply_capped')).toEqual([expect.objectContaining({ trigger: 'guest_reply', w: 's' })]);
+    expect(redisService.__keys.get(`wq:reply_cap:${day}:${hash}`)).toBe(9);
   });
 
   test('≤ 2 replies per guest: the third /quiz gets today\'s no-quizzes line, not a third guest reply', async () => {

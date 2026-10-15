@@ -50,11 +50,12 @@ async function offer(phone, language = 'en') {
     const base = require('./web-quiz-link').webBaseUrl();
     const token = T.signGuest({ phoneTomb: tomb });
     if (!base || !token) return false;
+    // Counted first, with the phone (the per-phone daily reply cap); over the cap the ledger says no and nothing is sent.
+    if (!(await Ledger.record({ trigger: 'guest_reply', phone }))) return true;
     const WhatsAppService = require('../whatsapp.service');
     const sent = await WhatsAppService.sendCtaUrl(phone, { ...words, url: `${base}/h/${token}` });
     if (!sent) { logToFile('⚠️ guest home: link send failed'); return false; }
     await redisService.set(REPLIES_KEY(tomb), replies + 1, GUEST_REPLY_WINDOW_SECS);
-    await Ledger.record({ trigger: 'guest_reply' });
     logEvent('student_quiz.opened', { how: 'guest' });
     return true;
   } catch (err) {
