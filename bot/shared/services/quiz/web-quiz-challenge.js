@@ -205,7 +205,8 @@ const ruleFlags = (rules) => ({ ...(rules.record ? { record: true } : {}), ...(r
 // `viaOf`, `notHomeAttempt` and `classWeekOn` read the v2 section's VIA map, round/practice rule and class-week key at
 // call time (they are declared further down).
 const Grade1 = require('./web-quiz-challenge-grade1').withDeps({ settingOn, insertRun: (row) => insertRun(row), fail, bank: () => childTest().Bank,
-  viaOf: (v) => VIA[v] || v || null, notHomeAttempt: (r) => notHomeAttempt(r), classWeekOn: () => settingOn(CLASS_WEEK_FLAG_KEY),
+  viaOf: (v) => VIA[v] || v || null, notHomeAttempt: (r) => notHomeAttempt(r), classWeekOn: () => classWeekOpen('class_link'),
+  canonOnForRecord: () => canonOnForRecord(),
   afterFinish: async (runId, studentId) => { await measureOutcome(runId); await renewBindings(studentId); } });
 // The one ch_start writer (every stop, the grade-1 form included): through the measurement envelope under events v2.
 async function emitChStart(startEv, run, studentId) {
@@ -294,6 +295,25 @@ function kidChip(studentId) {
 
 // ── who is playing ─────────────────────────────────────────────────────────────────────────────────────
 
+// A pick counts for this visit only: stamped (`at`, ms) within the last 30 minutes. A pick written before the store
+// stamped `at` still counts.
+const VISIT_MS = 30 * 60 * 1000;
+
+/**
+ * This visit's pick of a hub child (web-quiz-bind-page.pickFor: the chip tap on this device, VISIT_MS). The pick store is
+ * written only under web_quiz_identity_canon, so with that switch off every ?kid= is today's; the module absent → no pick.
+ */
+async function kidPickedHere(studentId, device) {
+  let B = null;
+  try { B = require('./web-quiz-bind-page'); } catch (_) { return false; }
+  // canon off: no pick store; under _v2 a row would still be written as that child (and burn an unseen passage), so a
+  // ?kid= on a token of more than one child is refused there too (the chip tap is the way in); _v2 off: today's
+  if (!(await B.canonOn())) return !(await v2On());
+  const canonicalId = (await require('./web-quiz-identity-roster').canonicalStudentId(studentId)) || studentId;
+  const pick = await B.pickFor({ canonicalId, device });
+  return Boolean(pick && (pick.at == null || Date.now() - Number(pick.at) < VISIT_MS));
+}
+
 async function entryOf(token, kid, device) {
   if (!T.secret()) fail(503, 'web_quiz_off');
   const h = T.verify(token, 'h');
@@ -304,6 +324,8 @@ async function entryOf(token, kid, device) {
     if (kid) {
       hit = ids.find((id) => kidChip(id) === kid);
       if (!hit) fail(401, 'bad_token');
+      // swap two children: with more than one remembered child, ?kid= must be the chip tapped on THIS phone
+      if (ids.length > 1 && !(await kidPickedHere(hit, device))) fail(400, 'pick_kid');
     } else if (ids.length > 1) fail(400, 'pick_kid');
     // A forwarded hub link opens nothing as the child: only the phone the link is bound to
     // (or one THIS child played on) gets their results or a run (web-quiz-hub-device deviceTrusted).
@@ -413,9 +435,17 @@ function storeFailed(runId, error) {
   logError('web_quiz.challenge_store_failed', { runId, missingTable: isMissingTable(error), error: String(error.message || '').slice(0, 200) });
 }
 
+// Every runs insert: 'stored' | 'duplicate' (23505) | 'unstored'. A record row answered 23505 (a second record of the
+// stop this period, under the record unique index) is stored as practice instead (meta.record_lost) and returns
+// 'practice': the one home of that rule (the v2 and grade-1 serves follow it).
 async function insertRun(row) {
   const { error } = await supabase.from('web_quiz_challenge_runs').insert(row);
   if (!error) return 'stored';
+  if (error.code === '23505' && row && row.record === true) {
+    const stored = await insertRun({ ...row, record: false, mode: 'practice', meta: { ...(row.meta || {}), record_lost: 'duplicate' } });
+    logEvent('web_quiz.ch_record_duplicate', { w: 's', stop: row.exercise, period_id: row.period_id || null, stored });
+    return stored === 'stored' ? 'practice' : stored;
+  }
   if (error.code === '23505') return 'duplicate';
   storeFailed(row.id, error);
   return 'unstored';
@@ -729,8 +759,13 @@ const TRAIL_ORDER = Object.freeze(['missing', 'read', 'listen', 'bigger']);
 const VIA = { hub: 'hub', quiz: 'quiz_card' };
 // meta keys written at serve that every later write of the row keeps
 const SERVED_META_KEYS = ['draw', 'grade_fixed_src', 'open_band_src', 'pick_src', 'tryout', 'anchor_serves_any', 'admin_mode', 'sample_arm'];
-// the class-week sample window (its own module and switch, another change); read only for a class-link run
+// the class-week sample window (its own module and switch, another change); read only for a class-link run, and only
+// under its parent web_quiz_class_round (SPEC §1)
 const CLASS_WEEK_FLAG_KEY = 'web_quiz_class_week';
+const CLASS_ROUND_FLAG_KEY = 'web_quiz_class_round';
+const classWeekOpen = async (via) => via === 'class_link' && (await settingOn(CLASS_WEEK_FLAG_KEY)) && (await settingOn(CLASS_ROUND_FLAG_KEY));
+// the record's parent switch: without the identity store's canon a record cannot be tied to one child (absent → off)
+const canonOnForRecord = async () => { try { return Boolean(await require('./web-quiz-bind-page').canonOn()); } catch (_) { return false; } };
 const TAP_OK = Object.freeze({ skip: Object.freeze([]) });
 const isServedRow = (row) => !!row && row.status === 'served';
 // a row served under _v2 (its serve-time meta) and the helped COLUMN written when it finishes (M6)
@@ -899,6 +934,9 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     : rows.some((r) => r.exercise === ex && r.status === 'scored' && !notHomeAttempt(r) && (ex !== 'read' || r.lang === w.lang));
   // the caller's mode: 'practice' (Story Time) or 'class_round' (the teacher's locked round); else practice when counted
   let mode = askedMode === 'class_round' ? 'class_round' : (askedMode === 'practice' || counted ? 'practice' : 'check');
+  // web_quiz_identity_canon is the record's hard parent: off, a would-be record is served as practice (the Trail still serves)
+  const recordBlocked = periodRule && mode === 'check' && !(await canonOnForRecord()) ? 'identity_canon_off' : null;
+  if (recordBlocked) mode = 'practice';
   const seed = crypto.randomBytes(16).toString('hex');
   const runId = crypto.randomUUID();
   const seen = D.seenIdsOf(rows);
@@ -964,13 +1002,13 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     p: drawLog.p, band_reason: drawLog.band_reason, weights_v: drawLog.weights_v, seed: drawLog.seed, ...(periodSet ? { period_set: periodSet } : {}),
     ...(prev2 ? { anchor_prev2: prev2 } : {}) } : null;
   const via = VIA[w.via] || w.via || null;
-  const admin = await D.adminFields({ mode, via, canonicalId, at: new Date(now), classWeekOn: via === 'class_link' && (await settingOn(CLASS_WEEK_FLAG_KEY)) });
+  const admin = await D.adminFields({ mode, via, canonicalId, at: new Date(now), classWeekOn: await classWeekOpen(via) });
   const periodId = periodRule ? periodNow : null;
   // the class at write time: the caller's (the class link), else the canonical child's active enrolment; never a share code
   const classId = (typeof askedClass === 'string' && /^[0-9a-f-]{36}$/i.test(askedClass) ? askedClass : null) || await D.activeClassOf([canonicalId, w.studentId]);
   const row = {
     id: runId, student_id: w.studentId, exercise: ex, grade: w.grade, lang: w.lang, status: 'served', created_at: nowIso(),
-    meta: { grade_fixed_src: fixed.src, open_band_src: ob.src, pick_src: pick.pick_src, ...(metaDraw ? { draw: metaDraw } : {}), ...(tryout ? { tryout: { item_id: tryout.item_id } } : {}), ...(anchorBlock ? { anchor_serves_any: servesAny } : {}), admin_mode: admin.admin_mode, sample_arm: admin.sample_arm },
+    meta: { grade_fixed_src: fixed.src, open_band_src: ob.src, pick_src: pick.pick_src, ...(metaDraw ? { draw: metaDraw } : {}), ...(tryout ? { tryout: { item_id: tryout.item_id } } : {}), ...(anchorBlock ? { anchor_serves_any: servesAny } : {}), admin_mode: admin.admin_mode, sample_arm: admin.sample_arm, ...(recordBlocked ? { record_blocked: recordBlocked } : {}) },
     bank_version: pool ? Bank.versionV4 : Bank.versionV3, set, form, passage_id: passageId, item_set_id: itemSetId, mode, period_id: periodId,
     exposure_no: exposure, band, anchor_exposure_no: anchorExp, anchor_block: anchorBlock, draw_seed: drawSeed, canonical_id: canonicalId,
     id_src: pick.id_src, id_confidence: pick.id_confidence, homonym_in_list: pick.homonym_in_list, via, share_code_id: w.shareCodeId || null,
@@ -993,10 +1031,17 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
       exposure_no: exposure, ...(anchorBlock ? { anchor_exposure_no: anchorExp, anchor_serves_any: servesAny, anchor_block: anchorBlock } : {}), record, via },
     items, tryout, story, dir, clipUrl,
     async store() {
-      const stored = await insertRun(row);
+      let stored = await insertRun(row);
+      // stored as practice by insertRun (a second record this period): what the page, the run and ch_start say follows it
+      const lost = stored === 'practice';
+      if (lost) {
+        stored = 'stored';
+        for (const o of [this.mem, this.top, this.event, RUNS.get(runId)]) if (o) Object.assign(o, { record: false, mode: 'practice' });
+        Object.assign(this.payload, { mode: 'practice', practice_round: true });
+      }
       if (drawLog) await D.logDraw({ ...drawLog, run_id: stored === 'stored' ? runId : null });
       // IDENTITY §16: the year's fixed grade at the first counted play (the visit's grade; never changed after)
-      if (record === true && mode === 'check') await D.writeChildIdentity({ canonicalId, grade: w.grade, gradeSource: w.gradeSource, now: new Date(now) });
+      if (!lost && record === true && mode === 'check') await D.writeChildIdentity({ canonicalId, grade: w.grade, gradeSource: w.gradeSource, now: new Date(now) });
     },
   };
 }
@@ -1818,3 +1863,7 @@ module.exports = {
   settingOn, warmClip, clipsLeft, MAX_CLIP_RECORDINGS, // challenge v2: the clip warm job
   __reset,
 };
+// the class-week arm's switch gate (with its parent web_quiz_class_round), read at the v2 serve
+module.exports.classWeekOpen = classWeekOpen;
+// the runs insert (and its duplicate-record rule), for its test
+module.exports.insertRun = insertRun;

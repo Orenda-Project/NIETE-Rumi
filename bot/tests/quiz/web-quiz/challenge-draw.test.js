@@ -187,9 +187,12 @@ describe('record at serve, exposure counters, the period', () => {
     expect(D.recordAtServe({ mode: 'check', outcome: 'on_its_way', countedThisPeriod: false })).toBe(false);
   });
 
-  test('counted this period: a record row of this stop in this period (any status)', () => {
-    const rows = [{ exercise: 'read', period_id: '2026-11', record: true, status: 'served' }];
+  test('counted this period: a record row of this stop in this period, unless it was served and left', () => {
+    const rows = [{ exercise: 'read', period_id: '2026-11', record: true, status: 'scored' }];
     expect(D.countedThisPeriod(rows, 'read', '2026-11')).toBe(true);
+    expect(D.countedThisPeriod([{ ...rows[0], status: 'scoring' }], 'read', '2026-11')).toBe(true);
+    expect(D.countedThisPeriod([{ ...rows[0], status: 'served' }], 'read', '2026-11')).toBe(false);
+    expect(D.countedThisPeriod([{ ...rows[0], status: 'abandoned' }], 'read', '2026-11')).toBe(false);
     expect(D.countedThisPeriod(rows, 'read', '2026-12')).toBe(false);
     expect(D.countedThisPeriod(rows, 'listen', '2026-11')).toBe(false);
   });
