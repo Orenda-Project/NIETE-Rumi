@@ -705,7 +705,8 @@ const URDU = {
     label_en: 'FDE syllabus 2026–27',
     label_ur: 'FDE نصاب 2026–27', // needs fluent-Urdu review
     line_en: 'Lessons 4–10 · grammar · 1–3 from the book',
-    line_ur: 'اسباق 4–10 · قواعد · 1–3 کتاب سے', // needs fluent-Urdu review
+    // No «·» here: the print rule keeps the dot away from Urdu digits, and this line is printed in them.
+    line_ur: 'اسباق 4–10 اور قواعد؛ اسباق 1–3 کتاب سے', // needs fluent-Urdu review
     excluded_pages_note: 'Items are set from lessons 4–10 (book pp 28–107) only; lessons 1–3 are practised from the book. The grammar FDE tests is inside these lessons\' exercises.',
   },
   sections: [
