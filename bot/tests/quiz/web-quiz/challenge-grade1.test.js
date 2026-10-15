@@ -290,11 +290,11 @@ describe('anchor_exposure_no counts counted Trails; practice never increments', 
     expect(again.row).toMatchObject({ mode: 'practice', record: false, anchor_exposure_no: 3 });
   });
 
-  test('a served row left unfinished still holds the period record', async () => {
+  test('a served row left unfinished leaves the period record open (a served-and-left row never consumes it)', async () => {
     on(V2, G1, PERIOD);
     await Ch.exercise(hub(), 'numbers', D);
     const next = await Ch.exercise(hub(), 'numbers', D);
-    expect(next).toMatchObject({ mode: 'practice', record: false, anchor_exposure_no: 2 });
+    expect(next).toMatchObject({ mode: 'check', record: true, anchor_exposure_no: 2 });
   });
 
   test('period rule off (or no period holds now): record NULL, period_id NULL, practice once a run is scored', async () => {
@@ -430,6 +430,7 @@ describe('as the v2 serve does: identity, class, light, the draw log, one event 
     db.child_identity = [];
     await Ch.exercise(hub(), 'numbers', D);
     expect(db.child_identity).toEqual([expect.objectContaining({ canonical_id: KID, year_code: Draw.yearCode(new Date(NOV)), fixed_grade: 1, grade_source: 'roster_class' })]);
+    db.web_quiz_challenge_runs.forEach((r) => { r.status = 'scored'; });   // played: a served-and-left row would leave the record open
     const again = await Ch.exercise(hub(), 'numbers', D);
     expect(again.mode).toBe('practice');
     expect(db.child_identity).toHaveLength(1);
