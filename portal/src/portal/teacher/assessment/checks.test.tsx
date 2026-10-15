@@ -13,7 +13,7 @@ import { collectCopy, copyProblem, tapProblems } from '../../newui/checks/rules'
 
 vi.mock('../../components/PortalLayout', () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 
-import { ASSESSMENT_V2_COPY } from './copy';
+import { ASSESSMENT_V2_COPY, COPY_ENTRY } from './copy';
 import routes from './routes';
 import { ASSESSMENT_V2_BASE } from './paths';
 import { NumberField } from '../ui';
@@ -36,7 +36,9 @@ describe('assessment: style', () => {
 
 describe('assessment: copy', () => {
   it('every word is a label: at most 4 words, never a sentence', () => {
-    const bad = collectCopy(ASSESSMENT_V2_COPY).filter((c) => !c.path.startsWith('why.') && copyProblem(c.text)).map((c) => `${c.path}: ${c.text}`);
+    // The reasons and the FDE hint lines are a short line each (COPY_ENTRY.longOk), not labels.
+    const longOk = (path: string) => (COPY_ENTRY.longOk ?? []).some((k) => path === k || path.startsWith(`${k}.`) || path.startsWith(`${k}(`));
+    const bad = collectCopy(ASSESSMENT_V2_COPY).filter((c) => !longOk(c.path) && copyProblem(c.text)).map((c) => `${c.path}: ${c.text}`);
     expect(bad).toEqual([]);
   });
 

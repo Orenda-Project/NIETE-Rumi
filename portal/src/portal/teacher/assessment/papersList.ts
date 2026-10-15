@@ -23,6 +23,8 @@ export function paperGroups(papers: AssessmentPaper[], C: AssessmentV2Copy, newI
         p.version != null && p.version > 1 ? C.version(p.version) : null,
       ),
       isNew: newIds.includes(p.paper_id),
+      // A board-pattern paper says so on its row (absent on every other paper, so those rows are today's).
+      ...(p.pattern ? { chip: { text: C.fdeListChip, tone: 'score' as const } } : {}),
       to: paperPath(p.paper_id),
     })),
   }));
