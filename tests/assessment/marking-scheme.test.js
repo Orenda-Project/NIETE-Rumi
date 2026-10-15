@@ -135,7 +135,7 @@ describe('normaliseScheme', () => {
     const s = first(normaliseScheme(paper('maths', [q]))).scheme;
     expect(s.points).toEqual([
       { text: 'a correct method', marks: 2, kind: 'M' },
-      { text: '327,750 + Rs.', marks: 3, kind: 'A' },
+      { text: '327,750 (Rs.)', marks: 3, kind: 'A' },
     ]);
 
     // No A to fold into: the unit becomes the answer point.

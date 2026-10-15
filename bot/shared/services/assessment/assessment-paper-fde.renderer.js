@@ -94,24 +94,64 @@ function toUrduDigits(s) {
 // A number with its own punctuation (3,462,105 · 2.5 · 4/5 · 8×5=40) kept as one atom.
 const NUMERIC_ATOM = /[0-9][0-9,.:/×x=+\-−–⁄]*[0-9]|[0-9]/g;
 
+// Lexend and Noto Nastaliq have no glyph for these, and the printing container
+// has no other font: each is drawn instead (16-unit box, stroke in the text colour).
+const SYMBOL_PATHS = {
+  '→': 'M1 8h12M9 4l4 4-4 4',
+  '←': 'M15 8H3M7 4L3 8l4 4',
+  '↑': 'M8 15V3M4 7l4-4 4 4',
+  '↓': 'M8 1v12M4 9l4 4 4-4',
+  '↔': 'M1 8h14M5 4L1 8l4 4M11 4l4 4-4 4',
+  '✓': 'M2 8.5l4 4L14 3.5',
+  '✔': 'M2 8.5l4 4L14 3.5',
+  '✗': 'M3 3l10 10M13 3L3 13',
+  '✘': 'M3 3l10 10M13 3L3 13',
+  '≤': 'M12 2L4 6l8 4M4 13h8',
+  '≥': 'M4 2l8 4-8 4M4 13h8',
+  '≠': 'M3 6h10M3 10h10M11 2L5 14',
+  '≈': 'M2 6c2-2 4-2 6 0s4 2 6 0M2 11c2-2 4-2 6 0s4 2 6 0',
+  '∠': 'M13 13H2L11 3',
+  '√': 'M1 9l2-1 3 6L10 2h5',
+  '∞': 'M8 8c-2-3-6-3-6 0s4 3 6 0 6-3 6 0-4 3-6 0',
+  'π': 'M2 4h12M6 4v9M11 4v7c0 1 1 2 2 1',
+  '∴': 'M8 3.5h.01M3.5 12.5h.01M12.5 12.5h.01',
+};
+const SYMBOLS = new RegExp(`[${Object.keys(SYMBOL_PATHS).join('')}]`, 'g');
+
+function drawSymbols(html) {
+  return html.replace(SYMBOLS, (ch) => {
+    const dots = ch === '∴';
+    return `<svg class="sym" viewBox="0 0 16 16" role="img" aria-label="${ch}"><path d="${SYMBOL_PATHS[ch]}" fill="none" stroke="currentColor" stroke-width="${dots ? 3 : 1.6}" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  });
+}
+
+const VULGAR = { '½': [1, 2], '⅓': [1, 3], '⅔': [2, 3], '¼': [1, 4], '¾': [3, 4], '⅕': [1, 5], '⅖': [2, 5], '⅗': [3, 5],
+  '⅘': [4, 5], '⅙': [1, 6], '⅚': [5, 6], '⅛': [1, 8], '⅜': [3, 8], '⅝': [5, 8], '⅞': [7, 8] };
+const VULGAR_RE = new RegExp(`[${Object.keys(VULGAR).join('')}]`, 'g');
+
 /**
- * One text node, escaped. Maths typesets fractions; an Urdu-medium paper turns
- * every number into an isolated run of Urdu digits.
+ * One text node, escaped. Fractions are typeset (maths, and any vulgar
+ * fraction anywhere); an Urdu-medium paper turns every number into an
+ * isolated run of Urdu digits; symbols no embedded font has are drawn last,
+ * so the digit rule never touches a drawing.
  */
 function textOf(value, ctx) {
   let out = esc(value);
+  out = out.replace(VULGAR_RE, (ch) => `<span class="frac"><sup>${VULGAR[ch][0]}</sup><sub>${VULGAR[ch][1]}</sub></span>`);
   if (ctx.maths) out = typesetFractions(out);
   if (ctx.medium === 'ur') {
-    out = out.replace(NUMERIC_ATOM, (m) => `<span class="num">${toUrduDigits(m)}</span>`);
+    out = out.replace(/(<[^>]*>)|([^<]+)/g, (m, tag, text) => (tag
+      ? tag : text.replace(NUMERIC_ATOM, (n) => `<span class="num">${toUrduDigits(n)}</span>`)));
   }
-  return out.replace(/\n/g, '<br>');
+  return drawSymbols(out).replace(/\n/g, '<br>');
 }
 
 // "8 2/5" → 8 + a stacked 2⁄5; "3/4" alone → a stacked fraction. Escaped input.
 function typesetFractions(html) {
   return html
-    .replace(/(^|[^\d/])(\d+) (\d+)\/(\d+)(?![\d/])/g, '$1$2<span class="frac"><sup>$3</sup>⁄<sub>$4</sub></span>')
-    .replace(/(^|[^\d/>])(\d+)\/(\d+)(?![\d/])/g, '$1<span class="frac"><sup>$2</sup>⁄<sub>$3</sub></span>');
+    .replace(/⁄/g, '/')
+    .replace(/(^|[^\d/])(\d+) (\d+)\/(\d+)(?![\d/])/g, '$1$2<span class="frac"><sup>$3</sup><sub>$4</sub></span>')
+    .replace(/(^|[^\d/>])(\d+)\/(\d+)(?![\d/])/g, '$1<span class="frac"><sup>$2</sup><sub>$3</sub></span>');
 }
 
 // ── refusals ───────────────────────────────────────────────────────────────
@@ -528,6 +568,7 @@ function css(medium, kind) {
   table.data { border-collapse: collapse; margin: 4px 0; }
   table.data th, table.data td { border: 1px solid #000; padding: 2px 10px; text-align: center; }
   table.data th { background: #f0f0f0; }
+  svg.sym { width: .95em; height: .95em; vertical-align: -0.12em; margin: 0 .05em; }
   .frac { display: inline-flex; flex-direction: column; vertical-align: middle; font-size: 0.8em; line-height: 1; text-align: center; margin: 0 1px; }
   .frac sup, .frac sub { font-size: 1em; vertical-align: baseline; line-height: 1; }
   .frac sup { border-bottom: 1px solid #000; }
@@ -553,6 +594,9 @@ function css(medium, kind) {
   .or { text-align: center; font-weight: 700; margin: 2px 0; }
   .or-lead, .alt { font-weight: 700; }
   .sit { margin-top: 3px; }
+  ${ur ? `/* Nastaliq ascenders rise above the line box; without room above, a block
+     that starts a page paints the tops of its letters at the foot of the page before. */
+  .sec-head, .slot-head, .part-head, .q, .alt, .or-lead, .s-head, table.rows td { padding-top: .45em; }` : ''}
   .topics { display: flex; gap: 10mm; flex-wrap: wrap; }
   ${kind === 'scheme' ? schemeCss(medium) : ''}`;
 }
@@ -585,9 +629,10 @@ function schemeCss(medium) {
   .crit { display: block; }
   .crit-m { font-weight: 700; }
   section.record { break-before: page; }
-  table.rec { width: 100%; border-collapse: collapse; font-size: 9pt; }
-  table.rec th, table.rec td { border: 1px solid #000; height: 6.5mm; padding: 0 4px; text-align: center; }
-  table.rec td.name { width: 38%; }
+  .rec-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+  table.rec { width: 100%; border-collapse: collapse; font-size: 8pt; line-height: 1.1; }
+  table.rec th, table.rec td { border: 1px solid #000; height: 9mm; padding: 0 2px; text-align: center; }
+  table.rec td.name { width: 32%; }
   .notes { margin-top: 8px; break-inside: avoid; }`;
 }
 
@@ -781,7 +826,7 @@ function writtenRows(slot, list, ctx, Criteria) {
       return;
     }
     const answer = q.answer !== undefined && q.answer !== null ? `<b>${textOf(q.answer, ctx)}</b>` : '';
-    const stem = q.question ? `<div class="q-line">${textOf(String(q.question).slice(0, 110), ctx)}</div>` : '';
+    const stem = q.question ? `<div class="q-line">${textOf(cutAtWord(q.question, 110), ctx)}</div>` : '';
     rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(n, ctx)}</td><td class="ans">${answer}${checkedChip(q, ctx)}${stem}</td><td class="pts">${pointsHtml(q, ctx, Criteria, slot, list.indexOf(q))}</td></tr>`);
   });
   if (slot.alternatives) {
@@ -795,6 +840,15 @@ function writtenRows(slot, list, ctx, Criteria) {
     }
   }
   return rows;
+}
+
+// A question shown beside its answer: whole, or cut at the last word that fits.
+function cutAtWord(text, max) {
+  const chars = [...String(text || '')];
+  if (chars.length <= max) return chars.join('');
+  const cut = chars.slice(0, max).join('');
+  const at = cut.lastIndexOf(' ');
+  return `${(at > max / 2 ? cut.slice(0, at) : cut).replace(/[\s,;:]+$/, '')}…`;
 }
 
 function comprehensionRows(slot, q, ctx) {
@@ -823,10 +877,6 @@ function comprehensionRows(slot, q, ctx) {
   return rows;
 }
 
-// Estimated height of a block, in mm, for the ≥ 50 % page-fill rule.
-const FILL = { band: 8, header: 26, beforeBox: 46, legend: 44, supplies: 14, secHead: 9, strip: 14, row: 13, rowLine: 4, critRow: 4, notes: 10 };
-const PAGE_MM = { en: 297 - 12 - 18, ur: 297 - 12 - 22 };
-
 function renderMarkingScheme({ examJson, grade, subject, paperFileName = null, allowShort = false }) {
   const L = layoutOf(examJson);
   refuseReviewText(examJson, 'marking scheme');
@@ -837,8 +887,6 @@ function renderMarkingScheme({ examJson, grade, subject, paperFileName = null, a
   const Criteria = require('./composition-criteria');
   const H = L.header;
   const ur = lang === 'ur';
-  const scale = ur ? 1.5 : 1;
-  let used = (FILL.band + FILL.header + FILL.beforeBox + FILL.legend + ((L.supplies || []).length ? FILL.supplies : 0)) * scale;
 
   const scope = L.scope || {};
   const coversScope = scope.covers_en || scope.covers_ur
@@ -854,30 +902,21 @@ ${beforeExamBox(L, live, ctx, paperFileName, grade)}
 ${legendBox(L, ctx)}
 ${suppliesBox(L, ctx)}`;
 
+  // Sections flow one after another (rows never split, a head never ends a
+  // page): a forced break per section left near-empty pages in the proof render.
   const sections = L.sections.map((sec) => {
     const parts = [];
-    let height = FILL.secHead;
     const total = sectionTotal(sec, live);
     const head = `${sec[`label_${lang}`] ? substitute(sec[`label_${lang}`], sectionCtx(sec, live), lang) : `Section ${sec.id}`} (${fmt(total)})`;
     parts.push(`<div class="s-head">${textOf(head, ctx)}</div>`);
     const rows = [];
     for (const slot of sec.slots) {
       const list = all.get(slot.slot);
-      if (slot.shape === 'mcq') {
-        parts.push(mcqStrip(slot, list, ctx));
-        height += FILL.strip;
-      } else {
-        const r = writtenRows(slot, list, ctx, Criteria);
-        rows.push(...r);
-        height += r.length * (FILL.row + FILL.rowLine);
-      }
+      if (slot.shape === 'mcq') parts.push(mcqStrip(slot, list, ctx));
+      else rows.push(...writtenRows(slot, list, ctx, Criteria));
     }
     if (rows.length) parts.push(`<table class="rows">${rows.join('')}</table>`);
-    height *= scale;
-    const pageFill = (used % PAGE_MM[lang]) / PAGE_MM[lang];
-    const breakBefore = pageFill >= 0.5;
-    used = breakBefore ? height : used + height;
-    return `<section class="s-sec" data-section="${esc(sec.id)}"${breakBefore ? ' style="break-before:page"' : ''}>${parts.join('')}</section>`;
+    return `<section class="s-sec" data-section="${esc(sec.id)}">${parts.join('')}</section>`;
   }).join('\n');
 
   const notes = notesBlock(L, all, ctx);
@@ -915,6 +954,8 @@ function notesBlock(L, all, ctx) {
   return `<div class="notes"><div class="bt"><b>${textOf(L.header[`notes_title_${lang}`], ctx)}</b></div><ul>${lines.join('')}</ul></div>`;
 }
 
+// 40 rows do not fit one A4 page at a writable height with a header, so the
+// record is two tables of 20 side by side: one page, rows 9 mm.
 function recordPage(L, live, ctx) {
   const lang = ctx.medium;
   const H = L.header;
@@ -922,8 +963,11 @@ function recordPage(L, live, ctx) {
   const secCols = L.sections.map((sec) => `${lang === 'ur' ? (sec.label_ur || sec.id).replace(/[()]/g, '').replace(/\s*(معروضی|موضوعی)\s*/g, ' ').trim() : sec.id} /${fmt(sectionTotal(sec, live))}`);
   const total = L.sections.reduce((s, sec) => s + sectionTotal(sec, live), 0);
   const head = [...cols, ...secCols, `${H[`record_total_${lang}`]} /${fmt(total)}`, H[`record_grade_${lang}`]];
-  const rows = Array.from({ length: 40 }, (_, i) => `<tr class="rec-row"><td>${textOf(String(i + 1), ctx)}</td><td class="name"></td>${secCols.map(() => '<td></td>').join('')}<td></td><td></td></tr>`).join('');
-  return `<section class="record" style="break-before:page"><div class="s-head">${textOf(H[`record_title_${lang}`], ctx)}</div><table class="rec"><tr>${head.map((h) => `<th>${textOf(h, ctx)}</th>`).join('')}</tr>${rows}</table></section>`;
+  const table = (from) => {
+    const rows = Array.from({ length: 20 }, (_, i) => `<tr class="rec-row"><td>${textOf(String(from + i), ctx)}</td><td class="name"></td>${secCols.map(() => '<td></td>').join('')}<td></td><td></td></tr>`).join('');
+    return `<table class="rec"><tr>${head.map((h) => `<th>${textOf(h, ctx)}</th>`).join('')}</tr>${rows}</table>`;
+  };
+  return `<section class="record" style="break-before:page"><div class="s-head">${textOf(H[`record_title_${lang}`], ctx)}</div><div class="rec-pair">${table(1)}${table(21)}</div></section>`;
 }
 
 // ── PDF options and the frame pages ────────────────────────────────────────
