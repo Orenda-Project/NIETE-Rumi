@@ -29,7 +29,11 @@ describe('passage stock seed', () => {
     const sql = buildSql();
     expect((sql.match(/INSERT INTO public\.challenge_passages/g) || []).length).toBe(r.length);
     expect((sql.match(/ON CONFLICT \(passage_id\) DO NOTHING;/g) || []).length).toBe(r.length);
-    expect(sql).not.toMatch(/\bUPDATE\b|\bDELETE\b|\bDROP\b/);
+    expect(sql).not.toMatch(/\bDELETE\b|\bDROP\b/);
+    // the only UPDATEs are the pointer-title lines, each guarded so it never overwrites a title already set
+    for (const u of sql.split('\n').filter((l) => /\bUPDATE\b/.test(l))) {
+      expect(u).toMatch(/^UPDATE public\.challenge_passages SET title_(ur|en) = '[^']+', updated_at = now\(\) WHERE passage_id = '[a-z]{2}\.(read|listen)\.2\.setA' AND title_\1 IS NULL;$/);
+    }
   });
 
   test('a row carries the computed numbers of its file', () => {
@@ -49,8 +53,20 @@ describe('passage stock seed', () => {
     expect(pointers.map((p) => p.passage_id).sort()).toEqual(['en.listen.2.setA', 'en.read.2.setA', 'ur.listen.2.setA', 'ur.read.2.setA']);
     const sql = fs.readFileSync(SQL, 'utf8');
     for (const p of pointers) {
-      expect([p.passage_id, sql.includes(`'${p.passage_id}'`)]).toEqual([p.passage_id, false]);
+      expect([p.passage_id, sql.includes(`VALUES ('${p.passage_id}'`)]).toEqual([p.passage_id, false]);
       expect(rows().some((x) => x.passage_id === p.passage_id)).toBe(false);
     }
+  });
+
+  test('a pointer file with a title gets one guarded UPDATE for it, and no INSERT (ruling 15)', () => {
+    const p = JSON.parse(fs.readFileSync(path.join(PASSAGES, 'ur.listen.2.setA.json'), 'utf8'));
+    expect(p.title_ur).toBe('صفائی کا دن');
+    expect([...p.title_ur].length).toBeLessThanOrEqual(24);
+    const sql = fs.readFileSync(SQL, 'utf8');
+    const lines = sql.split('\n').filter((l) => l.includes("'ur.listen.2.setA'"));
+    expect(lines).toEqual([
+      "UPDATE public.challenge_passages SET title_ur = 'صفائی کا دن', updated_at = now() WHERE passage_id = 'ur.listen.2.setA' AND title_ur IS NULL;",
+    ]);
+    expect(sql).not.toMatch(/INSERT[^;]*'ur\.listen\.2\.setA'/);
   });
 });

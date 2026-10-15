@@ -125,3 +125,6 @@ ON CONFLICT (passage_id) DO NOTHING;
 INSERT INTO public.challenge_passages (passage_id, lang, kind, pool, band, status, is_reference, released_at, tokens, sentences, mean_sent_len, max_word_len, readability, readability_list, q_reach_1, q_reach_2, q_n, title_en, title_ur, source_ref, licence, reviewer, reviewed_at, twin_of, text_hash, bank_version)
 VALUES ('ur.read.3.story03', 'ur', 'read', 'practice', 3, 'draft', false, NULL, 62, 8, 7.8, 6, 0.957, 'fed-cum-g5-2026', 2, 3, 5, NULL, 'بجلی بند ہو گئی', 'generated brief v1 (band-3 spec, ITEMS §2.2)', 'generated', NULL, NULL, NULL, 'e76056ea324c6180a57ba710bd5dc3b8', 'child-test-items-v4')
 ON CONFLICT (passage_id) DO NOTHING;
+
+-- Set A pointer titles: fill a NULL title on the reference row the registry seed inserted; never overwrite one.
+UPDATE public.challenge_passages SET title_ur = 'صفائی کا دن', updated_at = now() WHERE passage_id = 'ur.listen.2.setA' AND title_ur IS NULL;

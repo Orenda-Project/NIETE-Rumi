@@ -3,8 +3,9 @@
 /**
  * The registry rows for the Challenge passage stock: prints an idempotent SQL file that inserts ONE
  * challenge_passages row per file in shared/data/child-test/passages, as `draft`, never released, never reviewed.
- * The Set A pointer files (`v3_ref`) are skipped: their reference rows belong to the registry seed, and a draft row
- * from here must never take a reference's place if this file were applied first.
+ * The Set A pointer files (`v3_ref`) get no INSERT: their reference rows belong to the registry seed, and a draft row
+ * from here must never take a reference's place if this file were applied first. A pointer file that carries a title
+ * gets one guarded UPDATE that fills a NULL title only (ruling 15).
  * A named person moves a row to reviewed / provisional / calibrated and sets released_at on the database; this
  * script never does. Every file must pass the passage check first, or nothing is printed.
  *
@@ -46,6 +47,15 @@ function rows(dir = PASSAGES) {
   });
 }
 
+/** Titles a Set A pointer file carries (ruling 15): the registry seed inserts those rows with NULL titles. */
+function pointerTitles(dir = PASSAGES) {
+  const out = [];
+  for (const p of files(dir).filter((x) => x.v3_ref)) {
+    for (const col of ['title_ur', 'title_en']) if (p[col]) out.push({ passage_id: p.passage_id, col, title: p[col] });
+  }
+  return out;
+}
+
 function lit(v) {
   if (v === null || v === undefined) return 'NULL';
   if (typeof v === 'boolean') return v ? 'true' : 'false';
@@ -69,9 +79,17 @@ function buildSql(dir = PASSAGES) {
     out.push(`VALUES (${COLUMNS.map((c) => lit(x[c])).join(', ')})`);
     out.push('ON CONFLICT (passage_id) DO NOTHING;');
   }
+  const t = pointerTitles(dir);
+  if (t.length) {
+    out.push('');
+    out.push('-- Set A pointer titles: fill a NULL title on the reference row the registry seed inserted; never overwrite one.');
+    for (const x of t) {
+      out.push(`UPDATE public.challenge_passages SET ${x.col} = ${lit(x.title)}, updated_at = now() WHERE passage_id = ${lit(x.passage_id)} AND ${x.col} IS NULL;`);
+    }
+  }
   return `${out.join('\n')}\n`;
 }
 
 if (require.main === module) process.stdout.write(buildSql());
 
-module.exports = { buildSql, rows, COLUMNS };
+module.exports = { buildSql, rows, pointerTitles, COLUMNS };
