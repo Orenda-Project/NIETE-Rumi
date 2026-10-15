@@ -147,7 +147,7 @@ describe('the period button sends the live form', () => {
     const [, flow] = WhatsAppService.sendFlow.mock.calls[0];
     expect(flow).toMatchObject({ flowId: 'F-FORM', flowToken: 'coach-1:observe2-form:form-1' });
     expect(flow.body).toMatch(/recorder/i);
-    expect(flow.body).toMatch(/Save Part 1 when the children start working on their own/);
+    expect(flow.body).toMatch(/save it when the children start independent practice/);
     expect(flow.body).toMatch(/minute 40/);
     expect([...flow.buttonText].length).toBeLessThanOrEqual(20);
   });

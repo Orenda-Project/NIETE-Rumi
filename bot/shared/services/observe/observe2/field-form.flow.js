@@ -6,8 +6,8 @@
  * The coach opens it when the lesson starts and fills it in while watching. The parts follow the
  * 5-step lesson plan (warm-up, explanation, guided practice, independent practice, wrap-up), not the
  * clock (FICO pilot sheet R4/R10, 14 Oct; form version 5):
- *   PART_ONE     warm-up to guided practice     (numbers + a few taps; "Part 1 done" is tapped when the
- *                children start working on their own, and saves it)
+ *   PART_ONE     up to and including guided practice (numbers + a few taps; "Part 1 done" is tapped when
+ *                independent practice starts, and saves it)
  *   PART_TWO     independent practice and the wrap-up: the children working on their own (a task each?
  *                what the teacher did meanwhile, what children did when stuck), children speaking for the
  *                first time, the switches
@@ -284,7 +284,7 @@ function buildFieldFormFlow() {
     ...partQuestions('p1'),
   ];
   const part2 = [
-    { type: 'TextHeading', text: 'Part 2: working on their own' },
+    { type: 'TextHeading', text: 'Part 2: independent practice' },
     { type: 'TextCaption', text: '${data.part_hint}' },
     number('p2_spoke', 'Children who spoke', 'Count each child once, including those from Part 1'),
     number('p2_new', 'First time speaking', "Of these, how many hadn't spoken in Part 1?"),
@@ -446,10 +446,10 @@ function buildFieldFormFlow() {
     screens: [
       screen('PART_ONE', 'Part 1', part1, 'Part 1 done', {
         teacher_line: { type: 'string', __example__: "Rabia's lesson · Grade 4 · Maths" },
-        part_hint: { type: 'string', __example__: 'Warm-up, explanation and guided practice. When the children start working on their own, tap "Part 1 done": your answers are saved then.' },
+        part_hint: { type: 'string', __example__: 'Up to and including guided practice. When the children start independent practice, tap "Part 1 done": your answers are saved then.' },
       }),
       screen('PART_TWO', 'Part 2', part2, 'Part 2 done', {
-        part_hint: { type: 'string', __example__: 'The children working on their own, then the wrap-up, to minute 40. Answer only for this part.' },
+        part_hint: { type: 'string', __example__: 'Independent practice and the wrap-up, to minute 40. Answer only for this part.' },
       }),
       screen('LESSON_PLAN', 'Lesson plan', plan, 'Next', {
         lp_hint: { type: 'string', __example__: "Rabia's most recent plans from the bot. If the plan isn't here, pick \"Upload new\" to add it." },

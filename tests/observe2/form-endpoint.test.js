@@ -2,7 +2,7 @@
  * /observe2 — the live form's endpoint (POST /api/flows/observe2-form).
  *
  * What a coach experiences, screen by screen: a new form opens on Part 1 naming the teacher and
- * when to save it (when the children start working on their own); "Part 1 done" is refused with a message under the field when a number is
+ * when to save it (when independent practice starts); "Part 1 done" is refused with a message under the field when a number is
  * impossible, and saved (with the server time) when it is right; a reopened form continues where
  * the record stands; "Seal and send" seals once, keeps up to three photos, and sends the
  * recording steps in the chat.
@@ -71,7 +71,7 @@ describe('opening the form', () => {
     const out = await Endpoint.handleObserve2FormInit(token(id));
     expect(out.screen).toBe('PART_ONE');
     expect(out.data.teacher_line).toContain('Rabia');
-    expect(out.data.part_hint).toMatch(/When the children start working on their own, tap "Part 1 done"/);
+    expect(out.data.part_hint).toMatch(/When the children start independent practice, tap "Part 1 done"/);
     expect(out.data).toMatchObject({ error_messages: {}, error: '', has_error: false });
     expect(row(id).opened_at).toBeTruthy();
   });
@@ -115,7 +115,7 @@ describe('Part 1 and Part 2', () => {
     const id = await newForm();
     const out = await Endpoint.handleObserve2FormDataExchange(token(id), 'PART_ONE', PART_1_OK);
     expect(out.screen).toBe('PART_TWO');
-    expect(out.data.part_hint).toMatch(/working on their own, then the wrap-up, to minute 40/);
+    expect(out.data.part_hint).toMatch(/Independent practice and the wrap-up, to minute 40/);
     expect(row(id).answers).toMatchObject({ present: '32', p1_spoke: '6', p1_listen: ['turns'] });
     expect(row(id).part1_done_at).toBeTruthy();
   });
