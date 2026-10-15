@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Grade 5 · Science</title>
+<style>
+  @page { size: A4; margin: 14mm 12mm; }
+  @font-face{font-family:'PaperLatin';font-weight:400;font-style:normal;src:url(data:font/ttf;base64,<sha256:827bb7ceb0d744d56b4e62febbb36768d8d21be63a879054814d294afa3584ac>) format('truetype');}
+@font-face{font-family:'PaperLatin';font-weight:700;font-style:normal;src:url(data:font/ttf;base64,<sha256:4076c0ea1c671e17cb1f25f52c0cbb81c164b42d3259cad798d44fdbc4826efc>) format('truetype');}
+@font-face{font-family:'PaperUrdu';font-weight:400;font-style:normal;src:url(data:font/ttf;base64,<sha256:7ab6206e85b6a8cee58d79a5051e2fa55beb476d46943398d58ac05838eec03a>) format('truetype');}
+@font-face{font-family:'PaperUrdu';font-weight:700;font-style:normal;src:url(data:font/ttf;base64,<sha256:ff9136eea187a90c1a08c4d108e9725e16f713552f63166dce3ba9d8b180cdfe>) format('truetype');}
+  body { font-family: 'PaperLatin',Arial,sans-serif; font-size: 12pt;
+    color: #000; line-height: 1.5; margin: 0; }
+  /* Latin runs inside an RTL paper need BOTH halves: isolation stops the run
+     reordering its Urdu neighbours, and an explicit ltr direction stops the run
+     itself laying out right-to-left. Isolation alone was the 5 Sep defect:
+     "[1 mark]" printed as "[mark 1]" and every instruction lost its full stop
+     to the front of the line, while the Urdu around them was perfectly correct. */
+  .marks, .num { direction: ltr; unicode-bidi: isolate; }
+  .school { text-align: center; font-weight: 700; font-size: 13pt; letter-spacing: .01em; }
+  .class-line { text-align: center; font-size: 11.5pt; margin: 2px 0 10px; }
+  .chapter { text-align: center; font-size: 10.5pt; color: #333; margin-bottom: 10px; }
+  table.marks-header { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11pt;
+    direction: ltr; unicode-bidi: isolate; text-align: left; }
+  table.marks-header td { border: 1px solid #333; padding: 5px 7px; height: 22px; text-align: left; }
+  table.marks-header td.k { background: #f2f2f2; font-weight: 600; white-space: nowrap; width: 22%; }
+  .instructions { border: 1px solid #999; padding: 7px 10px; font-size: 10.5pt; margin-bottom: 14px;
+    direction: ltr; unicode-bidi: isolate; text-align: left; }
+  .instructions ol { margin: 4px 0 0; padding-left: 18px; }
+  h3.type { font-size: 11.5pt; text-transform: uppercase; letter-spacing: .04em;
+            border-bottom: 1.5px solid #000; padding-bottom: 3px; margin: 16px 0 9px;
+            direction: ltr; unicode-bidi: isolate; text-align: left; }
+  .lead { font-weight: 600; margin: 8px 0 6px; }
+  .q { margin-bottom: 11px; page-break-inside: avoid; }
+  .q p { margin: 0 0 4px; }
+  .marks { font-size: 10pt; color: #444; float: right; }
+  .options { margin-left: 18px; }
+  .opt { margin: 2px 0; }
+  .words { margin-left: 18px; }
+  .word { margin: 5px 0; }
+  .word .rule { display: inline-block; border-bottom: 1px solid #999; width: 190px; margin-left: 10px; }
+  .passage { border: 1px solid #bbb; background: #fafafa; padding: 8px 10px; margin: 6px 0 8px; }
+  .subs { margin-left: 18px; }
+  .sub { margin: 6px 0 3px; }
+  table.match { border-collapse: collapse; margin: 6px 0 0 18px; width: 70%; }
+  table.match th, table.match td { border: 1px solid #666; padding: 5px 8px; text-align: left; }
+  table.match th { background: #f2f2f2; }
+  .answer-space { margin: 5px 0 0 18px; }
+  .answer-line { border-bottom: 1px solid #aaa; height: 6.5mm; }
+  .answer { background: #eef7ee; border-left: 3px solid #4a4; padding: 3px 7px; margin-top: 4px; font-size: 10.5pt; }
+</style></head>
+<body>
+
+<div class="class-line">Grade 5 · Science</div>
+<div class="chapter">Pages 5-30</div>
+<table class="marks-header">
+  <tr><td class="k">Student Name</td><td colspan="3"></td></tr>
+  <tr><td class="k">Roll No</td><td></td><td class="k">Date</td><td></td></tr>
+  <tr><td class="k">Total Marks</td><td>27</td><td class="k">Obtained Marks</td><td></td></tr>
+</table>
+<div class="instructions"><b>Instructions</b>
+  <ol><li>Read all questions carefully before answering.</li><li>Answer all questions in the space provided.</li><li>Write clearly and legibly.</li><li>Time allowed: as specified by your teacher.</li></ol>
+</div>
+<h3 class="type">Brief Answers</h3>
+<div class="q">
+<p><b>1.</b> Name the three states of matter. <span class="marks">[2 marks]</span></p>
+<div class="answer-space"><div class="answer-line"></div><div class="answer-line"></div></div>
+</div>
+<h3 class="type">MCQs</h3>
+<p class="lead">Choose the correct answer.</p>
+<div class="q">
+<p><b>2.</b> Which part of a plant makes food? <span class="marks">[1 mark]</span></p>
+<div class="options">
+<div class="opt">a) Root</div>
+<div class="opt">b) Stem</div>
+<div class="opt">c) Leaf</div>
+<div class="opt">d) Flower</div>
+</div>
+</div>
+<div class="q">
+<p><b>3.</b> Water boils at: <span class="marks">[1 mark]</span></p>
+<div class="options">
+<div class="opt">a) 0 °C</div>
+<div class="opt">b) 50 °C</div>
+<div class="opt">c) 100 °C</div>
+<div class="opt">d) 200 °C</div>
+</div>
+</div>
+<h3 class="type">MSQs</h3>
+<div class="q">
+<p><b>4.</b> Which of these are living things? (Tick all that apply) <span class="marks">[2 marks]</span></p>
+<div class="options">
+<div class="opt">a) Tree</div>
+<div class="opt">b) Stone</div>
+<div class="opt">c) Bird</div>
+<div class="opt">d) Chair</div>
+</div>
+</div>
+<h3 class="type">True/False</h3>
+<p class="lead">Write True or False.</p>
+<div class="q">
+<p><b>5.</b> Sound travels faster than light. <span class="marks">[1 mark]</span></p>
+
+</div>
+<h3 class="type">Fill in the Blanks</h3>
+<p class="lead">Fill in the blanks.</p>
+<div class="q">
+<p><b>6.</b> The force that pulls things towards the earth is called ____. <span class="marks">[1 mark]</span></p>
+
+</div>
+<h3 class="type">Brief Answers</h3>
+<div class="q">
+<p><b>7.</b> Why do we see lightning before we hear thunder? <span class="marks">[2 marks]</span></p>
+<div class="answer-space"><div class="answer-line"></div><div class="answer-line"></div></div>
+</div>
+<div class="q"><p><b>8.</b> Write one use of a magnet.</p></div>
+<h3 class="type">Label the Diagram</h3>
+<div class="q">
+<p><b>9.</b> Label the parts of the flower shown: petal, sepal, stem. <span class="marks">[3 marks]</span></p>
+<div class="answer-space"><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div></div>
+</div>
+<h3 class="type">Mind Map</h3>
+<div class="q">
+<p><b>10.</b> Make a mind map of the sources of energy. <span class="marks">[4 marks]</span></p>
+<div class="answer-space"><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div></div>
+</div>
+<h3 class="type">Flow Chart</h3>
+<div class="q">
+<p><b>11.</b> Make a flow chart of the water cycle. <span class="marks">[4 marks]</span></p>
+<div class="answer-space"><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div></div>
+</div>
+<h3 class="type">Logical Reasoning</h3>
+<div class="q">
+<p><b>12.</b> A plant kept in a dark room turns yellow. Give a &lt;reason&gt; for this. <span class="marks">[3 marks]</span></p>
+<div class="answer-space"><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div></div>
+</div>
+<h3 class="type">Describe</h3>
+<div class="q">
+<p><b>13.</b> Describe how a seed grows into a plant. </p>
+<div class="answer-space"><div class="answer-line"></div><div class="answer-line"></div><div class="answer-line"></div></div>
+</div>
+</body></html>
