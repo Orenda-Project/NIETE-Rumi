@@ -13,7 +13,6 @@
  *   Retention holds whatever the switches say: a row written while web_quiz_phone_bind was on still expires
  *   and is still deleted after it is turned off.
  *
- * renewOnPlay({canonicalId, phoneNorm, playedAt}) — a stop finished as a bound child on that phone:
  *   the pair's active binding gets expires_at = expiresAtFor(playedAt) and last_played_at = playedAt.
  *   → the renewed row, or null (switch off, no such binding, a failed write).
  */
@@ -94,17 +93,4 @@ async function expireBindings(now = new Date()) {
   return { expired, deleted, phones };
 }
 
-async function renewOnPlay({ canonicalId, phoneNorm, playedAt = new Date() } = {}) {
-  try {
-    if (!canonicalId || !phoneNorm || !(await IdFlags.flags()).phoneBind) return null;
-    const at = new Date(playedAt);
-    const b = (await BindRepo.activeForPhone(phoneNorm, at)).find((r) => String(r.canonical_id) === String(canonicalId));
-    if (!b) return null;
-    return await BindRepo.renew(b.id, BindRepo.expiresAtFor(at), at);
-  } catch (err) {
-    logToFile('⚠️ binding expiry: renew on play failed', { error: err.message });
-    return null;
-  }
-}
-
-module.exports = { expireBindings, renewOnPlay, KEEP_ERASED_MONTHS };
+module.exports = { expireBindings, KEEP_ERASED_MONTHS };

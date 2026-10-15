@@ -174,35 +174,6 @@ describe('expireBindings(now)', () => {
   });
 });
 
-describe('renewOnPlay({canonicalId, phoneNorm, playedAt})', () => {
-  const Expiry = () => require('../../../shared/services/quiz/web-quiz-bind-expiry');
-
-  test('renews the active binding of that pair to the 31 March of the play\'s year; last_played_at kept', async () => {
-    seed({ bindings: [row(KIDS[0], PHONE, { expires_at: '2026-03-31T18:59:59.000Z' }), row(KIDS[1], PHONE)] });
-    const playedAt = new Date('2025-10-15T10:00:00.000Z');
-    const r = await Expiry().renewOnPlay({ canonicalId: KIDS[0], phoneNorm: PHONE, playedAt });
-    expect(r).toMatchObject({ id: `b-01-${PHONE.slice(-3)}`, expires_at: '2026-03-31T18:59:59.000Z', last_played_at: playedAt.toISOString() });
-    expect(fake.db.child_phone_bindings[1].last_played_at).toBeNull();
-  });
-
-  test('a play in the last 31 days before 31 March → the 31 March a year later', async () => {
-    seed({ bindings: [row(KIDS[0], PHONE)] });
-    const r = await Expiry().renewOnPlay({ canonicalId: KIDS[0], phoneNorm: PHONE, playedAt: new Date('2027-03-20T10:00:00.000Z') });
-    expect(r.expires_at).toBe('2028-03-31T18:59:59.000Z');
-  });
-
-  test('no active binding of that pair → null, nothing written; switch off → null, nothing read', async () => {
-    seed({ bindings: [row(KIDS[0], PHONE_2)] });
-    expect(await Expiry().renewOnPlay({ canonicalId: KIDS[0], phoneNorm: PHONE, playedAt: new Date('2026-10-15T00:00:00.000Z') })).toBeNull();
-    expect(writes()).toEqual([]);
-    seed({ settings: { web_quiz_hub: true }, bindings: [row(KIDS[0], PHONE)] });
-    expect(await Expiry().renewOnPlay({ canonicalId: KIDS[0], phoneNorm: PHONE, playedAt: new Date('2026-10-15T00:00:00.000Z') })).toBeNull();
-    expect(fake.calls.filter((c) => c.table === 'child_phone_bindings')).toEqual([]);
-  });
-});
-
-// ─── guest home ──────────────────────────────────────────────────────────────
-
 describe('guest home (web_quiz_guest_home on)', () => {
   test('an unknown phone → the guest verdict, cached for 60 s (not the 10-minute door TTL)', async () => {
     seed({ settings: GUEST_ON });
