@@ -113,7 +113,7 @@ async function teacherRoster(t, scope) {
   const classGrade = new Map(classes.map((x) => [x.id, gradeOf(x.grade_code)]));
   const enr = classIds.length ? await rows(supabase.from('class_enrollments').select('student_id, class_id').in('class_id', classIds).eq('is_active', true)) : [];
   const enrClass = new Map(enr.map((e) => [e.student_id, e.class_id]));
-  const cols = 'id, list_id, student_name, student_name_urdu, phone, parent_phone, status, merged_into, is_active';
+  const cols = 'id, list_id, student_name, student_name_urdu, father_name, phone, parent_phone, status, merged_into, is_active';
   const byList = listIds.length ? await rows(supabase.from('students').select(cols).in('list_id', listIds).limit(CAP)) : [];
   const enrIds = uniq(enr.map((e) => e.student_id)).filter((id) => !byList.some((s) => s.id === id));
   const byEnr = enrIds.length ? await rows(supabase.from('students').select(cols).in('id', enrIds).limit(CAP)) : [];
@@ -124,7 +124,7 @@ async function teacherRoster(t, scope) {
     const classId = (list && list.class_id) || enrClass.get(s.id) || null;
     const grade = list ? gradeOf(list.class_name) : null;
     out.set(s.id, {
-      id: s.id, student_name: s.student_name, names: [s.student_name, s.student_name_urdu].filter(Boolean),
+      id: s.id, student_name: s.student_name, father_name: s.father_name || null, names: [s.student_name, s.student_name_urdu].filter(Boolean),
       grade: grade != null ? grade : (classId ? classGrade.get(classId) ?? null : null), class_id: classId,
       phones: uniq([p10(s.phone), p10(s.parent_phone)]),
     });
@@ -139,7 +139,7 @@ async function teacherLoose(t) {
   const sCols = 'student_id, parent_phone, device_ref';
   const viaCode = codes.length ? await rows(supabase.from('quiz_sessions').select(sCols).in('share_code_id', codes.map((x) => x.id)).limit(CAP)) : [];
   const viaQuiz = quizzes.length ? await rows(supabase.from('quiz_sessions').select(sCols).in('quiz_id', quizzes.map((x) => x.id)).limit(CAP)) : [];
-  const cols = 'id, list_id, student_name, self_reported_class, phone, parent_phone, status, merged_into, is_active';
+  const cols = 'id, list_id, student_name, self_reported_class, father_name, phone, parent_phone, status, merged_into, is_active';
   const enrolled = await rows(supabase.from('students').select(cols).eq('enrolled_by_user_id', t).is('list_id', null).eq('status', 'active').is('merged_into', null).limit(CAP));
   const reached = uniq([...viaCode, ...viaQuiz].map((q) => q.student_id)).filter((id) => !enrolled.some((s) => s.id === id));
   const more = reached.length ? await rows(supabase.from('students').select(cols).in('id', reached).is('list_id', null).eq('status', 'active').is('merged_into', null)) : [];
@@ -155,7 +155,7 @@ async function teacherLoose(t) {
   for (const s of kids) {
     const mine = sessions.filter((q) => q.student_id === s.id);
     out.set(s.id, {
-      id: s.id, student_name: s.student_name, grade: gradeOf(s.self_reported_class),
+      id: s.id, student_name: s.student_name, father_name: s.father_name || null, grade: gradeOf(s.self_reported_class),
       phones: new Set(uniq([p10(s.phone), p10(s.parent_phone), ...mine.map((q) => p10(q.parent_phone))])),
       devices: new Set(uniq(mine.map((q) => q.device_ref))),
     });
@@ -238,6 +238,8 @@ async function compute(t) {
     out.push({
       loose_id: kid.id, candidate_id: res.r.id,
       first: firstName(kid.student_name), candidate_first: firstName(res.r.student_name),
+      // the teacher view may show the father's FIRST name under each name (never a surname; null when the record has none)
+      father_first: kid.father_name ? firstName(kid.father_name) : null, candidate_father_first: res.r.father_name ? firstName(res.r.father_name) : null,
       class_id: res.r.class_id, grade: res.r.grade,
       evidence: {
         tier, name_words_matched: words(kid.student_name).size,
