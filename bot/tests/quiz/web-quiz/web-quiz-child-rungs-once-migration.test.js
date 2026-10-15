@@ -3,8 +3,9 @@
  * web_quiz_child_rungs_once.sql on a real, throwaway Postgres (initdb in a temp folder, a unix socket, no TCP):
  * the nullable `stop` column (CHECK read | listen | missing | bigger) and the unique index that holds a child's lamp
  * to at most one change per ladder per stop per period. It must apply twice cleanly, refuse a second row for the
- * same child × ladder × stop × period, keep RLS on, and roll back cleanly (index and column only; before the runs
- * migration's own rollback).
+ * same child × ladder × stop × period, keep RLS on, take UPDATE and DELETE away from every API role (one row per rung
+ * change, never updated: BADGES §2.2), and roll back cleanly (index, column and the two privileges only; before the
+ * runs migration's own rollback).
  *
  * Needs the Postgres server binaries (postgres, initdb, pg_ctl, psql: PG_BIN or pg_config --bindir); without them the
  * suite is skipped and says so.
@@ -33,7 +34,12 @@ const psql = (sql, { file = null } = {}) => execFileSync(bin('psql'), [
   '-h', sock, '-p', PORT, '-U', 'postgres', '-d', 'postgres', '-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1',
   ...(file ? ['-f', file] : ['-c', sql]),
 ], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
-const fails = (sql) => { try { psql(sql); return null; } catch (e) { return String(e.stderr || e.message); } };
+const psqlAs = (user, sql) => execFileSync(bin('psql'), [
+  '-h', sock, '-p', PORT, '-U', user, '-d', 'postgres', '-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1', '-c', sql,
+], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+const fails = (sql, { user = null } = {}) => { try { if (user) psqlAs(user, sql); else psql(sql); return null; } catch (e) { return String(e.stderr || e.message); } };
+const ROLES = ['service_role', 'authenticated', 'anon'];
+const can = (role, priv) => psql(`select has_table_privilege('${role}', 'public.child_rungs', '${priv}')`);
 const apply = (f) => psql(null, { file: path.join(MIG, f) });
 
 const KID = '11111111-1111-4111-8111-111111111111';
@@ -48,6 +54,9 @@ d('the lamps once-per-period migration on a real Postgres', () => {
     execFileSync(bin('initdb'), ['-D', path.join(dir, 'data'), '-U', 'postgres', '-A', 'trust', '--no-sync'], { stdio: 'ignore' });
     execFileSync(bin('pg_ctl'), ['-D', path.join(dir, 'data'), '-l', path.join(dir, 'log'), '-w', '-o',
       `-p ${PORT} -k ${sock} -c listen_addresses='' -c fsync=off`, 'start'], { stdio: 'ignore' });
+    // Supabase's API roles and its default grants (ALL on every new public table and sequence; service_role bypasses RLS).
+    psql('create role anon login; create role authenticated login; create role service_role login bypassrls;');
+    psql('grant usage on schema public to anon, authenticated, service_role; alter default privileges in schema public grant all on tables to anon, authenticated, service_role; alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;');
     psql('create table public.students (id uuid primary key)');
     apply('web_quiz_challenge.sql');
     apply('web_quiz_challenge_runs_v2.sql');
@@ -77,6 +86,27 @@ d('the lamps once-per-period migration on a real Postgres', () => {
     psql('delete from child_rungs');
   });
 
+  test('the file names what it needs first: a "-- requires:" header line with the runs migration that creates child_rungs', () => {
+    const first = fs.readFileSync(path.join(MIG, 'web_quiz_child_rungs_once.sql'), 'utf8').split('\n')[0];
+    expect(first).toMatch(/^-- requires: .*web_quiz_challenge_runs_v2\.sql/);
+  });
+
+  test('never updated: UPDATE and DELETE are refused for service_role, authenticated and anon; the job\'s INSERT and SELECT still work', () => {
+    for (const role of ROLES) {
+      expect(can(role, 'UPDATE')).toBe('f');
+      expect(can(role, 'DELETE')).toBe('f');
+    }
+    expect(can('service_role', 'INSERT')).toBe('t');
+    expect(can('service_role', 'SELECT')).toBe('t');
+    expect(fails(lamp('reading', 2, '2030-01', 'read', '33333333-3333-4333-8333-333333333333'), { user: 'service_role' })).toBeNull();
+    expect(fails("update child_rungs set rung = 5 where canonical_id = '33333333-3333-4333-8333-333333333333'", { user: 'service_role' }))
+      .toMatch(/permission denied for table child_rungs/);
+    expect(fails("delete from child_rungs where canonical_id = '33333333-3333-4333-8333-333333333333'", { user: 'service_role' }))
+      .toMatch(/permission denied for table child_rungs/);
+    expect(psqlAs('service_role', "select rung from child_rungs where canonical_id = '33333333-3333-4333-8333-333333333333'")).toBe('2');
+    psql("delete from child_rungs where canonical_id = '33333333-3333-4333-8333-333333333333'");   // the owner, test cleanup only
+  });
+
   test('a second row for the same child × ladder × stop × period is refused; another stop, ladder, period or child is not', () => {
     expect(fails(lamp('reading', 1, '2026-11', 'listen'))).toBeNull();
     expect(fails(lamp('reading', 3, '2026-11', 'read'))).toBeNull();         // listen then read, one month: both land
@@ -87,9 +117,13 @@ d('the lamps once-per-period migration on a real Postgres', () => {
     expect(psql('select count(*) from child_rungs')).toBe('5');
   });
 
-  test('the rollback drops only the index and the column, twice cleanly; then the runs rollback still runs; then both forward again', () => {
+  test('the rollback drops only the index and the column and gives UPDATE / DELETE back, twice cleanly; then the runs rollback still runs; then both forward again', () => {
     apply('web_quiz_child_rungs_once_rollback.sql');
     apply('web_quiz_child_rungs_once_rollback.sql');
+    for (const role of ROLES) {
+      expect(can(role, 'UPDATE')).toBe('t');
+      expect(can(role, 'DELETE')).toBe('t');
+    }
     expect(psql(`select count(*) from pg_indexes where indexname = '${INDEX}'`)).toBe('0');
     expect(hasStop()).toBe('0');
     expect(psql('select count(*) from child_rungs')).toBe('5');
@@ -100,5 +134,6 @@ d('the lamps once-per-period migration on a real Postgres', () => {
     apply('web_quiz_challenge_runs_v2.sql');
     apply('web_quiz_child_rungs_once.sql');
     expect(psql(`select count(*) from pg_indexes where indexname = '${INDEX}'`)).toBe('1');
+    expect(can('service_role', 'UPDATE')).toBe('f');
   });
 });

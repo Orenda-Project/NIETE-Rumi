@@ -112,6 +112,11 @@ describe('computeRung · Reading, grades 2–3 (L = 1, U = 2)', () => {
     ['a listen never lights R3/R5: 3 of 3 right', [listen(3, 3)], 1],
     ['a listen beside R2 adds nothing', [read(1, 30), listen(3, 3)], 2],
     ['a band-3 read past line 1 is not R4 for grades 2–3', [read(1, 30, 2, 2), read(3, 30, 2, 2)], 3],
+    // the draw's own line-1 rule (web-quiz-challenge-draw.js isLine1OrZero), not wcpm alone
+    ['a line-1 stop with a few words (meta.stop_line 1, wcpm 4) is R1, not R2', [read(1, 4, 0, 0, { meta: { stop_line: 1 } })], 1],
+    ['a stopped reading (score.stopped, wcpm 4) is R1, not R2', [read(1, 4, 0, 0, { score: { stopped: true, attempted: 3 } })], 1],
+    ['R2 still waits after a line-1 stop with 2/2: R3 needs R2 on the same row', [read(1, 4, 2, 2, { meta: { stop_line: 1, comp: { asked: 2, correct: 2 } } })], 1],
+    ['a reading that went past line 1 (stop_line 2) is R2', [read(1, 12, 0, 0, { meta: { stop_line: 2 } })], 2],
   ])('%s → R%s', (_label, rows, want) => {
     expect(rung('reading', rows)).toBe(want);
   });
@@ -127,6 +132,7 @@ describe('computeRung · Reading, grades 4–5 (L = 2, U = 3)', () => {
     ['R3 at the edge: band 2, asked 2 right 2', [g5(read(2, 20, 2, 2))], 3],
     ['R3: a band-2 read lights R2 and R3 together', [g5(read(2, 20, 3, 2))], 3],
     ['R4 just under: R3, band-3 line-1 stop', [g5(read(2, 20, 2, 2)), g5(read(3, 0))], 3],
+    ['R4 just under: R3, a band-3 line-1 stop with a few words (stop_line 1, wcpm 4)', [g5(read(2, 20, 2, 2)), g5(read(3, 4, 0, 0, { meta: { stop_line: 1 } }))], 3],
     ['R4 at the edge: R3, band 3 past line 1', [g5(read(2, 20, 2, 2)), g5(read(3, 1))], 4],
     ['R4 without R3 never skips: band 3 past line 1 with 2/2 alone', [g5(read(3, 20, 2, 2))], 1],
     ['R5 just under: band 3, asked 2 right 1', [g5(read(2, 20, 2, 2)), g5(read(3, 20, 2, 1))], 4],
@@ -449,47 +455,115 @@ describe('onRecordFinal', () => {
   });
 });
 
-// ── the hook: a run the Challenge stores as scored reaches the job ───────────────────────────────────
-const V2_COLS = {
-  mode: 'check', period_id: '2026-11', form: 'G3', band: null, exposure_no: 1, record: true, canonical_id: KID,
-  id_src: 'roster_pick', id_confidence: 'high', homonym_in_list: false, via: 'quiz_card', helped: 'self',
-};
-function stampOn() {
-  const from = supabase.from;
-  supabase.from = (t) => {
-    const b = from(t);
-    if (t !== 'web_quiz_challenge_runs') return b;
-    const insert = b.insert;
-    b.insert = (row) => insert(Array.isArray(row) ? row.map((r) => ({ ...V2_COLS, ...r })) : { ...V2_COLS, ...row });
-    return b;
-  };
+// ── the hook: a record row the Challenge stores as scored (or failed) reaches the job ────────────────
+// The landed path, end to end: serve under web_quiz_challenge_v2 + _period (the run row inserted at serve with
+// mode / record / period decided there), then submit (finishServed / updateRunMeta → status scored | failed), then
+// measureOutcome → onRecordFinal. Only Supabase, R2, speech, the LLM client and Redis are faked.
+const PERIOD_ON = [...ALL_ON, { key: 'web_quiz_challenge_period', value: true }];
+const DAY = 24 * 3600 * 1000;
+const periodsNow = () => [
+  { period_id: '2026-10', starts_at: new Date(Date.now() - 40 * DAY).toISOString(), ends_at: new Date(Date.now() - DAY).toISOString(), anchor_block_version: 'A1', weights_v: 'w1', bank_version: 'child-test-items-v4' },
+  { period_id: '2026-11', starts_at: new Date(Date.now() - DAY).toISOString(), ends_at: new Date(Date.now() + 29 * DAY).toISOString(), anchor_block_version: 'A1', weights_v: 'w1', bank_version: 'child-test-items-v4' },
+];
+function seedLanded(settings = PERIOD_ON) {
+  seed(settings);
+  db.challenge_periods = periodsNow();
 }
 const allRight = (items) => items.map((it, i) => ({ i, pick: Math.max(it.a, it.b), ms: 2500 }));
+const serveBigger = () => Ch.exercise(T.signHub([KID]), 'bigger', { device: DEV });
+const submitBigger = (ex) => Ch.submit({ ct: ex.ct, taps: allRight(ex.items), ms: 25000 });
 const playBigger = async () => {
-  const ex = await Ch.exercise(T.signHub([KID]), 'bigger', { device: DEV });
-  await Ch.submit({ ct: ex.ct, taps: allRight(ex.items), ms: 25000 });
+  const ex = await serveBigger();
+  await submitBigger(ex);
   return T.verify(ex.ct, 'c').r;
 };
+const runRow = (id) => db.web_quiz_challenge_runs.find((r) => r.id === id);
+/** The Supabase calls a step makes (the serve reads child_rungs for the open band; the submit must not, when off). */
+async function callsOf(step) {
+  const from = fake.calls.length;
+  await step();
+  return fake.calls.slice(from);
+}
 
-describe('the hook in the Challenge', () => {
+describe('the hook in the Challenge (the landed serve → store → score path)', () => {
   test('a v2 record row stored as scored lights N1 once, with every switch on', async () => {
-    stampOn();
+    seedLanded();
     const run = await playBigger();
+    expect(runRow(run)).toMatchObject({ mode: 'check', record: true, period_id: '2026-11', status: 'scored', canonical_id: KID });
     expect(db.child_rungs).toHaveLength(1);
     expect(db.child_rungs[0]).toMatchObject({ canonical_id: KID, ladder: 'numbers', rung: 1, rule_v: 'badges-v1', stop: 'bigger', period_id: '2026-11', row_id: run });
     expect(named('web_quiz.lamp_lit')).toHaveLength(1);
     expect(named('web_quiz.m_result')).toHaveLength(1);
   });
 
-  test('the rung switch off: the stored run reaches nothing of the job', async () => {
-    seed(without('web_quiz_challenge_rungs'));
-    stampOn();
-    await playBigger();
-    expect(touched('child_rungs')).toHaveLength(0);
+  test('a practice row (the stop already has this period\'s record row) lights nothing', async () => {
+    seedLanded();
+    put(bigger(n6(6), { period_id: '2026-11', item_set_id: 'bigger.G3.A' }));   // this period's record row, no lamp yet
+    const run = await playBigger();
+    expect(runRow(run)).toMatchObject({ mode: 'practice', status: 'scored' });
+    expect(db.child_rungs).toHaveLength(0);
     expect(named('web_quiz.lamp_lit')).toHaveLength(0);
   });
 
-  test('a row written today (no mode) moves nothing', async () => {
+  test('a record row whose scored write failed (the row is still served) lights nothing', async () => {
+    seedLanded();
+    const ex = await serveBigger();
+    const run = T.verify(ex.ct, 'c').r;
+    const from = supabase.from;
+    supabase.from = (t) => {
+      const b = from(t);
+      if (t !== 'web_quiz_challenge_runs') return b;
+      b.update = () => ({ eq: () => ({ eq: () => ({ select: async () => ({ data: null, error: { code: '57014', message: 'statement timeout' } }) }) }) });
+      return b;
+    };
+    await submitBigger(ex);
+    expect(runRow(run)).toMatchObject({ mode: 'check', record: true, status: 'served' });
+    expect(db.child_rungs).toHaveLength(0);
+    expect(named('web_quiz.lamp_lit')).toHaveLength(0);
+  });
+
+  test('a record reading lost after the mic (stored as failed) lights R1 only (BADGES §1.1: R1 is any outcome)', async () => {
+    seedLanded();
+    const r2 = require('../../../shared/storage/r2');
+    const { ct } = await Ch.exercise(T.signHub([KID]), 'read', { device: DEV, lang: 'en' });
+    const run = T.verify(ct, 'c').r;
+    const { key } = await Ch.presignUpload({ ct, type: 'audio/webm', size: 500000 });
+    r2.downloadFromR2.mockRejectedValueOnce(new Error('r2 down'));
+    await Ch.submit({ ct, key, ms: 60000, lang: 'en' }, { waitMs: 60000 });
+    expect(runRow(run)).toMatchObject({ mode: 'check', record: true, status: 'failed' });
+    expect(db.child_rungs).toHaveLength(1);
+    expect(db.child_rungs[0]).toMatchObject({ ladder: 'reading', rung: 1, stop: 'read', period_id: '2026-11', row_id: run });
+  });
+
+  test('a second scoring call for the same row (a resubmit, then the job again) still leaves one row', async () => {
+    seedLanded();
+    const ex = await serveBigger();
+    const run = T.verify(ex.ct, 'c').r;
+    await submitBigger(ex);
+    await expect(submitBigger(ex)).rejects.toMatchObject({ status: 409 });
+    expect(await R.onRecordFinal(run)).toBeNull();
+    expect(db.child_rungs).toHaveLength(1);
+    expect(named('web_quiz.lamp_lit')).toHaveLength(1);
+  });
+
+  test('the rung switch off: the submit reads and writes nothing of the job (no child_rungs, no extra runs read)', async () => {
+    seedLanded(PERIOD_ON.filter((s) => s.key !== 'web_quiz_challenge_rungs'));
+    const ex = await serveBigger();
+    const calls = await callsOf(() => submitBigger(ex));
+    expect(calls.filter((c) => c.table === 'child_rungs')).toHaveLength(0);
+    expect(db.child_rungs).toHaveLength(0);
+    expect(named('web_quiz.lamp_lit')).toHaveLength(0);
+    // the same submit with the switch on makes exactly the job's reads (the run, the record rows, the lamp) and one insert
+    Ch.__reset(); Hub._resetCache();
+    seedLanded();
+    const ex2 = await serveBigger();
+    const on = await callsOf(() => submitBigger(ex2));
+    expect(on.length - calls.length).toBe(4);
+    expect(on.filter((c) => c.table === 'child_rungs').map((c) => c.op)).toEqual(['select', 'insert']);
+  });
+
+  test('a row written without the provenance columns (challenge v2 off: no mode) moves nothing', async () => {
+    seedLanded(PERIOD_ON.filter((s) => s.key !== 'web_quiz_challenge_v2'));
     await playBigger();
     expect(touched('child_rungs')).toHaveLength(0);
     expect(named('web_quiz.lamp_lit')).toHaveLength(0);

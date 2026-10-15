@@ -29,6 +29,7 @@ const { logEvent } = require('../../utils/structured-logger');
 const Flags = require('./web-quiz-hub-flags');
 const K = require('./web-quiz-kid');
 const { compOf } = require('./web-quiz-measure-events');
+const { isLine1OrZero } = require('./web-quiz-challenge-draw');
 
 const RULE_V = 'badges-v1';
 const RUNS = 'web_quiz_challenge_runs';
@@ -37,7 +38,7 @@ const FINAL = ['scored', 'failed'];
 const LADDER_OF = { read: 'reading', listen: 'reading', missing: 'numbers', bigger: 'numbers' };
 // child_rungs.stop's CHECK (web_quiz_child_rungs_once.sql); any other exercise is stored as NULL.
 const STOPS = new Set(Object.keys(LADDER_OF));
-const ROW_COLS = 'id, canonical_id, exercise, status, mode, record, period_id, form, grade, band, wcpm, anchor_block, meta';
+const ROW_COLS = 'id, canonical_id, exercise, status, mode, record, period_id, form, grade, band, wcpm, score, anchor_block, meta';
 const nul = (v) => (v === undefined ? null : v);
 
 /** A record row with a final status, of a known child and period. */
@@ -65,8 +66,8 @@ function gradeBandOf(row = {}) {
 }
 
 // ── Reading ──────────────────────────────────────────────────────────────────────────────────────────
-/** Past line 1: a scored reading that is not a line-1 stop (wcpm > 0). */
-const pastLine1 = (r) => r.exercise === 'read' && r.status === 'scored' && Number(r.wcpm) > 0;
+/** Past line 1: a scored reading with words (wcpm > 0) that is not a line-1 stop by the draw's own rule. */
+const pastLine1 = (r) => r.exercise === 'read' && r.status === 'scored' && Number(r.wcpm) > 0 && !isLine1OrZero(r);
 /** Asked ≥ 2 and right ≥ 2 (a row with fewer questions delivered simply waits). */
 const understood = (r) => {
   const c = compOf(r.meta && r.meta.comp);
