@@ -6977,6 +6977,8 @@ CREATE TABLE IF NOT EXISTS child_rungs (
   set_at       timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS child_rungs_child_idx ON child_rungs (canonical_id, ladder, set_at DESC);
+-- At most one lamp change per child × ladder × period (web_quiz_child_rungs_once.sql).
+CREATE UNIQUE INDEX IF NOT EXISTS child_rungs_once_per_period_idx ON child_rungs (canonical_id, ladder, period_id);
 ALTER TABLE child_rungs ENABLE ROW LEVEL SECURITY;
 COMMENT ON TABLE child_rungs IS
   'Internal. A child''s reading/numbers lamp, append-only and up-only, from check rows only. Written by the bot (service role).';

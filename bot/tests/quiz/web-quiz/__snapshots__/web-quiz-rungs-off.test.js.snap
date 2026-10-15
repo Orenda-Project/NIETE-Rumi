@@ -1,0 +1,1855 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`web_quiz_challenge_rungs off: the submit path is byte-identical a reading that fails scoring (absent) 1`] = `
+{
+  "db": [
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "class_enrollments",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "students",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "student_lists",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "insert",
+      "payload": [
+        {
+          "created_at": "<ts>",
+          "exercise": "read",
+          "grade": 3,
+          "id": "<uuid>",
+          "lang": "en",
+          "meta": {
+            "ms": 60000,
+          },
+          "status": "scoring",
+          "student_id": "<uuid>",
+        },
+      ],
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "update",
+      "payload": {
+        "meta": {
+          "error": "r2 down",
+          "reason": "internal_error",
+        },
+        "scored_at": "<ts>",
+        "status": "failed",
+      },
+      "table": "web_quiz_challenge_runs",
+    },
+  ],
+  "events": [
+    [
+      "web_quiz.ch_start",
+      {
+        "grade": 3,
+        "run": "<uuid>",
+        "step": "read",
+      },
+    ],
+  ],
+}
+`;
+
+exports[`web_quiz_challenge_rungs off: the submit path is byte-identical a reading that fails scoring (false) 1`] = `
+{
+  "db": [
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "class_enrollments",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "students",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "student_lists",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "insert",
+      "payload": [
+        {
+          "created_at": "<ts>",
+          "exercise": "read",
+          "grade": 3,
+          "id": "<uuid>",
+          "lang": "en",
+          "meta": {
+            "ms": 60000,
+          },
+          "status": "scoring",
+          "student_id": "<uuid>",
+        },
+      ],
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "update",
+      "payload": {
+        "meta": {
+          "error": "r2 down",
+          "reason": "internal_error",
+        },
+        "scored_at": "<ts>",
+        "status": "failed",
+      },
+      "table": "web_quiz_challenge_runs",
+    },
+  ],
+  "events": [
+    [
+      "web_quiz.ch_start",
+      {
+        "grade": 3,
+        "run": "<uuid>",
+        "step": "read",
+      },
+    ],
+  ],
+}
+`;
+
+exports[`web_quiz_challenge_rungs off: the submit path is byte-identical a reading that fails scoring (on under challenge v2 off) 1`] = `
+{
+  "db": [
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "class_enrollments",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "students",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "student_lists",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "insert",
+      "payload": [
+        {
+          "created_at": "<ts>",
+          "exercise": "read",
+          "grade": 3,
+          "id": "<uuid>",
+          "lang": "en",
+          "meta": {
+            "ms": 60000,
+          },
+          "status": "scoring",
+          "student_id": "<uuid>",
+        },
+      ],
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "update",
+      "payload": {
+        "meta": {
+          "error": "r2 down",
+          "reason": "internal_error",
+        },
+        "scored_at": "<ts>",
+        "status": "failed",
+      },
+      "table": "web_quiz_challenge_runs",
+    },
+  ],
+  "events": [
+    [
+      "web_quiz.ch_start",
+      {
+        "grade": 3,
+        "run": "<uuid>",
+        "step": "read",
+      },
+    ],
+  ],
+}
+`;
+
+exports[`web_quiz_challenge_rungs off: the submit path is byte-identical a scored bigger run (absent) 1`] = `
+{
+  "db": [
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "class_enrollments",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "students",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "student_lists",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "insert",
+      "payload": [
+        {
+          "created_at": "<ts>",
+          "exercise": "bigger",
+          "grade": 3,
+          "id": "<uuid>",
+          "lang": "en",
+          "meta": {
+            "ms": 25000,
+          },
+          "score": {
+            "correct": 10,
+            "n": 10,
+            "stopped": false,
+          },
+          "scored_at": "<ts>",
+          "status": "scored",
+          "student_id": "<uuid>",
+        },
+      ],
+      "table": "web_quiz_challenge_runs",
+    },
+  ],
+  "events": [
+    [
+      "web_quiz.ch_start",
+      {
+        "grade": 3,
+        "run": "<uuid>",
+        "step": "bigger",
+      },
+    ],
+    [
+      "web_quiz.ch_done",
+      {
+        "count": 10,
+        "n": 10,
+        "run": "<uuid>",
+        "step": "bigger",
+        "stopped": false,
+      },
+    ],
+  ],
+}
+`;
+
+exports[`web_quiz_challenge_rungs off: the submit path is byte-identical a scored bigger run (false) 1`] = `
+{
+  "db": [
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "class_enrollments",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "students",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "student_lists",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "insert",
+      "payload": [
+        {
+          "created_at": "<ts>",
+          "exercise": "bigger",
+          "grade": 3,
+          "id": "<uuid>",
+          "lang": "en",
+          "meta": {
+            "ms": 25000,
+          },
+          "score": {
+            "correct": 10,
+            "n": 10,
+            "stopped": false,
+          },
+          "scored_at": "<ts>",
+          "status": "scored",
+          "student_id": "<uuid>",
+        },
+      ],
+      "table": "web_quiz_challenge_runs",
+    },
+  ],
+  "events": [
+    [
+      "web_quiz.ch_start",
+      {
+        "grade": 3,
+        "run": "<uuid>",
+        "step": "bigger",
+      },
+    ],
+    [
+      "web_quiz.ch_done",
+      {
+        "count": 10,
+        "n": 10,
+        "run": "<uuid>",
+        "step": "bigger",
+        "stopped": false,
+      },
+    ],
+  ],
+}
+`;
+
+exports[`web_quiz_challenge_rungs off: the submit path is byte-identical a scored bigger run (on under challenge v2 off) 1`] = `
+{
+  "db": [
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "class_enrollments",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "students",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "student_lists",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "insert",
+      "payload": [
+        {
+          "created_at": "<ts>",
+          "exercise": "bigger",
+          "grade": 3,
+          "id": "<uuid>",
+          "lang": "en",
+          "meta": {
+            "ms": 25000,
+          },
+          "score": {
+            "correct": 10,
+            "n": 10,
+            "stopped": false,
+          },
+          "scored_at": "<ts>",
+          "status": "scored",
+          "student_id": "<uuid>",
+        },
+      ],
+      "table": "web_quiz_challenge_runs",
+    },
+  ],
+  "events": [
+    [
+      "web_quiz.ch_start",
+      {
+        "grade": 3,
+        "run": "<uuid>",
+        "step": "bigger",
+      },
+    ],
+    [
+      "web_quiz.ch_done",
+      {
+        "count": 10,
+        "n": 10,
+        "run": "<uuid>",
+        "step": "bigger",
+        "stopped": false,
+      },
+    ],
+  ],
+}
+`;
+
+exports[`web_quiz_challenge_rungs off: the submit path is byte-identical a scored missing-number run under the record rules (absent) 1`] = `
+{
+  "db": [
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "class_enrollments",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "students",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "student_lists",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "insert",
+      "payload": [
+        {
+          "created_at": "<ts>",
+          "exercise": "missing",
+          "grade": 3,
+          "id": "<uuid>",
+          "lang": "en",
+          "meta": {
+            "abandoned": false,
+            "attempt_no": 1,
+            "clock": "row_paint",
+            "counted": true,
+            "elapsed_s": "<v>",
+            "exposure_no": 1,
+            "grade_source": "list",
+            "helped": null,
+            "items": [
+              {
+                "digits": 1,
+                "first_key_ms": 900,
+                "i": 1,
+                "keys": 1,
+                "ms": 3000,
+                "ok": false,
+                "ok_5s": false,
+              },
+              {
+                "digits": 2,
+                "first_key_ms": 900,
+                "i": 2,
+                "keys": 1,
+                "ms": 3000,
+                "ok": false,
+                "ok_5s": false,
+              },
+              {
+                "digits": 2,
+                "first_key_ms": 900,
+                "i": 3,
+                "keys": 1,
+                "ms": 3000,
+                "ok": false,
+                "ok_5s": false,
+              },
+              {
+                "digits": 3,
+                "first_key_ms": 900,
+                "i": 4,
+                "keys": 1,
+                "ms": 3000,
+                "ok": false,
+                "ok_5s": false,
+              },
+              {
+                "digits": 1,
+                "first_key_ms": null,
+                "i": 5,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+              {
+                "digits": 3,
+                "first_key_ms": null,
+                "i": 6,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+              {
+                "digits": 2,
+                "first_key_ms": null,
+                "i": 7,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+              {
+                "digits": 2,
+                "first_key_ms": null,
+                "i": 8,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+              {
+                "digits": 3,
+                "first_key_ms": null,
+                "i": 9,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+              {
+                "digits": 2,
+                "first_key_ms": null,
+                "i": 10,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+            ],
+            "ms": 30000,
+            "none_n": 0,
+            "rapid": false,
+            "sequence_n": 1,
+            "test": true,
+            "too_fast": "<v>",
+          },
+          "score": {
+            "correct": 0,
+            "correct_5s": 0,
+            "n": 10,
+            "stopped": true,
+          },
+          "scored_at": "<ts>",
+          "status": "scored",
+          "student_id": "<uuid>",
+        },
+      ],
+      "table": "web_quiz_challenge_runs",
+    },
+  ],
+  "events": [
+    [
+      "web_quiz.ch_start",
+      {
+        "grade": 3,
+        "run": "<uuid>",
+        "step": "missing",
+      },
+    ],
+    [
+      "web_quiz.ch_done",
+      {
+        "count": 0,
+        "count_5s": 0,
+        "n": 10,
+        "run": "<uuid>",
+        "step": "missing",
+        "stopped": true,
+      },
+    ],
+  ],
+}
+`;
+
+exports[`web_quiz_challenge_rungs off: the submit path is byte-identical a scored missing-number run under the record rules (false) 1`] = `
+{
+  "db": [
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "class_enrollments",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "students",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "student_lists",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "insert",
+      "payload": [
+        {
+          "created_at": "<ts>",
+          "exercise": "missing",
+          "grade": 3,
+          "id": "<uuid>",
+          "lang": "en",
+          "meta": {
+            "abandoned": false,
+            "attempt_no": 1,
+            "clock": "row_paint",
+            "counted": true,
+            "elapsed_s": "<v>",
+            "exposure_no": 1,
+            "grade_source": "list",
+            "helped": null,
+            "items": [
+              {
+                "digits": 1,
+                "first_key_ms": 900,
+                "i": 1,
+                "keys": 1,
+                "ms": 3000,
+                "ok": false,
+                "ok_5s": false,
+              },
+              {
+                "digits": 2,
+                "first_key_ms": 900,
+                "i": 2,
+                "keys": 1,
+                "ms": 3000,
+                "ok": false,
+                "ok_5s": false,
+              },
+              {
+                "digits": 2,
+                "first_key_ms": 900,
+                "i": 3,
+                "keys": 1,
+                "ms": 3000,
+                "ok": false,
+                "ok_5s": false,
+              },
+              {
+                "digits": 3,
+                "first_key_ms": 900,
+                "i": 4,
+                "keys": 1,
+                "ms": 3000,
+                "ok": false,
+                "ok_5s": false,
+              },
+              {
+                "digits": 1,
+                "first_key_ms": null,
+                "i": 5,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+              {
+                "digits": 3,
+                "first_key_ms": null,
+                "i": 6,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+              {
+                "digits": 2,
+                "first_key_ms": null,
+                "i": 7,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+              {
+                "digits": 2,
+                "first_key_ms": null,
+                "i": 8,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+              {
+                "digits": 3,
+                "first_key_ms": null,
+                "i": 9,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+              {
+                "digits": 2,
+                "first_key_ms": null,
+                "i": 10,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+            ],
+            "ms": 30000,
+            "none_n": 0,
+            "rapid": false,
+            "sequence_n": 1,
+            "test": true,
+            "too_fast": "<v>",
+          },
+          "score": {
+            "correct": 0,
+            "correct_5s": 0,
+            "n": 10,
+            "stopped": true,
+          },
+          "scored_at": "<ts>",
+          "status": "scored",
+          "student_id": "<uuid>",
+        },
+      ],
+      "table": "web_quiz_challenge_runs",
+    },
+  ],
+  "events": [
+    [
+      "web_quiz.ch_start",
+      {
+        "grade": 3,
+        "run": "<uuid>",
+        "step": "missing",
+      },
+    ],
+    [
+      "web_quiz.ch_done",
+      {
+        "count": 0,
+        "count_5s": 0,
+        "n": 10,
+        "run": "<uuid>",
+        "step": "missing",
+        "stopped": true,
+      },
+    ],
+  ],
+}
+`;
+
+exports[`web_quiz_challenge_rungs off: the submit path is byte-identical a scored missing-number run under the record rules (on under challenge v2 off) 1`] = `
+{
+  "db": [
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "class_enrollments",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "students",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "student_lists",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "insert",
+      "payload": [
+        {
+          "created_at": "<ts>",
+          "exercise": "missing",
+          "grade": 3,
+          "id": "<uuid>",
+          "lang": "en",
+          "meta": {
+            "abandoned": false,
+            "attempt_no": 1,
+            "clock": "row_paint",
+            "counted": true,
+            "elapsed_s": "<v>",
+            "exposure_no": 1,
+            "grade_source": "list",
+            "helped": null,
+            "items": [
+              {
+                "digits": 1,
+                "first_key_ms": 900,
+                "i": 1,
+                "keys": 1,
+                "ms": 3000,
+                "ok": false,
+                "ok_5s": false,
+              },
+              {
+                "digits": 2,
+                "first_key_ms": 900,
+                "i": 2,
+                "keys": 1,
+                "ms": 3000,
+                "ok": false,
+                "ok_5s": false,
+              },
+              {
+                "digits": 2,
+                "first_key_ms": 900,
+                "i": 3,
+                "keys": 1,
+                "ms": 3000,
+                "ok": false,
+                "ok_5s": false,
+              },
+              {
+                "digits": 3,
+                "first_key_ms": 900,
+                "i": 4,
+                "keys": 1,
+                "ms": 3000,
+                "ok": false,
+                "ok_5s": false,
+              },
+              {
+                "digits": 1,
+                "first_key_ms": null,
+                "i": 5,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+              {
+                "digits": 3,
+                "first_key_ms": null,
+                "i": 6,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+              {
+                "digits": 2,
+                "first_key_ms": null,
+                "i": 7,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+              {
+                "digits": 2,
+                "first_key_ms": null,
+                "i": 8,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+              {
+                "digits": 3,
+                "first_key_ms": null,
+                "i": 9,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+              {
+                "digits": 2,
+                "first_key_ms": null,
+                "i": 10,
+                "keys": null,
+                "ms": null,
+                "ok": null,
+                "ok_5s": false,
+                "reached": false,
+              },
+            ],
+            "ms": 30000,
+            "none_n": 0,
+            "rapid": false,
+            "sequence_n": 1,
+            "test": true,
+            "too_fast": "<v>",
+          },
+          "score": {
+            "correct": 0,
+            "correct_5s": 0,
+            "n": 10,
+            "stopped": true,
+          },
+          "scored_at": "<ts>",
+          "status": "scored",
+          "student_id": "<uuid>",
+        },
+      ],
+      "table": "web_quiz_challenge_runs",
+    },
+  ],
+  "events": [
+    [
+      "web_quiz.ch_start",
+      {
+        "grade": 3,
+        "run": "<uuid>",
+        "step": "missing",
+      },
+    ],
+    [
+      "web_quiz.ch_done",
+      {
+        "count": 0,
+        "count_5s": 0,
+        "n": 10,
+        "run": "<uuid>",
+        "step": "missing",
+        "stopped": true,
+      },
+    ],
+  ],
+}
+`;
+
+exports[`web_quiz_challenge_rungs off: the submit path is byte-identical a scored v2 row with events v2 on (absent) 1`] = `
+{
+  "db": [
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "class_enrollments",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "students",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "student_lists",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "insert",
+      "payload": [
+        {
+          "band": null,
+          "canonical_id": "<uuid>",
+          "created_at": "<ts>",
+          "exercise": "bigger",
+          "exposure_no": 1,
+          "form": "G3",
+          "grade": 3,
+          "helped": "self",
+          "homonym_in_list": false,
+          "id": "<uuid>",
+          "id_confidence": "high",
+          "id_src": "roster_pick",
+          "lang": "en",
+          "meta": {
+            "ms": 25000,
+          },
+          "mode": "check",
+          "period_id": "2026-11",
+          "record": true,
+          "score": {
+            "correct": 10,
+            "n": 10,
+            "stopped": false,
+          },
+          "scored_at": "<ts>",
+          "status": "scored",
+          "student_id": "<uuid>",
+          "via": "quiz_card",
+        },
+      ],
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+  ],
+  "events": [
+    [
+      "web_quiz.ch_start",
+      {
+        "ev_v": 2,
+        "grade": 3,
+        "kid": "<v>",
+        "kid_v": "2026",
+        "run": "<uuid>",
+        "step": "bigger",
+        "w": "s",
+      },
+    ],
+    [
+      "web_quiz.m_result",
+      {
+        "anchor_block": null,
+        "anchor_exposure_no": null,
+        "band": null,
+        "ev_v": 2,
+        "exercise": "bigger",
+        "exposure_no": 1,
+        "fixed_band": "G23",
+        "fixed_grade": 3,
+        "form": "G3",
+        "helped": "self",
+        "homonym_in_list": false,
+        "id_confidence": "high",
+        "id_src": "roster_pick",
+        "kid": "<v>",
+        "kid_v": "2026",
+        "lang": "en",
+        "mode": "check",
+        "n": 10,
+        "ok_n": 10,
+        "passage_id": null,
+        "period_id": "2026-11",
+        "quality": "ok",
+        "record": true,
+        "run": "<uuid>",
+        "rung": null,
+        "sitting": "<v>",
+        "stopped": false,
+        "via": "quiz_card",
+        "w": "s",
+      },
+    ],
+    [
+      "web_quiz.ch_done",
+      {
+        "count": 10,
+        "n": 10,
+        "run": "<uuid>",
+        "step": "bigger",
+        "stopped": false,
+      },
+    ],
+  ],
+}
+`;
+
+exports[`web_quiz_challenge_rungs off: the submit path is byte-identical a scored v2 row with events v2 on (false) 1`] = `
+{
+  "db": [
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "class_enrollments",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "students",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "student_lists",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "insert",
+      "payload": [
+        {
+          "band": null,
+          "canonical_id": "<uuid>",
+          "created_at": "<ts>",
+          "exercise": "bigger",
+          "exposure_no": 1,
+          "form": "G3",
+          "grade": 3,
+          "helped": "self",
+          "homonym_in_list": false,
+          "id": "<uuid>",
+          "id_confidence": "high",
+          "id_src": "roster_pick",
+          "lang": "en",
+          "meta": {
+            "ms": 25000,
+          },
+          "mode": "check",
+          "period_id": "2026-11",
+          "record": true,
+          "score": {
+            "correct": 10,
+            "n": 10,
+            "stopped": false,
+          },
+          "scored_at": "<ts>",
+          "status": "scored",
+          "student_id": "<uuid>",
+          "via": "quiz_card",
+        },
+      ],
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+  ],
+  "events": [
+    [
+      "web_quiz.ch_start",
+      {
+        "ev_v": 2,
+        "grade": 3,
+        "kid": "<v>",
+        "kid_v": "2026",
+        "run": "<uuid>",
+        "step": "bigger",
+        "w": "s",
+      },
+    ],
+    [
+      "web_quiz.m_result",
+      {
+        "anchor_block": null,
+        "anchor_exposure_no": null,
+        "band": null,
+        "ev_v": 2,
+        "exercise": "bigger",
+        "exposure_no": 1,
+        "fixed_band": "G23",
+        "fixed_grade": 3,
+        "form": "G3",
+        "helped": "self",
+        "homonym_in_list": false,
+        "id_confidence": "high",
+        "id_src": "roster_pick",
+        "kid": "<v>",
+        "kid_v": "2026",
+        "lang": "en",
+        "mode": "check",
+        "n": 10,
+        "ok_n": 10,
+        "passage_id": null,
+        "period_id": "2026-11",
+        "quality": "ok",
+        "record": true,
+        "run": "<uuid>",
+        "rung": null,
+        "sitting": "<v>",
+        "stopped": false,
+        "via": "quiz_card",
+        "w": "s",
+      },
+    ],
+    [
+      "web_quiz.ch_done",
+      {
+        "count": 10,
+        "n": 10,
+        "run": "<uuid>",
+        "step": "bigger",
+        "stopped": false,
+      },
+    ],
+  ],
+}
+`;
+
+exports[`web_quiz_challenge_rungs off: the submit path is byte-identical a scored v2 row with events v2 on (on under challenge v2 off) 1`] = `
+{
+  "db": [
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "class_enrollments",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "students",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "student_lists",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "quiz_sessions",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "insert",
+      "payload": [
+        {
+          "band": null,
+          "canonical_id": "<uuid>",
+          "created_at": "<ts>",
+          "exercise": "bigger",
+          "exposure_no": 1,
+          "form": "G3",
+          "grade": 3,
+          "helped": "self",
+          "homonym_in_list": false,
+          "id": "<uuid>",
+          "id_confidence": "high",
+          "id_src": "roster_pick",
+          "lang": "en",
+          "meta": {
+            "ms": 25000,
+          },
+          "mode": "check",
+          "period_id": "2026-11",
+          "record": true,
+          "score": {
+            "correct": 10,
+            "n": 10,
+            "stopped": false,
+          },
+          "scored_at": "<ts>",
+          "status": "scored",
+          "student_id": "<uuid>",
+          "via": "quiz_card",
+        },
+      ],
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+  ],
+  "events": [
+    [
+      "web_quiz.ch_start",
+      {
+        "ev_v": 2,
+        "grade": 3,
+        "kid": "<v>",
+        "kid_v": "2026",
+        "run": "<uuid>",
+        "step": "bigger",
+        "w": "s",
+      },
+    ],
+    [
+      "web_quiz.m_result",
+      {
+        "anchor_block": null,
+        "anchor_exposure_no": null,
+        "band": null,
+        "ev_v": 2,
+        "exercise": "bigger",
+        "exposure_no": 1,
+        "fixed_band": "G23",
+        "fixed_grade": 3,
+        "form": "G3",
+        "helped": "self",
+        "homonym_in_list": false,
+        "id_confidence": "high",
+        "id_src": "roster_pick",
+        "kid": "<v>",
+        "kid_v": "2026",
+        "lang": "en",
+        "mode": "check",
+        "n": 10,
+        "ok_n": 10,
+        "passage_id": null,
+        "period_id": "2026-11",
+        "quality": "ok",
+        "record": true,
+        "run": "<uuid>",
+        "rung": null,
+        "sitting": "<v>",
+        "stopped": false,
+        "via": "quiz_card",
+        "w": "s",
+      },
+    ],
+    [
+      "web_quiz.ch_done",
+      {
+        "count": 10,
+        "n": 10,
+        "run": "<uuid>",
+        "step": "bigger",
+        "stopped": false,
+      },
+    ],
+  ],
+}
+`;

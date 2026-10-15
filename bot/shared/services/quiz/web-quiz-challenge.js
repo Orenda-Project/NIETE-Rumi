@@ -461,6 +461,7 @@ async function updateRun(id, patch) {
  * read back from the row as written. Only a v2 row (mode set) has one; with the switch off nothing is read. Never throws.
  */
 async function measureOutcome(id) {
+  await require('./web-quiz-rungs').onRecordFinal(id).catch(() => null); // the lamps (web_quiz_challenge_rungs; off ⇒ no query)
   try {
     if (!(await Flags.eventsV2On())) return;
     const { data: row, error } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle();
