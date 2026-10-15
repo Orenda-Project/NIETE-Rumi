@@ -224,6 +224,9 @@ const STRINGS = {
     send_failed_fo: '⚠️ Samahani — ripoti haikuweza kutumwa kwa mwalimu sasa hivi. Andika /observe, chagua uchunguzi huo, na ujaribu tena kutuma (📨).',
     // bd-trksw9: the report's written feedback could not be generated — nothing was sent; one tap rebuilds it.
     send_preview_failed_fo: '⚠️ Samahani — ripoti ya {name} haikuweza kuandaliwa kwa sababu ya hitilafu ya kiufundi. Bonyeza hapa chini kujaribu tena.',
+    // A plain-text step when WhatsApp refuses the buttons twice (observe-send: never a silent preview).
+    send_preview_failed_text: '⚠️ Samahani — ripoti ya {name} haikuweza kuandaliwa kwa sababu ya hitilafu ya kiufundi. Andika /observe, chagua uchunguzi huu kwenye orodha (📨) ili kujaribu tena.',
+    send_confirm_unavailable: '⚠️ Ripoti iliyo hapo juu iko tayari, lakini vitufe vya kutuma havikufika. Andika /observe, chagua uchunguzi huu kwenye orodha (📨) ili kuituma.',
     btn_regenerate_report: 'Tengeneza upya',
     send_template_queued_fo:
       '📨 Mwalimu hajanitumia ujumbe hivi karibuni, kwa hivyo nimemtumia mwaliko rasmi — akiubonyeza, ripoti yake itamfikia mara moja. Nitakujulisha.',
@@ -421,6 +424,9 @@ const STRINGS = {
     send_failed_fo: '⚠️ معذرت — رپورٹ ابھی استاد کو نہیں بھیجی جا سکی۔ \u2066/observe\u2069 لکھیں، وہ مشاہدہ منتخب کریں، اور دوبارہ بھیجنے کی کوشش کریں (📨)۔',
     // bd-trksw9: the report's written feedback could not be generated — nothing was sent; one tap rebuilds it.
     send_preview_failed_fo: '⚠️ معذرت — {name} کی رپورٹ ایک تکنیکی خرابی کی وجہ سے تیار نہیں ہو سکی۔ دوبارہ کوشش کے لیے نیچے بٹن دبائیں۔',
+    // A plain-text step when WhatsApp refuses the buttons twice (observe-send: never a silent preview).
+    send_preview_failed_text: '⚠️ معذرت — {name} کی رپورٹ ایک تکنیکی خرابی کی وجہ سے تیار نہیں ہو سکی۔ دوبارہ کوشش کے لیے \u2066/observe\u2069 لکھیں اور فہرست سے یہ مشاہدہ (📨) منتخب کریں۔',
+    send_confirm_unavailable: '⚠️ اوپر والی رپورٹ تیار ہے، مگر بھیجنے کے بٹن نہیں آ سکے۔ رپورٹ بھیجنے کے لیے \u2066/observe\u2069 لکھیں اور فہرست سے یہ مشاہدہ (📨) منتخب کریں۔',
     btn_regenerate_report: 'رپورٹ دوبارہ بنائیں',
     send_template_queued_fo: '📨 استاد نے حال میں مجھے پیغام نہیں بھیجا، اس لیے انہیں دعوت بھیجی ہے — ایک ٹیپ پر رپورٹ مل جائے گی۔ میں بتاؤں گی۔',
     send_operator_review_fo: '📨 رپورٹ جائزے کے لیے بھیج دی گئی ہے — منظوری پر استاد کو پہنچے گی۔',
@@ -660,6 +666,9 @@ const STRINGS = {
     send_failed_fo: "⚠️ Sorry — the report couldn't be sent to the teacher just now. Type /observe, pick that observation, and try sending again (📨).",
     // bd-trksw9: the report's written feedback could not be generated — nothing was sent; one tap rebuilds it.
     send_preview_failed_fo: "⚠️ Sorry — {name}'s report couldn't be prepared because of a technical error. Tap below to try again.",
+    // A plain-text step when WhatsApp refuses the buttons twice (observe-send: never a silent preview).
+    send_preview_failed_text: "⚠️ Sorry — {name}'s report couldn't be prepared because of a technical error. Type /observe and pick this observation from the list (📨) to try again.",
+    send_confirm_unavailable: "⚠️ The report above is ready, but the Send buttons didn't come through. Type /observe and pick this observation from the list (📨) to send it.",
     btn_regenerate_report: 'Regenerate report',
     send_template_queued_fo:
       "📨 The teacher hasn't messaged me recently, so I sent them an official invite — one tap and the report arrives. I'll let you know.",
