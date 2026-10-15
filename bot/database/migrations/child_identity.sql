@@ -69,3 +69,11 @@ CREATE TABLE IF NOT EXISTS merge_log (             -- §12, the teacher queue's 
   decision       text        NOT NULL CHECK (decision IN ('same','no','undo')),
   source         text        NOT NULL CHECK (source IN ('queue','class_tab'))
 );
+
+-- Row Level Security on every table above: the bot writes with the service
+-- role (which bypasses RLS); nothing else may read child <-> phone pairs.
+-- Idempotent, like everything else in this file.
+ALTER TABLE child_identity       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE child_phone_bindings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE child_bind_codes     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE merge_log            ENABLE ROW LEVEL SECURITY;
