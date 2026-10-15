@@ -4,7 +4,7 @@ import type { AssessmentSpec } from '../../services/api';
 import { usePaperJobs, type PaperJob, type StartResult } from '../../components/assessment-jobs/usePaperJobs';
 import { itemId } from '../notices/model';
 import { noticeTracker } from '../notices/tracker';
-import type { V2Spec } from './model';
+import type { FdeSpec, V2Spec } from './model';
 import { requestPath } from './paths';
 
 /**
@@ -38,7 +38,7 @@ export function useJobs(opts: { onReady?: (job: PaperJob) => void } = {}) {
   const jobs = usePaperJobs({ userKey: user?.phoneNumber || null, onReady: opts.onReady });
   const { start: startShared, retry: retryShared, dismiss: dismissShared } = jobs;
   const start = useCallback(
-    async (spec: V2Spec, label: string, subject?: string | null): Promise<StartResult> => {
+    async (spec: V2Spec | FdeSpec, label: string, subject?: string | null): Promise<StartResult> => {
       const res = await startShared(spec as unknown as AssessmentSpec, label);
       if (res.ok) follow(res.job, subject ?? spec.subject ?? null);
       return res;
