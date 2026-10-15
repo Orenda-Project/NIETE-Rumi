@@ -55,7 +55,7 @@ const SENT_AT = pkt(NUDGE_DATE, 15, 0);
 const TAP_AT = pkt(NUDGE_DATE, 15, 20);
 
 const lesson = (over = {}) => ({
-  lesson_id: 'grade_4_urdu_ch2_seg1',
+  lesson_id: 'grade_4_urdu_ch5_seg1',
   asset_id: 'asset-1',
   version_stamp: 'v8.2026-09-01',
   content_hash: 'hash-served-aaa',
@@ -121,7 +121,7 @@ describe('Make the quiz — one lp_v8 quiz, queued once', () => {
       class: { grade: 4, subject: 'urdu' },
     }));
     expect(quiz.meta.lessons).toEqual([{
-      lesson_id: 'grade_4_urdu_ch2_seg1',
+      lesson_id: 'grade_4_urdu_ch5_seg1',
       asset_id: 'asset-1',
       version_stamp: 'v8.2026-09-01',
       content_hash: 'hash-served-aaa',

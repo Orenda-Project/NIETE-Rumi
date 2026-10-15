@@ -142,7 +142,9 @@ const english = () => maths({
 });
 const urdu = () => maths({
   key: 'g4_urdu', grade: 4, subject: 'urdu',
-  lessons: [lesson({ lesson_id: 'grade_4_urdu_ch1_seg1', topic: 'Pyasa Kawwa' })],
+  // Chapter 5, a story: chapters 1-3 of every K-5 Urdu book (Hamd, Naat, the Prophet's life) are held
+  // out of machine-written quizzes (lp-religious-hold).
+  lessons: [lesson({ lesson_id: 'grade_4_urdu_ch5_seg1', topic: 'Pyasa Kawwa' })],
 });
 
 function sentRow(classes) {
@@ -330,9 +332,20 @@ describe('Make the quiz on a maths lesson asks which language the quiz is writte
 });
 
 describe('Urdu and Islamiyat lessons are not asked', () => {
+  // Islamiyat is held out of machine-written quizzes until its religious review (lp-religious-hold):
+  // a yes on it makes no quiz and asks nothing. The whole hold is in lp-quiz-religious-hold.test.js.
+  test('islamiyat: yes makes no quiz and asks no language (held for its religious review)', async () => {
+    install({ classes: [maths({ key: 'g3_islamiyat', grade: 3, subject: 'islamiyat' })] });
+    await LpOffer.handleButton(`lpquiz_yes_${NID}`, PHONE, userFor(), { now: TAP_AT });
+
+    expect(quizzes()).toHaveLength(0);
+    expect(asks()).toHaveLength(0);
+    expect(SQSQueueService.queueJob).not.toHaveBeenCalled();
+    expect(sentText()).toEqual([ux('tqLpLessonUnavailable')]);
+  });
+
   test.each([
     ['urdu', urdu()],
-    ['islamiyat', maths({ key: 'g3_islamiyat', grade: 3, subject: 'islamiyat' })],
   ])('%s: yes makes the quiz at once in the rule language', async (_name, cls) => {
     install({ classes: [cls] });
     await LpOffer.handleButton(`lpquiz_yes_${NID}`, PHONE, userFor(), { now: TAP_AT });
