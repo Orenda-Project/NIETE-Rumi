@@ -14,15 +14,16 @@ const router = express.Router();
 const STATUS = {
   EDITING_DISABLED: 403, NOT_FOUND: 404, NOT_READY: 409,
   INVALID_CHANGES: 400, EMPTY_SELECTION: 400, NO_CHANGES: 400, EDIT_REJECTED: 400,
-  PATTERN_NO_EDIT: 400,
+  PATTERN_NO_ADD: 400,
 };
 
-// A board-pattern paper is not edited; the app reads `errorCode` like every other new refusal.
-const PATTERN_NO_EDIT = 'PATTERN_NO_EDIT';
-const PATTERN_REFUSAL = { errorCode: PATTERN_NO_EDIT, error: 'Board-pattern papers keep their shape.' };
+// A board-pattern paper is edited like any other, but nothing is added to it: the pattern fixes
+// how many questions each slot holds. An edit refusal like the rest; the app reads `errorCode`.
+const PATTERN_NO_ADD = 'PATTERN_NO_ADD';
+const PATTERN_REFUSAL = { code: 'EDIT_REJECTED', errorCode: PATTERN_NO_ADD, error: 'Board-pattern papers keep their shape.' };
 
 function refuse(res, code, extra = {}) {
-  const more = code === PATTERN_NO_EDIT ? PATTERN_REFUSAL : {};
+  const more = code === PATTERN_NO_ADD ? PATTERN_REFUSAL : {};
   return res.status(STATUS[code] || 502).json({ success: false, code, ...more, ...extra });
 }
 
