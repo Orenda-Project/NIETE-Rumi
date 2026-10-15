@@ -219,6 +219,7 @@ describe('the door\'s tap, twice or abandoned', () => {
     await open();
     fireEvent.click(screen.getByRole('button', { name: /^Grade 5 · Maths/ }));
     await screen.findByTestId('fde-door-busy');
+    expect(screen.getByTestId('button-reason').textContent).toBe(C.why.wait);
     await open();
     fireEvent.click(screen.getByRole('button', { name: /^Grade 5 · Science/ }));
     await act(async () => { await Promise.resolve(); });
@@ -338,7 +339,7 @@ describe('Ready on a board-pattern paper', () => {
   });
 });
 
-describe('the plain Check and the request page (what QA and the red team found on sandbox)', () => {
+describe('the plain Check, the request page and the failure labels', () => {
   const plainPicks = () => setPicks({ ...newPicks(10), grade: 3, subject: 'science', subjectName: 'Science', chapters: [1] });
 
   it('a refused Make for the hour limit says so in the teacher\'s words, with the time, above the rows', async () => {
