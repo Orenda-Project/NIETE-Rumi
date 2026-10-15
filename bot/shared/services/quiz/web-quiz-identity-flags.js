@@ -4,7 +4,7 @@
  * (30 s cache, fail closed). Each is effective only with its parent on:
  *
  *   canon      = web_quiz_identity_canon && web_quiz_hub    fold ids through canonicalStudentIds + merged_into
- *   phoneBind  = web_quiz_phone_bind     && canon           family phone bindings read and written
+ *   phoneBind  = web_quiz_phone_bind     && canon && WQ_TOMB_SALT set   family phone bindings read and written
  *   guestHome  = web_quiz_guest_home     && phoneBind       an unknown phone's /quiz gets a guest hub
  *
  * All off → every caller's path is today's.
@@ -35,7 +35,8 @@ async function flags(now = Date.now()) {
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
     const hub = Boolean((await HubFlags.flags(now)).hub);
     const canon = hub && isTrue(by[CANON_KEY]);
-    const phoneBind = canon && isTrue(by[PHONE_BIND_KEY]);
+    // WQ_TOMB_SALT is a hard parent: without it the store writes nothing and a family's JUGNU- message would meet silence.
+    const phoneBind = canon && isTrue(by[PHONE_BIND_KEY]) && Boolean(process.env.WQ_TOMB_SALT);
     const guestHome = phoneBind && isTrue(by[GUEST_HOME_KEY]);
     cache = { at: now, canon, phoneBind, guestHome };
     return cache;

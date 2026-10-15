@@ -170,6 +170,6 @@ async function findByTeacher(userId, { limit = 200 } = {}) {
 }
 
 module.exports = {
-  normalisePhone, findByPhone, remember, touch, findByTeacher,
+  normalisePhone, findByPhone, remember, touch, findByTeacher, forgetDoorVerdict,
   NAME_MAX, CLASS_MAX,
 };

@@ -26,5 +26,12 @@
       "bot/shared/services/quiz/transcript-quiz-handoff.service.js"
     ],
     "reason": "The two halves of one send. transcript-quiz-generate finishes authoring and lazy-requires transcript-quiz-handoff to mint the share code, attach the PDF and pace the three messages \u2014 the same routine /quiz \"resend the link\" runs on a quiz that already went out, which is why it lives on the hand-off side. The hand-off in turn lazy-requires generate for studentMessage(), renderPdf(), withFigureSvgs() and pdfFilename() when it has to rebuild a PDF that is no longer on R2. EVERY require on both sides is inside a function body, never at module top level, so neither module can observe the other half-initialised as `{}` \u2014 which is the failure this guard exists to catch. Splitting the four shared renderers into a fourth module is the real fix and is filed; it is a refactor of the authoring path, not something to do inside a cherry-pick onto production."
+  },
+  {
+    "cycle": [
+      "bot/shared/services/quiz/web-quiz-bind.service.js",
+      "bot/shared/services/student-ingress.js"
+    ],
+    "reason": "Both edges are lazy, inside functions: student-ingress.js bindingWords() requires the binder only for a JUGNU- code or a whole-message STOP, and web-quiz-bind.service.js stopForBoundNonChild() requires student-ingress.js only to ask quizInFlight() before a non-child's STOP. Neither module touches the other at load time."
   }
 ]
