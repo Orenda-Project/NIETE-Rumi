@@ -1,0 +1,502 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`round off (none): a Challenge run is byte-identical exercise payload, the challenge token claims, and the stored row: bigger exercise payload 1`] = `
+{
+  "clips": {
+    "done": {
+      "text": "Well done! You did it!",
+      "url": null,
+    },
+    "intro": {
+      "text": "Two numbers will pop up. Tap the bigger one!",
+      "url": null,
+    },
+    "start": {
+      "text": "Ready? Go!",
+      "url": null,
+    },
+    "stop": {
+      "text": "All done!",
+      "url": null,
+    },
+  },
+  "ct": "<ct>",
+  "ex": "bigger",
+  "items": [
+    {
+      "a": 7,
+      "b": 5,
+    },
+    {
+      "a": 11,
+      "b": 24,
+    },
+    {
+      "a": 39,
+      "b": 23,
+    },
+    {
+      "a": 58,
+      "b": 49,
+    },
+    {
+      "a": 65,
+      "b": 67,
+    },
+    {
+      "a": 94,
+      "b": 78,
+    },
+    {
+      "a": 146,
+      "b": 153,
+    },
+    {
+      "a": 287,
+      "b": 534,
+    },
+    {
+      "a": 623,
+      "b": 632,
+    },
+    {
+      "a": 867,
+      "b": 965,
+    },
+  ],
+  "lang": "en",
+  "name": "Which is bigger?",
+  "per_item_s": 10,
+  "practice": [
+    {
+      "a": 8,
+      "answer": 8,
+      "b": 4,
+    },
+    {
+      "a": 10,
+      "answer": 12,
+      "b": 12,
+    },
+  ],
+  "stop_after": 4,
+}
+`;
+
+exports[`round off (none): a Challenge run is byte-identical exercise payload, the challenge token claims, and the stored row: challenge token claim keys 1`] = `
+[
+  "ex",
+  "exp",
+  "k",
+  "r",
+  "sid",
+]
+`;
+
+exports[`round off (none): a Challenge run is byte-identical exercise payload, the challenge token claims, and the stored row: challenge token claims 1`] = `
+{
+  "ex": "bigger",
+  "exp": "<exp>",
+  "k": "c",
+  "r": "<run>",
+  "sid": "b0000000-0000-4000-8000-000000000001",
+}
+`;
+
+exports[`round off (none): a Challenge run is byte-identical exercise payload, the challenge token claims, and the stored row: stored row 1`] = `
+{
+  "created_at": "<t>",
+  "exercise": "bigger",
+  "grade": 3,
+  "id": "<run>",
+  "lang": "en",
+  "meta": {
+    "ms": 20000,
+  },
+  "score": {
+    "correct": 10,
+    "n": 10,
+    "stopped": false,
+  },
+  "scored_at": "<t>",
+  "status": "scored",
+  "student_id": "b0000000-0000-4000-8000-000000000001",
+}
+`;
+
+exports[`round off (none): a Challenge run is byte-identical exercise payload, the challenge token claims, and the stored row: stored row columns 1`] = `
+[
+  "created_at",
+  "exercise",
+  "grade",
+  "id",
+  "lang",
+  "meta",
+  "score",
+  "scored_at",
+  "status",
+  "student_id",
+]
+`;
+
+exports[`round off (none): the report page is byte-identical class tab en: report class tab 1`] = `
+{
+  "bytes": 97554,
+  "sha256": "98297214a9c913f6566d83719305fc37f6c82cf09cc4ff222dfd97af2e6a3192",
+}
+`;
+
+exports[`round off (none): the report page is byte-identical class tab explicit: report class tab 1`] = `
+{
+  "bytes": 97554,
+  "sha256": "98297214a9c913f6566d83719305fc37f6c82cf09cc4ff222dfd97af2e6a3192",
+}
+`;
+
+exports[`round off (none): the report page is byte-identical class tab ur: report class tab 1`] = `
+{
+  "bytes": 97979,
+  "sha256": "c20ce9912ca61c60d3d553e327d67b0ceba437864795017db91d0b6d3dffe07b",
+}
+`;
+
+exports[`round off (none): the report page is byte-identical quiz tab: report quiz tab 1`] = `
+{
+  "bytes": 98853,
+  "sha256": "e4b6c4e4d73ffbd38d8b1faaf8c2654f1d8b7f7d63e634ad8b17f4ec6d4e7e9d",
+}
+`;
+
+exports[`round off (own_off): a Challenge run is byte-identical exercise payload, the challenge token claims, and the stored row: bigger exercise payload 1`] = `
+{
+  "clips": {
+    "done": {
+      "text": "Well done! You did it!",
+      "url": null,
+    },
+    "intro": {
+      "text": "Two numbers will pop up. Tap the bigger one!",
+      "url": null,
+    },
+    "start": {
+      "text": "Ready? Go!",
+      "url": null,
+    },
+    "stop": {
+      "text": "All done!",
+      "url": null,
+    },
+  },
+  "ct": "<ct>",
+  "ex": "bigger",
+  "items": [
+    {
+      "a": 7,
+      "b": 5,
+    },
+    {
+      "a": 11,
+      "b": 24,
+    },
+    {
+      "a": 39,
+      "b": 23,
+    },
+    {
+      "a": 58,
+      "b": 49,
+    },
+    {
+      "a": 65,
+      "b": 67,
+    },
+    {
+      "a": 94,
+      "b": 78,
+    },
+    {
+      "a": 146,
+      "b": 153,
+    },
+    {
+      "a": 287,
+      "b": 534,
+    },
+    {
+      "a": 623,
+      "b": 632,
+    },
+    {
+      "a": 867,
+      "b": 965,
+    },
+  ],
+  "lang": "en",
+  "name": "Which is bigger?",
+  "per_item_s": 10,
+  "practice": [
+    {
+      "a": 8,
+      "answer": 8,
+      "b": 4,
+    },
+    {
+      "a": 10,
+      "answer": 12,
+      "b": 12,
+    },
+  ],
+  "stop_after": 4,
+}
+`;
+
+exports[`round off (own_off): a Challenge run is byte-identical exercise payload, the challenge token claims, and the stored row: challenge token claim keys 1`] = `
+[
+  "ex",
+  "exp",
+  "k",
+  "r",
+  "sid",
+]
+`;
+
+exports[`round off (own_off): a Challenge run is byte-identical exercise payload, the challenge token claims, and the stored row: challenge token claims 1`] = `
+{
+  "ex": "bigger",
+  "exp": "<exp>",
+  "k": "c",
+  "r": "<run>",
+  "sid": "b0000000-0000-4000-8000-000000000001",
+}
+`;
+
+exports[`round off (own_off): a Challenge run is byte-identical exercise payload, the challenge token claims, and the stored row: stored row 1`] = `
+{
+  "created_at": "<t>",
+  "exercise": "bigger",
+  "grade": 3,
+  "id": "<run>",
+  "lang": "en",
+  "meta": {
+    "ms": 20000,
+  },
+  "score": {
+    "correct": 10,
+    "n": 10,
+    "stopped": false,
+  },
+  "scored_at": "<t>",
+  "status": "scored",
+  "student_id": "b0000000-0000-4000-8000-000000000001",
+}
+`;
+
+exports[`round off (own_off): a Challenge run is byte-identical exercise payload, the challenge token claims, and the stored row: stored row columns 1`] = `
+[
+  "created_at",
+  "exercise",
+  "grade",
+  "id",
+  "lang",
+  "meta",
+  "score",
+  "scored_at",
+  "status",
+  "student_id",
+]
+`;
+
+exports[`round off (own_off): the report page is byte-identical class tab en: report class tab 1`] = `
+{
+  "bytes": 97554,
+  "sha256": "98297214a9c913f6566d83719305fc37f6c82cf09cc4ff222dfd97af2e6a3192",
+}
+`;
+
+exports[`round off (own_off): the report page is byte-identical class tab explicit: report class tab 1`] = `
+{
+  "bytes": 97554,
+  "sha256": "98297214a9c913f6566d83719305fc37f6c82cf09cc4ff222dfd97af2e6a3192",
+}
+`;
+
+exports[`round off (own_off): the report page is byte-identical class tab ur: report class tab 1`] = `
+{
+  "bytes": 97979,
+  "sha256": "c20ce9912ca61c60d3d553e327d67b0ceba437864795017db91d0b6d3dffe07b",
+}
+`;
+
+exports[`round off (own_off): the report page is byte-identical quiz tab: report quiz tab 1`] = `
+{
+  "bytes": 98853,
+  "sha256": "e4b6c4e4d73ffbd38d8b1faaf8c2654f1d8b7f7d63e634ad8b17f4ec6d4e7e9d",
+}
+`;
+
+exports[`round off (parent_off): a Challenge run is byte-identical exercise payload, the challenge token claims, and the stored row: bigger exercise payload 1`] = `
+{
+  "clips": {
+    "done": {
+      "text": "Well done! You did it!",
+      "url": null,
+    },
+    "intro": {
+      "text": "Two numbers will pop up. Tap the bigger one!",
+      "url": null,
+    },
+    "start": {
+      "text": "Ready? Go!",
+      "url": null,
+    },
+    "stop": {
+      "text": "All done!",
+      "url": null,
+    },
+  },
+  "ct": "<ct>",
+  "ex": "bigger",
+  "items": [
+    {
+      "a": 7,
+      "b": 5,
+    },
+    {
+      "a": 11,
+      "b": 24,
+    },
+    {
+      "a": 39,
+      "b": 23,
+    },
+    {
+      "a": 58,
+      "b": 49,
+    },
+    {
+      "a": 65,
+      "b": 67,
+    },
+    {
+      "a": 94,
+      "b": 78,
+    },
+    {
+      "a": 146,
+      "b": 153,
+    },
+    {
+      "a": 287,
+      "b": 534,
+    },
+    {
+      "a": 623,
+      "b": 632,
+    },
+    {
+      "a": 867,
+      "b": 965,
+    },
+  ],
+  "lang": "en",
+  "name": "Which is bigger?",
+  "per_item_s": 10,
+  "practice": [
+    {
+      "a": 8,
+      "answer": 8,
+      "b": 4,
+    },
+    {
+      "a": 10,
+      "answer": 12,
+      "b": 12,
+    },
+  ],
+  "stop_after": 4,
+}
+`;
+
+exports[`round off (parent_off): a Challenge run is byte-identical exercise payload, the challenge token claims, and the stored row: challenge token claim keys 1`] = `
+[
+  "ex",
+  "exp",
+  "k",
+  "r",
+  "sid",
+]
+`;
+
+exports[`round off (parent_off): a Challenge run is byte-identical exercise payload, the challenge token claims, and the stored row: challenge token claims 1`] = `
+{
+  "ex": "bigger",
+  "exp": "<exp>",
+  "k": "c",
+  "r": "<run>",
+  "sid": "b0000000-0000-4000-8000-000000000001",
+}
+`;
+
+exports[`round off (parent_off): a Challenge run is byte-identical exercise payload, the challenge token claims, and the stored row: stored row 1`] = `
+{
+  "created_at": "<t>",
+  "exercise": "bigger",
+  "grade": 3,
+  "id": "<run>",
+  "lang": "en",
+  "meta": {
+    "ms": 20000,
+  },
+  "score": {
+    "correct": 10,
+    "n": 10,
+    "stopped": false,
+  },
+  "scored_at": "<t>",
+  "status": "scored",
+  "student_id": "b0000000-0000-4000-8000-000000000001",
+}
+`;
+
+exports[`round off (parent_off): a Challenge run is byte-identical exercise payload, the challenge token claims, and the stored row: stored row columns 1`] = `
+[
+  "created_at",
+  "exercise",
+  "grade",
+  "id",
+  "lang",
+  "meta",
+  "score",
+  "scored_at",
+  "status",
+  "student_id",
+]
+`;
+
+exports[`round off (parent_off): the report page is byte-identical class tab en: report class tab 1`] = `
+{
+  "bytes": 97554,
+  "sha256": "98297214a9c913f6566d83719305fc37f6c82cf09cc4ff222dfd97af2e6a3192",
+}
+`;
+
+exports[`round off (parent_off): the report page is byte-identical class tab explicit: report class tab 1`] = `
+{
+  "bytes": 97554,
+  "sha256": "98297214a9c913f6566d83719305fc37f6c82cf09cc4ff222dfd97af2e6a3192",
+}
+`;
+
+exports[`round off (parent_off): the report page is byte-identical class tab ur: report class tab 1`] = `
+{
+  "bytes": 97979,
+  "sha256": "c20ce9912ca61c60d3d553e327d67b0ceba437864795017db91d0b6d3dffe07b",
+}
+`;
+
+exports[`round off (parent_off): the report page is byte-identical quiz tab: report quiz tab 1`] = `
+{
+  "bytes": 98853,
+  "sha256": "e4b6c4e4d73ffbd38d8b1faaf8c2654f1d8b7f7d63e634ad8b17f4ec6d4e7e9d",
+}
+`;
