@@ -1,6 +1,14 @@
 [
   {
     "cycle": [
+      "bot/shared/services/quiz/web-quiz-card.js",
+      "bot/shared/services/quiz/web-quiz-challenge.js",
+      "bot/shared/services/quiz/web-quiz.service.js"
+    ],
+    "reason": "The scorecard's Jugnu card closes this loop through two lazy edges: web-quiz.service.js finishSessionTimed() requires web-quiz-card.js inside the function, and web-quiz-card.js challengeGrade() requires web-quiz-challenge.js inside the function. Only web-quiz-challenge.js -> web-quiz.service.js (WqError) is at load time, so no module ever reads a half-initialised export."
+  },
+  {
+    "cycle": [
       "bot/shared/services/coaching/report-renderers/renderer-registry.js",
       "bot/shared/services/pdf-report.service.js"
     ],

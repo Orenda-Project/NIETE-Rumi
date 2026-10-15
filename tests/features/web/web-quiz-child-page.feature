@@ -1643,3 +1643,26 @@ Feature: Web child quiz page on the portal
     And id_pick is logged with w "s" and no session id, device or code
     And a play opened from the hub keeps the pick for that child on this phone for 24 hours: "hub_chip" from a WhatsApp /quiz link, "remembered" otherwise
     But a child already kept on three phones sees "This child's place is already saved on three phones." and the card stays hidden for the session
+
+  @T800
+  Scenario: A class child's own scorecard offers Jugnu's challenge first, and the page counts that it was seen
+    Given web_quiz_hub, web_quiz_challenge and web_quiz_challenge_card are "on" and the child is in grade 2 to 5
+    When the child finishes their own run of a teacher's quiz
+    Then Jugnu's card ("Jugnu's Challenge · Short games for reading and numbers") is first under the score, above "Share to class group"
+    And with web_quiz_events_v2 "on" the page sends door_shown {door: card, surface: scorecard, slot: 1} once when the card is half in view, even when Back draws the card again
+    But a friend's challenge run, a teacher's test run, grade 1 and grade 6 see no Jugnu card
+
+  @T801
+  Scenario: Tapping Jugnu's card asks whose turn it is before any run
+    Given the scorecard shows Jugnu's card for Zara
+    When the child taps the card
+    Then one screen asks "Zara's turn" with a big Play button and "Not my turn? Go back"
+    And Play asks the server for this child's challenge link, bound to this phone and naming nobody, and opens it with via=quiz_card
+    And "Not my turn? Go back" returns to the scorecard without asking the server
+
+  @T802
+  Scenario: With the Jugnu card switched off the scorecard is today's
+    Given web_quiz_challenge_card is "off"
+    When a child finishes a teacher's quiz
+    Then finish() sends no jugnu_card and the scorecard's HTML is today's, string for string, in English and Urdu
+    And the quiz page loads no new script

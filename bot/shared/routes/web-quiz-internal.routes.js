@@ -149,7 +149,8 @@ router.get('/videos/dl/:code', handle((req) => WebQuizLibrary.download(req.param
 // first phone to open a hub link, or one the children played on, sees their names.
 router.post('/hub/:token', handle((req) => require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref })));
 // The results card's door to the child's own hub: a hub link minted for this session's child, bound to this phone.
-router.post('/hubdoor', handle((req) => require('../services/quiz/web-quiz-hub-door').door(req.body || {}, WebQuiz.WqError)));
+// The Jugnu card's Play (body.jugnu; web-quiz-card.js) rides the same route: no new route.
+router.post('/hubdoor', handle((req) => ((req.body || {}).jugnu ? require('../services/quiz/web-quiz-card').go(req.body, WebQuiz.WqError) : require('../services/quiz/web-quiz-hub-door').door(req.body || {}, WebQuiz.WqError))));
 
 // ─── the teacher join queue (web-quiz-join-queue.js; switch web_quiz_identity_canon, every answer {off:true} or empty when off) ───
 // The DASHBOARD-PROXY path. The teacher's results page does not use it: it calls the module's functions from its own

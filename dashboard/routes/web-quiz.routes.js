@@ -119,7 +119,7 @@ function bootJson(obj) {
 
 function assetVersion() {
   const h = crypto.createHash('sha256');
-  for (const f of ['wq.js', 'wq.css', 'wq-identity.js', 'hub.js', 'wq-lib.js', 'wq-bind.js', 'wq-bind.css']) {
+  for (const f of ['wq.js', 'wq.css', 'wq-identity.js', 'hub.js', 'wq-lib.js', 'wq-bind.js', 'wq-bind.css', 'wq-card.js']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
   return h.digest('hex').slice(0, 10);
