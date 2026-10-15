@@ -386,7 +386,7 @@ const SCIENCE = {
           slot: 'science.B.Q2a', label_en: 'Q2 (a)', label_ur: 'سوال 2 (الف)', // needs fluent-Urdu review
           instruction_en: 'Draw and label any {w:one} of the following:',
           marks_line_en: '({t:7} Marks)',
-          type: 'Label the Diagram', category: 'subjective', shape: 'draw',
+          type: 'Draw and Label', category: 'subjective', shape: 'draw',
           generate: 2, attempt: 1, marks_each: 7, parts: null,
           numbering: 'paren_roman', compulsory: false, lines: 0, work_mm: null,
           section_pages: 'scope',
@@ -566,7 +566,7 @@ const ENGLISH = {
         {
           slot: 'english.C.Q3', label_en: 'Q.3:', label_ur: 'سوال 3', // needs fluent-Urdu review
           instruction_en: 'Punctuate the following passage.', marks_line_en: '({t:5})',
-          type: 'Rewrite Sentences', category: 'subjective', shape: 'words',
+          type: 'Punctuation', category: 'subjective', shape: 'words',
           generate: 1, attempt: 1, marks_each: 5, parts: null,
           numbering: 'none', compulsory: true, lines: 0, work_mm: null, section_pages: 'scope',
           grain: { kind: 'one or two sentences (about 25 words) with capitals, full stops, a question or exclamation mark, commas and an apostrophe removed', number_size: 'none', steps: 1, unit_choice: false },
@@ -588,7 +588,7 @@ const ENGLISH = {
         {
           slot: 'english.C.Q5', label_en: 'Q.5', label_ur: 'سوال 5', // needs fluent-Urdu review
           instruction_en: 'Write down FOUR rhyming words from the poem “{q}”', marks_line_en: '({t:4})',
-          type: 'Rewrite Sentences', category: 'subjective', shape: 'words',
+          type: 'Rhyming Words', category: 'subjective', shape: 'words',
           generate: 1, attempt: 1, marks_each: 4, parts: null,
           numbering: 'none', compulsory: true, lines: 0, work_mm: null, section_pages: 'scope',
           grain: { kind: 'match four cue words to their rhymes in a 9–10 line poem from the book', number_size: 'four cue words', steps: 1, unit_choice: false },
@@ -803,7 +803,7 @@ const URDU = {
           slot: 'urdu.C.Q6', label_en: 'Q6', label_ur: 'سوال نمبر 6',
           instruction_ur: null,
           marks_line_ur: '{t:5}',
-          type: 'Word Meanings', category: 'subjective', shape: 'fixed',
+          type: 'Poem Explanation', category: 'subjective', shape: 'fixed',
           generate: 1, attempt: 1, marks_each: 5, parts: null,
           numbering: 'none', compulsory: false, lines: 0, work_mm: null, section_pages: 'scope',
           grain: { kind: 'central idea of the Naat (from the book) OR explain four quoted lines of lesson 7', number_size: 'four lines', steps: 1, unit_choice: false },
@@ -819,7 +819,8 @@ const URDU = {
               key: null,
               split: [3, 1, 1],
               book_lesson: 2,
-              book_page: 7,
+              book_page: 13, // lesson 2 opens on book p.13 and runs to p.24
+              book_pages: '13-24',
             },
             {
               kind: 'seen_verses',
@@ -947,7 +948,7 @@ const SST = {
           slot: 'social_studies.A.Q2', label_en: 'Q2', label_ur: 'سوال نمبر 2', // transcribed
           instruction_ur: 'دیے گئے پاکستان کے نقشے پر ہمسایہ ممالک اور صوبوں کی نشاندہی کریں۔', // transcribed (FDE p.77)
           marks_line_ur: '{t:10}',
-          type: 'Short Questions', category: 'subjective', shape: 'frame',
+          type: 'Map Labelling', category: 'subjective', shape: 'frame',
           generate: 1, attempt: 1, marks_each: 10, parts: null,
           numbering: 'none', compulsory: true, lines: 0, work_mm: null,
           section_pages: 'scope',
