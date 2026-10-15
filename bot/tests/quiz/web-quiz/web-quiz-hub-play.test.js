@@ -188,6 +188,22 @@ describe('lantern + shelf (web_quiz_challenge_v2 / web_quiz_challenge_story)', (
     expect(out.play.lantern.kind).toBe('numbers');
   });
 
+  test('one unseen set: a story with no title in the child\'s language is never NEW on the shelf while the lantern says the day', async () => {
+    const done = [
+      { student_id: KID, exercise: 'read', mode: 'check', record: true, status: 'scored', period_id: period, passage_id: null },
+      { student_id: KID, exercise: 'bigger', mode: 'check', record: true, status: 'scored', period_id: period, passage_id: null },
+    ];
+    seed(STORY_ON, { web_quiz_challenge_runs: done, challenge_passages: [passage('p-untitled', 'read', 2, { title_en: null })] });
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.play.lantern.kind).toBe('numbers');
+    expect(out.play.shelf[0]).toEqual({ id: 'week_story', pid: 'p-untitled', nx: 'seen' });
+    // A NEW tag on the shelf and a story on the lantern always come together.
+    seed(STORY_ON, { web_quiz_challenge_runs: done, challenge_passages: [passage('p-untitled', 'read', 2, { title_en: null }), passage('p-titled', 'listen', 3)] });
+    const both = await Hub.hub(T.signHub([KID]), A);
+    expect(both.play.lantern).toEqual({ kind: 'story', title: 'Title p-titled', pid: 'p-titled' });
+    expect(both.play.shelf.filter((t) => t.nx === 'new').map((t) => t.pid)).toEqual(['p-titled']);
+  });
+
   test('a reserve story (params.reserve=true) is never on the shelf, never NEW, never the lantern title', async () => {
     seed(STORY_ON, {
       web_quiz_challenge_runs: [

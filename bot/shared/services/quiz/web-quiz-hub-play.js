@@ -184,10 +184,13 @@ async function readingRungOf(childId) {
 const isSeenOf = (ids) => (r) => ids.has(r.passage_id) || Boolean(r.twin_of && ids.has(r.twin_of));
 const titleOf = (r, lang) => (lang === 'ur' ? r.title_ur : r.title_en) || null;
 
-/** The Story Time shelf: this week's story, a story to listen to, numbers, more stories. NEW iff unseen. */
-function shelfOf(live, isSeen) {
+/**
+ * The Story Time shelf: this week's story, a story to listen to, numbers, more stories. NEW iff the passage is in
+ * `unseenPids`, the same set the lantern's resolver reads, so a NEW tag and a story lantern always come together.
+ */
+function shelfOf(live, unseenPids) {
   const newest = (kind) => live.filter((r) => r.kind === kind).sort((a, b) => Date.parse(b.released_at) - Date.parse(a.released_at))[0] || null;
-  const tile = (id, r) => (r ? { id, pid: r.passage_id, nx: isSeen(r) ? 'seen' : 'new' } : null);
+  const tile = (id, r) => (r ? { id, pid: r.passage_id, nx: unseenPids.has(r.passage_id) ? 'new' : 'seen' } : null);
   const read = newest('read');
   const listen = newest('listen');
   // The warm-up (numbers) and the older stories' list are never new.
@@ -222,9 +225,11 @@ async function playFor({ chosenId, last, lang, now, challenge, grade } = {}) {
   const seenIds = s.story ? await seenPassages(chosenId) : null;
   const bands = seenIds ? openBands(grade, await readingRungOf(chosenId)) : null;
   const p = seenIds ? await passagesOf(lang === 'ur' ? 'ur' : 'en', nowIso, bands) : { live: [], next: null };
-  // Unseen: no run row of any mode or status on the passage or its twin (seenIds null: unknown, so nothing is new).
+  // Unseen: no run row of any mode or status on the passage or its twin (seenIds null: unknown, so nothing is new),
+  // and a title in the child's language (a story the lantern cannot name is never NEW on the shelf either).
   const unseen = (seenIds ? p.live.filter((r) => !isSeenOf(seenIds)(r)) : [])
-    .map((r) => ({ pid: r.passage_id, title: titleOf(r, lang), released_at: r.released_at, band: r.band }));
+    .map((r) => ({ pid: r.passage_id, title: titleOf(r, lang), released_at: r.released_at, band: r.band }))
+    .filter((u) => u.title);
   const nx = nextThing({
     trail_waiting: trail, unseen_stories: unseen, numbers_fresh: s.story, next_release: s.story ? p.next : null,
     read_along_first: false, now: nowIso,
@@ -233,7 +238,7 @@ async function playFor({ chosenId, last, lang, now, challenge, grade } = {}) {
   if (nx.kind === 'trail' || s.story) {
     out.lantern = nx.kind === 'story' ? { ...nx, pid: (unseen.find((u) => u.title === nx.title) || {}).pid || null } : nx;
   }
-  if (seenIds) out.shelf = shelfOf(p.live, isSeenOf(seenIds));
+  if (seenIds) out.shelf = shelfOf(p.live, new Set(unseen.map((u) => u.pid)));
   return out;
 }
 
