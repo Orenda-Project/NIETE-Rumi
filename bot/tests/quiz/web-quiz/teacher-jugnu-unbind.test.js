@@ -15,8 +15,10 @@ jest.mock('../../../shared/services/quiz/web-quiz-join-queue', () => ({
 const BINDINGS = { ['b0000000-0000-4000-8000-000000000002']: [{ id: 'e0000000-0000-4000-8000-000000000001', canonical_id: 'b0000000-0000-4000-8000-000000000002' }] };
 jest.mock('../../../shared/services/quiz/child-phone-bindings.repo', () => ({
   activeForChild: jest.fn(async (id) => BINDINGS[id] || []),
-  eraseOne: jest.fn(async (id) => [{ id, canonical_id: 'b0000000-0000-4000-8000-000000000002' }]),
+  eraseOne: jest.fn(async (id) => [{ id, canonical_id: 'b0000000-0000-4000-8000-000000000002', phone_norm: '+920000000001' }]),
 }), { virtual: true });
+// EVENTS §1: kid = the per-child hash; the module lands with m-measure M2 (mocked virtually to its export).
+jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({ kid: jest.fn((id) => `k_${String(id).slice(-4)}`) }), { virtual: true });
 
 const express = require('express');
 const { makeFake } = require('./fake-supabase');
@@ -118,6 +120,8 @@ let base;
 let Token;
 let Queue;
 let Repo;
+let Identity;
+let Events;
 let Page;
 async function boot(opts) {
   jest.resetModules();
@@ -127,6 +131,9 @@ async function boot(opts) {
   Token = require('../../../shared/services/quiz/teacher-report-token');
   Queue = require('../../../shared/services/quiz/web-quiz-join-queue');
   Repo = require('../../../shared/services/quiz/child-phone-bindings.repo');
+  Identity = require('../../../shared/services/quiz/student-identity.service');
+  jest.spyOn(Identity, 'forgetDoorVerdict').mockResolvedValue(undefined);
+  Events = require('../../../shared/utils/structured-logger');
   const app = express();
   app.use('/api/internal/tr', require('../../../shared/routes/teacher-report-internal.routes'));
   await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
@@ -158,6 +165,36 @@ const withQueueKeys = () => { Page = require('../../../shared/templates/teacher-
 
 const BIND = 'e0000000-0000-4000-8000-000000000001';
 const OTHER_BIND = 'e0000000-0000-4000-8000-0000000000ff';
+
+const undoEvents = () => Events.logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.bind_undo');
+
+describe('after an erase: the door forgets the phone, and bind_undo is counted', () => {
+  test('forgetDoorVerdict gets the erased row\'s phone_norm; bind_undo carries exactly {via, n, audio_n, w, kid}, never a phone', async () => {
+    await boot();
+    await post(`/unbind/${tok()}`, { binding: BIND, class: LIST });
+    expect(Identity.forgetDoorVerdict).toHaveBeenCalledTimes(1);
+    expect(Identity.forgetDoorVerdict).toHaveBeenCalledWith('+920000000001');
+    expect(undoEvents()).toEqual([['web_quiz.bind_undo', { via: 'teacher', n: 1, audio_n: 0, w: 's', kid: 'k_0002' }]]);
+    expect(JSON.stringify(Events.logEvent.mock.calls)).not.toContain('920000000001');
+  });
+
+  test('nothing erased (empty answer): no forget, no event', async () => {
+    await boot();
+    Repo.eraseOne.mockResolvedValueOnce([]);
+    const r = await post(`/unbind/${tok()}`, { binding: BIND, class: LIST });
+    expect(r.headers.get('location')).toMatch(/[?&]e=1/);
+    expect(Identity.forgetDoorVerdict).not.toHaveBeenCalled();
+    expect(undoEvents()).toEqual([]);
+  });
+
+  test('a binding not on this teacher\'s list: no erase, no forget, no event', async () => {
+    await boot();
+    await post(`/unbind/${tok()}`, { binding: OTHER_BIND, class: LIST });
+    expect(Repo.eraseOne).not.toHaveBeenCalled();
+    expect(Identity.forgetDoorVerdict).not.toHaveBeenCalled();
+    expect(undoEvents()).toEqual([]);
+  });
+});
 
 describe('Saved on WhatsApp ✓ · Undo', () => {
   test('the tick comes from activeForChild; the bound child shows Undo, a form carrying the binding and the list only', async () => {

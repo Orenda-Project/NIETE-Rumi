@@ -18,6 +18,7 @@
  * service's; this file only passes the teacher's tap to it. WHO is asking comes from the signed token.
  */
 const { logToFile } = require('../utils/logger');
+const { logEvent } = require('../utils/structured-logger');
 const { jugnuOn } = require('../services/quiz/teacher-jugnu-flags');
 const Data = require('../services/quiz/teacher-jugnu.data');
 const Page = require('../templates/teacher-jugnu.page');
@@ -49,6 +50,35 @@ async function pageExtras(req, v, lang) {
     lang, tokens: { self: req.params.token }, queue, notice: req.query.e === '1' ? 'failed' : null, scope: v.quizId ? 'quiz' : 'all',
   });
   return out;
+}
+
+/** A lazily required module, or null when it is not deployed. */
+function optional(path) {
+  try {
+    // eslint-disable-next-line global-require, import/no-dynamic-require
+    return require(path);
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * After the teacher's Undo erased bindings: the door forgets each phone's verdict (IDENTITY §5), and one
+ * web_quiz.bind_undo per child (EVENTS §4: via, n, audio_n, w + kid). The phone is never logged.
+ */
+async function afterErase(erased) {
+  const Identity = optional('../services/quiz/student-identity.service');
+  if (Identity && typeof Identity.forgetDoorVerdict === 'function') {
+    await Identity.forgetDoorVerdict(...erased.map((e) => e && e.phone_norm).filter(Boolean));
+  }
+  const Kid = optional('../services/quiz/web-quiz-kid');
+  const byChild = new Map();
+  erased.forEach((e) => { const c = (e && e.canonical_id) || null; byChild.set(c, (byChild.get(c) || 0) + 1); });
+  byChild.forEach((n, child) => {
+    let kid = null;
+    try { kid = Kid && typeof Kid.kid === 'function' && child ? Kid.kid(child) : null; } catch (_) { kid = null; }
+    logEvent('web_quiz.bind_undo', { via: 'teacher', n, audio_n: 0, w: 's', ...(kid ? { kid } : {}) });
+  });
 }
 
 /** 303 back to the tab (?e=1 when nothing was saved). */
@@ -115,6 +145,7 @@ function attach(router, { authorise, handle, notFound, noStore, languageFor }) {
         if (mine) {
           const erased = await Repo.eraseOne(bindingId, 'teacher');
           ok = Array.isArray(erased) && erased.length > 0;
+          if (ok) await afterErase(erased);
         }
       }
     } catch (err) {

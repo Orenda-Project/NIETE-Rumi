@@ -172,4 +172,6 @@ async function findByTeacher(userId, { limit = 200 } = {}) {
 module.exports = {
   normalisePhone, findByPhone, remember, touch, findByTeacher, forgetDoorVerdict,
   NAME_MAX, CLASS_MAX,
+  // For a binding erased elsewhere (the teacher's Undo on the report): the door must not keep the old verdict.
+  forgetDoorVerdict,
 };
