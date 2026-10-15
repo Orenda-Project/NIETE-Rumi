@@ -1277,6 +1277,29 @@ Feature: NIETE (ICT) Teacher Training
     # reason used to sit at the TOP of the screen; it now sits under the offending box (a single
     # bad box) or above Continue (a total over 50, which belongs to no one box).
 
+  @e2e @flow @draft @P2 @T696
+  Scenario: The kinds of question that need a printed picture are not offered; the ones the child draws still are
+    Given the NIETE bot chat is open and I have opened the assessment generator
+    And I have chosen Grade 5, Science and the pages to cover
+    When I choose "Unseen (outside the book)" and continue
+    Then the kinds I can tick include "Mind Map" and "Flow Chart" but not "Label the Diagram"
+    And for Grade 5 English the kinds include "Essay Writing" but not "Picture Description"
+    # The paper prints no pictures, so these two printed "look at the picture" under an empty space.
+    # Mind Map, Flow Chart and Graphs & Geometric Problems stay: the child draws them from text on the
+    # answer sheet, and the prompt now says so when one is asked for. A paper made before still prints
+    # its stored question. Unit: tests/assessment/picture-types-hidden.test.js, draw-it-prompt.test.js.
+
+  @e2e @flow @draft @P2 @T697
+  Scenario: The answer key says what each question and each part of a passage is worth
+    Given the NIETE bot chat is open and I have opened the assessment generator
+    And I have chosen a class, a subject and the pages to cover
+    When I make a paper with "MCQs" and "Comprehension Passage"
+    Then the answer key that follows the paper shows "[1 mark]" beside each MCQ's answer
+    And each part of the passage shows its own marks beside its answer
+    And on an Urdu paper's key the marks read "[2 marks]", never "[marks 2]"
+    # Marking forty copies from the key no longer needs the question paper open beside it.
+    # Unit: tests/assessment/answer-key-marks.test.js and the key goldens in tests/assessment/fixtures/golden.
+
   # ─────────── app redirect (bd-onxyu) — Teacher Training moved to the NIETE app ───────────
   # One switch per feature (app_redirect_<feature>), off by default, so none of this is visible
   # until an operator turns Teacher Training's switch on. The quiet hour is per teacher and shared
