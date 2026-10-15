@@ -1773,21 +1773,21 @@ function serverOnly(e) {
   if (n === 'door_shown' || n === 'door_tap') return SERVER_DOORS.has(e.door) || (n === 'door_shown' && e.door === 'link_home');
   return false;
 }
-const HELPED_V = /^(self|helped|not_asked)$/;
-const helpedV = (v) => (v === 0 ? 'self' : v === 1 ? 'helped' : (typeof v === 'string' && HELPED_V.test(v) ? v : null));
 const DOOR_PROPS = Object.freeze({
   door: /^(card|hub_first|link_home|class_link|install|quiz_reply|shelf|next|tomorrow|friend)$/,
   surface: /^(scorecard|hub|book|end_card|story_time|landing|wa_reply)$/,
   pid: /^[a-z0-9._-]{1,64}$/i, nx: /^(trail|story|numbers|new|seen)$/,
   slot: (v) => (Number.isInteger(v) && v >= 1 && v <= 99 ? v : null),
 });
+const HELPED_V = /^(self|helped|not_asked)$/;
+const helpedV = (v) => (v === 0 ? 'self' : v === 1 ? 'helped' : (typeof v === 'string' && HELPED_V.test(v) ? v : null));
 const NAME_PROPS = Object.freeze({
-  ch_helped: Object.freeze({ v: helpedV }),
-  bind_offered: Object.freeze({ surface: /^(trail|hub|book|end_card)$/ }),
   // The doors (EVENTS §2): which door, on which surface, its 1-based slot as a number (every other name keeps `slot`
   // as the answer letter), a shelf tile's passage id, the next line's choice.
   door_shown: DOOR_PROPS,
   door_tap: DOOR_PROPS,
+  ch_helped: Object.freeze({ v: helpedV }),
+  bind_offered: Object.freeze({ surface: /^(trail|hub|book|end_card)$/ }),
 });
 const nameProp = (rule, value) => (typeof rule === 'function' ? rule(value) : (typeof value === 'string' && rule.test(value) ? value : null));
 const BATCH_MAX = 20;
