@@ -1716,3 +1716,40 @@ Feature: Web child quiz page on the portal
     When the phone remembers two or more children, or none, or played this code as a teacher, or the run is not finished, or answers wait to be sent
     Then no hub opens and the landing, "Whose turn?", the quiz or the results card runs as today
     And a friend's challenge code and the teacher's preview never ask
+  @T803
+  Scenario: The Jugnu card comes first on the hub once the last quiz is finished
+    Given web_quiz_hub, web_quiz_challenge and web_quiz_hub_challenge_first are "on" and the child's last quiz is finished
+    When the hub opens
+    Then the Jugnu card is the first card, above the last quiz, and its tile is not shown twice
+    But while the last quiz is still open, Continue stays first
+    And with web_quiz_hub_challenge_first "off" the hub's order and HTML are today's, byte for byte
+
+  @T804
+  Scenario: The lantern names the one next thing the server chose, never a count or a future title
+    Given web_quiz_challenge_v2 is "on"
+    When the Trail has stops waiting this month
+    Then the lantern says a game is waiting on the Trail, with no number
+    And with web_quiz_challenge_story "on" and nothing waiting, it names the newest live story the child has not met, or "Tomorrow: a new story", or Monday's line only when a release is buffered
+    But a story whose release is still ahead is never named, and with no buffered release only "Numbers with Jugnu" shows
+
+  @T805
+  Scenario: The Story Time shelf tags NEW only a story the child has never met
+    Given web_quiz_challenge_story is "on"
+    When the hub shows the shelf under "Jugnu today"
+    Then a story with no run row of any kind for the child, on it or its twin, carries "NEW"
+    And the numbers warm-up and a reserve story are never tagged new, and a reserve story is never on the shelf
+
+  @T806
+  Scenario: The hub's doors are counted once per view, only with the new events on
+    Given web_quiz_events_v2 is "on"
+    When the hub renders the Jugnu card, the lantern and the shelf
+    Then door_shown hub_first is sent once with the card's position, door_shown next or tomorrow once, and door_shown shelf once per tile half in view
+    And a tap sends door_tap for that door
+    But with web_quiz_events_v2 "off" no door event is sent
+
+  @T807
+  Scenario: The hub can be added to the home screen without an install card
+    Given web_quiz_install_prompt is "on"
+    When the hub page loads
+    Then it links the web manifest, the browser's own prompt is counted as door_shown install and an accepted install as door_tap install
+    But no install card is drawn until its copy exists, and with the switch "off" there is no manifest link

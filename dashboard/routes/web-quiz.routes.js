@@ -31,6 +31,9 @@ const PROBE_FILE = path.join(PUBLIC_DIR, 'probe.html');
 const CODE_RX = /^[A-Za-z0-9]{4,12}$/;
 // A page session id (wq-tel.js): 8-16 lower-case letters and digits.
 const PS_RX = /^[a-z0-9]{8,16}$/;
+// hub_open.src's route values (EVENTS row 3). Mirrors SRC_VALUES in bot/shared/services/quiz/web-quiz-hub-play.js:
+// the edge cannot load the bot's modules, so keep the two lists the same.
+const HUB_SRC_RX = /^(card|home|door|wa|link|hs|class_link|guest|friend)$/;
 // A signed hub token (bot web-quiz-token.js): base64url payload "." 22-char signature.
 const HUB_TOKEN_RX = /^[A-Za-z0-9_-]{16,600}\.[A-Za-z0-9_-]{22}$/;
 const BODY_LIMIT = '16kb';
@@ -125,6 +128,8 @@ function assetVersion() {
   for (const f of ['wq.js', 'wq.css', 'wq-identity.js', 'hub.js', 'wq-lib.js', 'wq-bind.js', 'wq-bind.css', 'wq-card.js']) {
     try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
   }
+  // The hub's Jugnu corner (hub-play.js): its own line, so a change to it busts the cached hub page too.
+  try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, 'hub-play.js'))); } catch (_) { /* absent in some tests */ }
   return h.digest('hex').slice(0, 10);
 }
 
@@ -286,13 +291,15 @@ function renderHubPage({ payload, token, origin, assetV }) {
   const lang = payload && payload.lang === 'ur' ? 'ur' : 'en';
   const brand = brandOf(payload && payload.brand);
   const boot = { ...payload, token, view: 'hub', brand };
+  // The Jugnu corner (bot web-quiz-hub-play.js): its script, and the install manifest, only when the bot sent `play`.
+  const play = payload && payload.play && typeof payload.play === 'object' ? payload.play : null;
   return `${head({ lang, dir: lang === 'ur' ? 'rtl' : 'ltr', title: HUB_TITLE[lang], desc: HUB_TITLE[lang], origin, url: origin, assetV, brand, ui: payload && payload.ui })}
-</head>
+${play && play.install ? `<link rel="manifest" href="/h/${esc(token)}/manifest.webmanifest${payload.kid && /^[0-9a-f]{16}$/.test(payload.kid) ? `?kid=${payload.kid}` : ''}">\n` : ''}</head>
 <body>
 <main id="wq" class="wq-app wq-hub" aria-live="polite"><div class="wq-boot"><img src="/wq/jugnu/hello.webp" alt="" width="120" height="120"><p class="wq-bootsay">${esc(HUB_BOOT[lang])}</p></div></main>
 <script id="boot" type="application/json">${bootJson(boot)}</script>
 <script src="/wq/wq-tel.js?v=${assetV}" defer></script>
-${bindTags(payload, assetV)}<script src="/wq/hub.js?v=${assetV}" defer></script>
+${bindTags(payload, assetV)}${play ? `<script src="/wq/hub-play.js?v=${assetV}" defer></script>\n` : ''}<script src="/wq/hub.js?v=${assetV}" defer></script>
 </body>
 </html>`;
 }
@@ -611,6 +618,17 @@ function createWebQuizRouter(opts = {}) {
 
   router.get('/q/:code', limiters.read, unknownCode, (req, res) => page(req, res, 'quiz'));
   // M4a hub — GET /h/:token, the kid hub (WhatsApp /quiz link), server-rendered like /q/:code.
+  // The hub's web manifest (linked only when the bot's hub JSON has the install prompt on): the installed icon opens
+  // this child's own hub, marked ?from=hs so the hub open carries the home-screen route (hub_open.src).
+  router.get('/h/:token/manifest.webmanifest', limiters.read, (req, res) => {
+    const token = String(req.params.token || '');
+    if (!HUB_TOKEN_RX.test(token)) return res.status(404).end();
+    const kid = typeof req.query.kid === 'string' && /^[0-9a-f]{16}$/.test(req.query.kid) ? `&kid=${req.query.kid}` : '';
+    let base = {};
+    try { base = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR, 'manifest.webmanifest'), 'utf8')); } catch (_) { base = { name: 'Jugnu' }; }
+    res.set('Cache-Control', 'private, max-age=300');
+    return res.status(200).type('application/manifest+json').send(JSON.stringify({ ...base, start_url: `/h/${token}?from=hs${kid}`, scope: '/' }));
+  });
   router.get('/h/:token', limiters.read, async (req, res) => {
     pageHeaders(res);
     const origin = originOf(req);
@@ -621,9 +639,11 @@ function createWebQuizRouter(opts = {}) {
     if (!HUB_TOKEN_RX.test(token)) return closed(401, 'hub');
     if (!botUrl || !apiKey) return closed(503, 'off');
     const kid = typeof req.query.kid === 'string' && /^[0-9a-f]{16}$/.test(req.query.kid) ? `?kid=${req.query.kid}` : '';
+    // The route that brought the child (?from=…) rides to the bot as `src` (hub_open.src, read as opts.src).
+    const src = typeof req.query.from === 'string' && HUB_SRC_RX.test(req.query.from) ? `${kid ? '&' : '?'}src=${req.query.from}` : '';
     let out;
     try {
-      out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}`, req);
+      out = await callBot('GET', `/api/internal/wq/hub/${token}${kid}${src}`, req);
     } catch (_) {
       return closed(502, 'off');
     }

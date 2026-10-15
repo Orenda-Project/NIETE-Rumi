@@ -143,7 +143,8 @@ router.get('/art/:id', async (req, res) => {
   }
 });
 // M4a hub — the kid hub's boot JSON (a WhatsApp /quiz link names this phone's own children)
-router.get('/hub/:token', handle((req) => require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: req.query.kid, device: req.get('x-wq-device') })));
+// `src`: the route that brought the child (hub_open.src), read by the hub_open emit as opts.src.
+router.get('/hub/:token', handle((req) => require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: req.query.kid, device: req.get('x-wq-device'), src: require('../services/quiz/web-quiz-hub-play').srcOf(req.query.src) })));
 // M4b library
 const q1 = (v) => (typeof v === 'string' ? v.slice(0, 400) : undefined);
 router.get('/lib/h/:token', handle((req) => WebQuizLibrary.libHub(req.params.token, { kid: q1(req.query.kid), g: q1(req.query.g), s: q1(req.query.s), device: req.get('x-wq-device') })));
