@@ -24,7 +24,6 @@ vi.mock('../../services/api', () => ({
   portal,
   language: { get: vi.fn(() => new Promise(() => {})), set: vi.fn() },
 }));
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { phoneNumber: '923001234567' }, loading: false }) }));
 vi.mock('../../components/PortalLayout', () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 

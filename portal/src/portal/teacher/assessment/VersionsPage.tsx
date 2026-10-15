@@ -22,7 +22,7 @@ export function VersionsPage() {
   const C = useCopy(ASSESSMENT);
   const { paperId = '' } = useParams();
   const { toast } = useToast();
-  // Only a paper's latest version is in My papers, so a version opens as its file (any version she owns).
+  // Only a paper's latest version is in My papers, so a version opens as its file (any version the teacher owns).
   const openVersion = async (id: string, artifact: 'paper' | 'answer_key' = 'paper') => {
     const r: DownloadResult = await downloadArtifact(id, artifact);
     if (r === 'unavailable') toast({ title: C.notAvailable });
