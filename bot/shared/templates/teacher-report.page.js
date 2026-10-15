@@ -615,8 +615,11 @@ function classSections(r, { lang, print, tokens }) {
 ${topBar({ C, L, langHref: `${base}${qs([['tab', 'class'], ['lang', C.switchLang]])}`, print })}
 <h1>${L(C.classTitle)}</h1><div class="sub">${L(C.classSub)}</div>
 </div></header>`;
+  // ── standing class link card (web_quiz_class_link; r.classLink is absent when the switch is off → '') ──
+  const linkCard = r.classLink ? require('./teacher-class-link-card').renderClassLinkCard(r.classLink, { lang, base, print }) : '';
+  // ── end standing class link card ──
   if (!cells.length && !quizzes.length) {
-    return { header, main: `<section class="card" style="margin-top:16px"><p class="muted">${L(C.emptyClass)}</p></section>` };
+    return { header, main: `<section class="card" style="margin-top:16px"><p class="muted">${L(C.emptyClass)}</p></section>${linkCard}` };
   }
   const cellHtml = cells.map((c) => {
     const a = num(c.avg);
@@ -646,7 +649,7 @@ ${topBar({ C, L, langHref: `${base}${qs([['tab', 'class'], ['lang', C.switchLang
   }).join('');
   const main = `<section class="card" style="margin-top:16px"><div class="cells">${cellHtml}</div></section>
 ${weeks.length ? `<section class="card"><h2>${L(C.trend)}</h2><div class="wk">${wk}</div></section>` : ''}
-${quizzes.length ? `<section class="card"><h2>${L(C.yourQuizzes)}</h2><ul class="ql">${ql}</ul></section>` : ''}`;
+${quizzes.length ? `<section class="card"><h2>${L(C.yourQuizzes)}</h2><ul class="ql">${ql}</ul></section>` : ''}${linkCard}`;
   return { header, main };
 }
 

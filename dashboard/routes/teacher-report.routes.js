@@ -6,6 +6,7 @@
  *   GET /r/:token          the report page (HTML), from the bot's /api/internal/tr/page
  *   GET /r/:token/pdf      the same page as a PDF attachment (the bot renders it)
  *   GET /r/:token/remind   the bot logs the tap and answers 302 -> wa.me; passed through
+ *   GET /r/:token/jlink    the class link card's Forward: the same, with the link only
  *   POST /r/:token/class   the page's no-JS "Which class was this for?" form
  *   POST /r/:token/fix     the page's no-JS forms for a typed child not on the list
  *   GET /r/:token/fwd      the Jugnu tab's "Forward to the class group": the bot's 302 -> wa.me
@@ -97,8 +98,8 @@ function createTeacherReportRouter(opts = {}) {
         return fail(502, 'error');
       }
       if (out.status >= 300 && out.status < 400) {
-        // Only the reminder and the Jugnu forwards (story, class week) redirect, and only ever to WhatsApp's share link.
-        if ((kind === 'remind' || kind === 'fwd' || kind === 'wfwd') && out.location && /^https:\/\/wa\.me\//.test(out.location)) return res.redirect(302, out.location);
+        // Only the reminder, the Jugnu forwards (story, class week) and the class link card redirect, and only ever to WhatsApp's share link.
+        if ((kind === 'remind' || kind === 'fwd' || kind === 'wfwd' || kind === 'jlink') && out.location && /^https:\/\/wa\.me\//.test(out.location)) return res.redirect(302, out.location);
         return fail(502, 'error');
       }
       if (out.status >= 500) return fail(502, 'error');
@@ -143,6 +144,8 @@ function createTeacherReportRouter(opts = {}) {
   router.post(`${REPORT_PATH}/:token/unbind`, privateHeaders, limiter, form, forwardForm('unbind'));
   // The class week card's forward (bot switch web_quiz_class_week; the bot answers 404 while it is off).
   router.get(`${REPORT_PATH}/:token/wfwd`, privateHeaders, limiter, forward('wfwd'));
+  // The standing class link card's Forward (web_quiz_class_link): the bot logs it and answers 302 -> wa.me.
+  router.get(`${REPORT_PATH}/:token/jlink`, privateHeaders, limiter, forward('jlink'));
   return router;
 }
 

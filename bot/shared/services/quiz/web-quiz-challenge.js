@@ -309,7 +309,8 @@ async function entryOf(token, kid, device) {
     // (or one THIS child played on) gets their results or a run (web-quiz-hub-device deviceTrusted).
     const trust = await require('./web-quiz-hub-device').deviceTrusted(token, device);
     if (!trust.ok || !trust.ids.includes(String(hit))) fail(403, 'other_device');
-    return { studentId: hit, via: 'hub' };
+    // Standing class link: the pick's facts ride the hub token's `cl` claim to the run row (insertRun); absent today.
+    return { studentId: hit, via: 'hub', ...(h.src === 'cl' && h.cl ? { cl: h.cl } : {}) };
   }
   const s = T.verify(token, 's');
   if (s && s.sid) {
@@ -414,6 +415,9 @@ function storeFailed(runId, error) {
 }
 
 async function insertRun(row) {
+  // Standing class link (web_quiz_class_link): a run started from a class-link pick writes its v2 columns; else none.
+  const open = RUNS.get(row.id);
+  if (open && open.cl) Object.assign(row, require('./web-quiz-class-link').runColumns(open.cl, row.student_id));
   const { error } = await supabase.from('web_quiz_challenge_runs').insert(row);
   if (!error) return 'stored';
   if (error.code === '23505') return 'duplicate';
@@ -671,7 +675,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   if (v2 && v2.formNum !== w.form) spec = Bank.getTaskSpec({ grade: Number(v2.formNum), set: 'A', task });   // M8: the fixed grade's form
   const runId = v2 ? v2.runId : crypto.randomUUID();
   const ct = T.signChallenge({ studentId: w.studentId, ex, runId });
-  RUNS.set(runId, { status: 'open', grade: w.grade, form: w.form, lang: w.lang, task, gradeSource: w.gradeSource, test: w.test, ...(v2 ? { v2: v2.mem, ...v2.top } : {}) });
+  RUNS.set(runId, { status: 'open', grade: w.grade, form: w.form, lang: w.lang, task, gradeSource: w.gradeSource, test: w.test, ...(v2 ? { v2: v2.mem, ...v2.top } : {}), ...(w.cl ? { cl: w.cl } : {}) });
   if (v2) await v2.store();
   const startEv = { step: ex, grade: w.grade, run: runId, ...(v2 ? v2.event : {}) };
   // the measurement envelope reads the run's v2 fields (kid from canonical_id) over the event's: the run as served

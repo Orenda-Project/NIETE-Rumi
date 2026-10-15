@@ -1,0 +1,159 @@
+/**
+ * The standing class link at the edge: GET /j/:code, its generic preview, its hub fallback, and the
+ * /q/<code> page left byte-identical.
+ *
+ * The bot is the network boundary (a fake fetch). The goldens in __golden__/class-link-edge-off.json were written
+ * by running this file on the ORIGINAL origin/sandbox router with GOLDEN_CAPTURE=1.
+ */
+const fs = require('fs');
+const path = require('path');
+const http = require('http');
+const express = require('express');
+const { createWebQuizRouter } = require('../routes/web-quiz.routes');
+
+const BOT = 'http://bot.test';
+const KEY = 'test-internal-key';
+const GOLDEN = path.join(__dirname, '__golden__', 'class-link-edge-off.json');
+const CODE = 'KZ7QW3MNPX';
+
+function jsonRes(status, body) {
+  return {
+    status,
+    ok: status >= 200 && status < 300,
+    headers: { get: (h) => (h.toLowerCase() === 'content-type' ? 'application/json' : null) },
+    text: async () => (body === undefined ? '' : JSON.stringify(body)),
+  };
+}
+const QUIZ = {
+  quiz: { id: 'q-1', code: 'AB12CD', topic: 'Parts of a plant', lang: 'en', dir: 'ltr', grade: '3', subject: 'Science', n: 1,
+    questions: [{ qid: 'x1', i: 1, text: 'Which part drinks water?', options: [{ slot: 'A', text: 'Roots' }, { slot: 'B', text: 'Leaves' }], correct_slot: 'A', why: 'Roots drink.' }] },
+  cls: { label: 'Class 3', teacher: 'Teacher', chips: [] },
+  live: { class_today: 3, ict_today_floor: 40 },
+  video: null,
+  preview: false,
+};
+
+function start(app) { return new Promise((resolve) => { const srv = app.listen(0, () => resolve(srv)); }); }
+function req(srv, method, p, body, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const data = body === undefined ? null : JSON.stringify(body);
+    const r = http.request({ host: '127.0.0.1', port: srv.address().port, method, path: p,
+      headers: { host: 'quiz.example.org', ...(data ? { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data) } : {}), ...headers } }, (res) => {
+      let out = '';
+      res.on('data', (c) => { out += c; });
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: out }));
+    });
+    r.on('error', reject);
+    if (data) r.write(data);
+    r.end();
+  });
+}
+function build(fetchImpl) {
+  const app = express();
+  app.set('trust proxy', 1);
+  app.use(createWebQuizRouter({ botUrl: BOT, apiKey: KEY, fetchImpl, canonicalBase: '' }));
+  app.use((r, res) => res.status(418).send('fell through'));
+  return app;
+}
+
+// The bot as the fake fetch answers it: /quiz/AB12CD is a quiz, any other /quiz is unknown; /cl/<code> per `cl`.
+function bot(cl) {
+  const calls = [];
+  const fetchImpl = async (url, opts) => {
+    calls.push({ url, opts });
+    if (url.endsWith('/api/internal/wq/quiz/AB12CD')) return jsonRes(200, QUIZ);
+    if (url.includes('/api/internal/wq/quiz/')) return jsonRes(404, { error: 'not_found' });
+    if (url.includes('/api/internal/wq/cl/')) return typeof cl === 'function' ? cl(url, opts) : cl;
+    return jsonRes(404, { error: 'not_found' });
+  };
+  return { calls, fetchImpl };
+}
+
+describe('golden: /q/<code> is byte-identical (the class link touches nothing on it)', () => {
+  let srv;
+  afterEach(() => new Promise((r) => srv.close(r)));
+  it('the quiz page and an unknown code\'s page match the original router', async () => {
+    const b = bot(jsonRes(200, { lang: 'en' }));
+    srv = await start(build(b.fetchImpl));
+    const quiz = await req(srv, 'GET', '/q/AB12CD');
+    const unknown = await req(srv, 'GET', '/q/ZZ99ZZ99');
+    const got = { quiz: { status: quiz.status, body: quiz.body }, unknown: { status: unknown.status, body: unknown.body } };
+    if (process.env.GOLDEN_CAPTURE === '1') fs.writeFileSync(GOLDEN, `${JSON.stringify(got, null, 2)}\n`);
+    const want = JSON.parse(fs.readFileSync(GOLDEN, 'utf8'));
+    expect(got).toEqual(want);
+  });
+});
+
+describe('/j/:code', () => {
+  let srv;
+  afterEach(() => new Promise((r) => srv.close(r)));
+
+  it('(d) switch off / unknown / revoked / expired (the bot says not_found): exactly an unknown /q/ code\'s page', async () => {
+    const b = bot(jsonRes(404, { error: 'not_found' }));
+    srv = await start(build(b.fetchImpl));
+    const j = await req(srv, 'GET', `/j/${CODE}`);
+    const q = await req(srv, 'GET', '/q/ZZ99ZZ99');
+    expect(j.status).toBe(404);
+    expect(j.body).toBe(q.body);
+    expect(b.calls.some((c) => c.url === `${BOT}/api/internal/wq/cl/${CODE}`)).toBe(true);
+  });
+
+  it('a code outside the class-link alphabet (I, O, 0, 1, lower case, < 8) never reaches the bot', async () => {
+    const b = bot(jsonRes(200, { lang: 'en' }));
+    srv = await start(build(b.fetchImpl));
+    for (const bad of ['KZ7QW3MNPI', 'KZ7QW3MNP0', 'kz7qw3mnpx', 'KZ7QW3M']) {
+      const r = await req(srv, 'GET', `/j/${bad}`);
+      expect(r.status).toBe(404);
+    }
+    expect(b.calls).toHaveLength(0);
+  });
+
+  it('(e) the preview: og tags from og.link.* only, no class/school/teacher/child name, no digit; no child data in the page', async () => {
+    const b = bot(jsonRes(200, { lang: 'en' }));
+    srv = await start(build(b.fetchImpl));
+    const r = await req(srv, 'GET', `/j/${CODE}`);
+    expect(r.status).toBe(200);
+    const og = {};
+    r.body.replace(/<meta property="og:([a-z_:]+)" content="([^"]*)">/g, (m, k, v) => { og[k] = v; return m; });
+    expect(og.title).toBe("Jugnu&#39;s Challenge");
+    expect(og.description).toBe('Stories and number games. Tap to play.');
+    Object.entries(og).forEach(([k, v]) => {
+      if (k.startsWith('image:')) return; // width/height are the picture's pixel size, not about the class
+      // the text a person reads (entities decoded: &#39; is an apostrophe, not a digit)
+      const shown = v.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+      expect(shown).not.toMatch(/[0-9۰-۹]/);
+    });
+    expect(r.body).not.toMatch(/Zara|Bilal|Testwala|Class 3/);
+    const boot = JSON.parse(/<script id="boot" type="application\/json">([^<]*)<\/script>/.exec(r.body)[1]);
+    expect(Object.keys(boot).sort()).toEqual(['code', 'lang', 'view']);
+  });
+
+  it('(e) Urdu when the bot says the class is Urdu: the Urdu og strings', async () => {
+    const b = bot(jsonRes(200, { lang: 'ur' }));
+    srv = await start(build(b.fetchImpl));
+    const r = await req(srv, 'GET', `/j/${CODE}`);
+    expect(r.body).toContain('<meta property="og:title" content="جگنو کا چیلنج">');
+    expect(r.body).toContain('<meta property="og:description" content="کہانیاں اور گنتی کے کھیل۔ کھیلنے کے لیے دبائیں۔">');
+    expect(r.body).toContain('dir="rtl"');
+  });
+
+  it('a link-preview fetch asks the bot with pv=1 (no door_shown for a crawler)', async () => {
+    const b = bot(jsonRes(200, { lang: 'en' }));
+    srv = await start(build(b.fetchImpl));
+    await req(srv, 'GET', `/j/${CODE}`, undefined, { 'user-agent': 'WhatsApp/2.23.20.0 A' });
+    expect(b.calls[0].url).toBe(`${BOT}/api/internal/wq/cl/${CODE}?pv=1`);
+  });
+
+  it('the arrival steps are forwarded as POSTs with the device_ref in the body, never the URL', async () => {
+    const b = bot(jsonRes(200, { step: 'teacher', teachers: [] }));
+    srv = await start(build(b.fetchImpl));
+    for (const step of ['arrive', 'teacher', 'letter', 'pick']) {
+      const body = { code: CODE, device_ref: 'dddddddddddddddddddddd' };
+      const r = await req(srv, 'POST', `/api/wq/cl/${step}`, body);
+      expect(r.status).toBe(200);
+      const call = b.calls[b.calls.length - 1];
+      expect(call.url).toBe(`${BOT}/api/internal/wq/cl/${step}`);
+      expect(JSON.parse(call.opts.body)).toEqual(body);
+    }
+  });
+});

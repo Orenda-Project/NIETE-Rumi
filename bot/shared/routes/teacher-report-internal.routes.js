@@ -8,6 +8,7 @@
  *   GET /page/:token[?lang=&tab=class&class=<listId>]  the report page (HTML)
  *   GET /pdf/:token[?lang=&tab=class]                  the same page, print mode, as a PDF
  *   GET /remind/:token?quiz=<id>                       logs the tap, 302 -> wa.me with the reminder
+ *   GET /jlink/:token?class=<id>                       the class link card's Forward: 302 -> wa.me with the link only
  *   GET /data/:token                                   the report as JSON (tests, QA)
  *   POST /class/:token {quiz, key}                     "Which class was this for?" -> identity v2 whoClass
  *   POST /fix/:token {quiz, ref, add|studentId}        a typed child: add to the class / who it really is -> fixWho
@@ -88,7 +89,12 @@ async function build(req, v) {
     if (t) quizTokens[q.id] = t;
   });
   const lang = await languageFor(req, v.teacherId, null);
-  return { tab, lang, data: { class: report || {} }, report, tokens: { self: req.params.token, quiz: quizTokens } };
+  const classData = report || {};
+  // ── standing class link card (web_quiz_class_link): null when off → the class tab is unchanged ──
+  const classLink = await require('../services/quiz/web-quiz-class-link').forTeacher(v.teacherId);
+  if (classLink) classData.classLink = classLink;
+  // ── end standing class link card ──
+  return { tab, lang, data: { class: classData }, report, tokens: { self: req.params.token, quiz: quizTokens } };
 }
 
 const handle = (fn) => async (req, res) => {
@@ -153,6 +159,17 @@ router.get('/remind/:token', handle(async (req, res) => {
   noStore(res);
   res.redirect(302, `https://wa.me/?text=${encodeURIComponent(report.reminder.text)}`);
 }));
+
+// ── standing class link: the card's Forward (logs class_link_forwarded{cls}, 302 wa.me with the URL only) ──
+router.get('/jlink/:token', handle(async (req, res) => {
+  const v = authorise(req, res);
+  if (!v) return;
+  const href = await require('../services/quiz/web-quiz-class-link').forwardHref({ teacherId: v.teacherId, classId: uuidOr(req.query.class) });
+  if (!href) { notFound(req, res, v); return; }
+  noStore(res);
+  res.redirect(302, href);
+}));
+// ── end standing class link ──
 
 router.get('/data/:token', handle(async (req, res) => {
   const v = Token.verifyTeacherReport(req.params.token);
