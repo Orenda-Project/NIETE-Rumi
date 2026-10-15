@@ -241,11 +241,14 @@ describe('its own statement row, never pooled with G2-5', () => {
       form: 'G1', anchor_block: 'G1A', anchor_exposure_no: 1, band: null, mode: 'check', record: true, period_id: '2026-11',
       exposure_no: 1, bank_version: 'child-test-items-v4', set: 'A', canonical_id: KID, passage_id: null, item_set_id: null,
     });
-    expect(row.meta).toMatchObject({ fixed_band: 'G1', grade_fixed_src: 'visit', pick_src: 'absent' });
-    expect(ex).toMatchObject({ mode: 'check', record: true, period_id: '2026-11', anchor_exposure_no: 1, exposure_no: 1 });
-    expect(logEvent).toHaveBeenCalledWith('web_quiz.ch_start', expect.objectContaining({
-      step: 'numbers', w: 's', form: 'G1', anchor_block: 'G1A', anchor_exposure_no: 1, mode: 'check', period_id: '2026-11', record: true,
-    }));
+    expect(row).toMatchObject({ via: 'hub', id_src: null, id_confidence: null, homonym_in_list: null, draw_seed: null });
+    expect(row.meta).toMatchObject({ fixed_band: 'G1', grade_fixed_src: 'visit_grade', pick_src: 'absent', anchor_serves_any: 1 });
+    expect(ex).toMatchObject({ mode: 'check', record: true, period_id: '2026-11', anchor_exposure_no: 1, exposure_no: 1, passage_id: null, item_set_id: null, draw: null });
+    const start = logEvent.mock.calls.find(([n]) => n === 'web_quiz.ch_start')[1];
+    expect(start).toEqual({
+      step: 'numbers', grade: 1, run: row.id, w: 's', mode: 'check', period_id: '2026-11', form: 'G1', band: null, rung: null, item_set_id: null,
+      exposure_no: 1, anchor_exposure_no: 1, anchor_serves_any: 1, anchor_block: 'G1A', record: true, via: 'hub',
+    });
     const { data } = await supabase.from('web_quiz_challenge_runs').select('*').in('form', ['G3', 'G5']);
     expect(data).toEqual([]);
     const { data: g1 } = await supabase.from('web_quiz_challenge_runs').select('*').eq('form', 'G1');
@@ -279,13 +282,27 @@ describe('anchor_exposure_no counts counted Trails; practice never increments', 
     expect(next).toMatchObject({ mode: 'practice', record: false, anchor_exposure_no: 2 });
   });
 
-  test('period rule off: one record ever, period_id NULL', async () => {
+  test('period rule off (or no period holds now): record NULL, period_id NULL, practice once a run is scored', async () => {
     on(V2, G1);
     const a = await play();
     Date.now.mockReturnValue(DEC);
     const b = await play();
-    expect(a.row).toMatchObject({ mode: 'check', record: true, period_id: null, anchor_exposure_no: 1 });
-    expect(b.row).toMatchObject({ mode: 'practice', record: false, period_id: null, anchor_exposure_no: 2 });
+    expect(a.row).toMatchObject({ mode: 'check', record: null, period_id: null, anchor_exposure_no: 1 });
+    expect(b.row).toMatchObject({ mode: 'practice', record: null, period_id: null, anchor_exposure_no: 2 });
+    expect((await Ch.menu(hub(), D)).exercises[0].done).toBe(true);
+    on(PERIOD);
+    db.challenge_periods = [];
+    Ch.__reset();
+    const c = await play();
+    expect(c.row).toMatchObject({ mode: 'practice', record: null, period_id: null });
+  });
+
+  test('rows written under the raw student id before canonical_id count too', async () => {
+    on(V2, G1, PERIOD);
+    runs().push({ id: 'r-old', student_id: KID, canonical_id: null, exercise: 'numbers', status: 'scored', mode: 'check', record: true,
+      period_id: '2026-11', anchor_block: 'G1A', created_at: '2026-11-02T06:00:00Z' });
+    const ex = await Ch.exercise(hub(), 'numbers', D);
+    expect(ex).toMatchObject({ mode: 'practice', record: false, anchor_exposure_no: 2, exposure_no: 2 });
   });
 });
 
@@ -294,7 +311,7 @@ describe('bank and registry: the G1A block and its practice layouts', () => {
     const block = Bank.anchorBlock('G1A');
     expect(block.map((i) => i.n)).toEqual(ORDER);
     expect(block.map((i) => i.anchor_pos)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-    expect(block.every((i) => i.task === 'number_id' && i.layout === 'tenframe' && i.answer === i.n)).toBe(true);
+    expect(block.every((i) => i.task === 'number_id' && i.layout === 'tenframe' && i.answer === i.n && i.band === 1)).toBe(true);
     for (const { item_id } of block) {
       expect(Bank.getItemV4(item_id)).toMatchObject({ form: 'G1', pool: 'check', status: 'operational', anchor: true, anchor_block: 'G1A' });
     }

@@ -13,12 +13,14 @@
  *
  * The run row is inserted at SERVE (status `served`) with `form='G1'`, `anchor_block='G1A'`, `band` NULL, `mode`,
  * `record`, `period_id`, `exposure_no`, `anchor_exposure_no` and `canonical_id`; the submit updates that row to `scored`.
- * The record rule, decided at serve:
- *   with `web_quiz_challenge_period` ON   one record per canonical child × this stop × period (challenge_periods);
- *   with it OFF (or no period row covers now)   one record ever, `period_id` NULL.
- * `mode` is `practice` for a replay once the record is taken (a served row holds it, finished or not); a practice row is
- * never a record and never increments `anchor_exposure_no` (= 1 + this child's earlier `mode='check'` G1A rows).
- * Statement rows for grade 1 are their own line (form G1), never pooled with G3/G5.
+ * The record rule is the Challenge's v2 rule for the A1 warm-up (ITEMS §4, §5.6), applied to G1A:
+ *   `web_quiz_challenge_period` ON and a challenge_periods row holds now: one record per canonical child × this stop ×
+ *     period, decided at serve (`record` true/false; a served row holds it, finished or not); a replay is `practice`;
+ *   otherwise: `record` NULL and `period_id` NULL; a replay after a scored run is `practice` (today's first-attempt rule).
+ * `anchor_exposure_no` = 1 + this child's earlier `mode='check'` G1A rows (practice never increments it);
+ * `exposure_no` = `meta.anchor_serves_any` = 1 + every earlier G1A row. No challenge_draws row: nothing is drawn (the
+ * block is fixed) and that table's `stop` CHECK has no `numbers`. Grade-1 rows are their own statement line (form G1),
+ * never pooled with G3/G5.
  *
  * Wired from web-quiz-challenge.js through `withDeps` (its switch reader, its row insert, its error type), so this
  * module never requires that one (no cycle) and the switch cache is the one `__reset` clears.
@@ -44,6 +46,9 @@ const COPY_KEYS = Object.freeze({ title: 'jg.g1.title', say: 'jg.g1.say' });
 
 const isMissingTable = (e) => !!e && (e.code === '42P01' || /does not exist|schema cache/i.test(String(e.message || '')));
 const helpedCol = (v) => (v === true ? 'helped' : v === false ? 'self' : 'not_asked');
+// how the child came (the run row's `via`): a hub token, or a quiz session (the scorecard's card)
+const VIA = { hub: 'hub', quiz: 'quiz_card' };
+const ROW_COLS = 'id, student_id, exercise, status, mode, period_id, anchor_block, record, created_at';
 
 /**
  * "How many?" from the phone's taps [{i, pick, ms, first_tap_ms}] against the served items ({n} each): a pick equal to
@@ -75,15 +80,19 @@ function periodIdFor(now, periods) {
 
 /**
  * The record rule at serve, from this child's earlier `numbers` rows: `mode`, `record`, `exposure_no`,
- * `anchor_exposure_no`. A record is held by any earlier record row of the period (served, scored or failed).
+ * `anchor_exposure_no`. With a period: a record row of the period (any status) holds it. Without: record NULL and a
+ * scored run makes the next one practice.
  */
 function recordAtServe(rows, periodId) {
-  const own = (rows || []).filter((r) => r.anchor_block === BLOCK);
-  const held = own.some((r) => r.record === true && r.mode === 'check' && (periodId ? r.period_id === periodId : true));
-  const mode = held ? 'practice' : 'check';
+  const mine = (rows || []).filter((r) => r.exercise === EXERCISE);
+  const own = mine.filter((r) => r.anchor_block === BLOCK);
+  const counted = periodId
+    ? mine.some((r) => r.period_id === periodId && r.record === true)
+    : mine.some((r) => r.status === 'scored');
+  const mode = counted ? 'practice' : 'check';
   return {
     mode,
-    record: mode === 'check',
+    record: periodId ? mode === 'check' : null,
     exposure_no: own.length + 1,
     anchor_exposure_no: own.filter((r) => r.mode === 'check').length + 1,
   };
@@ -99,19 +108,34 @@ function withDeps({ settingOn, insertRun, fail, bank }) {
     if (!(await settingOn(PERIOD_FLAG_KEY))) return null;
     const { data, error } = await supabase.from('challenge_periods').select('period_id, starts_at, ends_at');
     const id = error ? null : periodIdFor(now, data || []);
-    const day = new Date(now).toISOString().slice(0, 10);
+    // no period holds now: the period rule's OFF path; said once per process per PKT day
+    const day = new Date(now + 5 * 3600 * 1000).toISOString().slice(0, 10);
     if (!id && periodMissLogged !== day) {
       periodMissLogged = day;
-      logError('web_quiz.ch_period_missing', { form: 'G1', missingTable: isMissingTable(error) });
+      logError('web_quiz.ch_period_missing', { day, form: 'G1', missing: isMissingTable(error) });
     }
     return id;
   }
 
-  async function childRows(canonicalId) {
-    const { data, error } = await supabase.from(TABLE).select('id, exercise, status, mode, period_id, anchor_block, record, created_at')
-      .eq('canonical_id', canonicalId).eq('exercise', EXERCISE).order('created_at', { ascending: true }).limit(5000);
-    if (error && !isMissingTable(error)) logError('web_quiz.ch_g1_rows_failed', { error: String(error.message || '').slice(0, 120) });
-    return error ? [] : data || [];
+  // The canonical child's `numbers` rows: by canonical_id, and by the raw student id for rows written before it.
+  async function childRows(canonicalId, studentId) {
+    const ids = [...new Set([canonicalId, studentId].filter(Boolean).map(String))];
+    const [a, b] = await Promise.all([
+      supabase.from(TABLE).select(ROW_COLS).eq('canonical_id', canonicalId).eq('exercise', EXERCISE).limit(5000),
+      supabase.from(TABLE).select(ROW_COLS).in('student_id', ids).eq('exercise', EXERCISE).limit(5000),
+    ]);
+    const err = a.error || b.error;
+    if (err) logError('web_quiz.ch_rows_read_failed', { form: 'G1', missing: isMissingTable(err), code: err.code || null });
+    const byId = new Map();
+    for (const r of [...(a.data || []), ...(b.data || [])]) byId.set(r.id, r);
+    return [...byId.values()].sort((x, y) => String(x.created_at || '').localeCompare(String(y.created_at || '')));
+  }
+
+  // The fixed grade's source (child_identity when it is deployed); the form itself is who()'s, from the visit's grade.
+  async function fixedGradeSrc(canonicalId) {
+    const { data, error } = await supabase.from('child_identity').select('canonical_id, fixed_grade').eq('canonical_id', canonicalId).maybeSingle();
+    if (!error && data && Number(data.fixed_grade) === 1) return 'child_identity';
+    return error && isMissingTable(error) ? 'visit_grade_no_table' : 'visit_grade';
   }
 
   async function canonicalOf(studentId) {
@@ -119,15 +143,19 @@ function withDeps({ settingOn, insertRun, fail, bank }) {
   }
 
   // The identity pick fields come from the identity module when it is deployed; until then NULL, and the row says so.
-  async function pickOf(sessionId) {
+  async function pickOf({ sessionId = null, canonicalId = null, device = null } = {}) {
+    const none = { cols: { id_src: null, id_confidence: null, homonym_in_list: null }, src: 'absent' };
     let mod = null;
     try { mod = require('./web-quiz-bind-page'); } catch (_) { mod = null; }
-    if (!mod || typeof mod.pickFor !== 'function') return { cols: { id_src: null, id_confidence: null, homonym_in_list: null }, src: 'absent' };
+    if (!mod || typeof mod.pickFor !== 'function') return none;
     try {
-      const p = (await mod.pickFor(sessionId)) || {};
-      return { cols: { id_src: p.id_src || null, id_confidence: p.id_confidence || null, homonym_in_list: p.homonym_in_list == null ? null : !!p.homonym_in_list }, src: 'pick' };
-    } catch (_) {
-      return { cols: { id_src: null, id_confidence: null, homonym_in_list: null }, src: 'absent' };
+      const p = await mod.pickFor({ sessionId, canonicalId, device });
+      if (!p || typeof p !== 'object') return none;
+      return { cols: { id_src: p.id_src == null ? null : p.id_src, id_confidence: p.id_confidence == null ? null : p.id_confidence,
+        homonym_in_list: typeof p.homonym_in_list === 'boolean' ? p.homonym_in_list : null }, src: 'pick' };
+    } catch (e) {
+      logError('web_quiz.ch_pick_read_failed', { error: String(e && e.message || e).slice(0, 120) });
+      return { ...none, src: 'failed' };
     }
   }
 
@@ -135,9 +163,11 @@ function withDeps({ settingOn, insertRun, fail, bank }) {
   async function menu(w) {
     const now = Date.now();
     const pid = await periodId(now);
-    const rows = await childRows(await canonicalOf(w.studentId));
-    const done = rows.some((r) => r.record === true && r.mode === 'check' && (r.status === 'scored' || r.status === 'failed')
-      && (pid ? r.period_id === pid : true));
+    const rows = await childRows(await canonicalOf(w.studentId), w.studentId);
+    // with a period: this period's record row is final; without: a scored run (today's first-attempt rule)
+    const done = pid
+      ? rows.some((r) => r.period_id === pid && r.record === true && (r.status === 'scored' || r.status === 'failed'))
+      : rows.some((r) => r.status === 'scored');
     logEvent('web_quiz.ch_open', { via: w.via, grade: w.grade });
     return {
       form: 'G1',
@@ -150,15 +180,17 @@ function withDeps({ settingOn, insertRun, fail, bank }) {
   }
 
   /** Serve the G1A block: insert the run row (served), decide mode and record now, mint the run token. */
-  async function exercise(w, ex) {
+  async function exercise(w, ex, { device = null } = {}) {
     if (w.form !== FORM || ex !== EXERCISE) fail(404, 'not_found');
     const now = Date.now();
     const Bank = bank();
     const served = items();
     const pid = await periodId(now);
     const canonicalId = await canonicalOf(w.studentId);
-    const rec = recordAtServe(await childRows(canonicalId), pid);
-    const pick = await pickOf(w.sessionId || null);
+    const rec = recordAtServe(await childRows(canonicalId, w.studentId), pid);
+    const pick = await pickOf({ sessionId: w.sessionId || null, canonicalId, device });
+    const gradeSrc = await fixedGradeSrc(canonicalId);
+    const via = VIA[w.via] || w.via || null;
     const runId = crypto.randomUUID();
     const ct = T.signChallenge({ studentId: w.studentId, ex: EXERCISE, runId });
     const at = new Date(now).toISOString();
@@ -167,20 +199,21 @@ function withDeps({ settingOn, insertRun, fail, bank }) {
       started_at: at, bank_version: Bank.versionV4, set: 'A', form: 'G1', passage_id: null, item_set_id: null,
       mode: rec.mode, period_id: pid, exposure_no: rec.exposure_no, band: null, anchor_block: BLOCK,
       anchor_exposure_no: rec.anchor_exposure_no, draw_seed: null, canonical_id: canonicalId, ...pick.cols,
-      via: w.via || null, share_code_id: w.shareCodeId || null, record: rec.record,
-      meta: { fixed_band: 'G1', grade_fixed_src: 'visit', grade_source: w.gradeSource || null, test: !!w.test, pick_src: pick.src,
-        items: served.map((i) => i.item_id) },
+      via, share_code_id: w.shareCodeId || null, record: rec.record,
+      meta: { fixed_band: 'G1', grade_fixed_src: gradeSrc, grade_source: w.gradeSource || null, test: !!w.test, pick_src: pick.src,
+        anchor_serves_any: rec.exposure_no, items: served.map((i) => i.item_id) },
     };
     const stored = await insertRun(row);
     if (stored !== 'stored') MEM.set(runId, { status: 'open', row });
     logEvent('web_quiz.ch_start', {
-      step: EXERCISE, grade: w.grade, run: runId, w: 's', mode: rec.mode, period_id: pid, form: 'G1', band: null,
-      exposure_no: rec.exposure_no, anchor_block: BLOCK, anchor_exposure_no: rec.anchor_exposure_no, record: rec.record, via: w.via || null,
+      step: EXERCISE, grade: w.grade, run: runId, w: 's', mode: rec.mode, period_id: pid, form: 'G1', band: null, rung: null, item_set_id: null,
+      exposure_no: rec.exposure_no, anchor_exposure_no: rec.anchor_exposure_no, anchor_serves_any: rec.exposure_no, anchor_block: BLOCK, record: rec.record, via,
     });
     return {
       ex: EXERCISE, form: 'G1', lang: w.lang, ct, copy_keys: COPY_KEYS,
       items: served, anchor_block: BLOCK, stop_after: 0, per_item_s: PER_ITEM_S, show_timer: false, sound_off_safe: true,
-      mode: rec.mode, record: rec.record, period_id: pid, exposure_no: rec.exposure_no, anchor_exposure_no: rec.anchor_exposure_no, band: null,
+      mode: rec.mode, record: rec.record, period_id: pid, passage_id: null, item_set_id: null, exposure_no: rec.exposure_no, band: null,
+      anchor_exposure_no: rec.anchor_exposure_no, draw: null,
     };
   }
 

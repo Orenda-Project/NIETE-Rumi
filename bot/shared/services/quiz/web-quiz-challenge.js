@@ -617,7 +617,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   // grade-1 form: 'numbers' exists only with its switches on; a grade-1 child gets only that stop (else 404 as today)
   if (!def && !(ex === Grade1.EXERCISE && (await Grade1.on()))) fail(404, 'not_found');
   const w = await who(token, { kid, lang, device });
-  if (w.form === Grade1.FORM || !def) return Grade1.exercise(w, ex);
+  if (w.form === Grade1.FORM || !def) return Grade1.exercise(w, ex, { device });
   if (ex === 'read' && !(await Budget.readOpen())) fail(429, 'enough_for_today');
   if (ex === 'listen' && !(await listenOn())) fail(503, 'listen_off');
   const rules = await rulesOf();

@@ -283,6 +283,7 @@
           "item_id": "numid.G1.A.03",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "anchor_pos": 1,
           "params": {
             "n": 3,
@@ -298,6 +299,7 @@
           "item_id": "numid.G1.A.07",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "anchor_pos": 2,
           "params": {
             "n": 7,
@@ -313,6 +315,7 @@
           "item_id": "numid.G1.A.01",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "anchor_pos": 3,
           "params": {
             "n": 1,
@@ -328,6 +331,7 @@
           "item_id": "numid.G1.A.09",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "anchor_pos": 4,
           "params": {
             "n": 9,
@@ -343,6 +347,7 @@
           "item_id": "numid.G1.A.04",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "anchor_pos": 5,
           "params": {
             "n": 4,
@@ -358,6 +363,7 @@
           "item_id": "numid.G1.A.10",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "anchor_pos": 6,
           "params": {
             "n": 10,
@@ -373,6 +379,7 @@
           "item_id": "numid.G1.A.02",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "anchor_pos": 7,
           "params": {
             "n": 2,
@@ -388,6 +395,7 @@
           "item_id": "numid.G1.A.06",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "anchor_pos": 8,
           "params": {
             "n": 6,
@@ -403,6 +411,7 @@
           "item_id": "numid.G1.A.00",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "anchor_pos": 9,
           "params": {
             "n": 0,
@@ -418,6 +427,7 @@
           "item_id": "numid.G1.A.08",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "anchor_pos": 10,
           "params": {
             "n": 8,
@@ -729,6 +739,7 @@
       "item_id": "numid.G1.A.05",
       "task": "number_id",
       "form": "G1",
+      "band": 1,
       "pool": "check",
       "status": "operational",
       "params": {
@@ -753,6 +764,7 @@
           "item_id": "numid.practice.e8affcdc",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -769,6 +781,7 @@
           "item_id": "numid.practice.e045cc01",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -785,6 +798,7 @@
           "item_id": "numid.practice.a915ceeb",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -801,6 +815,7 @@
           "item_id": "numid.practice.57d45712",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -817,6 +832,7 @@
           "item_id": "numid.practice.4e0138d9",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -833,6 +849,7 @@
           "item_id": "numid.practice.175df9f4",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -849,6 +866,7 @@
           "item_id": "numid.practice.76aff756",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -865,6 +883,7 @@
           "item_id": "numid.practice.29cbb477",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -881,6 +900,7 @@
           "item_id": "numid.practice.08ba5caf",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -897,6 +917,7 @@
           "item_id": "numid.practice.a5cf03ca",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -913,6 +934,7 @@
           "item_id": "numid.practice.ec94e8af",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -929,6 +951,7 @@
           "item_id": "numid.practice.89dd87e3",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -945,6 +968,7 @@
           "item_id": "numid.practice.76487144",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -961,6 +985,7 @@
           "item_id": "numid.practice.4d94a5d4",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -977,6 +1002,7 @@
           "item_id": "numid.practice.e76d5095",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -993,6 +1019,7 @@
           "item_id": "numid.practice.f30573b4",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -1009,6 +1036,7 @@
           "item_id": "numid.practice.5f26aca9",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -1025,6 +1053,7 @@
           "item_id": "numid.practice.becdc589",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -1041,6 +1070,7 @@
           "item_id": "numid.practice.3bf2458b",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -1057,6 +1087,7 @@
           "item_id": "numid.practice.d6e1e43e",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -1073,6 +1104,7 @@
           "item_id": "numid.practice.32218ebd",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
@@ -1089,6 +1121,7 @@
           "item_id": "numid.practice.cedb0c87",
           "task": "number_id",
           "form": "G1",
+          "band": 1,
           "pool": "practice",
           "status": "reviewed",
           "params": {
