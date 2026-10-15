@@ -185,8 +185,7 @@ describe('Cover with board-pattern picks', () => {
 describe('the door\'s tap', () => {
   const tapMaths = async () => {
     fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.selectGradeSubject) }));
-    fireEvent.click(await screen.findByRole('radio', { name: /^Grade 5/ }));
-    fireEvent.click(screen.getByRole('button', { name: /^Grade 5 · Maths/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Grade 5 · Maths/ }));
   };
 
   it('while the read is in flight it says so; a failed read stays on Class with Try again, never the plain Cover', async () => {
@@ -209,7 +208,7 @@ describe('the door\'s tap', () => {
 describe('the door\'s tap, twice or abandoned', () => {
   const open = async () => {
     fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.selectGradeSubject) }));
-    fireEvent.click(await screen.findByRole('radio', { name: /^Grade 5/ }));
+    await screen.findByRole('button', { name: /^Grade 5 · Maths/ });
   };
 
   it('a second tap while the first read is out does nothing; the first subject goes on', async () => {
@@ -387,6 +386,57 @@ describe('the plain Check, the request page and the failure labels', () => {
     expect(await screen.findByText(C.failures.BAD_JSON)).toBeTruthy();
     expect(screen.queryByText(C.failureFallback)).toBeNull();
     expect(failureLabel('PATTERN_SHORT_SLOT', UR as never)).toBe(UR.failures.BAD_JSON);
+  });
+});
+
+describe('what QA saw on the deployed app (mocked options)', () => {
+  it('the door\'s Class step: grade 5 only, no grade step, the held subject off', async () => {
+    setPicks(fdePicks({ subject: null, subjectName: null }));
+    app(newPaperPath('class'));
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.selectGradeSubject) }));
+    expect(await screen.findByRole('button', { name: /^Grade 5 · Maths/ })).toBeTruthy();
+    expect(screen.queryByRole('radio', { name: /^Grade/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Grade 3/ })).toBeNull();
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Grade 5 · Islamiat/ }).hasAttribute('disabled')).toBe(true));
+    fireEvent.click(screen.getByRole('button', { name: /^Grade 5 · Maths/ }));
+    await waitFor(() => expect(where()).toMatchObject({ path: newPaperPath('check'), subject: 'maths', style: 'fde' }));
+  });
+
+  it('golden: a plain New paper\'s Class step keeps the grade step and every grade on offer', async () => {
+    app(newPaperPath('class'));
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.selectGradeSubject) }));
+    expect(await screen.findByRole('radio', { name: /^Grade 3/ })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /^Grade 5/ })).toBeTruthy();
+  });
+
+  it('Being made on a board-pattern paper says the pattern\'s question count, not "0 questions"', async () => {
+    writingJob({ grade: 5, subject: 'maths', pattern: 'fde_g5_2027', scope: 'fde', questionCount: 0 });
+    app(requestPath('req-f'));
+    expect(await screen.findByText(C.aboutThreeMin)).toBeTruthy();
+    await waitFor(() => expect(document.body.textContent).toContain(C.questionsCount(48)));
+    expect(document.body.textContent).not.toContain(C.questionsCount(0));
+  });
+
+  it('a dropped connection on Make says so in the page\'s words on both Checks; a server sentence is kept', async () => {
+    setPicks(fdePicks());
+    portal.generateAssessment.mockRejectedValue(new Error('Network Error'));
+    const fde = app(newPaperPath('check'));
+    await screen.findByTestId('fde-row-syllabus');
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.makePaper) }));
+    expect((await screen.findByRole('alert')).textContent).toBe(C.join(C.couldNotStart, C.tryAgain));
+    fde.unmount();
+    clearPicksForTest();
+    setPicks({ ...newPicks(10), grade: 3, subject: 'science', subjectName: 'Science', chapters: [1] });
+    app(newPaperPath('check'));
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.makePaper) }));
+    expect((await screen.findByRole('alert')).textContent).toBe(C.join(C.couldNotStart, C.tryAgain));
+  });
+
+  it('every unit unticked: the Syllabus row says none is selected, not just "customised"', async () => {
+    setPicks(fdePicks({ subject: 'english', subjectName: 'English', coverBy: 'chapters', chapters: [] }));
+    app(newPaperPath('check'));
+    const row = await screen.findByTestId('fde-row-syllabus');
+    await waitFor(() => expect(row.textContent).toContain(C.join(C.picked(0), C.customised)));
   });
 });
 

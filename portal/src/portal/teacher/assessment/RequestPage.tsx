@@ -16,7 +16,7 @@ import { CARD, FOCUS, GRID } from '../ui/styles';
 import { ASSESSMENT } from './copy';
 import { useCopy, useLang } from '../i18n';
 import { isolateRuns } from '../ui/bidi';
-import { catalogueOnce, subjectName, useAssessmentSwitches } from './api';
+import { catalogueOnce, patternFor, subjectName, useAssessmentSwitches } from './api';
 import { failureLabel } from './failure';
 import { fromSpec, type AnySpec } from './model';
 import { ASSESSMENT_V2_BASE, editPath, newPaperPath, paperPath, requestPath } from './paths';
@@ -95,6 +95,9 @@ export function RequestPage() {
   // DESIGN §2.8: a board-pattern paper's Ready also names what the teacher adds by hand and the paper page it goes on
   // (the paper view carries it; a plain paper's Ready reads nothing new).
   const lang = useLang();
+  // A board-pattern request is sent with questionCount 0 (the pattern fixes it): the card counts the pattern's questions.
+  const [offer] = useLoad(spec?.pattern ? () => patternFor(spec.grade, spec.subject) : null, `pattern:${spec?.pattern ? `${spec.grade}:${spec.subject}` : ''}`);
+  const patternTotal = dataOf(offer)?.generateTotal ?? null;
   const viewId = fde && readyId ? readyId : null;
   const [viewRead] = useLoad(viewId ? () => portal.getAssessmentPaperView(viewId) : null, `paperview:${viewId ?? ''}`);
   const youAdd = dataOf(viewRead)?.paper?.youAdd ?? null;
@@ -111,7 +114,7 @@ export function RequestPage() {
         subject={name}
         grade={spec.grade}
         title={job?.label ?? ''}
-        extra={C.questionsCount(spec.questionCount)}
+        extra={spec.pattern ? (patternTotal ? C.questionsCount(patternTotal) : undefined) : C.questionsCount(spec.questionCount)}
         action="none"
       />
     </ListCard>

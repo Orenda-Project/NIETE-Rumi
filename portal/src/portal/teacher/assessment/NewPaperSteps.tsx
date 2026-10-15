@@ -13,7 +13,7 @@ import {
   FDE_STEPS, MAX_TOTAL_MARKS, STEPS, checkPages, isFde, toSpec, typesStatus, unseenTarget, type Picks, type Source,
 } from './model';
 import { FdeCheck } from './FdeCheck';
-import { generateFailureText } from './failure';
+import { makeErrorText } from './failure';
 import { pagesMessage, stepReason } from './reasons';
 import { ASSESSMENT_V2_BASE, newPaperPath, requestPath } from './paths';
 import { usePicks } from './store';
@@ -125,6 +125,15 @@ export function ClassStep() {
   };
 
   const value = p.grade !== null && p.subject ? { grade: p.grade, subject: subjectName(catalogue, p.grade, p.subject) || p.subjectName || p.subject } : null;
+  // The door (DESIGN 2.2): the grade is fixed (the pattern's grades) and only its subjects are offered, the held one off.
+  // Given to the kit's picker as the only pairs, so it opens straight on the subjects (no grade step, no other class).
+  const doorPairs = useMemo(() => {
+    if (!door || !catalogue || !doorGrades?.length) return null;
+    const pairs = doorGrades.flatMap((g) => (catalogue.byGrade[g] ?? []).map((s) => ({
+      grade: g, subject: s.name, subjectKey: s.key, featureKey: s.key, available: !held.includes(s.key),
+    })));
+    return pairs.length ? pairs : null;
+  }, [door, catalogue, doorGrades, held]);
   const heldNames = held.map((k) => subjectName(catalogue, 5, k)).filter(Boolean);
 
   return (
@@ -157,7 +166,8 @@ export function ClassStep() {
             <ClassPicker
               label={C.selectGradeSubject}
               feature="assessment"
-              combos={mine}
+              combos={doorPairs ?? mine}
+              allowOther={!doorPairs}
               subjectsByGrade={byGradeNames}
               grades={catalogue.grades}
               value={value}
@@ -611,7 +621,7 @@ function PlainCheck() {
     if ('job' in res) { navigate(requestPath(res.job.requestId), { replace: true }); return; }
     // The hour's paper limit (the server's 429) in the teacher's words and time; any other refusal keeps the server's message.
     const f = portal.takeGenerateFailure?.() ?? null;
-    setError(generateFailureText(f?.errorCode, f?.retryAt ?? null, C) ?? res.error);
+    setError(makeErrorText(res.error, f, C));
   };
 
   return (

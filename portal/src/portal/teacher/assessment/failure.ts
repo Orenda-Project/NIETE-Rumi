@@ -1,3 +1,5 @@
+import { FAILURE_FALLBACK } from '../../components/assessment-jobs/failureMessages';
+import type { GenerateFailure } from '../../services/api';
 import { ASSESSMENT, type AssessmentV2Copy } from './copy';
 
 /** Codes that are another code's case for the teacher: a board-pattern paper that came out short "came out wrong". */
@@ -24,4 +26,13 @@ export function generateFailureText(code: string | null | undefined, retryAt: st
     case 'RATE_LIMITED': return C.fdeFailures.RATE_LIMITED(clock(retryAt));
     default: return null;
   }
+}
+
+/**
+ * What a Check shows when Make is refused: the server's code in the teacher's words, else the server's own sentence; the
+ * job tracker's English fallback (no answer at all: a dropped connection) becomes the deck's "Couldn't make it · Try again".
+ */
+export function makeErrorText(error: string, f: GenerateFailure | null, C: AssessmentV2Copy): string {
+  return generateFailureText(f?.errorCode, f?.retryAt ?? null, C)
+    ?? (error === FAILURE_FALLBACK ? C.join(C.couldNotStart, C.tryAgain) : error);
 }
