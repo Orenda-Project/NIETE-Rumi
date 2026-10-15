@@ -156,9 +156,11 @@ process.stdout.write(Buffer.from(privateKey).toString("base64")+" "+Buffer.from(
   fi
   {
     if [ "$db_kind" = local ]; then
-      # record mode only: its REAL vendor keys first (dotenv keeps the first value), minus DB/storage credentials
-      if [ "$cassette_mode" = record ] && [ -n "$keys" ]; then grep -vE '^(SUPABASE_(URL|SERVICE_ROLE_KEY)|R2_(ENDPOINT|ACCESS_KEY_ID|SECRET_ACCESS_KEY))=' "$keys"; echo; fi
-      cat "$lane_cfg"; echo; echo "$db_lines"
+      # record mode: the lane's settings with the REAL AI vendor keys in place of its placeholders — and nothing
+      # else from the keys file. dotenv keeps the LAST of a repeated key, so writing the keys file first let the
+      # lane's placeholder win and every AI call 401'd (bd-hnhlgn.18).
+      if [ "$cassette_mode" = record ] && [ -n "$keys" ]; then bash "$HERE/record-env.sh" "$keys" "$lane_cfg"; else cat "$lane_cfg"; fi
+      echo; echo "$db_lines"
     else cat "$keys"; fi
     echo
     echo "# --- set by local-stack.sh for run $(basename "$run_dir") ---"
