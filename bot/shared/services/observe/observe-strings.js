@@ -91,6 +91,10 @@ const STRINGS = {
     who_ack: 'Asante — nimeandika {name}.',
     who_other_ack: 'Sawa. Utaweza kuandika jina wakati wa kutuma ripoti.',
     who_stale: 'Orodha hii imepitwa na wakati. Utaweza kuandika jina wakati wa kutuma ripoti.',
+    who_type_name: 'Andika jina la mwalimu kwa herufi za Kiingereza, nitamtafuta katika shule zako.',
+    who_name_matches_body: 'Zaidi ya mwalimu mmoja katika shule zako analingana na "{name}". Chagua uliyemchunguza, au bonyeza "Mtu mwingine" kuandika zaidi ya jina.',
+    who_name_none_retry: 'Sikumpata "{name}" kati ya walimu wa shule zako. Angalia tahajia na uandike jina tena kwa herufi za Kiingereza.',
+    who_name_none_final: 'Bado hakuna mwalimu anayeitwa "{name}" katika shule zako. Hakuna shida: utaweza kuandika jina wakati wa kutuma ripoti.',
     list_send_desc_prefix: 'Tuma ripoti kwa',
     list_send_default_desc: 'Tuma ripoti kwa mwalimu',
     // ── bd-22: guided debrief ────────────────────────────────────────
@@ -149,6 +153,7 @@ const STRINGS = {
     resume_desc_retry: '⚠ Ilisimama — bonyeza kuanzisha tena',
     resume_desc_wait: 'Uchambuzi unaendelea — fomu itafika hivi karibuni',
     resume_desc_observe2: 'Hatua inayofuata ya ziara inasubiri — bonyeza kuifungua',
+    resume_desc_observe2_form: 'Somo limerekodiwa — bonyeza kujaza fomu',
     resume_retry_ack: '🔄 Nimeanzisha tena — nitakutumia fomu ikiwa tayari.',
     resume_retry_exhausted: 'Nimejaribu mara kadhaa na hauwezi kukamilika. Rekodi yako ipo salama. Kama bado una sauti, nitumie tena — nitaanzisha uchunguzi mpya.',
     watchdog_stalled_coach: '⚠️ Uchunguzi uliorekodiwa ulisimama katikati na sikuweza kuuanzisha tena. Hakuna kilichopotea — rekodi ipo salama. Nitumie sauti tena nitaanzisha uchunguzi mpya.',
@@ -300,6 +305,10 @@ const STRINGS = {
     who_ack: 'شکریہ — {name} محفوظ کر لیا۔',
     who_other_ack: 'ٹھیک ہے۔ رپورٹ بھیجتے وقت نام لکھ سکتے ہیں۔',
     who_stale: 'یہ فہرست پرانی ہو چکی ہے۔ رپورٹ بھیجتے وقت نام لکھ سکتے ہیں۔',
+    who_type_name: 'ٹیچر کا نام انگریزی حروف میں لکھ کر بھیجیں، اسے آپ کے اسکولوں کی فہرست میں تلاش کیا جائے گا۔',
+    who_name_matches_body: 'آپ کے اسکولوں میں ایک سے زیادہ ٹیچرز کا نام \u2068{name}\u2069 سے ملتا ہے۔ جن کا مشاہدہ کیا، انہیں چنیں، یا «کوئی اور» دبا کر نام کا مزید حصہ لکھیں۔',
+    who_name_none_retry: 'آپ کے اسکولوں کے ٹیچرز میں \u2068{name}\u2069 نہیں ملا۔ ہجے دیکھ کر نام دوبارہ انگریزی حروف میں لکھیں۔',
+    who_name_none_final: 'آپ کے اسکولوں میں اب بھی \u2068{name}\u2069 نام کا کوئی ٹیچر نہیں ملا۔ کوئی بات نہیں: نام رپورٹ بھیجتے وقت لکھا جا سکتا ہے۔',
     list_send_desc_prefix: 'رپورٹ بھیجنا باقی: ',
     list_send_default_desc: 'استاد کو رپورٹ بھیجیں',
     debrief_record_instruction:
@@ -352,6 +361,7 @@ const STRINGS = {
     resume_desc_retry: '⚠ رک گیا تھا — دبا کر دوبارہ چلائیں',
     resume_desc_wait: 'تجزیہ جاری ہے — فارم جلد ملے گا',
     resume_desc_observe2: 'وزٹ کا اگلا مرحلہ باقی ہے — دبا کر کھولیں',
+    resume_desc_observe2_form: 'سبق ریکارڈ ہو چکا ہے — دبا کر فارم بھریں',
     resume_retry_ack: '🔄 دوبارہ شروع کر دیا — فارم تیار ہوتے ہی بھیج دوں گی۔',
     resume_retry_exhausted: 'میں نے اسے کئی بار چلایا، لیکن یہ مکمل نہیں ہو سکا۔ ریکارڈنگ محفوظ ہے۔ اگر آڈیو اب بھی موجود ہو تو دوبارہ بھیج دیں — میں نیا مشاہدہ شروع کر دوں گی۔',
     watchdog_stalled_coach: '⚠️ جو مشاہدہ ریکارڈ ہوا تھا وہ درمیان میں رک گیا اور دوبارہ نہیں چل سکا۔ کچھ ضائع نہیں ہوا — ریکارڈنگ محفوظ ہے۔ آڈیو دوبارہ بھیج دیں، میں نیا مشاہدہ شروع کر دوں گی۔',
@@ -517,6 +527,10 @@ const STRINGS = {
     who_ack: 'Thanks — noted {name}.',
     who_other_ack: 'No problem. You can type the name when you send the report.',
     who_stale: 'That list has expired. You can type the name when you send the report.',
+    who_type_name: "Type the teacher's name, as it's written in English, and I'll find them in your schools.",
+    who_name_matches_body: 'More than one teacher in your schools matches "{name}". Pick the one you observed, or tap "Someone else" to type more of the name.',
+    who_name_none_retry: 'I couldn\'t find "{name}" among the teachers in your schools. Check the spelling and type the name again, in English letters.',
+    who_name_none_final: 'Still no teacher called "{name}" in your schools. No problem: you can type the name when you send the report.',
     list_send_desc_prefix: 'Send report to',
     list_send_default_desc: 'Send the report to the teacher',
     // ── bd-22: guided debrief ────────────────────────────────────────
@@ -577,6 +591,7 @@ const STRINGS = {
     resume_desc_retry: '⚠ It stopped — tap to run it again',
     resume_desc_wait: "Analysis in progress — the form is coming soon",
     resume_desc_observe2: 'Next step of your visit is waiting — tap to open it',
+    resume_desc_observe2_form: 'Recorded lesson — tap to fill the form',
     resume_retry_ack: "🔄 Restarted — I'll send the form as soon as it's ready.",
     resume_retry_exhausted: "I've run this one as many times as I can and it won't go through. Your recording is saved. If you still have the audio, send it again and I'll start a fresh observation.",
     watchdog_stalled_coach: "⚠️ The observation you recorded stopped partway and I couldn't restart it. Nothing is lost — your recording is saved. Send the audio again when you can and I'll start a fresh one.",
@@ -705,10 +720,16 @@ const VISIT_CAPTURE_TEMPLATES = {
   en: {
     withName: '🎙️ You\'re observing *{name}*. When the lesson starts, record it and send me the audio — I\'ll draft the {fw} form for you.',
     noName: '🎙️ When the lesson starts, record it and send me the audio — I\'ll draft the {fw} form for you.',
+    // A recording from the phone's recorder app goes as a DOCUMENT: shared as audio, WhatsApp refuses
+    // it over 16 MB on the phone, and a lesson from a recorder app is bigger than that.
+    sendAsDocument: 'A recording from the phone\'s recorder app goes as a *Document* (📎 → *Document*), not as audio: WhatsApp refuses audio over 16 MB.',
   },
   ur: {
-    withName: '🎙️ *{name}* کے سبق کا مشاہدہ۔ سبق شروع ہو تو ریکارڈ کر کے آڈیو مجھے بھیجیں — میں آپ کے لیے {fw} فارم تیار کر دوں گی۔',
+    // Opens with U+200F: WhatsApp lays a paragraph out from its first strong character, and a
+    // teacher's name in Latin script would otherwise turn this Urdu line left to right.
+    withName: '\u200F🎙️ *{name}* کے سبق کا مشاہدہ۔ سبق شروع ہو تو ریکارڈ کر کے آڈیو مجھے بھیجیں — میں آپ کے لیے {fw} فارم تیار کر دوں گی۔',
     noName: '🎙️ سبق شروع ہو تو ریکارڈ کر کے آڈیو مجھے بھیجیں — میں آپ کے لیے {fw} فارم تیار کر دوں گی۔',
+    sendAsDocument: 'فون کی ریکارڈر ایپ کی ریکارڈنگ *Document* کے طور پر بھیجیں (📎، پھر *Document*)، آڈیو کے طور پر نہیں: واٹس ایپ \u206616 MB\u2069 سے بڑی آڈیو نہیں بھیجتا۔',
   },
 };
 
@@ -721,7 +742,7 @@ function buildVisitCapturePrompt(lang, opts = {}) {
   const fw = String(opts.framework || 'FICO').toUpperCase();
   const t = VISIT_CAPTURE_TEMPLATES[l];
   const template = opts.teacherName ? t.withName : t.noName;
-  return template.replace('{name}', opts.teacherName || '').replace('{fw}', fw);
+  return `${template.replace('{name}', opts.teacherName || '').replace('{fw}', fw)}\n\n${t.sendAsDocument}`;
 }
 
 // ── Scheduling "done" exit ack (bd-2444, operator 2026-07-31) ────────────────

@@ -242,6 +242,7 @@ features:
     - bot/shared/handlers/observe-command.handler.js
     - bot/shared/handlers/observe-visit-flow.handler.js
     - bot/shared/routes/observe-mewaka-endpoint.js
+    - bot/shared/routes/observe2-form-endpoint.js       # observe2's live field form (the parts, the seal, CONTINUE)
     - bot/docs/flows/observe-*.json
     - bot/shared/templates/observe-*.js
     - bot/shared/templates/observation-report.template.js

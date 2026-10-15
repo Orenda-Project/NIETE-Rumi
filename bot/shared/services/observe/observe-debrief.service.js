@@ -246,7 +246,9 @@ const STAGE_A_STATUSES = ['confirmed', 'transcribing', 'analyzing', 'analysis_st
   'awaiting_observer_review', 'failed',
   // /observe2: waiting for the coach at its own step (the check, or the form still to seal). When that
   // message never reached the coach, this list is the only way back to the visit (5 Oct 2026).
-  'observe2_ready', 'observe2_checking'];
+  // observe2_moments: Rumi is reading the recording. A recording held for its form (record first) is
+  // in the list from the moment it is saved, so its form can be filled meanwhile.
+  'observe2_moments', 'observe2_ready', 'observe2_checking'];
 
 function resumeKindFor(status, updatedAt, nowMs = Date.now()) {
   if (String(status || '').startsWith('observe2_')) return 'observe2';
@@ -270,7 +272,26 @@ async function listUnfinished(observerUserId, opts = {}) {
     .range(0, limit - 1);
   if (error) throw new Error(`listUnfinished failed: ${error.message}`);
   const rows = await _withObservedTeacher(data || []);
-  return rows.map((r) => ({ ...r, resume: resumeKindFor(r.status, r.updated_at) }));
+  const unsealed = await _unsealedObserve2Forms(rows.map((r) => r.id));
+  return rows.map((r) => {
+    const resume = resumeKindFor(r.status, r.updated_at);
+    // An /observe2 recording whose form is still to fill (a recording that came first, held or sent
+    // before the seal) says so, whether Rumi is still reading it or done. A stuck pipeline keeps retry.
+    const fill = unsealed.has(r.id) && (resume === 'observe2' || resume === 'wait');
+    return { ...r, resume: fill ? 'observe2_form' : resume };
+  });
+}
+
+/** Session ids, of those given, linked to an /observe2 form not sealed yet. A failed read costs the row text, not the list. */
+async function _unsealedObserve2Forms(sessionIds) {
+  try {
+    const got = await require('./observe2/field-form.store').formsForSessions(sessionIds);
+    if (!got.ok) return new Set();
+    return new Set(got.forms.filter((f) => !f.sealed_at).map((f) => f.coaching_session_id));
+  } catch (err) {
+    logToFile('❌ observe worklist: /observe2 forms not read (rows keep their generic text)', { error: err.message }, 'error');
+    return new Set();
+  }
 }
 
 /** Total rows waiting for this coach — drives the "show more" decision. */

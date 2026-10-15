@@ -89,6 +89,16 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe-visit-flow.handler.js: INIT → SELECT_SCHOOL → SELECT_TEACHER (18/page,
     # bd-2431) → BRIEF. Data from observe/assignment/leader-source.js.
 
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: /observe's Start asks for the recording and says a recorder-app file goes as a Document
+    Given I opened the visit planner from /observe and picked a school and a teacher
+    When I tap "Start observation" in the brief
+    Then the bot names the teacher and asks me to record the lesson and send the audio
+    And it says a recording from the phone's recorder app goes as a Document (📎 → Document), not as audio
+    And it says why: WhatsApp refuses audio over 16 MB
+    # observe-strings.js buildVisitCapturePrompt (VISIT_CAPTURE_TEMPLATES + SEND_AS_DOCUMENT), en and ur.
+    # Pilot sheet R2 (12 Oct): shared as audio, a lesson from a recorder app never reaches the bot.
+
   @e2e @flow @scheduling @config-gated @P2
   Scenario: The scheduling menu shows live pending-debrief and upcoming counts
     Given the NIETE bot chat is open on a LEADER account
@@ -781,10 +791,26 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given I opened the visit planner from /observe2 and picked a school and a teacher
     When I tap "Start observation" in the brief
     Then the bot asks "How long is this period?" naming the teacher
-    And it offers exactly three buttons: "30 minutes", "35 minutes", "40 minutes"
+    And it offers a "Pick a period" list of exactly four rows: "25 minutes", "30 minutes", "35 minutes", "40 minutes"
     And no "record it and send me the audio" message is sent
     # flow-response.handler handleObserveVisitFlow: the observe2 marker → Observe2Start.afterStart
     # (record created in observation_field_forms; the teacher is bound exactly as for /observe).
+    # A list, not buttons, since 25 joined (FICO pilot sheet R18, 14 Oct): WhatsApp allows three buttons.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: A Friday period of 25 minutes runs the form to minute 25
+    Given I was asked how long the period is
+    When I choose "25 minutes" from the list
+    Then the bot sends a message starting "Before the lesson starts:" with an "Open the form" CTA
+    And it says to carry on with Part 2 until minute 25
+    # The ICT lead, 14 Oct: "classes on Fridays are conducted for 25 minutes". The list row arrives as a
+    # list_reply with the same obs2_period:<form>:<minutes> id the buttons used; both branches route it.
+
+  @e2e @flow @config-gated @wip @draft @P2
+  Scenario: A period button sent before the list still opens the form
+    Given an older "How long is this period?" message with the three period buttons is in my chat
+    When I tap "30 minutes" on it
+    Then the bot sends the live form for a 30-minute period
 
   @e2e @flow @config-gated @wip @draft @P1
   Scenario: The period button sends the live form with the steps before the lesson
@@ -792,7 +818,12 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     When I tap "40 minutes"
     Then the bot sends a message starting "Before the lesson starts:" with an "Open the form" CTA
     And it tells me to start my phone's voice recorder app, not WhatsApp
-    And it says to save Part 1 at minute 20 and carry on with Part 2 until minute 40
+    And it says why: the recorder app keeps recording while I take photos, and a WhatsApp voice note stops when the camera opens
+    And it says Part 1 is up to and including guided practice, to save it when the children start independent practice, and to carry on with Part 2 until minute 40
+    And it says to take photos with the phone's camera as I go and add them in the form with "Upload saved photos"
+    And its last step says to send the recording here as a Document (📎 → Document), not as audio
+    # Pilot sheet R2 (12 Oct): shared to WhatsApp as audio, a recorder-app lesson is refused on the
+    # phone at 16 MB and never reaches the bot. A document can be up to 100 MB.
 
   @e2e @flow @config-gated @wip @draft @negative @P1
   Scenario: Part 1 refuses a number that cannot be right
@@ -808,14 +839,99 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the form opens on Part 2
     # WhatsApp restores a form reopened shortly after from the phone (no request reaches the bot; seen on
     # the sandbox E2E, 30 Sep). A form WhatsApp starts afresh opens on "Part 1 is saved" with "Carry on
-    # with Part 2, from minute 20 to 40." and "Continue" opens Part 2.
+    # with Part 2: independent practice and the wrap-up, to minute 40." and "Continue" opens Part 2.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: Part 1 is up to and including guided practice, and Part 2 is independent practice and the wrap-up
+    Given the live form is open on Part 1
+    Then it says "Up to and including guided practice. When the children start independent practice, tap "Part 1 done""
+    When I fill Part 1 and tap "Part 1 done"
+    Then Part 2 is headed "Part 2: independent practice"
+    And it says "Independent practice and the wrap-up"
+    And it asks "Did each child have a task?" with "Every child had a task", "Only some children" and "No work on their own"
+    And it does not ask who the teacher asked, about group work, or who used materials
+    # FICO pilot sheet R4 (a coach) and R10 (the ICT lead), 14 Oct: both parts asked about group practice; the
+    # 5-step plan is warm-up, explanation, guided practice, independent practice, wrap-up. Form version 5.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: With work of their own, Part 2 asks what the teacher did and what children did when stuck
+    Given the live form is open on Part 2
+    When I choose "Every child had a task"
+    Then it asks "While they worked, the teacher" with "Went round the room", "Looked at their work", "Helped those who were stuck", "Gave more to early finishers" and "Stayed at the front"
+    And it asks "When the work got hard" with "No one tried", "Tried only when sure", "2+ tried while unsure", "Tried unasked, kept going" and "Nobody got stuck"
+    When I leave both unanswered and tap "Part 2 done"
+    Then the form stays on Part 2 and asks for both
+    When I choose "No work on their own" instead
+    Then neither is asked, and "Part 2 done" saves the part
+    # rules.js: "When the work got hard" is D4's level (the titles are PLAIN.D4); "Helped those who were
+    # stuck" makes C2 at least 2. Both are named on the check's "because" lines and in the record.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: Part 1 asks what materials were used, and they are named, not scored
+    Given the live form is open on Part 1
+    When I choose "The children used them" under "Who used books or materials?"
+    Then it asks "What was used?" with "Textbook or board", "Charts or pictures", "Objects or manipulatives" and "Materials the teacher made"
+    When I tick "Charts or pictures" and "Materials the teacher made", fill the rest, seal and reach the levels in the check
+    Then "Books and materials" is pre-filled with "Children used them", saying "Used: charts or pictures; materials the teacher made"
+    # FICO pilot sheet R17 (the ICT lead, 14 Oct): a textbook-only lesson and one with the teacher's own aids
+    # scored alike. C8's level is still who used them (its descriptors are the rubric owner's); the kinds
+    # are named on the check, in the record (the teacher's portal) and in the brief.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: Part 2 asks what the children's work showed: repeating, or reasoning
+    Given the live form is open on Part 2
+    Then it asks "What children's work showed" with "Repeated or copied it", "Explained why or how", "Solved a new problem", "Asked a question about it" and "Their own example or link"
+    When I tick nothing there and tap "Part 2 done"
+    Then the form stays on Part 2 with "Tick what you saw, or "Repeated or copied it"." under it
+    # FICO pilot sheet R16 (the ICT lead, 14 Oct): critical thinking was not explicit. No new scored indicator:
+    # the ticks count toward D1 (reasoning) and D5 (own questions) as a confirmed moment does, and are
+    # named on F3 and F4, which the coach picks.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The check and the brief group the thinking indicators as "Thinking"
+    Given I ticked "Explained why or how" and "Asked a question about it" in Part 2 and sealed the record
+    When I reach the levels in the check
+    Then "Thinking: The teacher's questions", "Thinking: Children's reasoning", "Thinking: Trying when unsure", "Thinking: Children's own questions", "Thinking: Explaining why" and "Thinking: Links to real life" head their rows
+    And "Children's own questions" is pre-filled with "A question about the content", saying I saw a child ask one
+    When I submit the check
+    Then the brief has a "Children's thinking:" block with what I saw, what the teacher did and what the children did
+
+  @e2e @flow @config-gated @wip @draft @P2
+  Scenario: A form opened before the parts changed keeps its own Part 2
+    Given I opened the live form before form version 5 was published, and saved Part 1
+    When I fill Part 2's older questions and tap "Part 2 done"
+    Then the part is saved and the lesson plan screen opens
+    # observe2-form-endpoint.js: a part posted with no fv keeps the older fields (FIELDS_V4) and checks.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: A reopened form shows the notes I typed
+    Given I typed "8 min: board wiped" in Part 1's "Anything else", saved Part 1 and closed the form
+    When WhatsApp starts the form afresh and it opens on "Part 1 is saved"
+    Then the screen lists "Your notes, kept with the record:" with "Part 1: 8 min: board wiped"
+    # Pilot sheet R13 (Riffat, 14 Oct): typed evidence "disappears after the form is saved". A reopened
+    # form cannot go back to Part 1, so CONTINUE lists the notes by part (every form, old Flow or new).
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: Going back to Part 1 does not empty Part 2
+    Given I saved Part 1 and Part 2 of the live form, with a note in Part 2's "Anything else"
+    When I go back to Part 1 and tap "Part 1 done" again
+    Then Part 2 opens with my choices, my ticks and my note already in it
+    And I type the two counts again
+    # Prod 6-15 Oct: 13 forms re-sent Part 1 and got an empty Part 2 each time; one filled Part 2 twice.
+    # PART_TWO's init-values come from the saved answers, only for a form opened on the Flow that carries
+    # the `prefill` marker; a form opened before it keeps today's screens. "Did each child have a task?",
+    # "What children's work showed", the switch and "Anything else" come back. The counts do not: Meta
+    # takes a number there and has no empty number (null fails, '' is a string, 0 is a wrong count); it
+    # refused the string counts on 15 Oct. What sits inside an If ("While they worked, the teacher",
+    # "When the work got hard", "How did the switch go?") is not pre-filled (it stays saved).
 
   @e2e @flow @config-gated @wip @draft @P1
   Scenario: After Part 2 the coach picks the lesson plan from the teacher's own plans
     Given I saved Part 2 of the live form
     Then the form shows "The lesson plan" with "Was there a lesson plan?"
     When I choose "Followed a lesson plan"
-    Then a "Which plan?" list shows the teacher's most recent plans from the bot, newest first, named as in the /observe plan list, and "Upload new" last
+    Then a "Which plan?" list shows the teacher's plans from the app and WhatsApp, newest first, named as in the /observe plan list, and "Upload new" last
+    And the screen says these are the teacher's plans from the app and WhatsApp, so there's no need to ask for the file
     When I tap "Next" without picking a plan
     Then the form stays with 'Pick the plan, or "Upload new".' at the bottom
     When I pick a plan and tap "Next"
@@ -823,6 +939,19 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # Decided on the 2 Oct go-live call: the plan is picked inside the form, before the seal, and can be
     # changed until then. observe2-form-endpoint.js LESSON_PLAN; recent-fidelity-lps.service.js; the row
     # names come from lp-selection-format.js, as in /observe's list.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: A plan the teacher read in the app yesterday is in "Which plan?"
+    Given the teacher I am observing opened a lesson plan in the teacher app yesterday, and was never sent it on WhatsApp
+    And I saved Part 2 of the live form
+    When I choose "Followed a lesson plan"
+    Then that plan is the first row of "Which plan?", named by its topic, with its grade, subject, chapter, day and "yesterday"
+    When I pick it and tap "Next"
+    Then "Before you seal" names that plan
+    # Pilot sheet R6/R7 (13-14 Oct): the list read WhatsApp deliveries only, and since 12 Oct teachers read
+    # their plans in the app, so the plan made the day before was missing. Fixed by 6bd482fa8 / 1212cf26f;
+    # pinned at the form by tests/observe2/plan-list-app-plans.test.js (bd-eal7zn.2). The teacher is chosen
+    # in the visit planner before the form, so the list is that teacher's own.
 
   @e2e @flow @config-gated @wip @draft @P1
   Scenario Outline: A plan the bot didn't give the teacher is added in the form as photos, a file, or typed text
@@ -849,12 +978,33 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # vision read), applies the same "is this a lesson plan?" check, then the orchestrator's uploaded-plan
     # path grades it. The pages of several photos are read in order as one plan.
 
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: A PDF of the teacher's own Rumi plan is graded from that plan's own steps
+    Given the teacher's Urdu lesson plan PDF from Rumi is on my phone
+    And I added it with "Upload new" and "A PDF or Word file" before sealing, and sent the recording
+    When the "Check the moments" form opens and I tap "Next" on the last moments screen
+    Then the form shows "Did the lesson follow the plan?" with that plan's own steps, each already rated
+    And the brief gives how many of the plan's steps were done
+    # Pilot sheet R6/R7 (13-14 Oct): an Urdu Rumi PDF's text layer reads as broken glyphs, so the "is this a
+    # lesson plan?" check said no and the plan was never graded. The file's bytes name the plan
+    # (niete_lp_assets.content_hash), so it is linked and graded like a pick, never read
+    # (observe2/added-plan.js matchRumiPlan; bd-eal7zn.2).
+
   @e2e @flow @config-gated @wip @draft @P2
-  Scenario: An added plan that can't be read, or isn't a lesson plan, is named in the brief
-    Given the photos I added could not be read
+  Scenario Outline: An added plan that can't be read, or has no lesson steps, is named as such, with what to do next
+    Given <what happened>
     When I submit the check
     Then there is no "Did the lesson follow the plan?" screen
-    And the brief says the photos or file couldn't be read, so the plan's steps weren't checked
+    And the brief says "<brief line>"
+    And the brief says "Next time, pick the teacher's plan from the list in the form, or add a clear photo of each page."
+    And the debrief form's lesson plan section says "<debrief line>", never "No lesson plan was provided"
+    Examples:
+      | what happened                                  | brief line                                                 | debrief line                                             |
+      | the photos I added could not be read           | the file or photos you added couldn't be read              | A lesson plan was added, but its file or photos could not be read |
+      | the file I added has no lesson steps in it     | no lesson steps were found in what you added               | A file was added as the lesson plan, but no lesson steps were found in it |
+    # Pilot sheet R6/R7: coaches were told "didn't read as a lesson plan" (brief) and "No lesson plan was
+    # provided" (debrief form, OBSERVE_FICO_FLOW_HAS_FIDELITY=editable). Both named the wrong state
+    # (Rule 24d). observe2/brief.js plan_not_checked; observe-draft.service.js fidelityFallbackCopy.
 
   @e2e @flow @config-gated @wip @draft @P2
   Scenario: No lesson plan goes on to the photos, then the seal
@@ -867,6 +1017,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   @e2e @flow @config-gated @wip @draft @P1
   Scenario Outline: Classroom photos are taken now, or uploaded from the ones already on the phone
     Given I reached "How will you add photos?" in the live form
+    Then the screen says the voice recorder app keeps recording when the camera opens, but a WhatsApp voice note pauses
     When I choose "<how>" and tap "Next"
     Then the form opens "<screen>"
     When I add 3 photos and tap "Next"
@@ -875,6 +1026,8 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # gallery only on a phone (WhatsApp Web and Desktop show "Take photo" alone and open nothing), so
     # saved photos go through a file picker (JPG or PNG), which opens a chooser on every client.
     # Stored before the seal as observe2/<record>/photo-N.jpg, up to ten. observe2-form-endpoint.js PHOTOS.
+    # Pilot sheet R12 (14 Oct): about two in three /observe2 recordings are WhatsApp voice notes, which
+    # stop when the camera opens; the photo step and the before-the-lesson steps now say so.
 
     Examples:
       | how                 | screen              |
@@ -886,21 +1039,68 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given I filled Part 1 and Part 2 of the live form
     When I pick what to work on first, tick the seal box and tap "Seal and send"
     Then the form shows "Sealed at" and the time
-    And the bot says the record is sealed and to stop the recorder, then share the recording to this chat
+    And the bot says the record is sealed and to stop the recorder, then send the recording here as a Document
+    And it gives the steps: 📎 → Document → the recording → Send, and on iPhone save it to Files first
+    And it says why not as audio: WhatsApp refuses audio over 16 MB, and a document can be up to 100 MB
+    And it never says to share the recording from the recorder app to WhatsApp
+    And the sealed screen says to send the recording in the chat, as a document
     And tapping "Seal and send" again changes nothing
     # observe2-form-endpoint.js: seal is a compare-and-set; the database trigger refuses any later
     # change to what was sealed. The photos were added on the step before (2 Oct: up to ten, no cap of
     # three for coaches).
 
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The coach picks one thing to work on first, up to two more, and can pick the plan's steps
+    Given I filled Part 1 and Part 2 of the live form
+    When I choose "Following the plan's steps" under "Work on first"
+    And I choose "Real group work" under "Also work on" and leave "And also" as it is
+    And I tick the seal box and tap "Seal and send"
+    Then the form shows "Sealed at" and the time
+    # FICO pilot sheet R14 (the ICT lead, 14 Oct): one pick only, and "Follow the Lesson Plan Structure" was
+    # missing. One "Work on first" still drives the brief, the record and the teacher's report;
+    # "Also work on" and "And also" are optional and include "Nothing else". The plan's steps are
+    # Section B, not a C, D or F indicator (observe2/fico17.js PLAN_FOCUS).
+
+  @e2e @flow @config-gated @wip @draft @negative @P2
+  Scenario: The same thing cannot be picked twice
+    Given the live form is open on "Before you seal"
+    When I choose "Real group work" under both "Work on first" and "Also work on", tick the seal box and tap "Seal and send"
+    Then the form stays on "Before you seal" with "That is already your first pick. Choose another, or "Nothing else"." at the bottom
+    And nothing is sealed
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The check keeps all three picks, and the brief and the report follow the first
+    Given I sealed with "Following the plan's steps" first and "Real group work" under "Also work on"
+    And the "Check the moments" form is open
+    When I tap through to "Work on first"
+    Then "Work on first" shows "Following the plan's steps", "Also work on" shows "Real group work" and "And also" shows "Nothing else"
+    When I tap "Submit"
+    Then the brief says "Work on first: Following the plan's steps" and lists the plan's steps that were not done
+    And the brief says "Also work on: Real group work"
+    And the teacher's report names following the plan's steps as the next step, and nothing else as its focus
+    # observe2-check-endpoint.js renderPriority (the check posts cv=2 from ADDED_TWO); a check opened on
+    # the Flow published before this keeps its own screen. analysis.js focus_area for "plan" is Section B;
+    # target-resolver.js resolves it for the report's one target.
+
   @e2e @audio @config-gated @destructive @wip @draft @P1
   Scenario: The recording joins the sealed record and its moments come back to check
     Given my /observe2 record is sealed
-    When I send the lesson recording from the recorder app as a file
+    When I send a 30-minute lesson recording of about 30 MB from the recorder app as a Document
     Then the bot says "Recording received" and that the moments come here to check
     And no photo or lesson-plan question is asked
     And a few minutes later a message with a "Check the moments" CTA arrives
     # capture-link.js links the recording to the open form; moments.js reads the timed transcript
     # (one model call) and opens the check because the record is sealed.
+
+  @e2e @audio @config-gated @destructive @wip @draft @P1
+  Scenario: Every moment's words are in the recording, at the minute they were said
+    Given my /observe2 record is sealed
+    When I send the lesson recording and the moments come back to check
+    Then each moment's words are found in the transcript, at the minute of the line they start in
+    And no moment is a lone word, no moment repeats another's words, and no "child" moment quotes the teacher
+    And if no moment is left, the message says no clear moment was found and the check still opens for the levels
+    # Pilot sheet R5 (14 Oct). quote-check.js (bd-eal7zn.3): what was dropped, repaired or re-timed
+    # is stored in rumi_moments.verified and logged as "[observe2] moments checked against the transcript".
 
   @e2e @audio @config-gated @destructive @wip @draft @P0
   Scenario: A recording sent while the form waits for it always reaches the form, never general chat
@@ -929,9 +1129,92 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   Scenario: A recording sent before the seal waits for it, and the plan attached afterwards is checked
     Given I started an /observe2 visit and sent the recording before filling the form
     When I attach the lesson plan and seal the record
-    Then the "Check the moments" message arrives with the plan's steps to check
+    Then the Sealed screen says the recording is already in, and does not ask me to send it
+    And the "Check the moments" message arrives with the plan's steps to check
     # moments.js: the plan is locked by the seal, so a recording that comes first leaves the grading to
     # onSealed (4 Oct: Riffat's PDF was attached after the recording and never checked).
+
+  @e2e @audio @config-gated @destructive @wip @draft @P0
+  Scenario: Record first: a lesson recording sent with no form open is saved as its own visit
+    Given my latest observation was an /observe2 visit
+    And no /observe2 form is waiting for a recording
+    When I send a 34-minute lesson recording from the recorder app as a file
+    Then the bot says the 34-minute recording is saved as one visit with its own form, to fill whenever I'm ready
+    And the message has a "Fill the form" button and a "Cancel observation" button
+    And the bot asks which teacher I observed, with my teachers listed
+    When I pick the teacher
+    Then the bot says it noted the teacher
+    # Pilot sheet R19 (the ICT lead, 14 Oct). observe-audio-router.js holds the recording instead of the
+    # "whose observation is this?" list: observe2/capture-link.js holdRecording makes the visit's form
+    # at capture (visit_context.recorded_first, period from the recording's length) and the capture
+    # links it; the who-answer names the teacher on the form and as the observation's owner.
+
+  @e2e @config-gated @destructive @wip @draft @P0
+  Scenario: The teacher is not on "Which teacher did you observe?": the coach types the name
+    Given a lesson recording of mine was saved and the bot asked "Which teacher did you observe?"
+    And the teacher I observed is not among the teachers listed
+    When I tap "Someone else"
+    Then the bot asks me to type the teacher's name, as it's written in English
+    When I type the teacher's name, even with a title, extra spaces or another common spelling
+    Then the bot says it noted that teacher
+    And the visit is under that teacher in "Complete the form", and the form's lesson plan list is that teacher's
+    # Round 6 E2E, 15 Oct: the list holds nine; every /observe2 coach has more than nine people in their
+    # schools (median 122). observe-who.handleTypedTeacherName matches the derived roster
+    # (patch-resolver) and records the match exactly as a tap (schedule row, the /observe2 form's
+    # teacher, the observation's owner). The wait is its own Redis key, 15 minutes, never the observe state.
+
+  @e2e @config-gated @destructive @wip @draft @P1
+  Scenario: A typed name that fits more than one teacher, or none
+    Given I tapped "Someone else" on "Which teacher did you observe?"
+    When I type a first name that two teachers in my schools share
+    Then the bot lists the teachers with that name, and "Someone else"
+    When I pick one
+    Then the bot says it noted that teacher
+    Given I tapped "Someone else" again on another recording's list
+    When I type a name that is not in my schools
+    Then the bot says it couldn't find it and asks me to type it again
+    When I type a name that is still not in my schools
+    Then the bot says I can type the name when I send the report
+    And my next message is answered as usual chat
+
+  @e2e @config-gated @wip @draft @P1
+  Scenario: A command typed while the bot waits for a name is not taken as a name
+    Given I tapped "Someone else" on "Which teacher did you observe?"
+    When I send "/observe2"
+    Then the visit planner opens, as for any "/observe2"
+    # The same list is asked after a classic /observe capture with no teacher, so classic /observe gets
+    # the typed name too; a recording with no /observe2 form only gets the schedule row, as a tap does.
+
+  @e2e @audio @config-gated @destructive @wip @draft @P0
+  Scenario: Record first: two lessons back to back, each saved and named on its own
+    Given my latest observation was an /observe2 visit
+    When I send the recording of my first lesson and then the recording of my second lesson
+    Then each recording is saved as its own visit, each with its own "which teacher" list
+    When I pick the first teacher on the first list and the second teacher on the second list
+    Then each visit is under its own teacher in "Complete the form"
+    # The who-list rows carry the recording's own session id: an exact link, never "the oldest first".
+
+  @e2e @flow @config-gated @destructive @wip @draft @P0
+  Scenario: Record first: the form is filled later, from the saved message or "Complete the form"
+    Given a lesson recording of mine is saved as a visit and its teacher is named
+    When I send "/observe2" and open "Complete the form"
+    Then the visit shows the teacher's name and "recorded lesson - fill the form"
+    When I continue it
+    Then the bot sends the field form, saying the lesson is recorded and the parts follow the lesson's steps
+    And Part 1 says "The first part of the lesson: up to and including guided practice" with no minutes
+    And Part 2 says "The second part of the lesson: independent practice and the wrap-up" with no minutes
+    When I fill the form, attach the plan and seal it
+    Then the Sealed screen says the recording is already in, as the chat message after it does
+    And the "Check the moments" message arrives, and the debrief and the report follow as for any visit
+    # observe-debrief.listUnfinished (resume kind observe2_form), observe-resume, observe2/start.js
+    # handleFillButton and sendLiveForm afterLesson, observe2-form-endpoint.js afterLesson. Only screen
+    # data changes, so a form opened on the published Flow keeps working (no FORM_VERSION change).
+
+  @e2e @audio @config-gated @wip @draft @P1
+  Scenario: Record first is for /observe2 coaches; a coach on classic /observe still gets "whose observation is this?"
+    Given my latest observation was a classic /observe one
+    When I send a 30-minute lesson recording with nothing armed
+    Then the bot asks "Whose observation is this?" with my scheduled teachers at the top, as before
 
   @e2e @flow @config-gated @destructive @wip @draft @P1
   Scenario: With a picked plan, the check shows each step of the plan pre-rated from the recording
@@ -944,6 +1227,31 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the result is re-scored from my answers and the levels follow
     # As /observe's Section B: the same move lists, grader and scorer (fidelity-orchestrator.js,
     # observe-draft.rescoreFidelityFromEdits). Without a graded plan, the levels come straight after the moments.
+
+  @e2e @flow @audio @config-gated @destructive @wip @draft @P1
+  Scenario: Each moment is evidence about the teaching, and says why it was picked
+    Given the "Check the moments" form is open for a lesson I recorded
+    When I read the moments on each screen
+    Then each one shows its minute, what it is, the words said and, under them, one sentence in my language on why Rumi picked it
+    And a question moment shows the question with its answer
+    And no moment is a name, a roll-call, discipline, admin, "understood?", a bid to answer or the class chanting together
+    And an instruction to work in pairs or groups is not shown as "a real choice" or "children led a part"
+    And a moment whose words don't show what its label says is relabelled or left out before I see it
+    # bd-eal7zn.8: label-check.js, one call per visit on the moments call's own model; keep, relabel or drop,
+    # enforced in code and counted in rumi_moments.verified.labels. A failed check leaves the moments as they were.
+    # Pilot sheet R5, R15 (14 Oct). moments.js prompt observe2-moments-v2 (bd-eal7zn.3); the
+    # why is in each slot's description (observe2-check-endpoint.js describe), within 300 code points.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: A part of the lesson with no moment says so, never a blank question
+    Given the "Check the moments" form is open and Rumi found no moment for "When children work, what do they do?"
+    When I reach that screen
+    Then it says no clear moment for this question was found, that there is nothing to check here and that my own answers still count
+    And every screen with moments opens by saying that what I confirm counts toward the levels and a "No" counts for nothing
+    And the explaining screen says those moments are not added up for me
+    # Pilot sheet R8, R9 (14 Oct): the screen showed the question over nothing, because every slot is
+    # hidden when a part has no moment. observe2-check-endpoint.js HEARD_INTRO, bound to
+    # ${data.<screen>_intro} in evidence-check.flow.js (live once the check Flow is republished).
 
   @e2e @flow @config-gated @destructive @wip @draft @P1
   Scenario: The check pre-fills every level and Submit asks about the debrief, as /observe does
@@ -971,6 +1279,29 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # 4 Oct (Riffat): "after the coach submits, it should ask for the debrief recording; the flow stopped
     # here". From the check on, /observe's own code runs (observe-debrief, observe-send, observe-completion).
     # "Later" keeps the visit in /observe's list of debriefs to do.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The brief carries every note I typed, by part
+    Given I typed notes in Part 1, Part 2 and "Not in the recording", and "Why you changed" at the check
+    When I tap "Debrief now"
+    Then the brief ends with "Your notes, as you wrote them:" and each note, word for word, under its part
+    And the portal's view of this observation shows the same brief
+    And the teacher's report does not show my notes
+    # Pilot sheet R13. observe2/brief.js; each note clipped at 400 code points so the brief stays one
+    # WhatsApp message. Notes stay out of the teacher's report: they are the coach's working notes and
+    # can name a child or record an incident.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The teacher's report names the thing I picked to work on first
+    Given I picked "Real group work" to work on first and kept it at the check
+    And my debrief brief said "Work on first: Real group work"
+    When I send the report
+    Then the report's "Your next horizon" is "Real group work"
+    And "One thing to try next class" is what the teacher said in the debrief
+    # Pilot sheet R3 (Areej, 12 Oct): the report named the lowest-scoring FICO section ("subject
+    # vocabulary depth") instead of the coach's pick. coaching/report-v2/observe2-horizon.js sets the
+    # title from the pick in code; a pick the coach couldn't judge (NA) still counts; a pick changed at
+    # the check wins. Nothing in the debrief step records an area of its own.
 
   @e2e @flow @config-gated @destructive @wip @draft @P1
   Scenario: Choosing someone else after the report preview shows a new preview for that teacher

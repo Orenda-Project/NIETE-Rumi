@@ -34,6 +34,9 @@ function createFakeSupabase(seed = {}) {
         out = [rec];
       } else if (q.action === 'update') {
         out = rowsOf().filter(matches).map((r) => Object.assign(r, q.values));
+      } else if (q.action === 'delete') {
+        out = rowsOf().filter(matches);
+        tables[table] = rowsOf().filter((r) => !matches(r));
       } else {
         out = rowsOf().filter(matches);
         if (q.order) out = [...out].sort((a, b) => (q.order.ascending ? 1 : -1) * String(a[q.order.col]).localeCompare(String(b[q.order.col])));
@@ -48,6 +51,7 @@ function createFakeSupabase(seed = {}) {
     const api = {
       insert(values) { q.action = 'insert'; q.values = values; return api; },
       update(values) { q.action = 'update'; q.values = values; return api; },
+      delete() { q.action = 'delete'; return api; },
       select(cols) { if (cols !== undefined) q.columns = cols; return api; },
       eq(col, val) { q.filters.push(['eq', col, val]); return api; },
       is(col, val) { q.filters.push(['is', col, val]); return api; },

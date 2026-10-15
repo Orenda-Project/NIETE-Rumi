@@ -3,9 +3,14 @@
 /**
  * /observe2 — the live field form, as a WhatsApp Flow.
  *
- * The coach opens it when the lesson starts and fills it in while watching:
- *   PART_ONE     the first half of the period   (numbers + a few taps; "Part 1 done" saves it)
- *   PART_TWO     the second half                (the same questions, plus children speaking for the first time)
+ * The coach opens it when the lesson starts and fills it in while watching. The parts follow the
+ * 5-step lesson plan (warm-up, explanation, guided practice, independent practice, wrap-up), not the
+ * clock (FICO pilot sheet R4/R10, 14 Oct; form version 5):
+ *   PART_ONE     up to and including guided practice (numbers + a few taps; "Part 1 done" is tapped when
+ *                independent practice starts, and saves it)
+ *   PART_TWO     independent practice and the wrap-up: the children working on their own (a task each?
+ *                what the teacher did meanwhile, what children did when stuck), children speaking for the
+ *                first time, the switches
  *   LESSON_PLAN  which plan the lesson followed  (picked from the teacher's own recent plans, so the
  *                recording can be checked against it; go-live call, 2 Oct 2026). "Upload new" adds a plan
  *                the bot didn't give the teacher, the way /observe takes one:
@@ -18,7 +23,8 @@
  *                so saved photos go through a file picker, which opens a chooser on every client:
  *   PHOTO_TAKE   the photo picker (camera, or the gallery on a phone)
  *   PHOTO_FILES  the file picker, images only
- *   AFTER        before leaving the room        (anything to report, what to work on first, the seal)
+ *   AFTER        before leaving the room        (anything to report, what to work on first and up to
+ *                two more, the seal)
  *   SEALED       the record is locked
  *   CONTINUE     a reopened form: where the record stands, then on to the right screen
  *
@@ -33,13 +39,24 @@
  * Regenerate the committed copy after any change:  node bot/scripts/generate-observe2-flow-json.js
  */
 
-const { PRIORITY, MOMENTS, PLAIN } = require('./fico17');
+const { FOCUS, FOCUS_ORDER, ALSO_NONE, PLAIN } = require('./fico17');
 
 const FLOW_VERSION = '7.3';
-// This form's own version, sent by the footers whose next screen changed with the photo step. A form
-// opened before it was published sends none, and the endpoint keeps that form on the old routes.
-const FORM_VERSION = '4';
-const VERSIONED = new Set(['LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'PHOTO_TAKE', 'PHOTO_FILES']);
+// This form's own version, sent by the footers whose answer depends on it: 4 brought the photo step
+// (the plan screens' next screen), 5 the parts by the lesson's steps (the parts' questions and checks).
+// A form opened before a version was published sends an older one, or none, and the endpoint keeps it
+// on its own routes and checks.
+const FORM_VERSION = '5';
+const VERSIONED = new Set(['PART_ONE', 'PART_TWO', 'LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'PHOTO_TAKE', 'PHOTO_FILES']);
+// Part 2 comes back with what was saved for it (Form init-values; pilot sheet R13). The screens that lead
+// to Part 2 send this marker, and only then does the endpoint add Part 2's init values: a form opened on
+// an older Flow sends none and gets the screens it knows. Kept apart from FORM_VERSION, so the pre-fill
+// never depends on which version's Flow was published first.
+const PREFILL = '1';
+const PREFILL_FROM = new Set(['PART_ONE', 'PART_TWO']);
+// Screens pre-filled from the stored answers. Only fields at the top of the form: Meta documents no rule
+// for init-values on a field inside an If, and no Flow here does it.
+const PREFILL_SCREENS = new Set(['PART_TWO']);
 // Coaches photograph what helps the analysis, without the teachers' cap of three (2 Oct call).
 const MAX_PHOTOS = 10;
 // An added lesson plan: pages photographed, a file, or typed. The typed floor is the uploaded-plan
@@ -89,6 +106,44 @@ const SWITCHED = [
   opt('clear', PLAIN.C5[2], 'The teacher said it was time to change, and nearly every child was on the new task within about a minute.'),
   opt('ahead', PLAIN.C5[3], 'The children already knew the routine and moved to the next task on their own, without being told one by one.'),
 ];
+// "What was used?" (R17): the kind of materials, named on C8's line; who used them still sets the level.
+// The ids are rules.js's USED_SAID.
+const USED = [
+  opt('book', 'Textbook or board'),
+  opt('pictures', 'Charts or pictures'),
+  opt('objects', 'Objects or manipulatives', 'Things to hold and move: counters, blocks, sticks, cards.'),
+  opt('made', 'Materials the teacher made', 'Prepared or adapted by the teacher for this lesson.'),
+];
+// Part 2: the children working on their own. The ids are rules.js's TASK, TEACHER_SAID and STUCK.
+const TASK = [
+  opt('all', 'Every child had a task', 'Each child worked on their own: in a notebook, on a sheet or at the board.'),
+  opt('some', 'Only some children', 'Some had a task of their own; others waited, watched or copied.'),
+  opt('none', 'No work on their own', 'The class only listened, answered together or copied from the board.'),
+];
+const TEACHER_WHILE = [
+  opt('round', 'Went round the room'),
+  opt('checked', 'Looked at their work', 'Read what children wrote or did, not only asked "Done?"'),
+  opt('helped', 'Helped those who were stuck', 'Explained again, or gave a hint or a smaller step, to a child who was stuck.'),
+  opt('more', 'Gave more to early finishers', 'A harder or extra task for children who finished.'),
+  opt('front', 'Stayed at the front', 'At the desk or the board while the children worked.'),
+];
+// The four titles are PLAIN.D4, word for word, so the level the coach later reviews reads the same.
+const STUCK = [
+  opt('waited', PLAIN.D4[0], 'Children stopped, copied a neighbour, or waited for the teacher to give the answer.'),
+  opt('sure', PLAIN.D4[1], 'Those who knew it worked on; the ones who were not sure sat and waited.'),
+  opt('unsure', PLAIN.D4[2], 'Two or more children who were not sure still had a go.'),
+  opt('kept', PLAIN.D4[3], 'As well as that, a child carried on after a wrong answer, or started without being told.'),
+  opt('easy', 'Nobody got stuck', 'The work was easy for everyone, so no one had to try while unsure.'),
+];
+// "What children's work showed" (R16): recall, or the kinds of reasoning the rubric scores. The ids are
+// rules.js's THINK_SAID.
+const THINK = [
+  opt('recall', 'Repeated or copied it', 'Gave back what was taught: copied, recited, or the same answer as the example.'),
+  opt('why', 'Explained why or how', 'A child said why an answer is right, or how they worked it out.'),
+  opt('new', 'Solved a new problem', 'Worked out a question unlike the examples shown in class.'),
+  opt('ownq', 'Asked a question about it', 'How, why or what if. Not "which page?" or "in the copy?"'),
+  opt('apply', 'Their own example or link', 'Gave their own example, or linked it to daily life or another subject.'),
+];
 const INCIDENT = [
   opt('none', 'Nothing to report'),
   opt('sarcastic', 'Praise that sounded mocking', "Words like 'well done' said in a way that made fun of a child."),
@@ -125,6 +180,22 @@ const radio = (name, label, options, description) => ({
 });
 const number = (name, label, helper) => ({ type: 'TextInput', name, label, 'input-type': 'number', required: true, 'helper-text': helper });
 
+// The switch question, in both parts.
+function switchQuestions(p, description) {
+  return [
+    radio(`${p}_change`, 'Did the class switch activity?', YES_NO, description),
+    {
+      type: 'If',
+      condition: `\${form.${p}_change} == 'yes'`,
+      then: [radio(`${p}_change_how`, 'How did the switch go?', SWITCHED, 'If the class switched more than once, pick what happened most often.')],
+      else: [],
+    },
+  ];
+}
+
+const notes = (p) => ({ type: 'TextArea', name: `${p}_notes`, label: 'Anything else', required: false, 'max-length': 600, 'helper-text': 'The minute and what you saw, e.g. 8 min: board wiped before copying' });
+
+// Part 1: warm-up, explanation and guided practice, while the teacher leads.
 function partQuestions(p) {
   return [
     radio(`${p}_picked`, 'Who did the teacher ask?', WHO_ASKED),
@@ -145,21 +216,48 @@ function partQuestions(p) {
       else: [],
     },
     radio(`${p}_materials`, 'Who used books or materials?', MATERIALS, 'Books, the board, charts, cards or objects.'),
-    radio(`${p}_change`, 'Did the class switch activity?', YES_NO, 'For example: from listening to the teacher to writing, or from the whole class into groups.'),
+    // Two nested Ifs, as above: shown once materials were used.
     {
       type: 'If',
-      condition: `\${form.${p}_change} == 'yes'`,
-      then: [radio(`${p}_change_how`, 'How did the switch go?', SWITCHED, 'If the class switched more than once, pick what happened most often.')],
+      condition: `\${form.${p}_materials} != 'none'`,
+      then: [{
+        type: 'If',
+        condition: `\${form.${p}_materials} != 'nofit'`,
+        then: [{ type: 'CheckboxGroup', name: `${p}_used`, label: 'What was used?', description: 'Tick everything used.', required: true, 'data-source': USED }],
+        else: [],
+      }],
       else: [],
     },
-    { type: 'TextArea', name: `${p}_notes`, label: 'Anything else', required: false, 'max-length': 600, 'helper-text': 'The minute and what you saw, e.g. 8 min: board wiped before copying' },
+    ...switchQuestions(p, 'For example: from listening to the teacher to writing, or from the whole class into groups.'),
+    notes(p),
+    ERR_LINE,
+  ];
+}
+
+// Part 2: independent practice and the wrap-up. Every question is about the children working on their
+// own (R4/R10); who was picked, group work and materials are Part 1's.
+function workAloneQuestions() {
+  return [
+    radio('p2_task', 'Did each child have a task?', TASK, 'A task of their own, to do without the teacher.'),
+    {
+      type: 'If',
+      condition: "${form.p2_task} != 'none'",
+      then: [
+        { type: 'CheckboxGroup', name: 'p2_teacher', label: 'While they worked, the teacher', description: 'Tick everything you saw', required: true, 'data-source': TEACHER_WHILE },
+        radio('p2_stuck', 'When the work got hard', STUCK, 'What did the children do when they were not sure?'),
+      ],
+      else: [],
+    },
+    { type: 'CheckboxGroup', name: 'p2_think', label: "What children's work showed", description: 'Tick everything you saw in this part: repeating, or reasoning.', required: true, 'data-source': THINK },
+    ...switchQuestions('p2', 'For example: from group practice to working alone, or from working alone to the wrap-up.'),
+    notes('p2'),
     ERR_LINE,
   ];
 }
 
 const FIELDS = {
-  PART_ONE: ['present', 'p1_spoke', 'p1_picked', 'p1_groups', 'p1_listen', 'p1_listen_other', 'p1_materials', 'p1_change', 'p1_change_how', 'p1_notes'],
-  PART_TWO: ['p2_spoke', 'p2_new', 'p2_picked', 'p2_groups', 'p2_listen', 'p2_listen_other', 'p2_materials', 'p2_change', 'p2_change_how', 'p2_notes'],
+  PART_ONE: ['present', 'p1_spoke', 'p1_picked', 'p1_groups', 'p1_listen', 'p1_listen_other', 'p1_materials', 'p1_used', 'p1_change', 'p1_change_how', 'p1_notes'],
+  PART_TWO: ['p2_spoke', 'p2_new', 'p2_task', 'p2_teacher', 'p2_stuck', 'p2_think', 'p2_change', 'p2_change_how', 'p2_notes'],
   LESSON_PLAN: ['lp', 'lp_pick', 'lp_how'],
   LP_PHOTOS: [],
   LP_FILE: [],
@@ -167,27 +265,59 @@ const FIELDS = {
   PHOTOS: ['photo_how'],
   PHOTO_TAKE: [],
   PHOTO_FILES: [],
-  AFTER: ['incident', 'detail', 'note', 'priority', 'seal_ok'],
+  AFTER: ['incident', 'detail', 'note', 'priority', 'also_1', 'also_2', 'seal_ok'],
 };
+
+// What the parts posted before form version 5: a form still on that Flow keeps sending these, and the
+// endpoint keeps them (Store.pick takes the two lists together).
+const FIELDS_V4 = {
+  PART_TWO: ['p2_spoke', 'p2_new', 'p2_picked', 'p2_groups', 'p2_listen', 'p2_listen_other', 'p2_materials', 'p2_change', 'p2_change_how', 'p2_notes'],
+};
+
+// Which fields come back pre-filled. Not a count (a number TextInput): Meta takes a number there (its
+// validator refused a string on 15 Oct 2026: "Expected property 'p2_spoke' to be of type 'number' but
+// found 'string'") and has no empty number. null fails validation, '' is a string, and 0 would put a
+// wrong count in front of the coach on every first Part 2, so the coach types the counts again.
+const prefillable = (c) => Boolean(c.name) && !(c.type === 'TextInput' && c['input-type'] === 'number');
+
+// A pre-filled field's init value, typed as Meta takes it for the component: ticks are a list of
+// strings, a tick box a boolean, the rest (text, choices) a string.
+function initData(component) {
+  if (component.type === 'CheckboxGroup') return { type: 'array', items: { type: 'string' }, __example__: [] };
+  if (component.type === 'OptIn') return { type: 'boolean', __example__: false };
+  const first = Array.isArray(component['data-source']) && component['data-source'][0];
+  return { type: 'string', __example__: first ? first.id : '' };
+}
 
 function screen(id, title, children, footerLabel, extraData) {
   const payload = { screen: id };
   if (VERSIONED.has(id)) payload.fv = FORM_VERSION;
+  if (PREFILL_FROM.has(id)) payload.prefill = PREFILL;
   for (const f of FIELDS[id]) payload[f] = `\${form.${f}}`;
   // A picker's value may only travel as a top-level string property of a data_exchange (Meta).
   if (id === 'PHOTO_TAKE') payload.photos = '${form.photos}';
   if (id === 'PHOTO_FILES') payload.photo_files = '${form.photo_files}';
   if (id === 'LP_PHOTOS') payload.lp_photos = '${form.lp_photos}';
   if (id === 'LP_FILE') payload.lp_file = '${form.lp_file}';
+  const data = { ...(extraData || {}) };
+  let init = null;
+  if (PREFILL_SCREENS.has(id)) {
+    init = {};
+    for (const c of children.filter(prefillable)) {
+      init[c.name] = `\${data.init_${c.name}}`;
+      data[`init_${c.name}`] = initData(c);
+    }
+  }
   return {
     id,
     title,
-    data: { ...(extraData || {}), ...ERR_DATA },
+    data: { ...data, ...ERR_DATA },
     layout: {
       type: 'SingleColumnLayout',
       children: [{
         type: 'Form',
         name: `${id.toLowerCase()}_form`,
+        ...(init ? { 'init-values': init } : {}),
         'error-messages': '${data.error_messages}',
         children: [...children, { type: 'Footer', label: footerLabel, 'on-click-action': { name: 'data_exchange', payload } }],
       }],
@@ -195,8 +325,9 @@ function screen(id, title, children, footerLabel, extraData) {
   };
 }
 
-// The priority list follows the four moments, so related choices sit together.
-const PRIORITY_ORDER = MOMENTS.flatMap((m) => m.codes);
+// "Work on first": the 17 in the order of the four moments, then the lesson plan's own steps (R14).
+const FOCUS_LIST = FOCUS_ORDER.map((c) => opt(c, FOCUS[c]));
+const ALSO_LIST = [opt(ALSO_NONE, 'Nothing else'), ...FOCUS_LIST];
 
 function buildFieldFormFlow() {
   const part1 = [
@@ -208,11 +339,11 @@ function buildFieldFormFlow() {
     ...partQuestions('p1'),
   ];
   const part2 = [
-    { type: 'TextHeading', text: 'Part 2: keep going' },
+    { type: 'TextHeading', text: 'Part 2: independent practice' },
     { type: 'TextCaption', text: '${data.part_hint}' },
     number('p2_spoke', 'Children who spoke', 'Count each child once, including those from Part 1'),
     number('p2_new', 'First time speaking', "Of these, how many hadn't spoken in Part 1?"),
-    ...partQuestions('p2'),
+    ...workAloneQuestions(),
   ];
   const after = [
     { type: 'TextHeading', text: 'Before you seal' },
@@ -227,7 +358,12 @@ function buildFieldFormFlow() {
       else: [],
     },
     { type: 'TextArea', name: 'note', label: 'Not in the recording', required: false, 'max-length': 600, 'helper-text': "What you saw that a recording can't catch: the back rows, the board, reactions" },
-    { type: 'Dropdown', name: 'priority', label: 'Work on first', required: true, 'data-source': PRIORITY_ORDER.map((c) => opt(c, PRIORITY[c])) },
+    { type: 'Dropdown', name: 'priority', label: 'Work on first', required: true, 'data-source': FOCUS_LIST },
+    // One "Work on first" drives the brief, the record's focus and the teacher's report; up to two more
+    // are for the debrief (FICO pilot sheet R14).
+    { type: 'TextCaption', text: 'If the teacher needs more, add up to two. Optional.' },
+    { type: 'Dropdown', name: 'also_1', label: 'Also work on', required: false, 'data-source': ALSO_LIST },
+    { type: 'Dropdown', name: 'also_2', label: 'And also', required: false, 'data-source': ALSO_LIST },
     { type: 'OptIn', name: 'seal_ok', label: "Seal this record. I can't change it afterwards, and the recording's moments open only after I seal.", required: true },
     ERR_LINE,
   ];
@@ -280,6 +416,9 @@ function buildFieldFormFlow() {
   const photos = [
     { type: 'TextHeading', text: 'Classroom photos' },
     { type: 'TextBody', text: `Up to ${MAX_PHOTOS}. The ones that help: the board, the materials, children using them, groups at work, and the board at the end. Never faces.` },
+    // Text only (no route or payload change, so FORM_VERSION stays): most coaches record with a
+    // WhatsApp voice note, which stops when the camera opens; a recorder app keeps going.
+    { type: 'TextBody', text: 'Still recording? The voice recorder app keeps recording when the camera opens, but a WhatsApp voice note pauses: resume it after the photo. Photos you took with the camera during the lesson go in with Upload saved photos.' },
     radio('photo_how', 'How will you add photos?', PHOTO_HOW),
     ERR_LINE,
   ];
@@ -337,7 +476,7 @@ function buildFieldFormFlow() {
       children: [
         { type: 'TextHeading', text: '${data.continue_heading}' },
         { type: 'TextBody', text: '${data.continue_line}' },
-        { type: 'Footer', label: 'Continue', 'on-click-action': { name: 'data_exchange', payload: { screen: 'CONTINUE', fv: FORM_VERSION } } },
+        { type: 'Footer', label: 'Continue', 'on-click-action': { name: 'data_exchange', payload: { screen: 'CONTINUE', fv: FORM_VERSION, prefill: PREFILL } } },
       ],
     },
   };
@@ -362,10 +501,10 @@ function buildFieldFormFlow() {
     screens: [
       screen('PART_ONE', 'Part 1', part1, 'Part 1 done', {
         teacher_line: { type: 'string', __example__: "Rabia's lesson · Grade 4 · Maths" },
-        part_hint: { type: 'string', __example__: 'Minutes 0 to 20. Tap "Part 1 done" at minute 20; your answers are saved then.' },
+        part_hint: { type: 'string', __example__: 'Up to and including guided practice. When the children start independent practice, tap "Part 1 done": your answers are saved then.' },
       }),
       screen('PART_TWO', 'Part 2', part2, 'Part 2 done', {
-        part_hint: { type: 'string', __example__: 'Minutes 20 to 40. Answer only for what happens in this part.' },
+        part_hint: { type: 'string', __example__: 'Independent practice and the wrap-up, to minute 40. Answer only for this part.' },
       }),
       screen('LESSON_PLAN', 'Lesson plan', plan, 'Next', {
         lp_hint: { type: 'string', __example__: "Rabia's most recent plans from the bot. If the plan isn't here, pick \"Upload new\" to add it." },
@@ -394,4 +533,24 @@ function buildFieldFormFlow() {
   };
 }
 
-module.exports = { buildFieldFormFlow, FIELDS, FLOW_VERSION, FORM_VERSION, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES, LP_TEXT_MIN };
+// The pre-filled fields of each screen, read off the Flow itself so the endpoint and the Flow can never
+// disagree: PREFILLED[screen] is the names, PREFILLED_TYPES each one's declared type (what the endpoint
+// must send), PREFILLED_ARRAYS the ones whose value is a list of ticks.
+function prefilledFields() {
+  const out = {};
+  const types = {};
+  for (const s of buildFieldFormFlow().screens) {
+    const form = s.layout.children.find((c) => c.type === 'Form');
+    if (!form || !form['init-values']) continue;
+    out[s.id] = Object.keys(form['init-values']);
+    for (const f of out[s.id]) types[f] = (s.data[`init_${f}`] || {}).type;
+  }
+  const arrays = new Set(Object.keys(types).filter((f) => types[f] === 'array'));
+  return { PREFILLED: out, PREFILLED_TYPES: types, PREFILLED_ARRAYS: arrays };
+}
+const { PREFILLED, PREFILLED_TYPES, PREFILLED_ARRAYS } = prefilledFields();
+
+module.exports = {
+  buildFieldFormFlow, FIELDS, FIELDS_V4, FLOW_VERSION, FORM_VERSION, PREFILL, PREFILLED, PREFILLED_TYPES, PREFILLED_ARRAYS,
+  MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES, LP_TEXT_MIN,
+};

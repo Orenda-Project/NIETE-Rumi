@@ -20,102 +20,122 @@
  *   observe2_checking       the check was sent
  *   (then)                  the check hands the visit to /observe's debrief: observer_review_complete
  *   observe2_no_timestamps  the transcript has no [MM:SS] timings, so no moment can be placed
- *   observe2_failed         the model call or the write failed (logged at error)
+ *   observe2_failed         the model call or the write failed, or the reply was cut off at the output
+ *                           limit twice (logged at error)
  */
 
 const supabase = require('../../../config/supabase');
 const WhatsAppService = require('../../whatsapp.service');
 const Store = require('./field-form.store');
 const { heardLevels } = require('./rules');
+const { checkQuotes } = require('./quote-check');
+const { checkLabels } = require('./label-check');
 const { observe2Strings } = require('./strings');
+const { clampLanguage } = require('../../../config/ux-strings');
+const { getLanguage } = require('../../../config/languages');
 const { logToFile } = require('../../../utils/logger');
 
-const PROMPT_VERSION = 'observe2-moments-v1';
+// v2 (bd-eal7zn.3): evidence first, what is never a moment, question — answer quotes, no stretched types,
+// and a "why" per moment. v1 filled a 25-type menu "of different types where possible".
+const PROMPT_VERSION = 'observe2-moments-v2';
 const SLOTS = 8;
 const QUOTE_MAX = 280;
+const WHY_MAX = 120;
 const TIMED_RX = /\[\d{1,3}:\d{2}\]/;
 
-// Type → the short label the check shows after the minute ("12:41 · open question"); each fits the
-// 30-code-point radio label with the minute in front.
-const TYPES = {
-  ask: {
-    open_q_one: 'open question', open_q_choral: 'answered in chorus', probe: "'why' follow-up",
-    reasoning: 'child explained why', long_answer: 'longer answer', beyond: 'went beyond the ask',
-    content_q: "child's own question", proc_q: "'which page' question", beyond_q: 'question beyond lesson',
-  },
-  wrong: {
-    wrong_reason: 'reason for the error', wrong_fixed: 'child fixed it', wrong_ignored: 'wrong answer left',
-    strategy: 'tried a new way', praise_effort: 'praise for effort', praise_generic: "'well done' only",
-    mistake_useful: 'mistake put to use', disagree: 'disagreement welcomed', hedged: 'tried while unsure',
-    unprompted: 'tried without asking',
-  },
-  work: { choice: 'a real choice', handover: 'children led a part' },
-  explain: {
-    content_error: 'content error', term_defined: 'word explained', why_explained: 'why it works',
-    life_link: 'link to real life',
-  },
-};
-const GROUPS = Object.keys(TYPES);
-const GROUP_OF = Object.fromEntries(GROUPS.flatMap((g) => Object.keys(TYPES[g]).map((t) => [t, g])));
+const { TYPES, GROUPS, GROUP_OF, TYPE_GUIDE } = require('./moment-types');
 
 const seconds = (mmss) => { const [m, s] = String(mmss).split(':').map(Number); return m * 60 + s; };
 const clip = (text, max) => { const cps = [...text]; return cps.length > max ? `${cps.slice(0, max - 1).join('')}…` : text; };
 const whole = (v) => { const n = Number(v); return Number.isInteger(n) && n >= 0 ? n : 0; };
 
-function buildPrompt(transcript, form) {
+// The lesson the coach picked the plan of, when there is one: moments about what it teaches come first.
+function lessonLine(form) {
+  const ref = (form && form.answers && form.answers.lp_ref) || null;
+  const label = ref && String(ref.label || '').trim();
+  return label
+    ? `THE LESSON: ${label}`
+    : 'THE LESSON: not given. Work out from the first minutes what the lesson is teaching (its aim, its new words, its skill).';
+}
+
+// "why" is written in the coach's language (users.preferred_language, clamped to NIETE's offer).
+function whyRules(lang) {
+  const L = getLanguage(clampLanguage(lang));
+  const rules = [
+    `For each moment, "why": one short sentence, at most 15 words, written in ${L.languageDescription}, saying what the`,
+    'moment shows about the teaching or about the children\'s learning in this lesson, so the coach can use it',
+    'in the conversation with the teacher. Plain words: no codes, no levels, no scores. Say "the teacher", "the',
+    'child" or "the children"; never "he" or "she". For example: "The child gives a reason in their own words, so',
+    'they understood why plants need light."',
+  ];
+  if (L.direction === 'rtl') {
+    rules.push(
+      `Write "why" in ${L.languageDescription} script (${L.script}), never in Roman letters; keep the JSON keys and the`,
+      'type names in English. Write so that no verb shows whether the teacher or a child is a man or a woman',
+      '(for example «استاد نے وجہ پوچھی», «بچوں نے اپنی مثال دی»).',
+    );
+  }
+  return rules;
+}
+
+function buildPrompt(transcript, form, { lang } = {}) {
   const period = Number(form && form.period_minutes) || 40;
   const half = Math.round(period / 2);
   const list = (g) => Object.keys(TYPES[g]).join(', ');
   return [
-    'You are reading the transcript of one classroom lesson, recorded by a coach who sat in the room.',
-    'Each line reads "[MM:SS] Speaker (LANG): words": the minute the line starts, who spoke (Teacher, or',
-    'Student, which may be several children), the language, and the words (often Urdu, sometimes English).',
+    'You are helping a coach who sat in one classroom lesson. Read its transcript and pick the few MOMENTS that are',
+    'real evidence about the teaching and the children\'s learning. The coach confirms each one and uses it to talk',
+    'with the teacher afterwards, and what the coach confirms counts toward the lesson\'s levels.',
     '',
-    'Find the moments a coach would want to confirm, in four parts of the lesson. Use only what the',
-    'transcript says. Quote the words exactly as written, in their own language, cut to the key sentence.',
-    'Never invent a moment, a minute or a name. If a part has no such moment, return none for it.',
+    lessonLine(form),
+    'Each line reads "[MM:SS] Speaker (LANG): words": the minute the line starts, who spoke (Teacher, or Student,',
+    'which may be several children), the language, and the words (often Urdu, sometimes English).',
     '',
-    'ASKING — the teacher\'s questions, the children\'s answers and questions:',
-    '- open_q_one: an open question (why, how, what do you think; more than one right answer) answered by one child',
-    '- open_q_choral: an open question answered by the class together',
-    '- probe: the teacher follows an answer with "why?" or a question that pushes the same child further',
-    '- reasoning: a child gives a reason ("because ...")',
-    '- long_answer: a child answers in a full sentence or more, without a reason',
-    '- beyond: a child reasons beyond what was asked (a link or example of their own)',
-    '- content_q: a child asks a question about the content',
-    '- proc_q: a child asks only about procedure ("which page?", "in the copy?")',
-    '- beyond_q: a child asks a question that goes beyond the lesson',
+    'WHAT A MOMENT IS',
+    'Something said that shows how the teacher teaches or how the children think, about what this lesson teaches:',
+    'the teacher\'s questions and the children\'s answers; a child\'s reason, idea, example or question; what happens',
+    'after a wrong answer; how the teacher explains, defines or links the content; a real choice or real lead given',
+    'to the children. It must be clear from the words alone: if it needs explaining, it is not a moment.',
     '',
-    'WRONG ANSWERS — what happens when a child is wrong, and how safe it is to be wrong:',
-    '- wrong_reason: the teacher explains why an answer is wrong',
-    '- wrong_fixed: the child corrects their own answer',
-    '- wrong_ignored: a wrong answer is passed over with no reason ("no, anyone else?")',
-    '- strategy: after a wrong answer the teacher tries a new way (an example, a picture, a simpler question)',
-    '- praise_effort: specific praise for effort or thinking',
-    '- praise_generic: general praise ("good", "shabash", "well done")',
-    '- mistake_useful: the teacher uses a mistake to teach the class',
-    '- disagree: the teacher welcomes a child disagreeing',
-    '- hedged: a child answers while openly unsure ("maybe", "I think", "shayad")',
-    '- unprompted: a child tries without being asked, or keeps trying after a wrong answer',
+    'NEVER A MOMENT (skip these even when a type below seems to fit):',
+    '- names, roll-call, greetings; "sit down", "be quiet", "stand up"; "open page 83", "take out your copies",',
+    '  books, homework and other admin;',
+    '- discipline, threats and rewards ("no football tomorrow"), unless a child is shamed or mocked for an',
+    '  answer: that is evidence, under WRONG ANSWERS;',
+    '- a child asking to answer or to go ("shall I tell?", "my turn", "I have done it");',
+    '- "understood?", "right?", "OK?" and other checks the class answers with "yes";',
+    '- the class repeating, chanting, spelling, counting or reading aloud together;',
+    '- a single word or letter on its own: a one-word answer counts only together with the question it answers;',
+    '- a passage where the transcript does not make sense (garbled words, a sentence that does not fit the lesson):',
+    '  the recording was not heard clearly there, so skip it.',
     '',
-    'WORKING — while the children work:',
-    '- choice: the children get a real choice (which task, how to show it, who to work with) and it is acted on',
-    '- handover: the children lead part of the lesson',
+    'THE QUOTE',
+    '- Copy the words exactly as the transcript writes them, in their own language. Never translate, fix or paraphrase.',
+    '- A question and its answer: quote the question, then " — ", then the answer (two lines that follow each other).',
+    '- Otherwise quote one line, cut to the whole sentence that shows the moment, never a fragment.',
+    '- Keep each part short: the one or two sentences that show the moment, never a whole long turn.',
+    '- A type that a child does (reasoning, long_answer, beyond, content_q, proc_q, beyond_q, wrong_fixed, hedged,',
+    '  unprompted) quotes the child\'s own words; a type the teacher does quotes the teacher.',
+    '- "minute" is the [MM:SS] of the line the quote starts in.',
     '',
-    'EXPLAINING — the teacher\'s content:',
-    '- content_error: the teacher says something factually wrong and it is not corrected',
-    '- term_defined: a subject word is explained or defined',
-    '- why_explained: the teacher explains why a method or fact works, not only how',
-    '- life_link: the teacher links the content to daily life or another subject',
+    'WHY',
+    ...whyRules(lang),
     '',
-    `At most ${SLOTS} moments per part: the clearest ones, of different types where possible.`,
-    'Also count, across the whole lesson: closed_q (questions with a yes/no or one-word answer, or answered',
-    'in chorus) and praise_generic (lines of general praise).',
+    'TYPES. Use a type only when the words clearly show exactly that. Most lessons have none of several types:',
+    'return none rather than stretch a type to fit.',
+    '',
+    ...TYPE_GUIDE,
+    '',
+    `HOW MANY: at most ${SLOTS} per part, and only the clearest. Fewer clear moments are better than many weak ones.`,
+    'If a part has no clear moment, return none for it.',
+    '',
+    'Also count, across the whole lesson: closed_q (questions with a yes/no or one-word answer, or answered in',
+    'chorus) and praise_generic (lines of general praise).',
     '',
     `The lesson is ${period} minutes; Part 1 is minute 0 to ${half}, Part 2 is minute ${half} to ${period}.`,
     '',
     'Return JSON only, in this shape:',
-    '{"moments":[{"moment":"ask|wrong|work|explain","type":"<one type above>","minute":"MM:SS","quote":"<the words>"}],',
+    '{"moments":[{"moment":"ask|wrong|work|explain","type":"<one type above>","minute":"MM:SS","quote":"<the words>","why":"<one sentence>"}],',
     ' "counts":{"closed_q":0,"praise_generic":0}}',
     `Allowed types — ask: ${list('ask')}; wrong: ${list('wrong')}; work: ${list('work')}; explain: ${list('explain')}.`,
     '',
@@ -124,7 +144,7 @@ function buildPrompt(transcript, form) {
   ].join('\n');
 }
 
-/** Keep only what the check can show: known types, real minutes, a quote; SLOTS per group. */
+/** Keep only what the check can show: known types, real minutes, a quote and its why; SLOTS per group. */
 function normalise(raw) {
   const byGroup = Object.fromEntries(GROUPS.map((g) => [g, []]));
   for (const m of Array.isArray(raw && raw.moments) ? raw.moments : []) {
@@ -134,7 +154,8 @@ function normalise(raw) {
     const quote = String((m && m.quote) || '').trim();
     if (!group || !/^\d{1,3}:\d{2}$/.test(minuteRaw) || !quote) continue;
     const [mm, ss] = minuteRaw.split(':');
-    byGroup[group].push({ moment: group, type, minute: `${mm.padStart(2, '0')}:${ss}`, quote: clip(quote, QUOTE_MAX) });
+    const why = String((m && m.why) || '').replace(/\s+/g, ' ').trim();
+    byGroup[group].push({ moment: group, type, minute: `${mm.padStart(2, '0')}:${ss}`, quote: clip(quote, QUOTE_MAX), why: clip(why, WHY_MAX) });
   }
   const moments = [];
   for (const g of GROUPS) {
@@ -146,10 +167,38 @@ function normalise(raw) {
   return { moments, counts: { closed_q: whole(counts.closed_q), praise_generic: whole(counts.praise_generic) } };
 }
 
-async function defaultLlm(prompt) {
+// The moments reply's output budget. Almost all of it is the model's reasoning: the JSON is ~2,000
+// tokens, the median call uses ~12,000 (prod, 5-15 Oct).
+const MAX_TOKENS = 16000;
+
+async function defaultLlm(prompt, { maxTokens = MAX_TOKENS, label = 'observe2.moments' } = {}) {
   const GPT5MiniService = require('../../gpt5-mini.service');
-  const { result } = await GPT5MiniService.completeJson(prompt, { maxTokens: 16000, label: 'observe2.moments' });
-  return result;
+  return GPT5MiniService.completeJson(prompt, { maxTokens, label });
+}
+
+// A reply as completeJson gives it ({result, usage}); a seam that hands back the bare JSON has no usage.
+function unwrap(reply) {
+  if (reply && typeof reply === 'object' && 'result' in reply && 'usage' in reply) return reply;
+  return { result: reply, usage: null };
+}
+
+/**
+ * The model's moments, asked for once more when the reply used the whole output budget. A cut-off
+ * reply is not "Rumi heard nothing": on 12, 13 and 15 Oct three replies spent all 16,000 tokens, came
+ * back with no moment, and were sent to the coach as four empty screens (bd-eal7zn.3). Cut off twice
+ * is a failure, with the existing failure path.
+ */
+async function readMoments(prompt, form, llm) {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    const { result, usage } = unwrap(await llm(prompt, { maxTokens: MAX_TOKENS }));
+    const used = usage ? Number(usage.completion_tokens) : NaN;
+    if (!(used >= MAX_TOKENS)) return result;
+    logToFile('[observe2] moments reply cut off at the output limit', {
+      formId: form.id, attempt, maxTokens: MAX_TOKENS, ...(attempt === 1 ? { next: 'asking once more' } : {}),
+    }, attempt === 1 ? 'warn' : 'error');
+  }
+  throw new Error('moments reply cut off at the output limit twice');
 }
 
 async function setStatus(sessionId, status) {
@@ -164,6 +213,14 @@ async function setStatus(sessionId, status) {
     return false;
   }
   return (data || []).length > 0;
+}
+
+// The coach's language, for the "why" of each moment. Read, never written (one writer: setUserLanguage).
+async function coachLanguage(form) {
+  const { data, error } = await supabase.from('users')
+    .select('preferred_language').eq('id', form.observer_user_id).maybeSingle();
+  if (error) logToFile('[observe2] the coach\'s language could not be read: the moments\' "why" uses the default', { formId: form.id, error: error.message }, 'warn');
+  return clampLanguage(data && data.preferred_language);
 }
 
 async function coachOf(form) {
@@ -266,17 +323,38 @@ async function gradeFidelity(form, transcript, audioDurationSeconds, fidelityDep
       };
     } else {
       const P = require('./added-plan');
-      const read = await P.readAddedPlan(added, planDeps);
-      planSource = { kind: read.kind, files: read.files, read: read.read, parsers: read.parsers, chars: read.text.length };
-      if (!read.text) {
-        logToFile('[observe2] the added lesson plan could not be read: not graded', { formId: form.id, ...planSource }, 'error');
-        return graded({ status: 'lp_unreadable', plan_source: planSource });
+      const files = P.sharedDownloads(planDeps);
+      // A file that is one of Rumi's own plans is graded from that plan's steps, like a pick (bd-eal7zn.2).
+      const rumiPlan = await P.matchRumiPlan(added, files);
+      if (rumiPlan) {
+        const { parseCorpusLessonId } = require('../../coaching/subject-resolution');
+        const parsed = parseCorpusLessonId(rumiPlan.lesson_id) || {};
+        const versioned = rumiPlan.asset_kind === 'lesson';
+        planSource = { kind: added.kind, files: Array.isArray(added.keys) ? added.keys.length : 0, rumi_plan: rumiPlan };
+        logToFile("[observe2] the added lesson plan is one of the bot's own plans: graded from its steps", {
+          formId: form.id, lessonId: rumiPlan.lesson_id, assetId: rumiPlan.asset_id, kind: rumiPlan.asset_kind,
+        });
+        input = {
+          corpusKey: {
+            lesson_id: rumiPlan.lesson_id,
+            version_stamp: versioned ? rumiPlan.version_stamp : null,
+            content_hash: versioned ? rumiPlan.content_hash : null,
+          },
+          meta: { lesson_id: rumiPlan.lesson_id, ...(parsed.subject ? { subject: parsed.subject } : {}), ...(parsed.grade ? { grade: String(parsed.grade) } : {}) },
+        };
+      } else {
+        const read = await P.readAddedPlan(added, files);
+        planSource = { kind: read.kind, files: read.files, read: read.read, parsers: read.parsers, chars: read.text.length };
+        if (!read.text) {
+          logToFile('[observe2] the added lesson plan could not be read: not graded', { formId: form.id, ...planSource }, 'error');
+          return graded({ status: 'lp_unreadable', plan_source: planSource });
+        }
+        if (await P.looksLikeLessonPlan(read.text, files) === false) {
+          logToFile('[observe2] the added lesson plan does not read as a lesson plan: not graded', { formId: form.id, ...planSource }, 'warn');
+          return graded({ status: 'lp_not_lesson_plan', plan_source: planSource });
+        }
+        input = { uploadedText: read.text, meta: {} };
       }
-      if (await P.looksLikeLessonPlan(read.text, planDeps) === false) {
-        logToFile('[observe2] the added lesson plan does not read as a lesson plan: not graded', { formId: form.id, ...planSource }, 'warn');
-        return graded({ status: 'lp_not_lesson_plan', plan_source: planSource });
-      }
-      input = { uploadedText: read.text, meta: {} };
     }
     const photos = await photoEvidence(form, photoDeps);
     const out = await F.computeLpFidelity({
@@ -342,13 +420,31 @@ async function runForSession(sessionId, from, deps = {}) {
     // is locked only by the seal, so a recording that comes first leaves the grading to the seal
     // (onSealed): graded now, it would miss a plan attached after it (Riffat, 4 Oct).
     const sealed = Boolean(form.sealed_at);
+    const lang = await coachLanguage(form);
+    const llm = deps.llm || defaultLlm;
     const [raw, fidelity] = await Promise.all([
-      (deps.llm || defaultLlm)(buildPrompt(transcript, form)),
+      readMoments(buildPrompt(transcript, form, { lang }), form, llm),
       sealed ? gradeFidelity(form, transcript, row && row.audio_duration_seconds, deps.fidelityDeps, deps.planDeps, deps.photoDeps) : null,
     ]);
-    const { moments, counts } = normalise(raw);
+    // Every quote is checked against the transcript before the coach sees it (quote-check.js); what was
+    // dropped, repaired or re-timed is counted, stored and logged on its own line.
+    const known = (Array.isArray(raw && raw.moments) ? raw.moments : []).filter((m) => m && GROUP_OF[m.type]);
+    const checked = checkQuotes(known, transcript);
+    const { stats } = checked;
+    logToFile('[observe2] moments checked against the transcript', {
+      sessionId, formId: form.id, ...stats,
+    }, stats.returned && stats.kept * 2 < stats.returned ? 'warn' : 'info');
+    // A second look at each label against its words (label-check.js, bd-eal7zn.8), on the moments call's
+    // own seam: the same job and model. A failed check leaves the moments as the quote check left them.
+    const labelLlm = deps.labelLlm || (deps.llm ? llm : (p, o) => defaultLlm(p, { ...o, label: 'observe2.moments.labels' }));
+    const labelled = await checkLabels(checked.moments, { transcript, lang, llm: labelLlm });
+    stats.labels = labelled.stats;
+    logToFile('[observe2] moment labels checked', {
+      sessionId, formId: form.id, ...labelled.stats,
+    }, labelled.stats.status === 'failed' ? 'error' : 'info');
+    const { moments, counts } = normalise({ ...(raw || {}), moments: labelled.moments });
     const stored = await Store.setMoments(form.id, {
-      moments, counts, prompt_version: PROMPT_VERSION, fidelity, ...(sealed ? {} : { fidelity_at_seal: true }),
+      moments, counts, prompt_version: PROMPT_VERSION, verified: stats, fidelity, ...(sealed ? {} : { fidelity_at_seal: true }),
     }, heardLevels(moments, counts));
     if (!stored.ok) throw new Error(stored.error || 'moments not stored');
     const again = await Store.getForm(form.id);
@@ -411,7 +507,7 @@ async function onSealed(form, deps = {}) {
 }
 
 module.exports = {
-  PROMPT_VERSION, SLOTS, TYPES, GROUPS,
+  PROMPT_VERSION, SLOTS, WHY_MAX, TYPES, GROUPS,
   buildPrompt, normalise, runForSession, openCheck, onSealed, setStatus,
   // For the test that proves its default reader is /observe's (added-plan-defaults.test.js).
   __photoEvidence: photoEvidence,

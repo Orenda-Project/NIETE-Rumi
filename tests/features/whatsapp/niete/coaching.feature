@@ -550,11 +550,15 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Coaching
   @e2e @wip @draft @negative @P3 @COA14
   Scenario: An audio document over the size cap is rejected before download
     Given the NIETE bot chat is open
-    When I upload an audio document larger than the size cap
+    When I upload an audio document larger than 100 MB
     Then the bot replies that the file is too large before processing it
-    # audio-document-router.js classifyAudioDocument → reject_too_large
-    # (buildTooLargeMessage). NB the reject copy still says "25MB"/"Whisper" though
-    # the real cap is 100MB Soniox — assert the reject, flag the stale number.
+    And the reply names the file's size and the 100 MB cap, in my language
+    And it says nothing was received and nothing has started
+    And it tells me to record the sound only with the voice recorder app and send it as a Document
+    # audio-document-router.js resolveAudioDocument: the webhook carries no file_size on a
+    # document, so the size comes from Meta's media info (GET /{media-id}) BEFORE any
+    # download; over 100 MB → buildTooLargeMessage (catalog key audioDocumentTooLarge).
+    # A failed media-info read never refuses: the file goes on as before.
 
   @e2e @wip @draft @P2 @COA31
   Scenario: The "was this useful?" survey comes right after the voice debrief
