@@ -2531,6 +2531,8 @@ Feature: NIETE (ICT) Teacher Training
     When I link my quiz codes to one of my classes
     Then each of my codes with no class gets that class, and a second tap links none
     But a code that already has a class, another teacher's code, or a class that is not mine is never changed
+
+  @quiz @config-gated @wip @draft @P2 @T757
   Scenario: A saved place on a family phone ends on the 31 March that closes its school year
     Given a child's place is saved on a family phone until 31 March, 23:59:59 Pakistan time
     When the daily job runs one second before that moment
@@ -2541,7 +2543,7 @@ Feature: NIETE (ICT) Teacher Training
     And a place erased more than thirteen months ago is deleted for good
     And a stop finished as that child on that phone keeps the place until the next 31 March
 
-  @quiz @config-gated @wip @draft @P2 @T706
+  @quiz @config-gated @wip @draft @P2 @T758
   Scenario: With web_quiz_guest_home on, /quiz from a phone the bot does not know gets one guest reply
     Given web_quiz_hub, web_quiz_identity_canon, web_quiz_phone_bind and web_quiz_guest_home are on
     And a phone that is not a teacher's has no child on it
