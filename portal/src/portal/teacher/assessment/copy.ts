@@ -17,6 +17,13 @@ import type { CopyEntry } from '../copyRegistry';
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
+/** FDE writes choice counts as words ("Attempt any eight"); the editor's preview line does too. */
+const NUMBER_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve',
+  'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'] as const;
+const numberWord = (n: number) => NUMBER_WORDS[n] ?? String(n);
+/** Section letters as the Urdu papers print them (حصہ الف …). */
+const SECTION_UR: Record<string, string> = { A: 'الف', B: 'ب', C: 'ج', D: 'د' };
+
 export const ASSESSMENT_V2_COPY = {
   title: 'Assessment',
   home: 'Home',
@@ -254,7 +261,8 @@ export const ASSESSMENT_V2_COPY = {
   youAdd: 'You add',
   beforeCopying: 'before photocopying',
   onPage: (n: number) => `p. ${n}`,
-  readyHint: "Ready in about 3 min · practice paper, not FDE's own",
+  // The operator's review (15 Oct): the hint is the time only; "not an official FDE paper" stays on the paper and in Inside.
+  readyHint: 'Ready in about 3 min',
   skips4: 'Skips 4 steps · goes to Check',
   chaptersOff: 'Chapters are not used for the FDE board pattern',
   aboutThreeMin: '~3 min',
@@ -271,6 +279,13 @@ export const ASSESSMENT_V2_COPY = {
   forClass: 'for the class',
   forTeacher: 'for the teacher',
   ifNoDownload: 'If Download does nothing here, use Open in another app',
+  seePaperBeingMade: 'See the paper being made',
+  /* the editor on a board-pattern paper (EditPages.tsx renders these) */
+  editBoth: 'Changes the paper and the marking scheme',
+  section: (letter: string) => `Section ${letter}`,
+  willSay: (slot: string, n: number, of: number) => `${slot} will then say: any ${numberWord(n)} of ${numberWord(of)}`,
+  willSayAll: (slot: string, of: number) => `${slot} will then say: ${of === 2 ? 'attempt both' : `attempt all ${numberWord(of)}`}`,
+  noAddOnPattern: 'Board-pattern papers keep their shape',
   /** The server's refusals of a board-pattern request (errorCode), in the teacher's words: a sentence each, beside Make. */
   fdeFailures: {
     PATTERN_OFF: 'Board-pattern papers are off for now. Make your own paper or try later.',
@@ -361,7 +376,7 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
     marks: (max: number) => `نمبر: 1 سے ${max} تک`,
     earlier: (step: string) => `پہلے ${step} مکمل کریں`,
     wait: 'براہ کرم انتظار کریں',
-    scopeOrFde: 'ابواب چنیں یا FDE بورڈ طرز',
+    scopeOrFde: 'ابواب چنیں یا FDE بورڈ pattern',
     generating: 'اس کلاس کا پرچہ تیار ہو رہا ہے',
   },
   addPages: 'صفحات شامل کریں',
@@ -492,16 +507,16 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   },
   failureFallback: 'کچھ مسئلہ ہو گیا',
   // The FDE board pattern: MACHINE-DRAFTED (copy deck §A), needs fluent-Urdu review. "FDE" stays Latin (the kit isolates it).
-  fdeDoor: 'FDE طرز کے پرچے',
+  fdeDoor: 'FDE pattern کے پرچے',
   fdeDoorChips: 'جماعت 5 · فروری 2027 · مارکنگ اسکیم',
   lastMade: (subject: string, days: number) => `آخری: ${subject} · ${days === 0 ? 'آج' : `${days} دن پہلے`}`,
-  islamiatHeld: 'اسلامیات کا FDE طرز: جائزے کے بعد',
-  styleFde: 'FDE بورڈ طرز',
+  islamiatHeld: 'اسلامیات کا FDE pattern: جائزے کے بعد',
+  styleFde: 'FDE بورڈ pattern',
   styleFdeSub: 'حصے، وقت، نمبر، انتخاب',
   styleOwn: 'اپنی مرضی کا پرچہ',
   styleOwnSub: 'تعداد، اقسام اور نمبر',
   ownNext: 'اگلا: سوال، اقسام اور نمبر',
-  paperStyle: 'پرچے کا طرز',
+  paperStyle: 'پرچے کا pattern',
   syllabus: 'نصاب',
   ownScopeSub: 'کتاب سے چنیں',
   notInFde: 'FDE امتحان میں شامل نہیں',
@@ -516,15 +531,15 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   youAdd: 'آپ شامل کریں',
   beforeCopying: 'فوٹو کاپی سے پہلے',
   onPage: (n: number) => `ص ${n}`,
-  readyHint: 'تقریباً 3 منٹ میں تیار · مشقی پرچہ، FDE کا اپنا نہیں',
+  readyHint: 'تقریباً 3 منٹ میں تیار',
   skips4: '4 مراحل کم، سیدھا جانچ کا صفحہ',
-  chaptersOff: 'FDE بورڈ طرز میں ابواب نہیں چنے جاتے',
+  chaptersOff: 'FDE بورڈ pattern میں ابواب نہیں چنے جاتے',
   aboutThreeMin: 'تقریباً 3 منٹ',
   waitHub: 'یہ پرچہ «حالیہ پرچے» میں بھی ملے گا۔',
   waitPoll: 'یہ صفحہ خود دیکھتا رہتا ہے۔',
   elapsed: (n: number) => `اب تک ${n} منٹ`,
   longerBody: 'پرچہ ابھی تیار ہو رہا ہے۔ یہ «حالیہ پرچے» میں رہے گا اور تیار ہونے پر وہیں کھلے گا۔',
-  fdeChip: 'FDE طرز',
+  fdeChip: 'FDE pattern',
   fdeListChip: 'FDE',
   withScheme: 'مارکنگ اسکیم کے ساتھ',
   questionPaper: 'سوالیہ پرچہ',
@@ -533,8 +548,14 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   forClass: 'کلاس کے لیے',
   forTeacher: 'ٹیچر کے لیے',
   ifNoDownload: 'اگر ڈاؤن لوڈ کچھ نہ کرے تو دوسری ایپ میں کھولیں',
+  seePaperBeingMade: 'تیار ہوتا پرچہ دیکھیں',
+  editBoth: 'پرچہ اور مارکنگ اسکیم دونوں تبدیل ہوں گے',
+  section: (letter: string) => `حصہ ${SECTION_UR[letter] ?? letter}`,
+  willSay: (slot: string, n: number, of: number) => `${slot} پھر کہے گا: ${of} میں سے کوئی ${n}`,
+  willSayAll: (slot: string, of: number) => `${slot} پھر کہے گا: ${of === 2 ? 'دونوں حل کریں' : `تمام ${of} حل کریں`}`,
+  noAddOnPattern: 'بورڈ pattern کا پرچہ اپنی شکل رکھتا ہے',
   fdeFailures: {
-    PATTERN_OFF: 'بورڈ طرز کے پرچے فی الحال بند ہیں۔ اپنی مرضی کا پرچہ بنائیں یا بعد میں کوشش کریں۔',
+    PATTERN_OFF: 'بورڈ pattern کے پرچے فی الحال بند ہیں۔ اپنی مرضی کا پرچہ بنائیں یا بعد میں کوشش کریں۔',
     ALREADY_GENERATING: 'اس کلاس کا پرچہ تیار ہو رہا ہے · «میرے پرچے» دیکھیں',
     RATE_LIMITED: (time: string | null) => (time ? `پرچوں کی حد پوری ہو گئی · ${time} پر دوبارہ کوشش کریں` : 'پرچوں کی حد پوری ہو گئی · بعد میں کوشش کریں'),
   },
@@ -554,10 +575,11 @@ export const COPY_ENTRY: CopyEntry = {
   screen: 'Assessment',
   module: ASSESSMENT as Bilingual<unknown>,
   // join only joins its parts ("Grade 4 · Science · 15 questions"): the same in both languages.
-  same: ['join', 'fdeListChip'],
+  // fdeChip: the operator's review (15 Oct) writes "pattern" in Latin in Urdu too, so "FDE pattern" is the same in both.
+  same: ['join', 'fdeListChip', 'fdeChip'],
   // The reasons beside a disabled button are a short line each, not a label (bd-fmf24g.34).
   // FDE: the hint and note lines beside a button or under a row are one short line each (copy deck §A `longOk`).
   longOk: ['why', 'fdeDoorChips', 'islamiatHeld', 'ownNext', 'fullRehearsal', 'insideCustom', 'notOfficial', 'readyHint', 'skips4',
     'chaptersOff', 'waitHub', 'waitPoll', 'longerBody', 'ifNoDownload', 'fdeFailures', 'lastMade', 'notInFde', 'practiseFromBook',
-    'styleFdeSub', 'styleOwnSub', 'withScheme'],
+    'styleFdeSub', 'styleOwnSub', 'withScheme', 'editBoth', 'willSay', 'willSayAll', 'noAddOnPattern', 'seePaperBeingMade'],
 };

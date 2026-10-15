@@ -86,7 +86,9 @@ export function RequestPage() {
   const name = spec ? subjectName(catalogue, spec.grade, spec.subject) : '';
   // A board-pattern paper (the request carried `pattern`, or the paper says so): ~3 min, two named files, no editor.
   const readyId = seen?.status === 'ready' ? seen.paperId ?? null : null;
-  const [paperRow] = useLoad(readyId ? () => findPaper(readyId) : null, `paper:${readyId}`);
+  // Read the paper's row only when the request might be a board-pattern one (a plain job's ready screen is today's).
+  const askRow = !!readyId && (!spec || !!spec.pattern);
+  const [paperRow] = useLoad(askRow ? () => findPaper(readyId as string) : null, `paper:${askRow ? readyId : ''}`);
   const row = dataOf(paperRow) ?? null;
   const fde = !!(spec?.pattern || row?.pattern);
   const canSend = useShareAvailable('paper');

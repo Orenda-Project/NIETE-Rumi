@@ -308,6 +308,28 @@ describe('Check and make on the FDE path', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(text());
   });
 
+  it('flag turned off mid-journey: Check says so and offers an own paper, no dead Retry', async () => {
+    flag.on = false;
+    setPicks(fdePicks());
+    at(newPaperPath('check'), newPaperPath('check'), <CheckStep />);
+    expect(await screen.findByRole('alert')).toHaveTextContent(C.fdeFailures.PATTERN_OFF);
+    fireEvent.click(screen.getByRole('button', { name: C.styleOwn }));
+    await waitFor(() => expect(where()).toMatchObject({ path: newPaperPath('cover'), style: null, pattern: null, coverBy: 'chapters' }));
+  });
+
+  it('409: the error offers the paper already being made (its requestId)', async () => {
+    setPicks(fdePicks());
+    const err = { response: { status: 409, data: { success: false, error: 'busy', errorCode: 'ALREADY_GENERATING', requestId: 'req-x' } } };
+    const { generateFailureOf } = await vi.importActual<typeof import('../../services/api')>('../../services/api');
+    portal.generateAssessment.mockRejectedValue(err);
+    portal.takeGenerateFailure.mockReturnValueOnce(generateFailureOf(err) as never);
+    at(newPaperPath('check'), newPaperPath('check'), <CheckStep />);
+    await screen.findByTestId('fde-row-inside');
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(C.makePaper) }));
+    const link = await screen.findByRole('link', { name: C.seePaperBeingMade });
+    expect(link.getAttribute('href')).toBe(requestPath('req-x'));
+  });
+
   it('golden: a plain Check is today\'s, with no FDE row', async () => {
     setPicks({ ...newPicks(15), grade: 5, subject: 'maths', subjectName: 'Maths', chapters: [1] });
     at(newPaperPath('check'), newPaperPath('check'), <CheckStep />);

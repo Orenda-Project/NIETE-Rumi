@@ -100,6 +100,7 @@ export function FdeCheck() {
   const [styleChoice, setStyleChoice] = useState<'fde' | 'own'>('fde');
   const [making, setMaking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [running, setRunning] = useState<string | null>(null);
   if (needsClass) return <Navigate to={newPaperPath('class')} replace />;
 
   const pattern = dataOf(pat);
@@ -117,11 +118,14 @@ export function FdeCheck() {
   const make = async () => {
     setMaking(true);
     setError(null);
+    setRunning(null);
     const res = await start(toSpec(p), C.join(subject, C.fdeChip), subject);
     setMaking(false);
     if ('job' in res) { navigate(requestPath(res.job.requestId), { replace: true }); return; }
     const f = portal.takeGenerateFailure?.() ?? null;
     setError(fdeFailureText(f?.errorCode, f?.retryAt ?? null, C) ?? res.error);
+    // A paper for this class is already being made: no dead end, its page is one tap away.
+    if (f?.errorCode === 'ALREADY_GENERATING' && f.requestId) setRunning(f.requestId);
   };
 
   const useFdeSyllabus = () => set({ coverBy: 'fde', chapters: [], ranges: [] });
@@ -136,12 +140,30 @@ export function FdeCheck() {
     navigate(newPaperPath('questions'));
   };
 
-  const body = pat.status !== 'ok' || !pattern
-    ? <LoadState status={pat.status === 'ok' ? 'error' : pat.status} onRetry={retryPat} />
+  // The pattern is no longer offered (its flag went off mid-journey): say so, and keep the teacher's own paper one tap away.
+  const gone = pat.status === 'ok' && !pattern && (
+    <div role="alert" className="flex flex-col gap-3 rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">
+      <p>{C.fdeFailures.PATTERN_OFF}</p>
+      <button type="button" onClick={() => { set({ style: null, pattern: null, patternIntent: null, coverBy: 'chapters', chapters: [], ranges: [] }); navigate(newPaperPath('cover')); }}
+        className={cn(PRIMARY, 'flex-none', FOCUS)}>{C.styleOwn}</button>
+    </div>
+  );
+  const body = gone || (pat.status !== 'ok' || !pattern
+    ? <LoadState status={pat.status} onRetry={retryPat} />
     : (
       <>
         {/* Above the rows: on a 360×740 phone in Urdu a row under them would sit behind the dock. */}
-        {error && <p role="alert" className="rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">{error}</p>}
+        {error && (
+          <div role="alert" className="flex flex-col gap-2 rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">
+            <p>{error}</p>
+            {running && (
+              <Link to={requestPath(running)} className={cn('flex min-h-[48px] items-center gap-1 font-semibold text-[#33374a] underline', FOCUS)}>
+                {C.seePaperBeingMade}
+                <ChevronRight className="h-5 w-5 rtl:rotate-180" aria-hidden="true" />
+              </Link>
+            )}
+          </div>
+        )}
         <ListCard label={C.steps.check}>
           <Row first testId="fde-row-style" label={C.paperStyle} onPress={() => { setStyleChoice('fde'); setTray('style'); }}
             value={<span className="inline-flex items-center gap-1.5"><LayoutList className="h-4 w-4" aria-hidden="true" />{pick(pattern.name, lang)}</span>}
@@ -241,7 +263,7 @@ export function FdeCheck() {
           </p>
         </Tray>
       </>
-    );
+    ));
 
   return (
     <StepFrame
