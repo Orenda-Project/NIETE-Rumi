@@ -243,8 +243,8 @@ describe('POST /assessment/create — a board-pattern paper', () => {
   });
 
   test('second request within 10 min → 409 ALREADY_GENERATING', async () => {
-    // The first paper's request: slot-tagged, no generated paper row yet (still queued).
-    recent = [{ id: 'req-first', created_at: '2026-10-15T09:55:00Z', question_types: [{ id: 'MCQs', count: 20, slot: 'maths.A.Q1a' }], assessment_papers: [] }];
+    // The first paper's request: slot-tagged, its paper still being written.
+    recent = [{ id: 'req-first', created_at: '2026-10-15T09:55:00Z', question_types: [{ id: 'MCQs', count: 20, slot: 'maths.A.Q1a' }], assessment_papers: [{ status: 'generating', edited_from: null }] }];
     const { statusCode, payload } = await invoke('/assessment/create', { ...PATTERN, scope: 'fde' });
     expect(statusCode).toBe(409);
     expect(payload).toEqual({
@@ -345,5 +345,17 @@ describe('findGenerating', () => {
     recent = [];
     expect(await findGenerating({ userId: 'u', grade: 5, subject: 'science', now: new Date('2026-10-15T12:00:00Z') })).toBeNull();
     expect(reads[0].gte).toEqual(['created_at', '2026-10-15T11:50:00.000Z']);
+  });
+
+  test('a request with no paper row blocks only while it could still be waiting in the queue', async () => {
+    const { findGenerating } = require('../../bot/shared/services/assessment/assessment-request.service');
+    const now = new Date('2026-10-15T12:00:00Z');
+    // Queued a minute ago: the worker has not picked it up yet — busy.
+    recent = [{ id: 'req-fresh', created_at: '2026-10-15T11:59:00Z', question_types: [{ slot: 'maths.A.Q1a' }], assessment_papers: [] }];
+    expect(await findGenerating({ userId: 'u', grade: 5, subject: 'maths', now })).toEqual({ id: 'req-fresh' });
+    // Eight minutes and still no paper row: its job never reached a worker (the enqueue failed
+    // after the row was written). It must not lock her out for the rest of ten minutes.
+    recent = [{ id: 'req-orphan', created_at: '2026-10-15T11:52:00Z', question_types: [{ slot: 'maths.A.Q1a' }], assessment_papers: [] }];
+    expect(await findGenerating({ userId: 'u', grade: 5, subject: 'maths', now })).toBeNull();
   });
 });
