@@ -1,13 +1,20 @@
 'use strict';
 /**
  * An in-memory stand-in for the Supabase client — the network boundary — that
- * APPLIES the filters it is given (eq/is/not/in/gte/gt/lt/order/limit; select/insert/update/delete), so a test
- * fails when a query forgets one. Tables are plain arrays in `db`.
+ * APPLIES the filters it is given (eq/is/not/in/gte/gt/lt/order/limit; select/insert/update/delete; is/not also on a
+ * `col->>key` path), so a test fails when a query forgets one. Tables are plain arrays in `db`.
  */
 const crypto = require('crypto');
 
 // PostgREST compares a jsonb column with eq.<json literal> as jsonb (key order does not matter); a plain value with ===.
 const canon = (v) => (v && typeof v === 'object' ? (Array.isArray(v) ? v.map(canon) : Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])]))) : v);
+// A filter column may be a jsonb path, `meta->>audio_key` (PostgREST's text arrow): the key's value, or null.
+const val = (r, c) => {
+  const m = /^(\w+)->>(\w+)$/.exec(c);
+  if (!m) return r[c];
+  const o = r[m[1]];
+  return o && typeof o === 'object' && o[m[2]] != null ? String(o[m[2]]) : null;
+};
 const same = (cell, v) => {
   if (cell && typeof cell === 'object' && typeof v === 'string') {
     try { return JSON.stringify(canon(cell)) === JSON.stringify(canon(JSON.parse(v))); } catch (e) { return false; }
@@ -26,8 +33,8 @@ function makeFake(db = {}, { uniques = { quiz_answers: ['session_id', 'question_
       select(cols, opts) { if (st.op === 'select') st.op = 'select'; st.returning = true; if (opts && opts.count) { st.count = true; st.head = !!opts.head; } return b; },
       eq(c, v) { st.filters.push((r) => same(r[c], v)); return b; },
       neq(c, v) { st.filters.push((r) => r[c] !== v); return b; },
-      is(c, v) { st.filters.push((r) => (v === null ? r[c] == null : r[c] === v)); return b; },
-      not(c, op, v) { if (op === 'is' && v === null) st.filters.push((r) => r[c] != null); return b; },
+      is(c, v) { st.filters.push((r) => (v === null ? val(r, c) == null : val(r, c) === v)); return b; },
+      not(c, op, v) { if (op === 'is' && v === null) st.filters.push((r) => val(r, c) != null); return b; },
       in(c, vs) { st.filters.push((r) => vs.includes(r[c])); return b; },
       gte(c, v) { st.filters.push((r) => r[c] != null && String(r[c]) >= String(v)); return b; },
       gt(c, v) { st.filters.push((r) => r[c] != null && String(r[c]) > String(v)); return b; },

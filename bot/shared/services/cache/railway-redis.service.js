@@ -732,6 +732,40 @@ class RailwayRedisService {
     return this.redis.setex(key, ttlSeconds, value);
   }
 
+  /**
+   * The values of every key matching `match` (a SCAN pattern), read with SCAN (cursor until 0) and GET; never the
+   * keys, which stay inside this call (for counters whose key names a person's hash). Each key is read once even when
+   * SCAN repeats it. Unavailable or a failed command → null, logged without any key.
+   * @param {string} match - e.g. 'wq:reply_cap:2026-10-18:*'
+   * @returns {Promise<string[]|null>}
+   */
+  async scanValues(match, { count = 500, max = 200000 } = {}) {
+    if (!this.isAvailable()) {
+      return null;
+    }
+
+    try {
+      const seen = new Set();
+      const out = [];
+      let cursor = '0';
+      do {
+        const [next, keys] = await this.redis.scan(cursor, 'MATCH', match, 'COUNT', count);
+        cursor = String(next);
+        const fresh = (keys || []).filter((k) => !seen.has(k));
+        fresh.forEach((k) => seen.add(k));
+        if (fresh.length) {
+          const vals = await this.redis.mget(...fresh);
+          for (const v of vals || []) if (v != null) out.push(v);
+        }
+        if (seen.size >= max) break;
+      } while (cursor !== '0');
+      return out;
+    } catch (error) {
+      logToFile('Failed to scan values', { error: error.message });
+      return null;
+    }
+  }
+
   // ============================================================================
   // MONITORING & ADMIN
   // ============================================================================

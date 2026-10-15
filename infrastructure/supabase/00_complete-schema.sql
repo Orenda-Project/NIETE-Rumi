@@ -7248,7 +7248,7 @@ ALTER TABLE merge_log            ENABLE ROW LEVEL SECURITY;
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Web quiz send ledger (mirror of bot/database/migrations/web_quiz_message_ledger.sql)
 -- ─────────────────────────────────────────────────────────────────────────────
-create table if not exists public.message_ledger (
+create table if not exists message_ledger (   -- unqualified like the other tables here (public)
   day        date          not null,                 -- Pakistan day (UTC+5)
   trigger    text          not null check (trigger in ('home_reply','bind_reply','guest_reply','class_link',
                                                        'class_round','teacher_queue','teacher_refusal')),

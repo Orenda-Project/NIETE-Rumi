@@ -231,19 +231,26 @@ describe('the queue service\'s sweep tick (the hook)', () => {
     return scheduleChallengeVoiceSweep({ worker: { isShuttingDown: false }, setIntervalFn: noop, setTimeoutFn: noop });
   };
 
-  test('golden: switch off, the tick is the sweep as before plus the one switch read', async () => {
+  test('golden: switch off, the tick is the sweep as before plus the one switch read (then the housekeeping tick, unchanged)', async () => {
     db.app_settings = ON.filter((s) => s.key !== 'web_quiz_challenge_clip_warm');
     const base = await Ch.sweepOrphans();
     const baseCalls = supabase.calls.splice(0);
     const baseEvents = logEvent.mock.calls.splice(0);
+    // the housekeeping tick (web-quiz-challenge-sweeper.js, its own tests) runs after the warm step: taken on its own here
+    const strip = JSON.stringify(db.web_quiz_strip_weekly || null);
+    await require('../../../shared/services/quiz/web-quiz-challenge-sweeper').tick();
+    const hkCalls = supabase.calls.splice(0);
+    const hkEvents = logEvent.mock.calls.splice(0);
+    const hkLogs = logToFile.mock.calls.splice(0);
+    db.web_quiz_strip_weekly = JSON.parse(strip) || undefined;   // its once-a-day claim, undone for the scheduled run
     Ch.__reset();
     jest.clearAllMocks();
     const s = scheduled();
     logToFile.mockClear();
     await s.tick();
-    expect(supabase.calls).toEqual([...baseCalls, { table: 'app_settings', op: 'select', payload: null }]);
-    expect(logEvent.mock.calls).toEqual(baseEvents);
-    expect(logToFile.mock.calls).toEqual([['🧹 Challenge voice orphan sweep', base]]);
+    expect(supabase.calls).toEqual([...baseCalls, { table: 'app_settings', op: 'select', payload: null }, ...hkCalls]);
+    expect(logEvent.mock.calls).toEqual([...baseEvents, ...hkEvents]);
+    expect(logToFile.mock.calls).toEqual([['🧹 Challenge voice orphan sweep', base], ...hkLogs]);
     expect(tts.synthesize).not.toHaveBeenCalled();
     expect(passageReads()).toEqual([]);
   });

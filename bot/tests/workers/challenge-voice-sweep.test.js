@@ -18,11 +18,13 @@ jest.mock('@anthropic-ai/sdk', () => {
   return Anthropic;
 }, { virtual: true });
 jest.mock('../../shared/services/quiz/web-quiz-challenge', () => ({ sweepOrphans: jest.fn(async () => ({ listed: 2, deleted: 1, failed: 0 })) }));
+jest.mock('../../shared/services/quiz/web-quiz-challenge-sweeper', () => ({ tick: jest.fn(async () => ({ off: true })) }));
 process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-key-not-used';
 process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'test-key-not-used';
 
 const { scheduleChallengeVoiceSweep, challengeVoiceSweepEnabled } = require('../../workers/sqs-worker');
 const { sweepOrphans } = require('../../shared/services/quiz/web-quiz-challenge');
+const Housekeeping = require('../../shared/services/quiz/web-quiz-challenge-sweeper');
 const { logToFile } = require('../../shared/utils/logger');
 
 const ORIGINAL = { q: process.env.WORKER_QUEUES, s: process.env.WEB_QUIZ_VOICE_SWEEP };
@@ -78,4 +80,30 @@ test('unset WORKER_QUEUES (every queue, today\'s default) sweeps; a tick during 
   sweepOrphans.mockRejectedValueOnce(new Error('bucket down'));
   await expect(out.tick()).resolves.toBeUndefined();
   expect(logToFile).toHaveBeenCalledWith('Error in challenge voice orphan sweep (non-fatal)', { error: 'bucket down' });
+});
+
+test('the same tick runs the Challenge housekeeping once (stuck runs, the daily purge: each behind its own switch), also after a failed voice sweep', async () => {
+  process.env.WORKER_QUEUES = 'main';
+  delete process.env.WEB_QUIZ_VOICE_SWEEP;
+  const t = fakeTimers();
+  const out = scheduleChallengeVoiceSweep({ worker: { isShuttingDown: false }, ...t });
+  await out.tick();
+  expect(Housekeeping.tick).toHaveBeenCalledTimes(1);
+  sweepOrphans.mockRejectedValueOnce(new Error('bucket down'));
+  await out.tick();
+  expect(Housekeeping.tick).toHaveBeenCalledTimes(2);
+  const w = { isShuttingDown: true };
+  const t2 = fakeTimers();
+  await scheduleChallengeVoiceSweep({ worker: w, ...t2 }).tick();
+  expect(Housekeeping.tick).toHaveBeenCalledTimes(2);
+});
+
+test('a housekeeping failure (a module that will not load, a throw) is logged and never rejects the interval callback', async () => {
+  process.env.WORKER_QUEUES = 'main';
+  delete process.env.WEB_QUIZ_VOICE_SWEEP;
+  const t = fakeTimers();
+  const out = scheduleChallengeVoiceSweep({ worker: { isShuttingDown: false }, ...t });
+  Housekeeping.tick.mockRejectedValueOnce(new Error('module failed to load'));
+  await expect(out.tick()).resolves.toBeUndefined();
+  expect(logToFile).toHaveBeenCalledWith('Error in challenge housekeeping tick (non-fatal)', { error: 'module failed to load' });
 });
