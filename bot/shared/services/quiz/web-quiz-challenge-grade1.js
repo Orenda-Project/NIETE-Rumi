@@ -100,7 +100,7 @@ function recordAtServe(rows, periodId) {
   };
 }
 
-function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null }) {
+function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null, afterFinish = async () => {} }) {
   const on = async () => (await settingOn(V2_FLAG_KEY)) && (await settingOn(G1_FLAG_KEY));
   const items = () => bank().anchorBlock(BLOCK).map((i) => ({ item_id: i.item_id, n: i.n, layout: i.layout, tiles: i.tiles.slice() }));
 
@@ -216,6 +216,8 @@ function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null }
       fail(503, 'unavailable');
     }
     if (!hit || !hit.length) fail(409, 'already_done');
+    // as every stop's finish: the measurement outcome (m_result) then the phone bindings (base helpers), then the light
+    await afterFinish(c.r, c.sid);
     await lightIfFirst(c.r);
     logEvent('web_quiz.ch_done', { step: EXERCISE, count: score.correct, n: score.n, stopped: false, run: c.r });
     return { score };

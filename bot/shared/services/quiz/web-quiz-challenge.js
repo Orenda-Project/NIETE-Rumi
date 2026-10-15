@@ -202,7 +202,8 @@ const ruleFlags = (rules) => ({ ...(rules.record ? { record: true } : {}), ...(r
 // web-quiz-challenge-grade1.js; this file only routes a grade-1 child there (formFor, who, menu, exercise, submit).
 // `viaOf` reads the v2 section's VIA map at call time (it is declared further down).
 const Grade1 = require('./web-quiz-challenge-grade1').withDeps({ settingOn, insertRun: (row) => insertRun(row), fail, bank: () => childTest().Bank,
-  viaOf: (v) => VIA[v] || v || null });
+  viaOf: (v) => VIA[v] || v || null,
+  afterFinish: async (runId, studentId) => { await measureOutcome(runId); await renewBindings(studentId); } });
 // The one ch_start writer (every stop, the grade-1 form included): through the measurement envelope under events v2.
 async function emitChStart(startEv, run, studentId) {
   logEvent('web_quiz.ch_start', (await Flags.eventsV2On()) ? Measure.chStart(startEv, run, studentId) : startEv);

@@ -422,3 +422,24 @@ describe('as the v2 serve does: identity, class, light, the draw log, one event 
     expect(runs()).toEqual([]);
   });
 });
+
+describe('the finished grade-1 row: m_result and the phone bindings, as every stop', () => {
+  const FLAG_MODS = ['../../../shared/services/quiz/web-quiz-identity-flags', '../../../shared/services/quiz/web-quiz-hub-flags'];
+  const resetFlags = () => { for (const m of FLAG_MODS) { const x = require(m); if (x._resetCache) x._resetCache(); } };
+  const named = (n) => logEvent.mock.calls.filter(([e]) => e === n).map(([, d]) => d);
+  const OLD_EXPIRY = '2026-12-01T00:00:00.000Z';
+  beforeEach(() => { resetFlags(); process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(48); process.env.WEB_QUIZ_KID_KEY_V = '1'; });
+  afterEach(() => { resetFlags(); delete process.env.WEB_QUIZ_KID_KEY; delete process.env.WEB_QUIZ_KID_KEY_V; });
+
+  test('one m_result with form G1 and fixed_band G1; a bound child\'s expires_at moves', async () => {
+    on(V2, G1, PERIOD, ...['web_quiz_hub', 'web_quiz_events_v2', 'web_quiz_identity_canon', 'web_quiz_phone_bind'].map((key) => ({ key, value: true })));
+    db.child_phone_bindings = [{ id: 'b1', canonical_id: KID, phone_norm: '923001234567', via: 'save', bound_at: '2026-11-01T00:00:00.000Z',
+      last_played_at: null, expires_at: OLD_EXPIRY, revoked_at: null }];
+    const { row } = await play();
+    const results = named('web_quiz.m_result');
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ run: row.id, form: 'G1', fixed_band: 'G1', band: null, exercise: 'numbers', anchor_block: 'G1A', mode: 'check', ok_n: 10, n: 10 });
+    expect(db.child_phone_bindings[0].expires_at).not.toBe(OLD_EXPIRY);
+    expect(db.child_phone_bindings[0].last_played_at).not.toBeNull();
+  });
+});
