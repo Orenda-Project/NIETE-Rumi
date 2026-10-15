@@ -529,7 +529,7 @@ describe('the card\'s "Make a new link" and "Open" (EN + UR, no script)', () => 
     const extra = await CL.forTeacher(T1);
     const { preview } = extra.cards[0];
     const en = renderPage({ class: { ...CLASS_DATA, classLink: extra } }, { lang: 'en', tab: 'class', tokens: { self: 'tok.sig' } });
-    expect(en).toContain(`<form method="post" action="/r/tok.sig/jnew" class="act"><input type="hidden" name="class" value="${C1}"><button type="submit" class="btn btn-ghost">Make a new link</button></form>`);
+    expect(en).toContain(`<form method="post" action="/r/tok.sig/jnew" class="act"><input type="hidden" name="class" value="${C1}"><button type="submit" class="btn btn-ghost" style="width:100%;font:inherit;font-weight:700;cursor:pointer">Make a new link</button></form>`);
     expect(en).toContain(`<a class="btn btn-ghost act" href="${preview.replace(/&/g, '&amp;')}">Open</a>`);
     expect(en).not.toContain('<script');
     const ur = renderPage({ class: { ...CLASS_DATA, classLink: extra } }, { lang: 'ur', tab: 'class', tokens: { self: 'tok.sig' } });

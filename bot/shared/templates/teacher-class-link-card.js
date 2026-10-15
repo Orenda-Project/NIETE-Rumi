@@ -54,7 +54,7 @@ function renderClassLinkCard(data, { lang = 'en', base = '', print = false } = {
     // Open: the teacher's own preview (plays as practice, not counted as opened). Make a new link: a POST form that
     // revokes this link (it then opens nothing) and mints a new one, then comes back here.
     const openBtn = c.preview ? `<a class="btn btn-ghost act" href="${esc(c.preview)}">${esc(C.open)}</a>` : '';
-    const make = `<form method="post" action="${esc(`${base}/jnew`)}" class="act"><input type="hidden" name="class" value="${esc(c.classId)}"><button type="submit" class="btn btn-ghost">${esc(C.make)}</button></form>`;
+    const make = `<form method="post" action="${esc(`${base}/jnew`)}" class="act"><input type="hidden" name="class" value="${esc(c.classId)}"><button type="submit" class="btn btn-ghost" style="width:100%;font:inherit;font-weight:700;cursor:pointer">${esc(C.make)}</button></form>`;
     return `<p class="small">${open}</p>
 <a class="btn btn-primary act" href="${esc(link('forward'))}">${esc(C.forward)}</a>
 ${copy}
