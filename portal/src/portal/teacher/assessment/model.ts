@@ -32,6 +32,12 @@ export function stepsFor(p: Pick<Picks, 'style'>, eligible: boolean): readonly S
   return eligible && p.style === 'fde' ? FDE_STEPS : STEPS;
 }
 
+/**
+ * Edit on a board-pattern paper (the paper page and Versions). Off until the server's editor for those papers is live:
+ * the server refuses to edit one until then (PATTERN_NO_EDIT), and the editor reached by a link says so in the deck's words.
+ */
+export const FDE_EDITING = false;
+
 /** The bot's MAX_TOTAL_MARKS (question-types.js). The server refuses past it either way. */
 export const MAX_TOTAL_MARKS = 1000;
 

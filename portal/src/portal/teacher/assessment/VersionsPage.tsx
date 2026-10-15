@@ -10,7 +10,7 @@ import TeacherPage from '../TeacherPage';
 import { FOCUS } from '../ui/styles';
 import { ASSESSMENT } from './copy';
 import { useCopy } from '../i18n';
-import { dayLabel, pkDay, pkToday } from './model';
+import { FDE_EDITING, dayLabel, pkDay, pkToday } from './model';
 import { editPath, paperPath } from './paths';
 import { findPaper } from './paperCache';
 import { Chip, ListCard, LoadState } from './ui';
@@ -75,7 +75,7 @@ export function VersionsPage() {
                     {ready
                       ? <button type="button" onClick={() => openVersion(v.paperId)} className={cn('flex min-h-[72px] min-w-0 flex-1 items-center gap-3 ps-3 text-start', FOCUS)}>{head}</button>
                       : <div className="flex min-h-[72px] min-w-0 flex-1 items-center gap-3 ps-3">{head}</div>}
-                    {ready && (
+                    {ready && (!fde || FDE_EDITING) && (
                       <Link to={editPath(v.paperId)} className={cn('flex min-h-[56px] min-w-[64px] items-center justify-center rounded-[14px] bg-[#f3f4f6] px-2.5 text-[15px] font-semibold text-[#33374a]', FOCUS)}>
                         {C.edit}
                       </Link>

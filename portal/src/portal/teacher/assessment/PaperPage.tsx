@@ -13,7 +13,7 @@ import { shareToWhatsApp, useShareAvailable } from '../share/api';
 import { ASSESSMENT } from './copy';
 import { useCopy } from '../i18n';
 import { useAssessmentSwitches } from './api';
-import { dayLabel, pkDay, pkToday } from './model';
+import { FDE_EDITING, dayLabel, pkDay, pkToday } from './model';
 import { findPaper } from './paperCache';
 import { ASSESSMENT_V2_BASE, editPath, paperPath, versionsPath } from './paths';
 import { HistoryRow } from '../ui';
@@ -28,8 +28,8 @@ import { SkeletonList } from '../../components/Skeleton';
  * on (GET /config assessmentEditing), Edit and Versions.
  */
 
-/** Board-pattern papers are not edited in the app for now (cut A, 15 Oct 2026): the editor cannot yet keep the board's shape. */
-export const FDE_EDITING = false;
+// One switch for Edit on a board-pattern paper, here and on Versions (model.ts says when it turns on).
+export { FDE_EDITING };
 
 function ActionRow({ to, onPress, icon, label, first }: {
   to?: string; onPress?: () => void; icon: JSX.Element; label: string; first?: boolean;
