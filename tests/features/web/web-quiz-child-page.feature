@@ -1847,7 +1847,7 @@ Feature: Web child quiz page on the portal
     And no story screen shows a clock, a score, words a minute or "N of M", and the end card says "Read this story again any time." with the sticker line
     But a refused story id (any 400), a 404 or no network shows "A new story is on its way." and never an error page
     And with the story switch off, or no room on the link, the page and its requests are today's
-  @T765
+
   @T830
   Scenario: A standing class link opens on the teacher's name, never on the class list
     Given web_quiz_class_link, web_quiz_challenge_v2 and web_quiz_challenge are "on" and a teacher has a class link for an enrolled class
