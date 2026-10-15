@@ -1027,13 +1027,26 @@ function _textsOf(q) {
  * from those pages, whitespace collapsed. The pages are loaded once per paper.
  * Mutates the tree; returns what was dropped, [{ slot, reason }].
  */
-async function religiousFilter(examJson, P, { grade, subject } = {}) {
+function _inRanges(page, ranges) {
+  return Patterns.parseRanges(ranges).some(([a, b]) => page >= a && page <= b);
+}
+
+async function religiousFilter(examJson, P, { grade, subject, allowedText = '' } = {}) {
   const key = (P && P.key) || Patterns.normalise(subject);
   if (key !== 'urdu') return [];
   const held = await BookContent().loadPageRangeContent({ grade, subject, pageRanges: HELD_PAGES });
   const text = _flat(String(held.content || '').replace(/=== Page \d+ ===/g, ' '));
   const shingles = new Set();
   for (let i = 0; i + HELD_SHINGLE <= text.length; i += 1) shingles.add(text.slice(i, i + HELD_SHINGLE));
+  // Twelve characters of Urdu is two or three words, so stock exercise wording ("answer the
+  // questions below") sits on the held pages AND in the lessons the paper is set from. Only
+  // what the held lessons alone contain marks an item as quoting them; a shared phrase never
+  // drops a good item and fails the paper as a short slot.
+  // The held pages themselves never count as allowed, even when her chapters reach into them.
+  const pages = _splitPages(allowedText);
+  const kept = pages ? pages.filter((pg) => !_inRanges(pg.page, HELD_PAGES)).map((pg) => pg.text).join(' ') : allowedText;
+  const allowed = _flat(String(kept || '').replace(/=== Page \d+ ===/g, ' '));
+  for (let i = 0; i + HELD_SHINGLE <= allowed.length; i += 1) shingles.delete(allowed.slice(i, i + HELD_SHINGLE));
 
   const quotes = (q) => _textsOf(q).some((t) => {
     const s = _flat(t);
@@ -1078,7 +1091,9 @@ async function _loadPatternContent({ grade, subject, P, scope, pageRanges, chapt
  * The job's totalMarks is not read: a pattern fixes its own marks, and the
  * budget trim generateExam applies would cut a slot short.
  */
-async function generatePatternExam({ grade, subject, pattern, scope = null, pageRanges = null, chapterNumber = null }) {
+// `onSection` is called (and awaited, never thrown from) as each section comes back, so the caller
+// can mark the paper row as alive: a run of several long calls must not look silent.
+async function generatePatternExam({ grade, subject, pattern, scope = null, pageRanges = null, chapterNumber = null, onSection = null }) {
   const startedAt = Date.now();
   const def = Patterns.get(pattern);
   const key = Patterns.normalise(subject);
@@ -1116,6 +1131,9 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     logToFile('[assessment] generating', {
       pattern, section: section.id, slots, model, usage, cost: usage.cost ?? null, elapsedMs,
     });
+    if (onSection) {
+      try { await onSection(section.id); } catch (err) { logToFile('[assessment] section progress not recorded', { section: section.id, error: err.message }); }
+    }
     return { id: section.id, slots, usage, elapsedMs, tree, usages };
   }));
 
@@ -1130,7 +1148,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
   let laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern });
   const firstUnplaced = laid.unplaced;
   examJson = laid.examJson;
-  const dropped = await religiousFilter(examJson, P, { grade, subject });
+  const dropped = await religiousFilter(examJson, P, { grade, subject, allowedText: loaded.content });
   if (dropped.length) {
     laid = applyLayout(examJson, P, layoutScope, { now, presetId: pattern });
     examJson = laid.examJson;

@@ -362,6 +362,36 @@ describe('the prompts', () => {
     expect(mockLoadPages).not.toHaveBeenCalled();
   });
 
+  test('wording the held pages share with lessons 4–10 never drops an item; only what is theirs alone does', async () => {
+    // Stock exercise wording sits on p.3 AND in the paper's own lessons; the Naat line only on p.26.
+    const STOCK = 'درج ذیل سوالات کے جوابات لکھیں';
+    mockLoadPages.mockImplementation(async ({ pageRanges }) => (pageRanges === '1-27'
+      ? loaded(`=== Page 3 ===\n${STOCK}\n\n=== Page 26 ===\n${HELD_PAGE_26}`, '1-27')
+      : loaded(`=== Page 40 ===\n${STOCK}\nسبق چار کا متن`, String(pageRanges))));
+    const U = P.subjects.urdu;
+    const raw = fixture('urdu');
+    raw.unseen.objective.MCQs[1].question = `${STOCK}: ندی کہاں بہتی ہے؟`;
+    raw.unseen.objective.MCQs[2].question = `مکمل کریں: «${HELD_PAGE_26}»`;
+    const laid = applyLayout(raw, U, { kind: 'fde' }, { now: '2026-10-20T07:12:00.000Z' }).examJson;
+    const allowed = (await mockLoadPages({ pageRanges: '28-107' })).content;
+    const dropped = await Gen.religiousFilter(laid, U, { grade: 5, subject: 'urdu', allowedText: allowed });
+    expect(dropped).toEqual([{ slot: 'urdu.A.Q1', reason: 'lesson_1_3' }]);
+    expect(laid.unseen.objective.MCQs.map((q) => q.question)).toContain(`${STOCK}: ندی کہاں بہتی ہے؟`);
+  });
+
+  test('a paper set on chapters that reach into lessons 1–3 still drops what quotes them', async () => {
+    mockLoadPages.mockImplementation(async ({ pageRanges }) => (pageRanges === '1-27'
+      ? loaded(`=== Page 26 ===\n${HELD_PAGE_26}`, '1-27')
+      : loaded(`=== Page 26 ===\n${HELD_PAGE_26}\n\n=== Page 30 ===\nسبق چار کا متن`, String(pageRanges))));
+    const U = P.subjects.urdu;
+    const raw = fixture('urdu');
+    raw.unseen.objective.MCQs[2].question = `مکمل کریں: «${HELD_PAGE_26}»`;
+    const laid = applyLayout(raw, U, { kind: 'chapters', chapters: [2, 4] }, { now: '2026-10-20T07:12:00.000Z' }).examJson;
+    const allowed = (await mockLoadPages({ pageRanges: '20-35' })).content;
+    const dropped = await Gen.religiousFilter(laid, U, { grade: 5, subject: 'urdu', allowedText: allowed });
+    expect(dropped).toEqual([{ slot: 'urdu.A.Q1', reason: 'lesson_1_3' }]);
+  });
+
   test('a held item dropped from a full slot fails the urdu paper as a shortfall', async () => {
     bookFor('urdu');
     fakeModel('urdu', (sec, prompt) => (sec === 'A'
