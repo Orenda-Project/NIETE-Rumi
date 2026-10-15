@@ -11,6 +11,9 @@
 
 const { clampLanguage } = require('../../../config/ux-strings');
 
+// Digits inside Urdu prose are Urdu digits (U+06F0-06F9).
+const urDigits = (n) => String(n).replace(/[0-9]/g, (d) => String.fromCharCode(0x06F0 + Number(d)));
+
 const STRINGS = {
   en: {
     deny_no_user: 'I couldn\'t find your account. Send *register* first, then /observe2 again.',
@@ -55,6 +58,17 @@ const STRINGS = {
     moments_untimed: 'The recording came through without timings, so I can\'t point to moments in it. Your sealed record is safe. Please send the recording again as a file from the recorder app.',
     moments_failed: 'I couldn\'t read the moments in this recording just now. Your sealed record is safe, and the team has been told.',
     duplicate_form_waiting: 'Your form for this visit is still waiting for its recording: send the recording of this lesson here.',
+    // A recording that came with no form waiting: kept with its own form, to fill whenever the coach is ready.
+    held_saved: (minutes) => [
+      `💾 Saved: your ${minutes ? `${minutes}-minute ` : ''}recording, as one visit with its own form.`,
+      'Fill in the form whenever you\'re ready: tap *Fill the form* now, or later from /observe2 → *Complete the form*. Record your next lesson whenever you like.',
+    ].join('\n'),
+    btn_fill_form: 'Fill the form',
+    form_body_after: [
+      'The lesson is recorded, so fill in the form from what you saw and heard. No need to watch the clock.',
+      'The parts follow the lesson: Part 1 is up to and including guided practice, Part 2 is independent practice and the wrap-up.',
+      'At the end, tap *Seal and send*.',
+    ].join('\n'),
   },
   ur: {
     deny_no_user: 'آپ کا اکاؤنٹ نہیں ملا۔ پہلے *register* لکھ کر بھیجیں، پھر دوبارہ \u2066/observe2\u2069 لکھیں۔',
@@ -99,6 +113,16 @@ const STRINGS = {
     moments_untimed: 'ریکارڈنگ وقت کے نشانات کے بغیر آئی، اس لیے اس میں لمحات کی نشاندہی نہیں ہو سکتی۔ آپ کا سیل شدہ ریکارڈ محفوظ ہے۔ ریکارڈر ایپ سے ریکارڈنگ فائل کے طور پر دوبارہ بھیجیں۔',
     moments_failed: 'ابھی اس ریکارڈنگ کے لمحات نہیں پڑھے جا سکے۔ آپ کا سیل شدہ ریکارڈ محفوظ ہے اور ٹیم کو بتا دیا گیا ہے۔',
     duplicate_form_waiting: 'اس وزٹ کا فارم ابھی اپنی ریکارڈنگ کا منتظر ہے: اس سبق کی ریکارڈنگ یہیں بھیجیں۔',
+    held_saved: (minutes) => [
+      `💾 ریکارڈنگ${minutes ? ` (${urDigits(minutes)} منٹ)` : ''} محفوظ ہو گئی، ایک وزٹ کے طور پر، اپنے فارم کے ساتھ۔`,
+      'فارم جب چاہیں بھریں: ابھی *فارم بھریں* دبائیں، یا بعد میں ⁦/observe2⁩ میں ⁦Complete the form⁩ سے۔ اگلا سبق جب چاہیں ریکارڈ کریں۔',
+    ].join('\n'),
+    btn_fill_form: 'فارم بھریں',
+    form_body_after: [
+      'سبق ریکارڈ ہو چکا ہے، اس لیے فارم اپنے مشاہدے اور سنی ہوئی باتوں سے بھریں۔ گھڑی دیکھنے کی ضرورت نہیں۔',
+      'فارم کے حصے سبق کے مراحل کے مطابق ہیں: حصہ ۱ رہنمائی کے ساتھ مشق تک، حصہ ۲ انفرادی مشق اور اختتام۔',
+      'آخر میں *Seal and send* دبائیں۔',
+    ].join('\n'),
   },
 };
 

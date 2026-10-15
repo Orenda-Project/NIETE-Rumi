@@ -61,7 +61,9 @@ async function resume(sessionId, from, user) {
   if (kind === 'gate') return _resumeGate(s, from, user, S);
   if (kind === 'form') return _resumeForm(s, from, user, S);
   if (kind === 'retry') return _resumeRetry(s, from, user, S);
-  if (kind === 'observe2' && await _resumeObserve2(s, from, user)) return;
+  // 'wait' too: a recording held for its /observe2 form (record first) is still being transcribed, and
+  // its form can be filled meanwhile. A classic one has no form, so it gets the wait ack as before.
+  if ((kind === 'observe2' || kind === 'wait') && await _resumeObserve2(s, from, user)) return;
   return _sendButtons(from, S.resume_wait_ack, [
     { id: `observe_ok_${s.id}`, title: S.btn_ok_wait },
     { id: `observe_cancel_${s.id}`, title: S.btn_cancel_obs },
@@ -115,8 +117,9 @@ async function _resumeObserve2(s, from, user) {
   const form = got.ok ? got.form : null;
   if (!form || form.checked_at) return false;
   if (!form.sealed_at) {
+    // The recording is in (that is how this visit has a session), so the form is filled after the lesson.
     const { sendLiveForm } = require('./observe2/start');
-    await sendLiveForm(user, from, form.id, form.period_minutes);
+    await sendLiveForm(user, from, form.id, form.period_minutes, { afterLesson: true });
     logToFile('🔁 observe-resume: /observe2 form re-sent', { sessionId: s.id, formId: form.id });
     return true;
   }
