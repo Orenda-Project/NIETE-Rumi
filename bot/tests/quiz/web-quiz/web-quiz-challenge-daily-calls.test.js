@@ -151,6 +151,16 @@ describe('the monthly calibration call', () => {
     expect(cal().runMonthly.mock.calls[0][0]).toEqual({ period_id: '2026-10', now: new Date(first) });
   });
 
+  test('every switch of ours off: still called on the 1st (the call is ours, the switch is the calibration job\'s own)', async () => {
+    install([]);
+    const out = await S.dailyJob({ now: Date.parse('2026-11-01T06:00:00Z') });
+    expect(cal().runMonthly).toHaveBeenCalledTimes(1);
+    expect(out).toMatchObject({ ran: true, purged: null, strip: null, windows: null });
+    install([]);
+    await expect(S.dailyJob({ now: NOW })).resolves.toEqual({ ran: false, reason: 'off' });   // any other day: nothing
+    expect(cal().runMonthly).toHaveBeenCalledTimes(1);
+  });
+
   test('January 1st calls December of the year before', async () => {
     install(PURGE());
     await S.dailyJob({ now: Date.parse('2027-01-01T06:00:00Z') });

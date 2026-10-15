@@ -274,7 +274,12 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
   const Bind = optional('./web-quiz-bind-expiry');
   const hasExpiry = !!Bind && typeof Bind.expireBindings === 'function';
   const anyOn = !!(f.purge || f.sweeper || f.classRound);
-  if (!anyOn && !hasExpiry) return { ran: false, reason: 'off' };
+  // The first PKT day of a month: the calibration of the month just ended is scheduled whatever our switches say
+  // (the call is ours; the calibration job's own switches decide whether it runs).
+  const period = monthJustEnded(now);
+  const Cal = period ? optional('./web-quiz-challenge-calibration') : null;
+  const hasCal = !!Cal && typeof Cal.runMonthly === 'function';
+  if (!anyOn && !hasExpiry && !hasCal) return { ran: false, reason: 'off' };
   const claim = await claimDay(now);
   if (!claim.ok) return { ran: false, reason: claim.reason };
   const out = { ran: true, day: claim.day, purged: null, bindings: false, strip: null, replyCap: null, windows: null, calibration: null };
@@ -286,6 +291,11 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
     }
   } else {
     logToFile('Challenge daily job: binding expiry not available, skipped', { day: claim.day });
+  }
+  if (hasCal) {
+    try { out.calibration = await Cal.runMonthly({ period_id: period, now: new Date(now) }); } catch (e) {
+      logError('web_quiz.ch_calibration_call_failed', { period_id: period, error: errText(e) });
+    }
   }
   if (!anyOn) return out;
 
@@ -300,17 +310,6 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
   if (f.classRound && f.eventsV2) {
     try { out.windows = await emitSampleWindows(now); } catch (e) {
       logError('web_quiz.ch_sample_window_failed', { error: errText(e) });
-    }
-  }
-
-  // The first PKT day of a month: schedule the calibration of the month just ended (its own switches decide).
-  const period = monthJustEnded(now);
-  if (period) {
-    const Cal = optional('./web-quiz-challenge-calibration');
-    if (Cal && typeof Cal.runMonthly === 'function') {
-      try { out.calibration = await Cal.runMonthly({ period_id: period, now: new Date(now) }); } catch (e) {
-        logError('web_quiz.ch_calibration_call_failed', { period_id: period, error: errText(e) });
-      }
     }
   }
 
