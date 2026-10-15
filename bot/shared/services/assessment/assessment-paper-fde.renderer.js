@@ -29,6 +29,7 @@ const fs = require('fs');
 const path = require('path');
 const { clampLanguage } = require('../../config/ux-strings');
 const { SUBJECT_LABEL } = require('./assessment-vocabulary');
+const Patterns = require('./patterns');
 
 // ── fonts ──────────────────────────────────────────────────────────────────
 
@@ -142,10 +143,28 @@ function textOf(value, ctx) {
   out = out.replace(VULGAR_RE, (ch) => `<span class="frac"><sup>${VULGAR[ch][0]}</sup><sub>${VULGAR[ch][1]}</sub></span>`);
   if (ctx.maths) out = typesetFractions(out);
   if (ctx.medium === 'ur') {
-    out = out.replace(/(<[^>]*>)|([^<]+)/g, (m, tag, text) => (tag
-      ? tag : urduSeparators(text).replace(NUMERIC_ATOM, (n) => `<span class="num">${pinSeparators(toUrduDigits(n))}</span>`)));
+    out = out.replace(/(<[^>]*>)|([^<]+)/g, (m, tag, text) => (tag ? tag : urduText(text)));
   }
   return drawSymbols(out).replace(/\n/g, '<br>');
+}
+
+/*
+ * A Latin-script token that carries digits (K-2, COVID-19, A4, 3D) is one word
+ * in another script: it keeps its Western digits and prints as a left-to-right
+ * isolate. Converting its digits alone printed «K-2» as «۲-K». A digit run
+ * between letters and a multiplication x (8x5) is a number, not a token.
+ */
+const LATIN_DIGIT_TOKEN = /(?<![0-9A-Za-z])(?:[A-Za-z]+(?:[-–]?[0-9]+)+[A-Za-z]*|[0-9]+[-–]?[A-Za-z]+)(?![0-9A-Za-z])/g;
+
+function urduText(text) {
+  const run = (t) => urduSeparators(t).replace(NUMERIC_ATOM, (n) => `<span class="num">${pinSeparators(toUrduDigits(n))}</span>`);
+  let out = '';
+  let last = 0;
+  for (const m of text.matchAll(LATIN_DIGIT_TOKEN)) {
+    out += `${run(text.slice(last, m.index))}<bdi class="ltr" dir="ltr">${m[0]}</bdi>`;
+    last = m.index + m[0].length;
+  }
+  return out + run(text.slice(last));
 }
 
 // A · beside an Urdu digit reads as ۰ (the Urdu zero is a dot): there it becomes an Urdu comma.
@@ -396,6 +415,30 @@ function wordList(words, ctx, boxed) {
   return `<div class="${boxed ? 'word-box' : 'word-line'}">${words.map((w) => textOf(w, ctx)).join(esc(sep))}</div>`;
 }
 
+/*
+ * Whether a slot's `words` are printed for the child (a word list to work
+ * from) or are the key. The layout copies `print_words` from the pattern; a
+ * paper laid out before the flag existed takes it from the pattern by slot id.
+ * Default: never print.
+ */
+function patternSlot(id) {
+  for (const pid of Patterns.list()) {
+    for (const S of Object.values(Patterns.get(pid).subjects)) {
+      for (const sec of S.sections) {
+        const found = sec.slots.find((s) => s.slot === id);
+        if (found) return found;
+      }
+    }
+  }
+  return null;
+}
+
+function printsWords(slot) {
+  if (typeof slot.print_words === 'boolean') return slot.print_words;
+  const p = patternSlot(slot.slot);
+  return Boolean(p && p.print_words === true);
+}
+
 function frameBlock(q, slot, ctx) {
   const lang = ctx.medium;
   const title = String(slot.frame[`title_${lang}`] || '').replace('{q}', String(q.question || '').trim());
@@ -409,10 +452,16 @@ function frameBlock(q, slot, ctx) {
     + '</div>';
 }
 
+// A model sometimes letters a sub-question itself («a) Why…», «(ب) …»); the renderer letters it.
+function bareSub(text) {
+  if (typeof text !== 'string') return text;
+  return text.replace(/^\s*\(?[a-cA-C]\)\s*/, '').replace(/^\s*\(?(الف|ب|ج)\)\s*/, '');
+}
+
 function subQuestions(list, numbering, ctx, slotLike) {
   if (!Array.isArray(list)) return '';
   return list.map((sub, i) => {
-    const text = typeof sub === 'string' ? sub : sub && sub.question;
+    const text = bareSub(typeof sub === 'string' ? sub : sub && sub.question);
     const num = itemNumber({ numbering }, i, ctx.medium) || `${String.fromCharCode(97 + i)})`;
     const opts = sub && Array.isArray(sub.options) && sub.options.length ? optionsBlock(sub, slotLike || {}, ctx) : '';
     return `<div class="sub"><span class="n">${textOf(num, ctx)}</span> ${textOf(text, ctx)}${opts}</div>`;
@@ -466,7 +515,7 @@ function itemBody(q, slot, i, ctx, inlineQ) {
   if (Array.isArray(q.topics) && q.topics.length) {
     parts.push(`<div class="topics">${q.topics.map((t, k) => `<span class="topic">${textOf(itemNumber({ numbering: 'alpha_paren' }, k, ctx.medium), ctx)} ${textOf(t, ctx)}</span>`).join('')}</div>`);
   }
-  if (Array.isArray(q.words) && q.words.length) parts.push(wordList(q.words, ctx, ctx.medium !== 'ur'));
+  if (printsWords(slot) && Array.isArray(q.words) && q.words.length) parts.push(wordList(q.words, ctx, ctx.medium !== 'ur'));
   if (Array.isArray(q.questions) && q.questions.length) parts.push(subQuestions(q.questions, 'alpha_paren', ctx));
   if (ctx.answerLines !== false) parts.push(workSpace(q, slot));
   return parts.join('');
@@ -788,12 +837,32 @@ function joinList(list, lang) {
   return `${list.length > 1 ? 'Sections' : 'Section'} ${and(list, ', ', 'and')}`;
 }
 
-function legendBox(L, ctx) {
+/*
+ * The subject's legend. A paper laid out before legends were per subject
+ * carries the shared one (no `subject`): it takes its subject's from the pattern.
+ */
+function legendOf(L) {
+  const G = L.legend || {};
+  if (G.subject) return G;
+  const S = Patterns.subjectOf(L.preset_id || 'fde_g5_2027', L.subject);
+  return (S && S.legend) || G;
+}
+
+const CHIP_ORDER = ['M', 'A', 'U', 'K', 'L'];
+
+// `kinds`: the chip letters the scheme prints (a Set). Outside Maths the key lists only those.
+function legendBox(L, ctx, kinds) {
   const lang = ctx.medium;
-  const G = L.legend;
+  const G = legendOf(L);
   const lines = G[`lines_${lang}`].map((l, i) => {
     if (lang === 'ur' && i === G.bands_line) {
       return `<li>${textOf(G.bands_lead_ur, ctx)}: <span class="ascii">${esc(l)}</span></li>`;
+    }
+    if (G.key_from_chips && i === G.key_line) {
+      const names = G[`key_names_${lang}`] || {};
+      const keyed = CHIP_ORDER.filter((k) => kinds.has(k) && names[k]).map((k) => `${k} = ${names[k]}`);
+      if (!keyed.length) return '';
+      return `<li>${textOf(lang === 'ur' ? keyed.join('، ') : `${keyed.join(' · ')}.`, ctx)}</li>`;
     }
     return `<li>${textOf(l, ctx)}</li>`;
   });
@@ -807,14 +876,29 @@ function suppliesBox(L, ctx) {
   return `<div class="box supplies"><div class="bt">${textOf(title, ctx)}</div><ul>${L.supplies.map((s) => `<li>${textOf(s[`line_${lang}`], ctx)}</li>`).join('')}</ul></div>`;
 }
 
+/*
+ * The letter a key names. A key that IS an option's text («a dog», «A bird»,
+ * «بکری») is that option, read first: only then is a leading letter a letter,
+ * and only when punctuation or the end follows it, or the rest is that
+ * option's own text («b garden»).
+ */
 function answerLetter(q, slot) {
   const a = String(q.answer ?? '').trim();
   const opts = (q.options || []).map(bareOption);
   const letters = slot.option_labels === 'ur' || slot.option_labels === 'ur_paren' ? URDU_LETTERS : ['a', 'b', 'c', 'd'];
-  const m = /^\(?([a-dA-D])\)?(?:[.):\s]|$)/.exec(a);
-  if (m) return letters[m[1].toLowerCase().charCodeAt(0) - 97];
-  const u = /^\(?(الف|ب|ج|د)\)?/.exec(a);
-  if (u) return u[1];
+  const byText = a ? opts.findIndex((o) => o && o === a) : -1;
+  if (byText >= 0) return letters[byText];
+  const at = (i, rest) => i >= 0 && (rest === null || (rest && opts[i] === rest));
+  const m = /^\(?([a-dA-D])(?:\)?[.):](?:\s|$)|\)?$|\s+(.+)$)/.exec(a);
+  if (m) {
+    const i = m[1].toLowerCase().charCodeAt(0) - 97;
+    if (at(i, m[2] === undefined ? null : m[2].trim())) return letters[i];
+  }
+  const u = /^\(?(الف|ب|ج|د)(?:\)?\s*[.):۔]|\)?\s*$|\s+(.+)$)/.exec(a);
+  if (u) {
+    const i = URDU_LETTERS.indexOf(u[1]);
+    if (at(i, u[2] === undefined ? null : u[2].trim())) return u[1];
+  }
   const idx = opts.findIndex((o) => o && (o === bareOption(a)));
   return idx >= 0 ? letters[idx] : '—';
 }
@@ -870,8 +954,13 @@ function writtenRows(slot, list, ctx, Criteria) {
       const subs = q.questions || [];
       subs.forEach((sub, k) => {
         const each = sub && Number(sub.marks) > 0 ? Number(sub.marks) : (slot.item_parts && slot.item_parts.marks_each) || slot.marks_each / (subs.length || 1);
-        rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(`${n} ${String.fromCharCode(97 + k)})`, ctx)}</td><td class="ans"><b>${textOf(sub && sub.answer, ctx)}</b></td><td class="pts">${pointsHtml(sub || {}, ctx, Criteria, slot, i, each)}</td></tr>`);
+        const own = sub && sub.answer !== undefined && sub.answer !== null && String(sub.answer).trim() !== '' ? sub.answer : partOfAnswer(q.answer, k);
+        rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(`${n} ${String.fromCharCode(97 + k)})`, ctx)}</td><td class="ans"><b>${textOf(own, ctx)}</b></td><td class="pts">${pointsHtml(sub || {}, ctx, Criteria, slot, i, each)}</td></tr>`);
       });
+      // The situation's own scheme (points, accept, common error) once, under its parts.
+      if (hasScheme(q.scheme)) {
+        rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n"></td><td class="ans"></td><td class="pts">${pointsHtml(q, ctx, Criteria, slot, i, null)}</td></tr>`);
+      }
       return;
     }
     const answer = q.answer !== undefined && q.answer !== null ? `<b>${textOf(q.answer, ctx)}</b>` : '';
@@ -895,6 +984,28 @@ function writtenRows(slot, list, ctx, Criteria) {
     rows.unshift(`<tr class="slot-row" data-slot-head="${esc(slot.slot)}"><td colspan="3"><b>${textOf(label, ctx)}</b>${ins ? ` ${textOf(ins, ctx)}` : ''}</td></tr>`);
   }
   return rows;
+}
+
+function hasScheme(s) {
+  return Boolean(s && typeof s === 'object' && ((Array.isArray(s.points) && s.points.length)
+    || (Array.isArray(s.accept) && s.accept.length) || (typeof s.common_error === 'string' && s.common_error)));
+}
+
+/**
+ * Part k of an answer the model wrote on the parent as «a) … b) … c) …»
+ * (or «(a) …»): the text after letter k up to the next letter. null when the
+ * answer carries no such letter.
+ */
+function partOfAnswer(answer, k) {
+  const text = String(answer ?? '');
+  const re = /(^|[\s;.])\(?([a-cA-C])\)\s*/g;
+  const marks = [];
+  let m;
+  while ((m = re.exec(text))) marks.push({ letter: m[2].toLowerCase(), start: m.index + m[1].length, body: m.index + m[0].length });
+  const at = marks.findIndex((x) => x.letter === String.fromCharCode(97 + k));
+  if (at < 0) return null;
+  const end = at + 1 < marks.length ? marks[at + 1].start : text.length;
+  return text.slice(marks[at].body, end).trim() || null;
 }
 
 // A question shown beside its answer: whole, or cut at the last word that fits.
@@ -948,15 +1059,6 @@ function renderMarkingScheme({ examJson, grade, subject, paperFileName = null, a
     ? scope[`covers_${lang}`]
     : fill(H[`covers_${lang}`], { scope: `${scope[`label_${lang}`] || ''} (${scope[`line_${lang}`] || ''})` });
 
-  const top = `<div class="band">${textOf(H[`band_${lang}`], ctx)}</div>
-<div class="school">${textOf(H[`school_line_${lang}`], ctx)}</div>
-<div class="title">${textOf(H[`title_${lang}`], ctx)}</div>
-<div class="scheme-title">${textOf(H[`scheme_title_${lang}`], ctx)}</div>
-<div class="covers">${textOf(coversScope, ctx)}</div>
-${beforeExamBox(L, live, ctx, paperFileName, grade)}
-${legendBox(L, ctx)}
-${suppliesBox(L, ctx)}`;
-
   // Sections flow one after another (rows never split, a head never ends a
   // page): a forced break per section left near-empty pages in the proof render.
   const sections = L.sections.map((sec) => {
@@ -973,6 +1075,17 @@ ${suppliesBox(L, ctx)}`;
     if (rows.length) parts.push(`<table class="rows">${rows.join('')}</table>`);
     return `<section class="s-sec" data-section="${esc(sec.id)}">${parts.join('')}</section>`;
   }).join('\n');
+  // The chip letters the rows above print: the legend keys those and no others.
+  const kinds = new Set([...sections.matchAll(/<span class="chip">([MAUKL])/g)].map((m) => m[1]));
+
+  const top = `<div class="band">${textOf(H[`band_${lang}`], ctx)}</div>
+<div class="school">${textOf(H[`school_line_${lang}`], ctx)}</div>
+<div class="title">${textOf(H[`title_${lang}`], ctx)}</div>
+<div class="scheme-title">${textOf(H[`scheme_title_${lang}`], ctx)}</div>
+<div class="covers">${textOf(coversScope, ctx)}</div>
+${beforeExamBox(L, live, ctx, paperFileName, grade)}
+${legendBox(L, ctx, kinds)}
+${suppliesBox(L, ctx)}`;
 
   const notes = notesBlock(L, all, ctx);
   const record = recordPage(L, live, ctx);

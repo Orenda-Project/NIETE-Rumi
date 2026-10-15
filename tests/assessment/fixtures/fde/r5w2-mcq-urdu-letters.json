@@ -1,0 +1,269 @@
+{
+ "_about": "Twenty fictional Urdu-medium MCQs, options and keys in Urdu letters, every key on (ب). Used by fde-r5-layout.test.js.",
+ "unseen": {
+  "objective": {
+   "MCQs": [
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "پاکستان کا قومی پھول کون سا ہے؟",
+     "options": [
+      "الف) گلاب",
+      "ب) چنبیلی",
+      "ج) سورج مکھی",
+      "د) کنول"
+     ],
+     "answer": "ب) چنبیلی",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "قومی زبان کون سی ہے؟",
+     "options": [
+      "الف) انگریزی",
+      "ب) اردو",
+      "ج) عربی",
+      "د) فارسی"
+     ],
+     "answer": "ب) اردو",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "دریا کا پانی کہاں جاتا ہے؟",
+     "options": [
+      "الف) پہاڑ",
+      "ب) سمندر",
+      "ج) صحرا",
+      "د) جنگل"
+     ],
+     "answer": "ب) سمندر",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "گھر کی صفائی کون کرتا ہے؟",
+     "options": [
+      "الف) صرف بچے",
+      "ب) گھر کے سب افراد",
+      "ج) صرف مہمان",
+      "د) کوئی نہیں"
+     ],
+     "answer": "ب) گھر کے سب افراد",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "سڑک پار کرتے وقت کیا دیکھنا چاہیے؟",
+     "options": [
+      "الف) آسمان",
+      "ب) دونوں طرف",
+      "ج) درخت",
+      "د) دکان"
+     ],
+     "answer": "ب) دونوں طرف",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "بارش کس موسم میں زیادہ ہوتی ہے؟",
+     "options": [
+      "الف) سردی",
+      "ب) برسات",
+      "ج) خزاں",
+      "د) بہار"
+     ],
+     "answer": "ب) برسات",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "نقشے میں شمال کس طرف ہوتا ہے؟",
+     "options": [
+      "الف) نیچے",
+      "ب) اوپر",
+      "ج) بائیں",
+      "د) دائیں"
+     ],
+     "answer": "ب) اوپر",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "ووٹ کون دیتا ہے؟",
+     "options": [
+      "الف) بچے",
+      "ب) بالغ شہری",
+      "ج) مسافر",
+      "د) جانور"
+     ],
+     "answer": "ب) بالغ شہری",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "کسان کیا اگاتا ہے؟",
+     "options": [
+      "الف) کپڑا",
+      "ب) فصل",
+      "ج) لوہا",
+      "د) کاغذ"
+     ],
+     "answer": "ب) فصل",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "پانی بچانے کا طریقہ کون سا ہے؟",
+     "options": [
+      "الف) نل کھلا رکھنا",
+      "ب) نل بند کرنا",
+      "ج) پانی پھینکنا",
+      "د) پائپ توڑنا"
+     ],
+     "answer": "ب) نل بند کرنا",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "اسکول میں نظم کون سکھاتا ہے؟",
+     "options": [
+      "الف) چوکیدار",
+      "ب) استاد",
+      "ج) ڈرائیور",
+      "د) مالی"
+     ],
+     "answer": "ب) استاد",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "صحت کے لیے کیا ضروری ہے؟",
+     "options": [
+      "الف) دیر سے سونا",
+      "ب) متوازن غذا",
+      "ج) مٹھائی",
+      "د) شور"
+     ],
+     "answer": "ب) متوازن غذا",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "ڈاک خانہ کیا کام کرتا ہے؟",
+     "options": [
+      "الف) کھانا پکانا",
+      "ب) خط پہنچانا",
+      "ج) کپڑے سینا",
+      "د) جوتے بنانا"
+     ],
+     "answer": "ب) خط پہنچانا",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "جنگل میں کیا ہوتا ہے؟",
+     "options": [
+      "الف) سمندر",
+      "ب) درخت",
+      "ج) بازار",
+      "د) کارخانہ"
+     ],
+     "answer": "ب) درخت",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "اچھا شہری کیا کرتا ہے؟",
+     "options": [
+      "الف) قانون توڑنا",
+      "ب) قانون ماننا",
+      "ج) کچرا پھینکنا",
+      "د) جھگڑا کرنا"
+     ],
+     "answer": "ب) قانون ماننا",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "گندم کس موسم میں کٹتی ہے؟",
+     "options": [
+      "الف) سردی",
+      "ب) گرمی",
+      "ج) برسات",
+      "د) خزاں"
+     ],
+     "answer": "ب) گرمی",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "ہسپتال میں کون کام کرتا ہے؟",
+     "options": [
+      "الف) درزی",
+      "ب) ڈاکٹر",
+      "ج) نانبائی",
+      "د) موچی"
+     ],
+     "answer": "ب) ڈاکٹر",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "درخت ہمیں کیا دیتے ہیں؟",
+     "options": [
+      "الف) دھواں",
+      "ب) سایہ",
+      "ج) شور",
+      "د) گرد"
+     ],
+     "answer": "ب) سایہ",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "پل کس پر بنتا ہے؟",
+     "options": [
+      "الف) چھت",
+      "ب) دریا",
+      "ج) کمرہ",
+      "د) میز"
+     ],
+     "answer": "ب) دریا",
+     "marks": 1,
+     "blooms": "Remember"
+    },
+    {
+     "slot": "social_studies.A.Q1",
+     "question": "ان میں سے پھل کون سا ہے؟",
+     "options": [
+      "الف) آلو",
+      "ب) آم",
+      "ج) گاجر",
+      "د) پالک"
+     ],
+     "answer": "ب) آم",
+     "marks": 1,
+     "blooms": "Remember"
+    }
+   ]
+  }
+ }
+}

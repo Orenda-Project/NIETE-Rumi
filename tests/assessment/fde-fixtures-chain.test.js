@@ -91,7 +91,8 @@ describe('the MCQ key strip wraps between answers, never inside one', () => {
     const { scheme } = chain('maths');
     const strip = scheme.slice(scheme.indexOf('<div class="strip"'), scheme.indexOf('</div>', scheme.indexOf('<div class="strip"')));
     expect((strip.match(/<span class="sc">/g) || []).length).toBe(20);
-    expect(strip).toContain('<span class="sc">i c ·</span> <span class="sc">ii a ·');
+    // The letters themselves are spread by the layout; the cell shape is what this pins.
+    expect(strip).toMatch(/<span class="sc">i [a-d] ·<\/span> <span class="sc">ii [a-d] ·/);
     expect(scheme).toMatch(/\.strip \.sc \{ white-space: nowrap; \}/);
   });
 });
