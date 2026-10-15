@@ -175,11 +175,36 @@ describe('the new lamp: only when the server has one this period', () => {
     const out = await book();
     expect(out.levelup).toEqual({ ladder: 'reading', rung: 3 });
   });
-  test('a rung set this period, Story Time on -> levelup {ladder, rung, opens}', async () => {
+  // RULING #59: `opens` names a room only when Story Time is on AND at least one released, reviewed practice story
+  // exists in the band that rung opens, in the child's language (a grade-3 child's R3 opens band 2).
+  const story = (id, over = {}) => ({ passage_id: id, lang: 'en', kind: 'read', pool: 'practice', band: 2, status: 'reviewed', released_at: OCT, withdrawn_at: null, title_en: 'T', title_ur: null, ...over });
+  const r3 = () => { db.child_rungs = [{ canonical_id: KID, ladder: 'reading', rung: 3, period_id: '2026-11', set_at: WED }, { canonical_id: KID, ladder: 'reading', rung: 2, period_id: '2026-10', set_at: OCT }]; };
+  test('a rung set this period, Story Time on, a released band-2 story in English -> levelup {ladder, rung, opens}', async () => {
     db.app_settings.push({ key: 'web_quiz_challenge_story', value: 'true' });
-    db.child_rungs = [{ canonical_id: KID, ladder: 'reading', rung: 3, period_id: '2026-11', set_at: WED }, { canonical_id: KID, ladder: 'reading', rung: 2, period_id: '2026-10', set_at: OCT }];
+    r3(); db.challenge_passages = [story('p-b2')];
     const out = await book();
     expect(out.levelup).toEqual({ ladder: 'reading', rung: 3, opens: 'longer' });
+  });
+  test('Story Time on but the band-2 shelf is empty for this language -> no opens (head + task line only)', async () => {
+    db.app_settings.push({ key: 'web_quiz_challenge_story', value: 'true' });
+    r3();
+    for (const stock of [[], [story('p-ur', { lang: 'ur' })], [story('p-b1', { band: 1 })], [story('p-draft', { status: 'draft' })],
+      [story('p-later', { released_at: '2099-01-01T00:00:00Z' })], [story('p-gone', { withdrawn_at: OCT })], [story('p-chk', { pool: 'check' })],
+      [story('en.read.2.reserve01')]]) {
+      db.challenge_passages = stock;
+      expect((await book()).levelup).toEqual({ ladder: 'reading', rung: 3 });
+    }
+  });
+  test('a numbers lamp never promises a room: Story Time serves no number games yet', async () => {
+    db.app_settings.push({ key: 'web_quiz_challenge_story', value: 'true' });
+    db.child_rungs = [{ canonical_id: KID, ladder: 'numbers', rung: 2, period_id: '2026-11', set_at: WED }];
+    db.challenge_passages = [story('p-b2')];
+    expect((await book()).levelup).toEqual({ ladder: 'numbers', rung: 2 });
+  });
+  test('the story count cannot be read -> no opens (fail closed), the Book still opens', async () => {
+    db.app_settings.push({ key: 'web_quiz_challenge_story', value: 'true' });
+    r3(); delete db.challenge_passages;
+    expect((await book()).levelup).toEqual({ ladder: 'reading', rung: 3 });
   });
   test('a rung from an earlier period -> no levelup', async () => {
     db.child_rungs = [{ canonical_id: KID, ladder: 'numbers', rung: 2, period_id: '2026-10', set_at: OCT }];
