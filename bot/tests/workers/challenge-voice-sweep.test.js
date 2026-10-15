@@ -97,3 +97,13 @@ test('the same tick runs the Challenge housekeeping once (stuck runs, the daily 
   await scheduleChallengeVoiceSweep({ worker: w, ...t2 }).tick();
   expect(Housekeeping.tick).toHaveBeenCalledTimes(2);
 });
+
+test('a housekeeping failure (a module that will not load, a throw) is logged and never rejects the interval callback', async () => {
+  process.env.WORKER_QUEUES = 'main';
+  delete process.env.WEB_QUIZ_VOICE_SWEEP;
+  const t = fakeTimers();
+  const out = scheduleChallengeVoiceSweep({ worker: { isShuttingDown: false }, ...t });
+  Housekeeping.tick.mockRejectedValueOnce(new Error('module failed to load'));
+  await expect(out.tick()).resolves.toBeUndefined();
+  expect(logToFile).toHaveBeenCalledWith('Error in challenge housekeeping tick (non-fatal)', { error: 'module failed to load' });
+});

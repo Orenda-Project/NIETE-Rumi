@@ -16,7 +16,8 @@
  *                                  pointing at it (forgetAudioKey); one web_quiz.ch_audio_purged{n, oldest_age_d,
  *                                  reason:'age'} a day, also when n is 0 (it proves the purge ran)
  *
- * The daily job runs once per PKT day across every replica when EITHER switch above is on. Inside it, each part has
+ * The daily job runs once per PKT day across every replica when ANY of the sweeper, the purge or the phone-binding
+ * switch is on (phone binding alone still erases expired bindings: the keep-all state). Inside it, each part has
  * its own switch: the purge (web_quiz_challenge_audio_purge), the phone-binding expiry (web-quiz-bind-expiry.js
  * expireBindings, when present) only with web_quiz_phone_bind on (under web_quiz_identity_canon), and the Monday
  * weekly numbers (web_quiz_challenge_sweeper).
@@ -189,13 +190,13 @@ async function purgeKept(now, max) {
 }
 
 /**
- * The daily job. Off (both the sweeper and the purge switch) ⇒ nothing at all. Otherwise, once per PKT day:
+ * The daily job. Off (the sweeper, the purge and the phone-binding switch) ⇒ nothing at all. Otherwise, once per PKT day:
  * the purge and its one event (purge switch only), the binding expiry (web_quiz_phone_bind only), and on a Monday
  * (PKT) the weekly numbers for the week just ended (sweeper switch only).
  */
 async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } = {}) {
   const f = flags || await switches();
-  if (!f.purge && !f.sweeper) return { ran: false, reason: 'off' };
+  if (!f.purge && !f.sweeper && !f.phoneBind) return { ran: false, reason: 'off' };
   const claim = await claimDay(now);
   if (!claim.ok) return { ran: false, reason: claim.reason };
   const out = { ran: true, day: claim.day, purged: null, bindings: false, strip: null };
@@ -233,7 +234,7 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
 async function tick({ now = Date.now() } = {}) {
   try {
     const flags = await switches();
-    if (!flags.sweeper && !flags.purge) return { off: true };
+    if (!flags.sweeper && !flags.purge && !flags.phoneBind) return { off: true };
     const sweep = await sweepStuck({ now, flags });
     const daily = await dailyJob({ now, flags });
     return { sweep, daily };

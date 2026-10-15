@@ -35,9 +35,11 @@ const RUNS = 'web_quiz_challenge_runs';
 const keyOf = (day, run) => `child-voice/sandbox/kept/${day}/${run}/read-1760000000000.webm`;
 
 let db;
+let fake;
 const install = (settings, runs) => {
   db = { app_settings: settings, [RUNS]: runs, web_quiz_strip_weekly: [] };
-  Object.assign(supabase, makeFake(db, { uniques: { web_quiz_strip_weekly: ['week', 'line', 'cell'] } }));
+  fake = makeFake(db, { uniques: { web_quiz_strip_weekly: ['week', 'line', 'cell'] } });
+  Object.assign(supabase, fake);
 };
 const row = (id, extra) => ({ id, student_id: KID, exercise: 'read', grade: 3, lang: 'ur', status: 'scored', created_at: iso(NOW - 100 * DAY), meta: {}, ...extra });
 const fixture = () => [
@@ -120,14 +122,31 @@ test('a key outside this env\'s kept prefix is never deleted, even past its keep
   expect(r2.deleteKey).not.toHaveBeenCalled();
 });
 
-test('purge and sweeper switches off: no daily job (no claim row, no R2, no event, no binding expiry), even with phone binding on', async () => {
-  install([ON('web_quiz_challenge'), ...BIND()], fixture());
+test('every daily switch off (sweeper, purge, phone binding): no daily job (no claim row, no R2, no event, no binding expiry)', async () => {
+  install([ON('web_quiz_challenge')], fixture());
   const out = await S.dailyJob({ now: NOW });
   expect(out).toMatchObject({ ran: false });
+  await S.tick({ now: NOW });
   expect(r2.deleteKey).not.toHaveBeenCalled();
   expect(logEvent).not.toHaveBeenCalled();
   expect(Bind.expireBindings).not.toHaveBeenCalled();
   expect(db.web_quiz_strip_weekly).toEqual([]);
+});
+
+// The operator's keep-all state with phone binding live: the 31 March erase must still run.
+test('phone binding on, sweeper and purge off: the tick runs expireBindings once a day; no runs-table query, no R2 call, no purge event', async () => {
+  install(BIND(), fixture());
+  const before = JSON.stringify(db[RUNS]);
+  await S.tick({ now: NOW });
+  await S.tick({ now: NOW + 60 * 60 * 1000 });          // the next hourly tick, same PKT day
+  expect(Bind.expireBindings).toHaveBeenCalledTimes(1);
+  expect(Bind.expireBindings.mock.calls[0][0]).toEqual(new Date(NOW));
+  expect(fake.calls.filter((c) => c.table === RUNS)).toEqual([]);
+  expect(r2.deleteKey).not.toHaveBeenCalled();
+  expect(r2.listKeys).not.toHaveBeenCalled();
+  expect(logEvent).not.toHaveBeenCalled();
+  expect(JSON.stringify(db[RUNS])).toBe(before);
+  expect(db.web_quiz_strip_weekly.map((r) => [r.line, r.cell])).toEqual([['daily_job', '2026-10-15']]);
 });
 
 // Operator decision (keep every kept reading for now): the purge is a designed option behind a switch that stays off.
