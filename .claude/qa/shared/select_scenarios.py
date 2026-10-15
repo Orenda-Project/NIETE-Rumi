@@ -51,6 +51,11 @@ sys.path.insert(0, HERE)
 import select_e2e  # noqa: E402
 
 SPEC_DIR = "tests/features/whatsapp/niete"
+# The portal's web lane (bd-hnhlgn.11): the same rules, its own spec dir and pins (feature-map.yaml `web: scenarios:`).
+# A change to the web lane's own test code (a driver, lib.cjs, the runner) runs the whole feature — the test moved.
+WEB_SPEC_DIR = "tests/features/web"
+WEB_DRIVER_DIR = ".claude/qa/web/features"
+WEB_MACHINERY = (".claude/qa/web/lib.cjs", ".claude/qa/web/web-runner.cjs", "scripts/qa/e2e-web.sh")
 ID_RE = re.compile(r"^@([A-Z]{1,5}\d{1,3})$")
 PRIORITY_TAGS = frozenset({"P0", "P1", "P2", "P3"})   # @P1 is a priority, not an id (check-scenario-coverage agrees)
 CANNOT_DECIDE = 3
@@ -60,7 +65,7 @@ CORE_SUFFIXES = (".service", ".handler", ".worker", ".routes", ".route", ".confi
 MIN_CORE = 8   # shorter cores ("audio", "menu") are words, not names — too broad to match on
 
 
-def spec_scenarios(spec_text):
+def spec_scenarios(spec_text, require_e2e=True):
     """[{id, start, end, text, obsolete}] — 1-based inclusive line ranges, @e2e scenarios with an id tag.
 
     A scenario's block runs from its first tag line to the line before the next scenario's first tag
@@ -84,7 +89,8 @@ def spec_scenarios(spec_text):
     for n, (first, _sc, tags) in enumerate(heads):
         end = heads[n + 1][0] - 1 if n + 1 < len(heads) else len(lines) - 1
         ids = [ID_RE.match(x).group(1) for x in tags if ID_RE.match(x) and ID_RE.match(x).group(1) not in PRIORITY_TAGS]
-        if not ids or "@e2e" not in tags:
+        # a WhatsApp scenario runs only when tagged @e2e; a web scenario runs because its driver implements it
+        if not ids or (require_e2e and "@e2e" not in tags):
             continue
         out.append({"id": ids[0], "start": first + 1, "end": end + 1,
                     "text": "\n".join(lines[first:end + 1]), "obsolete": "@obsolete" in tags})
@@ -125,19 +131,107 @@ def mentions(text, token):
     return re.search(r"(?<![\w./-])" + re.escape(token) + r"(?![\w-])", text) is not None
 
 
-def load_scenario_pins(map_path):
-    """feature-map.yaml `scenarios:` → {feature: [(glob, [ids])]}. Absent section → {}."""
+def _read_map(map_path):
     try:
         import yaml
     except ImportError:
         import yaml_lite as yaml
     with open(map_path) as fh:
-        raw = yaml.safe_load(fh) or {}
+        return yaml.safe_load(fh) or {}
+
+
+def _pins(section):
     pins = {}
-    for feature, entries in (raw.get("scenarios") or {}).items():
+    for feature, entries in (section or {}).items():
         for glob, ids in (entries or {}).items():
             pins.setdefault(feature, []).append((glob, [str(i) for i in (ids or [])]))
     return pins
+
+
+def load_scenario_pins(map_path):
+    """feature-map.yaml `scenarios:` → {feature: [(glob, [ids])]}. Absent section → {}."""
+    return _pins(_read_map(map_path).get("scenarios"))
+
+
+def load_web_scenario_pins(map_path):
+    """feature-map.yaml `web: scenarios:` → {web feature: [(glob, [ids])]}. Absent section → {}."""
+    return _pins((_read_map(map_path).get("web") or {}).get("scenarios"))
+
+
+def _select_one(feature, paths, spec_rel, scen, pins, repo, rev_range, spec_base, is_test_code=None):
+    """One feature's scenarios for these changed paths — the three rules, shared by both lanes."""
+    known = {s["id"] for s in scen}
+    chosen, why, whole = [], {}, []
+
+    def pick(sid, reason):
+        if sid not in known:
+            return
+        if sid not in chosen:
+            chosen.append(sid)
+        why.setdefault(sid, []).append(reason)
+
+    for path in paths:
+        hit_before = len(chosen)
+        if path == spec_rel:
+            lines = changed_new_lines(repo, rev_range, path) if rev_range else None
+            if lines is None:
+                whole.append("%s: spec changed but the diff could not be read" % path)
+                continue
+            for s in scen:
+                if any(s["start"] <= n <= s["end"] for n in lines):
+                    pick(s["id"], "spec lines %d-%d edited" % (s["start"], s["end"]))
+            continue   # a spec edit that touches no live scenario (header, a deletion) drives nothing
+        if is_test_code and is_test_code(path):
+            whole.append("%s: the test code itself changed" % path)
+            continue
+        pinned = [ids for glob, ids in pins.get(feature, []) if select_e2e.glob_match(glob, path)]
+        if pinned:
+            for ids in pinned:
+                for sid in ids:
+                    pick(sid, "%s pinned in feature-map.yaml scenarios:" % path)
+            if len(chosen) == hit_before:
+                whole.append("%s: its scenarios: pin names no live %s scenario" % (path, feature))
+            continue
+        toks = name_tokens(path)
+        for s in scen:
+            hits = [t for t in toks if mentions(s["text"], t)]
+            if hits:
+                pick(s["id"], "%s named (%s)" % (path, hits[0]))
+        if len(chosen) == hit_before:
+            whole.append("%s: no %s scenario names it — pin it under scenarios: to narrow" % (path, feature))
+    if spec_base:
+        lines = changed_new_lines(repo, spec_base, spec_rel)
+        for s in scen:
+            if lines and any(s["start"] <= n <= s["end"] for n in lines):
+                pick(s["id"], "added or edited in the spec since %s (phase 1)" % spec_base)
+    order = [s["id"] for s in scen]
+    chosen.sort(key=lambda x: order.index(x))
+    if whole:
+        return {"scope": "all", "ids": [], "why": {}, "whole_feature_because": whole, "would_have_picked": chosen}
+    if chosen:
+        return {"scope": "subset", "ids": chosen, "why": why, "whole_feature_because": [], "of": len(scen)}
+    return {"scope": "none", "ids": [], "why": {}, "whole_feature_because": [],
+            "note": "only spec lines outside any live scenario changed"}
+
+
+def select_web(selection, repo, rev_range, pins, spec_reader=None, spec_base=None):
+    """The portal's web lane: select_e2e's web_features/web_reasons → {web feature: ids | all | none}, by the
+    same rules as select(). `only` is what e2e-web.sh --only takes, one `feature=ID,ID` per subset feature."""
+    spec_reader = spec_reader or (lambda f: open(os.path.join(repo, WEB_SPEC_DIR, f + ".feature"), encoding="utf-8").read())
+    is_test_code = lambda pth: pth.startswith(WEB_DRIVER_DIR + "/") or pth in WEB_MACHINERY
+    result = {}
+    for feature in selection.get("web_features") or []:
+        try:
+            scen = [s for s in spec_scenarios(spec_reader(feature), require_e2e=False) if not s["obsolete"]]
+        except (IOError, OSError):
+            result[feature] = {"scope": "all", "ids": [], "why": {},
+                               "whole_feature_because": ["no spec file to map scenarios from"]}
+            continue
+        paths = list((selection.get("web_reasons") or {}).get(feature) or [])
+        result[feature] = _select_one(feature, paths, "%s/%s.feature" % (WEB_SPEC_DIR, feature), scen, pins,
+                                      repo, rev_range, spec_base, is_test_code)
+    only = ";".join("%s=%s" % (f, ",".join(v["ids"])) for f, v in result.items() if v["scope"] == "subset")
+    return {"features": result, "only": only}
 
 
 def select(selection, repo, rev_range, pins, spec_reader=None, spec_base=None):
@@ -156,60 +250,9 @@ def select(selection, repo, rev_range, pins, spec_reader=None, spec_base=None):
             result[feature] = {"scope": "all", "ids": [], "why": {},
                                "whole_feature_because": ["no spec file to map scenarios from"]}
             continue
-        known = {s["id"] for s in scen}
-        chosen, why, whole = [], {}, []
-
-        def pick(sid, reason):
-            if sid not in known:
-                return
-            if sid not in chosen:
-                chosen.append(sid)
-            why.setdefault(sid, []).append(reason)
-
         spec_rel = "%s/%s.feature" % (SPEC_DIR, feature)
-        for r in (selection.get("reasons") or {}).get(feature, []):
-            path = r.get("path") or ""
-            hit_before = len(chosen)
-            if path == spec_rel:
-                lines = changed_new_lines(repo, rev_range, path) if rev_range else None
-                if lines is None:
-                    whole.append("%s: spec changed but the diff could not be read" % path)
-                    continue
-                for s in scen:
-                    if any(s["start"] <= n <= s["end"] for n in lines):
-                        pick(s["id"], "spec lines %d-%d edited" % (s["start"], s["end"]))
-                continue   # a spec edit that touches no live scenario (header, a deletion) drives nothing
-            pinned = [ids for glob, ids in pins.get(feature, []) if select_e2e.glob_match(glob, path)]
-            if pinned:
-                for ids in pinned:
-                    for sid in ids:
-                        pick(sid, "%s pinned in feature-map.yaml scenarios:" % path)
-                if len(chosen) == hit_before:
-                    whole.append("%s: its scenarios: pin names no live %s scenario" % (path, feature))
-                continue
-            toks = name_tokens(path)
-            for s in scen:
-                hits = [t for t in toks if mentions(s["text"], t)]
-                if hits:
-                    pick(s["id"], "%s named (%s)" % (path, hits[0]))
-            if len(chosen) == hit_before:
-                whole.append("%s: no %s scenario names it — pin it under scenarios: to narrow" % (path, feature))
-        if spec_base:
-            lines = changed_new_lines(repo, spec_base, spec_rel)
-            for s in scen:
-                if lines and any(s["start"] <= n <= s["end"] for n in lines):
-                    pick(s["id"], "added or edited in the spec since %s (phase 1)" % spec_base)
-        order = [s["id"] for s in scen]
-        chosen.sort(key=lambda x: order.index(x))
-        if whole:
-            result[feature] = {"scope": "all", "ids": [], "why": {}, "whole_feature_because": whole,
-                               "would_have_picked": chosen}
-        elif chosen:
-            result[feature] = {"scope": "subset", "ids": chosen, "why": why, "whole_feature_because": [],
-                               "of": len(scen)}
-        else:
-            result[feature] = {"scope": "none", "ids": [], "why": {}, "whole_feature_because": [],
-                               "note": "only spec lines outside any live scenario changed"}
+        paths = [r.get("path") or "" for r in (selection.get("reasons") or {}).get(feature, [])]
+        result[feature] = _select_one(feature, paths, spec_rel, scen, pins, repo, rev_range, spec_base)
     only = ";".join("%s=%s" % (f, ",".join(v["ids"])) for f, v in result.items() if v["scope"] == "subset")
     return {"features": result, "only": only}
 
@@ -236,6 +279,8 @@ def main(argv):
             selection = json.loads(out or "{}")
         pins = load_scenario_pins(a.map) if os.path.isfile(a.map) else {}
         res = select(selection, a.repo, a.rev_range, pins, spec_base=a.spec_base)
+        wpins = load_web_scenario_pins(a.map) if os.path.isfile(a.map) else {}
+        res["web"] = select_web(selection, a.repo, a.rev_range, wpins, spec_base=a.spec_base)
     except Exception as e:  # never block a commit for its own reasons
         sys.stderr.write("select_scenarios: could not decide (%s) — run whole features\n" % e)
         return CANNOT_DECIDE
@@ -249,6 +294,8 @@ def main(argv):
                 print("%s: nothing to drive (%s)" % (f, v.get("note", "")))
             else:
                 print("%s: ALL — %s" % (f, "; ".join(v["whole_feature_because"])))
+        for f, v in res["web"]["features"].items():
+            print("web %s: %s" % (f, ", ".join(v["ids"]) if v["scope"] == "subset" else v["scope"].upper()))
     return 0
 
 
