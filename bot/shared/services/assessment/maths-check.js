@@ -567,9 +567,143 @@ function checkExpanded(q, answer, form, exam, index) {
   return replaceKey(q, exam, answer, chain.index, chain[0], form.expected, index);
 }
 
+// ── A key that shows its own working ──────────────────────────────────────
+//
+// A word problem is not a form parseForm knows, but its key often carries the
+// sum: «85000 - 24567 = Rs. 60,433.». The working is evaluated exactly and the
+// result the key states is checked against it. Every stage of a chain must agree
+// («2/3 x 3/4 = 6/12 = 1/2»); a stage in words («2/5 of 15000») is passed over.
+// Used only on a board-pattern paper, and only when parseForm has no answer.
+
+// Units and currency around a number in a key: "Rs. 60,433", "5.20 km", "72 seconds".
+const KEY_UNITS = /(?<![a-z])(?:rs|rupees?|paisas?|(?:cm|mm|km|m)(?:2|²|\^2)?|kg|g|ml|l|sq|units?|hours?|hrs?|minutes?|mins?|seconds?|secs?|days?|weeks?|months?|years?|litres?|liters?|metres?|meters?|grams?|kilograms?|kilometres?|kilometers?|centimetres?|centimeters?|books?|boxes?|people|students?|children|pages?)(?![a-z])\.?/gi;
+const STAGE_CHARS = new RegExp(String.raw`^[\d\s.,()+\-−–×xX*÷/${Object.keys(VULGAR).join('')}̄̅̇]+$`);
+
+// One stage of working as a list of number / operator / bracket tokens, or null.
+function stageTokens(text) {
+  const s = text.replace(KEY_UNITS, ' ').replace(/[.\s]+$/, '').trim();
+  if (!s || !STAGE_CHARS.test(s)) return null;
+  const num = new RegExp(`${NUM}`, 'y');
+  const out = [];
+  let i = 0;
+  while (i < s.length) {
+    const ch = s[i];
+    if (/\s/.test(ch)) { i += 1; continue; }
+    if (ch === '(' || ch === ')') { out.push({ paren: ch }); i += 1; continue; }
+    const prevIsNumber = out.length && (out[out.length - 1].number || out[out.length - 1].paren === ')');
+    // A spaced "/" divides; "3/4" with no spaces is a fraction and is read as a number.
+    if (prevIsNumber && (ch in OPERATORS)) {
+      if (ch === '/' && /\d/.test(s[i - 1] || '') && /\d/.test(s[i + 1] || '')) return null;
+      out.push({ op: OPERATORS[ch] });
+      i += 1;
+      continue;
+    }
+    num.lastIndex = i;
+    const m = num.exec(s);
+    if (!m) return null;
+    const t = readOne(m[0]);
+    if (!usable(t)) return null;
+    out.push({ number: t });
+    i += m[0].length;
+  }
+  return out.length ? out : null;
+}
+
+// Exact value of a token list with the usual precedence; null when it is not one sum.
+function evaluate(tokens) {
+  let at = 0;
+  const peek = () => tokens[at];
+  function primary() {
+    const t = peek();
+    if (!t) return null;
+    if (t.number) { at += 1; return t.number.value; }
+    if (t.paren === '(') {
+      at += 1;
+      const v = sum();
+      if (!v || !peek() || peek().paren !== ')') return null;
+      at += 1;
+      return v;
+    }
+    return null;
+  }
+  function product() {
+    let v = primary();
+    while (v && peek() && (peek().op === 'multiply' || peek().op === 'divide')) {
+      const op = peek().op;
+      at += 1;
+      const r = primary();
+      if (!r) return null;
+      v = APPLY[op](v, r);
+    }
+    return v;
+  }
+  function sum() {
+    let v = product();
+    while (v && peek() && (peek().op === 'add' || peek().op === 'subtract')) {
+      const op = peek().op;
+      at += 1;
+      const r = product();
+      if (!r) return null;
+      v = APPLY[op](v, r);
+    }
+    return v;
+  }
+  const v = sum();
+  return v && at === tokens.length ? v : null;
+}
+
+function checkWorking(q, answer, exam, index) {
+  if (answer.length > MAX_TEXT || !answer.includes('=')) return null;
+  const parts = answer.split('=');
+  const last = parts.pop();
+  const lastStart = answer.length - last.length;
+  // The stated result: one number, with nothing but units and a full stop round it.
+  const stated = numbersIn(last);
+  if (stated.length !== 1) return null;
+  // Before the number: units only ("Rs."). After it: at most two words ("360 girls.").
+  const before = last.slice(0, stated[0].index).replace(KEY_UNITS, ' ');
+  const after = last.slice(stated[0].index + stated[0].raw.length).replace(KEY_UNITS, ' ');
+  if (!/^\s*$/.test(before) || !/^\s*(?:[A-Za-z]+(?:\s+[A-Za-z]+)?)?\s*[.!]?\s*$/.test(after)) return null;
+  const target = { ...stated[0], index: lastStart + stated[0].index };
+
+  // The working is the run of arithmetic stages right before the result; a stage
+  // in words ends it, so "= 280. Average = 280 divided by 5 = 56" has none.
+  let value = null;
+  const values = [];
+  const used = [];
+  for (let i = parts.length - 1; i >= 0; i -= 1) {
+    let tokens = stageTokens(parts[i]);
+    // "Total: 120.75 + 60.50": a label before a colon starts the working; it ends the run.
+    const labelled = !tokens && parts[i].includes(':');
+    if (labelled) tokens = stageTokens(parts[i].slice(parts[i].lastIndexOf(':') + 1));
+    if (!tokens) break;
+    const v = evaluate(tokens);
+    if (!v) return null;
+    values.push(v);
+    if (tokens.some((t) => t.op)) {
+      value = v;
+      used.push(...tokens.filter((t) => t.number).map((t) => t.number));
+    }
+    if (labelled) break;
+  }
+  // At least one stage must be a sum; every stage must agree with it.
+  if (!value || value.num < 0n || !values.every((v) => same(v, value))) return null;
+  if (agrees(value, target)) return 'ok';
+  const form = { hint: hintFor([...used, target]) };
+  const all = numbersIn(answer);
+  const computed = formatLike(value, target, form, all);
+  if (computed === target.raw) return 'ok';
+  return replaceKey(q, exam, answer, target.index, target.raw, computed, index);
+}
+
 function checkQuestion(q, exam, index) {
   const form = parseForm(q.question);
-  if (!form) return null;
+  if (!form) {
+    // Board-pattern papers only: a plain paper's checks stay exactly as they were.
+    if (!isObject(exam._layout)) return null;
+    const answer = typeof q.answer === 'string' ? q.answer : null;
+    return answer ? checkWorking(q, answer, exam, index) : null;
+  }
   const answer = typeof q.answer === 'number' && Number.isFinite(q.answer) ? String(q.answer) : q.answer;
   if (typeof answer !== 'string' || answer.length > MAX_TEXT) return null;
   if (form.form === 'expanded') return checkExpanded(q, answer, form, exam, index);
