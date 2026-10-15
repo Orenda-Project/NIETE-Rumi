@@ -24,6 +24,7 @@ vi.mock('../../services/api', () => ({
 vi.mock('../../components/PortalLayout', () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 
+import { ASSESSMENT_V2_COPY_UR as U } from './copy';
 import { forgetPapers } from './paperCache';
 import { VersionsPage } from './VersionsPage';
 import { ASSESSMENT_V2_BASE as B, versionsPath } from './paths';
@@ -82,7 +83,8 @@ describe('versions of an FDE paper', () => {
     at(versionsPath('v2'));
     const schemes = await screen.findAllByTestId('version-scheme');
     expect(plain(schemes[0].textContent)).toContain('مارکنگ اسکیم');
-    expect(plain(document.body.textContent)).toContain('FDE pattern');
+    // The chip's words are the deck's (copy.ts), whatever app's Urdu review settles on.
+    expect(plain(document.body.textContent)).toContain(plain(U.fdeChip));
     expect(document.body.textContent).not.toContain('Marking scheme');
   });
 });
@@ -102,10 +104,7 @@ describe('a plain paper is unchanged', () => {
     const { container } = at(versionsPath('v2'));
     await screen.findByText('Version 1');
     await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
-    // The list is the golden; the QA handle around its card (display:contents, no box) is unwrapped here.
-    const handle = container.querySelector('[data-testid="versions-list"]');
-    expect(handle?.className).toBe('contents');
-    handle?.replaceWith(...Array.from(handle.childNodes));
+    expect(container.querySelector('[data-testid="versions-list"]')).toBeNull();
     expect(container.innerHTML).toMatchSnapshot();
   });
 });

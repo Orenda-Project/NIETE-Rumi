@@ -63,7 +63,8 @@ export function useFdeWords(): FdeEditWords {
   const C = useCopy(ASSESSMENT) as unknown as Partial<FdeEditWords>;
   const out = { ...fallback };
   (Object.keys(fallback) as Array<keyof FdeEditWords>).forEach((k) => {
-    if (C[k] !== undefined) (out as Record<string, unknown>)[k] = C[k];
+    // Only a key of the same kind (string / function) replaces the fallback, so a reshaped key cannot break a call.
+    if (C[k] !== undefined && typeof C[k] === typeof fallback[k]) (out as Record<string, unknown>)[k] = C[k];
   });
   return out;
 }
@@ -164,6 +165,7 @@ export function EditPaperPage() {
   const marks = fde
     ? kept.filter((v) => !choiceOf(v.it)).reduce((s, v) => s + v.marks, 0)
       + choices.filter((c) => c.attempt < c.generate).reduce((s, c) => s + Math.min(c.attempt, liveIn.get(c.slot) ?? 0) * c.marks_each, 0)
+      + draft.added.reduce((s, a) => s + a.marks, 0)
     : kept.reduce((s, v) => s + v.marks, 0) + draft.added.reduce((s, a) => s + a.marks, 0);
   const removedN = items.filter((v) => v.removed).length;
   const canSave = isDirty(draft) && count > 0 && !busy;
