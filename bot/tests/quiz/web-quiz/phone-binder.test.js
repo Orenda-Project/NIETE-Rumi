@@ -165,11 +165,12 @@ describe('bind, then the door', () => {
   });
 
   test.each([
-    ['no_salt', () => { delete process.env.WQ_TOMB_SALT; }],
+    // the switch is read while the salt is set (30 s cache); the salt then vanishes before the write (the salt is a parent of the switch)
+    ['no_salt', async () => { await require('../../../shared/services/quiz/web-quiz-identity-flags').flags(); delete process.env.WQ_TOMB_SALT; }],
     ['db_error', () => { const from = supabase.from; supabase.from = (t) => { const b = from(t); if (t === 'child_phone_bindings') { b.insert = () => ({ select: () => ({ single: async () => ({ data: null, error: { message: 'down' } }) }) }); } return b; }; }],
   ])('a binding that cannot be written (%s) → code unspent, bind_write_failed at error level, nothing sent', async (reason, breakIt) => {
     seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0])] });
-    breakIt();
+    await breakIt();
     expect(await say('JUGNU-AB2CD')).toBe(true);
     expect(fake.db.child_bind_codes[0]).toMatchObject({ used_at: null, outcome: null });
     expect(events('web_quiz.bind_write_failed')).toEqual([{ reason, w: 's' }]);
