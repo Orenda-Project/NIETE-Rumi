@@ -18,7 +18,7 @@
  * (null = the coach picks at the check).
  */
 
-const { CODES, PLAIN } = require('./fico17');
+const { CODES, PLAIN, FOCUS, ALSO_NONE } = require('./fico17');
 
 const SEEN_CODES = ['D2', 'C3', 'C5', 'C7', 'C8', 'D3'];
 const HEARD_CODES = ['C1', 'C2', 'C4', 'C6', 'D1', 'D4', 'D5'];
@@ -246,6 +246,14 @@ function partChecks(e, a, p) {
   if (a[`${p}_change`] === 'yes') need(e, a, `${p}_change_how`, 'Choose what happened at the switch.');
 }
 
+// "Also work on" (R14): optional, but never the first pick again and never twice.
+function alsoChecks(e, a) {
+  const real = (v) => Boolean(v) && v !== ALSO_NONE && Boolean(FOCUS[v]);
+  if (real(a.also_1) && a.also_1 === a.priority) e.also_1 = 'That is already your first pick. Choose another, or "Nothing else".';
+  if (real(a.also_2) && a.also_2 === a.priority) e.also_2 = 'That is already your first pick. Choose another, or "Nothing else".';
+  else if (real(a.also_2) && a.also_2 === a.also_1) e.also_2 = 'Already picked above. Choose another, or "Nothing else".';
+}
+
 function validate(screen, answers) {
   const a = answers || {};
   const e = {};
@@ -283,6 +291,7 @@ function validate(screen, answers) {
     need(e, a, 'incident', 'Choose one, or "Nothing to report".');
     if (a.incident && a.incident !== 'none') need(e, a, 'detail', 'Write what was said, and the minute.');
     need(e, a, 'priority', 'Pick what the teacher should work on first.');
+    alsoChecks(e, a);
     if (a.seal_ok !== true && a.seal_ok !== 'true') e.seal_ok = 'Tick the box to seal.';
   }
   return e;

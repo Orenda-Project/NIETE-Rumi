@@ -13,7 +13,7 @@ const path = require('path');
 
 const { buildFieldFormFlow, FIELDS } = require('../../bot/shared/services/observe/observe2/field-form.flow');
 const { PICKED, GROUPS, LISTEN, MATERIALS, SWITCH } = require('../../bot/shared/services/observe/observe2/rules');
-const { PRIORITY, CODES } = require('../../bot/shared/services/observe/observe2/fico17');
+const { CODES, FOCUS, PLAN_FOCUS } = require('../../bot/shared/services/observe/observe2/fico17');
 
 const FLOW_PATH = path.join(__dirname, '../../docs/flows/observe2-field-form.json');
 const flow = buildFieldFormFlow();
@@ -146,10 +146,22 @@ describe('the form agrees with the rules module', () => {
     expect(ids(S, `${p}_materials`)).toEqual(Object.keys(MATERIALS).sort());
     expect(ids(S, `${p}_change_how`)).toEqual(Object.keys(SWITCH).sort());
   });
-  test('the priority list is the 17, in plain words', () => {
+  // R14 (FICO pilot sheet): one required "Work on first", up to two optional more, and the lesson
+  // plan's own steps (Section B) as a choice in all three.
+  test('the priority list is the 17 and the plan\'s steps, in plain words', () => {
     const pri = byName(screens.AFTER, 'priority')['data-source'];
-    expect(pri.map((o) => o.id).sort()).toEqual([...CODES].sort());
-    for (const o of pri) expect(o.title).toBe(PRIORITY[o.id]);
+    expect(pri.map((o) => o.id).sort()).toEqual([...CODES, PLAN_FOCUS].sort());
+    for (const o of pri) expect(o.title).toBe(FOCUS[o.id]);
+    expect(byName(screens.AFTER, 'priority').required).toBe(true);
+  });
+  test('"Also work on" is two optional lists of the same choices, each with "Nothing else"', () => {
+    const pri = byName(screens.AFTER, 'priority')['data-source'].map((o) => o.id);
+    for (const name of ['also_1', 'also_2']) {
+      const dd = byName(screens.AFTER, name);
+      expect(dd.type).toBe('Dropdown');
+      expect(dd.required).toBe(false);
+      expect(dd['data-source'].map((o) => o.id)).toEqual(['none', ...pri]);
+    }
   });
   test('no indicator code or level name reaches the coach during the lesson', () => {
     const text = JSON.stringify([screens.PART_ONE.layout, screens.PART_TWO.layout]);
