@@ -12,6 +12,11 @@
  * A counted reply is one the bot DECIDED to send (an attempt), not a delivery: callers record first and send
  * only when record() returned true, so a send that fails afterwards is still counted.
  *
+ * SCOPE: the ledger counts the switched replies only (the family phone binding's four, the guest door's, and the
+ * known child's Home reply while web_quiz_phone_bind is on). The pre-existing /quiz replies (the child menu, the
+ * teacher menu, an unknown phone's menu) are NOT recorded while their path is untouched by any switch, so this table is
+ * NOT the bill: Meta's billable count is the cost total; the ledger is the per-trigger view of the new replies.
+ *
  * The per-phone daily reply cap (app_settings web_quiz_reply_cap_per_phone, default 8, never below 1): when the
  * caller passes `phone`, the cap runs before anything else. The count lives in Redis under
  * wq:reply_cap:<PKT day>:<keyed hash of the phone> (48-hour TTL so the strip's daily snapshot always sees it; the key never holds the phone). Over the cap →
