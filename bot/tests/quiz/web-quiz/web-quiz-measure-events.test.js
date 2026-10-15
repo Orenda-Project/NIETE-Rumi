@@ -189,10 +189,11 @@ describe('cleanEvent: v is name-scoped', () => {
 });
 
 describe('cleanEvent: the name-scoped allow-list (v2 on only)', () => {
-  test('w is admitted as s | p on any name with v2 on, dropped otherwise and with v2 off', () => {
+  test('with v2 on the relay stamps w = p on every page event, whatever the page sent; v2 off adds no w', () => {
     expect(Svc.cleanEvent({ n: 'answer', w: 'p' }, { v2: true }).props.w).toBe('p');
-    expect(Svc.cleanEvent({ n: 'bind_offered', w: 's' }, { v2: true }).props.w).toBe('s');
-    expect(Svc.cleanEvent({ n: 'answer', w: 'x' }, { v2: true }).props).not.toHaveProperty('w');
+    expect(Svc.cleanEvent({ n: 'bind_offered', w: 's' }, { v2: true }).props.w).toBe('p');
+    expect(Svc.cleanEvent({ n: 'answer', w: 'x' }, { v2: true }).props.w).toBe('p');
+    expect(Svc.cleanEvent({ n: 'answer' }, { v2: true }).props.w).toBe('p');
     expect(Svc.cleanEvent({ n: 'answer', w: 'p' }).props).not.toHaveProperty('w');
   });
 
@@ -208,29 +209,28 @@ describe('cleanEvent: the name-scoped allow-list (v2 on only)', () => {
     expect(Object.isFrozen(Svc.NAME_PROPS)).toBe(true);
   });
 
-  test('identity_reused keeps via = device_name (its only value); every other name keeps the share-funnel via', () => {
-    expect(Svc.cleanEvent({ n: 'identity_reused', w: 's', via: 'device_name' }, { v2: true }).props).toEqual({ w: 's', via: 'device_name' });
-    expect(Svc.cleanEvent({ n: 'identity_reused', via: 'card' }, { v2: true }).props).not.toHaveProperty('via');
-    expect(Svc.cleanEvent({ n: 'card_view', via: 'card' }, { v2: true }).props.via).toBe('card');
-    expect(Svc.cleanEvent({ n: 'card_view', via: 'device_name' }, { v2: true }).props).not.toHaveProperty('via');
-    expect(Svc.cleanEvent({ n: 'identity_reused', via: 'device_name' }).props).not.toHaveProperty('via');
+  test('a server-only name never passes the page relay with v2 on; with v2 off the relay is as today', () => {
+    for (const n of ['m_result', 'm_lost', 'ch_swept', 'lamp_lit', 'light_lit', 'identity_reused', 'sample_window',
+      'sample_drawn', 'class_week_forwarded', 'ev_dropped', 'reply_capped', 'bind_bound', 'bind_confirm', 'bind_undo',
+      'class_round_started', 'class_round_declined']) {
+      expect(Svc.cleanEvent({ n, w: 's' }, { v2: true })).toBeNull();
+    }
+    for (const n of ['bind_offered', 'bind_sent']) expect(Svc.cleanEvent({ n }, { v2: true }).props.w).toBe('p');   // page-written
+    expect(Svc.cleanEvent({ n: 'm_result', w: 's' })).not.toBeNull();
   });
 
-  test('sample_window keeps arm, unit, the keyed cls and the window; a raw class id or a free date never passes', () => {
-    const cls = K.cls('00000000-0000-4000-8000-0000000000c1');
-    expect(cls).toMatch(/^[0-9a-f]{12}$/);
-    const ev = {
-      n: 'sample_window', w: 's', arm: 'class_week', unit: 'class', cls,
-      opens_at: '2026-11-02T03:00:00.000Z', closes_at: '2026-11-08T18:59:59.000Z',
-    };
-    expect(Svc.cleanEvent(ev, { v2: true }).props).toEqual({
-      w: 's', arm: 'class_week', unit: 'class', cls, opens_at: '2026-11-02T03:00:00.000Z', closes_at: '2026-11-08T18:59:59.000Z',
-    });
-    expect(Svc.cleanEvent({ ...ev, arm: 'class_round' }, { v2: true }).props.arm).toBe('class_round');
-    const bad = Svc.cleanEvent({ ...ev, arm: 'all', unit: 'Zara', cls: '00000000-0000-4000-8000-0000000000c1', opens_at: 'Monday' }, { v2: true }).props;
-    for (const k of ['arm', 'unit', 'cls', 'opens_at']) expect(bad).not.toHaveProperty(k);
-    expect(Svc.cleanEvent({ ...ev, n: 'answer' }, { v2: true }).props).not.toHaveProperty('cls');
-    expect(Svc.cleanEvent(ev).props).toEqual({});
+  test('door events are dropped by (name, door): only the server-written doors', () => {
+    const page = (n, door) => Svc.cleanEvent({ n, door }, { v2: true });
+    for (const d of ['card', 'hub_first', 'shelf', 'next', 'tomorrow', 'install', 'friend']) {
+      expect(page('door_shown', d).props.w).toBe('p');
+      expect(page('door_tap', d).props.w).toBe('p');
+    }
+    expect(page('door_shown', 'quiz_reply')).toBeNull();
+    expect(page('door_tap', 'quiz_reply')).toBeNull();
+    expect(page('door_shown', 'class_link')).toBeNull();
+    expect(page('door_tap', 'class_link')).toBeNull();
+    expect(page('door_shown', 'link_home')).toBeNull();
+    expect(page('door_tap', 'link_home').props.w).toBe('p');
   });
 });
 
@@ -241,6 +241,19 @@ describe('events(): the 20-per-batch slice is not silent with v2 on', () => {
     const batch = Array.from({ length: 23 }, (_, i) => ({ n: 'answer', i }));
     expect(Svc.events({ events: batch })).toEqual({ logged: 20 });
     expect(named('web_quiz.ev_dropped')).toEqual([{ w: 's', ev_v: 2, kid_v: '2026', kid: null, n: 3, where: 'batch_slice' }]);
+  });
+
+  test('a forged batch: server-only names dropped, one ev_dropped{why:server_only, n}, page events kept as w:p', async () => {
+    on(V2);
+    await Hub.flags();
+    const batch = [{ n: 'm_result', w: 's', run: 'x' }, { n: 'door_shown', door: 'card' }, { n: 'door_shown', door: 'quiz_reply' },
+      { n: 'lamp_lit', w: 's' }, { n: 'bind_offered', surface: 'hub' }, { n: 'answer', w: 's' }];
+    expect(Svc.events({ events: batch })).toEqual({ logged: 3 });
+    expect(named('web_quiz.m_result')).toHaveLength(0);
+    expect(named('web_quiz.lamp_lit')).toHaveLength(0);
+    expect(named('web_quiz.door_shown')).toEqual([{ w: 'p' }]);
+    expect(named('web_quiz.answer')).toEqual([{ w: 'p' }]);
+    expect(named('web_quiz.ev_dropped')).toEqual([{ w: 's', ev_v: 2, kid_v: '2026', kid: null, n: 3, why: 'server_only' }]);
   });
 
   test('20 or fewer: no ev_dropped', async () => {
