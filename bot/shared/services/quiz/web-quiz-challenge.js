@@ -619,16 +619,18 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   if (ex === 'missing' && !rules.missing) fail(503, 'missing_off');
   const { Bank } = childTest();
   const task = def.task(w.lang);
-  const spec = Bank.getTaskSpec({ grade: Number(w.form), set: 'A', task });
+  let spec = Bank.getTaskSpec({ grade: Number(w.form), set: 'A', task });
   // challenge v2: what is served (drawn under _pool) and its row, decided before the token; "on its way" serves nothing
-  const v2 = rules.v2 ? await serveV2(w, ex, rules, { mode: (arguments[2] || {}).mode, device }) : null;   // mode: 'practice' from a caller (Story Time)
+  const v2 = rules.v2 ? await serveV2(w, ex, rules, { mode: (arguments[2] || {}).mode, classId: (arguments[2] || {}).classId, device }) : null;   // mode: 'practice' from a caller (Story Time)
   if (v2 && v2.on_its_way) return { ex, on_its_way: true, copy: { ...Draw().ON_ITS_WAY_COPY } };
+  if (v2 && v2.formNum !== w.form) spec = Bank.getTaskSpec({ grade: Number(v2.formNum), set: 'A', task });   // M8: the fixed grade's form
   const runId = v2 ? v2.runId : crypto.randomUUID();
   const ct = T.signChallenge({ studentId: w.studentId, ex, runId });
-  RUNS.set(runId, { status: 'open', grade: w.grade, form: w.form, lang: w.lang, task, gradeSource: w.gradeSource, test: w.test, ...(v2 ? { v2: v2.mem } : {}) });
+  RUNS.set(runId, { status: 'open', grade: w.grade, form: w.form, lang: w.lang, task, gradeSource: w.gradeSource, test: w.test, ...(v2 ? { v2: v2.mem, ...v2.top } : {}) });
   if (v2) await v2.store();
   const startEv = { step: ex, grade: w.grade, run: runId, ...(v2 ? v2.event : {}) };
-  logEvent('web_quiz.ch_start', (await Flags.eventsV2On()) ? Measure.chStart(startEv, RUNS.get(runId), w.studentId) : startEv);
+  // the measurement envelope reads the run's v2 fields (kid from canonical_id) over the event's: the run as served
+  logEvent('web_quiz.ch_start', (await Flags.eventsV2On()) ? Measure.chStart(startEv, v2 ? { ...RUNS.get(runId), ...v2.event, canonical_id: v2.top.canonical_id } : RUNS.get(runId), w.studentId) : startEv);
   // On the trail a stop already played (its first counted run exists) is a practice round: the page says so.
   const practiceRound = (rules.trail ? (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).attempt_no > 1 : false) || !!(v2 && rules.trail && v2.mem.mode === 'practice');
   const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await clipsFor(ex, w.lang), ...ruleFlags(rules), ...(rules.guard ? { copy: copyFor(w.lang) } : {}),
@@ -686,6 +688,9 @@ const SERVED_META_KEYS = ['draw', 'grade_fixed_src', 'open_band_src', 'pick_src'
 const CLASS_WEEK_FLAG_KEY = 'web_quiz_class_week';
 const TAP_OK = Object.freeze({ skip: Object.freeze([]) });
 const isServedRow = (row) => !!row && row.status === 'served';
+// a row served under _v2 (its serve-time meta) and the helped COLUMN written when it finishes (M6)
+const isV2Meta = (meta) => !!meta && meta.pick_src !== undefined;
+const helpedCol = (v) => (v === true ? 'helped' : (v === false ? 'self' : 'not_asked'));
 const servedMeta = (meta) => Object.fromEntries(SERVED_META_KEYS.filter((k) => meta && meta[k] !== undefined).map((k) => [k, meta[k]]));
 const words = (text) => String(text || '').split(/\s+/).filter(Boolean);
 const bandOfId = (id) => { const b = Number(String(id || '').split('.')[2]); return b >= 1 && b <= 3 ? b : null; };
@@ -760,11 +765,11 @@ function servedPairs(itemSetId, Bank) {
 
 /** The served row's v2 facts (another process scoring it, or questions after a restart); null when not readable. */
 async function servedInfo(id) {
-  const { data, error } = await supabase.from(TABLE).select('id, status, passage_id, item_set_id, anchor_block, mode, record, meta').eq('id', id).maybeSingle();
+  const { data, error } = await supabase.from(TABLE).select('id, status, passage_id, item_set_id, anchor_block, mode, record, form, meta').eq('id', id).maybeSingle();
   if (error || !data) return null;
   if (!data.passage_id && !data.item_set_id && !data.anchor_block && data.mode == null) return null;
   return { passage_id: data.passage_id || null, item_set_id: data.item_set_id || null, anchor_block: data.anchor_block || null, mode: data.mode, record: data.record,
-    tryout: (data.meta && data.meta.tryout && data.meta.tryout.item_id) || null };
+    tryout: (data.meta && data.meta.tryout && data.meta.tryout.item_id) || null, form: /^G[1-5]$/.test(String(data.form || '')) ? data.form.slice(1) : null };
 }
 
 /** A served row starts being scored (read upload, live mint, listen questions): status 'scoring', meta merged. */
@@ -804,6 +809,16 @@ async function renewBindings(studentId, now = Date.now()) {
   }
 }
 
+/** A finished served row that is the child's first exposure in a class lights the class light (web_quiz.light_lit). Never throws. */
+async function lightIfFirst(id) {
+  try {
+    const { data, error } = await supabase.from(TABLE).select('id, exercise, status, mode, exposure_no, class_id, anchor_block, canonical_id').eq('id', id).maybeSingle();
+    if (!error && data && data.mode != null) Draw().lightLit(data);
+  } catch (e) {
+    logError('web_quiz.ch_light_failed', { error: String(e && e.message || e).slice(0, 120) });
+  }
+}
+
 /** This period's record rows per stop (the menu's done/badge under _period); null when no period holds now. */
 async function periodTrail(w) {
   const D = Draw();
@@ -819,7 +834,7 @@ async function periodTrail(w) {
  * `mode` 'practice' from the caller (Story Time, another change) is honoured; a second serve of a stop in the same
  * period is practice. A teacher's device cannot be told apart here (who() carries no such signal).
  */
-async function serveV2(w, ex, rules, { mode: askedMode, device = null } = {}) {
+async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: askedClass = null } = {}) {
   const D = Draw();
   const { Bank } = childTest();
   const pool = rules.pool && typeof Bank.getItemV4 === 'function';
@@ -830,9 +845,10 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null } = {}) {
   if (!periodNow && (rules.period || rules.pool)) D.notePeriodMissing(now);
   const periodRule = rules.period && !!periodNow;
   const ob = await D.openBand(canonicalId, fixed.grade);
-  const form = `G${w.form}`;
-  // already counted: this period's record row of the stop (_period), else (no period rule) a scored run ever
-  const counted = periodRule ? D.countedThisPeriod(rows, ex, periodNow)
+  const formNum = formFor(fixed.grade) || w.form;   // M8: the FIXED grade's form, never the visit's
+  const form = `G${formNum}`;
+  // already counted: this period's record row of the stop (per language for read/listen) (_period), else a scored run ever
+  const counted = periodRule ? D.countedThisPeriod(rows, ex, periodNow, w.lang)
     : rows.some((r) => r.exercise === ex && r.status === 'scored' && (ex !== 'read' || r.lang === w.lang));
   // the caller's mode: 'practice' (Story Time) or 'class_round' (the teacher's locked round); else practice when counted
   let mode = askedMode === 'class_round' ? 'class_round' : (askedMode === 'practice' || counted ? 'practice' : 'check');
@@ -891,28 +907,35 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null } = {}) {
   const clipUrl = ex === 'listen' ? await storyClip(w.lang, story && story.text) : undefined;
   if (ex === 'listen' && !clipUrl) fail(503, 'getting_ready');
 
-  const record = periodRule ? D.recordAtServe({ mode, outcome: drawLog ? drawLog.outcome : 'served', countedThisPeriod: counted }) : null;
   const servesAny = anchorBlock ? D.anchorServesAny(rows, anchorBlock) : null;   // no runs column for it: meta.anchor_serves_any
   const exposure = anchorBlock ? servesAny : D.exposureNo(rows, passageId || itemSetId);
+  // M7: a passage or set already met is never a record; the anchor block is the exception
+  const record = periodRule ? D.recordAtServe({ mode, outcome: drawLog ? drawLog.outcome : 'served', countedThisPeriod: counted, exposureNo: exposure, anchor: !!anchorBlock }) : null;
   const anchorExp = anchorBlock ? D.anchorExposureNo(rows, anchorBlock) : null;
   const metaDraw = drawLog ? { draw_id: drawLog.draw_id, outcome: drawLog.outcome, eligible: drawLog.eligible, eligible_n: drawLog.eligible_n, ref_eligible: drawLog.ref_eligible,
     p: drawLog.p, band_reason: drawLog.band_reason, weights_v: drawLog.weights_v, seed: drawLog.seed, ...(periodSet ? { period_set: periodSet } : {}) } : null;
   const via = VIA[w.via] || w.via || null;
   const admin = await D.adminFields({ mode, via, canonicalId, at: new Date(now), classWeekOn: via === 'class_link' && (await settingOn(CLASS_WEEK_FLAG_KEY)) });
   const periodId = periodRule ? periodNow : null;
+  // the class at write time: the caller's (the class link), else the canonical child's active enrolment; never a share code
+  const classId = (typeof askedClass === 'string' && /^[0-9a-f-]{36}$/i.test(askedClass) ? askedClass : null) || await D.activeClassOf([canonicalId, w.studentId]);
   const row = {
     id: runId, student_id: w.studentId, exercise: ex, grade: w.grade, lang: w.lang, status: 'served', created_at: nowIso(),
     meta: { grade_fixed_src: fixed.src, open_band_src: ob.src, pick_src: pick.pick_src, ...(metaDraw ? { draw: metaDraw } : {}), ...(tryout ? { tryout: { item_id: tryout.item_id } } : {}), ...(anchorBlock ? { anchor_serves_any: servesAny } : {}), admin_mode: admin.admin_mode, sample_arm: admin.sample_arm },
     bank_version: pool ? Bank.versionV4 : Bank.versionV3, set, form, passage_id: passageId, item_set_id: itemSetId, mode, period_id: periodId,
     exposure_no: exposure, band, anchor_exposure_no: anchorExp, anchor_block: anchorBlock, draw_seed: drawSeed, canonical_id: canonicalId,
     id_src: pick.id_src, id_confidence: pick.id_confidence, homonym_in_list: pick.homonym_in_list, via, share_code_id: w.shareCodeId || null,
-    record, started_at: new Date(now).toISOString(),
+    record, started_at: new Date(now).toISOString(), class_id: classId,
   };
   const rung = (ex === 'read' || ex === 'listen') ? ob.rungs.reading : ob.rungs.numbers;
   const isPassage = ex === 'read' || ex === 'listen';
   return {
     runId,
     mem: { passage_id: passageId, item_set_id: itemSetId, anchor_block: anchorBlock, mode, record, tryout: tryout ? tryout.item_id : null },
+    formNum,
+    // the run's v2 fields at the top of its in-process entry (the measurement events read them there); form stays the scoring form
+    top: { canonical_id: canonicalId, mode, period_id: periodId, band, record, via, exposure_no: exposure, passage_id: passageId, item_set_id: itemSetId,
+      anchor_block: anchorBlock, anchor_exposure_no: anchorExp, form: formNum },
     payload: { mode, record, period_id: periodId, passage_id: passageId, item_set_id: itemSetId, exposure_no: exposure, band, anchor_block: anchorBlock, anchor_exposure_no: anchorExp,
       draw: metaDraw ? { draw_id: metaDraw.draw_id, outcome: metaDraw.outcome, eligible_n: metaDraw.eligible_n, p: metaDraw.p, band_reason: metaDraw.band_reason, weights_v: metaDraw.weights_v, seed: metaDraw.seed } : null },
     event: { w: 's', mode, period_id: periodId, form, band, rung: rung == null ? null : rung, ...(isPassage ? { passage_id: passageId } : { item_set_id: itemSetId }),
@@ -921,6 +944,8 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null } = {}) {
     async store() {
       const stored = await insertRun(row);
       if (drawLog) await D.logDraw({ ...drawLog, run_id: stored === 'stored' ? runId : null });
+      // IDENTITY §16: the year's fixed grade at the first counted play (the visit's grade; never changed after)
+      if (record === true && mode === 'check') await D.writeChildIdentity({ canonicalId, grade: w.grade, gradeSource: w.gradeSource, now: new Date(now) });
     },
   };
 }
@@ -1348,11 +1373,13 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
   const storedRow = mem.status ? null : await storedRun(c.r);
   const isLive = mem.status === 'live' || (c.ex === 'read' && isLiveRow(storedRow));
   if ((mem.status && mem.status !== 'open' && !isLive) || (storedRow && !isLive && !isServedRow(storedRow))) fail(409, 'already_done');
-  const run = await runFor(c, mem, body.lang);
+  let run = await runFor(c, mem, body.lang);
   const base = { id: c.r, student_id: c.sid, exercise: c.ex, grade: run.grade, lang: run.lang, created_at: nowIso() };
   // challenge v2: a run served under _v2 already has its row: it is finished in place, never inserted a second time
   const sv = mem.v2 || (isServedRow(storedRow) ? await servedInfo(c.r) : null);
+  if (sv && sv.form && !mem.task) run = { ...run, form: sv.form };   // M8: the served row's (fixed-grade) form
   const writeRun = sv ? (row) => finishServed(c.r, row) : insertRun;
+  const helpedV2 = sv ? { helped: helpedCol(helpedOf(body.helped)) } : {};
 
   if (c.ex === 'missing') {
     if (!rules.missing) fail(503, 'missing_off');
@@ -1370,10 +1397,11 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
     let meta = { ms: Number(body.ms) || null, ...(await provenance(c.sid, 'missing', null, run)), helped: helpedOf(body.helped), clock: 'row_paint', elapsed_s: Math.round(elapsedMs / 100) / 10, too_fast: elapsedMs < typed };
     if (rules.items) meta = { ...meta, items: rows, ...itemFlags(reached, { fastMs: missingFastMs, stopped: score.stopped }) };
     if (sv && sv.tryout) meta = { ...meta, tryout: tryoutAnswer(sv.tryout, body.tryout, Bank) };
-    const stored = await writeRun({ ...base, status: 'scored', score, scored_at: nowIso(), meta });
+    const stored = await writeRun({ ...base, status: 'scored', score, scored_at: nowIso(), meta, ...helpedV2 });
     if (stored === 'duplicate') fail(409, 'already_done');
     await measureOutcome(c.r);
     await renewBindings(c.sid);
+    await lightIfFirst(c.r);
     logEvent('web_quiz.ch_done', { step: 'missing', count: score.correct, count_5s: score.correct_5s, n: score.n, stopped: score.stopped, run: c.r });
     return result;
   }
@@ -1393,10 +1421,11 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
       meta = { ...meta, ...(await provenance(c.sid, 'bigger', null, run)), ...(rules.trail ? { helped: helpedOf(body.helped) } : {}), elapsed_s: Math.round(elapsedMs / 100) / 10, too_fast: elapsedMs < tapped || elapsedMs < rows.length * 400 };
       if (rules.items) meta = { ...meta, items: rows, ...itemFlags(rows, { fastMs: BIGGER_FAST_MS, stopped: score.stopped }) };
     }
-    const stored = await writeRun({ ...base, status: 'scored', score, scored_at: nowIso(), meta });
+    const stored = await writeRun({ ...base, status: 'scored', score, scored_at: nowIso(), meta, ...helpedV2 });
     if (stored === 'duplicate') fail(409, 'already_done');
     await measureOutcome(c.r);
     await renewBindings(c.sid);
+    await lightIfFirst(c.r);
     logEvent('web_quiz.ch_done', { step: 'bigger', count: score.correct, n: score.n, stopped: score.stopped, run: c.r });
     return result;
   }
@@ -1454,11 +1483,12 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
     await updateRunMeta(c.r, (cur) => {
       const comp = cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {};
       return r.failed
-        ? { status: 'failed', meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...comp, reason: r.reason }, scored_at: nowIso() }
-        : { status: 'scored', score: r.score, wcpm: r.wcpm, meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() };
+        ? { status: 'failed', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...comp, reason: r.reason }, scored_at: nowIso() }
+        : { status: 'scored', ...(isV2Meta(cur.meta) ? { helped: helpedCol(helpedOf(body.helped)) } : {}), score: r.score, wcpm: r.wcpm, meta: { ...servedMeta(cur.meta), ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() };
     }, { force: true });
     await measureOutcome(c.r);
     await renewBindings(c.sid);
+    await lightIfFirst(c.r);
     if (r.failed) logError('web_quiz.ch_read_failed', { runId: c.r, reason: r.reason, run: c.r });
     else logEvent('web_quiz.ch_done', { step: 'read', count: r.score.correct, wcpm: r.wcpm, stopped: r.score.stopped, costUsd: r.meta.cost_usd, run: c.r, ...(rules.record ? { ended: r.ended || null } : {}) });
     return result;
@@ -1607,7 +1637,7 @@ async function listenQuestions(c, run, row, spec) {
 }
 
 /** One tap: { ok, answer } (the right option's text). A question counts once; at most 3 per reading. */
-async function answer({ ct, q, pick, lang } = {}) {
+async function answer({ ct, q, pick, lang, helped } = {}) {
   const c = runOf(ct);
   const { run, row, mem, spec } = await readingOf(c, lang);
   const bq = (spec.questions || []).find((x) => x.id === q);
@@ -1638,9 +1668,10 @@ async function answer({ ct, q, pick, lang } = {}) {
   // listening: the last answer scores the run ({correct, n}, as "Which is bigger?")
   const n = row && row.meta && Number(row.meta.n);
   if (c.ex === 'listen' && row && n && numbers.asked >= n) {
-    await updateRun(c.r, { status: 'scored', score: { correct: numbers.correct, n }, scored_at: nowIso() });
+    await updateRun(c.r, { status: 'scored', score: { correct: numbers.correct, n }, scored_at: nowIso(), ...(isV2Meta(row.meta) ? { helped: helpedCol(helpedOf(helped)) } : {}) });
     await measureOutcome(c.r);
     await renewBindings(c.sid);
+    await lightIfFirst(c.r);
     logEvent('web_quiz.ch_done', { step: 'listen', count: numbers.correct, n });
   }
   logEvent('web_quiz.ch_qa', { lang: run.lang, ok });

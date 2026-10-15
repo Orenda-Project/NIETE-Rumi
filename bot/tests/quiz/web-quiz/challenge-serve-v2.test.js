@@ -289,7 +289,8 @@ describe('7 · record decided at serve: one per child × stop × period', () => 
     expect(b).toMatchObject({ practice_round: true, mode: 'practice', record: false });
     db.web_quiz_challenge_runs.forEach((r) => { r.period_id = '2026-10'; });
     const c = await Ch.exercise(hub(), 'read', D);
-    expect(rowOf(c.ct)).toMatchObject({ record: true, mode: 'check', period_id: '2026-11', exposure_no: 3 });
+    // a passage already met is never a record (M7), even in a new period with the pool off
+    expect(rowOf(c.ct)).toMatchObject({ record: false, mode: 'check', period_id: '2026-11', exposure_no: 3 });
   });
 
   test('_period off with _v2 on: record and period_id NULL; the provenance is still written', async () => {
@@ -379,7 +380,7 @@ describe('10 · the draw band per fixed grade', () => {
     const a = await Ch.exercise(hub(K3), 'read', D);
     expect(db.challenge_draws.pop()).toMatchObject({ band: 2, band_reason: 'promoted', open_band: 2 });
     expect(rowOf(a.ct).meta).toMatchObject({ open_band_src: 'child_rungs', grade_fixed_src: 'visit_grade' });
-    db.child_identity = [{ canonical_id: K3, fixed_grade: 5 }];
+    db.child_identity = [{ canonical_id: K3, year_code: require('../../../shared/services/quiz/web-quiz-challenge-draw').yearCode(new Date()), fixed_grade: 5 }];
     db.child_rungs = [];
     db.web_quiz_challenge_runs.length = 0;
     const b = await Ch.exercise(hub(K3), 'read', D);
@@ -523,18 +524,24 @@ describe('admin_mode and sample_arm under _v2', () => {
 describe('the class-week sample arm (web-quiz-challenge-draw.adminFields)', () => {
   const Draw = require('../../../shared/services/quiz/web-quiz-challenge-draw');
   const CW = '../../../shared/services/quiz/web-quiz-class-week';
-  afterEach(() => { jest.dontMock(CW); jest.resetModules(); });
+  // jest keeps the first mock it builds: the absent module is tried first (a throwing factory is never kept), then one
+  // stand-in whose answer each test sets
+  let openWindowFor = jest.fn();
+
+  test('the module absent → no sample arm, nothing thrown', async () => {
+    jest.doMock(CW, () => { throw new Error("Cannot find module './web-quiz-class-week'"); }, { virtual: true });
+    expect(await Draw.adminFields({ mode: 'check', via: 'class_link', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'self_run', sample_arm: null });
+    jest.doMock(CW, () => ({ openWindowFor: (...a) => openWindowFor(...a) }), { virtual: true });
+  });
 
   test('via class_link inside an open class-week window, switch on → sample_arm class_week, admin_mode self_run', async () => {
-    const openWindowFor = jest.fn(async () => ({ id: 'w1' }));
-    jest.doMock(CW, () => ({ openWindowFor }), { virtual: true });
+    openWindowFor = jest.fn(async () => ({ id: 'w1' }));
     expect(await Draw.adminFields({ mode: 'check', via: 'class_link', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'self_run', sample_arm: 'class_week' });
     expect(openWindowFor).toHaveBeenCalledWith(expect.objectContaining({ canonicalId: 'c1' }));
   });
 
   test('no open window, another door, or the switch off → no sample arm and no lookup', async () => {
-    const openWindowFor = jest.fn(async () => null);
-    jest.doMock(CW, () => ({ openWindowFor }), { virtual: true });
+    openWindowFor = jest.fn(async () => null);
     expect(await Draw.adminFields({ mode: 'check', via: 'class_link', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'self_run', sample_arm: null });
     openWindowFor.mockClear();
     expect(await Draw.adminFields({ mode: 'check', via: 'hub', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'self_run', sample_arm: null });
@@ -542,8 +549,208 @@ describe('the class-week sample arm (web-quiz-challenge-draw.adminFields)', () =
     expect(openWindowFor).not.toHaveBeenCalled();
   });
 
-  test('the module absent → no sample arm, nothing thrown', async () => {
-    jest.doMock(CW, () => { throw new Error("Cannot find module './web-quiz-class-week'"); }, { virtual: true });
-    expect(await Draw.adminFields({ mode: 'check', via: 'class_link', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'self_run', sample_arm: null });
+  test('a class round is teacher_present with no arm', async () => {
+    expect(await Draw.adminFields({ mode: 'class_round', via: 'class_link', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'teacher_present', sample_arm: null });
+  });
+});
+
+// ── review: exposure gates the record, the fixed grade's form, the event key, helped, the record per language, child_identity
+
+describe('M7: only a first exposure is a record (anchors excepted)', () => {
+  test('_pool: a fresh passage in the next period IS a record; the A1 warm-up is a record every period', async () => {
+    on(V2, PERIOD, POOL);
+    const a = await Ch.exercise(hub(K3), 'read', D);
+    expect(rowOf(a.ct)).toMatchObject({ record: true, exposure_no: 1 });
+    const w1 = await Ch.exercise(hub(K3), 'missing', D);
+    db.web_quiz_challenge_runs.forEach((r) => { r.period_id = '2026-10'; });
+    const b = await Ch.exercise(hub(K3), 'read', D);
+    expect(rowOf(b.ct).passage_id).not.toBe(rowOf(a.ct).passage_id);
+    expect(rowOf(b.ct)).toMatchObject({ record: true, exposure_no: 1, mode: 'check' });
+    const w2 = await Ch.exercise(hub(K3), 'missing', D);
+    expect(rowOf(w2.ct)).toMatchObject({ record: true, exposure_no: 2, anchor_exposure_no: 2 });
+    expect(rowOf(w1.ct).record).toBe(true);
+  });
+});
+
+describe('M8: the form and the items come from the FIXED grade', () => {
+  test('fixed grade 5 on a grade-3 visit: row form G5, the G5 items served and scored', async () => {
+    on(V2, PERIOD);
+    db.child_identity = [{ canonical_id: K3, year_code: require('../../../shared/services/quiz/web-quiz-challenge-draw').yearCode(new Date()), fixed_grade: 5 }];
+    const ex = await Ch.exercise(hub(K3), 'missing', D);
+    const g5 = Bank.getTaskSpec({ grade: 5, set: 'A', task: 'ma.missing' });
+    expect(ex.items).toEqual(g5.items.map((i) => ({ seq: i.seq.slice(), answer: i.answer })));
+    expect(rowOf(ex.ct)).toMatchObject({ form: 'G5', item_set_id: 'missing.G5.A', grade: 3 });
+    Ch.__reset();   // scored by another process: the form comes from the row
+    const r = await Ch.submit({ ct: ex.ct, answers: missingAnswers(ex.items), ms: 30000 });
+    expect(r.score.correct).toBe(10);
+  });
+});
+
+describe('the measurement events with _v2 (web_quiz_events_v2 on)', () => {
+  const Kid = require('../../../shared/services/quiz/web-quiz-kid');
+  const Roster = require('../../../shared/services/quiz/web-quiz-identity-roster');
+  const CANON = '88888888-8888-4888-8888-888888888888';
+  let spy;
+  beforeEach(() => {
+    process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(48);
+    process.env.WEB_QUIZ_KID_KEY_V = '1';
+    on(V2, PERIOD, 'web_quiz_hub', 'web_quiz_events_v2');
+    require('../../../shared/services/quiz/web-quiz-hub-flags')._resetCache();
+    spy = jest.spyOn(Roster, 'canonicalStudentId').mockResolvedValue(CANON);
+  });
+  afterEach(() => { spy.mockRestore(); delete process.env.WEB_QUIZ_KID_KEY; delete process.env.WEB_QUIZ_KID_KEY_V; });
+
+  test('ch_start: kid from the canonical id (not the raw id), period_id and the fixed form kept', async () => {
+    const ex = await Ch.exercise(hub(K3), 'bigger', D);
+    const [st] = starts();
+    expect(st.kid).toBe(Kid.kid(CANON));
+    expect(st.kid).not.toBe(Kid.kid(K3));
+    expect(st).toMatchObject({ run: runOf(ex.ct), period_id: '2026-11', form: 'G3', mode: 'check', record: true, item_set_id: 'bigger.G3.A' });
+  });
+
+  test('every finish point logs the outcome after the row is written (m_result of the scored row)', async () => {
+    const results = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.m_result').length;
+    const m = await Ch.exercise(hub(K3), 'missing', D);
+    await Ch.submit({ ct: m.ct, answers: missingAnswers(m.items), ms: 30000 });
+    expect(results()).toBe(1);
+    const b = await Ch.exercise(hub(K3), 'bigger', D);
+    await Ch.submit({ ct: b.ct, taps: biggerTaps(b.items), ms: 25000 });
+    expect(results()).toBe(2);
+    const r = await Ch.exercise(hub(K3), 'read', D);
+    await readAloud(r.ct);
+    expect(results()).toBe(3);
+    const l = await Ch.exercise(hub(K3), 'listen', D);
+    for (const q of (await Ch.questions({ ct: l.ct })).questions) await Ch.answer({ ct: l.ct, q: q.id, pick: 0 });
+    expect(results()).toBe(4);
+  });
+});
+
+describe('M6: the helped column at finish', () => {
+  test('a warm-up submitted with helped:true → helped; none sent → not_asked; false → self', async () => {
+    on(V2, PERIOD);
+    const a = await Ch.exercise(hub(), 'missing', D);
+    await Ch.submit({ ct: a.ct, answers: missingAnswers(a.items), ms: 30000, helped: true });
+    expect(rowOf(a.ct)).toMatchObject({ status: 'scored', helped: 'helped', meta: expect.objectContaining({ helped: true }) });
+    const b = await Ch.exercise(hub(), 'bigger', D);
+    await Ch.submit({ ct: b.ct, taps: biggerTaps(b.items), ms: 25000 });
+    expect(rowOf(b.ct).helped).toBe('not_asked');
+    const r = await Ch.exercise(hub(), 'read', D);
+    await readAloud(r.ct);
+    expect(rowOf(r.ct).helped).toBe('not_asked');
+    const l = await Ch.exercise(hub(), 'listen', D);
+    for (const q of (await Ch.questions({ ct: l.ct })).questions) await Ch.answer({ ct: l.ct, q: q.id, pick: 0, helped: false });
+    expect(rowOf(l.ct)).toMatchObject({ status: 'scored', helped: 'self' });
+  });
+
+  test('every new switch off: no helped column', async () => {
+    const a = await Ch.exercise(hub(), 'missing', D);
+    await Ch.submit({ ct: a.ct, answers: missingAnswers(a.items), ms: 30000, helped: true });
+    expect(db.web_quiz_challenge_runs[0]).not.toHaveProperty('helped');
+  });
+});
+
+describe('ITEMS §5.6 (item 14): the record per (stop, language) for read and listen', () => {
+  test('EN read then UR read in one month → two records; EN twice → one', async () => {
+    on(V2, PERIOD);
+    const en = await Ch.exercise(hub(), 'read', D);
+    const ur = await Ch.exercise(hub(), 'read', { ...D, lang: 'ur' });
+    const en2 = await Ch.exercise(hub(), 'read', D);
+    expect(rowOf(en.ct)).toMatchObject({ lang: 'en', record: true });
+    expect(rowOf(ur.ct)).toMatchObject({ lang: 'ur', record: true });
+    expect(rowOf(en2.ct)).toMatchObject({ lang: 'en', record: false, mode: 'practice' });
+  });
+
+  test('bigger stays one record per stop whatever the language', async () => {
+    on(V2, PERIOD);
+    await Ch.exercise(hub(), 'bigger', D);
+    const b = await Ch.exercise(hub(), 'bigger', { ...D, lang: 'ur' });
+    expect(rowOf(b.ct)).toMatchObject({ record: false, mode: 'practice' });
+  });
+});
+
+describe('child_identity: the fixed grade written at the first counted play of the academic year', () => {
+  const ID_FLAGS = '../../../shared/services/quiz/web-quiz-identity-flags';
+  const Draw = require('../../../shared/services/quiz/web-quiz-challenge-draw');
+  const canonOn = (v) => jest.doMock(ID_FLAGS, () => ({ flags: async () => ({ canon: v, phoneBind: false, guestHome: false }) }), { virtual: true });
+  afterEach(() => { jest.dontMock(ID_FLAGS); });
+
+  test('two visits with different grades in one year → one row with the first grade; a new year → a new row', async () => {
+    on(V2, PERIOD); canonOn(true);
+    db.child_identity = [];
+    await Ch.exercise(hub(K3), 'bigger', D);
+    expect(db.child_identity).toEqual([expect.objectContaining({ canonical_id: K3, year_code: Draw.yearCode(new Date()), fixed_grade: 3, grade_source: 'roster' })]);
+    db.student_lists.find((l) => l.id === L3).class_name = '4';
+    await Ch.exercise(hub(K3), 'missing', D);
+    expect(db.child_identity).toHaveLength(1);
+    expect(db.child_identity[0].fixed_grade).toBe(3);
+    db.child_identity[0].year_code = '2025-26';
+    db.web_quiz_challenge_runs.forEach((r) => { r.period_id = '2026-10'; });
+    await Ch.exercise(hub(K3), 'read', D);
+    expect(db.child_identity.map((r) => r.year_code).sort()).toEqual(['2025-26', Draw.yearCode(new Date())]);
+  });
+
+  test('a practice play writes nothing; the switch off writes nothing', async () => {
+    on(V2, PERIOD); canonOn(true);
+    db.child_identity = [];
+    await Ch.exercise(hub(K3), 'bigger', { ...D, mode: 'practice' });
+    expect(db.child_identity).toEqual([]);
+    jest.dontMock(ID_FLAGS); canonOn(false);
+    await Ch.exercise(hub(K3), 'bigger', D);
+    expect(db.child_identity).toEqual([]);
+  });
+
+  test('year_code is the PKT academic year (1 April – 31 March)', () => {
+    expect(Draw.yearCode(new Date('2026-03-31T18:59:59Z'))).toBe('2025-26');
+    expect(Draw.yearCode(new Date('2026-03-31T19:00:00Z'))).toBe('2026-27');
+    expect(Draw.yearCode(new Date('2026-11-03T00:00:00Z'))).toBe('2026-27');
+  });
+});
+
+describe('class_id at serve and the class light at the first finished exposure', () => {
+  const CLS = 'c1a55000-0000-4000-8000-000000000001';
+  const lights = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.light_lit').map(([, d]) => d);
+  beforeEach(() => { process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(48); process.env.WEB_QUIZ_KID_KEY_V = '1'; });
+  afterEach(() => { delete process.env.WEB_QUIZ_KID_KEY; delete process.env.WEB_QUIZ_KID_KEY_V; });
+
+  test('an enrolled child served from /q/ carries the enrolment\'s class; a loose child NULL; a share code never gives one', async () => {
+    on(V2, PERIOD);
+    db.class_enrollments = [{ id: 'e1', student_id: K3, class_id: CLS, is_active: true }];
+    db.classes = [{ id: CLS, grade_code: 'grade_3' }];
+    const a = await Ch.exercise(T.signSession({ sessionId: SESSION, deviceRef: 'd'.repeat(22), shareCodeId: SC }), 'bigger', D);
+    expect(rowOf(a.ct)).toMatchObject({ class_id: CLS, via: 'quiz_card', share_code_id: SC });
+    const b = await Ch.exercise(hub(K5), 'bigger', D);
+    expect(rowOf(b.ct).class_id).toBeNull();
+  });
+
+  test('a caller\'s class (the class link) is taken as given', async () => {
+    on(V2, PERIOD);
+    const a = await Ch.exercise(hub(K5), 'bigger', { ...D, classId: CLS });
+    expect(rowOf(a.ct).class_id).toBe(CLS);
+  });
+
+  test('one light_lit per first finished exposure (hashed class, kid), none on exposure 2 or practice; no raw class id', async () => {
+    on(V2, PERIOD, POOL);
+    db.class_enrollments = [{ id: 'e1', student_id: K3, class_id: CLS, is_active: true }];
+    db.classes = [{ id: CLS, grade_code: 'grade_3' }];
+    const w = await Ch.exercise(hub(K3), 'missing', D);
+    await Ch.submit({ ct: w.ct, answers: missingAnswers(w.items), ms: 30000 });
+    const b = await Ch.exercise(hub(K3), 'bigger', D);
+    await Ch.submit({ ct: b.ct, taps: biggerTaps(b.items), ms: 25000 });
+    const Kid = require('../../../shared/services/quiz/web-quiz-kid');
+    expect(lights()).toEqual([
+      expect.objectContaining({ key_kind: 'stop', week: expect.stringMatching(/^\d{4}-W\d{2}$/), cls: Kid.cls(CLS), kid: Kid.kid(K3) }),
+      expect.objectContaining({ key_kind: 'item_set', cls: Kid.cls(CLS) }),
+    ]);
+    expect(JSON.stringify(lights())).not.toContain(CLS);
+    const p = await Ch.exercise(hub(K3), 'bigger', D);              // same period: practice, exposure 2
+    await Ch.submit({ ct: p.ct, taps: biggerTaps(p.items), ms: 25000 });
+    expect(lights()).toHaveLength(2);
+  });
+
+  test('ISO week in PKT', () => {
+    const Draw = require('../../../shared/services/quiz/web-quiz-challenge-draw');
+    expect(Draw.isoWeekPkt(new Date('2026-11-02T00:00:00Z'))).toBe('2026-W45');
+    expect(Draw.isoWeekPkt(new Date('2026-11-01T19:00:00Z'))).toBe('2026-W45');   // Monday 00:00 PKT
+    expect(Draw.isoWeekPkt(new Date('2026-11-01T18:59:59Z'))).toBe('2026-W44');
   });
 });

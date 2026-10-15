@@ -92,11 +92,33 @@ const anchorExposureNo = (rows, block) => 1 + (rows || []).filter((r) => r.mode 
 /** 1 + the child's rows that served this anchor block in ANY mode and status (beside anchor_exposure_no, ITEMS item 13). */
 const anchorServesAny = (rows, block) => 1 + (rows || []).filter((r) => r.anchor_block === block).length;
 
-/** A record row of this stop in this period exists (any status: the record was decided when it was served). */
-const countedThisPeriod = (rows, stop, periodId) => (rows || []).some((r) => r.exercise === stop && r.period_id === periodId && r.record === true);
+/**
+ * A record row of this stop in this period exists (any status: the record was decided when it was served). The record
+ * key is (stop, language) for read and listen, the stop alone for the maths stops (ITEMS §5.6, item 14).
+ */
+const countedThisPeriod = (rows, stop, periodId, lang = null) => (rows || []).some((r) => r.exercise === stop && r.period_id === periodId && r.record === true
+  && (!lang || (stop !== 'read' && stop !== 'listen') || r.lang === lang));
 
-/** ITEMS §5.6: record = check, something served, and no record of this stop yet in this period. */
-const recordAtServe = ({ mode, outcome, countedThisPeriod: counted } = {}) => mode === 'check' && outcome !== 'on_its_way' && !counted;
+/**
+ * ITEMS §5.6: record = check, something served, no record of this stop yet in this period, and (M7) a first exposure to
+ * the passage or set; an anchor block is a record at any exposure (its repeat is the design).
+ */
+const recordAtServe = ({ mode, outcome, countedThisPeriod: counted, exposureNo = null, anchor = false } = {}) => mode === 'check' && outcome !== 'on_its_way' && !counted
+  && (!!anchor || exposureNo == null || Number(exposureNo) === 1);
+
+/** The academic year of a time: the binder's own helper when present, else PKT 1 April – 31 March: '2026-27'. */
+function yearCode(now = new Date()) {
+  try {
+    const repo = require('./child-phone-bindings.repo');
+    if (repo && typeof repo.yearCode === 'function') return repo.yearCode(new Date(now));
+  } catch (_) { /* absent: computed here */ }
+  return ownYearCode(now);
+}
+function ownYearCode(now = new Date()) {
+  const pkt = new Date(new Date(now).getTime() + 5 * 3600 * 1000);
+  const y = pkt.getUTCMonth() >= 3 ? pkt.getUTCFullYear() : pkt.getUTCFullYear() - 1;
+  return `${y}-${String((y + 1) % 100).padStart(2, '0')}`;
+}
 
 // ── pure: the eligible set, the weights, the pick ───────────────────────────────────────────────────────
 
@@ -286,7 +308,7 @@ async function openBand(canonicalId, fixedGrade) {
 
 /** The FIXED grade (child_identity) when that table has the child, else the visit's grade; the source says which. */
 async function fixedGradeOf(canonicalId, visitGrade) {
-  const { data, error } = await supabase.from('child_identity').select('canonical_id, fixed_grade').eq('canonical_id', canonicalId).maybeSingle();
+  const { data, error } = await supabase.from('child_identity').select('canonical_id, year_code, fixed_grade').eq('canonical_id', canonicalId).eq('year_code', yearCode()).maybeSingle();
   const g = !error && data ? Number(data.fixed_grade) : null;
   if (entryBand(g)) return { grade: g, src: 'child_identity' };
   return { grade: visitGrade, src: error && isMissingTable(error) ? 'visit_grade_no_table' : 'visit_grade' };
@@ -367,6 +389,64 @@ async function adminFields({ mode, via, canonicalId, at = new Date(), classWeekO
   return { admin_mode: 'self_run', sample_arm: null };
 }
 
+// today's grade sources → child_identity.grade_source
+// (lead ruling #31, IDENTITY v0 §4 order: roster → share_code → tapped)
+const GRADE_SOURCE = { enrolment: 'roster', list: 'roster', session: 'share_code', quiz: 'share_code', self: 'tapped' };
+
+/**
+ * IDENTITY §16: the fixed grade, written at the child's first COUNTED play of the academic year, under
+ * web_quiz_identity_canon (the identity change's switch reader, required lazily: absent → nothing; table missing →
+ * nothing). One row per canonical child × year; an existing row is never changed. Never throws.
+ */
+async function writeChildIdentity({ canonicalId, grade, gradeSource, now = new Date() } = {}) {
+  try {
+    let IdFlags = null;
+    try { IdFlags = require('./web-quiz-identity-flags'); } catch (_) { return false; }
+    if (!IdFlags || typeof IdFlags.flags !== 'function' || !(await IdFlags.flags()).canon) return false;
+    const src = GRADE_SOURCE[gradeSource];
+    if (!canonicalId || !src || !(Number(grade) >= 1 && Number(grade) <= 5)) return false;
+    const year = yearCode(now);
+    const { data, error } = await supabase.from('child_identity').select('canonical_id').eq('canonical_id', canonicalId).eq('year_code', year).limit(1);
+    if (error) { if (!isMissingTable(error)) logError('web_quiz.ch_identity_write_failed', { code: error.code || null }); return false; }
+    if (data && data.length) return false;
+    const { error: e2 } = await supabase.from('child_identity').insert({ canonical_id: canonicalId, year_code: year, fixed_grade: Number(grade), grade_source: src, fixed_at: new Date(now).toISOString() });
+    if (e2 && e2.code !== '23505' && !isMissingTable(e2)) logError('web_quiz.ch_identity_write_failed', { code: e2.code || null });
+    return !e2;
+  } catch (e) {
+    logError('web_quiz.ch_identity_write_failed', { error: String(e && e.message || e).slice(0, 120) });
+    return false;
+  }
+}
+
+/** ISO week in PKT: '2026-W45'. */
+function isoWeekPkt(now = new Date()) {
+  const d = new Date(new Date(now).getTime() + 5 * 3600 * 1000);
+  const day = d.getUTCDay() || 7;
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 4 - day));
+  const wk = Math.ceil(((t - Date.UTC(t.getUTCFullYear(), 0, 1)) / 86400000 + 1) / 7);
+  return `${t.getUTCFullYear()}-W${String(wk).padStart(2, '0')}`;
+}
+
+/** The child's active class (class_enrollments, the canonical id and the raw ids), never from a share code; null otherwise. */
+async function activeClassOf(ids) {
+  const list = [...new Set((ids || []).filter(Boolean).map(String))];
+  if (!list.length) return null;
+  const { data, error } = await supabase.from('class_enrollments').select('class_id').in('student_id', list).eq('is_active', true).limit(1);
+  return !error && data && data[0] && data[0].class_id ? data[0].class_id : null;
+}
+
+/** web_quiz.light_lit for a first finished exposure in a class: hashed class and kid through the envelope when present. */
+function lightLit(row, now = new Date()) {
+  if (!row || !row.class_id || Number(row.exposure_no) !== 1 || row.mode !== 'check' || !FINAL.has(row.status)) return null;
+  const keyKind = row.anchor_block ? 'stop' : (row.exercise === 'read' || row.exercise === 'listen' ? 'passage' : 'item_set');
+  const base = { key_kind: keyKind, week: isoWeekPkt(now) };
+  let K = null;
+  try { K = require('./web-quiz-kid'); } catch (_) { K = null; }
+  const ev = K && typeof K.envelope === 'function' ? K.envelope({ kid: K.kid(row.canonical_id), cls: K.cls(row.class_id), ...base }) : base;
+  require('../../utils/structured-logger').logEvent('web_quiz.light_lit', ev);
+  return ev;
+}
+
 function __reset() { cache.clear(); periodMissingDay = null; }
 
 module.exports = {
@@ -374,6 +454,6 @@ module.exports = {
   entryBand, ceilingBand, gradeBand, formOfGrade, isLine1OrZero, lastCountedRead, drawBand,
   rowServedId, seenIdsOf, exposureNo, anchorExposureNo, anchorServesAny, countedThisPeriod, recordAtServe,
   eligible, weigh, mulberry32, pick, drawPassage, periodIdFor, biggerSetFor, tryoutItem, trailState,
-  registryPassages, periods, notePeriodMissing, adminFields, rungsOf, openBand, fixedGradeOf, childRows, logDraw, trailStateFor, pickOf,
+  registryPassages, periods, notePeriodMissing, adminFields, yearCode, writeChildIdentity, isoWeekPkt, activeClassOf, lightLit, rungsOf, openBand, fixedGradeOf, childRows, logDraw, trailStateFor, pickOf,
   __reset,
 };
