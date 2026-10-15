@@ -157,6 +157,16 @@ describe('a changed mark or answer drops the worked scheme points (E8.2)', () =>
     expect(out.scheme.checked).toBeNull();
   });
 
+  test("a sub-question's own scheme (situation, comprehension) loses its points when its marks change", () => {
+    const parent = { slot: 'english.C.Q6', question: 'Read the situation and answer.', questions: [
+      { question: 'What should the child say?', answer: 'Sorry', marks: 2, scheme: { points: [{ text: 'an apology', marks: 2, kind: 'A' }], checked: 'ok' } },
+      { question: 'Why?', answer: 'He was late', marks: 2, scheme: { points: [{ text: 'late', marks: 2, kind: 'A' }], checked: 'ok' } }] };
+    const out = Edit.applyEdit(parent, { subIndex: 0, marks: '3' });
+    expect(out.questions[0].scheme.points).toBeUndefined();
+    expect(out.questions[0].scheme.checked).toBeNull();
+    expect(out.questions[1].scheme).toEqual(parent.questions[1].scheme);
+  });
+
   test('a plain question (no scheme) gains no scheme key', () => {
     const out = Edit.applyEdit({ question: 'Why?', answer: 'Because.', marks: 3 }, { marks: '2', answer: 'So.' });
     expect(out).toEqual({ question: 'Why?', answer: 'So.', marks: 2 });

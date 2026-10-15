@@ -174,6 +174,7 @@ const ADD_KINDS = {
   fill: { match: (k) => /^fill in the blanks$/i.test(k), fallback: () => 'Fill in the Blanks' },
 };
 
+const PATTERN_NO_ADD = 'PATTERN_NO_ADD';
 const PATTERN_NO_ADD_MESSAGE = 'Board-pattern papers keep their shape.';
 
 /** Every [section, category, typeKey] in the tree, in walk order. */
@@ -197,7 +198,7 @@ function _typeSlots(tree) {
 function appendQuestion(examJson, { kind, subject, grade } = {}, question) {
   // A board pattern fixes how many questions each slot holds.
   if (examJson && examJson._layout) {
-    throw Object.assign(new Error(PATTERN_NO_ADD_MESSAGE), { code: 'EDIT_REJECTED', errorCode: 'PATTERN_NO_ADD' });
+    throw Object.assign(new Error(PATTERN_NO_ADD_MESSAGE), { code: 'EDIT_REJECTED', errorCode: PATTERN_NO_ADD });
   }
   const rule = ADD_KINDS[kind];
   if (!rule) throw Object.assign(new Error(`Unknown question kind: ${kind}`), { code: 'EDIT_REJECTED' });

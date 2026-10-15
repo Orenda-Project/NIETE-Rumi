@@ -50,6 +50,7 @@ const mockSend = jest.fn(async () => true);
 jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendMessage: jest.fn(async () => true),
   sendDocumentByLink: (...a) => mockSend(...a),
+  sendFlow: jest.fn(async () => true),
 }));
 
 const fs = require('fs');
@@ -156,6 +157,18 @@ describe('buildVersion on a board-pattern paper (E8.4)', () => {
     expect(mockRenders.every((args) => args.length === 1)).toBe(true);
     expect(mockUploads).toEqual(['Grade5_Maths_v2.pdf', 'Grade5_Maths_v2_AnswerKey.pdf']);
     expect(newRow().exam_json).not.toHaveProperty('_layout');
+  });
+});
+
+describe('resendVersion on a board-pattern paper whose scheme was never stored', () => {
+  test('builds the marking scheme with its options, its name and the paper file it belongs to', async () => {
+    mockDb.tables.assessment_papers = [paper({ answer_key_r2_key: null })];
+    const out = await Revision.resendVersion({ paperId: 'v1', userId: U, phone: 'test-phone' });
+    expect(out).toMatchObject({ status: 'resent', marks: 100 });
+    expect(mockRenders).toHaveLength(1);
+    expect(mockRenders[0][1]).toEqual({ pdfOptions: FdeRenderer.pdfOptions(EXAM, 'scheme') });
+    expect(text(mockRenders[0][0])).toContain('Grade5_Maths_FDE.pdf');
+    expect(mockUploads).toEqual(['Grade5_Maths_FDE_v1_MarkingScheme.pdf']);
   });
 });
 

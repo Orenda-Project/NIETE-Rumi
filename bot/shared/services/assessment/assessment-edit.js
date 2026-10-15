@@ -289,7 +289,12 @@ function applyEdit(question, edit) {
     const m = marksFrom(e.marks, sub.marks);
     if (m !== undefined) sub.marks = m;
     const before = typeof question.questions[i] === 'string' ? {} : question.questions[i];
-    if (_markedDifferently(before, sub)) _dropWorkedPoints(q);
+    // A sub-question can carry its own scheme (situation, comprehension); the
+    // parent's, when it has one, was summed over the parts.
+    if (_markedDifferently(before, sub)) {
+      _dropWorkedPoints(sub);
+      _dropWorkedPoints(q);
+    }
     q.questions[i] = sub;
     return q;
   }
