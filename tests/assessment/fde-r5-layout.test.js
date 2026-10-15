@@ -231,3 +231,57 @@ describe('Urdu Q6 prints the four verses the child explains (item 6)', () => {
     expect(laid.question).toBe(q.question);
   });
 });
+
+describe('round 2', () => {
+  const squash = (s) => String(s).replace(/\s+/g, '');
+  const q6With = (question) => {
+    const raw = JSON.parse(JSON.stringify(verses));
+    raw.unseen.subjective['Poem Explanation'][0].question = question;
+    return applyLayout(raw, P.urdu, FDE, { now: NOW });
+  };
+  const LINES = verses.unseen.subjective['Poem Explanation'][0].question.split('\n');
+  const INSTRUCTION = 'درج ذیل اشعار کا مفہوم واضح کریں۔';
+
+  it('Q6: an instruction written above the four lines stays the question; only the last four lines are the verses', () => {
+    const { examJson } = q6With([INSTRUCTION, ...LINES].join('\n'));
+    const q = examJson.unseen.subjective['Poem Explanation'][0];
+    expect(q.passage.split('\n')).toEqual(LINES);
+    expect(q.question).toBe(INSTRUCTION);
+    const text = squash(R.renderPaper({ examJson, grade: 5, subject: 'urdu', allowShort: true }).replace(/<[^>]+>/g, ' '));
+    for (const line of LINES) expect(text).toContain(squash(R.toUrduDigits(line)));
+  });
+
+  it('Q6: the same on one line, split at «؟»/«۔»', () => {
+    const { examJson } = q6With([INSTRUCTION, ...LINES.map((l) => (/[؟۔]$/.test(l) ? l : `${l}۔`))].join(' '));
+    const q = examJson.unseen.subjective['Poem Explanation'][0];
+    expect(q.passage.split('\n')).toHaveLength(4);
+    expect(q.passage).not.toContain('مفہوم');
+    expect(q.question).toBe(INSTRUCTION);
+  });
+
+  const ordered = (options, answer) => ({
+    unseen: { objective: { MCQs: Array.from({ length: 20 }, (_, i) => ({ slot: 'english.A.Q1a', question: `Order item ${i + 1}?`, options, answer })) } },
+  });
+  it.each([
+    ['roman numerals', ['a) I', 'b) II', 'c) III', 'd) IV'], 'b) II'],
+    ['ordinal numbers', ['a) 1st', 'b) 2nd', 'c) 3rd', 'd) 4th'], 'b) 2nd'],
+    ['ordinal words', ['a) first', 'b) second', 'c) third', 'd) fourth'], 'b) second'],
+    ['weekdays', ['a) Monday', 'b) Tuesday', 'c) Wednesday', 'd) Thursday'], 'b) Tuesday'],
+    ['months', ['a) March', 'b) April', 'c) May', 'd) June'], 'b) April'],
+    ['Urdu ordinals', ['الف) پہلا', 'ب) دوسرا', 'ج) تیسرا', 'د) چوتھا'], 'ب) دوسرا'],
+  ])('options in natural order (%s) are not turned', (_, options, answer) => {
+    const subject = /^الف/.test(options[0]) ? 'social_studies' : 'english';
+    const raw = ordered(options, answer);
+    if (subject === 'social_studies') raw.unseen.objective.MCQs.forEach((q) => { q.slot = 'social_studies.A.Q1'; });
+    for (const q of mcqsOf(applyLayout(raw, P[subject], FDE, { now: NOW }).examJson)) {
+      expect(q.options).toEqual(options);
+      expect(q.answer).toBe(answer);
+    }
+  });
+
+  it('the same words out of order are still turned', () => {
+    const raw = ordered(['a) Thursday', 'b) Monday', 'c) Wednesday', 'd) Tuesday'], 'b) Monday');
+    const laid = mcqsOf(applyLayout(raw, P.english, FDE, { now: NOW }).examJson);
+    expect(laid.some((q) => q.answer !== 'b) Monday')).toBe(true);
+  });
+});

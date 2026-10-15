@@ -652,6 +652,18 @@ function evaluate(tokens) {
   return v && at === tokens.length ? v : null;
 }
 
+// The unit words in a piece of a key, one spelling each ("Rs." = "rupees", "litre" = "litres").
+function unitsIn(text) {
+  const out = new Set();
+  for (const m of String(text).matchAll(KEY_UNITS)) {
+    let u = m[0].toLowerCase().replace(/\.$/, '');
+    if (/^rupees?$/.test(u)) u = 'rs';
+    if (u.length > 3 && u.endsWith('s')) u = u.slice(0, -1);
+    out.add(u);
+  }
+  return out;
+}
+
 function checkWorking(q, answer, exam, index) {
   if (answer.length > MAX_TEXT || !answer.includes('=')) return null;
   const parts = answer.split('=');
@@ -671,12 +683,19 @@ function checkWorking(q, answer, exam, index) {
   let value = null;
   const values = [];
   const used = [];
+  const units = unitsIn(last);
+  let stageUnits = false;
   for (let i = parts.length - 1; i >= 0; i -= 1) {
     let tokens = stageTokens(parts[i]);
+    let text = parts[i];
     // "Total: 120.75 + 60.50": a label before a colon starts the working; it ends the run.
     const labelled = !tokens && parts[i].includes(':');
-    if (labelled) tokens = stageTokens(parts[i].slice(parts[i].lastIndexOf(':') + 1));
+    if (labelled) {
+      text = parts[i].slice(parts[i].lastIndexOf(':') + 1);
+      tokens = stageTokens(text);
+    }
     if (!tokens) break;
+    for (const u of unitsIn(text)) { units.add(u); stageUnits = true; }
     const v = evaluate(tokens);
     if (!v) return null;
     values.push(v);
@@ -688,10 +707,24 @@ function checkWorking(q, answer, exam, index) {
   }
   // At least one stage must be a sum; every stage must agree with it.
   if (!value || value.num < 0n || !values.every((v) => same(v, value))) return null;
+  // A change of unit ("750 g = 0.75 kg", "100 cm = 1 m") is a conversion, not a slip:
+  // never checked. Nor is a result in a word ("girls") after working in units.
+  if (units.size > 1) return null;
+  if (stageUnits && !/^\s*[.!]?\s*$/.test(last.slice(stated[0].index + stated[0].raw.length).replace(KEY_UNITS, ' '))) return null;
   if (agrees(value, target)) return 'ok';
-  const form = { hint: hintFor([...used, target]) };
   const all = numbersIn(answer);
-  const computed = formatLike(value, target, form, all);
+  // A result rounded to the places it shows: right for a recurring value ("10 ÷ 3 = 3.3");
+  // for one that ends, the question may have asked to round, so it is left unchecked.
+  const decimalOrWhole = target.kind === 'integer' || target.kind === 'decimal';
+  if (decimalOrWhole) {
+    const p = target.places || 0;
+    const shown = (target.value.num * pow10(p)) / target.value.den;
+    if (roundScaled(value, p) === shown) return terminates(value) ? null : 'ok';
+  }
+  const form = { hint: hintFor([...used, target]) };
+  const computed = target.kind === 'decimal' && target.places > 0 && !terminates(value)
+    ? formatDecimal(value, target.places, groupingFor(target, all))
+    : formatLike(value, target, form, all);
   if (computed === target.raw) return 'ok';
   return replaceKey(q, exam, answer, target.index, target.raw, computed, index);
 }
