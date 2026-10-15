@@ -1,0 +1,260 @@
+{
+  "passage_id": "en.listen.3.story01",
+  "lang": "en",
+  "kind": "listen",
+  "band": 3,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "names": [
+    "Talha"
+  ],
+  "tokens": 59,
+  "sentences": 8,
+  "mean_sent_len": 7.4,
+  "max_word_len": 7,
+  "readability": 0.929,
+  "readability_list": "fed-cum-g5-2026",
+  "readability_band_above": null,
+  "source_ref": "generated brief v1 (band-3 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "A Rainy Day",
+  "title_ur": null,
+  "text": "Talha was ready for a cricket match with his friends. Then dark clouds filled the sky. Rain started to fall on the ground. The match could not take place. Talha was not happy. His mother gave the boys a box of games. All day, the friends were playing games inside. Talha said it was the best rainy day ever.",
+  "lines": [
+    [
+      0,
+      9
+    ],
+    [
+      10,
+      15
+    ],
+    [
+      16,
+      22
+    ],
+    [
+      23,
+      28
+    ],
+    [
+      29,
+      32
+    ],
+    [
+      33,
+      41
+    ],
+    [
+      42,
+      49
+    ],
+    [
+      50,
+      58
+    ]
+  ],
+  "tokens_list": [
+    "Talha",
+    "was",
+    "ready",
+    "for",
+    "a",
+    "cricket",
+    "match",
+    "with",
+    "his",
+    "friends",
+    "Then",
+    "dark",
+    "clouds",
+    "filled",
+    "the",
+    "sky",
+    "Rain",
+    "started",
+    "to",
+    "fall",
+    "on",
+    "the",
+    "ground",
+    "The",
+    "match",
+    "could",
+    "not",
+    "take",
+    "place",
+    "Talha",
+    "was",
+    "not",
+    "happy",
+    "His",
+    "mother",
+    "gave",
+    "the",
+    "boys",
+    "a",
+    "box",
+    "of",
+    "games",
+    "All",
+    "day",
+    "the",
+    "friends",
+    "were",
+    "playing",
+    "games",
+    "inside",
+    "Talha",
+    "said",
+    "it",
+    "was",
+    "the",
+    "best",
+    "rainy",
+    "day",
+    "ever"
+  ],
+  "text_hash": "afd0080631ccab5b04db4fd9f11b20b7",
+  "q_reach_1": 1,
+  "q_reach_2": 2,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What was Talha ready for?",
+      "right": "a cricket match",
+      "wrong": [
+        "a school trip",
+        "a party"
+      ],
+      "accept": [
+        "a cricket match",
+        "cricket",
+        "a match"
+      ],
+      "reject": [
+        "a school trip",
+        "a party"
+      ],
+      "rubric": "Right if the child says a cricket match (or cricket / a match)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What filled the sky?",
+      "right": "dark clouds",
+      "wrong": [
+        "birds",
+        "kites"
+      ],
+      "accept": [
+        "dark clouds",
+        "clouds"
+      ],
+      "reject": [
+        "birds",
+        "kites"
+      ],
+      "rubric": "Right if the child says dark clouds (or clouds)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 4,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "Why could the match not take place?",
+      "right": "it rained",
+      "wrong": [
+        "no one came",
+        "the bat was lost"
+      ],
+      "accept": [
+        "it rained",
+        "the rain",
+        "rain"
+      ],
+      "reject": [
+        "no one came",
+        "the bat was lost"
+      ],
+      "rubric": "Right if the child says it rained (or the rain / rain)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 6,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did his mother give the boys?",
+      "right": "a box of games",
+      "wrong": [
+        "a big cake",
+        "new bats"
+      ],
+      "accept": [
+        "a box of games",
+        "games"
+      ],
+      "reject": [
+        "a big cake",
+        "new bats"
+      ],
+      "rubric": "Right if the child says a box of games (or games)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 7,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where were the friends playing?",
+      "right": "inside",
+      "wrong": [
+        "in the park",
+        "in the street"
+      ],
+      "accept": [
+        "inside",
+        "in the house",
+        "indoors"
+      ],
+      "reject": [
+        "in the park",
+        "in the street"
+      ],
+      "rubric": "Right if the child says inside (or in the house / indoors)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 8,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "How did Talha feel at the end?",
+      "right": "happy",
+      "wrong": [
+        "angry",
+        "sleepy"
+      ],
+      "accept": [
+        "happy",
+        "very happy",
+        "glad"
+      ],
+      "reject": [
+        "angry",
+        "sleepy"
+      ],
+      "rubric": "Right if the child says happy (or very happy / glad)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}

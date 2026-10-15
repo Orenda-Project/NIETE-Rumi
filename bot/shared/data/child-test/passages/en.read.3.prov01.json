@@ -1,0 +1,264 @@
+{
+  "passage_id": "en.read.3.prov01",
+  "lang": "en",
+  "kind": "read",
+  "band": 3,
+  "pool": "check",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "names": [
+    "Saba"
+  ],
+  "tokens": 60,
+  "sentences": 9,
+  "mean_sent_len": 6.7,
+  "max_word_len": 7,
+  "readability": 1,
+  "readability_list": "fed-cum-g5-2026",
+  "readability_band_above": null,
+  "source_ref": "generated brief v1 (band-3 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "Where Are the Glasses?",
+  "title_ur": null,
+  "text": "Saba was home with her mother on a Sunday. Her mother wanted to read the news. But her glasses were lost. Saba looked in the kitchen, then in the garden. She also looked on every table. The glasses were not there. Then Saba started to smile. Her mother had the glasses on her own head! Her mother was smiling too.",
+  "lines": [
+    [
+      0,
+      8
+    ],
+    [
+      9,
+      15
+    ],
+    [
+      16,
+      20
+    ],
+    [
+      21,
+      29
+    ],
+    [
+      30,
+      35
+    ],
+    [
+      36,
+      40
+    ],
+    [
+      41,
+      45
+    ],
+    [
+      46,
+      54
+    ],
+    [
+      55,
+      59
+    ]
+  ],
+  "tokens_list": [
+    "Saba",
+    "was",
+    "home",
+    "with",
+    "her",
+    "mother",
+    "on",
+    "a",
+    "Sunday",
+    "Her",
+    "mother",
+    "wanted",
+    "to",
+    "read",
+    "the",
+    "news",
+    "But",
+    "her",
+    "glasses",
+    "were",
+    "lost",
+    "Saba",
+    "looked",
+    "in",
+    "the",
+    "kitchen",
+    "then",
+    "in",
+    "the",
+    "garden",
+    "She",
+    "also",
+    "looked",
+    "on",
+    "every",
+    "table",
+    "The",
+    "glasses",
+    "were",
+    "not",
+    "there",
+    "Then",
+    "Saba",
+    "started",
+    "to",
+    "smile",
+    "Her",
+    "mother",
+    "had",
+    "the",
+    "glasses",
+    "on",
+    "her",
+    "own",
+    "head",
+    "Her",
+    "mother",
+    "was",
+    "smiling",
+    "too"
+  ],
+  "text_hash": "ca6f0e2a0daa52f3f98e0837a052a05a",
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Who was Saba with?",
+      "right": "her mother",
+      "wrong": [
+        "her teacher",
+        "her friend"
+      ],
+      "accept": [
+        "her mother",
+        "mother",
+        "with her mother"
+      ],
+      "reject": [
+        "her teacher",
+        "her friend"
+      ],
+      "rubric": "Right if the child says her mother (or mother / with her mother)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What day was it?",
+      "right": "Sunday",
+      "wrong": [
+        "Monday",
+        "Friday"
+      ],
+      "accept": [
+        "Sunday",
+        "on a Sunday"
+      ],
+      "reject": [
+        "Monday",
+        "Friday"
+      ],
+      "rubric": "Right if the child says Sunday (or on a Sunday)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did her mother want to read?",
+      "right": "the news",
+      "wrong": [
+        "a story",
+        "a letter"
+      ],
+      "accept": [
+        "the news",
+        "news"
+      ],
+      "reject": [
+        "a story",
+        "a letter"
+      ],
+      "rubric": "Right if the child says the news (or news)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What was lost?",
+      "right": "her glasses",
+      "wrong": [
+        "her book",
+        "her pen"
+      ],
+      "accept": [
+        "her glasses",
+        "glasses",
+        "the glasses"
+      ],
+      "reject": [
+        "her book",
+        "her pen"
+      ],
+      "rubric": "Right if the child says her glasses (or glasses / the glasses)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 4,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where did Saba look first?",
+      "right": "in the kitchen",
+      "wrong": [
+        "in the car",
+        "in the bedroom"
+      ],
+      "accept": [
+        "in the kitchen",
+        "the kitchen",
+        "kitchen"
+      ],
+      "reject": [
+        "in the car",
+        "in the bedroom"
+      ],
+      "rubric": "Right if the child says in the kitchen (or the kitchen / kitchen)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 7,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "Why did Saba smile?",
+      "right": "she saw where the glasses were",
+      "wrong": [
+        "she heard a funny story",
+        "it was a sunny day"
+      ],
+      "accept": [
+        "she saw where the glasses were",
+        "the glasses were on her mother’s head"
+      ],
+      "reject": [
+        "she heard a funny story",
+        "it was a sunny day"
+      ],
+      "rubric": "Right if the child says she saw where the glasses were (or the glasses were on her mother’s head)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}

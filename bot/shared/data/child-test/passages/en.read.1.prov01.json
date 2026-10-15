@@ -1,0 +1,231 @@
+{
+  "passage_id": "en.read.1.prov01",
+  "lang": "en",
+  "kind": "read",
+  "band": 1,
+  "pool": "check",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "names": [
+    "Maha"
+  ],
+  "tokens": 40,
+  "sentences": 6,
+  "mean_sent_len": 6.7,
+  "max_word_len": 7,
+  "readability": 0.96,
+  "readability_list": "fed-cum-g2-2026",
+  "readability_band_above": 0.96,
+  "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "One More Piece",
+  "title_ur": null,
+  "text": "Maha had a party for her friends. Each friend got a piece of cake. Then a new friend got there late. There was no cake for this friend. Maha gave her piece to the friend. All the friends were happy.",
+  "lines": [
+    [
+      0,
+      6
+    ],
+    [
+      7,
+      13
+    ],
+    [
+      14,
+      20
+    ],
+    [
+      21,
+      27
+    ],
+    [
+      28,
+      34
+    ],
+    [
+      35,
+      39
+    ]
+  ],
+  "tokens_list": [
+    "Maha",
+    "had",
+    "a",
+    "party",
+    "for",
+    "her",
+    "friends",
+    "Each",
+    "friend",
+    "got",
+    "a",
+    "piece",
+    "of",
+    "cake",
+    "Then",
+    "a",
+    "new",
+    "friend",
+    "got",
+    "there",
+    "late",
+    "There",
+    "was",
+    "no",
+    "cake",
+    "for",
+    "this",
+    "friend",
+    "Maha",
+    "gave",
+    "her",
+    "piece",
+    "to",
+    "the",
+    "friend",
+    "All",
+    "the",
+    "friends",
+    "were",
+    "happy"
+  ],
+  "text_hash": "54439f1ccd1b159b2f2ba33976e67f9d",
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Maha have?",
+      "right": "a party",
+      "wrong": [
+        "a picnic",
+        "a show"
+      ],
+      "accept": [
+        "a party",
+        "party"
+      ],
+      "reject": [
+        "a picnic",
+        "a show"
+      ],
+      "rubric": "Right if the child says a party (or party)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Who was the party for?",
+      "right": "her friends",
+      "wrong": [
+        "her teachers",
+        "her cousins"
+      ],
+      "accept": [
+        "her friends",
+        "friends",
+        "Maha’s friends"
+      ],
+      "reject": [
+        "her teachers",
+        "her cousins"
+      ],
+      "rubric": "Right if the child says her friends (or friends / Maha’s friends)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did each friend get?",
+      "right": "a piece of cake",
+      "wrong": [
+        "a cup of milk",
+        "a new balloon"
+      ],
+      "accept": [
+        "a piece of cake",
+        "cake",
+        "some cake"
+      ],
+      "reject": [
+        "a cup of milk",
+        "a new balloon"
+      ],
+      "rubric": "Right if the child says a piece of cake (or cake / some cake)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "When did the new friend get there?",
+      "right": "late",
+      "wrong": [
+        "early",
+        "first"
+      ],
+      "accept": [
+        "late"
+      ],
+      "reject": [
+        "early",
+        "first"
+      ],
+      "rubric": "Right if the child says late."
+    },
+    {
+      "id": "q5",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Maha give to the new friend?",
+      "right": "her piece of cake",
+      "wrong": [
+        "her new book",
+        "her ball"
+      ],
+      "accept": [
+        "her piece of cake",
+        "her cake",
+        "cake"
+      ],
+      "reject": [
+        "her new book",
+        "her ball"
+      ],
+      "rubric": "Right if the child says her piece of cake (or her cake / cake)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 6,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "Why did Maha give her piece away?",
+      "right": "the new friend had no cake",
+      "wrong": [
+        "she did not like cake",
+        "the cake was too hot"
+      ],
+      "accept": [
+        "the new friend had no cake",
+        "there was no cake for the friend"
+      ],
+      "reject": [
+        "she did not like cake",
+        "the cake was too hot"
+      ],
+      "rubric": "Right if the child says the new friend had no cake (or there was no cake for the friend)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}

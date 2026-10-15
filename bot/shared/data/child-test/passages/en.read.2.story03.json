@@ -1,0 +1,258 @@
+{
+  "passage_id": "en.read.2.story03",
+  "lang": "en",
+  "kind": "read",
+  "band": 2,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "names": [
+    "Iqra"
+  ],
+  "tokens": 59,
+  "sentences": 8,
+  "mean_sent_len": 7.4,
+  "max_word_len": 6,
+  "readability": 0.943,
+  "readability_list": "fed-cum-g3-2026",
+  "readability_band_above": 0.914,
+  "source_ref": "generated brief v1 (band-2 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "Iqra Rides",
+  "title_ur": null,
+  "text": "Iqra got a bike from her mother. She wanted to ride it to the park. But each time, the bike went to one side. Iqra did not feel happy. Her mother walked beside the bike each day. After a week, Iqra could ride alone. She went all the way to the park. Her mother was very happy for her.",
+  "lines": [
+    [
+      0,
+      6
+    ],
+    [
+      7,
+      14
+    ],
+    [
+      15,
+      23
+    ],
+    [
+      24,
+      28
+    ],
+    [
+      29,
+      36
+    ],
+    [
+      37,
+      43
+    ],
+    [
+      44,
+      51
+    ],
+    [
+      52,
+      58
+    ]
+  ],
+  "tokens_list": [
+    "Iqra",
+    "got",
+    "a",
+    "bike",
+    "from",
+    "her",
+    "mother",
+    "She",
+    "wanted",
+    "to",
+    "ride",
+    "it",
+    "to",
+    "the",
+    "park",
+    "But",
+    "each",
+    "time",
+    "the",
+    "bike",
+    "went",
+    "to",
+    "one",
+    "side",
+    "Iqra",
+    "did",
+    "not",
+    "feel",
+    "happy",
+    "Her",
+    "mother",
+    "walked",
+    "beside",
+    "the",
+    "bike",
+    "each",
+    "day",
+    "After",
+    "a",
+    "week",
+    "Iqra",
+    "could",
+    "ride",
+    "alone",
+    "She",
+    "went",
+    "all",
+    "the",
+    "way",
+    "to",
+    "the",
+    "park",
+    "Her",
+    "mother",
+    "was",
+    "very",
+    "happy",
+    "for",
+    "her"
+  ],
+  "text_hash": "352b262acd1b5f1632f46688e3a89944",
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Iqra get?",
+      "right": "a bike",
+      "wrong": [
+        "a kite",
+        "a doll"
+      ],
+      "accept": [
+        "a bike",
+        "bike",
+        "a bicycle"
+      ],
+      "reject": [
+        "a kite",
+        "a doll"
+      ],
+      "rubric": "Right if the child says a bike (or bike / a bicycle)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Who gave Iqra the bike?",
+      "right": "her mother",
+      "wrong": [
+        "her teacher",
+        "her friend"
+      ],
+      "accept": [
+        "her mother",
+        "mother"
+      ],
+      "reject": [
+        "her teacher",
+        "her friend"
+      ],
+      "rubric": "Right if the child says her mother (or mother)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where did Iqra want to ride?",
+      "right": "to the park",
+      "wrong": [
+        "to the shop",
+        "to school"
+      ],
+      "accept": [
+        "to the park",
+        "the park",
+        "park"
+      ],
+      "reject": [
+        "to the shop",
+        "to school"
+      ],
+      "rubric": "Right if the child says to the park (or the park / park)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did the bike do each time?",
+      "right": "it went to one side",
+      "wrong": [
+        "it went very fast",
+        "it made a loud sound"
+      ],
+      "accept": [
+        "it went to one side",
+        "went to one side"
+      ],
+      "reject": [
+        "it went very fast",
+        "it made a loud sound"
+      ],
+      "rubric": "Right if the child says it went to one side (or went to one side)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Who walked beside the bike?",
+      "right": "her mother",
+      "wrong": [
+        "her sister",
+        "her friend"
+      ],
+      "accept": [
+        "her mother",
+        "mother"
+      ],
+      "reject": [
+        "her sister",
+        "her friend"
+      ],
+      "rubric": "Right if the child says her mother (or mother)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 6,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "When could Iqra ride alone?",
+      "right": "after a week",
+      "wrong": [
+        "after a year",
+        "after a day"
+      ],
+      "accept": [
+        "after a week",
+        "in a week"
+      ],
+      "reject": [
+        "after a year",
+        "after a day"
+      ],
+      "rubric": "Right if the child says after a week (or in a week)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}
