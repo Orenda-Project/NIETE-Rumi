@@ -33,6 +33,7 @@ jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.
 
 
 const { makeFake } = require('./fake-supabase');
+const { guardColumns } = require('./registry-columns');   // a select naming a column the table lacks is 42703
 const supabase = require('../../../shared/config/supabase');
 const { logError } = require('../../../shared/utils/logger');
 const T = require('../../../shared/services/quiz/web-quiz-token');
@@ -67,7 +68,7 @@ const reset = (settings) => {
     challenge_draws: [],
     child_phone_bindings: [{ id: 'b1', canonical_id: K3, phone_norm: '923001234567', via: 'save', bound_at: iso(Date.now() - 5 * DAY), last_played_at: null, expires_at: OLD_EXPIRY, revoked_at: null }],
   };
-  Object.assign(supabase, makeFake(db));
+  Object.assign(supabase, guardColumns(makeFake(db)));
   Ch.__reset();
   for (const m of [ID_FLAGS, '../../../shared/services/quiz/web-quiz-hub-flags']) if (has(m)) { const x = require(m); if (x._resetCache) x._resetCache(); }
   jest.clearAllMocks();

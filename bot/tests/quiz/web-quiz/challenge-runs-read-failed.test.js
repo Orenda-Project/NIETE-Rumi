@@ -31,6 +31,7 @@ jest.mock('../../../shared/services/cache/railway-redis.service', () => {
   return { _store: store, isAvailable: () => true, get: async (k) => (store.has(k) ? store.get(k) : null), setNX: async (k, v) => { if (store.has(k)) return false; store.set(k, v); return true; } };
 });
 const { makeFake } = require('./fake-supabase');
+const { guardColumns } = require('./registry-columns');   // a select naming a column the table lacks is 42703
 const supabase = require('../../../shared/config/supabase');
 const { logError } = require('../../../shared/utils/logger');
 const T = require('../../../shared/services/quiz/web-quiz-token');
@@ -56,7 +57,7 @@ const reset = (settings) => {
     challenge_passages: [],
     challenge_draws: [],
   };
-  const fake = makeFake(db);
+  const fake = guardColumns(makeFake(db));
   // the tier without the provenance columns: a runs select that names `via` answers 42703, like PostgREST
   const from = fake.from.bind(fake);
   fake.from = (t) => {

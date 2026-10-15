@@ -9,6 +9,7 @@ jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logErro
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
 
 const { makeFake } = require('./fake-supabase');
+const { guardColumns } = require('./registry-columns');   // a select naming a column the table lacks is 42703
 const supabase = require('../../../shared/config/supabase');
 const { logError } = require('../../../shared/utils/logger');
 const D = require('../../../shared/services/quiz/web-quiz-challenge-draw');
@@ -268,7 +269,7 @@ describe('trailStateFor: this period\'s record rows, one implementation for the 
       { id: 'row3', student_id: CID, canonical_id: CID, exercise: 'listen', status: 'scored', mode: 'practice', record: false, period_id: '2026-11', created_at: '2026-11-02T00:02:00Z' },
       { id: 'row4', student_id: CID, canonical_id: CID, exercise: 'bigger', status: 'scored', mode: 'check', record: true, period_id: '2026-10', created_at: '2026-10-02T00:02:00Z' },
     ] };
-    Object.assign(supabase, makeFake(db));
+    Object.assign(supabase, guardColumns(makeFake(db)));
     expect(await D.trailStateFor(CID, '2026-11')).toEqual([
       { stop: 'missing', served: true, record_row_final: true },
       { stop: 'read', served: true, record_row_final: false },
