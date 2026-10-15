@@ -73,33 +73,32 @@ beforeEach(() => {
 });
 
 describe('the parts follow the lesson\'s steps', () => {
-  test('Part 1 runs to the end of guided practice: "Part 1 done" when the children start working on their own', async () => {
+  test('Part 1 is up to and including guided practice: "Part 1 done" when independent practice starts', async () => {
     const out = await Form.handleObserve2FormInit(formToken(await newForm()));
-    expect(out.data.part_hint).toMatch(/guided practice/i);
-    expect(out.data.part_hint).toMatch(/working on their own/i);
+    expect(out.data.part_hint).toMatch(/up to and including guided practice/i);
+    expect(out.data.part_hint).toMatch(/start independent practice, tap "Part 1 done"/i);
     expect(out.data.part_hint).not.toMatch(/minute \d+/);
   });
 
-  test('Part 2 is the children working on their own and the wrap-up, to the end of the period', async () => {
+  test('Part 2 is independent practice and the wrap-up, to the end of the period', async () => {
     const id = await newForm();
     const out = await Form.handleObserve2FormDataExchange(formToken(id), 'PART_ONE', PART_1);
     expect(out.screen).toBe('PART_TWO');
-    expect(out.data.part_hint).toMatch(/working on their own/i);
-    expect(out.data.part_hint).toMatch(/wrap-up/i);
+    expect(out.data.part_hint).toMatch(/independent practice and the wrap-up/i);
     expect(out.data.part_hint).toMatch(/minute 35/);
     expect(row(id).part1_done_at).toBeTruthy();
   });
 
   test('a form reopened after Part 1 says what Part 2 is', async () => {
     const out = await Form.handleObserve2FormInit(formToken(await newForm({ part1_done_at: '2026-10-15T05:20:00.000Z' })));
-    expect(out.data.continue_line).toMatch(/working on their own/i);
+    expect(out.data.continue_line).toMatch(/independent practice and the wrap-up/i);
   });
 
   test('the chat steps say when to save Part 1', () => {
     const body = observe2Strings('en').form_body(25);
-    expect(body).toMatch(/Save Part 1 when the children start working on their own/);
+    expect(body).toMatch(/Part 1 is up to and including guided practice: save it when the children start independent practice/);
     expect(body).toMatch(/minute 25/);
-    expect(observe2Strings('ur').form_body(25)).toMatch(/25/);
+    expect(observe2Strings('ur').form_body(25)).toMatch(/۲۵/);
   });
 });
 

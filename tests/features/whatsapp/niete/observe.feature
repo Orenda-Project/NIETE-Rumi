@@ -706,7 +706,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the bot sends a message starting "Before the lesson starts:" with an "Open the form" CTA
     And it tells me to start my phone's voice recorder app, not WhatsApp
     And it says why: the recorder app keeps recording while I take photos, and a WhatsApp voice note stops when the camera opens
-    And it says to save Part 1 when the children start working on their own, and carry on with Part 2 until minute 40
+    And it says Part 1 is up to and including guided practice, to save it when the children start independent practice, and to carry on with Part 2 until minute 40
     And it says to take photos with the phone's camera as I go and add them in the form with "Upload saved photos"
     And its last step says to send the recording here as a Document (📎 → Document), not as audio
     # Pilot sheet R2 (12 Oct): shared to WhatsApp as audio, a recorder-app lesson is refused on the
@@ -726,15 +726,15 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the form opens on Part 2
     # WhatsApp restores a form reopened shortly after from the phone (no request reaches the bot; seen on
     # the sandbox E2E, 30 Sep). A form WhatsApp starts afresh opens on "Part 1 is saved" with "Carry on
-    # with Part 2: the children working on their own, then the wrap-up, to minute 40." and "Continue"
-    # opens Part 2.
+    # with Part 2: independent practice and the wrap-up, to minute 40." and "Continue" opens Part 2.
 
   @e2e @flow @config-gated @wip @draft @P1
-  Scenario: Part 1 runs to the end of guided practice, and Part 2 is the children working on their own
+  Scenario: Part 1 is up to and including guided practice, and Part 2 is independent practice and the wrap-up
     Given the live form is open on Part 1
-    Then it says "Warm-up, explanation and guided practice. When the children start working on their own, tap "Part 1 done""
+    Then it says "Up to and including guided practice. When the children start independent practice, tap "Part 1 done""
     When I fill Part 1 and tap "Part 1 done"
-    Then Part 2 is headed "Part 2: working on their own"
+    Then Part 2 is headed "Part 2: independent practice"
+    And it says "Independent practice and the wrap-up"
     And it asks "Did each child have a task?" with "Every child had a task", "Only some children" and "No work on their own"
     And it does not ask who the teacher asked, about group work, or who used materials
     # FICO pilot sheet R4 (a coach) and R10 (the ICT lead), 14 Oct: both parts asked about group practice; the

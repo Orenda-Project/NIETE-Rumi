@@ -61,7 +61,7 @@
         },
         "part_hint": {
           "type": "string",
-          "__example__": "Warm-up, explanation and guided practice. When the children start working on their own, tap \"Part 1 done\": your answers are saved then."
+          "__example__": "Up to and including guided practice. When the children start independent practice, tap \"Part 1 done\": your answers are saved then."
         },
         "error_messages": {
           "type": "object",
@@ -355,7 +355,7 @@
       "data": {
         "part_hint": {
           "type": "string",
-          "__example__": "The children working on their own, then the wrap-up, to minute 40. Answer only for this part."
+          "__example__": "Independent practice and the wrap-up, to minute 40. Answer only for this part."
         },
         "error_messages": {
           "type": "object",
@@ -380,7 +380,7 @@
             "children": [
               {
                 "type": "TextHeading",
-                "text": "Part 2: working on their own"
+                "text": "Part 2: independent practice"
               },
               {
                 "type": "TextCaption",

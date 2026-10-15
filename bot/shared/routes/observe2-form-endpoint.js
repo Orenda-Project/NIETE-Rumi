@@ -74,10 +74,11 @@ function clock(iso) {
 
 const periodOf = (form) => Number(form && form.period_minutes) || DEFAULT_PERIOD;
 
-// The parts follow the lesson plan's steps, not the clock (R4/R10): Part 1 ends when the children
-// start working on their own, and that tap is the part1_done_at stamp.
-const PART_1_HINT = 'Warm-up, explanation and guided practice. When the children start working on their own, tap "Part 1 done": your answers are saved then.';
-const part2Hint = (period) => `The children working on their own, then the wrap-up, to minute ${period}. Answer only for this part.`;
+// The parts follow the lesson plan's steps, not the clock (R4/R10), named as the after-the-lesson hints
+// below name them: Part 1 is up to and including guided practice, Part 2 independent practice and the
+// wrap-up. "Part 1 done" is tapped when independent practice starts.
+const PART_1_HINT = 'Up to and including guided practice. When the children start independent practice, tap "Part 1 done": your answers are saved then.';
+const part2Hint = (period) => `Independent practice and the wrap-up, to minute ${period}. Answer only for this part.`;
 
 // "After the lesson": the recording is already in (held at capture, or sent before Part 1 was saved),
 // so the lesson is over and the coach fills the form from what they saw and heard. The parts are
@@ -261,7 +262,7 @@ function renderSealed(form, lines) {
 function renderContinue(kind, form) {
   const period = periodOf(form);
   const text = {
-    part1: ['Part 1 is saved', afterLesson(form) ? AFTER_HINT.continue : `Carry on with Part 2: the children working on their own, then the wrap-up, to minute ${period}.`],
+    part1: ['Part 1 is saved', afterLesson(form) ? AFTER_HINT.continue : `Carry on with Part 2: independent practice and the wrap-up, to minute ${period}.`],
     plan: ['Parts 1 and 2 are saved', 'Next: the lesson plan, then seal the record.'],
     part2: ['Parts 1 and 2 and the plan are saved', 'Carry on to the last screen and seal the record.'],
     sealed: ['This record is sealed', `It was sealed at ${clock(form && form.sealed_at)} and can't change. Send the recording in the chat as a document if you haven't yet.`],
