@@ -678,7 +678,7 @@ describe('child_identity: the fixed grade written at the first counted play of t
     on(V2, PERIOD); canonOn(true);
     db.child_identity = [];
     await Ch.exercise(hub(K3), 'bigger', D);
-    expect(db.child_identity).toEqual([expect.objectContaining({ canonical_id: K3, year_code: Draw.yearCode(new Date()), fixed_grade: 3, grade_source: 'roster' })]);
+    expect(db.child_identity).toEqual([expect.objectContaining({ canonical_id: K3, year_code: Draw.yearCode(new Date()), fixed_grade: 3, grade_source: 'roster_class' })]);
     db.student_lists.find((l) => l.id === L3).class_name = '4';
     await Ch.exercise(hub(K3), 'missing', D);
     expect(db.child_identity).toHaveLength(1);
