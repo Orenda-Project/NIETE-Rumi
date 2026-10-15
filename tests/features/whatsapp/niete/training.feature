@@ -2362,6 +2362,24 @@ Feature: NIETE (ICT) Teacher Training
   # reply buttons. Absent or not covering the teacher, /quiz is exactly the Flow-or-list it was.
   # The report link is the portal's /r/<token> (the training login link owns /t/).
 
+  # ── the Challenge's content draw and monthly record (web_quiz_challenge_v2 / _period / _pool) ──
+  @quiz @config-gated @wip @draft @P2 @T810
+  Scenario: With web_quiz_challenge_v2 and web_quiz_challenge_period on, a child's first play of a stop this month is the record
+    Given web_quiz_challenge and web_quiz_challenge_v2 and web_quiz_challenge_period are on
+    When a child opens a stop of the Challenge for the first time this month
+    Then the run is written when it is served, saying it is this month's record
+    And a second play of the same stop this month is practice and never the record
+    But with web_quiz_challenge_v2 off the Challenge serves, records and logs exactly as before
+    # web-quiz-challenge.js serveV2; web-quiz-challenge-draw.js recordAtServe. Unit: challenge-serve-v2.test.js. @wip.
+
+  @quiz @config-gated @wip @draft @P2 @T811
+  Scenario: With web_quiz_challenge_pool on, a child reads a story they have never met, or is told a new one is on its way
+    Given web_quiz_challenge_v2 and web_quiz_challenge_pool are on
+    When a child opens the read stop
+    Then the story is drawn at the child's level from the stories they have never read or heard
+    And when every story at that level and the one below has been met, the child sees "A new story is on its way." and nothing is recorded
+    # web-quiz-challenge-draw.js drawPassage; each draw logged in challenge_draws. Unit: challenge-draw.test.js. @wip.
+
   @quiz @config-gated @wip @draft @P1 @T330
   Scenario: With the teacher report on for me, /quiz opens a home with three choices
     Given app_settings "teacher_report_teachers" is "all" or lists me
