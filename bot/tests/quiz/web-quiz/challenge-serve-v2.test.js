@@ -302,6 +302,7 @@ describe('7 · record decided at serve: one per child × stop × period', () => 
     on(V2, PERIOD);
     const a = await Ch.exercise(hub(), 'read', D);
     expect(rowOf(a.ct)).toMatchObject({ status: 'served', record: true, mode: 'check', period_id: '2026-11', passage_id: 'en.read.2.setA', band: 2, set: 'A', bank_version: 'child-test-items-v3', exposure_no: 1 });
+    rowOf(a.ct).status = 'scored';   // played: a served-and-left row would leave the record open
     const b = await Ch.exercise(hub(), 'read', D);
     expect(rowOf(b.ct)).toMatchObject({ status: 'served', record: false, mode: 'practice', exposure_no: 2 });
     expect(b).toMatchObject({ practice_round: true, mode: 'practice' });
@@ -422,7 +423,8 @@ describe('11 · the A1 warm-up', () => {
     expect(g3.practice).toEqual(g5.practice);
     expect(g3).toMatchObject({ stop_after: 0, mode: 'check', anchor_block: 'A1' });
     expect(rowOf(g3.ct)).toMatchObject({ anchor_block: 'A1', anchor_exposure_no: 1, mode: 'check', record: true, band: null });
-    const again = await Ch.exercise(hub(K3), 'missing', D);       // same period: practice
+    rowOf(g3.ct).status = 'scored';
+    const again = await Ch.exercise(hub(K3), 'missing', D);       // same period, the record played: practice
     expect(rowOf(again.ct)).toMatchObject({ mode: 'practice', record: false, anchor_exposure_no: 2 });
     db.web_quiz_challenge_runs.forEach((r) => { r.period_id = '2026-10'; });
     const next = await Ch.exercise(hub(K3), 'missing', D);
@@ -697,6 +699,7 @@ describe('ITEMS §5.6 (item 14): the record per (stop, language) for read and li
     on(V2, PERIOD);
     const en = await Ch.exercise(hub(), 'read', D);
     const ur = await Ch.exercise(hub(), 'read', { ...D, lang: 'ur' });
+    rowOf(en.ct).status = 'scored';
     const en2 = await Ch.exercise(hub(), 'read', D);
     expect(rowOf(en.ct)).toMatchObject({ lang: 'en', record: true });
     expect(rowOf(ur.ct)).toMatchObject({ lang: 'ur', record: true });
@@ -705,7 +708,8 @@ describe('ITEMS §5.6 (item 14): the record per (stop, language) for read and li
 
   test('bigger stays one record per stop whatever the language', async () => {
     on(V2, PERIOD);
-    await Ch.exercise(hub(), 'bigger', D);
+    const a = await Ch.exercise(hub(), 'bigger', D);
+    rowOf(a.ct).status = 'scored';
     const b = await Ch.exercise(hub(), 'bigger', { ...D, lang: 'ur' });
     expect(rowOf(b.ct)).toMatchObject({ record: false, mode: 'practice' });
   });

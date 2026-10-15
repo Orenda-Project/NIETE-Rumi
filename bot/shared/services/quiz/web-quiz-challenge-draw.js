@@ -121,10 +121,12 @@ const anchorServesAny = (rows, block) => {
 };
 
 /**
- * A record row of this stop in this period exists (any status: the record was decided when it was served). The record
+ * A record row of this stop in this period exists that was played (scoring, scored or failed; a row served and left,
+ * status served or abandoned, leaves the month's record open). The record
  * key is (stop, language) for read and listen, the stop alone for the maths stops (ITEMS §5.6, item 14).
  */
 const countedThisPeriod = (rows, stop, periodId, lang = null) => (rows || []).some((r) => r.exercise === stop && r.period_id === periodId && r.record === true
+  && r.status !== 'served' && r.status !== 'abandoned'   // seenIdsOf still keeps its passage: the re-serve draws another
   && (!lang || (stop !== 'read' && stop !== 'listen') || r.lang === lang));
 
 /**
