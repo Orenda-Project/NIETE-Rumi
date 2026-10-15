@@ -14,7 +14,8 @@ import TeacherPage from '../TeacherPage';
 import { HistoryRow } from '../ui';
 import { CARD, FOCUS, GRID } from '../ui/styles';
 import { ASSESSMENT } from './copy';
-import { useCopy } from '../i18n';
+import { useCopy, useLang } from '../i18n';
+import { isolateRuns } from '../ui/bidi';
 import { catalogueOnce, subjectName, useAssessmentSwitches } from './api';
 import { failureLabel } from './failure';
 import { fromSpec, type AnySpec } from './model';
@@ -91,6 +92,12 @@ export function RequestPage() {
   const [paperRow] = useLoad(askRow ? () => findPaper(readyId as string) : null, `paper:${askRow ? readyId : ''}`);
   const row = dataOf(paperRow) ?? null;
   const fde = !!(spec?.pattern || row?.pattern);
+  // DESIGN §2.8: a board-pattern paper's Ready also names what the teacher adds by hand and the paper page it goes on
+  // (the paper view carries it; a plain paper's Ready reads nothing new).
+  const lang = useLang();
+  const viewId = fde && readyId ? readyId : null;
+  const [viewRead] = useLoad(viewId ? () => portal.getAssessmentPaperView(viewId) : null, `paperview:${viewId ?? ''}`);
+  const youAdd = dataOf(viewRead)?.paper?.youAdd ?? null;
   const canSend = useShareAvailable('paper');
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -240,6 +247,12 @@ export function RequestPage() {
         <ListCard label={C.readyTitle}>
           {fileRow('fde-ready-paper', 'paper', <FileText className="h-5 w-5" aria-hidden="true" />, C.questionPaper, pages?.paper, C.forClass, true)}
           {fileRow('fde-ready-scheme', 'answer_key', <ClipboardCheck className="h-5 w-5" aria-hidden="true" />, C.markingScheme, pages?.scheme, C.forTeacher)}
+          {youAdd && (
+            // The Check screen's amber line, now with the page: "You add · the map of Pakistan · p. 2".
+            <div data-testid="fde-ready-youadd" className="flex min-h-[52px] items-center border-t border-[#f0f1f3] bg-[#fffbeb] px-3.5 py-2 text-[15px] font-semibold leading-snug text-[#b45309]">
+              {C.join(C.youAdd, lang === 'ur' ? isolateRuns(youAdd.ur || youAdd.en) : youAdd.en, youAdd.page != null ? C.onPage(youAdd.page) : null)}
+            </div>
+          )}
         </ListCard>
         {inWhatsApp && <p data-testid="fde-if-no-download" className="px-2 text-center text-[14px] text-[#4b5563]">{C.ifNoDownload}</p>}
         <div className={cn(GRID, 'grid-cols-2 gap-2.5')}>

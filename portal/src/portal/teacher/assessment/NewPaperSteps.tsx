@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { AlignLeft, BookOpen, LayoutList, ListChecks, Plus, Shuffle, Sparkles, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -8,7 +8,7 @@ import { ClassPicker, NumberField, type ClassPick, type GradeSubjectPair } from 
 import { CARD, FOCUS } from '../ui/styles';
 import { ASSESSMENT, type AssessmentV2Copy } from './copy';
 import { useCopy } from '../i18n';
-import { catalogueOnce, loadChapters, loadTypes, patternFor, subjectName } from './api';
+import { catalogueOnce, loadChapters, loadTypes, patternFor, patternOffer, subjectName } from './api';
 import {
   FDE_STEPS, MAX_TOTAL_MARKS, STEPS, checkPages, isFde, toSpec, typesStatus, unseenTarget, type Picks, type Source,
 } from './model';
@@ -18,8 +18,9 @@ import { ASSESSMENT_V2_BASE, newPaperPath, requestPath } from './paths';
 import { usePicks } from './store';
 import { useJobs } from './useJobs';
 import {
-  CheckRow, Chip, Choice, Label, ListCard, LoadState, StepFrame, Stepper, SwitchRow, Tabs,
+  CheckRow, Chip, Choice, Label, ListCard, LoadState, PRIMARY, StepFrame, Stepper, SwitchRow, Tabs,
 } from './ui';
+import type { AssessmentPattern } from '../../services/api';
 
 /**
  * bd-fmf24g.6 — the teacher v2 New paper, six steps (v28 canvas AssessmentNew … AssessConfirm), each its
@@ -86,13 +87,30 @@ export function ClassStep() {
     return () => { live = false; };
   }, [door, catalogue, doorGrades]);
 
+  // The door's read for the tapped class: in flight (said, and a second tap waits) or failed (said, with Try again). A
+  // failed read is never taken as "no pattern here": that would drop the teacher on today's Chapters step unasked.
+  const [doorRead, setDoorRead] = useState<null | 'busy' | { retry: () => void }>(null);
+  const doorBusy = useRef(false);
+
   const onPick = async (v: GradeSubjectPair, pick: ClassPick) => {
     const own = pick.combo && typeof pick.combo.featureKey === 'string' ? pick.combo.featureKey : null;
     const key = own ?? catalogue?.byGrade[v.grade]?.find((s) => s.name === v.subject)?.key ?? null;
     if (!key) return;
     const name = subjectName(catalogue, v.grade, key) || v.subject;
     if (door) {
-      const pattern = await patternFor(v.grade, key);
+      if (doorBusy.current) return;
+      doorBusy.current = true;
+      setDoorRead('busy');
+      let pattern: AssessmentPattern | null;
+      try {
+        pattern = await patternOffer(v.grade, key);
+      } catch {
+        doorBusy.current = false;
+        setDoorRead({ retry: () => { onPick(v, pick); } });
+        return;
+      }
+      doorBusy.current = false;
+      setDoorRead(null);
       set((cur) => ({ ...changeClass(cur, v.grade, key, name), ...doorPick(pattern ? pattern.id : null) }));
       navigate(newPaperPath(pattern ? 'check' : 'cover'));
       return;
@@ -116,6 +134,15 @@ export function ClassStep() {
         <p data-testid="fde-held-note" className="flex min-h-[44px] items-center gap-2 rounded-2xl border border-[#e5e7eb] bg-white px-3.5 text-[14px] font-semibold text-[#6b7280]">
           {C.islamiatHeld}
         </p>
+      )}
+      {door && doorRead === 'busy' && (
+        <p data-testid="fde-door-busy" role="status" className="flex min-h-[44px] items-center px-3.5 text-[15px] font-semibold text-[#4b5563]">{C.why.wait}</p>
+      )}
+      {door && doorRead && doorRead !== 'busy' && (
+        <div role="alert" className="flex flex-col gap-3 rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">
+          <p>{C.loadFailed}</p>
+          <button type="button" onClick={doorRead.retry} className={cn(PRIMARY, 'flex-none', FOCUS)}>{C.tryAgain}</button>
+        </div>
       )}
       {combos.status !== 'ok'
         ? <LoadState status={combos.status} onRetry={retryCombos} />
@@ -151,9 +178,24 @@ export function CoverStep() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   // The side door: the board pattern for this class, when /assessment/options offers it (flag on, Grade 5, eligible).
-  const [offer] = useLoad(needsClass ? null : () => patternFor(p.grade, p.subject), `pattern:${p.grade}:${p.subject}`);
+  const [offer, retryOffer] = useLoad(needsClass ? null : () => patternOffer(p.grade, p.subject), `pattern:${p.grade}:${p.subject}`);
   const pattern = dataOf(offer) ?? null;
+  // Board-pattern picks (the side door, a reload, Back from Check) hold until the offer is read: while it loads or after a
+  // failed read the step waits and says so; if no pattern is offered any more (its flag went off), the picks go back to
+  // today's, so the plain Chapters step shows its tabs and its reason.
+  const fdeHeld = isFde(p) || p.coverBy === 'fde';
+  const gone = fdeHeld && offer.status === 'ok' && !pattern;
+  useEffect(() => {
+    if (gone) set({ coverBy: 'chapters', style: null, pattern: null, patternIntent: null });
+  }, [gone, set]);
   if (needsClass) return <Navigate to={newPaperPath('class')} replace />;
+  if (fdeHeld && !pattern) {
+    return (
+      <StepFrame step="cover" backTo={backTo('class')} next={{ label: C.next, why: C.why.wait, to: newPaperPath('check') }}>
+        <LoadState status={offer.status === 'error' ? 'error' : 'loading'} onRetry={retryOffer} />
+      </StepFrame>
+    );
+  }
 
   const toggle = (n: number) => set((cur) => ({
     chapters: cur.chapters.includes(n) ? cur.chapters.filter((x) => x !== n) : [...cur.chapters, n],
