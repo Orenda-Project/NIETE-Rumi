@@ -28,6 +28,7 @@ const supabase = require('../../../config/supabase');
 const WhatsAppService = require('../../whatsapp.service');
 const Store = require('./field-form.store');
 const { heardLevels } = require('./rules');
+const { checkQuotes } = require('./quote-check');
 const { observe2Strings } = require('./strings');
 const { logToFile } = require('../../../utils/logger');
 
@@ -396,9 +397,16 @@ async function runForSession(sessionId, from, deps = {}) {
       readMoments(buildPrompt(transcript, form), form, deps.llm || defaultLlm),
       sealed ? gradeFidelity(form, transcript, row && row.audio_duration_seconds, deps.fidelityDeps, deps.planDeps, deps.photoDeps) : null,
     ]);
-    const { moments, counts } = normalise(raw);
+    // Every quote is checked against the transcript before the coach sees it (quote-check.js); what was
+    // dropped, repaired or re-timed is counted, stored and logged on its own line.
+    const checked = checkQuotes(raw && raw.moments, transcript);
+    const { stats } = checked;
+    logToFile('[observe2] moments checked against the transcript', {
+      sessionId, formId: form.id, ...stats,
+    }, stats.returned && stats.kept * 2 < stats.returned ? 'warn' : 'info');
+    const { moments, counts } = normalise({ ...(raw || {}), moments: checked.moments });
     const stored = await Store.setMoments(form.id, {
-      moments, counts, prompt_version: PROMPT_VERSION, fidelity, ...(sealed ? {} : { fidelity_at_seal: true }),
+      moments, counts, prompt_version: PROMPT_VERSION, verified: stats, fidelity, ...(sealed ? {} : { fidelity_at_seal: true }),
     }, heardLevels(moments, counts));
     if (!stored.ok) throw new Error(stored.error || 'moments not stored');
     const again = await Store.getForm(form.id);
