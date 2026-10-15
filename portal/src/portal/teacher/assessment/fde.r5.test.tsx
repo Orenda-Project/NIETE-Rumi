@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import i18n from 'i18next';
 import summaries from './fixtures/fde-summaries.json';
 
 /**
@@ -41,6 +42,10 @@ import { CheckStep, ClassStep, CoverStep, QuestionsStep } from './NewPaperSteps'
 import { RequestPage } from './RequestPage';
 import { ASSESSMENT_V2_BASE as B, newPaperPath, requestPath } from './paths';
 import { failureLabel } from './failure';
+import { isolateRuns } from '../ui/bidi';
+
+const plain = (t: string | null | undefined) => (t || '').replace(/[\u2066-\u2069]/g, '');
+const storedPicks = () => JSON.parse(sessionStorage.getItem('teacher-v2-assessment-new:v1') || '{}');
 
 type Summary = (typeof summaries)['maths'];
 const S = summaries as unknown as Record<string, Summary | null>;
@@ -131,9 +136,11 @@ beforeEach(() => {
 describe('Cover with board-pattern picks', () => {
   it('no pattern offered any more: today\'s Chapters step, the picks back to plain, Next off with today\'s reason', async () => {
     flag.on = false;
-    setPicks(fdePicks());
+    // A customised board-pattern pick (units as chapters and their pages) leaves nothing behind on today's tabs.
+    setPicks(fdePicks({ coverBy: 'pages', chapters: [1, 2], ranges: [[1, 24]] }));
     app(newPaperPath('cover'));
-    await waitFor(() => expect(where()).toMatchObject({ style: null, pattern: null, coverBy: 'chapters', patternIntent: null }));
+    await waitFor(() => expect(where()).toMatchObject({ style: null, pattern: null, coverBy: 'chapters', patternIntent: null, chapters: [] }));
+    expect(storedPicks().ranges).toEqual([]);
     expect(screen.getByRole('tab', { name: C.chapters }).getAttribute('aria-selected')).toBe('true');
     expect(await screen.findAllByRole('checkbox')).toHaveLength(12);
     expect((await screen.findByTestId('button-reason')).textContent).toBe(C.why.chapters);
@@ -157,7 +164,8 @@ describe('Cover with board-pattern picks', () => {
     setPicks(fdePicks({ patternIntent: null }));
     app(newPaperPath('cover'));
     await read.refuse();
-    expect(await screen.findByText(C.loadFailed)).toBeTruthy();
+    expect(await screen.findAllByText(C.loadFailed)).toHaveLength(2);
+    expect(screen.getByTestId('button-reason').textContent).toBe(C.loadFailed);
     expect(where()).toMatchObject({ style: 'fde', pattern: 'fde_g5_2027', coverBy: 'fde' });
     expect(screen.queryByRole('link', { name: new RegExp(C.next) })).toBeNull();
     portal.getAssessmentOptions.mockImplementation(defaultOptions);
@@ -198,13 +206,47 @@ describe('the door\'s tap', () => {
   });
 });
 
+describe('the door\'s tap, twice or abandoned', () => {
+  const open = async () => {
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.selectGradeSubject) }));
+    fireEvent.click(await screen.findByRole('radio', { name: /^Grade 5/ }));
+  };
+
+  it('a second tap while the first read is out does nothing; the first subject goes on', async () => {
+    const read = holdOptionsFor(5, 'maths');
+    setPicks(fdePicks({ subject: null, subjectName: null }));
+    app(newPaperPath('class'));
+    await open();
+    fireEvent.click(screen.getByRole('button', { name: /^Grade 5 · Maths/ }));
+    await screen.findByTestId('fde-door-busy');
+    await open();
+    fireEvent.click(screen.getByRole('button', { name: /^Grade 5 · Science/ }));
+    await act(async () => { await Promise.resolve(); });
+    expect(where()).toMatchObject({ path: newPaperPath('class'), subject: null });
+    await read.release();
+    await waitFor(() => expect(where()).toMatchObject({ path: newPaperPath('check'), subject: 'maths' }));
+  });
+
+  it('a teacher who leaves Class while the read is out is not pulled forward when it answers', async () => {
+    const read = holdOptionsFor(5, 'maths');
+    setPicks(fdePicks({ subject: null, subjectName: null }));
+    const page = app(newPaperPath('class'));
+    await open();
+    fireEvent.click(screen.getByRole('button', { name: /^Grade 5 · Maths/ }));
+    await screen.findByTestId('fde-door-busy');
+    page.unmount();
+    await read.release();
+    expect(storedPicks()).toMatchObject({ subject: null });
+  });
+});
+
 describe('Check on the FDE path', () => {
   it('a failed options read is a load failure with Try again, not "the pattern is off"', async () => {
     const read = holdOptionsFor(5, 'maths');
     setPicks(fdePicks());
     app(newPaperPath('check'));
     await read.refuse();
-    expect(await screen.findByText(C.loadFailed)).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId('button-reason').textContent).toBe(C.loadFailed));
     expect(screen.queryByText(C.fdeFailures.PATTERN_OFF)).toBeNull();
     portal.getAssessmentOptions.mockImplementation(defaultOptions);
     fireEvent.click(screen.getByRole('button', { name: C.tryAgain }));
@@ -260,6 +302,30 @@ describe('Ready on a board-pattern paper', () => {
     expect(await screen.findByTestId('fde-ready-scheme')).toBeTruthy();
     await waitFor(() => expect(portal.getAssessmentPaperView).toHaveBeenCalledTimes(2));
     expect(screen.queryByTestId('fde-ready-youadd')).toBeNull();
+  });
+
+  it('in Urdu: the row is Urdu; an empty Urdu line falls back to the English one', async () => {
+    if (!i18n.isInitialized) await i18n.init({ lng: 'en', resources: {} });
+    await act(async () => { await i18n.changeLanguage('ur'); });
+    try {
+      writingJob({ grade: 5, subject: 'social_studies', pattern: 'fde_g5_2027', scope: 'fde', questionCount: 0 });
+      ready();
+      portal.getAssessmentPaperView.mockResolvedValue({ success: true, sections: [], paper: {
+        paperId: 'p-f', pattern: 'fde_g5_2027', youAdd: { en: 'the map of Pakistan', ur: 'پاکستان کا نقشہ', page: 2 },
+      } });
+      const first = app(requestPath('req-f'));
+      expect(plain((await screen.findByTestId('fde-ready-youadd')).textContent)).toBe(plain(UR.join(UR.youAdd, 'پاکستان کا نقشہ', UR.onPage(2))));
+      first.unmount();
+      forgetPapers();
+      portal.getAssessmentPaperView.mockResolvedValue({ success: true, sections: [], paper: {
+        paperId: 'p-f', pattern: 'fde_g5_2027', youAdd: { en: 'the map of Pakistan', ur: '', page: 2 },
+      } });
+      app(requestPath('req-f'));
+      const row = await screen.findByTestId('fde-ready-youadd');
+      expect(row.textContent).toBe(UR.join(UR.youAdd, isolateRuns('the map of Pakistan'), UR.onPage(2)));
+    } finally {
+      await act(async () => { await i18n.changeLanguage('en'); });
+    }
   });
 
   it('golden: a plain paper\'s Ready reads no paper view', async () => {

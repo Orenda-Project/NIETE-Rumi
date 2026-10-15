@@ -544,7 +544,7 @@ export const ASSESSMENT_V2_COPY_UR: Words<typeof ASSESSMENT_V2_COPY> = {
   withScheme: 'مارکنگ اسکیم کے ساتھ',
   questionPaper: 'سوالیہ پرچہ',
   markingScheme: 'مارکنگ اسکیم',
-  pagesCount: (n: number) => (n === 1 ? '1 صفحہ' : `${n} صفحات`),
+  pagesCount: (n: number) => (n === 1 ? '1 صفحہ' : `${n} صفحات`), // singular: needs fluent-Urdu review
   forClass: 'کلاس کے لیے',
   forTeacher: 'ٹیچر کے لیے',
   ifNoDownload: 'اگر ڈاؤن لوڈ کچھ نہ کرے تو دوسری ایپ میں کھولیں',

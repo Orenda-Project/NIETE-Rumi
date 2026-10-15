@@ -33,6 +33,9 @@ export function VersionsPage() {
   // A board-pattern paper (its row in My papers says so): the FDE chip, and each ready version's marking scheme.
   const [row] = useLoad(() => findPaper(paperId), `versions-paper:${paperId}`);
   const fde = !!(dataOf(row) as { pattern?: string | null } | null | undefined)?.pattern;
+  // Edit waits for the paper's row: until it says whether this is a board-pattern paper, Edit could open an editor the
+  // server refuses (FDE_EDITING).
+  const rowSettled = row.status === 'ok' || row.status === 'error';
   // A handle for the QA harness (display:contents, no box) — on a board-pattern paper only, so a plain paper's page
   // is the branch point's, byte for byte.
   const wrapFde = (list: JSX.Element) => (fde ? <div data-testid="versions-list" className="contents">{list}</div> : list);
@@ -75,7 +78,7 @@ export function VersionsPage() {
                     {ready
                       ? <button type="button" onClick={() => openVersion(v.paperId)} className={cn('flex min-h-[72px] min-w-0 flex-1 items-center gap-3 ps-3 text-start', FOCUS)}>{head}</button>
                       : <div className="flex min-h-[72px] min-w-0 flex-1 items-center gap-3 ps-3">{head}</div>}
-                    {ready && (!fde || FDE_EDITING) && (
+                    {ready && rowSettled && (!fde || FDE_EDITING) && (
                       <Link to={editPath(v.paperId)} className={cn('flex min-h-[56px] min-w-[64px] items-center justify-center rounded-[14px] bg-[#f3f4f6] px-2.5 text-[15px] font-semibold text-[#33374a]', FOCUS)}>
                         {C.edit}
                       </Link>

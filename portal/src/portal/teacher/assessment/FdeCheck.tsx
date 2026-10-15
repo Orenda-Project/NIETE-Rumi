@@ -257,7 +257,7 @@ export function FdeCheck() {
       crumb={C.fdeDoor}
       backTo={newPaperPath(p.patternIntent ? 'class' : 'cover')}
       hint={pattern ? C.readyHint : undefined}
-      next={{ label: making ? C.making : C.makePaper, why: pattern ? why : C.why.wait, onPress: make, busy: making }}
+      next={{ label: making ? C.making : C.makePaper, why: pattern ? why : pat.status === 'error' ? C.loadFailed : C.why.wait, onPress: make, busy: making }}
     >
       {body}
     </StepFrame>
