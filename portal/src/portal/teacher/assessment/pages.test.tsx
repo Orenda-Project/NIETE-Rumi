@@ -219,6 +219,8 @@ describe('Assessment hub', () => {
     expect((await screen.findAllByText(C.beingMade)).length).toBe(2);
     expect(C.writing).toBe(C.beingMade);
     expect(screen.getByText('Green Guardians of Earth')).toBeTruthy();
+    // Golden: a plain job keeps its question count (only a board-pattern job, sent with 0, shows none).
+    expect(document.body.textContent).toContain(C.questionsCount(15));
   });
 
   it('Coming soon when the generator is off on this deployment', async () => {

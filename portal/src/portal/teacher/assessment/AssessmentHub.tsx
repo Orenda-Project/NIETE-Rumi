@@ -151,7 +151,8 @@ export function AssessmentHub() {
                 subject={subjectName(catalogue, j.spec.grade, j.spec.subject)}
                 grade={j.spec.grade}
                 title={j.label}
-                extra={C.questionsCount(j.spec.questionCount)}
+                // A board-pattern job carries questionCount 0 (the pattern fixes it): its label says FDE pattern, no count.
+                extra={(j.spec as { pattern?: string | null }).pattern ? undefined : C.questionsCount(j.spec.questionCount)}
                 chip={j.status === 'writing'
                   ? { text: j.slow ? C.slow : C.writing, tone: 'waiting' }
                   : { text: failureLabel(j.errorCode, C), tone: 'error' }}

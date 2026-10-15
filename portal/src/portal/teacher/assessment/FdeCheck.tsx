@@ -9,7 +9,8 @@ import { isolateRuns } from '../ui/bidi';
 import { FOCUS } from '../ui/styles';
 import { useCopy, useLang } from '../i18n';
 import { ASSESSMENT, type AssessmentV2Copy } from './copy';
-import { loadChapters, patternFor } from './api';
+import { loadChapters, patternOffer } from './api';
+import { makeErrorText } from './failure';
 import { FDE_STEPS, fdeUnitRanges, toSpec, type Picks } from './model';
 import { newPaperPath, requestPath } from './paths';
 import { stepReason } from './reasons';
@@ -33,23 +34,6 @@ const pick = (t: BiText | null | undefined, lang: 'en' | 'ur') => {
   const text = t ? t[lang] || t.en : '';
   return lang === 'ur' ? isolateRuns(text) : text;
 };
-
-/** "11:40 AM" in Pakistan time, for "try again at …". */
-function clock(iso: string | null): string | null {
-  const t = iso ? Date.parse(iso) : NaN;
-  if (!Number.isFinite(t)) return null;
-  return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Karachi' }).format(t);
-}
-
-/** The server's refusal of a board-pattern request, in the teacher's words (copy deck §A); null = show today's message. */
-function fdeFailureText(code: string | null | undefined, retryAt: string | null, C: AssessmentV2Copy): string | null {
-  switch (code) {
-    case 'PATTERN_OFF': return C.fdeFailures.PATTERN_OFF;
-    case 'ALREADY_GENERATING': return C.fdeFailures.ALREADY_GENERATING;
-    case 'RATE_LIMITED': return C.fdeFailures.RATE_LIMITED(clock(retryAt));
-    default: return null;
-  }
-}
 
 /** A Check row: label, value (and a sub-line), and its action at the end. The whole row is the button. */
 function Row({ testId, label, value, sub, action, onPress, to, first }: {
@@ -94,7 +78,8 @@ export function FdeCheck() {
   const navigate = useNavigate();
   const { jobs, start } = useJobs();
   const needsClass = p.grade === null || !p.subject;
-  const [pat, retryPat] = useLoad(needsClass ? null : () => patternFor(p.grade, p.subject), `pattern:${p.grade}:${p.subject}`);
+  // A failed read is a load failure with Try again (LoadState), never "the pattern is off" (that is `gone`, below).
+  const [pat, retryPat] = useLoad(needsClass ? null : () => patternOffer(p.grade, p.subject), `pattern:${p.grade}:${p.subject}`);
   const [chapters] = useLoad(needsClass ? null : () => loadChapters(p.grade as number, p.subject as string), `chapters:${p.grade}:${p.subject}`);
   const [tray, setTray] = useState<null | 'style' | 'syllabus' | 'inside'>(null);
   const [styleChoice, setStyleChoice] = useState<'fde' | 'own'>('fde');
@@ -123,7 +108,7 @@ export function FdeCheck() {
     setMaking(false);
     if ('job' in res) { navigate(requestPath(res.job.requestId), { replace: true }); return; }
     const f = portal.takeGenerateFailure?.() ?? null;
-    setError(fdeFailureText(f?.errorCode, f?.retryAt ?? null, C) ?? res.error);
+    setError(makeErrorText(res.error, f, C));
     // A paper for this class is already being made: no dead end, its page is one tap away.
     if (f?.errorCode === 'ALREADY_GENERATING' && f.requestId) setRunning(f.requestId);
   };
@@ -171,7 +156,7 @@ export function FdeCheck() {
           <Row testId="fde-row-class" label={C.steps.class} to={newPaperPath('class')}
             value={C.gradeSubject(p.grade as number, subject)} action={<EditWord C={C} />} />
           <Row testId="fde-row-syllabus" label={C.syllabus} onPress={() => setTray('syllabus')}
-            value={custom ? C.join(unitsLine, C.customised) : pick(pattern.scope.label, lang)}
+            value={custom ? C.join(unitsLine || C.picked(0), C.customised) : pick(pattern.scope.label, lang)}
             sub={custom ? undefined : pick(pattern.scope, lang)} action={<EditWord C={C} />} />
           <Row testId="fde-row-inside" label={C.inside} onPress={() => setTray('inside')} value={pick(pattern.holds, lang)}
             action={<ChevronRight className="me-3 h-6 w-6 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />} />
@@ -229,7 +214,7 @@ export function FdeCheck() {
             })}
           </ListCard>
           <div role="radiogroup" aria-label={C.steps.cover}>
-            <Choice picked={false} onPick={() => pattern && set(customised(pattern, custom ? p.chapters : pattern.scope.chapters))}
+            <Choice picked={custom} onPick={() => pattern && set(customised(pattern, custom ? p.chapters : pattern.scope.chapters))}
               icon={<FilePen className="h-6 w-6" aria-hidden="true" />} name={C.steps.cover} sub={C.ownScopeSub} />
           </div>
           <button type="button" onClick={() => setTray(null)} className={cn(PRIMARY, FOCUS)}>{C.done}</button>
@@ -272,7 +257,7 @@ export function FdeCheck() {
       crumb={C.fdeDoor}
       backTo={newPaperPath(p.patternIntent ? 'class' : 'cover')}
       hint={pattern ? C.readyHint : undefined}
-      next={{ label: making ? C.making : C.makePaper, why: pattern ? why : C.why.wait, onPress: make, busy: making }}
+      next={{ label: making ? C.making : C.makePaper, why: pattern ? why : pat.status === 'error' ? C.loadFailed : C.why.wait, onPress: make, busy: making }}
     >
       {body}
     </StepFrame>
