@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
-import { ChevronRight, Download, History, KeyRound, Pencil } from 'lucide-react';
+import { ChevronRight, ClipboardCheck, Download, History, KeyRound, Pencil } from 'lucide-react';
+import { browserEnv } from '@/lib/runtime';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { portal } from '../../services/api';
@@ -26,6 +27,9 @@ import { SkeletonList } from '../../components/Skeleton';
  * another app), and in the list Download, Answer key (only when the paper has one — has_answer_key) and, when editing is
  * on (GET /config assessmentEditing), Edit and Versions.
  */
+
+/** Board-pattern papers are not edited in the app for now (cut A, 15 Oct 2026): the editor cannot yet keep the board's shape. */
+export const FDE_EDITING = false;
 
 function ActionRow({ to, onPress, icon, label, first }: {
   to?: string; onPress?: () => void; icon: JSX.Element; label: string; first?: boolean;
@@ -77,8 +81,12 @@ export function PaperPage() {
   }
 
   const day = pkDay(p.ready_at);
+  // A board-pattern paper: its key is the marking scheme, and it is not edited in the app (FDE_EDITING, the
+  // operator's cut A of 15 Oct: the editor would have to keep the board's shape).
+  const fde = !!p.pattern;
   const chips = (
     <>
+      {fde && <Chip tone="indigo">{C.fdeChip}</Chip>}
       {p.chapter_number != null && <Chip>{C.chapterShort(p.chapter_number)}</Chip>}
       {p.question_count != null && <Chip>{C.questionsCount(p.question_count)}</Chip>}
       {p.total_marks != null && <Chip>{C.marksCount(p.total_marks)}</Chip>}
@@ -97,12 +105,14 @@ export function PaperPage() {
   );
 
   const rows: JSX.Element[] = [];
-  rows.push(<ActionRow key="download" first onPress={() => open('paper')} icon={<Download className="h-5 w-5" aria-hidden="true" />} label={C.download} />);
+  rows.push(<ActionRow key="download" first onPress={() => open('paper')} icon={<Download className="h-5 w-5" aria-hidden="true" />} label={fde ? C.join(C.download, C.questionPaper) : C.download} />);
   if (p.has_answer_key) {
-    rows.push(<ActionRow key="key" first={rows.length === 0} onPress={() => open('answer_key')} icon={<KeyRound className="h-5 w-5" aria-hidden="true" />} label={C.answerKey} />);
+    rows.push(fde
+      ? <ActionRow key="key" first={rows.length === 0} onPress={() => open('answer_key')} icon={<ClipboardCheck className="h-5 w-5" aria-hidden="true" />} label={C.markingScheme} />
+      : <ActionRow key="key" first={rows.length === 0} onPress={() => open('answer_key')} icon={<KeyRound className="h-5 w-5" aria-hidden="true" />} label={C.answerKey} />);
   }
   if (switches?.editing) {
-    rows.push(<ActionRow key="edit" first={rows.length === 0} to={editPath(paperId)} icon={<Pencil className="h-5 w-5" aria-hidden="true" />} label={C.edit} />);
+    if (!fde || FDE_EDITING) rows.push(<ActionRow key="edit" first={rows.length === 0} to={editPath(paperId)} icon={<Pencil className="h-5 w-5" aria-hidden="true" />} label={C.edit} />);
     rows.push(<ActionRow key="versions" first={rows.length === 0} to={versionsPath(paperId)} icon={<History className="h-5 w-5" aria-hidden="true" />} label={C.versions} />);
   }
 
@@ -122,6 +132,9 @@ export function PaperPage() {
           ? <PaperBody view={view} />
           : <p className="rounded-2xl border border-dashed border-[#c7cad6] bg-white p-5 text-center text-[16px] font-semibold text-[#4b5563]">{C.downloadToView}</p>}
       {rows.length > 0 && <ListCard label={C.myPapers}>{rows}</ListCard>}
+      {fde && ['android-iab', 'ios-iab'].includes(browserEnv()) && (
+        <p data-testid="fde-if-no-download" className="px-2 text-center text-[14px] text-[#4b5563]">{C.ifNoDownload}</p>
+      )}
     </TeacherPage>
   );
 }

@@ -17,12 +17,16 @@ export function whyText(w: Why, C: AssessmentV2Copy): string {
     case 'typesOver': return C.join(C.why.totalOf(w.total, w.target), C.why.over(w.total - w.target));
     case 'marks': return C.why.marks(w.max);
     case 'earlier': return C.why.earlier(C.steps[w.step]);
+    case 'generating': return C.why.generating;
+    case 'scopeOrFde': return C.why.scopeOrFde;
   }
 }
 
 /** The step's reason as words, or null when she may go on: what the dock shows above its button. */
-export function stepReason(step: Step, p: Picks, max: number, C: AssessmentV2Copy): string | null {
-  const w = stepWhy(step, p, max);
+export function stepReason(
+  step: Step, p: Picks, max: number, C: AssessmentV2Copy, opts?: { busy?: boolean; offerFde?: boolean },
+): string | null {
+  const w = stepWhy(step, p, max, opts);
   return w ? whyText(w, C) : null;
 }
 
