@@ -6,7 +6,7 @@
  *
  * Urdu addresses the coach with imperatives and impersonal forms only: coaches are women and men,
  * so no "آپ ... رہی/رہے ہیں" (tests/observe2/start.test.js checks it).
- * Button titles stay within WhatsApp's 20 code points.
+ * Button titles stay within WhatsApp's 20 code points; list row titles within 24.
  *
  * Sending the recording: as a DOCUMENT (📎 → Document), never "Share → WhatsApp". Shared that way a
  * recorder-app file goes as an audio attachment, which WhatsApp refuses over 16 MB on the phone, and a
@@ -26,11 +26,12 @@ const STRINGS = {
     visit_cta: 'Plan my visit',
     launch_failed: 'I couldn\'t open the visit planner just now. Please send /observe2 again in a minute.',
     record_failed: 'I couldn\'t start the field form just now. Please send /observe2 again.',
-    period_failed: 'I couldn\'t show the period buttons. Please send /observe2 again.',
+    period_failed: 'I couldn\'t show the period choices. Please send /observe2 again.',
     period_body: (name) => (name
       ? `You're observing *${name}*. How long is this period? The form has two parts, one for each half.`
       : 'How long is this period? The form has two parts, one for each half.'),
     period_button: (minutes) => `${minutes} minutes`,
+    period_list_button: 'Pick a period',
     form_body: (minutes) => {
       const half = Math.round(minutes / 2);
       return [
@@ -84,11 +85,12 @@ const STRINGS = {
     visit_cta: 'دورہ چنیں',
     launch_failed: 'ابھی وزٹ پلانر نہیں کھل سکا۔ ایک منٹ بعد دوبارہ \u2066/observe2\u2069 بھیجیں۔',
     record_failed: 'ابھی فیلڈ فارم شروع نہیں ہو سکا۔ دوبارہ \u2066/observe2\u2069 بھیجیں۔',
-    period_failed: 'پیریڈ کے بٹن نہیں دکھ سکے۔ دوبارہ \u2066/observe2\u2069 بھیجیں۔',
+    period_failed: 'پیریڈ کے انتخاب نہیں دکھ سکے۔ دوبارہ \u2066/observe2\u2069 بھیجیں۔',
     period_body: (name) => (name
       ? `*${name}* کا مشاہدہ۔ یہ پیریڈ کتنے منٹ کا ہے؟ فارم کے دو حصے ہیں، پیریڈ کے ہر نصف کے لیے ایک۔`
       : 'یہ پیریڈ کتنے منٹ کا ہے؟ فارم کے دو حصے ہیں، پیریڈ کے ہر نصف کے لیے ایک۔'),
     period_button: (minutes) => `${minutes} منٹ`,
+    period_list_button: 'پیریڈ چنیں',
     form_body: (minutes) => {
       const half = Math.round(minutes / 2);
       return [
