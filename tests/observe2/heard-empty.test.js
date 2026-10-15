@@ -94,7 +94,7 @@ describe('the endpoint: every moments screen opens with a line that says what is
     await Check.handleObserve2CheckDataExchange(token(id), 'HEARD_WRONG', heardPayload('HEARD_WRONG'));
     const explain = await Check.handleObserve2CheckDataExchange(token(id), 'HEARD_WORK', heardPayload('HEARD_WORK'));
     expect(explain.data.heard_explain_1_v).toBe(true);
-    expect(explain.data.heard_explain_intro).toMatch(/not add them up/i);
+    expect(explain.data.heard_explain_intro).toMatch(/not added up for you/i);
   });
 
   test("another coach's token: the line says the check is not available, never a blank", async () => {
