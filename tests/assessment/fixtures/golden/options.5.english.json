@@ -141,10 +141,6 @@
       {
         "id": "Paragraph Writing",
         "category": "subjective"
-      },
-      {
-        "id": "Picture Description",
-        "category": "subjective"
       }
     ],
     "maxQuestions": 50,
