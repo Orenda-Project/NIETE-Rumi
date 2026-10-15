@@ -2429,3 +2429,39 @@ Feature: NIETE (ICT) Teacher Training
     Then the phone number is erased from the binding and only a salted fingerprint stays, so a later re-bind is recognised as one
     And with no fingerprint salt configured no binding is written at all
     And a "JUGNU-" code in a message is recognised only as the message's last word, and never as a quiz share code
+
+  @quiz @config-gated @wip @draft @P2 @T701
+  Scenario: With web_quiz_phone_bind on, a family's "JUGNU-" message saves the child's place and gets one reply
+    Given web_quiz_hub, web_quiz_identity_canon and web_quiz_phone_bind are on
+    And a child's page made a "JUGNU-" code less than an hour ago
+    When the family sends that code from a phone that is not a teacher's
+    Then the child's place is saved on that phone and the code cannot be used again
+    And the family gets one message with the child's first name and an "Open my page" button to the phone's children's page
+    And the reply is counted once on the send ledger
+    And the phone's next /quiz within ten minutes is answered as that child's phone
+
+  @quiz @config-gated @wip @draft @P2 @T702
+  Scenario: With web_quiz_phone_bind on, a code is refused for a teacher's phone, a full phone, or a stale code
+    Given web_quiz_phone_bind is on
+    When a teacher's phone sends a "JUGNU-" code
+    Then nothing is saved and the teacher gets one line saying a child's place cannot be saved on a teacher's number
+    When a phone that already holds four children sends a code for a fifth child
+    Then nothing is saved and the family gets one line saying the phone already keeps four children's places
+    When the code is unknown, already used, more than an hour old, for a child no longer on record, or the child is already on three phones
+    Then nothing is saved and no message is sent
+
+  @quiz @config-gated @wip @draft @P2 @T703
+  Scenario: With web_quiz_phone_bind on, STOP removes every child's place from the phone and gets one reply
+    Given web_quiz_phone_bind is on
+    When a phone sends exactly "stop", "بند", "سٹاپ" or "اسٹاپ" as the whole message
+    Then every child's place saved on that phone is erased and the phone gets one "Done" reply
+    And a phone with nothing saved gets one "Nothing was saved for this phone" reply
+    But a teacher's phone with nothing saved that sends "stop" is answered exactly as before
+
+  @quiz @config-gated @wip @draft @P2 @T704
+  Scenario: With web_quiz_phone_bind on, /quiz opens the same children the door counts
+    Given web_quiz_phone_bind is on
+    And a phone holds one saved child and four children who joined by chat
+    When the phone sends /quiz
+    Then the home button opens a page for the phone's children, four at most, and the dropped child is logged
+    But with web_quiz_phone_bind off the /quiz reply is exactly as before

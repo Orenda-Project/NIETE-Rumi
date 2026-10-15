@@ -138,13 +138,15 @@ function childLanguage(history) {
 
 /** Open the child's /quiz: the Flow when configured, else two buttons for the latest quiz. */
 async function open(phone, { language = 'en' } = {}) {
-  const known = await StudentIdentity.findByPhone(phone);
+  // family phone binding (web_quiz_phone_bind): the door's own set — bound ∪ chat children, folded, deduped.
+  const bound = Boolean((await require('./web-quiz-identity-flags').flags()).phoneBind);
+  const known = bound ? await require('./child-phone-bindings.repo').childrenForPhone(phone) : await StudentIdentity.findByPhone(phone);
   const quizzes = await quizzesForStudents(known);
   const lang = clampLanguage(childLanguage(quizzes) || language);
   // The kid hub (app_settings web_quiz_hub): ONE link button to this phone's own children's hub;
   // with web_quiz_child_quiz_home it is their home page, so the button says Home.
   const home = Boolean((await require('./web-quiz-hub-flags').flags()).childHome);
-  if (known.length && await sendHub(phone, known, lang, { home })) return true;
+  if (known.length && await sendHub(phone, known, lang, { home, trueCount: bound })) return true;
   // A hub token names at least one child: with none on the phone (a stale verdict, a failed lookup) there is no
   // home to open, so today's message stands — counted, so the case is visible.
   if (home && !known.length) logEvent('student_quiz.opened', { how: 'home_none' });
@@ -188,7 +190,7 @@ async function open(phone, { language = 'en' } = {}) {
  * The hub's one cta_url message; false (send nothing) when the hub is off or the send failed.
  * `home`: the Home body and button; a refused emoji label is retried once with the plain one.
  */
-async function sendHub(phone, known, lang, { home = false } = {}) {
+async function sendHub(phone, known, lang, { home = false, trueCount = false } = {}) {
   const url = await require('./web-quiz-hub-flags').hubLink(known.map((s) => s.id));
   if (!url) return false;
   const body = resolveUx(home ? 'sqHomeBody' : 'sqHubBody', { language: lang });
@@ -200,7 +202,7 @@ async function sendHub(phone, known, lang, { home = false } = {}) {
     if (sent) break;
   }
   if (!sent) { logToFile('⚠️ student-quiz: hub link send failed, falling back', {}, 'error'); return false; }
-  logEvent('student_quiz.opened', { how: home ? 'home' : 'hub', kids: Math.min(known.length, 4) });
+  logEvent('student_quiz.opened', { how: home ? 'home' : 'hub', kids: trueCount ? known.length : Math.min(known.length, 4) });
   return true;
 }
 

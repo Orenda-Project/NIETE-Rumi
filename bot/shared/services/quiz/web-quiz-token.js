@@ -103,6 +103,13 @@ function verify(token, kind) {
 
 const nowS = () => Math.floor(Date.now() / 1000);
 
+// A dropped id is never silent: a server log line with counts only (no id, no phone). Never throws.
+function logIdsDropped(n, caller) {
+  try {
+    require('../../utils/structured-logger').logEvent('web_quiz.token_ids_dropped', { n, kept: HUB_MAX_KIDS, caller: String(caller || 'hub_link'), w: 's' });
+  } catch (_) { /* the token is still built */ }
+}
+
 function signSession({ sessionId, deviceRef, shareCodeId }) {
   return sign({ k: 's', sid: sessionId, d: deviceRef, sc: shareCodeId, exp: nowS() + SYNC_TTL_S });
 }
@@ -117,9 +124,14 @@ function signChallenge({ studentId, ex, runId }) {
   return sign({ k: 'c', sid: studentId, ex, r: runId, exp: nowS() + CHALLENGE_TTL_S });
 }
 
-/** The kid hub's link token: this phone's children (≤4 ids). Null with none or no secret. */
-function signHub(studentIds) {
-  const ids = [...new Set((Array.isArray(studentIds) ? studentIds : []).map(String).filter(Boolean))].slice(0, HUB_MAX_KIDS);
+/**
+ * The kid hub's link token: this phone's children (≤4 ids). Null with none or no secret.
+ * More than 4 ids: the first 4 are kept, and the drop is logged (web_quiz.token_ids_dropped; `caller` names the builder).
+ */
+function signHub(studentIds, caller = 'hub_link') {
+  const given = [...new Set((Array.isArray(studentIds) ? studentIds : []).map(String).filter(Boolean))];
+  const ids = given.slice(0, HUB_MAX_KIDS);
+  if (given.length > HUB_MAX_KIDS) logIdsDropped(given.length - HUB_MAX_KIDS, caller);
   if (!ids.length) return null;
   return sign({ k: 'h', ids, exp: nowS() + HUB_TTL_S });
 }
