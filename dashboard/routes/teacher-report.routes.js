@@ -6,7 +6,7 @@
  *   GET /r/:token          the report page (HTML), from the bot's /api/internal/tr/page
  *   GET /r/:token/pdf      the same page as a PDF attachment (the bot renders it)
  *   GET /r/:token/remind   the bot logs the tap and answers 302 -> wa.me; passed through
- *   GET /r/:token/jlink    the class link card's Forward: the same, with the link only
+ *   GET /r/:token/jlink    the class link card: Forward → 302 wa.me (the link only); Copy → 303 back to the report
  *   POST /r/:token/class   the page's no-JS "Which class was this for?" form
  *   POST /r/:token/fix     the page's no-JS forms for a typed child not on the list
  *   GET /r/:token/fwd      the Jugnu tab's "Forward to the class group": the bot's 302 -> wa.me
@@ -40,6 +40,9 @@ const QUERY = {
   e: (v) => /^[123]$/.test(v),
   ok: (v) => v === 'added' || v === 'moved',
   no: (v) => /^\d{1,4}$/.test(v),
+  // The class link card (web_quiz_class_link): Forward or Copy, and the class whose link Copy opens.
+  how: (v) => v === 'forward' || v === 'copy',
+  cl_open: (v) => UUID_RX.test(v),
 };
 
 function forwardQuery(q) {
@@ -100,6 +103,8 @@ function createTeacherReportRouter(opts = {}) {
       if (out.status >= 300 && out.status < 400) {
         // Only the reminder, the Jugnu forwards (story, class week) and the class link card redirect, and only ever to WhatsApp's share link.
         if ((kind === 'remind' || kind === 'fwd' || kind === 'wfwd' || kind === 'jlink') && out.location && /^https:\/\/wa\.me\//.test(out.location)) return res.redirect(302, out.location);
+        // The class link card's Copy comes back to the report itself (card open).
+        if (kind === 'jlink' && out.status === 303 && out.location && out.location.startsWith(`${REPORT_PATH}/`)) return res.redirect(303, out.location);
         return fail(502, 'error');
       }
       if (out.status >= 500) return fail(502, 'error');

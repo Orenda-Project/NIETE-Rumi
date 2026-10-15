@@ -332,7 +332,8 @@ async function pick({ code, s, chip, device_ref: deviceRef } = {}) {
   if (!token) fail(503, 'web_quiz_off');
   // The teacher's own preview is not a child's door: no door_tap.
   if (!step.p) emit('door_tap', { door: 'class_link', surface: 'landing' }, { classId: link.class_id, studentId: hit.id });
-  return { href: `/h/${token}` };
+  // ?from=class_link: the hub (the one writer of hub_open) logs the source; this module emits no hub_open.
+  return { href: `/h/${token}?from=class_link` };
 }
 
 // ── the teacher's side ─────────────────────────────────────────────────────────────────────────────
@@ -403,13 +404,20 @@ async function forTeacher(teacherId) {
   }
 }
 
-/** The card's Forward: logs class_link_forwarded{cls}, then wa.me with the URL ONLY (no count, no name). Null if not hers. */
-async function forwardHref({ teacherId, classId } = {}) {
+/**
+ * The card's Forward and Copy (no JS): both log class_link_forwarded{cls, how}. Forward → wa.me with the URL ONLY
+ * (no count, no name); Copy → back to the report's class tab with this class's card open (the link as selectable
+ * text). Null when the class is not this teacher's or the switch is off.
+ */
+async function forwardHref({ teacherId, classId, how = 'forward', reportBase = null } = {}) {
   if (!teacherId || !classId || !(await Flags.classLinkOn())) return null;
+  const copy = how === 'copy';
+  if (copy && (typeof reportBase !== 'string' || !reportBase.startsWith('/'))) return null;
   const m = await mint({ teacherId, classId });
   const url = m.ok ? linkUrl(m.code) : null;
   if (!url) return null;
-  emit('class_link_forwarded', {}, { classId });
+  emit('class_link_forwarded', { how: copy ? 'copy' : 'forward' }, { classId });
+  if (copy) return `${reportBase}?tab=class&cl_open=${encodeURIComponent(classId)}#class-link`;
   return `https://wa.me/?text=${encodeURIComponent(url)}`;
 }
 

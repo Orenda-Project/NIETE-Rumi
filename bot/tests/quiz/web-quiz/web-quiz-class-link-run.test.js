@@ -133,9 +133,9 @@ describe('(f)(h) the class link pick on the run row and the hub event', () => {
     expect(row.mode).toBe('practice');
   });
 
-  test('hub_open carries src = class_link only for a class-link token', async () => {
+  test('golden: a class-link token opens the hub with hub_open args unchanged (the hub is its one writer)', async () => {
     const events = await hubOpenArgs(clHub({ c: CLASS, s: 'remembered', q: 'high', h: false }));
-    expect(events.length).toBeGreaterThan(0);
-    events.forEach((e) => expect(e.src).toBe('class_link'));
+    const want = JSON.parse(fs.readFileSync(GOLDEN, 'utf8'));
+    expect(events).toEqual(want.events);
   });
 });

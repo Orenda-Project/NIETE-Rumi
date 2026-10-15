@@ -8,7 +8,7 @@
  *   GET /page/:token[?lang=&tab=class&class=<listId>]  the report page (HTML)
  *   GET /pdf/:token[?lang=&tab=class]                  the same page, print mode, as a PDF
  *   GET /remind/:token?quiz=<id>                       logs the tap, 302 -> wa.me with the reminder
- *   GET /jlink/:token?class=<id>                       the class link card's Forward: 302 -> wa.me with the link only
+ *   GET /jlink/:token?class=<id>&how=forward|copy      the class link card: 302 -> wa.me with the link only / 303 back, card open
  *   GET /data/:token                                   the report as JSON (tests, QA)
  *   POST /class/:token {quiz, key}                     "Which class was this for?" -> identity v2 whoClass
  *   POST /fix/:token {quiz, ref, add|studentId}        a typed child: add to the class / who it really is -> fixWho
@@ -92,7 +92,7 @@ async function build(req, v) {
   const classData = report || {};
   // ── standing class link card (web_quiz_class_link): null when off → the class tab is unchanged ──
   const classLink = await require('../services/quiz/web-quiz-class-link').forTeacher(v.teacherId);
-  if (classLink) classData.classLink = classLink;
+  if (classLink) classData.classLink = { ...classLink, open: uuidOr(req.query.cl_open) };
   // ── end standing class link card ──
   return { tab, lang, data: { class: classData }, report, tokens: { self: req.params.token, quiz: quizTokens } };
 }
@@ -160,14 +160,17 @@ router.get('/remind/:token', handle(async (req, res) => {
   res.redirect(302, `https://wa.me/?text=${encodeURIComponent(report.reminder.text)}`);
 }));
 
-// ── standing class link: the card's Forward (logs class_link_forwarded{cls}, 302 wa.me with the URL only) ──
+// ── standing class link: the card's Forward (302 wa.me, the URL only) and Copy (303 back, card open); both logged ──
 router.get('/jlink/:token', handle(async (req, res) => {
   const v = authorise(req, res);
   if (!v) return;
-  const href = await require('../services/quiz/web-quiz-class-link').forwardHref({ teacherId: v.teacherId, classId: uuidOr(req.query.class) });
+  const how = req.query.how === 'copy' ? 'copy' : 'forward';
+  const href = await require('../services/quiz/web-quiz-class-link').forwardHref({
+    teacherId: v.teacherId, classId: uuidOr(req.query.class), how, reportBase: `${REPORT_PATH}/${encodeURIComponent(req.params.token)}`,
+  });
   if (!href) { notFound(req, res, v); return; }
   noStore(res);
-  res.redirect(302, href);
+  res.redirect(how === 'copy' ? 303 : 302, href);
 }));
 // ── end standing class link ──
 

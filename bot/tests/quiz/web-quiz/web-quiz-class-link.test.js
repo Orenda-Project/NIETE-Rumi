@@ -268,8 +268,18 @@ describe('(b) a device whose remembered child is enrolled → "Whose turn?" with
     expect(a.kids.map((k) => k.first)).toEqual(['Zara']);
     expect(JSON.stringify(a)).not.toMatch(/Malik|Bilal|Ayaan|Sana|Khan/);
     const p = await CL.pick({ code, s: a.s, chip: a.kids[0].chip, device_ref: DEV_PLAYED });
-    const tok = T.verify(p.href.replace(/^\/h\//, ''), 'h');
+    const tok = T.verify(p.href.replace(/^\/h\//, '').replace(/\?.*$/, ''), 'h');
     expect(tok).toMatchObject({ ids: [ZK], src: 'cl', cl: { c: C1, s: 'remembered', q: 'high', h: false } });
+  });
+
+  test('the hand-off is /h/<token>?from=class_link: the hub, its one writer, logs hub_open with that source', async () => {
+    const code = await linkFor();
+    const a = await CL.arrive({ code, device_ref: DEV_PLAYED });
+    const p = await CL.pick({ code, s: a.s, chip: a.kids[0].chip, device_ref: DEV_PLAYED });
+    expect(p.href).toMatch(/^\/h\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{22}\?from=class_link$/);
+    const b = await walkStranger(code, 'B');
+    const pb = await CL.pick({ code, s: b.s, chip: b.kids[0].chip, device_ref: DEV_FRESH });
+    expect(pb.href.endsWith('?from=class_link')).toBe(true);
   });
 
   test('a remembered-chip pick from another device is refused (the gate is re-checked at the pick)', async () => {
@@ -287,12 +297,12 @@ describe('(f)(g) the pick writes via=class_link, class_id = the link\'s class, a
     const picks = [];
     for (const k of z.kids) {
       const p = await CL.pick({ code, s: z.s, chip: k.chip, device_ref: DEV_FRESH });
-      picks.push(T.verify(p.href.replace(/^\/h\//, ''), 'h'));
+      picks.push(T.verify(p.href.replace(/^\/h\//, '').replace(/\?.*$/, ''), 'h'));
     }
     expect(picks.map((t) => t.ids[0]).sort()).toEqual([ZK, ZM].sort());
     picks.forEach((t) => expect(t.cl).toEqual({ c: C1, s: 'roster_pick', q: 'low', h: true }));
     const b = await walkStranger(code, 'B');
-    const pb = T.verify((await CL.pick({ code, s: b.s, chip: b.kids[0].chip, device_ref: DEV_FRESH })).href.replace(/^\/h\//, ''), 'h');
+    const pb = T.verify((await CL.pick({ code, s: b.s, chip: b.kids[0].chip, device_ref: DEV_FRESH })).href.replace(/^\/h\//, '').replace(/\?.*$/, ''), 'h');
     expect(pb).toMatchObject({ k: 'h', ids: [BA], src: 'cl', cl: { c: C1, s: 'roster_pick', q: 'high', h: false } });
     expect(CL.runColumns(pb.cl, BA)).toEqual({ via: 'class_link', class_id: C1, id_src: 'roster_pick', id_confidence: 'high', homonym_in_list: false, canonical_id: BA });
   });
@@ -325,7 +335,7 @@ describe('(h) the teacher\'s own link plays as practice', () => {
     const right = a.teachers.find((t) => t.name === 'Rabia Noor');
     const b = await CL.teacher({ code, s: a.s, tk: right.tk });
     const l = await CL.letter({ code, s: b.s, letter: 'B' });
-    const tok = T.verify((await CL.pick({ code, s: l.s, chip: l.kids[0].chip, device_ref: DEV_FRESH })).href.replace(/^\/h\//, ''), 'h');
+    const tok = T.verify((await CL.pick({ code, s: l.s, chip: l.kids[0].chip, device_ref: DEV_FRESH })).href.replace(/^\/h\//, '').replace(/\?.*$/, ''), 'h');
     expect(tok.cl.m).toBe('practice');
     expect(CL.runColumns(tok.cl, BA).mode).toBe('practice');
     expect(logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.door_tap')).toHaveLength(0);
@@ -335,7 +345,7 @@ describe('(h) the teacher\'s own link plays as practice', () => {
     const code = await linkFor();
     const jt = CL.signTeacherPreview('KZ7QW3MNPX');
     const a = await CL.arrive({ code, device_ref: DEV_PLAYED, jt });
-    const tok = T.verify((await CL.pick({ code, s: a.s, chip: a.kids[0].chip, device_ref: DEV_PLAYED })).href.replace(/^\/h\//, ''), 'h');
+    const tok = T.verify((await CL.pick({ code, s: a.s, chip: a.kids[0].chip, device_ref: DEV_PLAYED })).href.replace(/^\/h\//, '').replace(/\?.*$/, ''), 'h');
     expect(tok.cl.m).toBeUndefined();
   });
 });
@@ -364,8 +374,13 @@ describe('the teacher card and (j) the forward link', () => {
     const html = renderPage({ class: { ...CLASS_DATA, classLink: extra } }, { lang: 'en', tab: 'class', tokens: { self: 'tok.sig' } });
     expect(html).toContain("Your class&#39;s Jugnu link");
     expect(html).toContain('Forward it once a term and pin it. It always opens this week&#39;s story.');
-    expect(html).toContain(`<details class="act"><summary>Copy</summary>`);
-    expect(html).toContain(`/r/tok.sig/jlink?class=${C1}`);
+    // Copy is a server link (logged), not a client toggle; the link text is shown open only after it
+    expect(html).toContain(`<a class="btn btn-ghost act" href="/r/tok.sig/jlink?class=${C1}&amp;how=copy">Copy</a>`);
+    expect(html).toContain(`<a class="btn btn-primary act" href="/r/tok.sig/jlink?class=${C1}&amp;how=forward">`);
+    expect(html).not.toContain('<textarea');
+    const opened = renderPage({ class: { ...CLASS_DATA, classLink: { ...extra, open: C1 } } }, { lang: 'en', tab: 'class', tokens: { self: 'tok.sig' } });
+    expect(opened).not.toContain('how=copy');
+    expect(opened).toContain(`<details class="act" open><summary>Copy</summary><textarea readonly rows="2" dir="ltr">https://quiz.example.org/j/${code}</textarea></details>`);
     expect(html).not.toContain('<script');
     const ur = renderPage({ class: { ...CLASS_DATA, classLink: extra } }, { lang: 'ur', tab: 'class', tokens: { self: 'tok.sig' } });
     expect(ur).toContain('آپ کی کلاس کا جگنو لنک');
@@ -379,10 +394,52 @@ describe('the teacher card and (j) the forward link', () => {
     expect(text).toBe(`https://quiz.example.org/j/${code}`);
     const ev = logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.class_link_forwarded');
     expect(ev).toHaveLength(1);
-    expect(ev[0][1]).toEqual({ ev_v: 2, w: 's', cls: 'clshash00000' });
+    expect(ev[0][1]).toEqual({ ev_v: 2, w: 's', cls: 'clshash00000', how: 'forward' });
+  });
+
+  test('Copy: logs class_link_forwarded{how:copy} and goes back to the report with the card open', async () => {
+    const out = await CL.forwardHref({ teacherId: T1, classId: C1, how: 'copy', reportBase: '/r/tok.sig' });
+    expect(out).toBe(`/r/tok.sig?tab=class&cl_open=${C1}#class-link`);
+    const ev = logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.class_link_forwarded');
+    expect(ev).toHaveLength(1);
+    expect(ev[0][1]).toEqual({ ev_v: 2, w: 's', cls: 'clshash00000', how: 'copy' });
   });
 
   test('(j) a class that is not the teacher\'s has no forward link', async () => {
     expect(await CL.forwardHref({ teacherId: T1, classId: C2 })).toBeNull();
+  });
+});
+
+// ── the report route that serves the card's two links ────────────────────────────────────────────
+describe('GET /api/internal/tr/jlink/:token (the card\'s Forward and Copy)', () => {
+  const express = require('express');
+  const Token = require('../../../shared/services/quiz/teacher-report-token');
+  let server;
+  let base;
+  beforeEach(async () => {
+    const app = express();
+    app.use('/api/internal/tr', require('../../../shared/routes/teacher-report-internal.routes'));
+    await new Promise((r) => { server = app.listen(0, '127.0.0.1', r); });
+    base = `http://127.0.0.1:${server.address().port}/api/internal/tr`;
+  });
+  afterEach(() => new Promise((r) => server.close(r)));
+  const get = (p) => fetch(`${base}${p}`, { headers: { 'x-api-key': 'test-internal-key' }, redirect: 'manual' });
+
+  test('how=copy → 303 back to the class tab with this card open; logged {how:copy}', async () => {
+    const tok = Token.signTeacherReport({ teacherId: T1 });
+    const r = await get(`/jlink/${tok}?class=${C1}&how=copy`);
+    expect(r.status).toBe(303);
+    expect(r.headers.get('location')).toBe(`/r/${encodeURIComponent(tok)}?tab=class&cl_open=${C1}#class-link`);
+    const ev = logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.class_link_forwarded');
+    expect(ev.map((e) => e[1].how)).toEqual(['copy']);
+  });
+
+  test('Forward → 302 wa.me with the URL only; logged {how:forward}; another teacher\'s class → 404', async () => {
+    const tok = Token.signTeacherReport({ teacherId: T1 });
+    const r = await get(`/jlink/${tok}?class=${C1}&how=forward`);
+    expect(r.status).toBe(302);
+    expect(r.headers.get('location')).toBe(`https://wa.me/?text=${encodeURIComponent(`https://quiz.example.org/j/${db.class_links[0].code}`)}`);
+    expect(logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.class_link_forwarded').map((e) => e[1].how)).toEqual(['forward']);
+    expect((await get(`/jlink/${tok}?class=${C2}&how=copy`)).status).toBe(404);
   });
 });

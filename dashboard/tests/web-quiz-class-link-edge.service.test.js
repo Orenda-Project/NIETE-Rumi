@@ -157,3 +157,44 @@ describe('/j/:code', () => {
     }
   });
 });
+
+describe('the teacher card\'s Copy and Forward at the report edge (/r/:token/jlink)', () => {
+  const { createTeacherReportRouter } = require('../routes/teacher-report.routes');
+  const TOK = `${'a'.repeat(40)}.${'b'.repeat(22)}`;
+  const CLS = 'c1a55000-0000-4000-8000-000000000001';
+  let srv;
+  afterEach(() => new Promise((r) => srv.close(r)));
+  const redirectBot = (location, status) => {
+    const calls = [];
+    const fetchImpl = async (url) => {
+      calls.push(url);
+      return { status, ok: false, headers: { get: (h) => (h.toLowerCase() === 'location' ? location : null) }, arrayBuffer: async () => new ArrayBuffer(0), text: async () => '' };
+    };
+    return { calls, fetchImpl };
+  };
+  const buildTr = (fetchImpl) => { const app = express(); app.use(createTeacherReportRouter({ botUrl: BOT, apiKey: KEY, fetchImpl })); return app; };
+
+  it('Copy: the bot\'s 303 back to the report (card open) is followed; how and the class reach the bot', async () => {
+    const back = `/r/${TOK}?tab=class&cl_open=${CLS}#class-link`;
+    const b = redirectBot(back, 303);
+    srv = await start(buildTr(b.fetchImpl));
+    const r = await req(srv, 'GET', `/r/${TOK}/jlink?class=${CLS}&how=copy`);
+    expect(r.status).toBe(303);
+    expect(r.headers.location).toBe(back);
+    expect(b.calls[0]).toBe(`${BOT}/api/internal/tr/jlink/${TOK}?class=${CLS}&how=copy`);
+  });
+
+  it('the report page passes cl_open (a class id) to the bot, so the card opens', async () => {
+    const b = redirectBot(null, 200);
+    srv = await start(buildTr(b.fetchImpl));
+    await req(srv, 'GET', `/r/${TOK}?tab=class&cl_open=${CLS}`);
+    expect(b.calls[0]).toBe(`${BOT}/api/internal/tr/page/${TOK}?tab=class&cl_open=${CLS}`);
+  });
+
+  it('a Copy redirect anywhere but the report itself is refused', async () => {
+    const b = redirectBot('https://evil.example/', 303);
+    srv = await start(buildTr(b.fetchImpl));
+    const r = await req(srv, 'GET', `/r/${TOK}/jlink?class=${CLS}&how=copy`);
+    expect(r.status).toBe(502);
+  });
+});
