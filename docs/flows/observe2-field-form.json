@@ -1028,6 +1028,10 @@
                 "text": "Up to 10. The ones that help: the board, the materials, children using them, groups at work, and the board at the end. Never faces."
               },
               {
+                "type": "TextBody",
+                "text": "Still recording? The voice recorder app keeps recording when the camera opens, but a WhatsApp voice note pauses: resume it after the photo. Photos you took with the camera during the lesson go in with Upload saved photos."
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "photo_how",
                 "label": "How will you add photos?",
