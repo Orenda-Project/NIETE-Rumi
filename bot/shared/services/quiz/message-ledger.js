@@ -12,6 +12,11 @@
  * A counted reply is one the bot DECIDED to send (an attempt), not a delivery: callers record first and send
  * only when record() returned true, so a send that fails afterwards is still counted.
  *
+ * SCOPE: the ledger counts the switched replies only (the family phone binding's four, the guest door's, and the
+ * known child's Home reply while web_quiz_phone_bind is on). The pre-existing /quiz replies (the child menu, the
+ * teacher menu, an unknown phone's menu) are NOT recorded while their path is untouched by any switch, so this table is
+ * NOT the bill: Meta's billable count is the cost total; the ledger is the per-trigger view of the new replies.
+ *
  * The per-phone daily reply cap (app_settings web_quiz_reply_cap_per_phone, default 8, never below 1): when the
  * caller passes `phone`, the cap runs before anything else. The count lives in Redis under
  * wq:reply_cap:<PKT day>:<keyed hash of the phone> (48-hour TTL so the strip's daily snapshot always sees it; the key never holds the phone). Over the cap →
@@ -19,7 +24,9 @@
  * the send decision: false ONLY when capped (a ledger write that fails is logged, web_quiz.ledger_write_failed{trigger}
  * once per process, and the reply still goes out). `reason` (bind, renew, stop, stop_nothing, max_kids, teacher_phone,
  * guest, home) rides on msg_sent; the ledger row stays keyed by trigger.
- * No hash key (neither secret set) or a Redis failure → no cap (fail open), logged once.
+ * The cap never fails open: with neither secret set the counter is keyed on a per-boot salt (per process), and with
+ * Redis down a process-local counter takes over; both are logged once and visible as
+ * web_quiz.reply_cap_unavailable{why: 'boot_salt'|'redis_local'} so a go package can see the cap ran degraded.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -90,31 +97,53 @@ async function capPerPhone(now = Date.now()) {
 }
 
 /** The phone's keyed hash: ukey (WEB_QUIZ_KID_KEY), else the tombstone HMAC (WQ_TOMB_SALT), else null. */
+// A salt made at boot, never logged or persisted: when neither secret is set the counter is keyed on it, so a loop is
+// still capped per process (the counter dies with the process; that is the price of a misconfigured deploy, not a bill).
+const BOOT_SALT = require('crypto').randomBytes(32);
 function phoneHash(phone) {
   try {
     const Repo = require('./child-phone-bindings.repo');   // never the binder: the binder requires this ledger
-    return Repo.ukeyOf(phone) || Repo.tombOf(phone) || null;
+    const keyed = Repo.ukeyOf(phone) || Repo.tombOf(phone);
+    if (keyed) return { hash: keyed, boot: false };
+    const digits = String(phone || '').replace(/\D/g, '');
+    if (!digits) return null;
+    return { hash: require('crypto').createHmac('sha256', BOOT_SALT).update(`cap|${digits}`).digest('hex').slice(0, 16), boot: true };
   } catch (_) {
     return null;
   }
 }
 
+// When Redis cannot count, a process-local counter does (same key, same 48-hour window), so the cap never fails open.
+const localCounts = new Map();
+function localIncr(key, now = Date.now()) {
+  if (localCounts.size > 5000) for (const [k, v] of localCounts) if (v.exp <= now) localCounts.delete(k);
+  const cur = localCounts.get(key);
+  const next = cur && cur.exp > now ? { n: cur.n + 1, exp: cur.exp } : { n: 1, exp: now + CAP_WINDOW_SECS * 1000 };
+  localCounts.set(key, next);
+  return next.n;
+}
+
 /** → true when this reply may go out (counted under the cap, or no cap could run); false when over the cap. */
 async function underCap(phone, trigger, now) {
-  const hash = phoneHash(phone);
-  if (!hash) {
-    if (!unkeyedLogged) { unkeyedLogged = true; logToFile('⚠️ message ledger: reply cap unkeyed — no phone hash secret, replies not capped'); }
-    return true;
+  const h = phoneHash(phone);
+  if (!h) return true;                                   // no phone at all: nothing to key on (callers always pass one)
+  if (h.boot && !unkeyedLogged) {
+    unkeyedLogged = true;
+    logToFile('⚠️ message ledger: reply cap unkeyed — no phone hash secret; counting on a per-boot salt');
+    logEvent('web_quiz.reply_cap_unavailable', { why: 'boot_salt', w: 's' });
   }
   const redisService = require('../cache/railway-redis.service');
-  const key = `wq:reply_cap:${pktDay(now)}:${hash}`;
+  const key = `wq:reply_cap:${pktDay(now)}:${h.hash}`;
   let count = null;
   try { count = await redisService.incr(key); } catch (_) { count = null; }
   if (count === null || count === undefined || !Number.isFinite(Number(count))) {
-    if (!redisFailLogged) { redisFailLogged = true; logToFile('⚠️ message ledger: reply cap: redis unavailable — reply sent uncapped'); }
-    return true;
-  }
-  if (Number(count) === 1) {
+    if (!redisFailLogged) {
+      redisFailLogged = true;
+      logToFile('⚠️ message ledger: reply cap: redis unavailable — counting in this process');
+      logEvent('web_quiz.reply_cap_unavailable', { why: 'redis_local', w: 's' });
+    }
+    count = localIncr(key);
+  } else if (Number(count) === 1) {
     try { await redisService.expire(key, CAP_WINDOW_SECS); } catch (_) { /* the count still holds */ }
   }
   if (Number(count) > await capPerPhone()) {
@@ -202,5 +231,5 @@ async function write({ trigger, reason = null, classId, initiated, recipient, co
 module.exports = {
   record, pktDay, capPerPhone, TRIGGERS, USD_PER_SEND, TABLE, CAP_KEY, CAP_DEFAULT,
   _resetMissing: () => { missingLogged = false; writeFailLogged = false; },
-  _resetCap: () => { capCache = null; unkeyedLogged = false; redisFailLogged = false; },
+  _resetCap: () => { capCache = null; unkeyedLogged = false; redisFailLogged = false; localCounts.clear(); },
 };
