@@ -329,3 +329,52 @@ describe('which lessons are held', () => {
     expect(Offer.SKIP_REASONS_USED).toContain(REASON);
   });
 });
+
+describe('Urdu chapters 1–3 (Hamd, Naat, the Prophet\'s life) are held like Islamiyat', () => {
+  // Every K-5 Urdu book opens with them (bot/data/lp_catalog.json grade_1_urdu .. grade_5_urdu, chapters 1-3).
+  const hold = () => require('../../bot/shared/services/quiz/lp-religious-hold');
+  const URDU_NAAT = 'grade_5_urdu_ch2_seg1';
+  const URDU_HAMD = 'grade_5_urdu_ch1_seg1';
+  const URDU_STORY = 'grade_5_urdu_ch4_seg1';
+  const T3 = '33333333-3333-4333-8333-000000000003';   // Naat + a story lesson
+  const T4 = '44444444-4444-4444-8444-000000000004';   // Hamd only
+  const URDU = [
+    download('aaaaaaaa-0000-4000-8000-000000000011', T3, URDU_NAAT, 'urdu', 'asset-naat'),
+    download('aaaaaaaa-0000-4000-8000-000000000012', T3, URDU_STORY, 'urdu', 'asset-story'),
+    download('aaaaaaaa-0000-4000-8000-000000000013', T4, URDU_HAMD, 'urdu', 'asset-hamd'),
+  ];
+
+  test('the cohort offers the story lesson, never the Naat, and skips a Hamd-only teacher with the hold\'s reason', async () => {
+    PHONE[T3] = '923005556666';
+    PHONE[T4] = '923007778888';
+    install({
+      niete_lp_downloads: URDU,
+      niete_lp_assets: URDU.map((d) => ({ id: d.asset_id, asset_kind: 'lesson' })),
+      niete_lp_asset_sources: URDU.map((d) => ({
+        lesson_id: d.lesson_id, version_stamp: d.version_stamp, content_hash: d.content_hash,
+      })),
+      users: [teacher(T3), teacher(T4)],
+    });
+    await Offer.buildCohort({ nudgeDate: NUDGE_DATE, now: SEND_AT });
+
+    const t3 = db.tables.teacher_nudges.find((r) => r.user_id === T3);
+    const t4 = db.tables.teacher_nudges.find((r) => r.user_id === T4);
+    expect(t3.status).toBe('pending');
+    expect(t3.context.classes.flatMap((c) => c.lessons.map((l) => l.lesson_id))).toEqual([URDU_STORY]);
+    expect(t4.status).toBe('skipped');
+    expect(t4.context.skip_reason).toBe(REASON);
+  });
+
+  test.each([
+    'grade_1_urdu_ch1_seg1', 'grade_1_urdu_ch3_seg1', 'grade_2_urdu_ch2_seg1', 'grade_3_urdu_ch2_seg1',
+    'grade_4_urdu_ch3_seg1', 'grade_5_urdu_ch1_seg1', 'grade_5_urdu_ch3_seg1',
+  ])('%s is held', (lessonId) => {
+    expect(hold().isHeldLesson({ subject: 'urdu', lesson_id: lessonId })).toBe(true);
+  });
+
+  test.each([
+    'grade_5_urdu_ch4_seg1', 'grade_1_urdu_ch4_seg1', 'grade_5_urdu_ch10_seg1', 'grade_5_urdu_ch13_seg1',
+  ])('%s is not held', (lessonId) => {
+    expect(hold().isHeldLesson({ subject: 'urdu', lesson_id: lessonId })).toBe(false);
+  });
+});

@@ -1,6 +1,7 @@
 'use strict';
 /**
- * Which K-5 lesson plans are HELD out of machine-written quizzes: Islamiyat, until the
+ * Which K-5 lesson plans are HELD out of machine-written quizzes: Islamiyat, and the Hamd, Naat and
+ * Prophet's-life chapters that open every Urdu book, until the
  * fluent-Urdu religious review clears the subject.
  *
  * The other two quiz paths already hold it. The recorded-lesson quiz has its subject allow-list
@@ -28,6 +29,11 @@ const HELD_REASON = 'religious_review_pending';
 // Until the fluent-Urdu religious review clears it; see the transcript path's allow-list.
 const HELD_SUBJECTS = Object.freeze(['islamiat']);
 
+// Every K-5 Urdu book opens with the same three chapters: Hamd, Naat and the Prophet's ﷺ life
+// (bot/data/lp_catalog.json grade_1_urdu .. grade_5_urdu). Held with the subject above, by lesson id,
+// until a reviewer lists each book's religious lessons.
+const HELD_LESSON_ID = /^grade_[1-5]_urdu_ch[1-3]_/;
+
 /** The canonical subject of a lesson row: its own subject, else its catalog book's. */
 function subjectOf({ subject, lesson_id: lessonId } = {}) {
   if (String(subject == null ? '' : subject).trim()) return canonicalSubject(subject);
@@ -41,7 +47,9 @@ function subjectOf({ subject, lesson_id: lessonId } = {}) {
  * @returns {boolean} true when no quiz may be made from it
  */
 function isHeldLesson(lesson) {
-  return HELD_SUBJECTS.includes(subjectOf(lesson || {}));
+  const l = lesson || {};
+  if (HELD_LESSON_ID.test(String(l.lesson_id || ''))) return true;
+  return HELD_SUBJECTS.includes(subjectOf(l));
 }
 
-module.exports = { HELD_REASON, HELD_SUBJECTS, isHeldLesson };
+module.exports = { HELD_REASON, HELD_SUBJECTS, HELD_LESSON_ID, isHeldLesson };
