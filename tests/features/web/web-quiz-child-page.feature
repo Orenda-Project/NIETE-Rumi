@@ -1762,3 +1762,36 @@ Feature: Web child quiz page on the portal
     Given web_quiz_challenge_book is "off" (or its parent web_quiz_challenge_v2 is "off")
     When a child opens the hub
     Then the hub payload deep-equals today's and the hub page has no Book tile, script or stylesheet
+  @T785
+  Scenario: With the Trail v2 switch off the Challenge page and its payloads are today's
+    Given web_quiz_challenge_v2 is "off"
+    When the Challenge menu, a stop and its end card are served and drawn
+    Then the menu and exercise payloads deep-equal today's and the page HTML is string-equal to today's
+    And the page shell does not load the Trail v2 script
+
+  @T786
+  Scenario: A grown-up decides whether a reading is kept, on its own screen after the microphone
+    Given web_quiz_challenge_v2, web_quiz_challenge_audio_consent and web_quiz_challenge_keep_audio are "on"
+    When the microphone is on and the keep screen shows two answers with neither selected
+    Then "No, don't keep it" or no answer uploads to the deleted prefix and nothing is written under kept/
+    And only "Yes, keep it" uploads under kept/, and the run row carries the answer, its time and grownup_tap
+
+  @T787
+  Scenario: The help question is asked once per sitting before the first scored stop
+    Given web_quiz_challenge_v2 is "on"
+    When the child opens the first scored stop of the sitting
+    Then "Is someone helping you today?" shows with nothing selected and the answer is sent as self or helped on every result
+    But a practice round never asks it
+
+  @T788
+  Scenario: The serve decides a stop opened by URL
+    Given web_quiz_challenge_v2 is "on" and a stop is opened by its URL
+    When the serve answers whose_turn, a practice round, or on_its_way
+    Then the page shows "Whose turn?" with one chip per child and picks nobody, the practice banner, or "A new story is on its way." with no microphone and no upload
+
+  @T789
+  Scenario: Trail v2 end cards say what was done, never a number about the child
+    Given web_quiz_challenge_v2 is "on"
+    When a reading ends with 0 words or with 90 words
+    Then the end card has no digit, no words-a-minute line, and the same sticker line for both
+    And the warm-up's stop_after 0 never stops it early

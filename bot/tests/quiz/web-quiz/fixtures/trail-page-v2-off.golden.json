@@ -1,0 +1,430 @@
+{
+ "menu": {
+  "form": "G3",
+  "lang": "en",
+  "exercises": [
+   {
+    "id": "bigger",
+    "name": "Which is bigger?",
+    "mins": 2,
+    "done": false,
+    "last": null
+   },
+   {
+    "id": "read",
+    "name": "Read aloud",
+    "mins": 2,
+    "done": false,
+    "last": null
+   }
+  ],
+  "rt": false
+ },
+ "bigger": {
+  "ex": "bigger",
+  "name": "Which is bigger?",
+  "lang": "en",
+  "ct": "<ct>",
+  "clips": {
+   "intro": {
+    "text": "Two numbers will pop up. Tap the bigger one!",
+    "url": "https://signed.test/quiz-audio/test/challenge/en/bigger/intro-sx-grace-b0a23749.ogg?b=r2-default"
+   },
+   "start": {
+    "text": "Ready? Go!",
+    "url": "https://signed.test/quiz-audio/test/challenge/en/bigger/start-sx-grace-9b7aada6.ogg?b=r2-default"
+   },
+   "stop": {
+    "text": "All done!",
+    "url": "https://signed.test/quiz-audio/test/challenge/en/bigger/stop-sx-grace-98c742c0.ogg?b=r2-default"
+   },
+   "done": {
+    "text": "Well done! You did it!",
+    "url": "https://signed.test/quiz-audio/test/challenge/en/bigger/done-sx-grace-b73866ed.ogg?b=r2-default"
+   }
+  },
+  "items": [
+   {
+    "a": 7,
+    "b": 5
+   },
+   {
+    "a": 11,
+    "b": 24
+   },
+   {
+    "a": 39,
+    "b": 23
+   },
+   {
+    "a": 58,
+    "b": 49
+   },
+   {
+    "a": 65,
+    "b": 67
+   },
+   {
+    "a": 94,
+    "b": 78
+   },
+   {
+    "a": 146,
+    "b": 153
+   },
+   {
+    "a": 287,
+    "b": 534
+   },
+   {
+    "a": 623,
+    "b": 632
+   },
+   {
+    "a": 867,
+    "b": 965
+   }
+  ],
+  "practice": [
+   {
+    "a": 8,
+    "b": 4,
+    "answer": 8
+   },
+   {
+    "a": 10,
+    "b": 12,
+    "answer": 12
+   }
+  ],
+  "per_item_s": 10,
+  "stop_after": 4
+ },
+ "read": {
+  "ex": "read",
+  "name": "Read aloud",
+  "lang": "en",
+  "ct": "<ct>",
+  "clips": {
+   "intro": {
+    "text": "Here is a short story. Read it out loud, as well as you can. If a word is hard, go on to the next one.",
+    "url": "https://signed.test/quiz-audio/test/challenge/en/read/intro-sx-grace-18e993cf.ogg?b=r2-default"
+   },
+   "start": {
+    "text": "Ready? Begin.",
+    "url": "https://signed.test/quiz-audio/test/challenge/en/read/start-sx-grace-66fa02d2.ogg?b=r2-default"
+   },
+   "stop": {
+    "text": "Stop. Thank you!",
+    "url": "https://signed.test/quiz-audio/test/challenge/en/read/stop-sx-grace-f1648479.ogg?b=r2-default"
+   },
+   "done": {
+    "text": "Great reading! Well done.",
+    "url": "https://signed.test/quiz-audio/test/challenge/en/read/done-sx-grace-779b412f.ogg?b=r2-default"
+   }
+  },
+  "secs": 60,
+  "live": false,
+  "questions_on": false,
+  "story": {
+   "text": "Imran woke up early for school. Today his class was planting trees. He took a small plant in a bag. The teacher asked Imran to show the class how to plant it. Imran dug a hole, put the plant in the soil and put water in it slowly. The teacher was happy with his work. His friends clapped for him.",
+   "tokens": [
+    "Imran",
+    "woke",
+    "up",
+    "early",
+    "for",
+    "school",
+    "Today",
+    "his",
+    "class",
+    "was",
+    "planting",
+    "trees",
+    "He",
+    "took",
+    "a",
+    "small",
+    "plant",
+    "in",
+    "a",
+    "bag",
+    "The",
+    "teacher",
+    "asked",
+    "Imran",
+    "to",
+    "show",
+    "the",
+    "class",
+    "how",
+    "to",
+    "plant",
+    "it",
+    "Imran",
+    "dug",
+    "a",
+    "hole",
+    "put",
+    "the",
+    "plant",
+    "in",
+    "the",
+    "soil",
+    "and",
+    "put",
+    "water",
+    "in",
+    "it",
+    "slowly",
+    "The",
+    "teacher",
+    "was",
+    "happy",
+    "with",
+    "his",
+    "work",
+    "His",
+    "friends",
+    "clapped",
+    "for",
+    "him"
+   ],
+   "lines": [
+    {
+     "n": 1,
+     "from": 0,
+     "to": 5
+    },
+    {
+     "n": 2,
+     "from": 6,
+     "to": 11
+    },
+    {
+     "n": 3,
+     "from": 12,
+     "to": 19
+    },
+    {
+     "n": 4,
+     "from": 20,
+     "to": 31
+    },
+    {
+     "n": 5,
+     "from": 32,
+     "to": 47
+    },
+    {
+     "n": 6,
+     "from": 48,
+     "to": 54
+    },
+    {
+     "n": 7,
+     "from": 55,
+     "to": 59
+    }
+   ],
+   "dir": "ltr"
+  }
+ },
+ "trailMenu": {
+  "form": "G3",
+  "lang": "ur",
+  "exercises": [
+   {
+    "id": "bigger",
+    "name": "کون سا بڑا ہے؟",
+    "mins": 2,
+    "done": false,
+    "last": null,
+    "badge": false
+   },
+   {
+    "id": "read",
+    "name": "اونچی آواز میں پڑھیں",
+    "mins": 2,
+    "done": false,
+    "last": null,
+    "badge": false,
+    "mic": true
+   }
+  ],
+  "record": true,
+  "trail": true,
+  "trail_copy": {
+   "title": "‏⁨{name}⁩ کا راستہ",
+   "sub": "‏⁨{total}⁩ میں سے {done} پڑاؤ مکمل۔ کوئی بھی پڑاؤ چنیں!",
+   "allDone": "آپ نے {name} کا راستہ مکمل کر لیا!",
+   "badge": "مکمل",
+   "next": "اگلا",
+   "mic": "مائیک استعمال ہوگا",
+   "needsMic": "مائیک چاہیے",
+   "micWait": "اس پڑاؤ کے لیے مائیک چاہیے۔ یہ انتظار کرے گا!",
+   "other": "کسی اور پڑاؤ پر جائیں",
+   "back": "راستے پر واپس",
+   "practice": "مشق کا دور۔ جتنا چاہیں کھیلیں!",
+   "stopDone": "پڑاؤ مکمل!",
+   "missAsk": "کون سا نمبر غائب ہے؟",
+   "missYes": "جی ہاں! یہاں {n} آئے گا۔",
+   "missWas": "یہاں {n} آئے گا۔ ایک اور کریں۔",
+   "missSkip": "چھوڑیں",
+   "micAgain": "مائیک دوبارہ آزمائیں",
+   "helpAsk": "اکیلے، یا کسی کی مدد سے؟",
+   "helpNo": "اکیلے",
+   "helpYes": "مدد کے ساتھ"
+  },
+  "rt": false
+ },
+ "trailRead": {
+  "ex": "read",
+  "name": "اونچی آواز میں پڑھیں",
+  "lang": "ur",
+  "ct": "<ct>",
+  "clips": {
+   "intro": {
+    "text": "یہ ایک چھوٹی سی کہانی ہے۔ اسے اونچی آواز میں پڑھیں۔ کوئی لفظ مشکل لگے تو اگلا لفظ پڑھیں۔",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/read/intro-sx-ishita-3ade4e9b.ogg?b=r2-default"
+   },
+   "start": {
+    "text": "تیار ہو جائیں۔ شروع کریں!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/read/start-sx-ishita-87d87d86.ogg?b=r2-default"
+   },
+   "stop": {
+    "text": "رک جائیں۔ شکریہ!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/read/stop-sx-ishita-3e98d9b6.ogg?b=r2-default"
+   },
+   "done": {
+    "text": "بہت اچھا پڑھا! شاباش!",
+    "url": "https://signed.test/quiz-audio/test/challenge/ur/read/done-sx-ishita-537cb584.ogg?b=r2-default"
+   }
+  },
+  "record": true,
+  "trail": true,
+  "trail_copy": {
+   "title": "‏⁨{name}⁩ کا راستہ",
+   "sub": "‏⁨{total}⁩ میں سے {done} پڑاؤ مکمل۔ کوئی بھی پڑاؤ چنیں!",
+   "allDone": "آپ نے {name} کا راستہ مکمل کر لیا!",
+   "badge": "مکمل",
+   "next": "اگلا",
+   "mic": "مائیک استعمال ہوگا",
+   "needsMic": "مائیک چاہیے",
+   "micWait": "اس پڑاؤ کے لیے مائیک چاہیے۔ یہ انتظار کرے گا!",
+   "other": "کسی اور پڑاؤ پر جائیں",
+   "back": "راستے پر واپس",
+   "practice": "مشق کا دور۔ جتنا چاہیں کھیلیں!",
+   "stopDone": "پڑاؤ مکمل!",
+   "missAsk": "کون سا نمبر غائب ہے؟",
+   "missYes": "جی ہاں! یہاں {n} آئے گا۔",
+   "missWas": "یہاں {n} آئے گا۔ ایک اور کریں۔",
+   "missSkip": "چھوڑیں",
+   "micAgain": "مائیک دوبارہ آزمائیں",
+   "helpAsk": "اکیلے، یا کسی کی مدد سے؟",
+   "helpNo": "اکیلے",
+   "helpYes": "مدد کے ساتھ"
+  },
+  "secs": 60,
+  "live": false,
+  "questions_on": false,
+  "story": {
+   "text": "آج بلال اپنے والد کے ساتھ دریائے جہلم کے کنارے گیا۔ وہاں ٹھنڈی ہوا چل رہی تھی اور پانی آہستہ بہہ رہا تھا۔ بلال نے کشتی کو حرکت کرتے دیکھا۔ اس کے والد نے اسے بتایا کہ دریا ہمارے ملک کے لیے اہم ہیں۔ واپسی پر بلال نے خوبصورت پتھر جمع کیے اور مسکراتا رہا۔ وہ بہت خوش بھی تھا۔",
+   "tokens": [
+    "آج",
+    "بلال",
+    "اپنے",
+    "والد",
+    "کے",
+    "ساتھ",
+    "دریائے",
+    "جہلم",
+    "کے",
+    "کنارے",
+    "گیا",
+    "وہاں",
+    "ٹھنڈی",
+    "ہوا",
+    "چل",
+    "رہی",
+    "تھی",
+    "اور",
+    "پانی",
+    "آہستہ",
+    "بہہ",
+    "رہا",
+    "تھا",
+    "بلال",
+    "نے",
+    "کشتی",
+    "کو",
+    "حرکت",
+    "کرتے",
+    "دیکھا",
+    "اس",
+    "کے",
+    "والد",
+    "نے",
+    "اسے",
+    "بتایا",
+    "کہ",
+    "دریا",
+    "ہمارے",
+    "ملک",
+    "کے",
+    "لیے",
+    "اہم",
+    "ہیں",
+    "واپسی",
+    "پر",
+    "بلال",
+    "نے",
+    "خوبصورت",
+    "پتھر",
+    "جمع",
+    "کیے",
+    "اور",
+    "مسکراتا",
+    "رہا",
+    "وہ",
+    "بہت",
+    "خوش",
+    "بھی",
+    "تھا"
+   ],
+   "lines": [
+    {
+     "n": 1,
+     "from": 0,
+     "to": 10
+    },
+    {
+     "n": 2,
+     "from": 11,
+     "to": 22
+    },
+    {
+     "n": 3,
+     "from": 23,
+     "to": 29
+    },
+    {
+     "n": 4,
+     "from": 30,
+     "to": 43
+    },
+    {
+     "n": 5,
+     "from": 44,
+     "to": 54
+    },
+    {
+     "n": 6,
+     "from": 55,
+     "to": 59
+    }
+   ],
+   "dir": "rtl"
+  }
+ }
+}
