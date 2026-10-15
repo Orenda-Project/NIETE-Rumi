@@ -214,6 +214,17 @@ function planCounts({ contentSource = 'unseen', questionCount, questionTypes = [
 }
 
 /**
+ * The types a child DRAWS, from text, on the answer sheet. The paper prints no
+ * figure, so left to itself the model writes "complete the mind map below" and
+ * the child looks for a figure that is not there. Named only when one of them
+ * is asked for, so every other prompt stays exactly as it was.
+ */
+const DRAWN_BY_THE_CHILD = new Set(['Mind Map', 'Flow Chart', 'Graphs & Geometric Problems']);
+const DRAW_IT_LINE = '• For Mind Map / Flow Chart / Graphs & Geometric Problems: give the topic or the '
+  + 'data as text; the child draws it on the answer sheet; never refer to boxes, branches, arrows or a '
+  + 'figure printed on the paper.';
+
+/**
  * What to make, in the words the prompts expect. Objective and subjective are
  * listed separately because that is the shape of the tree the model returns.
  */
@@ -242,6 +253,7 @@ function buildUserPrompt({ grade, subject, pageContent, pageReference,
   // Only when she set one. An always-present line about marks would change every
   // prompt we have ever sent, including for the papers nobody budgeted.
   const budget = Number(totalMarks) > 0 ? Number(totalMarks) : null;
+  const drawIt = plan.questionTypes.some((q) => DRAWN_BY_THE_CHILD.has(q.id));
 
   return `**Grade:** ${grade}
 **Subject:** ${subject}
@@ -260,7 +272,8 @@ ${items.map((i) => `• ${i}`).join('\n')}
 **IMPORTANT NOTES:**
 • For SEEN questions: Extract questions exactly as they appear in the textbook
 • For UNSEEN questions: Create new questions based on concepts from the textbook
-• The paper carries no pictures. Do NOT include any question that needs a picture, illustration or diagram to answer (e.g. "write the name of each object under its picture", "look at the picture and…", "colour the…"). Rewrite it so it can be answered from text alone, or leave it out
+• The paper carries no pictures. Do NOT include any question that needs a picture, illustration or diagram to answer (e.g. "write the name of each object under its picture", "look at the picture and…", "colour the…"). Rewrite it so it can be answered from text alone, or leave it out${drawIt ? `
+${DRAW_IT_LINE}` : ''}
 • Include proper marks allocation for each question
 • Maintain grade-appropriate language and difficulty
 • Return output in the JSON format specified in the system prompt
