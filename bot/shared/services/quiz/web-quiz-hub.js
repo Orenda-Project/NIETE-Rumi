@@ -310,11 +310,21 @@ async function recsFor(kidId, history, grade) {
  * off it). Null when the token or the chip is not genuine.
  */
 async function kidFromHub(token, chip, device) {
-  const studentId = kidOf(token, chip);
+  let studentId = kidOf(token, chip);
+  let rawIds = studentId ? [studentId] : [];
+  // child identity store (web_quiz_identity_canon): the hub shows each child by the id they are known by, so a chip
+  // may name a folded id; it resolves through the token's raw ids (the phone must be trusted for one of them).
+  if (!studentId && chip && (await require('./web-quiz-identity-flags').flags()).canon) {
+    const tok = T.verify(token, 'h');
+    const raw = tok && Array.isArray(tok.ids) ? tok.ids.map(String) : [];
+    const canon = await require('./web-quiz-identity-roster').canonicalStudentIds(raw);
+    rawIds = raw.filter((id) => kidChip(canon.get(id) || id) === String(chip));
+    studentId = rawIds.length ? canon.get(rawIds[0]) || rawIds[0] : null;
+  }
   if (!studentId) return null;
   // A forwarded link opens nothing as the child on another phone.
   const trust = await deviceTrusted(token, device);
-  if (!trust.ok || !trust.ids.includes(studentId)) return null;
+  if (!trust.ok || !rawIds.some((id) => trust.ids.includes(id))) return null;
   const ctx = await kidContext(studentId);
   if (!ctx) return null;
   const root = ctx.history.find((e) => e.teacherSent) || null;

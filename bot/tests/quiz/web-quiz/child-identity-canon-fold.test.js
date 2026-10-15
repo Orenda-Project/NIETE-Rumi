@@ -151,6 +151,37 @@ describe('the hub folds the token\'s children', () => {
   });
 });
 
+describe('kidFromHub: the library and challenge links name the folded child', () => {
+  const DEV = 'AAAAAAAAAAAAAAAAAAAAAA';
+  const chip = (id) => T.chipId('h', id);
+
+  test('switch on: a token with the merged id and the chip of the folded id → the folded child', async () => {
+    seed(ON);
+    const token = T.signHub([L1, F.kid(6)]);
+    const got = await Hub.kidFromHub(token, chip(F.kid(1)), DEV);
+    expect(got && got.studentId).toBe(F.kid(1));
+    // The raw chips the token names still resolve as today.
+    expect(Hub.kidOf(token, chip(F.kid(6)))).toBe(F.kid(6));
+    expect((await Hub.kidFromHub(token, chip(F.kid(6)), DEV)).studentId).toBe(F.kid(6));
+  });
+
+  test('switch on: a chip the token does not name, folded or raw, is nobody; another phone is nobody', async () => {
+    seed(ON);
+    const token = T.signHub([L1, F.kid(6)]);
+    await Hub.kidFromHub(token, chip(F.kid(6)), DEV); // the first phone claims the link
+    expect(await Hub.kidFromHub(token, chip(F.kid(2)), DEV)).toBeNull();
+    expect(await Hub.kidFromHub(token, chip(F.kid(1)), 'BBBBBBBBBBBBBBBBBBBBBB')).toBeNull();
+  });
+
+  test('switch off: the chip of the folded id is nobody, as today; kidOf is unchanged', async () => {
+    const token = T.signHub([L1, F.kid(6)]);
+    expect(await Hub.kidFromHub(token, chip(F.kid(1)), DEV)).toBeNull();
+    expect(Hub.kidOf(token, chip(F.kid(1)))).toBeNull();
+    expect(Hub.kidOf(token, chip(L1))).toBe(L1);
+    expect((await Hub.kidFromHub(token, chip(L1), DEV)).studentId).toBe(L1);
+  });
+});
+
 describe('a loose child reused across one teacher\'s codes on one device', () => {
   async function play(code, body) {
     try { return await WQ.startSession({ code, ...body }); } catch (e) { if (e instanceof WQ.WqError) return e; throw e; }
