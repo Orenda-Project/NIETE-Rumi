@@ -791,6 +791,26 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe2-form-endpoint.js: a part posted with no fv keeps the older fields (FIELDS_V4) and checks.
 
   @e2e @flow @config-gated @wip @draft @P1
+  Scenario: A reopened form shows the notes I typed
+    Given I typed "8 min: board wiped" in Part 1's "Anything else", saved Part 1 and closed the form
+    When WhatsApp starts the form afresh and it opens on "Part 1 is saved"
+    Then the screen lists "Your notes, kept with the record:" with "Part 1: 8 min: board wiped"
+    # Pilot sheet R13 (Riffat, 14 Oct): typed evidence "disappears after the form is saved". A reopened
+    # form cannot go back to Part 1, so CONTINUE lists the notes by part (every form, old Flow or new).
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: Going back to Part 1 does not empty Part 2
+    Given I saved Part 1 and Part 2 of the live form, with a note in Part 2's "Anything else"
+    When I go back to Part 1 and tap "Part 1 done" again
+    Then Part 2 opens with my counts, my choices and my note already in it
+    # Prod 6-15 Oct: 13 forms re-sent Part 1 and got an empty Part 2 each time; one filled Part 2 twice.
+    # PART_TWO's init-values come from the saved answers, only for a form opened on the Flow that carries
+    # the `prefill` marker; a form opened before it keeps today's screens. The counts, "Did each child have
+    # a task?", "What children's work showed", the switch and "Anything else" come back; what sits inside
+    # an If ("While they worked, the teacher", "When the work got hard", "How did the switch go?") is not
+    # pre-filled (it stays saved).
+
+  @e2e @flow @config-gated @wip @draft @P1
   Scenario: After Part 2 the coach picks the lesson plan from the teacher's own plans
     Given I saved Part 2 of the live form
     Then the form shows "The lesson plan" with "Was there a lesson plan?"
@@ -1105,6 +1125,29 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # 4 Oct (Riffat): "after the coach submits, it should ask for the debrief recording; the flow stopped
     # here". From the check on, /observe's own code runs (observe-debrief, observe-send, observe-completion).
     # "Later" keeps the visit in /observe's list of debriefs to do.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The brief carries every note I typed, by part
+    Given I typed notes in Part 1, Part 2 and "Not in the recording", and "Why you changed" at the check
+    When I tap "Debrief now"
+    Then the brief ends with "Your notes, as you wrote them:" and each note, word for word, under its part
+    And the portal's view of this observation shows the same brief
+    And the teacher's report does not show my notes
+    # Pilot sheet R13. observe2/brief.js; each note clipped at 400 code points so the brief stays one
+    # WhatsApp message. Notes stay out of the teacher's report: they are the coach's working notes and
+    # can name a child or record an incident.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The teacher's report names the thing I picked to work on first
+    Given I picked "Real group work" to work on first and kept it at the check
+    And my debrief brief said "Work on first: Real group work"
+    When I send the report
+    Then the report's "Your next horizon" is "Real group work"
+    And "One thing to try next class" is what the teacher said in the debrief
+    # Pilot sheet R3 (Areej, 12 Oct): the report named the lowest-scoring FICO section ("subject
+    # vocabulary depth") instead of the coach's pick. coaching/report-v2/observe2-horizon.js sets the
+    # title from the pick in code; a pick the coach couldn't judge (NA) still counts; a pick changed at
+    # the check wins. Nothing in the debrief step records an area of its own.
 
   @e2e @flow @config-gated @destructive @wip @draft @P1
   Scenario: Choosing someone else after the report preview shows a new preview for that teacher
