@@ -54,7 +54,7 @@ const run = (kid, o) => ({ id: `r-${kid}-${Math.random().toString(36).slice(2, 8
 
 let DB;
 function seed({ settings = 'on', classLinks = true, passages = true } = {}) {
-  const on = [{ key: 'web_quiz_teacher_jugnu', value: 'true' }, { key: 'web_quiz_challenge_v2', value: 'true' }, { key: 'web_quiz_challenge', value: 'true' }, { key: 'web_quiz_class_link', value: 'true' }];
+  const on = [{ key: 'web_quiz_teacher_jugnu', value: 'true' }, { key: 'web_quiz_challenge_v2', value: 'true' }, { key: 'web_quiz_challenge', value: 'true' }, { key: 'web_quiz_class_link', value: 'true' }, { key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_identity_canon', value: 'true' }];
   DB = {
     app_settings: settings === 'on' ? on : settings,
     users: [{ id: TEACHER, preferred_language: 'en' }],

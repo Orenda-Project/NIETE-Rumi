@@ -26,6 +26,7 @@ const { logToFile } = require('../../utils/logger');
 const Roster = require('./web-quiz-roster');
 const { listLabel } = require('./teacher-report.data');
 const Flags = require('./teacher-jugnu-flags');
+const IdFlags = require('./web-quiz-identity-flags');
 
 const PKT_MS = 5 * 3600 * 1000;
 const DAY_MS = 24 * 3600 * 1000;
@@ -233,6 +234,16 @@ async function jugnuTab(teacherId, { listId = null, lang = 'en', now = Date.now(
   };
 }
 
+/** The identity store's switch (web_quiz_identity_canon with its parent). Never throws. */
+async function identityOn() {
+  try {
+    return Boolean((await IdFlags.flags()).canon);
+  } catch (err) {
+    warnOnce('identity flags', err);
+    return false;
+  }
+}
+
 /** The join-queue service (identity), when deployed; null otherwise. */
 function queueService() {
   try {
@@ -251,6 +262,8 @@ function queueService() {
 async function confirmQueue(teacherId, tab, lang = 'en') {
   const Q = queueService();
   if (!Q || typeof Q.candidatesFor !== 'function' || !tab || !tab.list) return null;
+  // The queue (and its "Link this class's quiz codes" tap) is the identity store's: with its switch off, no card.
+  if (!(await identityOn())) return null;
   let open = [];
   try {
     open = (await Q.candidatesFor(teacherId)) || [];

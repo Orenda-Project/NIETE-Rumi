@@ -166,6 +166,13 @@ describe('the confirm queue, every switch on, rows from the join-queue service',
     expect(res.headers.get('location')).toBe(`/r/${encodeURIComponent(tok())}?tab=jugnu&class=${LIST}`);
   });
 
+  test('the identity switch off: no queue card at all (no dead "Link this class\'s quiz codes" button)', async () => {
+    await boot({ off: ['web_quiz_identity_canon'] });
+    const h = await html(`/page/${tok()}?tab=jugnu&class=${LIST}`);
+    expect(h).not.toContain('id="jq"');
+    expect(h).not.toContain("Link this class's quiz codes");
+  });
+
   test('the tab\'s switch off: the queue route is 404 and the service is not asked', async () => {
     await boot({ off: ['web_quiz_teacher_jugnu'] });
     const res = await post(`/queue/${tok()}`, { loose_id: c(2), candidate_id: r(2), decision: 'unsure', class: LIST });
