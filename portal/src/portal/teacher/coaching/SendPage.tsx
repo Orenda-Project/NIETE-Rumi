@@ -20,12 +20,15 @@ import { clearDraft, holdDraft, peekDraft, planKeyOf } from './draft';
 import { Action, Dock } from './parts';
 import { micBlockedLine, micPermissionDenied } from './micBlocked';
 import { isInAppBrowser } from '@/lib/runtime';
-import { COACHING_HOME, COACHING_SEND, lessonPath } from './paths';
+import { COACHING_HOME, COACHING_NEW, COACHING_SEND, lessonPath } from './paths';
 
 /**
  * bd-fmf24g.4 — the teacher v2 send page (v28 canvas CoachingRecord): the RECORDING page, and the sending that follows,
  * on today's send flow (newui/coaching/useSendFlow, with v2 paths), so the recording, the upload and every failure
  * behave exactly as they do today.
+ *
+ * Since the one screen (NewObservation) records and sends in place, this page only serves a recording started here
+ * before it (the recording bar's Return) and the old ways in; its "back to the page" is the one screen.
  *
  * bd-fmf24g.76 — Check and send moved INTO the Digital Coaching page (CoachingHome): this page records, and the
  * page holds the recording, the lesson plan and the photos (draft.ts) and has the one Submit.
@@ -42,7 +45,7 @@ import { COACHING_HOME, COACHING_SEND, lessonPath } from './paths';
 
 /** The way back to the page: its draft is kept (CoachingHome reads state.keep). */
 const KEEP = { keep: true };
-const PATHS = { record: COACHING_SEND, hub: COACHING_HOME, hubState: KEEP };
+const PATHS = { record: COACHING_SEND, hub: COACHING_NEW, hubState: KEEP };
 
 function useSession(): RecordingSession {
   const session = useRecordingSession();
@@ -83,7 +86,7 @@ export function SendPage() {
     if (stage === 'check' && audio) {
       const d = peekDraft();
       holdDraft({ audio, plan: d?.plan ?? null, photos: d?.photos ?? [] });
-      navigate(COACHING_HOME, { replace: true, state: KEEP });
+      navigate(COACHING_NEW, { replace: true, state: KEEP });
     }
   }, [stage, audio, navigate]);
   useEffect(() => { if (stage === 'sent') clearDraft(); }, [stage]);
@@ -224,7 +227,7 @@ export function SendPage() {
                 onClick={() => {
                   // The plan is dropped from the page's draft and its plan sheet opens there.
                   holdDraft({ audio: audio ?? null, plan: null, photos: peekDraft()?.photos ?? [] });
-                  navigate(COACHING_HOME, { replace: true, state: { keep: true, openPlan: true } });
+                  navigate(COACHING_NEW, { replace: true, state: { keep: true, openPlan: true } });
                 }}
               >
                 {C.changePlan}
@@ -234,7 +237,7 @@ export function SendPage() {
         ) : (
           <>
             <Status title={C.notAccepted} tone="error" />
-            <Dock><Action icon={RotateCcw} onClick={() => navigate(COACHING_HOME, { replace: true, state: KEEP })}>{C.tryAgain}</Action></Dock>
+            <Dock><Action icon={RotateCcw} onClick={() => navigate(COACHING_NEW, { replace: true, state: KEEP })}>{C.tryAgain}</Action></Dock>
           </>
         )
       ) : null}
@@ -244,7 +247,7 @@ export function SendPage() {
           <Status title={C.busy}>{audio?.recordingId ? <span className="text-[14px] text-[#2f7a52]">{C.savedOnPhone}</span> : null}</Status>
           <Dock>
             {flow.failure?.coachingSessionId ? <Action to={lessonPath(flow.failure.coachingSessionId)}>{C.openThat}</Action> : null}
-            <Action tone="outline" to={COACHING_HOME} state={KEEP}>{C.title}</Action>
+            <Action tone="outline" to={COACHING_NEW} state={KEEP}>{C.title}</Action>
           </Dock>
         </>
       ) : null}
