@@ -149,11 +149,11 @@ describe('status', () => {
 });
 
 describe('undo', () => {
-  test('erases the binding this code made (newest, bound after the mint), forgets the door verdict, bind_undo{via:page,n:1}, sends nothing', async () => {
+  test('erases the binding this code made (the row stamped at the code\'s used_at), forgets the door verdict, bind_undo{via:page,n:1}, sends nothing', async () => {
     Codes.get.mockResolvedValue({ code: 'JUGNU-7KQ2X', canonical_id: KID, minted_at: '2026-10-15T10:00:00Z', used_at: '2026-10-15T10:05:00Z', outcome: 'bound' });
     Bindings.activeForChild.mockResolvedValue([
-      { id: 'b-old', canonical_id: KID, bound_at: '2026-09-01T00:00:00Z' },
-      { id: 'b-new', canonical_id: KID, bound_at: '2026-10-15T10:05:00Z' },
+      { id: 'b-old', canonical_id: KID, bound_at: '2026-09-01T00:00:00Z', confirmed_at: '2026-09-01T00:00:00Z', last_played_at: null },
+      { id: 'b-new', canonical_id: KID, bound_at: '2026-10-15T10:05:00Z', confirmed_at: '2026-10-15T10:05:00Z', last_played_at: null },
     ]);
     // the repo's real shape: an array of the erased rows, each with the phone it held before the erase
     Bindings.eraseOne.mockResolvedValue([{ id: 'b-new', canonical_id: KID, phone_norm: '+92300FIXTURE1' }]);
@@ -163,6 +163,32 @@ describe('undo', () => {
     expect(forget).toHaveBeenCalledWith('+92300FIXTURE1', '+92300FIXTURE1');
     expect(logEvent).toHaveBeenCalledWith('web_quiz.bind_undo', { w: 's', via: 'page', n: 1 });
     expect(JSON.stringify(logEvent.mock.calls)).not.toContain('FIXTURE');
+  });
+  test('two phones on one child: Undo with phone A\'s code erases ONLY the binding that code made (confirmed at the code\'s used_at), never the aunt\'s newer one', async () => {
+    Codes.get.mockResolvedValue({ code: 'JUGNU-7KQ2X', canonical_id: KID, minted_at: '2026-10-15T10:00:00Z', used_at: '2026-10-15T10:05:00Z', outcome: 'bound' });
+    Bindings.activeForChild.mockResolvedValue([
+      { id: 'b-phone-a', canonical_id: KID, bound_at: '2026-10-15T10:05:00Z', confirmed_at: '2026-10-15T10:05:00Z', last_played_at: null },
+      { id: 'b-phone-b', canonical_id: KID, bound_at: '2026-10-15T10:09:00Z', confirmed_at: '2026-10-15T10:09:00Z', last_played_at: null },   // the aunt's phone, newer
+    ]);
+    Bindings.eraseOne.mockResolvedValue([{ id: 'b-phone-a', canonical_id: KID, phone_norm: '+92300FIXTURE1' }]);
+    expect(await Bind.undo({ code: 'JUGNU-7KQ2X', device: DEV })).toEqual({ ok: true });
+    expect(Bindings.eraseOne).toHaveBeenCalledTimes(1);
+    expect(Bindings.eraseOne).toHaveBeenCalledWith('b-phone-a', 'page_undo');
+  });
+  test('a second save on an already-bound phone renews the old row: its code\'s Undo erases that renewed row (last_played_at = used_at), not not_bound', async () => {
+    Codes.get.mockResolvedValue({ code: 'JUGNU-7KQ2X', canonical_id: KID, minted_at: '2026-10-15T10:00:00Z', used_at: '2026-10-15T10:05:00Z', outcome: 'bound' });
+    Bindings.activeForChild.mockResolvedValue([
+      { id: 'b-renewed', canonical_id: KID, bound_at: '2026-09-01T00:00:00Z', confirmed_at: '2026-09-01T00:00:00Z', last_played_at: '2026-10-15T10:05:00Z' },
+    ]);
+    Bindings.eraseOne.mockResolvedValue([{ id: 'b-renewed', canonical_id: KID, phone_norm: '+92300FIXTURE1' }]);
+    expect(await Bind.undo({ code: 'JUGNU-7KQ2X', device: DEV })).toEqual({ ok: true });
+    expect(Bindings.eraseOne).toHaveBeenCalledWith('b-renewed', 'page_undo');
+  });
+  test('no row carries the code\'s instant (a stale or foreign code) -> not_bound, nothing erased', async () => {
+    Codes.get.mockResolvedValue({ code: 'JUGNU-7KQ2X', canonical_id: KID, minted_at: '2026-10-15T10:00:00Z', used_at: '2026-10-15T10:05:00Z', outcome: 'bound' });
+    Bindings.activeForChild.mockResolvedValue([{ id: 'b-other', canonical_id: KID, bound_at: '2026-10-15T10:09:00Z', confirmed_at: '2026-10-15T10:09:00Z', last_played_at: null }]);
+    expect(await Bind.undo({ code: 'JUGNU-7KQ2X', device: DEV })).toEqual({ ok: false, error: 'not_bound' });
+    expect(Bindings.eraseOne).not.toHaveBeenCalled();
   });
   test('a code that never bound -> not_bound, nothing erased', async () => {
     Codes.get.mockResolvedValue({ code: 'JUGNU-7KQ2X', canonical_id: KID, minted_at: '2026-10-15T10:00:00Z', used_at: null, outcome: null });

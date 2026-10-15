@@ -117,11 +117,12 @@ async function undo({ code } = {}) {
     const row = await require('./child-bind-codes.repo').get(String(code));
     if (!row || !row.used_at || row.outcome !== 'bound') return { ok: false, error: 'not_bound' };
     const Bindings = require('./child-phone-bindings.repo');
-    // The binding has no code column: the code's child's active binding made at or after the mint, newest.
-    const since = new Date(row.minted_at || 0).getTime();
-    const mine = (await Bindings.activeForChild(row.canonical_id) || [])
-      .filter((b) => new Date(b.bound_at || 0).getTime() >= since)
-      .sort((a, b) => String(b.bound_at).localeCompare(String(a.bound_at)))[0];
+    // The binding has no code column, but the binder stamps the row it makes (confirmed_at on a new row,
+    // last_played_at on a renewed one) with the SAME instant it marks the code used, so THE ONE binding this code made
+    // is the child's active row carrying that instant; never "the newest" (another family's phone may be newer).
+    const usedMs = Date.parse(row.used_at);
+    const stamped = (b) => [b.confirmed_at, b.last_played_at].some((t) => t && Date.parse(t) === usedMs);
+    const mine = Number.isFinite(usedMs) ? (await Bindings.activeForChild(row.canonical_id) || []).find(stamped) : null;
     if (!mine) return { ok: false, error: 'not_bound' };
     // The repo returns the erased rows, each with the phone_norm it held before the erase, so the door forgets each.
     const erased = (await Bindings.eraseOne(mine.id, 'page_undo')) || [];
