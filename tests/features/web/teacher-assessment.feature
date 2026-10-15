@@ -29,6 +29,7 @@ Feature: Teacher assessment
     And a Grade 5 teacher is signed in to the teacher app v2
     When the teacher taps "FDE pattern papers" on Assessment
     Then the Class step says "Step 1 of 2"
+    And its picker offers only Grade 5's subjects, with no grade to choose
     When the teacher picks Grade 5 Maths
     Then Check and make opens at "Step 2 of 2" with the rows Paper style, Class, Syllabus and Inside
     And the hint over Make my paper reads "Ready in about 3 min · practice paper, not FDE's own"
@@ -71,7 +72,7 @@ Feature: Teacher assessment
     Given the board-pattern flag is off, or the class is Grade 3 Science, or Grade 5 Islamiat
     When the teacher opens the Chapters step
     Then there is no FDE card and the screen is pixel-identical to today's
-    And on the FDE door's Class step Islamiat shows "FDE pattern for Islamiat: after review" and goes on to today's steps
+    And on the FDE door's Class step Islamiat shows "FDE pattern for Islamiat: after review" and its row is off
 
   @TA09 @fde
   Scenario: Editing an FDE paper keeps its shape
