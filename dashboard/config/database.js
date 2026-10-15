@@ -12,6 +12,7 @@
 
 require('dotenv').config();
 const { Pool } = require('pg');
+const { dbSsl } = require('../lib/local-dev');
 
 const poolConfig = {
   host: process.env.SUPABASE_DB_HOST,
@@ -19,7 +20,7 @@ const poolConfig = {
   user: process.env.SUPABASE_DB_USER,
   password: process.env.SUPABASE_DB_PASSWORD,
   database: process.env.SUPABASE_DB_NAME || 'postgres',
-  ssl: { rejectUnauthorized: false },
+  ssl: dbSsl(process.env.SUPABASE_DB_HOST), // off only for a loopback host (local dev)
 
   // Pool settings
   max: parseInt(process.env.DB_POOL_SIZE || '20', 10),

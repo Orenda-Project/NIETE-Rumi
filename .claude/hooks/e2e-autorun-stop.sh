@@ -126,7 +126,8 @@ if [ "$NUDGED" = "true" ]; then
   if [ "$KIND" = "stale" ]; then
     WHY="$(for f in $DETAIL; do printf '  %s.feature is byte-identical (as committed) to when this run was armed\n' "$f"; done)"
   elif [ "$KIND" = "uncommitted" ]; then
-    WHY="$(for f in $DETAIL; do printf '  %s.feature is edited and valid but NOT COMMITTED — the PR check reads commits, not your working tree.\n  Commit it now, in its own commit:\n    git add tests/features/whatsapp/niete/%s.feature .claude/commands/niete-e2e.md\n    git commit -m "test(gherkin): sync %s.feature to %s"\n' "$f" "$f" "$f" "${ARMED_SHA:-<sha>}"; done)"
+    # the spec's real path from the marker: a portal feature's spec lives in tests/features/web/ (bd-hnhlgn.10)
+    WHY="$(for f in $DETAIL; do sp=$(jq -r --arg f "$f" '.spec_hashes[$f].path // ("tests/features/whatsapp/niete/" + $f + ".feature")' "$MARKER" 2>/dev/null); printf '  %s.feature is edited and valid but NOT COMMITTED — the PR check reads commits, not your working tree.\n  Commit it now, in its own commit:\n    git add %s\n    git commit -m "test(gherkin): sync %s.feature to %s"\n' "$f" "$sp" "$f" "${ARMED_SHA:-<sha>}"; done)"
   else
     WHY="  the spec changed but does not pass the validator:
 $(printf '%s' "$DETAIL" | sed 's/^/    /')"
@@ -177,7 +178,9 @@ FALLBACK=$(jq -r '.fallback // false' "$MARKER" 2>/dev/null)
 TRIGGER=$(jq -r '.trigger // "change"' "$MARKER" 2>/dev/null)
 [ -z "$TRIGGER" ] || [ "$TRIGGER" = "null" ] && TRIGGER=change
 [ "$TRIGGER" = "git-commit" ] && TRIGGER=commit     # same build note as any commit
-[ -z "$CMDS" ] && exit 0
+# No WhatsApp command AND no web feature → nothing armed. A portal-only commit has no WhatsApp command but is a
+# web-lane run (bd-hnhlgn.6), so it must reach the lane logic below instead of leaving here silently.
+[ -z "$CMDS" ] && [ "$(jq -r '(.web_features // []) | length' "$MARKER" 2>/dev/null)" = "0" ] && exit 0
 
 # PHASE 3 — the lane split. A COMMIT can now be tested AS the commit: the mock lane
 # (lib/mock-lane.sh) starts the bot from a worktree at the marker's sha. Features it
@@ -193,6 +196,11 @@ if [ "$TRIGGER" = "commit" ] && [ -n "$SHA" ] && type e2e_split_lanes >/dev/null
     MOCK_BLOCK=$(e2e_mock_block "$SHA" "$E2E_LANE_MOCK")
     CMDS=$(e2e_filter_chrome_cmds "$CMDS" "$E2E_LANE_MOCK")
   fi
+fi
+WEB_FEATS=$(jq -r '(.web_features // []) | join(",")' "$MARKER" 2>/dev/null)
+WEB_BLOCK=""
+if [ "$TRIGGER" = "commit" ] && [ -n "$SHA" ] && type e2e_web_block >/dev/null 2>&1; then
+  WEB_BLOCK=$(e2e_web_block "$SHA" "$WEB_FEATS" "$MOCK_BLOCK")
 fi
 # Chrome lane PAUSED (mock is layer 1; operator 2026-09-15): drop the chrome /niete-e2e nudge so a
 # commit drives ONLY the mock lane. Chrome-only features are not auto-run for now. E2E_CHROME_ON=1 re-enables.
@@ -249,7 +257,13 @@ fi
 # A commit deploys nothing, so the run hits the build that was already live. That
 # is a legitimate regression check; it is NOT evidence about the commit. Saying so
 # here is what keeps an honest pass from being reported as a false one.
-if [ "$TRIGGER" = "commit" ] && [ -n "$MOCK_BLOCK" ] && [ -z "$CMDS" ]; then
+if [ "$TRIGGER" = "commit" ] && [ -z "$MOCK_BLOCK" ] && [ -z "$CMDS" ] && [ -n "$WEB_BLOCK" ]; then
+  # A portal-only commit: no /niete-e2e part, nothing deployed to wait for (bd-hnhlgn.14).
+  read -r -d '' BUILD_NOTE <<EOF
+Every feature this commit touched is on the web lane, which starts the portal from
+this checkout — it tests the commit itself. There is no WhatsApp Web run for it.
+EOF
+elif [ "$TRIGGER" = "commit" ] && [ -n "$MOCK_BLOCK" ] && [ -z "$CMDS" ]; then
   read -r -d '' BUILD_NOTE <<EOF
 Every feature this commit touched runs on the mock lane above, so there is no
 WhatsApp Web run for this commit. The chrome lane (/niete-e2e) tests it
@@ -330,6 +344,12 @@ chrome-devtools-mcp@latest\`), say a restart is needed, and re-run after it.
 Name the one that failed, plainly, and clear the marker. A skipped run reported
 honestly is fine; reported as a pass it is not.
 EOF
+elif [ -z "$MOCK_BLOCK" ] && [ -n "$WEB_BLOCK" ]; then
+  read -r -d '' CHROME_PRE <<EOF
+The web lane needs no WhatsApp number and no keys file: the local stack (dev-portal.sh,
+DATA=demo) and headless Chromium, installed on first use. If it cannot start, say which
+step failed (the e2e-web.sh exit code names it), plainly, and clear the marker.
+EOF
 else
   read -r -d '' CHROME_PRE <<EOF
 The mock lane needs no browser and no WhatsApp number: keys/niete-local.env and
@@ -340,7 +360,7 @@ fi
 
 # Chrome paused and nothing else to nudge: this commit touched only chrome-only features (no mock
 # lane for them) and no spec sync is pending. Don't wedge the turn — there is nothing to run now.
-if [ -z "$MOCK_BLOCK" ] && [ -z "$CMDS" ] && [ -z "$PHASE1" ]; then exit 0; fi
+if [ -z "$MOCK_BLOCK" ] && [ -z "$WEB_BLOCK" ] && [ -z "$CMDS" ] && [ -z "$PHASE1" ]; then exit 0; fi
 
 read -r -d '' REASON <<EOF
 EXECUTE NOW — the E2E for $WHOSE has not
@@ -348,6 +368,7 @@ been driven:
 
 $PHASE1
 $MOCK_BLOCK
+$WEB_BLOCK
 
 $CHROME_PART
 

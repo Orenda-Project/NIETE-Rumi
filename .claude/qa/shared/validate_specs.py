@@ -339,6 +339,62 @@ def validate_dir(spec_dir, agents, only=None):
     return problems
 
 
+# ── the portal's web lane (bd-hnhlgn.10) ─────────────────────────────────────
+#
+# Same gate, different executor: a web spec is run by a DRIVER (.claude/qa/web/features/<name>.cjs), not an agent.
+# On top of the structural checks it enforces what the web lane's parity test does — every @ID in the spec has
+# code, and the driver runs no scenario the spec lacks — because a scenario with no code is prose that never runs.
+# A web spec with no driver at all is reported I-NOTENROLLED (info), not an error: the older web-quiz / teacher-report
+# specs predate the lane, and enrolling one is writing its driver.
+WEB_SPEC_DIR = os.path.join("tests", "features", "web")
+WEB_DRIVER_DIR = os.path.join(".claude", "qa", "web", "features")
+_WEB_SPEC_ID_RE = re.compile(r"^\s*@([A-Z]{2}\d{1,3})\b", re.M)
+_WEB_CODE_ID_RE = re.compile(r"""(?:\bid:\s*|pagesScenario\(\s*)['"]([A-Z]{2}\d{1,3})['"]""")
+
+
+def _web_drivers(driver_dir):
+    return sorted(f[: -len(".cjs")] for f in os.listdir(driver_dir) if f.endswith(".cjs")) \
+        if os.path.isdir(driver_dir) else []
+
+
+def validate_web_file(path, driver_dir):
+    name = os.path.basename(path)[: -len(".feature")]
+    drivers = _web_drivers(driver_dir)
+    # E-NOAGENT: a web spec's executor is its driver, checked below. W-NOLAYER ("no @e2e tag, nothing will run it")
+    # is false here — the driver decides what runs, not a tag — so it would cry wolf on every web scenario.
+    problems = [p for p in validate_file(path, drivers) if p["code"] not in ("E-NOAGENT", "W-NOLAYER")]
+    if name not in drivers:
+        problems.append(Problem("error", "E-NODRIVER", path, 1,
+                                "no %s/%s.cjs — nothing will ever run this spec" % (WEB_DRIVER_DIR, name)))
+        return problems
+    spec_ids = set(_WEB_SPEC_ID_RE.findall(open(path, encoding="utf-8").read()))
+    code_ids = set(_WEB_CODE_ID_RE.findall(open(os.path.join(driver_dir, name + ".cjs"), encoding="utf-8").read()))
+    for sid in sorted(spec_ids - code_ids):
+        problems.append(Problem("error", "E-WEB-NOCODE", path, 1,
+                                "@%s has no code in %s/%s.cjs — it can never pass, fail or block. Add it "
+                                "(a page area: a row in gen_page_features.py, then re-run it)." % (sid, WEB_DRIVER_DIR, name)))
+    for cid in sorted(code_ids - spec_ids):
+        problems.append(Problem("error", "E-WEB-NOSPEC", path, 1,
+                                "the driver runs %s but the spec has no @%s — write the scenario, or drop the code" % (cid, cid)))
+    return problems
+
+
+def validate_web_dir(spec_dir, driver_dir, only=None):
+    problems = []
+    drivers = set(_web_drivers(driver_dir))
+    for path in sorted(glob.glob(os.path.join(spec_dir, "*.feature"))):
+        name = os.path.basename(path)[: -len(".feature")]
+        if only and name not in set(only):
+            continue
+        if name in drivers or only:
+            problems += validate_web_file(path, driver_dir)
+        else:
+            problems.append(Problem("info", "I-NOTENROLLED", path, 1,
+                                    "web spec with no driver — not run by the web lane until %s/%s.cjs exists"
+                                    % (WEB_DRIVER_DIR, name)))
+    return problems
+
+
 # ── reporting ────────────────────────────────────────────────────────────────
 
 def render(problems, spec_dir):
@@ -390,7 +446,26 @@ def main(argv):
         return CANNOT_DECIDE
 
     only = [x.strip() for x in a.only.split(",") if x.strip()]
-    return run(a.spec_dir, a.agents_dir, only=only or None, as_json=a.json)
+    web_spec_dir = os.path.join(root, WEB_SPEC_DIR)
+    web_driver_dir = os.path.join(root, WEB_DRIVER_DIR)
+    web_names = set(_web_drivers(web_driver_dir)) | set(
+        f[: -len(".feature")] for f in (os.listdir(web_spec_dir) if os.path.isdir(web_spec_dir) else []) if f.endswith(".feature"))
+    if not only:
+        problems = validate_dir(a.spec_dir, a.agents_dir) + validate_web_dir(web_spec_dir, web_driver_dir)
+    else:
+        wa = [n for n in only if n not in web_names]
+        web = [n for n in only if n in web_names]
+        problems = (validate_dir(a.spec_dir, a.agents_dir, only=wa) if wa else []) + \
+                   (validate_web_dir(web_spec_dir, web_driver_dir, only=web) if web else [])
+        if web:
+            print("[validate-specs] web lane: %s" % ", ".join(web), file=sys.stderr)
+    if a.json:
+        print(json.dumps({"problems": problems,
+                          "errors": sum(1 for p in problems if p["level"] == "error"),
+                          "warnings": sum(1 for p in problems if p["level"] == "warn")}, indent=2))
+    else:
+        print(render(problems, root))
+    return 1 if any(p["level"] == "error" for p in problems) else 0
 
 
 if __name__ == "__main__":

@@ -56,6 +56,81 @@ echo "┌ commit-e2e · $SHORT · $(git -C "$ROOT" log -1 --format=%s "$SHA" | c
 # 1. which features did this commit touch?
 SEL=$(python3 "$QA/select_e2e.py" --repo "$ROOT" --range "$SHA~1...$SHA" --json 2>/dev/null || echo '{}')
 SEL_FEATURES=$(printf '%s' "$SEL" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(",".join(d.get("features") or []))' 2>/dev/null)
+SEL_WEB=$(printf '%s' "$SEL" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(",".join(d.get("web_features") or []))' 2>/dev/null)
+
+# The web lane (bd-hnhlgn.6): the portal in a headless browser on a local stack started at the CHECKOUT's HEAD
+# (scripts/qa/e2e-web.sh). Driven after the mock lane, or on its own when the commit touched only the portal.
+# Always headless: E2E_TRIGGER=commit makes e2e-web.sh ignore --headed / WEB_HEADED.
+# E2E_WEB_PLAN=1 prints each run's plan instead of starting it (tests); E2E_WEB_OFF=1 skips the lane.
+run_web() {
+  [ -n "$SEL_WEB" ] || return 0
+  [ "${E2E_WEB_OFF:-}" = 1 ] && { echo "│ web lane:  skipped (E2E_WEB_OFF=1) — $SEL_WEB"; return 0; }
+  echo "│ web lane:  $SEL_WEB  (portal, headless browser, local stack)"
+  if [ "$(git -C "$ROOT" rev-parse HEAD)" != "$SHA" ] && [ -z "${E2E_WEB_PLAN:-}" ]; then
+    echo "│ web lane:  NOT driven — it runs the checkout, and HEAD is not $SHORT. Check that commit out, then re-run."
+    return 3
+  fi
+  # The same gate as the mock lane (bd-hnhlgn.10): a portal spec that fails validate_specs — e.g. a scenario with no
+  # driver code (E-WEB-NOCODE) — is NOT driven. Driving a spec that cannot run proves nothing.
+  python3 "$QA/validate_specs.py" --only "$SEL_WEB" >"$PEND/web-$SHORT.validate.log" 2>&1; local vexit=$?
+  if [ "$vexit" -ne 0 ]; then
+    echo "│ validate_specs: exit $vexit for $SEL_WEB — NOT driving the web lane:"
+    grep -E '^ERROR' "$PEND/web-$SHORT.validate.log" | head -8 | sed 's/^/│   /'
+    return 1
+  fi
+  echo "│ validate_specs: exit 0 for $SEL_WEB"
+  # Which SCENARIOS of each portal feature this commit drives — select_scenarios.py, the same rules as the mock lane
+  # (spec lines edited, web: scenarios: pins, scenario text naming the file; an unmatched path runs the whole feature
+  # and says why; phase 1's new scenarios always run). E2E_SCENARIO_SELECT=0 runs whole features.
+  local wsel="" f wrc=0 scope ids runf="" only=""
+  if [ "${E2E_SCENARIO_SELECT:-1}" != 0 ] && [ -f "$QA/select_scenarios.py" ]; then
+    wsel=$(printf '%s' "$SEL" | python3 "$QA/select_scenarios.py" --selection - --repo "$ROOT" --range "$SHA~1...$SHA" \
+      --spec-base "$SHA~1" --json 2>/dev/null) || wsel=""
+  fi
+  IFS=',' read -r -a _web <<< "$SEL_WEB"
+  for f in "${_web[@]}"; do
+    scope=all; ids=""
+    if [ -n "$wsel" ]; then
+      read -r scope ids <<< "$(printf '%s' "$wsel" | F="$f" python3 -c '
+import json,os,sys
+v=(json.load(sys.stdin).get("web") or {}).get("features",{}).get(os.environ["F"]) or {}
+print(v.get("scope","all"), ",".join(v.get("ids") or []))' 2>/dev/null)"
+      printf '%s' "$wsel" | F="$f" python3 -c '
+import json,os,sys
+v=(json.load(sys.stdin).get("web") or {}).get("features",{}).get(os.environ["F"]) or {}
+f=os.environ["F"]
+if v.get("scope")=="subset": print("│ scenarios: %s %d of %d — %s" % (f, len(v["ids"]), v.get("of",0), ", ".join(v["ids"])))
+elif v.get("scope")=="none": print("│ scenarios: %s none — %s" % (f, v.get("note","")))
+else: print("│ scenarios: %s ALL — %s" % (f, "; ".join(v.get("whole_feature_because") or ["selector could not narrow it"])[:150]))' 2>/dev/null
+    fi
+    [ "$scope" = none ] && continue
+    runf="${runf:+$runf,}$f"
+    [ -n "$ids" ] && only="${only:+$only;}$f=$ids"
+  done
+  [ -n "$runf" ] || { echo "│ web lane:  no selected portal scenario to drive"; return 0; }
+  # Two or more portal features run side by side (e2e-web.sh --parallel: one slot each, one portal build, each with
+  # its own selection). E2E_PARALLEL=0 runs them one after another, as the mock lane does.
+  local par=""; case "$runf" in *,*) [ "${E2E_PARALLEL:-1}" != 0 ] && par="--parallel";; esac
+  if [ -n "$par" ]; then
+    echo "│ parallel:  one slot per portal feature (E2E_PARALLEL=0 to run them one after another)"
+    if [ -n "${E2E_WEB_PLAN:-}" ]; then
+      E2E_TRIGGER=commit bash "$ROOT/scripts/qa/e2e-web.sh" "$runf" --parallel ${only:+--only "$only"} --print-plan 2>&1 | sed 's/^/│   /'
+    else
+      E2E_TRIGGER="${E2E_TRIGGER:-commit}" bash "$ROOT/scripts/qa/e2e-web.sh" "$runf" --parallel ${only:+--only "$only"} || wrc=1
+    fi
+  else
+    for f in $(printf '%s' "$runf" | tr ',' ' '); do
+      ids=$(printf '%s' "$only" | tr ';' '\n' | sed -n "s/^$f=//p")
+      if [ -n "${E2E_WEB_PLAN:-}" ]; then
+        E2E_TRIGGER=commit bash "$ROOT/scripts/qa/e2e-web.sh" "$f" ${ids:+--only "$ids"} --print-plan 2>&1 | sed 's/^/│   /'
+      else
+        E2E_TRIGGER="${E2E_TRIGGER:-commit}" bash "$ROOT/scripts/qa/e2e-web.sh" "$f" ${ids:+--only "$ids"} || wrc=1
+      fi
+    done
+  fi
+  return $wrc
+}
+
 echo "│ selection: ${SEL_FEATURES:-(none)}$(printf '%s' "$SEL" | python3 -c 'import json,sys; d=json.load(sys.stdin); print("  [fallback: "+str(d.get("fallback_reason"))+"]" if d.get("fallback") else "")' 2>/dev/null)"
 
 # 2. the Gherkin sync brief (phase 1) — from the SAME selection
@@ -77,11 +152,14 @@ fi
 FEATURES="${FORCE:-$SEL_FEATURES}"
 RUN=""; LATER=""
 IFS=',' read -r -a arr <<< "$FEATURES"
-for f in "${arr[@]}"; do [ -z "$f" ] && continue
+for f in ${arr[@]+"${arr[@]}"}; do [ -z "$f" ] && continue  # empty-safe: bash 3.2 + set -u dies on an empty "${arr[@]}"
   case ",$MOCK_FEATURES," in *",$f,"*) RUN="${RUN:+$RUN,}$f";; *) LATER="${LATER:+$LATER,}$f";; esac
 done
 [ -n "$LATER" ] && echo "│ chrome lane only (not in the mock lane yet): $LATER"
-if [ -z "$RUN" ]; then echo "└ nothing for the mock lane to drive — done."; exit 0; fi
+if [ -z "$RUN" ]; then
+  if [ -n "$SEL_WEB" ]; then run_web; WRC=$?; echo "└ web lane done (exit $WRC) — rows in .claude/qa/ledgers/runs.jsonl"; exit $WRC; fi
+  echo "└ nothing for the mock lane to drive — done."; exit 0
+fi
 
 # 3b. can THIS machine run the lane? FIX it first (keys from Railway, redis via brew) — no manual step. Only if
 # it still cannot (railway not logged in) say so NOW, not exit 14 deep inside local-stack.sh (PR #1084).
@@ -127,7 +205,10 @@ for f in os.environ["RUN"].split(","):
     # features with nothing to drive leave the run
     KEEP=$(printf '%s' "$SCEN" | RUN="$RUN" python3 -c 'import json,os,sys; d=json.load(sys.stdin)["features"]; print(",".join(f for f in os.environ["RUN"].split(",") if f and (d.get(f) or {}).get("scope")!="none"))')
     RUN="$KEEP"
-    if [ -z "$RUN" ]; then echo "└ the commit changed no live scenario in any selected feature — nothing to drive."; exit 0; fi
+    if [ -z "$RUN" ]; then
+      [ -n "$SEL_WEB" ] && { run_web; exit $?; }
+      echo "└ the commit changed no live scenario in any selected feature — nothing to drive."; exit 0
+    fi
   else
     echo "│ scenarios: selector could not decide — whole features"
   fi
@@ -152,4 +233,5 @@ for l in sys.stdin:
         r["feature"], r["status"], r["summary"]["passed"], r["summary"]["failed"], r["summary"]["blocked"], r["summary"].get("skipped",0),
         (r.get("commit_sha") or "")[:12], r.get("dirty"), (r.get("cassette") or {}).get("misses")))' || echo "│  (no rows — the run did not reach the ledger)"
 echo "└ evidence: .claude/qa/results/whatsapp/niete/$RUN_ID/"
+if [ -n "$SEL_WEB" ]; then echo "┌ web lane"; run_web; WRC=$?; echo "└ web lane done (exit $WRC)"; [ "$RC" -ne 0 ] && exit $RC; exit $WRC; fi
 exit $RC

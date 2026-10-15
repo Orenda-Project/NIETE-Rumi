@@ -151,4 +151,34 @@ out = run(two)
 assert out["only"] == "coaching=COA09", out["only"]
 assert out["features"]["menu"]["scope"] == "all"
 
+# 8. the portal's web lane (bd-hnhlgn.11): the same rules, run against tests/features/web + `web: scenarios:` pins
+ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+MAP = os.path.join(ROOT, ".claude", "qa", "config", "feature-map.yaml")
+wpins = ss.load_web_scenario_pins(MAP)
+
+
+def web(feature, *paths):
+    sel = {"features": [], "reasons": {}, "web_features": [feature], "web_reasons": {feature: list(paths)}}
+    return ss.select_web(sel, ROOT, None, wpins)
+
+
+r = web("teacher-lessons", "portal/src/portal/teacher/lessons/LessonsHome.tsx")["features"]["teacher-lessons"]
+assert r["scope"] == "subset" and r["ids"] == ["TL01"], r            # the new teacher app's lessons page only
+r = web("teacher-lessons", "portal/src/portal/pages/PortalCurriculum.tsx")["features"]["teacher-lessons"]
+assert r["scope"] == "subset" and r["ids"] == ["TL02"], r            # the classic curriculum page only
+r = web("portal-login", "portal/src/portal/pages/PortalLogin.tsx")["features"]["portal-login"]
+assert r["scope"] == "subset" and "PL03" in r["ids"] and "PL11" not in r["ids"], r   # the form, not the /go link
+r = web("portal-login", "dashboard/routes/app-login.routes.js")["features"]["portal-login"]
+assert r["scope"] == "subset" and r["ids"] == ["PL11"], r            # WhatsApp one-tap sign-in only
+r = web("portal-login", "dashboard/index.js")["features"]["portal-login"]
+assert r["scope"] == "all" and r["whole_feature_because"], r         # unpinned: the WHOLE feature, and says why
+r = web("coach-portal", ".claude/qa/web/features/coach-portal.cjs")["features"]["coach-portal"]
+assert r["scope"] == "all", r                                        # the test code itself changed: run it all
+out = web("teacher-lessons", "portal/src/portal/teacher/lessons/LessonsHome.tsx")
+assert out["only"] == "teacher-lessons=TL01", out["only"]
+both = ss.select_web({"web_features": ["teacher-lessons", "portal-login"],
+                      "web_reasons": {"teacher-lessons": ["portal/src/portal/pages/PortalCurriculum.tsx"],
+                                      "portal-login": ["dashboard/index.js"]}}, ROOT, None, wpins)
+assert both["only"] == "teacher-lessons=TL02", both["only"]          # a whole feature is absent from `only`
+
 print("select_scenarios: all assertions passed")

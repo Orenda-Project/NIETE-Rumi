@@ -200,7 +200,8 @@ else
   [ -z "$SEL" ] && exit 0
 
   # Nothing selected (docs-only change) is the common case. Say nothing.
-  COUNT=$(printf '%s' "$SEL" | jq -r '.commands | length' 2>/dev/null)
+  # WhatsApp commands + web-lane commands: a portal-only commit is a run too (bd-hnhlgn.6).
+  COUNT=$(printf '%s' "$SEL" | jq -r '(.commands | length) + ((.web_commands // []) | length)' 2>/dev/null)
   case "$COUNT" in ''|0) exit 0 ;; esac
 fi
 
@@ -259,9 +260,17 @@ printf '%s' "$SEL" | jq \
   '{session: $session, repo: $repo, branch: $branch, commit_sha: $commit_sha, trigger: $trigger, mode: $mode,
     armed_at: $armed, nudged: false, spec_sync: $spec_sync,
     spec_hashes: $spec_hashes, spec_declared: {}, phase1_blocks: 0,
-    commands: .commands, features: .features,
+    commands: .commands, features: .features, web_features: (.web_features // []),
     fallback: .fallback, unmapped: .unmapped}' \
   > "$PENDING_DIR/$SESSION.json" 2>/dev/null || exit 0
+
+# ONE commit, ONE order (bd-hnhlgn.12). The same commit also fired .githooks/post-commit, which wrote
+# git-<sha>.json — for a terminal commit that is the only marker, but here the session's marker covers this commit.
+# Absorb it now, or once this session clears its own marker the Stop hook adopts the git one and orders the same
+# E2E a second time. (post-commit runs inside `git commit`, so it has always finished before this PostToolUse.)
+if [ "$TRIGGER" = "commit" ] && [ -n "$COMMIT_SHA" ]; then
+  rm -f "$PENDING_DIR/git-${COMMIT_SHA:0:12}.json" "$PENDING_DIR/git-${COMMIT_SHA:0:12}.sync.json" 2>/dev/null
+fi
 
 # The order the agent acts on. It is an ORDER, not a hand-off: the expected
 # response to this text is a driven suite, not a message repeating the commands
@@ -285,7 +294,18 @@ if [ "$TRIGGER" = "commit" ] && [ -n "$COMMIT_SHA" ] && type e2e_split_lanes >/d
     CMDS=$(e2e_filter_chrome_cmds "$CMDS" "$E2E_LANE_MOCK")
   fi
 fi
-if [ "$TRIGGER" = "commit" ] && [ -n "$MOCK_BLOCK" ] && [ -z "$CMDS" ]; then
+WEB_FEATS=$(printf '%s' "$SEL" | jq -r '(.web_features // []) | join(",")' 2>/dev/null)
+WEB_BLOCK=""
+if [ "$TRIGGER" = "commit" ] && [ -n "$COMMIT_SHA" ] && type e2e_web_block >/dev/null 2>&1; then
+  WEB_BLOCK=$(e2e_web_block "$COMMIT_SHA" "$WEB_FEATS" "$MOCK_BLOCK")
+fi
+if [ "$TRIGGER" = "commit" ] && [ -z "$MOCK_BLOCK" ] && [ -z "$CMDS" ] && [ -n "$WEB_BLOCK" ]; then
+  # A portal-only commit: there is no /niete-e2e part and nothing deployed to wait for (bd-hnhlgn.6).
+  read -r -d '' WHICH_BUILD <<EOF
+Every feature this commit touched is on the web lane, which starts the portal from
+this checkout — it tests the commit itself. There is no WhatsApp Web run for it.
+EOF
+elif [ "$TRIGGER" = "commit" ] && [ -n "$MOCK_BLOCK" ] && [ -z "$CMDS" ]; then
   read -r -d '' WHICH_BUILD <<EOF
 Every feature this commit touched runs on the mock lane, so there is no
 WhatsApp Web run for this commit; /niete-e2e tests it after the develop deploy.
@@ -361,7 +381,13 @@ fi
 # WhatsApp Web preconditions belong to the chrome lane only; an all-mock order says what the
 # mock lane needs instead (a demo run sent the agent hunting for a browser it did not need).
 CHROME_PRE=""
-if [ -n "$CMDS" ]; then
+if [ -z "$CMDS" ] && [ -z "$MOCK_BLOCK" ] && [ -n "$WEB_BLOCK" ]; then
+  read -r -d '' CHROME_PRE <<EOF
+The web lane needs no WhatsApp number and no keys file: the local stack (dev-portal.sh,
+DATA=demo) and headless Chromium, installed on first use. If it cannot start, say which
+step failed (the e2e-web.sh exit code names it), plainly, and clear the marker.
+EOF
+elif [ -n "$CMDS" ]; then
   read -r -d '' CHROME_PRE <<EOF
 
 Preconditions for the WhatsApp Web lane — check, do not skip:
@@ -401,10 +427,11 @@ EOF
 fi
 
 read -r -d '' CONTEXT <<EOF
-EXECUTE THE TARGETED E2E NOW — $TRIGGER on \`$BRANCH\` ($REPO_NAME) touched code covered by: ${FEATS:-the SAFE subset}
+EXECUTE THE TARGETED E2E NOW — $TRIGGER on \`$BRANCH\` ($REPO_NAME) touched code covered by: ${FEATS:-${WEB_FEATS:+portal: }${WEB_FEATS:-the SAFE subset}}
 
 $PHASE1
 $MOCK_BLOCK
+$WEB_BLOCK
 
 $CHROME_PART
 

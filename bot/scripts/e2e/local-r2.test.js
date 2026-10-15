@@ -125,6 +125,23 @@ const t = async (name, fn) => { await fn(); n++; console.log('  ok  ' + name); }
         assert.strictEqual(fs.readFileSync(path.join(baseDir, BUCKET, 'lp612/page-truth/g7.json'), 'utf8'), '{"page":7}');
       } finally { off.kill(); }
     });
+    await t('a browser can upload straight to it: the CORS preflight is answered (bd-hnhlgn.17)', async () => {
+      // the portal's recorder PUTs to a presigned URL from http://localhost:4000 — Chrome asks first
+      const origin = 'http://localhost:4000';
+      const url = await getSignedUrl(s3, new PutObjectCommand({ Bucket: BUCKET, Key: 'classroom_audio/u/rec.webm', ContentType: 'audio/webm' }), { expiresIn: 900 });
+      const pre = await fetch(url, { method: 'OPTIONS', headers: { Origin: origin, 'Access-Control-Request-Method': 'PUT', 'Access-Control-Request-Headers': 'content-type,x-amz-checksum-crc32' } });
+      assert.ok(pre.status >= 200 && pre.status < 300, `preflight status ${pre.status}`);
+      assert.strictEqual(pre.headers.get('access-control-allow-origin'), origin);
+      assert.match(pre.headers.get('access-control-allow-methods') || '', /PUT/);
+      assert.match(pre.headers.get('access-control-allow-headers') || '', /x-amz-checksum-crc32/);
+      const put = await fetch(url, { method: 'PUT', headers: { Origin: origin, 'content-type': 'audio/webm' }, body: 'WEBM' });
+      assert.strictEqual(put.status, 200);
+      assert.strictEqual(put.headers.get('access-control-allow-origin'), origin);
+      assert.match(put.headers.get('access-control-expose-headers') || '', /etag/i);
+      const get = await fetch(`http://127.0.0.1:${LOCAL_PORT}/${BUCKET}/classroom_audio/u/rec.webm`, { headers: { Origin: origin } });
+      assert.strictEqual(await get.text(), 'WEBM');
+      assert.strictEqual(get.headers.get('access-control-allow-origin'), origin);
+    });
     await t('NOTHING the run did reached upstream', async () => {
       assert.deepStrictEqual(listFiles(upDir), upBefore);
     });
