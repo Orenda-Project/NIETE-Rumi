@@ -722,13 +722,17 @@ async function resendVersion({ paperId, userId, phone: knownPhone, user = null, 
       const keyHtml = Renderer.renderAnswerKey({
         examJson: pattern ? p.exam_json : Selection.activeTree(p.exam_json),
         grade, subject, schoolName, pageReference: pageRanges, chapterTitle,
+        ...(pattern ? { paperFileName: name } : {}),
       });
       const keyBuffer = pattern
         ? await renderer.render(keyHtml, { pdfOptions: FdeRenderer.pdfOptions(p.exam_json, 'scheme') })
         : await renderer.render(keyHtml);
       keyKey = await r2.uploadExamBuffer({
         buffer: keyBuffer, userId, examId: paperId,
-        filename: fileName({ grade, subject, chapterTitle, format: renderer.ext, suffix: `_v${version}_AnswerKey` }),
+        filename: fileName({
+          grade, subject, chapterTitle, format: renderer.ext,
+          suffix: pattern ? `_FDE_v${version}_MarkingScheme` : `_v${version}_AnswerKey`,
+        }),
       });
       await _patch(paperId, { answer_key_r2_key: keyKey });
     } catch (err) {
