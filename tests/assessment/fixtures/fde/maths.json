@@ -1,0 +1,980 @@
+{
+  "_fixture": "Hand-written fixture for tests; fictional; every key worked by hand except one on purpose: Q2 \"Divide 52.8 by 1.2.\" says 44.5 so the code check shows a correction (44).",
+  "unseen": {
+    "objective": {
+      "MCQs": [
+        {
+          "slot": "maths.A.Q1a",
+          "question": "The place value of 6 in 3,462,105 is",
+          "options": [
+            "600,000",
+            "6,000",
+            "60,000",
+            "6,000,000"
+          ],
+          "answer": "c",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "4,099,999 + 1 =",
+          "options": [
+            "4,100,000",
+            "4,000,000",
+            "5,000,000",
+            "4,190,000"
+          ],
+          "answer": "a",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "5,736,482 rounded to the nearest thousand is",
+          "options": [
+            "5,736,000",
+            "5,737,000",
+            "5,740,000",
+            "5,700,000"
+          ],
+          "answer": "a",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "9,000 × 100 =",
+          "options": [
+            "90,000",
+            "9,000,000",
+            "900",
+            "900,000"
+          ],
+          "answer": "d",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "Which of these is a prime number?",
+          "options": [
+            "21",
+            "27",
+            "29",
+            "33"
+          ],
+          "answer": "c",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "The HCF of 18 and 24 is",
+          "options": [
+            "3",
+            "6",
+            "12",
+            "72"
+          ],
+          "answer": "b",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "The LCM of 4 and 6 is",
+          "options": [
+            "2",
+            "12",
+            "10",
+            "24"
+          ],
+          "answer": "b",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "Which fraction is equal to 3/4?",
+          "options": [
+            "6/8",
+            "4/6",
+            "9/16",
+            "3/8"
+          ],
+          "answer": "a",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "2/5 + 1/5 =",
+          "options": [
+            "3/10",
+            "2/25",
+            "1/5",
+            "3/5"
+          ],
+          "answer": "d",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "Which fraction is the greatest?",
+          "options": [
+            "1/2",
+            "3/5",
+            "5/8",
+            "2/3"
+          ],
+          "answer": "d",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "0.7 written as a fraction is",
+          "options": [
+            "7/100",
+            "7/10",
+            "70/10",
+            "1/7"
+          ],
+          "answer": "b",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "4.56 rounded to one decimal place is",
+          "options": [
+            "4.5",
+            "4.56",
+            "4.6",
+            "5.0"
+          ],
+          "answer": "c",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "3.2 × 10 =",
+          "options": [
+            "320",
+            "0.32",
+            "3.20",
+            "32"
+          ],
+          "answer": "d",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "6.4 ÷ 2 =",
+          "options": [
+            "3.2",
+            "3.4",
+            "12.8",
+            "0.32"
+          ],
+          "answer": "a",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "25% as a fraction in its simplest form is",
+          "options": [
+            "1/25",
+            "1/5",
+            "1/4",
+            "2/5"
+          ],
+          "answer": "c",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "40% of 200 is",
+          "options": [
+            "40",
+            "160",
+            "80",
+            "120"
+          ],
+          "answer": "c",
+          "blooms": "Understand"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "5 pencils cost Rs. 60. One pencil costs",
+          "options": [
+            "Rs. 12",
+            "Rs. 10",
+            "Rs. 15",
+            "Rs. 300"
+          ],
+          "answer": "a",
+          "blooms": "Apply"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "An angle of 90° is called",
+          "options": [
+            "a right angle",
+            "an acute angle",
+            "an obtuse angle",
+            "a straight angle"
+          ],
+          "answer": "a",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "Two angles that add up to 180° are called",
+          "options": [
+            "complementary angles",
+            "supplementary angles",
+            "adjacent angles",
+            "acute angles"
+          ],
+          "answer": "b",
+          "blooms": "Remember"
+        },
+        {
+          "slot": "maths.A.Q1a",
+          "question": "The average of 4, 6 and 8 is",
+          "options": [
+            "5",
+            "7",
+            "18",
+            "6"
+          ],
+          "answer": "d",
+          "blooms": "Understand"
+        }
+      ]
+    },
+    "subjective": {
+      "Short Questions": [
+        {
+          "slot": "maths.A.Q1b",
+          "question": "Write 4,205,316 in expanded form.",
+          "answer": "4,000,000 + 200,000 + 5,000 + 300 + 10 + 6",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "at least four of the six place-value parts correct",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "all six parts correct, nothing written for the 0",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "4 × 1,000,000 + 2 × 100,000 + 5 × 1,000 + 3 × 100 + 1 × 10 + 6 × 1"
+            ]
+          }
+        },
+        {
+          "slot": "maths.A.Q1b",
+          "question": "Multiply: 2,345 × 7",
+          "answer": "16,415",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "a correct method (carrying shown, or partial products)",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "16,415",
+                "marks": 1,
+                "kind": "A"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "maths.A.Q1b",
+          "question": "Find the HCF of 12 and 20.",
+          "answer": "4",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "a correct method: common factors, prime factors or division",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "4",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "common factors 1, 2, 4: HCF = 4",
+              "12 = 2 × 2 × 3, 20 = 2 × 2 × 5: HCF = 2 × 2 = 4"
+            ]
+          }
+        },
+        {
+          "slot": "maths.A.Q1b",
+          "question": "Subtract: 3/4 − 1/3",
+          "answer": "5/12",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "both written over 12: 9/12 − 4/12",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "5/12",
+                "marks": 1,
+                "kind": "A"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "maths.A.Q1b",
+          "question": "Multiply: 2/3 × 3/5",
+          "answer": "2/5",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "tops and bottoms multiplied (6/15), or the 3s cancelled first",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "2/5 in its simplest form",
+                "marks": 1,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "cancelling first: 2/1 × 1/5 = 2/5",
+              "6/15 simplified to 2/5"
+            ]
+          }
+        },
+        {
+          "slot": "maths.A.Q1b",
+          "question": "Change 3/8 into a decimal.",
+          "answer": "0.375",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "3 ÷ 8 set up, or 375/1000",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "0.375",
+                "marks": 1,
+                "kind": "A"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "maths.A.Q1b",
+          "question": "Add: 15.75 + 24.6",
+          "answer": "40.35",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "decimal points lined up (24.60)",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "40.35",
+                "marks": 1,
+                "kind": "A"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "maths.A.Q1b",
+          "question": "Write 0.45 as a percentage.",
+          "answer": "45%",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "× 100",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "45%",
+                "marks": 1,
+                "kind": "A"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "maths.A.Q1b",
+          "question": "Find the average of 12, 15, 18, 21 and 24.",
+          "answer": "18",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "total 90 ÷ 5",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "18",
+                "marks": 1,
+                "kind": "A"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "maths.A.Q1b",
+          "question": "Draw an angle of 120° with a protractor.",
+          "answer": "An angle of 120° drawn with a protractor.",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "arms drawn from one vertex with a protractor",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "120° within 2°",
+                "marks": 1,
+                "kind": "A"
+              }
+            ]
+          }
+        }
+      ],
+      "Word Problems": [
+        {
+          "slot": "maths.B.Q2",
+          "question": "Write 7,083,450 in words.",
+          "answer": "Seven million, eighty-three thousand, four hundred and fifty",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "seven million",
+                "marks": 1,
+                "kind": "A"
+              },
+              {
+                "text": "eighty-three thousand",
+                "marks": 2,
+                "kind": "A"
+              },
+              {
+                "text": "four hundred and fifty",
+                "marks": 2,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "seventy lakh eighty-three thousand four hundred and fifty",
+              "the same words without commas or without \"and\""
+            ]
+          }
+        },
+        {
+          "slot": "maths.B.Q2",
+          "question": "A school had Rs. 750,000 for the year. It spent Rs. 286,450 on furniture and Rs. 135,800 on books. How much money is left?",
+          "answer": "Rs. 327,750",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "total spent: 286,450 + 135,800 = 422,250",
+                "marks": 2,
+                "kind": "M"
+              },
+              {
+                "text": "750,000 − 422,250",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "Rs. 327,750",
+                "marks": 2,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "one amount at a time: 750,000 − 286,450 = 463,550; − 135,800 = 327,750"
+            ]
+          }
+        },
+        {
+          "slot": "maths.B.Q2",
+          "question": "Divide 23,856 by 24.",
+          "answer": "994",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "long division set up with 24 as the divisor",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "quotient digits 9, 9, 4 found in turn (216, 216, 96 taken away)",
+                "marks": 2,
+                "kind": "M"
+              },
+              {
+                "text": "994",
+                "marks": 2,
+                "kind": "A"
+              }
+            ],
+            "common_error": "94 (a quotient digit left out: a place-value error, not a slip): the set-up M1 only, 1 of 5."
+          }
+        },
+        {
+          "slot": "maths.B.Q2",
+          "question": "Multiply 4,768 by 65.",
+          "answer": "309,920",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "4,768 × 5 = 23,840",
+                "marks": 2,
+                "kind": "M"
+              },
+              {
+                "text": "4,768 × 60 = 286,080",
+                "marks": 2,
+                "kind": "M"
+              },
+              {
+                "text": "309,920",
+                "marks": 1,
+                "kind": "A"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "maths.B.Q2",
+          "question": "Find the LCM of 12, 18 and 30 by the division method.",
+          "answer": "180",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "division ladder with prime divisors until every number is 1",
+                "marks": 2,
+                "kind": "M"
+              },
+              {
+                "text": "2 × 2 × 3 × 3 × 5 written",
+                "marks": 2,
+                "kind": "M"
+              },
+              {
+                "text": "180",
+                "marks": 1,
+                "kind": "A"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "maths.B.Q2",
+          "question": "Subtract: 8 2/5 − 3 3/4",
+          "answer": "4 13/20 (93/20)",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "a correct start: improper fractions (42/5, 15/4) or one whole borrowed (7 7/5)",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "a common denominator of 20 used correctly",
+                "marks": 2,
+                "kind": "M"
+              },
+              {
+                "text": "4 13/20, or 93/20",
+                "marks": 2,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "wholes and parts apart: 7 28/20 − 3 15/20 = 4 13/20",
+              "93/20 left as an improper fraction"
+            ]
+          }
+        },
+        {
+          "slot": "maths.B.Q2",
+          "question": "A water tank holds 360 litres. 5/8 of the water is used. How many litres are left?",
+          "answer": "135 litres",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "5/8 of 360 = 225",
+                "marks": 2,
+                "kind": "M"
+              },
+              {
+                "text": "360 − 225",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "135 litres",
+                "marks": 2,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "3/8 of 360 = 135 directly"
+            ]
+          }
+        },
+        {
+          "slot": "maths.B.Q2",
+          "question": "One kilogram of sugar costs Rs. 145.50. Find the cost of 6 kg of sugar.",
+          "answer": "Rs. 873.00",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "145.50 × 6 set up",
+                "marks": 2,
+                "kind": "M"
+              },
+              {
+                "text": "multiplied with the decimal point placed",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "Rs. 873",
+                "marks": 2,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "145 × 6 + 0.50 × 6 = 870 + 3 = 873"
+            ]
+          }
+        },
+        {
+          "slot": "maths.B.Q2",
+          "question": "Divide 52.8 by 1.2.",
+          "answer": "44.5",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "both made whole: 528 ÷ 12",
+                "marks": 2,
+                "kind": "M"
+              },
+              {
+                "text": "division carried out",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "44.5",
+                "marks": 2,
+                "kind": "A"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "maths.B.Q2",
+          "question": "A school has 650 children. 52% of them walk to school. How many children do not walk to school?",
+          "answer": "312",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "100% − 52% = 48%",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "48/100 × 650",
+                "marks": 2,
+                "kind": "M"
+              },
+              {
+                "text": "312",
+                "marks": 2,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "52% of 650 = 338; 650 − 338 = 312"
+            ]
+          }
+        },
+        {
+          "slot": "maths.B.Q2",
+          "question": "8 notebooks cost Rs. 680. What is the cost of 15 notebooks?",
+          "answer": "Rs. 1,275",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "one notebook: 680 ÷ 8 = Rs. 85",
+                "marks": 2,
+                "kind": "M"
+              },
+              {
+                "text": "85 × 15",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "Rs. 1,275",
+                "marks": 2,
+                "kind": "A"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "maths.B.Q2",
+          "question": "A car travels 288 km on 24 litres of petrol. How far will it travel on 35 litres?",
+          "answer": "420 km",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "one litre: 288 ÷ 24 = 12 km",
+                "marks": 2,
+                "kind": "M"
+              },
+              {
+                "text": "12 × 35",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "420 km",
+                "marks": 2,
+                "kind": "A"
+              }
+            ]
+          }
+        }
+      ],
+      "Graphs & Geometric Problems": [
+        {
+          "slot": "maths.C.Q3",
+          "question": "The table shows the number of books Class 5 read on each day of one week. Draw a bar graph to represent the given data.",
+          "table": {
+            "headers": [
+              "Day",
+              "Books read"
+            ],
+            "rows": [
+              [
+                "Monday",
+                "12"
+              ],
+              [
+                "Tuesday",
+                "18"
+              ],
+              [
+                "Wednesday",
+                "9"
+              ],
+              [
+                "Thursday",
+                "15"
+              ],
+              [
+                "Friday",
+                "21"
+              ]
+            ]
+          },
+          "answer": "A bar graph with a title, the days on one axis and the number of books on the other, an equal scale, and five bars of heights 12, 18, 9, 15 and 21.",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "a title",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "both axes labelled (Day, Books read)",
+                "marks": 1,
+                "kind": "L"
+              },
+              {
+                "text": "an equal scale, stated or shown by a numbered axis",
+                "marks": 1,
+                "kind": "K"
+              },
+              {
+                "text": "five bars of equal width at 12, 18, 9, 15 and 21",
+                "marks": 2,
+                "kind": "A"
+              }
+            ],
+            "accept": [
+              "horizontal bars",
+              "any equal scale, e.g. 1 square = 3 books or 1 square = 1 book"
+            ]
+          }
+        },
+        {
+          "slot": "maths.C.Q4-8",
+          "question": "Draw an obtuse angle and a straight angle. Write the name under each.",
+          "answer": "Any angle between 90° and 180° named obtuse; a 180° angle named straight.",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "obtuse angle drawn (between 90° and 180°)",
+                "marks": 2,
+                "kind": "L"
+              },
+              {
+                "text": "straight angle drawn (180°)",
+                "marks": 2,
+                "kind": "L"
+              },
+              {
+                "text": "both named",
+                "marks": 1,
+                "kind": "A"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "maths.C.Q4-8",
+          "question": "Find the area of a parallelogram whose base is 14 cm and height is 9 cm.",
+          "answer": "126 cm²",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "area = base × height",
+                "marks": 2,
+                "kind": "M"
+              },
+              {
+                "text": "126",
+                "marks": 2,
+                "kind": "A"
+              },
+              {
+                "text": "cm²",
+                "marks": 1,
+                "kind": "U"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "maths.C.Q4-8",
+          "question": "A rectangular field is 45 m long and 28 m wide. Find its perimeter.",
+          "answer": "146 m",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "a correct method: 2 × (45 + 28), or adding the four sides",
+                "marks": 2,
+                "kind": "M"
+              },
+              {
+                "text": "146",
+                "marks": 2,
+                "kind": "A"
+              },
+              {
+                "text": "m",
+                "marks": 1,
+                "kind": "U"
+              }
+            ],
+            "accept": [
+              "45 + 28 + 45 + 28 = 146 m",
+              "2 × 45 + 2 × 28 = 146 m"
+            ]
+          }
+        },
+        {
+          "slot": "maths.C.Q4-8",
+          "question": "The temperatures of a city on five days were 31 °C, 34 °C, 29 °C, 33 °C and 28 °C. Find the average temperature.",
+          "answer": "31 °C",
+          "blooms": "Understand",
+          "scheme": {
+            "points": [
+              {
+                "text": "total = 155",
+                "marks": 2,
+                "kind": "M"
+              },
+              {
+                "text": "155 ÷ 5",
+                "marks": 1,
+                "kind": "M"
+              },
+              {
+                "text": "31 °C",
+                "marks": 2,
+                "kind": "A"
+              }
+            ]
+          }
+        },
+        {
+          "slot": "maths.C.Q4-8",
+          "question": "Two angles together make a straight angle. One of them is 115°. Find the other angle and name the pair (complementary or supplementary).",
+          "answer": "65°; supplementary",
+          "blooms": "Apply",
+          "scheme": {
+            "points": [
+              {
+                "text": "180° − 115°",
+                "marks": 2,
+                "kind": "M"
+              },
+              {
+                "text": "65°",
+                "marks": 2,
+                "kind": "A"
+              },
+              {
+                "text": "named: supplementary",
+                "marks": 1,
+                "kind": "A"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
