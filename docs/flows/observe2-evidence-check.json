@@ -36,7 +36,7 @@
       "data": {
         "heard_ask_intro": {
           "type": "string",
-          "__example__": "Rumi picked these from the recording as evidence for this part of the lesson. Say whether each one happened as written."
+          "__example__": "These moments were picked from the recording as evidence for this part of the lesson. Say whether each one happened as written."
         },
         "heard_ask_1_t": {
           "type": "string",
@@ -323,7 +323,7 @@
       "data": {
         "heard_wrong_intro": {
           "type": "string",
-          "__example__": "Rumi picked these from the recording as evidence for this part of the lesson. Say whether each one happened as written."
+          "__example__": "These moments were picked from the recording as evidence for this part of the lesson. Say whether each one happened as written."
         },
         "heard_wrong_1_t": {
           "type": "string",
@@ -610,7 +610,7 @@
       "data": {
         "heard_work_intro": {
           "type": "string",
-          "__example__": "Rumi picked these from the recording as evidence for this part of the lesson. Say whether each one happened as written."
+          "__example__": "These moments were picked from the recording as evidence for this part of the lesson. Say whether each one happened as written."
         },
         "heard_work_1_t": {
           "type": "string",
@@ -897,7 +897,7 @@
       "data": {
         "heard_explain_intro": {
           "type": "string",
-          "__example__": "Rumi picked these from the recording as evidence for this part of the lesson. Say whether each one happened as written."
+          "__example__": "These moments were picked from the recording as evidence for this part of the lesson. Say whether each one happened as written."
         },
         "heard_explain_1_t": {
           "type": "string",

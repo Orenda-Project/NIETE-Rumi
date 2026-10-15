@@ -1072,9 +1072,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   Scenario: A part of the lesson with no moment says so, never a blank question
     Given the "Check the moments" form is open and Rumi found no moment for "When children work, what do they do?"
     When I reach that screen
-    Then it says Rumi found no clear moment for this question, that there is nothing to check here and that my own answers still count
+    Then it says no clear moment for this question was found, that there is nothing to check here and that my own answers still count
     And every screen with moments opens by saying that what I confirm counts toward the levels and a "No" counts for nothing
-    And the explaining screen says Rumi does not add those moments up for me
+    And the explaining screen says those moments are not added up for me
     # Pilot sheet R8, R9 (14 Oct): the screen showed the question over nothing, because every slot is
     # hidden when a part has no moment. observe2-check-endpoint.js HEARD_INTRO, bound to
     # ${data.<screen>_intro} in evidence-check.flow.js (live once the check Flow is republished).

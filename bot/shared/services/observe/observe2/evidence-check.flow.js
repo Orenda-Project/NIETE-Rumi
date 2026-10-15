@@ -88,7 +88,7 @@ function screenWith(id, title, children, footerLabel, data, initValues, extraPay
 function heardScreen({ id, title, moment }) {
   const intro = `${id.toLowerCase()}_intro`;
   const data = {
-    [intro]: { type: 'string', __example__: 'Rumi picked these from the recording as evidence for this part of the lesson. Say whether each one happened as written.' },
+    [intro]: { type: 'string', __example__: 'These moments were picked from the recording as evidence for this part of the lesson. Say whether each one happened as written.' },
   };
   const kids = [
     { type: 'TextHeading', text: MOMENT_BY_ID[moment].question },
