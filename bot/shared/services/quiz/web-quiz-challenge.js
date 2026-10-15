@@ -931,7 +931,7 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     top: { canonical_id: canonicalId, mode, period_id: periodId, band, record, via, exposure_no: exposure, passage_id: passageId, item_set_id: itemSetId,
       anchor_block: anchorBlock, anchor_exposure_no: anchorExp, form: formNum },
     // the page gets only what it renders (ruling #43); every other field is on the row, in meta.draw and in ch_start
-    payload: { mode, ...(mode === 'practice' ? { practice_round: true } : {}), draw: { outcome: 'served' } },
+    payload: { mode, ...(mode === 'practice' ? { practice_round: true } : {}), ...(anchorBlock ? { anchor_block: anchorBlock } : {}), draw: { outcome: 'served' } },
     event: { w: 's', mode, period_id: periodId, form, band, rung: rung == null ? null : rung, ...(isPassage ? { passage_id: passageId } : { item_set_id: itemSetId }),
       exposure_no: exposure, ...(anchorBlock ? { anchor_exposure_no: anchorExp, anchor_serves_any: servesAny, anchor_block: anchorBlock } : {}), record, via },
     items, tryout, story, dir, clipUrl,
