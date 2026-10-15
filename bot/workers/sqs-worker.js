@@ -1250,6 +1250,9 @@ const WhatsAppService = require('../shared/services/whatsapp.service');
  * Re-queues requests that were stuck in 'processing' state
  * Called on startup AND periodically to catch jobs stuck after deployment
  */
+// The queued render's attempt limit — the same one the generation worker and the health check read.
+const { MAX_ATTEMPTS: MAX_LP_ATTEMPTS } = require('../shared/config/lesson-plan-generation');
+
 async function recoverStaleLessonPlanRequests() {
   try {
     logToFile('Checking for stale lesson plan requests...');
@@ -1277,7 +1280,7 @@ async function recoverStaleLessonPlanRequests() {
         continue;
       }
 
-      if (request.retry_count >= 3) {
+      if (request.retry_count >= MAX_LP_ATTEMPTS) {
         // Max retries exceeded - send apology and mark failed
         logToFile('Stale request exceeded max retries, sending apology', {
           requestId: request.id,
@@ -1285,7 +1288,7 @@ async function recoverStaleLessonPlanRequests() {
         });
 
         // Mark as failed FIRST to prevent race conditions
-        await LessonPlanQueueService.markFailed(request.id, 'Exceeded max retries during recovery');
+        await LessonPlanQueueService.markFailed(request.id, 'Exceeded max retries during recovery', undefined, { final: true });
 
         try {
           const apologyMessages = {
@@ -1956,5 +1959,5 @@ if (require.main === module) {
 module.exports = {
   SQSCoachingWorker, WORKER_ID, startWorker, runDebriefRetrySweep, resolveWorkerQueuesBootStatus,
   exitAfterFlush, runQuizFunnelWatch, scheduleChallengeVoiceSweep, challengeVoiceSweepEnabled,
-  runLessonPlanHealth, scheduleLessonPlanHealth, schedulePeriodicChecks,
+  runLessonPlanHealth, scheduleLessonPlanHealth, schedulePeriodicChecks, recoverStaleLessonPlanRequests,
 };

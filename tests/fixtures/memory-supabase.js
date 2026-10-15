@@ -21,6 +21,11 @@
  *
  * NOT modelled: `.or()` is recorded and ignored (every row passes). A test whose
  * outcome turns on an `.or()` filter must not rely on this fake for it.
+ *
+ * `{ projectSelect: true }` returns only the columns a plain `.select('a, b')` names, the way PostgREST
+ * does — so a test can see a query that never selects a column its caller reads. Off by default:
+ * every suite written before it keeps reading whole rows. `'*'`, an embedded resource or an alias is
+ * never projected.
  */
 
 const DATE_LIKE = /^\d{4}-\d{2}-\d{2}(T|$)/;
@@ -34,7 +39,9 @@ function comparable(v) {
   return v;
 }
 
-function createMemorySupabase(seed = {}, { unique = {} } = {}) {
+const PLAIN_COLUMNS = /^\s*[a-z_][a-z0-9_]*(\s*,\s*[a-z_][a-z0-9_]*)*\s*$/i;
+
+function createMemorySupabase(seed = {}, { unique = {}, projectSelect = false } = {}) {
   const tables = {};
   for (const [name, rows] of Object.entries(seed)) tables[name] = rows.map((r) => ({ ...r }));
   let seq = 0;
@@ -50,8 +57,15 @@ function createMemorySupabase(seed = {}, { unique = {} } = {}) {
     let lim = null;
     let rng = null;
     let conflictKeys = null;
+    let columns = null;
 
     const test = (r) => filters.every((f) => f(r));
+    const out = (r) => {
+      if (!columns) return { ...r };
+      const o = {};
+      for (const k of columns) if (k in r) o[k] = r[k];
+      return o;
+    };
 
     const exec = () => {
       // `.upsert(p, { onConflict: 'a,b' })`: a row matching on the conflict columns is updated in
@@ -63,11 +77,11 @@ function createMemorySupabase(seed = {}, { unique = {} } = {}) {
         const made = [];
         for (const p of list) {
           const hit = rows.find((r) => keys.every((k) => p[k] !== undefined && r[k] === p[k]));
-          if (hit) { Object.assign(hit, p); made.push({ ...hit }); continue; }
+          if (hit) { Object.assign(hit, p); made.push(out(hit)); continue; }
           seq += 1;
           const row = { id: `${table}-${seq}`, ...p };
           rows.push(row);
-          made.push({ ...row });
+          made.push(out(row));
         }
         return { data: made, error: null };
       }
@@ -82,18 +96,18 @@ function createMemorySupabase(seed = {}, { unique = {} } = {}) {
             return { data: null, error: { code: '23505', message: `duplicate key value violates unique constraint on ${table}` } };
           }
           rows.push(row);
-          made.push({ ...row });
+          made.push(out(row));
         }
         return { data: made, error: null };
       }
       let hit = rows.filter(test);
       if (op === 'update') {
         for (const r of hit) Object.assign(r, payload);
-        return { data: hit.map((r) => ({ ...r })), error: null };
+        return { data: hit.map(out), error: null };
       }
       if (op === 'delete') {
         for (const r of hit) rows.splice(rows.indexOf(r), 1);
-        return { data: hit.map((r) => ({ ...r })), error: null };
+        return { data: hit.map(out), error: null };
       }
       if (order) {
         const { col, asc } = order;
@@ -106,7 +120,7 @@ function createMemorySupabase(seed = {}, { unique = {} } = {}) {
       }
       if (rng) hit = hit.slice(rng[0], rng[1] + 1);
       if (lim != null) hit = hit.slice(0, lim);
-      return { data: head ? null : hit.map((r) => ({ ...r })), error: null, count: hit.length };
+      return { data: head ? null : hit.map(out), error: null, count: hit.length };
     };
 
     const cmp = (fn) => (col, v) => {
@@ -119,7 +133,13 @@ function createMemorySupabase(seed = {}, { unique = {} } = {}) {
     };
 
     const c = {
-      select: (_cols, opts) => { if (opts && opts.head) head = true; return c; },
+      select: (cols, opts) => {
+        if (opts && opts.head) head = true;
+        if (projectSelect && typeof cols === 'string' && PLAIN_COLUMNS.test(cols)) {
+          columns = cols.split(',').map((k) => k.trim());
+        }
+        return c;
+      },
       insert: (p) => { op = 'insert'; payload = p; return c; },
       upsert: (p, opts) => {
         op = 'upsert';
