@@ -2596,7 +2596,7 @@ Feature: NIETE (ICT) Teacher Training
     But any other message from that phone, such as a registration, is answered exactly as before
     And a teacher's phone that sends /quiz is answered as a teacher
     And with web_quiz_guest_home off an unknown phone's /quiz is answered exactly as before
-  @quiz @config-gated @wip @draft @P1 @T773
+
   @quiz @config-gated @wip @draft @P1 @T839
   Scenario: A child called in the class round plays the tap games as themself, and the runs say so
     Given app_settings "web_quiz_class_round", "web_quiz_challenge_v2" and "web_quiz_challenge" are true
