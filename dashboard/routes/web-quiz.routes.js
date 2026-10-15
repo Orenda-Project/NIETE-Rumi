@@ -96,6 +96,8 @@ const API_ROUTES = [
   { method: 'post', path: '/api/wq/hub/:token', limiter: 'read' },
   // the results card's door to the child's hub (a session token in the body)
   { method: 'post', path: '/api/wq/hubdoor', limiter: 'session' },
+  // an old, finished class link opened again: the child's hub, for one remembered child on this phone
+  { method: 'post', path: '/api/wq/linkhome', limiter: 'session' },
 ];
 
 // The shell's line under Jugnu, shown until wq.js boots (seconds on slow 4G), so the page never reads as stuck.
