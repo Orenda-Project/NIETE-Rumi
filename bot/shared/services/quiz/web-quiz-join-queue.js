@@ -273,8 +273,10 @@ async function countDecisions(tier, decision) {
 
 /**
  * Per tier, from the teachers' queue decisions (merge_log source 'queue', tier set): an undo reverses a same, so
- * same_net = same - undo, n = same_net + no, precision = same_net / n (null when n = 0), wilson_lower_95 its 95% Wilson
- * lower bound, held = n >= 50 and wilson_lower_95 < 0.85. → [{tier, n, same, no, undo, precision, wilson_lower_95, held}]
+ * same_net = same - undo, n = same_net + no, `precision` = same_net / n (null when n = 0). NOTE: this is the
+ * TEACHER-ACCEPTED SHARE (a tap is a judgement, not a label); the labelled precision is queue_truth.json's. The strip
+ * prints it as "teacher-accepted share". wilson_lower_95 is its 95% Wilson lower bound, held = n >= 50 and
+ * wilson_lower_95 < 0.85. → [{tier, n, same, no, undo, precision, wilson_lower_95, held}]
  * in TIERS order. Never throws: a failed read holds every tier ({held:true, error:true}). Cached 60 s in-process.
  */
 async function precisionByTier() {
@@ -372,7 +374,11 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
     const loose = await teacherLoose(teacherUserId);
     if (!loose.has(looseId)) return { ok: false, reason: 'not_loose' };
     if (decision === 'no') {
-      const pair = (await compute(teacherUserId)).find((x) => x.loose_id === looseId && x.candidate_id === candidateId);
+      // The tier is recorded only for a pair the teacher was shown (the served, unheld queue); a 'no' on any other
+      // pair is kept without a tier, so nothing counts toward a tier's accepted share before the teacher saw it.
+      const tiers = await liveTiers();
+      const shown = tiers.length ? serveTiers(await compute(teacherUserId), tiers) : [];
+      const pair = shown.find((x) => x.loose_id === looseId && x.candidate_id === candidateId);
       await log('no', pair ? pair.evidence.tier : null);
       return { ok: true, decision };
     }

@@ -94,9 +94,11 @@ describe('bounded labelling mode: the served tier', () => {
       expect(await Queue.decide({ teacherUserId: T1, looseId: c(3), candidateId: r(6), decision: 'same' })).toEqual({ ok: true, decision: 'same' });
       expect(await Queue.decide({ teacherUserId: T1, looseId: c(3), candidateId: r(6), decision: 'undo' })).toEqual({ ok: true, decision: 'undo' });
       expect(await Queue.decide({ teacherUserId: T1, looseId: c(7), candidateId: r(5), decision: 'no' })).toEqual({ ok: true, decision: 'no' });
+      // a 'no' on a pair the teacher was never shown (probable is held out) carries no tier, so it never counts
       expect(fake.db.merge_log.map((m) => [m.decision, m.loose_id, m.tier])).toEqual([
-        ['same', c(3), RUL], ['undo', c(3), RUL], ['no', c(7), 'probable'],
+        ['same', c(3), RUL], ['undo', c(3), RUL], ['no', c(7), null],
       ]);
+      expect(tierOf(await Queue.precisionByTier(), 'probable').n).toBe(0);
     } finally { Queue._serveForTest(null); }
   });
 });
