@@ -174,6 +174,16 @@ describe('expireBindings(now)', () => {
   });
 });
 
+describe('the guest reply\'s words are the deck\'s (copy.v2.json v2.1), not stand-ins', () => {
+  test('ux-strings carries bot.guest.home and bot.guest.home_btn byte-equal to the deck, so copy() no longer throws', () => {
+    let fresh;
+    jest.isolateModules(() => { fresh = require('../../../shared/config/ux-strings').UX_STRINGS; });
+    expect(fresh.guestHome).toEqual({ en: "Play Jugnu's Challenge: short reading and number games.", ur: 'جگنو کا چیلنج کھیلیں: پڑھنے اور گنتی کے چھوٹے کھیل۔' });
+    expect(fresh.guestHomeBtn).toEqual({ en: 'Play', ur: 'کھیلیں' });
+    expect([...fresh.guestHomeBtn.ur].length).toBeLessThanOrEqual(20);
+  });
+});
+
 describe('guest home (web_quiz_guest_home on)', () => {
   test('an unknown phone → the guest verdict, cached for 60 s (not the 10-minute door TTL)', async () => {
     seed({ settings: GUEST_ON });
