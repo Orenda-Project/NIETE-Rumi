@@ -28,6 +28,7 @@
 const fs = require('fs');
 const path = require('path');
 const { clampLanguage } = require('../../config/ux-strings');
+const { SUBJECT_LABEL } = require('./assessment-vocabulary');
 
 // ── fonts ──────────────────────────────────────────────────────────────────
 
@@ -689,7 +690,6 @@ ${sections}
 
 // ── the marking scheme ─────────────────────────────────────────────────────
 
-const SUBJECT_FILE = { maths: 'Mathematics', science: 'Science', english: 'English', urdu: 'Urdu', social_studies: 'SocialStudies' };
 
 function fill(template, values) {
   return String(template ?? '').replace(/\{(\w+)\}/g, (m, k) => (values[k] === undefined || values[k] === null ? m : String(values[k])));
@@ -707,7 +707,9 @@ function beforeExamBox(L, live, ctx, paperFileName, grade) {
   const B = L.before_exam;
   const lines = [...B[`lines_${lang}`]];
   const pages = L.pages && Number.isInteger(L.pages.paper) ? L.pages.paper : null;
-  const file = paperFileName || `Grade${grade || 5}_${SUBJECT_FILE[L.subject] || 'Paper'}_FDE.pdf`;
+  // The same name the orchestrator saves (SUBJECT_LABEL, letters and digits only).
+  const label = String(SUBJECT_LABEL[L.subject] || L.subject || 'Paper').replace(/[^A-Za-z0-9]/g, '');
+  const file = paperFileName || `Grade${grade || 5}_${label}_FDE.pdf`;
   if (pages === null) {
     lines[0] = lines[0].replace(lang === 'ur' ? ' ({n} صفحات)' : ' ({n} pages)', '');
     lines[1] = lang === 'ur' ? lines[1].replace('تمام {n} صفحات', 'تمام صفحات') : lines[1].replace('all {n} pages', 'every page');

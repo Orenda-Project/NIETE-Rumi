@@ -356,7 +356,7 @@ describe('the marking scheme', () => {
     expect(text).toContain("TEACHER'S COPY · Do not give to children");
     expect(text).toContain('MARKING SCHEME');
     expect(text).toContain('Teacher: before the exam');
-    expect(text).toContain('This is the marking scheme for Grade5_Mathematics_FDE.pdf (4 pages). Do not give it to children.');
+    expect(text).toContain('This is the marking scheme for Grade5_Maths_FDE.pdf (4 pages). Do not give it to children.');
     expect(text).toContain('Photocopy the question paper, all 4 pages, one per child.');
     expect(text).toContain('You add: nothing.');
     expect(text).toContain('Q2: attempt any 8 of 12');
@@ -367,7 +367,7 @@ describe('the marking scheme', () => {
   it('an unknown page count says so instead of guessing', () => {
     const text = visible(scheme(mathsPaper()));
     // visible() turns the file name's <bdi> boundary into a space; the page prints none.
-    expect(text).toMatch(/This is the marking scheme for Grade5_Mathematics_FDE\.pdf ?\. Do not give it to children\./);
+    expect(text).toMatch(/This is the marking scheme for Grade5_Maths_FDE\.pdf ?\. Do not give it to children\./);
     expect(text).not.toMatch(/\(\s*pages\)|null pages|undefined/);
   });
 
