@@ -5,7 +5,7 @@
  *
  * NO JAVASCRIPT, like the rest of the report. Forward and Copy are server links (/r/<token>/jlink?class=<id>&how=)
  * that log class_link_forwarded{cls, how}: Forward answers 302 to wa.me with the URL ONLY (no count, no name,
- * RUBRIC L11); Copy answers 303 back to the class tab with this card's link open as selectable text. Strings are copy.v2.json keys, EN and UR.
+ * the no-count, no-name forward rule); Copy answers 303 back to the class tab with this card's link open as selectable text. Strings are copy.v2.json keys, EN and UR.
  */
 
 const COPY = {
