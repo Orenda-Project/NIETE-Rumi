@@ -6810,6 +6810,38 @@ BEGIN
   END LOOP;
 END $$;
 
+-- The record locks (web_quiz_challenge_runs_record_locks.sql): one record per canonical child × stop × period (per
+-- language for read and listen) as partial UNIQUE indexes, six CHECKs on the serve's columns (one: a record row carries its whole key), and the first-exposure
+-- rule above re-made without its "exposure_no IS NULL" escape.
+CREATE UNIQUE INDEX IF NOT EXISTS web_quiz_challenge_runs_one_record_lang_uidx
+  ON web_quiz_challenge_runs ((coalesce(canonical_id, student_id)), exercise, lang, period_id)
+  WHERE record IS TRUE AND exercise IN ('read', 'listen');
+CREATE UNIQUE INDEX IF NOT EXISTS web_quiz_challenge_runs_one_record_stop_uidx
+  ON web_quiz_challenge_runs ((coalesce(canonical_id, student_id)), exercise, period_id)
+  WHERE record IS TRUE AND exercise NOT IN ('read', 'listen');
+DO $$
+DECLARE c record;
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'wqcr_record_first_exposure_chk'
+               AND conrelid = 'web_quiz_challenge_runs'::regclass
+               AND pg_get_constraintdef(oid) LIKE '%exposure_no IS NULL%') THEN
+    ALTER TABLE web_quiz_challenge_runs DROP CONSTRAINT wqcr_record_first_exposure_chk;
+  END IF;
+  FOR c IN SELECT * FROM (VALUES
+    ('wqcr_anchor_block_stop_chk',      'anchor_block IS NULL OR exercise IN (''missing'',''numbers'')'),
+    ('wqcr_serves_any_needs_block_chk', 'anchor_serves_any IS NULL OR anchor_block IS NOT NULL'),
+    ('wqcr_class_round_arm_chk',        'mode IS DISTINCT FROM ''class_round'' OR sample_arm IS NOT DISTINCT FROM ''class_round'''),
+    ('wqcr_class_round_admin_chk',      'sample_arm IS DISTINCT FROM ''class_round'' OR admin_mode IS NOT DISTINCT FROM ''teacher_present'''),
+    ('wqcr_record_provenance_chk',      'record IS NOT TRUE OR (form IS NOT NULL AND bank_version IS NOT NULL)'),
+    ('wqcr_record_key_not_null_chk',    'record IS NOT TRUE OR (period_id IS NOT NULL AND coalesce(canonical_id, student_id) IS NOT NULL AND (exercise NOT IN (''read'',''listen'') OR lang IS NOT NULL))'),
+    ('wqcr_record_first_exposure_chk',  'record IS NOT TRUE OR anchor_block IS NOT NULL OR exposure_no IS NOT DISTINCT FROM 1')
+  ) AS t(name, expr) LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = c.name AND conrelid = 'web_quiz_challenge_runs'::regclass) THEN
+      EXECUTE format('ALTER TABLE web_quiz_challenge_runs ADD CONSTRAINT %I CHECK (%s)', c.name, c.expr);
+    END IF;
+  END LOOP;
+END $$;
+
 COMMENT ON COLUMN web_quiz_challenge_runs.mode IS
   'Internal. check | practice | class_round. Only check rows enter a trend; NULL on rows written before the provenance columns.';
 COMMENT ON COLUMN web_quiz_challenge_runs.record IS
@@ -7104,6 +7136,11 @@ CREATE INDEX IF NOT EXISTS challenge_draws_cell_idx
 
 CREATE INDEX IF NOT EXISTS challenge_draws_child_idx
   ON challenge_draws (canonical_id, period_id, stop);
+
+-- one "on its way" draw log per child × stop × period × UTC hour (web_quiz_challenge_runs_record_locks.sql)
+CREATE UNIQUE INDEX IF NOT EXISTS challenge_draws_on_its_way_hour_uidx
+  ON challenge_draws (canonical_id, stop, period_id, (date_trunc('hour', drawn_at AT TIME ZONE 'UTC')))
+  WHERE outcome = 'on_its_way';
 
 ALTER TABLE challenge_draws ENABLE ROW LEVEL SECURITY;
 
