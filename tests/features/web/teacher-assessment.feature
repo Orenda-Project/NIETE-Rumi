@@ -89,3 +89,12 @@ Feature: Teacher assessment
     When the teacher opens Versions
     Then the page shows the FDE pattern chip and a "Marking scheme" row under each ready version that opens its key file
     And a plain paper's Versions and Edit paper screens are pixel-identical to today's
+
+  # The soft paper limit (dashboard flag assessment_rate_limit_enabled) counts plain papers too. Run on sandbox by the QA
+  # agent with a teacher's ten requests of the last hour seeded and the flag on for the run only.
+  @sandbox
+  Scenario: A plain paper refused for the hour's limit says so above the rows
+    Given the soft paper limit is on
+    And the teacher has asked for 10 papers in the last hour
+    When the teacher taps Make my paper on a plain Check and make
+    Then the screen says "Paper limit reached · try again at" with the time, above the rows, in the teacher's language
