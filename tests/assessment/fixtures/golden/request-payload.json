@@ -1,0 +1,74 @@
+{
+  "returned": {
+    "requestId": "request-golden-1"
+  },
+  "writes": [
+    {
+      "table": "assessment_requests",
+      "row": {
+        "user_id": "teacher-golden-1",
+        "surface": "portal",
+        "grade_code": "grade_5",
+        "subject_code": "maths",
+        "textbook_id": "book-golden-1",
+        "chapter_number": null,
+        "page_ranges": "12-40",
+        "content_source": "unseen",
+        "question_count": 10,
+        "question_types": [
+          {
+            "id": "MCQs",
+            "count": 6,
+            "category": "objective"
+          },
+          {
+            "id": "Short Questions",
+            "count": 4,
+            "category": "subjective"
+          }
+        ],
+        "has_answer_key": true,
+        "has_answer_lines": true,
+        "output_format": "pdf"
+      }
+    }
+  ],
+  "queued": [
+    [
+      "teacher-golden-1",
+      "assessment_generate",
+      {
+        "userId": "teacher-golden-1",
+        "requestId": "request-golden-1",
+        "grade": 5,
+        "subject": "maths",
+        "chapterNumber": null,
+        "chapterNumbers": [
+          2,
+          3
+        ],
+        "pageRanges": "12-40",
+        "contentSource": "unseen",
+        "questionCount": 10,
+        "totalMarks": null,
+        "seenCount": null,
+        "questionTypes": [
+          {
+            "id": "MCQs",
+            "count": 6,
+            "category": "objective"
+          },
+          {
+            "id": "Short Questions",
+            "count": 4,
+            "category": "subjective"
+          }
+        ],
+        "includeAnswerKey": true,
+        "answerLines": true,
+        "outputFormat": "pdf",
+        "deliver": "none"
+      }
+    ]
+  ]
+}
