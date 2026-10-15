@@ -30,6 +30,8 @@ const Form = require('../../bot/shared/routes/observe2-form-endpoint');
 const Check = require('../../bot/shared/routes/observe2-check-endpoint');
 const { buildBrief } = require('../../bot/shared/services/observe/observe2/brief');
 const { buildAnalysis } = require('../../bot/shared/services/observe/observe2/analysis');
+// This branch has no coaching/target-resolver.js: the report's target for an /observe2 record is observe2Target.
+const { observe2Target } = require('../../bot/shared/services/coaching/report-v2/observe2-horizon');
 const { PRIORITY, FOCUS, PLAN_FOCUS } = require('../../bot/shared/services/observe/observe2/fico17');
 const { CHECK_VERSION } = require('../../bot/shared/services/observe/observe2/evidence-check.flow');
 
@@ -150,6 +152,9 @@ describe('Submit carries the picks through', () => {
     expect(brief).toContain('Pairs order three fractions on the strip chart.');
     expect(brief).toContain(`Also work on: *${PRIORITY.C7}*`);
     expect(brief).not.toMatch(/undefined|null|NaN/);
+
+    // The teacher's report names ONE area: the coach's first pick, here the plan (Section B), with no V4 bars.
+    expect(observe2Target(analysis)).toMatchObject({ indicator: 'plan', domain: 'lesson_plan_fidelity', name: FOCUS.plan, count: null, levels: null });
   });
 
   test('a Submit from today\'s check Flow keeps the "also" picks sealed in the form', async () => {
@@ -187,5 +192,10 @@ describe('the plan as a focus, without a graded plan', () => {
     const a = buildAnalysis({ id: 'f1', ...form('none') });
     expect(a.focus_area).toMatchObject({ indicator: 'plan', domain: 'lesson_plan_fidelity' });
     expect(a.focus_area.rationale).toMatch(/no lesson plan/);
+    expect(observe2Target(a)).toMatchObject({ indicator: 'plan', domain: 'lesson_plan_fidelity' });
+  });
+
+  test('"plan" is never read as an indicator outside an /observe2 record', () => {
+    expect(observe2Target({ framework: 'fico', domains: { lesson_plan_fidelity: { indicators: [] } }, focus_area: { indicator: 'plan', title: 'x' } })).toBeNull();
   });
 });

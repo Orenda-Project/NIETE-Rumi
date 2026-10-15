@@ -11,6 +11,7 @@
 
 const { buildScoreViewModel } = require('./score-adapter.service');
 const { generateReportNarrative } = require('./narrative.service');
+const { observe2Target, pinObserve2Horizon } = require('./observe2-horizon');
 const { buildHeroReportHtml, buildReportCaption } = require('./hero-report.template');
 const { buildSlimCardHtml } = require('./slim-card.template');
 const { cardHeader, wells } = require('../report-card');
@@ -111,12 +112,18 @@ async function generateHeroReport(session, analysis, opts = {}) {
     logToFile('hero-report: trend load failed (non-fatal)', { error: e.message });
   }
 
+  // /observe2 (pilot sheet R3): the coach's "Work on first" is the horizon's target, judged or not;
+  // every other report keeps the lowest-scoring section (target null).
   const narrative = await generateReportNarrative(analysis, {
     transcript: session.transcript_text,
     trend,
     language: lang,
     teacherName,
+    target: observe2Target(analysis),
   });
+  // /observe2: the horizon's title is the coach's pick, in its own words, set here rather than trusted
+  // to the model. Before the image and before the caller stores the narrative.
+  pinObserve2Horizon(narrative, analysis);
   // bd-trksw9: without the narrative the page renders its score, photos and trend
   // around an empty strength, horizon and moments. A caller that would rather say so
   // than send that (the /observe preview) opts in; every other caller is unchanged.

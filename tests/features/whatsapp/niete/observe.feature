@@ -1220,6 +1220,18 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # "Later" keeps the visit in /observe's list of debriefs to do.
 
   @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The teacher's report names the thing I picked to work on first
+    Given I picked "Real group work" to work on first and kept it at the check
+    And my debrief brief said "Work on first: Real group work"
+    When I send the report
+    Then the report's "Your next horizon" is "Real group work"
+    And "One thing to try next class" is what the teacher said in the debrief
+    # Pilot sheet R3 (Areej, 12 Oct): the report named the lowest-scoring FICO section ("subject
+    # vocabulary depth") instead of the coach's pick. coaching/report-v2/observe2-horizon.js sets the
+    # title from the pick in code; a pick the coach couldn't judge (NA) still counts; a pick changed at
+    # the check wins. Nothing in the debrief step records an area of its own.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
   Scenario: Choosing someone else after the report preview shows a new preview for that teacher
     Given I tapped "Send report" and the preview for the observed teacher arrived
     When I tap "Someone else", choose to add a new teacher and type their name and number
