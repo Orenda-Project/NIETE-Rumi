@@ -6792,6 +6792,31 @@ CREATE TABLE IF NOT EXISTS web_quiz_challenge_runs (
 );
 CREATE INDEX IF NOT EXISTS web_quiz_challenge_runs_student_idx
   ON web_quiz_challenge_runs (student_id, exercise, created_at DESC);
+-- which sample a run belongs to, how it was administered, anchor serves in any mode (bot/database/migrations/web_quiz_challenge_runs_sampling.sql)
+ALTER TABLE web_quiz_challenge_runs
+  ADD COLUMN IF NOT EXISTS sample_arm        text,
+  ADD COLUMN IF NOT EXISTS admin_mode        text,
+  ADD COLUMN IF NOT EXISTS anchor_serves_any smallint;
+
+DO $$
+DECLARE c record;
+BEGIN
+  FOR c IN SELECT * FROM (VALUES
+    ('wqcr_sample_arm_chk',      'sample_arm IN (''class_round'',''class_week'',''coach'',''ping'')'),
+    ('wqcr_admin_mode_chk',      'admin_mode IN (''self_run'',''teacher_present'',''coach_present'')'),
+    ('wqcr_arm_needs_admin_chk', 'sample_arm IS NULL OR admin_mode IS NOT NULL'),
+    ('wqcr_serves_any_chk',      'anchor_serves_any >= 1')
+  ) AS t(name, expr) LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = c.name AND conrelid = 'web_quiz_challenge_runs'::regclass) THEN
+      EXECUTE format('ALTER TABLE web_quiz_challenge_runs ADD CONSTRAINT %I CHECK (%s)', c.name, c.expr);
+    END IF;
+  END LOOP;
+END $$;
+
+COMMENT ON COLUMN web_quiz_challenge_runs.sample_arm IS
+  'Internal. NULL = self-chosen play; else the drawn sample the run belongs to. Arms are separate lines, never pooled.';
+COMMENT ON COLUMN web_quiz_challenge_runs.anchor_serves_any IS
+  'Internal. Serves of the anchor items to this child in any mode, this one included; a home first-time line requires 1.';
 ALTER TABLE web_quiz_challenge_runs ENABLE ROW LEVEL SECURITY;
 COMMENT ON TABLE web_quiz_challenge_runs IS
   'Internal. Web quiz Challenge: one row per finished self-run exercise of a child (bigger, read aloud). Numbers only — the read-aloud recording is deleted after scoring and never referenced. Written only by the bot. Owner: Digital Coach team.';
@@ -6870,6 +6895,21 @@ CREATE INDEX IF NOT EXISTS web_quiz_challenge_runs_record_idx
   ON web_quiz_challenge_runs (canonical_id, exercise, period_id) WHERE mode = 'check';
 CREATE INDEX IF NOT EXISTS web_quiz_challenge_runs_sweep_idx
   ON web_quiz_challenge_runs (status, created_at) WHERE status IN ('served', 'scoring');
+
+-- Two record rules (web_quiz_challenge_runs_sampling.sql; they read the columns above): a record row is a check row,
+-- and the child's first exposure of its passage or item set (the anchor block exempt). NULL record passes.
+DO $$
+DECLARE c record;
+BEGIN
+  FOR c IN SELECT * FROM (VALUES
+    ('wqcr_record_is_check_chk', 'record IS NOT TRUE OR mode IS NOT DISTINCT FROM ''check'''),
+    ('wqcr_record_first_exposure_chk', 'record IS NOT TRUE OR anchor_block IS NOT NULL OR exposure_no IS NULL OR exposure_no = 1')
+  ) AS t(name, expr) LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = c.name AND conrelid = 'web_quiz_challenge_runs'::regclass) THEN
+      EXECUTE format('ALTER TABLE web_quiz_challenge_runs ADD CONSTRAINT %I CHECK (%s)', c.name, c.expr);
+    END IF;
+  END LOOP;
+END $$;
 
 COMMENT ON COLUMN web_quiz_challenge_runs.mode IS
   'Internal. check | practice | class_round. Only check rows enter a trend; NULL on rows written before the provenance columns.';
