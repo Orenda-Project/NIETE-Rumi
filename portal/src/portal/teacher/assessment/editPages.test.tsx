@@ -191,6 +191,28 @@ describe('the editor counts a board-pattern paper the way it prints', () => {
   });
 });
 
+describe('the editor is grouped the way the paper prints', () => {
+  it('by FDE section (A, B, C), not Objective / Written', async () => {
+    portal.getAssessmentEditQuestions.mockResolvedValue(fdePaper());
+    at(editPath('p-f'), `${B}/paper/:paperId/edit`, <EditPaperPage />);
+    await screen.findByTestId('edit-both');
+    expect(screen.getAllByTestId('edit-section').map((n) => n.textContent)).toEqual(['Section A', 'Section B', 'Section C']);
+    expect(screen.queryByText('Objective')).toBeNull();
+    expect(screen.queryByText('Written')).toBeNull();
+    expect(within(screen.getByRole('region', { name: 'Section C' })).getAllByRole('checkbox')).toHaveLength(3);
+  });
+
+  it('in Urdu the sections are حصہ الف / ب / ج, and two left is «دونوں»', async () => {
+    await act(async () => { await i18n.changeLanguage('ur'); });
+    portal.getAssessmentEditQuestions.mockResolvedValue(fdePaper());
+    at(editPath('p-f'), `${B}/paper/:paperId/edit`, <EditPaperPage />);
+    await screen.findByTestId('edit-both');
+    expect(screen.getAllByTestId('edit-section').map((n) => plain(n.textContent))).toEqual(['حصہ الف', 'حصہ ب', 'حصہ ج']);
+    const q9 = screen.getAllByTestId('will-say').map((n) => plain(n.textContent)).filter((t) => t.startsWith('سوال 9'));
+    expect(q9[0]).toBe('سوال 9 پھر کہے گا: دونوں حل کریں');
+  });
+});
+
 describe('a plain paper is unchanged', () => {
   it('no both-files line, no willSay, Add opens the kinds tray, no options call', async () => {
     portal.getAssessmentEditQuestions.mockResolvedValue(PLAIN);

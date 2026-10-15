@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Check, ChevronRight, Loader2, Plus, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -43,14 +43,17 @@ const FDE_EDIT_EN = {
   noAddOnPattern: 'Board-pattern papers keep their shape',
   fdeChip: 'FDE pattern',
   markingScheme: 'Marking scheme',
+  section: (letter: string) => `Section ${letter}`,
 };
+const UR_LETTERS: Record<string, string> = { A: 'الف', B: 'ب', C: 'ج', D: 'د' };
 export const FDE_EDIT = bilingual(FDE_EDIT_EN, {
   editBoth: 'پرچہ اور مارکنگ اسکیم دونوں بدلیں گے',
   willSay: (slot: string, n: number, of: number) => `${slot} پھر کہے گا: ${of} میں سے کوئی ${n}`,
-  willSayAll: (slot: string, of: number) => `${slot} پھر کہے گا: تمام ${of} حل کریں`,
+  willSayAll: (slot: string, of: number) => `${slot} پھر کہے گا: ${of === 2 ? 'دونوں' : `تمام ${of}`} حل کریں`,
   noAddOnPattern: 'بورڈ pattern کا پرچہ اپنی شکل رکھتا ہے',
   fdeChip: 'FDE pattern',
   markingScheme: 'مارکنگ اسکیم',
+  section: (letter: string) => `حصہ ${UR_LETTERS[letter] ?? letter}`,
 });
 type FdeEditWords = typeof FDE_EDIT_EN;
 
@@ -70,6 +73,8 @@ export function useFdeWords(): FdeEditWords {
 type Choice = { slot: string; label?: string; label_en?: string; label_ur?: string; generate: number; attempt: number; marks_each: number };
 type PatternPaper = { pattern?: string | null; subjectKey?: string; choices?: Choice[] };
 const slotOf = (it: EditItem) => (it as EditItem & { slot?: string }).slot;
+/** The paper section a slot prints in ('maths.B.Q2' → 'B'). */
+const sectionOf = (it: EditItem) => /\.([A-Z])\./.exec(slotOf(it) ?? '')?.[1] ?? null;
 
 const errorOf = (e: unknown, W?: FdeEditWords): string | null => {
   const data = (e as { response?: { data?: { error?: string; errorCode?: string; code?: string; errors?: Array<{ message?: string }> } } })?.response?.data;
@@ -162,6 +167,9 @@ export function EditPaperPage() {
     : kept.reduce((s, v) => s + v.marks, 0) + draft.added.reduce((s, a) => s + a.marks, 0);
   const removedN = items.filter((v) => v.removed).length;
   const canSave = isDirty(draft) && count > 0 && !busy;
+  // A board-pattern paper is grouped by the sections it prints (A, B, C), when every question names its slot.
+  const bySection = fde && items.length > 0 && items.every((v) => sectionOf(v.it));
+  const letters = bySection ? [...new Set(items.map((v) => sectionOf(v.it) as string))] : [];
 
   // A row's line says what Remove (or Put back) leaves: "any eight of eleven", or "attempt all" once the group
   // would offer no choice.
@@ -190,12 +198,12 @@ export function EditPaperPage() {
     }
   };
 
-  const section = (which: 'objective' | 'subjective', name: string) => {
-    const rows = items.filter((v) => v.it.section === which);
+  const section = (keep: (it: EditItem) => boolean, name: string, testId?: string) => {
+    const rows = items.filter((v) => keep(v.it));
     if (!rows.length) return null;
     return (
       <>
-        <p className="mx-1.5 mt-2 text-[13px] font-bold uppercase tracking-[.04em] text-[#6b7280]">{name}</p>
+        <p data-testid={testId} className="mx-1.5 mt-2 text-[13px] font-bold uppercase tracking-[.04em] text-[#6b7280]">{name}</p>
         <ListCard label={name}>
           {rows.map(({ it, removed, text, marks: m }, i) => (
             <div key={it.id} className={cn(i > 0 && 'border-t border-[#f0f1f3]', removed && 'bg-[#f9fafb]')}>
@@ -275,8 +283,14 @@ export function EditPaperPage() {
     >
       {fde && <p data-testid="edit-both" className="mx-1.5 text-[15px] font-semibold text-[#33374a]">{W.editBoth}</p>}
       {error && <p role="alert" className="rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">{error}</p>}
-      {section('objective', C.objective)}
-      {section('subjective', C.written)}
+      {bySection
+        ? letters.map((l) => <Fragment key={l}>{section((it) => sectionOf(it) === l, W.section(l), 'edit-section')}</Fragment>)
+        : (
+          <>
+            {section((it) => it.section === 'objective', C.objective)}
+            {section((it) => it.section === 'subjective', C.written)}
+          </>
+        )}
 
       {draft.added.length > 0 && (
         <ListCard label={C.newQuestion}>
