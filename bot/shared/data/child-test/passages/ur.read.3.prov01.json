@@ -200,9 +200,7 @@
         "گھر کا پتا",
         "دادا کا پتا"
       ],
-      "reject": [
-        "پتا نہیں"
-      ],
+      "reject": [],
       "rubric": "Inferential turn. Correct if the child says the address (پتا) had not been written on the letter."
     }
   ],
