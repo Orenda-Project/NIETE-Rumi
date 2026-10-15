@@ -138,18 +138,22 @@ async function renew(id, expiresAt, lastPlayedAt = new Date()) {
 
 async function erase(label, filter, revokedBy, now) {
   if (!REVOKED_BY.includes(revokedBy)) return [];
+  // The phone each row held, read BEFORE the erase: the caller forgets the door cache for it afterwards.
+  const before = await rows(`${label}:read`, () => filter(supabase.from(TABLE).select('id, canonical_id, phone_norm')).is('revoked_at', null));
+  if (!before.length) return [];
+  const phoneOf = new Map(before.map((r) => [String(r.id), r.phone_norm]));
   const done = await rows(label, () => filter(supabase.from(TABLE).update({ phone_norm: null, revoked_at: iso(now), revoked_by: revokedBy }))
-    .is('revoked_at', null).select('id, canonical_id'));
-  return done.map((r) => ({ id: r.id, canonical_id: r.canonical_id }));
+    .in('id', before.map((r) => r.id)).is('revoked_at', null).select('id, canonical_id'));
+  return done.map((r) => ({ id: r.id, canonical_id: r.canonical_id, phone_norm: phoneOf.get(String(r.id)) || null }));
 }
 
-/** Erase one binding (phone_norm → NULL; the tomb stays) → [{id, canonical_id}] erased ([] when none). */
+/** Erase one binding (phone_norm → NULL; the tomb stays) → [{id, canonical_id, phone_norm (as it was)}] erased ([] when none). */
 function eraseOne(id, revokedBy, now = new Date()) {
   if (!id) return Promise.resolve([]);
   return erase('eraseOne', (q) => q.eq('id', String(id)), revokedBy, now);
 }
 
-/** Erase every active binding on this phone → [{id, canonical_id}] erased. */
+/** Erase every active binding on this phone → [{id, canonical_id, phone_norm (as it was)}] erased. */
 function eraseAllForPhone(phoneNorm, revokedBy, now = new Date()) {
   const phone = normalisePhone(phoneNorm);
   if (!phone) return Promise.resolve([]);

@@ -40,6 +40,7 @@ const IdRoster = require('../../../shared/services/quiz/web-quiz-identity-roster
 const Roster = require('../../../shared/services/quiz/web-quiz-roster');
 const IdFlags = require('../../../shared/services/quiz/web-quiz-identity-flags');
 const Reuse = require('../../../shared/services/quiz/child-identity-reuse');
+const Door = require('../../../shared/services/quiz/web-quiz-hub-door');
 
 const ON = [{ key: 'web_quiz_hub', value: 'true' }, { key: 'web_quiz_identity_canon', value: 'true' }];
 const OFF = [{ key: 'web_quiz_hub', value: 'true' }];
@@ -179,6 +180,39 @@ describe('kidFromHub: the library and challenge links name the folded child', ()
     expect(Hub.kidOf(token, chip(F.kid(1)))).toBeNull();
     expect(Hub.kidOf(token, chip(L1))).toBe(L1);
     expect((await Hub.kidFromHub(token, chip(L1), DEV)).studentId).toBe(L1);
+  });
+});
+
+describe('the scorecard door mints the hub link for the folded child', () => {
+  const DEV = 'AAAAAAAAAAAAAAAAAAAAAA';
+  const DOOR = { key: 'web_quiz_hub_door', value: 'true' };
+  const st = () => T.signSession({ sessionId: 's-door', deviceRef: DEV, shareCodeId: F.SC });
+  const sessionOf = (studentId) => ({ id: 's-door', quiz_id: F.QUIZ, share_code_id: F.SC, student_id: studentId, status: 'completed',
+    user_id: null, invited_by_student_id: null, device_ref: DEV, created_at: F.ago(1) });
+  const tokenOf = (href) => href.replace(/^\/h\//, '');
+  let clock;
+  beforeEach(() => { clock = jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-15T10:00:00Z')); });
+  afterEach(() => clock.mockRestore());
+
+  test('switch on: a session of a merged loose child → a hub token naming the child it was merged into', async () => {
+    seed([...ON, DOOR], {});
+    fake.db.quiz_sessions.push(sessionOf(L1));
+    const out = await Door.door({ st: st() }, WQ.WqError);
+    expect(T.verify(tokenOf(out.href), 'h').ids).toEqual([F.kid(1)]);
+  });
+
+  test('switch off: the token is byte-identical to today\'s (the session\'s raw id) — golden', async () => {
+    seed([...OFF, DOOR], {});
+    fake.db.quiz_sessions.push(sessionOf(L1));
+    const out = await Door.door({ st: st() }, WQ.WqError);
+    expect(tokenOf(out.href)).toBe(T.signHub([L1]));
+  });
+
+  test('switch on: a roster child\'s session keeps its own id', async () => {
+    seed([...ON, DOOR], {});
+    fake.db.quiz_sessions.push(sessionOf(F.kid(3)));
+    const out = await Door.door({ st: st() }, WQ.WqError);
+    expect(tokenOf(out.href)).toBe(T.signHub([F.kid(3)]));
   });
 });
 

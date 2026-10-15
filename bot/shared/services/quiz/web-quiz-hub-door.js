@@ -54,7 +54,8 @@ async function door(body = {}, Err = Error) {
   const home = Boolean(body.home) && f.hub && f.homeButton;
   if (!home && !(await isOn())) fail(404, 'no_door', 'off');
   if (!ownRun(s) || (s.status !== 'completed' && !(home && s.status === 'in_progress'))) fail(404, 'no_door', 'not_own_finished_run');
-  const token = T.signHub([s.student_id]);
+  // child identity store (web_quiz_identity_canon): the hub link names the child by the id they are known by.
+  const token = T.signHub([(await require('./web-quiz-identity-flags').flags()).canon ? await require('./web-quiz-identity-roster').canonicalStudentId(s.student_id) : s.student_id]);
   if (!token) fail(404, 'no_door', 'no_secret');
   const bound = await Device.deviceTrusted(token, tok.d);
   if (!bound.ok) fail(404, 'no_door', bound.why);

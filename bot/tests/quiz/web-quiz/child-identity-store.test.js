@@ -122,9 +122,9 @@ describe('the binding store', () => {
       { id: 'bx', canonical_id: KID_C, phone_norm: PHONE, revoked_at: null, expires_at: '2026-03-31T18:59:59.000Z', bound_at: '2025-10-01T00:00:00Z' },
       { id: 'br', canonical_id: KID_C, phone_norm: null, phone_tomb: 't', revoked_at: '2026-09-01T00:00:00Z', expires_at: NEXT_END, bound_at: '2026-08-01T00:00:00Z' },
     );
-    expect((await Bind.activeForPhone(PHONE, NOW)).map((r) => r.id)).toEqual(['b1', 'b2']);
+    expect((await Bind.activeForPhone(PHONE, NOW)).map((r) => [r.id, r.bound_at])).toEqual([['b1', '2026-10-01T00:00:00Z'], ['b2', '2026-10-02T00:00:00Z']]);
     expect((await Bind.activeForChild(KID_C, NOW)).map((r) => r.id)).toEqual([]);
-    expect((await Bind.activeForChild(KID_A, NOW)).map((r) => r.id)).toEqual(['b1']);
+    expect((await Bind.activeForChild(KID_A, NOW)).map((r) => [r.id, r.bound_at])).toEqual([['b1', '2026-10-01T00:00:00Z']]);
   });
 
   test('a failed read is "no binding"', async () => {
@@ -138,10 +138,11 @@ describe('the binding store', () => {
     const a = await bind(KID_A);
     const b = await bind(KID_B);
     expect(await Bind.eraseOne(a.id, 'nonsense')).toEqual([]);
-    expect(await Bind.eraseOne(a.id, 'page_undo', NOW)).toEqual([{ id: a.id, canonical_id: KID_A }]);
+    expect(await Bind.eraseOne(a.id, 'page_undo', NOW)).toEqual([{ id: a.id, canonical_id: KID_A, phone_norm: PHONE }]);
+    expect(await Bind.eraseOne(a.id, 'page_undo', NOW)).toEqual([]);
     const erased = fake.db.child_phone_bindings.find((r) => r.id === a.id);
     expect(erased).toMatchObject({ phone_norm: null, phone_tomb: Bind.tombOf(PHONE), revoked_by: 'page_undo', revoked_at: NOW.toISOString() });
-    expect(await Bind.eraseAllForPhone(PHONE, 'stop', NOW)).toEqual([{ id: b.id, canonical_id: KID_B }]);
+    expect(await Bind.eraseAllForPhone(PHONE, 'stop', NOW)).toEqual([{ id: b.id, canonical_id: KID_B, phone_norm: PHONE }]);
     expect(fake.db.child_phone_bindings.every((r) => r.phone_norm === null)).toBe(true);
     expect(await Bind.activeForPhone(PHONE, NOW)).toEqual([]);
   });
