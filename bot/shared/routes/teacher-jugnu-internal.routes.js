@@ -11,6 +11,8 @@
  *   POST /queue/:token {loose_id, candidate_id, decision, class}
  *        same|no|undo → the join-queue service's decide(); unsure → nothing; link → linkClassCodes()
  *        → 303 back to the tab (?e=1 when nothing was saved); 404 when off or the queue copy is absent
+ *   POST /unbind/:token {binding, class}   "Saved on WhatsApp ✓ · Undo": the binding store's eraseOne(binding,
+ *        'teacher'), only for a binding of a child on this teacher's list; else nothing (?e=1); 404 when off
  *
  * The confirm queue's writes (merged_into, merge_log, quiz_share_codes.class_id) are the identity
  * service's; this file only passes the teacher's tap to it. WHO is asking comes from the signed token.
@@ -47,6 +49,12 @@ async function pageExtras(req, v, lang) {
     lang, tokens: { self: req.params.token }, queue, notice: req.query.e === '1' ? 'failed' : null, scope: v.quizId ? 'quiz' : 'all',
   });
   return out;
+}
+
+/** 303 back to the tab (?e=1 when nothing was saved). */
+function back(res, token, listId, ok) {
+  const q = [['tab', 'jugnu'], ['class', listId], ['e', ok ? null : '1']].filter(([, x]) => x).map(([k, x]) => `${k}=${encodeURIComponent(x)}`).join('&');
+  res.redirect(303, `${REPORT_PATH}/${encodeURIComponent(token)}?${q}`);
 }
 
 /** Adds the tab's own routes to the report's internal router; helpers are the report's own. */
@@ -87,8 +95,34 @@ function attach(router, { authorise, handle, notFound, noStore, languageFor }) {
       ok = false;
     }
     noStore(res);
-    const q = [['tab', 'jugnu'], ['class', listId], ['e', ok ? null : '1']].filter(([, x]) => x).map(([k, x]) => `${k}=${encodeURIComponent(x)}`).join('&');
-    res.redirect(303, `${REPORT_PATH}/${encodeURIComponent(req.params.token)}?${q}`);
+    back(res, req.params.token, listId, ok);
+  }));
+
+  // "Saved on WhatsApp ✓ · Undo": erase ONE binding of a child on this teacher's list (identity's store).
+  router.post('/unbind/:token', handle(async (req, res) => {
+    const v = authorise(req, res);
+    if (!v) return;
+    if (!(await jugnuOn())) { notFound(req, res, v); return; }
+    const body = req.body || {};
+    const listId = uuidOr(body.class);
+    const bindingId = uuidOr(body.binding);
+    let ok = false;
+    const Repo = Data.bindingStore();
+    try {
+      if (Repo && typeof Repo.eraseOne === 'function' && bindingId) {
+        const tab = await Data.jugnuTab(v.teacherId, { listId });
+        const mine = tab && tab.kids.some((k) => k.bindingIds.includes(bindingId));
+        if (mine) {
+          const erased = await Repo.eraseOne(bindingId, 'teacher');
+          ok = Array.isArray(erased) && erased.length > 0;
+        }
+      }
+    } catch (err) {
+      logToFile('⚠️ teacher jugnu unbind: the tap did not save', { error: err.message }, 'warn');
+      ok = false;
+    }
+    noStore(res);
+    back(res, req.params.token, listId, ok);
   }));
 }
 

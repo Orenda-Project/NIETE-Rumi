@@ -125,6 +125,44 @@ async function weekStory(list, now) {
   return p ? { en: p.title_en || null, ur: p.title_ur || p.title_en || null } : null;
 }
 
+/** The identity binding store (child-phone-bindings.repo), when deployed; null otherwise. */
+function bindingStore() {
+  try {
+    // eslint-disable-next-line global-require
+    const Repo = require('./child-phone-bindings.repo');
+    return Repo && typeof Repo.activeForChild === 'function' ? Repo : null;
+  } catch (err) {
+    warnOnce('child-phone-bindings.repo', err);
+    return null;
+  }
+}
+
+/**
+ * Who of the class is "saved on WhatsApp": the binding store's activeForChild when it is deployed (with the
+ * binding ids, for Undo), else the table read directly (no ids, no Undo). Never a phone column.
+ */
+async function bindingsOf(ids, now) {
+  const out = { saved: new Set(), ids: new Map(), canUndo: false };
+  if (!ids.length) return out;
+  const Repo = bindingStore();
+  if (Repo) {
+    out.canUndo = typeof Repo.eraseOne === 'function';
+    await Promise.all(ids.map(async (id) => {
+      try {
+        const rows = (await Repo.activeForChild(id)) || [];
+        if (rows.length > 0) { out.saved.add(id); out.ids.set(id, rows.map((r) => r && r.id).filter(Boolean)); }
+      } catch (err) {
+        warnOnce('activeForChild', err);
+      }
+    }));
+    return out;
+  }
+  const nowIso = new Date(now).toISOString();
+  const rows = await rowsOr('child_phone_bindings', supabase.from('child_phone_bindings').select('canonical_id, revoked_at, expires_at').in('canonical_id', ids));
+  (rows || []).filter((b) => !b.revoked_at && (!b.expires_at || b.expires_at > nowIso)).forEach((b) => out.saved.add(b.canonical_id));
+  return out;
+}
+
 /**
  * @returns {Promise<null | {list, kids: object[], coverage: {n, total}|null, story: {en, ur}|null, period}>}
  */
@@ -138,12 +176,9 @@ async function jugnuTab(teacherId, { listId = null, lang = 'en', now = Date.now(
   const [runs, rungs, binds, story] = await Promise.all([
     runsOf(ids),
     ids.length ? rowsOr('child_rungs', supabase.from('child_rungs').select('canonical_id, ladder, rung').in('canonical_id', ids)) : [],
-    // Never a phone column: the tab says "saved", nothing more.
-    ids.length ? rowsOr('child_phone_bindings', supabase.from('child_phone_bindings').select('canonical_id, revoked_at, expires_at').in('canonical_id', ids)) : [],
+    bindingsOf(ids, now),
     weekStory(list, now),
   ]);
-  const nowIso = new Date(now).toISOString();
-  const saved = new Set((binds || []).filter((b) => !b.revoked_at && (!b.expires_at || b.expires_at > nowIso)).map((b) => b.canonical_id));
 
   const kids = roster.map((k) => {
     const mine = (runs || []).filter((r) => r.child === k.id);
@@ -174,7 +209,10 @@ async function jugnuTab(teacherId, { listId = null, lang = 'en', now = Date.now(
       stickers: runs ? trail.size + stories.size : null,
       lamps: rungs ? lamps : null,
       days: runs ? days : null,
-      saved: saved.has(k.id),
+      saved: binds.saved.has(k.id),
+      // Undo (eraseOne(bindingId, 'teacher')) only through the identity binding store; never a phone.
+      bindingIds: binds.ids.get(k.id) || [],
+      undo: binds.canUndo && (binds.ids.get(k.id) || []).length > 0,
     };
   });
   // Homonyms on the teacher's own page: the father's first name, when the list has it (IDENTITY §2 (a)).
@@ -234,4 +272,4 @@ async function confirmQueue(teacherId, tab, lang = 'en') {
   return rows.filter((r) => r.first && r.candidateFirst);
 }
 
-module.exports = { jugnuTab, confirmQueue, queueService, periodOf, weekStartOf, firstName, _resetWarnings: () => warned.clear() };
+module.exports = { jugnuTab, confirmQueue, queueService, bindingStore, periodOf, weekStartOf, firstName, _resetWarnings: () => warned.clear() };

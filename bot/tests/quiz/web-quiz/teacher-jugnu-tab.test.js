@@ -357,3 +357,15 @@ describe('tables from later trains are absent', () => {
     expect(h).not.toContain('Forward to the class group');
   });
 });
+
+describe('the binding store is absent (not deployed)', () => {
+  test('Saved on WhatsApp ✓ still shows from the table, with no Undo control; /unbind writes nothing (e=1)', async () => {
+    await boot();
+    const h = await html(`/page/${tok()}?tab=jugnu&class=${LIST}`);
+    const bilal = rowsOf(h).find((r) => r.includes('>Bilal<'));
+    expect(text(bilal)).toContain('Saved on WhatsApp ✓');
+    expect(bilal).not.toMatch(/unbind|Undo/);
+    const r = await post(`/unbind/${tok()}`, { binding: 'e0000000-0000-4000-8000-000000000001', class: LIST });
+    expect(r.headers.get('location')).toMatch(/[?&]e=1/);
+  });
+});

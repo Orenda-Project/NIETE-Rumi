@@ -121,6 +121,8 @@ const CSS = `
 .dd i{width:8px;height:8px;border-radius:50%;background:var(--grey-bg)}
 .dd i.on{background:var(--green)}
 .jsv{color:var(--green-deep);font-weight:700}
+.jub{display:inline;margin:0}
+.jub button{font:inherit;font-size:.85rem;cursor:pointer;border:0;background:none;color:var(--muted);text-decoration:underline;padding:0 4px}
 .jq-r{padding:10px 0;border-bottom:1px solid var(--line)}
 .jq-r:last-of-type{border-bottom:0}
 .jq-r form{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 0}
@@ -159,7 +161,7 @@ ${topBar({ C, L, langHref: here([['lang', C.switchLang]]), print: false })}
     const stickers = k.stickers != null ? `<span><span class="k">${L(S.tColStickers)}</span> <span class="num">${n(k.stickers)}</span></span>` : '';
     return `<li class="jk"><div class="jh"><b class="jn">${Tx(k.first)}</b>${k.homonym && k.father ? `<span class="jf">${Tx(k.father)}</span>` : ''}</div>`
       + `<div class="jr"><span><span class="k">${L(S.tColGames)}</span> ${stops}</span>${words}${stickers}</div>`
-      + `${lamps || days || k.saved ? `<div class="jr">${lamps}${days}${k.saved ? `<span class="jsv">${L(S.tSaved)}</span>` : ''}</div>` : ''}</li>`;
+      + `${lamps || days || k.saved ? `<div class="jr">${lamps}${days}${k.saved ? `<span class="jsv">${L(S.tSaved)}</span>${k.undo && listId ? `<form class="jub" method="post" action="${base}/unbind"><input type="hidden" name="binding" value="${esc(k.bindingIds[0])}"><input type="hidden" name="class" value="${esc(listId)}"><button type="submit">${L(S.tUndo)}</button></form>` : ''}` : ''}</div>` : ''}</li>`;
   }).join('');
 
   const fwd = tab && tab.forwardable

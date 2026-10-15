@@ -10,6 +10,7 @@
  *   POST /r/:token/fix     the page's no-JS forms for a typed child not on the list
  *   GET /r/:token/fwd      the Jugnu tab's "Forward to the class group": the bot's 302 -> wa.me
  *   POST /r/:token/queue   the Jugnu tab's no-JS confirm-queue forms
+ *   POST /r/:token/unbind  the Jugnu tab's "Saved on WhatsApp ✓ · Undo" form
  *                          (both answered by the bot with a 303 back to the report)
  *
  * Like /q/:code, the edge never touches the database: it checks the token's shape,
@@ -52,6 +53,8 @@ const FORM = {
   fix: { quiz: (v) => UUID_RX.test(v), ref: (v) => v.length > 0 && v.length <= 64, add: (v) => v === '1', studentId: (v) => v.length > 0 && v.length <= 64 },
   // The Jugnu tab's confirm queue (one tap: Same child / Different / Not sure / Undo, or link the class's codes).
   queue: { loose_id: (v) => UUID_RX.test(v), candidate_id: (v) => UUID_RX.test(v), decision: (v) => ['same', 'no', 'unsure', 'undo', 'link'].includes(v), class: (v) => UUID_RX.test(v) },
+  // "Saved on WhatsApp ✓ · Undo": one binding of a child on the teacher's list (the bot checks it is theirs).
+  unbind: { binding: (v) => UUID_RX.test(v), class: (v) => UUID_RX.test(v) },
 };
 function formBody(kind, body) {
   const out = {};
@@ -136,6 +139,7 @@ function createTeacherReportRouter(opts = {}) {
   // The Jugnu tab (bot switch web_quiz_teacher_jugnu; the bot answers 404 while it is off).
   router.get(`${REPORT_PATH}/:token/fwd`, privateHeaders, limiter, forward('fwd'));
   router.post(`${REPORT_PATH}/:token/queue`, privateHeaders, limiter, form, forwardForm('queue'));
+  router.post(`${REPORT_PATH}/:token/unbind`, privateHeaders, limiter, form, forwardForm('unbind'));
   return router;
 }
 
