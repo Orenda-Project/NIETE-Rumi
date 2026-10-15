@@ -234,6 +234,7 @@ describe('guest home (web_quiz_guest_home on)', () => {
     expect(Buffer.from(token.split('.')[0], 'base64url').toString()).not.toContain(PHONE.slice(-7));
     expect(T.verify(token, 'h')).toBeNull();
     expect(fake.db.message_ledger).toEqual([expect.objectContaining({ trigger: 'guest_reply', recipient: 'family', count: 1 })]);
+    expect(events('web_quiz.msg_sent')).toEqual([expect.objectContaining({ trigger: 'guest_reply', reason: 'guest', w: 's' })]);
     expect(events('web_quiz.bind_bound')).toEqual([]);
     // no loose child, no binding, no run row: the guest page that creates them is not built
     expect(writes().map((c) => c.table)).toEqual(['message_ledger']);
