@@ -75,6 +75,8 @@ router.get('/quiz/:code', handle(async (req) => {
 // A shared link's preview facts (web-quiz-og.js): from memory, so a portal worker answers a link preview fast.
 router.get('/og/:code', handle((req) => WebQuizOg.forCode(req.params.code, (c) => WebQuiz.getQuiz(c))));
 router.post('/session', handle((req) => WebQuiz.startSession(req.body || {})));
+// An old, finished class link opened again on the phone that finished it: that child's hub, or {home: null}.
+router.post('/linkhome', handle((req) => require('../services/quiz/web-quiz-link-home').home(req.body || {}, WebQuiz.resolveCode)));
 router.post('/answers', handle((req) => WebQuiz.recordAnswers(req.body || {})));
 router.post('/finish', handle(async (req) => {
   const out = await WebQuiz.finishSession(req.body || {});

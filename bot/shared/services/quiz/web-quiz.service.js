@@ -560,6 +560,8 @@ async function getQuizTimed(code, { p } = {}, mark = () => {}) {
   // The invite ask (web-quiz-invite-ask.js): named only when it is not off, so a switched-off payload is today's.
   const ask = await require('./web-quiz-invite-ask').mode();
   if (ask !== 'off') out.invite_ask = ask;
+  // An old, finished class link opens the child's hub (web-quiz-link-home.js): named only when on, so a switched-off payload is today's.
+  if (await require('./web-quiz-link-home').field(ctx, { preview })) out.link_home = true;
   return out;
 }
 
