@@ -20,6 +20,7 @@
 const { parts } = require('./teacher-report.page');
 
 const { kit, topBar, qs, esc, urduDigits } = parts;
+const WeekCard = require('./teacher-class-week.card'); // the class week card (web_quiz_class_week)
 
 const T = {
   en: {
@@ -206,10 +207,13 @@ ${topBar({ C, L, langHref: here([['lang', C.switchLang]]), print: false })}
     queueHtml = `<section class="card" id="jq"><p class="muted small">${L(S.tQSub)}</p>${qrows}${link}</section>`;
   }
 
+  // ── class week (web_quiz_class_week): drawn only when the route attached a card ──
+  const week = tab && tab.week ? WeekCard.renderWeekCard(tab.week, { L, label: S.tFwdBtn, href: `${base}/wfwd${qs([['class', listId], ['lang', lang]])}` }) : '';
+  // ── end class week ──
   const main = `<div style="height:16px"></div>${failed}<section class="card"><p class="muted small">${L(S.tSort)}</p><ul class="jl">${rows}</ul></section>
-${queueHtml}<section class="card"><p class="muted small">${L(S.tPractice)}</p>${fwd}
+${queueHtml}${week}<section class="card"><p class="muted small">${L(S.tPractice)}</p>${fwd}
 <a class="btn btn-ghost" href="${base}${qs([['lang', lang]])}">${L(scope === 'quiz' ? C.backToQuiz : C.allClasses)}</a></section>`;
-  return { header, main, css: CSS, title: lang === 'ur' ? `${S.tTab}، ${C.title}` : `${S.tTab} · ${C.title}`, needUrdu: rtl || kids.some((k) => /[؀-ۿ]/.test(k.first)) };
+  return { header, main, css: week ? CSS + WeekCard.CSS : CSS, title: lang === 'ur' ? `${S.tTab}، ${C.title}` : `${S.tTab} · ${C.title}`, needUrdu: rtl || kids.some((k) => /[؀-ۿ]/.test(k.first)) };
 }
 
 /** The tab bar's link to this tab (from the quiz and class tabs), switch on only. */

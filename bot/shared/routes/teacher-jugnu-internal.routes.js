@@ -23,6 +23,7 @@ const { jugnuOn } = require('../services/quiz/teacher-jugnu-flags');
 const Data = require('../services/quiz/teacher-jugnu.data');
 const Page = require('../templates/teacher-jugnu.page');
 const { REPORT_PATH } = require('../templates/teacher-report.page');
+const ClassWeek = require('./teacher-class-week-internal.routes'); // the class week card (web_quiz_class_week)
 
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const uuidOr = (v) => (typeof v === 'string' && UUID_RX.test(v) ? v : null);
@@ -45,6 +46,10 @@ async function pageExtras(req, v, lang) {
   const out = Page.tabLink(req.params.token, lang, listId);
   if (req.query.tab !== 'jugnu') return out;
   const tab = (await tabFor(v.teacherId, listId, lang)) || { list: null, kids: [], coverage: null };
+  // ── class week (web_quiz_class_week): the "Forward the week" card; null while off ──
+  const week = await ClassWeek.cardForTab(tab, lang, Page.T);
+  if (week) { tab.week = week; await ClassWeek.windowShown(week); } // sample_window, once per class per window
+  // ── end class week ──
   const queue = Page.queueReady(lang) && tab.list ? await Data.confirmQueue(v.teacherId, tab, lang) : null;
   out.view = Page.renderJugnu(tab, {
     lang, tokens: { self: req.params.token }, queue, notice: req.query.e === '1' ? 'failed' : null, scope: v.quizId ? 'quiz' : 'all',
@@ -89,6 +94,7 @@ function back(res, token, listId, ok) {
 
 /** Adds the tab's own routes to the report's internal router; helpers are the report's own. */
 function attach(router, { authorise, handle, notFound, noStore, languageFor }) {
+  ClassWeek.attach(router, { authorise, handle, notFound, noStore, languageFor }); // class week: GET /wfwd/:token
   router.get('/fwd/:token', handle(async (req, res) => {
     const v = authorise(req, res);
     if (!v) return;

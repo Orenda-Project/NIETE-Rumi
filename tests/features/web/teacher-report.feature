@@ -114,3 +114,27 @@ Feature: Teacher's web quiz report on the portal
     When the teacher opens the report link, with or without "tab=jugnu"
     Then the quiz tab and the class tab are byte-for-byte today's pages, with no Jugnu link
     And the forward link and the queue answer "not found"
+
+  @T769
+  Scenario: The class week card shows only for a drawn class inside its week window
+    Given the class week switch and its parent switches are on
+    And class 5-A is in this term's class draw with a week window that is open now and has a live class link
+    When the teacher opens the Jugnu tab for 5-A
+    Then a card shows the class week line and a "Forward to the class group" button
+    And before the window opens, from the moment it closes, for a class not in the draw or a draw of another term, the card is not shown
+    And with no live class link or no class week line in the copy deck the card is not shown
+
+  @T770
+  Scenario: Forwarding the week sends one fixed line and the class link, with no number or name
+    Given the class week card is shown for 5-A
+    When the teacher taps the card's forward button
+    Then WhatsApp opens its share sheet with the class week line followed by the class link "/j/<code>"
+    And outside the link's code the text carries no digit in any script, no child's name, no count and no word that marks a child out
+    And the server writes "class_week_forwarded" with the keyed class and the term only
+
+  @T771
+  Scenario: The class week is counted once per class per window and is invisible while switched off
+    Given the class week card is shown for 5-A
+    When the teacher opens the Jugnu tab again, on any server
+    Then "sample_window" for the class week is written only the first time in that window
+    And with the class week switch, or any of its parents, off the Jugnu tab is byte-for-byte the page before the card, and the forward answers "not found"
