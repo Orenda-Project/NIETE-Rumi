@@ -327,6 +327,16 @@ const UX_STRINGS = {
     en: 'No problem. Classroom Coaching is in the menu whenever you want it.',
     ur: 'کوئی بات نہیں۔ جب بھی چاہیں، مینو میں کلاس روم کوچنگ موجود ہے۔',
   },
+  // An audio document over the 100 MB cap (audio-document-router), refused from Meta's
+  // media info BEFORE it is downloaded. It names what actually happened (nothing was
+  // received, nothing started) and the one thing that works: a voice-recorder file is
+  // about 1 MB a minute, so only a video or an uncompressed recording gets this big.
+  // {size} is "150.0"; the Urdu isolates it with its unit (LRI…PDI) so the digits and
+  // "MB" keep their order inside the right-to-left line.
+  audioDocumentTooLarge: {
+    en: 'This file is {size} MB. A recording can be up to 100 MB, so I did not receive this one and nothing has started.\nA video or a very high-quality recording gets this big. Record the sound only, with the phone\'s voice recorder app (a 40-minute lesson is about 40 MB), and send that here as a *Document* (📎 → *Document*).',
+    ur: 'یہ فائل ⁦{size} MB⁩ کی ہے۔ ریکارڈنگ زیادہ سے زیادہ ⁦100 MB⁩ کی ہو سکتی ہے، اس لیے یہ وصول نہیں ہوئی اور کچھ شروع نہیں ہوا۔\nویڈیو یا بہت اعلیٰ معیار کی ریکارڈنگ اتنی بڑی ہوتی ہے۔ فون کی وائس ریکارڈر ایپ سے صرف آواز ریکارڈ کریں (چالیس منٹ کا سبق تقریباً ⁦40 MB⁩ کا ہوتا ہے) اور اسے یہاں *Document* کے طور پر بھیجیں (📎، پھر *Document*)۔',
+  },
   // The teacher said yes and then sent part of a lesson. This is NOT the generic
   // short-recording guidance: they are not answered as if they had asked a
   // question, because they did not ask one — they sent a recording they expect to
