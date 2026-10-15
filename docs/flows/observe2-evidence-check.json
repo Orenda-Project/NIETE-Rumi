@@ -34,6 +34,10 @@
       "id": "HEARD_ASK",
       "title": "Recording: asking",
       "data": {
+        "heard_ask_intro": {
+          "type": "string",
+          "__example__": "Rumi picked these from the recording as evidence for this part of the lesson. Say whether each one happened as written."
+        },
         "heard_ask_1_t": {
           "type": "string",
           "__example__": "12:41 · open question"
@@ -143,8 +147,8 @@
                 "text": "When the teacher asks, who answers, and how?"
               },
               {
-                "type": "TextCaption",
-                "text": "These are moments from the recording. Say whether each one really happened. No score from the recording is shown."
+                "type": "TextBody",
+                "text": "${data.heard_ask_intro}"
               },
               {
                 "type": "RadioButtonsGroup",
@@ -317,6 +321,10 @@
       "id": "HEARD_WRONG",
       "title": "Recording: wrong answers",
       "data": {
+        "heard_wrong_intro": {
+          "type": "string",
+          "__example__": "Rumi picked these from the recording as evidence for this part of the lesson. Say whether each one happened as written."
+        },
         "heard_wrong_1_t": {
           "type": "string",
           "__example__": "12:41 · open question"
@@ -426,8 +434,8 @@
                 "text": "When a child gets it wrong, what happens next?"
               },
               {
-                "type": "TextCaption",
-                "text": "These are moments from the recording. Say whether each one really happened. No score from the recording is shown."
+                "type": "TextBody",
+                "text": "${data.heard_wrong_intro}"
               },
               {
                 "type": "RadioButtonsGroup",
@@ -600,6 +608,10 @@
       "id": "HEARD_WORK",
       "title": "Recording: working",
       "data": {
+        "heard_work_intro": {
+          "type": "string",
+          "__example__": "Rumi picked these from the recording as evidence for this part of the lesson. Say whether each one happened as written."
+        },
         "heard_work_1_t": {
           "type": "string",
           "__example__": "12:41 · open question"
@@ -709,8 +721,8 @@
                 "text": "When children work, what do they do?"
               },
               {
-                "type": "TextCaption",
-                "text": "These are moments from the recording. Say whether each one really happened. No score from the recording is shown."
+                "type": "TextBody",
+                "text": "${data.heard_work_intro}"
               },
               {
                 "type": "RadioButtonsGroup",
@@ -883,6 +895,10 @@
       "id": "HEARD_EXPLAIN",
       "title": "Recording: explaining",
       "data": {
+        "heard_explain_intro": {
+          "type": "string",
+          "__example__": "Rumi picked these from the recording as evidence for this part of the lesson. Say whether each one happened as written."
+        },
         "heard_explain_1_t": {
           "type": "string",
           "__example__": "12:41 · open question"
@@ -992,8 +1008,8 @@
                 "text": "How well does the teacher explain?"
               },
               {
-                "type": "TextCaption",
-                "text": "These are moments from the recording. Say whether each one really happened. No score from the recording is shown."
+                "type": "TextBody",
+                "text": "${data.heard_explain_intro}"
               },
               {
                 "type": "RadioButtonsGroup",
