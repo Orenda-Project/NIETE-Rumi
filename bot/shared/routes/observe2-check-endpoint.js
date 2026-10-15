@@ -15,15 +15,17 @@
  *   HEARD_EXPLAIN or FIDELITY → ADDED_ONE, ADDED_TWO   every level pre-filled with what the sealed answers and the
  *                   confirmed moments add up to (rules.addUp), with the reason; the recording's
  *                   own levels are never sent to any screen.
- *   ADDED_TWO → PRIORITY   the pick sealed before any moment was seen.
+ *   ADDED_TWO → PRIORITY   the picks sealed before any moment was seen: "Work on first" and up to two
+ *                   more (R14). A check opened before "Also work on" was published (no `cv` in its
+ *                   payload) gets its own screen's data: the first pick only, and only one its list has.
  *   PRIORITY → DONE      the record is checked once; the brief follows in the chat.
  */
 
 const supabase = require('../config/supabase');
 const Store = require('../services/observe/observe2/field-form.store');
 const { addUp } = require('../services/observe/observe2/rules');
-const { CODES } = require('../services/observe/observe2/fico17');
-const { SLOTS, FIDELITY_SLOTS, HEARD_SCREENS, ADDED_SCREENS } = require('../services/observe/observe2/evidence-check.flow');
+const { CODES, PRIORITY, ALSO_NONE, pickAlso } = require('../services/observe/observe2/fico17');
+const { SLOTS, FIDELITY_SLOTS, HEARD_SCREENS, ADDED_SCREENS, CHECK_VERSION } = require('../services/observe/observe2/evidence-check.flow');
 const { logToFile } = require('../utils/logger');
 
 const HEARD_IDS = HEARD_SCREENS.map((h) => h.id);
@@ -78,6 +80,22 @@ function renderHeard(screenId, form) {
 }
 
 const levelText = (lv) => (lv == null ? '' : String(lv));
+
+const newCheck = (screenData) => Boolean(screenData && screenData.cv === CHECK_VERSION);
+
+// The PRIORITY screen, pre-filled with the sealed picks. Today's published check lists only the 17, so
+// a pick it does not have (the plan's steps) is left for the coach to choose rather than sent as a value
+// its Dropdown cannot show.
+function renderPriority(form, screenData) {
+  const a = (form && form.answers) || {};
+  const first = String(a.priority || '');
+  if (!newCheck(screenData)) return { screen: 'PRIORITY', data: { priority_level: PRIORITY[first] ? first : '' } };
+  const also = pickAlso([a.also_1, a.also_2], first);
+  return {
+    screen: 'PRIORITY',
+    data: { priority_level: first, also_level_1: also[0] || ALSO_NONE, also_level_2: also[1] || ALSO_NONE },
+  };
+}
 
 function renderAdded(screenId, added) {
   const data = {};
@@ -307,7 +325,7 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     if (idx >= 0 && idx < HEARD_IDS.length - 1) return renderHeard(HEARD_IDS[idx + 1], null);
     if (step === 'HEARD_EXPLAIN' || step === 'FIDELITY') return renderAdded('ADDED_ONE', {});
     if (step === 'ADDED_ONE') return renderAdded('ADDED_TWO', {});
-    if (step === 'ADDED_TWO') return { screen: 'PRIORITY', data: { priority_level: '' } };
+    if (step === 'ADDED_TWO') return renderPriority(null, screenData);
     return renderDone(null, NOT_AVAILABLE);
   }
 
@@ -345,7 +363,7 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     const saved = await Store.saveReview(form, pickFields(screenData, keys));
     const current = saved.ok ? saved.form : form;
     if (step === 'ADDED_ONE') return renderAdded('ADDED_TWO', addedLevels(current, current.evidence_review || {}));
-    return { screen: 'PRIORITY', data: { priority_level: String((current.answers || {}).priority || '') } };
+    return renderPriority(current, screenData);
   }
 
   if (step === 'PRIORITY') {
@@ -366,6 +384,13 @@ async function handleObserve2CheckDataExchange(flowToken, screen, screenData = {
     const finalLevels = {};
     for (const code of CODES) finalLevels[code] = review[`${code}_final`] || added[code] || '';
     const patch = pickFields(screenData, ['priority_final', 'why']);
+    // "Also work on": as submitted on the new check; on a check opened before it existed, the picks
+    // sealed in the form. Never the first pick again, never twice (fico17.pickAlso).
+    const a = form.answers || {};
+    const first = patch.priority_final || a.priority || '';
+    patch.also_final = newCheck(screenData)
+      ? pickAlso([screenData.also_final_1, screenData.also_final_2], first)
+      : pickAlso([a.also_1, a.also_2], first);
     const checked = await Store.markChecked(form, finalLevels, patch);
     if (!checked.ok) {
       if (checked.alreadyChecked) {

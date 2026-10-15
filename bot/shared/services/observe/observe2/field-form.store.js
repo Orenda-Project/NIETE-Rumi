@@ -24,7 +24,7 @@ const PART_KEYS = {
   p1: ['present', 'p1_spoke', 'p1_picked', 'p1_groups', 'p1_listen', 'p1_listen_other', 'p1_materials', 'p1_change', 'p1_change_how', 'p1_notes'],
   p2: ['p2_spoke', 'p2_new', 'p2_picked', 'p2_groups', 'p2_listen', 'p2_listen_other', 'p2_materials', 'p2_change', 'p2_change_how', 'p2_notes'],
   plan: ['lp', 'lp_pick', 'lp_how'],
-  seal: ['incident', 'detail', 'note', 'priority'],
+  seal: ['incident', 'detail', 'note', 'priority', 'also_1', 'also_2'],
 };
 
 // Keep only the fields a screen owns; drop empty strings for fields the coach left blank.

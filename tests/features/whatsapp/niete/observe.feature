@@ -852,6 +852,39 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # change to what was sealed. The photos were added on the step before (2 Oct: up to ten, no cap of
     # three for coaches).
 
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The coach picks one thing to work on first, up to two more, and can pick the plan's steps
+    Given I filled Part 1 and Part 2 of the live form
+    When I choose "Following the plan's steps" under "Work on first"
+    And I choose "Real group work" under "Also work on" and leave "And also" as it is
+    And I tick the seal box and tap "Seal and send"
+    Then the form shows "Sealed at" and the time
+    # FICO pilot sheet R14 (the ICT lead, 14 Oct): one pick only, and "Follow the Lesson Plan Structure" was
+    # missing. One "Work on first" still drives the brief, the record and the teacher's report;
+    # "Also work on" and "And also" are optional and include "Nothing else". The plan's steps are
+    # Section B, not a C, D or F indicator (observe2/fico17.js PLAN_FOCUS).
+
+  @e2e @flow @config-gated @wip @draft @negative @P2
+  Scenario: The same thing cannot be picked twice
+    Given the live form is open on "Before you seal"
+    When I choose "Real group work" under both "Work on first" and "Also work on", tick the seal box and tap "Seal and send"
+    Then the form stays on "Before you seal" with "That is already your first pick. Choose another, or "Nothing else"." at the bottom
+    And nothing is sealed
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: The check keeps all three picks, and the brief and the report follow the first
+    Given I sealed with "Following the plan's steps" first and "Real group work" under "Also work on"
+    And the "Check the moments" form is open
+    When I tap through to "Work on first"
+    Then "Work on first" shows "Following the plan's steps", "Also work on" shows "Real group work" and "And also" shows "Nothing else"
+    When I tap "Submit"
+    Then the brief says "Work on first: Following the plan's steps" and lists the plan's steps that were not done
+    And the brief says "Also work on: Real group work"
+    And the teacher's report names following the plan's steps as the next step, and nothing else as its focus
+    # observe2-check-endpoint.js renderPriority (the check posts cv=2 from ADDED_TWO); a check opened on
+    # the Flow published before this keeps its own screen. analysis.js focus_area for "plan" is Section B;
+    # target-resolver.js resolves it for the report's one target.
+
   @e2e @audio @config-gated @destructive @wip @draft @P1
   Scenario: The recording joins the sealed record and its moments come back to check
     Given my /observe2 record is sealed
