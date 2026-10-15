@@ -98,7 +98,8 @@ test('a render that keeps failing: attempts 1, 2, 3 — only the third is final,
 
 test('a job the worker drops (a stale freeform message) is final on its first attempt', async () => {
   mockDb.reset({
-    lesson_plan_requests: [{ id: 'req-stale', user_id: TEACHER, phone_number: PHONE, status: 'pending', retry_count: 0 }],
+    // a grounded row (the path recorded it) whose job arrives without its sourceLpUuid lands in the drop branch
+    lesson_plan_requests: [{ id: 'req-stale', user_id: TEACHER, phone_number: PHONE, status: 'pending', retry_count: 0, source: 'niete_grounded' }],
     lesson_plans: [], users: [{ id: TEACHER, phone_number: PHONE }],
   });
   await Worker.process({ requestId: 'req-stale', userId: TEACHER, phoneNumber: PHONE, topic: 'fractions', contentType: 'lesson_plan' });

@@ -65,7 +65,7 @@ test('a stuck request AT the shared limit is finished — told, marked failed, i
   mockDb.reset({
     lesson_plan_requests: [{
       id: 'req-stuck', user_id: TEACHER, phone_number: PHONE, language: 'en', status: 'processing',
-      retry_count: 2, processing_started_at: longAgo(),
+      retry_count: 2, processing_started_at: longAgo(), source: 'niete_grounded',
     }],
     users: [{ id: TEACHER, phone_number: PHONE }],
   });
@@ -80,7 +80,7 @@ test('a stuck request UNDER the shared limit is re-queued, and nobody is told', 
   mockDb.reset({
     lesson_plan_requests: [{
       id: 'req-young', user_id: TEACHER, phone_number: PHONE, language: 'en', status: 'processing',
-      retry_count: 1, processing_started_at: longAgo(),
+      retry_count: 1, processing_started_at: longAgo(), source: 'niete_grounded',
     }],
     users: [{ id: TEACHER, phone_number: PHONE }],
   });
