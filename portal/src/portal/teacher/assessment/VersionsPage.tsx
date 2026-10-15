@@ -35,6 +35,9 @@ export function VersionsPage() {
   const W = useFdeWords();
   const [row] = useLoad(() => findPaper(paperId), `versions-paper:${paperId}`);
   const fde = !!(dataOf(row) as { pattern?: string | null } | null | undefined)?.pattern;
+  // A handle for the QA harness (display:contents, no box) — on a board-pattern paper only, so a plain paper's page
+  // is the branch point's, byte for byte.
+  const wrapFde = (list: JSX.Element) => (fde ? <div data-testid="versions-list" className="contents">{list}</div> : list);
 
   return (
     <TeacherPage crumb={C.title} title={C.versions} backTo={paperPath(paperId)} chips={fde ? <Chip tone="indigo">{W.fdeChip}</Chip> : undefined} testId="assessment-versions">
@@ -43,8 +46,7 @@ export function VersionsPage() {
         : list.length === 0
           ? <LoadState status="ok" empty onRetry={retry} />
           : (
-            // display:contents — a handle for the QA harness that adds no box (the plain page stays pixel-identical).
-            <div data-testid="versions-list" className="contents">
+            wrapFde(
             <ListCard label={C.versions}>
               {list.map((v, i) => {
                 const ready = v.status === 'ready';
@@ -95,8 +97,8 @@ export function VersionsPage() {
                   </Fragment>
                 );
               })}
-            </ListCard>
-            </div>
+            </ListCard>,
+            )
           )}
     </TeacherPage>
   );
