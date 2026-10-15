@@ -24,3 +24,10 @@ Feature: Teacher digital coaching and coach visits
     And demo teacher 03000000911 is signed in
     When she opens /portal/coaching
     Then Coaching opens
+
+  @TC04
+  Scenario: Teacher app v2: Start DC observation opens its one screen
+    Given the teacher app v2 is on and the coach app v2 is off
+    And demo teacher 03000000911 is signed in
+    When she opens /portal/teacher/coaching/new
+    Then the one screen opens on "Start DC observation"

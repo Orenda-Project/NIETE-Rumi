@@ -31,6 +31,9 @@ F = {
      [(T + '/observations', r'^Observations$', None, 'Observations opens')]),
    ('TC03', 'Classic portal: Coaching opens', 'teacher', 'classic',
      [('/portal/coaching', r'^Coaching$', None, 'Coaching opens')]),
+   # bd-fgj73x.1 — Start DC observation's one screen: Grade and subject, then the recording, plan, photos, Submit.
+   ('TC04', 'Teacher app v2: Start DC observation opens its one screen', 'teacher', 'teacherV2',
+     [(T + '/coaching/new', r'^Start DC observation$', None, 'the one screen opens on "Start DC observation"')]),
  ]),
  'teacher-training': ('Teacher training', 'portal/src/portal/teacher/training/**, PortalTraining*.tsx, PortalVideo*.tsx', [
    ('TT01', 'Teacher app v2: Training lists her courses', 'teacher', 'teacherV2',
