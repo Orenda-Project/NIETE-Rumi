@@ -208,7 +208,7 @@ async function saveVersion({ userId, parentId, changes }) {
   const applied = applyChanges(loaded.paper.exam_json, changes, { subject: req.subject_code, grade: _gradeOf(req) });
   if (!applied.ok) return { status: 'failed', code: applied.code, errors: applied.errors };
   const built = await Revision.buildVersion({ parentId, userId, tree: applied.tree });
-  if (built.status !== 'ready') return { status: 'failed', code: built.code };
+  if (built.status !== 'ready') return { status: 'failed', code: built.code, ...(built.slot ? { slot: built.slot } : {}) };
   return { status: 'ready', paperId: built.paperId, version: built.version, questionCount: built.questionCount, marks: built.marks };
 }
 

@@ -139,6 +139,15 @@ describe('buildVersion on a board-pattern paper (E8.4)', () => {
     expect(text(mockRenders[0][0])).toContain('Total Marks: 95');
   });
 
+  test('a tree with an emptied slot is refused before any row or render (the review Flow path too)', async () => {
+    const q3 = Selection.indexQuestions(EXAM).filter((q) => q.question.slot === 'maths.C.Q3').map((q) => q.id);
+    const tree = q3.reduce((t, id) => Selection.setRemoved(t, id, true), EXAM);
+    const out = await Revision.buildVersion({ parentId: 'v1', userId: U, tree });
+    expect(out).toEqual({ status: 'failed', code: 'PATTERN_EMPTY_SLOT', slot: 'maths.C.Q3' });
+    expect(mockDb.tables.assessment_papers).toHaveLength(1);
+    expect(mockRenders).toHaveLength(0);
+  });
+
   test('a marks edit lands on the v2 tree without its old scheme points', async () => {
     const id = q2Ids(EXAM)[0];
     const Edit = require('../../bot/shared/services/assessment/assessment-edit');
@@ -186,6 +195,13 @@ describe('the older in-place paths on a board-pattern paper', () => {
     expect(row.exam_json._layout.preset_id).toBe('fde_g5_2027');
     expect(row.exam_json._layout.pages).toEqual({ paper: 3, scheme: 5 });
     expect(row.total_marks).toBe(100);
+  });
+
+  test('rerender: unticking every item of a slot is refused, nothing rendered', async () => {
+    const keep = Selection.indexQuestions(EXAM).filter((q) => q.question.slot !== 'maths.C.Q3').map((q) => q.id);
+    const out = await Revision.rerender({ paperId: 'v1', userId: U, selectedIds: keep, phone: 'test-phone' });
+    expect(out).toMatchObject({ status: 'failed', code: 'PATTERN_EMPTY_SLOT' });
+    expect(mockRenders).toHaveLength(0);
   });
 
   test('saveEdit: a wording edit is saved and the total stays the pattern total', async () => {

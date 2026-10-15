@@ -150,6 +150,27 @@ async function _renderPatternFiles({ tree, grade, subject, answerLines, renderer
   return { buffer, keyBuffer, tree: { ...counted, _layout: { ...counted._layout, pages } } };
 }
 
+/**
+ * The slot a board-pattern edit left with nothing on the paper — one that still
+ * had a question in the version it was edited from — or null. Such a slot would
+ * print "Attempt zero of the following"; going below the slot's attempt count is
+ * fine (it prints its smaller count), going to none is not.
+ */
+const PATTERN_EMPTY_SLOT = 'PATTERN_EMPTY_SLOT';
+function _emptiedSlot(tree, parentTree) {
+  if (!tree || !tree._layout) return null;
+  const liveSlots = (t) => new Set(Selection.indexQuestions(t)
+    .filter((q) => !q.removed && q.question && q.question.slot).map((q) => q.question.slot));
+  const now = liveSlots(tree);
+  const before = parentTree ? liveSlots(parentTree) : null;
+  for (const sec of tree._layout.sections || []) {
+    for (const slot of sec.slots || []) {
+      if (!now.has(slot.slot) && (!before || before.has(slot.slot))) return slot.slot;
+    }
+  }
+  return null;
+}
+
 /** The review Flow's ticks as removed flags, so a board-pattern paper keeps every slot's items. */
 function _flagUnticked(examJson, selectedIds) {
   if (selectedIds == null) return examJson;
@@ -230,6 +251,9 @@ async function rerender({ paperId, userId, selectedIds, phone: knownPhone, budge
     let examJson = pattern
       ? _flagUnticked(paper.exam_json, selectedIds)
       : Selection.applySelection(paper.exam_json, selectedIds);
+    if (pattern && _emptiedSlot(examJson, paper.exam_json)) {
+      throw Object.assign(new Error('a board-pattern slot would be left empty'), { code: PATTERN_EMPTY_SLOT });
+    }
     const questions = Renderer.collectQuestions(pattern ? Selection.activeTree(examJson) : examJson);
     const marks = _marksOf(examJson, questions);
 
@@ -539,6 +563,8 @@ async function buildVersion({ parentId, userId, tree, schoolName: knownSchool })
   const pattern = isPatternPaper(parent);
   const req = parent.assessment_requests || {};
   const { grade, subject, pageRanges, format, answerLines } = coverageOf(req);
+  const emptied = pattern ? _emptiedSlot(tree, parent.exam_json) : null;
+  if (emptied) return { status: 'failed', code: PATTERN_EMPTY_SLOT, slot: emptied };
 
   const active = Selection.activeTree(tree);
   const questions = Renderer.collectQuestions(active);
