@@ -71,6 +71,9 @@ const SKIP_REASONS = Object.freeze([
   // The teacher's lessons exist but none has a slide script for the version
   // they were served, so no quiz can be made from them (the LP quiz offer).
   'no_quiz_source',
+  // Every lesson the teacher took is in a subject held out of machine-written
+  // quizzes until its religious review (quiz/lp-religious-hold).
+  'religious_review_pending',
   'disabled',
   'sector_not_piloted',
   'not_school_day',
