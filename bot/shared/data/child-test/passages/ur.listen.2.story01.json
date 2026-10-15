@@ -1,0 +1,218 @@
+{
+  "passage_id": "ur.listen.2.story01",
+  "lang": "ur",
+  "kind": "listen",
+  "band": 2,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "tokens": 63,
+  "sentences": 8,
+  "mean_sent_len": 7.9,
+  "max_word_len": 6,
+  "readability": 0.909,
+  "readability_list": "fed-cum-g3-2026",
+  "readability_band_above": 0.841,
+  "q_reach_1": 2,
+  "q_reach_2": 2,
+  "q_n": 4,
+  "text_hash": "34f756a5cab35987011a346d83d64c54",
+  "source_ref": "generated brief v1 (band-2 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "گاجر کی ٹوکری",
+  "text": "ذیشان کے چچا گاؤں میں کسان ہیں۔ ایک صبح ذیشان بھی ان کے ساتھ زمین پر گیا۔ وہاں دونوں نے مل کر بہت سی گاجریں جمع کیں۔ پھر چچا نے گاجریں ایک بڑی ٹوکری میں رکھ دیں۔ ٹوکری بہت بھاری تھی۔ ذیشان نے ایک طرف سے ٹوکری اٹھائی۔ دونوں ٹوکری لے کر واپس آ گئے۔ امی نے گاجر سے مزے کا کھانا بنایا۔",
+  "lines": [
+    [
+      0,
+      6
+    ],
+    [
+      7,
+      16
+    ],
+    [
+      17,
+      26
+    ],
+    [
+      27,
+      36
+    ],
+    [
+      37,
+      40
+    ],
+    [
+      41,
+      47
+    ],
+    [
+      48,
+      54
+    ],
+    [
+      55,
+      62
+    ]
+  ],
+  "tokens_list": [
+    "ذیشان",
+    "کے",
+    "چچا",
+    "گاؤں",
+    "میں",
+    "کسان",
+    "ہیں",
+    "ایک",
+    "صبح",
+    "ذیشان",
+    "بھی",
+    "ان",
+    "کے",
+    "ساتھ",
+    "زمین",
+    "پر",
+    "گیا",
+    "وہاں",
+    "دونوں",
+    "نے",
+    "مل",
+    "کر",
+    "بہت",
+    "سی",
+    "گاجریں",
+    "جمع",
+    "کیں",
+    "پھر",
+    "چچا",
+    "نے",
+    "گاجریں",
+    "ایک",
+    "بڑی",
+    "ٹوکری",
+    "میں",
+    "رکھ",
+    "دیں",
+    "ٹوکری",
+    "بہت",
+    "بھاری",
+    "تھی",
+    "ذیشان",
+    "نے",
+    "ایک",
+    "طرف",
+    "سے",
+    "ٹوکری",
+    "اٹھائی",
+    "دونوں",
+    "ٹوکری",
+    "لے",
+    "کر",
+    "واپس",
+    "آ",
+    "گئے",
+    "امی",
+    "نے",
+    "گاجر",
+    "سے",
+    "مزے",
+    "کا",
+    "کھانا",
+    "بنایا"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ذیشان کے چچا کیا کام کرتے ہیں؟",
+      "right": "کسان",
+      "wrong": [
+        "درزی",
+        "دھوبی"
+      ],
+      "accept": [
+        "کسان",
+        "کسان ہیں"
+      ],
+      "reject": [
+        "درزی",
+        "دھوبی"
+      ],
+      "rubric": "Correct if the child says a farmer (کسان)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "چچا کہاں رہتے ہیں؟",
+      "right": "گاؤں میں",
+      "wrong": [
+        "شہر میں",
+        "پہاڑ پر"
+      ],
+      "accept": [
+        "گاؤں میں",
+        "گاؤں"
+      ],
+      "reject": [
+        "شہر میں",
+        "پہاڑ پر"
+      ],
+      "rubric": "Correct if the child says in the village (گاؤں)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "دونوں نے مل کر کیا جمع کیا؟",
+      "right": "گاجر",
+      "wrong": [
+        "مولی",
+        "مٹر"
+      ],
+      "accept": [
+        "گاجر",
+        "گاجریں"
+      ],
+      "reject": [
+        "مولی",
+        "مٹر"
+      ],
+      "rubric": "Correct if the child says carrots (گاجر)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ٹوکری کیسی تھی؟",
+      "right": "بھاری",
+      "wrong": [
+        "ہلکی",
+        "خالی"
+      ],
+      "accept": [
+        "بھاری",
+        "بہت بھاری"
+      ],
+      "reject": [
+        "ہلکی",
+        "خالی"
+      ],
+      "rubric": "Correct if the child says heavy (بھاری)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "ذیشان"
+  ]
+}

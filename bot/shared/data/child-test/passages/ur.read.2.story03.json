@@ -1,0 +1,200 @@
+{
+  "passage_id": "ur.read.2.story03",
+  "lang": "ur",
+  "kind": "read",
+  "band": 2,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "tokens": 55,
+  "sentences": 7,
+  "mean_sent_len": 7.9,
+  "max_word_len": 5,
+  "readability": 0.889,
+  "readability_list": "fed-cum-g3-2026",
+  "readability_band_above": 0.889,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 4,
+  "text_hash": "0b2635b66f3713cebcf900c0344fb45b",
+  "source_ref": "generated brief v1 (band-2 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "دادا کی عینک",
+  "text": "صبح سے ارحم کے دادا عینک تلاش کر رہے تھے۔ ارحم بھی ان کی مدد کرنے کے لیے آیا۔ دونوں نے ہر کمرے میں عینک تلاش کی۔ باہر بھی کہیں عینک نہیں تھی۔ پھر ارحم نے دادا کی طرف غور سے دیکھا۔ عینک تو دادا نے لگائی ہوئی تھی۔ یہ دیکھ کر دونوں ہنس پڑے۔",
+  "lines": [
+    [
+      0,
+      9
+    ],
+    [
+      10,
+      18
+    ],
+    [
+      19,
+      26
+    ],
+    [
+      27,
+      32
+    ],
+    [
+      33,
+      41
+    ],
+    [
+      42,
+      48
+    ],
+    [
+      49,
+      54
+    ]
+  ],
+  "tokens_list": [
+    "صبح",
+    "سے",
+    "ارحم",
+    "کے",
+    "دادا",
+    "عینک",
+    "تلاش",
+    "کر",
+    "رہے",
+    "تھے",
+    "ارحم",
+    "بھی",
+    "ان",
+    "کی",
+    "مدد",
+    "کرنے",
+    "کے",
+    "لیے",
+    "آیا",
+    "دونوں",
+    "نے",
+    "ہر",
+    "کمرے",
+    "میں",
+    "عینک",
+    "تلاش",
+    "کی",
+    "باہر",
+    "بھی",
+    "کہیں",
+    "عینک",
+    "نہیں",
+    "تھی",
+    "پھر",
+    "ارحم",
+    "نے",
+    "دادا",
+    "کی",
+    "طرف",
+    "غور",
+    "سے",
+    "دیکھا",
+    "عینک",
+    "تو",
+    "دادا",
+    "نے",
+    "لگائی",
+    "ہوئی",
+    "تھی",
+    "یہ",
+    "دیکھ",
+    "کر",
+    "دونوں",
+    "ہنس",
+    "پڑے"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ارحم کے دادا کیا تلاش کر رہے تھے؟",
+      "right": "عینک",
+      "wrong": [
+        "چابی",
+        "ٹوپی"
+      ],
+      "accept": [
+        "عینک",
+        "اپنی عینک"
+      ],
+      "reject": [
+        "چابی",
+        "ٹوپی"
+      ],
+      "rubric": "Correct if the child says his glasses (عینک)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "دادا کب سے عینک تلاش کر رہے تھے؟",
+      "right": "صبح سے",
+      "wrong": [
+        "شام سے",
+        "کل سے"
+      ],
+      "accept": [
+        "صبح سے",
+        "صبح"
+      ],
+      "reject": [
+        "شام سے",
+        "کل سے"
+      ],
+      "rubric": "Correct if the child says since the morning (صبح سے)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "دادا کی مدد کرنے کون آیا؟",
+      "right": "ارحم",
+      "wrong": [
+        "ابو",
+        "چچا"
+      ],
+      "accept": [
+        "ارحم"
+      ],
+      "reject": [
+        "ابو",
+        "چچا"
+      ],
+      "rubric": "Correct if the child says Arham (ارحم)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 6,
+      "type": "inferential",
+      "tap_ok": false,
+      "prompt": "عینک آخر کہاں تھی؟",
+      "right": null,
+      "wrong": [],
+      "accept": [
+        "دادا نے لگائی ہوئی تھی",
+        "دادا کی آنکھوں پر",
+        "دادا نے پہنی ہوئی تھی"
+      ],
+      "reject": [],
+      "rubric": "Inferential turn. Correct if the child says grandfather was already wearing them."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "ارحم"
+  ]
+}
