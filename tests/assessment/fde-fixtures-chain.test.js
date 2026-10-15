@@ -95,3 +95,12 @@ describe('the MCQ key strip wraps between answers, never inside one', () => {
     expect(scheme).toMatch(/\.strip \.sc \{ white-space: nowrap; \}/);
   });
 });
+
+describe('the fallback file name is the name the bot saves', () => {
+  it('with no paperFileName the box names Grade5_Maths_FDE.pdf (the orchestrator\'s SUBJECT_LABEL), never "Mathematics"', () => {
+    const { scheme } = chain('maths');
+    expect(scheme).toContain('<bdi class="file" dir="ltr">Grade5_Maths_FDE.pdf</bdi>');
+    expect(scheme).not.toContain('Grade5_Mathematics_FDE.pdf');
+    expect(chain('science').scheme).toContain('Grade5_Science_FDE.pdf');
+  });
+});
