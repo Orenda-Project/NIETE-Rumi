@@ -493,7 +493,9 @@ function slotBlock(slot, sec, list, ctx) {
     body.push(`<div class="q${cont ? ' qcont' : ''}" data-slot="${esc(slot.slot)}">${numHtml}${leadHtml}${stemHtml}${itemBody(q, slot, i, ctx, inlineQ)}</div>`);
   });
   if (slot.alternatives && !live.length) body.push(fixedAlternatives(slot, null, ctx));
-  return `<div class="slot">${head}${body.join('')}</div>`;
+  // An either/or question is read as one choice: never split across a page.
+  const either = slot.or || slot.alternatives ? ' either' : '';
+  return `<div class="slot${either}">${head}${body.join('')}</div>`;
 }
 
 // Urdu Q6: FDE's Naat line (printed as an instruction only, never verses), OR the lesson-7 lines.
@@ -591,7 +593,8 @@ function css(medium, kind) {
   .pick-k { min-width: 22mm; font-weight: 700; }
   .blank { display: inline-block; min-width: 28mm; border-bottom: 1px dashed #000; margin: 0 4px; font-size: 7pt; color: #777; }
   .ant-row { display: flex; gap: 14mm; margin: 2px 0; }
-  .or { text-align: center; font-weight: 700; margin: 2px 0; }
+  .or { text-align: center; font-weight: 700; margin: 2px 0; break-before: avoid; break-after: avoid; }
+  .slot.either { break-inside: avoid; }
   .or-lead, .alt { font-weight: 700; }
   .sit { margin-top: 3px; }
   ${ur ? `/* Nastaliq ascenders rise above the line box; without room above, a block
@@ -610,7 +613,8 @@ function schemeCss(medium) {
   .covers { text-align: center; font-size: ${ur ? '10pt' : '9pt'}; margin-bottom: 6px; }
   .box { border: 1.5px solid #000; padding: 4px 8px; margin: 6px 0; break-inside: avoid; font-size: ${ur ? '11pt' : '9.5pt'}; }
   .box .bt { font-weight: 700; margin-bottom: 2px; }
-  .box ol { margin: 0; padding-${start}: 16px; }
+  ${medium === 'ur' ? `@counter-style urdu-steps { system: numeric; symbols: '۰' '۱' '۲' '۳' '۴' '۵' '۶' '۷' '۸' '۹'; suffix: '۔ '; }
+  .box ol { margin: 0; padding-${start}: 16px; list-style-type: urdu-steps; }` : `.box ol { margin: 0; padding-${start}: 16px; }`}
   .box ul { margin: 0; padding-${start}: 14px; }
   .s-head { font-weight: 700; border-bottom: 1.5px solid #000; margin: 8px 0 3px; break-after: avoid; }
   .strip { font-size: ${ur ? '11pt' : '9.5pt'}; margin: 2px 0 6px; break-inside: avoid; }

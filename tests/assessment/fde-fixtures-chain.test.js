@@ -57,3 +57,23 @@ describe('the maths fixture key check', () => {
     expect(scheme).toMatch(/key corrected by code; the model wrote 44\.5/);
   });
 });
+
+describe('either/or questions stay whole on the page', () => {
+  it('a question with "یا"/"OR" alternatives is one unbreakable block, and the "یا" never ends a page', () => {
+    const { paper } = chain('urdu');
+    const before = paper.slice(0, paper.indexOf('data-slot="urdu.C.Q10"'));
+    const opens = before.match(/<div class="slot[" ][^>]*>/g);
+    expect(opens[opens.length - 1]).toBe('<div class="slot either">');
+    expect(paper).toMatch(/\.slot\.either \{[^}]*break-inside: avoid/);
+    expect(paper).toMatch(/\.or \{[^}]*break-before: avoid; break-after: avoid/);
+  });
+});
+
+describe('the Urdu egress rule reaches list numbers', () => {
+  it('the before-the-exam steps in an Urdu scheme are numbered in Urdu digits, not 1. 2. 3.', () => {
+    const { scheme } = chain('urdu');
+    expect(scheme).toMatch(/@counter-style urdu-steps \{ system: numeric; symbols: '۰' '۱' '۲' '۳' '۴' '۵' '۶' '۷' '۸' '۹'; suffix: '۔ '; \}/);
+    expect(scheme).toMatch(/\.box ol \{[^}]*list-style-type: urdu-steps/);
+    expect(chain('maths').scheme).not.toContain('urdu-steps');
+  });
+});
