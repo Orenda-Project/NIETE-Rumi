@@ -7,8 +7,8 @@
  * used to emit an identical event: on the sandbox (2026-10-14) Gamma ran out of credits and one ask
  * produced one event per attempt, indistinguishable. Counting events then counts one failed ask up to
  * three times. The row was always right; the event now carries `attempt` and `final`, so a count can
- * take `final` and get one per ask. A job the worker DROPS (a stale freeform message) is final on its
- * first attempt.
+ * take `final` and get one per ask. This branch still generates FREEFORM Gamma plans through the same
+ * worker and queue service: those rows are not lifecycle rows and stay exactly as they were.
  *
  * Faked: the network (Gamma via the content service, WhatsApp, R2, the survey timer) and the database
  * (in memory). The queue service, the worker and the render service are real.
@@ -96,12 +96,19 @@ test('a render that keeps failing: attempts 1, 2, 3 — only the third is final,
   ]);
 });
 
-test('a job the worker drops (a stale freeform message) is final on its first attempt', async () => {
+test('a freeform Gamma job that fails is retried as before, and its row and the event stream are left alone', async () => {
   mockDb.reset({
-    // a grounded row (the path recorded it) whose job arrives without its sourceLpUuid lands in the drop branch
-    lesson_plan_requests: [{ id: 'req-stale', user_id: TEACHER, phone_number: PHONE, status: 'pending', retry_count: 0, source: 'niete_grounded' }],
+    // a freeform request row: no source, the lifecycle never recorded it
+    lesson_plan_requests: [{ id: 'req-free', user_id: TEACHER, phone_number: PHONE, status: 'pending', retry_count: 0, content_type: 'lesson_plan' }],
     lesson_plans: [], users: [{ id: TEACHER, phone_number: PHONE }],
   });
-  await Worker.process({ requestId: 'req-stale', userId: TEACHER, phoneNumber: PHONE, topic: 'fractions', contentType: 'lesson_plan' });
-  expect(failedEvents()).toEqual([expect.objectContaining({ requestId: 'req-stale', attempt: 1, final: true })]);
+  require('../../bot/shared/services/content.service').generateLessonPlan
+    .mockRejectedValueOnce(new Error('Request failed with status code 403'));
+  await expect(Worker.process({
+    requestId: 'req-free', userId: TEACHER, phoneNumber: PHONE, topic: 'fractions', fullMessage: 'fractions', language: 'en', contentType: 'lesson_plan',
+  })).rejects.toThrow(/403/);
+  const r = mockDb.rows('lesson_plan_requests').find((x) => x.id === 'req-free');
+  expect(r).toEqual(expect.objectContaining({ status: 'failed', retry_count: 1 }));
+  expect(r).not.toHaveProperty('error_code');
+  expect(failedEvents()).toEqual([]);
 });
