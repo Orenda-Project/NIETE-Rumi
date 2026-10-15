@@ -10,6 +10,9 @@
 -- Adds no table, so no ROW LEVEL SECURITY line: merge_log already has RLS on
 -- (child_identity.sql).
 --
+-- Also widens merge_log.source to admit 'job' (the backward-join job's rows, which never carry a tier), so a
+-- job never wears a teacher tap's label.
+--
 -- Idempotent: applying it twice is a no-op. Apply after child_identity.sql.
 -- Rollback: child_identity_merge_tier_rollback.sql.
 -- One env = one DB. Apply to sandbox first; staging and prod only on a go.
@@ -24,3 +27,7 @@ BEGIN
   END IF;
 END
 $$;
+
+-- merge_log.source: queue | class_tab | job (the original CHECK admitted only the first two).
+ALTER TABLE merge_log DROP CONSTRAINT IF EXISTS merge_log_source_check;
+ALTER TABLE merge_log ADD CONSTRAINT merge_log_source_check CHECK (source IN ('queue', 'class_tab', 'job'));

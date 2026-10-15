@@ -32,6 +32,17 @@
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
+
+/** The keyed child id for an event (the event-key module, when present); nothing when it is not. Never a raw id. */
+function kidFor(canonicalId) {
+  try {
+    const Kid = require('./web-quiz-kid');
+    const kid = Kid && typeof Kid.kidOf === 'function' ? Kid.kidOf(canonicalId) : null;
+    return kid ? { kid } : {};
+  } catch (_) {
+    return {};
+  }
+}
 const IdFlags = require('./web-quiz-identity-flags');
 
 const TIERS = Object.freeze(['roster_unique_with_loose', 'probable']);
@@ -384,7 +395,7 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
     }
     if (!(await mergeLoose(looseId, candidateId, now))) return { ok: false, reason: 'not_loose' };
     await log('same', tier);
-    logEvent('web_quiz.id_confirmed', { w: 's', by: 'merged' });
+    logEvent('web_quiz.id_confirmed', { w: 's', by: 'merged', ...kidFor(candidateId) });
     return { ok: true, decision };
   } catch (err) {
     logToFile('⚠️ join queue: decision not written', { error: err.message });
@@ -491,8 +502,9 @@ async function runBackwardJoin({ dryRun = true } = {}) {
         if (!(await mergeLoose(j.id, j.r.id, now))) continue;
         // tier NULL: the job joins only by phone + name or the strict rule, never a queue tier (blocked/probable pairs
         // are the teacher's), so these rows never count toward a tier's precision.
-        await rows(supabase.from('merge_log').insert({ loose_id: j.id, candidate_id: j.r.id, teacher_id: j.t, decision: 'same', source: 'queue', tier: null, decided_at: now }).select('id'));
-        logEvent('web_quiz.id_confirmed', { w: 's', by: 'merged' });
+        // source 'job': the backward-join job never wears a teacher tap's label (tier stays null)
+        await rows(supabase.from('merge_log').insert({ loose_id: j.id, candidate_id: j.r.id, teacher_id: j.t, decision: 'same', source: 'job', tier: null, decided_at: now }).select('id'));
+        logEvent('web_quiz.id_confirmed', { w: 's', by: 'merged', ...kidFor(j.r.id) });
         joined += 1;
       }
     } else joined = joins.length;

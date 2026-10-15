@@ -10,6 +10,8 @@ jest.mock('../../../shared/services/cache/railway-redis.service', () => ({
 }));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
+// the event-key module lands in another PR: a virtual stand-in, so id_confirmed can be checked for its kid
+jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({ kidOf: (id) => (id ? `k_${String(id).slice(-2)}` : null) }), { virtual: true });
 
 const { makeFake } = require('./fake-supabase');
 const supabase = require('../../../shared/config/supabase');
@@ -149,8 +151,10 @@ describe('decide: only a tap writes', () => {
     expect(out).toEqual({ ok: true, decision: 'same' });
     expect(student(c(7))).toMatchObject({ merged_into: r(5), status: 'merged', is_active: false });
     expect(fake.db.merge_log).toEqual([expect.objectContaining({ loose_id: c(7), candidate_id: r(5), teacher_id: T1, decision: 'same', source: 'queue' })]);
-    expect(logEvent).toHaveBeenCalledWith('web_quiz.id_confirmed', { w: 's', by: 'merged' });
+    // the surviving canonical id, keyed through the event-key module (never the raw id)
+    expect(logEvent).toHaveBeenCalledWith('web_quiz.id_confirmed', { w: 's', by: 'merged', kid: `k_${r(5).slice(-2)}` });
     expect(JSON.stringify(logEvent.mock.calls)).not.toMatch(/src|device_ref|920000/);
+    expect(JSON.stringify(logEvent.mock.calls)).not.toContain(r(5));
   });
 
   test('a candidate on ANOTHER teacher\'s roster is refused and nothing is written', async () => {
@@ -271,7 +275,9 @@ describe('the strict backward join (a job function)', () => {
     expect(student(c(2))).toMatchObject({ merged_into: r(2), status: 'merged', is_active: false });
     expect(fake.db.students.filter((s) => s.merged_into).map((s) => s.id).sort()).toEqual([c(1), c(2)]);
     expect(fake.db.merge_log.map((m) => [m.loose_id, m.candidate_id, m.teacher_id, m.decision, m.source]))
-      .toEqual([[c(1), r(1), T1, 'same', 'queue'], [c(2), r(2), T1, 'same', 'queue']]);
+      .toEqual([[c(1), r(1), T1, 'same', 'job'], [c(2), r(2), T1, 'same', 'job']]);   // a job never wears a tap's label
+    expect(fake.db.merge_log.every((m) => m.tier === null)).toBe(true);
+    expect(logEvent.mock.calls.filter(([n]) => n === 'web_quiz.id_confirmed').map(([, d]) => d.kid).sort()).toEqual([`k_${r(1).slice(-2)}`, `k_${r(2).slice(-2)}`]);
   });
 });
 
