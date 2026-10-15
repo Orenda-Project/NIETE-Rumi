@@ -717,7 +717,8 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given I saved Part 2 of the live form
     Then the form shows "The lesson plan" with "Was there a lesson plan?"
     When I choose "Followed a lesson plan"
-    Then a "Which plan?" list shows the teacher's most recent plans from the bot, newest first, named as in the /observe plan list, and "Upload new" last
+    Then a "Which plan?" list shows the teacher's plans from the app and WhatsApp, newest first, named as in the /observe plan list, and "Upload new" last
+    And the screen says these are the teacher's plans from the app and WhatsApp, so there's no need to ask for the file
     When I tap "Next" without picking a plan
     Then the form stays with 'Pick the plan, or "Upload new".' at the bottom
     When I pick a plan and tap "Next"
@@ -725,6 +726,19 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # Decided on the 2 Oct go-live call: the plan is picked inside the form, before the seal, and can be
     # changed until then. observe2-form-endpoint.js LESSON_PLAN; recent-fidelity-lps.service.js; the row
     # names come from lp-selection-format.js, as in /observe's list.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: A plan the teacher read in the app yesterday is in "Which plan?"
+    Given the teacher I am observing opened a lesson plan in the teacher app yesterday, and was never sent it on WhatsApp
+    And I saved Part 2 of the live form
+    When I choose "Followed a lesson plan"
+    Then that plan is the first row of "Which plan?", named by its topic, with its grade, subject, chapter, day and "yesterday"
+    When I pick it and tap "Next"
+    Then "Before you seal" names that plan
+    # Pilot sheet R6/R7 (13-14 Oct): the list read WhatsApp deliveries only, and since 12 Oct teachers read
+    # their plans in the app, so the plan made the day before was missing. Fixed by 6bd482fa8 / 1212cf26f;
+    # pinned at the form by tests/observe2/plan-list-app-plans.test.js (bd-eal7zn.2). The teacher is chosen
+    # in the visit planner before the form, so the list is that teacher's own.
 
   @e2e @flow @config-gated @wip @draft @P1
   Scenario Outline: A plan the bot didn't give the teacher is added in the form as photos, a file, or typed text
@@ -751,12 +765,33 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # vision read), applies the same "is this a lesson plan?" check, then the orchestrator's uploaded-plan
     # path grades it. The pages of several photos are read in order as one plan.
 
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: A PDF of the teacher's own Rumi plan is graded from that plan's own steps
+    Given the teacher's Urdu lesson plan PDF from Rumi is on my phone
+    And I added it with "Upload new" and "A PDF or Word file" before sealing, and sent the recording
+    When the "Check the moments" form opens and I tap "Next" on the last moments screen
+    Then the form shows "Did the lesson follow the plan?" with that plan's own steps, each already rated
+    And the brief gives how many of the plan's steps were done
+    # Pilot sheet R6/R7 (13-14 Oct): an Urdu Rumi PDF's text layer reads as broken glyphs, so the "is this a
+    # lesson plan?" check said no and the plan was never graded. The file's bytes name the plan
+    # (niete_lp_assets.content_hash), so it is linked and graded like a pick, never read
+    # (observe2/added-plan.js matchRumiPlan; bd-eal7zn.2).
+
   @e2e @flow @config-gated @wip @draft @P2
-  Scenario: An added plan that can't be read, or isn't a lesson plan, is named in the brief
-    Given the photos I added could not be read
+  Scenario Outline: An added plan that can't be read, or has no lesson steps, is named as such, with what to do next
+    Given <what happened>
     When I submit the check
     Then there is no "Did the lesson follow the plan?" screen
-    And the brief says the photos or file couldn't be read, so the plan's steps weren't checked
+    And the brief says "<brief line>"
+    And the brief says "Next time, pick the teacher's plan from the list in the form, or add a clear photo of each page."
+    And the debrief form's lesson plan section says "<debrief line>", never "No lesson plan was provided"
+    Examples:
+      | what happened                                  | brief line                                                 | debrief line                                             |
+      | the photos I added could not be read           | the file or photos you added couldn't be read              | A lesson plan was added, but its file or photos could not be read |
+      | the file I added has no lesson steps in it     | no lesson steps were found in what you added               | A file was added as the lesson plan, but no lesson steps were found in it |
+    # Pilot sheet R6/R7: coaches were told "didn't read as a lesson plan" (brief) and "No lesson plan was
+    # provided" (debrief form, OBSERVE_FICO_FLOW_HAS_FIDELITY=editable). Both named the wrong state
+    # (Rule 24d). observe2/brief.js plan_not_checked; observe-draft.service.js fidelityFallbackCopy.
 
   @e2e @flow @config-gated @wip @draft @P2
   Scenario: No lesson plan goes on to the photos, then the seal
@@ -841,6 +876,51 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the "Check the moments" message arrives with the plan's steps to check
     # moments.js: the plan is locked by the seal, so a recording that comes first leaves the grading to
     # onSealed (4 Oct: Riffat's PDF was attached after the recording and never checked).
+
+  @e2e @audio @config-gated @destructive @wip @draft @P0
+  Scenario: Record first: a lesson recording sent with no form open is saved as its own visit
+    Given my latest observation was an /observe2 visit
+    And no /observe2 form is waiting for a recording
+    When I send a 34-minute lesson recording from the recorder app as a file
+    Then the bot says the 34-minute recording is saved as one visit with its own form, to fill whenever I'm ready
+    And the message has a "Fill the form" button and a "Cancel observation" button
+    And the bot asks which teacher I observed, with my teachers listed
+    When I pick the teacher
+    Then the bot says it noted the teacher
+    # Pilot sheet R19 (the ICT lead, 14 Oct). observe-audio-router.js holds the recording instead of the
+    # "whose observation is this?" list: observe2/capture-link.js holdRecording makes the visit's form
+    # at capture (visit_context.recorded_first, period from the recording's length) and the capture
+    # links it; the who-answer names the teacher on the form and as the observation's owner.
+
+  @e2e @audio @config-gated @destructive @wip @draft @P0
+  Scenario: Record first: two lessons back to back, each saved and named on its own
+    Given my latest observation was an /observe2 visit
+    When I send the recording of my first lesson and then the recording of my second lesson
+    Then each recording is saved as its own visit, each with its own "which teacher" list
+    When I pick the first teacher on the first list and the second teacher on the second list
+    Then each visit is under its own teacher in "Complete the form"
+    # The who-list rows carry the recording's own session id: an exact link, never "the oldest first".
+
+  @e2e @flow @config-gated @destructive @wip @draft @P0
+  Scenario: Record first: the form is filled later, from the saved message or "Complete the form"
+    Given a lesson recording of mine is saved as a visit and its teacher is named
+    When I send "/observe2" and open "Complete the form"
+    Then the visit shows the teacher's name and "recorded lesson - fill the form"
+    When I continue it
+    Then the bot sends the field form, saying the lesson is recorded and the parts follow the lesson's steps
+    And Part 1 says "The first part of the lesson: up to and including guided practice" with no minutes
+    And Part 2 says "The second part of the lesson: independent practice and the wrap-up" with no minutes
+    When I fill the form, attach the plan and seal it
+    Then the "Check the moments" message arrives, and the debrief and the report follow as for any visit
+    # observe-debrief.listUnfinished (resume kind observe2_form), observe-resume, observe2/start.js
+    # handleFillButton and sendLiveForm afterLesson, observe2-form-endpoint.js afterLesson. Only screen
+    # data changes, so a form opened on the published Flow keeps working (no FORM_VERSION change).
+
+  @e2e @audio @config-gated @wip @draft @P1
+  Scenario: Record first is for /observe2 coaches; a coach on classic /observe still gets "whose observation is this?"
+    Given my latest observation was a classic /observe one
+    When I send a 30-minute lesson recording with nothing armed
+    Then the bot asks "Whose observation is this?" with my scheduled teachers at the top, as before
 
   @e2e @flow @config-gated @destructive @wip @draft @P1
   Scenario: With a picked plan, the check shows each step of the plan pre-rated from the recording

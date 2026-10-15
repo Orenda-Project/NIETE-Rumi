@@ -205,6 +205,9 @@ async function handleObservedTeacherPick(user, from, listId) {
       .eq('session_id', parsed.sessionId).eq('leader_user_id', user.id).eq('status', 'done');
     const { error } = await supabase.from('observation_schedules').insert(record);
     if (error) throw new Error(error.message);
+    // /observe2: a recording linked to a field form that names no teacher (held at capture, or a Start
+    // whose bind failed) takes the teacher on its form and as its owner too. Never throws.
+    await require('./observe2/capture-link').nameTeacherForRecording(user, parsed.sessionId, teacher);
     await WhatsAppService.sendMessage(
       from, (S.who_ack || 'Noted — {name}.').replace('{name}', record.teacher_name || ''));
     logToFile('🔭 observe-who: observed teacher recorded', {

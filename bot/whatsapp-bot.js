@@ -940,6 +940,12 @@ app.post('/webhook', async (req, res) => {
         const claimed = user ? await Observe2Start.handlePeriodButton(user, from, buttonId) : false;
         if (!claimed) logToFile('⚠️ /observe2 period button not handled', { buttonId, hasUser: !!user }, 'warn');
       }
+      // /observe2 — "Fill the form" on a recording saved before its form (record first, fill later).
+      else if (buttonId.startsWith('obs2_fill:')) {
+        const Observe2Start = require('./shared/services/observe/observe2/start');
+        const claimed = user ? await Observe2Start.handleFillButton(user, from, buttonId) : false;
+        if (!claimed) logToFile('⚠️ /observe2 fill button not handled', { buttonId, hasUser: !!user }, 'warn');
+      }
       // bd-tju8f — resume / cancel family. ORDER: the *_yes_/_no_ variants must
       // precede the bare observe_cancel_ prefix they share.
       else if (buttonId.startsWith('observe_cancel_yes_')) {

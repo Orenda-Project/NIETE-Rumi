@@ -152,9 +152,18 @@ async function setPhotos(id, photos) {
   return { ok: true };
 }
 
+// A form made at capture for a recording that came with no form waiting (record first, fill the
+// form afterwards). It exists for that one recording only.
+function isHeld(form) {
+  return Boolean(form && form.visit_context && form.visit_context.recorded_first);
+}
+
 // The coach's most recent form that has no recording yet, started within the link window. It runs
-// on every unarmed leader audio, so it reads only what the link and the capture need.
+// on every unarmed leader audio, so it reads only what the link and the capture need. A held form is
+// never offered: one that lost its recording (refused as a duplicate) would otherwise catch the
+// coach's next recording, for a teacher it does not name.
 const CAPTURE_COLUMNS = 'id, observer_user_id, teacher_user_id, visit_context, sealed_at, coaching_session_id, created_at';
+const CAPTURE_CANDIDATES = 5;
 async function findOpenFormForCapture(observerUserId, now = Date.now()) {
   const since = new Date(now - LINK_WINDOW_HOURS * 3600 * 1000).toISOString();
   const { data, error } = await supabase.from('observation_field_forms')
@@ -163,9 +172,33 @@ async function findOpenFormForCapture(observerUserId, now = Date.now()) {
     .is('coaching_session_id', null)
     .gte('created_at', since)
     .order('created_at', { ascending: false })
-    .limit(1);
+    .limit(CAPTURE_CANDIDATES);
   if (error) return fail('findOpenFormForCapture', error, { observerUserId });
+  return { ok: true, form: (data || []).find((f) => !isHeld(f)) || null };
+}
+
+// The coach's newest form, whatever its state: half of "was the latest observation an /observe2 one?".
+async function latestFormOf(observerUserId) {
+  const { data, error } = await supabase.from('observation_field_forms')
+    .select('id, created_at, coaching_session_id')
+    .eq('observer_user_id', observerUserId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (error) return fail('latestFormOf', error, { observerUserId });
   return { ok: true, form: (data || [])[0] || null };
+}
+
+// The teacher named after the recording ("who did you observe?"), on a form that names none yet. The
+// first answer stands. A sealed form takes it too: the seal locks the answers, not who was observed.
+async function nameTeacher(current, teacherUserId, visitContextPatch = {}) {
+  if (!current || !teacherUserId) return { ok: false };
+  const visitContext = { ...(current.visit_context || {}), ...visitContextPatch };
+  const { data, error } = await supabase.from('observation_field_forms')
+    .update({ teacher_user_id: teacherUserId, visit_context: visitContext })
+    .eq('id', current.id).is('teacher_user_id', null).select('*');
+  if (error) return fail('nameTeacher', error, { id: current.id });
+  if (!(data || []).length) return { ok: false, named: true };
+  return { ok: true, form: data[0] };
 }
 
 async function linkSession(id, sessionId) {
@@ -179,16 +212,25 @@ async function linkSession(id, sessionId) {
 // the link written for that session is undone.
 async function unlinkSession(sessionId) {
   const { data, error } = await supabase.from('observation_field_forms')
-    .update({ coaching_session_id: null }).eq('coaching_session_id', sessionId).select('id, created_at');
+    .update({ coaching_session_id: null }).eq('coaching_session_id', sessionId).select('id, created_at, visit_context');
   if (error) return fail('unlinkSession', error, { sessionId });
   const row = (data || [])[0] || {};
-  return { ok: true, formId: row.id || null, createdAt: row.created_at || null };
+  return { ok: true, formId: row.id || null, createdAt: row.created_at || null, held: isHeld(row) };
 }
 
-async function findBySession(sessionId) {
-  const { data, error } = await supabase.from('observation_field_forms').select('*').eq('coaching_session_id', sessionId).maybeSingle();
+async function findBySession(sessionId, columns = '*') {
+  const { data, error } = await supabase.from('observation_field_forms').select(columns).eq('coaching_session_id', sessionId).maybeSingle();
   if (error) return fail('findBySession', error, { sessionId });
   return { ok: true, form: data || null };
+}
+
+// The forms of several sessions in one read (the worklist): only whether each is sealed, and held.
+async function formsForSessions(sessionIds) {
+  if (!sessionIds.length) return { ok: true, forms: [] };
+  const { data, error } = await supabase.from('observation_field_forms')
+    .select('id, coaching_session_id, sealed_at, visit_context').in('coaching_session_id', sessionIds);
+  if (error) return fail('formsForSessions', error, { sessions: sessionIds.length });
+  return { ok: true, forms: data || [] };
 }
 
 async function setMoments(id, moments, levels) {
@@ -229,7 +271,8 @@ async function markChecked(current, finalLevels, patch) {
 }
 
 module.exports = {
-  TABLE, RUBRIC_VERSION, LINK_WINDOW_HOURS, PART_KEYS, pick,
+  TABLE, RUBRIC_VERSION, LINK_WINDOW_HOURS, PART_KEYS, pick, isHeld,
   createForm, getForm, setPeriod, markOpened, savePart, savePlan, saveUpload, savePhotoChoice, seal, setPhotos,
-  findOpenFormForCapture, linkSession, unlinkSession, findBySession, setMoments, setRumiMoments, saveReview, markChecked,
+  findOpenFormForCapture, latestFormOf, nameTeacher, linkSession, unlinkSession, findBySession, formsForSessions,
+  setMoments, setRumiMoments, saveReview, markChecked,
 };

@@ -26,6 +26,9 @@
  *               files never arrived goes back to LESSON_PLAN; an unanswered photo step to PHOTOS).
  *
  * The screens are English for the pilot; the chat message after the seal is in the coach's language.
+ *
+ * A form whose recording is already in (held at capture for a recording that came first, or sent
+ * before Part 1 was saved) is filled after the lesson: its hints name the lesson's steps, not minutes.
  */
 
 const supabase = require('../config/supabase');
@@ -71,6 +74,17 @@ const halves = (form) => {
   return { period, half: Math.round(period / 2) };
 };
 
+// "After the lesson": the recording is already in (held at capture, or sent before Part 1 was saved),
+// so the lesson is over and the coach fills the form from what they saw and heard. The parts are
+// named by the lesson's own steps (the 5-step plan), never by the clock. Only screen data changes, so
+// a form opened on the published Flow keeps working (no FORM_VERSION change).
+const afterLesson = (form) => Boolean(form && form.coaching_session_id);
+const AFTER_HINT = {
+  part1: 'The first part of the lesson: up to and including guided practice. Fill it in from what you saw and heard.',
+  part2: 'The second part of the lesson: independent practice and the wrap-up.',
+  continue: 'Carry on with Part 2: independent practice and the wrap-up.',
+};
+
 async function teacherName(form) {
   if (!form.teacher_user_id) return null;
   const { data, error } = await supabase.from('users').select('name').eq('id', form.teacher_user_id).maybeSingle();
@@ -96,11 +110,15 @@ async function loadForm(flowToken) {
 async function renderPart1(form, extra = {}) {
   const { period, half } = halves(form);
   const name = await teacherName(form);
+  const after = afterLesson(form);
+  const lesson = after ? 'recorded lesson' : `${period}-minute period`;
   return {
     screen: 'PART_ONE',
     data: {
-      teacher_line: name ? `Teacher: ${name} · ${period}-minute period` : `${period}-minute period`,
-      part_hint: `Minute 0 to ${half}. At minute ${half}, tap "Part 1 done": your answers are saved then.`,
+      teacher_line: name ? `Teacher: ${name} · ${lesson}` : `${lesson[0].toUpperCase()}${lesson.slice(1)}`,
+      part_hint: after
+        ? AFTER_HINT.part1
+        : `Minute 0 to ${half}. At minute ${half}, tap "Part 1 done": your answers are saved then.`,
       ...NO_ERRORS,
       ...extra,
     },
@@ -112,7 +130,9 @@ function renderPart2(form, extra = {}) {
   return {
     screen: 'PART_TWO',
     data: {
-      part_hint: `From minute ${half} to ${period}. Answer only for what happens in this part.`,
+      part_hint: afterLesson(form)
+        ? AFTER_HINT.part2
+        : `From minute ${half} to ${period}. Answer only for what happens in this part.`,
       ...NO_ERRORS,
       ...extra,
     },
@@ -145,13 +165,16 @@ function planOption(row) {
   return { id: String(row.id), title: f.title, description: f.description };
 }
 
+// The list is the teacher's own (the visit planner chose the teacher), and it holds the plans read in
+// the app as well as those sent on WhatsApp. Coaches still asked teachers for the file (pilot sheet
+// R11), so the hint says it isn't needed (bd-eal7zn.2). The hint is screen data: no Flow change.
 async function renderPlan(form, extra = {}, plans) {
   const list = plans || await recentPlans(form);
   const name = form ? await teacherName(form) : null;
   const who = name || 'The teacher';
   const hint = list.length
-    ? `${name ? `${name}'s` : "The teacher's"} most recent plans from the bot. If the plan isn't here, pick "Upload new" to add it.`
-    : `${who} has no plans from the bot yet. Pick "Upload new" to add the plan.`;
+    ? `${name ? `${name}'s` : "The teacher's"} plans from the app and WhatsApp, newest first. Pick the one taught: there's no need to ask for the file. If it isn't here, pick "Upload new".`
+    : `${who} has no plans from the app or WhatsApp yet. Pick "Upload new" to add the plan.`;
   return {
     screen: 'LESSON_PLAN',
     data: {
@@ -236,7 +259,7 @@ function renderSealed(form, lines) {
 function renderContinue(kind, form) {
   const { period, half } = halves(form);
   const text = {
-    part1: ['Part 1 is saved', `Carry on with Part 2, from minute ${half} to ${period}.`],
+    part1: ['Part 1 is saved', afterLesson(form) ? AFTER_HINT.continue : `Carry on with Part 2, from minute ${half} to ${period}.`],
     plan: ['Parts 1 and 2 are saved', 'Next: the lesson plan, then seal the record.'],
     part2: ['Parts 1 and 2 and the plan are saved', 'Carry on to the last screen and seal the record.'],
     sealed: ['This record is sealed', `It was sealed at ${clock(form && form.sealed_at)} and can't change. Send the recording in the chat as a document if you haven't yet.`],
