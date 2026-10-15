@@ -984,7 +984,8 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   Scenario: A recording sent before the seal waits for it, and the plan attached afterwards is checked
     Given I started an /observe2 visit and sent the recording before filling the form
     When I attach the lesson plan and seal the record
-    Then the "Check the moments" message arrives with the plan's steps to check
+    Then the Sealed screen says the recording is already in, and does not ask me to send it
+    And the "Check the moments" message arrives with the plan's steps to check
     # moments.js: the plan is locked by the seal, so a recording that comes first leaves the grading to
     # onSealed (4 Oct: Riffat's PDF was attached after the recording and never checked).
 
@@ -1022,7 +1023,8 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     And Part 1 says "The first part of the lesson: up to and including guided practice" with no minutes
     And Part 2 says "The second part of the lesson: independent practice and the wrap-up" with no minutes
     When I fill the form, attach the plan and seal it
-    Then the "Check the moments" message arrives, and the debrief and the report follow as for any visit
+    Then the Sealed screen says the recording is already in, as the chat message after it does
+    And the "Check the moments" message arrives, and the debrief and the report follow as for any visit
     # observe-debrief.listUnfinished (resume kind observe2_form), observe-resume, observe2/start.js
     # handleFillButton and sendLiveForm afterLesson, observe2-form-endpoint.js afterLesson. Only screen
     # data changes, so a form opened on the published Flow keeps working (no FORM_VERSION change).
