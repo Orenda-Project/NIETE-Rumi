@@ -39,6 +39,8 @@ import { forgetPapers } from './paperCache';
 import { clearPicksForTest, setPicks, usePicks } from './store';
 import { newPicks, type Picks } from './model';
 import { CheckStep, ClassStep, CoverStep, QuestionsStep } from './NewPaperSteps';
+import { AssessmentHub } from './AssessmentHub';
+import { noticeTracker } from '../notices/tracker';
 import { RequestPage } from './RequestPage';
 import { ASSESSMENT_V2_BASE as B, newPaperPath, requestPath } from './paths';
 import { failureLabel } from './failure';
@@ -71,6 +73,7 @@ function app(path: string) {
         <Route path={newPaperPath('questions')} element={<QuestionsStep />} />
         <Route path={newPaperPath('check')} element={<CheckStep />} />
         <Route path={`${B}/request/:requestId`} element={<RequestPage />} />
+        <Route path={B} element={<AssessmentHub />} />
         <Route path="*" element={<p>elsewhere</p>} />
       </Routes>
       <Where />
@@ -389,7 +392,7 @@ describe('the plain Check, the request page and the failure labels', () => {
   });
 });
 
-describe('what QA saw on the deployed app (mocked options)', () => {
+describe('the door, Being made, Make failures and the Syllabus row', () => {
   it('the door\'s Class step: grade 5 only, no grade step, the held subject off', async () => {
     setPicks(fdePicks({ subject: null, subjectName: null }));
     app(newPaperPath('class'));
@@ -414,6 +417,23 @@ describe('what QA saw on the deployed app (mocked options)', () => {
     app(requestPath('req-f'));
     expect(await screen.findByText(C.aboutThreeMin)).toBeTruthy();
     await waitFor(() => expect(document.body.textContent).toContain(C.questionsCount(48)));
+    expect(document.body.textContent).not.toContain(C.questionsCount(0));
+  });
+
+  it('the hub\'s Being made list and the shell\'s notice never count a board-pattern job as "0 questions"', async () => {
+    setPicks(fdePicks());
+    portal.generateAssessment.mockResolvedValue({ success: true, requestId: 'req-n' });
+    const check = app(newPaperPath('check'));
+    await screen.findByTestId('fde-row-syllabus');
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.makePaper) }));
+    await waitFor(() => expect(where().path).toBe(requestPath('req-n')));
+    const item = noticeTracker.getItems().find((i) => (i as { requestId?: string }).requestId === 'req-n');
+    expect(item).toBeTruthy();
+    expect(item?.questions).toBeNull();
+    check.unmount();
+    app(B);
+    expect((await screen.findAllByText(C.beingMade)).length).toBeGreaterThan(0);
+    await waitFor(() => expect(document.body.textContent).toContain('Maths'));
     expect(document.body.textContent).not.toContain(C.questionsCount(0));
   });
 
