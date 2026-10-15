@@ -713,7 +713,9 @@ const VISIT_CAPTURE_TEMPLATES = {
     sendAsDocument: 'A recording from the phone\'s recorder app goes as a *Document* (📎 → *Document*), not as audio: WhatsApp refuses audio over 16 MB.',
   },
   ur: {
-    withName: '🎙️ *{name}* کے سبق کا مشاہدہ۔ سبق شروع ہو تو ریکارڈ کر کے آڈیو مجھے بھیجیں — میں آپ کے لیے {fw} فارم تیار کر دوں گی۔',
+    // Opens with U+200F: WhatsApp lays a paragraph out from its first strong character, and a
+    // teacher's name in Latin script would otherwise turn this Urdu line left to right.
+    withName: '\u200F🎙️ *{name}* کے سبق کا مشاہدہ۔ سبق شروع ہو تو ریکارڈ کر کے آڈیو مجھے بھیجیں — میں آپ کے لیے {fw} فارم تیار کر دوں گی۔',
     noName: '🎙️ سبق شروع ہو تو ریکارڈ کر کے آڈیو مجھے بھیجیں — میں آپ کے لیے {fw} فارم تیار کر دوں گی۔',
     sendAsDocument: 'فون کی ریکارڈر ایپ کی ریکارڈنگ *Document* کے طور پر بھیجیں (📎، پھر *Document*)، آڈیو کے طور پر نہیں: واٹس ایپ \u206616 MB\u2069 سے بڑی آڈیو نہیں بھیجتا۔',
   },
