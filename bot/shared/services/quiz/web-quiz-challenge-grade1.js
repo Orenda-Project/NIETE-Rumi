@@ -85,10 +85,12 @@ function recordAtServe(rows, periodId) {
     ? D.countedThisPeriod(rows, EXERCISE, periodId)
     : (rows || []).some((r) => r.exercise === EXERCISE && r.status === 'scored');
   const mode = counted ? 'practice' : 'check';
+  const exposureNo = D.anchorServesAny(rows, BLOCK);
   return {
     mode,
-    record: periodId ? D.recordAtServe({ mode, outcome: 'served', countedThisPeriod: counted }) : null,
-    exposure_no: D.anchorServesAny(rows, BLOCK),
+    // an anchor block is met again every counted Trail, so the first-exposure condition does not apply (as for A1)
+    record: periodId ? D.recordAtServe({ mode, outcome: 'served', countedThisPeriod: counted, exposureNo, anchor: true }) : null,
+    exposure_no: exposureNo,
     anchor_exposure_no: D.anchorExposureNo(rows, BLOCK),
   };
 }
