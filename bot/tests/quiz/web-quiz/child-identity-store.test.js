@@ -108,6 +108,15 @@ describe('the tombstone', () => {
 describe('the binding store', () => {
   const bind = (kid, over = {}) => Bind.insert({ canonicalId: kid, phoneNorm: PHONE, via: 'save', confirmedAt: NOW, expiresAt: NEXT_END, ...over });
 
+  test('insert and renew name the code that made or renewed the binding (code_id); none → null', async () => {
+    const row = await Bind.insert({ canonicalId: KID_A, phoneNorm: PHONE, via: 'save', expiresAt: NEXT_END, codeId: 'JUGNU-AB2CD' });
+    expect(row).toMatchObject({ canonical_id: KID_A, code_id: 'JUGNU-AB2CD' });
+    const renewed = await Bind.renew(row.id, NEXT_END, new Date('2026-10-20T10:00:00Z'), 'JUGNU-7KQ2X');
+    expect(renewed).toMatchObject({ id: row.id, code_id: 'JUGNU-7KQ2X' });
+    const plain = await Bind.insert({ canonicalId: KID_B, phoneNorm: '920000000712', via: 'teacher', expiresAt: NEXT_END });
+    expect(plain.code_id).toBeNull();
+  });
+
   test('insert writes the normalised phone, the tomb and the via; a bad via writes nothing', async () => {
     const row = await bind(KID_A, { phoneNorm: '+92 000 0000501' });
     expect(row).toMatchObject({ canonical_id: KID_A, phone_norm: PHONE, phone_tomb: Bind.tombOf(PHONE), via: 'save', expires_at: NEXT_END, rebind_of: null });
