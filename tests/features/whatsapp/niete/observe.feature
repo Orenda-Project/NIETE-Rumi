@@ -1057,6 +1057,17 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # As /observe's Section B: the same move lists, grader and scorer (fidelity-orchestrator.js,
     # observe-draft.rescoreFidelityFromEdits). Without a graded plan, the levels come straight after the moments.
 
+  @e2e @flow @audio @config-gated @destructive @wip @draft @P1
+  Scenario: Each moment is evidence about the teaching, and says why it was picked
+    Given the "Check the moments" form is open for a lesson I recorded
+    When I read the moments on each screen
+    Then each one shows its minute, what it is, the words said and, under them, one sentence in my language on why Rumi picked it
+    And a question moment shows the question with its answer
+    And no moment is a name, a roll-call, discipline, admin, "understood?", a bid to answer or the class chanting together
+    And an instruction to work in pairs or groups is not shown as "a real choice" or "children led a part"
+    # Pilot sheet R5, R15 (14 Oct). moments.js prompt observe2-moments-v2 (bd-eal7zn.3); the
+    # why is in each slot's description (observe2-check-endpoint.js describe), within 300 code points.
+
   @e2e @flow @config-gated @destructive @wip @draft @P1
   Scenario: A part of the lesson with no moment says so, never a blank question
     Given the "Check the moments" form is open and Rumi found no moment for "When children work, what do they do?"
