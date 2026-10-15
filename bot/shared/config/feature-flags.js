@@ -54,6 +54,23 @@ const ASSESSMENT_VERSIONS_KEY = 'assessment_versions_enabled';
  */
 const QUIZ_AUTHOR_GATES_V2_KEY = 'quiz_author_gates_v2';
 
+/**
+ * Board-pattern papers (a grade's exam laid out the way the board sets it: fixed
+ * sections, fixed marks, a marking scheme). Off by default. Read in exactly two
+ * places — /assessment/options (offer it) and /assessment/create (accept it) —
+ * never by the worker: a job already queued with a pattern finishes as one.
+ */
+const ASSESSMENT_FDE_PATTERN_KEY = 'assessment_fde_pattern_enabled';
+
+/**
+ * Which subjects the pattern may be offered for, as a JSON array of subject keys
+ * (e.g. ["maths","science"]). A narrower switch under the flag above, so one
+ * subject can be held back without turning the others off. Absent or unreadable
+ * means EVERY subject the pattern holds: the flag is the kill switch, this only
+ * narrows, and a typo here must not silently take the whole feature down.
+ */
+const ASSESSMENT_FDE_PATTERN_SUBJECTS_KEY = 'assessment_fde_pattern_subjects';
+
 async function isFlagEnabled(key) {
   try {
     const { data, error } = await supabase
@@ -79,6 +96,33 @@ const isAssessmentGeneratorEnabled = () => isFlagEnabled(ASSESSMENT_GENERATOR_KE
 const isAssessmentEditingEnabled = () => isFlagEnabled(ASSESSMENT_EDITING_KEY);
 const isAssessmentDocxEnabled = () => isFlagEnabled(ASSESSMENT_DOCX_KEY);
 const isAssessmentVersionsEnabled = () => isFlagEnabled(ASSESSMENT_VERSIONS_KEY);
+const isAssessmentFdePatternEnabled = () => isFlagEnabled(ASSESSMENT_FDE_PATTERN_KEY);
+
+/**
+ * The subject keys the pattern may be offered for, lower-cased, or null for "all".
+ * Null on an absent row, a value that is not an array of strings, or a failed
+ * read — see ASSESSMENT_FDE_PATTERN_SUBJECTS_KEY for why that direction. An
+ * empty array is a real answer: no subject.
+ */
+async function fdePatternSubjects() {
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', ASSESSMENT_FDE_PATTERN_SUBJECTS_KEY)
+      .maybeSingle();
+    if (error || !data) return null;
+    let value = data.value;
+    if (typeof value === 'string') {
+      try { value = JSON.parse(value); } catch (_) { return null; }
+    }
+    if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) return null;
+    return value.map((v) => v.trim().toLowerCase()).filter(Boolean);
+  } catch (err) {
+    logToFile('⚠️ Feature-flag lookup failed — treating as every subject', { key: ASSESSMENT_FDE_PATTERN_SUBJECTS_KEY, error: err?.message });
+    return null;
+  }
+}
 /**
  * Same rules as isFlagEnabled, and the row must BE this key: a reader that took
  * whatever row came back would turn the author's gates on from another flag.
@@ -109,4 +153,6 @@ module.exports = {
   isFlagEnabled, isAssessmentGeneratorEnabled, isAssessmentEditingEnabled,
   isAssessmentDocxEnabled, isAssessmentVersionsEnabled,
   QUIZ_AUTHOR_GATES_V2_KEY, isQuizAuthorGatesV2,
+  ASSESSMENT_FDE_PATTERN_KEY, isAssessmentFdePatternEnabled,
+  ASSESSMENT_FDE_PATTERN_SUBJECTS_KEY, fdePatternSubjects,
 };
