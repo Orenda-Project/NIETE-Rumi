@@ -224,7 +224,7 @@ async function playFor({ chosenId, last, lang, now, challenge, grade } = {}) {
   const trail = await trailWaiting(chosenId, periodOf(nowMs), challenge.exercises);
   const seenIds = s.story ? await seenPassages(chosenId) : null;
   const bands = seenIds ? openBands(grade, await readingRungOf(chosenId)) : null;
-  const p = seenIds ? await passagesOf(lang === 'ur' ? 'ur' : 'en', nowIso, bands) : { live: [], next: null };
+  const p = seenIds ? await passagesOf(require('../../config/ux-strings').clampLanguage(lang), nowIso, bands) : { live: [], next: null };
   // Unseen: no run row of any mode or status on the passage or its twin (seenIds null: unknown, so nothing is new),
   // and a title in the child's language (a story the lantern cannot name is never NEW on the shelf either).
   const unseen = (seenIds ? p.live.filter((r) => !isSeenOf(seenIds)(r)) : [])
