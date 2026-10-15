@@ -14,6 +14,7 @@ jest.mock('../../bot/shared/services/whatsapp.service', () => ({
   sendFlow: jest.fn(() => Promise.resolve(true)),
   sendMessage: jest.fn(() => Promise.resolve(true)),
   sendInteractiveButtons: jest.fn(() => Promise.resolve(true)),
+  sendInteractiveMessage: jest.fn(() => Promise.resolve(true)),
 }));
 jest.mock('../../bot/shared/services/observe/observe2/field-form.store', () => ({
   createForm: jest.fn(() => Promise.resolve({ ok: true, form: { id: 'form-1' } })),
@@ -84,14 +85,34 @@ describe('the command opens the visit planner with the observe2 marker', () => {
 });
 
 describe('after Start: the record, then the period', () => {
-  test('creates the record for this coach and teacher, then asks the period with three buttons', async () => {
+  // R18 (the ICT lead, 14 Oct): Friday classes are 25 minutes. Four periods do not fit WhatsApp's three reply
+  // buttons, so the period is asked as a list; the row ids are the button ids they replace.
+  test('creates the record for this coach and teacher, then asks the period from a list of four, 25 to 40', async () => {
     await Start.afterStart({ user: COACH, phoneNumber: '923000000001', boundTeacher: { teacher_ext_id: 'tx1', school_ext_id: 'sx1', teacher_name: 'Rabia', user_id: 'teacher-1' } });
     expect(Store.createForm).toHaveBeenCalledWith({ observerUserId: 'coach-1', teacherUserId: 'teacher-1', visitContext: { teacher_ext_id: 'tx1', school_ext_id: 'sx1' } });
-    const [to, msg] = WhatsAppService.sendInteractiveButtons.mock.calls[0];
+    expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
+    const [to, list] = WhatsAppService.sendInteractiveMessage.mock.calls[0];
     expect(to).toBe('923000000001');
-    expect(msg.body).toContain('Rabia');
-    expect(msg.buttons.map((b) => b.id)).toEqual(['obs2_period:form-1:30', 'obs2_period:form-1:35', 'obs2_period:form-1:40']);
-    for (const b of msg.buttons) expect([...b.title].length).toBeLessThanOrEqual(20);
+    expect(list.body.text).toContain('Rabia');
+    const rows = list.action.sections.flatMap((s) => s.rows);
+    expect(rows.map((r) => r.id)).toEqual(['obs2_period:form-1:25', 'obs2_period:form-1:30', 'obs2_period:form-1:35', 'obs2_period:form-1:40']);
+    expect(rows.map((r) => r.title)).toEqual(['25 minutes', '30 minutes', '35 minutes', '40 minutes']);
+    for (const r of rows) expect([...r.title].length).toBeLessThanOrEqual(24);
+    expect([...list.action.button].length).toBeLessThanOrEqual(20);
+  });
+  test('the Urdu list fits the same caps', async () => {
+    global.__OBS2_USER = { ...COACH, preferred_language: 'ur' };
+    await Start.afterStart({ user: { ...COACH, preferred_language: 'ur' }, phoneNumber: '923000000001', boundTeacher: { teacher_name: 'Rabia', user_id: 'teacher-1' } });
+    const [, list] = WhatsAppService.sendInteractiveMessage.mock.calls[0];
+    for (const r of list.action.sections.flatMap((s) => s.rows)) expect([...r.title].length).toBeLessThanOrEqual(24);
+    expect([...list.action.button].length).toBeLessThanOrEqual(20);
+    expect(list.action.button).not.toBe(observe2Strings('en').period_list_button);
+  });
+  test('a period list that does not send is said plainly', async () => {
+    WhatsAppService.sendInteractiveMessage.mockResolvedValueOnce(false);
+    const out = await Start.afterStart({ user: COACH, phoneNumber: '923000000001', boundTeacher: { teacher_name: 'Rabia', user_id: 'teacher-1' } });
+    expect(out).toEqual({ ok: false, formId: 'form-1' });
+    expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('923000000001', observe2Strings('en').period_failed);
   });
   // Riffat, 4 Oct: the observe state is the only place the recording learnt which form it was for,
   // and a classic /observe Start looks the same. The Start now names its form in the state.
@@ -112,6 +133,7 @@ describe('after Start: the record, then the period', () => {
   test('a record that cannot be created is said plainly', async () => {
     Store.createForm.mockResolvedValueOnce({ ok: false, error: 'x' });
     await Start.afterStart({ user: COACH, phoneNumber: '923000000001', boundTeacher: {} });
+    expect(WhatsAppService.sendInteractiveMessage).not.toHaveBeenCalled();
     expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
     expect(WhatsAppService.sendMessage).toHaveBeenCalledWith('923000000001', observe2Strings('en').record_failed);
   });
@@ -137,6 +159,21 @@ describe('the period button sends the live form', () => {
   test('a malformed button id is not claimed', async () => {
     expect(await Start.handlePeriodButton(COACH, '923000000001', 'obs2_period:form-1:7')).toBe(false);
   });
+  test('25 minutes (Friday) is saved and the form runs to minute 25', async () => {
+    Store.getForm.mockResolvedValueOnce({ ok: true, form: { id: 'form-1', observer_user_id: 'coach-1' } });
+    expect(await Start.handlePeriodButton(COACH, '923000000001', 'obs2_period:form-1:25')).toBe(true);
+    expect(Store.setPeriod).toHaveBeenCalledWith('form-1', 25);
+    const [, flow] = WhatsAppService.sendFlow.mock.calls[0];
+    expect(flow.body).toMatch(/minute 25/);
+  });
+  test('the three period buttons already in coaches\' chats still work', async () => {
+    for (const m of [30, 35, 40]) {
+      Store.getForm.mockResolvedValueOnce({ ok: true, form: { id: 'form-1', observer_user_id: 'coach-1' } });
+      // eslint-disable-next-line no-await-in-loop
+      expect(await Start.handlePeriodButton(COACH, '923000000001', `obs2_period:form-1:${m}`)).toBe(true);
+    }
+    expect(Store.setPeriod.mock.calls.map((c) => c[1])).toEqual([30, 35, 40]);
+  });
 });
 
 describe('the visit planner\'s Start completion branches on the marker', () => {
@@ -147,7 +184,7 @@ describe('the visit planner\'s Start completion branches on the marker', () => {
     await handleObserveVisitFlow(reply('coach-1:observe2-visit'), '923000000001', 'coach-1');
     expect(VisitHandler.handle).toHaveBeenCalledWith('coach-1', 'complete', 'BRIEF', expect.any(Object), 'coach-1:observe2-visit', expect.anything());
     expect(Store.createForm).toHaveBeenCalled();
-    expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalled();
+    expect(WhatsAppService.sendInteractiveMessage).toHaveBeenCalled();
     const texts = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]).join('\n');
     expect(texts).not.toMatch(/record it and send me the audio|draft the FICO form/i);
   });
