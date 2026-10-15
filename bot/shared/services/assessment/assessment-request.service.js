@@ -206,7 +206,7 @@ async function findGenerating({ userId, grade, subject, pattern = null, withinMi
     }
     return null;
   } catch (err) {
-    logToFile('⚠️ [assessment] generating check failed — allowing the request', {
+    logToFile('[assessment] generating check failed — allowing the request', {
       userId, grade, subject, error: err?.message,
     });
     return null;

@@ -119,7 +119,7 @@ async function fdePatternSubjects() {
     if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) return null;
     return value.map((v) => v.trim().toLowerCase()).filter(Boolean);
   } catch (err) {
-    logToFile('⚠️ Feature-flag lookup failed — treating as every subject', { key: ASSESSMENT_FDE_PATTERN_SUBJECTS_KEY, error: err?.message });
+    logToFile('Feature-flag lookup failed — treating as every subject', { key: ASSESSMENT_FDE_PATTERN_SUBJECTS_KEY, error: err?.message });
     return null;
   }
 }
