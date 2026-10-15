@@ -428,8 +428,9 @@ describe('the finished grade-1 row: m_result and the phone bindings, as every st
   const resetFlags = () => { for (const m of FLAG_MODS) { const x = require(m); if (x._resetCache) x._resetCache(); } };
   const named = (n) => logEvent.mock.calls.filter(([e]) => e === n).map(([, d]) => d);
   const OLD_EXPIRY = '2026-12-01T00:00:00.000Z';
-  beforeEach(() => { resetFlags(); process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(48); process.env.WEB_QUIZ_KID_KEY_V = '1'; });
-  afterEach(() => { resetFlags(); delete process.env.WEB_QUIZ_KID_KEY; delete process.env.WEB_QUIZ_KID_KEY_V; });
+  // WQ_TOMB_SALT is web_quiz_phone_bind's hard parent (web-quiz-identity-flags): a test-only value, so the switch can be on
+  beforeEach(() => { resetFlags(); process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(48); process.env.WEB_QUIZ_KID_KEY_V = '1'; process.env.WQ_TOMB_SALT = 'test-only-salt'; });
+  afterEach(() => { resetFlags(); delete process.env.WEB_QUIZ_KID_KEY; delete process.env.WEB_QUIZ_KID_KEY_V; delete process.env.WQ_TOMB_SALT; });
 
   test('one m_result with form G1 and fixed_band G1; a bound child\'s expires_at moves', async () => {
     on(V2, G1, PERIOD, ...['web_quiz_hub', 'web_quiz_events_v2', 'web_quiz_identity_canon', 'web_quiz_phone_bind'].map((key) => ({ key, value: true })));
