@@ -152,5 +152,7 @@ router.get('/videos/dl/:code', handle((req) => WebQuizLibrary.download(req.param
 router.post('/hub/:token', handle((req) => require('../services/quiz/web-quiz-hub').hub(req.params.token, { kid: (req.body || {}).kid, device: (req.body || {}).device_ref })));
 // The results card's door to the child's own hub: a hub link minted for this session's child, bound to this phone.
 router.post('/hubdoor', handle((req) => require('../services/quiz/web-quiz-hub-door').door(req.body || {}, WebQuiz.WqError)));
+// An old, finished class link opened again on the phone that finished it: that child's hub, or {home: null}.
+router.post('/linkhome', handle((req) => require('../services/quiz/web-quiz-link-home').home(req.body || {})));
 
 module.exports = router;

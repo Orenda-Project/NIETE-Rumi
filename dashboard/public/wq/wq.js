@@ -2944,10 +2944,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       landing();
     }, function () { done(); ev('handset_page', { ok: 0, status: 'net' }); landing(); });
   }
+  // An old, finished class link opened again on the phone that finished it (boot link_home, app_settings
+  // web_quiz_link_home): the server answers that child's hub (a token for that child only, bound to this phone) or
+  // null, and then today's screen (`rest`). Asked once, only for ONE remembered child; never waits more than 3 s.
+  function linkHome(rest) {
+    var done = false;
+    function fall() { if (!done) { done = true; rest(); } }
+    setTimeout(fall, 3000);
+    api('POST', 'linkhome', { code: CODE, device_ref: sget('wq_d', null) }).then(function (r) {
+      var h = r && r.ok && r.body ? r.body.home : null;
+      if (done || typeof h !== 'string' || !/^\/h\/[A-Za-z0-9._-]+\?from=link$/.test(h)) return fall();
+      done = true;
+      location.replace(h);
+    }, fall);
+  }
   var HX = B.view === 'class' || B.view === 'schools' || B.preview ? '' : handsetX();
   if (B.view === 'schools') schools(afterResult);
   else if (B.view === 'class') board();
   else if (FROM) { ev('more_arrive', {}); if (FROM.t) ev('more_timing', { nav_ms: Date.now() - FROM.t }); startSession({ from_st: FROM.st }, null, ''); }
+  else if (B.link_home && !B.preview && !B.invited && !B.challenge && !HX && !S.queue.length && !S.pending && (S.result ? S.st : !S.st) && kids().length === 1 && sget('wq_d', null)) linkHome(function () { if (S.result) card(); else landing(); });
   else if (S.result && S.st) card();
   else if (S.pending && S.st) results(S.fixed || 0);
   else if (S.st && S.child && (answeredCount() > 0 || (S.vt > 0 && wantsVideo()))) resume();

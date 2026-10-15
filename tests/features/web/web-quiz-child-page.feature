@@ -1675,3 +1675,22 @@ Feature: Web child quiz page on the portal
     And id_pick is logged with w "s" and no session id, device or code
     And a play opened from the hub keeps the pick for that child on this phone for 24 hours: "hub_chip" from a WhatsApp /quiz link, "remembered" otherwise
     But a child already kept on three phones sees "This child's place is already saved on three phones." and the card stays hidden for the session
+
+  @T808
+  Scenario: A teacher's quiz link opened again by the child who finished it lands on that child's hub
+    Given web_quiz_hub and web_quiz_link_home are "on"
+    And a phone that remembers one child, who finished the quiz behind the teacher's /q/<code> link on that phone
+    When the same link is opened again on that phone
+    Then the page asks the server once and opens that child's own hub at /h/<token>?from=link
+    And the hub token names that child only and is bound to that phone, so a copy opened on another phone names nobody
+    And the server writes door_shown with door "link_home" and surface "hub"
+    But a reply that is not a hub link, an error, or no reply in 3 seconds shows today's screen
+
+  @T809
+  Scenario: The old link keeps today's quiz page whenever it is not one finished, remembered child
+    Given the teacher's /q/<code> link is opened
+    When web_quiz_link_home is "off", or web_quiz_hub is "off"
+    Then the quiz payload and the page are exactly today's and nothing is asked
+    When the phone remembers two or more children, or none, or played this code as a teacher, or the run is not finished, or answers wait to be sent
+    Then no hub opens and the landing, "Whose turn?", the quiz or the results card runs as today
+    And a friend's challenge code and the teacher's preview never ask
