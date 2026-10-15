@@ -79,3 +79,37 @@ Feature: Teacher's web quiz report on the portal
   Scenario: The training link on the same portal still logs the teacher into training
     When the teacher opens a training link "/t/<token>"
     Then the training page opens as before, untouched by the report pages at "/r/<token>"
+
+  @T765
+  Scenario: The Jugnu tab shows the class's month, sorted by first name, behind its switch
+    Given the Jugnu tab switch and its parent switches are on
+    And class 5-A has 8 children, two of them named "Zara" with different fathers
+    When the teacher opens the report link and taps "Jugnu"
+    Then the tab shows "5 of 8 have started this month" at the top and nowhere else
+    And one row per child of 5-A, sorted by first name only, the two Zaras told apart by their fathers' first names
+    And each row shows the four stops done this month, "Stopped early" or "Waiting for a microphone" as words, stickers, lamps by rung name, the week's day dots and "Saved on WhatsApp ✓"
+    And a stop only served or abandoned shows nothing, and no surname or phone appears anywhere
+
+  @T766
+  Scenario: Forward to the class group carries the week's story and no number or name
+    Given the Jugnu tab switch is on, the class has a live class link and a story released this week
+    When the teacher taps "Forward to the class group"
+    Then WhatsApp opens its share sheet with the story's title, "every Monday" and "open the pinned link"
+    And the text carries no digit in any script and no child's name
+    And with no class link or no story this week the button is not shown
+
+  @T767
+  Scenario: The teacher-confirm queue asks one question per pair and passes the tap on
+    Given the Jugnu tab switch is on and the queue's words are in the copy deck
+    And a child who typed "Ayesha" may be the listed Ayesha of 5-A
+    When the teacher opens the Jugnu tab
+    Then the queue asks "Is Ayesha the same as Ayesha?" with the class, first names only
+    And "Same child", "Different" and "Not sure" each save with one tap and come back to the tab
+    And a pair the teacher said was the same child shows "Undo"
+
+  @T768
+  Scenario: With the Jugnu switch off the report is exactly as before
+    Given the Jugnu tab switch, or one of its parents, is off
+    When the teacher opens the report link, with or without "tab=jugnu"
+    Then the quiz tab and the class tab are byte-for-byte today's pages, with no Jugnu link
+    And the forward link and the queue answer "not found"
