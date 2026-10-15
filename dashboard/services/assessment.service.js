@@ -73,15 +73,20 @@ async function ask(path, body) {
     timeout: TIMEOUT_MS,
     // 400s carry a per-field message the teacher should see (an out-of-range
     // question count says which range). Letting axios throw on them would turn
-    // a correctable mistake into "something went wrong".
-    validateStatus: (s) => (s >= 200 && s < 300) || s === 400,
+    // a correctable mistake into "something went wrong". A 409 is the bot saying
+    // a paper for this class is already being made.
+    validateStatus: (s) => (s >= 200 && s < 300) || s === 400 || s === 409,
   });
 
   const data = res && res.data;
-  if (res.status === 400) {
+  // A 409 passes through only when it says what it is; an uncoded one stays ours (502).
+  if (res.status === 400 || (res.status === 409 && typeof data?.errorCode === 'string')) {
     const err = new Error(data?.error || 'That request was not valid.');
     err.userFacing = true;
-    err.status = 400;
+    err.status = res.status;
+    // The code lets the app say which real thing went wrong (PATTERN_OFF, ALREADY_GENERATING, …).
+    if (typeof data?.errorCode === 'string') err.errorCode = data.errorCode;
+    if (typeof data?.requestId === 'string') err.requestId = data.requestId;
     throw err;
   }
   if (!data || data.success !== true) {
