@@ -6,7 +6,7 @@
  * becomes `abandoned`. With every new switch off nothing is read from or written to the runs table (golden).
  *
  * Faked boundaries only: Supabase (the in-memory fake that applies filters), R2, the logger and the event transport.
- * `web-quiz-measure-events` (the m_lost builder) is not on the base yet, so it is a VIRTUAL mock here; the binding
+ * `web-quiz-measure-events` (the m_lost builder) is mocked here (the real builder in one test); the binding
  * expiry module is mocked as absent (its require throws) to prove the daily job skips it and says so.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
@@ -19,12 +19,12 @@ jest.mock('../../../shared/storage/r2', () => ({
 }));
 jest.mock('../../../shared/services/quiz/web-quiz-measure-events', () => ({
   mLost: jest.fn((row, o = {}) => ({ run: row.id, mode: row.mode, reason: o.reason, ...(o.ageMin != null ? { age_min: o.ageMin } : {}) })),
-}), { virtual: true });
+}));
 jest.mock('../../../shared/services/quiz/web-quiz-bind-expiry', () => { throw new Error("Cannot find module './web-quiz-bind-expiry'"); }, { virtual: true });
-// The weekly numbers' identity lines read the Redis service and the join queue (not on the base yet: VIRTUAL);
+// The weekly numbers' identity lines read the Redis service and the join queue (both mocked);
 // the golden below proves neither is touched with every switch off.
 jest.mock('../../../shared/services/cache/railway-redis.service', () => ({ isAvailable: jest.fn(() => true), scanValues: jest.fn(async () => []), get: jest.fn(), incr: jest.fn() }));
-jest.mock('../../../shared/services/quiz/web-quiz-join-queue', () => ({ precisionByTier: jest.fn(async () => []) }), { virtual: true });
+jest.mock('../../../shared/services/quiz/web-quiz-join-queue', () => ({ precisionByTier: jest.fn(async () => []) }));
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 
 const { makeFake } = require('./fake-supabase');
@@ -96,6 +96,24 @@ describe('sweepStuck', () => {
     expect(ME.mLost.mock.calls[0][1]).toEqual({ reason: 'swept', ageMin: 15 });
     expect(events('web_quiz.m_lost')).toEqual([{ run: 'r-v2', mode: 'check', reason: 'swept', age_min: 15 }]);
     expect(events('web_quiz.ch_swept')).toEqual([{ run: 'r-v2', age_min: 15, reason: 'unknown', w: 's' }]);
+  });
+
+  test('pre-v2 listen rows left in scoring for days (mode null, meta {n, phase:listen}) become failed with fail_reason page_gone and no m_lost, with the real builder in place', async () => {
+    // the shape the listen mint wrote before the provenance columns: no mode/form/band/record, meta { phase, n }
+    const preV2 = (id, daysAgo) => runRow(id, 'scoring', daysAgo * 24 * 60, { exercise: 'listen', mode: null, meta: { n: 3, phase: 'listen' } });
+    install(settings(), [preV2('l1', 7), preV2('l2', 7), preV2('l3', 7), preV2('l4', 7), preV2('l5', 7), preV2('l6', 7), preV2('l7', 7)]);
+    const fakeLost = ME.mLost.getMockImplementation();
+    ME.mLost.mockImplementation(jest.requireActual('../../../shared/services/quiz/web-quiz-measure-events').mLost);
+    let out;
+    try { out = await S.sweepStuck({ now: NOW }); } finally { ME.mLost.mockImplementation(fakeLost); }
+    expect(out).toMatchObject({ swept: 7, abandoned: 0 });
+    for (const r of db[RUNS]) {
+      expect(r.status).toBe('failed');
+      expect(r.meta).toEqual({ n: 3, phase: 'listen', fail_reason: 'page_gone', swept_at: new Date(NOW).toISOString() });
+    }
+    expect(events('web_quiz.ch_swept').map((e) => e.reason)).toEqual(Array(7).fill('page_gone'));
+    expect(ME.mLost).not.toHaveBeenCalled();
+    expect(events('web_quiz.m_lost')).toEqual([]);
   });
 
   test('m_lost waits for events v2: with web_quiz_events_v2 off the v2 row is still swept but no m_lost is logged', async () => {

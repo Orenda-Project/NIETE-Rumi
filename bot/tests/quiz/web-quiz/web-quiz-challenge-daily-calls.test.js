@@ -8,8 +8,8 @@
  *     web_quiz_class_round (its parents web_quiz_challenge_v2 and web_quiz_challenge) and, as a v2 event, events v2.
  *   - on the first PKT day of a month, the calibration job's runMonthly({ period_id: the month just ended, now }).
  *     That module carries its own switches; the daily job only schedules it.
- * Faked boundaries only: Supabase (the in-memory fake), the logger, the event transport, Redis. The keyed-id module,
- * the calibration module and the binding expiry are not on the base yet: VIRTUAL mocks (absent in a fresh registry).
+ * Faked boundaries only: Supabase (the in-memory fake), the logger, the event transport, Redis. The keyed-id module and
+ * the calibration module are mocked (absent in a fresh registry); the binding expiry is not on the base yet: a VIRTUAL mock.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
@@ -23,11 +23,11 @@ jest.mock('../../../shared/services/quiz/web-quiz-kid', () => {
     envelope: jest.fn((f = {}) => ({ w: 's', ev_v: 2, kid_v: '2026', kid: null, ...f })),
     cls: jest.fn((id) => (id ? `c1a55${String(id).replace(/-/g, '').slice(-7)}` : null)),
   };
-}, { virtual: true });
+});
 jest.mock('../../../shared/services/quiz/web-quiz-challenge-calibration', () => {
   if (global.__absent === 'web-quiz-challenge-calibration') throw new Error("Cannot find module './web-quiz-challenge-calibration'");
   return { runMonthly: jest.fn(async () => ({ ran: false, reason: 'off' })) };
-}, { virtual: true });
+});
 jest.mock('../../../shared/services/quiz/web-quiz-bind-expiry', () => { throw new Error("Cannot find module './web-quiz-bind-expiry'"); }, { virtual: true });
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 

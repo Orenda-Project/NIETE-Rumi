@@ -8,8 +8,8 @@
  *     reading Redis live only for a day whose counters can still be there;
  *   - the teacher-accepted share per identity tier (the Wilson 95% lower bound of the teacher's "Same child" taps,
  *     from the join queue's precisionByTier()), and whether the tier is auto-held.
- * Faked boundaries only: Supabase (the in-memory fake), the Redis service, the logger. The join queue module is not
- * on the base yet: a VIRTUAL mock here, and absent in an isolated registry.
+ * Faked boundaries only: Supabase (the in-memory fake), the Redis service, the logger. The join queue module is
+ * mocked here (its reads are the boundary), and absent in an isolated registry.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
@@ -33,7 +33,7 @@ jest.mock('../../../shared/services/cache/railway-redis.service', () => {
 jest.mock('../../../shared/services/quiz/web-quiz-join-queue', () => {
   if (global.__absent === 'web-quiz-join-queue') throw new Error("Cannot find module './web-quiz-join-queue'");
   return ({ precisionByTier: jest.fn(async () => []) });
-}, { virtual: true });
+});
 
 const { makeFake } = require('./fake-supabase');
 const supabase = require('../../../shared/config/supabase');

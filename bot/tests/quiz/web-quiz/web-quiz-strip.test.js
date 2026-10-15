@@ -160,6 +160,15 @@ test('sends by trigger, bot-to-family and the door-mix numerator come from messa
   expect(line('door_mix_numerator')).toMatchObject({ value: 4 });
 });
 
+test('the sends lines carry their caveat: the ledger counts the switched replies only and is not the bill', async () => {
+  install([], { message_ledger: [{ day: '2026-10-12', trigger: 'home_reply', class_id: null, initiated: 'user', recipient: 'family', count: 3, usd: 0.045 }] });
+  const out = await Strip.weeklyStrip({ week: WEEK, now: NOW });
+  expect(out.notes).toEqual({ sends: Strip.LINE_NOTES.sends });
+  expect(Strip.LINE_NOTES.sends).toMatch(/switched replies only/);
+  expect(Strip.LINE_NOTES.sends).toMatch(/not the bill/);
+  expect(Strip.LINE_NOTES.sends).toMatch(/Meta's billable count is the cost total/);
+});
+
 test('anchor retest gap: (returners − first-timers) ÷ pooled SD over the MONTH to date, on the statement\'s gate only', async () => {
   const anc = (k, ok, extra = {}) => v2({ exercise: 'missing', anchor_block: 'A1', anchor_exposure_no: k, score: { correct: ok, n: 10, reached: 10 }, ...extra });
   install([

@@ -27,6 +27,7 @@
  *   kept_audio_oldest_d                     days since the oldest kept reading was scored (reported only: the
  *                                           operator keeps every kept reading for now, so age is no red line)
  *   sends / <trigger>, sends_total, sends_usd, bot_to_family, door_mix_numerator   from message_ledger
+ *                                           (LINE_NOTES.sends: the switched replies only, not the bill)
  *   replies_per_bound_child                 (home_reply + bind_reply sends) ÷ children (distinct canonical id) with a
  *                                           phone binding active at the week's cut (child_phone_bindings: bound
  *                                           before it, not erased before it, not expired by it); n = those children
@@ -54,6 +55,10 @@ const STRIP_TABLE = 'web_quiz_strip_weekly';
 const PKT_MS = 5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PAGE = 1000;
+// The caveat a reader of a line must see beside it (returned with the week's result as `notes`).
+const LINE_NOTES = {
+  sends: "message_ledger counts the switched replies only; it is not the bill (Meta's billable count is the cost total)",
+};
 const WEEK_RX = /^(\d{4})-W(\d{2})$/;
 const COLS = 'id, student_id, canonical_id, exercise, grade, lang, status, created_at, scored_at, meta, score, mode, form, band, record, '
   + 'class_id, helped, exposure_no, bank_version, period_id, id_src, id_confidence, homonym_in_list, anchor_exposure_no, anchor_block, audio_consent, audio_keep_until';
@@ -289,6 +294,7 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
   const lines = [];
   const put = (line, cell, value, n) => lines.push({ week, line, cell: cell || '', value: value == null ? null : value, n: n == null ? null : n });
   const skipped = [];
+  const notes = {};
 
   // ── this week's runs ──
   const wk = await allRows(() => supabase.from(TABLE).select(COLS).gte('created_at', start).lt('created_at', end), 'week_runs');
@@ -396,6 +402,7 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
       if (r.initiated === 'bot' && r.recipient === 'family') botFamily += k;
     }
     for (const [t, k] of by) put('sends', t, k, k);
+    notes.sends = LINE_NOTES.sends;
     put('sends_total', '', total, total);
     put('sends_usd', '', Math.round(usd * 1e6) / 1e6, total);
     put('bot_to_family', '', botFamily, total);
@@ -422,7 +429,7 @@ async function weeklyStrip({ week, now = Date.now() } = {}) {
 
   await writeLines(lines, now);
   if (skipped.length) logToFile('Challenge weekly numbers: lines skipped (table not there yet or unreadable)', { week, skipped });
-  return { week, lines: lines.length, skipped };
+  return { week, lines: lines.length, skipped, notes };
 }
 
 /** Replace each (week, line, cell) row: update it, else insert it (a concurrent insert falls back to the update). */
@@ -440,4 +447,4 @@ async function writeLines(lines, now) {
   }
 }
 
-module.exports = { weeklyStrip, replyCapSnapshot, weekBounds, isoWeekOf, fixedBand, STRIP_TABLE, CAP_KEY };
+module.exports = { weeklyStrip, replyCapSnapshot, weekBounds, isoWeekOf, fixedBand, STRIP_TABLE, CAP_KEY, LINE_NOTES };
