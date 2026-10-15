@@ -729,8 +729,13 @@ const TRAIL_ORDER = Object.freeze(['missing', 'read', 'listen', 'bigger']);
 const VIA = { hub: 'hub', quiz: 'quiz_card' };
 // meta keys written at serve that every later write of the row keeps
 const SERVED_META_KEYS = ['draw', 'grade_fixed_src', 'open_band_src', 'pick_src', 'tryout', 'anchor_serves_any', 'admin_mode', 'sample_arm'];
-// the class-week sample window (its own module and switch, another change); read only for a class-link run
+// the class-week sample window (its own module and switch, another change); read only for a class-link run, and only
+// under its parent web_quiz_class_round (SPEC §1)
 const CLASS_WEEK_FLAG_KEY = 'web_quiz_class_week';
+const CLASS_ROUND_FLAG_KEY = 'web_quiz_class_round';
+const classWeekOpen = async (via) => via === 'class_link' && (await settingOn(CLASS_WEEK_FLAG_KEY)) && (await settingOn(CLASS_ROUND_FLAG_KEY));
+// the record's parent switch: without the identity store's canon a record cannot be tied to one child (absent → off)
+const canonOnForRecord = async () => { try { return Boolean(await require('./web-quiz-bind-page').canonOn()); } catch (_) { return false; } };
 const TAP_OK = Object.freeze({ skip: Object.freeze([]) });
 const isServedRow = (row) => !!row && row.status === 'served';
 // a row served under _v2 (its serve-time meta) and the helped COLUMN written when it finishes (M6)
@@ -899,6 +904,9 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     : rows.some((r) => r.exercise === ex && r.status === 'scored' && !notHomeAttempt(r) && (ex !== 'read' || r.lang === w.lang));
   // the caller's mode: 'practice' (Story Time) or 'class_round' (the teacher's locked round); else practice when counted
   let mode = askedMode === 'class_round' ? 'class_round' : (askedMode === 'practice' || counted ? 'practice' : 'check');
+  // web_quiz_identity_canon is the record's hard parent: off, a would-be record is served as practice (the Trail still serves)
+  const recordBlocked = periodRule && mode === 'check' && !(await canonOnForRecord()) ? 'identity_canon_off' : null;
+  if (recordBlocked) mode = 'practice';
   const seed = crypto.randomBytes(16).toString('hex');
   const runId = crypto.randomUUID();
   const seen = D.seenIdsOf(rows);
@@ -964,13 +972,13 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     p: drawLog.p, band_reason: drawLog.band_reason, weights_v: drawLog.weights_v, seed: drawLog.seed, ...(periodSet ? { period_set: periodSet } : {}),
     ...(prev2 ? { anchor_prev2: prev2 } : {}) } : null;
   const via = VIA[w.via] || w.via || null;
-  const admin = await D.adminFields({ mode, via, canonicalId, at: new Date(now), classWeekOn: via === 'class_link' && (await settingOn(CLASS_WEEK_FLAG_KEY)) });
+  const admin = await D.adminFields({ mode, via, canonicalId, at: new Date(now), classWeekOn: await classWeekOpen(via) });
   const periodId = periodRule ? periodNow : null;
   // the class at write time: the caller's (the class link), else the canonical child's active enrolment; never a share code
   const classId = (typeof askedClass === 'string' && /^[0-9a-f-]{36}$/i.test(askedClass) ? askedClass : null) || await D.activeClassOf([canonicalId, w.studentId]);
   const row = {
     id: runId, student_id: w.studentId, exercise: ex, grade: w.grade, lang: w.lang, status: 'served', created_at: nowIso(),
-    meta: { grade_fixed_src: fixed.src, open_band_src: ob.src, pick_src: pick.pick_src, ...(metaDraw ? { draw: metaDraw } : {}), ...(tryout ? { tryout: { item_id: tryout.item_id } } : {}), ...(anchorBlock ? { anchor_serves_any: servesAny } : {}), admin_mode: admin.admin_mode, sample_arm: admin.sample_arm },
+    meta: { grade_fixed_src: fixed.src, open_band_src: ob.src, pick_src: pick.pick_src, ...(metaDraw ? { draw: metaDraw } : {}), ...(tryout ? { tryout: { item_id: tryout.item_id } } : {}), ...(anchorBlock ? { anchor_serves_any: servesAny } : {}), admin_mode: admin.admin_mode, sample_arm: admin.sample_arm, ...(recordBlocked ? { record_blocked: recordBlocked } : {}) },
     bank_version: pool ? Bank.versionV4 : Bank.versionV3, set, form, passage_id: passageId, item_set_id: itemSetId, mode, period_id: periodId,
     exposure_no: exposure, band, anchor_exposure_no: anchorExp, anchor_block: anchorBlock, draw_seed: drawSeed, canonical_id: canonicalId,
     id_src: pick.id_src, id_confidence: pick.id_confidence, homonym_in_list: pick.homonym_in_list, via, share_code_id: w.shareCodeId || null,
@@ -1827,3 +1835,5 @@ module.exports = {
   settingOn, warmClip, clipsLeft, MAX_CLIP_RECORDINGS, // challenge v2: the clip warm job
   __reset,
 };
+// the class-week arm's switch gate (with its parent web_quiz_class_round), read at the v2 serve
+module.exports.classWeekOpen = classWeekOpen;

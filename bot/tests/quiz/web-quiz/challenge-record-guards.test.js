@@ -118,6 +118,8 @@ beforeEach(() => {
   fake = guardColumns(makeFake(db));
   Object.assign(supabase, fake);
   Ch.__reset();
+  // the hub and identity switches are cached 30 s: each test reads its own
+  for (const m of ['web-quiz-hub-flags', 'web-quiz-identity-flags']) require(`../../../shared/services/quiz/${m}`)._resetCache();
   jest.clearAllMocks();
   r2.headObject.mockImplementation(async () => ({ exists: true, sizeBytes: 400000, contentType: 'audio/webm' }));
 });
@@ -214,5 +216,31 @@ describe('a second record of the same stop this period (a concurrent serve, the 
     expect(rowOf(ex.ct)).toMatchObject({ mode: 'check', record: true });
     expect(rowOf(ex.ct).meta).not.toHaveProperty('record_lost');
     expect(dupEvents()).toEqual([]);
+  });
+});
+
+describe('web_quiz_identity_canon is the record\'s parent; web_quiz_class_round the class week\'s', () => {
+  test('_v2, _period and _pool on, canon off: the Trail serves, a practice row, no record, meta.record_blocked', async () => {
+    on(V2, PERIOD, POOL);
+    const ex = await Ch.exercise(hub(), 'missing', D);
+    expect(ex.items).toHaveLength(10);
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'practice', record: false, meta: expect.objectContaining({ record_blocked: 'identity_canon_off' }) });
+    expect(starts()[0]).toMatchObject({ mode: 'practice', record: false });
+  });
+
+  test('canon on: the record as today, nothing blocked', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    const ex = await Ch.exercise(hub(), 'missing', D);
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'check', record: true });
+    expect(rowOf(ex.ct).meta).not.toHaveProperty('record_blocked');
+  });
+
+  test('the class-week arm is read only with web_quiz_class_round on as well (its parent), and only by the class link', async () => {
+    on('web_quiz_class_week');
+    expect(await Ch.classWeekOpen('class_link')).toBe(false);
+    on('web_quiz_class_round');
+    Ch.__reset();
+    expect(await Ch.classWeekOpen('class_link')).toBe(true);
+    expect(await Ch.classWeekOpen('hub')).toBe(false);
   });
 });
