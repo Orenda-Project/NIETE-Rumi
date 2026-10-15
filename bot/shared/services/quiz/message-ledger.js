@@ -16,7 +16,9 @@
  * caller passes `phone`, the cap runs before anything else. The count lives in Redis under
  * wq:reply_cap:<PKT day>:<keyed hash of the phone> (24-hour TTL; the key never holds the phone). Over the cap →
  * web_quiz.reply_capped{trigger} and false, with no ledger row and no msg_sent. With a phone, the return value is
- * the send decision: false ONLY when capped (a ledger write that fails is logged and the reply still goes out).
+ * the send decision: false ONLY when capped (a ledger write that fails is logged, web_quiz.ledger_write_failed{trigger}
+ * once per process, and the reply still goes out). `reason` (bind, renew, stop, stop_nothing, max_kids, teacher_phone,
+ * guest, home) rides on msg_sent; the ledger row stays keyed by trigger.
  * No hash key (neither secret set) or a Redis failure → no cap (fail open), logged once.
  */
 const supabase = require('../../config/supabase');
@@ -38,6 +40,7 @@ let missingLogged = false;
 let capCache = null; // { at, cap }
 let unkeyedLogged = false;
 let redisFailLogged = false;
+let writeFailLogged = false;
 
 /** The PKT calendar day of `now` as 'YYYY-MM-DD'. */
 const pktDay = (now = new Date()) => new Date(new Date(now).getTime() + PKT_OFFSET_MS).toISOString().slice(0, 10);
@@ -141,18 +144,22 @@ async function addByRpc({ day, trigger, classId, initiated, recipient, n, usdEac
  * (raw or normalised) → the send decision: false only when the phone is over today's reply cap.
  * @param {{trigger:string, phone?:string, classId?:string|null, initiated?:'user'|'bot', recipient?:'family'|'teacher', count?:number, usdEach?:number, now?:Date}} p
  */
-async function record({ trigger, phone = null, classId = null, initiated = 'user', recipient = 'family', count = 1, usdEach = USD_PER_SEND, now = new Date() } = {}) {
+async function record({ trigger, phone = null, reason = null, classId = null, initiated = 'user', recipient = 'family', count = 1, usdEach = USD_PER_SEND, now = new Date() } = {}) {
   if (!TRIGGERS.includes(trigger) || !INITIATED.includes(initiated) || !RECIPIENTS.includes(recipient)) return false;
   if (initiated === 'bot' && recipient === 'family') return false;
   if (phone) {
     if (!(await underCap(phone, trigger, now))) return false;
-    await write({ trigger, classId, initiated, recipient, count, usdEach, now });   // a failed write is logged there
+    if (!(await write({ trigger, reason, classId, initiated, recipient, count, usdEach, now })) && !writeFailLogged) {
+      // the reply still goes out: the ledger is the accounting, the reply is the family's (logged once per process)
+      writeFailLogged = true;
+      logEvent('web_quiz.ledger_write_failed', { trigger, w: 's' });
+    }
     return true;
   }
-  return write({ trigger, classId, initiated, recipient, count, usdEach, now });
+  return write({ trigger, reason, classId, initiated, recipient, count, usdEach, now });
 }
 
-async function write({ trigger, classId, initiated, recipient, count, usdEach, now }) {
+async function write({ trigger, reason = null, classId, initiated, recipient, count, usdEach, now }) {
   const n = Number.isInteger(count) && count > 0 ? count : 1;
   const day = pktDay(now);
   const each = Number.isFinite(usdEach) && usdEach >= 0 ? usdEach : USD_PER_SEND;
@@ -187,7 +194,7 @@ async function write({ trigger, classId, initiated, recipient, count, usdEach, n
       }
     }
     if (!written) return false;
-    logEvent('web_quiz.msg_sent', { trigger, initiated, recipient, usd: usdOf(n, each), cls: clsFor(classId), w: 's' });
+    logEvent('web_quiz.msg_sent', { trigger, initiated, recipient, usd: usdOf(n, each), cls: clsFor(classId), ...(reason ? { reason } : {}), w: 's' });
     return true;
   } catch (err) {
     logToFile('⚠️ message ledger: record failed', { error: err.message });
@@ -197,6 +204,6 @@ async function write({ trigger, classId, initiated, recipient, count, usdEach, n
 
 module.exports = {
   record, pktDay, capPerPhone, TRIGGERS, USD_PER_SEND, TABLE, CAP_KEY, CAP_DEFAULT,
-  _resetMissing: () => { missingLogged = false; },
+  _resetMissing: () => { missingLogged = false; writeFailLogged = false; },
   _resetCap: () => { capCache = null; unkeyedLogged = false; redisFailLogged = false; },
 };

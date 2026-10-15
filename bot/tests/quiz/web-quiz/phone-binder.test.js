@@ -134,7 +134,7 @@ describe('bind, then the door', () => {
     expect(T.verify(token, 'h').ids).toEqual([KIDS[0]]);
     expect(events('web_quiz.bind_bound')).toEqual([{ via: 'save', kids_n: 1, renewed: false, rebind: false, w: 's' }]);
     expect(fake.db.message_ledger).toEqual([expect.objectContaining({ trigger: 'bind_reply', initiated: 'user', recipient: 'family', count: 1, usd: 0.015, class_id: null })]);
-    expect(events('web_quiz.msg_sent')).toEqual([{ trigger: 'bind_reply', initiated: 'user', recipient: 'family', usd: 0.015, cls: null, w: 's' }]);
+    expect(events('web_quiz.msg_sent')).toEqual([{ trigger: 'bind_reply', initiated: 'user', recipient: 'family', usd: 0.015, cls: null, reason: 'bind', w: 's' }]);
   });
 
   test('already bound → renewed, not refused; the same one reply', async () => {
@@ -277,6 +277,7 @@ describe('STOP', () => {
     expect(events('student_ingress.cache_forget')).toEqual([{ why: 'stop', n: 1, w: 's' }]);
     expect(redisService.__keys.has(Ingress.CACHE_KEY(PHONE))).toBe(false);
     expect(fake.db.message_ledger).toEqual([expect.objectContaining({ trigger: 'bind_reply', count: 1 })]);
+    expect(events('web_quiz.msg_sent')).toEqual([expect.objectContaining({ trigger: 'bind_reply', reason: 'stop', w: 's' })]);
   });
 
   test.each(['بند', 'سٹاپ', 'اسٹاپ', 'STOP'])('%s is a STOP; a sentence with stop in it is not', async (word) => {
@@ -632,6 +633,34 @@ describe('the reply cap: 8 replies per phone per PKT day, counted when the bot d
     expect(await say('stop')).toBe(true);
     expect(WhatsApp.sendMessage).toHaveBeenCalledTimes(1);
     expect(events('web_quiz.msg_sent')).toEqual([]);
+    expect(events('web_quiz.ledger_write_failed')).toEqual([{ trigger: 'bind_reply', w: 's' }]);
+    // logged once per process: a second failure adds no second event
+    redisService.__keys.delete(Ingress.CACHE_KEY(PHONE));
+    expect(await say('stop')).toBe(true);
+    expect(events('web_quiz.ledger_write_failed')).toHaveLength(1);
+  });
+
+  test('msg_sent names the reason of the reply: renew, stop_nothing, max_kids, teacher_phone; a plain record() carries none', async () => {
+    const reasons = () => events('web_quiz.msg_sent').map((e) => e.reason);
+    seed({ students: [chatKid(0)] });
+    await say('stop');                                                           // nothing saved → stop_nothing
+    expect(reasons()).toEqual(['stop_nothing']);
+    jest.clearAllMocks(); redisService.__keys.clear();   // a fresh door verdict for each step
+    seed({ students: [student(0)], bindings: [binding(KIDS[0])], codes: [code('JUGNU-AB2CD', KIDS[0])] });
+    await say('JUGNU-AB2CD');                                                    // already bound → renew
+    expect(reasons()).toEqual(['renew']);
+    jest.clearAllMocks(); redisService.__keys.clear();   // a fresh door verdict for each step
+    seed({ students: [0, 1, 2, 3].map(chatKid).concat(student(4)), codes: [code('JUGNU-AB2CD', KIDS[4])] });
+    await say('JUGNU-AB2CD');                                                    // fifth child → max_kids
+    expect(reasons()).toEqual(['max_kids']);
+    jest.clearAllMocks(); redisService.__keys.clear();   // a fresh door verdict for each step
+    seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0])] });
+    await say('JUGNU-AB2CD', { ...TEACHER_USER });                                // a teacher by identity → teacher_phone
+    expect(reasons()).toEqual(['teacher_phone']);
+    jest.clearAllMocks(); redisService.__keys.clear();   // a fresh door verdict for each step
+    seed({});
+    expect(await Ledger().record({ trigger: 'home_reply' })).toBe(true);
+    expect(events('web_quiz.msg_sent')[0]).not.toHaveProperty('reason');
   });
 
   test('a JUGNU- code on a phone at its cap: the place is saved, no reply is sent, reply_capped{bind_reply}', async () => {
