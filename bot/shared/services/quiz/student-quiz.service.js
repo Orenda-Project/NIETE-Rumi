@@ -143,6 +143,8 @@ async function open(phone, { language = 'en' } = {}) {
   const known = bound ? await require('./child-phone-bindings.repo').childrenForPhone(phone) : await StudentIdentity.findByPhone(phone);
   const quizzes = await quizzesForStudents(known);
   const lang = clampLanguage(childLanguage(quizzes) || language);
+  // guest home (web_quiz_guest_home): no child on this phone → ONE guest reply; false → today's path below.
+  if (!known.length && await require('./web-quiz-guest-home').offer(phone, lang)) return true;
   // The kid hub (app_settings web_quiz_hub): ONE link button to this phone's own children's hub;
   // with web_quiz_child_quiz_home it is their home page, so the button says Home.
   const home = Boolean((await require('./web-quiz-hub-flags').flags()).childHome);
