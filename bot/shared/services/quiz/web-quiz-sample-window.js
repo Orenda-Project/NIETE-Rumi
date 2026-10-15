@@ -19,7 +19,6 @@ const { logToFile, logError } = require('../../utils/logger');
 const { logEvent } = require('../../utils/structured-logger');
 
 const KEYS = ['web_quiz_challenge', 'web_quiz_challenge_v2', 'web_quiz_class_round', 'web_quiz_hub', 'web_quiz_events_v2'];
-const TABLE = 'class_round_draws';
 const PKT_MS = 5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ARMS = [['class_round', 'window_start', 'window_end'], ['class_week', 'week_start', 'week_end']];
@@ -64,7 +63,7 @@ async function daily({ now = Date.now() } = {}) {
     const { start, end } = pktDayBounds(now);
     let n = 0;
     for (const [arm, opens, closes] of ARMS) {
-      const { data, error } = await supabase.from(TABLE).select(`class_id, ${opens}, ${closes}`)
+      const { data, error } = await supabase.from('class_round_draws').select(`class_id, ${opens}, ${closes}`)
         .gte(opens, start).lt(opens, end);
       if (error) {
         if (isMissingTable(error)) logToFile('Challenge daily job: sample_window skipped (class_round_draws not there yet)', { day: pktDay(now) });
