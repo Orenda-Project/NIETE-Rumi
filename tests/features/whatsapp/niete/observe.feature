@@ -957,6 +957,16 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # capture-link.js links the recording to the open form; moments.js reads the timed transcript
     # (one model call) and opens the check because the record is sealed.
 
+  @e2e @audio @config-gated @destructive @wip @draft @P1
+  Scenario: Every moment's words are in the recording, at the minute they were said
+    Given my /observe2 record is sealed
+    When I send the lesson recording and the moments come back to check
+    Then each moment's words are found in the transcript, at the minute of the line they start in
+    And no moment is a lone word, no moment repeats another's words, and no "child" moment quotes the teacher
+    And if no moment is left, the message says no clear moment was found and the check still opens for the levels
+    # Pilot sheet R5 (14 Oct). quote-check.js (bd-eal7zn.3): what was dropped, repaired or re-timed
+    # is stored in rumi_moments.verified and logged as "[observe2] moments checked against the transcript".
+
   @e2e @audio @config-gated @destructive @wip @draft @P0
   Scenario: A recording sent while the form waits for it always reaches the form, never general chat
     Given my /observe2 record is sealed and has no recording yet
@@ -1046,6 +1056,28 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the result is re-scored from my answers and the levels follow
     # As /observe's Section B: the same move lists, grader and scorer (fidelity-orchestrator.js,
     # observe-draft.rescoreFidelityFromEdits). Without a graded plan, the levels come straight after the moments.
+
+  @e2e @flow @audio @config-gated @destructive @wip @draft @P1
+  Scenario: Each moment is evidence about the teaching, and says why it was picked
+    Given the "Check the moments" form is open for a lesson I recorded
+    When I read the moments on each screen
+    Then each one shows its minute, what it is, the words said and, under them, one sentence in my language on why Rumi picked it
+    And a question moment shows the question with its answer
+    And no moment is a name, a roll-call, discipline, admin, "understood?", a bid to answer or the class chanting together
+    And an instruction to work in pairs or groups is not shown as "a real choice" or "children led a part"
+    # Pilot sheet R5, R15 (14 Oct). moments.js prompt observe2-moments-v2 (bd-eal7zn.3); the
+    # why is in each slot's description (observe2-check-endpoint.js describe), within 300 code points.
+
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: A part of the lesson with no moment says so, never a blank question
+    Given the "Check the moments" form is open and Rumi found no moment for "When children work, what do they do?"
+    When I reach that screen
+    Then it says no clear moment for this question was found, that there is nothing to check here and that my own answers still count
+    And every screen with moments opens by saying that what I confirm counts toward the levels and a "No" counts for nothing
+    And the explaining screen says those moments are not added up for me
+    # Pilot sheet R8, R9 (14 Oct): the screen showed the question over nothing, because every slot is
+    # hidden when a part has no moment. observe2-check-endpoint.js HEARD_INTRO, bound to
+    # ${data.<screen>_intro} in evidence-check.flow.js (live once the check Flow is republished).
 
   @e2e @flow @config-gated @destructive @wip @draft @P1
   Scenario: The check pre-fills every level and Submit asks about the debrief, as /observe does

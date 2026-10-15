@@ -65,15 +65,44 @@ const momentsOf = (form) => ((form && form.rumi_moments && form.rumi_moments.mom
 
 // ------------------------------------------------------------------ screens
 
+// The line that opens each moments screen. A part with no moment says so: a question over nothing is
+// what coaches met on 14 Oct (pilot sheet R8, R9; bd-eal7zn.3). Explaining moments feed no level by a
+// rule (rules.js PICK_CODES), so that screen says the coach picks those levels.
+const HEARD_INTRO = Object.freeze({
+  some: 'These moments were picked from the recording as evidence for this part of the lesson. Say whether each one happened as written. What you confirm counts toward the levels on the next screens; a "No" counts for nothing.',
+  explain: 'These moments were picked from the recording as evidence of how the teacher explains. Say whether each one happened as written. They help you choose the explaining levels on the next screens; they are not added up for you.',
+  none: 'No clear moment for this question was found in the recording, so there is nothing to check here. Your own answers from the form still count. Tap Next.',
+  unavailable: 'This check is not available. Tap Next to close it.',
+});
+
+function introFor(moment, form, count) {
+  if (!form) return HEARD_INTRO.unavailable;
+  if (!count) return HEARD_INTRO.none;
+  return moment === 'explain' ? HEARD_INTRO.explain : HEARD_INTRO.some;
+}
+
+// A slot's description: the quote, then why Rumi picked it (pilot sheet R15), within WhatsApp's 300
+// code points. The why is never cut; the quote gives way. A moment from before v2 has no why.
+const DESCRIPTION_MAX = 300;
+const WHY_SHOWN_MAX = 120;
+const clipCp = (text, max) => { const cps = [...text]; return cps.length > max ? `${cps.slice(0, Math.max(0, max - 1)).join('')}…` : text; };
+
+function describe(m) {
+  const why = clipCp(String(m.why || '').trim(), WHY_SHOWN_MAX);
+  const room = DESCRIPTION_MAX - 2 - (why ? [...why].length + 1 : 0);
+  const quote = clipCp(String(m.quote || ''), room);
+  return why ? `"${quote}"\n${why}` : `"${quote}"`;
+}
+
 function renderHeard(screenId, form) {
   const moment = MOMENT_OF[screenId];
   const list = momentsOf(form).filter((m) => m.moment === moment);
-  const data = {};
+  const data = { [`${screenId.toLowerCase()}_intro`]: introFor(moment, form, list.length) };
   for (let i = 1; i <= SLOTS; i += 1) {
     const k = `${screenId.toLowerCase()}_${i}`;
     const m = list[i - 1];
     data[`${k}_t`] = m ? [...`${m.minute} · ${m.label || m.type}`].slice(0, 30).join('') : '';
-    data[`${k}_d`] = m ? `"${m.quote}"` : '';
+    data[`${k}_d`] = m ? describe(m) : '';
     data[`${k}_v`] = Boolean(m);
   }
   return { screen: screenId, data };

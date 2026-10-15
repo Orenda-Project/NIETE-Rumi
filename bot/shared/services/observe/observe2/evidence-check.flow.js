@@ -5,8 +5,9 @@
  *
  *   HEARD_ASK, HEARD_WRONG, HEARD_WORK, HEARD_EXPLAIN
  *       The moments Rumi found in the recording, grouped by the four moments. Each is a quote with
- *       its minute; the coach answers "yes, this happened" or "no, or not like this". Up to SLOTS
- *       per screen; unused slots are hidden.
+ *       its minute and why it was picked; the coach answers "yes, this happened" or "no, or not like
+ *       this". Up to SLOTS per screen; unused slots are hidden. A line from the endpoint opens each
+ *       screen: how the moments count, or that Rumi found none for this question.
  *   FIDELITY
  *       Only when the coach picked a lesson plan in the form and it was graded: each step the plan
  *       asked for, already rated from the recording by the grader /observe uses (done, done another
@@ -81,11 +82,17 @@ function screenWith(id, title, children, footerLabel, data, initValues, extraPay
   return { id, title, data, layout: { type: 'SingleColumnLayout', children: [form] } };
 }
 
-function heardScreen({ id, title, moment }, isLast) {
-  const data = {};
+// The line under each moments screen's question comes from the endpoint, so a part with no moment says
+// so instead of showing the question over nothing (pilot sheet R8, R9; bd-eal7zn.3). A check opened on a
+// Flow published before this line was declared ignores it and keeps today's screen.
+function heardScreen({ id, title, moment }) {
+  const intro = `${id.toLowerCase()}_intro`;
+  const data = {
+    [intro]: { type: 'string', __example__: 'These moments were picked from the recording as evidence for this part of the lesson. Say whether each one happened as written.' },
+  };
   const kids = [
     { type: 'TextHeading', text: MOMENT_BY_ID[moment].question },
-    { type: 'TextCaption', text: 'These are moments from the recording. Say whether each one really happened. No score from the recording is shown.' },
+    { type: 'TextBody', text: `\${data.${intro}}` },
   ];
   for (let i = 1; i <= SLOTS; i += 1) {
     const k = `${id.toLowerCase()}_${i}`;
@@ -191,7 +198,7 @@ function buildEvidenceCheckFlow() {
     },
   };
   const screens = [
-    ...HEARD_SCREENS.map((h, i) => heardScreen(h, i === HEARD_SCREENS.length - 1)),
+    ...HEARD_SCREENS.map(heardScreen),
     fidelityScreen(),
     ...ADDED_SCREENS.map(addedScreen),
     priorityScreen(),
