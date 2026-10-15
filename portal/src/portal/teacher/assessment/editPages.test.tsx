@@ -27,6 +27,7 @@ vi.mock('../../services/api', () => ({
 vi.mock('../../components/PortalLayout', () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 
+import { ASSESSMENT_V2_COPY_UR as U } from './copy';
 import { EditPaperPage, EditQuestionPage } from './EditPages';
 import { ASSESSMENT_V2_BASE as B, addQuestionPath, editPath } from './paths';
 
@@ -138,7 +139,7 @@ describe('editor shows willSay and refuses add', () => {
     portal.getAssessmentEditQuestions.mockResolvedValue(fdePaper());
     at(editPath('p-f'), `${B}/paper/:paperId/edit`, <EditPaperPage />);
     await screen.findByTestId('edit-both');
-    expect(plain(screen.getByTestId('edit-both').textContent)).toBe('پرچہ اور مارکنگ اسکیم دونوں بدلیں گے');
+    expect(plain(screen.getByTestId('edit-both').textContent)).toBe(U.editBoth);
     expect(plain(screen.getAllByTestId('will-say')[0].textContent)).toBe('سوال 2 پھر کہے گا: 11 میں سے کوئی 8');
     expect(plain(screen.getByTestId('button-reason').textContent)).toBe('بورڈ pattern کا پرچہ اپنی شکل رکھتا ہے');
   });

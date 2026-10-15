@@ -13,7 +13,6 @@ import { useCopy } from '../i18n';
 import { dayLabel, pkDay, pkToday } from './model';
 import { editPath, paperPath } from './paths';
 import { findPaper } from './paperCache';
-import { useFdeWords } from './EditPages';
 import { Chip, ListCard, LoadState } from './ui';
 
 /* ── Versions (v28 canvas AssessVersions) ────────────────────────────────── */
@@ -32,7 +31,6 @@ export function VersionsPage() {
   const list = dataOf(versions) ?? [];
   const today = pkToday();
   // A board-pattern paper (its row in My papers says so): the FDE chip, and each ready version's marking scheme.
-  const W = useFdeWords();
   const [row] = useLoad(() => findPaper(paperId), `versions-paper:${paperId}`);
   const fde = !!(dataOf(row) as { pattern?: string | null } | null | undefined)?.pattern;
   // A handle for the QA harness (display:contents, no box) — on a board-pattern paper only, so a plain paper's page
@@ -40,7 +38,7 @@ export function VersionsPage() {
   const wrapFde = (list: JSX.Element) => (fde ? <div data-testid="versions-list" className="contents">{list}</div> : list);
 
   return (
-    <TeacherPage crumb={C.title} title={C.versions} backTo={paperPath(paperId)} chips={fde ? <Chip tone="indigo">{W.fdeChip}</Chip> : undefined} testId="assessment-versions">
+    <TeacherPage crumb={C.title} title={C.versions} backTo={paperPath(paperId)} chips={fde ? <Chip tone="indigo">{C.fdeChip}</Chip> : undefined} testId="assessment-versions">
       {versions.status !== 'ok'
         ? <LoadState status={versions.status} onRetry={retry} />
         : list.length === 0
@@ -92,7 +90,7 @@ export function VersionsPage() {
                     <button type="button" data-testid="version-scheme" onClick={() => openVersion(v.paperId, 'answer_key')}
                       className={cn('flex min-h-[52px] w-full items-center gap-2.5 border-t border-[#f6f7f8] pe-3 ps-[72px] text-start text-[15px] font-semibold text-[#33374a]', FOCUS)}>
                       <ClipboardCheck className="h-5 w-5 shrink-0 text-[#6b7280]" aria-hidden="true" />
-                      {W.markingScheme}
+                      {C.markingScheme}
                     </button>
                   </Fragment>
                 );
