@@ -58,6 +58,8 @@ const SC = '33333333-3333-4333-8333-333333333333';
 const V2 = { key: 'web_quiz_challenge_v2', value: true };
 const G1 = { key: 'web_quiz_challenge_g1', value: true };
 const PERIOD = { key: 'web_quiz_challenge_period', value: true };
+// the record's parent switch (web_quiz_identity_canon, under web_quiz_hub): a record needs it on
+const CANON_ON = [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_identity_canon', value: true }];
 const ITEMS = { key: 'web_quiz_challenge_items', value: true };
 const ORDER = [3, 7, 1, 9, 4, 10, 2, 6, 0, 8];
 const NOV = Date.parse('2026-11-10T06:00:00Z');
@@ -78,6 +80,8 @@ beforeEach(() => {
   };
   Object.assign(supabase, makeFake(db));
   Ch.__reset();
+  // the hub and identity switches are cached 30 s: each test reads its own
+  for (const m of ['web-quiz-hub-flags', 'web-quiz-identity-flags']) require(`../../../shared/services/quiz/${m}`)._resetCache();
   jest.clearAllMocks();
   jest.spyOn(Date, 'now').mockReturnValue(NOV);
 });
@@ -248,7 +252,7 @@ describe('scoring: a tap per item, no stop', () => {
 
 describe('its own statement row, never pooled with G2-5', () => {
   test('the served row: form G1, block G1A, band NULL, record and mode decided at serve', async () => {
-    on(V2, G1, PERIOD);
+    on(V2, G1, ...CANON_ON, PERIOD);
     const ex = await Ch.exercise(hub(), 'numbers', D);
     const row = runs()[0];
     expect(row).toMatchObject({
@@ -273,7 +277,7 @@ describe('its own statement row, never pooled with G2-5', () => {
 
 describe('anchor_exposure_no counts counted Trails; practice never increments', () => {
   test('1 on the first counted Trail, 2 on the second; a replay in the period is practice', async () => {
-    on(V2, G1, PERIOD);
+    on(V2, G1, ...CANON_ON, PERIOD);
     const first = await play();
     expect(first.row).toMatchObject({ mode: 'check', record: true, anchor_exposure_no: 1, period_id: '2026-11' });
     expect((await Ch.menu(hub(), D)).exercises[0].done).toBe(true);
@@ -291,7 +295,7 @@ describe('anchor_exposure_no counts counted Trails; practice never increments', 
   });
 
   test('a served row left unfinished leaves the period record open (a served-and-left row never consumes it)', async () => {
-    on(V2, G1, PERIOD);
+    on(V2, G1, ...CANON_ON, PERIOD);
     await Ch.exercise(hub(), 'numbers', D);
     const next = await Ch.exercise(hub(), 'numbers', D);
     expect(next).toMatchObject({ mode: 'check', record: true, anchor_exposure_no: 2 });
@@ -313,7 +317,7 @@ describe('anchor_exposure_no counts counted Trails; practice never increments', 
   });
 
   test('rows written under the raw student id before canonical_id count too', async () => {
-    on(V2, G1, PERIOD);
+    on(V2, G1, ...CANON_ON, PERIOD);
     runs().push({ id: 'r-old', student_id: KID, canonical_id: null, exercise: 'numbers', status: 'scored', mode: 'check', record: true,
       period_id: '2026-11', anchor_block: 'G1A', created_at: '2026-11-02T06:00:00Z' });
     const ex = await Ch.exercise(hub(), 'numbers', D);
@@ -323,7 +327,7 @@ describe('anchor_exposure_no counts counted Trails; practice never increments', 
 
 describe('the sampling fields and a class round turn, as the v2 serve writes them', () => {
   test('a home serve: self_run, no arm, anchor_serves_any 1 on the first G1A row and 2 on a replay (columns and meta)', async () => {
-    on(V2, G1, PERIOD);
+    on(V2, G1, ...CANON_ON, PERIOD);
     const first = await play();
     expect(first.row).toMatchObject({ admin_mode: 'self_run', sample_arm: null, anchor_serves_any: 1 });
     expect(first.row.meta).toMatchObject({ admin_mode: 'self_run', sample_arm: null, anchor_serves_any: 1 });
@@ -332,7 +336,7 @@ describe('the sampling fields and a class round turn, as the v2 serve writes the
   });
 
   test('a class round turn (mode class_round): teacher_present in the class_round arm, never a record', async () => {
-    on(V2, G1, PERIOD);
+    on(V2, G1, ...CANON_ON, PERIOD);
     const ex = await Ch.exercise(hub(), 'numbers', { ...D, mode: 'class_round' });
     const row = runs().find((x) => x.id === T.verify(ex.ct, 'c').r);
     expect(row).toMatchObject({ mode: 'class_round', record: false, admin_mode: 'teacher_present', sample_arm: 'class_round', anchor_serves_any: 1 });
@@ -426,7 +430,7 @@ describe('as the v2 serve does: identity, class, light, the draw log, one event 
   afterEach(resetFlags);
 
   test('child_identity is written at the first counted play (fixed grade 1), never by a practice play', async () => {
-    on(V2, G1, PERIOD, HUB, CANON);
+    on(V2, G1, ...CANON_ON, PERIOD, HUB, CANON);
     db.child_identity = [];
     await Ch.exercise(hub(), 'numbers', D);
     expect(db.child_identity).toEqual([expect.objectContaining({ canonical_id: KID, year_code: Draw.yearCode(new Date(NOV)), fixed_grade: 1, grade_source: 'roster_class' })]);
@@ -437,7 +441,7 @@ describe('as the v2 serve does: identity, class, light, the draw log, one event 
   });
 
   test('class_id on the row from the active enrolment; one light_lit at the finished first exposure, none on exposure 2', async () => {
-    on(V2, G1, PERIOD);
+    on(V2, G1, ...CANON_ON, PERIOD);
     db.classes = [{ id: CLS, grade_code: 'grade_1', is_active: true }];
     db.class_enrollments = [{ id: 'e1', class_id: CLS, student_id: KID, is_active: true }];
     const first = await play();
@@ -450,7 +454,7 @@ describe('as the v2 serve does: identity, class, light, the draw log, one event 
   });
 
   test('the G1A serve logs its challenge_draws row (anchor, p 1), and the row and meta.draw carry it', async () => {
-    on(V2, G1, PERIOD);
+    on(V2, G1, ...CANON_ON, PERIOD);
     db.challenge_draws = [];
     const ex = await Ch.exercise(hub(), 'numbers', D);
     const row = runs()[0];
@@ -467,7 +471,7 @@ describe('as the v2 serve does: identity, class, light, the draw log, one event 
   test('one ch_open and one ch_start each, and with events v2 on ch_start goes through the measurement envelope (kid rides)', async () => {
     process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(48);
     process.env.WEB_QUIZ_KID_KEY_V = '1';
-    on(V2, G1, PERIOD, HUB, EV2);
+    on(V2, G1, ...CANON_ON, PERIOD, HUB, EV2);
     await Ch.menu(hub(), D);
     expect(named('web_quiz.ch_open')).toHaveLength(1);
     await Ch.exercise(hub(), 'numbers', D);
@@ -481,7 +485,7 @@ describe('as the v2 serve does: identity, class, light, the draw log, one event 
   });
 
   test('a serve whose row is not stored is refused: no token, no second first exposure', async () => {
-    on(V2, G1, PERIOD);
+    on(V2, G1, ...CANON_ON, PERIOD);
     const from = supabase.from;
     supabase.from = (t) => {
       const b = from(t);
@@ -503,7 +507,7 @@ describe('the finished grade-1 row: m_result and the phone bindings, as every st
   afterEach(() => { resetFlags(); delete process.env.WEB_QUIZ_KID_KEY; delete process.env.WEB_QUIZ_KID_KEY_V; delete process.env.WQ_TOMB_SALT; });
 
   test('one m_result with form G1 and fixed_band G1; a bound child\'s expires_at moves', async () => {
-    on(V2, G1, PERIOD, ...['web_quiz_hub', 'web_quiz_events_v2', 'web_quiz_identity_canon', 'web_quiz_phone_bind'].map((key) => ({ key, value: true })));
+    on(V2, G1, ...CANON_ON, PERIOD, ...['web_quiz_hub', 'web_quiz_events_v2', 'web_quiz_identity_canon', 'web_quiz_phone_bind'].map((key) => ({ key, value: true })));
     db.child_phone_bindings = [{ id: 'b1', canonical_id: KID, phone_norm: '923001234567', via: 'save', bound_at: '2026-11-01T00:00:00.000Z',
       last_played_at: null, expires_at: OLD_EXPIRY, revoked_at: null }];
     const { row } = await play();
@@ -512,5 +516,39 @@ describe('the finished grade-1 row: m_result and the phone bindings, as every st
     expect(results[0]).toMatchObject({ run: row.id, form: 'G1', fixed_band: 'G1', band: null, exercise: 'numbers', anchor_block: 'G1A', mode: 'check', ok_n: 10, n: 10 });
     expect(db.child_phone_bindings[0].expires_at).not.toBe(OLD_EXPIRY);
     expect(db.child_phone_bindings[0].last_played_at).not.toBeNull();
+  });
+});
+
+describe('the grade-1 serve keeps the v2 record guards: the duplicate record and the identity switch as its parent', () => {
+  const CANON_FLAGS = [{ key: 'web_quiz_hub', value: true }, { key: 'web_quiz_identity_canon', value: true }];
+  const FLAG_MODS = ['../../../shared/services/quiz/web-quiz-identity-flags', '../../../shared/services/quiz/web-quiz-hub-flags'];
+  beforeEach(() => { for (const m of FLAG_MODS) require(m)._resetCache(); });
+  const runOfCt = (ct) => T.verify(ct, 'c').r;
+  const named = (n) => logEvent.mock.calls.filter(([e]) => e === n);
+
+  test('the record insert answers 23505: the same row stored as practice, meta.record_lost, one event, no 503', async () => {
+    on(V2, G1, ...CANON_ON, PERIOD, ...CANON_FLAGS);
+    const from = supabase.from;
+    let left = 1;
+    supabase.from = (t) => {
+      const b = from(t);
+      if (t !== 'web_quiz_challenge_runs') return b;
+      const insert = b.insert;
+      b.insert = (row) => (left > 0 && row && row.record === true
+        ? (left -= 1, { then: (ok, no) => Promise.resolve({ data: null, error: { code: '23505', message: 'duplicate key' } }).then(ok, no) })
+        : insert(row));
+      return b;
+    };
+    const ex = await Ch.exercise(hub(), 'numbers', D);
+    const row = db.web_quiz_challenge_runs.find((r) => r.id === runOfCt(ex.ct));
+    expect(row).toMatchObject({ mode: 'practice', record: false, meta: expect.objectContaining({ record_lost: 'duplicate' }) });
+    expect(named('web_quiz.ch_record_duplicate')).toHaveLength(1);
+  });
+
+  test('canon off: a grade-1 serve is practice, no record, meta.record_blocked', async () => {
+    on(V2, G1, PERIOD);
+    const ex = await Ch.exercise(hub(), 'numbers', D);
+    const row = db.web_quiz_challenge_runs.find((r) => r.id === runOfCt(ex.ct));
+    expect(row).toMatchObject({ mode: 'practice', record: false, meta: expect.objectContaining({ record_blocked: 'identity_canon_off' }) });
   });
 });

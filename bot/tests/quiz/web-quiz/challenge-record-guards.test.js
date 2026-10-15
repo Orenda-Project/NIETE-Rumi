@@ -288,11 +288,17 @@ describe('swap two children: a hub that remembers more than one child serves ?ki
     expect(rowOf(ex.ct)).toMatchObject({ student_id: K3 });
   });
 
-  test('the identity switch off (no pick store): two ids and ?kid= serve as today', async () => {
+  test('the identity switch off with _v2 on (no pick store, a row would burn the child\'s passage): 400 pick_kid, no row', async () => {
     on(V2);
     spy = jest.spyOn(BP, 'pickFor').mockResolvedValue(null);
+    await expect(Ch.exercise(two(), 'bigger', { ...D, kid: Ch.kidChip(K5) })).rejects.toMatchObject({ status: 400, body: { error: 'pick_kid' } });
+    expect(db.web_quiz_challenge_runs).toEqual([]);
+  });
+
+  test('every new switch off: two ids and ?kid= serve as today', async () => {
+    spy = jest.spyOn(BP, 'pickFor').mockResolvedValue(null);
     const ex = await Ch.exercise(two(), 'bigger', { ...D, kid: Ch.kidChip(K5) });
-    expect(rowOf(ex.ct)).toMatchObject({ student_id: K5 });
+    expect(ex.ct).toBeTruthy();
   });
 });
 
@@ -324,5 +330,19 @@ describe('one "on its way" draw log per child, stop and period an hour', () => {
     db.challenge_draws.push({ draw_id: crypto.randomUUID(), canonical_id: K3, period_id: '2026-11', stop: 'listen', lang: 'en', fixed_grade_band: 'G23', band_reason: 'entry_grade', outcome: 'on_its_way', weights_v: 'w1', drawn_at: new Date().toISOString() });
     await Ch.exercise(hub(K3), 'read', D);
     expect(db.challenge_draws.filter((d) => d.stop === 'read')).toHaveLength(1);
+  });
+});
+
+describe('an on-its-way draw insert answering 23505 (the partial unique index) is "already logged"', () => {
+  const Draw = require('../../../shared/services/quiz/web-quiz-challenge-draw');
+  const { logError } = require('../../../shared/utils/logger');
+  test('no throw, no failure event, false', async () => {
+    supabase.from = (t) => ({
+      select: () => ({ eq() { return this; }, gte() { return this; }, limit: async () => ({ data: [], error: null }) }),
+      insert: async () => ({ data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint' } }),
+    });
+    const r = await Draw.logDraw({ draw_id: crypto.randomUUID(), canonical_id: K3, period_id: '2026-11', stop: 'read', outcome: 'on_its_way', drawn_at: new Date().toISOString() });
+    expect(r).toBe(false);
+    expect(logError).not.toHaveBeenCalled();
   });
 });

@@ -205,7 +205,8 @@ const ruleFlags = (rules) => ({ ...(rules.record ? { record: true } : {}), ...(r
 // `viaOf`, `notHomeAttempt` and `classWeekOn` read the v2 section's VIA map, round/practice rule and class-week key at
 // call time (they are declared further down).
 const Grade1 = require('./web-quiz-challenge-grade1').withDeps({ settingOn, insertRun: (row) => insertRun(row), fail, bank: () => childTest().Bank,
-  viaOf: (v) => VIA[v] || v || null, notHomeAttempt: (r) => notHomeAttempt(r), classWeekOn: () => settingOn(CLASS_WEEK_FLAG_KEY),
+  viaOf: (v) => VIA[v] || v || null, notHomeAttempt: (r) => notHomeAttempt(r), classWeekOn: () => classWeekOpen('class_link'),
+  canonOnForRecord: () => canonOnForRecord(),
   afterFinish: async (runId, studentId) => { await measureOutcome(runId); await renewBindings(studentId); } });
 // The one ch_start writer (every stop, the grade-1 form included): through the measurement envelope under events v2.
 async function emitChStart(startEv, run, studentId) {
@@ -305,7 +306,9 @@ const VISIT_MS = 30 * 60 * 1000;
 async function kidPickedHere(studentId, device) {
   let B = null;
   try { B = require('./web-quiz-bind-page'); } catch (_) { return false; }
-  if (!(await B.canonOn())) return true;
+  // canon off: no pick store; under _v2 a row would still be written as that child (and burn an unseen passage), so a
+  // ?kid= on a token of more than one child is refused there too (the chip tap is the way in); _v2 off: today's
+  if (!(await B.canonOn())) return !(await v2On());
   const canonicalId = (await require('./web-quiz-identity-roster').canonicalStudentId(studentId)) || studentId;
   const pick = await B.pickFor({ canonicalId, device });
   return Boolean(pick && (pick.at == null || Date.now() - Number(pick.at) < VISIT_MS));

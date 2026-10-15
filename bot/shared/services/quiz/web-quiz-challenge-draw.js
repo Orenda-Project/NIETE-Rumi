@@ -384,6 +384,8 @@ async function logDraw(row) {
     if (row && row.outcome === 'on_its_way' && row.canonical_id && row.period_id && (await onItsWayLoggedRecently(row))) return false;
     const { error } = await supabase.from('challenge_draws').insert(row);
     if (!error) return true;
+    // an on-its-way row already there (the partial unique index on it answers 23505): already logged, not a failure
+    if (error.code === '23505' && row.outcome === 'on_its_way') return false;
     logError('web_quiz.ch_draw_log_failed', drawLogFailure(error.code, error.message));
   } catch (e) {
     logError('web_quiz.ch_draw_log_failed', drawLogFailure(null, e && e.message || e));

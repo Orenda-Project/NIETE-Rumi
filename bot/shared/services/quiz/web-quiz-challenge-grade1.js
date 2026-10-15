@@ -103,7 +103,7 @@ function recordAtServe(rows, periodId, { askedMode = null, notHomeAttempt = () =
 }
 
 function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null, afterFinish = async () => {},
-  notHomeAttempt = () => false, classWeekOn = async () => false }) {
+  notHomeAttempt = () => false, classWeekOn = async () => false, canonOnForRecord = async () => true }) {
   const on = async () => (await settingOn(V2_FLAG_KEY)) && (await settingOn(G1_FLAG_KEY));
   const items = () => bank().anchorBlock(BLOCK).map((i) => ({ item_id: i.item_id, n: i.n, layout: i.layout, tiles: i.tiles.slice() }));
 
@@ -159,6 +159,9 @@ function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null, 
     const [rows, pick, fixed, classId] = await Promise.all([D.childRows(canonicalId, [w.studentId]),
       D.pickOf({ sessionId: w.sessionId || null, canonicalId, device }), D.fixedGradeOf(canonicalId, w.grade), D.activeClassOf([canonicalId, w.studentId])]);
     const rec = recordAtServe(rows, pid, { askedMode, notHomeAttempt });
+    // web_quiz_identity_canon is the record's hard parent, as at the v2 serve: off, a would-be record is practice
+    const recordBlocked = pid && rec.mode === 'check' && !(await canonOnForRecord()) ? 'identity_canon_off' : null;
+    if (recordBlocked) Object.assign(rec, { mode: 'practice', record: false });
     const via = viaOf(w.via);
     // the sampling fields, as the v2 serve decides them (draw module's adminFields, the same class-week switch)
     const admin = await D.adminFields({ mode: rec.mode, via, canonicalId, at: new Date(now), classWeekOn: via === 'class_link' && (await classWeekOn()) });
@@ -178,10 +181,18 @@ function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null, 
       admin_mode: admin.admin_mode, sample_arm: admin.sample_arm, anchor_serves_any: rec.exposure_no,   // every G1 row is block G1A
       meta: { fixed_band: 'G1', grade_fixed_src: fixed.src, grade_source: w.gradeSource || null, test: !!w.test, pick_src: pick.pick_src,
         anchor_serves_any: rec.exposure_no, admin_mode: admin.admin_mode, sample_arm: admin.sample_arm, items: served.map((i) => i.item_id),
+        ...(recordBlocked ? { record_blocked: recordBlocked } : {}),
         draw: { draw_id: drawLog.draw_id, outcome: 'served', eligible: drawLog.eligible, eligible_n: 1, ref_eligible: false, p: 1, band_reason: 'anchor', weights_v: 'w1', seed } },
     };
     // ⛔ M5: a counted run exists only as a stored row; never a run kept in this process
-    if ((await insertRun(row)) !== 'stored') fail(503, 'unavailable');
+    let stored = await insertRun(row);
+    // a second record of this stop this period (23505 under the record unique index): the same row kept as practice
+    if (stored === 'duplicate' && row.record === true) {
+      Object.assign(rec, { mode: 'practice', record: false });
+      stored = await insertRun({ ...row, record: false, mode: 'practice', meta: { ...row.meta, record_lost: 'duplicate' } });
+      logEvent('web_quiz.ch_record_duplicate', { w: 's', stop: EXERCISE, period_id: pid, stored });
+    }
+    if (stored !== 'stored') fail(503, 'unavailable');
     await D.logDraw({ ...drawLog, run_id: runId });
     // IDENTITY §16: the year's fixed grade at the first counted play (the visit's grade; never changed after)
     if (rec.record === true && rec.mode === 'check') await D.writeChildIdentity({ canonicalId, grade: w.grade, gradeSource: w.gradeSource, now: new Date(now) });
