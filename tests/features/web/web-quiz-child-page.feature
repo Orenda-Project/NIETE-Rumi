@@ -1836,3 +1836,14 @@ Feature: Web child quiz page on the portal
     And after the last item the taps go once to the result endpoint as i, pick and ms each, and the end card shows no number
     And on an Urdu page the copy is Urdu and the tiles are Urdu digits
     But a challenge without the exercise "numbers" renders and requests exactly as before
+
+  @T811
+  Scenario: Story Time plays the story its link names, as a practice run with nothing counted
+    Given web_quiz_challenge_v2 and web_quiz_challenge_story are "on" and the Challenge page is opened with room=story and a story id
+    When the page asks for the read, or the listen when the link says ex=listen
+    Then that one request carries room=story and the story id, and no other request does
+    And a read first asks "Hear it from me first, or read it yourself." with "Read along with Jugnu" and "I'm ready" as two equal buttons, neither selected
+    And "Read along with Jugnu" plays the story clip with its line lit, then the normal read
+    And no story screen shows a clock, a score, words a minute or "N of M", and the end card says "Read this story again any time." with the sticker line
+    But a refused story id (any 400), a 404 or no network shows "A new story is on its way." and never an error page
+    And with the story switch off, or no room on the link, the page and its requests are today's

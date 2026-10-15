@@ -12,6 +12,11 @@
  *   end cards  what was done (read all / read some / tried / listened / answered), the same sticker line for every
  *              first counted run, the next thing when the server names it — never words a minute, never a count.
  *   warm-up    a stop whose payload carries anchor_block is the Number warm-up (its own title and line).
+ *   story time ?room=story&pid=<id> with the menu's v2.story: the read (or listen, ex=listen) is asked for with
+ *              room=story&pid=<id> (that request only) and served as a practice run: its banner on every screen; a read
+ *              first asks "hear it from me first, or read it yourself" (read along = the story clip with the line lit,
+ *              then the normal read); no clock, no score, no words a minute, no "N of M"; the end card says the story
+ *              can be read again + the sticker line. A refused id (any 400), 404 or no network is "on its way".
  * Copy: copy.v2.json keys (jg.*), camelCase of the key tail; gender-neutral; no number about the child.
  */
 (function () {
@@ -30,6 +35,7 @@
       keepSubV2: 'Kept so one person can listen and confirm Jugnu heard right. A grown-up can say no.', keepAskGrownup: 'Ask a grown-up this one.',
       lanternTrailOne: 'A game is waiting for you on the Trail.', lanternTrailMany: 'Games are waiting for you on the Trail.',
       storyBanner: 'Story Time: just for fun',
+      storyAsk: 'Hear it from me first, or read it yourself.', storyReadAlong: 'Read along with Jugnu', storyAgain: 'Read this story again any time.',
       warmupTitle: 'Number warm-up', warmupSay: "Let's start with some numbers.", warmupDone: 'Warm-up done!',
     },
     ur: {
@@ -45,12 +51,14 @@
       keepSubV2: 'یہ ریکارڈنگ اس لیے رکھی جاتی ہے تاکہ ایک شخص سن کر دیکھ سکے کہ جگنو نے ٹھیک سنا۔ گھر کے بڑے منع کر سکتے ہیں۔', keepAskGrownup: 'یہ سوال گھر کے بڑوں سے پوچھیں۔',
       lanternTrailOne: 'جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔', lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
       storyBanner: 'کہانی کا وقت: بس مزے کے لیے',
+      storyAsk: 'پہلے مجھ سے سن لیں، یا خود پڑھیں۔', storyReadAlong: 'جگنو کے ساتھ ساتھ پڑھیں', storyAgain: 'یہ کہانی جب چاہیں دوبارہ پڑھیں۔',
       warmupTitle: 'گنتی کا کھیل', warmupSay: 'چلیں، پہلے گنتی سے شروع کریں۔', warmupDone: 'گنتی کا کھیل مکمل!',
     },
   };
   var ANIMALS = { cat: '🐱', dog: '🐶', rabbit: '🐰', parrot: '🦜', fish: '🐟', turtle: '🐢', lion: '🦁', elephant: '🐘', owl: '🦉', butterfly: '🦋', bee: '🐝', horse: '🐴' };
   var HELP_KEY = 'wqc_helped_v2';
   var CLIP_TRIES = 3;
+  var ALONG_CAP_MS = 180000;   // a WebView that never reports the clip's end still reaches the read
 
   // own styles (only under v2): the chip's second line under the name; Urdu lines at Nastaliq-readable size
   function css() {
@@ -94,6 +102,13 @@
     function home() { return '<div class="wq-stack">' + btn('wqc-menu', t.endHome) + '</div>'; }
     function outcome(d) { return (d && (d.outcome || (d.draw && d.draw.outcome))) || null; }
     function isWarmup(d) { return !!(d && d.anchor_block); }
+
+    // ── Story Time: the room's one story request and its run ──
+    var story = null;      // { ex, pid } from the room's link, while that story is asked for / played
+    var roomUsed = false;  // the room opened its story once in this page load; the menu after it is the trail
+    function storyQs(ex) { return story && story.ex === ex ? '&room=story&pid=' + encodeURIComponent(story.pid) : ''; }
+    function isStory() { return !!(story && h.S.data && h.S.data.story_room); }
+    function clipUrl(d) { return (d && d.story_clip && d.story_clip.url) || null; }
 
     function helpAsk(then) {
       // two answers, neither pressed nor checked until a tap
@@ -144,6 +159,7 @@
     /** The serve came back (open(ex)): the server decides; the page renders. */
     function opened(ex, d, intro) {
       if (d && d.ask === 'whose_turn') { h.S.data = null; whoseTurn(d); return; }
+      if (story && story.ex === ex) { storyOpened(ex, d, intro); return; }
       if (outcome(d) === 'on_its_way') { onItsWay(); return; }
       if (ex === 'listen' && !(d.story_clip && d.story_clip.url)) { gettingReady(ex); return; }
       tries = 0;
@@ -153,6 +169,8 @@
       if (!d.practice_round && !helped()) helpAsk(intro); else intro();
     }
     function openFailed(ex, e) {
+      // a refused story id (any 400), a story that is gone (404) or no network: the room's "on its way"
+      if (story && story.ex === ex && (!e || !e.status || e.status === 400 || e.status === 404)) { storyWait(); return true; }
       if (e && e.status === 503 && (e.message === 'getting_ready')) { gettingReady(ex); return true; }
       return false;
     }
@@ -168,16 +186,105 @@
       if (hash && (m.exercises || []).some(function (x) { return x.id === hash; })) { h.open(hash); return true; }
       return false;
     }
-    // Story Time (?room=story&pid=…, web_quiz_challenge_story): the serve has no story payload yet, so the room says
-    // its banner and that a new story is on its way; no reading, no scorer, no upload
+    // Story Time (?room=story&pid=…, web_quiz_challenge_story): the story named by the link is asked for once (the
+    // read, or the listen when the link says ex=listen); with no pid the room says its banner and that a new story
+    // is on its way. Back from a story the menu is the trail (the story id goes on no other request).
     function storyRoom(m) {
-      var room = null;
-      try { room = new URL(location.href).searchParams.get('room'); } catch (e) { room = null; }
-      if (room !== 'story' || !(m && m.v2 && m.v2.story)) return false;
+      if (roomUsed) { story = null; return false; }
+      var qp = null;
+      try { qp = new URL(location.href).searchParams; } catch (e) { qp = null; }
+      if (!qp || qp.get('room') !== 'story' || !(m && m.v2 && m.v2.story)) return false;
+      var pid = qp.get('pid');
+      if (pid) {
+        roomUsed = true;
+        story = { ex: qp.get('ex') === 'listen' ? 'listen' : 'read', pid: pid };
+        h.open(story.ex);
+        return true;
+      }
+      storyWait();
+      return true;
+    }
+    function storyWait() {
       h.S.data = null;
       h.show('story', '<p class="wqc-banner" id="wqc-story-banner">' + esc(t.storyBanner) + '</p>' + h.jug('hello', t.nextOnItsWay, true) + home());
       h.on('wqc-menu', function () { try { var u = new URL(location.href); u.searchParams.delete('room'); u.searchParams.delete('pid'); location.href = u.toString(); } catch (e) { /* stays */ } });
-      return true;
+    }
+    // The story came back: only a practice run plays here (never a counted run from the room); a read needs its text
+    function storyOpened(ex, d, intro) {
+      if (!d || outcome(d) === 'on_its_way' || d.practice_round !== true || (ex === 'read' && !(d.story && d.story.text))) { storyWait(); return; }
+      if (ex === 'listen' && !clipUrl(d)) { gettingReady(ex); return; }
+      tries = 0;
+      d.story_room = true;
+      d.live = false;   // no words-a-minute bar in Story Time
+      h.S.data = d;
+      h.ev('ch_start', { step: ex });
+      if (ex === 'read' && clipUrl(d)) storyAsk(); else intro();
+    }
+    // two equal answers, neither pressed until a tap
+    function storyAsk() {
+      h.show('story-ask', h.jug('hello', t.storyAsk, true) + '<div class="wq-stack">'
+        + btn('wqc-story-along', t.storyReadAlong) + btn('wqc-story-read', h.t.ready) + '</div>');
+      h.on('wqc-story-along', readAlong);
+      h.on('wqc-story-read', h.read);
+    }
+    // the words as printed when they line up with the tokens; the lines as the serve gives them
+    function alongWords(st) {
+      var tk = (st.tokens && st.tokens.length ? st.tokens : String(st.text || '').split(/\s+/)).filter(function (w) { return String(w).trim(); });
+      var printed = String(st.text || '').split(/\s+/).filter(function (w) { return w.trim(); });
+      return printed.length === tk.length ? printed : tk;
+    }
+    function alongHtml(ws, lines, at) {
+      var ln = lines[at] || { from: 0, to: ws.length - 1 };
+      return ws.map(function (w, i) { return '<span class="wqc-w' + (i >= ln.from && i <= ln.to ? ' wqc-next' : '') + '">' + esc(w) + '</span>'; }).join(' ');
+    }
+    // Read along: the story clip plays, the line it is on is lit, then the normal read (the microphone, the story)
+    function readAlong() {
+      var d = h.S.data;
+      var st = d.story;
+      var ws = alongWords(st);
+      var lines = (st.lines && st.lines.length) ? st.lines : [{ from: 0, to: ws.length - 1 }];
+      var at = 0;
+      h.show('story-along', h.jug('hello', t.storyReadAlong, true)
+        + '<div class="wqc-story" id="wqc-along-story" dir="' + (st.dir === 'rtl' ? 'rtl' : 'ltr') + '" lang="' + L + '">' + alongHtml(ws, lines, 0) + '</div>'
+        + '<div class="wqc-sticky">' + btn('wqc-along-read', h.t.ready) + '</div>');
+      var a = null;
+      var over = false;
+      var cap = null;
+      var go = function () {
+        if (over) return;
+        over = true;
+        clearTimeout(cap);
+        try { if (a) a.pause(); } catch (e) { /* already stopped */ }
+        h.read();
+      };
+      var light = function () {
+        var dur = a && a.duration;
+        if (!(dur > 0) || !isFinite(dur)) return;
+        var w = Math.min(ws.length - 1, Math.floor((a.currentTime / dur) * ws.length));
+        var k = 0;
+        lines.forEach(function (ln, i) { if (w >= ln.from) k = i; });
+        if (k === at) return;
+        at = k;
+        var el = h.q('wqc-along-story');
+        if (el) el.innerHTML = alongHtml(ws, lines, at);
+      };
+      h.on('wqc-along-read', go);
+      try {
+        a = new Audio(clipUrl(d));
+        a.addEventListener('timeupdate', light);
+        a.addEventListener('ended', go);
+        a.addEventListener('error', go);
+        var p = a.play();
+        if (p && p.catch) p.catch(go);
+        cap = setTimeout(go, ALONG_CAP_MS);
+      } catch (e) { go(); }
+    }
+    // the end of a story run: it can be read again, and the sticker line (never a number, never a score)
+    function storyEnd(name, qa) {
+      h.show(name, h.jug('celebrate', t.storyAgain, true) + '<p class="wq-sub" id="wqc-sticker">⭐ ' + esc(t.endSticker) + '</p>'
+        + '<div class="wq-stack">' + (qa ? h.qaButtons() : btn('wqc-menu', t.endHome)) + '</div>');
+      h.on('wqc-menu', h.refreshMenu);
+      if (qa) h.on('wqc-qa', function () { h.qa().open(); });
     }
     // a stop's minutes and microphone line: in Urdu, Urdu digits and the mic on its own line (no Latin middot)
     function stopLine(x, wait, micLine) {
@@ -189,7 +296,8 @@
     // the map's line under the title: no count (one vs many stops still waiting), nothing when none waits
     // the trail's server lines that say «پڑاؤ» or a count, replaced under v2 by the ruled copy (jg.trail.*)
     var TRAIL_OVER = { practice: 'trailPractice', micWait: 'trailMicWait', other: 'trailOther', stopDone: 'trailStopDone' };
-    function trailCopy(k) { return TRAIL_OVER[k] ? t[TRAIL_OVER[k]] : null; }
+    // a story run's practice banner is Story Time's own
+    function trailCopy(k) { if (k === 'practice' && isStory()) return t.storyBanner; return TRAIL_OVER[k] ? t[TRAIL_OVER[k]] : null; }
     function trailSub(xs) {
       var waiting = xs.filter(function (x) { return !x.badge; }).length;
       return waiting === 0 ? '' : (waiting === 1 ? t.lanternTrailOne : t.lanternTrailMany);
@@ -244,6 +352,11 @@
     function storyLen(d) { return (d && d.story && d.story.tokens && d.story.tokens.length) || 0; }
     function readEnd(r, words) {
       var d = h.S.data || {};
+      if (isStory()) {
+        var heard = r && !r.failed && !r.later && r.score && (r.score.attempted != null ? r.score.attempted : r.score.correct) > 0;
+        storyEnd('read-result', !!(heard && d.questions_on));
+        return;
+      }
       if (r && r.later) { endCard('read-result', 'hello', h.t.later, r); return; }
       var n = words != null ? words : (r && r.score ? (r.score.attempted != null ? r.score.attempted : r.score.correct) : 0);
       var zero = !r || r.failed || !(n > 0);
@@ -255,6 +368,7 @@
     // never says it did: the sticker line alone (a first counted run), or today's "Stop done!" on a practice round
     function tapEnd(name, s) {
       var d = h.S.data || {};
+      if (isStory()) { storyEnd(name, false); return; }
       if (s && s.stopped && !isWarmup(d)) {
         var line0 = !d.practice_round ? t.endSticker : h.tc('stopDone');
         endCard(name, 'hello', line0, { noSticker: true });
@@ -265,7 +379,7 @@
     }
 
     return { opened: opened, openFailed: openFailed, menu: menu, stops: stops, stopLine: stopLine, trailSub: trailSub, trailCopy: trailCopy, keepAsk: keepAsk, consent: consent, withHelped: withHelped,
-      readEnd: readEnd, tapEnd: tapEnd, T: T };
+      readEnd: readEnd, tapEnd: tapEnd, storyQs: storyQs, isStory: isStory, T: T };
   }
 
   window.WQTRAIL = { init: init, T: T };
