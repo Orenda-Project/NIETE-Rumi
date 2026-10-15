@@ -221,7 +221,7 @@ describe('proposeLink: floors, the 0.1 SD rule, linear past 400, never equiperce
   });
 });
 
-describe('entryVsPromoted: band 2 only, null under 30 a side', () => {
+describe('entryVsPromoted: band 2 only; under 30 a side it says the check was not made', () => {
   const mixed = (nE, mE, nP, mP, band = 2) => ({
     band,
     readings: [
@@ -237,8 +237,15 @@ describe('entryVsPromoted: band 2 only, null under 30 a side', () => {
   test('within 0.1 SD → pooled', () => {
     expect(Cal.entryVsPromoted(mixed(40, 50, 40, 50.5))).toMatchObject({ entrants_only: false });
   });
-  test('either side under 30, or a band other than 2 → null', () => {
-    expect(Cal.entryVsPromoted(mixed(29, 50, 40, 60))).toBeNull();
+  test('band 2 with either side under 30 → not checked (n_small), never null', () => {
+    expect(Cal.entryVsPromoted(mixed(29, 50, 40, 60))).toEqual({ checked: false, reason: 'n_small', n_entry: 29, n_promoted: 40 });
+    expect(Cal.entryVsPromoted(mixed(40, 50, 29, 60))).toEqual({ checked: false, reason: 'n_small', n_entry: 40, n_promoted: 29 });
+    expect(Cal.entryVsPromoted(mixed(40, 50, 0, 60))).toEqual({ checked: false, reason: 'n_small', n_entry: 40, n_promoted: 0 });
+  });
+  test('both sides at 30 or more → checked', () => {
+    expect(Cal.entryVsPromoted(mixed(30, 50, 30, 50.5))).toMatchObject({ checked: true, n_entry: 30, n_promoted: 30, entrants_only: false });
+  });
+  test('a band other than 2 → null (no entry / promotion split there)', () => {
     expect(Cal.entryVsPromoted(mixed(40, 50, 40, 60, 1))).toBeNull();
     expect(Cal.entryVsPromoted(mixed(40, 50, 40, 60, 3))).toBeNull();
   });
@@ -413,6 +420,7 @@ const addReads = (rows, ref = true) => { db.web_quiz_challenge_runs.push(...rows
 const runs = (pid, vals, over) => vals.map((v) => readRow(pid, v, over));
 const statusWrites = () => fake.calls.filter((c) => c.op === 'update' && c.payload && Object.prototype.hasOwnProperty.call(c.payload, 'status'));
 const passageWrites = () => fake.calls.filter((c) => c.table === 'challenge_passages' && c.op !== 'select');
+const ONE_PASSAGE = () => [REF_ROW, passage(P1)].map((p) => ({ ...p }));
 const summaryEvents = () => logEvent.mock.calls.filter(([name]) => name === 'web_quiz.ch_calibration_run');
 
 beforeEach(() => { jest.clearAllMocks(); });
@@ -502,6 +510,75 @@ describe('runMonthly: link proposals', () => {
     expect(db.challenge_links[0].n_from).toBe(110);
     expect(db.challenge_links[0].entry_vs_promoted_sd).toBeLessThan(-0.1);
     expect(out.links.find((l) => l.passage_id === P1)).toMatchObject({ entrants_only: true });
+  });
+
+  test('band 2: 10 entrants + 40 promoted → the check cannot be made, so the link is on the 10 entrants only (unchecked)', async () => {
+    setup({ challenge_passages: ONE_PASSAGE() }); // P1 alone beside the reference, so the counters are P1's
+    addReads(runs(P1, two(10, 45, 10)));
+    addReads(runs(P1, two(40, 60, 10), { meta: { draw: { band_reason: 'promoted' } } }));
+    addReads(runs(REF, two(120, 50, 10)));
+    const out = await Cal.runMonthly({ period_id: '2026-12', now: NOW });
+    expect(out.links.find((l) => l.passage_id === P1)).toMatchObject({
+      entrants_only: true, entry_vs_promoted_sd: null, evp_reason: 'unchecked', n_from: 10, method: null, reason: 'n_floor',
+    });
+    expect(db.challenge_links).toEqual([]);
+    expect(summaryEvents()[0][1].reasons).toMatchObject({ entrants_only_unchecked: 1 });
+    expect(summaryEvents()[0][1].reasons.entrants_only).toBeUndefined();
+  });
+
+  test('band 2: under the minimum on one side, a link that clears the floor is written on entrants only with no SD', async () => {
+    setup();
+    addReads(runs(P1, two(110, 45, 10)));
+    addReads(runs(P1, two(20, 80, 10), { meta: { draw: { band_reason: 'promoted' } } }));
+    addReads(runs(REF, two(120, 50, 10)));
+    const out = await Cal.runMonthly({ period_id: '2026-12', now: NOW });
+    expect(db.challenge_links).toHaveLength(1);
+    expect(db.challenge_links[0]).toMatchObject({ n_from: 110, entry_vs_promoted_sd: null });
+    expect(db.challenge_links[0].adjustment).toBeCloseTo(5, 9);
+    expect(out.links.find((l) => l.passage_id === P1)).toMatchObject({ entrants_only: true, evp_reason: 'unchecked' });
+  });
+
+  test('band 2: 40 + 40 a 0.05 SD gap apart → pooled', async () => {
+    setup({ challenge_passages: ONE_PASSAGE() }); // P1 alone beside the reference, so the counters are P1's
+    addReads(runs(P1, two(40, 50.5, 10)));
+    addReads(runs(P1, two(40, 50, 10), { meta: { draw: { band_reason: 'promoted' } } }));
+    addReads(runs(REF, two(120, 50, 10)));
+    const out = await Cal.runMonthly({ period_id: '2026-12', now: NOW });
+    const l = out.links.find((x) => x.passage_id === P1);
+    expect(l).toMatchObject({ entrants_only: false, evp_reason: 'pooled', n_from: 80 });
+    expect(Math.abs(l.entry_vs_promoted_sd)).toBeLessThan(0.1);
+    expect(l.entry_vs_promoted_sd).toBeGreaterThan(0.04);
+    const r = summaryEvents()[0][1].reasons;
+    expect(r.entrants_only_unchecked).toBeUndefined();
+    expect(r.entrants_only).toBeUndefined();
+  });
+
+  test('band 2: 40 + 40 a 0.4 SD gap apart → entrants only (gap)', async () => {
+    setup({ challenge_passages: ONE_PASSAGE() }); // P1 alone beside the reference, so the counters are P1's
+    addReads(runs(P1, two(40, 50, 10)));
+    addReads(runs(P1, two(40, 54, 10), { meta: { draw: { band_reason: 'promoted' } } }));
+    addReads(runs(REF, two(120, 50, 10)));
+    const out = await Cal.runMonthly({ period_id: '2026-12', now: NOW });
+    const l = out.links.find((x) => x.passage_id === P1);
+    expect(l).toMatchObject({ entrants_only: true, evp_reason: 'gap', n_from: 40 });
+    expect(l.entry_vs_promoted_sd).toBeCloseTo(-0.395, 2);
+    expect(summaryEvents()[0][1].reasons).toMatchObject({ entrants_only: 1 });
+    expect(summaryEvents()[0][1].reasons.entrants_only_unchecked).toBeUndefined();
+  });
+
+  test('band 1: no entry / promotion split → unchanged, every reading pooled, no SD, no reason', async () => {
+    const B1REF = 'en.read.1.setA'; const B1 = 'en.read.1.kite';
+    setup({ challenge_passages: [passage(B1REF, { band: 1, status: 'calibrated', is_reference: true }), passage(B1, { band: 1 })] });
+    addReads(runs(B1, two(10, 45, 10), { band: 1 }));
+    addReads(runs(B1, two(100, 45, 10), { band: 1, meta: { draw: { band_reason: 'promoted' } } }));
+    addReads(runs(B1REF, two(120, 50, 10), { band: 1 }));
+    const out = await Cal.runMonthly({ period_id: '2026-12', now: NOW });
+    expect(out.links.find((x) => x.passage_id === B1)).toMatchObject({ entrants_only: false, entry_vs_promoted_sd: null, evp_reason: null, n_from: 110 });
+    expect(db.challenge_links).toHaveLength(1);
+    expect(db.challenge_links[0]).toMatchObject({ n_from: 110, entry_vs_promoted_sd: null });
+    const r = summaryEvents()[0][1].reasons;
+    expect(r.entrants_only_unchecked).toBeUndefined();
+    expect(r.entrants_only).toBeUndefined();
   });
 
   test('a second run in the same period proposes nothing new (one open proposal per passage per window)', async () => {

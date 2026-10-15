@@ -156,16 +156,28 @@ function proposeLink(sampleFrom, sampleRef, { n_floor = N_FLOOR, linear_floor = 
 
 /**
  * Condition 3 (ITEMS §6.5): within a band-2 passage's sample, readers who entered the band vs readers promoted into
- * it. Null when either side has fewer than 30 or the band is not 2. Over 0.1 SD → the link is on entrants only.
+ * it. Null only when the band is not 2 (no entry / promotion split exists there). Band 2 with either side under 30:
+ * `{ checked: false, reason: 'n_small' }` — the check cannot be made, and the caller must then fail closed (entrants
+ * only), never pool unchecked. Both sides at 30 or more: over 0.1 SD → the link is on entrants only.
  */
 function entryVsPromoted(sample) {
   if (!sample || Number(sample.band) !== 2) return null;
   const rs = sample.readings || [];
   const e = rs.filter((r) => r.band_reason === 'entry_grade').map((r) => r.value);
   const p = rs.filter((r) => r.band_reason === 'promoted').map((r) => r.value);
-  if (e.length < EVP_MIN || p.length < EVP_MIN) return null;
+  if (e.length < EVP_MIN || p.length < EVP_MIN) return { checked: false, reason: 'n_small', n_entry: e.length, n_promoted: p.length };
   const sd = gapSd(e, p);
-  return { sd, n_entry: e.length, n_promoted: p.length, entrants_only: Math.abs(sd) > EVP_MAX_SD };
+  return { checked: true, sd, n_entry: e.length, n_promoted: p.length, entrants_only: Math.abs(sd) > EVP_MAX_SD };
+}
+
+/**
+ * How a passage's sample is split for its link: band 2 unchecked → entrants only ('unchecked'); band 2 over the
+ * line → entrants only ('gap'); band 2 within it → pooled ('pooled'); any other band → pooled, no reason.
+ */
+function evpDecision(evp) {
+  if (!evp) return { entrants_only: false, sd: null, evp_reason: null };
+  if (!evp.checked) return { entrants_only: true, sd: null, evp_reason: 'unchecked' };
+  return evp.entrants_only ? { entrants_only: true, sd: evp.sd, evp_reason: 'gap' } : { entrants_only: false, sd: evp.sd, evp_reason: 'pooled' };
 }
 
 /** ITEMS §6.7: the reference this period vs the prior quarter, same cell. Past 0.3 SD is a line for review, never a rule. */
@@ -553,14 +565,14 @@ async function runMonthly({ period_id, now = new Date() } = {}) {
       if (windowFrom < first) windowFrom = first;
       let sFrom = sampleOf(p, windowFrom, period_id);
       let sRef = sampleOf(ref, windowFrom, period_id);
-      const evp = entryVsPromoted({ band: Number(p.band), readings: sFrom.readings });
-      if (evp && evp.entrants_only) {
+      const evp = evpDecision(entryVsPromoted({ band: Number(p.band), readings: sFrom.readings }));
+      if (evp.entrants_only) {
         const entrants = (x) => ({ ...x, readings: x.readings.filter((r) => r.band_reason === 'entry_grade') });
         sFrom = entrants(sFrom); sRef = entrants(sRef);
-        bump('entrants_only');
+        bump(evp.evp_reason === 'unchecked' ? 'entrants_only_unchecked' : 'entrants_only');
       }
       const link = proposeLink(sFrom, sRef);
-      const entry = { passage_id: p.passage_id, reference: ref.passage_id, lang: p.lang, band: Number(p.band), kind: p.kind, window_from: windowFrom, window_to: period_id, ...link, entrants_only: !!(evp && evp.entrants_only), entry_vs_promoted_sd: evp ? evp.sd : null };
+      const entry = { passage_id: p.passage_id, reference: ref.passage_id, lang: p.lang, band: Number(p.band), kind: p.kind, window_from: windowFrom, window_to: period_id, ...link, entrants_only: evp.entrants_only, entry_vs_promoted_sd: evp.sd, evp_reason: evp.evp_reason };
       result.links.push(entry);
       if (!link.method) { bump(link.reason); continue; }
       if (link.note === 'report raw') bump('report_raw');
@@ -569,7 +581,7 @@ async function runMonthly({ period_id, now = new Date() } = {}) {
         id: crypto.randomUUID(), from_passage: p.passage_id, to_passage: ref.passage_id, lang: p.lang, band: Number(p.band), design: 'random_groups',
         window_from: windowFrom, window_to: period_id, n_from: link.n_from, n_to: link.n_to, ref_eligible_only: true, method: link.method,
         gap_sd: link.gap_sd, adjustment: link.adjustment, se: link.se, comp_adjustment: link.comp_adjustment,
-        entry_vs_promoted_sd: evp ? evp.sd : null, computed_at: computedAt, proposed_by: PROPOSED_BY, signed_by: null, signed_at: null,
+        entry_vs_promoted_sd: evp.sd, computed_at: computedAt, proposed_by: PROPOSED_BY, signed_by: null, signed_at: null,
       };
       const { error } = await supabase.from('challenge_links').insert(row);
       if (error) { bump('link_insert_failed'); logError('web_quiz.ch_calibration_write_failed', { table: 'challenge_links', error: String(error.message || error).slice(0, 160) }); continue; }
