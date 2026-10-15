@@ -145,13 +145,16 @@ function planOption(row) {
   return { id: String(row.id), title: f.title, description: f.description };
 }
 
+// The list is the teacher's own (the visit planner chose the teacher), and it holds the plans read in
+// the app as well as those sent on WhatsApp. Coaches still asked teachers for the file (pilot sheet
+// R11), so the hint says it isn't needed (bd-eal7zn.2). The hint is screen data: no Flow change.
 async function renderPlan(form, extra = {}, plans) {
   const list = plans || await recentPlans(form);
   const name = form ? await teacherName(form) : null;
   const who = name || 'The teacher';
   const hint = list.length
-    ? `${name ? `${name}'s` : "The teacher's"} most recent plans from the bot. If the plan isn't here, pick "Upload new" to add it.`
-    : `${who} has no plans from the bot yet. Pick "Upload new" to add the plan.`;
+    ? `${name ? `${name}'s` : "The teacher's"} plans from the app and WhatsApp, newest first. Pick the one taught: there's no need to ask for the file. If it isn't here, pick "Upload new".`
+    : `${who} has no plans from the app or WhatsApp yet. Pick "Upload new" to add the plan.`;
   return {
     screen: 'LESSON_PLAN',
     data: {

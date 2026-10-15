@@ -33,9 +33,10 @@ const FRAME = {
     reflect: ['Open with questions for the teacher:', '• "How do you think the lesson went?"', '• "What did you want the children to learn, and how could you tell?"'],
     went_well: 'Start with what went well:',
     plan: (done, total, pct, partly) => `The lesson plan: ${done} of ${total} planned steps done${partly ? `, ${partly} partly` : ''} (${pct}%).`,
+    // A plan was added but not graded: what happened to it, then what to do next time (bd-eal7zn.2).
     plan_not_checked: {
-      lp_not_lesson_plan: "The lesson plan: what was added didn't read as a lesson plan, so its steps weren't checked.",
-      lp_unreadable: "The lesson plan: the photos or file couldn't be read, so its steps weren't checked.",
+      lp_not_lesson_plan: "The lesson plan: no lesson steps were found in what you added, so the lesson wasn't checked against the plan. Next time, pick the teacher's plan from the list in the form, or add a clear photo of each page.",
+      lp_unreadable: "The lesson plan: the file or photos you added couldn't be read, so the lesson wasn't checked against the plan. Next time, pick the teacher's plan from the list in the form, or add a clear photo of each page.",
       other: "The lesson plan: its steps couldn't be checked this time.",
     },
     moment_ask: 'Ask: "What were you hoping for at that moment? What else could you try?"',
@@ -52,8 +53,8 @@ const FRAME = {
     went_well: 'جو اچھا ہوا، اس سے شروع کریں:',
     plan: (done, total, pct, partly) => `سبق کا منصوبہ: ${total} میں سے ${done} مراحل مکمل${partly ? `، ${partly} جزوی` : ''} (${pct}%)۔`,
     plan_not_checked: {
-      lp_not_lesson_plan: 'سبق کا منصوبہ: جو منسلک کیا گیا وہ سبق کا منصوبہ نہیں لگا، اس لیے مراحل نہیں جانچے گئے۔',
-      lp_unreadable: 'سبق کا منصوبہ: تصاویر یا فائل پڑھی نہیں جا سکیں، اس لیے مراحل نہیں جانچے گئے۔',
+      lp_not_lesson_plan: 'سبق کا منصوبہ: جو منسلک کیا گیا اس میں سبق کے مراحل نہیں ملے، اس لیے سبق کو منصوبے سے نہیں جانچا گیا۔ اگلی بار فارم کی فہرست سے استاد کا منصوبہ چنیں، یا ہر صفحے کی صاف تصویر لگائیں۔',
+      lp_unreadable: 'سبق کا منصوبہ: منسلک فائل یا تصاویر پڑھی نہیں جا سکیں، اس لیے سبق کو منصوبے سے نہیں جانچا گیا۔ اگلی بار فارم کی فہرست سے استاد کا منصوبہ چنیں، یا ہر صفحے کی صاف تصویر لگائیں۔',
       other: 'سبق کا منصوبہ: اس بار مراحل نہیں جانچے جا سکے۔',
     },
     moment_ask: 'پوچھیں: "اس لمحے آپ کا ارادہ کیا تھا؟ اور کیا آزمایا جا سکتا ہے؟"',
