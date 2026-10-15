@@ -5,7 +5,7 @@
     "passage_id": "<lang>.<kind>.<band>.<slug>",
     "item_id": "<task>.<form>.<set>.<nn> | anchor.<block>.<nn> | <task>.<template>.<hash8>",
     "needs_line": "the last line a child must have read to answer; questions are served in needs_line order up to 3",
-    "pools": "check and practice are disjoint; params_hash is unique across the whole items table"
+    "pools": "check and practice are disjoint; params_hash is unique per form across pools"
   },
   "periods": [
     {
@@ -227,7 +227,7 @@
           "params": {
             "a": 0.7,
             "b": 0.65,
-            "ans": "a"
+            "ans": 0.7
           }
         },
         {
@@ -240,7 +240,7 @@
           "params": {
             "a": 2087,
             "b": 2078,
-            "ans": "a"
+            "ans": 2087
           }
         },
         {
@@ -253,7 +253,7 @@
           "params": {
             "a": 498,
             "b": 501,
-            "ans": "b"
+            "ans": 501
           }
         },
         {
@@ -266,7 +266,7 @@
           "params": {
             "a": 1.25,
             "b": 1.3,
-            "ans": "b"
+            "ans": 1.3
           }
         }
       ]
@@ -282,6 +282,7 @@
       "items": [
         {
           "item_id": "bigger.G3.A.01",
+          "band": 1,
           "params": {
             "a": 7,
             "b": 5,
@@ -291,6 +292,7 @@
         },
         {
           "item_id": "bigger.G3.A.02",
+          "band": 1,
           "params": {
             "a": 11,
             "b": 24,
@@ -300,6 +302,7 @@
         },
         {
           "item_id": "bigger.G3.A.03",
+          "band": 1,
           "params": {
             "a": 39,
             "b": 23,
@@ -309,6 +312,7 @@
         },
         {
           "item_id": "bigger.G3.A.04",
+          "band": 1,
           "params": {
             "a": 58,
             "b": 49,
@@ -318,6 +322,7 @@
         },
         {
           "item_id": "bigger.G3.A.05",
+          "band": 1,
           "params": {
             "a": 65,
             "b": 67,
@@ -327,6 +332,7 @@
         },
         {
           "item_id": "bigger.G3.A.06",
+          "band": 1,
           "params": {
             "a": 94,
             "b": 78,
@@ -336,6 +342,7 @@
         },
         {
           "item_id": "bigger.G3.A.07",
+          "band": 2,
           "params": {
             "a": 146,
             "b": 153,
@@ -345,6 +352,7 @@
         },
         {
           "item_id": "bigger.G3.A.08",
+          "band": 2,
           "params": {
             "a": 287,
             "b": 534,
@@ -354,6 +362,7 @@
         },
         {
           "item_id": "bigger.G3.A.09",
+          "band": 2,
           "params": {
             "a": 623,
             "b": 632,
@@ -363,6 +372,7 @@
         },
         {
           "item_id": "bigger.G3.A.10",
+          "band": 2,
           "params": {
             "a": 867,
             "b": 965,
@@ -381,6 +391,7 @@
       "items": [
         {
           "item_id": "bigger.G5.A.01",
+          "band": 1,
           "params": {
             "a": 7,
             "b": 5,
@@ -390,6 +401,7 @@
         },
         {
           "item_id": "bigger.G5.A.02",
+          "band": 1,
           "params": {
             "a": 11,
             "b": 24,
@@ -399,6 +411,7 @@
         },
         {
           "item_id": "bigger.G5.A.03",
+          "band": 1,
           "params": {
             "a": 39,
             "b": 23,
@@ -408,6 +421,7 @@
         },
         {
           "item_id": "bigger.G5.A.04",
+          "band": 1,
           "params": {
             "a": 58,
             "b": 49,
@@ -417,6 +431,7 @@
         },
         {
           "item_id": "bigger.G5.A.05",
+          "band": 1,
           "params": {
             "a": 65,
             "b": 67,
@@ -426,6 +441,7 @@
         },
         {
           "item_id": "bigger.G5.A.06",
+          "band": 1,
           "params": {
             "a": 94,
             "b": 78,
@@ -435,6 +451,7 @@
         },
         {
           "item_id": "bigger.G5.A.07",
+          "band": 3,
           "params": {
             "a": 0.6,
             "b": 0.8,
@@ -444,6 +461,7 @@
         },
         {
           "item_id": "bigger.G5.A.08",
+          "band": 3,
           "params": {
             "a": 1963,
             "b": 1954,
@@ -453,6 +471,7 @@
         },
         {
           "item_id": "bigger.G5.A.09",
+          "band": 2,
           "params": {
             "a": 381,
             "b": 279,
@@ -462,6 +481,7 @@
         },
         {
           "item_id": "bigger.G5.A.10",
+          "band": 3,
           "params": {
             "a": 79.5,
             "b": 80.5,
@@ -477,6 +497,7 @@
       "item_id": "missing.G3.A.07",
       "task": "missing",
       "form": "G3",
+      "band": 1,
       "pool": "check",
       "status": "operational",
       "params": {
@@ -494,6 +515,7 @@
       "item_id": "missing.G3.A.08",
       "task": "missing",
       "form": "G3",
+      "band": 2,
       "pool": "check",
       "status": "operational",
       "params": {
@@ -511,6 +533,7 @@
       "item_id": "missing.G3.A.09",
       "task": "missing",
       "form": "G3",
+      "band": 3,
       "pool": "check",
       "status": "operational",
       "params": {
@@ -528,6 +551,7 @@
       "item_id": "missing.G3.A.10",
       "task": "missing",
       "form": "G3",
+      "band": 2,
       "pool": "check",
       "status": "operational",
       "params": {

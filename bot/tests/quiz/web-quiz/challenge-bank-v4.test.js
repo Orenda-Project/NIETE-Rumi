@@ -140,7 +140,9 @@ describe('anchor block A2: loads, provisional, never served before 2027-04', () 
   test('four bigger pairs in order, provisional', () => {
     const a2 = Bank.anchorBlock('A2');
     expect(a2.map((i) => i.item_id)).toEqual(['anchor.A2.01', 'anchor.A2.02', 'anchor.A2.03', 'anchor.A2.04']);
-    expect(a2.map((i) => [i.a, i.b, i.answer])).toEqual([[0.7, 0.65, 'a'], [2087, 2078, 'a'], [498, 501, 'b'], [1.25, 1.3, 'b']]);
+    expect(a2.map((i) => [i.a, i.b, i.answer])).toEqual([[0.7, 0.65, 0.7], [2087, 2078, 2087], [498, 501, 501], [1.25, 1.3, 1.3]]);
+    // the bigger scorer compares the picked number with the answer: the answer is the bigger value
+    for (const i of [...a2, ...Bank.itemSet('bigger.G3.A'), ...Bank.itemSet('bigger.G5.A')]) expect([i.item_id, i.answer]).toEqual([i.item_id, Math.max(i.a, i.b)]);
     expect(Bank.bankV4().anchor_blocks.A2.status).toBe('provisional');
     expect(Bank.bankV4().anchor_blocks.A2.serve_from_period).toBe('2027-04');
     for (const { item_id } of a2) {
@@ -172,6 +174,15 @@ describe('item sets and the G3 rotating items', () => {
       }
     }
     expect(() => Bank.itemSet('bigger.G4.A')).toThrow(/unknown item set/);
+  });
+
+  test('the loose items carry their Numbers band (ITEMS §1.2)', () => {
+    const band = (id) => Bank.getItemV4(id).band;
+    for (const g of ['3', '5']) for (const nn of ['01', '02', '03', '04', '05', '06']) expect([`bigger.G${g}.A.${nn}`, band(`bigger.G${g}.A.${nn}`)]).toEqual([`bigger.G${g}.A.${nn}`, 1]);
+    expect(['07', '08', '09', '10'].map((nn) => band(`bigger.G3.A.${nn}`))).toEqual([2, 2, 2, 2]);
+    expect(['07', '08', '09', '10'].map((nn) => band(`bigger.G5.A.${nn}`))).toEqual([3, 3, 2, 3]);
+    expect(['07', '08', '09', '10'].map((nn) => band(`missing.G3.A.${nn}`))).toEqual([1, 2, 3, 2]);
+    expect(seed().itemRows().every((r) => [1, 2, 3].includes(r.band))).toBe(true);
   });
 
   test('missing.G3.A.07-10 are G3 positions 6-9, operational, not anchors', () => {
