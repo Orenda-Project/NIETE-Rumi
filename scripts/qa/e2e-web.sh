@@ -22,7 +22,8 @@
 #      of portal/'s tree) — a run never tests yesterday's bundle;
 #   4. .claude/qa/web/web-runner.cjs drives the feature in headless Chromium (playwright-core, already a portal
 #      dependency; the browser is installed on first use) — screenshot per failed scenario;
-#   5. one row in .claude/qa/ledgers/runs.jsonl (surface web, method browser), evidence in
+#   5. one row in .claude/qa/ledgers/runs.jsonl (surface web, method browser) — committed on the branch being tested
+#      (scripts/qa/commit-ledger-row.sh; not on main/staging/sandbox/develop; E2E_NO_COMMIT=1 turns it off) — evidence in
 #      .claude/qa/results/web/niete/<run_id>/ (gitignored);
 #   6. the stack is taken down unless --keep.
 # Exit: 0 all passed · 1 a scenario failed · 2 usage · 3+ the stack could not start (dev-portal.sh's code + 10).
@@ -267,6 +268,9 @@ import json,sys; sys.path.insert(0,'$REPO/.claude/qa/shared'); import ledger
 ledger.append_run(json.load(sys.stdin), '$REPO/.claude/qa/ledgers/runs.jsonl')" \
     && log "row appended to .claude/qa/ledgers/runs.jsonl ($(printf '%s' "$row" | python3 -c 'import json,sys;r=json.load(sys.stdin);print(r["status"],r["summary"]["passed"],"/",r["summary"]["total"])'))" \
     || log "could not append the run row"
+  # The PR's "E2E run recorded" check reads commits: commit the row on the branch being tested (E2E_NO_COMMIT=1: don't).
+  bash "$REPO/scripts/qa/commit-ledger-row.sh" "$REPO" \
+    "$FEATURE $(printf '%s' "$row" | python3 -c 'import json,sys;r=json.load(sys.stdin);print(r["status"],"%s/%s" % (r["summary"]["passed"],r["summary"]["total"]),"(%s)" % r["run_id"])')"
 else
   log "no results.json — the runner did not finish (exit $rc)"
 fi
