@@ -258,6 +258,8 @@ async function stopForBoundNonChild({ from, body, user = null, persona = null } 
     if (!isStop(body) || !(await on())) return false;
     const norm = StudentIdentity.normalisePhone(from);
     if (!norm || !(await hasAnyBinding(norm))) return false;
+    // a quiz, a join or a post-quiz chat in flight keeps its own "stop"
+    if (await require('../student-ingress').quizInFlight(from)) return false;
     await handleStop({ phone: from, user, persona });
     return true;
   } catch (err) {

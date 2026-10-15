@@ -79,10 +79,11 @@ function identity(user) {
  * collapsed into "no rows": that collapse is how a teacher becomes a child
  * during a database hiccup.
  */
-async function hasAnyRow(table, column, id, orFilter = null) {
+async function hasAnyRow(table, column, id, orFilter = null, eqs = null) {
   try {
     let q = supabase.from(table).select('*', { count: 'exact', head: true }).eq(column, id);
     if (orFilter) q = q.or(orFilter);
+    if (eqs) Object.entries(eqs).forEach(([c, v]) => { q = q.eq(c, v); });
     const { count, error } = await q;
     if (error) {
       logToFile('⚠️ student-ingress: activity lookup failed', { table, error: error.message });
@@ -108,6 +109,12 @@ async function activity(userId) {
   ];
   for (const [table, column, orFilter] of checks) {
     const r = await hasAnyRow(table, column, userId, orFilter);
+    if (r === null) return null;
+    if (r) return true;
+  }
+  // family phone binding: a class teacher's own phone is a teacher's even with none of the signs above
+  if (await phoneBindOn()) {
+    const r = await hasAnyRow('class_teachers', 'teacher_user_id', userId, null, { is_active: true });
     if (r === null) return null;
     if (r) return true;
   }
@@ -496,7 +503,7 @@ async function route({ message, messageType, messageBody = '', from, user } = {}
 }
 
 module.exports = {
-  identity, activity, classify, attach, route, forget,
+  identity, activity, classify, attach, route, forget, quizInFlight,
   CACHE_KEY, CACHE_TTL_SECS, CHILD_MENU_VIDEO, CHILD_MENU_QUIZ, ALLOWED_BUTTON_PREFIXES,
   REFUSAL_KEY, REFUSAL_ONCE_SECS,
 };

@@ -24,7 +24,7 @@ let missingLogged = false;
 
 /** The PKT calendar day of `now` as 'YYYY-MM-DD'. */
 const pktDay = (now = new Date()) => new Date(new Date(now).getTime() + PKT_OFFSET_MS).toISOString().slice(0, 10);
-const usdOf = (count) => Math.round(USD_PER_SEND * count * 1e6) / 1e6;
+const usdOf = (count, each = USD_PER_SEND) => Math.round(each * count * 1e6) / 1e6;
 
 function missingTable(error) {
   if (!error || error.code !== '42P01') return false;
@@ -44,10 +44,10 @@ function clsFor(classId) {
 }
 
 /** ONE atomic add through message_ledger_add → true (written) | false (failed) | null (no function: fall back). */
-async function addByRpc({ day, trigger, classId, initiated, recipient, n }) {
+async function addByRpc({ day, trigger, classId, initiated, recipient, n, usdEach }) {
   if (typeof supabase.rpc !== 'function') return null;
   const { error } = await supabase.rpc('message_ledger_add', {
-    p_day: day, p_trigger: trigger, p_class_id: classId ? String(classId) : null, p_initiated: initiated, p_recipient: recipient, p_n: n,
+    p_day: day, p_trigger: trigger, p_class_id: classId ? String(classId) : null, p_initiated: initiated, p_recipient: recipient, p_n: n, p_usd_each: usdEach,
   });
   if (!error) return true;
   if (error.code === '42883') return null;
@@ -57,15 +57,16 @@ async function addByRpc({ day, trigger, classId, initiated, recipient, n }) {
 
 /**
  * Count `count` sends of `trigger` today (PKT) → true when the row was written.
- * @param {{trigger:string, classId?:string|null, initiated?:'user'|'bot', recipient?:'family'|'teacher', count?:number, now?:Date}} p
+ * @param {{trigger:string, classId?:string|null, initiated?:'user'|'bot', recipient?:'family'|'teacher', count?:number, usdEach?:number, now?:Date}} p
  */
-async function record({ trigger, classId = null, initiated = 'user', recipient = 'family', count = 1, now = new Date() } = {}) {
+async function record({ trigger, classId = null, initiated = 'user', recipient = 'family', count = 1, usdEach = USD_PER_SEND, now = new Date() } = {}) {
   if (!TRIGGERS.includes(trigger) || !INITIATED.includes(initiated) || !RECIPIENTS.includes(recipient)) return false;
   if (initiated === 'bot' && recipient === 'family') return false;
   const n = Number.isInteger(count) && count > 0 ? count : 1;
   const day = pktDay(now);
+  const each = Number.isFinite(usdEach) && usdEach >= 0 ? usdEach : USD_PER_SEND;
   try {
-    const viaRpc = await addByRpc({ day, trigger, classId, initiated, recipient, n });
+    const viaRpc = await addByRpc({ day, trigger, classId, initiated, recipient, n, usdEach: each });
     if (viaRpc === false) return false;
     let written = viaRpc === true;
     for (let attempt = 0; attempt < 2 && !written; attempt += 1) {
@@ -78,7 +79,7 @@ async function record({ trigger, classId = null, initiated = 'user', recipient =
       const row = (data || [])[0];
       if (row) {
         const total = (Number(row.count) || 0) + n;
-        let u = supabase.from(TABLE).update({ count: total, usd: usdOf(total) }).eq('day', day).eq('trigger', trigger)
+        let u = supabase.from(TABLE).update({ count: total, usd: usdOf(total, each) }).eq('day', day).eq('trigger', trigger)
           .eq('initiated', initiated).eq('recipient', recipient);
         u = classId ? u.eq('class_id', String(classId)) : u.is('class_id', null);
         const res = await u;
@@ -86,7 +87,7 @@ async function record({ trigger, classId = null, initiated = 'user', recipient =
         written = true;
       } else {
         const res = await supabase.from(TABLE).insert({
-          day, trigger, class_id: classId ? String(classId) : null, initiated, recipient, count: n, usd: usdOf(n),
+          day, trigger, class_id: classId ? String(classId) : null, initiated, recipient, count: n, usd: usdOf(n, each),
         });
         if (missingTable(res.error)) return false;
         if (res.error && res.error.code === '23505') continue;     // a concurrent first send: add to its row
@@ -95,7 +96,7 @@ async function record({ trigger, classId = null, initiated = 'user', recipient =
       }
     }
     if (!written) return false;
-    logEvent('web_quiz.msg_sent', { trigger, initiated, recipient, usd: usdOf(n), cls: clsFor(classId), w: 's' });
+    logEvent('web_quiz.msg_sent', { trigger, initiated, recipient, usd: usdOf(n, each), cls: clsFor(classId), w: 's' });
     return true;
   } catch (err) {
     logToFile('⚠️ message ledger: record failed', { error: err.message });

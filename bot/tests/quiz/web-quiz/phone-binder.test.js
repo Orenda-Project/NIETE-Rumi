@@ -64,11 +64,11 @@ const binding = (kid, phone = PHONE, extra = {}) => ({ id: `b-${kid.slice(-2)}-$
   phone_tomb: 'tomb', via: 'save', bound_at: iso(Date.now() - 86400000), expires_at: '2027-03-31T18:59:59.000Z',
   revoked_at: null, revoked_by: null, ...extra });
 
-function seed({ on = true, students = [], codes = [], bindings = [], ledger } = {}) {
+function seed({ on = true, students = [], codes = [], bindings = [], ledger, classTeachers = [] } = {}) {
   const db = {
     app_settings: Object.entries(on ? ON : { web_quiz_hub: true }).map(([key, value]) => ({ key, value })),
     students, child_bind_codes: codes, child_phone_bindings: bindings,
-    quiz_sessions: [], class_enrollments: [], student_lists: [],
+    quiz_sessions: [], class_enrollments: [], student_lists: [], class_teachers: classTeachers,
   };
   if (ledger !== false) db.message_ledger = [];
   fake = makeFake(db, { uniques: { child_bind_codes: ['code'] } });
@@ -298,6 +298,15 @@ describe('STOP', () => {
     expect(WhatsApp.sendMessage.mock.calls).toEqual([[PHONE, UX_STRINGS.jugnuBindStopped.en]]);
   });
 
+  test('a phone with only an erased (tombstoned) row and a chat quiz in flight types "stop" → route false, nothing sent', async () => {
+    const tomb = require('../../../shared/services/quiz/child-phone-bindings.repo').tombOf(PHONE);
+    seed({ students: [], bindings: [binding(KIDS[0], PHONE, { phone_norm: null, phone_tomb: tomb, revoked_at: iso(Date.now() - 60000), revoked_by: 'page_undo' })] });
+    redisService.__keys.set(`quiz:student:${PHONE}:active`, { quizId: 'q-1', currentQuestion: 1 });
+    expect(await say('stop')).toBe(false);
+    expect(sends()).toBe(0);
+    expect(fake.calls.filter((c) => c.op !== 'select')).toEqual([]);
+  });
+
   test('a chat child with nothing saved: STOP → ONE "nothing was saved" line', async () => {
     seed({ students: [chatKid(0)] });
     expect(await say('stop')).toBe(true);
@@ -325,6 +334,34 @@ describe('STOP', () => {
     expect(await say('/register', user)).toBe(false);
     expect(fake.db.child_phone_bindings[0]).toMatchObject({ phone_norm: null, revoked_by: 'teacher_claim' });
     expect(events('student_ingress.cache_forget')).toEqual([{ why: 'teacher_claim', n: 1, w: 's' }]);
+  });
+});
+
+describe('a class teacher\'s own phone is a teacher\'s (class_teachers, counted only with the switch on)', () => {
+  const ct = (extra = {}) => ({ id: 'ct-1', class_id: 'c-1', teacher_user_id: UNKNOWN_USER.id, is_active: true, ...extra });
+
+  test('chat sittings on the phone AND an active class_teachers row → teacher/activity; a JUGNU- code → teacher_phone', async () => {
+    seed({ students: [chatKid(0)], codes: [code('JUGNU-AB2CD', KIDS[1])], classTeachers: [ct()] });
+    expect(await Ingress.classify({ user: UNKNOWN_USER, phone: PHONE })).toEqual({ persona: null, mode: 'teacher', reason: 'activity', language: null, studentClass: null });
+    expect(await say('JUGNU-AB2CD')).toBe(true);
+    expect(events('web_quiz.bind_refused')).toEqual([{ reason: 'teacher_phone', w: 's' }]);
+    expect(fake.db.child_phone_bindings).toHaveLength(0);
+  });
+
+  test('a bound phone whose user is an active class teacher → teacher/activity, never phone_bound_page_child', async () => {
+    seed({ students: [], bindings: [binding(KIDS[0])], classTeachers: [ct()] });
+    expect(await Ingress.classify({ user: UNKNOWN_USER, phone: PHONE })).toMatchObject({ mode: 'teacher', reason: 'activity' });
+  });
+
+  test('an inactive class_teachers row does not count', async () => {
+    seed({ students: [chatKid(0)], classTeachers: [ct({ is_active: false })] });
+    expect(await Ingress.classify({ user: UNKNOWN_USER, phone: PHONE })).toMatchObject({ mode: 'student', reason: 'no_identity_quiz_joined' });
+  });
+
+  test('golden: switch off → today\'s child verdict, and class_teachers is never read', async () => {
+    seed({ on: false, students: [chatKid(0)], classTeachers: [ct()] });
+    expect(await Ingress.classify({ user: UNKNOWN_USER, phone: PHONE })).toEqual({ persona: 'student', mode: 'student', reason: 'no_identity_quiz_joined', language: null, studentClass: '3' });
+    expect(reads('class_teachers')).toHaveLength(0);
   });
 });
 
@@ -369,9 +406,20 @@ describe('the token slice and the ledger', () => {
     fake.rpcResult = { data: 3, error: null };
     const now = new Date('2026-10-15T20:30:00Z');                   // 01:30 PKT on 16 Oct
     expect(await Ledger.record({ trigger: 'home_reply', count: 2, now })).toBe(true);
-    expect(fake.rpcs).toEqual([{ name: 'message_ledger_add', args: { p_day: '2026-10-16', p_trigger: 'home_reply', p_class_id: null, p_initiated: 'user', p_recipient: 'family', p_n: 2 } }]);
+    expect(fake.rpcs).toEqual([{ name: 'message_ledger_add', args: { p_day: '2026-10-16', p_trigger: 'home_reply', p_class_id: null, p_initiated: 'user', p_recipient: 'family', p_n: 2, p_usd_each: 0.015 } }]);
     expect(fake.calls.filter((c) => c.table === 'message_ledger')).toEqual([]);
     expect(events('web_quiz.msg_sent')).toEqual([{ trigger: 'home_reply', initiated: 'user', recipient: 'family', usd: 0.03, cls: null, w: 's' }]);
+  });
+
+  test('usdEach: passed to the rpc as p_usd_each and used by the fallback (usd = usdEach × count)', async () => {
+    const Ledger = require('../../../shared/services/quiz/message-ledger');
+    expect(await Ledger.record({ trigger: 'bind_reply', usdEach: 0.012 })).toBe(true);
+    expect(fake.rpcs[0].args).toMatchObject({ p_usd_each: 0.012, p_n: 1 });
+    expect(fake.db.message_ledger[0]).toMatchObject({ count: 1, usd: 0.012 });
+    expect(events('web_quiz.msg_sent')[0]).toMatchObject({ usd: 0.012 });
+    fake.rpcResult = { data: 1, error: null };
+    await Ledger.record({ trigger: 'home_reply' });
+    expect(fake.rpcs[1].args).toMatchObject({ p_usd_each: 0.015 });
   });
 
   test('42883 (function missing) → today\'s select-then-write path', async () => {
