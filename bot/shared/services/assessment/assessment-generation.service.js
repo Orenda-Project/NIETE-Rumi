@@ -127,6 +127,29 @@ const ANSWER_KEY_ON =
   + '- Comprehension: put the "answer" inside EACH sub-question object in "questions", '
   + 'not on the passage.';
 
+/**
+ * The ceiling on what one paper may write, reasoning included. The call used to
+ * set none, so it could run to the model's own maximum, and a low provider
+ * balance reserved that maximum on every request. The largest paper measured
+ * (30 Sep – 14 Oct 2026) wrote under 21,000 tokens. A reply that reaches the
+ * ceiling is a paper too long for one go: TRUNCATED, "try fewer questions".
+ */
+const MAX_OUTPUT_TOKENS = 32000;
+
+/**
+ * An empty reply: nothing written, nothing billed for writing, not cut off.
+ * About one call in thirty at peak, and a no-op from the provider rather than
+ * bad output, so it is asked once more. A reply that spent tokens and still
+ * came back empty is not free to repeat, and is left to BAD_JSON as before.
+ */
+function _isEmptyReply(response) {
+  const choice = response?.choices?.[0] || {};
+  const text = choice.message?.content;
+  const empty = text == null || String(text).trim() === '';
+  return empty && choice.finish_reason !== 'length'
+    && (Number(response?.usage?.completion_tokens) || 0) === 0;
+}
+
 function fail(code, message, extra = {}) {
   const err = new Error(message);
   err.code = code;
@@ -587,19 +610,26 @@ async function generateExam(args) {
     types: plan.questionTypes.map((q) => `${q.count} ${q.id}`), contentChars: (pageContent || '').length,
   });
 
+  const ask = () => getClient().chat.completions.create({
+    model,
+    // Names the spender. llm-client records it on api.cost.incurred and strips it
+    // before the request goes out, so this job stops being $11.34/day of anonymous spend.
+    job: 'assessment.generate',
+    ...(model !== ownModel ? { fallbackModel: ownModel } : {}),
+    messages,
+    temperature: 0.7,
+    response_format: { type: 'json_object' },
+    max_tokens: MAX_OUTPUT_TOKENS,
+  });
+
   let response;
   const startedAt = Date.now();
   try {
-    response = await getClient().chat.completions.create({
-      model,
-      // bd-jntcx: names the spender. llm-client records it on api.cost.incurred and strips it
-      // before the request goes out, so this job stops being $11.34/day of anonymous spend.
-      job: 'assessment.generate',
-      ...(model !== ownModel ? { fallbackModel: ownModel } : {}),
-      messages,
-      temperature: 0.7,
-      response_format: { type: 'json_object' },
-    });
+    response = await ask();
+    if (_isEmptyReply(response)) {
+      logToFile('[assessment] empty reply, retrying once', { model, usage: response.usage || null });
+      response = await ask();
+    }
   } catch (err) {
     // An outage is not bad output, and telling them apart is what decides
     // whether a retry is worth anything.
@@ -625,6 +655,12 @@ async function generateExam(args) {
   try {
     examJson = extractJsonFromResponse(raw);
   } catch (err) {
+    // Cut off mid-paper at the ceiling: the same answer as above, not "try again".
+    if (choice.finish_reason === 'length') {
+      logToFile('[assessment] model ran out of room', { model, usage: response.usage, partial: true });
+      throw fail('TRUNCATED', 'That was too much to write in one go — try fewer questions.',
+        { usage: response.usage });
+    }
     logToFile('[assessment] model returned unusable JSON', {
       model, error: err.message, preview: raw.slice(0, 300),
     });
