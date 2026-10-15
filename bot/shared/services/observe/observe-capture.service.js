@@ -17,41 +17,8 @@ const ObserveState = require('./observe-state.service');
 const { observeStrings, observeLang } = require('./observe-strings');
 const { logToFile } = require('../../utils/logger');
 
-/**
- * bd-2432 (port of main-bot FEAT-116) — resolve the visit-picker's bound
- * teacher to a users.id so the session row is owned by the TEACHER (her trend
- * keys correctly from day one) while the coach stays observer_user_id.
- * Prefer the bound user_id; else look up by phone; else create a minimal
- * teacher row. ANY failure → null (observer stays owner — never dead-end).
- */
-async function resolveBoundTeacherUserId(boundTeacher) {
-  try {
-    if (!boundTeacher) return null;
-    if (boundTeacher.user_id) return boundTeacher.user_id;
-    const phone = boundTeacher.phone_e164;
-    if (!phone) return null;
-    const { data: existing } = await supabase
-      .from('users').select('id').eq('phone_number', phone).limit(1);
-    if (existing && existing[0]) return existing[0].id;
-    const name = (boundTeacher.teacher_name || '').trim();
-    const { data: created, error } = await supabase
-      .from('users')
-      .insert({
-        phone_number: phone,
-        name: name ? name.split(/\s+/)[0] : null,
-        name: name || null,
-        role: 'teacher',
-        preferred_language: boundTeacher.preferred_language || 'en',
-        source: 'observe_visit_bind',
-      })
-      .select()
-      .single();
-    if (error || !created) return null;
-    return created.id;
-  } catch (_) {
-    return null;
-  }
-}
+// The visit-picker's bound teacher → users.id (a leaf module; re-exported below).
+const { resolveBoundTeacherUserId } = require('./bound-teacher');
 
 /**
  * The teacher an /observe2 form was started for, in the shape a visit-picker bind leaves in the observe
@@ -170,10 +137,15 @@ async function startFromAudio(user, from, audioId, sessionId, audioDurationSecon
   // above, so it saves the wrong report reaching a teacher, not the compute.
   // Do not "optimise" it by moving the queue call without deciding that every
   // observation should wait on a human tap first.
+  // A held /observe2 recording (record first, fill the form afterwards) offers its form instead of
+  // "okay": the coach fills it now or later.
+  const firstButton = observe2 && observe2.held
+    ? { id: require('./observe2/start').fillButtonId(observe2.form.id), title: require('./observe2/strings').observe2Strings(lang).btn_fill_form }
+    : { id: `observe_ok_${session.id}`, title: S.btn_ok_wait };
   await WhatsAppService.sendInteractiveButtons(from, {
     body: observe2 ? observe2.ack : `${S.audio_received}\n\n${S.capture_next_hint || ''}`.trim(),
     buttons: [
-      { id: `observe_ok_${session.id}`, title: S.btn_ok_wait.slice(0, 20) },
+      { id: firstButton.id, title: [...firstButton.title].slice(0, 20).join('') },
       { id: `observe_cancel_${session.id}`, title: S.btn_cancel_obs.slice(0, 20) },
     ],
   });

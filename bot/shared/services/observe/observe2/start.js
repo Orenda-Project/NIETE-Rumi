@@ -26,6 +26,9 @@ const { logToFile } = require('../../../utils/logger');
 const VISIT_MARKER = 'observe2-visit';
 const PERIODS = [30, 35, 40];
 const PERIOD_BUTTON_RX = /^obs2_period:([A-Za-z0-9-]{1,64}):(\d{1,3})$/;
+// "Fill the form" on the message that saved a recording that came first (capture-link holdRecording).
+const FILL_BUTTON_RX = /^obs2_fill:([A-Za-z0-9-]{1,64})$/;
+const fillButtonId = (formId) => `obs2_fill:${formId}`;
 
 const visitToken = (userId) => `${userId}:${VISIT_MARKER}`;
 const formToken = (userId, formId) => `${userId}:observe2-form:${formId}`;
@@ -131,11 +134,16 @@ function parsePeriodButton(buttonId) {
   return { formId: m[1], minutes };
 }
 
-async function sendLiveForm(user, from, formId, minutes) {
+/**
+ * @param {object} [opts]
+ * @param {boolean} [opts.afterLesson] the recording is already in: the form is filled after the lesson,
+ *   so the message carries no "start recording" or clock steps.
+ */
+async function sendLiveForm(user, from, formId, minutes, opts = {}) {
   const S = stringsFor(user);
   const sent = await WhatsAppService.sendFlow(from, {
     flowId: process.env.OBSERVE2_FIELD_FORM_FLOW_ID,
-    body: S.form_body(minutes),
+    body: opts.afterLesson ? S.form_body_after : S.form_body(minutes),
     buttonText: S.form_cta,
     flowToken: formToken(user.id, formId),
   });
@@ -179,6 +187,32 @@ async function handlePeriodButton(user, from, buttonId) {
   return true;
 }
 
+/**
+ * "Fill the form" → the live form for that visit, in its after-the-lesson words when the recording is
+ * already in. Sealed, or not this coach's: the same "already sealed, or not yours" line as the period.
+ * @returns {Promise<boolean>} false when the id is not a fill button.
+ */
+async function handleFillButton(user, from, buttonId) {
+  const m = FILL_BUTTON_RX.exec(String(buttonId || ''));
+  if (!m || !user) return false;
+  const S = stringsFor(user);
+  const got = await Store.getForm(m[1]);
+  if (!got.ok) {
+    await WhatsAppService.sendMessage(from, S.try_again);
+    return true;
+  }
+  const form = got.form;
+  if (!form || form.observer_user_id !== user.id || form.sealed_at) {
+    logToFile('⚠️ /observe2: fill tap on a form that is not open for this coach', {
+      userId: user.id, formId: m[1], found: Boolean(form), sealed: Boolean(form && form.sealed_at),
+    }, 'warn');
+    await WhatsAppService.sendMessage(from, S.form_gone);
+    return true;
+  }
+  await sendLiveForm(user, from, form.id, form.period_minutes, { afterLesson: Boolean(form.coaching_session_id) });
+  return true;
+}
+
 module.exports = {
   PERIODS,
   VISIT_MARKER,
@@ -189,5 +223,7 @@ module.exports = {
   handleObserve2Command,
   afterStart,
   handlePeriodButton,
+  fillButtonId,
+  handleFillButton,
   sendLiveForm,
 };
