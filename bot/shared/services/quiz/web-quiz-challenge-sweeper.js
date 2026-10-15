@@ -27,11 +27,8 @@
  * The other parts each have their own switch:
  *   - the purge (web_quiz_challenge_audio_purge, off);
  *   - the daily reply-cap snapshot and, on Mondays, the weekly numbers (web_quiz_challenge_sweeper);
- *   - web_quiz.sample_window{arm, unit:'class', cls, opens_at, closes_at, w:'s'} for every drawn class whose round
- *     window (arm 'class_round') or week window (arm 'class_week', when set) opens that PKT day, from
- *     class_round_draws; this job is the event's one writer. Under web_quiz_class_round (with its parents
- *     web_quiz_challenge_v2 and web_quiz_challenge) and, as a v2 event, web_quiz_events_v2 (under web_quiz_hub).
- *     The class is keyed (web-quiz-kid.js cls); a raw class id never rides the event;
+ *   - the class sample windows (web-quiz-sample-window.js daily({ now }), when present; it ships with the class
+ *     round and carries its own switches): the job only schedules it, like the calibration;
  *   - on the first PKT day of a month, web-quiz-challenge-calibration.js runMonthly({ period_id: the month just
  *     ended, now }), when present: the job only schedules it; the calibration carries its own switches;
  *   - every day, the rung job's settleDeferred({ now }) (web-quiz-rungs.js, when present), like the expiry: whatever
@@ -54,9 +51,6 @@ const PURGE_KEY = 'web_quiz_challenge_audio_purge';
 // m_lost is a v2 event: only with web_quiz_events_v2 on (itself under web_quiz_hub), EVENTS §0.6.
 const EVENTS_V2_KEY = 'web_quiz_events_v2';
 const HUB_KEY = 'web_quiz_hub';
-// sample_window: the class round's switch and its parent (SPEC §1)
-const V2_KEY = 'web_quiz_challenge_v2';
-const CLASS_ROUND_KEY = 'web_quiz_class_round';
 const TABLE = 'web_quiz_challenge_runs';
 const STRIP_TABLE = 'web_quiz_strip_weekly';
 const STUCK_MS = 10 * 60 * 1000;
@@ -78,7 +72,7 @@ function isTrue(v) {
 async function switches() {
   try {
     const { data, error } = await supabase.from('app_settings').select('key, value')
-      .in('key', [PARENT_KEY, SWEEPER_KEY, PURGE_KEY, EVENTS_V2_KEY, HUB_KEY, V2_KEY, CLASS_ROUND_KEY]);
+      .in('key', [PARENT_KEY, SWEEPER_KEY, PURGE_KEY, EVENTS_V2_KEY, HUB_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, isTrue(r.value)]));
     const parent = !!by[PARENT_KEY];
@@ -86,11 +80,10 @@ async function switches() {
       sweeper: parent && !!by[SWEEPER_KEY],
       purge: parent && !!by[PURGE_KEY],
       eventsV2: !!by[HUB_KEY] && !!by[EVENTS_V2_KEY],
-      classRound: parent && !!by[V2_KEY] && !!by[CLASS_ROUND_KEY],
     };
   } catch (e) {
     logToFile('⚠️ web quiz challenge housekeeping: settings lookup failed — off', { error: String(e && e.message || e).slice(0, 120) });
-    return { sweeper: false, purge: false, eventsV2: false, classRound: false };
+    return { sweeper: false, purge: false, eventsV2: false };
   }
 }
 
@@ -218,46 +211,6 @@ async function purgeKept(now, max) {
 }
 
 const errText = (e) => String(e && e.message || e).slice(0, 120);
-const isMissingTable = (e) => !!e && (e.code === '42P01' || /does not exist|schema cache/i.test(String(e.message || '')));
-
-/** The PKT day's bounds in UTC: [00:00 PKT, the next 00:00 PKT). */
-function pktDayBounds(now) {
-  const start = Date.parse(`${pktDay(now)}T00:00:00Z`) - PKT_MS;
-  return { start: new Date(start).toISOString(), end: new Date(start + DAY_MS).toISOString() };
-}
-
-/**
- * sample_window for every drawn class whose round or week window opens this PKT day. Counts what it emitted; a
- * missing table or the keyed-id module absent → nothing, one log line. Never a raw class id on the event.
- */
-async function emitSampleWindows(now) {
-  const Kid = optional('./web-quiz-kid');
-  if (!Kid || typeof Kid.envelope !== 'function' || typeof Kid.cls !== 'function') {
-    logToFile('Challenge daily job: sample_window skipped (keyed ids not available)', { day: pktDay(now) });
-    return null;
-  }
-  const { start, end } = pktDayBounds(now);
-  const ARMS = [['class_round', 'window_start', 'window_end'], ['class_week', 'week_start', 'week_end']];
-  let n = 0;
-  for (const [arm, opens, closes] of ARMS) {
-    const { data, error } = await supabase.from('class_round_draws').select(`class_id, ${opens}, ${closes}`)
-      .gte(opens, start).lt(opens, end);
-    if (error) {
-      if (isMissingTable(error)) logToFile('Challenge daily job: sample_window skipped (class_round_draws not there yet)', { day: pktDay(now) });
-      else logError('web_quiz.ch_sample_window_read_failed', { code: error.code || null, error: errText(error) });
-      return n;
-    }
-    for (const r of data || []) {
-      if (!r[opens] || !r[closes]) continue;
-      logEvent('web_quiz.sample_window', Kid.envelope({
-        arm, unit: 'class', cls: Kid.cls(r.class_id),
-        opens_at: new Date(r[opens]).toISOString(), closes_at: new Date(r[closes]).toISOString(), w: 's',
-      }));
-      n += 1;
-    }
-  }
-  return n;
-}
 
 /** On the first PKT day of a month: the month just ended (YYYY-MM); else null. */
 function monthJustEnded(now) {
@@ -275,7 +228,7 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
   const f = flags || await switches();
   const Bind = optional('./web-quiz-bind-expiry');
   const hasExpiry = !!Bind && typeof Bind.expireBindings === 'function';
-  const anyOn = !!(f.purge || f.sweeper || f.classRound);
+  const anyOn = !!(f.purge || f.sweeper);
   // The first PKT day of a month: the calibration of the month just ended is scheduled whatever our switches say
   // (the call is ours; the calibration job's own switches decide whether it runs).
   const period = monthJustEnded(now);
@@ -285,7 +238,11 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
   // daily run whatever our switches say; the rung job's own switches decide what it does. Absent ⇒ nothing, no log.
   const Rungs = optional('./web-quiz-rungs');
   const hasSettle = !!Rungs && typeof Rungs.settleDeferred === 'function';
-  if (!anyOn && !hasExpiry && !hasCal && !hasSettle) return { ran: false, reason: 'off' };
+  // The class sample windows (web-quiz-sample-window.js daily, shipped with the class round): scheduled here, its own
+  // switches decide. Absent ⇒ nothing, no log.
+  const Win = optional('./web-quiz-sample-window');
+  const hasWin = !!Win && typeof Win.daily === 'function';
+  if (!anyOn && !hasExpiry && !hasCal && !hasSettle && !hasWin) return { ran: false, reason: 'off' };
   const claim = await claimDay(now);
   if (!claim.ok) return { ran: false, reason: claim.reason };
   const out = { ran: true, day: claim.day, purged: null, bindings: false, strip: null, replyCap: null, windows: null, calibration: null, settled: null };
@@ -303,6 +260,11 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
       logError('web_quiz.ch_calibration_call_failed', { period_id: period, error: errText(e) });
     }
   }
+  if (hasWin) {
+    try { out.windows = await Win.daily({ now }); } catch (e) {
+      logError('web_quiz.ch_sample_window_failed', { error: errText(e) });
+    }
+  }
   if (hasSettle) {
     try { out.settled = await Rungs.settleDeferred({ now }); } catch (e) {
       logError('web_quiz.ch_rung_settle_failed', { error: errText(e) });
@@ -315,13 +277,6 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
     out.purged = p.n;
     logEvent('web_quiz.ch_audio_purged', { n: p.n, oldest_age_d: p.oldest_age_d, reason: 'age', w: 's' });
     await supabase.from(STRIP_TABLE).update({ value: p.n, n: p.n }).eq('week', claim.week).eq('line', 'daily_job').eq('cell', claim.day);
-  }
-
-  // The class windows opening today (the event's one writer). A v2 event: also needs events v2.
-  if (f.classRound && f.eventsV2) {
-    try { out.windows = await emitSampleWindows(now); } catch (e) {
-      logError('web_quiz.ch_sample_window_failed', { error: errText(e) });
-    }
   }
 
   // Every day (sweeper switch): yesterday's (PKT) reply-cap counts, before the 24-h Redis counters expire.
