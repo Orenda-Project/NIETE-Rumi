@@ -1772,10 +1772,26 @@ async function listResults({ cls, list } = {}) {
   return out;
 }
 
+// ── challenge v2: the clip warm job (web-quiz-challenge-clip-warm.js, switch web_quiz_challenge_clip_warm) ───
+// One clip by the serve's own key and recorder: known or found in the store ⇒ 'had'; else recorded now, awaited,
+// under the same per-process cap and in-flight set as a child's first serve ⇒ 'recorded' | 'missing'.
+// `record: false` (the cap reached): the store is asked, nothing is recorded.
+async function warmClip(key, text, lang, { record = true } = {}) {
+  if (clipKnown.get(key) !== true) {
+    try { if ((await r2.headObject(key, { bucket: AudioStore.quizAudioBucket() })).exists) clipKnown.set(key, true); } catch (_) { /* absent */ }
+  }
+  if (clipKnown.get(key) === true) return 'had';
+  if (!record) return 'missing';
+  await recordClip(key, text, lang);
+  return clipKnown.get(key) === true ? 'recorded' : 'missing';
+}
+const clipsLeft = () => Math.max(0, MAX_CLIP_RECORDINGS - clipsRecorded);
+
 module.exports = {
   menu, exercise, presignUpload, submit, poll, listResults, liveKey, liveOn, questions, answer, questionsOn, tapOptions, listenOn, optionAudioOn,
   scoreBigger, wcpm, formFor, gradeOf, gradeInfo, kidChip, challengeOn, clipKey, childVoiceBucket,
   recordOn, readGuardOn, itemsOn, keepAudioOn, v2On, periodOn, poolOn, V2_FLAG_KEY, PERIOD_FLAG_KEY, POOL_FLAG_KEY, keptRoot, isKeptKey, forgetAudioKey, trailOn, missingOn, scoreMissing, sweepOrphans, servePairs, biggerItems, itemFlags, legacyIncomplete,
   EXERCISES, nameOf, lineOf, FLAG_KEY, LIVE_FLAG_KEY, RECORD_FLAG_KEY, GUARD_FLAG_KEY, ITEMS_FLAG_KEY, TRAIL_FLAG_KEY, MISSING_FLAG_KEY, TABLE, MAX_BYTES,
+  settingOn, warmClip, clipsLeft, MAX_CLIP_RECORDINGS, // challenge v2: the clip warm job
   __reset,
 };
