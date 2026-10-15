@@ -128,6 +128,8 @@ const BEFORE_EXAM = {
   on_sheet_ur: '{sections} جوابی کاپی پر', // needs fluent-Urdu review
   attempt_en: '{label}: attempt any {n} of {g}',
   attempt_ur: '{label}: {g} میں سے کوئی سے {n}', // needs fluent-Urdu review
+  either_en: '{label}: answer one of the two',
+  either_ur: '{label}: دو میں سے ایک', // needs fluent-Urdu review
 };
 
 const SUPPLIES = {
@@ -584,7 +586,7 @@ const ENGLISH = {
           slot: 'english.C.Q4', label_en: 'Q.4:', label_ur: 'سوال 4', // needs fluent-Urdu review
           instruction_en: 'Use any five of the following words in meaningful sentences.', marks_line_en: '({t:10})',
           type: 'Word Sentences', category: 'subjective', shape: 'words',
-          generate: 1, attempt: 1, marks_each: 10, parts: null,
+          in_item_choice: { n: 5, g: 6 }, generate: 1, attempt: 1, marks_each: 10, parts: null,
           numbering: 'none', compulsory: true, lines: 0, work_mm: null, section_pages: 'scope',
           grain: { kind: 'six unit vocabulary words, any five used in sentences', number_size: 'six words', steps: 1, unit_choice: false },
           families: null, kinds: null,
@@ -628,7 +630,7 @@ const ENGLISH = {
           slot: 'english.C.Q8', label_en: 'Q.8:', label_ur: 'سوال 8', // needs fluent-Urdu review
           instruction_en: 'Write a paragraph on any ONE of the following topics.', marks_line_en: '({t:10})',
           type: 'Paragraph Writing', category: 'subjective', shape: 'composition',
-          generate: 1, attempt: 1, marks_each: 10, parts: null,
+          in_item_choice: { n: 1, g: 3 }, generate: 1, attempt: 1, marks_each: 10, parts: null,
           numbering: 'none', compulsory: true, lines: 0, work_mm: null, section_pages: 'scope',
           grain: { kind: 'three paragraph topics from FDE\'s closed list; the child writes one', number_size: 'three topics', steps: 1, unit_choice: false },
           families: null, kinds: ['paragraph'],
@@ -753,7 +755,7 @@ const URDU = {
           generate: 1, attempt: 1, marks_each: 20, parts: [10, 8, 2],
           parts_spec: [
             { key: 'questions', label: 'الف:', instruction_ur: 'سوالات', marks_line_ur: '10', n: 5, marks_each: 2, numbering: 'urdu' }, // transcribed (FDE p.56)
-            { key: 'pick', label: 'ب:', instruction_ur: 'سوال: پیراگراف سے چن کر لکھیں۔', marks_line_ur: '08', n: 8, marks_each: 1, pick: { 'اسم معرفہ': 2, 'اسم نکرہ': 2, 'اسم صفت': 2, 'فعل': 2 } }, // transcribed (FDE p.56)
+            { key: 'pick', label: 'ب:', group_head: { label: 'ب:', instruction_ur: 'دی گئی ہدایات کے مطابق حل کریں۔', marks_line_ur: '10' }, instruction_ur: 'سوال: پیراگراف سے چن کر لکھیں۔', marks_line_ur: '08', n: 8, marks_each: 1, pick: { 'اسم معرفہ': 2, 'اسم نکرہ': 2, 'اسم صفت': 2, 'فعل': 2 } }, // transcribed (FDE p.56)
             { key: 'antonyms', label: '', instruction_ur: 'دیے گئے الفاظ کے متضاد لکھیں۔', marks_line_ur: '02', n: 2, marks_each: 1 }, // transcribed (FDE p.56)
           ],
           numbering: 'none', compulsory: true, lines: 0, work_mm: null,
@@ -780,7 +782,7 @@ const URDU = {
           instruction_ur: 'مندرجہ ذیل الفاظ کے معنی لکھیں۔ (کوئی سے پانچ)', // transcribed (FDE p.57)
           marks_line_ur: '{t:5}',
           type: 'Word Meanings', category: 'subjective', shape: 'words',
-          generate: 1, attempt: 1, marks_each: 5, parts: null,
+          in_item_choice: { n: 5, g: 7 }, generate: 1, attempt: 1, marks_each: 5, parts: null,
           numbering: 'none', compulsory: true, lines: 0, work_mm: null, section_pages: 'scope',
           grain: { kind: 'seven words from the lessons\' new-word lists; any five', number_size: 'seven words', steps: 1, unit_choice: false },
           families: null, kinds: null,
@@ -804,7 +806,7 @@ const URDU = {
           instruction_ur: 'درج ذیل الفاظ اور محاورات میں سے کوئی سے پانچ کے جملے بنائیں۔', // transcribed (FDE p.57)
           marks_line_ur: '{t:5}',
           type: 'Word Sentences', category: 'subjective', shape: 'words',
-          generate: 1, attempt: 1, marks_each: 5, parts: null,
+          in_item_choice: { n: 5, g: 7 }, generate: 1, attempt: 1, marks_each: 5, parts: null,
           numbering: 'none', compulsory: true, lines: 0, work_mm: null, section_pages: 'scope',
           grain: { kind: 'four words and three idioms from lessons 4–10; any five in sentences', number_size: 'seven entries', steps: 1, unit_choice: false },
           families: null, kinds: null,

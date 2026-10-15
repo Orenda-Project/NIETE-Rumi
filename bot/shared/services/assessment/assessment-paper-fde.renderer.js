@@ -425,7 +425,12 @@ function comprehensionBlock(q, slot, ctx) {
   const parts = Array.isArray(q.parts) ? q.parts : [];
   for (const spec of slot.parts_spec || []) {
     const part = parts.find((p) => p && p.key === spec.key) || {};
-    const head = `<div class="part-head"><span class="lab">${textOf(spec.label, ctx)}</span> <span class="ins">${textOf(spec[`instruction_${lang}`], ctx)}</span><span class="ml">${textOf(spec[`marks_line_${lang}`], ctx)}</span></div>`;
+    // FDE groups some sub-parts under one lettered header (Urdu p.57 «ب: …»); the
+    // sub-parts under it then print their own line and marks, without the letter.
+    const g = spec.group_head;
+    const groupHead = g ? `<div class="part-head"><span class="lab">${textOf(g.label, ctx)}</span> <span class="ins">${textOf(g[`instruction_${lang}`], ctx)}</span><span class="ml">${textOf(g[`marks_line_${lang}`], ctx)}</span></div>` : '';
+    const lab = g ? '' : `<span class="lab">${textOf(spec.label, ctx)}</span> `;
+    const head = `<div class="part-head">${lab}<span class="ins">${textOf(spec[`instruction_${lang}`], ctx)}</span><span class="ml">${textOf(spec[`marks_line_${lang}`], ctx)}</span></div>`;
     let body = '';
     if (spec.pick) {
       body = Object.entries(spec.pick).map(([kind, n]) => `<div class="pick-row"><span class="pick-k">${textOf(kind, ctx)}:</span>${Array.from({ length: n }, (_, i) => `<span class="blank">${textOf(String(i + 1), ctx)}</span>`).join('')}</div>`).join('');
@@ -435,7 +440,7 @@ function comprehensionBlock(q, slot, ctx) {
     } else {
       body = subQuestions(part.questions, spec.numbering || 'urdu', ctx, slot);
     }
-    out.push(`<div class="part">${head}${body}</div>`);
+    out.push(`<div class="part">${groupHead}${head}${body}</div>`);
   }
   return out.join('');
 }
@@ -504,7 +509,7 @@ function slotBlock(slot, sec, list, ctx) {
     const numHtml = num ? `<span class="n">${textOf(num, ctx)}</span>` : '';
     const leadHtml = lead ? `<div class="or-lead">${textOf(lead, ctx)}</div>` : '';
     const stemHtml = stem ? ` ${textOf(stem, ctx)}` : '';
-    body.push(`<div class="q${cont ? ' qcont' : ''}" data-slot="${esc(slot.slot)}">${numHtml}${leadHtml}${stemHtml}${itemBody(q, slot, i, ctx, inlineQ)}</div>`);
+    body.push(`<div class="q${cont ? ' qcont' : ''}${slot.shape === 'comprehension' ? ' comp' : ''}" data-slot="${esc(slot.slot)}">${numHtml}${leadHtml}${stemHtml}${itemBody(q, slot, i, ctx, inlineQ)}</div>`);
   });
   if (slot.alternatives && !live.length) body.push(fixedAlternatives(slot, null, ctx));
   // An either/or question is read as one choice: never split across a page.
@@ -596,7 +601,9 @@ function css(medium, kind) {
   .label-line .num-l { font-size: 8pt; color: #555; }
   .word-box { border: 1px solid #000; padding: 2px 8px; margin: 3px 0; text-align: center; }
   .word-line { margin: 3px 0; }
-  .passage { border: 1px solid #888; padding: 4px 8px; margin: 3px 0 5px; text-align: justify; }
+  .passage { border: 1px solid #888; padding: 4px 8px; margin: 3px 0 5px; text-align: justify; break-inside: avoid; }
+  /* A passage and its parts are too tall to move as one block: the page may break between parts. */
+  .q.comp { break-inside: auto; }
   .verse { text-align: center; margin: 3px 0 5px; }
   .part { margin: 4px 0; break-inside: avoid; }
   .part-head { display: flex; gap: 6px; align-items: baseline; font-weight: 700; }
@@ -637,6 +644,8 @@ function schemeCss(medium) {
   table.rows { width: 100%; border-collapse: collapse; font-size: ${ur ? '10.5pt' : '9pt'}; }
   table.rows td { border-bottom: 1px solid #ccc; padding: 3px 4px; vertical-align: top; }
   table.rows tr { break-inside: avoid; }
+  table.rows tr.slot-row { break-after: avoid; }
+  table.rows tr.slot-row td { border-bottom: 1px solid #000; padding-top: 6px; }
   td.n { width: 8%; font-weight: 700; white-space: nowrap; }
   td.ans { width: 42%; }
   td.pts { width: 50%; }
@@ -748,10 +757,18 @@ function beforeExamBox(L, live, ctx, paperFileName, grade) {
     onPaper.length ? fill(B[`on_paper_${lang}`], { sections: joinList(onPaper, lang) }) : null,
     onSheet.length ? fill(B[`on_sheet_${lang}`], { sections: joinList(onSheet, lang) }) : null,
   ].filter(Boolean).join(lang === 'ur' ? '؛ ' : '; ');
-  const attempts = L.sections.flatMap((s) => s.slots).filter((slot) => slot.attempt < slot.generate && !slot.alternatives).map((slot) => {
-    const n = live.get(slot.slot).length;
-    return fill(B[`attempt_${lang}`], { label: lang === 'ur' ? slot.label_ur : shortLabel(slot.label_en), n: Math.min(slot.attempt, n), g: n });
-  });
+  // Every choice the paper offers, in paper order: between items (attempt < generate),
+  // inside one item (seven words, any five), or between two alternatives (Urdu Q6).
+  const attempts = L.sections.flatMap((s) => s.slots).map((slot) => {
+    const label = lang === 'ur' ? slot.label_ur : shortLabel(slot.label_en);
+    if (slot.alternatives) return fill(B[`either_${lang}`], { label });
+    if (slot.attempt < slot.generate) {
+      const n = live.get(slot.slot).length;
+      return fill(B[`attempt_${lang}`], { label, n: Math.min(slot.attempt, n), g: n });
+    }
+    if (slot.in_item_choice) return fill(B[`attempt_${lang}`], { label, n: slot.in_item_choice.n, g: slot.in_item_choice.g });
+    return null;
+  }).filter(Boolean);
   if (!attempts.length) lines[3] = lines[3].replace(lang === 'ur' ? '؛ {attempts}' : '; {attempts}', '');
   lines[3] = fill(lines[3], { sections: where, attempts: attempts.join(lang === 'ur' ? '؛ ' : '; ') });
   lines[4] = fill(lines[4], { t: L[`total_time_${lang}`] || (lang === 'ur' ? '3 گھنٹے' : '3 hrs') });
@@ -814,18 +831,20 @@ function mcqStrip(slot, list, ctx) {
   return `<div class="strip" data-row="${esc(slot.slot)}"><span class="sl">${textOf(label, ctx)}</span> ${strip}</div>`;
 }
 
-function pointsHtml(q, ctx, Criteria, slot, idx) {
+function pointsHtml(q, ctx, Criteria, slot, idx, marks = null) {
   const lang = ctx.medium;
   const out = [];
   const s = q.scheme && typeof q.scheme === 'object' ? q.scheme : null;
   if (slot.shape === 'composition' || (slot.shape === 'frame' && slot.frame && slot.frame.kind === 'picture')) {
     const kind = Criteria.kindFor(slot, idx);
     const rows = kind ? Criteria.criteriaFor(kind, slot.marks_each, lang) : [];
-    rows.forEach((r) => out.push(`<span class="crit"><span class="crit-m">${esc(fmt(r.marks))}</span> ${textOf(r.name, ctx)}${r.look_for ? ` — ${textOf(r.look_for, ctx)}` : ''}</span>`));
+    rows.forEach((r) => out.push(`<span class="crit"><span class="crit-m">${textOf(fmt(r.marks), ctx)}</span> ${textOf(r.name, ctx)}${r.look_for ? ` — ${textOf(r.look_for, ctx)}` : ''}</span>`));
   }
   if (s && Array.isArray(s.points) && !out.length) {
     s.points.forEach((p) => out.push(`<span class="pt"><span class="chip">${esc(`${p.kind || ''}${fmt(Number(p.marks))}`)}</span> ${textOf(p.text, ctx)}</span>`));
   }
+  // No points from the model: the row still says what it is worth (DESIGN §5 rule 3).
+  if (!out.length && Number.isFinite(marks) && marks > 0) out.push(`<span class="chip">${textOf(fmt(marks), ctx)}</span>`);
   if (s && Array.isArray(s.accept) && s.accept.length) out.push(`<span class="acc">${textOf(`${lang === 'ur' ? 'یہ بھی درست:' : 'accept:'} ${s.accept.join(lang === 'ur' ? '؛ ' : '; ')}`, ctx)}</span>`); // ur: needs fluent-Urdu review
   if (s && typeof s.common_error === 'string' && s.common_error) out.push(`<span class="err">${textOf(`${lang === 'ur' ? 'عام غلطی:' : 'common error:'} ${s.common_error}`, ctx)}</span>`); // ur: needs fluent-Urdu review
   return out.join('');
@@ -848,14 +867,16 @@ function writtenRows(slot, list, ctx, Criteria) {
       return;
     }
     if (slot.shape === 'situation') {
-      (q.questions || []).forEach((sub, k) => {
-        rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(`${n} ${String.fromCharCode(97 + k)})`, ctx)}</td><td class="ans"><b>${textOf(sub && sub.answer, ctx)}</b></td><td class="pts">${pointsHtml(sub || {}, ctx, Criteria, slot, i)}</td></tr>`);
+      const subs = q.questions || [];
+      subs.forEach((sub, k) => {
+        const each = sub && Number(sub.marks) > 0 ? Number(sub.marks) : (slot.item_parts && slot.item_parts.marks_each) || slot.marks_each / (subs.length || 1);
+        rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(`${n} ${String.fromCharCode(97 + k)})`, ctx)}</td><td class="ans"><b>${textOf(sub && sub.answer, ctx)}</b></td><td class="pts">${pointsHtml(sub || {}, ctx, Criteria, slot, i, each)}</td></tr>`);
       });
       return;
     }
     const answer = q.answer !== undefined && q.answer !== null ? `<b>${textOf(q.answer, ctx)}</b>` : '';
     const stem = q.question ? `<div class="q-line">${textOf(cutAtWord(q.question, 110), ctx)}</div>` : '';
-    rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(n, ctx)}</td><td class="ans">${answer}${checkedChip(q, ctx)}${stem}</td><td class="pts">${pointsHtml(q, ctx, Criteria, slot, list.indexOf(q))}</td></tr>`);
+    rows.push(`<tr data-row="${esc(slot.slot)}"><td class="n">${textOf(n, ctx)}</td><td class="ans">${answer}${checkedChip(q, ctx)}${stem}</td><td class="pts">${pointsHtml(q, ctx, Criteria, slot, list.indexOf(q), Number(q.marks) || slot.marks_each)}</td></tr>`);
   });
   if (slot.alternatives) {
     const fixed = slot.alternatives.find((a) => a.kind === 'fixed');
@@ -866,6 +887,12 @@ function writtenRows(slot, list, ctx, Criteria) {
         : `Naat (lesson ${fixed.book_lesson}, p. ${fixed.book_page}): mark from the textbook — split ${(fixed.split || []).join(', ')}`;
       rows.unshift(`<tr data-row="${esc(slot.slot)}-fixed"><td class="n">${textOf(lang === 'ur' ? '(الف)' : '(a)', ctx)}</td><td class="ans" colspan="2">${textOf(text, ctx)}</td></tr>`);
     }
+  }
+  // The slot's own head first, so a marker can tell which question a row answers.
+  if (rows.length) {
+    const label = lang === 'ur' ? slot.label_ur : shortLabel(slot.label_en);
+    const ins = choiceLine(slot, live.length, lang).instruction;
+    rows.unshift(`<tr class="slot-row" data-slot-head="${esc(slot.slot)}"><td colspan="3"><b>${textOf(label, ctx)}</b>${ins ? ` ${textOf(ins, ctx)}` : ''}</td></tr>`);
   }
   return rows;
 }

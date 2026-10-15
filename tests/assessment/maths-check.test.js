@@ -168,6 +168,58 @@ describe('parseForm', () => {
   });
 });
 
+describe('percentages (panel C9)', () => {
+  it('a decimal or fraction as a percentage', () => {
+    expect(parseForm('Write 0.45 as a percentage.')).toMatchObject({ form: 'to-percent', value: R(45n) });
+    expect(parseForm('Change 0.45 into a percentage')).toMatchObject({ form: 'to-percent', value: R(45n) });
+    expect(parseForm('Express 0.45 as a percent.')).toMatchObject({ form: 'to-percent', value: R(45n) });
+    expect(parseForm('Write 3/4 as a percentage.')).toMatchObject({ form: 'to-percent', value: R(75n) });
+    // Another number in the question means it is not this one sum.
+    expect(parseForm('Write 0.45 and 0.3 as percentages.')).toBeNull();
+  });
+
+  it('a percentage key agrees whichever way it is written', () => {
+    expect(checkOne('Write 0.45 as a percentage.', '45%').item.scheme.checked).toBe('ok');
+    expect(checkOne('Write 0.45 as a percentage.', '45 %').item.scheme.checked).toBe('ok');
+    expect(checkOne('Write 0.45 as a percentage.', '45 percent').item.scheme.checked).toBe('ok');
+    expect(checkOne('Write 0.45 as a percentage.', '0.45 × 100 = 45%').item.scheme.checked).toBe('ok');
+    expect(checkOne('Write 3/4 as a percentage.', '3/4 × 100 = 75%').item.scheme.checked).toBe('ok');
+  });
+
+  it('a wrong percentage key is replaced, keeping its % form, with a note', () => {
+    const { item, result } = checkOne('Write 0.45 as a percentage.', '4.5%');
+    expect(item.scheme.checked).toBe('replaced');
+    expect(item.answer).toBe('45%');
+    expect(item.scheme.points[1].text).toBe('45%');
+    expect(result.examJson._layout.notes[0]).toMatchObject({ computed: '45', model: '4.5' });
+
+    expect(checkOne('Write 3/4 as a percentage.', '3/4 × 100 = 70%').item.answer).toBe('3/4 × 100 = 75%');
+    expect(checkOne('Change 0.45 into a percentage', '0.45 × 100 = 4.5 percent').item.answer)
+      .toBe('0.45 × 100 = 45 percent');
+  });
+
+  it('a percentage as a decimal keeps the key\'s decimal places', () => {
+    expect(parseForm('Write 45% as a decimal')).toMatchObject({ form: 'percent-decimal', value: R(9n, 20n) });
+    expect(parseForm('Change 45% into a decimal')).toMatchObject({ form: 'percent-decimal', value: R(9n, 20n) });
+    expect(checkOne('Write 45% as a decimal', '0.45').item.scheme.checked).toBe('ok');
+    const { item } = checkOne('Change 45% into a decimal', '45 ÷ 100 = 4.5');
+    expect(item.scheme.checked).toBe('replaced');
+    expect(item.answer).toBe('45 ÷ 100 = 0.45');
+  });
+
+  it('a percentage of a number', () => {
+    expect(parseForm('What is 20% of 150?')).toMatchObject({ form: 'percent-of', value: R(30n) });
+    expect(parseForm('Find 20% of 150.')).toMatchObject({ form: 'percent-of', value: R(30n) });
+    expect(parseForm('Find 12.5% of 80')).toMatchObject({ form: 'percent-of', value: R(10n) });
+    expect(parseForm('Find 20% of 150 and add 5.')).toBeNull();
+
+    expect(checkOne('What is 20% of 150?', '20/100 × 150 = 30').item.scheme.checked).toBe('ok');
+    const { item } = checkOne('Find 20% of 150.', '20/100 × 150 = 35');
+    expect(item.scheme.checked).toBe('replaced');
+    expect(item.answer).toBe('20/100 × 150 = 30');
+  });
+});
+
 describe('verb wordings', () => {
   it('Divide 23,856 by 24 = 994 is ok', () => {
     expect(parseForm('Divide 23,856 by 24.')).toMatchObject({ form: 'divide', value: R(994n) });
