@@ -151,6 +151,8 @@ describe('Urdu: a real paper', () => {
     model('urdu');
     const { examJson } = await generate('urdu');
     const { paper, scheme } = render(examJson, 'urdu');
+    // The scheme does print the dot (its teacher's-copy band), so the rule below is tested, not vacuous.
+    expect(visible(scheme)).toContain('·');
     expect(visible(paper)).not.toMatch(DIGIT_BESIDE_DOT);
     expect(visible(scheme)).not.toMatch(DIGIT_BESIDE_DOT);
   });
@@ -199,6 +201,7 @@ describe('Social Studies: a real paper', () => {
     model('social_studies');
     const { examJson } = await generate('social_studies');
     const { paper, scheme } = render(examJson, 'social_studies');
+    expect(visible(scheme)).toContain('·');
     expect(visible(paper)).not.toMatch(DIGIT_BESIDE_DOT);
     expect(visible(scheme)).not.toMatch(DIGIT_BESIDE_DOT);
   });

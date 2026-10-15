@@ -148,6 +148,7 @@ async function main() {
   const FdeRenderer = require('../shared/services/assessment/assessment-paper-fde.renderer');
   const Browse = require('../shared/services/assessment/assessment-browse.service');
   const { htmlToPdf, closeBrowser } = require('../shared/utils/html-to-pdf');
+  const { SUBJECT_LABEL } = require('../shared/services/assessment/assessment-vocabulary');
 
   const jobs = args.jobs.map(parseJob);
   // One browser for the whole run, one render at a time.
@@ -217,7 +218,9 @@ async function main() {
           lines.push(`frame pages unreadable: ${err.message}`);
         }
         examJson = { ...examJson, _layout: { ...examJson._layout, pages: paperPages == null ? null : { paper: paperPages, scheme: null }, ...(framePages ? { frame_pages: framePages } : {}) } };
-        const paperFileName = `Grade${GRADE}_${job.subject}_FDE.pdf`;
+        // The worker's own file name (orchestrator fileName): the scheme's box prints it.
+        const label = (SUBJECT_LABEL[job.subject] || job.subject).replace(/[^A-Za-z0-9]/g, '');
+        const paperFileName = `Grade${GRADE}_${label}_FDE.pdf`;
         const schemeHtml = Renderer.renderAnswerKey({
           examJson, grade: GRADE, subject: job.subject, schoolName: null,
           pageReference: generated.pageReference, chapterTitle: null, paperFileName,
