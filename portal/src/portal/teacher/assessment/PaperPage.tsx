@@ -28,9 +28,6 @@ import { SkeletonList } from '../../components/Skeleton';
  * on (GET /config assessmentEditing), Edit and Versions.
  */
 
-// One switch for Edit on a board-pattern paper, here and on Versions (model.ts says when it turns on).
-export { FDE_EDITING };
-
 function ActionRow({ to, onPress, icon, label, first }: {
   to?: string; onPress?: () => void; icon: JSX.Element; label: string; first?: boolean;
 }) {
