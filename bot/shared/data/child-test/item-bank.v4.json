@@ -1,0 +1,690 @@
+{
+  "version": "child-test-items-v4",
+  "note": "The Challenge content registry bank. Maths ids over the v3 Set A content (params verified against item-bank.v3.json), the anchor blocks, the period list, the draw weights and the clone templates. Passage text is NOT in this file: each passage lives in passages/<passage_id>.json, immutable per id (a fix is a new id). Nothing in the serve path reads this file yet.",
+  "conventions": {
+    "passage_id": "<lang>.<kind>.<band>.<slug>",
+    "item_id": "<task>.<form>.<set>.<nn> | anchor.<block>.<nn> | <task>.<template>.<hash8>",
+    "needs_line": "the last line a child must have read to answer; questions are served in needs_line order up to 3",
+    "pools": "check and practice are disjoint; params_hash is unique per form across pools"
+  },
+  "periods": [
+    {
+      "period_id": "2026-11",
+      "starts_at": "2026-10-31T19:00:00Z",
+      "ends_at": "2026-11-30T19:00:00Z",
+      "anchor_block_version": "A1",
+      "weights_v": "w1"
+    },
+    {
+      "period_id": "2026-12",
+      "starts_at": "2026-11-30T19:00:00Z",
+      "ends_at": "2026-12-31T19:00:00Z",
+      "anchor_block_version": "A1",
+      "weights_v": "w1"
+    }
+  ],
+  "weights": {
+    "w1": {
+      "reference": 0.35,
+      "provisional_each": 0.15,
+      "provisional_max": 2,
+      "calibrated_rest": "equal share"
+    }
+  },
+  "anchor_blocks": {
+    "A1": {
+      "frozen_until": "a re-anchor ruled by the lead with a bridge study (not before 2027-04-01)",
+      "serve": "first stop of every counted Trail, both forms, fixed order, no 4-error stop, typed digits, ~40 s",
+      "pool": "check",
+      "status": "operational",
+      "items": [
+        {
+          "item_id": "anchor.A1.01",
+          "task": "missing",
+          "form": "shared",
+          "band": 1,
+          "anchor_pos": 1,
+          "params": {
+            "seq": [
+              5,
+              6,
+              7,
+              null
+            ],
+            "ans": 8
+          },
+          "v3": "missing G3 pos 0 = G5 pos 0"
+        },
+        {
+          "item_id": "anchor.A1.02",
+          "task": "missing",
+          "form": "shared",
+          "band": 1,
+          "anchor_pos": 2,
+          "params": {
+            "seq": [
+              14,
+              15,
+              null,
+              17
+            ],
+            "ans": 16
+          },
+          "v3": "missing G3 pos 1 = G5 pos 1"
+        },
+        {
+          "item_id": "anchor.A1.03",
+          "task": "missing",
+          "form": "shared",
+          "band": 2,
+          "anchor_pos": 3,
+          "params": {
+            "seq": [
+              20,
+              null,
+              40,
+              50
+            ],
+            "ans": 30
+          },
+          "v3": "missing G3 pos 2 = G5 pos 2"
+        },
+        {
+          "item_id": "anchor.A1.04",
+          "task": "missing",
+          "form": "shared",
+          "band": 3,
+          "anchor_pos": 4,
+          "params": {
+            "seq": [
+              null,
+              300,
+              400,
+              500
+            ],
+            "ans": 200
+          },
+          "v3": "missing G3 pos 3 = G5 pos 3"
+        },
+        {
+          "item_id": "anchor.A1.05",
+          "task": "missing",
+          "form": "shared",
+          "band": 1,
+          "anchor_pos": 5,
+          "params": {
+            "seq": [
+              2,
+              4,
+              6,
+              null
+            ],
+            "ans": 8
+          },
+          "v3": "missing G3 pos 4 = G5 pos 4"
+        },
+        {
+          "item_id": "anchor.A1.06",
+          "task": "missing",
+          "form": "shared",
+          "band": 3,
+          "anchor_pos": 6,
+          "params": {
+            "seq": [
+              348,
+              349,
+              null,
+              351
+            ],
+            "ans": 350
+          },
+          "v3": "missing G3 pos 5 = G5 pos 5"
+        },
+        {
+          "item_id": "anchor.A1.07",
+          "task": "missing",
+          "form": "shared",
+          "band": 3,
+          "anchor_pos": 7,
+          "params": {
+            "seq": [
+              222,
+              null,
+              226,
+              228
+            ],
+            "ans": 224
+          },
+          "v3": "missing G5 pos 6"
+        },
+        {
+          "item_id": "anchor.A1.08",
+          "task": "missing",
+          "form": "shared",
+          "band": 3,
+          "anchor_pos": 8,
+          "params": {
+            "seq": [
+              245,
+              250,
+              255,
+              null
+            ],
+            "ans": 260
+          },
+          "v3": "missing G5 pos 7"
+        },
+        {
+          "item_id": "anchor.A1.09",
+          "task": "missing",
+          "form": "shared",
+          "band": 3,
+          "anchor_pos": 9,
+          "params": {
+            "seq": [
+              null,
+              400,
+              500,
+              600
+            ],
+            "ans": 300
+          },
+          "v3": "missing G5 pos 8"
+        },
+        {
+          "item_id": "anchor.A1.10",
+          "task": "missing",
+          "form": "shared",
+          "band": 3,
+          "anchor_pos": 10,
+          "params": {
+            "seq": [
+              null,
+              900,
+              910,
+              920
+            ],
+            "ans": 890
+          },
+          "v3": "missing G5 pos 9"
+        }
+      ]
+    },
+    "A2": {
+      "status": "provisional",
+      "serve_from_period": "2027-04",
+      "serve": "the silent try-out slot only until the 2027-04 period; from then a second block after A1, scored apart; never replaces an A1 item",
+      "registry_note": "the registry rows carry anchor=false and anchor_block NULL at launch (an anchor row must be operational); each item is marked anchor_block_candidate A2 here instead",
+      "pool": "check",
+      "items": [
+        {
+          "item_id": "anchor.A2.01",
+          "task": "bigger",
+          "form": "shared",
+          "band": 3,
+          "anchor_pos": 1,
+          "anchor_block_candidate": "A2",
+          "params": {
+            "a": 0.7,
+            "b": 0.65,
+            "ans": 0.7
+          }
+        },
+        {
+          "item_id": "anchor.A2.02",
+          "task": "bigger",
+          "form": "shared",
+          "band": 3,
+          "anchor_pos": 2,
+          "anchor_block_candidate": "A2",
+          "params": {
+            "a": 2087,
+            "b": 2078,
+            "ans": 2087
+          }
+        },
+        {
+          "item_id": "anchor.A2.03",
+          "task": "bigger",
+          "form": "shared",
+          "band": 3,
+          "anchor_pos": 3,
+          "anchor_block_candidate": "A2",
+          "params": {
+            "a": 498,
+            "b": 501,
+            "ans": 501
+          }
+        },
+        {
+          "item_id": "anchor.A2.04",
+          "task": "bigger",
+          "form": "shared",
+          "band": 3,
+          "anchor_pos": 4,
+          "anchor_block_candidate": "A2",
+          "params": {
+            "a": 1.25,
+            "b": 1.3,
+            "ans": 1.3
+          }
+        }
+      ]
+    }
+  },
+  "item_sets": {
+    "bigger.G3.A": {
+      "task": "bigger",
+      "form": "G3",
+      "pool": "check",
+      "status": "operational",
+      "note": "positions 01-06 are the same pairs on both forms (v3 discrimination pos 0-5); 07-10 are form-specific (v3 pos 6-9)",
+      "items": [
+        {
+          "item_id": "bigger.G3.A.01",
+          "band": 1,
+          "params": {
+            "a": 7,
+            "b": 5,
+            "ans": 7
+          },
+          "v3": "discrimination G3 pos 0"
+        },
+        {
+          "item_id": "bigger.G3.A.02",
+          "band": 1,
+          "params": {
+            "a": 11,
+            "b": 24,
+            "ans": 24
+          },
+          "v3": "discrimination G3 pos 1"
+        },
+        {
+          "item_id": "bigger.G3.A.03",
+          "band": 1,
+          "params": {
+            "a": 39,
+            "b": 23,
+            "ans": 39
+          },
+          "v3": "discrimination G3 pos 2"
+        },
+        {
+          "item_id": "bigger.G3.A.04",
+          "band": 1,
+          "params": {
+            "a": 58,
+            "b": 49,
+            "ans": 58
+          },
+          "v3": "discrimination G3 pos 3"
+        },
+        {
+          "item_id": "bigger.G3.A.05",
+          "band": 1,
+          "params": {
+            "a": 65,
+            "b": 67,
+            "ans": 67
+          },
+          "v3": "discrimination G3 pos 4"
+        },
+        {
+          "item_id": "bigger.G3.A.06",
+          "band": 1,
+          "params": {
+            "a": 94,
+            "b": 78,
+            "ans": 94
+          },
+          "v3": "discrimination G3 pos 5"
+        },
+        {
+          "item_id": "bigger.G3.A.07",
+          "band": 2,
+          "params": {
+            "a": 146,
+            "b": 153,
+            "ans": 153
+          },
+          "v3": "discrimination G3 pos 6"
+        },
+        {
+          "item_id": "bigger.G3.A.08",
+          "band": 2,
+          "params": {
+            "a": 287,
+            "b": 534,
+            "ans": 534
+          },
+          "v3": "discrimination G3 pos 7"
+        },
+        {
+          "item_id": "bigger.G3.A.09",
+          "band": 2,
+          "params": {
+            "a": 623,
+            "b": 632,
+            "ans": 632
+          },
+          "v3": "discrimination G3 pos 8"
+        },
+        {
+          "item_id": "bigger.G3.A.10",
+          "band": 2,
+          "params": {
+            "a": 867,
+            "b": 965,
+            "ans": 965
+          },
+          "v3": "discrimination G3 pos 9"
+        }
+      ]
+    },
+    "bigger.G5.A": {
+      "task": "bigger",
+      "form": "G5",
+      "pool": "check",
+      "status": "operational",
+      "note": "positions 01-06 are the same pairs on both forms (v3 discrimination pos 0-5); 07-10 are form-specific (v3 pos 6-9)",
+      "items": [
+        {
+          "item_id": "bigger.G5.A.01",
+          "band": 1,
+          "params": {
+            "a": 7,
+            "b": 5,
+            "ans": 7
+          },
+          "v3": "discrimination G5 pos 0"
+        },
+        {
+          "item_id": "bigger.G5.A.02",
+          "band": 1,
+          "params": {
+            "a": 11,
+            "b": 24,
+            "ans": 24
+          },
+          "v3": "discrimination G5 pos 1"
+        },
+        {
+          "item_id": "bigger.G5.A.03",
+          "band": 1,
+          "params": {
+            "a": 39,
+            "b": 23,
+            "ans": 39
+          },
+          "v3": "discrimination G5 pos 2"
+        },
+        {
+          "item_id": "bigger.G5.A.04",
+          "band": 1,
+          "params": {
+            "a": 58,
+            "b": 49,
+            "ans": 58
+          },
+          "v3": "discrimination G5 pos 3"
+        },
+        {
+          "item_id": "bigger.G5.A.05",
+          "band": 1,
+          "params": {
+            "a": 65,
+            "b": 67,
+            "ans": 67
+          },
+          "v3": "discrimination G5 pos 4"
+        },
+        {
+          "item_id": "bigger.G5.A.06",
+          "band": 1,
+          "params": {
+            "a": 94,
+            "b": 78,
+            "ans": 94
+          },
+          "v3": "discrimination G5 pos 5"
+        },
+        {
+          "item_id": "bigger.G5.A.07",
+          "band": 3,
+          "params": {
+            "a": 0.6,
+            "b": 0.8,
+            "ans": 0.8
+          },
+          "v3": "discrimination G5 pos 6"
+        },
+        {
+          "item_id": "bigger.G5.A.08",
+          "band": 3,
+          "params": {
+            "a": 1963,
+            "b": 1954,
+            "ans": 1963
+          },
+          "v3": "discrimination G5 pos 7"
+        },
+        {
+          "item_id": "bigger.G5.A.09",
+          "band": 2,
+          "params": {
+            "a": 381,
+            "b": 279,
+            "ans": 381
+          },
+          "v3": "discrimination G5 pos 8"
+        },
+        {
+          "item_id": "bigger.G5.A.10",
+          "band": 3,
+          "params": {
+            "a": 79.5,
+            "b": 80.5,
+            "ans": 80.5
+          },
+          "v3": "discrimination G5 pos 9"
+        }
+      ]
+    }
+  },
+  "items": [
+    {
+      "item_id": "missing.G3.A.07",
+      "task": "missing",
+      "form": "G3",
+      "band": 1,
+      "pool": "check",
+      "status": "operational",
+      "params": {
+        "seq": [
+          28,
+          null,
+          24,
+          22
+        ],
+        "ans": 26
+      },
+      "v3": "missing G3 pos 6"
+    },
+    {
+      "item_id": "missing.G3.A.08",
+      "task": "missing",
+      "form": "G3",
+      "band": 2,
+      "pool": "check",
+      "status": "operational",
+      "params": {
+        "seq": [
+          30,
+          35,
+          null,
+          45
+        ],
+        "ans": 40
+      },
+      "v3": "missing G3 pos 7"
+    },
+    {
+      "item_id": "missing.G3.A.09",
+      "task": "missing",
+      "form": "G3",
+      "band": 3,
+      "pool": "check",
+      "status": "operational",
+      "params": {
+        "seq": [
+          550,
+          540,
+          530,
+          null
+        ],
+        "ans": 520
+      },
+      "v3": "missing G3 pos 8"
+    },
+    {
+      "item_id": "missing.G3.A.10",
+      "task": "missing",
+      "form": "G3",
+      "band": 2,
+      "pool": "check",
+      "status": "operational",
+      "params": {
+        "seq": [
+          3,
+          8,
+          null,
+          18
+        ],
+        "ans": 13
+      },
+      "v3": "missing G3 pos 9"
+    }
+  ],
+  "templates": {
+    "check": {
+      "missing.seq.check": {
+        "steps": [
+          1,
+          2,
+          5,
+          10,
+          100
+        ],
+        "start_ranges": [
+          [
+            1,
+            60
+          ],
+          [
+            101,
+            160
+          ],
+          [
+            301,
+            360
+          ],
+          [
+            601,
+            660
+          ]
+        ],
+        "blank_pos": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "pool": "check"
+      },
+      "bigger.check": {
+        "ranges": [
+          [
+            5,
+            99
+          ],
+          [
+            100,
+            999
+          ],
+          [
+            1000,
+            2500
+          ]
+        ],
+        "diff_min": 2,
+        "pool": "check"
+      }
+    },
+    "practice": {
+      "missing.seq.practice": {
+        "steps": [
+          3,
+          4,
+          20,
+          25,
+          50
+        ],
+        "start_ranges": [
+          [
+            61,
+            100
+          ],
+          [
+            161,
+            300
+          ],
+          [
+            361,
+            600
+          ],
+          [
+            661,
+            900
+          ]
+        ],
+        "blank_pos": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "pool": "practice"
+      },
+      "bigger.practice": {
+        "ranges": [
+          [
+            12,
+            96
+          ],
+          [
+            107,
+            992
+          ],
+          [
+            1007,
+            2493
+          ]
+        ],
+        "diff_rule": "difference offset +7 and never equal to any check difference",
+        "pool": "practice"
+      },
+      "numid.practice": {
+        "n": [
+          0,
+          10
+        ],
+        "layouts": [
+          "scatter",
+          "line"
+        ],
+        "pool": "practice"
+      }
+    }
+  }
+}
