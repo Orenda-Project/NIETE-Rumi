@@ -137,6 +137,16 @@ describe('bind, then the door', () => {
     expect(events('web_quiz.msg_sent')).toEqual([{ trigger: 'bind_reply', initiated: 'user', recipient: 'family', usd: 0.015, cls: null, reason: 'bind', w: 's' }]);
   });
 
+  test('the binding row names the code that made it, and a renewal names the renewing code', async () => {
+    seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0]), code('JUGNU-7KQ2X', KIDS[0])] });
+    await say('JUGNU-AB2CD');
+    expect(fake.db.child_phone_bindings[0]).toMatchObject({ canonical_id: KIDS[0], code_id: 'JUGNU-AB2CD' });
+    redisService.__keys.clear();
+    await say('JUGNU-7KQ2X');
+    expect(fake.db.child_phone_bindings).toHaveLength(1);
+    expect(fake.db.child_phone_bindings[0]).toMatchObject({ code_id: 'JUGNU-7KQ2X' });
+  });
+
   test('already bound → renewed, not refused; the same one reply', async () => {
     seed({ students: [student(0)], codes: [code('JUGNU-AB2CD', KIDS[0])], bindings: [binding(KIDS[0])] });
     await say('JUGNU-AB2CD');

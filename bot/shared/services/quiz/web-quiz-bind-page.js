@@ -122,7 +122,10 @@ async function undo({ code } = {}) {
     // is the child's active row carrying that instant; never "the newest" (another family's phone may be newer).
     const usedMs = Date.parse(row.used_at);
     const stamped = (b) => [b.confirmed_at, b.last_played_at].some((t) => t && Date.parse(t) === usedMs);
-    const mine = Number.isFinite(usedMs) ? (await Bindings.activeForChild(row.canonical_id) || []).find(stamped) : null;
+    const active = (await Bindings.activeForChild(row.canonical_id)) || [];
+    // the row that names this code (code_id) first; a row written before that column existed, by the stamped instant
+    const mine = active.find((b) => b.code_id && String(b.code_id) === String(code))
+      || (Number.isFinite(usedMs) ? active.find((b) => !b.code_id && stamped(b)) : null);
     if (!mine) return { ok: false, error: 'not_bound' };
     // The repo returns the erased rows, each with the phone_norm it held before the erase, so the door forgets each.
     const erased = (await Bindings.eraseOne(mine.id, 'page_undo')) || [];
@@ -214,7 +217,7 @@ async function recordHubPick({ chosen, rows = [], device, src }) {
     const key = hubPickKey(canonicalId, device);
     if (!key) return null;
     const g = Homonym.guard(rows.map((r) => ({ id: String(r.id), first: r.student_name })), { surface: 'who' }).find((r) => r.id === String(chosen.id));
-    const rec = { id_src: src === 'wa' ? 'hub_chip' : 'remembered', id_confidence: 'high', homonym_in_list: Boolean(g && g.homonym_in_list), canonical_id: canonicalId };
+    const rec = { id_src: src === 'wa' ? 'hub_chip' : 'remembered', id_confidence: 'high', homonym_in_list: Boolean(g && g.homonym_in_list), canonical_id: canonicalId, at: Date.now() };
     await require('../cache/railway-redis.service').set(key, rec, PICK_TTL_S);
     logEvent('web_quiz.id_pick', { w: 's', id_src: rec.id_src, id_confidence: rec.id_confidence, homonym_in_list: rec.homonym_in_list, chips_k: rows.length });
     return rec;
@@ -247,6 +250,7 @@ async function recordPick({ sessionId, via, studentId } = {}) {
       homonym_in_list: h.homonym_in_list,
       canonical_id: canonicalId,
       ...(src.mode ? { mode: src.mode } : {}),
+      at: Date.now(),   // the instant of the pick, for a per-visit guard at the serve
     };
     const redis = require('../cache/railway-redis.service');
     await redis.set(PICK_PREFIX + sessionId, rec, PICK_TTL_S);

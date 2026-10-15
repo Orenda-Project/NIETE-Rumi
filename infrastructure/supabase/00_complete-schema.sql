@@ -7169,6 +7169,7 @@ CREATE TABLE IF NOT EXISTS child_phone_bindings (
   revoked_at     timestamptz,
   revoked_by     text        CHECK (revoked_by IN ('page_undo','stop','expiry','teacher','teacher_claim')),
   rebind_of      uuid        REFERENCES child_phone_bindings(id),
+  code_id        text        REFERENCES child_bind_codes(code),   -- the JUGNU- code that made / last renewed it (child_phone_bindings_code.sql)
   CHECK (phone_norm IS NULL OR revoked_at IS NULL)  -- a revoked row never keeps the phone
 );
 CREATE UNIQUE INDEX IF NOT EXISTS cpb_active_pair
