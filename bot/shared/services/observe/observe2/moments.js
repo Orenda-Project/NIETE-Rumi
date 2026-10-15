@@ -266,17 +266,38 @@ async function gradeFidelity(form, transcript, audioDurationSeconds, fidelityDep
       };
     } else {
       const P = require('./added-plan');
-      const read = await P.readAddedPlan(added, planDeps);
-      planSource = { kind: read.kind, files: read.files, read: read.read, parsers: read.parsers, chars: read.text.length };
-      if (!read.text) {
-        logToFile('[observe2] the added lesson plan could not be read: not graded', { formId: form.id, ...planSource }, 'error');
-        return graded({ status: 'lp_unreadable', plan_source: planSource });
+      const files = P.sharedDownloads(planDeps);
+      // A file that is one of Rumi's own plans is graded from that plan's steps, like a pick (bd-eal7zn.2).
+      const rumiPlan = await P.matchRumiPlan(added, files);
+      if (rumiPlan) {
+        const { parseCorpusLessonId } = require('../../coaching/subject-resolution');
+        const parsed = parseCorpusLessonId(rumiPlan.lesson_id) || {};
+        const versioned = rumiPlan.asset_kind === 'lesson';
+        planSource = { kind: added.kind, files: Array.isArray(added.keys) ? added.keys.length : 0, rumi_plan: rumiPlan };
+        logToFile("[observe2] the added lesson plan is one of the bot's own plans: graded from its steps", {
+          formId: form.id, lessonId: rumiPlan.lesson_id, assetId: rumiPlan.asset_id, kind: rumiPlan.asset_kind,
+        });
+        input = {
+          corpusKey: {
+            lesson_id: rumiPlan.lesson_id,
+            version_stamp: versioned ? rumiPlan.version_stamp : null,
+            content_hash: versioned ? rumiPlan.content_hash : null,
+          },
+          meta: { lesson_id: rumiPlan.lesson_id, ...(parsed.subject ? { subject: parsed.subject } : {}), ...(parsed.grade ? { grade: String(parsed.grade) } : {}) },
+        };
+      } else {
+        const read = await P.readAddedPlan(added, files);
+        planSource = { kind: read.kind, files: read.files, read: read.read, parsers: read.parsers, chars: read.text.length };
+        if (!read.text) {
+          logToFile('[observe2] the added lesson plan could not be read: not graded', { formId: form.id, ...planSource }, 'error');
+          return graded({ status: 'lp_unreadable', plan_source: planSource });
+        }
+        if (await P.looksLikeLessonPlan(read.text, files) === false) {
+          logToFile('[observe2] the added lesson plan does not read as a lesson plan: not graded', { formId: form.id, ...planSource }, 'warn');
+          return graded({ status: 'lp_not_lesson_plan', plan_source: planSource });
+        }
+        input = { uploadedText: read.text, meta: {} };
       }
-      if (await P.looksLikeLessonPlan(read.text, planDeps) === false) {
-        logToFile('[observe2] the added lesson plan does not read as a lesson plan: not graded', { formId: form.id, ...planSource }, 'warn');
-        return graded({ status: 'lp_not_lesson_plan', plan_source: planSource });
-      }
-      input = { uploadedText: read.text, meta: {} };
     }
     const photos = await photoEvidence(form, photoDeps);
     const out = await F.computeLpFidelity({
