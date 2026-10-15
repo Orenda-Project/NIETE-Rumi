@@ -9440,6 +9440,13 @@ CREATE INDEX idx_lp_opens_user_recent ON public.niete_lp_opens USING btree (user
 
 
 --
+-- Name: idx_lp_requests_source_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lp_requests_source_created ON public.lesson_plan_requests USING btree (source, created_at DESC) WHERE (source IS NOT NULL);
+
+
+--
 -- Name: idx_lp_requests_status; Type: INDEX; Schema: public; Owner: -
 --
 
