@@ -121,10 +121,12 @@ const anchorServesAny = (rows, block) => {
 };
 
 /**
- * A record row of this stop in this period exists (any status: the record was decided when it was served). The record
+ * A record row of this stop in this period exists that was played (scoring, scored or failed; a row served and left,
+ * status served or abandoned, leaves the month's record open). The record
  * key is (stop, language) for read and listen, the stop alone for the maths stops (ITEMS §5.6, item 14).
  */
 const countedThisPeriod = (rows, stop, periodId, lang = null) => (rows || []).some((r) => r.exercise === stop && r.period_id === periodId && r.record === true
+  && r.status !== 'served' && r.status !== 'abandoned'   // seenIdsOf still keeps its passage: the re-serve draws another
   && (!lang || (stop !== 'read' && stop !== 'listen') || r.lang === lang));
 
 /**
@@ -367,11 +369,23 @@ async function childRows(canonicalId, studentIds = [], { step = 's' } = {}) {
 // to the column gate as challenge_draws columns).
 const drawLogFailure = (code, message) => ({ code: code || null, error: String(message || '').slice(0, 160) });
 
+// An "on its way" outcome is logged once per child × stop × period an hour (a child reopening the stop is not news).
+const ON_ITS_WAY_LOG_MS = 60 * 60 * 1000;
+async function onItsWayLoggedRecently(row) {
+  const since = new Date((Date.parse(row.drawn_at || '') || Date.now()) - ON_ITS_WAY_LOG_MS).toISOString();
+  const { data, error } = await supabase.from('challenge_draws').select('draw_id').eq('canonical_id', row.canonical_id).eq('stop', row.stop)
+    .eq('period_id', row.period_id).eq('outcome', 'on_its_way').gte('drawn_at', since).limit(1);
+  return !error && Array.isArray(data) && data.length > 0;
+}
+
 /** One challenge_draws row; never throws (the run row's meta.draw is the second copy). */
 async function logDraw(row) {
   try {
+    if (row && row.outcome === 'on_its_way' && row.canonical_id && row.period_id && (await onItsWayLoggedRecently(row))) return false;
     const { error } = await supabase.from('challenge_draws').insert(row);
     if (!error) return true;
+    // an on-its-way row already there (the partial unique index on it answers 23505): already logged, not a failure
+    if (error.code === '23505' && row.outcome === 'on_its_way') return false;
     logError('web_quiz.ch_draw_log_failed', drawLogFailure(error.code, error.message));
   } catch (e) {
     logError('web_quiz.ch_draw_log_failed', drawLogFailure(null, e && e.message || e));

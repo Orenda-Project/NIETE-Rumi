@@ -62,6 +62,8 @@ const BASE_FLAGS = ['web_quiz_challenge', 'web_quiz_challenge_record', 'web_quiz
 const V2 = 'web_quiz_challenge_v2';
 const PERIOD = 'web_quiz_challenge_period';
 const POOL = 'web_quiz_challenge_pool';
+// the record's parent switch (web_quiz_identity_canon, under web_quiz_hub): a record needs it on
+const CANON_ON = ['web_quiz_hub', 'web_quiz_identity_canon'];
 const on = (...keys) => keys.forEach((key) => db.app_settings.push({ key, value: true }));
 
 const DAY = 24 * 3600 * 1000;
@@ -117,6 +119,8 @@ beforeEach(() => {
   };
   Object.assign(supabase, guardColumns(makeFake(db)));
   Ch.__reset();
+  // the hub and identity switches are cached 30 s: each test reads its own
+  for (const m of ['web-quiz-hub-flags', 'web-quiz-identity-flags']) require(`../../../shared/services/quiz/${m}`)._resetCache();
   jest.clearAllMocks();
   r2.headObject.mockImplementation(async () => ({ exists: true, sizeBytes: 400000, contentType: 'audio/webm' }));
 });
@@ -219,7 +223,7 @@ describe('1 · golden: every new switch off, or only the children on — today, 
 // ── 3–6 · the draw: logged twice, never re-served, one band lower, then on its way ─────────────────────────
 
 describe('3 · every draw is logged in challenge_draws AND meta.draw', () => {
-  beforeEach(() => on(V2, PERIOD, POOL));
+  beforeEach(() => on(V2, ...CANON_ON, PERIOD, POOL));
 
   test('served: a grade-3 child draws in band 1 (entry_grade); the row is inserted at serve with the draw', async () => {
     const ex = await Ch.exercise(hub(K3), 'read', D);
@@ -267,13 +271,13 @@ describe('3 · every draw is logged in challenge_draws AND meta.draw', () => {
     expect(b).toEqual(a);
     expect(db.web_quiz_challenge_runs).toHaveLength(2);
     expect(starts()).toEqual([]);
-    expect(db.challenge_draws).toHaveLength(2);
+    expect(db.challenge_draws).toHaveLength(1);   // one on-its-way log per child × stop × period an hour
     expect(db.challenge_draws[0]).toMatchObject({ run_id: null, outcome: 'on_its_way', eligible: [], eligible_n: 0, p: null, served_id: null, band: 1 });
   });
 });
 
 describe('4 · never re-serve (any status, any mode; twins both ways)', () => {
-  beforeEach(() => on(V2, PERIOD, POOL));
+  beforeEach(() => on(V2, ...CANON_ON, PERIOD, POOL));
 
   test('a row on ur.read.2.setA (abandoned practice) → never drawn; a row on its listening twin → the read is gone too', async () => {
     db.challenge_passages.push(reg('ur.read.2.kite', { status: 'provisional' }));
@@ -299,9 +303,10 @@ describe('4 · never re-serve (any status, any mode; twins both ways)', () => {
 
 describe('7 · record decided at serve: one per child × stop × period', () => {
   test('first serve record=true before any submit; the second in the period record=false practice; next period record=true again', async () => {
-    on(V2, PERIOD);
+    on(V2, ...CANON_ON, PERIOD);
     const a = await Ch.exercise(hub(), 'read', D);
     expect(rowOf(a.ct)).toMatchObject({ status: 'served', record: true, mode: 'check', period_id: '2026-11', passage_id: 'en.read.2.setA', band: 2, set: 'A', bank_version: 'child-test-items-v3', exposure_no: 1 });
+    rowOf(a.ct).status = 'scored';   // played: a served-and-left row would leave the record open
     const b = await Ch.exercise(hub(), 'read', D);
     expect(rowOf(b.ct)).toMatchObject({ status: 'served', record: false, mode: 'practice', exposure_no: 2 });
     expect(b).toMatchObject({ practice_round: true, mode: 'practice' });
@@ -318,7 +323,7 @@ describe('7 · record decided at serve: one per child × stop × period', () => 
   });
 
   test('the submit UPDATES the served row (one row per run), keeps the provenance and meta.draw, and a second submit is refused', async () => {
-    on(V2, PERIOD, POOL);
+    on(V2, ...CANON_ON, PERIOD, POOL);
     const ex = await Ch.exercise(hub(K5), 'read', D);
     expect(rowOf(ex.ct).passage_id).toBe('en.read.2.setA');
     const draw = rowOf(ex.ct).meta.draw;
@@ -334,7 +339,7 @@ describe('7 · record decided at serve: one per child × stop × period', () => 
   });
 
   test('another process scores the served row (memory gone): the warm-up is scored on its A1 items, no stop', async () => {
-    on(V2, PERIOD, POOL);
+    on(V2, ...CANON_ON, PERIOD, POOL);
     const ex = await Ch.exercise(hub(), 'missing', D);
     Ch.__reset();
     const r = await Ch.submit({ ct: ex.ct, answers: missingAnswers(ex.items, 5), ms: 40000 });
@@ -343,7 +348,7 @@ describe('7 · record decided at serve: one per child × stop × period', () => 
   });
 
   test('listen under _v2: the served row becomes scoring when the questions are served, then scored', async () => {
-    on(V2, PERIOD);
+    on(V2, ...CANON_ON, PERIOD);
     const { ct } = await Ch.exercise(hub(), 'listen', D);
     expect(rowOf(ct)).toMatchObject({ status: 'served', passage_id: 'en.listen.2.setA', record: true });
     const qs = (await Ch.questions({ ct })).questions;
@@ -356,7 +361,7 @@ describe('7 · record decided at serve: one per child × stop × period', () => 
 
 describe('8 · exposure 2 never counted', () => {
   test('the bigger set a second time (next period) is exposure 2, record=false', async () => {
-    on(V2, PERIOD, POOL);
+    on(V2, ...CANON_ON, PERIOD, POOL);
     const a = await Ch.exercise(hub(), 'bigger', D);
     expect(rowOf(a.ct)).toMatchObject({ item_set_id: 'bigger.G3.A', exposure_no: 1, record: true, mode: 'check' });
     expect(rowOf(a.ct).meta.draw).toMatchObject({ outcome: 'served', band_reason: 'set', p: 1, period_set: 'bigger.G3.2026-11' });
@@ -368,7 +373,7 @@ describe('8 · exposure 2 never counted', () => {
 
 describe('9 · practice is never a record, whatever the switches', () => {
   test('all three on, the caller asks for practice → record=false', async () => {
-    on(V2, PERIOD, POOL);
+    on(V2, ...CANON_ON, PERIOD, POOL);
     const a = await Ch.exercise(hub(), 'missing', { ...D, mode: 'practice' });
     expect(rowOf(a.ct)).toMatchObject({ mode: 'practice', record: false });
   });
@@ -377,7 +382,7 @@ describe('9 · practice is never a record, whatever the switches', () => {
 // ── 10 · entry band per fixed grade ─────────────────────────────────────────────────────────────────────
 
 describe('10 · the draw band per fixed grade', () => {
-  beforeEach(() => on(V2, PERIOD, POOL));
+  beforeEach(() => on(V2, ...CANON_ON, PERIOD, POOL));
 
   test('grade 2 → band 1; grade 5 → band 2', async () => {
     expect(rowOf((await Ch.exercise(hub(K2), 'read', D)).ct)).toMatchObject({ band: 1 });
@@ -411,7 +416,7 @@ describe('10 · the draw band per fixed grade', () => {
 // ── 11 · the A1 warm-up and the silent try-out item ───────────────────────────────────────────────────────
 
 describe('11 · the A1 warm-up', () => {
-  beforeEach(() => on(V2, PERIOD, POOL));
+  beforeEach(() => on(V2, ...CANON_ON, PERIOD, POOL));
   const A1 = () => Bank.anchorBlock('A1').map((i) => ({ item_id: i.item_id, seq: i.seq.slice(), answer: i.answer }));
 
   test('10 items, identical for G3 and G5, stop_after 0, anchor_block A1; anchor_exposure_no 1, a practice warm-up does not move it, 2 next period', async () => {
@@ -422,7 +427,8 @@ describe('11 · the A1 warm-up', () => {
     expect(g3.practice).toEqual(g5.practice);
     expect(g3).toMatchObject({ stop_after: 0, mode: 'check', anchor_block: 'A1' });
     expect(rowOf(g3.ct)).toMatchObject({ anchor_block: 'A1', anchor_exposure_no: 1, mode: 'check', record: true, band: null });
-    const again = await Ch.exercise(hub(K3), 'missing', D);       // same period: practice
+    rowOf(g3.ct).status = 'scored';
+    const again = await Ch.exercise(hub(K3), 'missing', D);       // same period, the record played: practice
     expect(rowOf(again.ct)).toMatchObject({ mode: 'practice', record: false, anchor_exposure_no: 2 });
     db.web_quiz_challenge_runs.forEach((r) => { r.period_id = '2026-10'; });
     const next = await Ch.exercise(hub(K3), 'missing', D);
@@ -460,7 +466,7 @@ describe('11 · the A1 warm-up', () => {
 
 describe('12 · ch_start server fields', () => {
   test('_v2 on: EVENTS row 4 (no kid); anchor fields only on the warm-up', async () => {
-    on(V2, PERIOD, POOL);
+    on(V2, ...CANON_ON, PERIOD, POOL);
     const r = await Ch.exercise(hub(K5), 'read', D);
     const m = await Ch.exercise(hub(K5), 'missing', D);
     const [sr, sm] = starts();
@@ -479,7 +485,7 @@ describe('12 · ch_start server fields', () => {
 
 describe('the menu under _period and _pool', () => {
   test('_pool: warm-up → read → listen → bigger, the warm-up carries anchor_block A1; _period: done from this period\'s record rows', async () => {
-    on(V2, PERIOD, POOL);
+    on(V2, ...CANON_ON, PERIOD, POOL);
     db.web_quiz_challenge_runs.push(
       { id: 'm1', student_id: K3, canonical_id: K3, exercise: 'bigger', status: 'scored', score: { correct: 9, n: 10 }, mode: 'check', record: true, period_id: '2026-11', item_set_id: 'bigger.G3.A', created_at: iso(Date.now() - 1000) },
       { id: 'm2', student_id: K3, canonical_id: K3, exercise: 'read', lang: 'en', status: 'scored', score: { correct: 40 }, meta: {}, mode: 'check', record: true, period_id: '2026-10', passage_id: 'en.read.2.setA', created_at: '2026-10-05T00:00:00Z' },
@@ -498,7 +504,7 @@ describe('questions reached by the stop line', () => {
   const scoredStop = (ct, attempted) => Object.assign(rowOf(ct), { status: 'scored', score: { correct: 0, attempted, stopped: true }, wcpm: 0 });
 
   test('_v2 + _pool: a reader stopped in line 1 gets the line-1 tap questions, in needs_line order, at most 3; tap_ok governs', async () => {
-    on(V2, PERIOD, POOL);
+    on(V2, ...CANON_ON, PERIOD, POOL);
     const ex = await Ch.exercise(hub(K3), 'read', D);
     scoredStop(ex.ct, 3);
     const qs = (await Ch.questions({ ct: ex.ct })).questions;
@@ -520,21 +526,21 @@ describe('questions reached by the stop line', () => {
 
 describe('admin_mode and sample_arm under _v2', () => {
   test('an ordinary home run: admin_mode self_run, sample_arm null, no anchor_serves_any off the anchor block (columns and meta)', async () => {
-    on(V2, PERIOD);
+    on(V2, ...CANON_ON, PERIOD);
     const ex = await Ch.exercise(hub(), 'bigger', D);
     expect(rowOf(ex.ct).meta).toMatchObject({ admin_mode: 'self_run', sample_arm: null });
     expect(rowOf(ex.ct)).toMatchObject({ admin_mode: 'self_run', sample_arm: null, anchor_serves_any: null });
   });
 
   test('the class round (mode from the caller): mode class_round, admin_mode teacher_present, sample_arm class_round, never a record', async () => {
-    on(V2, PERIOD, POOL);
+    on(V2, ...CANON_ON, PERIOD, POOL);
     const ex = await Ch.exercise(hub(), 'missing', { ...D, mode: 'class_round' });
     expect(rowOf(ex.ct)).toMatchObject({ mode: 'class_round', record: false, meta: expect.objectContaining({ admin_mode: 'teacher_present', sample_arm: 'class_round' }) });
     expect(rowOf(ex.ct)).toMatchObject({ admin_mode: 'teacher_present', sample_arm: 'class_round', anchor_serves_any: 1 });
   });
 
   test('web_quiz_class_week on but the class-week module absent: nothing more is written, the serve goes on', async () => {
-    on(V2, PERIOD, 'web_quiz_class_week');
+    on(V2, ...CANON_ON, PERIOD, 'web_quiz_class_week');
     const ex = await Ch.exercise(hub(), 'bigger', D);
     expect(rowOf(ex.ct).meta).toMatchObject({ admin_mode: 'self_run', sample_arm: null });
   });
@@ -588,7 +594,7 @@ describe('the class-week sample arm (web-quiz-challenge-draw.adminFields)', () =
 
 describe('M7: only a first exposure is a record (anchors excepted)', () => {
   test('_pool: a fresh passage in the next period IS a record; the A1 warm-up is a record every period', async () => {
-    on(V2, PERIOD, POOL);
+    on(V2, ...CANON_ON, PERIOD, POOL);
     const a = await Ch.exercise(hub(K3), 'read', D);
     expect(rowOf(a.ct)).toMatchObject({ record: true, exposure_no: 1 });
     const w1 = await Ch.exercise(hub(K3), 'missing', D);
@@ -604,7 +610,7 @@ describe('M7: only a first exposure is a record (anchors excepted)', () => {
 
 describe('M8: the form and the items come from the FIXED grade', () => {
   test('fixed grade 5 on a grade-3 visit: row form G5, the G5 items served and scored', async () => {
-    on(V2, PERIOD);
+    on(V2, ...CANON_ON, PERIOD);
     db.child_identity = [{ canonical_id: K3, year_code: require('../../../shared/services/quiz/web-quiz-challenge-draw').yearCode(new Date()), fixed_grade: 5 }];
     const ex = await Ch.exercise(hub(K3), 'missing', D);
     const g5 = Bank.getTaskSpec({ grade: 5, set: 'A', task: 'ma.missing' });
@@ -624,7 +630,7 @@ describe('the measurement events with _v2 (web_quiz_events_v2 on)', () => {
   beforeEach(() => {
     process.env.WEB_QUIZ_KID_KEY = 'k'.repeat(48);
     process.env.WEB_QUIZ_KID_KEY_V = '1';
-    on(V2, PERIOD, 'web_quiz_hub', 'web_quiz_events_v2');
+    on(V2, ...CANON_ON, PERIOD, 'web_quiz_hub', 'web_quiz_events_v2');
     require('../../../shared/services/quiz/web-quiz-hub-flags')._resetCache();
     spy = jest.spyOn(Roster, 'canonicalStudentId').mockResolvedValue(CANON);
   });
@@ -657,7 +663,7 @@ describe('the measurement events with _v2 (web_quiz_events_v2 on)', () => {
 
 describe('M6: the helped column at finish', () => {
   test('a warm-up submitted with helped:true → helped; none sent → not_asked; false → self', async () => {
-    on(V2, PERIOD);
+    on(V2, ...CANON_ON, PERIOD);
     const a = await Ch.exercise(hub(), 'missing', D);
     await Ch.submit({ ct: a.ct, answers: missingAnswers(a.items), ms: 30000, helped: true });
     expect(rowOf(a.ct)).toMatchObject({ status: 'scored', helped: 'helped', meta: expect.objectContaining({ helped: true }) });
@@ -673,7 +679,7 @@ describe('M6: the helped column at finish', () => {
   });
 
   test('the Trail page sends strings: helped:"helped" → helped, helped:"self" → self', async () => {
-    on(V2, PERIOD);
+    on(V2, ...CANON_ON, PERIOD);
     const a = await Ch.exercise(hub(), 'missing', D);
     await Ch.submit({ ct: a.ct, answers: missingAnswers(a.items), ms: 30000, helped: 'helped' });
     expect(rowOf(a.ct)).toMatchObject({ status: 'scored', helped: 'helped' });
@@ -694,9 +700,10 @@ describe('M6: the helped column at finish', () => {
 
 describe('ITEMS §5.6 (item 14): the record per (stop, language) for read and listen', () => {
   test('EN read then UR read in one month → two records; EN twice → one', async () => {
-    on(V2, PERIOD);
+    on(V2, ...CANON_ON, PERIOD);
     const en = await Ch.exercise(hub(), 'read', D);
     const ur = await Ch.exercise(hub(), 'read', { ...D, lang: 'ur' });
+    rowOf(en.ct).status = 'scored';
     const en2 = await Ch.exercise(hub(), 'read', D);
     expect(rowOf(en.ct)).toMatchObject({ lang: 'en', record: true });
     expect(rowOf(ur.ct)).toMatchObject({ lang: 'ur', record: true });
@@ -704,8 +711,9 @@ describe('ITEMS §5.6 (item 14): the record per (stop, language) for read and li
   });
 
   test('bigger stays one record per stop whatever the language', async () => {
-    on(V2, PERIOD);
-    await Ch.exercise(hub(), 'bigger', D);
+    on(V2, ...CANON_ON, PERIOD);
+    const a = await Ch.exercise(hub(), 'bigger', D);
+    rowOf(a.ct).status = 'scored';
     const b = await Ch.exercise(hub(), 'bigger', { ...D, lang: 'ur' });
     expect(rowOf(b.ct)).toMatchObject({ record: false, mode: 'practice' });
   });
@@ -724,7 +732,7 @@ describe('child_identity: the fixed grade written at the first counted play of t
   afterEach(resetFlags);
 
   itFlags('two visits with different grades in one year → one row with the first grade; a new year → a new row', async () => {
-    on(V2, PERIOD, 'web_quiz_hub', 'web_quiz_identity_canon');
+    on(V2, ...CANON_ON, PERIOD, 'web_quiz_hub', 'web_quiz_identity_canon');
     db.child_identity = [];
     await Ch.exercise(hub(K3), 'bigger', D);
     expect(db.child_identity).toEqual([expect.objectContaining({ canonical_id: K3, year_code: Draw.yearCode(new Date()), fixed_grade: 3, grade_source: 'roster_class' })]);
@@ -739,7 +747,7 @@ describe('child_identity: the fixed grade written at the first counted play of t
   });
 
   itFlags('a practice play writes nothing', async () => {
-    on(V2, PERIOD, 'web_quiz_hub', 'web_quiz_identity_canon');
+    on(V2, ...CANON_ON, PERIOD, 'web_quiz_hub', 'web_quiz_identity_canon');
     db.child_identity = [];
     await Ch.exercise(hub(K3), 'bigger', { ...D, mode: 'practice' });
     expect(db.child_identity).toEqual([]);
@@ -766,7 +774,7 @@ describe('class_id at serve and the class light at the first finished exposure',
   afterEach(() => { delete process.env.WEB_QUIZ_KID_KEY; delete process.env.WEB_QUIZ_KID_KEY_V; });
 
   test('an enrolled child served from /q/ carries the enrolment\'s class; a loose child NULL; a share code never gives one', async () => {
-    on(V2, PERIOD);
+    on(V2, ...CANON_ON, PERIOD);
     db.class_enrollments = [{ id: 'e1', student_id: K3, class_id: CLS, is_active: true }];
     db.classes = [{ id: CLS, grade_code: 'grade_3' }];
     const a = await Ch.exercise(T.signSession({ sessionId: SESSION, deviceRef: 'd'.repeat(22), shareCodeId: SC }), 'bigger', D);
@@ -776,13 +784,13 @@ describe('class_id at serve and the class light at the first finished exposure',
   });
 
   test('a caller\'s class (the class link) is taken as given', async () => {
-    on(V2, PERIOD);
+    on(V2, ...CANON_ON, PERIOD);
     const a = await Ch.exercise(hub(K5), 'bigger', { ...D, classId: CLS });
     expect(rowOf(a.ct).class_id).toBe(CLS);
   });
 
   test('one light_lit per first finished exposure (hashed class, kid), none on exposure 2 or practice; no raw class id', async () => {
-    on(V2, PERIOD, POOL);
+    on(V2, ...CANON_ON, PERIOD, POOL);
     db.class_enrollments = [{ id: 'e1', student_id: K3, class_id: CLS, is_active: true }];
     db.classes = [{ id: CLS, grade_code: 'grade_3' }];
     const w = await Ch.exercise(hub(K3), 'missing', D);
@@ -811,7 +819,7 @@ describe('class_id at serve and the class light at the first finished exposure',
 describe('ruling #43: the exercise payload under _v2 carries only what the page renders', () => {
   const DROPPED = ['band', 'exposure_no', 'rung', 'period_id', 'passage_id', 'item_set_id', 'anchor_block', 'anchor_exposure_no'];
   test('read, missing and bigger under _v2 + _pool: the exact key sets; record is today\'s rule flag only', async () => {
-    on(V2, PERIOD, POOL);
+    on(V2, ...CANON_ON, PERIOD, POOL);
     const read = await Ch.exercise(hub(K5), 'read', D);
     const miss = await Ch.exercise(hub(K5), 'missing', D);
     const big = await Ch.exercise(hub(K5), 'bigger', D);
@@ -834,7 +842,7 @@ describe('ruling #43: the exercise payload under _v2 carries only what the page 
   });
 
   test('the menu keeps anchor_block A1 on the warm-up', async () => {
-    on(V2, PERIOD, POOL);
+    on(V2, ...CANON_ON, PERIOD, POOL);
     expect((await Ch.menu(hub(K5), D)).exercises[0]).toMatchObject({ id: 'missing', anchor_block: 'A1' });
   });
 });
@@ -855,7 +863,7 @@ describe('a round run or a practice run does not consume the home attempt', () =
   });
 
   test('(b) the next home bigger serve after a round turn: attempt_no 1, record true, no practice round', async () => {
-    on(V2, PERIOD);
+    on(V2, ...CANON_ON, PERIOD);
     scoredBigger({ mode: 'class_round', via: 'class_round', record: false, period_id: null });
     const ex = await Ch.exercise(hub(), 'bigger', D);
     expect(ex.practice_round).toBeUndefined();
@@ -908,7 +916,7 @@ describe('anchor_serves_any counts a pre-v2 missing row as an A1 serve', () => {
     score: { correct: 9, n: 10, stopped: false }, meta: { attempt_no: 1, counted: true }, created_at: new Date(Date.now() - 20 * DAY).toISOString() });
 
   test('a G5 child with one pre-v2 missing row, then the Trail warm-up: serves_any 2, exposure 1, prev2 {full 1, partial 0}', async () => {
-    on(V2, PERIOD, POOL);
+    on(V2, ...CANON_ON, PERIOD, POOL);
     preV2Missing(K5, 5);
     const ex = await Ch.exercise(hub(K5), 'missing', D);
     expect(rowOf(ex.ct)).toMatchObject({ anchor_block: 'A1', anchor_exposure_no: 1, anchor_serves_any: 2, meta: expect.objectContaining({ anchor_serves_any: 2 }) });
@@ -917,7 +925,7 @@ describe('anchor_serves_any counts a pre-v2 missing row as an A1 serve', () => {
   });
 
   test('a G3 pre-v2 missing row is a partial serve: prev2 {full 0, partial 1}, serves_any 2', async () => {
-    on(V2, PERIOD, POOL);
+    on(V2, ...CANON_ON, PERIOD, POOL);
     preV2Missing(K3, 3);
     const ex = await Ch.exercise(hub(K3), 'missing', D);
     expect(rowOf(ex.ct)).toMatchObject({ anchor_exposure_no: 1, meta: expect.objectContaining({ anchor_serves_any: 2 }) });
@@ -925,7 +933,7 @@ describe('anchor_serves_any counts a pre-v2 missing row as an A1 serve', () => {
   });
 
   test('no pre-v2 row: serves_any 1, prev2 {full 0, partial 0}', async () => {
-    on(V2, PERIOD, POOL);
+    on(V2, ...CANON_ON, PERIOD, POOL);
     const ex = await Ch.exercise(hub(K5), 'missing', D);
     expect(rowOf(ex.ct)).toMatchObject({ anchor_exposure_no: 1, anchor_serves_any: 1, admin_mode: 'self_run', sample_arm: null, meta: expect.objectContaining({ anchor_serves_any: 1 }) });
     expect(rowOf(ex.ct).meta.draw.anchor_prev2).toEqual({ full: 0, partial: 0 });
