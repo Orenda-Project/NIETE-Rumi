@@ -106,10 +106,11 @@ describe('mint', () => {
     expect(Codes.mint).not.toHaveBeenCalled();
   });
 
-  test('the child already on 3 phones -> max_phones, nothing minted', async () => {
+  test('the child already on 3 phones -> max_phones, nothing minted, bind_refused_page logged server-side', async () => {
     Bindings.activeForChild.mockResolvedValue([{ id: 1 }, { id: 2 }, { id: 3 }]);
     expect(await Bind.mint({ hub: hubOf([KID]), kid: chip(KID), device: DEV })).toEqual({ ok: false, refused: 'max_phones' });
     expect(Codes.mint).not.toHaveBeenCalled();
+    expect(logEvent).toHaveBeenCalledWith('web_quiz.bind_refused_page', { w: 's', reason: 'max_phones' });
   });
 
   test('no bot number configured -> {off:true} and a log line', async () => {
@@ -222,5 +223,40 @@ describe('the hub payload under phoneBind', () => {
     expect(who.bind).toEqual({ offer: false });
     expect(who.kids.map((k) => k.homonym_in_list)).toEqual([true, true]);
     expect(who.kids.every((k) => 'played' in k)).toBe(true);
+  });
+});
+
+describe('the pick record of a play opened from the hub (a chip tap, no quiz session)', () => {
+  const crypto = require('crypto');
+  const devH = crypto.createHash('sha256').update(DEV).digest('hex').slice(0, 16);
+  test('src wa -> hub_chip; stored at wq:idpick:h:<canonical>:<sha256(device)[0:16]> 24 h; id_pick once; pickFor finds it', async () => {
+    const tok = hubOf([KID, SIB]);
+    await Hub.hub(tok, { device: DEV, kid: chip(KID), src: 'wa' });
+    const key = `wq:idpick:h:${KID}:${devH}`;
+    const set = redis.set.mock.calls.find((c) => c[0] === key);
+    expect(set[1]).toEqual({ id_src: 'hub_chip', id_confidence: 'high', homonym_in_list: true, canonical_id: KID });
+    expect(set[2]).toBe(86400);
+    expect(logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.id_pick').map((c) => c[1])).toEqual([{ w: 's', id_src: 'hub_chip', id_confidence: 'high', homonym_in_list: true, chips_k: 2 }]);
+    expect(await Bind.pickFor({ canonicalId: KID, device: DEV })).toEqual(set[1]);
+    expect(await Bind.pickFor({ sessionId: 'nope', canonicalId: KID, device: DEV })).toEqual(set[1]);
+    expect(await Bind.pickFor({ canonicalId: KID, device: 'BBBBBBBBBBBBBBBBBBBBBB' })).toBeNull();
+  });
+  test('no src (or not wa) -> remembered', async () => {
+    await Hub.hub(hubOf([KID]), { device: DEV, kid: chip(KID) });
+    expect(await Bind.pickFor({ canonicalId: KID, device: DEV })).toMatchObject({ id_src: 'remembered', id_confidence: 'high', homonym_in_list: false });
+  });
+  test('a session record wins over the hub record; the positional form still works', async () => {
+    await Hub.hub(hubOf([KID]), { device: DEV, kid: chip(KID), src: 'wa' });
+    await Bind.recordPick({ sessionId: 'sess-9', via: 'hub', studentId: KID });
+    expect(await Bind.pickFor({ sessionId: 'sess-9', canonicalId: KID, device: DEV })).toMatchObject({ id_src: 'hub_chip', canonical_id: KID });
+    expect(await Bind.pickFor('sess-9')).toMatchObject({ id_src: 'hub_chip' });
+    expect(await Bind.pickFor({})).toBeNull();
+  });
+  test('canon off -> no hub key, no id_pick', async () => {
+    IdFlags.flags.mockResolvedValue(OFF);
+    await Hub.hub(hubOf([KID]), { device: DEV, kid: chip(KID), src: 'wa' });
+    expect(redis.set.mock.calls.filter((c) => /^wq:idpick:/.test(c[0]))).toEqual([]);
+    expect(logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.id_pick')).toEqual([]);
+    expect(await Bind.pickFor({ canonicalId: KID, device: DEV })).toBeNull();
   });
 });

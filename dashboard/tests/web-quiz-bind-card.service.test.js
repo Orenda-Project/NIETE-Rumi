@@ -96,7 +96,7 @@ test('Keep my place -> the confirm sheet (name, notice, STOP chip, nothing prese
 });
 
 test('a refusal shows its page message', async () => {
-  const p = load({ api: { 'POST /api/wq/bind/mint': { ok: false, refused: 'max_phones' } } });
+  const p = load({ api: { 'POST /api/wq/bind/mint': { ok: false, refused: 'max_kids' } } });
   const m = mount();
   p.B.card(m, ctxOf().c);
   m.els.keep.click();
@@ -135,4 +135,16 @@ test('focus return: pending shows nothing new; expired asks again', async () => 
   st.s = 'expired';
   p.focus(); await flush(); await flush();
   expect(m.innerHTML).toContain('That took too long. Tap Keep my place again.');
+});
+
+test('max_phones: no page string yet -> nothing shown, the card hidden for this session', async () => {
+  const p = load({ api: { 'POST /api/wq/bind/mint': { ok: false, refused: 'max_phones' } } });
+  const m = mount();
+  p.B.card(m, ctxOf().c);
+  m.els.keep.click();
+  m.els.yes.click();
+  await flush(); await flush();
+  expect(m.innerHTML).toBe('');
+  expect(p.session.wq_bind_hide).toBe('1');
+  expect(p.B.card(mount(), ctxOf().c)).toBe(false);
 });

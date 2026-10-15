@@ -1672,3 +1672,5 @@ Feature: Web child quiz page on the portal
     When "Who is playing?" is shown and one child is tapped
     Then the hub, its quizzes and the challenge are that child's only, and the pick record is kept for the quiz start with id_src "hub_chip" and id_confidence "high"
     And id_pick is logged with w "s" and no session id, device or code
+    And a play opened from the hub keeps the pick for that child on this phone for 24 hours: "hub_chip" from a WhatsApp /quiz link, "remembered" otherwise
+    But a child already kept on three phones sees no message and the card stays hidden for the session

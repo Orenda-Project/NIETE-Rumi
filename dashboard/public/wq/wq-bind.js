@@ -13,6 +13,7 @@
   'use strict';
   var LATER_KEY = 'wq_bind_later';
   var CODE_KEY = 'wq_bind';
+  var HIDE_KEY = 'wq_bind_hide';
   var WEEK_MS = 7 * 86400000;
   var T = {
     en: {
@@ -117,7 +118,7 @@
   function refusal(why) {
     var t = L(view.ctx.lang);
     if (why === 'teacher_phone') return t.refusedTeacher;
-    if (why === 'max_phones' || why === 'max_kids') return t.refusedFull;
+    if (why === 'max_kids') return t.refusedFull;
     if (why === 'code_expired' || why === 'expired') return t.codeExpired;
     return null;
   }
@@ -131,6 +132,8 @@
         on('send', function () { ev('bind_sent', { w: 'p' }); });
         return;
       }
+      // max_phones: no page string yet (copy key pending: jg.bind.refused_phones) -> nothing shown, card hidden this session.
+      if (r && r.refused === 'max_phones') { sset(sessionStorage, HIDE_KEY, '1'); draw(''); return; }
       var m = r && refusal(r.refused);
       if (m) msg(m); else draw('');
     }).catch(function () { draw(''); });
@@ -170,7 +173,7 @@
     view.mount = mountEl; view.ctx = ctx;
     // A code minted this session: its outcome first (the next hub render in the same session).
     if (kept()) { showCard(); onFocus(); return true; }
-    if (later()) return false;
+    if (later() || sget(sessionStorage, HIDE_KEY) === '1') return false;
     showCard();
     if (!view.shown) { view.shown = true; ev('bind_offered', { surface: 'hub', w: 'p' }); }
     return true;

@@ -12,7 +12,8 @@
  *   hubExtras(out, {token, chosen, rows, trust})  under the phone-bind switch: `bind` and the chips' line2/played
  *   recordPick({sessionId, via, studentId})  under the identity-canon switch: the pick's id_src/id_confidence/
  *                                   homonym_in_list/canonical_id kept 24 h for the run row, and `id_pick` emitted
- *   pickFor(sessionId)              that record, or null
+ *   pickFor(sessionId | {sessionId, canonicalId, device})  the quiz start's record, else the hub chip's record
+ *                                   (wq:idpick:h:<canonical_id>:<sha256(device)[0:16]>, written by hubExtras), else null
  *   canonOn() / bindOn()            the switches (false when the switch module is unavailable)
  *
  * Every function is a no-op ({off:true} or null) unless its switch is on. The phone number is never known
@@ -74,7 +75,11 @@ async function mint({ hub, kid, device, lang } = {}) {
     }
     const canonicalId = (await require('./web-quiz-identity-roster').canonicalStudentId(c.studentId)) || c.studentId;
     const active = await require('./child-phone-bindings.repo').activeForChild(canonicalId);
-    if ((active || []).length >= MAX_PHONES_PER_CHILD) return { ok: false, refused: 'max_phones' };
+    if ((active || []).length >= MAX_PHONES_PER_CHILD) {
+      // The page shows nothing for this refusal yet (copy key pending); the server logs it.
+      logEvent('web_quiz.bind_refused_page', { w: 's', reason: 'max_phones' });
+      return { ok: false, refused: 'max_phones' };
+    }
     const minted = await require('./child-bind-codes.repo').mint(canonicalId, T.cleanDeviceRef(device));
     if (!minted || !minted.code) return { ok: false, error: 'unavailable' };
     logEvent('web_quiz.bind_confirm', { w: 's' });
@@ -167,9 +172,11 @@ async function whoseTurn({ hub, kid, device, lang } = {}) {
  * The hub's boot JSON under web_quiz_phone_bind: the card's ticket for the chosen child (`bind`), and on the picker
  * ("Who is playing?") each chip's line2 / avatarLine / homonym_in_list / played. Off: `out` untouched.
  */
-async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang } = {}) {
+async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang, device, src } = {}) {
   try {
-    if (!(await bindOn())) return out;
+    const f = await idFlags();
+    if (f.canon && chosen) await recordHubPick({ chosen, rows, device, src });
+    if (!f.phoneBind) return out;
     if (chosen) {
       out.bind = { offer: true, hub: token, kid: out.kid };
       return out;
@@ -185,6 +192,33 @@ async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang } = {
   } catch (err) {
     logToFile('⚠️ keep my place: hub extras failed', { error: err.message });
     return out;
+  }
+}
+
+// A play opened from the hub has no quiz session: its pick is keyed by the child and this phone.
+const devHash = (device) => {
+  const d = T.cleanDeviceRef(device);
+  return d ? require('crypto').createHash('sha256').update(d).digest('hex').slice(0, 16) : null;
+};
+const hubPickKey = (canonicalId, device) => {
+  const h = devHash(device);
+  return canonicalId && h ? `${PICK_PREFIX}h:${canonicalId}:${h}` : null;
+};
+
+/** A chip tap on the hub (identity canon switch): hub_chip from a WhatsApp /quiz link (src 'wa'), else remembered. */
+async function recordHubPick({ chosen, rows = [], device, src }) {
+  try {
+    const canonicalId = (await require('./web-quiz-identity-roster').canonicalStudentId(chosen.id)) || chosen.id;
+    const key = hubPickKey(canonicalId, device);
+    if (!key) return null;
+    const g = Homonym.guard(rows.map((r) => ({ id: String(r.id), first: r.student_name })), { surface: 'who' }).find((r) => r.id === String(chosen.id));
+    const rec = { id_src: src === 'wa' ? 'hub_chip' : 'remembered', id_confidence: 'high', homonym_in_list: Boolean(g && g.homonym_in_list), canonical_id: canonicalId };
+    await require('../cache/railway-redis.service').set(key, rec, PICK_TTL_S);
+    logEvent('web_quiz.id_pick', { w: 's', id_src: rec.id_src, id_confidence: rec.id_confidence, homonym_in_list: rec.homonym_in_list, chips_k: rows.length });
+    return rec;
+  } catch (err) {
+    logToFile('⚠️ keep my place: hub pick record failed', { error: err.message });
+    return null;
   }
 }
 
@@ -222,11 +256,18 @@ async function recordPick({ sessionId, via, studentId } = {}) {
   }
 }
 
-async function pickFor(sessionId) {
+async function readPick(key) {
+  if (!key) return null;
+  const v = await require('../cache/railway-redis.service').get(key);
+  return v && typeof v === 'object' ? v : null;
+}
+
+/** pickFor(sessionId) or pickFor({sessionId, canonicalId, device}): the session's record, else the hub's, else null. */
+async function pickFor(arg) {
   try {
-    if (!sessionId) return null;
-    const v = await require('../cache/railway-redis.service').get(PICK_PREFIX + sessionId);
-    return v && typeof v === 'object' ? v : null;
+    const o = arg && typeof arg === 'object' ? arg : { sessionId: arg };
+    return (o.sessionId ? await readPick(PICK_PREFIX + o.sessionId) : null)
+      || (o.canonicalId && o.device ? await readPick(hubPickKey(String(o.canonicalId), o.device)) : null);
   } catch (_) {
     return null;
   }
