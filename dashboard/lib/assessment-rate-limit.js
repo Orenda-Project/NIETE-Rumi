@@ -87,4 +87,16 @@ async function guard({ supabase, dbQuery, userId, now = new Date() }) {
   return { success: false, error: message(refusal), errorCode: 'RATE_LIMITED', retryAt: refusal.retryAt };
 }
 
-module.exports = { ASSESSMENT_RATE_LIMIT_KEY, PER_HOUR, PER_DAY, check, message, guard };
+/**
+ * Express middleware for the paper route: the teacher is the session's (never the body's).
+ * @param {{ supabase: object, dbQuery: Function }} deps
+ */
+function middleware({ supabase, dbQuery }) {
+  return async function assessmentRateLimit(req, res, next) {
+    const limited = await guard({ supabase, dbQuery, userId: req.session && req.session.portalUserId });
+    if (limited) return res.status(429).json(limited);
+    return next();
+  };
+}
+
+module.exports = { ASSESSMENT_RATE_LIMIT_KEY, PER_HOUR, PER_DAY, check, message, guard, middleware };
