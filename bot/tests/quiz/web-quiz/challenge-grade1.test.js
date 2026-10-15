@@ -121,11 +121,13 @@ describe('golden: either switch off ⇒ a grade-1 child is not_eligible, exactly
     expect([2, 3, 4, 5, 6].map((g) => Ch.formFor(g, { g1: true }))).toEqual(['3', '3', '5', '5', null]);
   });
 
-  test('grades 2-5: menu and exercise payloads and ch_start are the same with the switches on', async () => {
-    const snap = async () => {
+  test('grades 2-5: the grade-1 switch never moves a menu, an exercise payload or ch_start', async () => {
+    const snap = async (flags) => {
+      db.app_settings = [{ key: 'web_quiz_challenge', value: true }, ...flags];
       const out = {};
       for (const g of [2, 3, 4, 5]) {
         grade(g);
+        db.web_quiz_challenge_runs = [];
         Ch.__reset();
         logEvent.mockClear();
         const m = await Ch.menu(hub(), D);
@@ -136,10 +138,9 @@ describe('golden: either switch off ⇒ a grade-1 child is not_eligible, exactly
       }
       return out;
     };
-    const off = await snap();
-    on(V2, G1);
-    const onSnap = await snap();
-    expect(onSnap).toEqual(off);
+    const off = await snap([]);
+    expect(await snap([G1])).toEqual(off);
+    expect(await snap([V2, G1, PERIOD])).toEqual(await snap([V2, PERIOD]));
     expect(off[3].m.form).toBe('G3');
     expect(off[5].m.form).toBe('G5');
     expect(off[3].start).toEqual([['grade', 'run', 'step']]);
