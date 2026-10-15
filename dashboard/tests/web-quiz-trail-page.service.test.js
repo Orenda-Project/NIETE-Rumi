@@ -168,7 +168,8 @@ describe('keep this reading? after the microphone, nothing preselected', () => {
     expect(h).not.toMatch(/90 days|STOP|deleted/);
     // copy.v2.json v2.1: jg.keep.sub_v2 (no «جانچ», no checker job title), then jg.keep.ask_grownup above the two answers.
     expect(h).toContain('Kept so one person can listen and confirm Jugnu heard right. A grown-up can say no.');
-    expect(h).toMatch(/Ask a grown-up this one\.<\/p><div class="wq-stack"><button[^>]*id="wqc-keep-yes"/);
+    // RULING #62: the two answers side by side at equal width, the same class, nothing preselected
+    expect(h).toMatch(/Ask a grown-up this one\.<\/p><div class="wqc-keep2" id="wqc-keep-pair"><button class="wq-btn wq-go" id="wqc-keep-yes"[^>]*>[^<]*<\/button><button class="wq-btn wq-go" id="wqc-keep-no"/);
     expect(h).toContain('Jugnu listens either way.');
     expect(h).not.toMatch(/aria-pressed="true"|checked/);
     await p.click('wqc-keep-no');
@@ -197,7 +198,8 @@ describe('"Whose turn?" from the serve; the page never picks', () => {
   test('"Someone else": a child who is not remembered never taps another child\'s name; it opens the hub with nobody picked', async () => {
     const p = v2page({ menu: { ...TRAIL(), ...ASK } });
     expect(p.screen()).toBe('whose-turn');
-    expect(p.html()).toMatch(/id="wqc-who-else"[^>]*>Someone else</);
+    // a soft button, never an underlined link (an underline cuts through Nastaliq)
+    expect(p.html()).toMatch(/<button class="wq-btn wq-soft" type="button" id="wqc-who-else">Someone else</);
     await p.click('wqc-who-else');
     expect(p.loc.href).toBe('/h/HUB.TOKEN?from=home');
     expect(p.loc.href).not.toContain('kid=');

@@ -1827,3 +1827,12 @@ Feature: Web child quiz page on the portal
     When a reading ends with 0 words or with 90 words
     Then the end card has no digit, no words-a-minute line, and the same sticker line for both
     And the warm-up's stop_after 0 never stops it early
+  @T810
+  Scenario: A grade-1 child counts the dots and taps the number, and never sees a score
+    Given the challenge serves the exercise "numbers" with ten items, each a count of dots and three numeral tiles
+    When the child opens it, taps "Start" and taps one tile on each item
+    Then each item shows a ten-frame with that many dots, "How many?" and three tiles at least 64 px tall, with no timer and no count
+    And the tiles lock after one tap and are never coloured right or wrong
+    And after the last item the taps go once to the result endpoint as i, pick and ms each, and the end card shows no number
+    And on an Urdu page the copy is Urdu and the tiles are Urdu digits
+    But a challenge without the exercise "numbers" renders and requests exactly as before
