@@ -363,14 +363,18 @@ async function childRows(canonicalId, studentIds = [], { w = 's' } = {}) {
   return [...byId.values()].sort((x, y) => String(x.created_at || '').localeCompare(String(y.created_at || '')));
 }
 
+// The failed draw-log write's log fields, built apart from logDraw's insert (an object literal after that insert reads
+// to the column gate as challenge_draws columns).
+const drawLogFailure = (code, message) => ({ code: code || null, error: String(message || '').slice(0, 160) });
+
 /** One challenge_draws row; never throws (the run row's meta.draw is the second copy). */
 async function logDraw(row) {
   try {
     const { error } = await supabase.from('challenge_draws').insert(row);
     if (!error) return true;
-    logError('web_quiz.ch_draw_log_failed', { code: error.code || null, error: String(error.message || '').slice(0, 160) });
+    logError('web_quiz.ch_draw_log_failed', drawLogFailure(error.code, error.message));
   } catch (e) {
-    logError('web_quiz.ch_draw_log_failed', { code: null, error: String(e && e.message || e).slice(0, 160) });
+    logError('web_quiz.ch_draw_log_failed', drawLogFailure(null, e && e.message || e));
   }
   return false;
 }
