@@ -1,9 +1,10 @@
 'use strict';
 /**
  * web_quiz_child_rungs_once.sql on a real, throwaway Postgres (initdb in a temp folder, a unix socket, no TCP):
- * the unique index that holds a child's lamp to at most one change per ladder per period. It must apply twice
- * cleanly, refuse a second row for the same child × ladder × period, keep RLS on, and roll back cleanly (and before
- * the runs migration's own rollback).
+ * the nullable `stop` column (CHECK read | listen | missing | bigger) and the unique index that holds a child's lamp
+ * to at most one change per ladder per stop per period. It must apply twice cleanly, refuse a second row for the
+ * same child × ladder × stop × period, keep RLS on, and roll back cleanly (index and column only; before the runs
+ * migration's own rollback).
  *
  * Needs the Postgres server binaries (postgres, initdb, pg_ctl, psql: PG_BIN or pg_config --bindir); without them the
  * suite is skipped and says so.
@@ -36,8 +37,9 @@ const fails = (sql) => { try { psql(sql); return null; } catch (e) { return Stri
 const apply = (f) => psql(null, { file: path.join(MIG, f) });
 
 const KID = '11111111-1111-4111-8111-111111111111';
-const lamp = (ladder, rung, period, kid = KID) => `insert into child_rungs (canonical_id, ladder, rung, rule_v, period_id) values ('${kid}', '${ladder}', ${rung}, 'badges-v1', '${period}')`;
-const INDEX = 'child_rungs_once_per_period_idx';
+const lamp = (ladder, rung, period, stop = 'read', kid = KID) => `insert into child_rungs (canonical_id, ladder, rung, rule_v, stop, period_id) values ('${kid}', '${ladder}', ${rung}, 'badges-v1', ${stop == null ? 'NULL' : `'${stop}'`}, '${period}')`;
+const hasStop = () => psql("select count(*) from information_schema.columns where table_name = 'child_rungs' and column_name = 'stop'");
+const INDEX = 'child_rungs_once_per_stop_idx';
 
 d('the lamps once-per-period migration on a real Postgres', () => {
   beforeAll(() => {
@@ -57,31 +59,42 @@ d('the lamps once-per-period migration on a real Postgres', () => {
     fs.rmSync(sock, { recursive: true, force: true });
   });
 
-  test('applies twice cleanly; one unique index on (canonical_id, ladder, period_id); RLS stays on', () => {
+  test('applies twice cleanly; a nullable text stop column; one unique index on (canonical_id, ladder, stop, period_id); RLS stays on', () => {
+    expect(hasStop()).toBe('0');
     apply('web_quiz_child_rungs_once.sql');
     apply('web_quiz_child_rungs_once.sql');
+    expect(psql("select data_type || '|' || is_nullable from information_schema.columns where table_name = 'child_rungs' and column_name = 'stop'")).toBe('text|YES');
+    expect(psql("select count(*) from pg_constraint where conrelid = 'public.child_rungs'::regclass and conname = 'child_rungs_stop_chk'")).toBe('1');
     expect(psql(`select indexdef from pg_indexes where indexname = '${INDEX}'`))
-      .toMatch(/CREATE UNIQUE INDEX child_rungs_once_per_period_idx ON public\.child_rungs USING btree \(canonical_id, ladder, period_id\)/);
+      .toMatch(/CREATE UNIQUE INDEX child_rungs_once_per_stop_idx ON public\.child_rungs USING btree \(canonical_id, ladder, stop, period_id\)/);
     expect(psql(`select count(*) from pg_indexes where tablename = 'child_rungs' and indexname = '${INDEX}'`)).toBe('1');
     expect(psql("select relrowsecurity from pg_class where oid = 'public.child_rungs'::regclass")).toBe('t');
   });
 
-  test('a second row for the same child × ladder × period is refused; another ladder, period or child is not', () => {
-    expect(fails(lamp('reading', 1, '2026-11'))).toBeNull();
-    expect(fails(lamp('reading', 3, '2026-11'))).toMatch(/duplicate key value violates unique constraint "child_rungs_once_per_period_idx"/);
-    expect(fails(lamp('numbers', 2, '2026-11'))).toBeNull();
-    expect(fails(lamp('reading', 3, '2026-12'))).toBeNull();
-    expect(fails(lamp('reading', 1, '2026-11', '22222222-2222-4222-8222-222222222222'))).toBeNull();
-    expect(psql('select count(*) from child_rungs')).toBe('4');
+  test('the stop CHECK: NULL passes, a name that is not a stop is refused (the four stops land below)', () => {
+    expect(fails(lamp('reading', 1, '2026-01', 'spell'))).toMatch(/check constraint "child_rungs_stop_chk"/);
+    expect(fails(lamp('reading', 1, '2026-01', null))).toBeNull();
+    psql('delete from child_rungs');
   });
 
-  test('the rollback drops only the index, twice cleanly; then the runs rollback still runs; then both forward again', () => {
+  test('a second row for the same child × ladder × stop × period is refused; another stop, ladder, period or child is not', () => {
+    expect(fails(lamp('reading', 1, '2026-11', 'listen'))).toBeNull();
+    expect(fails(lamp('reading', 3, '2026-11', 'read'))).toBeNull();         // listen then read, one month: both land
+    expect(fails(lamp('reading', 4, '2026-11', 'read'))).toMatch(/duplicate key value violates unique constraint "child_rungs_once_per_stop_idx"/);
+    expect(fails(lamp('numbers', 2, '2026-11', 'missing'))).toBeNull();
+    expect(fails(lamp('reading', 4, '2026-12', 'read'))).toBeNull();
+    expect(fails(lamp('reading', 1, '2026-11', 'read', '22222222-2222-4222-8222-222222222222'))).toBeNull();
+    expect(psql('select count(*) from child_rungs')).toBe('5');
+  });
+
+  test('the rollback drops only the index and the column, twice cleanly; then the runs rollback still runs; then both forward again', () => {
     apply('web_quiz_child_rungs_once_rollback.sql');
     apply('web_quiz_child_rungs_once_rollback.sql');
     expect(psql(`select count(*) from pg_indexes where indexname = '${INDEX}'`)).toBe('0');
-    expect(psql('select count(*) from child_rungs')).toBe('4');
+    expect(hasStop()).toBe('0');
+    expect(psql('select count(*) from child_rungs')).toBe('5');
     expect(psql("select count(*) from pg_indexes where indexname = 'child_rungs_child_idx'")).toBe('1');
-    expect(fails(lamp('reading', 3, '2026-11'))).toBeNull();          // no longer refused
+    expect(fails("insert into child_rungs (canonical_id, ladder, rung, rule_v, period_id) values ('11111111-1111-4111-8111-111111111111', 'reading', 5, 'badges-v1', '2026-11')")).toBeNull();
     apply('web_quiz_challenge_runs_v2_rollback.sql');
     expect(psql("select to_regclass('public.child_rungs') is null")).toBe('t');
     apply('web_quiz_challenge_runs_v2.sql');

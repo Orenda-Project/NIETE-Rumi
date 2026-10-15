@@ -16,9 +16,11 @@
  *   onRecordFinal(row | id)
  *                      called where a run is stored as scored or failed: reads that child's record rows on the
  *                      ladder (every period) and the child's current rung, and only when the computed rung is higher
- *                      appends ONE child_rungs row (rule_v badges-v1, the row's period, the row) — never an update or
- *                      a delete. The unique index (canonical_id, ladder, period_id) holds it to one change per child
- *                      × ladder × period: a refused insert is "already set this period" and logs no event. lamp_lit
+ *                      appends ONE child_rungs row (rule_v badges-v1, stop = the run's exercise, the row's period,
+ *                      the row) — never an update or a delete. The unique index (canonical_id, ladder, stop,
+ *                      period_id) holds it to one change per child × ladder × stop × period (a listen and a read in
+ *                      one month each move the Reading lamp once): a refused insert is "already set on this stop this
+ *                      period" and logs no event. lamp_lit
  *                      only after the insert landed. Never throws: any failure is logged and returns null.
  */
 const supabase = require('../../config/supabase');
@@ -33,6 +35,8 @@ const RUNS = 'web_quiz_challenge_runs';
 const LAMPS = 'child_rungs';
 const FINAL = ['scored', 'failed'];
 const LADDER_OF = { read: 'reading', listen: 'reading', missing: 'numbers', bigger: 'numbers' };
+// child_rungs.stop's CHECK (web_quiz_child_rungs_once.sql); any other exercise is stored as NULL.
+const STOPS = new Set(Object.keys(LADDER_OF));
 const ROW_COLS = 'id, canonical_id, exercise, status, mode, record, period_id, form, grade, band, wcpm, anchor_block, meta';
 const nul = (v) => (v === undefined ? null : v);
 
@@ -149,11 +153,12 @@ async function onRecordFinal(input) {
     if (computed <= current) return null;                    // up only
 
     const { error: iErr } = await supabase.from(LAMPS).insert({
-      canonical_id: row.canonical_id, ladder, rung: computed, rule_v: RULE_V, period_id: row.period_id, row_id: row.id,
+      canonical_id: row.canonical_id, ladder, rung: computed, rule_v: RULE_V, stop: STOPS.has(row.exercise) ? row.exercise : null,
+      period_id: row.period_id, row_id: row.id,
     });
     if (iErr) {
-      if (iErr.code === '23505') {                           // already set this period (one change per ladder per period)
-        logToFile('ℹ️ web quiz rungs: lamp already set this period', { ladder, period_id: row.period_id });
+      if (iErr.code === '23505') {                           // already set on this stop this period
+        logToFile('ℹ️ web quiz rungs: lamp already set on this stop this period', { ladder, stop: row.exercise, period_id: row.period_id });
       } else {
         logError('web_quiz.rung_write_failed', { code: iErr.code || null, error: String(iErr.message || '').slice(0, 120) });
       }

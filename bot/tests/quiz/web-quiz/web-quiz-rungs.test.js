@@ -7,7 +7,7 @@
  *                and at) from the contract text, both grade bands, grade 1; rungs chain and a row may light several
  *   eligible     only mode='check' record rows with a final status (scored | failed); never practice, Story Time,
  *                a teacher device's preview, a class round, a replay, a served or abandoned row
- *   onRecordFinal  up only; at most one child_rungs row per child × ladder × period (the DB refuses a second); the
+ *   onRecordFinal  up only; at most one child_rungs row per child × ladder × stop × period (the DB refuses a second); the
  *                event only after the insert; switch off ⇒ no query to the runs or the lamps table; never throws
  *   the hook     a scored run stored by the Challenge reaches the job (web-quiz-challenge.js measureOutcome)
  * Faked boundaries only: Supabase, R2, speech, the LLM client, Redis, WhatsApp, the logger transport.
@@ -256,8 +256,8 @@ function seed(settings = ALL_ON) {
     student_lists: [{ id: LIST, user_id: TEACHER, class_name: '3', section: 'A', is_active: true }],
     quizzes: [], quiz_share_codes: [], quiz_sessions: [], student_videos: [], web_quiz_challenge_runs: [], child_rungs: [],
   };
-  // The unique index of the lamps migration: one row per child × ladder × period.
-  fake = makeFake(db, { uniques: { child_rungs: ['canonical_id', 'ladder', 'period_id'] } });
+  // The unique index of the lamps migration: one row per child × ladder × stop × period.
+  fake = makeFake(db, { uniques: { child_rungs: ['canonical_id', 'ladder', 'stop', 'period_id'] } });
   Object.assign(supabase, fake);
 }
 const without = (...keys) => ALL_ON.filter((s) => !keys.includes(s.key));
@@ -284,7 +284,7 @@ describe('onRecordFinal', () => {
     const out = await R.onRecordFinal(row.id);
     expect(out).toMatchObject({ ladder: 'reading', rung: 3 });
     expect(db.child_rungs).toHaveLength(1);
-    expect(db.child_rungs[0]).toMatchObject({ canonical_id: KID, ladder: 'reading', rung: 3, rule_v: 'badges-v1', period_id: '2026-11', row_id: row.id });
+    expect(db.child_rungs[0]).toMatchObject({ canonical_id: KID, ladder: 'reading', rung: 3, rule_v: 'badges-v1', stop: 'read', period_id: '2026-11', row_id: row.id });
     const ev = named('web_quiz.lamp_lit');
     expect(ev).toEqual([{ w: 's', ev_v: 2, kid_v: '2026', kid: K.kid(KID), ladder: 'reading', rung: 3, rule_v: 'badges-v1', band: 1, fixed_band: 'G2-3', period_id: '2026-11' }]);
     expect(JSON.stringify(ev)).not.toMatch(/44444444|student_id|canonical_id/);
@@ -319,15 +319,34 @@ describe('onRecordFinal', () => {
     expect(named('web_quiz.lamp_lit')).toHaveLength(0);
   });
 
-  test('one per child × ladder × period: a second higher rung in the same period is refused by the DB, no second event', async () => {
+  test('per stop: listen lights R1, then read lights R3 in the same period — two rows, two lamp_lit', async () => {
     const first = put(listen(3, 0));                   // R1
     expect(await R.onRecordFinal(first.id)).toMatchObject({ rung: 1 });
-    const second = put(read(1, 30, 3, 3));             // would be R3, same period
+    const second = put(read(1, 30, 3, 3));             // R3, same period, another stop
+    expect(await R.onRecordFinal(second.id)).toMatchObject({ rung: 3, from: 1 });
+    expect(db.child_rungs.map((r) => [r.stop, r.period_id, r.rung])).toEqual([['listen', '2026-11', 1], ['read', '2026-11', 3]]);
+    expect(named('web_quiz.lamp_lit').map((e) => e.rung)).toEqual([1, 3]);
+    expect(logError).not.toHaveBeenCalled();
+  });
+
+  test('one per child × ladder × stop × period: a second change on the same stop in the same period is refused by the DB (23505), no event', async () => {
+    const first = put(read(1, 30));                    // R2 on the read stop
+    expect(await R.onRecordFinal(first.id)).toMatchObject({ rung: 2 });
+    const second = put(read(1, 30, 3, 3));             // would be R3, same stop, same period
     expect(await R.onRecordFinal(second.id)).toBeNull();
     expect(db.child_rungs).toHaveLength(1);
     expect(named('web_quiz.lamp_lit')).toHaveLength(1);
     expect(logError).not.toHaveBeenCalled();
-    // the other ladder in the same period is its own lamp
+    const ins = touched('child_rungs').filter((c) => c.op === 'insert');
+    expect(ins).toHaveLength(2);                       // the job asked; the index refused
+    // the next period, the same stop is its own change
+    const later = put(read(1, 30, 3, 3, { period_id: '2026-12' }));
+    expect(await R.onRecordFinal(later.id)).toMatchObject({ rung: 3 });
+    expect(named('web_quiz.lamp_lit')).toHaveLength(2);
+  });
+
+  test('the other ladder in the same period is its own lamp', async () => {
+    put(listen(3, 0)); await R.onRecordFinal(db.web_quiz_challenge_runs[0].id);
     const num = put(anchor(A(3, 0)));
     expect(await R.onRecordFinal(num.id)).toMatchObject({ ladder: 'numbers', rung: 2 });
     expect(named('web_quiz.lamp_lit')).toHaveLength(2);
@@ -457,7 +476,7 @@ describe('the hook in the Challenge', () => {
     stampOn();
     const run = await playBigger();
     expect(db.child_rungs).toHaveLength(1);
-    expect(db.child_rungs[0]).toMatchObject({ canonical_id: KID, ladder: 'numbers', rung: 1, rule_v: 'badges-v1', period_id: '2026-11', row_id: run });
+    expect(db.child_rungs[0]).toMatchObject({ canonical_id: KID, ladder: 'numbers', rung: 1, rule_v: 'badges-v1', stop: 'bigger', period_id: '2026-11', row_id: run });
     expect(named('web_quiz.lamp_lit')).toHaveLength(1);
     expect(named('web_quiz.m_result')).toHaveLength(1);
   });
