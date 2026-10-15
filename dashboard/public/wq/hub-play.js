@@ -21,7 +21,7 @@
       lanternTrailOne: 'جگنو کے راستے پر ایک کھیل آپ کا انتظار کر رہا ہے۔',
       lanternTrailMany: 'جگنو کے راستے پر کھیل آپ کا انتظار کر رہے ہیں۔',
       lanternNewStory: function (title) { return 'ایک نئی کہانی آ گئی ہے: ⁨' + title + '⁩'; },
-      lanternTomorrow: 'کل نئی کہانی آئے گی',
+      lanternTomorrow: 'کل نئی کہانی آئے گی۔',
       lanternAllSeen: 'اگلی کہانی پیر کو آئے گی۔ تب تک جگنو کے ساتھ گنتی کے کھیل کھیلیں۔',
       nextMonday: 'اگلی کہانی پیر کو آئے گی',
       shelfTitle: 'آج جگنو کے ساتھ', shelfWeekStory: 'اس ہفتے کی کہانی', shelfListen: 'کہانی سنیں',

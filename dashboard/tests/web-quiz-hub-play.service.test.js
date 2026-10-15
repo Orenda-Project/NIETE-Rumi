@@ -156,6 +156,8 @@ describe('lantern + shelf', () => {
     const t = page({ ...BOOTS.done, play: play({ kind: 'numbers', day: 'tomorrow' }, null) });
     expect(t.html()).toContain('Tomorrow: a new story');
     expect(t.doors()).toContainEqual(expect.objectContaining({ n: 'door_shown', door: 'tomorrow' }));
+    // copy.v2.json v2.1 jg.lantern.tomorrow: the Urdu line ends with «۔» like the other lantern states
+    expect(page({ ...BOOTS.done, lang: 'ur', play: play({ kind: 'numbers', day: 'tomorrow' }, null) }).html()).toContain('کل نئی کہانی آئے گی۔');
     const m = page({ ...BOOTS.done, play: play({ kind: 'numbers', day: 'monday' }, null) });
     expect(m.html()).toContain('Next story arrives on Monday. Until then, play numbers with Jugnu.');
     const n = page({ ...BOOTS.done, play: play({ kind: 'day', day: null }, null) });
