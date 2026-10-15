@@ -7251,4 +7251,35 @@ grant execute on function public.message_ledger_add(date, text, uuid, text, text
 comment on table public.message_ledger is
   'web quiz sends per Pakistan day, trigger, class, initiator and recipient (counts and US$ only); written by the bot (service role)';
 
+-- message_ledger: teacher minutes (bot/database/migrations/web_quiz_message_ledger_minutes.sql)
+-- After the send ledger's table and its seven-argument function above: the eight-argument function replaces it.
+alter table if exists message_ledger
+  add column if not exists minutes numeric(10,2) not null default 0 check (minutes >= 0);
+
+drop function if exists public.message_ledger_add(date, text, uuid, text, text, integer, numeric);
+
+create or replace function public.message_ledger_add(
+  p_day date, p_trigger text, p_class_id uuid, p_initiated text, p_recipient text, p_n integer,
+  p_usd_each numeric default 0.015, p_minutes_each numeric default 0
+) returns integer
+language sql
+security definer
+set search_path = public
+as $$
+  insert into public.message_ledger (day, trigger, class_id, initiated, recipient, count, usd, minutes)
+  values (p_day, p_trigger, p_class_id, p_initiated, p_recipient, p_n, round(p_usd_each * p_n, 4), round(p_minutes_each * p_n, 2))
+  on conflict (day, trigger, coalesce(class_id, '00000000-0000-0000-0000-000000000000'::uuid), initiated, recipient)
+  do update set count = message_ledger.count + excluded.count,
+                usd = message_ledger.usd + excluded.usd,
+                minutes = message_ledger.minutes + excluded.minutes,
+                updated_at = now()
+  returning count
+$$;
+
+revoke all on function public.message_ledger_add(date, text, uuid, text, text, integer, numeric, numeric) from public, anon, authenticated;
+grant execute on function public.message_ledger_add(date, text, uuid, text, text, integer, numeric, numeric) to service_role;
+
+comment on column public.message_ledger.minutes is
+  'teacher minutes spent on these sends (a class round: about one per child asked); 0 for sends that take no teacher time';
+
 NOTIFY pgrst, 'reload schema';

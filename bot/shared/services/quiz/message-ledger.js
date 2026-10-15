@@ -27,6 +27,12 @@
  * The cap never fails open: with neither secret set the counter is keyed on a per-boot salt (per process), and with
  * Redis down a process-local counter takes over; both are logged once and visible as
  * web_quiz.reply_cap_unavailable{why: 'boot_salt'|'redis_local'} so a go package can see the cap ran degraded.
+ *
+ * Teacher minutes (column `minutes`): a send that costs the teacher's time passes `minutesEach` (the class round:
+ * MINUTES_PER_ROUND_CHILD per child asked); the row gains round(minutesEach × count, 2) minutes and msg_sent gains
+ * `min`. Without minutes (every other caller) the rpc arguments, the table writes and the event are exactly as before.
+ * A database whose message_ledger_add predates the minutes (PGRST202 on the eighth argument) still counts the send,
+ * without its minutes, logged once.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -34,6 +40,7 @@ const { logEvent } = require('../../utils/structured-logger');
 
 const TABLE = 'message_ledger';
 const USD_PER_SEND = 0.015;
+const MINUTES_PER_ROUND_CHILD = 1;   // a class round: about a minute of the teacher's time per child asked, one at a time
 const PKT_OFFSET_MS = 5 * 60 * 60 * 1000;
 const TRIGGERS = Object.freeze(['home_reply', 'bind_reply', 'guest_reply', 'teacher_refusal', 'class_link', 'class_round', 'teacher_queue']);
 const INITIATED = Object.freeze(['user', 'bot']);
@@ -48,10 +55,12 @@ let capCache = null; // { at, cap }
 let unkeyedLogged = false;
 let redisFailLogged = false;
 let writeFailLogged = false;
+let oldFunctionLogged = false;
 
 /** The PKT calendar day of `now` as 'YYYY-MM-DD'. */
 const pktDay = (now = new Date()) => new Date(new Date(now).getTime() + PKT_OFFSET_MS).toISOString().slice(0, 10);
 const usdOf = (count, each = USD_PER_SEND) => Math.round(each * count * 1e6) / 1e6;
+const minutesOf = (count, each) => Math.round(each * count * 100) / 100;   // numeric(10,2), as the function rounds
 
 function missingTable(error) {
   if (!error || error.code !== '42P01') return false;
@@ -154,11 +163,19 @@ async function underCap(phone, trigger, now) {
 }
 
 /** ONE atomic add through message_ledger_add → true (written) | false (failed) | null (no function: fall back). */
-async function addByRpc({ day, trigger, classId, initiated, recipient, n, usdEach }) {
+async function addByRpc({ day, trigger, classId, initiated, recipient, n, usdEach, minutesEach = 0 }) {
   if (typeof supabase.rpc !== 'function') return null;
-  const { error } = await supabase.rpc('message_ledger_add', {
+  const args = {
     p_day: day, p_trigger: trigger, p_class_id: classId ? String(classId) : null, p_initiated: initiated, p_recipient: recipient, p_n: n, p_usd_each: usdEach,
-  });
+  };
+  // p_minutes_each only when there are minutes: a send without them calls the function exactly as before
+  let { error } = await supabase.rpc('message_ledger_add', minutesEach > 0 ? { ...args, p_minutes_each: minutesEach } : args);
+  if (error && error.code === 'PGRST202' && minutesEach > 0) {
+    // the database's function predates the minutes: count the send without them
+    if (!oldFunctionLogged) { oldFunctionLogged = true; logToFile('⚠️ message ledger: message_ledger_add has no minutes argument — teacher minutes not counted'); }
+    ({ error } = await supabase.rpc('message_ledger_add', args));
+    if (!error) return 'no_minutes';
+  }
   if (!error) return true;
   if (error.code === '42883') return null;
   if (missingTable(error)) return false;
@@ -168,33 +185,35 @@ async function addByRpc({ day, trigger, classId, initiated, recipient, n, usdEac
 /**
  * Count `count` sends of `trigger` today (PKT). Without `phone` → true when the row was written. With `phone`
  * (raw or normalised) → the send decision: false only when the phone is over today's reply cap.
- * @param {{trigger:string, phone?:string, classId?:string|null, initiated?:'user'|'bot', recipient?:'family'|'teacher', count?:number, usdEach?:number, now?:Date}} p
+ * @param {{trigger:string, phone?:string, classId?:string|null, initiated?:'user'|'bot', recipient?:'family'|'teacher', count?:number, usdEach?:number, minutesEach?:number, now?:Date}} p
  */
-async function record({ trigger, phone = null, reason = null, classId = null, initiated = 'user', recipient = 'family', count = 1, usdEach = USD_PER_SEND, now = new Date() } = {}) {
+async function record({ trigger, phone = null, reason = null, classId = null, initiated = 'user', recipient = 'family', count = 1, usdEach = USD_PER_SEND, minutesEach = 0, now = new Date() } = {}) {
   if (!TRIGGERS.includes(trigger) || !INITIATED.includes(initiated) || !RECIPIENTS.includes(recipient)) return false;
   if (initiated === 'bot' && recipient === 'family') return false;
   if (phone) {
     if (!(await underCap(phone, trigger, now))) return false;
-    if (!(await write({ trigger, reason, classId, initiated, recipient, count, usdEach, now })) && !writeFailLogged) {
+    if (!(await write({ trigger, reason, classId, initiated, recipient, count, usdEach, minutesEach, now })) && !writeFailLogged) {
       // the reply still goes out: the ledger is the accounting, the reply is the family's (logged once per process)
       writeFailLogged = true;
       logEvent('web_quiz.ledger_write_failed', { trigger, w: 's' });
     }
     return true;
   }
-  return write({ trigger, reason, classId, initiated, recipient, count, usdEach, now });
+  return write({ trigger, reason, classId, initiated, recipient, count, usdEach, minutesEach, now });
 }
 
-async function write({ trigger, reason = null, classId, initiated, recipient, count, usdEach, now }) {
+async function write({ trigger, reason = null, classId, initiated, recipient, count, usdEach, minutesEach = 0, now }) {
   const n = Number.isInteger(count) && count > 0 ? count : 1;
   const day = pktDay(now);
   const each = Number.isFinite(usdEach) && usdEach >= 0 ? usdEach : USD_PER_SEND;
+  const minEach = typeof minutesEach === 'number' && Number.isFinite(minutesEach) && minutesEach > 0 ? minutesEach : 0;   // anything else → no minutes
   try {
-    const viaRpc = await addByRpc({ day, trigger, classId, initiated, recipient, n, usdEach: each });
+    const viaRpc = await addByRpc({ day, trigger, classId, initiated, recipient, n, usdEach: each, minutesEach: minEach });
     if (viaRpc === false) return false;
-    let written = viaRpc === true;
+    const minutesWritten = viaRpc === 'no_minutes' ? 0 : minEach;
+    let written = viaRpc === true || viaRpc === 'no_minutes';
     for (let attempt = 0; attempt < 2 && !written; attempt += 1) {
-      let q = supabase.from(TABLE).select('count').eq('day', day).eq('trigger', trigger)
+      let q = supabase.from(TABLE).select(minEach > 0 ? 'count, minutes' : 'count').eq('day', day).eq('trigger', trigger)
         .eq('initiated', initiated).eq('recipient', recipient);
       q = classId ? q.eq('class_id', String(classId)) : q.is('class_id', null);
       const { data, error } = await q.limit(1);
@@ -203,7 +222,9 @@ async function write({ trigger, reason = null, classId, initiated, recipient, co
       const row = (data || [])[0];
       if (row) {
         const total = (Number(row.count) || 0) + n;
-        let u = supabase.from(TABLE).update({ count: total, usd: usdOf(total, each) }).eq('day', day).eq('trigger', trigger)
+        const patch = { count: total, usd: usdOf(total, each) };
+        if (minEach > 0) patch.minutes = Math.round(((Number(row.minutes) || 0) + minutesOf(n, minEach)) * 100) / 100;
+        let u = supabase.from(TABLE).update(patch).eq('day', day).eq('trigger', trigger)
           .eq('initiated', initiated).eq('recipient', recipient);
         u = classId ? u.eq('class_id', String(classId)) : u.is('class_id', null);
         const res = await u;
@@ -212,6 +233,7 @@ async function write({ trigger, reason = null, classId, initiated, recipient, co
       } else {
         const res = await supabase.from(TABLE).insert({
           day, trigger, class_id: classId ? String(classId) : null, initiated, recipient, count: n, usd: usdOf(n, each),
+          ...(minEach > 0 ? { minutes: minutesOf(n, minEach) } : {}),
         });
         if (missingTable(res.error)) return false;
         if (res.error && res.error.code === '23505') continue;     // a concurrent first send: add to its row
@@ -220,7 +242,8 @@ async function write({ trigger, reason = null, classId, initiated, recipient, co
       }
     }
     if (!written) return false;
-    logEvent('web_quiz.msg_sent', { trigger, initiated, recipient, usd: usdOf(n, each), cls: clsFor(classId), ...(reason ? { reason } : {}), w: 's' });
+    const min = minutesWritten > 0 ? minutesOf(n, minutesWritten) : 0;
+    logEvent('web_quiz.msg_sent', { trigger, initiated, recipient, usd: usdOf(n, each), ...(min > 0 ? { min } : {}), cls: clsFor(classId), ...(reason ? { reason } : {}), w: 's' });
     return true;
   } catch (err) {
     logToFile('⚠️ message ledger: record failed', { error: err.message });
@@ -229,7 +252,7 @@ async function write({ trigger, reason = null, classId, initiated, recipient, co
 }
 
 module.exports = {
-  record, pktDay, capPerPhone, TRIGGERS, USD_PER_SEND, TABLE, CAP_KEY, CAP_DEFAULT,
-  _resetMissing: () => { missingLogged = false; writeFailLogged = false; },
+  record, pktDay, capPerPhone, TRIGGERS, USD_PER_SEND, MINUTES_PER_ROUND_CHILD, TABLE, CAP_KEY, CAP_DEFAULT,
+  _resetMissing: () => { missingLogged = false; writeFailLogged = false; oldFunctionLogged = false; },
   _resetCap: () => { capCache = null; unkeyedLogged = false; redisFailLogged = false; localCounts.clear(); },
 };
