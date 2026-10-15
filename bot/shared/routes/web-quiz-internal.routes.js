@@ -13,6 +13,7 @@
  *   GET  /schools/:code         E6b every school's points this week, the viewer's school marked
  *   POST /me                    E7 a phone's children: past scores, friends finished
  *   POST /who/class             the teacher binds a hand-out to a class (identity v2)
+ *   POST /bind/mint  GET /bind/status  POST /bind/undo   keep my place: the JUGNU- code, its state, page Undo
  *   POST /e                     E8 page events -> logs (allow-listed, no PII)
  *   GET  /media/:code/:qid      E10 302 to a presigned picture (or the bytes)
  *   GET  /videos/:code          E11 "watch another video": lessons of the quiz's grade
@@ -91,6 +92,12 @@ router.post('/who', handle((req) => WebQuiz.whoPlayed(req.body || {})));
 router.post('/who/fix', handle((req) => WebQuiz.fixWho(req.body || {})));
 // The teacher binds an unbound hand-out to one of their classes (identity v2).
 router.post('/who/class', handle((req) => WebQuiz.whoClass(req.body || {})));
+// ── keep my place ── (web-quiz-bind-page.js; web_quiz_phone_bind, off -> {off:true}). The device is x-wq-device, never the body.
+const BindPage = () => require('../services/quiz/web-quiz-bind-page');
+router.post('/bind/mint', handle((req) => BindPage().mint({ hub: (req.body || {}).hub, kid: (req.body || {}).kid, lang: (req.body || {}).lang, device: req.get('x-wq-device') || undefined })));
+router.get('/bind/status', handle((req) => BindPage().status({ code: typeof req.query.code === 'string' ? req.query.code.slice(0, 20) : '' })));
+router.post('/bind/undo', handle((req) => BindPage().undo({ code: (req.body || {}).code, device: req.get('x-wq-device') || undefined })));
+// ── end keep my place ──
 router.post('/e', handle(async (req, res) => { WebQuiz.events(req.body || {}); res.status(204).end(); }));
 router.get('/media/:code/:qid', handle((req) => WebQuiz.media(req.params.code, req.params.qid, { k: req.query.k, z: req.query.z })));
 router.get('/videos/:code', handle((req) => WebQuizVideos.list(req.params.code, { st: req.query.st })));
