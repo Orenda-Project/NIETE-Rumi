@@ -1,0 +1,105 @@
+{
+  "statusCode": 200,
+  "payload": {
+    "success": true,
+    "grades": [
+      {
+        "grade": 1,
+        "label": "Grade 1"
+      },
+      {
+        "grade": 2,
+        "label": "Grade 2"
+      },
+      {
+        "grade": 3,
+        "label": "Grade 3"
+      },
+      {
+        "grade": 4,
+        "label": "Grade 4"
+      },
+      {
+        "grade": 5,
+        "label": "Grade 5"
+      }
+    ],
+    "subjects": [
+      {
+        "subject": "english",
+        "label": "English",
+        "grade": 2
+      },
+      {
+        "subject": "urdu",
+        "label": "Urdu",
+        "grade": 2
+      },
+      {
+        "subject": "maths",
+        "label": "Mathematics",
+        "grade": 2
+      },
+      {
+        "subject": "science",
+        "label": "Science",
+        "grade": 2
+      },
+      {
+        "subject": "social_studies",
+        "label": "Social Studies",
+        "grade": 2
+      },
+      {
+        "subject": "islamiat",
+        "label": "Islamiat",
+        "grade": 2
+      },
+      {
+        "subject": "general_knowledge",
+        "label": "General Knowledge",
+        "grade": 2
+      }
+    ],
+    "types": [
+      {
+        "id": "MCQs",
+        "category": "objective"
+      },
+      {
+        "id": "MSQs",
+        "category": "objective"
+      },
+      {
+        "id": "True/False",
+        "category": "objective"
+      },
+      {
+        "id": "Fill in the Blanks",
+        "category": "objective"
+      },
+      {
+        "id": "Brief Answers",
+        "category": "subjective"
+      },
+      {
+        "id": "Mind Map",
+        "category": "subjective"
+      },
+      {
+        "id": "Flow Chart",
+        "category": "subjective"
+      },
+      {
+        "id": "Label the Diagram",
+        "category": "subjective"
+      },
+      {
+        "id": "Logical Reasoning",
+        "category": "subjective"
+      }
+    ],
+    "maxQuestions": 50,
+    "defaultQuestions": 15
+  }
+}

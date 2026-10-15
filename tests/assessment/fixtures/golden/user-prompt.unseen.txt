@@ -1,0 +1,28 @@
+**Grade:** 5
+**Subject:** maths
+**Page Reference:** 12-13
+
+**Book Text Content:**
+```
+=== Page 12 ===
+Fractions
+A fraction names a part of a whole.
+=== Page 13 ===
+Equivalent fractions name the same part.
+```
+
+**GENERATE THE FOLLOWING:**
+• Unseen Objective questions — 5 MCQs
+• Unseen Subjective questions — 3 Short Questions, 2 Word Problems
+• In total the paper must have exactly 10 questions — no more
+
+**IMPORTANT NOTES:**
+• For SEEN questions: Extract questions exactly as they appear in the textbook
+• For UNSEEN questions: Create new questions based on concepts from the textbook
+• The paper carries no pictures. Do NOT include any question that needs a picture, illustration or diagram to answer (e.g. "write the name of each object under its picture", "look at the picture and…", "colour the…"). Rewrite it so it can be answered from text alone, or leave it out
+• Include proper marks allocation for each question
+• Maintain grade-appropriate language and difficulty
+• Return output in the JSON format specified in the system prompt
+• Where a question type specifies an exact count (e.g. "5 MCQs"), generate EXACTLY that many questions for that type — no more, no less
+
+---
