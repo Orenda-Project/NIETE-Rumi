@@ -63,7 +63,7 @@ const chatKid = (i) => student(i, { phone: PHONE, list_id: null });
 const code = (c, kid, extra = {}) => ({ code: c, canonical_id: kid, minted_at: iso(Date.now() - 60000),
   expires_at: iso(Date.now() + 59 * 60000), used_at: null, outcome: null, ...extra });
 const binding = (kid, phone = PHONE, extra = {}) => ({ id: `b-${kid.slice(-2)}-${phone.slice(-3)}`, canonical_id: kid, phone_norm: phone,
-  phone_tomb: 'tomb', via: 'save', bound_at: iso(Date.now() - 86400000), expires_at: '2027-03-31T18:59:59.000Z',
+  phone_tomb: 'tomb', via: 'save', bound_at: iso(Date.now() - 172800000), expires_at: '2027-03-31T18:59:59.000Z',
   revoked_at: null, revoked_by: null, ...extra });
 
 function seed({ on = true, students = [], codes = [], bindings = [], ledger, classTeachers = [] } = {}) {
@@ -555,13 +555,13 @@ describe('the reply cap: 8 replies per phone per PKT day, counted when the bot d
     expect(events('web_quiz.reply_capped')).toEqual([{ trigger: 'bind_reply', w: 's' }]);
   });
 
-  test('the Redis key holds the keyed hash, never the phone; the first count sets a 24-hour TTL', async () => {
+  test('the Redis key holds the keyed hash, never the phone; the first count sets a 48-hour TTL', async () => {
     seed({ students: [chatKid(0)] });
     await stops(2);
     const keys = capKeys();
     expect(keys).toEqual([`wq:reply_cap:${Ledger().pktDay(new Date())}:${Bind().ukeyOf(PHONE)}`]);
     for (let i = 0; i + 5 <= PHONE.length; i += 1) expect(keys[0]).not.toContain(PHONE.slice(i, i + 5));
-    expect(redisService.expire.mock.calls).toEqual([[keys[0], 86400]]);
+    expect(redisService.expire.mock.calls).toEqual([[keys[0], 172800]]);
     expect(events('web_quiz.reply_capped')).toEqual([]);
   });
 

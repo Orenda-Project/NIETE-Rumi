@@ -14,7 +14,7 @@
  *
  * The per-phone daily reply cap (app_settings web_quiz_reply_cap_per_phone, default 8, never below 1): when the
  * caller passes `phone`, the cap runs before anything else. The count lives in Redis under
- * wq:reply_cap:<PKT day>:<keyed hash of the phone> (24-hour TTL; the key never holds the phone). Over the cap →
+ * wq:reply_cap:<PKT day>:<keyed hash of the phone> (48-hour TTL so the strip's daily snapshot always sees it; the key never holds the phone). Over the cap →
  * web_quiz.reply_capped{trigger} and false, with no ledger row and no msg_sent. With a phone, the return value is
  * the send decision: false ONLY when capped (a ledger write that fails is logged, web_quiz.ledger_write_failed{trigger}
  * once per process, and the reply still goes out). `reason` (bind, renew, stop, stop_nothing, max_kids, teacher_phone,
@@ -34,7 +34,7 @@ const RECIPIENTS = Object.freeze(['family', 'teacher']);
 const CAP_KEY = 'web_quiz_reply_cap_per_phone';
 const CAP_DEFAULT = 8;
 const CAP_TTL_MS = 30 * 1000;
-const CAP_WINDOW_SECS = 24 * 60 * 60;
+const CAP_WINDOW_SECS = 48 * 60 * 60;   // the counter outlives its PKT day so the daily strip snapshot never misses it
 
 let missingLogged = false;
 let capCache = null; // { at, cap }
