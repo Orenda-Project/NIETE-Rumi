@@ -17,6 +17,7 @@ const { applyPhotoCaptions } = require('./photo-note');
 const { resolveReportLanguage } = require('./report-language');
 const { loadTrendData } = require('../coaching-trend.service');
 const { resolveTarget } = require('../target-resolver');
+const { observe2Target, pinObserve2Horizon } = require('./observe2-horizon');
 const { resolveUx } = require('../../../config/ux-strings');
 const { downloadFromR2, extractKeyFromUrl } = require('../../../storage/r2');
 const { htmlToImage } = require('../../../utils/html-to-pdf');
@@ -162,7 +163,8 @@ async function generateHeroReport(session, analysis, opts = {}) {
     logToFile('hero-report: trend load failed (non-fatal)', { error: e.message });
   }
 
-  const target = opts.target !== undefined ? opts.target : resolveTarget(analysis);
+  // /observe2: the coach's "Work on first" is the target, judged or not (observe2-horizon).
+  const target = opts.target !== undefined ? opts.target : (observe2Target(analysis) || resolveTarget(analysis));
   const narrative = await generateReportNarrative(analysis, {
     transcript: session.transcript_text,
     trend,
@@ -170,6 +172,9 @@ async function generateHeroReport(session, analysis, opts = {}) {
     teacherName,
     target,
   });
+  // /observe2: the horizon's title is the coach's pick, in its own words, set here rather than trusted
+  // to the model (pilot sheet R3). Before the image and before the caller stores the narrative.
+  pinObserve2Horizon(narrative, analysis);
   // bd-trksw9: without the narrative the page renders its score, photos and trend
   // around an empty strength, horizon and moments. A caller that would rather say so
   // than send that (the /observe preview) opts in; every other caller is unchanged.
