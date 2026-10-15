@@ -105,9 +105,9 @@ describe('the queue rows (Mock M4)', () => {
   test('the two tiers for one teacher: the §11-blocked exact name and the probable word match', async () => {
     const rows = await Queue.computeCandidates(T1);
     expect(rows).toEqual([
-      { loose_id: c(3), candidate_id: r(6), first: 'Omar', candidate_first: 'Omar', class_id: C1, grade: 3,
+      { loose_id: c(3), candidate_id: r(6), first: 'Omar', candidate_first: 'Omar', father_first: null, candidate_father_first: null, class_id: C1, grade: 3,
         evidence: { tier: 'roster_unique_with_loose', name_words_matched: 2, same_grade: true, other_same_name_loose: true } },
-      { loose_id: c(7), candidate_id: r(5), first: 'Hamza', candidate_first: 'Hamza', class_id: C1, grade: 3,
+      { loose_id: c(7), candidate_id: r(5), first: 'Hamza', candidate_first: 'Hamza', father_first: null, candidate_father_first: null, class_id: C1, grade: 3,
         evidence: { tier: 'probable', name_words_matched: 1, same_grade: true, other_same_name_loose: false } },
     ]);
   });
@@ -116,6 +116,18 @@ describe('the queue rows (Mock M4)', () => {
     fake.db.quiz_sessions.find((s) => s.id === 's33').device_ref = 'dev-3';
     const rows = await Queue.computeCandidates(T1);
     expect(rows.map((x) => x.loose_id)).not.toContain(c(3));
+  });
+
+  test('the row carries the father\'s FIRST name on both sides for the teacher view (null when the record has none; never a surname)', async () => {
+    // the roster Omar has a father on file; the loose Omar typed one too; the probable pair (Hamza) has none
+    fake.db.students.find((x) => x.id === r(6)).father_name = 'Khalid Testwala';
+    fake.db.students.find((x) => x.id === c(3)).father_name = 'Khalid';
+    const rows = await Queue.computeCandidates(T1);
+    const omar = rows.find((x) => x.loose_id === c(3));
+    expect(omar).toMatchObject({ father_first: 'Khalid', candidate_father_first: 'Khalid' });
+    expect(JSON.stringify(omar)).not.toContain('Testwala');
+    const hamza = rows.find((x) => x.loose_id === c(7));
+    expect(hamza).toMatchObject({ father_first: null, candidate_father_first: null });
   });
 
   test('first names only: no surname, phone or device in any row', async () => {
