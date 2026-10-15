@@ -89,6 +89,16 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # observe-visit-flow.handler.js: INIT → SELECT_SCHOOL → SELECT_TEACHER (18/page,
     # bd-2431) → BRIEF. Data from observe/assignment/leader-source.js.
 
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: /observe's Start asks for the recording and says a recorder-app file goes as a Document
+    Given I opened the visit planner from /observe and picked a school and a teacher
+    When I tap "Start observation" in the brief
+    Then the bot names the teacher and asks me to record the lesson and send the audio
+    And it says a recording from the phone's recorder app goes as a Document (📎 → Document), not as audio
+    And it says why: WhatsApp refuses audio over 16 MB
+    # observe-strings.js buildVisitCapturePrompt (VISIT_CAPTURE_TEMPLATES + SEND_AS_DOCUMENT), en and ur.
+    # Pilot sheet R2 (12 Oct): shared as audio, a lesson from a recorder app never reaches the bot.
+
   @e2e @flow @scheduling @config-gated @P2
   Scenario: The scheduling menu shows live pending-debrief and upcoming counts
     Given the NIETE bot chat is open on a LEADER account
@@ -793,6 +803,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the bot sends a message starting "Before the lesson starts:" with an "Open the form" CTA
     And it tells me to start my phone's voice recorder app, not WhatsApp
     And it says to save Part 1 at minute 20 and carry on with Part 2 until minute 40
+    And its last step says to send the recording here as a Document (📎 → Document), not as audio
+    # Pilot sheet R2 (12 Oct): shared to WhatsApp as audio, a recorder-app lesson is refused on the
+    # phone at 16 MB and never reaches the bot. A document can be up to 100 MB.
 
   @e2e @flow @config-gated @wip @draft @negative @P1
   Scenario: Part 1 refuses a number that cannot be right
@@ -921,7 +934,11 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Given I filled Part 1 and Part 2 of the live form
     When I pick what to work on first, tick the seal box and tap "Seal and send"
     Then the form shows "Sealed at" and the time
-    And the bot says the record is sealed and to stop the recorder, then share the recording to this chat
+    And the bot says the record is sealed and to stop the recorder, then send the recording here as a Document
+    And it gives the steps: 📎 → Document → the recording → Send, and on iPhone save it to Files first
+    And it says why not as audio: WhatsApp refuses audio over 16 MB, and a document can be up to 100 MB
+    And it never says to share the recording from the recorder app to WhatsApp
+    And the sealed screen says to send the recording in the chat, as a document
     And tapping "Seal and send" again changes nothing
     # observe2-form-endpoint.js: seal is a compare-and-set; the database trigger refuses any later
     # change to what was sealed. The photos were added on the step before (2 Oct: up to ten, no cap of
@@ -930,7 +947,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   @e2e @audio @config-gated @destructive @wip @draft @P1
   Scenario: The recording joins the sealed record and its moments come back to check
     Given my /observe2 record is sealed
-    When I send the lesson recording from the recorder app as a file
+    When I send a 30-minute lesson recording of about 30 MB from the recorder app as a Document
     Then the bot says "Recording received" and that the moments come here to check
     And no photo or lesson-plan question is asked
     And a few minutes later a message with a "Check the moments" CTA arrives
