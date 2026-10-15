@@ -104,3 +104,21 @@ describe('the fallback file name is the name the bot saves', () => {
     expect(chain('science').scheme).toContain('Grade5_Science_FDE.pdf');
   });
 });
+
+describe('Urdu numbers read the right way round', () => {
+  // Urdu digits are bidi class AN: inside an LTR isolate a dash between two of
+  // them still resolves right-to-left, so «2026–27» printed as «27–2026».
+  it('a range or sum in an Urdu-digit atom pins its separators left-to-right with LRM', () => {
+    const { scheme } = chain('urdu');
+    expect(scheme).toContain('<span class="num">۲۰۲۶‎–‎۲۷</span>');
+    expect(scheme).toContain('<span class="num">۴‎–‎۱۰</span>');
+  });
+
+  it('no · stands beside an Urdu-digit atom (it reads as ۰); an Urdu comma is used instead', () => {
+    const { scheme, paper } = chain('urdu');
+    for (const html of [scheme, paper]) {
+      expect(html).not.toMatch(/·\s*<span class="num">|<\/span>\s*·/);
+    }
+    expect(scheme).toMatch(/قواعد، <span class="num">۱‎–‎۳<\/span>/);
+  });
+});

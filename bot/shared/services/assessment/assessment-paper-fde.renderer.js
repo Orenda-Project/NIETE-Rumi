@@ -143,9 +143,21 @@ function textOf(value, ctx) {
   if (ctx.maths) out = typesetFractions(out);
   if (ctx.medium === 'ur') {
     out = out.replace(/(<[^>]*>)|([^<]+)/g, (m, tag, text) => (tag
-      ? tag : text.replace(NUMERIC_ATOM, (n) => `<span class="num">${toUrduDigits(n)}</span>`)));
+      ? tag : urduSeparators(text).replace(NUMERIC_ATOM, (n) => `<span class="num">${pinSeparators(toUrduDigits(n))}</span>`)));
   }
   return drawSymbols(out).replace(/\n/g, '<br>');
+}
+
+// A · beside an Urdu digit reads as ۰ (the Urdu zero is a dot): there it becomes an Urdu comma.
+function urduSeparators(text) {
+  return text.replace(/\s*·\s*(?=[0-9])/g, '، ').replace(/([0-9])\s*·\s*/g, '$1، ');
+}
+
+// Urdu digits are bidi class AN, so even inside an LTR isolate a dash, slash or
+// sign between two of them resolves right-to-left («2026–27» printed «27–2026»).
+// An LRM each side pins it; the decimal point and the thousands comma need none.
+function pinSeparators(atom) {
+  return atom.replace(/[^\u06F0-\u06F9.,]/g, (c) => `\u200E${c}\u200E`);
 }
 
 // "8 2/5" → 8 + a stacked 2⁄5; "3/4" alone → a stacked fraction. Escaped input.
