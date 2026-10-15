@@ -10,6 +10,7 @@ import { FOCUS } from '../ui/styles';
 import { useCopy, useLang } from '../i18n';
 import { ASSESSMENT, type AssessmentV2Copy } from './copy';
 import { loadChapters, patternOffer } from './api';
+import { generateFailureText } from './failure';
 import { FDE_STEPS, fdeUnitRanges, toSpec, type Picks } from './model';
 import { newPaperPath, requestPath } from './paths';
 import { stepReason } from './reasons';
@@ -33,23 +34,6 @@ const pick = (t: BiText | null | undefined, lang: 'en' | 'ur') => {
   const text = t ? t[lang] || t.en : '';
   return lang === 'ur' ? isolateRuns(text) : text;
 };
-
-/** "11:40 AM" in Pakistan time, for "try again at …". */
-function clock(iso: string | null): string | null {
-  const t = iso ? Date.parse(iso) : NaN;
-  if (!Number.isFinite(t)) return null;
-  return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Karachi' }).format(t);
-}
-
-/** The server's refusal of a board-pattern request, in the teacher's words (copy deck §A); null = show today's message. */
-function fdeFailureText(code: string | null | undefined, retryAt: string | null, C: AssessmentV2Copy): string | null {
-  switch (code) {
-    case 'PATTERN_OFF': return C.fdeFailures.PATTERN_OFF;
-    case 'ALREADY_GENERATING': return C.fdeFailures.ALREADY_GENERATING;
-    case 'RATE_LIMITED': return C.fdeFailures.RATE_LIMITED(clock(retryAt));
-    default: return null;
-  }
-}
 
 /** A Check row: label, value (and a sub-line), and its action at the end. The whole row is the button. */
 function Row({ testId, label, value, sub, action, onPress, to, first }: {
@@ -124,7 +108,7 @@ export function FdeCheck() {
     setMaking(false);
     if ('job' in res) { navigate(requestPath(res.job.requestId), { replace: true }); return; }
     const f = portal.takeGenerateFailure?.() ?? null;
-    setError(fdeFailureText(f?.errorCode, f?.retryAt ?? null, C) ?? res.error);
+    setError(generateFailureText(f?.errorCode, f?.retryAt ?? null, C) ?? res.error);
     // A paper for this class is already being made: no dead end, its page is one tap away.
     if (f?.errorCode === 'ALREADY_GENERATING' && f.requestId) setRunning(f.requestId);
   };
