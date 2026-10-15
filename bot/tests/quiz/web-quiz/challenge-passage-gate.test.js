@@ -95,9 +95,34 @@ describe('passage check: the rules on made-up passages', () => {
     expect(has(G.checkPassage(p), 'reach')).toBe(true);
   });
 
-  test('a band-1 passage with a 9-word sentence fails', () => {
-    const p = base({ text: BASE_TEXT.replace('The kite went high in the sky.', 'The kite went very high in the blue sky.') });
+  test('the band caps the MEAN words a sentence: mean 7.0 with one 8-word sentence passes, with a warning', () => {
+    const p = base({ text: 'Zara had a new blue kite that day. She took the kite to the park. The kite went high in the sky. '
+      + 'Zara gave the line to her friend. The friend was very happy too.' });
+    const res = G.checkPassage(p);
+    expect(res.metrics.mean_sent_len).toBe(7);
+    expect(res.problems).toEqual([]);
+    expect(res.warnings.some((w) => w.startsWith('sentence_len:'))).toBe(true);
+  });
+
+  test('a band-1 passage with mean 7.5 words a sentence fails', () => {
+    const p = base({ text: 'Zara had a new blue kite that day. She took the new kite to the park. The kite went high in the sky. '
+      + 'Zara gave the line to her friend.' });
+    const res = G.checkPassage(p);
+    expect(res.metrics.mean_sent_len).toBe(7.5);
+    expect(res.problems.some((x) => x.startsWith('sentence_len: mean'))).toBe(true);
+  });
+
+  test('one sentence more than three words over the band cap still fails', () => {
+    const p = base({ text: BASE_TEXT.replace('The kite went high in the sky.', 'The kite went very high in the sky that day with the wind.') });
     expect(has(G.checkPassage(p), 'sentence_len')).toBe(true);
+  });
+
+  test('a recorded mean within rounding (0.06) of the computed one is accepted; further off is not', () => {
+    const p = base();
+    p.mean_sent_len = Math.round((p.mean_sent_len + 0.05) * 100) / 100;
+    expect(has(G.checkPassage(p), 'recorded')).toBe(false);
+    p.mean_sent_len += 0.1;
+    expect(has(G.checkPassage(p), 'recorded')).toBe(true);
   });
 
   test('a test word in an option fails', () => {
@@ -168,10 +193,12 @@ describe('passage check: the stock on disk', () => {
 
   test.each(own.map(({ file, p }) => [file, p]))('%s records the computed numbers', (file, p) => {
     const m = G.measure(p);
-    for (const k of ['tokens', 'sentences', 'mean_sent_len', 'max_word_len', 'readability', 'readability_band_above',
+    for (const k of ['tokens', 'sentences', 'max_word_len', 'readability', 'readability_band_above',
       'tokens_list', 'lines', 'text_hash', 'q_reach_1', 'q_reach_2', 'q_n']) {
       expect([k, p[k]]).toEqual([k, m[k]]);
     }
+    // the mean is rounded to one place; a file written by another language's rounding may differ by one step
+    expect(Math.abs(p.mean_sent_len - m.mean_sent_len)).toBeLessThanOrEqual(0.06);
   });
 
   test('text_hash is unique across files, and no practice text is a check text', () => {

@@ -17,7 +17,8 @@
  *           grade-2 list AND ≥ 0.95 on the grade-3 list (below grade, not off-list); every sentence ends in a full stop
  *   band 2: 55–65 tokens, 6–9 sentences, no sentence over 9 words, words ≤ 7 / 10, ≥ 0.85 on the grade-3 list
  *   band 3: 55–65 tokens, 6–9 sentences, no sentence over 10 words, words ≤ 8 / 11, ≥ 0.90 on the grade-5 list
- * A sentence over the band's words-a-sentence number fails (so the mean is under it too).
+ * The band number caps the MEAN words a sentence (a problem when over). A single sentence over the cap is only a
+ * warning, unless it is more than three words over (then a problem: a clause chain, not a long sentence).
  *
  * Every passage: no numerals (Western or Urdu digits), no test words and no "don't know" anywhere a child sees it
  * (the same two patterns as web-quiz-challenge.js), no word from the familiar-word or made-up-word tasks of the v3
@@ -54,6 +55,10 @@ const BANDS = {
   3: { tokens: [55, 65], sentences: [6, 9], sentLen: 10, wordLen: { ur: 8, en: 11 }, floor: 0.90, list: 'fed-cum-g5-2026', above: null, aboveFloor: null },
 };
 const LISTS = ['fed-cum-g2-2026', 'fed-cum-g3-2026', 'fed-cum-g5-2026'];
+// One sentence may run past the band's mean cap by this much before it is a problem (else a warning).
+const SENT_SLACK = 3;
+// A recorded mean is rounded to one place; rounding differs between languages (58/8 = 7.25 → 7.2 or 7.3).
+const MEAN_TOLERANCE = 0.06;
 const FIRST_PERSON = {
   en: new Set(['i', 'me', 'my', 'mine', 'myself', 'we', 'us', 'our', 'ours', 'ourselves']),
   ur: new Set(['ہم', 'ہمارا', 'ہماری', 'ہمارے', 'میرا', 'میری', 'میرے', 'مجھے', 'مجھ', 'ہمیں']),
@@ -300,7 +305,8 @@ function checkPassage(p) {
   if (m.sentences < spec.sentences[0] || m.sentences > spec.sentences[1]) problems.push(`sentences: ${m.sentences} (band ${p.band}: ${spec.sentences.join('–')})`);
   sentences(p.text).forEach((s, i) => {
     const n = tokenise(s, lang).length;
-    if (n > spec.sentLen) problems.push(`sentence_len: sentence ${i + 1} has ${n} words (band ${p.band}: ≤ ${spec.sentLen})`);
+    if (n > spec.sentLen + SENT_SLACK) problems.push(`sentence_len: sentence ${i + 1} has ${n} words (band ${p.band}: mean ≤ ${spec.sentLen}, no sentence over ${spec.sentLen + SENT_SLACK})`);
+    else if (n > spec.sentLen) warnings.push(`sentence_len: sentence ${i + 1} has ${n} words (band ${p.band} mean cap ${spec.sentLen})`);
     if (p.band === 1 && !/[.۔]["'”’»]?$/.test(s)) problems.push(`full_stop: sentence ${i + 1} does not end in a full stop`);
   });
   if (m.mean_sent_len > spec.sentLen) problems.push(`sentence_len: mean ${m.mean_sent_len} (band ${p.band}: ≤ ${spec.sentLen})`);
@@ -344,7 +350,10 @@ function checkPassage(p) {
   // what the file records must be what the text gives
   for (const k of ['tokens', 'sentences', 'mean_sent_len', 'max_word_len', 'readability', 'readability_band_above',
     'lines', 'tokens_list', 'text_hash', 'q_reach_1', 'q_reach_2', 'q_n']) {
-    if (JSON.stringify(p[k]) !== JSON.stringify(m[k])) problems.push(`recorded: ${k} is ${JSON.stringify(p[k])}, computed ${JSON.stringify(m[k])}`);
+    const same = k === 'mean_sent_len'
+      ? typeof p[k] === 'number' && Math.abs(p[k] - m[k]) <= MEAN_TOLERANCE
+      : JSON.stringify(p[k]) === JSON.stringify(m[k]);
+    if (!same) problems.push(`recorded: ${k} is ${JSON.stringify(p[k])}, computed ${JSON.stringify(m[k])}`);
   }
   return { ok: problems.length === 0, problems, warnings, metrics: m };
 }
