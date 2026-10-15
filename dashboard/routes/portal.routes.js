@@ -2730,7 +2730,7 @@ const Assessment = require('../services/assessment.service');
 const AssessmentRateLimit = require('../lib/assessment-rate-limit');
 
 /**
- * A 400 (or a coded 409) from the bot carries a message she can act on; anything else is ours.
+ * A 400 (or a coded 409) from the bot carries a message the teacher can act on; anything else is ours.
  * `errorCode` / `requestId` ride along only when the bot sent them, so an uncoded 400 answers as before.
  */
 function assessmentFailure(res, error, fallback) {
