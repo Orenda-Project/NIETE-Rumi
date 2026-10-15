@@ -56,8 +56,8 @@ const STUCK_HOURS = 6;
 // PostgREST answers at most db-max-rows (1,000 on NIETE) whatever .limit() asks for: a full page is a
 // truncated read, never a complete one.
 const MAX_ROWS = 1000;
-/** The grounded queue's attempts (MAX_RETRIES in workers/lesson-plan-generation.worker): fewer = a retry follows. */
-const GROUNDED_MAX_RETRIES = 3;
+/** The grounded queue's attempts (the worker's limit): fewer = a retry follows. */
+const { MAX_ATTEMPTS: GROUNDED_MAX_RETRIES } = require('../../config/lesson-plan-generation');
 const FAIL_RATE = 0.2;
 const MIN_FINISHED = 10;
 const ABS_FAILURES = 5;
