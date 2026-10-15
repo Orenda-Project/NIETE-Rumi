@@ -14,6 +14,7 @@
  *                                   homonym_in_list/canonical_id kept 24 h for the run row, and `id_pick` emitted
  *   pickFor(sessionId | {sessionId, canonicalId, device})  the quiz start's record, else the hub chip's record
  *                                   (wq:idpick:h:<canonical_id>:<sha256(device)[0:16]>, written by hubExtras), else null
+ *   hubPickKey(canonicalId, device)  that hub record's Redis key (null without both); the one builder of the format
  *   canonOn() / bindOn()            the switches (false when the switch module is unavailable)
  *
  * Every function is a no-op ({off:true} or null) unless its switch is on. The phone number is never known
@@ -273,4 +274,4 @@ async function pickFor(arg) {
   }
 }
 
-module.exports = { mint, status, undo, whoseTurn, hubExtras, recordPick, pickFor, canonOn, bindOn, CODE_RX, PREFILL };
+module.exports = { mint, status, undo, whoseTurn, hubExtras, recordPick, pickFor, hubPickKey, canonOn, bindOn, CODE_RX, PREFILL };

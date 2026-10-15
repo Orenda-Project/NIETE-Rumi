@@ -252,6 +252,15 @@ describe('the pick record of a play opened from the hub (a chip tap, no quiz ses
     expect(await Bind.pickFor('sess-9')).toMatchObject({ id_src: 'hub_chip' });
     expect(await Bind.pickFor({})).toBeNull();
   });
+  test('hubPickKey is the one builder of the key the hub pick writes; recordPick is exported', async () => {
+    await Hub.hub(hubOf([KID]), { device: DEV, kid: chip(KID), src: 'wa' });
+    const written = redis.set.mock.calls.map((c) => c[0]).filter((k) => /^wq:idpick:h:/.test(k));
+    expect(written).toEqual([Bind.hubPickKey(KID, DEV)]);
+    expect(Bind.hubPickKey(KID, DEV)).toBe(`wq:idpick:h:${KID}:${devH}`);
+    expect(Bind.hubPickKey(KID, '')).toBeNull();
+    expect(Bind.hubPickKey('', DEV)).toBeNull();
+    expect(typeof Bind.recordPick).toBe('function');
+  });
   test('canon off -> no hub key, no id_pick', async () => {
     IdFlags.flags.mockResolvedValue(OFF);
     await Hub.hub(hubOf([KID]), { device: DEV, kid: chip(KID), src: 'wa' });
