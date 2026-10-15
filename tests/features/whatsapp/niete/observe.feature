@@ -706,7 +706,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the bot sends a message starting "Before the lesson starts:" with an "Open the form" CTA
     And it tells me to start my phone's voice recorder app, not WhatsApp
     And it says why: the recorder app keeps recording while I take photos, and a WhatsApp voice note stops when the camera opens
-    And it says to save Part 1 at minute 20 and carry on with Part 2 until minute 40
+    And it says to save Part 1 when the children start working on their own, and carry on with Part 2 until minute 40
     And it says to take photos with the phone's camera as I go and add them in the form with "Upload saved photos"
     And its last step says to send the recording here as a Document (📎 → Document), not as audio
     # Pilot sheet R2 (12 Oct): shared to WhatsApp as audio, a recorder-app lesson is refused on the
@@ -726,7 +726,39 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     Then the form opens on Part 2
     # WhatsApp restores a form reopened shortly after from the phone (no request reaches the bot; seen on
     # the sandbox E2E, 30 Sep). A form WhatsApp starts afresh opens on "Part 1 is saved" with "Carry on
-    # with Part 2, from minute 20 to 40." and "Continue" opens Part 2.
+    # with Part 2: the children working on their own, then the wrap-up, to minute 40." and "Continue"
+    # opens Part 2.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: Part 1 runs to the end of guided practice, and Part 2 is the children working on their own
+    Given the live form is open on Part 1
+    Then it says "Warm-up, explanation and guided practice. When the children start working on their own, tap "Part 1 done""
+    When I fill Part 1 and tap "Part 1 done"
+    Then Part 2 is headed "Part 2: working on their own"
+    And it asks "Did each child have a task?" with "Every child had a task", "Only some children" and "No work on their own"
+    And it does not ask who the teacher asked, about group work, or who used materials
+    # FICO pilot sheet R4 (a coach) and R10 (the ICT lead), 14 Oct: both parts asked about group practice; the
+    # 5-step plan is warm-up, explanation, guided practice, independent practice, wrap-up. Form version 5.
+
+  @e2e @flow @config-gated @wip @draft @P1
+  Scenario: With work of their own, Part 2 asks what the teacher did and what children did when stuck
+    Given the live form is open on Part 2
+    When I choose "Every child had a task"
+    Then it asks "While they worked, the teacher" with "Went round the room", "Looked at their work", "Helped those who were stuck", "Gave more to early finishers" and "Stayed at the front"
+    And it asks "When the work got hard" with "No one tried", "Tried only when sure", "2+ tried while unsure", "Tried unasked, kept going" and "Nobody got stuck"
+    When I leave both unanswered and tap "Part 2 done"
+    Then the form stays on Part 2 and asks for both
+    When I choose "No work on their own" instead
+    Then neither is asked, and "Part 2 done" saves the part
+    # rules.js: "When the work got hard" is D4's level (the titles are PLAIN.D4); "Helped those who were
+    # stuck" makes C2 at least 2. Both are named on the check's "because" lines and in the record.
+
+  @e2e @flow @config-gated @wip @draft @P2
+  Scenario: A form opened before the parts changed keeps its own Part 2
+    Given I opened the live form before form version 5 was published, and saved Part 1
+    When I fill Part 2's older questions and tap "Part 2 done"
+    Then the part is saved and the lesson plan screen opens
+    # observe2-form-endpoint.js: a part posted with no fv keeps the older fields (FIELDS_V4) and checks.
 
   @e2e @flow @config-gated @wip @draft @P1
   Scenario: After Part 2 the coach picks the lesson plan from the teacher's own plans

@@ -22,6 +22,7 @@
 
 const { CODES, PLAIN, ROW, PRIORITY, FOCUS, PLAN_FOCUS, pickAlso } = require('./fico17');
 const { buildBrief, TYPE_CODE } = require('./brief');
+const { seenNotes } = require('./rules');
 
 const RUBRIC = 'fico17';
 const LEVEL_MAX = 4;
@@ -37,7 +38,8 @@ function confirmedMoments(form) {
   return ((form.rumi_moments && form.rumi_moments.moments) || []).filter((m) => review[`heard_${m.id}`] === 'yes');
 }
 
-// What the level means, in the workbook's words, and the confirmed moments that show it.
+// What the level means, in the workbook's words, the confirmed moments that show it, and what the coach
+// saw on the form.
 function evidenceFor(code, level, raw, form) {
   if (level == null) return NOT_JUDGED[String(raw)] || 'Not judged';
   const review = form.evidence_review || {};
@@ -46,7 +48,9 @@ function evidenceFor(code, level, raw, form) {
   const seen = hole && kept ? hole : PLAIN[code][level - 1];
   const heard = confirmedMoments(form).filter((m) => TYPE_CODE[m.type] === code).slice(0, 2)
     .map((m) => `${m.minute} "${m.quote}"`);
-  return heard.length ? `${seen}. Heard: ${heard.join('; ')}` : seen;
+  // What the coach saw on the form beyond the level (the desks in Part 2, R4/R10), by name.
+  const noted = seenNotes(form.answers)[code];
+  return [seen, heard.length ? `Heard: ${heard.join('; ')}` : '', noted ? `Seen ${noted}` : ''].filter(Boolean).join('. ');
 }
 
 function section(letter, form) {
