@@ -7028,7 +7028,8 @@ CREATE TABLE IF NOT EXISTS merge_log (             -- §12, the teacher queue's 
   teacher_id     uuid        NOT NULL,
   decided_at     timestamptz NOT NULL DEFAULT now(),
   decision       text        NOT NULL CHECK (decision IN ('same','no','undo')),
-  source         text        NOT NULL CHECK (source IN ('queue','class_tab'))
+  source         text        NOT NULL CHECK (source IN ('queue','class_tab','job')),   -- 'job': the backward-join job (child_identity_merge_tier.sql)
+  tier           text        CHECK (tier IN ('roster_unique_with_loose','probable'))  -- the queue tier a decision was made on (child_identity_merge_tier.sql)
 );
 
 -- Row Level Security on every table above: the bot writes with the service
