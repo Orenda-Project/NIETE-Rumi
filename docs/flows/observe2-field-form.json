@@ -372,6 +372,7 @@
                   "payload": {
                     "screen": "PART_ONE",
                     "fv": "5",
+                    "prefill": "1",
                     "present": "${form.present}",
                     "p1_spoke": "${form.p1_spoke}",
                     "p1_picked": "${form.p1_picked}",
@@ -399,6 +400,33 @@
           "type": "string",
           "__example__": "Independent practice and the wrap-up, to minute 40. Answer only for this part."
         },
+        "init_p2_spoke": {
+          "type": "string",
+          "__example__": ""
+        },
+        "init_p2_new": {
+          "type": "string",
+          "__example__": ""
+        },
+        "init_p2_task": {
+          "type": "string",
+          "__example__": "all"
+        },
+        "init_p2_think": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "__example__": []
+        },
+        "init_p2_change": {
+          "type": "string",
+          "__example__": "yes"
+        },
+        "init_p2_notes": {
+          "type": "string",
+          "__example__": ""
+        },
         "error_messages": {
           "type": "object",
           "__example__": {}
@@ -418,6 +446,14 @@
           {
             "type": "Form",
             "name": "part_two_form",
+            "init-values": {
+              "p2_spoke": "${data.init_p2_spoke}",
+              "p2_new": "${data.init_p2_new}",
+              "p2_task": "${data.init_p2_task}",
+              "p2_think": "${data.init_p2_think}",
+              "p2_change": "${data.init_p2_change}",
+              "p2_notes": "${data.init_p2_notes}"
+            },
             "error-messages": "${data.error_messages}",
             "children": [
               {
@@ -650,6 +686,7 @@
                   "payload": {
                     "screen": "PART_TWO",
                     "fv": "5",
+                    "prefill": "1",
                     "p2_spoke": "${form.p2_spoke}",
                     "p2_new": "${form.p2_new}",
                     "p2_task": "${form.p2_task}",
@@ -1699,7 +1736,8 @@
               "name": "data_exchange",
               "payload": {
                 "screen": "CONTINUE",
-                "fv": "5"
+                "fv": "5",
+                "prefill": "1"
               }
             }
           }

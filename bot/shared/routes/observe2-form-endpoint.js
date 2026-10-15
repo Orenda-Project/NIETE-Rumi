@@ -27,6 +27,12 @@
  *             already in. (A form opened before the photo step carries its photos here: still stored.)
  *   CONTINUE  → PART_TWO, LESSON_PLAN, PHOTOS, AFTER or SEALED, from the record (a plan whose added
  *               files never arrived goes back to LESSON_PLAN; an unanswered photo step to PHOTOS).
+ *               The screen lists the notes the coach has typed so far, by part: a reopened form cannot go
+ *               back to them (pilot sheet R13).
+ *
+ * Part 2 comes back with what was saved for it, or with what was just typed when it is refused (its
+ * init-values), for a form opened on a Flow that says it can take them (the `prefill` marker); a form
+ * opened on an older Flow gets exactly the screens it knows.
  *
  * The screens are English for the pilot; the chat message after the seal is in the coach's language.
  *
@@ -37,7 +43,9 @@
 const supabase = require('../config/supabase');
 const Store = require('../services/observe/observe2/field-form.store');
 const { validate } = require('../services/observe/observe2/rules');
-const { FIELDS, FIELDS_V4, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES } = require('../services/observe/observe2/field-form.flow');
+const {
+  FIELDS, FIELDS_V4, PREFILL, PREFILLED, PREFILLED_ARRAYS, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES,
+} = require('../services/observe/observe2/field-form.flow');
 const { observe2Strings } = require('../services/observe/observe2/strings');
 const { logToFile } = require('../utils/logger');
 
@@ -129,11 +137,33 @@ async function renderPart1(form, extra = {}) {
   };
 }
 
-function renderPart2(form, extra = {}) {
+// Does this request come from a Flow whose Part 2 takes init values? (field-form.flow.js PREFILL)
+const takesPrefill = (screenData) => Boolean(screenData && screenData.prefill === PREFILL);
+
+// Part 2's init values from a set of answers: every pre-filled field, typed as the Flow declares it,
+// never null (Meta refuses null).
+function partTwoInit(answers) {
+  const a = answers || {};
+  const out = {};
+  for (const f of PREFILLED.PART_TWO || []) {
+    const v = a[f];
+    if (PREFILLED_ARRAYS.has(f)) out[`init_${f}`] = Array.isArray(v) ? v.map(String) : [];
+    else out[`init_${f}`] = v === undefined || v === null ? '' : String(v);
+  }
+  return out;
+}
+
+/**
+ * @param {object|null} form
+ * @param {object} [extra] error fields
+ * @param {object|null} [init] answers to pre-fill Part 2 with; null for a form on an older Flow
+ */
+function renderPart2(form, extra = {}, init = null) {
   return {
     screen: 'PART_TWO',
     data: {
       part_hint: afterLesson(form) ? AFTER_HINT.part2 : part2Hint(periodOf(form)),
+      ...(init ? partTwoInit(init) : {}),
       ...NO_ERRORS,
       ...extra,
     },
@@ -266,6 +296,24 @@ function renderSealed(form, lines) {
   return { screen: 'SEALED', data: { ...l, record_id: String((form && form.id) || '') } };
 }
 
+// The boxes a coach types in, with the names the form gives them, in the order they are met.
+const NOTE_BOXES = [
+  ['p1_notes', 'Part 1'], ['p1_listen_other', 'Part 1, with a group'],
+  ['p2_notes', 'Part 2'], ['p2_listen_other', 'Part 2, with a group'],
+  ['note', 'Not in the recording'], ['detail', 'What happened'],
+];
+
+// What the coach has typed so far, by part, for the reopened form's screen; '' when nothing was typed.
+// A TextBody holds 4,096 characters; these boxes hold at most 600 each.
+function notesSoFar(form) {
+  const a = (form && form.answers) || {};
+  const lines = NOTE_BOXES
+    .map(([field, label]) => [label, String(a[field] || '').trim()])
+    .filter(([, text]) => text)
+    .map(([label, text]) => `${label}: ${text}`);
+  return lines.length ? `\n\nYour notes, kept with the record:\n${lines.join('\n')}` : '';
+}
+
 function renderContinue(kind, form) {
   const period = periodOf(form);
   const text = {
@@ -278,7 +326,8 @@ function renderContinue(kind, form) {
     gone: ['This form is not available', 'Send /observe2 in the chat to start a new visit.'],
     error: ['Something went wrong', 'Close this form and open it again in a minute.'],
   }[kind];
-  return { screen: 'CONTINUE', data: { continue_heading: text[0], continue_line: text[1] } };
+  const notes = ['part1', 'plan', 'part2', 'sealed'].includes(kind) ? notesSoFar(form) : '';
+  return { screen: 'CONTINUE', data: { continue_heading: text[0], continue_line: `${text[1]}${notes}` } };
 }
 
 // Validation failures, shown under each field and once at the bottom. WhatsApp shows no message under
@@ -386,12 +435,15 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
   if (step === 'CONTINUE') {
     if (!form || form.sealed_at) return renderSealed(form, form ? null : { sealed_line: 'Nothing to fill in', next_line: 'Send /observe2 in the chat to start a new visit.' });
     if (form.part2_done_at) return planDone(form.answers) ? afterPlan(form, screenData) : renderPlan(form);
-    return renderPart2(form);
+    return renderPart2(form, {}, takesPrefill(screenData) ? (form.answers || {}) : null);
   }
+
+  // Part 2 sent back as it is (refused, or not saved) keeps what the coach just typed.
+  const typed = takesPrefill(screenData) ? screenData : null;
 
   if (!loaded.ok) {
     const again = { error: 'Something went wrong on our side. Tap the button again.', has_error: true };
-    if (step === 'PART_TWO') return renderPart2(null, again);
+    if (step === 'PART_TWO') return renderPart2(null, again, typed);
     if (step === 'LESSON_PLAN') return renderPlan(null, again, []);
     if (step.startsWith('LP_') || step.startsWith('PHOTO')) return renderAdd(step, again);
     if (step === 'AFTER') return renderAfter(null, again);
@@ -399,7 +451,7 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
   }
   if (!form) {
     const gone = { error: 'This form is not available. Close it and send /observe2 in the chat.', has_error: true };
-    if (step === 'PART_TWO') return renderPart2(null, gone);
+    if (step === 'PART_TWO') return renderPart2(null, gone, typed);
     if (step === 'LESSON_PLAN') return renderPlan(null, gone, []);
     if (step.startsWith('LP_') || step.startsWith('PHOTO')) return renderAdd(step, gone);
     if (step === 'AFTER') return renderAfter(null, gone);
@@ -411,14 +463,16 @@ async function handleObserve2FormDataExchange(flowToken, screen, screenData = {}
     // Today's fields and those a form on the older Flow still sends (FIELDS_V4); its checks by its version.
     const answers = Store.pick(screenData, [...FIELDS[step], ...(FIELDS_V4[step] || [])]);
     const errors = validate(step, { ...(form.answers || {}), ...answers }, { version: formVersion(screenData) });
-    const render = step === 'PART_ONE' ? (extra) => renderPart1(form, extra) : (extra) => renderPart2(form, extra);
+    const render = step === 'PART_ONE' ? (extra) => renderPart1(form, extra) : (extra) => renderPart2(form, extra, typed);
     if (Object.keys(errors).length) return render(refused(errors));
     const saved = await Store.savePart(form, part, answers);
     if (!saved.ok) {
       return render({ error: saved.sealed ? 'This record is already sealed. Close the form.' : 'Not saved. Tap the button again.', has_error: true });
     }
     logToFile('[observe2] part saved', { formId: form.id, part });
-    return step === 'PART_ONE' ? renderPart2(saved.form) : renderPlan(saved.form);
+    // Part 1 sent again after Part 2 was saved: Part 2 comes back with what was saved for it.
+    if (step === 'PART_ONE') return renderPart2(saved.form, {}, takesPrefill(screenData) ? (saved.form.answers || {}) : null);
+    return renderPlan(saved.form);
   }
 
   if (step === 'LESSON_PLAN') {
