@@ -72,3 +72,20 @@ Feature: Teacher assessment
     When the teacher opens the Chapters step
     Then there is no FDE card and the screen is pixel-identical to today's
     And on the FDE door's Class step Islamiat shows "FDE pattern for Islamiat: after review" and goes on to today's steps
+
+  @TA09 @fde
+  Scenario: Editing an FDE paper keeps its shape
+    Given an FDE Maths paper is open in Edit paper
+    Then the top line says "Changes the paper and the marking scheme"
+    And the questions are grouped as Section A, Section B and Section C
+    And under each of Q2's questions the line says "Q2 will then say: any eight of eleven"
+    When the teacher removes one of Q2's questions
+    Then the others say "any eight of ten", the removed one says "any eight of twelve", and the marks chip stays the same
+    And Add question is off with "Board-pattern papers keep their shape", also when the server answers PATTERN_NO_ADD
+
+  @TA10 @fde
+  Scenario: Versions of an FDE paper
+    Given an FDE paper has two ready versions
+    When the teacher opens Versions
+    Then the page shows the FDE pattern chip and a "Marking scheme" row under each ready version that opens its key file
+    And a plain paper's Versions and Edit paper screens are pixel-identical to today's
