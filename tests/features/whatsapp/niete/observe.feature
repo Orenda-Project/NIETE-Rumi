@@ -866,6 +866,17 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # rules.js: "When the work got hard" is D4's level (the titles are PLAIN.D4); "Helped those who were
     # stuck" makes C2 at least 2. Both are named on the check's "because" lines and in the record.
 
+  @e2e @flow @config-gated @destructive @wip @draft @P1
+  Scenario: Part 1 asks what materials were used, and they are named, not scored
+    Given the live form is open on Part 1
+    When I choose "The children used them" under "Who used books or materials?"
+    Then it asks "What was used?" with "Textbook or board", "Charts or pictures", "Objects or manipulatives" and "Materials the teacher made"
+    When I tick "Charts or pictures" and "Materials the teacher made", fill the rest, seal and reach the levels in the check
+    Then "Books and materials" is pre-filled with "Children used them", saying "Used: charts or pictures; materials the teacher made"
+    # FICO pilot sheet R17 (the ICT lead, 14 Oct): a textbook-only lesson and one with the teacher's own aids
+    # scored alike. C8's level is still who used them (its descriptors are the rubric owner's); the kinds
+    # are named on the check, in the record (the teacher's portal) and in the brief.
+
   @e2e @flow @config-gated @wip @draft @P1
   Scenario: Part 2 asks what the children's work showed: repeating, or reasoning
     Given the live form is open on Part 2

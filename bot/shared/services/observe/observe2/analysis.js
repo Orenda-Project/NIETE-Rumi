@@ -48,9 +48,10 @@ function evidenceFor(code, level, raw, form) {
   const seen = hole && kept ? hole : PLAIN[code][level - 1];
   const heard = confirmedMoments(form).filter((m) => TYPE_CODE[m.type] === code).slice(0, 2)
     .map((m) => `${m.minute} "${m.quote}"`);
-  // What the coach saw on the form beyond the level (the desks in Part 2, R4/R10), by name.
+  // What the coach saw on the form beyond the level: the desks and the children's thinking in Part 2
+  // (R4/R10, R16), the materials used (R17), by name.
   const noted = seenNotes(form.answers)[code];
-  return [seen, heard.length ? `Heard: ${heard.join('; ')}` : '', noted ? `Seen ${noted}` : ''].filter(Boolean).join('. ');
+  return [seen, heard.length ? `Heard: ${heard.join('; ')}` : '', noted || ''].filter(Boolean).join('. ');
 }
 
 function section(letter, form) {
@@ -104,7 +105,10 @@ function strengthsOf(form, priority) {
     .filter((c) => c !== priority && numeric(finals[c]) >= 3)
     .sort((x, y) => numeric(finals[y]) - numeric(finals[x]))
     .slice(0, 2)
-    .map((c) => ({ title: ROW[c], evidence: PLAIN[c][numeric(finals[c]) - 1] }));
+    .map((c) => {
+      const used = c === 'C8' ? seenNotes(form.answers).C8 : '';
+      return { title: ROW[c], evidence: [PLAIN[c][numeric(finals[c]) - 1], used].filter(Boolean).join('. ') };
+    });
 }
 
 const DONE_VERDICTS = new Set(['executed', 'substituted_equivalent', 'substituted_better']);
