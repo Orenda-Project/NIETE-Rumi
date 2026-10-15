@@ -197,7 +197,9 @@ const ruleFlags = (rules) => ({ ...(rules.record ? { record: true } : {}), ...(r
 // ── grade-1 form (web_quiz_challenge_g1 under web_quiz_challenge_v2; both off ⇒ grade 1 is not_eligible, as today) ──
 // One counted stop, 'numbers' (dots → numeral, anchor block G1A). Its serve, served row, record rule and scoring live in
 // web-quiz-challenge-grade1.js; this file only routes a grade-1 child there (formFor, who, menu, exercise, submit).
-const Grade1 = require('./web-quiz-challenge-grade1').withDeps({ settingOn, insertRun: (row) => insertRun(row), fail, bank: () => childTest().Bank });
+// `viaOf` reads the v2 section's VIA map at call time (it is declared further down).
+const Grade1 = require('./web-quiz-challenge-grade1').withDeps({ settingOn, insertRun: (row) => insertRun(row), fail, bank: () => childTest().Bank,
+  viaOf: (v) => VIA[v] || v || null });
 // ── end grade-1 form ──
 
 // The read guard's page copy, from the catalog (both languages). The page fills `{words}` with the words read.

@@ -46,8 +46,8 @@ const COPY_KEYS = Object.freeze({ title: 'jg.g1.title', say: 'jg.g1.say' });
 
 const isMissingTable = (e) => !!e && (e.code === '42P01' || /does not exist|schema cache/i.test(String(e.message || '')));
 const helpedCol = (v) => (v === true ? 'helped' : v === false ? 'self' : 'not_asked');
-// how the child came (the run row's `via`): a hub token, or a quiz session (the scorecard's card)
-const VIA = { hub: 'hub', quiz: 'quiz_card' };
+// The Challenge v2 rules (periods, record at serve, exposure counts) are the draw module's; required on use.
+const Draw = () => require('./web-quiz-challenge-draw');
 const ROW_COLS = 'id, student_id, exercise, status, mode, period_id, anchor_block, record, created_at';
 
 /**
@@ -72,48 +72,38 @@ function scoreNumberId(items, taps) {
   return { score: { correct: rows.filter((r) => r.ok === true).length, n: items.length, stopped: false }, rows };
 }
 
-/** The period whose [starts_at, ends_at) holds `now`, from challenge_periods rows; null when none does. */
-function periodIdFor(now, periods) {
-  const hit = (periods || []).find((p) => Date.parse(p.starts_at) <= now && now < Date.parse(p.ends_at));
-  return hit ? hit.period_id : null;
-}
-
 /**
- * The record rule at serve, from this child's earlier `numbers` rows: `mode`, `record`, `exposure_no`,
- * `anchor_exposure_no`. With a period: a record row of the period (any status) holds it. Without: record NULL and a
- * scored run makes the next one practice.
+ * The record rule at serve (the draw module's, as for the A1 warm-up), from this child's rows: `mode`, `record`,
+ * `exposure_no` (= anchorServesAny: every earlier G1A serve, as the draw PR writes for an anchor block),
+ * `anchor_exposure_no` (= anchorExposureNo: earlier `mode='check'` G1A rows; practice never increments it).
+ * With a period: a record row of this stop in the period (any status) holds the record. Without: record NULL and a
+ * scored run makes the next one practice (today's first-attempt rule, as the draw PR does).
  */
 function recordAtServe(rows, periodId) {
-  const mine = (rows || []).filter((r) => r.exercise === EXERCISE);
-  const own = mine.filter((r) => r.anchor_block === BLOCK);
+  const D = Draw();
   const counted = periodId
-    ? mine.some((r) => r.period_id === periodId && r.record === true)
-    : mine.some((r) => r.status === 'scored');
+    ? D.countedThisPeriod(rows, EXERCISE, periodId)
+    : (rows || []).some((r) => r.exercise === EXERCISE && r.status === 'scored');
   const mode = counted ? 'practice' : 'check';
   return {
     mode,
-    record: periodId ? mode === 'check' : null,
-    exposure_no: own.length + 1,
-    anchor_exposure_no: own.filter((r) => r.mode === 'check').length + 1,
+    record: periodId ? D.recordAtServe({ mode, outcome: 'served', countedThisPeriod: counted }) : null,
+    exposure_no: D.anchorServesAny(rows, BLOCK),
+    anchor_exposure_no: D.anchorExposureNo(rows, BLOCK),
   };
 }
 
-function withDeps({ settingOn, insertRun, fail, bank }) {
+function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null }) {
   const on = async () => (await settingOn(V2_FLAG_KEY)) && (await settingOn(G1_FLAG_KEY));
   const items = () => bank().anchorBlock(BLOCK).map((i) => ({ item_id: i.item_id, n: i.n, layout: i.layout, tiles: i.tiles.slice() }));
   const MEM = new Map();   // runId → { status } for a run whose row could not be stored (the table not migrated yet)
 
-  let periodMissLogged = null;
+  // The period holding now (challenge_periods via the draw module, 30-s cache); none ⇒ the period rule's OFF path.
   async function periodId(now) {
     if (!(await settingOn(PERIOD_FLAG_KEY))) return null;
-    const { data, error } = await supabase.from('challenge_periods').select('period_id, starts_at, ends_at');
-    const id = error ? null : periodIdFor(now, data || []);
-    // no period holds now: the period rule's OFF path; said once per process per PKT day
-    const day = new Date(now + 5 * 3600 * 1000).toISOString().slice(0, 10);
-    if (!id && periodMissLogged !== day) {
-      periodMissLogged = day;
-      logError('web_quiz.ch_period_missing', { day, form: 'G1', missing: isMissingTable(error) });
-    }
+    const D = Draw();
+    const id = D.periodIdFor(new Date(now), await D.periods());
+    if (!id) D.notePeriodMissing(now);
     return id;
   }
 
@@ -190,7 +180,7 @@ function withDeps({ settingOn, insertRun, fail, bank }) {
     const rec = recordAtServe(await childRows(canonicalId, w.studentId), pid);
     const pick = await pickOf({ sessionId: w.sessionId || null, canonicalId, device });
     const gradeSrc = await fixedGradeSrc(canonicalId);
-    const via = VIA[w.via] || w.via || null;
+    const via = viaOf(w.via);
     const runId = crypto.randomUUID();
     const ct = T.signChallenge({ studentId: w.studentId, ex: EXERCISE, runId });
     const at = new Date(now).toISOString();
@@ -247,12 +237,12 @@ function withDeps({ settingOn, insertRun, fail, bank }) {
     return { score };
   }
 
-  function reset() { MEM.clear(); periodMissLogged = null; }
+  function reset() { MEM.clear(); }
 
   return { on, menu, exercise, submit, challengeOf, reset, FORM, EXERCISE, BLOCK };
 }
 
 module.exports = {
-  withDeps, scoreNumberId, periodIdFor, recordAtServe,
+  withDeps, scoreNumberId, recordAtServe,
   FORM, EXERCISE, BLOCK, V2_FLAG_KEY, G1_FLAG_KEY, PERIOD_FLAG_KEY, PER_ITEM_S, COPY_KEYS,
 };
