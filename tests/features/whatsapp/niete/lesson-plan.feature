@@ -525,6 +525,17 @@ Feature: NIETE (ICT) WhatsApp bot — Lesson Plans
     # count — a quiz from it would ask about a page the teacher does not hold. A teacher with one lesson
     # that has a script and one that does not is still offered, for the lesson that has one.
 
+  @e2e @quiz @wip @draft @config-gated @P1
+  Scenario: An Islamiyat lesson plan is never made into a quiz until its religious review
+    Given the NIETE bot chat is open on a teacher who took one Grade 5 Islamiyat lesson plan and one Grade 5 Maths lesson plan today before 14:00 PKT
+    When the send hour passes and the teacher-nudge sweep runs
+    Then the afternoon quiz offer names the Maths lesson and nothing from Islamiyat
+    And typing /quiz lists the Maths lesson and no Islamiyat lesson
+    And a teacher whose only lesson today was Islamiyat gets no offer, and their offer row is skipped with the reason "religious_review_pending", not "no_lesson"
+    # One predicate (quiz/lp-religious-hold) is read at every door into an lp_v8 quiz: the cohort build, a tap on a class
+    # of an offer already out (answered "this lesson plan cannot be made into a quiz"), the /quiz provider and remake.
+    # A code constant, so it holds with no setting changed; lifting it is a reviewed change. Unit: tests/quiz/lp-quiz-religious-hold.test.js.
+
   @e2e @quiz @wip @draft @config-gated @P2
   Scenario: A teacher in the A/B trial's August group is quizzed on the August plan the app showed them
     Given the lesson-plan A/B trial is on and my school is in the group that reads the August plans
