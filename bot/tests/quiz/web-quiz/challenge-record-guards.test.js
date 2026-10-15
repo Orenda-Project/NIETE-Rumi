@@ -244,3 +244,39 @@ describe('web_quiz_identity_canon is the record\'s parent; web_quiz_class_round 
     expect(await Ch.classWeekOpen('hub')).toBe(false);
   });
 });
+
+describe('swap two children: a hub that remembers more than one child serves ?kid= only for this visit\'s pick', () => {
+  const BP = require('../../../shared/services/quiz/web-quiz-bind-page');
+  const two = () => T.sign({ k: 'h', ids: [K3, K5], exp: Math.floor(Date.now() / 1000) + 3600 });
+  let spy;
+  afterEach(() => { if (spy) spy.mockRestore(); spy = null; });
+
+  test('two remembered ids, ?kid= the second child, no pick on this phone: 400 pick_kid and no run row', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    spy = jest.spyOn(BP, 'pickFor').mockResolvedValue(null);
+    await expect(Ch.exercise(two(), 'bigger', { ...D, kid: Ch.kidChip(K5) })).rejects.toMatchObject({ status: 400, body: { error: 'pick_kid' } });
+    expect(db.web_quiz_challenge_runs).toEqual([]);
+  });
+
+  test('the chip tapped on this phone (a pick for that child): served as that child', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    spy = jest.spyOn(BP, 'pickFor').mockResolvedValue({ id_src: 'hub_chip', id_confidence: 'high', homonym_in_list: false });
+    const ex = await Ch.exercise(two(), 'bigger', { ...D, kid: Ch.kidChip(K5) });
+    expect(rowOf(ex.ct)).toMatchObject({ student_id: K5 });
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ canonicalId: K5, device: D.device }));
+  });
+
+  test('one remembered id: today (no pick needed)', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    spy = jest.spyOn(BP, 'pickFor').mockResolvedValue(null);
+    const ex = await Ch.exercise(hub(K3), 'bigger', { ...D, kid: Ch.kidChip(K3) });
+    expect(rowOf(ex.ct)).toMatchObject({ student_id: K3 });
+  });
+
+  test('the identity switch off (no pick store): two ids and ?kid= serve as today', async () => {
+    on(V2);
+    spy = jest.spyOn(BP, 'pickFor').mockResolvedValue(null);
+    const ex = await Ch.exercise(two(), 'bigger', { ...D, kid: Ch.kidChip(K5) });
+    expect(rowOf(ex.ct)).toMatchObject({ student_id: K5 });
+  });
+});

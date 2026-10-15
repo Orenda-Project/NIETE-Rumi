@@ -294,6 +294,18 @@ function kidChip(studentId) {
 
 // ── who is playing ─────────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * This visit's pick of a hub child (web-quiz-bind-page.pickFor: the chip tap on this device, 24 h). The pick store is
+ * written only under web_quiz_identity_canon, so with that switch off every ?kid= is today's; the module absent → no pick.
+ */
+async function kidPickedHere(studentId, device) {
+  let B = null;
+  try { B = require('./web-quiz-bind-page'); } catch (_) { return false; }
+  if (!(await B.canonOn())) return true;
+  const canonicalId = (await require('./web-quiz-identity-roster').canonicalStudentId(studentId)) || studentId;
+  return Boolean(await B.pickFor({ canonicalId, device }));
+}
+
 async function entryOf(token, kid, device) {
   if (!T.secret()) fail(503, 'web_quiz_off');
   const h = T.verify(token, 'h');
@@ -304,6 +316,8 @@ async function entryOf(token, kid, device) {
     if (kid) {
       hit = ids.find((id) => kidChip(id) === kid);
       if (!hit) fail(401, 'bad_token');
+      // swap two children: with more than one remembered child, ?kid= must be the chip tapped on THIS phone
+      if (ids.length > 1 && !(await kidPickedHere(hit, device))) fail(400, 'pick_kid');
     } else if (ids.length > 1) fail(400, 'pick_kid');
     // A forwarded hub link opens nothing as the child: only the phone the link is bound to
     // (or one THIS child played on) gets their results or a run (web-quiz-hub-device deviceTrusted).
