@@ -7,7 +7,8 @@
  *       period, "stopped early" / "waiting for a microphone", stickers, lamps (highest rung per ladder),
  *       days this week, "saved on WhatsApp"; the coverage line; this week's story for the forward.
  *   confirmQueue(teacherId, tab)  the teacher-confirm queue rows for that class (the join-queue
- *       service's rows + this teacher's still-standing "Same child" decisions, for Undo).
+ *       service's rows, keys first / candidate_first / father_first / candidate_father_first, + this
+ *       teacher's still-standing "Same child" decisions, for Undo). First names only, the fathers' too.
  *
  * "Done" = a RECORD row of this period (record true, never mode 'practice') that reached a final status
  * (scored, or failed other than the no-microphone path). 'served' and 'abandoned' rows show nothing.
@@ -24,6 +25,7 @@ const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
 const Roster = require('./web-quiz-roster');
 const { listLabel } = require('./teacher-report.data');
+const Flags = require('./teacher-jugnu-flags');
 
 const PKT_MS = 5 * 3600 * 1000;
 const DAY_MS = 24 * 3600 * 1000;
@@ -109,9 +111,12 @@ async function runsOf(ids) {
     .filter((r) => inClass.has(r.child));
 }
 
-/** This week's released story (released this PKT week, not in the future), when the class has a live link. */
+/**
+ * This week's released story (released this PKT week, not in the future), when the class has a live link AND the
+ * class link's switch is on (a link row left behind after the switch went off leads nowhere).
+ */
 async function weekStory(list, now) {
-  if (!list.classId) return null;
+  if (!list.classId || !(await Flags.classLinkOn())) return null;
   const nowIso = new Date(now).toISOString();
   const links = await rowsOr('class_links', supabase.from('class_links')
     .select('class_id, expires_at, revoked_at').eq('class_id', list.classId).is('revoked_at', null));
@@ -202,6 +207,7 @@ async function jugnuTab(teacherId, { listId = null, lang = 'en', now = Date.now(
       id: k.id,
       first: firstName(name),
       father: firstName(k.father_name),
+      fatherFirst: firstName(k.father_name), // the confirm queue shows it under every name (the row's father is homonyms only)
       started: rec.length > 0,
       stops: STOPS.map(([, key]) => ({ key, done: doneStops.has(key) })),
       stopped: rec.some((r) => r.exercise === 'read' && r.status === 'scored' && r.wcpm != null && Number(r.wcpm) === 0),
@@ -254,7 +260,12 @@ async function confirmQueue(teacherId, tab, lang = 'en') {
   }
   const classId = tab.list.classId;
   const rows = open.filter((r) => r && r.loose_id && r.candidate_id && (!classId || !r.class_id || r.class_id === classId))
-    .map((r) => ({ looseId: r.loose_id, candidateId: r.candidate_id, first: firstName(r.first_name), candidateFirst: firstName(r.candidate_first_name), grade: r.grade != null ? String(r.grade) : tab.list.grade, decided: false }));
+    .map((r) => ({
+      looseId: r.loose_id, candidateId: r.candidate_id, first: firstName(r.first), candidateFirst: firstName(r.candidate_first),
+      // The father's first name under each name, teacher view only (null when the record has none; never a surname).
+      father: firstName(r.father_first) || null, candidateFather: firstName(r.candidate_father_first) || null,
+      grade: r.grade != null ? String(r.grade) : tab.list.grade, decided: false,
+    }));
   const log = await rowsOr('merge_log', supabase.from('merge_log')
     .select('loose_id, candidate_id, decision, decided_at').eq('teacher_id', teacherId).eq('source', 'queue'));
   const latest = new Map();
@@ -263,11 +274,16 @@ async function confirmQueue(teacherId, tab, lang = 'en') {
   const inClass = new Map(tab.kids.map((k) => [k.id, k]));
   const decided = [...latest.values()].filter((m) => m.decision === 'same' && inClass.has(m.candidate_id));
   if (decided.length) {
-    const loose = await rowsOr('students', supabase.from('students').select('id, student_name, student_name_urdu').in('id', decided.map((m) => m.loose_id)));
-    const names = new Map((loose || []).map((s) => [s.id, firstName(Roster.displayName(s, lang))]));
-    decided.forEach((m) => rows.push({
-      looseId: m.loose_id, candidateId: m.candidate_id, first: names.get(m.loose_id) || '', candidateFirst: inClass.get(m.candidate_id).first, grade: tab.list.grade, decided: true,
-    }));
+    const loose = await rowsOr('students', supabase.from('students').select('id, student_name, student_name_urdu, father_name').in('id', decided.map((m) => m.loose_id)));
+    const byId = new Map((loose || []).map((s) => [s.id, s]));
+    decided.forEach((m) => {
+      const s = byId.get(m.loose_id);
+      const kid = inClass.get(m.candidate_id);
+      rows.push({
+        looseId: m.loose_id, candidateId: m.candidate_id, first: s ? firstName(Roster.displayName(s, lang)) : '', candidateFirst: kid.first,
+        father: (s && firstName(s.father_name)) || null, candidateFather: kid.fatherFirst || null, grade: tab.list.grade, decided: true,
+      });
+    });
   }
   return rows.filter((r) => r.first && r.candidateFirst);
 }

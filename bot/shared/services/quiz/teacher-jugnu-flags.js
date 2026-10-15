@@ -8,6 +8,8 @@
  *
  * Effective only when all three are true. A missing row, a read error or any other
  * value is OFF, and with it OFF the teacher report is today's page byte for byte.
+ *
+ * classLinkOn() is the standing class link's switch, which the tab's forward button also needs.
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -40,4 +42,30 @@ async function jugnuOn(now = Date.now()) {
   }
 }
 
-module.exports = { jugnuOn, isTrue, JUGNU_KEY, V2_KEY, CHALLENGE_KEY, _resetCache: () => { cache = null; } };
+/** A module that ships separately, or null while it is not deployed. */
+function optional(spec) {
+  try {
+    // eslint-disable-next-line global-require, import/no-dynamic-require
+    return require(spec);
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * The standing class link's switch (web_quiz_class_link with its parents), read through that feature's own
+ * switch module. The tab's "Forward to the class group" needs it: after the class link is switched off, its
+ * /j/ link is dead and the tab must not offer it. Module absent or a failed read → false. Never throws.
+ */
+async function classLinkOn() {
+  const Link = optional('./web-quiz-class-link-flags');
+  if (!Link || typeof Link.classLinkOn !== 'function') return false;
+  try {
+    return (await Link.classLinkOn()) === true;
+  } catch (err) {
+    logToFile('⚠️ teacher jugnu tab: class link switch lookup failed — no forward', { error: err.message });
+    return false;
+  }
+}
+
+module.exports = { jugnuOn, classLinkOn, isTrue, JUGNU_KEY, V2_KEY, CHALLENGE_KEY, _resetCache: () => { cache = null; } };

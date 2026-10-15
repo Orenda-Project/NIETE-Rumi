@@ -92,18 +92,19 @@ Feature: Teacher's web quiz report on the portal
 
   @T842
   Scenario: Forward to the class group carries the week's story and no number or name
-    Given the Jugnu tab switch is on, the class has a live class link and a story released this week
+    Given the Jugnu tab switch and the class link switch are on, the class has a live class link and a story released this week
     When the teacher taps "Forward to the class group"
     Then WhatsApp opens its share sheet with the story's title, "every Monday" and "open the pinned link"
     And the text carries no digit in any script and no child's name
-    And with no class link or no story this week the button is not shown
+    And with no class link, the class link switch off, or no story this week the button is not shown
 
   @T843
   Scenario: The teacher-confirm queue asks one question per pair and passes the tap on
-    Given the Jugnu tab switch is on and the queue's words are in the copy deck
-    And a child who typed "Ayesha" may be the listed Ayesha of 5-A
+    Given every switch of the Jugnu tab and of the confirm queue is on
+    And a child who typed "Ayesha" may be the listed Ayesha of 5-A, and only the listed one has a father's name
     When the teacher opens the Jugnu tab
-    Then the queue asks "Is Ayesha the same as Ayesha?" with the class, first names only
+    Then the queue asks "Is Ayesha the same child as Ayesha?" with the class, first names only
+    And under each name it shows that child's father's first name, or "—" when there is none, never a surname
     And "Same child", "Different" and "Not sure" each save with one tap and come back to the tab
     And a pair the teacher said was the same child shows "Undo"
 

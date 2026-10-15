@@ -11,8 +11,8 @@
  * queue's taps are forms the server answers with a 303 back here.
  *
  * Copy: copy.v2.json keys only (jg.t.* → T.<lang>.t*, jg.rung.* → T.<lang>.rung*, wa.t.fwd_text → FWD).
- * The confirm queue's keys (jg.t.q_head, q_same, q_diff, q_unsure, q_undo, q_link) are not in the deck
- * yet: until they are, T has no tQ* entries and the queue section is not drawn.
+ * The confirm queue's words are jg.t.q_head, q_same, q_diff, q_unsure, q_undo, q_link, q_sub (tQ*); a
+ * language missing any of them draws no queue section (queueReady).
  *
  * L11: "N of M have started" is drawn on this tab only. The forward carries the story title and the
  * deck's words — no number of any kind, no name (forwardText refuses a title with a digit or a name).
@@ -37,6 +37,13 @@ const T = {
     tSort: 'Sorted by name. No scores, no positions.',
     tPractice: "Practice: nothing counts on a teacher's phone.",
     tFwdBtn: 'Forward to the class group',
+    tQHead: 'Is {name} the same child as {name2}?',
+    tQSame: 'Same child',
+    tQDiff: 'Different',
+    tQUnsure: 'Not sure',
+    tQUndo: 'Undo',
+    tQLink: "Link this class's quiz codes to the class list",
+    tQSub: 'Nothing is ever deleted, and Undo is always here.',
     rungR1: 'Starting a story',
     rungR2: 'Reading a short story',
     rungR3: 'Understanding a short story',
@@ -63,6 +70,13 @@ const T = {
     tSort: 'ترتیب نام کے حساب سے۔ کوئی اسکور نہیں، کوئی پوزیشن نہیں۔',
     tPractice: 'مشق: ٹیچر کے فون پر کچھ بھی شمار نہیں ہوتا۔',
     tFwdBtn: 'کلاس گروپ میں فارورڈ کریں',
+    tQHead: 'کیا ⁨{name}⁩ اور ⁨{name2}⁩ ایک ہی بچہ ہیں؟',
+    tQSame: 'ایک ہی بچہ',
+    tQDiff: 'الگ الگ ہیں',
+    tQUnsure: 'یقین نہیں',
+    tQUndo: 'واپس لیں',
+    tQLink: 'اس کلاس کے کوئز کوڈ کلاس کی فہرست سے جوڑیں',
+    tQSub: 'اس سے کبھی کچھ نہیں مٹتا، اور «واپس لیں» ہمیشہ یہیں ہے۔',
     rungR1: 'کہانی شروع کرنا',
     rungR2: 'چھوٹی کہانی پڑھنا',
     rungR3: 'چھوٹی کہانی سمجھنا',
@@ -82,7 +96,7 @@ const FWD = {
   ur: 'جگنو کے چیلنج میں اس ہفتے: ⁨{title}⁩۔ ہر پیر کو نئی کہانی۔ پِن کیا ہوا لنک کھولیں۔',
 };
 
-const QUEUE_KEYS = ['tQHead', 'tQSame', 'tQDiff', 'tQUnsure', 'tQUndo', 'tQLink'];
+const QUEUE_KEYS = ['tQHead', 'tQSame', 'tQDiff', 'tQUnsure', 'tQUndo', 'tQLink', 'tQSub'];
 const queueReady = (lang) => QUEUE_KEYS.every((k) => typeof (T[lang] || {})[k] === 'string' && T[lang][k].length > 0);
 
 const ANY_DIGIT = /[0-9٠-٩۰-۹]/;
@@ -129,6 +143,9 @@ const CSS = `
 .jq-r button,.jq-l button{font:inherit;font-size:.9rem;cursor:pointer;border-radius:10px;border:1.5px solid var(--line);background:var(--card);padding:6px 14px;color:var(--ink)}
 .jq-r button.same{border-color:var(--green);color:var(--green-deep);font-weight:700}
 .jq-l{margin-top:12px}
+.jq-w{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:6px}
+.jq-n{display:inline-flex;flex-direction:column}
+.jqf{font-size:.8rem;color:var(--muted)}
 `;
 
 /**
@@ -179,11 +196,14 @@ ${topBar({ C, L, langHref: here([['lang', C.switchLang]]), print: false })}
         : `<button type="submit" class="same" name="decision" value="same">${L(S.tQSame)}</button>`
           + `<button type="submit" name="decision" value="no">${L(S.tQDiff)}</button>`
           + `<button type="submit" name="decision" value="unsure">${L(S.tQUnsure)}</button>`;
-      return `<div class="jq-r"><div>${L(head)}</div><div class="muted small">${L(C.className(esc(r.grade || '')))}</div>`
+      // Under each name, the father's first name ("—" when the record has none): teacher view only, never a surname.
+      const who = (first, father) => `<span class="jq-n"><b>${Tx(first)}</b><span class="jqf">${father ? Tx(father) : '—'}</span></span>`;
+      return `<div class="jq-r"><div>${L(head)}</div><div class="jq-w">${who(r.first, r.father)}${who(r.candidateFirst, r.candidateFather)}</div>`
+        + `<div class="muted small">${L(C.className(esc(r.grade || '')))}</div>`
         + `<form method="post" action="${base}/queue">${ids}${buttons}</form></div>`;
     }).join('');
     const link = `<form class="jq-l" method="post" action="${base}/queue">${hidden('class', listId)}<button type="submit" name="decision" value="link">${L(S.tQLink)}</button></form>`;
-    queueHtml = `<section class="card" id="jq">${qrows}${link}</section>`;
+    queueHtml = `<section class="card" id="jq"><p class="muted small">${L(S.tQSub)}</p>${qrows}${link}</section>`;
   }
 
   const main = `<div style="height:16px"></div>${failed}<section class="card"><p class="muted small">${L(S.tSort)}</p><ul class="jl">${rows}</ul></section>

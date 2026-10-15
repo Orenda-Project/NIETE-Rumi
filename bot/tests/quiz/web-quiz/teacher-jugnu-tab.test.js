@@ -4,8 +4,8 @@
  * teacher-confirm queue — behind app_settings web_quiz_teacher_jugnu (parents web_quiz_challenge_v2, web_quiz_challenge).
  *
  * The routes run for real on an ephemeral port over the real data module, page and token. Faked: Supabase (in-memory,
- * filters applied), the loggers, and the join-queue service (a later module, mocked virtually to the shape it will
- * export). Children are invented "Testwala" fixtures; the page must never show the surname.
+ * filters applied, a column the schema mirror lacks answers 42703), the loggers, and the join-queue service (scripted
+ * rows of the shape its candidatesFor returns; teacher-jugnu-queue-row.test.js runs the real one). Children are invented "Testwala" fixtures; the page must never show the surname.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn() }));
@@ -14,10 +14,21 @@ jest.mock('../../../shared/services/quiz/web-quiz-join-queue', () => ({
   candidatesFor: jest.fn(async () => []),
   decide: jest.fn(async () => ({ ok: true })),
   linkClassCodes: jest.fn(async () => ({ linked: 2 })),
+}));
+
+// The standing class link's switch module ships separately: a virtual stand-in reading the same app_settings rows.
+jest.mock('../../../shared/services/quiz/web-quiz-class-link-flags', () => ({
+  classLinkOn: jest.fn(async () => {
+    const { data } = await require('../../../shared/config/supabase').from('app_settings').select('key, value').in('key', ['web_quiz_class_link']);
+    return (data || []).some((r) => r.key === 'web_quiz_class_link' && r.value === 'true');
+  }),
 }), { virtual: true });
 
 const express = require('express');
 const { makeFake } = require('./fake-supabase');
+const { strictFrom } = require('./strict-columns');
+
+const CHECKED = ['student_lists', 'class_enrollments', 'students', 'web_quiz_challenge_runs', 'child_rungs', 'child_phone_bindings', 'class_links', 'challenge_passages', 'merge_log', 'app_settings'];
 
 const NOW = Date.parse('2026-10-15T09:30:00Z'); // Thursday; PKT week starts Mon 12 Oct 00:00 PKT = 11 Oct 19:00Z
 const TEACHER = '11111111-1111-4111-8111-111111111111';
@@ -43,7 +54,7 @@ const run = (kid, o) => ({ id: `r-${kid}-${Math.random().toString(36).slice(2, 8
 
 let DB;
 function seed({ settings = 'on', classLinks = true, passages = true } = {}) {
-  const on = [{ key: 'web_quiz_teacher_jugnu', value: 'true' }, { key: 'web_quiz_challenge_v2', value: 'true' }, { key: 'web_quiz_challenge', value: 'true' }];
+  const on = [{ key: 'web_quiz_teacher_jugnu', value: 'true' }, { key: 'web_quiz_challenge_v2', value: 'true' }, { key: 'web_quiz_challenge', value: 'true' }, { key: 'web_quiz_class_link', value: 'true' }];
   DB = {
     app_settings: settings === 'on' ? on : settings,
     users: [{ id: TEACHER, preferred_language: 'en' }],
@@ -87,7 +98,7 @@ function seed({ settings = 'on', classLinks = true, passages = true } = {}) {
       { canonical_id: id(3), ladder: 'numbers', rung: 1, rule_v: 'badges-v1', period_id: '2026-10', set_at: at('2026-10-13T00:00:00Z') },
     ],
     child_phone_bindings: [
-      { id: 'pb1', canonical_id: id(2), phone_norm: PHONE, phone_tomb: 'aa', via: 'save', revoked_at: null },
+      { id: 'pb1', canonical_id: id(2), phone_norm: PHONE, phone_tomb: 'aa', via: 'save', bound_at: at('2026-10-01T00:00:00Z'), expires_at: at('2027-06-30T18:59:59Z'), revoked_at: null },
       { id: 'pb2', canonical_id: id(7), phone_norm: null, phone_tomb: 'bb', via: 'save', revoked_at: at('2026-10-10T00:00:00Z'), revoked_by: 'page_undo' },
     ],
     merge_log: [
@@ -103,7 +114,8 @@ function seed({ settings = 'on', classLinks = true, passages = true } = {}) {
   }
   const fake = makeFake(DB);
   // Tables a base without the earlier trains lacks: reading one is an error, as PostgREST answers.
-  const from = (t) => (DB[t] === undefined ? missingTable(t) : fake.from(t));
+  // A select or filter naming a column the schema mirror lacks answers 42703, as PostgREST does.
+  const from = strictFrom((t) => (DB[t] === undefined ? missingTable(t) : fake.from(t)), CHECKED);
   Object.assign(require('../../../shared/config/supabase'), { from, rpc: fake.rpc });
 }
 function missingTable(t) {
@@ -148,9 +160,8 @@ const forwardText = async (q = '') => {
   expect(loc.startsWith('https://wa.me/?text=')).toBe(true);
   return decodeURIComponent(loc.slice('https://wa.me/?text='.length));
 };
-// Queue strings are not in the copy deck yet: tests supply them under the keys the page reads.
-const QUEUE_EN = { tQHead: 'Is {name} the same as {name2}?', tQSame: 'Same child', tQDiff: 'Different', tQUnsure: 'Not sure', tQUndo: 'Undo', tQLink: "Link this class's quiz codes to the class list" };
-const withQueueKeys = () => { Page = require('../../../shared/templates/teacher-jugnu.page'); Object.assign(Page.T.en, QUEUE_EN); };
+// The queue's words are the deck's (jg.t.q_*), in the page's T; nothing to supply.
+const withQueueKeys = () => { Page = require('../../../shared/templates/teacher-jugnu.page'); };
 
 describe('the forward line', () => {
   test('EN: the title, no digit (ASCII or Urdu), no name from the roster, no count', async () => {
@@ -266,14 +277,16 @@ describe('the tab', () => {
 
 describe('the teacher-confirm queue', () => {
   const ROWS = [
-    { loose_id: LOOSE(1), candidate_id: id(3), first_name: 'Ayesha Testwala', candidate_first_name: 'Ayesha', class_id: CLASS, grade: 3, phone: '+920000000000',
+    { loose_id: LOOSE(1), candidate_id: id(3), first: 'Ayesha', candidate_first: 'Ayesha', father_first: null, candidate_father_first: null, class_id: CLASS, grade: 3, phone: '+920000000000',
       evidence: { tier: 'probable', name_words_matched: 2, same_grade: true, other_same_name_loose: false } },
-    { loose_id: LOOSE(2), candidate_id: id(2), first_name: 'Bilal', candidate_first_name: 'Bilal Testwala', class_id: CLASS, grade: 3,
+    { loose_id: LOOSE(2), candidate_id: id(2), first: 'Bilal', candidate_first: 'Bilal', father_first: 'Kamran', candidate_father_first: null, class_id: CLASS, grade: 3,
       evidence: { tier: 'roster_unique_with_loose', name_words_matched: 1, same_grade: true, other_same_name_loose: false } },
   ];
 
-  test('without the queue copy keys the section is not rendered (and the service is not asked)', async () => {
+  test('a language missing one of the queue\'s words draws no section (and the service is not asked)', async () => {
     await boot();
+    withQueueKeys();
+    delete Page.T.en.tQSub;
     Queue.candidatesFor.mockResolvedValue(ROWS);
     const h = await html(`/page/${tok()}?tab=jugnu&class=${LIST}`);
     expect(h).not.toContain('/queue');
@@ -287,9 +300,9 @@ describe('the teacher-confirm queue', () => {
     const h = await html(`/page/${tok()}?tab=jugnu&class=${LIST}`);
     expect(Queue.candidatesFor).toHaveBeenCalledWith(TEACHER);
     const q = (h.match(/<section class="card" id="jq">([\s\S]*?)<\/section>/) || [])[1] || '';
-    expect(text(q)).toContain('Is Ayesha the same as Ayesha?');
-    expect(text(q)).toContain('Is Bilal the same as Bilal?');
-    expect(text(q)).toContain('Is Sana the same as Sana?'); // the decided pair, from merge_log
+    expect(text(q)).toContain('Is Ayesha the same child as Ayesha?');
+    expect(text(q)).toContain('Is Bilal the same child as Bilal?');
+    expect(text(q)).toContain('Is Sana the same child as Sana?'); // the decided pair, from merge_log
     expect(q).toMatch(/Class 3/);
     expect(visible(q)).not.toMatch(/\+?\d{10,}/);
     expect(text(q)).not.toMatch(/\+?\d{10,}/);
@@ -359,7 +372,9 @@ describe('tables from later trains are absent', () => {
 });
 
 describe('the binding store is absent (not deployed)', () => {
+  afterEach(() => { jest.dontMock('../../../shared/services/quiz/child-phone-bindings.repo'); });
   test('Saved on WhatsApp ✓ still shows from the table, with no Undo control; /unbind writes nothing (e=1)', async () => {
+    jest.doMock('../../../shared/services/quiz/child-phone-bindings.repo', () => ({}));
     await boot();
     const h = await html(`/page/${tok()}?tab=jugnu&class=${LIST}`);
     const bilal = rowsOf(h).find((r) => r.includes('>Bilal<'));

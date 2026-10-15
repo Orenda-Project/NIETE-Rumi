@@ -1,8 +1,7 @@
 'use strict';
 /**
  * The Jugnu tab's "Saved on WhatsApp ✓ · Undo": the tick and the Undo come from the identity binding store
- * (child-phone-bindings.repo, a later module, mocked virtually to the shape it exports: activeForChild,
- * eraseOne). Undo is a no-JS POST /unbind → eraseOne(bindingId, 'teacher') → 303 back to the tab, and only
+ * (child-phone-bindings.repo, mocked to the two functions the tab calls: activeForChild, eraseOne). Undo is a no-JS POST /unbind → eraseOne(bindingId, 'teacher') → 303 back to the tab, and only
  * for a binding of a child on THIS teacher's list. Routes run for real over the real data module and page;
  * faked: Supabase (in-memory), the loggers, the two identity services.
  */
@@ -11,17 +10,28 @@ jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logErro
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn() }));
 jest.mock('../../../shared/services/quiz/web-quiz-join-queue', () => ({
   candidatesFor: jest.fn(async () => []), decide: jest.fn(async () => ({ ok: true })), linkClassCodes: jest.fn(async () => ({ linked: 0 })),
-}), { virtual: true });
+}));
 const BINDINGS = { ['b0000000-0000-4000-8000-000000000002']: [{ id: 'e0000000-0000-4000-8000-000000000001', canonical_id: 'b0000000-0000-4000-8000-000000000002' }] };
 jest.mock('../../../shared/services/quiz/child-phone-bindings.repo', () => ({
   activeForChild: jest.fn(async (id) => BINDINGS[id] || []),
   eraseOne: jest.fn(async (id) => [{ id, canonical_id: 'b0000000-0000-4000-8000-000000000002', phone_norm: '+920000000001' }]),
+}));
+// EVENTS §1: kid = the per-child hash from the event key module (mocked: its keyed hash needs a secret).
+jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({ kid: jest.fn((id) => `k_${String(id).slice(-4)}`) }));
+
+// The standing class link's switch module ships separately: a virtual stand-in reading the same app_settings rows.
+jest.mock('../../../shared/services/quiz/web-quiz-class-link-flags', () => ({
+  classLinkOn: jest.fn(async () => {
+    const { data } = await require('../../../shared/config/supabase').from('app_settings').select('key, value').in('key', ['web_quiz_class_link']);
+    return (data || []).some((r) => r.key === 'web_quiz_class_link' && r.value === 'true');
+  }),
 }), { virtual: true });
-// EVENTS §1: kid = the per-child hash; the event key module, not on this base yet (mocked virtually to its export).
-jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({ kid: jest.fn((id) => `k_${String(id).slice(-4)}`) }), { virtual: true });
 
 const express = require('express');
 const { makeFake } = require('./fake-supabase');
+const { strictFrom } = require('./strict-columns');
+
+const CHECKED = ['student_lists', 'class_enrollments', 'students', 'web_quiz_challenge_runs', 'child_rungs', 'child_phone_bindings', 'class_links', 'challenge_passages', 'merge_log', 'app_settings'];
 
 const NOW = Date.parse('2026-10-15T09:30:00Z'); // Thursday; PKT week starts Mon 12 Oct 00:00 PKT = 11 Oct 19:00Z
 const TEACHER = '11111111-1111-4111-8111-111111111111';
@@ -47,7 +57,7 @@ const run = (kid, o) => ({ id: `r-${kid}-${Math.random().toString(36).slice(2, 8
 
 let DB;
 function seed({ settings = 'on', classLinks = true, passages = true } = {}) {
-  const on = [{ key: 'web_quiz_teacher_jugnu', value: 'true' }, { key: 'web_quiz_challenge_v2', value: 'true' }, { key: 'web_quiz_challenge', value: 'true' }];
+  const on = [{ key: 'web_quiz_teacher_jugnu', value: 'true' }, { key: 'web_quiz_challenge_v2', value: 'true' }, { key: 'web_quiz_challenge', value: 'true' }, { key: 'web_quiz_class_link', value: 'true' }];
   DB = {
     app_settings: settings === 'on' ? on : settings,
     users: [{ id: TEACHER, preferred_language: 'en' }],
@@ -107,7 +117,8 @@ function seed({ settings = 'on', classLinks = true, passages = true } = {}) {
   }
   const fake = makeFake(DB);
   // Tables a base without the earlier trains lacks: reading one is an error, as PostgREST answers.
-  const from = (t) => (DB[t] === undefined ? missingTable(t) : fake.from(t));
+  // A select or filter naming a column the schema mirror lacks answers 42703, as PostgREST does.
+  const from = strictFrom((t) => (DB[t] === undefined ? missingTable(t) : fake.from(t)), CHECKED);
   Object.assign(require('../../../shared/config/supabase'), { from, rpc: fake.rpc });
 }
 function missingTable(t) {
