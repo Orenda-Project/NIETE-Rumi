@@ -620,6 +620,7 @@ function schemeCss(medium) {
   .s-head { font-weight: 700; border-bottom: 1.5px solid #000; margin: 8px 0 3px; break-after: avoid; }
   .strip { font-size: ${ur ? '11pt' : '9.5pt'}; margin: 2px 0 6px; break-inside: avoid; }
   .strip .sl { font-weight: 700; }
+  .strip .sc { white-space: nowrap; }
   table.rows { width: 100%; border-collapse: collapse; font-size: ${ur ? '10.5pt' : '9pt'}; }
   table.rows td { border-bottom: 1px solid #ccc; padding: 3px 4px; vertical-align: top; }
   table.rows tr { break-inside: avoid; }
@@ -698,6 +699,9 @@ function shortLabel(label) {
   return String(label || '').replace(/^Q\.\s?/, 'Q').replace(/^(Q\d+)\.\s*\(/, '$1 (').replace(/[.:]\s*$/, '').trim();
 }
 
+// A private-use character no text carries, standing in for the file name until it is escaped.
+const FILE_MARK = '\uE000';
+
 function beforeExamBox(L, live, ctx, paperFileName, grade) {
   const lang = ctx.medium;
   const B = L.before_exam;
@@ -708,7 +712,8 @@ function beforeExamBox(L, live, ctx, paperFileName, grade) {
     lines[0] = lines[0].replace(lang === 'ur' ? ' ({n} صفحات)' : ' ({n} pages)', '');
     lines[1] = lang === 'ur' ? lines[1].replace('تمام {n} صفحات', 'تمام صفحات') : lines[1].replace('all {n} pages', 'every page');
   }
-  lines[0] = fill(lines[0], { file, n: pages });
+  // The file name is the saved name, ASCII digits and all: it skips the Urdu digit rule.
+  lines[0] = fill(lines[0], { file: FILE_MARK, n: pages });
   lines[1] = fill(lines[1], { n: pages });
   // You add.
   const frameSupply = (L.supplies || []).find((s) => s.kind !== 'naat');
@@ -736,7 +741,8 @@ function beforeExamBox(L, live, ctx, paperFileName, grade) {
   if (!attempts.length) lines[3] = lines[3].replace(lang === 'ur' ? '؛ {attempts}' : '; {attempts}', '');
   lines[3] = fill(lines[3], { sections: where, attempts: attempts.join(lang === 'ur' ? '؛ ' : '; ') });
   lines[4] = fill(lines[4], { t: L[`total_time_${lang}`] || (lang === 'ur' ? '3 گھنٹے' : '3 hrs') });
-  return `<div class="box before"><div class="bt">${textOf(B[`title_${lang}`], ctx)}</div><ol>${lines.map((l) => `<li>${textOf(l, ctx)}</li>`).join('')}</ol></div>`;
+  const fileHtml = `<bdi class="file" dir="ltr">${esc(file)}</bdi>`;
+  return `<div class="box before"><div class="bt">${textOf(B[`title_${lang}`], ctx)}</div><ol>${lines.map((l) => `<li>${textOf(l, ctx).replace(FILE_MARK, fileHtml)}</li>`).join('')}</ol></div>`;
 }
 
 function shortSection(sec, lang) {
@@ -788,7 +794,10 @@ function mcqStrip(slot, list, ctx) {
   const sep = lang === 'ur' ? '، ' : ' · ';
   const cells = live.map((q, i) => `${itemNumber(slot, i, lang).replace(/[)۔.]$/, '')} ${answerLetter(q, slot)}`);
   const label = lang === 'ur' ? slot.label_ur : shortLabel(slot.label_en);
-  return `<div class="strip" data-row="${esc(slot.slot)}"><span class="sl">${textOf(label, ctx)}</span> ${textOf(cells.join(sep), ctx)}</div>`;
+  // A line may break only between answers, and a separator never starts or ends a line alone.
+  const last = cells.length - 1;
+  const strip = cells.map((c, i) => `<span class="sc">${textOf(i < last ? `${c}${sep.trimEnd()}` : c, ctx)}</span>`).join(' ');
+  return `<div class="strip" data-row="${esc(slot.slot)}"><span class="sl">${textOf(label, ctx)}</span> ${strip}</div>`;
 }
 
 function pointsHtml(q, ctx, Criteria, slot, idx) {

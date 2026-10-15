@@ -77,3 +77,21 @@ describe('the Urdu egress rule reaches list numbers', () => {
     expect(chain('maths').scheme).not.toContain('urdu-steps');
   });
 });
+
+describe('the paper file name is printed as it is saved', () => {
+  it('an Urdu scheme names Grade5_Urdu_FDE.pdf with an ASCII 5, isolated left-to-right', () => {
+    const { scheme } = chain('urdu');
+    expect(scheme).toContain('<bdi class="file" dir="ltr">Grade5_Urdu_FDE.pdf</bdi>');
+    expect(scheme).not.toMatch(/Grade<span class="num">۵<\/span>/);
+  });
+});
+
+describe('the MCQ key strip wraps between answers, never inside one', () => {
+  it('each "number letter" pair is a no-wrap cell and the separator rides with the pair before it', () => {
+    const { scheme } = chain('maths');
+    const strip = scheme.slice(scheme.indexOf('<div class="strip"'), scheme.indexOf('</div>', scheme.indexOf('<div class="strip"')));
+    expect((strip.match(/<span class="sc">/g) || []).length).toBe(20);
+    expect(strip).toContain('<span class="sc">i c ·</span> <span class="sc">ii a ·');
+    expect(scheme).toMatch(/\.strip \.sc \{ white-space: nowrap; \}/);
+  });
+});
