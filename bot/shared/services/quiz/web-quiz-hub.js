@@ -85,9 +85,10 @@ const gradeNum = (v) => (String(v == null ? '' : v).match(/\d+/) || [''])[0];
 const daysAgoIso = (d) => new Date(Date.now() - d * 86400000).toISOString();
 const isOpen = (c) => c && c.active !== false && (!c.expires_at || new Date(c.expires_at).getTime() > Date.now());
 
-/** The ids a genuine hub token names; else 401. */
+/** The ids a genuine hub token names; else 401 (404 for a genuine guest token). */
 function idsOf(token) {
   const tok = T.verify(token, 'h');
+  if (!tok && T.verify(token, 'g')) fail(404, 'not_found'); // a guest token (web_quiz_guest_home): the guest page is not built
   if (!tok || !Array.isArray(tok.ids) || !tok.ids.length) fail(401, 'bad_token');
   return tok.ids.map(String);
 }

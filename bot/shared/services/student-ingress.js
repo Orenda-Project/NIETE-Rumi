@@ -164,18 +164,39 @@ async function boundVerdict(phone) {
 }
 
 /**
- * `ukey` (and a nulled correlationId) on an unknown phone's decision only, with the switch on — and never when
- * the message is a JUGNU- code or a STOP: that request will carry a binding event, and one request never joins a
- * phone key to a child key. Only the event's extras change; the verdict and its cache do not.
+ * `ukey` (and a nulled correlationId) on an unknown phone's decision only (a guest is one), with the switch on — and
+ * never when the message is a JUGNU- code or a STOP: that request will carry a binding event, and one request never
+ * joins a phone key to a child key. Only the event's extras change; the verdict and its cache do not.
  */
 async function unknownPhoneKey(verdict, phone, body) {
-  if (verdict.reason !== 'no_student_row' || !(await phoneBindOn())) return {};
+  if ((verdict.reason !== 'no_student_row' && verdict.reason !== GUEST_REASON) || !(await phoneBindOn())) return {};
   const Bind = require('./quiz/web-quiz-bind.service');
   if (body && (require('./quiz/child-bind-codes.repo').parseCode(body) || Bind.isStop(body))) return {};
   const ukey = Bind.ukeyOf(phone);
   return ukey ? { ukey, correlationId: null } : {};
 }
 // ── end family phone binding ──
+
+// ── guest home (web_quiz_guest_home; off → nothing here reads anything but the switch) ──────────────────────
+const GUEST_REASON = 'guest_phone';
+const GUEST_TTL_SECS = 60;   // a guest verdict never outlives a minute: a phone that becomes a child's or a teacher's is re-decided
+
+/** An unknown phone (no chat child, no binding, not a teacher) with the guest home on → the guest verdict; else null. */
+async function guestVerdict() {
+  try {
+    if (!(await IdFlags.flags()).guestHome) return null;
+  } catch (_) { return null; }
+  return { persona: 'student', mode: 'student', reason: GUEST_REASON, language: null, studentClass: null };
+}
+
+/** Only a guest's /quiz is a guest's: any other message from that phone takes today's unknown path (registration included). */
+function guestAsksForQuiz(type, body) {
+  if (type !== 'text') return false;
+  const text = String(body || '').trim();
+  if (text.split(/\s+/)[0].toLowerCase() === '/quiz') return true;
+  return !text.startsWith('/') && QuizMenuFlags.bareTextToMenu() && isQuizMenuRequest(text);
+}
+// ── end guest home ──
 
 /**
  * THE DECISION. Never throws. `persona` is 'student' only for a proven child;
@@ -205,7 +226,7 @@ async function classify({ user, phone, body } = {}) {
         const students = await StudentMode.quizStudentsForPhone(phone);
         if (!students.length) {
           // family phone binding: a phone bound to a page child is that child's (read before an unknown is cached)
-          verdict = (await boundVerdict(phone)) || NONE('unknown', 'no_student_row');
+          verdict = (await boundVerdict(phone)) || (await guestVerdict()) || NONE('unknown', 'no_student_row');
         } else {
           const { language, studentClass } = await StudentMode.lastQuizSessionForStudents(students.map((s) => s.id));
           verdict = {
@@ -216,7 +237,7 @@ async function classify({ user, phone, body } = {}) {
         }
       }
     }
-    await VerdictCache.set(phone, verdict);
+    await VerdictCache.set(phone, verdict, verdict.reason === GUEST_REASON ? GUEST_TTL_SECS : undefined);
     logEvent('student_ingress.decided', { mode: verdict.mode, reason: verdict.reason, userId: full.id, ...(await unknownPhoneKey(verdict, phone, body)) });
     return verdict;
   } catch (err) {
@@ -369,6 +390,10 @@ async function eraseForTeacherClaim(from) {
  * handset that is not a proven child this is a no-op.
  */
 async function route({ message, messageType, messageBody = '', from, user } = {}) {
+  if (user && user.personaReason === GUEST_REASON && !guestAsksForQuiz(messageType || (message && message.type) || '', messageBody)) {
+    user.persona = null;                       // guest home: today's unknown phone for everything but /quiz
+    user.personaReason = 'no_student_row';
+  }
   if (user && await bindingWords({ message, messageType, messageBody, from, user })) return true;
   if (!user || user.persona !== 'student') return false;
   const language = childLanguage(user);

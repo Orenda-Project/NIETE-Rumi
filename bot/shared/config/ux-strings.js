@@ -3502,6 +3502,15 @@ const STUDENT_TUTOR_STRINGS = {
     en: "Nothing was saved for this phone.",
     ur: "اس فون کے لیے کچھ محفوظ نہیں تھا۔",
   },
+  // bot.guest.home / bot.guest.home_btn (copy.v2.json v2.1): the ONE reply to an unknown phone's /quiz (web_quiz_guest_home)
+  guestHome: {
+    en: "Play Jugnu's Challenge: short reading and number games.",
+    ur: "جگنو کا چیلنج کھیلیں: پڑھنے اور گنتی کے چھوٹے کھیل۔",
+  },
+  guestHomeBtn: {
+    en: "Play",
+    ur: "کھیلیں",
+  },
   // ── end family phone binding ──
   studentOffTopicHint: {
     en: "Let's stay with your schoolwork — for anything else, ask a grown-up.",
