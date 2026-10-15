@@ -238,7 +238,7 @@ describe('events', () => {
     await tab('ur');
     let ev = eventsNamed('sample_window');
     expect(ev).toHaveLength(1);
-    expect(ev[0]).toEqual({ ev_v: 2, kid_v: 1, w: 's', arm: 'class_week', unit: 'class', opens_at: DRAW.week_start, closes_at: DRAW.week_end });
+    expect(ev[0]).toEqual({ ev_v: 2, kid_v: 1, w: 's', arm: 'class_week', unit: 'class', opens_at: DRAW.week_start, closes_at: DRAW.week_end, cls: expect.stringMatching(/^c_[0-9a-f]{12}$/) });
     await new Promise((r) => server.close(r)); server = null;
     await boot();
     await tab('en');

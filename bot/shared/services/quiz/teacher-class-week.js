@@ -10,7 +10,7 @@
  *       a live class_links row for that term, and the page copy has jg.week.forward (T.<lang>.weekForward).
  *   forwardLine(line, url, names)           the ONE fixed line + the class link, or null when the line carries
  *       a digit, a class first name or a word that marks a child out (en or ur). Never invents a line.
- *   windowShown(card)                       sample_window{arm:'class_week', unit:'class', opens_at, closes_at},
+ *   windowShown(card)                       sample_window{arm:'class_week', unit:'class', opens_at, closes_at, cls},
  *       once per class per window (Redis SET NX until the window closes, and a per-process set).
  *   forwarded(card)                         class_week_forwarded{cls, term}.
  *
@@ -152,7 +152,7 @@ async function windowShown(card) {
     logToFile('⚠️ class week: window de-dup unavailable — this process only', { error: err.message });
   }
   if (!first) return;
-  emit('sample_window', { arm: 'class_week', unit: 'class', opens_at: card.opensAt, closes_at: card.closesAt });
+  emit('sample_window', { arm: 'class_week', unit: 'class', opens_at: card.opensAt, closes_at: card.closesAt }, card.classId);
 }
 
 function forwarded(card) {
