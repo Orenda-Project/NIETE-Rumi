@@ -2597,6 +2597,7 @@ Feature: NIETE (ICT) Teacher Training
     And a teacher's phone that sends /quiz is answered as a teacher
     And with web_quiz_guest_home off an unknown phone's /quiz is answered exactly as before
   @quiz @config-gated @wip @draft @P1 @T773
+  @quiz @config-gated @wip @draft @P1 @T839
   Scenario: A child called in the class round plays the tap games as themself, and the runs say so
     Given app_settings "web_quiz_class_round", "web_quiz_challenge_v2" and "web_quiz_challenge" are true
     And my class was drawn for this term's class round and I have started it on my phone
@@ -2606,7 +2607,7 @@ Feature: NIETE (ICT) Teacher Training
     And once their round games are stored they are ticked "Done ✓" and their identity is confirmed by the class round
     # web-quiz-class-round.js entryOf/runColumns/gameStored; web-quiz-challenge.js round claim (cr); unit: class-round-challenge.test.js
 
-  @quiz @config-gated @negative @wip @draft @P1 @T774
+  @quiz @config-gated @negative @wip @draft @P1 @T840
   Scenario: Outside an open round turn a round link or claim stores nothing, and my phone stays practice
     Given the class round is off, not started, finished, or the turn on the phone is another child's or closed
     When a round turn link or a challenge token carrying a round claim is used

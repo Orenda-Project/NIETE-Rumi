@@ -1837,7 +1837,7 @@ Feature: Web child quiz page on the portal
     And on an Urdu page the copy is Urdu and the tiles are Urdu digits
     But a challenge without the exercise "numbers" renders and requests exactly as before
 
-  @T769
+  @T834
   Scenario: The teacher whose class was drawn this term sees the class round card and starts the round
     Given app_settings "web_quiz_class_round", "web_quiz_challenge_v2" and "web_quiz_challenge" are true
     And the teacher's class has an open class round draw this term
@@ -1847,7 +1847,7 @@ Feature: Web child quiz page on the portal
     Then the server fixes a random order of the class's children once, and the round page lists each child by first name
     And only the teacher's screen says "4 of 30 done, 1 absent"
 
-  @T770
+  @T835
   Scenario: Absent is marked, never skipped, and the next child needs a long press
     Given the teacher has started the class round
     When the teacher taps "Mark absent" beside a child
@@ -1857,7 +1857,7 @@ Feature: Web child quiz page on the portal
     When the teacher holds it for more than half a second
     Then the next child still to play is called and the phone shows "<name>'s turn"
 
-  @T771
+  @T836
   Scenario: The child's screens never lead back to the teacher's and remember nothing
     Given a child's turn is open on the teacher's phone
     When the child presses Back, or the teacher's screen is asked for
@@ -1866,14 +1866,14 @@ Feature: Web child quiz page on the portal
     And only holding the button returns to the teacher's screen
     And no round screen writes local storage, session storage or a cookie, or offers to keep a place
 
-  @T772
+  @T837
   Scenario: With the class round off nothing changes
     Given app_settings "web_quiz_class_round" (or "web_quiz_challenge_v2") is false or absent
     When the teacher opens the report, or any "/r/<token>/round" address
     Then the report is byte-identical to today's and has no round card
     And every round address answers the report's own "not found" page
 
-  @T775
+  @T838
   Scenario: The class round follows the term's draw: ten counted turns, a child's "not today", pause, and "Not this term"
     Given my class is in this term's draw and today is inside its round window
     When I mark a child "not today" on my screen
