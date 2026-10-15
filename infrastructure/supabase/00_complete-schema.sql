@@ -6825,6 +6825,115 @@ COMMENT ON COLUMN web_quiz_challenge_runs.score IS
 COMMENT ON COLUMN web_quiz_challenge_runs.wcpm IS
   'Internal. Read aloud: words correct per minute (EGRA Toolkit 10.3); 0 when stopped on the first line.';
 
+-- ─── web quiz Challenge runs: provenance columns, served/abandoned, weekly numbers, lamps (bot/database/migrations/web_quiz_challenge_runs_v2.sql) ──
+ALTER TABLE web_quiz_challenge_runs
+  ADD COLUMN IF NOT EXISTS bank_version       text,
+  ADD COLUMN IF NOT EXISTS "set"              text,
+  ADD COLUMN IF NOT EXISTS form               text,
+  ADD COLUMN IF NOT EXISTS passage_id         text,
+  ADD COLUMN IF NOT EXISTS item_set_id        text,
+  ADD COLUMN IF NOT EXISTS mode               text,
+  ADD COLUMN IF NOT EXISTS period_id          text,
+  ADD COLUMN IF NOT EXISTS exposure_no        smallint,
+  ADD COLUMN IF NOT EXISTS band               smallint,
+  ADD COLUMN IF NOT EXISTS anchor_exposure_no smallint,
+  ADD COLUMN IF NOT EXISTS anchor_block       text,
+  ADD COLUMN IF NOT EXISTS homonym_in_list    boolean,
+  ADD COLUMN IF NOT EXISTS draw_seed          text,
+  ADD COLUMN IF NOT EXISTS canonical_id       uuid,
+  ADD COLUMN IF NOT EXISTS id_src             text,
+  ADD COLUMN IF NOT EXISTS id_confidence      text,
+  ADD COLUMN IF NOT EXISTS via                text,
+  ADD COLUMN IF NOT EXISTS share_code_id      uuid,
+  ADD COLUMN IF NOT EXISTS class_id           uuid,
+  ADD COLUMN IF NOT EXISTS helped             text,
+  ADD COLUMN IF NOT EXISTS record             boolean,
+  ADD COLUMN IF NOT EXISTS scorer_v           jsonb,
+  ADD COLUMN IF NOT EXISTS started_at         timestamptz,
+  ADD COLUMN IF NOT EXISTS audio_consent      text,
+  ADD COLUMN IF NOT EXISTS audio_consent_at   timestamptz,
+  ADD COLUMN IF NOT EXISTS audio_consent_by   text,
+  ADD COLUMN IF NOT EXISTS audio_keep_until   timestamptz;
+
+-- Named CHECKs, added once. NULL passes every one, so rows written before this migration are untouched.
+-- id_src and via are validated in code (a new source is not a migration).
+DO $$
+DECLARE c record; old_status text;
+BEGIN
+  FOR c IN SELECT * FROM (VALUES
+    ('wqcr_form_chk',          'form IN (''G1'',''G3'',''G5'')'),
+    ('wqcr_mode_chk',          'mode IN (''check'',''practice'',''class_round'')'),
+    ('wqcr_period_chk',        'period_id ~ ''^[0-9]{4}-(0[1-9]|1[0-2])$'''),
+    ('wqcr_exposure_chk',      'exposure_no >= 1'),
+    ('wqcr_band_chk',          'band BETWEEN 1 AND 3'),
+    ('wqcr_anchor_exp_chk',    'anchor_exposure_no >= 1'),
+    ('wqcr_anchor_block_chk',  'anchor_block IN (''A1'',''A2'',''G1A'')'),
+    ('wqcr_id_conf_chk',       'id_confidence IN (''high'',''low'')'),
+    ('wqcr_helped_chk',        'helped IN (''self'',''helped'',''not_asked'')'),
+    ('wqcr_audio_consent_chk', 'audio_consent IN (''kept_ok'',''kept_no'',''not_asked'')'),
+    ('wqcr_audio_by_chk',      'audio_consent_by IN (''grownup_tap'')'),
+    ('wqcr_keep_needs_ok_chk', 'audio_keep_until IS NULL OR audio_consent = ''kept_ok'''),
+    ('wqcr_status_v2_chk',     'status IN (''served'',''scoring'',''scored'',''failed'',''abandoned'')')
+  ) AS t(name, expr) LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = c.name AND conrelid = 'web_quiz_challenge_runs'::regclass) THEN
+      EXECUTE format('ALTER TABLE web_quiz_challenge_runs ADD CONSTRAINT %I CHECK (%s)', c.name, c.expr);
+    END IF;
+  END LOOP;
+  -- The original inline status CHECK has a generated name: found by its definition, then dropped, so the two new
+  -- states can be written. wqcr_status_v2_chk above keeps every value it allowed.
+  FOR old_status IN SELECT conname FROM pg_constraint
+     WHERE conrelid = 'web_quiz_challenge_runs'::regclass AND contype = 'c'
+       AND conname <> 'wqcr_status_v2_chk'
+       AND pg_get_constraintdef(oid) LIKE '%status%scoring%' AND pg_get_constraintdef(oid) NOT LIKE '%served%'
+  LOOP
+    EXECUTE format('ALTER TABLE web_quiz_challenge_runs DROP CONSTRAINT %I', old_status);
+  END LOOP;
+END $$;
+
+-- the record rule's lookup, and the sweeper's
+CREATE INDEX IF NOT EXISTS web_quiz_challenge_runs_record_idx
+  ON web_quiz_challenge_runs (canonical_id, exercise, period_id) WHERE mode = 'check';
+CREATE INDEX IF NOT EXISTS web_quiz_challenge_runs_sweep_idx
+  ON web_quiz_challenge_runs (status, created_at) WHERE status IN ('served', 'scoring');
+
+COMMENT ON COLUMN web_quiz_challenge_runs.mode IS
+  'Internal. check | practice | class_round. Only check rows enter a trend; NULL on rows written before the provenance columns.';
+COMMENT ON COLUMN web_quiz_challenge_runs.record IS
+  'Internal. Decided when the exercise is served: this run is the period''s record if it scores. Never inferred later.';
+COMMENT ON COLUMN web_quiz_challenge_runs.audio_keep_until IS
+  'Internal. scored_at + 90 days, only when audio_consent = kept_ok; the daily purge deletes the kept reading after it.';
+
+-- The weekly health numbers, kept so the trend outlives the event store's retention. One row per week × line × cell.
+CREATE TABLE IF NOT EXISTS web_quiz_strip_weekly (
+  week        text        NOT NULL,                -- ISO week in PKT, e.g. 2026-W46
+  line        text        NOT NULL,
+  cell        text        NOT NULL DEFAULT '',     -- e.g. G45|ur|read
+  value       numeric,
+  n           integer,
+  computed_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (week, line, cell)
+);
+ALTER TABLE web_quiz_strip_weekly ENABLE ROW LEVEL SECURITY;
+COMMENT ON TABLE web_quiz_strip_weekly IS
+  'Internal. Weekly health numbers of the web quiz Challenge (counts and shares only, no child). Written by the bot (service role).';
+
+-- A child's reading and numbers lamps. Append-only and up-only: a new row is written only above the child's last rung
+-- on that ladder; computed from check rows only.
+CREATE TABLE IF NOT EXISTS child_rungs (
+  id           bigserial   PRIMARY KEY,
+  canonical_id uuid        NOT NULL,
+  ladder       text        NOT NULL CHECK (ladder IN ('reading', 'numbers')),
+  rung         smallint    NOT NULL CHECK (rung BETWEEN 1 AND 5),
+  rule_v       text        NOT NULL,
+  period_id    text        NOT NULL CHECK (period_id ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),
+  row_id       uuid,                                -- the run that set it
+  set_at       timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS child_rungs_child_idx ON child_rungs (canonical_id, ladder, set_at DESC);
+ALTER TABLE child_rungs ENABLE ROW LEVEL SECURITY;
+COMMENT ON TABLE child_rungs IS
+  'Internal. A child''s reading/numbers lamp, append-only and up-only, from check rows only. Written by the bot (service role).';
+
 -- Columns live on every deployment that the consolidated snapshot above had lost (read by the Challenge's grade lookup).
 ALTER TABLE students ADD COLUMN IF NOT EXISTS self_reported_class text;
 ALTER TABLE quiz_sessions ADD COLUMN IF NOT EXISTS student_class text;
