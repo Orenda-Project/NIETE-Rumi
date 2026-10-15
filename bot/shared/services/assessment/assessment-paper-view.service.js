@@ -65,7 +65,8 @@ function itemsBySlot(examJson, L) {
  */
 function buildPatternView(examJson) {
   const L = examJson._layout;
-  const lang = L.medium === 'ur' ? 'ur' : 'en';
+  // The paper's own medium (set by the pattern), not a teacher's language preference.
+  const lang = L.medium === 'ur' ? L.medium : 'en';
   const FdeRenderer = require('./assessment-paper-fde.renderer');
   const bySlot = itemsBySlot(examJson, L);
   const sections = [];
