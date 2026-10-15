@@ -171,6 +171,13 @@ describe("the teacher's report names the coach's pick as the area to grow", () =
     expect(horizonIn(mockHtml[0])).toBe('Real group work');
   });
 
+  test('"Following the plan\'s steps" (a pick with no C/D/F row) is the area to grow', async () => {
+    await preview(observe2Form({ answers: { lp: 'notfollowed', priority: 'plan' }, evidence_review: { priority_final: 'plan' } }));
+    expect(promptOf()).toContain('(plan)');
+    expect(promptOf()).not.toContain('LOWEST-SCORING');
+    expect(horizonIn(mockHtml[0])).toBe("Following the plan's steps");
+  });
+
   test('a pick changed at the check wins over the one sealed', async () => {
     await preview(observe2Form({ answers: { lp: 'none', priority: 'C3' }, evidence_review: { priority_final: 'D1' } }));
     expect(promptOf()).toContain('(D1)');
