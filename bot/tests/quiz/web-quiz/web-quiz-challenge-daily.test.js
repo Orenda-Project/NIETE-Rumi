@@ -17,6 +17,8 @@ jest.mock('../../../shared/storage/r2', () => ({
   getPresignedUploadUrl: jest.fn(),
 }));
 jest.mock('../../../shared/services/quiz/web-quiz-bind-expiry', () => ({ expireBindings: jest.fn(async () => ({ expired: 0, deleted: 0 })) }), { virtual: true });
+// The daily reply-cap snapshot (sweeper switch) reads the Redis service: faked as down here (one skip line).
+jest.mock('../../../shared/services/cache/railway-redis.service', () => ({ isAvailable: jest.fn(() => false), scanValues: jest.fn(async () => null) }));
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 
 const { makeFake } = require('./fake-supabase');
@@ -180,4 +182,29 @@ test('phone binding on under its parent only: web_quiz_phone_bind without web_qu
   install([ON('web_quiz_challenge'), ON('web_quiz_challenge_sweeper'), ON('web_quiz_phone_bind')], []);
   await S.dailyJob({ now: NOW });
   expect(Bind.expireBindings).not.toHaveBeenCalled();
+});
+
+describe('the daily reply-cap snapshot (sweeper switch)', () => {
+  const Redis = require('../../../shared/services/cache/railway-redis.service');
+  afterEach(() => { Redis.isAvailable.mockImplementation(() => false); Redis.scanValues.mockImplementation(async () => null); });
+
+  test('sweeper on: yesterday\'s (PKT) reply counts are kept as reply_cap_day rows, counts only', async () => {
+    Redis.isAvailable.mockImplementation(() => true);
+    Redis.scanValues.mockImplementation(async () => ['1', '2', '9']);
+    install([ON('web_quiz_challenge'), ON('web_quiz_challenge_sweeper')], []);
+    const out = await S.dailyJob({ now: NOW });
+    expect(Redis.scanValues).toHaveBeenCalledWith('wq:reply_cap:2026-10-14:*');
+    const rows = db.web_quiz_strip_weekly.filter((r) => r.line === 'reply_cap_day');
+    expect(Object.fromEntries(rows.map((r) => [r.cell, r.value])))
+      .toEqual({ '2026-10-14|1': 1, '2026-10-14|2': 1, '2026-10-14|3-4': 0, '2026-10-14|5-8': 0, '2026-10-14|capped': 1 });
+    expect(out.replyCap).toMatchObject({ day: '2026-10-14', phones: 3 });
+  });
+
+  test('purge only (sweeper off): no Redis call, no snapshot row', async () => {
+    install(PURGE(), []);
+    await S.dailyJob({ now: NOW });
+    expect(Redis.isAvailable).not.toHaveBeenCalled();
+    expect(Redis.scanValues).not.toHaveBeenCalled();
+    expect(db.web_quiz_strip_weekly.filter((r) => r.line === 'reply_cap_day')).toEqual([]);
+  });
 });

@@ -21,6 +21,10 @@ jest.mock('../../../shared/services/quiz/web-quiz-measure-events', () => ({
   mLost: jest.fn((row, o = {}) => ({ run: row.id, mode: row.mode, reason: o.reason, ...(o.ageMin != null ? { age_min: o.ageMin } : {}) })),
 }), { virtual: true });
 jest.mock('../../../shared/services/quiz/web-quiz-bind-expiry', () => { throw new Error("Cannot find module './web-quiz-bind-expiry'"); }, { virtual: true });
+// The weekly numbers' identity lines read the Redis service and the join queue (not on the base yet: VIRTUAL);
+// the golden below proves neither is touched with every switch off.
+jest.mock('../../../shared/services/cache/railway-redis.service', () => ({ isAvailable: jest.fn(() => true), scanValues: jest.fn(async () => []), get: jest.fn(), incr: jest.fn() }));
+jest.mock('../../../shared/services/quiz/web-quiz-join-queue', () => ({ precisionByTier: jest.fn(async () => []) }), { virtual: true });
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 
 const { makeFake } = require('./fake-supabase');
@@ -30,6 +34,8 @@ const { logEvent } = require('../../../shared/utils/structured-logger');
 const { logToFile } = require('../../../shared/utils/logger');
 const ME = require('../../../shared/services/quiz/web-quiz-measure-events');
 const S = require('../../../shared/services/quiz/web-quiz-challenge-sweeper');
+const Redis = require('../../../shared/services/cache/railway-redis.service');
+const Queue = require('../../../shared/services/quiz/web-quiz-join-queue');
 
 const NOW = Date.parse('2026-10-19T06:00:00Z');   // Monday 11:00 PKT
 const ago = (min) => new Date(NOW - min * 60 * 1000).toISOString();
@@ -156,6 +162,11 @@ describe('golden: every new switch off', () => {
     expect(r2.deleteKey).not.toHaveBeenCalled();
     expect(r2.listKeys).not.toHaveBeenCalled();
     expect(JSON.stringify(db)).toBe(before);
+    // the identity lines: no Redis call, no queue read, no new strip line
+    expect(Redis.isAvailable).not.toHaveBeenCalled();
+    expect(Redis.scanValues).not.toHaveBeenCalled();
+    expect(Queue.precisionByTier).not.toHaveBeenCalled();
+    expect(db.web_quiz_strip_weekly).toEqual([]);
   });
 
   test('the children on but web_quiz_challenge (the parent) off: still nothing', async () => {

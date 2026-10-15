@@ -8,8 +8,12 @@
  *                                    (stt_timeout | llm_timeout | page_gone | store_failed | unknown) and one
  *                                    web_quiz.ch_swept{run, age_min, reason}; a v2 row (mode set) also logs
  *                                    web_quiz.m_lost{reason:'swept'} when web_quiz_events_v2 is on
+ *                                  - each swept run goes to the rung job (web-quiz-rungs.js onRecordFinal, when
+ *                                    present): a failed record row can light a rung
  *                                  - a 'served' run never played for 24 hours becomes 'abandoned' (a count only)
- *                                  and, on Mondays, the weekly health numbers for the week just ended (web-quiz-strip.js)
+ *                                  and, in the daily job, yesterday's reply-cap counts kept from Redis (the counters
+ *                                  live 24 h) and, on Mondays, the weekly health numbers for the week just ended
+ *                                  (web-quiz-strip.js)
  *   web_quiz_challenge_audio_purge (read-side) a DESIGNED OPTION, kept OFF: the operator's decision is to keep every
  *                                  kept reading until the operator says otherwise; this switch must stay off. When on:
  *                                  each kept reading past its audio_keep_until is deleted from R2 and its row stops
@@ -20,7 +24,7 @@
  * switch is on (phone binding alone still erases expired bindings: the keep-all state). Inside it, each part has
  * its own switch: the purge (web_quiz_challenge_audio_purge), the phone-binding expiry (web-quiz-bind-expiry.js
  * expireBindings, when present) only with web_quiz_phone_bind on (under web_quiz_identity_canon), and the Monday
- * weekly numbers (web_quiz_challenge_sweeper).
+ * weekly numbers and the daily reply-cap snapshot (web_quiz_challenge_sweeper).
  *
  * Every write to a run's meta goes through the Challenge's compare-and-set (updateRunMeta): a scorer that lands its
  * result while the sweeper looks at the row wins, and the sweeper leaves the row alone. A row is never touched unless
@@ -106,6 +110,18 @@ function emitLost(row, ageMin) {
   }
 }
 
+// A swept run is a final (failed) record row, and a failed record row can light a rung: hand it to the rung job
+// (web-quiz-rungs.js, shipped by another change; absent → nothing). Guarded: the rung job never stops the sweep.
+async function rungFinal(id) {
+  const R = optional('./web-quiz-rungs');
+  if (!R || typeof R.onRecordFinal !== 'function') return;
+  try {
+    await R.onRecordFinal(id);
+  } catch (e) {
+    logError('web_quiz.ch_swept_rung_failed', { run: id, error: String(e && e.message || e).slice(0, 80) });
+  }
+}
+
 /**
  * The stuck-run sweep (web_quiz_challenge_sweeper; off ⇒ returns without a query to the runs table).
  * Returns { swept, abandoned } (or { off: true }).
@@ -131,6 +147,7 @@ async function sweepStuck({ now = Date.now(), max = MAX_PER_TICK, flags = null }
     out.swept += 1;
     logEvent('web_quiz.ch_swept', { run: row.id, age_min: ageMin, reason });
     if (row.mode && f.eventsV2) emitLost({ ...row, ...written }, ageMin);
+    await rungFinal(row.id);
   }
 
   // served, never played: closed after 24 h. The status guard is the compare-and-set (meta is not written).
@@ -199,7 +216,7 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
   if (!f.purge && !f.sweeper && !f.phoneBind) return { ran: false, reason: 'off' };
   const claim = await claimDay(now);
   if (!claim.ok) return { ran: false, reason: claim.reason };
-  const out = { ran: true, day: claim.day, purged: null, bindings: false, strip: null };
+  const out = { ran: true, day: claim.day, purged: null, bindings: false, strip: null, replyCap: null };
 
   if (f.purge) {
     const p = await purgeKept(now, max);
@@ -216,6 +233,14 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
       }
     } else {
       logToFile('Challenge daily job: binding expiry not available, skipped', { day: claim.day });
+    }
+  }
+
+  // Every day (sweeper switch): yesterday's (PKT) reply-cap counts, before the 24-h Redis counters expire.
+  // On a Monday this runs first, so the weekly numbers below include Sunday.
+  if (f.sweeper) {
+    try { out.replyCap = await require('./web-quiz-strip').replyCapSnapshot({ now }); } catch (e) {
+      logError('web_quiz.strip_reply_cap_failed', { error: String(e && e.message || e).slice(0, 120) });
     }
   }
 

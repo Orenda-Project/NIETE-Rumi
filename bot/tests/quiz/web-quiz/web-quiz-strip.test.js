@@ -8,6 +8,8 @@
 jest.mock('../../../shared/config/supabase', () => ({}));
 jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logError: jest.fn(), logWarn: jest.fn() }));
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
+// Redis (the reply-cap lines) is down here; those lines have their own suite (web-quiz-strip-identity.test.js).
+jest.mock('../../../shared/services/cache/railway-redis.service', () => ({ isAvailable: jest.fn(() => false), scanValues: jest.fn(async () => null) }));
 
 const { makeFake } = require('./fake-supabase');
 const supabase = require('../../../shared/config/supabase');
