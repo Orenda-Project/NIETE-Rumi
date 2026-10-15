@@ -29,6 +29,14 @@ jest.mock('../../../shared/services/quiz/web-quiz-challenge-calibration', () => 
   return { runMonthly: jest.fn(async () => ({ ran: false, reason: 'off' })) };
 });
 jest.mock('../../../shared/services/quiz/web-quiz-bind-expiry', () => { throw new Error("Cannot find module './web-quiz-bind-expiry'"); });
+// The rung job (web-quiz-rungs.js, another change; not on the base yet): VIRTUAL. global.__rungs picks what a fresh
+// registry finds: unset → no module; 'present' → settleDeferred; 'no_export' → a module without settleDeferred.
+const mockSettleDeferred = jest.fn(async () => ({ settled: 0 }));
+jest.mock('../../../shared/services/quiz/web-quiz-rungs', () => {
+  if (global.__rungs === 'present') return { settleDeferred: mockSettleDeferred };
+  if (global.__rungs === 'no_export') return { onRecordFinal: async () => ({ lit: [] }) };
+  throw new Error("Cannot find module './web-quiz-rungs'");
+}, { virtual: true });
 jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.js'));
 
 const { makeFake } = require('./fake-supabase');
@@ -194,5 +202,67 @@ describe('the monthly calibration call', () => {
       await expect(S2.dailyJob({ now: Date.parse('2026-11-01T06:00:00Z') })).resolves.toMatchObject({ ran: true });
     } finally { delete global.__absent; jest.resetModules(); }
     expect(cal().runMonthly).not.toHaveBeenCalled();
+  });
+});
+
+describe('the rung job\'s deferred settle (settleDeferred), like the binding expiry: once per daily run', () => {
+  const PURGE = () => [ON('web_quiz_challenge'), ON('web_quiz_challenge_audio_purge')];
+  // a fresh registry where the rung module is as `mode` says; returns the job, the logger and the fake's calls
+  const fresh = (mode, settings) => {
+    if (mode) global.__rungs = mode;
+    jest.resetModules();
+    const sb = require('../../../shared/config/supabase');
+    const lg = require('../../../shared/utils/logger');
+    const sl = require('../../../shared/utils/structured-logger');
+    const S2 = require('../../../shared/services/quiz/web-quiz-challenge-sweeper');
+    db = { app_settings: settings, web_quiz_challenge_runs: [], web_quiz_strip_weekly: [] };
+    const f = makeFake(db, { uniques: { web_quiz_strip_weekly: ['week', 'line', 'cell'] } });
+    Object.assign(sb, f);
+    return { S2, lg, sl, f };
+  };
+  afterEach(() => { delete global.__rungs; jest.resetModules(); mockSettleDeferred.mockReset(); mockSettleDeferred.mockImplementation(async () => ({ settled: 0 })); });
+
+  test('present: called once per daily run with now; a second run the same PKT day does not call it again', async () => {
+    const { S2 } = fresh('present', PURGE());
+    const out = await S2.dailyJob({ now: NOW });
+    await S2.dailyJob({ now: NOW + 3 * HOUR });
+    expect(mockSettleDeferred).toHaveBeenCalledTimes(1);
+    expect(mockSettleDeferred.mock.calls[0]).toEqual([{ now: NOW }]);
+    expect(out).toMatchObject({ ran: true, settled: { settled: 0 } });
+  });
+
+  test('present and throwing: one error line, the daily job goes on', async () => {
+    mockSettleDeferred.mockImplementation(async () => { throw new Error('pooler down'); });
+    const { S2, lg } = fresh('present', PURGE());
+    const out = await S2.dailyJob({ now: NOW });
+    expect(out).toMatchObject({ ran: true, purged: 0 });
+    expect(lg.logError).toHaveBeenCalledWith('web_quiz.ch_rung_settle_failed', expect.any(Object));
+  });
+
+  test('the module without settleDeferred, or no module at all: no call, no error, nothing logged about it', async () => {
+    for (const mode of ['no_export', null]) {
+      const { S2, lg } = fresh(mode, PURGE());
+      await expect(S2.dailyJob({ now: NOW })).resolves.toMatchObject({ ran: true, settled: null });
+      const said = JSON.stringify([lg.logToFile.mock.calls, lg.logError.mock.calls]);
+      expect(said).not.toMatch(/rung|settle/i);
+      delete global.__rungs;
+    }
+    expect(mockSettleDeferred).not.toHaveBeenCalled();
+  });
+
+  test('golden: every switch off and no rung module, any other day: still nothing at all', async () => {
+    const { S2, f, sl } = fresh(null, []);
+    await expect(S2.dailyJob({ now: NOW })).resolves.toEqual({ ran: false, reason: 'off' });
+    expect(f.calls.filter((c) => c.table !== 'app_settings')).toEqual([]);   // the switches read only
+    expect(sl.logEvent).not.toHaveBeenCalled();
+  });
+
+  test('every switch off with the rung module present: the day is claimed and the settle is the only call (its own switches decide)', async () => {
+    const { S2, f, sl } = fresh('present', []);
+    const out = await S2.dailyJob({ now: NOW });
+    expect(out).toMatchObject({ ran: true, purged: null, strip: null, windows: null, settled: { settled: 0 } });
+    expect(mockSettleDeferred).toHaveBeenCalledTimes(1);
+    expect(f.calls.map((c) => c.table).filter((t) => t !== 'app_settings')).toEqual(['web_quiz_strip_weekly']);   // the claim
+    expect(sl.logEvent).not.toHaveBeenCalled();
   });
 });

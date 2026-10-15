@@ -33,7 +33,9 @@
  *     web_quiz_challenge_v2 and web_quiz_challenge) and, as a v2 event, web_quiz_events_v2 (under web_quiz_hub).
  *     The class is keyed (web-quiz-kid.js cls); a raw class id never rides the event;
  *   - on the first PKT day of a month, web-quiz-challenge-calibration.js runMonthly({ period_id: the month just
- *     ended, now }), when present: the job only schedules it; the calibration carries its own switches.
+ *     ended, now }), when present: the job only schedules it; the calibration carries its own switches;
+ *   - every day, the rung job's settleDeferred({ now }) (web-quiz-rungs.js, when present), like the expiry: whatever
+ *     our switches say (the rung job's own switches decide); absent or without that export, nothing and no log.
  *
  * Every write to a run's meta goes through the Challenge's compare-and-set (updateRunMeta): a scorer that lands its
  * result while the sweeper looks at the row wins, and the sweeper leaves the row alone. A row is never touched unless
@@ -279,10 +281,14 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
   const period = monthJustEnded(now);
   const Cal = period ? optional('./web-quiz-challenge-calibration') : null;
   const hasCal = !!Cal && typeof Cal.runMonthly === 'function';
-  if (!anyOn && !hasExpiry && !hasCal) return { ran: false, reason: 'off' };
+  // The rung job's deferred settle (web-quiz-rungs.js settleDeferred, when present): called like the expiry, once per
+  // daily run whatever our switches say; the rung job's own switches decide what it does. Absent ⇒ nothing, no log.
+  const Rungs = optional('./web-quiz-rungs');
+  const hasSettle = !!Rungs && typeof Rungs.settleDeferred === 'function';
+  if (!anyOn && !hasExpiry && !hasCal && !hasSettle) return { ran: false, reason: 'off' };
   const claim = await claimDay(now);
   if (!claim.ok) return { ran: false, reason: claim.reason };
-  const out = { ran: true, day: claim.day, purged: null, bindings: false, strip: null, replyCap: null, windows: null, calibration: null };
+  const out = { ran: true, day: claim.day, purged: null, bindings: false, strip: null, replyCap: null, windows: null, calibration: null, settled: null };
 
   // Retention outlives every switch: the expiry runs whenever its module is deployed.
   if (hasExpiry) {
@@ -295,6 +301,11 @@ async function dailyJob({ now = Date.now(), max = MAX_PER_TICK, flags = null } =
   if (hasCal) {
     try { out.calibration = await Cal.runMonthly({ period_id: period, now: new Date(now) }); } catch (e) {
       logError('web_quiz.ch_calibration_call_failed', { period_id: period, error: errText(e) });
+    }
+  }
+  if (hasSettle) {
+    try { out.settled = await Rungs.settleDeferred({ now }); } catch (e) {
+      logError('web_quiz.ch_rung_settle_failed', { error: errText(e) });
     }
   }
   if (!anyOn) return out;
