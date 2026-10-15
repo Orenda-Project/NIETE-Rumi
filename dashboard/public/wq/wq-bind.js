@@ -47,7 +47,8 @@
       isYou: function (name) { return "\u2068" + name + "\u2069، کیا یہ آپ ہیں؟"; },
       yes: "جی ہاں، یہ میں ہوں",
       no: "یہ میں نہیں ہوں",
-      noticeSave: function (name) { return "جگنو یہ فون نمبر \u2068" + name + "\u2069 کے نام کے ساتھ محفوظ کرے گا، اسکول کا سال ختم ہونے تک (۳۱ مارچ)۔ اس کے بعد صرف اس صورت میں، اگر آپ کھیلنا جاری رکھیں۔"; },
+      // the first clause is the ruled one (a link, never a rename); the retention clause is the deck's
+      noticeSave: function (name) { return "جگنو اس فون نمبر کو \u2068" + name + "\u2069 کے ساتھ جوڑ کر محفوظ کرے گا، اسکول کا سال ختم ہونے تک (۳۱ مارچ)۔ اس کے بعد صرف اس صورت میں، اگر آپ کھیلنا جاری رکھیں۔"; },
       noticeStopPhoneOnly: "گھر کے بڑے کسی بھی وقت واٹس ایپ پر \u2066STOP\u2069 بھیج کر یہ نمبر ہٹا سکتے ہیں۔",
       whoSends: "پھر گھر کے بڑے اس فون سے واٹس ایپ پر ایک پیغام بھیجیں۔",
       sendBtn: "واٹس ایپ پر بھیجیں",
@@ -60,7 +61,7 @@
       refusedPhones: "اس بچے کی جگہ پہلے ہی تین فونوں پر محفوظ ہے۔",
       codeExpired: "اس میں دیر ہو گئی۔ دوبارہ «میری جگہ محفوظ کریں» دبائیں۔",
       whoPlaying: "کھیلنے کے لیے اپنا نام چنیں",
-      whoPlayedHere: "پہلے بھی اسی فون پر",
+      whoPlayedHere: "پہلے بھی اسی فون پر کھیلا گیا",
     },
   };
   var view = { shown: false, mount: null, ctx: null };
@@ -70,7 +71,9 @@
   function chips(html) {
     return String(html)
       .replace(/⁦?\/quiz⁩?/g, '⁦<bdi dir="ltr" class="wqb-chip">/quiz</bdi>⁩')
-      .replace(/⁦?\bSTOP\b⁩?/g, '⁦<bdi dir="ltr" class="wqb-chip">STOP</bdi>⁩');
+      .replace(/⁦?\bSTOP\b⁩?/g, '⁦<bdi dir="ltr" class="wqb-chip">STOP</bdi>⁩')
+      // «واٹس ایپ» is one word on the page: never «واٹس / ایپ» across a line (native read, page note 2)
+      .replace(/واٹس ایپ/g, '<span class="wqb-nowrap">واٹس ایپ</span>');
   }
   function L(lang) { return T[lang === 'ur' ? 'ur' : 'en']; }
   function sget(st, k) { try { return st.getItem(k); } catch (e) { return null; } }
@@ -110,7 +113,7 @@
     var t = L(view.ctx.lang);
     var name = esc(view.ctx.first || '');
     draw('<h3 class="wqb-title">' + t.isYou(name) + '</h3>' +
-      '<div class="wqb-notice"><p>' + t.noticeSave(name) + '</p><p>' + chips(esc(t.noticeStopPhoneOnly)) + '</p></div>' +
+      '<div class="wqb-notice"><p>' + chips(esc(t.noticeSave(name))) + '</p><p>' + chips(esc(t.noticeStopPhoneOnly)) + '</p></div>' +
       '<p class="wqb-sub">' + esc(t.whoSends) + '</p>' +
       '<div class="wqb-row wqb-stack"><button type="button" class="wqb-btn wqb-go" data-b="yes">' + esc(t.yes) + '</button>' +
       '<button type="button" class="wqb-btn wqb-ghost" data-b="no">' + esc(t.no) + '</button></div>');

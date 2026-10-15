@@ -83,7 +83,10 @@ test('Keep my place -> the confirm sheet (name, notice, STOP chip, nothing prese
   p.B.card(m, c);
   m.els.keep.click();
   expect(m.innerHTML).toContain('⁨Zara⁩، کیا یہ آپ ہیں؟');
-  expect(m.innerHTML).toContain('جگنو یہ فون نمبر ⁨Zara⁩ کے نام کے ساتھ محفوظ کرے گا');
+  // the ruled first sentence (a link, not a rename) and «واٹس ایپ» held on one line
+  expect(m.innerHTML).toContain('جگنو اس فون نمبر کو ⁨Zara⁩ کے ساتھ جوڑ کر محفوظ کرے گا');
+  expect(m.innerHTML).not.toContain('کے نام کے ساتھ محفوظ کرے گا');
+  expect(m.innerHTML).toContain('<span class="wqb-nowrap">واٹس ایپ</span>');
   expect(m.innerHTML).toContain('<bdi dir="ltr" class="wqb-chip">STOP</bdi>');
   expect(m.innerHTML).not.toMatch(/checked|aria-pressed="true"|autofocus/);
   m.els.yes.click();
@@ -93,6 +96,12 @@ test('Keep my place -> the confirm sheet (name, notice, STOP chip, nothing prese
   expect(m.els.send.href).toBe('https://wa.me/923000000000?text=x');
   m.els.send.click();
   expect(evs.map((e) => e[0])).toEqual(['bind_offered', 'bind_sent']);
+});
+
+test('the "played on this phone before" line is the ruled passive in Urdu', () => {
+  const p = load({});
+  expect(p.B.t('ur').whoPlayedHere).toBe('پہلے بھی اسی فون پر کھیلا گیا');
+  expect(p.B.t('en').whoPlayedHere).toBe('Played on this phone before');
 });
 
 test('a refusal shows its page message', async () => {
@@ -150,7 +159,8 @@ test('the notice says the phone link only: STOP removes the number, no readings 
     const html = m.innerHTML;
     for (const w of ['readings', 'deleted', 'ریکارڈنگ', 'مٹا', '90']) expect([lang, w, html.includes(w)]).toEqual([lang, w, false]);
     expect(p.B.t(lang).noticeStopPhoneOnly).toBe(NOTICE[lang]);
-    expect(html).toContain(NOTICE[lang].replace(/⁦?STOP⁩?/, '⁦<bdi dir="ltr" class="wqb-chip">STOP</bdi>⁩'));
+    // rendered: the STOP chip and «واٹس ایپ» held on one line
+    expect(html).toContain(NOTICE[lang].replace(/⁦?STOP⁩?/, '⁦<bdi dir="ltr" class="wqb-chip">STOP</bdi>⁩').replace(/واٹس ایپ/g, '<span class="wqb-nowrap">واٹس ایپ</span>'));
   }
 });
 
