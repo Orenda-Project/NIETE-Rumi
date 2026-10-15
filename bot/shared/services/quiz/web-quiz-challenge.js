@@ -45,6 +45,8 @@ const { LANGUAGE_OFFER } = require('../../config/languages');
 const Budget = require('./web-quiz-challenge-budget');
 const Flags = require('./web-quiz-hub-flags');
 const Measure = require('./web-quiz-measure-events');
+// The Trail page v2 (web_quiz_challenge_v2 and its children): {} / null with v2 off, so today's paths are untouched.
+const TrailPage = require('./web-quiz-trail-page');
 
 const FLAG_KEY = 'web_quiz_challenge';
 const LIVE_FLAG_KEY = 'web_quiz_challenge_realtime';
@@ -152,7 +154,7 @@ let clipsRecorded = 0;
 const settingCache = new Map();  // key → { v, at } for the record switches
 const SETTING_TTL_MS = 30 * 1000;
 
-function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; Draw().__reset(); }
+function __reset() { flagCache = null; liveCache = null; qaCache = null; listenCache = null; settingCache.clear(); Budget._reset(); RUNS.clear(); clipKnown.clear(); clipRecording.clear(); clipsRecorded = 0; Draw().__reset(); TrailPage._reset(); }
 
 /** An app_settings switch, true only when its value reads true (fails closed), cached for 30 s. */
 async function settingOn(key) {
@@ -609,6 +611,7 @@ async function menu(token, { kid, lang, device } = {}) {
     // Whether the page sends its page-session events (wq-tel.js).
     rt: await Tel.flag(),
     ...((await require('./web-quiz-ur-polish').ui()) ? { ui: { ur2: true } } : {}),
+    ...(await TrailPage.bits()),
   };
 }
 
@@ -641,7 +644,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   // On the trail a stop already played (its first counted run exists) is a practice round: the page says so.
   const practiceRound = (rules.trail ? (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).attempt_no > 1 : false) || !!(v2 && rules.trail && v2.mem.mode === 'practice');
   const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await clipsFor(ex, w.lang), ...ruleFlags(rules), ...(rules.guard ? { copy: copyFor(w.lang) } : {}),
-    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? v2.payload : {}) };
+    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? v2.payload : {}), ...(await TrailPage.bits()) };
   if (ex === 'missing' && v2 && v2.items) {
     // the A1 warm-up: the same 10 items in the same order on both forms, no 4-error stop; the try-out after item 10
     const p3 = Bank.getTaskSpec({ grade: 3, set: 'A', task: 'ma.missing' });
@@ -1251,7 +1254,7 @@ async function sweepOrphans({ now = Date.now(), olderThanMs = 10 * 60 * 1000, ma
   return out;
 }
 
-async function presignUpload({ ct, type, size } = {}) {
+async function presignUpload({ ct, type, size, audio_consent } = {}) {
   const c = runOf(ct);
   if (c.ex !== 'read') fail(400, 'no_audio');
   const base = String(type || '').split(';')[0].trim().toLowerCase();
@@ -1264,7 +1267,7 @@ async function presignUpload({ ct, type, size } = {}) {
   if (!(await uploadable(c, mem))) fail(409, 'already_done');
   if (!(await Budget.readOpen())) fail(429, 'enough_for_today');
   const ts = Date.now();
-  const key = (await keepAudioOn())
+  const key = (await keepAudioOn()) && TrailPage.allowsKeep(await TrailPage.consentFor({ audio_consent }))
     ? `${keptRunPrefix(c, new Date(ts).toISOString().slice(0, 10))}read-${ts}.${ext}`
     : `${uploadPrefix(c)}${ts}.${ext}`;
   const putUrl = await r2.getPresignedUploadUrl(key, base, PUT_TTL_S, { bucket: childVoiceBucket(), signContentType: true });
@@ -1472,6 +1475,10 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
   // the switch now on is still deleted, and the row says so (calibration then knows why there is no audio).
   const audio = isKeptKey(key) ? { audio_key: key } : ((await keepAudioOn()) ? { audio_kept: false } : {});
   const metaIn = { ms: Number(body.ms) || null, ...(live ? { live } : {}), ...prov, ...guardIn, ...audio };
+  // the grown-up's keep answer (web_quiz_challenge_audio_consent; null with it off): on the row, one event per run
+  const consent = await TrailPage.consentFor(body);
+  const consentCols = TrailPage.columns(consent);
+  TrailPage.noteConsent(c.r, consent);
   if (isLive) {
     // the child may already be answering the questions (the live result shows before this call): keep their answers
     await updateRunMeta(c.r, (cur) => ({ status: 'scoring', meta: { ...servedMeta(cur.meta), ...metaIn, ...(cur.meta && cur.meta.comp ? { comp: cur.meta.comp } : {}) } }));
@@ -1500,6 +1507,8 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
     await measureOutcome(c.r);
     await renewBindings(c.sid);
     await lightIfFirst(c.r);
+    // after the row is final, on its own: a missing column can never cost the scored row
+    await TrailPage.writeConsent(c.r, consentCols);
     if (r.failed) logError('web_quiz.ch_read_failed', { runId: c.r, reason: r.reason, run: c.r });
     else logEvent('web_quiz.ch_done', { step: 'read', count: r.score.correct, wcpm: r.wcpm, stopped: r.score.stopped, costUsd: r.meta.cost_usd, run: c.r, ...(rules.record ? { ended: r.ended || null } : {}) });
     return result;
