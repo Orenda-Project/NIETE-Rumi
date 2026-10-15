@@ -65,10 +65,26 @@ const momentsOf = (form) => ((form && form.rumi_moments && form.rumi_moments.mom
 
 // ------------------------------------------------------------------ screens
 
+// The line that opens each moments screen. A part with no moment says so: a question over nothing is
+// what coaches met on 14 Oct (pilot sheet R8, R9; bd-eal7zn.3). Explaining moments feed no level by a
+// rule (rules.js PICK_CODES), so that screen says the coach picks those levels.
+const HEARD_INTRO = Object.freeze({
+  some: 'Rumi picked these from the recording as evidence for this part of the lesson. Say whether each one happened as written. What you confirm counts toward the levels on the next screens; a "No" counts for nothing.',
+  explain: 'Rumi picked these from the recording as evidence of how the teacher explains. Say whether each one happened as written. They help you choose the explaining levels on the next screens; Rumi does not add them up for you.',
+  none: 'Rumi found no clear moment for this question in the recording, so there is nothing to check here. Your own answers from the form still count. Tap Next.',
+  unavailable: 'This check is not available. Tap Next to close it.',
+});
+
+function introFor(moment, form, count) {
+  if (!form) return HEARD_INTRO.unavailable;
+  if (!count) return HEARD_INTRO.none;
+  return moment === 'explain' ? HEARD_INTRO.explain : HEARD_INTRO.some;
+}
+
 function renderHeard(screenId, form) {
   const moment = MOMENT_OF[screenId];
   const list = momentsOf(form).filter((m) => m.moment === moment);
-  const data = {};
+  const data = { [`${screenId.toLowerCase()}_intro`]: introFor(moment, form, list.length) };
   for (let i = 1; i <= SLOTS; i += 1) {
     const k = `${screenId.toLowerCase()}_${i}`;
     const m = list[i - 1];
