@@ -33,7 +33,7 @@ jest.mock('../../bot/shared/services/observe/observe-debrief.service', () => ({ 
 const { uploadBuffer } = require('../../bot/shared/storage/r2');
 const Store = require('../../bot/shared/services/observe/observe2/field-form.store');
 const Endpoint = require('../../bot/shared/routes/observe2-form-endpoint');
-const { buildFieldFormFlow } = require('../../bot/shared/services/observe/observe2/field-form.flow');
+const { buildFieldFormFlow, FORM_VERSION } = require('../../bot/shared/services/observe/observe2/field-form.flow');
 
 const token = (formId) => `coach-1:observe2-form:${formId}`;
 const row = (id) => mockFake.__tables.observation_field_forms.find((r) => r.id === id);
@@ -112,9 +112,9 @@ describe('the Flow', () => {
 
   test('each picker\'s value travels only on its own screen\'s data_exchange', () => {
     const footer = (s) => components(s).find((c) => c.type === 'Footer')['on-click-action'];
-    expect(footer(screens.PHOTO_TAKE)).toEqual({ name: 'data_exchange', payload: { screen: 'PHOTO_TAKE', fv: '4', photos: '${form.photos}' } });
-    expect(footer(screens.PHOTO_FILES)).toEqual({ name: 'data_exchange', payload: { screen: 'PHOTO_FILES', fv: '4', photo_files: '${form.photo_files}' } });
-    expect(footer(screens.PHOTOS)).toEqual({ name: 'data_exchange', payload: { screen: 'PHOTOS', fv: '4', photo_how: '${form.photo_how}' } });
+    expect(footer(screens.PHOTO_TAKE)).toEqual({ name: 'data_exchange', payload: { screen: 'PHOTO_TAKE', fv: FORM_VERSION, photos: '${form.photos}' } });
+    expect(footer(screens.PHOTO_FILES)).toEqual({ name: 'data_exchange', payload: { screen: 'PHOTO_FILES', fv: FORM_VERSION, photo_files: '${form.photo_files}' } });
+    expect(footer(screens.PHOTOS)).toEqual({ name: 'data_exchange', payload: { screen: 'PHOTOS', fv: FORM_VERSION, photo_how: '${form.photo_how}' } });
   });
 });
 
@@ -129,7 +129,7 @@ describe('the endpoint', () => {
   test('the new plan, photo and continue footers carry the form version', () => {
     for (const id of ['LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'PHOTO_TAKE', 'PHOTO_FILES', 'CONTINUE']) {
       const f = components(screens[id]).find((c) => c.type === 'Footer');
-      expect([id, f['on-click-action'].payload.fv]).toEqual([id, '4']);
+      expect([id, f['on-click-action'].payload.fv]).toEqual([id, FORM_VERSION]);
     }
   });
 

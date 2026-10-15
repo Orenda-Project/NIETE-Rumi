@@ -37,7 +37,7 @@ const Store = require('../../bot/shared/services/observe/observe2/field-form.sto
 const Form = require('../../bot/shared/routes/observe2-form-endpoint');
 const Check = require('../../bot/shared/routes/observe2-check-endpoint');
 const Moments = require('../../bot/shared/services/observe/observe2/moments');
-const { buildFieldFormFlow } = require('../../bot/shared/services/observe/observe2/field-form.flow');
+const { buildFieldFormFlow, FORM_VERSION } = require('../../bot/shared/services/observe/observe2/field-form.flow');
 const { buildBrief } = require('../../bot/shared/services/observe/observe2/brief');
 const { formatLpRow } = require('../../bot/shared/services/coaching/lp-coaching/lp-selection-format');
 
@@ -133,14 +133,14 @@ describe('the form: three ways to add a plan the bot did not give the teacher', 
     expect(how).toMatchObject({ type: 'RadioButtonsGroup' });
     expect(how['data-source'].map((o) => o.id)).toEqual(['photos', 'file', 'text']);
     expect(JSON.stringify(c.filter((x) => x.type === 'If'))).toContain("${form.lp_pick} == 'upload'");
-    expect(c.find((x) => x.type === 'Footer')['on-click-action'].payload).toEqual({ screen: 'LESSON_PLAN', fv: '4', lp: '${form.lp}', lp_pick: '${form.lp_pick}', lp_how: '${form.lp_how}' });
+    expect(c.find((x) => x.type === 'Footer')['on-click-action'].payload).toEqual({ screen: 'LESSON_PLAN', fv: FORM_VERSION, lp: '${form.lp}', lp_pick: '${form.lp_pick}', lp_how: '${form.lp_how}' });
   });
 
   test('photos: one picker, camera or gallery, one page per photo, up to ten', () => {
     const p = comps(screens.LP_PHOTOS).find((x) => x.type === 'PhotoPicker');
     expect(p).toMatchObject({ name: 'lp_photos', 'photo-source': 'camera_gallery', 'min-uploaded-photos': 1, 'max-uploaded-photos': 10 });
     const footer = comps(screens.LP_PHOTOS).find((x) => x.type === 'Footer');
-    expect(footer['on-click-action']).toEqual({ name: 'data_exchange', payload: { screen: 'LP_PHOTOS', fv: '4', lp_photos: '${form.lp_photos}' } });
+    expect(footer['on-click-action']).toEqual({ name: 'data_exchange', payload: { screen: 'LP_PHOTOS', fv: FORM_VERSION, lp_photos: '${form.lp_photos}' } });
   });
 
   test('a file: PDF or Word (or a photo saved as a file)', () => {
@@ -151,7 +151,7 @@ describe('the form: three ways to add a plan the bot did not give the teacher', 
     ]));
     expect(d['min-uploaded-documents']).toBe(1);
     const footer = comps(screens.LP_FILE).find((x) => x.type === 'Footer');
-    expect(footer['on-click-action']).toEqual({ name: 'data_exchange', payload: { screen: 'LP_FILE', fv: '4', lp_file: '${form.lp_file}' } });
+    expect(footer['on-click-action']).toEqual({ name: 'data_exchange', payload: { screen: 'LP_FILE', fv: FORM_VERSION, lp_file: '${form.lp_file}' } });
   });
 
   test('typed text: one box, required', () => {
