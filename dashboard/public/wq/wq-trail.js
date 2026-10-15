@@ -62,7 +62,9 @@
         + '[lang="ur"] .wqc .wq-sub,[lang="ur"] .wqc-who2,[lang="ur"] #wqc-story-banner{font-size:20px}'
         // Urdu at 20 px or more on every v2 screen (bubble, buttons, lines): only under .wqt-v2, which WQTRAIL sets
         + 'html[lang="ur"] .wqt-v2 .wq-say,html[lang="ur"] .wqt-v2 .wq-btn,html[lang="ur"] .wqt-v2 .wq-sub,html[lang="ur"] .wqt-v2 .wqc-banner,'
-        + 'html[lang="ur"] .wqt-v2 .wqc-pill,html[lang="ur"] .wqt-v2 small{font-size:20px}';
+        + 'html[lang="ur"] .wqt-v2 .wqc-pill,html[lang="ur"] .wqt-v2 small{font-size:20px}'
+        // the keep answers: two equal columns, the same height
+        + '.wqc-keep2{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:stretch}.wqc-keep2 .wq-btn{margin:0;min-height:56px;width:100%}';
       document.head.appendChild(st);
     } catch (e) { /* unstyled still works */ }
   }
@@ -111,7 +113,7 @@
       }).join('');
       // A child who is not remembered (a cousin, a third sibling) never has to tap someone else's name to start:
       // "Someone else" opens this hub with nobody picked, and no run starts here.
-      var other = '<button class="wq-btn wq-ghost" type="button" id="wqc-who-else">' + esc(t.whoSomeoneElse) + '</button>';
+      var other = '<button class="wq-btn wq-soft" type="button" id="wqc-who-else">' + esc(t.whoSomeoneElse) + '</button>';
       h.show('whose-turn', h.jug('hello', t.whoTurn, true) + '<p class="wq-sub">' + esc(t.whoTapName) + '</p><div class="wq-stack">' + chips + other + '</div>');
       (ask.kids || []).forEach(function (k) { h.on('wqc-who-' + k.chip, function () { pick(k.chip); }); });
       h.on('wqc-who-else', function () { if (h.boot && h.boot.token) location.href = '/h/' + encodeURIComponent(h.boot.token) + '?from=home'; });
@@ -205,7 +207,8 @@
       h.show('keep-ask', h.jug('hello', t.keepQ, true) + '<p class="wq-sub" id="wqc-keep-sub">' + esc(t.keepSubV2) + '</p>'
         // the answer is recorded as a grown-up's tap, so the screen says who answers (jg.keep.ask_grownup)
         + '<p class="wq-sub" id="wqc-keep-grownup">' + esc(t.keepAskGrownup) + '</p>'
-        + '<div class="wq-stack">' + btn('wqc-keep-yes', t.keepYes) + btn('wqc-keep-no', t.keepNo) + '</div>'
+        // the two answers side by side at equal width, the same button class: neither is "the top green button"
+        + '<div class="wqc-keep2" id="wqc-keep-pair">' + btn('wqc-keep-yes', t.keepYes) + btn('wqc-keep-no', t.keepNo) + '</div>'
         + '<p class="wq-sub" id="wqc-keep-either">' + esc(t.keepEither) + '</p>');
       h.on('wqc-keep-yes', function () { keep = 'kept_ok'; then(); });
       h.on('wqc-keep-no', function () { keep = 'kept_no'; then(); });

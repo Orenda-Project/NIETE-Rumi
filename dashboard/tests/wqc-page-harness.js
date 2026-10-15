@@ -35,13 +35,14 @@ function fakeEl(id) {
   };
 }
 
-function page({ htmlClass = '', freshEls = false, storage = null, perm = null, clock = null, lang = 'en', menu = MENU, ua = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 WhatsApp', media = 'grant', routes = {}, recorder = 'ok', chunk = 4000, href = 'https://portal.test/c/HUB.TOKEN', micLevel = 128, src = SRC, pre = [], session = null } = {}) {
+function page({ htmlClass = '', freshEls = false, storage = null, perm = null, clock = null, lang = 'en', menu = MENU, ua = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 WhatsApp', media = 'grant', routes = {}, recorder = 'ok', chunk = 4000, href = 'https://portal.test/c/HUB.TOKEN', micLevel = 128, src = SRC, pre = [], session = null, scripts = {}, chV = 'abc1234567' } = {}) {
   const els = {};
   const root = { querySelector: (sel) => { const id = sel.replace(/^#/, ''); if (!els[id]) els[id] = fakeEl(id); return els[id]; } };
   // freshEls: each render replaces the elements, as a real DOM does (a key bound on one screen is not the next one's)
   let html0 = '';
   Object.defineProperty(root, 'innerHTML', { get: () => html0, set: (v) => { html0 = v; if (freshEls) Object.keys(els).forEach((k) => { delete els[k]; }); } });
   const fetches = [];
+  const loaded = [];
   const events = [];
   const timers = [];
   const recs = [];
@@ -99,7 +100,18 @@ function page({ htmlClass = '', freshEls = false, storage = null, perm = null, c
     location: (() => { const u = new URL(href); return { href, host: u.host, pathname: u.pathname, search: u.search, hash: u.hash }; })(),
     document: {
       getElementById: (id) => (id === 'wq' ? root : id === 'boot' ? boot : null),
-      createElement: () => ({}), head: { appendChild() {} }, visibilityState: 'visible',
+      // a script the page adds (src = '/wq/<file>?v=…') runs from `scripts` on this window and fires load; unknown ⇒ error
+      createElement: (tag) => ({ tag, l: {}, addEventListener(n, fn) { (this.l[n] = this.l[n] || []).push(fn); }, getAttribute(k) { return this[k]; } }),
+      head: { appendChild(el) {
+        if (!el || el.tag !== 'script' || !el.src) return;
+        loaded.push(el.src);
+        const code = scripts[String(el.src).split('?')[0]];
+        const fire = (n) => { (el.l[n] || []).forEach((fn) => fn({})); if (typeof el['on' + n] === 'function') el['on' + n]({}); };
+        Promise.resolve().then(() => { if (code == null) { fire('error'); return; } vm.runInContext(code, ctx); fire('load'); });
+      } },
+      // the page's own <script src="/wq/wq-challenge.js?v=…"> (its version rides to what it loads later)
+      querySelector: (sel) => (/wq-challenge\.js/.test(sel) ? { getAttribute: () => `/wq/wq-challenge.js?v=${chV}` } : null),
+      visibilityState: 'visible',
       // the edge's class on <html> (htmlClass: e.g. 'wq-ur2' when the Urdu polish is on)
       documentElement: { classList: { contains: (c) => String(htmlClass).split(/\s+/).includes(c) } },
       addEventListener(n, fn) { (wl[`doc:${n}`] = wl[`doc:${n}`] || []).push(fn); },
@@ -122,7 +134,7 @@ function page({ htmlClass = '', freshEls = false, storage = null, perm = null, c
     await flush();
   };
   return {
-    w: window.__wqc, loc: ctx.location, root, els, fetches, events, played, recs, flush, runTimers, mic, timers,
+    w: window.__wqc, win: window, loc: ctx.location, root, els, fetches, loaded, events, played, recs, flush, runTimers, mic, timers,
     fire: async (n) => { (wl[n] || []).forEach((fn) => fn({})); await flush(); },
     fireDoc: async (n) => { (wl[`doc:${n}`] || []).forEach((fn) => fn({})); await flush(); },
     setHidden: () => { ctx.document.visibilityState = 'hidden'; },
@@ -135,4 +147,4 @@ function page({ htmlClass = '', freshEls = false, storage = null, perm = null, c
 
 const ok = (body) => () => ({ status: 200, body });
 
-module.exports = { page, ok, MENU, CLIPS, COPY, STORY, READ, READ_GUARD };
+module.exports = { page, ok, SRC, MENU, CLIPS, COPY, STORY, READ, READ_GUARD };
