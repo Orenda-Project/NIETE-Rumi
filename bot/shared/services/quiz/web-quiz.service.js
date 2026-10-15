@@ -1746,6 +1746,11 @@ const TEL_PROPS = Object.freeze({
   state: /^(hidden|visible)$/, page: /^(quiz|hub|lib|ch)$/,
 });
 const TEL_NUMS = ['pseq', 'sm', 'total_ms', 'vis_ms', 'count'];
+// Events v2 (app_settings web_quiz_events_v2): `v` is name-scoped. ch_helped's v is the help answer, three-valued
+// (the page sends 0 = on their own, 1 = with help); every other name keeps the A/B arm's /^a[01]$/.
+const HELPED_V = /^(self|helped|not_asked)$/;
+const helpedV = (v) => (v === 0 ? 'self' : v === 1 ? 'helped' : (typeof v === 'string' && HELPED_V.test(v) ? v : null));
+const BATCH_MAX = 20;
 const SHARE_PATHS = ['native', 'wa', 'copy', 'file', 'save'];
 const SHARE_CODE_RX = /^[A-Z0-9]{4,12}$/i;
 
@@ -1810,14 +1815,20 @@ function uaApp(ua) {
 
 /**
  * Keep only allow-listed props of the right shape: no names, no free text, no phone. `rich`: the page-session
- * telemetry switch (TEL_NAMES / TEL_PROPS / TEL_NUMS are dropped while it is off). Pure.
+ * telemetry switch (TEL_NAMES / TEL_PROPS / TEL_NUMS are dropped while it is off). `v2`: web_quiz_events_v2
+ * (ch_helped keeps its three-valued answer). Pure.
  */
-function cleanEvent(e, { rich = false } = {}) {
+function cleanEvent(e, { rich = false, v2 = false } = {}) {
   if (!e || typeof e !== 'object' || !EVENT_NAME_RX.test(String(e.n || ''))) return null;
   if (!rich && TEL_NAMES.has(e.n)) return null;
   const props = {};
   for (const [k, rx] of Object.entries(EVENT_PROPS)) {
     if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
+  }
+  if (v2 && e.n === 'ch_helped') {
+    delete props.v;
+    const h = helpedV(e.v);
+    if (h) props.v = h;
   }
   if (rich) {
     for (const [k, rx] of Object.entries(TEL_PROPS)) if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
@@ -1883,13 +1894,17 @@ function cleanProbe(p) {
 }
 
 function events(body = {}) {
-  const list = Array.isArray(body.events) ? body.events.slice(0, 20) : [];
+  const all = Array.isArray(body.events) ? body.events : [];
+  const list = all.slice(0, BATCH_MAX);
   const rich = Tel.on();
+  const v2 = require('./web-quiz-hub-flags').eventsV2Now();
+  // the slice is never silent (events v2)
+  if (v2 && all.length > BATCH_MAX) logEvent('web_quiz.ev_dropped', require('./web-quiz-kid').envelope({ n: all.length - BATCH_MAX, where: 'batch_slice' }));
   // The batch's own ids (never logged raw): the session from its signed token, the phone as a hash.
   const ids = rich ? Tel.batchIds(body) : {};
   let logged = 0;
   for (const e of list) {
-    const c = cleanEvent(e, { rich });
+    const c = cleanEvent(e, { rich, v2 });
     if (!c) continue;
     logEvent(`web_quiz.${c.name}`, { ...c.props, ...ids });
     // The old-link re-offer stands down once the page has opened on that code (web-quiz-old-link.js).

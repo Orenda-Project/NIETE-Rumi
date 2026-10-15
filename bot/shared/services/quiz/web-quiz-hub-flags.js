@@ -1,7 +1,7 @@
 'use strict';
 /**
  * The kid hub's switches (app_settings web_quiz_hub / web_quiz_challenge / web_quiz_library / web_quiz_hub_door /
- * web_quiz_child_quiz_home),
+ * web_quiz_child_quiz_home / web_quiz_events_v2),
  * read like web-quiz-link.js (30 s cache, fail closed), and the hub link WhatsApp /quiz sends.
  * Its own module so student-quiz.service can send the link without loading web-quiz-hub.js
  * (which reads student-quiz.service): no require cycle.
@@ -21,8 +21,10 @@ const CHILD_HOME_KEY = 'web_quiz_child_quiz_home';
 // on) and its step-back navigation (Back to the previous question as a review; the phone's Back walks it).
 const HOME_BUTTON_KEY = 'web_quiz_home_button';
 const BACK_NAV_KEY = 'web_quiz_back_nav';
+// Events v2 (keyed child key, measurement events, the send ledger): read-side only; effective only with the hub on.
+const EVENTS_V2_KEY = 'web_quiz_events_v2';
 const TTL_MS = 30 * 1000;
-let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav }
+let cache = null; // { at, hub, challenge, library, door, childHome, homeButton, backNav, eventsV2 }
 
 function isTrue(value) {
   let v = value;
@@ -33,16 +35,35 @@ function isTrue(value) {
 async function flags(now = Date.now()) {
   if (cache && now - cache.at < TTL_MS) return cache;
   try {
-    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY]);
+    const { data, error } = await supabase.from('app_settings').select('key, value').in('key', [HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, EVENTS_V2_KEY]);
     if (error) throw new Error(error.message || 'app_settings read failed');
     const by = Object.fromEntries((data || []).map((r) => [r.key, r.value]));
     cache = { at: now, hub: isTrue(by[HUB_KEY]), challenge: isTrue(by[CHALLENGE_KEY]), library: isTrue(by[LIBRARY_KEY]), door: isTrue(by[DOOR_KEY]), childHome: isTrue(by[CHILD_HOME_KEY]),
-      homeButton: isTrue(by[HOME_BUTTON_KEY]), backNav: isTrue(by[BACK_NAV_KEY]) };
+      homeButton: isTrue(by[HOME_BUTTON_KEY]), backNav: isTrue(by[BACK_NAV_KEY]), eventsV2: isTrue(by[EVENTS_V2_KEY]) };
     return cache;
   } catch (err) {
     logToFile('⚠️ web quiz hub: settings lookup failed — hub off', { error: err.message });
-    return { hub: false, challenge: false, library: false, door: false, childHome: false, homeButton: false, backNav: false };
+    return { hub: false, challenge: false, library: false, door: false, childHome: false, homeButton: false, backNav: false, eventsV2: false };
   }
+}
+
+/** Events v2 on: web_quiz_events_v2 AND its parent web_quiz_hub (cached 30 s, fails closed). Never throws. */
+async function eventsV2On() {
+  try {
+    const f = await flags();
+    return Boolean(f.hub && f.eventsV2);
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * The same switch, never waited for (the synchronous page-event relay): the cached answer, refreshed in the
+ * background when stale; off until the first read lands.
+ */
+function eventsV2Now(now = Date.now()) {
+  if (!cache || now - cache.at >= TTL_MS) flags().catch(() => {});
+  return Boolean(cache && cache.hub && cache.eventsV2);
 }
 
 /** The quiz page's `nav` ({home, back}) when either switch is on, else null (the payload stays today's). Never throws. */
@@ -71,4 +92,4 @@ async function hubLink(studentIds) {
   }
 }
 
-module.exports = { flags, hubLink, pageNav, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, _resetCache: () => { cache = null; } };
+module.exports = { flags, hubLink, pageNav, eventsV2On, eventsV2Now, EVENTS_V2_KEY, HOME_BUTTON_KEY, BACK_NAV_KEY, HUB_KEY, CHALLENGE_KEY, LIBRARY_KEY, DOOR_KEY, CHILD_HOME_KEY, _resetCache: () => { cache = null; } };

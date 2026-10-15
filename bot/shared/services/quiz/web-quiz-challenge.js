@@ -43,6 +43,8 @@ const { WqError } = require('./web-quiz.service');
 const { resolveUx, clampLanguage } = require('../../config/ux-strings');
 const { LANGUAGE_OFFER } = require('../../config/languages');
 const Budget = require('./web-quiz-challenge-budget');
+const Flags = require('./web-quiz-hub-flags');
+const Measure = require('./web-quiz-measure-events');
 
 const FLAG_KEY = 'web_quiz_challenge';
 const LIVE_FLAG_KEY = 'web_quiz_challenge_realtime';
@@ -389,6 +391,20 @@ async function updateRun(id, patch) {
   if (error && !isMissingTable(error)) storeFailed(id, error);
 }
 
+/**
+ * Events v2 (web_quiz_events_v2): the measurement event of a run just stored as scored (m_result) or failed (m_lost),
+ * read back from the row as written. Only a v2 row (mode set) has one; with the switch off nothing is read. Never throws.
+ */
+async function measureOutcome(id) {
+  try {
+    if (!(await Flags.eventsV2On())) return;
+    const { data: row, error } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle();
+    if (!error && row) Measure.emitOutcome(row);
+  } catch (e) {
+    logToFile('⚠️ web quiz challenge: measurement event not logged', { error: String((e && e.message) || e).slice(0, 120) });
+  }
+}
+
 async function storedRun(id) {
   const { data, error } = await supabase.from('web_quiz_challenge_runs').select('id, exercise, lang, status, score, wcpm, meta').eq('id', id).maybeSingle();
   return error ? null : data;
@@ -584,7 +600,8 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   const runId = crypto.randomUUID();
   const ct = T.signChallenge({ studentId: w.studentId, ex, runId });
   RUNS.set(runId, { status: 'open', grade: w.grade, form: w.form, lang: w.lang, task, gradeSource: w.gradeSource, test: w.test });
-  logEvent('web_quiz.ch_start', { step: ex, grade: w.grade, run: runId });
+  const startEv = { step: ex, grade: w.grade, run: runId };
+  logEvent('web_quiz.ch_start', (await Flags.eventsV2On()) ? Measure.chStart(startEv, RUNS.get(runId), w.studentId) : startEv);
   // On the trail a stop already played (its first counted run exists) is a practice round: the page says so.
   const practiceRound = rules.trail ? (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).attempt_no > 1 : false;
   const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await clipsFor(ex, w.lang), ...ruleFlags(rules), ...(rules.guard ? { copy: copyFor(w.lang) } : {}),
@@ -1060,6 +1077,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
     if (rules.items) meta = { ...meta, items: rows, ...itemFlags(reached, { fastMs: missingFastMs, stopped: score.stopped }) };
     const stored = await insertRun({ ...base, status: 'scored', score, scored_at: nowIso(), meta });
     if (stored === 'duplicate') fail(409, 'already_done');
+    await measureOutcome(c.r);
     logEvent('web_quiz.ch_done', { step: 'missing', count: score.correct, count_5s: score.correct_5s, n: score.n, stopped: score.stopped, run: c.r });
     return result;
   }
@@ -1080,6 +1098,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
     }
     const stored = await insertRun({ ...base, status: 'scored', score, scored_at: nowIso(), meta });
     if (stored === 'duplicate') fail(409, 'already_done');
+    await measureOutcome(c.r);
     logEvent('web_quiz.ch_done', { step: 'bigger', count: score.correct, n: score.n, stopped: score.stopped, run: c.r });
     return result;
   }
@@ -1139,6 +1158,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
         ? { status: 'failed', meta: { ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...comp, reason: r.reason }, scored_at: nowIso() }
         : { status: 'scored', score: r.score, wcpm: r.wcpm, meta: { ...r.meta, ...stamp, ...audio, ...(live ? { live } : {}), ...comp }, scored_at: nowIso() };
     }, { force: true });
+    await measureOutcome(c.r);
     if (r.failed) logError('web_quiz.ch_read_failed', { runId: c.r, reason: r.reason, run: c.r });
     else logEvent('web_quiz.ch_done', { step: 'read', count: r.score.correct, wcpm: r.wcpm, stopped: r.score.stopped, costUsd: r.meta.cost_usd, run: c.r, ...(rules.record ? { ended: r.ended || null } : {}) });
     return result;
@@ -1312,6 +1332,7 @@ async function answer({ ct, q, pick, lang } = {}) {
   const n = row && row.meta && Number(row.meta.n);
   if (c.ex === 'listen' && row && n && numbers.asked >= n) {
     await updateRun(c.r, { status: 'scored', score: { correct: numbers.correct, n }, scored_at: nowIso() });
+    await measureOutcome(c.r);
     logEvent('web_quiz.ch_done', { step: 'listen', count: numbers.correct, n });
   }
   logEvent('web_quiz.ch_qa', { lang: run.lang, ok });
