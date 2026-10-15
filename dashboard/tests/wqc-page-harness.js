@@ -134,7 +134,7 @@ function page({ htmlClass = '', freshEls = false, storage = null, perm = null, c
     await flush();
   };
   return {
-    w: window.__wqc, win: window, loc: ctx.location, root, els, fetches, loaded, events, played, recs, flush, runTimers, mic, timers,
+    w: window.__wqc, win: window, ctx, loc: ctx.location, root, els, fetches, loaded, events, played, recs, flush, runTimers, mic, timers,
     fire: async (n) => { (wl[n] || []).forEach((fn) => fn({})); await flush(); },
     fireDoc: async (n) => { (wl[`doc:${n}`] || []).forEach((fn) => fn({})); await flush(); },
     setHidden: () => { ctx.document.visibilityState = 'hidden'; },
