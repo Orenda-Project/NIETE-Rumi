@@ -403,7 +403,7 @@ describe('11 · the A1 warm-up', () => {
     expect(g3.items).toEqual(A1());
     expect(g5.items).toEqual(g3.items);
     expect(g3.practice).toEqual(g5.practice);
-    expect(g3).toMatchObject({ stop_after: 0, mode: 'check' });
+    expect(g3).toMatchObject({ stop_after: 0, mode: 'check', anchor_block: 'A1' });
     expect(rowOf(g3.ct)).toMatchObject({ anchor_block: 'A1', anchor_exposure_no: 1, mode: 'check', record: true, band: null });
     const again = await Ch.exercise(hub(K3), 'missing', D);       // same period: practice
     expect(rowOf(again.ct)).toMatchObject({ mode: 'practice', record: false, anchor_exposure_no: 2 });
@@ -788,12 +788,13 @@ describe('ruling #43: the exercise payload under _v2 carries only what the page 
     const big = await Ch.exercise(hub(K5), 'bigger', D);
     const common = ['ex', 'name', 'lang', 'ct', 'clips', 'record', 'v2', 'trail', 'trail_copy', 'mode', 'draw'];
     expect(Object.keys(read).sort()).toEqual([...common, 'secs', 'live', 'questions_on', 'story'].sort());
-    expect(Object.keys(miss).sort()).toEqual([...common, 'items', 'practice', 'stop_after', 'first_key_s', 'tryout'].sort());
+    expect(Object.keys(miss).sort()).toEqual([...common, 'anchor_block', 'items', 'practice', 'stop_after', 'first_key_s', 'tryout'].sort());
+    expect(miss.anchor_block).toBe('A1');   // the warm-up says which block it is (ruling #43 as amended)
     expect(Object.keys(big).sort()).toEqual([...common, 'items', 'practice', 'per_item_s', 'stop_after'].sort());
     for (const p of [read, miss, big]) {
       expect(p.draw).toEqual({ outcome: 'served' });
       expect(p.record).toBe(true);   // the record switch's flag, as today
-      for (const k of DROPPED) expect(p).not.toHaveProperty(k);
+      for (const k of DROPPED) if (!(p === miss && k === 'anchor_block')) expect(p).not.toHaveProperty(k);
     }
     // a practice serve says so
     const again = await Ch.exercise(hub(K5), 'bigger', D);
