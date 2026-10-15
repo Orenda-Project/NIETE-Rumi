@@ -377,11 +377,14 @@ describe('the form, opened after the lesson', () => {
     expect(c.data.continue_line).not.toMatch(/minute|\d\d/i);
   });
 
-  test('a form filled during the lesson, with no recording yet, keeps its clock', async () => {
+  // Since form version 5 (pilot sheet R4/R10) a form filled during the lesson is split by the lesson's
+  // steps too; it keeps its live hint: save Part 1 when independent practice starts.
+  test('a form filled during the lesson, with no recording yet, keeps its live hint', async () => {
     const { form } = await Store.createForm({ observerUserId: 'coach-1', teacherUserId: 'teacher-a', visitContext: {} });
     mockDb.__tables.observation_field_forms.find((f) => f.id === form.id).period_minutes = 40;
     const r = await Endpoint.handleObserve2FormInit(token(form.id));
-    expect(r.data.part_hint).toMatch(/minute 20/i);
+    expect(r.data.part_hint).toMatch(/tap "Part 1 done"/);
+    expect(r.data.teacher_line).toMatch(/40-minute period/);
   });
 });
 
