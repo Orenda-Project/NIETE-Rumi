@@ -251,7 +251,11 @@ exports[`round off (own_off): a Challenge run is byte-identical exercise payload
     },
   ],
   "stop_after": 4,
-  "v2": true,
+  "v2": {
+    "consent": false,
+    "pool": false,
+    "story": false,
+  },
 }
 `;
 
