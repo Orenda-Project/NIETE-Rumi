@@ -2513,3 +2513,44 @@ Feature: NIETE (ICT) Teacher Training
     When I link my quiz codes to one of my classes
     Then each of my codes with no class gets that class, and a second tap links none
     But a code that already has a class, another teacher's code, or a class that is not mine is never changed
+
+  # ── Challenge clip warm job (app_settings web_quiz_challenge_clip_warm, off by default) ──────────────────
+
+  @quiz @config-gated @wip @draft @P2 @T850
+  Scenario: With web_quiz_challenge_clip_warm off, the queue service's sweep tick records no clip
+    Given web_quiz_challenge_clip_warm is off
+    When the queue service's hourly sweep tick runs
+    Then no passage is read and no clip is recorded
+    And the tick does exactly what it did before, apart from reading the one switch
+
+  @quiz @config-gated @wip @draft @P2 @T851
+  Scenario: With web_quiz_challenge_v2 off, the clip warm switch alone does nothing
+    Given web_quiz_challenge_clip_warm is on
+    But web_quiz_challenge_v2 is off
+    When the clip warm job runs
+    Then no passage is read and no clip is recorded
+
+  @quiz @config-gated @wip @draft @P2 @T852
+  Scenario: With web_quiz_challenge_clip_warm on, released passages and next week's are ready before a child taps
+    Given web_quiz_challenge_clip_warm and web_quiz_challenge_v2 are on
+    And two passages are released, one is released in three days and one in thirty days
+    When the first sweep tick after boot runs
+    Then the story, question and option clips of the first three passages are recorded under the keys the page asks for
+    And the passage released in thirty days is left for later
+    And one clip warm count is logged with the clips asked for and the clips still missing
+
+  @quiz @config-gated @wip @draft @P2 @T853
+  Scenario: With web_quiz_challenge_clip_warm on, a clip already in the store is not made again
+    Given web_quiz_challenge_clip_warm and web_quiz_challenge_v2 are on
+    And a passage's story clip is already in the store
+    When the clip warm job runs, and runs again
+    Then that story is never sent to the voice again
+    And a second run on the same Pakistan day from the sweep tick does nothing
+
+  @quiz @config-gated @wip @draft @P2 @T854
+  Scenario: With web_quiz_challenge_clip_warm on, the job never records more than a child's first taps could
+    Given web_quiz_challenge_clip_warm and web_quiz_challenge_v2 are on
+    And more passages are coming than the process may record clips for
+    When the clip warm job runs
+    Then it stops recording at the same limit a child's first tap has
+    And the clips it did not record are counted as missing
