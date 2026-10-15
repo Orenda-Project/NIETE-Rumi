@@ -561,6 +561,8 @@ async function provenance(studentId, exercise, lang, run, { except = null } = {}
 }
 
 async function menu(token, { kid, lang, device } = {}) {
+  // keep my place: a deep link with >= 2 children on this phone and no tap asks "Whose turn?" first (identity canon switch).
+  { const B = require('./web-quiz-bind-page'); if (await B.canonOn()) { const ask = await B.whoseTurn({ hub: token, kid, device, lang }); if (ask) return ask; } }
   const w = await who(token, { kid, lang, device });
   const rules = await rulesOf();
   const runs = rules.record ? await countedRuns(w.studentId) : (await storedRuns(w.studentId)).filter((r) => r.status === 'scored');
@@ -590,6 +592,8 @@ async function menu(token, { kid, lang, device } = {}) {
 // ── E: one exercise ───────────────────────────────────────────────────────────────────────────────────
 
 async function exercise(token, ex, { kid, lang, device } = {}) {
+  // keep my place: a deep link with >= 2 children on this phone and no tap asks "Whose turn?" first (identity canon switch).
+  { const B = require('./web-quiz-bind-page'); if (await B.canonOn()) { const ask = await B.whoseTurn({ hub: token, kid, device, lang }); if (ask) return ask; } }
   const def = byId(ex);
   if (!def) fail(404, 'not_found');
   const w = await who(token, { kid, lang, device });

@@ -1,0 +1,235 @@
+'use strict';
+/**
+ * "KEEP MY PLACE" — the page side of binding a child to the family's WhatsApp phone, and the pick record.
+ * Never throws: every failure is an answer the page can show (or nothing).
+ *
+ *   mint({hub, kid, device, lang})  the chosen child on the trusted phone -> {ok, code, expires_at, prefill:{en,ur}, href}
+ *                                   refusals {ok:false, refused:'teacher_phone'|'max_phones'}, {ok:false, error}
+ *   status({code})                  {state:'pending'|'bound'|'refused'|'expired', reason?}
+ *   undo({code})                    erases the ONE binding this code made -> {ok:true}; sends no message
+ *   whoseTurn({hub, kid, device, lang})  a hub link with >= 2 trusted children and no tap this request ->
+ *                                   {ask:'whose_turn', kids:[{chip, first, animal, line2?, homonym_in_list}]}, else null
+ *   hubExtras(out, {token, chosen, rows, trust})  under the phone-bind switch: `bind` and the chips' line2/played
+ *   recordPick({sessionId, via, studentId})  under the identity-canon switch: the pick's id_src/id_confidence/
+ *                                   homonym_in_list/canonical_id kept 24 h for the run row, and `id_pick` emitted
+ *   pickFor(sessionId)              that record, or null
+ *   canonOn() / bindOn()            the switches (false when the switch module is unavailable)
+ *
+ * Every function is a no-op ({off:true} or null) unless its switch is on. The phone number is never known
+ * here (the page has none); a device_ref is never logged; the code row's device_ref is audit only.
+ */
+const supabase = require('../../config/supabase');
+const { logToFile } = require('../../utils/logger');
+const { logEvent } = require('../../utils/structured-logger');
+const T = require('./web-quiz-token');
+const Homonym = require('./web-quiz-homonym');
+
+const CODE_RX = /^JUGNU-[A-Z2-9]{5}$/;
+const MAX_PHONES_PER_CHILD = 3;
+const PICK_TTL_S = 24 * 3600;
+const PICK_PREFIX = 'wq:idpick:';
+// wa.bind.prefill: the bot reads the code only, so it sits LAST (bidi cannot move it in Urdu).
+const PREFILL = { en: 'Jugnu ✨ keep my place {code}', ur: 'جگنو ✨ میری جگہ محفوظ کریں {code}' };
+
+async function idFlags() {
+  try {
+    return (await require('./web-quiz-identity-flags').flags()) || {};
+  } catch (err) {
+    return {};
+  }
+}
+const canonOn = async () => Boolean((await idFlags()).canon);
+const bindOn = async () => Boolean((await idFlags()).phoneBind);
+
+// The number a wa.me link must open: the same variables the share links read (video-quiz-share botNumber).
+function botNumber() {
+  return String(process.env.WHATSAPP_BOT_NUMBER || process.env.REFERRAL_BOT_NUMBER || '').replace(/\D/g, '');
+}
+
+const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
+
+/** The hub chip's child on a phone the hub trusts, or an error word. */
+async function childOf(hub, kid, device) {
+  const tok = T.verify(hub, 'h');
+  if (!tok || !Array.isArray(tok.ids) || !tok.ids.length) return { error: 'bad_token' };
+  const studentId = tok.ids.map(String).find((id) => T.chipId('h', id) === String(kid || ''));
+  if (!studentId) return { error: 'bad_token' };
+  const trust = await require('./web-quiz-hub-device').deviceTrusted(hub, device);
+  if (!trust.ok || !trust.ids.includes(studentId)) return { error: 'other_device' };
+  return { tok, studentId };
+}
+
+async function mint({ hub, kid, device, lang } = {}) {
+  try {
+    if (!(await bindOn())) return { off: true };
+    const c = await childOf(hub, kid, device);
+    if (c.error) return { ok: false, error: c.error };
+    // A teacher's device never keeps a child's place. Today's hub token carries no persona claim (only the
+    // teacher's preview token has `t`); a claim or a practice mode on the token is refused if it ever appears.
+    if (c.tok.t || c.tok.mode === 'practice') return { ok: false, refused: 'teacher_phone' };
+    const n = botNumber();
+    if (!n) {
+      logToFile('⚠️ keep my place: no bot number configured — no code minted', {});
+      return { off: true };
+    }
+    const canonicalId = (await require('./web-quiz-identity-roster').canonicalStudentId(c.studentId)) || c.studentId;
+    const active = await require('./child-phone-bindings.repo').activeForChild(canonicalId);
+    if ((active || []).length >= MAX_PHONES_PER_CHILD) return { ok: false, refused: 'max_phones' };
+    const minted = await require('./child-bind-codes.repo').mint(canonicalId, T.cleanDeviceRef(device));
+    if (!minted || !minted.code) return { ok: false, error: 'unavailable' };
+    logEvent('web_quiz.bind_confirm', { w: 's' });
+    const prefill = { en: PREFILL.en.replace('{code}', minted.code), ur: PREFILL.ur.replace('{code}', minted.code) };
+    const l = lang === 'ur' ? 'ur' : 'en';
+    return { ok: true, code: minted.code, expires_at: minted.expires_at || null, prefill, href: `https://wa.me/${n}?text=${encodeURIComponent(prefill[l])}` };
+  } catch (err) {
+    logToFile('⚠️ keep my place: mint failed', { error: err.message });
+    return { ok: false, error: 'unavailable' };
+  }
+}
+
+async function status({ code } = {}) {
+  try {
+    if (!(await bindOn())) return { off: true };
+    if (!CODE_RX.test(String(code || ''))) return { state: 'refused', reason: 'code_unknown' };
+    const row = await require('./child-bind-codes.repo').get(String(code));
+    if (!row) return { state: 'refused', reason: 'code_unknown' };
+    if (row.used_at && row.outcome === 'bound') return { state: 'bound' };
+    if (row.outcome === 'code_expired') return { state: 'expired' };
+    if (row.used_at && row.outcome) return { state: 'refused', reason: String(row.outcome).replace(/^refused:?/, '') };
+    if (row.expires_at && new Date(row.expires_at).getTime() <= Date.now()) return { state: 'expired' };
+    return { state: 'pending' };
+  } catch (err) {
+    logToFile('⚠️ keep my place: status failed', { error: err.message });
+    return { state: 'pending' };
+  }
+}
+
+async function undo({ code } = {}) {
+  try {
+    if (!(await bindOn())) return { off: true };
+    if (!CODE_RX.test(String(code || ''))) return { ok: false, error: 'not_bound' };
+    const row = await require('./child-bind-codes.repo').get(String(code));
+    if (!row || !row.used_at || row.outcome !== 'bound') return { ok: false, error: 'not_bound' };
+    const Bindings = require('./child-phone-bindings.repo');
+    // The binding has no code column: the code's child's active binding made at or after the mint, newest.
+    const since = new Date(row.minted_at || 0).getTime();
+    const mine = (await Bindings.activeForChild(row.canonical_id) || [])
+      .filter((b) => new Date(b.bound_at || 0).getTime() >= since)
+      .sort((a, b) => String(b.bound_at).localeCompare(String(a.bound_at)))[0];
+    if (!mine) return { ok: false, error: 'not_bound' };
+    const erased = await Bindings.eraseOne(mine.id, 'page_undo');
+    // The phone is erased in the same statement; the repo hands back the phone_norm it erased so the door forgets it.
+    if (erased && erased.phone_norm) {
+      const Sid = require('./student-identity.service');
+      if (typeof Sid.forgetDoorVerdict === 'function') await Sid.forgetDoorVerdict(erased.phone_norm, erased.phone_norm);
+    }
+    logEvent('web_quiz.bind_undo', { w: 's', via: 'page', n: 1 });
+    return { ok: true };
+  } catch (err) {
+    logToFile('⚠️ keep my place: undo failed', { error: err.message });
+    return { ok: false, error: 'unavailable' };
+  }
+}
+
+/** The chips of these children, through the homonym guard ('who': the father's first name as line 2). */
+async function chipsOf(ids, { lang, played = [] } = {}) {
+  const { data } = await supabase.from('students').select('id, student_name, student_name_urdu, father_name, is_active').in('id', ids);
+  const rows = ids.map((id) => (data || []).find((r) => String(r.id) === String(id))).filter((r) => r && r.is_active !== false);
+  const named = rows.map((r) => ({
+    id: String(r.id), first: firstName(lang === 'ur' && r.student_name_urdu && String(r.student_name_urdu).trim() ? r.student_name_urdu : r.student_name),
+    father_first: firstName(r.father_name) || null, avatar: T.animalFor(r.id),
+  }));
+  return Homonym.guard(named, { surface: 'who', playedHere: played });
+}
+
+async function whoseTurn({ hub, kid, device, lang } = {}) {
+  try {
+    if (kid) return null;
+    const tok = T.verify(hub, 'h');
+    if (!tok || !Array.isArray(tok.ids) || tok.ids.length < 2) return null;
+    const trust = await require('./web-quiz-hub-device').deviceTrusted(hub, device);
+    if (!trust.ok) return null;
+    const ids = tok.ids.map(String).filter((id) => trust.ids.includes(id));
+    if (ids.length < 2) return null;
+    const chips = await chipsOf(ids, { lang, played: trust.why === 'played' ? trust.ids : [] });
+    if (chips.length < 2) return null;
+    return {
+      ask: 'whose_turn',
+      kids: chips.map((c) => ({ chip: T.chipId('h', c.id), first: c.first, animal: c.avatar, ...(c.line2 ? { line2: c.line2 } : {}), ...(c.avatarLine ? { avatarLine: c.avatarLine } : {}), homonym_in_list: c.homonym_in_list })),
+    };
+  } catch (err) {
+    logToFile('⚠️ keep my place: whose turn failed', { error: err.message });
+    return null;
+  }
+}
+
+/**
+ * The hub's boot JSON under web_quiz_phone_bind: the card's ticket for the chosen child (`bind`), and on the picker
+ * ("Who is playing?") each chip's line2 / avatarLine / homonym_in_list / played. Off: `out` untouched.
+ */
+async function hubExtras(out, { token, chosen, rows = [], trust = {}, lang } = {}) {
+  try {
+    if (!(await bindOn())) return out;
+    if (chosen) {
+      out.bind = { offer: true, hub: token, kid: out.kid };
+      return out;
+    }
+    out.bind = { offer: false };
+    const played = trust.why === 'played' ? (trust.ids || []).map(String) : [];
+    const guarded = await chipsOf(rows.map((r) => String(r.id)), { lang, played });
+    out.kids = out.kids.map((k) => {
+      const g = guarded.find((x) => T.chipId('h', x.id) === k.chip) || {};
+      return { ...k, ...(g.line2 ? { line2: g.line2 } : {}), ...(g.avatarLine ? { avatarLine: g.avatarLine } : {}), homonym_in_list: Boolean(g.homonym_in_list), played: played.includes(String(g.id)) };
+    });
+    return out;
+  } catch (err) {
+    logToFile('⚠️ keep my place: hub extras failed', { error: err.message });
+    return out;
+  }
+}
+
+/** For a roster pick: did the child's class list hold another child with the same canon first name, and was it resolved? */
+async function rosterHomonym(studentId) {
+  const { data: me } = await supabase.from('students').select('id, list_id').eq('id', studentId).maybeSingle();
+  if (!me || !me.list_id) return { homonym_in_list: false, resolved: true, k: 0 };
+  const { data } = await supabase.from('students').select('id, student_name, father_name, is_active').eq('list_id', me.list_id).limit(200);
+  const rows = (data || []).filter((r) => r.is_active !== false).map((r) => ({ id: String(r.id), first: r.student_name, father_first: firstName(r.father_name) || null }));
+  const g = Homonym.guard(rows, { surface: 'q' }).find((r) => r.id === String(studentId));
+  return { homonym_in_list: Boolean(g && g.homonym_in_list), resolved: !g || g.confidence === 'high', k: rows.length };
+}
+
+async function recordPick({ sessionId, via, studentId } = {}) {
+  try {
+    if (!sessionId || !(await canonOn())) return null;
+    const src = Homonym.idSrcFromVia(via);
+    let h = { homonym_in_list: false, resolved: true, k: 0 };
+    if (src.id_src === 'roster_pick' && studentId) h = await rosterHomonym(studentId);
+    const canonicalId = studentId ? ((await require('./web-quiz-identity-roster').canonicalStudentId(studentId)) || studentId) : null;
+    const rec = {
+      id_src: src.id_src,
+      id_confidence: src.id_src ? Homonym.confidenceFor({ id_src: src.id_src, homonym_in_list: h.homonym_in_list, resolved: h.resolved }) : null,
+      homonym_in_list: h.homonym_in_list,
+      canonical_id: canonicalId,
+      ...(src.mode ? { mode: src.mode } : {}),
+    };
+    const redis = require('../cache/railway-redis.service');
+    await redis.set(PICK_PREFIX + sessionId, rec, PICK_TTL_S);
+    logEvent('web_quiz.id_pick', { w: 's', id_src: rec.id_src, id_confidence: rec.id_confidence, homonym_in_list: rec.homonym_in_list, chips_k: h.k });
+    return rec;
+  } catch (err) {
+    logToFile('⚠️ keep my place: pick record failed', { error: err.message });
+    return null;
+  }
+}
+
+async function pickFor(sessionId) {
+  try {
+    if (!sessionId) return null;
+    const v = await require('../cache/railway-redis.service').get(PICK_PREFIX + sessionId);
+    return v && typeof v === 'object' ? v : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+module.exports = { mint, status, undo, whoseTurn, hubExtras, recordPick, pickFor, canonOn, bindOn, CODE_RX, PREFILL };

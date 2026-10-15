@@ -1025,6 +1025,8 @@ async function startSessionTimed(body = {}, mark = () => {}) {
   }
   const counted = countedFor(prior, deviceRef, Boolean(userId));
   if (resolved) logEvent('web_quiz.identity_resolved', { shareCodeId: ctx.shareCodeId, sessionId: session.id, ...resolved });
+  // keep my place: the pick record the run row will carry (identity canon switch; off -> nothing stored or emitted).
+  if (resolved) await require('./web-quiz-bind-page').recordPick({ sessionId: session.id, via: resolved.via, studentId: student && student.id });
   logEvent('web_quiz.session_started', {
     sessionId: session.id, shareCodeId: ctx.shareCodeId, quizId: ctx.quizId,
     preview: Boolean(userId), returning: Boolean(body.chip || body.from_st), counted: counted.counted,

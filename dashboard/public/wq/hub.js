@@ -188,8 +188,10 @@
   /* ---------------- H1 who is playing (only this phone's own children) ---------------- */
   function picker() {
     var kids = B.kids || [];
-    render(bar() + jug('hello', T.whoSay) + '<h2>' + esc(T.who) + '</h2><div class="wq-chips">' +
-      kids.map(function (k) { return '<button class="wq-kid" data-chip="' + esc(k.chip) + '">' + ani(k.animal) + esc(k.first) + '</button>'; }).join('') + '</div>', 'H1');
+    // keep my place (B.bind, web_quiz_phone_bind): "Who is playing?" in the ruled Urdu, and each chip's second line.
+    var KB = B.bind && window.WQBIND ? window.WQBIND : null;
+    render(bar() + jug('hello', T.whoSay) + '<h2>' + esc(KB ? KB.t(LANG).whoPlaying : T.who) + '</h2><div class="wq-chips">' +
+      kids.map(function (k) { return '<button class="wq-kid" data-chip="' + esc(k.chip) + '">' + ani(k.animal) + esc(k.first) + (KB ? KB.chipExtra(k, LANG) : '') + '</button>'; }).join('') + '</div>', 'H1');
     Array.prototype.forEach.call(ROOT.querySelectorAll('[data-chip]'), function (b) {
       b.addEventListener('click', function () { pick(b.getAttribute('data-chip')); });
     });
@@ -297,7 +299,7 @@
     var top = HOME
       ? lastCard(B.last) + homeTiles() + (B.teacher ? teacherCard(B.teacher) : '')
       : teacherCard(B.teacher) + (tiles ? '<div class="wq-htiles">' + tiles + '</div>' : '');
-    render(bar() + jug('hello', T.hi(me.first || '')) + top +
+    render(bar() + jug('hello', T.hi(me.first || '')) + (B.bind && window.WQBIND ? '<div id="wq-bind-slot"></div>' : '') + top +
       againList(B.again || []) + recList(B.recs || []) +
       ((B.kids || []).length > 1 ? '<button class="wq-btn wq-ghost" id="wq-h-switch">' + ani(me.animal) + ' ' + esc(T.switchKid) + '</button>' : ''), 'H2');
     on('#wq-h-teacher', function (e) { e.preventDefault(); go(this.getAttribute('href'), 'teacher'); });
@@ -306,6 +308,8 @@
     on('#wq-h-lib2', function (e) { e.preventDefault(); go(this.getAttribute('href'), 'lib'); });
     on('#wq-h-ch', function (e) { e.preventDefault(); go(this.getAttribute('href'), 'challenge'); });
     on('#wq-h-switch', function () { picker(); });
+    // keep my place: the card for the chosen child (wq-bind.js; never on a practice hub).
+    if (B.bind && B.bind.offer && window.WQBIND) window.WQBIND.card(document.getElementById('wq-bind-slot'), { hub: B.bind.hub || TOKEN, kid: B.kid, first: me.first || '', lang: LANG, practice: B.mode === 'practice', ev: ev });
     Array.prototype.forEach.call(ROOT.querySelectorAll('[data-again]'), function (a) {
       a.addEventListener('click', function (e) { e.preventDefault(); go(a.getAttribute('href'), 'again'); });
     });
