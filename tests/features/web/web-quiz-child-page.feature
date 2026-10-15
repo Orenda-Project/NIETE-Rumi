@@ -1595,3 +1595,31 @@ Feature: Web child quiz page on the portal
     And the school sits on its own line under the points, and the class picture's average on its own line — no middots inside an Urdu sentence
     And the picture's cache key carries the switch only when it is on, so every picture already cached is served as before when it is off
     But an English picture is byte-identical with or without the switch
+
+  @T765
+  Scenario: Under web_quiz_identity_canon a merged loose child folds to the child it was merged into, one hop only
+    Given web_quiz_hub and web_quiz_identity_canon are "on"
+    And a loose child record was merged into a class-list child, and another loose record was merged into a record that was itself merged
+    When the server looks up the one id each child is known by
+    Then a second import of a class-list child folds to the first, as today
+    And the merged loose record maps to the class-list child it was merged into
+    And the record merged into a merged record maps to that record and is not followed further
+    But with web_quiz_identity_canon off, or web_quiz_hub off, the ids map exactly as before
+
+  @T766
+  Scenario: Under web_quiz_identity_canon the hub shows a merged loose child as the class-list child, once
+    Given web_quiz_hub and web_quiz_identity_canon are "on" and a hub link names three children, one of them a merged loose record
+    When the hub opens on the phone the link was sent to
+    Then the merged loose child's chip is the class-list child's chip, and a link naming both records shows one chip
+    And the link itself still carries the ids it was made with
+    And with one chip picked, the teacher card, Play again, the last quiz and the videos are that child's only
+    But with web_quiz_identity_canon off the hub's answer is byte-identical to today's for a three-child link
+
+  @T767
+  Scenario: Under web_quiz_identity_canon a typed new name on one phone is one child across a teacher's codes
+    Given web_quiz_hub and web_quiz_identity_canon are "on" and identity v2 is on
+    And a child typed a name that is not on the class list on one phone and played a teacher's code
+    When the same phone types the same name on another code of the same teacher
+    Then the quiz is played as the same child record, and no second record is made
+    And on another phone, for another teacher's code, or when two such records match, a new record is made as today
+    But with web_quiz_identity_canon off a new record is made with exactly today's fields

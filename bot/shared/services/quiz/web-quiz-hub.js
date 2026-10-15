@@ -372,7 +372,12 @@ async function hubPayload(token, { kid, device } = {}) {
   const trust = await deviceTrusted(token, device);
   if (!trust.ok) return lockedHub(ids, trust.why);
   // Only the children this phone is trusted for: all of them on the bound phone, else the ones it played as.
-  const mine = ids.filter((id) => trust.ids.includes(id));
+  let mine = ids.filter((id) => trust.ids.includes(id));
+  // child identity store (web_quiz_identity_canon): each child once, by the id they are known by (the token keeps raw ids).
+  if ((await require('./web-quiz-identity-flags').flags()).canon) {
+    const canon = await require('./web-quiz-identity-roster').canonicalStudentIds(mine);
+    mine = [...new Set(mine.map((id) => canon.get(id) || id))];
+  }
 
   const { data: rows } = await dbRead('hubPayload:students:1', (db) => db.from('students')
     .select('id, student_name, student_name_urdu, self_reported_class, list_id, is_active').in('id', mine));

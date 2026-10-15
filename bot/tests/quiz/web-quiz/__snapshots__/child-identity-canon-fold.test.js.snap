@@ -1,0 +1,3 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`the hub folds the token's children switch off: a three-child hub payload is byte-identical to today's — golden 1`] = `"{"lang":"en","kids":[{"chip":"920e4faca22c5d48","first":"Ali","animal":"turtle","grade":"4"},{"chip":"a1eb87c84fc9eaa1","first":"Ayesha","animal":"cat","grade":null},{"chip":"f241bc27b4d863ae","first":"Hina","animal":"bee","grade":"4"}],"kid":null,"teacher":null,"again":[],"recs":[],"challenge":null,"lib":null,"brand":"niete","rt":false}"`;
