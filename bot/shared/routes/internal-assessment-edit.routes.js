@@ -18,10 +18,11 @@ const STATUS = {
 };
 
 // A board-pattern paper is not edited; the app reads `errorCode` like every other new refusal.
-const PATTERN_REFUSAL = { errorCode: 'PATTERN_NO_EDIT', error: 'Board-pattern papers keep their shape.' };
+const PATTERN_NO_EDIT = 'PATTERN_NO_EDIT';
+const PATTERN_REFUSAL = { errorCode: PATTERN_NO_EDIT, error: 'Board-pattern papers keep their shape.' };
 
 function refuse(res, code, extra = {}) {
-  const more = code === 'PATTERN_NO_EDIT' ? PATTERN_REFUSAL : {};
+  const more = code === PATTERN_NO_EDIT ? PATTERN_REFUSAL : {};
   return res.status(STATUS[code] || 502).json({ success: false, code, ...more, ...extra });
 }
 

@@ -57,7 +57,7 @@ beforeEach(() => {
   mockDb = makeFakeDb({
     assessment_requests: [REQ],
     assessment_papers: [paper()],
-    users: [{ id: U, phone_number: '920000000000', school_name: 'School', preferred_language: 'en' }],
+    users: [{ id: U, phone_number: 'test-phone', school_name: 'School', preferred_language: 'en' }],
     app_settings: [{ key: 'assessment_editing_enabled', value: true }],
   });
 });
