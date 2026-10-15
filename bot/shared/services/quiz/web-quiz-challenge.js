@@ -539,25 +539,31 @@ function legacyIncomplete(r) {
     && Number(r.meta && r.meta.duration_s) < READ_SECS - 5;
 }
 
+// A class round turn (via the round, whatever its mode) and a practice play never use up the child's own attempt at a
+// stop; a row written before the runs provenance columns (mode and via null) counts as it always did.
+const notHomeAttempt = (r) => !!r && (r.via === 'class_round' || r.mode === 'practice' || r.mode === 'class_round');
+
 // The child's runs oldest first, by their own query (storedRuns keeps the newest 50: the first attempt would fall
-// out of it). Counted here = a scored run, or an incomplete reading (the minute was begun and the window passed).
+// out of it). Counted here = a scored run, or an incomplete reading (the minute was begun and the window passed),
+// that is the child's own attempt (notHomeAttempt).
 async function countedRuns(studentId) {
-  const { data, error } = await supabase.from(TABLE).select('id, exercise, status, score, wcpm, lang, meta, created_at, scored_at')
+  const { data, error } = await supabase.from(TABLE).select('id, exercise, status, score, wcpm, lang, meta, created_at, scored_at, via, mode')
     .eq('student_id', studentId).order('created_at', { ascending: true }).limit(5000);
   if (error) {
     if (!isMissingTable(error)) logToFile('⚠️ web quiz challenge: runs read failed', { error: error.message });
     return [];
   }
-  return (data || []).filter((r) => r.status === 'scored' || (r.status === 'failed' && r.meta && r.meta.reason === 'incomplete'));
+  return (data || []).filter((r) => (r.status === 'scored' || (r.status === 'failed' && r.meta && r.meta.reason === 'incomplete')) && !notHomeAttempt(r));
 }
 
-/** attempt_no = 1 + this child's scored runs of the task (a reading: in this language); exposure_no counts every row. */
+/** attempt_no = 1 + this child's own scored runs of the task (a reading: in this language; no round turn or practice
+ * play, notHomeAttempt); exposure_no counts every row. */
 async function attemptInfo(studentId, exercise, lang, { except = null } = {}) {
-  let qb = supabase.from(TABLE).select('id, status, lang').eq('student_id', studentId).eq('exercise', exercise).in('status', PLAYED);
+  let qb = supabase.from(TABLE).select('id, status, lang, via, mode').eq('student_id', studentId).eq('exercise', exercise).in('status', PLAYED);
   if (exercise === 'read' && lang) qb = qb.eq('lang', lang);
   const { data, error } = await qb.order('created_at', { ascending: true }).limit(5000);
   const rows = (error ? [] : data || []).filter((r) => r.id !== except);
-  const scored = rows.filter((r) => r.status === 'scored').length;
+  const scored = rows.filter((r) => r.status === 'scored' && !notHomeAttempt(r)).length;
   return { attempt_no: scored + 1, exposure_no: rows.length + 1 };
 }
 
@@ -850,7 +856,7 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
   const form = `G${formNum}`;
   // already counted: this period's record row of the stop (per language for read/listen) (_period), else a scored run ever
   const counted = periodRule ? D.countedThisPeriod(rows, ex, periodNow, w.lang)
-    : rows.some((r) => r.exercise === ex && r.status === 'scored' && (ex !== 'read' || r.lang === w.lang));
+    : rows.some((r) => r.exercise === ex && r.status === 'scored' && !notHomeAttempt(r) && (ex !== 'read' || r.lang === w.lang));
   // the caller's mode: 'practice' (Story Time) or 'class_round' (the teacher's locked round); else practice when counted
   let mode = askedMode === 'class_round' ? 'class_round' : (askedMode === 'practice' || counted ? 'practice' : 'check');
   const seed = crypto.randomBytes(16).toString('hex');

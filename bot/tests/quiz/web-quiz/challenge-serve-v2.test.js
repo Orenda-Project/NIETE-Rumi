@@ -36,6 +36,7 @@ jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const { makeFake } = require('./fake-supabase');
 const supabase = require('../../../shared/config/supabase');
@@ -818,5 +819,67 @@ describe('ruling #43: the exercise payload under _v2 carries only what the page 
   test('the menu keeps anchor_block A1 on the warm-up', async () => {
     on(V2, PERIOD, POOL);
     expect((await Ch.menu(hub(K5), D)).exercises[0]).toMatchObject({ id: 'missing', anchor_block: 'A1' });
+  });
+});
+
+// ── a class round turn or a practice play never uses up the child's home attempt (rows before the provenance columns count)
+
+describe('a round run or a practice run does not consume the home attempt', () => {
+  const scoredBigger = (extra = {}) => db.web_quiz_challenge_runs.push({ id: crypto.randomUUID(), student_id: K3, exercise: 'bigger', grade: 3, lang: 'en', status: 'scored',
+    score: { correct: 8, n: 10, stopped: false }, meta: {}, created_at: new Date(Date.now() - 3600 * 1000).toISOString(), scored_at: new Date(Date.now() - 3500 * 1000).toISOString(), ...extra });
+  const scoredRead = (extra = {}) => db.web_quiz_challenge_runs.push({ id: crypto.randomUUID(), student_id: K3, exercise: 'read', grade: 3, lang: 'en', status: 'scored',
+    score: { correct: 40, attempted: 45, stopped: false }, wcpm: 40, meta: {}, created_at: new Date(Date.now() - 3600 * 1000).toISOString(), ...extra });
+
+  test('(a) one scored bigger row with mode class_round: the home menu shows that stop not done, no badge', async () => {
+    on(V2);
+    scoredBigger({ mode: 'class_round', via: 'class_round', record: false });
+    const stop = (await Ch.menu(hub(), D)).exercises.find((e) => e.id === 'bigger');
+    expect(stop).toMatchObject({ id: 'bigger', done: false, badge: false });
+  });
+
+  test('(b) the next home bigger serve after a round turn: attempt_no 1, record true, no practice round', async () => {
+    on(V2, PERIOD);
+    scoredBigger({ mode: 'class_round', via: 'class_round', record: false, period_id: null });
+    const ex = await Ch.exercise(hub(), 'bigger', D);
+    expect(ex.practice_round).toBeUndefined();
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'check', record: true });
+    await Ch.submit({ ct: ex.ct, taps: biggerTaps(ex.items), ms: 25000 });
+    expect(rowOf(ex.ct).meta).toMatchObject({ attempt_no: 1, counted: true });
+  });
+
+  test('(b2) a round turn served mode practice (via the round, position 11+) does not count either', async () => {
+    on(V2);
+    scoredBigger({ mode: 'practice', via: 'class_round' });
+    const ex = await Ch.exercise(hub(), 'bigger', D);
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'check' });
+    expect(ex.practice_round).toBeUndefined();
+  });
+
+  test('(c) a scored practice read row does not raise attempt_no', async () => {
+    on(V2);
+    scoredRead({ mode: 'practice', via: 'hub' });
+    const ex = await Ch.exercise(hub(), 'read', D);
+    expect(ex.practice_round).toBeUndefined();
+    await readAloud(ex.ct);
+    expect(rowOf(ex.ct).meta).toMatchObject({ attempt_no: 1, counted: true });
+  });
+
+  test('(d) golden: a scored row written before the provenance columns (no mode, no via) still counts: attempt 2, practice', async () => {
+    on(V2);
+    scoredBigger();
+    expect((await Ch.menu(hub(), D)).exercises.find((e) => e.id === 'bigger')).toMatchObject({ done: true, badge: true });
+    const ex = await Ch.exercise(hub(), 'bigger', D);
+    expect(ex.practice_round).toBe(true);
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'practice' });
+    await Ch.submit({ ct: ex.ct, taps: biggerTaps(ex.items), ms: 25000 });
+    expect(rowOf(ex.ct).meta).toMatchObject({ attempt_no: 2, counted: false });
+  });
+
+  test('(d) golden, every new switch off: the same pre-provenance row gives attempt 2 and a practice round', async () => {
+    scoredBigger();
+    const ex = await Ch.exercise(hub(), 'bigger', D);
+    expect(ex.practice_round).toBe(true);
+    await Ch.submit({ ct: ex.ct, taps: biggerTaps(ex.items), ms: 25000 });
+    expect(db.web_quiz_challenge_runs[db.web_quiz_challenge_runs.length - 1].meta).toMatchObject({ attempt_no: 2, counted: false });
   });
 });

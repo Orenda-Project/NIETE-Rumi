@@ -314,7 +314,7 @@ async function fixedGradeOf(canonicalId, visitGrade) {
   return { grade: visitGrade, src: error && isMissingTable(error) ? 'visit_grade_no_table' : 'visit_grade' };
 }
 
-const ROW_COLS = 'id, student_id, exercise, grade, lang, status, score, meta, mode, period_id, passage_id, item_set_id, anchor_block, record, created_at';
+const ROW_COLS = 'id, student_id, exercise, grade, lang, status, score, meta, mode, via, period_id, passage_id, item_set_id, anchor_block, record, created_at';
 
 /** The canonical child's run rows (by canonical_id, and by the raw ids for rows written before it), oldest first. */
 async function childRows(canonicalId, studentIds = []) {
