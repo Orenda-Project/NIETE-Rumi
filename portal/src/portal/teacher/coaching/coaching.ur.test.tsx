@@ -45,12 +45,13 @@ vi.mock("../../lib/coachingUpload", async (orig) => ({
 import "../routes";
 import api from "../../services/api";
 import { CoachingHomePage } from "./CoachingHome";
+import { NewObservationPage } from "./NewObservation";
 import { SendPage } from "./SendPage";
 import { ReportPage } from "./ReportPage";
 import { CoachingAllPage } from "./CoachingAll";
 import type { Audio } from "../../newui/coaching/useSendFlow";
 import { clearDraft, holdDraft } from "./draft";
-import { COACHING_ALL, COACHING_HOME, COACHING_REPORT, COACHING_SEND } from "./paths";
+import { COACHING_ALL, COACHING_HOME, COACHING_NEW, COACHING_REPORT, COACHING_SEND } from "./paths";
 import { COACHING, COACHING_V2_COPY_UR as U } from "./copy";
 import { dcKpiItems, lessonChip } from "./api";
 import { dcSteps, toReportData } from "./report";
@@ -130,18 +131,27 @@ function at(path: string, element: React.ReactElement, pattern = path, state?: u
 }
 
 describe("Digital Coaching in Urdu — the hub", () => {
-  it("title, Record lesson / Upload recording, Recent: all in Urdu, and no class", async () => {
+  it("the main page: title, Start DC observation and its chip, Summary, Recent: all in Urdu", async () => {
     at(COACHING_HOME, <CoachingHomePage />);
     // The first test of the file also loads the page's module graph: room for a slow, loaded run.
-    expect(await screen.findByRole("button", { name: U.recordTitle }, { timeout: 5000 })).toBeTruthy();
+    expect(await screen.findByRole("link", { name: new RegExp(U.startObservation) }, { timeout: 5000 })).toBeTruthy();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(U.title);
-    expect(screen.getByRole("button", { name: U.uploadRecording })).toBeTruthy();
-    expect(englishLeft(["Record lesson", "Upload recording", "Your class", "Lesson plan", "Optional", "No faces", "Photos", "Board work", "Digital Coaching"])).toEqual([]);
+    expect(screen.getByText(U.subReport)).toBeTruthy();
+    expect(screen.getByText(U.summary)).toBeTruthy();
+    expect(englishLeft(["Start DC observation", "Report and voice note", "Summary", "Recent DC Observations", "Digital Coaching"])).toEqual([]);
+  });
+
+  it("the one screen: Grade and subject, then the steps, in Urdu", async () => {
+    at(COACHING_NEW, <NewObservationPage />);
+    expect(await screen.findByRole("button", { name: new RegExp(U.gradeAndSubject) }, { timeout: 5000 })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(U.startObservation);
+    expect(screen.getByRole("heading", { name: new RegExp(U.recording) })).toBeTruthy();
+    expect(englishLeft(["Grade and subject", "Recording", "Lesson plan", "Photos", "Start DC observation"])).toEqual([]);
   });
 
   it("with her recording: Listen, Change file, Lesson plan, the Photos hint and chips, and Submit, all in Urdu", async () => {
-    holdDraft({ audio: audioOf(), plan: null, photos: [] });
-    at(COACHING_HOME, <CoachingHomePage />, COACHING_HOME, { keep: true });
+    holdDraft({ audio: audioOf(), plan: null, photos: [], cls: { grade: 4, subject: "General Science", subjectKey: "science" } });
+    at(COACHING_NEW, <NewObservationPage />, COACHING_NEW, { keep: true });
     expect(await screen.findByRole("button", { name: U.submit }, { timeout: 5000 })).toBeTruthy();
     expect(screen.getByRole("button", { name: U.listen })).toBeTruthy();
     expect(screen.getByRole("button", { name: new RegExp(U.changeFile) })).toBeTruthy();
@@ -155,8 +165,8 @@ describe("Digital Coaching in Urdu — the hub", () => {
   });
 
   it("bd-r5ckgn — the Urdu Photos hint is ICT's three photos, each on its own line and never cut off", async () => {
-    holdDraft({ audio: audioOf(), plan: null, photos: [] });
-    at(COACHING_HOME, <CoachingHomePage />, COACHING_HOME, { keep: true });
+    holdDraft({ audio: audioOf(), plan: null, photos: [], cls: { grade: 4, subject: "General Science", subjectKey: "science" } });
+    at(COACHING_NEW, <NewObservationPage />, COACHING_NEW, { keep: true });
     await screen.findByRole("button", { name: U.submit }, { timeout: 5000 });
     const hint = screen.getByText((_, el) => el?.tagName === "P" && (el.textContent ?? "").includes("بورڈ کی تصویر"));
     expect(hint.textContent!.split("\n")).toEqual([
@@ -171,10 +181,8 @@ describe("Digital Coaching in Urdu — the hub", () => {
 
   it("Recent: her lessons with Urdu chips (Analysing, the band) and Urdu day names; data as it is", async () => {
     at(COACHING_HOME, <CoachingHomePage />);
-    const toggle = await screen.findByRole("button", { name: new RegExp(U.recent) });
-    fireEvent.click(toggle);
-    expect(await screen.findByText(/Parts of a plant/)).toBeTruthy();
-    expect(screen.getByText(U.analysing)).toBeTruthy();
+    expect(await screen.findByText(/Parts of a plant/, {}, { timeout: 5000 })).toBeTruthy();
+    expect(screen.getAllByText(U.analysing).length).toBeGreaterThan(0); // the list's heading and the row's chip
     expect(screen.getByText(U.bands.good)).toBeTruthy();
     expect(englishLeft(["Good", "Analysing", " min"])).toEqual([]);
     const body = plain(document.body.textContent);
@@ -184,8 +192,8 @@ describe("Digital Coaching in Urdu — the hub", () => {
   });
 
   it("Photos: each photo's remove and the at-most-10 refusal in Urdu", async () => {
-    holdDraft({ audio: audioOf(), plan: null, photos: [] });
-    at(COACHING_HOME, <CoachingHomePage />, COACHING_HOME, { keep: true });
+    holdDraft({ audio: audioOf(), plan: null, photos: [], cls: { grade: 4, subject: "General Science", subjectKey: "science" } });
+    at(COACHING_NEW, <NewObservationPage />, COACHING_NEW, { keep: true });
     await screen.findByRole("button", { name: U.submit }, { timeout: 5000 });
     const input = screen.getByTestId("dc-photos-input") as HTMLInputElement;
     const img = (n: string) => new File(["x"], n, { type: "image/jpeg" });
