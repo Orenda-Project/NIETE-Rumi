@@ -24,7 +24,8 @@ class PreGenLookupService {
       // "multiple rows returned" as soon as the second subject is seeded.
       let query = supabase
         .from('pre_generated_lps')
-        .select('pdf_r2_key_en, pdf_r2_key_ur, gamma_url_en, gamma_url_ur, generation_status')
+        // id: the lifecycle row names the chapter it served (artifact_ref).
+        .select('id, pdf_r2_key_en, pdf_r2_key_ur, gamma_url_en, gamma_url_ur, generation_status')
         .eq('curriculum', curriculum)
         .eq('grade', grade)
         .eq('chapter_number', chapterNumber);

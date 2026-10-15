@@ -154,6 +154,10 @@ features:
     - bot/shared/services/toc-loading.service.js
     - bot/shared/routes/pakistan-lp-endpoint.js
     - bot/workers/lesson-plan-*.worker.js
+    # The lesson-plan lifecycle's hourly health check, and the queued render's attempt limit it shares
+    # with the worker and the queue service.
+    - bot/shared/services/monitoring/lesson-plan-health.service.js
+    - bot/shared/config/lesson-plan-generation.js
     # The LP-612 lane — the curriculum-baked path, and by volume the busiest
     # lesson-plan surface in the deployment. It was UNMAPPED in its entirety
     # (10 services + the author worker), so every change to it armed the SAFE
