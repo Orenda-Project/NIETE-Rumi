@@ -91,6 +91,7 @@ function seed(over = {}) {
   Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
   IdFlags._resetCache();
   HubFlags._resetCache();
+  Queue._resetPrecisionCache();
   return fake;
 }
 const writes = () => fake.calls.filter((x) => x.op !== 'select');
@@ -131,9 +132,9 @@ describe('the queue rows (Mock M4)', () => {
     expect((await Queue.computeCandidates(T1)).map((x) => x.loose_id)).toEqual([c(3), c(7)]);
   });
 
-  test('the gate: both tiers are held out (15 Oct 2026 truth set), so candidatesFor serves nothing', async () => {
-    expect(Queue.TIERS_SERVED).toEqual([]);
-    expect(await Queue.candidatesFor(T1)).toEqual([]);
+  test('the gate: only roster_unique_with_loose is served (bounded labelling mode); probable is held out', async () => {
+    expect(Queue.TIERS_SERVED).toEqual(['roster_unique_with_loose']);
+    expect((await Queue.candidatesFor(T1)).map((x) => [x.loose_id, x.evidence.tier])).toEqual([[c(3), 'roster_unique_with_loose']]);
     expect(Queue.serveTiers(await Queue.computeCandidates(T1), ['probable']).map((x) => x.evidence.tier)).toEqual(['probable']);
   });
 });
@@ -215,8 +216,8 @@ describe('decide: only a tap writes', () => {
 
 describe('decide("same") only for a served pair', () => {
   afterEach(() => { Queue._serveForTest(null); });
-  test('with no tier served (the truth-set gate), "same" on a valid pair is refused and nothing is written', async () => {
-    expect(Queue.TIERS_SERVED).toEqual([]);
+  test('a pair of the held-out tier (probable): "same" on a valid pair is refused and nothing is written', async () => {
+    expect(Queue.TIERS_SERVED).not.toContain('probable');
     expect(await Queue.decide({ teacherUserId: T1, looseId: c(7), candidateId: r(5), decision: 'same' })).toEqual({ ok: false, reason: 'not_served' });
     expect(writes()).toEqual([]);
     expect(student(c(7))).toMatchObject({ merged_into: null, status: 'active' });
@@ -227,7 +228,7 @@ describe('decide("same") only for a served pair', () => {
     expect(await Queue.decide({ teacherUserId: T1, looseId: c(7), candidateId: r(5), decision: 'same' })).toEqual({ ok: true, decision: 'same' });
     expect(student(c(7))).toMatchObject({ merged_into: r(5), status: 'merged' });
   });
-  test('"no" and "undo" keep their checks with no tier served', async () => {
+  test('"no" and "undo" keep their checks on a pair of a held-out tier', async () => {
     expect(await Queue.decide({ teacherUserId: T1, looseId: c(3), candidateId: r(6), decision: 'no' })).toEqual({ ok: true, decision: 'no' });
     Object.assign(student(c(7)), { status: 'merged', merged_into: r(5), is_active: false });
     fake.db.merge_log.push({ id: 9, loose_id: c(7), candidate_id: r(5), teacher_id: T1, decision: 'same', source: 'queue', decided_at: '2026-10-15T09:00:00Z' });
@@ -311,7 +312,9 @@ describe('the internal routes', () => {
   test('GET /teacher/queue → {rows, tiers_served}', async () => {
     const res = await fetch(`${base}/teacher/queue?teacher=${T1}`, { headers: H });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ rows: [], tiers_served: [] });
+    const body = await res.json();
+    expect(body.tiers_served).toEqual(['roster_unique_with_loose']);
+    expect(body.rows.map((x) => [x.loose_id, x.candidate_id, x.evidence.tier])).toEqual([[c(3), r(6), 'roster_unique_with_loose']]);
   });
   test('POST /teacher/queue/decide and /teacher/queue/link-codes', async () => {
     let res = await post('/teacher/queue/decide', { teacher: T1, loose_id: c(7), candidate_id: r(5), decision: 'same' });

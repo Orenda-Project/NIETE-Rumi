@@ -4,7 +4,9 @@
  * class list?", one tap each, and the strict backward join as a job function.
  *
  *   computeCandidates(teacherUserId)  every queue row for ONE teacher, both tiers, ungated (tests, lead review)
- *   candidatesFor(teacherUserId)      the rows of the tiers that passed the truth-set gate (TIERS_SERVED)
+ *   candidatesFor(teacherUserId)      the rows of the served tiers (TIERS_SERVED minus any tier held by precision)
+ *   precisionByTier()                 per tier: the teachers' decisions so far, precision, Wilson lower bound, held
+ *   servedTiers()                     the tiers served right now ([] when the switch is off)
  *   decide({teacherUserId, looseId, candidateId, decision})   'same' | 'no' | 'undo': the only queue write
  *   linkClassCodes({teacherUserId, classId})  the teacher's unbound quiz codes → this class (never a bound one)
  *   runBackwardJoin({dryRun = true})  the strict rule over every chat child; dryRun returns labels and counts only
@@ -33,11 +35,15 @@ const { logEvent } = require('../../utils/structured-logger');
 const IdFlags = require('./web-quiz-identity-flags');
 
 const TIERS = Object.freeze(['roster_unique_with_loose', 'probable']);
-// The truth-set gate (queue_truth.json, measured 15 Oct 2026): a tier is served only with n >= 100 labelled children
-// AND a Wilson 95% lower bound >= 0.85. Measured: roster_unique_with_loose n=11 (0.741), probable n=12 (0.646), so both
-// are held out and the queue serves nothing. Lead review flips this constant when a truth set passes.
-const TIERS_SERVED = Object.freeze([]);
+// Bounded labelling mode (IDENTITY §12 gate, ruled 15 Oct 2026): the queue serves roster_unique_with_loose only (0 wrong
+// of 11 on the labelled set, queue_truth.json); probable is held out (1 wrong of 12, Wilson lower 0.646). A served tier
+// is also held automatically, per tier, once it has n >= HOLD_MIN_N teacher decisions and the Wilson 95% lower bound
+// of their precision falls under HOLD_LOWER (precisionByTier, read from merge_log at serve time).
+const TIERS_SERVED = Object.freeze(['roster_unique_with_loose']);
 let served = TIERS_SERVED; // tests only (_serveForTest); production always serves TIERS_SERVED
+const HOLD_MIN_N = 50;
+const HOLD_LOWER = 0.85;
+const PRECISION_TTL_MS = 60 * 1000;
 const DECISIONS = new Set(['same', 'no', 'undo']);
 const CAP = 5000;
 const JOB_PAGE = 1000;
@@ -246,13 +252,79 @@ async function computeCandidates(teacherUserId) {
 
 const serveTiers = (list, tiers = served) => list.filter((x) => tiers.includes(x.evidence.tier));
 
-/** The queue the teacher is shown: only the tiers that passed the truth-set gate. */
+// ─── the per-tier auto-hold ──────────────────────────────────────────────────
+/** The Wilson score interval's lower bound at 95% (z = 1.96) for k successes of n; null when n = 0. */
+function wilsonLower(k, n, z = 1.96) {
+  if (!n) return null;
+  const p = k / n;
+  const z2 = z * z;
+  return (p + z2 / (2 * n) - z * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n))) / (1 + z2 / n);
+}
+const round4 = (x) => (x == null ? null : Math.round(x * 10000) / 10000);
+
+let precisionCache = null; // {at, value}
+
+async function countDecisions(tier, decision) {
+  const { count, error } = await supabase.from('merge_log').select('id', { count: 'exact', head: true })
+    .eq('source', 'queue').eq('tier', tier).eq('decision', decision);
+  if (error) throw new Error(error.message || 'read failed');
+  return count || 0;
+}
+
+/**
+ * Per tier, from the teachers' queue decisions (merge_log source 'queue', tier set): an undo reverses a same, so
+ * same_net = same - undo, n = same_net + no, precision = same_net / n (null when n = 0), wilson_lower_95 its 95% Wilson
+ * lower bound, held = n >= 50 and wilson_lower_95 < 0.85. → [{tier, n, same, no, undo, precision, wilson_lower_95, held}]
+ * in TIERS order. Never throws: a failed read holds every tier ({held:true, error:true}). Cached 60 s in-process.
+ */
+async function precisionByTier() {
+  if (precisionCache && Date.now() - precisionCache.at < PRECISION_TTL_MS) return precisionCache.value.map((x) => ({ ...x }));
+  try {
+    const value = [];
+    for (const tier of TIERS) {
+      const same = await countDecisions(tier, 'same');
+      const no = await countDecisions(tier, 'no');
+      const undo = await countDecisions(tier, 'undo');
+      const sameNet = Math.max(0, same - undo);
+      const n = sameNet + no;
+      const lower = wilsonLower(sameNet, n);
+      value.push({
+        tier, n, same, no, undo, precision: n ? round4(sameNet / n) : null, wilson_lower_95: round4(lower),
+        held: n >= HOLD_MIN_N && lower < HOLD_LOWER,
+      });
+    }
+    precisionCache = { at: Date.now(), value };
+    return value.map((x) => ({ ...x }));
+  } catch (err) {
+    logToFile('⚠️ join queue: tier precision not read — every tier held', { error: err.message });
+    return TIERS.map((tier) => ({ tier, n: 0, same: 0, no: 0, undo: 0, precision: null, wilson_lower_95: null, held: true, error: true }));
+  }
+}
+
+/** The tiers served now: TIERS_SERVED minus any tier precisionByTier holds. Assumes the switch was checked. */
+async function liveTiers() {
+  if (!served.length) return [];
+  const held = new Set((await precisionByTier()).filter((x) => x.held).map((x) => x.tier));
+  return served.filter((t) => !held.has(t));
+}
+
+/** The tiers the queue serves right now; [] when the switch is off. Never throws. */
+async function servedTiers() {
+  if (!(await canonOn())) return [];
+  return liveTiers();
+}
+
+/** The queue the teacher is shown: only the served tiers that are not held. [] when the switch is off. */
 async function candidatesFor(teacherUserId) {
-  if (!served.length) {
-    await canonOn(); // the switch is still read, so the off path's reads are the same either way
+  try {
+    if (!teacherUserId || !(await canonOn())) return [];
+    const tiers = await liveTiers();
+    if (!tiers.length) return [];
+    return serveTiers(await compute(teacherUserId), tiers);
+  } catch (err) {
+    logToFile('⚠️ join queue: candidates failed — an empty queue', { error: err.message });
     return [];
   }
-  return serveTiers(await computeCandidates(teacherUserId));
 }
 
 // ─── the tap ─────────────────────────────────────────────────────────────────
@@ -268,9 +340,9 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
     const roster = await teacherRoster(teacherUserId);
     if (!roster.has(candidateId)) return { ok: false, reason: 'not_your_roster' };
     const now = new Date().toISOString();
-    const log = (d) => rows(supabase.from('merge_log').insert({
-      loose_id: looseId, candidate_id: candidateId, teacher_id: teacherUserId, decision: d, source: 'queue', decided_at: now,
-    }).select('id'));
+    const log = (d, tier) => rows(supabase.from('merge_log').insert({
+      loose_id: looseId, candidate_id: candidateId, teacher_id: teacherUserId, decision: d, source: 'queue', tier: tier || null, decided_at: now,
+    }).select('id')).then((x) => { precisionCache = null; return x; });
     // Idempotent: the same tap again (a 303-and-refresh double submit) writes nothing and answers as the first did.
     const last = (await lastDecisions(teacherUserId, [looseId])).get(`${looseId}|${candidateId}`);
     if (last === decision) {
@@ -278,34 +350,47 @@ async function decide({ teacherUserId, looseId, candidateId, decision } = {}) {
       const cur = await rows(supabase.from('students').select('id').eq('id', looseId).eq('merged_into', candidateId));
       if (cur.length) return { ok: true, decision, already: true };
     }
-    // "Same child" only for a pair the teacher is actually shown: the served (truth-set gated) queue. A held-out tier
-    // can never be written through any caller. 'no' and 'undo' keep their own checks (an undo stays possible).
+    // "Same child" only for a pair the teacher is actually shown: the served queue (a tier held out or held by its
+    // precision can never be written through any caller). 'no' and 'undo' keep their own checks (an undo stays
+    // possible). Every row records the tier of the pair as shown; an undo, the tier of the 'same' it reverses.
+    let tier = null;
     if (decision === 'same') {
-      const shown = served.length ? serveTiers(await compute(teacherUserId)) : [];
-      if (!shown.some((x) => x.loose_id === looseId && x.candidate_id === candidateId)) return { ok: false, reason: 'not_served' };
+      const tiers = await liveTiers();
+      const shown = tiers.length ? serveTiers(await compute(teacherUserId), tiers) : [];
+      const pair = shown.find((x) => x.loose_id === looseId && x.candidate_id === candidateId);
+      if (!pair) return { ok: false, reason: 'not_served' };
+      tier = pair.evidence.tier;
     }
     if (decision === 'undo') {
       if (last !== 'same') return { ok: false, reason: 'nothing_to_undo' };
       const back = await rows(supabase.from('students').update({ merged_into: null, status: 'active', is_active: true, updated_at: now })
         .eq('id', looseId).eq('merged_into', candidateId).is('list_id', null).select('id'));
       if (!back.length) return { ok: false, reason: 'nothing_to_undo' };
-      await log('undo');
+      await log('undo', await sameTier(teacherUserId, looseId, candidateId));
       return { ok: true, decision };
     }
     const loose = await teacherLoose(teacherUserId);
     if (!loose.has(looseId)) return { ok: false, reason: 'not_loose' };
     if (decision === 'no') {
-      await log('no');
+      const pair = (await compute(teacherUserId)).find((x) => x.loose_id === looseId && x.candidate_id === candidateId);
+      await log('no', pair ? pair.evidence.tier : null);
       return { ok: true, decision };
     }
     if (!(await mergeLoose(looseId, candidateId, now))) return { ok: false, reason: 'not_loose' };
-    await log('same');
+    await log('same', tier);
     logEvent('web_quiz.id_confirmed', { w: 's', by: 'merged' });
     return { ok: true, decision };
   } catch (err) {
     logToFile('⚠️ join queue: decision not written', { error: err.message });
     return { ok: false, reason: 'failed' };
   }
+}
+
+/** The tier of this teacher's latest 'same' on the pair (what an undo reverses); null when it carried none. */
+async function sameTier(t, looseId, candidateId) {
+  const last = await rows(supabase.from('merge_log').select('tier, decided_at').eq('teacher_id', t).eq('loose_id', looseId)
+    .eq('candidate_id', candidateId).eq('decision', 'same').order('decided_at', { ascending: false }).limit(1));
+  return (last[0] && last[0].tier) || null;
 }
 
 /** The loose row → merged into the roster record, only if it is still loose and active (mergeTypedInto's guard). */
@@ -398,7 +483,9 @@ async function runBackwardJoin({ dryRun = true } = {}) {
       for (const j of joins) {
         const now = new Date().toISOString();
         if (!(await mergeLoose(j.id, j.r.id, now))) continue;
-        await rows(supabase.from('merge_log').insert({ loose_id: j.id, candidate_id: j.r.id, teacher_id: j.t, decision: 'same', source: 'queue', decided_at: now }).select('id'));
+        // tier NULL: the job joins only by phone + name or the strict rule, never a queue tier (blocked/probable pairs
+        // are the teacher's), so these rows never count toward a tier's precision.
+        await rows(supabase.from('merge_log').insert({ loose_id: j.id, candidate_id: j.r.id, teacher_id: j.t, decision: 'same', source: 'queue', tier: null, decided_at: now }).select('id'));
         logEvent('web_quiz.id_confirmed', { w: 's', by: 'merged' });
         joined += 1;
       }
@@ -413,7 +500,8 @@ async function runBackwardJoin({ dryRun = true } = {}) {
 }
 
 module.exports = {
-  computeCandidates, candidatesFor, serveTiers, decide, linkClassCodes, runBackwardJoin,
-  TIERS, TIERS_SERVED, norm,
-  _serveForTest: (tiers) => { served = tiers ? Object.freeze([...tiers]) : TIERS_SERVED; }, tokset, words, canonFirst, gradeOf, firstName, route,
+  computeCandidates, candidatesFor, serveTiers, decide, linkClassCodes, runBackwardJoin, precisionByTier, servedTiers,
+  TIERS, TIERS_SERVED, HOLD_MIN_N, HOLD_LOWER, norm, wilsonLower,
+  _serveForTest: (tiers) => { served = tiers ? Object.freeze([...tiers]) : TIERS_SERVED; precisionCache = null; },
+  _resetPrecisionCache: () => { precisionCache = null; }, tokset, words, canonFirst, gradeOf, firstName, route,
 };

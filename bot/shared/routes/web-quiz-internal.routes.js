@@ -151,11 +151,11 @@ router.post('/hubdoor', handle((req) => require('../services/quiz/web-quiz-hub-d
 // routes with the teacher taken from the signed report token. Here `teacher` is trusted ONLY because the dashboard's
 // proxy sets it from the logged-in teacher's session, never from the browser's body or query; this router is reachable
 // only with the internal key (requireInternalKey above). decide and link-codes are idempotent (a resubmit writes once).
-//   GET  /teacher/queue?teacher=<id>         → {rows: [Mock M4 row], tiers_served: [tier]}
+//   GET  /teacher/queue?teacher=<id>         → {rows: [Mock M4 row], tiers_served: [tier]} (served now: [] when off or held)
 //   POST /teacher/queue/decide {teacher, loose_id, candidate_id, decision: 'same'|'no'|'undo'} → {ok, decision, already?} | {ok:false, reason ('not_served' for a pair not in the served queue)} | {off:true}
 //   POST /teacher/queue/link-codes {teacher, class_id} → {linked: n} | {linked: 0, reason} | {off:true}
 const JoinQueue = () => require('../services/quiz/web-quiz-join-queue');
-router.get('/teacher/queue', handle(async (req) => ({ rows: await JoinQueue().candidatesFor(q1(req.query.teacher)), tiers_served: [...JoinQueue().TIERS_SERVED] })));
+router.get('/teacher/queue', handle(async (req) => ({ rows: await JoinQueue().candidatesFor(q1(req.query.teacher)), tiers_served: await JoinQueue().servedTiers() })));
 router.post('/teacher/queue/decide', handle((req) => {
   const b = req.body || {};
   return JoinQueue().decide({ teacherUserId: b.teacher, looseId: b.loose_id, candidateId: b.candidate_id, decision: b.decision });
