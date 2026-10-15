@@ -128,10 +128,8 @@ function suppliesFor(P, bySlot) {
       const book = Number.isFinite(Number(q.book_page)) && q.book_page !== null && q.book_page !== ''
         ? Number(q.book_page) : slot.frame.book_page;
       const name = String(q.question || '').trim();
-      const frameEn = slot.frame.kind === 'map' ? slot.frame.title_en
-        : `${fill(slot.frame.title_en, { q: name }).replace(/: $/, '')}${slot.frame.kind === 'picture' && name ? `: ${name}` : ''}`;
-      const frameUr = slot.frame.kind === 'map' ? slot.frame.title_ur
-        : `${fill(slot.frame.title_ur, { q: name }).replace(/: $/, '')}${slot.frame.kind === 'picture' && name ? `: ${name}` : ''}`;
+      const frameEn = fill(slot.frame.supply_en, { q: name });
+      const frameUr = fill(slot.frame.supply_ur, { q: name });
       const words = Array.isArray(q.words) ? q.words.map(String).filter(Boolean) : [];
       const tail = (template) => (words.length && slot.frame.word_bank ? fill(template, { words: words.join('، ') }) : '');
       const withPage = (template, values) => (book ? fill(template, values) : fill(template, values).replace(/ \((book p\.|کتاب ص) \{?b\}?\)| \((book p\.|کتاب ص) [^)]*\)/, ''));
@@ -223,6 +221,8 @@ function applyLayout(examJson, P, scope, opts = {}) {
     before_exam: clone(P.before_exam),
     supplies: suppliesFor(P, bySlot),
     total_marks: P.total_marks,
+    total_time_en: P.total_time_en,
+    total_time_ur: P.total_time_ur,
     unplaced,
     generated_at: opts.now || new Date().toISOString(),
     pages: null,

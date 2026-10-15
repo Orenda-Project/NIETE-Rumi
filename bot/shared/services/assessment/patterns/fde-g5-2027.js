@@ -366,7 +366,13 @@ const SCIENCE = {
           grain: { kind: 'label an unlabelled book diagram with 5 parts (chapters 1–7)', number_size: 'none', steps: 1, unit_choice: false },
           families: null, kinds: null,
           prompt_rule: 'One item: `question` is the NAME of a diagram printed in the book (e.g. "Layers of the Earth"), `book_page` the book page it is on, `answer` the five labels in order. The paper prints an empty frame with five label lines; the teacher draws or pastes the diagram. Never describe the picture and never send the child to a picture.',
-          frame: { kind: 'diagram', title_en: 'Diagram: {q}', title_ur: 'خاکہ: {q}', height_mm: 70, lines: 5, book_page: 168, word_bank: false }, // ur: needs fluent-Urdu review
+          frame: {
+            kind: 'diagram', height_mm: 70, lines: 5, book_page: 168, word_bank: false,
+            title_en: 'Diagram: {q} (drawn on the board or pasted)',
+            title_ur: 'خاکہ: {q} (بورڈ پر بنائیں یا چسپاں کریں)', // needs fluent-Urdu review
+            supply_en: 'Diagram: {q}', supply_ur: 'خاکہ: {q}', // ur: needs fluent-Urdu review
+            duty_en: 'the diagram to label', duty_ur: 'نشان دہی والا خاکہ', // ur: needs fluent-Urdu review
+          },
           teacher_note_en: 'Draw this diagram on the board or paste the book\'s figure into the frame before photocopying.',
           teacher_note_ur: 'فوٹو کاپی سے پہلے یہ خاکہ بورڈ پر بنائیں یا کتاب سے چسپاں کریں۔', // needs fluent-Urdu review
           alternatives: null, or: false,
@@ -649,7 +655,13 @@ const ENGLISH = {
           grain: { kind: 'a nine-word bank for an everyday scene (classroom, park, market)', number_size: 'eight to ten words', steps: 1, unit_choice: false },
           families: null, kinds: ['picture_description'],
           prompt_rule: 'One item: `question` = a one-line scene for the teacher (e.g. "children painting in an art lesson"), `words` = 8–10 words a child would use to describe that scene. The paper prints a frame and the word bank; the teacher adds any picture that fits. Never describe the picture to the child.',
-          frame: { kind: 'picture', title_en: 'Picture', title_ur: 'تصویر', height_mm: 70, lines: 0, book_page: null, word_bank: true }, // ur: needs fluent-Urdu review
+          frame: {
+            kind: 'picture', height_mm: 70, lines: 0, book_page: null, word_bank: true,
+            title_en: 'Picture (pasted or drawn by the teacher)',
+            title_ur: 'تصویر (استاد چسپاں کریں یا بنائیں)', // needs fluent-Urdu review
+            supply_en: 'Picture: {q}', supply_ur: 'تصویر: {q}', // ur: needs fluent-Urdu review
+            duty_en: 'the picture', duty_ur: 'تصویر', // ur: needs fluent-Urdu review
+          },
           teacher_note_en: 'Paste or draw a picture that fits the word bank in the frame before photocopying.',
           teacher_note_ur: 'فوٹو کاپی سے پہلے مددگار الفاظ سے میل کھاتی کوئی تصویر خانے میں چسپاں کریں یا بنائیں۔', // needs fluent-Urdu review
           alternatives: null, or: false,
@@ -840,7 +852,13 @@ const URDU = {
           grain: { kind: 'seven helper words for an everyday scene (park, zoo, market)', number_size: 'seven words', steps: 1, unit_choice: false },
           families: null, kinds: ['picture_description'],
           prompt_rule: 'One item: `question` = a one-line scene for the teacher (e.g. «چڑیا گھر کی سیر»), `words` = seven helper words a child would use for it. The paper prints a frame and the helper words; the teacher adds any picture that fits. Never describe the picture to the child.',
-          frame: { kind: 'picture', title_en: 'Picture', title_ur: 'تصویر', height_mm: 70, lines: 0, book_page: null, word_bank: true }, // ur: needs fluent-Urdu review
+          frame: {
+            kind: 'picture', height_mm: 70, lines: 0, book_page: null, word_bank: true,
+            title_en: 'Picture (pasted or drawn by the teacher)',
+            title_ur: 'تصویر (استاد چسپاں کریں یا بنائیں)', // needs fluent-Urdu review
+            supply_en: 'Picture: {q}', supply_ur: 'تصویر: {q}', // ur: needs fluent-Urdu review
+            duty_en: 'the picture', duty_ur: 'تصویر', // ur: needs fluent-Urdu review
+          },
           teacher_note_en: 'Paste or draw a picture that fits the helper words in the frame before photocopying.',
           teacher_note_ur: 'فوٹو کاپی سے پہلے مددگار الفاظ سے میل کھاتی کوئی تصویر خانے میں چسپاں کریں یا بنائیں۔', // needs fluent-Urdu review
           alternatives: null, or: false,
@@ -955,7 +973,13 @@ const SST = {
           grain: { kind: 'label ten places on a blank outline map of Pakistan: four neighbouring countries, provinces and territories, the sea', number_size: 'ten labels', steps: 1, unit_choice: false },
           families: null, kinds: null,
           prompt_rule: 'One item: `question` = «پاکستان کا نقشہ», `answer` = the ten places to label (four neighbouring countries, the provinces and territories, the Arabian Sea). The paper prints an empty frame with ten label lines; the teacher pastes a blank outline map.',
-          frame: { kind: 'map', title_en: 'Map of Pakistan', title_ur: 'پاکستان کا نقشہ', height_mm: 110, lines: 10, book_page: null, word_bank: false }, // ur: needs fluent-Urdu review
+          frame: {
+            kind: 'map', height_mm: 110, lines: 10, book_page: null, word_bank: false,
+            title_en: 'Map of Pakistan (paste or photocopy a blank outline map; label here)',
+            title_ur: 'پاکستان کا نقشہ (خالی خاکہ چسپاں یا فوٹو کاپی کریں؛ نشاندہی یہاں کریں)', // needs fluent-Urdu review
+            supply_en: 'Map of Pakistan', supply_ur: 'پاکستان کا نقشہ', // ur: needs fluent-Urdu review
+            duty_en: 'the map of Pakistan', duty_ur: 'پاکستان کا نقشہ', // ur: needs fluent-Urdu review
+          },
           teacher_note_en: 'Paste or photocopy a blank outline map of Pakistan into the frame before photocopying.',
           teacher_note_ur: 'فوٹو کاپی سے پہلے پاکستان کا خالی خاکہ نقشہ خانے میں چسپاں کریں۔', // needs fluent-Urdu review
           alternatives: null, or: false,
