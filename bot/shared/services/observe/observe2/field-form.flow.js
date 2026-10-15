@@ -18,7 +18,8 @@
  *                so saved photos go through a file picker, which opens a chooser on every client:
  *   PHOTO_TAKE   the photo picker (camera, or the gallery on a phone)
  *   PHOTO_FILES  the file picker, images only
- *   AFTER        before leaving the room        (anything to report, what to work on first, the seal)
+ *   AFTER        before leaving the room        (anything to report, what to work on first and up to
+ *                two more, the seal)
  *   SEALED       the record is locked
  *   CONTINUE     a reopened form: where the record stands, then on to the right screen
  *
@@ -33,7 +34,7 @@
  * Regenerate the committed copy after any change:  node bot/scripts/generate-observe2-flow-json.js
  */
 
-const { PRIORITY, MOMENTS, PLAIN } = require('./fico17');
+const { FOCUS, FOCUS_ORDER, ALSO_NONE, PLAIN } = require('./fico17');
 
 const FLOW_VERSION = '7.3';
 // This form's own version, sent by the footers whose next screen changed with the photo step. A form
@@ -167,7 +168,7 @@ const FIELDS = {
   PHOTOS: ['photo_how'],
   PHOTO_TAKE: [],
   PHOTO_FILES: [],
-  AFTER: ['incident', 'detail', 'note', 'priority', 'seal_ok'],
+  AFTER: ['incident', 'detail', 'note', 'priority', 'also_1', 'also_2', 'seal_ok'],
 };
 
 function screen(id, title, children, footerLabel, extraData) {
@@ -195,8 +196,9 @@ function screen(id, title, children, footerLabel, extraData) {
   };
 }
 
-// The priority list follows the four moments, so related choices sit together.
-const PRIORITY_ORDER = MOMENTS.flatMap((m) => m.codes);
+// "Work on first": the 17 in the order of the four moments, then the lesson plan's own steps (R14).
+const FOCUS_LIST = FOCUS_ORDER.map((c) => opt(c, FOCUS[c]));
+const ALSO_LIST = [opt(ALSO_NONE, 'Nothing else'), ...FOCUS_LIST];
 
 function buildFieldFormFlow() {
   const part1 = [
@@ -227,7 +229,12 @@ function buildFieldFormFlow() {
       else: [],
     },
     { type: 'TextArea', name: 'note', label: 'Not in the recording', required: false, 'max-length': 600, 'helper-text': "What you saw that a recording can't catch: the back rows, the board, reactions" },
-    { type: 'Dropdown', name: 'priority', label: 'Work on first', required: true, 'data-source': PRIORITY_ORDER.map((c) => opt(c, PRIORITY[c])) },
+    { type: 'Dropdown', name: 'priority', label: 'Work on first', required: true, 'data-source': FOCUS_LIST },
+    // One "Work on first" drives the brief, the record's focus and the teacher's report; up to two more
+    // are for the debrief (FICO pilot sheet R14).
+    { type: 'TextCaption', text: 'If the teacher needs more, add up to two. Optional.' },
+    { type: 'Dropdown', name: 'also_1', label: 'Also work on', required: false, 'data-source': ALSO_LIST },
+    { type: 'Dropdown', name: 'also_2', label: 'And also', required: false, 'data-source': ALSO_LIST },
     { type: 'OptIn', name: 'seal_ok', label: "Seal this record. I can't change it afterwards, and the recording's moments open only after I seal.", required: true },
     ERR_LINE,
   ];

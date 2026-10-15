@@ -1382,6 +1382,182 @@
                   {
                     "id": "F4",
                     "title": "Linking to real life"
+                  },
+                  {
+                    "id": "plan",
+                    "title": "Following the plan's steps"
+                  }
+                ]
+              },
+              {
+                "type": "TextCaption",
+                "text": "If the teacher needs more, add up to two. Optional."
+              },
+              {
+                "type": "Dropdown",
+                "name": "also_1",
+                "label": "Also work on",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "none",
+                    "title": "Nothing else"
+                  },
+                  {
+                    "id": "C1",
+                    "title": "Questions that make them think"
+                  },
+                  {
+                    "id": "C3",
+                    "title": "Picking quiet children too"
+                  },
+                  {
+                    "id": "D1",
+                    "title": "Children explaining why"
+                  },
+                  {
+                    "id": "D2",
+                    "title": "More children speaking"
+                  },
+                  {
+                    "id": "D5",
+                    "title": "Children asking questions"
+                  },
+                  {
+                    "id": "C2",
+                    "title": "Helping when a child is wrong"
+                  },
+                  {
+                    "id": "C6",
+                    "title": "Making it safe to be wrong"
+                  },
+                  {
+                    "id": "D4",
+                    "title": "Children trying when unsure"
+                  },
+                  {
+                    "id": "C4",
+                    "title": "Giving children real choices"
+                  },
+                  {
+                    "id": "C5",
+                    "title": "Smooth switches of activity"
+                  },
+                  {
+                    "id": "C7",
+                    "title": "Real group work"
+                  },
+                  {
+                    "id": "C8",
+                    "title": "Children using materials"
+                  },
+                  {
+                    "id": "D3",
+                    "title": "Children talking to each other"
+                  },
+                  {
+                    "id": "F1",
+                    "title": "Getting the content right"
+                  },
+                  {
+                    "id": "F2",
+                    "title": "Using subject words"
+                  },
+                  {
+                    "id": "F3",
+                    "title": "Explaining why it works"
+                  },
+                  {
+                    "id": "F4",
+                    "title": "Linking to real life"
+                  },
+                  {
+                    "id": "plan",
+                    "title": "Following the plan's steps"
+                  }
+                ]
+              },
+              {
+                "type": "Dropdown",
+                "name": "also_2",
+                "label": "And also",
+                "required": false,
+                "data-source": [
+                  {
+                    "id": "none",
+                    "title": "Nothing else"
+                  },
+                  {
+                    "id": "C1",
+                    "title": "Questions that make them think"
+                  },
+                  {
+                    "id": "C3",
+                    "title": "Picking quiet children too"
+                  },
+                  {
+                    "id": "D1",
+                    "title": "Children explaining why"
+                  },
+                  {
+                    "id": "D2",
+                    "title": "More children speaking"
+                  },
+                  {
+                    "id": "D5",
+                    "title": "Children asking questions"
+                  },
+                  {
+                    "id": "C2",
+                    "title": "Helping when a child is wrong"
+                  },
+                  {
+                    "id": "C6",
+                    "title": "Making it safe to be wrong"
+                  },
+                  {
+                    "id": "D4",
+                    "title": "Children trying when unsure"
+                  },
+                  {
+                    "id": "C4",
+                    "title": "Giving children real choices"
+                  },
+                  {
+                    "id": "C5",
+                    "title": "Smooth switches of activity"
+                  },
+                  {
+                    "id": "C7",
+                    "title": "Real group work"
+                  },
+                  {
+                    "id": "C8",
+                    "title": "Children using materials"
+                  },
+                  {
+                    "id": "D3",
+                    "title": "Children talking to each other"
+                  },
+                  {
+                    "id": "F1",
+                    "title": "Getting the content right"
+                  },
+                  {
+                    "id": "F2",
+                    "title": "Using subject words"
+                  },
+                  {
+                    "id": "F3",
+                    "title": "Explaining why it works"
+                  },
+                  {
+                    "id": "F4",
+                    "title": "Linking to real life"
+                  },
+                  {
+                    "id": "plan",
+                    "title": "Following the plan's steps"
                   }
                 ]
               },
@@ -1407,6 +1583,8 @@
                     "detail": "${form.detail}",
                     "note": "${form.note}",
                     "priority": "${form.priority}",
+                    "also_1": "${form.also_1}",
+                    "also_2": "${form.also_2}",
                     "seal_ok": "${form.seal_ok}"
                   }
                 }
