@@ -29,7 +29,10 @@ jest.mock('../../../shared/storage/r2', () => ({
 }));
 jest.mock('../../../shared/services/audio.service', () => ({ transcribe: jest.fn() }));
 jest.mock('../../../shared/services/tts', () => ({ synthesize: jest.fn(async () => ({ audio: Buffer.from('OggS'), provider: 'soniox', voice: 'Grace', durationSec: 2 })) }));
-jest.mock('../../../shared/services/llm-client', () => ({ getClient: () => ({ chat: { completions: { create: jest.fn() } } }) }));
+jest.mock('../../../shared/services/llm-client', () => {
+  const create = jest.fn();
+  return { __create: create, getClient: () => ({ chat: { completions: { create } } }) };
+});
 jest.mock('../../../shared/services/cache/railway-redis.service', () => {
   const store = new Map();
   return {
@@ -567,5 +570,104 @@ describe('the hook in the Challenge (the landed serve → store → score path)'
     await playBigger();
     expect(touched('child_rungs')).toHaveLength(0);
     expect(named('web_quiz.lamp_lit')).toHaveLength(0);
+  });
+});
+
+// ── a reading's questions answered after it is stored as scored: R3 lives on R2's own row ──────────────
+// The landed read path end to end: serve (v2 + _period; passage en.read.2.setA, band 2) → upload → the real scorer
+// (the speech service, the LLM and R2 faked) → stored as scored → questions → answers (meta.comp). A grade-5 child:
+// band 2 past line 1 is R2, the same row with asked ≥ 2 and right ≥ 2 is R3.
+describe('the questions after scored (the settle rule)', () => {
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const { execFileSync } = require('child_process');
+  const r2 = require('../../../shared/storage/r2');
+  const AudioService = require('../../../shared/services/audio.service');
+  const llm = require('../../../shared/services/llm-client');
+  const Bank = require('../../../shared/services/child-test/item-bank');
+  const FF = require('@ffmpeg-installer/ffmpeg').path;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wqrung-'));
+  const clip = (secs) => {
+    const f = path.join(dir, `s${secs}.webm`);
+    if (!fs.existsSync(f)) execFileSync(FF, ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'anullsrc=r=16000:cl=mono', '-t', String(secs), '-c:a', 'libopus', f]);
+    return fs.readFileSync(f);
+  };
+  const spec3 = () => Bank.getTaskSpec({ grade: 3, set: 'A', task: 'en.story' });
+  const heard = (n, gap) => ({ text: '', tokens: spec3().story.tokens.slice(0, n).map((w, k) => ({ text: ` ${w}`, start_ms: Math.round(k * gap * 1000), end_ms: Math.round((k * gap + gap * 0.8) * 1000), speaker: 1 })) });
+  const marks = (right, tried) => ({ usage: { cost: 0.0021 }, choices: [{ message: { content: JSON.stringify({
+    words: spec3().story.tokens.map((w, k) => ({ i: k + 1, w, v: k < right ? 'correct' : k < tried ? 'wrong' : 'skipped' })), words_correct: 0, words_attempted: 0, notes: '' }) } }] });
+  const QS = { key: 'web_quiz_challenge_questions', value: true };
+  const G5_CHILD = () => {
+    db.students[0].self_reported_class = '5';
+    db.student_lists[0].class_name = '5';
+  };
+  async function readScored(settings = [...PERIOD_ON, QS]) {
+    seedLanded(settings);
+    G5_CHILD();
+    const { ct } = await Ch.exercise(T.signHub([KID]), 'read', { device: DEV, lang: 'en' });
+    const run = T.verify(ct, 'c').r;
+    const { key } = await Ch.presignUpload({ ct, type: 'audio/webm', size: 500000 });
+    r2.downloadFromR2.mockResolvedValue(clip(61));
+    AudioService.transcribe.mockResolvedValue(heard(50, 1.1));
+    llm.__create.mockResolvedValue(marks(45, 50));
+    await Ch.submit({ ct, key, ms: 61000, lang: 'en', ended: 'timer', mic_check: 'pass', read_s: 61 }, { waitMs: 60000 });
+    return { ct, run };
+  }
+  const rightPick = (q, ct) => {
+    const p = typeof Bank.getPassage === 'function' ? Bank.getPassage('en.read.2.setA') : null;
+    const bq = [...((p && p.questions) || []), ...spec3().questions].find((x) => x.id === q.id);
+    return q.options.indexOf(Ch.tapOptions(bq, 'en', T.verify(ct, 'c').r).right);
+  };
+  afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  test('answers arrive after scored: nothing at scored, then ONE child_rungs row at R3 once the answers are in (not R2, then blocked)', async () => {
+    const { ct, run } = await readScored();
+    expect(runRow(run)).toMatchObject({ mode: 'check', record: true, status: 'scored', passage_id: 'en.read.2.setA', form: 'G5' });
+    expect(Number(runRow(run).wcpm)).toBeGreaterThan(0);
+    expect(db.child_rungs).toHaveLength(0);                         // deferred: the questions are still to come
+    const qs = (await Ch.questions({ ct })).questions;
+    expect(qs.length).toBeGreaterThanOrEqual(2);
+    for (const q of qs) await Ch.answer({ ct, q: q.id, pick: rightPick(q, ct) });
+    expect(runRow(run).meta.comp).toMatchObject({ asked: qs.length, correct: qs.length });
+    expect(db.child_rungs).toHaveLength(1);
+    expect(db.child_rungs[0]).toMatchObject({ ladder: 'reading', rung: 3, stop: 'read', period_id: '2026-11', row_id: run });
+    expect(named('web_quiz.lamp_lit')).toHaveLength(1);
+  });
+
+  test('questions never answered: nothing at scored; settleDeferred after 30 min lights R2 (R3 not evaluated)', async () => {
+    const { run } = await readScored();
+    expect(db.child_rungs).toHaveLength(0);
+    expect(await R.settleDeferred({ now: Date.now() + 10 * 60 * 1000 })).toEqual({ checked: 0, settled: 0 });   // inside the window
+    expect(db.child_rungs).toHaveLength(0);
+    expect(await R.settleDeferred({ now: Date.now() + R.SETTLE_MS + 60 * 1000 })).toEqual({ checked: 1, settled: 1 });
+    expect(db.child_rungs).toHaveLength(1);
+    expect(db.child_rungs[0]).toMatchObject({ ladder: 'reading', rung: 2, stop: 'read', period_id: '2026-11', row_id: run });
+    // a second daily run: the lamp row is there, nothing more
+    expect(await R.settleDeferred({ now: Date.now() + R.SETTLE_MS + 120 * 1000 })).toMatchObject({ settled: 0 });
+    expect(db.child_rungs).toHaveLength(1);
+  });
+
+  test('no questions served (the questions switch off): computed at scored, as before (R2)', async () => {
+    const { run } = await readScored();
+    db.child_rungs.length = 0;
+    // the same reading with the questions off
+    Ch.__reset(); Hub._resetCache();
+    const again = await readScored([...PERIOD_ON]);
+    expect(runRow(again.run)).toMatchObject({ status: 'scored', record: true });
+    expect(db.child_rungs).toHaveLength(1);
+    expect(db.child_rungs[0]).toMatchObject({ ladder: 'reading', rung: 2, row_id: again.run });
+    expect(run).not.toBe(again.run);
+  });
+
+  test('the rung switch off: settleDeferred makes no query; the answers reach nothing of the job', async () => {
+    const off = [...PERIOD_ON.filter((x) => x.key !== 'web_quiz_challenge_rungs'), QS];
+    const { ct } = await readScored(off);
+    const qs = (await Ch.questions({ ct })).questions;
+    const calls = await callsOf(async () => { for (const q of qs) await Ch.answer({ ct, q: q.id, pick: rightPick(q, ct) }); });
+    expect(calls.filter((c) => c.table === 'child_rungs')).toHaveLength(0);
+    const settle = await callsOf(() => R.settleDeferred({ now: Date.now() + R.SETTLE_MS + 60 * 1000 }));
+    expect(settle.filter((c) => c.table !== 'app_settings')).toHaveLength(0);
+    expect(db.child_rungs).toHaveLength(0);
   });
 });

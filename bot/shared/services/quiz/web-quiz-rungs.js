@@ -38,7 +38,9 @@ const FINAL = ['scored', 'failed'];
 const LADDER_OF = { read: 'reading', listen: 'reading', missing: 'numbers', bigger: 'numbers' };
 // child_rungs.stop's CHECK (web_quiz_child_rungs_once.sql); any other exercise is stored as NULL.
 const STOPS = new Set(Object.keys(LADDER_OF));
-const ROW_COLS = 'id, canonical_id, exercise, status, mode, record, period_id, form, grade, band, wcpm, score, anchor_block, meta';
+const ROW_COLS = 'id, canonical_id, exercise, status, mode, record, period_id, form, grade, lang, band, wcpm, score, passage_id, anchor_block, meta, scored_at, created_at';
+// A scored reading whose questions are still being answered waits this long before its rung is computed without them.
+const SETTLE_MS = 30 * 60 * 1000;
 const nul = (v) => (v === undefined ? null : v);
 
 /** A record row with a final status, of a known child and period. */
@@ -125,7 +127,19 @@ function computeRung(ladder, rows = [], ctx = {}) {
 }
 
 // ── the job ──────────────────────────────────────────────────────────────────────────────────────────
-async function onRecordFinal(input) {
+const ageMs = (row, now) => now - Date.parse(row.scored_at || row.created_at || 0);
+
+/**
+ * A scored record reading past line 1 whose reached questions are not all answered yet, younger than SETTLE_MS: its
+ * R3 / R5 live on this same row, so the rung waits for the answers (the answer hook calls the job again) or for
+ * settleDeferred. Any other row: not waiting.
+ */
+async function waiting(row, now) {
+  if (row.exercise !== 'read' || row.status !== 'scored' || !pastLine1(row) || ageMs(row, now) >= SETTLE_MS) return false;
+  return (await require('./web-quiz-challenge').readQuestionsLeft(row)) > 0;
+}
+
+async function onRecordFinal(input, { now = Date.now(), settle = true } = {}) {
   try {
     if (!(await Flags.rungsOn())) return null;
     const id = typeof input === 'string' ? input : input && input.id;
@@ -139,6 +153,7 @@ async function onRecordFinal(input) {
     if (!eligible(row)) return null;
     const ladder = ladderOf(row);
     if (!ladder) return null;
+    if (settle && (await waiting(row, now))) return { deferred: true };
 
     const { data: rows, error: rErr } = await supabase.from(RUNS).select(ROW_COLS)
       .eq('canonical_id', row.canonical_id).eq('mode', 'check').eq('record', true).in('status', FINAL)
@@ -179,4 +194,38 @@ async function onRecordFinal(input) {
   }
 }
 
-module.exports = { computeRung, eligible, onRecordFinal, ladderOf, gradeBandOf, RULE_V };
+/**
+ * The daily settle (called by the sweeper's daily job): this period's scored record readings older than SETTLE_MS
+ * with no Reading lamp row on the read stop this period are computed now, the window ignored (questions never
+ * answered ⇒ R3 / R5 not evaluated; R1 / R2 / R4 as usual). Switch off ⇒ no query. Never throws.
+ */
+async function settleDeferred({ now = Date.now() } = {}) {
+  try {
+    if (!(await Flags.rungsOn())) return { checked: 0, settled: 0 };
+    const D = require('./web-quiz-challenge-draw');
+    const periodId = D.periodIdFor(new Date(now), await D.periods());
+    if (!periodId) return { checked: 0, settled: 0 };
+    const { data: rows, error } = await supabase.from(RUNS).select(ROW_COLS)
+      .eq('exercise', 'read').eq('mode', 'check').eq('record', true).eq('status', 'scored').eq('period_id', periodId)
+      .order('created_at', { ascending: true }).limit(5000);
+    if (error) throw new Error(`record readings read failed: ${error.message || error.code}`);
+    const due = (rows || []).filter((r) => ageMs(r, now) >= SETTLE_MS);
+    if (!due.length) return { checked: 0, settled: 0 };
+    const { data: lamps, error: lErr } = await supabase.from(LAMPS).select('canonical_id')
+      .eq('ladder', 'reading').eq('stop', 'read').eq('period_id', periodId);
+    if (lErr) throw new Error(`lamps read failed: ${lErr.message || lErr.code}`);
+    const lit = new Set((lamps || []).map((l) => l.canonical_id));
+    let settled = 0;
+    for (const row of due) {
+      if (lit.has(row.canonical_id)) continue;
+      const out = await onRecordFinal(row, { now, settle: false });
+      if (out && out.rung) { settled += 1; lit.add(row.canonical_id); }
+    }
+    return { checked: due.length, settled };
+  } catch (e) {
+    logToFile('⚠️ web quiz rungs: settle not run', { error: String((e && e.message) || e).slice(0, 120) });
+    return { checked: 0, settled: 0 };
+  }
+}
+
+module.exports = { computeRung, eligible, onRecordFinal, settleDeferred, ladderOf, gradeBandOf, RULE_V, SETTLE_MS };
