@@ -10,6 +10,10 @@
  *
  * The indicator phrases come from fico17 (English for the pilot); the frame around them is in the
  * coach's language. Urdu addresses the coach with imperatives only.
+ *
+ * Last come the coach's own notes from the visit, word for word, grouped by part (pilot sheet R13,
+ * 14 Oct: "this evidence disappears after the form is saved"). Each note gets its own line under its
+ * label, so a note typed in English reads in its own direction inside an Urdu brief.
  */
 
 const { CODES, MOMENTS, PLAIN, ROW, PRIORITY } = require('./fico17');
@@ -44,6 +48,16 @@ const FRAME = {
     now: (x) => `What you saw: ${x}`,
     next: (x) => `The next step: ${x}`,
     moment: (minute, quote) => `A moment to bring up (${minute}): "${quote}"`,
+    notes_title: '📝 Your notes, as you wrote them:',
+    note_label: {
+      part1: 'Part 1',
+      part1_group: 'Part 1, with a group',
+      part2: 'Part 2',
+      part2_group: 'Part 2, with a group',
+      not_recorded: 'Not in the recording',
+      incident: 'What happened',
+      why: 'Why you changed it at the check',
+    },
     saved: 'Your full record, all 17 levels, is saved.',
   },
   ur: {
@@ -62,12 +76,50 @@ const FRAME = {
     now: (x) => `جو دیکھا: ${x}`,
     next: (x) => `اگلا قدم: ${x}`,
     moment: (minute, quote) => `بات کرنے کے لیے ایک لمحہ (${minute}): "${quote}"`,
+    notes_title: '📝 آپ کے نوٹس، جیسے آپ نے لکھے:',
+    note_label: {
+      part1: 'پہلا حصہ',
+      part1_group: 'پہلا حصہ، گروپ کے ساتھ',
+      part2: 'دوسرا حصہ',
+      part2_group: 'دوسرا حصہ، گروپ کے ساتھ',
+      not_recorded: 'جو ریکارڈنگ میں نہیں',
+      incident: 'کیا ہوا',
+      why: 'جانچ میں تبدیلی کی وجہ',
+    },
     saved: 'آپ کا پورا ریکارڈ، تمام 17 درجے، محفوظ ہے۔',
   },
 };
 
 const numeric = (v) => (/^[1-4]$/.test(String(v)) ? Number(v) : null);
 const DONE = new Set(['executed', 'substituted_equivalent', 'substituted_better']);
+
+// The boxes a coach types in, in the order they are met: Part 1 and Part 2 ("Anything else", and
+// "Something else" when they sat with a group), the seal screen ("Not in the recording", and "What
+// happened" for an incident), then the check ("Why you changed").
+const NOTE_BOXES = [
+  ['part1', (f) => (f.answers || {}).p1_notes],
+  ['part1_group', (f) => (f.answers || {}).p1_listen_other],
+  ['part2', (f) => (f.answers || {}).p2_notes],
+  ['part2_group', (f) => (f.answers || {}).p2_listen_other],
+  ['not_recorded', (f) => (f.answers || {}).note],
+  ['incident', (f) => (f.answers || {}).detail],
+  ['why', (f) => (f.evidence_review || {}).why],
+];
+// The brief is one WhatsApp message (4,096 code points). With every box full (600 each), clipping each
+// note here keeps it inside with room for the rest. Of the 114 notes on prod by 15 Oct, one is longer.
+const NOTE_CAP = 400;
+
+function clipNote(text) {
+  const chars = [...text];
+  return chars.length <= NOTE_CAP ? text : `${chars.slice(0, NOTE_CAP - 1).join('').trimEnd()}…`;
+}
+
+function coachNotes(form) {
+  return NOTE_BOXES
+    .map(([key, read]) => [key, String(read(form) || '').trim()])
+    .filter(([, text]) => text)
+    .map(([key, text]) => ({ key, text: clipNote(text) }));
+}
 
 // The plan as the coach confirmed it in the check, else as the recording graded it.
 function planResult(form) {
@@ -132,6 +184,12 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
     const moment = confirmed.find((m) => TYPE_CODE[m.type] === priority)
       || confirmed.find((m) => m.moment === group);
     if (moment) lines.push(F.moment(moment.minute, moment.quote), F.moment_ask);
+  }
+
+  const notes = coachNotes(form);
+  if (notes.length) {
+    lines.push('', F.notes_title);
+    for (const n of notes) lines.push(`*${F.note_label[n.key]}*`, n.text);
   }
 
   lines.push('', F.saved);
