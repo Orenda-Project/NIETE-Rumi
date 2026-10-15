@@ -53,6 +53,9 @@ const ALLOWLIST = new Set([
   // the teacher join queue. Remove each entry when its writer is on sandbox.
   'child_identity',
   'merge_log',
+  // Challenge equating links (web_quiz_challenge_registry.sql, mirrored with the other four registry tables). The
+  // calibration job that writes it ships in a later merge. Remove this entry when its writer is on sandbox.
+  'challenge_links',
 ]);
 
 function collectFiles(dir, exts) {

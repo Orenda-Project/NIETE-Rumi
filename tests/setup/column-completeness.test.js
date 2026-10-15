@@ -124,6 +124,10 @@ const ALLOWLIST = {
   // / `insertBody` variables with fields all defined in the schema.
   hcp_visit_schedules: ['success', 'schedule'],
   hcp_feedback_deliveries: ['success', 'delivery_id'],
+  // logDraw() in bot/shared/services/quiz/web-quiz-challenge-draw.js runs `.from('challenge_draws').insert(row)` with
+  // a variable row, so the scanner walks forward to the next object literal: the logError payload
+  // `{ code: error.code, error: ... }`. Not columns: the row is built by the draw service from the mirrored DDL.
+  challenge_draws: ['code', 'error'],
 };
 
 // ── Parser ───────────────────────────────────────────────────────────────────
