@@ -17,7 +17,7 @@ jest.mock('../../../shared/services/quiz/child-phone-bindings.repo', () => ({
   activeForChild: jest.fn(async (id) => BINDINGS[id] || []),
   eraseOne: jest.fn(async (id) => [{ id, canonical_id: 'b0000000-0000-4000-8000-000000000002', phone_norm: '+920000000001' }]),
 }), { virtual: true });
-// EVENTS §1: kid = the per-child hash; the module lands with m-measure M2 (mocked virtually to its export).
+// EVENTS §1: kid = the per-child hash; the event key module, not on this base yet (mocked virtually to its export).
 jest.mock('../../../shared/services/quiz/web-quiz-kid', () => ({ kid: jest.fn((id) => `k_${String(id).slice(-4)}`) }), { virtual: true });
 
 const express = require('express');
