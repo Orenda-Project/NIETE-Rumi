@@ -312,6 +312,9 @@ async function entryOf(token, kid, device) {
     // Standing class link: the pick's facts ride the hub token's `cl` claim to the run row (insertRun); absent today.
     return { studentId: hit, via: 'hub', ...(h.src === 'cl' && h.cl ? { cl: h.cl } : {}) };
   }
+  // ── class round (web_quiz_class_round): a round turn token plays as the child whose turn is open, only during that turn ──
+  const rt = T.verify(token, 'r');
+  if (rt) return (await require('./web-quiz-class-round').entryOf(rt)) || fail(401, 'bad_token');
   const s = T.verify(token, 's');
   if (s && s.sid) {
     const { data: row, error } = await supabase.from('quiz_sessions').select('id, student_id, share_code_id, quiz_id').eq('id', s.sid).maybeSingle();
@@ -628,7 +631,7 @@ async function menu(token, { kid, lang, device } = {}) {
   return {
     form: `G${w.form}`,
     lang: w.lang,
-    exercises: (rules.pool ? TRAIL_ORDER.map(byId) : EXERCISES).filter((e) => (e.id !== 'read' || readOk) && (e.id !== 'listen' || listenOk) && (e.id !== 'missing' || rules.missing)).map((e) => {
+    exercises: (rules.pool ? TRAIL_ORDER.map(byId) : EXERCISES).filter((e) => !w.round || ROUND_GAMES.includes(e.id)).filter((e) => (e.id !== 'read' || readOk) && (e.id !== 'listen' || listenOk) && (e.id !== 'missing' || rules.missing)).map((e) => {
       const last = runs.find((r) => r.exercise === e.id) || null;
       const done = trailNow ? trailNow.find((t) => t.stop === e.id).record_row_final : !!last;
       // the record rule: done from the first counted run, and the menu is not a report — no number on it.
@@ -654,6 +657,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   // grade-1 form: 'numbers' exists only with its switches on; a grade-1 child gets only that stop (else 404 as today)
   if (!def && !(ex === Grade1.EXERCISE && (await Grade1.on()))) fail(404, 'not_found');
   const w = await who(token, { kid, lang, device });
+  if (w.round && !ROUND_GAMES.includes(ex)) fail(404, 'not_found'); // class round: the tap games only
   if (w.form === Grade1.FORM || !def) {   // grade-1 form: served there; its ch_start leaves by the one call site below
     const g1 = await Grade1.exercise(w, ex, { device, mode: (arguments[2] || {}).mode });
     await emitChStart(g1.startEv, g1.run, w.studentId);
@@ -670,22 +674,26 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   const task = def.task(w.lang);
   let spec = Bank.getTaskSpec({ grade: Number(w.form), set: 'A', task });
   // challenge v2: what is served (drawn under _pool) and its row, decided before the token; "on its way" serves nothing
+  // class round: the turn's mode (decided by the server from the position) and the round's class go to the serve,
+  // which is the one writer of the row; a round needs _v2 and plays each game once per term
+  if (w.round && (!rules.v2 || !(await require('./web-quiz-class-round').claimFor(w.round, w.studentId, ex)))) fail(409, 'already_done');
   // standing class link (web_quiz_class_link): a class-link pick is served via 'class_link' in the link's class, the teacher's own visit as practice
-  const asked = w.cl ? require('./web-quiz-class-link').serveArgs(w, arguments[2]) : { w, mode: (arguments[2] || {}).mode, classId: (arguments[2] || {}).classId };
+  const asked = w.round ? { w, mode: w.roundMode, classId: w.classId }
+    : w.cl ? require('./web-quiz-class-link').serveArgs(w, arguments[2]) : { w, mode: (arguments[2] || {}).mode, classId: (arguments[2] || {}).classId };
   const v2 = rules.v2 ? await serveV2(asked.w, ex, rules, { mode: asked.mode, classId: asked.classId, device }) : null;   // mode: 'practice' from a caller (Story Time)
   if (v2 && v2.on_its_way) return { ex, on_its_way: true, draw: { outcome: 'on_its_way' }, copy: { ...Draw().ON_ITS_WAY_COPY } };
   if (v2 && v2.formNum !== w.form) spec = Bank.getTaskSpec({ grade: Number(v2.formNum), set: 'A', task });   // M8: the fixed grade's form
   const runId = v2 ? v2.runId : crypto.randomUUID();
-  const ct = T.signChallenge({ studentId: w.studentId, ex, runId });
+  const ct = T.signChallenge({ studentId: w.studentId, ex, runId, ...(w.round ? { round: w.round, mode: w.roundMode } : {}) });
   RUNS.set(runId, { status: 'open', grade: w.grade, form: w.form, lang: w.lang, task, gradeSource: w.gradeSource, test: w.test, ...(v2 ? { v2: v2.mem, ...v2.top } : {}), ...(w.cl ? { cl: w.cl } : {}) });
   if (v2) await v2.store();
   const startEv = { step: ex, grade: w.grade, run: runId, ...(v2 ? v2.event : {}) };
   // the measurement envelope reads the run's v2 fields (kid from canonical_id) over the event's: the run as served
   await emitChStart(startEv, v2 ? { ...RUNS.get(runId), ...v2.event, canonical_id: v2.top.canonical_id } : RUNS.get(runId), w.studentId);
   // On the trail a stop already played (its first counted run exists) is a practice round: the page says so.
-  const practiceRound = (rules.trail ? (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).attempt_no > 1 : false) || !!(v2 && rules.trail && v2.mem.mode === 'practice');
+  const practiceRound = !w.round && ((rules.trail ? (await attemptInfo(w.studentId, ex, ex === 'read' ? w.lang : null)).attempt_no > 1 : false) || !!(v2 && rules.trail && v2.mem.mode === 'practice'));
   const base = { ex, name: nameOf(ex, w.lang), lang: w.lang, ct, clips: await clipsFor(ex, w.lang), ...ruleFlags(rules), ...(rules.guard ? { copy: copyFor(w.lang) } : {}),
-    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? v2.payload : {}), ...(await TrailPage.bits()) };
+    ...(rules.trail ? { trail: true, trail_copy: trailCopy(w.lang), ...(practiceRound ? { practice_round: true } : {}) } : {}), ...(v2 ? roundPayload(w, v2.payload) : {}), ...(await TrailPage.bits()) };
   if (ex === 'missing' && v2 && v2.items) {
     // the A1 warm-up: the same 10 items in the same order on both forms, no 4-error stop; the try-out after item 10
     const p3 = Bank.getTaskSpec({ grade: 3, set: 'A', task: 'ma.missing' });
@@ -1187,6 +1195,26 @@ async function scoreRead(run, key, ext, ms, { Bank, media, scoreTask }, rules = 
   }
 }
 
+// ── class round (web_quiz_class_round) ──
+// The round's games: the two tap games ("Missing number" only while its own switch is on). A child is done once each
+// is stored for their open turn.
+const ROUND_GAMES = Object.freeze(['bigger', 'missing']);
+async function roundGame(c, rules) {
+  try {
+    await require('./web-quiz-class-round').gameStored(c.cr, c.sid, c.ex, c.r, { games: rules.missing ? ROUND_GAMES : ['bigger'] });
+  } catch (err) {
+    logToFile('⚠️ class round: game not recorded on the round', { run: c.r, error: err.message }, 'warn');
+  }
+}
+// A round turn's page: nothing on it marks the counted cut (no practice banner, no mode), and it carries the same
+// warm line for after every item.
+function roundPayload(w, payload) {
+  if (!w.round) return payload;
+  const { practice_round: _p, mode: _m, ...rest } = payload;
+  return { ...rest, round_say: require('../../templates/class-round.page').T[clampLanguage(w.lang, ['en', 'ur'])].cNextSay };
+}
+// ── end class round ──
+
 function runOf(ct) {
   const c = T.verify(ct, 'c');
   if (!c || !c.r || !c.sid || !byId(c.ex)) fail(401, 'bad_token');
@@ -1419,6 +1447,10 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
   const g1Run = Grade1.challengeOf(body.ct);   // grade-1 form: its run token scores there
   if (g1Run) return Grade1.submit(g1Run, body);
   const c = runOf(body.ct);
+  // class round: the claim finishes a run only during this child's open turn (one round run per child per game per
+  // term; the token's mode must be the one the server chose); the row's columns were written at the serve
+  const claim = c.cr ? await require('./web-quiz-class-round').claimFor(c.cr, c.sid, c.ex, c.r) : null;
+  if (c.cr && (!claim || claim.mode !== c.cm)) fail(401, 'bad_token');
   const rules = await rulesOf();
   let CT;
   try { CT = childTest({ scorer: c.ex === 'read' }); } catch (e) {
@@ -1461,6 +1493,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
     await measureOutcome(c.r);
     await renewBindings(c.sid);
     await lightIfFirst(c.r);
+    if (c.cr) await roundGame(c, rules);
     logEvent('web_quiz.ch_done', { step: 'missing', count: score.correct, count_5s: score.correct_5s, n: score.n, stopped: score.stopped, run: c.r });
     return result;
   }
@@ -1485,6 +1518,7 @@ async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
     await measureOutcome(c.r);
     await renewBindings(c.sid);
     await lightIfFirst(c.r);
+    if (c.cr) await roundGame(c, rules);
     logEvent('web_quiz.ch_done', { step: 'bigger', count: score.correct, n: score.n, stopped: score.stopped, run: c.r });
     return result;
   }

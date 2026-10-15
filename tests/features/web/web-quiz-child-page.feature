@@ -1886,3 +1886,55 @@ Feature: Web child quiz page on the portal
     Then the class tab comes back with a new link, and the old link opens only the page an unknown code gets
     And another teacher cannot make a new link for this class, and no message is sent
     But with the switch off the class tab is byte-identical to today's and "Make a new link" changes nothing
+  @T834
+  Scenario: The teacher whose class was drawn this term sees the class round card and starts the round
+    Given app_settings "web_quiz_class_round", "web_quiz_challenge_v2" and "web_quiz_challenge" are true
+    And the teacher's class has an open class round draw this term
+    When the teacher opens "All my classes" from their report link
+    Then the first card says "This term's class round", "Your class was drawn this term. About a minute per child, one at a time, on your phone. You can continue another day." and "Nothing about this class is ever reported by name.", with "Start the round"
+    When the teacher taps "Start the round"
+    Then the server fixes a random order of the class's children once, and the round page lists each child by first name
+    And only the teacher's screen says "4 of 30 done, 1 absent"
+
+  @T835
+  Scenario: Absent is marked, never skipped, and the next child needs a long press
+    Given the teacher has started the class round
+    When the teacher taps "Mark absent" beside a child
+    Then that child stays on the list, struck through
+    When the teacher taps "Hold to call the next child" without holding
+    Then no child is called
+    When the teacher holds it for more than half a second
+    Then the next child still to play is called and the phone shows "<name>'s turn"
+
+  @T836
+  Scenario: The child's screens never lead back to the teacher's and remember nothing
+    Given a child's turn is open on the teacher's phone
+    When the child presses Back, or the teacher's screen is asked for
+    Then the child's screen stays, listing "Still to play:" and the children already "Done ✓", with no count
+    And under "<name>'s turn" it says "Two games, just tapping. If you'd rather not, that's fine."
+    And after the games it says "Thanks for playing! Hand the phone to your teacher.", the ticks kept
+    And only holding "Give the phone back" returns to the teacher's screen
+    And no round screen writes local storage, session storage or a cookie, or offers to keep a place
+
+  @T837
+  Scenario: With the class round off nothing changes
+    Given app_settings "web_quiz_class_round" (or "web_quiz_challenge_v2") is false or absent
+    When the teacher opens the report, or any "/r/<token>/round" address
+    Then the report is byte-identical to today's and has no round card
+    And every round address answers the report's own "not found" page
+
+  @T838
+  Scenario: The class round follows the term's draw: ten counted turns, a child's "not today", pause, and "Not this term"
+    Given my class is in this term's draw and today is inside its round window
+    When I mark a child "not today" on my screen
+    Then the child stays in place on my screen only, is never called or asked again, and no child's screen shows it
+    When I pause for today and come back another day inside the window
+    Then the order and every mark are as I left them
+    And the first ten turns in the order count and later children play the same games as practice, with nothing on screen showing the difference
+    And the round closes only when I hold "next" with nobody left, or at the window's end, never by itself
+    But a claim outside the window, after the round closed, or a second round run for the same child in the term stores nothing
+    And from the draw until the window's end, before starting, "Not this term" on the card closes the round for the term with one tap and sends no message
+    And before the window opens the card offers "Not this term" but not "Start the round"; after the window's end it offers neither
+    And when the round closes my screen says "Your class took part. Thank you!" with no count
+    And the draw row then holds the counted positions, the present ones among them and, per position bin only, how many played, scored none or were rapid
+    # every control renders only while its string exists in the page's copy (jg.round.t_declined, t_pause, t_resume, t_not_this_term)
