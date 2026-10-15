@@ -9,6 +9,8 @@
  *   POST /r/:token/class   the page's no-JS "Which class was this for?" form
  *   POST /r/:token/fix     the page's no-JS forms for a typed child not on the list
  *                          (both answered by the bot with a 303 back to the report)
+ *   GET  /r/:token/round   the class round's locked mode (web_quiz_class_round; the bot's 404 while off)
+ *   POST /r/:token/round/{start,absent,declined,pause,resume,next,teacher,not-this-term}  its no-JS forms (303 back to /r/ only)
  *
  * Like /q/:code, the edge never touches the database: it checks the token's shape,
  * forwards only the query keys the bot reads, and calls the bot with the internal key
@@ -123,11 +125,45 @@ function createTeacherReportRouter(opts = {}) {
     };
   }
 
+  // ── class round: GET the round screen, POST its no-JS forms (pos, or the long-press's act/hold); 303s back to /r/ only ──
+  async function forwardRound(req, res, act = null) {
+    const lang = req.query.lang === 'ur' || req.query.lang === 'en' ? req.query.lang : null;
+    const fail = (status, k) => res.status(status).type('html').send(renderMessagePage({ kind: k, lang }));
+    const token = String(req.params.token || '');
+    if (!TOKEN_RX.test(token)) return fail(404, 'incomplete');
+    if (!botUrl || !apiKey) return fail(503, 'error');
+    const isPost = !!act;
+    const body = {};
+    if (isPost) {
+      const b = req.body || {};
+      if (typeof b.pos === 'string' && /^\d{1,3}$/.test(b.pos)) body.pos = b.pos;
+      if (b.act === 'hold') body.act = 'hold';
+      if (typeof b.hold === 'string' && /^\d{1,6}$/.test(b.hold)) body.hold = b.hold;
+    }
+    const path = `/api/internal/tr/round/${token}${isPost ? `/${act}` : ''}${lang ? `?lang=${lang}` : ''}`;
+    let out;
+    try {
+      out = await callBot(isPost ? 'POST' : 'GET', path, req, isPost ? body : null, { raw: true });
+    } catch (_) {
+      return fail(502, 'error');
+    }
+    if (out.status === 303 && out.location && out.location.startsWith(`${REPORT_PATH}/`)) return res.redirect(303, out.location);
+    if (out.status >= 300 && out.status < 400) return fail(502, 'error');
+    if (out.status >= 500) return fail(502, 'error');
+    return res.status(out.status).type(out.contentType || 'text/html; charset=utf-8').send(out.bytes || Buffer.alloc(0));
+  }
+
   router.get(`${REPORT_PATH}/:token`, privateHeaders, limiter, forward('page'));
   router.post(`${REPORT_PATH}/:token/class`, privateHeaders, limiter, form, forwardForm('class'));
   router.post(`${REPORT_PATH}/:token/fix`, privateHeaders, limiter, form, forwardForm('fix'));
   router.get(`${REPORT_PATH}/:token/pdf`, privateHeaders, limiter, forward('pdf'));
   router.get(`${REPORT_PATH}/:token/remind`, privateHeaders, limiter, forward('remind'));
+  // ── class round (web_quiz_class_round): the locked round mode; the bot answers its own 404 while off ──
+  router.get(`${REPORT_PATH}/:token/round`, privateHeaders, limiter, (req, res) => forwardRound(req, res, null));
+  ['start', 'absent', 'declined', 'pause', 'resume', 'next', 'teacher', 'not-this-term'].forEach((act) => {
+    router.post(`${REPORT_PATH}/:token/round/${act}`, privateHeaders, limiter, form, (req, res) => forwardRound(req, res, act));
+  });
+  // ── end class round ──
   return router;
 }
 

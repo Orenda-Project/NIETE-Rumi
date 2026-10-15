@@ -108,12 +108,15 @@ router.get('/page/:token', handle(async (req, res) => {
   if (!v) return;
   const b = await build(req, v);
   if (!b) { notFound(req, res, v); return; }
+  // ── class round (web_quiz_class_round): its card on the class tab; '' when off or no open draw ──
+  const roundCard = b.tab === 'class' ? await require('../services/quiz/web-quiz-class-round').cardFor(v.teacherId, { lang: b.lang, token: req.params.token }) : '';
   logEvent('teacher_report.opened', {
     teacherId: v.teacherId, quizId: v.quizId, scope: v.quizId ? 'quiz' : 'all', tab: b.tab, iab: IAB_RX.test(req.get('user-agent') || ''),
   });
   noStore(res);
   res.status(200).type('html').send(renderPage(b.data, {
     lang: b.lang, tab: b.tab, scope: v.quizId ? 'quiz' : 'all', tokens: b.tokens, notice: NOTICES[req.query.e] || null, ok: okOf(req.query),
+    ...(roundCard ? { roundCard } : {}),
   }));
 }));
 
@@ -244,5 +247,9 @@ router.post('/fix/:token', handle(async (req, res) => {
   const no = row && Number.isInteger(Number(row.roll)) && row.roll !== null ? Number(row.roll) : null;
   back(req, res, out, { kind: add ? 'added' : 'moved', no });
 }));
+
+// ── class round (web_quiz_class_round): the locked round mode; every route is the report's 404 while off ──
+router.use('/round', require('./class-round-internal.routes')({ page, noStore, queryLang }));
+// ── end class round ──
 
 module.exports = router;
