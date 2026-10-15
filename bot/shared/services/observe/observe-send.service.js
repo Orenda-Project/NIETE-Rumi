@@ -35,6 +35,60 @@ const BTN = {
 };
 const TEMPLATE_PAYLOAD_PREFIX = 'observe_report_';
 
+// ── Interactive sends in the send flow: checked, retried once, never left unseen ──────────────────
+//
+// WhatsAppService.sendInteractiveMessage / sendInteractiveButtons answer false on a refused send. Every
+// interactive send in this flow used to ignore that. On the sandbox E2E (15 Oct 2026) Meta answered
+// "Someone else"'s roster list with 500 #131000; the code logged "roster pick offered", the state waited
+// for a tap on a list the coach never got, and the coach saw nothing for five minutes. Now a refused send
+// is retried once; a second refusal is logged at error with Meta's code, and the caller falls back to a
+// plain-text step, which always reaches the coach (they have just written to us).
+const SEND_RETRY_PAUSE_MS = 800;
+
+/**
+ * @param {'list'|'buttons'} kind
+ * @param {string} to
+ * @param {object} payload
+ * @param {{what?: string, sessionId?: string}} [meta]
+ * @returns {Promise<boolean>} true when WhatsApp took the message
+ */
+async function sendInteractiveChecked(kind, to, payload, meta = {}) {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    let refusal = null;
+    const opts = { onError: (err) => { refusal = err; } };
+    // eslint-disable-next-line no-await-in-loop
+    const sent = kind === 'list'
+      ? await WhatsAppService.sendInteractiveMessage(to, payload, opts)
+      : await WhatsAppService.sendInteractiveButtons(to, payload, opts);
+    if (sent !== false) return true;
+    logToFile('❌ observe send: an interactive message was refused by WhatsApp', {
+      what: meta.what || kind, sessionId: meta.sessionId || null, attempt, metaErrorCode: metaErrorCodeOf(refusal),
+    }, 'error');
+    // eslint-disable-next-line no-await-in-loop
+    if (attempt === 1) await new Promise((resolve) => setTimeout(resolve, SEND_RETRY_PAUSE_MS));
+  }
+  return false;
+}
+
+// The teacher pick could not be shown: ask for the details as text, exactly as for an empty roster.
+async function askTeacherDetails(user, from, sessionId, S, why) {
+  await ObserveState.setState(user.id, 'awaiting_teacher_details', { sessionId });
+  const sent = await WhatsAppService.sendMessage(from, S.send_ask_details);
+  if (sent === false) {
+    logToFile('❌ observe send: the text ask for the teacher\'s details was refused too', { sessionId, observerId: user.id, why }, 'error');
+    return;
+  }
+  logToFile('📤 observe send: a list was refused, so the teacher\'s details were asked as text', { sessionId, observerId: user.id, why }, 'warn');
+}
+
+// The roster pick list; on a second refusal, the text ask. True when the list went out. The roster
+// snapshot is already in the state, so a tap resolves against exactly what was shown.
+async function offerTeacherPick(user, from, sessionId, teachers, S, offset = 0) {
+  const shown = await sendInteractiveChecked('list', from, buildTeacherPickPayload(teachers, S, offset), { what: 'roster pick list', sessionId });
+  if (!shown) await askTeacherDetails(user, from, sessionId, S, 'roster_pick_refused');
+  return shown;
+}
+
 // bd-dy7hs — "whose language is this?" has ONE owner now (bd-04m67). The market
 // table, the clamp and the teacher/coach resolution all live in
 // observe-language.js; this file just names the audience.
@@ -287,10 +341,11 @@ async function startSendFlow(sessionId, from, user) {
     // bd-qq7wb: snapshot the FULL roster once; every page's row ids carry the
     // global index into this snapshot, so pagination can never mis-resolve.
     await ObserveState.setState(user.id, 'awaiting_teacher_pick', { sessionId, teachers });
-    await WhatsAppService.sendInteractiveMessage(from, buildTeacherPickPayload(teachers, S));
-    logToFile('📤 observe send: roster pick offered', {
-      sessionId, observerId: user.id, rosterSize: teachers.length, bound: isBound(session),
-    });
+    if (await offerTeacherPick(user, from, sessionId, teachers, S)) {
+      logToFile('📤 observe send: roster pick offered', {
+        sessionId, observerId: user.id, rosterSize: teachers.length, bound: isBound(session),
+      });
+    }
     return;
   }
   await ObserveState.setState(user.id, 'awaiting_teacher_details', { sessionId });
@@ -316,10 +371,11 @@ async function handleSendOther(sessionId, from, user) {
     return;
   }
   await ObserveState.setState(user.id, 'awaiting_teacher_pick', { sessionId, teachers });
-  await WhatsAppService.sendInteractiveMessage(from, buildTeacherPickPayload(teachers, S));
-  logToFile('📤 observe send: someone-else chosen, roster pick offered', {
-    sessionId, observerId: user.id, rosterSize: teachers.length,
-  });
+  if (await offerTeacherPick(user, from, sessionId, teachers, S)) {
+    logToFile('📤 observe send: someone-else chosen, roster pick offered', {
+      sessionId, observerId: user.id, rosterSize: teachers.length,
+    });
+  }
 }
 
 /**
@@ -420,15 +476,15 @@ async function handleTeacherPick(user, from, listId) {
     const { getRoster } = require('./observe-roster');
     const roster = await getRoster(user);
     await ObserveState.setState(user.id, 'awaiting_teacher_manage', { sessionId, teachers: roster });
-    await WhatsAppService.sendInteractiveMessage(from, buildTeacherManagePayload(roster, S));
+    const shown = await sendInteractiveChecked('list', from, buildTeacherManagePayload(roster, S), { what: 'teacher manage list', sessionId });
+    if (!shown) await askTeacherDetails(user, from, sessionId, S, 'manage_list_refused');
     return true;
   }
   // bd-qq7wb pagination: "More teachers…" re-renders the next page from the
   // same snapshot. Checked before the numeric parse (parseInt('more_7') = NaN).
   if (listId.startsWith('observe_pickt_more_')) {
     const nextOffset = parseInt(listId.replace('observe_pickt_more_', ''), 10) || 0;
-    await WhatsAppService.sendInteractiveMessage(
-      from, buildTeacherPickPayload(state.teachers || [], S, nextOffset));
+    await offerTeacherPick(user, from, sessionId, state.teachers || [], S, nextOffset);
     return true;
   }
   const idx = parseInt(listId.replace('observe_pickt_', ''), 10);
@@ -762,13 +818,14 @@ async function handleTeacherManage(user, from, listId) {
   }
   await ObserveState.setState(user.id, 'awaiting_teacher_manage_confirm',
     { sessionId: state.sessionId, teachers: state.teachers });
-  await WhatsAppService.sendInteractiveButtons(from, {
+  const shown = await sendInteractiveChecked('buttons', from, {
     body: S.manage_confirm_body.replace('{name}', t.name).replace('{phone}', `+${t.phone}`),
     buttons: [
       { id: `observe_tmg_rm_${idx}`, title: S.manage_remove_btn.slice(0, 20) },
       { id: 'observe_tmg_back', title: S.manage_back_btn.slice(0, 20) },
     ],
-  });
+  }, { what: 'remove/back buttons', sessionId: state.sessionId });
+  if (!shown) await askTeacherDetails(user, from, state.sessionId, S, 'manage_buttons_refused');
   return true;
 }
 
@@ -1012,11 +1069,13 @@ async function _handlePreviewUnavailable(sessionId, foPhone, S, delivery, { port
     sessionId, portal: !!portal,
   });
   if (portal || !foPhone) return;
-  await WhatsAppService.sendInteractiveButtons(foPhone, {
-    body: String(S.send_preview_failed_fo).replace('{name}', String(delivery.teacher_name || '').trim())
-      .replace(/[ \t]{2,}/g, ' '),
+  const name = String(delivery.teacher_name || '').trim();
+  const shown = await sendInteractiveChecked('buttons', foPhone, {
+    body: String(S.send_preview_failed_fo).replace('{name}', name).replace(/[ \t]{2,}/g, ' '),
     buttons: [{ id: `${BTN.retry}${sessionId}`, title: String(S.btn_regenerate_report).slice(0, 20) }],
-  });
+  }, { what: 'regenerate button', sessionId });
+  // No button: the same news, and the way back that needs none (the /observe list re-runs the preview).
+  if (!shown) await WhatsAppService.sendMessage(foPhone, String(S.send_preview_failed_text).replace('{name}', name).replace(/[ \t]{2,}/g, ' '));
 }
 
 /**
@@ -1181,11 +1240,12 @@ async function processTeacherReport(sessionId, payload = {}) {
     // The FO sees EXACTLY what the teacher would receive (D33)…
     await _sendPackage(foPhone, png, teacherCaption, companionText);
     // …then decides.
-    await WhatsAppService.sendInteractiveButtons(
-      foPhone, buildSendConfirmButtons(sessionId, S, {
-        name: delivery.teacher_name, phone: delivery.teacher_phone,
-      }));
-    logToFile('🔎 observe send: preview delivered to FO', { sessionId });
+    const asked = await sendInteractiveChecked('buttons', foPhone, buildSendConfirmButtons(sessionId, S, {
+      name: delivery.teacher_name, phone: delivery.teacher_phone,
+    }), { what: 'send buttons', sessionId });
+    // No buttons: say so, and the way back (the /observe list re-runs the preview with its buttons).
+    if (!asked) await WhatsAppService.sendMessage(foPhone, S.send_confirm_unavailable);
+    logToFile('🔎 observe send: preview delivered to FO', { sessionId, buttons: asked });
     return;
   }
 

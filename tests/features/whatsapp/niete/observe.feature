@@ -1200,6 +1200,20 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # (one key per session and phase). coaching-job-queue.service.js queueObserveTeacherReport now
     # tells previews apart by the teacher's number; the same teacher twice is still one job.
 
+  @e2e @flow @config-gated @destructive @wip @draft @negative @P1
+  Scenario: When WhatsApp refuses the list of my teachers, I am asked to type the details instead
+    Given I tapped "Someone else" on the report preview
+    And WhatsApp refuses the list of my teachers twice
+    Then the bot asks me to type the teacher's name and number in one message
+    When I type them
+    Then the preview for that teacher arrives
+    # Sandbox E2E 15 Oct: Meta answered the roster list with 500 #131000, the code logged "roster pick
+    # offered", and nothing reached the coach for five minutes. observe-send.service.js
+    # sendInteractiveChecked: one retry, then the text ask; the refusal is logged at error with Meta's code.
+    # The same holds for "Send report"'s list, "More teachers…", the manage list and its buttons. Refused
+    # Send buttons after the preview become a line saying the report is ready and to pick it from /observe;
+    # a refused Regenerate button, the same news with the same way back.
+
   @e2e @config-gated @wip @draft @negative @P2
   Scenario: A teacher's /observe2 is refused
     Given the NIETE bot chat is open on a TEACHER account on sandbox
