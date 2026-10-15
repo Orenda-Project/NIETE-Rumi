@@ -19,7 +19,7 @@
  * `runMonthly({ period_id, now })` is the entry point for whichever daily/monthly job calls it after a period
  * closes. No scheduler is wired here.
  *
- * The pure core (no I/O) is exported for tests: calibrationSample, proposeLink, entryVsPromoted, referenceDrift,
+ * The pure core (no I/O) is exported for tests: calibrationSample, proposeLink, entryVsPromoted, referenceDrift, redLineGap,
  * stuckShare, itemResponses, raschFloors (a small anchored one-parameter JMLE, no library).
  */
 const crypto = require('crypto');
@@ -38,7 +38,9 @@ const LINEAR_FLOOR = 400;
 const MIN_GAP_SD = 0.1;
 const EVP_MIN = 30;
 const EVP_MAX_SD = 0.1;
-const REF_DRIFT_SD = 0.3;
+const REF_DRIFT_SD = 0.3; // the red line (shared test vectors: tests/quiz/web-quiz/fixtures/red_line_vectors.json)
+const RED_LINE_MIN_N = 30;
+const RED_LINE_DECIMALS = 6;
 const STUCK_N = 20;
 const STUCK_SHARE = 0.25;
 const STUCK_MEDIAN_FROM = 3;
@@ -55,8 +57,30 @@ const variance = (xs) => {
   const m = mean(xs);
   return xs.reduce((a, b) => a + (b - m) ** 2, 0) / (xs.length - 1);
 };
-const pooledSd = (a, b) => Math.sqrt((variance(a) + variance(b)) / 2);
+// The one pooled SD: sample variances (n − 1) weighted by their degrees of freedom.
+const pooledSd = (a, b) => {
+  const df = a.length + b.length - 2;
+  if (df <= 0) return 0;
+  return Math.sqrt(((a.length - 1) * variance(a) + (b.length - 1) * variance(b)) / df);
+};
 const gapSd = (a, b) => { const s = pooledSd(a, b); return s > 0 ? (mean(a) - mean(b)) / s : 0; };
+const roundTo = (x, d) => { const k = 10 ** d; const r = Math.sign(x) * Math.round(Math.abs(x) * k) / k; return r === 0 ? 0 : r; };
+
+/**
+ * The red line, one helper (shared test vectors: tests/quiz/web-quiz/fixtures/red_line_vectors.json).
+ * a = the reference side, b = the compared side; gap_sd = (mean b − mean a) / pooled SD, rounded to 6 places, so a
+ * positive gap means b is above a. Null when either side has fewer than 30 values or the pooled SD is 0. sign '+',
+ * '-', or null (0 or null); suspended = |gap_sd| > 0.3 (exactly 0.3 is not), null when the gap is null.
+ */
+function redLineGap(a, b) {
+  const xa = a || []; const xb = b || [];
+  const out = { gap_sd: null, sign: null, suspended: null, n_a: xa.length, n_b: xb.length };
+  if (xa.length < RED_LINE_MIN_N || xb.length < RED_LINE_MIN_N) return out;
+  const s = pooledSd(xa, xb);
+  if (!(s > 0)) return out;
+  const g = roundTo((mean(xb) - mean(xa)) / s, RED_LINE_DECIMALS);
+  return { ...out, gap_sd: g, sign: g > 0 ? '+' : g < 0 ? '-' : null, suspended: Math.abs(g) > REF_DRIFT_SD };
+}
 const median = (xs) => {
   if (!xs.length) return null;
   const s = [...xs].sort((a, b) => a - b);
@@ -180,13 +204,17 @@ function evpDecision(evp) {
   return evp.entrants_only ? { entrants_only: true, sd: evp.sd, evp_reason: 'gap' } : { entrants_only: false, sd: evp.sd, evp_reason: 'pooled' };
 }
 
-/** ITEMS §6.7: the reference this period vs the prior quarter, same cell. Past 0.3 SD is a line for review, never a rule. */
+/**
+ * ITEMS §6.7: the reference this period vs the prior quarter, same cell, through the one red-line helper (the prior
+ * quarter is the reference side, so a positive gap means the passage read higher this period). Past 0.3 SD is a line
+ * for review, never a rule. Null under 30 a side or with no spread.
+ */
 function referenceDrift(refThisPeriod, refPriorQuarter) {
-  const a = ((refThisPeriod && refThisPeriod.readings) || []).map((r) => r.value);
-  const b = ((refPriorQuarter && refPriorQuarter.readings) || []).map((r) => r.value);
-  if (a.length < 2 || b.length < 2) return null;
-  const gap_sd = gapSd(a, b);
-  return { gap_sd, n_this: a.length, n_prior: b.length, escalate: Math.abs(gap_sd) > REF_DRIFT_SD };
+  const now = ((refThisPeriod && refThisPeriod.readings) || []).map((r) => r.value);
+  const prior = ((refPriorQuarter && refPriorQuarter.readings) || []).map((r) => r.value);
+  const g = redLineGap(prior, now);
+  if (g.gap_sd === null) return null;
+  return { gap_sd: g.gap_sd, sign: g.sign, n_this: now.length, n_prior: prior.length, escalate: g.suspended };
 }
 
 // ---------------------------------------------------------------- passages: stuck share
@@ -591,7 +619,7 @@ async function runMonthly({ period_id, now = new Date() } = {}) {
     if (prior.length) {
       const drift = referenceDrift(sampleOf(ref, period_id, period_id), sampleOf(ref, prior[0], prior[prior.length - 1]));
       if (drift && drift.escalate) {
-        result.escalations.push({ kind: 'reference_drift', passage_id: ref.passage_id, lang: ref.lang, band: Number(ref.band), gap_sd: drift.gap_sd, n_this: drift.n_this, n_prior: drift.n_prior });
+        result.escalations.push({ kind: 'reference_drift', passage_id: ref.passage_id, lang: ref.lang, band: Number(ref.band), gap_sd: drift.gap_sd, sign: drift.sign, n_this: drift.n_this, n_prior: drift.n_prior });
         s.drift_flags += 1;
         bump('reference_drift');
       }
@@ -627,6 +655,6 @@ async function runMonthly({ period_id, now = new Date() } = {}) {
 
 module.exports = {
   SWITCH, PROPOSED_BY,
-  calibrationSample, proposeLink, entryVsPromoted, referenceDrift, stuckShare, itemResponses, raschFloors,
+  calibrationSample, proposeLink, entryVsPromoted, referenceDrift, redLineGap, stuckShare, itemResponses, raschFloors,
   isImplausible, runMonthly,
 };

@@ -12,6 +12,8 @@ jest.mock('../../../shared/utils/logger', () => ({ logToFile: jest.fn(), logErro
 jest.mock('../../../shared/utils/structured-logger', () => ({ logEvent: jest.fn(), getCurrentCorrelationId: () => null }));
 
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const { makeFake } = require('./fake-supabase');
 const supabase = require('../../../shared/config/supabase');
 const { logEvent } = require('../../../shared/utils/structured-logger');
@@ -251,17 +253,59 @@ describe('entryVsPromoted: band 2 only; under 30 a side it says the check was no
   });
 });
 
-describe('referenceDrift: an escalation line past 0.3 SD, never a rule', () => {
-  test('0.4 SD → escalate; 0.2 SD → not', () => {
-    expect(Cal.referenceDrift(sample(two(50, 54, 10)), sample(two(150, 50, 10)))).toMatchObject({ escalate: true });
-    expect(Cal.referenceDrift(sample(two(50, 52, 10)), sample(two(150, 50, 10)))).toMatchObject({ escalate: false });
+describe('redLineGap: the one 0.3 SD red-line helper, checked against the shared test vectors', () => {
+  const FIXTURE = path.join(__dirname, 'fixtures', 'red_line_vectors.json');
+  const SHA = 'af2daac311cde70f92a7b348cf244468b55b08ca72d3964ad2496dc9eff11a96';
+  const raw = fs.readFileSync(FIXTURE);
+  const spec = JSON.parse(raw.toString('utf8'));
+  test('the vector file is byte-identical to the shared contract copy', () => {
+    expect(crypto.createHash('sha256').update(raw).digest('hex')).toBe(SHA);
+    expect(spec.vectors).toHaveLength(14);
+    expect(spec).toMatchObject({ line_sd: 0.3, min_n_each_side: 30, decimals: 6 });
+  });
+  test.each(spec.vectors.map((v) => [v.name, v]))('%s', (_name, v) => {
+    const out = Cal.redLineGap(v.a, v.b);
+    expect(out.n_a).toBe(v.a.length);
+    expect(out.n_b).toBe(v.b.length);
+    expect(out.sign).toBe(v.expect.sign);
+    expect(out.suspended).toBe(v.expect.suspended);
+    if (v.expect.gap_sd === null) expect(out.gap_sd).toBeNull();
+    else expect(Math.abs(out.gap_sd - v.expect.gap_sd)).toBeLessThanOrEqual(1e-9);
+  });
+});
+
+describe('referenceDrift: an escalation line past 0.3 SD, never a rule (through redLineGap)', () => {
+  test('0.4 SD → escalate; 0.2 SD → not; the sign is on the line', () => {
+    expect(Cal.referenceDrift(sample(two(50, 54, 10)), sample(two(150, 50, 10)))).toMatchObject({ escalate: true, sign: '+' });
+    expect(Cal.referenceDrift(sample(two(50, 52, 10)), sample(two(150, 50, 10)))).toMatchObject({ escalate: false, sign: '+' });
     // two-sided: a reference that got 0.4 SD HARDER is escalated too
     const down = Cal.referenceDrift(sample(two(50, 46, 10)), sample(two(150, 50, 10)));
     expect(down.gap_sd).toBeLessThan(-0.3);
-    expect(down).toMatchObject({ escalate: true });
+    expect(down).toMatchObject({ escalate: true, sign: '-', n_this: 50, n_prior: 150 });
   });
-  test('nothing to compare → null', () => {
+  test('the gap is the one red-line gap (this period vs the prior quarter as the reference side)', () => {
+    const a = two(150, 50, 10); const b = two(50, 54, 10);
+    const d = Cal.referenceDrift(sample(b), sample(a));
+    expect(d.gap_sd).toBe(Cal.redLineGap(a, b).gap_sd);
+  });
+  test('under 30 on either side → null, never a line', () => {
+    expect(Cal.referenceDrift(sample(two(29, 60, 10)), sample(two(150, 50, 10)))).toBeNull();
+    expect(Cal.referenceDrift(sample(two(150, 60, 10)), sample(two(29, 50, 10)))).toBeNull();
+    expect(Cal.referenceDrift(sample(two(30, 60, 10)), sample(two(30, 50, 10)))).toMatchObject({ escalate: true, sign: '+' });
+  });
+  test('nothing to compare, or no spread → null', () => {
     expect(Cal.referenceDrift(sample([]), sample(two(10, 50, 10)))).toBeNull();
+    expect(Cal.referenceDrift(sample(two(40, 50, 0)), sample(two(40, 51, 0)))).toBeNull();
+  });
+});
+
+describe('one pooled SD: the entry-vs-promoted 0.1 SD rule uses the same pooled function as the red line', () => {
+  test('unequal sides: the entry-vs-promoted SD equals the red-line gap (sign reversed: entrants minus promoted)', () => {
+    const e = [...two(30, 50, 10), ...two(30, 50, 4)];
+    const pr = two(90, 51, 10);
+    const mk = [...e.map((value) => ({ value, band_reason: 'entry_grade' })), ...pr.map((value) => ({ value, band_reason: 'promoted' }))];
+    const out = Cal.entryVsPromoted({ band: 2, readings: mk });
+    expect(out.sd).toBeCloseTo(-Cal.redLineGap(e, pr).gap_sd, 6);
   });
 });
 
@@ -595,7 +639,7 @@ describe('runMonthly: link proposals', () => {
     addReads(runs(REF, two(60, 54, 10)));
     addReads(runs(REF, two(120, 50, 10), { period_id: '2026-10' }));
     const out = await Cal.runMonthly({ period_id: '2026-12', now: NOW });
-    expect(out.escalations).toEqual(expect.arrayContaining([expect.objectContaining({ passage_id: REF, kind: 'reference_drift' })]));
+    expect(out.escalations).toEqual(expect.arrayContaining([expect.objectContaining({ passage_id: REF, kind: 'reference_drift', sign: '+' })]));
     expect(db.challenge_links).toEqual([]);
   });
 });
