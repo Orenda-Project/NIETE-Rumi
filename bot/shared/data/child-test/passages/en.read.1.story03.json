@@ -1,0 +1,224 @@
+{
+  "passage_id": "en.read.1.story03",
+  "lang": "en",
+  "kind": "read",
+  "band": 1,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "names": [
+    "Kamran"
+  ],
+  "tokens": 33,
+  "sentences": 6,
+  "mean_sent_len": 5.5,
+  "max_word_len": 6,
+  "readability": 0.958,
+  "readability_list": "fed-cum-g2-2026",
+  "readability_band_above": 1,
+  "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "The Toy Car",
+  "title_ur": null,
+  "text": "Kamran had a small toy car. One day, the car was lost. He looked in his room. It was not there. Then his mother walked in. She had the car in her hand.",
+  "lines": [
+    [
+      0,
+      5
+    ],
+    [
+      6,
+      11
+    ],
+    [
+      12,
+      16
+    ],
+    [
+      17,
+      20
+    ],
+    [
+      21,
+      25
+    ],
+    [
+      26,
+      32
+    ]
+  ],
+  "tokens_list": [
+    "Kamran",
+    "had",
+    "a",
+    "small",
+    "toy",
+    "car",
+    "One",
+    "day",
+    "the",
+    "car",
+    "was",
+    "lost",
+    "He",
+    "looked",
+    "in",
+    "his",
+    "room",
+    "It",
+    "was",
+    "not",
+    "there",
+    "Then",
+    "his",
+    "mother",
+    "walked",
+    "in",
+    "She",
+    "had",
+    "the",
+    "car",
+    "in",
+    "her",
+    "hand"
+  ],
+  "text_hash": "097cfa897535a661caefeb25caa3b928",
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Kamran have?",
+      "right": "a toy car",
+      "wrong": [
+        "a toy boat",
+        "a toy plane"
+      ],
+      "accept": [
+        "a toy car",
+        "a car",
+        "a small toy car"
+      ],
+      "reject": [
+        "a toy boat",
+        "a toy plane"
+      ],
+      "rubric": "Right if the child says a toy car (or a car / a small toy car)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "How big was the car?",
+      "right": "small",
+      "wrong": [
+        "very long",
+        "very tall"
+      ],
+      "accept": [
+        "small",
+        "little"
+      ],
+      "reject": [
+        "very long",
+        "very tall"
+      ],
+      "rubric": "Right if the child says small (or little)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What happened to the car?",
+      "right": "it was lost",
+      "wrong": [
+        "it was broken",
+        "it was wet"
+      ],
+      "accept": [
+        "it was lost",
+        "lost"
+      ],
+      "reject": [
+        "it was broken",
+        "it was wet"
+      ],
+      "rubric": "Right if the child says it was lost (or lost)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where did Kamran look?",
+      "right": "in his room",
+      "wrong": [
+        "in the garden",
+        "in the kitchen"
+      ],
+      "accept": [
+        "in his room",
+        "his room"
+      ],
+      "reject": [
+        "in the garden",
+        "in the kitchen"
+      ],
+      "rubric": "Right if the child says in his room (or his room)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Who walked in?",
+      "right": "his mother",
+      "wrong": [
+        "his teacher",
+        "his friend"
+      ],
+      "accept": [
+        "his mother",
+        "mother"
+      ],
+      "reject": [
+        "his teacher",
+        "his friend"
+      ],
+      "rubric": "Right if the child says his mother (or mother)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 6,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where was the car at the end?",
+      "right": "in her hand",
+      "wrong": [
+        "in his bag",
+        "on the bed"
+      ],
+      "accept": [
+        "in her hand",
+        "in his mother’s hand",
+        "his mother had it"
+      ],
+      "reject": [
+        "in his bag",
+        "on the bed"
+      ],
+      "rubric": "Right if the child says in her hand (or in his mother’s hand / his mother had it)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}

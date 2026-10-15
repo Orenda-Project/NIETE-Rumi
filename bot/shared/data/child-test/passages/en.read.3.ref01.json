@@ -1,0 +1,267 @@
+{
+  "passage_id": "en.read.3.ref01",
+  "lang": "en",
+  "kind": "read",
+  "band": 3,
+  "pool": "check",
+  "status_at_authoring": "draft",
+  "is_reference": true,
+  "names": [
+    "Omar"
+  ],
+  "tokens": 65,
+  "sentences": 8,
+  "mean_sent_len": 8.1,
+  "max_word_len": 7,
+  "readability": 1,
+  "readability_list": "fed-cum-g5-2026",
+  "readability_band_above": null,
+  "source_ref": "generated brief v1 (band-3 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "The Map on the Wall",
+  "title_ur": null,
+  "text": "Omar wanted a book about the moon. The library had a lot of books. He looked on each table, but it was not there. He saw a small map on the wall. It showed a star beside the space books. Omar walked to the back of the library. The book was on a table near the door. Next time, he would read the map first.",
+  "lines": [
+    [
+      0,
+      6
+    ],
+    [
+      7,
+      13
+    ],
+    [
+      14,
+      23
+    ],
+    [
+      24,
+      31
+    ],
+    [
+      32,
+      39
+    ],
+    [
+      40,
+      47
+    ],
+    [
+      48,
+      56
+    ],
+    [
+      57,
+      64
+    ]
+  ],
+  "tokens_list": [
+    "Omar",
+    "wanted",
+    "a",
+    "book",
+    "about",
+    "the",
+    "moon",
+    "The",
+    "library",
+    "had",
+    "a",
+    "lot",
+    "of",
+    "books",
+    "He",
+    "looked",
+    "on",
+    "each",
+    "table",
+    "but",
+    "it",
+    "was",
+    "not",
+    "there",
+    "He",
+    "saw",
+    "a",
+    "small",
+    "map",
+    "on",
+    "the",
+    "wall",
+    "It",
+    "showed",
+    "a",
+    "star",
+    "beside",
+    "the",
+    "space",
+    "books",
+    "Omar",
+    "walked",
+    "to",
+    "the",
+    "back",
+    "of",
+    "the",
+    "library",
+    "The",
+    "book",
+    "was",
+    "on",
+    "a",
+    "table",
+    "near",
+    "the",
+    "door",
+    "Next",
+    "time",
+    "he",
+    "would",
+    "read",
+    "the",
+    "map",
+    "first"
+  ],
+  "text_hash": "f6e39b15c2477324470f188fc77b80df",
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Omar want?",
+      "right": "a book",
+      "wrong": [
+        "a ball",
+        "a pen"
+      ],
+      "accept": [
+        "a book",
+        "a book about the moon",
+        "book"
+      ],
+      "reject": [
+        "a ball",
+        "a pen"
+      ],
+      "rubric": "Right if the child says a book (or a book about the moon / book)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What was the book about?",
+      "right": "the moon",
+      "wrong": [
+        "the sea",
+        "the sun"
+      ],
+      "accept": [
+        "the moon",
+        "moon"
+      ],
+      "reject": [
+        "the sea",
+        "the sun"
+      ],
+      "rubric": "Right if the child says the moon (or moon)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did the library have?",
+      "right": "a lot of books",
+      "wrong": [
+        "a lot of toys",
+        "a lot of plants"
+      ],
+      "accept": [
+        "a lot of books",
+        "books",
+        "many books"
+      ],
+      "reject": [
+        "a lot of toys",
+        "a lot of plants"
+      ],
+      "rubric": "Right if the child says a lot of books (or books / many books)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 4,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Omar see on the wall?",
+      "right": "a small map",
+      "wrong": [
+        "a big clock",
+        "a long poem"
+      ],
+      "accept": [
+        "a small map",
+        "a map",
+        "map"
+      ],
+      "reject": [
+        "a big clock",
+        "a long poem"
+      ],
+      "rubric": "Right if the child says a small map (or a map / map)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 7,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where was the book?",
+      "right": "on a table near the door",
+      "wrong": [
+        "in a box by the window",
+        "on a shelf in the hall"
+      ],
+      "accept": [
+        "on a table near the door",
+        "near the door",
+        "on a table"
+      ],
+      "reject": [
+        "in a box by the window",
+        "on a shelf in the hall"
+      ],
+      "rubric": "Right if the child says on a table near the door (or near the door / on a table)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 8,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "Why will Omar read the map first next time?",
+      "right": "it shows where the books are",
+      "wrong": [
+        "it has nice colours",
+        "his friend drew it"
+      ],
+      "accept": [
+        "it shows where the books are",
+        "to find the book quickly",
+        "the map helped him"
+      ],
+      "reject": [
+        "it has nice colours",
+        "his friend drew it"
+      ],
+      "rubric": "Right if the child says it shows where the books are (or to find the book quickly / the map helped him)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}
