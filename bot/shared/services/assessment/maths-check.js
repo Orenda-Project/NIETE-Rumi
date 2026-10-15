@@ -438,7 +438,9 @@ function parseForm(questionText) {
 
 function agrees(value, t) {
   if (!isDecimal(t) || t.kind === 'recurring') return same(value, t.value);
-  if (terminates(value)) return withinTolerance(value, t.value);
+  // A value that terminates has one right decimal: the key must equal it (44.0 = 44).
+  // The tolerance is only for a recurring quotient rounded to the asked places.
+  if (terminates(value)) return same(value, t.value);
   // A recurring value written to three or more places must get those places right.
   if (t.places >= 3) {
     const written = floorScaled(t.value, 3);
