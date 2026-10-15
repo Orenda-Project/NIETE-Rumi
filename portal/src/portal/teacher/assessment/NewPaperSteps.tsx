@@ -133,7 +133,7 @@ export function ClassStep() {
       backTo={ASSESSMENT_V2_BASE}
       steps={door ? FDE_STEPS : STEPS}
       crumb={door ? C.fdeDoor : undefined}
-      next={{ label: C.next, why: stepReason('class', p, catalogue?.maxQuestions ?? 50, C), to: newPaperPath(isFde(p) ? 'check' : 'cover') }}
+      next={{ label: C.next, why: door && doorRead === 'busy' ? C.why.wait : stepReason('class', p, catalogue?.maxQuestions ?? 50, C), to: newPaperPath(isFde(p) ? 'check' : 'cover') }}
     >
       {door && heldNames.length > 0 && (
         <p data-testid="fde-held-note" className="flex min-h-[44px] items-center gap-2 rounded-2xl border border-[#e5e7eb] bg-white px-3.5 text-[14px] font-semibold text-[#6b7280]">
