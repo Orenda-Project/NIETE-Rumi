@@ -78,13 +78,16 @@ async function pageNav() {
   }
 }
 
-/** `<portal>/h/<token>` for these children, or null (hub off, no base URL, no secret, no child). Never throws. */
-async function hubLink(studentIds) {
+/**
+ * `<portal>/h/<token>` for these children, or null (hub off, no base URL, no secret, no child). Never throws.
+ * `caller` names the builder on a dropped-id log line (signHub's default when omitted).
+ */
+async function hubLink(studentIds, caller) {
   try {
     const Link = require('./web-quiz-link');
     const base = Link.webBaseUrl();
     if (!base || !(await flags()).hub) return null;
-    const token = T.signHub(studentIds);
+    const token = T.signHub(studentIds, caller);
     return token ? `${base}/h/${token}` : null;
   } catch (err) {
     logToFile('⚠️ web quiz hub: no hub link', { error: err.message });

@@ -1,0 +1,31 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`goldens: switch off → the original path (snapshots taken from the code before this change) a chat child's /quiz → the same cta_url args 1`] = `
+[
+  [
+    "920000000611",
+    {
+      "body": "Your quizzes, videos and challenges are here.",
+      "buttonText": "Open",
+      "url": "https://portal.example.test/h/eyJrIjoiaCIsImlkcyI6WyJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIiLCJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiXSwiZXhwIjoxNzkyNjYzMjAwfQ.cAoL6ZHmUnRNKafQycy9Jo",
+    },
+  ],
+]
+`;
+
+exports[`goldens: switch off → the original path (snapshots taken from the code before this change) a chat child's /quiz → the same cta_url args 2`] = `
+[
+  {
+    "how": "hub",
+    "kids": 2,
+  },
+]
+`;
+
+exports[`goldens: switch off → the original path (snapshots taken from the code before this change) signHub with ≤ 4 ids → the same token 1`] = `
+[
+  "eyJrIjoiaCIsImlkcyI6WyJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiXSwiZXhwIjoxNzkyNjYzMjAwfQ.mL5nAn82QlFQq-IE9ayNIX",
+  "eyJrIjoiaCIsImlkcyI6WyJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIiLCJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDMiLCJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDQiXSwiZXhwIjoxNzkyNjYzMjAwfQ.DEdH42FFg8O3rNpiOj0fRp",
+  "eyJrIjoiaCIsImlkcyI6WyJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIiXSwiZXhwIjoxNzkyNjYzMjAwfQ.a7ezQJluE6P9MUiE4ljr-U",
+]
+`;
