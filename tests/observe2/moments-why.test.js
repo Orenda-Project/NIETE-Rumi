@@ -86,6 +86,17 @@ describe('what the model is asked for (v2)', () => {
     expect(p).toMatch(/NOT open/);
   });
 
+  // The eval of v2 on 16 prod transcripts: 14 of 17 "open question" moments were closed questions, both
+  // "children led a part" were a child doing the task they were given, 4 of 11 "why it works" were a
+  // definition or a method's steps. Each of those types now carries a test the model applies.
+  test('open question, hand-over and "why it works" each carry a test to apply before picking', async () => {
+    const p = await promptFor();
+    expect(p).toMatch(/TEST: could two children give two different answers that are both right\? If not, it is closed/);
+    expect(p).toMatch(/do not pick it as a moment; count it in closed_q/);
+    expect(p).toMatch(/TEST: is a child doing the teacher's job for the whole class/);
+    expect(p).toMatch(/TEST: does the teacher give the reason/);
+  });
+
   test('a question moment is quoted with its answer, in the transcript\'s own words', async () => {
     const p = await promptFor();
     expect(p).toMatch(/question, then " — ", then the answer/);
