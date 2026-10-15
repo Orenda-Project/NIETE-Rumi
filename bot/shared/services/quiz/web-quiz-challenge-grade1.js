@@ -127,11 +127,12 @@ function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null, 
     const pid = await periodId(now);
     const rows = await D.childRows(await canonicalOf(w.studentId), [w.studentId]);
     // with a period: this period's record row is final (trailState's rule; its STOPS list has no 'numbers', so it is
-    // applied to this stop's rows here); without: a scored run (today's first-attempt rule)
+    // applied to this stop's rows here); without: a scored run that was the child's own attempt (a round turn or a
+    // practice play marks nothing done: notHomeAttempt, as the v2 menu)
     const mine = rows.filter((r) => r.exercise === EXERCISE);
     const done = pid
       ? mine.some((r) => r.period_id === pid && r.record === true && (r.status === 'scored' || r.status === 'failed'))
-      : mine.some((r) => r.status === 'scored');
+      : mine.some((r) => r.status === 'scored' && !notHomeAttempt(r));
     return {
       form: 'G1',
       lang: w.lang,

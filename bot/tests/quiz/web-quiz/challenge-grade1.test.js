@@ -351,6 +351,31 @@ describe('the sampling fields and a class round turn, as the v2 serve writes the
   });
 });
 
+describe('period rule off: the menu marks numbers done only by the child\'s own scored play, as the v2 menu', () => {
+  const scored = (extra) => runs().push({ id: `r-${runs().length}`, student_id: KID, canonical_id: KID, exercise: 'numbers', status: 'scored',
+    record: null, period_id: null, anchor_block: 'G1A', created_at: '2026-11-02T06:00:00Z', ...extra });
+  const stop = async () => (await Ch.menu(hub(), D)).exercises[0];
+  test('one scored class round turn: not done, no badge', async () => {
+    on(V2, G1);
+    scored({ mode: 'class_round', via: 'class_round' });
+    const s = await stop();
+    expect(s.done).toBe(false);
+    expect(s).not.toHaveProperty('badge');
+  });
+  test('one scored practice play: not done, no badge', async () => {
+    on(V2, G1);
+    scored({ mode: 'practice', via: 'hub' });
+    const s = await stop();
+    expect(s.done).toBe(false);
+    expect(s).not.toHaveProperty('badge');
+  });
+  test('one scored home play: done', async () => {
+    on(V2, G1);
+    scored({ mode: 'check', via: 'hub' });
+    expect((await stop()).done).toBe(true);
+  });
+});
+
 describe('bank and registry: the G1A block and its practice layouts', () => {
   test('G1A: ten operational check anchors in the fixed order; .05 authored but not in the block', () => {
     const block = Bank.anchorBlock('G1A');
