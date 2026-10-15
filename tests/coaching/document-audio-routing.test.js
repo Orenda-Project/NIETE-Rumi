@@ -3,9 +3,9 @@
  *
  * Validates that WhatsApp documents with an audio MIME type are treated as
  * audio uploads (Rifat's ask on the Coach Platform card: use documents to
- * bypass Meta's 16MB voice cap and get up to 100MB). Whisper still caps
- * transcription at 25MB per file, so anything larger must be rejected
- * with a friendly message BEFORE we download the file.
+ * bypass Meta's 16MB voice cap and get up to 100MB). The cap is 100 MB (Soniox
+ * transcribes long files; Whisper is only the fallback), and anything larger is
+ * refused with a message BEFORE the file is downloaded.
  *
  * Under test: bot/shared/handlers/audio-document-router.js — the pure
  * classification/message helpers wired into handleDocumentMessage.
@@ -73,57 +73,34 @@ describe('audio-document-router — MIME detection', () => {
   });
 });
 
-describe('audio-document-router — Whisper 25MB gate', () => {
-  test('audio ≤ 25MB → route_to_audio_pipeline', () => {
-    // 20MB — well under cap
-    const result = classifyAudioDocument({
-      mimeType: 'audio/mpeg',
-      fileSize: 20 * 1024 * 1024,
-    });
+describe('audio-document-router — the 100 MB cap', () => {
+  const MB = 1024 * 1024;
+
+  test('a 20 MB recording → route_to_audio_pipeline', () => {
+    const result = classifyAudioDocument({ mimeType: 'audio/mpeg', fileSize: 20 * MB });
     expect(result.decision).toBe('route_to_audio_pipeline');
     expect(result.sizeMB).toBe('20.0');
   });
 
-  test('audio exactly at 25MB → route_to_audio_pipeline (boundary inclusive)', () => {
-    const result = classifyAudioDocument({
-      mimeType: 'audio/mpeg',
-      fileSize: WHISPER_MAX_BYTES,
-    });
+  test('a 40 MB classroom recording (a 40-minute lesson from a phone recorder) → route_to_audio_pipeline', () => {
+    const result = classifyAudioDocument({ mimeType: 'audio/mp4', fileSize: 40 * MB });
     expect(result.decision).toBe('route_to_audio_pipeline');
-  });
-
-  test('audio 1 byte over 25MB → reject_too_large', () => {
-    const result = classifyAudioDocument({
-      mimeType: 'audio/mpeg',
-      fileSize: WHISPER_MAX_BYTES + 1,
-    });
-    expect(result.decision).toBe('reject_too_large');
-  });
-
-  test('audio at 40MB (typical rejected classroom recording) → reject_too_large with size', () => {
-    const result = classifyAudioDocument({
-      mimeType: 'audio/mpeg',
-      fileSize: 40 * 1024 * 1024,
-    });
-    expect(result.decision).toBe('reject_too_large');
     expect(result.sizeMB).toBe('40.0');
   });
 
-  test('audio near the WhatsApp 100MB document ceiling → reject_too_large (does not attempt download)', () => {
-    // 95MB is legal to upload as a WA doc but way over Whisper's 25MB —
-    // we must reject BEFORE downloading (bandwidth + wasted Whisper API attempts).
-    const result = classifyAudioDocument({
-      mimeType: 'audio/mp4',
-      fileSize: 95 * 1024 * 1024,
-    });
-    expect(result.decision).toBe('reject_too_large');
-    expect(Number(result.sizeMB)).toBeLessThanOrEqual(WHATSAPP_DOCUMENT_MAX_BYTES / (1024 * 1024));
+  test('exactly 100 MB → route_to_audio_pipeline (boundary inclusive)', () => {
+    expect(classifyAudioDocument({ mimeType: 'audio/mpeg', fileSize: WHISPER_MAX_BYTES }).decision).toBe('route_to_audio_pipeline');
   });
 
-  test('audio with unknown file_size (WA omitted it) → route_to_audio_pipeline (existing ffprobe path handles it)', () => {
-    // We do NOT pre-reject on missing file_size — some WA payloads omit it,
-    // and the existing download+ffprobe path will fail loudly if the file
-    // turns out to be malformed. Pre-rejecting would drop legitimate uploads.
+  test('1 byte over 100 MB → reject_too_large, with its size', () => {
+    const result = classifyAudioDocument({ mimeType: 'audio/mpeg', fileSize: WHISPER_MAX_BYTES + 1 });
+    expect(result.decision).toBe('reject_too_large');
+    expect(result.sizeMB).toBe('100.0');
+  });
+
+  test('audio with unknown file_size (WA omitted it) → route_to_audio_pipeline (resolveAudioDocument asks Meta)', () => {
+    // We do NOT pre-reject on missing file_size: the webhook never carries it on a
+    // document. resolveAudioDocument reads the real size from Meta's media info.
     expect(classifyAudioDocument({ mimeType: 'audio/mpeg', fileSize: 0 }).decision).toBe(
       'route_to_audio_pipeline'
     );
@@ -136,29 +113,64 @@ describe('audio-document-router — Whisper 25MB gate', () => {
   });
 });
 
-describe('audio-document-router — reject message', () => {
-  test('includes reported size in MB', () => {
-    const msg = buildTooLargeMessage('42.3');
-    expect(msg).toContain('42.3 MB');
+describe('audio-document-router — resolveAudioDocument (the size the webhook leaves out)', () => {
+  const MB = 1024 * 1024;
+  const { resolveAudioDocument } = require('../../bot/shared/handlers/audio-document-router');
+
+  test('reads the size from Meta\'s media info and refuses over the cap', async () => {
+    const getMediaInfo = jest.fn().mockResolvedValue({ file_size: 150 * MB });
+    const result = await resolveAudioDocument({ mimeType: 'audio/mp4', mediaId: 'M1' }, { getMediaInfo });
+    expect(getMediaInfo).toHaveBeenCalledWith('M1');
+    expect(result).toEqual({ decision: 'reject_too_large', sizeMB: '150.0' });
   });
 
-  test('mentions the 25MB cap and points at compression/splitting as the workaround', () => {
-    const msg = buildTooLargeMessage('40.0');
-    expect(msg).toMatch(/25MB/);
-    expect(msg.toLowerCase()).toMatch(/compress|split/);
-    // Names transcription as the constraint so users don't think it's a size limit on Rumi itself.
-    expect(msg.toLowerCase()).toContain('transcription');
+  test('Meta sends file_size as a string too: still read', async () => {
+    const getMediaInfo = jest.fn().mockResolvedValue({ file_size: String(30 * MB) });
+    const result = await resolveAudioDocument({ mimeType: 'audio/mp4', mediaId: 'M1' }, { getMediaInfo });
+    expect(result).toEqual({ decision: 'route_to_audio_pipeline', sizeMB: '30.0' });
   });
 
-  test('documents chunked-recording roadmap so users know it is on our list', () => {
-    const msg = buildTooLargeMessage('50.0');
-    expect(msg.toLowerCase()).toContain('roadmap');
+  test('does not ask Meta when the webhook gave a size, or for a non-audio document', async () => {
+    const getMediaInfo = jest.fn();
+    await resolveAudioDocument({ mimeType: 'audio/mp4', fileSize: 10 * MB, mediaId: 'M1' }, { getMediaInfo });
+    await resolveAudioDocument({ mimeType: 'application/pdf', mediaId: 'M2' }, { getMediaInfo });
+    expect(getMediaInfo).not.toHaveBeenCalled();
+  });
+
+  test('a failed lookup never refuses: the size stays unknown and the reason is returned for the log', async () => {
+    const getMediaInfo = jest.fn().mockRejectedValue(new Error('Graph 500'));
+    const result = await resolveAudioDocument({ mimeType: 'audio/mp4', mediaId: 'M1' }, { getMediaInfo });
+    expect(result).toEqual({ decision: 'route_to_audio_pipeline', sizeMB: null, sizeLookupError: 'Graph 500' });
+  });
+});
+
+describe('audio-document-router — the refusal names the real state', () => {
+  test('includes the size and the real 100 MB cap, never the old 25 MB one or a roadmap', () => {
+    const msg = buildTooLargeMessage('142.3');
+    expect(msg).toContain('142.3 MB');
+    expect(msg).toContain('100 MB');
+    expect(msg).not.toMatch(/25 ?MB|roadmap|transcription engine/i);
+  });
+
+  test('says nothing was received or started, and what to send instead', () => {
+    const msg = buildTooLargeMessage('150.0');
+    expect(msg).toMatch(/did not receive/i);
+    expect(msg).toMatch(/nothing has started/i);
+    expect(msg).toMatch(/voice recorder app/i);
+    expect(msg).toMatch(/\*Document\*/);
+  });
+
+  test('is in the sender\'s language', () => {
+    const ur = buildTooLargeMessage('150.0', { user: { preferred_language: 'ur' } });
+    expect(ur).toMatch(/[\u0600-\u06FF]/);
+    expect(ur).toContain('150.0 MB');
+    expect(buildTooLargeMessage('150.0', { language: 'en' })).toMatch(/^This file is 150\.0 MB/);
   });
 });
 
 describe('audio-document-router — invariants used by handleDocumentMessage', () => {
-  test('WHISPER_MAX_BYTES is 25MB (do not tune without confirming Whisper limit)', () => {
-    expect(WHISPER_MAX_BYTES).toBe(25 * 1024 * 1024);
+  test('the transcription cap is the WhatsApp document ceiling, 100 MB (Soniox, not Whisper, transcribes long files)', () => {
+    expect(WHISPER_MAX_BYTES).toBe(100 * 1024 * 1024);
   });
 
   test('WHATSAPP_DOCUMENT_MAX_BYTES is 100MB (Meta Cloud API document cap)', () => {

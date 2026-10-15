@@ -251,7 +251,7 @@ function afterPlan(form, screenData) {
 function renderSealed(form, lines) {
   const l = lines || {
     sealed_line: `Sealed at ${clock(form.sealed_at)}`,
-    next_line: 'Next: stop the recorder and send the recording in the chat. The steps are waiting there.',
+    next_line: 'Next: stop the recorder and send the recording in the chat, as a document. The steps are waiting there.',
   };
   return { screen: 'SEALED', data: { ...l, record_id: String((form && form.id) || '') } };
 }
@@ -262,7 +262,7 @@ function renderContinue(kind, form) {
     part1: ['Part 1 is saved', afterLesson(form) ? AFTER_HINT.continue : `Carry on with Part 2, from minute ${half} to ${period}.`],
     plan: ['Parts 1 and 2 are saved', 'Next: the lesson plan, then seal the record.'],
     part2: ['Parts 1 and 2 and the plan are saved', 'Carry on to the last screen and seal the record.'],
-    sealed: ['This record is sealed', `It was sealed at ${clock(form && form.sealed_at)} and can't change. Send the recording in the chat if you haven't yet.`],
+    sealed: ['This record is sealed', `It was sealed at ${clock(form && form.sealed_at)} and can't change. Send the recording in the chat as a document if you haven't yet.`],
     gone: ['This form is not available', 'Send /observe2 in the chat to start a new visit.'],
     error: ['Something went wrong', 'Close this form and open it again in a minute.'],
   }[kind];

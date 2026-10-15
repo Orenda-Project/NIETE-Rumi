@@ -1,12 +1,13 @@
 /**
  * Audio-document router — classification helpers for handleDocumentMessage.
  *
- * Context: WhatsApp voice messages cap at 16MB, but WhatsApp documents allow up to 100MB.
- * We accept audio-as-document to let teachers upload longer classroom recordings.
- * Whisper (our transcription engine) caps at 25MB per file, so anything larger
- * than 25MB must be rejected here — we cannot chunk yet (roadmap).
+ * Context: WhatsApp refuses an AUDIO attachment over 16 MB on the phone, before it reaches us, but
+ * carries a DOCUMENT up to 100 MB. A lesson from a phone's voice recorder app (about 130 kbps) is
+ * over 16 MB after about 17 minutes, so classroom recordings arrive here, as documents.
  *
- * Pure functions only — no I/O, no logging. Callers own logging + side effects.
+ * classifyAudioDocument and buildTooLargeMessage are pure. resolveAudioDocument does one read (Meta's
+ * media info), through the function its caller passes in; it does not log. Callers own logging and
+ * side effects.
  */
 
 // Transcription cap. The coaching pipeline transcribes with Soniox (primary —
@@ -58,9 +59,9 @@ function hasAudioExtension(filename) {
  *   { decision: 'not_audio' }
  *       — MIME does not look like audio; caller keeps existing document flow (PDF etc.).
  *   { decision: 'reject_too_large', sizeMB }
- *       — audio, but > 25MB Whisper limit; caller must send the friendly reject message.
+ *       — audio over the 100 MB cap; caller sends buildTooLargeMessage and does not download.
  *   { decision: 'route_to_audio_pipeline', sizeMB }
- *       — audio ≤ 25MB; caller can safely download + probe duration + route to coaching/voice.
+ *       — audio within the cap (or size unknown); caller downloads, probes the duration and routes.
  *
  * Missing/zero fileSize is treated as "unknown but proceed" — we let the existing
  * download+ffprobe path run and fail loudly there if the file is malformed,
@@ -92,22 +93,52 @@ function classifyAudioDocument({ mimeType, fileSize, filename } = {}) {
 }
 
 /**
- * Build the user-facing reject message for an oversize audio document.
- * Extracted so it's assertable in tests without string-matching against the handler.
- * @param {string} sizeMB
+ * Classify a document with its REAL size.
+ *
+ * Meta does not put `file_size` on an inbound document (none of the production webhooks carry it),
+ * so a classification from the webhook alone never knows the size and the cap never fires.
+ * The size is in Meta's media info (GET /{media-id} → file_size). This asks for it, only for an
+ * audio document whose size the webhook left out, and classifies again with it.
+ *
+ * If the media info cannot be read, the webhook-only classification is returned, with
+ * `sizeLookupError`: the file goes on to the download as before, and the caller logs why its size
+ * was unknown. A refusal is only ever made from a size Meta gave.
+ *
+ * @param {{ mimeType?: string, fileSize?: number, filename?: string, mediaId?: string }} doc
+ * @param {{ getMediaInfo?: (mediaId: string) => Promise<{ file_size?: number|string }> }} deps
+ * @returns {Promise<{ decision: string, sizeMB?: string|null, sizeLookupError?: string }>}
+ */
+async function resolveAudioDocument(doc = {}, { getMediaInfo } = {}) {
+  const first = classifyAudioDocument(doc);
+  if (first.decision !== 'route_to_audio_pipeline' || first.sizeMB !== null) return first;
+  if (!doc.mediaId || typeof getMediaInfo !== 'function') return first;
+  let info;
+  try {
+    info = await getMediaInfo(doc.mediaId);
+  } catch (err) {
+    return { ...first, sizeLookupError: (err && err.message) || 'media info failed' };
+  }
+  const size = Number(info && info.file_size);
+  if (!Number.isFinite(size) || size <= 0) return first;
+  return classifyAudioDocument({ ...doc, fileSize: size });
+}
+
+/**
+ * The reply to an audio document over the cap, in the sender's language (catalog key
+ * audioDocumentTooLarge). It says what happened (nothing was received, nothing started) and what to
+ * send instead.
+ * @param {string} sizeMB e.g. "150.0"
+ * @param {{ user?: object, language?: string }} [who] the sender, for the language
  * @returns {string}
  */
-function buildTooLargeMessage(sizeMB) {
-  return (
-    `This audio file is ${sizeMB} MB. NIETE's transcription engine currently ` +
-    `caps at 25MB per file — please compress or split into smaller sections ` +
-    `(30-min chunks at voice quality typically fit). Chunked long-recording ` +
-    `support is on the roadmap.`
-  );
+function buildTooLargeMessage(sizeMB, { user, language } = {}) {
+  const { resolveUx } = require('../config/ux-strings');
+  return resolveUx('audioDocumentTooLarge', { user, language, params: { size: sizeMB } });
 }
 
 module.exports = {
   classifyAudioDocument,
+  resolveAudioDocument,
   isAudioMimeType,
   hasAudioExtension,
   buildTooLargeMessage,

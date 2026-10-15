@@ -711,10 +711,16 @@ const VISIT_CAPTURE_TEMPLATES = {
   en: {
     withName: '🎙️ You\'re observing *{name}*. When the lesson starts, record it and send me the audio — I\'ll draft the {fw} form for you.',
     noName: '🎙️ When the lesson starts, record it and send me the audio — I\'ll draft the {fw} form for you.',
+    // A recording from the phone's recorder app goes as a DOCUMENT: shared as audio, WhatsApp refuses
+    // it over 16 MB on the phone, and a lesson from a recorder app is bigger than that.
+    sendAsDocument: 'A recording from the phone\'s recorder app goes as a *Document* (📎 → *Document*), not as audio: WhatsApp refuses audio over 16 MB.',
   },
   ur: {
-    withName: '🎙️ *{name}* کے سبق کا مشاہدہ۔ سبق شروع ہو تو ریکارڈ کر کے آڈیو مجھے بھیجیں — میں آپ کے لیے {fw} فارم تیار کر دوں گی۔',
+    // Opens with U+200F: WhatsApp lays a paragraph out from its first strong character, and a
+    // teacher's name in Latin script would otherwise turn this Urdu line left to right.
+    withName: '\u200F🎙️ *{name}* کے سبق کا مشاہدہ۔ سبق شروع ہو تو ریکارڈ کر کے آڈیو مجھے بھیجیں — میں آپ کے لیے {fw} فارم تیار کر دوں گی۔',
     noName: '🎙️ سبق شروع ہو تو ریکارڈ کر کے آڈیو مجھے بھیجیں — میں آپ کے لیے {fw} فارم تیار کر دوں گی۔',
+    sendAsDocument: 'فون کی ریکارڈر ایپ کی ریکارڈنگ *Document* کے طور پر بھیجیں (📎، پھر *Document*)، آڈیو کے طور پر نہیں: واٹس ایپ \u206616 MB\u2069 سے بڑی آڈیو نہیں بھیجتا۔',
   },
 };
 
@@ -727,7 +733,7 @@ function buildVisitCapturePrompt(lang, opts = {}) {
   const fw = String(opts.framework || 'FICO').toUpperCase();
   const t = VISIT_CAPTURE_TEMPLATES[l];
   const template = opts.teacherName ? t.withName : t.noName;
-  return template.replace('{name}', opts.teacherName || '').replace('{fw}', fw);
+  return `${template.replace('{name}', opts.teacherName || '').replace('{fw}', fw)}\n\n${t.sendAsDocument}`;
 }
 
 // ── Scheduling "done" exit ack (bd-2444, operator 2026-07-31) ────────────────

@@ -2466,21 +2466,31 @@ async function handleDocumentMessage(message, from, user) {
     // Rifat's ask (Coach Platform card): teachers can now upload classroom
     // recordings as WhatsApp documents (up to 100MB Meta limit) instead of
     // voice messages (16MB Meta limit). Below we (a) detect audio MIME,
-    // (b) reject > 25MB before download (Whisper cap), (c) fall through to
-    // the existing ffprobe + duration-based routing for anything smaller.
+    // (b) refuse one over 100 MB before download, sized from Meta's media info
+    // because the webhook carries no file_size, (c) fall through to the existing
+    // ffprobe + duration-based routing for anything smaller.
     const {
-      classifyAudioDocument,
+      resolveAudioDocument,
       buildTooLargeMessage,
     } = require('./shared/handlers/audio-document-router');
-    const audioClassification = classifyAudioDocument({ mimeType, fileSize, filename: message.document.filename });
+    const audioClassification = await resolveAudioDocument(
+      { mimeType, fileSize, filename: message.document.filename, mediaId: documentId },
+      { getMediaInfo: (id) => WhatsAppService.getMediaInfo(id) },
+    );
+    if (audioClassification.sizeLookupError) {
+      logToFile('⚠️ Audio document size unknown (media info failed), downloading as before', {
+        userId: user.id, documentId, mimeType, error: audioClassification.sizeLookupError,
+      }, 'warn');
+    }
 
     if (audioClassification.decision === 'reject_too_large') {
-      logToFile('🚫 Audio document exceeds Whisper 25MB cap — rejecting before download', {
+      logToFile('🚫 Audio document over the 100 MB cap — refused before download', {
+        userId: user.id,
         documentId,
         mimeType,
         fileSizeMB: audioClassification.sizeMB
       });
-      await WhatsAppService.sendMessage(from, buildTooLargeMessage(audioClassification.sizeMB));
+      await WhatsAppService.sendMessage(from, buildTooLargeMessage(audioClassification.sizeMB, { user }));
       return;
     }
 
