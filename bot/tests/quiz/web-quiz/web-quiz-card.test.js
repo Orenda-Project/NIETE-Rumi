@@ -82,6 +82,12 @@ describe('field(): the scorecard is told it may offer Jugnu\'s card', () => {
     seed();
     expect(await cardModule().field(sess())).toEqual({ jugnu_card: true, jugnu_ev: true });
   });
+  test('a loose child (no class enrolment, a self-reported grade 3) gets the card and its link: no roster gate', async () => {
+    seed();
+    expect(supabase.from('class_enrollments')).toBeDefined();
+    expect(await cardModule().field(sess())).toEqual({ jugnu_card: true, jugnu_ev: true });
+    expect((await cardModule().go({ st: st() }, WQ.WqError)).href).toMatch(/^\/c\//);
+  });
   test('events v2 off: the card, no door events', async () => {
     seed({ on: { ...ALL_ON, web_quiz_events_v2: false } });
     expect(await cardModule().field(sess())).toEqual({ jugnu_card: true });
@@ -163,48 +169,62 @@ describe('POST /hubdoor {st, jugnu:1}: the Jugnu card\'s link', () => {
 });
 
 // A play opened from the card has no quiz session on its hub token: the challenge's serve reads the pick from the hub
-// key (wq:idpick:h:<canonical id>:<sha256(device)[0:16]>, the identity pick module's record). go() copies THIS quiz
-// session's pick there for the same child and phone; with the pick module absent it writes nothing and never throws.
+// key, whose one builder is the identity pick module's hubPickKey(canonical id, device). go() copies THIS quiz
+// session's pick there for the same child and phone; no pick, or the module throwing, writes nothing and never throws.
 describe('go() carries the quiz session\'s pick to the hub key', () => {
-  const BIND = '../../../shared/services/quiz/web-quiz-bind-page';
+  const Bind = require('../../../shared/services/quiz/web-quiz-bind-page');
   const REC = { id_src: 'roster_pick', id_confidence: 'high', homonym_in_list: false, canonical_id: KID };
-  const hubKey = (id, d) => `wq:idpick:h:${id}:${require('crypto').createHash('sha256').update(d).digest('hex').slice(0, 16)}`;
-  // The absent case runs first (the module is not on this base); then one virtual mock whose pickFor each test sets.
-  let impl = async () => null;
-  const pickFor = jest.fn((...a) => impl(...a));
-  test('the pick module absent: no pick write, no throw, the link as before', async () => {
-    seed();
-    const out = await cardModule().go({ st: st() }, WQ.WqError);
-    expect(out.href).toMatch(/^\/c\//);
-    expect(redis.set.mock.calls.filter(([k]) => String(k).startsWith('wq:idpick:'))).toEqual([]);
-  });
-  test('the session\'s pick is written under the hub key for (canonical id, the session token\'s phone)', async () => {
-    impl = async (arg) => (arg === 's1' ? REC : null);
-    jest.doMock(BIND, () => ({ pickFor }), { virtual: true });
+  const picks = () => redis.set.mock.calls.filter(([k]) => String(k).startsWith('wq:idpick:'));
+  afterEach(() => jest.restoreAllMocks());
+  test('the session\'s pick is written under hubPickKey(canonical id, the session token\'s phone)', async () => {
+    const pickFor = jest.spyOn(Bind, 'pickFor').mockImplementation(async (arg) => (arg === 's1' ? REC : null));
+    const keyOf = jest.spyOn(Bind, 'hubPickKey');
     seed();
     await cardModule().go({ st: st(), device_ref: D2 }, WQ.WqError);
     expect(pickFor).toHaveBeenCalledWith('s1');
-    expect(redis._store.get(hubKey(KID, D1))).toEqual(REC);
-    expect(redis.set).toHaveBeenCalledWith(hubKey(KID, D1), REC, 24 * 3600);
+    expect(keyOf).toHaveBeenCalledWith(KID, D1);
+    const key = keyOf.mock.results[0].value;
+    expect(key).toMatch(/^wq:idpick:h:/);
+    expect(redis._store.get(key)).toEqual(REC);
+    expect(redis.set).toHaveBeenCalledWith(key, REC, 24 * 3600);
   });
   test('no pick for the session (switch off), or the module throws: nothing written, the link still opens', async () => {
-    impl = async () => null;
+    jest.spyOn(Bind, 'pickFor').mockImplementation(async () => null);
     seed();
     expect((await cardModule().go({ st: st() }, WQ.WqError)).href).toMatch(/^\/c\//);
-    impl = async () => { throw new Error('down'); };
+    jest.spyOn(Bind, 'pickFor').mockImplementation(async () => { throw new Error('down'); });
     redis._store.clear(); cardModule()._resetCache(); seed();
     expect((await cardModule().go({ st: st() }, WQ.WqError)).href).toMatch(/^\/c\//);
-    expect(redis.set.mock.calls.filter(([k]) => String(k).startsWith('wq:idpick:'))).toEqual([]);
+    expect(picks()).toEqual([]);
   });
 });
 
-describe('the allow-list carries the doors (door_shown / door_tap only)', () => {
-  test('door, surface, a numeric slot, pid, nx are kept on the two door names', () => {
-    expect(WQ.cleanEvent({ n: 'door_shown', door: 'card', surface: 'scorecard', slot: 1 })).toEqual({ name: 'door_shown', props: { door: 'card', surface: 'scorecard', slot: 1 } });
-    expect(WQ.cleanEvent({ n: 'door_tap', door: 'shelf', surface: 'hub', slot: 3, pid: 'p.1-a', nx: 'new' }).props).toEqual({ door: 'shelf', surface: 'hub', slot: 3, pid: 'p.1-a', nx: 'new' });
-    expect(WQ.cleanEvent({ n: 'door_tap', door: 'elsewhere', surface: 'moon', slot: 'x', nx: 'old' }).props).toEqual({});
+// The doors' props live in the relay's one name-scoped map (NAME_PROPS, web_quiz_events_v2): with v2 off the
+// relay is today's; a page door is kept as w:'p' and the server-written doors are dropped (RULING #34).
+describe('the allow-list carries the doors (door_shown / door_tap, NAME_PROPS)', () => {
+  const v2 = { v2: true };
+  test('NAME_PROPS is the one home for the door props', () => {
+    expect(Object.keys(WQ.NAME_PROPS)).toEqual(expect.arrayContaining(['door_shown', 'door_tap']));
+    expect(Object.keys(WQ.NAME_PROPS.door_shown).sort()).toEqual(['door', 'nx', 'pid', 'slot', 'surface']);
   });
-  test('every other name is untouched: slot stays the answer letter, door/surface dropped', () => {
+  test('door, surface, a numeric slot, pid, nx are kept on the two door names with v2 on', () => {
+    expect(WQ.cleanEvent({ n: 'door_shown', door: 'card', surface: 'scorecard', slot: 1 }, v2)).toEqual({ name: 'door_shown', props: { door: 'card', surface: 'scorecard', slot: 1, w: 'p' } });
+    expect(WQ.cleanEvent({ n: 'door_tap', door: 'shelf', surface: 'hub', slot: 3, pid: 'p.1-a', nx: 'new' }, v2).props).toEqual({ door: 'shelf', surface: 'hub', slot: 3, pid: 'p.1-a', nx: 'new', w: 'p' });
+    expect(WQ.cleanEvent({ n: 'door_tap', door: 'elsewhere', surface: 'moon', slot: 'x', nx: 'old' }, v2).props).toEqual({ w: 'p' });
+  });
+  test('RULING #34: a page door is kept; quiz_reply, class_link and link_home-shown are the server\'s and dropped', () => {
+    expect(WQ.cleanEvent({ n: 'door_shown', door: 'card', surface: 'scorecard', slot: 1 }, v2).props.w).toBe('p');
+    expect(WQ.cleanEvent({ n: 'door_tap', door: 'card', surface: 'scorecard' }, v2).props.door).toBe('card');
+    expect(WQ.cleanEvent({ n: 'door_tap', door: 'link_home', surface: 'landing' }, v2).props.door).toBe('link_home');
+    for (const door of ['quiz_reply', 'class_link']) {
+      expect(WQ.cleanEvent({ n: 'door_shown', door }, v2)).toBeNull();
+      expect(WQ.cleanEvent({ n: 'door_tap', door }, v2)).toBeNull();
+    }
+    expect(WQ.cleanEvent({ n: 'door_shown', door: 'link_home' }, v2)).toBeNull();
+  });
+  test('v2 off: the relay is today\'s (no door props); every other name keeps slot as the answer letter', () => {
+    expect(WQ.cleanEvent({ n: 'door_shown', door: 'card', surface: 'scorecard', slot: 1 }).props).toEqual({});
+    expect(WQ.cleanEvent({ n: 'answer', slot: 'B', door: 'card', surface: 'hub' }, v2).props).toEqual({ slot: 'B', w: 'p' });
     expect(WQ.cleanEvent({ n: 'answer', slot: 'B', door: 'card', surface: 'hub' }).props).toEqual({ slot: 'B' });
     expect(WQ.cleanEvent({ n: 'answer', slot: 2 }).props).toEqual({});
   });

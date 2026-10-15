@@ -251,7 +251,7 @@ describe('events(): the 20-per-batch slice is not silent with v2 on', () => {
     expect(Svc.events({ events: batch })).toEqual({ logged: 3 });
     expect(named('web_quiz.m_result')).toHaveLength(0);
     expect(named('web_quiz.lamp_lit')).toHaveLength(0);
-    expect(named('web_quiz.door_shown')).toEqual([{ w: 'p' }]);
+    expect(named('web_quiz.door_shown')).toEqual([{ door: 'card', w: 'p' }]);
     expect(named('web_quiz.answer')).toEqual([{ w: 'p' }]);
     expect(named('web_quiz.ev_dropped')).toEqual([{ w: 's', ev_v: 2, kid_v: '2026', kid: null, n: 3, why: 'server_only' }]);
   });

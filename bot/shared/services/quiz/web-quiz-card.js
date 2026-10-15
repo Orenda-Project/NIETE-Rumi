@@ -13,7 +13,6 @@
  * The page asks "<name>'s turn" before it calls go(): never straight into a run (the identity step).
  * Err is web-quiz.service's WqError, passed in by the route (no require cycle).
  */
-const crypto = require('crypto');
 const supabase = require('../../config/supabase');
 const { read: dbRead } = require('./web-quiz-db-deadline');
 const { logToFile } = require('../../utils/logger');
@@ -76,7 +75,7 @@ async function canonicalId(studentId) {
 
 // The identity pick for a play opened from this card. The challenge's serve asks pickFor({sessionId, canonicalId,
 // device}); a hub token has no quiz session, so it falls back to the hub key
-// wq:idpick:h:<canonical id>:<sha256(device)[0:16]> (web-quiz-bind-page.js, 24 h), which only a hub render writes.
+// built by web-quiz-bind-page.js hubPickKey (24 h), which only a hub render writes.
 // The card never renders the hub, so THIS quiz session's pick is copied there for the same child and the session
 // token's phone. The pick module is required lazily: absent, or no pick (its switch off) -> nothing written. Never throws.
 const PICK_TTL_S = 24 * 3600;
@@ -89,7 +88,8 @@ async function carryPick(sessionId, canonicalId, device) {
     if (!d || !canonicalId || !sessionId) return null;
     const rec = await Bind.pickFor(String(sessionId));
     if (!rec || typeof rec !== 'object') return null;
-    const key = `wq:idpick:h:${canonicalId}:${crypto.createHash('sha256').update(d).digest('hex').slice(0, 16)}`;
+    const key = typeof Bind.hubPickKey === 'function' ? Bind.hubPickKey(String(canonicalId), d) : null;
+    if (!key) return null;
     await require('../cache/railway-redis.service').set(key, rec, PICK_TTL_S);
     return key;
   } catch (err) {
