@@ -78,7 +78,8 @@ describe('the flow is internally consistent', () => {
     const incoming = new Set(Object.values(flow.routing_model).flat());
     expect(flow.screens.map((s) => s.id).filter((id) => !incoming.has(id))).toEqual(['PART_ONE', 'CONTINUE']);
     const footer = components(screens.CONTINUE).find((c) => c.type === 'Footer');
-    expect(footer['on-click-action']).toEqual({ name: 'data_exchange', payload: { screen: 'CONTINUE', fv: '4' } });
+    // prefill: Part 2 may come back pre-filled (pilot sheet R13, coach-notes-form.test.js).
+    expect(footer['on-click-action']).toEqual({ name: 'data_exchange', payload: { screen: 'CONTINUE', fv: '4', prefill: '1' } });
     expect(Object.keys(screens.CONTINUE.data).sort()).toEqual(['continue_heading', 'continue_line']);
   });
 
@@ -170,7 +171,8 @@ describe('the form agrees with the endpoint', () => {
       for (const name of pickers) expect(payload[name]).toBe(`\${form.${name}}`);
       const shown = components(screens[id]).filter((c) => c.name && !['PhotoPicker', 'DocumentPicker', 'Form'].includes(c.type)).map((c) => c.name).sort();
       // fv: the form's version, sent by the footers whose next screen changed with the photo step.
-      expect(Object.keys(payload).filter((k) => k !== 'screen' && k !== 'fv' && !pickers.includes(k)).sort()).toEqual(shown);
+      // prefill: the footers that lead to Part 2, whose answers may come back pre-filled (R13).
+      expect(Object.keys(payload).filter((k) => !['screen', 'fv', 'prefill'].includes(k) && !pickers.includes(k)).sort()).toEqual(shown);
       expect([...fields].sort()).toEqual(shown);
     }
   });

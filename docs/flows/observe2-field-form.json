@@ -330,6 +330,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "PART_ONE",
+                    "prefill": "1",
                     "present": "${form.present}",
                     "p1_spoke": "${form.p1_spoke}",
                     "p1_picked": "${form.p1_picked}",
@@ -356,6 +357,34 @@
           "type": "string",
           "__example__": "Minutes 20 to 40. Answer only for what happens in this part."
         },
+        "init_p2_spoke": {
+          "type": "string",
+          "__example__": ""
+        },
+        "init_p2_new": {
+          "type": "string",
+          "__example__": ""
+        },
+        "init_p2_picked": {
+          "type": "string",
+          "__example__": "hands"
+        },
+        "init_p2_groups": {
+          "type": "string",
+          "__example__": "none"
+        },
+        "init_p2_materials": {
+          "type": "string",
+          "__example__": "none"
+        },
+        "init_p2_change": {
+          "type": "string",
+          "__example__": "yes"
+        },
+        "init_p2_notes": {
+          "type": "string",
+          "__example__": ""
+        },
         "error_messages": {
           "type": "object",
           "__example__": {}
@@ -375,6 +404,15 @@
           {
             "type": "Form",
             "name": "part_two_form",
+            "init-values": {
+              "p2_spoke": "${data.init_p2_spoke}",
+              "p2_new": "${data.init_p2_new}",
+              "p2_picked": "${data.init_p2_picked}",
+              "p2_groups": "${data.init_p2_groups}",
+              "p2_materials": "${data.init_p2_materials}",
+              "p2_change": "${data.init_p2_change}",
+              "p2_notes": "${data.init_p2_notes}"
+            },
             "error-messages": "${data.error_messages}",
             "children": [
               {
@@ -619,6 +657,7 @@
                   "name": "data_exchange",
                   "payload": {
                     "screen": "PART_TWO",
+                    "prefill": "1",
                     "p2_spoke": "${form.p2_spoke}",
                     "p2_new": "${form.p2_new}",
                     "p2_picked": "${form.p2_picked}",
@@ -1487,7 +1526,8 @@
               "name": "data_exchange",
               "payload": {
                 "screen": "CONTINUE",
-                "fv": "4"
+                "fv": "4",
+                "prefill": "1"
               }
             }
           }

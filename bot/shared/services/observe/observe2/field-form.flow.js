@@ -40,6 +40,15 @@ const FLOW_VERSION = '7.3';
 // opened before it was published sends none, and the endpoint keeps that form on the old routes.
 const FORM_VERSION = '4';
 const VERSIONED = new Set(['LESSON_PLAN', 'LP_PHOTOS', 'LP_FILE', 'LP_TEXT', 'PHOTOS', 'PHOTO_TAKE', 'PHOTO_FILES']);
+// Part 2 comes back with what was saved for it (Form init-values; pilot sheet R13). The screens that lead
+// to Part 2 send this marker, and only then does the endpoint add Part 2's init values: a form opened on
+// an older Flow sends none and gets the screens it knows. Apart from FORM_VERSION, whose routes compare
+// for equality.
+const PREFILL = '1';
+const PREFILL_FROM = new Set(['PART_ONE', 'PART_TWO']);
+// Screens pre-filled from the stored answers. Only fields at the top of the form: Meta documents no rule
+// for init-values on a field inside an If, and no Flow here does it.
+const PREFILL_SCREENS = new Set(['PART_TWO']);
 // Coaches photograph what helps the analysis, without the teachers' cap of three (2 Oct call).
 const MAX_PHOTOS = 10;
 // An added lesson plan: pages photographed, a file, or typed. The typed floor is the uploaded-plan
@@ -170,24 +179,42 @@ const FIELDS = {
   AFTER: ['incident', 'detail', 'note', 'priority', 'seal_ok'],
 };
 
+// A pre-filled field's init value, typed as Meta requires: an array for ticks, a string for the rest.
+function initData(component) {
+  if (component.type === 'CheckboxGroup') return { type: 'array', items: { type: 'string' }, __example__: [] };
+  const first = Array.isArray(component['data-source']) && component['data-source'][0];
+  return { type: 'string', __example__: first ? first.id : '' };
+}
+
 function screen(id, title, children, footerLabel, extraData) {
   const payload = { screen: id };
   if (VERSIONED.has(id)) payload.fv = FORM_VERSION;
+  if (PREFILL_FROM.has(id)) payload.prefill = PREFILL;
   for (const f of FIELDS[id]) payload[f] = `\${form.${f}}`;
   // A picker's value may only travel as a top-level string property of a data_exchange (Meta).
   if (id === 'PHOTO_TAKE') payload.photos = '${form.photos}';
   if (id === 'PHOTO_FILES') payload.photo_files = '${form.photo_files}';
   if (id === 'LP_PHOTOS') payload.lp_photos = '${form.lp_photos}';
   if (id === 'LP_FILE') payload.lp_file = '${form.lp_file}';
+  const data = { ...(extraData || {}) };
+  let init = null;
+  if (PREFILL_SCREENS.has(id)) {
+    init = {};
+    for (const c of children.filter((x) => x.name)) {
+      init[c.name] = `\${data.init_${c.name}}`;
+      data[`init_${c.name}`] = initData(c);
+    }
+  }
   return {
     id,
     title,
-    data: { ...(extraData || {}), ...ERR_DATA },
+    data: { ...data, ...ERR_DATA },
     layout: {
       type: 'SingleColumnLayout',
       children: [{
         type: 'Form',
         name: `${id.toLowerCase()}_form`,
+        ...(init ? { 'init-values': init } : {}),
         'error-messages': '${data.error_messages}',
         children: [...children, { type: 'Footer', label: footerLabel, 'on-click-action': { name: 'data_exchange', payload } }],
       }],
@@ -337,7 +364,7 @@ function buildFieldFormFlow() {
       children: [
         { type: 'TextHeading', text: '${data.continue_heading}' },
         { type: 'TextBody', text: '${data.continue_line}' },
-        { type: 'Footer', label: 'Continue', 'on-click-action': { name: 'data_exchange', payload: { screen: 'CONTINUE', fv: FORM_VERSION } } },
+        { type: 'Footer', label: 'Continue', 'on-click-action': { name: 'data_exchange', payload: { screen: 'CONTINUE', fv: FORM_VERSION, prefill: PREFILL } } },
       ],
     },
   };
@@ -394,4 +421,22 @@ function buildFieldFormFlow() {
   };
 }
 
-module.exports = { buildFieldFormFlow, FIELDS, FLOW_VERSION, FORM_VERSION, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES, LP_TEXT_MIN };
+// The pre-filled fields of each screen, read off the Flow itself so the endpoint and the Flow can never
+// disagree: PREFILLED[screen] is the names, PREFILLED_ARRAYS the ones whose value is a list of ticks.
+function prefilledFields() {
+  const out = {};
+  const arrays = new Set();
+  for (const s of buildFieldFormFlow().screens) {
+    const form = s.layout.children.find((c) => c.type === 'Form');
+    if (!form || !form['init-values']) continue;
+    out[s.id] = Object.keys(form['init-values']);
+    for (const f of out[s.id]) if ((s.data[`init_${f}`] || {}).type === 'array') arrays.add(f);
+  }
+  return { PREFILLED: out, PREFILLED_ARRAYS: arrays };
+}
+const { PREFILLED, PREFILLED_ARRAYS } = prefilledFields();
+
+module.exports = {
+  buildFieldFormFlow, FIELDS, FLOW_VERSION, FORM_VERSION, PREFILL, PREFILLED, PREFILLED_ARRAYS,
+  MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES, LP_TEXT_MIN,
+};
