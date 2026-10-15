@@ -19,6 +19,12 @@ Feature: FDE board-pattern paper for Grade 5
     And a marking scheme PDF opens with "Teacher: before the exam", lists every question's marks and part marks, and ends with a 40-row class record on its own page
     And the ready screen names "Question paper" and "Marking scheme" with their page counts
 
+  @sandbox @real-paper
+  Scenario: The ready screen says what the teacher adds and the page it goes on
+    Given the board-pattern switch is on
+    When a Grade 5 Social Studies teacher makes a board-pattern paper
+    Then under "Question paper" and "Marking scheme" the ready screen says "You add · the map of Pakistan · p." with the question paper's page
+
   @FB01
   Scenario: The hub offers FDE pattern papers when the switch is on
     Given the board-pattern switch is on
@@ -112,6 +118,21 @@ Feature: FDE board-pattern paper for Grade 5
     And the teacher has asked for 10 papers in the last hour
     When they ask for another paper without the pattern
     Then the request is not refused for the limit
+
+  @FB08
+  Scenario: A board-pattern choice switched off mid-way goes back to today's Chapters step
+    Given the board-pattern switch is on
+    And a Grade 5 English teacher has picked the FDE board pattern card on Chapters or pages
+    When the switch is turned off and the page is reloaded
+    Then Chapters or pages shows the Chapters tab and no FDE board pattern card
+    And Next is off with "Select at least one chapter"
+
+  @sandbox
+  Scenario: A failed read on the FDE door keeps the teacher on Class with Try again
+    Given the board-pattern switch is on
+    When the teacher taps Maths on the FDE door and the connection drops before the options come back
+    Then Class says "Could not load" with Try again instead of moving to Chapters or pages
+    And Try again, once the connection is back, goes on to Check and make
 
   @sandbox @real-paper
   Scenario: A paper for any other grade is unchanged
