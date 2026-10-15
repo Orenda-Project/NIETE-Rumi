@@ -84,12 +84,14 @@ function scoreNumberId(items, taps) {
  * With a period: a record row of this stop in the period (any status) holds the record. Without: record NULL and a
  * scored run makes the next one practice (today's first-attempt rule, as the draw PR does).
  */
-function recordAtServe(rows, periodId) {
+function recordAtServe(rows, periodId, { askedMode = null, notHomeAttempt = () => false } = {}) {
   const D = Draw();
+  // without a period: a scored run that was the child's own attempt (a round turn or a practice play is not: notHomeAttempt)
   const counted = periodId
     ? D.countedThisPeriod(rows, EXERCISE, periodId)
-    : (rows || []).some((r) => r.exercise === EXERCISE && r.status === 'scored');
-  const mode = counted ? 'practice' : 'check';
+    : (rows || []).some((r) => r.exercise === EXERCISE && r.status === 'scored' && !notHomeAttempt(r));
+  // the caller's mode, as the v2 serve takes it: 'class_round' (the teacher's round) or 'practice'; else practice when counted
+  const mode = askedMode === 'class_round' ? 'class_round' : (askedMode === 'practice' || counted ? 'practice' : 'check');
   const exposureNo = D.anchorServesAny(rows, BLOCK);
   return {
     mode,
@@ -100,7 +102,8 @@ function recordAtServe(rows, periodId) {
   };
 }
 
-function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null, afterFinish = async () => {} }) {
+function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null, afterFinish = async () => {},
+  notHomeAttempt = () => false, classWeekOn = async () => false }) {
   const on = async () => (await settingOn(V2_FLAG_KEY)) && (await settingOn(G1_FLAG_KEY));
   const items = () => bank().anchorBlock(BLOCK).map((i) => ({ item_id: i.item_id, n: i.n, layout: i.layout, tiles: i.tiles.slice() }));
 
@@ -144,7 +147,7 @@ function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null, 
    * the draw row, write the year's fixed grade at a first counted play, mint the run token. Returns the page payload
    * and the ch_start fields (`startEv`, `run`) for the base exercise()'s one ch_start call site.
    */
-  async function exercise(w, ex, { device = null } = {}) {
+  async function exercise(w, ex, { device = null, mode: askedMode = null } = {}) {
     if (w.form !== FORM || ex !== EXERCISE) fail(404, 'not_found');
     const D = Draw();
     const now = Date.now();
@@ -154,8 +157,10 @@ function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null, 
     const canonicalId = await canonicalOf(w.studentId);
     const [rows, pick, fixed, classId] = await Promise.all([D.childRows(canonicalId, [w.studentId]),
       D.pickOf({ sessionId: w.sessionId || null, canonicalId, device }), D.fixedGradeOf(canonicalId, w.grade), D.activeClassOf([canonicalId, w.studentId])]);
-    const rec = recordAtServe(rows, pid);
+    const rec = recordAtServe(rows, pid, { askedMode, notHomeAttempt });
     const via = viaOf(w.via);
+    // the sampling fields, as the v2 serve decides them (draw module's adminFields, the same class-week switch)
+    const admin = await D.adminFields({ mode: rec.mode, via, canonicalId, at: new Date(now), classWeekOn: via === 'class_link' && (await classWeekOn()) });
     const runId = crypto.randomUUID();
     const seed = crypto.randomBytes(16).toString('hex');
     const at = new Date(now).toISOString();
@@ -169,8 +174,9 @@ function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null, 
       anchor_exposure_no: rec.anchor_exposure_no, draw_seed: seed, canonical_id: canonicalId,
       id_src: pick.id_src, id_confidence: pick.id_confidence, homonym_in_list: pick.homonym_in_list,
       via, share_code_id: w.shareCodeId || null, record: rec.record, class_id: classId,
+      admin_mode: admin.admin_mode, sample_arm: admin.sample_arm, anchor_serves_any: rec.exposure_no,   // every G1 row is block G1A
       meta: { fixed_band: 'G1', grade_fixed_src: fixed.src, grade_source: w.gradeSource || null, test: !!w.test, pick_src: pick.pick_src,
-        anchor_serves_any: rec.exposure_no, items: served.map((i) => i.item_id),
+        anchor_serves_any: rec.exposure_no, admin_mode: admin.admin_mode, sample_arm: admin.sample_arm, items: served.map((i) => i.item_id),
         draw: { draw_id: drawLog.draw_id, outcome: 'served', eligible: drawLog.eligible, eligible_n: 1, ref_eligible: false, p: 1, band_reason: 'anchor', weights_v: 'w1', seed } },
     };
     // ⛔ M5: a counted run exists only as a stored row; never a run kept in this process

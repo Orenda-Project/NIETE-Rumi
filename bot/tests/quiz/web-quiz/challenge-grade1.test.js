@@ -82,6 +82,20 @@ beforeEach(() => {
   jest.spyOn(Date, 'now').mockReturnValue(NOV);
 });
 afterEach(() => { jest.restoreAllMocks(); });
+// Every run row a test leaves behind holds the runs CHECKs (web_quiz_challenge_runs_v2.sql, _sampling.sql); NULL passes.
+const RUN_CHECKS = {
+  wqcr_sample_arm_chk: (r) => r.sample_arm == null || ['class_round', 'class_week', 'coach', 'ping'].includes(r.sample_arm),
+  wqcr_admin_mode_chk: (r) => r.admin_mode == null || ['self_run', 'teacher_present', 'coach_present'].includes(r.admin_mode),
+  wqcr_arm_needs_admin_chk: (r) => r.sample_arm == null || r.admin_mode != null,
+  wqcr_serves_any_chk: (r) => r.anchor_serves_any == null || r.anchor_serves_any >= 1,
+  wqcr_record_is_check_chk: (r) => r.record !== true || r.mode === 'check',
+  wqcr_record_first_exposure_chk: (r) => r.record !== true || r.anchor_block != null || r.exposure_no == null || r.exposure_no === 1,
+  wqcr_mode_chk: (r) => r.mode == null || ['check', 'practice', 'class_round'].includes(r.mode),
+};
+afterEach(() => {
+  const broken = (db.web_quiz_challenge_runs || []).flatMap((r) => Object.keys(RUN_CHECKS).filter((k) => !RUN_CHECKS[k](r)).map((k) => `${r.id}: ${k}`));
+  expect(broken).toEqual([]);
+});
 
 const D = { device: 'FamilyPhoneDeviceRef_1' };
 const hub = () => T.sign({ k: 'h', ids: [KID], exp: Math.floor(Date.now() / 1000) + 3600 });
@@ -304,6 +318,36 @@ describe('anchor_exposure_no counts counted Trails; practice never increments', 
       period_id: '2026-11', anchor_block: 'G1A', created_at: '2026-11-02T06:00:00Z' });
     const ex = await Ch.exercise(hub(), 'numbers', D);
     expect(ex).toMatchObject({ mode: 'practice', record: false, anchor_exposure_no: 2, exposure_no: 2 });
+  });
+});
+
+describe('the sampling fields and a class round turn, as the v2 serve writes them', () => {
+  test('a home serve: self_run, no arm, anchor_serves_any 1 on the first G1A row and 2 on a replay (columns and meta)', async () => {
+    on(V2, G1, PERIOD);
+    const first = await play();
+    expect(first.row).toMatchObject({ admin_mode: 'self_run', sample_arm: null, anchor_serves_any: 1 });
+    expect(first.row.meta).toMatchObject({ admin_mode: 'self_run', sample_arm: null, anchor_serves_any: 1 });
+    const replay = await play();
+    expect(replay.row).toMatchObject({ mode: 'practice', admin_mode: 'self_run', sample_arm: null, anchor_serves_any: 2 });
+  });
+
+  test('a class round turn (mode class_round): teacher_present in the class_round arm, never a record', async () => {
+    on(V2, G1, PERIOD);
+    const ex = await Ch.exercise(hub(), 'numbers', { ...D, mode: 'class_round' });
+    const row = runs().find((x) => x.id === T.verify(ex.ct, 'c').r);
+    expect(row).toMatchObject({ mode: 'class_round', record: false, admin_mode: 'teacher_present', sample_arm: 'class_round', anchor_serves_any: 1 });
+    expect(row.meta).toMatchObject({ admin_mode: 'teacher_present', sample_arm: 'class_round' });
+  });
+
+  test('period rule off: a scored class round turn or practice play of numbers never makes the next home serve practice', async () => {
+    on(V2, G1);
+    const prior = { student_id: KID, canonical_id: KID, exercise: 'numbers', status: 'scored', record: null, period_id: null, anchor_block: 'G1A' };
+    runs().push({ ...prior, id: 'r-round', mode: 'class_round', via: 'class_round', created_at: '2026-11-02T06:00:00Z' },
+      { ...prior, id: 'r-turn', mode: 'practice', via: 'class_round', created_at: '2026-11-03T06:00:00Z' },
+      { ...prior, id: 'r-story', mode: 'practice', via: 'hub', created_at: '2026-11-04T06:00:00Z' });
+    const ex = await Ch.exercise(hub(), 'numbers', D);
+    expect(ex).toMatchObject({ mode: 'check', record: null, period_id: null });
+    expect(runs().find((x) => x.id === T.verify(ex.ct, 'c').r)).toMatchObject({ mode: 'check', admin_mode: 'self_run' });
   });
 });
 

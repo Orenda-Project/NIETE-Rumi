@@ -200,9 +200,10 @@ const ruleFlags = (rules) => ({ ...(rules.record ? { record: true } : {}), ...(r
 // ── grade-1 form (web_quiz_challenge_g1 under web_quiz_challenge_v2; both off ⇒ grade 1 is not_eligible, as today) ──
 // One counted stop, 'numbers' (dots → numeral, anchor block G1A). Its serve, served row, record rule and scoring live in
 // web-quiz-challenge-grade1.js; this file only routes a grade-1 child there (formFor, who, menu, exercise, submit).
-// `viaOf` reads the v2 section's VIA map at call time (it is declared further down).
+// `viaOf`, `notHomeAttempt` and `classWeekOn` read the v2 section's VIA map, round/practice rule and class-week key at
+// call time (they are declared further down).
 const Grade1 = require('./web-quiz-challenge-grade1').withDeps({ settingOn, insertRun: (row) => insertRun(row), fail, bank: () => childTest().Bank,
-  viaOf: (v) => VIA[v] || v || null,
+  viaOf: (v) => VIA[v] || v || null, notHomeAttempt: (r) => notHomeAttempt(r), classWeekOn: () => settingOn(CLASS_WEEK_FLAG_KEY),
   afterFinish: async (runId, studentId) => { await measureOutcome(runId); await renewBindings(studentId); } });
 // The one ch_start writer (every stop, the grade-1 form included): through the measurement envelope under events v2.
 async function emitChStart(startEv, run, studentId) {
@@ -638,7 +639,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   if (!def && !(ex === Grade1.EXERCISE && (await Grade1.on()))) fail(404, 'not_found');
   const w = await who(token, { kid, lang, device });
   if (w.form === Grade1.FORM || !def) {   // grade-1 form: served there; its ch_start leaves by the one call site below
-    const g1 = await Grade1.exercise(w, ex, { device });
+    const g1 = await Grade1.exercise(w, ex, { device, mode: (arguments[2] || {}).mode });
     await emitChStart(g1.startEv, g1.run, w.studentId);
     return g1.payload;
   }
