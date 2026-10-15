@@ -87,7 +87,7 @@ const download = (id, a, createdAt, extra = {}) => ({
 });
 
 const A_MATH = asset('a-math', 'grade_4_math_ch1_seg1');
-const A_URDU = asset('a-urdu', 'grade_4_urdu_ch2_seg3');
+const A_URDU = asset('a-urdu', 'grade_4_urdu_ch5_seg3');
 const A_ENG = asset('a-eng', 'grade_4_english_ch3_seg1');
 const A_SCI = asset('a-sci', 'grade_5_general_science_ch1_seg1');
 const A_ASSESS = asset('a-assess', 'grade_4_math_ch1_seg995');
