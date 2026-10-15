@@ -155,3 +155,11 @@ describe('Meta\'s naming rules', () => {
     expect(ids.filter((id) => !/^[A-Za-z_]+$/.test(id))).toEqual([]);
   });
 });
+
+// The same rule Meta applied to the field form on 15 Oct 2026 (field-form-flow-contract.test.js).
+describe("init-values follow Meta's type for each field", () => {
+  const { initValueProblems } = require('./helpers/meta-init-types');
+  test('every init-values entry references a declared field of the type Meta takes for its component', () => {
+    expect(initValueProblems(flow)).toEqual([]);
+  });
+});

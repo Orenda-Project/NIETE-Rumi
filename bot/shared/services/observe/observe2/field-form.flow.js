@@ -274,9 +274,17 @@ const FIELDS_V4 = {
   PART_TWO: ['p2_spoke', 'p2_new', 'p2_picked', 'p2_groups', 'p2_listen', 'p2_listen_other', 'p2_materials', 'p2_change', 'p2_change_how', 'p2_notes'],
 };
 
-// A pre-filled field's init value, typed as Meta requires: an array for ticks, a string for the rest.
+// Which fields come back pre-filled. Not a count (a number TextInput): Meta takes a number there (its
+// validator refused a string on 15 Oct 2026: "Expected property 'p2_spoke' to be of type 'number' but
+// found 'string'") and has no empty number. null fails validation, '' is a string, and 0 would put a
+// wrong count in front of the coach on every first Part 2, so the coach types the counts again.
+const prefillable = (c) => Boolean(c.name) && !(c.type === 'TextInput' && c['input-type'] === 'number');
+
+// A pre-filled field's init value, typed as Meta takes it for the component: ticks are a list of
+// strings, a tick box a boolean, the rest (text, choices) a string.
 function initData(component) {
   if (component.type === 'CheckboxGroup') return { type: 'array', items: { type: 'string' }, __example__: [] };
+  if (component.type === 'OptIn') return { type: 'boolean', __example__: false };
   const first = Array.isArray(component['data-source']) && component['data-source'][0];
   return { type: 'string', __example__: first ? first.id : '' };
 }
@@ -295,7 +303,7 @@ function screen(id, title, children, footerLabel, extraData) {
   let init = null;
   if (PREFILL_SCREENS.has(id)) {
     init = {};
-    for (const c of children.filter((x) => x.name)) {
+    for (const c of children.filter(prefillable)) {
       init[c.name] = `\${data.init_${c.name}}`;
       data[`init_${c.name}`] = initData(c);
     }
@@ -526,21 +534,23 @@ function buildFieldFormFlow() {
 }
 
 // The pre-filled fields of each screen, read off the Flow itself so the endpoint and the Flow can never
-// disagree: PREFILLED[screen] is the names, PREFILLED_ARRAYS the ones whose value is a list of ticks.
+// disagree: PREFILLED[screen] is the names, PREFILLED_TYPES each one's declared type (what the endpoint
+// must send), PREFILLED_ARRAYS the ones whose value is a list of ticks.
 function prefilledFields() {
   const out = {};
-  const arrays = new Set();
+  const types = {};
   for (const s of buildFieldFormFlow().screens) {
     const form = s.layout.children.find((c) => c.type === 'Form');
     if (!form || !form['init-values']) continue;
     out[s.id] = Object.keys(form['init-values']);
-    for (const f of out[s.id]) if ((s.data[`init_${f}`] || {}).type === 'array') arrays.add(f);
+    for (const f of out[s.id]) types[f] = (s.data[`init_${f}`] || {}).type;
   }
-  return { PREFILLED: out, PREFILLED_ARRAYS: arrays };
+  const arrays = new Set(Object.keys(types).filter((f) => types[f] === 'array'));
+  return { PREFILLED: out, PREFILLED_TYPES: types, PREFILLED_ARRAYS: arrays };
 }
-const { PREFILLED, PREFILLED_ARRAYS } = prefilledFields();
+const { PREFILLED, PREFILLED_TYPES, PREFILLED_ARRAYS } = prefilledFields();
 
 module.exports = {
-  buildFieldFormFlow, FIELDS, FIELDS_V4, FLOW_VERSION, FORM_VERSION, PREFILL, PREFILLED, PREFILLED_ARRAYS,
+  buildFieldFormFlow, FIELDS, FIELDS_V4, FLOW_VERSION, FORM_VERSION, PREFILL, PREFILLED, PREFILLED_TYPES, PREFILLED_ARRAYS,
   MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES, LP_TEXT_MIN,
 };
