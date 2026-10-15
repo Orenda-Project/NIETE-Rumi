@@ -1289,7 +1289,9 @@ Feature: NIETE (ICT) Teacher Training
     # answer sheet, and the prompt now says so when one is asked for. A paper made before still prints
     # its stored question. Unit: tests/assessment/picture-types-hidden.test.js, draw-it-prompt.test.js.
 
-  @e2e @flow @draft @P2 @T697
+  # @no-mock-driver: needs a paper the model writes; the mock lane replays no assessment-generation
+  # cassette. tests/assessment/answer-key-marks.test.js and the key goldens execute the renderer.
+  @e2e @flow @draft @no-mock-driver @P2 @T697
   Scenario: The answer key says what each question and each part of a passage is worth
     Given the NIETE bot chat is open and I have opened the assessment generator
     And I have chosen a class, a subject and the pages to cover
