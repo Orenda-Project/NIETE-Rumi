@@ -219,8 +219,8 @@ describe('3 · every draw is logged in challenge_draws AND meta.draw', () => {
     expect(row.draw_seed).toMatch(/^[0-9a-f]{32}$/);
     expect(row.meta.draw).toEqual({ draw_id: log.draw_id, outcome: 'served', eligible: log.eligible, eligible_n: 2, ref_eligible: true, p: log.p, band_reason: 'entry_grade', weights_v: 'w1', seed: row.draw_seed });
     // the page gets the draw-result shape and the drawn passage's text
-    expect(ex).toMatchObject({ mode: 'check', record: true, period_id: '2026-11', passage_id: row.passage_id, item_set_id: null, exposure_no: 1, band: 1, anchor_block: null, anchor_exposure_no: null,
-      draw: { draw_id: log.draw_id, outcome: 'served', eligible_n: 2, p: log.p, band_reason: 'entry_grade', weights_v: 'w1', seed: row.draw_seed } });
+    // the page gets only what it renders (ruling #43); the provenance stays on the row and in meta.draw
+    expect(ex).toMatchObject({ mode: 'check', draw: { outcome: 'served' } });
     expect(ex.story.text).toBe(W12.join(' '));
   });
 
@@ -231,7 +231,8 @@ describe('3 · every draw is logged in challenge_draws AND meta.draw', () => {
       const row = rowOf(ex.ct);
       expect(row.band).toBe(1);
       expect(row.passage_id).not.toBe('en.read.3.ref01');
-      expect(ex.draw).toMatchObject({ outcome: 'lower_band', band_reason: 'fallback_exhausted' });
+      expect(row.meta.draw).toMatchObject({ outcome: 'lower_band', band_reason: 'fallback_exhausted' });
+      expect(ex.draw).toEqual({ outcome: 'served' });
       Object.assign(row, { status: 'abandoned', period_id: '2026-10' });   // seen (never drawn again), last month
       if (k === 1) break;
     }
@@ -245,7 +246,7 @@ describe('3 · every draw is logged in challenge_draws AND meta.draw', () => {
     }
     const a = await Ch.exercise(hub(K3), 'read', D);
     const b = await Ch.exercise(hub(K3), 'read', D);
-    expect(a).toEqual({ ex: 'read', on_its_way: true, copy: { en: 'A new story is on its way.', ur: 'ایک نئی کہانی آنے والی ہے۔' } });
+    expect(a).toEqual({ ex: 'read', on_its_way: true, draw: { outcome: 'on_its_way' }, copy: { en: 'A new story is on its way.', ur: 'ایک نئی کہانی آنے والی ہے۔' } });
     expect(b).toEqual(a);
     expect(db.web_quiz_challenge_runs).toHaveLength(2);
     expect(starts()).toEqual([]);
@@ -263,11 +264,11 @@ describe('4 · never re-serve (any status, any mode; twins both ways)', () => {
     Bank._loadPassagesFrom(PDIR);
     db.web_quiz_challenge_runs.push({ id: 'x1', student_id: K5, canonical_id: K5, exercise: 'read', lang: 'ur', status: 'abandoned', mode: 'practice', record: false, passage_id: 'ur.read.2.setA', created_at: '2026-10-20T00:00:00Z' });
     const a = await Ch.exercise(hub(K5), 'read', { ...D, lang: 'ur' });
-    expect(a.passage_id).toBe('ur.read.2.kite');
+    expect(rowOf(a.ct).passage_id).toBe('ur.read.2.kite');
     db.web_quiz_challenge_runs.length = 0;
     db.web_quiz_challenge_runs.push({ id: 'x2', student_id: K5, canonical_id: K5, exercise: 'listen', lang: 'ur', status: 'scored', mode: 'check', record: true, passage_id: 'ur.listen.2.setA', period_id: '2026-10', created_at: '2026-10-20T00:00:00Z' });
     const b = await Ch.exercise(hub(K5), 'read', { ...D, lang: 'ur' });
-    expect(b.passage_id).toBe('ur.read.2.kite');
+    expect(rowOf(b.ct).passage_id).toBe('ur.read.2.kite');
   });
 
   test('a read of en.read.2.setA removes its listening twin: the listen stop is on its way', async () => {
@@ -286,7 +287,7 @@ describe('7 · record decided at serve: one per child × stop × period', () => 
     expect(rowOf(a.ct)).toMatchObject({ status: 'served', record: true, mode: 'check', period_id: '2026-11', passage_id: 'en.read.2.setA', band: 2, set: 'A', bank_version: 'child-test-items-v3', exposure_no: 1 });
     const b = await Ch.exercise(hub(), 'read', D);
     expect(rowOf(b.ct)).toMatchObject({ status: 'served', record: false, mode: 'practice', exposure_no: 2 });
-    expect(b).toMatchObject({ practice_round: true, mode: 'practice', record: false });
+    expect(b).toMatchObject({ practice_round: true, mode: 'practice' });
     db.web_quiz_challenge_runs.forEach((r) => { r.period_id = '2026-10'; });
     const c = await Ch.exercise(hub(), 'read', D);
     // a passage already met is never a record (M7), even in a new period with the pool off
@@ -302,7 +303,7 @@ describe('7 · record decided at serve: one per child × stop × period', () => 
   test('the submit UPDATES the served row (one row per run), keeps the provenance and meta.draw, and a second submit is refused', async () => {
     on(V2, PERIOD, POOL);
     const ex = await Ch.exercise(hub(K5), 'read', D);
-    expect(ex.passage_id).toBe('en.read.2.setA');
+    expect(rowOf(ex.ct).passage_id).toBe('en.read.2.setA');
     const draw = rowOf(ex.ct).meta.draw;
     const r = await readAloud(ex.ct);
     expect(r.score).toMatchObject({ correct: 45 });
@@ -402,7 +403,7 @@ describe('11 · the A1 warm-up', () => {
     expect(g3.items).toEqual(A1());
     expect(g5.items).toEqual(g3.items);
     expect(g3.practice).toEqual(g5.practice);
-    expect(g3).toMatchObject({ stop_after: 0, anchor_block: 'A1', anchor_exposure_no: 1, item_set_id: null, passage_id: null });
+    expect(g3).toMatchObject({ stop_after: 0, mode: 'check' });
     expect(rowOf(g3.ct)).toMatchObject({ anchor_block: 'A1', anchor_exposure_no: 1, mode: 'check', record: true, band: null });
     const again = await Ch.exercise(hub(K3), 'missing', D);       // same period: practice
     expect(rowOf(again.ct)).toMatchObject({ mode: 'practice', record: false, anchor_exposure_no: 2 });
@@ -484,7 +485,7 @@ describe('questions reached by the stop line', () => {
     const ex = await Ch.exercise(hub(K3), 'read', D);
     scoredStop(ex.ct, 3);
     const qs = (await Ch.questions({ ct: ex.ct })).questions;
-    const want = ex.passage_id === 'en.read.1.ref01' ? ['en.read.1.ref01.q1', 'en.read.1.ref01.q2'] : ['en.read.1.kite.q1'];
+    const want = rowOf(ex.ct).passage_id === 'en.read.1.ref01' ? ['en.read.1.ref01.q1', 'en.read.1.ref01.q2'] : ['en.read.1.kite.q1'];
     expect(qs.map((q) => q.id)).toEqual(want);
     // a tap is checked against the drawn passage's question
     const right = qs[0].options.indexOf('the girl');
@@ -642,6 +643,19 @@ describe('M6: the helped column at finish', () => {
     expect(rowOf(l.ct)).toMatchObject({ status: 'scored', helped: 'self' });
   });
 
+  test('the Trail page sends strings: helped:"helped" → helped, helped:"self" → self', async () => {
+    on(V2, PERIOD);
+    const a = await Ch.exercise(hub(), 'missing', D);
+    await Ch.submit({ ct: a.ct, answers: missingAnswers(a.items), ms: 30000, helped: 'helped' });
+    expect(rowOf(a.ct)).toMatchObject({ status: 'scored', helped: 'helped' });
+    const b = await Ch.exercise(hub(), 'bigger', D);
+    await Ch.submit({ ct: b.ct, taps: biggerTaps(b.items), ms: 25000, helped: 'self' });
+    expect(rowOf(b.ct)).toMatchObject({ status: 'scored', helped: 'self' });
+    const c = await Ch.exercise(hub(K5), 'bigger', D);
+    await Ch.submit({ ct: c.ct, taps: biggerTaps(c.items), ms: 25000, helped: 'maybe' });
+    expect(rowOf(c.ct).helped).toBe('not_asked');
+  });
+
   test('every new switch off: no helped column', async () => {
     const a = await Ch.exercise(hub(), 'missing', D);
     await Ch.submit({ ct: a.ct, answers: missingAnswers(a.items), ms: 30000, helped: true });
@@ -669,13 +683,19 @@ describe('ITEMS §5.6 (item 14): the record per (stop, language) for read and li
 });
 
 describe('child_identity: the fixed grade written at the first counted play of the academic year', () => {
+  // the identity change's real switch reader (web_quiz_identity_canon under web_quiz_hub), seeded through app_settings;
+  // where that module is not on the tree the tests that need it skip themselves
   const ID_FLAGS = '../../../shared/services/quiz/web-quiz-identity-flags';
+  const HUB_FLAGS = '../../../shared/services/quiz/web-quiz-hub-flags';
+  const hasFlags = (() => { try { require.resolve(ID_FLAGS); return true; } catch (_) { return false; } })();
+  const itFlags = hasFlags ? test : test.skip;
   const Draw = require('../../../shared/services/quiz/web-quiz-challenge-draw');
-  const canonOn = (v) => jest.doMock(ID_FLAGS, () => ({ flags: async () => ({ canon: v, phoneBind: false, guestHome: false }) }), { virtual: true });
-  afterEach(() => { jest.dontMock(ID_FLAGS); });
+  const resetFlags = () => { for (const m of [ID_FLAGS, HUB_FLAGS]) { try { const x = require(m); if (x._resetCache) x._resetCache(); } catch (_) { /* absent */ } } };
+  beforeEach(resetFlags);
+  afterEach(resetFlags);
 
-  test('two visits with different grades in one year → one row with the first grade; a new year → a new row', async () => {
-    on(V2, PERIOD); canonOn(true);
+  itFlags('two visits with different grades in one year → one row with the first grade; a new year → a new row', async () => {
+    on(V2, PERIOD, 'web_quiz_hub', 'web_quiz_identity_canon');
     db.child_identity = [];
     await Ch.exercise(hub(K3), 'bigger', D);
     expect(db.child_identity).toEqual([expect.objectContaining({ canonical_id: K3, year_code: Draw.yearCode(new Date()), fixed_grade: 3, grade_source: 'roster_class' })]);
@@ -689,12 +709,16 @@ describe('child_identity: the fixed grade written at the first counted play of t
     expect(db.child_identity.map((r) => r.year_code).sort()).toEqual(['2025-26', Draw.yearCode(new Date())]);
   });
 
-  test('a practice play writes nothing; the switch off writes nothing', async () => {
-    on(V2, PERIOD); canonOn(true);
+  itFlags('a practice play writes nothing', async () => {
+    on(V2, PERIOD, 'web_quiz_hub', 'web_quiz_identity_canon');
     db.child_identity = [];
     await Ch.exercise(hub(K3), 'bigger', { ...D, mode: 'practice' });
     expect(db.child_identity).toEqual([]);
-    jest.dontMock(ID_FLAGS); canonOn(false);
+  });
+
+  test('the switch off (or the identity module absent): no write', async () => {
+    on(V2, PERIOD, 'web_quiz_hub');
+    db.child_identity = [];
     await Ch.exercise(hub(K3), 'bigger', D);
     expect(db.child_identity).toEqual([]);
   });
@@ -752,5 +776,35 @@ describe('class_id at serve and the class light at the first finished exposure',
     expect(Draw.isoWeekPkt(new Date('2026-11-02T00:00:00Z'))).toBe('2026-W45');
     expect(Draw.isoWeekPkt(new Date('2026-11-01T19:00:00Z'))).toBe('2026-W45');   // Monday 00:00 PKT
     expect(Draw.isoWeekPkt(new Date('2026-11-01T18:59:59Z'))).toBe('2026-W44');
+  });
+});
+
+describe('ruling #43: the exercise payload under _v2 carries only what the page renders', () => {
+  const DROPPED = ['band', 'exposure_no', 'rung', 'period_id', 'passage_id', 'item_set_id', 'anchor_block', 'anchor_exposure_no'];
+  test('read, missing and bigger under _v2 + _pool: the exact key sets; record is today\'s rule flag only', async () => {
+    on(V2, PERIOD, POOL);
+    const read = await Ch.exercise(hub(K5), 'read', D);
+    const miss = await Ch.exercise(hub(K5), 'missing', D);
+    const big = await Ch.exercise(hub(K5), 'bigger', D);
+    const common = ['ex', 'name', 'lang', 'ct', 'clips', 'record', 'v2', 'trail', 'trail_copy', 'mode', 'draw'];
+    expect(Object.keys(read).sort()).toEqual([...common, 'secs', 'live', 'questions_on', 'story'].sort());
+    expect(Object.keys(miss).sort()).toEqual([...common, 'items', 'practice', 'stop_after', 'first_key_s', 'tryout'].sort());
+    expect(Object.keys(big).sort()).toEqual([...common, 'items', 'practice', 'per_item_s', 'stop_after'].sort());
+    for (const p of [read, miss, big]) {
+      expect(p.draw).toEqual({ outcome: 'served' });
+      expect(p.record).toBe(true);   // the record switch's flag, as today
+      for (const k of DROPPED) expect(p).not.toHaveProperty(k);
+    }
+    // a practice serve says so
+    const again = await Ch.exercise(hub(K5), 'bigger', D);
+    expect(again).toMatchObject({ mode: 'practice', practice_round: true, draw: { outcome: 'served' } });
+    // every field stays on the row and in meta.draw
+    expect(rowOf(read.ct)).toMatchObject({ band: 2, exposure_no: 1, passage_id: 'en.read.2.setA', period_id: '2026-11', record: true });
+    expect(rowOf(read.ct).meta.draw).toMatchObject({ seed: expect.any(String), p: expect.any(Number), eligible_n: 1, band_reason: 'entry_grade', weights_v: 'w1' });
+  });
+
+  test('the menu keeps anchor_block A1 on the warm-up', async () => {
+    on(V2, PERIOD, POOL);
+    expect((await Ch.menu(hub(K5), D)).exercises[0]).toMatchObject({ id: 'missing', anchor_block: 'A1' });
   });
 });

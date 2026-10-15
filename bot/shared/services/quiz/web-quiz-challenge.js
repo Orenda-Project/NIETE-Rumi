@@ -200,7 +200,8 @@ const copyFor = (lang) => Object.fromEntries(Object.entries(COPY_KEYS).map(([k, 
 // The trail's page copy and the keypad's lines (both languages). The page fills {name} {done} {total} {n}.
 const TRAIL_KEYS = { title: 'wqChTrailTitle', sub: 'wqChTrailSub', allDone: 'wqChTrailAllDone', badge: 'wqChTrailBadge', next: 'wqChTrailNext', mic: 'wqChTrailMic', needsMic: 'wqChTrailNeedsMic', micWait: 'wqChTrailMicWait', other: 'wqChTrailOther', back: 'wqChTrailBack', practice: 'wqChTrailPractice', stopDone: 'wqChTrailStopDone', missAsk: 'wqChMissingAsk', missYes: 'wqChMissingYes', missWas: 'wqChMissingWas', missSkip: 'wqChMissingSkip', micAgain: 'wqChTrailMicAgain', helpAsk: 'wqChHelpAsk', helpNo: 'wqChHelpNo', helpYes: 'wqChHelpYes' };
 // "On your own, or with help?" as the page sends it: true, false, or not asked (null). Never a default.
-const helpedOf = (v) => (v === true || v === false ? v : null);
+// (the Trail v2 page sends 'helped' / 'self'; anything else is not asked)
+const helpedOf = (v) => (v === true || v === 'helped' ? true : (v === false || v === 'self' ? false : null));
 const trailCopy = (lang) => Object.fromEntries(Object.entries(TRAIL_KEYS).map(([k, key]) => [k, resolveUx(key, { language: lang, params: { name: '{name}', done: '{done}', total: '{total}', n: '{n}' } })]));
 
 // A test child ("<Name> Testwala"): the row says so, so no filter has to guess.
@@ -615,7 +616,7 @@ async function exercise(token, ex, { kid, lang, device } = {}) {
   let spec = Bank.getTaskSpec({ grade: Number(w.form), set: 'A', task });
   // challenge v2: what is served (drawn under _pool) and its row, decided before the token; "on its way" serves nothing
   const v2 = rules.v2 ? await serveV2(w, ex, rules, { mode: (arguments[2] || {}).mode, classId: (arguments[2] || {}).classId, device }) : null;   // mode: 'practice' from a caller (Story Time)
-  if (v2 && v2.on_its_way) return { ex, on_its_way: true, copy: { ...Draw().ON_ITS_WAY_COPY } };
+  if (v2 && v2.on_its_way) return { ex, on_its_way: true, draw: { outcome: 'on_its_way' }, copy: { ...Draw().ON_ITS_WAY_COPY } };
   if (v2 && v2.formNum !== w.form) spec = Bank.getTaskSpec({ grade: Number(v2.formNum), set: 'A', task });   // M8: the fixed grade's form
   const runId = v2 ? v2.runId : crypto.randomUUID();
   const ct = T.signChallenge({ studentId: w.studentId, ex, runId });
@@ -929,8 +930,8 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     // the run's v2 fields at the top of its in-process entry (the measurement events read them there); form stays the scoring form
     top: { canonical_id: canonicalId, mode, period_id: periodId, band, record, via, exposure_no: exposure, passage_id: passageId, item_set_id: itemSetId,
       anchor_block: anchorBlock, anchor_exposure_no: anchorExp, form: formNum },
-    payload: { mode, record, period_id: periodId, passage_id: passageId, item_set_id: itemSetId, exposure_no: exposure, band, anchor_block: anchorBlock, anchor_exposure_no: anchorExp,
-      draw: metaDraw ? { draw_id: metaDraw.draw_id, outcome: metaDraw.outcome, eligible_n: metaDraw.eligible_n, p: metaDraw.p, band_reason: metaDraw.band_reason, weights_v: metaDraw.weights_v, seed: metaDraw.seed } : null },
+    // the page gets only what it renders (ruling #43); every other field is on the row, in meta.draw and in ch_start
+    payload: { mode, ...(mode === 'practice' ? { practice_round: true } : {}), draw: { outcome: 'served' } },
     event: { w: 's', mode, period_id: periodId, form, band, rung: rung == null ? null : rung, ...(isPassage ? { passage_id: passageId } : { item_set_id: itemSetId }),
       exposure_no: exposure, ...(anchorBlock ? { anchor_exposure_no: anchorExp, anchor_serves_any: servesAny, anchor_block: anchorBlock } : {}), record, via },
     items, tryout, story, dir, clipUrl,
