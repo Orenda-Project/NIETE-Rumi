@@ -4,7 +4,8 @@
  * The record ("one record per canonical child × stop × period", per language for read and listen) is decided by a read
  * at serve time and inserted later; two concurrent serves could both insert record = true. The migration makes the
  * database refuse the second one (23505), adds six CHECKs (one: a record row carries its whole key) on the serve's columns and tightens the first-exposure rule
- * (23514). Applies twice cleanly, leaves existing rows as they were; the rollback puts the table back exactly as before.
+ * (23514). An "on its way" draw is logged once per child × stop × period × UTC hour (23505 on the second).
+ * Applies twice cleanly, leaves existing rows as they were; the rollback puts the table back exactly as before.
  *
  * Needs the Postgres server binaries (postgres, initdb, pg_ctl, psql: PG_BIN or pg_config --bindir); without them the
  * suite is skipped and says so.
@@ -56,6 +57,14 @@ const shape = () => psql("select string_agg(x, E'\\n' order by x) from ("
   + "union all select 'con ' || conname || ' ' || pg_get_constraintdef(oid) from pg_constraint where conrelid = 'web_quiz_challenge_runs'::regclass "
   + "union all select 'idx ' || indexname || ' ' || indexdef from pg_indexes where tablename = 'web_quiz_challenge_runs') t");
 const LOCK_IDX = ['web_quiz_challenge_runs_one_record_lang_uidx', 'web_quiz_challenge_runs_one_record_stop_uidx'];
+const DRAW_IDX = 'challenge_draws_on_its_way_hour_uidx';
+let dseq = 0;
+const draw = (cols = {}) => {
+  dseq += 1;
+  const all = { draw_id: `cccccccc-0000-4000-8000-${String(dseq).padStart(12, '0')}`, canonical_id: KID, period_id: '2026-11', stop: 'read', lang: 'en',
+    fixed_grade_band: 'G23', band: '2', band_reason: 'entry_grade', weights_v: 'w1', outcome: 'on_its_way', drawn_at: '2026-11-05T10:05:00Z', ...cols };
+  return `insert into challenge_draws (${Object.keys(all).join(', ')}) values (${Object.values(all).map((v) => (v === null ? 'null' : `'${v}'`)).join(', ')})`;
+};
 const LOCK_CHK = ['wqcr_anchor_block_stop_chk', 'wqcr_serves_any_needs_block_chk', 'wqcr_class_round_arm_chk', 'wqcr_class_round_admin_chk', 'wqcr_record_provenance_chk', 'wqcr_record_key_not_null_chk'];
 
 d('the record locks on a real Postgres', () => {
@@ -71,6 +80,8 @@ d('the record locks on a real Postgres', () => {
     apply('web_quiz_challenge.sql');
     apply('web_quiz_challenge_runs_v2.sql');
     apply('web_quiz_challenge_runs_sampling.sql');
+    apply('web_quiz_challenge_registry.sql');
+    psql("insert into challenge_periods (period_id, starts_at, ends_at, anchor_block_version, weights_v, bank_version) values ('2026-11', '2026-10-31T19:00:00Z', '2026-11-30T19:00:00Z', 'A1', 'w1', 'bank-v4')");
     psql(`insert into web_quiz_challenge_runs (${BASE_COLS}) values ('${LEGACY}', '${KID}', 'read', 3, 'en', 'scored', '{"correct":31}', 31, '{"ms":900}', '2026-10-01T10:00:00Z', '2026-10-01T10:01:00Z')`);
     before = shape();
   }, 60000);
@@ -136,6 +147,35 @@ d('the record locks on a real Postgres', () => {
     });
   });
 
+  describe('one "on its way" draw log per child × stop × period × hour', () => {
+    beforeEach(() => psql('delete from challenge_draws'));
+
+    test('date_trunc(hour) on a timestamptz is refused in an index (42P17); the UTC form builds', () => {
+      expect(fails("create index wq_naive_hour_idx on challenge_draws (date_trunc('hour', drawn_at))")).toMatch(/42P17/);
+      expect(psql(`select indexdef from pg_indexes where indexname = '${DRAW_IDX}'`)).toMatch(/UNIQUE INDEX .*date_trunc\('hour'::text, \(drawn_at AT TIME ZONE 'UTC'::text\)\).*WHERE \(outcome = 'on_its_way'::text\)/);
+    });
+
+    test('a second on_its_way row for one child × stop × period in the same hour is refused (23505)', () => {
+      expect(fails(draw())).toBeNull();
+      expect(fails(draw({ drawn_at: '2026-11-05T10:55:00Z', lang: 'ur' }))).toMatch(/23505/);
+    });
+
+    test('the next hour, another stop, another child: each logged', () => {
+      expect(fails(draw())).toBeNull();
+      expect(fails(draw({ drawn_at: '2026-11-05T11:00:00Z' }))).toBeNull();
+      expect(fails(draw({ stop: 'listen' }))).toBeNull();
+      expect(fails(draw({ canonical_id: KID2 }))).toBeNull();
+    });
+
+    test('served (and lower_band) draws are never limited', () => {
+      expect(fails(draw({ outcome: 'served' }))).toBeNull();
+      expect(fails(draw({ outcome: 'served' }))).toBeNull();
+      expect(fails(draw({ outcome: 'lower_band' }))).toBeNull();
+      expect(fails(draw({ outcome: 'lower_band' }))).toBeNull();
+      expect(fails(draw())).toBeNull();   // one on_its_way beside them
+    });
+  });
+
   describe('the CHECKs (23514 for a violating row; the valid row accepted)', () => {
     beforeEach(clear);
 
@@ -177,6 +217,7 @@ d('the record locks on a real Postgres', () => {
     apply('web_quiz_challenge_runs_record_locks_rollback.sql');
     expect(shape()).toBe(before);
     expect(psql("select pg_get_constraintdef(oid) from pg_constraint where conname = 'wqcr_record_first_exposure_chk'")).toMatch(/exposure_no IS NULL/);
+    expect(psql(`select count(*) from pg_indexes where indexname = '${DRAW_IDX}'`)).toBe('0');
     // existing duplicate records: the migration fails whole and leaves nothing half-applied
     psql(ins()); psql(ins());
     expect(() => apply('web_quiz_challenge_runs_record_locks.sql')).toThrow(/23505/);

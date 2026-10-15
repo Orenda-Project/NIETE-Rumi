@@ -1,9 +1,10 @@
--- Rollback of web_quiz_challenge_runs_record_locks.sql: drops the two record indexes and the six CHECKs, and puts
+-- Rollback of web_quiz_challenge_runs_record_locks.sql: drops the two record indexes, the on-its-way draw index and the six CHECKs, and puts
 -- wqcr_record_first_exposure_chk back as web_quiz_challenge_runs_sampling.sql made it. No row is touched.
 BEGIN;
 
 DROP INDEX IF EXISTS public.web_quiz_challenge_runs_one_record_lang_uidx;
 DROP INDEX IF EXISTS public.web_quiz_challenge_runs_one_record_stop_uidx;
+DROP INDEX IF EXISTS public.challenge_draws_on_its_way_hour_uidx;
 
 ALTER TABLE public.web_quiz_challenge_runs
   DROP CONSTRAINT IF EXISTS wqcr_anchor_block_stop_chk,

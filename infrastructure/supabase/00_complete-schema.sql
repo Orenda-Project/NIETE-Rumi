@@ -7240,6 +7240,11 @@ CREATE INDEX IF NOT EXISTS challenge_draws_cell_idx
 CREATE INDEX IF NOT EXISTS challenge_draws_child_idx
   ON challenge_draws (canonical_id, period_id, stop);
 
+-- one "on its way" draw log per child × stop × period × UTC hour (web_quiz_challenge_runs_record_locks.sql)
+CREATE UNIQUE INDEX IF NOT EXISTS challenge_draws_on_its_way_hour_uidx
+  ON challenge_draws (canonical_id, stop, period_id, (date_trunc('hour', drawn_at AT TIME ZONE 'UTC')))
+  WHERE outcome = 'on_its_way';
+
 ALTER TABLE challenge_draws ENABLE ROW LEVEL SECURITY;
 
 COMMENT ON TABLE challenge_draws IS

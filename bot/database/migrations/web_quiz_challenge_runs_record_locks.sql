@@ -1,6 +1,7 @@
 -- Migration: database locks for the Challenge record rules on web_quiz_challenge_runs.
 -- requires: web_quiz_challenge_runs_v2.sql
 -- requires: web_quiz_challenge_runs_sampling.sql
+-- requires: web_quiz_challenge_registry.sql
 --
 -- The record ("one record per canonical child × stop × PKT period", per language for read and listen) is decided
 -- by a read when the exercise is served and inserted afterwards; two concurrent serves could both insert
@@ -26,6 +27,12 @@
 --   and wqcr_record_first_exposure_chk (web_quiz_challenge_runs_sampling.sql) is re-made without its
 --   "exposure_no IS NULL" escape: a record row is a first exposure (exposure_no = 1) unless it is an anchor block.
 --
+--   one "on its way" draw log per child × stop × period × UTC hour (challenge_draws, partial UNIQUE index
+--   challenge_draws_on_its_way_hour_uidx WHERE outcome = 'on_its_way'): a page retrying an empty pool logs the miss
+--   once an hour, not once a tap. The hour is date_trunc('hour', drawn_at AT TIME ZONE 'UTC'): date_trunc on a
+--   timestamptz depends on the session time zone (STABLE) and Postgres refuses it in an index. A second row raises
+--   23505; served and lower_band draws are never limited.
+--
 -- If the table already holds two record rows for one key, the index build fails and the whole migration rolls back.
 -- Apply after web_quiz_challenge_runs_v2.sql and web_quiz_challenge_runs_sampling.sql. Sandbox first; staging and
 -- prod only on a go. Rollback: web_quiz_challenge_runs_record_locks_rollback.sql.
@@ -38,6 +45,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS web_quiz_challenge_runs_one_record_lang_uidx
 CREATE UNIQUE INDEX IF NOT EXISTS web_quiz_challenge_runs_one_record_stop_uidx
   ON public.web_quiz_challenge_runs ((coalesce(canonical_id, student_id)), exercise, period_id)
   WHERE record IS TRUE AND exercise NOT IN ('read', 'listen');
+CREATE UNIQUE INDEX IF NOT EXISTS challenge_draws_on_its_way_hour_uidx
+  ON public.challenge_draws (canonical_id, stop, period_id, (date_trunc('hour', drawn_at AT TIME ZONE 'UTC')))
+  WHERE outcome = 'on_its_way';
 
 DO $$
 DECLARE c record;
