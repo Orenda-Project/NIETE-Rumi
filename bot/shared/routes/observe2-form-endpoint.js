@@ -251,10 +251,17 @@ function afterPlan(form, screenData) {
   return photosDone(form && form.answers) ? renderAfter(form) : renderAdd('PHOTOS');
 }
 
+// The recording already in (held at capture, or sent before the seal): the screen says so, as the chat
+// message after the seal does (afterSeal: sealed_chat_recording_in). Asking for it again contradicted
+// that message (sandbox E2E, 15 Oct).
+const RECORDING_IN_LINE = 'Next: the recording is already in, so the moments come to you in the chat to check.';
+
 function renderSealed(form, lines) {
   const l = lines || {
     sealed_line: `Sealed at ${clock(form.sealed_at)}`,
-    next_line: 'Next: stop the recorder and send the recording in the chat, as a document. The steps are waiting there.',
+    next_line: afterLesson(form)
+      ? RECORDING_IN_LINE
+      : 'Next: stop the recorder and send the recording in the chat, as a document. The steps are waiting there.',
   };
   return { screen: 'SEALED', data: { ...l, record_id: String((form && form.id) || '') } };
 }
@@ -265,7 +272,9 @@ function renderContinue(kind, form) {
     part1: ['Part 1 is saved', afterLesson(form) ? AFTER_HINT.continue : `Carry on with Part 2: independent practice and the wrap-up, to minute ${period}.`],
     plan: ['Parts 1 and 2 are saved', 'Next: the lesson plan, then seal the record.'],
     part2: ['Parts 1 and 2 and the plan are saved', 'Carry on to the last screen and seal the record.'],
-    sealed: ['This record is sealed', `It was sealed at ${clock(form && form.sealed_at)} and can't change. Send the recording in the chat as a document if you haven't yet.`],
+    sealed: ['This record is sealed', afterLesson(form)
+      ? `It was sealed at ${clock(form && form.sealed_at)} and can't change. The recording is already in.`
+      : `It was sealed at ${clock(form && form.sealed_at)} and can't change. Send the recording in the chat as a document if you haven't yet.`],
     gone: ['This form is not available', 'Send /observe2 in the chat to start a new visit.'],
     error: ['Something went wrong', 'Close this form and open it again in a minute.'],
   }[kind];

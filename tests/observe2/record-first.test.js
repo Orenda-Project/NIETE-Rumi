@@ -388,6 +388,55 @@ describe('the form, opened after the lesson', () => {
   });
 });
 
+// Sandbox E2E, 15 Oct (round 6, R1.6e): on a held visit the SEALED screen said "Next: stop the recorder and
+// send the recording in the chat…" while the chat message right after it said "The recording is already
+// in". The same screen is shown to any form whose recording came before the seal (5 prod forms, 12-15 Oct).
+describe('the sealed screen, when the recording is already in', () => {
+  const token = (formId) => `coach-1:observe2-form:${formId}`;
+  const AFTER_OK = { screen: 'AFTER', incident: 'none', detail: '', note: '', priority: 'C8', seal_ok: true };
+  const flush = async () => { for (let i = 0; i < 20; i += 1) await new Promise((r) => setImmediate(r)); };
+  const seedForSeal = ({ recording = true, ...over } = {}) => seed({
+    sessions: recording ? [{ id: 'seed-seal', observer_user_id: 'coach-1', user_id: 'teacher-a', observation_type: 'leader_observation', status: 'observe2_ready', debrief_status: 'pending', created_at: hoursAgo(1), updated_at: hoursAgo(1) }] : [],
+    forms: [{
+      id: 'form-seal', observer_user_id: 'coach-1', teacher_user_id: 'teacher-a', coaching_session_id: recording ? 'seed-seal' : null,
+      visit_context: {}, answers: { lp: 'none', photo_how: 'none' }, photos: [], evidence_review: {}, period_minutes: 30,
+      part1_done_at: hoursAgo(0.9), part2_done_at: hoursAgo(0.8), created_at: hoursAgo(1), ...over,
+    }],
+  });
+
+  test.each([
+    ['held at capture (record first)', { visit_context: { recorded_first: true } }],
+    ['sent before the seal (one visit, recording first)', {}],
+  ])('%s: the screen says the recording is in, as the chat message does', async (_, over) => {
+    seedForSeal(over);
+    const out = await Endpoint.handleObserve2FormDataExchange(token('form-seal'), 'AFTER', AFTER_OK);
+    expect(out.screen).toBe('SEALED');
+    expect(out.data.sealed_line).toMatch(/^Sealed at \d{2}:\d{2}$/);
+    expect(out.data.next_line).not.toMatch(/send the recording|stop the recorder/i);
+    expect(out.data.next_line).toMatch(/recording is already in/i);
+    await flush();
+    const chat = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]).join('\n');
+    expect(chat).toMatch(/recording is already in/i);
+  });
+
+  test('with no recording yet, the screen still asks for it', async () => {
+    seedForSeal({ recording: false });
+    const out = await Endpoint.handleObserve2FormDataExchange(token('form-seal'), 'AFTER', AFTER_OK);
+    expect(out.screen).toBe('SEALED');
+    expect(out.data.next_line).toMatch(/send the recording/i);
+  });
+
+  test('a sealed form reopened later does not ask for a recording it already has', async () => {
+    seedForSeal({ sealed_at: hoursAgo(0.5) });
+    const init = await Endpoint.handleObserve2FormInit(token('form-seal'));
+    expect(init.screen).toBe('CONTINUE');
+    expect(init.data.continue_line).not.toMatch(/send the recording/i);
+    const out = await Endpoint.handleObserve2FormDataExchange(token('form-seal'), 'CONTINUE', { screen: 'CONTINUE' });
+    expect(out.screen).toBe('SEALED');
+    expect(out.data.next_line).not.toMatch(/send the recording|stop the recorder/i);
+  });
+});
+
 describe('copy rules', () => {
   test.each(['en', 'ur'])('the new lines exist in %s, and buttons fit 20 code points', (lang) => {
     const S = observe2Strings(lang);
