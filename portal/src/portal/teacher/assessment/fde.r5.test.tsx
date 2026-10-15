@@ -40,6 +40,7 @@ import { newPicks, type Picks } from './model';
 import { CheckStep, ClassStep, CoverStep, QuestionsStep } from './NewPaperSteps';
 import { RequestPage } from './RequestPage';
 import { ASSESSMENT_V2_BASE as B, newPaperPath, requestPath } from './paths';
+import { failureLabel } from './failure';
 
 type Summary = (typeof summaries)['maths'];
 const S = summaries as unknown as Record<string, Summary | null>;
@@ -268,6 +269,57 @@ describe('Ready on a board-pattern paper', () => {
     expect(await screen.findByText(C.answerKey)).toBeTruthy();
     expect(portal.getAssessmentPaperView).not.toHaveBeenCalled();
     expect(screen.queryByTestId('fde-ready-youadd')).toBeNull();
+  });
+});
+
+describe('the plain Check and the request page (what QA and the red team found on sandbox)', () => {
+  const plainPicks = () => setPicks({ ...newPicks(10), grade: 3, subject: 'science', subjectName: 'Science', chapters: [1] });
+
+  it('a refused Make for the hour limit says so in the teacher\'s words, with the time, above the rows', async () => {
+    plainPicks();
+    portal.generateAssessment.mockRejectedValue({ response: { status: 429, data: {
+      success: false, errorCode: 'RATE_LIMITED', retryAt: '2026-10-15T17:47:00.000Z',
+      error: 'You have made 10 papers this hour. The next one can be made at 22:47.',
+    } } });
+    portal.takeGenerateFailure.mockReturnValueOnce({ errorCode: 'RATE_LIMITED', retryAt: '2026-10-15T17:47:00.000Z', requestId: null } as never);
+    app(newPaperPath('check'));
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.makePaper) }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe(C.fdeFailures.RATE_LIMITED('10:47 PM'));
+    const firstRow = screen.getByText(C.steps.class);
+    expect(alert.compareDocumentPosition(firstRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('golden: any other refusal on the plain Check keeps the server\'s message', async () => {
+    plainPicks();
+    portal.generateAssessment.mockRejectedValue({ response: { status: 400, data: { success: false, error: 'Chapter not found' } } });
+    app(newPaperPath('check'));
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.makePaper) }));
+    expect((await screen.findByRole('alert')).textContent).toBe('Chapter not found');
+  });
+
+  it('Make before the chapter titles load: the job is named by the chapter number, not "Chapters"', async () => {
+    setPicks({ ...newPicks(10), grade: 3, subject: 'science', subjectName: 'Science', chapters: [4, 2] });
+    portal.getAssessmentChapters.mockImplementation(() => new Promise(() => {}));
+    portal.generateAssessment.mockResolvedValue({ success: true, requestId: 'req-p' });
+    app(newPaperPath('check'));
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(C.makePaper) }));
+    await waitFor(() => expect(where().path).toBe(requestPath('req-p')));
+    const jobs = JSON.parse(sessionStorage.getItem('assessment-jobs:v1:fde-teacher') || '[]');
+    expect(jobs[0].label).toBe(`${C.chapterShort(2)} +1`);
+  });
+
+  it('a board-pattern paper that came out short says "Came out wrong", in both languages', async () => {
+    writingJob({ grade: 5, subject: 'maths', pattern: 'fde_g5_2027', scope: 'fde', questionCount: 0 });
+    portal.getAssessmentStatus.mockResolvedValue({ success: true, status: 'failed', errorCode: 'PATTERN_SHORT_SLOT' });
+    sessionStorage.setItem('assessment-jobs:v1:fde-teacher', JSON.stringify([{
+      requestId: 'req-f', label: 'Maths', startedAt: Date.now(), status: 'failed', errorCode: 'PATTERN_SHORT_SLOT',
+      spec: { grade: 5, subject: 'maths', pattern: 'fde_g5_2027', scope: 'fde', questionCount: 0 },
+    }]));
+    app(requestPath('req-f'));
+    expect(await screen.findByText(C.failures.BAD_JSON)).toBeTruthy();
+    expect(screen.queryByText(C.failureFallback)).toBeNull();
+    expect(failureLabel('PATTERN_SHORT_SLOT', UR as never)).toBe(UR.failures.BAD_JSON);
   });
 });
 

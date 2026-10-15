@@ -13,6 +13,7 @@ import {
   FDE_STEPS, MAX_TOTAL_MARKS, STEPS, checkPages, isFde, toSpec, typesStatus, unseenTarget, type Picks, type Source,
 } from './model';
 import { FdeCheck } from './FdeCheck';
+import { generateFailureText } from './failure';
 import { pagesMessage, stepReason } from './reasons';
 import { ASSESSMENT_V2_BASE, newPaperPath, requestPath } from './paths';
 import { usePicks } from './store';
@@ -20,7 +21,7 @@ import { useJobs } from './useJobs';
 import {
   CheckRow, Chip, Choice, Label, ListCard, LoadState, PRIMARY, StepFrame, Stepper, SwitchRow, Tabs,
 } from './ui';
-import type { AssessmentPattern } from '../../services/api';
+import { portal, type AssessmentPattern } from '../../services/api';
 
 /**
  * bd-fmf24g.6 — the teacher v2 New paper, six steps (v28 canvas AssessmentNew … AssessConfirm), each its
@@ -575,8 +576,11 @@ function PlainCheck() {
   const cover = p.coverBy === 'chapters'
     ? titles.map((c) => `${c.chapter_number} ${c.chapter_title}`)
     : p.ranges.map(([a, b]) => C.pageRange(a, b));
+  // The job's name: the first chapter's title, or its number when Make is tapped before the titles have loaded.
+  const firstChapters = [...p.chapters].sort((a, b) => a - b);
   const coverName = p.coverBy === 'chapters'
-    ? (titles.length ? `${titles[0].chapter_title}${titles.length > 1 ? ` +${titles.length - 1}` : ''}` : C.chapters)
+    ? (titles.length ? `${titles[0].chapter_title}${titles.length > 1 ? ` +${titles.length - 1}` : ''}`
+      : firstChapters.length ? `${C.chapterShort(firstChapters[0])}${firstChapters.length > 1 ? ` +${firstChapters.length - 1}` : ''}` : C.chapters)
     : (p.ranges.length ? C.pageRange(p.ranges[0][0], p.ranges[0][1]) : C.pages);
   const typesLine = p.source === 'seen' ? C.bookOnly
     : p.typeMode === 'auto' ? C.autoMix
@@ -600,12 +604,16 @@ function PlainCheck() {
     setError(null);
     const res = await start(toSpec(p), coverName, p.subjectName ?? p.subject);
     setBusy(false);
-    if ('job' in res) navigate(requestPath(res.job.requestId), { replace: true });
-    else setError(res.error);
+    if ('job' in res) { navigate(requestPath(res.job.requestId), { replace: true }); return; }
+    // The hour's paper limit (the server's 429) in the teacher's words and time; any other refusal keeps the server's message.
+    const f = portal.takeGenerateFailure?.() ?? null;
+    setError(generateFailureText(f?.errorCode, f?.retryAt ?? null, C) ?? res.error);
   };
 
   return (
     <StepFrame step="check" backTo={backTo('extras')} next={{ label: busy ? C.making : C.makePaper, why: stepReason('check', p, 50, C), onPress: make, busy }}>
+      {/* Above the rows, as on the board-pattern Check: under them it sits below the fold, behind the dock. */}
+      {error && <p role="alert" className="rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">{error}</p>}
       <ListCard label={C.steps.check}>
         {rows.map((r, i) => (
           <div key={r.k} className={cn('flex min-h-[72px] items-center gap-3 py-2 ps-3.5 pe-1.5', i > 0 && 'border-t border-[#f0f1f3]')}>
@@ -619,7 +627,6 @@ function PlainCheck() {
           </div>
         ))}
       </ListCard>
-      {error && <p role="alert" className="rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">{error}</p>}
     </StepFrame>
   );
 }
