@@ -6792,6 +6792,31 @@ CREATE TABLE IF NOT EXISTS web_quiz_challenge_runs (
 );
 CREATE INDEX IF NOT EXISTS web_quiz_challenge_runs_student_idx
   ON web_quiz_challenge_runs (student_id, exercise, created_at DESC);
+-- which sample a run belongs to, how it was administered, anchor serves in any mode (bot/database/migrations/web_quiz_challenge_runs_sampling.sql)
+ALTER TABLE web_quiz_challenge_runs
+  ADD COLUMN IF NOT EXISTS sample_arm        text,
+  ADD COLUMN IF NOT EXISTS admin_mode        text,
+  ADD COLUMN IF NOT EXISTS anchor_serves_any smallint;
+
+DO $$
+DECLARE c record;
+BEGIN
+  FOR c IN SELECT * FROM (VALUES
+    ('wqcr_sample_arm_chk',      'sample_arm IN (''class_round'',''class_week'',''coach'',''ping'')'),
+    ('wqcr_admin_mode_chk',      'admin_mode IN (''self_run'',''teacher_present'',''coach_present'')'),
+    ('wqcr_arm_needs_admin_chk', 'sample_arm IS NULL OR admin_mode IS NOT NULL'),
+    ('wqcr_serves_any_chk',      'anchor_serves_any >= 1')
+  ) AS t(name, expr) LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = c.name AND conrelid = 'web_quiz_challenge_runs'::regclass) THEN
+      EXECUTE format('ALTER TABLE web_quiz_challenge_runs ADD CONSTRAINT %I CHECK (%s)', c.name, c.expr);
+    END IF;
+  END LOOP;
+END $$;
+
+COMMENT ON COLUMN web_quiz_challenge_runs.sample_arm IS
+  'Internal. NULL = self-chosen play; else the drawn sample the run belongs to. Arms are separate lines, never pooled.';
+COMMENT ON COLUMN web_quiz_challenge_runs.anchor_serves_any IS
+  'Internal. Serves of the anchor items to this child in any mode, this one included; a home first-time line requires 1.';
 ALTER TABLE web_quiz_challenge_runs ENABLE ROW LEVEL SECURITY;
 COMMENT ON TABLE web_quiz_challenge_runs IS
   'Internal. Web quiz Challenge: one row per finished self-run exercise of a child (bigger, read aloud). Numbers only — the read-aloud recording is deleted after scoring and never referenced. Written only by the bot. Owner: Digital Coach team.';
@@ -6870,6 +6895,21 @@ CREATE INDEX IF NOT EXISTS web_quiz_challenge_runs_record_idx
   ON web_quiz_challenge_runs (canonical_id, exercise, period_id) WHERE mode = 'check';
 CREATE INDEX IF NOT EXISTS web_quiz_challenge_runs_sweep_idx
   ON web_quiz_challenge_runs (status, created_at) WHERE status IN ('served', 'scoring');
+
+-- Two record rules (web_quiz_challenge_runs_sampling.sql; they read the columns above): a record row is a check row,
+-- and the child's first exposure of its passage or item set (the anchor block exempt). NULL record passes.
+DO $$
+DECLARE c record;
+BEGIN
+  FOR c IN SELECT * FROM (VALUES
+    ('wqcr_record_is_check_chk', 'record IS NOT TRUE OR mode IS NOT DISTINCT FROM ''check'''),
+    ('wqcr_record_first_exposure_chk', 'record IS NOT TRUE OR anchor_block IS NOT NULL OR exposure_no IS NULL OR exposure_no = 1')
+  ) AS t(name, expr) LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = c.name AND conrelid = 'web_quiz_challenge_runs'::regclass) THEN
+      EXECUTE format('ALTER TABLE web_quiz_challenge_runs ADD CONSTRAINT %I CHECK (%s)', c.name, c.expr);
+    END IF;
+  END LOOP;
+END $$;
 
 COMMENT ON COLUMN web_quiz_challenge_runs.mode IS
   'Internal. check | practice | class_round. Only check rows enter a trend; NULL on rows written before the provenance columns.';
@@ -6973,5 +7013,343 @@ COMMENT ON VIEW public.niete_lp_taken IS
 REVOKE ALL ON public.niete_lp_taken FROM anon, authenticated;
 GRANT SELECT ON public.niete_lp_taken TO service_role;
 
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Challenge content registry: passages, maths items, periods, equating links, draws
+-- (mirror of bot/database/migrations/web_quiz_challenge_registry.sql)
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS challenge_passages (
+  passage_id        text PRIMARY KEY,
+  lang              text NOT NULL CHECK (lang IN ('en', 'ur')),
+  kind              text NOT NULL CHECK (kind IN ('read', 'listen')),
+  pool              text NOT NULL CHECK (pool IN ('check', 'practice')),
+  band              smallint NOT NULL CHECK (band BETWEEN 1 AND 3),
+  status            text NOT NULL DEFAULT 'draft'
+                    CHECK (status IN ('draft', 'reviewed', 'provisional', 'calibrated', 'retired')),
+  is_reference      boolean NOT NULL DEFAULT false,
+  released_at       timestamptz,
+  withdrawn_at      timestamptz,
+  withdraw_reason   text,
+  tokens            smallint,
+  sentences         smallint,
+  mean_sent_len     numeric(4,1),
+  max_word_len      smallint,
+  readability       numeric(4,3) CHECK (readability BETWEEN 0 AND 1),
+  readability_list  text,
+  q_reach_1         smallint NOT NULL DEFAULT 0,
+  q_reach_2         smallint NOT NULL DEFAULT 0,
+  q_n               smallint NOT NULL DEFAULT 0,
+  title_en          text,
+  title_ur          text,
+  source_ref        text,
+  licence           text CHECK (licence IN ('textbook', 'cc_by', 'cc_by_sa', 'generated')),
+  reviewer          text,
+  reviewed_at       timestamptz,
+  n_first_exposures integer NOT NULL DEFAULT 0,
+  adjustment        numeric,
+  se                numeric,
+  method            text CHECK (method IN ('none', 'mean', 'ratio', 'linear')),
+  signed_by         text,
+  signed_at         timestamptz,
+  twin_of           text REFERENCES challenge_passages(passage_id),
+  text_hash         text,
+  bank_version      text NOT NULL,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT challenge_passages_practice_status
+    CHECK (pool = 'check' OR status IN ('draft', 'reviewed', 'retired')),
+  CONSTRAINT challenge_passages_reviewed_has_reviewer
+    CHECK (status = 'draft' OR (reviewer IS NOT NULL AND reviewed_at IS NOT NULL))
+);
+
+-- exactly one live reference per (lang, band, kind) in the check pool
+CREATE UNIQUE INDEX IF NOT EXISTS challenge_passages_reference_idx
+  ON challenge_passages (lang, band, kind)
+  WHERE is_reference AND pool = 'check' AND status <> 'retired';
+
+-- at most two provisional passages per (lang, band, kind): enforced by the service and checked here
+CREATE INDEX IF NOT EXISTS challenge_passages_cell_idx
+  ON challenge_passages (lang, band, kind, pool, status, released_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS challenge_passages_text_hash_idx
+  ON challenge_passages (text_hash) WHERE text_hash IS NOT NULL;
+
+ALTER TABLE challenge_passages ENABLE ROW LEVEL SECURITY;
+
+COMMENT ON TABLE challenge_passages IS
+  'Challenge passage registry: band, pool, status ladder, release time, readability, review and calibration sign-off; text is in the bank file';
+
+
+CREATE TABLE IF NOT EXISTS challenge_items (
+  item_id           text PRIMARY KEY,
+  task              text NOT NULL CHECK (task IN ('bigger', 'missing', 'number_id')),
+  form              text NOT NULL CHECK (form IN ('G3', 'G5', 'G1', 'shared')),
+  band              smallint CHECK (band BETWEEN 1 AND 3),
+  pool              text NOT NULL CHECK (pool IN ('check', 'practice')),
+  template_id       text,
+  params            jsonb NOT NULL DEFAULT '{}'::jsonb,
+  params_hash       text NOT NULL,
+  anchor            boolean NOT NULL DEFAULT false,
+  anchor_block      text CHECK (anchor_block IN ('A1', 'A2', 'G1A')),
+  anchor_pos        smallint,
+  status            text NOT NULL DEFAULT 'draft'
+                    CHECK (status IN ('draft', 'reviewed', 'provisional', 'operational', 'retired')),
+  difficulty        numeric,
+  se                numeric,
+  n                 integer NOT NULL DEFAULT 0,
+  n_right           integer NOT NULL DEFAULT 0,
+  n_wrong           integer NOT NULL DEFAULT 0,
+  infit             numeric,
+  outfit            numeric,
+  dif_lang          numeric,
+  signed_by         text,
+  signed_at         timestamptz,
+  retired_at        timestamptz,
+  retire_reason     text,
+  bank_version      text NOT NULL,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT challenge_items_anchor_shape
+    CHECK (NOT anchor OR (anchor_block IS NOT NULL AND anchor_pos IS NOT NULL AND status = 'operational' AND pool = 'check'))
+);
+
+-- practice and check pools are disjoint: one parameter set exists once per form (see the header)
+CREATE UNIQUE INDEX IF NOT EXISTS challenge_items_params_hash_idx
+  ON challenge_items (params_hash, form);
+
+CREATE UNIQUE INDEX IF NOT EXISTS challenge_items_anchor_pos_idx
+  ON challenge_items (anchor_block, anchor_pos) WHERE anchor;
+
+ALTER TABLE challenge_items ENABLE ROW LEVEL SECURITY;
+
+COMMENT ON TABLE challenge_items IS
+  'Challenge maths item registry: task, form, band, pool, template and params, anchor block and position, Rasch estimates, status and sign-off';
+
+
+CREATE TABLE IF NOT EXISTS challenge_periods (
+  period_id             text PRIMARY KEY,
+  starts_at             timestamptz NOT NULL,
+  ends_at               timestamptz NOT NULL,
+  anchor_block_version  text NOT NULL CHECK (anchor_block_version IN ('A1', 'A1+A2')),
+  weights_v             text NOT NULL,
+  bank_version          text NOT NULL,
+  created_by            text,
+  created_at            timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT challenge_periods_order CHECK (ends_at > starts_at)
+);
+
+ALTER TABLE challenge_periods ENABLE ROW LEVEL SECURITY;
+
+COMMENT ON TABLE challenge_periods IS
+  'Challenge periods (Pakistan calendar months): boundaries, the anchor block version, draw weights version and bank version in force';
+
+
+CREATE TABLE IF NOT EXISTS challenge_links (
+  id                     uuid PRIMARY KEY,
+  from_passage           text NOT NULL REFERENCES challenge_passages(passage_id),
+  to_passage             text NOT NULL REFERENCES challenge_passages(passage_id),
+  lang                   text NOT NULL CHECK (lang IN ('en', 'ur')),
+  band                   smallint NOT NULL CHECK (band BETWEEN 1 AND 3),
+  design                 text NOT NULL CHECK (design IN ('random_groups', 'common_child')),
+  window_from            text NOT NULL REFERENCES challenge_periods(period_id),
+  window_to              text NOT NULL REFERENCES challenge_periods(period_id),
+  n_from                 integer NOT NULL,
+  n_to                   integer NOT NULL,
+  ref_eligible_only      boolean NOT NULL DEFAULT true,
+  method                 text NOT NULL CHECK (method IN ('none', 'mean', 'ratio', 'linear')),
+  gap_sd                 numeric,
+  adjustment             numeric,
+  se                     numeric,
+  comp_adjustment        numeric,
+  entry_vs_promoted_sd   numeric,
+  computed_at            timestamptz NOT NULL DEFAULT now(),
+  proposed_by            text NOT NULL,
+  signed_by              text,
+  signed_at              timestamptz,
+  CONSTRAINT challenge_links_signed_is_ref_eligible CHECK (signed_at IS NULL OR ref_eligible_only)
+);
+
+CREATE INDEX IF NOT EXISTS challenge_links_from_idx
+  ON challenge_links (from_passage, signed_at DESC);
+
+ALTER TABLE challenge_links ENABLE ROW LEVEL SECURITY;
+
+COMMENT ON TABLE challenge_links IS
+  'Passage equating links to the band reference: design, window, n, method, adjustment and SE; a row is live only once signed';
+
+
+CREATE TABLE IF NOT EXISTS challenge_draws (
+  draw_id            uuid PRIMARY KEY,
+  run_id             uuid REFERENCES web_quiz_challenge_runs(id) ON DELETE SET NULL,
+  canonical_id       uuid NOT NULL,
+  period_id          text NOT NULL REFERENCES challenge_periods(period_id),
+  stop               text NOT NULL CHECK (stop IN ('read', 'listen', 'bigger', 'missing', 'numbers')),
+  lang               text NOT NULL CHECK (lang IN ('en', 'ur')),
+  fixed_grade_band   text NOT NULL CHECK (fixed_grade_band IN ('G1', 'G23', 'G45')),
+  open_band          smallint CHECK (open_band BETWEEN 1 AND 3),
+  band               smallint CHECK (band BETWEEN 1 AND 3),
+  band_reason        text NOT NULL
+                     CHECK (band_reason IN ('entry_grade', 'promoted', 'line1_drop', 'fallback_exhausted', 'floor', 'anchor', 'set')),
+  eligible           jsonb NOT NULL DEFAULT '[]'::jsonb,
+  eligible_n         smallint NOT NULL DEFAULT 0,
+  ref_eligible       boolean NOT NULL DEFAULT false,
+  p                  numeric,
+  weights_v          text NOT NULL,
+  served_id          text,
+  outcome            text NOT NULL CHECK (outcome IN ('served', 'lower_band', 'on_its_way')),
+  seed               text,
+  drawn_at           timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS challenge_draws_cell_idx
+  ON challenge_draws (lang, band, stop, period_id, drawn_at DESC);
+
+CREATE INDEX IF NOT EXISTS challenge_draws_child_idx
+  ON challenge_draws (canonical_id, period_id, stop);
+
+ALTER TABLE challenge_draws ENABLE ROW LEVEL SECURITY;
+
+COMMENT ON TABLE challenge_draws IS
+  'One row per passage or item-set draw, served or not: eligible set with weights, probability, band reason and weights version (the draw audit)';
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Challenge runs provenance columns, one statement per column so each is visible to the column gate
+-- (mirror of bot/database/migrations/web_quiz_challenge_runs_v2.sql; idempotent beside the block above)
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS bank_version       text;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS "set"              text;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS form               text;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS passage_id         text;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS item_set_id        text;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS mode               text;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS period_id          text;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS exposure_no        smallint;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS band               smallint;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS anchor_exposure_no smallint;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS anchor_block       text;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS homonym_in_list    boolean;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS draw_seed          text;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS canonical_id       uuid;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS id_src             text;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS id_confidence      text;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS via                text;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS share_code_id      uuid;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS class_id           uuid;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS helped             text;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS record             boolean;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS scorer_v           jsonb;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS started_at         timestamptz;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS audio_consent      text;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS audio_consent_at   timestamptz;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS audio_consent_by   text;
+ALTER TABLE web_quiz_challenge_runs ADD COLUMN IF NOT EXISTS audio_keep_until   timestamptz;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Child identity store (mirror of bot/database/migrations/child_identity.sql)
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS child_identity (
+  canonical_id   uuid        NOT NULL,              -- the child (students.id after merged_into fold)
+  year_code      text        NOT NULL,              -- '2026-27'
+  fixed_grade    smallint    NOT NULL CHECK (fixed_grade BETWEEN 1 AND 5),
+  grade_source   text        NOT NULL CHECK (grade_source IN ('roster_class','share_code_class','tapped','teacher')),
+  fixed_at       timestamptz NOT NULL DEFAULT now(),
+  confirmed_at   timestamptz,                       -- §1.2 promotion
+  confirmed_by   text        CHECK (confirmed_by IN ('teacher','device_twice','class_round')),
+  PRIMARY KEY (canonical_id, year_code)
+);
+
+CREATE TABLE IF NOT EXISTS child_phone_bindings (
+  id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  canonical_id   uuid        NOT NULL,
+  phone_norm     text,                              -- NULL after undo / STOP / expiry (erased, never kept)
+  phone_tomb     text        NOT NULL,              -- hex(HMAC-SHA256(TOMB_SALT, phone_norm))[:32]
+  via            text        NOT NULL CHECK (via IN ('save','learned','guest','teacher')),
+  confirmed_at   timestamptz NOT NULL,              -- the family's / teacher's confirm
+  bound_at       timestamptz NOT NULL DEFAULT now(),
+  last_played_at timestamptz,
+  expires_at     timestamptz NOT NULL,              -- 31 March 18:59:59Z of the academic year; renewed by play
+  revoked_at     timestamptz,
+  revoked_by     text        CHECK (revoked_by IN ('page_undo','stop','expiry','teacher','teacher_claim')),
+  rebind_of      uuid        REFERENCES child_phone_bindings(id),
+  CHECK (phone_norm IS NULL OR revoked_at IS NULL)  -- a revoked row never keeps the phone
+);
+CREATE UNIQUE INDEX IF NOT EXISTS cpb_active_pair
+  ON child_phone_bindings (phone_norm, canonical_id) WHERE phone_norm IS NOT NULL;
+CREATE INDEX IF NOT EXISTS cpb_phone_active ON child_phone_bindings (phone_norm) WHERE phone_norm IS NOT NULL;
+CREATE INDEX IF NOT EXISTS cpb_expiry ON child_phone_bindings (expires_at) WHERE phone_norm IS NOT NULL;
+CREATE INDEX IF NOT EXISTS cpb_tomb ON child_phone_bindings (phone_tomb);
+
+CREATE TABLE IF NOT EXISTS child_bind_codes (
+  code           text        PRIMARY KEY,           -- 'JUGNU-' + 5 of [A-Z2-9], single use
+  canonical_id   uuid        NOT NULL,
+  device_ref     text,                              -- AUDIT ONLY: never read to identify or to trust
+  minted_at      timestamptz NOT NULL DEFAULT now(),
+  expires_at     timestamptz NOT NULL,              -- minted_at + 1 h, enforced by the binder
+  used_at        timestamptz,
+  outcome        text        CHECK (outcome IN ('bound','max_kids','max_phones','teacher_phone','code_expired','code_used','child_unknown')),
+  CHECK (expires_at <= minted_at + interval '1 hour')
+);
+
+CREATE TABLE IF NOT EXISTS merge_log (             -- §12, the teacher queue's audit
+  id             bigserial   PRIMARY KEY,
+  loose_id       uuid        NOT NULL,
+  candidate_id   uuid        NOT NULL,
+  teacher_id     uuid        NOT NULL,
+  decided_at     timestamptz NOT NULL DEFAULT now(),
+  decision       text        NOT NULL CHECK (decision IN ('same','no','undo')),
+  source         text        NOT NULL CHECK (source IN ('queue','class_tab'))
+);
+
+-- Row Level Security on every table above: the bot writes with the service
+-- role (which bypasses RLS); nothing else may read child <-> phone pairs.
+-- Idempotent, like everything else in this file.
+ALTER TABLE child_identity       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE child_phone_bindings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE child_bind_codes     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE merge_log            ENABLE ROW LEVEL SECURITY;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Web quiz send ledger (mirror of bot/database/migrations/web_quiz_message_ledger.sql)
+-- ─────────────────────────────────────────────────────────────────────────────
+create table if not exists public.message_ledger (
+  day        date          not null,                 -- Pakistan day (UTC+5)
+  trigger    text          not null check (trigger in ('home_reply','bind_reply','guest_reply','class_link',
+                                                       'class_round','teacher_queue','teacher_refusal')),
+  class_id   uuid,
+  initiated  text          not null check (initiated in ('user','bot')),
+  recipient  text          not null check (recipient in ('family','teacher')),
+  count      integer       not null default 0 check (count >= 0),
+  usd        numeric(10,4) not null default 0,
+  updated_at timestamptz   not null default now(),
+  constraint message_ledger_no_bot_to_family check (not (initiated = 'bot' and recipient = 'family'))
+);
+
+create unique index if not exists message_ledger_key
+  on public.message_ledger (day, trigger, coalesce(class_id, '00000000-0000-0000-0000-000000000000'::uuid), initiated, recipient);
+
+alter table public.message_ledger enable row level security;
+
+create or replace function public.message_ledger_add(
+  p_day date, p_trigger text, p_class_id uuid, p_initiated text, p_recipient text, p_n integer, p_usd_each numeric default 0.015
+) returns integer
+language sql
+security definer
+set search_path = public
+as $$
+  insert into public.message_ledger (day, trigger, class_id, initiated, recipient, count, usd)
+  values (p_day, p_trigger, p_class_id, p_initiated, p_recipient, p_n, round(p_usd_each * p_n, 4))
+  on conflict (day, trigger, coalesce(class_id, '00000000-0000-0000-0000-000000000000'::uuid), initiated, recipient)
+  do update set count = message_ledger.count + excluded.count,
+                usd = message_ledger.usd + excluded.usd,
+                updated_at = now()
+  returning count
+$$;
+
+revoke all on function public.message_ledger_add(date, text, uuid, text, text, integer, numeric) from public, anon, authenticated;
+grant execute on function public.message_ledger_add(date, text, uuid, text, text, integer, numeric) to service_role;
+
+comment on table public.message_ledger is
+  'web quiz sends per Pakistan day, trigger, class, initiator and recipient (counts and US$ only); written by the bot (service role)';
 
 NOTIFY pgrst, 'reload schema';

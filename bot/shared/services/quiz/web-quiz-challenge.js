@@ -554,25 +554,31 @@ function legacyIncomplete(r) {
     && Number(r.meta && r.meta.duration_s) < READ_SECS - 5;
 }
 
+// A class round turn (via the round, whatever its mode) and a practice play never use up the child's own attempt at a
+// stop; a row written before the runs provenance columns (mode and via null) counts as it always did.
+const notHomeAttempt = (r) => !!r && (r.via === 'class_round' || r.mode === 'practice' || r.mode === 'class_round');
+
 // The child's runs oldest first, by their own query (storedRuns keeps the newest 50: the first attempt would fall
-// out of it). Counted here = a scored run, or an incomplete reading (the minute was begun and the window passed).
+// out of it). Counted here = a scored run, or an incomplete reading (the minute was begun and the window passed),
+// that is the child's own attempt (notHomeAttempt).
 async function countedRuns(studentId) {
-  const { data, error } = await supabase.from(TABLE).select('id, exercise, status, score, wcpm, lang, meta, created_at, scored_at')
+  const { data, error } = await supabase.from(TABLE).select('id, exercise, status, score, wcpm, lang, meta, created_at, scored_at, via, mode')
     .eq('student_id', studentId).order('created_at', { ascending: true }).limit(5000);
   if (error) {
     if (!isMissingTable(error)) logToFile('⚠️ web quiz challenge: runs read failed', { error: error.message });
     return [];
   }
-  return (data || []).filter((r) => r.status === 'scored' || (r.status === 'failed' && r.meta && r.meta.reason === 'incomplete'));
+  return (data || []).filter((r) => (r.status === 'scored' || (r.status === 'failed' && r.meta && r.meta.reason === 'incomplete')) && !notHomeAttempt(r));
 }
 
-/** attempt_no = 1 + this child's scored runs of the task (a reading: in this language); exposure_no counts every row. */
+/** attempt_no = 1 + this child's own scored runs of the task (a reading: in this language; no round turn or practice
+ * play, notHomeAttempt); exposure_no counts every row. */
 async function attemptInfo(studentId, exercise, lang, { except = null } = {}) {
-  let qb = supabase.from(TABLE).select('id, status, lang').eq('student_id', studentId).eq('exercise', exercise).in('status', PLAYED);
+  let qb = supabase.from(TABLE).select('id, status, lang, via, mode').eq('student_id', studentId).eq('exercise', exercise).in('status', PLAYED);
   if (exercise === 'read' && lang) qb = qb.eq('lang', lang);
   const { data, error } = await qb.order('created_at', { ascending: true }).limit(5000);
   const rows = (error ? [] : data || []).filter((r) => r.id !== except);
-  const scored = rows.filter((r) => r.status === 'scored').length;
+  const scored = rows.filter((r) => r.status === 'scored' && !notHomeAttempt(r)).length;
   return { attempt_no: scored + 1, exposure_no: rows.length + 1 };
 }
 
@@ -590,6 +596,8 @@ async function provenance(studentId, exercise, lang, run, { except = null } = {}
 }
 
 async function menu(token, { kid, lang, device } = {}) {
+  // keep my place: a deep link with >= 2 children on this phone and no tap asks "Whose turn?" first (identity canon switch).
+  { const B = require('./web-quiz-bind-page'); if (await B.canonOn()) { const ask = await B.whoseTurn({ hub: token, kid, device, lang }); if (ask) return ask; } }
   const w = await who(token, { kid, lang, device });
   logEvent('web_quiz.ch_open', { via: w.via, grade: w.grade });
   if (w.form === Grade1.FORM) return Grade1.menu(w);   // grade-1 form: its one stop
@@ -623,6 +631,8 @@ async function menu(token, { kid, lang, device } = {}) {
 // ── E: one exercise ───────────────────────────────────────────────────────────────────────────────────
 
 async function exercise(token, ex, { kid, lang, device } = {}) {
+  // keep my place: a deep link with >= 2 children on this phone and no tap asks "Whose turn?" first (identity canon switch).
+  { const B = require('./web-quiz-bind-page'); if (await B.canonOn()) { const ask = await B.whoseTurn({ hub: token, kid, device, lang }); if (ask) return ask; } }
   const def = byId(ex);
   // grade-1 form: 'numbers' exists only with its switches on; a grade-1 child gets only that stop (else 404 as today)
   if (!def && !(ex === Grade1.EXERCISE && (await Grade1.on()))) fail(404, 'not_found');
@@ -868,7 +878,7 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
   const form = `G${formNum}`;
   // already counted: this period's record row of the stop (per language for read/listen) (_period), else a scored run ever
   const counted = periodRule ? D.countedThisPeriod(rows, ex, periodNow, w.lang)
-    : rows.some((r) => r.exercise === ex && r.status === 'scored' && (ex !== 'read' || r.lang === w.lang));
+    : rows.some((r) => r.exercise === ex && r.status === 'scored' && !notHomeAttempt(r) && (ex !== 'read' || r.lang === w.lang));
   // the caller's mode: 'practice' (Story Time) or 'class_round' (the teacher's locked round); else practice when counted
   let mode = askedMode === 'class_round' ? 'class_round' : (askedMode === 'practice' || counted ? 'practice' : 'check');
   const seed = crypto.randomBytes(16).toString('hex');
@@ -926,13 +936,15 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
   const clipUrl = ex === 'listen' ? await storyClip(w.lang, story && story.text) : undefined;
   if (ex === 'listen' && !clipUrl) fail(503, 'getting_ready');
 
-  const servesAny = anchorBlock ? D.anchorServesAny(rows, anchorBlock) : null;   // no runs column for it: meta.anchor_serves_any
+  const servesAny = anchorBlock ? D.anchorServesAny(rows, anchorBlock) : null;   // the anchor_serves_any column (and meta, kept one period)
+  const prev2 = anchorBlock ? D.anchorPrev2(rows, anchorBlock) : null;   // of which before the provenance columns: meta.draw.anchor_prev2
   const exposure = anchorBlock ? servesAny : D.exposureNo(rows, passageId || itemSetId);
   // M7: a passage or set already met is never a record; the anchor block is the exception
   const record = periodRule ? D.recordAtServe({ mode, outcome: drawLog ? drawLog.outcome : 'served', countedThisPeriod: counted, exposureNo: exposure, anchor: !!anchorBlock }) : null;
   const anchorExp = anchorBlock ? D.anchorExposureNo(rows, anchorBlock) : null;
   const metaDraw = drawLog ? { draw_id: drawLog.draw_id, outcome: drawLog.outcome, eligible: drawLog.eligible, eligible_n: drawLog.eligible_n, ref_eligible: drawLog.ref_eligible,
-    p: drawLog.p, band_reason: drawLog.band_reason, weights_v: drawLog.weights_v, seed: drawLog.seed, ...(periodSet ? { period_set: periodSet } : {}) } : null;
+    p: drawLog.p, band_reason: drawLog.band_reason, weights_v: drawLog.weights_v, seed: drawLog.seed, ...(periodSet ? { period_set: periodSet } : {}),
+    ...(prev2 ? { anchor_prev2: prev2 } : {}) } : null;
   const via = VIA[w.via] || w.via || null;
   const admin = await D.adminFields({ mode, via, canonicalId, at: new Date(now), classWeekOn: via === 'class_link' && (await settingOn(CLASS_WEEK_FLAG_KEY)) });
   const periodId = periodRule ? periodNow : null;
@@ -945,6 +957,8 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     exposure_no: exposure, band, anchor_exposure_no: anchorExp, anchor_block: anchorBlock, draw_seed: drawSeed, canonical_id: canonicalId,
     id_src: pick.id_src, id_confidence: pick.id_confidence, homonym_in_list: pick.homonym_in_list, via, share_code_id: w.shareCodeId || null,
     record, started_at: new Date(now).toISOString(), class_id: classId,
+    // the sampling columns (web_quiz_challenge_runs_sampling.sql); meta keeps the same three for one period
+    admin_mode: admin.admin_mode, sample_arm: admin.sample_arm, anchor_serves_any: servesAny,
   };
   const rung = (ex === 'read' || ex === 'listen') ? ob.rungs.reading : ob.rungs.numbers;
   const isPassage = ex === 'read' || ex === 'listen';

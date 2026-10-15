@@ -59,6 +59,14 @@ function yearCode(date = new Date()) {
 
 // ─── the tombstone ─────────────────────────────────────────────────────────
 
+/** hex(HMAC-SHA256(WEB_QUIZ_KID_KEY, 'ukey|' + phone_norm))[0:16]: an unknown phone's event key; null without the key or a phone. */
+function ukeyOf(phoneNorm) {
+  const key = process.env.WEB_QUIZ_KID_KEY;
+  const phone = normalisePhone(phoneNorm);
+  if (!key || !phone) return null;
+  return crypto.createHmac('sha256', key).update(`ukey|${phone}`).digest('hex').slice(0, 16);
+}
+
 /** hex(HMAC-SHA256(WQ_TOMB_SALT, phone_norm))[0:32]; null when the salt is unset (then nothing is written). */
 function tombOf(phoneNorm) {
   const salt = process.env.WQ_TOMB_SALT;
@@ -198,7 +206,7 @@ async function childrenForPhone(phone) {
   }
 }
 
-module.exports = {
+module.exports = { ukeyOf,
   normalisePhone, tombOf,
   activeForPhone, activeForChild, findByTomb,
   insert, renew, eraseOne, eraseAllForPhone,

@@ -695,7 +695,7 @@ app.post('/webhook', async (req, res) => {
     // everyone else — and every failure — takes the ordinary dispatch.
     const StudentIngress = require('./shared/services/student-ingress');
     if (user) {
-      try { await StudentIngress.attach(user, from); } catch (err) {
+      try { await StudentIngress.attach(user, from, { body: messageBody }); } catch (err) {
         logToFile('⚠️ student-ingress attach failed (non-fatal)', { error: err.message });
       }
     }

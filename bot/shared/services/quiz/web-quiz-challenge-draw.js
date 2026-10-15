@@ -89,8 +89,36 @@ const exposureNo = (rows, id) => 1 + (rows || []).filter((r) => rowServedId(r) =
 /** 1 + the child's counted-Trail (mode 'check') rows that served this anchor block (served/abandoned count too). */
 const anchorExposureNo = (rows, block) => 1 + (rows || []).filter((r) => r.mode === 'check' && r.anchor_block === block).length;
 
-/** 1 + the child's rows that served this anchor block in ANY mode and status (beside anchor_exposure_no, ITEMS item 13). */
-const anchorServesAny = (rows, block) => 1 + (rows || []).filter((r) => r.anchor_block === block).length;
+// A row's form: the column, else meta.form, else the row's grade (2-3 → G3, 4-5 → G5); null when none is known.
+const formOfRow = (r) => {
+  const f = String(r.form || (r.meta && r.meta.form) || '').replace(/^G/i, '');
+  return f === '3' || f === '5' ? `G${f}` : formOfGrade(Number(r.grade));
+};
+
+/**
+ * A1 serves made before the provenance columns (ITEMS §3.1, §4): a 'missing' row with no mode served the bank's form,
+ * item-identical to A1 on G5 (full) and sharing A1.01-06 on G3 (partial). A row of unknown form is not counted.
+ */
+function anchorPrev2(rows, block) {
+  const out = { full: 0, partial: 0 };
+  if (block !== 'A1') return out;
+  for (const r of rows || []) {
+    if (r.mode != null || r.exercise !== 'missing') continue;
+    const f = formOfRow(r);
+    if (f === 'G5') out.full += 1;
+    else if (f === 'G3') out.partial += 1;
+  }
+  return out;
+}
+
+/**
+ * 1 + the child's rows that served this anchor block in ANY mode and status (beside anchor_exposure_no, ITEMS item 13),
+ * a pre-v2 missing row counting as one A1 serve, full or partial (anchorPrev2).
+ */
+const anchorServesAny = (rows, block) => {
+  const p = anchorPrev2(rows, block);
+  return 1 + (rows || []).filter((r) => r.anchor_block === block).length + p.full + p.partial;
+};
 
 /**
  * A record row of this stop in this period exists (any status: the record was decided when it was served). The record
@@ -314,7 +342,7 @@ async function fixedGradeOf(canonicalId, visitGrade) {
   return { grade: visitGrade, src: error && isMissingTable(error) ? 'visit_grade_no_table' : 'visit_grade' };
 }
 
-const ROW_COLS = 'id, student_id, exercise, grade, lang, status, score, meta, mode, period_id, passage_id, item_set_id, anchor_block, record, created_at';
+const ROW_COLS = 'id, student_id, exercise, grade, form, lang, status, score, meta, mode, via, period_id, passage_id, item_set_id, anchor_block, record, created_at';
 
 /** The canonical child's run rows (by canonical_id, and by the raw ids for rows written before it), oldest first. */
 async function childRows(canonicalId, studentIds = []) {
@@ -368,13 +396,15 @@ async function pickOf({ sessionId = null, canonicalId = null, device = null } = 
 }
 
 /**
- * How the run was administered and which sample it belongs to (the sampling ruling): the class round is
- * 'teacher_present'; a run that came by the class link inside an OPEN class-week window of the child's class is the
+ * How the run was administered and which sample it belongs to (the sampling ruling): every turn of a class round is
+ * 'teacher_present', keyed on the round (via 'class_round', the round token's entry) as well as the mode, because
+ * positions 11+ of a round are served mode 'practice' with the teacher still there; only the round's own
+ * mode='class_round' turns are the 'class_round' sample arm. A run that came by the class link inside an OPEN class-week window of the child's class is the
  * 'class_week' arm (web-quiz-class-week, required lazily under web_quiz_class_week: absent → no arm); every other
  * run is 'self_run' with no arm.
  */
 async function adminFields({ mode, via, canonicalId, at = new Date(), classWeekOn = false } = {}) {
-  if (mode === 'class_round') return { admin_mode: 'teacher_present', sample_arm: null };
+  if (via === 'class_round' || mode === 'class_round') return { admin_mode: 'teacher_present', sample_arm: mode === 'class_round' ? 'class_round' : null };
   if (via === 'class_link' && classWeekOn) {
     let mod = null;
     try { mod = require('./web-quiz-class-week'); } catch (_) { mod = null; }
@@ -452,7 +482,7 @@ function __reset() { cache.clear(); periodMissingDay = null; }
 module.exports = {
   STOPS, WEIGHTS, ON_ITS_WAY_COPY,
   entryBand, ceilingBand, gradeBand, formOfGrade, isLine1OrZero, lastCountedRead, drawBand,
-  rowServedId, seenIdsOf, exposureNo, anchorExposureNo, anchorServesAny, countedThisPeriod, recordAtServe,
+  rowServedId, seenIdsOf, exposureNo, anchorExposureNo, anchorServesAny, anchorPrev2, countedThisPeriod, recordAtServe,
   eligible, weigh, mulberry32, pick, drawPassage, periodIdFor, biggerSetFor, tryoutItem, trailState,
   registryPassages, periods, notePeriodMissing, adminFields, yearCode, writeChildIdentity, isoWeekPkt, activeClassOf, lightLit, rungsOf, openBand, fixedGradeOf, childRows, logDraw, trailStateFor, pickOf,
   __reset,

@@ -209,6 +209,23 @@ describe('record at serve, exposure counters, the period', () => {
     expect(D.anchorServesAny(rows, 'A2')).toBe(1);
   });
 
+  test('anchor serves before the provenance columns: a pre-v2 missing row is one A1 serve, G5 full and G3 partial', () => {
+    const v2 = { exercise: 'missing', anchor_block: 'A1', mode: 'check', status: 'scored' };
+    const pre = (extra) => ({ exercise: 'missing', lang: 'en', status: 'scored', ...extra });
+    // the form from row.form, else meta.form, else the row's grade (2-3 → G3, 4-5 → G5)
+    expect(D.anchorPrev2([pre({ grade: 5 })], 'A1')).toEqual({ full: 1, partial: 0 });
+    expect(D.anchorPrev2([pre({ grade: 2 })], 'A1')).toEqual({ full: 0, partial: 1 });
+    expect(D.anchorPrev2([pre({ grade: 3, form: 'G5' })], 'A1')).toEqual({ full: 1, partial: 0 });
+    expect(D.anchorPrev2([pre({ grade: 5, meta: { form: '3' } })], 'A1')).toEqual({ full: 0, partial: 1 });
+    expect(D.anchorPrev2([pre({ grade: 1 }), pre({ grade: null })], 'A1')).toEqual({ full: 0, partial: 0 });   // no known form: not counted
+    // only 'missing' rows with no mode, and only for A1
+    expect(D.anchorPrev2([pre({ grade: 5, exercise: 'bigger' }), pre({ grade: 5, mode: 'practice' })], 'A1')).toEqual({ full: 0, partial: 0 });
+    expect(D.anchorPrev2([pre({ grade: 5 })], 'A2')).toEqual({ full: 0, partial: 0 });
+    expect(D.anchorServesAny([pre({ grade: 5 }), pre({ grade: 3 }), v2], 'A1')).toBe(4);
+    expect(D.anchorServesAny([pre({ grade: 5 })], 'A2')).toBe(1);
+    expect(D.anchorExposureNo([pre({ grade: 5 })], 'A1')).toBe(1);
+  });
+
   test('periodIdFor reads the periods table: [starts_at, ends_at)', () => {
     const periods = [
       { period_id: '2026-11', starts_at: '2026-10-31T19:00:00Z', ends_at: '2026-11-30T19:00:00Z' },

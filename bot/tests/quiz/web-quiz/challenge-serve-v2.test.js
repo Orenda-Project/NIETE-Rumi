@@ -36,6 +36,7 @@ jest.mock('openchemlib', () => require('../../../../tests/__mocks__/openchemlib.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const { makeFake } = require('./fake-supabase');
 const supabase = require('../../../shared/config/supabase');
@@ -124,7 +125,22 @@ const hub = (id = K3) => T.sign({ k: 'h', ids: [id], exp: Math.floor(Date.now() 
 const runOf = (ct) => T.verify(ct, 'c').r;
 const rowOf = (ct) => db.web_quiz_challenge_runs.find((r) => r.id === runOf(ct));
 const starts = () => logEvent.mock.calls.filter(([n]) => n === 'web_quiz.ch_start').map(([, d]) => d);
-const V2_COLS = ['bank_version', 'set', 'form', 'passage_id', 'item_set_id', 'mode', 'period_id', 'exposure_no', 'band', 'anchor_exposure_no', 'anchor_block', 'draw_seed', 'canonical_id', 'id_src', 'id_confidence', 'homonym_in_list', 'via', 'share_code_id', 'record', 'started_at'];
+const V2_COLS = ['bank_version', 'set', 'form', 'passage_id', 'item_set_id', 'mode', 'period_id', 'exposure_no', 'band', 'anchor_exposure_no', 'anchor_block', 'draw_seed', 'canonical_id', 'id_src', 'id_confidence', 'homonym_in_list', 'via', 'share_code_id', 'record', 'started_at', 'admin_mode', 'sample_arm', 'anchor_serves_any'];
+
+// Every run row a test leaves behind holds the runs CHECKs (web_quiz_challenge_runs_v2.sql, _sampling.sql); NULL passes.
+const RUN_CHECKS = {
+  wqcr_sample_arm_chk: (r) => r.sample_arm == null || ['class_round', 'class_week', 'coach', 'ping'].includes(r.sample_arm),
+  wqcr_admin_mode_chk: (r) => r.admin_mode == null || ['self_run', 'teacher_present', 'coach_present'].includes(r.admin_mode),
+  wqcr_arm_needs_admin_chk: (r) => r.sample_arm == null || r.admin_mode != null,
+  wqcr_serves_any_chk: (r) => r.anchor_serves_any == null || r.anchor_serves_any >= 1,
+  wqcr_record_is_check_chk: (r) => r.record !== true || r.mode === 'check',
+  wqcr_record_first_exposure_chk: (r) => r.record !== true || r.anchor_block != null || r.exposure_no == null || r.exposure_no === 1,
+  wqcr_mode_chk: (r) => r.mode == null || ['check', 'practice', 'class_round'].includes(r.mode),
+};
+afterEach(() => {
+  const broken = (db.web_quiz_challenge_runs || []).flatMap((r) => Object.keys(RUN_CHECKS).filter((k) => !RUN_CHECKS[k](r)).map((k) => `${r.id}: ${k}`));
+  expect(broken).toEqual([]);
+});
 
 // Read aloud: a silent clip of `secs` seconds, the speech service heard `n` words, the LLM marked `right` of `tried`.
 const FF = require('@ffmpeg-installer/ffmpeg').path;
@@ -414,11 +430,11 @@ describe('11 · the A1 warm-up', () => {
 
   test('anchor_serves_any counts every serve of the block (any mode, any status): a practice warm-up then a counted one → 1 and 2', async () => {
     const p = await Ch.exercise(hub(K3), 'missing', { ...D, mode: 'practice' });
-    expect(rowOf(p.ct)).toMatchObject({ mode: 'practice', anchor_exposure_no: 1, meta: expect.objectContaining({ anchor_serves_any: 1 }) });
+    expect(rowOf(p.ct)).toMatchObject({ mode: 'practice', anchor_exposure_no: 1, anchor_serves_any: 1, meta: expect.objectContaining({ anchor_serves_any: 1 }) });
     rowOf(p.ct).status = 'abandoned';
     const c = await Ch.exercise(hub(K3), 'missing', D);
     expect(rowOf(c.ct)).toMatchObject({ mode: 'check', record: true, anchor_exposure_no: 1, meta: expect.objectContaining({ anchor_serves_any: 2 }) });
-    expect(rowOf(c.ct)).not.toHaveProperty('anchor_serves_any');   // no such column on the runs table: meta only
+    expect(rowOf(c.ct)).toMatchObject({ anchor_serves_any: 2, admin_mode: 'self_run', sample_arm: null });   // the column, and meta kept one period
     expect(starts()[1]).toMatchObject({ anchor_exposure_no: 1, anchor_serves_any: 2 });
   });
 
@@ -499,20 +515,21 @@ describe('questions reached by the stop line', () => {
   });
 });
 
-// ── the sampling fields: admin_mode and sample_arm (no runs columns for them on this base: meta) ─────────────
+// ── the sampling fields: admin_mode, sample_arm, anchor_serves_any (the columns, and meta kept one period) ─────────────
 
 describe('admin_mode and sample_arm under _v2', () => {
-  test('an ordinary home run: meta.admin_mode self_run, meta.sample_arm null', async () => {
+  test('an ordinary home run: admin_mode self_run, sample_arm null, no anchor_serves_any off the anchor block (columns and meta)', async () => {
     on(V2, PERIOD);
     const ex = await Ch.exercise(hub(), 'bigger', D);
     expect(rowOf(ex.ct).meta).toMatchObject({ admin_mode: 'self_run', sample_arm: null });
-    expect(rowOf(ex.ct)).not.toHaveProperty('admin_mode');
+    expect(rowOf(ex.ct)).toMatchObject({ admin_mode: 'self_run', sample_arm: null, anchor_serves_any: null });
   });
 
-  test('the class round (mode from the caller): mode class_round, admin_mode teacher_present, never a record', async () => {
+  test('the class round (mode from the caller): mode class_round, admin_mode teacher_present, sample_arm class_round, never a record', async () => {
     on(V2, PERIOD, POOL);
     const ex = await Ch.exercise(hub(), 'missing', { ...D, mode: 'class_round' });
-    expect(rowOf(ex.ct)).toMatchObject({ mode: 'class_round', record: false, meta: expect.objectContaining({ admin_mode: 'teacher_present', sample_arm: null }) });
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'class_round', record: false, meta: expect.objectContaining({ admin_mode: 'teacher_present', sample_arm: 'class_round' }) });
+    expect(rowOf(ex.ct)).toMatchObject({ admin_mode: 'teacher_present', sample_arm: 'class_round', anchor_serves_any: 1 });
   });
 
   test('web_quiz_class_week on but the class-week module absent: nothing more is written, the serve goes on', async () => {
@@ -550,8 +567,19 @@ describe('the class-week sample arm (web-quiz-challenge-draw.adminFields)', () =
     expect(openWindowFor).not.toHaveBeenCalled();
   });
 
-  test('a class round is teacher_present with no arm', async () => {
-    expect(await Draw.adminFields({ mode: 'class_round', via: 'class_link', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'teacher_present', sample_arm: null });
+  test('a class round turn (mode class_round) is teacher_present in the class_round arm', async () => {
+    expect(await Draw.adminFields({ mode: 'class_round', via: 'class_link', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'teacher_present', sample_arm: 'class_round' });
+  });
+
+  test('a round turn at position 11+ (mode practice, via the round) writes admin_mode teacher_present and sample_arm null', async () => {
+    openWindowFor = jest.fn(async () => ({ id: 'w1' }));
+    expect(await Draw.adminFields({ mode: 'practice', via: 'class_round', canonicalId: 'c1', classWeekOn: true })).toEqual({ admin_mode: 'teacher_present', sample_arm: null });
+    expect(openWindowFor).not.toHaveBeenCalled();
+  });
+
+  test('an ordinary home run (mode check or practice, via hub): self_run, null', async () => {
+    expect(await Draw.adminFields({ mode: 'check', via: 'hub', canonicalId: 'c1' })).toEqual({ admin_mode: 'self_run', sample_arm: null });
+    expect(await Draw.adminFields({ mode: 'practice', via: 'hub', canonicalId: 'c1' })).toEqual({ admin_mode: 'self_run', sample_arm: null });
   });
 });
 
@@ -807,5 +835,98 @@ describe('ruling #43: the exercise payload under _v2 carries only what the page 
   test('the menu keeps anchor_block A1 on the warm-up', async () => {
     on(V2, PERIOD, POOL);
     expect((await Ch.menu(hub(K5), D)).exercises[0]).toMatchObject({ id: 'missing', anchor_block: 'A1' });
+  });
+});
+
+// ── a class round turn or a practice play never uses up the child's home attempt (rows before the provenance columns count)
+
+describe('a round run or a practice run does not consume the home attempt', () => {
+  const scoredBigger = (extra = {}) => db.web_quiz_challenge_runs.push({ id: crypto.randomUUID(), student_id: K3, exercise: 'bigger', grade: 3, lang: 'en', status: 'scored',
+    score: { correct: 8, n: 10, stopped: false }, meta: {}, created_at: new Date(Date.now() - 3600 * 1000).toISOString(), scored_at: new Date(Date.now() - 3500 * 1000).toISOString(), ...extra });
+  const scoredRead = (extra = {}) => db.web_quiz_challenge_runs.push({ id: crypto.randomUUID(), student_id: K3, exercise: 'read', grade: 3, lang: 'en', status: 'scored',
+    score: { correct: 40, attempted: 45, stopped: false }, wcpm: 40, meta: {}, created_at: new Date(Date.now() - 3600 * 1000).toISOString(), ...extra });
+
+  test('(a) one scored bigger row with mode class_round: the home menu shows that stop not done, no badge', async () => {
+    on(V2);
+    scoredBigger({ mode: 'class_round', via: 'class_round', record: false });
+    const stop = (await Ch.menu(hub(), D)).exercises.find((e) => e.id === 'bigger');
+    expect(stop).toMatchObject({ id: 'bigger', done: false, badge: false });
+  });
+
+  test('(b) the next home bigger serve after a round turn: attempt_no 1, record true, no practice round', async () => {
+    on(V2, PERIOD);
+    scoredBigger({ mode: 'class_round', via: 'class_round', record: false, period_id: null });
+    const ex = await Ch.exercise(hub(), 'bigger', D);
+    expect(ex.practice_round).toBeUndefined();
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'check', record: true });
+    await Ch.submit({ ct: ex.ct, taps: biggerTaps(ex.items), ms: 25000 });
+    expect(rowOf(ex.ct).meta).toMatchObject({ attempt_no: 1, counted: true });
+  });
+
+  test('(b2) a round turn served mode practice (via the round, position 11+) does not count either', async () => {
+    on(V2);
+    scoredBigger({ mode: 'practice', via: 'class_round' });
+    const ex = await Ch.exercise(hub(), 'bigger', D);
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'check' });
+    expect(ex.practice_round).toBeUndefined();
+  });
+
+  test('(c) a scored practice read row does not raise attempt_no', async () => {
+    on(V2);
+    scoredRead({ mode: 'practice', via: 'hub' });
+    const ex = await Ch.exercise(hub(), 'read', D);
+    expect(ex.practice_round).toBeUndefined();
+    await readAloud(ex.ct);
+    expect(rowOf(ex.ct).meta).toMatchObject({ attempt_no: 1, counted: true });
+  });
+
+  test('(d) golden: a scored row written before the provenance columns (no mode, no via) still counts: attempt 2, practice', async () => {
+    on(V2);
+    scoredBigger();
+    expect((await Ch.menu(hub(), D)).exercises.find((e) => e.id === 'bigger')).toMatchObject({ done: true, badge: true });
+    const ex = await Ch.exercise(hub(), 'bigger', D);
+    expect(ex.practice_round).toBe(true);
+    expect(rowOf(ex.ct)).toMatchObject({ mode: 'practice' });
+    await Ch.submit({ ct: ex.ct, taps: biggerTaps(ex.items), ms: 25000 });
+    expect(rowOf(ex.ct).meta).toMatchObject({ attempt_no: 2, counted: false });
+  });
+
+  test('(d) golden, every new switch off: the same pre-provenance row gives attempt 2 and a practice round', async () => {
+    scoredBigger();
+    const ex = await Ch.exercise(hub(), 'bigger', D);
+    expect(ex.practice_round).toBe(true);
+    await Ch.submit({ ct: ex.ct, taps: biggerTaps(ex.items), ms: 25000 });
+    expect(db.web_quiz_challenge_runs[db.web_quiz_challenge_runs.length - 1].meta).toMatchObject({ attempt_no: 2, counted: false });
+  });
+});
+
+// ── anchor serves before the provenance columns: October's missing rows served A1's items (ITEMS §3.1, §4) ─────
+
+describe('anchor_serves_any counts a pre-v2 missing row as an A1 serve', () => {
+  const preV2Missing = (kid, grade) => db.web_quiz_challenge_runs.push({ id: crypto.randomUUID(), student_id: kid, exercise: 'missing', grade, lang: 'en', status: 'scored',
+    score: { correct: 9, n: 10, stopped: false }, meta: { attempt_no: 1, counted: true }, created_at: new Date(Date.now() - 20 * DAY).toISOString() });
+
+  test('a G5 child with one pre-v2 missing row, then the Trail warm-up: serves_any 2, exposure 1, prev2 {full 1, partial 0}', async () => {
+    on(V2, PERIOD, POOL);
+    preV2Missing(K5, 5);
+    const ex = await Ch.exercise(hub(K5), 'missing', D);
+    expect(rowOf(ex.ct)).toMatchObject({ anchor_block: 'A1', anchor_exposure_no: 1, anchor_serves_any: 2, meta: expect.objectContaining({ anchor_serves_any: 2 }) });
+    expect(rowOf(ex.ct).meta.draw.anchor_prev2).toEqual({ full: 1, partial: 0 });
+    expect(starts()[0]).toMatchObject({ anchor_serves_any: 2, anchor_exposure_no: 1 });
+  });
+
+  test('a G3 pre-v2 missing row is a partial serve: prev2 {full 0, partial 1}, serves_any 2', async () => {
+    on(V2, PERIOD, POOL);
+    preV2Missing(K3, 3);
+    const ex = await Ch.exercise(hub(K3), 'missing', D);
+    expect(rowOf(ex.ct)).toMatchObject({ anchor_exposure_no: 1, meta: expect.objectContaining({ anchor_serves_any: 2 }) });
+    expect(rowOf(ex.ct).meta.draw.anchor_prev2).toEqual({ full: 0, partial: 1 });
+  });
+
+  test('no pre-v2 row: serves_any 1, prev2 {full 0, partial 0}', async () => {
+    on(V2, PERIOD, POOL);
+    const ex = await Ch.exercise(hub(K5), 'missing', D);
+    expect(rowOf(ex.ct)).toMatchObject({ anchor_exposure_no: 1, anchor_serves_any: 1, admin_mode: 'self_run', sample_arm: null, meta: expect.objectContaining({ anchor_serves_any: 1 }) });
+    expect(rowOf(ex.ct).meta.draw.anchor_prev2).toEqual({ full: 0, partial: 0 });
   });
 });

@@ -19,5 +19,12 @@
       "bot/shared/services/training/quiz-delivery.service.js"
     ],
     "reason": "bd-2390 made the module quiz a gate, so the two halves of the loop call each other: content-delivery.handleModuleDone lazy-requires quiz-delivery to send the quiz, and quiz-delivery.gradeAttempt lazy-requires content-delivery.deliverNextModule to release the next module once the teacher passes. BOTH requires are inside function bodies, never at module top level, so neither ever observes a half-initialised `{}`. The progress-row write — the one piece both genuinely share — was extracted to training/progress.service.js rather than crossing this edge."
+  },
+  {
+    "cycle": [
+      "bot/shared/services/quiz/web-quiz-bind.service.js",
+      "bot/shared/services/student-ingress.js"
+    ],
+    "reason": "Both edges are lazy, inside functions: student-ingress.js bindingWords() requires the binder only for a JUGNU- code or a whole-message STOP, and web-quiz-bind.service.js stopForBoundNonChild() requires student-ingress.js only to ask quizInFlight() before a non-child's STOP. Neither module touches the other at load time."
   }
 ]

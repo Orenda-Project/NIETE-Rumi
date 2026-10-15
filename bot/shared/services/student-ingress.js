@@ -79,10 +79,11 @@ function identity(user) {
  * collapsed into "no rows": that collapse is how a teacher becomes a child
  * during a database hiccup.
  */
-async function hasAnyRow(table, column, id, orFilter = null) {
+async function hasAnyRow(table, column, id, orFilter = null, eqs = null) {
   try {
     let q = supabase.from(table).select('*', { count: 'exact', head: true }).eq(column, id);
     if (orFilter) q = q.or(orFilter);
+    if (eqs) Object.entries(eqs).forEach(([c, v]) => { q = q.eq(c, v); });
     const { count, error } = await q;
     if (error) {
       logToFile('⚠️ student-ingress: activity lookup failed', { table, error: error.message });
@@ -111,6 +112,12 @@ async function activity(userId) {
     if (r === null) return null;
     if (r) return true;
   }
+  // family phone binding: a class teacher's own phone is a teacher's even with none of the signs above
+  if (await phoneBindOn()) {
+    const r = await hasAnyRow('class_teachers', 'teacher_user_id', userId, null, { is_active: true });
+    if (r === null) return null;
+    if (r) return true;
+  }
   return false;
 }
 
@@ -135,6 +142,41 @@ async function withIdentityFields(user) {
 
 const NONE = (mode, reason) => ({ persona: null, mode, reason, language: null, studentClass: null });
 
+// ── family phone binding (web_quiz_phone_bind; off → none of this reads anything but the switch) ──────────
+const IdFlags = require('./quiz/web-quiz-identity-flags');
+
+async function phoneBindOn() {
+  try { return Boolean((await IdFlags.flags()).phoneBind); } catch (_) { return false; }
+}
+
+/** A phone with no chat child but an active binding → the bound child's verdict; else null. */
+async function boundVerdict(phone) {
+  if (!(await phoneBindOn())) return null;
+  const BindRepo = require('./quiz/child-phone-bindings.repo');
+  const rows = await BindRepo.activeForPhone(BindRepo.normalisePhone(phone));
+  if (!rows.length) return null;
+  const ids = [...new Set(rows.map((r) => String(r.canonical_id)))].slice(0, 4);
+  const { language, studentClass } = await StudentMode.lastQuizSessionForStudents(ids);
+  return {
+    persona: 'student', mode: 'student', reason: 'phone_bound_page_child',
+    language: language || null, studentClass: studentClass || null, ids,
+  };
+}
+
+/**
+ * `ukey` (and a nulled correlationId) on an unknown phone's decision only, with the switch on — and never when
+ * the message is a JUGNU- code or a STOP: that request will carry a binding event, and one request never joins a
+ * phone key to a child key. Only the event's extras change; the verdict and its cache do not.
+ */
+async function unknownPhoneKey(verdict, phone, body) {
+  if (verdict.reason !== 'no_student_row' || !(await phoneBindOn())) return {};
+  const Bind = require('./quiz/web-quiz-bind.service');
+  if (body && (require('./quiz/child-bind-codes.repo').parseCode(body) || Bind.isStop(body))) return {};
+  const ukey = Bind.ukeyOf(phone);
+  return ukey ? { ukey, correlationId: null } : {};
+}
+// ── end family phone binding ──
+
 /**
  * THE DECISION. Never throws. `persona` is 'student' only for a proven child;
  * every other outcome is null, which the caller treats as "today".
@@ -142,7 +184,7 @@ const NONE = (mode, reason) => ({ persona: null, mode, reason, language: null, s
  * @returns {Promise<{persona:'student'|null, mode:'teacher'|'student'|'unknown', reason:string,
  *                    language:string|null, studentClass:string|null}>}
  */
-async function classify({ user, phone } = {}) {
+async function classify({ user, phone, body } = {}) {
   if (!StudentMode.isEnabled()) return NONE('unknown', 'flag_off');
   if (!user) return NONE('unknown', 'no_user');
   try {
@@ -162,7 +204,8 @@ async function classify({ user, phone } = {}) {
       } else {
         const students = await StudentMode.quizStudentsForPhone(phone);
         if (!students.length) {
-          verdict = NONE('unknown', 'no_student_row');
+          // family phone binding: a phone bound to a page child is that child's (read before an unknown is cached)
+          verdict = (await boundVerdict(phone)) || NONE('unknown', 'no_student_row');
         } else {
           const { language, studentClass } = await StudentMode.lastQuizSessionForStudents(students.map((s) => s.id));
           verdict = {
@@ -174,7 +217,7 @@ async function classify({ user, phone } = {}) {
       }
     }
     await VerdictCache.set(phone, verdict);
-    logEvent('student_ingress.decided', { mode: verdict.mode, reason: verdict.reason, userId: full.id });
+    logEvent('student_ingress.decided', { mode: verdict.mode, reason: verdict.reason, userId: full.id, ...(await unknownPhoneKey(verdict, phone, body)) });
     return verdict;
   } catch (err) {
     logToFile('⚠️ student-ingress: classify threw (non-fatal, towards teacher)', { error: err.message });
@@ -184,10 +227,10 @@ async function classify({ user, phone } = {}) {
 
 const { forget } = VerdictCache;
 
-/** Attach the verdict to the users row so every handler reads one answer. */
-async function attach(user, phone) {
+/** Attach the verdict to the users row so every handler reads one answer. `body`: the message's text, if any. */
+async function attach(user, phone, { body } = {}) {
   if (!user) return user;
-  const v = await classify({ user, phone });
+  const v = await classify({ user, phone, body });
   user.persona = v.persona;                 // 'student' | null
   user.personaLanguage = v.language;
   user.personaClass = v.studentClass;
@@ -293,12 +336,71 @@ async function refuse(from, language, what, key, message = null) {
   return true;
 }
 
+// ── family phone binding: a JUGNU- code and STOP, from any phone (web_quiz_phone_bind) ──────────────────
+
+/** Is this handset a teacher's, for the binder? The door's answer when it gave one; else decided here, failing towards teacher. */
+async function doorMode(user) {
+  if (user.personaReason === 'identity' || user.personaReason === 'activity') return 'teacher';
+  if (user.persona === 'student') return 'student';
+  if (user.personaReason === 'no_student_row') return 'unknown';      // identity and activity already ran
+  const full = await withIdentityFields(user);
+  if (!full || identity(full)) return 'teacher';
+  return (await activity(full.id)) === false ? 'unknown' : 'teacher';
+}
+
+/**
+ * A `JUGNU-` code (any persona) or a whole-message STOP → the binder. true when the binder handled it (it replied
+ * or chose silence); false for every other message, and for everything with the switch off.
+ */
+async function bindingWords({ message, messageType, messageBody, from, user }) {
+  const type = messageType || (message && message.type) || '';
+  if (type !== 'text') return false;
+  const body = String(messageBody || '').trim();
+  if (!body) return false;
+  try {
+    const Codes = require('./quiz/child-bind-codes.repo');
+    const Bind = require('./quiz/web-quiz-bind.service');
+    const isCode = Boolean(Codes.parseCode(body));
+    if (!isCode && !Bind.isStop(body)) return false;
+    if (!(await phoneBindOn())) return false;
+    if (isCode) return (await Bind.handleCode({ phone: from, body, user, mode: await doorMode(user) })) !== null;
+    if (user.persona === 'student') {
+      // a quiz, a join or a post-quiz chat in flight keeps its own "stop" (it ends the quiz)
+      if (await quizInFlight(from)) return false;
+      return (await Bind.handleStop({ phone: from, user, persona: 'student' })) !== null;
+    }
+    const persona = (user.personaReason === 'identity' || user.personaReason === 'activity') ? 'teacher' : null;
+    return Bind.stopForBoundNonChild({ from, body, user, persona });
+  } catch (err) {
+    logToFile('⚠️ student-ingress: binding words threw (falling through)', { error: err.message });
+    return false;
+  }
+}
+
+/** A teacher's claim of the phone: every binding on it is erased (revoked_by teacher_claim) and the verdict forgotten. */
+async function eraseForTeacherClaim(from) {
+  try {
+    if (!(await phoneBindOn())) return;
+    const BindRepo = require('./quiz/child-phone-bindings.repo');
+    const StudentIdentity = require('./quiz/student-identity.service');
+    const norm = BindRepo.normalisePhone(from);
+    if (!norm) return;
+    await BindRepo.eraseAllForPhone(norm, 'teacher_claim');
+    await StudentIdentity.forgetDoorVerdict(from, norm);
+    logEvent('student_ingress.cache_forget', { why: 'teacher_claim', n: 1, w: 's' });
+  } catch (err) {
+    logToFile('⚠️ student-ingress: teacher-claim erase threw', { error: err.message });
+  }
+}
+// ── end family phone binding ──
+
 /**
  * Route a CHILD's message. Returns true when it answered the message itself
  * (the caller returns); false when the ordinary dispatch should run. For any
  * handset that is not a proven child this is a no-op.
  */
 async function route({ message, messageType, messageBody = '', from, user } = {}) {
+  if (user && await bindingWords({ message, messageType, messageBody, from, user })) return true;
   if (!user || user.persona !== 'student') return false;
   const language = childLanguage(user);
   const type = messageType || (message && message.type) || '';
@@ -319,6 +421,7 @@ async function route({ message, messageType, messageBody = '', from, user } = {}
       if (isRegister || (!isCommand && StudentMode.looksLikeTeacherClaim(body))) {
         const retired = await StudentMode.retireQuizStudentRows(from, 'teacher_claim');
         await forget(from);
+        await eraseForTeacherClaim(from);
         user.persona = null;
         logEvent('student_mode.escaped', { reason: 'teacher_claim', retired, userId: user.id || null });
         return false;
@@ -406,7 +509,7 @@ async function route({ message, messageType, messageBody = '', from, user } = {}
 }
 
 module.exports = {
-  identity, activity, classify, attach, route, forget,
+  identity, activity, classify, attach, route, forget, quizInFlight,
   CACHE_KEY, CACHE_TTL_SECS, CHILD_MENU_VIDEO, CHILD_MENU_QUIZ, ALLOWED_BUTTON_PREFIXES,
   REFUSAL_KEY, REFUSAL_ONCE_SECS,
 };
