@@ -44,7 +44,7 @@ const supabase = require('../config/supabase');
 const Store = require('../services/observe/observe2/field-form.store');
 const { validate } = require('../services/observe/observe2/rules');
 const {
-  FIELDS, FIELDS_V4, PREFILL, PREFILLED, PREFILLED_ARRAYS, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES,
+  FIELDS, FIELDS_V4, PREFILL, PREFILLED, PREFILLED_TYPES, MAX_PHOTOS, MAX_PLAN_PHOTOS, MAX_PLAN_FILES,
 } = require('../services/observe/observe2/field-form.flow');
 const { observe2Strings } = require('../services/observe/observe2/strings');
 const { logToFile } = require('../utils/logger');
@@ -140,16 +140,20 @@ async function renderPart1(form, extra = {}) {
 // Does this request come from a Flow whose Part 2 takes init values? (field-form.flow.js PREFILL)
 const takesPrefill = (screenData) => Boolean(screenData && screenData.prefill === PREFILL);
 
-// Part 2's init values from a set of answers: every pre-filled field, typed as the Flow declares it,
-// never null (Meta refuses null).
+// One init value, as the Flow declares its field (field-form.flow.js initData): ticks a list of strings,
+// a tick box a boolean, the rest a string. Never null (Meta refuses null); nothing saved is the type's
+// empty value. Counts (numbers) are never pre-filled: Meta has no empty number.
+function initValue(type, v) {
+  if (type === 'array') return Array.isArray(v) ? v.map(String) : [];
+  if (type === 'boolean') return v === true || v === 'true';
+  return v === undefined || v === null ? '' : String(v);
+}
+
+// Part 2's init values from a set of answers: every pre-filled field, typed as the Flow declares it.
 function partTwoInit(answers) {
   const a = answers || {};
   const out = {};
-  for (const f of PREFILLED.PART_TWO || []) {
-    const v = a[f];
-    if (PREFILLED_ARRAYS.has(f)) out[`init_${f}`] = Array.isArray(v) ? v.map(String) : [];
-    else out[`init_${f}`] = v === undefined || v === null ? '' : String(v);
-  }
+  for (const f of PREFILLED.PART_TWO || []) out[`init_${f}`] = initValue(PREFILLED_TYPES[f], a[f]);
   return out;
 }
 
