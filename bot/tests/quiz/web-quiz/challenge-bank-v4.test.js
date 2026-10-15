@@ -89,9 +89,9 @@ describe('bank v4: version, periods, weights', () => {
     expect(() => Bank.weightsV4('w9')).toThrow(/unknown weights/);
   });
 
-  test('the bank carries no G1A block and no passage text', () => {
+  test('the bank carries A1, A2 and the grade-1 block G1A, and no passage text', () => {
     const b = Bank.bankV4();
-    expect(Object.keys(b.anchor_blocks).sort()).toEqual(['A1', 'A2']);
+    expect(Object.keys(b.anchor_blocks).sort()).toEqual(['A1', 'A2', 'G1A']);
     expect(b.passages).toBeUndefined();
   });
 });
@@ -132,7 +132,6 @@ describe('anchor block A1: byte-identical on both forms, fixed order, never new'
 
   test('an unknown block throws', () => {
     expect(() => Bank.anchorBlock('A9')).toThrow(/unknown anchor block/);
-    expect(() => Bank.anchorBlock('G1A')).toThrow(/unknown anchor block/);
   });
 });
 
@@ -220,7 +219,7 @@ describe('pools are disjoint and params hashes are stable', () => {
 
   test('every seeded item has a unique (params_hash, form); a shared pair repeats only across G3 and G5', () => {
     const rows = seed().itemRows();
-    expect(rows).toHaveLength(10 + 4 + 10 + 10 + 4);
+    expect(rows).toHaveLength(10 + 4 + 10 + 10 + 4 + 10 + 1);
     const keys = rows.map((r) => `${r.params_hash}|${r.form}`);
     expect(new Set(keys).size).toBe(keys.length);
     const byHash = new Map();

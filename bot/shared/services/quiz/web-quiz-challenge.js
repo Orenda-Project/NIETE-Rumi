@@ -194,6 +194,12 @@ const optionAudioOn = () => settingOn(OPTION_AUDIO_FLAG_KEY);
 // The payload says only which rules are on (nothing when none is: today's payload).
 const ruleFlags = (rules) => ({ ...(rules.record ? { record: true } : {}), ...(rules.guard ? { guard: true } : {}), ...(rules.items ? { items: true } : {}), ...(rules.v2 ? { v2: true } : {}) });
 
+// ── grade-1 form (web_quiz_challenge_g1 under web_quiz_challenge_v2; both off ⇒ grade 1 is not_eligible, as today) ──
+// One counted stop, 'numbers' (dots → numeral, anchor block G1A). Its serve, served row, record rule and scoring live in
+// web-quiz-challenge-grade1.js; this file only routes a grade-1 child there (formFor, who, menu, exercise, submit).
+const Grade1 = require('./web-quiz-challenge-grade1').withDeps({ settingOn, insertRun: (row) => insertRun(row), fail, bank: () => childTest().Bank });
+// ── end grade-1 form ──
+
 // The read guard's page copy, from the catalog (both languages). The page fills `{words}` with the words read.
 const COPY_KEYS = { stuck: 'wqChStuck', incomplete: 'wqChIncomplete', micSay: 'wqChMicSay', micHeard: 'wqChMicHeard', micSilent: 'wqChMicSilent', stopAsk: 'wqChStopAsk', wholeMinute: 'wqChWholeMinute' };
 const copyFor = (lang) => Object.fromEntries(Object.entries(COPY_KEYS).map(([k, key]) => [k, resolveUx(key, { language: lang, params: { words: '{words}' } })]));
@@ -344,8 +350,9 @@ async function gradeOf(entry) {
   return (await gradeInfo(entry)).grade;
 }
 
-/** The maths form for a grade: 2-3 ⇒ '3', 4-5 ⇒ '5'; anything else is not eligible. */
-function formFor(grade) {
+/** The maths form for a grade: 2-3 ⇒ '3', 4-5 ⇒ '5', 1 ⇒ '1' only with `g1` (the grade-1 switches on); else not eligible. */
+function formFor(grade, { g1 = false } = {}) {
+  if (grade === 1 && g1 === true) return '1';
   if (grade === 2 || grade === 3) return '3';
   if (grade === 4 || grade === 5) return '5';
   return null;
@@ -371,7 +378,8 @@ async function who(token, { kid, lang, device } = {}) {
   if (!(await challengeOn())) fail(503, 'challenge_off');
   const entry = await entryOf(token, kid, device);
   const gi = await gradeInfo(entry);
-  const form = formFor(gi.grade);
+  // grade-1 form: the switches are read only for a grade-1 child (off ⇒ formFor(1) is null ⇒ not_eligible, as today)
+  const form = formFor(gi.grade, { g1: gi.grade === 1 && (await Grade1.on()) });
   if (!form) fail(403, 'not_eligible');
   return { ...entry, grade: gi.grade, gradeSource: gi.source, test: isTestName(gi.name), form, lang: await languageOf(entry, lang) };
 }
@@ -573,6 +581,7 @@ async function provenance(studentId, exercise, lang, run, { except = null } = {}
 
 async function menu(token, { kid, lang, device } = {}) {
   const w = await who(token, { kid, lang, device });
+  if (w.form === Grade1.FORM) return Grade1.menu(w);   // grade-1 form: its one stop
   const rules = await rulesOf();
   const runs = rules.record ? await countedRuns(w.studentId) : (await storedRuns(w.studentId)).filter((r) => r.status === 'scored');
   logEvent('web_quiz.ch_open', { via: w.via, grade: w.grade });
@@ -605,8 +614,10 @@ async function menu(token, { kid, lang, device } = {}) {
 
 async function exercise(token, ex, { kid, lang, device } = {}) {
   const def = byId(ex);
-  if (!def) fail(404, 'not_found');
+  // grade-1 form: 'numbers' exists only with its switches on; a grade-1 child gets only that stop (else 404 as today)
+  if (!def && !(ex === Grade1.EXERCISE && (await Grade1.on()))) fail(404, 'not_found');
   const w = await who(token, { kid, lang, device });
+  if (w.form === Grade1.FORM || !def) return Grade1.exercise(w, ex);
   if (ex === 'read' && !(await Budget.readOpen())) fail(429, 'enough_for_today');
   if (ex === 'listen' && !(await listenOn())) fail(503, 'listen_off');
   const rules = await rulesOf();
@@ -1353,6 +1364,8 @@ function liveCount(v, passageLen) {
 }
 
 async function submit(body = {}, { waitMs = WAIT_MS, now = Date.now() } = {}) {
+  const g1Run = Grade1.challengeOf(body.ct);   // grade-1 form: its run token scores there
+  if (g1Run) return Grade1.submit(g1Run, body);
   const c = runOf(body.ct);
   const rules = await rulesOf();
   let CT;

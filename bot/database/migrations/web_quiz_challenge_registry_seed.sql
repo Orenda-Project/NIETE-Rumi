@@ -10,7 +10,9 @@
 --   read by a native reviewer (never an English placeholder in a child-facing field).
 -- Items: anchor block A1 (operational, both forms), the A2 draft (provisional; anchor=false and anchor_block NULL at
 --   launch because an anchor row must be operational; the bank marks them anchor_block_candidate A2), the bigger
---   sets for G3 and G5 and missing.G3.A.07-10. params_hash = first 16 hex of sha256 over the sorted-key JSON.
+--   sets for G3 and G5, missing.G3.A.07-10, and the grade-1 numerals: block G1A (numid.G1.A.*, ten anchors, form G1)
+--   plus numid.G1.A.05 (operational, not in the block). The grade-1 practice layouts are Story Time stock, not seeded.
+--   params_hash = first 16 hex of sha256 over the sorted-key JSON.
 
 BEGIN;
 
@@ -41,6 +43,16 @@ INSERT INTO public.challenge_items (item_id, task, form, band, pool, template_id
   ('anchor.A2.02', 'bigger', 'shared', 3, 'check', NULL, '{"a":2087,"b":2078,"ans":2087}'::jsonb, '1bed45e2e0571fa7', false, NULL, NULL, 'provisional', 'child-test-items-v4'),
   ('anchor.A2.03', 'bigger', 'shared', 3, 'check', NULL, '{"a":498,"b":501,"ans":501}'::jsonb, '4dd0db55f7960c40', false, NULL, NULL, 'provisional', 'child-test-items-v4'),
   ('anchor.A2.04', 'bigger', 'shared', 3, 'check', NULL, '{"a":1.25,"b":1.3,"ans":1.3}'::jsonb, '0d3146956d814a1e', false, NULL, NULL, 'provisional', 'child-test-items-v4'),
+  ('numid.G1.A.03', 'number_id', 'G1', NULL, 'check', NULL, '{"n":3,"layout":"tenframe","tiles":[3,2,4]}'::jsonb, 'fc7eac00ec94e1c6', true, 'G1A', 1, 'operational', 'child-test-items-v4'),
+  ('numid.G1.A.07', 'number_id', 'G1', NULL, 'check', NULL, '{"n":7,"layout":"tenframe","tiles":[8,7,6]}'::jsonb, '10cb37fa3f55f341', true, 'G1A', 2, 'operational', 'child-test-items-v4'),
+  ('numid.G1.A.01', 'number_id', 'G1', NULL, 'check', NULL, '{"n":1,"layout":"tenframe","tiles":[1,0,2]}'::jsonb, 'c91b2717442fa4cb', true, 'G1A', 3, 'operational', 'child-test-items-v4'),
+  ('numid.G1.A.09', 'number_id', 'G1', NULL, 'check', NULL, '{"n":9,"layout":"tenframe","tiles":[10,8,9]}'::jsonb, '743b3435823655b7', true, 'G1A', 4, 'operational', 'child-test-items-v4'),
+  ('numid.G1.A.04', 'number_id', 'G1', NULL, 'check', NULL, '{"n":4,"layout":"tenframe","tiles":[4,5,3]}'::jsonb, '4043eae56323a312', true, 'G1A', 5, 'operational', 'child-test-items-v4'),
+  ('numid.G1.A.10', 'number_id', 'G1', NULL, 'check', NULL, '{"n":10,"layout":"tenframe","tiles":[9,10,8]}'::jsonb, '541739c21651f044', true, 'G1A', 6, 'operational', 'child-test-items-v4'),
+  ('numid.G1.A.02', 'number_id', 'G1', NULL, 'check', NULL, '{"n":2,"layout":"tenframe","tiles":[3,1,2]}'::jsonb, '3503b72b5669f5e9', true, 'G1A', 7, 'operational', 'child-test-items-v4'),
+  ('numid.G1.A.06', 'number_id', 'G1', NULL, 'check', NULL, '{"n":6,"layout":"tenframe","tiles":[6,7,5]}'::jsonb, '1d8451a24cded78b', true, 'G1A', 8, 'operational', 'child-test-items-v4'),
+  ('numid.G1.A.00', 'number_id', 'G1', NULL, 'check', NULL, '{"n":0,"layout":"tenframe","tiles":[1,0,2]}'::jsonb, '63dd8665d4929b5b', true, 'G1A', 9, 'operational', 'child-test-items-v4'),
+  ('numid.G1.A.08', 'number_id', 'G1', NULL, 'check', NULL, '{"n":8,"layout":"tenframe","tiles":[8,9,7]}'::jsonb, '47f907698c5cb8e7', true, 'G1A', 10, 'operational', 'child-test-items-v4'),
   ('bigger.G3.A.01', 'bigger', 'G3', 1, 'check', NULL, '{"a":7,"b":5,"ans":7}'::jsonb, '3a0f9e2e16c306e5', false, NULL, NULL, 'operational', 'child-test-items-v4'),
   ('bigger.G3.A.02', 'bigger', 'G3', 1, 'check', NULL, '{"a":11,"b":24,"ans":24}'::jsonb, 'e3e7524bede45281', false, NULL, NULL, 'operational', 'child-test-items-v4'),
   ('bigger.G3.A.03', 'bigger', 'G3', 1, 'check', NULL, '{"a":39,"b":23,"ans":39}'::jsonb, '60e7fa37966b453b', false, NULL, NULL, 'operational', 'child-test-items-v4'),
@@ -64,7 +76,8 @@ INSERT INTO public.challenge_items (item_id, task, form, band, pool, template_id
   ('missing.G3.A.07', 'missing', 'G3', 1, 'check', NULL, '{"seq":[28,null,24,22],"ans":26}'::jsonb, 'ef17feec8f9cbd7d', false, NULL, NULL, 'operational', 'child-test-items-v4'),
   ('missing.G3.A.08', 'missing', 'G3', 2, 'check', NULL, '{"seq":[30,35,null,45],"ans":40}'::jsonb, '3f100464ba6fe1b3', false, NULL, NULL, 'operational', 'child-test-items-v4'),
   ('missing.G3.A.09', 'missing', 'G3', 3, 'check', NULL, '{"seq":[550,540,530,null],"ans":520}'::jsonb, 'aebd175399d7c6fe', false, NULL, NULL, 'operational', 'child-test-items-v4'),
-  ('missing.G3.A.10', 'missing', 'G3', 2, 'check', NULL, '{"seq":[3,8,null,18],"ans":13}'::jsonb, '53c0eb6ff817d79d', false, NULL, NULL, 'operational', 'child-test-items-v4')
+  ('missing.G3.A.10', 'missing', 'G3', 2, 'check', NULL, '{"seq":[3,8,null,18],"ans":13}'::jsonb, '53c0eb6ff817d79d', false, NULL, NULL, 'operational', 'child-test-items-v4'),
+  ('numid.G1.A.05', 'number_id', 'G1', NULL, 'check', NULL, '{"n":5,"layout":"tenframe","tiles":[6,5,4]}'::jsonb, '5acf8f39fc39dce0', false, NULL, NULL, 'operational', 'child-test-items-v4')
 ON CONFLICT (item_id) DO NOTHING;
 
 COMMIT;
