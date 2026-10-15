@@ -9,7 +9,7 @@ import { isolateRuns } from '../ui/bidi';
 import { FOCUS } from '../ui/styles';
 import { useCopy, useLang } from '../i18n';
 import { ASSESSMENT, type AssessmentV2Copy } from './copy';
-import { loadChapters, patternFor } from './api';
+import { loadChapters, patternOffer } from './api';
 import { FDE_STEPS, fdeUnitRanges, toSpec, type Picks } from './model';
 import { newPaperPath, requestPath } from './paths';
 import { stepReason } from './reasons';
@@ -94,7 +94,8 @@ export function FdeCheck() {
   const navigate = useNavigate();
   const { jobs, start } = useJobs();
   const needsClass = p.grade === null || !p.subject;
-  const [pat, retryPat] = useLoad(needsClass ? null : () => patternFor(p.grade, p.subject), `pattern:${p.grade}:${p.subject}`);
+  // A failed read is a load failure with Try again (LoadState), never "the pattern is off" (that is `gone`, below).
+  const [pat, retryPat] = useLoad(needsClass ? null : () => patternOffer(p.grade, p.subject), `pattern:${p.grade}:${p.subject}`);
   const [chapters] = useLoad(needsClass ? null : () => loadChapters(p.grade as number, p.subject as string), `chapters:${p.grade}:${p.subject}`);
   const [tray, setTray] = useState<null | 'style' | 'syllabus' | 'inside'>(null);
   const [styleChoice, setStyleChoice] = useState<'fde' | 'own'>('fde');
@@ -229,7 +230,7 @@ export function FdeCheck() {
             })}
           </ListCard>
           <div role="radiogroup" aria-label={C.steps.cover}>
-            <Choice picked={false} onPick={() => pattern && set(customised(pattern, custom ? p.chapters : pattern.scope.chapters))}
+            <Choice picked={custom} onPick={() => pattern && set(customised(pattern, custom ? p.chapters : pattern.scope.chapters))}
               icon={<FilePen className="h-6 w-6" aria-hidden="true" />} name={C.steps.cover} sub={C.ownScopeSub} />
           </div>
           <button type="button" onClick={() => setTray(null)} className={cn(PRIMARY, FOCUS)}>{C.done}</button>
