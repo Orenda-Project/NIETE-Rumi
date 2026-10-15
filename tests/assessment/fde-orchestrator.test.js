@@ -10,7 +10,7 @@
  * with the HTML they were made for, so each document is rendered with ITS options.
  *
  * Real renderers, real format module; mocked at the edges only: the database, storage, the PDF
- * engine and the model (generatePatternExam is a contract with the generation lane).
+ * engine and the model (generatePatternExam is mocked to its contract; fde-chain runs the real one).
  */
 
 const fs = require('fs');
