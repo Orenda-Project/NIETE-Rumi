@@ -266,6 +266,21 @@ describe('swap two children: a hub that remembers more than one child serves ?ki
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ canonicalId: K5, device: D.device }));
   });
 
+  test('a pick from an earlier visit (at older than 30 min) does not count: 400 pick_kid', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    spy = jest.spyOn(BP, 'pickFor').mockResolvedValue({ id_src: 'hub_chip', id_confidence: 'high', homonym_in_list: false, at: Date.now() - 31 * 60 * 1000 });
+    await expect(Ch.exercise(two(), 'bigger', { ...D, kid: Ch.kidChip(K5) })).rejects.toMatchObject({ status: 400, body: { error: 'pick_kid' } });
+    expect(db.web_quiz_challenge_runs).toEqual([]);
+  });
+
+  test('a pick from this visit (at a minute ago) counts; a pick without at (written before the visit stamp) counts', async () => {
+    on(V2, PERIOD, POOL, ...CANON);
+    spy = jest.spyOn(BP, 'pickFor').mockResolvedValue({ id_src: 'hub_chip', id_confidence: 'high', homonym_in_list: false, at: Date.now() - 60 * 1000 });
+    expect(rowOf((await Ch.exercise(two(), 'bigger', { ...D, kid: Ch.kidChip(K5) })).ct)).toMatchObject({ student_id: K5 });
+    spy.mockResolvedValue({ id_src: 'hub_chip', id_confidence: 'high', homonym_in_list: false });
+    expect(rowOf((await Ch.exercise(two(), 'read', { ...D, kid: Ch.kidChip(K5) })).ct)).toMatchObject({ student_id: K5 });
+  });
+
   test('one remembered id: today (no pick needed)', async () => {
     on(V2, PERIOD, POOL, ...CANON);
     spy = jest.spyOn(BP, 'pickFor').mockResolvedValue(null);

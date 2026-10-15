@@ -294,8 +294,12 @@ function kidChip(studentId) {
 
 // ── who is playing ─────────────────────────────────────────────────────────────────────────────────────
 
+// A pick counts for this visit only: stamped (`at`, ms) within the last 30 minutes. A pick written before the store
+// stamped `at` still counts.
+const VISIT_MS = 30 * 60 * 1000;
+
 /**
- * This visit's pick of a hub child (web-quiz-bind-page.pickFor: the chip tap on this device, 24 h). The pick store is
+ * This visit's pick of a hub child (web-quiz-bind-page.pickFor: the chip tap on this device, VISIT_MS). The pick store is
  * written only under web_quiz_identity_canon, so with that switch off every ?kid= is today's; the module absent → no pick.
  */
 async function kidPickedHere(studentId, device) {
@@ -303,7 +307,8 @@ async function kidPickedHere(studentId, device) {
   try { B = require('./web-quiz-bind-page'); } catch (_) { return false; }
   if (!(await B.canonOn())) return true;
   const canonicalId = (await require('./web-quiz-identity-roster').canonicalStudentId(studentId)) || studentId;
-  return Boolean(await B.pickFor({ canonicalId, device }));
+  const pick = await B.pickFor({ canonicalId, device });
+  return Boolean(pick && (pick.at == null || Date.now() - Number(pick.at) < VISIT_MS));
 }
 
 async function entryOf(token, kid, device) {
