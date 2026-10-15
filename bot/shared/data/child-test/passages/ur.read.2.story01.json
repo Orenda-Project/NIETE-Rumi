@@ -1,0 +1,221 @@
+{
+  "passage_id": "ur.read.2.story01",
+  "lang": "ur",
+  "kind": "read",
+  "band": 2,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "tokens": 61,
+  "sentences": 9,
+  "mean_sent_len": 6.8,
+  "max_word_len": 5,
+  "readability": 0.932,
+  "readability_list": "fed-cum-g3-2026",
+  "readability_band_above": 0.864,
+  "q_reach_1": 3,
+  "q_reach_2": 4,
+  "q_n": 4,
+  "text_hash": "41f85cffd9ec28f9d144042bf929f2ac",
+  "source_ref": "generated brief v1 (band-2 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "ریل کا سفر",
+  "text": "عمیر چچا کے ساتھ ریل میں گاؤں جا رہا تھا۔ عمیر باہر سبز پہاڑ دیکھ رہا تھا۔ پھر ریل ایک جگہ کھڑی ہو گئی۔ بہت دیر تک ریل نہ چلی۔ عمیر اداس ہو گیا۔ چچا نے اس سے ایک پہیلی پوچھی۔ عمیر نے سوچ کر صحیح جواب دیا۔ پھر ریل آگے بڑھ گئی۔ کچھ دیر بعد وہ دونوں گاؤں پہنچ گئے۔",
+  "lines": [
+    [
+      0,
+      9
+    ],
+    [
+      10,
+      16
+    ],
+    [
+      17,
+      23
+    ],
+    [
+      24,
+      29
+    ],
+    [
+      30,
+      33
+    ],
+    [
+      34,
+      40
+    ],
+    [
+      41,
+      47
+    ],
+    [
+      48,
+      52
+    ],
+    [
+      53,
+      60
+    ]
+  ],
+  "tokens_list": [
+    "عمیر",
+    "چچا",
+    "کے",
+    "ساتھ",
+    "ریل",
+    "میں",
+    "گاؤں",
+    "جا",
+    "رہا",
+    "تھا",
+    "عمیر",
+    "باہر",
+    "سبز",
+    "پہاڑ",
+    "دیکھ",
+    "رہا",
+    "تھا",
+    "پھر",
+    "ریل",
+    "ایک",
+    "جگہ",
+    "کھڑی",
+    "ہو",
+    "گئی",
+    "بہت",
+    "دیر",
+    "تک",
+    "ریل",
+    "نہ",
+    "چلی",
+    "عمیر",
+    "اداس",
+    "ہو",
+    "گیا",
+    "چچا",
+    "نے",
+    "اس",
+    "سے",
+    "ایک",
+    "پہیلی",
+    "پوچھی",
+    "عمیر",
+    "نے",
+    "سوچ",
+    "کر",
+    "صحیح",
+    "جواب",
+    "دیا",
+    "پھر",
+    "ریل",
+    "آگے",
+    "بڑھ",
+    "گئی",
+    "کچھ",
+    "دیر",
+    "بعد",
+    "وہ",
+    "دونوں",
+    "گاؤں",
+    "پہنچ",
+    "گئے"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "عمیر کس کے ساتھ تھا؟",
+      "right": "چچا کے ساتھ",
+      "wrong": [
+        "ابو کے ساتھ",
+        "دادا کے ساتھ"
+      ],
+      "accept": [
+        "چچا کے ساتھ",
+        "چچا"
+      ],
+      "reject": [
+        "ابو کے ساتھ",
+        "دادا کے ساتھ"
+      ],
+      "rubric": "Correct if the child says with his uncle (چچا)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "عمیر کہاں جا رہا تھا؟",
+      "right": "گاؤں",
+      "wrong": [
+        "شہر",
+        "سمندر"
+      ],
+      "accept": [
+        "گاؤں",
+        "گاؤں جا رہا تھا"
+      ],
+      "reject": [
+        "شہر",
+        "سمندر"
+      ],
+      "rubric": "Correct if the child says to the village (گاؤں)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "عمیر کس چیز میں سفر کر رہا تھا؟",
+      "right": "ریل",
+      "wrong": [
+        "کشتی",
+        "جہاز"
+      ],
+      "accept": [
+        "ریل",
+        "ریل میں",
+        "ٹرین"
+      ],
+      "reject": [
+        "کشتی",
+        "جہاز"
+      ],
+      "rubric": "Correct if the child says the train (ریل)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "عمیر باہر کیا دیکھ رہا تھا؟",
+      "right": "پہاڑ",
+      "wrong": [
+        "ندی",
+        "جنگل"
+      ],
+      "accept": [
+        "پہاڑ",
+        "سبز پہاڑ"
+      ],
+      "reject": [
+        "ندی",
+        "جنگل"
+      ],
+      "rubric": "Correct if the child says the (green) mountains (پہاڑ)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "عمیر"
+  ]
+}

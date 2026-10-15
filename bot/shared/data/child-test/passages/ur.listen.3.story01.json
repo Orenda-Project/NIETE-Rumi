@@ -1,0 +1,255 @@
+{
+  "passage_id": "ur.listen.3.story01",
+  "lang": "ur",
+  "kind": "listen",
+  "band": 3,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "tokens": 64,
+  "sentences": 8,
+  "mean_sent_len": 8.0,
+  "max_word_len": 5,
+  "readability": 0.915,
+  "readability_list": "fed-cum-g5-2026",
+  "readability_band_above": null,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "text_hash": "412b5d7f9591087fb44bf7fe1598586c",
+  "source_ref": "generated brief v1 (band-3 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "مٹی کی گڑیا",
+  "text": "فیضان نے ابو کے ساتھ ہڑپہ کا سفر کیا۔ وہاں انھوں نے مٹی کی پرانی چیزیں دیکھیں۔ ان میں مٹی کی ایک گڑیا بھی تھی۔ واپس آ کر فیضان نے بھی ایک گڑیا بنائی۔ اس نے گڑیا باہر گرمی میں رکھ دی۔ مگر گڑیا خراب ہو گئی۔ دادی نے بتایا کہ ایسی چیزیں اندر رکھتے ہیں۔ دوسری گڑیا اندر رکھی تو بہت اچھی بنی۔",
+  "lines": [
+    [
+      0,
+      8
+    ],
+    [
+      9,
+      16
+    ],
+    [
+      17,
+      24
+    ],
+    [
+      25,
+      33
+    ],
+    [
+      34,
+      41
+    ],
+    [
+      42,
+      46
+    ],
+    [
+      47,
+      55
+    ],
+    [
+      56,
+      63
+    ]
+  ],
+  "tokens_list": [
+    "فیضان",
+    "نے",
+    "ابو",
+    "کے",
+    "ساتھ",
+    "ہڑپہ",
+    "کا",
+    "سفر",
+    "کیا",
+    "وہاں",
+    "انھوں",
+    "نے",
+    "مٹی",
+    "کی",
+    "پرانی",
+    "چیزیں",
+    "دیکھیں",
+    "ان",
+    "میں",
+    "مٹی",
+    "کی",
+    "ایک",
+    "گڑیا",
+    "بھی",
+    "تھی",
+    "واپس",
+    "آ",
+    "کر",
+    "فیضان",
+    "نے",
+    "بھی",
+    "ایک",
+    "گڑیا",
+    "بنائی",
+    "اس",
+    "نے",
+    "گڑیا",
+    "باہر",
+    "گرمی",
+    "میں",
+    "رکھ",
+    "دی",
+    "مگر",
+    "گڑیا",
+    "خراب",
+    "ہو",
+    "گئی",
+    "دادی",
+    "نے",
+    "بتایا",
+    "کہ",
+    "ایسی",
+    "چیزیں",
+    "اندر",
+    "رکھتے",
+    "ہیں",
+    "دوسری",
+    "گڑیا",
+    "اندر",
+    "رکھی",
+    "تو",
+    "بہت",
+    "اچھی",
+    "بنی"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "فیضان نے کس کے ساتھ سفر کیا؟",
+      "right": "ابو کے ساتھ",
+      "wrong": [
+        "چچا کے ساتھ",
+        "دادا کے ساتھ"
+      ],
+      "accept": [
+        "ابو کے ساتھ",
+        "ابو"
+      ],
+      "reject": [
+        "چچا کے ساتھ",
+        "دادا کے ساتھ"
+      ],
+      "rubric": "Correct if the child says with his father (ابو)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "فیضان نے کہاں کا سفر کیا؟",
+      "right": "ہڑپہ",
+      "wrong": [
+        "کراچی",
+        "کوئٹہ"
+      ],
+      "accept": [
+        "ہڑپہ"
+      ],
+      "reject": [
+        "کراچی",
+        "کوئٹہ"
+      ],
+      "rubric": "Correct if the child says Harappa (ہڑپہ)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "وہاں انھوں نے کیسی چیزیں دیکھیں؟",
+      "right": "پرانی",
+      "wrong": [
+        "نئی",
+        "رنگین"
+      ],
+      "accept": [
+        "پرانی",
+        "مٹی کی پرانی چیزیں",
+        "مٹی کی"
+      ],
+      "reject": [
+        "نئی",
+        "رنگین"
+      ],
+      "rubric": "Correct if the child says old things (پرانی), made of clay."
+    },
+    {
+      "id": "q4",
+      "needs_line": 4,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "فیضان نے کیا بنایا؟",
+      "right": "گڑیا",
+      "wrong": [
+        "پتنگ",
+        "کشتی"
+      ],
+      "accept": [
+        "گڑیا",
+        "مٹی کی گڑیا"
+      ],
+      "reject": [
+        "پتنگ",
+        "کشتی"
+      ],
+      "rubric": "Correct if the child says a (clay) doll (گڑیا)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 6,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "باہر رکھنے سے گڑیا کو کیا ہوا؟",
+      "right": "خراب ہو گئی",
+      "wrong": [
+        "گم ہو گئی",
+        "گیلی ہو گئی"
+      ],
+      "accept": [
+        "خراب ہو گئی",
+        "خراب"
+      ],
+      "reject": [
+        "گم ہو گئی",
+        "گیلی ہو گئی"
+      ],
+      "rubric": "Correct if the child says it was spoiled (خراب)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 7,
+      "type": "literal",
+      "tap_ok": false,
+      "prompt": "دادی نے ایسی چیزیں کہاں رکھنے کا بتایا؟",
+      "right": null,
+      "wrong": [],
+      "accept": [
+        "اندر",
+        "کمرے میں"
+      ],
+      "reject": [],
+      "rubric": "Correct if the child says inside (اندر)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "فیضان"
+  ]
+}

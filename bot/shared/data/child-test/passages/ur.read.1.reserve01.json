@@ -1,0 +1,180 @@
+{
+  "passage_id": "ur.read.1.reserve01",
+  "lang": "ur",
+  "kind": "read",
+  "band": 1,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "tokens": 36,
+  "sentences": 6,
+  "mean_sent_len": 6.0,
+  "max_word_len": 4,
+  "readability": 0.966,
+  "readability_list": "fed-cum-g2-2026",
+  "readability_band_above": 0.966,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 4,
+  "text_hash": "2b98693a73cad5dd06939b10f45ec1f2",
+  "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "دادی کے پودے",
+  "text": "دادی کے کمرے میں چھوٹے پودے تھے۔ ایک صبح پودے اداس لگ رہے تھے۔ حمزہ پودے باہر لے گیا۔ وہاں اچھی دھوپ تھی۔ کچھ دیر بعد پودے خوش ہو گئے۔ دادی نے حمزہ کو پیار کیا۔",
+  "lines": [
+    [
+      0,
+      6
+    ],
+    [
+      7,
+      13
+    ],
+    [
+      14,
+      18
+    ],
+    [
+      19,
+      22
+    ],
+    [
+      23,
+      29
+    ],
+    [
+      30,
+      35
+    ]
+  ],
+  "tokens_list": [
+    "دادی",
+    "کے",
+    "کمرے",
+    "میں",
+    "چھوٹے",
+    "پودے",
+    "تھے",
+    "ایک",
+    "صبح",
+    "پودے",
+    "اداس",
+    "لگ",
+    "رہے",
+    "تھے",
+    "حمزہ",
+    "پودے",
+    "باہر",
+    "لے",
+    "گیا",
+    "وہاں",
+    "اچھی",
+    "دھوپ",
+    "تھی",
+    "کچھ",
+    "دیر",
+    "بعد",
+    "پودے",
+    "خوش",
+    "ہو",
+    "گئے",
+    "دادی",
+    "نے",
+    "حمزہ",
+    "کو",
+    "پیار",
+    "کیا"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "پودے کس کے کمرے میں تھے؟",
+      "right": "دادی کے",
+      "wrong": [
+        "امی کے",
+        "چچا کے"
+      ],
+      "accept": [
+        "دادی کے",
+        "دادی"
+      ],
+      "reject": [
+        "امی کے",
+        "چچا کے"
+      ],
+      "rubric": "Correct if the child says grandmother's (دادی)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "کمرے میں کیسے پودے تھے؟",
+      "right": "چھوٹے",
+      "wrong": [
+        "بڑے",
+        "لمبے"
+      ],
+      "accept": [
+        "چھوٹے"
+      ],
+      "reject": [
+        "بڑے",
+        "لمبے"
+      ],
+      "rubric": "Correct if the child says small (چھوٹے)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "ایک صبح پودے کیسے لگ رہے تھے؟",
+      "right": "اداس",
+      "wrong": [
+        "تازہ",
+        "ہرے"
+      ],
+      "accept": [
+        "اداس"
+      ],
+      "reject": [
+        "تازہ",
+        "ہرے"
+      ],
+      "rubric": "Correct if the child says sad (اداس)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "حمزہ پودے کہاں لے گیا؟",
+      "right": "باہر",
+      "wrong": [
+        "اندر",
+        "اوپر"
+      ],
+      "accept": [
+        "باہر"
+      ],
+      "reject": [
+        "اندر",
+        "اوپر"
+      ],
+      "rubric": "Correct if the child says outside (باہر)."
+    }
+  ],
+  "params": {
+    "reserve": true
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "حمزہ"
+  ]
+}

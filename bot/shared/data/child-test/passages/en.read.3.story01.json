@@ -1,0 +1,263 @@
+{
+  "passage_id": "en.read.3.story01",
+  "lang": "en",
+  "kind": "read",
+  "band": 3,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "names": [
+    "Rida"
+  ],
+  "tokens": 60,
+  "sentences": 8,
+  "mean_sent_len": 7.5,
+  "max_word_len": 7,
+  "readability": 0.976,
+  "readability_list": "fed-cum-g5-2026",
+  "readability_band_above": null,
+  "source_ref": "generated brief v1 (band-3 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "Flowers for Paint",
+  "title_ur": null,
+  "text": "Rida wanted to paint the river for a school project. Her paint box was not in her bag. It was still on the desk in her room. Then Rida had an idea. She picked yellow flowers from the garden. She also picked some leaves from a tree. She used them as colours for her picture. Her teacher loved the picture.",
+  "lines": [
+    [
+      0,
+      9
+    ],
+    [
+      10,
+      17
+    ],
+    [
+      18,
+      26
+    ],
+    [
+      27,
+      31
+    ],
+    [
+      32,
+      38
+    ],
+    [
+      39,
+      46
+    ],
+    [
+      47,
+      54
+    ],
+    [
+      55,
+      59
+    ]
+  ],
+  "tokens_list": [
+    "Rida",
+    "wanted",
+    "to",
+    "paint",
+    "the",
+    "river",
+    "for",
+    "a",
+    "school",
+    "project",
+    "Her",
+    "paint",
+    "box",
+    "was",
+    "not",
+    "in",
+    "her",
+    "bag",
+    "It",
+    "was",
+    "still",
+    "on",
+    "the",
+    "desk",
+    "in",
+    "her",
+    "room",
+    "Then",
+    "Rida",
+    "had",
+    "an",
+    "idea",
+    "She",
+    "picked",
+    "yellow",
+    "flowers",
+    "from",
+    "the",
+    "garden",
+    "She",
+    "also",
+    "picked",
+    "some",
+    "leaves",
+    "from",
+    "a",
+    "tree",
+    "She",
+    "used",
+    "them",
+    "as",
+    "colours",
+    "for",
+    "her",
+    "picture",
+    "Her",
+    "teacher",
+    "loved",
+    "the",
+    "picture"
+  ],
+  "text_hash": "3241502d15d3863bd4ed120a3682ff30",
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Rida want to paint?",
+      "right": "the river",
+      "wrong": [
+        "the moon",
+        "a bird"
+      ],
+      "accept": [
+        "the river",
+        "a river",
+        "river"
+      ],
+      "reject": [
+        "the moon",
+        "a bird"
+      ],
+      "rubric": "Right if the child says the river (or a river / river)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What was the painting for?",
+      "right": "a school project",
+      "wrong": [
+        "a birthday card",
+        "a party"
+      ],
+      "accept": [
+        "a school project",
+        "school",
+        "for a school project"
+      ],
+      "reject": [
+        "a birthday card",
+        "a party"
+      ],
+      "rubric": "Right if the child says a school project (or school / for a school project)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What was not in her bag?",
+      "right": "her paint box",
+      "wrong": [
+        "her lunch box",
+        "her pencil box"
+      ],
+      "accept": [
+        "her paint box",
+        "paint box",
+        "her paints"
+      ],
+      "reject": [
+        "her lunch box",
+        "her pencil box"
+      ],
+      "rubric": "Right if the child says her paint box (or paint box / her paints)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where was the paint box?",
+      "right": "on the desk in her room",
+      "wrong": [
+        "in the car",
+        "in the garden"
+      ],
+      "accept": [
+        "on the desk in her room",
+        "at home",
+        "in her room",
+        "on her desk"
+      ],
+      "reject": [
+        "in the car",
+        "in the garden"
+      ],
+      "rubric": "Right if the child says on the desk in her room (or at home / in her room / on her desk)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Rida pick from the garden?",
+      "right": "yellow flowers",
+      "wrong": [
+        "red apples",
+        "white stones"
+      ],
+      "accept": [
+        "yellow flowers",
+        "flowers"
+      ],
+      "reject": [
+        "red apples",
+        "white stones"
+      ],
+      "rubric": "Right if the child says yellow flowers (or flowers)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 7,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "How did Rida paint without her paint box?",
+      "right": "she used flowers and leaves",
+      "wrong": [
+        "she used a pencil",
+        "she asked a friend for paint"
+      ],
+      "accept": [
+        "she used flowers and leaves",
+        "with flowers and leaves",
+        "with flowers"
+      ],
+      "reject": [
+        "she used a pencil",
+        "she asked a friend for paint"
+      ],
+      "rubric": "Right if the child says she used flowers and leaves (or with flowers and leaves / with flowers)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}

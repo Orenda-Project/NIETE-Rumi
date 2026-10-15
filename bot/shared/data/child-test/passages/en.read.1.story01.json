@@ -1,0 +1,227 @@
+{
+  "passage_id": "en.read.1.story01",
+  "lang": "en",
+  "kind": "read",
+  "band": 1,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "names": [
+    "Nida"
+  ],
+  "tokens": 36,
+  "sentences": 6,
+  "mean_sent_len": 6,
+  "max_word_len": 7,
+  "readability": 1,
+  "readability_list": "fed-cum-g2-2026",
+  "readability_band_above": 1,
+  "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "The Little Pot",
+  "title_ur": null,
+  "text": "Nida had a little pot. She put a small plant in it. She gave it water every day. For a week, there was no flower. One morning, she saw a pink flower. Nida was very happy.",
+  "lines": [
+    [
+      0,
+      4
+    ],
+    [
+      5,
+      11
+    ],
+    [
+      12,
+      17
+    ],
+    [
+      18,
+      24
+    ],
+    [
+      25,
+      31
+    ],
+    [
+      32,
+      35
+    ]
+  ],
+  "tokens_list": [
+    "Nida",
+    "had",
+    "a",
+    "little",
+    "pot",
+    "She",
+    "put",
+    "a",
+    "small",
+    "plant",
+    "in",
+    "it",
+    "She",
+    "gave",
+    "it",
+    "water",
+    "every",
+    "day",
+    "For",
+    "a",
+    "week",
+    "there",
+    "was",
+    "no",
+    "flower",
+    "One",
+    "morning",
+    "she",
+    "saw",
+    "a",
+    "pink",
+    "flower",
+    "Nida",
+    "was",
+    "very",
+    "happy"
+  ],
+  "text_hash": "090150bf16fa96d0e0232718fa348140",
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Nida have?",
+      "right": "a pot",
+      "wrong": [
+        "a bag",
+        "a dog"
+      ],
+      "accept": [
+        "a pot",
+        "a little pot",
+        "pot"
+      ],
+      "reject": [
+        "a bag",
+        "a dog"
+      ],
+      "rubric": "Right if the child says a pot (or a little pot / pot)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "How big was the pot?",
+      "right": "little",
+      "wrong": [
+        "very tall",
+        "very wide"
+      ],
+      "accept": [
+        "little",
+        "small",
+        "a little pot"
+      ],
+      "reject": [
+        "very tall",
+        "very wide"
+      ],
+      "rubric": "Right if the child says little (or small / a little pot)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Nida put in the pot?",
+      "right": "a small plant",
+      "wrong": [
+        "a small stone",
+        "a little toy"
+      ],
+      "accept": [
+        "a small plant",
+        "a plant",
+        "plant"
+      ],
+      "reject": [
+        "a small stone",
+        "a little toy"
+      ],
+      "rubric": "Right if the child says a small plant (or a plant / plant)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Nida give the plant every day?",
+      "right": "water",
+      "wrong": [
+        "milk",
+        "sand"
+      ],
+      "accept": [
+        "water"
+      ],
+      "reject": [
+        "milk",
+        "sand"
+      ],
+      "rubric": "Right if the child says water."
+    },
+    {
+      "id": "q5",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What colour was the flower?",
+      "right": "pink",
+      "wrong": [
+        "blue",
+        "white"
+      ],
+      "accept": [
+        "pink"
+      ],
+      "reject": [
+        "blue",
+        "white"
+      ],
+      "rubric": "Right if the child says pink."
+    },
+    {
+      "id": "q6",
+      "needs_line": 6,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "Why was Nida very happy?",
+      "right": "her plant had a flower",
+      "wrong": [
+        "she got a new pot",
+        "it was a holiday"
+      ],
+      "accept": [
+        "her plant had a flower",
+        "she saw a pink flower",
+        "the flower came"
+      ],
+      "reject": [
+        "she got a new pot",
+        "it was a holiday"
+      ],
+      "rubric": "Right if the child says her plant had a flower (or she saw a pink flower / the flower came)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}

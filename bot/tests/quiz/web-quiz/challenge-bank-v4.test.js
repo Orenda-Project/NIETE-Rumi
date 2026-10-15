@@ -276,9 +276,51 @@ describe('passages: one file per id, Set A pointers resolve from v3', () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  test('the shipped directory has no passage files yet', () => {
-    expect(Bank.listPassages()).toEqual([]);
-    expect(Bank.getPassage('en.read.2.setA')).toBeNull();
+  test('the shipped stock: one file per unique id, every passage loads frozen, Set A pointers resolve from v3', () => {
+    Bank._loadPassagesFrom(); // the shipped directory
+    const ids = Bank.listPassages().map((p) => p.passage_id);
+    expect(ids.length).toBeGreaterThan(0);
+    expect(new Set(ids).size).toBe(ids.length);
+    // Lower-case slugs, plus the four Set A pointers named after the v3 set ("setA").
+    for (const id of ids) expect(id).toMatch(/^(en|ur)\.(read|listen)\.[1-3]\.([a-z0-9]+|setA)$/);
+
+    const shipped = path.join(DATA, 'passages');
+    const files = fs.readdirSync(shipped).filter((f) => f.endsWith('.json')).sort();
+    expect(files.length).toBe(ids.length);
+    for (const f of files) {
+      const row = JSON.parse(fs.readFileSync(path.join(shipped, f), 'utf8'));
+      expect(`${row.passage_id}.json`).toBe(f);
+      const p = Bank.getPassage(row.passage_id);
+      expect(p).not.toBeNull();
+      expect(Object.isFrozen(p)).toBe(true);
+      expect(typeof p.text).toBe('string');
+      expect(p.text.length).toBeGreaterThan(0);
+      if (row.v3_ref) {
+        // A pointer carries what v3 carries: the listening stories have no token count there.
+        const v3 = V3.sets.A.reading[row.v3_ref.lang][row.v3_ref.kind === 'story' ? 'story' : 'listening'].story;
+        expect(p.tokens).toEqual(v3.tokens == null ? null : v3.tokens);
+      } else {
+        expect(Number.isInteger(p.tokens) && p.tokens > 0).toBe(true);
+      }
+    }
+
+    // The Set A pointers: the English ones ship here, the Urdu ones with the Urdu stock; each one present is v3's text.
+    const v3Text = { read: (l) => V3.sets.A.reading[l].story.story.text, listen: (l) => V3.sets.A.reading[l].listening.story.text };
+    for (const id of ['en.read.2.setA', 'ur.read.2.setA', 'en.listen.2.setA', 'ur.listen.2.setA']) {
+      const [lang, kind] = id.split('.');
+      const p = Bank.getPassage(id);
+      if (lang === 'en') expect(p).not.toBeNull();
+      if (p === null) continue;
+      expect(Buffer.from(p.text, 'utf8').equals(Buffer.from(v3Text[kind](lang), 'utf8'))).toBe(true);
+      expect(p.is_reference).toBe(true);
+    }
+    // The Urdu Set A listening title: either absent, or a non-empty string of at most 24 code points.
+    const t = (Bank.getPassage('ur.listen.2.setA') || {}).title_ur;
+    if (t != null) {
+      expect(typeof t).toBe('string');
+      expect([...t].length).toBeGreaterThan(0);
+      expect([...t].length).toBeLessThanOrEqual(24);
+    }
   });
 
   test('a read pointer takes text, tokens, lines and questions from v3 and appends the extra questions', () => {

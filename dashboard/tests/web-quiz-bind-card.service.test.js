@@ -84,9 +84,9 @@ test('Keep my place -> the confirm sheet (name, notice, STOP chip, nothing prese
   m.els.keep.click();
   expect(m.innerHTML).toContain('⁨Zara⁩، کیا یہ آپ ہیں؟');
   // the ruled first sentence (a link, not a rename) and «واٹس ایپ» held on one line
-  expect(m.innerHTML).toContain('جگنو اس فون نمبر کو ⁨Zara⁩ کے ساتھ جوڑ کر محفوظ کرے گا');
+  expect(m.innerHTML).toContain("جگنو اس فون نمبر کو ⁨Zara⁩ کے ساتھ جوڑ کر محفوظ کرے گا۔ یہ اسکول کا سال ختم ہونے تک (۳۱ مارچ) رہے گا، اور اگر کھیلنا جاری رہے تو اس کے بعد بھی۔");   // v2.1 verbatim
   expect(m.innerHTML).not.toContain('کے نام کے ساتھ محفوظ کرے گا');
-  expect(m.innerHTML).toContain('<span class="wqb-nowrap">واٹس ایپ</span>');
+  expect(m.innerHTML).toContain('<span class="wqb-nowrap">واٹس\u00a0ایپ</span>');   // the deck's no-break space, held by the span too
   expect(m.innerHTML).toContain('<bdi dir="ltr" class="wqb-chip">STOP</bdi>');
   expect(m.innerHTML).not.toMatch(/checked|aria-pressed="true"|autofocus/);
   m.els.yes.click();
@@ -149,7 +149,7 @@ test('focus return: pending shows nothing new; expired asks again', async () => 
 test('the notice says the phone link only: STOP removes the number, no readings or deletion claim (EN, UR)', () => {
   const NOTICE = {
     en: 'A grown-up can undo this any time by sending STOP on WhatsApp.',
-    ur: 'گھر کے بڑے کسی بھی وقت واٹس ایپ پر ⁦STOP⁩ بھیج کر یہ نمبر ہٹا سکتے ہیں۔',
+    ur: "گھر کے بڑے کسی بھی وقت واٹس ایپ پر ⁦STOP⁩ بھیج کر یہ نمبر ہٹا سکتے ہیں۔",   // v2.1: U+00A0 inside «واٹس ایپ»
   };
   for (const lang of ['en', 'ur']) {
     const p = load();
@@ -160,7 +160,7 @@ test('the notice says the phone link only: STOP removes the number, no readings 
     for (const w of ['readings', 'deleted', 'ریکارڈنگ', 'مٹا', '90']) expect([lang, w, html.includes(w)]).toEqual([lang, w, false]);
     expect(p.B.t(lang).noticeStopPhoneOnly).toBe(NOTICE[lang]);
     // rendered: the STOP chip and «واٹس ایپ» held on one line
-    expect(html).toContain(NOTICE[lang].replace(/⁦?STOP⁩?/, '⁦<bdi dir="ltr" class="wqb-chip">STOP</bdi>⁩').replace(/واٹس ایپ/g, '<span class="wqb-nowrap">واٹس ایپ</span>'));
+    expect(html).toContain(NOTICE[lang].replace(/⁦?STOP⁩?/, '⁦<bdi dir="ltr" class="wqb-chip">STOP</bdi>⁩').replace(/واٹس[ \u00a0]ایپ/g, '<span class="wqb-nowrap">واٹس\u00a0ایپ</span>'));
   }
 });
 

@@ -1,0 +1,270 @@
+{
+  "passage_id": "en.listen.3.ref01",
+  "lang": "en",
+  "kind": "listen",
+  "band": 3,
+  "pool": "check",
+  "status_at_authoring": "draft",
+  "is_reference": true,
+  "names": [
+    "Usman"
+  ],
+  "tokens": 64,
+  "sentences": 9,
+  "mean_sent_len": 7.1,
+  "max_word_len": 9,
+  "readability": 0.953,
+  "readability_list": "fed-cum-g5-2026",
+  "readability_band_above": null,
+  "source_ref": "generated brief v1 (band-3 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "A Card for Mother",
+  "title_ur": null,
+  "text": "Usman wanted to give his mother something special. He had a few coins in a box. He took the coins to a store. But he did not have enough coins. Usman walked home slowly. Then he had an idea. He used his best colours to paint a card. His mother put the card on her table. She said it was the best thing ever.",
+  "lines": [
+    [
+      0,
+      7
+    ],
+    [
+      8,
+      15
+    ],
+    [
+      16,
+      22
+    ],
+    [
+      23,
+      29
+    ],
+    [
+      30,
+      33
+    ],
+    [
+      34,
+      38
+    ],
+    [
+      39,
+      47
+    ],
+    [
+      48,
+      55
+    ],
+    [
+      56,
+      63
+    ]
+  ],
+  "tokens_list": [
+    "Usman",
+    "wanted",
+    "to",
+    "give",
+    "his",
+    "mother",
+    "something",
+    "special",
+    "He",
+    "had",
+    "a",
+    "few",
+    "coins",
+    "in",
+    "a",
+    "box",
+    "He",
+    "took",
+    "the",
+    "coins",
+    "to",
+    "a",
+    "store",
+    "But",
+    "he",
+    "did",
+    "not",
+    "have",
+    "enough",
+    "coins",
+    "Usman",
+    "walked",
+    "home",
+    "slowly",
+    "Then",
+    "he",
+    "had",
+    "an",
+    "idea",
+    "He",
+    "used",
+    "his",
+    "best",
+    "colours",
+    "to",
+    "paint",
+    "a",
+    "card",
+    "His",
+    "mother",
+    "put",
+    "the",
+    "card",
+    "on",
+    "her",
+    "table",
+    "She",
+    "said",
+    "it",
+    "was",
+    "the",
+    "best",
+    "thing",
+    "ever"
+  ],
+  "text_hash": "8c3658ccfdfde00325ee9ec03fdf5a07",
+  "q_reach_1": 1,
+  "q_reach_2": 2,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Who did Usman want to give something to?",
+      "right": "his mother",
+      "wrong": [
+        "his teacher",
+        "his friend"
+      ],
+      "accept": [
+        "his mother",
+        "mother",
+        "his mum"
+      ],
+      "reject": [
+        "his teacher",
+        "his friend"
+      ],
+      "rubric": "Right if the child says his mother (or mother / his mum)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where were the coins?",
+      "right": "in a box",
+      "wrong": [
+        "in a bag",
+        "in a shoe"
+      ],
+      "accept": [
+        "in a box",
+        "a box",
+        "box"
+      ],
+      "reject": [
+        "in a bag",
+        "in a shoe"
+      ],
+      "rubric": "Right if the child says in a box (or a box / box)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where did Usman take the coins?",
+      "right": "to a store",
+      "wrong": [
+        "to school",
+        "to the park"
+      ],
+      "accept": [
+        "to a store",
+        "a store",
+        "to the shop"
+      ],
+      "reject": [
+        "to school",
+        "to the park"
+      ],
+      "rubric": "Right if the child says to a store (or a store / to the shop)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 7,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Usman paint?",
+      "right": "a card",
+      "wrong": [
+        "a wall",
+        "a kite"
+      ],
+      "accept": [
+        "a card",
+        "card"
+      ],
+      "reject": [
+        "a wall",
+        "a kite"
+      ],
+      "rubric": "Right if the child says a card (or card)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 8,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where did his mother put the card?",
+      "right": "on her table",
+      "wrong": [
+        "in her bag",
+        "on the door"
+      ],
+      "accept": [
+        "on her table",
+        "on the table",
+        "table"
+      ],
+      "reject": [
+        "in her bag",
+        "on the door"
+      ],
+      "rubric": "Right if the child says on her table (or on the table / table)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 4,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "Why did Usman paint a card?",
+      "right": "he did not have enough coins",
+      "wrong": [
+        "his teacher asked for it",
+        "it was raining"
+      ],
+      "accept": [
+        "he did not have enough coins",
+        "he could not buy anything",
+        "he had few coins"
+      ],
+      "reject": [
+        "his teacher asked for it",
+        "it was raining"
+      ],
+      "rubric": "Right if the child says he did not have enough coins (or he could not buy anything / he had few coins)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}

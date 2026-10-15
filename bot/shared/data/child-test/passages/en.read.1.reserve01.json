@@ -1,0 +1,228 @@
+{
+  "passage_id": "en.read.1.reserve01",
+  "lang": "en",
+  "kind": "read",
+  "band": 1,
+  "pool": "practice",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "names": [
+    "Hamza"
+  ],
+  "tokens": 36,
+  "sentences": 6,
+  "mean_sent_len": 6,
+  "max_word_len": 7,
+  "readability": 0.958,
+  "readability_list": "fed-cum-g2-2026",
+  "readability_band_above": 0.958,
+  "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": "The Blue Pencil",
+  "title_ur": null,
+  "text": "Hamza had a new pencil. He wanted to draw a bird. Then his pencil was lost. Hamza looked for it in his bag. His sister gave Hamza her blue pencil. The bird picture was for her.",
+  "lines": [
+    [
+      0,
+      4
+    ],
+    [
+      5,
+      10
+    ],
+    [
+      11,
+      15
+    ],
+    [
+      16,
+      22
+    ],
+    [
+      23,
+      29
+    ],
+    [
+      30,
+      35
+    ]
+  ],
+  "tokens_list": [
+    "Hamza",
+    "had",
+    "a",
+    "new",
+    "pencil",
+    "He",
+    "wanted",
+    "to",
+    "draw",
+    "a",
+    "bird",
+    "Then",
+    "his",
+    "pencil",
+    "was",
+    "lost",
+    "Hamza",
+    "looked",
+    "for",
+    "it",
+    "in",
+    "his",
+    "bag",
+    "His",
+    "sister",
+    "gave",
+    "Hamza",
+    "her",
+    "blue",
+    "pencil",
+    "The",
+    "bird",
+    "picture",
+    "was",
+    "for",
+    "her"
+  ],
+  "text_hash": "bee46e14e54cff4e9940271a094b8bb1",
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Hamza have?",
+      "right": "a pencil",
+      "wrong": [
+        "a ball",
+        "a hat"
+      ],
+      "accept": [
+        "a pencil",
+        "a new pencil",
+        "pencil"
+      ],
+      "reject": [
+        "a ball",
+        "a hat"
+      ],
+      "rubric": "Right if the child says a pencil (or a new pencil / pencil)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What kind of pencil was it?",
+      "right": "a new one",
+      "wrong": [
+        "an old one",
+        "a short one"
+      ],
+      "accept": [
+        "a new one",
+        "new"
+      ],
+      "reject": [
+        "an old one",
+        "a short one"
+      ],
+      "rubric": "Right if the child says a new one (or new)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "What did Hamza want to draw?",
+      "right": "a bird",
+      "wrong": [
+        "a tree",
+        "a car"
+      ],
+      "accept": [
+        "a bird",
+        "bird"
+      ],
+      "reject": [
+        "a tree",
+        "a car"
+      ],
+      "rubric": "Right if the child says a bird (or bird)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 4,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Where did Hamza look for the pencil?",
+      "right": "in his bag",
+      "wrong": [
+        "in the garden",
+        "in the kitchen"
+      ],
+      "accept": [
+        "in his bag",
+        "his bag",
+        "bag"
+      ],
+      "reject": [
+        "in the garden",
+        "in the kitchen"
+      ],
+      "rubric": "Right if the child says in his bag (or his bag / bag)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "Who gave Hamza a pencil?",
+      "right": "his sister",
+      "wrong": [
+        "his teacher",
+        "his friend"
+      ],
+      "accept": [
+        "his sister",
+        "sister"
+      ],
+      "reject": [
+        "his teacher",
+        "his friend"
+      ],
+      "rubric": "Right if the child says his sister (or sister)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 6,
+      "type": "inferential",
+      "tap_ok": true,
+      "prompt": "Why was the picture for his sister?",
+      "right": "she gave Hamza her pencil",
+      "wrong": [
+        "it was her birthday",
+        "she drew it too"
+      ],
+      "accept": [
+        "she gave Hamza her pencil",
+        "she helped him",
+        "she gave him a pencil"
+      ],
+      "reject": [
+        "it was her birthday",
+        "she drew it too"
+      ],
+      "rubric": "Right if the child says she gave Hamza her pencil (or she helped him / she gave him a pencil)."
+    }
+  ],
+  "params": {
+    "reserve": true
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4"
+}

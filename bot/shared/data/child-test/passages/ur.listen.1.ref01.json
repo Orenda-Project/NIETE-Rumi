@@ -1,0 +1,223 @@
+{
+  "passage_id": "ur.listen.1.ref01",
+  "lang": "ur",
+  "kind": "listen",
+  "band": 1,
+  "pool": "check",
+  "status_at_authoring": "draft",
+  "is_reference": true,
+  "tokens": 40,
+  "sentences": 6,
+  "mean_sent_len": 6.7,
+  "max_word_len": 5,
+  "readability": 0.964,
+  "readability_list": "fed-cum-g2-2026",
+  "readability_band_above": 0.964,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 6,
+  "text_hash": "d0309b35d102218d421d27cb164b6719",
+  "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "سفید مرغی",
+  "text": "فہد کے پاس ایک سفید مرغی ہے۔ ایک صبح مرغی گم ہو گئی۔ فہد نے اسے ہر جگہ ڈھونڈا۔ آخر فہد نے دادی کے کمرے میں دیکھا۔ وہاں مرغی کے پاس انڈے تھے۔ فہد یہ دیکھ کر خوش ہو گیا۔",
+  "lines": [
+    [
+      0,
+      6
+    ],
+    [
+      7,
+      12
+    ],
+    [
+      13,
+      18
+    ],
+    [
+      19,
+      26
+    ],
+    [
+      27,
+      32
+    ],
+    [
+      33,
+      39
+    ]
+  ],
+  "tokens_list": [
+    "فہد",
+    "کے",
+    "پاس",
+    "ایک",
+    "سفید",
+    "مرغی",
+    "ہے",
+    "ایک",
+    "صبح",
+    "مرغی",
+    "گم",
+    "ہو",
+    "گئی",
+    "فہد",
+    "نے",
+    "اسے",
+    "ہر",
+    "جگہ",
+    "ڈھونڈا",
+    "آخر",
+    "فہد",
+    "نے",
+    "دادی",
+    "کے",
+    "کمرے",
+    "میں",
+    "دیکھا",
+    "وہاں",
+    "مرغی",
+    "کے",
+    "پاس",
+    "انڈے",
+    "تھے",
+    "فہد",
+    "یہ",
+    "دیکھ",
+    "کر",
+    "خوش",
+    "ہو",
+    "گیا"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "فہد کے پاس کیا ہے؟",
+      "right": "مرغی",
+      "wrong": [
+        "بکری",
+        "طوطا"
+      ],
+      "accept": [
+        "مرغی",
+        "سفید مرغی"
+      ],
+      "reject": [
+        "بکری",
+        "طوطا"
+      ],
+      "rubric": "Correct if the child says a hen (مرغی)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "مرغی کا رنگ کیا ہے؟",
+      "right": "سفید",
+      "wrong": [
+        "کالا",
+        "بھورا"
+      ],
+      "accept": [
+        "سفید"
+      ],
+      "reject": [
+        "کالا",
+        "بھورا"
+      ],
+      "rubric": "Correct if the child says white (سفید)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "مرغی کب گم ہوئی؟",
+      "right": "صبح",
+      "wrong": [
+        "شام",
+        "دوپہر"
+      ],
+      "accept": [
+        "صبح",
+        "ایک صبح"
+      ],
+      "reject": [
+        "شام",
+        "دوپہر"
+      ],
+      "rubric": "Correct if the child says in the morning (صبح)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 4,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "فہد نے آخر کہاں دیکھا؟",
+      "right": "دادی کے کمرے میں",
+      "wrong": [
+        "چولہے کے پاس",
+        "الماری کے پیچھے"
+      ],
+      "accept": [
+        "دادی کے کمرے میں",
+        "دادی کا کمرہ",
+        "کمرے میں"
+      ],
+      "reject": [
+        "چولہے کے پاس",
+        "الماری کے پیچھے"
+      ],
+      "rubric": "Correct if the child says in grandmother's room (دادی کے کمرے میں)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 5,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "مرغی کے پاس کیا تھے؟",
+      "right": "انڈے",
+      "wrong": [
+        "چوزے",
+        "دانے"
+      ],
+      "accept": [
+        "انڈے"
+      ],
+      "reject": [
+        "چوزے",
+        "دانے"
+      ],
+      "rubric": "Correct if the child says eggs (انڈے)."
+    },
+    {
+      "id": "q6",
+      "needs_line": 6,
+      "type": "inferential",
+      "tap_ok": false,
+      "prompt": "فہد خوش کیوں ہو گیا؟",
+      "right": null,
+      "wrong": [],
+      "accept": [
+        "مرغی مل گئی",
+        "انڈے دیکھ کر",
+        "مرغی کے پاس انڈے تھے"
+      ],
+      "reject": [],
+      "rubric": "Inferential. Correct if the child says the hen was found, or there were eggs."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "فہد"
+  ]
+}

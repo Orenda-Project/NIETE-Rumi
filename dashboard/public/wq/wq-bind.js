@@ -48,8 +48,8 @@
       yes: "جی ہاں، یہ میں ہوں",
       no: "یہ میں نہیں ہوں",
       // the first clause is the ruled one (a link, never a rename); the retention clause is the deck's
-      noticeSave: function (name) { return "جگنو اس فون نمبر کو \u2068" + name + "\u2069 کے ساتھ جوڑ کر محفوظ کرے گا، اسکول کا سال ختم ہونے تک (۳۱ مارچ)۔ اس کے بعد صرف اس صورت میں، اگر آپ کھیلنا جاری رکھیں۔"; },
-      noticeStopPhoneOnly: "گھر کے بڑے کسی بھی وقت واٹس ایپ پر \u2066STOP\u2069 بھیج کر یہ نمبر ہٹا سکتے ہیں۔",
+      noticeSave: function (name) { return "جگنو اس فون نمبر کو ⁨" + name + "⁩ کے ساتھ جوڑ کر محفوظ کرے گا۔ یہ اسکول کا سال ختم ہونے تک (۳۱ مارچ) رہے گا، اور اگر کھیلنا جاری رہے تو اس کے بعد بھی۔"; },
+      noticeStopPhoneOnly: "گھر کے بڑے کسی بھی وقت واٹس ایپ پر ⁦STOP⁩ بھیج کر یہ نمبر ہٹا سکتے ہیں۔",
       whoSends: "پھر گھر کے بڑے اس فون سے واٹس ایپ پر ایک پیغام بھیجیں۔",
       sendBtn: "واٹس ایپ پر بھیجیں",
       saved: "محفوظ ہو گیا ✓",
@@ -73,7 +73,7 @@
       .replace(/⁦?\/quiz⁩?/g, '⁦<bdi dir="ltr" class="wqb-chip">/quiz</bdi>⁩')
       .replace(/⁦?\bSTOP\b⁩?/g, '⁦<bdi dir="ltr" class="wqb-chip">STOP</bdi>⁩')
       // «واٹس ایپ» is one word on the page: never «واٹس / ایپ» across a line (native read, page note 2)
-      .replace(/واٹس ایپ/g, '<span class="wqb-nowrap">واٹس ایپ</span>');
+      .replace(/واٹس[ \u00a0]ایپ/g, '<span class="wqb-nowrap">واٹس\u00a0ایپ</span>');
   }
   function L(lang) { return T[lang === 'ur' ? 'ur' : 'en']; }
   function sget(st, k) { try { return st.getItem(k); } catch (e) { return null; } }
