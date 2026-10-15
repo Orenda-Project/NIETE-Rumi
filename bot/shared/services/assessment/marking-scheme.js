@@ -92,8 +92,10 @@ function textOf(t) {
   return '';
 }
 
+// "327,750" + "Rs." → "327,750 (Rs.)": the unit reads as part of the answer.
 function joinText(a, b) {
-  return [a, b].filter(Boolean).join(' + ');
+  if (!a) return b || '';
+  return b ? `${a} (${b})` : a;
 }
 
 /**

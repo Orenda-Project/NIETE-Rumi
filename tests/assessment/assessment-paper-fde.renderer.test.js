@@ -169,9 +169,33 @@ describe('the board-pattern paper', () => {
     expect(html).toMatch(/<table class="data"><tr><th>Day<\/th><th>Books read<\/th><\/tr><tr><td>Monday<\/td><td>12<\/td><\/tr>/);
   });
 
-  it('8 2/5 is typeset', () => {
+  it('8 2/5 is typeset as a stacked fraction with no slash glyph between the parts', () => {
     const html = paperHtml(mathsPaper());
-    expect(html).toContain('8<span class="frac"><sup>2</sup>⁄<sub>5</sub></span>');
+    expect(html).toContain('8<span class="frac"><sup>2</sup><sub>5</sub></span>');
+    expect(html).not.toContain('⁄');
+  });
+
+  it('symbols the embedded fonts lack print as drawings, never as a fallback glyph', () => {
+    // Lexend and Noto Nastaliq have no arrows, ticks, ≤ ≥ ≠ ≈ or ∠; the printing container has no other font.
+    const exam = mathsPaper({ mutate: (raw) => { raw.unseen.subjective['Word Problems'][0].question = 'grass → goat → lion; 3 ≤ 4; ∠ABC ≠ 90° ✓'; } });
+    const html = paperHtml(exam);
+    const body = html.slice(html.indexOf('<body'));
+    expect((body.match(/<svg class="sym"/g) || []).length).toBe(6);
+    expect(visible(body)).not.toMatch(/[→≤∠≠✓]/);
+  });
+
+  it('vulgar fractions are typeset like a/b (Lexend has no ⅓ glyph)', () => {
+    const exam = mathsPaper({ mutate: (raw) => { raw.unseen.subjective['Word Problems'][0].question = 'Subtract: 7⅓ − 3⅕'; } });
+    const html = paperHtml(exam);
+    expect(html).toContain('7<span class="frac"><sup>1</sup><sub>3</sub></span>');
+    expect(html).toContain('3<span class="frac"><sup>1</sup><sub>5</sub></span>');
+    expect(visible(html)).not.toMatch(/[⅓⅕]/);
+  });
+
+  it('the checked chip is a drawn tick, not a glyph', () => {
+    const html = R.renderMarkingScheme({ examJson: mathsPaper(), grade: 5, subject: 'maths' });
+    expect(html).toMatch(/<span class="chip checked"><svg class="sym"/);
+    expect(visible(html.slice(html.indexOf('<body')))).not.toContain('✓');
   });
 
   it('the school line is blank and there is no letterhead', () => {
@@ -353,6 +377,7 @@ describe('the marking scheme', () => {
     expect((html.match(/class="chip checked"/g) || []).length).toBeGreaterThan(5);
     expect(text).toContain('Notes');
     expect(text).toContain('Q2 (xii): key corrected by code; the model wrote 44.5.');
+    expect(text).toContain('checked');
     expect(text).not.toMatch(/⚠/);
   });
 
@@ -389,12 +414,26 @@ describe('the marking scheme', () => {
     expect(marks.reduce((a, b) => a + b, 0)).toBe(10);
   });
 
-  it('a section starts a new page only when the page is at least half full', () => {
+  it('scheme sections flow: none is forced onto a new page (no half-blank pages); the record always is', () => {
     const html = scheme(mathsPaper());
-    const breaks = (html.match(/<section class="s-sec"[^>]*style="break-before:page"/g) || []).length;
-    const sections = (html.match(/<section class="s-sec"/g) || []).length;
-    expect(sections).toBe(3);
-    expect(breaks).toBeLessThan(sections);
+    expect((html.match(/<section class="s-sec"/g) || []).length).toBe(3);
+    expect(html).not.toMatch(/<section class="s-sec"[^>]*break-before/);
+    expect(html).toMatch(/<section class="record" style="break-before:page">/);
+  });
+
+  it('the class record fits one A4 page: two tables of 20 rows side by side, rows 9 mm', () => {
+    const html = scheme(mathsPaper());
+    const rec = html.slice(html.indexOf('class="record"'));
+    expect((rec.match(/<table class="rec"/g) || []).length).toBe(2);
+    expect(html).toMatch(/table\.rec th, table\.rec td \{[^}]*height: 9mm/);
+    expect(visible(rec)).toMatch(/\b20\b[\s\S]*\b21\b[\s\S]*\b40\b/);
+  });
+
+  it('a long question stem in the scheme is cut at a word, not mid-word', () => {
+    const exam = mathsPaper({ mutate: (raw) => { raw.unseen.subjective['Word Problems'][0].question = 'A school had Rs. 750,000 for the year. It spent Rs. 286,450 on furniture and Rs. 135,800 on books. How much money is left over at the end?'; } });
+    const text = visible(scheme(exam));
+    expect(text).toContain('Rs. 135,800 on books. How much…');
+    expect(text).not.toMatch(/How much m…/);
   });
 
   it('framePages is exported for the engine', () => {
