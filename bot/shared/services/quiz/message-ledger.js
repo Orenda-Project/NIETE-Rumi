@@ -19,7 +19,8 @@
  * the send decision: false ONLY when capped (a ledger write that fails is logged, web_quiz.ledger_write_failed{trigger}
  * once per process, and the reply still goes out). `reason` (bind, renew, stop, stop_nothing, max_kids, teacher_phone,
  * guest, home) rides on msg_sent; the ledger row stays keyed by trigger.
- * No hash key (neither secret set) or a Redis failure → no cap (fail open), logged once.
+ * No hash key (neither secret set) or a Redis failure → no cap (fail open), logged once and visible once per
+ * process as web_quiz.reply_cap_unavailable{why: 'unkeyed'|'redis'} (so a go package can show the cap really ran).
  */
 const supabase = require('../../config/supabase');
 const { logToFile } = require('../../utils/logger');
@@ -103,7 +104,7 @@ function phoneHash(phone) {
 async function underCap(phone, trigger, now) {
   const hash = phoneHash(phone);
   if (!hash) {
-    if (!unkeyedLogged) { unkeyedLogged = true; logToFile('⚠️ message ledger: reply cap unkeyed — no phone hash secret, replies not capped'); }
+    if (!unkeyedLogged) { unkeyedLogged = true; logToFile('⚠️ message ledger: reply cap unkeyed — no phone hash secret, replies not capped'); logEvent('web_quiz.reply_cap_unavailable', { why: 'unkeyed', w: 's' }); }
     return true;
   }
   const redisService = require('../cache/railway-redis.service');
@@ -111,7 +112,7 @@ async function underCap(phone, trigger, now) {
   let count = null;
   try { count = await redisService.incr(key); } catch (_) { count = null; }
   if (count === null || count === undefined || !Number.isFinite(Number(count))) {
-    if (!redisFailLogged) { redisFailLogged = true; logToFile('⚠️ message ledger: reply cap: redis unavailable — reply sent uncapped'); }
+    if (!redisFailLogged) { redisFailLogged = true; logToFile('⚠️ message ledger: reply cap: redis unavailable — reply sent uncapped'); logEvent('web_quiz.reply_cap_unavailable', { why: 'redis', w: 's' }); }
     return true;
   }
   if (Number(count) === 1) {

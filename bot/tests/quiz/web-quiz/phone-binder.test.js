@@ -620,6 +620,19 @@ describe('the reply cap: 8 replies per phone per PKT day, counted when the bot d
     expect(WhatsApp.sendMessage).toHaveBeenCalledTimes(11);
     expect(logged('reply cap unkeyed')).toHaveLength(1);
     expect(events('web_quiz.reply_capped')).toEqual([]);
+    // the fail-open is visible in Axiom, once per process (the go package reads it)
+    expect(events('web_quiz.reply_cap_unavailable')).toEqual([{ why: 'unkeyed', w: 's' }]);
+  });
+
+  test('Redis incr failing → the fail-open is an event too: reply_cap_unavailable{why:redis}, once', async () => {
+    seed({ students: [chatKid(0)] });
+    const incr = redisService.incr.getMockImplementation();
+    redisService.incr.mockResolvedValue(null);
+    try {
+      await stops(2);
+      expect(WhatsApp.sendMessage).toHaveBeenCalledTimes(2);
+      expect(events('web_quiz.reply_cap_unavailable')).toEqual([{ why: 'redis', w: 's' }]);
+    } finally { redisService.incr.mockImplementation(incr); }
   });
 
   test('app_settings web_quiz_reply_cap_per_phone = 3 → the 4th reply is capped', async () => {
