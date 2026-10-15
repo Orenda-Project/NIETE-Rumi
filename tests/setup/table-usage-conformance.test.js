@@ -48,6 +48,11 @@ const ALLOWLIST = new Set([
   // when its writer lands.
   'child_rungs',
   'web_quiz_strip_weekly',
+  // Child identity store: the tables exist (child_identity.sql, mirrored) before their first writer lands.
+  // child_identity is written by the Challenge draw service at the first counted play of the year; merge_log by
+  // the teacher join queue. Remove each entry when its writer is on sandbox.
+  'child_identity',
+  'merge_log',
 ]);
 
 function collectFiles(dir, exts) {
