@@ -28,6 +28,7 @@ vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 import { forgetPapers } from './paperCache';
 import { VersionsPage } from './VersionsPage';
 import { ASSESSMENT_V2_BASE as B, versionsPath } from './paths';
+import routes from './routes';
 
 const plain = (t: string | null | undefined) => (t || '').replace(/[⁦⁩]/g, '');
 
@@ -107,5 +108,12 @@ describe('a plain paper is unchanged', () => {
     expect(handle?.className).toBe('contents');
     handle?.replaceWith(...Array.from(handle.childNodes));
     expect(container.innerHTML).toMatchSnapshot();
+  });
+});
+
+describe('the app routes Versions to this page', () => {
+  it('/paper/:paperId/versions renders VersionsPage from VersionsPage.tsx', () => {
+    const r = routes.find((x) => x.path === `${B}/paper/:paperId/versions`);
+    expect((r?.element as JSX.Element | undefined)?.type).toBe(VersionsPage);
   });
 });
