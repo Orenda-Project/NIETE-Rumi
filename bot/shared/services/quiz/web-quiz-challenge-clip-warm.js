@@ -7,9 +7,10 @@
  * made ahead of the first child: a listening passage's story, each tap question's prompt, and, under
  * `web_quiz_challenge_option_audio`, each listening option. The texts and keys are the serve's own
  * (web-quiz-challenge.js clipKey / tapOptions, the passage from the item bank's registry loader) and each clip is
- * recorded by the serve's own recorder (lazy TTS to R2, `web_quiz.ch_clip_recorded` per clip), under the same
- * per-process cap (MAX_CLIP_RECORDINGS) a child's first serve has: at the cap the run records nothing more and counts
- * the rest as missing. Read-alouds' daily budget (web-quiz-challenge-budget.js) is STT and is untouched here.
+ * recorded by the serve's own recorder (lazy TTS to R2, `web_quiz.ch_clip_recorded` per clip). The recorder's
+ * per-process cap (MAX_CLIP_RECORDINGS) is shared with a child's first serve, so a run never spends it all: it records
+ * at most WARM_MAX_PER_RUN clips, and never once SERVE_HEADROOM or fewer recordings are left for children's serves.
+ * Past either limit the store is still asked and the rest are counted as missing. Read-alouds' daily budget (web-quiz-challenge-budget.js) is STT and is untouched here.
  *
  * One event per run: `web_quiz.ch_clip_warm {n, missing, w:'s'}` (n = clips asked for, missing = still absent).
  * Behind app_settings `web_quiz_challenge_clip_warm`, effective only with `web_quiz_challenge_v2` and
@@ -25,6 +26,8 @@ const Ch = require('./web-quiz-challenge');
 const SWITCH_KEY = 'web_quiz_challenge_clip_warm';
 const V2_KEY = 'web_quiz_challenge_v2';
 const AHEAD_MS = 7 * 24 * 3600 * 1000;
+const WARM_MAX_PER_RUN = 96;   // recordings one run may make
+const SERVE_HEADROOM = 32;     // recordings always left for children's first serves
 
 let lastDay = null;   // the Pakistan day this process last ran a warm
 
@@ -82,9 +85,12 @@ async function warmClips({ now = Date.now(), limit = Infinity } = {}) {
   }
   const tally = { recorded: 0, had: 0, missing: 0 };
   let capped = false;
+  let attempts = 0;
   for (const c of clips.values()) {
-    if (!capped && Ch.clipsLeft() === 0) capped = true;
-    tally[await Ch.warmClip(c.key, c.text, c.lang, { record: !capped })] += 1;
+    if (!capped && (attempts >= WARM_MAX_PER_RUN || Ch.clipsLeft() <= SERVE_HEADROOM)) capped = true;
+    const r = await Ch.warmClip(c.key, c.text, c.lang, { record: !capped });
+    if (r !== 'had' && !capped) attempts += 1;
+    tally[r] += 1;
   }
   const out = { n: clips.size, missing: tally.missing, recorded: tally.recorded, had: tally.had, capped, passages };
   logEvent('web_quiz.ch_clip_warm', { n: out.n, missing: out.missing, w: 's' });
@@ -102,4 +108,4 @@ async function daily({ now = Date.now() } = {}) {
 
 function __reset() { lastDay = null; }
 
-module.exports = { switchOn, warmClips, daily, SWITCH_KEY, __reset };
+module.exports = { switchOn, warmClips, daily, SWITCH_KEY, WARM_MAX_PER_RUN, SERVE_HEADROOM, __reset };

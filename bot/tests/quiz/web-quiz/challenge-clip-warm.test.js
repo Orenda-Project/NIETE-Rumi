@@ -177,29 +177,47 @@ describe('a run', () => {
     expect(tts.synthesize).not.toHaveBeenCalled();
   });
 
-  test('the cap: at MAX_CLIP_RECORDINGS the run records no more and reports the rest missing', async () => {
+  // n cold listen passages (story only), all released: n clips the store does not have.
+  const coldStock = (n) => {
     const many = fs.mkdtempSync(path.join(os.tmpdir(), 'challenge-clip-warm-cap-'));
-    const extra = 3;
-    const total = Ch.MAX_CLIP_RECORDINGS + extra;
     const ids = [];
-    for (let i = 0; i < total; i += 1) {
+    for (let i = 0; i < n; i += 1) {
       const id = `en.listen.1.cap${String(i).padStart(3, '0')}`;
       ids.push(id);
       fs.writeFileSync(path.join(many, `${id}.json`), JSON.stringify({ passage_id: id, lang: 'en', kind: 'listen', band: 1, pool: 'check', text: `Story number ${i} for the cap.`, questions: [], bank_version: 'child-test-items-v4' }));
     }
     Bank._loadPassagesFrom(many);
+    db.challenge_passages = ids.map((id) => row(id, 'en', 'listen', iso(NOW - DAY)));
+    return () => { Bank._loadPassagesFrom(dir); fs.rmSync(many, { recursive: true, force: true }); };
+  };
+
+  test('its own allowance: 200 cold clips under the shared cap of 128 → 96 recorded, 104 missing, a serve headroom of 32 left', async () => {
+    expect(Ch.MAX_CLIP_RECORDINGS).toBe(128);
+    expect(CW.WARM_MAX_PER_RUN).toBe(96);
+    const done = coldStock(200);
     try {
-      db.challenge_passages = ids.map((id) => row(id, 'en', 'listen', iso(NOW - DAY)));
       const out = await CW.warmClips({ now: NOW });
-      expect(tts.synthesize).toHaveBeenCalledTimes(Ch.MAX_CLIP_RECORDINGS);
-      expect(out).toMatchObject({ n: total, missing: extra });
-      expect(warmEvents()).toEqual([['web_quiz.ch_clip_warm', { n: total, missing: extra, w: 's' }]]);
-      // a child's first serve now records nothing either: the cap is the same one
-      expect(Ch.clipsLeft()).toBe(0);
-    } finally {
-      Bank._loadPassagesFrom(dir);
-      fs.rmSync(many, { recursive: true, force: true });
-    }
+      expect(tts.synthesize).toHaveBeenCalledTimes(96);
+      expect(out).toMatchObject({ n: 200, missing: 104, recorded: 96, capped: true });
+      expect(warmEvents()).toEqual([['web_quiz.ch_clip_warm', { n: 200, missing: 104, w: 's' }]]);
+      // the rest were asked of the store, never recorded
+      expect(r2.headObject).toHaveBeenCalledTimes(200);
+      expect(Ch.clipsLeft()).toBeGreaterThanOrEqual(CW.SERVE_HEADROOM);
+    } finally { done(); }
+  });
+
+  test('the serve headroom: with the shared counter already at 100 (28 left ≤ 32) the warm records nothing; all missing', async () => {
+    // 100 recordings by the shared recorder (as a child's first serves would spend them)
+    for (let i = 0; i < 100; i += 1) await Ch.warmClip(`quiz-audio/x/challenge/en/listen/pre-${i}.ogg`, `Line ${i}`, 'en');
+    expect(Ch.clipsLeft()).toBe(28);
+    tts.synthesize.mockClear();
+    const done = coldStock(10);
+    try {
+      const out = await CW.warmClips({ now: NOW });
+      expect(tts.synthesize).not.toHaveBeenCalled();
+      expect(out).toMatchObject({ n: 10, missing: 10, recorded: 0, capped: true });
+      expect(Ch.clipsLeft()).toBe(28);
+    } finally { done(); }
   });
 });
 
