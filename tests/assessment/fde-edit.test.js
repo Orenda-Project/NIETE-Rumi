@@ -204,6 +204,41 @@ describe('adding a question to a board-pattern paper is refused (E8.3)', () => {
   });
 });
 
+describe('a removal that would empty a slot is refused', () => {
+  const EMPTY = {
+    success: false, code: 'EDIT_REJECTED', errorCode: 'PATTERN_EMPTY_SLOT',
+    error: 'Keep at least one question in every part of a board-pattern paper.',
+  };
+
+  test('the one Q3 item: 400 PATTERN_EMPTY_SLOT naming the slot, nothing made', async () => {
+    const out = await call('/assessment/edit/save', { userId: U, parentId: 'v1', changes: { removed: idsOf(EXAM, 'maths.C.Q3') } });
+    expect(out.statusCode).toBe(400);
+    expect(out.payload).toEqual({ ...EMPTY, slot: 'maths.C.Q3' });
+    expect(papersWritten()).toBe(1);
+    expect(mockRenders).toHaveLength(0);
+  });
+
+  test('both alternatives of an either/or question (Urdu Q8): refused, never "Attempt zero"', async () => {
+    const rawUr = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'fde', 'urdu.json'), 'utf8'));
+    const UR = applyLayout(rawUr, P.subjects.urdu, { kind: 'fde' }, { now: '2026-10-20T07:12:00.000Z' }).examJson;
+    mockDb.tables.assessment_requests = [{ ...REQ, subject_code: 'urdu' }];
+    mockDb.tables.assessment_papers = [paper({ exam_json: UR })];
+    const out = await call('/assessment/edit/save', { userId: U, parentId: 'v1', changes: { removed: idsOf(UR, 'urdu.C.Q8') } });
+    expect(out.statusCode).toBe(400);
+    expect(out.payload).toEqual({ ...EMPTY, slot: 'urdu.C.Q8' });
+    expect(mockRenders).toHaveLength(0);
+  });
+
+  test('one of the two alternatives is fine', async () => {
+    const rawUr = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'fde', 'urdu.json'), 'utf8'));
+    const UR = applyLayout(rawUr, P.subjects.urdu, { kind: 'fde' }, { now: '2026-10-20T07:12:00.000Z' }).examJson;
+    mockDb.tables.assessment_requests = [{ ...REQ, subject_code: 'urdu' }];
+    mockDb.tables.assessment_papers = [paper({ exam_json: UR })];
+    const out = await call('/assessment/edit/save', { userId: U, parentId: 'v1', changes: { removed: idsOf(UR, 'urdu.C.Q8').slice(0, 1) } });
+    expect(out.statusCode).toBe(200);
+  });
+});
+
 describe('the edit routes answer for a board-pattern paper as for a plain one (E8.5)', () => {
   test('validate: 200 with the edited question', async () => {
     const id = idsOf(EXAM, 'maths.B.Q2')[0];
