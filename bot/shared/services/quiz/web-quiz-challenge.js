@@ -573,6 +573,11 @@ async function storyClip(lang, drawnText = null) {
   return clipUrl(clipKey('listen', 'story', lang, text), text, lang);
 }
 
+/** Story Time read-along: a story read aloud in the quiz voice (the listening story's scheme, exercise 'read'). */
+function readAlongClip(lang, text) {
+  return text ? clipUrl(clipKey('read', 'story', lang, text), text, lang) : null;
+}
+
 async function clipsFor(ex, lang) {
   const out = {};
   await Promise.all(PARTS.map(async (part) => {
@@ -1024,6 +1029,9 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
   // the listening story must be playable before anything is written (a passage met is never served again)
   const clipUrl = ex === 'listen' ? await storyClip(w.lang, story && story.text) : undefined;
   if (ex === 'listen' && !clipUrl) fail(503, 'getting_ready');
+  // Story Time read-along: the story in the quiz voice, played with the line lit before the child reads (the lazy clip
+  // path; null until recorded, and asking records it); only on a story serve, never on a check
+  const readAlong = storyDraw && ex === 'read' ? { url: await readAlongClip(w.lang, story && story.text) } : null;
 
   const servesAny = anchorBlock ? D.anchorServesAny(rows, anchorBlock) : null;   // the anchor_serves_any column (and meta, kept one period)
   const prev2 = anchorBlock ? D.anchorPrev2(rows, anchorBlock) : null;   // of which before the provenance columns: meta.draw.anchor_prev2
@@ -1059,7 +1067,7 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     top: { canonical_id: canonicalId, mode, period_id: periodId, band, record, via, exposure_no: exposure, passage_id: passageId, item_set_id: itemSetId,
       anchor_block: anchorBlock, anchor_exposure_no: anchorExp, form: formNum },
     // the page gets only what it renders (ruling #43); every other field is on the row, in meta.draw and in ch_start
-    payload: { mode, ...(mode === 'practice' ? { practice_round: true } : {}), ...(anchorBlock ? { anchor_block: anchorBlock } : {}), draw: { outcome: 'served' }, ...(storyDraw ? { story: true } : {}) },
+    payload: { mode, ...(mode === 'practice' ? { practice_round: true } : {}), ...(anchorBlock ? { anchor_block: anchorBlock } : {}), draw: { outcome: 'served' }, ...(readAlong ? { story_clip: readAlong } : {}) },
     event: { w: 's', mode, period_id: periodId, form, band, rung: rung == null ? null : rung, ...(isPassage ? { passage_id: passageId } : { item_set_id: itemSetId }),
       exposure_no: exposure, ...(anchorBlock ? { anchor_exposure_no: anchorExp, anchor_serves_any: servesAny, anchor_block: anchorBlock } : {}), record, via },
     items, tryout, story, dir, clipUrl,

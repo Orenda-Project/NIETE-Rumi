@@ -163,7 +163,7 @@ describe('(b) on: a released practice story in the child\'s language and band is
   beforeEach(() => on(V2, PERIOD, POOL, STORY));
   const FORBIDDEN = ['band', 'exposure_no', 'rung', 'passage_id', 'period_id', 'record_decision', 'served_id', 'band_reason'];
 
-  test('read: 200, a practice row on the story, never a record; the payload is the check serve\'s plus practice_round', async () => {
+  test('read: 200, a practice row on the story, never a record; the payload is the check serve\'s plus practice_round and the read-along clip', async () => {
     const check = await get('read');
     expect(check.status).toBe(200);
     fresh(); on(V2, PERIOD, POOL, STORY);
@@ -174,8 +174,10 @@ describe('(b) on: a released practice story in the child\'s language and band is
     expect(row.meta.draw).toMatchObject({ outcome: 'served', band_reason: 'story', served_id: 'en.read.1.kite' });
     expect(db.web_quiz_challenge_runs).toHaveLength(1);
     expect(db.challenge_draws).toHaveLength(0);   // a story is chosen, not drawn
-    // the payload: exactly today's check serve keys + practice_round (`story` is the passage itself on a read)
-    expect(Object.keys(body).sort()).toEqual([...Object.keys(check.body), 'practice_round'].sort());
+    // the payload: exactly today's check serve keys + practice_round + the read-along clip (`story` is the passage itself)
+    expect(check.body).not.toHaveProperty('story_clip');
+    expect(Object.keys(body).sort()).toEqual([...Object.keys(check.body), 'practice_round', 'story_clip'].sort());
+    expect(body.story_clip).toEqual({ url: `https://signed.test/${Ch.clipKey('read', 'story', 'en', Bank.getPassage('en.read.1.kite').text)}` });
     expect(body).toMatchObject({ mode: 'practice', practice_round: true, draw: { outcome: 'served' } });
     expect(Object.keys(body.draw)).toEqual(['outcome']);
     for (const k of FORBIDDEN) expect(body).not.toHaveProperty(k);
@@ -184,13 +186,14 @@ describe('(b) on: a released practice story in the child\'s language and band is
     expect(Draw.seenIdsOf(await Draw.childRows(K3, [K3])).has('en.read.1.kite')).toBe(true);
   });
 
-  test('listen: 200, the story\'s own clip and its tap-ok questions; payload = check keys + practice_round + story', async () => {
+  test('listen: 200, the story\'s own clip and its tap-ok questions; payload = check keys + practice_round', async () => {
     const { status, body } = await story('listen', 'en.listen.1.rain');
     expect(status).toBe(200);
     expect(rowOf(body.ct)).toMatchObject({ mode: 'practice', record: false, passage_id: 'en.listen.1.rain', band: 1 });
     expect(body.story_clip.url).toBe(`https://signed.test/${Ch.clipKey('listen', 'story', 'en', Bank.getPassage('en.listen.1.rain').text)}`);
-    expect(Object.keys(body).sort()).toEqual(['ex', 'name', 'lang', 'ct', 'clips', 'record', 'v2', 'trail', 'trail_copy', 'practice_round', 'mode', 'draw', 'story', 'read_times', 'story_clip'].sort());
-    expect(body).toMatchObject({ mode: 'practice', practice_round: true, story: true, draw: { outcome: 'served' } });
+    expect(Object.keys(body).sort()).toEqual(['ex', 'name', 'lang', 'ct', 'clips', 'record', 'v2', 'trail', 'trail_copy', 'practice_round', 'mode', 'draw', 'read_times', 'story_clip'].sort());
+    expect(body).toMatchObject({ mode: 'practice', practice_round: true, draw: { outcome: 'served' } });
+    expect(body).not.toHaveProperty('story');
     for (const k of FORBIDDEN) expect(body).not.toHaveProperty(k);
     const qs = (await Ch.questions({ ct: body.ct })).questions;
     expect(qs.map((q) => q.id)).toEqual(['en.listen.1.rain.q1', 'en.listen.1.rain.q3']);
@@ -242,6 +245,7 @@ describe('(e, f) the month\'s record and the story\'s exposures', () => {
     expect(rowOf(c.body.ct)).toMatchObject({ mode: 'check', record: true, passage_id: 'en.read.1.ref01', exposure_no: 1 });
     expect(c.body).toMatchObject({ mode: 'check' });
     expect(c.body).not.toHaveProperty('practice_round');
+    expect(c.body).not.toHaveProperty('story_clip');
   });
 
   test('(f) exposure_no counts the story\'s own rows only', async () => {
