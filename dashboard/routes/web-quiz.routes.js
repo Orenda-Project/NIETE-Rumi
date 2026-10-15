@@ -132,6 +132,10 @@ function assetVersion() {
   }
   // The hub's Jugnu corner (hub-play.js): its own line, so a change to it busts the cached hub page too.
   try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, 'hub-play.js'))); } catch (_) { /* absent in some tests */ }
+  // Jugnu's Book (hub.js loads wq-book.js / .css at its own ?v=): a change to either busts the hub's version too.
+  for (const f of ['wq-book.js', 'wq-book.css']) {
+    try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) { /* absent in some tests */ }
+  }
   return h.digest('hex').slice(0, 10);
 }
 
@@ -756,4 +760,4 @@ function createWebQuizRouter(opts = {}) {
 }
 
 
-module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderPreviewPage, renderClosedPage, renderChallengePage, renderLibPage, bootJson, renderHubPage };
+module.exports = { createWebQuizRouter, createBotClient, clientIp, renderQuizPage, renderPreviewPage, renderClosedPage, renderChallengePage, renderLibPage, bootJson, renderHubPage, assetVersion };
