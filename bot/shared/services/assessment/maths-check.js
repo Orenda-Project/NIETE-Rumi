@@ -585,7 +585,7 @@ function writtenQuestions(exam) {
           const key = isObject(q) ? String(q.slot || '') : '';
           const index = seen.get(key) || 0;
           seen.set(key, index + 1);
-          if (isObject(q) && q.removed !== true && !hasOptions(q) && isObject(q.scheme)) out.push({ q, index });
+          if (isObject(q) && q.removed !== true && !hasOptions(q)) out.push({ q, index });
         }
       }
     }
@@ -613,6 +613,8 @@ function mathsCheck(examJson, options = {}) {
     if (!isMaths(subject)) return { examJson: exam, ...counts };
 
     for (const { q, index } of writtenQuestions(exam)) {
+      // A key the model gave no scheme is still a key a child is marked against.
+      if (!isObject(q.scheme)) q.scheme = {};
       let verdict = null;
       try {
         verdict = checkQuestion(q, exam, index);

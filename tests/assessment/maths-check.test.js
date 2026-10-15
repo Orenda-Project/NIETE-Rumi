@@ -247,6 +247,17 @@ describe('lastNumber', () => {
 });
 
 describe('mathsCheck', () => {
+  it('a written item the model gave no scheme is still checked, and a wrong key replaced', () => {
+    const bare = q('Multiply 25 by 4.', '90');
+    delete bare.scheme;
+    const result = mathsCheck(paper([bare]));
+    const item = only(result);
+    expect(result.replaced).toBe(1);
+    expect(item.answer).toBe('100');
+    expect(item.scheme.checked).toBe('replaced');
+    expect(result.examJson._layout.notes[0]).toMatchObject({ model: '90', computed: '100' });
+  });
+
   it('52.8 ÷ 1.2 = 44 is ok (no float false alarm)', () => {
     expect(parseForm('52.8 ÷ 1.2')).toMatchObject({ form: 'divide', value: R(44n) });
     const { item, result } = checkOne('Solve: 52.8 ÷ 1.2', '528 ÷ 12 = 44');
@@ -335,7 +346,7 @@ describe('mathsCheck', () => {
     expect(only(mathsByOption).scheme.checked).toBe('replaced');
   });
 
-  it('an MCQ and a removed question are skipped', () => {
+  it('an MCQ and a removed question are skipped; a written item with no scheme is not', () => {
     const input = {
       _layout: { subject: 'maths', notes: [] },
       unseen: {
@@ -347,7 +358,8 @@ describe('mathsCheck', () => {
       seen: { subjective: { short: [q('Multiply: 2,345 × 7', '16,415', { scheme: undefined })] } },
     };
     const result = mathsCheck(input);
-    expect(result).toMatchObject({ checked: 0, replaced: 0, unparsed: 0 });
+    expect(result).toMatchObject({ checked: 1, replaced: 0, unparsed: 0 });
+    expect(result.examJson.seen.subjective.short[0].scheme.checked).toBe('ok');
     expect(result.examJson.unseen.objective.mcq[0].scheme.checked).toBeUndefined();
     expect(result.examJson.unseen.subjective.short[0].answer).toBe('16,405');
   });

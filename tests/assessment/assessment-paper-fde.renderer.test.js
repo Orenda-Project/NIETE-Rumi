@@ -366,7 +366,8 @@ describe('the marking scheme', () => {
 
   it('an unknown page count says so instead of guessing', () => {
     const text = visible(scheme(mathsPaper()));
-    expect(text).toContain('This is the marking scheme for Grade5_Mathematics_FDE.pdf. Do not give it to children.');
+    // visible() turns the file name's <bdi> boundary into a space; the page prints none.
+    expect(text).toMatch(/This is the marking scheme for Grade5_Mathematics_FDE\.pdf ?\. Do not give it to children\./);
     expect(text).not.toMatch(/\(\s*pages\)|null pages|undefined/);
   });
 
