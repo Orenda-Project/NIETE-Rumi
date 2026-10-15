@@ -1,0 +1,204 @@
+{
+  "passage_id": "ur.read.1.sparrow",
+  "lang": "ur",
+  "kind": "read",
+  "band": 1,
+  "pool": "check",
+  "status_at_authoring": "draft",
+  "is_reference": false,
+  "tokens": 40,
+  "sentences": 6,
+  "mean_sent_len": 6.7,
+  "max_word_len": 4,
+  "readability": 0.966,
+  "readability_list": "fed-cum-g2-2026",
+  "readability_band_above": 0.966,
+  "q_reach_1": 2,
+  "q_reach_2": 3,
+  "q_n": 5,
+  "text_hash": "cf7320656d516694cb13d39dd13f0815",
+  "source_ref": "generated brief v1 (band-1 spec, ITEMS §2.2)",
+  "licence": "generated",
+  "title_en": null,
+  "title_ur": "چھوٹی چڑیا",
+  "text": "ایک چھوٹی چڑیا نمرہ کے پاس آ گئی۔ چڑیا کو بہت بھوک لگی تھی۔ نمرہ نے اسے کچھ کھانا دیا۔ چڑیا پہلے دور ہی رہی۔ پھر وہ آگے آ کر کھانے لگی۔ اب وہ روز نمرہ کے پاس آنے لگی۔",
+  "lines": [
+    [
+      0,
+      7
+    ],
+    [
+      8,
+      13
+    ],
+    [
+      14,
+      19
+    ],
+    [
+      20,
+      24
+    ],
+    [
+      25,
+      31
+    ],
+    [
+      32,
+      39
+    ]
+  ],
+  "tokens_list": [
+    "ایک",
+    "چھوٹی",
+    "چڑیا",
+    "نمرہ",
+    "کے",
+    "پاس",
+    "آ",
+    "گئی",
+    "چڑیا",
+    "کو",
+    "بہت",
+    "بھوک",
+    "لگی",
+    "تھی",
+    "نمرہ",
+    "نے",
+    "اسے",
+    "کچھ",
+    "کھانا",
+    "دیا",
+    "چڑیا",
+    "پہلے",
+    "دور",
+    "ہی",
+    "رہی",
+    "پھر",
+    "وہ",
+    "آگے",
+    "آ",
+    "کر",
+    "کھانے",
+    "لگی",
+    "اب",
+    "وہ",
+    "روز",
+    "نمرہ",
+    "کے",
+    "پاس",
+    "آنے",
+    "لگی"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "نمرہ کے پاس کیا آ گئی؟",
+      "right": "چڑیا",
+      "wrong": [
+        "مرغی",
+        "تتلی"
+      ],
+      "accept": [
+        "چڑیا",
+        "چھوٹی چڑیا"
+      ],
+      "reject": [
+        "مرغی",
+        "تتلی"
+      ],
+      "rubric": "Correct if the child says a sparrow (چڑیا)."
+    },
+    {
+      "id": "q2",
+      "needs_line": 1,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "چڑیا کیسی تھی؟",
+      "right": "چھوٹی",
+      "wrong": [
+        "بڑی",
+        "موٹی"
+      ],
+      "accept": [
+        "چھوٹی"
+      ],
+      "reject": [
+        "بڑی",
+        "موٹی"
+      ],
+      "rubric": "Correct if the child says small (چھوٹی)."
+    },
+    {
+      "id": "q3",
+      "needs_line": 2,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "چڑیا کو کیا لگی تھی؟",
+      "right": "بھوک",
+      "wrong": [
+        "پیاس",
+        "سردی"
+      ],
+      "accept": [
+        "بھوک",
+        "بہت بھوک"
+      ],
+      "reject": [
+        "پیاس",
+        "سردی"
+      ],
+      "rubric": "Correct if the child says hunger (بھوک)."
+    },
+    {
+      "id": "q4",
+      "needs_line": 3,
+      "type": "literal",
+      "tap_ok": true,
+      "prompt": "نمرہ نے چڑیا کو کیا دیا؟",
+      "right": "کھانا",
+      "wrong": [
+        "پانی",
+        "کھلونا"
+      ],
+      "accept": [
+        "کھانا",
+        "کچھ کھانا"
+      ],
+      "reject": [
+        "پانی",
+        "کھلونا"
+      ],
+      "rubric": "Correct if the child says food (کھانا)."
+    },
+    {
+      "id": "q5",
+      "needs_line": 6,
+      "type": "literal",
+      "tap_ok": false,
+      "prompt": "اب چڑیا کب نمرہ کے پاس آنے لگی؟",
+      "right": null,
+      "wrong": [],
+      "accept": [
+        "روز",
+        "ہر روز"
+      ],
+      "reject": [
+        "کبھی کبھی",
+        "کبھی نہیں"
+      ],
+      "rubric": "Correct if the child says every day (روز)."
+    }
+  ],
+  "params": {
+    "reserve": false
+  },
+  "twin_of": null,
+  "bank_version": "child-test-items-v4",
+  "names": [
+    "نمرہ"
+  ]
+}
