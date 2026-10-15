@@ -16,10 +16,12 @@ const {
   applyChanges, buildAdded, layoutOf, defaultsFor, isLegacyKind, PICTURE_TYPES,
 } = require('./assessment-changes');
 const { isRtl } = require('./assessment-paper.renderer');
+const FdeRenderer = require('./assessment-paper-fde.renderer');
 const { isAssessmentEditingEnabled } = require('../../config/feature-flags');
 const supabase = require('../../config/supabase');
 
 const PORTAL_EDITING_KEY = 'portal_assessment_editing_enabled';
+const PATTERN_NO_ADD = 'PATTERN_NO_ADD';
 
 /**
  * The portal's own switch (bd-6faz8m). Row absent -> follow assessment_editing_enabled
@@ -97,6 +99,31 @@ async function versions({ userId, paperId }) {
   return (await _gate()) || Revision.listFamily({ paperId, userId });
 }
 
+/**
+ * What the editor needs to say what a removal will print ("Q2 will then say:
+ * any eight of eleven"): every slot of the paper's OWN layout — the copy frozen
+ * when it was made, so it cannot disagree with the printed paper — and how many
+ * of its items are still on this version.
+ */
+function _patternFields(examJson, items) {
+  const L = examJson._layout;
+  const live = new Map();
+  for (const q of items) {
+    const slot = q.question && q.question.slot;
+    if (slot && !q.removed) live.set(slot, (live.get(slot) || 0) + 1);
+  }
+  return {
+    pattern: L.preset_id,
+    subjectKey: L.subject,
+    choices: L.sections.flatMap((sec) => sec.slots.map((slot) => ({
+      slot: slot.slot, label: slot.label_en, generate: slot.generate, attempt: slot.attempt,
+      marks_each: slot.marks_each, live: live.get(slot.slot) || 0,
+    }))),
+    // The pattern's total, recomputed only when a removal takes a slot below its count.
+    marks: FdeRenderer.totalMarks(examJson),
+  };
+}
+
 async function questions({ userId, paperId }) {
   const gate = await _gate(); if (gate) return gate;
   const out = await Revision.listVersionItems({ paperId, userId });
@@ -108,7 +135,7 @@ async function questions({ userId, paperId }) {
       paperId, version: out.version, grade: _gradeOf(req), subject: req.subject_code,
       chapterNumber: req.chapter_number ?? null, rtl: isRtl(req.subject_code),
       questionCount: active.length, marks: active.reduce((s, q) => s + q.marks, 0),
-      ...(Revision.isPatternPaper(out.paper) ? { pattern: out.paper.exam_json._layout.preset_id } : {}),
+      ...(Revision.isPatternPaper(out.paper) ? _patternFields(out.paper.exam_json, out.items) : {}),
     },
     items: out.items.map(_item),
   };
@@ -118,7 +145,8 @@ async function addKinds({ userId, paperId }) {
   const gate = await _gate(); if (gate) return gate;
   const loaded = await Revision.loadVersion({ paperId, userId });
   if (!loaded.paper) return { code: loaded.code };
-  if (Revision.isPatternPaper(loaded.paper)) return { code: Revision.PATTERN_NO_EDIT };
+  // A board pattern fixes how many questions each slot holds: nothing to add.
+  if (Revision.isPatternPaper(loaded.paper)) return { code: PATTERN_NO_ADD };
   const req = loaded.paper.assessment_requests || {};
   const subject = req.subject_code;
   const grade = _gradeOf(req);
@@ -143,7 +171,7 @@ async function validateEdit({ userId, paperId, id, kind, edit }) {
   const gate = await _gate(); if (gate) return gate;
   const loaded = await Revision.loadVersion({ paperId, userId });
   if (!loaded.paper) return { code: loaded.code };
-  if (Revision.isPatternPaper(loaded.paper)) return { code: Revision.PATTERN_NO_EDIT };
+  if (kind && Revision.isPatternPaper(loaded.paper)) return { code: PATTERN_NO_ADD };
   try {
     let question;
     if (kind) {
@@ -173,7 +201,9 @@ async function saveVersion({ userId, parentId, changes }) {
   }
   const loaded = await Revision.loadVersion({ paperId: parentId, userId });
   if (!loaded.paper) return { status: 'failed', code: loaded.code };
-  if (Revision.isPatternPaper(loaded.paper)) return { status: 'failed', code: Revision.PATTERN_NO_EDIT };
+  if ((changes.added || []).length && Revision.isPatternPaper(loaded.paper)) {
+    return { status: 'failed', code: PATTERN_NO_ADD };
+  }
   const req = loaded.paper.assessment_requests || {};
   const applied = applyChanges(loaded.paper.exam_json, changes, { subject: req.subject_code, grade: _gradeOf(req) });
   if (!applied.ok) return { status: 'failed', code: applied.code, errors: applied.errors };

@@ -121,6 +121,10 @@ function applySelection(examJson, selectedIds) {
     }
   });
 
+  // A board-pattern paper prints from its layout; without it the smaller tree
+  // would print as a plain paper. The layout holds no questions, so the counts it
+  // prints follow whatever is left in the tree.
+  if (examJson && examJson._layout) out._layout = examJson._layout;
   return out;
 }
 
@@ -170,6 +174,8 @@ const ADD_KINDS = {
   fill: { match: (k) => /^fill in the blanks$/i.test(k), fallback: () => 'Fill in the Blanks' },
 };
 
+const PATTERN_NO_ADD_MESSAGE = 'Board-pattern papers keep their shape.';
+
 /** Every [section, category, typeKey] in the tree, in walk order. */
 function _typeSlots(tree) {
   const out = [];
@@ -189,6 +195,10 @@ function _typeSlots(tree) {
  * id. Nothing already in the tree moves, so every existing id stays valid.
  */
 function appendQuestion(examJson, { kind, subject, grade } = {}, question) {
+  // A board pattern fixes how many questions each slot holds.
+  if (examJson && examJson._layout) {
+    throw Object.assign(new Error(PATTERN_NO_ADD_MESSAGE), { code: 'EDIT_REJECTED', errorCode: 'PATTERN_NO_ADD' });
+  }
   const rule = ADD_KINDS[kind];
   if (!rule) throw Object.assign(new Error(`Unknown question kind: ${kind}`), { code: 'EDIT_REJECTED' });
   const tree = _clone(examJson);
@@ -425,5 +435,5 @@ module.exports = {
   questionId, indexQuestions, applySelection, isAllSelected, marksOf,
   pageOf, optionTitle, replaceAt, PAGE_SIZE, TITLE_MAX,
   isRemoved, activeTree, setRemoved, appendQuestion, diffTrees, LIST_PAGE_SIZE,
-  reconstructLegacy,
+  reconstructLegacy, PATTERN_NO_ADD_MESSAGE,
 };

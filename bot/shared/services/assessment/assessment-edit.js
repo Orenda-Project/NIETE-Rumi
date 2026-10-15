@@ -288,6 +288,8 @@ function applyEdit(question, edit) {
     if (e.answer !== undefined) _setAnswer(sub, e.answer);
     const m = marksFrom(e.marks, sub.marks);
     if (m !== undefined) sub.marks = m;
+    const before = typeof question.questions[i] === 'string' ? {} : question.questions[i];
+    if (_markedDifferently(before, sub)) _dropWorkedPoints(q);
     q.questions[i] = sub;
     return q;
   }
@@ -358,10 +360,32 @@ function applyEdit(question, edit) {
   const m = marksFrom(e.marks, q.marks);
   if (m !== undefined) q.marks = m;
 
+  if (_markedDifferently(question, q)) _dropWorkedPoints(q);
+
   // Last, so an edit made in the same save survives a later add-back.
   if (e.remove === true) q.removed = true;
 
   return q;
+}
+
+const _sameMarks = (a, b) => a === b || (a != null && b != null && Number(a) === Number(b));
+
+/** Whether an edit changed what the question is worth or what counts as right. */
+function _markedDifferently(before, after) {
+  return !_sameMarks(before?.marks, after?.marks)
+    || JSON.stringify(before?.answer ?? null) !== JSON.stringify(after?.answer ?? null);
+}
+
+/**
+ * A board-pattern item's marking points were worked for its old marks and its
+ * old answer; printed against new ones they would add up to the wrong total or
+ * reward the wrong answer. They go, and so does the "checked" chip. What else
+ * the scheme says (other accepted methods, the common error) still holds.
+ */
+function _dropWorkedPoints(q) {
+  if (!q.scheme || typeof q.scheme !== 'object' || Array.isArray(q.scheme)) return;
+  delete q.scheme.points;
+  q.scheme.checked = null;
 }
 
 /** Marks and lines a question she adds starts with, by kind. */
