@@ -1567,6 +1567,8 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
   mark('next_lesson');
   const door = await require('./web-quiz-hub-door').field(s);
   mark('hub_door');
+  // The Jugnu card (web-quiz-card.js; app_settings web_quiz_challenge_card): {} with the switch off.
+  const jugnu = await require('./web-quiz-card').field(s);
   return {
     score: { correct, total, pct, level },
     ...counted,
@@ -1594,6 +1596,7 @@ async function finishSessionTimed(body = {}, mark = () => {}) {
     ...next,
     // The card's door to this child's hub (web-quiz-hub-door.js), with the hub and the door switched on.
     ...door,
+    ...jugnu,
   };
 }
 
@@ -1743,6 +1746,14 @@ const EVENT_PROPS = Object.freeze({
 });
 const EVENT_NUMS = ['ms', 'seq', 'n', 'i', 'pct', 't', 'list_ms', 'nav_ms', 'ff_ms', 'ch_i', 'line', 'col'];
 const EVENT_BOOLS = ['ok'];
+// ── The doors (EVENTS §2): kept on door_shown / door_tap only.
+const DOOR_NAMES = new Set(['door_shown', 'door_tap']);
+const DOOR_PROPS = Object.freeze({
+  door: /^(card|hub_first|link_home|class_link|install|quiz_reply|shelf|next|tomorrow|friend)$/,
+  surface: /^(scorecard|hub|book|end_card|story_time|landing|wa_reply)$/,
+  pid: /^[a-z0-9._-]{1,64}$/i, nx: /^(trail|story|numbers|new|seen)$/,
+});
+// ── end doors
 // Page-session telemetry (wq-tel.js; app_settings web_quiz_rich_telemetry): its events and props are kept only
 // while the switch is on, so a cached page or a switched-off deployment logs nothing new.
 const TEL_NAMES = new Set(['page_start', 'screen_enter', 'screen_leave', 'vis', 'hb', 'page_end']);
@@ -1880,6 +1891,13 @@ function cleanEvent(e, { rich = false, v2 = false } = {}) {
     if (e[k] !== undefined && Number.isFinite(v)) props[k === 'n' ? 'count' : k] = v;
   }
   for (const k of EVENT_BOOLS) if (typeof e[k] === 'boolean') props[k] = e[k];
+  // ── The doors (EVENTS §2; door_shown / door_tap only): which door, on which surface, its 1-based slot as a number
+  // (every other name keeps `slot` as the answer letter), a shelf tile's passage id, the next line's choice.
+  if (DOOR_NAMES.has(e.n)) {
+    for (const [k, rx] of Object.entries(DOOR_PROPS)) if (typeof e[k] === 'string' && rx.test(e[k])) props[k] = e[k];
+    if (Number.isInteger(e.slot) && e.slot >= 1 && e.slot <= 99) props.slot = e.slot;
+  }
+  // ── end doors
   // The page sends answer right/wrong as 1/0: kept as a boolean (it was dropped while only booleans passed).
   if (e.ok === 1 || e.ok === 0) props.ok = e.ok === 1;
   if (typeof e.ua === 'string' && e.ua) props.ua = e.ua.slice(0, UA_MAX);
