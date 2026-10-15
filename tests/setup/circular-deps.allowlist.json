@@ -8,13 +8,6 @@
   },
   {
     "cycle": [
-      "bot/shared/services/quiz/web-quiz-link-home.js",
-      "bot/shared/services/quiz/web-quiz.service.js"
-    ],
-    "reason": "Both edges are lazy, inside functions: web-quiz.service.js getQuizTimed() requires web-quiz-link-home.js only to ask field() whether an old finished class link may open the child's hub, and web-quiz-link-home.js home() requires web-quiz.service.js only to call resolveCode() on a POST /linkhome. Neither module touches the other at load time."
-  },
-  {
-    "cycle": [
       "bot/shared/services/elevenlabs.service.js",
       "bot/shared/services/audio.service.js"
     ],

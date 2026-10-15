@@ -69,14 +69,16 @@ function ownRun(s) {
   return Boolean(s && s.student_id && !s.user_id && !(s.invited_by_student_id && s.invited_by_student_id !== s.student_id));
 }
 
-async function home(body = {}) {
+async function home(body = {}, resolveCode = null) {
   const no = (reason) => { logEvent('web_quiz.link_home', { ok: false, reason }); return { home: null }; };
   try {
     if (!(await isOn())) return { home: null };
     const d = T.cleanDeviceRef(body.device_ref);
     if (!d) return no('no_device');
     let ctx;
-    try { ctx = await require('./web-quiz.service').resolveCode(body.code); } catch (_) { return no('no_code'); }
+    // The quiz service's resolveCode, handed in by the route (this module never requires the service: no require loop).
+    if (typeof resolveCode !== 'function') return no('no_code');
+    try { ctx = await resolveCode(body.code); } catch (_) { return no('no_code'); }
     if (ctx.invitedByStudentId) return no('challenge');
     const { data, error } = await dbRead('linkHome:quiz_sessions:1', (db) => db.from('quiz_sessions')
       .select('id, student_id, user_id, invited_by_student_id, status, created_at')

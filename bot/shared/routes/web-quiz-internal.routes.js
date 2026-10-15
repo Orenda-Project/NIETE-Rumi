@@ -76,7 +76,7 @@ router.get('/quiz/:code', handle(async (req) => {
 router.get('/og/:code', handle((req) => WebQuizOg.forCode(req.params.code, (c) => WebQuiz.getQuiz(c))));
 router.post('/session', handle((req) => WebQuiz.startSession(req.body || {})));
 // An old, finished class link opened again on the phone that finished it: that child's hub, or {home: null}.
-router.post('/linkhome', handle((req) => require('../services/quiz/web-quiz-link-home').home(req.body || {})));
+router.post('/linkhome', handle((req) => require('../services/quiz/web-quiz-link-home').home(req.body || {}, WebQuiz.resolveCode)));
 // The handset key: the page redeems a bot-sent link's ?x= token once with its device (web-quiz-handset.js).
 router.post('/bind', handle((req) => require('../services/quiz/web-quiz-handset').bind(req.body || {}, WebQuiz.WqError)));
 router.post('/answers', handle((req) => WebQuiz.recordAnswers(req.body || {})));

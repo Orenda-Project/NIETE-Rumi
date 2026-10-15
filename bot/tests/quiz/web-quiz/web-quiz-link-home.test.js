@@ -69,6 +69,7 @@ function seed({ hub = true, linkHome = true, sessions = [run()] } = {}) {
   });
   Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
 }
+const resolve = (c) => require('../../../shared/services/quiz/web-quiz.service').resolveCode(c);
 const LH = () => require('../../../shared/services/quiz/web-quiz-link-home');
 const reset = () => { Flags._resetCache(); try { LH()._resetCache(); } catch (_) { /* absent on the base */ } };
 
@@ -84,7 +85,7 @@ afterAll(() => { process.env = SAVED; });
 describe('the teacher\'s quiz link, opened again on the phone that finished it', () => {
   test('one remembered child, run finished, switch on: that child\'s hub, bound to this phone; door_shown written by the server', async () => {
     seed();
-    const out = await LH().home({ code: 'AB12CD', device_ref: D1 });
+    const out = await LH().home({ code: 'AB12CD', device_ref: D1 }, resolve);
     expect(out.home).toMatch(/^\/h\/[A-Za-z0-9._-]+\?from=link$/);
     const token = out.home.slice(3, out.home.indexOf('?'));
     expect(T.verify(token, 'h').ids).toEqual([KID]);                 // that child only, never a sibling
@@ -95,38 +96,38 @@ describe('the teacher\'s quiz link, opened again on the phone that finished it',
 
   test('the run is not finished (or a new attempt is under way): no home, the quiz goes on as today', async () => {
     seed({ sessions: [run({ status: 'in_progress' })] });
-    expect((await LH().home({ code: 'AB12CD', device_ref: D1 })).home).toBeNull();
+    expect((await LH().home({ code: 'AB12CD', device_ref: D1 }, resolve)).home).toBeNull();
     reset(); seed({ sessions: [run(), run({ id: 's2', status: 'in_progress', created_at: ago(1) })] });
-    expect((await LH().home({ code: 'AB12CD', device_ref: D1 })).home).toBeNull();
+    expect((await LH().home({ code: 'AB12CD', device_ref: D1 }, resolve)).home).toBeNull();
   });
 
   test('two remembered children played this code on the phone: no home (the landing asks "Whose turn?")', async () => {
     seed({ sessions: [run(), run({ id: 's2', student_id: SIB })] });
-    expect((await LH().home({ code: 'AB12CD', device_ref: D1 })).home).toBeNull();
+    expect((await LH().home({ code: 'AB12CD', device_ref: D1 }, resolve)).home).toBeNull();
   });
 
   test('an unknown phone, a forwarded copy on another phone, or no device: no home', async () => {
     seed();
-    expect((await LH().home({ code: 'AB12CD', device_ref: D2 })).home).toBeNull();
-    expect((await LH().home({ code: 'AB12CD' })).home).toBeNull();
+    expect((await LH().home({ code: 'AB12CD', device_ref: D2 }, resolve)).home).toBeNull();
+    expect((await LH().home({ code: 'AB12CD' }, resolve)).home).toBeNull();
     expect(redis.setNX).not.toHaveBeenCalled();
     expect(logEvent).not.toHaveBeenCalledWith('web_quiz.door_shown', expect.anything());
   });
 
   test('a teacher\'s phone (a test run on it) or a friend\'s challenge code: no home', async () => {
     seed({ sessions: [run(), run({ id: 's2', student_id: null, user_id: TEACHER })] });
-    expect((await LH().home({ code: 'AB12CD', device_ref: D1 })).home).toBeNull();
+    expect((await LH().home({ code: 'AB12CD', device_ref: D1 }, resolve)).home).toBeNull();
     reset(); seed({ sessions: [run({ share_code_id: SC })] });
-    expect((await LH().home({ code: 'CH12AB', device_ref: D1 })).home).toBeNull();
+    expect((await LH().home({ code: 'CH12AB', device_ref: D1 }, resolve)).home).toBeNull();
   });
 
   test('switch off, or the hub off, or the setting unreadable: no home, nothing bound', async () => {
     seed({ linkHome: false });
-    expect((await LH().home({ code: 'AB12CD', device_ref: D1 })).home).toBeNull();
+    expect((await LH().home({ code: 'AB12CD', device_ref: D1 }, resolve)).home).toBeNull();
     reset(); seed({ hub: false });
-    expect((await LH().home({ code: 'AB12CD', device_ref: D1 })).home).toBeNull();
+    expect((await LH().home({ code: 'AB12CD', device_ref: D1 }, resolve)).home).toBeNull();
     reset(); Object.assign(supabase, { from: () => { throw new Error('down'); } });
-    expect((await LH().home({ code: 'AB12CD', device_ref: D1 })).home).toBeNull();
+    expect((await LH().home({ code: 'AB12CD', device_ref: D1 }, resolve)).home).toBeNull();
     expect(redis.setNX).not.toHaveBeenCalled();
   });
 });
