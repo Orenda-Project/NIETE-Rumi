@@ -280,6 +280,9 @@ function buildFieldFormFlow() {
   const photos = [
     { type: 'TextHeading', text: 'Classroom photos' },
     { type: 'TextBody', text: `Up to ${MAX_PHOTOS}. The ones that help: the board, the materials, children using them, groups at work, and the board at the end. Never faces.` },
+    // Text only (no route or payload change, so FORM_VERSION stays): most coaches record with a
+    // WhatsApp voice note, which stops when the camera opens; a recorder app keeps going.
+    { type: 'TextBody', text: 'Still recording? The voice recorder app keeps recording when the camera opens, but a WhatsApp voice note pauses: resume it after the photo. Photos you took with the camera during the lesson go in with Upload saved photos.' },
     radio('photo_how', 'How will you add photos?', PHOTO_HOW),
     ERR_LINE,
   ];

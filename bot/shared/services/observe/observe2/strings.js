@@ -32,8 +32,8 @@ const STRINGS = {
       const half = Math.round(minutes / 2);
       return [
         'Before the lesson starts:',
-        '1️⃣ Open your phone\'s *voice recorder app* (not WhatsApp) and start recording. Leave it running for the whole lesson.',
-        `2️⃣ Tap *Open the form* and fill it in as you watch. Save Part 1 at minute ${half}, then carry on with Part 2 until minute ${minutes}.`,
+        '1️⃣ Open your phone\'s *voice recorder app* (not WhatsApp) and start recording. Leave it running for the whole lesson. It keeps recording while you take photos; a WhatsApp voice note stops when the camera opens.',
+        `2️⃣ Tap *Open the form* and fill it in as you watch. Save Part 1 at minute ${half}, then carry on with Part 2 until minute ${minutes}. Take photos with the phone's camera as you go, and add them in the form with *Upload saved photos*.`,
         '3️⃣ When the lesson ends: stop the recorder, tap *Seal and send* in the form, then send the recording here as a *Document* (📎 → *Document*), not as audio.',
       ].join('\n');
     },
@@ -79,8 +79,8 @@ const STRINGS = {
       const half = Math.round(minutes / 2);
       return [
         'سبق شروع ہونے سے پہلے:',
-        '1️⃣ فون کی *وائس ریکارڈر ایپ* (واٹس ایپ نہیں) کھولیں اور ریکارڈنگ شروع کریں۔ پورے سبق میں ریکارڈنگ چلتی رہے۔',
-        `2️⃣ *فارم کھولیں* دبائیں اور دیکھتے ہوئے بھرتے جائیں۔ منٹ ${half} پر حصہ 1 محفوظ کریں، پھر منٹ ${minutes} تک حصہ 2۔`,
+        '1️⃣ فون کی *وائس ریکارڈر ایپ* (واٹس ایپ نہیں) کھولیں اور ریکارڈنگ شروع کریں۔ پورے سبق میں ریکارڈنگ چلتی رہے۔ تصویر لیتے وقت بھی یہ ریکارڈ کرتی رہتی ہے؛ واٹس ایپ کا وائس نوٹ کیمرہ کھلتے ہی رک جاتا ہے۔',
+        `2️⃣ *فارم کھولیں* دبائیں اور دیکھتے ہوئے بھرتے جائیں۔ منٹ ${half} پر حصہ 1 محفوظ کریں، پھر منٹ ${minutes} تک حصہ 2۔ سبق کے دوران تصویریں فون کے کیمرے سے لیں، اور فارم میں *Upload saved photos* سے شامل کریں۔`,
         '3️⃣ سبق ختم ہو تو ریکارڈنگ روکیں، فارم میں *Seal and send* دبائیں، پھر ریکارڈنگ اسی چیٹ میں *Document* کے طور پر بھیجیں (📎، پھر *Document*)، آڈیو کے طور پر نہیں۔',
       ].join('\n');
     },

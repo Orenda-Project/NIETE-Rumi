@@ -689,7 +689,9 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     When I tap "40 minutes"
     Then the bot sends a message starting "Before the lesson starts:" with an "Open the form" CTA
     And it tells me to start my phone's voice recorder app, not WhatsApp
+    And it says why: the recorder app keeps recording while I take photos, and a WhatsApp voice note stops when the camera opens
     And it says to save Part 1 at minute 20 and carry on with Part 2 until minute 40
+    And it says to take photos with the phone's camera as I go and add them in the form with "Upload saved photos"
     And its last step says to send the recording here as a Document (📎 → Document), not as audio
     # Pilot sheet R2 (12 Oct): shared to WhatsApp as audio, a recorder-app lesson is refused on the
     # phone at 16 MB and never reaches the bot. A document can be up to 100 MB.
@@ -767,6 +769,7 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
   @e2e @flow @config-gated @wip @draft @P1
   Scenario Outline: Classroom photos are taken now, or uploaded from the ones already on the phone
     Given I reached "How will you add photos?" in the live form
+    Then the screen says the voice recorder app keeps recording when the camera opens, but a WhatsApp voice note pauses
     When I choose "<how>" and tap "Next"
     Then the form opens "<screen>"
     When I add 3 photos and tap "Next"
@@ -775,6 +778,8 @@ Feature: NIETE (ICT) WhatsApp bot — Classroom Observation (/observe, coach/off
     # gallery only on a phone (WhatsApp Web and Desktop show "Take photo" alone and open nothing), so
     # saved photos go through a file picker (JPG or PNG), which opens a chooser on every client.
     # Stored before the seal as observe2/<record>/photo-N.jpg, up to ten. observe2-form-endpoint.js PHOTOS.
+    # Pilot sheet R12 (14 Oct): about two in three /observe2 recordings are WhatsApp voice notes, which
+    # stop when the camera opens; the photo step and the before-the-lesson steps now say so.
 
     Examples:
       | how                 | screen              |
