@@ -26,6 +26,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 // A passage the practice shelf may show: reviewed or better, never a draft or a retired one.
 const LIVE_STATUS = ['reviewed', 'provisional', 'calibrated'];
+const RESERVE_ID = /\.reserve\d+$/;
 // A run row's final statuses (a record row that closes a Trail stop).
 const FINAL = ['scored', 'failed'];
 // The route that brought the child to the hub (EVENTS §1 row 3 `hub_open.src`): read by the hub_open emit as `opts.src`.
@@ -139,11 +140,12 @@ async function seenPassages(childId) {
 async function passagesOf(lang, nowIso, bands) {
   try {
     const { data, error } = await supabase.from('challenge_passages')
-      .select('passage_id, twin_of, lang, band, kind, pool, status, released_at, title_en, title_ur, params')
+      .select('passage_id, twin_of, lang, band, kind, pool, status, released_at, title_en, title_ur')
       .eq('pool', 'practice').eq('lang', lang).in('status', LIVE_STATUS).not('released_at', 'is', null);
     if (error) return { live: [], next: null };
-    // The reserve story is the draw's fall-through only: never on the shelf, never NEW, never a lantern title.
-    const reserve = (r) => { let q = r.params; if (typeof q === 'string') { try { q = JSON.parse(q); } catch (_) { q = null; } } return Boolean(q && q.reserve === true); };
+    // The reserve story is the draw's fall-through only: never on the shelf, never NEW, never a lantern title. The
+    // registry marks it by its id (<lang>.read.<band>.reserveNN, web_quiz_challenge_stock_seed.sql); it has no params column.
+    const reserve = (r) => RESERVE_ID.test(String(r.passage_id));
     const rows = (data || []).filter((r) => r && r.passage_id && Number.isFinite(Date.parse(r.released_at)) && !reserve(r) && bands.has(Number(r.band)));
     const nowMs = Date.parse(nowIso);
     const live = rows.filter((r) => Date.parse(r.released_at) <= nowMs);

@@ -36,6 +36,13 @@ const A = { device: 'AAAAAAAAAAAAAAAAAAAAAA' };
 const ON = (k) => ({ key: k, value: 'true' });
 const BASE_ON = [ON('web_quiz_hub'), ON('web_quiz_challenge'), ON('web_quiz_child_quiz_home')];
 
+// The registry's columns, read from the migration that creates challenge_passages (never a hand-kept list).
+const REGISTRY_COLS = (() => {
+  const sql = require('fs').readFileSync(require('path').join(__dirname, '../../../database/migrations/web_quiz_challenge_registry.sql'), 'utf8');
+  const body = sql.split('CREATE TABLE IF NOT EXISTS public.challenge_passages (')[1].split('\n);')[0];
+  return new Set(body.split('\n').map((l) => (/^\s{2}([a-z_0-9]+)\s/.exec(l) || [])[1]).filter((c) => c && c !== 'constraint'));
+})();
+
 let db;
 function seed(settings, over = {}) {
   db = {
@@ -48,7 +55,21 @@ function seed(settings, over = {}) {
     ...over,
   };
   const fake = makeFake(db);
-  Object.assign(supabase, { from: fake.from, rpc: fake.rpc });
+  // challenge_passages answers like PostgREST: a select naming a column the registry migration does not create is 42703.
+  const from = (t) => {
+    const b = fake.from(t);
+    if (t !== 'challenge_passages') return b;
+    const sel = b.select.bind(b);
+    b.select = (cols, ...rest) => {
+      const bad = String(cols || '').split(',').map((c) => c.trim()).filter((c) => c && c !== '*' && !REGISTRY_COLS.has(c));
+      if (!bad.length) return sel(cols, ...rest);
+      const err = { data: null, error: { code: '42703', message: `column challenge_passages.${bad[0]} does not exist` } };
+      const chain = new Proxy({}, { get: (_, k) => (k === 'then' ? (res) => res(err) : () => chain) });
+      return chain;
+    };
+    return b;
+  };
+  Object.assign(supabase, { from, rpc: fake.rpc });
   Hub._resetCache();
   Play._resetCache();
 }
@@ -204,18 +225,18 @@ describe('lantern + shelf (web_quiz_challenge_v2 / web_quiz_challenge_story)', (
     expect(both.play.shelf.filter((t) => t.nx === 'new').map((t) => t.pid)).toEqual(['p-titled']);
   });
 
-  test('a reserve story (params.reserve=true) is never on the shelf, never NEW, never the lantern title', async () => {
+  test('a reserve story (a registry reserve id, even released) is never on the shelf, never NEW, never the lantern title', async () => {
     seed(STORY_ON, {
       web_quiz_challenge_runs: [
         { student_id: KID, exercise: 'read', mode: 'check', record: true, status: 'scored', period_id: period, passage_id: null },
         { student_id: KID, exercise: 'bigger', mode: 'check', record: true, status: 'scored', period_id: period, passage_id: null },
       ],
-      challenge_passages: [passage('p-res', 'read', 1, { params: { reserve: true } }), passage('p-live', 'read', 50)],
+      challenge_passages: [passage('en.read.1.reserve01', 'read', 1), passage('p-live', 'read', 50)],
     });
     const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.play.lantern).toEqual({ kind: 'story', title: 'Title p-live', pid: 'p-live' });
     expect(out.play.shelf[0]).toEqual({ id: 'week_story', pid: 'p-live', nx: 'new' });
-    expect(JSON.stringify(out.play)).not.toContain('p-res');
+    expect(JSON.stringify(out.play)).not.toContain('reserve01');
   });
 
   test('nothing unseen, a buffered release tomorrow -> numbers + day; never the future title', async () => {
