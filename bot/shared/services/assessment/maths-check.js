@@ -71,6 +71,13 @@ const PERCENT = new RegExp(
 const TO_DECIMAL = new RegExp(
   String.raw`${START}(${NUM})\s+(?:into|as|to)\s+(?:an?\s+)?decimals?\b`, 'i',
 );
+const PERCENT_WORD = String.raw`(?:percentages?|per\s*cents?)\b`;
+const TO_PERCENT = new RegExp(
+  String.raw`${START}(${NUM})\s+(?:into|as|to)\s+(?:an?\s+)?${PERCENT_WORD}`, 'i',
+);
+const PERCENT_OF = new RegExp(String.raw`${START}(${DEC})\s*%\s*of\s+(${NUM})(?!\d)`, 'i');
+// What marks a number in a key as a percentage: 45%, 45 %, 45 percent.
+const PERCENT_SIGN = new RegExp(String.raw`^\s*(?:%|${PERCENT_WORD})`, 'i');
 const EXPANDED_WORD = /expanded\s+(?:form|notation)/i;
 const EXPANDED_OF = new RegExp(
   String.raw`expanded\s+(?:form|notation)\s+of\s+(?:the\s+number\s+)?(${INT})${LIST_END}`, 'i',
@@ -279,6 +286,36 @@ function toDecimalForm(text) {
   };
 }
 
+// 0.45 → 45%, 3/4 → 75%; 20% of 150 → 30. The first is checked as the number before the %.
+function percentForm(text) {
+  const p = TO_PERCENT.exec(text);
+  if (p) {
+    if (!aloneIn(text, p.index, p.index + p[0].length)) return null;
+    const t = readOne(p[1]);
+    if (!usable(t)) return null;
+    return {
+      form: 'to-percent',
+      value: mul(t.value, frac(100n)),
+      operands: [t.value, frac(100n)],
+      hint: 'decimal',
+      percent: true,
+    };
+  }
+  const o = PERCENT_OF.exec(text);
+  if (!o) return undefined;
+  const end = o.index + o[0].length;
+  if (!aloneIn(text, o.index, end) || FURTHER.test(text.slice(end))) return null;
+  const rate = readOne(o[1]);
+  const whole = readOne(o[2]);
+  if (!usable(rate) || !usable(whole)) return null;
+  return {
+    form: 'percent-of',
+    value: div(mul(rate.value, whole.value), frac(100n)),
+    operands: [rate.value, whole.value, frac(100n)],
+    hint: hintFor([rate, whole]),
+  };
+}
+
 function factorForm(text) {
   const hcf = HCF_WORD.test(text);
   const lcm = LCM_WORD.test(text);
@@ -377,7 +414,7 @@ function verbForm(text) {
   return undefined;
 }
 
-const FAMILIES = [expandedForm, toDecimalForm, factorForm, averageForm, verbForm, operatorForm];
+const FAMILIES = [expandedForm, toDecimalForm, percentForm, factorForm, averageForm, verbForm, operatorForm];
 
 /**
  * Recognise a question as one computation and work it out exactly.
@@ -553,6 +590,10 @@ function checkQuestion(q, exam, index) {
   }
   const computed = formatLike(form.value, target, form, all);
   if (computed === target.raw) return 'ok';
+  // A percentage key keeps its own %; one written without it gains it.
+  if (form.percent && !PERCENT_SIGN.test(answer.slice(target.index + target.raw.length))) {
+    return replaceKey(q, exam, answer, target.index, target.raw, `${computed}%`, index);
+  }
   return replaceKey(q, exam, answer, target.index, target.raw, computed, index);
 }
 

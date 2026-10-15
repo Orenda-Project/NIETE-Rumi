@@ -122,3 +122,54 @@ describe('Urdu numbers read the right way round', () => {
     expect(scheme).toMatch(/قواعد، <span class="num">۱‎–‎۳<\/span>/);
   });
 });
+
+describe('panel round 1', () => {
+  it('C4: the Urdu paper prints FDE\'s part-ب header (p.57) above its two sub-parts', () => {
+    const { paper } = chain('urdu');
+    const head = '<div class="part-head"><span class="lab">ب:</span> <span class="ins">دی گئی ہدایات کے مطابق حل کریں۔</span><span class="ml"><span class="num">۱۰</span></span></div>';
+    // Inside the first sub-part's unbreakable block, so the header never ends a page alone.
+    expect(paper).toContain(`<div class="part">${head}<div class="part-head"><span class="ins">سوال: پیراگراف سے چن کر لکھیں۔</span><span class="ml"><span class="num">۰۸</span></span></div>`);
+  });
+
+  it('C1: the Urdu box\'s "tell the class" line names every choice on the paper: Q3, Q5, Q6, Q8, Q9, Q10', () => {
+    const { scheme } = chain('urdu');
+    const box = scheme.slice(scheme.indexOf('class="box before"'), scheme.indexOf('</ol>', scheme.indexOf('class="box before"')));
+    const line4 = box.split('<li>')[4];
+    const order = ['۳', '۵', '۶', '۸', '۹', '۱۰'].map((d) => line4.indexOf(`سوال نمبر <span class="num">${d}</span>`));
+    expect(order.every((i) => i > 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(line4).toContain('<span class="num">۷</span> میں سے کوئی سے <span class="num">۵</span>');
+    expect(line4).toContain('دو میں سے ایک');
+  });
+
+  it('C3: every written row group in the scheme opens with its slot head', () => {
+    const heads = (html) => (html.match(/<tr class="slot-row"[^>]*><td colspan="3">([\s\S]*?)<\/td><\/tr>/g) || []).map((h) => h.replace(/<[^>]+>/g, ''));
+    const sci = heads(chain('science').scheme).map((h) => h.split(/\s/)[0] + ' ' + (h.split(/\s/)[1] || ''));
+    expect(sci.join('|')).toMatch(/Q2 \(a\).*\|Q2 \(b\).*\|Q3 \(a\).*\|Q3 \(b\)/);
+    const ur = chain('urdu').scheme;
+    const q4 = ur.indexOf('<tr class="slot-row" data-slot-head="urdu.C.Q4">');
+    expect(q4).toBeGreaterThan(ur.indexOf('<tr class="slot-row" data-slot-head="urdu.C.Q3">'));
+    expect(ur.indexOf('<tr data-row="urdu.C.Q4"')).toBeGreaterThan(q4);
+    expect(ur.indexOf('data-row="urdu.C.Q6-fixed"')).toBeGreaterThan(ur.indexOf('<tr class="slot-row" data-slot-head="urdu.C.Q6">'));
+  });
+
+  it('C2: a written row with no points still prints its marks (Science Q2(b) sub-questions, 2.5 each)', () => {
+    const { scheme } = chain('science');
+    const rows = scheme.match(/<tr data-row="science\.B\.Q2b">[\s\S]*?<\/tr>/g) || [];
+    expect(rows.length).toBe(9);
+    for (const r of rows) expect(r).toMatch(/<td class="pts"><span class="chip">2\.5<\/span>/);
+  });
+
+  it('C6: composition criteria marks in an Urdu scheme are Urdu digits', () => {
+    const { scheme } = chain('urdu');
+    expect(scheme).toMatch(/<span class="crit-m"><span class="num">[۰-۹]/);
+    expect(scheme).not.toMatch(/<span class="crit-m">[0-9]/);
+  });
+
+  it('C7: a comprehension item may break after its passage (parts stay whole), so it never leaves a near-empty page', () => {
+    const { paper } = chain('urdu');
+    expect(paper).toContain('<div class="q comp" data-slot="urdu.B.Q2">');
+    expect(paper).toMatch(/\.q\.comp \{ break-inside: auto; \}/);
+    expect(paper).toMatch(/\.passage \{[^}]*break-inside: avoid/);
+  });
+});
