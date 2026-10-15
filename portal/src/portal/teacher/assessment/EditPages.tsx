@@ -10,10 +10,10 @@ import {
 } from '../../components/assessment-edit/draft';
 import { dataOf, useLoad } from '../../newui/lessons/shared';
 import TeacherPage from '../TeacherPage';
-import { Tray } from '../ui';
+import { ButtonWithReason, Tray } from '../ui';
 import { FOCUS } from '../ui/styles';
 import { ASSESSMENT } from './copy';
-import { useCopy } from '../i18n';
+import { bilingual, useCopy, useLang } from '../i18n';
 import { addedEdit, blankValues, existingEdit, valuesFromFields, type FormValues } from './editForm';
 import { addQuestionPath, editPath, editQuestionPath, paperPath } from './paths';
 import { QuestionForm } from './QuestionForm';
@@ -27,8 +27,53 @@ import { Chip, ListCard, LoadState, OFF, OUTLINE, PRIMARY } from './ui';
  * localStorage), so a question page and the paper page share them and a reload keeps them.
  */
 
-const errorOf = (e: unknown): string | null => {
-  const data = (e as { response?: { data?: { error?: string; errors?: Array<{ message?: string }> } } })?.response?.data;
+/**
+ * A board-pattern paper keeps its shape (SPEC v2 §8.2, §8.5): the editor says both files change, says under each
+ * Remove / Put back in a choice group what that question's line will then say, and offers no Add. These are the
+ * copy deck's words (editBoth, willSay, noAddOnPattern, fdeChip, markingScheme); ASSESSMENT's own entries win when
+ * present, so this is only the fallback until copy.ts carries them. UR: drafts for fluent review.
+ */
+const EN_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve',
+  'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
+const enWord = (n: number) => EN_WORDS[n] ?? String(n);
+const FDE_EDIT_EN = {
+  editBoth: 'Changes the paper and the marking scheme',
+  willSay: (slot: string, n: number, of: number) => `${slot} will then say: any ${enWord(n)} of ${enWord(of)}`,
+  willSayAll: (slot: string, of: number) => `${slot} will then say: ${of === 2 ? 'attempt both' : `attempt all ${enWord(of)}`}`,
+  noAddOnPattern: 'Board-pattern papers keep their shape',
+  fdeChip: 'FDE pattern',
+  markingScheme: 'Marking scheme',
+};
+export const FDE_EDIT = bilingual(FDE_EDIT_EN, {
+  editBoth: 'پرچہ اور مارکنگ اسکیم دونوں بدلیں گے',
+  willSay: (slot: string, n: number, of: number) => `${slot} پھر کہے گا: ${of} میں سے کوئی ${n}`,
+  willSayAll: (slot: string, of: number) => `${slot} پھر کہے گا: تمام ${of} حل کریں`,
+  noAddOnPattern: 'بورڈ pattern کا پرچہ اپنی شکل رکھتا ہے',
+  fdeChip: 'FDE pattern',
+  markingScheme: 'مارکنگ اسکیم',
+});
+type FdeEditWords = typeof FDE_EDIT_EN;
+
+/** The deck's words: copy.ts's entries when it has them, else the fallback above. */
+export function useFdeWords(): FdeEditWords {
+  const fallback = useCopy(FDE_EDIT) as FdeEditWords;
+  const C = useCopy(ASSESSMENT) as unknown as Partial<FdeEditWords>;
+  const out = { ...fallback };
+  (Object.keys(fallback) as Array<keyof FdeEditWords>).forEach((k) => {
+    if (C[k] !== undefined) (out as Record<string, unknown>)[k] = C[k];
+  });
+  return out;
+}
+
+/** What GET /assessment/edit/:id/questions adds for a board-pattern paper (api.md §5–§6). */
+// The edit route sends `label` (from the paper's own _layout); /assessment/options sends label_en + label_ur.
+type Choice = { slot: string; label?: string; label_en?: string; label_ur?: string; generate: number; attempt: number; marks_each: number };
+type PatternPaper = { pattern?: string | null; subjectKey?: string; choices?: Choice[] };
+const slotOf = (it: EditItem) => (it as EditItem & { slot?: string }).slot;
+
+const errorOf = (e: unknown, W?: FdeEditWords): string | null => {
+  const data = (e as { response?: { data?: { error?: string; errorCode?: string; code?: string; errors?: Array<{ message?: string }> } } })?.response?.data;
+  if (W && (data?.errorCode === 'PATTERN_NO_ADD' || data?.code === 'PATTERN_NO_ADD')) return W.noAddOnPattern;
   const listed = (data?.errors ?? []).map((x) => x?.message).filter(Boolean) as string[];
   return listed.length ? listed.join(' ') : (data?.error ?? null);
 };
@@ -67,8 +112,21 @@ export function EditPaperPage() {
   const [kinds, retryKinds] = useLoad(tray ? () => portal.getAssessmentAddKinds(paperId) : null, `kinds:${paperId}:${tray}`);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const W = useFdeWords();
+  const lang = useLang();
 
   const d = dataOf(data);
+  const pp = (d?.paper ?? {}) as PatternPaper;
+  const fde = !!pp.pattern;
+  // The choice groups: from the paper itself, else from the pattern /assessment/options sends for its subject.
+  const [opts] = useLoad(
+    fde && !pp.choices && d ? () => portal.getAssessmentOptions(d.paper.grade, pp.subjectKey ?? d.paper.subject) : null,
+    `edit-choices:${paperId}:${fde && !pp.choices}`,
+  );
+  const choices: Choice[] = pp.choices
+    ?? ((dataOf(opts)?.patterns as Array<{ id?: string; choices?: Choice[] }> | undefined) ?? [])
+      .find((x) => !pp.pattern || !x.id || x.id === pp.pattern)?.choices
+    ?? [];
   const items = useMemo(() => (d?.items ?? []).map((it: EditItem) => ({
     it,
     removed: isRemovedNow(draft, it.id, it.removed),
@@ -89,9 +147,33 @@ export function EditPaperPage() {
 
   const kept = items.filter((v) => !v.removed);
   const count = kept.length + draft.added.length;
-  const marks = kept.reduce((s, v) => s + v.marks, 0) + draft.added.reduce((s, a) => s + a.marks, 0);
+  const choiceOf = (it: EditItem) => {
+    const sl = slotOf(it);
+    return sl ? choices.find((c) => c.slot === sl && c.attempt < c.generate) : undefined;
+  };
+  // Per choice group, how many of its questions are on the paper now.
+  const liveIn = new Map<string, number>();
+  kept.forEach((v) => { const sl = slotOf(v.it); if (sl) liveIn.set(sl, (liveIn.get(sl) ?? 0) + 1); });
+  // A board-pattern paper counts a choice group as the child answers it: "any eight" of five marks is 40, and fewer
+  // than eight left counts what is left (the paper's header total drops the same way).
+  const marks = fde
+    ? kept.filter((v) => !choiceOf(v.it)).reduce((s, v) => s + v.marks, 0)
+      + choices.filter((c) => c.attempt < c.generate).reduce((s, c) => s + Math.min(c.attempt, liveIn.get(c.slot) ?? 0) * c.marks_each, 0)
+    : kept.reduce((s, v) => s + v.marks, 0) + draft.added.reduce((s, a) => s + a.marks, 0);
   const removedN = items.filter((v) => v.removed).length;
   const canSave = isDirty(draft) && count > 0 && !busy;
+
+  // A row's line says what Remove (or Put back) leaves: "any eight of eleven", or "attempt all" once the group
+  // would offer no choice.
+  const willSay = (it: EditItem, removed: boolean): string | null => {
+    if (!fde) return null;
+    const ch = choiceOf(it);
+    if (!ch) return null;
+    const after = (liveIn.get(ch.slot) ?? 0) + (removed ? 1 : -1);
+    if (after <= 0) return null;
+    const label = (lang === 'ur' ? ch.label_ur : ch.label_en) ?? ch.label ?? '';
+    return after > ch.attempt ? W.willSay(label, ch.attempt, after) : W.willSayAll(label, after);
+  };
 
   const save = async () => {
     setBusy(true);
@@ -102,7 +184,7 @@ export function EditPaperPage() {
       toast({ title: C.saved });
       navigate(paperPath(r.paperId), { replace: true });
     } catch (e) {
-      setError(errorOf(e) ?? C.notSaved);
+      setError(errorOf(e, W) ?? C.notSaved);
     } finally {
       setBusy(false);
     }
@@ -144,6 +226,10 @@ export function EditPaperPage() {
                   </span>
                 </button>
               </div>
+              {(() => {
+                const line = willSay(it, removed);
+                return line ? <p data-testid="will-say" className="-mt-1.5 pb-2.5 pe-3 ps-12 text-[13px] text-[#6b7280]">{line}</p> : null;
+              })()}
               {!removed && (it.subs ?? []).map((s) => (
                 <Link
                   key={s.index}
@@ -187,6 +273,7 @@ export function EditPaperPage() {
       dock={dock}
       testId="assessment-edit"
     >
+      {fde && <p data-testid="edit-both" className="mx-1.5 text-[15px] font-semibold text-[#33374a]">{W.editBoth}</p>}
       {error && <p role="alert" className="rounded-2xl bg-[#fee4e2] p-3.5 text-[15px] text-[#c8331f]">{error}</p>}
       {section('objective', C.objective)}
       {section('subjective', C.written)}
@@ -207,11 +294,15 @@ export function EditPaperPage() {
         </ListCard>
       )}
 
-      <button type="button" onClick={() => setTray(true)}
-        className={cn('mt-1 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-[#c7cad6] bg-white text-[16px] font-semibold text-[#33374a]', FOCUS)}>
-        <Plus className="h-5 w-5" aria-hidden="true" />
-        {C.addQuestion}
-      </button>
+      {fde ? (
+        <ButtonWithReason label={C.addQuestion} reason={W.noAddOnPattern} testId="add-disabled" className="mt-1" />
+      ) : (
+        <button type="button" onClick={() => setTray(true)}
+          className={cn('mt-1 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-[#c7cad6] bg-white text-[16px] font-semibold text-[#33374a]', FOCUS)}>
+          <Plus className="h-5 w-5" aria-hidden="true" />
+          {C.addQuestion}
+        </button>
+      )}
 
       <Tray open={tray} title={C.newQuestion} onClose={() => setTray(false)} closeLabel={C.close}>
         {kinds.status !== 'ok'
@@ -244,6 +335,7 @@ export function EditQuestionPage({ mode }: { mode: 'edit' | 'add' }) {
   const [values, setValues] = useState<FormValues | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const W = useFdeWords();
 
   const d = dataOf(data);
   const [id, subRaw] = key.split('#');
@@ -284,7 +376,7 @@ export function EditQuestionPage({ mode }: { mode: 'edit' | 'add' }) {
       }
       navigate(editPath(paperId), { replace: true });
     } catch (e) {
-      setError(errorOf(e) ?? C.notSaved);
+      setError(errorOf(e, W) ?? C.notSaved);
     } finally {
       setBusy(false);
     }
