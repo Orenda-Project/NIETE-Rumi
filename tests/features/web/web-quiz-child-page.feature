@@ -1623,6 +1623,7 @@ Feature: Web child quiz page on the portal
     Then the quiz is played as the same child record, and no second record is made
     And on another phone, for another teacher's code, or when two such records match, a new record is made as today
     But with web_quiz_identity_canon off a new record is made with exactly today's fields
+  @T768
   Scenario: The "Keep your place on WhatsApp" card shows once per view on a chosen child's hub, never on a practice hub
     Given web_quiz_phone_bind is "on" under web_quiz_identity_canon and a hub link opened on the family's phone with one child chosen
     When the hub renders
@@ -1631,7 +1632,7 @@ Feature: Web child quiz page on the portal
     And "Not now" hides the card on this device for 7 days
     But with web_quiz_phone_bind "off" the hub page has no wq-bind script or style and the hub JSON has no bind key, byte-identical to before
 
-  @T766
+  @T769
   Scenario: The confirm sheet names the child, says what is kept and how to remove it, with nothing preselected
     Given the card is shown for Zara in Urdu at 360 px
     When "Keep my place" is tapped
@@ -1641,7 +1642,7 @@ Feature: Web child quiz page on the portal
     Then a JUGNU- code is minted for that child, kept for this session only, and "Send on WhatsApp" opens wa.me with the code last in the message
     And a teacher's device or a child already on 3 phones gets the page message instead, and no code is minted
 
-  @T767
+  @T770
   Scenario: Back from WhatsApp the page says Saved and offers Undo
     Given a code minted this session was sent from the family's phone
     When the page comes back into view
@@ -1650,7 +1651,7 @@ Feature: Web child quiz page on the portal
     Then that one binding is erased, the door forgets the phone, bind_undo is logged with via "page" and n 1, no WhatsApp message is sent, and the card stays hidden for 7 days
     And a pending code shows nothing, an expired code asks to tap Keep my place again
 
-  @T768
+  @T771
   Scenario: A deep link to a scored route on a phone with two children and no tap asks "Whose turn?" first
     Given web_quiz_identity_canon is "on" and a hub link naming two children opened on their phone
     When the challenge menu or an exercise is opened without a child chip
@@ -1658,7 +1659,7 @@ Feature: Web child quiz page on the portal
     And with one child the exercise is served as today
     But with the switch "off" the route answers "pick_kid" as today
 
-  @T769
+  @T772
   Scenario: Two chips with the same first name are told apart, or both picks are written low
     Given a list holds two children whose first names fold to the same name and a third with a unique name
     When the list is rendered on the teacher's link, the class link to a new device, or "Who is playing?"
@@ -1666,7 +1667,7 @@ Feature: Web child quiz page on the portal
     And both colliding rows carry homonym_in_list true; if their chips are still identical both picks are low, otherwise high
     And the unique child's pick is high with homonym_in_list false
 
-  @T770
+  @T773
   Scenario: Three remembered children on one phone: results for the tapped child only
     Given a hub link names three children and the phone is trusted for all three
     When "Who is playing?" is shown and one child is tapped
