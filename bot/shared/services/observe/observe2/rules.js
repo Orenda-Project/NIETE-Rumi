@@ -18,6 +18,8 @@
  *          older answers, and they add up as before.
  * - HEARD  (C1, C2, C4, C6, D1, D4, D5): from the moments Rumi found in the recording that the coach
  *          confirmed, plus Rumi's summary counts (e.g. closed questions) that decide no level alone.
+ *          Since form version 5, what the coach ticked under "What children's work showed" (R16) counts
+ *          toward D1 and D5 the way a confirmed moment does, and is named on D1, D5, F3 and F4.
  * - PICK   (F1-F4): no counting rule yet (Section F is unreviewed); the coach picks.
  *
  * A result is { level, because, source, hole?, check? } where level is 1-4, 'NA', 'IE', or null
@@ -50,6 +52,19 @@ const TEACHER_SAID = {
 // "When the work got hard": the four D4 levels, word for word (the form's titles are PLAIN.D4), and
 // "Nobody got stuck", which shows no level.
 const STUCK = { waited: 1, sure: 2, unsure: 3, kept: 4, easy: null };
+// "What children's work showed" (R16): recall or reasoning. A reasoning tick counts once toward the
+// rubric's count, as a confirmed moment does ("explaining why … applying a rule to a new case" for D1;
+// "a question about the content itself" for D5); their own example or link is D1's level-4 sign. Recall
+// raises nothing; it is named. F3 and F4 have no counting rule, so the ticks are only named there.
+const THINK_SAID = {
+  recall: 'repeated or copied it', why: 'explained why or how', new: 'solved a new problem',
+  ownq: 'asked a question about it', apply: 'gave their own example or link',
+};
+const THINK_ADDS = { why: ['reasoned'], new: ['reasoned'], ownq: ['childq_content'] };
+const THINK_LEVEL4 = { apply: 'D1' };
+const THINK_FOR = { D1: ['recall', 'why', 'new', 'apply'], D5: ['ownq'], F3: ['recall', 'why', 'new'], F4: ['apply'] };
+// The ticks that can set a level on a HEARD row when the recording failed.
+const THINK_COUNTS = { D1: ['why', 'new'], D5: ['ownq'] };
 
 const num = (v) => (v === '' || v == null || Number.isNaN(Number(v)) ? null : Number(v));
 const whole = (v) => { const n = num(v); return n != null && Number.isInteger(n) && n >= 0 ? n : null; };
@@ -170,13 +185,28 @@ function desk(a) {
   return out;
 }
 
+const thinkTicks = (a) => Object.keys(THINK_SAID).filter((k) => (Array.isArray(a.p2_think) ? a.p2_think : []).includes(k));
+
+// What the children's work showed, for the indicators it speaks to: { code: phrase }.
+function thinking(a) {
+  const ticks = thinkTicks(a);
+  const out = {};
+  for (const [code, kinds] of Object.entries(THINK_FOR)) {
+    const seen = ticks.filter((k) => kinds.includes(k));
+    if (seen.length) out[code] = `in Part 2, children ${seen.map((k) => THINK_SAID[k]).join('; ')}`;
+  }
+  return out;
+}
+
 /**
  * What the coach saw on the live form beyond a level, per indicator, for the record's evidence (the
  * teacher's portal shows it under each indicator): { code: phrase }. Each phrase reads after "Seen ".
  */
 function seenNotes(answers) {
   const out = {};
-  for (const [code, s] of Object.entries(desk(answers || {}))) out[code] = s.note;
+  const a = answers || {};
+  for (const [code, s] of Object.entries(desk(a))) out[code] = s.note;
+  for (const [code, note] of Object.entries(thinking(a))) out[code] = out[code] ? `${out[code]}; ${note}` : note;
   return out;
 }
 
@@ -205,11 +235,16 @@ const ADDS = {
 };
 const LEVEL4 = { probe: 'C1', strategy: 'C2', disagree: 'C6', beyond: 'D1', beyond_q: 'D5' };
 
-function tally(confirmed, heardCounts) {
+function tally(confirmed, heardCounts, think = []) {
   const c = {}, l4 = {};
   for (const it of confirmed || []) {
     for (const k of ADDS[it.type] || []) c[k] = (c[k] || 0) + 1;
     if (LEVEL4[it.type]) l4[LEVEL4[it.type]] = true;
+  }
+  // What the coach saw of the children's thinking in Part 2 (R16), counted the same way.
+  for (const k of think) {
+    for (const key of THINK_ADDS[k] || []) c[key] = (c[key] || 0) + 1;
+    if (THINK_LEVEL4[k]) l4[THINK_LEVEL4[k]] = true;
   }
   const counts = heardCounts || {};
   c.closed_q = count(counts.closed_q);
@@ -266,8 +301,8 @@ const HEARD_RULES = {
   },
 };
 
-function heardLevels(confirmed, heardCounts) {
-  const t = tally(confirmed, heardCounts);
+function heardLevels(confirmed, heardCounts, think = []) {
+  const t = tally(confirmed, heardCounts, think);
   const out = {};
   for (const code of HEARD_CODES) out[code] = { ...HEARD_RULES[code](t), source: 'heard' };
   return out;
@@ -279,14 +314,18 @@ function addUp({ form, confirmed, heardCounts } = {}) {
   const a = form || {};
   const out = {};
   const recordingFailed = a.incident === 'tech';
-  const heard = heardLevels(confirmed, heardCounts);
+  const think = thinkTicks(a);
+  // A failed recording leaves only what the coach saw: their thinking ticks still count where they can.
+  const heard = recordingFailed ? heardLevels([], {}, think) : heardLevels(confirmed, heardCounts, think);
   for (const code of HEARD_CODES) {
-    out[code] = recordingFailed
+    const seenCounts = (THINK_COUNTS[code] || []).some((k) => think.includes(k));
+    out[code] = recordingFailed && !seenCounts
       ? { level: 'IE', because: 'the recording failed, so nothing could be heard', source: 'heard' }
       : heard[code];
   }
   for (const [code, s] of Object.entries(desk(a))) out[code] = withSeen(out[code], s);
   for (const code of PICK_CODES) out[code] = { level: null, because: "no counting rule yet: pick from the recording's moments", source: 'pick' };
+  for (const [code, note] of Object.entries(thinking(a))) out[code] = { ...out[code], because: `${out[code].because}; you saw ${note}` };
   const seen = seenLevels(a);
   for (const code of SEEN_CODES) out[code] = seen[code] || { level: null, because: 'not answered in the form', source: 'seen' };
   if (a.incident === 'ridicule') out.C6 = { level: 1, because: 'you reported ridicule or humiliation, which forces 1', source: 'seen' };
@@ -331,6 +370,7 @@ function workAloneChecks(e, a) {
     if (!(a.p2_teacher || []).length) e.p2_teacher = 'Tick what the teacher did, or "Stayed at the front".';
     need(e, a, 'p2_stuck', 'Choose what the children did when the work got hard.');
   }
+  if (!thinkTicks(a).length) e.p2_think = 'Tick what you saw, or "Repeated or copied it".';
   switchCheck(e, a, 'p2');
 }
 
@@ -393,6 +433,6 @@ function validate(screen, answers, { version } = {}) {
 
 module.exports = {
   SEEN_CODES, HEARD_CODES, PICK_CODES,
-  PICKED, GROUPS, LISTEN, MATERIALS, SWITCH, TASK, TEACHER_SAID, STUCK, ADDS, LEVEL4,
+  PICKED, GROUPS, LISTEN, MATERIALS, SWITCH, TASK, TEACHER_SAID, STUCK, THINK_SAID, ADDS, LEVEL4,
   seenLevels, heardLevels, addUp, validate, seenNotes,
 };

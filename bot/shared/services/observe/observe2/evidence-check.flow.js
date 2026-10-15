@@ -28,7 +28,7 @@
  * Regenerate the committed copy after any change:  node bot/scripts/generate-observe2-flow-json.js
  */
 
-const { MOMENTS, PLAIN, EXTRA, ROW, FOCUS, FOCUS_ORDER, ALSO_NONE } = require('./fico17');
+const { MOMENTS, PLAIN, EXTRA, ROW, FOCUS, FOCUS_ORDER, ALSO_NONE, THINKING } = require('./fico17');
 
 const FLOW_VERSION = '7.3';
 // This check's own version, sent by the footers whose next screen's data changed (ADDED_TWO, PRIORITY:
@@ -129,12 +129,13 @@ function fidelityScreen() {
 function addedScreen({ id, title, codes }) {
   const data = {};
   const init = {};
-  const kids = [{ type: 'TextCaption', text: 'Each level is what your answers and the moments you confirmed add up to. Change any you disagree with.' }];
+  const kids = [{ type: 'TextCaption', text: 'Each level is what your answers and the moments you confirmed add up to. Change any you disagree with. Rows marked "Thinking" show whether children reasoned, or only recalled.' }];
   for (const code of codes) {
     data[`${code}_because`] = { type: 'string', __example__: 'Two open questions, each answered by one child.' };
     data[`${code}_level`] = { type: 'string', __example__: '3' };
     kids.push(
-      { type: 'TextSubheading', text: ROW[code] },
+      // The six indicators that score thinking are named as such (R16); the screens and fields are unchanged.
+      { type: 'TextSubheading', text: THINKING.codes.includes(code) ? `${THINKING.name}: ${ROW[code]}` : ROW[code] },
       { type: 'TextCaption', text: `\${data.${code}_because}` },
       {
         type: 'RadioButtonsGroup', name: `${code}_final`, label: 'Level', required: true,

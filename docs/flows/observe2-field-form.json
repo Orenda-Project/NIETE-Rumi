@@ -501,6 +501,40 @@
                 "else": []
               },
               {
+                "type": "CheckboxGroup",
+                "name": "p2_think",
+                "label": "What children's work showed",
+                "description": "Tick everything you saw in this part: repeating, or reasoning.",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "recall",
+                    "title": "Repeated or copied it",
+                    "description": "Gave back what was taught: copied, recited, or the same answer as the example."
+                  },
+                  {
+                    "id": "why",
+                    "title": "Explained why or how",
+                    "description": "A child said why an answer is right, or how they worked it out."
+                  },
+                  {
+                    "id": "new",
+                    "title": "Solved a new problem",
+                    "description": "Worked out a question unlike the examples shown in class."
+                  },
+                  {
+                    "id": "ownq",
+                    "title": "Asked a question about it",
+                    "description": "How, why or what if. Not \"which page?\" or \"in the copy?\""
+                  },
+                  {
+                    "id": "apply",
+                    "title": "Their own example or link",
+                    "description": "Gave their own example, or linked it to daily life or another subject."
+                  }
+                ]
+              },
+              {
                 "type": "RadioButtonsGroup",
                 "name": "p2_change",
                 "label": "Did the class switch activity?",
@@ -579,6 +613,7 @@
                     "p2_task": "${form.p2_task}",
                     "p2_teacher": "${form.p2_teacher}",
                     "p2_stuck": "${form.p2_stuck}",
+                    "p2_think": "${form.p2_think}",
                     "p2_change": "${form.p2_change}",
                     "p2_change_how": "${form.p2_change_how}",
                     "p2_notes": "${form.p2_notes}"

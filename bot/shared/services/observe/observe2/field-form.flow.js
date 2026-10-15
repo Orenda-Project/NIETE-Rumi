@@ -118,6 +118,15 @@ const STUCK = [
   opt('kept', PLAIN.D4[3], 'As well as that, a child carried on after a wrong answer, or started without being told.'),
   opt('easy', 'Nobody got stuck', 'The work was easy for everyone, so no one had to try while unsure.'),
 ];
+// "What children's work showed" (R16): recall, or the kinds of reasoning the rubric scores. The ids are
+// rules.js's THINK_SAID.
+const THINK = [
+  opt('recall', 'Repeated or copied it', 'Gave back what was taught: copied, recited, or the same answer as the example.'),
+  opt('why', 'Explained why or how', 'A child said why an answer is right, or how they worked it out.'),
+  opt('new', 'Solved a new problem', 'Worked out a question unlike the examples shown in class.'),
+  opt('ownq', 'Asked a question about it', 'How, why or what if. Not "which page?" or "in the copy?"'),
+  opt('apply', 'Their own example or link', 'Gave their own example, or linked it to daily life or another subject.'),
+];
 const INCIDENT = [
   opt('none', 'Nothing to report'),
   opt('sarcastic', 'Praise that sounded mocking', "Words like 'well done' said in a way that made fun of a child."),
@@ -210,6 +219,7 @@ function workAloneQuestions() {
       ],
       else: [],
     },
+    { type: 'CheckboxGroup', name: 'p2_think', label: "What children's work showed", description: 'Tick everything you saw in this part: repeating, or reasoning.', required: true, 'data-source': THINK },
     ...switchQuestions('p2', 'For example: from group practice to working alone, or from working alone to the wrap-up.'),
     notes('p2'),
     ERR_LINE,
@@ -218,7 +228,7 @@ function workAloneQuestions() {
 
 const FIELDS = {
   PART_ONE: ['present', 'p1_spoke', 'p1_picked', 'p1_groups', 'p1_listen', 'p1_listen_other', 'p1_materials', 'p1_change', 'p1_change_how', 'p1_notes'],
-  PART_TWO: ['p2_spoke', 'p2_new', 'p2_task', 'p2_teacher', 'p2_stuck', 'p2_change', 'p2_change_how', 'p2_notes'],
+  PART_TWO: ['p2_spoke', 'p2_new', 'p2_task', 'p2_teacher', 'p2_stuck', 'p2_think', 'p2_change', 'p2_change_how', 'p2_notes'],
   LESSON_PLAN: ['lp', 'lp_pick', 'lp_how'],
   LP_PHOTOS: [],
   LP_FILE: [],
