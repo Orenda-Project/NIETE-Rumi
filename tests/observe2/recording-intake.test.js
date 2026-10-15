@@ -144,6 +144,24 @@ describe('/observe (classic): the visit brief asks for the recording', () => {
   const { handleObserveVisitFlow } = require('../../bot/shared/handlers/flow-response.handler');
   const reply = { interactive: { nfm_reply: { response_json: JSON.stringify({ step: 'start', teacher_ext_id: 'tx1', school_ext_id: 'sx1', flow_token: 'coach-1' }) } } };
 
+  test('ur, teacher named in Latin script: every paragraph of the brief opens right to left', async () => {
+    // WhatsApp lays out each paragraph from its first strong character. "🎙️ *Rabia* کے سبق ..." opened
+    // on the Latin name, so the whole Urdu sentence was laid out left to right and read scrambled.
+    coachIn('ur');
+    await handleObserveVisitFlow(reply, '923000000001', 'coach-1');
+    const brief = WhatsAppService.sendMessage.mock.calls.map((c) => c[1]).find((t) => /🎙️/.test(t));
+    expect(brief).toContain('Rabia');
+    const firstStrong = (para) => {
+      for (const ch of para) {
+        if (ch === '‏') return 'rtl';
+        if (ch === '‎') return 'ltr';
+        if (/\p{L}/u.test(ch)) return /[֐-ࣿיִ-﷿ﹰ-﻿]/.test(ch) ? 'rtl' : 'ltr';
+      }
+      return null;
+    };
+    brief.split('\n').filter((p) => p.trim()).forEach((p) => expect(firstStrong(p)).toBe('rtl'));
+  });
+
   ['en', 'ur'].forEach((lang) => {
     test(`${lang}: a recording from the recorder app goes as a document`, async () => {
       coachIn(lang);
