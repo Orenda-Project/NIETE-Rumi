@@ -6896,6 +6896,21 @@ CREATE INDEX IF NOT EXISTS web_quiz_challenge_runs_record_idx
 CREATE INDEX IF NOT EXISTS web_quiz_challenge_runs_sweep_idx
   ON web_quiz_challenge_runs (status, created_at) WHERE status IN ('served', 'scoring');
 
+-- Two record rules (web_quiz_challenge_runs_sampling.sql; they read the columns above): a record row is a check row,
+-- and the child's first exposure of its passage or item set (the anchor block exempt). NULL record passes.
+DO $$
+DECLARE c record;
+BEGIN
+  FOR c IN SELECT * FROM (VALUES
+    ('wqcr_record_is_check_chk', 'record IS NOT TRUE OR mode IS NOT DISTINCT FROM ''check'''),
+    ('wqcr_record_first_exposure_chk', 'record IS NOT TRUE OR anchor_block IS NOT NULL OR exposure_no IS NULL OR exposure_no = 1')
+  ) AS t(name, expr) LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = c.name AND conrelid = 'web_quiz_challenge_runs'::regclass) THEN
+      EXECUTE format('ALTER TABLE web_quiz_challenge_runs ADD CONSTRAINT %I CHECK (%s)', c.name, c.expr);
+    END IF;
+  END LOOP;
+END $$;
+
 COMMENT ON COLUMN web_quiz_challenge_runs.mode IS
   'Internal. check | practice | class_round. Only check rows enter a trend; NULL on rows written before the provenance columns.';
 COMMENT ON COLUMN web_quiz_challenge_runs.record IS

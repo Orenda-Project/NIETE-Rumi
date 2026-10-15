@@ -53,6 +53,7 @@ d('the sampling columns on a real Postgres', () => {
     psql('create table public.students (id uuid primary key)');
     psql(`insert into students values ('${KID}')`);
     apply('web_quiz_challenge.sql');
+    apply('web_quiz_challenge_runs_v2.sql');                     // the record columns this file's two rules read
     psql(ins({ grade: 3, lang: 'en', score: '{"correct":8}', meta: '{"ms":900}', created_at: '2026-10-01T10:00:00Z' }));
   }, 60000);
   afterAll(() => {
@@ -68,7 +69,7 @@ d('the sampling columns on a real Postgres', () => {
     apply('web_quiz_challenge_runs_sampling.sql');
     expect(psql(`select row_to_json(t) from (select ${BASE_COLS} from web_quiz_challenge_runs) t`)).toBe(before);
     expect(psql('select count(*) from web_quiz_challenge_runs where num_nonnulls(sample_arm, admin_mode, anchor_serves_any) = 0')).toBe('1');
-    expect(psql("select count(*) from pg_constraint where conrelid = 'web_quiz_challenge_runs'::regclass and conname in ('wqcr_sample_arm_chk','wqcr_admin_mode_chk','wqcr_arm_needs_admin_chk','wqcr_serves_any_chk')")).toBe('4');
+    expect(psql("select count(*) from pg_constraint where conrelid = 'web_quiz_challenge_runs'::regclass and conname in ('wqcr_sample_arm_chk','wqcr_admin_mode_chk','wqcr_arm_needs_admin_chk','wqcr_serves_any_chk','wqcr_record_is_check_chk','wqcr_record_first_exposure_chk')")).toBe('6');
   });
 
   test('an old-shape insert still succeeds', () => {
@@ -90,10 +91,28 @@ d('the sampling columns on a real Postgres', () => {
     expect(fails(ins(cols))).toMatch(/check constraint/);
   });
 
+  // The two record rules as database CHECKs: no serve path, rebase or switch state can store a record row that lies.
+  test('a record row is a check row at its first exposure; the anchor is exempt; non-record rows are untouched', () => {
+    expect(fails(ins({ mode: 'check', record: 'true', exposure_no: '1' }))).toBeNull();
+    expect(fails(ins({ mode: 'check', record: 'true', exposure_no: '3', anchor_block: 'A1' }))).toBeNull();
+    expect(fails(ins({ mode: 'practice', record: 'false', exposure_no: '3' }))).toBeNull();
+    expect(fails(ins({ mode: 'check', record: 'false', exposure_no: '2' }))).toBeNull();
+  });
+
+  test.each([
+    ['a practice row marked record', { mode: 'practice', record: 'true', exposure_no: '1' }],
+    ['a class-round row marked record', { mode: 'class_round', record: 'true', exposure_no: '1' }],
+    ['a record row with no mode', { record: 'true', exposure_no: '1' }],
+    ['a record row at its third exposure of a passage', { mode: 'check', record: 'true', exposure_no: '3' }],
+  ])('refuses %s', (_, cols) => {
+    expect(fails(ins(cols))).toMatch(/wqcr_record_(is_check|first_exposure)_chk/);
+  });
+
   test('the rollback removes the columns and their checks', () => {
     psql('delete from web_quiz_challenge_runs where sample_arm is not null or admin_mode is not null or anchor_serves_any is not null');
     apply('web_quiz_challenge_runs_sampling_rollback.sql');
     expect(psql("select count(*) from information_schema.columns where table_name = 'web_quiz_challenge_runs' and column_name in ('sample_arm','admin_mode','anchor_serves_any')")).toBe('0');
-    expect(psql("select count(*) from pg_constraint where conname like 'wqcr_%'")).toBe('0');
+    expect(psql("select count(*) from pg_constraint where conname in ('wqcr_sample_arm_chk','wqcr_admin_mode_chk','wqcr_arm_needs_admin_chk','wqcr_serves_any_chk','wqcr_record_is_check_chk','wqcr_record_first_exposure_chk')")).toBe('0');
+    expect(psql("select count(*) from pg_constraint where conname = 'wqcr_status_v2_chk'")).toBe('1');   // the runs v2 file's rules stay
   });
 });

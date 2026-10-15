@@ -11,6 +11,12 @@
 --                      counting this one; a home "first time" line requires 1.
 --
 -- A run's sample and its administration are never inferred later. Apply to sandbox first; staging and prod only on a go.
+--
+-- Two record rules as CHECKs on the runs v2 columns (apply web_quiz_challenge_runs_v2.sql first). NULL record passes,
+-- so every row written before the v2 serve is untouched:
+--   wqcr_record_is_check_chk        a record row is a check row (never practice, a class round or a row with no mode)
+--   wqcr_record_first_exposure_chk  a record row is the child's first exposure of its passage or item set; the anchor
+--                                   block is exempt (its retest is counted apart)
 
 BEGIN;
 
@@ -26,7 +32,9 @@ BEGIN
     ('wqcr_sample_arm_chk',      'sample_arm IN (''class_round'',''class_week'',''coach'',''ping'')'),
     ('wqcr_admin_mode_chk',      'admin_mode IN (''self_run'',''teacher_present'',''coach_present'')'),
     ('wqcr_arm_needs_admin_chk', 'sample_arm IS NULL OR admin_mode IS NOT NULL'),
-    ('wqcr_serves_any_chk',      'anchor_serves_any >= 1')
+    ('wqcr_serves_any_chk',      'anchor_serves_any >= 1'),
+    ('wqcr_record_is_check_chk', 'record IS NOT TRUE OR mode IS NOT DISTINCT FROM ''check'''),
+    ('wqcr_record_first_exposure_chk', 'record IS NOT TRUE OR anchor_block IS NOT NULL OR exposure_no IS NULL OR exposure_no = 1')
   ) AS t(name, expr) LOOP
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = c.name AND conrelid = 'public.web_quiz_challenge_runs'::regclass) THEN
       EXECUTE format('ALTER TABLE public.web_quiz_challenge_runs ADD CONSTRAINT %I CHECK (%s)', c.name, c.expr);
