@@ -92,11 +92,8 @@ async function capPerPhone(now = Date.now()) {
 /** The phone's keyed hash: ukey (WEB_QUIZ_KID_KEY), else the tombstone HMAC (WQ_TOMB_SALT), else null. */
 function phoneHash(phone) {
   try {
-    const ukey = require('./web-quiz-bind.service').ukeyOf(phone);
-    if (ukey) return ukey;
-  } catch (_) { /* the tombstone */ }
-  try {
-    return require('./child-phone-bindings.repo').tombOf(phone) || null;
+    const Repo = require('./child-phone-bindings.repo');   // never the binder: the binder requires this ledger
+    return Repo.ukeyOf(phone) || Repo.tombOf(phone) || null;
   } catch (_) {
     return null;
   }

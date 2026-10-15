@@ -6974,4 +6974,112 @@ REVOKE ALL ON public.niete_lp_taken FROM anon, authenticated;
 GRANT SELECT ON public.niete_lp_taken TO service_role;
 
 
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Child identity store (mirror of bot/database/migrations/child_identity.sql)
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS child_identity (
+  canonical_id   uuid        NOT NULL,              -- the child (students.id after merged_into fold)
+  year_code      text        NOT NULL,              -- '2026-27'
+  fixed_grade    smallint    NOT NULL CHECK (fixed_grade BETWEEN 1 AND 5),
+  grade_source   text        NOT NULL CHECK (grade_source IN ('roster_class','share_code_class','tapped','teacher')),
+  fixed_at       timestamptz NOT NULL DEFAULT now(),
+  confirmed_at   timestamptz,                       -- §1.2 promotion
+  confirmed_by   text        CHECK (confirmed_by IN ('teacher','device_twice','class_round')),
+  PRIMARY KEY (canonical_id, year_code)
+);
+
+CREATE TABLE IF NOT EXISTS child_phone_bindings (
+  id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  canonical_id   uuid        NOT NULL,
+  phone_norm     text,                              -- NULL after undo / STOP / expiry (erased, never kept)
+  phone_tomb     text        NOT NULL,              -- hex(HMAC-SHA256(TOMB_SALT, phone_norm))[:32]
+  via            text        NOT NULL CHECK (via IN ('save','learned','guest','teacher')),
+  confirmed_at   timestamptz NOT NULL,              -- the family's / teacher's confirm
+  bound_at       timestamptz NOT NULL DEFAULT now(),
+  last_played_at timestamptz,
+  expires_at     timestamptz NOT NULL,              -- 31 March 18:59:59Z of the academic year; renewed by play
+  revoked_at     timestamptz,
+  revoked_by     text        CHECK (revoked_by IN ('page_undo','stop','expiry','teacher','teacher_claim')),
+  rebind_of      uuid        REFERENCES child_phone_bindings(id),
+  CHECK (phone_norm IS NULL OR revoked_at IS NULL)  -- a revoked row never keeps the phone
+);
+CREATE UNIQUE INDEX IF NOT EXISTS cpb_active_pair
+  ON child_phone_bindings (phone_norm, canonical_id) WHERE phone_norm IS NOT NULL;
+CREATE INDEX IF NOT EXISTS cpb_phone_active ON child_phone_bindings (phone_norm) WHERE phone_norm IS NOT NULL;
+CREATE INDEX IF NOT EXISTS cpb_expiry ON child_phone_bindings (expires_at) WHERE phone_norm IS NOT NULL;
+CREATE INDEX IF NOT EXISTS cpb_tomb ON child_phone_bindings (phone_tomb);
+
+CREATE TABLE IF NOT EXISTS child_bind_codes (
+  code           text        PRIMARY KEY,           -- 'JUGNU-' + 5 of [A-Z2-9], single use
+  canonical_id   uuid        NOT NULL,
+  device_ref     text,                              -- AUDIT ONLY: never read to identify or to trust
+  minted_at      timestamptz NOT NULL DEFAULT now(),
+  expires_at     timestamptz NOT NULL,              -- minted_at + 1 h, enforced by the binder
+  used_at        timestamptz,
+  outcome        text        CHECK (outcome IN ('bound','max_kids','max_phones','teacher_phone','code_expired','code_used','child_unknown')),
+  CHECK (expires_at <= minted_at + interval '1 hour')
+);
+
+CREATE TABLE IF NOT EXISTS merge_log (             -- §12, the teacher queue's audit
+  id             bigserial   PRIMARY KEY,
+  loose_id       uuid        NOT NULL,
+  candidate_id   uuid        NOT NULL,
+  teacher_id     uuid        NOT NULL,
+  decided_at     timestamptz NOT NULL DEFAULT now(),
+  decision       text        NOT NULL CHECK (decision IN ('same','no','undo')),
+  source         text        NOT NULL CHECK (source IN ('queue','class_tab'))
+);
+
+-- Row Level Security on every table above: the bot writes with the service
+-- role (which bypasses RLS); nothing else may read child <-> phone pairs.
+-- Idempotent, like everything else in this file.
+ALTER TABLE child_identity       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE child_phone_bindings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE child_bind_codes     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE merge_log            ENABLE ROW LEVEL SECURITY;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Web quiz send ledger (mirror of bot/database/migrations/web_quiz_message_ledger.sql)
+-- ─────────────────────────────────────────────────────────────────────────────
+create table if not exists public.message_ledger (
+  day        date          not null,                 -- Pakistan day (UTC+5)
+  trigger    text          not null check (trigger in ('home_reply','bind_reply','guest_reply','class_link',
+                                                       'class_round','teacher_queue','teacher_refusal')),
+  class_id   uuid,
+  initiated  text          not null check (initiated in ('user','bot')),
+  recipient  text          not null check (recipient in ('family','teacher')),
+  count      integer       not null default 0 check (count >= 0),
+  usd        numeric(10,4) not null default 0,
+  updated_at timestamptz   not null default now(),
+  constraint message_ledger_no_bot_to_family check (not (initiated = 'bot' and recipient = 'family'))
+);
+
+create unique index if not exists message_ledger_key
+  on public.message_ledger (day, trigger, coalesce(class_id, '00000000-0000-0000-0000-000000000000'::uuid), initiated, recipient);
+
+alter table public.message_ledger enable row level security;
+
+create or replace function public.message_ledger_add(
+  p_day date, p_trigger text, p_class_id uuid, p_initiated text, p_recipient text, p_n integer, p_usd_each numeric default 0.015
+) returns integer
+language sql
+security definer
+set search_path = public
+as $$
+  insert into public.message_ledger (day, trigger, class_id, initiated, recipient, count, usd)
+  values (p_day, p_trigger, p_class_id, p_initiated, p_recipient, p_n, round(p_usd_each * p_n, 4))
+  on conflict (day, trigger, coalesce(class_id, '00000000-0000-0000-0000-000000000000'::uuid), initiated, recipient)
+  do update set count = message_ledger.count + excluded.count,
+                usd = message_ledger.usd + excluded.usd,
+                updated_at = now()
+  returning count
+$$;
+
+revoke all on function public.message_ledger_add(date, text, uuid, text, text, integer, numeric) from public, anon, authenticated;
+grant execute on function public.message_ledger_add(date, text, uuid, text, text, integer, numeric) to service_role;
+
+comment on table public.message_ledger is
+  'web quiz sends per Pakistan day, trigger, class, initiator and recipient (counts and US$ only); written by the bot (service role)';
+
 NOTIFY pgrst, 'reload schema';

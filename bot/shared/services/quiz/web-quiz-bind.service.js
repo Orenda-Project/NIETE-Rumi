@@ -36,12 +36,8 @@ function isStop(body) {
 }
 
 /** hex(HMAC-SHA256(WEB_QUIZ_KID_KEY, 'ukey|'+phone_norm))[0:16]; null without the key or a phone. */
-function ukeyOf(phoneNorm) {
-  const key = process.env.WEB_QUIZ_KID_KEY;
-  const phone = StudentIdentity.normalisePhone(phoneNorm);
-  if (!key || !phone) return null;
-  return crypto.createHmac('sha256', key).update(`ukey|${phone}`).digest('hex').slice(0, 16);
-}
+/** The unknown phone's event key (the repo computes it, so the ledger can key its cap without requiring this module). */
+const ukeyOf = (phoneNorm) => BindRepo.ukeyOf(phoneNorm);
 
 async function on() {
   try { return Boolean((await IdFlags.flags()).phoneBind); } catch (_) { return false; }
@@ -86,7 +82,7 @@ async function priorOnPhone(norm, childId) {
   const tomb = BindRepo.tombOf(norm);
   if (!tomb) return null;
   try {
-    const { data, error } = await supabase.from(BindRepo.TABLE).select('id, canonical_id, revoked_at, revoked_by')
+    const { data, error } = await supabase.from('child_phone_bindings').select('id, canonical_id, revoked_at, revoked_by')
       .eq('phone_tomb', tomb).eq('canonical_id', String(childId)).not('revoked_at', 'is', null)
       .order('revoked_at', { ascending: false }).limit(1);
     if (!error && data && data[0]) return data[0];
@@ -246,7 +242,7 @@ async function handleStop({ phone, user = null, persona = null, now = new Date()
 /** Does this phone hold any binding row (kept on the phone, or erased with its tombstone)? */
 async function hasAnyBinding(norm) {
   try {
-    const { data, error } = await supabase.from(BindRepo.TABLE).select('id').eq('phone_norm', norm).is('revoked_at', null).limit(1);
+    const { data, error } = await supabase.from('child_phone_bindings').select('id').eq('phone_norm', norm).is('revoked_at', null).limit(1);
     if (!error && data && data.length) return true;
   } catch (_) { /* towards "none" */ }
   return Boolean(await BindRepo.findByTomb(BindRepo.tombOf(norm)));
