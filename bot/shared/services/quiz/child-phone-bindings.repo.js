@@ -20,7 +20,7 @@ const { normalisePhone } = require('./student-identity.service');
 const IdFlags = require('./web-quiz-identity-flags');
 
 const TABLE = 'child_phone_bindings';
-const COLS = 'id, canonical_id, phone_norm, phone_tomb, via, confirmed_at, bound_at, last_played_at, expires_at, revoked_at, revoked_by, rebind_of';
+const COLS = 'id, canonical_id, phone_norm, phone_tomb, via, confirmed_at, bound_at, last_played_at, expires_at, revoked_at, revoked_by, rebind_of, code_id';
 const VIA = Object.freeze(['save', 'learned', 'guest', 'teacher']);
 const REVOKED_BY = Object.freeze(['page_undo', 'stop', 'expiry', 'teacher', 'teacher_claim']);
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -115,7 +115,7 @@ async function findByTomb(tomb) {
 // ─── writes ────────────────────────────────────────────────────────────────
 
 /** A new binding → the row, or null (bad input, no salt, a failed write). */
-async function insert({ canonicalId, phoneNorm, via, confirmedAt = new Date(), expiresAt, rebindOf = null } = {}) {
+async function insert({ canonicalId, phoneNorm, via, confirmedAt = new Date(), expiresAt, rebindOf = null, codeId = null } = {}) {
   const phone = normalisePhone(phoneNorm);
   if (!canonicalId || !phone || !VIA.includes(via) || !expiresAt) return null;
   const tomb = tombOf(phone);
@@ -126,7 +126,7 @@ async function insert({ canonicalId, phoneNorm, via, confirmedAt = new Date(), e
   try {
     const { data, error } = await supabase.from(TABLE).insert({
       canonical_id: String(canonicalId), phone_norm: phone, phone_tomb: tomb, via,
-      confirmed_at: iso(confirmedAt), expires_at: iso(expiresAt), rebind_of: rebindOf || null,
+      confirmed_at: iso(confirmedAt), expires_at: iso(expiresAt), rebind_of: rebindOf || null, code_id: codeId || null,
     }).select(COLS).single();
     if (error || !data) throw new Error((error && error.message) || 'no row');
     return data;
@@ -137,9 +137,9 @@ async function insert({ canonicalId, phoneNorm, via, confirmedAt = new Date(), e
 }
 
 /** A play renews an active binding → the row, or null. */
-async function renew(id, expiresAt, lastPlayedAt = new Date()) {
+async function renew(id, expiresAt, lastPlayedAt = new Date(), codeId = null) {
   if (!id || !expiresAt) return null;
-  const done = await rows('renew', () => supabase.from(TABLE).update({ expires_at: iso(expiresAt), last_played_at: iso(lastPlayedAt) })
+  const done = await rows('renew', () => supabase.from(TABLE).update({ expires_at: iso(expiresAt), last_played_at: iso(lastPlayedAt), ...(codeId ? { code_id: codeId } : {}) })
     .eq('id', String(id)).is('revoked_at', null).select(COLS));
   return done[0] || null;
 }

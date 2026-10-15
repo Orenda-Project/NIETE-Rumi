@@ -164,6 +164,25 @@ describe('undo', () => {
     expect(logEvent).toHaveBeenCalledWith('web_quiz.bind_undo', { w: 's', via: 'page', n: 1 });
     expect(JSON.stringify(logEvent.mock.calls)).not.toContain('FIXTURE');
   });
+  test('Undo finds the binding by its code_id first: two phones with the SAME stamped instant, only the row naming this code is erased', async () => {
+    Codes.get.mockResolvedValue({ code: 'JUGNU-7KQ2X', canonical_id: KID, minted_at: '2026-10-15T10:00:00Z', used_at: '2026-10-15T10:05:00Z', outcome: 'bound' });
+    Bindings.activeForChild.mockResolvedValue([
+      { id: 'b-aunt', canonical_id: KID, bound_at: '2026-10-15T10:05:00Z', confirmed_at: '2026-10-15T10:05:00Z', last_played_at: null, code_id: 'JUGNU-ZZZZZ' },
+      { id: 'b-mine', canonical_id: KID, bound_at: '2026-10-15T10:05:00Z', confirmed_at: '2026-10-15T10:05:00Z', last_played_at: null, code_id: 'JUGNU-7KQ2X' },
+    ]);
+    Bindings.eraseOne.mockResolvedValue([{ id: 'b-mine', canonical_id: KID, phone_norm: '+92300FIXTURE1' }]);
+    expect(await Bind.undo({ code: 'JUGNU-7KQ2X', device: DEV })).toEqual({ ok: true });
+    expect(Bindings.eraseOne).toHaveBeenCalledWith('b-mine', 'page_undo');
+  });
+  test('a row written before code_id existed (null) is still found by the stamped instant', async () => {
+    Codes.get.mockResolvedValue({ code: 'JUGNU-7KQ2X', canonical_id: KID, minted_at: '2026-10-15T10:00:00Z', used_at: '2026-10-15T10:05:00Z', outcome: 'bound' });
+    Bindings.activeForChild.mockResolvedValue([
+      { id: 'b-legacy', canonical_id: KID, bound_at: '2026-10-15T10:05:00Z', confirmed_at: '2026-10-15T10:05:00Z', last_played_at: null, code_id: null },
+    ]);
+    Bindings.eraseOne.mockResolvedValue([{ id: 'b-legacy', canonical_id: KID, phone_norm: '+92300FIXTURE1' }]);
+    expect(await Bind.undo({ code: 'JUGNU-7KQ2X', device: DEV })).toEqual({ ok: true });
+    expect(Bindings.eraseOne).toHaveBeenCalledWith('b-legacy', 'page_undo');
+  });
   test('two phones on one child: Undo with phone A\'s code erases ONLY the binding that code made (confirmed at the code\'s used_at), never the aunt\'s newer one', async () => {
     Codes.get.mockResolvedValue({ code: 'JUGNU-7KQ2X', canonical_id: KID, minted_at: '2026-10-15T10:00:00Z', used_at: '2026-10-15T10:05:00Z', outcome: 'bound' });
     Bindings.activeForChild.mockResolvedValue([
@@ -227,7 +246,7 @@ describe('the pick record of a quiz start', () => {
   test('canon on: stored for 24 h under wq:idpick:<session>, id_pick emitted w:s with no session id', async () => {
     await Bind.recordPick({ sessionId: 'sess-1', via: 'name', studentId: KID });
     const set = redis.set.mock.calls.find((c) => c[0] === 'wq:idpick:sess-1');
-    expect(set[1]).toEqual({ id_src: 'roster_pick', id_confidence: 'low', homonym_in_list: true, canonical_id: KID });
+    expect(set[1]).toEqual({ id_src: 'roster_pick', id_confidence: 'low', homonym_in_list: true, canonical_id: KID, at: expect.any(Number) });
     expect(set[2]).toBe(86400);
     expect(await Bind.pickFor('sess-1')).toEqual(set[1]);
     const ev = logEvent.mock.calls.find((c) => c[0] === 'web_quiz.id_pick');
@@ -236,7 +255,7 @@ describe('the pick record of a quiz start', () => {
   });
   test('a hub chip is high, no homonym read', async () => {
     await Bind.recordPick({ sessionId: 'sess-2', via: 'hub', studentId: KID });
-    expect(await Bind.pickFor('sess-2')).toEqual({ id_src: 'hub_chip', id_confidence: 'high', homonym_in_list: false, canonical_id: KID });
+    expect(await Bind.pickFor('sess-2')).toEqual({ id_src: 'hub_chip', id_confidence: 'high', homonym_in_list: false, canonical_id: KID, at: expect.any(Number) });
   });
   test('canon off: nothing stored, nothing emitted', async () => {
     IdFlags.flags.mockResolvedValue(OFF);
@@ -267,7 +286,7 @@ describe('the pick record of a play opened from the hub (a chip tap, no quiz ses
     await Hub.hub(tok, { device: DEV, kid: chip(KID), src: 'wa' });
     const key = `wq:idpick:h:${KID}:${devH}`;
     const set = redis.set.mock.calls.find((c) => c[0] === key);
-    expect(set[1]).toEqual({ id_src: 'hub_chip', id_confidence: 'high', homonym_in_list: true, canonical_id: KID });
+    expect(set[1]).toEqual({ id_src: 'hub_chip', id_confidence: 'high', homonym_in_list: true, canonical_id: KID, at: expect.any(Number) });
     expect(set[2]).toBe(86400);
     expect(logEvent.mock.calls.filter((c) => c[0] === 'web_quiz.id_pick').map((c) => c[1])).toEqual([{ w: 's', id_src: 'hub_chip', id_confidence: 'high', homonym_in_list: true, chips_k: 2 }]);
     expect(await Bind.pickFor({ canonicalId: KID, device: DEV })).toEqual(set[1]);
@@ -284,6 +303,13 @@ describe('the pick record of a play opened from the hub (a chip tap, no quiz ses
     expect(await Bind.pickFor({ sessionId: 'sess-9', canonicalId: KID, device: DEV })).toMatchObject({ id_src: 'hub_chip', canonical_id: KID });
     expect(await Bind.pickFor('sess-9')).toMatchObject({ id_src: 'hub_chip' });
     expect(await Bind.pickFor({})).toBeNull();
+  });
+  test('every pick record carries the instant it was made (at, ms), for a per-visit guard', async () => {
+    const before = Date.now();
+    await Bind.recordPick({ sessionId: 'sess-at', via: 'name', studentId: KID });
+    const rec = await Bind.pickFor('sess-at');
+    expect(typeof rec.at).toBe('number');
+    expect(rec.at).toBeGreaterThanOrEqual(before);
   });
   test('hubPickKey is the one builder of the key the hub pick writes; recordPick is exported', async () => {
     await Hub.hub(hubOf([KID]), { device: DEV, kid: chip(KID), src: 'wa' });

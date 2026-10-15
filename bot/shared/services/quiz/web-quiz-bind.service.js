@@ -178,12 +178,12 @@ async function handleCode({ phone, body, user = null, mode = 'unknown', now = ne
     let rebind = false;
     let rebindPrior = null;
     if (mine) {
-      binding = await BindRepo.renew(mine.id, BindRepo.expiresAtFor(now), now);
+      binding = await BindRepo.renew(mine.id, BindRepo.expiresAtFor(now), now, code);
       renewed = Boolean(binding);
     } else {
       const prior = await priorOnPhone(norm, child.id);
       binding = await BindRepo.insert({
-        canonicalId: child.id, phoneNorm: norm, via: 'save', confirmedAt: now,
+        canonicalId: child.id, phoneNorm: norm, via: 'save', confirmedAt: now, codeId: code,
         expiresAt: BindRepo.expiresAtFor(now), rebindOf: prior ? prior.id : null,
       });
       if (binding && prior) { rebind = true; rebindPrior = prior.revoked_by || null; }
