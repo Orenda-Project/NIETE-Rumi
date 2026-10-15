@@ -13,7 +13,8 @@
  * coach's language. Urdu addresses the coach with imperatives only.
  */
 
-const { CODES, MOMENTS, PLAIN, ROW, PRIORITY, FOCUS, PLAN_FOCUS, pickAlso } = require('./fico17');
+const { CODES, MOMENTS, PLAIN, ROW, PRIORITY, FOCUS, PLAN_FOCUS, THINKING, pickAlso } = require('./fico17');
+const { THINK_SAID } = require('./rules');
 const { clampLanguage } = require('../../../config/ux-strings');
 
 // Which indicator a moment type speaks to, so the moment offered is about the thing to work on.
@@ -52,6 +53,10 @@ const FRAME = {
     plan_notfollowed: 'the teacher had a plan and did not follow it',
     plan_unchecked: "the plan's steps could not be checked this time",
     plan_done: (done, total) => `${done} of ${total} planned steps done`,
+    thinking: "Children's thinking:",
+    think_seen: (x) => `• You saw: ${x}`,
+    think_teacher: (x) => `• The teacher: ${x}`,
+    think_children: (x) => `• The children: ${x}`,
     saved: 'Your full record, all 17 levels, is saved.',
   },
   ur: {
@@ -76,6 +81,10 @@ const FRAME = {
     plan_notfollowed: 'منصوبہ موجود تھا، مگر اس پر عمل نہیں ہوا',
     plan_unchecked: 'اس بار منصوبے کے مراحل نہیں جانچے جا سکے',
     plan_done: (done, total) => `${total} میں سے ${done} مراحل مکمل`,
+    thinking: 'بچوں کی سوچ:',
+    think_seen: (x) => `• جو دیکھا: ${x}`,
+    think_teacher: (x) => `• استاد: ${x}`,
+    think_children: (x) => `• بچے: ${x}`,
     saved: 'آپ کا پورا ریکارڈ، تمام 17 درجے، محفوظ ہے۔',
   },
 };
@@ -110,6 +119,23 @@ function planFocusLines(form, F) {
   }
   const lp = (form.answers || {}).lp;
   return [F.now(lp === 'none' ? F.plan_none : lp === 'notfollowed' ? F.plan_notfollowed : F.plan_unchecked)];
+}
+
+// Children's thinking (R16): what the coach saw of it in Part 2, then the levels of the six indicators
+// that score it, the teacher's practice and the children's responses. Nothing when there is neither.
+function thinkingLines(form, F) {
+  const finals = form.final_levels || {};
+  const ticks = Object.keys(THINK_SAID).filter((k) => ((form.answers || {}).p2_think || []).includes(k));
+  const phrases = (codes) => codes.filter((c) => numeric(finals[c])).map((c) => PLAIN[c][numeric(finals[c]) - 1].toLowerCase()).join(' · ');
+  const teacher = phrases(THINKING.teacher);
+  const children = phrases(THINKING.children);
+  if (!ticks.length && !teacher && !children) return [];
+  return [
+    F.thinking,
+    ...(ticks.length ? [F.think_seen(ticks.map((k) => THINK_SAID[k]).join('; '))] : []),
+    ...(teacher ? [F.think_teacher(teacher)] : []),
+    ...(children ? [F.think_children(children)] : []),
+  ];
 }
 
 // What was seen for one of the "also work on" picks, in a few words.
@@ -159,6 +185,9 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
       lines.push('', F.plan_not_checked[graded.status] || F.plan_not_checked.other);
     }
   }
+
+  const think = thinkingLines(form, F);
+  if (think.length) lines.push('', ...think);
 
   if (priority === PLAN_FOCUS) {
     lines.push('', F.work_on(FOCUS[PLAN_FOCUS]), ...planFocusLines(form, F));
