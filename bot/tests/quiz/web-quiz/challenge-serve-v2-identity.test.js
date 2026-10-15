@@ -72,7 +72,8 @@ const reset = (settings) => {
   for (const m of [ID_FLAGS, '../../../shared/services/quiz/web-quiz-hub-flags']) if (has(m)) { const x = require(m); if (x._resetCache) x._resetCache(); }
   jest.clearAllMocks();
 };
-beforeAll(() => { process.env.INTERNAL_API_KEY = 'test-internal-key'; process.env.CHILD_TEST_R2_ENV = 'sandbox'; });
+// WQ_TOMB_SALT is web_quiz_phone_bind's hard parent (web-quiz-identity-flags): a test-only value, so the switch can be on
+beforeAll(() => { process.env.INTERNAL_API_KEY = 'test-internal-key'; process.env.CHILD_TEST_R2_ENV = 'sandbox'; process.env.WQ_TOMB_SALT = 'test-only-salt'; });
 const D = { device: 'FamilyPhoneDeviceRef_1', lang: 'en' };
 const hub = () => T.sign({ k: 'h', ids: [K3], exp: Math.floor(Date.now() / 1000) + 3600 });
 const answers = (items) => items.map((it, i) => ({ i, value: String(it.answer), ms: 3000, first_key_ms: 1200, keys: 1 }));
