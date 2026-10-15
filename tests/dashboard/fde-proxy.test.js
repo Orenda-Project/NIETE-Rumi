@@ -121,3 +121,17 @@ describe('options pass the pattern keys through untouched', () => {
     expect(payload.patterns).toEqual(patterns);
   });
 });
+
+describe('the edit proxy passes a board-pattern refusal through', () => {
+  test('adding a question to a pattern paper: 400 EDIT_REJECTED / PATTERN_NO_ADD reaches the app as sent', async () => {
+    const refusal = { success: false, code: 'EDIT_REJECTED', errorCode: 'PATTERN_NO_ADD', error: 'Board-pattern papers keep their shape.' };
+    axios.post.mockResolvedValueOnce({ status: 400, data: refusal });
+    const { statusCode, payload } = await invoke('post', '/assessment/edit/:paper_id/save', {
+      params: { paper_id: 'p-1' }, body: { changes: { add: [{ kind: 'mcq' }] } },
+    });
+    expect(axios.post.mock.calls[0][0]).toBe(`${BOT}/api/internal/assessment/edit/save`);
+    expect(axios.post.mock.calls[0][1].userId).toBe('teacher-1');
+    expect(statusCode).toBe(400);
+    expect(payload).toEqual(refusal);
+  });
+});
