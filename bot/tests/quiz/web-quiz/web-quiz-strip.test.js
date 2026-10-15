@@ -158,13 +158,40 @@ test('sends by trigger, bot-to-family and the door-mix numerator come from messa
   expect(line('door_mix_numerator')).toMatchObject({ value: 4 });
 });
 
-test('anchor retest gap: (returners − first-timers) ÷ pooled SD, same cell and month; check rows only', async () => {
-  const anc = (k, ok) => v2({ anchor_block: 'A1', anchor_exposure_no: k, score: { correct: ok } });
-  install([anc(1, 10), anc(1, 12), anc(2, 14), anc(2, 16), ...practiceRows()]);
+test('anchor retest gap: (returners − first-timers) ÷ pooled SD over the MONTH to date, on the statement\'s gate only', async () => {
+  const anc = (k, ok, extra = {}) => v2({ exercise: 'missing', anchor_block: 'A1', anchor_exposure_no: k, score: { correct: ok, n: 10, reached: 10 }, ...extra });
+  install([
+    anc(1, 10), anc(1, 12),
+    anc(2, 14, { created_at: '2026-10-02T08:00:00Z' }),       // earlier this month, before the week: counts (month to date)
+    anc(3, 16),
+    // outside the gate: helped, low confidence, an unfinished block, practice, not scored, after the week, another month
+    anc(1, 0, { helped: 'helped' }),
+    anc(1, 0, { id_confidence: 'low' }),
+    anc(1, 0, { score: { correct: 3, n: 3, reached: 3 } }),
+    anc(2, 30, { mode: 'practice' }),
+    anc(2, 30, { status: 'failed' }),
+    anc(2, 30, { created_at: '2026-10-20T08:00:00Z' }),
+    anc(2, 30, { period_id: '2026-09', created_at: '2026-09-30T08:00:00Z' }),
+  ]);
   await Strip.weeklyStrip({ week: WEEK, now: NOW });
-  // means 11 vs 15, each sd √2 → pooled √2 → gap 4/√2
-  expect(line('anchor_retest_gap', 'G23|ur|read|A1').value).toBeCloseTo(4 / Math.SQRT2, 6);
-  expect(line('anchor_retest_gap', 'G23|ur|read|A1').n).toBe(4);
+  // means 11 vs 15, each sd √2 → pooled √2 → gap 4/√2; the cell is band × language × ladder × block
+  const l = line('anchor_retest_gap', 'G23|ur|numbers|A1');
+  expect(l.value).toBeCloseTo(4 / Math.SQRT2, 6);
+  expect(l.n).toBe(4);
+});
+
+test('the anchor month is the week\'s Monday\'s (a week that starts in one month and ends in the next reads the first)', async () => {
+  const anc = (k, ok, at, period) => v2({ exercise: 'missing', anchor_block: 'A1', anchor_exposure_no: k, period_id: period, created_at: at, score: { correct: ok, n: 10, reached: 10 } });
+  // 2026-W44: Mon 26 Oct – Sun 1 Nov (PKT)
+  install([
+    anc(1, 10, '2026-10-27T08:00:00Z', '2026-10'), anc(1, 12, '2026-10-27T08:00:00Z', '2026-10'),
+    anc(2, 14, '2026-10-28T08:00:00Z', '2026-10'), anc(2, 16, '2026-10-28T08:00:00Z', '2026-10'),
+    anc(1, 1, '2026-11-01T08:00:00Z', '2026-11'), anc(1, 2, '2026-11-01T08:00:00Z', '2026-11'),
+    anc(2, 9, '2026-11-01T08:00:00Z', '2026-11'), anc(2, 9, '2026-11-01T08:00:00Z', '2026-11'),
+  ]);
+  await Strip.weeklyStrip({ week: '2026-W44', now: NOW });
+  expect(line('anchor_retest_gap', 'G23|ur|numbers|A1')).toMatchObject({ n: 4 });
+  expect(line('anchor_retest_gap', 'G23|ur|numbers|A1').value).toBeCloseTo(4 / Math.SQRT2, 6);
 });
 
 test('writing the same week twice is idempotent (one row per week × line × cell, same values)', async () => {
