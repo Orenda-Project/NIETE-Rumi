@@ -2822,11 +2822,18 @@ router.get('/lesson-plans/recent', requirePortalAuth, async (req, res) => {
 // and it is a school-leader gate that 403s teachers. Reading the wrong one is
 // silent: it passes undefined, and the bot answers "userId is required".
 const Assessment = require('../services/assessment.service');
+const AssessmentRateLimit = require('../lib/assessment-rate-limit');
 
-/** A 400 from the bot carries a message she can act on; anything else is ours. */
+/**
+ * A 400 (or a coded 409) from the bot carries a message she can act on; anything else is ours.
+ * `errorCode` / `requestId` ride along only when the bot sent them, so an uncoded 400 answers as before.
+ */
 function assessmentFailure(res, error, fallback) {
   if (error && error.userFacing) {
-    return res.status(400).json({ success: false, error: error.message });
+    const body = { success: false, error: error.message };
+    if (error.errorCode) body.errorCode = error.errorCode;
+    if (error.requestId) body.requestId = error.requestId;
+    return res.status(error.status === 409 ? 409 : 400).json(body);
   }
   console.error('❌ Portal assessment failed', { error: error?.message });
   return res.status(502).json({ success: false, error: fallback });
@@ -2882,6 +2889,9 @@ router.get('/assessment/chapters', requirePortalAuth, async (req, res) => {
 router.post('/assessment/generate', requirePortalAuth, async (req, res) => {
   try {
     const body = req.body || {};
+    // The soft per-teacher limit; off unless assessment_rate_limit_enabled is on.
+    const limited = await AssessmentRateLimit.guard({ supabase, dbQuery, userId: req.session.portalUserId });
+    if (limited) return res.status(429).json(limited);
     const { requestId } = await Assessment.create({
       // Never from the body. The session is the only thing that says who she is.
       userId: req.session.portalUserId,
@@ -2900,6 +2910,10 @@ router.post('/assessment/generate', requirePortalAuth, async (req, res) => {
       includeAnswerKey: body.includeAnswerKey,
       answerLines: body.answerLines,
       outputFormat: body.outputFormat,
+      // The board pattern (FDE). undefined, not null, when absent: JSON drops the keys, so a plain
+      // request reaches the bot byte-identical to before.
+      pattern: body.pattern ?? undefined,
+      scope: body.scope ?? undefined,
     });
     res.status(202).json({ success: true, requestId });
   } catch (error) {
