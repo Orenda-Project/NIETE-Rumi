@@ -7,6 +7,10 @@
  * Urdu addresses the coach with imperatives and impersonal forms only: coaches are women and men,
  * so no "آپ ... رہی/رہے ہیں" (tests/observe2/start.test.js checks it).
  * Button titles stay within WhatsApp's 20 code points.
+ *
+ * Sending the recording: as a DOCUMENT (📎 → Document), never "Share → WhatsApp". Shared that way a
+ * recorder-app file goes as an audio attachment, which WhatsApp refuses over 16 MB on the phone, and a
+ * full lesson from a recorder app is bigger than that. A document can be up to 100 MB.
  */
 
 const { clampLanguage } = require('../../../config/ux-strings');
@@ -30,7 +34,7 @@ const STRINGS = {
         'Before the lesson starts:',
         '1️⃣ Open your phone\'s *voice recorder app* (not WhatsApp) and start recording. Leave it running for the whole lesson.',
         `2️⃣ Tap *Open the form* and fill it in as you watch. Save Part 1 at minute ${half}, then carry on with Part 2 until minute ${minutes}.`,
-        '3️⃣ When the lesson ends: stop the recorder, tap *Seal and send* in the form, then send the recording here in this chat.',
+        '3️⃣ When the lesson ends: stop the recorder, tap *Seal and send* in the form, then send the recording here as a *Document* (📎 → *Document*), not as audio.',
       ].join('\n');
     },
     form_cta: 'Open the form',
@@ -42,7 +46,10 @@ const STRINGS = {
       '',
       'Now the recording:',
       '1️⃣ Stop the recorder.',
-      '2️⃣ In the recorder app, tap *Share* → *WhatsApp* → this chat, and send it.',
+      '2️⃣ Send it here as a *Document*: tap 📎 → *Document*, find the recording (often in a *Recordings* or *Voice Recorder* folder) and tap *Send*.',
+      'On iPhone: first save it to Files (in Voice Memos, *Share* → *Save to Files*), then here tap ➕ → *Document*.',
+      '',
+      'Not as audio: WhatsApp refuses audio over 16 MB, and a lesson recording is bigger. A document can be up to 100 MB.',
       '',
       'I\'ll listen to it and send you the moments I found, to check against what you saw.',
     ].join('\n'),
@@ -52,9 +59,9 @@ const STRINGS = {
       : '🎧 Recording received, thank you. Your form isn\'t sealed yet: open it and tap *Seal and send*. The moments I find open only after the seal.'),
     check_body: (n) => `🎧 I've listened to the recording and found ${n} moment${n === 1 ? '' : 's'}. Check each one against what you saw. Your sealed answers are already in, and they don't change.`,
     check_cta: 'Check the moments',
-    moments_untimed: 'The recording came through without timings, so I can\'t point to moments in it. Your sealed record is safe. Please send the recording again as a file from the recorder app.',
+    moments_untimed: 'The recording came through without timings, so I can\'t point to moments in it. Your sealed record is safe. Please send the recording again from the recorder app, as a *Document* (📎 → *Document*).',
     moments_failed: 'I couldn\'t read the moments in this recording just now. Your sealed record is safe, and the team has been told.',
-    duplicate_form_waiting: 'Your form for this visit is still waiting for its recording: send the recording of this lesson here.',
+    duplicate_form_waiting: 'Your form for this visit is still waiting for its recording: send the recording of this lesson here as a *Document* (📎 → *Document*).',
   },
   ur: {
     deny_no_user: 'آپ کا اکاؤنٹ نہیں ملا۔ پہلے *register* لکھ کر بھیجیں، پھر دوبارہ \u2066/observe2\u2069 لکھیں۔',
@@ -74,7 +81,7 @@ const STRINGS = {
         'سبق شروع ہونے سے پہلے:',
         '1️⃣ فون کی *وائس ریکارڈر ایپ* (واٹس ایپ نہیں) کھولیں اور ریکارڈنگ شروع کریں۔ پورے سبق میں ریکارڈنگ چلتی رہے۔',
         `2️⃣ *فارم کھولیں* دبائیں اور دیکھتے ہوئے بھرتے جائیں۔ منٹ ${half} پر حصہ 1 محفوظ کریں، پھر منٹ ${minutes} تک حصہ 2۔`,
-        '3️⃣ سبق ختم ہو تو ریکارڈنگ روکیں، فارم میں *Seal and send* دبائیں، پھر ریکارڈنگ اسی چیٹ میں بھیجیں۔',
+        '3️⃣ سبق ختم ہو تو ریکارڈنگ روکیں، فارم میں *Seal and send* دبائیں، پھر ریکارڈنگ اسی چیٹ میں *Document* کے طور پر بھیجیں (📎، پھر *Document*)، آڈیو کے طور پر نہیں۔',
       ].join('\n');
     },
     form_cta: 'فارم کھولیں',
@@ -86,7 +93,10 @@ const STRINGS = {
       '',
       'اب ریکارڈنگ:',
       '1️⃣ ریکارڈر روکیں۔',
-      '2️⃣ ریکارڈر ایپ میں *Share* دبائیں، پھر *WhatsApp*، پھر یہ چیٹ چنیں اور بھیج دیں۔',
+      '2️⃣ اسے یہاں *Document* کے طور پر بھیجیں: 📎 دبائیں، پھر *Document*، ریکارڈنگ تلاش کریں (عموماً *Recordings* یا *Voice Recorder* فولڈر میں) اور *Send* دبائیں۔',
+      'آئی فون پر: پہلے اسے Files میں محفوظ کریں (Voice Memos میں *Share*، پھر *Save to Files*)، پھر یہاں ➕ دبائیں، پھر *Document*۔',
+      '',
+      'آڈیو کے طور پر نہیں: واٹس ایپ \u206616 MB\u2069 سے بڑی آڈیو نہیں بھیجتا، اور سبق کی ریکارڈنگ اس سے بڑی ہوتی ہے۔ *Document* \u2066100 MB\u2069 تک کا جا سکتا ہے۔',
       '',
       'ریکارڈنگ سننے کے بعد اس کے لمحات آپ کو بھیجے جائیں گے، تاکہ آپ انہیں اپنے مشاہدے سے ملا سکیں۔',
     ].join('\n'),
@@ -96,9 +106,9 @@ const STRINGS = {
       : '🎧 ریکارڈنگ مل گئی، شکریہ۔ فارم ابھی سیل نہیں ہوا: فارم کھولیں اور *Seal and send* دبائیں۔ لمحات سیل کے بعد ہی کھلیں گے۔'),
     check_body: (n) => `🎧 ریکارڈنگ سن لی گئی ہے اور اس میں ${n} لمحات ملے۔ ہر لمحے کو اپنے مشاہدے سے ملا کر دیکھیں۔ آپ کے سیل شدہ جوابات پہلے سے شامل ہیں اور بدلتے نہیں۔`,
     check_cta: 'لمحات چیک کریں',
-    moments_untimed: 'ریکارڈنگ وقت کے نشانات کے بغیر آئی، اس لیے اس میں لمحات کی نشاندہی نہیں ہو سکتی۔ آپ کا سیل شدہ ریکارڈ محفوظ ہے۔ ریکارڈر ایپ سے ریکارڈنگ فائل کے طور پر دوبارہ بھیجیں۔',
+    moments_untimed: 'ریکارڈنگ وقت کے نشانات کے بغیر آئی، اس لیے اس میں لمحات کی نشاندہی نہیں ہو سکتی۔ آپ کا سیل شدہ ریکارڈ محفوظ ہے۔ ریکارڈر ایپ سے ریکارڈنگ دوبارہ *Document* کے طور پر بھیجیں (📎، پھر *Document*)۔',
     moments_failed: 'ابھی اس ریکارڈنگ کے لمحات نہیں پڑھے جا سکے۔ آپ کا سیل شدہ ریکارڈ محفوظ ہے اور ٹیم کو بتا دیا گیا ہے۔',
-    duplicate_form_waiting: 'اس وزٹ کا فارم ابھی اپنی ریکارڈنگ کا منتظر ہے: اس سبق کی ریکارڈنگ یہیں بھیجیں۔',
+    duplicate_form_waiting: 'اس وزٹ کا فارم ابھی اپنی ریکارڈنگ کا منتظر ہے: اس سبق کی ریکارڈنگ یہیں *Document* کے طور پر بھیجیں (📎، پھر *Document*)۔',
   },
 };
 
