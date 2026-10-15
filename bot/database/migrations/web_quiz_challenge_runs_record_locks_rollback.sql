@@ -1,4 +1,4 @@
--- Rollback of web_quiz_challenge_runs_record_locks.sql: drops the two record indexes and the five CHECKs, and puts
+-- Rollback of web_quiz_challenge_runs_record_locks.sql: drops the two record indexes and the six CHECKs, and puts
 -- wqcr_record_first_exposure_chk back as web_quiz_challenge_runs_sampling.sql made it. No row is touched.
 BEGIN;
 
@@ -10,7 +10,8 @@ ALTER TABLE public.web_quiz_challenge_runs
   DROP CONSTRAINT IF EXISTS wqcr_serves_any_needs_block_chk,
   DROP CONSTRAINT IF EXISTS wqcr_class_round_arm_chk,
   DROP CONSTRAINT IF EXISTS wqcr_class_round_admin_chk,
-  DROP CONSTRAINT IF EXISTS wqcr_record_provenance_chk;
+  DROP CONSTRAINT IF EXISTS wqcr_record_provenance_chk,
+  DROP CONSTRAINT IF EXISTS wqcr_record_key_not_null_chk;
 
 -- the sampling migration's definition, restored only where this migration replaced it
 DO $$

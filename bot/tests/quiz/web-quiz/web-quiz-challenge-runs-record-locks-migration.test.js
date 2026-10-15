@@ -3,7 +3,7 @@
  * web_quiz_challenge_runs_record_locks.sql on a real, throwaway Postgres (initdb in a temp folder, a unix socket, no TCP).
  * The record ("one record per canonical child × stop × period", per language for read and listen) is decided by a read
  * at serve time and inserted later; two concurrent serves could both insert record = true. The migration makes the
- * database refuse the second one (23505), adds five CHECKs on the serve's columns and tightens the first-exposure rule
+ * database refuse the second one (23505), adds six CHECKs (one: a record row carries its whole key) on the serve's columns and tightens the first-exposure rule
  * (23514). Applies twice cleanly, leaves existing rows as they were; the rollback puts the table back exactly as before.
  *
  * Needs the Postgres server binaries (postgres, initdb, pg_ctl, psql: PG_BIN or pg_config --bindir); without them the
@@ -56,7 +56,7 @@ const shape = () => psql("select string_agg(x, E'\\n' order by x) from ("
   + "union all select 'con ' || conname || ' ' || pg_get_constraintdef(oid) from pg_constraint where conrelid = 'web_quiz_challenge_runs'::regclass "
   + "union all select 'idx ' || indexname || ' ' || indexdef from pg_indexes where tablename = 'web_quiz_challenge_runs') t");
 const LOCK_IDX = ['web_quiz_challenge_runs_one_record_lang_uidx', 'web_quiz_challenge_runs_one_record_stop_uidx'];
-const LOCK_CHK = ['wqcr_anchor_block_stop_chk', 'wqcr_serves_any_needs_block_chk', 'wqcr_class_round_arm_chk', 'wqcr_class_round_admin_chk', 'wqcr_record_provenance_chk'];
+const LOCK_CHK = ['wqcr_anchor_block_stop_chk', 'wqcr_serves_any_needs_block_chk', 'wqcr_class_round_arm_chk', 'wqcr_class_round_admin_chk', 'wqcr_record_provenance_chk', 'wqcr_record_key_not_null_chk'];
 
 d('the record locks on a real Postgres', () => {
   let before;
@@ -87,7 +87,7 @@ d('the record locks on a real Postgres', () => {
     apply('web_quiz_challenge_runs_record_locks.sql');
     expect(psql(`select row_to_json(t) from (select ${BASE_COLS} from web_quiz_challenge_runs) t`)).toBe(row);
     expect(psql(`select count(*) from pg_indexes where indexname in (${LOCK_IDX.map((n) => `'${n}'`).join(', ')}) and indexdef like 'CREATE UNIQUE INDEX%'`)).toBe('2');
-    expect(psql(`select count(*) from pg_constraint where conrelid = 'web_quiz_challenge_runs'::regclass and conname in (${LOCK_CHK.map((n) => `'${n}'`).join(', ')}) and convalidated`)).toBe('5');
+    expect(psql(`select count(*) from pg_constraint where conrelid = 'web_quiz_challenge_runs'::regclass and conname in (${LOCK_CHK.map((n) => `'${n}'`).join(', ')}) and convalidated`)).toBe('6');
     expect(psql("select count(*) from pg_constraint where conname = 'wqcr_record_first_exposure_chk'")).toBe('1');
   });
 
@@ -152,6 +152,9 @@ d('the record locks on a real Postgres', () => {
       ['a record row without a bank version', { bank_version: null }, { bank_version: 'bank-v3' }],
       ['a record row with no exposure count', { exposure_no: null }, { exposure_no: '1' }],
       ['a record row on a second exposure', { exposure_no: '2' }, { exposure_no: '1' }],
+      ['a record row with no period', { period_id: null }, { period_id: '2026-11' }],
+      ['a reading record row with no language', { lang: null }, { lang: 'ur' }],
+      ['a listening record row with no language', { exercise: 'listen', lang: null }, { exercise: 'listen', lang: 'en' }],
     ])('refuses %s', (_, bad, good) => {
       expect(fails(ins(bad))).toMatch(/23514/);
       expect(fails(ins(good))).toBeNull();
@@ -160,6 +163,11 @@ d('the record locks on a real Postgres', () => {
     test('an anchor block record is exempt from the first-exposure rule; non-record rows pass every record CHECK', () => {
       expect(fails(ins({ exercise: 'missing', anchor_block: 'A1', anchor_serves_any: '3', exposure_no: '3' }))).toBeNull();
       expect(fails(ins({ mode: 'practice', record: 'false', form: null, bank_version: null, exposure_no: null }))).toBeNull();
+      // the record key: a maths record row needs no language; a non-record row needs no period or language
+      expect(fails(ins({ exercise: 'bigger', lang: null }))).toBeNull();
+      expect(fails(ins({ mode: 'practice', record: 'false', period_id: null, lang: null }))).toBeNull();
+      // the child part of the key: student_id is NOT NULL, so coalesce(canonical_id, student_id) is never NULL (23502 first)
+      expect(fails(ins({ canonical_id: null, student_id: null, period_id: '2026-12' }))).toMatch(/23502/);
     });
   });
 

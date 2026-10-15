@@ -15,12 +15,14 @@
 --     web_quiz_challenge_runs_one_record_stop_uidx  every other stop (bigger, missing, numbers): child × exercise × period_id
 --   A duplicate insert raises 23505.
 --
---   CHECKs (23514), NULL-safe:
+--   CHECKs (23514), NULL-safe (six):
 --     wqcr_anchor_block_stop_chk       an anchor block only on the stops that carry one (missing: A1/A2, numbers: G1A)
 --     wqcr_serves_any_needs_block_chk  anchor_serves_any only with an anchor block
 --     wqcr_class_round_arm_chk         a mode='class_round' turn is in the class_round sample arm
 --     wqcr_class_round_admin_chk       the class_round arm is administered with the teacher present
 --     wqcr_record_provenance_chk       a record row names its form and bank version
+--     wqcr_record_key_not_null_chk     a record row carries its whole key: period_id, a child id, and lang for read/listen
+--                                      (a NULL in the key would slip past the unique indexes, NULLs being distinct)
 --   and wqcr_record_first_exposure_chk (web_quiz_challenge_runs_sampling.sql) is re-made without its
 --   "exposure_no IS NULL" escape: a record row is a first exposure (exposure_no = 1) unless it is an anchor block.
 --
@@ -52,6 +54,7 @@ BEGIN
     ('wqcr_class_round_arm_chk',        'mode IS DISTINCT FROM ''class_round'' OR sample_arm IS NOT DISTINCT FROM ''class_round'''),
     ('wqcr_class_round_admin_chk',      'sample_arm IS DISTINCT FROM ''class_round'' OR admin_mode IS NOT DISTINCT FROM ''teacher_present'''),
     ('wqcr_record_provenance_chk',      'record IS NOT TRUE OR (form IS NOT NULL AND bank_version IS NOT NULL)'),
+    ('wqcr_record_key_not_null_chk',    'record IS NOT TRUE OR (period_id IS NOT NULL AND coalesce(canonical_id, student_id) IS NOT NULL AND (exercise NOT IN (''read'',''listen'') OR lang IS NOT NULL))'),
     ('wqcr_record_first_exposure_chk',  'record IS NOT TRUE OR anchor_block IS NOT NULL OR exposure_no IS NOT DISTINCT FROM 1')
   ) AS t(name, expr) LOOP
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = c.name AND conrelid = 'public.web_quiz_challenge_runs'::regclass) THEN
