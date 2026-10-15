@@ -435,9 +435,17 @@ function storeFailed(runId, error) {
   logError('web_quiz.challenge_store_failed', { runId, missingTable: isMissingTable(error), error: String(error.message || '').slice(0, 200) });
 }
 
+// Every runs insert: 'stored' | 'duplicate' (23505) | 'unstored'. A record row answered 23505 (a second record of the
+// stop this period, under the record unique index) is stored as practice instead (meta.record_lost) and returns
+// 'practice': the one home of that rule (the v2 and grade-1 serves follow it).
 async function insertRun(row) {
   const { error } = await supabase.from('web_quiz_challenge_runs').insert(row);
   if (!error) return 'stored';
+  if (error.code === '23505' && row && row.record === true) {
+    const stored = await insertRun({ ...row, record: false, mode: 'practice', meta: { ...(row.meta || {}), record_lost: 'duplicate' } });
+    logEvent('web_quiz.ch_record_duplicate', { w: 's', stop: row.exercise, period_id: row.period_id || null, stored });
+    return stored === 'stored' ? 'practice' : stored;
+  }
   if (error.code === '23505') return 'duplicate';
   storeFailed(row.id, error);
   return 'unstored';
@@ -1024,12 +1032,10 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
     items, tryout, story, dir, clipUrl,
     async store() {
       let stored = await insertRun(row);
-      // a second record of this stop this period (a concurrent serve; the record unique index answers 23505): the same
-      // row is kept as practice, and what the page, the in-process run and ch_start say follows it
-      const lost = stored === 'duplicate' && row.record === true;
+      // stored as practice by insertRun (a second record this period): what the page, the run and ch_start say follows it
+      const lost = stored === 'practice';
       if (lost) {
-        stored = await insertRun({ ...row, record: false, mode: 'practice', meta: { ...row.meta, record_lost: 'duplicate' } });
-        logEvent('web_quiz.ch_record_duplicate', { w: 's', stop: ex, period_id: periodId, stored });
+        stored = 'stored';
         for (const o of [this.mem, this.top, this.event, RUNS.get(runId)]) if (o) Object.assign(o, { record: false, mode: 'practice' });
         Object.assign(this.payload, { mode: 'practice', practice_round: true });
       }
@@ -1859,3 +1865,5 @@ module.exports = {
 };
 // the class-week arm's switch gate (with its parent web_quiz_class_round), read at the v2 serve
 module.exports.classWeekOpen = classWeekOpen;
+// the runs insert (and its duplicate-record rule), for its test
+module.exports.insertRun = insertRun;

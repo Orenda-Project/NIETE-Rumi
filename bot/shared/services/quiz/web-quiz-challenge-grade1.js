@@ -185,14 +185,10 @@ function withDeps({ settingOn, insertRun, fail, bank, viaOf = (v) => v || null, 
         draw: { draw_id: drawLog.draw_id, outcome: 'served', eligible: drawLog.eligible, eligible_n: 1, ref_eligible: false, p: 1, band_reason: 'anchor', weights_v: 'w1', seed } },
     };
     // ⛔ M5: a counted run exists only as a stored row; never a run kept in this process
-    let stored = await insertRun(row);
-    // a second record of this stop this period (23505 under the record unique index): the same row kept as practice
-    if (stored === 'duplicate' && row.record === true) {
-      Object.assign(rec, { mode: 'practice', record: false });
-      stored = await insertRun({ ...row, record: false, mode: 'practice', meta: { ...row.meta, record_lost: 'duplicate' } });
-      logEvent('web_quiz.ch_record_duplicate', { w: 's', stop: EXERCISE, period_id: pid, stored });
-    }
-    if (stored !== 'stored') fail(503, 'unavailable');
+    const stored = await insertRun(row);
+    // stored as practice by insertRun (a second record of this stop this period): the run follows it
+    if (stored === 'practice') Object.assign(rec, { mode: 'practice', record: false });
+    else if (stored !== 'stored') fail(503, 'unavailable');
     await D.logDraw({ ...drawLog, run_id: runId });
     // IDENTITY §16: the year's fixed grade at the first counted play (the visit's grade; never changed after)
     if (rec.record === true && rec.mode === 'check') await D.writeChildIdentity({ canonicalId, grade: w.grade, gradeSource: w.gradeSource, now: new Date(now) });

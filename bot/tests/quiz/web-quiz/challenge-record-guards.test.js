@@ -346,3 +346,29 @@ describe('an on-its-way draw insert answering 23505 (the partial unique index) i
     expect(logError).not.toHaveBeenCalled();
   });
 });
+
+describe('insertRun is the one home of the duplicate-record rule', () => {
+  test('two concurrent record inserts: the second answers 23505 and is stored as practice ("practice"); another 23505 stays "duplicate"', async () => {
+    const from = fake.from;
+    let records = 0;
+    supabase.from = (t) => {
+      const b = from(t);
+      if (t !== 'web_quiz_challenge_runs') return b;
+      const insert = b.insert;
+      b.insert = (row) => (row && row.record === true && (records += 1) > 1
+        ? { then: (ok, no) => Promise.resolve({ data: null, error: { code: '23505', message: 'duplicate key' } }).then(ok, no) }
+        : insert(row));
+      return b;
+    };
+    const row = (id) => ({ id, student_id: K3, exercise: 'bigger', grade: 3, lang: 'en', status: 'served', mode: 'check', record: true, period_id: '2026-11', meta: { a: 1 } });
+    const [a, b] = await Promise.all([Ch.insertRun(row(crypto.randomUUID())), Ch.insertRun(row(crypto.randomUUID()))]);
+    expect([a, b].sort()).toEqual(['practice', 'stored']);
+    expect(db.web_quiz_challenge_runs.map((r) => [r.mode, r.record, r.meta.record_lost || null]).sort()).toEqual([['check', true, null], ['practice', false, 'duplicate']]);
+    expect(logEvent.mock.calls.filter(([n]) => n === 'web_quiz.ch_record_duplicate')).toHaveLength(1);
+    // a 23505 that is not a record (the run id again): 'duplicate' as today
+    supabase.from = from;
+    const id = crypto.randomUUID();
+    supabase.from = (t) => ({ insert: async () => ({ data: null, error: { code: '23505', message: 'duplicate key' } }) });
+    expect(await Ch.insertRun({ id, student_id: K3, exercise: 'bigger', status: 'scoring', meta: {} })).toBe('duplicate');
+  });
+});
