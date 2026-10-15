@@ -185,6 +185,7 @@ const scenarios = [
       expect((await tab.getAttribute('aria-selected')) === 'true', 'the Chapters tab is not selected after the switch went off');
       expect(!(await page.getByTestId('fde-side-door').count()), 'the FDE board pattern card is still on Chapters or pages');
       await page.getByText('Select at least one chapter').first().waitFor({ state: 'visible', timeout: 15000 });
+      expect(await page.getByTestId('step-next').isDisabled(), 'Next is not off on Chapters or pages');
       return { landed: 'chapters' };
     } finally {
       await patternSwitch(ctx, false);
