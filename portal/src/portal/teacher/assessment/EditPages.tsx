@@ -44,8 +44,8 @@ const sectionOf = (it: EditItem) => /\.([A-Z])\./.exec(slotOf(it) ?? '')?.[1] ??
 const errorOf = (e: unknown, noAdd?: string): string | null => {
   const data = (e as { response?: { data?: { error?: string; errorCode?: string; code?: string; errors?: Array<{ message?: string }> } } })?.response?.data;
   // A board-pattern paper's refusals (no Add; and no edit at all while the server cannot edit one) in the deck's words.
-  const code = data?.errorCode ?? data?.code;
-  if (noAdd && (code === 'PATTERN_NO_ADD' || code === 'PATTERN_NO_EDIT')) return noAdd;
+  const codes = [data?.errorCode, data?.code];
+  if (noAdd && codes.some((c) => c === 'PATTERN_NO_ADD' || c === 'PATTERN_NO_EDIT')) return noAdd;
   const listed = (data?.errors ?? []).map((x) => x?.message).filter(Boolean) as string[];
   return listed.length ? listed.join(' ') : (data?.error ?? null);
 };

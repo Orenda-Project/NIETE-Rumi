@@ -92,6 +92,9 @@ export function ClassStep() {
   // failed read is never taken as "no pattern here": that would drop the teacher on today's Chapters step unasked.
   const [doorRead, setDoorRead] = useState<null | 'busy' | { retry: () => void }>(null);
   const doorBusy = useRef(false);
+  // A teacher who leaves Class (Back) while the read is out is not pulled forward when it answers.
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
   const onPick = async (v: GradeSubjectPair, pick: ClassPick) => {
     const own = pick.combo && typeof pick.combo.featureKey === 'string' ? pick.combo.featureKey : null;
@@ -107,10 +110,11 @@ export function ClassStep() {
         pattern = await patternOffer(v.grade, key);
       } catch {
         doorBusy.current = false;
-        setDoorRead({ retry: () => { onPick(v, pick); } });
+        if (alive.current) setDoorRead({ retry: () => { onPick(v, pick); } });
         return;
       }
       doorBusy.current = false;
+      if (!alive.current) return;
       setDoorRead(null);
       set((cur) => ({ ...changeClass(cur, v.grade, key, name), ...doorPick(pattern ? pattern.id : null) }));
       navigate(newPaperPath(pattern ? 'check' : 'cover'));
@@ -187,12 +191,12 @@ export function CoverStep() {
   const fdeHeld = isFde(p) || p.coverBy === 'fde';
   const gone = fdeHeld && offer.status === 'ok' && !pattern;
   useEffect(() => {
-    if (gone) set({ coverBy: 'chapters', style: null, pattern: null, patternIntent: null });
+    if (gone) set({ coverBy: 'chapters', style: null, pattern: null, patternIntent: null, chapters: [], ranges: [] });
   }, [gone, set]);
   if (needsClass) return <Navigate to={newPaperPath('class')} replace />;
   if (fdeHeld && !pattern) {
     return (
-      <StepFrame step="cover" backTo={backTo('class')} next={{ label: C.next, why: C.why.wait, to: newPaperPath('check') }}>
+      <StepFrame step="cover" backTo={backTo('class')} next={{ label: C.next, why: offer.status === 'error' ? C.loadFailed : C.why.wait, to: newPaperPath('check') }}>
         <LoadState status={offer.status === 'error' ? 'error' : 'loading'} onRetry={retryOffer} />
       </StepFrame>
     );

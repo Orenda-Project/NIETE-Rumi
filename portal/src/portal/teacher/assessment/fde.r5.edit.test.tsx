@@ -108,6 +108,18 @@ describe('the server cannot edit a board-pattern paper yet', () => {
   });
 });
 
+describe('the refusal\'s code in either field', () => {
+  it('PATTERN_NO_EDIT in `code` with another `errorCode` still says the deck\'s words', async () => {
+    portal.getAssessmentEditQuestions.mockResolvedValue(fdePaper());
+    portal.saveAssessmentVersion.mockRejectedValue({ response: { status: 400, data: { success: false, code: 'PATTERN_NO_EDIT', errorCode: 'EDIT_REJECTED', error: 'Board-pattern papers keep their shape.' } } });
+    at(editPath('p-f'));
+    await screen.findByTestId('edit-both');
+    fireEvent.click(screen.getByRole('checkbox', { name: C.removeQuestion(3) }));
+    fireEvent.click(screen.getByRole('button', { name: C.saveAs(2) }));
+    expect((await screen.findByRole('alert')).textContent).toBe(C.noAddOnPattern);
+  });
+});
+
 describe('the Add route of a board-pattern paper', () => {
   it('refused by the server (PATTERN_NO_ADD on add-kinds): back to the editor, not "Could not load"', async () => {
     portal.getAssessmentEditQuestions.mockResolvedValue(fdePaper());
@@ -130,7 +142,17 @@ describe('Versions follows the paper page on Edit', () => {
     portal.getAssessmentPapers.mockResolvedValue({ papers: [row('v2', null)], total: 1 });
     at(versionsPath('v2'));
     await screen.findByText('Version 1');
-    await waitFor(() => expect(portal.getAssessmentPapers).toHaveBeenCalled());
-    expect(screen.getAllByRole('link', { name: C.edit })).toHaveLength(2);
+    await waitFor(() => expect(screen.getAllByRole('link', { name: C.edit })).toHaveLength(2));
+  });
+
+  it('no Edit until the paper\'s row says whether it is a board-pattern paper (a reload reads My papers first)', async () => {
+    let answer: (v: unknown) => void = () => {};
+    portal.getAssessmentPapers.mockImplementation(() => new Promise((res) => { answer = res; }));
+    at(versionsPath('v2'));
+    await screen.findByText('Version 1');
+    expect(screen.queryAllByRole('link', { name: C.edit })).toHaveLength(0);
+    await act(async () => { answer({ papers: [row('v2', 'fde_g5_2027')], total: 1 }); });
+    expect(await screen.findAllByTestId('version-scheme')).toHaveLength(2);
+    expect(screen.queryAllByRole('link', { name: C.edit })).toHaveLength(FDE_EDITING ? 2 : 0);
   });
 });
