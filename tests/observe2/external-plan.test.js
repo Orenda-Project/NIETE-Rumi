@@ -360,7 +360,7 @@ describe('an added plan is read and graded the way /observe grades an uploaded p
     expect(d.fidelityDeps.extractUploadedLp).not.toHaveBeenCalled();
     expect(formRow(id).rumi_moments.fidelity).toMatchObject({ status: 'lp_not_lesson_plan' });
     const brief = buildBrief({ ...formRow(id), final_levels: {}, evidence_review: { priority_final: 'C1' } }, { lang: 'en' });
-    expect(brief).toMatch(/didn't read as a lesson plan/);
+    expect(brief).toMatch(/no lesson steps were found in what you added/);
     expect(buildBrief({ ...formRow(id), final_levels: {}, evidence_review: { priority_final: 'C1' } }, { lang: 'ur' })).not.toMatch(/undefined|null/);
   });
 
