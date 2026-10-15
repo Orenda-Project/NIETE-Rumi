@@ -883,3 +883,34 @@ describe('a round run or a practice run does not consume the home attempt', () =
     expect(db.web_quiz_challenge_runs[db.web_quiz_challenge_runs.length - 1].meta).toMatchObject({ attempt_no: 2, counted: false });
   });
 });
+
+// ── anchor serves before the provenance columns: October's missing rows served A1's items (ITEMS §3.1, §4) ─────
+
+describe('anchor_serves_any counts a pre-v2 missing row as an A1 serve', () => {
+  const preV2Missing = (kid, grade) => db.web_quiz_challenge_runs.push({ id: crypto.randomUUID(), student_id: kid, exercise: 'missing', grade, lang: 'en', status: 'scored',
+    score: { correct: 9, n: 10, stopped: false }, meta: { attempt_no: 1, counted: true }, created_at: new Date(Date.now() - 20 * DAY).toISOString() });
+
+  test('a G5 child with one pre-v2 missing row, then the Trail warm-up: serves_any 2, exposure 1, prev2 {full 1, partial 0}', async () => {
+    on(V2, PERIOD, POOL);
+    preV2Missing(K5, 5);
+    const ex = await Ch.exercise(hub(K5), 'missing', D);
+    expect(rowOf(ex.ct)).toMatchObject({ anchor_block: 'A1', anchor_exposure_no: 1, meta: expect.objectContaining({ anchor_serves_any: 2 }) });
+    expect(rowOf(ex.ct).meta.draw.anchor_prev2).toEqual({ full: 1, partial: 0 });
+    expect(starts()[0]).toMatchObject({ anchor_serves_any: 2, anchor_exposure_no: 1 });
+  });
+
+  test('a G3 pre-v2 missing row is a partial serve: prev2 {full 0, partial 1}, serves_any 2', async () => {
+    on(V2, PERIOD, POOL);
+    preV2Missing(K3, 3);
+    const ex = await Ch.exercise(hub(K3), 'missing', D);
+    expect(rowOf(ex.ct)).toMatchObject({ anchor_exposure_no: 1, meta: expect.objectContaining({ anchor_serves_any: 2 }) });
+    expect(rowOf(ex.ct).meta.draw.anchor_prev2).toEqual({ full: 0, partial: 1 });
+  });
+
+  test('no pre-v2 row: serves_any 1, prev2 {full 0, partial 0}', async () => {
+    on(V2, PERIOD, POOL);
+    const ex = await Ch.exercise(hub(K5), 'missing', D);
+    expect(rowOf(ex.ct)).toMatchObject({ anchor_exposure_no: 1, meta: expect.objectContaining({ anchor_serves_any: 1 }) });
+    expect(rowOf(ex.ct).meta.draw.anchor_prev2).toEqual({ full: 0, partial: 0 });
+  });
+});

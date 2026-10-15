@@ -915,12 +915,14 @@ async function serveV2(w, ex, rules, { mode: askedMode, device = null, classId: 
   if (ex === 'listen' && !clipUrl) fail(503, 'getting_ready');
 
   const servesAny = anchorBlock ? D.anchorServesAny(rows, anchorBlock) : null;   // no runs column for it: meta.anchor_serves_any
+  const prev2 = anchorBlock ? D.anchorPrev2(rows, anchorBlock) : null;   // of which before the provenance columns: meta.draw.anchor_prev2
   const exposure = anchorBlock ? servesAny : D.exposureNo(rows, passageId || itemSetId);
   // M7: a passage or set already met is never a record; the anchor block is the exception
   const record = periodRule ? D.recordAtServe({ mode, outcome: drawLog ? drawLog.outcome : 'served', countedThisPeriod: counted, exposureNo: exposure, anchor: !!anchorBlock }) : null;
   const anchorExp = anchorBlock ? D.anchorExposureNo(rows, anchorBlock) : null;
   const metaDraw = drawLog ? { draw_id: drawLog.draw_id, outcome: drawLog.outcome, eligible: drawLog.eligible, eligible_n: drawLog.eligible_n, ref_eligible: drawLog.ref_eligible,
-    p: drawLog.p, band_reason: drawLog.band_reason, weights_v: drawLog.weights_v, seed: drawLog.seed, ...(periodSet ? { period_set: periodSet } : {}) } : null;
+    p: drawLog.p, band_reason: drawLog.band_reason, weights_v: drawLog.weights_v, seed: drawLog.seed, ...(periodSet ? { period_set: periodSet } : {}),
+    ...(prev2 ? { anchor_prev2: prev2 } : {}) } : null;
   const via = VIA[w.via] || w.via || null;
   const admin = await D.adminFields({ mode, via, canonicalId, at: new Date(now), classWeekOn: via === 'class_link' && (await settingOn(CLASS_WEEK_FLAG_KEY)) });
   const periodId = periodRule ? periodNow : null;
