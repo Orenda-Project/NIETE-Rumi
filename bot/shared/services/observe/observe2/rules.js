@@ -41,6 +41,12 @@ const LISTEN_SAID = {
   often: 'they replied to each other often', agreed: 'they disagreed, then agreed',
 };
 const MATERIALS = { none: 1, teacher: 2, children: 3, explain: 4, nofit: 'NA' };
+// "What was used?" (R17): named on C8's line, never a level (who used them sets C8, by its descriptors).
+const USED_SAID = { book: 'the textbook or board', pictures: 'charts or pictures', objects: 'objects or manipulatives', made: 'materials the teacher made' };
+const MATERIALS_USED = new Set(['teacher', 'children', 'explain']);
+const usedOf = (a) => Object.keys(USED_SAID).filter((k) => (Array.isArray(a.p1_used) ? a.p1_used : []).includes(k));
+/** "charts or pictures; materials the teacher made", or '' when nothing was ticked. */
+const usedPhrase = (a) => usedOf(a || {}).map((k) => USED_SAID[k]).join('; ');
 const SWITCH = { stalled: 1, slow: 2, clear: 3, ahead: 4 };
 const PARTS = ['p1', 'p2'];
 // Part 2 since form version 5: the children working on their own.
@@ -138,6 +144,12 @@ function c5(a) {
   return { level: lv, because: `you saw: ${phrase('C5', lv)}${where}`, source: 'seen' };
 }
 
+// C8's line names the materials used, so a teacher's own are recognised by name (R17).
+function named(r, a) {
+  const used = usedPhrase(a);
+  return r && used && typeof r.level === 'number' ? { ...r, because: `${r.because}. Used: ${used}` } : r;
+}
+
 function seenLevels(form) {
   const a = form || {};
   const all = {
@@ -145,7 +157,7 @@ function seenLevels(form) {
     C3: higher(a, 'picked', PICKED, 'C3', ''),
     C5: c5(a),
     C7: higher(a, 'groups', GROUPS, 'C7', "the room can't seat groups"),
-    C8: higher(a, 'materials', MATERIALS, 'C8', 'no material suits this topic'),
+    C8: named(higher(a, 'materials', MATERIALS, 'C8', 'no material suits this topic'), a),
     D3: d3(a),
   };
   const out = {};
@@ -200,13 +212,15 @@ function thinking(a) {
 
 /**
  * What the coach saw on the live form beyond a level, per indicator, for the record's evidence (the
- * teacher's portal shows it under each indicator): { code: phrase }. Each phrase reads after "Seen ".
+ * teacher's portal shows it under each indicator): { code: sentence }.
  */
 function seenNotes(answers) {
   const out = {};
   const a = answers || {};
-  for (const [code, s] of Object.entries(desk(a))) out[code] = s.note;
-  for (const [code, note] of Object.entries(thinking(a))) out[code] = out[code] ? `${out[code]}; ${note}` : note;
+  for (const [code, s] of Object.entries(desk(a))) out[code] = `Seen ${s.note}`;
+  for (const [code, note] of Object.entries(thinking(a))) out[code] = out[code] ? `${out[code]}; ${note}` : `Seen ${note}`;
+  const used = usedPhrase(a);
+  if (used) out.C8 = `Used: ${used}`;
   return out;
 }
 
@@ -362,6 +376,11 @@ function partChecks(e, a, p) {
   switchCheck(e, a, p);
 }
 
+// Part 1 since form version 5: what was used, once materials were (R17).
+function usedCheck(e, a) {
+  if (MATERIALS_USED.has(a.p1_materials) && !usedOf(a).length) e.p1_used = 'Tick what was used.';
+}
+
 // Part 2 since form version 5: the children working on their own.
 function workAloneChecks(e, a) {
   spokeCheck(e, a, 'p2');
@@ -396,6 +415,7 @@ function validate(screen, answers, { version } = {}) {
     if (a.present === '' || a.present == null) e.present = 'Type how many children are in class today.';
     else if (present == null || present < 1 || present > 120) e.present = 'A whole number between 1 and 120.';
     partChecks(e, a, 'p1');
+    if (byPhase) usedCheck(e, a);
   } else if (screen === 'PART_TWO') {
     if (byPhase) workAloneChecks(e, a); else partChecks(e, a, 'p2');
     const fresh = a.p2_new, n = whole(fresh), p2 = whole(a.p2_spoke), present = whole(a.present), p1 = whole(a.p1_spoke);
@@ -433,6 +453,6 @@ function validate(screen, answers, { version } = {}) {
 
 module.exports = {
   SEEN_CODES, HEARD_CODES, PICK_CODES,
-  PICKED, GROUPS, LISTEN, MATERIALS, SWITCH, TASK, TEACHER_SAID, STUCK, THINK_SAID, ADDS, LEVEL4,
+  PICKED, GROUPS, LISTEN, MATERIALS, USED_SAID, SWITCH, TASK, TEACHER_SAID, STUCK, THINK_SAID, ADDS, LEVEL4, usedPhrase,
   seenLevels, heardLevels, addUp, validate, seenNotes,
 };

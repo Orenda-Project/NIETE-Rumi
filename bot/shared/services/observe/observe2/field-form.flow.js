@@ -97,6 +97,14 @@ const SWITCHED = [
   opt('clear', PLAIN.C5[2], 'The teacher said it was time to change, and nearly every child was on the new task within about a minute.'),
   opt('ahead', PLAIN.C5[3], 'The children already knew the routine and moved to the next task on their own, without being told one by one.'),
 ];
+// "What was used?" (R17): the kind of materials, named on C8's line; who used them still sets the level.
+// The ids are rules.js's USED_SAID.
+const USED = [
+  opt('book', 'Textbook or board'),
+  opt('pictures', 'Charts or pictures'),
+  opt('objects', 'Objects or manipulatives', 'Things to hold and move: counters, blocks, sticks, cards.'),
+  opt('made', 'Materials the teacher made', 'Prepared or adapted by the teacher for this lesson.'),
+];
 // Part 2: the children working on their own. The ids are rules.js's TASK, TEACHER_SAID and STUCK.
 const TASK = [
   opt('all', 'Every child had a task', 'Each child worked on their own: in a notebook, on a sheet or at the board.'),
@@ -199,6 +207,18 @@ function partQuestions(p) {
       else: [],
     },
     radio(`${p}_materials`, 'Who used books or materials?', MATERIALS, 'Books, the board, charts, cards or objects.'),
+    // Two nested Ifs, as above: shown once materials were used.
+    {
+      type: 'If',
+      condition: `\${form.${p}_materials} != 'none'`,
+      then: [{
+        type: 'If',
+        condition: `\${form.${p}_materials} != 'nofit'`,
+        then: [{ type: 'CheckboxGroup', name: `${p}_used`, label: 'What was used?', description: 'Tick everything used.', required: true, 'data-source': USED }],
+        else: [],
+      }],
+      else: [],
+    },
     ...switchQuestions(p, 'For example: from listening to the teacher to writing, or from the whole class into groups.'),
     notes(p),
     ERR_LINE,
@@ -227,7 +247,7 @@ function workAloneQuestions() {
 }
 
 const FIELDS = {
-  PART_ONE: ['present', 'p1_spoke', 'p1_picked', 'p1_groups', 'p1_listen', 'p1_listen_other', 'p1_materials', 'p1_change', 'p1_change_how', 'p1_notes'],
+  PART_ONE: ['present', 'p1_spoke', 'p1_picked', 'p1_groups', 'p1_listen', 'p1_listen_other', 'p1_materials', 'p1_used', 'p1_change', 'p1_change_how', 'p1_notes'],
   PART_TWO: ['p2_spoke', 'p2_new', 'p2_task', 'p2_teacher', 'p2_stuck', 'p2_think', 'p2_change', 'p2_change_how', 'p2_notes'],
   LESSON_PLAN: ['lp', 'lp_pick', 'lp_how'],
   LP_PHOTOS: [],

@@ -14,7 +14,7 @@
  */
 
 const { CODES, MOMENTS, PLAIN, ROW, PRIORITY, FOCUS, PLAN_FOCUS, THINKING, pickAlso } = require('./fico17');
-const { THINK_SAID } = require('./rules');
+const { THINK_SAID, usedPhrase } = require('./rules');
 const { clampLanguage } = require('../../../config/ux-strings');
 
 // Which indicator a moment type speaks to, so the moment offered is about the thing to work on.
@@ -147,7 +147,8 @@ function alsoSeen(form, id, F) {
     return lp === 'none' ? F.plan_none : lp === 'notfollowed' ? F.plan_notfollowed : '';
   }
   const level = numeric((form.final_levels || {})[id]);
-  return level ? PLAIN[id][level - 1].toLowerCase() : '';
+  const used = id === 'C8' ? usedPhrase(form.answers) : '';
+  return level ? [PLAIN[id][level - 1].toLowerCase(), used].filter(Boolean).join(': ') : '';
 }
 
 /**
@@ -168,8 +169,11 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
     .filter((c) => c !== priority && numeric(finals[c]) >= 3)
     .sort((a, b) => numeric(finals[b]) - numeric(finals[a]))
     .slice(0, 2);
+  // The materials used are named wherever C8 appears (R17).
+  const used = usedPhrase(form.answers);
+  const withUsed = (c, text) => (c === 'C8' && used ? `${text} (${used})` : text);
   if (strengths.length) {
-    for (const c of strengths) lines.push(`• ${ROW[c]}: ${PLAIN[c][numeric(finals[c]) - 1]}`);
+    for (const c of strengths) lines.push(`• ${ROW[c]}: ${withUsed(c, PLAIN[c][numeric(finals[c]) - 1])}`);
   } else {
     lines.push(F.find_one);
   }
@@ -197,7 +201,7 @@ function buildBrief(form, { teacherName = null, lang = 'en' } = {}) {
     const hole = (review.added_hole || {})[priority];
     const kept = String(finals[priority]) === String((review.added || {})[priority]);
     if (hole && kept) lines.push(F.now(hole));
-    else if (level) lines.push(F.now(PLAIN[priority][level - 1]));
+    else if (level) lines.push(F.now(withUsed(priority, PLAIN[priority][level - 1])));
     if (level && level < 4) lines.push(F.next(PLAIN[priority][level]));
     const group = (MOMENTS.find((m) => m.codes.includes(priority)) || {}).id;
     const moment = confirmed.find((m) => TYPE_CODE[m.type] === priority)

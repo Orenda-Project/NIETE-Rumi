@@ -21,7 +21,7 @@ const RUBRIC_VERSION = 'fico-ict-17-2026-09';
 const LINK_WINDOW_HOURS = 6;
 
 const PART_KEYS = {
-  p1: ['present', 'p1_spoke', 'p1_picked', 'p1_groups', 'p1_listen', 'p1_listen_other', 'p1_materials', 'p1_change', 'p1_change_how', 'p1_notes'],
+  p1: ['present', 'p1_spoke', 'p1_picked', 'p1_groups', 'p1_listen', 'p1_listen_other', 'p1_materials', 'p1_used', 'p1_change', 'p1_change_how', 'p1_notes'],
   // Part 2 as it is since form version 5 (the children working on their own), and as forms still on the
   // older Flow send it.
   p2: ['p2_spoke', 'p2_new', 'p2_task', 'p2_teacher', 'p2_stuck', 'p2_think', 'p2_change', 'p2_change_how', 'p2_notes',
