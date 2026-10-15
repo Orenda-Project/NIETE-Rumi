@@ -390,8 +390,8 @@ async function adminFields({ mode, via, canonicalId, at = new Date(), classWeekO
 }
 
 // today's grade sources → child_identity.grade_source
-// (lead ruling #31, IDENTITY v0 §4 order: roster → share_code → tapped)
-const GRADE_SOURCE = { enrolment: 'roster', list: 'roster', session: 'share_code', quiz: 'share_code', self: 'tapped' };
+// (lead ruling #31 order roster → share_code → tapped, in the values child_identity's CHECK admits)
+const GRADE_SOURCE = { enrolment: 'roster_class', list: 'roster_class', session: 'share_code_class', quiz: 'share_code_class', self: 'tapped' };
 
 /**
  * IDENTITY §16: the fixed grade, written at the child's first COUNTED play of the academic year, under
