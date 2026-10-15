@@ -105,9 +105,9 @@ describe('the queue rows (Mock M4)', () => {
   test('the two tiers for one teacher: the §11-blocked exact name and the probable word match', async () => {
     const rows = await Queue.computeCandidates(T1);
     expect(rows).toEqual([
-      { loose_id: c(3), candidate_id: r(6), first_name: 'Omar', candidate_first_name: 'Omar', class_id: C1, grade: 3,
+      { loose_id: c(3), candidate_id: r(6), first: 'Omar', candidate_first: 'Omar', class_id: C1, grade: 3,
         evidence: { tier: 'roster_unique_with_loose', name_words_matched: 2, same_grade: true, other_same_name_loose: true } },
-      { loose_id: c(7), candidate_id: r(5), first_name: 'Hamza', candidate_first_name: 'Hamza', class_id: C1, grade: 3,
+      { loose_id: c(7), candidate_id: r(5), first: 'Hamza', candidate_first: 'Hamza', class_id: C1, grade: 3,
         evidence: { tier: 'probable', name_words_matched: 1, same_grade: true, other_same_name_loose: false } },
     ]);
   });

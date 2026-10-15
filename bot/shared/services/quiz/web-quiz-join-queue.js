@@ -237,7 +237,7 @@ async function compute(t) {
     const tier = res.label === 'blocked' ? 'roster_unique_with_loose' : 'probable';
     out.push({
       loose_id: kid.id, candidate_id: res.r.id,
-      first_name: firstName(kid.student_name), candidate_first_name: firstName(res.r.student_name),
+      first: firstName(kid.student_name), candidate_first: firstName(res.r.student_name),
       class_id: res.r.class_id, grade: res.r.grade,
       evidence: {
         tier, name_words_matched: words(kid.student_name).size,
