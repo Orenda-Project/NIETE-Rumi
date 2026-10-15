@@ -492,6 +492,7 @@ function periodOf(ts, periods) {
 
 function summaryEvent(s) {
   logEvent('web_quiz.ch_calibration_run', {
+    w: 's',
     period_id: s.period_id, cells: s.cells, proposals: s.proposals, withdrawals_proposed: s.withdrawals_proposed,
     items_estimated: s.items_estimated, drift_flags: s.drift_flags, reasons: s.reasons,
   });

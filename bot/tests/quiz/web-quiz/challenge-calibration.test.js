@@ -248,6 +248,10 @@ describe('referenceDrift: an escalation line past 0.3 SD, never a rule', () => {
   test('0.4 SD → escalate; 0.2 SD → not', () => {
     expect(Cal.referenceDrift(sample(two(50, 54, 10)), sample(two(150, 50, 10)))).toMatchObject({ escalate: true });
     expect(Cal.referenceDrift(sample(two(50, 52, 10)), sample(two(150, 50, 10)))).toMatchObject({ escalate: false });
+    // two-sided: a reference that got 0.4 SD HARDER is escalated too
+    const down = Cal.referenceDrift(sample(two(50, 46, 10)), sample(two(150, 50, 10)));
+    expect(down.gap_sd).toBeLessThan(-0.3);
+    expect(down).toMatchObject({ escalate: true });
   });
   test('nothing to compare → null', () => {
     expect(Cal.referenceDrift(sample([]), sample(two(10, 50, 10)))).toBeNull();
@@ -586,7 +590,8 @@ describe('runMonthly: withdrawals and item estimates are proposals; statuses nev
     await Cal.runMonthly({ period_id: '2026-12', now: NOW });
     expect(summaryEvents()).toHaveLength(1);
     const [, ev] = summaryEvents()[0];
-    expect(Object.keys(ev).sort()).toEqual(['cells', 'drift_flags', 'items_estimated', 'period_id', 'proposals', 'reasons', 'withdrawals_proposed']);
+    expect(Object.keys(ev).sort()).toEqual(['cells', 'drift_flags', 'items_estimated', 'period_id', 'proposals', 'reasons', 'w', 'withdrawals_proposed']);
+    expect(ev.w).toBe('s');
     expect(ev).toMatchObject({ period_id: '2026-12', cells: 1, proposals: 1, withdrawals_proposed: 0, items_estimated: 0, drift_flags: 0 });
     const text = JSON.stringify(ev);
     for (const r of p1) { expect(text).not.toContain(r.canonical_id); expect(text).not.toContain(r.id); }
