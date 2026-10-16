@@ -82,6 +82,12 @@
  *                                           n = minted (the denominator is codes, never events)
  *   implausible / <lang>[|<reason>]          scored check reads (any record) the scorer marked implausible; n = the
  *                                           language's scored check reads; one cell per reason (meta.flags). Red > 5 %
+ *   rapid / band|lang|ladder                the week's scored record check rows with an anchor block (the warm-up):
+ *                                           value = rows the serve marked meta.quality = 'rapid_perfect' (all 10 right,
+ *                                           median item time under the floor; left out of the statement's line 1);
+ *                                           n = the cell's rows. Test children are out before the quality is read
+ *   rapid / band|lang|ladder|all_right      the same rows with every warm-up item right (score.correct = score.n = 10);
+ *                                           n = the same. No earlier figure: a watch only (LINE_NOTES, in `notes`)
  *   cold_clips                              not measured: no store (the clip warm's last run is an event only); named
  *                                           in `skipped` with its note, no row
  * A table that is not there yet (child_rungs, message_ledger, child_phone_bindings, child_bind_codes, students) skips its
@@ -107,6 +113,7 @@ const PAGE = 1000;
 // The caveat a reader of a line must see beside it (returned with the week's result as `notes`).
 const LINE_NOTES = {
   sends: "message_ledger counts the switched replies only; it is not the bill (Meta's billable count is the cost total)",
+  rapid: 'all_right: no prior; watch only',
   recognised_without_typing: 'homonym picks through the class link read as high until the class-link pick fix lands',
   cold_clips: require('./web-quiz-strip-lines').COLD_CLIPS_NOTE,
 };
@@ -433,6 +440,23 @@ async function weeklyStrip({ week, now = Date.now(), sink = writeLines } = {}) {
   const helped = new Map(); const scoredN = new Map();
   counted.forEach((r) => { const c = cellOf(r, r.exercise); count(scoredN, c); if (r.helped === 'helped') count(helped, c); });
   for (const [c, k] of scoredN) put('helped_pct', c, share(helped.get(c) || 0, k), k);
+
+  // too-fast perfect warm-ups: `counted` is already free of test children (the fixture rule above), so the quality is
+  // read second. All right reads the stored score (score.correct of score.n, 10 items; meta.items is not always kept).
+  const rapid = new Map();
+  counted.filter((r) => r.record === true && r.anchor_block != null).forEach((r) => {
+    const c = cellOf(r, ladderOf(r.exercise));
+    if (!rapid.has(c)) rapid.set(c, { fast: 0, right: 0, n: 0 });
+    const g = rapid.get(c);
+    g.n += 1;
+    if (r.meta && r.meta.quality === 'rapid_perfect') g.fast += 1;
+    if (okOf(r) === ANCHOR_ITEMS && Number(r.score.n) === ANCHOR_ITEMS) g.right += 1;
+  });
+  for (const [c, g] of rapid) {
+    put('rapid', c, g.fast, g.n);
+    put('rapid', `${c}|all_right`, g.right, g.n);
+  }
+  if (rapid.size) notes.rapid = LINE_NOTES.rapid;
 
   const firsts = counted.filter((r) => Number(r.exposure_no) === 1);
   put('no_class_first_finishes', '', share(firsts.filter((r) => r.class_id == null).length, firsts.length), firsts.length);
