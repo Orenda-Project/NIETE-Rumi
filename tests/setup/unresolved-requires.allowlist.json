@@ -13,5 +13,10 @@
     "from": "bot/workers/pic-lp-kieai.worker.js",
     "spec": "../shared/services/lp-feedback.service",
     "reason": "Same OSS-stripped service as homework-bundle; lazy-required inside the post-delivery branch."
+  },
+  {
+    "from": "bot/shared/services/first-touch/door.reply.js",
+    "spec": "./maker.cta",
+    "reason": "The maker page's cta (makerCta), a module of its own that lands separately. Lazy-required INSIDE a try in resolveMakerCta(); absent, the door sends its own 3-button maker fallback (door.reply.js documents this). Remove this entry when first-touch/maker.cta.js exists."
   }
 ]

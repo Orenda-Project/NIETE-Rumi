@@ -4590,6 +4590,50 @@ const STUDENT_TUTOR_STRINGS = {
     ur: "کھیلیں",
   },
   // ── end family phone binding ──
+  // ── first touch (quiz_first_door / quiz_maker_page) ──
+  // COPY v1.2 (first touch), copied cell for cell: Latin runs inside Urdu carry U+2066…U+2069, Urdu quotes are
+  // ”…“ (U+201D first), English “…”. A *Bi key holds ONE value in both slots: the UR value, a blank line, the EN
+  // value. The bilingual BUTTONS live in first-touch/door.reply.js (BI_BUTTONS): Latin first so they paint left
+  // to right, which an Urdu-slot value in this catalog may not (the paragraph-direction gate).
+  // door.body.ur / door.body.en (EN only when preferred_language = en is the person's own; never the row default)
+  ftDoorBody: { en: '📝 Quiz: teachers, make one for your class. Children or parents, open your child\'s class quiz. Tap one:', ur: '📝 کوئز: ٹیچر اپنی کلاس کے لیے کوئز بنائیں۔ بچے یا والدین کلاس کا کوئز کھولیں۔ ایک چنیں:' },
+  // door.body.bi: Urdu first, a blank line, the English (one value, both slots)
+  ftDoorBodyBi: { en: '📝 کوئز: ٹیچر اپنی کلاس کے لیے کوئز بنائیں۔ بچے یا والدین کلاس کا کوئز کھولیں۔ ایک چنیں:\n\n📝 Quiz: teachers, make one for your class. Children or parents, open your child\'s class quiz. Tap one:', ur: '📝 کوئز: ٹیچر اپنی کلاس کے لیے کوئز بنائیں۔ بچے یا والدین کلاس کا کوئز کھولیں۔ ایک چنیں:\n\n📝 Quiz: teachers, make one for your class. Children or parents, open your child\'s class quiz. Tap one:' },
+  // door.btn.teacher.en / .ur (reply button, <= 20 cp)
+  ftDoorBtnTeacher: { en: 'Make a class quiz', ur: 'کوئز بنائیں' },
+  // door.btn.child.en / .ur (reply button, <= 20 cp)
+  ftDoorBtnChild: { en: 'Student or parent', ur: 'کوئز کھیلیں' },
+  // maker.body (the maker cta; the undo line quotes the child word)
+  ftMakerBody: { en: 'Your first quiz in three taps: grade, subject, topic. Then send it to your class group. It opens right here in WhatsApp.\n\nNot a teacher? Send “child”.', ur: 'آپ کا پہلا کوئز تین ٹیپ میں: جماعت، مضمون، موضوع۔ پھر اسے اپنے کلاس گروپ میں بھیجیں۔ یہ یہیں \u2066WhatsApp\u2069 میں کھلے گا۔\n\nٹیچر نہیں ہیں؟ ”بچہ“ لکھ کر بھیجیں۔' },
+  // maker.body.bi
+  ftMakerBodyBi: { en: 'آپ کا پہلا کوئز تین ٹیپ میں: جماعت، مضمون، موضوع۔ پھر اسے اپنے کلاس گروپ میں بھیجیں۔ یہ یہیں \u2066WhatsApp\u2069 میں کھلے گا۔\n\nٹیچر نہیں ہیں؟ ”بچہ“ لکھ کر بھیجیں۔\n\nYour first quiz in three taps: grade, subject, topic. Then send it to your class group. It opens right here in WhatsApp.\n\nNot a teacher? Send “child”.', ur: 'آپ کا پہلا کوئز تین ٹیپ میں: جماعت، مضمون، موضوع۔ پھر اسے اپنے کلاس گروپ میں بھیجیں۔ یہ یہیں \u2066WhatsApp\u2069 میں کھلے گا۔\n\nٹیچر نہیں ہیں؟ ”بچہ“ لکھ کر بھیجیں۔\n\nYour first quiz in three taps: grade, subject, topic. Then send it to your class group. It opens right here in WhatsApp.\n\nNot a teacher? Send “child”.' },
+  // maker.btn (cta_url button, <= 20 cp)
+  ftMakerBtn: { en: 'Make my quiz', ur: 'میرا کوئز بنائیں' },
+  // maker.fallback.body: the door's teacher key, not registered, no lesson (the undo line kept: the key may be a mis-tap)
+  ftMakerFallbackBody: { en: 'No lesson recorded yet.\nNot a teacher? Send “child”.\n\nPick one:', ur: 'ابھی تک کوئی سبق ریکارڈ نہیں ہوا۔\nٹیچر نہیں ہیں؟ ”بچہ“ لکھ کر بھیجیں۔\n\nایک چنیں:' },
+  // maker.fallback.body.known: a registered teacher with no lesson (no undo line)
+  ftMakerFallbackBodyKnown: { en: 'No lesson recorded yet. Pick one:', ur: 'ابھی تک کوئی سبق ریکارڈ نہیں ہوا۔ ایک چنیں:' },
+  // maker.fallback.body.unknown: a never-met phone
+  ftMakerFallbackBodyUnknown: { en: 'Not a teacher? Send “child”.\n\nPick one to start:', ur: 'ٹیچر نہیں ہیں؟ ”بچہ“ لکھ کر بھیجیں۔\n\nشروع کرنے کے لیے ایک چنیں:' },
+  // maker.fallback.body.unknown.bi
+  ftMakerFallbackBodyUnknownBi: { en: 'ٹیچر نہیں ہیں؟ ”بچہ“ لکھ کر بھیجیں۔\n\nشروع کرنے کے لیے ایک چنیں:\n\nNot a teacher? Send “child”.\n\nPick one to start:', ur: 'ٹیچر نہیں ہیں؟ ”بچہ“ لکھ کر بھیجیں۔\n\nشروع کرنے کے لیے ایک چنیں:\n\nNot a teacher? Send “child”.\n\nPick one to start:' },
+  // maker.fallback.btn1 (reply button, <= 20 cp)
+  ftMakerFallbackBtn1: { en: 'Ready quiz', ur: 'تیار کوئز' },
+  // maker.fallback.btn2
+  ftMakerFallbackBtn2: { en: 'Lesson plan', ur: 'سبق کا منصوبہ' },
+  // maker.fallback.btn3
+  ftMakerFallbackBtn3: { en: 'Record a lesson', ur: 'سبق ریکارڈ کریں' },
+  // family.body (the family cta; the undo line quotes the teacher word; no test word)
+  ftFamilyBody: { en: 'Children play from the link their teacher sent to the class group. Tap to open it, or type the code written on it.\n\nTeaching a class? Send “teacher”.', ur: 'بچے اُس لنک سے کھیلتے ہیں جو ٹیچر نے کلاس گروپ میں بھیجا ہے۔ اسے کھولنے کے لیے ٹیپ کریں، یا اُس پیغام میں دیا گیا کوڈ یہاں لکھ کر بھیجیں۔\n\nآپ ٹیچر ہیں؟ ”ٹیچر“ لکھ کر بھیجیں۔' },
+  // family.body.bi
+  ftFamilyBodyBi: { en: 'بچے اُس لنک سے کھیلتے ہیں جو ٹیچر نے کلاس گروپ میں بھیجا ہے۔ اسے کھولنے کے لیے ٹیپ کریں، یا اُس پیغام میں دیا گیا کوڈ یہاں لکھ کر بھیجیں۔\n\nآپ ٹیچر ہیں؟ ”ٹیچر“ لکھ کر بھیجیں۔\n\nChildren play from the link their teacher sent to the class group. Tap to open it, or type the code written on it.\n\nTeaching a class? Send “teacher”.', ur: 'بچے اُس لنک سے کھیلتے ہیں جو ٹیچر نے کلاس گروپ میں بھیجا ہے۔ اسے کھولنے کے لیے ٹیپ کریں، یا اُس پیغام میں دیا گیا کوڈ یہاں لکھ کر بھیجیں۔\n\nآپ ٹیچر ہیں؟ ”ٹیچر“ لکھ کر بھیجیں۔\n\nChildren play from the link their teacher sent to the class group. Tap to open it, or type the code written on it.\n\nTeaching a class? Send “teacher”.' },
+  // family.btn (cta_url button, <= 20 cp; do not lengthen)
+  ftFamilyBtn: { en: 'Open class quiz', ur: 'کلاس کا کوئز کھولیں' },
+  // family.fallback: the refused family send AND the capped keyless reply (plain text, nothing about tapping)
+  ftFamilyFallback: { en: 'Children play from the link their teacher sent to the class group. Open that link, or type the code written on it.\nNo class link yet? Ask your teacher.\n\nTeaching a class? Send “teacher”.', ur: 'بچے اُس لنک سے کھیلتے ہیں جو ٹیچر نے کلاس گروپ میں بھیجا ہے۔ وہی لنک کھولیں، یا اُس پیغام میں دیا گیا کوڈ یہاں لکھ کر بھیجیں۔\nلنک نہیں ملا؟ ٹیچر سے مانگ لیں۔\n\nآپ ٹیچر ہیں؟ ”ٹیچر“ لکھ کر بھیجیں۔' },
+  // family.fallback.bi
+  ftFamilyFallbackBi: { en: 'بچے اُس لنک سے کھیلتے ہیں جو ٹیچر نے کلاس گروپ میں بھیجا ہے۔ وہی لنک کھولیں، یا اُس پیغام میں دیا گیا کوڈ یہاں لکھ کر بھیجیں۔\nلنک نہیں ملا؟ ٹیچر سے مانگ لیں۔\n\nآپ ٹیچر ہیں؟ ”ٹیچر“ لکھ کر بھیجیں۔\n\nChildren play from the link their teacher sent to the class group. Open that link, or type the code written on it.\nNo class link yet? Ask your teacher.\n\nTeaching a class? Send “teacher”.', ur: 'بچے اُس لنک سے کھیلتے ہیں جو ٹیچر نے کلاس گروپ میں بھیجا ہے۔ وہی لنک کھولیں، یا اُس پیغام میں دیا گیا کوڈ یہاں لکھ کر بھیجیں۔\nلنک نہیں ملا؟ ٹیچر سے مانگ لیں۔\n\nآپ ٹیچر ہیں؟ ”ٹیچر“ لکھ کر بھیجیں۔\n\nChildren play from the link their teacher sent to the class group. Open that link, or type the code written on it.\nNo class link yet? Ask your teacher.\n\nTeaching a class? Send “teacher”.' },
+  // ── end first touch ──
   // ── the class round's teacher invitation (bot.round.invite; switch web_quiz_class_round) ──
   // The body of the WhatsApp template jugnu_round_invite_{en,ur}: read RAW (a template body, not chat text). Not sent
   // until the template is approved; "drawn", never picked.

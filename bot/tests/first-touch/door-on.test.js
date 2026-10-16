@@ -135,14 +135,29 @@ describe('classify() with both ON — an unknown phone', () => {
   });
 });
 
-describe('route() with a first_door verdict (D1: nothing of ours answers yet)', () => {
-  test('persona is null, so route() falls through to today\'s dispatch and sends nothing', async () => {
+describe('route() with a first_door verdict: persona stays null; only the door\'s handler answers', () => {
+  test('the quiz request is answered by the door\'s handler (route() true, the chooser sent once)', async () => {
     seed();
+    const WhatsAppService = require('../../shared/services/whatsapp.service');
     const user = { ...UNKNOWN_USER };
     await Ingress.attach(user, PHONE, { body: 'quiz' });
     expect(user.persona).toBeNull();
     expect(user.personaReason).toBe('first_door');
-    expect(await Ingress.route({ messageType: 'text', messageBody: 'quiz', from: PHONE, user })).toBe(false);
+    expect(await Ingress.route({ messageType: 'text', messageBody: 'quiz', from: PHONE, user })).toBe(true);
+    expect(WhatsAppService.sendInteractiveButtons).toHaveBeenCalledTimes(1);
+    expect(WhatsAppService.sendInteractiveButtons.mock.calls[0][1].buttons.map((b) => b.id)).toEqual(['ft_door_teacher', 'ft_door_child']);
+  });
+
+  test('a message the handler does not claim falls through to today\'s dispatch and sends nothing (persona null)', async () => {
+    seed();
+    const WhatsAppService = require('../../shared/services/whatsapp.service');
+    const user = { ...UNKNOWN_USER };
+    await Ingress.attach(user, PHONE, { body: 'quiz' });            // the first_door verdict, cached 60 s
+    user.personaReason = 'first_door';
+    expect(await Ingress.route({ messageType: 'text', messageBody: 'hello there', from: PHONE, user })).toBe(false);
+    expect(user.persona).toBeNull();
+    expect(WhatsAppService.sendInteractiveButtons).not.toHaveBeenCalled();
+    expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
   });
 });
 

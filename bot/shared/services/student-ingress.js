@@ -215,6 +215,17 @@ async function doorVerdict({ user, phone, body }) {
     return await FirstDoor.doorVerdict({ user, phone, body, quizShaped: guestAsksForQuiz('text', body) });
   } catch (_) { return null; }
 }
+
+/**
+ * The door's handler, ONCE in route() after the binder's words: an unknown phone's undo word, claim, quiz request or
+ * door tap → true when the door answered it; false for everything else and on any error (a broken module → today's).
+ */
+async function doorHandle({ user, from, messageType, messageBody, message }) {
+  try {
+    const FirstDoor = require('./first-touch/door.service');
+    return Boolean(await FirstDoor.handle({ user, from, type: messageType || (message && message.type) || '', body: messageBody, message }));
+  } catch (_) { return false; }
+}
 // ── end first touch ──
 
 /**
@@ -445,6 +456,9 @@ async function route({ message, messageType, messageBody = '', from, user } = {}
     user.personaReason = 'no_student_row';
   }
   if (user && await bindingWords({ message, messageType, messageBody, from, user })) return true;
+  // ── first touch: an unknown phone's door (quiz_first_door; off → false, today's dispatch) ──
+  if (user && (await doorHandle({ user, from, messageType, messageBody, message }))) return true;
+  // ── end first touch ──
   if (!user || user.persona !== 'student') return false;
   const language = childLanguage(user);
   const type = messageType || (message && message.type) || '';

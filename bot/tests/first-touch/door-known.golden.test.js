@@ -82,8 +82,14 @@ describe('codes and STOP from an unknown phone, ours ON (D7)', () => {
 
   test('"quiz" from the same phone IS quiz-shaped (the control): one key read, the first_door verdict', async () => {
     seed({ settings: { ...SISTER_ON, ...OURS_ON } });
-    const on = await inbound(UNKNOWN_USER, 'quiz');
-    expect(on.verdict.reason).toBe('first_door');
-    expect(on.reads).toBe(1);
+    const u = { ...UNKNOWN_USER };
+    await Ingress.attach(u, PHONE, { body: 'quiz' });
+    expect(u.personaReason).toBe('first_door');
+    expect(firstUseReads(fake)).toBe(1);                    // the verdict: ONE key read
+    const at = fake.calls.length;
+    await Ingress.route({ messageType: 'text', messageBody: 'quiz', from: PHONE, user: u });
+    // the chooser's show adds only its own write (FeatureIntro's read-then-write of the count): never a second key read
+    expect(fake.calls.slice(at).map((c) => `${c.op}:${c.table}`).filter((c) => c.endsWith('user_feature_first_use')))
+      .toEqual(['select:user_feature_first_use', 'upsert:user_feature_first_use', 'update:user_feature_first_use']);
   });
 });
