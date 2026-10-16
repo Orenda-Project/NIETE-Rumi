@@ -4,7 +4,7 @@
  * the Challenge's submit path is byte-identical to before the rung job: every event (name and payload) and every
  * database call (table, operation, payload) for a scored bigger run, a scored missing-number run under the record
  * rules, a reading that fails scoring, and a scored v2 row with events v2 on.
- * The snapshot was written by this file against the code BEFORE the change (origin/sandbox 86b03d07c, no rung job) and is committed; the change must keep
+ * The snapshot was written by this file against the code BEFORE the change (origin/sandbox e09457f79, no rung job) and is committed; the change must keep
  * matching it. Supabase, R2, speech, the LLM client, Redis and the logger transport are the faked boundaries.
  */
 jest.mock('../../../shared/config/supabase', () => ({}));

@@ -462,7 +462,8 @@ describe('onRecordFinal', () => {
 // The landed path, end to end: serve under web_quiz_challenge_v2 + _period (the run row inserted at serve with
 // mode / record / period decided there), then submit (finishServed / updateRunMeta → status scored | failed), then
 // measureOutcome → onRecordFinal. Only Supabase, R2, speech, the LLM client and Redis are faked.
-const PERIOD_ON = [...ALL_ON, { key: 'web_quiz_challenge_period', value: true }];
+// the record's parent switch (web_quiz_identity_canon, under web_quiz_hub): off, a would-be record is served as practice
+const PERIOD_ON = [...ALL_ON, { key: 'web_quiz_challenge_period', value: true }, { key: 'web_quiz_identity_canon', value: true }];
 const DAY = 24 * 3600 * 1000;
 const periodsNow = () => [
   { period_id: '2026-10', starts_at: new Date(Date.now() - 40 * DAY).toISOString(), ends_at: new Date(Date.now() - DAY).toISOString(), anchor_block_version: 'A1', weights_v: 'w1', bank_version: 'child-test-items-v4' },

@@ -840,6 +840,11 @@ exports[`web_quiz_challenge_rungs off: the submit path is byte-identical a score
     {
       "op": "select",
       "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
       "table": "app_settings",
     },
     {
@@ -1089,6 +1094,11 @@ exports[`web_quiz_challenge_rungs off: the submit path is byte-identical a score
     {
       "op": "select",
       "payload": null,
+      "table": "web_quiz_challenge_runs",
+    },
+    {
+      "op": "select",
+      "payload": null,
       "table": "app_settings",
     },
     {
@@ -1334,6 +1344,11 @@ exports[`web_quiz_challenge_rungs off: the submit path is byte-identical a score
       "op": "select",
       "payload": null,
       "table": "app_settings",
+    },
+    {
+      "op": "select",
+      "payload": null,
+      "table": "web_quiz_challenge_runs",
     },
     {
       "op": "select",
