@@ -409,11 +409,14 @@ describe('the lantern\'s title is the passage file\'s (one title home)', () => {
     expect(JSON.stringify(out.play)).not.toContain('رجسٹری عنوان');
   });
 
-  test('a Set A pointer (file titles null) with a registry title: no title, never "null"; the lantern takes its next branch', async () => {
-    seed(STORY_ON, { web_quiz_challenge_runs: done, challenge_passages: [reg('en.read.2.setA', 'en')] });
+  test('a passage whose file has no title (a registry title only): no title, never "null"; the lantern takes its next branch', async () => {
+    seed(STORY_ON, { web_quiz_challenge_runs: done, challenge_passages: [reg('en.read.1.plain01', 'en')] });
+    // the file itself carries no title in either language (the registry row's "Registry Title" is never the child's)
+    require('fs').writeFileSync(require('path').join(PDIR, 'en.read.1.plain01.json'), JSON.stringify({ passage_id: 'en.read.1.plain01', lang: 'en', kind: 'read', band: 1, pool: 'practice', title_en: null, title_ur: null }));
+    Bank._loadPassagesFrom(PDIR);
     const out = await Hub.hub(T.signHub([KID]), A);
     expect(out.play.lantern.kind).toBe('numbers');
-    expect(out.play.shelf[0]).toEqual({ id: 'week_story', pid: 'en.read.2.setA', nx: 'seen' });
+    expect(out.play.shelf[0]).toEqual({ id: 'week_story', pid: 'en.read.1.plain01', nx: 'seen' });
     expect(JSON.stringify(out.play)).not.toMatch(/null"|"null|Registry Title|undefined/);
   });
 });

@@ -841,7 +841,7 @@ function passageFor(id, Bank) {
   if (p && p.text) {
     const tokens = Array.isArray(p.tokens) ? p.tokens : words(p.text);
     return { id, text: p.text, tokens, lines: linesOf(p.lines, tokens.length), direction: p.direction || p.dir || (p.lang === 'ur' ? 'rtl' : 'ltr'), questions: p.questions || [],
-      title_en: p.title_en == null ? null : p.title_en, title_ur: p.title_ur == null ? null : p.title_ur };
+      title_en: p.title_en == null ? null : p.title_en, title_ur: p.title_ur == null ? null : p.title_ur, kind: p.kind, pool: p.pool };   // kind/pool: the counted-listen title gate asks them (web-quiz-passage-title.js)
   }
   const m = /^(en|ur)\.(read|listen)\.2\.setA$/.exec(String(id || ''));
   if (!m) return null;
