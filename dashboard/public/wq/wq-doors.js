@@ -28,19 +28,21 @@
     },
     ur: {
       weekStory: 'اس ہفتے کی کہانی', toRead: 'پڑھنے کی کہانیاں', toListen: 'سننے کی کہانیاں', books: 'کہانیوں کی کتابیں',
-      listen: 'کہانی سنیں', story: 'جگنو کے ساتھ کہانی', newTag: 'نئی', doneTag: 'ہو گئی',
-      numbers: 'گنتی کے کھیل', fromTeacher: 'استاد کی طرف سے', again: 'دوبارہ کھیلیں', quiz: 'استاد کا کوئز',
-      warm: 'گنتی کا کھیل', missing: 'غائب عدد', bigger: 'کون سا بڑا ہے؟', g1: 'جگنو کے ساتھ گنتی',
+      listen: 'کہانی سنیں', story: 'جگنو کے ساتھ کہانی', newTag: 'نئی', doneTag: 'مکمل',
+      numbers: 'گنتی کے کھیل', fromTeacher: 'ٹیچر کی طرف سے', again: 'دوبارہ کھیلیں', quiz: 'استاد کا کوئز',
+      warm: 'گنتی کا کھیل', missing: 'کون سا عدد غائب ہے؟', bigger: 'کون سا عدد بڑا ہے؟', g1: 'جگنو کے ساتھ گنتی',
       pick: 'ایک مضمون چنیں', back: 'واپس', opening: 'ویڈیو کھل رہی ہے…', none: 'یہاں ابھی کوئی ویڈیو نہیں۔',
-      oops: 'یہ نہیں کھلا۔', retry: 'دوبارہ کوشش کریں', watchNext: 'اگلی ویڈیو دیکھیں', quizAfter: 'کوئز کھیلیں',
-      moreVideos: 'اور ویڈیوز', play: 'ویڈیو چلائیں', say: 'سنیں',
+      oops: 'اوہو! یہ نہیں کھل سکا۔', retry: 'دوبارہ کوشش کریں', watchNext: 'اگلی ویڈیو دیکھیں', quizAfter: 'کوئز کھیلیں',
+      moreVideos: 'اور ویڈیوز دیکھیں', play: 'ویڈیو چلائیں', say: 'سنیں',
       storiesNone: 'نئی کہانیاں آ رہی ہیں۔ تب تک کھیل کھیلیں!', gamesNone: 'جگنو کے ساتھ کہانی پڑھیں!', toGames: 'کھیل کھیلیں', toStories: 'کہانی پڑھیں',
       mins: function (m) { return urDigits(m) + ' منٹ'; },
       subj: function (s) { return SUBJ_UR[s] || s; },
     },
   };
-  var SUBJ_UR = { English: 'انگریزی', Maths: 'ریاضی', Urdu: 'اردو', Science: 'سائنس', Geography: 'جغرافیہ', 'General Knowledge': 'معلوماتِ عامہ', History: 'تاریخ', 'Islamic Studies': 'اسلامیات' };
+  var SUBJ_UR = { English: 'انگریزی', Maths: 'ریاضی', Urdu: 'اردو', Science: 'سائنس', Geography: 'جغرافیہ', 'General Knowledge': 'معلوماتِ عامہ', History: 'تاریخ', 'Islamic Studies': 'اسلامیات', 'Social Studies': 'معاشرتی علوم' };
   var DOORS = ['stories', 'games', 'videos'];
+  var PLAY = '<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>';
+  var TICK = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
   var SPK = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4zM16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
   var HOMEI = '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M12 3l9 8h-3v9h-4v-6h-4v6H6v-9H3z"/></svg>';
 
@@ -68,7 +70,7 @@
   function row(o, ctx) {
     // o: {href, title, sub, tag, kind, pos, item, say, done, art, tap}
     var art = o.art ? '<img class="wq-rart" src="' + esc(o.art) + '" alt="" width="56" height="56" loading="lazy" decoding="async">' : '';
-    var tag = o.done ? '<i class="wq-donetag" aria-label="' + esc(C(ctx).doneTag) + '">✓</i>' : (o.tag ? '<i class="wq-new">' + esc(o.tag) + '</i>' : '');
+    var tag = o.done ? '<i class="wq-donetag" role="img" aria-label="' + esc(C(ctx).doneTag) + '">' + TICK + '</i>' : (o.tag ? '<i class="wq-new">' + esc(o.tag) + '</i>' : '');
     var attrs = ' data-tap="' + (o.tap || 'row') + '" data-kind="' + esc(o.kind) + '"' + (o.pos != null ? ' data-pos="' + esc(o.pos) + '"' : '') + (o.item ? ' data-item="' + esc(o.item) + '"' : '');
     var inner = art + '<span class="wq-rtext"><b><bdi>' + esc(o.title) + '</bdi></b>' + (o.sub ? '<small><bdi>' + esc(o.sub) + '</bdi></small>' : '') + '</span>' + tag;
     var main = o.href ? '<a class="wq-row wq-drow"' + attrs + ' href="' + esc(o.href) + '">' + inner + '</a>' : '<button class="wq-row wq-drow" type="button"' + attrs + '>' + inner + '</button>';
@@ -155,9 +157,9 @@
   function watchHtml(w, ctx, next) {
     var t = C(ctx);
     var nx = next ? '<a class="wq-next wq-vnext" data-tap="after" data-kind="' + esc(next.kind) + '" href="' + esc(next.href || '#videos') + '">' +
-      '<span class="wq-ntext"><b>' + esc(next.title) + '</b>' + (next.sub ? '<small><bdi>' + esc(next.sub) + '</bdi></small>' : '') + '</span><span class="wq-ngo" aria-hidden="true">▶</span></a>' : '';
+      '<span class="wq-ntext"><b>' + esc(next.title) + '</b>' + (next.sub ? '<small><bdi>' + esc(next.sub) + '</bdi></small>' : '') + '</span><span class="wq-ngo" aria-hidden="true">' + PLAY + '</span></a>' : '';
     return '<div class="wq-vbox"><video class="wq-vid" playsinline controls preload="none" controlslist="nodownload"' + (w.poster ? ' poster="' + esc(w.poster) + '"' : '') + ' src="' + esc(w.url) + '"></video>' +
-      '<button class="wq-vplay" type="button" data-primary data-tap="play" data-sound data-trigger="tap" aria-label="' + esc(t.play) + '">▶</button></div>' +
+      '<button class="wq-vplay" type="button" data-primary data-tap="play" data-sound data-trigger="tap" aria-label="' + esc(t.play) + '">' + PLAY + '</button></div>' +
       '<p class="wq-vtitle" dir="auto"><bdi>' + esc(w.title || '') + '</bdi></p>' +
       '<div class="wq-after" hidden>' + nx + '</div>';
   }

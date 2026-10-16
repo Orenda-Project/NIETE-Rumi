@@ -92,6 +92,9 @@ describe('every door screen, both languages', () => {
     expect(s.storiesMany).toContain('data-url="https://r2.example.test/say.ogg"');
   });
 
+  test('pictures are SVG, never an emoji or a symbol glyph (RULING #C5.2: tofu on Android 9)', () => {
+    for (const h of Object.values(screens(load(), 'ur'))) expect(visible(h)).not.toMatch(/[\u2190-\u2BFF\u{1F000}-\u{1FAFF}]/u);
+  });
   test('Urdu: lang=ur dir=rtl, Urdu digits, no U+00B7, no Western digit in a minutes line', () => {
     const s = screens(load(), 'ur');
     for (const h of Object.values(s)) {
