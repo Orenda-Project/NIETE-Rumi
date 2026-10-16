@@ -31,10 +31,10 @@
     var ctx = R.ctx, C = R.C, id = R.id, root = R.root, paint = R.paint, b = R.b, P = R.P, m = R.m, L = R.L, t = R.t;
     var qi = 0, ans = [], dim = -1, rv = -1, chosen = -1, qlock = 0, qs = null, fcw = null, ck = [], ci = 0, sum = null, stopAll = 0, stream = null, spr = null, end = 0;
     function live() { return R.live(); }
-    function declined(how) { K.evt(ctx, 'mic_declined', { src: 'story', how: how }); }
+    function declined(how) { if (!(W.WQLiveRead && W.WQLiveRead.askMic)) K.evt(ctx, 'mic_declined', { src: 'story', how: how }); }
 
     var micO = {
-      lang: L, src: 'story',
+      lang: L, src: 'story', ev: ctx.ev,
       onStream: function (s) { if (m.st === 'mic') { stream = s; m.granted(); } },
       onDenied: function (why) { if (m.st !== 'mic') return; if (why === 'not_now') return micO.onNotNow(); declined('denied'); m.denied(); },
       onNotNow: function () { if (m.st === 'mic') { declined('not_now'); m.notNow(); } },

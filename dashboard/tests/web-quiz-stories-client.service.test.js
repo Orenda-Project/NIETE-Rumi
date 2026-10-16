@@ -414,6 +414,7 @@ describe('the reader', () => {
     expect(e.calls.ask).toHaveLength(1);
     expect(e.calls.ask[0]).toMatchObject({ lang: 'en', src: 'story' });
     expect(typeof e.calls.ask[0].onNotNow).toBe('function');
+    expect(typeof e.calls.ask[0].ev).toBe('function'); // the sheet reports mic_ask / mic_declined itself
     expect(e.calls.askEl.querySelector('.lr-go').attrs).toHaveProperty('data-primary');
     expect(root.innerHTML).not.toMatch(/<img|<h2 class="wqs-say"|data-tap="notnow"|data-tap="mic"/);
     expect(primaries(root.innerHTML)).toBe(0);
@@ -442,13 +443,14 @@ describe('the reader', () => {
     fire(root, 'main');
     expect(c.log).toContain('stop:done_tap');
   });
-  test('"Not now, just listen" (askMic onDenied(\'not_now\') or onNotNow): back to Listen, mic_declined not_now, nothing lost', async () => {
+  test('"Not now, just listen" (askMic onDenied(\'not_now\') or onNotNow): back to Listen, nothing lost, the event left to the sheet', async () => {
     const e = env(); const root = await openReader(e);
     toMic(e, root);
     e.calls.ask[0].onDenied('not_now');
     expect(screenOf(root.innerHTML)).toBe('story-page');
     expect(root.innerHTML).toMatch(/data-main[^>]*>Listen</);
-    expect(e.calls.ev).toContainEqual(['mic_declined', { src: 'story', how: 'not_now' }]);
+    // the live reader's sheet logs mic_declined through the ev it is handed; the reader never logs it twice
+    expect((e.calls.ev || []).filter((x) => x[0] === 'mic_declined')).toHaveLength(0);
     const e2 = env(); const r2 = await openReader(e2);
     toMic(e2, r2); e2.calls.ask[0].onNotNow();
     expect(r2.innerHTML).toMatch(/data-main[^>]*>Listen</);
@@ -483,14 +485,15 @@ describe('the reader', () => {
     expect(text(h)).not.toMatch(/Well read|Great|Shabash/i);
     expect(h).toMatch(/data-main[^>]*>Listen</);
   });
-  test('a denied mic: "That\'s OK, let\'s listen with Jugnu", Listen, mic_declined denied; never a dead end', async () => {
+  test('a denied mic: "That\'s OK, let\'s listen with Jugnu", Listen; never a dead end', async () => {
     const e = env(); const root = await openReader(e);
     toMic(e, root); fire(root, 'mic');
     e.calls.ask[0].onDenied('notallowed');
     const h = root.innerHTML;
     checkScreen(h, 'en');
     expect(h).toContain('That&#39;s OK, let&#39;s listen with Jugnu');
-    expect(e.calls.ev).toContainEqual(['mic_declined', { src: 'story', how: 'denied' }]);
+    // the live reader's sheet logs mic_declined through the ev it is handed; the reader never logs it twice
+    expect((e.calls.ev || []).filter((x) => x[0] === 'mic_declined')).toHaveLength(0);
     const p = e.calls.ra[e.calls.ra.length - 1];
     fire(root, 'main');
     expect(p.log).toContain('play');
