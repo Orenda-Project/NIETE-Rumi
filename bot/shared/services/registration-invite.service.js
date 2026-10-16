@@ -28,11 +28,11 @@ const supabase = require('../config/supabase');
 const WhatsAppService = require('./whatsapp.service');
 const { logToFile, logError } = require('../utils/logger');
 const { resolveUx, clampLanguage } = require('../config/ux-strings');
-const { isRegistered } = require('../utils/registration-status');
+const { isRegistered, needsRegistrationForm } = require('../utils/registration-status');
 
 const VARIANTS = Object.freeze(['new', 'update', 'school']);
 
-const IDENTITY_COLUMNS = 'id, name, registration_completed, registration_state, registration_started_at';
+const IDENTITY_COLUMNS = 'id, name, role, school_id, registration_completed, registration_state, registration_started_at';
 
 // Catalog KEYS (ux-strings.js), not copy. Named *Key so the language audit's cap scan, which
 // reads `header: '…'` / `button: '…'` literals as WhatsApp text, measures the copy, not these.
@@ -81,8 +81,10 @@ async function readAccount(user) {
 }
 
 function variantFor(account, reason) {
-  if (isRegistered(account)) return 'update';
-  return reason === 'school_feature' ? 'school' : 'new';
+  // A school door asks for the school whoever she is — a registered teacher with no school
+  // included: "update your details" would not say why the form came.
+  if (reason === 'school_feature') return 'school';
+  return isRegistered(account) ? 'update' : 'new';
 }
 
 /** Stamp "first offered" if it is not set yet. Best effort: the send already happened. */
@@ -164,7 +166,8 @@ async function sendRegistrationInvite({ user, phone, language, reason = 'unspeci
 
 /**
  * Offer the form once, unprompted — after her first reply, or after a feature is delivered.
- * Never to a registered teacher; never twice; never two doors at once.
+ * Only to an account that still needs it (needsRegistrationForm); never twice; never two doors
+ * at once.
  *
  * @returns {Promise<boolean>} true when this call sent it
  */
@@ -173,7 +176,9 @@ async function offerRegistrationOnce({ user, phone, language, reason = 'unspecif
 
   const account = await readAccount(user);
   if (!account) return false; // cannot tell — do not risk offering a registered teacher the form
-  if (isRegistered(account) || account.registration_started_at) return false;
+  // Not "registered" (a name is enough for that): the account must still NEED the form — a name
+  // with no school or role, or nothing at all (utils/registration-status.js needsRegistrationForm).
+  if (!needsRegistrationForm(account) || account.registration_started_at) return false;
 
   // Claim the offer. Only the call that flips NULL → now sends it.
   const claimedAt = new Date().toISOString();
