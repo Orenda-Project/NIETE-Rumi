@@ -808,6 +808,144 @@ function checkQuestion(q, exam, index) {
   return replaceKey(q, exam, answer, target.index, target.raw, computed, index);
 }
 
+// ── One right option ───────────────────────────────────────────────────────
+//
+// "Which number is divisible by 11?" with 4,213 and 5,148 among the options has
+// two right answers; the equality check never sees it, because the options
+// differ in value. For a stem that names a property, every option is tested
+// against it. A stem this cannot read with certainty is left unchecked.
+
+const INDIC = /[۰-۹٠-٩]/g;
+const westernDigits = (s) => s.replace(INDIC, (d) => String(('۰۱۲۳۴۵۶۷۸۹'.indexOf(d) + 1 || '٠١٢٣٤٥٦٧٨٩'.indexOf(d) + 1) - 1));
+const OPTION_LETTER = /^\s*\(?([a-h])\s*[).]\s*/i;
+const WHOLE_NUMBER = /^\d{1,3}(?:,\d{3})+$|^\d+$/;
+
+function optionParts(options) {
+  return options.map((opt, i) => {
+    const text = westernDigits(String(opt)).trim();
+    const m = OPTION_LETTER.exec(text);
+    return { letter: m ? m[1].toLowerCase() : 'abcdefgh'[i], body: (m ? text.slice(m[0].length) : text).trim() };
+  });
+}
+
+const wholeValue = (body) => (WHOLE_NUMBER.test(body) ? Number(body.replace(/,/g, '')) : NaN);
+
+// A whole number, decimal, fraction or mixed number and nothing else.
+function plainValue(body) {
+  const s = body.replace(/,/g, '');
+  let m;
+  if ((m = /^\d+(?:\.\d+)?$/.exec(s))) return Number(s);
+  if ((m = /^(\d+)\/(\d+)$/.exec(s)) && Number(m[2])) return Number(m[1]) / Number(m[2]);
+  if ((m = /^(\d+)\s+(\d+)\/(\d+)$/.exec(s)) && Number(m[3])) return Number(m[1]) + Number(m[2]) / Number(m[3]);
+  return NaN;
+}
+
+function isPrime(n) {
+  if (!Number.isInteger(n) || n < 2) return false;
+  for (let d = 2; d * d <= n; d += 1) if (n % d === 0) return false;
+  return true;
+}
+
+const PLACE_WORDS = { ten: 10, hundred: 100, thousand: 1000, 'ten thousand': 10000, 'hundred thousand': 100000 };
+const PLACE_NAMES = ['ones', 'tens', 'hundreds', 'thousands', 'ten thousands', 'hundred thousands', 'millions', 'ten millions', 'hundred millions'];
+const placeName = (body) => body.toLowerCase().replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim().replace(/^(?:the )?(.*?)(?: place)?$/, '$1').replace(/(?<!s)$/, 's');
+
+const SUPERLATIVE = /\b(greatest|largest|biggest|highest|smallest|least|lowest)\b/;
+const ASKS_WHICH = /\b(?:which|choose|select|pick)\b|کون/;
+// Words that turn the question round or ask about more than one number.
+const NOT_READ = /\b(?:not|except|never|common|hcf|lcm|gcd|how many|estimate|both|all)\b|نہیں|مشترک/;
+
+// Each property: the stem it reads, and the test an option's whole number must pass.
+const PROPERTIES = [
+  { re: /\bdivisible by (\d+)\b|(\d+)\s*سے\s*(?:پورا|پوری|مکمل)?\s*تقسیم/, test: (n, d) => d > 1 && n % d === 0 },
+  { re: /\bfactor of (\d+)\b/, test: (n, d) => n > 0 && d % n === 0 },
+  { re: /\bmultiple of (\d+)\b/, test: (n, d) => d > 0 && n % d === 0 },
+  { re: /\bprime\b|مفرد/, test: (n) => isPrime(n) },
+  { re: /\b(?:is|are) (?:an )?even\b|\beven number\b|جفت/, test: (n) => n % 2 === 0 },
+  { re: /\b(?:is|are) (?:an )?odd\b|\bodd number\b|طاق/, test: (n) => n % 2 === 1 },
+];
+
+function verdictOf(parts, passes) {
+  const passing = parts.filter(passes).map((p) => p.letter);
+  return passing.length === 1 ? { ok: true } : { ok: false, passing };
+}
+
+function propertyVerdict(stem, parts) {
+  const hit = PROPERTIES.map((p) => ({ p, m: p.re.exec(stem) })).filter((x) => x.m);
+  if (!hit.length) return null;
+  // "the smallest prime", "prime factor of": two asks in one stem.
+  if (hit.length > 1 || SUPERLATIVE.test(stem) || /\bprime factor/.test(stem) || !ASKS_WHICH.test(stem)) return { ok: null };
+  const values = parts.map((p) => wholeValue(p.body));
+  if (values.some(Number.isNaN)) return { ok: null };
+  const { p, m } = hit[0];
+  const d = Number(m.slice(1).find((g) => g !== undefined));
+  return verdictOf(parts, (_, i) => p.test(values[i], d));
+}
+
+const ONLY_SUPERLATIVE = /^which (?:(?:one|number|fraction|decimal|of these(?: numbers| fractions| decimals)?|of the following(?: numbers| fractions| decimals)?) )?is (?:the )?(greatest|largest|biggest|highest|smallest|least|lowest)(?: (?:number|fraction|decimal|one))?(?: of (?:these|them|the following))?\s*[?.]?$/;
+
+function superlativeVerdict(stem, parts) {
+  const m = ONLY_SUPERLATIVE.exec(stem);
+  if (!m) return null;
+  const values = parts.map((p) => plainValue(p.body));
+  if (values.some(Number.isNaN)) return { ok: null };
+  const best = /greatest|largest|biggest|highest/.test(m[1]) ? Math.max(...values) : Math.min(...values);
+  return verdictOf(parts, (_, i) => Math.abs(values[i] - best) < 1e-9);
+}
+
+function roundingVerdict(stem, parts) {
+  const m = /\bto the nearest (hundred thousand|ten thousand|thousand|hundred|ten|100,000|10,000|1,000|1000|100|10)\b/.exec(stem);
+  if (!m || !/\bround(?:ed)?\b/.test(stem)) return null;
+  const place = PLACE_WORDS[m[1]] || Number(m[1].replace(/,/g, ''));
+  const rest = stem.slice(0, m.index) + ' ' + stem.slice(m.index + m[0].length);
+  const numbers = rest.match(/\d[\d,]*(?:\.\d+)?/g) || [];
+  if (numbers.length !== 1 || !WHOLE_NUMBER.test(numbers[0])) return { ok: null };
+  const values = parts.map((p) => wholeValue(p.body));
+  if (values.some(Number.isNaN)) return { ok: null };
+  const n = Number(numbers[0].replace(/,/g, ''));
+  const rounded = Math.floor((n + place / 2) / place) * place;
+  return verdictOf(parts, (_, i) => values[i] === rounded);
+}
+
+function placeValueVerdict(stem, parts) {
+  const m = /\bvalue of (?:the )?digit (\d) in (\d[\d,]*)/.exec(stem);
+  if (!m) return null;
+  const digits = m[2].replace(/,/g, '');
+  if (digits.split(m[1]).length !== 2) return { ok: null };
+  const k = digits.length - 1 - digits.indexOf(m[1]);
+  const values = parts.map((p) => wholeValue(p.body));
+  if (!values.some(Number.isNaN)) return verdictOf(parts, (_, i) => values[i] === Number(m[1]) * 10 ** k);
+  const names = parts.map((p) => placeName(p.body));
+  if (!/\bplace value\b/.test(stem) || !names.every((n) => PLACE_NAMES.includes(n))) return { ok: null };
+  return verdictOf(parts, (_, i) => names[i] === PLACE_NAMES[k]);
+}
+
+/**
+ * mcqPropertyVerdict(item) → { ok: true } | { ok: false, passing: [letters] } | { ok: null }
+ *
+ * For an MCQ whose stem asks for a property (divisible by n, prime, factor of n,
+ * multiple of n, even, odd, the greatest/smallest option, rounded to the nearest
+ * 10/100/1000, the place value of a digit): ok when exactly one option has it,
+ * otherwise the letters of the options that do. Any other stem, or options
+ * that are not plain numbers, is `{ ok: null }` (unchecked). Never throws.
+ */
+function mcqPropertyVerdict(item) {
+  try {
+    if (!isObject(item) || typeof item.question !== 'string' || !Array.isArray(item.options) || item.options.length < 2) return { ok: null };
+    if (item.options.some((o) => typeof o !== 'string' && typeof o !== 'number')) return { ok: null };
+    const stem = westernDigits(item.question).toLowerCase().replace(/\s+/g, ' ').trim();
+    if (NOT_READ.test(stem)) return { ok: null };
+    const parts = optionParts(item.options);
+    for (const read of [roundingVerdict, placeValueVerdict, propertyVerdict, superlativeVerdict]) {
+      const verdict = read(stem, parts);
+      if (verdict) return verdict;
+    }
+  } catch (_) {
+    // Unreadable is unchecked.
+  }
+  return { ok: null };
+}
+
 // ── The paper ──────────────────────────────────────────────────────────────
 
 const isObject = (x) => Boolean(x) && typeof x === 'object' && !Array.isArray(x);
@@ -893,6 +1031,7 @@ function mathsCheck(examJson, options = {}) {
 
 module.exports = {
   mathsCheck,
+  mcqPropertyVerdict,
   parseForm,
   lastNumber,
 };
