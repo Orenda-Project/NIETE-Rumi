@@ -140,12 +140,15 @@ function createRouter(deps = null) {
     if (!P || typeof P.forHome !== 'function' || !user || !user.phone_number) return lists;
     try { return (await P.forHome(user.phone_number, lists)) || lists; } catch (_) { return lists; }
   }
-  /** "Not a teacher? Change" → a fresh one-question landing from the one door, when it is there (a link, no write here). */
+  /**
+   * "Not a teacher? Change" → a fresh one-question landing from the one door, when it is there (a link, no write here).
+   * `src:'change'` keeps the question on screen there (the landing does not send a known teacher straight back).
+   */
   async function changeLanding(user, lang) {
     const OneDoor = optional('./one-door.service');
     if (!OneDoor || typeof OneDoor.mintLanding !== 'function' || !user || !user.phone_number) return null;
     try {
-      const url = await OneDoor.mintLanding({ user, phone: user.phone_number, side: 'unknown', lang: lang === 'en' ? 'bi' : 'ur', src: 'other' });
+      const url = await OneDoor.mintLanding({ user, phone: user.phone_number, side: 'unknown', lang: lang === 'en' ? 'bi' : 'ur', src: 'change' });
       if (typeof url !== 'string') return null;
       const at = url.indexOf('/quiz/go/');
       return at >= 0 ? url.slice(at) : null;

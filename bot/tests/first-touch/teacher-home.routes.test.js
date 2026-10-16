@@ -115,6 +115,8 @@ describe('switch OFF', () => {
       expect(await res.json()).toEqual({ off: true });
     }
     expect(logEvent).not.toHaveBeenCalled();
+    // the switch's own failure path ran (not a cached reading)
+    expect(require('../../shared/utils/logger').logToFile).toHaveBeenCalledWith(expect.stringContaining('teacher home: settings lookup failed'), expect.anything());
   });
 });
 
@@ -528,6 +530,7 @@ describe('the walk-through row on the foot (sandbox test phones only)', () => {
     expect(row).toHaveBeenCalledWith({ lang: 'en', token: 'GO.TOKEN_abc' });
     expect(unlisted.replace(/"first":(true|false)/, '')).toBe(without.replace(/"first":(true|false)/, ''));
     expect(JSON.parse(unlisted).change).toBe('/quiz/go/GO.TOKEN_abc');
+    expect(mockDoor.mintLanding).toHaveBeenCalledWith(expect.objectContaining({ side: 'unknown', src: 'change' }));
     row.mockImplementation(async () => ROW);
     const listed = await (await get(`/api/th/home?t=${tokenFor({ lang: 'ur' })}&g=4`)).json();
     expect(listed.walk).toEqual({ html: ROW, t: 'GO.TOKEN_abc' });
