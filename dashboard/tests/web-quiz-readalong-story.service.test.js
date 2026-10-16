@@ -280,6 +280,25 @@ describe('the first sound: the clip is warmed on the ask screen, never played', 
     expect(p.screen()).toBe('hear-ask');
     expect(p.win.__pre).toEqual([TIMED]);
   });
+  test('the warmed element is let go once the ask is answered (after the player plays, or at once on "I\'m ready")', async () => {
+    const REL = STUB + 'window.__rel = []; window.WQReadAlong.preload = function (d) { var a = { d: d, removeAttribute: function (k) { window.__rel.push("drop:" + k); }, load: function () { window.__rel.push("load"); } }; return a; };';
+    const p = room({ routes: { 'ch/HUB.TOKEN/read': ok(SREAD({ readalong: TIMED })) }, scripts: { '/wq/wq-readalong.js': REL } });
+    await p.flush();
+    expect(p.win.__rel).toEqual([]);
+    await p.click('wqc-story-along');
+    expect(p.win.__ra.plays).toBe(1);
+    expect(p.win.__rel).toEqual(['drop:src', 'load']);
+    const q = room({ routes: { 'ch/HUB.TOKEN/read': ok(SREAD({ readalong: TIMED })) }, scripts: { '/wq/wq-readalong.js': REL } });
+    await q.flush();
+    await q.click('wqc-story-read');
+    expect(q.win.__rel).toEqual(['drop:src', 'load']);
+    const r = trail({ routes: { 'ch/HUB.TOKEN/read': ok(PREAD({ hear_first: TIMED })) }, scripts: { '/wq/wq-readalong.js': REL } });
+    await r.flush();
+    await r.click('wqc-ex-read');
+    expect(r.screen()).toBe('hear-ask');
+    await r.click('wqc-hear-along');
+    expect(r.win.__rel).toEqual(['drop:src', 'load']);
+  });
   test('no ask screen (no timing, or a counted read): nothing is warmed', async () => {
     const p = trail({ routes: { 'ch/HUB.TOKEN/read': ok(PREAD()) }, scripts: { '/wq/wq-readalong.js': PRE_STUB } });
     await p.flush();
