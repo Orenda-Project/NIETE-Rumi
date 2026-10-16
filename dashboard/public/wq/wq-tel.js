@@ -10,6 +10,10 @@
  * captured without touching the page script. Ids only: never a name, a typed text or an answer's text. The
  * session token and the device ref ride the batch (never an event) so the server can log its own ids for them.
  *
+ * window.WQT.setIds({ht, chip}) (hub.js / wq-card.js, only when the server says events v2 is on: boot ev2, the card's
+ * jugnu_ev) puts the hub token and the picked child's chip on every batch from then on, on or off; a later call
+ * replaces both (a call with ht only: no child picked). window.WQT.batchIds() hands them to a page's own batch.
+ *
  *   screen_enter {scr, from}            a new screen is on show
  *   screen_leave {scr, ms, vis_ms}      it went away: how long it was on, and how much of that was visible
  *   vis {state, ms}                     the page was hidden/shown: how long the previous state lasted
@@ -44,7 +48,15 @@
   // that never wraps (wq.css .wqb-nowrap; a no-break space inside too); one already held is left as it is. Every other byte unchanged.
   var WA_UR = /<span class="wqb-nowrap">واٹس[ \u00a0]ایپ<\/span>|واٹس[ \u00a0]ایپ/g;
   function nowrap(html) { return String(html == null ? '' : html).replace(WA_UR, '<span class="wqb-nowrap">واٹس\u00a0ایپ</span>'); }
-  var W = window.WQT = { on: false, push: function () { return false; }, flush: function () {}, screen: function () {}, withLang: withLang, nowrap: nowrap };
+  // The hub token and the picked chip (setIds): on the batch, never on an event. None set: no batch changes.
+  var HC = {};
+  function setIds(o) {
+    HC = {};
+    if (o && typeof o.ht === 'string' && o.ht) HC.ht = o.ht;
+    if (HC.ht && typeof o.chip === 'string' && o.chip) HC.chip = o.chip;
+  }
+  function batchIds() { var o = {}, k; for (k in HC) o[k] = HC[k]; return o; }
+  var W = window.WQT = { on: false, push: function () { return false; }, flush: function () {}, screen: function () {}, withLang: withLang, nowrap: nowrap, setIds: setIds, batchIds: batchIds };
   var B;
   try { B = JSON.parse(document.getElementById('boot').textContent) || {}; } catch (e) { return; }
   if (!B || B.rt !== true) return;
@@ -67,12 +79,14 @@
   var PPS;
   try { PPS = sessionStorage.getItem('wq_ps') || undefined; sessionStorage.setItem('wq_ps', PS); } catch (e) { PPS = undefined; }
 
-  // The ids the server turns into its own (it logs neither): this quiz's session token and this phone's device ref.
+  // The ids the server turns into its own (it logs none): this quiz's session token, this phone's device ref, and
+  // (setIds) the hub token and the picked chip.
   function read(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function ids() {
-    var o = {}, s = CODE ? read('wq_s_' + CODE) : null, d = read('wq_d');
+    var o = {}, s = CODE ? read('wq_s_' + CODE) : null, d = read('wq_d'), h = batchIds(), k;
     if (s && typeof s.st === 'string') o.st = s.st;
     if (typeof d === 'string') o.dr = d;
+    for (k in h) o[k] = h[k];
     return o;
   }
 

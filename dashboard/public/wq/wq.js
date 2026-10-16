@@ -803,7 +803,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
   function flushEv(beacon) {
     if (window.WQT && window.WQT.on) window.WQT.flush(beacon);
     if (!evq.length) return;
-    var body = JSON.stringify({ events: evq.splice(0, 20) });
+    // The hub token and the chip when the Jugnu card set them (wq-card.js, events v2): on the body, never an event.
+    var body = { events: evq.splice(0, 20) }, x = window.WQT && window.WQT.batchIds ? window.WQT.batchIds() : {}, k;
+    for (k in x) body[k] = x[k];
+    body = JSON.stringify(body);
     try {
       if (beacon && navigator.sendBeacon && navigator.sendBeacon('/api/wq/e', new Blob([body], { type: 'application/json' }))) return;
     } catch (e) {}
