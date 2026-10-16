@@ -736,6 +736,12 @@ const URDU = {
     applications: ['library books', 'sick leave', 'certificate', 'fee remission', 'brother\'s wedding'],
     letters: ['birthday invitation to a friend', 'thanks to an uncle for a gift', 'to a younger brother on studies', 'to mother on her health', 'to father for money for books'],
   },
+  // The book's poems in lessons 4–10, for Q6's verses when the chosen lessons hold none. Title, poet
+  // and pages as printed: lesson 7 «ندی کی فریاد», «شاعر: کوثر صدیقی», couplets on pp 63–64. It is
+  // the only poem in these lessons; the Naat (lesson 2) is FDE's instruction only, never given.
+  poems: [
+    { unit: 7, pages: '63-64', title: 'ندی کی فریاد', poet: 'کوثر صدیقی' },
+  ],
   scope: {
     page_ranges: '28-107',
     chapter_numbers: [4, 5, 6, 7, 8, 9, 10],

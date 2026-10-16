@@ -729,7 +729,7 @@ async function generateExam(args) {
 // calls it, so a paper without a pattern is built exactly as it always was.
 
 const Patterns = require('./patterns');
-const { applyLayout, takenNote } = require('./fde-layout');
+const { applyLayout, takenNote, verseLines } = require('./fde-layout');
 const { normaliseScheme } = require('./marking-scheme');
 const { mathsCheck } = require('./maths-check');
 
@@ -930,6 +930,8 @@ const RULE = {
   q1bOne: 'Each item is one sentence to rewrite, with its instruction once.',
   // English Q5 on chosen pages with no poem: the nearest poem's own page text is given below the book text.
   q5Given: (p) => `Q5 uses this poem from Unit ${p.unit} (book p.${p.pages}); print only its verse lines, exactly as given, never a heading, instruction or activity line; title «${p.title} (Unit ${p.unit})».`,
+  // Urdu Q6 on lessons with no poem: lesson 7's poem page text is given below the book text.
+  urduQ6Given: (p) => `Q6's verses (درج ذیل اشعار کا مفہوم واضح کریں) come from this poem, lesson ${p.unit} «${p.title}» (book pp. ${p.pages}), whatever lessons the paper covers: \`passage\` = four consecutive verse lines copied exactly as given, never a question or note printed between the couplets.`,
   urduNoMaxims: 'Model answers, passages, dialogues and stories carry no religious maxim, hadith, verse, dua or act of worship; keep them to everyday life.',
 };
 
@@ -1111,6 +1113,8 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
     : s));
   // English Q5 on chosen pages that hold no poem: the nearest poem's page text, when the caller loaded it.
   const givenPoem = !fde && key === 'english' && poem && poem.content && list.some((s) => s.slot === 'english.C.Q5') ? poem : null;
+  // Urdu Q6 on lessons that hold no poem: lesson 7's poem page text, when the caller loaded it.
+  const urduPoem = !fde && key === 'urdu' && poem && poem.content && list.some((s) => s.slot === 'urdu.C.Q6') ? poem : null;
   const hasMcq = list.some((s) => s.shape === 'mcq');
   const rules = [RULE.bookOnly, RULE.religious];
   if (!fde) rules.push(RULE.chapterOnly);
@@ -1126,6 +1130,7 @@ function buildPatternUserPrompt({ grade, subject, pageContent, pageReference, se
   if (closed) rules.push(closed);
   if (key === 'urdu') rules.push(fde ? `${RULE.held} Set items only from book pages ${P.scope.page_ranges}.` : RULE.held);
   if (key === 'urdu') rules.push(RULE.urduNoMaxims);
+  if (urduPoem) rules.push(RULE.urduQ6Given(urduPoem));
   if (scope && scope.kind === 'fde' && P.scope.excluded_pages_note) rules.push(P.scope.excluded_pages_note);
   const tos = TOS[key];
   if (tos) {
@@ -1195,6 +1200,11 @@ ${givenPoem ? `
 \`\`\`
 ${givenPoem.content}
 \`\`\`
+` : ''}${urduPoem ? `
+**Poem for Q6 (book pp. ${urduPoem.pages}):**
+\`\`\`
+${urduPoem.content}
+\`\`\`
 ` : ''}
 **SECTION ${section.id}** — ${sectionLabel}, one section of a board-pattern paper. Write this section only.
 
@@ -1221,36 +1231,98 @@ function _splitPages(content) {
   }));
 }
 
+// The slot each subject's given poem is for: English Q5, Urdu Q6's verses.
+const POEM_SLOT = { english: 'english.C.Q5', urdu: 'urdu.C.Q6' };
+
 /**
- * English Q5 on chosen pages: the book poem nearest those pages when none of them holds one, or null
- * (the FDE syllabus, another subject, a page list that cannot be read, or a poem page already chosen).
+ * English Q5 / Urdu Q6 on chosen pages: the book poem nearest those pages when none of them holds one,
+ * or null (the FDE syllabus, another subject, a page list that cannot be read, or a poem page already
+ * chosen). A poem in a held lesson is never given.
  */
 function patternPoemFor({ P, scope, pageContent }) {
   if (!P || !Array.isArray(P.poems) || !P.poems.length || !scope || scope.kind === 'fde') return null;
-  if (!P.sections.some((sec) => sec.slots.some((s) => s.slot === 'english.C.Q5'))) return null;
+  const slot = POEM_SLOT[P.key];
+  if (!slot || !P.sections.some((sec) => sec.slots.some((s) => s.slot === slot))) return null;
+  const held = (P.scope && Array.isArray(P.scope.held)) ? P.scope.held : [];
+  const poems = P.poems.filter((poem) => !held.includes(poem.unit));
+  if (!poems.length) return null;
   const chosen = (_splitPages(pageContent) || []).map((p) => p.page);
   if (!chosen.length) return null;
   const pagesOf = (poem) => Patterns.parseRanges(poem.pages).flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i));
-  if (P.poems.some((poem) => pagesOf(poem).some((n) => chosen.includes(n)))) return null;
+  if (poems.some((poem) => pagesOf(poem).some((n) => chosen.includes(n)))) return null;
   const distance = (poem) => Math.min(...pagesOf(poem).flatMap((n) => chosen.map((c) => Math.abs(n - c))));
-  const nearest = P.poems.reduce((best, poem) => (distance(poem) < distance(best) ? poem : best));
+  const nearest = poems.reduce((best, poem) => (distance(poem) < distance(best) ? poem : best));
   return { unit: nearest.unit, pages: nearest.pages, title: nearest.title };
 }
 
-/** Q5's poem page text from the book store; null (and today's Q5 rule) when it cannot be loaded. */
+/**
+ * Urdu Q6's verses come from the poem's own pages: the given poem's text, or the poem pages inside
+ * the loaded text. Letters only, so spacing and punctuation never decide. '' when neither is there
+ * (another subject, a page that could not be loaded): then nothing is checked.
+ */
+function _versesReference(P, poem, content) {
+  if (!P || P.key !== 'urdu' || !Array.isArray(P.poems) || !P.poems.length) return '';
+  if (poem && poem.content) return _lettersOnly(poem.content);
+  // Only a poem whose every page is loaded: on chosen pages that cut a poem in two, the lines on
+  // the missing page would read as not the poem's, so nothing is checked.
+  const pages = _splitPages(content) || [];
+  const have = new Set(pages.map((pg) => pg.page));
+  const pagesOf = (poem) => Patterns.parseRanges(poem.pages).flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i));
+  const want = new Set(P.poems.map(pagesOf).filter((list) => list.every((n) => have.has(n))).flat());
+  return _lettersOnly(pages.filter((pg) => want.has(pg.page)).map((pg) => pg.text).join('\n'));
+}
+function _lettersOnly(text) { return _heldNorm(text).replace(/[^\p{L}]/gu, ''); }
+// A line is the poem's when it is in the poem's text, or when three in four of its four-letter runs
+// are: a model writes a word as it is spelled, not as the page store read it («بیماری» / «پیماری»).
+function _lineFromPoem(line, ref) {
+  const n = _lettersOnly(line);
+  if (n.length < 8) return false;
+  if (ref.includes(n)) return true;
+  let found = 0;
+  for (let i = 0; i + 4 <= n.length; i += 1) if (ref.includes(n.slice(i, i + 4))) found += 1;
+  return found >= 0.75 * (n.length - 3);
+}
+/**
+ * Urdu Q6: a verses item whose four lines are not the poem's (lesson prose reworded under «درج ذیل
+ * اشعار کا مفہوم واضح کریں») is taken out of the reply, so the slot is short and Section C is asked
+ * once more; it is never printed. An item with fewer than four lines is the layout's to refuse.
+ * Mutates the tree.
+ */
+function _dropProseVerses(tree, ref, requestId) {
+  if (!ref || !tree || typeof tree !== 'object') return;
+  for (const branch of ['seen', 'unseen']) {
+    for (const types of Object.values(tree[branch] || {})) {
+      if (!types || typeof types !== 'object') continue;
+      for (const [type, list] of Object.entries(types)) {
+        if (!Array.isArray(list)) continue;
+        types[type] = list.filter((q) => {
+          if (!q || q.slot !== 'urdu.C.Q6') return true;
+          const fromPassage = verseLines(q.passage).lines;
+          const lines = (fromPassage.length >= 4 ? fromPassage : verseLines(q.question).lines).slice(-4);
+          if (lines.length < 4 || lines.filter((l) => _lineFromPoem(l, ref)).length >= 3) return true;
+          logToFile('[assessment] Q6 verses not from the poem', { requestId, slot: q.slot, lines });
+          return false;
+        });
+      }
+    }
+  }
+}
+
+/** The given poem's page text from the book store; null (and today's rule) when it cannot be loaded. */
 async function _loadPatternPoem({ grade, subject, P, scope, pageContent }) {
   const poem = patternPoemFor({ P, scope, pageContent });
   if (!poem) return null;
   try {
     const got = await BookContent().loadPageRangeContent({ grade, subject, pageRanges: poem.pages });
     // The page store keeps the book's picture notes ("Object: Illustration of …") among the
-    // poem's lines, and a page goes on to its activities after the poem ("Diving Deeper"); Q5
-    // prints the given lines exactly, so neither is given.
+    // poem's lines, and a page goes on to its activities after the poem ("Diving Deeper"; in the
+    // Urdu book the poet's letter «پیارے طلبہ!» and the exercises); the given lines are printed
+    // exactly, so neither is given.
     let activities = false;
     const content = got && got.content
       ? String(got.content).split('\n').filter((line) => {
         if (/^=== Page \d+ ===/.test(line)) activities = false;
-        else if (/^\s*Diving Deeper\b/i.test(line)) activities = true;
+        else if (/^\s*(?:Diving Deeper\b|پیارے طلبہ)/i.test(line)) activities = true;
         return !activities && !/^\s*Object:/.test(line);
       }).join('\n').trim()
       : '';
@@ -1757,6 +1829,9 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
     return { id: section.id, slots, usage, elapsedMs, tree, usages };
   };
   const results = await Promise.all(built.map(writeOne));
+  // Urdu Q6: verses that are not the poem's are taken out before the layout, so Section C is asked again.
+  const versesRef = key === 'urdu' ? _versesReference(P, poem, loaded.content) : '';
+  results.forEach((r) => _dropProseVerses(r.tree, versesRef, requestId));
   const now = new Date().toISOString();
   const merged = () => {
     const tree = _mergeSections(results.map((r) => r.tree));
@@ -1807,6 +1882,7 @@ async function generatePatternExam({ grade, subject, pattern, scope = null, page
       // re-ask (a part with no marking points, a review mark, a religious maxim) takes the second reply whole.
       const topUp = !reviewText && !religious && shortfall.length && shortfall.every((f) => layoutShort.has(f.slot));
       results[i] = topUp ? { ...second, tree: _topUp(first.tree, second.tree, new Set(shortfall.map((f) => f.slot))) } : second;
+      _dropProseVerses(results[i].tree, versesRef, requestId);
     }));
     const still = _reviewTextHits(results);
     if (still.size) {
@@ -1875,6 +1951,8 @@ module.exports = {
   sectionMaxTokens,
   buildPatternUserPrompt,
   patternPoemFor,
+  _versesReference,
+  _dropProseVerses,
   religiousFilter,
   _blankWordsStems,
   buildSystemPrompt,

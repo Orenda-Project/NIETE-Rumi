@@ -547,7 +547,8 @@ function printable(slot, q) {
 // five of the following words…: invisible»). Social Studies: a Q5 or Q7 item that asks the
 // fact a Q1 MCQ already tests: its one-line answer, or marking points worth at least half its
 // marks, are given away by a Q1 MCQ (the MCQ's key is inside them, or they are printed in the
-// MCQ's stem, AND the two ask about the same thing). Before the re-ask a held item takes no
+// MCQ's stem, AND the two ask about the same thing). Urdu: a Q1 MCQ keyed on the answer a Q4 item
+// asks for («اگر – تو», «اسکول») hands the child that Q4 item. Before the re-ask a held item takes no
 // place, so the slot is short and the section is asked again; after it, the clean items fill
 // the slot first and a held item comes back only for a place nothing else can take. The other
 // slot is never touched.
@@ -638,8 +639,17 @@ function sameFact(q1s) {
   };
 }
 
+// Urdu: the Q4 items' keys, read as written (option letter, dashes and commas aside), and the
+// MCQs keyed on one of them. Q4 asks for words, so a key with no letter (a bare number) is no Q4 answer.
+function sameKey(q4s) {
+  const keys = new Set(q4s.map((q) => plain(keyText(q))).filter((k) => /\p{L}/u.test(k)));
+  if (!keys.size) return null;
+  return (q) => keys.has(plain(keyText(q)));
+}
+
 const CROSS_HOLD = {
   english: { held: ['english.A.Q1a'], against: 'english.C.Q4', rule: q4Words },
+  urdu: { held: ['urdu.A.Q1'], against: 'urdu.C.Q4', rule: sameKey },
   social_studies: { held: ['social_studies.C.Q5', 'social_studies.D.Q7'], against: 'social_studies.A.Q1', rule: sameFact },
 };
 
@@ -685,7 +695,8 @@ function sameQuestion(a, b) {
  *
  * What the engine's one re-ask of `section` is told, from the first layout (`examJson`): the
  * facts the slot its items are held against already tests. Social Studies C/D: Section A's
- * questions and answers. English A: Q4's words. Null for any other section or subject, so no
+ * questions and answers. English A: Q4's words. Urdu A: Q4's questions and answers. Null for any
+ * other section or subject, so no
  * other prompt changes.
  */
 function takenNote(P, section, examJson) {
@@ -704,6 +715,14 @@ function takenNote(P, section, examJson) {
     if (!words.length) return null;
     return `Q4 of this paper asks the child to use these words in sentences: ${words.map((w) => w.trim()).join(', ')}. `
       + 'No item you write in this section may use any of these words, in its stem or in its options.';
+  }
+  if (P.key === 'urdu') {
+    // A Q4 stem can carry its options on the lines below it; the first line is the question.
+    const asked = against.filter((q) => typeof q.question === 'string' && q.question.trim() && keyText(q).trim())
+      .map((q) => `- ${q.question.trim().split('\n')[0].trim()} → ${keyText(q).trim().replace(/\s*\n\s*/g, '; ')}`);
+    if (!asked.length) return null;
+    return `Q4 of this paper already asks these (question → answer):\n${asked.join('\n')}\n`
+      + 'No MCQ you write in this section may be keyed on any of these answers or ask any of these again.';
   }
   const facts = against.filter((q) => typeof q.question === 'string' && q.question.trim())
     .map((q) => `- ${q.question.trim()} → ${keyText(q).trim()}`);
@@ -843,4 +862,4 @@ function applyLayout(examJson, P, scope, opts = {}) {
   return { examJson: out, placed, unplaced, shortfall };
 }
 
-module.exports = { applyLayout, takenNote, typeKey, slotKey, unitWord };
+module.exports = { applyLayout, takenNote, verseLines, typeKey, slotKey, unitWord };
