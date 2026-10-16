@@ -156,7 +156,7 @@ export function FdeCheck() {
           <Row testId="fde-row-class" label={C.steps.class} to={newPaperPath('class')}
             value={C.gradeSubject(p.grade as number, subject)} action={<EditWord C={C} />} />
           <Row testId="fde-row-syllabus" label={C.syllabus} onPress={() => setTray('syllabus')}
-            value={custom ? C.join(unitsLine || C.picked(0), C.customised) : pick(pattern.scope.label, lang)}
+            value={custom ? C.join(C.unitsRange(p.chapters) || C.picked(0), C.customised) : pick(pattern.scope.label, lang)}
             sub={custom ? undefined : pick(pattern.scope, lang)} action={<EditWord C={C} />} />
           <Row testId="fde-row-inside" label={C.inside} onPress={() => setTray('inside')} value={pick(pattern.holds, lang)}
             action={<ChevronRight className="me-3 h-6 w-6 shrink-0 text-[#9ca3af] rtl:rotate-180" aria-hidden="true" />} />

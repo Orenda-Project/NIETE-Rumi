@@ -126,6 +126,7 @@ Feature: FDE board-pattern paper for Grade 5
     When the switch is turned off and the page is reloaded
     Then Chapters or pages shows the Chapters tab and no FDE board pattern card
     And Next is off with "Select at least one chapter"
+    And a teacher who entered by the FDE door and reloads Class after the switch went off sees today's Class: no "FDE pattern papers" eyebrow, every grade on offer
 
   @sandbox
   Scenario: A failed read on the FDE door keeps the teacher on Class with Try again

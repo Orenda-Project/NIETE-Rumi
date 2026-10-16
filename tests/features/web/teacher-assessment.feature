@@ -32,7 +32,7 @@ Feature: Teacher assessment
     And its picker offers only Grade 5's subjects, with no grade to choose
     When the teacher picks Grade 5 Maths
     Then Check and make opens at "Step 2 of 2" with the rows Paper style, Class, Syllabus and Inside
-    And the hint over Make my paper reads "Ready in about 3 min · practice paper, not FDE's own"
+    And the hint over Make my paper reads "Ready in about 3 min"
 
   @TA04 @fde
   Scenario: FDE Check: the three trays
@@ -42,6 +42,8 @@ Feature: Teacher assessment
     Then the tray lists each section, "Paper + marking scheme · two PDFs" and "Practice paper · not an official FDE paper"
     When the teacher opens Syllabus and unticks one unit
     Then the Syllabus row says "customised" and Inside offers "Use FDE syllabus"
+    When the units kept are 1, 2, 3, 4, 6, 7 and 8
+    Then the Syllabus row reads "Units 1–4, 6–8 · customised" (Urdu: «یونٹ 1–4، 6–8 · حسبِ ضرورت»)
     When the teacher opens Paper style, picks "My own paper" and taps Next
     Then today's Questions step opens at "Step 3 of 6" with the FDE units ticked
 
@@ -57,7 +59,10 @@ Feature: Teacher assessment
   Scenario: FDE Ready: two named files
     Given an FDE paper is ready
     Then Ready shows "Question paper · 4 pages · for the class" and "Marking scheme · 4 pages · for the teacher", each its own download
+    And there is no "With marking scheme" chip, and at 360×740 the Open and Make another tiles clear the dock
     And the dock is Send on WhatsApp and Open in another app
+    And inside WhatsApp's browser on Android, tapping Marking scheme hands the marking scheme's own file to the phone's browser, and Question paper its own (the same on the paper page)
+    And outside WhatsApp's browser, and in WhatsApp on iPhone, each row downloads as today
     And inside WhatsApp's browser the line "If Download does nothing here, use Open in another app" is shown
     And the paper page labels the key "Marking scheme" and offers no Edit
 
@@ -72,7 +77,7 @@ Feature: Teacher assessment
     Given the board-pattern flag is off, or the class is Grade 3 Science, or Grade 5 Islamiat
     When the teacher opens the Chapters step
     Then there is no FDE card and the screen is pixel-identical to today's
-    And on the FDE door's Class step Islamiat shows "FDE pattern for Islamiat: after review" and its row is off
+    And on the FDE door's Class step Islamiat shows "FDE pattern for Islamiat: after review" and its row is off from the first paint, before any read answers
 
   @TA09 @fde
   Scenario: Editing an FDE paper keeps its shape
@@ -90,6 +95,15 @@ Feature: Teacher assessment
     When the teacher opens Versions
     Then the page shows the FDE pattern chip and a "Marking scheme" row under each ready version that opens its key file
     And a plain paper's Versions and Edit paper screens are pixel-identical to today's
+    And when the My papers read fails, Versions shows "Could not load" with Try again and no Edit until it is read
+
+  @TA11 @fde
+  Scenario: The marks of an FDE paper's questions are the board's
+    Given an FDE Maths paper is open in Edit paper
+    When the teacher opens one of its questions
+    Then there is no Marks box; the question and its answer can still be changed
+    And when the server answers PATTERN_FIXED_MARKS the line says "Board-pattern papers fix each question's marks." in the page's language
+    And a plain paper's question still shows its Marks box
 
   # The soft paper limit (dashboard flag assessment_rate_limit_enabled) counts plain papers too. Run on sandbox by the QA
   # agent with a teacher's ten requests of the last hour seeded and the flag on for the run only.
