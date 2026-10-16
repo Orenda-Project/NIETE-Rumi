@@ -255,3 +255,25 @@ describe('the top-up never treats two items without a question line as the same 
     expect(out.layout.placed).toBe(48);
   });
 });
+
+describe('a review mark in a marking-scheme point is caught before render too', () => {
+  test('a mark in a scheme point of section C → that section is re-asked once', async () => {
+    let cCalls = 0;
+    const { Generation } = load((req) => {
+      if (!isC(req)) return reply(FIXTURE, req);
+      cCalls += 1;
+      const r = reply(FIXTURE, req);
+      if (cCalls === 1) {
+        const tree = JSON.parse(r.choices[0].message.content);
+        const list = Object.values(Object.values(tree.unseen)[0])[0];
+        const q = list.find((x) => x.scheme && Array.isArray(x.scheme.points) && x.scheme.points.length);
+        q.scheme.points[0] = { ...q.scheme.points[0], text: `${q.scheme.points[0].text} (needs review)` };
+        r.choices[0].message.content = JSON.stringify(tree);
+      }
+      return r;
+    });
+    const out = await Generation.generatePatternExam(MATHS);
+    expect(cCalls).toBe(2);
+    expect(JSON.stringify(out.examJson)).not.toMatch(/needs review/i);
+  });
+});
