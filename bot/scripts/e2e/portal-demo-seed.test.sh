@@ -51,6 +51,7 @@ t "scored sessions" "$(per_teacher "select 1 from coaching_sessions c where c.us
 t "training"       "$(per_teacher "select 1 from teacher_training_assignments a join teacher_training_progress p on p.user_id=a.user_id where a.user_id=u.id and a.is_active")" "9"
 t "upcoming visits" "$(q $db "select (count(*)>=3)::text from observation_schedules s join users u on u.id=s.leader_user_id where u.$D and s.status='upcoming'")" "true"
 t "observation stages" "$(q $db "select count(distinct c.status||'/'||coalesce(c.debrief_status,'')) from coaching_sessions c join users u on u.id=c.observer_user_id where u.$D and c.observation_type='leader_observation'")" "3"
+t "demo quiz share code" "$(q $db "select c.code||'/'||c.active||'/'||(select count(*) from quiz_questions qq where qq.quiz_id=c.quiz_id)||'/'||(select count(*) from quiz_share_codes c2 where c2.quiz_id=c.quiz_id and not c2.active) from quiz_share_codes c join users u on u.id=c.teacher_user_id where u.$D and c.code='AB12CD'")" "AB12CD/true/5/1"
 t "portal flags" "$(q $db "select count(*) from app_settings where key in ('portal_coach_v2','portal_teacher_v2')")" "2"
 
 echo "AC3 idempotent"
