@@ -144,6 +144,28 @@ describe('(3) a Q1 stem that prints another Q1 item\'s key', () => {
   });
 });
 
+describe('(6) a Q1 item whose blanks, filled with its key, print a Q4 sentence (a local paper)', () => {
+  // full_4 Q1 ۱۳ «"___ تم محنت کرو گے ___ کام یاب ہو جاؤ گے۔" … جوڑی» → اگر، تو; Q4 ۲ «’’اگر تم محنت
+  // کرو گے ___ کامیاب ہو جاؤ گے۔‘‘» → تو. With its blanks empty Q1 carries 7 of Q4's 9 words; filled, 8.
+  const local = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'fde', 'r14-urdu-local-full_4.json'), 'utf8'));
+  const pairQ = items(local, 'urdu.A.Q1')[12].question;
+  test('full_4: Q1 ۱۳ is held before the re-ask', () => {
+    expect(q1Stems(lay(clone(local)).examJson)).not.toContain(pairQ);
+  });
+  test('full_4 after the re-ask: a new item takes its place; it comes back only when nothing else can', () => {
+    const exam = clone(local);
+    const mcqs = Object.values(exam.unseen).map((t) => t.MCQs).find(Array.isArray);
+    mcqs.push({ slot: 'urdu.A.Q1', question: 'لفظ «سچ» کا متضاد کون سا ہے؟', options: ['الف) جھوٹ', 'ب) کتاب', 'ج) دریا', 'د) بادل'], answer: 'الف) جھوٹ' });
+    const stems = q1Stems(lay(exam, true).examJson);
+    expect(stems).not.toContain(pairQ);
+    expect(stems).toContain('لفظ «سچ» کا متضاد کون سا ہے؟');
+  });
+  test('the other 19 Q1 items stay', () => {
+    const stems = q1Stems(lay(clone(local)).examJson);
+    expect(stems).toEqual(items(local, 'urdu.A.Q1').map((q) => q.question).filter((s) => s !== pairQ));
+  });
+});
+
 describe('(5) Q4: a key and an accepted answer that name two different options', () => {
   const q4 = (exam) => items(exam, 'urdu.C.Q4');
   test.each([false, true])('chapters_2 (reasked %s): Q4 ۱ keyed «ج) بارش», accepting «د) فلکیات», is held', (reasked) => {
