@@ -156,6 +156,7 @@ describe('the switch off sends nothing and says nothing', () => {
   ])('%s: no send, no event, no log line, only the settings read', async (_, settings) => {
     world({ settings });
     family(1, [CLASS(1)]);
+    openLedger();                                             // the other three locks open: this one alone holds
     const transport = fakeTransport();
     const out = await Ping.send({ now: T0, transport });
     expect(out).toEqual({ sent: 0, skipped: 'off' });
@@ -180,9 +181,11 @@ describe('the operator\'s dated go token', () => {
   test('no go token: nothing sent, exactly one no_go refusal, no ledger, nothing read but the settings', async () => {
     world({ go: null });
     family(1, [CLASS(1)]);
+    openLedger();                                             // the other three locks open: this one alone holds
     const transport = fakeTransport();
     const out = await Ping.send({ now: T0, transport });
     expect(out).toEqual({ sent: 0, refused: 'no_go' });
+    allEventsClean();
     expect(transport).not.toHaveBeenCalled();
     expect(events('web_quiz.sample_ping_refused')).toEqual([{ reason: 'no_go', w: 's' }]);
     expect(logEvent).toHaveBeenCalledTimes(1);
