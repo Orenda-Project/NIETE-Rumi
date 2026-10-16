@@ -240,6 +240,18 @@ describe('a counted read under lr3 (RULING #C1 lines 7, 9)', () => {
     expect(p.screen()).toBe('read-live');
     expect(p.els['wqc-stop'].className).toContain('lr-pulse');
   });
+  test('a quiet "Stop for now" is there from the first second (an honest way out: stored like today\'s "too hard")', async () => {
+    const { p, s } = await counted();
+    expect(p.has('wqc-stuck')).toBe(true);
+    expect(p.html()).toContain('Stop for now');
+    expect(p.html()).not.toContain('The rest is too hard');
+    await p.click('wqc-stuck');
+    expect(s.sent).toContain('{"type":"finalize"}');   // the reading stopped
+    s.onmessage({ data: JSON.stringify({ tokens: [], finished: true }) });
+    await p.flush(); await p.flush();
+    const body = JSON.parse((p.fetches.find((f) => f.url === '/api/wq/ch/result') || { init: { body: '{}' } }).init.body);
+    expect(body.ended).toBe('stuck');
+  });
   test('no skip marks on a counted read: a word passed over stays plain', async () => {
     const { p, s } = await counted();
     s.onmessage({ data: JSON.stringify({ tokens: toks(['Imran', 'up', 'early']) }) });
@@ -347,6 +359,16 @@ describe('mount(): a story page reads itself (the component alone, a fake DOM an
     const spans = D.el.querySelectorAll('.lr-w');
     expect(spans[0].className).toBe('lr-w lr-box lr-read');
     expect(spans[2].className).toBe('lr-w lr-box lr-current');
+  });
+
+  test('the mic ask always has a listen-only door ("Not now, just listen"), before any permission prompt', async () => {
+    const E = env(); const D = dom();
+    let why = null;
+    D.el.querySelector = (sel) => { const k = D.kids; if (!k[sel]) { k[sel] = { l: {}, addEventListener(n, fn) { this.l[n] = fn; } }; } return k[sel]; };
+    E.L.askMic(D.el, { lang: 'ur', onStream: () => {}, onDenied: (w) => { why = w; } });
+    expect(D.el.innerHTML).toContain('ابھی نہیں، صرف سنیں');
+    D.kids['.lr-listen'].l.click();
+    expect(why).toBe('not_now');
   });
 
   test('a refused key ({error}) is the fallback, never a socket to "undefined"', async () => {

@@ -1078,7 +1078,9 @@
   // The one way out of a timed reading under the guard, and only once the first line's window has passed.
   function stickyHtml() {
     // live reading v3: Done is always there, "too hard" still opens after the first line's window
-    if (lr3() && guardOn() && (lrDoneOpen() || rec.stuckOpen)) return '<div class="wqc-sticky">' + (lrDoneOpen() ? '<button class="wq-btn wq-navy" id="wqc-stop" type="button">⏹ ' + esc(t.finished) + '</button>' : '') + (rec.stuckOpen ? '<button class="wq-btn wq-soft" id="wqc-stuck" type="button">' + esc(cp('stuck')) + '</button>' : '') + '</div>';
+    // a counted read: "I'm finished" from 80 % lit and a quiet "Stop for now" from the first second (stored as today's "too hard")
+    if (lrCounted() && guardOn()) { var lc = window.WQLiveRead.COPY[L === 'ur' ? 'ur' : 'en']; return '<div class="wqc-sticky">' + (lrDoneOpen() ? '<button class="wq-btn wq-navy" id="wqc-stop" type="button">⏹ ' + esc(lc.finished) + '</button>' : '') + '<button class="wq-btn wq-soft lr-stop" id="wqc-stuck" type="button">' + esc(lc.stop) + '</button></div>'; }
+    if (lr3() && guardOn()) return '<div class="wqc-sticky"><button class="wq-btn wq-navy" id="wqc-stop" type="button">⏹ ' + esc(t.finished) + '</button>' + (rec.stuckOpen ? '<button class="wq-btn wq-soft" id="wqc-stuck" type="button">' + esc(cp('stuck')) + '</button>' : '') + '</div>';
     if (!guardOn()) return '<div class="wqc-sticky"><button class="wq-btn wq-navy" id="wqc-stop" type="button">⏹ ' + esc(t.finished) + '</button></div>';
     return rec.stuckOpen ? '<div class="wqc-sticky"><button class="wq-btn wq-soft" id="wqc-stuck" type="button">' + esc(cp('stuck')) + '</button></div>' : '';
   }

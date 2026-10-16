@@ -131,9 +131,11 @@
   // ── copy (EN + UR; no test words; gender-neutral) ────────────────────────────────────────────────
   var COPY = {
     en: { done: 'Done', checking: 'Listening…', readNow: 'Read it aloud!', keepGoing: 'Keep going!', wellRead: 'Well read!',
-      micAsk: 'Tap the button so Jugnu can hear you read.', micGo: 'Start reading', chrome: 'Open in Chrome', listen: 'Listen with Jugnu instead' },
+      micAsk: 'Tap the button so Jugnu can hear you read.', micGo: 'Start reading', chrome: 'Open in Chrome', listen: 'Listen with Jugnu instead',
+      notNow: 'Not now, just listen', stop: 'Stop for now', finished: 'I\'m finished' },
     ur: { done: 'ہو گیا', checking: 'آپ کی پڑھائی سنی جا رہی ہے…', readNow: 'اونچی آواز میں پڑھیں!', keepGoing: 'پڑھتے رہیں!', wellRead: 'بہت خوب پڑھا!',
-      micAsk: 'بٹن دبائیں تاکہ جگنو آپ کو پڑھتے ہوئے سن سکے۔', micGo: 'پڑھنا شروع کریں', chrome: 'کروم میں کھولیں', listen: 'جگنو سے سن لیں' },
+      micAsk: 'بٹن دبائیں تاکہ جگنو آپ کو پڑھتے ہوئے سن سکے۔', micGo: 'پڑھنا شروع کریں', chrome: 'کروم میں کھولیں', listen: 'جگنو سے سن لیں',
+      notNow: 'ابھی نہیں، صرف سنیں', stop: 'ابھی کے لیے بس', finished: 'میں نے پڑھ لیا' },
   };
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 
@@ -141,8 +143,11 @@
   var MIC_WAIT_MS = 8000;
   function askMic(el, o) {
     var t = COPY[o.lang === 'ur' ? 'ur' : 'en'];
-    el.innerHTML = '<div class="lr-ask"><p class="lr-say">' + esc(t.micAsk) + '</p><button class="wq-btn wq-go lr-go" type="button">🎤 ' + esc(t.micGo) + '</button></div>';
+    // always a listen-only door next to the ask (no loss state): the family may say "not now"
+    el.innerHTML = '<div class="lr-ask"><p class="lr-say">' + esc(t.micAsk) + '</p><button class="wq-btn wq-go lr-go" type="button">🎤 ' + esc(t.micGo) + '</button>'
+      + '<button class="wq-btn wq-soft lr-listen" type="button">' + esc(t.notNow) + '</button></div>';
     var settled = false;
+    el.querySelector('.lr-listen').addEventListener('click', function () { if (settled) return; settled = true; if (o.onDenied) o.onDenied('not_now'); });
     function off(why) {
       if (settled) return;
       settled = true;

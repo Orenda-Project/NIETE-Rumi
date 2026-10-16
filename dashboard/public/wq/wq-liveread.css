@@ -25,6 +25,8 @@ html[lang=ur] .lr-text, .lr[lang=ur] .lr-text { font-size: 26px; line-height: 2.
 .lr-bar .wq-btn { width: 100%; min-height: 52px; }
 .lr-ask, .lr-check { padding: 24px 16px; text-align: center; }
 .lr-say { font-size: 20px; margin: 0 0 16px; }
+/* a counted read's quiet way out: a text-weight control, never a primary button, never pulsing */
+.wqc-sticky .lr-stop { background: none; border: 0; box-shadow: none; min-height: 44px; text-decoration: underline; font-weight: 600; }
 /* a counted read past 80 % and quiet: the Done button pulses once (the child decides; nothing ends by itself) */
 .lr-pulse { animation: lr-pulse 900ms ease-out 2; }
 @keyframes lr-pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(88, 204, 2, .6); } 60% { transform: scale(1.05); box-shadow: 0 0 0 12px rgba(88, 204, 2, 0); } 100% { transform: scale(1); } }
