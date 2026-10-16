@@ -44,9 +44,10 @@
  * shows in English only today; a new one fails, a listed one that gains its Urdu passes with a CLEAN line.
  *
  * copy-deck-lift.modules.json: the sorted repo paths of every bot/shared module this gate loads (ux-strings.js, every
- * template, and what those require inside bot/shared), read from require.cache after the tree's states are built,
- * never kept by hand. A tool that starts a run from a changed file reads it to know this gate covers that file. The
- * list is recomputed on every run; any drift fails until the file is updated.
+ * template, and what those require inside bot/shared) plus the deck it reads from disk (copy.v2.json), read from
+ * require.cache after the tree's states are built, never kept by hand. A tool that starts a run from a changed file
+ * reads it to know this gate covers that file. The list is recomputed on every run; any drift fails until the file is
+ * updated.
  */
 const fs = require('fs');
 const path = require('path');
@@ -258,8 +259,9 @@ describe('EN ⇒ UR in the same table, on in-memory child pages', () => {
 /** The repo paths (sorted) of every bot/shared module loaded once the tree's states are built. */
 function reachedModules() {
   statesInTree();
-  return Object.keys(require.cache).map((f) => path.relative(REPO, f).split(path.sep).join('/'))
-    .filter((f) => f.startsWith('bot/shared/')).sort();
+  const loaded = Object.keys(require.cache).map((f) => path.relative(REPO, f).split(path.sep).join('/'));
+  // the deck itself is read from disk (fs), so it is never in require.cache; it is the file most likely to move
+  return [...new Set([...loaded, 'bot/shared/config/copy.v2.json'])].filter((f) => f.startsWith('bot/shared/')).sort();
 }
 
 describe('the tree', () => {
