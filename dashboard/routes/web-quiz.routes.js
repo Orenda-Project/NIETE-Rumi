@@ -556,6 +556,15 @@ function createWebQuizRouter(opts = {}) {
       }
     });
   }
+  // ── standing class link /j/<code> (web_quiz_class_link, decided by the bot): web-quiz-class-link.js ──
+  let clV = null;
+  const pageHeadersCl = (res) => res.set({ 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'same-origin' });
+  require('./web-quiz-class-link').registerClassLink(router, {
+    callBot, limiters, unknownCode, jsonBody, noStore, configured, ready: () => Boolean(botUrl && apiKey), pageHeaders: pageHeadersCl, originOf,
+    version, jsVersion: () => clV || (clV = challengeVersion('class-link.js')), brand: () => brandOf(lastBrand), ui: () => lastUi, head, esc, bootJson, isPreviewFetch: (req) => Preview.isPreviewFetch(req),
+    closedPage: (req, res, status, kind) => res.status(status).type('html').send(renderClosedPage({ lang: 'en', kind, origin: originOf(req), assetV: version(), brandKey: lastBrand, ui: lastUi })),
+  });
+  // ── end standing class link ──
   router.all('/api/wq/*', (req, res) => res.status(404).json({ error: 'not_found' }));
 
   // Body over the cap (or malformed JSON) on /api/wq: answer in JSON, never the HTML error page.

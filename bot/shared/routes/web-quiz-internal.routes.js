@@ -27,6 +27,7 @@
  *   GET  /videos/dl/:code       302 to a 1-hour link that saves a bank video
  *   POST /hub/:token            the same, from the page with this phone's device_ref (names only for a trusted phone)
  *   POST /hubdoor               the results card's door: {href: /h/<token>} for this session's child, bound to its phone
+ *   GET  /cl/:code  POST /cl/*  the standing class link /j/<code> (web-quiz-class-link.routes.js)
  */
 const express = require('express');
 const { requireInternalKey } = require('../middleware/require-internal-key');
@@ -175,5 +176,8 @@ router.post('/teacher/queue/decide', handle((req) => {
 }));
 router.post('/teacher/queue/link-codes', handle((req) => JoinQueue().linkClassCodes({ teacherUserId: (req.body || {}).teacher, classId: (req.body || {}).class_id })));
 // ─── end of the teacher join queue ───
+// ── standing class link (web_quiz_class_link; off → every /cl answer is 404 not_found) ──
+router.use('/cl', require('./web-quiz-class-link.routes'));
+// ── end standing class link ──
 
 module.exports = router;

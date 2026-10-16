@@ -1847,3 +1847,42 @@ Feature: Web child quiz page on the portal
     And no story screen shows a clock, a score, words a minute or "N of M", and the end card says "Read this story again any time." with the sticker line
     But a refused story id (any 400), a 404 or no network shows "A new story is on its way." and never an error page
     And with the story switch off, or no room on the link, the page and its requests are today's
+
+  @T830
+  Scenario: A standing class link opens on the teacher's name, never on the class list
+    Given web_quiz_class_link, web_quiz_challenge_v2 and web_quiz_challenge are "on" and a teacher has a class link for an enrolled class
+    And a phone that has never played in this class opens /j/<code>
+    Then the page asks "Tap your teacher's name" with two or three teachers of the school and no child's name anywhere in it
+    When a wrong teacher is tapped
+    Then the same question comes back and still no child is shown
+    When the right teacher and then a first letter are tapped
+    Then "Is your name here?" shows only the first names under that letter, never a surname, an initial or a father's name
+    And two children with the same first name are both shown and either pick is written as a low-confidence pick among homonyms
+    And the pick opens that child's hub, and the run is written with the link's class and via class_link
+
+  @T831
+  Scenario: A phone that played in the class gets "Whose turn?" with only its own children
+    Given web_quiz_class_link is "on" and a phone has played as a child enrolled in the link's class
+    When that phone opens /j/<code>
+    Then the page asks "Whose turn?" with only the children this phone played as in this class
+    And a classmate or a child of another class is never shown
+
+  @T832
+  Scenario: The class link's preview and every closed state say nothing about the class
+    Given a /j/<code> link is shared on WhatsApp
+    Then its preview reads "Jugnu's Challenge" and "Stories and number games. Tap to play." in the class's language, with no class, school, teacher or child name and no digit
+    And with the switch or a parent off, or a revoked, expired, unknown or malformed code, /j/<code> is exactly the page an unknown /q/ code shows
+    And every /q/<code> page is byte-identical with the class link on or off
+
+  @T833
+  Scenario: The teacher forwards the class link from the report, and their own visit is practice
+    Given web_quiz_class_link is "on" and a teacher opens the class tab of their report
+    Then "Your class's Jugnu link" shows the link as selectable text and a Forward button, with no script on the page
+    When Forward is tapped
+    Then WhatsApp opens with the link alone as the text: no count and no name
+    When the teacher opens the link from the card with "Open" and picks a child
+    Then the visit is not counted as the link being opened, and the run is practice and is never counted
+    When "Make a new link" is tapped
+    Then the class tab comes back with a new link, and the old link opens only the page an unknown code gets
+    And another teacher cannot make a new link for this class, and no message is sent
+    But with the switch off the class tab is byte-identical to today's and "Make a new link" changes nothing
