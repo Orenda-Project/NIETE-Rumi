@@ -52,6 +52,8 @@ const V2 = 'web_quiz_challenge_v2';
 const PERIOD = 'web_quiz_challenge_period';
 const POOL = 'web_quiz_challenge_pool';
 const STORY = 'web_quiz_challenge_story';
+// the record's parent switch (web_quiz_identity_canon, under web_quiz_hub): a check serve is a record only with it on
+const CANON_ON = ['web_quiz_hub', 'web_quiz_identity_canon'];
 
 const DAY = 24 * 3600 * 1000;
 const iso = (t) => new Date(t).toISOString();
@@ -119,6 +121,8 @@ const fresh = () => {
   };
   Object.assign(supabase, guardColumns(makeFake(db)));
   Ch.__reset();
+  // the hub and identity switches are cached 30 s: each serve reads its own
+  for (const m of ['web-quiz-hub-flags', 'web-quiz-identity-flags']) require(`../../../shared/services/quiz/${m}`)._resetCache();
 };
 beforeEach(() => { fresh(); jest.clearAllMocks(); });
 const on = (...keys) => keys.forEach((key) => db.app_settings.push({ key, value: true }));
@@ -160,13 +164,13 @@ describe('(a) the switch off: room and pid are ignored, the serve is today\'s', 
 });
 
 describe('(b) on: a released practice story in the child\'s language and band is served', () => {
-  beforeEach(() => on(V2, PERIOD, POOL, STORY));
+  beforeEach(() => on(V2, ...CANON_ON, PERIOD, POOL, STORY));
   const FORBIDDEN = ['band', 'exposure_no', 'rung', 'passage_id', 'period_id', 'record_decision', 'served_id', 'band_reason'];
 
   test('read: 200, a practice row on the story, never a record; the payload is the check serve\'s plus practice_round and the read-along clip', async () => {
     const check = await get('read');
     expect(check.status).toBe(200);
-    fresh(); on(V2, PERIOD, POOL, STORY);
+    fresh(); on(V2, ...CANON_ON, PERIOD, POOL, STORY);
     const { status, body } = await story('read', 'en.read.1.kite');
     expect(status).toBe(200);
     const row = rowOf(body.ct);
@@ -235,7 +239,7 @@ describe('(c, d) an id the shelf could not have shown: 400 story_pid and no run 
 });
 
 describe('(e, f) the month\'s record and the story\'s exposures', () => {
-  beforeEach(() => on(V2, PERIOD, POOL, STORY));
+  beforeEach(() => on(V2, ...CANON_ON, PERIOD, POOL, STORY));
 
   test('(e) a story played first leaves the record open: the following check serve is the record', async () => {
     const s = await story('read', 'en.read.1.kite');
