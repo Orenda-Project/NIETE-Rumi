@@ -4,7 +4,7 @@ import type { User, DashboardStats, LessonPlan, CoachingSession, SessionDetail, 
   AttendanceResponse } from '../types/portal';
 import type { ReadingAssessment, ReadingAssessmentDetail, ReadingStats } from '../types/readingAssessment';
 import type { MyAnalyticsResponse, ClassesResponse, CreateClassPayload, CreateClassResponse, RosterStudent, AddStudentsResponse, CoachingProgress } from '../types/portal';
-import type { SchoolsAnalyticsResponse } from '../types/portal';
+import type { CoachingAnalyticsResponse, SchoolsAnalyticsResponse } from '../types/portal';
 import type { CoachHomeData, CoachScheduleData, TeamData, PeopleData, SchoolData, TeacherData, VisitData, ReportsData, ObservationReport, SchoolHit, TeacherPlan } from '../coach/types';
 
 // On the web, frontend and backend share a domain, so a relative URL avoids
@@ -865,6 +865,16 @@ export const analytics = {
     const response = await api.get('/analytics/schools', { params });
     return response.data;
   },
+  // bd-97x22y.2 — the Coaching tab's numbers (PLAN v6 §3, served by bd-97x22y.1): same window and region as the
+  // schools read, its own endpoint so its cost never slows the other tabs.
+  getCoaching: async (q: { from: string | null; to: string | null; region: string | null }): Promise<CoachingAnalyticsResponse> => {
+    const params: Record<string, string> = {};
+    if (q.from) params.from = q.from;
+    if (q.to) params.to = q.to;
+    params.region = q.region || 'all';
+    const response = await api.get('/analytics/coaching', { params });
+    return response.data;
+  },
 };
 
 // Leader Portal endpoints (bd-2434) — school-leader family only.
@@ -1156,3 +1166,26 @@ export const classes = {
 };
 
 export default api;
+
+// bd-97x22y.4 — the Trainings tab's level progress (PLAN v7): its own read, all time (no window, as hers); the region
+// as the other analytics reads ('all' when none), and her Primary / Mid-High toggle as `band`.
+export const trainingLevelsAnalytics = {
+  get: async (q: { region: string | null; band: import('../types/portal').TrainingBand }): Promise<import('../types/portal').TrainingLevelsResponse> => {
+    const response = await api.get('/analytics/training-levels', { params: { region: q.region || 'all', band: q.band } });
+    return response.data;
+  },
+};
+
+// bd-97x22y.5 — the schools analytics Observations tab's numbers (PLAN v7, her FICO section breakdown for Human and
+// Digital Coach observations): its own endpoint, same window and region as the schools read (the server 403s anyone
+// but an analytics-only account).
+export const observationsAnalytics = {
+  get: async (q: { from: string | null; to: string | null; region: string | null }): Promise<import('../types/portal').ObservationsAnalyticsResponse> => {
+    const params: Record<string, string> = {};
+    if (q.from) params.from = q.from;
+    if (q.to) params.to = q.to;
+    params.region = q.region || 'all';
+    const response = await api.get('/analytics/observations', { params });
+    return response.data;
+  },
+};
