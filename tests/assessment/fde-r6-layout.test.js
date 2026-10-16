@@ -191,3 +191,14 @@ describe('C. Science Q2(b): the parent scheme splits into its parts or is droppe
     expect(list[1].scheme.points.map((p) => p.marks)).toEqual([2.5, 2.5]);
   });
 });
+
+describe('the scope word the paper prints, for other screens to reuse', () => {
+  const { unitWord } = require('../../bot/shared/services/assessment/fde-layout');
+  it('unitWord gives each subject its own word, singular for one', () => {
+    expect(unitWord('urdu', 3)).toEqual({ en: 'Lessons', ur: 'اسباق' });
+    expect(unitWord('urdu', 1)).toEqual({ en: 'Lesson', ur: 'سبق' });
+    expect(unitWord('science', 2)).toEqual({ en: 'Chapters', ur: 'ابواب' });
+    expect(unitWord('english', 1)).toEqual({ en: 'Unit', ur: 'یونٹ' });
+    expect(unitWord('nonsense', 2)).toEqual({ en: 'Units', ur: 'ابواب' });
+  });
+});
