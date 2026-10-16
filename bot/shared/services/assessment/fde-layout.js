@@ -647,9 +647,63 @@ function sameKey(q4s) {
   return (q) => keys.has(plain(keyText(q)));
 }
 
+// Urdu: the sentence an item is about, as words: its quoted text («…», ’’…‘‘, “…”), else what
+// follows its colon, on the stem's first line (a Q4 stem can carry its options below). Each comes
+// twice when it has blanks: with them taken out, and with the key's words put in them (one word or
+// pair per blank, «اگر - تو»). Fewer than four words is a word or a phrase, not a sentence.
+const QUOTED = /«([^»]+)»|[’‘]{2}([^’‘]+)[’‘]{2}|“([^”]+)”|"([^"]+)"/gu;
+const BLANK = /_{2,}|\.{3,}|…/g;
+const SENTENCE_WORDS = 4;
+function sentencesOf(q, filled) {
+  const line = typeof q.question === 'string' ? q.question.trim().split('\n')[0] : '';
+  const quoted = [...line.matchAll(QUOTED)].map((m) => m.slice(1).find(Boolean));
+  const colon = line.split(/[:：]/);
+  const said = quoted.length ? quoted : (colon.length > 1 ? [colon.slice(1).join(' ')] : []);
+  const key = filled ? keyText(q) : '';
+  const fills = plain(key) ? key.split(/\s*[-–—,،]\s*/).map((w) => w.trim()).filter(Boolean) : null;
+  const out = [];
+  for (const s of said) {
+    out.push(plain(s.replace(BLANK, ' ')).split(' '));
+    const blanks = s.match(BLANK) || [];
+    if (fills && blanks.length && blanks.length === fills.length) {
+      let i = 0;
+      out.push(plain(s.replace(BLANK, () => ` ${fills[i++]} `)).split(' '));
+    }
+  }
+  return out.filter((w) => w.length >= SENTENCE_WORDS);
+}
+// How many of `a`'s words `b` carries in a's order (the longest common subsequence).
+function inOrder(a, b) {
+  let row = new Array(b.length + 1).fill(0);
+  for (const w of a) {
+    const next = [0];
+    for (let j = 1; j <= b.length; j += 1) next[j] = w === b[j - 1] ? row[j - 1] + 1 : Math.max(row[j], next[j - 1]);
+    row = next;
+  }
+  return row[b.length];
+}
+// A sentence is printed in a stem when the stem carries at least four in five of its words, in order.
+const SENTENCE_SHARE = 0.8;
+const printedIn = (sentence, stem) => inOrder(sentence, stem) >= Math.ceil(sentence.length * SENTENCE_SHARE);
+
+// Urdu: a Q1 MCQ is a Q4 twin when it is keyed on a Q4 answer (sameKey), or when it prints a Q4
+// sentence: Q4's sentence is in the MCQ's stem, or the MCQ's quoted sentence is in Q4's stem.
+function q4Twin(q4s) {
+  const byKey = sameKey(q4s);
+  const q4 = q4s.map((q) => ({ said: sentencesOf(q, true), stem: plain(String(q.question || '').split('\n')[0].replace(BLANK, ' ')).split(' ') }));
+  const sentences = q4.some((s) => s.said.length);
+  if (!byKey && !sentences) return null;
+  return (q) => {
+    if (byKey && byKey(q)) return true;
+    const stem = plain(q.question).split(' ');
+    const own = sentencesOf(q, false);
+    return q4.some((s) => s.said.some((t) => printedIn(t, stem)) || own.some((t) => printedIn(t, s.stem) || s.said.some((f) => printedIn(t, f))));
+  };
+}
+
 const CROSS_HOLD = {
   english: { held: ['english.A.Q1a'], against: 'english.C.Q4', rule: q4Words },
-  urdu: { held: ['urdu.A.Q1'], against: 'urdu.C.Q4', rule: sameKey },
+  urdu: { held: ['urdu.A.Q1'], against: 'urdu.C.Q4', rule: q4Twin },
   social_studies: { held: ['social_studies.C.Q5', 'social_studies.D.Q7'], against: 'social_studies.A.Q1', rule: sameFact },
 };
 
