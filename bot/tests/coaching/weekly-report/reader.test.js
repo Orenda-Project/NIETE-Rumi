@@ -138,3 +138,15 @@ describe('readWeek — every read is bounded to the teacher and the week', () =>
     await expect(reader.readWeek('u1', WEEK)).rejects.toThrow('opens down');
   });
 });
+
+describe('readWeek — bd-v0toag.32.1 reads from the Saturday before the week', () => {
+  test('every week read starts at weekendFromIso when the week carries one', async () => {
+    await reader.readWeek('u1', { ...WEEK, weekendFromIso: '2026-10-09T19:00:00.000Z' });
+    const [conv] = mockDb.callsTo('conversations');
+    expect(has(conv.ops, 'gte', 'created_at', '2026-10-09T19:00:00')).toBe(true);
+    for (const [t, col] of [['niete_lp_downloads', 'created_at'], ['niete_lp_opens', 'opened_at'], ['coaching_sessions', 'created_at']]) {
+      const [c] = mockDb.callsTo(t);
+      expect(has(c.ops, 'gte', col, '2026-10-09T19:00:00.000Z')).toBe(true);
+    }
+  });
+});

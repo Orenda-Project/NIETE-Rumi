@@ -5,6 +5,9 @@
  * The report goes out on Saturday morning PKT and covers Monday 00:00 to Saturday 00:00 PKT (the school
  * week, Monday to Friday). `weekStart` (the Monday) is the idempotency key: it is the `nudge_date` of the
  * teacher's `teacher_nudges` row, so one teacher gets one report per week however many ticks run.
+ *
+ * bd-v0toag.32.1: the Saturday and Sunday before the Monday count too, but only for the lesson-plan count
+ * and activation (summarise.js). `weekendFromIso` is where those reads start.
  */
 
 const { pktDate, pktHour, atPkt } = require('../../nudges/pkt-time');
@@ -30,7 +33,7 @@ function weekday(dateStr) {
   return new Date(Date.UTC(y, mo - 1, d)).getUTCDay(); // 0 = Sunday
 }
 
-/** The PKT week `now` falls in: Monday key, Friday, and the [from, to) instants of Mon 00:00 to Sat 00:00. */
+/** The PKT week `now` falls in: Monday key, Friday, the [from, to) instants of Mon 00:00 to Sat 00:00, and the Saturday before. */
 function weekOf(now = new Date()) {
   const today = pktDate(now);
   const back = (weekday(today) + 6) % 7; // days since Monday
@@ -39,6 +42,7 @@ function weekOf(now = new Date()) {
     weekStart,
     lastDay: addDays(weekStart, 4),
     fromIso: atPkt(weekStart, 0).toISOString(),
+    weekendFromIso: atPkt(addDays(weekStart, -2), 0).toISOString(),
     toIso: atPkt(addDays(weekStart, 5), 0).toISOString(),
   };
 }

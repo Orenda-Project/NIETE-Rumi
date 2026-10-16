@@ -14,6 +14,7 @@ describe('weekOf — the Monday-to-Friday PKT week a Saturday send reports on', 
       lastDay: '2026-10-16',
       fromIso: '2026-10-11T19:00:00.000Z', // Mon 12 Oct 00:00 PKT
       toIso: '2026-10-16T19:00:00.000Z', // Sat 17 Oct 00:00 PKT
+      weekendFromIso: '2026-10-09T19:00:00.000Z', // Sat 10 Oct 00:00 PKT (bd-v0toag.32.1)
     });
   });
 

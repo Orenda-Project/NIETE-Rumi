@@ -71,8 +71,9 @@ async function teacher(userId) {
 /** conversations.created_at is a naive UTC timestamp: compare it with a zone-less UTC wall clock. */
 const naive = (iso) => iso.replace(/\.\d+Z$|Z$/, '');
 
-/** One teacher's rows for one week ({fromIso, toIso}). */
-async function readWeek(userId, { fromIso, toIso }) {
+/** One teacher's rows for one week ({fromIso, toIso}), from the Saturday before when the week names it. */
+async function readWeek(userId, { fromIso: mondayIso, toIso, weekendFromIso }) {
+  const fromIso = weekendFromIso || mondayIso;
   const [messages, deliveries, opens, sessions] = await Promise.all([
     supabase.from('conversations').select('created_at')
       .eq('user_id', userId).eq('role', 'user')
