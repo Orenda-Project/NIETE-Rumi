@@ -14,17 +14,7 @@
   "again": [],
   "recs": [],
   "challenge": {
-   "on": true,
-   "exercises": [
-    {
-     "id": "bigger",
-     "done": false
-    },
-    {
-     "id": "read",
-     "done": false
-    }
-   ]
+   "on": true
   },
   "lib": null,
   "brand": "niete",

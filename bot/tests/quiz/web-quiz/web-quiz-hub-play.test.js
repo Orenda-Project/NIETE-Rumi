@@ -281,6 +281,56 @@ describe('lantern + shelf (web_quiz_challenge_v2 / web_quiz_challenge_story)', (
   });
 });
 
+describe('the lantern counts the stops this child\'s own Trail has (the menu\'s stop rule)', () => {
+  const Challenge = require('../../../shared/services/quiz/web-quiz-challenge');
+  const STORY_ON = [...BASE_ON, ON('web_quiz_challenge_v2'), ON('web_quiz_challenge_story')];
+  const period = (() => { const d = new Date(Date.now() + 5 * 3600000); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`; })();
+  const run = (exercise) => ({ student_id: KID, exercise, mode: 'check', record: true, status: 'scored', period_id: period, passage_id: null });
+  // The challenge's switches are cached for 30 s: every seed here starts them fresh.
+  const fresh = (settings, over, grade) => {
+    seed(settings, over);
+    if (grade) {
+      db.student_lists[0].class_name = grade;
+      db.students[0].self_reported_class = grade;
+      db.quizzes[0].grade = grade;
+      db.quiz_sessions.forEach((x) => { x.student_class = grade; });
+    }
+    Challenge.__reset();
+  };
+  afterEach(() => Challenge.__reset());
+
+  test('grade 1, numbers done -> no trail lantern', async () => {
+    fresh([...STORY_ON, ON('web_quiz_challenge_g1')], { web_quiz_challenge_runs: [run('numbers')] }, '1');
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.play.lantern).toEqual({ kind: 'numbers', day: null });
+    expect(out.challenge).toEqual({ on: true });
+  });
+
+  test('grade 1, not done -> stops:1', async () => {
+    fresh([...STORY_ON, ON('web_quiz_challenge_g1')], { web_quiz_challenge_runs: [run('bigger'), run('read')] }, '1');
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.play.lantern).toEqual({ kind: 'trail', stops: 1 });
+  });
+
+  test('grade 3, warm-up and listen waiting, bigger and read done -> stops:2 (the warm-up and listen count)', async () => {
+    const on = [...STORY_ON, ON('web_quiz_challenge_record'), ON('web_quiz_challenge_missing'), ON('web_quiz_challenge_listen')];
+    fresh(on, { web_quiz_challenge_runs: [run('bigger'), run('read')] });
+    const out = await Hub.hub(T.signHub([KID]), A);
+    expect(out.play.lantern).toEqual({ kind: 'trail', stops: 2 });
+    expect(out.challenge).toEqual({ on: true });
+    fresh(on, { web_quiz_challenge_runs: ['bigger', 'read', 'missing', 'listen'].map(run) });
+    expect((await Hub.hub(T.signHub([KID]), A)).play.lantern).toEqual({ kind: 'numbers', day: null });
+  });
+
+  test('GOLDEN: grade 3, nothing played -> today\'s trail lantern for the stops the Trail has', async () => {
+    // the warm-up and listen switches off: the Trail is bigger and read, the lantern exactly today's
+    fresh(STORY_ON, { web_quiz_challenge_runs: [] });
+    expect((await Hub.hub(T.signHub([KID]), A)).play.lantern).toEqual({ kind: 'trail', stops: 2 });
+    fresh([...STORY_ON, ON('web_quiz_challenge_record'), ON('web_quiz_challenge_missing'), ON('web_quiz_challenge_listen')], { web_quiz_challenge_runs: [] });
+    expect((await Hub.hub(T.signHub([KID]), A)).play.lantern).toEqual({ kind: 'trail', stops: 4 });
+  });
+});
+
 describe('band filter: never a passage above the bands open to this child', () => {
   const STORY_ON = [...BASE_ON, ON('web_quiz_challenge_v2'), ON('web_quiz_challenge_story')];
   const period = (() => { const d = new Date(Date.now() + 5 * 3600000); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`; })();

@@ -119,7 +119,7 @@ async function runsOf(childId, cols) {
 /**
  * The adapter for "this period's stops with no record row" (BADGES §6 `trail_waiting`): swap its body for the draw
  * module's `trailStateFor(canonicalId, periodId)` once it ships. Reads the v2 columns (`mode='check'`, `record=true`,
- * `period_id`); when they cannot be read, falls back to the hub tile's own `exercises[].done`.
+ * `period_id`); when they cannot be read, falls back to the list's own `exercises[].done` (absent: every stop waits).
  */
 async function trailWaiting(childId, periodId, exercises) {
   const list = Array.isArray(exercises) ? exercises : [];
@@ -202,9 +202,10 @@ function shelfOf(live, unseenPids) {
 
 /**
  * The hub's play block for the chosen child, or null when every switch here is off (no `play` key: golden).
- * `challenge` is the hub's own challenge tile (null when the child's grade has no challenge).
+ * `challenge` is the hub's own challenge tile (null when the child's grade has no challenge); `stopsOf()` the stop ids
+ * this child's Trail has (the hub's, from the challenge menu's rule), read only when the lantern is.
  */
-async function playFor({ chosenId, last, lang, now, challenge, grade } = {}) {
+async function playFor({ chosenId, last, lang, now, challenge, grade, stopsOf } = {}) {
   const s = await switches();
   if (!s.first && !s.v2 && !s.install && !s.events) return null;
   const nowMs = Number.isFinite(Date.parse(now)) ? Date.parse(now) : Date.now();
@@ -223,7 +224,8 @@ async function playFor({ chosenId, last, lang, now, challenge, grade } = {}) {
   };
   if (!s.v2 || !tile || !chosenId) return out;
 
-  const trail = await trailWaiting(chosenId, periodOf(nowMs), challenge.exercises);
+  const stops = typeof stopsOf === 'function' ? await stopsOf() : [];
+  const trail = await trailWaiting(chosenId, periodOf(nowMs), stops.map((id) => ({ id })));
   const seenIds = s.story ? await seenPassages(chosenId) : null;
   const bands = seenIds ? openBands(grade, await readingRungOf(chosenId)) : null;
   const p = seenIds ? await passagesOf(require('../../config/ux-strings').clampLanguage(lang), nowIso, bands) : { live: [], next: null };
