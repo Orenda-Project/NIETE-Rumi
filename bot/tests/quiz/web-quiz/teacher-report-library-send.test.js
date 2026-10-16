@@ -234,6 +234,49 @@ describe('the sender\'s report (quiz_teacher_home on)', () => {
   });
 });
 
+describe('the watch root\'s codes are not the sender\'s class; a class child\'s lesson code is', () => {
+  // a class-less child's video codes hang under the watch root and copy its teacher (web-quiz-videos.js); a class
+  // child's own lesson code from the Videos library hangs under the class's code — the same shape, the teacher's class
+  const ROOT = '33333333-3333-4333-8333-3333333333d0';
+  const WQ = '22222222-2222-4222-8222-2222222222b2'; // under the watch root
+  const LQ2 = '22222222-2222-4222-8222-2222222222b3'; // a class child's lesson code under the sender's class code
+  const seedBoth = (rootValue) => {
+    const fake = seed();
+    if (rootValue !== undefined) fake.db.app_settings.push({ key: 'web_quiz_watch_root', value: rootValue });
+    const vq = (id, topic, v) => ({ id, teacher_id: null, topic, subject: 'science', grade: '3', language: 'en', quiz_source: 'video',
+      status: 'ready', video_id: v, list_id: null, created_at: at(900), meta: {} });
+    fake.db.quizzes.push(vq(WQ, 'Leaves', 'v2'), vq(LQ2, 'Roots', 'v3'));
+    const code = (id, c, quizId, parent, h) => ({ id, code: c, quiz_id: quizId, teacher_user_id: SENDER, teacher_name: 'B', topic: 't',
+      language: 'en', report_sent_at: null, invited_by_student_id: null, parent_share_code_id: parent, active: true, expires_at: null,
+      created_at: at(h) });
+    fake.db.quiz_share_codes.push(code(ROOT, 'RRRRRR', VQ, null, 40), code('33333333-3333-4333-8333-3333333333d1', 'WWWWWW', WQ, ROOT, 5),
+      code('33333333-3333-4333-8333-3333333333d2', 'LLLLLL', LQ2, SC_BV, 6));
+    return fake;
+  };
+  const listed = async () => (await Data.sentQuizzes(SENDER)).map((q) => q.id);
+
+  test.each([['a plain id', ROOT], ['a JSON string', JSON.stringify(ROOT)]])('the root set (%s): its child is left out everywhere; the lesson code stays', async (_, v) => {
+    seedBoth(v);
+    expect(await listed()).not.toContain(WQ);
+    expect(await listed()).toContain(LQ2);
+    expect(await Data.sentQuiz(SENDER, WQ)).toBeNull();
+    expect(await Data.sentQuiz(SENDER, LQ2)).toMatchObject({ id: LQ2 });
+    expect(await Data.quizReport(SENDER, WQ)).toBeNull();
+    const tab = (await Data.classReport(SENDER, { now: NOW })).quizzes.map((q) => q.id);
+    expect(tab).not.toContain(WQ);
+    const List = require('../../../shared/services/quiz/teacher-report-list.service');
+    await List.showReports({ id: SENDER, preferred_language: 'en' }, '000b', 'en');
+    const rows = WA().sendInteractiveMessage.mock.calls[0][1].action.sections[0].rows.map((r) => r.id);
+    expect(rows).toContain(`tqr_${LQ2}`);
+    expect(rows).not.toContain(`tqr_${WQ}`);
+  });
+
+  test.each([['absent', undefined], ['not an id', 'nope'], ['an object', { id: ROOT }]])('the root %s: nothing is left out (today\'s lists)', async (_, v) => {
+    seedBoth(v);
+    expect(await listed()).toEqual(expect.arrayContaining([WQ, LQ2]));
+  });
+});
+
 describe('a library code the home only PREPARED (minted to show its message, never sent)', () => {
   test('is not a send: no class-tab row, no chat row — until the send tap clears it', async () => {
     seed();
