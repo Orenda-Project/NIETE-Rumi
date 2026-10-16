@@ -21,7 +21,9 @@ const LIVE_SRC = fs.readFileSync(path.join(WQ, 'wq-read-live.js'), 'utf8');
 
 // Screens that show a forbidden word today and are waiting for a page fix. Shrink-only: an entry leaves when its
 // screen is clean; nothing is ever added to make a new screen pass. One line per entry: '<lang>:<screen>': 'why'.
-const ALLOW = {};
+const ALLOW = {
+  'ur:quiz-finish-card-g1': 'the class-finish place line on the quiz page (not a Trail screen); outside these switches; listed by name until its own page fix',
+};
 
 // ── the table: one row per thing no child screen may show ───────────────────────────────────────────────────
 // Urdu has no \b: a word is a run of Arabic-script letters, so the edges are "no Arabic letter on either side".
@@ -40,6 +42,11 @@ const FORBID = [
   { what: 'lock (sign)', rx: /🔒|🔐/u },
   { what: 'lock (EN)', rx: /\block(ed|s)?\b/i },
   { what: 'lock (UR)', rx: UR_W('بند') },
+  { what: 'rank sentence (UR)', rx: /آپ کا نمبر[^۔!؟\n]{0,6}?[0-9۰-۹][^۔!؟\n]{0,6}?ہے/ },
+  // Urdu prose writes Urdu digits; a Western digit there only inside a left-to-right isolate (the Trail's counter:
+  // «⁦10⁩ میں سے ⁦1⁩»). Urdu screens only: an English screen is all Western digits. Prose only: a maths tile (a
+  // button or a cell holding nothing but a number, Western beside the Western keypad) is not prose.
+  { what: 'bare Western digit in Urdu prose', ur: true, prose: true, rx: { exec: (v) => /[0-9]/.exec(v.replace(/[\u2066\u2067\u2068][^\u2066-\u2069]*\u2069/g, ' ')) } },
 ];
 
 const ENT = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&nbsp;': ' ' };
@@ -50,10 +57,12 @@ function visible(html) {
   String(html).replace(/\s(aria-label|alt|title)="([^"]*)"/g, (m, k, v) => { attrs.push(v); return m; });
   return decode([String(html).replace(/<[^>]*>/g, ' '), ...attrs].join(' ')).replace(/\s+/g, ' ').trim();
 }
-/** Each row of the table this screen's visible text hits, with the words that hit it. */
-function lint(html) {
+/** Each row of the table this screen's visible text hits, with the words that hit it (Urdu-only rows on Urdu screens). */
+const TILE = /<(button|div)\b[^>]*>[\s0-9?\u2066-\u2069]*<\/\1>/g;
+function lint(html, lang) {
   const v = visible(html);
-  return FORBID.map((f) => { const m = f.rx.exec(v); return m ? { what: f.what, found: m[0], text: v } : null; }).filter(Boolean);
+  const prose = visible(String(html).replace(TILE, ' '));
+  return FORBID.filter((f) => !f.ur || lang === 'ur').map((f) => { const m = f.rx.exec(f.prose ? prose : v); return m ? { what: f.what, found: m[0], text: v } : null; }).filter(Boolean);
 }
 
 // ── fixtures: server copy and payloads in each language (the page's own copy is its own) ───────────────────
@@ -116,6 +125,16 @@ const v2page = (lang, o = {}) => H.page({ src: SRC, lang, menu: menuOf(lang), fr
 const shot = (p) => [p.root.innerHTML, ...Object.values(p.els).map((e) => `${e.innerHTML || ''} ${e.textContent || ''}`)].join(' ');
 const type = async (p, digits) => { for (const d of String(digits)) await p.click(`wqc-k${d}`); await p.click('wqc-kok'); };
 
+/** One screen: no hit, or (on ALLOW by name) still a hit, so a screen that is fixed leaves the list. */
+function check(key, html, lang) {
+  const hits = lint(html, lang);
+  if (ALLOW[key]) {
+    if (!hits.length) throw new Error(`${key} is clean now: take it off ALLOW`);
+    return;
+  }
+  if (hits.length) throw new Error(`${key} shows ${hits.map((h) => `${h.what}: "${h.found}"`).join('; ')}\n  visible text: ${hits[0].text}`);
+}
+
 /** Every v2 screen a child can reach, in one language: { '<screen>': html }. */
 async function collect(lang) {
   const c = COPY[lang];
@@ -125,7 +144,7 @@ async function collect(lang) {
   // the map
   put('trail map', v2page(lang), 'trail');
   // "Whose turn?" (two children on one phone)
-  put('whose turn', v2page(lang, { menu: menuOf(lang, { ask: 'whose_turn', kids: [{ chip: 'c1', first: c.kid, animal: 'owl' }, { chip: 'c2', first: c.kid, animal: 'cat', line2: 'G3', avatarLine: true }] }) }), 'whose-turn');
+  put('whose turn', v2page(lang, { menu: menuOf(lang, { ask: 'whose_turn', kids: [{ chip: 'c1', first: c.kid, animal: 'owl' }, { chip: 'c2', first: c.kid, animal: 'cat', line2: lang === 'ur' ? 'جماعت سوم' : 'Class three', avatarLine: true }] }) }), 'whose-turn');
 
   // a tap game: help asked first, then its intro, its item screen, its end cards (done, stopped)
   {
@@ -248,15 +267,22 @@ describe.each(['en', 'ur'])('%s: no child screen shows a speed, a rank, a test w
     expect((shots['read-live (live words on)'].match(/wqc-w wqc-ok/g) || []).length).toBeGreaterThanOrEqual(10);
   });
 
-  test.each(SCREENS)('%s', (name) => {
-    const hits = lint(shots[name]);
-    const key = `${lang}:${name}`;
-    if (ALLOW[key]) {
-      // an allowed screen must still be dirty: a clean one leaves the list
-      expect(hits.length).toBeGreaterThan(0);
-      return;
-    }
-    if (hits.length) throw new Error(`${key} shows ${hits.map((h) => `${h.what}: "${h.found}"`).join('; ')}\n  visible text: ${hits[0].text}`);
+  test.each(SCREENS)('%s', (name) => { check(`${lang}:${name}`, shots[name], lang); });
+});
+
+// The quiz page's grade-1 finish card (wq.js, its own page, run whole in wq-page-harness.js): the child's place among
+// today's class finishers is drawn in Urdu prose as «… آپ کا نمبر 2 ہے». The lint sees it; it is on ALLOW by name.
+describe('the quiz page finish card, grade 1 (Urdu)', () => {
+  const QP = require('./wq-page-harness');
+  test('ur:quiz-finish-card-g1', () => {
+    const p = QP.page({ lang: 'ur', grade: 1 });
+    p.wq.S.result = { score: { correct: 4, total: 5 }, card: { first: '<Name> Testwala', animal: 'cat', correct: 4, total: 5, stars: 4, nth: 2 } };
+    p.wq.card();
+    const html = p.html();
+    expect(html).toContain('آپ کا نمبر');
+    const hits = lint(html, 'ur').map((h) => h.what);
+    expect(hits).toEqual(expect.arrayContaining(['rank sentence (UR)', 'bare Western digit in Urdu prose']));
+    check('ur:quiz-finish-card-g1', html, 'ur');
   });
 });
 
@@ -288,16 +314,31 @@ describe('the lint catches each forbidden thing (a fake screen per row)', () => 
     ['lock (EN)', '<small>Locked</small>'],
     ['lock (EN)', '<button aria-label="locked stop"></button>'],
     ['lock (UR)', '<small>یہ کھیل بند ہے</small>'],
+    ['rank sentence (UR)', '<p>آپ کا نمبر ۲ ہے</p>'],
+    ['bare Western digit in Urdu prose', '<p>آپ کا نمبر 2 ہے</p>'],
   ];
+  // every fake screen is read as an Urdu screen (so the Urdu-only row runs too)
   test.each(BAD)('%s ← %s', (what, html) => {
-    expect(lint(html).map((h) => h.what)).toContain(what);
+    expect(lint(html, 'ur').map((h) => h.what)).toContain(what);
+  });
+  test('«آپ کا نمبر 2 ہے» hits both the rank sentence and the bare digit; «آپ کا نمبر ۲ ہے» the rank sentence only', () => {
+    expect(lint('<p>آج آپ کی کلاس میں مکمل کرنے والوں میں آپ کا نمبر <bdi>2</bdi> ہے</p>', 'ur').map((h) => h.what).sort()).toEqual(['bare Western digit in Urdu prose', 'rank sentence (UR)']);
+    expect(lint('<p>آپ کا نمبر 2 ہے</p>', 'ur').map((h) => h.what).sort()).toEqual(['bare Western digit in Urdu prose', 'rank sentence (UR)']);
+    expect(lint('<p>آپ کا نمبر ۲ ہے</p>', 'ur').map((h) => h.what)).toEqual(['rank sentence (UR)']);
+  });
+  test('the bare-digit row runs on Urdu screens only', () => {
+    expect(lint('<p>Stop 2</p>', 'en')).toEqual([]);
+    expect(lint('<p>Stop 2</p>', 'ur').map((h) => h.what)).toEqual(['bare Western digit in Urdu prose']);
+  });
+  test('a maths tile is not prose: a number alone in a button or a cell passes, the same number in a sentence does not', () => {
+    expect(lint('<div class="wqc-cell">7</div><button class="wqc-k" aria-label="7">7</button><button class="wqc-num">35</button>', 'ur')).toEqual([]);
+    expect(lint('<div class="wq-say">آپ نے 7 لیے</div>', 'ur').map((h) => h.what)).toEqual(['bare Western digit in Urdu prose']);
   });
   test('every row of the table is proven by at least one fake screen', () => {
     expect([...new Set(BAD.map((b) => b[0]))].sort()).toEqual(FORBID.map((f) => f.what).sort());
   });
-  test('look-alikes are not hits: an item counter, "best", «پسند», «بندر», a stop\'s minutes, a "Testwala" name', () => {
-    for (const h of ['<p>1 of 6</p>', '<p>⁦6⁩ میں سے ⁦1⁩</p>', '<p>Your best reading</p>', '<p>آپ کو پسند ہے</p>', '<p>بندر</p>', '<small>2 min</small>', '<b>&lt;Name&gt; Testwala</b>', '<p>Blocks and clocks</p>']) {
-      expect(lint(h)).toEqual([]);
-    }
+  test('look-alikes are not hits: an item counter (isolated digits in Urdu), "best", «پسند», «بندر», a stop\'s minutes, a "Testwala" name', () => {
+    for (const h of ['<p>1 of 6</p>', '<p>Your best reading</p>', '<small>2 min</small>', '<b>&lt;Name&gt; Testwala</b>', '<p>Blocks and clocks</p>']) expect(lint(h, 'en')).toEqual([]);
+    for (const h of ['<p>⁦6⁩ میں سے ⁦1⁩</p>', '<p>⁦10⁩ میں سے ⁦1⁩</p>', '<p>⁨10⁩ میں سے ⁨1⁩</p>', '<p>آپ کو پسند ہے</p>', '<p>بندر</p>', '<small>۲ منٹ</small>', '<p>کلاس لسٹ میں آپ کا نمبر کیا ہے؟</p>']) expect(lint(h, 'ur')).toEqual([]);
   });
 });
