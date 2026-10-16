@@ -562,7 +562,9 @@ CREATE TABLE IF NOT EXISTS students (
     merged_into UUID REFERENCES students(id),
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now(),
-    PRIMARY KEY (id)
+    PRIMARY KEY (id),
+    -- bot/database/migrations/students_merged_state_check.sql: a merged record names its target, and only a merged one does.
+    CONSTRAINT students_merged_state_chk CHECK ((status = 'merged') = (merged_into IS NOT NULL))
 );
 
 CREATE TABLE IF NOT EXISTS student_videos (
