@@ -236,6 +236,68 @@ describe('a reader failure never fails a paper', () => {
   });
 });
 
+describe('review findings', () => {
+  const offPaper = async () => { serve(); const off = await run(); mockCreate.mockReset(); mockLog.mockReset(); return off; };
+  const ruleFlag = (prompt) => ({ item: labelOf(prompt, RULE_STEM), by: 'Q1.13', evidence: 'شاید کل بارش ہو جائے', reason: 'rule twin', given_away: true });
+
+  test('a top-up whose items carry text the paper refuses to print keeps the paper as it was', async () => {
+    const off = await offPaper();
+    const marked = clone(NEW).map((q, i) => (i === 0 ? { ...q, question: `${q.question} ⚠` } : q));
+    serve({ topUp: marked, reader: async (prompt, n) => JSON.stringify({ candidates: n === 1 ? [ruleFlag(prompt)] : [] }) });
+    const on = await run({ readerPass: true });
+    expect(on.err).toBeUndefined();
+    expect(stable(on.ok.examJson)).toEqual(stable(off.ok.examJson));
+    const line = mockLog.mock.calls.find(([m]) => m === '[assessment] reader pass');
+    expect(line[1].error).toMatch(/refused text/);
+  });
+
+  test('a flag that names the item as its own giver, or quotes a two-letter word, is not held', async () => {
+    const off = await offPaper();
+    serve({
+      reader: async (prompt) => {
+        const own = labelOf(prompt, RULE_STEM);
+        return JSON.stringify({ candidates: [
+          // Its own options are what the child picks from: «شکیہ» is printed only there.
+          { item: own, by: own, evidence: 'شکیہ', reason: 'own options', given_away: true },
+          { item: own, by: 'Q1', evidence: 'شکیہ', reason: 'bare Q1', given_away: true },
+          { item: own, by: 'Q2', evidence: 'کا', reason: 'a two-letter word', given_away: true },
+        ] });
+      },
+    });
+    const on = await run({ readerPass: true });
+    expect(stable(on.ok.examJson)).toEqual(stable(off.ok.examJson));
+  });
+
+  test('on the re-check, a replacement whose text gives away a kept item is taken off', async () => {
+    // The reader names the KEPT item as given away, by the replacement: the replacement comes off.
+    const asked = serve({
+      reader: async (prompt, n) => {
+        if (n === 1) return JSON.stringify({ candidates: [ruleFlag(prompt)] });
+        const kept = labelOf(prompt, /پیدائش کس شہر/);
+        const repl = labelOf(prompt, /«دریا»/);
+        return JSON.stringify({ candidates: [{ item: kept, by: repl, evidence: 'دریا', reason: 'stand-in: the replacement answers a kept item', given_away: true }] });
+      },
+    });
+    const out = await run({ readerPass: true });
+    expect(out.err).toBeUndefined();
+    const stems = q1Stems(out.ok.examJson);
+    expect(stems).toHaveLength(20);
+    expect(stems).not.toContain(NEW[0].question);
+    expect(stems.some((s) => /پیدائش کس شہر/.test(s))).toBe(true);
+    expect(asked.filter((a) => a.sec === 'reader')).toHaveLength(2);
+    const line = mockLog.mock.calls.find(([m]) => m === '[assessment] reader pass');
+    expect(line[1]).toMatchObject({ flagged: 1, still_flagged: 1, rechecked: true });
+  });
+
+  test('a re-check that fails says so in the telemetry', async () => {
+    serve({ reader: async (prompt, n) => { if (n === 1) return JSON.stringify({ candidates: [ruleFlag(prompt)] }); throw new Error('timed out'); } });
+    const out = await run({ readerPass: true });
+    expect(out.err).toBeUndefined();
+    const line = mockLog.mock.calls.find(([m]) => m === '[assessment] reader pass');
+    expect(line[1]).toMatchObject({ flagged: 1, rechecked: false });
+  });
+});
+
 describe('reader pass OFF, or not Urdu: no reader call', () => {
   test('flag absent: no reader prompt is ever sent', async () => {
     const asked = serve({ reader: async () => { throw new Error('must not be called'); } });
@@ -298,11 +360,21 @@ describe('the reader prompt', () => {
     // On a re-check only the items asked about count.
     expect(Reader.parseFlags(reply, labels, ['Q1.1'], blocks).map((f) => f.item)).toEqual(['Q1.1']);
     expect(() => Reader.parseFlags({ flags: [] }, labels)).toThrow();
+    // An item is never its own giver by block: only its stem counts, and a quote needs a word of three letters.
+    expect(Reader.parseFlags({ candidates: [{ item: 'Q1.1', by: 'Q1.1', evidence: 'شاید', given_away: true }] }, labels, null, blocks)).toEqual([]);
+    expect(Reader.parseFlags({ candidates: [{ item: 'Q1.2', by: 'Q1.1', evidence: 'نہ', given_away: true }] }, labels, null, blocks)).toEqual([]);
+    expect(Reader.parseFlags({ candidates: [{ item: 'Q1.2', by: 'Q1.1.', evidence: 'کیا خبر', given_away: true }] }, labels, null, blocks).map((f) => f.by)).toEqual(['Q1.1.']);
+    // On a re-check, a flag on a kept item BY a replacement flags the replacement.
+    expect(Reader.parseFlags({ candidates: [{ item: 'Q1.2', by: 'Q1.1', evidence: 'کیا خبر', given_away: true }] }, labels, ['Q1.1'], blocks))
+      .toEqual([{ item: 'Q1.1', by: 'Q1.2', evidence: 'کیا خبر', reason: '', gives: true }]);
   });
 
   test('fold reads Arabic letter forms, diacritics and spacing as the same text', () => {
     expect(Reader.fold('سَحَر  کي')).toBe(Reader.fold('سحر کی'));
-    expect(Reader.fold('«کاش»، ہم')).toBe('کاشہم');
+    expect(Reader.fold('«کاش»، ہم')).toBe(' کاش ہم ');
+    expect(Reader.fold('سبق ٧')).toBe(Reader.fold('سبق ۷'));
+    // Whole words: «کا» is not found inside «کاش».
+    expect(Reader.fold('کاش ہم').includes(Reader.fold('کا'))).toBe(false);
   });
 });
 

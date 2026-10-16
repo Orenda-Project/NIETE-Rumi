@@ -1891,6 +1891,8 @@ async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built,
     logToFile('[assessment] section re-asked', { requestId, pattern, section: b.section.id, shortfall, reader: first.flags });
     const second = await writeOne({ ...b, messages: _sectionMessages({ system, user: `${b.user}\n\n${note}`, pageContent: b.pageContent, model }) });
     sectionUsages.push(...second.usages);
+    // A replacement carrying text the paper refuses to print would fail the paper at render.
+    if (_reviewTextHits([{ id: b.section.id, tree: second.tree }]).size) return done(examJson, null, 'top-up: refused text');
     stripImageKeys(second.tree);
     normaliseAnswers(second.tree);
     // Only new Q1 items: a held item written again is not a replacement.
@@ -1910,7 +1912,9 @@ async function _readerPass({ examJson, P, key, layoutScope, now, pattern, built,
       try {
         const again = await ask(exam, replacements);
         still = again.flags.map((f) => ({ ...f, q: again.labels.get(f.item) }));
+        stats.rechecked = true;
       } catch (err) {
+        stats.rechecked = false;
         logToFile('[assessment] reader re-check failed, replacements kept', { requestId, error: err.message });
       }
     }
