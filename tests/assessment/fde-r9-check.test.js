@@ -95,6 +95,19 @@ describe('1. maths place-value MCQ oracle', () => {
     expect(laidMaths(twice).gone).toBe(false);
   });
 
+  it('a number the regex cannot read whole (a decimal, a word or a sum after it) is unchecked', () => {
+    const names = ['a) Millions', 'b) Ones', 'c) Tens', 'd) Hundreds'];
+    for (const question of [
+      'Which place is the digit 3 in 3.5 million?',
+      'What is the place value of the digit 3 in 3 million?',
+      'Which place is the digit 4 in 4,250 thousand?',
+      'What is the value of the digit 2 in 25 + 30?',
+      'What is the value of the digit 7 in 7.25?',
+    ]) {
+      expect([question, mcqPropertyVerdict({ question, options: names, answer: 'a) Millions' })]).toEqual([question, { ok: null }]);
+    }
+  });
+
   it('a "which place" stem with number options, or a stem about a method, is unchecked', () => {
     expect(mcqPropertyVerdict({ question: 'Which place is the digit 9 in 2,395,140?', options: ['a) 9,000', 'b) 90,000', 'c) 900', 'd) 900,000'], answer: 'b) 90,000' })).toEqual({ ok: null });
     expect(mcqPropertyVerdict({ question: 'Which place is next to the thousands place?', options: ['a) Hundreds', 'b) Ten thousands', 'c) Tens', 'd) Ones'], answer: 'b) Ten thousands' })).toEqual({ ok: null });

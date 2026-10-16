@@ -951,12 +951,15 @@ function roundingVerdict(stem, parts) {
 // for "place value", a place name). "Which place is the digit 9 in 2,395,140?", "in which
 // place is …", "which place does the digit 5 have in …": a place name only.
 const DIGIT_VALUE = /\b(?:place value of (?:the )?(?:digit )?|value of (?:the )?digit )(\d) in (\d[\d,]*)/;
+const NOT_WHOLE_TAIL = /^(?:\.\d|\s*(?:million|billion|thousand|hundred|lakh|crore|arab)\b|\s*[-+×x*÷/=^])/;
 const DIGIT_PLACE = /\bwhich place (?:is|does) (?:the )?digit (\d) (?:(?:have|stand|occupy|take) )?in (\d[\d,]*)/;
 
 function placeValueVerdict(stem, parts) {
   const value = DIGIT_VALUE.exec(stem);
   const m = value || DIGIT_PLACE.exec(stem);
   if (!m) return null;
+  // "3.5 million", "4,250 thousand", "25 + 30": the number read is not the whole number.
+  if (NOT_WHOLE_TAIL.test(stem.slice(m.index + m[0].length))) return { ok: null };
   const digits = m[2].replace(/,/g, '');
   // A digit that appears twice (or not at all) names no one place.
   if (digits.split(m[1]).length !== 2) return { ok: null };
