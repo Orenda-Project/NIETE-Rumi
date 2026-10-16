@@ -393,6 +393,28 @@ describe('first open: the locked server render, then `play` from the unlock', ()
     expect(p.head.filter((e) => /hub-play/.test(e.src || ''))).toHaveLength(0);
     expect(p.html()).toContain('data-shelf="1"');
   });
+  // The keep-my-place card (wq-bind.js, web_quiz_phone_bind): the same first-open gap (the edge's bindTags decides
+  // before the device is known). hub.js loads wq-bind.js/.css itself when `bind` arrives without WQBIND.
+  test('`bind` from the unlock: wq-bind.css/.js loaded at hub.js\'s ?v=, and the slot drawn once it arrives', async () => {
+    const p = firstOpen({ ...BOOTS.done, bind: { offer: true, hub: 'tok.tok' } });
+    await p.flush();
+    const css = p.head.filter((e) => /wq-bind\.css/.test(e.href || ''));
+    const js = p.head.filter((e) => e.tag === 'script' && /wq-bind\.js/.test(e.src || ''));
+    expect(css.map((e) => e.href)).toEqual(['/wq/wq-bind.css?v=abc123']);
+    expect(js.map((e) => e.src)).toEqual(['/wq/wq-bind.js?v=abc123']);
+    expect(p.html()).not.toContain('wq-bind-slot');
+    const cards = [];
+    p.ctx.WQBIND = { card: (slot, o) => cards.push(o.kid), t: () => ({}), chipExtra: () => '' };
+    js[0].l.load();
+    await p.flush();
+    expect(p.html()).toContain('id="wq-bind-slot"');
+    expect(cards.length).toBe(1);
+  });
+  test('no `bind` in the unlock answer: wq-bind is never loaded', async () => {
+    const p = firstOpen({ ...BOOTS.done, play: PLAY }, { playLoaded: true });
+    await p.flush();
+    expect(p.head.filter((e) => /wq-bind/.test((e.src || '') + (e.href || '')))).toHaveLength(0);
+  });
   test('no `play` in the unlock answer: nothing loaded', async () => {
     const p = firstOpen({ ...BOOTS.done });
     await p.flush();
