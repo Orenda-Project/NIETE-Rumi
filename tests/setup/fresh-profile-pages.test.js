@@ -13,13 +13,15 @@
  * only that renderer loads (e.g. `hub.js` for renderHubPage) — AND carries `fresh profile` (any case; a comment
  * marker or a describe/test title) in the same file.
  *
- * fresh-profile-pages.allowlist.json `pages`: the pages with no such test when this gate landed; it only shrinks
- * (a new page without one fails; a listed page that gains one, or goes away, fails until removed).
+ * fresh-profile-pages.allowlist.json `pages`: the pages with no such test when this gate landed. The gate fails on
+ * a navigable page that is neither listed nor tested, and on a listed page that no longer exists. A listed page that
+ * gains its test passes, with a console.warn "CLEAN: remove <page> from fresh-profile-pages.allowlist.json", so the
+ * PR that adds the test does not also have to edit the list.
  */
 const fs = require('fs');
 const path = require('path');
 const ALLOW = require('./fresh-profile-pages.allowlist.json');
-const { REPO, testFiles, navigablePages, coversFreshProfile, pagesWithoutFreshProfile, listRatchet } = require('./test-seam-gates-lib');
+const { REPO, testFiles, navigablePages, coversFreshProfile, pagesWithoutFreshProfile, freshProfileVerdict } = require('./test-seam-gates-lib');
 
 function pagesInTree() {
   const templates = fs.readdirSync(path.join(REPO, 'bot/shared/templates'));
@@ -65,9 +67,56 @@ describe('the rule, on in-memory sources', () => {
   });
 });
 
+describe('the verdict, on a synthetic page, test and allowlist set', () => {
+  const pages = [
+    { id: 'listed-tested.page', scripts: [] },
+    { id: 'listed-untested.page', scripts: [] },
+    { id: 'unlisted-untested.page', scripts: [] },
+    { id: 'unlisted-tested.page', scripts: [] },
+  ];
+  const tests = [
+    "// fresh profile\nrequire('listed-tested.page')",
+    "describe('a fresh profile', () => require('unlisted-tested.page'))",
+  ];
+
+  test('a listed page that now has its test passes, with a CLEAN line', () => {
+    const v = freshProfileVerdict(pages.filter((p) => p.id === 'listed-tested.page'), tests, ['listed-tested.page']);
+    expect(v.failures).toEqual([]);
+    expect(v.cleans).toEqual(['CLEAN: remove listed-tested.page from fresh-profile-pages.allowlist.json']);
+  });
+
+  test('a page neither listed nor tested fails', () => {
+    const v = freshProfileVerdict(pages.filter((p) => p.id === 'unlisted-untested.page'), tests, []);
+    expect(v.failures).toEqual(['NEW: unlisted-untested.page has no fresh-profile test. Add one (a test that names the page and says "fresh profile").']);
+    expect(v.cleans).toEqual([]);
+  });
+
+  test('a listed page that no longer exists fails', () => {
+    const v = freshProfileVerdict([], tests, ['gone.page']);
+    expect(v.failures).toEqual(['GONE: gone.page is no longer a page. Remove it from fresh-profile-pages.allowlist.json.']);
+    expect(v.cleans).toEqual([]);
+  });
+
+  test('a listed page still without its test passes, with no line', () => {
+    const v = freshProfileVerdict(pages.filter((p) => p.id === 'listed-untested.page'), tests, ['listed-untested.page']);
+    expect(v).toEqual({ failures: [], cleans: [] });
+  });
+
+  test('all together: only the unlisted untested page and the missing listed page fail', () => {
+    const v = freshProfileVerdict(pages, tests, ['listed-tested.page', 'listed-untested.page', 'gone.page']);
+    expect(v.failures).toEqual([
+      'NEW: unlisted-untested.page has no fresh-profile test. Add one (a test that names the page and says "fresh profile").',
+      'GONE: gone.page is no longer a page. Remove it from fresh-profile-pages.allowlist.json.',
+    ]);
+    expect(v.cleans).toEqual(['CLEAN: remove listed-tested.page from fresh-profile-pages.allowlist.json']);
+  });
+});
+
 describe('the tree', () => {
-  test('every navigable page has a fresh-profile test, or is listed; the list matches today exactly', () => {
+  test('every navigable page has a fresh-profile test, or is listed; every listed page exists', () => {
     const tests = testFiles(['bot/tests', 'dashboard/tests']).map((f) => fs.readFileSync(f, 'utf8'));
-    expect(listRatchet(pagesWithoutFreshProfile(pagesInTree(), tests), ALLOW.pages || [], 'has no fresh-profile test')).toEqual([]);
+    const { failures, cleans } = freshProfileVerdict(pagesInTree(), tests, ALLOW.pages || []);
+    for (const line of cleans) console.warn(line);
+    expect(failures).toEqual([]);
   });
 });
