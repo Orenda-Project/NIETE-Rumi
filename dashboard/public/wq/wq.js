@@ -2420,6 +2420,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     var doorBtn = res.hub_door && !friend && !(S.queue && S.queue.length) ? '<button class="wq-btn wq-soft" id="wq-hubdoor">' + esc(T.hubDoor) + '</button>' : '';
     // The Jugnu card (wq-card.js, sent only when finish offers it): first under the score, above the shares.
     var jc = res.jugnu_card && !friend ? jugnuCard() : '';
+    // The finish card (wq-finish-card.js, finish's card_v3): the deed above the score, the Next tile, the class share.
+    var fc = res.card_v3 && !friend && window.WQFC ? window.WQFC : null;
     // With the door, a class child's first screen is the score, "Share to class group" and the door (a 360x740 phone,
     // Urdu included): the practice note and the two-line place-in-class note come after them. A video quiz card keeps its own order
     // ("Next in this chapter", "Watch more" first).
@@ -2449,9 +2451,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       '<div class="wq-name">' + ani(c.animal) + ' ' + esc(c.first || (S.child && S.child.first) || '') + '</div>' +
       // the topic: one line on a short phone (wq.css), the whole topic is on the quiz itself
       '<p class="wq-sub wq-ctopic">' + esc(Q.topic) + '</p>' +
-      '<div class="wq-big">' + esc(c.correct) + '/' + esc(total) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
+      (fc ? fc.quizDeedHtml(LANG) : '') + '<div class="wq-big">' + esc(c.correct) + '/' + esc(total) + '</div>' + stars(c.stars != null ? c.stars : c.correct, total) +
       '<div class="wq-praise">' + esc(T.praise(c.correct, total)) + '</div></div></div>' +
-      jc + notes + (firstTwo ? shareBtn + panel + doorBtn + practice + place : '') +
+      jc + (fc ? fc.nextHtml(LANG, res.next_offer) : '') + notes + (firstTwo ? shareBtn + panel + doorBtn + practice + place : '') +
       (isVideo ? moreBtn() + shares : shares + moreBtn()) +
       // One phone, many children: the next child starts from the landing. Not while answers wait to be sent.
       (S.queue && S.queue.length ? '' : '<button class="wq-btn wq-ghost" id="wq-turn">' + esc(T.nextTurn) + '</button>');
@@ -2482,6 +2484,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
     // A zero is shared as "played", never as a score for the group to beat.
     // A practice round shares the kept first-try score (shareC/shareT), the one the league shows.
     var line = shareC ? T.shareLine(c.first, shareC, shareT, Q.topic) : T.sharePlayed(c.first, Q.topic);
+    if (fc) on('#wq-share', fc.quizShareTap(fcOpts(), function (full) { fallback(full, 'card', full, null, null); }));
     on('#wq-share', function () { share(line, classUrl, 'card', art.card); });
     on('#wq-chal', function () { share(line, chalUrl, 'challenge', art.invite); });
     // A tile shares the challenge in its own first-person words; the first name is the card's (c.first), never a full name.
@@ -2505,6 +2508,25 @@ if (typeof module !== 'undefined' && module.exports) module.exports = WQI;
       flushEv(true);
       location.assign('/q/' + encodeURIComponent(nx.code));
     });
+    if (res.card_v3 && !friend) finishCard();
+  }
+  /* ---------------- the finish card (wq-finish-card.js; app_settings web_quiz_card_v3, finish's card_v3) ---------------- */
+  // Last in card(): the card's token is asked for as the card opens (the share never waits); the file is asked for
+  // only when finish sends card_v3, and the card is drawn again once it loads.
+  var fcAsked = false;
+  function fcOpts() { return { lang: LANG, topic: Q.topic, st: S.st, ev: ev }; }
+  function finishCard() {
+    if (window.WQFC) { window.WQFC.primeQuiz(fcOpts()); return; }
+    if (fcAsked) return;
+    fcAsked = true;
+    try {
+      var own = document.querySelector && document.querySelector('script[src*="/wq/wq.js"]');
+      var v = own && /[?&]v=([A-Za-z0-9_-]+)/.exec(own.getAttribute('src') || '');
+      var el = document.createElement('script');
+      el.src = '/wq/wq-finish-card.js' + (v ? '?v=' + v[1] : '');
+      el.onload = function () { if (window.WQFC && ROOT.getAttribute('data-m') === 'M10') card(); };
+      (document.head || document.body).appendChild(el);
+    } catch (e) {}
   }
   /* ---------------- the invite ask (app_settings web_quiz_invite_ask) ---------------- */
   // a1 = the "who can beat your score?" panel, a0 = today's button; null = the switch is off, or this is a friend's own
