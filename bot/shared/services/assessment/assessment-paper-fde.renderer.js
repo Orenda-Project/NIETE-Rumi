@@ -820,10 +820,15 @@ const BOOK_SOURCE = {
   diagram: { en: "the book's diagram", ur: 'کتاب کا خاکہ' }, // ur: needs fluent-Urdu review
 };
 
-// Rows the scheme pass wrote in code (an answer with no points), counted in the box.
+// Rows the scheme pass wrote in code (an answer with no points), counted in the box,
+// in words a teacher acts on.
 const FILLED_BY_CODE = {
-  en: (n) => (n === 1 ? '1 row filled by code' : `${n} rows filled by code`),
-  ur: (n) => (n === 1 ? '1 قطار کوڈ نے بھری' : `${n} قطاریں کوڈ نے بھریں`), // needs fluent-Urdu review
+  en: (n) => (n === 1
+    ? '1 marking row was written from the answer. Check it before marking.'
+    : `${n} marking rows were written from the answer. Check them before marking.`),
+  ur: (n) => (n === 1 // needs fluent-Urdu review
+    ? '1 مارکنگ قطار جواب سے لکھی گئی۔ نمبر دینے سے پہلے اسے جانچ لیں۔'
+    : `${n} مارکنگ قطاریں جواب سے لکھی گئیں۔ نمبر دینے سے پہلے انہیں جانچ لیں۔`),
 };
 
 // `item` is the index in the model's own type list (seen/unseen → category →
